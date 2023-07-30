@@ -272,9 +272,6 @@ namespace GUI.Types.Renderer
                     return;
                 }
 
-                var title = Program.MainForm.Text;
-                Program.MainForm.Text = "VRF - Reloading shaders…";
-
                 reloadStopWatch.Restart();
 
                 if (errorReloadingPage.BoundDialog != null)
@@ -307,7 +304,6 @@ namespace GUI.Types.Renderer
                     lastReload = DateTime.Now;
                     reloadSemaphore.Release();
                     reloadStopWatch.Stop();
-                    Program.MainForm.Text = title;
                     Console.WriteLine($"Shader reload time: {reloadStopWatch.Elapsed}, number of variants: {GuiContext.ShaderLoader.ShaderCount}");
                 }
 
@@ -426,21 +422,31 @@ namespace GUI.Types.Renderer
 
         private void SetRenderMode(string renderMode)
         {
-            Camera?.Picker.SetRenderMode(renderMode);
-            Scene.Sky?.SetRenderMode(renderMode);
-            selectedNodeRenderer.SetRenderMode(renderMode);
+            var title = Program.MainForm.Text;
+            Program.MainForm.Text = "VRF - Reloading shaders…";
 
-            foreach (var node in Scene.AllNodes)
+            try
             {
-                node.SetRenderMode(renderMode);
-            }
+                Camera?.Picker.SetRenderMode(renderMode);
+                Scene.Sky?.SetRenderMode(renderMode);
+                selectedNodeRenderer.SetRenderMode(renderMode);
 
-            if (SkyboxScene != null)
-            {
-                foreach (var node in SkyboxScene.AllNodes)
+                foreach (var node in Scene.AllNodes)
                 {
                     node.SetRenderMode(renderMode);
                 }
+
+                if (SkyboxScene != null)
+                {
+                    foreach (var node in SkyboxScene.AllNodes)
+                    {
+                        node.SetRenderMode(renderMode);
+                    }
+                }
+            }
+            finally
+            {
+                Program.MainForm.Text = title;
             }
         }
     }
