@@ -529,20 +529,19 @@ namespace GUI.Types.Renderer
                     scene.GlobalLightColor = new Vector4(colorNormalized, brightness);
                 }
 
-                var objColor = Vector4.One;
-
-                // Parse colour if present
-                var colour = entity.GetProperty("rendercolor");
-
-                // HL Alyx has an entity that puts rendercolor as a string instead of color255
-                if (colour != default && colour.Type == EntityFieldType.Color32)
+                var rendercolor = entity.GetProperty("rendercolor");
+                var renderamt = entity.GetProperty("renderamt")?.Data switch
                 {
-                    var colourBytes = (byte[])colour.Data;
-                    objColor.X = colourBytes[0] / 255.0f;
-                    objColor.Y = colourBytes[1] / 255.0f;
-                    objColor.Z = colourBytes[2] / 255.0f;
-                    objColor.W = colourBytes[3] / 255.0f;
-                }
+                    float f => f,
+                    _ => 1.0f,
+                };
+
+                var tint = rendercolor?.Data switch
+                {
+                    byte[] col32 when rendercolor.Type == EntityFieldType.Color32 => new Vector4(col32[0], col32[1], col32[2], col32[3]) / 255.0f,
+                    Vector3 vec3 => new Vector4(vec3 / 255.0f, renderamt),
+                    _ => Vector4.One,
+                };
 
                 if (model == null)
                 {
@@ -575,7 +574,7 @@ namespace GUI.Types.Renderer
                 var modelNode = new ModelSceneNode(scene, newModel, skin, false)
                 {
                     Transform = transformationMatrix,
-                    Tint = objColor,
+                    Tint = tint,
                     LayerName = layerName,
                     Name = model,
                     EntityData = entity,
