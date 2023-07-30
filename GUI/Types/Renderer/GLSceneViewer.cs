@@ -126,7 +126,7 @@ namespace GUI.Types.Renderer
 
         protected abstract void OnPicked(object sender, PickingTexture.PickingResponse pixelInfo);
 
-        private void OnLoad(object sender, EventArgs e)
+        protected virtual void OnLoad(object sender, EventArgs e)
         {
             baseGrid = new ParticleGrid(20, 5, GuiContext);
             selectedNodeRenderer = new(Scene);

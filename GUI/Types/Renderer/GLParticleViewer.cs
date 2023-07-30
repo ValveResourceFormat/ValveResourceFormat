@@ -1,3 +1,4 @@
+using System;
 using System.Numerics;
 using GUI.Controls;
 using GUI.Utils;
@@ -38,6 +39,14 @@ namespace GUI.Types.Renderer
                 Transform = Matrix4x4.Identity
             };
             Scene.Add(particleSceneNode, true);
+        }
+
+        protected override void OnLoad(object sender, EventArgs e)
+        {
+            base.OnLoad(sender, e);
+
+            Camera.SetLocation(new Vector3(200, 200, 200));
+            Camera.LookAt(Vector3.Zero);
         }
 
         protected override void InitializeControl()
