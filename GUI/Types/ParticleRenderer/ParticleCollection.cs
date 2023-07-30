@@ -1,4 +1,7 @@
 using System;
+using System.Numerics;
+using GUI.Types.ParticleRenderer.Utils;
+using GUI.Utils;
 
 namespace GUI.Types.ParticleRenderer
 {
@@ -57,6 +60,34 @@ namespace GUI.Types.ParticleRenderer
         public void Clear()
         {
             Count = 0;
+        }
+
+        public static float RandomSingle(int particleId)
+        {
+            return RandomFloats.List[particleId % RandomFloats.List.Length]; // TODO: Add seed
+        }
+
+        public static float RandomBetween(int particleId, float min, float max)
+        {
+            return MathUtils.Lerp(RandomSingle(particleId), min, max);
+        }
+
+        public static Vector3 RandomBetween(int particleId, Vector3 min, Vector3 max)
+        {
+            return MathUtils.Lerp(RandomSingle(particleId), min, max);
+        }
+
+        public static Vector3 RandomBetweenPerComponent(int particleId, Vector3 min, Vector3 max)
+        {
+            return new Vector3(
+                RandomBetween(particleId, min.X, max.X),
+                RandomBetween(particleId, min.Y, max.Y),
+                RandomBetween(particleId, min.Z, max.Z));
+        }
+
+        public static float RandomWithExponentBetween(int particleId, float exponent, float min, float max)
+        {
+            return MathUtils.Lerp(MathF.Pow(RandomSingle(particleId), exponent), min, max);
         }
 
         private void MoveParticleIndex(int currentIndex, int newIndex)

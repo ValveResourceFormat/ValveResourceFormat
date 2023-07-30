@@ -1,3 +1,4 @@
+using System;
 using System.Numerics;
 using GUI.Utils;
 using ValveResourceFormat.Serialization;
@@ -37,7 +38,7 @@ namespace GUI.Types.ParticleRenderer.PreEmissionOperators
 
         private void GenerateNewPosition()
         {
-            currentPosition = MathUtils.RandomBetweenPerComponent(minPos, maxPos);
+            currentPosition = ParticleCollection.RandomBetweenPerComponent(Random.Shared.Next(), minPos, maxPos);
         }
         public void Operate(ref ParticleSystemRenderState particleSystemState, float frameTime)
         {

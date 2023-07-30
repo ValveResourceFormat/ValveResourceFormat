@@ -61,9 +61,8 @@ namespace GUI.Types.ParticleRenderer.Operators
                     particle.Position = newPos;
                 }
 
-                // TODO: Consistent rng
-                var startTime = MathUtils.RandomWithExponentBetween(startTimeExp, startTimeMin, startTimeMax);
-                var endTime = MathUtils.RandomWithExponentBetween(endTimeExp, endTimeMin, endTimeMax);
+                var startTime = ParticleCollection.RandomWithExponentBetween(particle.ParticleID, startTimeExp, startTimeMin, startTimeMax);
+                var endTime = ParticleCollection.RandomWithExponentBetween(particle.ParticleID, endTimeExp, endTimeMin, endTimeMax);
 
                 if (particle.Age < startTime || particle.Age > endTime)
                 {

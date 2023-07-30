@@ -10,7 +10,7 @@ namespace GUI.Types.ParticleRenderer
         public static Particle @default;
         public static ref Particle Default => ref @default;
 
-        public int ParticleCount { get; set; } // starts at 0
+        public int ParticleID { get; set; } // starts at 0
 
         // Varying properties (read from initializers but then change afterwards)
         public Vector3 Position { get; set; } = Vector3.Zero;

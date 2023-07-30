@@ -1,6 +1,6 @@
+using System;
 using System.Numerics;
 using GUI.Utils;
-using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.PreEmissionOperators
 {
@@ -15,7 +15,7 @@ namespace GUI.Types.ParticleRenderer.PreEmissionOperators
             var rateMin = parse.Vector3("m_vecRateMin", Vector3.Zero);
             var rateMax = parse.Vector3("m_vecRateMax", Vector3.Zero);
 
-            rampRate = MathUtils.RandomBetweenPerComponent(rateMin, rateMax);
+            rampRate = ParticleCollection.RandomBetweenPerComponent(Random.Shared.Next(), rateMin, rateMax);
         }
 
         public void Operate(ref ParticleSystemRenderState particleSystemState, float frameTime)

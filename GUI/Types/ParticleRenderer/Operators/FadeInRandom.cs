@@ -22,8 +22,7 @@ namespace GUI.Types.ParticleRenderer.Operators
         {
             foreach (ref var particle in particles.Current)
             {
-                // TODO: Consistent rng
-                var fadeInTime = MathUtils.RandomWithExponentBetween(randomExponent, fadeInTimeMin, fadeInTimeMax);
+                var fadeInTime = ParticleCollection.RandomWithExponentBetween(particle.ParticleID, randomExponent, fadeInTimeMin, fadeInTimeMax);
 
                 var time = proportional
                     ? particle.NormalizedAge

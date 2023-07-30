@@ -34,7 +34,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
                 // I think it depends on the speed of the control point, which we don't track.
                 return particle;
             }
-            var particleCount = Math.Clamp(particle.ParticleCount, inputMin, inputMax);
+            var particleCount = Math.Clamp(particle.ParticleID, inputMin, inputMax);
 
             var output = MathUtils.RemapRange(particleCount, inputMin, inputMax, outputMin, outputMax);
 

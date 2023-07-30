@@ -196,7 +196,7 @@ namespace GUI.Types.ParticleRenderer
     {
         private readonly AttributeMapping attributeMapping;
         public PerParticleCountNumberProvider(IKeyValueCollection keyValues) { attributeMapping = new AttributeMapping(keyValues); }
-        public float NextNumber(ref Particle particle, ParticleSystemRenderState renderState) => attributeMapping.ApplyMapping(particle.ParticleCount);
+        public float NextNumber(ref Particle particle, ParticleSystemRenderState renderState) => attributeMapping.ApplyMapping(particle.ParticleID);
     }
 
     // Particle Count Percent of Total Count (0-1)
@@ -206,7 +206,7 @@ namespace GUI.Types.ParticleRenderer
         public PerParticleCountNormalizedNumberProvider(IKeyValueCollection keyValues) { attributeMapping = new AttributeMapping(keyValues); }
         public float NextNumber(ref Particle particle, ParticleSystemRenderState renderState)
         {
-            return attributeMapping.ApplyMapping(particle.ParticleCount) / Math.Max(renderState.ParticleCount, 1);
+            return attributeMapping.ApplyMapping(particle.ParticleID) / Math.Max(renderState.ParticleCount, 1);
         }
     }
 

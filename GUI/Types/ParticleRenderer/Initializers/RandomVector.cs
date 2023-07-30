@@ -20,7 +20,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
 
         public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
-            var newVector = MathUtils.RandomBetweenPerComponent(Min, Max);
+            var newVector = ParticleCollection.RandomBetweenPerComponent(particle.ParticleID, Min, Max);
 
             particle.SetVector(FieldOutput, newVector);
 

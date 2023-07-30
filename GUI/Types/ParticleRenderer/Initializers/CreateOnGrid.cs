@@ -96,7 +96,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
             totalCount -= hollowSize;
 
 
-            var relativeCount = particle.ParticleCount % totalCount;
+            var relativeCount = particle.ParticleID % totalCount;
 
             var position = new Vector3();
             var found = false;

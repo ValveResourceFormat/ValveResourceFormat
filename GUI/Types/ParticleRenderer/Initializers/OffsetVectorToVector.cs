@@ -23,7 +23,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
         {
             var input = particle.GetVector(FieldInput);
 
-            var offset = MathUtils.RandomBetweenPerComponent(OutputMin, OutputMax);
+            var offset = ParticleCollection.RandomBetweenPerComponent(particle.ParticleID, OutputMin, OutputMax);
 
             particle.SetVector(FieldOutput, input + offset);
 

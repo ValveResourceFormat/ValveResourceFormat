@@ -29,7 +29,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
             var speedmin = speedMin.NextNumber(ref particle, particleSystemState);
             var speedmax = speedMax.NextNumber(ref particle, particleSystemState);
 
-            var speed = Math.Max(1.0f, MathUtils.RandomBetween(speedmin, speedmax));
+            var speed = Math.Max(1.0f, ParticleCollection.RandomBetween(particle.ParticleID, speedmin, speedmax));
 
             if (ignoreDelta)
             {

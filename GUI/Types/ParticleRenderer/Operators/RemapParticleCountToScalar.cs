@@ -33,12 +33,12 @@ namespace GUI.Types.ParticleRenderer.Operators
                 var inputMin = this.inputMin.NextNumber(ref particle, particleSystemState);
                 var inputMax = this.inputMax.NextNumber(ref particle, particleSystemState);
 
-                if (activeRange && (particle.ParticleCount < inputMin || particle.ParticleCount > inputMax))
+                if (activeRange && (particle.ParticleID < inputMin || particle.ParticleID > inputMax))
                 {
                     continue;
                 }
 
-                var remappedDistance = MathUtils.Remap(particle.ParticleCount, inputMin, inputMax);
+                var remappedDistance = MathUtils.Remap(particle.ParticleID, inputMin, inputMax);
 
                 remappedDistance = MathUtils.Saturate(remappedDistance);
 

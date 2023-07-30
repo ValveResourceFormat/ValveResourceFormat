@@ -26,12 +26,12 @@ namespace GUI.Types.ParticleRenderer.Initializers
             var speedmin = speedMin.NextNumber(ref particle, particleSystemState);
             var speedmax = speedMax.NextNumber(ref particle, particleSystemState);
 
-            var speed = Math.Max(1.0f, MathUtils.RandomBetween(speedmin, speedmax));
+            var speed = Math.Max(1.0f, ParticleCollection.RandomBetween(particle.ParticleID, speedmin, speedmax));
 
             var vecMin = vectorMin.NextVector(ref particle, particleSystemState);
             var vecMax = vectorMax.NextVector(ref particle, particleSystemState);
 
-            var velocity = MathUtils.RandomBetweenPerComponent(vecMin, vecMax);
+            var velocity = ParticleCollection.RandomBetweenPerComponent(particle.ParticleID, vecMin, vecMax);
 
             particle.Velocity = velocity * speed;
 

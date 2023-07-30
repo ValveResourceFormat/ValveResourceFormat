@@ -25,7 +25,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
             var posMin = min.NextVector(ref particle, particleSystemState);
             var posMax = max.NextVector(ref particle, particleSystemState);
 
-            var position = MathUtils.RandomBetweenPerComponent(posMin, posMax);
+            var position = ParticleCollection.RandomBetweenPerComponent(particle.ParticleID, posMin, posMax);
 
             var offset = particleSystemState.GetControlPoint(controlPointNumber).Position;
 

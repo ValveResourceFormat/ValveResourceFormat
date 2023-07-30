@@ -21,7 +21,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
 
         public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
-            var value = MathUtils.RandomWithExponentBetween(exponent, scalarMin, scalarMax);
+            var value = ParticleCollection.RandomWithExponentBetween(particle.ParticleID, exponent, scalarMin, scalarMax);
 
             particle.SetScalar(FieldOutput, value);
 

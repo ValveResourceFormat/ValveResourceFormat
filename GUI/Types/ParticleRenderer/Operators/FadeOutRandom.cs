@@ -39,8 +39,7 @@ namespace GUI.Types.ParticleRenderer.Operators
 
                 if (fadeOutTimeMin != fadeOutTimeMax)
                 {
-                    // TODO: Consistent rng
-                    fadeOutTime = MathUtils.RandomWithExponentBetween(randomExponent, fadeOutTimeMin, fadeOutTimeMax);
+                    fadeOutTime = ParticleCollection.RandomWithExponentBetween(particle.ParticleID, randomExponent, fadeOutTimeMin, fadeOutTimeMax);
                 }
 
                 var timeLeft = proportional

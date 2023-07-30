@@ -26,7 +26,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
 
         public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
-            var degrees = degreesOffset + MathUtils.RandomWithExponentBetween(randomExponent, degreesMin, degreesMax);
+            var degrees = degreesOffset + ParticleCollection.RandomWithExponentBetween(particle.ParticleID, randomExponent, degreesMin, degreesMax);
             if (randomlyFlipDirection && Random.Shared.NextSingle() > 0.5f)
             {
                 degrees *= -1;

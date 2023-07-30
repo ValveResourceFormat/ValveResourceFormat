@@ -25,20 +25,23 @@ namespace GUI.Types.ParticleRenderer.Initializers
 
         public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
-            var randomVector = MathUtils.RandomBetweenPerComponent(new Vector3(-1), new Vector3(1));
+            var randomVector = ParticleCollection.RandomBetweenPerComponent(particle.ParticleID, new Vector3(-1), new Vector3(1));
 
             // Normalize
             var direction = Vector3.Normalize(randomVector);
 
-            var distance = MathUtils.RandomBetween(
+            var distance = ParticleCollection.RandomBetween(
+                particle.ParticleID,
                 radiusMin.NextNumber(ref particle, particleSystemState),
                 radiusMax.NextNumber(ref particle, particleSystemState));
 
-            var speed = MathUtils.RandomBetween(
+            var speed = ParticleCollection.RandomBetween(
+                particle.ParticleID,
                 speedMin.NextNumber(ref particle, particleSystemState),
                 speedMax.NextNumber(ref particle, particleSystemState));
 
-            var localCoordinateSystemSpeed = MathUtils.RandomBetweenPerComponent(
+            var localCoordinateSystemSpeed = ParticleCollection.RandomBetweenPerComponent(
+                particle.ParticleID,
                 localCoordinateSystemSpeedMin.NextVector(ref particle, particleSystemState),
                 localCoordinateSystemSpeedMax.NextVector(ref particle, particleSystemState));
 

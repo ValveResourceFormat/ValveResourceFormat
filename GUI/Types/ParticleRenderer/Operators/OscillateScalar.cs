@@ -40,9 +40,8 @@ namespace GUI.Types.ParticleRenderer.Operators
             // Update remaining particles
             foreach (ref var particle in particles.Current)
             {
-                // TODO: Consistent rng
-                var rate = MathUtils.RandomBetween(rateMin, rateMax);
-                var frequency = MathUtils.RandomBetween(frequencyMin, frequencyMax);
+                var rate = ParticleCollection.RandomBetween(particle.ParticleID, rateMin, rateMax);
+                var frequency = ParticleCollection.RandomBetween(particle.ParticleID, frequencyMin, frequencyMax);
 
                 var t = proportional
                     ? particle.NormalizedAge

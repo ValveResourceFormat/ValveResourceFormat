@@ -28,7 +28,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
 
         public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
-            particle.Color = MathUtils.RandomBetween(colorMin, colorMax);
+            particle.Color = ParticleCollection.RandomBetween(particle.ParticleID, colorMin, colorMax);
 
             return particle;
         }

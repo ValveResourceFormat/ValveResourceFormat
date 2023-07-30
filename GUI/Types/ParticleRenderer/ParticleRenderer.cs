@@ -108,7 +108,7 @@ namespace GUI.Types.ParticleRenderer
                 return;
             }
 
-            particleCollection.Current[index].ParticleCount = particlesEmitted++;
+            particleCollection.Current[index].ParticleID = particlesEmitted++;
             systemRenderState.ParticleCount += 1;
             InitializeParticle(index);
         }

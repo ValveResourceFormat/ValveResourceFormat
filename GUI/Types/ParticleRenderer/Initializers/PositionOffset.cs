@@ -23,7 +23,8 @@ namespace GUI.Types.ParticleRenderer.Initializers
         public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
 
-            var offset = MathUtils.RandomBetweenPerComponent(
+            var offset = ParticleCollection.RandomBetweenPerComponent(
+                particle.ParticleID,
                 offsetMin.NextVector(ref particle, particleSystemState),
                 offsetMax.NextVector(ref particle, particleSystemState));
 

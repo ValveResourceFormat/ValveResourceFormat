@@ -16,7 +16,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
 
         public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
-            particle.TrailLength = MathUtils.RandomBetween(minLength, maxLength);
+            particle.TrailLength = ParticleCollection.RandomBetween(particle.ParticleID, minLength, maxLength);
 
             return particle;
         }

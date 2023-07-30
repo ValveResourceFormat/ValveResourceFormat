@@ -40,8 +40,8 @@ namespace GUI.Types.ParticleRenderer.Operators
             {
                 // TODO: Consistent rng
                 var newColor = easeInOut
-                    ? MathUtils.RandomBetweenPerComponent(colorFadeMin, colorFadeMax)
-                    : MathUtils.RandomBetween(colorFadeMin, colorFadeMax);
+                    ? ParticleCollection.RandomBetweenPerComponent(particle.ParticleID, colorFadeMin, colorFadeMax)
+                    : ParticleCollection.RandomBetween(particle.ParticleID, colorFadeMin, colorFadeMax);
 
                 var time = particle.NormalizedAge;
 

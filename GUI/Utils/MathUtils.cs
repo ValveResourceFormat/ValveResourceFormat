@@ -44,26 +44,6 @@ namespace GUI.Utils
             return Lerp(Remap(x, inputMin, inputMax), outputMin, outputMax);
         }
 
-        public static float RandomBetween(float min, float max)
-        {
-            return Lerp(Random.Shared.NextSingle(), min, max);
-        }
-        public static Vector3 RandomBetween(Vector3 min, Vector3 max)
-        {
-            return Lerp(Random.Shared.NextSingle(), min, max);
-        }
-        public static Vector3 RandomBetweenPerComponent(Vector3 min, Vector3 max)
-        {
-            return new Vector3(
-                RandomBetween(min.X, max.X),
-                RandomBetween(min.Y, max.Y),
-                RandomBetween(min.Z, max.Z));
-        }
-        public static float RandomWithExponentBetween(float exponent, float min, float max)
-        {
-            return Lerp(MathF.Pow(Random.Shared.NextSingle(), exponent), min, max);
-        }
-
         public static void MinMaxFixUp<T>(ref T min, ref T max) where T : INumber<T>
         {
             if (min > max)

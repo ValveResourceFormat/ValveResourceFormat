@@ -142,7 +142,7 @@ namespace GUI.Types.ParticleRenderer
             {
                 ParticleField.SequenceNumber => particle.Sequence,
                 ParticleField.SecondSequenceNumber => particle.Sequence2,
-                ParticleField.ParticleId => particle.ParticleCount, // dangerous to set, right?
+                ParticleField.ParticleId => particle.ParticleID, // dangerous to set, right?
                 _ => 0,
             };
         }

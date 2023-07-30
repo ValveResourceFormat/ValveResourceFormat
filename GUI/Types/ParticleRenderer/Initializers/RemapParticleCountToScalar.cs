@@ -43,8 +43,8 @@ namespace GUI.Types.ParticleRenderer.Initializers
         {
             // system state currently doesn't track total count, so we can't access that yet
             var count = invert
-                ? particleSystemState.ParticleCount - particle.ParticleCount
-                : particle.ParticleCount;
+                ? particleSystemState.ParticleCount - particle.ParticleID
+                : particle.ParticleID;
 
             var remappedRange = MathUtils.Remap(count, InputMin, InputMax);
 

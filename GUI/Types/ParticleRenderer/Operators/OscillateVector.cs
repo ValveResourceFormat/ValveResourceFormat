@@ -52,9 +52,8 @@ namespace GUI.Types.ParticleRenderer.Operators
             // Update remaining particles
             foreach (ref var particle in particles.Current)
             {
-                // TODO: Consistent rng
-                var rate = MathUtils.RandomBetweenPerComponent(RateMin, RateMax);
-                var frequency = MathUtils.RandomBetweenPerComponent(FrequencyMin, FrequencyMax);
+                var rate = ParticleCollection.RandomBetweenPerComponent(particle.ParticleID, RateMin, RateMax);
+                var frequency = ParticleCollection.RandomBetweenPerComponent(particle.ParticleID, FrequencyMin, FrequencyMax);
 
                 var t = proportional
                     ? particle.NormalizedAge
@@ -62,9 +61,8 @@ namespace GUI.Types.ParticleRenderer.Operators
 
                 if (particleSystemState.BehaviorVersion == 10)
                 {
-                    // TODO: Consistent rng
-                    var startTime = MathUtils.RandomBetween(startTimeMin, startTimeMax);
-                    var endTime = MathUtils.RandomBetween(endTimeMin, endTimeMax);
+                    var startTime = ParticleCollection.RandomBetween(particle.ParticleID, startTimeMin, startTimeMax);
+                    var endTime = ParticleCollection.RandomBetween(particle.ParticleID, endTimeMin, endTimeMax);
 
                     if (t < startTime)
                     {

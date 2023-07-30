@@ -17,7 +17,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
 
         public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
-            var lifetime = MathUtils.RandomWithExponentBetween(lifetimeRandomExponent, lifetimeMin, lifetimeMax);
+            var lifetime = ParticleCollection.RandomWithExponentBetween(particle.ParticleID, lifetimeRandomExponent, lifetimeMin, lifetimeMax);
 
             particle.Lifetime = lifetime;
 
