@@ -188,7 +188,7 @@ namespace GUI.Types.Renderer
             GuiContext.ClearCache();
         }
 
-        private void OnPaint(object sender, RenderEventArgs e)
+        protected virtual void OnPaint(object sender, RenderEventArgs e)
         {
             Scene.MainCamera = e.Camera;
             Scene.Update(e.FrameTime);

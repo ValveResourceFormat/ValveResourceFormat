@@ -159,17 +159,8 @@ namespace GUI.Types.Viewers
                         break;
                     }
 
-                    var materialViewerControl = new GLMaterialViewer(vrfGuiContext, resource, resTabs);
-
-                    materialViewerControl.GLLoad += (_, __) =>
-                    {
-                        var materialRenderer = new MaterialRenderer(vrfGuiContext, resource);
-
-                        materialViewerControl.AddRenderer(materialRenderer);
-                    };
-
                     var materialRendererTab = new TabPage("MATERIAL");
-                    materialRendererTab.Controls.Add(materialViewerControl);
+                    materialRendererTab.Controls.Add(new GLMaterialViewer(vrfGuiContext, resource, resTabs));
                     resTabs.TabPages.Add(materialRendererTab);
 
                     break;

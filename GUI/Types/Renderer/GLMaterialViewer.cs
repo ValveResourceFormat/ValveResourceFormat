@@ -1,14 +1,9 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Windows.Forms;
-using GUI.Controls;
 using GUI.Types.Viewers;
 using GUI.Utils;
-using ValveResourceFormat;
 using ValveResourceFormat.IO.ShaderDataProvider;
 using ValveResourceFormat.ResourceTypes;
-using static System.Windows.Forms.TabControl;
 
 namespace GUI.Types.Renderer
 {
@@ -16,51 +11,28 @@ namespace GUI.Types.Renderer
     /// GL Render control with material controls (render modes maybe at some point?).
     /// Renders a list of MatarialRenderers.
     /// </summary>
-    class GLMaterialViewer : GLViewerControl, IGLViewer
+    class GLMaterialViewer : GLSceneViewer
     {
-        private ICollection<MaterialRenderer> Renderers { get; } = new HashSet<MaterialRenderer>();
-        private readonly VrfGuiContext GuiContext;
         private readonly ValveResourceFormat.Resource Resource;
         private readonly TabControl Tabs;
+        private MaterialRenderer Renderer;
 
-        public GLMaterialViewer(VrfGuiContext guiContext, ValveResourceFormat.Resource resource, TabControl tabs) : base()
+        public GLMaterialViewer(VrfGuiContext guiContext, ValveResourceFormat.Resource resource, TabControl tabs) : base(guiContext, Frustum.CreateEmpty())
         {
-            GuiContext = guiContext;
             Resource = resource;
             Tabs = tabs;
-
-            AddShaderButton();
-
-            GLLoad += OnLoad;
+            ShowBaseGrid = false;
         }
 
-        protected override void Dispose(bool disposing)
+        protected override void LoadScene()
         {
-            if (disposing)
-            {
-                GLPaint -= OnPaint;
-            }
-
-            base.Dispose(disposing);
+            Renderer = new MaterialRenderer(Scene, Resource);
+            Scene.Add(Renderer, false);
         }
 
-        private void OnLoad(object sender, EventArgs e)
+        protected override void OnPaint(object sender, RenderEventArgs e)
         {
-            GLLoad -= OnLoad;
-            GLPaint += OnPaint;
-        }
-
-        private void OnPaint(object sender, RenderEventArgs e)
-        {
-            foreach (var renderer in Renderers)
-            {
-                renderer.Render(e.Camera, RenderPass.Both);
-            }
-        }
-
-        public void AddRenderer(MaterialRenderer renderer)
-        {
-            Renderers.Add(renderer);
+            Renderer.Render(new Scene.RenderContext());
         }
 
         private void OnShadersButtonClick(object s, EventArgs e)
@@ -102,6 +74,17 @@ namespace GUI.Types.Renderer
             button.Click += OnShadersButtonClick;
 
             AddControl(button);
+        }
+
+        protected override void InitializeControl()
+        {
+            //AddRenderModeSelectionControl();
+            AddShaderButton();
+        }
+
+        protected override void OnPicked(object sender, PickingTexture.PickingResponse pixelInfo)
+        {
+            //
         }
     }
 }

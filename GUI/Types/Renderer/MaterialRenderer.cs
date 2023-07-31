@@ -2,25 +2,24 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
-using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat;
 
 namespace GUI.Types.Renderer
 {
-    class MaterialRenderer : IRenderer
+    class MaterialRenderer : SceneNode
     {
-        private readonly RenderMaterial material;
-        private readonly Shader shader;
+        private RenderMaterial material;
+        private Resource resource;
         private readonly int quadVao;
 
-        public AABB BoundingBox => new(-1, -1, -1, 1, 1, 1);
-
-        public MaterialRenderer(VrfGuiContext vrfGuiContext, Resource resource)
+        public MaterialRenderer(Scene scene, Resource resource) : base(scene)
         {
-            material = vrfGuiContext.MaterialLoader.LoadMaterial(resource);
-            shader = material.Shader;
-            quadVao = SetupSquareQuadBuffer(shader);
+            this.resource = resource;
+            material = scene.GuiContext.MaterialLoader.LoadMaterial(resource);
+            quadVao = SetupSquareQuadBuffer(material.Shader);
+            Transform = Matrix4x4.Identity;
+            LocalBoundingBox = new AABB(-Vector3.One, Vector3.One);
         }
 
         public static int SetupSquareQuadBuffer(Shader shader)
@@ -78,8 +77,10 @@ namespace GUI.Types.Renderer
             return vao;
         }
 
-        public void Render(Camera camera, RenderPass renderPass)
+        public override void Render(Scene.RenderContext context)
         {
+            var shader = material.Shader;
+
             GL.UseProgram(shader.Program);
             GL.BindVertexArray(quadVao);
             GL.EnableVertexAttribArray(0);
@@ -99,9 +100,16 @@ namespace GUI.Types.Renderer
             GL.BindVertexArray(0);
         }
 
-        public void Update(float frameTime)
+        public override void Update(Scene.UpdateContext context)
         {
-            throw new NotImplementedException();
+            //
         }
+
+        public override void SetRenderMode(string mode)
+        {
+            material = Scene.GuiContext.MaterialLoader.LoadMaterial(resource);
+        }
+
+        public override IEnumerable<string> GetSupportedRenderModes() => material.Shader.RenderModes;
     }
 }
