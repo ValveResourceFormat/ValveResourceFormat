@@ -11,8 +11,7 @@ namespace GUI.Types.ParticleRenderer
     {
         public static readonly ParticleSystemRenderState Default = new();
 
-        public int BehaviorVersion { get; init; }
-        public int MaxParticles { get; init; }
+        public ParticleRenderer Data { get; init; }
 
         // Properties
         public long ParticleCount { get; set; }
@@ -27,16 +26,6 @@ namespace GUI.Types.ParticleRenderer
         // This can be set by PlayEndCapWhenFinished and StopAfterDuration
         public bool PlayEndCap { get; private set; }
 
-        private ParticleSystemRenderState()
-        {
-        }
-
-        public ParticleSystemRenderState(ParticleDefinitionParser parse)
-        {
-            BehaviorVersion = parse.Int32("m_nBehaviorVersion", 13);
-            MaxParticles = parse.Int32("m_nMaxParticles", 1000);
-        }
-
         public void SetStopTime(float duration, bool destroyInstantly)
         {
             EndEarly = true;
@@ -46,19 +35,22 @@ namespace GUI.Types.ParticleRenderer
 
         // Control Points
 
-        private readonly Dictionary<int, ControlPoint> controlPoints = new(32);
+        private readonly Dictionary<int, ControlPoint> controlPoints = new(64);
 
         public ControlPoint GetControlPoint(int cp)
-            => controlPoints.TryGetValue(cp, out var value)
-            ? value
-            : new ControlPoint();
-
-        private void EnsureControlPointExists(int cp)
         {
-            if (!controlPoints.TryGetValue(cp, out var value))
+            if (!controlPoints.TryGetValue(cp, out var point))
             {
-                controlPoints[cp] = new ControlPoint();
+                point = new ControlPoint();
+                SetControlPoint(cp, point);
             }
+
+            return point;
+        }
+
+        public void SetControlPoint(int cp, ControlPoint point)
+        {
+            controlPoints[cp] = point;
         }
 
         /// <summary>
@@ -68,16 +60,12 @@ namespace GUI.Types.ParticleRenderer
         /// <param name="position"></param>
         public void SetControlPointValue(int cp, Vector3 position)
         {
-            EnsureControlPointExists(cp);
-
-            controlPoints[cp].Position = position;
+            GetControlPoint(cp).Position = position;
         }
 
         public void SetControlPointValueComponent(int cp, int component, float value)
         {
-            EnsureControlPointExists(cp);
-
-            controlPoints[cp].SetComponent(component, value);
+            GetControlPoint(cp).SetComponent(component, value);
         }
 
         /// <summary>
@@ -87,9 +75,7 @@ namespace GUI.Types.ParticleRenderer
         /// <param name="orientation"></param>
         public void SetControlPointOrientation(int cp, Vector3 orientation)
         {
-            EnsureControlPointExists(cp);
-
-            controlPoints[cp].Orientation = orientation;
+            GetControlPoint(cp).Orientation = orientation;
         }
     }
 
@@ -99,8 +85,10 @@ namespace GUI.Types.ParticleRenderer
     /// </summary>
     class ControlPoint
     {
-        public Vector3 Position { get; set; } = Vector3.Zero;
-        public Vector3 Orientation { get; set; } = Vector3.Zero;
+        public Vector3 Position { get; set; }
+        public Vector3 Orientation { get; set; }
+
+        public ParticleAttachment AttachType { get; set; }
 
         public void SetComponent(int component, float value)
         {

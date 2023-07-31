@@ -9,20 +9,20 @@ namespace GUI.Types.ParticleRenderer
     {
         public const int MAX_PARTICLES = 5000;
 
-        public Particle Constants { get; }
         public Span<Particle> Initial => new(initial, 0, Count);
         public Span<Particle> Current => new(current, 0, Count);
 
+        public Particle Constants { get; }
         private Particle[] initial;
         private Particle[] current;
 
         public int Capacity { get; }
         public int Count { get; private set; }
 
-        public ParticleCollection(Particle constants, int initialCapacity)
+        public ParticleCollection(Particle constants, int maxParticles)
         {
             Constants = constants;
-            Capacity = initialCapacity == 0 ? MAX_PARTICLES : Math.Min(initialCapacity, MAX_PARTICLES);
+            Capacity = maxParticles == 0 ? MAX_PARTICLES : Math.Min(maxParticles, MAX_PARTICLES);
 
             initial = new Particle[Capacity];
             Array.Fill(initial, constants);

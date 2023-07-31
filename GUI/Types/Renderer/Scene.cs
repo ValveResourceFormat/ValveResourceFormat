@@ -8,7 +8,7 @@ namespace GUI.Types.Renderer
 {
     class Scene
     {
-        public class UpdateContext
+        public readonly struct UpdateContext
         {
             public float Timestep { get; }
 

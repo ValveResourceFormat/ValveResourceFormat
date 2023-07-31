@@ -192,6 +192,7 @@ namespace GUI.Types.Renderer
         {
             Scene.MainCamera = e.Camera;
             Scene.Update(e.FrameTime);
+            selectedNodeRenderer.Update(new Scene.UpdateContext(e.FrameTime));
 
             GL.Enable(EnableCap.CullFace);
 

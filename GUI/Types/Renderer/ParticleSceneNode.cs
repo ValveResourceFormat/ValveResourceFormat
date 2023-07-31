@@ -17,8 +17,9 @@ namespace GUI.Types.Renderer
 
         public override void Update(Scene.UpdateContext context)
         {
-            particleRenderer.Position = Transform.Translation;
+            particleRenderer.MainControlPoint.Position = Transform.Translation;
             particleRenderer.Update(context.Timestep * FrametimeMultiplier);
+            LocalBoundingBox = particleRenderer.LocalBoundingBox;
 
             // Restart if all emitters are done and all particles expired
             if (particleRenderer.IsFinished())

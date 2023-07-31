@@ -25,19 +25,29 @@ namespace GUI.Types.ParticleRenderer
 
         public IEnumerable<ParticleFunctionRenderer> Renderers { get; private set; } = new List<ParticleFunctionRenderer>();
 
-        public AABB LocalBoundingBox { get; private set; }
+        public AABB LocalBoundingBox { get; private set; } = new AABB(new Vector3(float.MinValue), new Vector3(float.MaxValue));
 
-        public Vector3 Position
+        public int BehaviorVersion { get; private set; }
+
+        public int InitialParticles { get; init; }
+        public int MaxParticles { get; init; }
+
+        /// <summary>
+        /// The particle bounds to use when calculating the bounding box of the particle system.
+        /// This is added over the particle's radius value.
+        /// </summary>
+        private AABB ParticleBoundingBox { get; init; }
+
+        /// <summary>
+        /// Set to true to never cull this particle system.
+        /// </summary>
+        private bool InfiniteBounds { get; init; }
+
+
+        public ControlPoint MainControlPoint
         {
-            get => systemRenderState.GetControlPoint(0).Position;
-            set
-            {
-                systemRenderState.SetControlPointValue(0, value);
-                foreach (var child in childParticleRenderers)
-                {
-                    child.Position = value;
-                }
-            }
+            get => systemRenderState.GetControlPoint(0);
+            set => systemRenderState.SetControlPoint(0, value);
         }
 
         private readonly List<ParticleRenderer> childParticleRenderers;
@@ -53,15 +63,25 @@ namespace GUI.Types.ParticleRenderer
             childParticleRenderers = new List<ParticleRenderer>();
             this.vrfGuiContext = vrfGuiContext;
 
-            var parser = new ParticleDefinitionParser(particleSystem.Data);
-            ParseDefinition(parser);
+            var parse = new ParticleDefinitionParser(particleSystem.Data);
+            BehaviorVersion = parse.Int32("m_nBehaviorVersion", 13);
+            InitialParticles = parse.Int32("m_nInitialParticles", 0);
+            MaxParticles = parse.Int32("m_nMaxParticles", 1000);
 
-            systemRenderState = new ParticleSystemRenderState(parser)
+            InfiniteBounds = parse.Boolean("m_bInfiniteBounds", false);
+            ParticleBoundingBox = new AABB(
+                parse.Vector3("m_BoundingBoxMin", new Vector3(-10)),
+                parse.Vector3("m_BoundingBoxMax", new Vector3(10))
+            );
+
+            var constantAttributes = new Particle(particleSystem.Data);
+            particleCollection = new ParticleCollection(constantAttributes, MaxParticles);
+
+            systemRenderState = new ParticleSystemRenderState()
             {
+                Data = this,
                 EndEarly = false
             };
-
-            particleCollection = new ParticleCollection(new Particle(particleSystem.Data), systemRenderState.MaxParticles);
 
             SetupEmitters(particleSystem.GetEmitters());
             SetupInitializers(particleSystem.GetInitializers());
@@ -70,18 +90,17 @@ namespace GUI.Types.ParticleRenderer
             SetupPreEmissionOperators(particleSystem.GetPreEmissionOperators());
 
             SetupChildParticles(particleSystem.GetChildParticleNames(true));
-        }
 
-        private void ParseDefinition(ParticleDefinitionParser parser)
-        {
-            LocalBoundingBox = new AABB(
-                parser.Vector3("m_BoundingBoxMin", new Vector3(-10)),
-                parser.Vector3("m_BoundingBoxMax", new Vector3(10))
-            );
+            CalculateBounds();
         }
 
         public void Start()
         {
+            for (var i = 0; i < InitialParticles; ++i)
+            {
+                EmitParticle();
+            }
+
             foreach (var emitter in Emitters)
             {
                 emitter.Start(EmitParticle);
@@ -101,14 +120,15 @@ namespace GUI.Types.ParticleRenderer
                 return;
             }
 
-            if (systemRenderState.ParticleCount >= systemRenderState.MaxParticles)
+            if (systemRenderState.ParticleCount >= MaxParticles)
             {
                 return;
             }
 
             systemRenderState.ParticleCount += 1;
 
-            particleCollection.Initial[index].Position = systemRenderState.GetControlPoint(0).Position;
+            // TODO: Make particle positions and control points local space
+            particleCollection.Initial[index].Position = MainControlPoint.Position;
 
             foreach (var initializer in Initializers)
             {
@@ -198,8 +218,9 @@ namespace GUI.Types.ParticleRenderer
             foreach (var childParticleRenderer in childParticleRenderers)
             {
                 childParticleRenderer.Update(frameTime);
-                LocalBoundingBox = LocalBoundingBox.Union(childParticleRenderer.LocalBoundingBox);
             }
+
+            CalculateBounds();
 
             // TODO: Is this the correct place for this because child particle renderers also check this
             if (systemRenderState.EndEarly && systemRenderState.Age > systemRenderState.Duration)
@@ -263,6 +284,33 @@ namespace GUI.Types.ParticleRenderer
             {
                 childParticleRenderer.SetRenderMode(renderMode);
             }
+        }
+
+        private void CalculateBounds()
+        {
+            if (InfiniteBounds)
+            {
+                return;
+            }
+
+            var newBounds = new AABB();
+            var worldCenter = MainControlPoint.Position;
+            var additionalBounds = ParticleBoundingBox;
+
+            foreach (ref var particle in particleCollection.Current)
+            {
+                var pos = particle.Position - worldCenter;
+                var radius = new Vector3(particle.Radius);
+
+                newBounds = newBounds.Union(new AABB(pos - radius - additionalBounds.Min, pos + radius + additionalBounds.Max));
+            }
+
+            foreach (var childParticleRenderer in childParticleRenderers)
+            {
+                newBounds = newBounds.Union(childParticleRenderer.LocalBoundingBox);
+            }
+
+            LocalBoundingBox = newBounds;
         }
 
         private void SetupEmitters(IEnumerable<IKeyValueCollection> emitterData)
@@ -400,9 +448,11 @@ namespace GUI.Types.ParticleRenderer
                     continue;
                 }
 
-                var childSystem = (ParticleSystem)childResource.DataBlock;
+                var childSystemDefinition = (ParticleSystem)childResource.DataBlock;
+                var childSystem = new ParticleRenderer(childSystemDefinition, vrfGuiContext);
+                childSystem.MainControlPoint = MainControlPoint;
 
-                childParticleRenderers.Add(new ParticleRenderer(childSystem, vrfGuiContext));
+                childParticleRenderers.Add(childSystem);
             }
         }
 

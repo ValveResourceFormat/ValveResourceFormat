@@ -16,6 +16,8 @@ namespace GUI.Types.Renderer
         private ParticleSceneNode particleSceneNode;
         private GLViewerTrackBarControl slowmodeTrackBar;
 
+        private bool ShowRenderBounds { get; set; }
+
         public GLParticleViewer(VrfGuiContext guiContext, ParticleSystem particleSystem) : base(guiContext, Frustum.CreateEmpty())
         {
             this.particleSystem = particleSystem;
@@ -44,6 +46,7 @@ namespace GUI.Types.Renderer
         protected override void OnLoad(object sender, EventArgs e)
         {
             base.OnLoad(sender, e);
+            selectedNodeRenderer.UpdateEveryFrame = true;
 
             Camera.SetLocation(new Vector3(200, 200, 200));
             Camera.LookAt(Vector3.Zero);
@@ -61,6 +64,8 @@ namespace GUI.Types.Renderer
             slowmodeTrackBar.TrackBar.Minimum = 0;
             slowmodeTrackBar.TrackBar.Maximum = 100;
             slowmodeTrackBar.TrackBar.Value = 100;
+
+            AddCheckBox("Show render bounds", ShowRenderBounds, value => selectedNodeRenderer.SelectNode(value ? particleSceneNode : null));
         }
 
         protected override void OnPicked(object sender, PickingTexture.PickingResponse pixelInfo)

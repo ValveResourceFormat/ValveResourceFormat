@@ -14,6 +14,8 @@ namespace GUI.Types.Renderer
         private bool debugCubeMaps;
         private readonly List<SceneNode> selectedNodes = new(1);
 
+        public bool UpdateEveryFrame { get; set; }
+
         public SelectedNodeRenderer(Scene scene) : base(scene)
         {
             shader = scene.GuiContext.ShaderLoader.LoadShader("vrf.grid");
@@ -123,7 +125,10 @@ namespace GUI.Types.Renderer
 
         public override void Update(Scene.UpdateContext context)
         {
-
+            if (UpdateEveryFrame)
+            {
+                UpdateBuffer();
+            }
         }
 
         public override void Render(Scene.RenderContext context)
