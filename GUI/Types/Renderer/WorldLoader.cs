@@ -649,14 +649,18 @@ namespace GUI.Types.Renderer
             string filename = null;
             Resource resource = null;
 
-            foreach (var file in filenames)
+            if (filenames != null)
             {
-                filename = file;
-                resource = guiContext.LoadFileByAnyMeansNecessary(file + "_c");
-
-                if (resource != null)
+                foreach (var file in filenames)
                 {
-                    break;
+                    filename = file;
+
+                    resource = guiContext.LoadFileByAnyMeansNecessary(file + "_c");
+
+                    if (resource != null)
+                    {
+                        break;
+                    }
                 }
             }
 

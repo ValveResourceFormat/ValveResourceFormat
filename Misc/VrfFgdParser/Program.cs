@@ -110,9 +110,8 @@ void ParseFile(string file)
                 }
             }
 
-            if ((behaviour.Name == "studio" || behaviour.Name == "editormodel") && behaviour.Values.Count > 0)
+            if ((behaviour.Name == "studio" || behaviour.Name == "editormodel" || behaviour.Name == "model") && behaviour.Values.Count > 0)
             {
-                // TODO: get model property
                 value = behaviour.Values[0];
 
                 if (!value.StartsWith("models/", StringComparison.Ordinal))
