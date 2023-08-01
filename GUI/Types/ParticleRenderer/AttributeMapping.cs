@@ -43,9 +43,8 @@ namespace GUI.Types.ParticleRenderer
         private readonly PiecewiseCurve curve;
 
 
-        public AttributeMapping(IKeyValueCollection parameters)
+        public AttributeMapping(ParticleDefinitionParser parse)
         {
-            var parse = new ParticleDefinitionParser(parameters);
             MapType = parse.EnumNormalized<PfMapType>("m_nMapType");
             InputMode = parse.EnumNormalized<PfInputMode>("m_nInputMode", InputMode);
 
@@ -55,19 +54,19 @@ namespace GUI.Types.ParticleRenderer
                     break;
 
                 case PfMapType.Mult:
-                    multFactor = parameters.GetFloatProperty("m_flMultFactor");
+                    multFactor = parse.Float("m_flMultFactor");
                     break;
 
                 case PfMapType.Remap:
                 case PfMapType.RemapBiased:
-                    input0 = parameters.GetFloatProperty("m_flInput0");
-                    input1 = parameters.GetFloatProperty("m_flInput1");
-                    output0 = parameters.GetFloatProperty("m_flOutput0");
-                    output1 = parameters.GetFloatProperty("m_flOutput1");
+                    input0 = parse.Float("m_flInput0");
+                    input1 = parse.Float("m_flInput1");
+                    output0 = parse.Float("m_flOutput0");
+                    output1 = parse.Float("m_flOutput1");
                     break;
 
                 case PfMapType.Curve:
-                    var curveData = parameters.GetSubCollection("m_Curve");
+                    var curveData = parse.Data.GetSubCollection("m_Curve");
                     curve = new PiecewiseCurve(curveData, InputMode == PfInputMode.Looped);
                     break;
 
@@ -87,8 +86,8 @@ namespace GUI.Types.ParticleRenderer
 
             if (MapType == PfMapType.RemapBiased)
             {
-                biasType = parameters.GetEnumValue<ParticleFloatBiasType>("m_nBiasType");
-                biasParameter = parameters.GetFloatProperty("m_flBiasParameter");
+                biasType = parse.Enum<ParticleFloatBiasType>("m_nBiasType");
+                biasParameter = parse.Float("m_flBiasParameter");
             }
         }
 

@@ -58,44 +58,21 @@ namespace GUI.Types.ParticleRenderer
         public bool MarkedAsKilled { get; set; } = false;
         public int Index = 0;
 
-        public Particle(IKeyValueCollection baseProperties)
+        public Particle(ParticleDefinitionParser parse)
         {
-            if (baseProperties.ContainsKey("m_ConstantColor"))
+            if (parse.Data.ContainsKey("m_ConstantColor"))
             {
-                var vectorValues = baseProperties.GetIntegerArray("m_ConstantColor");
+                var vectorValues = parse.Data.GetIntegerArray("m_ConstantColor");
                 Color = new Vector3(vectorValues[0], vectorValues[1], vectorValues[2]) / 255f;
                 Alpha = vectorValues[3] / 255f; // presumably
             }
 
-            if (baseProperties.ContainsKey("m_flConstantRadius"))
-            {
-                Radius = baseProperties.GetFloatProperty("m_flConstantRadius");
-            }
-
-            if (baseProperties.ContainsKey("m_flConstantLifespan"))
-            {
-                Lifetime = baseProperties.GetFloatProperty("m_flConstantLifespan");
-            }
-
-            if (baseProperties.ContainsKey("m_flConstantRotation"))
-            {
-                Rotation = new Vector3(0.0f, 0.0f, baseProperties.GetFloatProperty("m_flConstantRotation"));
-            }
-
-            if (baseProperties.ContainsKey("m_flConstantRotationSpeed"))
-            {
-                RotationSpeed = new Vector3(0.0f, 0.0f, baseProperties.GetFloatProperty("m_flConstantRotationSpeed"));
-            }
-
-            if (baseProperties.ContainsKey("m_nConstantSequenceNumber"))
-            {
-                Sequence = baseProperties.GetInt32Property("m_nConstantSequenceNumber");
-            }
-
-            if (baseProperties.ContainsKey("m_nConstantSequenceNumber1"))
-            {
-                Sequence2 = baseProperties.GetInt32Property("m_nConstantSequenceNumber1");
-            }
+            Radius = parse.Float("m_flConstantRadius", Radius);
+            Lifetime = parse.Float("m_flConstantLifespan", Lifetime);
+            Rotation = Rotation with { Z = parse.Float("m_flConstantRotation", Rotation.Z) };
+            Rotation = Rotation with { Z = parse.Float("m_flConstantRotationSpeed", Rotation.Z) };
+            Sequence = parse.Int32("m_nConstantSequenceNumber", Sequence);
+            Sequence = parse.Int32("m_nConstantSequenceNumber1", Sequence);
         }
 
         public Matrix4x4 GetTransformationMatrix(float radiusScale = 1f)

@@ -14,12 +14,7 @@ namespace GUI.Types.ParticleRenderer.Operators
 
         public ColorInterpolate(ParticleDefinitionParser parse) : base(parse)
         {
-            if (parse.Data.ContainsKey("m_ColorFade"))
-            {
-                var vectorValues = parse.Data.GetIntegerArray("m_ColorFade");
-                colorFade = new Vector3(vectorValues[0], vectorValues[1], vectorValues[2]) / 255f;
-            }
-
+            colorFade = parse.Color24("m_ColorFade", colorFade);
             fadeStartTime = parse.Float("m_flFadeStartTime", fadeStartTime);
             fadeEndTime = parse.Float("m_flFadeEndTime", fadeEndTime);
             FieldOutput = parse.ParticleField("m_nFieldOutput", FieldOutput);

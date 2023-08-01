@@ -10,18 +10,8 @@ namespace GUI.Types.ParticleRenderer.Initializers
 
         public RandomColor(ParticleDefinitionParser parse) : base(parse)
         {
-            if (parse.Data.ContainsKey("m_ColorMin"))
-            {
-                var vectorValues = parse.Data.GetIntegerArray("m_ColorMin");
-                colorMin = new Vector3(vectorValues[0], vectorValues[1], vectorValues[2]) / 255f;
-            }
-
-            if (parse.Data.ContainsKey("m_ColorMax"))
-            {
-                var vectorValues = parse.Data.GetIntegerArray("m_ColorMax");
-                colorMax = new Vector3(vectorValues[0], vectorValues[1], vectorValues[2]) / 255f;
-            }
-
+            colorMin = parse.Color24("m_ColorMin", colorMin);
+            colorMax = parse.Color24("m_ColorMax", colorMax);
             // lots of stuff with Tinting in hlvr.
         }
 

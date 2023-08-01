@@ -52,31 +52,24 @@ namespace GUI.Types.ParticleRenderer
 
         private readonly bool hasRandomSignFlip;
 
-        public RandomNumberProvider(IKeyValueCollection keyValues, bool isBiased = false)
+        public RandomNumberProvider(ParticleDefinitionParser parse, bool isBiased = false)
         {
-            minRange = keyValues.GetFloatProperty("m_flRandomMin");
-            maxRange = keyValues.GetFloatProperty("m_flRandomMax");
+            minRange = parse.Float("m_flRandomMin");
+            maxRange = parse.Float("m_flRandomMax");
+            hasRandomSignFlip = parse.Boolean("m_bHasRandomSignFlip", hasRandomSignFlip);
 
             // Should it be checking behavior version?
-            if (keyValues.GetProperty<string>("m_nType") != keyValues.GetProperty<string>("m_nRandomMode"))
+            if (parse.Data.GetProperty<string>("m_nType") != parse.Data.GetProperty<string>("m_nRandomMode"))
             {
-                randomMode = keyValues.GetEnumValue<ParticleFloatRandomMode>("m_nRandomMode");
+                randomMode = parse.Enum<ParticleFloatRandomMode>("m_nRandomMode", randomMode);
             }
 
             this.isBiased = isBiased;
 
             if (isBiased)
             {
-                biasParam = keyValues.GetFloatProperty("m_flBiasParameter");
-                if (keyValues.ContainsKey("m_nBiasType"))
-                {
-                    biasType = keyValues.GetEnumValue<ParticleFloatBiasType>("m_nBiasType");
-                }
-            }
-
-            if (keyValues.ContainsKey("m_bHasRandomSignFlip"))
-            {
-                hasRandomSignFlip = keyValues.GetProperty<bool>("m_bHasRandomSignFlip");
+                biasParam = parse.Float("m_flBiasParameter");
+                biasType = parse.Enum<ParticleFloatBiasType>("m_nBiasType", biasType);
             }
         }
 
@@ -115,12 +108,12 @@ namespace GUI.Types.ParticleRenderer
         private readonly float lod2;
         private readonly float lod3;
 
-        public DetailLevelNumberProvider(IKeyValueCollection keyValues)
+        public DetailLevelNumberProvider(ParticleDefinitionParser parse)
         {
-            lod0 = keyValues.GetFloatProperty("m_flLOD0");
-            lod1 = keyValues.GetFloatProperty("m_flLOD1");
-            lod2 = keyValues.GetFloatProperty("m_flLOD2");
-            lod3 = keyValues.GetFloatProperty("m_flLOD3");
+            lod0 = parse.Float("m_flLOD0");
+            lod1 = parse.Float("m_flLOD1");
+            lod2 = parse.Float("m_flLOD2");
+            lod3 = parse.Float("m_flLOD3");
         }
 
         // Just assume detail level is Ultra
@@ -134,7 +127,7 @@ namespace GUI.Types.ParticleRenderer
     class ParticleAgeNumberProvider : INumberProvider
     {
         private readonly AttributeMapping attributeMapping;
-        public ParticleAgeNumberProvider(IKeyValueCollection keyValues) { attributeMapping = new AttributeMapping(keyValues); }
+        public ParticleAgeNumberProvider(ParticleDefinitionParser parse) { attributeMapping = new AttributeMapping(parse); }
         public float NextNumber(ref Particle particle, ParticleSystemRenderState renderState) => attributeMapping.ApplyMapping(particle.Age);
     }
 
@@ -142,7 +135,7 @@ namespace GUI.Types.ParticleRenderer
     class ParticleAgeNormalizedNumberProvider : INumberProvider
     {
         private readonly AttributeMapping attributeMapping;
-        public ParticleAgeNormalizedNumberProvider(IKeyValueCollection keyValues) { attributeMapping = new AttributeMapping(keyValues); }
+        public ParticleAgeNormalizedNumberProvider(ParticleDefinitionParser parse) { attributeMapping = new AttributeMapping(parse); }
         public float NextNumber(ref Particle particle, ParticleSystemRenderState renderState) => attributeMapping.ApplyMapping(particle.NormalizedAge);
     }
 
@@ -154,10 +147,10 @@ namespace GUI.Types.ParticleRenderer
 
         private readonly AttributeMapping mapping;
 
-        public PerParticleNumberProvider(IKeyValueCollection parameters)
+        public PerParticleNumberProvider(ParticleDefinitionParser parse)
         {
-            field = (ParticleField)parameters.GetIntegerProperty("m_nScalarAttribute");
-            mapping = new AttributeMapping(parameters);
+            field = parse.ParticleField("m_nScalarAttribute");
+            mapping = new AttributeMapping(parse);
         }
         public float NextNumber(ref Particle particle, ParticleSystemRenderState renderState) => mapping.ApplyMapping(particle.GetScalar(field));
     }
@@ -170,11 +163,11 @@ namespace GUI.Types.ParticleRenderer
 
         private readonly AttributeMapping mapping;
 
-        public PerParticleVectorComponentNumberProvider(IKeyValueCollection parameters)
+        public PerParticleVectorComponentNumberProvider(ParticleDefinitionParser parse)
         {
-            field = (ParticleField)parameters.GetIntegerProperty("m_nVectorAttribute");
-            component = parameters.GetInt32Property("m_nVectorComponent");
-            mapping = new AttributeMapping(parameters);
+            field = parse.ParticleField("m_nVectorAttribute");
+            component = parse.Int32("m_nVectorComponent");
+            mapping = new AttributeMapping(parse);
         }
         public float NextNumber(ref Particle particle, ParticleSystemRenderState renderState)
         {
@@ -186,7 +179,7 @@ namespace GUI.Types.ParticleRenderer
     class PerParticleSpeedNumberProvider : INumberProvider
     {
         private readonly AttributeMapping attributeMapping;
-        public PerParticleSpeedNumberProvider(IKeyValueCollection keyValues) { attributeMapping = new AttributeMapping(keyValues); }
+        public PerParticleSpeedNumberProvider(ParticleDefinitionParser parse) { attributeMapping = new AttributeMapping(parse); }
         public float NextNumber(ref Particle particle, ParticleSystemRenderState renderState) => attributeMapping.ApplyMapping(particle.Speed);
     }
 
@@ -194,7 +187,7 @@ namespace GUI.Types.ParticleRenderer
     class PerParticleCountNumberProvider : INumberProvider
     {
         private readonly AttributeMapping attributeMapping;
-        public PerParticleCountNumberProvider(IKeyValueCollection keyValues) { attributeMapping = new AttributeMapping(keyValues); }
+        public PerParticleCountNumberProvider(ParticleDefinitionParser parse) { attributeMapping = new AttributeMapping(parse); }
         public float NextNumber(ref Particle particle, ParticleSystemRenderState renderState) => attributeMapping.ApplyMapping(particle.ParticleID);
     }
 
@@ -202,7 +195,7 @@ namespace GUI.Types.ParticleRenderer
     class PerParticleCountNormalizedNumberProvider : INumberProvider
     {
         private readonly AttributeMapping attributeMapping;
-        public PerParticleCountNormalizedNumberProvider(IKeyValueCollection keyValues) { attributeMapping = new AttributeMapping(keyValues); }
+        public PerParticleCountNormalizedNumberProvider(ParticleDefinitionParser parse) { attributeMapping = new AttributeMapping(parse); }
         public float NextNumber(ref Particle particle, ParticleSystemRenderState renderState)
         {
             return attributeMapping.ApplyMapping(particle.ParticleID) / Math.Max(renderState.ParticleCount, 1);
@@ -215,11 +208,11 @@ namespace GUI.Types.ParticleRenderer
         private readonly AttributeMapping attributeMapping;
         private readonly int cp;
         private readonly int vectorComponent;
-        public ControlPointComponentNumberProvider(IKeyValueCollection keyValues)
+        public ControlPointComponentNumberProvider(ParticleDefinitionParser parse)
         {
-            attributeMapping = new AttributeMapping(keyValues);
-            cp = keyValues.GetInt32Property("m_nControlPoint");
-            vectorComponent = keyValues.GetInt32Property("m_nVectorComponent");
+            attributeMapping = new AttributeMapping(parse);
+            cp = parse.Int32("m_nControlPoint");
+            vectorComponent = parse.Int32("m_nVectorComponent");
         }
         public float NextNumber(ref Particle particle, ParticleSystemRenderState renderState)
         {
@@ -227,72 +220,11 @@ namespace GUI.Types.ParticleRenderer
         }
     }
 
-    static class INumberProviderExtensions
-    {
-        public static INumberProvider GetNumberProvider(this IKeyValueCollection keyValues, string propertyName)
-        {
-            var property = keyValues.GetProperty<object>(propertyName);
-
-            if (property is IKeyValueCollection numberProviderParameters)
-            {
-                var type = numberProviderParameters.GetProperty<string>("m_nType");
-                switch (type)
-                {
-                    case "PF_TYPE_LITERAL":
-                        return new LiteralNumberProvider(numberProviderParameters.GetFloatProperty("m_flLiteralValue"));
-                    case "PF_TYPE_RANDOM_UNIFORM":
-                        return new RandomNumberProvider(numberProviderParameters, false);
-                    case "PF_TYPE_RANDOM_BIASED":
-                        return new RandomNumberProvider(numberProviderParameters, true);
-                    case "PF_TYPE_COLLECTION_AGE":
-                        return new CollectionAgeNumberProvider();
-                    case "PF_TYPE_CONTROL_POINT_COMPONENT":
-                        return new ControlPointComponentNumberProvider(numberProviderParameters);
-                    case "PF_TYPE_PARTICLE_DETAIL_LEVEL":
-                        return new DetailLevelNumberProvider(numberProviderParameters);
-                    case "PF_TYPE_PARTICLE_AGE":
-                        return new ParticleAgeNumberProvider(numberProviderParameters);
-                    case "PF_TYPE_PARTICLE_AGE_NORMALIZED":
-                        return new ParticleAgeNormalizedNumberProvider(numberProviderParameters);
-                    case "PF_TYPE_PARTICLE_FLOAT":
-                        return new PerParticleNumberProvider(numberProviderParameters);
-                    case "PF_TYPE_PARTICLE_VECTOR_COMPONENT":
-                        return new PerParticleVectorComponentNumberProvider(numberProviderParameters);
-                    case "PF_TYPE_PARTICLE_SPEED":
-                        return new PerParticleSpeedNumberProvider(numberProviderParameters);
-                    case "PF_TYPE_PARTICLE_NUMBER":
-                        return new PerParticleCountNumberProvider(numberProviderParameters);
-                    case "PF_TYPE_PARTICLE_NUMBER_NORMALIZED":
-                        return new PerParticleCountNormalizedNumberProvider(numberProviderParameters);
-                    // KNOWN TYPES WE DON'T SUPPORT:
-                    // PF_TYPE_ENDCAP_AGE - unsupported because we don't support endcaps
-                    // PF_TYPE_CONTROL_POINT_COMPONENT - todo?
-                    // PF_TYPE_CONTROL_POINT_CHANGE_AGE - no way.
-                    // PF_TYPE_CONTROL_POINT_SPEED - new in cs2? def not going to support this
-                    // PF_TYPE_PARTICLE_NOISE - exists only in deskjob and CS2. Likely added in behavior version 11 or 12.
-                    // PF_TYPE_NAMED_VALUE - seen in dota's particle.dll?? not in deskjob's, so in behavior version 13+?
-                    default:
-                        if (numberProviderParameters.ContainsKey("m_flLiteralValue"))
-                        {
-                            Console.Error.WriteLine($"Number provider of type {type} is not directly supported, but it has m_flLiteralValue.");
-                            return new LiteralNumberProvider(numberProviderParameters.GetFloatProperty("m_flLiteralValue"));
-                        }
-
-                        throw new InvalidCastException($"Could not create number provider of type {type}.");
-                }
-            }
-            else
-            {
-                return new LiteralNumberProvider((float)Convert.ToDouble(property, CultureInfo.InvariantCulture));
-            }
-        }
-
-        /* Unaccounted for params:
-         * m_NamedValue
-         * m_flRandomMin
-         * m_flRandomMax
-         * m_bHasRandomSignFlip
-         * m_nRandomMode
-         */
-    }
+    /* Unaccounted for params:
+     * m_NamedValue
+     * m_flRandomMin
+     * m_flRandomMax
+     * m_bHasRandomSignFlip
+     * m_nRandomMode
+     */
 }

@@ -74,7 +74,7 @@ namespace GUI.Types.ParticleRenderer
                 parse.Vector3("m_BoundingBoxMax", new Vector3(10))
             );
 
-            var constantAttributes = new Particle(particleSystem.Data);
+            var constantAttributes = new Particle(parse);
             particleCollection = new ParticleCollection(constantAttributes, MaxParticles);
 
             systemRenderState = new ParticleSystemRenderState()

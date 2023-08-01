@@ -23,11 +23,6 @@ namespace GUI.Types.ParticleRenderer
             this.value = value;
         }
 
-        public LiteralVectorProvider(float[] value)
-        {
-            this.value = value.ToVector3();
-        }
-
         public Vector3 NextVector(ref Particle particle, ParticleSystemRenderState renderState) => value;
     }
 
@@ -53,18 +48,15 @@ namespace GUI.Types.ParticleRenderer
     // Per-Particle Vector
     readonly struct PerParticleVectorProvider : IVectorProvider
     {
-        private readonly ParticleField field;
-        private readonly Vector3 scale = Vector3.One;
-        public PerParticleVectorProvider(IKeyValueCollection keyValues)
+        private readonly ParticleField VectorAttribute;
+        private readonly Vector3 VectorAttributeScale = Vector3.One;
+        public PerParticleVectorProvider(ParticleDefinitionParser parse)
         {
-            field = (ParticleField)keyValues.GetIntegerProperty("m_nVectorAttribute");
-            if (keyValues.ContainsKey("m_vVectorAttributeScale"))
-            {
-                scale = keyValues.GetArray<double>("m_vVectorAttributeScale").ToVector3();
-            }
+            VectorAttribute = parse.ParticleField("m_nVectorAttribute");
+            VectorAttributeScale = parse.Vector3("m_vVectorAttributeScale", VectorAttributeScale);
         }
 
-        public Vector3 NextVector(ref Particle particle, ParticleSystemRenderState renderState) => scale * particle.GetVector(field);
+        public Vector3 NextVector(ref Particle particle, ParticleSystemRenderState renderState) => VectorAttributeScale * particle.GetVector(VectorAttribute);
     }
 
     // Particle Velocity
@@ -83,13 +75,10 @@ namespace GUI.Types.ParticleRenderer
     {
         private readonly int cp;
         private readonly Vector3 scale = Vector3.One;
-        public CPValueVectorProvider(IKeyValueCollection keyValues)
+        public CPValueVectorProvider(ParticleDefinitionParser parse)
         {
-            cp = keyValues.GetInt32Property("m_nControlPoint");
-            if (keyValues.ContainsKey("m_vCPValueScale"))
-            {
-                scale = keyValues.GetArray<double>("m_vCPValueScale").ToVector3();
-            }
+            cp = parse.Int32("m_nControlPoint");
+            scale = parse.Vector3("m_vCPValueScale", scale);
         }
 
         public Vector3 NextVector(ref Particle particle, ParticleSystemRenderState renderState)
@@ -103,13 +92,10 @@ namespace GUI.Types.ParticleRenderer
     {
         private readonly int cp;
         private readonly Vector3 relativePosition = Vector3.Zero;
-        public CPRelativePositionProvider(IKeyValueCollection keyValues)
+        public CPRelativePositionProvider(ParticleDefinitionParser parse)
         {
-            cp = keyValues.GetInt32Property("m_nControlPoint");
-            if (keyValues.ContainsKey("m_vCPRelativePosition"))
-            {
-                relativePosition = keyValues.GetArray<double>("m_vCPRelativePosition").ToVector3();
-            }
+            cp = parse.Int32("m_nControlPoint");
+            relativePosition = parse.Vector3("m_vCPRelativePosition", relativePosition);
         }
 
         public Vector3 NextVector(ref Particle particle, ParticleSystemRenderState renderState)
@@ -123,13 +109,10 @@ namespace GUI.Types.ParticleRenderer
     {
         private readonly int cp;
         private readonly Vector3 relativeDirection = Vector3.Zero;
-        public CPRelativeDirectionProvider(IKeyValueCollection keyValues)
+        public CPRelativeDirectionProvider(ParticleDefinitionParser parse)
         {
-            cp = keyValues.GetInt32Property("m_nControlPoint");
-            if (keyValues.ContainsKey("m_vCPRelativeDir"))
-            {
-                relativeDirection = keyValues.GetArray<double>("m_vCPRelativeDir").ToVector3();
-            }
+            cp = parse.Int32("m_nControlPoint");
+            relativeDirection = parse.Vector3("m_vCPRelativeDir", relativeDirection);
         }
 
         public Vector3 NextVector(ref Particle particle, ParticleSystemRenderState renderState)
@@ -150,11 +133,11 @@ namespace GUI.Types.ParticleRenderer
         private readonly INumberProvider Y;
         private readonly INumberProvider Z;
 
-        public FloatComponentsVectorProvider(IKeyValueCollection keyValues)
+        public FloatComponentsVectorProvider(ParticleDefinitionParser parse)
         {
-            X = keyValues.GetNumberProvider("m_FloatComponentX");
-            Y = keyValues.GetNumberProvider("m_FloatComponentY");
-            Z = keyValues.GetNumberProvider("m_FloatComponentZ");
+            X = parse.NumberProvider("m_FloatComponentX");
+            Y = parse.NumberProvider("m_FloatComponentY");
+            Z = parse.NumberProvider("m_FloatComponentZ");
         }
 
         public Vector3 NextVector(ref Particle particle, ParticleSystemRenderState renderState) => new(
@@ -174,15 +157,15 @@ namespace GUI.Types.ParticleRenderer
 
         private readonly bool clamp;
 
-        public FloatInterpolationVectorProvider(IKeyValueCollection keyValues, bool isClamped)
+        public FloatInterpolationVectorProvider(ParticleDefinitionParser parse, bool isClamped)
         {
             clamp = isClamped;
-            floatInterp = keyValues.GetNumberProvider("m_FloatInterp");
-            input0 = keyValues.GetFloatProperty("m_flInterpInput0");
-            input1 = keyValues.GetFloatProperty("m_flInterpInput1");
+            floatInterp = parse.NumberProvider("m_FloatInterp");
+            input0 = parse.Float("m_flInterpInput0");
+            input1 = parse.Float("m_flInterpInput1");
 
-            output0 = keyValues.GetArray<double>("m_vInterpOutput0").ToVector3();
-            output1 = keyValues.GetArray<double>("m_vInterpOutput1").ToVector3();
+            output0 = parse.Vector3("m_vInterpOutput0");
+            output1 = parse.Vector3("m_vInterpOutput1");
         }
 
         public Vector3 NextVector(ref Particle particle, ParticleSystemRenderState renderState)
@@ -210,13 +193,13 @@ namespace GUI.Types.ParticleRenderer
         private readonly float input0;
         private readonly float input1;
 
-        public ColorGradientVectorProvider(IKeyValueCollection keyValues)
+        public ColorGradientVectorProvider(ParticleDefinitionParser parse)
         {
-            floatInterp = keyValues.GetNumberProvider("m_FloatInterp");
-            input0 = keyValues.GetFloatProperty("m_flInterpInput0");
-            input1 = keyValues.GetFloatProperty("m_flInterpInput1");
+            floatInterp = parse.NumberProvider("m_FloatInterp");
+            input0 = parse.Float("m_flInterpInput0");
+            input1 = parse.Float("m_flInterpInput1");
 
-            var stops = keyValues.GetSubCollection("m_Gradient")
+            var stops = parse.Data.GetSubCollection("m_Gradient")
                 .GetArray("m_Stops");
 
             gradientStops = new GradientStop[stops.Length];
@@ -264,7 +247,6 @@ namespace GUI.Types.ParticleRenderer
         }
     }
 
-
     /* NOISE PARAMS
      * 		m_flNoiseOutputMin = 0.000000
 			m_flNoiseOutputMax = 1.000000
@@ -286,60 +268,6 @@ namespace GUI.Types.ParticleRenderer
 			m_bNoiseImgPreviewLive = true
     */
 
-    static class IVectorProviderExtensions
-    {
-        public static IVectorProvider GetVectorProvider(this IKeyValueCollection keyValues, string propertyName)
-        {
-            var property = keyValues.GetProperty<object>(propertyName);
-
-            if (property is IKeyValueCollection numberProviderParameters && numberProviderParameters.ContainsKey("m_nType"))
-            {
-                var type = numberProviderParameters.GetProperty<string>("m_nType");
-                switch (type)
-                {
-                    case "PVEC_TYPE_LITERAL":
-                        return new LiteralVectorProvider(numberProviderParameters.GetFloatArray("m_vLiteralValue"));
-                    case "PVEC_TYPE_LITERAL_COLOR":
-                        return new LiteralColorVectorProvider(numberProviderParameters.GetArray<int>("m_LiteralColor"));
-                    case "PVEC_TYPE_PARTICLE_VECTOR":
-                        return new PerParticleVectorProvider(numberProviderParameters);
-                    case "PVEC_TYPE_PARTICLE_VELOCITY":
-                        return new ParticleVelocityVectorProvider();
-                    case "PVEC_TYPE_CP_VALUE":
-                        return new CPValueVectorProvider(numberProviderParameters);
-                    case "PVEC_TYPE_CP_RELATIVE_POSITION":
-                        return new CPRelativePositionProvider(numberProviderParameters);
-                    case "PVEC_TYPE_CP_RELATIVE_DIR":
-                        return new CPRelativeDirectionProvider(numberProviderParameters);
-                    case "PVEC_TYPE_FLOAT_COMPONENTS":
-                        return new FloatComponentsVectorProvider(numberProviderParameters);
-                    case "PVEC_TYPE_FLOAT_INTERP_CLAMPED":
-                        return new FloatInterpolationVectorProvider(numberProviderParameters, true);
-                    case "PVEC_TYPE_FLOAT_INTERP_OPEN":
-                        return new FloatInterpolationVectorProvider(numberProviderParameters, false);
-                    case "PVEC_TYPE_FLOAT_INTERP_GRADIENT":
-                        return new ColorGradientVectorProvider(numberProviderParameters);
-                    /* UNSUPPORTED:
-                     * PVEC_TYPE_NAMED_VALUE - new in dota
-                     * PVEC_TYPE_PARTICLE_VELOCITY - new in dota
-                     * PVEC_TYPE_CP_RELATIVE_RANDOM_DIR - new in dota. presumably relative dir but the value is random per particle?
-                     * PVEC_TYPE_RANDOM_UNIFORM - new in dota. uses vRandomMin and vRandomMax
-                     * PVEC_TYPE_RANDOM_UNIFORM_OFFSET - new in dota
-                     */
-                    default:
-                        if (numberProviderParameters.ContainsKey("m_vLiteralValue"))
-                        {
-                            Console.Error.WriteLine($"Vector provider of type {type} is not directly supported, but it has m_vLiteralValue.");
-                            return new LiteralVectorProvider(numberProviderParameters.GetFloatArray("m_vLiteralValue"));
-                        }
-
-                        throw new InvalidCastException($"Could not create vector provider of type {type}.");
-                }
-            }
-
-            return new LiteralVectorProvider(keyValues.GetFloatArray(propertyName));
-        }
-    }
     // Used for named value:
     // m_bFollowNamedValue
 

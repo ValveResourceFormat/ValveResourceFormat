@@ -15,8 +15,8 @@ namespace GUI.Types.ParticleRenderer.Emitters
 
         public InstantaneousEmitter(ParticleDefinitionParser parse) : base(parse)
         {
-            emitCount = parse.Data.GetNumberProvider("m_nParticlesToEmit");
-            startTime = parse.Data.GetNumberProvider("m_flStartTime");
+            emitCount = parse.NumberProvider("m_nParticlesToEmit");
+            startTime = parse.NumberProvider("m_flStartTime");
         }
 
         public override void Start(Action particleEmitCallback)

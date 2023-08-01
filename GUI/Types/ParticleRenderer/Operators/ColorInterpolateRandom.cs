@@ -16,18 +16,8 @@ namespace GUI.Types.ParticleRenderer.Operators
 
         public ColorInterpolateRandom(ParticleDefinitionParser parse) : base(parse)
         {
-            if (parse.Data.ContainsKey("m_ColorFadeMin"))
-            {
-                var vectorValues = parse.Data.GetIntegerArray("m_ColorFadeMin");
-                colorFadeMin = new Vector3(vectorValues[0], vectorValues[1], vectorValues[2]) / 255f;
-            }
-
-            if (parse.Data.ContainsKey("m_ColorFadeMax"))
-            {
-                var vectorValues = parse.Data.GetIntegerArray("m_ColorFadeMax");
-                colorFadeMax = new Vector3(vectorValues[0], vectorValues[1], vectorValues[2]) / 255f;
-            }
-
+            colorFadeMin = parse.Color24("m_ColorFadeMin", colorFadeMin);
+            colorFadeMax = parse.Color24("m_ColorFadeMax", colorFadeMax);
             fadeStartTime = parse.Float("m_flFadeStartTime", fadeStartTime);
             fadeEndTime = parse.Float("m_flFadeEndTime", fadeEndTime);
             FieldOutput = parse.ParticleField("m_nFieldOutput", FieldOutput);
