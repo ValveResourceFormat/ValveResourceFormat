@@ -156,11 +156,33 @@ namespace GUI.Types.Renderer
                 if (result.Skybox != null)
                 {
                     SkyboxScene = new Scene(GuiContext);
+
+                    if (Scene.RenderAttributes.ContainsKey("USE_GRADIENT_FOG"))
+                    {
+                        SkyboxScene.RenderAttributes["USE_GRADIENT_FOG"] = 1;
+                    }
+                    if (Scene.RenderAttributes.ContainsKey("USE_CUBEMAP_FOG"))
+                    {
+                        SkyboxScene.RenderAttributes["USE_CUBEMAP_FOG"] = 1;
+                    }
+
                     var skyboxLoader = new WorldLoader(GuiContext, result.Skybox);
                     var skyboxResult = skyboxLoader.Load(SkyboxScene);
 
                     SkyboxScale = skyboxResult.SkyboxScale;
-                    SkyboxOrigin = skyboxResult.SkyboxOrigin;
+                    SkyboxOrigin = skyboxResult.SkyboxOrigin + result.SkyboxReferenceOffset;
+
+                    SkyboxScene.WorldOffset = SkyboxOrigin;
+                    SkyboxScene.WorldScale = SkyboxScale;
+
+                    SkyboxScene.FogInfo = new WorldFogInfo
+                    {
+                        CubeFogActive = Scene.FogInfo.CubeFogActive,
+                        GradientFogActive = Scene.FogInfo.GradientFogActive,
+                        CubemapFog = Scene.FogInfo.CubemapFog,
+                        GradientFog = Scene.FogInfo.GradientFog,
+                    };
+
 
                     AddCheckBox("Show Skybox", ShowSkybox, (v) => ShowSkybox = v);
                 }

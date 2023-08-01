@@ -78,6 +78,15 @@ namespace GUI.Types.Renderer
                     SkyboxScene.ShowToolsMaterials = v;
                 }
             });
+            AddCheckBox("Show Fog", Scene.FogEnabled, (v) =>
+            {
+                Scene.FogEnabled = v;
+
+                if (SkyboxScene != null)
+                {
+                    SkyboxScene.FogEnabled = v;
+                }
+            });
             AddCheckBox("Lock Cull Frustum", false, (v) =>
             {
                 if (v)

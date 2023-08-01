@@ -28,6 +28,8 @@ namespace GUI.Types.Renderer
             public World Skybox { get; set; }
             public float SkyboxScale { get; set; } = 1.0f;
             public Vector3 SkyboxOrigin { get; set; } = Vector3.Zero;
+            public Vector3 SkyboxReferenceOffset { get; set; } = Vector3.Zero;
+            // TODO: also store skybox reference rotation
         }
 
         public WorldLoader(VrfGuiContext vrfGuiContext, World world)
@@ -287,6 +289,8 @@ namespace GUI.Types.Renderer
                             result.Skybox = (World)skyboxPackage.DataBlock;
                         }
                     }
+
+                    result.SkyboxReferenceOffset = EntityTransformHelper.ParseVector(entity.GetProperty<string>("origin"));
                 }
                 else if (classname == "env_sky" || classname == "ent_dota_lightinfo")
                 {
@@ -318,6 +322,118 @@ namespace GUI.Types.Renderer
                         Material = guiContext.MaterialLoader.LoadMaterial(skyMaterial),
                     };
                 }
+                else if (classname == "env_gradient_fog")
+                {
+                    // If it has "start_disabled", only take it if we haven't found any others yet.
+                    if (!entity.GetProperty<bool>("start_disabled") || scene.FogInfo.GradientFogActive)
+                    {
+                        scene.FogInfo.GradientFogActive = true;
+                        scene.RenderAttributes["USE_GRADIENT_FOG"] = 1;
+
+                        var distExponent = entity.GetProperty<float>("fogfalloffexponent");
+                        var startDist = entity.GetProperty<float>("fogstart");
+                        var endDist = entity.GetProperty<float>("fogend");
+
+                        // Some maps don't have these properties.
+                        // TODO: find the correct behavior under this condition
+                        var startHeight = float.NegativeInfinity;
+                        var endHeight = float.NegativeInfinity;
+                        var heightExponent = 1.0f;
+                        if (entity.GetProperty("fogverticalexponent") != default)
+                        {
+                            heightExponent = entity.GetProperty<float>("fogverticalexponent");
+                            startHeight = entity.GetProperty<float>("fogstartheight");
+                            endHeight = entity.GetProperty<float>("fogendheight");
+                        }
+
+                        var strength = entity.GetProperty<float>("fogstrength");
+                        var colorData = entity.GetProperty("fogcolor");
+
+                        Vector3 color;
+                        switch (colorData.Type)
+                        {
+                            case EntityFieldType.Vector:
+                                color = (Vector3)colorData.Data;
+                                break;
+                            case EntityFieldType.Color32:
+                                // todo make this a function
+                                var colorBytes = (byte[])colorData.Data;
+                                color.X = colorBytes[0] / 255.0f;
+                                color.Y = colorBytes[1] / 255.0f;
+                                color.Z = colorBytes[2] / 255.0f;
+                                break;
+                            default:
+                                throw new Exception("unknown entity type");
+                        }
+
+                        var maxOpacity = entity.GetProperty<float>("fogmaxopacity");
+
+                        scene.FogInfo.GradientFog = new SceneGradientFog(scene)
+                        {
+                            StartDist = startDist,
+                            EndDist = endDist,
+                            FalloffExponent = distExponent,
+                            HeightStart = startHeight,
+                            HeightEnd = endHeight,
+                            VerticalExponent = heightExponent,
+                            Color = color,
+                            Strength = strength,
+                            MaxOpacity = maxOpacity,
+                        };
+                    }
+                }
+                else if (classname == "env_cubemap_fog")
+                {
+                    // If it has "start_disabled", only take it if it's the first one in the map.
+                    if (!entity.GetProperty<bool>("start_disabled") || scene.FogInfo.CubeFogActive)
+                    {
+                        scene.FogInfo.CubeFogActive = true;
+                        scene.RenderAttributes["USE_CUBEMAP_FOG"] = 1;
+
+                        // these aren't always present
+                        var heightExponent = float.PositiveInfinity;
+                        var heightStart = float.NegativeInfinity;
+                        var heightWidth = 0.0f;
+                        if (entity.GetProperty("cubemapfogheightexponent") != default)
+                        {
+                            heightExponent = entity.GetProperty<float>("cubemapfogheightexponent");
+                            heightStart = entity.GetProperty<float>("cubemapfogheightstart");
+                            heightWidth = entity.GetProperty<float>("cubemapfogheightwidth");
+                        }
+
+                        var lodBias = entity.GetProperty<float>("cubemapfoglodbiase");
+
+                        var falloffExponent = entity.GetProperty<float>("cubemapfogfalloffexponent");
+                        var startDist = entity.GetProperty<float>("cubemapfogstartdistance");
+                        var endDist = entity.GetProperty<float>("cubemapfogenddistance");
+
+                        var transform = EntityTransformHelper.CalculateTransformationMatrix(entity);
+
+                        var fogTexture = guiContext.MaterialLoader.LoadTexture(
+                            entity.GetProperty<string>("cubemapfogtexture"));
+
+                        scene.FogInfo.CubemapFog = new SceneCubemapFog(scene)
+                        {
+                            StartDist = startDist,
+                            EndDist = endDist,
+                            FalloffExponent = falloffExponent,
+                            HeightStart = heightStart,
+                            HeightWidth = heightWidth,
+                            HeightExponent = heightExponent,
+                            LodBias = lodBias,
+                            Transform = transform,
+                            CubemapFogTexture = fogTexture,
+                        };
+                    }
+                }
+                /*else if (classname == "env_volumetric_fog_controller" && entity.GetProperty<bool>("ismaster"))
+                {
+                    scene.FogInfo.LoadVolumetricFogController(entity);
+                }
+                else if (classname == "env_volumetric_fog_volume" && !entity.GetProperty<bool>("start_disabled"))
+                {
+                    scene.FogInfo.LoadFogVolume(entity);
+                }*/
                 else if (IsCubemapOrProbe(classname))
                 {
                     var handShakeString = entity.GetProperty<string>("handshake");

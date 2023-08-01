@@ -1,5 +1,7 @@
 #version 460
 
+#include "common/utils.glsl"
+
 //Parameter defines - These are default values and can be overwritten based on material/model parameters
 #define F_ALPHA_TEST 0
 //End of parameter defines
@@ -11,10 +13,13 @@ in vec4 vTintColorFadeOut;
 
 out vec4 outputColor;
 
+uniform vec3 vEyePosition;
+
 uniform float g_flAlphaTestReference;
 uniform sampler2D g_tColor;
 uniform sampler2D g_tTintMask;
 
+#include "common/fog.glsl"
 
 //Main entry point
 void main()
@@ -36,4 +41,6 @@ void main()
     //Simply multiply the color from the color texture with the illumination
     //outputColor = vec4(color.rgb * tintFactor, color.a * vTintColorFadeOut.a);
     outputColor = vec4(color.rgb, 1.0);
+
+    ApplyFog(outputColor.rgb, vFragPosition);
 }
