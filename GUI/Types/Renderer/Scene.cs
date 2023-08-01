@@ -23,9 +23,13 @@ namespace GUI.Types.Renderer
             public Camera Camera { get; init; }
             public IEnumerable<UniformBuffers.IBlockBindableBuffer> Buffers { get; set; }
             public WorldLightingInfo LightingInfo { get; set; }
+            public WorldFogInfo FogInfo { get; set; }
             public RenderPass RenderPass { get; set; }
             public Shader ReplacementShader { get; set; }
             public bool RenderToolsMaterials { get; init; }
+            public bool EnableFog { get; init; }
+            public Vector3 WorldOffset { get; set; } // skybox, for fog
+            public float WorldScale { get; set; } // skybox
         }
 
         public Camera MainCamera { get; set; }
@@ -33,12 +37,17 @@ namespace GUI.Types.Renderer
         public Matrix4x4 GlobalLightTransform { get; set; }
         public Vector4 GlobalLightColor { get; set; }
         public WorldLightingInfo LightingInfo { get; } = new();
+        public WorldFogInfo FogInfo { get; set; } = new();
         public Dictionary<string, byte> RenderAttributes { get; } = new();
         public VrfGuiContext GuiContext { get; }
         public Octree<SceneNode> StaticOctree { get; }
         public Octree<SceneNode> DynamicOctree { get; }
+        public Vector3 WorldOffset { get; set; } = Vector3.Zero;
+        public float WorldScale { get; set; } = 1.0f;
 
+        public bool IsSkybox { get; set; }
         public bool ShowToolsMaterials { get; set; }
+        public bool FogEnabled { get; set; } = true;
 
         public IEnumerable<SceneNode> AllNodes => staticNodes.Concat(dynamicNodes);
 
@@ -190,8 +199,12 @@ namespace GUI.Types.Renderer
                 Camera = camera,
                 Buffers = buffers,
                 LightingInfo = LightingInfo,
+                FogInfo = FogInfo,
                 RenderPass = RenderPass.Opaque,
                 RenderToolsMaterials = ShowToolsMaterials,
+                EnableFog = FogEnabled,
+                WorldOffset = WorldOffset,
+                WorldScale = WorldScale,
             };
 
             if (camera.Picker is not null)
@@ -301,7 +314,7 @@ namespace GUI.Types.Renderer
                 LightingInfo.LightingData.EnvMapColorRotated[envMap.ArrayIndex] = new Vector4(envMap.Tint, 0);
 
                 // TODO
-                LightingInfo.LightingData.EnvMapNormalizationSH[envMap.ArrayIndex] = new Vector4(1, 1, 1, 1);
+                LightingInfo.LightingData.EnvMapNormalizationSH[envMap.ArrayIndex] = new Vector4(0, 0, 0, 1);
             }
 
             foreach (var node in AllNodes)

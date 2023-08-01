@@ -54,7 +54,8 @@ float GetEnvMapNormalization(float rough, vec3 N, vec3 irradiance)
 {
     #if (bUseCubemapNormalization == 1 && renderMode_Cubemaps == 0)
         // Cancel out lighting
-        // edit: no cancellation. I don't know how to get the greyscale SH that they use here, because the radiance coefficients in the cubemap texture are rgb.
+        // SH is currently fully 1.0, for temporary reasons.
+        // We don't know how to get the greyscale SH that they use here, because the radiance coefficients in the cubemap texture are rgb.
         float NormalizationTerm = GetLuma(irradiance);// / dot(vec4(N, 1.0), g_vEnvironmentMapNormalizationSH[EnvMapIndex]);
 
         // Reduce cancellation on glossier surfaces

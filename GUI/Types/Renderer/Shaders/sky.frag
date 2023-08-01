@@ -26,6 +26,7 @@ uniform vec3 m_vTint = vec3(1.0, 1.0, 1.0);
 
 const float g_flToneMapScalarLinear = 1.0;
 
+
 vec3 DecodeYCoCg(vec4 YCoCg)
 {
     float scale = (YCoCg.z * (255.0 / 8.0)) + 1.0;
@@ -56,6 +57,7 @@ void main()
 #else
     vColor.rgb = skyTexel.rgb;
 #endif
+    vColor.rgb = pow(vColor.rgb, invGamma);
 
     //vColor.rgb *= (1.0 + g_flBrightnessExposureBias);
     //vColor.rgb *= (1.0 + g_flRenderOnlyExposureBias);

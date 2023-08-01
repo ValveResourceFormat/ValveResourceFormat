@@ -6,9 +6,15 @@ using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.Renderer
 {
+    enum ReservedTextureSlots
+    {
+        AnimationTexture = 0,
+        CubemapFog = 1,
+    }
+
     class RenderMaterial
     {
-        private const int TextureUnitStart = 1; // Start at 1, texture unit 0 is reserved for the animation texture
+        private const int TextureUnitStart = 2; // Reserve texture slots. Must always be the size of ReservedTextureSlots.
 
         public Shader Shader => shader;
         public Material Material { get; }
@@ -52,7 +58,7 @@ namespace GUI.Types.Renderer
                 isAdditiveBlend = blendMode == 4;
             }
         }
-
+        
         public void Render(Shader shader = default, WorldLightingInfo lightingInfo = default)
         {
             textureUnit = TextureUnitStart;

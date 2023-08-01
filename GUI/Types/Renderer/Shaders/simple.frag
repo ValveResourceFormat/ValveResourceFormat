@@ -212,6 +212,7 @@ uniform float g_flBumpStrength = 1.0;
     uniform sampler2D g_tAnisoGloss;
 #endif
 
+
 // These two must be first
 #include "common/lighting_common.glsl"
 #include "common/texturing.glsl"
@@ -221,6 +222,7 @@ uniform float g_flBumpStrength = 1.0;
 #if (S_SPECULAR == 1 || renderMode_Cubemaps == 1)
 #include "common/environment.glsl"
 #endif
+#include "common/fog.glsl"
 
 // Must be last
 #include "common/lighting.glsl"
@@ -552,6 +554,9 @@ void main()
 
     outputColor.rgb = combinedLighting;
 #endif
+
+    //outputColor.rgb = vec3(0.0);
+    ApplyFog(outputColor.rgb, mat.PositionWS);
 
 #if (F_DISABLE_TONE_MAPPING == 0)
     outputColor.rgb = pow(outputColor.rgb, invGamma);

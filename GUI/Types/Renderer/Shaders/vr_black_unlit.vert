@@ -6,7 +6,7 @@ layout (location = 0) in vec3 vPOSITION;
 
 out vec3 vFragPosition;
 
-out vec2 vTexCoordOut;
+uniform vec3 vEyePosition;
 
 #include "common/ViewConstants.glsl"
 uniform mat4 transform;
