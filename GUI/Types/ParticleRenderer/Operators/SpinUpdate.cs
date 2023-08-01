@@ -2,7 +2,7 @@ namespace GUI.Types.ParticleRenderer.Operators
 {
     class SpinUpdate : ParticleFunctionOperator
     {
-        public SpinUpdate()
+        public SpinUpdate(ParticleDefinitionParser parse) : base(parse)
         {
         }
 

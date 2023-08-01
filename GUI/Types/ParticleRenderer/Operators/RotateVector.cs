@@ -16,7 +16,7 @@ namespace GUI.Types.ParticleRenderer.Operators
         private readonly INumberProvider perParticleScale = new LiteralNumberProvider(1f);
         private readonly bool normalize;
 
-        public RotateVector(ParticleDefinitionParser parse)
+        public RotateVector(ParticleDefinitionParser parse) : base(parse)
         {
             OutputField = parse.ParticleField("m_nOutputField", OutputField);
             RotAxisMin = parse.Vector3("m_vecRotAxisMin", RotAxisMin);

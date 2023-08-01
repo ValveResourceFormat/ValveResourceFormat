@@ -9,7 +9,7 @@ namespace GUI.Types.ParticleRenderer.Operators
         private readonly float endTime = 1.0f;
         private readonly ParticleField field = ParticleField.Radius;
 
-        public RampScalarLinearSimple(ParticleDefinitionParser parse)
+        public RampScalarLinearSimple(ParticleDefinitionParser parse) : base(parse)
         {
             rate = parse.Float("m_Rate", rate);
             startTime = parse.Float("m_flStartTime", startTime);

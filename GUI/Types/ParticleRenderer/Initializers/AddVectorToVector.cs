@@ -10,7 +10,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
         private readonly Vector3 OffetMin = Vector3.Zero;
         private readonly Vector3 OffsetMax = Vector3.One;
 
-        public AddVectorToVector(ParticleDefinitionParser parse)
+        public AddVectorToVector(ParticleDefinitionParser parse) : base(parse)
         {
             FieldInput = parse.ParticleField("m_nFieldInput", FieldInput);
             FieldOutput = parse.ParticleField("m_nFieldOutput", FieldOutput);

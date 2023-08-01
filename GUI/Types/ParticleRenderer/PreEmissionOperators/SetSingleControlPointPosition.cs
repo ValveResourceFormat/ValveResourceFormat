@@ -14,7 +14,7 @@ namespace GUI.Types.ParticleRenderer.PreEmissionOperators
 
         private bool HasRunBefore;
 
-        public SetSingleControlPointPosition(ParticleDefinitionParser parse)
+        public SetSingleControlPointPosition(ParticleDefinitionParser parse) : base(parse)
         {
             CP1 = parse.Int32("m_nCP1", CP1);
             CP1Pos = parse.VectorProvider("m_vecCP1Pos", CP1Pos);

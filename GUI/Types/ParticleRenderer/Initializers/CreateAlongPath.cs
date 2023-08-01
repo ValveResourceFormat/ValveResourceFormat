@@ -19,7 +19,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
         private readonly Vector3 StartPointOffset = Vector3.Zero;
         private readonly Vector3 MidPointOffset = Vector3.Zero;
         private readonly Vector3 EndOffset = Vector3.Zero;
-        public CreateAlongPath(ParticleDefinitionParser parse)
+        public CreateAlongPath(ParticleDefinitionParser parse) : base(parse)
         {
             UseRandomCPs = parse.Boolean("m_bUseRandomCPs", UseRandomCPs);
             MaxDistance = parse.Float("m_flMaxDistance", MaxDistance);

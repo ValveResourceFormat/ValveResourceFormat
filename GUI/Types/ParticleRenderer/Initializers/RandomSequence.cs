@@ -11,7 +11,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
         private int counter;
 
         // In Behavior Ver 12+ there is a "weight list" that weights the randomness
-        public RandomSequence(ParticleDefinitionParser parse)
+        public RandomSequence(ParticleDefinitionParser parse) : base(parse)
         {
             sequenceMin = parse.Int32("m_nSequenceMin", sequenceMin);
             sequenceMax = parse.Int32("m_nSequenceMax", sequenceMax);

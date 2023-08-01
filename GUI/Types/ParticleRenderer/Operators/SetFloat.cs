@@ -10,7 +10,7 @@ namespace GUI.Types.ParticleRenderer.Operators
         private readonly ParticleSetMethod setMethod = ParticleSetMethod.PARTICLE_SET_REPLACE_VALUE;
         private readonly INumberProvider lerp = new LiteralNumberProvider(1f);
 
-        public SetFloat(ParticleDefinitionParser parse)
+        public SetFloat(ParticleDefinitionParser parse) : base(parse)
         {
             OutputField = parse.ParticleField("m_nOutputField", OutputField);
             value = parse.NumberProvider("m_nInputValue", value);

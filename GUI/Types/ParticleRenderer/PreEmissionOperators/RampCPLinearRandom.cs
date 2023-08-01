@@ -8,7 +8,7 @@ namespace GUI.Types.ParticleRenderer.PreEmissionOperators
         private readonly Vector3 rampRate = Vector3.Zero;
         private readonly int cp;
 
-        public RampCPLinearRandom(ParticleDefinitionParser parse)
+        public RampCPLinearRandom(ParticleDefinitionParser parse) : base(parse)
         {
             cp = parse.Int32("m_nOutputControlPointNumber", cp);
             var rateMin = parse.Vector3("m_vecRateMin", Vector3.Zero);

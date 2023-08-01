@@ -13,7 +13,7 @@ namespace GUI.Types.ParticleRenderer.Emitters
 
         private float time;
 
-        public InstantaneousEmitter(ParticleDefinitionParser parse)
+        public InstantaneousEmitter(ParticleDefinitionParser parse) : base(parse)
         {
             emitCount = parse.Data.GetNumberProvider("m_nParticlesToEmit");
             startTime = parse.Data.GetNumberProvider("m_flStartTime");

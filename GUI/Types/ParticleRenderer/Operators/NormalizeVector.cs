@@ -8,7 +8,7 @@ namespace GUI.Types.ParticleRenderer.Operators
         private readonly ParticleField OutputField = ParticleField.Position;
         private readonly float Scale = 1.0f;
 
-        public NormalizeVector(ParticleDefinitionParser parse)
+        public NormalizeVector(ParticleDefinitionParser parse) : base(parse)
         {
             OutputField = parse.ParticleField("m_nOutputField", OutputField);
             Scale = parse.Float("m_flScale", Scale);

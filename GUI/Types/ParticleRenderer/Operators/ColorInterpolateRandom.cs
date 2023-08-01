@@ -14,7 +14,7 @@ namespace GUI.Types.ParticleRenderer.Operators
         private readonly ParticleField FieldOutput = ParticleField.Color;
         private readonly bool easeInOut;
 
-        public ColorInterpolateRandom(ParticleDefinitionParser parse)
+        public ColorInterpolateRandom(ParticleDefinitionParser parse) : base(parse)
         {
             if (parse.Data.ContainsKey("m_ColorFadeMin"))
             {

@@ -12,7 +12,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
         private readonly float degrees;
         private readonly float degreesMin;
         private readonly float degreesMax = 360f;
-        public RandomRotationSpeed(ParticleDefinitionParser parse)
+        public RandomRotationSpeed(ParticleDefinitionParser parse) : base(parse)
         {
             FieldOutput = parse.ParticleField("m_nFieldOutput", FieldOutput);
             randomlyFlipDirection = parse.Boolean("m_bRandomlyFlipDirection", randomlyFlipDirection);

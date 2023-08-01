@@ -11,7 +11,7 @@ namespace GUI.Types.ParticleRenderer.Operators
         private readonly IVectorProvider inputVec2 = new LiteralVectorProvider(Vector3.Zero);
         private readonly bool normalize;
 
-        public RemapCrossProductOfTwoVectorsToVector(ParticleDefinitionParser parse)
+        public RemapCrossProductOfTwoVectorsToVector(ParticleDefinitionParser parse) : base(parse)
         {
             FieldOutput = parse.ParticleField("m_nFieldOutput", FieldOutput);
             inputVec1 = parse.VectorProvider("m_InputVec1", inputVec1);

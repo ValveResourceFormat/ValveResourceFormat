@@ -13,7 +13,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
         private readonly ParticleField FieldOutput = ParticleField.Roll;
         private readonly bool randomlyFlipDirection;
 
-        public RandomRotation(ParticleDefinitionParser parse)
+        public RandomRotation(ParticleDefinitionParser parse) : base(parse)
         {
             degreesMin = parse.Float("m_flDegreesMin", degreesMin);
             degreesMax = parse.Float("m_flDegreesMax", degreesMax);

@@ -8,7 +8,7 @@ namespace GUI.Types.ParticleRenderer.Operators
         private readonly ParticleField OutputField = ParticleField.Radius;
         private readonly INumberProvider quantizeSize = new LiteralNumberProvider(0);
 
-        public QuantizeFloat(ParticleDefinitionParser parse)
+        public QuantizeFloat(ParticleDefinitionParser parse) : base(parse)
         {
             OutputField = parse.ParticleField("m_nOutputField", OutputField);
             quantizeSize = parse.NumberProvider("m_nInputValue", quantizeSize);

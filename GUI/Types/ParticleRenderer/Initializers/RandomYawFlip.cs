@@ -7,7 +7,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
     {
         private readonly float percent;
 
-        public RandomYawFlip(ParticleDefinitionParser parse)
+        public RandomYawFlip(ParticleDefinitionParser parse) : base(parse)
         {
             percent = parse.Float("m_flPercent", percent);
         }

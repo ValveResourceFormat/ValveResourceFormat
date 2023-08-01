@@ -10,7 +10,7 @@ namespace GUI.Types.ParticleRenderer.Operators
         private readonly INumberProvider outputMax = new LiteralNumberProvider(1);
         private readonly ParticleField OutputField = ParticleField.Radius;
 
-        public ClampScalar(ParticleDefinitionParser parse)
+        public ClampScalar(ParticleDefinitionParser parse) : base(parse)
         {
             OutputField = parse.ParticleField("m_nOutputField", OutputField);
             outputMin = parse.NumberProvider("m_flOutputMin", outputMin);

@@ -17,7 +17,7 @@ namespace GUI.Types.ParticleRenderer.Operators
         private readonly bool additive;
         private readonly bool activeRange;
 
-        public DistanceToCP(ParticleDefinitionParser parse)
+        public DistanceToCP(ParticleDefinitionParser parse) : base(parse)
         {
             OutputField = parse.ParticleField("m_nOutputField", OutputField);
             distanceMin = parse.Float("m_flInputMin", distanceMin);

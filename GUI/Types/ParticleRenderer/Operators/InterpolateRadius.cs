@@ -13,7 +13,7 @@ namespace GUI.Types.ParticleRenderer.Operators
         private readonly INumberProvider bias = new LiteralNumberProvider(0);
 
 
-        public InterpolateRadius(ParticleDefinitionParser parse)
+        public InterpolateRadius(ParticleDefinitionParser parse) : base(parse)
         {
             startTime = parse.Float("m_flStartTime", startTime);
             endTime = parse.Float("m_flEndTime", endTime);

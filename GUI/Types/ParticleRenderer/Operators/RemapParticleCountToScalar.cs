@@ -14,7 +14,7 @@ namespace GUI.Types.ParticleRenderer.Operators
         private readonly ParticleSetMethod setMethod = ParticleSetMethod.PARTICLE_SET_REPLACE_VALUE;
         private readonly bool activeRange;
 
-        public OpRemapParticleCountToScalar(ParticleDefinitionParser parse)
+        public OpRemapParticleCountToScalar(ParticleDefinitionParser parse) : base(parse)
         {
             OutputField = parse.ParticleField("m_nOutputField", OutputField);
             inputMin = parse.NumberProvider("m_flInputMin", inputMin);

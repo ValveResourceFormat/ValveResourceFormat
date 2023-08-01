@@ -18,7 +18,7 @@ namespace GUI.Types.ParticleRenderer.PreEmissionOperators
         private readonly INumberProvider reRandomRate = new LiteralNumberProvider(-1.0f);
         private readonly INumberProvider interpolation = new LiteralNumberProvider(1.0f);
 
-        public SetRandomControlPointPosition(ParticleDefinitionParser parse)
+        public SetRandomControlPointPosition(ParticleDefinitionParser parse) : base(parse)
         {
             cp = parse.Int32("m_nCP1", cp);
             minPos = parse.Vector3("m_vecCPMinPos", minPos);

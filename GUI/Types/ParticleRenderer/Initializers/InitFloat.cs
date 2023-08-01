@@ -7,7 +7,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
         private readonly ParticleField OutputField = ParticleField.Radius;
         private readonly INumberProvider InputValue = new LiteralNumberProvider(0);
 
-        public InitFloat(ParticleDefinitionParser parse)
+        public InitFloat(ParticleDefinitionParser parse) : base(parse)
         {
             OutputField = parse.ParticleField("m_nOutputField", OutputField);
             InputValue = parse.NumberProvider("m_InputValue", InputValue);

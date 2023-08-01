@@ -8,7 +8,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
         private readonly ParticleField OutputField = ParticleField.Color;
         private readonly IVectorProvider InputValue = new LiteralVectorProvider(Vector3.Zero);
 
-        public InitVec(ParticleDefinitionParser parse)
+        public InitVec(ParticleDefinitionParser parse) : base(parse)
         {
             OutputField = parse.ParticleField("m_nOutputField", OutputField);
             InputValue = parse.VectorProvider("m_nInputValue", InputValue);

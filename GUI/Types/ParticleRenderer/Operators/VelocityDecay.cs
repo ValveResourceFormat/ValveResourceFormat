@@ -6,7 +6,7 @@ namespace GUI.Types.ParticleRenderer.Operators
     class VelocityDecay : ParticleFunctionOperator
     {
         private readonly float minVelocity;
-        public VelocityDecay(ParticleDefinitionParser parse)
+        public VelocityDecay(ParticleDefinitionParser parse) : base(parse)
         {
             minVelocity = parse.Float("m_flMinVelocity", minVelocity);
         }

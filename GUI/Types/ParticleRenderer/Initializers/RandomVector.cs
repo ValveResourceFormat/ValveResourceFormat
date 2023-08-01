@@ -9,7 +9,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
         private readonly Vector3 Min;
         private readonly Vector3 Max;
 
-        public RandomVector(ParticleDefinitionParser parse)
+        public RandomVector(ParticleDefinitionParser parse) : base(parse)
         {
             FieldOutput = parse.ParticleField("m_nFieldOutput", FieldOutput);
             Min = parse.Vector3("m_vecMin", Min);

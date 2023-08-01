@@ -9,7 +9,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
         private readonly float scalarMax;
         private readonly float exponent = 1;
 
-        public RandomScalar(ParticleDefinitionParser parse)
+        public RandomScalar(ParticleDefinitionParser parse) : base(parse)
         {
             FieldOutput = parse.ParticleField("m_nFieldOutput", FieldOutput);
             scalarMin = parse.Float("m_flMin", scalarMin);

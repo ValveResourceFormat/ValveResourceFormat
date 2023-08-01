@@ -69,7 +69,7 @@ namespace GUI.Types.ParticleRenderer
                 ["C_OP_ClampScalar"] = operatorInfo => new ClampScalar(operatorInfo),
                 ["C_OP_ColorInterpolate"] = operatorInfo => new ColorInterpolate(operatorInfo),
                 ["C_OP_ColorInterpolateRandom"] = operatorInfo => new ColorInterpolateRandom(operatorInfo),
-                ["C_OP_Decay"] = operatorInfo => new Decay(),
+                ["C_OP_Decay"] = operatorInfo => new Decay(operatorInfo),
                 ["C_OP_DistanceCull"] = operatorInfo => new DistanceCull(operatorInfo),
                 ["C_OP_DistanceToCP"] = operatorInfo => new DistanceToCP(operatorInfo),
                 ["C_OP_FadeAndKill"] = operatorInfo => new FadeAndKill(operatorInfo),
@@ -102,7 +102,7 @@ namespace GUI.Types.ParticleRenderer
                 ["C_OP_SetFloatCollection"] = operatorInfo => new SetFloat(operatorInfo), // same as initfloatcollection
                 ["C_OP_SetVec"] = operatorInfo => new SetVec(operatorInfo),
                 ["C_OP_Spin"] = operatorInfo => new Spin(operatorInfo),
-                ["C_OP_SpinUpdate"] = operatorInfo => new SpinUpdate(),
+                ["C_OP_SpinUpdate"] = operatorInfo => new SpinUpdate(operatorInfo),
                 ["C_OP_SpinYaw"] = operatorInfo => new SpinYaw(operatorInfo),
                 ["C_OP_VelocityDecay"] = operatorInfo => new VelocityDecay(operatorInfo),
             };

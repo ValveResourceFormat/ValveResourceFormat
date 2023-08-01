@@ -9,7 +9,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
         private readonly float max;
         private readonly int component;
 
-        public RandomVectorComponent(ParticleDefinitionParser parse)
+        public RandomVectorComponent(ParticleDefinitionParser parse) : base(parse)
         {
             FieldOutput = parse.ParticleField("m_nFieldOutput", FieldOutput);
             min = parse.Float("m_flMin", min);

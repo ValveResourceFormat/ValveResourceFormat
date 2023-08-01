@@ -8,7 +8,7 @@ namespace GUI.Types.ParticleRenderer.Operators
         private readonly int overrideCP = -1;
         private readonly int overrideCPField;
 
-        public MaxVelocity(ParticleDefinitionParser parse)
+        public MaxVelocity(ParticleDefinitionParser parse) : base(parse)
         {
             maxVelocity = parse.Float("m_flMaxVelocity", maxVelocity);
             overrideCP = parse.Int32("m_nOverrideCP", overrideCP);

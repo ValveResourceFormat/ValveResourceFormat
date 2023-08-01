@@ -12,7 +12,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
 
         private float orbitCount;
 
-        public RingWave(ParticleDefinitionParser parse)
+        public RingWave(ParticleDefinitionParser parse) : base(parse)
         {
             evenDistribution = parse.Boolean("m_bEvenDistribution", evenDistribution);
             particlesPerOrbit = parse.NumberProvider("m_flParticlesPerOrbit", particlesPerOrbit);

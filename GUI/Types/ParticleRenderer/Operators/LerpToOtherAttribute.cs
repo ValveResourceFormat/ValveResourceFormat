@@ -10,7 +10,7 @@ namespace GUI.Types.ParticleRenderer.Operators
         private readonly INumberProvider interpolation = new LiteralNumberProvider(1.0f);
 
         private readonly bool skip;
-        public LerpToOtherAttribute(ParticleDefinitionParser parse)
+        public LerpToOtherAttribute(ParticleDefinitionParser parse) : base(parse)
         {
             FieldInput = parse.ParticleField("m_nFieldInput", FieldInput);
             FieldOutput = parse.ParticleField("m_nFieldOutput", FieldOutput);

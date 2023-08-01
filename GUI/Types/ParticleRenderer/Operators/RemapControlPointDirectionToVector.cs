@@ -8,7 +8,7 @@ namespace GUI.Types.ParticleRenderer.Operators
         private readonly int cp;
         private readonly float scale;
 
-        public RemapControlPointDirectionToVector(ParticleDefinitionParser parse)
+        public RemapControlPointDirectionToVector(ParticleDefinitionParser parse) : base(parse)
         {
             FieldOutput = parse.ParticleField("m_nFieldOutput", FieldOutput);
             scale = parse.Float("m_flScale", scale);

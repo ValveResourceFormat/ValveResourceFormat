@@ -12,7 +12,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
         private readonly float outputMin;
         private readonly float outputMax;
 
-        public RemapScalar(ParticleDefinitionParser parse)
+        public RemapScalar(ParticleDefinitionParser parse) : base(parse)
         {
             FieldInput = parse.ParticleField("m_nFieldInput", FieldInput);
             FieldOutput = parse.ParticleField("m_nFieldOutput", FieldOutput);

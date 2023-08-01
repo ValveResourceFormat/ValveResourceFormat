@@ -16,7 +16,7 @@ namespace GUI.Types.ParticleRenderer.Emitters
         private float time;
         private float lastEmissionTime;
 
-        public ContinuousEmitter(ParticleDefinitionParser parse)
+        public ContinuousEmitter(ParticleDefinitionParser parse) : base(parse)
         {
             emissionDuration = parse.NumberProvider("m_flEmissionDuration", emissionDuration);
             startTime = parse.NumberProvider("m_flStartTime", startTime);

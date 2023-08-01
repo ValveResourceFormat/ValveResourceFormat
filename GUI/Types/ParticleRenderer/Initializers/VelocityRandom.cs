@@ -10,7 +10,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
         private readonly INumberProvider speedMin = new LiteralNumberProvider(0.1f);
         private readonly INumberProvider speedMax = new LiteralNumberProvider(0.1f);
 
-        public VelocityRandom(ParticleDefinitionParser parse)
+        public VelocityRandom(ParticleDefinitionParser parse) : base(parse)
         {
             vectorMin = parse.VectorProvider("m_LocalCoordinateSystemSpeedMin", vectorMin);
             vectorMax = parse.VectorProvider("m_LocalCoordinateSystemSpeedMax", vectorMax);

@@ -23,7 +23,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
 
         private readonly ParticleSetMethod setMethod = ParticleSetMethod.PARTICLE_SET_REPLACE_VALUE;
 
-        public RemapParticleCountToScalar(ParticleDefinitionParser parse)
+        public RemapParticleCountToScalar(ParticleDefinitionParser parse) : base(parse)
         {
             FieldOutput = parse.ParticleField("m_nFieldOutput", FieldOutput);
             InputMin = parse.Long("m_nInputMin", InputMin);

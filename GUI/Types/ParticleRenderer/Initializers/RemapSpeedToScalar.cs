@@ -15,7 +15,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
 
         private readonly bool perParticle;
 
-        public RemapSpeedToScalar(ParticleDefinitionParser parse)
+        public RemapSpeedToScalar(ParticleDefinitionParser parse) : base(parse)
         {
             FieldOutput = parse.ParticleField("m_nFieldOutput", FieldOutput);
             inputMin = parse.Float("m_flInputMin", inputMin);

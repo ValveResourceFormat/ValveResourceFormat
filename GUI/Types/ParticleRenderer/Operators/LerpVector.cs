@@ -13,7 +13,7 @@ namespace GUI.Types.ParticleRenderer.Operators
 
         private readonly ParticleSetMethod setMethod = ParticleSetMethod.PARTICLE_SET_REPLACE_VALUE;
 
-        public LerpVector(ParticleDefinitionParser parse)
+        public LerpVector(ParticleDefinitionParser parse) : base(parse)
         {
             FieldOutput = parse.ParticleField("m_nFieldOutput", FieldOutput);
             output = parse.Vector3("m_nInputValue", output);

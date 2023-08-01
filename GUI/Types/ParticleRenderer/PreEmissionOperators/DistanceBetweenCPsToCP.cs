@@ -15,7 +15,7 @@ namespace GUI.Types.ParticleRenderer.PreEmissionOperators
         private readonly int outputCP = 2;
         private readonly int outputCPField;
 
-        public DistanceBetweenCPsToCP(ParticleDefinitionParser parse)
+        public DistanceBetweenCPsToCP(ParticleDefinitionParser parse) : base(parse)
         {
             distanceMin = parse.Float("m_flInputMin", distanceMin);
             distanceMax = parse.Float("m_flInputMax", distanceMax);

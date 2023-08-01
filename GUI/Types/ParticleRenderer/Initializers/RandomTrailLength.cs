@@ -5,7 +5,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
         private readonly float minLength = 0.1f;
         private readonly float maxLength = 0.1f;
 
-        public RandomTrailLength(ParticleDefinitionParser parse)
+        public RandomTrailLength(ParticleDefinitionParser parse) : base(parse)
         {
             minLength = parse.Float("m_flMinLength", minLength);
             maxLength = parse.Float("m_flMaxLength", maxLength);

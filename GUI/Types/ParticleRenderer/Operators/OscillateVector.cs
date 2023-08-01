@@ -21,7 +21,7 @@ namespace GUI.Types.ParticleRenderer.Operators
         private readonly float endTimeMin = 1.0f;
         private readonly float endTimeMax = 1.0f;
 
-        public OscillateVector(ParticleDefinitionParser parse)
+        public OscillateVector(ParticleDefinitionParser parse) : base(parse)
         {
             outputField = parse.ParticleField("m_nField", outputField);
             RateMin = parse.Vector3("m_RateMin", RateMin);
@@ -98,7 +98,7 @@ namespace GUI.Types.ParticleRenderer.Operators
         private readonly float oscillationMultiplier = 2.0f;
         private readonly float oscillationOffset = 0.5f;
 
-        public OscillateVectorSimple(ParticleDefinitionParser parse)
+        public OscillateVectorSimple(ParticleDefinitionParser parse) : base(parse)
         {
             outputField = parse.ParticleField("m_nField", outputField);
             rate = parse.Vector3("m_Rate", rate);

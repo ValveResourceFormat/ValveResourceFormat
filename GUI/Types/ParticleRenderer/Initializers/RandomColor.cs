@@ -8,7 +8,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
         private readonly Vector3 colorMin = Vector3.One;
         private readonly Vector3 colorMax = Vector3.One;
 
-        public RandomColor(ParticleDefinitionParser parse)
+        public RandomColor(ParticleDefinitionParser parse) : base(parse)
         {
             if (parse.Data.ContainsKey("m_ColorMin"))
             {

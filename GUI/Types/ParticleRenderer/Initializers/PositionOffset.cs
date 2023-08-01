@@ -11,7 +11,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
 
         private readonly bool proportional;
 
-        public PositionOffset(ParticleDefinitionParser parse)
+        public PositionOffset(ParticleDefinitionParser parse) : base(parse)
         {
             offsetMin = parse.VectorProvider("m_OffsetMin", offsetMin);
             offsetMax = parse.VectorProvider("m_OffsetMax", offsetMax);

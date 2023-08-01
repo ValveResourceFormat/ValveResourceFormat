@@ -9,7 +9,7 @@ namespace GUI.Types.ParticleRenderer.Operators
         private readonly Vector3 planeNormal = new(0, 0, 1);
         private readonly bool localSpace;
 
-        public PlaneCull(ParticleDefinitionParser parse)
+        public PlaneCull(ParticleDefinitionParser parse) : base(parse)
         {
             cp = parse.Int32("m_nPlaneControlPoint", cp);
 

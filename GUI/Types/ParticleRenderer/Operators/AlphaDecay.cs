@@ -6,7 +6,7 @@ namespace GUI.Types.ParticleRenderer.Operators
     class AlphaDecay : ParticleFunctionOperator
     {
         private readonly float minAlpha;
-        public AlphaDecay(ParticleDefinitionParser parse)
+        public AlphaDecay(ParticleDefinitionParser parse) : base(parse)
         {
             minAlpha = parse.Float("m_flMinAlpha", minAlpha);
         }

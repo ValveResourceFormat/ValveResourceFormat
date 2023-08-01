@@ -20,7 +20,7 @@ namespace GUI.Types.ParticleRenderer.Operators
         private readonly float prevPosScale = 1;
         private readonly int cp;
 
-        public PositionLock(ParticleDefinitionParser parse)
+        public PositionLock(ParticleDefinitionParser parse) : base(parse)
         {
             cp = parse.Int32("m_nControlPointNumber", cp);
             startTimeMin = parse.Float("m_flStartTime_min", startTimeMin);

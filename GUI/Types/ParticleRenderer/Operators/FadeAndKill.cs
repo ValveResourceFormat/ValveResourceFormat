@@ -13,7 +13,7 @@ namespace GUI.Types.ParticleRenderer.Operators
         private readonly float startAlpha = 1f;
         private readonly float endAlpha;
 
-        public FadeAndKill(ParticleDefinitionParser parse)
+        public FadeAndKill(ParticleDefinitionParser parse) : base(parse)
         {
             startFadeInTime = parse.Float("m_flStartFadeInTime", startFadeInTime);
             endFadeInTime = parse.Float("m_flEndFadeInTime", endFadeInTime);

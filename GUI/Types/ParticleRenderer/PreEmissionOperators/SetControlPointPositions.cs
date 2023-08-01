@@ -20,7 +20,7 @@ namespace GUI.Types.ParticleRenderer.PreEmissionOperators
 
         private bool HasRunBefore;
 
-        public SetControlPointPositions(ParticleDefinitionParser parse)
+        public SetControlPointPositions(ParticleDefinitionParser parse) : base(parse)
         {
             CP1 = parse.Int32("m_nCP1", CP1);
             CP2 = parse.Int32("m_nCP2", CP2);

@@ -13,7 +13,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
         private readonly int controlPoint;
         private readonly bool ignoreDelta;
 
-        public VelocityRadialRandom(ParticleDefinitionParser parse)
+        public VelocityRadialRandom(ParticleDefinitionParser parse) : base(parse)
         {
             vectorScale = parse.VectorProvider("m_vecLocalCoordinateSystemSpeedScale", vectorScale);
             speedMin = parse.NumberProvider("m_fSpeedMin", speedMin);

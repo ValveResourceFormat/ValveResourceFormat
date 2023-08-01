@@ -39,7 +39,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
         private static bool wireframe;
 
 
-        public RenderSprites(ParticleDefinitionParser parse, VrfGuiContext vrfGuiContext)
+        public RenderSprites(ParticleDefinitionParser parse, VrfGuiContext vrfGuiContext) : base(parse)
         {
             guiContext = vrfGuiContext;
             shader = vrfGuiContext.ShaderLoader.LoadShader(ShaderName);

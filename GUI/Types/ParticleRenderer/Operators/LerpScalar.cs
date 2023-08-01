@@ -10,7 +10,7 @@ namespace GUI.Types.ParticleRenderer.Operators
         private readonly float startTime;
         private readonly float endTime = 1f;
 
-        public LerpScalar(ParticleDefinitionParser parse)
+        public LerpScalar(ParticleDefinitionParser parse) : base(parse)
         {
             FieldOutput = parse.ParticleField("m_nFieldOutput", FieldOutput);
             output = parse.NumberProvider("m_flOutput", output);

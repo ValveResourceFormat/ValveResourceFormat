@@ -11,7 +11,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
         private readonly IVectorProvider localCoordinateSystemSpeedMin = new LiteralVectorProvider(Vector3.Zero);
         private readonly IVectorProvider localCoordinateSystemSpeedMax = new LiteralVectorProvider(Vector3.Zero);
 
-        public CreateWithinSphere(ParticleDefinitionParser parse)
+        public CreateWithinSphere(ParticleDefinitionParser parse) : base(parse)
         {
             radiusMin = parse.NumberProvider("m_fRadiusMin", radiusMin);
             radiusMax = parse.NumberProvider("m_fRadiusMax", radiusMax);

@@ -12,7 +12,7 @@ namespace GUI.Types.ParticleRenderer.Operators
         private readonly float fadeEndTime = 1f;
         private readonly ParticleField FieldOutput = ParticleField.Color;
 
-        public ColorInterpolate(ParticleDefinitionParser parse)
+        public ColorInterpolate(ParticleDefinitionParser parse) : base(parse)
         {
             if (parse.Data.ContainsKey("m_ColorFade"))
             {

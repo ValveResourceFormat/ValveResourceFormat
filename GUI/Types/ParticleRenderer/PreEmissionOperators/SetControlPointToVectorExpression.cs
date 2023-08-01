@@ -10,7 +10,7 @@ namespace GUI.Types.ParticleRenderer.PreEmissionOperators
         private readonly IVectorProvider Input2 = new LiteralVectorProvider(Vector3.Zero);
         private readonly VectorExpression Expression = VectorExpression.Add;
 
-        public SetControlPointToVectorExpression(ParticleDefinitionParser parse)
+        public SetControlPointToVectorExpression(ParticleDefinitionParser parse) : base(parse)
         {
             OutputCP = parse.Int32("m_nOutputCP", OutputCP);
             Input1 = parse.VectorProvider("m_vInput1", Input1);

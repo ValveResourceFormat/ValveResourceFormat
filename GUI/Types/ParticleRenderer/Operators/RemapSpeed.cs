@@ -13,7 +13,7 @@ namespace GUI.Types.ParticleRenderer.Operators
         private readonly ParticleField OutputField = ParticleField.Radius;
         private readonly ParticleSetMethod setMethod = ParticleSetMethod.PARTICLE_SET_REPLACE_VALUE;
 
-        public RemapSpeed(ParticleDefinitionParser parse)
+        public RemapSpeed(ParticleDefinitionParser parse) : base(parse)
         {
             OutputField = parse.ParticleField("m_nOutputField", OutputField);
             inputMin = parse.NumberProvider("m_flInputMin", inputMin);

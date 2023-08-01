@@ -14,7 +14,7 @@ namespace GUI.Types.ParticleRenderer.Operators
         private readonly float oscillationOffset = 0.5f;
         private readonly bool proportional = true;
 
-        public OscillateScalar(ParticleDefinitionParser parse)
+        public OscillateScalar(ParticleDefinitionParser parse) : base(parse)
         {
             outputField = parse.ParticleField("m_nField", outputField);
             rateMin = parse.Float("m_RateMin", rateMin);
@@ -62,7 +62,7 @@ namespace GUI.Types.ParticleRenderer.Operators
         private readonly float oscillationMultiplier = 2f;
         private readonly float oscillationOffset = 0.5f;
 
-        public OscillateScalarSimple(ParticleDefinitionParser parse)
+        public OscillateScalarSimple(ParticleDefinitionParser parse) : base(parse)
         {
             outputField = parse.ParticleField("m_nField", outputField);
             rate = parse.Float("m_Rate", rate);

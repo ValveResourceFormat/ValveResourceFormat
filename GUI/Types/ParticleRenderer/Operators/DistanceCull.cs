@@ -9,7 +9,7 @@ namespace GUI.Types.ParticleRenderer.Operators
         private readonly float distance;
         private readonly Vector3 PointOffset = Vector3.Zero;
         private readonly bool cullInside;
-        public DistanceCull(ParticleDefinitionParser parse)
+        public DistanceCull(ParticleDefinitionParser parse) : base(parse)
         {
             cp = parse.Int32("m_nControlPoint", cp);
             PointOffset = parse.Vector3("m_vecPointOffset", PointOffset);

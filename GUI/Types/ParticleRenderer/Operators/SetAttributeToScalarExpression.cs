@@ -11,7 +11,7 @@ namespace GUI.Types.ParticleRenderer.Operators
         private readonly ScalarExpressionType expression = ScalarExpressionType.SCALAR_EXPRESSION_ADD;
         private readonly ParticleSetMethod setMethod = ParticleSetMethod.PARTICLE_SET_REPLACE_VALUE;
 
-        public SetAttributeToScalarExpression(ParticleDefinitionParser parse)
+        public SetAttributeToScalarExpression(ParticleDefinitionParser parse) : base(parse)
         {
             OutputField = parse.ParticleField("m_nOutputField", OutputField);
             input1 = parse.NumberProvider("m_flInput1", input1);

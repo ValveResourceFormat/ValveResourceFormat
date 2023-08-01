@@ -19,7 +19,7 @@ namespace GUI.Types.ParticleRenderer.Emitters
         private float time;
         private float particlesToEmit;
 
-        public NoiseEmitter(ParticleDefinitionParser parse)
+        public NoiseEmitter(ParticleDefinitionParser parse) : base(parse)
         {
             emissionDuration = parse.NumberProvider("m_flEmissionDuration", emissionDuration);
             startTime = parse.NumberProvider("m_flStartTime", startTime);

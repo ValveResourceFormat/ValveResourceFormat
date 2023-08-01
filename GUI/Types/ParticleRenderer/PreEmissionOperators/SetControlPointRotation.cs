@@ -9,7 +9,7 @@ namespace GUI.Types.ParticleRenderer.PreEmissionOperators
         private readonly int localCP = -1; // ??
         private readonly INumberProvider rotationRate = new LiteralNumberProvider(180);
 
-        public SetControlPointRotation(ParticleDefinitionParser parse)
+        public SetControlPointRotation(ParticleDefinitionParser parse) : base(parse)
         {
             axis = parse.VectorProvider("m_vecRotAxis", axis);
             rotationRate = parse.NumberProvider("m_flRotRate", rotationRate);

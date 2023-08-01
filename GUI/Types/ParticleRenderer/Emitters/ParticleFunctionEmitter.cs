@@ -2,8 +2,12 @@ using System;
 
 namespace GUI.Types.ParticleRenderer.Emitters
 {
-    abstract class ParticleFunctionEmitter
+    abstract class ParticleFunctionEmitter : ParticleFunction
     {
+        protected ParticleFunctionEmitter(ParticleDefinitionParser parse) : base(parse)
+        {
+        }
+
         public abstract void Start(Action particleEmitCallback);
 
         public abstract void Stop();

@@ -10,7 +10,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
         private readonly IVectorProvider outputMax = new LiteralVectorProvider(Vector3.One);
         private readonly INumberProvider noiseScale = new LiteralNumberProvider(1f);
 
-        public InitialVelocityNoise(ParticleDefinitionParser parse)
+        public InitialVelocityNoise(ParticleDefinitionParser parse) : base(parse)
         {
             outputMin = parse.VectorProvider("m_vecOutputMin", outputMin);
             outputMax = parse.VectorProvider("m_vecOutputMax", outputMax);

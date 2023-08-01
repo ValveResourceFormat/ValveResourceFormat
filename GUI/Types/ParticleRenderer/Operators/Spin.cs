@@ -7,7 +7,7 @@ namespace GUI.Types.ParticleRenderer.Operators
         private readonly float spinRate;
         private readonly float spinRateMin; // don't actually know if this is used or not. I don't think it is?
         private readonly float spinStopTime;
-        public Spin(ParticleDefinitionParser parse)
+        public Spin(ParticleDefinitionParser parse) : base(parse)
         {
             spinRate = parse.Float("m_nSpinRateDegrees", spinRate);
             spinRateMin = parse.Float("m_nSpinRateMinDegrees", spinRateMin);
@@ -32,7 +32,7 @@ namespace GUI.Types.ParticleRenderer.Operators
         private float spinRate;
         private float spinRateMin; // don't actually know if this is used or not. I don't think it is?
         private float spinStopTime;
-        public SpinYaw(ParticleDefinitionParser parse)
+        public SpinYaw(ParticleDefinitionParser parse) : base(parse)
         {
             spinRate = parse.Float("m_nSpinRateDegrees", spinRate);
             spinRateMin = parse.Float("m_nSpinRateMinDegrees", spinRateMin);

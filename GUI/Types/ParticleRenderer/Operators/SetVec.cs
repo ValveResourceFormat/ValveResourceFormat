@@ -11,7 +11,7 @@ namespace GUI.Types.ParticleRenderer.Operators
         private readonly ParticleSetMethod setMethod = ParticleSetMethod.PARTICLE_SET_REPLACE_VALUE;
         private readonly INumberProvider lerp = new LiteralNumberProvider(1f);
 
-        public SetVec(ParticleDefinitionParser parse)
+        public SetVec(ParticleDefinitionParser parse) : base(parse)
         {
             OutputField = parse.ParticleField("m_nOutputField", OutputField);
             value = parse.VectorProvider("m_nInputValue", value);

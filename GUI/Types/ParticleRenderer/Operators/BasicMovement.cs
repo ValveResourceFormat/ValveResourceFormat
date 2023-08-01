@@ -7,7 +7,7 @@ namespace GUI.Types.ParticleRenderer.Operators
         private readonly IVectorProvider gravity = new LiteralVectorProvider(Vector3.Zero);
         private readonly INumberProvider drag = new LiteralNumberProvider(0);
 
-        public BasicMovement(ParticleDefinitionParser parse)
+        public BasicMovement(ParticleDefinitionParser parse) : base(parse)
         {
             gravity = parse.VectorProvider("m_Gravity", gravity);
             drag = parse.NumberProvider("m_fDrag", drag);

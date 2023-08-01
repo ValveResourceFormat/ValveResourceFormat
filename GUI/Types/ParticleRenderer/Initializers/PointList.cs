@@ -27,7 +27,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
         private readonly bool usePath;
         private readonly bool closedLoop;
 
-        public PointList(ParticleDefinitionParser parse)
+        public PointList(ParticleDefinitionParser parse) : base(parse)
         {
             FieldOutput = parse.ParticleField("m_nFieldOutput", FieldOutput);
             numPointsOnPath = parse.Int32("m_nNumPointsAlongPath", numPointsOnPath);

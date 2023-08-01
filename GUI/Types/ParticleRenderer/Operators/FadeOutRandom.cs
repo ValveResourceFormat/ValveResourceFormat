@@ -10,7 +10,7 @@ namespace GUI.Types.ParticleRenderer.Operators
         private readonly float randomExponent = 1f;
         private readonly bool proportional = true;
 
-        public FadeOutRandom(ParticleDefinitionParser parse)
+        public FadeOutRandom(ParticleDefinitionParser parse) : base(parse)
         {
             fadeOutTimeMin = parse.Float("m_flFadeOutTimeMin", fadeOutTimeMin);
             fadeOutTimeMax = parse.Float("m_flFadeOutTimeMax", fadeOutTimeMax);

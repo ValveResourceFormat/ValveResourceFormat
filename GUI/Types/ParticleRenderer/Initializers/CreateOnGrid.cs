@@ -19,7 +19,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
         private readonly bool hollow; // misery
         //private readonly bool localSpace;
 
-        public CreateOnGrid(ParticleDefinitionParser parse)
+        public CreateOnGrid(ParticleDefinitionParser parse) : base(parse)
         {
             dimenX = parse.NumberProvider("m_nXCount", dimenX);
             dimenY = parse.NumberProvider("m_nYCount", dimenY);

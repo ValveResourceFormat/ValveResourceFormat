@@ -8,7 +8,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
         private readonly int alphaMin = 255;
         private readonly int alphaMax = 255;
 
-        public RandomAlpha(ParticleDefinitionParser parse)
+        public RandomAlpha(ParticleDefinitionParser parse) : base(parse)
         {
             alphaMin = parse.Int32("m_nAlphaMin", alphaMin);
             alphaMax = parse.Int32("m_nAlphaMax", alphaMax);

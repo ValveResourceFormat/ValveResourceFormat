@@ -2,7 +2,7 @@ namespace GUI.Types.ParticleRenderer.Operators
 {
     class Decay : ParticleFunctionOperator
     {
-        public Decay()
+        public Decay(ParticleDefinitionParser parse) : base(parse)
         {
         }
 
