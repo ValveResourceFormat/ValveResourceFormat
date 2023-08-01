@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using System.Numerics;
 using GUI.Types.Renderer;
 using GUI.Utils;
@@ -9,26 +8,28 @@ namespace GUI.Types.ParticleRenderer
     internal class ParticleGrid : IRenderer
     {
         private readonly int vao;
-        private readonly Shader shader;
-
-        private readonly int vertexCount;
+        private Shader shader;
+        private VrfGuiContext guiContext;
 
         public AABB LocalBoundingBox { get; }
 
-        public ParticleGrid(float cellWidth, int gridWidthInCells, VrfGuiContext guiContext)
+        public ParticleGrid(float width, VrfGuiContext guiContext)
         {
-            LocalBoundingBox = new AABB(
-                new Vector3(-cellWidth * 0.5f * gridWidthInCells, -cellWidth * 0.5f * gridWidthInCells, 0),
-                new Vector3(cellWidth * 0.5f * gridWidthInCells, cellWidth * 0.5f * gridWidthInCells, 0));
+            var center = width / 2f;
+            LocalBoundingBox = new AABB(new Vector3(-center, -center, 0), new Vector3(center, center, 0));
 
-            var vertices = GenerateGridVertexBuffer(cellWidth, gridWidthInCells);
+            var vertices = new[]
+            {
+                -width,  width, 0f,
+                -width, -width, 0f,
+                width, -width, 0f,
+                width, -width, 0f,
+                width, width, 0f,
+                -width, width, 0f,
+            };
 
-            vertexCount = vertices.Length / 3; // Number of vertices in our buffer
-            const int stride = sizeof(float) * 7;
-
-            shader = guiContext.ShaderLoader.LoadShader("vrf.grid");
-
-            GL.UseProgram(shader.Program);
+            this.guiContext = guiContext;
+            ReloadShader();
 
             // Create and bind VAO
             vao = GL.GenVertexArray();
@@ -43,11 +44,7 @@ namespace GUI.Types.ParticleRenderer
 
             var positionAttributeLocation = GL.GetAttribLocation(shader.Program, "aVertexPosition");
             GL.EnableVertexAttribArray(positionAttributeLocation);
-            GL.VertexAttribPointer(positionAttributeLocation, 3, VertexAttribPointerType.Float, false, stride, 0);
-
-            var colorAttributeLocation = GL.GetAttribLocation(shader.Program, "aVertexColor");
-            GL.EnableVertexAttribArray(colorAttributeLocation);
-            GL.VertexAttribPointer(colorAttributeLocation, 4, VertexAttribPointerType.Float, false, stride, sizeof(float) * 3);
+            GL.VertexAttribPointer(positionAttributeLocation, 3, VertexAttribPointerType.Float, false, sizeof(float) * 3, 0);
 
             GL.UseProgram(0);
             GL.BindVertexArray(0);
@@ -61,62 +58,26 @@ namespace GUI.Types.ParticleRenderer
         public void Render(Camera camera, RenderPass renderPass)
         {
             GL.Enable(EnableCap.Blend);
-            GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
+            GL.Disable(EnableCap.CullFace);
+            GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.DstAlpha);
 
             GL.UseProgram(shader.Program);
-
-            shader.SetUniform4x4("uProjectionViewMatrix", camera.ViewProjectionMatrix);
-
             GL.BindVertexArray(vao);
             GL.EnableVertexAttribArray(0);
 
-            GL.DrawArrays(PrimitiveType.Lines, 0, vertexCount);
+            shader.SetUniform4x4("uProjectionViewMatrix", camera.ViewProjectionMatrix);
+
+            GL.DrawArrays(PrimitiveType.Triangles, 0, 6);
 
             GL.UseProgram(0);
             GL.BindVertexArray(0);
             GL.Disable(EnableCap.Blend);
+            GL.Enable(EnableCap.CullFace);
         }
 
-        private static float[] GenerateGridVertexBuffer(float cellWidth, int gridWidthInCells)
+        public void ReloadShader()
         {
-            var gridVertices = new List<float>();
-
-            var width = cellWidth * gridWidthInCells;
-            var color = new[] { 1.0f, 1.0f, 1.0f, 1.0f };
-
-            for (var i = 0; i <= gridWidthInCells; i++)
-            {
-                gridVertices.AddRange(new[] { width, i * cellWidth, 0 });
-                gridVertices.AddRange(color);
-                gridVertices.AddRange(new[] { -width, i * cellWidth, 0 });
-                gridVertices.AddRange(color);
-            }
-
-            for (var i = 1; i <= gridWidthInCells; i++)
-            {
-                gridVertices.AddRange(new[] { width, -i * cellWidth, 0 });
-                gridVertices.AddRange(color);
-                gridVertices.AddRange(new[] { -width, -i * cellWidth, 0 });
-                gridVertices.AddRange(color);
-            }
-
-            for (var i = 0; i <= gridWidthInCells; i++)
-            {
-                gridVertices.AddRange(new[] { i * cellWidth, width, 0 });
-                gridVertices.AddRange(color);
-                gridVertices.AddRange(new[] { i * cellWidth, -width, 0 });
-                gridVertices.AddRange(color);
-            }
-
-            for (var i = 1; i <= gridWidthInCells; i++)
-            {
-                gridVertices.AddRange(new[] { -i * cellWidth, width, 0 });
-                gridVertices.AddRange(color);
-                gridVertices.AddRange(new[] { -i * cellWidth, -width, 0 });
-                gridVertices.AddRange(color);
-            }
-
-            return gridVertices.ToArray();
+            shader = guiContext.ShaderLoader.LoadShader("vrf.grid");
         }
     }
 }

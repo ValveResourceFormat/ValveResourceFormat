@@ -128,7 +128,7 @@ namespace GUI.Types.Renderer
 
         protected virtual void OnLoad(object sender, EventArgs e)
         {
-            baseGrid = new ParticleGrid(20, 5, GuiContext);
+            baseGrid = new ParticleGrid(100f, GuiContext);
             selectedNodeRenderer = new(Scene);
 
             Camera.SetViewportSize(GLControl.Width, GLControl.Height);
@@ -291,6 +291,8 @@ namespace GUI.Types.Renderer
                         Camera.Picker = new PickingTexture(Scene.GuiContext, OnPicked);
                         Camera.Picker.Resize(GLControl.Width, GLControl.Height);
                     }
+
+                    baseGrid.ReloadShader();
 
                     SetRenderMode(renderModeComboBox?.SelectedItem as string);
                     SetAvailableRenderModes(renderModeComboBox?.SelectedIndex ?? 0);

@@ -309,8 +309,10 @@ namespace GUI.Types.Renderer
 
             switch (shaderName)
             {
+                case "vrf.default":
+                    return "default";
                 case "vrf.grid":
-                    return "debug_grid";
+                    return "grid";
                 case "vrf.picking":
                     return "picking";
                 case "vrf.particle.sprite":

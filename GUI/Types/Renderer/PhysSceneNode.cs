@@ -25,7 +25,7 @@ namespace GUI.Types.Renderer
         {
             this.hasUntriangulatedVertices = hasUntriangulatedVertices;
 
-            shader = Scene.GuiContext.ShaderLoader.LoadShader("vrf.grid");
+            shader = Scene.GuiContext.ShaderLoader.LoadShader("vrf.default");
             GL.UseProgram(shader.Program);
 
             vaoHandle = GL.GenVertexArray();

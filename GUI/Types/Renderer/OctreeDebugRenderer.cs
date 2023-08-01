@@ -22,7 +22,7 @@ namespace GUI.Types.Renderer
             this.octree = octree;
             this.dynamic = dynamic;
 
-            shader = shader = guiContext.ShaderLoader.LoadShader("vrf.grid");
+            shader = shader = guiContext.ShaderLoader.LoadShader("vrf.default");
             GL.UseProgram(shader.Program);
 
             vboHandle = GL.GenBuffer();

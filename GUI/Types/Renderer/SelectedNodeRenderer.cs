@@ -18,7 +18,7 @@ namespace GUI.Types.Renderer
 
         public SelectedNodeRenderer(Scene scene) : base(scene)
         {
-            shader = scene.GuiContext.ShaderLoader.LoadShader("vrf.grid");
+            shader = scene.GuiContext.ShaderLoader.LoadShader("vrf.default");
             GL.UseProgram(shader.Program);
 
             vboHandle = GL.GenBuffer();
@@ -162,7 +162,7 @@ namespace GUI.Types.Renderer
 
         public override void SetRenderMode(string mode)
         {
-            shader = Scene.GuiContext.ShaderLoader.LoadShader("vrf.grid");
+            shader = Scene.GuiContext.ShaderLoader.LoadShader("vrf.default");
 
             debugCubeMaps = mode == "Cubemaps";
         }

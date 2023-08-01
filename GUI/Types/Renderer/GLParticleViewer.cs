@@ -23,7 +23,6 @@ namespace GUI.Types.Renderer
             this.particleSystem = particleSystem;
         }
 
-        // splash07a
         protected override void Dispose(bool disposing)
         {
             if (disposing)
