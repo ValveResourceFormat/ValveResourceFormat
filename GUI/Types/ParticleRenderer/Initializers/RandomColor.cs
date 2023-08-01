@@ -1,10 +1,9 @@
 using System.Numerics;
-using GUI.Utils;
 using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Initializers
 {
-    class RandomColor : IParticleInitializer
+    class RandomColor : ParticleFunctionInitializer
     {
         private readonly Vector3 colorMin = Vector3.One;
         private readonly Vector3 colorMax = Vector3.One;
@@ -26,7 +25,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
             // lots of stuff with Tinting in hlvr.
         }
 
-        public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
+        public override Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
             particle.Color = ParticleCollection.RandomBetween(particle.ParticleID, colorMin, colorMax);
 

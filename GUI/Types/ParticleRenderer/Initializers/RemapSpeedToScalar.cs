@@ -1,11 +1,10 @@
 using System;
 using GUI.Utils;
 using ValveResourceFormat;
-using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Initializers
 {
-    class RemapSpeedToScalar : IParticleInitializer
+    class RemapSpeedToScalar : ParticleFunctionInitializer
     {
         private readonly ParticleField FieldOutput = ParticleField.Radius;
         private readonly float inputMin;
@@ -27,7 +26,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
             perParticle = parse.Boolean("m_bPerParticle", perParticle);
         }
 
-        public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
+        public override Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
             if (!perParticle)
             {

@@ -1,10 +1,8 @@
 using System.Numerics;
-using GUI.Utils;
-using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Initializers
 {
-    class CreateWithinBox : IParticleInitializer
+    class CreateWithinBox : ParticleFunctionInitializer
     {
         private readonly IVectorProvider min = new LiteralVectorProvider(Vector3.Zero);
         private readonly IVectorProvider max = new LiteralVectorProvider(Vector3.Zero);
@@ -20,7 +18,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
             scaleCP = parse.Int32("m_nScaleCP", scaleCP);
         }
 
-        public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
+        public override Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
             var posMin = min.NextVector(ref particle, particleSystemState);
             var posMax = max.NextVector(ref particle, particleSystemState);

@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Globalization;
 using GUI.Types.ParticleRenderer.Utils;
 using GUI.Utils;

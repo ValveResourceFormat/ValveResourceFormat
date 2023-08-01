@@ -1,8 +1,6 @@
-using GUI.Utils;
-
 namespace GUI.Types.ParticleRenderer.Initializers
 {
-    class RandomLifeTime : IParticleInitializer
+    class RandomLifeTime : ParticleFunctionInitializer
     {
         private readonly float lifetimeMin;
         private readonly float lifetimeMax;
@@ -15,7 +13,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
             lifetimeMax = parse.Float("m_flLifetimeRandExponent", lifetimeMax);
         }
 
-        public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
+        public override Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
             var lifetime = ParticleCollection.RandomWithExponentBetween(particle.ParticleID, lifetimeRandomExponent, lifetimeMin, lifetimeMax);
 

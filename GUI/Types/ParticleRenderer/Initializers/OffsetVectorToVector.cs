@@ -1,10 +1,9 @@
-using GUI.Utils;
 using System.Numerics;
 using ValveResourceFormat;
 
 namespace GUI.Types.ParticleRenderer.Initializers
 {
-    class OffsetVectorToVector : IParticleInitializer
+    class OffsetVectorToVector : ParticleFunctionInitializer
     {
         private readonly ParticleField FieldInput = ParticleField.Position;
         private readonly ParticleField FieldOutput = ParticleField.Position;
@@ -19,7 +18,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
             OutputMax = parse.Vector3("m_vecOutputMax", OutputMax);
         }
 
-        public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
+        public override Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
             var input = particle.GetVector(FieldInput);
 

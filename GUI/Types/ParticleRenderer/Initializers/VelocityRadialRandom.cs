@@ -1,11 +1,9 @@
 using System;
 using System.Numerics;
-using GUI.Utils;
-using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Initializers
 {
-    class VelocityRadialRandom : IParticleInitializer
+    class VelocityRadialRandom : ParticleFunctionInitializer
     {
         // unsure if this is actually a vector provider
         private readonly IVectorProvider vectorScale = new LiteralVectorProvider(Vector3.Zero);
@@ -24,7 +22,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
             controlPoint = parse.Int32("m_nControlPointNumber", controlPoint);
         }
 
-        public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
+        public override Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
             var speedmin = speedMin.NextNumber(ref particle, particleSystemState);
             var speedmax = speedMax.NextNumber(ref particle, particleSystemState);

@@ -1,12 +1,12 @@
-using GUI.Utils;
 using System.Numerics;
+using GUI.Utils;
 
 namespace GUI.Types.ParticleRenderer.Operators
 {
     /// <summary>
     /// This module is mostly used to stick effects onto moving components.
     /// </summary>
-    class PositionLock : IParticleOperator
+    class PositionLock : ParticleFunctionOperator
     {
         private readonly float startTimeMin = 1;
         private readonly float startTimeMax = 1;
@@ -37,7 +37,7 @@ namespace GUI.Types.ParticleRenderer.Operators
 
         private Vector3 prevFramePos = new(float.MaxValue);
 
-        public void Update(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
             var cpPos = particleSystemState.GetControlPoint(cp).Position;
 

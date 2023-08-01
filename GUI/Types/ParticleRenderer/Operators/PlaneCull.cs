@@ -2,7 +2,7 @@ using System.Numerics;
 
 namespace GUI.Types.ParticleRenderer.Operators
 {
-    class PlaneCull : IParticleOperator
+    class PlaneCull : ParticleFunctionOperator
     {
         private readonly int cp;
         private readonly float planeOffset;
@@ -30,7 +30,7 @@ namespace GUI.Types.ParticleRenderer.Operators
             var sign = Vector3.Dot(planeNormal, position - pointOnPlane);
             return sign < 0;
         }
-        public void Update(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
             foreach (ref var particle in particles.Current)
             {

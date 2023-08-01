@@ -1,11 +1,9 @@
 using System.Numerics;
-using GUI.Utils;
 using ValveResourceFormat;
-using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Initializers
 {
-    class RandomVector : IParticleInitializer
+    class RandomVector : ParticleFunctionInitializer
     {
         private readonly ParticleField FieldOutput = ParticleField.Position;
         private readonly Vector3 Min;
@@ -18,7 +16,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
             Max = parse.Vector3("m_vecMax", Max);
         }
 
-        public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
+        public override Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
             var newVector = ParticleCollection.RandomBetweenPerComponent(particle.ParticleID, Min, Max);
 

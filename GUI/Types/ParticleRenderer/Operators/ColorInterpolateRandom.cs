@@ -1,11 +1,11 @@
-using GUI.Utils;
 using System.Numerics;
+using GUI.Utils;
 using ValveResourceFormat;
 using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Operators
 {
-    class ColorInterpolateRandom : IParticleOperator
+    class ColorInterpolateRandom : ParticleFunctionOperator
     {
         private readonly Vector3 colorFadeMin = Vector3.One;
         private readonly Vector3 colorFadeMax = Vector3.One;
@@ -34,7 +34,7 @@ namespace GUI.Types.ParticleRenderer.Operators
             easeInOut = parse.Boolean("m_bEaseInOut", easeInOut);
         }
 
-        public void Update(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
             foreach (ref var particle in particles.Current)
             {

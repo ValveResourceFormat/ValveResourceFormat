@@ -1,11 +1,10 @@
 using System;
 using System.Numerics;
 using GUI.Utils;
-using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.PreEmissionOperators
 {
-    class SetRandomControlPointPosition : IParticlePreEmissionOperator
+    class SetRandomControlPointPosition : ParticleFunctionPreEmissionOperator
     {
         private readonly int cp = 1;
         private readonly Vector3 minPos = Vector3.Zero;
@@ -40,7 +39,7 @@ namespace GUI.Types.ParticleRenderer.PreEmissionOperators
         {
             currentPosition = ParticleCollection.RandomBetweenPerComponent(Random.Shared.Next(), minPos, maxPos);
         }
-        public void Operate(ref ParticleSystemRenderState particleSystemState, float frameTime)
+        public override void Operate(ref ParticleSystemRenderState particleSystemState, float frameTime)
         {
             // not fully accurate, as it is still in local space, but it's closer to correct
             var controlPointOffset = useWorldLocation

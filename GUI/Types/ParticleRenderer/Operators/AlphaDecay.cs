@@ -3,7 +3,7 @@ namespace GUI.Types.ParticleRenderer.Operators
     /// <summary>
     /// Cull particle when its alpha is below a certain threshold.
     /// </summary>
-    class AlphaDecay : IParticleOperator
+    class AlphaDecay : ParticleFunctionOperator
     {
         private readonly float minAlpha;
         public AlphaDecay(ParticleDefinitionParser parse)
@@ -11,7 +11,7 @@ namespace GUI.Types.ParticleRenderer.Operators
             minAlpha = parse.Float("m_flMinAlpha", minAlpha);
         }
 
-        public void Update(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
             foreach (ref var particle in particles.Current)
             {

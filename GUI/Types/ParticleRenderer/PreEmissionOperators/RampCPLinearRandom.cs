@@ -1,10 +1,9 @@
 using System;
 using System.Numerics;
-using GUI.Utils;
 
 namespace GUI.Types.ParticleRenderer.PreEmissionOperators
 {
-    class RampCPLinearRandom : IParticlePreEmissionOperator
+    class RampCPLinearRandom : ParticleFunctionPreEmissionOperator
     {
         private readonly Vector3 rampRate = Vector3.Zero;
         private readonly int cp;
@@ -18,7 +17,7 @@ namespace GUI.Types.ParticleRenderer.PreEmissionOperators
             rampRate = ParticleCollection.RandomBetweenPerComponent(Random.Shared.Next(), rateMin, rateMax);
         }
 
-        public void Operate(ref ParticleSystemRenderState particleSystemState, float frameTime)
+        public override void Operate(ref ParticleSystemRenderState particleSystemState, float frameTime)
         {
             var cpPos = particleSystemState.GetControlPoint(cp).Position;
             particleSystemState.SetControlPointValue(cp, cpPos + (rampRate * frameTime));

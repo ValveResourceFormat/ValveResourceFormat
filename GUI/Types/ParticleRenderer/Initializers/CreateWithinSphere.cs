@@ -1,10 +1,8 @@
 using System.Numerics;
-using GUI.Utils;
-using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Initializers
 {
-    class CreateWithinSphere : IParticleInitializer
+    class CreateWithinSphere : ParticleFunctionInitializer
     {
         private readonly INumberProvider radiusMin = new LiteralNumberProvider(0);
         private readonly INumberProvider radiusMax = new LiteralNumberProvider(0);
@@ -23,7 +21,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
             localCoordinateSystemSpeedMax = parse.VectorProvider("m_LocalCoordinateSystemSpeedMax", localCoordinateSystemSpeedMax);
         }
 
-        public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
+        public override Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
             var randomVector = ParticleCollection.RandomBetweenPerComponent(particle.ParticleID, new Vector3(-1), new Vector3(1));
 

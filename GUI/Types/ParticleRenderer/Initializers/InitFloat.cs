@@ -1,9 +1,8 @@
 using ValveResourceFormat;
-using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Initializers
 {
-    class InitFloat : IParticleInitializer
+    class InitFloat : ParticleFunctionInitializer
     {
         private readonly ParticleField OutputField = ParticleField.Radius;
         private readonly INumberProvider InputValue = new LiteralNumberProvider(0);
@@ -14,7 +13,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
             InputValue = parse.NumberProvider("m_InputValue", InputValue);
         }
 
-        public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
+        public override Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
             particle.SetScalar(OutputField, InputValue.NextNumber(ref particle, particleSystemState));
 

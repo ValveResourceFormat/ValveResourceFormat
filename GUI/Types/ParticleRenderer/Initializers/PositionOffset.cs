@@ -1,10 +1,8 @@
 using System.Numerics;
-using GUI.Utils;
-using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Initializers
 {
-    class PositionOffset : IParticleInitializer
+    class PositionOffset : ParticleFunctionInitializer
     {
         private readonly IVectorProvider offsetMin = new LiteralVectorProvider(Vector3.Zero);
         private readonly IVectorProvider offsetMax = new LiteralVectorProvider(Vector3.Zero);
@@ -20,7 +18,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
             proportional = parse.Boolean("m_bProportional", proportional);
         }
 
-        public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
+        public override Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
 
             var offset = ParticleCollection.RandomBetweenPerComponent(

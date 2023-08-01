@@ -1,11 +1,10 @@
 using System;
-using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Emitters
 {
-    class InstantaneousEmitter : IParticleEmitter
+    class InstantaneousEmitter : ParticleFunctionEmitter
     {
-        public bool IsFinished { get; private set; }
+        public override bool IsFinished { get; protected set; }
 
         private Action particleEmitCallback;
 
@@ -20,7 +19,7 @@ namespace GUI.Types.ParticleRenderer.Emitters
             startTime = parse.Data.GetNumberProvider("m_flStartTime");
         }
 
-        public void Start(Action particleEmitCallback)
+        public override void Start(Action particleEmitCallback)
         {
             this.particleEmitCallback = particleEmitCallback;
 
@@ -29,12 +28,12 @@ namespace GUI.Types.ParticleRenderer.Emitters
             time = 0;
         }
 
-        public void Stop()
+        public override void Stop()
         {
             IsFinished = true;
         }
 
-        public void Update(float frameTime)
+        public override void Update(float frameTime)
         {
             if (IsFinished)
             {

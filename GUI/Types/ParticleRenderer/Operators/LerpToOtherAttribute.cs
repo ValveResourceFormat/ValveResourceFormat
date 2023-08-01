@@ -3,7 +3,7 @@ using ValveResourceFormat;
 
 namespace GUI.Types.ParticleRenderer.Operators
 {
-    class LerpToOtherAttribute : IParticleOperator
+    class LerpToOtherAttribute : ParticleFunctionOperator
     {
         private readonly ParticleField FieldInput = ParticleField.Color;
         private readonly ParticleField FieldOutput = ParticleField.Color;
@@ -20,7 +20,7 @@ namespace GUI.Types.ParticleRenderer.Operators
             skip = FieldInput.FieldType() != FieldOutput.FieldType();
         }
 
-        public void Update(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
             // We don't have to do weird stuff with this one because it doesn't have the option to set the initial.
             if (!skip)

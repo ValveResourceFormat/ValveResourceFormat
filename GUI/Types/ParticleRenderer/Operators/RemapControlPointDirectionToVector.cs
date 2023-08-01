@@ -2,7 +2,7 @@ using ValveResourceFormat;
 
 namespace GUI.Types.ParticleRenderer.Operators
 {
-    class RemapControlPointDirectionToVector : IParticleOperator
+    class RemapControlPointDirectionToVector : ParticleFunctionOperator
     {
         private readonly ParticleField FieldOutput = ParticleField.Position;
         private readonly int cp;
@@ -16,7 +16,7 @@ namespace GUI.Types.ParticleRenderer.Operators
         }
 
         // is this particle id or total particle count?
-        public void Update(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
             foreach (ref var particle in particles.Current)
             {

@@ -1,9 +1,8 @@
-using GUI.Utils;
 using ValveResourceFormat;
 
 namespace GUI.Types.ParticleRenderer.Operators
 {
-    class FadeInRandom : IParticleOperator
+    class FadeInRandom : ParticleFunctionOperator
     {
         private readonly float fadeInTimeMin = 0.25f;
         private readonly float fadeInTimeMax = 0.25f;
@@ -18,7 +17,7 @@ namespace GUI.Types.ParticleRenderer.Operators
             proportional = parse.Boolean("m_bProportional", proportional);
         }
 
-        public void Update(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
             foreach (ref var particle in particles.Current)
             {

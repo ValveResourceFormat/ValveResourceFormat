@@ -1,10 +1,9 @@
 using System.Numerics;
 using ValveResourceFormat;
-using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Initializers
 {
-    class InitVec : IParticleInitializer
+    class InitVec : ParticleFunctionInitializer
     {
         private readonly ParticleField OutputField = ParticleField.Color;
         private readonly IVectorProvider InputValue = new LiteralVectorProvider(Vector3.Zero);
@@ -16,7 +15,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
         }
 
         // todo: these (operators and initializers) can reference either the current value and the initial value. do we need to store the initial value of all attributes?
-        public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
+        public override Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
             particle.SetVector(OutputField, InputValue.NextVector(ref particle, particleSystemState));
 

@@ -1,14 +1,10 @@
 using System;
 using System.Numerics;
-using System.Security.Cryptography.X509Certificates;
-using GUI.Utils;
-using OpenTK.Platform;
-using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Initializers
 {
     // this single initializer delayed this release by months
-    class CreateOnGrid : IParticleInitializer
+    class CreateOnGrid : ParticleFunctionInitializer
     {
         private readonly INumberProvider dimenX = new LiteralNumberProvider(0);
         private readonly INumberProvider dimenY = new LiteralNumberProvider(0);
@@ -47,7 +43,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
         }
 
         // We're simulating a lot of weird and incorrect behavior here, but it's accurate to source 2
-        public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
+        public override Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
             var rawDimenX = this.dimenX.NextNumber(ref particle, particleSystemState);
             var rawDimenY = this.dimenY.NextNumber(ref particle, particleSystemState);

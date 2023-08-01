@@ -1,10 +1,8 @@
-using GUI.Utils;
 using ValveResourceFormat;
-using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Initializers
 {
-    class RandomScalar : IParticleInitializer
+    class RandomScalar : ParticleFunctionInitializer
     {
         private readonly ParticleField FieldOutput = ParticleField.Radius;
         private readonly float scalarMin;
@@ -19,7 +17,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
             scalarMax = parse.Float("m_flExponent", scalarMax);
         }
 
-        public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
+        public override Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
             var value = ParticleCollection.RandomWithExponentBetween(particle.ParticleID, exponent, scalarMin, scalarMax);
 

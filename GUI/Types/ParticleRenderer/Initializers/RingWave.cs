@@ -1,10 +1,9 @@
 using System;
 using System.Numerics;
-using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Initializers
 {
-    class RingWave : IParticleInitializer
+    class RingWave : ParticleFunctionInitializer
     {
         private readonly bool evenDistribution;
         private readonly INumberProvider initialRadius = new LiteralNumberProvider(0);
@@ -23,7 +22,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
             // other properties: m_vInitialSpeedMin/Max, m_flRoll
         }
 
-        public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
+        public override Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
             var thickness = this.thickness.NextNumber(ref particle, particleSystemState);
             var particlesPerOrbit = this.particlesPerOrbit.NextInt(ref particle, particleSystemState);

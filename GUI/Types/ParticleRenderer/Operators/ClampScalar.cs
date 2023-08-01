@@ -1,10 +1,10 @@
-using GUI.Utils;
 using System;
+using GUI.Utils;
 using ValveResourceFormat;
 
 namespace GUI.Types.ParticleRenderer.Operators
 {
-    class ClampScalar : IParticleOperator
+    class ClampScalar : ParticleFunctionOperator
     {
         private readonly INumberProvider outputMin = new LiteralNumberProvider(0);
         private readonly INumberProvider outputMax = new LiteralNumberProvider(1);
@@ -17,7 +17,7 @@ namespace GUI.Types.ParticleRenderer.Operators
             outputMax = parse.NumberProvider("m_flOutputMax", outputMax);
         }
 
-        public void Update(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
             foreach (ref var particle in particles.Current)
             {

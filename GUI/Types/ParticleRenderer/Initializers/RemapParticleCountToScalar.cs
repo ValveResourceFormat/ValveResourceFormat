@@ -1,11 +1,11 @@
+using System;
 using GUI.Types.ParticleRenderer.Utils;
 using GUI.Utils;
-using System;
 using ValveResourceFormat;
 
 namespace GUI.Types.ParticleRenderer.Initializers
 {
-    class RemapParticleCountToScalar : IParticleInitializer
+    class RemapParticleCountToScalar : ParticleFunctionInitializer
     {
         private readonly ParticleField FieldOutput = ParticleField.Radius;
         private readonly long InputMin;
@@ -39,7 +39,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
             controlPointComponent = parse.Int32("m_nScaleControlPointField", controlPointComponent);
         }
 
-        public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
+        public override Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
             // system state currently doesn't track total count, so we can't access that yet
             var count = invert

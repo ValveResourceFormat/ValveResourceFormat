@@ -1,9 +1,8 @@
-using GUI.Utils;
 using ValveResourceFormat;
 
 namespace GUI.Types.ParticleRenderer.Operators
 {
-    class FadeOutRandom : IParticleOperator
+    class FadeOutRandom : ParticleFunctionOperator
     {
         private readonly float fadeOutTimeMin = 0.25f;
         private readonly float fadeOutTimeMax = 0.25f;
@@ -31,7 +30,7 @@ namespace GUI.Types.ParticleRenderer.Operators
             // m_bEaseInAndOut
         }
 
-        public void Update(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
             foreach (ref var particle in particles.Current)
             {

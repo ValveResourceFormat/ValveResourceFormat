@@ -1,10 +1,8 @@
 using System.Numerics;
-using GUI.Utils;
-using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.PreEmissionOperators
 {
-    class SetSingleControlPointPosition : IParticlePreEmissionOperator
+    class SetSingleControlPointPosition : ParticleFunctionPreEmissionOperator
     {
         private readonly int CP1 = 1;
         private readonly IVectorProvider CP1Pos = new LiteralVectorProvider(new Vector3(128, 0, 0));
@@ -25,7 +23,7 @@ namespace GUI.Types.ParticleRenderer.PreEmissionOperators
             CPOffset = parse.Int32("m_nHeadLocation", CPOffset);
         }
 
-        public void Operate(ref ParticleSystemRenderState particleSystemState, float frameTime)
+        public override void Operate(ref ParticleSystemRenderState particleSystemState, float frameTime)
         {
             if (!(SetOnce && HasRunBefore))
             {

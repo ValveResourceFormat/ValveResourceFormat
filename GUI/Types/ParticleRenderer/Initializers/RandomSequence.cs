@@ -1,9 +1,8 @@
 using System;
-using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Initializers
 {
-    class RandomSequence : IParticleInitializer
+    class RandomSequence : ParticleFunctionInitializer
     {
         private readonly int sequenceMin;
         private readonly int sequenceMax;
@@ -19,7 +18,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
             shuffle = parse.Boolean("m_bShuffle", shuffle);
         }
 
-        public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
+        public override Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
             if (shuffle)
             {

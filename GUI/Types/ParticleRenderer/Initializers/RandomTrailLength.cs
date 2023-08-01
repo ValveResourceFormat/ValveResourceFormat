@@ -1,9 +1,6 @@
-using GUI.Utils;
-using ValveResourceFormat.Serialization;
-
 namespace GUI.Types.ParticleRenderer.Initializers
 {
-    class RandomTrailLength : IParticleInitializer
+    class RandomTrailLength : ParticleFunctionInitializer
     {
         private readonly float minLength = 0.1f;
         private readonly float maxLength = 0.1f;
@@ -14,7 +11,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
             maxLength = parse.Float("m_flMaxLength", maxLength);
         }
 
-        public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
+        public override Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
             particle.TrailLength = ParticleCollection.RandomBetween(particle.ParticleID, minLength, maxLength);
 

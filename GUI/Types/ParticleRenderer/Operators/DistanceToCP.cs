@@ -1,12 +1,10 @@
-using System;
 using System.Numerics;
 using GUI.Utils;
 using ValveResourceFormat;
-using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Operators
 {
-    class DistanceToCP : IParticleOperator
+    class DistanceToCP : ParticleFunctionOperator
     {
         private readonly float distanceMin;
         private readonly float distanceMax = 128;
@@ -35,7 +33,7 @@ namespace GUI.Types.ParticleRenderer.Operators
             // Unsupported features: LOS test. We'd need collision for that.
         }
 
-        public void Update(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
             var cpPos = particleSystemState.GetControlPoint(controlPoint).Position;
 

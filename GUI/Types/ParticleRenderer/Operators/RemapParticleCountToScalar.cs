@@ -3,7 +3,7 @@ using ValveResourceFormat;
 
 namespace GUI.Types.ParticleRenderer.Operators
 {
-    class OpRemapParticleCountToScalar : IParticleOperator
+    class OpRemapParticleCountToScalar : ParticleFunctionOperator
     {
         private readonly INumberProvider inputMin = new LiteralNumberProvider(0);
         private readonly INumberProvider inputMax = new LiteralNumberProvider(1);
@@ -26,7 +26,7 @@ namespace GUI.Types.ParticleRenderer.Operators
         }
 
         // is this particle id or total particle count?
-        public void Update(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
             foreach (ref var particle in particles.Current)
             {

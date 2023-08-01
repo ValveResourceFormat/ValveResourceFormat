@@ -3,7 +3,7 @@ using System.Numerics;
 
 namespace GUI.Types.ParticleRenderer.PreEmissionOperators
 {
-    class SetControlPointToVectorExpression : IParticlePreEmissionOperator
+    class SetControlPointToVectorExpression : ParticleFunctionPreEmissionOperator
     {
         private readonly int OutputCP = 1;
         private readonly IVectorProvider Input1 = new LiteralVectorProvider(Vector3.Zero);
@@ -18,7 +18,7 @@ namespace GUI.Types.ParticleRenderer.PreEmissionOperators
             Expression = parse.EnumNormalized<VectorExpression>("m_nExpression", Expression);
         }
 
-        public void Operate(ref ParticleSystemRenderState particleSystemState, float frameTime)
+        public override void Operate(ref ParticleSystemRenderState particleSystemState, float frameTime)
         {
             var vec1 = Input1.NextVector(particleSystemState);
             var vec2 = Input2.NextVector(particleSystemState);

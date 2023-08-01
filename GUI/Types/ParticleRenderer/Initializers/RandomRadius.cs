@@ -1,9 +1,6 @@
-using GUI.Utils;
-using ValveResourceFormat.Serialization;
-
 namespace GUI.Types.ParticleRenderer.Initializers
 {
-    class RandomRadius : IParticleInitializer
+    class RandomRadius : ParticleFunctionInitializer
     {
         private readonly float radiusMin = 1;
         private readonly float radiusMax = 1;
@@ -16,7 +13,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
             radiusRandomExponent = parse.Float("m_flRadiusRandExponent", radiusRandomExponent);
         }
 
-        public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
+        public override Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
             particle.Radius = ParticleCollection.RandomWithExponentBetween(particle.ParticleID, radiusRandomExponent, radiusMin, radiusMax);
 

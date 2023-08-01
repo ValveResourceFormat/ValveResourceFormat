@@ -1,10 +1,8 @@
-using GUI.Utils;
 using ValveResourceFormat;
-using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Initializers
 {
-    class RandomVectorComponent : IParticleInitializer
+    class RandomVectorComponent : ParticleFunctionInitializer
     {
         private readonly ParticleField FieldOutput = ParticleField.Position;
         private readonly float min;
@@ -19,7 +17,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
             component = parse.Int32("m_nComponent", component);
         }
 
-        public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
+        public override Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
             var newComponent = ParticleCollection.RandomBetween(particle.ParticleID, min, max);
 

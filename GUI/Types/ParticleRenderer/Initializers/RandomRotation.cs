@@ -1,11 +1,10 @@
 using System;
 using GUI.Utils;
 using ValveResourceFormat;
-using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Initializers
 {
-    class RandomRotation : IParticleInitializer
+    class RandomRotation : ParticleFunctionInitializer
     {
         private readonly float degreesMin;
         private readonly float degreesMax = 360f;
@@ -24,7 +23,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
             randomExponent = parse.Float("m_flRotationRandExponent", randomExponent);
         }
 
-        public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
+        public override Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
             var degrees = degreesOffset + ParticleCollection.RandomWithExponentBetween(particle.ParticleID, randomExponent, degreesMin, degreesMax);
             if (randomlyFlipDirection && Random.Shared.NextSingle() > 0.5f)

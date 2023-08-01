@@ -3,7 +3,7 @@ using ValveResourceFormat;
 
 namespace GUI.Types.ParticleRenderer.Operators
 {
-    class NormalizeVector : IParticleOperator
+    class NormalizeVector : ParticleFunctionOperator
     {
         private readonly ParticleField OutputField = ParticleField.Position;
         private readonly float Scale = 1.0f;
@@ -15,7 +15,7 @@ namespace GUI.Types.ParticleRenderer.Operators
 
             // there's also a Lerp value that will fade it in when at low values. Further testing is needed to know anything more
         }
-        public void Update(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
             foreach (ref var particle in particles.Current)
             {

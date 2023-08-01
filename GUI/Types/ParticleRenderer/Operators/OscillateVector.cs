@@ -1,11 +1,10 @@
-using GUI.Utils;
 using System;
 using System.Numerics;
 using ValveResourceFormat;
 
 namespace GUI.Types.ParticleRenderer.Operators
 {
-    class OscillateVector : IParticleOperator
+    class OscillateVector : ParticleFunctionOperator
     {
         private readonly ParticleField outputField = ParticleField.Position;
         private readonly Vector3 RateMin;
@@ -39,7 +38,7 @@ namespace GUI.Types.ParticleRenderer.Operators
             endTimeMax = parse.Float("m_flEndTime_max", endTimeMax);
         }
 
-        public void Update(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
             // Remove expired particles
             /*var particlesToRemove = particleRates.Keys.Except(particle).ToList();
@@ -91,7 +90,7 @@ namespace GUI.Types.ParticleRenderer.Operators
         }
     }
 
-    class OscillateVectorSimple : IParticleOperator
+    class OscillateVectorSimple : ParticleFunctionOperator
     {
         private readonly ParticleField outputField = ParticleField.Position;
         private readonly Vector3 rate;
@@ -108,7 +107,7 @@ namespace GUI.Types.ParticleRenderer.Operators
             oscillationOffset = parse.Float("m_flOscAdd", oscillationOffset);
         }
 
-        public void Update(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
             foreach (ref var particle in particles.Current)
             {

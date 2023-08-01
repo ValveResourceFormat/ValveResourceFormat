@@ -1,11 +1,11 @@
-using GUI.Utils;
 using System.Numerics;
+using GUI.Utils;
 using ValveResourceFormat;
 using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Operators
 {
-    class ColorInterpolate : IParticleOperator
+    class ColorInterpolate : ParticleFunctionOperator
     {
         private readonly Vector3 colorFade = Vector3.One;
         private readonly float fadeStartTime;
@@ -25,7 +25,7 @@ namespace GUI.Types.ParticleRenderer.Operators
             FieldOutput = parse.ParticleField("m_nFieldOutput", FieldOutput);
         }
 
-        public void Update(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
             foreach (ref var particle in particles.Current)
             {

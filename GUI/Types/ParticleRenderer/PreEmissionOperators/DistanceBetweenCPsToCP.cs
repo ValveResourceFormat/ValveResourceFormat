@@ -1,10 +1,9 @@
 using System.Numerics;
 using GUI.Utils;
-using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.PreEmissionOperators
 {
-    class DistanceBetweenCPsToCP : IParticlePreEmissionOperator
+    class DistanceBetweenCPsToCP : ParticleFunctionPreEmissionOperator
     {
         private readonly float distanceMin;
         private readonly float distanceMax = 128;
@@ -30,7 +29,7 @@ namespace GUI.Types.ParticleRenderer.PreEmissionOperators
             // Unsupported features: LOS test
         }
 
-        public void Operate(ref ParticleSystemRenderState particleSystemState, float frameTime)
+        public override void Operate(ref ParticleSystemRenderState particleSystemState, float frameTime)
         {
             var startCP = particleSystemState.GetControlPoint(this.startCP);
             var endCP = particleSystemState.GetControlPoint(this.endCP);

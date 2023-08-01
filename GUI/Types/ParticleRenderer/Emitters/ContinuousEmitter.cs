@@ -1,11 +1,10 @@
 using System;
-using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Emitters
 {
-    class ContinuousEmitter : IParticleEmitter
+    class ContinuousEmitter : ParticleFunctionEmitter
     {
-        public bool IsFinished { get; private set; }
+        public override bool IsFinished { get; protected set; }
 
         private readonly INumberProvider emissionDuration = new LiteralNumberProvider(0);
         private readonly INumberProvider startTime = new LiteralNumberProvider(0);
@@ -26,7 +25,7 @@ namespace GUI.Types.ParticleRenderer.Emitters
             emitInterval = 1.0f / emitRate.NextNumber();
         }
 
-        public void Start(Action particleEmitCallback)
+        public override void Start(Action particleEmitCallback)
         {
             this.particleEmitCallback = particleEmitCallback;
 
@@ -36,12 +35,12 @@ namespace GUI.Types.ParticleRenderer.Emitters
             IsFinished = false;
         }
 
-        public void Stop()
+        public override void Stop()
         {
             IsFinished = true;
         }
 
-        public void Update(float frameTime)
+        public override void Update(float frameTime)
         {
             if (IsFinished)
             {

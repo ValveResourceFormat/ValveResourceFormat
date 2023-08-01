@@ -1,10 +1,10 @@
-using GUI.Utils;
 using System.Numerics;
+using GUI.Utils;
 using ValveResourceFormat;
 
 namespace GUI.Types.ParticleRenderer.Operators
 {
-    class RotateVector : IParticleOperator
+    class RotateVector : ParticleFunctionOperator
     {
         private readonly ParticleField OutputField = ParticleField.Normal;
         private readonly Vector3 RotAxisMin = new(0, 0, 1);
@@ -36,7 +36,7 @@ namespace GUI.Types.ParticleRenderer.Operators
                 vector.Z * new Vector3(rotatedMatrix.M31, rotatedMatrix.M32, rotatedMatrix.M33);
         }
 
-        public void Update(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
             foreach (ref var particle in particles.Current)
             {

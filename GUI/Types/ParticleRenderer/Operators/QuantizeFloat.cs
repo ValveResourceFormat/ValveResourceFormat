@@ -3,7 +3,7 @@ using ValveResourceFormat;
 
 namespace GUI.Types.ParticleRenderer.Operators
 {
-    class QuantizeFloat : IParticleOperator
+    class QuantizeFloat : ParticleFunctionOperator
     {
         private readonly ParticleField OutputField = ParticleField.Radius;
         private readonly INumberProvider quantizeSize = new LiteralNumberProvider(0);
@@ -13,7 +13,7 @@ namespace GUI.Types.ParticleRenderer.Operators
             OutputField = parse.ParticleField("m_nOutputField", OutputField);
             quantizeSize = parse.NumberProvider("m_nInputValue", quantizeSize);
         }
-        public void Update(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
             foreach (ref var particle in particles.Current)
             {

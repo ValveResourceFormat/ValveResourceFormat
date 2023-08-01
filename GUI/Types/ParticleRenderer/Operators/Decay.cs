@@ -1,12 +1,12 @@
 namespace GUI.Types.ParticleRenderer.Operators
 {
-    class Decay : IParticleOperator
+    class Decay : ParticleFunctionOperator
     {
         public Decay()
         {
         }
 
-        public void Update(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
             foreach (ref var particle in particles.Current)
             {

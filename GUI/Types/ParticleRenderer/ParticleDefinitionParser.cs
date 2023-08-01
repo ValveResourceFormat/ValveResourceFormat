@@ -1,10 +1,9 @@
 using System;
-using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
 using GUI.Types.ParticleRenderer;
 using ValveResourceFormat;
 using ValveResourceFormat.Serialization;
-using System.Linq;
 
 record struct ParticleDefinitionParser(IKeyValueCollection Data)
 {

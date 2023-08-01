@@ -1,9 +1,8 @@
 using System.Numerics;
-using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.PreEmissionOperators
 {
-    class SetControlPointRotation : IParticlePreEmissionOperator
+    class SetControlPointRotation : ParticleFunctionPreEmissionOperator
     {
         private readonly IVectorProvider axis = new LiteralVectorProvider(new Vector3(0, 0, 1));
         private readonly int cp;
@@ -24,7 +23,7 @@ namespace GUI.Types.ParticleRenderer.PreEmissionOperators
                 vector.Z * new Vector3(rotatedMatrix.M31, rotatedMatrix.M32, rotatedMatrix.M33);
         }
 
-        public void Operate(ref ParticleSystemRenderState particleSystemState, float frameTime)
+        public override void Operate(ref ParticleSystemRenderState particleSystemState, float frameTime)
         {
             var axis = this.axis.NextVector(particleSystemState);
             var rotationRate = this.rotationRate.NextNumber(particleSystemState);

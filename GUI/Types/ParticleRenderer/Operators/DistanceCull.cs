@@ -1,12 +1,9 @@
-using System;
 using System.Numerics;
-using GUI.Utils;
-using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Operators
 {
     // Cull when crossing sphere
-    class DistanceCull : IParticleOperator
+    class DistanceCull : ParticleFunctionOperator
     {
         private readonly int cp;
         private readonly float distance;
@@ -29,7 +26,7 @@ namespace GUI.Types.ParticleRenderer.Operators
                 ? distanceFromEdge < 0
                 : distanceFromEdge > 0;
         }
-        public void Update(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
             foreach (ref var particle in particles.Current)
             {

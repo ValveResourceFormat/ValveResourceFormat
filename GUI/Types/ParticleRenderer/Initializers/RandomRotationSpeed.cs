@@ -2,11 +2,10 @@ using System;
 using System.Numerics;
 using GUI.Utils;
 using ValveResourceFormat;
-using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Initializers
 {
-    class RandomRotationSpeed : IParticleInitializer
+    class RandomRotationSpeed : ParticleFunctionInitializer
     {
         private readonly ParticleField FieldOutput = ParticleField.Roll;
         private readonly bool randomlyFlipDirection = true;
@@ -22,7 +21,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
             degreesMax = parse.Float("m_flDegreesMax", degreesMax);
         }
 
-        public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
+        public override Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
             var value = MathUtils.ToRadians(degrees + ParticleCollection.RandomBetween(particle.ParticleID, degreesMin, degreesMax));
 

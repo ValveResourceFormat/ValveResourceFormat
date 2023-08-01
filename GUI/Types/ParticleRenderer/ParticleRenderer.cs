@@ -5,26 +5,25 @@ using System.Numerics;
 using GUI.Types.ParticleRenderer.Emitters;
 using GUI.Types.ParticleRenderer.Initializers;
 using GUI.Types.ParticleRenderer.Operators;
-using GUI.Types.ParticleRenderer.Renderers;
 using GUI.Types.ParticleRenderer.PreEmissionOperators;
+using GUI.Types.ParticleRenderer.Renderers;
 using GUI.Types.Renderer;
 using GUI.Utils;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization;
-using ValveResourceFormat;
 
 namespace GUI.Types.ParticleRenderer
 {
     internal class ParticleRenderer : IRenderer
     {
-        public IEnumerable<IParticlePreEmissionOperator> PreEmissionOperators { get; private set; } = new List<IParticlePreEmissionOperator>();
-        public IEnumerable<IParticleEmitter> Emitters { get; private set; } = new List<IParticleEmitter>();
+        public IEnumerable<ParticleFunctionPreEmissionOperator> PreEmissionOperators { get; private set; } = new List<ParticleFunctionPreEmissionOperator>();
+        public IEnumerable<ParticleFunctionEmitter> Emitters { get; private set; } = new List<ParticleFunctionEmitter>();
 
-        public IEnumerable<IParticleInitializer> Initializers { get; private set; } = new List<IParticleInitializer>();
+        public IEnumerable<ParticleFunctionInitializer> Initializers { get; private set; } = new List<ParticleFunctionInitializer>();
 
-        public IEnumerable<IParticleOperator> Operators { get; private set; } = new List<IParticleOperator>();
+        public IEnumerable<ParticleFunctionOperator> Operators { get; private set; } = new List<ParticleFunctionOperator>();
 
-        public IEnumerable<IParticleRenderer> Renderers { get; private set; } = new List<IParticleRenderer>();
+        public IEnumerable<ParticleFunctionRenderer> Renderers { get; private set; } = new List<ParticleFunctionRenderer>();
 
         public AABB LocalBoundingBox { get; private set; }
 
@@ -168,7 +167,7 @@ namespace GUI.Types.ParticleRenderer
 
             foreach (var particleOperator in Operators)
             {
-                particleOperator.Update(particleCollection, frameTime, systemRenderState);
+                particleOperator.Operate(particleCollection, frameTime, systemRenderState);
             }
 
             // Increase age of all particles
@@ -247,7 +246,7 @@ namespace GUI.Types.ParticleRenderer
 
         private void SetupEmitters(IEnumerable<IKeyValueCollection> emitterData)
         {
-            var emitters = new List<IParticleEmitter>();
+            var emitters = new List<ParticleFunctionEmitter>();
 
             foreach (var emitterInfo in emitterData)
             {
@@ -272,7 +271,7 @@ namespace GUI.Types.ParticleRenderer
 
         private void SetupInitializers(IEnumerable<IKeyValueCollection> initializerData)
         {
-            var initializers = new List<IParticleInitializer>();
+            var initializers = new List<ParticleFunctionInitializer>();
 
             foreach (var initializerInfo in initializerData)
             {
@@ -297,7 +296,7 @@ namespace GUI.Types.ParticleRenderer
 
         private void SetupOperators(IEnumerable<IKeyValueCollection> operatorData)
         {
-            var operators = new List<IParticleOperator>();
+            var operators = new List<ParticleFunctionOperator>();
 
             foreach (var operatorInfo in operatorData)
             {
@@ -322,7 +321,7 @@ namespace GUI.Types.ParticleRenderer
 
         private void SetupRenderers(IEnumerable<IKeyValueCollection> rendererData)
         {
-            var renderers = new List<IParticleRenderer>();
+            var renderers = new List<ParticleFunctionRenderer>();
 
             foreach (var rendererInfo in rendererData)
             {
@@ -346,7 +345,7 @@ namespace GUI.Types.ParticleRenderer
         }
         private void SetupPreEmissionOperators(IEnumerable<IKeyValueCollection> preEmissionOperatorData)
         {
-            var preEmissionOperators = new List<IParticlePreEmissionOperator>();
+            var preEmissionOperators = new List<ParticleFunctionPreEmissionOperator>();
 
             foreach (var preEmissionOperatorInfo in preEmissionOperatorData)
             {

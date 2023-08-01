@@ -3,7 +3,7 @@ using ValveResourceFormat;
 
 namespace GUI.Types.ParticleRenderer.Initializers
 {
-    class RandomYawFlip : IParticleInitializer
+    class RandomYawFlip : ParticleFunctionInitializer
     {
         private readonly float percent;
 
@@ -12,7 +12,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
             percent = parse.Float("m_flPercent", percent);
         }
 
-        public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
+        public override Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
             if (Random.Shared.NextSingle() > percent)
             {

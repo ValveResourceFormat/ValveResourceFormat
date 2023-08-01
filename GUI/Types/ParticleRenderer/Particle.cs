@@ -1,6 +1,6 @@
-using GUI.Utils;
 using System;
 using System.Numerics;
+using GUI.Utils;
 using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer

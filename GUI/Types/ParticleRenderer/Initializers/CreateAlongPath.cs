@@ -1,12 +1,12 @@
-using GUI.Utils;
 using System;
 using System.Numerics;
+using GUI.Utils;
 using ValveResourceFormat;
 using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Initializers
 {
-    class CreateAlongPath : IParticleInitializer
+    class CreateAlongPath : ParticleFunctionInitializer
     {
         private readonly int StartControlPointNumber;
         private readonly int EndControlPointNumber = 1;
@@ -73,7 +73,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
             return MathUtils.Lerp(relativeProgression, position0 + StartPointOffset, position1 + EndOffset);
         }
 
-        public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
+        public override Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
             var particlePosition = GetParticlePosition(particleSystemState);
 

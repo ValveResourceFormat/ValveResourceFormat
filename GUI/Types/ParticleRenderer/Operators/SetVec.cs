@@ -1,10 +1,10 @@
-using GUI.Utils;
 using System.Numerics;
+using GUI.Utils;
 using ValveResourceFormat;
 
 namespace GUI.Types.ParticleRenderer.Operators
 {
-    class SetVec : IParticleOperator
+    class SetVec : ParticleFunctionOperator
     {
         private readonly ParticleField OutputField = ParticleField.Color;
         private readonly IVectorProvider value = new LiteralVectorProvider(Vector3.Zero);
@@ -20,7 +20,7 @@ namespace GUI.Types.ParticleRenderer.Operators
 
             // there's also a Lerp value that will fade it in when at low values. Further testing is needed to know anything more
         }
-        public void Update(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
             foreach (ref var particle in particles.Current)
             {

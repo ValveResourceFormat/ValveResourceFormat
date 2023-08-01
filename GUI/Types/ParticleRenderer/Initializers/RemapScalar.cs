@@ -1,10 +1,9 @@
 using GUI.Utils;
 using ValveResourceFormat;
-using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Initializers
 {
-    class RemapScalar : IParticleInitializer
+    class RemapScalar : ParticleFunctionInitializer
     {
         private readonly ParticleField FieldInput = ParticleField.Alpha;
         private readonly ParticleField FieldOutput = ParticleField.Radius;
@@ -23,7 +22,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
             outputMax = parse.Float("m_flOutputMax", outputMax);
         }
 
-        public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
+        public override Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
             var value = particle.GetScalar(FieldInput);
 

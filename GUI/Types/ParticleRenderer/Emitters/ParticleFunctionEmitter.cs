@@ -1,0 +1,15 @@
+using System;
+
+namespace GUI.Types.ParticleRenderer.Emitters
+{
+    abstract class ParticleFunctionEmitter
+    {
+        public abstract void Start(Action particleEmitCallback);
+
+        public abstract void Stop();
+
+        public abstract void Update(float frameTime);
+
+        public abstract bool IsFinished { get; protected set; }
+    }
+}

@@ -1,11 +1,9 @@
 using System;
 using System.Numerics;
-using GUI.Utils;
-using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Initializers
 {
-    class VelocityRandom : IParticleInitializer
+    class VelocityRandom : ParticleFunctionInitializer
     {
         private readonly IVectorProvider vectorMin = new LiteralVectorProvider(Vector3.Zero);
         private readonly IVectorProvider vectorMax = new LiteralVectorProvider(Vector3.Zero);
@@ -20,7 +18,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
             speedMax = parse.NumberProvider("m_fSpeedMax", speedMax);
         }
 
-        public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
+        public override Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
             // A bit unclear what the speed is here, but I do know that going under 1.0 does nothing different than 1.0
             var speedmin = speedMin.NextNumber(ref particle, particleSystemState);

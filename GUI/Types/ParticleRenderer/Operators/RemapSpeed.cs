@@ -3,7 +3,7 @@ using ValveResourceFormat;
 
 namespace GUI.Types.ParticleRenderer.Operators
 {
-    class RemapSpeed : IParticleOperator
+    class RemapSpeed : ParticleFunctionOperator
     {
         private readonly INumberProvider inputMin = new LiteralNumberProvider(0);
         private readonly INumberProvider inputMax = new LiteralNumberProvider(1);
@@ -23,7 +23,7 @@ namespace GUI.Types.ParticleRenderer.Operators
             setMethod = parse.Enum<ParticleSetMethod>("m_nSetMethod", setMethod);
         }
 
-        public void Update(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
             foreach (ref var particle in particles.Current)
             {

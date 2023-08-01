@@ -1,14 +1,14 @@
-using GUI.Types.Renderer;
-using GUI.Utils;
-using OpenTK.Graphics.OpenGL;
 using System;
 using System.Collections.Generic;
 using System.Numerics;
+using GUI.Types.Renderer;
+using GUI.Utils;
+using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.ResourceTypes;
 
 namespace GUI.Types.ParticleRenderer.Renderers
 {
-    internal class RenderSprites : IParticleRenderer
+    internal class RenderSprites : ParticleFunctionRenderer
     {
         private const string ShaderName = "vrf.particle.sprite";
         private const int VertexSize = 9;
@@ -79,7 +79,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
             alphaScale = parse.NumberProvider("m_flAlphaScale", alphaScale);
         }
 
-        public void SetWireframe(bool isWireframe)
+        public override void SetWireframe(bool isWireframe)
         {
             wireframe = isWireframe;
             // Solid color
@@ -249,7 +249,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
             GL.BufferData(BufferTarget.ArrayBuffer, particles.Count * VertexSize * 4 * sizeof(float), rawVertices, BufferUsageHint.DynamicDraw);
         }
 
-        public void Render(ParticleCollection particleBag, ParticleSystemRenderState systemRenderState, Matrix4x4 viewProjectionMatrix, Matrix4x4 modelViewMatrix)
+        public override void Render(ParticleCollection particleBag, ParticleSystemRenderState systemRenderState, Matrix4x4 viewProjectionMatrix, Matrix4x4 modelViewMatrix)
         {
             if (particleBag.Count == 0)
             {
@@ -323,9 +323,9 @@ namespace GUI.Types.ParticleRenderer.Renderers
             }
         }
 
-        public IEnumerable<string> GetSupportedRenderModes() => shader.RenderModes;
+        public override IEnumerable<string> GetSupportedRenderModes() => shader.RenderModes;
 
-        public void SetRenderMode(string renderMode)
+        public override void SetRenderMode(string renderMode)
         {
             var parameters = new Dictionary<string, byte>();
 

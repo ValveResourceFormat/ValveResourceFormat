@@ -3,7 +3,7 @@ using ValveResourceFormat;
 
 namespace GUI.Types.ParticleRenderer.Operators
 {
-    class LerpScalar : IParticleOperator
+    class LerpScalar : ParticleFunctionOperator
     {
         private readonly ParticleField FieldOutput = ParticleField.Radius;
         private readonly INumberProvider output = new LiteralNumberProvider(1);
@@ -17,7 +17,7 @@ namespace GUI.Types.ParticleRenderer.Operators
             startTime = parse.Float("m_flStartTime", startTime);
             endTime = parse.Float("m_flEndTime", endTime);
         }
-        public void Update(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
             foreach (ref var particle in particles.Current)
             {

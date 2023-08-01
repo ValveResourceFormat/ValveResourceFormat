@@ -4,7 +4,7 @@ using ValveResourceFormat;
 namespace GUI.Types.ParticleRenderer.Operators
 {
     // seriously?
-    class RemapCrossProductOfTwoVectorsToVector : IParticleOperator
+    class RemapCrossProductOfTwoVectorsToVector : ParticleFunctionOperator
     {
         private readonly ParticleField FieldOutput = ParticleField.Position;
         private readonly IVectorProvider inputVec1 = new LiteralVectorProvider(Vector3.Zero);
@@ -18,7 +18,7 @@ namespace GUI.Types.ParticleRenderer.Operators
             inputVec2 = parse.VectorProvider("m_InputVec2", inputVec2);
             normalize = parse.Boolean("m_bNormalize", normalize);
         }
-        public void Update(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
             foreach (ref var particle in particles.Current)
             {

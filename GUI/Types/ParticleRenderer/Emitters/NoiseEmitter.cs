@@ -1,11 +1,11 @@
-using GUI.Types.ParticleRenderer.Utils;
 using System;
+using GUI.Types.ParticleRenderer.Utils;
 
 namespace GUI.Types.ParticleRenderer.Emitters
 {
-    class NoiseEmitter : IParticleEmitter
+    class NoiseEmitter : ParticleFunctionEmitter
     {
-        public bool IsFinished { get; private set; }
+        public override bool IsFinished { get; protected set; }
 
         private readonly INumberProvider emissionDuration = new LiteralNumberProvider(0);
         private readonly INumberProvider startTime = new LiteralNumberProvider(0);
@@ -29,7 +29,7 @@ namespace GUI.Types.ParticleRenderer.Emitters
             emissionMax = parse.NumberProvider("m_flOutputMax", emissionMax);
         }
 
-        public void Start(Action particleEmitCallback)
+        public override void Start(Action particleEmitCallback)
         {
             this.particleEmitCallback = particleEmitCallback;
 
@@ -38,12 +38,12 @@ namespace GUI.Types.ParticleRenderer.Emitters
             IsFinished = false;
         }
 
-        public void Stop()
+        public override void Stop()
         {
             IsFinished = true;
         }
 
-        public void Update(float frameTime)
+        public override void Update(float frameTime)
         {
             if (IsFinished)
             {

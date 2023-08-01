@@ -2,7 +2,7 @@ using System.Numerics;
 
 namespace GUI.Types.ParticleRenderer.Operators
 {
-    class MaxVelocity : IParticleOperator
+    class MaxVelocity : ParticleFunctionOperator
     {
         private readonly float maxVelocity;
         private readonly int overrideCP = -1;
@@ -15,7 +15,7 @@ namespace GUI.Types.ParticleRenderer.Operators
             overrideCPField = parse.Int32("m_nOverrideCPField", overrideCPField);
         }
 
-        public void Update(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
             var maxVelocity = this.maxVelocity;
             if (overrideCP > -1)

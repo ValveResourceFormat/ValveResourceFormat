@@ -1,15 +1,15 @@
-using GUI.Types.Renderer;
-using GUI.Utils;
-using OpenTK.Graphics.OpenGL;
 using System;
 using System.Collections.Generic;
 using System.Numerics;
+using GUI.Types.Renderer;
+using GUI.Utils;
+using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
 
 namespace GUI.Types.ParticleRenderer.Renderers
 {
-    internal class RenderTrails : IParticleRenderer
+    internal class RenderTrails : ParticleFunctionRenderer
     {
         private const string ShaderName = "vrf.particle.trail";
 
@@ -74,7 +74,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
             prevPositionSource = parse.ParticleField("m_nPrevPntSource", prevPositionSource);
         }
 
-        public void SetWireframe(bool isWireframe)
+        public override void SetWireframe(bool isWireframe)
         {
             wireframe = isWireframe;
             shader.SetUniform1("isWireframe", isWireframe ? 1 : 0);
@@ -111,7 +111,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
             return vao;
         }
 
-        public void Render(ParticleCollection particleBag, ParticleSystemRenderState systemRenderState, Matrix4x4 viewProjectionMatrix, Matrix4x4 modelViewMatrix)
+        public override void Render(ParticleCollection particleBag, ParticleSystemRenderState systemRenderState, Matrix4x4 viewProjectionMatrix, Matrix4x4 modelViewMatrix)
         {
             var particles = particleBag.Current;
 
@@ -235,9 +235,9 @@ namespace GUI.Types.ParticleRenderer.Renderers
             GL.PolygonMode(MaterialFace.FrontAndBack, PolygonMode.Fill);
         }
 
-        public IEnumerable<string> GetSupportedRenderModes() => shader.RenderModes;
+        public override IEnumerable<string> GetSupportedRenderModes() => shader.RenderModes;
 
-        public void SetRenderMode(string renderMode)
+        public override void SetRenderMode(string renderMode)
         {
             var parameters = new Dictionary<string, byte>();
 

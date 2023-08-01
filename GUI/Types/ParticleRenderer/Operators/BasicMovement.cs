@@ -2,7 +2,7 @@ using System.Numerics;
 
 namespace GUI.Types.ParticleRenderer.Operators
 {
-    class BasicMovement : IParticleOperator
+    class BasicMovement : ParticleFunctionOperator
     {
         private readonly IVectorProvider gravity = new LiteralVectorProvider(Vector3.Zero);
         private readonly INumberProvider drag = new LiteralNumberProvider(0);
@@ -19,7 +19,7 @@ namespace GUI.Types.ParticleRenderer.Operators
             return Vector3.Zero; // temp due to weird ordering
         }
 
-        public void Update(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
             var gravityMovement = gravity.NextVector(particleSystemState) * frameTime;
 

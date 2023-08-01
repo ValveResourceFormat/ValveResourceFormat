@@ -3,7 +3,7 @@ using ValveResourceFormat;
 
 namespace GUI.Types.ParticleRenderer.Operators
 {
-    class FadeAndKill : IParticleOperator
+    class FadeAndKill : ParticleFunctionOperator
     {
         private readonly float startFadeInTime;
         private readonly float endFadeInTime = 0.5f;
@@ -23,7 +23,7 @@ namespace GUI.Types.ParticleRenderer.Operators
             endAlpha = parse.Float("m_flEndAlpha", endAlpha);
         }
 
-        public void Update(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
             foreach (ref var particle in particles.Current)
             {

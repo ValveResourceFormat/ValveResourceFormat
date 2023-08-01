@@ -1,10 +1,9 @@
-using GUI.Utils;
 using System;
 using ValveResourceFormat;
 
 namespace GUI.Types.ParticleRenderer.Operators
 {
-    class OscillateScalar : IParticleOperator
+    class OscillateScalar : ParticleFunctionOperator
     {
         private readonly ParticleField outputField = ParticleField.Alpha;
         private readonly float rateMin;
@@ -27,7 +26,7 @@ namespace GUI.Types.ParticleRenderer.Operators
             proportional = parse.Boolean("m_bProportionalOp", proportional);
         }
 
-        public void Update(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
             // Remove expired particles
             /*var particlesToRemove = particleRates.Keys.Except(particle).ToList();
@@ -55,7 +54,7 @@ namespace GUI.Types.ParticleRenderer.Operators
         }
     }
 
-    class OscillateScalarSimple : IParticleOperator
+    class OscillateScalarSimple : ParticleFunctionOperator
     {
         private readonly ParticleField outputField = ParticleField.Alpha;
         private readonly float rate;
@@ -72,7 +71,7 @@ namespace GUI.Types.ParticleRenderer.Operators
             oscillationOffset = parse.Float("m_flOscAdd", oscillationOffset);
         }
 
-        public void Update(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
             // Update remaining particles
             foreach (ref var particle in particles.Current)

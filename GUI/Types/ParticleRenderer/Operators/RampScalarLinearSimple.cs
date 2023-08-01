@@ -2,7 +2,7 @@ using ValveResourceFormat;
 
 namespace GUI.Types.ParticleRenderer.Operators
 {
-    class RampScalarLinearSimple : IParticleOperator
+    class RampScalarLinearSimple : ParticleFunctionOperator
     {
         private readonly float rate;
         private readonly float startTime;
@@ -17,7 +17,7 @@ namespace GUI.Types.ParticleRenderer.Operators
             field = parse.ParticleField("m_nField", field);
         }
 
-        public void Update(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
             foreach (ref var particle in particles.Current)
             {

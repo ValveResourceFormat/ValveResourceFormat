@@ -3,11 +3,10 @@ using System.Collections.Generic;
 using System.Numerics;
 using GUI.Utils;
 using ValveResourceFormat;
-using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Initializers
 {
-    class PointList : IParticleInitializer
+    class PointList : ParticleFunctionInitializer
     {
         private class PointDefinition
         {
@@ -105,7 +104,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
 
         }
 
-        public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
+        public override Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
             var particlePosition = GetParticlePosition(particleSystemState);
 

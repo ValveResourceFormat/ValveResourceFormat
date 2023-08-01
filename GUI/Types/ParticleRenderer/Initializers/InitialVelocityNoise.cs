@@ -1,11 +1,10 @@
 using System.Numerics;
-using GUI.Utils;
 using GUI.Types.ParticleRenderer.Utils;
-using ValveResourceFormat.Serialization;
+using GUI.Utils;
 
 namespace GUI.Types.ParticleRenderer.Initializers
 {
-    class InitialVelocityNoise : IParticleInitializer
+    class InitialVelocityNoise : ParticleFunctionInitializer
     {
         private readonly IVectorProvider outputMin = new LiteralVectorProvider(Vector3.Zero);
         private readonly IVectorProvider outputMax = new LiteralVectorProvider(Vector3.One);
@@ -18,7 +17,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
             noiseScale = parse.NumberProvider("m_flNoiseScale", noiseScale);
         }
 
-        public Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
+        public override Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
             var noiseScale = this.noiseScale.NextNumber(ref particle, particleSystemState);
             var r = new Vector3(

@@ -1,9 +1,8 @@
-using System;
 using ValveResourceFormat;
 
 namespace GUI.Types.ParticleRenderer.Operators
 {
-    class Spin : IParticleOperator
+    class Spin : ParticleFunctionOperator
     {
         private readonly float spinRate;
         private readonly float spinRateMin; // don't actually know if this is used or not. I don't think it is?
@@ -16,7 +15,7 @@ namespace GUI.Types.ParticleRenderer.Operators
         }
 
         // Does not require SpinUpdate 
-        public void Update(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
             foreach (ref var particle in particles.Current)
             {
@@ -28,7 +27,7 @@ namespace GUI.Types.ParticleRenderer.Operators
         }
     }
 
-    class SpinYaw : IParticleOperator
+    class SpinYaw : ParticleFunctionOperator
     {
         private float spinRate;
         private float spinRateMin; // don't actually know if this is used or not. I don't think it is?
@@ -41,7 +40,7 @@ namespace GUI.Types.ParticleRenderer.Operators
         }
 
         // Does not require SpinUpdate
-        public void Update(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
             foreach (ref var particle in particles.Current)
             {

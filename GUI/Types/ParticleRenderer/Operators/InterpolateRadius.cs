@@ -1,10 +1,10 @@
-using GUI.Utils;
 using System;
+using GUI.Utils;
 using ValveResourceFormat;
 
 namespace GUI.Types.ParticleRenderer.Operators
 {
-    class InterpolateRadius : IParticleOperator
+    class InterpolateRadius : ParticleFunctionOperator
     {
         private readonly float startTime;
         private readonly float endTime = 1;
@@ -22,7 +22,7 @@ namespace GUI.Types.ParticleRenderer.Operators
             bias = parse.NumberProvider("m_flBias", bias);
         }
 
-        public void Update(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
             foreach (ref var particle in particles.Current)
             {
