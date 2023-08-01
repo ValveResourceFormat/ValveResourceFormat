@@ -70,7 +70,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
             animateInFps = parse.Boolean("m_bAnimateInFPS", animateInFps);
             blendMode = parse.Enum<ParticleBlendMode>("m_nOutputBlendMode", blendMode);
             overbrightFactor = parse.NumberProvider("m_flOverbrightFactor", overbrightFactor);
-            orientationType = parse.EnumNormalized<ParticleOrientation>("m_nOrientationType", orientationType);
+            orientationType = parse.Enum("m_nOrientationType", orientationType);
             animationRate = parse.Float("m_flAnimationRate", animationRate);
             minSize = parse.Float("m_flMinSize", minSize);
             maxSize = parse.Float("m_flMaxSize", maxSize);
@@ -145,7 +145,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
                 var radiusScale = this.radiusScale.NextNumber(ref particle, systemRenderState);
 
                 // Positions
-                var modelMatrix = orientationType == ParticleOrientation.ScreenAligned
+                var modelMatrix = orientationType == ParticleOrientation.PARTICLE_ORIENTATION_SCREEN_ALIGNED
                     ? particle.GetRotationMatrix() * billboardMatrix * particle.GetTransformationMatrix(radiusScale)
                     : particle.GetRotationMatrix() * particle.GetTransformationMatrix(radiusScale);
 

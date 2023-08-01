@@ -1,12 +1,12 @@
 namespace GUI.Types.ParticleRenderer
 {
-    public enum ParticleOrientation
+    public enum ParticleOrientation // ParticleOrientationChoiceList_t
     {
-        ScreenAligned = 0,
-        ScreenZAligned = 1,
-        WorldZAligned = 2,
-        AlignToParticleNormal = 3,
-        ScreenalignToParticleNormal = 4,
-        Full3AxisRotation = 5,
+        PARTICLE_ORIENTATION_SCREEN_ALIGNED = 0,
+        PARTICLE_ORIENTATION_SCREEN_Z_ALIGNED = 1,
+        PARTICLE_ORIENTATION_WORLD_Z_ALIGNED = 2,
+        PARTICLE_ORIENTATION_ALIGN_TO_PARTICLE_NORMAL = 3,
+        PARTICLE_ORIENTATION_SCREENALIGN_TO_PARTICLE_NORMAL = 4,
+        PARTICLE_ORIENTATION_FULL_3AXIS_ROTATION = 5,
     }
 }

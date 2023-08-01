@@ -37,7 +37,7 @@ namespace GUI.Types.ParticleRenderer
         private readonly float output0;
         private readonly float output1;
 
-        private readonly PfBiasType biasType;
+        private readonly ParticleFloatBiasType biasType;
         private readonly float biasParameter;
 
         private readonly PiecewiseCurve curve;
@@ -87,7 +87,7 @@ namespace GUI.Types.ParticleRenderer
 
             if (MapType == PfMapType.RemapBiased)
             {
-                biasType = parameters.GetEnumValue<PfBiasType>("m_nBiasType", normalize: true);
+                biasType = parameters.GetEnumValue<ParticleFloatBiasType>("m_nBiasType");
                 biasParameter = parameters.GetFloatProperty("m_flBiasParameter");
             }
         }

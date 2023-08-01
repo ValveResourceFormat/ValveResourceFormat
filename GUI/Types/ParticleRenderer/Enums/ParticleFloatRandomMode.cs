@@ -1,17 +1,17 @@
 namespace GUI.Types.ParticleRenderer
 {
-    public enum PfRandomMode
+    public enum ParticleFloatRandomMode // ParticleFloatRandomMode_t
     {
-        Invalid = -1,
+        PF_RANDOM_MODE_INVALID = -1,
 
         /// <summary>
         /// Random per-particle but doesn't change per frame.
         /// </summary>
-        Constant = 0,
+        PF_RANDOM_MODE_CONSTANT = 0,
 
         /// <summary>
         /// Random per-particle, per-frame.
         /// </summary>
-        Varying = 1,
+        PF_RANDOM_MODE_VARYING = 1,
     }
 }

@@ -64,7 +64,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
             blendMode = parse.Enum<ParticleBlendMode>("m_nOutputBlendMode", blendMode);
             overbrightFactor = parse.NumberProvider("m_flOverbrightFactor", overbrightFactor);
-            orientationType = parse.EnumNormalized<ParticleOrientation>("m_nOrientationType", orientationType);
+            orientationType = parse.Enum("m_nOrientationType", orientationType);
             animationRate = parse.Float("m_flAnimationRate", animationRate);
             finalTextureScaleU = parse.Float("m_flFinalTextureScaleU", finalTextureScaleU);
             finalTextureScaleV = parse.Float("m_flFinalTextureScaleV", finalTextureScaleV);
@@ -179,7 +179,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
                 var angle = MathF.Acos(direction.Y);
                 var rotationMatrix = Matrix4x4.CreateFromAxisAngle(axis, angle);
 
-                var modelMatrix = orientationType == ParticleOrientation.ScreenAligned
+                var modelMatrix = orientationType == ParticleOrientation.PARTICLE_ORIENTATION_SCREEN_ALIGNED
                     ? Matrix4x4.Multiply(scaleMatrix, Matrix4x4.Multiply(translationMatrix, rotationMatrix))
                     : particle.GetTransformationMatrix();
 

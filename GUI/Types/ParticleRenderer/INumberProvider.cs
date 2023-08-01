@@ -44,10 +44,10 @@ namespace GUI.Types.ParticleRenderer
     {
         private readonly float minRange;
         private readonly float maxRange;
-        private readonly PfRandomMode randomMode;
+        private readonly ParticleFloatRandomMode randomMode;
 
         private readonly bool isBiased;
-        private readonly PfBiasType biasType = PfBiasType.Standard;
+        private readonly ParticleFloatBiasType biasType = ParticleFloatBiasType.PF_BIAS_TYPE_STANDARD;
         private readonly float biasParam;
 
         private readonly bool hasRandomSignFlip;
@@ -60,7 +60,7 @@ namespace GUI.Types.ParticleRenderer
             // Should it be checking behavior version?
             if (keyValues.GetProperty<string>("m_nType") != keyValues.GetProperty<string>("m_nRandomMode"))
             {
-                randomMode = keyValues.GetEnumValue<PfRandomMode>("m_nRandomMode", normalize: true);
+                randomMode = keyValues.GetEnumValue<ParticleFloatRandomMode>("m_nRandomMode");
             }
 
             this.isBiased = isBiased;
@@ -70,7 +70,7 @@ namespace GUI.Types.ParticleRenderer
                 biasParam = keyValues.GetFloatProperty("m_flBiasParameter");
                 if (keyValues.ContainsKey("m_nBiasType"))
                 {
-                    biasType = keyValues.GetEnumValue<PfBiasType>("m_nBiasType", normalize: true);
+                    biasType = keyValues.GetEnumValue<ParticleFloatBiasType>("m_nBiasType");
                 }
             }
 

@@ -3,7 +3,7 @@ namespace GUI.Types.ParticleRenderer.Utils
     // template for shared remapping functionality
     static class NumericBias
     {
-        public static float ApplyBias(float number, float bias, PfBiasType biasType = PfBiasType.Standard)
+        public static float ApplyBias(float number, float bias, ParticleFloatBiasType biasType = ParticleFloatBiasType.PF_BIAS_TYPE_STANDARD)
         {
             // !!!!REPLACE LATER!!!!
 
