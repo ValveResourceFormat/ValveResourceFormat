@@ -43,7 +43,7 @@ namespace GUI.Types.ParticleRenderer.Emitters
             IsFinished = true;
         }
 
-        public override void Update(float frameTime)
+        public override void Emit(float frameTime)
         {
             if (IsFinished)
             {

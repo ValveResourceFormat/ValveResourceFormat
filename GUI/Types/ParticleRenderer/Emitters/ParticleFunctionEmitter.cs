@@ -12,7 +12,7 @@ namespace GUI.Types.ParticleRenderer.Emitters
 
         public abstract void Stop();
 
-        public abstract void Update(float frameTime);
+        public abstract void Emit(float frameTime);
 
         public abstract bool IsFinished { get; protected set; }
     }

@@ -162,11 +162,27 @@ namespace GUI.Types.ParticleRenderer
 
             foreach (var emitter in Emitters)
             {
-                emitter.Update(frameTime);
+                var strength = emitter.GetOperatorRunStrength(systemRenderState);
+
+                if (strength <= 0.0f)
+                {
+                    continue;
+                }
+
+                // TODO: Pass in strength
+                emitter.Emit(frameTime);
             }
 
             foreach (var particleOperator in Operators)
             {
+                var strength = particleOperator.GetOperatorRunStrength(systemRenderState);
+
+                if (strength <= 0.0f)
+                {
+                    continue;
+                }
+
+                // TODO: Pass in strength
                 particleOperator.Operate(particleCollection, frameTime, systemRenderState);
             }
 
@@ -219,6 +235,11 @@ namespace GUI.Types.ParticleRenderer
                 {
                     foreach (var renderer in Renderers)
                     {
+                        if (renderer.GetOperatorRunStrength(systemRenderState) <= 0.0f)
+                        {
+                            continue;
+                        }
+
                         renderer.Render(particleCollection, systemRenderState, camera.ViewProjectionMatrix, camera.CameraViewMatrix);
                     }
                 }
