@@ -527,7 +527,7 @@ namespace GUI.Types.Renderer
 
                 if (model == null)
                 {
-                    var sceneNode = AddToolModel(scene, entity, classname, transformationMatrix, positionVector);
+                    var sceneNode = AddToolModel(scene, entity, classname, transformationMatrix);
                     continue;
                 }
 
@@ -643,15 +643,15 @@ namespace GUI.Types.Renderer
             }
         }
 
-        private SceneNode AddToolModel(Scene scene, EntityLump.Entity entity, string classname, Matrix4x4 transformationMatrix, Vector3 position)
+        private SceneNode AddToolModel(Scene scene, EntityLump.Entity entity, string classname, Matrix4x4 transformationMatrix)
         {
-            var filenames = HammerEntities.GetToolModel(classname);
+            var hammerEntity = HammerEntities.Get(classname);
             string filename = null;
             Resource resource = null;
 
-            if (filenames != null)
+            if (hammerEntity?.Icons.Length > 0)
             {
-                foreach (var file in filenames)
+                foreach (var file in hammerEntity.Icons)
                 {
                     filename = file;
 
@@ -666,13 +666,18 @@ namespace GUI.Types.Renderer
 
             if (resource == null)
             {
-                // TODO: Create a 16x16x16 box to emulate how Hammer draws them
-                resource = guiContext.LoadFileByAnyMeansNecessary("materials/editor/obsolete.vmat_c");
+                var color = hammerEntity?.Color ?? new Vector3(255, 0, 255);
 
-                if (resource == null)
+                var boxNode = new SimpleBoxSceneNode(scene, color, new Vector3(16f))
                 {
-                    return null;
-                }
+                    Transform = transformationMatrix,
+                    LayerName = "Entities",
+                    Name = filename,
+                    EntityData = entity,
+                };
+                scene.Add(boxNode, false);
+
+                return boxNode;
             }
 
             if (resource.ResourceType == ResourceType.Model)
@@ -694,7 +699,7 @@ namespace GUI.Types.Renderer
             }
             else if (resource.ResourceType == ResourceType.Material)
             {
-                var spriteNode = new SpriteSceneNode(scene, guiContext, resource, position)
+                var spriteNode = new SpriteSceneNode(scene, guiContext, resource, transformationMatrix.Translation)
                 {
                     LayerName = "Entities",
                     Name = filename,

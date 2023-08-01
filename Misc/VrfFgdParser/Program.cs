@@ -9,9 +9,9 @@ if (args?.Length < 1)
     return 1;
 }
 
-var allIcons = new SortedDictionary<string, List<string>>();
+var allEntities = new SortedDictionary<string, EntityInfo>();
 var allProperties = new HashSet<string>();
-var baseIcons = new Dictionary<string, List<string>>();
+var baseEntities = new Dictionary<string, EntityInfo>();
 
 foreach (var arg in args!)
 {
@@ -26,6 +26,13 @@ foreach (var arg in args!)
         ParseFile(file);
     }
 }
+
+Console.WriteLine();
+
+WriteEntities();
+WriteProperties();
+
+return 0;
 
 void ParseFile(string file)
 {
@@ -114,9 +121,9 @@ void ParseFile(string file)
             {
                 value = behaviour.Values[0];
 
-                if (!value.StartsWith("models/", StringComparison.Ordinal))
+                if (!value.StartsWith("models/", StringComparison.Ordinal) && !value.StartsWith("characters/models/", StringComparison.Ordinal))
                 {
-                    value = "models/" + value;
+                    value = "models/" + value; 
                 }
 
                 if (value.EndsWith(".mdl", StringComparison.Ordinal))
@@ -134,9 +141,9 @@ void ParseFile(string file)
             {
                 foreach (var baseClass in _class.BaseClasses)
                 {
-                    if (baseIcons.TryGetValue(baseClass, out var values))
+                    if (baseEntities.TryGetValue(baseClass, out var values) && values.Icons.Count > 0)
                     {
-                        value = values[0]; // TODO: more than one
+                        value = values.Icons.First(); // TODO: more than one
                         Console.WriteLine($"Found {_class.Name} base icon from {baseClass}");
                         break;
                     }
@@ -145,78 +152,134 @@ void ParseFile(string file)
 
             if (value != null)
             {
-                IDictionary<string, List<string>> icons = _class.ClassType == ClassType.BaseClass ? baseIcons : allIcons;
+                IDictionary<string, EntityInfo> icons = _class.ClassType == ClassType.BaseClass ? baseEntities : allEntities;
 
                 if (icons.TryGetValue(_class.Name, out var existingIcons))
                 {
-                    if (!existingIcons.Contains(value))
-                    {
-                        existingIcons.Add(value);
-                    }
+                    existingIcons.Icons.Add(value);
+                }
+                else
+                {
+                    icons[_class.Name] = new();
+                    icons[_class.Name].Icons.Add(value);
+                }
+            }
 
-                    continue;
+            // Color
+            {
+                string? color = null;
+
+                if (behaviour.Name == "color" && behaviour.Values.Count >= 3)
+                {
+                    color = $"new Vector3({behaviour.Values[0]}, {behaviour.Values[1]}, {behaviour.Values[2]})";
                 }
 
-                icons[_class.Name] = new List<string> { value };
+                if (color == null && _class.ClassType != ClassType.BaseClass)
+                {
+                    foreach (var baseClass in _class.BaseClasses)
+                    {
+                        if (allEntities.TryGetValue(baseClass, out var colorEntity) && colorEntity.Color != null)
+                        {
+                            color = colorEntity.Color;
+                            Console.WriteLine($"Found {_class.Name} base color from {baseClass}");
+                            break;
+                        }
+                    }
+                }
+
+                if (color != null)
+                {
+                    IDictionary<string, EntityInfo> colors = _class.ClassType == ClassType.BaseClass ? baseEntities : allEntities;
+
+                    if (!colors.ContainsKey(_class.Name))
+                    {
+                        colors[_class.Name] = new();
+                    }
+
+                    colors[_class.Name].Color ??= color;
+                }
             }
         }
     }
 }
 
-Console.WriteLine();
-Console.WriteLine($"Found {allIcons.Count} entities with icons");
-
-var iconsString = new StringBuilder();
-
-foreach (var icon in allIcons)
+void WriteEntities()
 {
-    icon.Value.Sort((a, b) =>
+    Console.WriteLine($"Found {allEntities.Count} entities");
+
+    var str = new StringBuilder();
+
+    foreach (var icon in allEntities)
     {
-        var aContains = a.Contains(icon.Key, StringComparison.Ordinal) ? 1 : 0;
-        var bContains = b.Contains(icon.Key, StringComparison.Ordinal) ? 1 : 0;
-        var aMdl = a.EndsWith(".vmdl", StringComparison.Ordinal) ? 1 : 0;
-        var bMdl = b.EndsWith(".vmdl", StringComparison.Ordinal) ? 1 : 0;
-
-        Console.WriteLine($"{a} <=> {b}");
-
-        if (aContains != bContains)
+        var icons = icon.Value.Icons.ToList();
+        icons.Sort((a, b) =>
         {
-            return bContains - aContains;
+            var aContains = a.Contains(icon.Key, StringComparison.Ordinal) ? 1 : 0;
+            var bContains = b.Contains(icon.Key, StringComparison.Ordinal) ? 1 : 0;
+            var aMdl = a.EndsWith(".vmdl", StringComparison.Ordinal) ? 1 : 0;
+            var bMdl = b.EndsWith(".vmdl", StringComparison.Ordinal) ? 1 : 0;
+
+            Console.WriteLine($"{a} <=> {b}");
+
+            if (aContains != bContains)
+            {
+                return bContains - aContains;
+            }
+
+            if (aMdl != bMdl)
+            {
+                return bMdl - aMdl;
+            }
+
+            return string.CompareOrdinal(a, b);
+        });
+
+        var fields = new List<string>();
+
+        if (icons.Count > 0)
+        {
+            var iconsStr = string.Join(@""", """, icons);
+            fields.Add($"Icons = new[] {{ \"{iconsStr}\" }}");
         }
 
-        if (aMdl != bMdl)
+        if (icon.Value.Color != null)
         {
-            return bMdl - aMdl;
+            fields.Add($"Color = {icon.Value.Color}");
         }
 
-        return string.CompareOrdinal(a, b);
-    });
+        str.Append("            ");
+        str.Append('"');
+        str.Append(icon.Key);
+        str.Append('"');
+        str.Append(" => new() { ");
+        str.Append(string.Join(", ", fields));
+        str.Append(" },");
+        str.AppendLine();
+    }
 
-    iconsString.Append('"');
-    iconsString.Append(icon.Key);
-    iconsString.Append('"');
-    iconsString.Append(" => new[] { ");
-    iconsString.Append('"');
-    iconsString.Append(string.Join("\", \"", icon.Value));
-    iconsString.Append("\" },");
-    iconsString.AppendLine();
+    File.WriteAllText("entities.txt", str.ToString());
 }
 
-File.WriteAllText("icons.txt", iconsString.ToString());
-
-Console.WriteLine($"Found {allProperties.Count} unique properties");
-
-var propertiesString = new StringBuilder();
-
-foreach (var property in allProperties.OrderBy(x => x))
+void WriteProperties()
 {
-    propertiesString.Append('"');
-    propertiesString.Append(property);
-    propertiesString.Append('"');
-    propertiesString.Append(',');
-    propertiesString.AppendLine();
+    Console.WriteLine($"Found {allProperties.Count} unique properties");
+
+    var propertiesString = new StringBuilder();
+
+    foreach (var property in allProperties.OrderBy(x => x))
+    {
+        propertiesString.Append('"');
+        propertiesString.Append(property);
+        propertiesString.Append('"');
+        propertiesString.Append(',');
+        propertiesString.AppendLine();
+    }
+
+    File.WriteAllText("properties.txt", propertiesString.ToString());
 }
 
-File.WriteAllText("properties.txt", propertiesString.ToString());
-
-return 0;
+class EntityInfo
+{
+    public HashSet<string> Icons = new();
+    public string? Color;
+}
