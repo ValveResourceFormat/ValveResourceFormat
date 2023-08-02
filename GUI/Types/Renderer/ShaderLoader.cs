@@ -279,7 +279,7 @@ namespace GUI.Types.Renderer
                 info += $"\nError in {sourceFiles[errorSourceFile]} on line {errorLine}";
 
 #if DEBUG
-                if (errorLine > 0 && sourceFileLines[errorSourceFile].Count < errorLine)
+                if (errorLine > 0 && errorLine < sourceFileLines[errorSourceFile].Count)
                 {
                     info += $":\n{sourceFileLines[errorSourceFile][errorLine - 1]}\n";
                 }
