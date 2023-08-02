@@ -13,15 +13,12 @@ namespace GUI.Types.Renderer
         private Resource resource;
         private readonly int quadVao;
 
-        public AABB LocalBoundingBox => new(-1, -1, -1, 1, 1, 1);
-
-        public MaterialRenderer(VrfGuiContext vrfGuiContext, Resource resource)
+        public MaterialRenderer(Scene scene, Resource resource) : base(scene)
         {
             this.resource = resource;
             material = scene.GuiContext.MaterialLoader.LoadMaterial(resource);
             quadVao = SetupSquareQuadBuffer(material.Shader);
             Transform = Matrix4x4.Identity;
-            LocalBoundingBox = new AABB(-Vector3.One, Vector3.One);
         }
 
         public static int SetupSquareQuadBuffer(Shader shader)
