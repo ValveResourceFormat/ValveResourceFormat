@@ -89,7 +89,7 @@ namespace GUI.Types.Renderer
             context.Camera.SetPerViewUniforms(Material.Shader);
 
             Material.Render();
-            Material.Shader.SetUniform3("g_vTint", Tint);
+            Material.Shader.SetUniform3("m_vTint", Tint);
             Material.Shader.SetUniform4x4("g_matSkyRotation", Transform);
             GL.DrawArrays(PrimitiveType.Triangles, 0, boxTriangles.Length / 3);
             Material.PostRender();

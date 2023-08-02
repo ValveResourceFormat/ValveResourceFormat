@@ -361,14 +361,33 @@ namespace GUI.Types.Renderer
             return errorMat;
         }
 
+        static readonly string[] NonMaterialUniforms = {
+            "g_flTime",
+            "g_vLightmapUvScale",
+            "g_vEnvMapSizeConstants",
+            "g_vClearColor",
+        };
+
         private void ApplyMaterialDefaults(RenderMaterial mat)
         {
             foreach (var name in mat.Shader.GetAllUniformNames())
             {
+                if (NonMaterialUniforms.Contains(name))
+                {
+                    continue;
+                }
+
+                var isArray = name.EndsWith("[0]", StringComparison.OrdinalIgnoreCase);
+                if (isArray)
+                {
+                    continue;
+                }
+
                 // Maybe able to grab defaults from glsl?
                 var isTexture = name.StartsWith("g_t", StringComparison.OrdinalIgnoreCase);
                 var isVector = name.StartsWith("g_v", StringComparison.OrdinalIgnoreCase);
                 var isScalar = name.StartsWith("g_fl", StringComparison.OrdinalIgnoreCase);
+
 
                 if (isTexture && !mat.Textures.ContainsKey(name))
                 {
@@ -379,24 +398,32 @@ namespace GUI.Types.Renderer
                         _ when name.Contains("mask", StringComparison.CurrentCultureIgnoreCase) => GetDefaultMask(),
                         _ => GetErrorTexture(),
                     };
+
+                    Console.WriteLine($"{mat.Material.Name}: Missing {name} set to a default texture!");
+
                 }
                 else if (isVector && !mat.Material.VectorParams.ContainsKey(name))
                 {
                     mat.Material.VectorParams[name] = name switch
                     {
-                        "g_vTexCoordScale" => Vector4.One,
-                        "g_vTexCoordOffset" => Vector4.Zero,
                         "g_vColorTint" => Vector4.One,
+                        "g_vTexCoordScale" or "g_vTexCoordScale1" or "g_vTexCoordScale2" => Vector4.One,
+                        "g_vTexCoordCenter" or "g_vTexCoordCenter1" or "g_vTexCoordCenter2" => new Vector4(0.5f),
                         _ => Vector4.Zero,
                     };
+
+                    Console.WriteLine($"{mat.Material.Name}: Missing {name} set to {mat.Material.VectorParams[name]}!");
                 }
                 else if (isScalar && !mat.Material.FloatParams.ContainsKey(name))
                 {
                     mat.Material.FloatParams[name] = name switch
                     {
                         "g_flMetalness" or "g_flHeightMapScale1" => 0f,
+                        "g_flAmbientOcclusionDirectDiffuse" or "g_flAmbientOcclusionDirectSpecular" => 1f,
                         _ => 0f,
                     };
+
+                    Console.WriteLine($"{mat.Material.Name}: Missing {name} set to 0!");
                 }
             }
         }

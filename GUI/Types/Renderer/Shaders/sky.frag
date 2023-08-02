@@ -22,7 +22,7 @@ uniform samplerCube g_tSkyTexture;
 
 uniform float g_flBrightnessExposureBias;
 uniform float g_flRenderOnlyExposureBias;
-uniform vec3 g_vTint = vec3(1.0, 1.0, 1.0);
+uniform vec3 m_vTint = vec3(1.0, 1.0, 1.0);
 
 const float g_flToneMapScalarLinear = 1.0;
 
@@ -59,7 +59,7 @@ void main()
 
     //vColor.rgb *= (1.0 + g_flBrightnessExposureBias);
     //vColor.rgb *= (1.0 + g_flRenderOnlyExposureBias);
-    vColor.rgb *= g_vTint;
+    vColor.rgb *= m_vTint;
     vColor.rgb = ClampToPositive(vColor.rgb);
     vColor.rgb *= g_flToneMapScalarLinear;
 

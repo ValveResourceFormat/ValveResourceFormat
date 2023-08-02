@@ -251,7 +251,7 @@ void main()
 #if (F_LAYERS > 0) || defined(simple_2way_blend) || defined(vr_blend)
     vColorBlendValues = vBLEND_COLOR;
 
-    #if defined(csgo_simple_2way_blend)
+    #if defined(csgo_simple_2way_blend) || (F_LAYERS > 0)
         vColorBlendValues /= 255.0;
     #endif
 
