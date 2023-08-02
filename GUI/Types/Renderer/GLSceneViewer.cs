@@ -223,11 +223,6 @@ namespace GUI.Types.Renderer
 
             Scene.RenderWithCamera(e.Camera, bufferSet, lockedCullFrustum);
 
-            if (ShowBaseGrid)
-            {
-                baseGrid.Render(genericRenderContext);
-            }
-
             selectedNodeRenderer.Render(genericRenderContext);
 
             if (showStaticOctree)
@@ -238,6 +233,11 @@ namespace GUI.Types.Renderer
             if (showDynamicOctree)
             {
                 dynamicOctreeRenderer.Render(e.Camera, RenderPass.Both);
+            }
+
+            if (ShowBaseGrid)
+            {
+                baseGrid.Render(genericRenderContext);
             }
         }
 
