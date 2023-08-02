@@ -36,7 +36,7 @@ namespace GUI.Types.Renderer
         private List<IBlockBindableBuffer> bufferSet;
         private bool skipRenderModeChange;
         private ComboBox renderModeComboBox;
-        private ParticleGrid baseGrid;
+        private InfiniteGrid baseGrid;
         private readonly Camera skyboxCamera = new();
         private OctreeDebugRenderer<SceneNode> staticOctreeRenderer;
         private OctreeDebugRenderer<SceneNode> dynamicOctreeRenderer;
@@ -128,7 +128,7 @@ namespace GUI.Types.Renderer
 
         protected virtual void OnLoad(object sender, EventArgs e)
         {
-            baseGrid = new ParticleGrid(100f, GuiContext);
+            baseGrid = new InfiniteGrid(Scene);
             selectedNodeRenderer = new(Scene);
 
             Camera.SetViewportSize(GLControl.Width, GLControl.Height);
@@ -204,11 +204,6 @@ namespace GUI.Types.Renderer
 
             Scene.Sky?.Render(genericRenderContext);
 
-            if (ShowBaseGrid)
-            {
-                baseGrid.Render(e.Camera, RenderPass.Both);
-            }
-
             if (ShowSkybox && SkyboxScene != null)
             {
                 lightingBuffer.Data = SkyboxScene.LightingInfo.LightingData;
@@ -227,6 +222,11 @@ namespace GUI.Types.Renderer
             lightingBuffer.Data = Scene.LightingInfo.LightingData;
 
             Scene.RenderWithCamera(e.Camera, bufferSet, lockedCullFrustum);
+
+            if (ShowBaseGrid)
+            {
+                baseGrid.Render(genericRenderContext);
+            }
 
             selectedNodeRenderer.Render(genericRenderContext);
 

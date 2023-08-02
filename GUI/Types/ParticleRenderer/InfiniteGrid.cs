@@ -5,30 +5,23 @@ using OpenTK.Graphics.OpenGL;
 
 namespace GUI.Types.ParticleRenderer
 {
-    internal class ParticleGrid : IRenderer
+    internal class InfiniteGrid : SceneNode
     {
         private readonly int vao;
         private Shader shader;
-        private VrfGuiContext guiContext;
 
-        public AABB LocalBoundingBox { get; }
-
-        public ParticleGrid(float width, VrfGuiContext guiContext)
+        public InfiniteGrid(Scene scene) : base(scene)
         {
-            var center = width / 2f;
-            LocalBoundingBox = new AABB(new Vector3(-center, -center, 0), new Vector3(center, center, 0));
-
             var vertices = new[]
             {
-                -width,  width, 0f,
-                -width, -width, 0f,
-                width, -width, 0f,
-                width, -width, 0f,
-                width, width, 0f,
-                -width, width, 0f,
+                1f, 1f, 0f,
+                -1f, -1f, 0f,
+                -1f, 1f, 0f,
+                -1f, -1f, 0f,
+                1f, 1f, 0f,
+                1f, -1f, 0f,
             };
 
-            this.guiContext = guiContext;
             ReloadShader();
 
             // Create and bind VAO
@@ -50,34 +43,36 @@ namespace GUI.Types.ParticleRenderer
             GL.BindVertexArray(0);
         }
 
-        public void Update(float frameTime)
+        public override void Update(Scene.UpdateContext context)
         {
             // not required
         }
 
-        public void Render(Camera camera, RenderPass renderPass)
+        public override void Render(Scene.RenderContext context)
         {
+            GL.Enable(EnableCap.DepthTest);
             GL.Enable(EnableCap.Blend);
             GL.Disable(EnableCap.CullFace);
-            GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.DstAlpha);
+            GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
 
             GL.UseProgram(shader.Program);
             GL.BindVertexArray(vao);
             GL.EnableVertexAttribArray(0);
 
-            shader.SetUniform4x4("uProjectionViewMatrix", camera.ViewProjectionMatrix);
+            context.Camera.SetPerViewUniforms(shader);
 
             GL.DrawArrays(PrimitiveType.Triangles, 0, 6);
 
             GL.UseProgram(0);
             GL.BindVertexArray(0);
+            GL.Disable(EnableCap.DepthTest);
             GL.Disable(EnableCap.Blend);
             GL.Enable(EnableCap.CullFace);
         }
 
         public void ReloadShader()
         {
-            shader = guiContext.ShaderLoader.LoadShader("vrf.grid");
+            shader = Scene.GuiContext.ShaderLoader.LoadShader("vrf.grid");
         }
     }
 }
