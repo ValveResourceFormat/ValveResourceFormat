@@ -32,8 +32,16 @@
 #endif
 
 layout (location = 0) in vec3 vPOSITION;
-in vec4 vNORMAL;
 in vec2 vTEXCOORD;
+
+#if (D_COMPRESSED_NORMALS_AND_TANGENTS == 0 || D_COMPRESSED_NORMALS_AND_TANGENTS == 1)
+    in vec4 vNORMAL; // OptionallyCompressedTangentFrame
+    #if (D_COMPRESSED_NORMALS_AND_TANGENTS == 0)
+        in vec3 vTANGENT; // TangentU_SignV
+    #endif
+#elif (D_COMPRESSED_NORMALS_AND_TANGENTS == 2)
+    in uint vNORMAL; // CompressedTangentFrame
+#endif
 
 #if (F_SECONDARY_UV == 1) || (F_FORCE_UV2 == 1)
     in vec4 vTEXCOORD2;
@@ -48,10 +56,6 @@ in vec2 vTEXCOORD;
 #elif D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1
     in vec4 vPerVertexLighting;
     out vec4 vPerVertexLightingOut;
-#endif
-
-#if (D_COMPRESSED_NORMALS_AND_TANGENTS == 0)
-    in vec3 vTANGENT;
 #endif
 
 #if (F_LAYERS > 0) || defined(simple_2way_blend) || defined(vr_blend)
@@ -202,9 +206,22 @@ void main()
     vNormalOut = normalize(normalTransform * normal);
     vTangentOut = normalize(normalTransform * tangent);
     vBitangentOut = cross(vNormalOut, vTangentOut);
-#else
+#elif (D_COMPRESSED_NORMALS_AND_TANGENTS == 1)
     vec3 normal = DecompressNormal(vNORMAL);
     vec4 tangent = DecompressTangent(vNORMAL);
+    vNormalOut = normalize(normalTransform * normal);
+    vTangentOut = normalize(normalTransform * tangent.xyz);
+    vBitangentOut = tangent.w * cross( vNormalOut, vTangentOut );
+#elif (D_COMPRESSED_NORMALS_AND_TANGENTS == 2)
+    uint nPackedFrame = vNORMAL;
+    vec4 unpacked = vec4(
+        float(nPackedFrame & 0xFF),
+        float((nPackedFrame >> 8) & 0xFF),
+        float((nPackedFrame >> 16) & 0xFF),
+        float((nPackedFrame >> 24) & 0xFF),
+    );
+    vec3 normal = DecompressNormal(unpacked);
+    vec4 tangent = DecompressTangent(unpacked);
     vNormalOut = normalize(normalTransform * normal);
     vTangentOut = normalize(normalTransform * tangent.xyz);
     vBitangentOut = tangent.w * cross( vNormalOut, vTangentOut );
@@ -233,6 +250,13 @@ void main()
 #if F_PAINT_VERTEX_COLORS == 1
     vVertexColorOut *= vCOLOR / 255.0f;
 #endif
+
+/* Compressed tangents test code
+    vVertexColorOut.rgb = vec3(0);
+#if (D_COMPRESSED_NORMALS_AND_TANGENTS == 2)
+    if (vNORMAL > 0u) vVertexColorOut = vec4(0, 1, 0, 1);
+#endif
+*/
 
 #if (F_SECONDARY_UV == 1) || (F_FORCE_UV2 == 1)
     vTexCoord2 = vTEXCOORD2.xy;
