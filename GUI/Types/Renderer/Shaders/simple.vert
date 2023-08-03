@@ -53,7 +53,7 @@ in vec2 vTEXCOORD;
     out vec3 vLightmapUVScaled;
 #elif D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1
     in vec4 vPerVertexLighting;
-    out vec4 vPerVertexLightingOut;
+    out vec3 vPerVertexLightingOut;
 #endif
 
 #if (F_LAYERS > 0) || defined(simple_2way_blend) || defined(vr_blend)

@@ -9,7 +9,7 @@
         uniform sampler2DArray g_tDirectLightShadows;
     #endif
 #elif (D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1)
-    in vec4 vPerVertexLightingOut;
+    in vec3 vPerVertexLightingOut;
 #elif (D_BAKED_LIGHTING_FROM_LIGHTPROBE == 1)
     uniform sampler2D g_tLPV_Irradiance;
     #if (LightmapGameVersionNumber == 1)

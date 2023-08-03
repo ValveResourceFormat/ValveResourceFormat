@@ -31,7 +31,7 @@ in vec2 vTEXCOORD;
     out vec3 vLightmapUVScaled;
 #elif D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1
     in vec4 vPerVertexLighting;  // COLOR1
-    out vec4 vPerVertexLightingOut;
+    out vec3 vPerVertexLightingOut;
 #endif
 
 #if (D_COMPRESSED_NORMALS_AND_TANGENTS == 0)
