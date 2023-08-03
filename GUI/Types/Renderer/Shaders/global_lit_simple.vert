@@ -1,9 +1,7 @@
 #version 460
 
-//Includes - resolved by VRF
-#include "compression.incl"
-#include "animation.incl"
-//End of includes
+#include "common/compression.glsl"
+#include "common/animation.glsl"
 
 //Parameter defines - These are default values and can be overwritten based on material/model parameters
 #define F_PAINT_VERTEX_COLORS 0

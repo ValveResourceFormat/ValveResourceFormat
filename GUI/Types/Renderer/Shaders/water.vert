@@ -1,8 +1,6 @@
 #version 460
 
-//Includes - resolved by VRF
-#include "compression.incl"
-//End of includes
+#include "common/compression.glsl"
 
 layout (location = 0) in vec3 vPOSITION;
 in vec4 vNORMAL;

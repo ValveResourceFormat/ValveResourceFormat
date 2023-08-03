@@ -5,10 +5,10 @@
 #endif
 
 #if defined(csgo_environment)
-#include "animation.incl"
+#include "common/animation.glsl"
 #endif
 
-#include "compression.incl"
+#include "common/compression.glsl"
 
 #include "common/utils.glsl"
 

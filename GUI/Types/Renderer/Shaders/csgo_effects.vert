@@ -5,8 +5,8 @@ layout (location = 1) in vec2 vTEXCOORD;
 layout (location = 2) in vec4 vNORMAL;
 layout (location = 3) in vec4 vCOLOR;
 
-#include "animation.incl"
-#include "compression.incl"
+#include "common/animation.glsl"
+#include "common/compression.glsl"
 
 out vec3 vFragPosition;
 

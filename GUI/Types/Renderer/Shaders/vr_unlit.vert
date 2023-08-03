@@ -1,6 +1,6 @@
 #version 460
 
-#include "animation.incl"
+#include "common/animation.glsl"
 
 layout (location = 0) in vec3 vPOSITION;
 in vec2 vTEXCOORD;

@@ -1,8 +1,6 @@
 #version 460
 
-//Includes - resolved by VRF
-#include "animation.incl"
-//End of includes
+#include "common/animation.glsl"
 
 layout (location = 0) in vec3 vPOSITION;
 

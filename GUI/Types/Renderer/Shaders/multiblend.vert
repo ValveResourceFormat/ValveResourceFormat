@@ -1,10 +1,8 @@
 #version 460
 
-//Includes - resolved by VRF
 #include "common/utils.glsl"
-#include "compression.incl"
-#include "animation.incl"
-//End of includes
+#include "common/compression.glsl"
+#include "common/animation.glsl"
 
 #define F_WORLDSPACE_UVS 0
 

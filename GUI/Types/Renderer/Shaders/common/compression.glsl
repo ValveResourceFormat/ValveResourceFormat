@@ -1,10 +1,4 @@
-/*
-    Utility file containing utility function to deal with compressed data from shaders.
-
-    Include this file using '#include "compression.incl"'.
-
-    Note: #include is not standard GLSL functionality and is resolved by VRF before compiling the shader.
-*/
+// Utility file containing utility function to deal with compressed data from shaders.
 
 #define D_COMPRESSED_NORMALS_AND_TANGENTS 0
 

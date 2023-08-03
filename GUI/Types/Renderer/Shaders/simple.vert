@@ -1,10 +1,8 @@
 #version 460
 
-//Includes - resolved by VRF
-#include "compression.incl"
-#include "animation.incl"
+#include "common/compression.glsl"
+#include "common/animation.glsl"
 #include "common/utils.glsl"
-//End of includes
 
 //Parameter defines - These are default values and can be overwritten based on material/model parameters
 #define D_BAKED_LIGHTING_FROM_LIGHTMAP 0
