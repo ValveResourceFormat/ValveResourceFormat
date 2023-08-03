@@ -748,6 +748,7 @@ namespace ValveResourceFormat.IO
 
                     if (attribute.SemanticName == "NORMAL")
                     {
+                        // TODO: Support new compressed normals in CS2
                         var isCompressedNormalTangent = data.GetArray("m_sceneObjects").Any(sceneObject =>
                         {
                             return sceneObject.GetArray("m_drawCalls").Any(drawCall =>

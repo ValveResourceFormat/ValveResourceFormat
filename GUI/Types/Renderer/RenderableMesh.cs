@@ -124,7 +124,17 @@ namespace GUI.Types.Renderer
 
                     if (Mesh.IsCompressedNormalTangent(objectDrawCall))
                     {
-                        shaderArguments.Add("D_COMPRESSED_NORMALS_AND_TANGENTS", 1);
+                        var vertexBuffer = objectDrawCall.GetArray("m_vertexBuffers")[0]; // TODO: Not just 0
+                        var vertexBufferId = vertexBuffer.GetInt32Property("m_hBuffer");
+                        var inputLayout = VBIB.VertexBuffers[vertexBufferId].InputLayoutFields.FirstOrDefault(static i => i.SemanticName == "NORMAL");
+
+                        var version = inputLayout.Format switch
+                        {
+                            DXGI_FORMAT.R32_UINT => (byte)2, // Added in CS2 on 2023-08-03
+                            _ => (byte)1,
+                        };
+
+                        shaderArguments.Add("D_COMPRESSED_NORMALS_AND_TANGENTS", version);
                     }
 
                     if (Mesh.HasBakedLightingFromLightMap(objectDrawCall) && scene.LightingInfo.HasValidLightmaps)
