@@ -166,7 +166,7 @@ namespace GUI.Types.Renderer
                     break;
 
                 case DXGI_FORMAT.R32_UINT:
-                    GL.VertexAttribPointer(attributeLocation, 1, VertexAttribPointerType.UnsignedInt, false, stride, (IntPtr)(baseVertex + attribute.Offset));
+                    GL.VertexAttribIPointer(attributeLocation, 1, VertexAttribIntegerType.UnsignedInt, stride, (IntPtr)(baseVertex + attribute.Offset));
                     break;
 
                 default:

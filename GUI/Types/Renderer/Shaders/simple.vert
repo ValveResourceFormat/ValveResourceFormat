@@ -213,18 +213,12 @@ void main()
     vTangentOut = normalize(normalTransform * tangent.xyz);
     vBitangentOut = tangent.w * cross( vNormalOut, vTangentOut );
 #elif (D_COMPRESSED_NORMALS_AND_TANGENTS == 2)
-    uint nPackedFrame = vNORMAL;
-    vec4 unpacked = vec4(
-        float(nPackedFrame & 0xFF),
-        float((nPackedFrame >> 8) & 0xFF),
-        float((nPackedFrame >> 16) & 0xFF),
-        float((nPackedFrame >> 24) & 0xFF),
-    );
-    vec3 normal = DecompressNormal(unpacked);
-    vec4 tangent = DecompressTangent(unpacked);
+    vec3 normal;
+    vec4 tangent;
+    DecompressNormalAndTangents2(vNORMAL, normal, tangent);
     vNormalOut = normalize(normalTransform * normal);
     vTangentOut = normalize(normalTransform * tangent.xyz);
-    vBitangentOut = tangent.w * cross( vNormalOut, vTangentOut );
+    vBitangentOut = tangent.w * cross(vNormalOut, vTangentOut);
 #endif
 
 #if (F_SPHERICAL_PROJECTED_ANISOTROPIC_TANGENTS == 1)
@@ -250,13 +244,6 @@ void main()
 #if F_PAINT_VERTEX_COLORS == 1
     vVertexColorOut *= vCOLOR / 255.0f;
 #endif
-
-/* Compressed tangents test code
-    vVertexColorOut.rgb = vec3(0);
-#if (D_COMPRESSED_NORMALS_AND_TANGENTS == 2)
-    if (vNORMAL > 0u) vVertexColorOut = vec4(0, 1, 0, 1);
-#endif
-*/
 
 #if (F_SECONDARY_UV == 1) || (F_FORCE_UV2 == 1)
     vTexCoord2 = vTEXCOORD2.xy;
