@@ -465,13 +465,7 @@ namespace GUI.Types.Renderer
 
                 if (classname == "sky_camera")
                 {
-                    var skyboxScale = entity.GetProperty("scale");
-                    result.SkyboxScale = skyboxScale.Type switch
-                    {
-                        EntityFieldType.Integer => (int)skyboxScale.Data,
-                        EntityFieldType.Integer64 => (ulong)skyboxScale.Data,
-                        _ => throw new NotImplementedException($"Unsupported skybox scale {skyboxScale.Type}"),
-                    };
+                    var skyboxScale = entity.GetPropertyUnchecked<float>("scale");
                     result.SkyboxOrigin = positionVector * -result.SkyboxScale;
                 }
 

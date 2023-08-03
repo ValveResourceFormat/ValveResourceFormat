@@ -66,7 +66,7 @@ namespace GUI.Types.Renderer
 
             vertexCount = vertices.Length / 7;
 
-            shader = Scene.GuiContext.ShaderLoader.LoadShader("vrf.grid");
+            shader = Scene.GuiContext.ShaderLoader.LoadShader("vrf.default");
             GL.UseProgram(shader.Program);
 
             vaoHandle = GL.GenVertexArray();
