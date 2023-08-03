@@ -321,6 +321,17 @@ namespace ValveResourceFormat.Blocks
                         break;
                     }
 
+                case DXGI_FORMAT.R32_UINT:
+                    {
+                        var uints = new uint[1];
+                        Buffer.BlockCopy(vertexBuffer.Data, offset, uints, 0, 4);
+
+                        result = new float[1];
+                        result[0] = uints[0];
+
+                        break;
+                    }
+
                 default:
                     throw new NotImplementedException($"Unsupported \"{attribute.SemanticName}\" DXGI_FORMAT.{attribute.Format}");
             }
@@ -376,6 +387,7 @@ namespace ValveResourceFormat.Blocks
                 DXGI_FORMAT.R16G16_SNORM => (2, 2),
                 DXGI_FORMAT.R16G16_FLOAT => (2, 2),
                 DXGI_FORMAT.R32_FLOAT => (4, 1),
+                DXGI_FORMAT.R32_UINT => (4, 1),
                 DXGI_FORMAT.R32G32_FLOAT => (4, 2),
                 DXGI_FORMAT.R16G16_SINT => (2, 2),
                 DXGI_FORMAT.R16G16B16A16_SINT => (2, 4),

@@ -165,6 +165,10 @@ namespace GUI.Types.Renderer
                     GL.VertexAttribPointer(attributeLocation, 2, VertexAttribPointerType.UnsignedShort, true, stride, (IntPtr)(baseVertex + attribute.Offset));
                     break;
 
+                case DXGI_FORMAT.R32_UINT:
+                    GL.VertexAttribPointer(attributeLocation, 1, VertexAttribPointerType.UnsignedInt, false, stride, (IntPtr)(baseVertex + attribute.Offset));
+                    break;
+
                 default:
                     throw new NotImplementedException($"Unknown vertex attribute format {attribute.Format}");
             }
