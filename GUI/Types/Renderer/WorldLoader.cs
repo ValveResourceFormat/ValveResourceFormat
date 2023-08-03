@@ -465,7 +465,7 @@ namespace GUI.Types.Renderer
 
                 if (classname == "sky_camera")
                 {
-                    var skyboxScale = entity.GetPropertyUnchecked<float>("scale");
+                    result.SkyboxScale = entity.GetPropertyUnchecked<float>("scale");
                     result.SkyboxOrigin = positionVector * -result.SkyboxScale;
                 }
 
