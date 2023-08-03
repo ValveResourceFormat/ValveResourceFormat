@@ -85,7 +85,7 @@ uniform float g_flHeightMapZeroPoint1 = 0;
     uniform float g_flAlphaTestReference = 0.5;
 #endif
 
-#incude "common/ViewConstants.glsl"
+#include "common/ViewConstants.glsl"
 
 // These two must be first
 #include "common/lighting_common.glsl"
@@ -162,7 +162,7 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 
     // Detail texture
 #if (F_DETAIL_NORMAL == 1)
-    mat.NormalMap = (mat.NormalMap + detailNormal) * vec3(0.5);
+    mat.NormalMap.xy = (mat.NormalMap.xy + detailNormal) * vec2(0.5);
 #endif
 
     mat.Normal = calculateWorldNormal(mat.NormalMap, mat.GeometricNormal, mat.Tangent, mat.Bitangent);

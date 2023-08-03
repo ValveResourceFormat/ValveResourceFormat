@@ -22,6 +22,8 @@ in vec2 vTEXCOORD;
 #if (F_SECONDARY_UV == 1)
     in vec2 vTEXCOORD2;
     out vec2 vTexCoord2;
+#else
+    vec2 vTexCoord2; // fake reference
 #endif
 
 #if D_BAKED_LIGHTING_FROM_LIGHTMAP == 1
@@ -102,7 +104,7 @@ void main()
 {
     mat4 skinTransform = transform;
     vec4 fragPosition = skinTransform * vec4(vPOSITION, 1.0);
-    gl_Position = uProjectionViewMatrix * fragPosition;
+    gl_Position = g_matViewToProjection * fragPosition;
     vFragPosition = fragPosition.xyz / fragPosition.w;
 
     mat3 normalTransform = transpose(inverse(mat3(skinTransform)));
@@ -148,11 +150,11 @@ void main()
 
 #if (F_DETAIL_NORMAL == 1)
     const bool DetailUseSecondaryUV = (F_SECONDARY_UV == 1 && F_DETAIL_NORMAL_USES_SECONDARY_UVS == 1);
-    vDetailTexCoords = RotateVector2D(DetailUseSecondaryUV ? vTexCoord2 : vTexCoord,
+    vDetailTexCoords = RotateVector2D(DetailUseSecondaryUV ? vTexCoord2 : vTexCoord.xy,
         g_flDetailTexCoordRotation1,
         g_vDetailTexCoordScale1.xy,
         g_vDetailTexCoordOffset1.xy,
-        g_vvDetailTexCoordCenter1.xy
+        g_vDetailTexCoordCenter1.xy
     );
 #endif
 
