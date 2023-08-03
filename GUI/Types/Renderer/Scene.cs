@@ -322,10 +322,15 @@ namespace GUI.Types.Renderer
                 }
 
 #if DEBUG
-                if (node.CubeMapPrecomputedHandshake != 0)
+                if (node.CubeMapPrecomputedHandshake > 0)
                 {
+                    if (!LightingInfo.EnvMaps.TryGetValue(node.CubeMapPrecomputedHandshake, out var preCalculated))
+                    {
+                        Console.WriteLine($"A envmap with handshake [{node.CubeMapPrecomputedHandshake}] does not exist for node at {node.BoundingBox.Center}");
+                        continue;
+                    }
+
                     var vrfCalculated = node.EnvMaps.FirstOrDefault();
-                    var preCalculated = LightingInfo.EnvMaps[node.CubeMapPrecomputedHandshake];
                     if (vrfCalculated is null)
                     {
                         Console.WriteLine($"Vrf couldn't find any envmaps for node at {node.BoundingBox.Center}. Valve precalculated envmap is at {preCalculated.BoundingBox.Center} [{node.CubeMapPrecomputedHandshake}]");

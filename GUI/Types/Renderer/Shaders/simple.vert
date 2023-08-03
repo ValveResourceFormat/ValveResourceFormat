@@ -44,7 +44,13 @@ in vec2 vTEXCOORD;
     in vec2 vLightmapUV;
     out vec3 vLightmapUVScaled;
 #elif D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1
-    in vec4 vPerVertexLighting;
+    #if defined(vr_standard)
+        #undef F_VERTEX_COLOR
+        #undef F_PAINT_VERTEX_COLORS
+        in vec4 vCOLOR; // TODO: real semantic index is 1
+    #else
+        in vec4 vPerVertexLighting;
+    #endif
     out vec3 vPerVertexLightingOut;
 #endif
 
@@ -208,6 +214,9 @@ void main()
 #if D_BAKED_LIGHTING_FROM_LIGHTMAP == 1
     vLightmapUVScaled = vec3(vLightmapUV * g_vLightmapUvScale.xy, 0);
 #elif D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1
+    #if defined(vr_standard)
+        vec4 vPerVertexLighting = vCOLOR;
+    #endif
     vec3 Light = vPerVertexLighting.rgb * 6.0 * vPerVertexLighting.a;
     vPerVertexLightingOut = pow2(Light);
 #endif
