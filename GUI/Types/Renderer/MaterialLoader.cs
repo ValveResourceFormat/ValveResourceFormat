@@ -361,7 +361,8 @@ namespace GUI.Types.Renderer
             return errorMat;
         }
 
-        static readonly string[] NonMaterialUniforms = {
+        static readonly string[] NonMaterialUniforms =
+        {
             "g_flTime",
             "g_vCameraPositionWs",
             "g_vLightmapUvScale",
@@ -371,24 +372,22 @@ namespace GUI.Types.Renderer
 
         private void ApplyMaterialDefaults(RenderMaterial mat)
         {
-            foreach (var name in mat.Shader.GetAllUniformNames())
+            foreach (var (name, type, size) in mat.Shader.GetAllUniformNames())
             {
-                if (NonMaterialUniforms.Contains(name))
+                if (NonMaterialUniforms.Contains(name) || !name.StartsWith("g_", StringComparison.InvariantCulture))
                 {
                     continue;
                 }
 
-                var isArray = name.EndsWith("[0]", StringComparison.OrdinalIgnoreCase);
-                if (isArray)
+                if (size != 1) // arrays
                 {
                     continue;
                 }
 
                 // Maybe able to grab defaults from glsl?
-                var isTexture = name.StartsWith("g_t", StringComparison.OrdinalIgnoreCase);
-                var isVector = name.StartsWith("g_v", StringComparison.OrdinalIgnoreCase);
-                var isScalar = name.StartsWith("g_fl", StringComparison.OrdinalIgnoreCase);
-
+                var isTexture = type >= ActiveUniformType.Sampler1D && type <= ActiveUniformType.Sampler2DRectShadow;
+                var isVector = type == ActiveUniformType.FloatVec4;
+                var isScalar = type == ActiveUniformType.Float;
 
                 if (isTexture && !mat.Textures.ContainsKey(name))
                 {
@@ -400,12 +399,13 @@ namespace GUI.Types.Renderer
                         _ => GetErrorTexture(),
                     };
 
+#if DEBUG
                     Console.WriteLine($"{mat.Material.Name}: Missing {name} set to a default texture!");
-
+#endif
                 }
                 else if (isVector && !mat.Material.VectorParams.ContainsKey(name))
                 {
-                    mat.Material.VectorParams[name] = name switch
+                    var value = name switch
                     {
                         "g_vColorTint" => Vector4.One,
                         "g_vTexCoordScale" or "g_vTexCoordScale1" or "g_vTexCoordScale2" => Vector4.One,
@@ -413,18 +413,26 @@ namespace GUI.Types.Renderer
                         _ => Vector4.Zero,
                     };
 
-                    Console.WriteLine($"{mat.Material.Name}: Missing {name} set to {mat.Material.VectorParams[name]}!");
+                    mat.Material.VectorParams[name] = value;
+
+#if DEBUG
+                    Console.WriteLine($"{mat.Material.Name}: Missing {name} set to {value}!");
+#endif
                 }
                 else if (isScalar && !mat.Material.FloatParams.ContainsKey(name))
                 {
-                    mat.Material.FloatParams[name] = name switch
+                    var value = name switch
                     {
                         "g_flMetalness" or "g_flHeightMapScale1" => 0f,
                         "g_flAmbientOcclusionDirectDiffuse" or "g_flAmbientOcclusionDirectSpecular" => 1f,
                         _ => 0f,
                     };
 
-                    Console.WriteLine($"{mat.Material.Name}: Missing {name} set to 0!");
+                    mat.Material.FloatParams[name] = value;
+
+#if DEBUG
+                    Console.WriteLine($"{mat.Material.Name}: Missing {name} set to {value}f!");
+#endif
                 }
             }
         }
