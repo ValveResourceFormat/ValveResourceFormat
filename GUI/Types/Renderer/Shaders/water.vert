@@ -1,9 +1,7 @@
 #version 460
 
-#include "common/compression.glsl"
-
 layout (location = 0) in vec3 vPOSITION;
-in vec4 vNORMAL;
+#include "common/compression.glsl"
 in vec2 vTEXCOORD;
 
 out vec3 vFragPosition;

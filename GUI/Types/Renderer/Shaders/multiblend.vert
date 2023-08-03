@@ -1,20 +1,16 @@
 #version 460
 
 #include "common/utils.glsl"
-#include "common/compression.glsl"
 #include "common/animation.glsl"
 
 #define F_WORLDSPACE_UVS 0
 
 layout (location = 0) in vec3 vPOSITION;
-in vec4 vNORMAL;
+#include "common/compression.glsl"
 in vec2 vTEXCOORD;
 in vec4 vTEXCOORD1;
 in vec4 vTEXCOORD2;
 in vec4 vTEXCOORD3;
-#if (D_COMPRESSED_NORMALS_AND_TANGENTS == 0)
-    in vec4 vTANGENT;
-#endif
 
 out vec3 vFragPosition;
 
@@ -88,19 +84,14 @@ void main()
     gl_Position = g_matViewToProjection * fragPosition;
     vFragPosition = fragPosition.xyz / fragPosition.w;
 
-    mat3 normalTransform = transpose(inverse(mat3(skinTransform)));
+    vec3 normal;
+    vec4 tangent;
+    GetOptionallyCompressedNormalTangent(normal, tangent);
 
-    //Unpack normals
-#if (D_COMPRESSED_NORMALS_AND_TANGENTS == 0)
-    vNormalOut = normalize(normalTransform * vNORMAL.xyz);
-    vTangentOut = normalize(normalTransform * vTANGENT.xyz);
-    vBitangentOut = cross(vNormalOut, vTangentOut);
-#else
-    vec4 tangent = DecompressTangent(vNORMAL);
-    vNormalOut = normalize(normalTransform * DecompressNormal(vNORMAL));
+    mat3 normalTransform = transpose(inverse(mat3(skinTransform)));
+    vNormalOut = normalize(normalTransform * normal);
     vTangentOut = normalize(normalTransform * tangent.xyz);
-    vBitangentOut = tangent.w * cross( vNormalOut, vTangentOut );
-#endif
+    vBitangentOut = tangent.w * cross(vNormalOut, vTangentOut);
 
     vTexCoordOut = getTexCoord(g_flTexCoordScale0, g_flTexCoordRotate0);//, g_vTexCoordOffset0, g_vTexCoordScroll0);
     vTexCoord1Out = getTexCoord(g_flTexCoordScale1, g_flTexCoordRotate1);//, g_vTexCoordOffset1, g_vTexCoordScroll1);

@@ -1,6 +1,5 @@
 #version 460
 
-#include "common/compression.glsl"
 #include "common/animation.glsl"
 
 //Parameter defines - These are default values and can be overwritten based on material/model parameters
@@ -8,10 +7,8 @@
 //End of parameter defines
 
 layout (location = 0) in vec3 vPOSITION;
-in vec4 vNORMAL;
-#if (D_COMPRESSED_NORMALS_AND_TANGENTS == 0)
-    in vec3 vTANGENT;
-#endif
+#include "common/compression.glsl"
+
 in vec2 vTEXCOORD;
 #if (F_PAINT_VERTEX_COLORS == 1)
     in vec4 vTEXCOORD2;
@@ -43,19 +40,14 @@ void main()
     gl_Position = g_matViewToProjection * fragPosition;
     vFragPosition = fragPosition.xyz / fragPosition.w;
 
-    mat3 normalTransform = transpose(inverse(mat3(skinTransform)));
+    vec3 normal;
+    vec4 tangent;
+    GetOptionallyCompressedNormalTangent(normal, tangent);
 
-    //Unpack normals
-#if (D_COMPRESSED_NORMALS_AND_TANGENTS == 0)
-    vNormalOut = normalize(normalTransform * vNORMAL.xyz);
-    vTangentOut = normalize(normalTransform * vTANGENT.xyz);
-    vBitangentOut = cross(vNormalOut, vTangentOut);
-#else
-    vec4 tangent = DecompressTangent(vNORMAL);
-    vNormalOut = normalize(normalTransform * DecompressNormal(vNORMAL));
+    mat3 normalTransform = transpose(inverse(mat3(skinTransform)));
+    vNormalOut = normalize(normalTransform * normal);
     vTangentOut = normalize(normalTransform * tangent.xyz);
-    vBitangentOut = tangent.w * cross( vNormalOut, vTangentOut );
-#endif
+    vBitangentOut = tangent.w * cross(vNormalOut, vTangentOut);
 
     vTintColorFadeOut.rgb = m_vTintColorSceneObject.rgb * m_vTintColorDrawCall * g_vColorTint.rgb;
     vTintColorFadeOut.a = m_vTintColorSceneObject.a * g_vColorTint.a;

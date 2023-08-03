@@ -1,19 +1,16 @@
 #version 460
 
+#include "common/animation.glsl"
+
 layout (location = 0) in vec3 vPOSITION;
 layout (location = 1) in vec2 vTEXCOORD;
-layout (location = 2) in vec4 vNORMAL;
-layout (location = 3) in vec4 vCOLOR;
-
-#include "common/animation.glsl"
 #include "common/compression.glsl"
+in vec4 vCOLOR;
 
 out vec3 vFragPosition;
-
 out vec3 vNormalOut;
 out vec3 vTangentOut;
 out vec3 vBitangentOut;
-
 out vec2 vTexCoordOut;
 out vec4 vColorOut;
 
@@ -27,12 +24,14 @@ void main()
     gl_Position = g_matViewToProjection * fragPosition;
     vFragPosition = fragPosition.xyz / fragPosition.w;
 
-    mat3 normalTransform = transpose(inverse(mat3(skinTransform)));
+    vec3 normal;
+    vec4 tangent;
+    GetOptionallyCompressedNormalTangent(normal, tangent);
 
-    vec4 tangent = DecompressTangent(vNORMAL);
-    vNormalOut = normalize(normalTransform * DecompressNormal(vNORMAL));
+    mat3 normalTransform = transpose(inverse(mat3(skinTransform)));
+    vNormalOut = normalize(normalTransform * normal);
     vTangentOut = normalize(normalTransform * tangent.xyz);
-    vBitangentOut = tangent.w * cross( vNormalOut, vTangentOut );
+    vBitangentOut = tangent.w * cross(vNormalOut, vTangentOut);
 
     vTexCoordOut = vTEXCOORD;
     vColorOut = vCOLOR;

@@ -407,9 +407,9 @@ namespace GUI.Types.Renderer
                 {
                     var value = name switch
                     {
-                        "g_vColorTint" => Vector4.One,
-                        "g_vTexCoordScale" or "g_vTexCoordScale1" or "g_vTexCoordScale2" => Vector4.One,
-                        "g_vTexCoordCenter" or "g_vTexCoordCenter1" or "g_vTexCoordCenter2" => new Vector4(0.5f),
+                        _ when name.Contains("tint", StringComparison.CurrentCultureIgnoreCase) => Vector4.One,
+                        _ when name.Contains("scale", StringComparison.CurrentCultureIgnoreCase) => Vector4.One,
+                        _ when name.Contains("center", StringComparison.CurrentCultureIgnoreCase) => new Vector4(0.5f),
                         _ => Vector4.Zero,
                     };
 
@@ -423,7 +423,6 @@ namespace GUI.Types.Renderer
                 {
                     var value = name switch
                     {
-                        "g_flMetalness" or "g_flHeightMapScale1" => 0f,
                         "g_flAmbientOcclusionDirectDiffuse" or "g_flAmbientOcclusionDirectSpecular" => 1f,
                         _ => 0f,
                     };

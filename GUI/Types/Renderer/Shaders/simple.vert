@@ -1,7 +1,5 @@
 #version 460
 
-#include "common/compression.glsl"
-#include "common/animation.glsl"
 #include "common/utils.glsl"
 
 //Parameter defines - These are default values and can be overwritten based on material/model parameters
@@ -29,17 +27,11 @@
     #define vr_blend
 #endif
 
+#include "common/animation.glsl"
+
 layout (location = 0) in vec3 vPOSITION;
 in vec2 vTEXCOORD;
-
-#if (D_COMPRESSED_NORMALS_AND_TANGENTS == 0 || D_COMPRESSED_NORMALS_AND_TANGENTS == 1)
-    in vec4 vNORMAL; // OptionallyCompressedTangentFrame
-    #if (D_COMPRESSED_NORMALS_AND_TANGENTS == 0)
-        in vec3 vTANGENT; // TangentU_SignV
-    #endif
-#elif (D_COMPRESSED_NORMALS_AND_TANGENTS == 2)
-    in uint vNORMAL; // CompressedTangentFrame
-#endif
+#include "common/compression.glsl"
 
 #if (F_SECONDARY_UV == 1) || (F_FORCE_UV2 == 1)
     in vec4 vTEXCOORD2;
@@ -85,12 +77,10 @@ in vec2 vTEXCOORD;
 
 out vec4 vVertexColorOut;
 out vec3 vFragPosition;
-
 out vec3 vNormalOut;
-centroid out vec3 vCentroidNormalOut;
 out vec3 vTangentOut;
 out vec3 vBitangentOut;
-
+centroid out vec3 vCentroidNormalOut;
 out vec2 vTexCoordOut;
 
 uniform vec4 m_vTintColorSceneObject;
@@ -195,29 +185,14 @@ void main()
     gl_Position = g_matViewToProjection * fragPosition;
     vFragPosition = fragPosition.xyz / fragPosition.w;
 
-    mat3 normalTransform = transpose(inverse(mat3(skinTransform)));
-
-    //Unpack normals
-#if (D_COMPRESSED_NORMALS_AND_TANGENTS == 0)
-    vec3 normal = vNORMAL.xyz;
-    vec3 tangent = vTANGENT.xyz;
-    vNormalOut = normalize(normalTransform * normal);
-    vTangentOut = normalize(normalTransform * tangent);
-    vBitangentOut = cross(vNormalOut, vTangentOut);
-#elif (D_COMPRESSED_NORMALS_AND_TANGENTS == 1)
-    vec3 normal = DecompressNormal(vNORMAL);
-    vec4 tangent = DecompressTangent(vNORMAL);
-    vNormalOut = normalize(normalTransform * normal);
-    vTangentOut = normalize(normalTransform * tangent.xyz);
-    vBitangentOut = tangent.w * cross( vNormalOut, vTangentOut );
-#elif (D_COMPRESSED_NORMALS_AND_TANGENTS == 2)
     vec3 normal;
     vec4 tangent;
-    DecompressNormalAndTangents2(vNORMAL, normal, tangent);
+    GetOptionallyCompressedNormalTangent(normal, tangent);
+
+    mat3 normalTransform = transpose(inverse(mat3(skinTransform)));
     vNormalOut = normalize(normalTransform * normal);
     vTangentOut = normalize(normalTransform * tangent.xyz);
     vBitangentOut = tangent.w * cross(vNormalOut, vTangentOut);
-#endif
 
 #if (F_SPHERICAL_PROJECTED_ANISOTROPIC_TANGENTS == 1)
     vAnisoBitangentOut = normalTransform * GetSphericalProjectedAnisoBitangent(normal, tangent.xyz);
