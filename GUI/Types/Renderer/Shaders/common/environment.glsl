@@ -11,7 +11,6 @@
 #elif (SCENE_ENVIRONMENT_TYPE == 2) // Per scene cube map array
     uniform samplerCubeArray g_tEnvironmentMap;
     uniform int g_iEnvMapArrayIndices[MAX_ENVMAPS];
-    uniform int g_iEnvironmentMapCount;
 #endif
 
 vec3 CubemapParallaxCorrection(vec3 envMapLocalPos, vec3 localReflectionVector, vec3 envMapBoxMin, vec3 envMapBoxMax)

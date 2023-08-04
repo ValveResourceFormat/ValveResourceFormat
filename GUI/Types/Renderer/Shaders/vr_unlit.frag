@@ -12,7 +12,7 @@ in vec4 vTintColorFadeOut;
 out vec4 outputColor;
 
 uniform float g_flAlphaTestReference;
-uniform sampler2D g_tColor2;
+uniform sampler2D g_tColor;
 uniform sampler2D g_tTintMask;
 
 
@@ -20,7 +20,7 @@ uniform sampler2D g_tTintMask;
 void main()
 {
     //Get the ambient color from the color texture
-    vec4 color = texture(g_tColor2, vTexCoordOut);
+    vec4 color = texture(g_tColor, vTexCoordOut);
 
 #if F_ALPHA_TEST == 1
     if (color.a < g_flAlphaTestReference)
