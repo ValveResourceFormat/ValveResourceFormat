@@ -7,8 +7,8 @@ namespace GUI.Types.Renderer.UniformBuffers
     public struct ViewConstants
     {
         public Matrix4x4 ViewToProjection;
-        public Matrix4x4 LightPosition;
-        public Vector4 LightColor;
+        public Matrix4x4 WorldToProjection;
+        public Matrix4x4 WorldToView;
         public Vector3 CameraPosition;
         public float Time;
     }

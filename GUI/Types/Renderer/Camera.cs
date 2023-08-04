@@ -83,16 +83,15 @@ namespace GUI.Types.Renderer
             return new Vector3(MathF.Cos(Yaw - OpenTK.MathHelper.PiOver2), MathF.Sin(Yaw - OpenTK.MathHelper.PiOver2), 0);
         }
 
-        public void SetPerViewUniforms(Shader shader)
+        public UniformBuffers.ViewConstants SetViewConstants(UniformBuffers.ViewConstants viewConstants)
         {
-            var worldToProjection = ProjectionMatrix.ToOpenTK();
-            var worldToView = CameraViewMatrix.ToOpenTK();
-            var viewToProjection = ViewProjectionMatrix.ToOpenTK();
-
-            GL.UniformMatrix4(shader.GetUniformLocation("g_matWorldToProjection"), false, ref worldToProjection);
-            GL.UniformMatrix4(shader.GetUniformLocation("g_matWorldToView"), false, ref worldToView);
-            GL.UniformMatrix4(shader.GetUniformLocation("g_matViewToProjection"), false, ref viewToProjection);
-            GL.Uniform3(shader.GetUniformLocation("g_vCameraPositionWs"), Location.ToOpenTK());
+            return viewConstants with
+            {
+                WorldToProjection = ProjectionMatrix,
+                WorldToView = CameraViewMatrix,
+                ViewToProjection = ViewProjectionMatrix,
+                CameraPosition = Location,
+            };
         }
 
         public void SetViewportSize(int viewportWidth, int viewportHeight)

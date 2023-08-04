@@ -101,9 +101,7 @@ namespace GUI.Types.Renderer
 
             GL.UseProgram(renderShader.Program);
 
-            var viewProjectionMatrix = Transform * context.Camera.ViewProjectionMatrix;
-            renderShader.SetUniform4x4("uProjectionViewMatrix", viewProjectionMatrix);
-            renderShader.SetUniform4x4("transform", Matrix4x4.Identity);
+            renderShader.SetUniform4x4("transform", Transform);
             renderShader.SetUniform1("bAnimated", 0.0f);
             renderShader.SetUniform1("sceneObjectId", Id);
 

@@ -155,6 +155,7 @@ uniform sampler2D g_tNormal;
 uniform sampler2D g_tTintMask;
 
 #include "common/ViewConstants.glsl"
+#include "common/LightingConstants.glsl"
 
 uniform float g_flAlphaTestReference = 0.5;
 uniform float g_flOpacityScale = 1.0;
@@ -218,8 +219,6 @@ uniform float g_flBumpStrength = 1.0;
 #include "common/texturing.glsl"
 
 #include "common/pbr.glsl"
-
-#include "common/LightingConstants.glsl"
 
 #if (S_SPECULAR == 1 || renderMode_Cubemaps == 1)
 #include "common/environment.glsl"

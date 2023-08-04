@@ -12,8 +12,7 @@ in vec3 farPoint;
 
 out vec4 outputColor;
 
-uniform mat4 g_matWorldToProjection;
-uniform mat4 g_matWorldToView;
+#include "common/ViewConstants.glsl"
 
 vec4 grid(vec3 fragPos3D, float scale, bool drawAxis) {
     vec2 coord = fragPos3D.xy / scale;

@@ -59,8 +59,6 @@ namespace GUI.Types.ParticleRenderer
             GL.BindVertexArray(vao);
             GL.EnableVertexAttribArray(0);
 
-            context.Camera.SetPerViewUniforms(shader);
-
             GL.DrawArrays(PrimitiveType.Triangles, 0, 6);
 
             GL.UseProgram(0);

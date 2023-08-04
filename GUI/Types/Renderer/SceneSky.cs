@@ -86,8 +86,6 @@ namespace GUI.Types.Renderer
             GL.UseProgram(Material.Shader.Program);
             GL.BindVertexArray(boxVao);
 
-            context.Camera.SetPerViewUniforms(Material.Shader);
-
             Material.Render();
             Material.Shader.SetUniform3("m_vTint", Tint);
             Material.Shader.SetUniform4x4("g_matSkyRotation", Transform);

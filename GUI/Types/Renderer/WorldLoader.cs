@@ -506,7 +506,6 @@ namespace GUI.Types.Renderer
                 }
                 else if (isGlobalLight)
                 {
-                    scene.GlobalLightTransform = transformationMatrix;
                     var colorNormalized = entity.GetProperty("color").Data switch
                     {
                         byte[] bytes => new Vector3(bytes[0], bytes[1], bytes[2]),
@@ -520,7 +519,11 @@ namespace GUI.Types.Renderer
                         brightness = Convert.ToSingle(entity.GetProperty("brightness").Data, CultureInfo.InvariantCulture);
                     }
 
-                    scene.GlobalLightColor = new Vector4(colorNormalized, brightness);
+                    scene.LightingInfo.LightingData = scene.LightingInfo.LightingData with
+                    {
+                        SunLightPosition = transformationMatrix,
+                        SunLightColor = new Vector4(colorNormalized, brightness),
+                    };
                 }
 
                 var rendercolor = entity.GetProperty("rendercolor");

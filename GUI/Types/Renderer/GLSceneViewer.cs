@@ -207,6 +207,9 @@ namespace GUI.Types.Renderer
                 Time = Uptime,
             };
 
+            // For SceneSky
+            viewBuffer.Data = e.Camera.SetViewConstants(viewBuffer.Data);
+
             var genericRenderContext = new Scene.RenderContext
             {
                 Camera = e.Camera,
@@ -221,15 +224,7 @@ namespace GUI.Types.Renderer
                 skyboxCamera.SetScaledProjectionMatrix();
                 skyboxCamera.SetLocation(e.Camera.Location - SkyboxOrigin);
 
-
-                viewBuffer.Data = viewBuffer.Data with
-                {
-                    ViewToProjection = skyboxCamera.ViewProjectionMatrix,
-                    CameraPosition = skyboxCamera.Location,
-                    LightColor = SkyboxScene.GlobalLightColor,
-                    LightPosition = SkyboxScene.GlobalLightTransform,
-                };
-
+                viewBuffer.Data = skyboxCamera.SetViewConstants(viewBuffer.Data);
                 lightingBuffer.Data = SkyboxScene.LightingInfo.LightingData;
 
                 SkyboxScene.MainCamera = skyboxCamera;
@@ -240,14 +235,7 @@ namespace GUI.Types.Renderer
             }
 
             lightingBuffer.Data = Scene.LightingInfo.LightingData;
-
-            viewBuffer.Data = viewBuffer.Data with
-            {
-                ViewToProjection = e.Camera.ViewProjectionMatrix,
-                CameraPosition = e.Camera.Location,
-                LightColor = Scene.GlobalLightColor,
-                LightPosition = Scene.GlobalLightTransform,
-            };
+            viewBuffer.Data = e.Camera.SetViewConstants(viewBuffer.Data);
 
             Scene.RenderWithCamera(e.Camera, bufferSet, lockedCullFrustum);
 

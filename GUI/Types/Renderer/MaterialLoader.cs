@@ -423,6 +423,7 @@ namespace GUI.Types.Renderer
                 {
                     var value = name switch
                     {
+                        "g_flBumpStrength" => 1f,
                         "g_flAmbientOcclusionDirectDiffuse" or "g_flAmbientOcclusionDirectSpecular" => 1f,
                         _ => 0f,
                     };

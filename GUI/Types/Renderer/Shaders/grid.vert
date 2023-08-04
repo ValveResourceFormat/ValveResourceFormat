@@ -5,10 +5,7 @@ out vec3 vtxPosition;
 out vec3 nearPoint;
 out vec3 farPoint;
 
-uniform mat4 g_matWorldToProjection;
-uniform mat4 g_matWorldToView;
-
-uniform vec3 g_vCameraPositionWs;
+#include "common/ViewConstants.glsl"
 
 vec3 UnprojectPoint(float x, float y, float z) {
     mat4 viewInv = inverse(g_matWorldToView);

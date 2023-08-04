@@ -4,6 +4,8 @@
 layout(std140) uniform LightingConstants {
     vec4 g_vLightmapUvScale;
     vec4 g_vClearColor;
+    mat4 vLightPosition;
+    vec4 vLightColor;
     vec4 g_vEnvMapSizeConstants;
     mat4 g_matEnvMapWorldToLocal[MAX_ENVMAPS];
     vec4[MAX_ENVMAPS] g_vEnvMapBoxMins;

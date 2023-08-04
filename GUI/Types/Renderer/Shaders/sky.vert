@@ -3,11 +3,7 @@
 layout (location = 0) in vec3 aVertexPosition;
 out vec3 vSkyLookupInterpolant;
 
-uniform mat4 g_matWorldToProjection;
-uniform mat4 g_matWorldToView;
-uniform mat4 g_matViewToProjection;
-
-uniform vec3 g_vCameraPositionWs;
+#include "common/ViewConstants.glsl"
 
 uniform mat4 g_matSkyRotation;
 
