@@ -61,9 +61,9 @@ void DecompressNormalTangent2(uint nPackedFrame, out vec3 normal, out vec4 tange
     const float fMagicT = 0.003069460391998291015625;       // ~ 1.0 / 326.0
 
     uint SignBit = nPackedFrame & 1u;           // LSB bit
-    uint Zbits = (nPackedFrame >> 1u) & 0x7ff;  // 11 bits
-    uint Xbits = (nPackedFrame >> 12u) & 0x3ff; // 10 bits
-    uint Ybits = (nPackedFrame >> 22u) & 0x3ff; // 10 bits
+    float Zbits = (nPackedFrame >> 1u) & 0x7ff;  // 11 bits
+    float Xbits = (nPackedFrame >> 12u) & 0x3ff; // 10 bits
+    float Ybits = (nPackedFrame >> 22u) & 0x3ff; // 10 bits
 
     float nPackedFrameX = fma(Xbits, fMagicN, -1.0);
     float nPackedFrameY = fma(Ybits, fMagicN, -1.0);
@@ -79,10 +79,10 @@ void DecompressNormalTangent2(uint nPackedFrame, out vec3 normal, out vec4 tange
     float _16417 = (-1.0) / (_8220 + normal.z);
     vec3 _23176 = vec3(fma((_8220 * normal.x) * normal.x, _16417, 1.0), _8220 * ((normal.x * normal.y) * _16417), (-_8220) * normal.x);
 
-    float nPackedFrameZ = float(Zbits) * fMagicT;
+    float nPackedFrameZ = Zbits * fMagicT;
     
     tangent.xyz = _23176 * cos(nPackedFrameZ) + cross(normal, _23176) * sin(nPackedFrameZ);
-    tangent.w = (SignBit == 0u) ? (-1.0) : 1.0;
+    tangent.w = SignBit == 0u ? -1.0 : 1.0;
 }
 
 void GetOptionallyCompressedNormalTangent(out vec3 normal, out vec4 tangent)
