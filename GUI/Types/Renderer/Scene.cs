@@ -337,6 +337,11 @@ namespace GUI.Types.Renderer
                         continue;
                     }
 
+                    if (vrfCalculated.HandShake == node.CubeMapPrecomputedHandshake)
+                    {
+                        continue;
+                    }
+
                     var vrfDistance = Vector3.Distance(lightingOrigin, vrfCalculated.BoundingBox.Center);
                     var precalculatedDistance = Vector3.Distance(lightingOrigin, LightingInfo.EnvMaps[node.CubeMapPrecomputedHandshake].BoundingBox.Center);
 
