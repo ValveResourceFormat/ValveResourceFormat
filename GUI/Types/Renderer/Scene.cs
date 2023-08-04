@@ -306,6 +306,27 @@ namespace GUI.Types.Renderer
 
             foreach (var node in AllNodes)
             {
+                SceneEnvMap preCalculated = default;
+
+                if (node.CubeMapPrecomputedHandshake > 0)
+                {
+                    if (!LightingInfo.EnvMaps.TryGetValue(node.CubeMapPrecomputedHandshake, out preCalculated))
+                    {
+#if DEBUG
+                        Console.WriteLine($"A envmap with handshake [{node.CubeMapPrecomputedHandshake}] does not exist for node at {node.BoundingBox.Center}");
+#endif
+                        continue;
+                    }
+
+                    // Prefer precalculated env map for legacy games (steamvr)
+                    if (preCalculated.EnvMapTexture.Target == OpenTK.Graphics.OpenGL.TextureTarget.TextureCubeMap)
+                    {
+                        node.EnvMaps.Clear();
+                        node.EnvMaps.Add(preCalculated);
+                        continue;
+                    }
+                }
+
                 var lightingOrigin = node.LightingOrigin ?? Vector3.Zero;
                 if (node.LightingOrigin.HasValue)
                 {
@@ -322,14 +343,8 @@ namespace GUI.Types.Renderer
                 }
 
 #if DEBUG
-                if (node.CubeMapPrecomputedHandshake > 0)
+                if (preCalculated != default)
                 {
-                    if (!LightingInfo.EnvMaps.TryGetValue(node.CubeMapPrecomputedHandshake, out var preCalculated))
-                    {
-                        Console.WriteLine($"A envmap with handshake [{node.CubeMapPrecomputedHandshake}] does not exist for node at {node.BoundingBox.Center}");
-                        continue;
-                    }
-
                     var vrfCalculated = node.EnvMaps.FirstOrDefault();
                     if (vrfCalculated is null)
                     {
