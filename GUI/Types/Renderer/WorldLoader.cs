@@ -222,6 +222,8 @@ namespace GUI.Types.Renderer
                 .Select(e => (e, e.GetProperty<string>("classname")))
                 .OrderByDescending(x => IsCubemapOrProbe(x.Item2));
 
+            var legacyCubemapArrayIndex = 0;
+
             foreach (var (entity, classname) in entitiesReordered)
             {
                 if (classname == "worldspawn")
@@ -352,8 +354,6 @@ namespace GUI.Types.Renderer
                             _ => 0,
                         };
 
-                        scene.LightingInfo.Lightmaps.TryAdd("g_tEnvironmentMap", envMapTexture);
-
                         var arrayIndexData = entity.GetProperty("array_index")?.Data;
                         var arrayIndex = arrayIndexData switch
                         {
@@ -361,6 +361,17 @@ namespace GUI.Types.Renderer
                             string s => int.Parse(s, CultureInfo.InvariantCulture),
                             _ => 0,
                         };
+
+                        if (envMapTexture.Target == TextureTarget.TextureCubeMap)
+                        {
+                            arrayIndex = legacyCubemapArrayIndex++;
+
+                            scene.LightingInfo.Lightmaps.TryAdd($"g_tEnvironmentMap[{arrayIndex}]", envMapTexture);
+                        }
+                        else
+                        {
+                            scene.LightingInfo.Lightmaps.TryAdd("g_tEnvironmentMap", envMapTexture);
+                        }
 
                         if (arrayIndex >= UniformBuffers.LightingConstants.MAX_ENVMAPS)
                         {

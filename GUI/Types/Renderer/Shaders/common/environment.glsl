@@ -4,10 +4,8 @@
     // ...
 #else
 #if (SCENE_ENVIRONMENT_TYPE == 1) // Per-object cube map
-    uniform samplerCube g_tEnvironmentMap;
-    uniform vec4 g_vEnvMapBoxMins;
-    uniform vec4 g_vEnvMapBoxMaxs;
-    uniform mat4x3 g_matEnvMapWorldToLocal;
+    uniform samplerCube g_tEnvironmentMap[MAX_ENVMAPS];
+    uniform int g_iEnvMapArrayIndices[MAX_ENVMAPS];
 #elif (SCENE_ENVIRONMENT_TYPE == 2) // Per scene cube map array
     uniform samplerCubeArray g_tEnvironmentMap;
     uniform int g_iEnvMapArrayIndices[MAX_ENVMAPS];
@@ -135,59 +133,55 @@ vec3 GetEnvironment(MaterialProperties_t mat, LightingTerms_t lighting)
 
     float lod = GetEnvMapLOD(roughness, R, mat.ClothMask);
 
-    #if (SCENE_ENVIRONMENT_TYPE == 1)
-        vec3 coords = R;
-        vec3 mins = g_vEnvMapBoxMins.xyz;
-        vec3 maxs = g_vEnvMapBoxMaxs.xyz;
-        vec3 center = g_matEnvMapWorldToLocal.xyz; // TODO?
-        vec3 envMap = textureLod(g_tEnvironmentMap, coords, lod).rgb;
-    #elif (SCENE_ENVIRONMENT_TYPE == 2)
-        vec3 envMap = vec3(0.0);
-        float totalWeight = 0.01;
+    vec3 envMap = vec3(0.0);
+    float totalWeight = 0.01;
 
-        for (int i = 0; i < g_vEnvMapSizeConstants.y; i++) {
-            int envMapArrayIndex = g_iEnvMapArrayIndices[i];
-            vec3 envMapBoxMin = g_vEnvMapBoxMins[envMapArrayIndex].xyz - vec3(0.001);
-            vec3 envMapBoxMax = g_vEnvMapBoxMaxs[envMapArrayIndex].xyz + vec3(0.001);
-            vec3 dists = g_vEnvMapEdgeFadeDists[envMapArrayIndex].xyz;
-            mat4x3 envMapWorldToLocal = mat4x3(g_matEnvMapWorldToLocal[envMapArrayIndex]);
-            vec3 envMapLocalPos = envMapWorldToLocal * vec4(vFragPosition, 1.0);
+    for (int i = 0; i < g_vEnvMapSizeConstants.y; i++) {
+        int envMapArrayIndex = g_iEnvMapArrayIndices[i];
+        vec3 envMapBoxMin = g_vEnvMapBoxMins[envMapArrayIndex].xyz - vec3(0.001);
+        vec3 envMapBoxMax = g_vEnvMapBoxMaxs[envMapArrayIndex].xyz + vec3(0.001);
+        vec3 dists = g_vEnvMapEdgeFadeDists[envMapArrayIndex].xyz;
+        mat4x3 envMapWorldToLocal = mat4x3(g_matEnvMapWorldToLocal[envMapArrayIndex]);
+        vec3 envMapLocalPos = envMapWorldToLocal * vec4(vFragPosition, 1.0);
 
-            vec3 envInvEdgeWidth = 1.0 / dists;
-            vec3 envmapClampedFadeMax = clamp((envMapBoxMax - envMapLocalPos) * envInvEdgeWidth, vec3(0.0), vec3(1.0));
-            vec3 envmapClampedFadeMin = clamp((envMapLocalPos - envMapBoxMin) * envInvEdgeWidth, vec3(0.0), vec3(1.0));
-            float distanceFromEdge = min(min3(envmapClampedFadeMin), min3(envmapClampedFadeMax));
+        vec3 envInvEdgeWidth = 1.0 / dists;
+        vec3 envmapClampedFadeMax = clamp((envMapBoxMax - envMapLocalPos) * envInvEdgeWidth, vec3(0.0), vec3(1.0));
+        vec3 envmapClampedFadeMin = clamp((envMapLocalPos - envMapBoxMin) * envInvEdgeWidth, vec3(0.0), vec3(1.0));
+        float distanceFromEdge = min(min3(envmapClampedFadeMin), min3(envmapClampedFadeMax));
 
-            if (distanceFromEdge == 0.0)
-            {
-                continue;
-            }
-
-            vec3 localReflectionVector = envMapWorldToLocal * vec4(R, 0.0);
-
-            vec3 coords = CubemapParallaxCorrection(envMapLocalPos, localReflectionVector, envMapBoxMin, envMapBoxMax);
-
-            // blend using a smooth curve
-            float weight = (pow2(distanceFromEdge) * (3.0 - (2.0 * distanceFromEdge))) * (1.0 - totalWeight);
-            totalWeight += weight;
-
-            #if renderMode_Cubemaps == 0
-                // blend to fully corrected
-                #if (F_CLOTH_SHADING == 1)
-                    coords = mix(coords, mat.AmbientNormal, sqrt(roughness));
-                #else
-                    coords = mix(coords, mat.AmbientNormal, roughness);
-                #endif
-            #endif
-
-            envMap += textureLod(g_tEnvironmentMap, vec4(coords, envMapArrayIndex), lod).rgb * weight;
-
-            if (totalWeight > 0.99)
-            {
-                break;
-            }
+        if (distanceFromEdge == 0.0)
+        {
+            continue;
         }
-    #endif
+
+        vec3 localReflectionVector = envMapWorldToLocal * vec4(R, 0.0);
+
+        vec3 coords = CubemapParallaxCorrection(envMapLocalPos, localReflectionVector, envMapBoxMin, envMapBoxMax);
+
+        // blend using a smooth curve
+        float weight = (pow2(distanceFromEdge) * (3.0 - (2.0 * distanceFromEdge))) * (1.0 - totalWeight);
+        totalWeight += weight;
+
+        #if renderMode_Cubemaps == 0
+            // blend to fully corrected
+            #if (F_CLOTH_SHADING == 1)
+                coords = mix(coords, mat.AmbientNormal, sqrt(roughness));
+            #else
+                coords = mix(coords, mat.AmbientNormal, roughness);
+            #endif
+        #endif
+
+        #if (SCENE_ENVIRONMENT_TYPE == 1)
+            envMap += textureLod(g_tEnvironmentMap[envMapArrayIndex], coords, lod).rgb * weight;
+        #elif (SCENE_ENVIRONMENT_TYPE == 2)
+            envMap += textureLod(g_tEnvironmentMap, vec4(coords, envMapArrayIndex), lod).rgb * weight;
+        #endif
+
+        if (totalWeight > 0.99)
+        {
+            break;
+        }
+    }
 
 #if (renderMode_Cubemaps == 1)
     return envMap;
