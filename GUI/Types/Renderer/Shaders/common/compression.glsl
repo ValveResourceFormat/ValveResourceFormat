@@ -15,7 +15,6 @@
     in uint vNORMAL; // CompressedTangentFrame
 #endif
 
-#if (D_COMPRESSED_NORMALS_AND_TANGENTS == 1)
 //Decompress a byte4 normal in the 0..255 range to a float4 tangent
 vec4 DecompressTangent( vec4 inputNormal )
 {
@@ -59,8 +58,6 @@ vec3 DecompressNormal( vec4 inputNormal )
 
     return normalize(outputNormal);
 }
-
-#elif (D_COMPRESSED_NORMALS_AND_TANGENTS == 2)
 
 // Decompress a uint into a float3 normal and float4 tangent. Added in CS2
 void DecompressNormalTangent2(uint nPackedFrame, out vec3 normal, out vec4 tangent)
@@ -112,7 +109,6 @@ void DecompressNormalTangent2(uint nPackedFrame, out vec3 normal, out vec4 tange
 
     tangent.w = (SignBit == 0u) ? -1.0 : 1.0; // Bitangent sign bit... inverted (0 = negative)
 }
-#endif
 
 void GetOptionallyCompressedNormalTangent(out vec3 normal, out vec4 tangent)
 {
