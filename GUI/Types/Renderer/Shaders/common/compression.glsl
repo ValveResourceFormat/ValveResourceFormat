@@ -1,5 +1,9 @@
 // File containing vertex inputs and functions to deal with compressed normals and tangents.
 
+#ifndef utils
+#include "common/utils.glsl"
+#endif
+
 #define D_COMPRESSED_NORMALS_AND_TANGENTS 0
 
 #if (D_COMPRESSED_NORMALS_AND_TANGENTS == 0 || D_COMPRESSED_NORMALS_AND_TANGENTS == 1)
@@ -15,7 +19,7 @@
 vec4 DecompressTangent( vec4 inputNormal )
 {
     float fOne   = 1.0f;
-    vec4 ztztSignBits	= -floor(( inputNormal - 128.0f )/127.0f);						// sign bits for zs and binormal (1 or 0)  set-less-than (slt) asm instruction
+    vec4 ztztSignBits	= -floor(( inputNormal - 128.0f )/127.0f);						// sign bits for zs and bitangent (1 or 0)  set-less-than (slt) asm instruction
     vec4 xyxyAbs		= abs( inputNormal - 128.0f ) - ztztSignBits;		// 0..127
     vec4 xyxySignBits	= -floor(( xyxyAbs - 64.0f )/63.0f);							// sign bits for xs and ys (1 or 0)
     vec4 normTan		= (abs( xyxyAbs - 64.0f ) - xyxySignBits) / 63.0f;	// abs({nX, nY, tX, tY})
@@ -41,7 +45,7 @@ vec3 DecompressNormal( vec4 inputNormal )
     float fOne   = 1.0f;
     vec3 outputNormal = vec3(0);
 
-    vec2 ztSigns      = -floor(( inputNormal.xy - 128.0f )/127.0f);      // sign bits for zs and binormal (1 or 0)  set-less-than (slt) asm instruction
+    vec2 ztSigns      = -floor(( inputNormal.xy - 128.0f )/127.0f);      // sign bits for zs and bitangent (1 or 0)  set-less-than (slt) asm instruction
     vec2 xyAbs        = abs( inputNormal.xy - 128.0f ) - ztSigns;     // 0..127
     vec2 xySigns      = -floor(( xyAbs - 64.0f )/63.0f);             // sign bits for xs and ys (1 or 0)
     outputNormal.xy     = ( abs( xyAbs - 64.0f ) - xySigns ) / 63.0f;   // abs({nX, nY})
@@ -55,34 +59,56 @@ vec3 DecompressNormal( vec4 inputNormal )
     return normalize(outputNormal);
 }
 
+
+// CS2 nPackedFrame compression
 void DecompressNormalTangent2(uint nPackedFrame, out vec3 normal, out vec4 tangent)
 {
-    const float fMagicN = 0.00195503421127796173095703125;  // ~ 1.0 / 512.0
-    const float fMagicT = 0.003069460391998291015625;       // ~ 1.0 / 326.0
-
-    uint SignBit = nPackedFrame & 1u;           // LSB bit
-    float Zbits = (nPackedFrame >> 1u) & 0x7ff;  // 11 bits
+    uint SignBit = nPackedFrame & 1u;            // LSB bit
+    float Tbits = (nPackedFrame >> 1u) & 0x7ff;  // 11 bits
     float Xbits = (nPackedFrame >> 12u) & 0x3ff; // 10 bits
     float Ybits = (nPackedFrame >> 22u) & 0x3ff; // 10 bits
 
-    float nPackedFrameX = fma(Xbits, fMagicN, -1.0);
-    float nPackedFrameY = fma(Ybits, fMagicN, -1.0);
+    // Unpack from 0..1 to -1..1
+    float nPackedFrameX = (Xbits / 1023.0f) * 2.0 - 1.0;
+    float nPackedFrameY = (Ybits / 1023.0f) * 2.0 - 1.0;
 
-    float _23404 = (1.0 - abs(nPackedFrameX)) - abs(nPackedFrameY);
-    vec3 _8254 = vec3(nPackedFrameX, nPackedFrameY, _23404);
-    float _24401 = clamp(-_23404, 0.0, 1.0);
-    vec2 _15528 = _8254.xy;
-    vec2 _13433 = _15528 + mix(vec2(_24401), vec2(-_24401), greaterThanEqual(_15528, vec2(0.0)));
-    normal = normalize(vec3(_13433.x, _13433.y, _8254.z));
-  
-    float _8220 = (normal.z >= 0.0) ? 1.0 : (-1.0);
-    float _16417 = (-1.0) / (_8220 + normal.z);
-    vec3 _23176 = vec3(fma((_8220 * normal.x) * normal.x, _16417, 1.0), _8220 * ((normal.x * normal.y) * _16417), (-_8220) * normal.x);
+    // Z is never given a sign, meaning negative values are caused by abs(packedframexy) adding up to over 1.0
+    float derivedNormalZ = 1.0 - abs(nPackedFrameX) - abs(nPackedFrameY); // Project onto x+y+z=1
+    vec3 unpackedNormal = vec3( nPackedFrameX, nPackedFrameY, derivedNormalZ );
 
-    float nPackedFrameZ = Zbits * fMagicT;
+    // If Z is negative, X and Y has had extra amounts (TODO: find the logic behind this value) added into them so they would add up to over 1.0
+    // Thus, we take the negative components of Z and add them back into XY to get the correct original values.
+    vec2 negativeZCompensation = vec2( saturate(-derivedNormalZ) ); // Isolate the negative 0..1 range of derived Z
+    unpackedNormal.xy += mix(negativeZCompensation, -negativeZCompensation, greaterThanEqual(unpackedNormal.xy, vec2(0.0)));
+
+    normal = normalize(unpackedNormal); // Get final normal by normalizing it onto the unit sphere
+
+    // Invert tangent when normal Z is negative
+    float tangentSign = (normal.z >= 0.0) ? 1.0 : -1.0;
+    // equal to tangentSign * (1.0 + abs(normal.z))
+    float rcpTangentZ = 1.0 / (tangentSign + normal.z); 
+
+    // Be careful of rearranging ops here, could lead to differences in float precision, especially when dealing with compressed data.
+    vec3 unalignedTangent;
+
+    // Unoptimized (but clean) form:
+    // tangent.X = -(normal.x * normal.x) / (tangentSign + normal.z) + 1.0
+    // tangent.Y = -(normal.x * normal.y) / (tangentSign + normal.z)
+    // tangent.Z = -(normal.x)
+    unalignedTangent.x = -tangentSign * (normal.x * normal.x) * rcpTangentZ + 1.0; // ???
+    unalignedTangent.y = -tangentSign * ((normal.x * normal.y) * rcpTangentZ);
+    unalignedTangent.z = -tangentSign * normal.x;
+
+    // This establishes a single direction on the tangent plane that derived from only the normal (has no texcoord info).
+    // But it doesn't line up with the texcoords. For that, it uses nPackedFrameT, which is the rotation.
     
-    tangent.xyz = _23176 * cos(nPackedFrameZ) + cross(normal, _23176) * sin(nPackedFrameZ);
-    tangent.w = SignBit == 0u ? -1.0 : 1.0;
+    // Angle to use to rotate tangent
+    float nPackedFrameT = (Tbits / 2047.0f) * TAU;
+
+    // Rotate tangent to the correct angle that aligns with texcoords.
+    tangent.xyz = unalignedTangent * cos(nPackedFrameT) + cross(normal, unalignedTangent) * sin(nPackedFrameT);
+
+    tangent.w = (SignBit == 0u) ? -1.0 : 1.0; // Bitangent sign bit... inverted (0 = negative)
 }
 
 void GetOptionallyCompressedNormalTangent(out vec3 normal, out vec4 tangent)

@@ -1,3 +1,10 @@
+#define utils
+
+#define PI 3.1415926535897932384626433832795
+// tau = PI*2
+#define TAU 6.2831853071795864769252867665590
+
+
 // clamp(value, 0.0, 1.0)
 float saturate(float val) {
     return clamp(val, 0, 1);
