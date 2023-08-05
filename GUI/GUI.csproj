@@ -32,6 +32,7 @@
   <ItemGroup>
     <EmbeddedResource Include="AssetTypes\*" />
     <EmbeddedResource Include="Types\Renderer\Shaders\**" />
+    <EmbeddedResource Include="Utils\inspect_agents_custom_cubemap.vtex_c" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\ValveResourceFormat\ValveResourceFormat.csproj">

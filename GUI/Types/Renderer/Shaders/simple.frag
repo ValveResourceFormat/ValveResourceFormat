@@ -109,9 +109,7 @@ centroid in vec3 vCentroidNormalOut;
     #endif
 #endif
 
-#if (LightmapGameVersionNumber == 0)
-    #define S_SPECULAR 0 // No cubemaps unless viewing map
-#elif defined(csgo_lightmappedgeneric) || defined(csgo_vertexlitgeneric)
+#if defined(csgo_lightmappedgeneric) || defined(csgo_vertexlitgeneric)
     #define S_SPECULAR F_SPECULAR_INDIRECT
 #elif defined(vr_complex)
     #define S_SPECULAR F_SPECULAR

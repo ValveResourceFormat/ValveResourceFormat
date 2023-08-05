@@ -138,34 +138,37 @@ vec3 GetEnvironment(MaterialProperties_t mat, LightingTerms_t lighting)
 
     for (int i = 0; i < g_vEnvMapSizeConstants.y; i++) {
         int envMapArrayIndex = g_iEnvMapArrayIndices[i];
+        vec4 proxySphere = g_vEnvMapProxySphere[envMapArrayIndex];
+        bool isBoxProjection = proxySphere.w == 1.0f;
         vec3 envMapBoxMin = g_vEnvMapBoxMins[envMapArrayIndex].xyz - vec3(0.001);
         vec3 envMapBoxMax = g_vEnvMapBoxMaxs[envMapArrayIndex].xyz + vec3(0.001);
         mat4x3 envMapWorldToLocal = mat4x3(g_matEnvMapWorldToLocal[envMapArrayIndex]);
         vec3 envMapLocalPos = envMapWorldToLocal * vec4(vFragPosition, 1.0);
+        float weight = 1.0f;
 
         #if (SCENE_ENVIRONMENT_TYPE == 2)
             vec3 dists = g_vEnvMapEdgeFadeDists[envMapArrayIndex].xyz;
-            vec3 envInvEdgeWidth = 1.0 / dists;
-            vec3 envmapClampedFadeMax = clamp((envMapBoxMax - envMapLocalPos) * envInvEdgeWidth, vec3(0.0), vec3(1.0));
-            vec3 envmapClampedFadeMin = clamp((envMapLocalPos - envMapBoxMin) * envInvEdgeWidth, vec3(0.0), vec3(1.0));
-            float distanceFromEdge = min(min3(envmapClampedFadeMin), min3(envmapClampedFadeMax));
 
-            if (distanceFromEdge == 0.0)
-            {
-                continue;
+            if (isBoxProjection) {
+                vec3 envInvEdgeWidth = 1.0 / dists;
+                vec3 envmapClampedFadeMax = clamp((envMapBoxMax - envMapLocalPos) * envInvEdgeWidth, vec3(0.0), vec3(1.0));
+                vec3 envmapClampedFadeMin = clamp((envMapLocalPos - envMapBoxMin) * envInvEdgeWidth, vec3(0.0), vec3(1.0));
+                float distanceFromEdge = min(min3(envmapClampedFadeMin), min3(envmapClampedFadeMax));
+
+                if (distanceFromEdge == 0.0)
+                {
+                    continue;
+                }
+
+                // blend using a smooth curve
+                weight = (pow2(distanceFromEdge) * (3.0 - (2.0 * distanceFromEdge))) * (1.0 - totalWeight);
             }
-
-            // blend using a smooth curve
-            float weight = (pow2(distanceFromEdge) * (3.0 - (2.0 * distanceFromEdge))) * (1.0 - totalWeight);
-            
-        #else
-            float weight = 1.0f;
         #endif
 
         totalWeight += weight;
 
         vec3 localReflectionVector = envMapWorldToLocal * vec4(R, 0.0);
-        vec3 coords = CubemapParallaxCorrection(envMapLocalPos, localReflectionVector, envMapBoxMin, envMapBoxMax);
+        vec3 coords = isBoxProjection ? CubemapParallaxCorrection(envMapLocalPos, localReflectionVector, envMapBoxMin, envMapBoxMax) : R;
 
         #if renderMode_Cubemaps == 0
             // blend to fully corrected

@@ -1,11 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Utils;
+using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
 
 namespace GUI.Types.Renderer
@@ -100,6 +103,8 @@ namespace GUI.Types.Renderer
 
         protected override void LoadScene()
         {
+            LoadDefaultEnviromentMap();
+
             if (model != null)
             {
                 modelSceneNode = new ModelSceneNode(Scene, model);
@@ -239,6 +244,34 @@ namespace GUI.Types.Renderer
                     });
                 }
             }
+
+            Scene.CalculateEnvironmentMaps();
+        }
+
+        private void LoadDefaultEnviromentMap()
+        {
+            var assembly = Assembly.GetExecutingAssembly();
+            using var stream = assembly.GetManifestResourceStream($"GUI.Utils.inspect_agents_custom_cubemap.vtex_c");
+
+            using var resource = new Resource()
+            {
+                FileName = "vrf_default_cubemap.vtex_c"
+            };
+            resource.Read(stream);
+
+            var texture = Scene.GuiContext.MaterialLoader.LoadTexture(resource);
+            var envMap = new SceneEnvMap(Scene, new AABB(new Vector3(float.MinValue), new Vector3(float.MaxValue)))
+            {
+                Transform = Matrix4x4.Identity,
+                EdgeFadeDists = Vector3.Zero,
+                HandShake = 0,
+                ProjectionMode = 0,
+                EnvMapTexture = texture,
+            };
+
+            Scene.LightingInfo.Lightmaps.TryAdd("g_tEnvironmentMap", texture);
+            Scene.LightingInfo.EnvMaps.Add(0, envMap);
+            Scene.RenderAttributes["SCENE_ENVIRONMENT_TYPE"] = 2;
         }
 
         private void SetEnabledPhysicsGroups(HashSet<string> physicsGroups)
