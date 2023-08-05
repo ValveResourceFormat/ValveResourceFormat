@@ -13,7 +13,6 @@ using SharpGLTF.Memory;
 using SharpGLTF.Schema2;
 using SkiaSharp;
 using ValveResourceFormat.Blocks;
-using ValveResourceFormat.IO.ShaderDataProvider;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.Serialization;
@@ -50,7 +49,9 @@ namespace ValveResourceFormat.IO
         private readonly Matrix4x4 TRANSFORMSOURCETOGLTF = Matrix4x4.CreateScale(0.0254f) * Matrix4x4.CreateFromYawPitchRoll(0, MathF.PI / -2f, MathF.PI / -2f);
 
         public IProgress<string> ProgressReporter { get; set; }
-        public IFileLoader FileLoader { get; set; }
+        public IFileLoader FileLoader { get; }
+        private readonly ShaderDataProvider shaderDataProvider;
+        private readonly BasicShaderDataProvider shaderDataProviderFallback = new();
         public bool ExportMaterials { get; set; } = true;
         public bool AdaptTextures { get; set; } = true;
         public bool SatelliteImages { get; set; } = true;
@@ -67,6 +68,13 @@ namespace ValveResourceFormat.IO
         // In SatelliteImages mode, SharpGLTF will still load and validate images.
         // To save memory, we initiate MemoryImage with a a dummy image instead.
         private readonly byte[] dummyPng = new byte[] { 137, 80, 78, 71, 0, 0, 0, 0, 0, 0, 0, 0 };
+
+        public GltfModelExporter(IFileLoader fileLoader)
+        {
+            ArgumentNullException.ThrowIfNull(fileLoader, nameof(fileLoader));
+            FileLoader = fileLoader;
+            shaderDataProvider = new ShaderDataProvider(fileLoader);
+        }
 
         public static bool CanExport(Resource resource)
             => ResourceTypesThatAreGltfExportable.Contains(resource.ResourceType);
@@ -101,11 +109,6 @@ namespace ValveResourceFormat.IO
         /// <param name="cancellationToken">Optional task cancellation token</param>
         public void Export(Resource resource, string targetPath, CancellationToken cancellationToken = default)
         {
-            if (FileLoader == null)
-            {
-                throw new InvalidOperationException($"{nameof(FileLoader)} must be set first.");
-            }
-
             if (IsExporting)
             {
                 throw new InvalidOperationException($"{nameof(GltfModelExporter)} does not support multi threaded exporting, do not call Export while another export is in progress.");
@@ -1160,9 +1163,6 @@ namespace ValveResourceFormat.IO
             var blendNameComparer = new MaterialExtract.LayeredTextureNameComparer(new HashSet<string>(allGltfInputs.Select(x => x.Name)));
             var blendInputComparer = new MaterialExtract.ChannelMappingComparer(blendNameComparer);
 
-            var shaderData = new FullShaderDataProvider(FileLoader, false);
-            var shaderDataFallback = new BasicShaderDataProvider();
-
             // Remap vtex texture parameters into instructions that can be exported
             var remapDict = new Dictionary<string, List<RemapInstruction>>();
             foreach (var (textureKey, texturePath) in renderMaterial.TextureParams)
@@ -1170,7 +1170,7 @@ namespace ValveResourceFormat.IO
                 List<(ChannelMapping Channel, string Name)> inputImages = null;
                 try
                 {
-                    inputImages = shaderData.GetInputsForTexture(textureKey, renderMaterial).ToList();
+                    inputImages = shaderDataProvider.GetInputsForTexture(textureKey, renderMaterial).ToList();
                 }
                 catch (Exception e)
                 {
@@ -1179,7 +1179,7 @@ namespace ValveResourceFormat.IO
                     await Console.Error.WriteLineAsync(e.ToString()).ConfigureAwait(false);
                 }
 
-                inputImages ??= shaderDataFallback.GetInputsForTexture(textureKey, renderMaterial).ToList();
+                inputImages ??= shaderDataProviderFallback.GetInputsForTexture(textureKey, renderMaterial).ToList();
                 var remapInstructions = GetRemapInstructions(inputImages);
                 if (remapInstructions.Count == 0)
                 {

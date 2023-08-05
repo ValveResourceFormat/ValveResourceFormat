@@ -2,7 +2,7 @@ using System;
 using System.Windows.Forms;
 using GUI.Types.Viewers;
 using GUI.Utils;
-using ValveResourceFormat.IO.ShaderDataProvider;
+using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
 
 namespace GUI.Types.Renderer
@@ -41,14 +41,14 @@ namespace GUI.Types.Renderer
 
             var shaders = GuiContext.FileLoader.LoadShader(material.ShaderName);
 
-            var featureState = FullShaderDataProvider.GetMaterialFeatureState(material);
+            var featureState = ShaderDataProvider.GetMaterialFeatureState(material);
 
             AddZframeTab(shaders.Vertex);
             AddZframeTab(shaders.Pixel);
 
             void AddZframeTab(ValveResourceFormat.CompiledShader.ShaderFile stage)
             {
-                var result = FullShaderDataProvider.GetStaticConfiguration_ForFeatureState(shaders.Features, stage, featureState);
+                var result = ShaderDataProvider.GetStaticConfiguration_ForFeatureState(shaders.Features, stage, featureState);
 
                 var zframeTab = new TabPage($"{stage.VcsProgramType} Static[{result.ZFrameId}]");
                 var zframeRichTextBox = new CompiledShader.ZFrameRichTextBox(Tabs, stage, shaders, result.ZFrameId);

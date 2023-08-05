@@ -4,7 +4,6 @@ using NUnit.Framework;
 using SkiaSharp;
 using ValveResourceFormat;
 using ValveResourceFormat.IO;
-using ValveResourceFormat.IO.ShaderDataProvider;
 using ValveResourceFormat.ResourceTypes;
 using ChannelMapping = ValveResourceFormat.CompiledShader.ChannelMapping;
 

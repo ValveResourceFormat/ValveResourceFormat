@@ -6,7 +6,7 @@ using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.ResourceTypes;
 using Channel = ValveResourceFormat.CompiledShader.ChannelMapping;
 
-namespace ValveResourceFormat.IO.ShaderDataProvider
+namespace ValveResourceFormat.IO
 {
     public interface IShaderDataProvider
     {
@@ -14,69 +14,15 @@ namespace ValveResourceFormat.IO.ShaderDataProvider
         public string GetSuffixForInputTexture(string inputName, Material material);
     }
 
-    public class FullShaderDataProvider : IShaderDataProvider
+    public class ShaderDataProvider : IShaderDataProvider
     {
         private readonly IFileLoader fileLoader;
         private readonly IShaderDataProvider basicProvider;
-        private static readonly Cache cache = new();
 
-        public class Cache : IDisposable
-        {
-            public Dictionary<string, ShaderCollection> ShaderCache { get; } = new();
-            private readonly object cacheLock = new();
-
-            public ShaderCollection GetOrAddShader(string shaderName, Func<string, ShaderCollection> factory)
-            {
-                lock (cacheLock)
-                {
-                    if (ShaderCache.TryGetValue(shaderName, out var shader))
-                    {
-                        return shader;
-                    }
-
-                    shader = factory(shaderName);
-                    ShaderCache.Add(shaderName, shader);
-                    return shader;
-                }
-            }
-
-            public void Clear()
-            {
-                lock (cacheLock)
-                {
-                    foreach (var shader in ShaderCache.Values)
-                    {
-                        shader.Dispose();
-                    }
-
-                    ShaderCache.Clear();
-                }
-            }
-
-            protected virtual void Dispose(bool disposing)
-            {
-                if (disposing)
-                {
-                    Clear();
-                }
-            }
-
-            public void Dispose()
-            {
-                Dispose(disposing: true);
-                GC.SuppressFinalize(this);
-            }
-        }
-
-        public FullShaderDataProvider(IFileLoader fileLoader, bool fallBackToBasic = true)
+        public ShaderDataProvider(IFileLoader fileLoader, bool useFallback = true)
         {
             this.fileLoader = fileLoader;
-            basicProvider = fallBackToBasic ? new BasicShaderDataProvider() : null;
-        }
-
-        private ShaderCollection LoadShaderCollectionCached(string shaderName)
-        {
-            return cache.GetOrAddShader(shaderName, (s) => fileLoader.LoadShader(s));
+            basicProvider = useFallback ? new BasicShaderDataProvider() : null;
         }
 
         public IEnumerable<(Channel Channel, string Name)> GetInputsForTexture(string textureType, Material material)
@@ -165,7 +111,7 @@ namespace ValveResourceFormat.IO.ShaderDataProvider
         private IEnumerable<(Channel Channel, string Name)>
             GetInputsForTexture_Internal(string textureType, Material material, KeyValuePair<string, byte> forcedStatic = default)
         {
-            var shader = LoadShaderCollectionCached(material.ShaderName);
+            var shader = fileLoader.LoadShader(material.ShaderName);
             if (shader?.Features == null)
             {
                 return null;
@@ -277,7 +223,7 @@ namespace ValveResourceFormat.IO.ShaderDataProvider
 
         private string GetSuffixForInputTexture_Internal(string inputName, Material material)
         {
-            var shader = LoadShaderCollectionCached(material.ShaderName);
+            var shader = fileLoader.LoadShader(material.ShaderName);
             if (shader?.Features != null)
             {
                 foreach (var param in shader.Features.ParamBlocks)

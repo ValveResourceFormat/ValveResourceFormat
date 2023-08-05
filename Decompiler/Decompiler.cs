@@ -857,12 +857,11 @@ namespace Decompiler
             }
 
             var fileLoader = new BasicVpkFileLoader(package);
-            var gltfModelExporter = new GltfModelExporter
+            var gltfModelExporter = new GltfModelExporter(fileLoader)
             {
                 ExportMaterials = GltfExportMaterials,
                 AdaptTextures = GltfExportAdaptTextures,
                 ProgressReporter = new Progress<string>(progress => Console.WriteLine($"--- {progress}")),
-                FileLoader = fileLoader
             };
 
             var entries = package.Entries[type];
@@ -1123,11 +1122,10 @@ namespace Decompiler
 
             if (GltfTest && GltfModelExporter.CanExport(resource))
             {
-                var gltfModelExporter = new GltfModelExporter
+                var gltfModelExporter = new GltfModelExporter(new NullFileLoader())
                 {
                     ExportMaterials = false,
                     ProgressReporter = new Progress<string>(progress => { }),
-                    FileLoader = new NullFileLoader(),
                 };
                 gltfModelExporter.Export(resource, null); // Filename passed as null which tells exporter to write gltf to a null stream
             }

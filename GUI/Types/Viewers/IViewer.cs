@@ -8,7 +8,7 @@ namespace GUI.Types.Viewers
     {
         public TabPage Create(VrfGuiContext vrfGuiContext, byte[] input);
 
-        public static void AddContentTab<T>(TabControl resTabs, string name, T content, bool preSelect = false)
+        public static TabPage AddContentTab<T>(TabControl resTabs, string name, T content, bool preSelect = false)
         {
             string extract = null;
             if (content is Func<string> exceptionless)
@@ -41,6 +41,8 @@ namespace GUI.Types.Viewers
             {
                 resTabs.SelectTab(tab);
             }
+
+            return tab;
         }
     }
 }

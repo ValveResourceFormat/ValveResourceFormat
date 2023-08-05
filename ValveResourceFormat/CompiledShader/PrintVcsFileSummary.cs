@@ -590,7 +590,7 @@ namespace ValveResourceFormat.CompiledShader
                 return "+";
             }
 
-            return "" + val; ;
+            return "" + val;
         }
     }
 

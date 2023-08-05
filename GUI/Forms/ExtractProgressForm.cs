@@ -67,9 +67,11 @@ namespace GUI.Forms
 
             if (decompile)
             {
-                gltfExporter = new GltfModelExporter()
+                // We need to know what files were handled by the glTF exporter
+                var trackingFileLoader = new TrackingFileLoader(exportData.VrfGuiContext.FileLoader);
+
+                gltfExporter = new GltfModelExporter(trackingFileLoader)
                 {
-                    FileLoader = new TrackingFileLoader(exportData.VrfGuiContext.FileLoader),
                     ProgressReporter = new Progress<string>(SetProgress),
                 };
             }

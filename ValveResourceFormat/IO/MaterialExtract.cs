@@ -6,7 +6,6 @@ using System.Linq;
 using System.Text;
 using ValveKeyValue;
 using ValveResourceFormat.Blocks;
-using ValveResourceFormat.IO.ShaderDataProvider;
 using ValveResourceFormat.ResourceTypes;
 using Channel = ValveResourceFormat.CompiledShader.ChannelMapping;
 
@@ -43,7 +42,7 @@ public sealed class MaterialExtract
     {
         if (fileLoader is not null)
         {
-            shaderDataProvider = new FullShaderDataProvider(fileLoader);
+            shaderDataProvider = new ShaderDataProvider(fileLoader);
         }
     }
 
@@ -96,6 +95,7 @@ public sealed class MaterialExtract
         var textureParts = Path.GetFileName(texturePath).Split('_');
         if (textureParts.Length > 2)
         {
+            // texture_suffix_ext_hash
             if (textureParts[^1].All("0123456789abcdef".Contains)             // This is a hash
             && textureParts[^2].Length >= 3 && textureParts[^2].Length <= 4 // This is the original extension
             && !string.IsNullOrEmpty(string.Join("_", textureParts[..^2])))   // Name of the Input[0] image

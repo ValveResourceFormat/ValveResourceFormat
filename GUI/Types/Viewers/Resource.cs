@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Drawing;
 using System.IO;
 using System.Text;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Types.Audio;
 using GUI.Types.Renderer;
@@ -372,7 +373,9 @@ namespace GUI.Types.Viewers
                     switch (resource.ResourceType)
                     {
                         case ResourceType.Material:
-                            IViewer.AddContentTab(resTabs, "Reconstructed vmat", new MaterialExtract(resource).ToValveMaterial());
+                            var vmatTab = IViewer.AddContentTab(resTabs, "Reconstructed vmat", new MaterialExtract(resource).ToValveMaterial());
+                            var textBox = (MonospaceTextBox)vmatTab.Controls[0];
+                            Task.Run(() => textBox.Text = new MaterialExtract(resource, vrfGuiContext.FileLoader).ToValveMaterial().ReplaceLineEndings());
                             break;
 
                         case ResourceType.EntityLump:

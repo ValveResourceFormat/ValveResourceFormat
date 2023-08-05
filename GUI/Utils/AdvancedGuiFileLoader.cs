@@ -20,6 +20,8 @@ namespace GUI.Utils
         private readonly HashSet<string> CurrentGameSearchPaths = new();
         private readonly List<Package> CurrentGamePackages = new();
         private readonly Dictionary<string, Resource> CachedResources = new();
+        private readonly Dictionary<string, ShaderCollection> CachedShaders = new();
+        private readonly object shaderCacheLock = new();
         private readonly VrfGuiContext GuiContext;
         private readonly string[] modIdentifiers = new[] { "gameinfo.gi", "addoninfo.txt", ".addon" };
         private bool GamePackagesScanned;
@@ -66,7 +68,16 @@ namespace GUI.Utils
                 resource.Dispose();
             }
 
+            lock (shaderCacheLock)
+            {
+                foreach (var shader in CachedShaders.Values)
+                {
+                    shader.Dispose();
+                }
+            }
+
             CachedResources.Clear();
+            CachedShaders.Clear();
         }
 
         public (VrfGuiContext Context, PackageEntry PackageEntry) FindFileWithContext(string file)
@@ -213,7 +224,7 @@ namespace GUI.Utils
             return (null, null, null, null);
         }
 
-        public ShaderCollection LoadShader(string shaderName)
+        private ShaderCollection LoadShaderFromDisk(string shaderName)
         {
             if (GuiContext.ParentGuiContext != null)
             {
@@ -289,6 +300,21 @@ namespace GUI.Utils
             }
 
             return collection;
+        }
+
+        public ShaderCollection LoadShader(string shaderName)
+        {
+            lock (shaderCacheLock)
+            {
+                if (CachedShaders.TryGetValue(shaderName, out var shader))
+                {
+                    return shader;
+                }
+
+                shader = LoadShaderFromDisk(shaderName);
+                CachedShaders.Add(shaderName, shader);
+                return shader;
+            }
         }
 
         public Resource LoadFile(string file)
