@@ -36,7 +36,7 @@ namespace GUI.Types.Renderer
             {
                 var layerIndex = (int)(node.SceneObjectLayerIndices?[i++] ?? -1);
 
-                var lightingOrigin = sceneObject.GetSubCollection("m_vLightingOrigin").ToVector3();
+                var lightingOrigin = sceneObject.ContainsKey("m_vLightingOrigin") ? sceneObject.GetSubCollection("m_vLightingOrigin").ToVector3() : defaultLightingOrigin;
                 var cubeMapPrecomputedHandshake = sceneObject.GetInt32Property("m_nCubeMapPrecomputedHandshake");
                 var lightProbeVolumePrecomputedHandshake = sceneObject.GetInt32Property("m_nLightProbeVolumePrecomputedHandshake");
 
