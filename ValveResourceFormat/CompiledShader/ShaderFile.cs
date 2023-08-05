@@ -48,6 +48,7 @@ namespace ValveResourceFormat.CompiledShader
         // zframesLookup.ElementAt(zframeIndex). We also retrieve them based on their id using
         // zframesLookup[zframeId]. Both methods are useful in different contexts (be aware not to mix them up).
         public SortedDictionary<long, ZFrameDataDescription> ZframesLookup { get; } = new();
+        public StaticCache ZFrameCache { get; private set; }
         private ConfigMappingDParams dBlockConfigGen;
 
         /// <summary>
@@ -74,6 +75,8 @@ namespace ValveResourceFormat.CompiledShader
                     DataReader.Dispose();
                     DataReader = null;
                 }
+
+                ZFrameCache?.Dispose();
             }
         }
 
@@ -98,6 +101,7 @@ namespace ValveResourceFormat.CompiledShader
             DataReader = new ShaderDataReader(input) { IsSbox = IsSbox };
             FilenamePath = filenamepath;
             ParseFile();
+            ZFrameCache = new StaticCache(this);
         }
 
         public void PrintSummary(HandleOutputWrite OutputWriter = null, bool showRichTextBoxLinks = false, List<string> relatedfiles = null)

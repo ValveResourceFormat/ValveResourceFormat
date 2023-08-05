@@ -165,19 +165,18 @@ namespace ValveResourceFormat.IO
                         zframeId = 0;
                     }
 
-                    lock (shaderFile)
-                    {
-                        using var staticVariant = shaderFile.GetZFrameFile(zframeId);
+                    shaderFile.ZFrameCache.EnsureCapacity(configured.StaticConfig.Length ^ 2);
 
-                        // Should non-leading write sequences be checked too?
-                        foreach (var writeSequenceField in staticVariant.LeadingData.Fields)
+                    var staticVariant = shaderFile.ZFrameCache.Get(zframeId);
+
+                    // Should non-leading write sequences be checked too?
+                    foreach (var writeSequenceField in staticVariant.LeadingData.Fields)
+                    {
+                        var referencedParam = fileParams.FirstOrDefault(p => p.BlockIndex == writeSequenceField.ParamId);
+                        if (referencedParam != null)
                         {
-                            var referencedParam = fileParams.FirstOrDefault(p => p.BlockIndex == writeSequenceField.ParamId);
-                            if (referencedParam != null)
-                            {
-                                var inputs = GetParameterInputs(referencedParam, shaderFile);
-                                return inputs;
-                            }
+                            var inputs = GetParameterInputs(referencedParam, shaderFile);
+                            return inputs;
                         }
                     }
 
