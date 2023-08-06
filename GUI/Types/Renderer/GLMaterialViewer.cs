@@ -22,7 +22,6 @@ namespace GUI.Types.Renderer
         {
             Resource = resource;
             Tabs = tabs;
-            ShowBaseGrid = false;
         }
 
         protected override void LoadScene()

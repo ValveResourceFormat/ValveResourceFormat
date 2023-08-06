@@ -54,6 +54,7 @@ namespace GUI.Types.Renderer
         protected override void InitializeControl()
         {
             AddRenderModeSelectionControl();
+            AddBaseGridControl();
 
             slowmodeTrackBar = AddTrackBar(value =>
             {

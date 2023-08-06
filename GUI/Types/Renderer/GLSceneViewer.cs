@@ -20,7 +20,7 @@ namespace GUI.Types.Renderer
         public Scene SkyboxScene { get; protected set; }
         public VrfGuiContext GuiContext => Scene.GuiContext;
 
-        public bool ShowBaseGrid { get; set; } = true;
+        private bool ShowBaseGrid;
         public bool ShowSkybox { get; set; } = true;
 
         protected float SkyboxScale { get; set; } = 1.0f;
@@ -50,8 +50,6 @@ namespace GUI.Types.Renderer
             lockedCullFrustum = cullFrustum;
 
             InitializeControl();
-
-            AddCheckBox("Show Grid", ShowBaseGrid, (v) => ShowBaseGrid = v);
 
             GLLoad += OnLoad;
         }
@@ -253,6 +251,13 @@ namespace GUI.Types.Renderer
             {
                 baseGrid.Render(genericRenderContext);
             }
+        }
+
+        protected void AddBaseGridControl()
+        {
+            ShowBaseGrid = true;
+
+            AddCheckBox("Show Grid", ShowBaseGrid, (v) => ShowBaseGrid = v);
         }
 
         protected void AddRenderModeSelectionControl()

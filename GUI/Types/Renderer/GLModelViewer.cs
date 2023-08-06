@@ -67,6 +67,7 @@ namespace GUI.Types.Renderer
         protected override void InitializeControl()
         {
             AddRenderModeSelectionControl();
+            AddBaseGridControl();
 
             animationComboBox = AddSelection("Animation", (animation, _) =>
             {

@@ -146,8 +146,6 @@ namespace GUI.Types.Renderer
 
         protected override void LoadScene()
         {
-            ShowBaseGrid = false;
-
             // TODO: This method iterates over Scene.AllNodes multiple types with linq, do one big loop instead
 
             if (world != null)
