@@ -1,4 +1,5 @@
 using System;
+using System.Numerics;
 using System.Windows.Forms;
 using GUI.Types.Viewers;
 using GUI.Utils;
@@ -28,6 +29,14 @@ namespace GUI.Types.Renderer
         {
             Renderer = new MaterialRenderer(Scene, Resource);
             Scene.Add(Renderer, false);
+
+            viewBuffer.Data = viewBuffer.Data with
+            {
+                ViewToProjection = Matrix4x4.Identity,
+                WorldToProjection = Matrix4x4.Identity,
+                WorldToView = Matrix4x4.Identity,
+                CameraPosition = Vector3.Zero,
+            };
         }
 
         protected override void OnPaint(object sender, RenderEventArgs e)

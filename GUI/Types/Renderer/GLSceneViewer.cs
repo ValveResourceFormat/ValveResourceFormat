@@ -33,7 +33,7 @@ namespace GUI.Types.Renderer
         private Frustum lockedCullFrustum;
         private Frustum skyboxLockedCullFrustum;
 
-        private UniformBuffer<ViewConstants> viewBuffer;
+        protected UniformBuffer<ViewConstants> viewBuffer;
         private UniformBuffer<LightingConstants> lightingBuffer;
         private List<IBlockBindableBuffer> bufferSet;
         private bool skipRenderModeChange;
