@@ -1663,8 +1663,8 @@ namespace ValveResourceFormat.IO
                 // Thus, we take the negative components of Z and add them back into XY to get the correct original values.
                 var negativeZCompensation = new Vector2(Math.Clamp(-derivedNormalZ, 0.0f, 1.0f)); // Isolate the negative 0..1 range of derived Z
 
-                var unpackedNormalXPositive = unpackedNormal.X >= 1.0f ? 1.0f : 0.0f;
-                var unpackedNormalYPositive = unpackedNormal.Y >= 1.0f ? 1.0f : 0.0f;
+                var unpackedNormalXPositive = unpackedNormal.X >= 0.0f ? 1.0f : 0.0f;
+                var unpackedNormalYPositive = unpackedNormal.Y >= 0.0f ? 1.0f : 0.0f;
 
                 unpackedNormal.X += negativeZCompensation.X * (1f - unpackedNormalXPositive) + -negativeZCompensation.X * unpackedNormalXPositive; // mix() - x×(1−a)+y×a
                 unpackedNormal.Y += negativeZCompensation.Y * (1f - unpackedNormalYPositive) + -negativeZCompensation.Y * unpackedNormalYPositive;
