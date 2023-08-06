@@ -39,6 +39,14 @@ namespace GUI.Utils
             {
                 ClearCache();
 
+                lock (shaderCacheLock)
+                {
+                    foreach (var shader in CachedShaders.Values)
+                    {
+                        shader.Dispose();
+                    }
+                }
+
                 foreach (var package in CachedPackages.Values)
                 {
                     package.Dispose();
@@ -68,16 +76,7 @@ namespace GUI.Utils
                 resource.Dispose();
             }
 
-            lock (shaderCacheLock)
-            {
-                foreach (var shader in CachedShaders.Values)
-                {
-                    shader.Dispose();
-                }
-            }
-
             CachedResources.Clear();
-            CachedShaders.Clear();
         }
 
         public (VrfGuiContext Context, PackageEntry PackageEntry) FindFileWithContext(string file)
