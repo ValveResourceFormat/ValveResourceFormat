@@ -202,13 +202,11 @@ namespace GUI.Types.Renderer
             // Todo: this should be set once on init, and toggled when there's F_RENDER_BACKFACES
             GL.Enable(EnableCap.CullFace);
 
-            viewBuffer.Data = viewBuffer.Data with
+            // For SceneSky
+            viewBuffer.Data = e.Camera.SetViewConstants(viewBuffer.Data) with
             {
                 Time = Uptime,
             };
-
-            // For SceneSky
-            viewBuffer.Data = e.Camera.SetViewConstants(viewBuffer.Data);
 
             var genericRenderContext = new Scene.RenderContext
             {
