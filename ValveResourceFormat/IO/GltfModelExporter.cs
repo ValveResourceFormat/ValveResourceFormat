@@ -751,7 +751,6 @@ namespace ValveResourceFormat.IO
 
                     if (attribute.SemanticName == "NORMAL")
                     {
-                        // TODO: Support new compressed normals in CS2
                         var isCompressedNormalTangent = data.GetArray("m_sceneObjects").Any(sceneObject =>
                         {
                             return sceneObject.GetArray("m_drawCalls").Any(drawCall =>
@@ -764,8 +763,25 @@ namespace ValveResourceFormat.IO
 
                         if (isCompressedNormalTangent)
                         {
-                            var vectors = ToVector4Array(buffer);
-                            var (normals, tangents) = DecompressNormalTangents(vectors);
+                            var inputLayout = vbib.VertexBuffers[vertexBufferIndex].InputLayoutFields.FirstOrDefault(static i => i.SemanticName == "NORMAL");
+                            var compressionVersion = inputLayout.Format switch
+                            {
+                                DXGI_FORMAT.R32_UINT => 2, // Added in CS2 on 2023-08-03
+                                _ => 1,
+                            };
+
+                            Vector3[] normals;
+                            Vector4[] tangents;
+
+                            if (compressionVersion == 2)
+                            {
+                                (normals, tangents) = DecompressNormalTangents2(buffer);
+                            }
+                            else
+                            {
+                                var vectors = ToVector4Array(buffer);
+                                (normals, tangents) = DecompressNormalTangents(vectors);
+                            }
 
                             {
                                 BufferView bufferView = exportedModel.CreateBufferView(12 * normals.Length, 0, BufferMode.ARRAY_BUFFER);
@@ -1620,6 +1636,71 @@ namespace ValveResourceFormat.IO
             var tSign = compressedTangent.Y - 128.0f < 0 ? -1.0f : 1.0f;
 
             return new Vector4(outputNormal.X, outputNormal.Y, outputNormal.Z, tSign);
+        }
+
+        public static (Vector3[] Normals, Vector4[] Tangents) DecompressNormalTangents2(float[] compressedNormalsTangents)
+        {
+            var normals = new Vector3[compressedNormalsTangents.Length];
+            var tangents = new Vector4[compressedNormalsTangents.Length];
+
+            for (var i = 0; i < compressedNormalsTangents.Length; i++)
+            {
+                var nPackedFrame = BitConverter.ToUInt32(BitConverter.GetBytes(compressedNormalsTangents[i])); // TODO: Waste, ideally read attribute would return uint[] directly
+                var SignBit = nPackedFrame & 1u;            // LSB bit
+                float Tbits = (nPackedFrame >> 1) & 0x7ff;  // 11 bits
+                float Xbits = (nPackedFrame >> 12) & 0x3ff; // 10 bits
+                float Ybits = (nPackedFrame >> 22) & 0x3ff; // 10 bits
+
+                // Unpack from 0..1 to -1..1
+                var nPackedFrameX = (Xbits / 1023.0f) * 2.0f - 1.0f;
+                var nPackedFrameY = (Ybits / 1023.0f) * 2.0f - 1.0f;
+
+                // Z is never given a sign, meaning negative values are caused by abs(packedframexy) adding up to over 1.0
+                var derivedNormalZ = 1.0f - MathF.Abs(nPackedFrameX) - MathF.Abs(nPackedFrameY); // Project onto x+y+z=1
+                var unpackedNormal = new Vector3(nPackedFrameX, nPackedFrameY, derivedNormalZ);
+
+                // If Z is negative, X and Y has had extra amounts (TODO: find the logic behind this value) added into them so they would add up to over 1.0
+                // Thus, we take the negative components of Z and add them back into XY to get the correct original values.
+                var negativeZCompensation = new Vector2(Math.Clamp(-derivedNormalZ, 0.0f, 1.0f)); // Isolate the negative 0..1 range of derived Z
+
+                var unpackedNormalXPositive = unpackedNormal.X >= 1.0f ? 1.0f : 0.0f;
+                var unpackedNormalYPositive = unpackedNormal.Y >= 1.0f ? 1.0f : 0.0f;
+
+                unpackedNormal.X += negativeZCompensation.X * (1f - unpackedNormalXPositive) + -negativeZCompensation.X * unpackedNormalXPositive; // mix() - x×(1−a)+y×a
+                unpackedNormal.Y += negativeZCompensation.Y * (1f - unpackedNormalYPositive) + -negativeZCompensation.Y * unpackedNormalYPositive;
+
+                var normal = Vector3.Normalize(unpackedNormal); // Get final normal by normalizing it onto the unit sphere
+                normals[i] = normal;
+
+                // Invert tangent when normal Z is negative
+                var tangentSign = (normal.Z >= 0.0f) ? 1.0f : -1.0f;
+                // equal to tangentSign * (1.0 + abs(normal.z))
+                var rcpTangentZ = 1.0f / (tangentSign + normal.Z);
+
+                // Be careful of rearranging ops here, could lead to differences in float precision, especially when dealing with compressed data.
+                Vector3 unalignedTangent;
+
+                // Unoptimized (but clean) form:
+                // tangent.X = -(normal.x * normal.x) / (tangentSign + normal.z) + 1.0
+                // tangent.Y = -(normal.x * normal.y) / (tangentSign + normal.z)
+                // tangent.Z = -(normal.x)
+                unalignedTangent.X = -tangentSign * (normal.X * normal.X) * rcpTangentZ + 1.0f;
+                unalignedTangent.Y = -tangentSign * ((normal.X * normal.Y) * rcpTangentZ);
+                unalignedTangent.Z = -tangentSign * normal.X;
+
+                // This establishes a single direction on the tangent plane that derived from only the normal (has no texcoord info).
+                // But it doesn't line up with the texcoords. For that, it uses nPackedFrameT, which is the rotation.
+
+                // Angle to use to rotate tangent
+                var nPackedFrameT = Tbits / 2047.0f * MathF.Tau;
+
+                // Rotate tangent to the correct angle that aligns with texcoords.
+                var tangent = unalignedTangent * MathF.Cos(nPackedFrameT) + Vector3.Cross(normal, unalignedTangent) * MathF.Sin(nPackedFrameT);
+
+                tangents[i] = new Vector4(tangent, (SignBit == 0u) ? -1.0f : 1.0f); // Bitangent sign bit... inverted (0 = negative
+            }
+
+            return (normals, tangents);
         }
 
         public static Vector3[] ToVector3Array(float[] buffer)

@@ -437,6 +437,7 @@ public class ModelExtract
 
             if (attribute.SemanticName == "NORMAL")
             {
+                // TODO: Check if normals are compressed, support CS2 normals
                 var vectors = GltfModelExporter.ToVector4Array(buffer);
                 var decompressed = GltfModelExporter.DecompressNormalTangents(vectors);
 
