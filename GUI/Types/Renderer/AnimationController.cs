@@ -66,13 +66,10 @@ namespace GUI.Types.Renderer
             animationFrameCache.Clear();
             activeAnimation = animation;
             Time = 0f;
+            Frame = 0;
             updateHandler(activeAnimation, -1);
 
-            if (activeAnimation?.FrameCount == 1)
-            {
-                IsPaused = true;
-                Frame = 0;
-            }
+            IsPaused = activeAnimation?.FrameCount == 1;
         }
 
         public void PauseLastFrame()
