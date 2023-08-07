@@ -749,58 +749,25 @@ namespace ValveResourceFormat.IO
                         continue;
                     }
 
-                    if (attribute.SemanticName == "NORMAL")
+                    if (attribute.SemanticName == "NORMAL" && TryDecompressTangentFrame(data, vbib, vertexBufferIndex, buffer, out var normals, out var tangents))
                     {
-                        var isCompressedNormalTangent = data.GetArray("m_sceneObjects").Any(sceneObject =>
                         {
-                            return sceneObject.GetArray("m_drawCalls").Any(drawCall =>
-                            {
-                                var vertexBufferInfo = drawCall.GetArray("m_vertexBuffers")[0];
-                                return vertexBufferInfo.GetInt32Property("m_hBuffer") == vertexBufferIndex
-                                    && VMesh.IsCompressedNormalTangent(drawCall);
-                            });
-                        });
-
-                        if (isCompressedNormalTangent)
-                        {
-                            var inputLayout = vbib.VertexBuffers[vertexBufferIndex].InputLayoutFields.FirstOrDefault(static i => i.SemanticName == "NORMAL");
-                            var compressionVersion = inputLayout.Format switch
-                            {
-                                DXGI_FORMAT.R32_UINT => 2, // Added in CS2 on 2023-08-03
-                                _ => 1,
-                            };
-
-                            Vector3[] normals;
-                            Vector4[] tangents;
-
-                            if (compressionVersion == 2)
-                            {
-                                (normals, tangents) = DecompressNormalTangents2(buffer);
-                            }
-                            else
-                            {
-                                var vectors = ToVector4Array(buffer);
-                                (normals, tangents) = DecompressNormalTangents(vectors);
-                            }
-
-                            {
-                                BufferView bufferView = exportedModel.CreateBufferView(12 * normals.Length, 0, BufferMode.ARRAY_BUFFER);
-                                new Vector3Array(bufferView.Content).Fill(normals);
-                                Accessor accessor = exportedModel.CreateAccessor();
-                                accessor.SetVertexData(bufferView, 0, normals.Length, DimensionType.VEC3);
-                                accessors["NORMAL"] = accessor;
-                            }
-
-                            {
-                                BufferView bufferView = exportedModel.CreateBufferView(16 * tangents.Length, 0, BufferMode.ARRAY_BUFFER);
-                                new Vector4Array(bufferView.Content).Fill(tangents);
-                                Accessor accessor = exportedModel.CreateAccessor();
-                                accessor.SetVertexData(bufferView, 0, tangents.Length, DimensionType.VEC4);
-                                accessors["TANGENT"] = accessor;
-                            }
-
-                            continue;
+                            BufferView bufferView = exportedModel.CreateBufferView(12 * normals.Length, 0, BufferMode.ARRAY_BUFFER);
+                            new Vector3Array(bufferView.Content).Fill(normals);
+                            Accessor accessor = exportedModel.CreateAccessor();
+                            accessor.SetVertexData(bufferView, 0, normals.Length, DimensionType.VEC3);
+                            accessors["NORMAL"] = accessor;
                         }
+
+                        {
+                            BufferView bufferView = exportedModel.CreateBufferView(16 * tangents.Length, 0, BufferMode.ARRAY_BUFFER);
+                            new Vector4Array(bufferView.Content).Fill(tangents);
+                            Accessor accessor = exportedModel.CreateAccessor();
+                            accessor.SetVertexData(bufferView, 0, tangents.Length, DimensionType.VEC4);
+                            accessors["TANGENT"] = accessor;
+                        }
+
+                        continue;
                     }
 
                     if (attribute.SemanticName == "TEXCOORD" && numComponents != 2)
@@ -1572,6 +1539,48 @@ namespace ValveResourceFormat.IO
             }
 
             return indices;
+        }
+
+        public static bool HasCompressedTangentFrame(int vertexBufferIndex, IKeyValueCollection mdat)
+        {
+            return mdat.GetArray("m_sceneObjects").Any(sceneObject =>
+            {
+                return sceneObject.GetArray("m_drawCalls").Any(drawCall =>
+                {
+                    var vertexBufferInfo = drawCall.GetArray("m_vertexBuffers")[0];
+                    return vertexBufferInfo.GetInt32Property("m_hBuffer") == vertexBufferIndex
+                        && VMesh.IsCompressedNormalTangent(drawCall);
+                });
+            });
+        }
+
+        public static bool TryDecompressTangentFrame(IKeyValueCollection mdat, VBIB vbib, int vertexBufferIndex, float[] buffer, out Vector3[] normals, out Vector4[] tangents)
+        {
+            if (!HasCompressedTangentFrame(vertexBufferIndex, mdat))
+            {
+                normals = default;
+                tangents = default;
+                return false;
+            }
+
+            var inputLayout = vbib.VertexBuffers[vertexBufferIndex].InputLayoutFields.FirstOrDefault(static i => i.SemanticName == "NORMAL");
+            var compressionVersion = inputLayout.Format switch
+            {
+                DXGI_FORMAT.R32_UINT => 2, // Added in CS2 on 2023-08-03
+                _ => 1,
+            };
+
+            if (compressionVersion == 2)
+            {
+                (normals, tangents) = DecompressNormalTangents2(buffer);
+            }
+            else
+            {
+                var vectors = ToVector4Array(buffer);
+                (normals, tangents) = DecompressNormalTangents(vectors);
+            }
+
+            return true;
         }
 
         public static (Vector3[] Normals, Vector4[] Tangents) DecompressNormalTangents(Vector4[] compressedNormalsTangents)

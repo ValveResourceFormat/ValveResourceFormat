@@ -391,15 +391,17 @@ public class ModelExtract
 
     public static byte[] ToDmxMesh(Mesh mesh, string name)
     {
-        var vertexBuffer = mesh.VBIB.VertexBuffers.First();
-        var ib = mesh.VBIB.IndexBuffers.First();
+        var mdat = mesh.Data;
+        var mbuf = mesh.VBIB;
+        var vertexBuffer = mbuf.VertexBuffers.First();
+        var ib = mbuf.IndexBuffers.First();
 
         using var dmx = new Datamodel.Datamodel("model", 22);
         DmxModelBaseLayout(name, out var dmeModel, out var dag, out var vertexData);
 
         ReadOnlySpan<int> indexBuffer = GltfModelExporter.ReadIndices(ib, 0, (int)ib.ElementCount, 0);
 
-        foreach (var sceneObject in mesh.Data.GetArray("m_sceneObjects"))
+        foreach (var sceneObject in mdat.GetArray("m_sceneObjects"))
         {
             foreach (var drawCall in sceneObject.GetArray("m_drawCalls"))
             {
@@ -435,14 +437,11 @@ public class ModelExtract
 
             var semantic = attribute.SemanticName.ToLowerInvariant() + "$" + attribute.SemanticIndex;
 
-            if (attribute.SemanticName == "NORMAL")
+            if (attribute.SemanticName == "NORMAL" && GltfModelExporter.TryDecompressTangentFrame(mdat, mbuf, 0, buffer,
+                out var decompressedNormals, out var decompressedTangents))
             {
-                // TODO: Check if normals are compressed, support CS2 normals
-                var vectors = GltfModelExporter.ToVector4Array(buffer);
-                var decompressed = GltfModelExporter.DecompressNormalTangents(vectors);
-
-                vertexData.AddStream<Vector3Array, Vector3>(semantic, decompressed.Normals, indices);
-                vertexData.AddStream<Vector4Array, Vector4>("tangent$" + attribute.SemanticIndex, decompressed.Tangents, indices);
+                vertexData.AddStream<Vector3Array, Vector3>(semantic, decompressedNormals, indices);
+                vertexData.AddStream<Vector4Array, Vector4>("tangent$" + attribute.SemanticIndex, decompressedTangents, indices);
                 continue;
             }
 
