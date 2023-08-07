@@ -34,8 +34,7 @@ layout (location = 1) in vec2 vTEXCOORD;
 #endif
 
 #if defined(csgo_environment_blend)
-    // real semantic index is 4
-    in vec4 vTEXCOORD3;
+    in vec4 vTEXCOORD4;
     out vec4 vColorBlendValues;
 #endif
 
@@ -151,7 +150,7 @@ void main()
         g_vTexCoordCenter2.xy
     );
 
-    vColorBlendValues = vTEXCOORD3 / 255.0f;
+    vColorBlendValues = vTEXCOORD4 / 255.0f;
 #endif
 
     vCentroidNormalOut = vNormalOut;

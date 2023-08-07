@@ -65,19 +65,12 @@ namespace GUI.Types.Renderer
                 GL.BindBuffer(BufferTarget.ElementArrayBuffer, gpuVbib.IndexBuffers[idxIndex].Handle);
 
                 var curVertexBuffer = vbib.VertexBuffers[(int)vtxIndex];
-                var texCoordNum = 0;
-                var colorNum = 0;
                 foreach (var attribute in curVertexBuffer.InputLayoutFields)
                 {
                     var attributeName = "v" + attribute.SemanticName;
-
-                    if (attribute.SemanticName == "TEXCOORD" && texCoordNum++ > 0)
+                    if (attribute.SemanticName is "TEXCOORD" or "COLOR" && attribute.SemanticIndex > 0)
                     {
-                        attributeName += texCoordNum;
-                    }
-                    else if (attribute.SemanticName == "COLOR" && colorNum++ > 0)
-                    {
-                        attributeName += colorNum;
+                        attributeName += attribute.SemanticIndex;
                     }
 
                     var attributeLocation = GL.GetAttribLocation(shader.Program, attributeName);

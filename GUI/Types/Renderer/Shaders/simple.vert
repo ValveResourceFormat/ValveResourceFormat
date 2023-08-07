@@ -47,7 +47,7 @@ in vec2 vTEXCOORD;
     #if defined(vr_standard)
         #undef F_VERTEX_COLOR
         #undef F_PAINT_VERTEX_COLORS
-        in vec4 vCOLOR; // TODO: real semantic index is 1
+        in vec4 vCOLOR1;
     #else
         in vec4 vPerVertexLighting;
     #endif
@@ -62,9 +62,7 @@ in vec2 vTEXCOORD;
             in vec4 vBLEND_ALPHA;
         #endif
     #else
-        // lightmappedgeneric, csgo_simple_2way_blend
-        // real semantic index is 4
-        #define vBLEND_COLOR vTEXCOORD3
+        #define vBLEND_COLOR vTEXCOORD4
     #endif
     in vec4 vBLEND_COLOR;
     out vec4 vColorBlendValues;
@@ -215,7 +213,7 @@ void main()
     vLightmapUVScaled = vec3(vLightmapUV * g_vLightmapUvScale.xy, 0);
 #elif D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1
     #if defined(vr_standard)
-        vec4 vPerVertexLighting = vCOLOR;
+        vec4 vPerVertexLighting = vCOLOR1;
     #endif
     vec3 Light = vPerVertexLighting.rgb * 6.0 * vPerVertexLighting.a;
     vPerVertexLightingOut = pow2(Light);
