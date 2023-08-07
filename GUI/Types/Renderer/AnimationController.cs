@@ -48,7 +48,7 @@ namespace GUI.Types.Renderer
                 return false;
             }
 
-            if (IsPaused)
+            if (IsPaused || activeAnimation.FrameCount == 1)
             {
                 var res = shouldUpdate;
                 shouldUpdate = false;
@@ -68,8 +68,6 @@ namespace GUI.Types.Renderer
             Time = 0f;
             Frame = 0;
             updateHandler(activeAnimation, -1);
-
-            IsPaused = activeAnimation?.FrameCount == 1;
         }
 
         public void PauseLastFrame()
