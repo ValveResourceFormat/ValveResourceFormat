@@ -23,7 +23,7 @@ namespace GUI.Utils
         private readonly Dictionary<string, ShaderCollection> CachedShaders = new();
         private readonly object shaderCacheLock = new();
         private readonly VrfGuiContext GuiContext;
-        private readonly string[] modIdentifiers = new[] { "gameinfo.gi", "addoninfo.txt", ".addon" };
+        private readonly string[] modIdentifiers = new[] { "gameinfo.gi", "addoninfo.txt", ".sbproj" };
         private bool GamePackagesScanned;
         private bool ShaderPackagesScanned;
         private bool ProvidedGameInfosScanned;
