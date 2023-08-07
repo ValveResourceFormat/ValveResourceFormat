@@ -200,10 +200,10 @@ namespace GUI.Types.Viewers
 
                         Console.WriteLine($"Opening {name} from external refs");
 
-                        var foundFile = vrfGuiContext.FileLoader.FindFileWithContext(name);
+                        var foundFile = vrfGuiContext.FileLoader.FindFileWithContext(name + "_c");
                         if (foundFile.Context == null)
                         {
-                            foundFile = vrfGuiContext.FileLoader.FindFileWithContext(name + "_c");
+                            foundFile = vrfGuiContext.FileLoader.FindFileWithContext(name);
                         }
 
                         if (foundFile.Context != null)
