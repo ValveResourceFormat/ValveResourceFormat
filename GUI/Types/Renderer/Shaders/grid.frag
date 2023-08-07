@@ -44,10 +44,10 @@ void main() {
     vec4 gridColor = vec4(0.7, 0.7, 1.0, 1.0 - min(line, 1.0));
     
     if (fragPosAbs.x < 1) {
-        gridColor.xyz = vec3(0.7, 0.2, 0.2);
+        gridColor.xyz = vec3(0.2, 0.7, 0.2);
         gridColor.a *= fading * 2;
     } else if (fragPosAbs.y < 1) {
-        gridColor.xyz = vec3(0.2, 0.7, 0.2);
+        gridColor.xyz = vec3(0.7, 0.2, 0.2);
         gridColor.a *= fading * 2;
     } else {
         gridColor *= fading;
