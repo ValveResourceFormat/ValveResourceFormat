@@ -304,12 +304,17 @@ namespace GUI.Types.Renderer
             // Void
             if (pickingResponse.PixelInfo.ObjectId == 0)
             {
+                selectedNodeRenderer.SelectNode(null);
                 return;
             }
 
             if (pickingResponse.Intent == PickingTexture.PickingIntent.Select)
             {
                 Console.WriteLine($"Selected mesh {pickingResponse.PixelInfo.MeshId}, ({pickingResponse.PixelInfo.ObjectId}.");
+
+                var sceneNode = Scene.Find(pickingResponse.PixelInfo.ObjectId);
+                selectedNodeRenderer.SelectNode(sceneNode);
+
                 return;
             }
 
