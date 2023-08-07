@@ -85,6 +85,9 @@ namespace GUI.Types.Renderer
                     {
                         if (material.VsInputSignature == null)
                         {
+#if DEBUG
+                            Console.WriteLine($"Attribute {attributeName} could not be bound in shader {shader.Name} (material has no input signature)");
+#endif
                             continue;
                         }
 
@@ -104,6 +107,9 @@ namespace GUI.Types.Renderer
                         // Ignore this attribute if it is not found in the shader
                         if (attributeLocation == -1)
                         {
+#if DEBUG
+                            Console.WriteLine($"Attribute {attributeName} could not be bound in shader {shader.Name}");
+#endif
                             continue;
                         }
                     }
