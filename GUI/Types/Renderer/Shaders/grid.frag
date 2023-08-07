@@ -35,7 +35,7 @@ void main() {
 
     float linearDepth = computeLinearDepth(clip_space_pos);
     float fading = max(0, (0.5 - linearDepth));
-    float scale = lessThanEqual(fragPosAbs, vec2(120.0)) == true ? 15f : 60f;
+    float scale = lessThanEqual(fragPosAbs, vec2(120.0)) == bvec2(1.0) ? 15.0 : 60.0;
 
     vec2 coord = fragPos3D.xy / scale;
     vec2 derivative = fwidth(coord);
