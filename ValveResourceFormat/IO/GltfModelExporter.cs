@@ -675,6 +675,17 @@ namespace ValveResourceFormat.IO
             exportedModel.Save(filePath, settings);
         }
 
+        private static Accessor CreateAccessor(ModelRoot exportedModel, Vector3[] vectors)
+        {
+            var bufferView = exportedModel.CreateBufferView(12 * vectors.Length, 0, BufferMode.ARRAY_BUFFER);
+            new Vector3Array(bufferView.Content).Fill(vectors);
+
+            var accessor = exportedModel.CreateAccessor();
+            accessor.SetVertexData(bufferView, 0, vectors.Length, DimensionType.VEC3);
+
+            return accessor;
+        }
+
         private Mesh CreateGltfMesh(string meshName, VMesh vmesh, ModelRoot exportedModel, bool includeJoints,
             string skinMaterialPath, VModel model, int meshIndex)
         {
@@ -717,16 +728,25 @@ namespace ValveResourceFormat.IO
                         continue;
                     }
 
+                    switch (attribute.SemanticName)
+                    {
+                        case "POSITION":
+                            {
+                                var vectors = VBIB.GetPositionArray(vertexBuffer, attribute);
+                                accessors[accessorName] = CreateAccessor(exportedModel, vectors);
+                                //var test = Enumerable.SequenceEqual(vectors, ToVector3Array(ReadAttributeBuffer(vertexBuffer, attribute)));
+                                break;
+                            }
+                    }
+
                     var buffer = ReadAttributeBuffer(vertexBuffer, attribute);
                     var numComponents = buffer.Length / (int)vertexBuffer.ElementCount;
 
-                    if (accessorName == "JOINTS_0")
-                    {
-                        actualJointsCount = numComponents;
-                    }
 
                     if (attribute.SemanticName == "BLENDINDICES")
                     {
+                        actualJointsCount = numComponents;
+
                         if (!includeJoints)
                         {
                             continue;

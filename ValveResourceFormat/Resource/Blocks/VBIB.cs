@@ -1,7 +1,11 @@
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Numerics;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Text;
 using ValveResourceFormat.Compression;
 using ValveResourceFormat.Serialization;
@@ -189,6 +193,60 @@ namespace ValveResourceFormat.Blocks
             buffer.Data = data.GetArray<byte>("m_pData");
 
             return buffer;
+        }
+
+        /*
+            POSITION - R32G32B32_FLOAT
+
+            NORMAL - R32_UINT
+            NORMAL - R32G32B32_FLOAT
+            NORMAL - R8G8B8A8_UNORM
+            TANGENT - R32G32B32A32_FLOAT
+
+            BLENDINDICES - R16G16_SINT
+            BLENDINDICES - R16G16B16A16_SINT
+            BLENDINDICES - R8G8B8A8_UINT
+            BLENDWEIGHT - R16G16_UNORM
+            BLENDWEIGHT - R8G8B8A8_UNORM
+            BLENDWEIGHTS - R8G8B8A8_UNORM
+
+            COLOR - R32G32B32A32_FLOAT
+            COLOR - R8G8B8A8_UNORM
+            COLORSET - R32G32B32A32_FLOAT
+
+            PIVOTPAINT - R32G32B32_FLOAT
+            VERTEXPAINTTINTCOLOR - R8G8B8A8_UNORM
+
+            TEXCOORD - R16G16_FLOAT
+            TEXCOORD - R16G16_SNORM
+            TEXCOORD - R16G16_UNORM
+            TEXCOORD - R16G16B16A16_FLOAT
+            TEXCOORD - R32_FLOAT
+            TEXCOORD - R32G32_FLOAT
+            TEXCOORD - R32G32B32_FLOAT
+            TEXCOORD - R32G32B32A32_FLOAT
+            TEXCOORD - R8G8B8A8_UNORM
+        */
+
+        public static Vector3[] GetPositionArray(OnDiskBufferData vertexBuffer, RenderInputLayoutField attribute)
+        {
+            if (attribute.Format != DXGI_FORMAT.R32G32B32_FLOAT)
+            {
+                throw new InvalidDataException($"Unexpected position attribute format {attribute.Format}");
+            }
+
+            var offset = (int)attribute.Offset;
+            var result = new Vector3[vertexBuffer.ElementCount];
+            var span = vertexBuffer.Data.AsSpan();
+
+            for (var i = 0; i < vertexBuffer.ElementCount; i++)
+            {
+                result[i] = Unsafe.ReadUnaligned<Vector3>(ref MemoryMarshal.GetReference(span[offset..(offset + 12)]));
+
+                offset += (int)vertexBuffer.ElementSizeInBytes;
+            }
+
+            return result;
         }
 
         public static float[] ReadVertexAttribute(int offset, OnDiskBufferData vertexBuffer, RenderInputLayoutField attribute)
