@@ -131,6 +131,10 @@ namespace GUI.Types.Renderer
                     GL.VertexAttribPointer(attributeLocation, 4, VertexAttribPointerType.UnsignedByte, false, stride, (IntPtr)(baseVertex + attribute.Offset));
                     break;
 
+                case DXGI_FORMAT.R32_FLOAT:
+                    GL.VertexAttribPointer(attributeLocation, 1, VertexAttribPointerType.Float, false, stride, (IntPtr)(baseVertex + attribute.Offset));
+                    break;
+
                 case DXGI_FORMAT.R32G32_FLOAT:
                     GL.VertexAttribPointer(attributeLocation, 2, VertexAttribPointerType.Float, false, stride, (IntPtr)(baseVertex + attribute.Offset));
                     break;
