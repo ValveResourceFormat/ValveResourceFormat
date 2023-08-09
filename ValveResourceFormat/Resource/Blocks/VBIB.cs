@@ -263,6 +263,7 @@ namespace ValveResourceFormat.Blocks
                     }
 
                 case DXGI_FORMAT.R32_FLOAT:
+                case DXGI_FORMAT.R32_UINT:
                     {
                         result = new float[1];
                         Buffer.BlockCopy(vertexBuffer.Data, offset, result, 0, 4);
@@ -317,17 +318,6 @@ namespace ValveResourceFormat.Blocks
                                 ? (float)bytes[i] / byte.MaxValue
                                 : bytes[i];
                         }
-
-                        break;
-                    }
-
-                case DXGI_FORMAT.R32_UINT:
-                    {
-                        var uints = new uint[1];
-                        Buffer.BlockCopy(vertexBuffer.Data, offset, uints, 0, 4);
-
-                        result = new float[1];
-                        result[0] = uints[0];
 
                         break;
                     }
