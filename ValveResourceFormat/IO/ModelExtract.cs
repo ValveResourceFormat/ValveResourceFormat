@@ -255,7 +255,7 @@ public class ModelExtract
                     ("filename", new KVValue(KVType.STRING, fileName)),
                     ("surface_prop", new KVValue(KVType.STRING, surfacePropName)),
                     ("collision_tags", new KVValue(KVType.STRING, string.Join(" ", collisionTags))),
-                    ("name", new KVValue(KVType.STRING, shapeDesc.UserFriendlyName))
+                    ("name", new KVValue(KVType.STRING, shapeDesc.UserFriendlyName ?? fileName))
                 )
             ));
         }
