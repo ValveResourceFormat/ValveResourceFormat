@@ -196,57 +196,230 @@ namespace ValveResourceFormat.Blocks
         }
 
         /*
-            POSITION - R32G32B32_FLOAT
+            POSITION - R32G32B32_FLOAT          vec3
 
-            NORMAL - R32_UINT
-            NORMAL - R32G32B32_FLOAT
-            NORMAL - R8G8B8A8_UNORM
-            TANGENT - R32G32B32A32_FLOAT
+            NORMAL - R32_UINT                   compressed
+            NORMAL - R32G32B32_FLOAT            vec3
+            NORMAL - R8G8B8A8_UNORM             compressed
+            TANGENT - R32G32B32A32_FLOAT        vec4
 
-            BLENDINDICES - R16G16_SINT
-            BLENDINDICES - R16G16B16A16_SINT
-            BLENDINDICES - R8G8B8A8_UINT
-            BLENDWEIGHT - R16G16_UNORM
-            BLENDWEIGHT - R8G8B8A8_UNORM
-            BLENDWEIGHTS - R8G8B8A8_UNORM
+            BLENDINDICES - R16G16_SINT          vec2
+            BLENDINDICES - R8G8B8A8_UINT        vec3
+            BLENDINDICES - R16G16B16A16_SINT    vec4
 
-            COLOR - R32G32B32A32_FLOAT
-            COLOR - R8G8B8A8_UNORM
+            BLENDWEIGHT - R16G16_UNORM          vec2
+            BLENDWEIGHT - R8G8B8A8_UNORM        vec4
+            BLENDWEIGHTS - R8G8B8A8_UNORM       vec4
+
+            COLOR - R32G32B32A32_FLOAT          vec4
+            COLOR - R8G8B8A8_UNORM              vec4
+
             COLORSET - R32G32B32A32_FLOAT
-
             PIVOTPAINT - R32G32B32_FLOAT
             VERTEXPAINTTINTCOLOR - R8G8B8A8_UNORM
 
-            TEXCOORD - R16G16_FLOAT
-            TEXCOORD - R16G16_SNORM
-            TEXCOORD - R16G16_UNORM
-            TEXCOORD - R16G16B16A16_FLOAT
-            TEXCOORD - R32_FLOAT
-            TEXCOORD - R32G32_FLOAT
-            TEXCOORD - R32G32B32_FLOAT
-            TEXCOORD - R32G32B32A32_FLOAT
-            TEXCOORD - R8G8B8A8_UNORM
+            TEXCOORD - R32_FLOAT               vec1
+
+            TEXCOORD - R16G16_FLOAT            vec2
+            TEXCOORD - R16G16_SNORM            vec2
+            TEXCOORD - R16G16_UNORM            vec2
+            TEXCOORD - R32G32_FLOAT            vec2
+
+            TEXCOORD - R32G32B32_FLOAT         vec3
+
+            TEXCOORD - R32G32B32A32_FLOAT      vec4
+            TEXCOORD - R8G8B8A8_UNORM          vec4
+            TEXCOORD - R16G16B16A16_FLOAT      vec4
         */
 
-        public static Vector3[] GetPositionArray(OnDiskBufferData vertexBuffer, RenderInputLayoutField attribute)
+        public static Vector3[] GetVector3AttributeArray(OnDiskBufferData vertexBuffer, RenderInputLayoutField attribute)
         {
             if (attribute.Format != DXGI_FORMAT.R32G32B32_FLOAT)
             {
-                throw new InvalidDataException($"Unexpected position attribute format {attribute.Format}");
+                throw new InvalidDataException($"Unexpected {attribute.SemanticName} attribute format {attribute.Format}");
             }
 
-            var offset = (int)attribute.Offset;
             var result = new Vector3[vertexBuffer.ElementCount];
+            MarshallAttributeArray(result, vertexBuffer, attribute);
+            return result;
+        }
+
+        public static Vector4[] GetVector4AttributeArray(OnDiskBufferData vertexBuffer, RenderInputLayoutField attribute)
+        {
+            if (attribute.Format != DXGI_FORMAT.R32G32B32A32_FLOAT)
+            {
+                throw new InvalidDataException($"Unexpected {attribute.SemanticName} attribute format {attribute.Format}");
+            }
+
+            var result = new Vector4[vertexBuffer.ElementCount];
+            MarshallAttributeArray(result, vertexBuffer, attribute);
+            return result;
+        }
+
+        // Tangents array will be empty if it not compressed
+        public static (Vector3[] Normals, Vector4[] Tangents) GetNormalTangentArray(OnDiskBufferData vertexBuffer, RenderInputLayoutField attribute)
+        {
+            if (attribute.Format == DXGI_FORMAT.R32G32B32_FLOAT)
+            {
+                var normals = new Vector3[vertexBuffer.ElementCount];
+                MarshallAttributeArray(normals, vertexBuffer, attribute);
+                return (normals, Array.Empty<Vector4>());
+            }
+            else if (attribute.Format == DXGI_FORMAT.R32_UINT) // Version 2 compressed normals (CS2)
+            {
+                var packedFrames = new uint[vertexBuffer.ElementCount];
+                MarshallAttributeArray(packedFrames, vertexBuffer, attribute);
+
+                return DecompressNormalTangents2(packedFrames);
+            }
+            else if (attribute.Format == DXGI_FORMAT.R8G8B8A8_UNORM) // Version 1 compressed normals
+            {
+
+            }
+
+            throw new InvalidDataException($"Unexpected {attribute.SemanticName} attribute format {attribute.Format}");
+        }
+
+        private static void MarshallAttributeArray<T>(T[] result, OnDiskBufferData vertexBuffer, RenderInputLayoutField attribute)
+        {
+            var offset = (int)attribute.Offset;
             var span = vertexBuffer.Data.AsSpan();
 
             for (var i = 0; i < vertexBuffer.ElementCount; i++)
             {
-                result[i] = Unsafe.ReadUnaligned<Vector3>(ref MemoryMarshal.GetReference(span[offset..(offset + 12)]));
+                result[i] = Unsafe.ReadUnaligned<T>(ref MemoryMarshal.GetReference(span[offset..(offset + 12)]));
 
                 offset += (int)vertexBuffer.ElementSizeInBytes;
             }
+        }
 
-            return result;
+        private static (Vector3[] Normals, Vector4[] Tangents) DecompressNormalTangents1(Vector4[] compressedNormalsTangents)
+        {
+            var normals = new Vector3[compressedNormalsTangents.Length];
+            var tangents = new Vector4[compressedNormalsTangents.Length];
+
+            for (var i = 0; i < normals.Length; i++)
+            {
+                // Undo-normalization
+                var compressedNormal = compressedNormalsTangents[i] * 255f;
+                normals[i] = DecompressNormal(new Vector2(compressedNormal.X, compressedNormal.Y));
+                tangents[i] = DecompressTangent(new Vector2(compressedNormal.Z, compressedNormal.W));
+            }
+
+            return (normals, tangents);
+        }
+
+        private static Vector3 DecompressNormal(Vector2 compressedNormal)
+        {
+            var inputNormal = compressedNormal;
+            var outputNormal = Vector3.Zero;
+
+            var x = inputNormal.X - 128.0f;
+            var y = inputNormal.Y - 128.0f;
+            float z;
+
+            var zSignBit = x < 0 ? 1.0f : 0.0f;           // z and t negative bits (like slt asm instruction)
+            var tSignBit = y < 0 ? 1.0f : 0.0f;
+            var zSign = -((2 * zSignBit) - 1);          // z and t signs
+            var tSign = -((2 * tSignBit) - 1);
+
+            x = (x * zSign) - zSignBit;                           // 0..127
+            y = (y * tSign) - tSignBit;
+            x -= 64;                                     // -64..63
+            y -= 64;
+
+            var xSignBit = x < 0 ? 1.0f : 0.0f;   // x and y negative bits (like slt asm instruction)
+            var ySignBit = y < 0 ? 1.0f : 0.0f;
+            var xSign = -((2 * xSignBit) - 1);          // x and y signs
+            var ySign = -((2 * ySignBit) - 1);
+
+            x = ((x * xSign) - xSignBit) / 63.0f;             // 0..1 range
+            y = ((y * ySign) - ySignBit) / 63.0f;
+            z = 1.0f - x - y;
+
+            var oolen = 1.0f / MathF.Sqrt((x * x) + (y * y) + (z * z));   // Normalize and
+            x *= oolen * xSign;                 // Recover signs
+            y *= oolen * ySign;
+            z *= oolen * zSign;
+
+            outputNormal.X = x;
+            outputNormal.Y = y;
+            outputNormal.Z = z;
+
+            return outputNormal;
+        }
+
+        private static Vector4 DecompressTangent(Vector2 compressedTangent)
+        {
+            var outputNormal = DecompressNormal(compressedTangent);
+            var tSign = compressedTangent.Y - 128.0f < 0 ? -1.0f : 1.0f;
+
+            return new Vector4(outputNormal.X, outputNormal.Y, outputNormal.Z, tSign);
+        }
+
+        private static (Vector3[] Normals, Vector4[] Tangents) DecompressNormalTangents2(uint[] packedFrames)
+        {
+            var normals = new Vector3[packedFrames.Length];
+            var tangents = new Vector4[packedFrames.Length];
+
+            for (var i = 0; i < packedFrames.Length; i++)
+            {
+                var nPackedFrame = packedFrames[i];
+                var SignBit = nPackedFrame & 1u;            // LSB bit
+                float Tbits = (nPackedFrame >> 1) & 0x7ff;  // 11 bits
+                float Xbits = (nPackedFrame >> 12) & 0x3ff; // 10 bits
+                float Ybits = (nPackedFrame >> 22) & 0x3ff; // 10 bits
+
+                // Unpack from 0..1 to -1..1
+                var nPackedFrameX = (Xbits / 1023.0f) * 2.0f - 1.0f;
+                var nPackedFrameY = (Ybits / 1023.0f) * 2.0f - 1.0f;
+
+                // Z is never given a sign, meaning negative values are caused by abs(packedframexy) adding up to over 1.0
+                var derivedNormalZ = 1.0f - MathF.Abs(nPackedFrameX) - MathF.Abs(nPackedFrameY); // Project onto x+y+z=1
+                var unpackedNormal = new Vector3(nPackedFrameX, nPackedFrameY, derivedNormalZ);
+
+                // If Z is negative, X and Y has had extra amounts (TODO: find the logic behind this value) added into them so they would add up to over 1.0
+                // Thus, we take the negative components of Z and add them back into XY to get the correct original values.
+                var negativeZCompensation = new Vector2(Math.Clamp(-derivedNormalZ, 0.0f, 1.0f)); // Isolate the negative 0..1 range of derived Z
+
+                var unpackedNormalXPositive = unpackedNormal.X >= 0.0f ? 1.0f : 0.0f;
+                var unpackedNormalYPositive = unpackedNormal.Y >= 0.0f ? 1.0f : 0.0f;
+
+                unpackedNormal.X += negativeZCompensation.X * (1f - unpackedNormalXPositive) + -negativeZCompensation.X * unpackedNormalXPositive; // mix() - x×(1−a)+y×a
+                unpackedNormal.Y += negativeZCompensation.Y * (1f - unpackedNormalYPositive) + -negativeZCompensation.Y * unpackedNormalYPositive;
+
+                var normal = Vector3.Normalize(unpackedNormal); // Get final normal by normalizing it onto the unit sphere
+                normals[i] = normal;
+
+                // Invert tangent when normal Z is negative
+                var tangentSign = (normal.Z >= 0.0f) ? 1.0f : -1.0f;
+                // equal to tangentSign * (1.0 + abs(normal.z))
+                var rcpTangentZ = 1.0f / (tangentSign + normal.Z);
+
+                // Be careful of rearranging ops here, could lead to differences in float precision, especially when dealing with compressed data.
+                Vector3 unalignedTangent;
+
+                // Unoptimized (but clean) form:
+                // tangent.X = -(normal.x * normal.x) / (tangentSign + normal.z) + 1.0
+                // tangent.Y = -(normal.x * normal.y) / (tangentSign + normal.z)
+                // tangent.Z = -(normal.x)
+                unalignedTangent.X = -tangentSign * (normal.X * normal.X) * rcpTangentZ + 1.0f;
+                unalignedTangent.Y = -tangentSign * ((normal.X * normal.Y) * rcpTangentZ);
+                unalignedTangent.Z = -tangentSign * normal.X;
+
+                // This establishes a single direction on the tangent plane that derived from only the normal (has no texcoord info).
+                // But it doesn't line up with the texcoords. For that, it uses nPackedFrameT, which is the rotation.
+
+                // Angle to use to rotate tangent
+                var nPackedFrameT = Tbits / 2047.0f * MathF.Tau;
+
+                // Rotate tangent to the correct angle that aligns with texcoords.
+                var tangent = unalignedTangent * MathF.Cos(nPackedFrameT) + Vector3.Cross(normal, unalignedTangent) * MathF.Sin(nPackedFrameT);
+
+                tangents[i] = new Vector4(tangent, (SignBit == 0u) ? -1.0f : 1.0f); // Bitangent sign bit... inverted (0 = negative
+            }
+
+            return (normals, tangents);
         }
 
         public static float[] ReadVertexAttribute(int offset, OnDiskBufferData vertexBuffer, RenderInputLayoutField attribute)

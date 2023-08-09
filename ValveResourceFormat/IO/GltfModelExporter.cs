@@ -677,8 +677,19 @@ namespace ValveResourceFormat.IO
 
         private static Accessor CreateAccessor(ModelRoot exportedModel, Vector3[] vectors)
         {
-            var bufferView = exportedModel.CreateBufferView(12 * vectors.Length, 0, BufferMode.ARRAY_BUFFER);
+            var bufferView = exportedModel.CreateBufferView(3 * sizeof(float) * vectors.Length, 0, BufferMode.ARRAY_BUFFER);
             new Vector3Array(bufferView.Content).Fill(vectors);
+
+            var accessor = exportedModel.CreateAccessor();
+            accessor.SetVertexData(bufferView, 0, vectors.Length, DimensionType.VEC3);
+
+            return accessor;
+        }
+
+        private static Accessor CreateAccessor(ModelRoot exportedModel, Vector4[] vectors)
+        {
+            var bufferView = exportedModel.CreateBufferView(4 * sizeof(float) * vectors.Length, 0, BufferMode.ARRAY_BUFFER);
+            new Vector4Array(bufferView.Content).Fill(vectors);
 
             var accessor = exportedModel.CreateAccessor();
             accessor.SetVertexData(bufferView, 0, vectors.Length, DimensionType.VEC3);
@@ -732,9 +743,37 @@ namespace ValveResourceFormat.IO
                     {
                         case "POSITION":
                             {
-                                var vectors = VBIB.GetPositionArray(vertexBuffer, attribute);
+                                var vectors = VBIB.GetVector3AttributeArray(vertexBuffer, attribute);
                                 accessors[accessorName] = CreateAccessor(exportedModel, vectors);
-                                //var test = Enumerable.SequenceEqual(vectors, ToVector3Array(ReadAttributeBuffer(vertexBuffer, attribute)));
+                                System.Diagnostics.Debug.Assert(Enumerable.SequenceEqual(vectors, ToVector3Array(ReadAttributeBuffer(vertexBuffer, attribute))));
+                                break;
+                            }
+
+                        case "NORMAL":
+                            {
+                                var (normals, tangents) = VBIB.GetNormalTangentArray(vertexBuffer, attribute);
+
+                                accessors[accessorName] = CreateAccessor(exportedModel, normals);
+
+                                if (tangents.Length > 0)
+                                {
+                                    accessors["TANGENT"] = CreateAccessor(exportedModel, normals);
+                                }
+
+                                if (TryDecompressTangentFrame(data, vbib, vertexBufferIndex, ReadAttributeBuffer(vertexBuffer, attribute), out var normalsOld, out var tangentsOld))
+                                {
+                                    System.Diagnostics.Debug.Assert(Enumerable.SequenceEqual(normals, normalsOld));
+                                    System.Diagnostics.Debug.Assert(Enumerable.SequenceEqual(tangents, tangentsOld));
+                                }
+
+                                break;
+                            }
+
+                        case "TANGENT":
+                            {
+                                var vectors = VBIB.GetVector4AttributeArray(vertexBuffer, attribute);
+                                accessors[accessorName] = CreateAccessor(exportedModel, vectors);
+                                System.Diagnostics.Debug.Assert(Enumerable.SequenceEqual(vectors, ToVector4Array(ReadAttributeBuffer(vertexBuffer, attribute))));
                                 break;
                             }
                     }
@@ -767,25 +806,28 @@ namespace ValveResourceFormat.IO
                         continue;
                     }
 
-                    if (attribute.SemanticName == "NORMAL" && TryDecompressTangentFrame(data, vbib, vertexBufferIndex, buffer, out var normals, out var tangents))
+                    if (attribute.SemanticName == "NORMAL") // out var scope
                     {
+                        if (TryDecompressTangentFrame(data, vbib, vertexBufferIndex, buffer, out var normals, out var tangents))
                         {
-                            BufferView bufferView = exportedModel.CreateBufferView(12 * normals.Length, 0, BufferMode.ARRAY_BUFFER);
-                            new Vector3Array(bufferView.Content).Fill(normals);
-                            Accessor accessor = exportedModel.CreateAccessor();
-                            accessor.SetVertexData(bufferView, 0, normals.Length, DimensionType.VEC3);
-                            accessors["NORMAL"] = accessor;
-                        }
+                            {
+                                BufferView bufferView = exportedModel.CreateBufferView(12 * normals.Length, 0, BufferMode.ARRAY_BUFFER);
+                                new Vector3Array(bufferView.Content).Fill(normals);
+                                Accessor accessor = exportedModel.CreateAccessor();
+                                accessor.SetVertexData(bufferView, 0, normals.Length, DimensionType.VEC3);
+                                accessors["NORMAL"] = accessor;
+                            }
 
-                        {
-                            BufferView bufferView = exportedModel.CreateBufferView(16 * tangents.Length, 0, BufferMode.ARRAY_BUFFER);
-                            new Vector4Array(bufferView.Content).Fill(tangents);
-                            Accessor accessor = exportedModel.CreateAccessor();
-                            accessor.SetVertexData(bufferView, 0, tangents.Length, DimensionType.VEC4);
-                            accessors["TANGENT"] = accessor;
-                        }
+                            {
+                                BufferView bufferView = exportedModel.CreateBufferView(16 * tangents.Length, 0, BufferMode.ARRAY_BUFFER);
+                                new Vector4Array(bufferView.Content).Fill(tangents);
+                                Accessor accessor = exportedModel.CreateAccessor();
+                                accessor.SetVertexData(bufferView, 0, tangents.Length, DimensionType.VEC4);
+                                accessors["TANGENT"] = accessor;
+                            }
 
-                        continue;
+                            continue;
+                        }
                     }
 
                     if (attribute.SemanticName == "TEXCOORD" && numComponents != 2)
