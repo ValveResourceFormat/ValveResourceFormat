@@ -107,7 +107,7 @@ namespace GUI.Types.Renderer
                         }
                     }
 
-                    BindVertexAttrib(attribute, attributeName, attributeLocation, (int)curVertexBuffer.ElementSizeInBytes, baseVertex);
+                    BindVertexAttrib(attribute, attributeLocation, (int)curVertexBuffer.ElementSizeInBytes, baseVertex);
                 }
 
                 GL.BindVertexArray(0);
@@ -117,8 +117,7 @@ namespace GUI.Types.Renderer
             }
         }
 
-        private static void BindVertexAttrib(VBIB.RenderInputLayoutField attribute, string attributeName,
-            int attributeLocation, int stride, uint baseVertex)
+        private static void BindVertexAttrib(VBIB.RenderInputLayoutField attribute, int attributeLocation, int stride, uint baseVertex)
         {
             GL.EnableVertexAttribArray(attributeLocation);
 
@@ -169,7 +168,7 @@ namespace GUI.Types.Renderer
                     break;
 
                 default:
-                    throw new NotImplementedException($"Unknown vertex attribute format {attribute.Format}");
+                    throw new NotImplementedException($"Unknown vertex attribute format {attribute.Format} ({attribute.SemanticName})");
             }
         }
     }
