@@ -106,6 +106,9 @@ namespace Decompiler
         [Option("--stats_particles", "When using --stats, collect particle operators, renderers, emitters, initializers.", CommandOptionType.NoValue, ShowInHelpText = IsDebugBuild)]
         public bool StatsCollectParticles { get; }
 
+        [Option("--stats_vbib", "When using --stats, collect vertex attributes.", CommandOptionType.NoValue, ShowInHelpText = IsDebugBuild)]
+        public bool StatsCollectVBIB { get; }
+
         [Option("--gltf_test", "When using --stats, also test glTF export code path for every supported file.", CommandOptionType.NoValue, ShowInHelpText = IsDebugBuild)]
         public bool GltfTest { get; }
 
@@ -1096,7 +1099,39 @@ namespace Decompiler
                             AddStat($"Operator: {op.GetProperty<string>("_class")}");
                         }
                     }
+                    break;
 
+                case ResourceType.Model:
+                    if (StatsCollectVBIB)
+                    {
+                        var model = (Model)resource.DataBlock;
+
+                        foreach (var embedded in model.GetEmbeddedMeshes())
+                        {
+                            foreach (var buffer in embedded.Mesh.VBIB.VertexBuffers)
+                            {
+                                foreach (var attribute in buffer.InputLayoutFields)
+                                {
+                                    AddStat($"Attribute {attribute.SemanticName} - Format {attribute.Format}");
+                                }
+                            }
+                        }
+                    }
+                    break;
+
+                case ResourceType.Mesh:
+                    if (StatsCollectVBIB)
+                    {
+                        var mesh = (Mesh)resource.DataBlock;
+
+                        foreach (var buffer in mesh.VBIB.VertexBuffers)
+                        {
+                            foreach (var attribute in buffer.InputLayoutFields)
+                            {
+                                AddStat($"Attribute {attribute.SemanticName} - Format {attribute.Format}");
+                            }
+                        }
+                    }
                     break;
             }
 
