@@ -274,7 +274,17 @@ namespace ValveResourceFormat.Blocks
             }
             else if (attribute.Format == DXGI_FORMAT.R8G8B8A8_UNORM) // Version 1 compressed normals
             {
+                var packedFrames = new byte[vertexBuffer.ElementCount * 4];
+                var offset = (int)attribute.Offset;
 
+                for (var i = 0; i < vertexBuffer.ElementCount; i++)
+                {
+                    Buffer.BlockCopy(vertexBuffer.Data, offset, packedFrames, i * 4, 4);
+
+                    offset += (int)vertexBuffer.ElementSizeInBytes;
+                }
+
+                return DecompressNormalTangents1(packedFrames);
             }
 
             throw new InvalidDataException($"Unexpected {attribute.SemanticName} attribute format {attribute.Format}");
@@ -293,52 +303,52 @@ namespace ValveResourceFormat.Blocks
             }
         }
 
-        private static (Vector3[] Normals, Vector4[] Tangents) DecompressNormalTangents1(Vector4[] compressedNormalsTangents)
+        private static (Vector3[] Normals, Vector4[] Tangents) DecompressNormalTangents1(byte[] packedBytes)
         {
-            var normals = new Vector3[compressedNormalsTangents.Length];
-            var tangents = new Vector4[compressedNormalsTangents.Length];
+            var size = packedBytes.Length / 4;
+            var normals = new Vector3[size];
+            var tangents = new Vector4[size];
+            var inc = 0;
 
-            for (var i = 0; i < normals.Length; i++)
+            for (var i = 0; i < packedBytes.Length; i += 4)
             {
-                // Undo-normalization
-                var compressedNormal = compressedNormalsTangents[i] * 255f;
-                normals[i] = DecompressNormal(new Vector2(compressedNormal.X, compressedNormal.Y));
-                tangents[i] = DecompressTangent(new Vector2(compressedNormal.Z, compressedNormal.W));
+                normals[inc] = DecompressNormal(packedBytes[i], packedBytes[i + 1]);
+                tangents[inc] = DecompressTangent(packedBytes[i + 2], packedBytes[i + 3]);
+                inc++;
             }
 
             return (normals, tangents);
         }
 
-        private static Vector3 DecompressNormal(Vector2 compressedNormal)
+        private static Vector3 DecompressNormal(float x, float y)
         {
-            var inputNormal = compressedNormal;
             var outputNormal = Vector3.Zero;
 
-            var x = inputNormal.X - 128.0f;
-            var y = inputNormal.Y - 128.0f;
+            x -= 128.0f;
+            y -= 128.0f;
             float z;
 
-            var zSignBit = x < 0 ? 1.0f : 0.0f;           // z and t negative bits (like slt asm instruction)
+            var zSignBit = x < 0 ? 1.0f : 0.0f;    // z and t negative bits (like slt asm instruction)
             var tSignBit = y < 0 ? 1.0f : 0.0f;
-            var zSign = -((2 * zSignBit) - 1);          // z and t signs
+            var zSign = -((2 * zSignBit) - 1);     // z and t signs
             var tSign = -((2 * tSignBit) - 1);
 
-            x = (x * zSign) - zSignBit;                           // 0..127
+            x = (x * zSign) - zSignBit;            // 0..127
             y = (y * tSign) - tSignBit;
-            x -= 64;                                     // -64..63
+            x -= 64;                               // -64..63
             y -= 64;
 
-            var xSignBit = x < 0 ? 1.0f : 0.0f;   // x and y negative bits (like slt asm instruction)
+            var xSignBit = x < 0 ? 1.0f : 0.0f;    // x and y negative bits (like slt asm instruction)
             var ySignBit = y < 0 ? 1.0f : 0.0f;
-            var xSign = -((2 * xSignBit) - 1);          // x and y signs
+            var xSign = -((2 * xSignBit) - 1);     // x and y signs
             var ySign = -((2 * ySignBit) - 1);
 
-            x = ((x * xSign) - xSignBit) / 63.0f;             // 0..1 range
+            x = ((x * xSign) - xSignBit) / 63.0f;  // 0..1 range
             y = ((y * ySign) - ySignBit) / 63.0f;
             z = 1.0f - x - y;
 
-            var oolen = 1.0f / MathF.Sqrt((x * x) + (y * y) + (z * z));   // Normalize and
-            x *= oolen * xSign;                 // Recover signs
+            var oolen = 1.0f / MathF.Sqrt((x * x) + (y * y) + (z * z)); // Normalize and
+            x *= oolen * xSign;                   // Recover signs
             y *= oolen * ySign;
             z *= oolen * zSign;
 
@@ -349,10 +359,10 @@ namespace ValveResourceFormat.Blocks
             return outputNormal;
         }
 
-        private static Vector4 DecompressTangent(Vector2 compressedTangent)
+        private static Vector4 DecompressTangent(float x, float y)
         {
-            var outputNormal = DecompressNormal(compressedTangent);
-            var tSign = compressedTangent.Y - 128.0f < 0 ? -1.0f : 1.0f;
+            var outputNormal = DecompressNormal(x, y);
+            var tSign = y < 128.0f ? -1.0f : 1.0f;
 
             return new Vector4(outputNormal.X, outputNormal.Y, outputNormal.Z, tSign);
         }
