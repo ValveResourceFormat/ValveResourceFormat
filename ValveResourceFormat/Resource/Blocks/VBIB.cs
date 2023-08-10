@@ -236,14 +236,12 @@ namespace ValveResourceFormat.Blocks
         {
             var result = new Vector2[vertexBuffer.ElementCount];
 
-            if (attribute.Format == DXGI_FORMAT.R32G32_FLOAT)
-            {
-                MarshallAttributeArray(result, vertexBuffer, attribute);
-                return result;
-            }
-
             switch (attribute.Format)
             {
+                case DXGI_FORMAT.R32G32_FLOAT:
+                    MarshallAttributeArray(result, vertexBuffer, attribute);
+                    break;
+
                 case DXGI_FORMAT.R16G16_FLOAT:
                     {
                         var offset = (int)attribute.Offset;
@@ -687,7 +685,7 @@ namespace ValveResourceFormat.Blocks
             };
         }
 
-        private static bool IsFloatFormat(RenderInputLayoutField attribute)
+        public static bool IsFloatFormat(RenderInputLayoutField attribute)
         {
             return attribute.Format
                 is DXGI_FORMAT.R16G16_FLOAT

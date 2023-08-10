@@ -741,25 +741,33 @@ namespace ValveResourceFormat.IO
                 var actualJointsCount = 0;
                 foreach (var attribute in vertexBuffer.InputLayoutFields)
                 {
-                    attributeCounters.TryGetValue(attribute.SemanticName, out var attributeCounter);
-                    attributeCounters[attribute.SemanticName] = attributeCounter + 1;
-                    var accessorName = GetAccessorName(attribute.SemanticName, attributeCounter);
-
-                    if (accessorName == null)
+                    var attributeFormat = VBIB.GetFormatInfo(attribute);
+                    var accessorName = attribute.SemanticName switch
                     {
-                        continue;
+                        "TEXCOORD" when attributeFormat.ElementCount == 2 => "TEXCOORD",
+                        "COLOR" => "COLOR",
+                        "POSITION" => "POSITION",
+                        "NORMAL" => "NORMAL",
+                        "TANGENT" => "TANGENT",
+                        "BLENDINDICES" => "JOINTS_0",
+                        "BLENDWEIGHT" or "BLENDWEIGHTS" => "WEIGHTS_0",
+                        _ => $"_{attribute.SemanticName}",
+                    };
+
+                    attributeCounters.TryGetValue(accessorName, out var attributeCounter);
+                    attributeCounters[accessorName] = attributeCounter + 1;
+
+                    if (attribute.SemanticName is "TEXCOORD" or "COLOR")
+                    {
+                        accessorName = $"{accessorName}_{attributeCounter}";
+                    }
+                    else if (attributeCounter > 0)
+                    {
+                        throw new NotImplementedException($"Got attribute \"{attribute.SemanticName}\" more than once, but that is not supported.");
                     }
 
                     switch (attribute.SemanticName)
                     {
-                        case "POSITION":
-                            {
-                                var vectors = VBIB.GetVector3AttributeArray(vertexBuffer, attribute);
-                                accessors[accessorName] = CreateAccessor(exportedModel, vectors);
-                                System.Diagnostics.Debug.Assert(Enumerable.SequenceEqual(vectors, ToVector3Array(ReadAttributeBuffer(vertexBuffer, attribute))));
-                                break;
-                            }
-
                         case "NORMAL":
                             {
                                 var (normals, tangents) = VBIB.GetNormalTangentArray(vertexBuffer, attribute);
@@ -780,27 +788,37 @@ namespace ValveResourceFormat.IO
                                 break;
                             }
 
-                        case "TANGENT":
+                        default:
                             {
-                                var vectors = VBIB.GetVector4AttributeArray(vertexBuffer, attribute);
-                                accessors[accessorName] = CreateAccessor(exportedModel, vectors);
-                                System.Diagnostics.Debug.Assert(Enumerable.SequenceEqual(vectors, ToVector4Array(ReadAttributeBuffer(vertexBuffer, attribute))));
-                                break;
-                            }
-
-                        case "TEXCOORD":
-                            {
-                                var format = VBIB.GetFormatInfo(attribute);
-
-                                if (format.ElementCount != 2)
+                                if (!VBIB.IsFloatFormat(attribute))
                                 {
-                                    attributeCounters[attribute.SemanticName] = attributeCounter; // Reset the counter
-                                    continue; // TODO: Perhaps dump them as COLOR?
+                                    break; // TODO
                                 }
 
-                                var vectors = VBIB.GetVector2AttributeArray(vertexBuffer, attribute);
-                                accessors[accessorName] = CreateAccessor(exportedModel, vectors);
-                                System.Diagnostics.Debug.Assert(Enumerable.SequenceEqual(vectors, ToVector2Array(ReadAttributeBuffer(vertexBuffer, attribute))));
+                                switch (attributeFormat.ElementCount)
+                                {
+                                    case 2:
+                                        {
+                                            var vectors = VBIB.GetVector2AttributeArray(vertexBuffer, attribute);
+                                            accessors[accessorName] = CreateAccessor(exportedModel, vectors);
+                                            System.Diagnostics.Debug.Assert(Enumerable.SequenceEqual(vectors, ToVector2Array(ReadAttributeBuffer(vertexBuffer, attribute))));
+                                            break;
+                                        }
+                                    case 3:
+                                        {
+                                            var vectors = VBIB.GetVector3AttributeArray(vertexBuffer, attribute);
+                                            accessors[accessorName] = CreateAccessor(exportedModel, vectors);
+                                            System.Diagnostics.Debug.Assert(Enumerable.SequenceEqual(vectors, ToVector3Array(ReadAttributeBuffer(vertexBuffer, attribute))));
+                                            break;
+                                        }
+                                    case 4:
+                                        {
+                                            var vectors = VBIB.GetVector4AttributeArray(vertexBuffer, attribute);
+                                            accessors[accessorName] = CreateAccessor(exportedModel, vectors);
+                                            System.Diagnostics.Debug.Assert(Enumerable.SequenceEqual(vectors, ToVector4Array(ReadAttributeBuffer(vertexBuffer, attribute))));
+                                            break;
+                                        }
+                                }
 
                                 break;
                             }
@@ -1551,30 +1569,6 @@ namespace ValveResourceFormat.IO
         {
             // Since we've already dumped images to disk, skip glTF image write.
             return uri;
-        }
-
-        public static string GetAccessorName(string name, int index)
-        {
-            if (index > 0 && name != "TEXCOORD" && name != "COLOR")
-            {
-                throw new NotImplementedException($"Got attribute \"{name}\" more than once, but that is not supported.");
-            }
-
-            switch (name)
-            {
-                case "TEXCOORD": return $"TEXCOORD_{index}";
-                case "COLOR": return $"COLOR_{index}";
-                case "POSITION": return "POSITION";
-                case "NORMAL": return "NORMAL";
-                case "TANGENT": return "TANGENT";
-                case "BLENDINDICES": return "JOINTS_0";
-                case "BLENDWEIGHT":
-                case "BLENDWEIGHTS": return "WEIGHTS_0";
-            };
-
-            Console.Error.WriteLine($"Got unknown attribute \"{name}\" which was skipped.");
-
-            return null;
         }
 
         public static float[] ReadAttributeBuffer(OnDiskBufferData buffer, RenderInputLayoutField attribute)
