@@ -380,6 +380,8 @@ namespace ValveResourceFormat.Blocks
 
                             indices[inc++] = (ushort)shorts[0];
                             indices[inc++] = (ushort)shorts[1];
+                            indices[inc++] = (ushort)shorts[1];
+                            indices[inc++] = (ushort)shorts[1];
 
                             offset += (int)vertexBuffer.ElementSizeInBytes;
                         }
