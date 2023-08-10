@@ -358,6 +358,93 @@ namespace ValveResourceFormat.Blocks
             throw new InvalidDataException($"Unexpected {attribute.SemanticName} attribute format {attribute.Format}");
         }
 
+        public static ushort[] GetBlendIndicesArray(OnDiskBufferData vertexBuffer, RenderInputLayoutField attribute)
+        {
+            var indices = new ushort[vertexBuffer.ElementCount * 4];
+
+            switch (attribute.Format)
+            {
+                case DXGI_FORMAT.R16G16_SINT:
+                    {
+                        var offset = (int)attribute.Offset;
+                        var shorts = new short[2];
+                        var inc = 0;
+
+                        for (var i = 0; i < vertexBuffer.ElementCount; i++)
+                        {
+                            // TODO: Simplify this with Unsafe.ReadUnaligned
+                            Buffer.BlockCopy(vertexBuffer.Data, offset, shorts, 0, 4);
+
+                            System.Diagnostics.Debug.Assert(shorts[0] >= 0);
+                            System.Diagnostics.Debug.Assert(shorts[1] >= 0);
+
+                            indices[inc++] = (ushort)shorts[0];
+                            indices[inc++] = (ushort)shorts[1];
+
+                            offset += (int)vertexBuffer.ElementSizeInBytes;
+                        }
+
+                        break;
+                    }
+
+                case DXGI_FORMAT.R16G16B16A16_SINT:
+                    {
+                        var offset = (int)attribute.Offset;
+                        var shorts = new short[4];
+                        var inc = 0;
+
+                        for (var i = 0; i < vertexBuffer.ElementCount; i++)
+                        {
+                            // TODO: Simplify this with Unsafe.ReadUnaligned
+                            Buffer.BlockCopy(vertexBuffer.Data, offset, shorts, 0, 8);
+
+                            System.Diagnostics.Debug.Assert(shorts[0] >= 0);
+                            System.Diagnostics.Debug.Assert(shorts[1] >= 0);
+                            System.Diagnostics.Debug.Assert(shorts[2] >= 0);
+                            System.Diagnostics.Debug.Assert(shorts[3] >= 0);
+
+                            indices[inc++] = (ushort)shorts[0];
+                            indices[inc++] = (ushort)shorts[1];
+                            indices[inc++] = (ushort)shorts[2];
+                            indices[inc++] = (ushort)shorts[3];
+
+                            offset += (int)vertexBuffer.ElementSizeInBytes;
+                        }
+
+                        break;
+                    }
+
+                case DXGI_FORMAT.R8G8B8A8_UINT:
+                    {
+                        var offset = (int)attribute.Offset;
+                        var bytes = new byte[4];
+                        var inc = 0;
+
+                        for (var i = 0; i < vertexBuffer.ElementCount; i++)
+                        {
+                            // TODO: Simplify this with Unsafe.ReadUnaligned
+                            Buffer.BlockCopy(vertexBuffer.Data, offset, bytes, 0, 4);
+
+                            System.Diagnostics.Debug.Assert(bytes[0] >= 0);
+                            System.Diagnostics.Debug.Assert(bytes[1] >= 0);
+                            System.Diagnostics.Debug.Assert(bytes[2] >= 0);
+                            System.Diagnostics.Debug.Assert(bytes[3] >= 0);
+
+                            indices[inc++] = bytes[0];
+                            indices[inc++] = bytes[1];
+                            indices[inc++] = bytes[2];
+                            indices[inc++] = bytes[3];
+
+                            offset += (int)vertexBuffer.ElementSizeInBytes;
+                        }
+
+                        break;
+                    }
+            }
+
+            return indices;
+        }
+
         public static Vector4[] GetBlendWeightsArray(OnDiskBufferData vertexBuffer, RenderInputLayoutField attribute)
         {
             var weights = new Vector4[vertexBuffer.ElementCount];

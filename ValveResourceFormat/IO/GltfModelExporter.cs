@@ -741,6 +741,11 @@ namespace ValveResourceFormat.IO
                 var actualJointsCount = 0;
                 foreach (var attribute in vertexBuffer.InputLayoutFields)
                 {
+                    if (!includeJoints && attribute.SemanticName == "BLENDINDICES")
+                    {
+                        continue;
+                    }
+
                     var attributeFormat = VBIB.GetFormatInfo(attribute);
                     var accessorName = attribute.SemanticName switch
                     {
@@ -794,6 +799,28 @@ namespace ValveResourceFormat.IO
                                 break;
                             }
 
+                        case "BLENDINDICES":
+                            {
+                                var indices = VBIB.GetBlendIndicesArray(vertexBuffer, attribute);
+
+                                var bufferView = exportedModel.CreateBufferView(2 * indices.Length, 0, BufferMode.ARRAY_BUFFER);
+                                indices.CopyTo(MemoryMarshal.Cast<byte, ushort>(((Memory<byte>)bufferView.Content).Span));
+                                var accessor = mesh.LogicalParent.CreateAccessor();
+                                accessor.SetVertexData(bufferView, 0, indices.Length / 4, DimensionType.VEC4, EncodingType.UNSIGNED_SHORT);
+                                accessors[accessorName] = accessor;
+
+                                var buffer = ReadAttributeBuffer(vertexBuffer, attribute);
+                                var ushortBuffer = buffer.Select(f => (ushort)f).ToArray();
+
+                                if (attributeFormat.ElementCount != 4)
+                                {
+                                    ushortBuffer = ChangeBufferStride(ushortBuffer, attributeFormat.ElementCount, 4);
+                                }
+                                System.Diagnostics.Debug.Assert(Enumerable.SequenceEqual(indices, ushortBuffer));
+
+                                break;
+                            }
+
                         case "BLENDWEIGHTS":
                         case "BLENDWEIGHT":
                             {
@@ -814,7 +841,7 @@ namespace ValveResourceFormat.IO
                             {
                                 if (!VBIB.IsFloatFormat(attribute))
                                 {
-                                    break; // TODO
+                                    throw new NotImplementedException($"Attribute \"{attribute.SemanticName}\" has unsupported format {attribute.Format}");
                                 }
 
                                 switch (attributeFormat.ElementCount)
@@ -840,114 +867,27 @@ namespace ValveResourceFormat.IO
                                             System.Diagnostics.Debug.Assert(Enumerable.SequenceEqual(vectors, ToVector4Array(ReadAttributeBuffer(vertexBuffer, attribute))));
                                             break;
                                         }
+
+                                    default:
+                                        throw new NotImplementedException($"Attribute \"{attribute.SemanticName}\" has {attributeFormat.ElementCount} components");
                                 }
 
                                 break;
                             }
                     }
 
-#if !DEBUG
-                    var buffer = ReadAttributeBuffer(vertexBuffer, attribute);
-                    var numComponents = buffer.Length / (int)vertexBuffer.ElementCount;
-
-
-                    if (attribute.SemanticName == "BLENDINDICES")
+                    /*
+                    // dropship.vmdl in HL:A has a tanget with value of <0, -0, 0>
+                    if (attribute.SemanticName == "NORMAL" || attribute.SemanticName == "TANGENT")
                     {
-                        actualJointsCount = numComponents;
-
-                        if (!includeJoints)
-                        {
-                            continue;
-                        }
-
-                        var ushortBuffer = buffer.Select(f => (ushort)f).ToArray();
-                        if (numComponents != 4)
-                        {
-                            ushortBuffer = ChangeBufferStride(ushortBuffer, numComponents, 4);
-                        }
-
-                        BufferView bufferView = exportedModel.CreateBufferView(2 * ushortBuffer.Length, 0, BufferMode.ARRAY_BUFFER);
-                        ushortBuffer.CopyTo(MemoryMarshal.Cast<byte, ushort>(((Memory<byte>)bufferView.Content).Span));
-                        var accessor = mesh.LogicalParent.CreateAccessor();
-                        accessor.SetVertexData(bufferView, 0, ushortBuffer.Length / 4, DimensionType.VEC4, EncodingType.UNSIGNED_SHORT);
-                        accessors[accessorName] = accessor;
-
-                        continue;
+                        vectors = FixZeroLengthVectors(vectors);
                     }
-
-                    if (attribute.SemanticName == "BLENDWEIGHT" && numComponents != 4)
-                    {
-                        buffer = ChangeBufferStride(buffer, numComponents, 4);
-                        numComponents = 4;
-                    }
-
-                    switch (numComponents)
-                    {
-                        case 4:
-                            {
-                                var vectors = ToVector4Array(buffer);
-
-                                // dropship.vmdl in HL:A has a tanget with value of <0, -0, 0>
-                                if (attribute.SemanticName == "NORMAL" || attribute.SemanticName == "TANGENT")
-                                {
-                                    vectors = FixZeroLengthVectors(vectors);
-                                }
-
-                                BufferView bufferView = exportedModel.CreateBufferView(16 * vectors.Length, 0, BufferMode.ARRAY_BUFFER);
-                                new Vector4Array(bufferView.Content).Fill(vectors);
-                                Accessor accessor = exportedModel.CreateAccessor();
-                                accessor.SetVertexData(bufferView, 0, vectors.Length, DimensionType.VEC4);
-                                accessors[accessorName] = accessor;
-                                break;
-                            }
-
-                        case 3:
-                            {
-                                var vectors = ToVector3Array(buffer);
-
-                                // dropship.vmdl in HL:A has a normal with value of <0, 0, 0>
-                                if (attribute.SemanticName == "NORMAL" || attribute.SemanticName == "TANGENT")
-                                {
-                                    vectors = FixZeroLengthVectors(vectors);
-                                }
-
-                                BufferView bufferView = exportedModel.CreateBufferView(12 * vectors.Length, 0, BufferMode.ARRAY_BUFFER);
-                                new Vector3Array(bufferView.Content).Fill(vectors);
-                                Accessor accessor = exportedModel.CreateAccessor();
-                                accessor.SetVertexData(bufferView, 0, vectors.Length, DimensionType.VEC3);
-                                accessors[accessorName] = accessor;
-                                break;
-                            }
-
-                        case 2:
-                            {
-                                var vectors = ToVector2Array(buffer);
-                                BufferView bufferView = exportedModel.CreateBufferView(8 * vectors.Length, 0, BufferMode.ARRAY_BUFFER);
-                                new Vector2Array(bufferView.Content).Fill(vectors);
-                                Accessor accessor = exportedModel.CreateAccessor();
-                                accessor.SetVertexData(bufferView, 0, vectors.Length, DimensionType.VEC2);
-                                accessors[accessorName] = accessor;
-                                break;
-                            }
-
-                        case 1: // TODO: This is not valid for any attribute in gltf
-                            {
-                                BufferView bufferView = exportedModel.CreateBufferView(4 * buffer.Length, 0, BufferMode.ARRAY_BUFFER);
-                                new ScalarArray(bufferView.Content).Fill(buffer);
-                                Accessor accessor = exportedModel.CreateAccessor();
-                                accessor.SetVertexData(bufferView, 0, buffer.Length, DimensionType.SCALAR);
-                                accessors[accessorName] = accessor;
-                                break;
-                            }
-
-                        default:
-                            throw new NotImplementedException($"Attribute \"{attribute.SemanticName}\" has {numComponents} components");
-                    }
+                    */
                 }
 
-                // For some reason soruce models can have joints but no weights, check if that is the case
                 if (accessors.TryGetValue("JOINTS_0", out var jointAccessor))
                 {
+                    // For some reason models can have joints but no weights, check if that is the case
                     if (!accessors.TryGetValue("WEIGHTS_0", out var weightsAccessor))
                     {
                         // If this occurs, give default weights
@@ -1007,7 +947,6 @@ namespace ValveResourceFormat.IO
 
                     jointAccessor.UpdateBounds();
                     weightsAccessor.UpdateBounds();
-#endif
                 }
 
                 return accessors;
