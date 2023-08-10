@@ -93,18 +93,11 @@ public class DmeVertexData : DMElement
         this[name] = data;
     }
 
-    public void AddIndexedStream<TDmx, T>(string name, T[] data, int[] indices)
-        where TDmx : Datamodel.Array<T>, new()
+    public void AddIndexedStream<T>(string name, T[] data, int[] indices)
     {
         VertexFormat.Add(name);
-
-        var dmData = new TDmx();
-        dmData.AddRange(data);
-        this[name] = dmData;
-
-        var dmIndices = new Datamodel.IntArray();
-        dmIndices.AddRange(indices);
-        this[name + "Indices"] = dmIndices;
+        this[name] = data;
+        this[name + "Indices"] = indices;
     }
 }
 #pragma warning restore CA2227 // Collection properties should be read only

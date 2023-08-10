@@ -511,11 +511,11 @@ public class ModelExtract
             if (attribute.SemanticName is "NORMAL")
             {
                 var normalsAndOptionallyTangents = VBIB.GetNormalTangentArray(vertexBuffer, attribute);
-                vertexData.AddIndexedStream<Vector3Array, Vector3>(semantic, normalsAndOptionallyTangents.Normals, indices);
+                vertexData.AddIndexedStream(semantic, normalsAndOptionallyTangents.Normals, indices);
 
                 if (normalsAndOptionallyTangents.Tangents.Length > 0)
                 {
-                    vertexData.AddIndexedStream<Vector4Array, Vector4>("tangent$" + attribute.SemanticIndex, normalsAndOptionallyTangents.Tangents, indices);
+                    vertexData.AddIndexedStream("tangent$" + attribute.SemanticIndex, normalsAndOptionallyTangents.Tangents, indices);
                 }
 
                 continue;
@@ -554,19 +554,19 @@ public class ModelExtract
 
             if (numComponents == 4)
             {
-                vertexData.AddIndexedStream<Vector4Array, Vector4>(semantic, GltfModelExporter.ToVector4Array(buffer), indices);
+                vertexData.AddIndexedStream(semantic, GltfModelExporter.ToVector4Array(buffer), indices);
             }
             else if (numComponents == 3)
             {
-                vertexData.AddIndexedStream<Vector3Array, Vector3>(semantic, GltfModelExporter.ToVector3Array(buffer), indices);
+                vertexData.AddIndexedStream(semantic, GltfModelExporter.ToVector3Array(buffer), indices);
             }
             else if (numComponents == 2)
             {
-                vertexData.AddIndexedStream<Vector2Array, Vector2>(semantic, GltfModelExporter.ToVector2Array(buffer), indices);
+                vertexData.AddIndexedStream(semantic, GltfModelExporter.ToVector2Array(buffer), indices);
             }
             else if (numComponents == 1)
             {
-                vertexData.AddIndexedStream<FloatArray, float>(semantic, buffer, indices);
+                vertexData.AddIndexedStream(semantic, buffer, indices);
             }
             else
             {
@@ -625,7 +625,7 @@ public class ModelExtract
         }
 
         var indices = Enumerable.Range(0, hull.Vertices.Length * 3).ToArray();
-        vertexData.AddIndexedStream<Vector3Array, Vector3>("position$0", hull.Vertices, indices);
+        vertexData.AddIndexedStream("position$0", hull.Vertices, indices);
 
         TieElementRoot(dmx, dmeModel);
         using var stream = new MemoryStream();
@@ -685,7 +685,7 @@ public class ModelExtract
             }
         }
 
-        vertexData.AddIndexedStream<Vector3Array, Vector3>("position$0", mesh.Vertices, indices);
+        vertexData.AddIndexedStream("position$0", mesh.Vertices, indices);
 
         TieElementRoot(dmx, dmeModel);
         using var stream = new MemoryStream();
