@@ -87,7 +87,13 @@ public class DmeVertexData : DMElement
     public int JointCount { get; set; }
     public bool FlipVCoordinates { get; set; }
 
-    public void AddStream<TDmx, T>(string name, T[] data, int[] indices)
+    public void AddStream<T>(string name, T[] data)
+    {
+        VertexFormat.Add(name);
+        this[name] = data;
+    }
+
+    public void AddIndexedStream<TDmx, T>(string name, T[] data, int[] indices)
         where TDmx : Datamodel.Array<T>, new()
     {
         VertexFormat.Add(name);
