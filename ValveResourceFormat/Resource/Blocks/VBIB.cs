@@ -330,17 +330,19 @@ namespace ValveResourceFormat.Blocks
             }
             else if (attribute.Format == DXGI_FORMAT.R8G8B8A8_UNORM) // Version 1 compressed normals
             {
-                var packedFrames = new byte[vertexBuffer.ElementCount * 4];
+                var normals = new Vector3[vertexBuffer.ElementCount];
+                var tangents = new Vector4[vertexBuffer.ElementCount];
                 var offset = (int)attribute.Offset;
 
                 for (var i = 0; i < vertexBuffer.ElementCount; i++)
                 {
-                    Buffer.BlockCopy(vertexBuffer.Data, offset, packedFrames, i * 4, 4);
+                    normals[i] = DecompressNormal(vertexBuffer.Data[offset], vertexBuffer.Data[offset + 1]);
+                    tangents[i] = DecompressTangent(vertexBuffer.Data[offset + 2], vertexBuffer.Data[offset + 3]);
 
                     offset += (int)vertexBuffer.ElementSizeInBytes;
                 }
 
-                return DecompressNormalTangents1(packedFrames);
+                return (normals, tangents);
             }
 
             throw new InvalidDataException($"Unexpected {attribute.SemanticName} attribute format {attribute.Format}");
@@ -357,23 +359,6 @@ namespace ValveResourceFormat.Blocks
 
                 offset += (int)vertexBuffer.ElementSizeInBytes;
             }
-        }
-
-        private static (Vector3[] Normals, Vector4[] Tangents) DecompressNormalTangents1(byte[] packedBytes)
-        {
-            var size = packedBytes.Length / 4;
-            var normals = new Vector3[size];
-            var tangents = new Vector4[size];
-            var inc = 0;
-
-            for (var i = 0; i < packedBytes.Length; i += 4)
-            {
-                normals[inc] = DecompressNormal(packedBytes[i], packedBytes[i + 1]);
-                tangents[inc] = DecompressTangent(packedBytes[i + 2], packedBytes[i + 3]);
-                inc++;
-            }
-
-            return (normals, tangents);
         }
 
         private static Vector3 DecompressNormal(float x, float y)
