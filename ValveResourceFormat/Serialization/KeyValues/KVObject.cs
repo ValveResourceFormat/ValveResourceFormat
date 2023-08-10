@@ -13,7 +13,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
     {
         public string Key { get; private set; }
         public Dictionary<string, KVValue> Properties { get; private set; }
-        private bool IsArray;
+        public readonly bool IsArray;
         public int Count { get; private set; }
 
         public KVObject(string name)

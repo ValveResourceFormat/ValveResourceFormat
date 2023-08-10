@@ -144,13 +144,57 @@ public class ModelExtract
     {
         var kv = new KVObject(null);
 
-        static KVObject MakeNode(string className, params (string Name, KVValue Value)[] properties)
+        static KVValue MakeValue(object value)
+        {
+            var specialType = value switch
+            {
+                KVValue v => v,
+                Vector3 vec3 => MakeArrayValue(new[] { vec3.X, vec3.Y, vec3.Z }),
+                _ => null
+            };
+
+            if (specialType != null)
+            {
+                return specialType;
+            }
+
+            var basicType = value switch
+            {
+                string => KVType.STRING,
+                bool => KVType.BOOLEAN,
+                int => KVType.INT32,
+                float => KVType.FLOAT,
+                KVObject kv => kv.IsArray ? KVType.ARRAY : KVType.OBJECT,
+                _ => throw new NotImplementedException()
+            };
+
+            return new KVValue(basicType, value);
+        }
+
+        static KVValue MakeArrayValue<T>(IEnumerable<T> values)
+        {
+            var list = new KVObject(null, isArray: true);
+            foreach (var value in values)
+            {
+                list.AddProperty(null, MakeValue(value));
+            }
+
+            return MakeValue(list);
+        }
+
+        static void AddItem(KVObject node, KVObject item)
+        {
+            Debug.Assert(node.IsArray);
+            node.AddProperty(null, MakeValue(item));
+        }
+
+        static KVObject MakeNode(string className, params (string Name, object Value)[] properties)
         {
             var node = new KVObject(className);
-            node.AddProperty("_class", new KVValue(KVType.STRING, className));
-            foreach (var (name, value) in properties)
+            node.AddProperty("_class", MakeValue(className));
+            foreach (var prop in properties)
             {
-                node.AddProperty(name, value);
+                node.AddProperty(prop.Name, MakeValue(prop.Value));
             }
             return node;
         }
@@ -158,19 +202,20 @@ public class ModelExtract
         static (KVObject Node, KVObject Children) MakeListNode(string className)
         {
             var children = new KVObject(null, isArray: true);
-            var node = MakeNode(className, ("children", new KVValue(KVType.ARRAY, children)));
+            var node = MakeNode(className, ("children", children));
             return (node, children);
         }
 
         var root = MakeListNode("RootNode");
-        kv.AddProperty("rootNode", new KVValue(KVType.OBJECT, root.Node));
+        kv.AddProperty("rootNode", MakeValue(root.Node));
 
         Lazy<KVObject> MakeLazyList(string className)
         {
             return new Lazy<KVObject>(() =>
             {
                 var list = MakeListNode(className);
-                root.Children.AddProperty(null, new KVValue(KVType.OBJECT, list.Node));
+                AddItem(root.Children, list.Node);
+
                 return list.Children;
             });
         }
@@ -183,12 +228,12 @@ public class ModelExtract
         {
             foreach (var renderMesh in RenderMeshesToExtract)
             {
-                renderMeshList.Value.AddProperty(null, new KVValue(KVType.OBJECT,
-                    MakeNode(
-                        "RenderMeshFile",
-                        ("filename", new KVValue(KVType.STRING, renderMesh.FileName))
-                    )
-                ));
+                var renderMeshFile = MakeNode(
+                    "RenderMeshFile",
+                    ("filename", renderMesh.FileName)
+                );
+
+                AddItem(renderMeshList.Value, renderMeshFile);
             }
         }
 
@@ -217,6 +262,39 @@ public class ModelExtract
             }
         }
 
+        if (physAggregateData is not null)
+        {
+            foreach (var physicsPart in physAggregateData.Parts)
+            {
+                foreach (var sphere in physicsPart.Shape.Spheres)
+                {
+                    var physicsShapeSphere = MakeNode(
+                        "PhysicsShapeSphere",
+                        ("surface_prop", PhysicsSurfaceNames[sphere.SurfacePropertyIndex]),
+                        ("collision_tags", string.Join(" ", PhysicsCollisionTags[sphere.CollisionAttributeIndex])),
+                        ("radius", sphere.Shape.Radius),
+                        ("center", sphere.Shape.Center)
+                    );
+
+                    AddItem(physicsShapeList.Value, physicsShapeSphere);
+                }
+
+                foreach (var capsule in physicsPart.Shape.Capsules)
+                {
+                    var physicsShapeCapsule = MakeNode(
+                        "PhysicsShapeCapsule",
+                        ("surface_prop", PhysicsSurfaceNames[capsule.SurfacePropertyIndex]),
+                        ("collision_tags", string.Join(" ", PhysicsCollisionTags[capsule.CollisionAttributeIndex])),
+                        ("radius", capsule.Shape.Radius),
+                        ("point0", capsule.Shape.Center[0]),
+                        ("point1", capsule.Shape.Center[1])
+                    );
+
+                    AddItem(physicsShapeList.Value, physicsShapeCapsule);
+                }
+            }
+        }
+
         return new KV3File(kv, format: "modeldoc32:version{c5dcef98-b629-46ab-88e3-a17c005c935e}").ToString();
 
         //
@@ -231,13 +309,7 @@ public class ModelExtract
 
             if (Type == ModelExtractType.Map_PhysicsToRenderMesh)
             {
-                renderMeshList.Value.AddProperty(null, new KVValue(KVType.OBJECT,
-                    MakeNode(
-                        "RenderMeshFile",
-                        ("filename", new KVValue(KVType.STRING, fileName))
-                    )
-                ));
-
+                AddItem(renderMeshList.Value, MakeNode("RenderMeshFile", ("filename", fileName)));
                 return;
             }
 
@@ -249,15 +321,15 @@ public class ModelExtract
             };
 
             // TODO: per faceSet surface_prop
-            physicsShapeList.Value.AddProperty(null, new KVValue(KVType.OBJECT,
-                MakeNode(
-                    className,
-                    ("filename", new KVValue(KVType.STRING, fileName)),
-                    ("surface_prop", new KVValue(KVType.STRING, surfacePropName)),
-                    ("collision_tags", new KVValue(KVType.STRING, string.Join(" ", collisionTags))),
-                    ("name", new KVValue(KVType.STRING, shapeDesc.UserFriendlyName ?? fileName))
-                )
-            ));
+            var physicsShapeFile = MakeNode(
+                className,
+                ("filename", fileName),
+                ("surface_prop", surfacePropName),
+                ("collision_tags", string.Join(" ", collisionTags)),
+                ("name", shapeDesc.UserFriendlyName ?? fileName)
+            );
+
+            AddItem(physicsShapeList.Value, physicsShapeFile);
         }
 
         void RemapMaterials(
@@ -266,14 +338,14 @@ public class ModelExtract
             string globalDefault = "materials/tools/toolsnodraw.vmat")
         {
             var remaps = new KVObject(null, isArray: true);
-            materialGroupList.Value.AddProperty(null, new KVValue(KVType.OBJECT,
+            AddItem(materialGroupList.Value,
                 MakeNode(
                     "DefaultMaterialGroup",
-                    ("remaps", new KVValue(KVType.ARRAY, remaps)),
-                    ("use_global_default", new KVValue(KVType.BOOLEAN, globalReplace)),
-                    ("global_default_material", new KVValue(KVType.STRING, globalDefault))
+                    ("remaps", remaps),
+                    ("use_global_default", globalReplace),
+                    ("global_default_material", globalDefault)
                 )
-            ));
+            );
 
             if (globalReplace || remapTable == null)
             {
@@ -283,9 +355,9 @@ public class ModelExtract
             foreach (var (from, to) in remapTable)
             {
                 var remap = new KVObject(null);
-                remap.AddProperty("from", new KVValue(KVType.STRING, from));
-                remap.AddProperty("to", new KVValue(KVType.STRING, to));
-                remaps.AddProperty(null, new KVValue(KVType.OBJECT, remap));
+                remap.AddProperty("from", MakeValue(from));
+                remap.AddProperty("to", MakeValue(to));
+                AddItem(remaps, remap);
             }
         }
     }
