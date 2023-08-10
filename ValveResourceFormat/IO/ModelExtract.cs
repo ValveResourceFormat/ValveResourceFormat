@@ -5,8 +5,10 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Numerics;
+using System.Runtime.InteropServices;
 using System.Text;
 using Datamodel;
+using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO.ContentFormats.DmxModel;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics;
@@ -504,25 +506,51 @@ public class ModelExtract
 
         foreach (var attribute in vertexBuffer.InputLayoutFields)
         {
-            var buffer = GltfModelExporter.ReadAttributeBuffer(vertexBuffer, attribute);
-            var numComponents = buffer.Length / (int)vertexBuffer.ElementCount;
-
             var semantic = attribute.SemanticName.ToLowerInvariant() + "$" + attribute.SemanticIndex;
 
-            if (attribute.SemanticName == "NORMAL" && GltfModelExporter.TryDecompressTangentFrame(mdat, mbuf, 0, buffer,
-                out var decompressedNormals, out var decompressedTangents))
+            if (attribute.SemanticName is "NORMAL")
             {
-                vertexData.AddIndexedStream<Vector3Array, Vector3>(semantic, decompressedNormals, indices);
-                vertexData.AddIndexedStream<Vector4Array, Vector4>("tangent$" + attribute.SemanticIndex, decompressedTangents, indices);
+                var normalsAndOptionallyTangents = VBIB.GetNormalTangentArray(vertexBuffer, attribute);
+                vertexData.AddIndexedStream<Vector3Array, Vector3>(semantic, normalsAndOptionallyTangents.Normals, indices);
+
+                if (normalsAndOptionallyTangents.Tangents.Length > 0)
+                {
+                    vertexData.AddIndexedStream<Vector4Array, Vector4>("tangent$" + attribute.SemanticIndex, normalsAndOptionallyTangents.Tangents, indices);
+                }
+
+                continue;
+            }
+            else if (attribute.SemanticName is "BLENDINDICES")
+            {
+                vertexData.JointCount = Math.Max(vertexData.JointCount, 1);
+
+                var blendIndices = VBIB.GetBlendIndicesArray(vertexBuffer, attribute);
+                vertexData.AddStream(semantic, Array.ConvertAll(blendIndices, i => (int)i));
+                continue;
+            }
+            else if (attribute.SemanticName is "BLENDWEIGHT" or "BLENDWEIGHTS")
+            {
+                vertexData.JointCount = 4;
+
+                var vectorWeights = VBIB.GetBlendWeightsArray(vertexBuffer, attribute);
+                var flatWeights = new float[vectorWeights.Length * 4];
+                var flatHandle = GCHandle.Alloc(vectorWeights, GCHandleType.Pinned);
+
+                try
+                {
+                    Marshal.Copy(flatHandle.AddrOfPinnedObject(), flatWeights, 0, flatWeights.Length);
+                }
+                finally
+                {
+                    flatHandle.Free();
+                }
+
+                vertexData.AddStream("blendweights$" + attribute.SemanticIndex, flatWeights);
                 continue;
             }
 
-            if (attribute.SemanticName is "BLENDINDICES" or "BLENDWEIGHT" or "BLENDWEIGHTS")
-            {
-                // TODO: indices as int_array
-                vertexData.AddStream(semantic, buffer);
-                continue;
-            }
+            var buffer = GltfModelExporter.ReadAttributeBuffer(vertexBuffer, attribute);
+            var numComponents = buffer.Length / (int)vertexBuffer.ElementCount;
 
             if (numComponents == 4)
             {
