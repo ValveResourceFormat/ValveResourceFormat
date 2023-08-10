@@ -794,6 +794,22 @@ namespace ValveResourceFormat.IO
                                 break;
                             }
 
+                        case "BLENDWEIGHTS":
+                        case "BLENDWEIGHT":
+                            {
+                                var weights = VBIB.GetBlendWeightsArray(vertexBuffer, attribute);
+                                accessors[accessorName] = CreateAccessor(exportedModel, weights);
+
+                                var buffer = ReadAttributeBuffer(vertexBuffer, attribute);
+                                if (attributeFormat.ElementCount != 4)
+                                {
+                                    buffer = ChangeBufferStride(buffer, attributeFormat.ElementCount, 4);
+                                }
+                                System.Diagnostics.Debug.Assert(Enumerable.SequenceEqual(weights, ToVector4Array(buffer)));
+
+                                break;
+                            }
+
                         default:
                             {
                                 if (!VBIB.IsFloatFormat(attribute))
@@ -856,12 +872,6 @@ namespace ValveResourceFormat.IO
                         accessor.SetVertexData(bufferView, 0, ushortBuffer.Length / 4, DimensionType.VEC4, EncodingType.UNSIGNED_SHORT);
                         accessors[accessorName] = accessor;
 
-                        continue;
-                    }
-
-                    if (attribute.SemanticName == "TEXCOORD" && numComponents != 2)
-                    {
-                        // We are ignoring some data, but non-2-component UVs cause failures in gltf consumers
                         continue;
                     }
 

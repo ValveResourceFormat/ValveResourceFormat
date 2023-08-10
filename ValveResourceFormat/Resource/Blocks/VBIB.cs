@@ -204,7 +204,7 @@ namespace ValveResourceFormat.Blocks
             TANGENT - R32G32B32A32_FLOAT        vec4
 
             BLENDINDICES - R16G16_SINT          vec2
-            BLENDINDICES - R8G8B8A8_UINT        vec3
+            BLENDINDICES - R8G8B8A8_UINT        vec4
             BLENDINDICES - R16G16B16A16_SINT    vec4
 
             BLENDWEIGHT - R16G16_UNORM          vec2
@@ -214,9 +214,9 @@ namespace ValveResourceFormat.Blocks
             COLOR - R32G32B32A32_FLOAT          vec4
             COLOR - R8G8B8A8_UNORM              vec4
 
-            COLORSET - R32G32B32A32_FLOAT
-            PIVOTPAINT - R32G32B32_FLOAT
-            VERTEXPAINTTINTCOLOR - R8G8B8A8_UNORM
+            COLORSET - R32G32B32A32_FLOAT         vec4
+            PIVOTPAINT - R32G32B32_FLOAT          vec3
+            VERTEXPAINTTINTCOLOR - R8G8B8A8_UNORM vec4
 
             TEXCOORD - R32_FLOAT               vec1
 
@@ -356,6 +356,57 @@ namespace ValveResourceFormat.Blocks
             }
 
             throw new InvalidDataException($"Unexpected {attribute.SemanticName} attribute format {attribute.Format}");
+        }
+
+        public static Vector4[] GetBlendWeightsArray(OnDiskBufferData vertexBuffer, RenderInputLayoutField attribute)
+        {
+            var weights = new Vector4[vertexBuffer.ElementCount];
+
+            switch (attribute.Format)
+            {
+                case DXGI_FORMAT.R8G8B8A8_UNORM:
+                    {
+                        var offset = (int)attribute.Offset;
+
+                        for (var i = 0; i < vertexBuffer.ElementCount; i++)
+                        {
+                            weights[i] = new Vector4(
+                                vertexBuffer.Data[offset] / 255f,
+                                vertexBuffer.Data[offset + 1] / 255f,
+                                vertexBuffer.Data[offset + 2] / 255f,
+                                vertexBuffer.Data[offset + 3] / 255f
+                            );
+
+                            offset += (int)vertexBuffer.ElementSizeInBytes;
+                        }
+
+                        break;
+                    }
+
+                case DXGI_FORMAT.R16G16_UNORM:
+                    {
+                        var offset = (int)attribute.Offset;
+                        var span = vertexBuffer.Data.AsSpan();
+
+                        for (var i = 0; i < vertexBuffer.ElementCount; i++)
+                        {
+                            var packed = Unsafe.ReadUnaligned<uint>(ref MemoryMarshal.GetReference(span[offset..(offset + 4)]));
+
+                            weights[i] = new Vector4(
+                                (packed & 0x0000FFFF) / 65535f,
+                                (packed >> 16) / 65535f,
+                                0f,
+                                0f
+                            );
+
+                            offset += (int)vertexBuffer.ElementSizeInBytes;
+                        }
+
+                        break;
+                    }
+            }
+
+            return weights;
         }
 
         private static void MarshallAttributeArray<T>(T[] result, OnDiskBufferData vertexBuffer, RenderInputLayoutField attribute)
