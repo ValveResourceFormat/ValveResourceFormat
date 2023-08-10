@@ -675,6 +675,17 @@ namespace ValveResourceFormat.IO
             exportedModel.Save(filePath, settings);
         }
 
+        private static Accessor CreateAccessor(ModelRoot exportedModel, Vector2[] vectors)
+        {
+            var bufferView = exportedModel.CreateBufferView(2 * sizeof(float) * vectors.Length, 0, BufferMode.ARRAY_BUFFER);
+            new Vector2Array(bufferView.Content).Fill(vectors);
+
+            var accessor = exportedModel.CreateAccessor();
+            accessor.SetVertexData(bufferView, 0, vectors.Length, DimensionType.VEC2);
+
+            return accessor;
+        }
+
         private static Accessor CreateAccessor(ModelRoot exportedModel, Vector3[] vectors)
         {
             var bufferView = exportedModel.CreateBufferView(3 * sizeof(float) * vectors.Length, 0, BufferMode.ARRAY_BUFFER);
@@ -692,7 +703,7 @@ namespace ValveResourceFormat.IO
             new Vector4Array(bufferView.Content).Fill(vectors);
 
             var accessor = exportedModel.CreateAccessor();
-            accessor.SetVertexData(bufferView, 0, vectors.Length, DimensionType.VEC3);
+            accessor.SetVertexData(bufferView, 0, vectors.Length, DimensionType.VEC4);
 
             return accessor;
         }
@@ -757,7 +768,7 @@ namespace ValveResourceFormat.IO
 
                                 if (tangents.Length > 0)
                                 {
-                                    accessors["TANGENT"] = CreateAccessor(exportedModel, normals);
+                                    accessors["TANGENT"] = CreateAccessor(exportedModel, tangents);
                                 }
 
                                 if (TryDecompressTangentFrame(data, vbib, vertexBufferIndex, ReadAttributeBuffer(vertexBuffer, attribute), out var normalsOld, out var tangentsOld))
@@ -776,8 +787,26 @@ namespace ValveResourceFormat.IO
                                 System.Diagnostics.Debug.Assert(Enumerable.SequenceEqual(vectors, ToVector4Array(ReadAttributeBuffer(vertexBuffer, attribute))));
                                 break;
                             }
+
+                        case "TEXCOORD":
+                            {
+                                var format = VBIB.GetFormatInfo(attribute);
+
+                                if (format.ElementCount != 2)
+                                {
+                                    attributeCounters[attribute.SemanticName] = attributeCounter; // Reset the counter
+                                    continue; // TODO: Perhaps dump them as COLOR?
+                                }
+
+                                var vectors = VBIB.GetVector2AttributeArray(vertexBuffer, attribute);
+                                accessors[accessorName] = CreateAccessor(exportedModel, vectors);
+                                System.Diagnostics.Debug.Assert(Enumerable.SequenceEqual(vectors, ToVector2Array(ReadAttributeBuffer(vertexBuffer, attribute))));
+
+                                break;
+                            }
                     }
 
+#if !DEBUG
                     var buffer = ReadAttributeBuffer(vertexBuffer, attribute);
                     var numComponents = buffer.Length / (int)vertexBuffer.ElementCount;
 
@@ -804,30 +833,6 @@ namespace ValveResourceFormat.IO
                         accessors[accessorName] = accessor;
 
                         continue;
-                    }
-
-                    if (attribute.SemanticName == "NORMAL") // out var scope
-                    {
-                        if (TryDecompressTangentFrame(data, vbib, vertexBufferIndex, buffer, out var normals, out var tangents))
-                        {
-                            {
-                                BufferView bufferView = exportedModel.CreateBufferView(12 * normals.Length, 0, BufferMode.ARRAY_BUFFER);
-                                new Vector3Array(bufferView.Content).Fill(normals);
-                                Accessor accessor = exportedModel.CreateAccessor();
-                                accessor.SetVertexData(bufferView, 0, normals.Length, DimensionType.VEC3);
-                                accessors["NORMAL"] = accessor;
-                            }
-
-                            {
-                                BufferView bufferView = exportedModel.CreateBufferView(16 * tangents.Length, 0, BufferMode.ARRAY_BUFFER);
-                                new Vector4Array(bufferView.Content).Fill(tangents);
-                                Accessor accessor = exportedModel.CreateAccessor();
-                                accessor.SetVertexData(bufferView, 0, tangents.Length, DimensionType.VEC4);
-                                accessors["TANGENT"] = accessor;
-                            }
-
-                            continue;
-                        }
                     }
 
                     if (attribute.SemanticName == "TEXCOORD" && numComponents != 2)
@@ -891,7 +896,7 @@ namespace ValveResourceFormat.IO
                                 break;
                             }
 
-                        case 1:
+                        case 1: // TODO: This is not valid for any attribute in gltf
                             {
                                 BufferView bufferView = exportedModel.CreateBufferView(4 * buffer.Length, 0, BufferMode.ARRAY_BUFFER);
                                 new ScalarArray(bufferView.Content).Fill(buffer);
@@ -968,6 +973,7 @@ namespace ValveResourceFormat.IO
 
                     jointAccessor.UpdateBounds();
                     weightsAccessor.UpdateBounds();
+#endif
                 }
 
                 return accessors;

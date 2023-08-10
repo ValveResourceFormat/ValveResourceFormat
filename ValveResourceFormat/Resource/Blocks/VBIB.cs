@@ -232,6 +232,64 @@ namespace ValveResourceFormat.Blocks
             TEXCOORD - R16G16B16A16_FLOAT      vec4
         */
 
+        public static Vector2[] GetVector2AttributeArray(OnDiskBufferData vertexBuffer, RenderInputLayoutField attribute)
+        {
+            var result = new Vector2[vertexBuffer.ElementCount];
+
+            if (attribute.Format == DXGI_FORMAT.R32G32_FLOAT)
+            {
+                MarshallAttributeArray(result, vertexBuffer, attribute);
+                return result;
+            }
+
+            switch (attribute.Format)
+            {
+                case DXGI_FORMAT.R16G16_FLOAT:
+                    {
+                        var offset = (int)attribute.Offset;
+
+                        for (var i = 0; i < vertexBuffer.ElementCount; i++)
+                        {
+                            result[i] = new Vector2((float)BitConverter.ToHalf(vertexBuffer.Data, offset), (float)BitConverter.ToHalf(vertexBuffer.Data, offset + 2));
+
+                            offset += (int)vertexBuffer.ElementSizeInBytes;
+                        }
+
+                        break;
+                    }
+                /*
+            case DXGI_FORMAT.R16G16_SNORM:
+                {
+                    var shorts = new short[2];
+                    Buffer.BlockCopy(vertexBuffer.Data, offset, shorts, 0, 4);
+
+                    result = new[]
+                    {
+                        (float)shorts[0] / short.MaxValue,
+                        (float)shorts[1] / short.MaxValue,
+                    };
+                    break;
+                }
+            case DXGI_FORMAT.R16G16_UNORM:
+                {
+                    var shorts = new ushort[2];
+                    Buffer.BlockCopy(vertexBuffer.Data, offset, shorts, 0, 4);
+
+                    result = new[]
+                    {
+                        (float)shorts[0] / ushort.MaxValue,
+                        (float)shorts[1] / ushort.MaxValue,
+                    };
+                    break;
+                }
+                */
+                default:
+                    throw new InvalidDataException($"Unexpected {attribute.SemanticName} attribute format {attribute.Format}");
+            }
+
+            return result;
+        }
+
         public static Vector3[] GetVector3AttributeArray(OnDiskBufferData vertexBuffer, RenderInputLayoutField attribute)
         {
             if (attribute.Format != DXGI_FORMAT.R32G32B32_FLOAT)
@@ -390,13 +448,13 @@ namespace ValveResourceFormat.Blocks
 
                 // If Z is negative, X and Y has had extra amounts (TODO: find the logic behind this value) added into them so they would add up to over 1.0
                 // Thus, we take the negative components of Z and add them back into XY to get the correct original values.
-                var negativeZCompensation = new Vector2(Math.Clamp(-derivedNormalZ, 0.0f, 1.0f)); // Isolate the negative 0..1 range of derived Z
+                var negativeZCompensation = Math.Clamp(-derivedNormalZ, 0.0f, 1.0f); // Isolate the negative 0..1 range of derived Z
 
                 var unpackedNormalXPositive = unpackedNormal.X >= 0.0f ? 1.0f : 0.0f;
                 var unpackedNormalYPositive = unpackedNormal.Y >= 0.0f ? 1.0f : 0.0f;
 
-                unpackedNormal.X += negativeZCompensation.X * (1f - unpackedNormalXPositive) + -negativeZCompensation.X * unpackedNormalXPositive; // mix() - x×(1−a)+y×a
-                unpackedNormal.Y += negativeZCompensation.Y * (1f - unpackedNormalYPositive) + -negativeZCompensation.Y * unpackedNormalYPositive;
+                unpackedNormal.X += negativeZCompensation * (1f - unpackedNormalXPositive) + -negativeZCompensation * unpackedNormalXPositive; // mix() - x×(1−a)+y×a
+                unpackedNormal.Y += negativeZCompensation * (1f - unpackedNormalYPositive) + -negativeZCompensation * unpackedNormalYPositive;
 
                 var normal = Vector3.Normalize(unpackedNormal); // Get final normal by normalizing it onto the unit sphere
                 normals[i] = normal;
@@ -608,7 +666,7 @@ namespace ValveResourceFormat.Blocks
             }
         }
 
-        private static (int ElementSize, int ElementCount) GetFormatInfo(RenderInputLayoutField attribute)
+        public static (int ElementSize, int ElementCount) GetFormatInfo(RenderInputLayoutField attribute)
         {
             return attribute.Format switch
             {
@@ -622,10 +680,22 @@ namespace ValveResourceFormat.Blocks
                 DXGI_FORMAT.R32G32_FLOAT => (4, 2),
                 DXGI_FORMAT.R16G16_SINT => (2, 2),
                 DXGI_FORMAT.R16G16B16A16_SINT => (2, 4),
+                DXGI_FORMAT.R16G16B16A16_FLOAT => (2, 4),
                 DXGI_FORMAT.R8G8B8A8_UINT => (1, 4),
                 DXGI_FORMAT.R8G8B8A8_UNORM => (1, 4),
                 _ => throw new NotImplementedException($"Unsupported \"{attribute.SemanticName}\" DXGI_FORMAT.{attribute.Format}"),
             };
+        }
+
+        private static bool IsFloatFormat(RenderInputLayoutField attribute)
+        {
+            return attribute.Format
+                is DXGI_FORMAT.R16G16_FLOAT
+                or DXGI_FORMAT.R16G16B16A16_FLOAT
+                or DXGI_FORMAT.R32_FLOAT
+                or DXGI_FORMAT.R32G32_FLOAT
+                or DXGI_FORMAT.R32G32B32_FLOAT
+                or DXGI_FORMAT.R32G32B32A32_FLOAT;
         }
 
         public static int[] CombineRemapTables(int[][] remapTables)
