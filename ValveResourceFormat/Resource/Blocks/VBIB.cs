@@ -232,6 +232,41 @@ namespace ValveResourceFormat.Blocks
             TEXCOORD - R16G16B16A16_FLOAT      vec4
         */
 
+        public static ushort[] GetUnsignedShortAttributeArray(OnDiskBufferData vertexBuffer, RenderInputLayoutField attribute)
+        {
+            switch (attribute.Format)
+            {
+                /*
+                case DXGI_FORMAT.R16G16_SNORM:
+                    {
+                        result = new[]
+                        {
+                            (float)shorts[0] / short.MaxValue,
+                            (float)shorts[1] / short.MaxValue,
+                        };
+
+                        return result;
+                    }
+                    */
+                case DXGI_FORMAT.R16G16_UNORM:
+                    {
+                        var result = new ushort[vertexBuffer.ElementCount * 2];
+                        var offset = (int)attribute.Offset;
+
+                        for (var i = 0; i < vertexBuffer.ElementCount; i++)
+                        {
+                            Buffer.BlockCopy(vertexBuffer.Data, offset, result, i * 2, 4);
+
+                            offset += (int)vertexBuffer.ElementSizeInBytes;
+                        }
+
+                        return result;
+                    }
+            }
+
+            throw new InvalidDataException($"Unexpected {attribute.SemanticName} attribute format {attribute.Format}");
+        }
+
         public static Vector2[] GetVector2AttributeArray(OnDiskBufferData vertexBuffer, RenderInputLayoutField attribute)
         {
             var result = new Vector2[vertexBuffer.ElementCount];
@@ -255,32 +290,7 @@ namespace ValveResourceFormat.Blocks
 
                         break;
                     }
-                /*
-            case DXGI_FORMAT.R16G16_SNORM:
-                {
-                    var shorts = new short[2];
-                    Buffer.BlockCopy(vertexBuffer.Data, offset, shorts, 0, 4);
 
-                    result = new[]
-                    {
-                        (float)shorts[0] / short.MaxValue,
-                        (float)shorts[1] / short.MaxValue,
-                    };
-                    break;
-                }
-            case DXGI_FORMAT.R16G16_UNORM:
-                {
-                    var shorts = new ushort[2];
-                    Buffer.BlockCopy(vertexBuffer.Data, offset, shorts, 0, 4);
-
-                    result = new[]
-                    {
-                        (float)shorts[0] / ushort.MaxValue,
-                        (float)shorts[1] / ushort.MaxValue,
-                    };
-                    break;
-                }
-                */
                 default:
                     throw new InvalidDataException($"Unexpected {attribute.SemanticName} attribute format {attribute.Format}");
             }

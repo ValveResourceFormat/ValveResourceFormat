@@ -754,6 +754,12 @@ namespace ValveResourceFormat.IO
                         _ => $"_{attribute.SemanticName}",
                     };
 
+                    // None of the glTF accessors expect scalar type
+                    if (attributeFormat.ElementCount == 1 && accessorName[0] != '_')
+                    {
+                        accessorName = $"_{accessorName}";
+                    }
+
                     attributeCounters.TryGetValue(accessorName, out var attributeCounter);
                     attributeCounters[accessorName] = attributeCounter + 1;
 
