@@ -768,12 +768,14 @@ namespace ValveResourceFormat.IO
                     attributeCounters.TryGetValue(accessorName, out var attributeCounter);
                     attributeCounters[accessorName] = attributeCounter + 1;
 
-                    if (accessorName[0] == '_' && attribute.SemanticIndex > 0)
+                    if (attribute.SemanticIndex > 0 && accessorName[0] == '_')
                     {
+                        // Application-specific attributes can use the original semantic index
                         accessorName = $"{accessorName}_{attribute.SemanticIndex}";
                     }
                     else if (attribute.SemanticName is "TEXCOORD" or "COLOR")
                     {
+                        // All indices for indexed attribute semantics MUST start with 0 and be consecutive positive integers
                         accessorName = $"{accessorName}_{attributeCounter}";
                     }
                     else if (attributeCounter > 0)

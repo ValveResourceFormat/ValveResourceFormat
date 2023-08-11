@@ -274,7 +274,7 @@ namespace ValveResourceFormat.Blocks
             switch (attribute.Format)
             {
                 case DXGI_FORMAT.R32G32_FLOAT:
-                    MarshallAttributeArray(result, vertexBuffer, attribute);
+                    MarshallAttributeArray(result, sizeof(float) * 2, vertexBuffer, attribute);
                     break;
 
                 case DXGI_FORMAT.R16G16_FLOAT:
@@ -306,7 +306,7 @@ namespace ValveResourceFormat.Blocks
             }
 
             var result = new Vector3[vertexBuffer.ElementCount];
-            MarshallAttributeArray(result, vertexBuffer, attribute);
+            MarshallAttributeArray(result, sizeof(float) * 3, vertexBuffer, attribute);
             return result;
         }
 
@@ -318,7 +318,7 @@ namespace ValveResourceFormat.Blocks
             }
 
             var result = new Vector4[vertexBuffer.ElementCount];
-            MarshallAttributeArray(result, vertexBuffer, attribute);
+            MarshallAttributeArray(result, sizeof(float) * 4, vertexBuffer, attribute);
             return result;
         }
 
@@ -328,13 +328,13 @@ namespace ValveResourceFormat.Blocks
             if (attribute.Format == DXGI_FORMAT.R32G32B32_FLOAT)
             {
                 var normals = new Vector3[vertexBuffer.ElementCount];
-                MarshallAttributeArray(normals, vertexBuffer, attribute);
+                MarshallAttributeArray(normals, sizeof(float) * 3, vertexBuffer, attribute);
                 return (normals, Array.Empty<Vector4>());
             }
             else if (attribute.Format == DXGI_FORMAT.R32_UINT) // Version 2 compressed normals (CS2)
             {
                 var packedFrames = new uint[vertexBuffer.ElementCount];
-                MarshallAttributeArray(packedFrames, vertexBuffer, attribute);
+                MarshallAttributeArray(packedFrames, sizeof(uint), vertexBuffer, attribute);
 
                 return DecompressNormalTangents2(packedFrames);
             }
@@ -498,14 +498,14 @@ namespace ValveResourceFormat.Blocks
             return weights;
         }
 
-        private static void MarshallAttributeArray<T>(T[] result, OnDiskBufferData vertexBuffer, RenderInputLayoutField attribute)
+        private static void MarshallAttributeArray<T>(T[] result, int size, OnDiskBufferData vertexBuffer, RenderInputLayoutField attribute)
         {
             var offset = (int)attribute.Offset;
             var span = vertexBuffer.Data.AsSpan();
 
             for (var i = 0; i < vertexBuffer.ElementCount; i++)
             {
-                result[i] = Unsafe.ReadUnaligned<T>(ref MemoryMarshal.GetReference(span[offset..(offset + 12)]));
+                result[i] = Unsafe.ReadUnaligned<T>(ref MemoryMarshal.GetReference(span[offset..(offset + size)]));
 
                 offset += (int)vertexBuffer.ElementSizeInBytes;
             }
