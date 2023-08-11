@@ -510,12 +510,12 @@ public class ModelExtract
 
             if (attribute.SemanticName is "NORMAL")
             {
-                var normalsAndOptionallyTangents = VBIB.GetNormalTangentArray(vertexBuffer, attribute);
-                vertexData.AddIndexedStream(semantic, normalsAndOptionallyTangents.Normals, indices);
+                var (normals, tangents) = VBIB.GetNormalTangentArray(vertexBuffer, attribute);
+                vertexData.AddIndexedStream(semantic, normals, indices);
 
-                if (normalsAndOptionallyTangents.Tangents.Length > 0)
+                if (tangents.Length > 0)
                 {
-                    vertexData.AddIndexedStream("tangent$" + attribute.SemanticIndex, normalsAndOptionallyTangents.Tangents, indices);
+                    vertexData.AddIndexedStream("tangent$" + attribute.SemanticIndex, tangents, indices);
                 }
 
                 continue;
@@ -547,6 +547,12 @@ public class ModelExtract
 
                 vertexData.AddStream("blendweights$" + attribute.SemanticIndex, flatWeights);
                 continue;
+            }
+
+            // TODO: Grab this from material's INSG
+            if (attribute is { SemanticName: "TEXCOORD", SemanticIndex: 4 })
+            {
+                semantic = "VertexPaintBlendParams$0";
             }
 
             var buffer = GltfModelExporter.ReadAttributeBuffer(vertexBuffer, attribute);
