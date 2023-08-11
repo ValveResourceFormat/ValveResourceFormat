@@ -236,18 +236,24 @@ namespace ValveResourceFormat.Blocks
         {
             switch (attribute.Format)
             {
-                /*
-                case DXGI_FORMAT.R16G16_SNORM:
+                case DXGI_FORMAT.R8G8B8A8_UNORM:
                     {
-                        result = new[]
+                        var result = new ushort[vertexBuffer.ElementCount * 4];
+                        var offset = (int)attribute.Offset;
+                        var inc = 0;
+
+                        for (var i = 0; i < vertexBuffer.ElementCount; i++)
                         {
-                            (float)shorts[0] / short.MaxValue,
-                            (float)shorts[1] / short.MaxValue,
-                        };
+                            result[inc++] = vertexBuffer.Data[offset];
+                            result[inc++] = vertexBuffer.Data[offset + 1];
+                            result[inc++] = vertexBuffer.Data[offset + 2];
+                            result[inc++] = vertexBuffer.Data[offset + 3];
+
+                            offset += (int)vertexBuffer.ElementSizeInBytes;
+                        }
 
                         return result;
                     }
-                    */
                 case DXGI_FORMAT.R16G16_UNORM:
                     {
                         var result = new ushort[vertexBuffer.ElementCount * 2];

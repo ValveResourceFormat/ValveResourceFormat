@@ -783,103 +783,105 @@ namespace ValveResourceFormat.IO
                         throw new NotImplementedException($"Got attribute \"{attribute.SemanticName}\" more than once, but that is not supported.");
                     }
 
-                    switch (attribute.SemanticName)
+                    if (attribute.SemanticName == "NORMAL")
                     {
-                        case "NORMAL":
-                            {
-                                var (normals, tangents) = VBIB.GetNormalTangentArray(vertexBuffer, attribute);
+                        var (normals, tangents) = VBIB.GetNormalTangentArray(vertexBuffer, attribute);
 
-                                accessors[accessorName] = CreateAccessor(exportedModel, normals);
+                        if (tangents.Length > 0)
+                        {
+                            accessors["NORMAL"] = CreateAccessor(exportedModel, normals);
+                            accessors["TANGENT"] = CreateAccessor(exportedModel, tangents);
+                        }
+                        else
+                        {
+                            accessors[accessorName] = CreateAccessor(exportedModel, normals);
+                        }
 
-                                if (tangents.Length > 0)
+                        if (TryDecompressTangentFrame(data, vbib, vertexBufferIndex, ReadAttributeBuffer(vertexBuffer, attribute), out var normalsOld, out var tangentsOld))
+                        {
+                            System.Diagnostics.Debug.Assert(Enumerable.SequenceEqual(normals, normalsOld));
+                            System.Diagnostics.Debug.Assert(Enumerable.SequenceEqual(tangents, tangentsOld));
+                        }
+                    }
+                    else if (attribute.SemanticName == "BLENDINDICES")
+                    {
+                        var indices = VBIB.GetBlendIndicesArray(vertexBuffer, attribute);
+
+                        var bufferView = exportedModel.CreateBufferView(2 * indices.Length, 0, BufferMode.ARRAY_BUFFER);
+                        indices.CopyTo(MemoryMarshal.Cast<byte, ushort>(((Memory<byte>)bufferView.Content).Span));
+                        var accessor = mesh.LogicalParent.CreateAccessor();
+                        accessor.SetVertexData(bufferView, 0, indices.Length / 4, DimensionType.VEC4, EncodingType.UNSIGNED_SHORT);
+                        accessors[accessorName] = accessor;
+
+                        var buffer = ReadAttributeBuffer(vertexBuffer, attribute);
+                        var ushortBuffer = buffer.Select(f => (ushort)f).ToArray();
+
+                        if (attributeFormat.ElementCount != 4)
+                        {
+                            ushortBuffer = ChangeBufferStride(ushortBuffer, attributeFormat.ElementCount, 4);
+                        }
+                        System.Diagnostics.Debug.Assert(Enumerable.SequenceEqual(indices, ushortBuffer));
+                    }
+                    else if (attribute.SemanticName is "BLENDWEIGHT" or "BLENDWEIGHTS")
+                    {
+                        var weights = VBIB.GetBlendWeightsArray(vertexBuffer, attribute);
+                        accessors[accessorName] = CreateAccessor(exportedModel, weights);
+
+                        var buffer = ReadAttributeBuffer(vertexBuffer, attribute);
+                        if (attributeFormat.ElementCount != 4)
+                        {
+                            buffer = ChangeBufferStride(buffer, attributeFormat.ElementCount, 4);
+                        }
+                        System.Diagnostics.Debug.Assert(Enumerable.SequenceEqual(weights, ToVector4Array(buffer)));
+                    }
+                    else if (VBIB.IsFloatFormat(attribute))
+                    {
+                        switch (attributeFormat.ElementCount)
+                        {
+                            case 2:
                                 {
-                                    accessors["TANGENT"] = CreateAccessor(exportedModel, tangents);
+                                    var vectors = VBIB.GetVector2AttributeArray(vertexBuffer, attribute);
+                                    accessors[accessorName] = CreateAccessor(exportedModel, vectors);
+                                    System.Diagnostics.Debug.Assert(Enumerable.SequenceEqual(vectors, ToVector2Array(ReadAttributeBuffer(vertexBuffer, attribute))));
+                                    break;
+                                }
+                            case 3:
+                                {
+                                    var vectors = VBIB.GetVector3AttributeArray(vertexBuffer, attribute);
+                                    accessors[accessorName] = CreateAccessor(exportedModel, vectors);
+                                    System.Diagnostics.Debug.Assert(Enumerable.SequenceEqual(vectors, ToVector3Array(ReadAttributeBuffer(vertexBuffer, attribute))));
+                                    break;
+                                }
+                            case 4:
+                                {
+                                    var vectors = VBIB.GetVector4AttributeArray(vertexBuffer, attribute);
+                                    accessors[accessorName] = CreateAccessor(exportedModel, vectors);
+                                    System.Diagnostics.Debug.Assert(Enumerable.SequenceEqual(vectors, ToVector4Array(ReadAttributeBuffer(vertexBuffer, attribute))));
+                                    break;
                                 }
 
-                                if (TryDecompressTangentFrame(data, vbib, vertexBufferIndex, ReadAttributeBuffer(vertexBuffer, attribute), out var normalsOld, out var tangentsOld))
-                                {
-                                    System.Diagnostics.Debug.Assert(Enumerable.SequenceEqual(normals, normalsOld));
-                                    System.Diagnostics.Debug.Assert(Enumerable.SequenceEqual(tangents, tangentsOld));
-                                }
+                            default:
+                                throw new NotImplementedException($"Attribute \"{attribute.SemanticName}\" has {attributeFormat.ElementCount} components");
+                        }
+                    }
+                    else
+                    {
+                        var indices = VBIB.GetUnsignedShortAttributeArray(vertexBuffer, attribute);
 
-                                break;
-                            }
+                        var dimensionType = attributeFormat.ElementCount switch
+                        {
+                            1 => DimensionType.SCALAR,
+                            2 => DimensionType.VEC2,
+                            3 => DimensionType.VEC3,
+                            4 => DimensionType.VEC4,
+                            _ => throw new NotImplementedException($"Attribute \"{attribute.SemanticName}\" has {attributeFormat.ElementCount} components")
+                        };
 
-                        case "BLENDINDICES":
-                            {
-                                var indices = VBIB.GetBlendIndicesArray(vertexBuffer, attribute);
-
-                                var bufferView = exportedModel.CreateBufferView(2 * indices.Length, 0, BufferMode.ARRAY_BUFFER);
-                                indices.CopyTo(MemoryMarshal.Cast<byte, ushort>(((Memory<byte>)bufferView.Content).Span));
-                                var accessor = mesh.LogicalParent.CreateAccessor();
-                                accessor.SetVertexData(bufferView, 0, indices.Length / 4, DimensionType.VEC4, EncodingType.UNSIGNED_SHORT);
-                                accessors[accessorName] = accessor;
-
-                                var buffer = ReadAttributeBuffer(vertexBuffer, attribute);
-                                var ushortBuffer = buffer.Select(f => (ushort)f).ToArray();
-
-                                if (attributeFormat.ElementCount != 4)
-                                {
-                                    ushortBuffer = ChangeBufferStride(ushortBuffer, attributeFormat.ElementCount, 4);
-                                }
-                                System.Diagnostics.Debug.Assert(Enumerable.SequenceEqual(indices, ushortBuffer));
-
-                                break;
-                            }
-
-                        case "BLENDWEIGHTS":
-                        case "BLENDWEIGHT":
-                            {
-                                var weights = VBIB.GetBlendWeightsArray(vertexBuffer, attribute);
-                                accessors[accessorName] = CreateAccessor(exportedModel, weights);
-
-                                var buffer = ReadAttributeBuffer(vertexBuffer, attribute);
-                                if (attributeFormat.ElementCount != 4)
-                                {
-                                    buffer = ChangeBufferStride(buffer, attributeFormat.ElementCount, 4);
-                                }
-                                System.Diagnostics.Debug.Assert(Enumerable.SequenceEqual(weights, ToVector4Array(buffer)));
-
-                                break;
-                            }
-
-                        default:
-                            {
-                                if (!VBIB.IsFloatFormat(attribute))
-                                {
-                                    throw new NotImplementedException($"Attribute \"{attribute.SemanticName}\" has unsupported format {attribute.Format}");
-                                }
-
-                                switch (attributeFormat.ElementCount)
-                                {
-                                    case 2:
-                                        {
-                                            var vectors = VBIB.GetVector2AttributeArray(vertexBuffer, attribute);
-                                            accessors[accessorName] = CreateAccessor(exportedModel, vectors);
-                                            System.Diagnostics.Debug.Assert(Enumerable.SequenceEqual(vectors, ToVector2Array(ReadAttributeBuffer(vertexBuffer, attribute))));
-                                            break;
-                                        }
-                                    case 3:
-                                        {
-                                            var vectors = VBIB.GetVector3AttributeArray(vertexBuffer, attribute);
-                                            accessors[accessorName] = CreateAccessor(exportedModel, vectors);
-                                            System.Diagnostics.Debug.Assert(Enumerable.SequenceEqual(vectors, ToVector3Array(ReadAttributeBuffer(vertexBuffer, attribute))));
-                                            break;
-                                        }
-                                    case 4:
-                                        {
-                                            var vectors = VBIB.GetVector4AttributeArray(vertexBuffer, attribute);
-                                            accessors[accessorName] = CreateAccessor(exportedModel, vectors);
-                                            System.Diagnostics.Debug.Assert(Enumerable.SequenceEqual(vectors, ToVector4Array(ReadAttributeBuffer(vertexBuffer, attribute))));
-                                            break;
-                                        }
-
-                                    default:
-                                        throw new NotImplementedException($"Attribute \"{attribute.SemanticName}\" has {attributeFormat.ElementCount} components");
-                                }
-
-                                break;
-                            }
+                        var bufferView = exportedModel.CreateBufferView(2 * indices.Length, 0, BufferMode.ARRAY_BUFFER);
+                        indices.CopyTo(MemoryMarshal.Cast<byte, ushort>(((Memory<byte>)bufferView.Content).Span));
+                        var accessor = mesh.LogicalParent.CreateAccessor();
+                        accessor.SetVertexData(bufferView, 0, indices.Length / attributeFormat.ElementCount, dimensionType, EncodingType.UNSIGNED_SHORT, true);
+                        accessors[accessorName] = accessor;
                     }
 
                     /*
