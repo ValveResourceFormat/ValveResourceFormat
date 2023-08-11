@@ -739,7 +739,7 @@ namespace ValveResourceFormat.IO
 
                 // Set vertex attributes
                 var actualJointsCount = 0;
-                foreach (var attribute in vertexBuffer.InputLayoutFields)
+                foreach (var attribute in vertexBuffer.InputLayoutFields.OrderBy(i => i.SemanticIndex).ThenBy(i => i.Offset))
                 {
                     if (!includeJoints && attribute.SemanticName == "BLENDINDICES")
                     {
@@ -768,7 +768,11 @@ namespace ValveResourceFormat.IO
                     attributeCounters.TryGetValue(accessorName, out var attributeCounter);
                     attributeCounters[accessorName] = attributeCounter + 1;
 
-                    if (attribute.SemanticName is "TEXCOORD" or "COLOR")
+                    if (accessorName[0] == '_' && attribute.SemanticIndex > 0)
+                    {
+                        accessorName = $"{accessorName}_{attribute.SemanticIndex}";
+                    }
+                    else if (attribute.SemanticName is "TEXCOORD" or "COLOR")
                     {
                         accessorName = $"{accessorName}_{attributeCounter}";
                     }
