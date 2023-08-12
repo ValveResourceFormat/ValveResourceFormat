@@ -372,6 +372,18 @@ namespace ValveResourceFormat.ResourceTypes
             return null;
         }
 
+        internal byte[] ReadRawPNG()
+        {
+            if (Format is VTexFormat.PNG_DXT5 or VTexFormat.PNG_RGBA8888)
+            {
+                Reader.BaseStream.Position = DataOffset;
+                SkipMipmaps();
+                return Reader.ReadBytes(CalculatePngSize());
+            }
+
+            return null;
+        }
+
         public SKBitmap GenerateBitmap(uint depth = 0, CubemapFace face = 0)
         {
             if (depth >= Depth)

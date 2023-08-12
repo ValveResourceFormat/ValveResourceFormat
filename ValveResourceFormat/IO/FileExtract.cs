@@ -155,7 +155,16 @@ namespace ValveResourceFormat.IO
                     {
                         if (IsChildResource(resource))
                         {
-                            using var bitmap = ((Texture)resource.DataBlock).GenerateBitmap();
+                            var tex = (Texture)resource.DataBlock;
+                            var png = tex.ReadRawPNG();
+
+                            if (png != null)
+                            {
+                                contentFile.Data = png;
+                                break;
+                            }
+
+                            using var bitmap = tex.GenerateBitmap();
                             contentFile.Data = TextureExtract.ToPngImage(bitmap);
                             break;
                         }
