@@ -382,13 +382,23 @@ public sealed class MapExtract
             WorldLayers.Add(layer);
         }
 
-        // Add any non-base world layer to the document
+        // Add any non-default world layer to the document
         foreach (var layerNode in layerNodes)
         {
             if (layerNode != MapDocument.World)
             {
                 MapDocument.World.Children.Add(layerNode);
             }
+        }
+
+        MapNode GetWorldLayerNode(int layerIndex, List<MapNode> layerNodes)
+        {
+            if (layerIndex > -1)
+            {
+                return layerNodes[layerIndex];
+            }
+
+            return MapDocument.World;
         }
 
         static void AddChildMaybeGrouped(MapNode node, MapNode child, string groupName)
@@ -410,19 +420,39 @@ public sealed class MapExtract
             node.Children.Add(child);
         }
 
-        void StaticPropFinalize(BaseEntity propStatic, int layerIndex, List<MapNode> layerNodes, bool isBakedToWorld)
+        void StaticPropFinalize(MapNode node, int layerIndex, List<MapNode> layerNodes, bool isBakedToWorld)
         {
-            MapNode destNode = MapDocument.World;
-            if (layerIndex > -1)
-            {
-                destNode = layerNodes[layerIndex];
-            }
+            var destNode = GetWorldLayerNode(layerIndex, layerNodes);
 
+            // Only use this group in the base world layer
             var bakedGroup = isBakedToWorld && destNode == MapDocument.World
                 ? "Baked World Models"
                 : null;
 
-            AddChildMaybeGrouped(destNode, propStatic, bakedGroup);
+            AddChildMaybeGrouped(destNode, node, bakedGroup);
+        }
+
+        void SetTintAlpha(BaseEntity entity, Vector4 tint)
+        {
+            var color32 = unchecked(new byte[] { (byte)tint.X, (byte)tint.Y, (byte)tint.Z, (byte)tint.W });
+
+            if (entity is CMapInstance instance)
+            {
+                instance.TintColor = Datamodel.Color.FromBytes(color32);
+                return;
+            }
+
+            entity.EntityProperties["rendercolor"] = $"{color32[0]} {color32[1]} {color32[2]}";
+            entity.EntityProperties["renderamt"] = color32[3].ToString(CultureInfo.InvariantCulture);
+        }
+
+        void SetPropertiesFromFlags(BaseEntity prop, ObjectTypeFlags fragmentFlags)
+        {
+            var properties = prop.EntityProperties;
+            properties["renderwithdynamic"] = StringBool(fragmentFlags.HasFlag(ObjectTypeFlags.RenderWithDynamic));
+            properties["rendertocubemaps"] = StringBool(fragmentFlags.HasFlag(ObjectTypeFlags.RenderToCubemaps));
+            properties["disableshadows"] = StringBool(fragmentFlags.HasFlag(ObjectTypeFlags.NoShadows));
+            properties["disableinlowquality"] = StringBool(fragmentFlags.HasFlag(ObjectTypeFlags.DisabledInLowQuality));
         }
 
         void SceneObjectToStaticProp(IKeyValueCollection sceneObject, int layerIndex, List<MapNode> layerNodes)
@@ -451,12 +481,23 @@ public sealed class MapExtract
 
             var fadeStartDistance = sceneObject.GetProperty<double>("m_flFadeStartDistance");
             var fadeEndDistance = sceneObject.GetProperty<double>("m_flFadeEndDistance");
-            //propStatic.EntityProperties["fademindist"] = fadeStartDistance.ToString(CultureInfo.InvariantCulture);
-            //propStatic.EntityProperties["fademaxdist"] = fadeEndDistance.ToString(CultureInfo.InvariantCulture);
+            if (fadeStartDistance > 0)
+            {
+                propStatic.EntityProperties["fademindist"] = fadeStartDistance.ToString(CultureInfo.InvariantCulture);
+                propStatic.EntityProperties["fademaxdist"] = fadeEndDistance.ToString(CultureInfo.InvariantCulture);
+            }
 
             var tintColor = sceneObject.GetSubCollection("m_vTintColor").ToVector4();
-            //propStatic.EntityProperties["rendercolor"] = $"{tintColor.X} {tintColor.Y} {tintColor.Z}";
-            //propStatic.EntityProperties["renderamt"] = tintColor.W.ToString(CultureInfo.InvariantCulture);
+            if (tintColor != Vector4.Zero)
+            {
+                SetTintAlpha(propStatic, tintColor * 255f);
+            }
+
+            /* // TODO: check for values being 0
+            if (!sceneObject.ContainsKey("m_nLightProbeVolumePrecomputedHandshake") || !sceneObject.ContainsKey("m_nCubeMapPrecomputedHandshake"))
+            {
+                propStatic.EntityProperties["precomputelightprobes"] = StringBool(false);
+            }*/
 
             var skin = sceneObject.GetProperty<string>("m_skin");
             if (!string.IsNullOrEmpty(skin))
@@ -464,8 +505,7 @@ public sealed class MapExtract
                 propStatic.EntityProperties["skin"] = skin;
             }
 
-            propStatic.EntityProperties["rendertocubemaps"] = StringBool(objectFlags.HasFlag(ObjectTypeFlags.RenderToCubemaps));
-            propStatic.EntityProperties["disableshadows"] = StringBool(objectFlags.HasFlag(ObjectTypeFlags.NoShadows));
+            SetPropertiesFromFlags(propStatic, objectFlags);
 
             var isEmbeddedModel = false;
             if (!objectFlags.HasFlag(ObjectTypeFlags.Model))
@@ -489,17 +529,82 @@ public sealed class MapExtract
             var anyFlags = agg.GetEnumValue<ObjectTypeFlags>("m_anyFlags", normalize: true);
             var allFlags = agg.GetEnumValue<ObjectTypeFlags>("m_allFlags", normalize: true);
 
-            var propStatic = new CMapEntity()
-                .WithClassName("prop_static")
-                .WithProperty("model", modelName)
-                .WithProperty("baketoworld", StringBool(true));
+            var aggregateMeshes = agg.GetArray("m_aggregateMeshes");
 
             AssetReferences.Add(modelName);
             ModelsToExtract.Add(modelName);
 
-            // TODO: Split aggregate into fragment models
+            var transformIndex = 0;
+            var fragmentTransforms = agg.ContainsKey("m_fragmentTransforms")
+                ? agg.GetArray("m_fragmentTransforms")
+                : Array.Empty<IKeyValueCollection>();
 
-            StaticPropFinalize(propStatic, layerIndex, layerNodes, true);
+            BaseEntity NewPropStatic() => new CMapEntity()
+                .WithClassName("prop_static")
+                .WithProperty("model", modelName)
+                .WithProperty("baketoworld", StringBool(true));
+
+            var UseHammerInstances = false;
+            CMapGroup instanceGroup = null;
+
+            foreach (var fragment in aggregateMeshes)
+            {
+                var instance = NewPropStatic();
+                var tint = Vector3.One * 255f;
+                var alpha = 255f;
+
+                var fragmentFlags = fragment.GetEnumValue<ObjectTypeFlags>("m_objectFlags", normalize: true);
+                SetPropertiesFromFlags(instance, fragmentFlags);
+
+                if (fragment.ContainsKey("m_vTintColor"))
+                {
+                    tint = fragment.GetSubCollection("m_vTintColor").ToVector3();
+                }
+
+                if (fragmentTransforms.Length == 0)
+                {
+                    // TODO: Split aggregate into fragment models (each draw call separate)
+                    SetTintAlpha(instance, new Vector4(tint, alpha));
+                    StaticPropFinalize(instance, layerIndex, layerNodes, true);
+                    break;
+                }
+                else
+                {
+                    if (instanceGroup is null)
+                    {
+                        instanceGroup = new CMapGroup
+                        {
+                            Name = "[Instances] " + Path.GetFileNameWithoutExtension(modelName),
+                        };
+
+                        if (UseHammerInstances)
+                        {
+                            // One shared prop when using hammer instances
+                            instanceGroup.Children.Add(instance);
+                        }
+
+                        // Add group to world
+                        GetWorldLayerNode(layerIndex, layerNodes).Children.Add(instanceGroup);
+                    }
+
+                    if (UseHammerInstances)
+                    {
+                        instance = new CMapInstance() { Target = instanceGroup };
+                        GetWorldLayerNode(layerIndex, layerNodes).Children.Add(instance);
+                    }
+                    else
+                    {
+                        // Keep adding new props to the group
+                        instanceGroup.Children.Add(instance);
+                    }
+
+                    var transform = fragmentTransforms[transformIndex++].ToMatrix4x4();
+
+                    // Instance properties TODO: angles, scales
+                    instance.Origin = transform.Translation;
+                    SetTintAlpha(instance, new Vector4(tint, alpha));
+                }
+            }
         }
 
         for (var i = 0; i < node.SceneObjects.Count; i++)
@@ -741,8 +846,13 @@ public sealed class MapExtract
 
     private static string PropertyToEditString(EntityLump.EntityProperty property)
     {
-        var type = property.Type;
+        //var type = property.Type;
         var data = property.Data;
+        return ToEditString(data);
+    }
+
+    private static string ToEditString(object data)
+    {
         return data switch
         {
             string str => str,

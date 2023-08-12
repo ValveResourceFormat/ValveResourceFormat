@@ -178,6 +178,16 @@ internal class CMapEntity : BaseEntity
     public bool IsProceduralEntity { get; set; }
 }
 
+[CamelCaseProperties]
+internal class CMapInstance : BaseEntity
+{
+    /// <summary>
+    /// A target <see cref="CMapGroup"/> to instance. With custom tint and transform.
+    /// </summary>
+    public DMElement Target { get; set; }
+    public Datamodel.Color TintColor { get; set; } = new Datamodel.Color(255, 255, 255, 255);
+}
+
 internal class CMapGroup : MapNode
 {
 }
