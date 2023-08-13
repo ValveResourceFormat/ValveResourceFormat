@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.CompiledShader;
@@ -6,105 +7,65 @@ namespace ValveResourceFormat.ResourceTypes
 {
     public class SboxShader : ResourceData
     {
+        public override BlockType Type { get; }
         public ShaderCollection Shaders { get; } = new ShaderCollection();
+
+        record struct OnDiskShaderFile(VcsProgramType Type, uint Offset, uint Size);
+
+        public SboxShader()
+        {
+            // Older files use a DATA block which is equivalent to the newer DXBC
+            Type = BlockType.DATA;
+        }
+
+        public SboxShader(BlockType platformBlockType)
+        {
+            Type = platformBlockType;
+        }
 
         public override void Read(BinaryReader reader, Resource resource)
         {
             reader.BaseStream.Position = Offset;
 
-            var featuresOffset = reader.ReadUInt32();
-            var featuresSize = reader.ReadUInt32();
-            var vertexOffset = reader.ReadUInt32();
-            var vertexSize = reader.ReadUInt32();
-            var pixelOffset = reader.ReadUInt32();
-            var pixelSize = reader.ReadUInt32();
-            var geometryOffset = reader.ReadUInt32();
-            var geometrySize = reader.ReadUInt32();
-            var hullOffset = reader.ReadUInt32();
-            var hullSize = reader.ReadUInt32();
-            var domainOffset = reader.ReadUInt32();
-            var domainSize = reader.ReadUInt32();
-            var computeOffset = reader.ReadUInt32();
-            var computeSize = reader.ReadUInt32();
+            const int ShaderFileCount = (int)VcsProgramType.ComputeShader;
+            Span<OnDiskShaderFile> shaderFiles = stackalloc OnDiskShaderFile[ShaderFileCount + 1];
+
+            for (var i = 0; i <= ShaderFileCount; i++)
+            {
+                shaderFiles[i].Type = (VcsProgramType)i;
+                shaderFiles[i].Offset = reader.ReadUInt32();
+                shaderFiles[i].Size = reader.ReadUInt32();
+            }
 
             var shaderName = Path.GetFileNameWithoutExtension(resource.FileName);
-
-            if (featuresOffset != 0)
+            var shaderModelType = VcsShaderModelType._50;
+            var platformType = Type switch
             {
-                reader.BaseStream.Position = Offset + featuresOffset;
-                var features = new ShaderFile { IsSbox = true };
+                BlockType.DATA or BlockType.DXBC => VcsPlatformType.PC,
+                BlockType.SPRV => VcsPlatformType.VULKAN,
+                _ => throw new InvalidDataException($"Unable to read {nameof(SboxShader)} constructed with an unknown block type: {Type}"),
+            };
 
-                features.Read(
-                    $"{shaderName}_pc_50_features.vcs",
-                    new MemoryStream(reader.ReadBytes((int)featuresSize))
-                );
-                Shaders.Add(features);
+            string GetVcsCompatibleFileName(VcsProgramType programType)
+            {
+                return ShaderUtilHelpers.ComputeVCSFileName(shaderName, programType, platformType, shaderModelType);
             }
 
-            if (vertexOffset != 0)
+            foreach (var onDiskShaderFile in shaderFiles)
             {
-                reader.BaseStream.Position = Offset + vertexOffset;
-                var vertex = new ShaderFile { IsSbox = true };
-                vertex.Read(
-                    $"{shaderName}_pc_50_vs.vcs",
-                    new MemoryStream(reader.ReadBytes((int)vertexSize))
-                );
-                Shaders.Add(vertex);
-            }
+                if (onDiskShaderFile.Offset == 0)
+                {
+                    continue;
+                }
 
-            if (pixelOffset != 0)
-            {
-                reader.BaseStream.Position = Offset + pixelOffset;
-                var pixel = new ShaderFile { IsSbox = true };
-                pixel.Read(
-                    $"{shaderName}_pc_50_ps.vcs",
-                    new MemoryStream(reader.ReadBytes((int)pixelSize))
-                );
-                Shaders.Add(pixel);
-            }
+                reader.BaseStream.Position = Offset + onDiskShaderFile.Offset;
 
-            if (geometryOffset != 0)
-            {
-                reader.BaseStream.Position = Offset + geometryOffset;
-                var geometry = new ShaderFile { IsSbox = true };
-                geometry.Read(
-                    $"{shaderName}_pc_50_gs.vcs",
-                    new MemoryStream(reader.ReadBytes((int)geometrySize))
-                );
-                Shaders.Add(geometry);
-            }
+                var name = GetVcsCompatibleFileName(onDiskShaderFile.Type);
+                var stream = new MemoryStream(reader.ReadBytes((int)onDiskShaderFile.Size));
 
-            if (hullOffset != 0)
-            {
-                reader.BaseStream.Position = Offset + hullOffset;
-                var hull = new ShaderFile { IsSbox = true };
-                hull.Read(
-                    $"{shaderName}_pc_50_hs.vcs",
-                    new MemoryStream(reader.ReadBytes((int)hullSize))
-                );
-                Shaders.Add(hull);
-            }
-
-            if (domainOffset != 0)
-            {
-                reader.BaseStream.Position = Offset + domainOffset;
-                var domain = new ShaderFile { IsSbox = true };
-                domain.Read(
-                    $"{shaderName}_pc_50_ds.vcs",
-                    new MemoryStream(reader.ReadBytes((int)domainSize))
-                );
-                Shaders.Add(domain);
-            }
-
-            if (computeOffset != 0)
-            {
-                reader.BaseStream.Position = Offset + computeOffset;
-                var compute = new ShaderFile { IsSbox = true };
-                compute.Read(
-                    $"{shaderName}_pc_50_cs.vcs",
-                    new MemoryStream(reader.ReadBytes((int)computeSize))
-                );
-                Shaders.Add(compute);
+                var shaderFile = new ShaderFile { IsSbox = true };
+                shaderFile.Read(name, stream);
+                Shaders.Add(shaderFile);
             }
         }
 

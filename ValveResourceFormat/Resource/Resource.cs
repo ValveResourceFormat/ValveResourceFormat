@@ -391,6 +391,8 @@ namespace ValveResourceFormat
                 nameof(BlockType.ASEQ) => new KeyValuesOrNTRO(BlockType.ASEQ, "SequenceGroupResourceData_t"),
                 nameof(BlockType.AGRP) => new KeyValuesOrNTRO(BlockType.AGRP, "AnimationGroupResourceData_t"),
                 nameof(BlockType.PHYS) => new PhysAggregateData(BlockType.PHYS),
+                nameof(BlockType.DXBC) => new SboxShader(BlockType.DXBC),
+                nameof(BlockType.SPRV) => new SboxShader(BlockType.SPRV),
                 _ => throw new ArgumentException($"Unrecognized block type '{input}'"),
             };
         }

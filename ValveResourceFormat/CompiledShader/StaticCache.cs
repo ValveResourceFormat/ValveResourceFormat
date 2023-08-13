@@ -24,7 +24,7 @@ namespace ValveResourceFormat.CompiledShader
         /// <summary>
         ///  A ZFrame file cache with a set maximum size, trimmed on a LRU basis.
         /// </summary>
-        /// <param name="shader">Shader file to read zframes from. Object will be used as a reading lock.</param>
+        /// <param name="shader">Shader file to read zframes from. This reference will be used as a reading lock.</param>
         public StaticCache(ShaderFile shader)
         {
             shaderFile = shader;

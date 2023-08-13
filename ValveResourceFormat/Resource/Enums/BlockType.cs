@@ -22,5 +22,7 @@ namespace ValveResourceFormat
         SrMa,
         LaCo,
         STAT,
+        DXBC,
+        SPRV,
     }
 }

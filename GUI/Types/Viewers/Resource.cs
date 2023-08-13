@@ -391,9 +391,14 @@ namespace GUI.Types.Viewers
 
                 case ResourceType.Shader:
                     {
-                        var shaderFileContainer = (SboxShader)resource.DataBlock;
-                        var extract = new ShaderExtract(resource);
-                        IViewer.AddContentTab<Func<string>>(resTabs, extract.GetVfxFileName(), extract.ToVFX, true);
+                        var collectionBlock = resource.GetBlockByType(BlockType.SPRV)
+                            ?? resource.GetBlockByType(BlockType.DXBC)
+                            ?? resource.GetBlockByType(BlockType.DATA);
+
+                        var extract = new ShaderExtract((SboxShader)collectionBlock);
+                        var tabName = extract.GetVfxFileName();
+
+                        IViewer.AddContentTab<Func<string>>(resTabs, tabName, extract.ToVFX, true);
                         break;
                     }
             }
