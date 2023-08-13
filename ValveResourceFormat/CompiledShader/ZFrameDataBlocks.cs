@@ -12,7 +12,7 @@ namespace ValveResourceFormat.CompiledShader
 
         public byte[] Dataload { get; }
         public WriteSeqField[] Fields { get; }
-        public IReadOnlyList<WriteSeqField> Segment0 => Fields[..H1];
+        public IReadOnlyList<WriteSeqField> Evaluated => Fields[..H1];
         public IReadOnlyList<WriteSeqField> Segment1 => Fields[H1..H2];
         public IReadOnlyList<WriteSeqField> Globals => Fields[H2..];
 

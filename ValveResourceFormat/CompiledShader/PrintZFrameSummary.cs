@@ -177,7 +177,7 @@ namespace ValveResourceFormat.CompiledShader
 
         private void PrintParamWriteSequence(ZDataBlock dataBlock, OutputFormatterTabulatedData tabulatedData)
         {
-            PrintParamWriteSequenceSegment(dataBlock.Segment0, 0, tabulatedData);
+            PrintParamWriteSequenceSegment(dataBlock.Evaluated, 0, tabulatedData);
             PrintParamWriteSequenceSegment(dataBlock.Segment1, 1, tabulatedData);
             PrintParamWriteSequenceSegment(dataBlock.Globals, 2, tabulatedData);
         }
@@ -186,6 +186,7 @@ namespace ValveResourceFormat.CompiledShader
         {
             var segmentDesc = segId switch
             {
+                0 => "Evaluated",
                 2 => "_Globals_",
                 _ => "seg_" + segId
             };
