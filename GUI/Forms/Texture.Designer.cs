@@ -1,5 +1,6 @@
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using GUI.Controls;
 using ValveResourceFormat.CompiledShader;
 
 namespace GUI.Forms
@@ -45,7 +46,7 @@ namespace GUI.Forms
         {
             this.components = new System.ComponentModel.Container();
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Texture));
-            this.pictureBox1 = new System.Windows.Forms.PictureBox();
+            this.pictureBox1 = new ProPictureBox();
             this.contextMenuStrip1 = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.saveAsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripSeparator1 = new System.Windows.Forms.ToolStripSeparator();
@@ -181,7 +182,7 @@ namespace GUI.Forms
 
         #endregion
 
-        private System.Windows.Forms.PictureBox pictureBox1;
+        private ProPictureBox pictureBox1;
         private System.Windows.Forms.ContextMenuStrip contextMenuStrip1;
         private System.Windows.Forms.ToolStripMenuItem saveAsToolStripMenuItem;
         private ToolStripSeparator toolStripSeparator1;
