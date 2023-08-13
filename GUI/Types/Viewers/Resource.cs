@@ -273,176 +273,130 @@ namespace GUI.Types.Viewers
                     }
                 }
 
-                var tab2 = new TabPage(block.Type.ToString());
+                var blockTab = new TabPage(block.Type.ToString());
+
                 try
                 {
-                    var control = new MonospaceTextBox();
-
-                    if (block.Type == BlockType.DATA)
-                    {
-                        if (block is BinaryKV3 blockKeyvalues)
-                        {
-                            // Wrap it around a KV3File object to get the header.
-                            control.Text = blockKeyvalues.GetKV3File().ToString().ReplaceLineEndings();
-                        }
-                        else
-                        {
-                            if (resource.ResourceType == ResourceType.Sound)
-                            {
-                                control.Text = ((Sound)block).ToString().ReplaceLineEndings();
-                            }
-                            else
-                            {
-                                control.Text = block.ToString().ReplaceLineEndings();
-                            }
-                        }
-                    }
-                    else
-                    {
-                        control.Text = block.ToString().ReplaceLineEndings();
-                    }
-
-                    tab2.Controls.Add(control);
+                    AddTextViewControl(resource, block, blockTab);
                 }
                 catch (Exception e)
                 {
                     Console.WriteLine(e);
-
-                    var bv = new System.ComponentModel.Design.ByteViewer
-                    {
-                        Dock = DockStyle.Fill
-                    };
-                    tab2.Controls.Add(bv);
-
-                    Program.MainForm.Invoke((MethodInvoker)(() =>
-                    {
-                        resource.Reader.BaseStream.Position = block.Offset;
-                        bv.SetBytes(resource.Reader.ReadBytes((int)block.Size));
-                    }));
+                    AddByteViewControl(resource, block, blockTab);
                 }
 
-                resTabs.TabPages.Add(tab2);
+                resTabs.TabPages.Add(blockTab);
 
-                static void VcsShaderResourceBridge(TabControl resTabs, SboxShader sboxShader)
+                if (block.Type == BlockType.DATA && selectData)
                 {
-                    var shaderTab = new TabPage("Embedded Shader");
-                    var shaderTabControl = new TabControl
-                    {
-                        Dock = DockStyle.Fill,
-                    };
-
-                    shaderTab.Controls.Add(shaderTabControl);
-                    resTabs.TabPages.Add(shaderTab);
-
-                    foreach (var shader in sboxShader.Shaders)
-                    {
-                        if (shader is null)
-                        {
-                            continue;
-                        }
-
-                        var sb = new StringBuilder();
-                        shader.PrintSummary((x) => sb.Append(x), true);
-                        IViewer.AddContentTab(shaderTabControl, shader.VcsProgramType.ToString(), sb.ToString());
-
-                        if (shader.GetZFrameCount() > 0)
-                        {
-                            for (var i = 0; i < Math.Min(4, shader.GetZFrameCount()); i++)
-                            {
-                                var zframeFile = shader.GetZFrameFileByIndex(i);
-                                using var sw = new StringWriter();
-                                var zframeSummary = new PrintZFrameSummary(shader, zframeFile, sw.Write, true);
-                                IViewer.AddContentTab(shaderTabControl, $"Z{i}", sw.ToString());
-                            }
-                        }
-                    }
-                }
-
-                if (block.Type != BlockType.DATA)
-                {
-                    continue;
-                }
-
-                if (selectData)
-                {
-                    resTabs.SelectTab(tab2);
-                }
-
-                try
-                {
-                    switch (resource.ResourceType)
-                    {
-                        case ResourceType.Material:
-                            var vmatTab = IViewer.AddContentTab(resTabs, "Reconstructed vmat", new MaterialExtract(resource).ToValveMaterial());
-                            var textBox = (MonospaceTextBox)vmatTab.Controls[0];
-                            Task.Run(() => textBox.Text = new MaterialExtract(resource, vrfGuiContext.FileLoader).ToValveMaterial().ReplaceLineEndings());
-                            break;
-
-                        case ResourceType.EntityLump:
-                            IViewer.AddContentTab(resTabs, "Entities", ((EntityLump)block).ToEntityDumpString());
-                            break;
-
-                        case ResourceType.PostProcessing:
-                            IViewer.AddContentTab(resTabs, "Reconstructed vpost", ((PostProcessing)block).ToValvePostProcessing());
-                            break;
-
-                        case ResourceType.Texture:
-                            {
-                                if (FileExtract.IsChildResource(resource))
-                                {
-                                    break;
-                                }
-
-                                var textureExtract = new TextureExtract(resource);
-                                IViewer.AddContentTab(resTabs, "Reconstructed vtex", textureExtract.ToValveTexture());
-
-                                if (textureExtract.TryGetMksData(out var _, out var mks))
-                                {
-                                    IViewer.AddContentTab(resTabs, "Reconstructed mks", mks);
-                                }
-
-                                break;
-                            }
-
-                        case ResourceType.Snap:
-                            {
-                                if (!FileExtract.IsChildResource(resource))
-                                {
-                                    IViewer.AddContentTab(resTabs, "Reconstructed vsnap", new SnapshotExtract(resource).ToValveSnap());
-                                }
-
-                                break;
-                            }
-
-                        case ResourceType.Shader:
-                            var shaderFileContainer = (SboxShader)block;
-                            var extract = new ShaderExtract(resource);
-                            VcsShaderResourceBridge(resTabs, shaderFileContainer);
-                            IViewer.AddContentTab<Func<string>>(resTabs, extract.GetVfxFileName(), extract.ToVFX, true);
-                            break;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    var control = new MonospaceTextBox
-                    {
-                        Text = ex.ToString(),
-                    };
-
-                    var tabEx = new TabPage("Exception");
-                    tabEx.Controls.Add(control);
-                    resTabs.TabPages.Add(tabEx);
+                    resTabs.SelectTab(blockTab);
                 }
             }
 
-            if (resource.ResourceType == ResourceType.EntityLump)
+            try
             {
-                resTabs.SelectTab(resTabs.TabCount - 1);
+                AddReconstructedContentTab(vrfGuiContext, resource, resTabs);
+            }
+            catch (Exception ex)
+            {
+                var control = new MonospaceTextBox
+                {
+                    Text = ex.ToString(),
+                };
+
+                var tabEx = new TabPage("Decompile Error");
+                tabEx.Controls.Add(control);
+                resTabs.TabPages.Add(tabEx);
             }
 
             tab.Controls.Add(resTabs);
 
             return tab;
+        }
+
+        private static void AddByteViewControl(ValveResourceFormat.Resource resource, Block block, TabPage tab2)
+        {
+            var bv = new System.ComponentModel.Design.ByteViewer
+            {
+                Dock = DockStyle.Fill
+            };
+            tab2.Controls.Add(bv);
+
+            Program.MainForm.Invoke((MethodInvoker)(() =>
+            {
+                resource.Reader.BaseStream.Position = block.Offset;
+                bv.SetBytes(resource.Reader.ReadBytes((int)block.Size));
+            }));
+        }
+
+        private static void AddTextViewControl(ValveResourceFormat.Resource resource, Block block, TabPage tab2)
+        {
+            if (resource.ResourceType == ResourceType.Shader && block is SboxShader shaderBlock)
+            {
+                // TODO: Add CompiledShader.ShaderTabControl
+                //return;
+            }
+
+            var textBox = new MonospaceTextBox();
+            tab2.Controls.Add(textBox);
+
+            textBox.Text = block.ToString().ReplaceLineEndings();
+        }
+
+        private static void AddReconstructedContentTab(VrfGuiContext vrfGuiContext, ValveResourceFormat.Resource resource, TabControl resTabs)
+        {
+            switch (resource.ResourceType)
+            {
+                case ResourceType.Material:
+                    var vmatTab = IViewer.AddContentTab(resTabs, "Reconstructed vmat", new MaterialExtract(resource).ToValveMaterial());
+                    var textBox = (MonospaceTextBox)vmatTab.Controls[0];
+                    Task.Run(() => textBox.Text = new MaterialExtract(resource, vrfGuiContext.FileLoader).ToValveMaterial().ReplaceLineEndings());
+                    break;
+
+                case ResourceType.EntityLump:
+                    IViewer.AddContentTab(resTabs, "Entities", ((EntityLump)resource.DataBlock).ToEntityDumpString(), true);
+                    break;
+
+                case ResourceType.PostProcessing:
+                    IViewer.AddContentTab(resTabs, "Reconstructed vpost", ((PostProcessing)resource.DataBlock).ToValvePostProcessing());
+                    break;
+
+                case ResourceType.Texture:
+                    {
+                        if (FileExtract.IsChildResource(resource))
+                        {
+                            break;
+                        }
+
+                        var textureExtract = new TextureExtract(resource);
+                        IViewer.AddContentTab(resTabs, "Reconstructed vtex", textureExtract.ToValveTexture());
+
+                        if (textureExtract.TryGetMksData(out var _, out var mks))
+                        {
+                            IViewer.AddContentTab(resTabs, "Reconstructed mks", mks);
+                        }
+
+                        break;
+                    }
+
+                case ResourceType.Snap:
+                    {
+                        if (!FileExtract.IsChildResource(resource))
+                        {
+                            IViewer.AddContentTab(resTabs, "Reconstructed vsnap", new SnapshotExtract(resource).ToValveSnap());
+                        }
+
+                        break;
+                    }
+
+                case ResourceType.Shader:
+                    {
+                        var shaderFileContainer = (SboxShader)resource.DataBlock;
+                        var extract = new ShaderExtract(resource);
+                        IViewer.AddContentTab<Func<string>>(resTabs, extract.GetVfxFileName(), extract.ToVFX, true);
+                        break;
+                    }
+            }
         }
 
         private static void AddTexture(VrfGuiContext vrfGuiContext, ValveResourceFormat.Resource resource, TabControl resTabs)

@@ -22,15 +22,17 @@ namespace ValveResourceFormat.Serialization.KeyValues
             Format = format;
         }
 
+        public void WriteText(IndentedTextWriter writer)
+        {
+            writer.WriteLine(string.Format("<!-- kv3 encoding:{0} format:{1} -->", Encoding, Format));
+            Root.Serialize(writer);
+        }
+
         public override string ToString()
         {
-            using (var writer = new IndentedTextWriter())
-            {
-                writer.WriteLine(string.Format("<!-- kv3 encoding:{0} format:{1} -->", Encoding, Format));
-                Root.Serialize(writer);
-
-                return writer.ToString();
-            }
+            using var writer = new IndentedTextWriter();
+            WriteText(writer);
+            return writer.ToString();
         }
     }
 }

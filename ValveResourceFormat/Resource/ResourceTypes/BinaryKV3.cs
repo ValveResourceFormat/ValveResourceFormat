@@ -864,7 +864,7 @@ namespace ValveResourceFormat.ResourceTypes
 
         public override void WriteText(IndentedTextWriter writer)
         {
-            Data.Serialize(writer);
+            GetKV3File().WriteText(writer);
         }
     }
 }
