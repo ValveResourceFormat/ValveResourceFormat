@@ -21,7 +21,8 @@ namespace GUI.Types.Viewers
         {
             return magic == ShaderFile.MAGIC;
         }
-        class ShaderTabControl : TabControl
+
+        public class ShaderTabControl : TabControl
         {
             public ShaderTabControl() : base() { }
             protected override void OnKeyDown(KeyEventArgs ke)
@@ -37,43 +38,87 @@ namespace GUI.Types.Viewers
                     }
                 }
             }
+
+            public TabPage CreateShaderFileTab(ShaderCollection collection, VcsProgramType shaderFileType,
+                bool showHelpText = false, string tabName = null)
+            {
+                var tab = new TabPage(tabName ?? shaderFileType.ToString());
+                var shaderRichTextBox = new ShaderRichTextBox(shaderFileType, this, collection);
+                tab.Controls.Add(shaderRichTextBox);
+
+                shaderRichTextBox.MouseEnter += new EventHandler(MouseEnterHandler);
+
+                if (showHelpText)
+                {
+                    var helpText = "[ctrl+click to open links in a new tab, ESC or right-click on tabs to close]\n\n";
+                    shaderRichTextBox.Text = $"{helpText}{shaderRichTextBox.Text}";
+                }
+
+                Controls.Add(tab);
+                return tab;
+            }
+
+            public bool TryAddUniqueTab(ShaderCollection collection, VcsProgramType shaderFileType, out TabPage newShaderTab)
+            {
+                var tabName = shaderFileType.ToString();
+                if (TabPages.Cast<TabPage>().FirstOrDefault(t => t.Text == tabName) is TabPage existing)
+                {
+                    newShaderTab = existing;
+                    return false;
+                }
+
+                newShaderTab = CreateShaderFileTab(collection, shaderFileType);
+                return true;
+            }
         }
 
         private ShaderTabControl tabControl;
         private ShaderCollection shaderCollection;
 
+        public static string SpvToHlsl(VulkanSource v, ShaderCollection c, VcsProgramType s, long z, long d)
+            => AttemptSpirvReflection(v, c, s, z, d, spvc_backend.SPVC_BACKEND_HLSL);
+
         public TabPage Create(VrfGuiContext vrfGuiContext, byte[] input)
         {
             shaderCollection = GetShaderCollection(vrfGuiContext.FileName, vrfGuiContext.CurrentPackage);
+
+            SetShaderTabControl();
+
+            var tab = new TabPage();
+            tab.Controls.Add(tabControl);
+
             var filename = Path.GetFileName(vrfGuiContext.FileName);
             var leadFileType = ComputeVCSFileName(filename).ProgramType;
-            var tab = new TabPage();
+
+            tabControl.CreateShaderFileTab(shaderCollection, leadFileType);
+
+            var extract = new ShaderExtract(shaderCollection)
+            {
+                SpirvCompiler = SpvToHlsl,
+            };
+
+            IViewer.AddContentTab<Func<string>>(tabControl, extract.GetVfxFileName(), extract.ToVFX, true);
+
+            return tab;
+        }
+
+        public ShaderTabControl SetResourceBlockTabControl(TabPage blockTab, ShaderCollection shaders)
+        {
+            shaderCollection = shaders;
+            SetShaderTabControl();
+            blockTab.Controls.Add(tabControl);
+
+            return tabControl;
+        }
+
+        void SetShaderTabControl()
+        {
             tabControl = new ShaderTabControl
             {
                 Dock = DockStyle.Fill,
             };
 
             tabControl.MouseClick += new MouseEventHandler(OnTabClick);
-            var mainFileTab = new TabPage(Path.GetFileName(vrfGuiContext.FileName));
-            var shaderRichTextBox = new ShaderRichTextBox(leadFileType, tabControl, shaderCollection);
-            mainFileTab.Controls.Add(shaderRichTextBox);
-            tabControl.Controls.Add(mainFileTab);
-            tab.Controls.Add(tabControl);
-            shaderRichTextBox.MouseEnter += new EventHandler(MouseEnterHandler);
-            var helpText = "[ctrl+click to open and focus links, ESC or right-click on tabs to close]\n\n";
-            shaderRichTextBox.Text = $"{helpText}{shaderRichTextBox.Text}";
-
-            var spvToHlsl = (VulkanSource v, ShaderCollection c, VcsProgramType s, long z, long d)
-                => AttemptSpirvReflection(v, c, s, z, d, spvc_backend.SPVC_BACKEND_HLSL);
-
-            var extract = new ShaderExtract(shaderCollection)
-            {
-                SpirvCompiler = spvToHlsl,
-            };
-
-            IViewer.AddContentTab<Func<string>>(tabControl, extract.GetVfxFileName(), extract.ToVFX, true);
-
-            return tab;
         }
 
         private static ShaderCollection GetShaderCollection(string targetFilename, VrfPackage vrfPackage)
@@ -177,7 +222,7 @@ namespace GUI.Types.Viewers
                 shaderCollection.Dispose();
             }
         }
-        private class ShaderRichTextBox : RichTextBox
+        public class ShaderRichTextBox : RichTextBox
         {
 #pragma warning disable CA2213
             private readonly ShaderFile shaderFile;
@@ -235,13 +280,14 @@ namespace GUI.Types.Viewers
                     }
                     else
                     {
-                        newShaderTab = new TabPage($"{programType}");
-                        var shaderRichTextBox = new ShaderRichTextBox(programType, tabControl, shaderCollection);
-                        shaderRichTextBox.MouseEnter += new EventHandler(MouseEnterHandler);
-                        newShaderTab.Controls.Add(shaderRichTextBox);
-                        tabControl.Controls.Add(newShaderTab);
+                        if (!tabControl.TryAddUniqueTab(shaderCollection, programType, out newShaderTab))
+                        {
+                            tabControl.SelectedTab = newShaderTab;
+                            return;
+                        }
                     }
-                    if ((ModifierKeys & Keys.Control) == Keys.Control)
+
+                    if (!ModifierKeys.HasFlag(Keys.Control))
                     {
                         tabControl.SelectedTab = newShaderTab;
                     }
@@ -253,7 +299,8 @@ namespace GUI.Types.Viewers
                 zframeRichTextBox.MouseEnter += new EventHandler(MouseEnterHandler);
                 zframeTab.Controls.Add(zframeRichTextBox);
                 tabControl.Controls.Add(zframeTab);
-                if ((ModifierKeys & Keys.Control) == Keys.Control)
+
+                if (!ModifierKeys.HasFlag(Keys.Control))
                 {
                     tabControl.SelectedTab = zframeTab;
                 }
@@ -474,7 +521,7 @@ namespace GUI.Types.Viewers
 
                 SpirvCrossApi.spvc_compiler_install_compiler_options(compiler, options);
 
-                SpirvCrossApi.spvc_compiler_compile(compiler, out var code);
+                SpirvCrossApi.spvc_compiler_compile(compiler, out var code).CheckResult();
 
                 buffer.WriteLine($"// SPIR-V source ({vulkanSource.MetaDataOffset}), {backend} reflection with SPIRV-Cross by KhronosGroup");
                 buffer.WriteLine($"// {ValveResourceFormat.Utils.StringToken.VRF_GENERATOR}");

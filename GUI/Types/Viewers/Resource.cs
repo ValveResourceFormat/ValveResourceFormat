@@ -314,13 +314,13 @@ namespace GUI.Types.Viewers
             return tab;
         }
 
-        private static void AddByteViewControl(ValveResourceFormat.Resource resource, Block block, TabPage tab2)
+        private static void AddByteViewControl(ValveResourceFormat.Resource resource, Block block, TabPage blockTab)
         {
             var bv = new System.ComponentModel.Design.ByteViewer
             {
                 Dock = DockStyle.Fill
             };
-            tab2.Controls.Add(bv);
+            blockTab.Controls.Add(bv);
 
             Program.MainForm.Invoke((MethodInvoker)(() =>
             {
@@ -329,16 +329,23 @@ namespace GUI.Types.Viewers
             }));
         }
 
-        private static void AddTextViewControl(ValveResourceFormat.Resource resource, Block block, TabPage tab2)
+        private static void AddTextViewControl(ValveResourceFormat.Resource resource, Block block, TabPage blockTab)
         {
             if (resource.ResourceType == ResourceType.Shader && block is SboxShader shaderBlock)
             {
-                // TODO: Add CompiledShader.ShaderTabControl
-                //return;
+                var viewer = new CompiledShader();
+                var shaderTabs = viewer.SetResourceBlockTabControl(blockTab, shaderBlock.Shaders);
+
+                foreach (var shaderFile in shaderBlock.Shaders)
+                {
+                    shaderTabs.CreateShaderFileTab(shaderBlock.Shaders, shaderFile.VcsProgramType);
+                }
+
+                return;
             }
 
             var textBox = new MonospaceTextBox();
-            tab2.Controls.Add(textBox);
+            blockTab.Controls.Add(textBox);
 
             textBox.Text = block.ToString().ReplaceLineEndings();
         }
@@ -395,10 +402,12 @@ namespace GUI.Types.Viewers
                             ?? resource.GetBlockByType(BlockType.DXBC)
                             ?? resource.GetBlockByType(BlockType.DATA);
 
-                        var extract = new ShaderExtract((SboxShader)collectionBlock);
-                        var tabName = extract.GetVfxFileName();
+                        var extract = new ShaderExtract((SboxShader)collectionBlock)
+                        {
+                            SpirvCompiler = CompiledShader.SpvToHlsl
+                        };
 
-                        IViewer.AddContentTab<Func<string>>(resTabs, tabName, extract.ToVFX, true);
+                        IViewer.AddContentTab<Func<string>>(resTabs, extract.GetVfxFileName(), extract.ToVFX, true);
                         break;
                     }
             }
