@@ -215,6 +215,13 @@ namespace ValveResourceFormat.IO
                         yield break;
                     }
 
+                    // Seems like we already undo the swizzle in texture decoder. Issue: #591
+                    if (channel.Channel == Channel.AG)
+                    {
+                        yield return (Channel.RG, textureProcessorInputs[0]);
+                        yield break;
+                    }
+
                     yield return (channel.Channel, textureProcessorInputs[0]);
                 }
             }
