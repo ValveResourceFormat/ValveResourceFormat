@@ -787,8 +787,18 @@ namespace ValveResourceFormat.IO
                     {
                         var (normals, tangents) = VBIB.GetNormalTangentArray(vertexBuffer, attribute);
 
+                        if (TryDecompressTangentFrame(data, vbib, vertexBufferIndex, ReadAttributeBuffer(vertexBuffer, attribute), out var normalsOld, out var tangentsOld))
+                        {
+                            System.Diagnostics.Debug.Assert(Enumerable.SequenceEqual(normals, normalsOld));
+                            System.Diagnostics.Debug.Assert(Enumerable.SequenceEqual(tangents, tangentsOld));
+                        }
+
+                        normals = FixZeroLengthVectors(normals);
+
                         if (tangents.Length > 0)
                         {
+                            tangents = FixZeroLengthVectors(tangents);
+
                             accessors["NORMAL"] = CreateAccessor(exportedModel, normals);
                             accessors["TANGENT"] = CreateAccessor(exportedModel, tangents);
                         }
@@ -796,15 +806,11 @@ namespace ValveResourceFormat.IO
                         {
                             accessors[accessorName] = CreateAccessor(exportedModel, normals);
                         }
-
-                        if (TryDecompressTangentFrame(data, vbib, vertexBufferIndex, ReadAttributeBuffer(vertexBuffer, attribute), out var normalsOld, out var tangentsOld))
-                        {
-                            System.Diagnostics.Debug.Assert(Enumerable.SequenceEqual(normals, normalsOld));
-                            System.Diagnostics.Debug.Assert(Enumerable.SequenceEqual(tangents, tangentsOld));
-                        }
                     }
                     else if (attribute.SemanticName == "BLENDINDICES")
                     {
+                        actualJointsCount = attributeFormat.ElementCount;
+
                         var indices = VBIB.GetBlendIndicesArray(vertexBuffer, attribute);
 
                         var bufferView = exportedModel.CreateBufferView(2 * indices.Length, 0, BufferMode.ARRAY_BUFFER);
@@ -855,8 +861,15 @@ namespace ValveResourceFormat.IO
                             case 4:
                                 {
                                     var vectors = VBIB.GetVector4AttributeArray(vertexBuffer, attribute);
-                                    accessors[accessorName] = CreateAccessor(exportedModel, vectors);
+
                                     System.Diagnostics.Debug.Assert(Enumerable.SequenceEqual(vectors, ToVector4Array(ReadAttributeBuffer(vertexBuffer, attribute))));
+
+                                    if (accessorName == "TANGENT")
+                                    {
+                                        vectors = FixZeroLengthVectors(vectors);
+                                    }
+
+                                    accessors[accessorName] = CreateAccessor(exportedModel, vectors);
                                     break;
                                 }
 
@@ -883,14 +896,6 @@ namespace ValveResourceFormat.IO
                         accessor.SetVertexData(bufferView, 0, indices.Length / attributeFormat.ElementCount, dimensionType, EncodingType.UNSIGNED_SHORT, true);
                         accessors[accessorName] = accessor;
                     }
-
-                    /*
-                    // dropship.vmdl in HL:A has a tanget with value of <0, -0, 0>
-                    if (attribute.SemanticName == "NORMAL" || attribute.SemanticName == "TANGENT")
-                    {
-                        vectors = FixZeroLengthVectors(vectors);
-                    }
-                    */
                 }
 
                 if (accessors.TryGetValue("JOINTS_0", out var jointAccessor))
