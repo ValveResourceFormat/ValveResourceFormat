@@ -749,12 +749,4 @@ public class ModelExtract
 
         faceSet.Material.MaterialName = material;
     }
-
-    private static void UShortsToFloatsNormalized(ReadOnlySpan<ushort> unsignedShorts, Span<float> floats)
-    {
-        for (var i = 0; i < unsignedShorts.Length; i++)
-        {
-            floats[i] = (float)unsignedShorts[i] / ushort.MaxValue;
-        }
-    }
 }
