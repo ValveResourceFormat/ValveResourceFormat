@@ -94,7 +94,7 @@ namespace GUI.Types.Renderer
                     buffer.SetBlockBinding(shader);
                 }
 
-                context.FogInfo.SetFogUniforms(shader, context);
+                context.FogInfo.SetCubemapFogTexture(shader);
                 shader.SetUniform1("VRF_ENABLE_FOG", context.EnableFog ? 1 : 0);
 
                 foreach (var materialGroup in shaderGroup.GroupBy(a => a.Call.Material))

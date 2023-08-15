@@ -79,23 +79,43 @@ namespace GUI.Types.Renderer
 
         // Pass data to shader
 
-        public void SetFogUniforms(Shader shader, Scene.RenderContext context)
+        public UniformBuffers.ViewConstants SetFogUniforms(UniformBuffers.ViewConstants viewConstants, Vector3 worldOffset, float mapScale)
         {
             if (GradientFogActive)
             {
-                shader.SetUniform4("g_vGradientFogBiasAndScale", GradientFog.GetBiasAndScale(context.WorldOffset, context.WorldScale));
-                shader.SetUniform4("g_vGradientFogColor_Opacity", GradientFog.Color_Opacity);
-                shader.SetUniform2("m_vGradientFogExponents", GradientFog.Exponents);
-                shader.SetUniform2("g_vGradientFogCullingParams", GradientFog.CullingParams(context.WorldOffset, context.WorldScale));
+                viewConstants.GradientFogBiasAndScale = GradientFog.GetBiasAndScale(worldOffset, mapScale);
+                viewConstants.GradientFogColor_Opacity = GradientFog.Color_Opacity;
+                viewConstants.GradientFogExponents = GradientFog.Exponents;
+                viewConstants.GradientFogCullingParams = GradientFog.CullingParams(worldOffset, mapScale);
+            }
+            else // Defaults
+            {
+                viewConstants.GradientFogBiasAndScale = Vector4.Zero;
+                viewConstants.GradientFogColor_Opacity = Vector4.Zero;
+                viewConstants.GradientFogExponents = Vector2.Zero;
+                viewConstants.GradientFogCullingParams = new Vector2(float.PositiveInfinity, float.NegativeInfinity);
             }
 
             if (CubeFogActive)
             {
-                shader.SetUniform4("g_vCubeFog_Offset_Scale_Bias_Exponent", CubemapFog.OffsetScaleBiasExponent(context.WorldOffset, context.WorldScale));
-                shader.SetUniform4("g_vCubeFog_Height_Offset_Scale_Exponent_Log2Mip", CubemapFog.Height_OffsetScaleExponentLog2Mip(context.WorldOffset, context.WorldScale));
-                shader.SetUniform4("g_vCubeFogCullingParams_Opacity", CubemapFog.CullingParams_Opacity(context.WorldOffset, context.WorldScale));
-                shader.SetUniform4x4("g_matvCubeFogSkyWsToOs", CubemapFog.Transform); // transposed before?
-
+                viewConstants.CubeFog_Offset_Scale_Bias_Exponent = CubemapFog.OffsetScaleBiasExponent(worldOffset, mapScale);
+                viewConstants.CubeFog_Height_Offset_Scale_Exponent_Log2Mip = CubemapFog.Height_OffsetScaleExponentLog2Mip(worldOffset, mapScale);
+                viewConstants.CubeFogCullingParams_ExposureBias_MaxOpacity = CubemapFog.CullingParams_Opacity(worldOffset, mapScale);
+                viewConstants.CubeFogSkyWsToOs = CubemapFog.Transform;
+            }
+            else
+            {
+                viewConstants.CubeFog_Offset_Scale_Bias_Exponent = Vector4.Zero;
+                viewConstants.CubeFog_Height_Offset_Scale_Exponent_Log2Mip = Vector4.Zero;
+                viewConstants.CubeFogCullingParams_ExposureBias_MaxOpacity = new Vector4(float.PositiveInfinity, float.PositiveInfinity, 0.0f, 0.0f);
+                viewConstants.CubeFogSkyWsToOs = Matrix4x4.Identity;
+            }
+            return viewConstants;
+        }
+        public void SetCubemapFogTexture(Shader shader)
+        {
+            if (CubeFogActive)
+            {
                 shader.SetTexture((int)ReservedTextureSlots.CubemapFog, "g_tFogCubeTexture", CubemapFog.CubemapFogTexture);
             }
         }

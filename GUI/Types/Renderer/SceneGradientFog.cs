@@ -14,7 +14,6 @@ class SceneGradientFog : SceneNode
     public float Strength { get; set; }
     public float MaxOpacity { get; set; }
 
-    // TODO: don't do this every frame lol
     public Vector4 GetBiasAndScale(Vector3 mapOffset, float mapScale)
     {
         var startDist = StartDist;
@@ -23,23 +22,12 @@ class SceneGradientFog : SceneNode
         var distScale = mapScale / (endDist - startDist);
         var distBias = -(startDist * distScale) / mapScale;
 
-        float heightScale;
-        float heightBias;
-        if ((HeightStart - HeightEnd) > 0f)
-        {
-            // confusing
-            var startHeight = HeightStart + mapOffset.Z;
-            var endHeight = HeightEnd + mapOffset.Z;
+        // this might be same as cubemap fog height calculations
+        var startHeight = HeightStart - mapOffset.Z;
+        var endHeight = HeightEnd - mapOffset.Z;
 
-            heightScale = mapScale / (startHeight - endHeight);
-            heightBias = -(endHeight * heightScale) / mapScale;
-        }
-        else
-        {
-            // Despite this, the cullingparams value is unaffected
-            heightScale = float.PositiveInfinity;
-            heightBias = float.NegativeInfinity;
-        }
+        var heightScale = mapScale / (startHeight - endHeight);
+        var heightBias = -(endHeight * heightScale) / mapScale;
 
         return new Vector4(distBias, heightBias, distScale, heightScale);
     }
