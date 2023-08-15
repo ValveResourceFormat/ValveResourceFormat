@@ -1,4 +1,4 @@
-<!-- xml reconstructed by ValveResourceFormat: https://vrf.steamdb.info/ -->
+<!-- xml reconstructed by Source 2 Viewer - https://valveresourceformat.github.io -->
 <root>
 	<styles>
 		<include src="s2r://panorama/styles/dotastyles.vcss_c" />

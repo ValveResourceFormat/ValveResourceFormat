@@ -283,7 +283,7 @@ namespace GUI
             MinimumSize = new System.Drawing.Size(347, 340);
             Name = "MainForm";
             SizeGripStyle = SizeGripStyle.Show;
-            Text = "VRF";
+            Text = "Source 2 Viewer";
             Load += MainForm_Load;
             DragDrop += MainForm_DragDrop;
             DragEnter += MainForm_DragEnter;

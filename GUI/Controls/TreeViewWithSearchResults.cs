@@ -191,11 +191,11 @@ namespace GUI.Controls
 
             using var progressDialog = new GenericProgressForm
             {
-                Text = "Scanning for deleted files..."
+                Text = "Scanning for deleted files…"
             };
             progressDialog.OnProcess += (_, __) =>
             {
-                progressDialog.SetProgress("Scanning for deleted files, this may take a while...");
+                progressDialog.SetProgress("Scanning for deleted files, this may take a while…");
 
                 var foundFiles = Types.Viewers.Package.RecoverDeletedFiles(mainTreeView.VrfGuiContext.CurrentPackage, progressDialog.SetProgress);
 

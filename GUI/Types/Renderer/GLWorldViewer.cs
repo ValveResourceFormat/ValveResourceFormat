@@ -198,7 +198,7 @@ namespace GUI.Types.Renderer
                             }
                         });
 
-                        cameraComboBox.Items.Add("Set view to camera...");
+                        cameraComboBox.Items.Add("Set view to camera…");
                         cameraComboBox.SelectedIndex = 0;
                     }
 

@@ -1206,13 +1206,13 @@ namespace Decompiler
         private static string GetVersion()
         {
             var info = new StringBuilder();
-            info.Append("VRF Version: ");
+            info.Append("Version: ");
             info.AppendLine(typeof(Decompiler).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>().InformationalVersion);
             info.Append("Runtime: ");
             info.AppendLine(RuntimeInformation.FrameworkDescription);
             info.Append("OS: ");
             info.AppendLine(RuntimeInformation.OSDescription);
-            info.AppendLine("Website: https://vrf.steamdb.info");
+            info.AppendLine("Website: https://valveresourceformat.github.io");
             info.Append("GitHub: https://github.com/ValveResourceFormat/ValveResourceFormat");
             return info.ToString();
         }

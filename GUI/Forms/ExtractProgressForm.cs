@@ -101,14 +101,14 @@ namespace GUI.Forms
 
                         if (files.Count > 0)
                         {
-                            SetProgress($"Extracting {resourceType}s...");
+                            SetProgress($"Extracting {resourceType}s…");
                             await ExtractFilesAsync(files).ConfigureAwait(false);
                         }
                     }
 
                     if (filesToExtract.Count > 0)
                     {
-                        SetProgress("Extracting files...");
+                        SetProgress("Extracting files…");
                     }
                 }
 
@@ -130,7 +130,7 @@ namespace GUI.Forms
 
             Invoke(() =>
             {
-                Text = t.IsFaulted ? "VRF - Export failed, check console for details" : "VRF - Export completed";
+                Text = t.IsFaulted ? "Source 2 Viewer - Export failed, check console for details" : "Source 2 Viewer - Export completed";
                 cancelButton.Text = "Close";
                 extractProgressBar.Value = 100;
                 extractProgressBar.Style = ProgressBarStyle.Blocks;

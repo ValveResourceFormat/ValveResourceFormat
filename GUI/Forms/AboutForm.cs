@@ -16,7 +16,7 @@ namespace GUI.Forms
 
         private void OnWebsiteClick(object sender, System.EventArgs e)
         {
-            OpenUrl("https://vrf.steamdb.info");
+            OpenUrl("https://valveresourceformat.github.io/");
         }
 
         private void OnGithubClick(object sender, System.EventArgs e)

@@ -7,6 +7,9 @@ namespace ValveResourceFormat.Utils
 {
     public static class StringToken
     {
+        private static readonly string ProductVersionString = typeof(StringToken).Assembly.GetName().Version.ToString();
+        public static readonly string VRF_GENERATOR = $"Source 2 Viewer {ProductVersionString} - https://valveresourceformat.github.io";
+
         public const uint MURMUR2SEED = 0x31415926; // It's pi!
 
         internal static readonly ConcurrentDictionary<string, uint> Lookup = new();

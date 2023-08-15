@@ -153,7 +153,7 @@ namespace GUI.Controls
 
             using var progressDialog = new GenericProgressForm
             {
-                Text = "Searching file contents..."
+                Text = "Searching file contents…"
             };
             progressDialog.OnProcess += (_, __) =>
             {

@@ -611,7 +611,7 @@ public class ModelExtract
             ["model"] = dmeModel,
             ["exportTags"] = new Element(dmx, "exportTags", null, "DmeExportTags")
             {
-                ["source"] = "Generated with VRF - https://vrf.steamdb.info/",
+                ["source"] = $"Generated with {ValveResourceFormat.Utils.StringToken.VRF_GENERATOR}",
             }
         };
     }

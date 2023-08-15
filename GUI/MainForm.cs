@@ -36,11 +36,11 @@ namespace GUI
             {
                 if (string.IsNullOrEmpty(mainTabs.SelectedTab?.ToolTipText))
                 {
-                    Text = "VRF";
+                    Text = "Source 2 Viewer";
                 }
                 else
                 {
-                    Text = $"VRF - {mainTabs.SelectedTab.ToolTipText}";
+                    Text = $"Source 2 Viewer - {mainTabs.SelectedTab.ToolTipText}";
                 }
 
                 ShowHideSearch();
@@ -51,7 +51,7 @@ namespace GUI
             consoleTabPage.ImageIndex = ImageList.Images.IndexOfKey("_console");
             mainTabs.TabPages.Add(consoleTabPage);
 
-            Console.WriteLine($"VRF v{Application.ProductVersion}");
+            Console.WriteLine($"v{Application.ProductVersion}");
 
             var versionPlus = Application.ProductVersion.IndexOf('+', StringComparison.InvariantCulture);
 
@@ -752,7 +752,7 @@ namespace GUI
                 var file = selectedNode.PackageEntry;
                 nodeTreeView.VrfGuiContext.CurrentPackage.ReadEntry(file, out var output, validateCrc: file.CRC32 > 0);
 
-                var tempPath = $"{Path.GetTempPath()}VRF - {Path.GetFileName(nodeTreeView.VrfGuiContext.CurrentPackage.FileName)} - {file.GetFileName()}";
+                var tempPath = $"{Path.GetTempPath()}Source 2 Viewer - {Path.GetFileName(nodeTreeView.VrfGuiContext.CurrentPackage.FileName)} - {file.GetFileName()}";
                 using (var stream = new FileStream(tempPath, FileMode.Create))
                 {
                     stream.Write(output, 0, output.Length);

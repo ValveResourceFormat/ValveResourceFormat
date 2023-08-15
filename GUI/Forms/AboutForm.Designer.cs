@@ -30,141 +30,125 @@ namespace GUI.Forms
         /// </summary>
         private void InitializeComponent()
         {
-            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(AboutForm));
-            this.label1 = new System.Windows.Forms.Label();
-            this.labelVersion = new System.Windows.Forms.Label();
-            this.pictureBox1 = new System.Windows.Forms.PictureBox();
-            this.website = new System.Windows.Forms.Button();
-            this.github = new System.Windows.Forms.Button();
-            this.releases = new System.Windows.Forms.Button();
-            this.labelRuntime = new System.Windows.Forms.Label();
-            this.label2 = new System.Windows.Forms.Label();
-            ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).BeginInit();
-            this.SuspendLayout();
+            label1 = new Label();
+            labelVersion = new Label();
+            website = new Button();
+            github = new Button();
+            releases = new Button();
+            labelRuntime = new Label();
+            label3 = new Label();
+            SuspendLayout();
             // 
             // label1
             // 
-            this.label1.AutoSize = true;
-            this.label1.Location = new System.Drawing.Point(87, 14);
-            this.label1.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
-            this.label1.Name = "label1";
-            this.label1.Size = new System.Drawing.Size(27, 15);
-            this.label1.TabIndex = 0;
-            this.label1.Text = "VRF";
-            this.label1.TextAlign = System.Drawing.ContentAlignment.TopCenter;
+            label1.AutoSize = true;
+            label1.Location = new System.Drawing.Point(12, 9);
+            label1.Margin = new Padding(4, 0, 4, 0);
+            label1.Name = "label1";
+            label1.Size = new System.Drawing.Size(90, 15);
+            label1.TabIndex = 0;
+            label1.Text = "Source 2 Viewer";
+            label1.TextAlign = System.Drawing.ContentAlignment.TopCenter;
             // 
             // labelVersion
             // 
-            this.labelVersion.AutoSize = true;
-            this.labelVersion.Location = new System.Drawing.Point(87, 38);
-            this.labelVersion.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
-            this.labelVersion.Name = "labelVersion";
-            this.labelVersion.Size = new System.Drawing.Size(45, 15);
-            this.labelVersion.TabIndex = 1;
-            this.labelVersion.Text = "Version";
-            // 
-            // pictureBox1
-            // 
-            this.pictureBox1.BackgroundImageLayout = System.Windows.Forms.ImageLayout.None;
-            this.pictureBox1.Image = ((System.Drawing.Image)(resources.GetObject("pictureBox1.Image")));
-            this.pictureBox1.Location = new System.Drawing.Point(14, 14);
-            this.pictureBox1.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
-            this.pictureBox1.Name = "pictureBox1";
-            this.pictureBox1.Size = new System.Drawing.Size(64, 64);
-            this.pictureBox1.TabIndex = 3;
-            this.pictureBox1.TabStop = false;
+            labelVersion.AutoSize = true;
+            labelVersion.Location = new System.Drawing.Point(13, 33);
+            labelVersion.Margin = new Padding(4, 0, 4, 0);
+            labelVersion.Name = "labelVersion";
+            labelVersion.Size = new System.Drawing.Size(45, 15);
+            labelVersion.TabIndex = 1;
+            labelVersion.Text = "Version";
             // 
             // website
             // 
-            this.website.Location = new System.Drawing.Point(12, 95);
-            this.website.Name = "website";
-            this.website.Size = new System.Drawing.Size(100, 23);
-            this.website.TabIndex = 4;
-            this.website.Text = "Website";
-            this.website.UseVisualStyleBackColor = true;
-            this.website.Click += new System.EventHandler(this.OnWebsiteClick);
+            website.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            website.Location = new System.Drawing.Point(550, 12);
+            website.Name = "website";
+            website.Size = new System.Drawing.Size(100, 23);
+            website.TabIndex = 4;
+            website.Text = "Website";
+            website.UseVisualStyleBackColor = true;
+            website.Click += OnWebsiteClick;
             // 
             // github
             // 
-            this.github.Location = new System.Drawing.Point(118, 95);
-            this.github.Name = "github";
-            this.github.Size = new System.Drawing.Size(100, 23);
-            this.github.TabIndex = 5;
-            this.github.Text = "GitHub";
-            this.github.UseVisualStyleBackColor = true;
-            this.github.Click += new System.EventHandler(this.OnGithubClick);
+            github.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            github.Location = new System.Drawing.Point(550, 41);
+            github.Name = "github";
+            github.Size = new System.Drawing.Size(100, 23);
+            github.TabIndex = 5;
+            github.Text = "GitHub";
+            github.UseVisualStyleBackColor = true;
+            github.Click += OnGithubClick;
             // 
             // releases
             // 
-            this.releases.Location = new System.Drawing.Point(224, 95);
-            this.releases.Name = "releases";
-            this.releases.Size = new System.Drawing.Size(100, 23);
-            this.releases.TabIndex = 6;
-            this.releases.Text = "View releases";
-            this.releases.UseVisualStyleBackColor = true;
-            this.releases.Click += new System.EventHandler(this.OnReleasesClick);
+            releases.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            releases.Location = new System.Drawing.Point(550, 70);
+            releases.Name = "releases";
+            releases.Size = new System.Drawing.Size(100, 23);
+            releases.TabIndex = 6;
+            releases.Text = "View releases";
+            releases.UseVisualStyleBackColor = true;
+            releases.Click += OnReleasesClick;
             // 
             // labelRuntime
             // 
-            this.labelRuntime.AutoSize = true;
-            this.labelRuntime.Location = new System.Drawing.Point(87, 62);
-            this.labelRuntime.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
-            this.labelRuntime.Name = "labelRuntime";
-            this.labelRuntime.Size = new System.Drawing.Size(52, 15);
-            this.labelRuntime.TabIndex = 8;
-            this.labelRuntime.Text = "Runtime";
+            labelRuntime.AutoSize = true;
+            labelRuntime.Location = new System.Drawing.Point(13, 58);
+            labelRuntime.Margin = new Padding(4, 0, 4, 0);
+            labelRuntime.Name = "labelRuntime";
+            labelRuntime.Size = new System.Drawing.Size(52, 15);
+            labelRuntime.TabIndex = 8;
+            labelRuntime.Text = "Runtime";
             // 
-            // label2
+            // label3
             // 
-            this.label2.AutoSize = true;
-            this.label2.Location = new System.Drawing.Point(254, 14);
-            this.label2.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
-            this.label2.Name = "label2";
-            this.label2.Size = new System.Drawing.Size(69, 15);
-            this.label2.TabIndex = 9;
-            this.label2.Text = "MIT License";
-            this.label2.TextAlign = System.Drawing.ContentAlignment.TopCenter;
+            label3.AutoSize = true;
+            label3.Location = new System.Drawing.Point(12, 107);
+            label3.Margin = new Padding(4, 0, 4, 0);
+            label3.Name = "label3";
+            label3.Size = new System.Drawing.Size(394, 60);
+            label3.TabIndex = 10;
+            label3.Text = "Available under the MIT license.\r\n\r\nThis project is not affiliated with Valve Software.\r\nSource 2 is a trademark and/or registered trademark of Valve Corporation.";
             // 
             // AboutForm
             // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
-            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.BackColor = System.Drawing.Color.White;
-            this.ClientSize = new System.Drawing.Size(336, 131);
-            this.Controls.Add(this.label2);
-            this.Controls.Add(this.labelRuntime);
-            this.Controls.Add(this.releases);
-            this.Controls.Add(this.github);
-            this.Controls.Add(this.website);
-            this.Controls.Add(this.pictureBox1);
-            this.Controls.Add(this.labelVersion);
-            this.Controls.Add(this.label1);
-            this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
-            this.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
-            this.MaximizeBox = false;
-            this.MinimizeBox = false;
-            this.Name = "AboutForm";
-            this.ShowIcon = false;
-            this.ShowInTaskbar = false;
-            this.SizeGripStyle = System.Windows.Forms.SizeGripStyle.Hide;
-            this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
-            this.Text = "About VRF";
-            this.TopMost = true;
-            ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).EndInit();
-            this.ResumeLayout(false);
-            this.PerformLayout();
-
+            AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
+            AutoScaleMode = AutoScaleMode.Font;
+            BackColor = System.Drawing.Color.White;
+            ClientSize = new System.Drawing.Size(662, 191);
+            Controls.Add(label3);
+            Controls.Add(labelRuntime);
+            Controls.Add(releases);
+            Controls.Add(github);
+            Controls.Add(website);
+            Controls.Add(labelVersion);
+            Controls.Add(label1);
+            FormBorderStyle = FormBorderStyle.FixedSingle;
+            Margin = new Padding(4, 3, 4, 3);
+            MaximizeBox = false;
+            MinimizeBox = false;
+            Name = "AboutForm";
+            ShowIcon = false;
+            ShowInTaskbar = false;
+            SizeGripStyle = SizeGripStyle.Hide;
+            StartPosition = FormStartPosition.CenterParent;
+            Text = "About";
+            TopMost = true;
+            ResumeLayout(false);
+            PerformLayout();
         }
 
         #endregion
 
-        private System.Windows.Forms.Label label1;
-        private System.Windows.Forms.Label labelVersion;
-        private System.Windows.Forms.PictureBox pictureBox1;
+        private Label label1;
+        private Label labelVersion;
         private Button website;
         private Button github;
         private Button releases;
         private Label labelRuntime;
-        private Label label2;
+        private Label label3;
     }
 }

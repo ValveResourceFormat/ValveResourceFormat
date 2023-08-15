@@ -430,7 +430,7 @@ public sealed class TextureExtract
             mksBuilder.Insert(0, "packmode rgb+a\n");
         }
 
-        mksBuilder.Insert(0, "// Reconstructed with VRF - https://vrf.steamdb.info/\n\n");
+        mksBuilder.Insert(0, $"// Reconstructed with {ValveResourceFormat.Utils.StringToken.VRF_GENERATOR}\n\n");
         mks = mksBuilder.ToString();
         return true;
     }

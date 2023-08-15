@@ -38,7 +38,7 @@ namespace ValveResourceFormat.ResourceTypes
         {
             using var writer = new IndentedTextWriter();
 
-            writer.WriteLine("<!-- xml reconstructed by ValveResourceFormat: https://vrf.steamdb.info/ -->");
+            writer.WriteLine($"<!-- xml reconstructed by {StringToken.VRF_GENERATOR} -->");
 
             var root = layoutRoot.GetSubCollection("m_AST")?.GetSubCollection("m_pRoot");
 

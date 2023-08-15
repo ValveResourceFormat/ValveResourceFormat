@@ -448,7 +448,7 @@ namespace GUI.Types.Renderer
         private void SetRenderMode(string renderMode)
         {
             var title = Program.MainForm.Text;
-            Program.MainForm.Text = "VRF - Reloading shaders…";
+            Program.MainForm.Text = "Source 2 Viewer - Reloading shaders…";
 
             try
             {

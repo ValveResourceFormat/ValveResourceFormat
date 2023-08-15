@@ -33,8 +33,6 @@ namespace ValveResourceFormat.IO
 {
     public class GltfModelExporter
     {
-        private const string GENERATOR = "VRF - https://vrf.steamdb.info/";
-
         private static readonly ISet<ResourceType> ResourceTypesThatAreGltfExportable = new HashSet<ResourceType>()
         {
             ResourceType.Mesh,
@@ -627,7 +625,7 @@ namespace ValveResourceFormat.IO
         private ModelRoot CreateModelRoot(string resourceName, out Scene scene)
         {
             var exportedModel = ModelRoot.CreateModel();
-            exportedModel.Asset.Generator = GENERATOR;
+            exportedModel.Asset.Generator = StringToken.VRF_GENERATOR;
             scene = exportedModel.UseScene(Path.GetFileName(resourceName));
 
 #if DEBUG_VALIDATE_GLTF

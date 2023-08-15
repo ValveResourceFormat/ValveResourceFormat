@@ -147,7 +147,7 @@ public sealed class ShaderExtract
         IncludeWriters = new();
 
         return "//=================================================================================================\n"
-            + "// Reconstructed with VRF - https://vrf.steamdb.info/\n"
+            + $"// Reconstructed with {ValveResourceFormat.Utils.StringToken.VRF_GENERATOR}\n"
             + "//=================================================================================================\n"
             + HEADER()
             + MODES()

@@ -25,7 +25,7 @@
     <Copyright>Copyright © ValveResourceFormat Contributors</Copyright>
     <RepositoryUrl>https://github.com/ValveResourceFormat/ValveResourceFormat</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
-    <PackageProjectUrl>https://vrf.steamdb.info/</PackageProjectUrl>
+    <PackageProjectUrl>https://valveresourceformat.github.io/</PackageProjectUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>
 </Project>

@@ -47,7 +47,6 @@ public sealed class MapExtract
     public IProgress<string> ProgressReporter { get; set; }
 
     private readonly Dictionary<uint, string> HashTable = StringToken.InvertedTable;
-    private static readonly string ProductVersionString = typeof(MapExtract).Assembly.GetName().Version.ToString();
 
     internal static class CommonHashes
     {
@@ -557,7 +556,7 @@ public sealed class MapExtract
             if (className == "worldspawn")
             {
                 AddProperties(compiledEntity, MapDocument.World);
-                MapDocument.World.EntityProperties["description"] = $"Decompiled with VRF {ProductVersionString} - https://vrf.steamdb.info/";
+                MapDocument.World.EntityProperties["description"] = $"Decompiled with {StringToken.VRF_GENERATOR}";
                 continue;
             }
 

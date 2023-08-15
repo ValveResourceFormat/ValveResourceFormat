@@ -477,7 +477,7 @@ namespace GUI.Types.Viewers
                 SpirvCrossApi.spvc_compiler_compile(compiler, out var code);
 
                 buffer.WriteLine($"// SPIR-V source ({vulkanSource.MetaDataOffset}), {backend} reflection with SPIRV-Cross by KhronosGroup");
-                buffer.WriteLine("// VRF - https://vrf.steamdb.info/");
+                buffer.WriteLine($"// {ValveResourceFormat.Utils.StringToken.VRF_GENERATOR}");
                 buffer.WriteLine();
                 buffer.WriteLine(code.ReplaceLineEndings());
             }

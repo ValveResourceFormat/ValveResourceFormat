@@ -1,4 +1,4 @@
-﻿namespace GUI.Forms
+namespace GUI.Forms
 {
     partial class LoadingFile
     {
@@ -50,7 +50,7 @@
             this.label1.Name = "label1";
             this.label1.Size = new System.Drawing.Size(129, 13);
             this.label1.TabIndex = 1;
-            this.label1.Text = "Loading file, please wait...";
+            this.label1.Text = "Loading file, please wait…";
             // 
             // LoadingFile
             // 

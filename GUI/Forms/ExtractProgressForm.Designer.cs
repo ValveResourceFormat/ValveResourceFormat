@@ -107,7 +107,7 @@ namespace GUI.Forms
             MaximizeBox = false;
             Name = "ExtractProgressForm";
             StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
-            Text = "VRF - Extracting files...";
+            Text = "Source 2 Viewer - Extracting files…";
             tableLayoutPanel1.ResumeLayout(false);
             tableLayoutPanel1.PerformLayout();
             ResumeLayout(false);

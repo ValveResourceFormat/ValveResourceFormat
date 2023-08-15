@@ -15,7 +15,7 @@ namespace GUI.Types.Viewers
 {
     class Package : IViewer
     {
-        internal const string DELETED_FILES_FOLDER = "@@ VRF Deleted Files @@";
+        internal const string DELETED_FILES_FOLDER = "@@ Deleted Files @@";
         public ImageList ImageList { get; set; }
         private VrfGuiContext VrfGuiContext;
 
@@ -217,7 +217,7 @@ namespace GUI.Types.Viewers
 
                         if (hiddenFiles.Count % 100 == 0)
                         {
-                            setProgress($"Scanning for deleted files, this may take a while... Found {hiddenFiles.Count} files ({totalSlackSize.ToFileSizeString()}) so far...");
+                            setProgress($"Scanning for deleted files, this may take a while… Found {hiddenFiles.Count} files ({totalSlackSize.ToFileSizeString()}) so far…");
                         }
                     }
                 }

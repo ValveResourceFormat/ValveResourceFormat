@@ -90,7 +90,7 @@ namespace GUI.Controls
             {
                 FullScreenForm = new Form
                 {
-                    Text = "VRF Fullscreen",
+                    Text = "Source 2 Viewer Fullscreen",
                     Icon = Program.MainForm.Icon,
                     ControlBox = false,
                     FormBorderStyle = FormBorderStyle.None,

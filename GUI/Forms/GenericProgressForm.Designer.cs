@@ -79,7 +79,7 @@ namespace GUI.Forms
             this.extractStatusLabel.Name = "extractStatusLabel";
             this.extractStatusLabel.Size = new System.Drawing.Size(658, 24);
             this.extractStatusLabel.TabIndex = 1;
-            this.extractStatusLabel.Text = "Calculating...";
+            this.extractStatusLabel.Text = "Calculating…";
             // 
             // cancelButton
             // 
@@ -103,7 +103,7 @@ namespace GUI.Forms
             this.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             this.MaximizeBox = false;
             this.Name = "GenericProgressForm";
-            this.Text = "Extracting files...";
+            this.Text = "Extracting files…";
             this.tableLayoutPanel1.ResumeLayout(false);
             this.ResumeLayout(false);
 
