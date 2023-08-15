@@ -279,8 +279,11 @@ namespace ValveResourceFormat.Blocks
                         {
                             Buffer.BlockCopy(vertexBuffer.Data, offset, shorts, 0, 4);
 
-                            result[inc++] = (ushort)(shorts[0] / short.MaxValue * ushort.MaxValue);
-                            result[inc++] = (ushort)(shorts[1] / short.MaxValue * ushort.MaxValue);
+                            //System.Diagnostics.Debug.Assert(shorts[0] >= 0);
+                            //System.Diagnostics.Debug.Assert(shorts[1] >= 0);
+
+                            result[inc++] = (ushort)(shorts[0] * 2);
+                            result[inc++] = (ushort)(shorts[1] * 2);
 
                             offset += (int)vertexBuffer.ElementSizeInBytes;
                         }
