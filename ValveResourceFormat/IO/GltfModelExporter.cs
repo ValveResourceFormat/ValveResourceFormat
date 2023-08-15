@@ -708,14 +708,6 @@ namespace ValveResourceFormat.IO
             return accessor;
         }
 
-        private static void Assert(bool condition) // Temporary! Debug.Assert exists process which is not useful
-        {
-            if (!condition)
-            {
-                throw new InvalidDataException("Failed to validate that new export code matches old");
-            }
-        }
-
         private Mesh CreateGltfMesh(string meshName, VMesh vmesh, ModelRoot exportedModel, bool includeJoints,
             string skinMaterialPath, VModel model, int meshIndex)
         {
@@ -795,12 +787,6 @@ namespace ValveResourceFormat.IO
                     {
                         var (normals, tangents) = VBIB.GetNormalTangentArray(vertexBuffer, attribute);
 
-                        if (TryDecompressTangentFrame(data, vbib, vertexBufferIndex, ReadAttributeBuffer(vertexBuffer, attribute), out var normalsOld, out var tangentsOld))
-                        {
-                            Assert(Enumerable.SequenceEqual(normals, normalsOld));
-                            Assert(Enumerable.SequenceEqual(tangents, tangentsOld));
-                        }
-
                         normals = FixZeroLengthVectors(normals);
 
                         if (tangents.Length > 0)
@@ -826,30 +812,11 @@ namespace ValveResourceFormat.IO
                         var accessor = mesh.LogicalParent.CreateAccessor();
                         accessor.SetVertexData(bufferView, 0, indices.Length / 4, DimensionType.VEC4, EncodingType.UNSIGNED_SHORT);
                         accessors[accessorName] = accessor;
-
-                        var buffer = ReadAttributeBuffer(vertexBuffer, attribute);
-                        var ushortBuffer = buffer.Select(f => (ushort)f).ToArray();
-
-                        if (attributeFormat.ElementCount != 4)
-                        {
-                            ushortBuffer = ChangeBufferStride(ushortBuffer, attributeFormat.ElementCount, 4);
-                        }
-                        else
-                        {
-                            Assert(Enumerable.SequenceEqual(indices, ushortBuffer));
-                        }
                     }
                     else if (attribute.SemanticName is "BLENDWEIGHT" or "BLENDWEIGHTS")
                     {
                         var weights = VBIB.GetBlendWeightsArray(vertexBuffer, attribute);
                         accessors[accessorName] = CreateAccessor(exportedModel, weights);
-
-                        var buffer = ReadAttributeBuffer(vertexBuffer, attribute);
-                        if (attributeFormat.ElementCount != 4)
-                        {
-                            buffer = ChangeBufferStride(buffer, attributeFormat.ElementCount, 4);
-                        }
-                        Assert(Enumerable.SequenceEqual(weights, ToVector4Array(buffer)));
                     }
                     else if (VBIB.IsFloatFormat(attribute))
                     {
@@ -863,7 +830,6 @@ namespace ValveResourceFormat.IO
                                     var accessor = exportedModel.CreateAccessor();
                                     accessor.SetVertexData(bufferView, 0, buffer.Length, DimensionType.SCALAR);
                                     accessors[accessorName] = accessor;
-                                    Assert(Enumerable.SequenceEqual(buffer, ReadAttributeBuffer(vertexBuffer, attribute)));
                                     break;
                                 }
 
@@ -871,21 +837,17 @@ namespace ValveResourceFormat.IO
                                 {
                                     var vectors = VBIB.GetVector2AttributeArray(vertexBuffer, attribute);
                                     accessors[accessorName] = CreateAccessor(exportedModel, vectors);
-                                    Assert(Enumerable.SequenceEqual(vectors, ToVector2Array(ReadAttributeBuffer(vertexBuffer, attribute))));
                                     break;
                                 }
                             case 3:
                                 {
                                     var vectors = VBIB.GetVector3AttributeArray(vertexBuffer, attribute);
                                     accessors[accessorName] = CreateAccessor(exportedModel, vectors);
-                                    Assert(Enumerable.SequenceEqual(vectors, ToVector3Array(ReadAttributeBuffer(vertexBuffer, attribute))));
                                     break;
                                 }
                             case 4:
                                 {
                                     var vectors = VBIB.GetVector4AttributeArray(vertexBuffer, attribute);
-
-                                    Assert(Enumerable.SequenceEqual(vectors, ToVector4Array(ReadAttributeBuffer(vertexBuffer, attribute))));
 
                                     if (accessorName == "TANGENT")
                                     {
@@ -1592,177 +1554,6 @@ namespace ValveResourceFormat.IO
             return indices;
         }
 
-        public static bool HasCompressedTangentFrame(int vertexBufferIndex, IKeyValueCollection mdat)
-        {
-            return mdat.GetArray("m_sceneObjects").Any(sceneObject =>
-            {
-                return sceneObject.GetArray("m_drawCalls").Any(drawCall =>
-                {
-                    var vertexBufferInfo = drawCall.GetArray("m_vertexBuffers")[0];
-                    return vertexBufferInfo.GetInt32Property("m_hBuffer") == vertexBufferIndex
-                        && VMesh.IsCompressedNormalTangent(drawCall);
-                });
-            });
-        }
-
-        public static bool TryDecompressTangentFrame(IKeyValueCollection mdat, VBIB vbib, int vertexBufferIndex, float[] buffer, out Vector3[] normals, out Vector4[] tangents)
-        {
-            if (!HasCompressedTangentFrame(vertexBufferIndex, mdat))
-            {
-                normals = default;
-                tangents = default;
-                return false;
-            }
-
-            var inputLayout = vbib.VertexBuffers[vertexBufferIndex].InputLayoutFields.FirstOrDefault(static i => i.SemanticName == "NORMAL");
-            var compressionVersion = inputLayout.Format switch
-            {
-                DXGI_FORMAT.R32_UINT => 2, // Added in CS2 on 2023-08-03
-                _ => 1,
-            };
-
-            if (compressionVersion == 2)
-            {
-                (normals, tangents) = DecompressNormalTangents2(buffer);
-            }
-            else
-            {
-                var vectors = ToVector4Array(buffer);
-                (normals, tangents) = DecompressNormalTangents(vectors);
-            }
-
-            return true;
-        }
-
-        public static (Vector3[] Normals, Vector4[] Tangents) DecompressNormalTangents(Vector4[] compressedNormalsTangents)
-        {
-            var normals = new Vector3[compressedNormalsTangents.Length];
-            var tangents = new Vector4[compressedNormalsTangents.Length];
-
-            for (var i = 0; i < normals.Length; i++)
-            {
-                // Undo-normalization
-                var compressedNormal = compressedNormalsTangents[i] * 255f;
-                normals[i] = DecompressNormal(new Vector2(compressedNormal.X, compressedNormal.Y));
-                tangents[i] = DecompressTangent(new Vector2(compressedNormal.Z, compressedNormal.W));
-            }
-
-            return (normals, tangents);
-        }
-
-        private static Vector3 DecompressNormal(Vector2 compressedNormal)
-        {
-            var inputNormal = compressedNormal;
-            var outputNormal = Vector3.Zero;
-
-            var x = inputNormal.X - 128.0f;
-            var y = inputNormal.Y - 128.0f;
-            float z;
-
-            var zSignBit = x < 0 ? 1.0f : 0.0f;           // z and t negative bits (like slt asm instruction)
-            var tSignBit = y < 0 ? 1.0f : 0.0f;
-            var zSign = -((2 * zSignBit) - 1);          // z and t signs
-            var tSign = -((2 * tSignBit) - 1);
-
-            x = (x * zSign) - zSignBit;                           // 0..127
-            y = (y * tSign) - tSignBit;
-            x -= 64;                                     // -64..63
-            y -= 64;
-
-            var xSignBit = x < 0 ? 1.0f : 0.0f;   // x and y negative bits (like slt asm instruction)
-            var ySignBit = y < 0 ? 1.0f : 0.0f;
-            var xSign = -((2 * xSignBit) - 1);          // x and y signs
-            var ySign = -((2 * ySignBit) - 1);
-
-            x = ((x * xSign) - xSignBit) / 63.0f;             // 0..1 range
-            y = ((y * ySign) - ySignBit) / 63.0f;
-            z = 1.0f - x - y;
-
-            var oolen = 1.0f / MathF.Sqrt((x * x) + (y * y) + (z * z));   // Normalize and
-            x *= oolen * xSign;                 // Recover signs
-            y *= oolen * ySign;
-            z *= oolen * zSign;
-
-            outputNormal.X = x;
-            outputNormal.Y = y;
-            outputNormal.Z = z;
-
-            return outputNormal;
-        }
-
-        private static Vector4 DecompressTangent(Vector2 compressedTangent)
-        {
-            var outputNormal = DecompressNormal(compressedTangent);
-            var tSign = compressedTangent.Y - 128.0f < 0 ? -1.0f : 1.0f;
-
-            return new Vector4(outputNormal.X, outputNormal.Y, outputNormal.Z, tSign);
-        }
-
-        public static (Vector3[] Normals, Vector4[] Tangents) DecompressNormalTangents2(float[] compressedNormalsTangents)
-        {
-            var normals = new Vector3[compressedNormalsTangents.Length];
-            var tangents = new Vector4[compressedNormalsTangents.Length];
-
-            for (var i = 0; i < compressedNormalsTangents.Length; i++)
-            {
-                var nPackedFrame = BitConverter.ToUInt32(BitConverter.GetBytes(compressedNormalsTangents[i])); // TODO: Waste, ideally read attribute would return uint[] directly
-                var SignBit = nPackedFrame & 1u;            // LSB bit
-                float Tbits = (nPackedFrame >> 1) & 0x7ff;  // 11 bits
-                float Xbits = (nPackedFrame >> 12) & 0x3ff; // 10 bits
-                float Ybits = (nPackedFrame >> 22) & 0x3ff; // 10 bits
-
-                // Unpack from 0..1 to -1..1
-                var nPackedFrameX = (Xbits / 1023.0f) * 2.0f - 1.0f;
-                var nPackedFrameY = (Ybits / 1023.0f) * 2.0f - 1.0f;
-
-                // Z is never given a sign, meaning negative values are caused by abs(packedframexy) adding up to over 1.0
-                var derivedNormalZ = 1.0f - MathF.Abs(nPackedFrameX) - MathF.Abs(nPackedFrameY); // Project onto x+y+z=1
-                var unpackedNormal = new Vector3(nPackedFrameX, nPackedFrameY, derivedNormalZ);
-
-                // If Z is negative, X and Y has had extra amounts (TODO: find the logic behind this value) added into them so they would add up to over 1.0
-                // Thus, we take the negative components of Z and add them back into XY to get the correct original values.
-                var negativeZCompensation = new Vector2(Math.Clamp(-derivedNormalZ, 0.0f, 1.0f)); // Isolate the negative 0..1 range of derived Z
-
-                var unpackedNormalXPositive = unpackedNormal.X >= 0.0f ? 1.0f : 0.0f;
-                var unpackedNormalYPositive = unpackedNormal.Y >= 0.0f ? 1.0f : 0.0f;
-
-                unpackedNormal.X += negativeZCompensation.X * (1f - unpackedNormalXPositive) + -negativeZCompensation.X * unpackedNormalXPositive; // mix() - x×(1−a)+y×a
-                unpackedNormal.Y += negativeZCompensation.Y * (1f - unpackedNormalYPositive) + -negativeZCompensation.Y * unpackedNormalYPositive;
-
-                var normal = Vector3.Normalize(unpackedNormal); // Get final normal by normalizing it onto the unit sphere
-                normals[i] = normal;
-
-                // Invert tangent when normal Z is negative
-                var tangentSign = (normal.Z >= 0.0f) ? 1.0f : -1.0f;
-                // equal to tangentSign * (1.0 + abs(normal.z))
-                var rcpTangentZ = 1.0f / (tangentSign + normal.Z);
-
-                // Be careful of rearranging ops here, could lead to differences in float precision, especially when dealing with compressed data.
-                Vector3 unalignedTangent;
-
-                // Unoptimized (but clean) form:
-                // tangent.X = -(normal.x * normal.x) / (tangentSign + normal.z) + 1.0
-                // tangent.Y = -(normal.x * normal.y) / (tangentSign + normal.z)
-                // tangent.Z = -(normal.x)
-                unalignedTangent.X = -tangentSign * (normal.X * normal.X) * rcpTangentZ + 1.0f;
-                unalignedTangent.Y = -tangentSign * ((normal.X * normal.Y) * rcpTangentZ);
-                unalignedTangent.Z = -tangentSign * normal.X;
-
-                // This establishes a single direction on the tangent plane that derived from only the normal (has no texcoord info).
-                // But it doesn't line up with the texcoords. For that, it uses nPackedFrameT, which is the rotation.
-
-                // Angle to use to rotate tangent
-                var nPackedFrameT = Tbits / 2047.0f * MathF.Tau;
-
-                // Rotate tangent to the correct angle that aligns with texcoords.
-                var tangent = unalignedTangent * MathF.Cos(nPackedFrameT) + Vector3.Cross(normal, unalignedTangent) * MathF.Sin(nPackedFrameT);
-
-                tangents[i] = new Vector4(tangent, (SignBit == 0u) ? -1.0f : 1.0f); // Bitangent sign bit... inverted (0 = negative
-            }
-
-            return (normals, tangents);
-        }
-
         public static Vector3[] ToVector3Array(float[] buffer)
         {
             var vectorArray = new Vector3[buffer.Length / 3];
@@ -1829,21 +1620,6 @@ namespace ValveResourceFormat.IO
             }
 
             return vectorArray;
-        }
-
-        private static T[] ChangeBufferStride<T>(T[] oldBuffer, int oldStride, int newStride)
-        {
-            return Enumerable.Range(0, (oldBuffer.Length / oldStride) * newStride)
-                .Select(i =>
-                {
-                    var index = i % newStride;
-                    if (index >= oldStride)
-                    {
-                        return default;
-                    }
-                    return oldBuffer[(i / newStride) * oldStride + index];
-                })
-                .ToArray();
         }
     }
 }
