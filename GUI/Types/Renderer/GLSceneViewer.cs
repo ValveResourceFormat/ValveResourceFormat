@@ -231,8 +231,9 @@ namespace GUI.Types.Renderer
                 skyboxCamera.SetScaledProjectionMatrix();
                 skyboxCamera.SetLocation(e.Camera.Location - SkyboxOrigin);
 
-                viewBuffer.Data = skyboxCamera.SetViewConstants(viewBuffer.Data, SkyboxScale);
                 lightingBuffer.Data = SkyboxScene.LightingInfo.LightingData;
+                viewBuffer.Data = skyboxCamera.SetViewConstants(viewBuffer.Data, SkyboxScale);
+                viewBuffer.Data = SkyboxScene.FogInfo.SetFogUniforms(viewBuffer.Data, SkyboxOrigin, SkyboxScale);
 
                 SkyboxScene.MainCamera = skyboxCamera;
                 SkyboxScene.Update(e.FrameTime);
@@ -241,8 +242,8 @@ namespace GUI.Types.Renderer
                 GL.Clear(ClearBufferMask.DepthBufferBit);
             }
 
-            viewBuffer.Data = e.Camera.SetViewConstants(viewBuffer.Data, 1.0f);
             lightingBuffer.Data = Scene.LightingInfo.LightingData;
+            viewBuffer.Data = e.Camera.SetViewConstants(viewBuffer.Data, 1.0f);
 
             Scene.RenderWithCamera(e.Camera, bufferSet, lockedCullFrustum);
 

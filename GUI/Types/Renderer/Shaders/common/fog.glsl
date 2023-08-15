@@ -13,11 +13,6 @@ uniform bool VRF_ENABLE_FOG;
 
 #if defined(USE_GRADIENT_FOG)
 
-uniform vec4 g_vGradientFogBiasAndScale;
-uniform vec4 g_vGradientFogColor_Opacity;
-uniform vec2 m_vGradientFogExponents;
-uniform vec2 g_vGradientFogCullingParams;
-
 void ApplyGradientFog(inout vec3 pixelColor, vec3 positionWS, float pixelDepth)
 {
     vec2 gradientFogComponents; // x for View Space depth, y for height in World Space
@@ -34,10 +29,7 @@ void ApplyGradientFog(inout vec3 pixelColor, vec3 positionWS, float pixelDepth)
 #endif
 
 #if defined(USE_CUBEMAP_FOG)
-uniform vec4 g_vCubeFog_Offset_Scale_Bias_Exponent;
-uniform vec4 g_vCubeFog_Height_Offset_Scale_Exponent_Log2Mip;
-uniform mat4 g_matvCubeFogSkyWsToOs; // only needs to be mat3
-uniform vec4 g_vCubeFogCullingParams_Opacity;
+// ExposureBias is actually a separate param, but Z is unused and exposurebias stupidly only uses x
 
 uniform samplerCube g_tFogCubeTexture;
 
@@ -52,9 +44,9 @@ void ApplyCubemapFog(inout vec3 pixelColor, vec3 positionWS, vec3 posRelativeToC
     vec3 fogCoords = normalize((vec4(normalize(posRelativeToCamera), 0.0) * g_matvCubeFogSkyWsToOs).xyz);
     float cubemapFogLod = saturate( 1.0 - cubemapFogBlend * g_vCubeFog_Offset_Scale_Bias_Exponent.z ) * g_vCubeFog_Height_Offset_Scale_Exponent_Log2Mip.w;
 
-    float cubemapFogOpacity = saturate(cubemapFogBlend) * g_vCubeFogCullingParams_Opacity.a;
+    float cubemapFogOpacity = saturate(cubemapFogBlend) * g_vCubeFogCullingParams_ExposureBias_MaxOpacity.a;
 
-    vec3 cubemapFogColor = textureLod(g_tFogCubeTexture, fogCoords.xyz, cubemapFogLod).rgb;
+    vec3 cubemapFogColor = textureLod(g_tFogCubeTexture, fogCoords.xyz, cubemapFogLod).rgb * g_vCubeFogCullingParams_ExposureBias_MaxOpacity.z;
     pixelColor = mix(pixelColor, cubemapFogColor, cubemapFogOpacity);
 }
 
@@ -122,7 +114,7 @@ void ApplyFog(inout vec3 pixelColor, vec3 positionWS)
 #if (USE_CUBEMAP_FOG == 1)
         float distanceQuadratic = dot(cameraCenteredPixelPos, cameraCenteredPixelPos);
 
-        bool bPixelHasCubemapFog = (distanceQuadratic > g_vCubeFogCullingParams_Opacity.x) || (positionWS.z > g_vCubeFogCullingParams_Opacity.y);
+        bool bPixelHasCubemapFog = (distanceQuadratic > g_vCubeFogCullingParams_ExposureBias_MaxOpacity.x) || (positionWS.z > g_vCubeFogCullingParams_ExposureBias_MaxOpacity.y);
         if (bPixelHasCubemapFog)
         {
             ApplyCubemapFog(pixelColor, positionWS, cameraCenteredPixelPos, sqrt(distanceQuadratic));

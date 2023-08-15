@@ -12,9 +12,9 @@ class SceneCubemapFog : SceneNode
     public float HeightExponent { get; set; }
     public float LodBias { get; set; }
     public float Opacity { get; set; }
-    public bool UseHeightFog { get; set; } = true;
+    public bool UseHeightFog { get; set; }
     public RenderTexture CubemapFogTexture { get; set; }
-    public float ExposureBias { get; set; } // need to implement so it matches on some CS2 maps
+    public float ExposureBias { get; set; }
 
     public Vector4 OffsetScaleBiasExponent(Vector3 mapOffset, float mapScale)
     {
@@ -35,7 +35,7 @@ class SceneCubemapFog : SceneNode
 
             scale = mapScale / (HeightEnd - HeightStart);
             offset = -(bias * scale);
-            Console.WriteLine($"height cubefog {new Vector4(offset, scale, HeightExponent, CubemapFogTexture.NumMipLevels)}");
+            //Console.WriteLine($"height cubefog {new Vector4(offset, scale, HeightExponent, CubemapFogTexture.NumMipLevels)}");
         }
         else
         {
@@ -50,7 +50,8 @@ class SceneCubemapFog : SceneNode
         var distCull = StartDist / mapScale;
         distCull *= distCull;
         var heightCull = (UseHeightFog || ((HeightEnd - HeightStart) > 0)) ? ((HeightStart - mapOffset.Z) / mapScale) : float.PositiveInfinity;
-        return new Vector4(distCull, heightCull, 0f, Opacity);
+
+        return new Vector4(distCull, heightCull, MathF.Pow(2f, ExposureBias), Opacity);
     }
 
     public SceneCubemapFog(Scene scene) : base(scene)

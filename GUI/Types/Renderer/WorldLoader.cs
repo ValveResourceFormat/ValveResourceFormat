@@ -415,6 +415,7 @@ namespace GUI.Types.Renderer
                         {
                             useHeightFog &= entity.GetProperty<bool>("cubemapheightfog");
                         }
+
                         var heightExponent = 1.0f;
                         var heightStart = float.PositiveInfinity; // is this right?
                         var heightEnd = float.PositiveInfinity;
@@ -434,14 +435,12 @@ namespace GUI.Types.Renderer
                             }
                         }
 
-                        // New in CS2
                         var opacity = 1f;
                         if (entity.GetProperty("cubemapfogmaxopacity") != default)
                         {
                             opacity = entity.GetPropertyUnchecked<float>("cubemapfogmaxopacity");
                         }
 
-                        // New in DeskJob
                         var fogSource = "0";
                         if (entity.GetProperty("cubemapfogsource") != default)
                         {
@@ -449,6 +448,8 @@ namespace GUI.Types.Renderer
                         }
 
                         RenderTexture fogTexture;
+                        var exposureBias = 0.0f;
+                        // Disabled in CS2
                         if (fogSource == "0")
                         {
                             fogTexture = guiContext.MaterialLoader.LoadTexture(
@@ -494,7 +495,16 @@ namespace GUI.Types.Renderer
 
                             using var matFile = guiContext.LoadFileByAnyMeansNecessary(material + "_c");
                             var mat = guiContext.MaterialLoader.LoadMaterial(matFile);
+
                             fogTexture = mat.Textures["g_tSkyTexture"];
+
+                            float brightnessExposureBias;
+                            if (mat.Material.FloatParams.TryGetValue("g_flBrightnessExposureBias", out brightnessExposureBias))
+                                brightnessExposureBias = 0f;
+                            float renderOnlyExposureBias;
+                            if (mat.Material.FloatParams.TryGetValue("g_flRenderOnlyExposureBias", out renderOnlyExposureBias))
+                                renderOnlyExposureBias = 0f;
+                            exposureBias = brightnessExposureBias + renderOnlyExposureBias; // These are both logarithms
                         }
 
 
@@ -510,6 +520,7 @@ namespace GUI.Types.Renderer
                             Transform = transform,
                             CubemapFogTexture = fogTexture,
                             Opacity = opacity,
+                            ExposureBias = exposureBias,
                             UseHeightFog = useHeightFog,
                         };
                     }
