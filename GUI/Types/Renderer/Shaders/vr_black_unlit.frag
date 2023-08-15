@@ -5,7 +5,7 @@
 in vec3 vFragPosition;
 out vec4 outputColor;
 
-uniform vec3 vEyePosition;
+#include "common/ViewConstants.glsl"
 
 #include "common/fog.glsl"
 

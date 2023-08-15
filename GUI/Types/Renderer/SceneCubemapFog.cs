@@ -8,47 +8,49 @@ class SceneCubemapFog : SceneNode
     public float EndDist { get; set; }
     public float FalloffExponent { get; set; }
     public float HeightStart { get; set; }
-    public float HeightWidth { get; set; }
+    public float HeightEnd { get; set; }
     public float HeightExponent { get; set; }
     public float LodBias { get; set; }
+    public float Opacity { get; set; }
+    public bool UseHeightFog { get; set; } = true;
     public RenderTexture CubemapFogTexture { get; set; }
+    public float ExposureBias { get; set; } // need to implement so it matches on some CS2 maps
 
     public Vector4 OffsetScaleBiasExponent(Vector3 mapOffset, float mapScale)
     {
         var scale = mapScale / (EndDist - StartDist);
         var offset = -(StartDist * scale) / mapScale;
 
-        //Console.WriteLine($"depth fog bias scale {new Vector2(offset, scale)}");
         return new Vector4(offset, scale, LodBias, FalloffExponent);
     }
+    // HeightWidth is equal to HeightEnd - HeightStart
+    // Height width ADDS to heightStart
     public Vector4 Height_OffsetScaleExponentLog2Mip(Vector3 mapOffset, float mapScale)
     {
         float offset;
         float scale;
-        if (HeightWidth > 0)
+        if (UseHeightFog || ((HeightEnd - HeightStart) > 0)) // width = 0 is a substitution for UseHeightFog
         {
-            Console.WriteLine($"{mapOffset}");
-            var start = (HeightStart - mapOffset.Z) / mapScale;
+            var bias = (HeightStart - mapOffset.Z) / mapScale;
 
-            scale = mapScale / HeightWidth; // indeed applies to scale and start
-            offset = -(start * scale);
-
-            //Console.WriteLine($"height cubefog {new Vector4(offset, scale, HeightExponent, CubemapFogTexture.NumMipLevels)}");
+            scale = mapScale / (HeightEnd - HeightStart);
+            offset = -(bias * scale);
+            Console.WriteLine($"height cubefog {new Vector4(offset, scale, HeightExponent, CubemapFogTexture.NumMipLevels)}");
         }
         else
         {
             offset = 0f;
-            scale = 0f;
+            scale = 0f; // is this right?
         }
 
-        return new Vector4(offset, scale, HeightExponent, Math.Min(7f, CubemapFogTexture.NumMipLevels));
+        return new Vector4(offset, scale, HeightExponent, Math.Min(7f, CubemapFogTexture.NumMipLevels)); // these latter two values are wrong on deskjob?
     }
-    public Vector2 CullingParams(Vector3 mapOffset, float mapScale)
+    public Vector4 CullingParams_Opacity(Vector3 mapOffset, float mapScale)
     {
         var distCull = StartDist / mapScale;
         distCull *= distCull;
-        var heightCull = (HeightWidth > 0) ? ((HeightStart - mapOffset.Z) / mapScale) : float.PositiveInfinity;
-        return new Vector2(distCull, heightCull);
+        var heightCull = (UseHeightFog || ((HeightEnd - HeightStart) > 0)) ? ((HeightStart - mapOffset.Z) / mapScale) : float.PositiveInfinity;
+        return new Vector4(distCull, heightCull, 0f, Opacity);
     }
 
     public SceneCubemapFog(Scene scene) : base(scene)

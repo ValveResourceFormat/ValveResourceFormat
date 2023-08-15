@@ -93,7 +93,7 @@ namespace GUI.Types.Renderer
             {
                 shader.SetUniform4("g_vCubeFog_Offset_Scale_Bias_Exponent", CubemapFog.OffsetScaleBiasExponent(context.WorldOffset, context.WorldScale));
                 shader.SetUniform4("g_vCubeFog_Height_Offset_Scale_Exponent_Log2Mip", CubemapFog.Height_OffsetScaleExponentLog2Mip(context.WorldOffset, context.WorldScale));
-                shader.SetUniform2("g_vCubeFogCullingParams", CubemapFog.CullingParams(context.WorldOffset, context.WorldScale));
+                shader.SetUniform4("g_vCubeFogCullingParams_Opacity", CubemapFog.CullingParams_Opacity(context.WorldOffset, context.WorldScale));
                 shader.SetUniform4x4("g_matvCubeFogSkyWsToOs", CubemapFog.Transform); // transposed before?
 
                 shader.SetTexture((int)ReservedTextureSlots.CubemapFog, "g_tFogCubeTexture", CubemapFog.CubemapFogTexture);

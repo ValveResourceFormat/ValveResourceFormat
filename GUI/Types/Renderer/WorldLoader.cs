@@ -222,7 +222,7 @@ namespace GUI.Types.Renderer
 
             var entitiesReordered = entityLump.GetEntities()
                 .Select(e => (e, e.GetProperty<string>("classname")))
-                .OrderByDescending(x => IsCubemapOrProbe(x.Item2));
+                .OrderByDescending(x => IsCubemapOrProbe(x.Item2) || (x.Item2 == "skybox_reference"));
 
             var legacyCubemapArrayIndex = 0;
 
@@ -312,6 +312,10 @@ namespace GUI.Types.Renderer
                         Translation = Vector3.Zero
                     };
                     using var skyMaterial = guiContext.LoadFileByAnyMeansNecessary(skyname + "_c");
+
+                    var hasTargetName = (entity.GetProperty("targetname") != default);
+                    var targetName = hasTargetName ? entity.GetProperty<string>("targetname") : "";
+
                     scene.Sky = new SceneSky(scene)
                     {
                         Name = skyname,
@@ -319,6 +323,7 @@ namespace GUI.Types.Renderer
                         Tint = tintColor,
                         Transform = rotation,
                         Material = guiContext.MaterialLoader.LoadMaterial(skyMaterial),
+                        TargetName = targetName,
                     };
                 }
                 else if (classname == "env_gradient_fog")
@@ -329,23 +334,29 @@ namespace GUI.Types.Renderer
                         scene.FogInfo.GradientFogActive = true;
                         scene.RenderAttributes["USE_GRADIENT_FOG"] = 1;
 
-                        var distExponent = entity.GetProperty<float>("fogfalloffexponent");
-                        var startDist = entity.GetProperty<float>("fogstart");
-                        var endDist = entity.GetProperty<float>("fogend");
+                        var distExponent = entity.GetPropertyUnchecked<float>("fogfalloffexponent");
+                        var startDist = entity.GetPropertyUnchecked<float>("fogstart");
+                        var endDist = entity.GetPropertyUnchecked<float>("fogend");
 
                         // Some maps don't have these properties.
+                        var useHeightFog = entity.GetProperty("fogverticalexponent") != default; // the oldest versions have these values missing, so disable it there
+                        if (entity.GetProperty("heightfog") != default) // New in CS2
+                        {
+                            useHeightFog &= entity.GetProperty<bool>("heightfog");
+                        }
                         // TODO: find the correct behavior under this condition
                         var startHeight = float.NegativeInfinity;
                         var endHeight = float.NegativeInfinity;
                         var heightExponent = 1.0f;
-                        if (entity.GetProperty("fogverticalexponent") != default)
+
+                        if (useHeightFog)
                         {
-                            heightExponent = entity.GetProperty<float>("fogverticalexponent");
-                            startHeight = entity.GetProperty<float>("fogstartheight");
-                            endHeight = entity.GetProperty<float>("fogendheight");
+                            heightExponent = entity.GetPropertyUnchecked<float>("fogverticalexponent");
+                            startHeight = entity.GetPropertyUnchecked<float>("fogstartheight");
+                            endHeight = entity.GetPropertyUnchecked<float>("fogendheight");
                         }
 
-                        var strength = entity.GetProperty<float>("fogstrength");
+                        var strength = entity.GetPropertyUnchecked<float>("fogstrength");
                         var colorData = entity.GetProperty("fogcolor");
 
                         Vector3 color;
@@ -365,7 +376,7 @@ namespace GUI.Types.Renderer
                                 throw new Exception("unknown entity type");
                         }
 
-                        var maxOpacity = entity.GetProperty<float>("fogmaxopacity");
+                        var maxOpacity = entity.GetPropertyUnchecked<float>("fogmaxopacity");
 
                         scene.FogInfo.GradientFog = new SceneGradientFog(scene)
                         {
@@ -389,27 +400,91 @@ namespace GUI.Types.Renderer
                         scene.FogInfo.CubeFogActive = true;
                         scene.RenderAttributes["USE_CUBEMAP_FOG"] = 1;
 
-                        // these aren't always present
-                        var heightExponent = float.PositiveInfinity;
-                        var heightStart = float.NegativeInfinity;
-                        var heightWidth = 0.0f;
-                        if (entity.GetProperty("cubemapfogheightexponent") != default)
-                        {
-                            heightExponent = entity.GetProperty<float>("cubemapfogheightexponent");
-                            heightStart = entity.GetProperty<float>("cubemapfogheightstart");
-                            heightWidth = entity.GetProperty<float>("cubemapfogheightwidth");
-                        }
-
-                        var lodBias = entity.GetProperty<float>("cubemapfoglodbiase");
-
-                        var falloffExponent = entity.GetProperty<float>("cubemapfogfalloffexponent");
-                        var startDist = entity.GetProperty<float>("cubemapfogstartdistance");
-                        var endDist = entity.GetProperty<float>("cubemapfogenddistance");
-
                         var transform = EntityTransformHelper.CalculateTransformationMatrix(entity);
 
-                        var fogTexture = guiContext.MaterialLoader.LoadTexture(
-                            entity.GetProperty<string>("cubemapfogtexture"));
+                        var lodBias = entity.GetPropertyUnchecked<float>("cubemapfoglodbiase");
+
+                        var falloffExponent = entity.GetPropertyUnchecked<float>("cubemapfogfalloffexponent");
+                        var startDist = entity.GetPropertyUnchecked<float>("cubemapfogstartdistance");
+                        var endDist = entity.GetPropertyUnchecked<float>("cubemapfogenddistance");
+
+                        var hasHeightEnd = entity.GetProperty("cubemapfogheightend") != default;
+
+                        var useHeightFog = entity.GetProperty("cubemapfogheightexponent") != default; // the oldest versions have these values missing, so disable it there
+                        if (entity.GetProperty("cubemapheightfog") != default) // New in CS2
+                        {
+                            useHeightFog &= entity.GetProperty<bool>("cubemapheightfog");
+                        }
+                        var heightExponent = 1.0f;
+                        var heightStart = float.PositiveInfinity; // is this right?
+                        var heightEnd = float.PositiveInfinity;
+                        if (useHeightFog)
+                        {
+                            heightExponent = entity.GetPropertyUnchecked<float>("cubemapfogheightexponent");
+                            heightStart = entity.GetPropertyUnchecked<float>("cubemapfogheightstart");
+                            if (hasHeightEnd)
+                            {
+                                // New in CS2
+                                heightEnd = entity.GetPropertyUnchecked<float>("cubemapfogheightend");
+                            }
+                            else
+                            {
+                                var heightWidth = entity.GetProperty<float>("cubemapfogheightwidth");
+                                heightEnd = heightStart + heightWidth;
+                            }
+                        }
+
+                        // New in CS2
+                        var opacity = 1f;
+                        if (entity.GetProperty("cubemapfogmaxopacity") != default)
+                        {
+                            opacity = entity.GetPropertyUnchecked<float>("cubemapfogmaxopacity");
+                        }
+
+                        // New in DeskJob
+                        var fogSource = "0";
+                        if (entity.GetProperty("cubemapfogsource") != default)
+                        {
+                            fogSource = entity.GetProperty<string>("cubemapfogsource");
+                        }
+
+                        RenderTexture fogTexture;
+                        if (fogSource == "0")
+                        {
+                            fogTexture = guiContext.MaterialLoader.LoadTexture(
+                                entity.GetProperty<string>("cubemapfogtexture"));
+                        }
+                        else
+                        {
+                            var material = "";
+                            if (fogSource == "1")
+                            {
+                                // env_sky target
+                                if (scene.Sky.TargetName == entity.GetProperty<string>("cubemapfogskyentity"))
+                                {
+                                    material = scene.Sky.Material.Material.Name;
+                                }
+                                else
+                                {
+                                    Console.WriteLine("error");
+                                    Console.WriteLine(scene.Sky.TargetName);
+                                    Console.WriteLine(entity.GetProperty<string>("cubemapfogskyentity"));
+                                }
+                            }
+                            else if (fogSource == "2")
+                            {
+                                material = entity.GetProperty<string>("cubemapfogskymaterial");
+                            }
+                            else
+                            {
+                                throw new NotImplementedException($"Cubemap fog source {fogSource} is not recognized.");
+                            }
+
+                            using var matFile = guiContext.LoadFileByAnyMeansNecessary(material + "_c");
+                            var mat = guiContext.MaterialLoader.LoadMaterial(matFile);
+                            fogTexture = mat.Textures["g_tSkyTexture"];
+                        }
+
 
                         scene.FogInfo.CubemapFog = new SceneCubemapFog(scene)
                         {
@@ -417,11 +492,13 @@ namespace GUI.Types.Renderer
                             EndDist = endDist,
                             FalloffExponent = falloffExponent,
                             HeightStart = heightStart,
-                            HeightWidth = heightWidth,
+                            HeightEnd = heightEnd,
                             HeightExponent = heightExponent,
                             LodBias = lodBias,
                             Transform = transform,
                             CubemapFogTexture = fogTexture,
+                            Opacity = opacity,
+                            UseHeightFog = useHeightFog,
                         };
                     }
                 }

@@ -13,7 +13,7 @@ in vec4 vTintColorFadeOut;
 
 out vec4 outputColor;
 
-uniform vec3 vEyePosition;
+#include "common/ViewConstants.glsl"
 
 uniform float g_flAlphaTestReference;
 uniform sampler2D g_tColor;
