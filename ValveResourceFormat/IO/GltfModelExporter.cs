@@ -857,12 +857,13 @@ namespace ValveResourceFormat.IO
                         {
                             case 1:
                                 {
-                                    var buffer = ReadAttributeBuffer(vertexBuffer, attribute);
+                                    var buffer = GetScalarAttributeArray(vertexBuffer, attribute);
                                     var bufferView = exportedModel.CreateBufferView(4 * buffer.Length, 0, BufferMode.ARRAY_BUFFER);
                                     new ScalarArray(bufferView.Content).Fill(buffer);
                                     var accessor = exportedModel.CreateAccessor();
                                     accessor.SetVertexData(bufferView, 0, buffer.Length, DimensionType.SCALAR);
                                     accessors[accessorName] = accessor;
+                                    Assert(Enumerable.SequenceEqual(buffer, ReadAttributeBuffer(vertexBuffer, attribute)));
                                     break;
                                 }
 

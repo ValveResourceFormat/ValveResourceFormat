@@ -292,6 +292,18 @@ namespace ValveResourceFormat.Blocks
             throw new InvalidDataException($"Unexpected {attribute.SemanticName} attribute format {attribute.Format}");
         }
 
+        public static float[] GetScalarAttributeArray(OnDiskBufferData vertexBuffer, RenderInputLayoutField attribute)
+        {
+            if (attribute.Format != DXGI_FORMAT.R32_FLOAT)
+            {
+                throw new InvalidDataException($"Unexpected {attribute.SemanticName} attribute format {attribute.Format}");
+            }
+
+            var result = new float[vertexBuffer.ElementCount];
+            MarshallAttributeArray(result, sizeof(float), vertexBuffer, attribute);
+            return result;
+        }
+
         public static Vector2[] GetVector2AttributeArray(OnDiskBufferData vertexBuffer, RenderInputLayoutField attribute)
         {
             var result = new Vector2[vertexBuffer.ElementCount];
