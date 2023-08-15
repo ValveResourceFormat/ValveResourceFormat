@@ -708,6 +708,14 @@ namespace ValveResourceFormat.IO
             return accessor;
         }
 
+        private static void Assert(bool condition) // Temporary! Debug.Assert exists process which is not useful
+        {
+            if (!condition)
+            {
+                throw new InvalidDataException("Failed to validate that new export code matches old");
+            }
+        }
+
         private Mesh CreateGltfMesh(string meshName, VMesh vmesh, ModelRoot exportedModel, bool includeJoints,
             string skinMaterialPath, VModel model, int meshIndex)
         {
@@ -789,8 +797,8 @@ namespace ValveResourceFormat.IO
 
                         if (TryDecompressTangentFrame(data, vbib, vertexBufferIndex, ReadAttributeBuffer(vertexBuffer, attribute), out var normalsOld, out var tangentsOld))
                         {
-                            System.Diagnostics.Debug.Assert(Enumerable.SequenceEqual(normals, normalsOld));
-                            System.Diagnostics.Debug.Assert(Enumerable.SequenceEqual(tangents, tangentsOld));
+                            Assert(Enumerable.SequenceEqual(normals, normalsOld));
+                            Assert(Enumerable.SequenceEqual(tangents, tangentsOld));
                         }
 
                         normals = FixZeroLengthVectors(normals);
@@ -826,7 +834,10 @@ namespace ValveResourceFormat.IO
                         {
                             ushortBuffer = ChangeBufferStride(ushortBuffer, attributeFormat.ElementCount, 4);
                         }
-                        System.Diagnostics.Debug.Assert(Enumerable.SequenceEqual(indices, ushortBuffer));
+                        else
+                        {
+                            Assert(Enumerable.SequenceEqual(indices, ushortBuffer));
+                        }
                     }
                     else if (attribute.SemanticName is "BLENDWEIGHT" or "BLENDWEIGHTS")
                     {
@@ -838,7 +849,7 @@ namespace ValveResourceFormat.IO
                         {
                             buffer = ChangeBufferStride(buffer, attributeFormat.ElementCount, 4);
                         }
-                        System.Diagnostics.Debug.Assert(Enumerable.SequenceEqual(weights, ToVector4Array(buffer)));
+                        Assert(Enumerable.SequenceEqual(weights, ToVector4Array(buffer)));
                     }
                     else if (VBIB.IsFloatFormat(attribute))
                     {
@@ -859,21 +870,21 @@ namespace ValveResourceFormat.IO
                                 {
                                     var vectors = VBIB.GetVector2AttributeArray(vertexBuffer, attribute);
                                     accessors[accessorName] = CreateAccessor(exportedModel, vectors);
-                                    System.Diagnostics.Debug.Assert(Enumerable.SequenceEqual(vectors, ToVector2Array(ReadAttributeBuffer(vertexBuffer, attribute))));
+                                    Assert(Enumerable.SequenceEqual(vectors, ToVector2Array(ReadAttributeBuffer(vertexBuffer, attribute))));
                                     break;
                                 }
                             case 3:
                                 {
                                     var vectors = VBIB.GetVector3AttributeArray(vertexBuffer, attribute);
                                     accessors[accessorName] = CreateAccessor(exportedModel, vectors);
-                                    System.Diagnostics.Debug.Assert(Enumerable.SequenceEqual(vectors, ToVector3Array(ReadAttributeBuffer(vertexBuffer, attribute))));
+                                    Assert(Enumerable.SequenceEqual(vectors, ToVector3Array(ReadAttributeBuffer(vertexBuffer, attribute))));
                                     break;
                                 }
                             case 4:
                                 {
                                     var vectors = VBIB.GetVector4AttributeArray(vertexBuffer, attribute);
 
-                                    System.Diagnostics.Debug.Assert(Enumerable.SequenceEqual(vectors, ToVector4Array(ReadAttributeBuffer(vertexBuffer, attribute))));
+                                    Assert(Enumerable.SequenceEqual(vectors, ToVector4Array(ReadAttributeBuffer(vertexBuffer, attribute))));
 
                                     if (accessorName == "TANGENT")
                                     {

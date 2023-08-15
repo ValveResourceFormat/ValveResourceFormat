@@ -268,6 +268,25 @@ namespace ValveResourceFormat.Blocks
 
                         return result;
                     }
+                case DXGI_FORMAT.R16G16_SNORM:
+                    {
+                        var result = new ushort[vertexBuffer.ElementCount * 2];
+                        var shorts = new short[2];
+                        var offset = (int)attribute.Offset;
+                        var inc = 0;
+
+                        for (var i = 0; i < vertexBuffer.ElementCount; i++)
+                        {
+                            Buffer.BlockCopy(vertexBuffer.Data, offset, shorts, 0, 4);
+
+                            result[inc++] = (ushort)(shorts[0] / short.MaxValue * ushort.MaxValue);
+                            result[inc++] = (ushort)(shorts[1] / short.MaxValue * ushort.MaxValue);
+
+                            offset += (int)vertexBuffer.ElementSizeInBytes;
+                        }
+
+                        return result;
+                    }
             }
 
             throw new InvalidDataException($"Unexpected {attribute.SemanticName} attribute format {attribute.Format}");
