@@ -818,7 +818,7 @@ namespace ValveResourceFormat.IO
                         var weights = VBIB.GetBlendWeightsArray(vertexBuffer, attribute);
                         accessors[accessorName] = CreateAccessor(exportedModel, weights);
                     }
-                    else if (VBIB.IsFloatFormat(attribute))
+                    else
                     {
                         switch (attributeFormat.ElementCount)
                         {
@@ -861,25 +861,6 @@ namespace ValveResourceFormat.IO
                             default:
                                 throw new NotImplementedException($"Attribute \"{attribute.SemanticName}\" has {attributeFormat.ElementCount} components");
                         }
-                    }
-                    else
-                    {
-                        var indices = VBIB.GetUnsignedShortAttributeArray(vertexBuffer, attribute);
-
-                        var dimensionType = attributeFormat.ElementCount switch
-                        {
-                            1 => DimensionType.SCALAR,
-                            2 => DimensionType.VEC2,
-                            3 => DimensionType.VEC3,
-                            4 => DimensionType.VEC4,
-                            _ => throw new NotImplementedException($"Attribute \"{attribute.SemanticName}\" has {attributeFormat.ElementCount} components")
-                        };
-
-                        var bufferView = exportedModel.CreateBufferView(2 * indices.Length, 0, BufferMode.ARRAY_BUFFER);
-                        indices.CopyTo(MemoryMarshal.Cast<byte, ushort>(((Memory<byte>)bufferView.Content).Span));
-                        var accessor = mesh.LogicalParent.CreateAccessor();
-                        accessor.SetVertexData(bufferView, 0, indices.Length / attributeFormat.ElementCount, dimensionType, EncodingType.UNSIGNED_SHORT, true);
-                        accessors[accessorName] = accessor;
                     }
                 }
 
@@ -1547,42 +1528,6 @@ namespace ValveResourceFormat.IO
             }
 
             return indices;
-        }
-
-        public static Vector3[] ToVector3Array(float[] buffer)
-        {
-            var vectorArray = new Vector3[buffer.Length / 3];
-
-            for (var i = 0; i < vectorArray.Length; i++)
-            {
-                vectorArray[i] = new Vector3(buffer[i * 3], buffer[(i * 3) + 1], buffer[(i * 3) + 2]);
-            }
-
-            return vectorArray;
-        }
-
-        public static Vector2[] ToVector2Array(float[] buffer)
-        {
-            var vectorArray = new Vector2[buffer.Length / 2];
-
-            for (var i = 0; i < vectorArray.Length; i++)
-            {
-                vectorArray[i] = new Vector2(buffer[i * 2], buffer[(i * 2) + 1]);
-            }
-
-            return vectorArray;
-        }
-
-        public static Vector4[] ToVector4Array(float[] buffer)
-        {
-            var vectorArray = new Vector4[buffer.Length / 4];
-
-            for (var i = 0; i < vectorArray.Length; i++)
-            {
-                vectorArray[i] = new Vector4(buffer[i * 4], buffer[(i * 4) + 1], buffer[(i * 4) + 2], buffer[(i * 4) + 3]);
-            }
-
-            return vectorArray;
         }
 
         // https://github.com/KhronosGroup/glTF-Validator/blob/master/lib/src/errors.dart

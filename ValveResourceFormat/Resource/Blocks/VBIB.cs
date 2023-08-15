@@ -232,69 +232,6 @@ namespace ValveResourceFormat.Blocks
             TEXCOORD - R16G16B16A16_FLOAT      vec4
         */
 
-        public static ushort[] GetUnsignedShortAttributeArray(OnDiskBufferData vertexBuffer, RenderInputLayoutField attribute)
-        {
-            switch (attribute.Format)
-            {
-                case DXGI_FORMAT.R8G8B8A8_UNORM:
-                    {
-                        var result = new ushort[vertexBuffer.ElementCount * 4];
-                        var offset = (int)attribute.Offset;
-                        var inc = 0;
-
-                        for (var i = 0; i < vertexBuffer.ElementCount; i++)
-                        {
-                            result[inc++] = vertexBuffer.Data[offset];
-                            result[inc++] = vertexBuffer.Data[offset + 1];
-                            result[inc++] = vertexBuffer.Data[offset + 2];
-                            result[inc++] = vertexBuffer.Data[offset + 3];
-
-                            offset += (int)vertexBuffer.ElementSizeInBytes;
-                        }
-
-                        return result;
-                    }
-                case DXGI_FORMAT.R16G16_UNORM:
-                    {
-                        var result = new ushort[vertexBuffer.ElementCount * 2];
-                        var offset = (int)attribute.Offset;
-
-                        for (var i = 0; i < vertexBuffer.ElementCount; i++)
-                        {
-                            Buffer.BlockCopy(vertexBuffer.Data, offset, result, i * 2, 4);
-
-                            offset += (int)vertexBuffer.ElementSizeInBytes;
-                        }
-
-                        return result;
-                    }
-                case DXGI_FORMAT.R16G16_SNORM:
-                    {
-                        var result = new ushort[vertexBuffer.ElementCount * 2];
-                        var shorts = new short[2];
-                        var offset = (int)attribute.Offset;
-                        var inc = 0;
-
-                        for (var i = 0; i < vertexBuffer.ElementCount; i++)
-                        {
-                            Buffer.BlockCopy(vertexBuffer.Data, offset, shorts, 0, 4);
-
-                            //System.Diagnostics.Debug.Assert(shorts[0] >= 0);
-                            //System.Diagnostics.Debug.Assert(shorts[1] >= 0);
-
-                            result[inc++] = (ushort)(shorts[0] * 2);
-                            result[inc++] = (ushort)(shorts[1] * 2);
-
-                            offset += (int)vertexBuffer.ElementSizeInBytes;
-                        }
-
-                        return result;
-                    }
-            }
-
-            throw new InvalidDataException($"Unexpected {attribute.SemanticName} attribute format {attribute.Format}");
-        }
-
         public static float[] GetScalarAttributeArray(OnDiskBufferData vertexBuffer, RenderInputLayoutField attribute)
         {
             if (attribute.Format != DXGI_FORMAT.R32_FLOAT)
@@ -324,6 +261,46 @@ namespace ValveResourceFormat.Blocks
                         for (var i = 0; i < vertexBuffer.ElementCount; i++)
                         {
                             result[i] = new Vector2((float)BitConverter.ToHalf(vertexBuffer.Data, offset), (float)BitConverter.ToHalf(vertexBuffer.Data, offset + 2));
+
+                            offset += (int)vertexBuffer.ElementSizeInBytes;
+                        }
+
+                        break;
+                    }
+
+                case DXGI_FORMAT.R16G16_UNORM:
+                    {
+                        var offset = (int)attribute.Offset;
+                        var ushorts = new ushort[2];
+
+                        for (var i = 0; i < vertexBuffer.ElementCount; i++)
+                        {
+                            Buffer.BlockCopy(vertexBuffer.Data, offset, ushorts, 0, 4);
+
+                            result[i] = new Vector2(
+                                ushorts[0] / 65535f,
+                                ushorts[1] / 65535f
+                            );
+
+                            offset += (int)vertexBuffer.ElementSizeInBytes;
+                        }
+
+                        break;
+                    }
+
+                case DXGI_FORMAT.R16G16_SNORM:
+                    {
+                        var shorts = new short[2];
+                        var offset = (int)attribute.Offset;
+
+                        for (var i = 0; i < vertexBuffer.ElementCount; i++)
+                        {
+                            Buffer.BlockCopy(vertexBuffer.Data, offset, shorts, 0, 4);
+
+                            result[i] = new Vector2(
+                                shorts[0] / 32767f,
+                                shorts[1] / 32767f
+                            );
 
                             offset += (int)vertexBuffer.ElementSizeInBytes;
                         }
@@ -377,6 +354,25 @@ namespace ValveResourceFormat.Blocks
                         }
 
                         break;
+                    }
+
+                case DXGI_FORMAT.R8G8B8A8_UNORM:
+                    {
+                        var offset = (int)attribute.Offset;
+
+                        for (var i = 0; i < vertexBuffer.ElementCount; i++)
+                        {
+                            result[i] = new Vector4(
+                                vertexBuffer.Data[offset] / 255f,
+                                vertexBuffer.Data[offset + 1] / 255f,
+                                vertexBuffer.Data[offset + 2] / 255f,
+                                vertexBuffer.Data[offset + 3] / 255f
+                            );
+
+                            offset += (int)vertexBuffer.ElementSizeInBytes;
+                        }
+
+                        return result;
                     }
 
                 default:
@@ -687,144 +683,6 @@ namespace ValveResourceFormat.Blocks
             return (normals, tangents);
         }
 
-        public static float[] ReadVertexAttribute(int offset, OnDiskBufferData vertexBuffer, RenderInputLayoutField attribute)
-        {
-            float[] result;
-
-            offset = (int)(offset * vertexBuffer.ElementSizeInBytes) + (int)attribute.Offset;
-
-            // Useful reference: https://github.com/apitrace/dxsdk/blob/master/Include/d3dx_dxgiformatconvert.inl
-            switch (attribute.Format)
-            {
-                case DXGI_FORMAT.R32G32B32_FLOAT:
-                    {
-                        result = new float[3];
-                        Buffer.BlockCopy(vertexBuffer.Data, offset, result, 0, 12);
-                        break;
-                    }
-
-                case DXGI_FORMAT.R32G32B32A32_FLOAT:
-                    {
-                        result = new float[4];
-                        Buffer.BlockCopy(vertexBuffer.Data, offset, result, 0, 16);
-                        break;
-                    }
-
-                case DXGI_FORMAT.R16G16_UNORM:
-                    {
-                        var shorts = new ushort[2];
-                        Buffer.BlockCopy(vertexBuffer.Data, offset, shorts, 0, 4);
-
-                        result = new[]
-                        {
-                            (float)shorts[0] / ushort.MaxValue,
-                            (float)shorts[1] / ushort.MaxValue,
-                        };
-                        break;
-                    }
-
-                case DXGI_FORMAT.R16G16_SNORM:
-                    {
-                        var shorts = new short[2];
-                        Buffer.BlockCopy(vertexBuffer.Data, offset, shorts, 0, 4);
-
-                        result = new[]
-                        {
-                            (float)shorts[0] / short.MaxValue,
-                            (float)shorts[1] / short.MaxValue,
-                        };
-                        break;
-                    }
-
-                case DXGI_FORMAT.R16G16_FLOAT:
-                    {
-                        result = new[]
-                        {
-                            (float)BitConverter.ToHalf(vertexBuffer.Data, offset),
-                            (float)BitConverter.ToHalf(vertexBuffer.Data, offset + 2),
-                        };
-                        break;
-                    }
-
-                case DXGI_FORMAT.R16G16B16A16_FLOAT:
-                    {
-                        result = new[]
-                        {
-                            (float)BitConverter.ToHalf(vertexBuffer.Data, offset),
-                            (float)BitConverter.ToHalf(vertexBuffer.Data, offset + 2),
-                            (float)BitConverter.ToHalf(vertexBuffer.Data, offset + 4),
-                            (float)BitConverter.ToHalf(vertexBuffer.Data, offset + 6),
-                        };
-                        break;
-                    }
-
-                case DXGI_FORMAT.R32_FLOAT:
-                case DXGI_FORMAT.R32_UINT:
-                    {
-                        result = new float[1];
-                        Buffer.BlockCopy(vertexBuffer.Data, offset, result, 0, 4);
-                        break;
-                    }
-
-                case DXGI_FORMAT.R32G32_FLOAT:
-                    {
-                        result = new float[2];
-                        Buffer.BlockCopy(vertexBuffer.Data, offset, result, 0, 8);
-                        break;
-                    }
-
-                case DXGI_FORMAT.R16G16_SINT:
-                    {
-                        var shorts = new short[2];
-                        Buffer.BlockCopy(vertexBuffer.Data, offset, shorts, 0, 4);
-
-                        result = new float[2];
-                        for (var i = 0; i < 2; i++)
-                        {
-                            result[i] = shorts[i];
-                        }
-
-                        break;
-                    }
-
-                case DXGI_FORMAT.R16G16B16A16_SINT:
-                    {
-                        var shorts = new short[4];
-                        Buffer.BlockCopy(vertexBuffer.Data, offset, shorts, 0, 8);
-
-                        result = new float[4];
-                        for (var i = 0; i < 4; i++)
-                        {
-                            result[i] = shorts[i];
-                        }
-
-                        break;
-                    }
-
-                case DXGI_FORMAT.R8G8B8A8_UINT:
-                case DXGI_FORMAT.R8G8B8A8_UNORM:
-                    {
-                        var bytes = new byte[4];
-                        Buffer.BlockCopy(vertexBuffer.Data, offset, bytes, 0, 4);
-
-                        result = new float[4];
-                        for (var i = 0; i < 4; i++)
-                        {
-                            result[i] = attribute.Format == DXGI_FORMAT.R8G8B8A8_UNORM
-                                ? (float)bytes[i] / byte.MaxValue
-                                : bytes[i];
-                        }
-
-                        break;
-                    }
-
-                default:
-                    throw new NotImplementedException($"Unsupported \"{attribute.SemanticName}\" DXGI_FORMAT.{attribute.Format}");
-            }
-
-            return result;
-        }
-
         public override void WriteText(IndentedTextWriter writer)
         {
             writer.WriteLine("Vertex buffers:");
@@ -882,17 +740,6 @@ namespace ValveResourceFormat.Blocks
                 DXGI_FORMAT.R8G8B8A8_UNORM => (1, 4),
                 _ => throw new NotImplementedException($"Unsupported \"{attribute.SemanticName}\" DXGI_FORMAT.{attribute.Format}"),
             };
-        }
-
-        public static bool IsFloatFormat(RenderInputLayoutField attribute)
-        {
-            return attribute.Format
-                is DXGI_FORMAT.R16G16_FLOAT
-                or DXGI_FORMAT.R16G16B16A16_FLOAT
-                or DXGI_FORMAT.R32_FLOAT
-                or DXGI_FORMAT.R32G32_FLOAT
-                or DXGI_FORMAT.R32G32B32_FLOAT
-                or DXGI_FORMAT.R32G32B32A32_FLOAT;
         }
 
         public static int[] CombineRemapTables(int[][] remapTables)

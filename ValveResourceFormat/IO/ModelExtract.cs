@@ -546,74 +546,22 @@ public class ModelExtract
                 semantic = "VertexPaintBlendParams$0";
             }
 
-            float[] GetScalarAttributes(VBIB.OnDiskBufferData vertexBuffer, VBIB.RenderInputLayoutField attribute)
-            {
-                if (VBIB.IsFloatFormat(attribute))
-                {
-                    return VBIB.GetScalarAttributeArray(vertexBuffer, attribute);
-                }
-
-                var ushorts = VBIB.GetUnsignedShortAttributeArray(vertexBuffer, attribute);
-                var floats = new float[ushorts.Length];
-                UShortsToFloatsNormalized(ushorts, floats);
-                return floats;
-            }
-
-            Vector2[] GetVector2Attributes(VBIB.OnDiskBufferData vertexBuffer, VBIB.RenderInputLayoutField attribute)
-            {
-                if (VBIB.IsFloatFormat(attribute))
-                {
-                    return VBIB.GetVector2AttributeArray(vertexBuffer, attribute);
-                }
-
-                var ushorts = VBIB.GetUnsignedShortAttributeArray(vertexBuffer, attribute);
-                var vectors = new Vector2[ushorts.Length / 2];
-                UShortsToFloatsNormalized(ushorts, MemoryMarshal.Cast<Vector2, float>(vectors));
-                return vectors;
-            }
-
-            Vector3[] GetVector3Attributes(VBIB.OnDiskBufferData vertexBuffer, VBIB.RenderInputLayoutField attribute)
-            {
-                if (VBIB.IsFloatFormat(attribute))
-                {
-                    return VBIB.GetVector3AttributeArray(vertexBuffer, attribute);
-                }
-
-                var ushorts = VBIB.GetUnsignedShortAttributeArray(vertexBuffer, attribute);
-                var vectors = new Vector3[ushorts.Length / 3];
-                UShortsToFloatsNormalized(ushorts, MemoryMarshal.Cast<Vector3, float>(vectors));
-                return vectors;
-            }
-
-            Vector4[] GetVector4Attributes(VBIB.OnDiskBufferData vertexBuffer, VBIB.RenderInputLayoutField attribute)
-            {
-                if (VBIB.IsFloatFormat(attribute))
-                {
-                    return VBIB.GetVector4AttributeArray(vertexBuffer, attribute);
-                }
-
-                var ushorts = VBIB.GetUnsignedShortAttributeArray(vertexBuffer, attribute);
-                var vectors = new Vector4[ushorts.Length / 4];
-                UShortsToFloatsNormalized(ushorts, MemoryMarshal.Cast<Vector4, float>(vectors));
-                return vectors;
-            }
-
             switch (attributeFormat.ElementCount)
             {
                 case 1:
-                    var scalar = GetScalarAttributes(vertexBuffer, attribute);
+                    var scalar = VBIB.GetScalarAttributeArray(vertexBuffer, attribute);
                     vertexData.AddIndexedStream(semantic, scalar, indices);
                     break;
                 case 2:
-                    var vec2 = GetVector2Attributes(vertexBuffer, attribute);
+                    var vec2 = VBIB.GetVector2AttributeArray(vertexBuffer, attribute);
                     vertexData.AddIndexedStream(semantic, vec2, indices);
                     break;
                 case 3:
-                    var vec3 = GetVector3Attributes(vertexBuffer, attribute);
+                    var vec3 = VBIB.GetVector3AttributeArray(vertexBuffer, attribute);
                     vertexData.AddIndexedStream(semantic, vec3, indices);
                     break;
                 case 4:
-                    var vec4 = GetVector4Attributes(vertexBuffer, attribute);
+                    var vec4 = VBIB.GetVector4AttributeArray(vertexBuffer, attribute);
                     vertexData.AddIndexedStream(semantic, vec4, indices);
                     break;
                 default:
