@@ -1524,11 +1524,6 @@ namespace ValveResourceFormat.IO
             return uri;
         }
 
-        public static float[] ReadAttributeBuffer(OnDiskBufferData buffer, RenderInputLayoutField attribute)
-            => Enumerable.Range(0, (int)buffer.ElementCount)
-                .SelectMany(i => VBIB.ReadVertexAttribute(i, buffer, attribute))
-                .ToArray();
-
         public static int[] ReadIndices(OnDiskBufferData indexBuffer, int start, int count, int baseVertex)
         {
             var indices = new int[count];

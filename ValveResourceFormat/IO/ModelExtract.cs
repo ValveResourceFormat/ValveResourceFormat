@@ -506,6 +506,7 @@ public class ModelExtract
 
         foreach (var attribute in vertexBuffer.InputLayoutFields)
         {
+            var attributeFormat = VBIB.GetFormatInfo(attribute);
             var semantic = attribute.SemanticName.ToLowerInvariant() + "$" + attribute.SemanticIndex;
 
             if (attribute.SemanticName is "NORMAL")
@@ -533,17 +534,7 @@ public class ModelExtract
                 vertexData.JointCount = 4;
 
                 var vectorWeights = VBIB.GetBlendWeightsArray(vertexBuffer, attribute);
-                var flatWeights = new float[vectorWeights.Length * 4];
-                var flatHandle = GCHandle.Alloc(vectorWeights, GCHandleType.Pinned);
-
-                try
-                {
-                    Marshal.Copy(flatHandle.AddrOfPinnedObject(), flatWeights, 0, flatWeights.Length);
-                }
-                finally
-                {
-                    flatHandle.Free();
-                }
+                var flatWeights = MemoryMarshal.Cast<Vector4, float>(vectorWeights).ToArray();
 
                 vertexData.AddStream("blendweights$" + attribute.SemanticIndex, flatWeights);
                 continue;
@@ -555,28 +546,78 @@ public class ModelExtract
                 semantic = "VertexPaintBlendParams$0";
             }
 
-            var buffer = GltfModelExporter.ReadAttributeBuffer(vertexBuffer, attribute);
-            var numComponents = buffer.Length / (int)vertexBuffer.ElementCount;
+            float[] GetScalarAttributes(VBIB.OnDiskBufferData vertexBuffer, VBIB.RenderInputLayoutField attribute)
+            {
+                if (VBIB.IsFloatFormat(attribute))
+                {
+                    return VBIB.GetScalarAttributeArray(vertexBuffer, attribute);
+                }
 
-            if (numComponents == 4)
-            {
-                vertexData.AddIndexedStream(semantic, GltfModelExporter.ToVector4Array(buffer), indices);
+                var ushorts = VBIB.GetUnsignedShortAttributeArray(vertexBuffer, attribute);
+                var floats = new float[ushorts.Length];
+                UShortsToFloatsNormalized(ushorts, floats);
+                return floats;
             }
-            else if (numComponents == 3)
+
+            Vector2[] GetVector2Attributes(VBIB.OnDiskBufferData vertexBuffer, VBIB.RenderInputLayoutField attribute)
             {
-                vertexData.AddIndexedStream(semantic, GltfModelExporter.ToVector3Array(buffer), indices);
+                if (VBIB.IsFloatFormat(attribute))
+                {
+                    return VBIB.GetVector2AttributeArray(vertexBuffer, attribute);
+                }
+
+                var ushorts = VBIB.GetUnsignedShortAttributeArray(vertexBuffer, attribute);
+                var vectors = new Vector2[ushorts.Length / 2];
+                UShortsToFloatsNormalized(ushorts, MemoryMarshal.Cast<Vector2, float>(vectors));
+                return vectors;
             }
-            else if (numComponents == 2)
+
+            Vector3[] GetVector3Attributes(VBIB.OnDiskBufferData vertexBuffer, VBIB.RenderInputLayoutField attribute)
             {
-                vertexData.AddIndexedStream(semantic, GltfModelExporter.ToVector2Array(buffer), indices);
+                if (VBIB.IsFloatFormat(attribute))
+                {
+                    return VBIB.GetVector3AttributeArray(vertexBuffer, attribute);
+                }
+
+                var ushorts = VBIB.GetUnsignedShortAttributeArray(vertexBuffer, attribute);
+                var vectors = new Vector3[ushorts.Length / 3];
+                UShortsToFloatsNormalized(ushorts, MemoryMarshal.Cast<Vector3, float>(vectors));
+                return vectors;
             }
-            else if (numComponents == 1)
+
+            Vector4[] GetVector4Attributes(VBIB.OnDiskBufferData vertexBuffer, VBIB.RenderInputLayoutField attribute)
             {
-                vertexData.AddIndexedStream(semantic, buffer, indices);
+                if (VBIB.IsFloatFormat(attribute))
+                {
+                    return VBIB.GetVector4AttributeArray(vertexBuffer, attribute);
+                }
+
+                var ushorts = VBIB.GetUnsignedShortAttributeArray(vertexBuffer, attribute);
+                var vectors = new Vector4[ushorts.Length / 4];
+                UShortsToFloatsNormalized(ushorts, MemoryMarshal.Cast<Vector4, float>(vectors));
+                return vectors;
             }
-            else
+
+            switch (attributeFormat.ElementCount)
             {
-                throw new NotImplementedException($"Stream {semantic} has an unexpected number of components: {numComponents}.");
+                case 1:
+                    var scalar = GetScalarAttributes(vertexBuffer, attribute);
+                    vertexData.AddIndexedStream(semantic, scalar, indices);
+                    break;
+                case 2:
+                    var vec2 = GetVector2Attributes(vertexBuffer, attribute);
+                    vertexData.AddIndexedStream(semantic, vec2, indices);
+                    break;
+                case 3:
+                    var vec3 = GetVector3Attributes(vertexBuffer, attribute);
+                    vertexData.AddIndexedStream(semantic, vec3, indices);
+                    break;
+                case 4:
+                    var vec4 = GetVector4Attributes(vertexBuffer, attribute);
+                    vertexData.AddIndexedStream(semantic, vec4, indices);
+                    break;
+                default:
+                    throw new NotImplementedException($"Stream {semantic} has an unexpected number of components: {attributeFormat.ElementCount}.");
             }
         }
 
@@ -759,5 +800,13 @@ public class ModelExtract
         }
 
         faceSet.Material.MaterialName = material;
+    }
+
+    private static void UShortsToFloatsNormalized(ReadOnlySpan<ushort> unsignedShorts, Span<float> floats)
+    {
+        for (var i = 0; i < unsignedShorts.Length; i++)
+        {
+            floats[i] = (float)unsignedShorts[i] / ushort.MaxValue;
+        }
     }
 }
