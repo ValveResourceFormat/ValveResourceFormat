@@ -844,6 +844,17 @@ namespace ValveResourceFormat.IO
                     {
                         switch (attributeFormat.ElementCount)
                         {
+                            case 1:
+                                {
+                                    var buffer = ReadAttributeBuffer(vertexBuffer, attribute);
+                                    var bufferView = exportedModel.CreateBufferView(4 * buffer.Length, 0, BufferMode.ARRAY_BUFFER);
+                                    new ScalarArray(bufferView.Content).Fill(buffer);
+                                    var accessor = exportedModel.CreateAccessor();
+                                    accessor.SetVertexData(bufferView, 0, buffer.Length, DimensionType.SCALAR);
+                                    accessors[accessorName] = accessor;
+                                    break;
+                                }
+
                             case 2:
                                 {
                                     var vectors = VBIB.GetVector2AttributeArray(vertexBuffer, attribute);
