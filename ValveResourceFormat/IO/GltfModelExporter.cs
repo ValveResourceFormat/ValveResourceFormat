@@ -1811,8 +1811,6 @@ namespace ValveResourceFormat.IO
                 {
                     vectorArray[i] = -Vector4.UnitZ;
                     vectorArray[i].W = vec.W;
-
-                    Console.Error.WriteLine($"The exported model contains a non-zero unit vector which was replaced with {vectorArray[i]} for exporting purposes.");
                 }
             }
 
@@ -1826,8 +1824,6 @@ namespace ValveResourceFormat.IO
                 if (Math.Abs(vectorArray[i].Length() - 1.0f) > UnitLengthThresholdVec3)
                 {
                     vectorArray[i] = -Vector3.UnitZ;
-
-                    Console.Error.WriteLine($"The exported model contains a non-zero unit vector which was replaced with {vectorArray[i]} for exporting purposes.");
                 }
             }
 

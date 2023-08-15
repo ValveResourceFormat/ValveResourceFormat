@@ -45,7 +45,6 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
             if (animArray.Length == 0)
             {
-                Console.WriteLine("Empty animation file found.");
                 return Enumerable.Empty<Animation>();
             }
 
