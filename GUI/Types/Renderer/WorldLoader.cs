@@ -460,16 +460,28 @@ namespace GUI.Types.Renderer
                             var material = "";
                             if (fogSource == "1")
                             {
+                                var skyEntTargetName = entity.GetProperty<string>("cubemapfogskyentity");
                                 // env_sky target
-                                if (scene.Sky.TargetName == entity.GetProperty<string>("cubemapfogskyentity"))
+                                if (scene.Sky != default && (scene.Sky.TargetName == skyEntTargetName))
                                 {
                                     material = scene.Sky.Material.Material.Name;
                                 }
                                 else
                                 {
-                                    Console.WriteLine("error");
-                                    Console.WriteLine(scene.Sky.TargetName);
-                                    Console.WriteLine(entity.GetProperty<string>("cubemapfogskyentity"));
+                                    // SO APPARENTLY ENTITY TARGET REFERENCES CAN GO ACROSS SKYBOX MAPS. THIS HAPPENS IN OVERPASS
+                                    // For now, skip these cases. We'll come back to them later.
+                                    if (scene.Sky == default)
+                                    {
+                                        Console.WriteLine("WARNING (Cubemap Fog): No sky entity exists in this base map! It may exist in the skybox map, but this is currently unsupported.");
+                                    }
+                                    else
+                                    {
+                                        Console.WriteLine($"WARNING: Current sky entity (named {scene.Sky.TargetName}) does not match cubemap fog sky source target {skyEntTargetName}!");
+                                    }
+                                    Console.WriteLine("Disabling cubemap fog.");
+                                    scene.FogInfo.CubeFogActive = false;
+                                    scene.RenderAttributes["USE_CUBEMAP_FOG"] = 0;
+                                    continue;
                                 }
                             }
                             else if (fogSource == "2")
