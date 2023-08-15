@@ -1,14 +1,14 @@
 <h1 align="center">VRF / Valve Resource Format</h1>
 
 <p align="center">
-    <a href="https://github.com/SteamDatabase/ValveResourceFormat/actions">
-        <img alt="GitHub Workflow Status" src="https://img.shields.io/github/actions/workflow/status/SteamDatabase/ValveResourceFormat/build.yml?logo=github&style=for-the-badge&branch=master">
+    <a href="https://github.com/ValveResourceFormat/ValveResourceFormat/actions">
+        <img alt="GitHub Workflow Status" src="https://img.shields.io/github/actions/workflow/status/ValveResourceFormat/ValveResourceFormat/build.yml?logo=github&style=for-the-badge&branch=master">
     </a>
     <a href="https://www.nuget.org/packages/ValveResourceFormat/">
         <img src="https://img.shields.io/nuget/v/ValveResourceFormat.svg?logo=nuget&style=for-the-badge">
     </a>
-    <a href="https://app.codecov.io/gh/SteamDatabase/ValveResourceFormat">
-        <img src="https://img.shields.io/codecov/c/github/SteamDatabase/ValveResourceFormat/master?logo=codecov&logoColor=ffffff&style=for-the-badge">
+    <a href="https://app.codecov.io/gh/ValveResourceFormat/ValveResourceFormat">
+        <img src="https://img.shields.io/codecov/c/github/ValveResourceFormat/ValveResourceFormat/master?logo=codecov&logoColor=ffffff&style=for-the-badge">
     </a>
 </p>
 
@@ -29,12 +29,12 @@ This repository is split into three components:
 ## Eye catchy screenshots
 <table>
 	<tr>
-		<td><img src="https://raw.githubusercontent.com/SteamDatabase/ValveResourceFormat/gh-pages/static/screen_map.png"></td>
-		<td><img src="https://raw.githubusercontent.com/SteamDatabase/ValveResourceFormat/gh-pages/static/screen_texture.png"></td>
+		<td><img src="https://raw.githubusercontent.com/ValveResourceFormat/ValveResourceFormat/gh-pages/static/screen_map.png"></td>
+		<td><img src="https://raw.githubusercontent.com/ValveResourceFormat/ValveResourceFormat/gh-pages/static/screen_texture.png"></td>
 	</tr>
 	<tr>
-		<td><img src="https://raw.githubusercontent.com/SteamDatabase/ValveResourceFormat/gh-pages/static/screen_package.png"></td>
-		<td><img src="https://raw.githubusercontent.com/SteamDatabase/ValveResourceFormat/gh-pages/static/screen_cli.png"></td>
+		<td><img src="https://raw.githubusercontent.com/ValveResourceFormat/ValveResourceFormat/gh-pages/static/screen_package.png"></td>
+		<td><img src="https://raw.githubusercontent.com/ValveResourceFormat/ValveResourceFormat/gh-pages/static/screen_cli.png"></td>
 	</tr>
 </table>
 
@@ -93,7 +93,7 @@ vsnap    | Particle Snapshot       | 👍
 vmap     | Map                     | 👍
 vrr      | Response rules          | 👍
 &nbsp;   | &nbsp;                  | &nbsp;
-vpk      | Pak (package)           | 👍 Handled by [ValvePak](https://github.com/SteamDatabase/ValvePak)
+vpk      | Pak (package)           | 👍 Handled by [ValvePak](https://github.com/ValveResourceFormat/ValvePak)
 vcs      | Compiled Shader         | 👍 Partially supported by `CompiledShader`
 vfont    | Bitmap Font             | 👍 Decrypts `VFONT1`, supported in Source 1 and Source 2.
 dat      | Closed Captions         | 👍 Handled by `ClosedCaptions`

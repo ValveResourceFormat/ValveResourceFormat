@@ -195,7 +195,7 @@ namespace ValveResourceFormat
 
             if (FileSize == 0x55AA1234)
             {
-                throw new InvalidDataException("Use ValvePak library to parse VPK files.\nSee https://github.com/SteamDatabase/ValvePak");
+                throw new InvalidDataException("Use ValvePak library to parse VPK files.\nSee https://github.com/ValveResourceFormat/ValvePak");
             }
 
             if (FileSize == ShaderFile.MAGIC)

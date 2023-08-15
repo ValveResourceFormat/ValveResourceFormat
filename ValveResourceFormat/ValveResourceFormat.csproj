@@ -2,7 +2,7 @@
   <PropertyGroup>
     <TargetFramework>net6.0</TargetFramework>
     <Description>Library to decompile Valve Source 2 files</Description>
-    <PackageReleaseNotes>View release notes at https://github.com/SteamDatabase/ValveResourceFormat/releases</PackageReleaseNotes>
+    <PackageReleaseNotes>View release notes at https://github.com/ValveResourceFormat/ValveResourceFormat/releases</PackageReleaseNotes>
     <PackageIcon>vrf_library.png</PackageIcon>
     <PackageTags>source2 dota2 dota steam valve halflife artifact underlords</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>

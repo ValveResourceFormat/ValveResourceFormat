@@ -463,8 +463,8 @@ namespace ValveResourceFormat.IO
 
                             if (float.IsNaN(boneFrameScale) || float.IsInfinity(boneFrameScale))
                             {
-                                // See https://github.com/SteamDatabase/ValveResourceFormat/issues/527 (NaN)
-                                // and https://github.com/SteamDatabase/ValveResourceFormat/issues/570 (inf)
+                                // See https://github.com/ValveResourceFormat/ValveResourceFormat/issues/527 (NaN)
+                                // and https://github.com/ValveResourceFormat/ValveResourceFormat/issues/570 (inf)
                                 boneFrameScale = 0.0f;
                             }
 

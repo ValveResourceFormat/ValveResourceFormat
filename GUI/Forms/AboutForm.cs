@@ -21,12 +21,12 @@ namespace GUI.Forms
 
         private void OnGithubClick(object sender, System.EventArgs e)
         {
-            OpenUrl("https://github.com/SteamDatabase/ValveResourceFormat");
+            OpenUrl("https://github.com/ValveResourceFormat/ValveResourceFormat");
         }
 
         private void OnReleasesClick(object sender, System.EventArgs e)
         {
-            OpenUrl("https://github.com/SteamDatabase/ValveResourceFormat/releases");
+            OpenUrl("https://github.com/ValveResourceFormat/ValveResourceFormat/releases");
         }
 
         private static void OpenUrl(string url)

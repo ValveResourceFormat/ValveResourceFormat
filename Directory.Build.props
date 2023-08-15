@@ -21,9 +21,9 @@
     <EnableNETAnalyzers>true</EnableNETAnalyzers>
   </PropertyGroup>
   <PropertyGroup>
-    <Authors>SteamDB</Authors>
-    <Copyright>Copyright © SteamDB</Copyright>
-    <RepositoryUrl>https://github.com/SteamDatabase/ValveResourceFormat</RepositoryUrl>
+    <Authors>ValveResourceFormat Contributors</Authors>
+    <Copyright>Copyright © ValveResourceFormat Contributors</Copyright>
+    <RepositoryUrl>https://github.com/ValveResourceFormat/ValveResourceFormat</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageProjectUrl>https://vrf.steamdb.info/</PackageProjectUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>

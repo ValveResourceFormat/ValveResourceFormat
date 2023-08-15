@@ -1213,7 +1213,7 @@ namespace Decompiler
             info.Append("OS: ");
             info.AppendLine(RuntimeInformation.OSDescription);
             info.AppendLine("Website: https://vrf.steamdb.info");
-            info.Append("GitHub: https://github.com/SteamDatabase/ValveResourceFormat");
+            info.Append("GitHub: https://github.com/ValveResourceFormat/ValveResourceFormat");
             return info.ToString();
         }
     }

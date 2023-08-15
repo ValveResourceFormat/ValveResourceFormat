@@ -45,7 +45,7 @@ namespace GUI.Forms
                             Console.Error.WriteLine(exception);
                         }
 
-                        Console.Error.WriteLine("Search existing issues or create a new one here: https://github.com/SteamDatabase/ValveResourceFormat/issues");
+                        Console.Error.WriteLine("Search existing issues or create a new one here: https://github.com/ValveResourceFormat/ValveResourceFormat/issues");
 
                         SetProgress($"An exception occured, view console tab for more information. ({t.Exception.InnerException.Message})");
 
