@@ -36,8 +36,8 @@ void ApplyGradientFog(inout vec3 pixelColor, vec3 positionWS, float pixelDepth)
 #if defined(USE_CUBEMAP_FOG)
 uniform vec4 g_vCubeFog_Offset_Scale_Bias_Exponent;
 uniform vec4 g_vCubeFog_Height_Offset_Scale_Exponent_Log2Mip;
-uniform mat4 g_matvCubeFogSkyWsToOs; // hopefully the mat3 -> mat4 transition doesnt cause problems
-uniform vec2 g_vCubeFogCullingParams;
+uniform mat4 g_matvCubeFogSkyWsToOs; // only needs to be mat3
+uniform vec4 g_vCubeFogCullingParams_Opacity;
 
 uniform samplerCube g_tFogCubeTexture;
 
@@ -52,13 +52,15 @@ void ApplyCubemapFog(inout vec3 pixelColor, vec3 positionWS, vec3 posRelativeToC
     vec3 fogCoords = normalize((vec4(normalize(posRelativeToCamera), 0.0) * g_matvCubeFogSkyWsToOs).xyz);
     float cubemapFogLod = saturate( 1.0 - cubemapFogBlend * g_vCubeFog_Offset_Scale_Bias_Exponent.z ) * g_vCubeFog_Height_Offset_Scale_Exponent_Log2Mip.w;
 
+    float cubemapFogOpacity = saturate(cubemapFogBlend) * g_vCubeFogCullingParams_Opacity.a;
+
     vec3 cubemapFogColor = textureLod(g_tFogCubeTexture, fogCoords.xyz, cubemapFogLod).rgb;
-    pixelColor = mix(pixelColor, cubemapFogColor, cubemapFogBlend);
+    pixelColor = mix(pixelColor, cubemapFogColor, cubemapFogOpacity);
 }
 
 #endif
 
-#if (USE_VOLUMETRIC_FOG == 1)
+#if (USE_VOLUMETRIC_FOG == 1) && 0
 // I have all the shader code for volumetric fog, but it would be HARD to implement. Disabled for now.
 uniform vec4 g_vVolFog_VolumeScale_Shift_Near_Range;
 uniform vec4 g_vVolFogDitherScaleBias;
@@ -105,7 +107,7 @@ void ApplyFog(inout vec3 pixelColor, vec3 positionWS)
 {
     if (g_bFogEnabled && VRF_ENABLE_FOG && ((USE_CUBEMAP_FOG == 1) || (USE_GRADIENT_FOG == 1)))
     {
-        vec3 cameraCenteredPixelPos = positionWS - vEyePosition;
+        vec3 cameraCenteredPixelPos = positionWS - g_vCameraPositionWs;
 
 #if (USE_GRADIENT_FOG == 1)
         float horizontalDistanceQuadratic = dot(cameraCenteredPixelPos.xy, cameraCenteredPixelPos.xy);
@@ -120,7 +122,7 @@ void ApplyFog(inout vec3 pixelColor, vec3 positionWS)
 #if (USE_CUBEMAP_FOG == 1)
         float distanceQuadratic = dot(cameraCenteredPixelPos, cameraCenteredPixelPos);
 
-        bool bPixelHasCubemapFog = (distanceQuadratic > g_vCubeFogCullingParams.x) || (positionWS.z > g_vCubeFogCullingParams.y);
+        bool bPixelHasCubemapFog = (distanceQuadratic > g_vCubeFogCullingParams_Opacity.x) || (positionWS.z > g_vCubeFogCullingParams_Opacity.y);
         if (bPixelHasCubemapFog)
         {
             ApplyCubemapFog(pixelColor, positionWS, cameraCenteredPixelPos, sqrt(distanceQuadratic));
@@ -135,9 +137,10 @@ void ApplyFog(inout vec3 pixelColor, vec3 positionWS)
 #endif
 #if (USE_SPHERICAL_VIGNETTE_TERRIBLEIDEA == 42069)
 		// Spherical Vignette (Exclusive to Half-Life: Alyx. Used in a1_intro_world and startup, maybe others)
-		if (g_bFogTypeEnabled.w)
-		{
-		ApplySphericalVignette(pixelColor, LightingPos);
+        //if (g_bFogTypeEnabled.w)
+        //{
+        //    ApplySphericalVignette(pixelColor, LightingPos);
+        //}
 #endif
 
     }

@@ -83,14 +83,14 @@ namespace GUI.Types.Renderer
             return new Vector3(MathF.Cos(Yaw - OpenTK.MathHelper.PiOver2), MathF.Sin(Yaw - OpenTK.MathHelper.PiOver2), 0);
         }
 
-        public UniformBuffers.ViewConstants SetViewConstants(UniformBuffers.ViewConstants viewConstants)
+        public UniformBuffers.ViewConstants SetViewConstants(UniformBuffers.ViewConstants viewConstants, float mapScale)
         {
             return viewConstants with
             {
                 WorldToProjection = ProjectionMatrix,
                 WorldToView = CameraViewMatrix,
                 ViewToProjection = ViewProjectionMatrix,
-                CameraPosition = Location,
+                CameraPosition = Location / mapScale,
             };
         }
 

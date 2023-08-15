@@ -98,6 +98,8 @@ uniform float g_flHeightMapZeroPoint1 = 0;
 #include "common/environment.glsl"
 #endif
 
+#include "common/fog.glsl"
+
 // Must be last
 #include "common/lighting.glsl"
 
@@ -129,7 +131,8 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 
     float blendFactor = vColorBlendValues.r;
     float blendMask = heightTex2.r * g_flHeightMapScale1 + g_flHeightMapZeroPoint1;
-    blendMask = (blendMask + (heightTex2.r * g_flHeightMapScale2 + g_flHeightMapZeroPoint2)) * 0.5;
+    float blendMask2 = heightTex2.r * g_flHeightMapScale2 + g_flHeightMapZeroPoint2;
+    blendMask = (blendMask + blendMask2) * 0.5;
 
     blendFactor = applyBlendModulation(blendFactor, blendMask, g_flBlendSoftness2);
 
@@ -155,12 +158,13 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
     mat.Albedo *= tintFactor;
 
     // Normals and Roughness
-    mat.NormalMap = normalize(DecodeNormal(normal));
+    mat.NormalMap = DecodeNormal(normal);
     
     mat.RoughnessTex = normal.b;
 
     // Detail texture
 #if (F_DETAIL_NORMAL == 1)
+    // this is wrong. todo
     mat.NormalMap.xy = (mat.NormalMap.xy + detailNormal) * vec2(0.5);
 #endif
 
@@ -213,6 +217,9 @@ void main()
     vec3 specularLighting = lighting.SpecularDirect + lighting.SpecularIndirect;
 
     vec3 combinedLighting = mat.DiffuseColor * diffuseLighting + specularLighting;
+
+    ApplyFog(outputColor.rgb, mat.PositionWS);
+
     outputColor.rgb = pow(combinedLighting, invGamma);
 
 #if defined(csgo_environment_blend)
