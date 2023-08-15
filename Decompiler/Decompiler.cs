@@ -348,25 +348,37 @@ namespace Decompiler
         {
             lock (ConsoleWriterLock)
             {
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.Write($"[{++CurrentFile}/{TotalFiles}] ");
+                CurrentFile++;
 
-                if (originalPath != null)
+                if (CollectStats && RecursiveSearch)
                 {
-                    if (IsInputFolder && originalPath.StartsWith(InputFile, StringComparison.Ordinal))
+                    if (CurrentFile % 1000 == 0)
                     {
-                        Console.Write(originalPath.Remove(0, InputFile.Length));
-                        Console.Write(" -> ");
-                    }
-                    else if (originalPath != InputFile)
-                    {
-                        Console.Write(originalPath);
-                        Console.Write(" -> ");
+                        Console.WriteLine($"Processing file {CurrentFile} out of {TotalFiles} files - {path}");
                     }
                 }
+                else
+                {
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.Write($"[{CurrentFile}/{TotalFiles}] ");
 
-                Console.WriteLine(path);
-                Console.ResetColor();
+                    if (originalPath != null)
+                    {
+                        if (IsInputFolder && originalPath.StartsWith(InputFile, StringComparison.Ordinal))
+                        {
+                            Console.Write(originalPath.Remove(0, InputFile.Length));
+                            Console.Write(" -> ");
+                        }
+                        else if (originalPath != InputFile)
+                        {
+                            Console.Write(originalPath);
+                            Console.Write(" -> ");
+                        }
+                    }
+
+                    Console.WriteLine(path);
+                    Console.ResetColor();
+                }
             }
 
             var magicData = new byte[4];
