@@ -96,6 +96,9 @@ namespace ValveResourceFormat.Serialization.KeyValues
                 case KVType.BOOLEAN:
                     writer.Write((bool)Value ? "true" : "false");
                     break;
+                case KVType.FLOAT:
+                    writer.Write(((float)Value).ToString("#0.000000", CultureInfo.InvariantCulture));
+                    break;
                 case KVType.DOUBLE:
                     writer.Write(((double)Value).ToString("#0.000000", CultureInfo.InvariantCulture));
                     break;
