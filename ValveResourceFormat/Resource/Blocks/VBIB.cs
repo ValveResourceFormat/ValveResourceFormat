@@ -337,13 +337,37 @@ namespace ValveResourceFormat.Blocks
 
         public static Vector4[] GetVector4AttributeArray(OnDiskBufferData vertexBuffer, RenderInputLayoutField attribute)
         {
-            if (attribute.Format != DXGI_FORMAT.R32G32B32A32_FLOAT)
+            var result = new Vector4[vertexBuffer.ElementCount];
+
+            switch (attribute.Format)
             {
-                throw new InvalidDataException($"Unexpected {attribute.SemanticName} attribute format {attribute.Format}");
+                case DXGI_FORMAT.R32G32B32A32_FLOAT:
+                    MarshallAttributeArray(result, sizeof(float) * 4, vertexBuffer, attribute);
+                    break;
+
+                case DXGI_FORMAT.R16G16B16A16_FLOAT:
+                    {
+                        var offset = (int)attribute.Offset;
+
+                        for (var i = 0; i < vertexBuffer.ElementCount; i++)
+                        {
+                            result[i] = new Vector4(
+                                (float)BitConverter.ToHalf(vertexBuffer.Data, offset),
+                                (float)BitConverter.ToHalf(vertexBuffer.Data, offset + 2),
+                                (float)BitConverter.ToHalf(vertexBuffer.Data, offset + 4),
+                                (float)BitConverter.ToHalf(vertexBuffer.Data, offset + 6)
+                            );
+
+                            offset += (int)vertexBuffer.ElementSizeInBytes;
+                        }
+
+                        break;
+                    }
+
+                default:
+                    throw new InvalidDataException($"Unexpected {attribute.SemanticName} attribute format {attribute.Format}");
             }
 
-            var result = new Vector4[vertexBuffer.ElementCount];
-            MarshallAttributeArray(result, sizeof(float) * 4, vertexBuffer, attribute);
             return result;
         }
 
