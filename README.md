@@ -29,18 +29,18 @@ This repository is split into three components:
 ## Eye catchy screenshots
 <table>
 	<tr>
-		<td><img src="https://raw.githubusercontent.com/ValveResourceFormat/ValveResourceFormat/gh-pages/static/screen_map.png"></td>
-		<td><img src="https://raw.githubusercontent.com/ValveResourceFormat/ValveResourceFormat/gh-pages/static/screen_texture.png"></td>
+		<td><img src="https://valveresourceformat.github.io/static/screen_map.png"></td>
+		<td><img src="https://valveresourceformat.github.io/static/screen_texture.png"></td>
 	</tr>
 	<tr>
-		<td><img src="https://raw.githubusercontent.com/ValveResourceFormat/ValveResourceFormat/gh-pages/static/screen_package.png"></td>
-		<td><img src="https://raw.githubusercontent.com/ValveResourceFormat/ValveResourceFormat/gh-pages/static/screen_cli.png"></td>
+		<td><img src="https://valveresourceformat.github.io/static/screen_package.png"></td>
+		<td><img src="https://valveresourceformat.github.io/static/screen_cli.png"></td>
 	</tr>
 </table>
 
 ## What's supported?
-- Model viewer
-- Map viewer
+- Model viewer and decompiler
+- Map viewer and decompiler
 - Sound player
 - VPK viewer which supports opening and exporting files
 - Read only VPK API
