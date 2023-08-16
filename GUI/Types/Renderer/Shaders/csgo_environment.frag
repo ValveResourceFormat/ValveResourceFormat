@@ -45,6 +45,7 @@ uniform sampler2D g_tHeight1;
 uniform sampler2D g_tNormal1;
 
 #if (F_DETAIL_NORMAL == 1)
+    in vec2 vDetailTexCoords;
     uniform sampler2D g_tNormalDetail1;
 #endif
 
@@ -64,7 +65,6 @@ uniform float g_flHeightMapZeroPoint1 = 0;
     uniform sampler2D g_tNormal2;
 
     #if (F_DETAIL_NORMAL == 1)
-        in vec2 vDetailTexCoords;
         uniform sampler2D g_tNormalDetail2;
     #endif
     
