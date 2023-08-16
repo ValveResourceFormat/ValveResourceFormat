@@ -511,6 +511,8 @@ namespace GUI.Types.Viewers
 
                 if (backend == spvc_backend.SPVC_BACKEND_GLSL)
                 {
+                    SpirvCrossApi.spvc_compiler_options_set_uint(options, spvc_compiler_option.SPVC_COMPILER_OPTION_GLSL_VERSION, 460);
+                    SpirvCrossApi.spvc_compiler_options_set_bool(options, spvc_compiler_option.SPVC_COMPILER_OPTION_GLSL_ES, SpirvCrossApi.SPVC_FALSE);
                     SpirvCrossApi.spvc_compiler_options_set_bool(options, spvc_compiler_option.SPVC_COMPILER_OPTION_GLSL_VULKAN_SEMANTICS, SpirvCrossApi.SPVC_TRUE);
                     SpirvCrossApi.spvc_compiler_options_set_bool(options, spvc_compiler_option.SPVC_COMPILER_OPTION_GLSL_EMIT_UNIFORM_BUFFER_AS_PLAIN_UNIFORMS, SpirvCrossApi.SPVC_TRUE);
                 }
