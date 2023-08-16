@@ -319,7 +319,7 @@ namespace GUI.Controls
             {
                 var control = new MonospaceTextBox
                 {
-                    Text = exception.ToString(),
+                    Text = exception.ToString().ReplaceLineEndings(),
                     Dock = DockStyle.Fill
                 };
 
