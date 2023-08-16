@@ -135,17 +135,15 @@ namespace ValveResourceFormat.CompiledShader
             NrEndBlocks = DataReader.ReadInt32();
             for (var i = 0; i < NrEndBlocks; i++)
             {
-                if (vcsProgramType == VcsProgramType.VertexShader || vcsProgramType == VcsProgramType.GeometryShader ||
-                    vcsProgramType == VcsProgramType.ComputeShader || vcsProgramType == VcsProgramType.DomainShader ||
-                    vcsProgramType == VcsProgramType.HullShader)
-                {
-                    VsEndBlock vsEndBlock = new(DataReader, hullShader: vcsProgramType == VcsProgramType.HullShader);
-                    VsEndBlocks.Add(vsEndBlock);
-                }
-                else
+                if (vcsProgramType == VcsProgramType.PixelShader)
                 {
                     PsEndBlock psEndBlock = new(DataReader);
                     PsEndBlocks.Add(psEndBlock);
+                }
+                else
+                {
+                    VsEndBlock vsEndBlock = new(DataReader, hullShader: vcsProgramType == VcsProgramType.HullShader);
+                    VsEndBlocks.Add(vsEndBlock);
                 }
             }
             if (DataReader.BaseStream.Position != DataReader.BaseStream.Length)

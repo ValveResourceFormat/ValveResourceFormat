@@ -511,11 +511,7 @@ public sealed class ShaderExtract
 
         HandleParameters(shader.ParamBlocks, shader.ChannelBlocks, writer);
 
-        // This can be removed once RTX ZFrames are supported
-        if (shader.VcsProgramType != VcsProgramType.RaytracingShader)
-        {
-            HandleZFrames(shader, writer);
-        }
+        HandleZFrames(shader, writer);
 
         if (shader.VcsProgramType == VcsProgramType.PixelShader && PixelShaderRenderState is not null)
         {

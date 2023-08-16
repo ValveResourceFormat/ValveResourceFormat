@@ -308,20 +308,20 @@ namespace ValveResourceFormat.CompiledShader
         private List<int> GetActiveBlockIds()
         {
             List<int> blockIds = new();
-            if (zframeFile.VcsProgramType == VcsProgramType.VertexShader || zframeFile.VcsProgramType == VcsProgramType.GeometryShader ||
-                zframeFile.VcsProgramType == VcsProgramType.ComputeShader || zframeFile.VcsProgramType == VcsProgramType.DomainShader ||
-                zframeFile.VcsProgramType == VcsProgramType.HullShader)
-            {
-                foreach (var vsEndBlock in zframeFile.VsEndBlocks)
-                {
-                    blockIds.Add(vsEndBlock.BlockIdRef);
-                }
-            }
-            else
+            if (zframeFile.VcsProgramType == VcsProgramType.PixelShader)
             {
                 foreach (var psEndBlock in zframeFile.PsEndBlocks)
                 {
                     blockIds.Add(psEndBlock.BlockIdRef);
+                }
+            }
+            else
+            {
+                {
+                    foreach (var vsEndBlock in zframeFile.VsEndBlocks)
+                    {
+                        blockIds.Add(vsEndBlock.BlockIdRef);
+                    }
                 }
             }
             return blockIds;
@@ -330,20 +330,17 @@ namespace ValveResourceFormat.CompiledShader
         static Dictionary<int, GpuSource> GetBlockIdToSource(ZFrameFile zframeFile)
         {
             Dictionary<int, GpuSource> blockIdToSource = new();
-            if (zframeFile.VcsProgramType == VcsProgramType.VertexShader || zframeFile.VcsProgramType == VcsProgramType.GeometryShader ||
-                zframeFile.VcsProgramType == VcsProgramType.ComputeShader || zframeFile.VcsProgramType == VcsProgramType.DomainShader ||
-                zframeFile.VcsProgramType == VcsProgramType.HullShader)
-            {
-                foreach (var vsEndBlock in zframeFile.VsEndBlocks)
-                {
-                    blockIdToSource.Add(vsEndBlock.BlockIdRef, zframeFile.GpuSources[vsEndBlock.SourceRef]);
-                }
-            }
-            else
+            if (zframeFile.VcsProgramType == VcsProgramType.PixelShader)
             {
                 foreach (var psEndBlock in zframeFile.PsEndBlocks)
                 {
                     blockIdToSource.Add(psEndBlock.BlockIdRef, zframeFile.GpuSources[psEndBlock.SourceRef]);
+                }
+            }
+            {
+                foreach (var vsEndBlock in zframeFile.VsEndBlocks)
+                {
+                    blockIdToSource.Add(vsEndBlock.BlockIdRef, zframeFile.GpuSources[vsEndBlock.SourceRef]);
                 }
             }
             return blockIdToSource;
