@@ -21,5 +21,6 @@ namespace ValveResourceFormat
         INSG,
         SrMa,
         LaCo,
+        STAT,
     }
 }
