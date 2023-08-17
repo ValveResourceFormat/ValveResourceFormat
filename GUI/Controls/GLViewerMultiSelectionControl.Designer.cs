@@ -28,42 +28,42 @@ namespace GUI.Controls
         /// </summary>
         private void InitializeComponent()
         {
-            this.selectionNameLabel = new System.Windows.Forms.Label();
-            this.checkedListBox = new System.Windows.Forms.CheckedListBox();
-            this.SuspendLayout();
+            selectionNameLabel = new System.Windows.Forms.Label();
+            checkedListBox = new System.Windows.Forms.CheckedListBox();
+            SuspendLayout();
             // 
             // selectionNameLabel
             // 
-            this.selectionNameLabel.AutoSize = true;
-            this.selectionNameLabel.Location = new System.Drawing.Point(3, 2);
-            this.selectionNameLabel.Name = "selectionNameLabel";
-            this.selectionNameLabel.Size = new System.Drawing.Size(41, 15);
-            this.selectionNameLabel.TabIndex = 0;
-            this.selectionNameLabel.Text = "Select:";
+            selectionNameLabel.AutoSize = true;
+            selectionNameLabel.Location = new System.Drawing.Point(2, 1);
+            selectionNameLabel.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
+            selectionNameLabel.Name = "selectionNameLabel";
+            selectionNameLabel.Size = new System.Drawing.Size(41, 15);
+            selectionNameLabel.TabIndex = 0;
+            selectionNameLabel.Text = "Select:";
             // 
             // checkedListBox
             // 
-            this.checkedListBox.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.checkedListBox.CheckOnClick = true;
-            this.checkedListBox.FormattingEnabled = true;
-            this.checkedListBox.Location = new System.Drawing.Point(3, 18);
-            this.checkedListBox.Margin = new System.Windows.Forms.Padding(0);
-            this.checkedListBox.Name = "checkedListBox";
-            this.checkedListBox.Size = new System.Drawing.Size(215, 76);
-            this.checkedListBox.TabIndex = 1;
+            checkedListBox.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
+            checkedListBox.CheckOnClick = true;
+            checkedListBox.FormattingEnabled = true;
+            checkedListBox.Location = new System.Drawing.Point(3, 20);
+            checkedListBox.Margin = new System.Windows.Forms.Padding(0);
+            checkedListBox.Name = "checkedListBox";
+            checkedListBox.Size = new System.Drawing.Size(214, 130);
+            checkedListBox.TabIndex = 1;
             // 
             // GLViewerMultiSelectionControl
             // 
-            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Inherit;
-            this.Controls.Add(this.checkedListBox);
-            this.Controls.Add(this.selectionNameLabel);
-            this.Name = "GLViewerMultiSelectionControl";
-            this.Size = new System.Drawing.Size(220, 100);
-            this.ResumeLayout(false);
-            this.PerformLayout();
-
+            AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
+            AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            Controls.Add(checkedListBox);
+            Controls.Add(selectionNameLabel);
+            Margin = new System.Windows.Forms.Padding(2);
+            Name = "GLViewerMultiSelectionControl";
+            Size = new System.Drawing.Size(220, 154);
+            ResumeLayout(false);
+            PerformLayout();
         }
 
         #endregion
