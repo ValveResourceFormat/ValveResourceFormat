@@ -23,7 +23,7 @@ namespace GUI.Controls
 
         public GLControl GLControl { get; }
 
-        private int currentControlsHeight = 35;
+        private int currentControlsHeight;
 
         public class RenderEventArgs
         {
@@ -49,6 +49,8 @@ namespace GUI.Controls
         {
             InitializeComponent();
             Dock = DockStyle.Fill;
+
+            currentControlsHeight = fpsLabel.Location.Y + fpsLabel.Height + 10;
 
             Camera = new Camera();
 
