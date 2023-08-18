@@ -28,6 +28,7 @@ public sealed class ShaderExtract
 
         public bool ForceWrite_UncertainEnumsAsInts { get; init; }
         public bool NoHungarianTypeGuessing { get; init; }
+        public bool WriteParametersRaw { get; init; }
         public bool CanReadZFrames
         {
             get => ZFrameReadingCap != 0;
@@ -1050,7 +1051,7 @@ public sealed class ShaderExtract
 
             foreach (var param in byHeader.OrderBy(p => p.UiGroup.VariableOrder))
             {
-                if (Options.CanReadZFrames && VariantParameterNames.Contains(param.Name))
+                if (Options.CanReadZFrames && !Options.WriteParametersRaw && VariantParameterNames.Contains(param.Name))
                 {
                     continue;
                 }
@@ -1169,20 +1170,7 @@ public sealed class ShaderExtract
 
         // Other annotations: MaxRes(<=8192), UiStep(?), Source(?), UiVisibility(?)
 
-        if (param.AttributeName.Length > 0)
-        {
-            if (param.UiType == UiType.Enum)
-            {
-                var optionOrOptions = param.AttributeName.Contains(',', StringComparison.Ordinal)
-                    ? "UiOptions"
-                    : "UiOption";
-                annotations.Add($"{optionOrOptions}(\"{param.AttributeName}\");");
-            }
-            else
-            {
-                annotations.Add($"Attribute(\"{param.AttributeName}\");");
-            }
-        }
+        HandleParameterAttribute(param, annotations);
 
         if (param.UiType != UiType.None)
         {
@@ -1233,13 +1221,8 @@ public sealed class ShaderExtract
         writer.WriteLine($"CreateInputTexture2D({param.Name}, {mode}, {param.Arg12}, \"{param.ImageProcessor}\", \"{imageSuffix}\", \"{param.UiGroup}\", {defaultValue});");
     }
 
-    private void WriteTexture(ParamBlock param, List<ParamBlock> paramBlocks, List<ChannelBlock> channelBlocks, IndentedTextWriter writer, List<string> attributes)
+    private void WriteTexture(ParamBlock param, List<ParamBlock> paramBlocks, List<ChannelBlock> channelBlocks, IndentedTextWriter writer, List<string> annotations)
     {
-        if (param.ImageFormat == -1 || param.ChannelCount == 0)
-        {
-            return;
-        }
-
         for (var i = 0; i < param.ChannelCount; i++)
         {
             var index = param.ChannelIndices[i];
@@ -1248,21 +1231,47 @@ public sealed class ShaderExtract
                 throw new InvalidOperationException("Invalid channel block index");
             }
 
-            attributes.Add(GetChannelFromChannelBlock(channelBlocks[index], paramBlocks));
+            annotations.Add(GetChannelFromChannelBlock(channelBlocks[index], paramBlocks));
         }
 
-        var format = Features.VcsVersion switch
+        HandleParameterAttribute(param, annotations);
+
+        if (param.ImageFormat != -1)
         {
-            >= 66 => ((ImageFormatV66)param.ImageFormat).ToString(),
-            >= 64 => ((ImageFormat)param.ImageFormat).ToString(),
-            _ when !Options.ForceWrite_UncertainEnumsAsInts => ((ImageFormat)param.ImageFormat).ToString(),
-            _ => param.ImageFormat.ToString(CultureInfo.InvariantCulture),
-        };
+            var format = Features.VcsVersion switch
+            {
+                >= 66 => ((ImageFormatV66)param.ImageFormat).ToString(),
+                >= 64 => ((ImageFormat)param.ImageFormat).ToString(),
+                _ when !Options.ForceWrite_UncertainEnumsAsInts => ((ImageFormat)param.ImageFormat).ToString(),
+                _ => param.ImageFormat.ToString(CultureInfo.InvariantCulture),
+            };
 
-        attributes.Add($"OutputFormat({format});");
-        attributes.Add($"SrgbRead({(param.Id == 0 ? "false" : "true")});");
+            annotations.Add($"OutputFormat({format});");
+        }
 
-        writer.WriteLine($"CreateTexture2DWithoutSampler({param.Name}){GetVfxAttributes(attributes)};");
+        annotations.Add($"SrgbRead({(param.Id == 0 ? "false" : "true")});");
+
+        writer.WriteLine($"CreateTexture2DWithoutSampler({param.Name}){GetVfxAttributes(annotations)};");
+    }
+
+    private static void HandleParameterAttribute(ParamBlock param, List<string> annotations)
+    {
+        if (param.StringData.Length == 0)
+        {
+            return;
+        }
+
+        if (param.UiType == UiType.Enum)
+        {
+            var optionOrOptions = param.StringData.Contains(',', StringComparison.Ordinal)
+                ? "UiOptions"
+                : "UiOption";
+            annotations.Add($"{optionOrOptions}(\"{param.StringData}\");");
+        }
+        else
+        {
+            annotations.Add($"Attribute(\"{param.StringData}\");");
+        }
     }
 
     private static string GetVfxAttributes(List<string> attributes)

@@ -495,18 +495,28 @@ namespace ValveResourceFormat.CompiledShader
         }
     }
 
+    [Flags]
+    public enum LeadFlags
+    {
+        None = 0x00,
+        Attribute = 0x01,
+        DynamicExpression = 0x02,
+        Unkn3 = 0x04,
+        DynMaterial = 0x08,
+    }
+
     public class ParamBlock : ShaderDataBlock
     {
         public int BlockIndex { get; }
         public string Name { get; }
         public UiGroup UiGroup { get; }
-        public string AttributeName { get; }
+        public string StringData { get; }
         public UiType UiType { get; }
         public float Res0 { get; }
-        public int Lead0 { get; }
+        public LeadFlags Lead0 { get; }
         public byte[] DynExp { get; } = Array.Empty<byte>();
         public byte[] SBMSBytes { get; } = Array.Empty<byte>();
-        public int Arg0 { get; }
+        public int Tex { get; }
         public Vfx.Type VfxType { get; }
         public ParameterType ParamType { get; }
         public byte Arg3 { get; }
@@ -544,24 +554,24 @@ namespace ValveResourceFormat.CompiledShader
             datareader.BaseStream.Position += 64;
             UiType = (UiType)datareader.ReadInt32();
             Res0 = datareader.ReadSingle();
-            AttributeName = datareader.ReadNullTermStringAtPosition();
+            StringData = datareader.ReadNullTermStringAtPosition();
             datareader.BaseStream.Position += 64;
-            Lead0 = datareader.ReadInt32();
-            if (Lead0 == 6 || Lead0 == 7)
+            Lead0 = (LeadFlags)datareader.ReadInt32();
+            if (Lead0.HasFlag(LeadFlags.DynamicExpression) && !Lead0.HasFlag(LeadFlags.DynMaterial))
             {
                 var dynExpLen = datareader.ReadInt32();
                 DynExp = datareader.ReadBytes(dynExpLen);
             }
 
-            Arg0 = datareader.ReadInt32();
+            Tex = datareader.ReadInt32();
 
             // check to see if this reads 'SBMS' (unknown what this is, instance found in v65 hero_pc_40_features.vcs file)
-            if (Arg0 == 0x534D4253)
+            if (Tex == 0x534D4253)
             {
                 var dynExpLength = datareader.ReadInt32();
                 SBMSBytes = datareader.ReadBytes(dynExpLength);
 
-                Arg0 = datareader.ReadInt32();
+                Tex = datareader.ReadInt32();
             }
 
             VfxType = (Vfx.Type)datareader.ReadInt32();
