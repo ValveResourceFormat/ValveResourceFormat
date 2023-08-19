@@ -13,7 +13,7 @@
 </p>
 
 Valve's Source 2 resource file format parser, decompiler, and exporter.
-Source 2 files usually files end with `_c`, for example `.vmdl_c`.
+Source 2 files usually end with `_c`, for example `.vmdl_c`.
 
 This repository is split into three components:
 - **CLI Decompiler** - File data viewer, decompiler and a playground for testing new formats and features.
