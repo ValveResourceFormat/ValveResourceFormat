@@ -25,7 +25,7 @@ namespace Decompiler
 {
     [Command(Name = "vrf_decompiler", Description = "A test bed command line interface for the VRF library")]
     [VersionOptionFromMember(MemberName = nameof(GetVersion))]
-    public class Decompiler
+    public partial class Decompiler
     {
         private readonly Dictionary<string, ResourceStat> stats = new();
         private readonly Dictionary<string, string> uniqueSpecialDependancies = new();
@@ -536,32 +536,6 @@ namespace Decompiler
                     Console.WriteLine("--- Data for block \"{0}\" ---", block.Type);
                     Console.WriteLine(block.ToString());
                 }
-            }
-        }
-
-        private void ParseToolsAssetInfo(string path, Stream stream)
-        {
-            var assetsInfo = new ToolsAssetInfo();
-
-            try
-            {
-                assetsInfo.Read(stream);
-
-                if (OutputFile != null)
-                {
-                    path = Path.ChangeExtension(path, "txt");
-                    path = GetOutputPath(path);
-
-                    DumpFile(path, Encoding.UTF8.GetBytes(assetsInfo.ToString()));
-                }
-                else
-                {
-                    Console.WriteLine(assetsInfo.ToString());
-                }
-            }
-            catch (Exception e)
-            {
-                LogException(e, path);
             }
         }
 
