@@ -313,7 +313,7 @@ namespace ValveResourceFormat.CompiledShader
             output.WriteLine($"PARAMETERS({shaderFile.ParamBlocks.Count})    *dyn-expressions shown separately");
             output.DefineHeaders(new string[] { "index", nameof(ParamBlock.Name), nameof(ParamBlock.VfxType),
                 nameof(ParamBlock.Res0), nameof(ParamBlock.Tex),
-                nameof(ParamBlock.Arg3), nameof(ParamBlock.Arg4), nameof(ParamBlock.Arg5), nameof(ParamBlock.Arg6),
+                nameof(ParamBlock.Arg3), nameof(ParamBlock.Arg4), nameof(ParamBlock.Arg12), nameof(ParamBlock.Arg5), nameof(ParamBlock.Arg6),
                 nameof(ParamBlock.VecSize), nameof(ParamBlock.Id), nameof(ParamBlock.Arg9), nameof(ParamBlock.Arg10),
                 nameof(ParamBlock.Arg11), "dyn-exp*", nameof(ParamBlock.StringData), nameof(ParamBlock.Lead0), nameof(ParamBlock.ParamType),
                 nameof(ParamBlock.UiType), nameof(ParamBlock.UiGroup), "command 0|1", nameof(ParamBlock.FileRef), nameof(ParamBlock.SBMSBytes)});
@@ -325,7 +325,9 @@ namespace ValveResourceFormat.CompiledShader
 
             foreach (var param in shaderFile.ParamBlocks)
             {
-                var dynExpExists = HasDynamicExpression(param) ? "true" : "";
+                var dynExpExists = HasDynamicExpression(param) ? "true" : string.Empty;
+                var hasSbmsBytes = param.SBMSBytes.Length > 0 ? "true" : string.Empty;
+
                 if (dynExpExists.Length > 0)
                 {
                     dynExpCount++;
@@ -338,8 +340,8 @@ namespace ValveResourceFormat.CompiledShader
                 }
                 output.AddTabulatedRow(new string[] {$"[{(""+param.BlockIndex).PadLeft(indexPad)}]", param.Name, $"{param.VfxType}",
                     $"{param.Res0}", $"{BlankNegOne(param.Tex),2}",
-                    param.Arg3.ToString(), param.Arg4.ToString(), param.Arg5.ToString(), param.Arg6.ToString(), $"{param.VecSize,2}", param.Id.ToString(), param.Arg9.ToString(), param.Arg10.ToString(), param.Arg11.ToString(),
-                    $"{dynExpExists}", param.StringData, $"{param.Lead0}", $"{param.ParamType}", param.UiType.ToString(), param.UiGroup.CompactString, $"{c0}", $"{param.FileRef}", $"{param.SBMSBytes.Length}"});
+                    param.Arg3.ToString(), param.Arg4.ToString(), $"{BlankNegOne(param.Arg12),2}", param.Arg5.ToString(), param.Arg6.ToString(), $"{param.VecSize,2}", param.Id.ToString(), param.Arg9.ToString(), param.Arg10.ToString(), param.Arg11.ToString(),
+                    $"{dynExpExists}", param.StringData, $"{param.Lead0}", $"{param.ParamType}", param.UiType.ToString(), param.UiGroup.CompactString, $"{c0}", $"{param.FileRef}", hasSbmsBytes});
             }
             output.PrintTabulatedValues(spacing: 1);
             output.BreakLine();
@@ -374,7 +376,7 @@ namespace ValveResourceFormat.CompiledShader
             output.WriteLine("(- indicates -infinity, + indicates +infinity, def. = default)");
             output.DefineHeaders(new string[] { "index", "name0", "t0,t1,a0,a1,a2,a4,a5  ", nameof(ParamBlock.IntDefs), nameof(ParamBlock.IntMins), nameof(ParamBlock.IntMaxs),
                 nameof(ParamBlock.FloatDefs), nameof(ParamBlock.FloatMins), nameof(ParamBlock.FloatMaxs), nameof(ParamBlock.ChannelIndices), nameof(ParamBlock.ImageFormat),
-                nameof(ParamBlock.ImageSuffix), nameof(ParamBlock.FileRef), nameof(ParamBlock.DynExp)});
+                nameof(ParamBlock.ImageSuffix), nameof(ParamBlock.FileRef), nameof(ParamBlock.DynExp), nameof(ParamBlock.V65Data)});
             foreach (var param in shaderFile.ParamBlocks)
             {
                 var vfxType = Vfx.GetTypeName(param.VfxType);
@@ -382,9 +384,20 @@ namespace ValveResourceFormat.CompiledShader
                 output.AddTabulatedRow(new string[] { $"[{("" + param.BlockIndex).PadLeft(indexPad)}]", $"{param.Name}",
                     $"{param.UiType,2},{param.Lead0,2},{BlankNegOne(param.Tex),2},{vfxType},{param.ParamType,2},{param.VecSize,2},{param.Id}",
                     $"{Comb(param.IntDefs)}", $"{Comb(param.IntMins)}", $"{Comb(param.IntMaxs)}", $"{Comb(param.FloatDefs)}", $"{Comb(param.FloatMins)}",
-                    $"{Comb(param.FloatMaxs)}", $"{Comb(param.ChannelIndices)}", $"{param.ImageFormat}", param.ImageSuffix, param.FileRef, $"{hasDynExp}"});
+                    $"{Comb(param.FloatMaxs)}", $"{Comb(param.ChannelIndices)}", $"{param.ImageFormat}", param.ImageSuffix, param.FileRef, $"{hasDynExp}", BitConverter.ToString(param.V65Data)});
             }
             output.PrintTabulatedValues(spacing: 1);
+            output.BreakLine();
+            output.WriteLine("PARAMETERS - SBMS data (variable bytes)");
+            output.DefineHeaders(new string[] { "index", "name", nameof(ParamBlock.SBMSBytes) });
+            foreach (var param in shaderFile.ParamBlocks)
+            {
+                if (param.SBMSBytes.Length is not 0)
+                {
+                    output.AddTabulatedRow(new string[] { $"[{("" + param.BlockIndex).PadLeft(indexPad)}]", $"{param.Name}", BitConverter.ToString(param.SBMSBytes) });
+                }
+            }
+            output.PrintTabulatedValues();
             output.BreakLine();
         }
 
