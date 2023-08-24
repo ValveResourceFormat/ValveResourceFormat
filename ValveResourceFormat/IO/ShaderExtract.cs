@@ -41,13 +41,18 @@ public sealed class ShaderExtract
         public bool StaticComboAttributes_NoSeparateGlobals { get; init; }
         public bool StaticComboAttributes_NoConditionalReduce { get; init; }
 
-        public static readonly ShaderExtractParams Inspect = new()
+        private static readonly ShaderExtractParams Shared = new()
+        {
+            WriteParametersRaw = true,
+        };
+
+        public static readonly ShaderExtractParams Inspect = Shared with
         {
             CollapseBuffers_InPlace = true,
             ZFrameReadingCap = 512,
         };
 
-        public static readonly ShaderExtractParams Export = new()
+        public static readonly ShaderExtractParams Export = Shared with
         {
             CollapseBuffers_InInclude = true,
             ZFrameReadingCap = -1,
