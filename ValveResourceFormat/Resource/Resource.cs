@@ -402,7 +402,6 @@ namespace ValveResourceFormat
                 case ResourceType.Panorama:
                 case ResourceType.PanoramaScript:
                 case ResourceType.PanoramaTypescript:
-                case ResourceType.PanoramaDynamicImages:
                 case ResourceType.PanoramaVectorGraphic:
                     return new Panorama();
 
@@ -411,6 +410,9 @@ namespace ValveResourceFormat
 
                 case ResourceType.PanoramaLayout:
                     return new PanoramaLayout();
+
+                case ResourceType.PanoramaDynamicImages:
+                    return new PanoramaDynamicImages();
 
                 case ResourceType.Sound:
                     return new Sound();

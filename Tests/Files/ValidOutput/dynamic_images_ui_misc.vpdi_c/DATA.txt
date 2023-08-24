@@ -1,0 +1,14 @@
+CRC: 00000000
+
+Images(8):
+ - panorama/images/icons/equipment/clothing_hands.vsvg [0x0 - 917C3BB7]
+ - panorama/images/icons/equipment/customplayer.vsvg [0x0 - 0159BCB2]
+ - panorama/images/icons/equipment/melee.vsvg [0x0 - 5271A17B]
+ - panorama/images/stats_cards/stats_card_banner_0_png.vtex [98x552 - D7514302]
+ - panorama/images/stats_cards/stats_card_banner_1_png.vtex [98x552 - 27BE48AA]
+ - panorama/images/stats_cards/stats_card_banner_2_png.vtex [98x552 - 35DDA735]
+ - panorama/images/stats_cards/stats_card_banner_3_png.vtex [98x552 - FAD93D17]
+ - panorama/images/stats_cards/stats_card_banner_4_png.vtex [98x552 - 50006089]
+
+Content (0 bytes):
+
