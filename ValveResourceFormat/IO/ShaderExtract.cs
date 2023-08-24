@@ -16,14 +16,13 @@ public sealed class ShaderExtract
     public readonly struct ShaderExtractParams
     {
         public bool CollapseBuffers_InInclude { get; init; }
-        public bool BufferIncludes_AsSeparateFiles { get; init; }
         public bool CollapseBuffers_InPlace { get; init; }
         public static HashSet<string> BuffersToCollapse => new()
         {
-            "PerViewConstantBuffer_t",
-            "PerViewConstantBufferVR_t",
-            "PerViewLightingConstantBufferVr_t",
-            "DotaGlobalParams_t",
+            //"PerViewConstantBuffer_t",
+            //"PerViewConstantBufferVR_t",
+            //"PerViewLightingConstantBufferVr_t",
+            //"DotaGlobalParams_t",
         };
 
         public bool ForceWrite_UncertainEnumsAsInts { get; init; }
@@ -51,7 +50,6 @@ public sealed class ShaderExtract
         public static readonly ShaderExtractParams Export = new()
         {
             CollapseBuffers_InInclude = true,
-            BufferIncludes_AsSeparateFiles = true,
             ZFrameReadingCap = -1,
         };
     }
@@ -146,6 +144,7 @@ public sealed class ShaderExtract
     {
         Options = options;
         IncludeWriters = new();
+        PreprocessCommon();
 
         return "//=================================================================================================\n"
             + $"// Reconstructed with {ValveResourceFormat.Utils.StringToken.VRF_GENERATOR}\n"
@@ -163,6 +162,49 @@ public sealed class ShaderExtract
             + RTX()
             ;
     }
+
+    readonly struct CommonBlocks
+    {
+        public readonly HashSet<BufferBlock> BufferBlocks = new(new BufferBlockComparer());
+
+        public CommonBlocks() { }
+        public class BufferBlockComparer : IEqualityComparer<BufferBlock>
+        {
+            public bool Equals(BufferBlock x, BufferBlock y) => x.Name == y.Name;
+            public int GetHashCode(BufferBlock obj) => (int)obj.BlockCrc;
+        }
+    }
+
+    private readonly CommonBlocks Common = new();
+
+    private void PreprocessCommon()
+    {
+        var firstPass = true;
+        var stages = Shaders.Where(s => !(s.VcsProgramType is VcsProgramType.Features or VcsProgramType.PixelShaderRenderState)).ToList();
+
+        if (stages.Count < 2)
+        {
+            return;
+        }
+
+        foreach (var stage in stages)
+        {
+            if (firstPass)
+            {
+                firstPass = false;
+                Common.BufferBlocks.UnionWith(stage.BufferBlocks);
+                continue;
+            }
+
+            Common.BufferBlocks.IntersectWith(stage.BufferBlocks);
+
+            if (Common.BufferBlocks.Count == 0)
+            {
+                break;
+            }
+        }
+    }
+
     private string HEADER()
     {
         using var writer = new IndentedTextWriter();
@@ -230,10 +272,7 @@ public sealed class ShaderExtract
 
         writer.WriteLine("#include \"system.fxc\"");
 
-        if (Vertex is not null)
-        {
-            WriteCBuffers(Vertex.BufferBlocks, writer);
-        }
+        WriteCBuffers(Common.BufferBlocks, writer);
 
         WriteVsInput(writer);
 
@@ -399,7 +438,7 @@ public sealed class ShaderExtract
         }
     }
 
-    private void WriteCBuffers(List<BufferBlock> bufferBlocks, IndentedTextWriter writer)
+    private void WriteCBuffers(IEnumerable<BufferBlock> bufferBlocks, IndentedTextWriter writer)
     {
         foreach (var buffer in bufferBlocks)
         {
@@ -413,9 +452,7 @@ public sealed class ShaderExtract
 
                 if (Options.CollapseBuffers_InInclude && IncludeWriters is not null)
                 {
-                    var includeName = Options.BufferIncludes_AsSeparateFiles
-                        ? GetIncludeName(buffer.Name)
-                        : "common.fxc";
+                    var includeName = GetIncludeName(buffer.Name);
 
                     if (!IncludeWriters.TryGetValue(includeName, out var includeWriter))
                     {
@@ -509,6 +546,8 @@ public sealed class ShaderExtract
 
         HandleStaticCombos(shader.SfBlocks, shader.SfConstraintBlocks, writer);
         HandleDynamicCombos(shader.SfBlocks, shader.DBlocks, shader.DConstraintBlocks, writer);
+
+        WriteCBuffers(shader.BufferBlocks.Where(b => !Common.BufferBlocks.Contains(b)), writer);
 
         HandleParameters(shader.ParamBlocks, shader.ChannelBlocks, writer);
 
