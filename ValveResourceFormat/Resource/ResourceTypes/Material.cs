@@ -3,9 +3,11 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Numerics;
+using System.Text;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
 using ValveResourceFormat.Serialization;
+using ValveResourceFormat.Serialization.KeyValues;
 using ValveResourceFormat.Serialization.VfxEval;
 
 namespace ValveResourceFormat.ResourceTypes
@@ -122,6 +124,67 @@ namespace ValveResourceFormat.ResourceTypes
             }
 
             return arguments;
+        }
+
+        public IKeyValueCollection GetInputSignature()
+        {
+            if (Resource.ContainsBlockType(BlockType.INSG))
+            {
+                return ((BinaryKV3)Resource.GetBlockByType(BlockType.INSG)).Data;
+            }
+
+            // Material might not have REDI, or it might have RED2 without INSG
+            if (Resource.EditInfo != null && Resource.EditInfo.Type != BlockType.REDI)
+            {
+                return null;
+            }
+
+            var extraStringData = (ExtraStringData)Resource.EditInfo.Structs[ResourceEditInfo.REDIStruct.ExtraStringData];
+            var inputSignatureString = extraStringData.List.Where(x => x.Name == "VSInputSignature").FirstOrDefault()?.Value;
+
+            if (inputSignatureString == null)
+            {
+                return null;
+            }
+
+            if (!inputSignatureString.StartsWith("<!-- kv3", StringComparison.InvariantCulture))
+            {
+                return null;
+            }
+
+            using var ms = new MemoryStream(Encoding.UTF8.GetBytes(inputSignatureString));
+
+            return KeyValues3.ParseKVFile(ms).Root;
+        }
+
+        public readonly struct InputSignatureElement
+        {
+            public string Name { get; }
+            public string Semantic { get; }
+            public string D3DSemanticName { get; }
+            public int D3DSemanticIndex { get; }
+
+            public InputSignatureElement(IKeyValueCollection data)
+            {
+                Name = data.GetProperty<string>("m_pName");
+                Semantic = data.GetProperty<string>("m_pSemantic");
+                D3DSemanticName = data.GetProperty<string>("m_pD3DSemanticName");
+                D3DSemanticIndex = (int)data.GetIntegerProperty("m_nD3DSemanticIndex");
+            }
+        }
+
+        public static InputSignatureElement FindD3DInputSignatureElement(IKeyValueCollection insg, string d3dName, int d3dIndex)
+        {
+            foreach (var elemData in insg.GetArray<IKeyValueCollection>("m_elems"))
+            {
+                var elem = new InputSignatureElement(elemData);
+                if (elem.D3DSemanticName == d3dName && elem.D3DSemanticIndex == d3dIndex)
+                {
+                    return elem;
+                }
+            }
+
+            return default;
         }
     }
 }

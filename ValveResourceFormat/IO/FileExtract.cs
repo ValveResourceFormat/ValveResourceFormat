@@ -132,7 +132,7 @@ namespace ValveResourceFormat.IO
                     break;
 
                 case ResourceType.Model:
-                    contentFile = new ModelExtract((Model)resource.DataBlock, fileLoader).ToContentFile();
+                    contentFile = new ModelExtract(resource, fileLoader).ToContentFile();
                     break;
 
                 case ResourceType.Panorama:

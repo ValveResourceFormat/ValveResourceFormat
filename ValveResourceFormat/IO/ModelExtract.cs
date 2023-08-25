@@ -22,12 +22,14 @@ namespace ValveResourceFormat.IO;
 
 public class ModelExtract
 {
+    private readonly Resource modelResource;
     private readonly Model model;
     private readonly PhysAggregateData physAggregateData;
     private readonly IFileLoader fileLoader;
     private readonly string fileName;
 
     public List<(Mesh Mesh, string FileName)> RenderMeshesToExtract { get; } = new();
+    public Dictionary<string, IKeyValueCollection> MaterialInputSignatures { get; } = new();
 
     public List<(HullDescriptor Hull, string FileName)> PhysHullsToExtract { get; } = new();
     public List<(MeshDescriptor Mesh, string FileName)> PhysMeshesToExtract { get; } = new();
@@ -58,11 +60,12 @@ public class ModelExtract
     public ModelExtractType Type { get; init; } = ModelExtractType.Default;
     public Func<SurfaceTagCombo, string> PhysicsToRenderMaterialNameProvider { get; init; }
 
-    public ModelExtract(Model model, IFileLoader fileLoader)
+    public ModelExtract(Resource modelResource, IFileLoader fileLoader)
     {
         ArgumentNullException.ThrowIfNull(fileLoader);
 
-        this.model = model;
+        this.modelResource = modelResource;
+        this.model = (Model)modelResource.DataBlock;
         this.fileLoader = fileLoader;
 
         var refPhysics = model.GetReferencedPhysNames().FirstOrDefault();
@@ -119,7 +122,7 @@ public class ModelExtract
         {
             vmdl.AddSubFile(
                 Path.GetFileName(renderMesh.FileName),
-                () => ToDmxMesh(renderMesh.Mesh, Path.GetFileNameWithoutExtension(renderMesh.FileName))
+                () => ToDmxMesh(renderMesh.Mesh, Path.GetFileNameWithoutExtension(renderMesh.FileName), MaterialInputSignatures)
             );
         }
 
@@ -391,6 +394,8 @@ public class ModelExtract
             return;
         }
 
+        GrabMaterialInputSignatures(modelResource);
+
         var i = 0;
         foreach (var embedded in model.GetEmbeddedMeshes())
         {
@@ -406,7 +411,18 @@ public class ModelExtract
                 continue;
             }
 
+            GrabMaterialInputSignatures(resource);
             RenderMeshesToExtract.Add(((Mesh)resource.DataBlock, GetDmxFileName_ForReferenceMesh(reference.MeshName)));
+        }
+
+        void GrabMaterialInputSignatures(Resource resource)
+        {
+            var materialReferences = resource?.ExternalReferences?.ResourceRefInfoList.Where(r => r.Name[^4..] == "vmat");
+            foreach (var material in materialReferences ?? Enumerable.Empty<ResourceExtRefList.ResourceReferenceInfo>())
+            {
+                using var materialResource = fileLoader.LoadFile(material.Name + "_c");
+                MaterialInputSignatures[material.Name] = (materialResource?.DataBlock as Material)?.GetInputSignature();
+            }
         }
     }
 
@@ -463,7 +479,7 @@ public class ModelExtract
         }
     }
 
-    public static byte[] ToDmxMesh(Mesh mesh, string name)
+    public static byte[] ToDmxMesh(Mesh mesh, string name, Dictionary<string, IKeyValueCollection> materialInputSignatures = null)
     {
         var mdat = mesh.Data;
         var mbuf = mesh.VBIB;
@@ -474,6 +490,7 @@ public class ModelExtract
         DmxModelBaseLayout(name, out var dmeModel, out var dag, out var vertexData);
 
         ReadOnlySpan<int> indexBuffer = GltfModelExporter.ReadIndices(ib, 0, (int)ib.ElementCount, 0);
+        IKeyValueCollection materialInputSignature = null;
 
         foreach (var sceneObject in mdat.GetArray("m_sceneObjects"))
         {
@@ -491,6 +508,8 @@ public class ModelExtract
                 }
 
                 var material = drawCall.GetProperty<string>("m_material");
+                materialInputSignature ??= materialInputSignatures?.GetValueOrDefault(material);
+
                 var startIndex = drawCall.GetInt32Property("m_nStartIndex");
                 var indexCount = drawCall.GetInt32Property("m_nIndexCount");
 
@@ -540,10 +559,15 @@ public class ModelExtract
                 continue;
             }
 
-            // TODO: Grab this from material's INSG
-            if (attribute is { SemanticName: "TEXCOORD", SemanticIndex: 4 })
+            if (materialInputSignature is not null)
             {
-                semantic = "VertexPaintBlendParams$0";
+                var insgElement = Material.FindD3DInputSignatureElement(materialInputSignature, attribute.SemanticName, attribute.SemanticIndex);
+
+                // Use engine semantics for attributes that need them
+                if (insgElement.Semantic is "VertexPaintBlendParams" or "VertexPaintTintColor")
+                {
+                    semantic = insgElement.Semantic + "$0";
+                }
             }
 
             switch (attributeFormat.ElementCount)
