@@ -67,9 +67,10 @@ namespace GUI.Types.Renderer
                 return GetErrorMaterial();
             }
 
+            var vrfMaterial = (VrfMaterial)resource.DataBlock;
             var mat = new RenderMaterial(
-                (VrfMaterial)resource.DataBlock,
-                GetInputSignature(resource),
+                vrfMaterial,
+                vrfMaterial.GetInputSignature(),
                 VrfGuiContext.ShaderLoader
             );
 
@@ -498,37 +499,6 @@ namespace GUI.Types.Renderer
             GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.Repeat);
 
             return texture;
-        }
-
-        private static IKeyValueCollection GetInputSignature(Resource resource)
-        {
-            if (resource.ContainsBlockType(BlockType.INSG))
-            {
-                return ((BinaryKV3)resource.GetBlockByType(BlockType.INSG)).Data;
-            }
-
-            // Material might not have REDI, or it might have RED2 without INSG
-            if (resource.EditInfo != null && resource.EditInfo.Type != BlockType.REDI)
-            {
-                return null;
-            }
-
-            var extraStringData = (ValveResourceFormat.Blocks.ResourceEditInfoStructs.ExtraStringData)resource.EditInfo.Structs[ValveResourceFormat.Blocks.ResourceEditInfo.REDIStruct.ExtraStringData];
-            var inputSignatureString = extraStringData.List.Where(x => x.Name == "VSInputSignature").FirstOrDefault()?.Value;
-
-            if (inputSignatureString == null)
-            {
-                return null;
-            }
-
-            if (!inputSignatureString.StartsWith("<!-- kv3", StringComparison.InvariantCulture))
-            {
-                return null;
-            }
-
-            var ms = new MemoryStream(Encoding.UTF8.GetBytes(inputSignatureString));
-
-            return KeyValues3.ParseKVFile(ms).Root;
         }
     }
 }

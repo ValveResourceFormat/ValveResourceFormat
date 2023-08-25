@@ -276,7 +276,7 @@ public sealed class MapExtract
                 ModelEntityAssociations.TryGetValue(modelName, out var associatedEntityClass);
                 var toolTexture = GetToolTextureForEntity(associatedEntityClass);
 
-                var modelExtract = new ModelExtract(data, FileLoader)
+                var modelExtract = new ModelExtract(model, FileLoader)
                 {
                     Type = isJustPhysics
                         ? ModelExtract.ModelExtractType.Map_PhysicsToRenderMesh

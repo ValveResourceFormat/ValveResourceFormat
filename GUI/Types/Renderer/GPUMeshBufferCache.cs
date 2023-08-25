@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
-using ValveResourceFormat.Serialization;
+using ValveResourceFormat.ResourceTypes;
 
 namespace GUI.Types.Renderer
 {
@@ -76,32 +76,22 @@ namespace GUI.Types.Renderer
                     var attributeLocation = GL.GetAttribLocation(shader.Program, attributeName);
                     if (attributeLocation == -1)
                     {
-                        if (material.VsInputSignature == null)
+                        Material.InputSignatureElement elem = default;
+                        if (material.VsInputSignature is not null)
                         {
-#if DEBUG
-                            Console.WriteLine($"Attribute {attributeName} could not be bound in shader {shader.Name} (material has no input signature)");
-#endif
-                            continue;
+                            elem = Material.FindD3DInputSignatureElement(material.VsInputSignature, attribute.SemanticName, attribute.SemanticIndex);
                         }
 
-                        foreach (var elem in material.VsInputSignature.GetArray<IKeyValueCollection>("m_elems"))
+                        if (elem.Name is not null)
                         {
-                            var d3dSemanticName = elem.GetProperty<string>("m_pD3DSemanticName");
-                            var d3dSemanticIndex = elem.GetIntegerProperty("m_nD3DSemanticIndex");
-
-                            if (d3dSemanticName == attribute.SemanticName && d3dSemanticIndex == attribute.SemanticIndex)
-                            {
-                                attributeLocation = GL.GetAttribLocation(shader.Program,
-                                    elem.GetProperty<string>("m_pName"));
-                                break;
-                            }
+                            attributeLocation = GL.GetAttribLocation(shader.Program, elem.Name);
                         }
 
                         // Ignore this attribute if it is not found in the shader
                         if (attributeLocation == -1)
                         {
 #if DEBUG
-                            Console.WriteLine($"Attribute {attributeName} could not be bound in shader {shader.Name}");
+                            Console.WriteLine($"Attribute {attributeName} could not be bound in shader {shader.Name} (insg: {elem.Name})");
 #endif
                             continue;
                         }
