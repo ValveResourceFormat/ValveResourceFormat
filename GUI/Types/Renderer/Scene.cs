@@ -30,8 +30,6 @@ namespace GUI.Types.Renderer
 
         public Camera MainCamera { get; set; }
         public SceneSky Sky { get; set; }
-        public Matrix4x4 GlobalLightTransform { get; set; }
-        public Vector4 GlobalLightColor { get; set; }
         public WorldLightingInfo LightingInfo { get; } = new();
         public Dictionary<string, byte> RenderAttributes { get; } = new();
         public VrfGuiContext GuiContext { get; }
