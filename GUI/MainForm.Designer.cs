@@ -46,6 +46,7 @@ namespace GUI
             recoverDeletedToolStripMenuItem = new ToolStripMenuItem();
             settingsToolStripMenuItem = new ToolStripMenuItem();
             aboutToolStripMenuItem = new ToolStripMenuItem();
+            versionToolStripLabel = new ToolStripLabel();
             mainTabs = new TabControl();
             tabContextMenuStrip = new ContextMenuStrip(components);
             closeToolStripMenuItem = new ToolStripMenuItem();
@@ -61,7 +62,6 @@ namespace GUI
             copyFileNameToolStripMenuItem = new ToolStripMenuItem();
             openWithDefaultAppToolStripMenuItem = new ToolStripMenuItem();
             viewAssetInfoToolStripMenuItem = new ToolStripMenuItem();
-            versionToolStripLabel = new ToolStripLabel();
             menuStrip.SuspendLayout();
             tabContextMenuStrip.SuspendLayout();
             vpkContextMenu.SuspendLayout();
@@ -222,7 +222,7 @@ namespace GUI
             // 
             vpkContextMenu.Items.AddRange(new ToolStripItem[] { extractToolStripMenuItem, decompileToolStripMenuItem, toolStripSeparator1, copyFileNameToolStripMenuItem, openWithDefaultAppToolStripMenuItem, viewAssetInfoToolStripMenuItem });
             vpkContextMenu.Name = "vpkContextMenu";
-            vpkContextMenu.Size = new System.Drawing.Size(193, 142);
+            vpkContextMenu.Size = new System.Drawing.Size(193, 120);
             // 
             // extractToolStripMenuItem
             // 
@@ -318,8 +318,8 @@ namespace GUI
         private ToolStripMenuItem exportAsIsToolStripMenuItem;
         private ToolStripMenuItem decompileExportToolStripMenuItem;
         private ToolStripMenuItem explorerToolStripMenuItem;
-        private ToolStripLabel versionToolStripLabel;
         private ToolStripMenuItem viewAssetInfoToolStripMenuItem;
+        private ToolStripLabel versionToolStripLabel;
     }
 }
 
