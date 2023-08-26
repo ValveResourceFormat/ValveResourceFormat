@@ -6,7 +6,7 @@
     <RollForward>LatestMajor</RollForward>
     <OutputType>WinExe</OutputType>
     <Description>Source 2 resource viewer</Description>
-    <ApplicationIcon>..\Icons\vrf.ico</ApplicationIcon>
+    <ApplicationIcon>..\Icons\source2viewer.ico</ApplicationIcon>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <IncludeAllContentForSelfExtract>true</IncludeAllContentForSelfExtract>
     <StartupObject>GUI.Program</StartupObject>

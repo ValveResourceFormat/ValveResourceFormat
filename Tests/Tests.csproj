@@ -2,7 +2,7 @@
   <PropertyGroup>
     <TargetFramework>net6.0</TargetFramework>
     <RollForward>LatestMajor</RollForward>
-    <ApplicationIcon>..\Icons\vrf.ico</ApplicationIcon>
+    <ApplicationIcon>..\Icons\source2viewer.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="coverlet.msbuild" Version="6.0.0">
