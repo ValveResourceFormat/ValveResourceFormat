@@ -67,34 +67,42 @@ namespace GUI.Types.Renderer
                 var curVertexBuffer = vbib.VertexBuffers[(int)vtxIndex];
                 foreach (var attribute in curVertexBuffer.InputLayoutFields)
                 {
-                    var attributeName = "v" + attribute.SemanticName;
-                    if (attribute.SemanticName is "TEXCOORD" or "COLOR" && attribute.SemanticIndex > 0)
-                    {
-                        attributeName += attribute.SemanticIndex;
-                    }
+                    var attributeLocation = -1;
 
-                    var attributeLocation = GL.GetAttribLocation(shader.Program, attributeName);
-                    if (attributeLocation == -1)
+#if DEBUG
+                    var insgElemName = string.Empty;
+#endif
+
+                    if (material.VsInputSignature is not null)
                     {
-                        Material.InputSignatureElement elem = default;
-                        if (material.VsInputSignature is not null)
-                        {
-                            elem = Material.FindD3DInputSignatureElement(material.VsInputSignature, attribute.SemanticName, attribute.SemanticIndex);
-                        }
+                        var elem = Material.FindD3DInputSignatureElement(material.VsInputSignature, attribute.SemanticName, attribute.SemanticIndex);
 
                         if (elem.Name is not null)
                         {
+                            insgElemName = elem.Name;
                             attributeLocation = GL.GetAttribLocation(shader.Program, elem.Name);
                         }
+                    }
 
-                        // Ignore this attribute if it is not found in the shader
-                        if (attributeLocation == -1)
+                    // Fallback to guessing basic attribute name if INSG does not exist or attribute was not found
+                    if (attributeLocation == -1)
+                    {
+                        var attributeName = "v" + attribute.SemanticName;
+                        if (attribute.SemanticName is "TEXCOORD" or "COLOR" && attribute.SemanticIndex > 0)
                         {
-#if DEBUG
-                            Console.WriteLine($"Attribute {attributeName} could not be bound in shader {shader.Name} (insg: {elem.Name})");
-#endif
-                            continue;
+                            attributeName += attribute.SemanticIndex;
                         }
+
+                        attributeLocation = GL.GetAttribLocation(shader.Program, attributeName);
+                    }
+
+                    // Ignore this attribute if it is not found in the shader
+                    if (attributeLocation == -1)
+                    {
+#if DEBUG
+                        Console.WriteLine($"Attribute {attribute.SemanticName} ({attribute.SemanticIndex}) could not be bound in shader {shader.Name} (insg: {insgElemName})");
+#endif
+                        continue;
                     }
 
                     BindVertexAttrib(attribute, attributeLocation, (int)curVertexBuffer.ElementSizeInBytes, baseVertex);
