@@ -244,6 +244,7 @@ namespace GUI.Types.Renderer
 
             lightingBuffer.Data = Scene.LightingInfo.LightingData;
             viewBuffer.Data = e.Camera.SetViewConstants(viewBuffer.Data, 1.0f);
+            viewBuffer.Data = Scene.FogInfo.SetFogUniforms(viewBuffer.Data, Vector3.Zero, 1.0f);
 
             Scene.RenderWithCamera(e.Camera, bufferSet, lockedCullFrustum);
 
