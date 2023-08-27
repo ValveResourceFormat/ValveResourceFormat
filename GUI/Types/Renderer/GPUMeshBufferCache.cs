@@ -68,10 +68,7 @@ namespace GUI.Types.Renderer
                 foreach (var attribute in curVertexBuffer.InputLayoutFields)
                 {
                     var attributeLocation = -1;
-
-#if DEBUG
                     var insgElemName = string.Empty;
-#endif
 
                     if (material.VsInputSignature is not null)
                     {
