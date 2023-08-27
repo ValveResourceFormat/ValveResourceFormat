@@ -431,7 +431,7 @@ namespace GUI.Types.Renderer
                             }
                             else
                             {
-                                var heightWidth = entity.GetProperty<float>("cubemapfogheightwidth");
+                                var heightWidth = entity.GetPropertyUnchecked<float>("cubemapfogheightwidth");
                                 heightEnd = heightStart + heightWidth;
                             }
                         }
@@ -499,13 +499,12 @@ namespace GUI.Types.Renderer
 
                             fogTexture = mat.Textures["g_tSkyTexture"];
 
-                            float brightnessExposureBias;
-                            if (mat.Material.FloatParams.TryGetValue("g_flBrightnessExposureBias", out brightnessExposureBias))
+                            if (!mat.Material.FloatParams.TryGetValue("g_flBrightnessExposureBias", out var brightnessExposureBias))
                                 brightnessExposureBias = 0f;
-                            float renderOnlyExposureBias;
-                            if (mat.Material.FloatParams.TryGetValue("g_flRenderOnlyExposureBias", out renderOnlyExposureBias))
+                            if (!mat.Material.FloatParams.TryGetValue("g_flRenderOnlyExposureBias", out var renderOnlyExposureBias))
                                 renderOnlyExposureBias = 0f;
-                            exposureBias = brightnessExposureBias + renderOnlyExposureBias; // These are both logarithms
+                            // These are both logarithms, so this is equivalent to a multiply of the raw value
+                            exposureBias = brightnessExposureBias + renderOnlyExposureBias;
                         }
 
 
