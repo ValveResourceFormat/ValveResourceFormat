@@ -108,7 +108,7 @@ namespace GUI.Utils
 
             if (Config.FieldOfView <= 0)
             {
-                Config.FieldOfView = 50;
+                Config.FieldOfView = 60;
             }
             else if (Config.FieldOfView >= 120)
             {
