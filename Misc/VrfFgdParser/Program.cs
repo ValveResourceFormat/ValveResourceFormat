@@ -123,7 +123,7 @@ void ParseFile(string file)
 
                 if (!value.StartsWith("models/", StringComparison.Ordinal) && !value.StartsWith("characters/models/", StringComparison.Ordinal))
                 {
-                    value = "models/" + value; 
+                    value = "models/" + value;
                 }
 
                 if (value.EndsWith(".mdl", StringComparison.Ordinal))
@@ -199,6 +199,33 @@ void ParseFile(string file)
                     colors[_class.Name].Color ??= color;
                 }
             }
+
+            // Line - TODO: Look up from base class?
+            {
+                if (behaviour.Name == "line" && behaviour.Values.Count > 3)
+                {
+                    var color = $"new Vector3({behaviour.Values[0]}, {behaviour.Values[1]}, {behaviour.Values[2]})";
+                    var line = string.Empty;
+
+                    if (behaviour.Values.Count == 5)
+                    {
+                        line = $"new HammerEntity.Line({color}, \"{behaviour.Values[3]}\", \"{behaviour.Values[4]}\")";
+                    }
+                    else if (behaviour.Values.Count == 7)
+                    {
+                        line = $"new HammerEntity.Line({color}, \"{behaviour.Values[3]}\", \"{behaviour.Values[4]}\", \"{behaviour.Values[5]}\", \"{behaviour.Values[6]}\")";
+                    }
+
+                    IDictionary<string, EntityInfo> entity = _class.ClassType == ClassType.BaseClass ? baseEntities : allEntities;
+
+                    if (!entity.ContainsKey(_class.Name))
+                    {
+                        entity[_class.Name] = new();
+                    }
+
+                    entity[_class.Name].Lines.Add(line);
+                }
+            }
         }
     }
 }
@@ -247,6 +274,12 @@ void WriteEntities()
             fields.Add($"Color = {icon.Value.Color}");
         }
 
+        if (icon.Value.Lines.Count > 0)
+        {
+            var linesStr = string.Join(", ", icon.Value.Lines);
+            fields.Add($"Lines = new[] {{ {linesStr} }}");
+        }
+
         str.Append("            ");
         str.Append('"');
         str.Append(icon.Key);
@@ -282,4 +315,5 @@ class EntityInfo
 {
     public HashSet<string> Icons = new();
     public string? Color;
+    public HashSet<string> Lines = new();
 }

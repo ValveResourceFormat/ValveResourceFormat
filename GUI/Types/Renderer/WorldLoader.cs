@@ -218,7 +218,8 @@ namespace GUI.Types.Renderer
                 || cls == "env_cubemap_box"
                 || cls == "env_cubemap";
 
-            var entitiesReordered = entityLump.GetEntities()
+            var entities = entityLump.GetEntities().ToList();
+            var entitiesReordered = entities
                 .Select(e => (e, e.GetProperty<string>("classname")))
                 .OrderByDescending(x => IsCubemapOrProbe(x.Item2));
 
@@ -553,7 +554,7 @@ namespace GUI.Types.Renderer
 
                 if (model == null)
                 {
-                    var sceneNode = AddToolModel(scene, entity, classname, transformationMatrix);
+                    CreateDefaultEntity(scene, entities, entity, classname, transformationMatrix);
                     continue;
                 }
 
@@ -669,7 +670,7 @@ namespace GUI.Types.Renderer
             }
         }
 
-        private SceneNode AddToolModel(Scene scene, EntityLump.Entity entity, string classname, Matrix4x4 transformationMatrix)
+        private void CreateDefaultEntity(Scene scene, List<EntityLump.Entity> entities, EntityLump.Entity entity, string classname, Matrix4x4 transformationMatrix)
         {
             var hammerEntity = HammerEntities.Get(classname);
             string filename = null;
@@ -702,11 +703,8 @@ namespace GUI.Types.Renderer
                     EntityData = entity,
                 };
                 scene.Add(boxNode, false);
-
-                return boxNode;
             }
-
-            if (resource.ResourceType == ResourceType.Model)
+            else if (resource.ResourceType == ResourceType.Model)
             {
                 var modelNode = new ModelSceneNode(scene, (Model)resource.DataBlock, null, false)
                 {
@@ -720,8 +718,6 @@ namespace GUI.Types.Renderer
                 var isAnimated = modelNode.SetAnimationForWorldPreview("tools_preview");
 
                 scene.Add(modelNode, isAnimated);
-
-                return modelNode;
             }
             else if (resource.ResourceType == ResourceType.Material)
             {
@@ -732,13 +728,77 @@ namespace GUI.Types.Renderer
                     EntityData = entity,
                 };
                 scene.Add(spriteNode, false);
-
-                return spriteNode;
             }
             else
             {
                 throw new InvalidDataException($"Got resource {resource.ResourceType} for class \"{classname}\"");
             }
+
+            if (hammerEntity?.Lines.Length > 0)
+            {
+                foreach (var line in hammerEntity.Lines)
+                {
+                    if (!entity.Properties.TryGetValue(StringToken.Get(line.StartValueKey), out var value))
+                    {
+                        continue;
+                    }
+
+                    var startEntity = FindEntityByKeyValue(entities, line.StartKey, (string)value.Data);
+
+                    if (startEntity == null)
+                    {
+                        continue;
+                    }
+
+                    var end = transformationMatrix.Translation;
+                    var start = EntityTransformHelper.CalculateTransformationMatrix(startEntity).Translation;
+
+                    if (line.EndKey != null)
+                    {
+                        if (!entity.Properties.TryGetValue(StringToken.Get(line.EndValueKey), out value))
+                        {
+                            continue;
+                        }
+
+                        var endEntity = FindEntityByKeyValue(entities, line.EndKey, (string)value.Data);
+
+                        if (endEntity == null)
+                        {
+                            continue;
+                        }
+
+                        end = EntityTransformHelper.CalculateTransformationMatrix(endEntity).Translation;
+                    }
+
+                    var origin = (start + end) / 2f;
+                    end -= origin;
+                    start -= origin;
+
+                    var lineNode = new LineSceneNode(scene, line.Color, start, end)
+                    {
+                        LayerName = "Entities",
+                        Transform = Matrix4x4.CreateTranslation(origin)
+                    };
+                    scene.Add(lineNode, false);
+                }
+            }
+        }
+
+        private static EntityLump.Entity FindEntityByKeyValue(List<EntityLump.Entity> entities, string keyToFind, string valueToFind)
+        {
+            var stringToken = StringToken.Get(keyToFind);
+
+            foreach (var entity in entities)
+            {
+                if (entity.Properties.TryGetValue(stringToken, out var value)
+                    && value.Data is string outString
+                    && valueToFind.Equals(outString, StringComparison.OrdinalIgnoreCase))
+                {
+                    return entity;
+                }
+            }
+
+            return null;
         }
     }
 }
