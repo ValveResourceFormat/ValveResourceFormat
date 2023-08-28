@@ -212,7 +212,7 @@ namespace GUI.Types.Renderer
             GL.Enable(EnableCap.CullFace);
 
             // For SceneSky
-            viewBuffer.Data = e.Camera.SetViewConstants(viewBuffer.Data, 1.0f) with
+            viewBuffer.Data = e.Camera.SetViewConstants(viewBuffer.Data) with
             {
                 Time = Uptime,
             };
@@ -232,7 +232,7 @@ namespace GUI.Types.Renderer
                 skyboxCamera.SetLocation(e.Camera.Location - SkyboxOrigin);
 
                 lightingBuffer.Data = SkyboxScene.LightingInfo.LightingData;
-                viewBuffer.Data = skyboxCamera.SetViewConstants(viewBuffer.Data, SkyboxScale);
+                viewBuffer.Data = skyboxCamera.SetViewConstants(viewBuffer.Data);
                 viewBuffer.Data = SkyboxScene.FogInfo.SetFogUniforms(viewBuffer.Data, SkyboxOrigin, SkyboxScale);
 
                 SkyboxScene.MainCamera = skyboxCamera;
@@ -243,7 +243,7 @@ namespace GUI.Types.Renderer
             }
 
             lightingBuffer.Data = Scene.LightingInfo.LightingData;
-            viewBuffer.Data = e.Camera.SetViewConstants(viewBuffer.Data, 1.0f);
+            viewBuffer.Data = e.Camera.SetViewConstants(viewBuffer.Data);
             viewBuffer.Data = Scene.FogInfo.SetFogUniforms(viewBuffer.Data, Vector3.Zero, 1.0f);
 
             Scene.RenderWithCamera(e.Camera, bufferSet, lockedCullFrustum);
