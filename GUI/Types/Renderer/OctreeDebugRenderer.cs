@@ -172,6 +172,7 @@ namespace GUI.Types.Renderer
                 GL.UseProgram(shader.Program);
 
                 shader.SetUniform4x4("g_matViewToProjection", camera.ViewProjectionMatrix);
+                shader.SetUniform4x4("transform", Matrix4x4.Identity);
 
                 GL.BindVertexArray(vaoHandle);
                 GL.DrawArrays(PrimitiveType.Lines, 0, vertexCount);
