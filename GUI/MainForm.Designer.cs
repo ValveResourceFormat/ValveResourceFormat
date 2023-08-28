@@ -75,7 +75,7 @@ namespace GUI
             menuStrip.Location = new System.Drawing.Point(0, 0);
             menuStrip.Name = "menuStrip";
             menuStrip.RenderMode = ToolStripRenderMode.System;
-            menuStrip.Size = new System.Drawing.Size(1101, 24);
+            menuStrip.Size = new System.Drawing.Size(1300, 24);
             menuStrip.TabIndex = 0;
             menuStrip.Text = "menuStrip1";
             // 
@@ -157,7 +157,7 @@ namespace GUI
             mainTabs.Name = "mainTabs";
             mainTabs.Padding = new System.Drawing.Point(0, 0);
             mainTabs.SelectedIndex = 0;
-            mainTabs.Size = new System.Drawing.Size(1101, 508);
+            mainTabs.Size = new System.Drawing.Size(1300, 776);
             mainTabs.TabIndex = 1;
             mainTabs.MouseClick += OnTabClick;
             // 
@@ -274,7 +274,7 @@ namespace GUI
             AllowDrop = true;
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new System.Drawing.Size(1101, 532);
+            ClientSize = new System.Drawing.Size(1300, 800);
             Controls.Add(mainTabs);
             Controls.Add(menuStrip);
             Icon = (System.Drawing.Icon)resources.GetObject("$this.Icon");
