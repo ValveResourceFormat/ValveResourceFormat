@@ -30,6 +30,7 @@ namespace GUI.Forms
         /// </summary>
         private void InitializeComponent()
         {
+            var dataGridViewCellStyle1 = new DataGridViewCellStyle();
             dataGrid = new DataGridView();
             ColumnName = new DataGridViewTextBoxColumn();
             ColumnValue = new DataGridViewTextBoxColumn();
@@ -39,9 +40,12 @@ namespace GUI.Forms
             // dataGrid
             // 
             dataGrid.AllowUserToAddRows = false;
-            dataGrid.AllowUserToResizeRows = false;
+            dataGrid.AllowUserToDeleteRows = false;
             dataGrid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
             dataGrid.Columns.AddRange(new DataGridViewColumn[] { ColumnName, ColumnValue });
+            dataGridViewCellStyle1.Font = new System.Drawing.Font("Cascadia Mono", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            dataGridViewCellStyle1.WrapMode = DataGridViewTriState.True;
+            dataGrid.DefaultCellStyle = dataGridViewCellStyle1;
             dataGrid.Dock = DockStyle.Fill;
             dataGrid.Location = new System.Drawing.Point(0, 0);
             dataGrid.Name = "dataGrid";
