@@ -58,7 +58,6 @@ namespace GUI.Types.Renderer
                 isAdditiveBlend = blendMode == 4;
             }
         }
-        
         public void Render(Shader shader = default, WorldLightingInfo lightingInfo = default)
         {
             textureUnit = TextureUnitStart;
