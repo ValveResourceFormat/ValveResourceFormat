@@ -158,6 +158,16 @@ namespace GUI.Types.Renderer
                     SkyboxScene.FogInfo = Scene.FogInfo;
                     skyboxCamera.Scale = SkyboxScene.WorldScale;
 
+                    AddCheckBox("Show Fog", Scene.FogEnabled, (v) =>
+                    {
+                        Scene.FogEnabled = v;
+
+                        if (SkyboxScene != null)
+                        {
+                            SkyboxScene.FogEnabled = v;
+                        }
+                    });
+
                     AddCheckBox("Show Skybox", ShowSkybox, (v) => ShowSkybox = v);
                 }
 

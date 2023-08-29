@@ -92,15 +92,6 @@ namespace GUI.Types.Renderer
                     SkyboxScene.ShowToolsMaterials = v;
                 }
             });
-            AddCheckBox("Show Fog", Scene.FogEnabled, (v) =>
-            {
-                Scene.FogEnabled = v;
-
-                if (SkyboxScene != null)
-                {
-                    SkyboxScene.FogEnabled = v;
-                }
-            });
 
             GLLoad += OnLoad;
         }
