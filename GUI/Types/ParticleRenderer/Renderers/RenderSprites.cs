@@ -249,7 +249,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
             GL.BufferData(BufferTarget.ArrayBuffer, particles.Count * VertexSize * 4 * sizeof(float), rawVertices, BufferUsageHint.DynamicDraw);
         }
 
-        public override void Render(ParticleCollection particleBag, ParticleSystemRenderState systemRenderState, Matrix4x4 viewProjectionMatrix, Matrix4x4 modelViewMatrix)
+        public override void Render(ParticleCollection particleBag, ParticleSystemRenderState systemRenderState, Matrix4x4 modelViewMatrix)
         {
             if (particleBag.Count == 0)
             {
@@ -280,8 +280,6 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
             // set texture unit 0 as uTexture uniform
             shader.SetTexture(0, "uTexture", texture);
-
-            shader.SetUniform4x4("g_matViewToProjection", viewProjectionMatrix);
 
             // TODO: This formula is a guess but still seems too bright compared to valve particles
             shader.SetUniform1("uOverbrightFactor", overbrightFactor.NextNumber());

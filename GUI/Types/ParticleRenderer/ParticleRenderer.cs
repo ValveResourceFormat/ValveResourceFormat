@@ -261,7 +261,7 @@ namespace GUI.Types.ParticleRenderer
                             continue;
                         }
 
-                        renderer.Render(particleCollection, systemRenderState, camera.ViewProjectionMatrix, camera.CameraViewMatrix);
+                        renderer.Render(particleCollection, systemRenderState, camera.CameraViewMatrix);
                     }
                 }
             }

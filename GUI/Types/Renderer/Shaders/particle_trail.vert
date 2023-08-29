@@ -2,7 +2,7 @@
 
 in vec3 aVertexPosition;
 
-uniform mat4 g_matViewToProjection;
+#include "common/ViewConstants.glsl"
 uniform mat4 uModelMatrix;
 
 out vec2 uv;

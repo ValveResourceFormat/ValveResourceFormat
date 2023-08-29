@@ -111,7 +111,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
             return vao;
         }
 
-        public override void Render(ParticleCollection particleBag, ParticleSystemRenderState systemRenderState, Matrix4x4 viewProjectionMatrix, Matrix4x4 modelViewMatrix)
+        public override void Render(ParticleCollection particleBag, ParticleSystemRenderState systemRenderState, Matrix4x4 modelViewMatrix)
         {
             var particles = particleBag.Current;
 
@@ -134,8 +134,6 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
             // set texture unit 0 as uTexture uniform
             shader.SetTexture(0, "uTexture", texture);
-
-            shader.SetUniform4x4("g_matViewToProjection", viewProjectionMatrix);
 
             // TODO: This formula is a guess but still seems too bright compared to valve particles
             // also todo: pass all of these as vertex parameters (probably just color/alpha combined)

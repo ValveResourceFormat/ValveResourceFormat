@@ -9,7 +9,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
         {
         }
 
-        public abstract void Render(ParticleCollection particles, ParticleSystemRenderState systemRenderState, Matrix4x4 viewProjectionMatrix, Matrix4x4 modelViewMatrix);
+        public abstract void Render(ParticleCollection particles, ParticleSystemRenderState systemRenderState, Matrix4x4 modelViewMatrix);
         public abstract void SetRenderMode(string renderMode);
         public abstract IEnumerable<string> GetSupportedRenderModes();
         public abstract void SetWireframe(bool wireframe);

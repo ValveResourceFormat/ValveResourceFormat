@@ -4,7 +4,7 @@ in vec3 aVertexPosition;
 in vec4 aVertexColor;
 in vec2 aTexCoords;
 
-uniform mat4 g_matViewToProjection;
+#include "common/ViewConstants.glsl"
 
 out vec2 vTexCoordOut;
 out vec4 vColor;
