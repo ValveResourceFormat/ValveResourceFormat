@@ -58,7 +58,7 @@ namespace GUI.Types.Renderer
             var verts = new List<float>[groupCount];
             var inds = new List<int>[groupCount];
             var boundingBoxes = new AABB[groupCount];
-            var isFirstBbox = new bool[groupCount];
+            var boundingBoxInitted = new bool[groupCount];
             var hasUntriangulatedVertices = new bool[groupCount];
 
             for (var i = 0; i < groupCount; i++)
@@ -95,9 +95,9 @@ namespace GUI.Types.Renderer
                     var bbox = new AABB(center + new Vector3(radius),
                                         center - new Vector3(radius));
 
-                    if (isFirstBbox[collisionAttributeIndex])
+                    if (!boundingBoxInitted[collisionAttributeIndex])
                     {
-                        isFirstBbox[collisionAttributeIndex] = false;
+                        boundingBoxInitted[collisionAttributeIndex] = true;
                         boundingBoxes[collisionAttributeIndex] = bbox;
                     }
                     else
@@ -128,9 +128,9 @@ namespace GUI.Types.Renderer
                         var bbox = new AABB(cn + new Vector3(radius),
                                              cn - new Vector3(radius));
 
-                        if (isFirstBbox[collisionAttributeIndex])
+                        if (!boundingBoxInitted[collisionAttributeIndex])
                         {
-                            isFirstBbox[collisionAttributeIndex] = false;
+                            boundingBoxInitted[collisionAttributeIndex] = true;
                             boundingBoxes[collisionAttributeIndex] = bbox;
                         }
                         else
@@ -191,9 +191,9 @@ namespace GUI.Types.Renderer
 
                     var bbox = new AABB(hull.Shape.Min, hull.Shape.Max);
 
-                    if (isFirstBbox[collisionAttributeIndex])
+                    if (!boundingBoxInitted[collisionAttributeIndex])
                     {
-                        isFirstBbox[collisionAttributeIndex] = false;
+                        boundingBoxInitted[collisionAttributeIndex] = true;
                         boundingBoxes[collisionAttributeIndex] = bbox;
                     }
                     else
@@ -239,9 +239,9 @@ namespace GUI.Types.Renderer
 
                     var bbox = new AABB(mesh.Shape.Min, mesh.Shape.Max);
 
-                    if (isFirstBbox[collisionAttributeIndex])
+                    if (!boundingBoxInitted[collisionAttributeIndex])
                     {
-                        isFirstBbox[collisionAttributeIndex] = false;
+                        boundingBoxInitted[collisionAttributeIndex] = true;
                         boundingBoxes[collisionAttributeIndex] = bbox;
                     }
                     else
