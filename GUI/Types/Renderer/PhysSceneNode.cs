@@ -52,7 +52,7 @@ namespace GUI.Types.Renderer
             GL.BindVertexArray(0);
         }
 
-        public static IEnumerable<PhysSceneNode> CreatePhysSceneNodes(Scene scene, PhysAggregateData phys)
+        public static IEnumerable<PhysSceneNode> CreatePhysSceneNodes(Scene scene, PhysAggregateData phys, string fileName)
         {
             var groupCount = phys.CollisionAttributes.Count;
             var verts = new List<float>[groupCount];
@@ -269,6 +269,7 @@ namespace GUI.Types.Renderer
 
                 var physSceneNode = new PhysSceneNode(scene, verts[i], inds[i], hasUntriangulatedVertices[i])
                 {
+                    Name = fileName,
                     PhysGroupName = name,
                     LocalBoundingBox = boundingBoxes[i],
                 };
@@ -360,21 +361,19 @@ namespace GUI.Types.Renderer
                 return;
             }
 
-            if (context.ReplacementShader != null)
-            {
-                return;
-            }
+            var renderShader = context.ReplacementShader ?? shader;
 
             GL.Enable(EnableCap.DepthTest);
             GL.Enable(EnableCap.Blend);
             GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.SrcAlphaSaturate);
 
-            GL.UseProgram(shader.Program);
+            GL.UseProgram(renderShader.Program);
 
             var viewProjectionMatrix = Transform * context.Camera.ViewProjectionMatrix;
-            shader.SetUniform4x4("g_matViewToProjection", viewProjectionMatrix);
-            shader.SetUniform4x4("transform", Matrix4x4.Identity);
-            shader.SetUniform1("bAnimated", 0.0f);
+            renderShader.SetUniform4x4("g_matViewToProjection", viewProjectionMatrix);
+            renderShader.SetUniform4x4("transform", Matrix4x4.Identity);
+            renderShader.SetUniform1("bAnimated", 0.0f);
+            renderShader.SetUniform1("sceneObjectId", Id);
 
             GL.BindVertexArray(vaoHandle);
 

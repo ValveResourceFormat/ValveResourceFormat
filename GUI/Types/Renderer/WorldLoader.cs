@@ -128,7 +128,7 @@ namespace GUI.Types.Renderer
 
             if (phys != null)
             {
-                foreach (var physSceneNode in PhysSceneNode.CreatePhysSceneNodes(scene, phys))
+                foreach (var physSceneNode in PhysSceneNode.CreatePhysSceneNodes(scene, phys, physResource.FileName[..^2]))
                 {
                     physSceneNode.LayerName = "world_layer_base";
 
@@ -883,7 +883,7 @@ namespace GUI.Types.Renderer
 
                 if (phys != null)
                 {
-                    foreach (var physSceneNode in PhysSceneNode.CreatePhysSceneNodes(scene, phys))
+                    foreach (var physSceneNode in PhysSceneNode.CreatePhysSceneNodes(scene, phys, model))
                     {
                         physSceneNode.Transform = transformationMatrix;
                         physSceneNode.PhysGroupName = classname;

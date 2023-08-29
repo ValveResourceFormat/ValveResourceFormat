@@ -203,7 +203,7 @@ namespace GUI.Types.Renderer
 
             if (phys != null)
             {
-                physSceneNodes = PhysSceneNode.CreatePhysSceneNodes(Scene, phys);
+                physSceneNodes = PhysSceneNode.CreatePhysSceneNodes(Scene, phys, null);
 
                 foreach (var physSceneNode in physSceneNodes)
                 {
