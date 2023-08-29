@@ -42,8 +42,8 @@ namespace GUI.Types.Renderer
         public Octree<SceneNode> DynamicOctree { get; }
         public Vector3 WorldOffset { get; set; } = Vector3.Zero;
         public float WorldScale { get; set; } = 1.0f;
+        // TODO: also store skybox reference rotation
 
-        public bool IsSkybox { get; set; }
         public bool ShowToolsMaterials { get; set; }
         public bool FogEnabled { get; set; } = true;
 

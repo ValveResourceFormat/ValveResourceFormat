@@ -150,39 +150,13 @@ namespace GUI.Types.Renderer
 
             if (world != null)
             {
-                var loader = new WorldLoader(GuiContext, world);
-                var result = loader.Load(Scene);
+                var result = new WorldLoader(world, Scene);
 
-                if (result.Skybox != null)
+                if (result.SkyboxScene != null)
                 {
-                    SkyboxScene = new Scene(GuiContext);
-
-                    if (Scene.RenderAttributes.ContainsKey("USE_GRADIENT_FOG"))
-                    {
-                        SkyboxScene.RenderAttributes["USE_GRADIENT_FOG"] = 1;
-                    }
-                    if (Scene.RenderAttributes.ContainsKey("USE_CUBEMAP_FOG"))
-                    {
-                        SkyboxScene.RenderAttributes["USE_CUBEMAP_FOG"] = 1;
-                    }
-
-                    var skyboxLoader = new WorldLoader(GuiContext, result.Skybox);
-                    var skyboxResult = skyboxLoader.Load(SkyboxScene);
-
-                    SkyboxScale = skyboxResult.SkyboxScale;
-                    SkyboxOrigin = skyboxResult.SkyboxOrigin + result.SkyboxReferenceOffset;
-
-                    SkyboxScene.WorldOffset = SkyboxOrigin;
-                    SkyboxScene.WorldScale = SkyboxScale;
-
-                    SkyboxScene.FogInfo = new WorldFogInfo
-                    {
-                        CubeFogActive = Scene.FogInfo.CubeFogActive,
-                        GradientFogActive = Scene.FogInfo.GradientFogActive,
-                        CubemapFog = Scene.FogInfo.CubemapFog,
-                        GradientFog = Scene.FogInfo.GradientFog,
-                    };
-
+                    SkyboxScene = result.SkyboxScene;
+                    SkyboxScene.FogInfo = Scene.FogInfo;
+                    skyboxCamera.Scale = SkyboxScene.WorldScale;
 
                     AddCheckBox("Show Skybox", ShowSkybox, (v) => ShowSkybox = v);
                 }

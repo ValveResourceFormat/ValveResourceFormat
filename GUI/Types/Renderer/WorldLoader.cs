@@ -15,35 +15,30 @@ namespace GUI.Types.Renderer
 {
     class WorldLoader
     {
+        private readonly Scene scene;
         private readonly World world;
         private readonly VrfGuiContext guiContext;
 
-        // Contains metadata that can't be captured by manipulating the scene itself. Returned from Load().
-        public class LoadResult
-        {
-            public HashSet<string> DefaultEnabledLayers { get; } = new HashSet<string>();
+        public List<EntityLump.Entity> Entities { get; } = new();
 
-            public IDictionary<string, Matrix4x4> CameraMatrices { get; } = new Dictionary<string, Matrix4x4>();
+        public HashSet<string> DefaultEnabledLayers { get; } = new HashSet<string>() { "Entities" };
 
-            public World Skybox { get; set; }
-            public float SkyboxScale { get; set; } = 1.0f;
-            public Vector3 SkyboxOrigin { get; set; } = Vector3.Zero;
-            public Vector3 SkyboxReferenceOffset { get; set; } = Vector3.Zero;
-            // TODO: also store skybox reference rotation
-        }
+        public IDictionary<string, Matrix4x4> CameraMatrices { get; } = new Dictionary<string, Matrix4x4>();
 
-        public WorldLoader(VrfGuiContext vrfGuiContext, World world)
+        public Scene SkyboxScene { get; set; }
+
+        public WorldLoader(World world, Scene scene)
         {
             this.world = world;
-            guiContext = vrfGuiContext;
+            this.scene = scene;
+            guiContext = scene.GuiContext;
+
+            Load();
         }
 
-        public LoadResult Load(Scene scene)
+        private void Load()
         {
-            var result = new LoadResult();
-            result.DefaultEnabledLayers.Add("Entities");
-
-            LoadWorldLightingInfo(scene);
+            LoadWorldLightingInfo();
 
             scene.RenderAttributes.TryAdd("LightmapGameVersionNumber", (byte)scene.LightingInfo.LightmapGameVersionNumber);
 
@@ -70,7 +65,7 @@ namespace GUI.Types.Renderer
                 }
 
                 var entityLump = (EntityLump)newResource.DataBlock;
-                LoadEntitiesFromLump(scene, result, entityLump, "world_layer_base"); // TODO
+                LoadEntitiesFromLump(entityLump, "world_layer_base"); // TODO: Hardcoded layer name
             }
 
             // Output is World_t we need to iterate m_worldNodes inside it.
@@ -90,7 +85,7 @@ namespace GUI.Types.Renderer
 
                     foreach (var layer in subloader.LayerNames)
                     {
-                        result.DefaultEnabledLayers.Add(layer);
+                        DefaultEnabledLayers.Add(layer);
                     }
                 }
             }
@@ -98,8 +93,6 @@ namespace GUI.Types.Renderer
             scene.CalculateEnvironmentMaps();
 
             LoadWorldPhysics(scene);
-
-            return result;
         }
 
         public void LoadWorldPhysics(Scene scene)
@@ -133,7 +126,6 @@ namespace GUI.Types.Renderer
                 }
             }
 
-
             if (phys != null)
             {
                 foreach (var physSceneNode in PhysSceneNode.CreatePhysSceneNodes(scene, phys))
@@ -157,7 +149,7 @@ namespace GUI.Types.Renderer
         private readonly string[] LightmapSetV81 = { "g_tIrradiance", "g_tDirectionalIrradiance", "g_tDirectLightIndices", "g_tDirectLightStrengths" };
         private readonly string[] LightmapSetV82 = { "g_tIrradiance", "g_tDirectionalIrradiance", "g_tDirectLightShadows" };
 
-        private void LoadWorldLightingInfo(Scene scene)
+        private void LoadWorldLightingInfo()
         {
             var worldLightingInfo = world.GetWorldLightingInfo();
             if (worldLightingInfo == null)
@@ -195,7 +187,7 @@ namespace GUI.Types.Renderer
             };
         }
 
-        private void LoadEntitiesFromLump(Scene scene, LoadResult result, EntityLump entityLump, string layerName = null)
+        private void LoadEntitiesFromLump(EntityLump entityLump, string layerName = null)
         {
             var childEntities = entityLump.GetChildEntityNames();
 
@@ -211,7 +203,7 @@ namespace GUI.Types.Renderer
                 var childLump = (EntityLump)newResource.DataBlock;
                 var childName = childLump.Data.GetProperty<string>("m_name");
 
-                LoadEntitiesFromLump(scene, result, childLump, childName);
+                LoadEntitiesFromLump(childLump, childName);
             }
 
             static bool IsCubemapOrProbe(string cls)
@@ -220,10 +212,15 @@ namespace GUI.Types.Renderer
                 || cls == "env_cubemap_box"
                 || cls == "env_cubemap";
 
+            static bool IsFog(string cls)
+                => cls is "env_cubemap_fog" or "env_gradient_fog";
+
             var entities = entityLump.GetEntities().ToList();
             var entitiesReordered = entities
                 .Select(e => (e, e.GetProperty<string>("classname")))
-                .OrderByDescending(x => IsCubemapOrProbe(x.Item2) || (x.Item2 == "skybox_reference"));
+                .OrderByDescending(x => IsCubemapOrProbe(x.Item2) || IsFog(x.Item2));
+
+            Entities.AddRange(entities);
 
             var legacyCubemapArrayIndex = 0;
 
@@ -242,13 +239,15 @@ namespace GUI.Types.Renderer
                     // Visible on spawn flag
                     if ((spawnflags & 1) == 1)
                     {
-                        result.DefaultEnabledLayers.Add(layername);
+                        DefaultEnabledLayers.Add(layername);
                     }
                 }
                 else if (classname == "skybox_reference")
                 {
                     //var worldgroupid = entity.GetProperty<string>("worldgroupid");
                     var targetmapname = entity.GetProperty<string>("targetmapname");
+
+                    var skyboxReferenceOffset = EntityTransformHelper.ParseVector(entity.GetProperty<string>("origin"));
 
                     if (targetmapname != null)
                     {
@@ -286,11 +285,24 @@ namespace GUI.Types.Renderer
 
                         if (skyboxPackage != null)
                         {
-                            result.Skybox = (World)skyboxPackage.DataBlock;
+                            SkyboxScene = new Scene(guiContext);
+
+                            // Have to be set before meshes load because they're used as shader attributes
+                            if (scene.RenderAttributes.ContainsKey("USE_GRADIENT_FOG"))
+                            {
+                                SkyboxScene.RenderAttributes["USE_GRADIENT_FOG"] = scene.RenderAttributes["USE_GRADIENT_FOG"];
+                            }
+
+                            if (scene.RenderAttributes.ContainsKey("USE_CUBEMAP_FOG"))
+                            {
+                                SkyboxScene.RenderAttributes["USE_CUBEMAP_FOG"] = scene.RenderAttributes["USE_CUBEMAP_FOG"];
+                            }
+
+                            var skyboxResult = new WorldLoader((World)skyboxPackage.DataBlock, SkyboxScene);
+
+                            SkyboxScene.WorldOffset += skyboxReferenceOffset;
                         }
                     }
-
-                    result.SkyboxReferenceOffset = EntityTransformHelper.ParseVector(entity.GetProperty<string>("origin"));
                 }
                 else if (classname == "env_sky" || classname == "ent_dota_lightinfo")
                 {
@@ -314,9 +326,6 @@ namespace GUI.Types.Renderer
                     };
                     using var skyMaterial = guiContext.LoadFileByAnyMeansNecessary(skyname + "_c");
 
-                    var hasTargetName = (entity.GetProperty("targetname") != default);
-                    var targetName = hasTargetName ? entity.GetProperty<string>("targetname") : "";
-
                     scene.Sky = new SceneSky(scene)
                     {
                         Name = skyname,
@@ -324,7 +333,6 @@ namespace GUI.Types.Renderer
                         Tint = tintColor,
                         Transform = rotation,
                         Material = guiContext.MaterialLoader.LoadMaterial(skyMaterial),
-                        TargetName = targetName,
                     };
                 }
                 else if (classname == "env_gradient_fog")
@@ -448,44 +456,36 @@ namespace GUI.Types.Renderer
                             fogSource = entity.GetProperty<string>("cubemapfogsource");
                         }
 
-                        RenderTexture fogTexture;
+                        RenderTexture fogTexture = null;
                         var exposureBias = 0.0f;
-                        // Disabled in CS2
-                        if (fogSource == "0")
+
+                        if (fogSource == "0") // Cubemap From Texture, Disabled in CS2
                         {
                             fogTexture = guiContext.MaterialLoader.LoadTexture(
                                 entity.GetProperty<string>("cubemapfogtexture"));
                         }
                         else
                         {
-                            var material = "";
-                            if (fogSource == "1")
+                            string material = null;
+
+                            if (fogSource == "1") // Cubemap From Env_Sky
                             {
                                 var skyEntTargetName = entity.GetProperty<string>("cubemapfogskyentity");
-                                // env_sky target
-                                if (scene.Sky != default && (scene.Sky.TargetName == skyEntTargetName))
+                                var skyEntity = FindEntityByKeyValue("targetname", skyEntTargetName);
+
+                                // env_sky target //  && (scene.Sky.TargetName == skyEntTargetName)
+                                if (skyEntity != null)
                                 {
-                                    material = scene.Sky.Material.Material.Name;
+                                    material = skyEntity.GetProperty<string>("skyname") ?? skyEntity.GetProperty<string>("skybox_material_day");
                                 }
                                 else
                                 {
-                                    // SO APPARENTLY ENTITY TARGET REFERENCES CAN GO ACROSS SKYBOX MAPS. THIS HAPPENS IN OVERPASS
-                                    // For now, skip these cases. We'll come back to them later.
-                                    if (scene.Sky == default)
-                                    {
-                                        Console.WriteLine("WARNING (Cubemap Fog): No sky entity exists in this base map! It may exist in the skybox map, but this is currently unsupported.");
-                                    }
-                                    else
-                                    {
-                                        Console.WriteLine($"WARNING: Current sky entity (named {scene.Sky.TargetName}) does not match cubemap fog sky source target {skyEntTargetName}!");
-                                    }
-                                    Console.WriteLine("Disabling cubemap fog.");
+                                    Console.WriteLine($"Disabling cubemap fog because failed to find env_sky of target name {skyEntTargetName}.");
                                     scene.FogInfo.CubeFogActive = false;
                                     scene.RenderAttributes["USE_CUBEMAP_FOG"] = 0;
-                                    continue;
                                 }
                             }
-                            else if (fogSource == "2")
+                            else if (fogSource == "2") // Cubemap From Material
                             {
                                 material = entity.GetProperty<string>("cubemapfogskymaterial");
                             }
@@ -494,19 +494,30 @@ namespace GUI.Types.Renderer
                                 throw new NotImplementedException($"Cubemap fog source {fogSource} is not recognized.");
                             }
 
-                            using var matFile = guiContext.LoadFileByAnyMeansNecessary(material + "_c");
-                            var mat = guiContext.MaterialLoader.LoadMaterial(matFile);
+                            if (!string.IsNullOrEmpty(material))
+                            {
+                                using var matFile = guiContext.LoadFileByAnyMeansNecessary(material + "_c");
+                                var mat = guiContext.MaterialLoader.LoadMaterial(matFile);
 
-                            fogTexture = mat.Textures["g_tSkyTexture"];
+                                if (mat != null)
+                                {
+                                    fogTexture = mat.Textures["g_tSkyTexture"];
 
-                            if (!mat.Material.FloatParams.TryGetValue("g_flBrightnessExposureBias", out var brightnessExposureBias))
-                                brightnessExposureBias = 0f;
-                            if (!mat.Material.FloatParams.TryGetValue("g_flRenderOnlyExposureBias", out var renderOnlyExposureBias))
-                                renderOnlyExposureBias = 0f;
-                            // These are both logarithms, so this is equivalent to a multiply of the raw value
-                            exposureBias = brightnessExposureBias + renderOnlyExposureBias;
+                                    if (!mat.Material.FloatParams.TryGetValue("g_flBrightnessExposureBias", out var brightnessExposureBias))
+                                    {
+                                        brightnessExposureBias = 0f;
+                                    }
+
+                                    if (!mat.Material.FloatParams.TryGetValue("g_flRenderOnlyExposureBias", out var renderOnlyExposureBias))
+                                    {
+                                        renderOnlyExposureBias = 0f;
+                                    }
+
+                                    // These are both logarithms, so this is equivalent to a multiply of the raw value
+                                    exposureBias = brightnessExposureBias + renderOnlyExposureBias;
+                                }
+                            }
                         }
-
 
                         scene.FogInfo.CubemapFog = new SceneCubemapFog(scene)
                         {
@@ -692,8 +703,8 @@ namespace GUI.Types.Renderer
 
                 if (classname == "sky_camera")
                 {
-                    result.SkyboxScale = entity.GetPropertyUnchecked<float>("scale");
-                    result.SkyboxOrigin = positionVector * -result.SkyboxScale;
+                    scene.WorldScale = entity.GetPropertyUnchecked<float>("scale");
+                    scene.WorldOffset = positionVector * -scene.WorldScale;
                 }
 
                 if (particle != null)
@@ -729,7 +740,7 @@ namespace GUI.Types.Renderer
                         ? classname
                         : name;
 
-                    result.CameraMatrices.TryAdd(cameraName, transformationMatrix);
+                    CameraMatrices.TryAdd(cameraName, transformationMatrix);
                 }
                 else if (isGlobalLight)
                 {
@@ -769,7 +780,7 @@ namespace GUI.Types.Renderer
 
                 if (model == null)
                 {
-                    CreateDefaultEntity(scene, entities, entity, classname, transformationMatrix);
+                    CreateDefaultEntity(scene, entity, classname, transformationMatrix);
                     continue;
                 }
 
@@ -885,7 +896,7 @@ namespace GUI.Types.Renderer
             }
         }
 
-        private void CreateDefaultEntity(Scene scene, List<EntityLump.Entity> entities, EntityLump.Entity entity, string classname, Matrix4x4 transformationMatrix)
+        private void CreateDefaultEntity(Scene scene, EntityLump.Entity entity, string classname, Matrix4x4 transformationMatrix)
         {
             var hammerEntity = HammerEntities.Get(classname);
             string filename = null;
@@ -958,7 +969,7 @@ namespace GUI.Types.Renderer
                         continue;
                     }
 
-                    var startEntity = FindEntityByKeyValue(entities, line.StartKey, (string)value.Data);
+                    var startEntity = FindEntityByKeyValue(line.StartKey, (string)value.Data);
 
                     if (startEntity == null)
                     {
@@ -975,7 +986,7 @@ namespace GUI.Types.Renderer
                             continue;
                         }
 
-                        var endEntity = FindEntityByKeyValue(entities, line.EndKey, (string)value.Data);
+                        var endEntity = FindEntityByKeyValue(line.EndKey, (string)value.Data);
 
                         if (endEntity == null)
                         {
@@ -999,11 +1010,11 @@ namespace GUI.Types.Renderer
             }
         }
 
-        private static EntityLump.Entity FindEntityByKeyValue(List<EntityLump.Entity> entities, string keyToFind, string valueToFind)
+        private EntityLump.Entity FindEntityByKeyValue(string keyToFind, string valueToFind)
         {
             var stringToken = StringToken.Get(keyToFind);
 
-            foreach (var entity in entities)
+            foreach (var entity in Entities)
             {
                 if (entity.Properties.TryGetValue(stringToken, out var value)
                     && value.Data is string outString

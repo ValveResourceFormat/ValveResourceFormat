@@ -48,8 +48,8 @@ namespace GUI.Types.Renderer
 
         public Camera()
         {
-            Location = new Vector3(1);
-            LookAt(new Vector3(0));
+            Location = Vector3.One;
+            LookAt(Vector3.Zero);
         }
 
         private void RecalculateMatrices()

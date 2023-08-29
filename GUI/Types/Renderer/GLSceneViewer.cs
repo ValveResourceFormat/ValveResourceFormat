@@ -23,9 +23,6 @@ namespace GUI.Types.Renderer
         private bool ShowBaseGrid;
         public bool ShowSkybox { get; set; } = true;
 
-        protected float SkyboxScale { get; set; } = 1.0f;
-        protected Vector3 SkyboxOrigin { get; set; } = Vector3.Zero;
-
         public float Uptime { get; private set; }
 
         private bool showStaticOctree;
@@ -39,7 +36,7 @@ namespace GUI.Types.Renderer
         private bool skipRenderModeChange;
         private ComboBox renderModeComboBox;
         private InfiniteGrid baseGrid;
-        private readonly Camera skyboxCamera = new();
+        protected readonly Camera skyboxCamera = new();
         private OctreeDebugRenderer<SceneNode> staticOctreeRenderer;
         private OctreeDebugRenderer<SceneNode> dynamicOctreeRenderer;
         protected SelectedNodeRenderer selectedNodeRenderer;
@@ -59,6 +56,23 @@ namespace GUI.Types.Renderer
             Scene = new Scene(guiContext);
 
             InitializeControl();
+            AddCheckBox("Lock Cull Frustum", false, (v) =>
+            {
+                if (v)
+                {
+                    lockedCullFrustum = Scene.MainCamera.ViewFrustum.Clone();
+
+                    if (SkyboxScene != null)
+                    {
+                        skyboxLockedCullFrustum = SkyboxScene.MainCamera.ViewFrustum.Clone();
+                    }
+                }
+                else
+                {
+                    lockedCullFrustum = null;
+                    skyboxLockedCullFrustum = null;
+                }
+            });
             AddCheckBox("Show Static Octree", showStaticOctree, (v) =>
             {
                 showStaticOctree = v;
@@ -85,23 +99,6 @@ namespace GUI.Types.Renderer
                 if (SkyboxScene != null)
                 {
                     SkyboxScene.FogEnabled = v;
-                }
-            });
-            AddCheckBox("Lock Cull Frustum", false, (v) =>
-            {
-                if (v)
-                {
-                    lockedCullFrustum = Scene.MainCamera.ViewFrustum.Clone();
-
-                    if (SkyboxScene != null)
-                    {
-                        skyboxLockedCullFrustum = SkyboxScene.MainCamera.ViewFrustum.Clone();
-                    }
-                }
-                else
-                {
-                    lockedCullFrustum = null;
-                    skyboxLockedCullFrustum = null;
                 }
             });
 
@@ -188,11 +185,6 @@ namespace GUI.Types.Renderer
 
             SetAvailableRenderModes();
 
-            if (SkyboxScene != null)
-            {
-                skyboxCamera.Scale = SkyboxScale;
-            }
-
             GLLoad -= OnLoad;
             GLPaint += OnPaint;
 
@@ -229,11 +221,11 @@ namespace GUI.Types.Renderer
             {
                 skyboxCamera.CopyFrom(e.Camera);
                 skyboxCamera.SetScaledProjectionMatrix();
-                skyboxCamera.SetLocation(e.Camera.Location - SkyboxOrigin);
+                skyboxCamera.SetLocation(e.Camera.Location - SkyboxScene.WorldOffset);
 
                 lightingBuffer.Data = SkyboxScene.LightingInfo.LightingData;
                 viewBuffer.Data = skyboxCamera.SetViewConstants(viewBuffer.Data);
-                viewBuffer.Data = SkyboxScene.FogInfo.SetFogUniforms(viewBuffer.Data, SkyboxOrigin, SkyboxScale);
+                viewBuffer.Data = SkyboxScene.FogInfo.SetFogUniforms(viewBuffer.Data, SkyboxScene.WorldOffset, SkyboxScene.WorldScale);
 
                 SkyboxScene.MainCamera = skyboxCamera;
                 SkyboxScene.Update(e.FrameTime);

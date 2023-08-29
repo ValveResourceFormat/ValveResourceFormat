@@ -52,7 +52,6 @@ namespace GUI.Types.Renderer
             -1.0f, -1.0f,  1.0f,
             1.0f, -1.0f,  1.0f
         };
-        public string TargetName { get; set; }
 
         public SceneSky(Scene scene) : base(scene)
         {
