@@ -306,6 +306,8 @@ namespace GUI.Controls
 
             CheckOpenGL();
 
+            GL.Enable(EnableCap.TextureCubeMapSeamless);
+
 #if DEBUG
             GL.Enable(EnableCap.DebugOutput);
             GL.Enable(EnableCap.DebugOutputSynchronous);
