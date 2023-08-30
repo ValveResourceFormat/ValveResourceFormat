@@ -156,8 +156,10 @@ namespace GUI
             }
         }
 
-        protected override void OnShown(EventArgs e)
+        protected override void OnLoad(EventArgs e)
         {
+            base.OnLoad(e);
+
             var savedWindowDimensionsAreValid = IsOnScreen(new Rectangle(
                 Settings.Config.WindowLeft,
                 Settings.Config.WindowTop,
@@ -166,10 +168,12 @@ namespace GUI
 
             if (savedWindowDimensionsAreValid)
             {
-                Left = Settings.Config.WindowLeft;
-                Top = Settings.Config.WindowTop;
-                Height = Settings.Config.WindowHeight;
-                Width = Settings.Config.WindowWidth;
+                SetBounds(
+                    Settings.Config.WindowLeft,
+                    Settings.Config.WindowTop,
+                    Settings.Config.WindowWidth,
+                    Settings.Config.WindowHeight
+                );
 
                 var newState = (FormWindowState)Settings.Config.WindowState;
 
@@ -178,8 +182,6 @@ namespace GUI
                     WindowState = newState;
                 }
             }
-
-            base.OnShown(e);
         }
 
         // checks if the Rectangle is within bounds of one of the user's screen
