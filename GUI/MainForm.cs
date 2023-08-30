@@ -79,32 +79,22 @@ namespace GUI
             Settings.Load();
 
             var args = Environment.GetCommandLineArgs();
-            for (var i = 1; i < args.Length; i++)
+
+            // Handle vpk: protocol
+            if (args.Length > 1 && args[1].StartsWith("vpk:", StringComparison.InvariantCulture))
             {
-                var file = args[i];
-
-                if (!file.StartsWith("vpk:", StringComparison.InvariantCulture))
-                {
-                    if (!File.Exists(file))
-                    {
-                        Console.Error.WriteLine($"File '{file}' does not exist.");
-                        continue;
-                    }
-
-                    OpenFile(file);
-
-                    continue;
-                }
-
-                // Handle vpk: protocol
-                file = file[4..];
+                var file = string.Join(" ", args[1..])[4..]; // Strip executable path, and then strip vpk: prefix
+                file = System.Net.WebUtility.UrlDecode(file);
 
                 var innerFilePosition = file.LastIndexOf(".vpk:", StringComparison.InvariantCulture);
 
                 if (innerFilePosition == -1)
                 {
                     Console.Error.WriteLine($"For vpk: protocol to work, specify a file path inside of the package, for example: \"vpk:C:/path/pak01_dir.vpk:inner/file.vmdl_c\"");
-                    continue;
+
+                    OpenFile(file);
+
+                    return;
                 }
 
                 var innerFile = file[(innerFilePosition + 5)..];
@@ -117,7 +107,7 @@ namespace GUI
                     if (!File.Exists(dirFile))
                     {
                         Console.Error.WriteLine($"File '{file}' does not exist.");
-                        continue;
+                        return;
                     }
 
                     file = dirFile;
@@ -138,7 +128,7 @@ namespace GUI
                     if (packageFile == null)
                     {
                         Console.Error.WriteLine($"File '{packageFile}' does not exist in package '{file}'.");
-                        continue;
+                        return;
                     }
                 }
 
@@ -152,7 +142,19 @@ namespace GUI
                 };
                 OpenFile(vrfGuiContext, packageFile);
 
-                continue;
+                return;
+            }
+
+            for (var i = 1; i < args.Length; i++)
+            {
+                var file = args[i];
+                if (!File.Exists(file))
+                {
+                    Console.Error.WriteLine($"File '{file}' does not exist.");
+                    continue;
+                }
+
+                OpenFile(file);
             }
         }
 
