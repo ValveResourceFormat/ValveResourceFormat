@@ -1,6 +1,6 @@
 #version 460 core
 
-in vec3 vPOSITION;
+layout (location = 0) in vec3 vPOSITION;
 in vec2 vTEXCOORD;
 
 out vec2 vTexCoordOut;

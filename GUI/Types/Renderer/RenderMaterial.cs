@@ -65,6 +65,12 @@ namespace GUI.Types.Renderer
 
             shader ??= this.shader;
 
+            if (shader.Name == "vrf.picking")
+            {
+                // Discard material data for picking shader, (blend modes, etc.)
+                return;
+            }
+
             IEnumerable<KeyValuePair<string, RenderTexture>> textures = Textures;
 
             if (lightingInfo != default)
