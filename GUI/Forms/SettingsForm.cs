@@ -1,13 +1,22 @@
 using System;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using GUI.Utils;
+using Microsoft.Win32;
 
 namespace GUI.Forms
 {
     partial class SettingsForm : Form
     {
         private static readonly int[] AntiAliasingSampleOptions = new[] { 0, 2, 4, 8, 16 };
+
+        [DllImport("shell32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+        private static extern void SHChangeNotify(uint wEventId, uint uFlags, IntPtr dwItem1, IntPtr dwItem2);
+
+        private const int SHCNE_ASSOCCHANGED = 0x8000000;
+        private const int SHCNF_FLUSH = 0x1000;
 
         public SettingsForm()
         {
@@ -168,6 +177,39 @@ namespace GUI.Forms
 
             Settings.Config.AntiAliasingSamples = newValue;
             Settings.Save();
+        }
+
+        private void OnRegisterAssociationButtonClick(object sender, EventArgs e)
+        {
+            var extension = ".vpk";
+            var progId = $"VRF.Source2Viewer{extension}";
+            var applicationPath = Application.ExecutablePath;
+
+            using var reg = Registry.CurrentUser.CreateSubKey(@$"Software\Classes\{extension}\OpenWithProgids");
+            reg.SetValue(progId, Array.Empty<byte>(), RegistryValueKind.None);
+
+            using var reg2 = Registry.CurrentUser.CreateSubKey(@$"Software\Classes\{progId}");
+            reg2.SetValue(null, "Valve Pak File");
+
+            using var reg3 = reg2.CreateSubKey(@"shell\open\command");
+            reg3.SetValue(null, $"\"{applicationPath}\" \"%1\"");
+
+            // Protocol
+            using var regProtocol = Registry.CurrentUser.CreateSubKey(@"Software\Classes\vpk");
+            regProtocol.SetValue(string.Empty, "URL:Valve Pak protocol");
+            regProtocol.SetValue("URL Protocol", string.Empty);
+
+            using var regProtocolOpen = regProtocol.CreateSubKey(@"shell\open\command");
+            regProtocolOpen.SetValue(null, $"\"{applicationPath}\" \"%1\"");
+
+            SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_FLUSH, IntPtr.Zero, IntPtr.Zero);
+
+            MessageBox.Show(
+                $"Registered .vpk file association. If you move the {Path.GetFileName(applicationPath)}, you will have to register it again.",
+                "File association registered",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information
+            );
         }
     }
 }
