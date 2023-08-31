@@ -16,7 +16,23 @@ public partial class Decompiler
         {
             assetsInfo.Read(stream);
 
-            var output = StringifyToolsAssetInfo(assetsInfo);
+            string output;
+
+            if (ToolsAssetInfoShort)
+            {
+                var str = new StringBuilder();
+
+                foreach (var file in assetsInfo.Files)
+                {
+                    str.AppendLine(file.Key);
+                }
+
+                output = str.ToString();
+            }
+            else
+            {
+                output = StringifyToolsAssetInfo(assetsInfo);
+            }
 
             if (OutputFile != null)
             {

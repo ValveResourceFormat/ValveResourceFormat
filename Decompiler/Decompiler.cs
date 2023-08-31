@@ -87,6 +87,9 @@ namespace Decompiler
         [Option("--gltf_textures_adapt", "Whether to perform any glTF spec adaptations on textures (e.g. split metallic map).", CommandOptionType.NoValue)]
         public bool GltfExportAdaptTextures { get; }
 
+        [Option("--tools_asset_info_short", "Whether to print only file paths for tools_asset_info files.", CommandOptionType.NoValue)]
+        public bool ToolsAssetInfoShort { get; }
+
 #if DEBUG
         private const bool IsDebugBuild = true;
 #else
