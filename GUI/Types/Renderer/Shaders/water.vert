@@ -7,7 +7,7 @@ in vec2 vTEXCOORD;
 out vec3 vFragPosition;
 
 out vec3 vNormalOut;
-out vec3 vTangentOut;
+out vec4 vTangentOut;
 out vec3 vBitangentOut;
 
 out vec2 vTexCoordOut;
@@ -21,12 +21,7 @@ void main()
     gl_Position = g_matViewToProjection * fragPosition;
     vFragPosition = fragPosition.xyz / fragPosition.w;
 
-    //Unpack normals
-#if (D_COMPRESSED_NORMALS_AND_TANGENTS == 0)
-    vNormalOut = vNORMAL.xyz;
-#else
-    vNormalOut = DecompressNormal(vNORMAL);
-#endif
+    GetOptionallyCompressedNormalTangent(vNormalOut, vTangentOut);
 
     vTexCoordOut = vTEXCOORD;
 }

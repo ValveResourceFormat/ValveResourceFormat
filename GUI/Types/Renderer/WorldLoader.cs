@@ -233,7 +233,7 @@ namespace GUI.Types.Renderer
 
                 if (classname == "info_world_layer")
                 {
-                    var spawnflags = entity.GetProperty<uint>("spawnflags");
+                    var spawnflags = entity.GetPropertyUnchecked<uint>("spawnflags");
                     var layername = entity.GetProperty<string>("layername");
 
                     // Visible on spawn flag

@@ -5,7 +5,7 @@
 in vec3 vFragPosition;
 
 in vec3 vNormalOut;
-in vec3 vTangentOut;
+in vec4 vTangentOut;
 in vec3 vBitangentOut;
 
 in vec2 vTexCoordOut;
