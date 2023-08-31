@@ -131,12 +131,14 @@ namespace ValveResourceFormat.ResourceTypes
                         {
                             2 => EntityFieldType.Vector2d, // Did binary entity lumps not store vec2?
                             3 => EntityFieldType.Vector,
+                            4 => EntityFieldType.Vector4D,
                             _ => throw new NotImplementedException($"Unsupported array length of {arrayKv.Count()}"),
                         };
                         data = type switch
                         {
                             EntityFieldType.Vector2d => new Vector2(arrayKv.GetFloatProperty("0"), arrayKv.GetFloatProperty("1")),
                             EntityFieldType.Vector => arrayKv.ToVector3(),
+                            EntityFieldType.Vector4D => arrayKv.ToVector4(),
                             _ => throw new NotImplementedException(),
                         };
                     }
