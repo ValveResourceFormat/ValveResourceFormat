@@ -95,13 +95,12 @@ namespace GUI.Types.Renderer
                 }
 
                 context.FogInfo.SetCubemapFogTexture(shader);
-                shader.SetUniform1("VRF_ENABLE_FOG", context.EnableFog ? 1 : 0);
 
                 foreach (var materialGroup in shaderGroup.GroupBy(a => a.Call.Material))
                 {
                     var material = materialGroup.Key;
 
-                    if (!context.RenderToolsMaterials && material.IsToolsMaterial)
+                    if (!context.Scene.ShowToolsMaterials && material.IsToolsMaterial)
                     {
                         continue;
                     }

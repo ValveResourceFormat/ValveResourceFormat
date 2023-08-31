@@ -152,21 +152,21 @@ namespace GUI.Types.Renderer
             {
                 var result = new WorldLoader(world, Scene);
 
+                AddCheckBox("Show Fog", Scene.FogEnabled, (v) =>
+                {
+                    Scene.FogEnabled = v;
+
+                    if (SkyboxScene != null)
+                    {
+                        SkyboxScene.FogEnabled = v;
+                    }
+                });
+
                 if (result.SkyboxScene != null)
                 {
                     SkyboxScene = result.SkyboxScene;
                     SkyboxScene.FogInfo = Scene.FogInfo;
                     skyboxCamera.Scale = SkyboxScene.WorldScale;
-
-                    AddCheckBox("Show Fog", Scene.FogEnabled, (v) =>
-                    {
-                        Scene.FogEnabled = v;
-
-                        if (SkyboxScene != null)
-                        {
-                            SkyboxScene.FogEnabled = v;
-                        }
-                    });
 
                     AddCheckBox("Show Skybox", ShowSkybox, (v) => ShowSkybox = v);
                 }

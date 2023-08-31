@@ -194,6 +194,21 @@ namespace GUI.Types.Renderer
             // Todo: this should be set once on init, and toggled when there's F_RENDER_BACKFACES
             GL.Enable(EnableCap.CullFace);
 
+            void UpdateSceneBuffers(Scene scene)
+            {
+                viewBuffer.UpdateWith(
+                    e.Camera.SetViewConstants, // scene.MainCamera.SetViewConstants
+                    d => scene.FogInfo.SetFogUniforms(d, scene.WorldOffset, scene.WorldScale),
+                    d =>
+                    {
+                        d.FogTypeEnabled[0] = scene.FogEnabled;
+                        return d;
+                    }
+                );
+
+                lightingBuffer.Data = scene.LightingInfo.LightingData;
+            }
+
             // For SceneSky
             viewBuffer.Data = e.Camera.SetViewConstants(viewBuffer.Data) with
             {
@@ -214,21 +229,15 @@ namespace GUI.Types.Renderer
                 skyboxCamera.SetScaledProjectionMatrix();
                 skyboxCamera.SetLocation(e.Camera.Location - SkyboxScene.WorldOffset);
 
-                lightingBuffer.Data = SkyboxScene.LightingInfo.LightingData;
-                viewBuffer.Data = skyboxCamera.SetViewConstants(viewBuffer.Data);
-                viewBuffer.Data = SkyboxScene.FogInfo.SetFogUniforms(viewBuffer.Data, SkyboxScene.WorldOffset, SkyboxScene.WorldScale);
-
                 SkyboxScene.MainCamera = skyboxCamera;
                 SkyboxScene.Update(e.FrameTime);
+                UpdateSceneBuffers(SkyboxScene);
                 SkyboxScene.RenderWithCamera(skyboxCamera, bufferSet, skyboxLockedCullFrustum);
 
                 GL.Clear(ClearBufferMask.DepthBufferBit);
             }
 
-            lightingBuffer.Data = Scene.LightingInfo.LightingData;
-            viewBuffer.Data = e.Camera.SetViewConstants(viewBuffer.Data);
-            viewBuffer.Data = Scene.FogInfo.SetFogUniforms(viewBuffer.Data, Vector3.Zero, 1.0f);
-
+            UpdateSceneBuffers(Scene);
             Scene.RenderWithCamera(e.Camera, bufferSet, lockedCullFrustum);
 
             selectedNodeRenderer.Render(genericRenderContext);

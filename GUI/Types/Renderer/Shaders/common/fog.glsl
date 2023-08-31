@@ -3,9 +3,6 @@
 // Per-material
 uniform bool g_bFogEnabled = true;
 
-// This is linked to the GUI option, to allow visibility on maps with fog that inhibits visibility.
-uniform bool VRF_ENABLE_FOG;
-
 #define USE_GRADIENT_FOG 0
 #define USE_CUBEMAP_FOG 0
 #define USE_VOLUMETRIC_FOG 0
@@ -97,7 +94,7 @@ void ApplySphericalVignette( inout vec3 pixelColor, vec3 worldPositionLightingOf
 
 void ApplyFog(inout vec3 pixelColor, vec3 positionWS)
 {
-    if (g_bFogEnabled && VRF_ENABLE_FOG && ((USE_CUBEMAP_FOG == 1) || (USE_GRADIENT_FOG == 1)))
+    if (g_vViewerFogTypeEnabled.x && g_bFogEnabled && ((USE_CUBEMAP_FOG == 1) || (USE_GRADIENT_FOG == 1)))
     {
         vec3 cameraCenteredPixelPos = positionWS - g_vCameraPositionWs;
 

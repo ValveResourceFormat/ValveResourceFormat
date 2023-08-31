@@ -106,6 +106,17 @@ namespace GUI.Types.Renderer.UniformBuffers
             }
         }
 
+        public void UpdateWith(params Func<T, T>[] updaters)
+        {
+            var data = Data;
+            foreach (var updater in updaters)
+            {
+                data = updater(data);
+            }
+
+            Data = data;
+        }
+
         public void Dispose()
         {
             // make sure dispose gets called, or this will leak
