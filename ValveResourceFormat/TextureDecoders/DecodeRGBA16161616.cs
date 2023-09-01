@@ -11,7 +11,7 @@ namespace ValveResourceFormat.TextureDecoders
             var data = pixels.GetPixelSpan<SKColor>();
             var log = 0d;
 
-            for (int i = 0, j = 0; j < data.Length; i += 8, j += 4)
+            for (int i = 0, j = 0; j < data.Length; i += 8, j++)
             {
                 var hr = BitConverter.ToUInt16(input.Slice(i, 2)) / 256f;
                 var hg = BitConverter.ToUInt16(input.Slice(i + 2, 2)) / 256f;
@@ -22,7 +22,7 @@ namespace ValveResourceFormat.TextureDecoders
 
             log = Math.Exp(log / (imageInfo.Width * imageInfo.Height));
 
-            for (int i = 0, j = 0; j < data.Length; i += 8, j += 4)
+            for (int i = 0, j = 0; j < data.Length; i += 8, j++)
             {
                 var hr = BitConverter.ToUInt16(input.Slice(i, 2)) / 256f;
                 var hg = BitConverter.ToUInt16(input.Slice(i + 2, 2)) / 256f;
