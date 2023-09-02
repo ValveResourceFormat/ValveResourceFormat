@@ -287,16 +287,8 @@ namespace GUI.Types.Renderer
                         {
                             SkyboxScene = new Scene(guiContext);
 
-                            // Have to be set before meshes load because they're used as shader attributes
-                            if (scene.RenderAttributes.ContainsKey("USE_GRADIENT_FOG"))
-                            {
-                                SkyboxScene.RenderAttributes["USE_GRADIENT_FOG"] = scene.RenderAttributes["USE_GRADIENT_FOG"];
-                            }
-
-                            if (scene.RenderAttributes.ContainsKey("USE_CUBEMAP_FOG"))
-                            {
-                                SkyboxScene.RenderAttributes["USE_CUBEMAP_FOG"] = scene.RenderAttributes["USE_CUBEMAP_FOG"];
-                            }
+                            SkyboxScene.FogInfo.GradientFogActive = scene.FogInfo.GradientFogActive;
+                            SkyboxScene.FogInfo.CubeFogActive = scene.FogInfo.CubeFogActive;
 
                             var skyboxResult = new WorldLoader((World)skyboxPackage.DataBlock, SkyboxScene);
 
@@ -341,7 +333,6 @@ namespace GUI.Types.Renderer
                     if (!entity.GetProperty<bool>("start_disabled") || scene.FogInfo.GradientFogActive)
                     {
                         scene.FogInfo.GradientFogActive = true;
-                        scene.RenderAttributes["USE_GRADIENT_FOG"] = 1;
 
                         var distExponent = entity.GetPropertyUnchecked<float>("fogfalloffexponent");
                         var startDist = entity.GetPropertyUnchecked<float>("fogstart");
@@ -407,7 +398,6 @@ namespace GUI.Types.Renderer
                     if (!entity.GetProperty<bool>("start_disabled") || scene.FogInfo.CubeFogActive)
                     {
                         scene.FogInfo.CubeFogActive = true;
-                        scene.RenderAttributes["USE_CUBEMAP_FOG"] = 1;
 
                         var transform = EntityTransformHelper.CalculateTransformationMatrix(entity);
 
@@ -482,7 +472,6 @@ namespace GUI.Types.Renderer
                                 {
                                     Console.WriteLine($"Disabling cubemap fog because failed to find env_sky of target name {skyEntTargetName}.");
                                     scene.FogInfo.CubeFogActive = false;
-                                    scene.RenderAttributes["USE_CUBEMAP_FOG"] = 0;
                                 }
                             }
                             else if (fogSource == "2") // Cubemap From Material

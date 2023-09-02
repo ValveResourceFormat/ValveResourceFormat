@@ -374,6 +374,7 @@ namespace GUI.Types.Renderer
             "g_vCubeFog_Offset_Scale_Bias_Exponent",
             "g_vCubeFog_Height_Offset_Scale_Exponent_Log2Mip",
             "g_vCubeFogCullingParams_ExposureBias_MaxOpacity",
+            "g_tFogCubeTexture",
         };
 
         private void ApplyMaterialDefaults(RenderMaterial mat)
