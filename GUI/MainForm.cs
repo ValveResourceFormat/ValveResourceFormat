@@ -51,8 +51,6 @@ namespace GUI
             consoleTabPage.ImageIndex = ImageList.Images.IndexOfKey("_console");
             mainTabs.TabPages.Add(consoleTabPage);
 
-            Console.WriteLine($"v{Application.ProductVersion}");
-
             var versionPlus = Application.ProductVersion.IndexOf('+', StringComparison.InvariantCulture);
 
             if (versionPlus > 0)

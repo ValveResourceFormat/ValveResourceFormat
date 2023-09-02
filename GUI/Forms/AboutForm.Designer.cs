@@ -30,6 +30,7 @@ namespace GUI.Forms
         /// </summary>
         private void InitializeComponent()
         {
+            var resources = new System.ComponentModel.ComponentResourceManager(typeof(AboutForm));
             label1 = new Label();
             labelVersion = new Label();
             website = new Button();
@@ -37,12 +38,14 @@ namespace GUI.Forms
             releases = new Button();
             labelRuntime = new Label();
             label3 = new Label();
+            icon = new PictureBox();
+            ((System.ComponentModel.ISupportInitialize)icon).BeginInit();
             SuspendLayout();
             // 
             // label1
             // 
             label1.AutoSize = true;
-            label1.Location = new System.Drawing.Point(12, 9);
+            label1.Location = new System.Drawing.Point(182, 12);
             label1.Margin = new Padding(4, 0, 4, 0);
             label1.Name = "label1";
             label1.Size = new System.Drawing.Size(90, 15);
@@ -53,7 +56,7 @@ namespace GUI.Forms
             // labelVersion
             // 
             labelVersion.AutoSize = true;
-            labelVersion.Location = new System.Drawing.Point(13, 33);
+            labelVersion.Location = new System.Drawing.Point(182, 41);
             labelVersion.Margin = new Padding(4, 0, 4, 0);
             labelVersion.Name = "labelVersion";
             labelVersion.Size = new System.Drawing.Size(45, 15);
@@ -96,7 +99,7 @@ namespace GUI.Forms
             // labelRuntime
             // 
             labelRuntime.AutoSize = true;
-            labelRuntime.Location = new System.Drawing.Point(13, 58);
+            labelRuntime.Location = new System.Drawing.Point(182, 70);
             labelRuntime.Margin = new Padding(4, 0, 4, 0);
             labelRuntime.Name = "labelRuntime";
             labelRuntime.Size = new System.Drawing.Size(52, 15);
@@ -106,12 +109,22 @@ namespace GUI.Forms
             // label3
             // 
             label3.AutoSize = true;
-            label3.Location = new System.Drawing.Point(12, 107);
+            label3.Location = new System.Drawing.Point(182, 122);
             label3.Margin = new Padding(4, 0, 4, 0);
             label3.Name = "label3";
             label3.Size = new System.Drawing.Size(394, 60);
             label3.TabIndex = 10;
             label3.Text = "Available under the MIT license.\r\n\r\nThis project is not affiliated with Valve Software.\r\nSource 2 is a trademark and/or registered trademark of Valve Corporation.";
+            // 
+            // icon
+            // 
+            icon.Image = (System.Drawing.Image)resources.GetObject("icon.Image");
+            icon.Location = new System.Drawing.Point(0, 12);
+            icon.Name = "icon";
+            icon.Size = new System.Drawing.Size(170, 170);
+            icon.SizeMode = PictureBoxSizeMode.Zoom;
+            icon.TabIndex = 11;
+            icon.TabStop = false;
             // 
             // AboutForm
             // 
@@ -119,6 +132,7 @@ namespace GUI.Forms
             AutoScaleMode = AutoScaleMode.Font;
             BackColor = System.Drawing.Color.White;
             ClientSize = new System.Drawing.Size(662, 191);
+            Controls.Add(icon);
             Controls.Add(label3);
             Controls.Add(labelRuntime);
             Controls.Add(releases);
@@ -137,6 +151,7 @@ namespace GUI.Forms
             StartPosition = FormStartPosition.CenterParent;
             Text = "About";
             TopMost = true;
+            ((System.ComponentModel.ISupportInitialize)icon).EndInit();
             ResumeLayout(false);
             PerformLayout();
         }
@@ -150,5 +165,6 @@ namespace GUI.Forms
         private Button releases;
         private Label labelRuntime;
         private Label label3;
+        private PictureBox icon;
     }
 }

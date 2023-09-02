@@ -77,6 +77,7 @@ namespace GUI.Utils
             {
                 BackColor = bgColor,
                 ForeColor = Color.FromArgb(240, 240, 240),
+                Text = $"- Welcome to Source 2 Viewer v{Application.ProductVersion}{Environment.NewLine}- If you are experiencing an issue, try using latest unstable build from https://valveresourceformat.github.io/{Environment.NewLine}{Environment.NewLine}"
             };
 
             var tab = new TabPage("Console")
