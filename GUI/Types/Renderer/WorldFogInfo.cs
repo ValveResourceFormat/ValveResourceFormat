@@ -79,10 +79,11 @@ namespace GUI.Types.Renderer
 
         // Pass data to shader
 
-        public UniformBuffers.ViewConstants SetFogUniforms(UniformBuffers.ViewConstants viewConstants, Vector3 worldOffset, float mapScale)
+        public UniformBuffers.ViewConstants SetFogUniforms(UniformBuffers.ViewConstants viewConstants, bool viewerFogEnabled, Vector3 worldOffset, float mapScale)
         {
             if (GradientFogActive)
             {
+                viewConstants.FogTypeEnabled[1] = viewerFogEnabled && GradientFogActive;
                 viewConstants.GradientFogBiasAndScale = GradientFog.GetBiasAndScale(worldOffset, mapScale);
                 viewConstants.GradientFogColor_Opacity = GradientFog.Color_Opacity;
                 viewConstants.GradientFogExponents = GradientFog.Exponents;
@@ -90,6 +91,7 @@ namespace GUI.Types.Renderer
             }
             else // Defaults
             {
+                viewConstants.FogTypeEnabled[1] = false;
                 viewConstants.GradientFogBiasAndScale = Vector4.Zero;
                 viewConstants.GradientFogColor_Opacity = Vector4.Zero;
                 viewConstants.GradientFogExponents = Vector2.Zero;
@@ -98,6 +100,7 @@ namespace GUI.Types.Renderer
 
             if (CubeFogActive)
             {
+                viewConstants.FogTypeEnabled[2] = viewerFogEnabled && CubeFogActive;
                 viewConstants.CubeFog_Offset_Scale_Bias_Exponent = CubemapFog.OffsetScaleBiasExponent(worldOffset, mapScale);
                 viewConstants.CubeFog_Height_Offset_Scale_Exponent_Log2Mip = CubemapFog.Height_OffsetScaleExponentLog2Mip(worldOffset, mapScale);
                 viewConstants.CubeFogCullingParams_ExposureBias_MaxOpacity = CubemapFog.CullingParams_Opacity(worldOffset, mapScale);
@@ -105,6 +108,7 @@ namespace GUI.Types.Renderer
             }
             else
             {
+                viewConstants.FogTypeEnabled[2] = false;
                 viewConstants.CubeFog_Offset_Scale_Bias_Exponent = Vector4.Zero;
                 viewConstants.CubeFog_Height_Offset_Scale_Exponent_Log2Mip = Vector4.Zero;
                 viewConstants.CubeFogCullingParams_ExposureBias_MaxOpacity = new Vector4(float.PositiveInfinity, float.PositiveInfinity, 0.0f, 0.0f);
