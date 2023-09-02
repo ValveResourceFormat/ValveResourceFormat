@@ -237,7 +237,12 @@ namespace ValveResourceFormat.ResourceTypes
                 foreach (var property in entity.Properties)
                 {
                     var value = property.Value.Data;
-                    if (value.GetType() == typeof(byte[]))
+
+                    if (value == null)
+                    {
+                        value = "null";
+                    }
+                    else if (value.GetType() == typeof(byte[]))
                     {
                         var tmp = value as byte[];
                         value = $"Array [{string.Join(", ", tmp.Select(p => p.ToString(CultureInfo.InvariantCulture)).ToArray())}]";
@@ -329,6 +334,7 @@ namespace ValveResourceFormat.ResourceTypes
             return builder.ToString();
         }
 
+        // TODO: Invert this, and upconvert legacy entity fields into keyvalues
         private static EntityFieldType ConvertKV3TypeToEntityFieldType(KVType type)
         {
             return type switch
@@ -338,6 +344,7 @@ namespace ValveResourceFormat.ResourceTypes
                 KVType.INT64 => EntityFieldType.Integer, // TODO: Incorrect type?
                 KVType.UINT64 => EntityFieldType.Integer64,
                 KVType.STRING => EntityFieldType.CString,
+                KVType.NULL => EntityFieldType.CString,
                 _ => throw new NotImplementedException($"Unsupported kv3 entity data type: {type}")
             };
         }
