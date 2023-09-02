@@ -403,20 +403,12 @@ namespace GUI.Types.Viewers
         {
             var tex = (Texture)resource.DataBlock;
 
-            // TODO: Generate depth tabs for non cubemaps
             if ((tex.Flags & VTexFlags.CUBE_TEXTURE) != 0)
             {
                 var cubemapContainer = new TabControl
                 {
                     Dock = DockStyle.Fill,
-                };
-                cubemapContainer.MouseWheel += (sender, args) =>
-                {
-                    var count = args.Delta > 0 ? -1 : 1;
-                    cubemapContainer.SelectedIndex = Math.Clamp(cubemapContainer.SelectedIndex + count,
-                        0,
-                        cubemapContainer.TabCount - 1
-                    );
+                    Multiline = true,
                 };
 
                 var CUBEMAP_OFFSETS = new (float X, float Y)[]
@@ -472,6 +464,7 @@ namespace GUI.Types.Viewers
                 var depthContainer = new TabControl
                 {
                     Dock = DockStyle.Fill,
+                    Multiline = true,
                 };
 
                 for (uint i = 0; i < tex.Depth; i++)
