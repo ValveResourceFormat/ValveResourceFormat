@@ -369,6 +369,11 @@ namespace GUI.Types.Renderer
             "g_vLightmapUvScale",
             "g_vEnvMapSizeConstants",
             "g_vClearColor",
+            "g_vGradientFogBiasAndScale",
+            "g_vGradientFogColor_Opacity",
+            "g_vCubeFog_Offset_Scale_Bias_Exponent",
+            "g_vCubeFog_Height_Offset_Scale_Exponent_Log2Mip",
+            "g_vCubeFogCullingParams_ExposureBias_MaxOpacity",
         };
 
         private void ApplyMaterialDefaults(RenderMaterial mat)
@@ -389,6 +394,7 @@ namespace GUI.Types.Renderer
                 var isTexture = type >= ActiveUniformType.Sampler1D && type <= ActiveUniformType.Sampler2DRectShadow;
                 var isVector = type == ActiveUniformType.FloatVec4;
                 var isScalar = type == ActiveUniformType.Float;
+                var isBoolean = type == ActiveUniformType.Bool;
 
                 if (isTexture && !mat.Textures.ContainsKey(name))
                 {
@@ -415,7 +421,6 @@ namespace GUI.Types.Renderer
                     };
 
                     mat.Material.VectorParams[name] = value;
-
 #if DEBUG
                     Console.WriteLine($"{mat.Material.Name}: Missing {name} set to {value}!");
 #endif
@@ -430,9 +435,21 @@ namespace GUI.Types.Renderer
                     };
 
                     mat.Material.FloatParams[name] = value;
-
 #if DEBUG
                     Console.WriteLine($"{mat.Material.Name}: Missing {name} set to {value}f!");
+#endif
+                }
+                else if (isBoolean && !mat.Material.IntParams.ContainsKey(name))
+                {
+                    var value = name switch
+                    {
+                        "g_bFogEnabled" => true,
+                        _ => false,
+                    };
+
+                    mat.Material.IntParams[name] = value ? 1 : 0;
+#if DEBUG
+                    Console.WriteLine($"{mat.Material.Name}: Missing {name} set to {value}!");
 #endif
                 }
             }
