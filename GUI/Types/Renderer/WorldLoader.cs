@@ -499,10 +499,8 @@ namespace GUI.Types.Renderer
                                 using var matFile = guiContext.LoadFileByAnyMeansNecessary(material + "_c");
                                 var mat = guiContext.MaterialLoader.LoadMaterial(matFile);
 
-                                if (mat != null)
+                                if (mat != null && mat.Textures.TryGetValue("g_tSkyTexture", out fogTexture))
                                 {
-                                    fogTexture = mat.Textures["g_tSkyTexture"];
-
                                     if (!mat.Material.FloatParams.TryGetValue("g_flBrightnessExposureBias", out var brightnessExposureBias))
                                     {
                                         brightnessExposureBias = 0f;
