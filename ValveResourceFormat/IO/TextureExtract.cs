@@ -116,8 +116,18 @@ public sealed class TextureExtract
         return vtex;
     }
 
+    public static string GetImageOutputExtension(Texture texture)
+    {
+        if (texture.IsRawJpeg)
+        {
+            return "jpeg";
+        }
+
+        return "png";
+    }
+
     private string GetImageFileName()
-        => Path.ChangeExtension(fileName, "png");
+        => Path.ChangeExtension(fileName, GetImageOutputExtension(texture));
 
     private string GetMksFileName()
         => Path.ChangeExtension(fileName, "mks");

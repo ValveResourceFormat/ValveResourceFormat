@@ -372,13 +372,16 @@ namespace ValveResourceFormat.ResourceTypes
             return null;
         }
 
-        internal byte[] ReadRawPNG()
+        internal bool IsRawJpeg => Format is VTexFormat.JPEG_DXT5 or VTexFormat.JPEG_RGBA8888;
+        internal bool IsRawPng => Format is VTexFormat.PNG_DXT5 or VTexFormat.PNG_RGBA8888;
+
+        internal byte[] ReadRawImageData()
         {
-            if (Format is VTexFormat.PNG_DXT5 or VTexFormat.PNG_RGBA8888)
+            if (IsRawPng || IsRawJpeg)
             {
                 Reader.BaseStream.Position = DataOffset;
                 SkipMipmaps();
-                return Reader.ReadBytes(CalculatePngSize());
+                return Reader.ReadBytes(CalculateTextureDataSize());
             }
 
             return null;
@@ -413,7 +416,7 @@ namespace ValveResourceFormat.ResourceTypes
                 // TODO: Are we sure DXT5 and RGBA8888 are just raw buffers?
                 case VTexFormat.JPEG_DXT5:
                 case VTexFormat.JPEG_RGBA8888:
-                    return SKBitmap.Decode(Reader.ReadBytes((int)(Reader.BaseStream.Length - Reader.BaseStream.Position)));
+                    return SKBitmap.Decode(Reader.ReadBytes(CalculateJpegSize()));
 
                 case VTexFormat.PNG_DXT5:
                 case VTexFormat.PNG_RGBA8888:
@@ -602,7 +605,12 @@ namespace ValveResourceFormat.ResourceTypes
 
         public int CalculateTextureDataSize()
         {
-            if (Format == VTexFormat.PNG_DXT5 || Format == VTexFormat.PNG_RGBA8888)
+            if (IsRawJpeg)
+            {
+                return CalculateJpegSize();
+            }
+
+            if (IsRawPng)
             {
                 return CalculatePngSize();
             }
@@ -791,6 +799,11 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
+        private int CalculateJpegSize()
+        {
+            return (int)(Reader.BaseStream.Length - DataOffset);
+        }
+
         private int CalculatePngSize()
         {
             var size = 8; // PNG header
@@ -952,7 +965,7 @@ namespace ValveResourceFormat.ResourceTypes
                 }
             }
 
-            if (Format is not VTexFormat.JPEG_DXT5 and not VTexFormat.JPEG_RGBA8888 and not VTexFormat.PNG_DXT5 and not VTexFormat.PNG_RGBA8888)
+            if (!IsRawPng && !IsRawJpeg)
             {
                 for (var j = 0; j < NumMipLevels; j++)
                 {
