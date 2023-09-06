@@ -332,14 +332,14 @@ namespace ValveResourceFormat
 
                     // TODO: We do not currently have a way of calculating buffer size for these types
                     // Texture.GenerateBitmap also just reads until end of the buffer
-                    if (data.Format == VTexFormat.JPEG_DXT5 || data.Format == VTexFormat.JPEG_RGBA8888)
+                    if (data.IsRawJpeg)
                     {
                         return;
                     }
 
                     // TODO: Valve added null bytes after the png for whatever reason,
                     // so assume we have the full file if the buffer is bigger than the size we calculated
-                    if (data.Format == VTexFormat.PNG_DXT5 || data.Format == VTexFormat.PNG_RGBA8888)
+                    if (data.IsRawPng)
                     {
                         if (Reader.BaseStream.Length > fullFileSize)
                         {

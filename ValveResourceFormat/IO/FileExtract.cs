@@ -156,11 +156,11 @@ namespace ValveResourceFormat.IO
                         if (IsChildResource(resource))
                         {
                             var tex = (Texture)resource.DataBlock;
-                            var png = tex.ReadRawPNG();
+                            var rawImage = tex.ReadRawImageData();
 
-                            if (png != null)
+                            if (rawImage != null)
                             {
-                                contentFile.Data = png;
+                                contentFile.Data = rawImage;
                                 break;
                             }
 
@@ -258,12 +258,15 @@ namespace ValveResourceFormat.IO
                 case ResourceType.PanoramaVectorGraphic: return "svg";
 
                 case ResourceType.Texture:
-                    if (IsChildResource(resource))
                     {
-                        return "png";
-                    }
+                        if (IsChildResource(resource))
+                        {
+                            var texture = (Texture)resource.DataBlock;
+                            return TextureExtract.GetImageOutputExtension(texture);
+                        }
 
-                    break;
+                        return "vtex";
+                    }
 
                 case ResourceType.Sound:
                     switch (((Sound)resource.DataBlock).SoundType)
