@@ -17,6 +17,12 @@ namespace ValveResourceFormat.TextureDecoders
 
         public void Decode(SKBitmap bitmap, Span<byte> input)
         {
+            // TODO: HDR
+            DecodeLowDynamicRange(bitmap, input);
+        }
+
+        public void DecodeLowDynamicRange(SKBitmap bitmap, Span<byte> input)
+        {
             using var pixels = bitmap.PeekPixels();
             var data = pixels.GetPixelSpan<byte>();
             var rowBytes = bitmap.RowBytes;

@@ -4,9 +4,25 @@ namespace ValveResourceFormat.TextureDecoders
 {
     internal class DecodeRGBA16161616F : ITextureDecoder
     {
-        public void Decode(SKBitmap imageInfo, Span<byte> input)
+        public void Decode(SKBitmap bitmap, Span<byte> input)
         {
-            using var pixels = imageInfo.PeekPixels();
+            using var pixels = bitmap.PeekPixels();
+            var data = pixels.GetPixelSpan<SKColorF>();
+
+            for (int i = 0, j = 0; j < data.Length; i += 8, j++)
+            {
+                var r = (float)BitConverter.ToHalf(input.Slice(i, 2));
+                var g = (float)BitConverter.ToHalf(input.Slice(i + 2, 2));
+                var b = (float)BitConverter.ToHalf(input.Slice(i + 4, 2));
+                var a = (float)BitConverter.ToHalf(input.Slice(i + 6, 2));
+
+                data[j] = new SKColorF(r, g, b, a);
+            }
+        }
+
+        public void DecodeLowDynamicRange(SKBitmap bitmap, Span<byte> input)
+        {
+            using var pixels = bitmap.PeekPixels();
             var data = pixels.GetPixelSpan<SKColor>();
             var log = 0f;
 
@@ -19,7 +35,7 @@ namespace ValveResourceFormat.TextureDecoders
                 log += MathF.Log(MathF.Max(float.Epsilon, lum));
             }
 
-            log = MathF.Exp(log / (imageInfo.Width * imageInfo.Height));
+            log = MathF.Exp(log / (bitmap.Width * bitmap.Height));
 
             for (int i = 0, j = 0; j < data.Length; i += 8, j++)
             {

@@ -4,9 +4,23 @@ namespace ValveResourceFormat.TextureDecoders
 {
     internal class DecodeRG1616 : ITextureDecoder
     {
-        public void Decode(SKBitmap res, Span<byte> input)
+        public void Decode(SKBitmap bitmap, Span<byte> input)
         {
-            using var pixels = res.PeekPixels();
+            using var pixels = bitmap.PeekPixels();
+            var span = pixels.GetPixelSpan<SKColorF>();
+
+            for (int i = 0, j = 0; j < span.Length; i += 4, j++)
+            {
+                var hr = BitConverter.ToUInt16(input.Slice(i, 2)) / 256f;
+                var hg = BitConverter.ToUInt16(input.Slice(i + 2, 2)) / 256f;
+
+                span[j] = new SKColorF(hr, hg, 0f);
+            }
+        }
+
+        public void DecodeLowDynamicRange(SKBitmap bitmap, Span<byte> input)
+        {
+            using var pixels = bitmap.PeekPixels();
             var span = pixels.GetPixelSpan<SKColor>();
             var offset = 0;
 
