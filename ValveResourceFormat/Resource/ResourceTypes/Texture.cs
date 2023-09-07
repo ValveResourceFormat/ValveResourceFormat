@@ -379,6 +379,7 @@ namespace ValveResourceFormat.ResourceTypes
             or VTexFormat.RG3232F
             or VTexFormat.RGB323232F
             or VTexFormat.RGBA32323232F;
+
         public bool IsRawJpeg => Format is VTexFormat.JPEG_DXT5 or VTexFormat.JPEG_RGBA8888;
         public bool IsRawPng => Format is VTexFormat.PNG_DXT5 or VTexFormat.PNG_RGBA8888;
 
@@ -436,10 +437,11 @@ namespace ValveResourceFormat.ResourceTypes
             }
 
             var decodeFlags = RetrieveCodecFromResourceEditInfo();
+            var colorType = IsHighDynamicRange ? SKColorType.RgbaF32 : SKColorType.Bgra8888;
 
-            if (HardwareAcceleratedTextureDecoder.Decoder != null)
+            if (HardwareAcceleratedTextureDecoder.Decoder != null && !IsHighDynamicRange)
             {
-                var skiaBitmap2 = new SKBitmap(width, height, SKColorType.Bgra8888, SKAlphaType.Unpremul);
+                var skiaBitmap2 = new SKBitmap(width, height, colorType, SKAlphaType.Unpremul);
 
                 try
                 {
@@ -459,7 +461,6 @@ namespace ValveResourceFormat.ResourceTypes
             var blockWidth = MipLevelSize(Width, mipLevel);
             var blockHeight = MipLevelSize(Height, mipLevel);
 
-            var colorType = IsHighDynamicRange ? SKColorType.RgbaF32 : SKColorType.Bgra8888;
             var skiaBitmap = new SKBitmap(width, height, colorType, SKAlphaType.Unpremul);
             ITextureDecoder decoder = null;
 
