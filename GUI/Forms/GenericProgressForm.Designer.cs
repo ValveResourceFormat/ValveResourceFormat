@@ -35,78 +35,78 @@ namespace GUI.Forms
         /// </summary>
         private void InitializeComponent()
         {
-            this.tableLayoutPanel1 = new System.Windows.Forms.TableLayoutPanel();
-            this.extractProgressBar = new System.Windows.Forms.ProgressBar();
-            this.extractStatusLabel = new System.Windows.Forms.Label();
-            this.cancelButton = new System.Windows.Forms.Button();
-            this.tableLayoutPanel1.SuspendLayout();
-            this.SuspendLayout();
+            tableLayoutPanel1 = new System.Windows.Forms.TableLayoutPanel();
+            extractProgressBar = new System.Windows.Forms.ProgressBar();
+            extractStatusLabel = new System.Windows.Forms.Label();
+            cancelButton = new System.Windows.Forms.Button();
+            tableLayoutPanel1.SuspendLayout();
+            SuspendLayout();
             // 
             // tableLayoutPanel1
             // 
-            this.tableLayoutPanel1.ColumnCount = 1;
-            this.tableLayoutPanel1.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
-            this.tableLayoutPanel1.Controls.Add(this.extractProgressBar, 0, 0);
-            this.tableLayoutPanel1.Controls.Add(this.extractStatusLabel, 0, 1);
-            this.tableLayoutPanel1.Controls.Add(this.cancelButton, 0, 2);
-            this.tableLayoutPanel1.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.tableLayoutPanel1.Location = new System.Drawing.Point(0, 0);
-            this.tableLayoutPanel1.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
-            this.tableLayoutPanel1.Name = "tableLayoutPanel1";
-            this.tableLayoutPanel1.RowCount = 3;
-            this.tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 40F));
-            this.tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 30F));
-            this.tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 30F));
-            this.tableLayoutPanel1.Size = new System.Drawing.Size(704, 162);
-            this.tableLayoutPanel1.TabIndex = 0;
+            tableLayoutPanel1.ColumnCount = 1;
+            tableLayoutPanel1.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
+            tableLayoutPanel1.Controls.Add(extractProgressBar, 0, 0);
+            tableLayoutPanel1.Controls.Add(extractStatusLabel, 0, 1);
+            tableLayoutPanel1.Controls.Add(cancelButton, 0, 2);
+            tableLayoutPanel1.Dock = System.Windows.Forms.DockStyle.Fill;
+            tableLayoutPanel1.Location = new System.Drawing.Point(0, 0);
+            tableLayoutPanel1.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            tableLayoutPanel1.Name = "tableLayoutPanel1";
+            tableLayoutPanel1.RowCount = 3;
+            tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 40F));
+            tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 30F));
+            tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 30F));
+            tableLayoutPanel1.Size = new System.Drawing.Size(704, 162);
+            tableLayoutPanel1.TabIndex = 0;
             // 
             // extractProgressBar
             // 
-            this.extractProgressBar.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.extractProgressBar.Location = new System.Drawing.Point(23, 17);
-            this.extractProgressBar.Margin = new System.Windows.Forms.Padding(23, 17, 23, 17);
-            this.extractProgressBar.Name = "extractProgressBar";
-            this.extractProgressBar.Size = new System.Drawing.Size(658, 30);
-            this.extractProgressBar.Style = System.Windows.Forms.ProgressBarStyle.Marquee;
-            this.extractProgressBar.TabIndex = 0;
+            extractProgressBar.Dock = System.Windows.Forms.DockStyle.Fill;
+            extractProgressBar.Location = new System.Drawing.Point(23, 17);
+            extractProgressBar.Margin = new System.Windows.Forms.Padding(23, 17, 23, 17);
+            extractProgressBar.Name = "extractProgressBar";
+            extractProgressBar.Size = new System.Drawing.Size(658, 30);
+            extractProgressBar.Style = System.Windows.Forms.ProgressBarStyle.Marquee;
+            extractProgressBar.TabIndex = 0;
             // 
             // extractStatusLabel
             // 
-            this.extractStatusLabel.AutoEllipsis = true;
-            this.extractStatusLabel.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.extractStatusLabel.Location = new System.Drawing.Point(23, 76);
-            this.extractStatusLabel.Margin = new System.Windows.Forms.Padding(23, 12, 23, 12);
-            this.extractStatusLabel.Name = "extractStatusLabel";
-            this.extractStatusLabel.Size = new System.Drawing.Size(658, 24);
-            this.extractStatusLabel.TabIndex = 1;
-            this.extractStatusLabel.Text = "Calculating…";
+            extractStatusLabel.AutoEllipsis = true;
+            extractStatusLabel.Dock = System.Windows.Forms.DockStyle.Fill;
+            extractStatusLabel.Location = new System.Drawing.Point(23, 76);
+            extractStatusLabel.Margin = new System.Windows.Forms.Padding(23, 12, 23, 12);
+            extractStatusLabel.Name = "extractStatusLabel";
+            extractStatusLabel.Size = new System.Drawing.Size(658, 24);
+            extractStatusLabel.TabIndex = 1;
+            extractStatusLabel.Text = "Calculating…";
             // 
             // cancelButton
             // 
-            this.cancelButton.Dock = System.Windows.Forms.DockStyle.Right;
-            this.cancelButton.Location = new System.Drawing.Point(593, 124);
-            this.cancelButton.Margin = new System.Windows.Forms.Padding(0, 12, 23, 12);
-            this.cancelButton.Name = "cancelButton";
-            this.cancelButton.Size = new System.Drawing.Size(88, 26);
-            this.cancelButton.TabIndex = 2;
-            this.cancelButton.Text = "Cancel";
-            this.cancelButton.UseVisualStyleBackColor = true;
-            this.cancelButton.Click += new System.EventHandler(this.CancelButton_Click);
+            cancelButton.Dock = System.Windows.Forms.DockStyle.Right;
+            cancelButton.Location = new System.Drawing.Point(593, 124);
+            cancelButton.Margin = new System.Windows.Forms.Padding(0, 12, 23, 12);
+            cancelButton.Name = "cancelButton";
+            cancelButton.Size = new System.Drawing.Size(88, 26);
+            cancelButton.TabIndex = 2;
+            cancelButton.Text = "Cancel";
+            cancelButton.UseVisualStyleBackColor = true;
+            cancelButton.Click += CancelButton_Click;
             // 
             // GenericProgressForm
             // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
-            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(704, 162);
-            this.Controls.Add(this.tableLayoutPanel1);
-            this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
-            this.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
-            this.MaximizeBox = false;
-            this.Name = "GenericProgressForm";
-            this.Text = "Extracting files…";
-            this.tableLayoutPanel1.ResumeLayout(false);
-            this.ResumeLayout(false);
-
+            AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
+            AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            ClientSize = new System.Drawing.Size(704, 162);
+            Controls.Add(tableLayoutPanel1);
+            FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
+            Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            MaximizeBox = false;
+            Name = "GenericProgressForm";
+            StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
+            Text = "Extracting files…";
+            tableLayoutPanel1.ResumeLayout(false);
+            ResumeLayout(false);
         }
 
         #endregion
