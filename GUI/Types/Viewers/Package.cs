@@ -348,7 +348,9 @@ namespace GUI.Types.Viewers
 
         private void VPK_OnContextMenu(object sender, TreeNodeMouseClickEventArgs e)
         {
-            Program.MainForm.VpkContextMenu.Show(e.Node.TreeView, e.Location);
+            var isRoot = e.Node is BetterTreeNode node && node.Level == 0 && node.Name == "root";
+
+            Program.MainForm.ShowVpkContextMenu(e.Node.TreeView, e.Location, isRoot);
         }
 
         /// <summary>
@@ -367,7 +369,7 @@ namespace GUI.Types.Viewers
                     node.TreeView.SelectedNode = node;
                 }
 
-                Program.MainForm.VpkContextMenu.Show(listViewItem.ListView, e.Location);
+                Program.MainForm.ShowVpkContextMenu(listViewItem.ListView, e.Location, false);
             }
         }
     }

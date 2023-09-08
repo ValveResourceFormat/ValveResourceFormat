@@ -240,6 +240,50 @@ namespace GUI.Controls
             progressDialog.ShowDialog();
         }
 
+        internal void VerifyPackageContents()
+        {
+            using var progressDialog = new GenericProgressForm
+            {
+                Text = "Verifying package…"
+            };
+            progressDialog.OnProcess += (_, __) =>
+            {
+                progressDialog.SetProgress("This may take a while…");
+
+                var package = mainTreeView.VrfGuiContext.CurrentPackage;
+
+                try
+                {
+                    if (!package.IsSignatureValid())
+                    {
+                        throw new InvalidDataException("The signature in this package is not valid.");
+                    }
+
+                    progressDialog.SetProgress("Verifying hashes…");
+
+                    package.VerifyHashes();
+                    // package.VerifyArchiveHashes(); // TODO: Needs new version
+
+                    MessageBox.Show(
+                        "Verified package hashes. More checks will be added in a future version.",
+                        "Verified package contents",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Information
+                    );
+                }
+                catch (Exception e)
+                {
+                    MessageBox.Show(
+                        e.Message,
+                        "Failed to verify package contents",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning
+                    );
+                }
+            };
+            progressDialog.ShowDialog();
+        }
+
         /// <summary>
         /// Performs a search for the entered text and search types. Before a search is performed, the contents of the ListView (previous search results) are cleared.
         /// Results of whatever search function is used are displayed in the ListView with name, file size, and file type.

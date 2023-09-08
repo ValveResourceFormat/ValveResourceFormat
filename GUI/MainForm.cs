@@ -26,7 +26,6 @@ namespace GUI
         public static ImageList ImageList { get; } = LoadAssetTypes();
 
         private SearchForm searchForm;
-        public ContextMenuStrip VpkContextMenu => vpkContextMenu; // TODO
 
         public MainForm()
         {
@@ -241,6 +240,18 @@ namespace GUI
             }
 
             return base.ProcessCmdKey(ref msg, keyData);
+        }
+
+        public void ShowVpkContextMenu(Control control, Point position, bool isRootNode)
+        {
+            copyFileNameToolStripMenuItem.Visible = !isRootNode;
+            openWithDefaultAppToolStripMenuItem.Visible = !isRootNode;
+            viewAssetInfoToolStripMenuItem.Visible = !isRootNode;
+
+            verifyPackageContentsToolStripMenuItem.Visible = isRootNode;
+            recoverDeletedToolStripMenuItem.Visible = isRootNode;
+
+            vpkContextMenu.Show(control, position);
         }
 
         private void ShowHideSearch()
@@ -894,6 +905,12 @@ namespace GUI
 
             var treeView = mainTabs.SelectedTab.Controls["TreeViewWithSearchResults"] as TreeViewWithSearchResults;
             treeView.RecoverDeletedFiles();
+        }
+
+        private void VerifyPackageContentsToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            var treeView = mainTabs.SelectedTab.Controls["TreeViewWithSearchResults"] as TreeViewWithSearchResults;
+            treeView.VerifyPackageContents();
         }
 
         private void CreateVpkFromFolderToolStripMenuItem_Click(object sender, EventArgs e)
