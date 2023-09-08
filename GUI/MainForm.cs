@@ -799,7 +799,7 @@ namespace GUI
                 return;
             }
 
-            var tab = Types.Viewers.SingleAssetInfo.Create(guiContext, selectedNode.PackageEntry.GetFullPath());
+            var tab = Types.Viewers.SingleAssetInfo.Create(guiContext, selectedNode.PackageEntry);
 
             if (tab != null)
             {

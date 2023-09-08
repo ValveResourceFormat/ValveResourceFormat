@@ -4,6 +4,7 @@ using System.IO;
 using System.Text;
 using System.Windows.Forms;
 using GUI.Utils;
+using SteamDatabase.ValvePak;
 using ValveKeyValue;
 
 namespace GUI.Types.Viewers
@@ -12,9 +13,10 @@ namespace GUI.Types.Viewers
     {
         record FileReference(string Type, string File);
 
-        public static TabPage Create(VrfGuiContext guiContext, string filePath)
+        public static TabPage Create(VrfGuiContext guiContext, PackageEntry entry)
         {
             var folder = Path.GetDirectoryName(guiContext.FileName);
+            var filePath = entry.GetFullPath();
 
             if (guiContext.ToolsAssetInfo == null)
             {
@@ -39,15 +41,39 @@ namespace GUI.Types.Viewers
                 }
             }
 
+            var resTabs = new TabControl
+            {
+                Dock = DockStyle.Fill,
+            };
+            var parentTab = new TabPage(Path.GetFileName(filePath))
+            {
+                ToolTipText = filePath
+            };
+            parentTab.Controls.Add(resTabs);
+
+            var tab = new TabPage("File");
+
+            var fileInfo = new StringBuilder();
+
+            fileInfo.AppendLine($"Name: {filePath}");
+            fileInfo.AppendLine($"CRC: {entry.CRC32:X2}");
+            fileInfo.AppendLine($"Archive: {entry.ArchiveIndex}");
+            fileInfo.AppendLine($"Offset: {entry.Offset}");
+            fileInfo.AppendLine($"Size: {entry.Length} ({entry.Length.ToFileSizeString()})");
+            fileInfo.AppendLine($"Preloaded bytes: {entry.SmallData.Length}");
+
+            var fileControl = new MonospaceTextBox
+            {
+                Text = fileInfo.ToString().ReplaceLineEndings(),
+                Dock = DockStyle.Fill
+            };
+
+            tab.Controls.Add(fileControl);
+            resTabs.TabPages.Add(tab);
+
             if (assetInfo == null)
             {
-                MessageBox.Show(
-                    $"Failed to find tools asset info for {filePath}",
-                    "No asset info found",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Information
-                );
-                return null;
+                return parentTab;
             }
 
             var referencedBy = new List<FileReference>();
@@ -85,18 +111,8 @@ namespace GUI.Types.Viewers
                 }
             }
 
-            var resTabs = new TabControl
-            {
-                Dock = DockStyle.Fill,
-            };
-            var parentTab = new TabPage(Path.GetFileName(filePath))
-            {
-                ToolTipText = filePath
-            };
-            parentTab.Controls.Add(resTabs);
-
             // Info
-            var tab = new TabPage("Info");
+            tab = new TabPage("Info");
 
             using var ms = new MemoryStream();
             KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Serialize(ms, assetInfo, "Asset Info");
