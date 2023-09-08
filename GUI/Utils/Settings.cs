@@ -34,6 +34,7 @@ namespace GUI.Utils
             public int _VERSION_DO_NOT_MODIFY { get; set; }
         }
 
+        private static string SettingsFolder;
         private static string SettingsFilePath;
 
         public static AppConfig Config { get; set; } = new AppConfig();
@@ -45,7 +46,20 @@ namespace GUI.Utils
 
         public static void Load()
         {
-            SettingsFilePath = Path.Combine(Path.GetDirectoryName(Process.GetCurrentProcess().MainModule?.FileName), "settings.txt");
+            SettingsFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Source2Viewer");
+            SettingsFilePath = Path.Combine(SettingsFolder, "settings.txt");
+
+            Directory.CreateDirectory(SettingsFolder);
+
+            // Before 2023-09-08, settings were saved next to the executable
+            var legacySettings = Path.Combine(Path.GetDirectoryName(Process.GetCurrentProcess().MainModule?.FileName), "settings.txt");
+
+            if (File.Exists(legacySettings))
+            {
+                Console.WriteLine($"Moving '{legacySettings}' to '{SettingsFilePath}'.");
+
+                File.Move(legacySettings, SettingsFilePath);
+            }
 
             try
             {
