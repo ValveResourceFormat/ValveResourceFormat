@@ -16,7 +16,7 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 if (cachedSkeleton == null)
                 {
-                    cachedSkeleton = Skeleton.FromModelData(Data);
+                    cachedSkeleton = Skeleton.FromModelData(Data, filterBonesUsedByLod0: false);
                 }
                 return cachedSkeleton;
             }
@@ -24,6 +24,11 @@ namespace ValveResourceFormat.ResourceTypes
         private List<Animation> CachedAnimations;
         private Skeleton cachedSkeleton { get; set; }
         private readonly IDictionary<(VBIB VBIB, int MeshIndex), VBIB> remappedVBIBCache = new Dictionary<(VBIB VBIB, int MeshIndex), VBIB>();
+
+        public void SetSkeletonFilteredForLod0()
+        {
+            cachedSkeleton = Skeleton.FromModelData(Data, filterBonesUsedByLod0: true);
+        }
 
         public int[] GetRemapTable(int meshIndex)
         {

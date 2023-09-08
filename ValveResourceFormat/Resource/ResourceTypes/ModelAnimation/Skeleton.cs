@@ -13,7 +13,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// <summary>
         /// Initializes a new instance of the <see cref="Skeleton"/> class.
         /// </summary>
-        public static Skeleton FromModelData(IKeyValueCollection modelData)
+        public static Skeleton FromModelData(IKeyValueCollection modelData, bool filterBonesUsedByLod0)
         {
             // Check if there is any skeleton data present at all
             if (!modelData.ContainsKey("m_modelSkeleton"))
@@ -22,13 +22,13 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             }
 
             // Construct the armature from the skeleton KV
-            return new Skeleton(modelData.GetSubCollection("m_modelSkeleton"));
+            return new Skeleton(modelData.GetSubCollection("m_modelSkeleton"), filterBonesUsedByLod0);
         }
 
         /// <summary>
         /// Construct the Armature object from mesh skeleton KV data.
         /// </summary>
-        private Skeleton(IKeyValueCollection skeletonData)
+        private Skeleton(IKeyValueCollection skeletonData, bool filterBonesUsedByLod0)
         {
             var boneNames = skeletonData.GetArray<string>("m_boneName");
             var boneParents = skeletonData.GetIntegerArray("m_nParent");
@@ -38,18 +38,26 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             var bonePositions = skeletonData.GetArray("m_bonePosParent", v => v.ToVector3());
             var boneRotations = skeletonData.GetArray("m_boneRotParent", v => v.ToQuaternion());
 
-            LocalRemapTable = new int[boneNames.Length];
-            var currentRemappedBone = 0;
-            for (var i = 0; i < LocalRemapTable.Length; i++)
+            var boneIds = Enumerable.Range(0, boneNames.Length);
+
+            if (filterBonesUsedByLod0)
             {
-                LocalRemapTable[i] = (boneFlags[i] & ModelSkeletonBoneFlags.BoneUsedByVertexLod0) != 0
-                    ? currentRemappedBone++
-                    : -1;
+                LocalRemapTable = new int[boneNames.Length];
+                var currentRemappedBone = 0;
+                for (var i = 0; i < LocalRemapTable.Length; i++)
+                {
+                    LocalRemapTable[i] = (boneFlags[i] & ModelSkeletonBoneFlags.BoneUsedByVertexLod0) != 0
+                        ? currentRemappedBone++
+                        : -1;
+                }
+            }
+            else
+            {
+                LocalRemapTable = boneIds.ToArray();
             }
 
             // Initialise bone array
-            Bones = Enumerable.Range(0, boneNames.Length)
-                .Where(i => (boneFlags[i] & ModelSkeletonBoneFlags.BoneUsedByVertexLod0) != 0)
+            Bones = (filterBonesUsedByLod0 ? boneIds.Where(i => (boneFlags[i] & ModelSkeletonBoneFlags.BoneUsedByVertexLod0) != 0) : boneIds)
                 .Select((boneID, i) => new Bone(i, boneNames[boneID], bonePositions[boneID], boneRotations[boneID]))
                 .ToArray();
 

@@ -51,6 +51,7 @@ namespace GUI.Types.Renderer
             : base(scene)
         {
             Model = model;
+            model.SetSkeletonFilteredForLod0();
             AnimationController = new(model.Skeleton);
 
             if (skin != null)
