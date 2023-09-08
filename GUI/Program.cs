@@ -7,6 +7,9 @@ namespace GUI
 {
     static class Program
     {
+        public const long TicksPerSecond = 10_000_000;
+        public static readonly float TickFrequency = TicksPerSecond / System.Diagnostics.Stopwatch.Frequency;
+
         public static MainForm MainForm { get; private set; }
 
         /// <summary>

@@ -973,9 +973,6 @@ namespace GUI
 
                 var name = file[(inputDirectory.Length + 1)..];
                 var data = File.ReadAllBytes(file);
-
-                name = name.Replace('\\', '/'); // TODO: ValvePak should handle this
-
                 package.AddFile(name, data);
 
                 fileCount++;

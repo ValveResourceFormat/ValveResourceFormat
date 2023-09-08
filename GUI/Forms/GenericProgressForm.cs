@@ -31,6 +31,27 @@ namespace GUI.Forms
             }));
         }
 
+        public void SetBarValue(int value)
+        {
+            if (!IsHandleCreated)
+            {
+                return;
+            }
+
+            extractProgressBar.Value = value;
+        }
+
+        public void SetBarMax(int count)
+        {
+            if (!IsHandleCreated)
+            {
+                return;
+            }
+
+            extractProgressBar.Style = ProgressBarStyle.Blocks;
+            extractProgressBar.Maximum = count;
+        }
+
         protected override void OnShown(EventArgs e)
         {
             Task.Run(

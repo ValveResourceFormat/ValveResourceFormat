@@ -18,9 +18,6 @@ namespace GUI.Controls
 {
     partial class GLViewerControl : UserControl
     {
-        private const long TicksPerSecond = 10_000_000;
-        private static readonly float TickFrequency = TicksPerSecond / Stopwatch.Frequency;
-
         public GLControl GLControl { get; }
 
         private int currentControlsHeight;
@@ -355,14 +352,14 @@ namespace GUI.Controls
             var elapsed = currentTime - lastUpdate;
             lastUpdate = currentTime;
 
-            if (elapsed <= TickFrequency)
+            if (elapsed <= Program.TickFrequency)
             {
                 GLControl.Invalidate();
 
                 return;
             }
 
-            var frameTime = elapsed * TickFrequency / TicksPerSecond;
+            var frameTime = elapsed * Program.TickFrequency / Program.TicksPerSecond;
 
             Camera.HandleInput(Mouse.GetState(), Keyboard.GetState());
             Camera.Tick(frameTime);
@@ -377,9 +374,9 @@ namespace GUI.Controls
 
             frames++;
 
-            var fpsElapsed = (currentTime - lastFpsUpdate) * TickFrequency;
+            var fpsElapsed = (currentTime - lastFpsUpdate) * Program.TickFrequency;
 
-            if (fpsElapsed >= TicksPerSecond)
+            if (fpsElapsed >= Program.TicksPerSecond)
             {
                 SetFps(frames);
                 lastFpsUpdate = currentTime;

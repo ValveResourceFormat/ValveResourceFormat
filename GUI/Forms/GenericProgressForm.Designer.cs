@@ -80,6 +80,7 @@ namespace GUI.Forms
             extractStatusLabel.Size = new System.Drawing.Size(658, 24);
             extractStatusLabel.TabIndex = 1;
             extractStatusLabel.Text = "Calculating…";
+            extractStatusLabel.UseMnemonic = false;
             // 
             // cancelButton
             // 

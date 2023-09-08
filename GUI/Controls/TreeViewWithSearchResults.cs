@@ -248,8 +248,6 @@ namespace GUI.Controls
             };
             progressDialog.OnProcess += (_, __) =>
             {
-                progressDialog.SetProgress("This may take a while…");
-
                 var package = mainTreeView.VrfGuiContext.CurrentPackage;
 
                 try
@@ -262,10 +260,51 @@ namespace GUI.Controls
                     progressDialog.SetProgress("Verifying hashes…");
 
                     package.VerifyHashes();
-                    // package.VerifyArchiveHashes(); // TODO: Needs new version
+
+                    var processed = 0;
+
+                    // This does not need to be perfect, ValvePak reports a string per file, and success strings.
+                    var maximum = package.Entries.Sum(x => x.Value.Count) + package.ArchiveMD5Entries.Count + 2;
+
+                    progressDialog.Invoke(() =>
+                    {
+                        progressDialog.SetBarMax(maximum);
+                    });
+
+                    var lastUpdate = 0L;
+                    var updateInterval = (long)(Program.TicksPerSecond / 3f / Program.TickFrequency); // 3 times per second
+
+                    var progressReporter = new Progress<string>(progress =>
+                    {
+                        var value = Math.Min(++processed, maximum);
+
+                        var currentTime = System.Diagnostics.Stopwatch.GetTimestamp();
+                        var elapsed = currentTime - lastUpdate;
+
+                        if (elapsed < updateInterval)
+                        {
+                            return;
+                        }
+
+                        lastUpdate = currentTime;
+
+                        progressDialog.Invoke(() =>
+                        {
+                            progressDialog.SetBarValue(value);
+                            progressDialog.SetProgress(progress);
+                        });
+                    });
+
+                    package.VerifyChunkHashes(progressReporter);
+                    package.VerifyFileChecksums(progressReporter);
+
+                    progressDialog.Invoke(() =>
+                    {
+                        progressDialog.SetBarValue(maximum);
+                    });
 
                     MessageBox.Show(
-                        "Verified package hashes. More checks will be added in a future version.",
+                        "Successfully verified package contents.",
                         "Verified package contents",
                         MessageBoxButtons.OK,
                         MessageBoxIcon.Information
