@@ -47,7 +47,7 @@ namespace GUI.Utils
         public static void Load()
         {
             SettingsFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Source2Viewer");
-            SettingsFilePath = Path.Combine(SettingsFolder, "settings.txt");
+            SettingsFilePath = Path.Combine(SettingsFolder, "settings.vdf");
 
             Directory.CreateDirectory(SettingsFolder);
 
