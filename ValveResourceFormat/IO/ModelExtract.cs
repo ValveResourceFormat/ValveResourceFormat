@@ -510,12 +510,14 @@ public class ModelExtract
                 var material = drawCall.GetProperty<string>("m_material");
                 materialInputSignature ??= materialInputSignatures?.GetValueOrDefault(material);
 
+                var baseVertex = drawCall.GetInt32Property("m_nBaseVertex");
                 var startIndex = drawCall.GetInt32Property("m_nStartIndex");
                 var indexCount = drawCall.GetInt32Property("m_nIndexCount");
 
                 GenerateTriangleFaceSetFromIndexBuffer(
                     dag,
                     indexBuffer[startIndex..(startIndex + indexCount)],
+                    baseVertex,
                     material,
                     $"{startIndex}..{startIndex + indexCount}");
             }
@@ -758,16 +760,17 @@ public class ModelExtract
         faceSet.Material.MaterialName = material;
     }
 
-    private static void GenerateTriangleFaceSetFromIndexBuffer(DmeDag dag, ReadOnlySpan<int> indices, string material, string name)
+    private static void GenerateTriangleFaceSetFromIndexBuffer(DmeDag dag, ReadOnlySpan<int> indices, int baseVertex,
+        string material, string name)
     {
         var faceSet = new DmeFaceSet() { Name = name };
         dag.Shape.FaceSets.Add(faceSet);
 
         for (var i = 0; i < indices.Length; i += 3)
         {
-            faceSet.Faces.Add(indices[i]);
-            faceSet.Faces.Add(indices[i + 1]);
-            faceSet.Faces.Add(indices[i + 2]);
+            faceSet.Faces.Add(baseVertex + indices[i]);
+            faceSet.Faces.Add(baseVertex + indices[i + 1]);
+            faceSet.Faces.Add(baseVertex + indices[i + 2]);
             faceSet.Faces.Add(-1);
         }
 
