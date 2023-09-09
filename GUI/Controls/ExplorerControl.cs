@@ -387,8 +387,8 @@ namespace GUI.Controls
             treeView.BeginUpdate();
             treeView.Nodes.Clear();
 
-            var isFiltering = filterTextBox.Text.Length > 0;
-            treeView.ShowPlusMinus = isFiltering;
+            var showAll = filterTextBox.Text.Length == 0;
+            treeView.ShowPlusMinus = showAll;
 
             var foundNodes = new List<TreeNode>(TreeData.Count);
 
@@ -396,7 +396,7 @@ namespace GUI.Controls
             {
                 node.ParentNode.Nodes.Clear();
 
-                if (!isFiltering)
+                if (showAll)
                 {
                     node.ParentNode.Nodes.AddRange(node.Children);
                     foundNodes.Add(node.ParentNode);
