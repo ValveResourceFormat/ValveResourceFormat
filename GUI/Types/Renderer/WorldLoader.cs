@@ -359,21 +359,25 @@ namespace GUI.Types.Renderer
                         var strength = entity.GetPropertyUnchecked<float>("fogstrength");
                         var colorData = entity.GetProperty("fogcolor");
 
-                        Vector3 color;
-                        switch (colorData.Type)
+                        var color = new Vector3(255f);
+
+                        if (colorData != null)
                         {
-                            case EntityFieldType.Vector:
-                                color = (Vector3)colorData.Data;
-                                break;
-                            case EntityFieldType.Color32:
-                                // todo make this a function
-                                var colorBytes = (byte[])colorData.Data;
-                                color.X = colorBytes[0] / 255.0f;
-                                color.Y = colorBytes[1] / 255.0f;
-                                color.Z = colorBytes[2] / 255.0f;
-                                break;
-                            default:
-                                throw new Exception("unknown entity type");
+                            switch (colorData.Type)
+                            {
+                                case EntityFieldType.Vector:
+                                    color = (Vector3)colorData.Data;
+                                    break;
+                                case EntityFieldType.Color32:
+                                    // todo make this a function
+                                    var colorBytes = (byte[])colorData.Data;
+                                    color.X = colorBytes[0] / 255.0f;
+                                    color.Y = colorBytes[1] / 255.0f;
+                                    color.Z = colorBytes[2] / 255.0f;
+                                    break;
+                                default:
+                                    throw new Exception("unknown entity type");
+                            }
                         }
 
                         var maxOpacity = entity.GetPropertyUnchecked<float>("fogmaxopacity");
