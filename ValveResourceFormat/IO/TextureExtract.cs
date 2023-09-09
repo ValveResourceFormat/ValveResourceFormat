@@ -6,7 +6,6 @@ using System.Text;
 using SkiaSharp;
 using ValveResourceFormat.ResourceTypes;
 using ChannelMapping = ValveResourceFormat.CompiledShader.ChannelMapping;
-using Datamodel;
 using ValveResourceFormat.IO.ContentFormats.ValveTexture;
 
 namespace ValveResourceFormat.IO;
@@ -47,36 +46,94 @@ public sealed class ImageSubFile : SubFile
 
 public sealed class TextureExtract
 {
+    private static readonly string[] CubemapNames = new[]
+    {
+        "rt",
+        "lf",
+        "bk",
+        "ft",
+        "up",
+        "dn",
+    };
+
     private readonly Texture texture;
     private readonly string fileName;
     private readonly bool isSpriteSheet;
-
-    public TextureExtract(Texture texture, string fileName)
-    {
-        this.texture = texture;
-        this.fileName = fileName;
-
-        if (texture.ExtraData.ContainsKey(VTexExtraData.SHEET))
-        {
-            isSpriteSheet = true;
-        }
-    }
+    private readonly bool isCubeMap;
+    private readonly bool isArray;
 
     public TextureExtract(Resource resource)
-        : this((Texture)resource.DataBlock, resource.FileName)
     {
+        texture = (Texture)resource.DataBlock;
+        fileName = resource.FileName;
+        isSpriteSheet = texture.ExtraData.ContainsKey(VTexExtraData.SHEET);
+        isCubeMap = texture.Flags.HasFlag(VTexFlags.CUBE_TEXTURE);
+        isArray = texture.Depth > 1;
     }
 
     /// <summary>
     /// The vtex content file. Input image(s) come as subfiles.
     /// </summary>
-    public TextureContentFile ToContentFile()
+    public ContentFile ToContentFile(bool ignoreVtexFile = false)
     {
+        var rawImage = texture.ReadRawImageData();
+        if (rawImage != null)
+        {
+            return new ContentFile() { Data = rawImage };
+        }
+
+        //
+        // Multiple images path
+        //
+        if (isArray || isCubeMap)
+        {
+            var contentFile = new ContentFile();
+            var extension = '.' + GetImageOutputExtension(texture);
+
+            for (uint depth = 0; depth < texture.Depth; depth++)
+            {
+                var outTextureName = Path.GetFileNameWithoutExtension(fileName);
+
+                if (isArray)
+                {
+                    outTextureName += isCubeMap ? $"_f{depth:D2}" : $"_z{depth:D3}";
+                }
+
+                if (!isCubeMap)
+                {
+                    var currentDepth = depth;
+
+                    contentFile.AddSubFile(outTextureName + extension, () =>
+                    {
+                        // TODO: not png
+                        return EncodePng(texture.GenerateBitmap(depth: currentDepth));
+                    });
+
+                    continue;
+                }
+
+                for (var face = 0; face < 6; face++)
+                {
+                    var currentDepth = depth;
+                    var currentFace = face;
+
+                    contentFile.AddSubFile($"{outTextureName}_{CubemapNames[face]}{extension}", () =>
+                    {
+                        // TODO: not png
+                        using var bitmap = texture.GenerateBitmap(depth: currentDepth, face: (Texture.CubemapFace)currentFace);
+                        return EncodePng(bitmap);
+                    });
+                }
+            }
+
+            return contentFile;
+        }
+
         var bitmap = texture.GenerateBitmap();
 
         var vtex = new TextureContentFile()
         {
-            Data = Encoding.UTF8.GetBytes(ToValveTexture()),
+            Data = ignoreVtexFile ? null : Encoding.UTF8.GetBytes(ToValveTexture()),
             Bitmap = bitmap,
             FileName = fileName,
         };

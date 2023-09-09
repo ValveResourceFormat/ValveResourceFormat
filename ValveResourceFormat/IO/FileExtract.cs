@@ -153,24 +153,8 @@ namespace ValveResourceFormat.IO
 
                 case ResourceType.Texture:
                     {
-                        if (IsChildResource(resource))
-                        {
-                            var tex = (Texture)resource.DataBlock;
-                            var rawImage = tex.ReadRawImageData();
-
-                            if (rawImage != null)
-                            {
-                                contentFile.Data = rawImage;
-                                break;
-                            }
-
-                            using var bitmap = tex.GenerateBitmap();
-                            contentFile.Data = TextureExtract.ToPngImage(bitmap);
-                            break;
-                        }
-
                         var textureExtract = new TextureExtract(resource);
-                        contentFile = textureExtract.ToContentFile();
+                        contentFile = textureExtract.ToContentFile(ignoreVtexFile: IsChildResource(resource));
                         break;
                     }
 
