@@ -21,6 +21,7 @@ namespace GUI.Utils
             public string BackgroundColor { get; set; } = string.Empty;
             public string OpenDirectory { get; set; } = string.Empty;
             public string SaveDirectory { get; set; } = string.Empty;
+            public List<string> BookmarkedFiles { get; set; } = new();
             public List<string> RecentFiles { get; set; } = new(RecentFilesLimit);
             public Dictionary<string, float[]> SavedCameras { get; set; } = new();
             public int MaxTextureSize { get; set; }
@@ -104,6 +105,7 @@ namespace GUI.Utils
             }
 
             Config.SavedCameras ??= new();
+            Config.BookmarkedFiles ??= new();
             Config.RecentFiles ??= new(RecentFilesLimit);
 
             if (string.IsNullOrEmpty(Config.OpenDirectory) && RuntimeInformation.IsOSPlatform(OSPlatform.Windows))

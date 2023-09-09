@@ -18,7 +18,7 @@
     <resheader name="reader">System.Resources.ResXResourceReader, System.Windows.Forms, ...</resheader>
     <resheader name="writer">System.Resources.ResXResourceWriter, System.Windows.Forms, ...</resheader>
     <data name="Name1"><value>this is my long string</value><comment>this is a comment</comment></data>
-    <data name="Color1" type="System.Drawing.Color, System.Drawing"">Blue</data>
+    <data name="Color1" type="System.Drawing.Color, System.Drawing">Blue</data>
     <data name="Bitmap1" mimetype="application/x-microsoft.net.object.binary.base64">
         <value>[base64 mime encoded serialized .NET Framework object]</value>
     </data>
@@ -139,6 +139,45 @@
         DKXPTqKhpwxpd5Kw+RLllQSmy7FnTZVxzaaKuDkysn6O3NqK+/21MPRdhe5NFRpfVxJJNup7SpFlSEX8
         xXB7lIpaJwlCsb8+RtirjhKSr0UKu6sjhHTtLtR1F+N4Uwqii6gPG1TUGv+5kOFQbCsLm8/QJSO6gHpH
         wqtX9v84+Ddiiqj5TQWrEKmipEe0DKgfls7tHdFJGtsAAAAASUVORK5CYII=
+</value>
+  </data>
+  <data name="addToFavoritesToolStripMenuItem.Image" type="System.Drawing.Bitmap, System.Drawing" mimetype="application/x-microsoft.net.object.bytearray.base64">
+    <value>
+        iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAABGdBTUEAALGPC/xhBQAAAAlwSFlzAAAe
+        wAAAHsABES62twAAAAd0SU1FB9cJGw8fEwtfPKUAAAMNSURBVDhPbZLdT9NnFMd7sZv9CbtyF7vYRrZk
+        yUyZU6ZhTEWcW2ZsHG0prxUKqIvDbhArbk2rMCm1pfRNnJZCKQyYqFA0TLbiSxHaWgu+4X57QRONJEaz
+        u3329Icu0XqSk5Mneb6fc57veRSZ2Fx/NKeozp/eVOePbqr1U1jrY6NBZI2XDSLXV3v4ZIebAn0n+RVH
+        yNN8vyALn4UQtwvxv0bXOGUH+ilt7ke3P0yJKYzW1IdmXy/qpl7EPfKrXKxWW3kqXQ4hnjW6IoxF55lb
+        uEf69l3StxZJ3fyLqzf+JDH/B/E5ib/v3mdpaYm381QvAGp9v3dPXmdX+ylKRGdJ+ymP33qVJ2+8IteF
+        4iK2fxOUn7WuoiMbUGjwSaGLt3GeSzGWWuTO+lw47oXuLrneKlASunCHYxM3KDR4sgHCLCkYvUlDzxTe
+        ies8yV+5DFB/LtfH4mwZSuAdnxemurMBwmkpIJ7wVeA8jtEkD1fmCKEftFvl+uD9HEyhGB2jabGRlwDE
+        mqSuiTl2dp3DdiqFdSAmvzsjztSGH6M09sSwjaTEOjuzAWLHknf8GtWeUQ6dTGEZTHJgIC57YQxeYU8g
+        xteBaQ4NJ8VfcGUDCvRuqeNMkkr7CN/9lMAUnuXb3is0dMfYffwydUcvUu+xs9OpperwFlT717HR+G7T
+        U7lC8XFVp2QfiaNrGaQpNMPe4DR7TsSoP3aJGv8F9I4WmsOljKScxBcjtI3XoGp7B6XhtVYZkF/pkg4P
+        zVBs7hOjLnc1iK47vFOUu6NoLBsYvmpjOG0nE61nK2k7q88A/pEB4nNI1v4Yqn1B6rsuUS26VrmnKHX9
+        ito+SVHje5xO+WTxs/g56cwAlr1YW94hmUOX2Wo8gd4zRVnnb2gdk3xpO8+21l9YVfc6LZEyLBGdLLaM
+        6Z6f4KMyp2QOT3NwMIF1KIl5IEFzXxxTzyyNgRlU5l180fomP0Qq5M6Zmjn/70FeqcO3Rudgte4IH5bY
+        WaW184GmnVyNjVy1DWVxG8ryz1DWrJDHFvlIpFWhUCj+A56nQdZy9w4VAAAAAElFTkSuQmCC
+</value>
+  </data>
+  <data name="removeFromFavoritesToolStripMenuItem.Image" type="System.Drawing.Bitmap, System.Drawing" mimetype="application/x-microsoft.net.object.bytearray.base64">
+    <value>
+        iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAABGdBTUEAALGPC/xhBQAAAAlwSFlzAAAe
+        wAAAHsABES62twAAAAd0SU1FB9cJGw8fJyrryBAAAAMeSURBVDhPbZJbTNNnGIe7gBe72IWJF17sxmRL
+        Nol3Gtl06FY6FUGzxOgYpZxPFnBThCKETh0T2alUbCml1kMpLedFiK1ImGgRLad2XcEDuL86XOYiN7Dt
+        wvDs41+XLOve5M2b78v3e97vPShWLKX0XFxyiS28u8Tm211sI6m4hV1a4Qet7BS+o6iZDwstqAqaUOae
+        ISH9izlZ+I8JcYMQL+vMA2Sf6CTreCeZn3eQoe9Ao28nvcaFutqFeIcy38xWdR0vpRET4kmd+Spe3wzT
+        c78Snn1K+ME8oftP+PHeYwIzj5ialvjl6TMWFhZYn3DgP4Dilp9bh+/yaUM/GSKzpNnD4tuvsvRGrBzn
+        0pJJrXTKZb2fa4oGJGlbJPfoLGcHQ3hD8zzcEQ8XrdBql+MD1Wbctx5yfugeSdrmaIBoluT03ae8bQTr
+        0F2WlJsiAPVHclwU51O9AawDM6KplmiA6LTkECUcdlyn0RPk+aY4IbSBZp8cf98Yh97tx+QJi4n8D0CM
+        SbIPTXPIPoihP0Rdl1+ue0W8Essv+Khq82PoC4lxNkUDxIwl68BPFDV7qL8c4lRPkBNdU3IvdM5xyhx+
+        jjrGqP8+KHbBHA1QFVgk05UgecY+TnYH0HdMcsw1Tnmrn88u3qHk3CimGh3ej9/k2gercCe+hlcVo3sp
+        VygS85skY98UmV/1UO2eoMI5RtklP6Xnb3PQdgtjlY7Jsi382f8Ny2EPS67D+LUbXlxVxpbIAGWeWfq2
+        d4K02nbx1UhWrchaaB0hx+Kja+/r/CHEGFOgYjV8uY5n9dvxJsZEVlosh1TX6edAjZNS+22KRNZ8ywhZ
+        5huojcPyt5fHu/m3LejXivvYZRmwPcck1brvsE93iYLmEbKbbqJpHOYTw3X2f/0D3clrWbTlgBD9Va7g
+        uXCpMGalD09kwLbss1JtxxinewLU9Qap7QpwvH0KfdskVY4J7NVHGM17i/mKdfxWuYrZ3FcYTIl94VHF
+        HJMBCVmNLe9lNrI18wxbMoy8qzHyTnoD8ekG4tUGNqd9R2VqKq6daxgQ5YjMjyNiheJvvOpAJCtj01MA
+        AAAASUVORK5CYII=
 </value>
   </data>
   <metadata name="recentFilesContextMenuStrip.TrayLocation" type="System.Drawing.Point, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">

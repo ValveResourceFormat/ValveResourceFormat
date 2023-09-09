@@ -16,7 +16,16 @@ namespace GUI.Controls
 {
     partial class ExplorerControl : UserControl
     {
-        private readonly List<(TreeNode ParentNode, int AppID, TreeNode[] Children)> TreeData = new();
+        private class TreeDataNode
+        {
+            public TreeNode ParentNode { get; init; }
+            public int AppID { get; init; }
+            public TreeNode[] Children { get; set; }
+        }
+
+        private const int APPID_RECENT_FILES = -1000;
+        private const int APPID_BOOKMARKS = -1001;
+        private readonly List<TreeDataNode> TreeData = new();
 
         public ExplorerControl()
         {
@@ -36,6 +45,27 @@ namespace GUI.Controls
             var folderImage = MainForm.ImageList.Images.IndexOfKey("_folder");
             var recentImage = MainForm.ImageList.Images.IndexOfKey("_recent");
 
+            // Bookmarks
+            {
+                var bookmarkImage = MainForm.ImageList.Images.IndexOfKey("_bookmark");
+                var bookmarkedFiles = GetBookmarkedFileNodes();
+                var bookmarkedFilesTreeNode = new TreeNode("Bookmarks")
+                {
+                    ImageIndex = bookmarkImage,
+                    SelectedImageIndex = bookmarkImage,
+                };
+                bookmarkedFilesTreeNode.Nodes.AddRange(bookmarkedFiles);
+                bookmarkedFilesTreeNode.Expand();
+
+                TreeData.Add(new TreeDataNode
+                {
+                    ParentNode = bookmarkedFilesTreeNode,
+                    AppID = APPID_BOOKMARKS,
+                    Children = bookmarkedFiles,
+                });
+                treeView.Nodes.Add(bookmarkedFilesTreeNode);
+            }
+
             // Recent files
             {
                 var recentFiles = GetRecentFileNodes();
@@ -48,7 +78,12 @@ namespace GUI.Controls
                 recentFilesTreeNode.Nodes.AddRange(recentFiles);
                 recentFilesTreeNode.Expand();
 
-                TreeData.Add((recentFilesTreeNode, -1, recentFiles));
+                TreeData.Add(new TreeDataNode
+                {
+                    ParentNode = recentFilesTreeNode,
+                    AppID = APPID_RECENT_FILES,
+                    Children = recentFiles,
+                });
                 treeView.Nodes.Add(recentFilesTreeNode);
             }
 
@@ -264,7 +299,12 @@ namespace GUI.Controls
                         SelectedImageIndex = treeNodeImage,
                     };
                     treeNode.Nodes.AddRange(foundFilesArray);
-                    TreeData.Add((treeNode, appID, foundFilesArray));
+                    TreeData.Add(new TreeDataNode
+                    {
+                        ParentNode = treeNode,
+                        AppID = appID,
+                        Children = foundFilesArray,
+                    });
 
                     InvokeWorkaround(() =>
                     {
@@ -332,6 +372,12 @@ namespace GUI.Controls
             {
                 e.Node.TreeView.SelectedNode = e.Node;
 
+                var path = (string)e.Node.Tag;
+                var isBookmarked = Settings.Config.BookmarkedFiles.Contains(path);
+
+                addToFavoritesToolStripMenuItem.Visible = !isBookmarked;
+                removeFromFavoritesToolStripMenuItem.Visible = isBookmarked;
+
                 fileContextMenuStrip.Show(e.Node.TreeView, e.Location);
             }
         }
@@ -341,13 +387,22 @@ namespace GUI.Controls
             treeView.BeginUpdate();
             treeView.Nodes.Clear();
 
-            treeView.ShowPlusMinus = filterTextBox.Text.Length == 0;
+            var isFiltering = filterTextBox.Text.Length > 0;
+            treeView.ShowPlusMinus = isFiltering;
 
             var foundNodes = new List<TreeNode>(TreeData.Count);
 
             foreach (var node in TreeData)
             {
                 node.ParentNode.Nodes.Clear();
+
+                if (!isFiltering)
+                {
+                    node.ParentNode.Nodes.AddRange(node.Children);
+                    foundNodes.Add(node.ParentNode);
+
+                    continue;
+                }
 
                 var foundChildren = Array.FindAll(node.Children, (child) =>
                 {
@@ -356,12 +411,8 @@ namespace GUI.Controls
 
                 if (foundChildren.Any())
                 {
-                    if (!node.ParentNode.IsExpanded)
-                    {
-                        node.ParentNode.Expand();
-                    }
-
                     node.ParentNode.Nodes.AddRange(foundChildren);
+                    node.ParentNode.Expand();
                     foundNodes.Add(node.ParentNode);
                 }
             }
@@ -378,23 +429,31 @@ namespace GUI.Controls
                 return;
             }
 
+            RedrawList(APPID_RECENT_FILES, GetRecentFileNodes());
+        }
+
+        private void RedrawList(int appid, TreeNode[] list)
+        {
             treeView.BeginUpdate();
-            var recentFiles = GetRecentFileNodes();
-            var recentFilesNode = TreeData.Find(node => node.AppID == -1);
-            recentFilesNode.ParentNode.Nodes.Clear();
-            recentFilesNode.ParentNode.Nodes.AddRange(recentFiles);
-            recentFilesNode.Children = recentFiles;
+            var node = TreeData.Find(node => node.AppID == appid);
+            node.ParentNode.Nodes.Clear();
+            node.ParentNode.Nodes.AddRange(list);
+            node.ParentNode.Expand();
+            node.Children = list;
             treeView.EndUpdate();
 
             if (filterTextBox.Text.Length > 0)
             {
-                OnFilterTextBoxTextChanged(null, null); // Hack: re-filter recent files
+                OnFilterTextBoxTextChanged(null, null); // Hack: re-filter files
             }
         }
 
-        private static TreeNode[] GetRecentFileNodes()
+        private static TreeNode[] GetRecentFileNodes() => GetFileNodes(Settings.Config.RecentFiles);
+        private static TreeNode[] GetBookmarkedFileNodes() => GetFileNodes(Settings.Config.BookmarkedFiles);
+
+        private static TreeNode[] GetFileNodes(List<string> paths)
         {
-            return Settings.Config.RecentFiles.Select(path =>
+            return paths.Select(path =>
             {
                 var pathDisplay = path.Replace(Path.DirectorySeparatorChar, '/');
                 var extension = Path.GetExtension(path);
@@ -421,7 +480,7 @@ namespace GUI.Controls
         {
             Settings.ClearRecentFiles();
 
-            var recentFilesNode = TreeData.Find(node => node.AppID == -1);
+            var recentFilesNode = TreeData.Find(node => node.AppID == APPID_RECENT_FILES);
             recentFilesNode.ParentNode.Nodes.Clear();
             recentFilesNode.Children = Array.Empty<TreeNode>();
         }
@@ -454,6 +513,45 @@ namespace GUI.Controls
                     Verb = "open"
                 });
             }
+        }
+
+        private void OnAddToBookmarksClick(object sender, EventArgs e)
+        {
+            var control = (TreeView)((ContextMenuStrip)((ToolStripMenuItem)sender).Owner).SourceControl;
+
+            if (control.SelectedNode.Tag == null)
+            {
+                return;
+            }
+
+            var path = (string)control.SelectedNode.Tag;
+
+            if (Settings.Config.BookmarkedFiles.Contains(path))
+            {
+                return;
+            }
+
+            Settings.Config.BookmarkedFiles.Add(path);
+            Settings.Save();
+
+            RedrawList(APPID_BOOKMARKS, GetBookmarkedFileNodes());
+        }
+
+        private void OnRemoveFromBookmarksClick(object sender, EventArgs e)
+        {
+            var control = (TreeView)((ContextMenuStrip)((ToolStripMenuItem)sender).Owner).SourceControl;
+
+            if (control.SelectedNode.Tag == null)
+            {
+                return;
+            }
+
+            var path = (string)control.SelectedNode.Tag;
+
+            Settings.Config.BookmarkedFiles.Remove(path);
+            Settings.Save();
+
+            RedrawList(APPID_BOOKMARKS, GetBookmarkedFileNodes());
         }
 
         private Image GetAppResizedImage(string path)
