@@ -483,13 +483,11 @@ public class ModelExtract
     {
         var mdat = mesh.Data;
         var mbuf = mesh.VBIB;
-        var vertexBuffer = mbuf.VertexBuffers.First();
-        var ib = mbuf.IndexBuffers.First();
+        var indexBuffers = mbuf.IndexBuffers.Select(ib => new Lazy<int[]>(() => GltfModelExporter.ReadIndices(ib, 0, (int)ib.ElementCount, 0))).ToArray();
 
         using var dmx = new Datamodel.Datamodel("model", 22);
-        DmxModelBaseLayout(name, out var dmeModel, out var dag, out var vertexData);
+        DmxModelMultiVertexBufferLayout(name, mbuf.VertexBuffers.Count, out var dmeModel, out var dags, out var dmeVertexBuffers);
 
-        ReadOnlySpan<int> indexBuffer = GltfModelExporter.ReadIndices(ib, 0, (int)ib.ElementCount, 0);
         IKeyValueCollection materialInputSignature = null;
 
         foreach (var sceneObject in mdat.GetArray("m_sceneObjects"))
@@ -501,11 +499,7 @@ public class ModelExtract
 
                 var indexBufferInfo = drawCall.GetSubCollection("m_indexBuffer");
                 var indexBufferIndex = indexBufferInfo.GetInt32Property("m_hBuffer");
-
-                if (vertexBufferIndex != 0 || indexBufferIndex != 0)
-                {
-                    continue; // Skip this TODO
-                }
+                ReadOnlySpan<int> indexBuffer = indexBuffers[indexBufferIndex].Value;
 
                 var material = drawCall.GetProperty<string>("m_material");
                 materialInputSignature ??= materialInputSignatures?.GetValueOrDefault(material);
@@ -515,7 +509,7 @@ public class ModelExtract
                 var indexCount = drawCall.GetInt32Property("m_nIndexCount");
 
                 GenerateTriangleFaceSetFromIndexBuffer(
-                    dag,
+                    dags[vertexBufferIndex],
                     indexBuffer[startIndex..(startIndex + indexCount)],
                     baseVertex,
                     material,
@@ -523,7 +517,21 @@ public class ModelExtract
             }
         }
 
-        var indices = Enumerable.Range(0, (int)ib.ElementCount).ToArray();
+        for (var i = 0; i < mbuf.VertexBuffers.Count; i++)
+        {
+            FillDatamodelVertexData(mbuf.VertexBuffers[i], dmeVertexBuffers[i], materialInputSignature);
+        }
+
+        TieElementRoot(dmx, dmeModel);
+        using var stream = new MemoryStream();
+        dmx.Save(stream, "keyvalues2", 4);
+
+        return stream.ToArray();
+    }
+
+    private static void FillDatamodelVertexData(VBIB.OnDiskBufferData vertexBuffer, DmeVertexData vertexData, IKeyValueCollection materialInputSignature)
+    {
+        var indices = Enumerable.Range(0, (int)vertexBuffer.ElementCount).ToArray(); // May break with non-unit strides, non-tri faces
 
         foreach (var attribute in vertexBuffer.InputLayoutFields)
         {
@@ -594,12 +602,6 @@ public class ModelExtract
                     throw new NotImplementedException($"Stream {semantic} has an unexpected number of components: {attributeFormat.ElementCount}.");
             }
         }
-
-        TieElementRoot(dmx, dmeModel);
-        using var stream = new MemoryStream();
-        dmx.Save(stream, "keyvalues2", 4);
-
-        return stream.ToArray();
     }
 
     public byte[] ToDmxMesh(HullDescriptor hull)
@@ -717,18 +719,33 @@ public class ModelExtract
 
     private static void DmxModelBaseLayout(string name, out DmeModel dmeModel, out DmeDag dag, out DmeVertexData vertexData)
     {
+        DmxModelMultiVertexBufferLayout(name, 1, out dmeModel, out var dags, out var dmeVertexBuffers);
+        dag = dags[0];
+        vertexData = dmeVertexBuffers[0];
+    }
+
+    private static void DmxModelMultiVertexBufferLayout(string name, int vertexBufferCount,
+        out DmeModel dmeModel, out DmeDag[] dags, out DmeVertexData[] dmeVertexBuffers)
+    {
         dmeModel = new DmeModel() { Name = name };
-        dag = new DmeDag() { Name = name };
-        dmeModel.Children.Add(dag);
-        dmeModel.JointList.Add(dag);
+        dags = new DmeDag[vertexBufferCount];
+        dmeVertexBuffers = new DmeVertexData[vertexBufferCount];
 
-        var transformList = new DmeTransformsList();
-        transformList.Transforms.Add(new DmeTransform());
-        dmeModel.BaseStates.Add(transformList);
+        for (var i = 0; i < vertexBufferCount; i++)
+        {
+            // dmx requires one dag per vertex buffer
+            var dag = dags[i] = new DmeDag() { Name = name };
+            dmeModel.Children.Add(dag);
+            dmeModel.JointList.Add(dag);
 
-        vertexData = new DmeVertexData { Name = "bind" };
-        dag.Shape.CurrentState = vertexData;
-        dag.Shape.BaseStates.Add(vertexData);
+            var transformList = new DmeTransformsList();
+            transformList.Transforms.Add(new DmeTransform());
+            dmeModel.BaseStates.Add(transformList);
+
+            var vertexData = dmeVertexBuffers[i] = new DmeVertexData { Name = "bind" };
+            dag.Shape.CurrentState = vertexData;
+            dag.Shape.BaseStates.Add(vertexData);
+        }
     }
 
     private static void TieElementRoot(Datamodel.Datamodel dmx, DmeModel dmeModel)
