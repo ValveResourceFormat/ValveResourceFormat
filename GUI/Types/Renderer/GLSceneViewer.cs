@@ -1,10 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
 using System.Linq;
 using System.Numerics;
-using System.Threading;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Types.Renderer.UniformBuffers;
@@ -194,10 +192,10 @@ namespace GUI.Types.Renderer
             // Todo: this should be set once on init, and toggled when there's F_RENDER_BACKFACES
             GL.Enable(EnableCap.CullFace);
 
-            void UpdateSceneBuffers(Scene scene)
+            void UpdateSceneBuffers(Scene scene, Camera camera)
             {
                 viewBuffer.UpdateWith(
-                    e.Camera.SetViewConstants, // scene.MainCamera.SetViewConstants
+                    camera.SetViewConstants, // scene.MainCamera.SetViewConstants
                     d => scene.FogInfo.SetFogUniforms(d, scene.FogEnabled, scene.WorldOffset, scene.WorldScale)
                 );
 
@@ -226,13 +224,13 @@ namespace GUI.Types.Renderer
 
                 SkyboxScene.MainCamera = skyboxCamera;
                 SkyboxScene.Update(e.FrameTime);
-                UpdateSceneBuffers(SkyboxScene);
+                UpdateSceneBuffers(SkyboxScene, skyboxCamera);
                 SkyboxScene.RenderWithCamera(skyboxCamera, bufferSet, skyboxLockedCullFrustum);
 
                 GL.Clear(ClearBufferMask.DepthBufferBit);
             }
 
-            UpdateSceneBuffers(Scene);
+            UpdateSceneBuffers(Scene, e.Camera);
             Scene.RenderWithCamera(e.Camera, bufferSet, lockedCullFrustum);
 
             selectedNodeRenderer.Render(genericRenderContext);
