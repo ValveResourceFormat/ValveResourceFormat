@@ -227,6 +227,7 @@ public class ModelExtract
 
         var materialGroupList = MakeLazyList("MaterialGroupList");
         var renderMeshList = MakeLazyList("RenderMeshList");
+        var animationList = MakeLazyList("AnimationList");
         var physicsShapeList = MakeLazyList("PhysicsShapeList");
 
         if (RenderMeshesToExtract.Count != 0)
@@ -300,6 +301,16 @@ public class ModelExtract
             }
         }
 
+        if (model.Data.ContainsKey("m_refAnimIncludeModels"))
+        {
+            foreach (var animIncludeModel in model.Data.GetArray<string>("m_refAnimIncludeModels"))
+            {
+                AddItem(animationList.Value, MakeNode("AnimIncludeModel", ("model", animIncludeModel)));
+            }
+        }
+
+        ExtractModelKeyValues(root.Node);
+
         return new KV3File(kv, format: "modeldoc28:version{fb63b6ca-f435-4aa0-a2c7-c66ddc651dca}").ToString();
         //return new KV3File(kv, format: "modeldoc32:version{c5dcef98-b629-46ab-88e3-a17c005c935e}").ToString();
 
@@ -364,6 +375,91 @@ public class ModelExtract
                 remap.AddProperty("from", MakeValue(from));
                 remap.AddProperty("to", MakeValue(to));
                 AddItem(remaps, remap);
+            }
+        }
+
+        void ExtractModelKeyValues(KVObject rootNode)
+        {
+            var breakPieceList = MakeLazyList("BreakPieceList");
+            var gameDataList = MakeLazyList("GameDataList");
+
+            var keyvaluesString = model.Data.GetSubCollection("m_modelInfo").GetProperty<string>("m_keyValueText");
+
+            if (string.IsNullOrEmpty(keyvaluesString))
+            {
+                return;
+            }
+
+            KVObject keyvalues;
+            using (var ms = new MemoryStream(Encoding.UTF8.GetBytes(keyvaluesString)))
+            {
+                keyvalues = KeyValues3.ParseKVFile(ms).Root;
+            };
+
+            if (keyvalues.ContainsKey("anim_graph_resource"))
+            {
+                rootNode.AddProperty("anim_graph_name", MakeValue(keyvalues.GetProperty<string>("anim_graph_resource")));
+            }
+
+            var genericDataClasses = new string[] { "prop_data", "character_arm_config", };
+            var genericDataClassesList = new string[] { "ao_proxy_capsule", };
+
+            foreach (var genericDataClass in genericDataClasses)
+            {
+                if (keyvalues.ContainsKey(genericDataClass))
+                {
+                    var genericData = keyvalues.GetProperty<KVObject>(genericDataClass);
+                    AddGenericGameData(gameDataList.Value, genericDataClass, genericData);
+                }
+            }
+
+            foreach (var genericDataClass in genericDataClassesList)
+            {
+                var dataKey = genericDataClass + "_list";
+                if (keyvalues.ContainsKey(dataKey))
+                {
+                    var genericDataList = keyvalues.GetArray<KVObject>(dataKey);
+                    foreach (var genericData in genericDataList)
+                    {
+                        AddGenericGameData(gameDataList.Value, genericDataClass, genericData);
+                    }
+                }
+            }
+
+
+            if (keyvalues.ContainsKey("break_list"))
+            {
+                foreach (var breakPiece in keyvalues.GetArray<KVObject>("break_list"))
+                {
+                    var breakPieceFile = MakeNode("BreakPieceExternal");
+                    foreach (var property in breakPiece.Properties)
+                    {
+                        var (key, value) = (property.Key, property.Value);
+                        // Remove resource flag from value
+                        if (value is KVFlaggedValue)
+                        {
+                            value = MakeValue(value.Value);
+                        }
+                        breakPieceFile.AddProperty(key, value);
+                    }
+                    AddItem(breakPieceList.Value, breakPieceFile);
+                }
+            }
+
+            static void AddGenericGameData(KVObject gameDataList, string genericDataClass, KVObject genericData)
+            {
+                // Remove quotes from keys
+                genericData.Properties.Keys.ToList().ForEach(k =>
+                {
+                    var trimmed = k.Trim('"');
+                    if (trimmed != k)
+                    {
+                        genericData.Properties[trimmed] = genericData.Properties[k];
+                        genericData.Properties.Remove(k);
+                    }
+                });
+                var genericGameData = MakeNode("GenericGameData", ("game_class", genericDataClass), ("game_keys", genericData));
+                AddItem(gameDataList, genericGameData);
             }
         }
     }
