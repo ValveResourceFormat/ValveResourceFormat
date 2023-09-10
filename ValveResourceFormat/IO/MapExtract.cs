@@ -446,13 +446,13 @@ public sealed class MapExtract
             entity.EntityProperties["renderamt"] = color32[3].ToString(CultureInfo.InvariantCulture);
         }
 
-        void SetPropertiesFromFlags(BaseEntity prop, ObjectTypeFlags fragmentFlags)
+        void SetPropertiesFromFlags(BaseEntity prop, ObjectTypeFlags objectFlags)
         {
             var properties = prop.EntityProperties;
-            properties["renderwithdynamic"] = StringBool(fragmentFlags.HasFlag(ObjectTypeFlags.RenderWithDynamic));
-            properties["rendertocubemaps"] = StringBool(fragmentFlags.HasFlag(ObjectTypeFlags.RenderToCubemaps));
-            properties["disableshadows"] = StringBool(fragmentFlags.HasFlag(ObjectTypeFlags.NoShadows));
-            properties["disableinlowquality"] = StringBool(fragmentFlags.HasFlag(ObjectTypeFlags.DisabledInLowQuality));
+            properties["renderwithdynamic"] = StringBool(objectFlags.HasFlag(ObjectTypeFlags.RenderWithDynamic));
+            properties["rendertocubemaps"] = StringBool(objectFlags.HasFlag(ObjectTypeFlags.RenderToCubemaps));
+            properties["disableshadows"] = StringBool(objectFlags.HasFlag(ObjectTypeFlags.NoShadows));
+            properties["disableinlowquality"] = StringBool(objectFlags.HasFlag(ObjectTypeFlags.DisabledInLowQuality));
         }
 
         void SceneObjectToStaticProp(IKeyValueCollection sceneObject, int layerIndex, List<MapNode> layerNodes)
@@ -554,7 +554,6 @@ public sealed class MapExtract
                 var alpha = 255f;
 
                 var fragmentFlags = fragment.GetEnumValue<ObjectTypeFlags>("m_objectFlags", normalize: true);
-                SetPropertiesFromFlags(instance, fragmentFlags);
 
                 if (fragment.ContainsKey("m_vTintColor"))
                 {
@@ -564,7 +563,11 @@ public sealed class MapExtract
                 if (fragmentTransforms.Length == 0)
                 {
                     // TODO: Split aggregate into fragment models (each draw call separate)
-                    SetTintAlpha(instance, new Vector4(tint, alpha));
+                    if (aggregateMeshes.Length == 1)
+                    {
+                        SetPropertiesFromFlags(instance, fragmentFlags);
+                        SetTintAlpha(instance, new Vector4(tint, alpha));
+                    }
                     StaticPropFinalize(instance, layerIndex, layerNodes, true);
                     break;
                 }
@@ -602,6 +605,7 @@ public sealed class MapExtract
 
                     // Instance properties TODO: angles, scales
                     instance.Origin = transform.Translation;
+                    SetPropertiesFromFlags(instance, fragmentFlags);
                     SetTintAlpha(instance, new Vector4(tint, alpha));
                 }
             }
@@ -660,13 +664,13 @@ public sealed class MapExtract
 
             if (className == "worldspawn")
             {
-                AddProperties(compiledEntity, MapDocument.World);
+                AddProperties(className, compiledEntity, MapDocument.World);
                 MapDocument.World.EntityProperties["description"] = $"Decompiled with {StringToken.VRF_GENERATOR}";
                 continue;
             }
 
             var mapEntity = new CMapEntity();
-            var entityLineage = AddProperties(compiledEntity, mapEntity);
+            var entityLineage = AddProperties(className, compiledEntity, mapEntity);
             if (entityLineage.Length > 1)
             {
                 foreach (var parentId in entityLineage[..^1])
@@ -751,7 +755,7 @@ public sealed class MapExtract
         }
     }
 
-    private static int[] AddProperties(EntityLump.Entity compiledEntity, BaseEntity mapEntity)
+    private static int[] AddProperties(string className, EntityLump.Entity compiledEntity, BaseEntity mapEntity)
     {
         var entityLineage = Array.Empty<int>();
         foreach (var (hash, property) in compiledEntity.Properties.Reverse())
@@ -766,8 +770,14 @@ public sealed class MapExtract
                 continue;
             }
 
+            if (RemoveOrMutateCompilerGeneratedProperty(className, property))
+            {
+                continue;
+            }
+
+            var key = property.Name;
             var value = PropertyToEditString(property);
-            mapEntity.EntityProperties.Add(property.Name, value);
+            mapEntity.EntityProperties.Add(key, value);
         }
 
         if (compiledEntity.Connections != null)
@@ -826,6 +836,21 @@ public sealed class MapExtract
             }
 
             return true;
+        }
+
+        return false;
+    }
+
+    private static bool RemoveOrMutateCompilerGeneratedProperty(string className, EntityLump.EntityProperty property)
+    {
+        const string prefix = "vrf_";
+        if (className is "env_combined_light_probe_volume" or "env_light_probe_volume" or "env_cubemap_box" or "env_cubemap")
+        {
+            var key = property.Name;
+            if (key is "cubemaptexture" or "lightprobetexture")
+            {
+                property.Name = prefix + key;
+            }
         }
 
         return false;
