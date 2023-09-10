@@ -3,7 +3,11 @@ using System.Diagnostics;
 using GUI.Types.Renderer;
 using SteamDatabase.ValvePak;
 using ValveResourceFormat;
+using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ToolsAssetInfo;
+using ValveResourceFormat.Serialization;
+using ValveResourceFormat.Utils;
+using System.Threading.Tasks;
 
 namespace GUI.Utils
 {
@@ -44,6 +48,23 @@ namespace GUI.Utils
             MeshBufferCache = new GPUMeshBufferCache();
             ParentGuiContext = parentGuiContext;
             CurrentPackage = parentGuiContext?.CurrentPackage;
+
+            Task.Run(FillSurfacePropertyHashes);
+        }
+
+        public void FillSurfacePropertyHashes()
+        {
+            using var vsurf = FileLoader.LoadFile("surfaceproperties/surfaceproperties.vsurf_c");
+            if (vsurf is not null && vsurf.DataBlock is BinaryKV3 kv3)
+            {
+                var surfacePropertiesList = kv3.Data.GetArray("SurfacePropertiesList");
+                foreach (var surface in surfacePropertiesList)
+                {
+                    var name = surface.GetProperty<string>("surfacePropertyName");
+                    var hash = StringToken.Get(name.ToLowerInvariant());
+                    Debug.Assert(hash == surface.GetProperty<uint>("m_nameHash"));
+                }
+            }
         }
 
         public Resource LoadFileByAnyMeansNecessary(string file) =>
