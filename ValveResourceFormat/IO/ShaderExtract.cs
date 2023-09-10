@@ -168,11 +168,10 @@ public sealed class ShaderExtract
             ;
     }
 
-    readonly struct CommonBlocks
+    class CommonBlocks
     {
         public readonly HashSet<BufferBlock> BufferBlocks = new(new BufferBlockComparer());
 
-        public CommonBlocks() { }
         public class BufferBlockComparer : IEqualityComparer<BufferBlock>
         {
             public bool Equals(BufferBlock x, BufferBlock y) => x.Name == y.Name;
