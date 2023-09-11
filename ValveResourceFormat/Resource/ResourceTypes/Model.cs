@@ -220,10 +220,10 @@ namespace ValveResourceFormat.ResourceTypes
         public IEnumerable<bool> GetActiveMeshMaskForGroup(string groupName)
         {
             var groupIndex = GetMeshGroups().ToList().IndexOf(groupName);
-            var meshGroupMasks = Data.GetIntegerArray("m_refMeshGroupMasks");
+            var meshGroupMasks = Data.GetUnsignedIntegerArray("m_refMeshGroupMasks");
             if (groupIndex >= 0)
             {
-                return meshGroupMasks.Select(mask => (mask & 1 << groupIndex) != 0);
+                return meshGroupMasks.Select(mask => (mask & 1UL << groupIndex) != 0);
             }
             else
             {
