@@ -301,14 +301,6 @@ public class ModelExtract
             }
         }
 
-        if (model.Data.ContainsKey("m_refAnimIncludeModels"))
-        {
-            foreach (var animIncludeModel in model.Data.GetArray<string>("m_refAnimIncludeModels"))
-            {
-                AddItem(animationList.Value, MakeNode("AnimIncludeModel", ("model", animIncludeModel)));
-            }
-        }
-
         ExtractModelKeyValues(root.Node);
 
         return new KV3File(kv, format: "modeldoc28:version{fb63b6ca-f435-4aa0-a2c7-c66ddc651dca}").ToString();
@@ -380,6 +372,19 @@ public class ModelExtract
 
         void ExtractModelKeyValues(KVObject rootNode)
         {
+            if (model == null)
+            {
+                return;
+            }
+
+            if (model.Data.ContainsKey("m_refAnimIncludeModels"))
+            {
+                foreach (var animIncludeModel in model.Data.GetArray<string>("m_refAnimIncludeModels"))
+                {
+                    AddItem(animationList.Value, MakeNode("AnimIncludeModel", ("model", animIncludeModel)));
+                }
+            }
+
             var breakPieceList = MakeLazyList("BreakPieceList");
             var gameDataList = MakeLazyList("GameDataList");
 
