@@ -1,6 +1,7 @@
 using System;
 using System.Globalization;
 using System.Windows.Forms;
+using GUI.Utils;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
 
@@ -20,6 +21,7 @@ namespace GUI.Controls
 
             waveStream = inputStream;
             labelTotalTime.Text = waveStream.TotalTime.ToString("mm\\:ss\\.ff", CultureInfo.InvariantCulture);
+            volumeSlider1.Volume = Settings.Config.Volume;
         }
 
         private void OnButtonPlayClick(object sender, EventArgs e)
@@ -129,6 +131,9 @@ namespace GUI.Controls
         private void OnVolumeSliderChanged(object sender, EventArgs e)
         {
             setVolumeDelegate?.Invoke(volumeSlider1.Volume);
+
+            Settings.Config.Volume = volumeSlider1.Volume;
+            // Not saving settings here because it will be spammy, it will be saved on app exit
         }
 
         private void OnButtonStopClick(object sender, EventArgs e)

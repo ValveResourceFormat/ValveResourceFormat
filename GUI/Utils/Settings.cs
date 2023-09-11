@@ -12,7 +12,7 @@ namespace GUI.Utils
 {
     static class Settings
     {
-        private const int SettingsFileCurrentVersion = 2;
+        private const int SettingsFileCurrentVersion = 3;
         private const int RecentFilesLimit = 20;
 
         public class AppConfig
@@ -32,6 +32,7 @@ namespace GUI.Utils
             public int WindowWidth { get; set; }
             public int WindowHeight { get; set; }
             public int WindowState { get; set; } = (int)FormWindowState.Normal;
+            public float Volume { get; set; }
             public int _VERSION_DO_NOT_MODIFY { get; set; }
         }
 
@@ -131,12 +132,18 @@ namespace GUI.Utils
                 Config.FieldOfView = 120;
             }
 
+            Config.AntiAliasingSamples = Math.Clamp(Config.AntiAliasingSamples, 0, 64);
+            Config.Volume = Math.Clamp(Config.Volume, 0f, 1f);
+
             if (Config._VERSION_DO_NOT_MODIFY < 2) // version 2: added anti aliasing samples
             {
                 Config.AntiAliasingSamples = 8;
             }
 
-            Config.AntiAliasingSamples = Math.Clamp(Config.AntiAliasingSamples, 0, 64);
+            if (Config._VERSION_DO_NOT_MODIFY < 3) // version 3: added volume
+            {
+                Config.Volume = 0.5f;
+            }
 
             Config._VERSION_DO_NOT_MODIFY = SettingsFileCurrentVersion;
         }
