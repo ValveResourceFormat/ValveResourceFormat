@@ -993,6 +993,8 @@ namespace GUI
             );
         }
 
+        private void RegisterVpkFileAssociationToolStripMenuItem_Click(object sender, EventArgs e) => SettingsForm.RegisterFileAssociation();
+
         private void OpenExplorer_Click(object sender, EventArgs e)
         {
             foreach (TabPage tabPage in mainTabs.TabPages)

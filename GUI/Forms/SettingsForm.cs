@@ -179,7 +179,9 @@ namespace GUI.Forms
             Settings.Config.AntiAliasingSamples = newValue;
         }
 
-        private void OnRegisterAssociationButtonClick(object sender, EventArgs e)
+        private void OnRegisterAssociationButtonClick(object sender, EventArgs e) => RegisterFileAssociation();
+
+        public static void RegisterFileAssociation()
         {
             var extension = ".vpk";
             var progId = $"VRF.Source2Viewer{extension}";
