@@ -783,7 +783,7 @@ namespace GUI.Types.Renderer
 
                     if (errorModelResource != null)
                     {
-                        var errorModel = new ModelSceneNode(scene, (Model)errorModelResource.DataBlock, skin, false)
+                        var errorModel = new ModelSceneNode(scene, (Model)errorModelResource.DataBlock, skin, optimizeForMapLoad: true)
                         {
                             Transform = transformationMatrix,
                             LayerName = layerName,
@@ -797,7 +797,7 @@ namespace GUI.Types.Renderer
 
                 var newModel = (Model)newEntity.DataBlock;
 
-                var modelNode = new ModelSceneNode(scene, newModel, skin, false)
+                var modelNode = new ModelSceneNode(scene, newModel, skin, optimizeForMapLoad: true)
                 {
                     Transform = transformationMatrix,
                     Tint = tint,
@@ -923,7 +923,7 @@ namespace GUI.Types.Renderer
             }
             else if (resource.ResourceType == ResourceType.Model)
             {
-                var modelNode = new ModelSceneNode(scene, (Model)resource.DataBlock, null, false)
+                var modelNode = new ModelSceneNode(scene, (Model)resource.DataBlock, null, optimizeForMapLoad: true)
                 {
                     Transform = transformationMatrix,
                     LayerName = "Entities",

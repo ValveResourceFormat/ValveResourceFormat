@@ -60,7 +60,7 @@ namespace GUI.Types.Renderer
                         continue;
                     }
 
-                    var modelNode = new ModelSceneNode(scene, (Model)newResource.DataBlock, null, false)
+                    var modelNode = new ModelSceneNode(scene, (Model)newResource.DataBlock, null, optimizeForMapLoad: true)
                     {
                         Transform = matrix,
                         Tint = tintColor,

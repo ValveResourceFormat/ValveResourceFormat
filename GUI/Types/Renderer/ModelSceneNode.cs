@@ -47,11 +47,16 @@ namespace GUI.Types.Renderer
 
         private bool loadedAnimations;
 
-        public ModelSceneNode(Scene scene, Model model, string skin = null, bool loadAnimations = true)
+        public ModelSceneNode(Scene scene, Model model, string skin = null, bool optimizeForMapLoad = false)
             : base(scene)
         {
             Model = model;
-            model.SetSkeletonFilteredForLod0();
+
+            if (optimizeForMapLoad)
+            {
+                model.SetSkeletonFilteredForLod0();
+            }
+
             AnimationController = new(model.Skeleton);
 
             if (skin != null)
@@ -62,8 +67,7 @@ namespace GUI.Types.Renderer
             LoadMeshes();
             UpdateBoundingBox();
 
-            // Load required resources
-            if (loadAnimations)
+            if (!optimizeForMapLoad)
             {
                 LoadAnimations();
             }

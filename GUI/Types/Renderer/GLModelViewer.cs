@@ -23,11 +23,13 @@ namespace GUI.Types.Renderer
         private PhysAggregateData phys;
         public ComboBox animationComboBox { get; private set; }
         private CheckBox animationPlayPause;
+        private CheckBox showSkeletonCheckbox;
         private GLViewerTrackBarControl animationTrackBar;
         public CheckedListBox meshGroupListBox { get; private set; }
         public ComboBox materialGroupListBox { get; private set; }
         private ModelSceneNode modelSceneNode;
         private MeshSceneNode meshSceneNode;
+        private SkeletonSceneNode skeletonSceneNode;
         private IEnumerable<PhysSceneNode> physSceneNodes;
         private CheckedListBox physicsGroupsComboBox;
 
@@ -59,6 +61,7 @@ namespace GUI.Types.Renderer
                 meshGroupListBox?.Dispose();
                 materialGroupListBox?.Dispose();
                 physicsGroupsComboBox?.Dispose();
+                showSkeletonCheckbox?.Dispose();
             }
 
             base.Dispose(disposing);
@@ -100,6 +103,14 @@ namespace GUI.Types.Renderer
             {
                 modelSceneNode.AnimationController.IsPaused = previousPaused;
             };
+
+            showSkeletonCheckbox = AddCheckBox("Show skeleton", false, isChecked =>
+            {
+                if (skeletonSceneNode != null)
+                {
+                    skeletonSceneNode.Enabled = isChecked;
+                }
+            });
         }
 
         protected override void LoadScene()
@@ -111,6 +122,9 @@ namespace GUI.Types.Renderer
                 modelSceneNode = new ModelSceneNode(Scene, model);
                 SetAvailableAnimations(modelSceneNode.GetSupportedAnimationNames());
                 Scene.Add(modelSceneNode, true);
+
+                skeletonSceneNode = new SkeletonSceneNode(Scene, modelSceneNode.AnimationController, model.Skeleton);
+                Scene.Add(skeletonSceneNode, true);
 
                 phys = model.GetEmbeddedPhys();
                 if (phys == null)

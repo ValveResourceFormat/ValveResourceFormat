@@ -9,10 +9,11 @@ namespace GUI.Types.Renderer
         private readonly AnimationFrameCache animationFrameCache;
         private Action<Animation, int> updateHandler = (_, __) => { };
         private Animation activeAnimation;
-        private float Time;
+        public float Time { get; private set; }
         private bool shouldUpdate;
 
         public Animation ActiveAnimation => activeAnimation;
+        public AnimationFrameCache FrameCache => animationFrameCache;
         public bool IsPaused { get; set; }
         public int Frame
         {
