@@ -532,7 +532,6 @@ namespace GUI.Controls
             }
 
             Settings.Config.BookmarkedFiles.Add(path);
-            Settings.Save();
 
             RedrawList(APPID_BOOKMARKS, GetBookmarkedFileNodes());
         }
@@ -549,7 +548,6 @@ namespace GUI.Controls
             var path = (string)control.SelectedNode.Tag;
 
             Settings.Config.BookmarkedFiles.Remove(path);
-            Settings.Save();
 
             RedrawList(APPID_BOOKMARKS, GetBookmarkedFileNodes());
         }

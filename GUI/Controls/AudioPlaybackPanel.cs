@@ -133,7 +133,6 @@ namespace GUI.Controls
             setVolumeDelegate?.Invoke(volumeSlider1.Volume);
 
             Settings.Config.Volume = volumeSlider1.Volume;
-            // Not saving settings here because it will be spammy, it will be saved on app exit
         }
 
         private void OnButtonStopClick(object sender, EventArgs e)

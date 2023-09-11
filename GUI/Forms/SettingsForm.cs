@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
@@ -21,6 +22,12 @@ namespace GUI.Forms
         public SettingsForm()
         {
             InitializeComponent();
+        }
+
+        protected override void OnClosing(CancelEventArgs e)
+        {
+            base.OnClosing(e);
+            Settings.Save();
         }
 
         private void SettingsForm_Load(object sender, EventArgs e)
@@ -61,7 +68,6 @@ namespace GUI.Forms
             }
 
             Settings.Config.GameSearchPaths.Remove((string)gamePaths.SelectedItem);
-            Settings.Save();
 
             gamePaths.Items.RemoveAt(gamePaths.SelectedIndex);
         }
@@ -92,7 +98,6 @@ namespace GUI.Forms
 
             Settings.Config.OpenDirectory = Path.GetDirectoryName(fileName);
             Settings.Config.GameSearchPaths.Add(fileName);
-            Settings.Save();
 
             gamePaths.Items.Add(fileName);
         }
@@ -115,7 +120,6 @@ namespace GUI.Forms
 
             Settings.Config.OpenDirectory = dlg.SelectedPath;
             Settings.Config.GameSearchPaths.Add(dlg.SelectedPath);
-            Settings.Save();
 
             gamePaths.Items.Add(dlg.SelectedPath);
         }
@@ -135,7 +139,6 @@ namespace GUI.Forms
                 if (colorPicker.ShowDialog() == DialogResult.OK)
                 {
                     Settings.BackgroundColor = colorPicker.Color;
-                    Settings.Save();
                 }
             }).Start();
         }
@@ -150,7 +153,6 @@ namespace GUI.Forms
             }
 
             Settings.Config.MaxTextureSize = newValue;
-            Settings.Save();
         }
 
         private void OnFovValueChanged(object sender, EventArgs e)
@@ -163,7 +165,6 @@ namespace GUI.Forms
             }
 
             Settings.Config.FieldOfView = newValue;
-            Settings.Save();
         }
 
         private void OnAntiAliasingValueChanged(object sender, EventArgs e)
@@ -176,7 +177,6 @@ namespace GUI.Forms
             }
 
             Settings.Config.AntiAliasingSamples = newValue;
-            Settings.Save();
         }
 
         private void OnRegisterAssociationButtonClick(object sender, EventArgs e)

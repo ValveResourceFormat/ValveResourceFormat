@@ -445,7 +445,6 @@ namespace GUI
             if (openDialog.FileNames.Length > 0)
             {
                 Settings.Config.OpenDirectory = Path.GetDirectoryName(openDialog.FileNames[0]);
-                Settings.Save();
             }
 
             foreach (var file in openDialog.FileNames)
@@ -955,7 +954,6 @@ namespace GUI
             }
 
             Settings.Config.SaveDirectory = Path.GetDirectoryName(saveDialog.FileName);
-            Settings.Save();
 
             Console.WriteLine($"Packing '{inputDirectory}' to '{saveDialog.FileName}'...");
 

@@ -73,7 +73,6 @@ namespace GUI.Types.Exporter
 
                 var directory = Path.GetDirectoryName(dialog.FileName);
                 Settings.Config.SaveDirectory = directory;
-                Settings.Save();
 
                 var extractDialog = new ExtractProgressForm(exportData, directory, true)
                 {
@@ -108,7 +107,6 @@ namespace GUI.Types.Exporter
                 if (userOK == DialogResult.OK)
                 {
                     Settings.Config.SaveDirectory = Path.GetDirectoryName(dialog.FileName);
-                    Settings.Save();
 
                     Console.WriteLine($"Saved \"{Path.GetFileName(dialog.FileName)}\"");
 
@@ -142,7 +140,6 @@ namespace GUI.Types.Exporter
                 }
 
                 Settings.Config.SaveDirectory = dialog.SelectedPath;
-                Settings.Save();
 
                 var exportData = new ExportData
                 {
@@ -168,7 +165,6 @@ namespace GUI.Types.Exporter
             }
 
             Settings.Config.SaveDirectory = dialog.SelectedPath;
-            Settings.Save();
 
             var exportData = new ExportData
             {

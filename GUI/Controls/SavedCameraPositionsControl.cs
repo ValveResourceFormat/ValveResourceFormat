@@ -40,7 +40,6 @@ namespace GUI.Controls
         private void BtnDelete_Click(object sender, EventArgs e)
         {
             Settings.Config.SavedCameras.Remove(cmbPositions.SelectedItem.ToString());
-            Settings.Save();
             Settings.InvokeRefreshCamerasOnSave();
         }
 

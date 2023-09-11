@@ -140,7 +140,6 @@ namespace GUI.Types.Renderer
             }
 
             Settings.Config.SavedCameras.Add(saveName, new[] { cam.Location.X, cam.Location.Y, cam.Location.Z, cam.Pitch, cam.Yaw });
-            Settings.Save();
             Settings.InvokeRefreshCamerasOnSave();
         }
 
