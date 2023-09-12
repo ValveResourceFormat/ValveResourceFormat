@@ -61,11 +61,9 @@ static class UpdateChecker
 
             var stableReleaseTask = GetLastStableRelease(httpClient);
 
-#if CI_RELEASE_BUILD
-            GithubActionRuns unstableBuildData = null;
-#else
+#if !CI_RELEASE_BUILD
+            // Fire the unstable request away, before awaiting the first request for stable release
             var lastUnstableBuild = GetLastUnstableBuild(httpClient);
-            var unstableBuildData = await lastUnstableBuild.ConfigureAwait(false);
 #endif
 
             var stableReleaseData = await stableReleaseTask.ConfigureAwait(false);
@@ -83,18 +81,17 @@ static class UpdateChecker
             ReleaseNotesVersion = newVersion;
             NewVersion = newVersion;
 
-            if (IsNewVersionAvailable)
-            {
-                return;
-            }
+#if !CI_RELEASE_BUILD
+            var unstableBuildData = await lastUnstableBuild.ConfigureAwait(false);
 
-            if (unstableBuildData != null)
+            if (!IsNewVersionAvailable && unstableBuildData != null)
             {
                 var newBuild = unstableBuildData?.workflow_runs[0]?.run_number ?? 0;
                 IsNewVersionStableBuild = false;
                 IsNewVersionAvailable = newBuild > currentVersion.Build;
                 NewVersion = newBuild.ToString(CultureInfo.InvariantCulture);
             }
+#endif
         }
         catch (Exception e)
         {

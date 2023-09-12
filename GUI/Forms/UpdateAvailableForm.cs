@@ -18,7 +18,7 @@ namespace GUI.Forms
 
             if (!string.IsNullOrEmpty(UpdateChecker.NewVersion))
             {
-                newVersionLabel.Text += UpdateChecker.IsNewVersionStableBuild ? UpdateChecker.NewVersion : $"Build {UpdateChecker.NewVersion}";
+                newVersionLabel.Text += UpdateChecker.IsNewVersionStableBuild ? UpdateChecker.NewVersion : $"Unstable build {UpdateChecker.NewVersion}";
             }
 
             if (!UpdateChecker.IsNewVersionAvailable)
