@@ -46,29 +46,23 @@ static class UpdateChecker
 
             if (currentVersion.Build == 0)
             {
-                return (false, false, string.Empty); // This was not built on the CI
+                return (false, false, null); // This was not built on the CI
             }
-
-#if CI_RELEASE_BUILD
-            const bool IsStableBuild = true;
-            var updateUri = new Uri("https://api.github.com/repositories/42366054/releases/latest");
-#else
-            const bool IsStableBuild = false;
-            var updateUri = new Uri("https://api.github.com/repositories/42366054/actions/runs?branch=master&status=success&per_page=1");
-#endif
 
             using var httpClient = new HttpClient();
             httpClient.DefaultRequestHeaders.Add("User-Agent", "Source 2 Viewer Update Check (+https://github.com/ValveResourceFormat/ValveResourceFormat)");
 
-            var response = await httpClient.GetAsync(updateUri).ConfigureAwait(false);
-            response.EnsureSuccessStatusCode();
-
-            using var jsonStream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
+            var stableReleaseTask = GetLastStableRelease(httpClient);
 
 #if CI_RELEASE_BUILD
-            var json = await JsonSerializer.DeserializeAsync<GithubRelease>(jsonStream).ConfigureAwait(false);
+            GithubActionRuns unstableBuildData = null;
+#else
+            var lastUnstableBuild = GetLastUnstableBuild(httpClient);
+            var unstableBuildData = await lastUnstableBuild.ConfigureAwait(false);
+#endif
 
-            var newVersion = json?.tag_name ?? "0.0";
+            var stableReleaseData = await stableReleaseTask.ConfigureAwait(false);
+            var newVersion = stableReleaseData?.tag_name ?? "0.0";
 
             if (newVersion.StartsWith("v", StringComparison.InvariantCulture)) // Just in case we tag a release with "v" prefix by mistake
             {
@@ -77,22 +71,50 @@ static class UpdateChecker
 
             var releaseVersion = new Version(newVersion);
             var updateAvailable = releaseVersion.Major > currentVersion.Major || releaseVersion.Minor > currentVersion.Minor;
-#else
-            var json = await JsonSerializer.DeserializeAsync<GithubActionRuns>(jsonStream).ConfigureAwait(false);
-            var newBuild = json?.workflow_runs[0]?.run_number ?? 0;
-            var updateAvailable = newBuild > currentVersion.Build;
-            var newVersion = newBuild.ToString(CultureInfo.InvariantCulture);
-#endif
 
-            return (updateAvailable, IsStableBuild, newVersion);
+            if (updateAvailable)
+            {
+                return (updateAvailable, true, newVersion);
+            }
+
+            if (unstableBuildData != null)
+            {
+                var newBuild = unstableBuildData?.workflow_runs[0]?.run_number ?? 0;
+                updateAvailable = newBuild > currentVersion.Build;
+                newVersion = newBuild.ToString(CultureInfo.InvariantCulture);
+
+                return (updateAvailable, false, newVersion);
+            }
         }
         catch (Exception e)
         {
             await Console.Error.WriteLineAsync($"Failed to check for updates: {e.Message}").ConfigureAwait(false);
 
             MessageBox.Show($"Failed to check for updates: {e.Message}");
-
-            return (false, false, null);
         }
+
+        return (false, false, null);
     }
+
+    private static async Task<GithubRelease> GetLastStableRelease(HttpClient httpClient)
+    {
+        var response = await httpClient.GetAsync(new Uri("https://api.github.com/repositories/42366054/releases/latest")).ConfigureAwait(false);
+        response.EnsureSuccessStatusCode();
+
+        using var jsonStream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
+
+        return await JsonSerializer.DeserializeAsync<GithubRelease>(jsonStream).ConfigureAwait(false);
+    }
+
+#if !CI_RELEASE_BUILD
+    private static async Task<GithubActionRuns> GetLastUnstableBuild(HttpClient httpClient)
+    {
+        var response = await httpClient.GetAsync(new Uri("https://api.github.com/repositories/42366054/actions/runs?branch=master&status=success&per_page=1")).ConfigureAwait(false);
+        response.EnsureSuccessStatusCode();
+
+        using var jsonStream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
+
+        return await JsonSerializer.DeserializeAsync<GithubActionRuns>(jsonStream).ConfigureAwait(false);
+    }
+#endif
 }
