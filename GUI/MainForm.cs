@@ -66,6 +66,10 @@ namespace GUI
             else
             {
                 versionToolStripLabel.Text = string.Concat("v", Application.ProductVersion);
+
+#if !CI_RELEASE_BUILD // Set in Directory.Build.props
+                versionToolStripLabel.Text += "-unstable";
+#endif
             }
 
 #if DEBUG
