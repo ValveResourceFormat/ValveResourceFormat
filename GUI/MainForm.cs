@@ -51,21 +51,22 @@ namespace GUI
             consoleTabPage.ImageIndex = ImageList.Images.IndexOfKey("_console");
             mainTabs.TabPages.Add(consoleTabPage);
 
-            var versionPlus = Application.ProductVersion.IndexOf('+', StringComparison.InvariantCulture);
+            var version = Application.ProductVersion;
+            var versionPlus = version.IndexOf('+', StringComparison.InvariantCulture);
 
             if (versionPlus > 0)
             {
                 // If version ends with ".0", display part of the commit hash, otherwise the zero is replaced with CI build number
-                if (Application.ProductVersion[versionPlus - 2] == '.' && Application.ProductVersion[versionPlus - 1] == '0')
+                if (version[versionPlus - 2] == '.' && version[versionPlus - 1] == '0')
                 {
                     versionPlus += 8;
                 }
 
-                versionToolStripLabel.Text = string.Concat("v", Application.ProductVersion[..versionPlus]);
+                versionToolStripLabel.Text = string.Concat("v", version[..versionPlus]);
             }
             else
             {
-                versionToolStripLabel.Text = string.Concat("v", Application.ProductVersion);
+                versionToolStripLabel.Text = string.Concat("v", version);
 
 #if !CI_RELEASE_BUILD // Set in Directory.Build.props
                 versionToolStripLabel.Text += "-unstable";
