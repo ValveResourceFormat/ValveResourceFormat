@@ -50,6 +50,8 @@ namespace GUI
             settingsToolStripMenuItem = new ToolStripMenuItem();
             aboutToolStripMenuItem = new ToolStripMenuItem();
             versionToolStripLabel = new ToolStripLabel();
+            newVersionAvailableToolStripMenuItem = new ToolStripMenuItem();
+            checkForUpdatesToolStripMenuItem = new ToolStripMenuItem();
             recoverDeletedToolStripMenuItem = new ToolStripMenuItem();
             mainTabs = new TabControl();
             tabContextMenuStrip = new ContextMenuStrip(components);
@@ -76,7 +78,7 @@ namespace GUI
             // 
             menuStrip.BackColor = System.Drawing.SystemColors.Window;
             menuStrip.ImageScalingSize = new System.Drawing.Size(24, 24);
-            menuStrip.Items.AddRange(new ToolStripItem[] { fileToolStripMenuItem, explorerToolStripMenuItem, findToolStripButton, settingsToolStripMenuItem, aboutToolStripMenuItem, versionToolStripLabel });
+            menuStrip.Items.AddRange(new ToolStripItem[] { fileToolStripMenuItem, explorerToolStripMenuItem, findToolStripButton, settingsToolStripMenuItem, aboutToolStripMenuItem, versionToolStripLabel, newVersionAvailableToolStripMenuItem, checkForUpdatesToolStripMenuItem });
             menuStrip.Location = new System.Drawing.Point(0, 0);
             menuStrip.Name = "menuStrip";
             menuStrip.RenderMode = ToolStripRenderMode.System;
@@ -173,6 +175,25 @@ namespace GUI
             versionToolStripLabel.Padding = new Padding(4, 0, 4, 0);
             versionToolStripLabel.Size = new System.Drawing.Size(53, 20);
             versionToolStripLabel.Text = "Version";
+            // 
+            // newVersionAvailableToolStripMenuItem
+            // 
+            newVersionAvailableToolStripMenuItem.Alignment = ToolStripItemAlignment.Right;
+            newVersionAvailableToolStripMenuItem.Image = (System.Drawing.Image)resources.GetObject("newVersionAvailableToolStripMenuItem.Image");
+            newVersionAvailableToolStripMenuItem.ImageScaling = ToolStripItemImageScaling.None;
+            newVersionAvailableToolStripMenuItem.Name = "newVersionAvailableToolStripMenuItem";
+            newVersionAvailableToolStripMenuItem.Size = new System.Drawing.Size(149, 20);
+            newVersionAvailableToolStripMenuItem.Text = "New version available";
+            newVersionAvailableToolStripMenuItem.Visible = false;
+            newVersionAvailableToolStripMenuItem.Click += NewVersionAvailableToolStripMenuItem_Click;
+            // 
+            // checkForUpdatesToolStripMenuItem
+            // 
+            checkForUpdatesToolStripMenuItem.Alignment = ToolStripItemAlignment.Right;
+            checkForUpdatesToolStripMenuItem.Name = "checkForUpdatesToolStripMenuItem";
+            checkForUpdatesToolStripMenuItem.Size = new System.Drawing.Size(115, 20);
+            checkForUpdatesToolStripMenuItem.Text = "Check for updates";
+            checkForUpdatesToolStripMenuItem.Click += CheckForUpdatesToolStripMenuItem_Click;
             // 
             // recoverDeletedToolStripMenuItem
             // 
@@ -370,6 +391,8 @@ namespace GUI
         private ToolStripMenuItem createVpkFromFolderToolStripMenuItem;
         private ToolStripMenuItem verifyPackageContentsToolStripMenuItem;
         private ToolStripMenuItem registerVpkFileAssociationToolStripMenuItem;
+        private ToolStripMenuItem newVersionAvailableToolStripMenuItem;
+        private ToolStripMenuItem checkForUpdatesToolStripMenuItem;
     }
 }
 

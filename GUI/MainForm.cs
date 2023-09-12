@@ -1063,5 +1063,42 @@ namespace GUI
 
             return image;
         }
+
+        private void CheckForUpdatesToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            Task.Run(CheckForUpdates);
+
+            checkForUpdatesToolStripMenuItem.Enabled = false;
+        }
+
+        private void NewVersionAvailableToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            Process.Start(new ProcessStartInfo("cmd", $"/c start https://valveresourceformat.github.io/")
+            {
+                CreateNoWindow = true,
+            });
+        }
+
+        private async Task CheckForUpdates()
+        {
+            var update = await UpdateChecker.CheckForUpdates().ConfigureAwait(false);
+
+            if (!update.IsNewVersionAvailable)
+            {
+                Invoke(() =>
+                {
+                    checkForUpdatesToolStripMenuItem.Text = "Up to date";
+                });
+
+                return;
+            }
+
+            Invoke(() =>
+            {
+                checkForUpdatesToolStripMenuItem.Visible = false;
+                newVersionAvailableToolStripMenuItem.Text = $"New {(update.IsStableBuild ? "release" : "build")} {update.Version} available";
+                newVersionAvailableToolStripMenuItem.Visible = true;
+            });
+        }
     }
 }
