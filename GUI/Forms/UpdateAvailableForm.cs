@@ -15,7 +15,11 @@ namespace GUI.Forms
             var versionPlus = version.IndexOf('+', StringComparison.InvariantCulture); // Drop the git commit
 
             currentVersionLabel.Text += versionPlus > 0 ? version[..versionPlus] : version;
-            newVersionLabel.Text += UpdateChecker.IsNewVersionStableBuild ? UpdateChecker.NewVersion : $"Build {UpdateChecker.NewVersion}";
+
+            if (!string.IsNullOrEmpty(UpdateChecker.NewVersion))
+            {
+                newVersionLabel.Text += UpdateChecker.IsNewVersionStableBuild ? UpdateChecker.NewVersion : $"Build {UpdateChecker.NewVersion}";
+            }
 
             if (!UpdateChecker.IsNewVersionAvailable)
             {

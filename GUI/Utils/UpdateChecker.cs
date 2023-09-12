@@ -48,7 +48,6 @@ static class UpdateChecker
         try
         {
             var version = Application.ProductVersion;
-            version = "5.0.289";
             var versionPlus = version.IndexOf('+', StringComparison.InvariantCulture); // Drop the git commit
             var currentVersion = new Version(versionPlus > 0 ? version[..versionPlus] : version);
 
