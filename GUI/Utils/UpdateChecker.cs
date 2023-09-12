@@ -15,6 +15,7 @@ static class UpdateChecker
     public class GithubRelease
     {
         public string tag_name { get; set; }
+        public string html_url { get; set; }
     }
 
     public class GithubActionRuns
@@ -36,17 +37,24 @@ static class UpdateChecker
     }
     */
 
-    public static async Task<(bool IsNewVersionAvailable, bool IsStableBuild, string Version)> CheckForUpdates()
+    public static bool IsNewVersionAvailable { get; private set; }
+    public static bool IsNewVersionStableBuild { get; private set; }
+    public static string NewVersion { get; private set; }
+    public static string ReleaseNotesUrl { get; private set; }
+    public static string ReleaseNotesVersion { get; private set; }
+
+    public static async Task CheckForUpdates()
     {
         try
         {
             var version = Application.ProductVersion;
+            version = "5.0.289";
             var versionPlus = version.IndexOf('+', StringComparison.InvariantCulture); // Drop the git commit
             var currentVersion = new Version(versionPlus > 0 ? version[..versionPlus] : version);
 
             if (currentVersion.Build == 0)
             {
-                return (false, false, null); // This was not built on the CI
+                return; // This was not built on the CI
             }
 
             using var httpClient = new HttpClient();
@@ -70,20 +78,23 @@ static class UpdateChecker
             }
 
             var releaseVersion = new Version(newVersion);
-            var updateAvailable = releaseVersion.Major > currentVersion.Major || releaseVersion.Minor > currentVersion.Minor;
+            IsNewVersionStableBuild = true;
+            IsNewVersionAvailable = releaseVersion.Major > currentVersion.Major || releaseVersion.Minor > currentVersion.Minor;
+            ReleaseNotesUrl = stableReleaseData?.html_url;
+            ReleaseNotesVersion = newVersion;
+            NewVersion = newVersion;
 
-            if (updateAvailable)
+            if (IsNewVersionAvailable)
             {
-                return (updateAvailable, true, newVersion);
+                return;
             }
 
             if (unstableBuildData != null)
             {
                 var newBuild = unstableBuildData?.workflow_runs[0]?.run_number ?? 0;
-                updateAvailable = newBuild > currentVersion.Build;
-                newVersion = newBuild.ToString(CultureInfo.InvariantCulture);
-
-                return (updateAvailable, false, newVersion);
+                IsNewVersionStableBuild = false;
+                IsNewVersionAvailable = newBuild > currentVersion.Build;
+                NewVersion = newBuild.ToString(CultureInfo.InvariantCulture);
             }
         }
         catch (Exception e)
@@ -92,8 +103,6 @@ static class UpdateChecker
 
             MessageBox.Show($"Failed to check for updates: {e.Message}");
         }
-
-        return (false, false, null);
     }
 
     private static async Task<GithubRelease> GetLastStableRelease(HttpClient httpClient)

@@ -1073,31 +1073,29 @@ namespace GUI
 
         private void NewVersionAvailableToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            Process.Start(new ProcessStartInfo("cmd", $"/c start https://valveresourceformat.github.io/")
-            {
-                CreateNoWindow = true,
-            });
+            using var form = new UpdateAvailableForm();
+            form.ShowDialog(this);
         }
 
         private async Task CheckForUpdates()
         {
-            var update = await UpdateChecker.CheckForUpdates().ConfigureAwait(false);
-
-            if (!update.IsNewVersionAvailable)
-            {
-                Invoke(() =>
-                {
-                    checkForUpdatesToolStripMenuItem.Text = "Up to date";
-                });
-
-                return;
-            }
+            await UpdateChecker.CheckForUpdates().ConfigureAwait(false);
 
             Invoke(() =>
             {
-                checkForUpdatesToolStripMenuItem.Visible = false;
-                newVersionAvailableToolStripMenuItem.Text = $"New {(update.IsStableBuild ? "release" : "build")} {update.Version} available";
-                newVersionAvailableToolStripMenuItem.Visible = true;
+                if (UpdateChecker.IsNewVersionAvailable)
+                {
+                    checkForUpdatesToolStripMenuItem.Visible = false;
+                    newVersionAvailableToolStripMenuItem.Text = $"New {(UpdateChecker.IsNewVersionStableBuild ? "release" : "build")} {UpdateChecker.NewVersion} available";
+                    newVersionAvailableToolStripMenuItem.Visible = true;
+                }
+                else
+                {
+                    checkForUpdatesToolStripMenuItem.Text = "Up to date";
+                }
+
+                using var form = new UpdateAvailableForm();
+                form.ShowDialog(this);
             });
         }
     }
