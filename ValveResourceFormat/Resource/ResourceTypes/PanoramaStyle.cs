@@ -1,8 +1,6 @@
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Text;
-using ValveResourceFormat.Serialization;
+using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.ResourceTypes
 {
@@ -23,16 +21,82 @@ namespace ValveResourceFormat.ResourceTypes
         {
             if (applySourceMapIfPresent && SourceMap != default && SourceMap.Data.GetProperty<object>("DBITSLC") is not null)
             {
+#if false
                 var sourceBytes = PanoramaSourceMapDecoder.Decode(Data, SourceMap.AsKeyValueCollection());
                 return Encoding.UTF8.GetString(sourceBytes);
+#endif
+
+                return ToStringPrettified(Data);
             }
             else
             {
                 return base.ToString();
             }
         }
+
+        private static string ToStringPrettified(byte[] data)
+        {
+            var input = Encoding.UTF8.GetString(data);
+            using var output = new IndentedTextWriter();
+
+            output.WriteLine($"// Prettified by {StringToken.VRF_GENERATOR}");
+            output.WriteLine();
+
+            var insideString = false;
+            var quoteType = ' ';
+
+            for (var i = 0; i < input.Length; i++)
+            {
+                var c = input[i];
+
+                if (insideString)
+                {
+                    output.Write(c);
+
+                    if (c == quoteType && (i == 0 || input[i - 1] != '\\'))
+                    {
+                        insideString = false;
+                    }
+                }
+                else
+                {
+                    if ((c == '"' || c == '\'') && (i == 0 || input[i - 1] != '\\'))
+                    {
+                        quoteType = c;
+                        insideString = true;
+                        output.Write(c);
+                    }
+                    else if (c == ';')
+                    {
+                        output.Write(c);
+                        output.WriteLine();
+                    }
+                    else if (c == '{')
+                    {
+                        output.WriteLine();
+                        output.Write(c);
+                        output.WriteLine();
+                        output.Indent++;
+                    }
+                    else if (c == '}')
+                    {
+                        output.Indent--;
+                        output.Write(c);
+                        output.WriteLine();
+                        output.WriteLine();
+                    }
+                    else
+                    {
+                        output.Write(c);
+                    }
+                }
+            }
+
+            return output.ToString();
+        }
     }
 
+#if false
     static class PanoramaSourceMapDecoder
     {
         public static byte[] Decode(byte[] data, IKeyValueCollection sourceMap)
@@ -83,4 +147,5 @@ namespace ValveResourceFormat.ResourceTypes
             return output.SelectMany(_ => _).ToArray();
         }
     }
+#endif
 }
