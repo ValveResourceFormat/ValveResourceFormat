@@ -39,7 +39,7 @@ namespace ValveResourceFormat.ResourceTypes
             var input = Encoding.UTF8.GetString(data);
             using var output = new IndentedTextWriter();
 
-            output.WriteLine($"// Prettified by {StringToken.VRF_GENERATOR}");
+            output.WriteLine($"/* Prettified by {StringToken.VRF_GENERATOR} */");
             output.WriteLine();
 
             var insideString = false;
