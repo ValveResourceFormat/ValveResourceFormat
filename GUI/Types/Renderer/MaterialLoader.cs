@@ -354,11 +354,8 @@ namespace GUI.Types.Renderer
 
         public RenderMaterial GetErrorMaterial()
         {
-            var materialData = new VrfMaterial { ShaderName = "vrf.error" };
-            var errorMat = new RenderMaterial(materialData, null, VrfGuiContext.ShaderLoader);
-
+            var errorMat = new RenderMaterial(VrfGuiContext.ShaderLoader.LoadShader("vrf.error"));
             ApplyMaterialDefaults(errorMat);
-
             return errorMat;
         }
 

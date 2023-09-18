@@ -30,11 +30,20 @@ namespace GUI.Types.Renderer
         private int textureUnit;
 
         public RenderMaterial(Material material, IKeyValueCollection insg, ShaderLoader shaderLoader)
+            : this(material)
         {
-            Material = material;
             VsInputSignature = insg;
             shader = shaderLoader.LoadShader(material.ShaderName, material.GetShaderArguments());
+        }
 
+        public RenderMaterial(Shader shader) : this(new Material { ShaderName = shader.Name })
+        {
+            this.shader = shader;
+        }
+
+        RenderMaterial(Material material)
+        {
+            Material = material;
             IsToolsMaterial = material.IntAttributes.ContainsKey("tools.toolsmaterial");
             IsBlended = (material.IntParams.ContainsKey("F_TRANSLUCENT") && material.IntParams["F_TRANSLUCENT"] == 1)
                 || material.IntAttributes.ContainsKey("mapbuilder.water")
