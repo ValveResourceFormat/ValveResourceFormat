@@ -9,6 +9,7 @@
     <ApplicationIcon>..\Icons\source2viewer.ico</ApplicationIcon>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <IncludeAllContentForSelfExtract>true</IncludeAllContentForSelfExtract>
+    <ServerGarbageCollection>true</ServerGarbageCollection>
     <StartupObject>GUI.Program</StartupObject>
     <AssemblyName>Source2Viewer</AssemblyName>
   </PropertyGroup>

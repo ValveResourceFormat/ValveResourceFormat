@@ -29,7 +29,7 @@ namespace GUI.Types.Renderer
             Renderer = new MaterialRenderer(Scene, Resource);
             Scene.Add(Renderer, false);
 
-            viewBuffer.UpdateWith(b =>
+            viewBuffer.UpdateWith(static b =>
             {
                 b.ViewToProjection = Matrix4x4.Identity;
                 b.WorldToProjection = Matrix4x4.Identity;
