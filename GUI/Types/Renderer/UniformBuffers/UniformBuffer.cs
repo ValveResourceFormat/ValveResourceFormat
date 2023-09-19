@@ -77,22 +77,12 @@ namespace GUI.Types.Renderer.UniformBuffers
             Unbind();
         }
 
-        private void Update()
+        public void Update()
         {
             Bind();
             WriteToCpuBuffer();
             GL.BufferSubData(Target, IntPtr.Zero, Size, cpuBuffer);
             Unbind();
-        }
-
-        public void UpdateWith(params Action<T>[] updaters)
-        {
-            foreach (var update in updaters)
-            {
-                update(data);
-            }
-
-            Update();
         }
 
         public void Dispose()

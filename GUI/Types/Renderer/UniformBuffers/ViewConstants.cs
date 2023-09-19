@@ -7,10 +7,10 @@ namespace GUI.Types.Renderer.UniformBuffers
     [StructLayout(LayoutKind.Sequential)]
     public class ViewConstants
     {
-        public Matrix4x4 ViewToProjection;
-        public Matrix4x4 WorldToProjection;
-        public Matrix4x4 WorldToView;
-        public Vector3 CameraPosition;
+        public Matrix4x4 ViewToProjection = Matrix4x4.Identity;
+        public Matrix4x4 WorldToProjection = Matrix4x4.Identity;
+        public Matrix4x4 WorldToView = Matrix4x4.Identity;
+        public Vector3 CameraPosition = Vector3.Zero;
         public float Time;
 
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]

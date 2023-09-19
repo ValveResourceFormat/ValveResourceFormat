@@ -28,14 +28,6 @@ namespace GUI.Types.Renderer
         {
             Renderer = new MaterialRenderer(Scene, Resource);
             Scene.Add(Renderer, false);
-
-            viewBuffer.UpdateWith(static b =>
-            {
-                b.ViewToProjection = Matrix4x4.Identity;
-                b.WorldToProjection = Matrix4x4.Identity;
-                b.WorldToView = Matrix4x4.Identity;
-                b.CameraPosition = Vector3.Zero;
-            });
         }
 
         protected override void OnPaint(object sender, RenderEventArgs e)
