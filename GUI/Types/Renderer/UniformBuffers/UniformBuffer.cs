@@ -68,10 +68,9 @@ namespace GUI.Types.Renderer.UniformBuffers
 
             Name = typeof(T).Name;
 #if DEBUG
-            using (BindingContext())
-            {
-                GL.ObjectLabel(ObjectLabelIdentifier.Buffer, Handle, Name.Length, Name);
-            }
+            Bind();
+            GL.ObjectLabel(ObjectLabelIdentifier.Buffer, Handle, Name.Length, Name);
+            Unbind();
 #endif
         }
 
