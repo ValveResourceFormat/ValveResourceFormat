@@ -61,25 +61,38 @@ namespace GUI.Types.Renderer
         // and only use this at the last step.
         public AABB Transform(Matrix4x4 transform)
         {
-            var points = new[]
-            {
-                Vector3.Transform(new Vector3(Min.X, Min.Y, Min.Z), transform),
-                Vector3.Transform(new Vector3(Max.X, Min.Y, Min.Z), transform),
-                Vector3.Transform(new Vector3(Max.X, Max.Y, Min.Z), transform),
-                Vector3.Transform(new Vector3(Min.X, Max.Y, Min.Z), transform),
-                Vector3.Transform(new Vector3(Min.X, Max.Y, Max.Z), transform),
-                Vector3.Transform(new Vector3(Min.X, Min.Y, Max.Z), transform),
-                Vector3.Transform(new Vector3(Max.X, Min.Y, Max.Z), transform),
-                Vector3.Transform(new Vector3(Max.X, Max.Y, Max.Z), transform),
-            };
+            var c1 = Vector3.Transform(new Vector3(Min.X, Min.Y, Min.Z), transform);
+            var c2 = Vector3.Transform(new Vector3(Max.X, Min.Y, Min.Z), transform);
+            var c3 = Vector3.Transform(new Vector3(Max.X, Max.Y, Min.Z), transform);
+            var c4 = Vector3.Transform(new Vector3(Min.X, Max.Y, Min.Z), transform);
+            var c5 = Vector3.Transform(new Vector3(Min.X, Max.Y, Max.Z), transform);
+            var c6 = Vector3.Transform(new Vector3(Min.X, Min.Y, Max.Z), transform);
+            var c7 = Vector3.Transform(new Vector3(Max.X, Min.Y, Max.Z), transform);
+            var c8 = Vector3.Transform(new Vector3(Max.X, Max.Y, Max.Z), transform);
 
-            var min = points[0];
-            var max = points[0];
-            for (var i = 1; i < points.Length; ++i)
-            {
-                min = Vector3.Min(min, points[i]);
-                max = Vector3.Max(max, points[i]);
-            }
+            var min = c1;
+            var max = c1;
+
+            min = Vector3.Min(min, c2);
+            max = Vector3.Max(max, c2);
+
+            min = Vector3.Min(min, c3);
+            max = Vector3.Max(max, c3);
+
+            min = Vector3.Min(min, c4);
+            max = Vector3.Max(max, c4);
+
+            min = Vector3.Min(min, c5);
+            max = Vector3.Max(max, c5);
+
+            min = Vector3.Min(min, c6);
+            max = Vector3.Max(max, c6);
+
+            min = Vector3.Min(min, c7);
+            max = Vector3.Max(max, c7);
+
+            min = Vector3.Min(min, c8);
+            max = Vector3.Max(max, c8);
 
             return new AABB(min, max);
         }
