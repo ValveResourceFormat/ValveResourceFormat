@@ -87,12 +87,11 @@ namespace GUI.Types.Renderer
             // Update animation matrices
             var skeleton = Model.Skeleton;
             var matrices = AnimationController.GetAnimationMatrices(skeleton);
-            var animationMatrices = VectorExtensions.Flatten(matrices);
 
             // Update animation texture
             GL.BindTexture(TextureTarget.Texture2D, animationTexture);
             GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba32f, 4, skeleton.Bones.Length, 0,
-                PixelFormat.Rgba, PixelType.Float, animationMatrices);
+                PixelFormat.Rgba, PixelType.Float, matrices);
             GL.BindTexture(TextureTarget.Texture2D, 0);
 
             var first = true;
