@@ -8,32 +8,25 @@ namespace GUI.Types.Renderer
     {
         public Vector4 Tint
         {
-            get => meshRenderer.Tint;
-            set => meshRenderer.Tint = value;
+            get => RenderableMeshes[0].Tint;
+            set => RenderableMeshes[0].Tint = value;
         }
 
-        public IEnumerable<RenderableMesh> RenderableMeshes
-        {
-            get
-            {
-                yield return meshRenderer;
-            }
-        }
-
-        private readonly RenderableMesh meshRenderer;
+        public List<RenderableMesh> RenderableMeshes { get; } = new(1);
 
         public MeshSceneNode(Scene scene, Mesh mesh, int meshIndex, Dictionary<string, string> skinMaterials = null)
             : base(scene)
         {
-            meshRenderer = new RenderableMesh(mesh, meshIndex, Scene, skinMaterials);
+            var meshRenderer = new RenderableMesh(mesh, meshIndex, Scene, skinMaterials);
+            RenderableMeshes.Add(meshRenderer);
             LocalBoundingBox = meshRenderer.BoundingBox;
         }
 
-        public override IEnumerable<string> GetSupportedRenderModes() => meshRenderer.GetSupportedRenderModes();
+        public override IEnumerable<string> GetSupportedRenderModes() => RenderableMeshes[0].GetSupportedRenderModes();
 
         public override void SetRenderMode(string renderMode)
         {
-            meshRenderer.SetRenderMode(renderMode);
+            RenderableMeshes[0].SetRenderMode(renderMode);
         }
 
         public override void Update(Scene.UpdateContext context)

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using GUI.Types.Renderer.UniformBuffers;
 using GUI.Utils;
 
 namespace GUI.Types.Renderer
@@ -22,7 +23,7 @@ namespace GUI.Types.Renderer
         {
             public Scene Scene { get; init; }
             public Camera Camera { get; init; }
-            public IEnumerable<UniformBuffers.IBlockBindableBuffer> Buffers { get; set; }
+            public List<UniformBuffers.IBlockBindableBuffer> Buffers { get; set; }
             public WorldLightingInfo LightingInfo { get; set; }
             public WorldFogInfo FogInfo { get; set; }
             public RenderPass RenderPass { get; set; }
@@ -127,7 +128,7 @@ namespace GUI.Types.Renderer
         private readonly static List<MeshBatchRenderer.Request> renderOpaqueDrawCalls = new();
         private readonly static List<MeshBatchRenderer.Request> renderTranslucentDrawCalls = new();
 
-        public void RenderWithCamera(Camera camera, IEnumerable<UniformBuffers.IBlockBindableBuffer> buffers, Frustum cullFrustum = null)
+        public void RenderWithCamera(Camera camera, List<UniformBuffers.IBlockBindableBuffer> buffers, Frustum cullFrustum = null)
         {
             cullFrustum ??= camera.ViewFrustum;
 
@@ -234,9 +235,9 @@ namespace GUI.Types.Renderer
             MeshBatchRenderer.Render(renderTranslucentDrawCalls, renderContext);
             renderTranslucentDrawCalls.Clear();
 
-            foreach (var node in Enumerable.Reverse(renderLooseNodes))
+            for (var i = renderLooseNodes.Count - 1; i >= 0; i--)
             {
-                node.Render(renderContext);
+                renderLooseNodes[i].Render(renderContext);
             }
 
             if (camera.Picker is not null && camera.Picker.IsActive)
@@ -273,6 +274,11 @@ namespace GUI.Types.Renderer
                     DynamicOctree.Insert(node, node.BoundingBox);
                 }
             }
+        }
+
+        public ViewConstants SetFogConstants(ViewConstants viewConstants)
+        {
+            return FogInfo.SetFogUniforms(viewConstants, FogEnabled, WorldOffset, WorldScale);
         }
 
         public void CalculateEnvironmentMaps()
@@ -360,6 +366,8 @@ namespace GUI.Types.Renderer
                         .ThenBy((envMap) => Vector3.Distance(node.BoundingBox.Center, envMap.BoundingBox.Center))
                         .ToList();
                 }
+
+                node.EnvMapIds = node.EnvMaps.Select(x => x.ArrayIndex).ToArray();
 
 #if DEBUG
                 if (preCalculated != default)

@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using GUI.Utils;
@@ -163,8 +162,7 @@ namespace GUI.Types.Renderer
 
             if (uniforms.CubeMapArrayIndices != -1)
             {
-                var indices = request.Node.EnvMaps.Select(x => x.ArrayIndex).ToArray();
-                GL.Uniform1(uniforms.CubeMapArrayIndices, indices.Length, indices);
+                GL.Uniform1(uniforms.CubeMapArrayIndices, request.Node.EnvMapIds.Length, request.Node.EnvMapIds);
             }
 
             if (uniforms.Animated != -1)

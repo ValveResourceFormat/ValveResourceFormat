@@ -77,7 +77,6 @@ namespace GUI.Types.Renderer.UniformBuffers
 
         void Bind() => GL.BindBuffer(Target, Handle);
         static void Unbind() => GL.BindBuffer(Target, 0);
-        BindingContext BindingContext() => new(Bind, Unbind);
 
         private void WriteToCpuBuffer()
         {
@@ -86,24 +85,22 @@ namespace GUI.Types.Renderer.UniformBuffers
 
         public void Initialize()
         {
-            using (BindingContext())
-            {
-                WriteToCpuBuffer();
-                GL.BufferData(Target, Size, cpuBuffer, BufferUsageHint.StaticDraw);
-                GL.BindBufferBase(BufferRangeTarget.UniformBuffer, BindingPoint, Handle);
-                IsCreated = true;
-            }
+            Bind();
+            WriteToCpuBuffer();
+            GL.BufferData(Target, Size, cpuBuffer, BufferUsageHint.StaticDraw);
+            GL.BindBufferBase(BufferRangeTarget.UniformBuffer, BindingPoint, Handle);
+            IsCreated = true;
+            Unbind();
         }
 
         public void Update()
         {
             Debug.Assert(IsCreated);
 
-            using (BindingContext())
-            {
-                WriteToCpuBuffer();
-                GL.BufferSubData(Target, IntPtr.Zero, Size, cpuBuffer);
-            }
+            Bind();
+            WriteToCpuBuffer();
+            GL.BufferSubData(Target, IntPtr.Zero, Size, cpuBuffer);
+            Unbind();
         }
 
         public void UpdateWith(params Func<T, T>[] updaters)

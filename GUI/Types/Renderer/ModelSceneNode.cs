@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
-using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
@@ -33,7 +32,7 @@ namespace GUI.Types.Renderer
         }
 
         public readonly AnimationController AnimationController;
-        public IEnumerable<RenderableMesh> RenderableMeshes => activeMeshRenderers;
+        public List<RenderableMesh> RenderableMeshes => activeMeshRenderers;
         public string ActiveSkin { get; private set; }
 
         private readonly List<RenderableMesh> meshRenderers = new();
@@ -42,8 +41,8 @@ namespace GUI.Types.Renderer
 
         private int animationTexture = -1;
 
-        private ICollection<string> activeMeshGroups = new HashSet<string>();
-        private ICollection<RenderableMesh> activeMeshRenderers = new List<RenderableMesh>();
+        private HashSet<string> activeMeshGroups = new();
+        private List<RenderableMesh> activeMeshRenderers = new();
 
         private bool loadedAnimations;
 

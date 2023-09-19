@@ -196,10 +196,7 @@ namespace GUI.Types.Renderer
 
             void UpdateSceneBuffers(Scene scene, Camera camera)
             {
-                viewBuffer.UpdateWith(
-                    camera.SetViewConstants, // scene.MainCamera.SetViewConstants
-                    d => scene.FogInfo.SetFogUniforms(d, scene.FogEnabled, scene.WorldOffset, scene.WorldScale)
-                );
+                viewBuffer.UpdateWith(camera.SetViewConstants, scene.SetFogConstants);
 
                 lightingBuffer.Data = scene.LightingInfo.LightingData;
             }

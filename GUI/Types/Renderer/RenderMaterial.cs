@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Linq;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization;
@@ -71,18 +70,22 @@ namespace GUI.Types.Renderer
                 return;
             }
 
-            IEnumerable<KeyValuePair<string, RenderTexture>> textures = Textures;
-
-            if (lightingInfo != default)
-            {
-                textures = Textures.Concat(lightingInfo.Lightmaps);
-            }
-
-            foreach (var (name, texture) in textures)
+            foreach (var (name, texture) in Textures)
             {
                 if (shader.SetTexture(textureUnit, name, texture))
                 {
                     textureUnit++;
+                }
+            }
+
+            if (lightingInfo != default)
+            {
+                foreach (var (name, texture) in lightingInfo.Lightmaps)
+                {
+                    if (shader.SetTexture(textureUnit, name, texture))
+                    {
+                        textureUnit++;
+                    }
                 }
             }
 

@@ -16,32 +16,32 @@ namespace GUI.Types.ParticleRenderer
 {
     internal class ParticleRenderer : IRenderer
     {
-        public IEnumerable<ParticleFunctionPreEmissionOperator> PreEmissionOperators { get; private set; } = new List<ParticleFunctionPreEmissionOperator>();
-        public IEnumerable<ParticleFunctionEmitter> Emitters { get; private set; } = new List<ParticleFunctionEmitter>();
+        private List<ParticleFunctionPreEmissionOperator> PreEmissionOperators = new();
+        private List<ParticleFunctionEmitter> Emitters = new();
 
-        public IEnumerable<ParticleFunctionInitializer> Initializers { get; private set; } = new List<ParticleFunctionInitializer>();
+        private List<ParticleFunctionInitializer> Initializers = new();
 
-        public IEnumerable<ParticleFunctionOperator> Operators { get; private set; } = new List<ParticleFunctionOperator>();
+        private List<ParticleFunctionOperator> Operators = new();
 
-        public IEnumerable<ParticleFunctionRenderer> Renderers { get; private set; } = new List<ParticleFunctionRenderer>();
+        private List<ParticleFunctionRenderer> Renderers = new();
 
         public AABB LocalBoundingBox { get; private set; } = new AABB(new Vector3(float.MinValue), new Vector3(float.MaxValue));
 
         public int BehaviorVersion { get; private set; }
 
-        public int InitialParticles { get; init; }
-        public int MaxParticles { get; init; }
+        private int InitialParticles;
+        private int MaxParticles;
 
         /// <summary>
         /// The particle bounds to use when calculating the bounding box of the particle system.
         /// This is added over the particle's radius value.
         /// </summary>
-        private AABB ParticleBoundingBox { get; init; }
+        private AABB ParticleBoundingBox;
 
         /// <summary>
         /// Set to true to never cull this particle system.
         /// </summary>
-        private bool InfiniteBounds { get; init; }
+        private bool InfiniteBounds;
 
 
         public ControlPoint MainControlPoint
@@ -239,9 +239,30 @@ namespace GUI.Types.ParticleRenderer
         }
 
         public bool IsFinished()
-            => Emitters.All(e => e.IsFinished)
-            && particleCollection.Count == 0
-            && childParticleRenderers.All(r => r.IsFinished());
+        {
+            if (particleCollection.Count > 0)
+            {
+                return false;
+            }
+
+            foreach (var emitter in Emitters)
+            {
+                if (!emitter.IsFinished)
+                {
+                    return false;
+                }
+            }
+
+            foreach (var childRenderer in childParticleRenderers)
+            {
+                if (!childRenderer.IsFinished())
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
 
         public void Render(Camera camera, RenderPass renderPass)
         {

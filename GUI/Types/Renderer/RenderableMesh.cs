@@ -288,6 +288,6 @@ namespace GUI.Types.Renderer
 
     internal interface IRenderableMeshCollection
     {
-        IEnumerable<RenderableMesh> RenderableMeshes { get; }
+        List<RenderableMesh> RenderableMeshes { get; }
     }
 }
