@@ -53,7 +53,10 @@ namespace GUI.Types.Renderer
 
         protected GLSceneViewer(VrfGuiContext guiContext) : base()
         {
-            Scene = new Scene(guiContext);
+            Scene = new Scene(guiContext)
+            {
+                MainCamera = Camera
+            };
 
             InitializeControl();
             AddCheckBox("Lock Cull Frustum", false, (v) =>
@@ -186,7 +189,6 @@ namespace GUI.Types.Renderer
         {
             Uptime += e.FrameTime;
 
-            Scene.MainCamera = e.Camera;
             Scene.Update(e.FrameTime);
 
             selectedNodeRenderer.Update(new Scene.UpdateContext(e.FrameTime));
@@ -202,14 +204,14 @@ namespace GUI.Types.Renderer
             }
 
             // For SceneSky
-            viewBuffer.Data = e.Camera.SetViewConstants(viewBuffer.Data) with
+            viewBuffer.Data = Camera.SetViewConstants(viewBuffer.Data) with
             {
                 Time = Uptime,
             };
 
             var genericRenderContext = new Scene.RenderContext
             {
-                Camera = e.Camera,
+                Camera = Camera,
                 RenderPass = RenderPass.Both
             };
 
@@ -217,11 +219,10 @@ namespace GUI.Types.Renderer
 
             if (ShowSkybox && SkyboxScene != null)
             {
-                skyboxCamera.CopyFrom(e.Camera);
+                skyboxCamera.CopyFrom(Camera);
                 skyboxCamera.SetScaledProjectionMatrix();
-                skyboxCamera.SetLocation(e.Camera.Location - SkyboxScene.WorldOffset);
+                skyboxCamera.SetLocation(Camera.Location - SkyboxScene.WorldOffset);
 
-                SkyboxScene.MainCamera = skyboxCamera;
                 SkyboxScene.Update(e.FrameTime);
                 UpdateSceneBuffers(SkyboxScene, skyboxCamera);
                 SkyboxScene.RenderWithCamera(skyboxCamera, bufferSet, skyboxLockedCullFrustum);
@@ -229,19 +230,19 @@ namespace GUI.Types.Renderer
                 GL.Clear(ClearBufferMask.DepthBufferBit);
             }
 
-            UpdateSceneBuffers(Scene, e.Camera);
-            Scene.RenderWithCamera(e.Camera, bufferSet, lockedCullFrustum);
+            UpdateSceneBuffers(Scene, Camera);
+            Scene.RenderWithCamera(Camera, bufferSet, lockedCullFrustum);
 
             selectedNodeRenderer.Render(genericRenderContext);
 
             if (showStaticOctree)
             {
-                staticOctreeRenderer.Render(e.Camera, RenderPass.Both);
+                staticOctreeRenderer.Render(Camera, RenderPass.Both);
             }
 
             if (showDynamicOctree)
             {
-                dynamicOctreeRenderer.Render(e.Camera, RenderPass.Both);
+                dynamicOctreeRenderer.Render(Camera, RenderPass.Both);
             }
 
             if (ShowBaseGrid)

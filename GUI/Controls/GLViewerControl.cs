@@ -22,10 +22,9 @@ namespace GUI.Controls
 
         private int currentControlsHeight;
 
-        public class RenderEventArgs
+        public struct RenderEventArgs
         {
             public float FrameTime { get; set; }
-            public Camera Camera { get; set; }
         }
 
         public Camera Camera { get; }
@@ -367,7 +366,7 @@ namespace GUI.Controls
             GL.ClearColor(Settings.BackgroundColor);
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 
-            GLPaint?.Invoke(this, new RenderEventArgs { FrameTime = frameTime, Camera = Camera });
+            GLPaint?.Invoke(this, new RenderEventArgs { FrameTime = frameTime });
 
             GLControl.SwapBuffers();
             GLControl.Invalidate();

@@ -164,6 +164,7 @@ namespace GUI.Types.Renderer
                 if (result.SkyboxScene != null)
                 {
                     SkyboxScene = result.SkyboxScene;
+                    SkyboxScene.MainCamera = skyboxCamera;
                     SkyboxScene.FogInfo = Scene.FogInfo;
                     skyboxCamera.Scale = SkyboxScene.WorldScale;
 
