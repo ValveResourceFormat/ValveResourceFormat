@@ -120,16 +120,22 @@ namespace GUI.Types.Renderer
             }
         }
 
+        // Since we only ever draw one scene at a time, these can be static
+        // And they are fields here so they only ever grow without having to re-allocate these arrays every frame
+        private readonly static List<SceneNode> renderAllNodes = new();
+        private readonly static List<SceneNode> renderLooseNodes = new();
+        private readonly static List<MeshBatchRenderer.Request> renderOpaqueDrawCalls = new();
+        private readonly static List<MeshBatchRenderer.Request> renderTranslucentDrawCalls = new();
+
         public void RenderWithCamera(Camera camera, IEnumerable<UniformBuffers.IBlockBindableBuffer> buffers, Frustum cullFrustum = null)
         {
-            var allNodes = StaticOctree.Query(cullFrustum ?? camera.ViewFrustum);
-            allNodes.AddRange(DynamicOctree.Query(cullFrustum ?? camera.ViewFrustum));
+            cullFrustum ??= camera.ViewFrustum;
+
+            StaticOctree.Root.Query(cullFrustum, renderAllNodes);
+            DynamicOctree.Root.Query(cullFrustum, renderAllNodes);
 
             // Collect mesh calls
-            var opaqueDrawCalls = new List<MeshBatchRenderer.Request>();
-            var translucentDrawCalls = new List<MeshBatchRenderer.Request>();
-            var looseNodes = new List<SceneNode>();
-            foreach (var node in allNodes)
+            foreach (var node in renderAllNodes)
             {
                 if (node is IRenderableMeshCollection meshCollection)
                 {
@@ -137,7 +143,7 @@ namespace GUI.Types.Renderer
                     {
                         foreach (var call in mesh.DrawCallsOpaque)
                         {
-                            opaqueDrawCalls.Add(new MeshBatchRenderer.Request
+                            renderOpaqueDrawCalls.Add(new MeshBatchRenderer.Request
                             {
                                 Transform = node.Transform,
                                 Mesh = mesh,
@@ -149,7 +155,7 @@ namespace GUI.Types.Renderer
 
                         foreach (var call in mesh.DrawCallsBlended)
                         {
-                            translucentDrawCalls.Add(new MeshBatchRenderer.Request
+                            renderTranslucentDrawCalls.Add(new MeshBatchRenderer.Request
                             {
                                 Transform = node.Transform,
                                 Mesh = mesh,
@@ -165,7 +171,7 @@ namespace GUI.Types.Renderer
                 }
                 else if (node is SceneAggregate.Fragment fragment)
                 {
-                    opaqueDrawCalls.Add(new MeshBatchRenderer.Request
+                    renderOpaqueDrawCalls.Add(new MeshBatchRenderer.Request
                     {
                         Transform = fragment.Transform,
                         Mesh = fragment.RenderMesh,
@@ -176,17 +182,19 @@ namespace GUI.Types.Renderer
                 }
                 else
                 {
-                    looseNodes.Add(node);
+                    renderLooseNodes.Add(node);
                 }
             }
 
+            renderAllNodes.Clear();
+
             // Sort loose nodes by distance from camera
-            looseNodes.Sort((a, b) =>
-                {
-                    var aLength = (a.BoundingBox.Center - camera.Location).LengthSquared();
-                    var bLength = (b.BoundingBox.Center - camera.Location).LengthSquared();
-                    return bLength.CompareTo(aLength);
-                });
+            renderLooseNodes.Sort((a, b) =>
+            {
+                var aLength = (a.BoundingBox.Center - camera.Location).LengthSquared();
+                var bLength = (b.BoundingBox.Center - camera.Location).LengthSquared();
+                return bLength.CompareTo(aLength);
+            });
 
             // Opaque render pass
             var renderContext = new RenderContext
@@ -212,8 +220,10 @@ namespace GUI.Types.Renderer
                 }
             }
 
-            MeshBatchRenderer.Render(opaqueDrawCalls, renderContext);
-            foreach (var node in looseNodes)
+            MeshBatchRenderer.Render(renderOpaqueDrawCalls, renderContext);
+            renderOpaqueDrawCalls.Clear();
+
+            foreach (var node in renderLooseNodes)
             {
                 node.Render(renderContext);
             }
@@ -221,8 +231,10 @@ namespace GUI.Types.Renderer
             // Translucent render pass, back to front for loose nodes
             renderContext.RenderPass = RenderPass.Translucent;
 
-            MeshBatchRenderer.Render(translucentDrawCalls, renderContext);
-            foreach (var node in Enumerable.Reverse(looseNodes))
+            MeshBatchRenderer.Render(renderTranslucentDrawCalls, renderContext);
+            renderTranslucentDrawCalls.Clear();
+
+            foreach (var node in Enumerable.Reverse(renderLooseNodes))
             {
                 node.Render(renderContext);
             }
@@ -232,6 +244,8 @@ namespace GUI.Types.Renderer
                 camera.Picker.Finish();
                 RenderWithCamera(camera, buffers, cullFrustum);
             }
+
+            renderLooseNodes.Clear();
         }
 
         public void SetEnabledLayers(HashSet<string> layers)

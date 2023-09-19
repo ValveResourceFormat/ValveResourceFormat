@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 
@@ -20,6 +19,8 @@ namespace GUI.Types.Renderer
             public SceneNode Node;
         }
 
+        private static readonly List<Request> requestHolder = new(1) { new Request() }; // Holds the one request we render at a time
+
         public static void Render(List<Request> requests, Scene.RenderContext context)
         {
             // Opaque: Grouped by material
@@ -31,14 +32,12 @@ namespace GUI.Types.Renderer
             // Translucent: In reverse order
             if (context.RenderPass == RenderPass.Both || context.RenderPass == RenderPass.Translucent)
             {
-                var holder = new Request[1]; // Holds the one request we render at a time
-
-                requests.Sort((a, b) => -a.DistanceFromCamera.CompareTo(b.DistanceFromCamera));
+                requests.Sort(static (a, b) => -a.DistanceFromCamera.CompareTo(b.DistanceFromCamera));
 
                 foreach (var request in requests)
                 {
-                    holder[0] = request;
-                    DrawBatch(holder, context);
+                    requestHolder[0] = request;
+                    DrawBatch(requestHolder, context);
                 }
             }
         }
@@ -61,61 +60,75 @@ namespace GUI.Types.Renderer
         /// <summary>
         /// Minimizes state changes by grouping draw calls by shader and material.
         /// </summary>
-        private static void DrawBatch(IEnumerable<Request> drawCalls, Scene.RenderContext context)
+        private static void DrawBatch(List<Request> requests, Scene.RenderContext context)
         {
             GL.Enable(EnableCap.DepthTest);
 
-            var groupedDrawCalls = context.ReplacementShader == null
-                ? drawCalls.GroupBy(a => a.Call.Shader)
-                : drawCalls.GroupBy(a => context.ReplacementShader);
-
-            foreach (var shaderGroup in groupedDrawCalls)
+            // Sort draw call requests by shader, and then by material
+            requests.Sort(static (a, b) =>
             {
-                var shader = shaderGroup.Key;
-                var uniforms = new Uniforms
+                if (a.Call.Shader.Program == b.Call.Shader.Program)
                 {
-                    Animated = shader.GetUniformLocation("bAnimated"),
-                    AnimationTexture = shader.GetUniformLocation("animationTexture"),
-                    NumBones = shader.GetUniformLocation("fNumBones"),
-                    Transform = shader.GetUniformLocation("transform"),
-                    Tint = shader.GetUniformLocation("m_vTintColorSceneObject"),
-                    TintDrawCall = shader.GetUniformLocation("m_vTintColorDrawCall"),
-                    CubeMapArrayIndices = shader.GetUniformLocation("g_iEnvMapArrayIndices"),
-                    ObjectId = shader.GetUniformLocation("sceneObjectId"),
-                    MeshId = shader.GetUniformLocation("meshId"),
-                    ShaderId = shader.GetUniformLocation("shaderId"),
-                    ShaderProgramId = shader.GetUniformLocation("shaderProgramId")
-                };
-
-                GL.UseProgram(shader.Program);
-
-                foreach (var buffer in context.Buffers)
-                {
-                    buffer.SetBlockBinding(shader);
+                    return a.Call.Material.GetHashCode() - b.Call.Material.GetHashCode();
                 }
 
-                context.FogInfo.SetCubemapFogTexture(shader);
+                return a.Call.Shader.Program - b.Call.Shader.Program;
+            });
 
-                foreach (var materialGroup in shaderGroup.GroupBy(a => a.Call.Material))
+            Shader shader = null;
+            RenderMaterial material = null;
+            Uniforms uniforms = new();
+
+            foreach (var request in requests)
+            {
+                if (!context.Scene.ShowToolsMaterials && request.Call.Material.IsToolsMaterial)
                 {
-                    var material = materialGroup.Key;
+                    continue;
+                }
 
-                    if (!context.Scene.ShowToolsMaterials && material.IsToolsMaterial)
+                if (material != request.Call.Material)
+                {
+                    material?.PostRender();
+
+                    var requestShader = context.ReplacementShader ?? request.Call.Shader;
+
+                    // If the material did not change, shader could not have changed
+                    if (shader != requestShader)
                     {
-                        continue;
+                        shader = requestShader;
+                        uniforms = new Uniforms
+                        {
+                            Animated = shader.GetUniformLocation("bAnimated"),
+                            AnimationTexture = shader.GetUniformLocation("animationTexture"),
+                            NumBones = shader.GetUniformLocation("fNumBones"),
+                            Transform = shader.GetUniformLocation("transform"),
+                            Tint = shader.GetUniformLocation("m_vTintColorSceneObject"),
+                            TintDrawCall = shader.GetUniformLocation("m_vTintColorDrawCall"),
+                            CubeMapArrayIndices = shader.GetUniformLocation("g_iEnvMapArrayIndices"),
+                            ObjectId = shader.GetUniformLocation("sceneObjectId"),
+                            MeshId = shader.GetUniformLocation("meshId"),
+                            ShaderId = shader.GetUniformLocation("shaderId"),
+                            ShaderProgramId = shader.GetUniformLocation("shaderProgramId")
+                        };
+
+                        GL.UseProgram(shader.Program);
+
+                        foreach (var buffer in context.Buffers)
+                        {
+                            buffer.SetBlockBinding(shader);
+                        }
+
+                        context.FogInfo.SetCubemapFogTexture(shader);
                     }
 
-
+                    material = request.Call.Material;
                     material.Render(shader, context.LightingInfo);
-
-                    foreach (var request in materialGroup)
-                    {
-                        Draw(uniforms, request);
-                    }
-
-                    material.PostRender();
                 }
+
+                Draw(uniforms, request);
             }
+
+            material?.PostRender();
 
             GL.Disable(EnableCap.DepthTest);
         }

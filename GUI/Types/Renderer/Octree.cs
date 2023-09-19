@@ -283,12 +283,5 @@ namespace GUI.Types.Renderer
             Root.Query(boundingBox, results);
             return results;
         }
-
-        public List<T> Query(Frustum frustum)
-        {
-            var results = new List<T>();
-            Root.Query(frustum, results);
-            return results;
-        }
     }
 }
