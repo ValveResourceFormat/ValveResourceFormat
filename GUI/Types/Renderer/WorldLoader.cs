@@ -162,10 +162,7 @@ namespace GUI.Types.Renderer
             if (scene.LightingInfo.LightmapVersionNumber == 8)
             {
                 result.LightmapGameVersionNumber = worldLightingInfo.GetInt32Property("m_nLightmapGameVersionNumber");
-                result.LightingData = result.LightingData with
-                {
-                    LightmapUvScale = new Vector4(worldLightingInfo.GetSubCollection("m_vLightmapUvScale").ToVector2(), 0f, 0f),
-                };
+                result.LightingData.LightmapUvScale = new Vector4(worldLightingInfo.GetSubCollection("m_vLightmapUvScale").ToVector2(), 0f, 0f);
             }
 
             foreach (var lightmap in worldLightingInfo.GetArray<string>("m_lightMaps"))
@@ -748,11 +745,8 @@ namespace GUI.Types.Renderer
                         brightness = Convert.ToSingle(entity.GetProperty("brightness").Data, CultureInfo.InvariantCulture);
                     }
 
-                    scene.LightingInfo.LightingData = scene.LightingInfo.LightingData with
-                    {
-                        SunLightPosition = transformationMatrix,
-                        SunLightColor = new Vector4(colorNormalized, brightness),
-                    };
+                    scene.LightingInfo.LightingData.SunLightPosition = transformationMatrix;
+                    scene.LightingInfo.LightingData.SunLightColor = new Vector4(colorNormalized, brightness);
                 }
 
                 var rendercolor = entity.GetProperty("rendercolor");

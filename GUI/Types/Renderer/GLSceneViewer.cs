@@ -204,10 +204,9 @@ namespace GUI.Types.Renderer
             }
 
             // For SceneSky
-            viewBuffer.Data = Camera.SetViewConstants(viewBuffer.Data) with
-            {
-                Time = Uptime,
-            };
+            var viewConstants = viewBuffer.Data;
+            Camera.SetViewConstants(viewConstants);
+            viewConstants.Time = Uptime;
 
             var genericRenderContext = new Scene.RenderContext
             {

@@ -29,13 +29,13 @@ namespace GUI.Types.Renderer
             Renderer = new MaterialRenderer(Scene, Resource);
             Scene.Add(Renderer, false);
 
-            viewBuffer.Data = viewBuffer.Data with
+            viewBuffer.UpdateWith(b =>
             {
-                ViewToProjection = Matrix4x4.Identity,
-                WorldToProjection = Matrix4x4.Identity,
-                WorldToView = Matrix4x4.Identity,
-                CameraPosition = Vector3.Zero,
-            };
+                b.ViewToProjection = Matrix4x4.Identity;
+                b.WorldToProjection = Matrix4x4.Identity;
+                b.WorldToView = Matrix4x4.Identity;
+                b.CameraPosition = Vector3.Zero;
+            });
         }
 
         protected override void OnPaint(object sender, RenderEventArgs e)

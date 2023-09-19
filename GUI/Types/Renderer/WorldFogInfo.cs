@@ -79,7 +79,7 @@ namespace GUI.Types.Renderer
 
         // Pass data to shader
 
-        public UniformBuffers.ViewConstants SetFogUniforms(UniformBuffers.ViewConstants viewConstants, bool viewerFogEnabled, Vector3 worldOffset, float mapScale)
+        public void SetFogUniforms(UniformBuffers.ViewConstants viewConstants, bool viewerFogEnabled, Vector3 worldOffset, float mapScale)
         {
             if (GradientFogActive)
             {
@@ -114,7 +114,6 @@ namespace GUI.Types.Renderer
                 viewConstants.CubeFogCullingParams_ExposureBias_MaxOpacity = new Vector4(float.PositiveInfinity, float.PositiveInfinity, 0.0f, 0.0f);
                 viewConstants.CubeFogSkyWsToOs = Matrix4x4.Identity;
             }
-            return viewConstants;
         }
         public void SetCubemapFogTexture(Shader shader)
         {

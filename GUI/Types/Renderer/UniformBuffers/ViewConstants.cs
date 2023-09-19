@@ -5,7 +5,7 @@ using System.Runtime.InteropServices;
 namespace GUI.Types.Renderer.UniformBuffers
 {
     [StructLayout(LayoutKind.Sequential)]
-    public struct ViewConstants
+    public class ViewConstants
     {
         public Matrix4x4 ViewToProjection;
         public Matrix4x4 WorldToProjection;

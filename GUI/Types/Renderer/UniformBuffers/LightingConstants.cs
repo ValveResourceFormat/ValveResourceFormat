@@ -4,7 +4,7 @@ using System.Runtime.InteropServices;
 namespace GUI.Types.Renderer.UniformBuffers
 {
     [StructLayout(LayoutKind.Sequential)]
-    public struct LightingConstants
+    public class LightingConstants
     {
         public const int MAX_ENVMAPS = 144;
 

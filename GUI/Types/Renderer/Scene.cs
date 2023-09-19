@@ -275,9 +275,9 @@ namespace GUI.Types.Renderer
             }
         }
 
-        public ViewConstants SetFogConstants(ViewConstants viewConstants)
+        public void SetFogConstants(ViewConstants viewConstants)
         {
-            return FogInfo.SetFogUniforms(viewConstants, FogEnabled, WorldOffset, WorldScale);
+            FogInfo.SetFogUniforms(viewConstants, FogEnabled, WorldOffset, WorldScale);
         }
 
         public void CalculateEnvironmentMaps()
@@ -289,10 +289,7 @@ namespace GUI.Types.Renderer
 
             var firstTexture = LightingInfo.EnvMaps.Values.First().EnvMapTexture;
 
-            LightingInfo.LightingData = LightingInfo.LightingData with
-            {
-                EnvMapSizeConstants = new Vector4(firstTexture.NumMipLevels - 1, firstTexture.Depth, 0, 0),
-            };
+            LightingInfo.LightingData.EnvMapSizeConstants = new Vector4(firstTexture.NumMipLevels - 1, firstTexture.Depth, 0, 0);
 
             foreach (var envMap in LightingInfo.EnvMaps.Values)
             {

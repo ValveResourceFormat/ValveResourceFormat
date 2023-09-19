@@ -21,33 +21,15 @@ namespace GUI.Types.Renderer.UniformBuffers
     }
 
     class UniformBuffer<T> : IBlockBindableBuffer
-        where T : struct
+        where T : new()
     {
         public int Handle { get; }
         public int Size { get; }
         public int BindingPoint { get; }
         public string Name { get; }
 
-        public bool IsCreated { get; private set; }
-
-        T data = new();
-        public T Data
-        {
-            get => data;
-            set
-            {
-                data = value;
-
-                if (!IsCreated)
-                {
-                    Initialize();
-                }
-                else
-                {
-                    Update();
-                }
-            }
-        }
+        T data;
+        public T Data { get => data; set { data = value; Update(); } }
 
         // A buffer where the structure is marshalled into, before being sent to the GPU
         readonly float[] cpuBuffer;
@@ -66,6 +48,9 @@ namespace GUI.Types.Renderer.UniformBuffers
             cpuBuffer = new float[Size / 4];
             cpuBufferHandle = GCHandle.Alloc(cpuBuffer, GCHandleType.Pinned);
 
+            data = new T();
+            Initialize();
+
             Name = typeof(T).Name;
 #if DEBUG
             Bind();
@@ -79,38 +64,35 @@ namespace GUI.Types.Renderer.UniformBuffers
 
         private void WriteToCpuBuffer()
         {
+            Debug.Assert(Size == Marshal.SizeOf(data));
             Marshal.StructureToPtr(data, cpuBufferHandle.AddrOfPinnedObject(), false);
         }
 
-        public void Initialize()
+        private void Initialize()
         {
             Bind();
             WriteToCpuBuffer();
             GL.BufferData(Target, Size, cpuBuffer, BufferUsageHint.StaticDraw);
             GL.BindBufferBase(BufferRangeTarget.UniformBuffer, BindingPoint, Handle);
-            IsCreated = true;
             Unbind();
         }
 
-        public void Update()
+        private void Update()
         {
-            Debug.Assert(IsCreated);
-
             Bind();
             WriteToCpuBuffer();
             GL.BufferSubData(Target, IntPtr.Zero, Size, cpuBuffer);
             Unbind();
         }
 
-        public void UpdateWith(params Func<T, T>[] updaters)
+        public void UpdateWith(params Action<T>[] updaters)
         {
-            var data = Data;
-            foreach (var updater in updaters)
+            foreach (var update in updaters)
             {
-                data = updater(data);
+                update(data);
             }
 
-            Data = data;
+            Update();
         }
 
         public void Dispose()

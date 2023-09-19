@@ -299,11 +299,8 @@ namespace GUI.Types.Renderer
 
         protected override void OnPaint(object sender, RenderEventArgs e)
         {
-            Scene.LightingInfo.LightingData = Scene.LightingInfo.LightingData with
-            {
-                SunLightPosition = Camera.ViewProjectionMatrix,
-                SunLightColor = Vector4.One,
-            };
+            Scene.LightingInfo.LightingData.SunLightPosition = Camera.ViewProjectionMatrix;
+            Scene.LightingInfo.LightingData.SunLightColor = Vector4.One;
 
             base.OnPaint(sender, e);
         }
