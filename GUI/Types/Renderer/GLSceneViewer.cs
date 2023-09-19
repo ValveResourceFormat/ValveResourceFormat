@@ -188,6 +188,7 @@ namespace GUI.Types.Renderer
         protected virtual void OnPaint(object sender, RenderEventArgs e)
         {
             Uptime += e.FrameTime;
+            viewBuffer.Data.Time = Uptime;
 
             Scene.Update(e.FrameTime);
 
@@ -205,34 +206,37 @@ namespace GUI.Types.Renderer
                 lightingBuffer.Data = scene.LightingInfo.LightingData;
             }
 
-            // For SceneSky
-            var viewConstants = viewBuffer.Data;
-            Camera.SetViewConstants(viewConstants);
-            viewConstants.Time = Uptime;
-
             var genericRenderContext = new Scene.RenderContext
             {
                 Camera = Camera,
                 RenderPass = RenderPass.Both
             };
 
-            if (ShowSkybox && SkyboxScene != null)
-            {
-                skyboxCamera.CopyFrom(Camera);
-                skyboxCamera.SetScaledProjectionMatrix();
-                skyboxCamera.SetLocation(Camera.Location - SkyboxScene.WorldOffset);
-
-                SkyboxScene.Update(e.FrameTime);
-                UpdateSceneBuffers(SkyboxScene, skyboxCamera);
-                SkyboxScene.RenderWithCamera(skyboxCamera, bufferSet, skyboxLockedCullFrustum);
-
-                GL.Clear(ClearBufferMask.DepthBufferBit);
-            }
+            GL.DepthRange(0, 0.95);
 
             UpdateSceneBuffers(Scene, Camera);
             Scene.RenderWithCamera(Camera, bufferSet, lockedCullFrustum);
 
-            Scene.Sky?.Render(genericRenderContext);
+            {
+                GL.DepthRange(0.95, 1.0);
+
+                // 3D Sky
+                if (ShowSkybox && SkyboxScene != null)
+                {
+                    skyboxCamera.CopyFrom(Camera);
+                    skyboxCamera.SetScaledProjectionMatrix();
+                    skyboxCamera.SetLocation(Camera.Location - SkyboxScene.WorldOffset);
+
+                    SkyboxScene.Update(e.FrameTime);
+                    UpdateSceneBuffers(SkyboxScene, skyboxCamera);
+                    SkyboxScene.RenderWithCamera(skyboxCamera, bufferSet, skyboxLockedCullFrustum);
+                }
+
+                // 2D Sky
+                Scene.Sky?.Render(genericRenderContext);
+
+                GL.DepthRange(0, 0.95);
+            }
 
             selectedNodeRenderer.Render(genericRenderContext);
 
