@@ -216,8 +216,6 @@ namespace GUI.Types.Renderer
                 RenderPass = RenderPass.Both
             };
 
-            Scene.Sky?.Render(genericRenderContext);
-
             if (ShowSkybox && SkyboxScene != null)
             {
                 skyboxCamera.CopyFrom(Camera);
@@ -233,6 +231,8 @@ namespace GUI.Types.Renderer
 
             UpdateSceneBuffers(Scene, Camera);
             Scene.RenderWithCamera(Camera, bufferSet, lockedCullFrustum);
+
+            Scene.Sky?.Render(genericRenderContext);
 
             selectedNodeRenderer.Render(genericRenderContext);
 
