@@ -124,7 +124,7 @@ namespace GUI.Types.Renderer
         // Since we only ever draw one scene at a time, these can be static
         // And they are fields here so they only ever grow without having to re-allocate these arrays every frame
         private readonly static List<SceneNode> renderAllNodes = new();
-        private readonly static List<SceneNode> renderLooseNodes = new();
+        private readonly static List<MeshBatchRenderer.Request> renderLooseNodes = new();
         private readonly static List<MeshBatchRenderer.Request> renderOpaqueDrawCalls = new();
         private readonly static List<MeshBatchRenderer.Request> renderTranslucentDrawCalls = new();
 
@@ -183,19 +183,18 @@ namespace GUI.Types.Renderer
                 }
                 else
                 {
-                    renderLooseNodes.Add(node);
+                    renderLooseNodes.Add(new MeshBatchRenderer.Request
+                    {
+                        DistanceFromCamera = (node.BoundingBox.Center - camera.Location).LengthSquared(),
+                        Node = node,
+                    });
                 }
             }
 
             renderAllNodes.Clear();
 
             // Sort loose nodes by distance from camera
-            renderLooseNodes.Sort((a, b) =>
-            {
-                var aLength = (a.BoundingBox.Center - camera.Location).LengthSquared();
-                var bLength = (b.BoundingBox.Center - camera.Location).LengthSquared();
-                return bLength.CompareTo(aLength);
-            });
+            renderLooseNodes.Sort(static (a, b) => a.DistanceFromCamera.CompareTo(b.DistanceFromCamera));
 
             // Opaque render pass
             var renderContext = new RenderContext
@@ -224,9 +223,9 @@ namespace GUI.Types.Renderer
             MeshBatchRenderer.Render(renderOpaqueDrawCalls, renderContext);
             renderOpaqueDrawCalls.Clear();
 
-            foreach (var node in renderLooseNodes)
+            foreach (var request in renderLooseNodes)
             {
-                node.Render(renderContext);
+                request.Node.Render(renderContext);
             }
 
             // Translucent render pass, back to front for loose nodes
@@ -237,7 +236,7 @@ namespace GUI.Types.Renderer
 
             for (var i = renderLooseNodes.Count - 1; i >= 0; i--)
             {
-                renderLooseNodes[i].Render(renderContext);
+                renderLooseNodes[i].Node.Render(renderContext);
             }
 
             if (camera.Picker is not null && camera.Picker.IsActive)
