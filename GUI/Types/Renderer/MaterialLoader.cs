@@ -1,6 +1,7 @@
 using System;
 using System.Buffers;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Numerics;
@@ -11,13 +12,14 @@ using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Serialization.KeyValues;
+using ValveResourceFormat.ThirdParty;
 using VrfMaterial = ValveResourceFormat.ResourceTypes.Material;
 
 namespace GUI.Types.Renderer
 {
     class MaterialLoader
     {
-        private readonly Dictionary<string, RenderMaterial> Materials = new();
+        private readonly Dictionary<uint, RenderMaterial> Materials = new();
         private readonly Dictionary<string, RenderTexture> Textures = new();
         private readonly VrfGuiContext VrfGuiContext;
         private RenderTexture ErrorTexture;
@@ -47,7 +49,27 @@ namespace GUI.Types.Renderer
                 return GetErrorMaterial();
             }
 
-            if (Materials.TryGetValue(name, out var mat))
+            uint cacheKey;
+
+            if (shaderArguments == null)
+            {
+                cacheKey = MurmurHash2.Hash(name, 0x40506070);
+            }
+            else
+            {
+                var shaderCacheHashString = new StringBuilder();
+                shaderCacheHashString.AppendLine(name);
+
+                foreach (var (key, value) in shaderArguments)
+                {
+                    shaderCacheHashString.AppendLine(key);
+                    shaderCacheHashString.AppendLine(value.ToString(CultureInfo.InvariantCulture));
+                }
+
+                cacheKey = MurmurHash2.Hash(shaderCacheHashString.ToString(), 0x40506070);
+            }
+
+            if (Materials.TryGetValue(cacheKey, out var mat))
             {
                 return mat;
             }
@@ -55,7 +77,7 @@ namespace GUI.Types.Renderer
             var resource = VrfGuiContext.LoadFileByAnyMeansNecessary(name + "_c");
             mat = LoadMaterial(resource, shaderArguments);
 
-            Materials.Add(name, mat);
+            Materials.Add(cacheKey, mat);
 
             return mat;
         }

@@ -174,7 +174,6 @@ namespace GUI.Types.Renderer
                     }
                     else
                     {
-
                         var drawCall = DrawCallsAll[i++];
                         drawCall.Material = material;
                         drawCall.Shader = material.Shader;
