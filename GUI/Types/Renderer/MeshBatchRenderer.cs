@@ -18,26 +18,18 @@ namespace GUI.Types.Renderer
             public SceneNode Node;
         }
 
-        private static readonly List<Request> requestHolder = new(1) { new Request() }; // Holds the one request we render at a time
-
         public static void Render(List<Request> requests, Scene.RenderContext context)
         {
             // Opaque: Grouped by material
             if (context.RenderPass == RenderPass.Both || context.RenderPass == RenderPass.Opaque)
             {
-                DrawBatch(requests, context);
+                DrawBatch(requests, context, false);
             }
 
             // Translucent: In reverse order
             if (context.RenderPass == RenderPass.Both || context.RenderPass == RenderPass.Translucent)
             {
-                requests.Sort(static (a, b) => -a.DistanceFromCamera.CompareTo(b.DistanceFromCamera));
-
-                foreach (var request in requests)
-                {
-                    requestHolder[0] = request;
-                    DrawBatch(requestHolder, context);
-                }
+                DrawBatch(requests, context, true);
             }
         }
 
@@ -59,20 +51,27 @@ namespace GUI.Types.Renderer
         /// <summary>
         /// Minimizes state changes by grouping draw calls by shader and material.
         /// </summary>
-        private static void DrawBatch(List<Request> requests, Scene.RenderContext context)
+        private static void DrawBatch(List<Request> requests, Scene.RenderContext context, bool sortByDistance)
         {
             GL.Enable(EnableCap.DepthTest);
 
             // Sort draw call requests by shader, and then by material
-            requests.Sort(static (a, b) =>
+            if (sortByDistance)
             {
-                if (a.Call.Shader.Program == b.Call.Shader.Program)
+                requests.Sort(static (a, b) => -a.DistanceFromCamera.CompareTo(b.DistanceFromCamera));
+            }
+            else
+            {
+                requests.Sort(static (a, b) =>
                 {
-                    return a.Call.Material.GetHashCode() - b.Call.Material.GetHashCode();
-                }
+                    if (a.Call.Shader.Program == b.Call.Shader.Program)
+                    {
+                        return a.Call.Material.GetHashCode() - b.Call.Material.GetHashCode();
+                    }
 
-                return a.Call.Shader.Program - b.Call.Shader.Program;
-            });
+                    return a.Call.Shader.Program - b.Call.Shader.Program;
+                });
+            }
 
             Shader shader = null;
             RenderMaterial material = null;
