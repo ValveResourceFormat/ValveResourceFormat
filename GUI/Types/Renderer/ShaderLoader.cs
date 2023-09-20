@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 using OpenTK.Graphics.OpenGL;
@@ -114,10 +113,10 @@ namespace GUI.Types.Renderer
 
                 ShaderDefines[shaderName] = defines;
                 var newShaderCacheHash = CalculateShaderCacheHash(shaderName, arguments);
-
                 CachedShaders[newShaderCacheHash] = shader;
 
-                Console.WriteLine($"Shader {newShaderCacheHash} ('{shaderName}' as '{shaderFileName}') ({string.Join(", ", arguments.Keys)}) compiled and linked succesfully");
+                var argsDescription = GetArgumentDescription(shaderName, arguments, forHashingPurposes: true);
+                Console.WriteLine($"Shader '{shaderName}' as '{shaderFileName}' ({argsDescription}) {newShaderCacheHash} compiled and linked succesfully");
                 return shader;
             }
             catch (InvalidProgramException)
@@ -376,17 +375,55 @@ namespace GUI.Types.Renderer
             GC.SuppressFinalize(this);
         }
 
+        private IEnumerable<KeyValuePair<string, byte>> SortAndFilterArguments(string shaderName, IReadOnlyDictionary<string, byte> arguments)
+        {
+            return arguments
+                .Where(p => ShaderDefines[shaderName].Contains(p.Key))
+                .OrderBy(p => p.Key);
+        }
+
+        private string GetArgumentDescription(string shaderName, IReadOnlyDictionary<string, byte> arguments, bool forHashingPurposes = false)
+        {
+            var sb = new StringBuilder(forHashingPurposes ? shaderName + '-' : string.Empty);
+            var first = true;
+
+            foreach (var param in SortAndFilterArguments(shaderName, arguments))
+            {
+                if (!first && !forHashingPurposes)
+                {
+                    sb.Append(", ");
+                }
+
+                if (param.Value > 0)
+                {
+                    sb.Append(param.Key);
+                    if (param.Value > 1)
+                    {
+                        sb.Append('=');
+                        sb.Append(param.Value);
+                    }
+                }
+
+                if (first)
+                {
+                    first = false;
+                }
+            }
+
+            return sb.ToString();
+        }
+
         private uint CalculateShaderCacheHash(string shaderName, IReadOnlyDictionary<string, byte> arguments)
         {
             var shaderCacheHashString = new StringBuilder();
             shaderCacheHashString.AppendLine(shaderName);
 
-            var parameters = ShaderDefines[shaderName].Intersect(arguments.Keys);
+            var argsOrdered = SortAndFilterArguments(shaderName, arguments);
 
-            foreach (var key in parameters)
+            foreach (var arg in argsOrdered)
             {
-                shaderCacheHashString.AppendLine(key);
-                shaderCacheHashString.AppendLine(arguments[key].ToString(CultureInfo.InvariantCulture));
+                shaderCacheHashString.AppendLine(arg.Key);
+                shaderCacheHashString.AppendLine(arg.Value.ToString(CultureInfo.InvariantCulture));
             }
 
             return MurmurHash2.Hash(shaderCacheHashString.ToString(), ShaderSeed);

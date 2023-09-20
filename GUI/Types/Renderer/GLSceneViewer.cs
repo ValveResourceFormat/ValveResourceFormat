@@ -141,7 +141,7 @@ namespace GUI.Types.Renderer
             timer.Start();
             LoadScene();
             timer.Stop();
-            Console.WriteLine($"Loading scene time: {timer.Elapsed}");
+            Console.WriteLine($"[{GetType().Name}] Loading scene time: {timer.Elapsed}, shader variants: {GuiContext.ShaderLoader.ShaderCount}");
 
             if (Scene.AllNodes.Any() && this is not GLWorldViewer)
             {
