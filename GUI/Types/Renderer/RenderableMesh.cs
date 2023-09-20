@@ -160,7 +160,7 @@ namespace GUI.Types.Renderer
 
                         DrawCallsAll.Add(drawCall);
 
-                        if (drawCall.Material.IsBlended)
+                        if (drawCall.Material.IsBlended && !drawCall.Material.IsOverlay)
                         {
                             DrawCallsBlended.Add(drawCall);
                         }

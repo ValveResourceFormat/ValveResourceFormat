@@ -20,13 +20,13 @@ namespace GUI.Types.Renderer
         public IKeyValueCollection VsInputSignature { get; }
         public Dictionary<string, RenderTexture> Textures { get; } = new();
         public bool IsBlended { get; }
+        public bool IsOverlay { get; }
         public bool IsToolsMaterial { get; }
 
         private readonly Shader shader;
         private readonly bool isAdditiveBlend;
         private readonly bool isMod2x;
         private readonly bool isRenderBackfaces;
-        private readonly bool isOverlay;
         private int textureUnit;
 
         public RenderMaterial(Material material, IKeyValueCollection insg, ShaderLoader shaderLoader)
@@ -54,12 +54,12 @@ namespace GUI.Types.Renderer
                 || material.ShaderName == "tools_sprite.vfx";
             isAdditiveBlend = material.IntParams.ContainsKey("F_ADDITIVE_BLEND") && material.IntParams["F_ADDITIVE_BLEND"] == 1;
             isRenderBackfaces = material.IntParams.ContainsKey("F_RENDER_BACKFACES") && material.IntParams["F_RENDER_BACKFACES"] == 1;
-            isOverlay = (material.IntParams.ContainsKey("F_OVERLAY") && material.IntParams["F_OVERLAY"] == 1)
+            IsOverlay = (material.IntParams.ContainsKey("F_OVERLAY") && material.IntParams["F_OVERLAY"] == 1)
                 || material.IntParams.ContainsKey("F_DEPTH_BIAS") && material.IntParams["F_DEPTH_BIAS"] == 1;
 
             if (material.ShaderName.EndsWith("static_overlay.vfx", System.StringComparison.Ordinal))
             {
-                isOverlay = true;
+                IsOverlay = true;
                 var blendMode = material.IntParams.GetValueOrDefault("F_BLEND_MODE");
                 IsBlended = blendMode > 0;
                 isMod2x = blendMode == 3;
@@ -129,7 +129,7 @@ namespace GUI.Types.Renderer
                 }
             }
 
-            if (isOverlay)
+            if (IsOverlay)
             {
                 GL.Enable(EnableCap.PolygonOffsetFill);
                 GL.PolygonOffset(-0.05f, -64);
@@ -149,7 +149,7 @@ namespace GUI.Types.Renderer
                 GL.Disable(EnableCap.Blend);
             }
 
-            if (isOverlay)
+            if (IsOverlay)
             {
                 GL.Disable(EnableCap.PolygonOffsetFill);
                 GL.PolygonOffset(0, 0);

@@ -15,6 +15,7 @@ namespace GUI.Types.Renderer
             public RenderableMesh Mesh;
             public DrawCall Call;
             public float DistanceFromCamera;
+            public int OverlayRenderOrder;
             public SceneNode Node;
         }
 
@@ -33,7 +34,7 @@ namespace GUI.Types.Renderer
             }
         }
 
-        private struct Uniforms
+        private ref struct Uniforms
         {
             public int Animated;
             public int AnimationTexture;
@@ -64,12 +65,17 @@ namespace GUI.Types.Renderer
             {
                 requests.Sort(static (a, b) =>
                 {
-                    if (a.Call.Shader.Program == b.Call.Shader.Program)
+                    if (a.OverlayRenderOrder == b.OverlayRenderOrder)
                     {
-                        return a.Call.Material.GetHashCode() - b.Call.Material.GetHashCode();
+                        if (a.Call.Shader.Program == b.Call.Shader.Program)
+                        {
+                            return a.Call.Material.GetHashCode() - b.Call.Material.GetHashCode();
+                        }
+
+                        return a.Call.Shader.Program - b.Call.Shader.Program;
                     }
 
-                    return a.Call.Shader.Program - b.Call.Shader.Program;
+                    return a.OverlayRenderOrder - b.OverlayRenderOrder;
                 });
             }
 
@@ -123,7 +129,7 @@ namespace GUI.Types.Renderer
                     material.Render(shader, context.LightingInfo);
                 }
 
-                Draw(uniforms, request);
+                Draw(ref uniforms, request);
             }
 
             material?.PostRender();
@@ -132,7 +138,7 @@ namespace GUI.Types.Renderer
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static void Draw(Uniforms uniforms, Request request)
+        private static void Draw(ref Uniforms uniforms, Request request)
         {
             var transformTk = request.Transform.ToOpenTK();
             GL.UniformMatrix4(uniforms.Transform, false, ref transformTk);

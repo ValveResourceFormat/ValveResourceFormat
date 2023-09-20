@@ -36,7 +36,9 @@ namespace GUI.Types.Renderer
             {
                 var layerIndex = (int)(node.SceneObjectLayerIndices?[i++] ?? -1);
 
+                // m_vCubeMapOrigin in older files
                 var lightingOrigin = sceneObject.ContainsKey("m_vLightingOrigin") ? sceneObject.GetSubCollection("m_vLightingOrigin").ToVector3() : defaultLightingOrigin;
+                var overlayRenderOrder = sceneObject.GetInt32Property("m_nOverlayRenderOrder");
                 var cubeMapPrecomputedHandshake = sceneObject.GetInt32Property("m_nCubeMapPrecomputedHandshake");
                 var lightProbeVolumePrecomputedHandshake = sceneObject.GetInt32Property("m_nLightProbeVolumePrecomputedHandshake");
 
@@ -67,6 +69,7 @@ namespace GUI.Types.Renderer
                         LayerName = layerIndex > -1 ? node.LayerNames[layerIndex] : "No layer",
                         Name = renderableModel,
                         LightingOrigin = lightingOrigin == defaultLightingOrigin ? null : lightingOrigin,
+                        OverlayRenderOrder = overlayRenderOrder,
                         CubeMapPrecomputedHandshake = cubeMapPrecomputedHandshake,
                         LightProbeVolumePrecomputedHandshake = lightProbeVolumePrecomputedHandshake,
                     };

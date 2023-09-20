@@ -150,6 +150,7 @@ namespace GUI.Types.Renderer
                                 Mesh = mesh,
                                 Call = call,
                                 DistanceFromCamera = (node.BoundingBox.Center - camera.Location).LengthSquared(),
+                                OverlayRenderOrder = node.OverlayRenderOrder,
                                 Node = node,
                             });
                         }

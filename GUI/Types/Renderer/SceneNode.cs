@@ -38,6 +38,7 @@ namespace GUI.Types.Renderer
         public List<SceneEnvMap> EnvMaps { get; set; } = new();
         public int[] EnvMapIds { get; set; }
         public Vector3? LightingOrigin { get; set; }
+        public int OverlayRenderOrder { get; set; }
         public int CubeMapPrecomputedHandshake { get; set; }
         public int LightProbeVolumePrecomputedHandshake { get; set; }
 
