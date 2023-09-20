@@ -304,31 +304,33 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
     // r=MouthMask, g=AO, b=selfillum/tint mask, a=SSS/opacity
     vec4 combinedMasks = texture(g_tCombinedMasks, texCoord);
 
-	mat.ExtraParams.a = combinedMasks.x; // Mouth Mask
-	mat.AmbientOcclusion = combinedMasks.y;
+    mat.ExtraParams.a = combinedMasks.x; // Mouth Mask
+    mat.AmbientOcclusion = combinedMasks.y;
 
     #if (F_SELF_ILLUM)
-	    float selfIllumMask = combinedMasks.z;
-	#elif (F_TINT_MASK)
-	    float flTintMask = combinedMasks.z;
-	#endif
+        float selfIllumMask = combinedMasks.z;
+    #elif (F_TINT_MASK)
+        float flTintMask = combinedMasks.z;
+    #endif
 
-	#if (F_SSS_MASK == 1)
-		mat.SSSMask = combinedMasks.a;
-	#endif
+    #if (F_SSS_MASK == 1)
+        mat.SSSMask = combinedMasks.a;
+    #endif
 
     #if (F_TRANSLUCENT > 0) || (alphaTest == 1)
-	    mat.Opacity = combinedMasks.a;
+        mat.Opacity = combinedMasks.a;
     #endif
 #endif
 
 
     mat.Albedo = color.rgb;
     mat.Opacity = color.a;
-    // this should be on regardless, right?
+/*
 #if defined(static_overlay) && (F_PAINT_VERTEX_COLORS == 1)
     mat.Opacity *= vVertexColorOut.a;
 #endif
+*/
+
 #if (F_TRANSLUCENT > 0)
     mat.Opacity *= g_flOpacityScale;
 #endif
@@ -454,7 +456,7 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 #else
     const vec3 F0 = vec3(0.04);
 #endif
-	mat.SpecularColor = mix(F0, mat.Albedo, mat.Metalness);
+    mat.SpecularColor = mix(F0, mat.Albedo, mat.Metalness);
 
     // Self illum
     #if (F_SELF_ILLUM == 1) && !defined(vr_xen_foliage) // xen foliage has really complicated selfillum and is wrong with this code
@@ -523,8 +525,6 @@ void main()
 
     CalculateDirectLighting(lighting, mat);
     CalculateIndirectLighting(lighting, mat);
-
-
 
     // Combining pass
 

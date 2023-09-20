@@ -67,7 +67,7 @@ namespace GUI.Types.Renderer
             {
                 IsOverlay = true;
                 var blendMode = material.IntParams.GetValueOrDefault("F_BLEND_MODE");
-                IsBlended = blendMode > 0;
+                IsBlended = blendMode > 0 && blendMode != 2;
                 isMod2x = blendMode == 3;
                 isAdditiveBlend = blendMode == 4;
             }
