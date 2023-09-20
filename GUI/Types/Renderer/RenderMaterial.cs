@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization;
@@ -29,11 +30,16 @@ namespace GUI.Types.Renderer
         private readonly bool isRenderBackfaces;
         private int textureUnit;
 
-        public RenderMaterial(Material material, IKeyValueCollection insg, ShaderLoader shaderLoader)
+        public RenderMaterial(Material material, IKeyValueCollection insg, ShaderLoader shaderLoader, Dictionary<string, byte> shaderArguments)
             : this(material)
         {
             VsInputSignature = insg;
-            shader = shaderLoader.LoadShader(material.ShaderName, material.GetShaderArguments());
+
+            var combinedShaderParameters = shaderArguments == null ? material.GetShaderArguments() : shaderArguments
+                .Concat(material.GetShaderArguments())
+                .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+
+            shader = shaderLoader.LoadShader(material.ShaderName, combinedShaderParameters);
         }
 
         public RenderMaterial(Shader shader) : this(new Material { ShaderName = shader.Name })

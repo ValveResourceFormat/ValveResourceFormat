@@ -39,7 +39,7 @@ namespace GUI.Types.Renderer
             VrfGuiContext = guiContext;
         }
 
-        public RenderMaterial GetMaterial(string name)
+        public RenderMaterial GetMaterial(string name, Dictionary<string, byte> shaderArguments)
         {
             // HL:VR has a world node that has a draw call with no material
             if (name == null)
@@ -53,14 +53,14 @@ namespace GUI.Types.Renderer
             }
 
             var resource = VrfGuiContext.LoadFileByAnyMeansNecessary(name + "_c");
-            mat = LoadMaterial(resource);
+            mat = LoadMaterial(resource, shaderArguments);
 
             Materials.Add(name, mat);
 
             return mat;
         }
 
-        public RenderMaterial LoadMaterial(Resource resource)
+        public RenderMaterial LoadMaterial(Resource resource, Dictionary<string, byte> shaderArguments = null)
         {
             if (resource == null)
             {
@@ -71,7 +71,8 @@ namespace GUI.Types.Renderer
             var mat = new RenderMaterial(
                 vrfMaterial,
                 vrfMaterial.GetInputSignature(),
-                VrfGuiContext.ShaderLoader
+                VrfGuiContext.ShaderLoader,
+                shaderArguments
             );
 
             foreach (var (textureName, texturePath) in mat.Material.TextureParams)

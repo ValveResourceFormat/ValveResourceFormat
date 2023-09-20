@@ -119,7 +119,6 @@ namespace GUI.Types.Renderer
                         materialName = skinMaterials[materialName];
                     }
 
-                    var material = guiContext.MaterialLoader.GetMaterial(materialName);
                     var shaderArguments = new Dictionary<string, byte>(scene.RenderAttributes);
 
                     if (Mesh.IsCompressedNormalTangent(objectDrawCall))
@@ -146,11 +145,13 @@ namespace GUI.Types.Renderer
                         shaderArguments.Add("D_BAKED_LIGHTING_FROM_VERTEX_STREAM", 1);
                     }
 
+                    var material = guiContext.MaterialLoader.GetMaterial(materialName, shaderArguments);
+
                     if (firstSetup)
                     {
                         // TODO: Don't pass around so much shit
-                        var drawCall = CreateDrawCall(objectDrawCall, shaderArguments, material);
-                        if (objectDrawBounds.Length > i)
+                        var drawCall = CreateDrawCall(objectDrawCall, material);
+                        if (i < objectDrawBounds.Length)
                         {
                             drawCall.DrawBounds = new AABB(
                                 objectDrawBounds[i].GetSubCollection("m_vMinBounds").ToVector3(),
@@ -170,15 +171,19 @@ namespace GUI.Types.Renderer
                         }
 
                         i++;
-                        continue;
                     }
+                    else
+                    {
 
-                    SetupDrawCallMaterial(DrawCallsAll[i++], shaderArguments, material);
+                        var drawCall = DrawCallsAll[i++];
+                        drawCall.Material = material;
+                        drawCall.Shader = material.Shader;
+                    }
                 }
             }
         }
 
-        private DrawCall CreateDrawCall(IKeyValueCollection objectDrawCall, IDictionary<string, byte> shaderArguments, RenderMaterial material)
+        private DrawCall CreateDrawCall(IKeyValueCollection objectDrawCall, RenderMaterial material)
         {
             var drawCall = new DrawCall();
             var primitiveType = objectDrawCall.GetProperty<object>("m_nPrimitiveType");
@@ -203,7 +208,8 @@ namespace GUI.Types.Renderer
                 throw new NotImplementedException("Unknown PrimitiveType in drawCall! (" + primitiveType + ")");
             }
 
-            SetupDrawCallMaterial(drawCall, shaderArguments, material);
+            drawCall.Material = material;
+            drawCall.Shader = material.Shader;
 
             var indexBufferObject = objectDrawCall.GetSubCollection("m_indexBuffer");
 
@@ -268,21 +274,6 @@ namespace GUI.Types.Renderer
                 drawCall.BaseVertex);
 
             return drawCall;
-        }
-
-        private void SetupDrawCallMaterial(DrawCall drawCall, IDictionary<string, byte> shaderArguments, RenderMaterial material)
-        {
-            drawCall.Material = material;
-            // Add shader parameters from material to the shader parameters from the draw call
-            var combinedShaderParameters = shaderArguments
-                .Concat(material.Material.GetShaderArguments())
-                .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
-
-            // Load shader
-            drawCall.Shader = guiContext.ShaderLoader.LoadShader(drawCall.Material.Material.ShaderName, combinedShaderParameters);
-
-            //Bind and validate shader
-            GL.UseProgram(drawCall.Shader.Program);
         }
     }
 
