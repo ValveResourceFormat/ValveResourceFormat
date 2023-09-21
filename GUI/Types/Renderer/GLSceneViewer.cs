@@ -217,27 +217,6 @@ namespace GUI.Types.Renderer
             UpdateSceneBuffers(Scene, Camera);
             Scene.RenderWithCamera(Camera, bufferSet, lockedCullFrustum);
 
-            {
-                GL.DepthRange(0.95, 1.0);
-
-                // 3D Sky
-                if (ShowSkybox && SkyboxScene != null)
-                {
-                    skyboxCamera.CopyFrom(Camera);
-                    skyboxCamera.SetScaledProjectionMatrix();
-                    skyboxCamera.SetLocation(Camera.Location - SkyboxScene.WorldOffset);
-
-                    SkyboxScene.Update(e.FrameTime);
-                    UpdateSceneBuffers(SkyboxScene, skyboxCamera);
-                    SkyboxScene.RenderWithCamera(skyboxCamera, bufferSet, skyboxLockedCullFrustum);
-                }
-
-                // 2D Sky
-                Scene.Sky?.Render(genericRenderContext);
-
-                GL.DepthRange(0, 0.95);
-            }
-
             selectedNodeRenderer.Render(genericRenderContext);
 
             if (showStaticOctree)
@@ -253,6 +232,28 @@ namespace GUI.Types.Renderer
             if (ShowBaseGrid)
             {
                 baseGrid.Render(genericRenderContext);
+            }
+
+            {
+                GL.DepthRange(0.95, 1.0);
+
+                // 3D Sky
+                // TODO: Translucents in a combined pass
+                if (ShowSkybox && SkyboxScene != null)
+                {
+                    skyboxCamera.CopyFrom(Camera);
+                    skyboxCamera.SetScaledProjectionMatrix();
+                    skyboxCamera.SetLocation(Camera.Location - SkyboxScene.WorldOffset);
+
+                    SkyboxScene.Update(e.FrameTime);
+                    UpdateSceneBuffers(SkyboxScene, skyboxCamera);
+                    SkyboxScene.RenderWithCamera(skyboxCamera, bufferSet, skyboxLockedCullFrustum);
+                }
+
+                // 2D Sky
+                Scene.Sky?.Render(genericRenderContext);
+
+                GL.DepthRange(0, 0.95);
             }
         }
 
