@@ -14,10 +14,10 @@ namespace GUI.Types.Renderer
 
         public List<RenderableMesh> RenderableMeshes { get; } = new(1);
 
-        public MeshSceneNode(Scene scene, Mesh mesh, int meshIndex, Dictionary<string, string> skinMaterials = null)
+        public MeshSceneNode(Scene scene, Mesh mesh, int meshIndex)
             : base(scene)
         {
-            var meshRenderer = new RenderableMesh(mesh, meshIndex, Scene, skinMaterials);
+            var meshRenderer = new RenderableMesh(mesh, meshIndex, Scene);
             RenderableMeshes.Add(meshRenderer);
             LocalBoundingBox = meshRenderer.BoundingBox;
         }

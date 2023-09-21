@@ -174,8 +174,7 @@ namespace GUI.Types.Renderer
             // Get embedded meshes
             foreach (var embeddedMesh in Model.GetEmbeddedMeshesAndLoD().Where(m => (m.LoDMask & 1) != 0))
             {
-                meshRenderers.Add(new RenderableMesh(embeddedMesh.Mesh, embeddedMesh.MeshIndex, Scene,
-                    skinMaterials, Model));
+                meshRenderers.Add(new RenderableMesh(embeddedMesh.Mesh, embeddedMesh.MeshIndex, Scene, Model));
             }
 
             // Load referred meshes from file (only load meshes with LoD 1)
@@ -187,8 +186,7 @@ namespace GUI.Types.Renderer
                     continue;
                 }
 
-                meshRenderers.Add(new RenderableMesh((Mesh)newResource.DataBlock, refMesh.MeshIndex, Scene,
-                    skinMaterials, Model));
+                meshRenderers.Add(new RenderableMesh((Mesh)newResource.DataBlock, refMesh.MeshIndex, Scene, Model));
             }
 
             // Set active meshes to default

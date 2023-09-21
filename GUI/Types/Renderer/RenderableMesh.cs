@@ -17,25 +17,21 @@ namespace GUI.Types.Renderer
         public AABB BoundingBox { get; }
         public Vector4 Tint { get; set; } = Vector4.One;
 
-        private readonly Scene scene;
         private readonly VrfGuiContext guiContext;
         public List<DrawCall> DrawCallsOpaque { get; } = new List<DrawCall>();
         public List<DrawCall> DrawCallsBlended { get; } = new List<DrawCall>();
+        private IEnumerable<DrawCall> DrawCalls => DrawCallsOpaque.Concat(DrawCallsBlended);
+
         public int? AnimationTexture { get; private set; }
         public int AnimationTextureSize { get; private set; }
 
         public int MeshIndex { get; }
 
         private readonly int VBIBHashCode;
-        private readonly IKeyValueCollection[] sceneObjects;
-        private readonly List<DrawCall> DrawCallsAll = new();
 
-        public RenderableMesh(Mesh mesh, int meshIndex, Scene scene,
-            Dictionary<string, string> skinMaterials = null, Model model = null)
+        public RenderableMesh(Mesh mesh, int meshIndex, Scene scene, Model model = null)
         {
-            this.scene = scene;
             guiContext = scene.GuiContext;
-            sceneObjects = mesh.Data.GetArray("m_sceneObjects");
 
             var vbib = mesh.VBIB;
             if (model != null)
@@ -48,19 +44,18 @@ namespace GUI.Types.Renderer
             BoundingBox = new AABB(mesh.MinBounds, mesh.MaxBounds);
             MeshIndex = meshIndex;
 
-            ConfigureDrawCalls(skinMaterials, vbib);
+            var meshSceneObjects = mesh.Data.GetArray("m_sceneObjects");
+            ConfigureDrawCalls(scene, vbib, meshSceneObjects);
         }
 
         public IEnumerable<string> GetSupportedRenderModes()
-            => DrawCallsAll
+            => DrawCalls
                 .SelectMany(drawCall => drawCall.Material.Shader.RenderModes)
                 .Distinct();
 
         public void SetRenderMode(string renderMode)
         {
-            var drawCalls = DrawCallsAll;
-
-            foreach (var call in drawCalls)
+            foreach (var call in DrawCalls)
             {
                 // Recycle old shader parameters that are not render modes since we are scrapping those anyway
                 var parameters = call.Material.Shader.Parameters
@@ -90,17 +85,31 @@ namespace GUI.Types.Renderer
 
         public void SetSkin(Dictionary<string, string> skinMaterials)
         {
-            // TODO: Refactor this somehow to not require full drawcall reconfiguration
-            ConfigureDrawCalls(skinMaterials);
+            foreach (var drawCall in DrawCalls)
+            {
+                var originalMaterial = drawCall.OriginalMaterial;
+                var originalMaterialData = originalMaterial.Material;
+
+                if (skinMaterials.TryGetValue(originalMaterialData.Name, out var replacementName))
+                {
+                    if (originalMaterialData.Name == replacementName)
+                    {
+                        drawCall.Material = originalMaterial;
+                        continue;
+                    }
+
+                    // Recycle non-material-derived shader arguments
+                    var staticParams = originalMaterialData.GetShaderArguments();
+                    var dynamicParams = new Dictionary<string, byte>(originalMaterial.Shader.Parameters.Except(staticParams));
+
+                    drawCall.Material = guiContext.MaterialLoader.GetMaterial(replacementName, dynamicParams);
+                }
+            }
         }
 
-        private void ConfigureDrawCalls(Dictionary<string, string> skinMaterials, VBIB vbib = null)
+        private void ConfigureDrawCalls(Scene scene, VBIB vbib, IKeyValueCollection[] sceneObjects)
         {
-            if (vbib != null)
-            {
-                // This call has side effects because it uploads to gpu
-                guiContext.MeshBufferCache.GetVertexIndexBuffers(VBIBHashCode, vbib);
-            }
+            guiContext.MeshBufferCache.GetVertexIndexBuffers(VBIBHashCode, vbib);
 
             foreach (var sceneObject in sceneObjects)
             {
@@ -113,11 +122,6 @@ namespace GUI.Types.Renderer
                 foreach (var objectDrawCall in objectDrawCalls)
                 {
                     var materialName = objectDrawCall.GetProperty<string>("m_material") ?? objectDrawCall.GetProperty<string>("m_pMaterial");
-
-                    if (skinMaterials != null && skinMaterials.ContainsKey(materialName))
-                    {
-                        materialName = skinMaterials[materialName];
-                    }
 
                     var shaderArguments = new Dictionary<string, byte>(scene.RenderAttributes);
 
@@ -147,43 +151,38 @@ namespace GUI.Types.Renderer
 
                     var material = guiContext.MaterialLoader.GetMaterial(materialName, shaderArguments);
 
-                    if (vbib != null)
+                    // TODO: Don't pass around so much shit
+                    var drawCall = CreateDrawCall(objectDrawCall, material, vbib);
+                    if (i < objectDrawBounds.Length)
                     {
-                        // TODO: Don't pass around so much shit
-                        var drawCall = CreateDrawCall(objectDrawCall, material, vbib);
-                        if (i < objectDrawBounds.Length)
-                        {
-                            drawCall.DrawBounds = new AABB(
-                                objectDrawBounds[i].GetSubCollection("m_vMinBounds").ToVector3(),
-                                objectDrawBounds[i].GetSubCollection("m_vMaxBounds").ToVector3()
-                            );
-                        }
+                        drawCall.DrawBounds = new AABB(
+                            objectDrawBounds[i].GetSubCollection("m_vMinBounds").ToVector3(),
+                            objectDrawBounds[i].GetSubCollection("m_vMaxBounds").ToVector3()
+                        );
+                    }
 
-                        DrawCallsAll.Add(drawCall);
-
-                        if (drawCall.Material.IsBlended && !drawCall.Material.IsOverlay)
-                        {
-                            DrawCallsBlended.Add(drawCall);
-                        }
-                        else
-                        {
-                            DrawCallsOpaque.Add(drawCall);
-                        }
-
-                        i++;
+                    if (drawCall.Material.IsBlended)
+                    {
+                        DrawCallsBlended.Add(drawCall);
                     }
                     else
                     {
-                        var drawCall = DrawCallsAll[i++];
-                        drawCall.Material = material;
+                        DrawCallsOpaque.Add(drawCall);
                     }
+
+                    i++;
                 }
             }
         }
 
         private DrawCall CreateDrawCall(IKeyValueCollection objectDrawCall, RenderMaterial material, VBIB vbib)
         {
-            var drawCall = new DrawCall();
+            var drawCall = new DrawCall()
+            {
+                OriginalMaterial = material,
+                Material = material,
+            };
+
             var primitiveType = objectDrawCall.GetProperty<object>("m_nPrimitiveType");
 
             if (primitiveType is byte primitiveTypeByte)
@@ -205,8 +204,6 @@ namespace GUI.Types.Renderer
             {
                 throw new NotImplementedException("Unknown PrimitiveType in drawCall! (" + primitiveType + ")");
             }
-
-            drawCall.Material = material;
 
             // Index buffer
             {
