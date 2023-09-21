@@ -1,5 +1,6 @@
 using OpenTK;
 using OpenTK.Graphics.OpenGL;
+using ValveResourceFormat.Blocks;
 
 namespace GUI.Types.Renderer
 {
@@ -21,14 +22,22 @@ namespace GUI.Types.Renderer
         public int NumMeshlets { get; set; }
         public RenderMaterial Material { get; set; }
         public uint VertexArrayObject { get; set; }
-        public DrawBuffer VertexBuffer { get; set; }
+        public VertexDrawBuffer VertexBuffer { get; set; }
         public DrawElementsType IndexType { get; set; }
-        public DrawBuffer IndexBuffer { get; set; }
+        public IndexDrawBuffer IndexBuffer { get; set; }
     }
 
-    internal struct DrawBuffer
+    internal struct IndexDrawBuffer
     {
         public uint Id;
         public uint Offset;
+    }
+
+    internal struct VertexDrawBuffer
+    {
+        public uint Id;
+        public uint Offset;
+        public uint ElementSizeInBytes;
+        public VBIB.RenderInputLayoutField[] InputLayoutFields;
     }
 }

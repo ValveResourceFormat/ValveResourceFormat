@@ -10,7 +10,7 @@ namespace GUI.Types.Renderer
 {
     class ModelSceneNode : SceneNode, IRenderableMeshCollection
     {
-        private Model Model { get; }
+        private Model Model { get; } // TODO: Refactor to remove this full model reference to reduce memory usage
         public Vector4 Tint
         {
             get

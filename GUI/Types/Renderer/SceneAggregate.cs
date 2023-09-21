@@ -10,7 +10,6 @@ namespace GUI.Types.Renderer
 {
     class SceneAggregate : SceneNode
     {
-        private Model Model { get; }
         public RenderableMesh RenderMesh { get; }
 
         internal sealed class Fragment : SceneNode
@@ -39,9 +38,7 @@ namespace GUI.Types.Renderer
         public SceneAggregate(Scene scene, Model model)
             : base(scene)
         {
-            Model = model;
-
-            var embeddedMeshes = Model.GetEmbeddedMeshesAndLoD().ToList();
+            var embeddedMeshes = model.GetEmbeddedMeshesAndLoD().ToList();
 
             /// TODO: Perhaps use <see cref="ModelSceneNode.LoadMeshes">
             if (embeddedMeshes.Any())
@@ -55,7 +52,7 @@ namespace GUI.Types.Renderer
             }
             else
             {
-                var refMeshes = Model.GetReferenceMeshNamesAndLoD().Where(m => (m.LoDMask & 1) != 0).ToList();
+                var refMeshes = model.GetReferenceMeshNamesAndLoD().Where(m => (m.LoDMask & 1) != 0).ToList();
                 var refMesh = refMeshes.First();
 
                 if (refMeshes.Count > 1)

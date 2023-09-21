@@ -9,7 +9,7 @@ namespace GUI.Types.Renderer
 {
     class GPUMeshBufferCache
     {
-        private readonly Dictionary<VBIB, GPUMeshBuffers> gpuBuffers = new();
+        private readonly Dictionary<int, GPUMeshBuffers> gpuBuffers = new();
         private readonly Dictionary<VAOKey, uint> vertexArrayObjects = new();
 
         private struct VAOKey
@@ -25,29 +25,30 @@ namespace GUI.Types.Renderer
         {
         }
 
-        public GPUMeshBuffers GetVertexIndexBuffers(VBIB vbib)
+        public GPUMeshBuffers GetVertexIndexBuffers(int key, VBIB vbib)
         {
-            if (gpuBuffers.TryGetValue(vbib, out var gpuVbib))
+            if (gpuBuffers.TryGetValue(key, out var gpuVbib))
             {
                 return gpuVbib;
             }
             else
             {
+                ArgumentNullException.ThrowIfNull(vbib);
+
                 var newGpuVbib = new GPUMeshBuffers(vbib);
-                gpuBuffers.Add(vbib, newGpuVbib);
+                gpuBuffers.Add(key, newGpuVbib);
                 return newGpuVbib;
             }
         }
 
-        public uint GetVertexArrayObject(VBIB vbib, RenderMaterial material,
-            uint vtxIndex, uint idxIndex, uint baseVertex)
+        public uint GetVertexArrayObject(int key, VertexDrawBuffer curVertexBuffer, RenderMaterial material, uint idxIndex, uint baseVertex)
         {
-            var gpuVbib = GetVertexIndexBuffers(vbib);
+            var gpuVbib = GetVertexIndexBuffers(key, null);
             var vaoKey = new VAOKey
             {
                 VBIB = gpuVbib,
                 Shader = material.Shader,
-                VertexIndex = vtxIndex,
+                VertexIndex = curVertexBuffer.Id,
                 IndexIndex = idxIndex,
                 BaseVertex = baseVertex,
             };
@@ -56,60 +57,57 @@ namespace GUI.Types.Renderer
             {
                 return vaoHandle;
             }
-            else
+
+            GL.GenVertexArrays(1, out uint newVaoHandle);
+
+            GL.BindVertexArray(newVaoHandle);
+            GL.BindBuffer(BufferTarget.ArrayBuffer, gpuVbib.VertexBuffers[curVertexBuffer.Id].Handle);
+            GL.BindBuffer(BufferTarget.ElementArrayBuffer, gpuVbib.IndexBuffers[idxIndex].Handle);
+
+            foreach (var attribute in curVertexBuffer.InputLayoutFields)
             {
-                GL.GenVertexArrays(1, out uint newVaoHandle);
+                var attributeLocation = -1;
+                var insgElemName = string.Empty;
 
-                GL.BindVertexArray(newVaoHandle);
-                GL.BindBuffer(BufferTarget.ArrayBuffer, gpuVbib.VertexBuffers[vtxIndex].Handle);
-                GL.BindBuffer(BufferTarget.ElementArrayBuffer, gpuVbib.IndexBuffers[idxIndex].Handle);
-
-                var curVertexBuffer = vbib.VertexBuffers[(int)vtxIndex];
-                foreach (var attribute in curVertexBuffer.InputLayoutFields)
+                if (material.VsInputSignature is not null)
                 {
-                    var attributeLocation = -1;
-                    var insgElemName = string.Empty;
+                    var elem = Material.FindD3DInputSignatureElement(material.VsInputSignature, attribute.SemanticName, attribute.SemanticIndex);
 
-                    if (material.VsInputSignature is not null)
+                    if (elem.Name is not null)
                     {
-                        var elem = Material.FindD3DInputSignatureElement(material.VsInputSignature, attribute.SemanticName, attribute.SemanticIndex);
-
-                        if (elem.Name is not null)
-                        {
-                            insgElemName = elem.Name;
-                            attributeLocation = GL.GetAttribLocation(material.Shader.Program, insgElemName);
-                        }
+                        insgElemName = elem.Name;
+                        attributeLocation = GL.GetAttribLocation(material.Shader.Program, insgElemName);
                     }
-
-                    // Fallback to guessing basic attribute name if INSG does not exist or attribute was not found
-                    if (attributeLocation == -1)
-                    {
-                        var attributeName = "v" + attribute.SemanticName;
-                        if (attribute.SemanticName is "TEXCOORD" or "COLOR" && attribute.SemanticIndex > 0)
-                        {
-                            attributeName += attribute.SemanticIndex;
-                        }
-
-                        attributeLocation = GL.GetAttribLocation(material.Shader.Program, attributeName);
-                    }
-
-                    // Ignore this attribute if it is not found in the shader
-                    if (attributeLocation == -1)
-                    {
-#if DEBUG
-                        Console.WriteLine($"Attribute {attribute.SemanticName} ({attribute.SemanticIndex}) could not be bound in shader {material.Shader.Name} (insg: {insgElemName})");
-#endif
-                        continue;
-                    }
-
-                    BindVertexAttrib(attribute, attributeLocation, (int)curVertexBuffer.ElementSizeInBytes, baseVertex);
                 }
 
-                GL.BindVertexArray(0);
+                // Fallback to guessing basic attribute name if INSG does not exist or attribute was not found
+                if (attributeLocation == -1)
+                {
+                    var attributeName = "v" + attribute.SemanticName;
+                    if (attribute.SemanticName is "TEXCOORD" or "COLOR" && attribute.SemanticIndex > 0)
+                    {
+                        attributeName += attribute.SemanticIndex;
+                    }
 
-                vertexArrayObjects.Add(vaoKey, newVaoHandle);
-                return newVaoHandle;
+                    attributeLocation = GL.GetAttribLocation(material.Shader.Program, attributeName);
+                }
+
+                // Ignore this attribute if it is not found in the shader
+                if (attributeLocation == -1)
+                {
+#if DEBUG
+                    Console.WriteLine($"Attribute {attribute.SemanticName} ({attribute.SemanticIndex}) could not be bound in shader {material.Shader.Name} (insg: {insgElemName})");
+#endif
+                    continue;
+                }
+
+                BindVertexAttrib(attribute, attributeLocation, (int)curVertexBuffer.ElementSizeInBytes, baseVertex);
             }
+
+            GL.BindVertexArray(0);
+
+            vertexArrayObjects.Add(vaoKey, newVaoHandle);
+            return newVaoHandle;
         }
 
         private static void BindVertexAttrib(VBIB.RenderInputLayoutField attribute, int attributeLocation, int stride, uint baseVertex)
