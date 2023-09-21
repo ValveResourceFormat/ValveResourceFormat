@@ -19,8 +19,9 @@ namespace GUI.Types.Renderer
 
         private readonly VrfGuiContext guiContext;
         public List<DrawCall> DrawCallsOpaque { get; } = new List<DrawCall>();
+        public List<DrawCall> DrawCallsOverlay { get; } = new List<DrawCall>(1);
         public List<DrawCall> DrawCallsBlended { get; } = new List<DrawCall>();
-        private IEnumerable<DrawCall> DrawCalls => DrawCallsOpaque.Concat(DrawCallsBlended);
+        private IEnumerable<DrawCall> DrawCalls => DrawCallsOpaque.Concat(DrawCallsOverlay).Concat(DrawCallsBlended);
 
         public int? AnimationTexture { get; private set; }
         public int AnimationTextureSize { get; private set; }
@@ -161,7 +162,11 @@ namespace GUI.Types.Renderer
                         );
                     }
 
-                    if (drawCall.Material.IsBlended)
+                    if (drawCall.Material.IsOverlay)
+                    {
+                        DrawCallsOverlay.Add(drawCall);
+                    }
+                    else if (drawCall.Material.IsBlended)
                     {
                         DrawCallsBlended.Add(drawCall);
                     }
@@ -173,6 +178,10 @@ namespace GUI.Types.Renderer
                     i++;
                 }
             }
+
+            DrawCallsOpaque.TrimExcess();
+            DrawCallsOverlay.TrimExcess();
+            DrawCallsBlended.TrimExcess();
         }
 
         private DrawCall CreateDrawCall(IKeyValueCollection objectDrawCall, RenderMaterial material, VBIB vbib)

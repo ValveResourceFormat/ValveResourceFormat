@@ -158,27 +158,24 @@ namespace GUI.Types.Renderer
 
         public void Render(Camera camera, RenderPass renderPass)
         {
-            if (renderPass == RenderPass.Translucent || renderPass == RenderPass.Both)
+            if (dynamic)
             {
-                if (dynamic)
-                {
-                    Rebuild();
-                }
-
-                GL.Enable(EnableCap.Blend);
-                GL.DepthMask(false);
-                GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
-                GL.UseProgram(shader.Program);
-
-                shader.SetUniform4x4("transform", Matrix4x4.Identity);
-
-                GL.BindVertexArray(vaoHandle);
-                GL.DrawArrays(PrimitiveType.Lines, 0, vertexCount);
-                GL.UseProgram(0);
-                GL.BindVertexArray(0);
-                GL.DepthMask(true);
-                GL.Disable(EnableCap.Blend);
+                Rebuild();
             }
+
+            GL.Enable(EnableCap.Blend);
+            GL.DepthMask(false);
+            GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
+            GL.UseProgram(shader.Program);
+
+            shader.SetUniform4x4("transform", Matrix4x4.Identity);
+
+            GL.BindVertexArray(vaoHandle);
+            GL.DrawArrays(PrimitiveType.Lines, 0, vertexCount);
+            GL.UseProgram(0);
+            GL.BindVertexArray(0);
+            GL.DepthMask(true);
+            GL.Disable(EnableCap.Blend);
         }
     }
 }

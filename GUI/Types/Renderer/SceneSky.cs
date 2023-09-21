@@ -74,11 +74,6 @@ namespace GUI.Types.Renderer
 
         public override void Render(Scene.RenderContext context)
         {
-            if (context.RenderPass != RenderPass.Both)
-            {
-                return;
-            }
-
             GL.DepthFunc(DepthFunction.Lequal);
 
             GL.UseProgram(Material.Shader.Program);

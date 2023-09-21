@@ -209,31 +209,13 @@ namespace GUI.Types.Renderer
 
             var genericRenderContext = new Scene.RenderContext
             {
-                Camera = Camera,
-                RenderPass = RenderPass.Both
+                Camera = Camera
             };
 
             GL.DepthRange(0, 0.95);
 
             UpdateSceneBuffers(Scene, Camera);
             Scene.RenderWithCamera(Camera, bufferSet, lockedCullFrustum);
-
-            selectedNodeRenderer.Render(genericRenderContext);
-
-            if (showStaticOctree)
-            {
-                staticOctreeRenderer.Render(Camera, RenderPass.Both);
-            }
-
-            if (showDynamicOctree)
-            {
-                dynamicOctreeRenderer.Render(Camera, RenderPass.Both);
-            }
-
-            if (ShowBaseGrid)
-            {
-                baseGrid.Render(genericRenderContext);
-            }
 
             {
                 GL.DepthRange(0.95, 1.0);
@@ -249,12 +231,32 @@ namespace GUI.Types.Renderer
                     SkyboxScene.Update(e.FrameTime);
                     UpdateSceneBuffers(SkyboxScene, skyboxCamera);
                     SkyboxScene.RenderWithCamera(skyboxCamera, bufferSet, skyboxLockedCullFrustum);
+
+                    // Back to main Scene
+                    UpdateSceneBuffers(Scene, Camera);
                 }
 
                 // 2D Sky
                 Scene.Sky?.Render(genericRenderContext);
 
                 GL.DepthRange(0, 0.95);
+            }
+
+            selectedNodeRenderer.Render(genericRenderContext);
+
+            if (showStaticOctree)
+            {
+                staticOctreeRenderer.Render(Camera, RenderPass.Opaque);
+            }
+
+            if (showDynamicOctree)
+            {
+                dynamicOctreeRenderer.Render(Camera, RenderPass.Opaque);
+            }
+
+            if (ShowBaseGrid)
+            {
+                baseGrid.Render(genericRenderContext);
             }
         }
 

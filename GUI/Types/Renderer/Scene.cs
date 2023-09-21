@@ -123,20 +123,21 @@ namespace GUI.Types.Renderer
 
         // Since we only ever draw one scene at a time, these can be static
         // And they are fields here so they only ever grow without having to re-allocate these arrays every frame
-        private readonly static List<SceneNode> renderAllNodes = new();
+        private readonly static List<SceneNode> cullingResult = new();
         private readonly static List<MeshBatchRenderer.Request> renderLooseNodes = new();
         private readonly static List<MeshBatchRenderer.Request> renderOpaqueDrawCalls = new();
+        private readonly static List<MeshBatchRenderer.Request> renderStaticOverlays = new();
         private readonly static List<MeshBatchRenderer.Request> renderTranslucentDrawCalls = new();
 
         public void RenderWithCamera(Camera camera, List<UniformBuffers.IBlockBindableBuffer> buffers, Frustum cullFrustum = null)
         {
             cullFrustum ??= camera.ViewFrustum;
 
-            StaticOctree.Root.Query(cullFrustum, renderAllNodes);
-            DynamicOctree.Root.Query(cullFrustum, renderAllNodes);
+            StaticOctree.Root.Query(cullFrustum, cullingResult);
+            DynamicOctree.Root.Query(cullFrustum, cullingResult);
 
             // Collect mesh calls
-            foreach (var node in renderAllNodes)
+            foreach (var node in cullingResult)
             {
                 if (node is IRenderableMeshCollection meshCollection)
                 {
@@ -149,8 +150,18 @@ namespace GUI.Types.Renderer
                                 Transform = node.Transform,
                                 Mesh = mesh,
                                 Call = call,
-                                DistanceFromCamera = (node.BoundingBox.Center - camera.Location).LengthSquared(),
-                                OverlayRenderOrder = node.OverlayRenderOrder,
+                                Node = node,
+                            });
+                        }
+
+                        foreach (var call in mesh.DrawCallsOverlay)
+                        {
+                            renderStaticOverlays.Add(new MeshBatchRenderer.Request
+                            {
+                                Transform = node.Transform,
+                                Mesh = mesh,
+                                Call = call,
+                                RenderOrder = node.OverlayRenderOrder,
                                 Node = node,
                             });
                         }
@@ -178,7 +189,6 @@ namespace GUI.Types.Renderer
                         Transform = fragment.Transform,
                         Mesh = fragment.RenderMesh,
                         Call = fragment.DrawCall,
-                        DistanceFromCamera = (node.BoundingBox.Center - camera.Location).LengthSquared(),
                         Node = node,
                     });
                 }
@@ -192,10 +202,9 @@ namespace GUI.Types.Renderer
                 }
             }
 
-            renderAllNodes.Clear();
+            cullingResult.Clear();
 
-            // Sort loose nodes by distance from camera
-            renderLooseNodes.Sort(static (a, b) => a.DistanceFromCamera.CompareTo(b.DistanceFromCamera));
+            renderLooseNodes.Sort(MeshBatchRenderer.CompareCameraDistance);
 
             // Opaque render pass
             var renderContext = new RenderContext
@@ -221,15 +230,20 @@ namespace GUI.Types.Renderer
                 }
             }
 
+            renderContext.RenderPass = RenderPass.Opaque;
             MeshBatchRenderer.Render(renderOpaqueDrawCalls, renderContext);
             renderOpaqueDrawCalls.Clear();
 
+            renderContext.RenderPass = RenderPass.StaticOverlay;
+            MeshBatchRenderer.Render(renderStaticOverlays, renderContext);
+            renderStaticOverlays.Clear();
+
+            renderContext.RenderPass = RenderPass.AfterOpaque;
             foreach (var request in renderLooseNodes)
             {
                 request.Node.Render(renderContext);
             }
 
-            // Translucent render pass, back to front for loose nodes
             renderContext.RenderPass = RenderPass.Translucent;
 
             MeshBatchRenderer.Render(renderTranslucentDrawCalls, renderContext);

@@ -15,23 +15,51 @@ namespace GUI.Types.Renderer
             public RenderableMesh Mesh;
             public DrawCall Call;
             public float DistanceFromCamera;
-            public int OverlayRenderOrder;
+            public int RenderOrder;
             public SceneNode Node;
+        }
+
+        public static int ComparePipeline(Request a, Request b)
+        {
+            if (a.Call.Material.Shader.Program == b.Call.Material.Shader.Program)
+            {
+                return a.Call.Material.GetHashCode() - b.Call.Material.GetHashCode();
+            }
+
+            return a.Call.Material.Shader.Program - b.Call.Material.Shader.Program;
+        }
+
+        public static int CompareRenderOrderThenPipeline(Request a, Request b)
+        {
+            if (a.RenderOrder == b.RenderOrder)
+            {
+                return ComparePipeline(a, b);
+            }
+
+            return a.RenderOrder - b.RenderOrder;
+        }
+
+        public static int CompareCameraDistance(Request a, Request b)
+        {
+            return -a.DistanceFromCamera.CompareTo(b.DistanceFromCamera);
         }
 
         public static void Render(List<Request> requests, Scene.RenderContext context)
         {
-            // Opaque: Grouped by material
-            if (context.RenderPass == RenderPass.Both || context.RenderPass == RenderPass.Opaque)
+            if (context.RenderPass == RenderPass.Opaque)
             {
-                DrawBatch(requests, context, false);
+                requests.Sort(ComparePipeline);
+            }
+            else if (context.RenderPass == RenderPass.StaticOverlay)
+            {
+                requests.Sort(CompareRenderOrderThenPipeline);
+            }
+            else if (context.RenderPass == RenderPass.Translucent)
+            {
+                requests.Sort(CompareCameraDistance);
             }
 
-            // Translucent: In reverse order
-            if (context.RenderPass == RenderPass.Both || context.RenderPass == RenderPass.Translucent)
-            {
-                DrawBatch(requests, context, true);
-            }
+            DrawBatch(requests, context);
         }
 
         private ref struct Uniforms
@@ -52,31 +80,8 @@ namespace GUI.Types.Renderer
         /// <summary>
         /// Minimizes state changes by grouping draw calls by shader and material.
         /// </summary>
-        private static void DrawBatch(List<Request> requests, Scene.RenderContext context, bool sortByDistance)
+        private static void DrawBatch(List<Request> requests, Scene.RenderContext context)
         {
-            // Sort draw call requests by shader, and then by material
-            if (sortByDistance)
-            {
-                requests.Sort(static (a, b) => -a.DistanceFromCamera.CompareTo(b.DistanceFromCamera));
-            }
-            else
-            {
-                requests.Sort(static (a, b) =>
-                {
-                    if (a.OverlayRenderOrder == b.OverlayRenderOrder)
-                    {
-                        if (a.Call.Material.Shader.Program == b.Call.Material.Shader.Program)
-                        {
-                            return a.Call.Material.GetHashCode() - b.Call.Material.GetHashCode();
-                        }
-
-                        return a.Call.Material.Shader.Program - b.Call.Material.Shader.Program;
-                    }
-
-                    return a.OverlayRenderOrder - b.OverlayRenderOrder;
-                });
-            }
-
             Shader shader = null;
             RenderMaterial material = null;
             Uniforms uniforms = new();

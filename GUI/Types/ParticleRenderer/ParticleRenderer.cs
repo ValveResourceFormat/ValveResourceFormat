@@ -266,24 +266,26 @@ namespace GUI.Types.ParticleRenderer
 
         public void Render(Camera camera, RenderPass renderPass)
         {
-            if (renderPass == RenderPass.Translucent || renderPass == RenderPass.Both)
+            if (renderPass != RenderPass.Translucent)
             {
-                foreach (var childParticleRenderer in childParticleRenderers)
-                {
-                    childParticleRenderer.Render(camera, renderPass);
-                }
+                return;
+            }
 
-                if (particleCollection.Count > 0)
+            foreach (var childParticleRenderer in childParticleRenderers)
+            {
+                childParticleRenderer.Render(camera, renderPass);
+            }
+
+            if (particleCollection.Count > 0)
+            {
+                foreach (var renderer in Renderers)
                 {
-                    foreach (var renderer in Renderers)
+                    if (renderer.GetOperatorRunStrength(systemRenderState) <= 0.0f)
                     {
-                        if (renderer.GetOperatorRunStrength(systemRenderState) <= 0.0f)
-                        {
-                            continue;
-                        }
-
-                        renderer.Render(particleCollection, systemRenderState, camera.CameraViewMatrix);
+                        continue;
                     }
+
+                    renderer.Render(particleCollection, systemRenderState, camera.CameraViewMatrix);
                 }
             }
         }

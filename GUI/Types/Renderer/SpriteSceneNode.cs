@@ -41,7 +41,7 @@ namespace GUI.Types.Renderer
 
         public override void Render(Scene.RenderContext context)
         {
-            if (context.RenderPass != RenderPass.Opaque)
+            if (context.RenderPass != RenderPass.AfterOpaque)
             {
                 return;
             }
