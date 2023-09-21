@@ -50,7 +50,6 @@ namespace GUI.Types.ParticleRenderer
 
         public override void Render(Scene.RenderContext context)
         {
-            GL.Enable(EnableCap.DepthTest);
             GL.Enable(EnableCap.Blend);
             GL.Disable(EnableCap.CullFace);
             GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
@@ -63,7 +62,6 @@ namespace GUI.Types.ParticleRenderer
 
             GL.UseProgram(0);
             GL.BindVertexArray(0);
-            GL.Disable(EnableCap.DepthTest);
             GL.Disable(EnableCap.Blend);
             GL.Enable(EnableCap.CullFace);
         }

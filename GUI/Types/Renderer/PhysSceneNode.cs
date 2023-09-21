@@ -363,7 +363,6 @@ namespace GUI.Types.Renderer
 
             var renderShader = context.ReplacementShader ?? shader;
 
-            GL.Enable(EnableCap.DepthTest);
             GL.Enable(EnableCap.Blend);
             GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.SrcAlphaSaturate);
 
@@ -388,8 +387,6 @@ namespace GUI.Types.Renderer
 
             GL.UseProgram(0);
             GL.BindVertexArray(0);
-
-            GL.Disable(EnableCap.DepthTest);
         }
 
         public override void Update(Scene.UpdateContext context)

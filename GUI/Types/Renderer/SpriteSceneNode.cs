@@ -73,14 +73,12 @@ namespace GUI.Types.Renderer
             material.Render(renderShader);
 
             GL.Disable(EnableCap.CullFace);
-            GL.Enable(EnableCap.DepthTest);
 
             GL.DrawArrays(PrimitiveType.TriangleStrip, 0, 4);
 
             material.PostRender();
 
             GL.Enable(EnableCap.CullFace);
-            GL.Disable(EnableCap.DepthTest);
 
             GL.BindVertexArray(0);
             GL.UseProgram(0);

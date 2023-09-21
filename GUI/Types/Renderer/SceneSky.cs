@@ -79,7 +79,6 @@ namespace GUI.Types.Renderer
                 return;
             }
 
-            GL.Enable(EnableCap.DepthTest);
             GL.DepthFunc(DepthFunction.Lequal);
 
             GL.UseProgram(Material.Shader.Program);
@@ -95,7 +94,6 @@ namespace GUI.Types.Renderer
             GL.BindVertexArray(0);
 
             GL.DepthFunc(DepthFunction.Less);
-            GL.Disable(EnableCap.DepthTest);
         }
 
         public override void SetRenderMode(string mode)

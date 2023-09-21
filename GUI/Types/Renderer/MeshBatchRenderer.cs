@@ -54,8 +54,6 @@ namespace GUI.Types.Renderer
         /// </summary>
         private static void DrawBatch(List<Request> requests, Scene.RenderContext context, bool sortByDistance)
         {
-            GL.Enable(EnableCap.DepthTest);
-
             // Sort draw call requests by shader, and then by material
             if (sortByDistance)
             {
@@ -133,8 +131,6 @@ namespace GUI.Types.Renderer
             }
 
             material?.PostRender();
-
-            GL.Disable(EnableCap.DepthTest);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

@@ -285,7 +285,6 @@ namespace GUI.Types.ParticleRenderer.Renderers
             shader.SetUniform1("uOverbrightFactor", overbrightFactor.NextNumber());
 
             GL.Disable(EnableCap.CullFace);
-            GL.Enable(EnableCap.DepthTest);
             GL.DepthMask(false);
 
             GL.BindBuffer(BufferTarget.ElementArrayBuffer, quadIndices.GLHandle);
@@ -302,7 +301,6 @@ namespace GUI.Types.ParticleRenderer.Renderers
             GL.BindBuffer(BufferTarget.ArrayBuffer, 0);
 
             GL.Enable(EnableCap.CullFace);
-            GL.Disable(EnableCap.DepthTest);
             GL.DepthMask(true);
 
             GL.UseProgram(0);

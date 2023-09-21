@@ -196,6 +196,7 @@ namespace GUI.Types.Renderer
 
             // Todo: this should be set once on init, and toggled when there's F_RENDER_BACKFACES
             GL.Enable(EnableCap.CullFace);
+            GL.Enable(EnableCap.DepthTest);
 
             void UpdateSceneBuffers(Scene scene, Camera camera)
             {

@@ -10,7 +10,7 @@ namespace GUI.Types.Renderer
         private readonly int vaoHandle;
         private readonly int vboHandle;
         private int vertexCount;
-        private bool enableDepth;
+        private bool disableDepth;
         private bool debugCubeMaps;
         private readonly List<SceneNode> selectedNodes = new(1);
 
@@ -72,7 +72,7 @@ namespace GUI.Types.Renderer
 
         private void UpdateBuffer()
         {
-            enableDepth = selectedNodes.Count == 1;
+            disableDepth = selectedNodes.Count > 1;
 
             var vertices = new List<float>();
 
@@ -112,7 +112,7 @@ namespace GUI.Types.Renderer
 
                         OctreeDebugRenderer<SceneNode>.AddBox(vertices, node.Transform, bounds, 0.0f, 1.0f, 0.0f, 1.0f);
 
-                        enableDepth = false;
+                        disableDepth = true;
                     }
                 }
             }
@@ -133,16 +133,16 @@ namespace GUI.Types.Renderer
 
         public override void Render(Scene.RenderContext context)
         {
-            if (vertexCount == 0 || context.RenderPass != RenderPass.Both)
+            if (vertexCount == 0)
             {
                 return;
             }
 
             GL.Enable(EnableCap.Blend);
 
-            if (enableDepth)
+            if (disableDepth)
             {
-                GL.Enable(EnableCap.DepthTest);
+                GL.Disable(EnableCap.DepthTest);
             }
 
             GL.DepthMask(false);
@@ -157,7 +157,7 @@ namespace GUI.Types.Renderer
             GL.BindVertexArray(0);
             GL.DepthMask(true);
             GL.Disable(EnableCap.Blend);
-            GL.Disable(EnableCap.DepthTest);
+            GL.Enable(EnableCap.DepthTest);
         }
 
         public override void SetRenderMode(string mode)

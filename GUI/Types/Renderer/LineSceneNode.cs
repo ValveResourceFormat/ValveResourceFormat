@@ -56,8 +56,6 @@ namespace GUI.Types.Renderer
 
             var renderShader = context.ReplacementShader ?? shader;
 
-            GL.Enable(EnableCap.DepthTest);
-
             GL.UseProgram(renderShader.Program);
 
             renderShader.SetUniform4x4("transform", Transform);
@@ -69,8 +67,6 @@ namespace GUI.Types.Renderer
 
             GL.UseProgram(0);
             GL.BindVertexArray(0);
-
-            GL.Disable(EnableCap.DepthTest);
         }
 
         public override void Update(Scene.UpdateContext context)
