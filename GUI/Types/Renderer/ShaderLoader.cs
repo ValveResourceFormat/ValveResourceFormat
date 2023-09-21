@@ -396,14 +396,12 @@ namespace GUI.Types.Renderer
 
                 first = false;
 
-                if (param.Value > 0)
+                sb.Append(param.Key);
+
+                if (param.Value != 1)
                 {
-                    sb.Append(param.Key);
-                    if (param.Value > 1)
-                    {
-                        sb.Append('=');
-                        sb.Append(param.Value);
-                    }
+                    sb.Append('=');
+                    sb.Append(param.Value);
                 }
             }
 
