@@ -6,7 +6,6 @@ namespace GUI.Types.Renderer
     class DrawCall
     {
         public PrimitiveType PrimitiveType { get; set; }
-        public Shader Shader { get; set; }
         public uint BaseVertex { get; set; }
         //public uint VertexCount { get; set; }
         public uint StartIndex { get; set; }

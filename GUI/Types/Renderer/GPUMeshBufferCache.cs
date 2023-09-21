@@ -39,14 +39,14 @@ namespace GUI.Types.Renderer
             }
         }
 
-        public uint GetVertexArrayObject(VBIB vbib, Shader shader, RenderMaterial material,
+        public uint GetVertexArrayObject(VBIB vbib, RenderMaterial material,
             uint vtxIndex, uint idxIndex, uint baseVertex)
         {
             var gpuVbib = GetVertexIndexBuffers(vbib);
             var vaoKey = new VAOKey
             {
                 VBIB = gpuVbib,
-                Shader = shader,
+                Shader = material.Shader,
                 VertexIndex = vtxIndex,
                 IndexIndex = idxIndex,
                 BaseVertex = baseVertex,
@@ -77,7 +77,7 @@ namespace GUI.Types.Renderer
                         if (elem.Name is not null)
                         {
                             insgElemName = elem.Name;
-                            attributeLocation = GL.GetAttribLocation(shader.Program, insgElemName);
+                            attributeLocation = GL.GetAttribLocation(material.Shader.Program, insgElemName);
                         }
                     }
 
@@ -90,7 +90,7 @@ namespace GUI.Types.Renderer
                             attributeName += attribute.SemanticIndex;
                         }
 
-                        attributeLocation = GL.GetAttribLocation(shader.Program, attributeName);
+                        attributeLocation = GL.GetAttribLocation(material.Shader.Program, attributeName);
                     }
 
                     // Ignore this attribute if it is not found in the shader

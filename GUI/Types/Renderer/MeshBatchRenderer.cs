@@ -67,12 +67,12 @@ namespace GUI.Types.Renderer
                 {
                     if (a.OverlayRenderOrder == b.OverlayRenderOrder)
                     {
-                        if (a.Call.Shader.Program == b.Call.Shader.Program)
+                        if (a.Call.Material.Shader.Program == b.Call.Material.Shader.Program)
                         {
                             return a.Call.Material.GetHashCode() - b.Call.Material.GetHashCode();
                         }
 
-                        return a.Call.Shader.Program - b.Call.Shader.Program;
+                        return a.Call.Material.Shader.Program - b.Call.Material.Shader.Program;
                     }
 
                     return a.OverlayRenderOrder - b.OverlayRenderOrder;
@@ -94,7 +94,7 @@ namespace GUI.Types.Renderer
                 {
                     material?.PostRender();
 
-                    var requestShader = context.ReplacementShader ?? request.Call.Shader;
+                    var requestShader = context.ReplacementShader ?? request.Call.Material.Shader;
 
                     // If the material did not change, shader could not have changed
                     if (shader != requestShader)
@@ -156,12 +156,12 @@ namespace GUI.Types.Renderer
 
             if (uniforms.ShaderId != -1)
             {
-                GL.Uniform1(uniforms.ShaderId, (uint)request.Call.Shader.NameHash);
+                GL.Uniform1(uniforms.ShaderId, (uint)request.Call.Material.Shader.NameHash);
             }
 
             if (uniforms.ShaderProgramId != -1)
             {
-                GL.Uniform1(uniforms.ShaderProgramId, (uint)request.Call.Shader.Program);
+                GL.Uniform1(uniforms.ShaderProgramId, (uint)request.Call.Material.Shader.Program);
             }
             #endregion
 

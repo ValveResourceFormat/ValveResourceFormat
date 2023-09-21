@@ -50,7 +50,7 @@ namespace GUI.Types.Renderer
 
         public IEnumerable<string> GetSupportedRenderModes()
             => DrawCallsAll
-                .SelectMany(drawCall => drawCall.Shader.RenderModes)
+                .SelectMany(drawCall => drawCall.Material.Shader.RenderModes)
                 .Distinct();
 
         public void SetRenderMode(string renderMode)
@@ -60,19 +60,18 @@ namespace GUI.Types.Renderer
             foreach (var call in drawCalls)
             {
                 // Recycle old shader parameters that are not render modes since we are scrapping those anyway
-                var parameters = call.Shader.Parameters
+                var parameters = call.Material.Shader.Parameters
                     .Where(kvp => !kvp.Key.StartsWith("renderMode", StringComparison.InvariantCulture))
                     .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
 
-                if (renderMode != null && call.Shader.RenderModes.Contains(renderMode))
+                if (renderMode != null && call.Material.Shader.RenderModes.Contains(renderMode))
                 {
                     parameters.Add($"renderMode_{renderMode}", 1);
                 }
 
-                call.Shader = guiContext.ShaderLoader.LoadShader(call.Shader.Name, parameters);
+                call.Material.Shader = guiContext.ShaderLoader.LoadShader(call.Material.Shader.Name, parameters);
                 call.VertexArrayObject = guiContext.MeshBufferCache.GetVertexArrayObject(
                     VBIB,
-                    call.Shader,
                     call.Material,
                     call.VertexBuffer.Id,
                     call.IndexBuffer.Id,
@@ -176,7 +175,6 @@ namespace GUI.Types.Renderer
                     {
                         var drawCall = DrawCallsAll[i++];
                         drawCall.Material = material;
-                        drawCall.Shader = material.Shader;
                     }
                 }
             }
@@ -208,7 +206,6 @@ namespace GUI.Types.Renderer
             }
 
             drawCall.Material = material;
-            drawCall.Shader = material.Shader;
 
             var indexBufferObject = objectDrawCall.GetSubCollection("m_indexBuffer");
 
@@ -266,7 +263,6 @@ namespace GUI.Types.Renderer
 
             drawCall.VertexArrayObject = guiContext.MeshBufferCache.GetVertexArrayObject(
                 VBIB,
-                drawCall.Shader,
                 drawCall.Material,
                 drawCall.VertexBuffer.Id,
                 drawCall.IndexBuffer.Id,

@@ -16,7 +16,7 @@ namespace GUI.Types.Renderer
     {
         private const int TextureUnitStart = 2; // Reserve texture slots. Must always be the size of ReservedTextureSlots.
 
-        public Shader Shader => shader;
+        public Shader Shader { get; set; }
         public Material Material { get; }
         public IKeyValueCollection VsInputSignature { get; }
         public Dictionary<string, RenderTexture> Textures { get; } = new();
@@ -24,7 +24,6 @@ namespace GUI.Types.Renderer
         public bool IsOverlay { get; }
         public bool IsToolsMaterial { get; }
 
-        private readonly Shader shader;
         private readonly bool isAdditiveBlend;
         private readonly bool isMod2x;
         private readonly bool isRenderBackfaces;
@@ -39,12 +38,12 @@ namespace GUI.Types.Renderer
                 .Concat(material.GetShaderArguments())
                 .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
 
-            shader = shaderLoader.LoadShader(material.ShaderName, combinedShaderParameters);
+            Shader = shaderLoader.LoadShader(material.ShaderName, combinedShaderParameters);
         }
 
         public RenderMaterial(Shader shader) : this(new Material { ShaderName = shader.Name })
         {
-            this.shader = shader;
+            Shader = shader;
         }
 
         RenderMaterial(Material material)
@@ -77,7 +76,7 @@ namespace GUI.Types.Renderer
         {
             textureUnit = TextureUnitStart;
 
-            shader ??= this.shader;
+            shader ??= Shader;
 
             if (shader.Name == "vrf.picking")
             {
