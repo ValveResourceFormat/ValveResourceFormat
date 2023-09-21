@@ -27,6 +27,7 @@ namespace GUI.Types.Renderer
         private readonly bool isAdditiveBlend;
         private readonly bool isMod2x;
         private readonly bool isRenderBackfaces;
+        private readonly bool hasDepthBias;
         private int textureUnit;
 
         public RenderMaterial(Material material, IKeyValueCollection insg, ShaderLoader shaderLoader, Dictionary<string, byte> shaderArguments)
@@ -58,8 +59,9 @@ namespace GUI.Types.Renderer
                 || material.ShaderName == "csgo_effects.vfx";
             isAdditiveBlend = material.IntParams.ContainsKey("F_ADDITIVE_BLEND") && material.IntParams["F_ADDITIVE_BLEND"] == 1;
             isRenderBackfaces = material.IntParams.ContainsKey("F_RENDER_BACKFACES") && material.IntParams["F_RENDER_BACKFACES"] == 1;
+            hasDepthBias = material.IntParams.ContainsKey("F_DEPTHBIAS") && material.IntParams["F_DEPTHBIAS"] == 1;
             IsOverlay = (material.IntParams.ContainsKey("F_OVERLAY") && material.IntParams["F_OVERLAY"] == 1)
-                || material.IntParams.ContainsKey("F_DEPTH_BIAS") && material.IntParams["F_DEPTH_BIAS"] == 1;
+                || (material.ShaderName == "csgo_vertexlitgeneric.vfx" && IsBlended);
 
             if (material.ShaderName.EndsWith("static_overlay.vfx", System.StringComparison.Ordinal))
             {
@@ -133,7 +135,7 @@ namespace GUI.Types.Renderer
                 }
             }
 
-            if (IsOverlay)
+            if (hasDepthBias || IsOverlay)
             {
                 GL.Enable(EnableCap.PolygonOffsetFill);
                 GL.PolygonOffset(-0.05f, -64);
@@ -153,7 +155,7 @@ namespace GUI.Types.Renderer
                 GL.Disable(EnableCap.Blend);
             }
 
-            if (IsOverlay)
+            if (hasDepthBias || IsOverlay)
             {
                 GL.Disable(EnableCap.PolygonOffsetFill);
                 GL.PolygonOffset(0, 0);
