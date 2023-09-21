@@ -513,6 +513,7 @@ namespace ValveResourceFormat.ResourceTypes
             finally
             {
                 uncompressedBlockDataReader.Dispose();
+                uncompressedBlockDataReader = null;
             }
         }
 

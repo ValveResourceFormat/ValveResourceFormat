@@ -106,7 +106,7 @@ namespace ValveResourceFormat.ResourceTypes
             _ => 1,
         };
 
-        private BinaryReader Reader;
+        private BinaryReader Reader => Resource.Reader;
         private long DataOffset;
         private Resource Resource;
 
@@ -149,7 +149,6 @@ namespace ValveResourceFormat.ResourceTypes
 
         public override void Read(BinaryReader reader, Resource resource)
         {
-            Reader = reader;
             Resource = resource;
 
             reader.BaseStream.Position = Offset;
