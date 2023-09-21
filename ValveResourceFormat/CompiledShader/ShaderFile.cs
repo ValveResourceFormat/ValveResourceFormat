@@ -17,7 +17,6 @@ namespace ValveResourceFormat.CompiledShader
         public const int UNCOMPRESSED = 0;
         public const int ZSTD_COMPRESSION = 1;
         public const int LZMA_COMPRESSION = 2;
-        public const uint PI_MURMURSEED = 0x31415926;
         public ShaderDataReader DataReader { get; set; }
         private FileStream FileStream;
 

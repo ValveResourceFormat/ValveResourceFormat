@@ -2,7 +2,7 @@ using System;
 using System.Buffers;
 using System.Collections.Generic;
 using System.Globalization;
-using System.IO;
+using System.IO.Hashing;
 using System.Linq;
 using System.Numerics;
 using System.Text;
@@ -10,22 +10,21 @@ using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.Serialization;
-using ValveResourceFormat.Serialization.KeyValues;
-using ValveResourceFormat.ThirdParty;
+using ValveResourceFormat.Utils;
 using VrfMaterial = ValveResourceFormat.ResourceTypes.Material;
 
 namespace GUI.Types.Renderer
 {
     class MaterialLoader
     {
-        private readonly Dictionary<uint, RenderMaterial> Materials = new();
+        private readonly Dictionary<ulong, RenderMaterial> Materials = new();
         private readonly Dictionary<string, RenderTexture> Textures = new();
         private readonly VrfGuiContext VrfGuiContext;
         private RenderTexture ErrorTexture;
         private RenderTexture DefaultNormal;
         private RenderTexture DefaultMask;
         public static float MaxTextureMaxAnisotropy { get; set; }
+        public int MaterialCount => Materials.Count;
 
         private readonly Dictionary<string, string[]> TextureAliases = new()
         {
@@ -41,6 +40,8 @@ namespace GUI.Types.Renderer
             VrfGuiContext = guiContext;
         }
 
+        private static readonly byte[] NewLineArray = "\n"u8.ToArray();
+
         public RenderMaterial GetMaterial(string name, Dictionary<string, byte> shaderArguments)
         {
             // HL:VR has a world node that has a draw call with no material
@@ -49,25 +50,21 @@ namespace GUI.Types.Renderer
                 return GetErrorMaterial();
             }
 
-            uint cacheKey;
+            var hash = new XxHash3(StringToken.MURMUR2SEED);
+            hash.Append(Encoding.ASCII.GetBytes(name));
 
-            if (shaderArguments == null)
+            if (shaderArguments != null)
             {
-                cacheKey = MurmurHash2.Hash(name, 0x40506070);
-            }
-            else
-            {
-                var shaderCacheHashString = new StringBuilder();
-                shaderCacheHashString.AppendLine(name);
-
                 foreach (var (key, value) in shaderArguments)
                 {
-                    shaderCacheHashString.AppendLine(key);
-                    shaderCacheHashString.AppendLine(value.ToString(CultureInfo.InvariantCulture));
+                    hash.Append(NewLineArray);
+                    hash.Append(Encoding.ASCII.GetBytes(key));
+                    hash.Append(NewLineArray);
+                    hash.Append(Encoding.ASCII.GetBytes(value.ToString(CultureInfo.InvariantCulture)));
                 }
-
-                cacheKey = MurmurHash2.Hash(shaderCacheHashString.ToString(), 0x40506070);
             }
+
+            var cacheKey = hash.GetCurrentHashAsUInt64();
 
             if (Materials.TryGetValue(cacheKey, out var mat))
             {
@@ -199,7 +196,7 @@ namespace GUI.Types.Renderer
             using var _ = tex.BindingContext();
 
 #if DEBUG
-            var textureName = Path.GetFileName(textureResource.FileName);
+            var textureName = System.IO.Path.GetFileName(textureResource.FileName);
             GL.ObjectLabel(ObjectLabelIdentifier.Texture, tex.Handle, textureName.Length, textureName);
 #endif
 

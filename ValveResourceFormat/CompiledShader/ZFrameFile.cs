@@ -4,6 +4,7 @@ using System.IO;
 using System.Numerics;
 using System.Text;
 using ValveResourceFormat.ThirdParty;
+using ValveResourceFormat.Utils;
 using static ValveResourceFormat.CompiledShader.ShaderDataReader;
 using static ValveResourceFormat.CompiledShader.ShaderUtilHelpers;
 
@@ -232,7 +233,7 @@ namespace ValveResourceFormat.CompiledShader
             {
                 Name0 = datareader.ReadNullTermString();
                 Murmur32 = datareader.ReadUInt32();
-                var murmurCheck = MurmurHash2.Hash(Name0.ToLowerInvariant(), ShaderFile.PI_MURMURSEED);
+                var murmurCheck = MurmurHash2.Hash(Name0.ToLowerInvariant(), StringToken.MURMUR2SEED);
                 if (Murmur32 != murmurCheck)
                 {
                     throw new ShaderParserException("Murmur check failed on header name");
@@ -798,7 +799,7 @@ namespace ValveResourceFormat.CompiledShader
         {
             var nulltermstr = DataReader.ReadNullTermStringAtPosition();
             var murmur32 = DataReader.ReadUInt32AtPosition(nulltermstr.Length + 1);
-            var murmurCheck = MurmurHash2.Hash(nulltermstr.ToLowerInvariant(), ShaderFile.PI_MURMURSEED);
+            var murmurCheck = MurmurHash2.Hash(nulltermstr.ToLowerInvariant(), StringToken.MURMUR2SEED);
             if (murmur32 != murmurCheck)
             {
                 throw new ShaderParserException("not a murmur string!");

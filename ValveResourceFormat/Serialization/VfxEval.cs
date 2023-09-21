@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using ValveResourceFormat.ThirdParty;
+using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.Serialization.VfxEval
 {
@@ -157,11 +158,10 @@ namespace ValveResourceFormat.Serialization.VfxEval
         {
             OmitReturnStatement = omitReturnStatement;
             Features = features;
-            uint MURMUR2SEED = 0x31415926; // pi!
 
             foreach (var externalVarName in renderAttributesUsed)
             {
-                var murmur32 = MurmurHash2.Hash(externalVarName.ToLowerInvariant(), MURMUR2SEED);
+                var murmur32 = MurmurHash2.Hash(externalVarName.ToLowerInvariant(), StringToken.MURMUR2SEED);
 
                 ExternalVarsReference.AddOrUpdate(murmur32, externalVarName, (k, v) => externalVarName);
             }

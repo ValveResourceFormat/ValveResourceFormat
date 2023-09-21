@@ -2,18 +2,18 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.IO.Hashing;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using OpenTK.Graphics.OpenGL;
-using ValveResourceFormat.ThirdParty;
+using ValveResourceFormat.Utils;
 
 namespace GUI.Types.Renderer
 {
     partial class ShaderLoader : IDisposable
     {
         private const string ShaderDirectory = "GUI.Types.Renderer.Shaders.";
-        private const int ShaderSeed = 0x13141516;
         private const string RenderModeDefinePrefix = "renderMode_";
 
         [GeneratedRegex("^#include \"(?<IncludeName>[^\"]+)\"")]
@@ -27,11 +27,11 @@ namespace GUI.Types.Renderer
         [GeneratedRegex(@"ERROR: (?<SourceFile>[0-9]+):(?<Line>[0-9]+):")]
         private static partial Regex AmdGlslError();
 
-        private readonly Dictionary<uint, Shader> CachedShaders = new();
+        private readonly Dictionary<ulong, Shader> CachedShaders = new();
         public int ShaderCount => CachedShaders.Count;
         private readonly Dictionary<string, HashSet<string>> ShaderDefines = new();
 
-        private static IReadOnlyDictionary<string, byte> EmptyArgs { get; } = new Dictionary<string, byte>(0);
+        private readonly static Dictionary<string, byte> EmptyArgs = new(0);
 
         private int sourceFileNumber;
         private List<string> sourceFiles = new();
@@ -115,7 +115,7 @@ namespace GUI.Types.Renderer
                 var newShaderCacheHash = CalculateShaderCacheHash(shaderName, arguments);
                 CachedShaders[newShaderCacheHash] = shader;
 
-                var argsDescription = GetArgumentDescription(shaderName, arguments, forHashingPurposes: true);
+                var argsDescription = GetArgumentDescription(shaderName, arguments);
                 Console.WriteLine($"Shader '{shaderName}' as '{shaderFileName}' ({argsDescription}) {newShaderCacheHash} compiled and linked succesfully");
                 return shader;
             }
@@ -293,7 +293,7 @@ namespace GUI.Types.Renderer
 #if DEBUG
             return File.Open(GetShaderDiskPath(name), FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
 #else
-            var assembly = Assembly.GetExecutingAssembly();
+            var assembly = System.Reflection.Assembly.GetExecutingAssembly();
             return assembly.GetManifestResourceStream($"{ShaderDirectory}{name.Replace('/', '.')}");
 #endif
         }
@@ -382,17 +382,19 @@ namespace GUI.Types.Renderer
                 .OrderBy(p => p.Key);
         }
 
-        private string GetArgumentDescription(string shaderName, IReadOnlyDictionary<string, byte> arguments, bool forHashingPurposes = false)
+        private string GetArgumentDescription(string shaderName, IReadOnlyDictionary<string, byte> arguments)
         {
-            var sb = new StringBuilder(forHashingPurposes ? shaderName + '-' : string.Empty);
+            var sb = new StringBuilder();
             var first = true;
 
             foreach (var param in SortAndFilterArguments(shaderName, arguments))
             {
-                if (!first && !forHashingPurposes)
+                if (!first)
                 {
                     sb.Append(", ");
                 }
+
+                first = false;
 
                 if (param.Value > 0)
                 {
@@ -403,30 +405,29 @@ namespace GUI.Types.Renderer
                         sb.Append(param.Value);
                     }
                 }
-
-                if (first)
-                {
-                    first = false;
-                }
             }
 
             return sb.ToString();
         }
 
-        private uint CalculateShaderCacheHash(string shaderName, IReadOnlyDictionary<string, byte> arguments)
+        private static readonly byte[] NewLineArray = "\n"u8.ToArray();
+
+        private ulong CalculateShaderCacheHash(string shaderName, IReadOnlyDictionary<string, byte> arguments)
         {
-            var shaderCacheHashString = new StringBuilder();
-            shaderCacheHashString.AppendLine(shaderName);
+            var hash = new XxHash3(StringToken.MURMUR2SEED);
+            hash.Append(Encoding.ASCII.GetBytes(shaderName));
 
             var argsOrdered = SortAndFilterArguments(shaderName, arguments);
 
-            foreach (var arg in argsOrdered)
+            foreach (var (key, value) in argsOrdered)
             {
-                shaderCacheHashString.AppendLine(arg.Key);
-                shaderCacheHashString.AppendLine(arg.Value.ToString(CultureInfo.InvariantCulture));
+                hash.Append(NewLineArray);
+                hash.Append(Encoding.ASCII.GetBytes(key));
+                hash.Append(NewLineArray);
+                hash.Append(Encoding.ASCII.GetBytes(value.ToString(CultureInfo.InvariantCulture)));
             }
 
-            return MurmurHash2.Hash(shaderCacheHashString.ToString(), ShaderSeed);
+            return hash.GetCurrentHashAsUInt64();
         }
 
 #if DEBUG

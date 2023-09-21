@@ -27,6 +27,7 @@
     <PackageReference Include="OpenTK.GLControl" Version="3.3.3">
         <NoWarn>NU1701</NoWarn>
     </PackageReference>
+    <PackageReference Include="System.IO.Hashing" Version="8.0.0-rc.1.23419.4" />
     <PackageReference Include="ValvePak" Version="1.6.1.71" />
     <PackageReference Include="Vortice.SpirvCross" Version="1.4.2" />
   </ItemGroup>

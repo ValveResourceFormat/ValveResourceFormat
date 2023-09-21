@@ -1,3 +1,4 @@
+using System;
 using System.Text;
 
 namespace ValveResourceFormat.ThirdParty
@@ -9,7 +10,7 @@ namespace ValveResourceFormat.ThirdParty
 
         public static uint Hash(string data, uint seed) => Hash(Encoding.ASCII.GetBytes(data), seed);
 
-        public static uint Hash(byte[] data, uint seed)
+        public static uint Hash(ReadOnlySpan<byte> data, uint seed)
         {
             var length = data.Length;
 
