@@ -47,7 +47,7 @@ namespace GUI.Types.Renderer
         private readonly IKeyValueCollection[] materialGroups;
         private readonly List<string> meshGroups;
         private readonly ulong[] meshGroupMasks;
-        private readonly List<(int MeshIndex, string MeshName, long LoDMask)> meshNamesAndLod;
+        private readonly List<(int MeshIndex, string MeshName, long LoDMask)> meshNamesForLod1;
 
         public ModelSceneNode(Scene scene, Model model, string skin = null, bool optimizeForMapLoad = false)
             : base(scene)
@@ -55,8 +55,13 @@ namespace GUI.Types.Renderer
             // TODO: Optimize these further
             materialGroups = model.Data.GetArray<IKeyValueCollection>("m_materialGroups");
             meshGroups = model.GetMeshGroups().ToList();
-            meshGroupMasks = model.Data.GetUnsignedIntegerArray("m_refMeshGroupMasks");
-            meshNamesAndLod = model.GetReferenceMeshNamesAndLoD().ToList();
+
+            if (meshGroups.Count > 1)
+            {
+                meshGroupMasks = model.Data.GetUnsignedIntegerArray("m_refMeshGroupMasks");
+            }
+
+            meshNamesForLod1 = model.GetReferenceMeshNamesAndLoD().Where(m => (m.LoDMask & 1) != 0).ToList();
 
             if (optimizeForMapLoad)
             {
@@ -258,7 +263,7 @@ namespace GUI.Types.Renderer
         }
 
         public IEnumerable<(int MeshIndex, string MeshName, long LoDMask)> GetLod1RefMeshes()
-            => meshNamesAndLod.Where(m => (m.LoDMask & 1) != 0);
+            => meshNamesForLod1;
 
         public IEnumerable<string> GetMeshGroups()
             => meshGroups;
@@ -266,7 +271,7 @@ namespace GUI.Types.Renderer
         public ICollection<string> GetActiveMeshGroups()
             => activeMeshGroups;
 
-        public IEnumerable<bool> GetActiveMeshMaskForGroup(string groupName)
+        private IEnumerable<bool> GetActiveMeshMaskForGroup(string groupName)
         {
             var groupIndex = meshGroups.ToList().IndexOf(groupName);
             if (groupIndex >= 0)
