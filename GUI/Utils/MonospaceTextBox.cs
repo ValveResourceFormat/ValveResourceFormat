@@ -1,4 +1,6 @@
+using System;
 using System.Drawing;
+using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using GUI.Forms;
 
@@ -7,6 +9,15 @@ namespace GUI.Utils
     internal class MonospaceTextBox : TextBox
     {
         private string PreviousSearchText;
+
+        // set tab stops to a width of 4 https://stackoverflow.com/a/12953632
+        private readonly static int[] tabWidth = new[] { 4 * 4 };
+
+        private const int EM_SETTABSTOPS = 0x00CB;
+
+        [DllImport("user32.dll", CharSet = CharSet.Auto)]
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+        public static extern IntPtr SendMessage(IntPtr h, int msg, int wParam, int[] lParam);
 
         public MonospaceTextBox() : base()
         {
@@ -29,12 +40,19 @@ namespace GUI.Utils
             ReadOnly = true;
             Multiline = true;
             WordWrap = false;
+            HandleCreated += OnHandleCreated;
             KeyDown += OnKeyDown;
             Disposed += OnDisposed;
         }
 
+        private void OnHandleCreated(object sender, EventArgs e)
+        {
+            SendMessage(Handle, EM_SETTABSTOPS, 1, tabWidth);
+        }
+
         private void OnDisposed(object sender, System.EventArgs e)
         {
+            HandleCreated -= OnHandleCreated;
             KeyDown -= OnKeyDown;
             Disposed -= OnDisposed;
         }
@@ -47,17 +65,17 @@ namespace GUI.Utils
             {
                 if ((e.KeyData & Keys.Shift) == 0)
                 {
-                    var searchForm = new SearchForm();
+                    using var searchForm = new SearchForm();
                     searchForm.HideSearchType();
                     searchForm.SearchText = PreviousSearchText ?? string.Empty;
+
                     var result = searchForm.ShowDialog();
                     if (result != DialogResult.OK)
                     {
                         return;
                     }
 
-                    var searchText = searchForm.SearchText;
-                    PreviousSearchText = searchText;
+                    PreviousSearchText = searchForm.SearchText;
                 }
 
                 if (string.IsNullOrEmpty(PreviousSearchText))
