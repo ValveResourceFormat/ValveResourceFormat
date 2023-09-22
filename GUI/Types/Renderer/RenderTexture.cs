@@ -8,7 +8,7 @@ namespace GUI.Types.Renderer
         public TextureTarget Target { get; }
         public int Handle { get; }
 
-        public Texture Data { get; }
+        public Texture.SpritesheetData SpriteSheetData { get; }
 
         public int Width { get; }
         public int Height { get; }
@@ -23,11 +23,11 @@ namespace GUI.Types.Renderer
 
         public RenderTexture(TextureTarget target, Texture data) : this(target)
         {
-            Data = data;
             Width = data.Width;
             Height = data.Height;
             Depth = data.Depth;
             NumMipLevels = data.NumMipLevels;
+            SpriteSheetData = data.GetSpriteSheetData();
         }
 
         public RenderTexture(TextureTarget target, int width, int height, int depth, int mipcount)

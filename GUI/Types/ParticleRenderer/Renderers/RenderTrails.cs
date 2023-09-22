@@ -17,7 +17,6 @@ namespace GUI.Types.ParticleRenderer.Renderers
         private readonly VrfGuiContext guiContext;
         private readonly int quadVao;
         private readonly RenderTexture texture;
-        private readonly Texture.SpritesheetData spriteSheetData;
 
         private readonly float animationRate = 0.1f;
         private readonly ParticleAnimationType animationType = ParticleAnimationType.ANIMATION_TYPE_FIXED_RATE;
@@ -60,7 +59,6 @@ namespace GUI.Types.ParticleRenderer.Renderers
             }
 
             texture = vrfGuiContext.MaterialLoader.LoadTexture(textureName);
-            spriteSheetData = texture.Data?.GetSpriteSheetData();
 
             blendMode = parse.Enum<ParticleBlendMode>("m_nOutputBlendMode", blendMode);
             overbrightFactor = parse.NumberProvider("m_flOverbrightFactor", overbrightFactor);
@@ -184,6 +182,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
                 // Position/Radius uniform
                 shader.SetUniform4x4("uModelMatrix", modelMatrix);
 
+                var spriteSheetData = texture.SpriteSheetData;
                 if (spriteSheetData != null && spriteSheetData.Sequences.Length > 0 && spriteSheetData.Sequences[0].Frames.Length > 0)
                 {
                     var sequence = spriteSheetData.Sequences[0];
