@@ -77,7 +77,7 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 var refMesh = refMeshes[meshIndex];
 
-                if (!String.IsNullOrEmpty(refMesh))
+                if (!string.IsNullOrEmpty(refMesh))
                 {
                     result.Add((meshIndex, refMesh, refLODGroupMasks[meshIndex]));
                 }

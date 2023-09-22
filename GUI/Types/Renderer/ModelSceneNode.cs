@@ -10,7 +10,6 @@ namespace GUI.Types.Renderer
 {
     class ModelSceneNode : SceneNode, IRenderableMeshCollection
     {
-        private Model Model { get; } // TODO: Refactor to remove this full model reference to reduce memory usage
         public Vector4 Tint
         {
             get
@@ -40,17 +39,24 @@ namespace GUI.Types.Renderer
         private Dictionary<string, string> skinMaterials;
 
         private int animationTexture = -1;
-        private int bonesCount;
+        private readonly int bonesCount;
 
         private HashSet<string> activeMeshGroups = new();
         private List<RenderableMesh> activeMeshRenderers = new();
 
-        private bool loadedAnimations;
+        private readonly IKeyValueCollection[] materialGroups;
+        private readonly List<string> meshGroups;
+        private readonly ulong[] meshGroupMasks;
+        private readonly List<(int MeshIndex, string MeshName, long LoDMask)> meshNamesAndLod;
 
         public ModelSceneNode(Scene scene, Model model, string skin = null, bool optimizeForMapLoad = false)
             : base(scene)
         {
-            Model = model;
+            // TODO: Optimize these further
+            materialGroups = model.Data.GetArray<IKeyValueCollection>("m_materialGroups");
+            meshGroups = model.GetMeshGroups().ToList();
+            meshGroupMasks = model.Data.GetUnsignedIntegerArray("m_refMeshGroupMasks");
+            meshNamesAndLod = model.GetReferenceMeshNamesAndLoD().ToList();
 
             if (optimizeForMapLoad)
             {
@@ -65,13 +71,9 @@ namespace GUI.Types.Renderer
                 SetSkin(skin);
             }
 
-            LoadMeshes();
+            LoadMeshes(model);
             UpdateBoundingBox();
-
-            if (!optimizeForMapLoad)
-            {
-                LoadAnimations();
-            }
+            LoadAnimations(model);
         }
 
         public override void Update(Scene.UpdateContext context)
@@ -124,7 +126,6 @@ namespace GUI.Types.Renderer
         {
             ActiveSkin = skin;
 
-            var materialGroups = Model.Data.GetArray<IKeyValueCollection>("m_materialGroups");
             string[] defaultMaterials = null;
 
             foreach (var materialGroup in materialGroups)
@@ -153,15 +154,9 @@ namespace GUI.Types.Renderer
             }
         }
 
-        public void LoadAnimations()
+        private void LoadAnimations(Model model)
         {
-            if (loadedAnimations)
-            {
-                return;
-            }
-
-            loadedAnimations = true;
-            animations.AddRange(Model.GetAllAnimations(Scene.GuiContext.FileLoader));
+            animations.AddRange(model.GetAllAnimations(Scene.GuiContext.FileLoader));
 
             if (animations.Any())
             {
@@ -169,12 +164,12 @@ namespace GUI.Types.Renderer
             }
         }
 
-        private void LoadMeshes()
+        private void LoadMeshes(Model model)
         {
             // Get embedded meshes
-            foreach (var embeddedMesh in Model.GetEmbeddedMeshesAndLoD().Where(m => (m.LoDMask & 1) != 0))
+            foreach (var embeddedMesh in model.GetEmbeddedMeshesAndLoD().Where(m => (m.LoDMask & 1) != 0))
             {
-                meshRenderers.Add(new RenderableMesh(embeddedMesh.Mesh, embeddedMesh.MeshIndex, Scene, Model));
+                meshRenderers.Add(new RenderableMesh(embeddedMesh.Mesh, embeddedMesh.MeshIndex, Scene, model));
             }
 
             // Load referred meshes from file (only load meshes with LoD 1)
@@ -186,11 +181,11 @@ namespace GUI.Types.Renderer
                     continue;
                 }
 
-                meshRenderers.Add(new RenderableMesh((Mesh)newResource.DataBlock, refMesh.MeshIndex, Scene, Model));
+                meshRenderers.Add(new RenderableMesh((Mesh)newResource.DataBlock, refMesh.MeshIndex, Scene, model));
             }
 
             // Set active meshes to default
-            SetActiveMeshGroups(Model.GetDefaultMeshGroups());
+            SetActiveMeshGroups(model.GetDefaultMeshGroups());
         }
 
         private void SetupAnimationTextures()
@@ -263,25 +258,37 @@ namespace GUI.Types.Renderer
         }
 
         public IEnumerable<(int MeshIndex, string MeshName, long LoDMask)> GetLod1RefMeshes()
-            => Model.GetReferenceMeshNamesAndLoD().Where(m => (m.LoDMask & 1) != 0);
+            => meshNamesAndLod.Where(m => (m.LoDMask & 1) != 0);
 
         public IEnumerable<string> GetMeshGroups()
-            => Model.GetMeshGroups();
+            => meshGroups;
 
         public ICollection<string> GetActiveMeshGroups()
             => activeMeshGroups;
 
-        public void SetActiveMeshGroups(IEnumerable<string> meshGroups)
+        public IEnumerable<bool> GetActiveMeshMaskForGroup(string groupName)
         {
-            activeMeshGroups = new HashSet<string>(GetMeshGroups().Intersect(meshGroups));
+            var groupIndex = meshGroups.ToList().IndexOf(groupName);
+            if (groupIndex >= 0)
+            {
+                return meshGroupMasks.Select(mask => (mask & 1UL << groupIndex) != 0);
+            }
+            else
+            {
+                return meshGroupMasks.Select(_ => false);
+            }
+        }
 
-            var groups = GetMeshGroups();
-            if (groups.Count() > 1)
+        public void SetActiveMeshGroups(IEnumerable<string> setMeshGroups)
+        {
+            activeMeshGroups = new HashSet<string>(meshGroups.Intersect(setMeshGroups));
+
+            if (meshGroups.Count > 1)
             {
                 activeMeshRenderers.Clear();
                 foreach (var group in activeMeshGroups)
                 {
-                    var meshMask = Model.GetActiveMeshMaskForGroup(group).ToArray();
+                    var meshMask = GetActiveMeshMaskForGroup(group).ToArray();
 
                     foreach (var meshRenderer in meshRenderers)
                     {

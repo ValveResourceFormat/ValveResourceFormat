@@ -801,11 +801,9 @@ namespace GUI.Types.Renderer
                 };
 
                 // Animation
-                var isAnimated = false;
+                var isAnimated = modelNode.SetAnimationForWorldPreview(animation);
+                if (isAnimated)
                 {
-                    modelNode.LoadAnimations();
-                    isAnimated = modelNode.SetAnimationForWorldPreview(animation);
-
                     var holdAnimation = entity.GetProperty("holdanimation");
                     if (holdAnimation != default)
                     {
@@ -925,7 +923,6 @@ namespace GUI.Types.Renderer
                     EntityData = entity,
                 };
 
-                modelNode.LoadAnimations();
                 var isAnimated = modelNode.SetAnimationForWorldPreview("tools_preview");
 
                 scene.Add(modelNode, isAnimated);
