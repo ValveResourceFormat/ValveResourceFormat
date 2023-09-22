@@ -253,19 +253,13 @@ namespace ValveResourceFormat.IO
 
         private static string GetSkinPathFromModel(VModel model, string skinName)
         {
-            var materialGroupForSkin = model.Data.GetArray<IKeyValueCollection>("m_materialGroups")
-                .ToList()
-                .SingleOrDefault(m => m.GetProperty<string>("m_name") == skinName);
-
-            if (materialGroupForSkin == null)
-            {
-                return null;
-            }
+            var materialGroupForSkin = model.GetMaterialGroups()
+                .SingleOrDefault(group => group.Name == skinName);
 
             // Given these are at the model level, and otherwise pull materials from drawcalls
             // on the mesh, not sure how they correlate if there's more than one here
             // So just take the first one and hope for the best
-            return materialGroupForSkin.GetArray<string>("m_materials")[0];
+            return materialGroupForSkin.Materials?[0];
         }
 
         /// <summary>

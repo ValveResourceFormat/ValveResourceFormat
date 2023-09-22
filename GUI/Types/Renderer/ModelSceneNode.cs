@@ -54,10 +54,7 @@ namespace GUI.Types.Renderer
         public ModelSceneNode(Scene scene, Model model, string skin = null, bool optimizeForMapLoad = false)
             : base(scene)
         {
-            materialGroups = model.Data.GetArray<IKeyValueCollection>("m_materialGroups")
-                .Select(mg => (mg.GetProperty<string>("m_name"), mg.GetArray<string>("m_materials")))
-                .ToArray();
-
+            materialGroups = model.GetMaterialGroups().ToArray();
             meshGroups = model.GetMeshGroups().ToArray();
 
             if (meshGroups.Length > 1)

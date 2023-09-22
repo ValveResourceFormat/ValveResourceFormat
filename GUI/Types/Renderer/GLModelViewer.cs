@@ -165,16 +165,16 @@ namespace GUI.Types.Renderer
                     });
                 }
 
-                var materialGroups = model.GetMaterialGroups().ToArray<object>();
+                var materialGroupNames = model.GetMaterialGroups().Select(group => group.Name).ToArray<object>();
 
-                if (materialGroups.Length > 1)
+                if (materialGroupNames.Length > 1)
                 {
                     materialGroupListBox = AddSelection("Material Group", (selectedGroup, _) =>
                     {
                         modelSceneNode?.SetMaterialGroup(selectedGroup);
                     });
 
-                    materialGroupListBox.Items.AddRange(materialGroups);
+                    materialGroupListBox.Items.AddRange(materialGroupNames);
                     materialGroupListBox.SelectedIndex = 0;
                 }
 
