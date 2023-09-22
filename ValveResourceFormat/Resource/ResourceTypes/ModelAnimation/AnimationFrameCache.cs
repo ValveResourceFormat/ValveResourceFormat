@@ -4,10 +4,10 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 {
     public class AnimationFrameCache
     {
-        private (int FrameIndex, Frame Frame) PreviousFrame { get; set; }
-        private (int FrameIndex, Frame Frame) NextFrame { get; set; }
+        private (int FrameIndex, Frame Frame) PreviousFrame;
+        private (int FrameIndex, Frame Frame) NextFrame;
         private readonly Frame InterpolatedFrame;
-        private readonly Skeleton Skeleton;
+        public Skeleton Skeleton { get; }
 
         public AnimationFrameCache(Skeleton skeleton)
         {

@@ -177,25 +177,25 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// <summary>
         /// Get the animation matrix for each bone.
         /// </summary>
-        public Matrix4x4[] GetAnimationMatrices(AnimationFrameCache frameCache, int frameIndex, Skeleton skeleton)
+        public Matrix4x4[] GetAnimationMatrices(AnimationFrameCache frameCache, int frameIndex)
         {
             // Get bone transformations
             var frame = frameCache.GetFrame(this, frameIndex);
 
-            return GetAnimationMatrices(frame, skeleton);
+            return GetAnimationMatrices(frame, frameCache.Skeleton);
         }
 
         /// <summary>
         /// Get the animation matrix for each bone.
         /// </summary>
-        public Matrix4x4[] GetAnimationMatrices(AnimationFrameCache frameCache, float time, Skeleton skeleton)
+        public Matrix4x4[] GetAnimationMatrices(AnimationFrameCache frameCache, float time)
         {
             // Get bone transformations
             var frame = FrameCount != 0
                 ? frameCache.GetFrame(this, time)
                 : null;
 
-            return GetAnimationMatrices(frame, skeleton);
+            return GetAnimationMatrices(frame, frameCache.Skeleton);
         }
 
         private Matrix4x4[] GetAnimationMatrices(Frame frame, Skeleton skeleton)

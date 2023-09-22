@@ -77,14 +77,14 @@ namespace GUI.Types.Renderer
             Frame = activeAnimation == null ? 0 : activeAnimation.FrameCount - 1;
         }
 
-        public Matrix4x4[] GetAnimationMatrices(Skeleton skeleton)
+        public Matrix4x4[] GetAnimationMatrices()
         {
             if (IsPaused)
             {
-                return activeAnimation.GetAnimationMatrices(animationFrameCache, Frame, skeleton);
+                return activeAnimation.GetAnimationMatrices(animationFrameCache, Frame);
             }
 
-            return activeAnimation.GetAnimationMatrices(animationFrameCache, Time, skeleton);
+            return activeAnimation.GetAnimationMatrices(animationFrameCache, Time);
         }
 
         public void RegisterUpdateHandler(Action<Animation, int> handler)

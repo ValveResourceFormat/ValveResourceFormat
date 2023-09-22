@@ -40,6 +40,7 @@ namespace GUI.Types.Renderer
         private Dictionary<string, string> skinMaterials;
 
         private int animationTexture = -1;
+        private int bonesCount;
 
         private HashSet<string> activeMeshGroups = new();
         private List<RenderableMesh> activeMeshRenderers = new();
@@ -57,6 +58,7 @@ namespace GUI.Types.Renderer
             }
 
             AnimationController = new(model.Skeleton);
+            bonesCount = model.Skeleton.Bones.Length;
 
             if (skin != null)
             {
@@ -84,13 +86,11 @@ namespace GUI.Types.Renderer
             var newBoundingBox = LocalBoundingBox;
 
             // Update animation matrices
-            var skeleton = Model.Skeleton;
-            var matrices = AnimationController.GetAnimationMatrices(skeleton);
+            var matrices = AnimationController.GetAnimationMatrices();
 
             // Update animation texture
             GL.BindTexture(TextureTarget.Texture2D, animationTexture);
-            GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba32f, 4, skeleton.Bones.Length, 0,
-                PixelFormat.Rgba, PixelType.Float, matrices);
+            GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba32f, 4, bonesCount, 0, PixelFormat.Rgba, PixelType.Float, matrices);
             GL.BindTexture(TextureTarget.Texture2D, 0);
 
             var first = true;
@@ -250,7 +250,7 @@ namespace GUI.Types.Renderer
             {
                 foreach (var renderer in meshRenderers)
                 {
-                    renderer.SetAnimationTexture(animationTexture, Model.Skeleton.Bones.Length);
+                    renderer.SetAnimationTexture(animationTexture, bonesCount);
                 }
             }
             else
