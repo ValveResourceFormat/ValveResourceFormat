@@ -218,7 +218,7 @@ void main()
 
     vec3 combinedLighting = mat.DiffuseColor * diffuseLighting + specularLighting;
 
-    ApplyFog(outputColor.rgb, mat.PositionWS);
+    ApplyFog(combinedLighting, mat.PositionWS);
 
     outputColor.rgb = pow(combinedLighting, invGamma);
 

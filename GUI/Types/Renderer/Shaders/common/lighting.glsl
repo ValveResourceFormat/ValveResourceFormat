@@ -27,7 +27,7 @@ vec3 getSunDir()
 
 vec3 getSunColor()
 {
-    return vLightColor.rgb; //pow(vLightColor.rgb, vec3(2.2)) * pow(vLightColor.a, 0.5);
+    return vLightColor.rgb;
 }
 
 

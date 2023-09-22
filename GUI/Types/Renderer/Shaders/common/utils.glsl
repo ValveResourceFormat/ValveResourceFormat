@@ -78,6 +78,9 @@ float length_squared(vec4 vector)
 // Color
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+const vec3 gamma = vec3(2.4);
+const vec3 invGamma = vec3(1.0 / gamma);
+
 float GetLuma(vec3 Color) {
 	return dot( Color, vec3(0.2126, 0.7152, 0.0722) );
 }
@@ -129,6 +132,19 @@ vec4 SrgbGammaToLinear(vec4 color)
     return vec4(select, select1, select2, select3);
 }
 
+vec3 SrgbLinearToGamma( vec3 vLinearColor )
+{
+	// 15 asm instructions
+	vec3 vLinearSegment = vLinearColor.rgb * 12.92;
+	vec3 vExpSegment = ( 1.055 * pow( vLinearColor.rgb, vec3 ( 1.0 / 2.4, 1.0 / 2.4, 1.0 / 2.4 ) ) ) - 0.055;
+
+	vec3 vGammaColor = vec3(( vLinearColor.r <= 0.0031308 ) ? vLinearSegment.r : vExpSegment.r,
+                            ( vLinearColor.g <= 0.0031308 ) ? vLinearSegment.g : vExpSegment.g,
+                            ( vLinearColor.b <= 0.0031308 ) ? vLinearSegment.b : vExpSegment.b );
+
+	return vGammaColor.rgb;
+}
+
 
 vec2 Resize2D(float Base, vec4 StartPos_Size)
 {
@@ -169,16 +185,6 @@ vec2 RotateVector2D(vec2 vectorInput, float rotation, vec2 scale, vec2 offset, v
 
     return vec2(dot(xform.xy, vectorInput.xy), dot(xform.zw, vectorInput.xy)) + finalOffset;
 }
-
-
-
-
-const vec3 gamma = vec3(2.2);
-const vec3 invGamma = vec3(1.0 / gamma);
-
-
-
-
 
 // All of this is directly ported from The Lab Renderer from the unity store.
 // These are their utility functions, at least as of the lab.

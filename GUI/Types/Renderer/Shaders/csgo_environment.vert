@@ -88,6 +88,7 @@ vec4 GetTintColor()
 {
     vec4 TintFade = vec4(1.0);
     TintFade.rgb = mix(vec3(1.0), m_vTintColorSceneObject.rgb * m_vTintColorDrawCall * g_vColorTint.rgb, g_flModelTintAmount);
+    TintFade.rgb = SrgbLinearToGamma(TintFade.rgb);
     TintFade.a = pow(m_vTintColorSceneObject.a * g_vColorTint.a, g_flFadeExponent);
     return TintFade;
 }
