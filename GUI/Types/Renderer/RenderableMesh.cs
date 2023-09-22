@@ -166,7 +166,7 @@ namespace GUI.Types.Renderer
                     {
                         DrawCallsOverlay.Add(drawCall);
                     }
-                    else if (drawCall.Material.IsBlended)
+                    else if (drawCall.Material.IsTranslucent)
                     {
                         DrawCallsBlended.Add(drawCall);
                     }

@@ -20,7 +20,8 @@ namespace GUI.Types.Renderer
         public Material Material { get; }
         public IKeyValueCollection VsInputSignature { get; }
         public Dictionary<string, RenderTexture> Textures { get; } = new();
-        public bool IsBlended { get; }
+        public bool IsTranslucent { get; }
+        public bool IsAlphaTest { get; }
         public bool IsOverlay { get; }
         public bool IsToolsMaterial { get; }
 
@@ -51,23 +52,24 @@ namespace GUI.Types.Renderer
         {
             Material = material;
             IsToolsMaterial = material.IntAttributes.ContainsKey("tools.toolsmaterial");
-            IsBlended = (material.IntParams.ContainsKey("F_TRANSLUCENT") && material.IntParams["F_TRANSLUCENT"] == 1)
+            IsTranslucent = (material.IntParams.GetValueOrDefault("F_TRANSLUCENT") == 1)
                 || material.IntAttributes.ContainsKey("mapbuilder.water")
                 || material.ShaderName == "vr_glass.vfx"
                 || material.ShaderName == "vr_glass_markable.vfx"
                 || material.ShaderName == "csgo_glass.vfx"
                 || material.ShaderName == "csgo_effects.vfx";
-            isAdditiveBlend = material.IntParams.ContainsKey("F_ADDITIVE_BLEND") && material.IntParams["F_ADDITIVE_BLEND"] == 1;
-            isRenderBackfaces = material.IntParams.ContainsKey("F_RENDER_BACKFACES") && material.IntParams["F_RENDER_BACKFACES"] == 1;
-            hasDepthBias = material.IntParams.ContainsKey("F_DEPTHBIAS") && material.IntParams["F_DEPTHBIAS"] == 1;
-            IsOverlay = (material.IntParams.ContainsKey("F_OVERLAY") && material.IntParams["F_OVERLAY"] == 1)
-                || (material.ShaderName == "csgo_vertexlitgeneric.vfx" && IsBlended);
+            IsAlphaTest = !IsTranslucent && material.IntParams.GetValueOrDefault("F_ALPHA_TEST") == 1;
+            isAdditiveBlend = material.IntParams.GetValueOrDefault("F_ADDITIVE_BLEND") == 1;
+            isRenderBackfaces = material.IntParams.GetValueOrDefault("F_RENDER_BACKFACES") == 1;
+            hasDepthBias = material.IntParams.GetValueOrDefault("F_DEPTHBIAS") == 1 || material.IntParams.GetValueOrDefault("F_DEPTH_BIAS") == 1;
+            IsOverlay = (material.IntParams.GetValueOrDefault("F_OVERLAY") == 1)
+                || (IsTranslucent && hasDepthBias && material.ShaderName is "csgo_vertexlitgeneric.vfx" or "csgo_complex.vfx");
 
             if (material.ShaderName.EndsWith("static_overlay.vfx", System.StringComparison.Ordinal))
             {
                 IsOverlay = true;
                 var blendMode = material.IntParams.GetValueOrDefault("F_BLEND_MODE");
-                IsBlended = blendMode > 0 && blendMode != 2;
+                IsTranslucent = blendMode > 0 && blendMode != 2;
                 isMod2x = blendMode == 3;
                 isAdditiveBlend = blendMode == 4;
             }
@@ -124,7 +126,7 @@ namespace GUI.Types.Renderer
                 shader.SetUniform4(param.Key, param.Value);
             }
 
-            if (IsBlended)
+            if (IsTranslucent)
             {
                 GL.DepthMask(false);
                 GL.Enable(EnableCap.Blend);
@@ -149,7 +151,7 @@ namespace GUI.Types.Renderer
 
         public void PostRender()
         {
-            if (IsBlended)
+            if (IsTranslucent)
             {
                 GL.DepthMask(true);
                 GL.Disable(EnableCap.Blend);
