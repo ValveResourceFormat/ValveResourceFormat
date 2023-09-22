@@ -30,7 +30,8 @@ namespace GUI.Types.Renderer
 
         private readonly int VBIBHashCode;
 
-        public RenderableMesh(Mesh mesh, int meshIndex, Scene scene, Model model = null)
+        public RenderableMesh(Mesh mesh, int meshIndex, Scene scene, Model model = null,
+            Dictionary<string, string> initialMaterialTable = null)
         {
             guiContext = scene.GuiContext;
 
@@ -46,7 +47,7 @@ namespace GUI.Types.Renderer
             MeshIndex = meshIndex;
 
             var meshSceneObjects = mesh.Data.GetArray("m_sceneObjects");
-            ConfigureDrawCalls(scene, vbib, meshSceneObjects);
+            ConfigureDrawCalls(scene, vbib, meshSceneObjects, initialMaterialTable);
         }
 
         public IEnumerable<string> GetSupportedRenderModes()
@@ -84,31 +85,26 @@ namespace GUI.Types.Renderer
             AnimationTextureSize = animationTextureSize;
         }
 
-        public void SetSkin(Dictionary<string, string> skinMaterials)
+        public void ReplaceMaterials(Dictionary<string, string> materialTable)
         {
             foreach (var drawCall in DrawCalls)
             {
-                var originalMaterial = drawCall.OriginalMaterial;
-                var originalMaterialData = originalMaterial.Material;
+                var material = drawCall.Material;
+                var materialData = material.Material;
+                var materialName = materialData.Name;
 
-                if (skinMaterials.TryGetValue(originalMaterialData.Name, out var replacementName))
+                if (materialTable.TryGetValue(materialName, out var replacementName))
                 {
-                    if (originalMaterialData.Name == replacementName)
-                    {
-                        drawCall.Material = originalMaterial;
-                        continue;
-                    }
-
                     // Recycle non-material-derived shader arguments
-                    var staticParams = originalMaterialData.GetShaderArguments();
-                    var dynamicParams = new Dictionary<string, byte>(originalMaterial.Shader.Parameters.Except(staticParams));
+                    var staticParams = materialData.GetShaderArguments();
+                    var dynamicParams = new Dictionary<string, byte>(material.Shader.Parameters.Except(staticParams));
 
                     drawCall.Material = guiContext.MaterialLoader.GetMaterial(replacementName, dynamicParams);
                 }
             }
         }
 
-        private void ConfigureDrawCalls(Scene scene, VBIB vbib, IKeyValueCollection[] sceneObjects)
+        private void ConfigureDrawCalls(Scene scene, VBIB vbib, IKeyValueCollection[] sceneObjects, Dictionary<string, string> materialReplacementTable)
         {
             guiContext.MeshBufferCache.GetVertexIndexBuffers(VBIBHashCode, vbib);
 
@@ -123,6 +119,10 @@ namespace GUI.Types.Renderer
                 foreach (var objectDrawCall in objectDrawCalls)
                 {
                     var materialName = objectDrawCall.GetProperty<string>("m_material") ?? objectDrawCall.GetProperty<string>("m_pMaterial");
+                    if (materialReplacementTable?.TryGetValue(materialName, out var replacementName) is true)
+                    {
+                        materialName = replacementName;
+                    }
 
                     var shaderArguments = new Dictionary<string, byte>(scene.RenderAttributes);
 
@@ -188,7 +188,6 @@ namespace GUI.Types.Renderer
         {
             var drawCall = new DrawCall()
             {
-                OriginalMaterial = material,
                 Material = material,
             };
 

@@ -32,31 +32,35 @@ namespace GUI.Types.Renderer
 
         public readonly AnimationController AnimationController;
         public List<RenderableMesh> RenderableMeshes => activeMeshRenderers;
-        public string ActiveSkin { get; private set; }
+        public string ActiveMaterialGroup => activeMaterialGroup.Name;
 
         private readonly List<RenderableMesh> meshRenderers = new();
         private readonly List<Animation> animations = new();
-        private Dictionary<string, string> skinMaterials;
+
 
         private int animationTexture = -1;
         private readonly int bonesCount;
 
         private HashSet<string> activeMeshGroups = new();
         private List<RenderableMesh> activeMeshRenderers = new();
+        private (string Name, string[] Materials) activeMaterialGroup;
+        private Dictionary<string, string> materialTable;
 
-        private readonly IKeyValueCollection[] materialGroups;
-        private readonly List<string> meshGroups;
+        private readonly (string Name, string[] Materials)[] materialGroups;
+        private readonly string[] meshGroups;
         private readonly ulong[] meshGroupMasks;
         private readonly List<(int MeshIndex, string MeshName, long LoDMask)> meshNamesForLod1;
 
         public ModelSceneNode(Scene scene, Model model, string skin = null, bool optimizeForMapLoad = false)
             : base(scene)
         {
-            // TODO: Optimize these further
-            materialGroups = model.Data.GetArray<IKeyValueCollection>("m_materialGroups");
-            meshGroups = model.GetMeshGroups().ToList();
+            materialGroups = model.Data.GetArray<IKeyValueCollection>("m_materialGroups")
+                .Select(mg => (mg.GetProperty<string>("m_name"), mg.GetArray<string>("m_materials")))
+                .ToArray();
 
-            if (meshGroups.Count > 1)
+            meshGroups = model.GetMeshGroups().ToArray();
+
+            if (meshGroups.Length > 1)
             {
                 meshGroupMasks = model.Data.GetUnsignedIntegerArray("m_refMeshGroupMasks");
             }
@@ -73,7 +77,7 @@ namespace GUI.Types.Renderer
 
             if (skin != null)
             {
-                SetSkin(skin);
+                SetMaterialGroup(skin);
             }
 
             LoadMeshes(model);
@@ -127,35 +131,43 @@ namespace GUI.Types.Renderer
             }
         }
 
-        public void SetSkin(string skin)
+        public void SetMaterialGroup(string name)
         {
-            ActiveSkin = skin;
-
-            string[] defaultMaterials = null;
-
-            foreach (var materialGroup in materialGroups)
+            if (materialGroups.Length == 0)
             {
-                // "The first item needs to match the default materials on the model"
-                defaultMaterials ??= materialGroup.GetArray<string>("m_materials");
+                return;
+            }
 
-                if (materialGroup.GetProperty<string>("m_name") == skin)
+            if (materialTable is null)
+            {
+                var @default = materialGroups[0];
+                activeMaterialGroup = @default;
+                materialTable = new(materialGroups[0].Materials.Length);
+
+                if (name == @default.Name)
                 {
-                    var materials = materialGroup.GetArray<string>("m_materials");
-
-                    skinMaterials = new Dictionary<string, string>();
-
-                    for (var i = 0; i < defaultMaterials.Length; i++)
-                    {
-                        skinMaterials[defaultMaterials[i]] = materials[i];
-                    }
-
-                    break;
+                    return;
                 }
             }
 
-            foreach (var mesh in meshRenderers)
+            foreach (var materialGroup in materialGroups)
             {
-                mesh.SetSkin(skinMaterials);
+                if (name == materialGroup.Name)
+                {
+                    materialTable.Clear();
+
+                    foreach (var (Active, Replacement) in activeMaterialGroup.Materials.Zip(materialGroup.Materials))
+                    {
+                        materialTable[Active] = Replacement;
+                    }
+
+                    activeMaterialGroup = materialGroup;
+
+                    foreach (var mesh in meshRenderers)
+                    {
+                        mesh.ReplaceMaterials(materialTable);
+                    }
+                }
             }
         }
 
@@ -174,7 +186,7 @@ namespace GUI.Types.Renderer
             // Get embedded meshes
             foreach (var embeddedMesh in model.GetEmbeddedMeshesAndLoD().Where(m => (m.LoDMask & 1) != 0))
             {
-                meshRenderers.Add(new RenderableMesh(embeddedMesh.Mesh, embeddedMesh.MeshIndex, Scene, model));
+                meshRenderers.Add(new RenderableMesh(embeddedMesh.Mesh, embeddedMesh.MeshIndex, Scene, model, materialTable));
             }
 
             // Load referred meshes from file (only load meshes with LoD 1)
@@ -186,7 +198,7 @@ namespace GUI.Types.Renderer
                     continue;
                 }
 
-                meshRenderers.Add(new RenderableMesh((Mesh)newResource.DataBlock, refMesh.MeshIndex, Scene, model));
+                meshRenderers.Add(new RenderableMesh((Mesh)newResource.DataBlock, refMesh.MeshIndex, Scene, model, materialTable));
             }
 
             // Set active meshes to default
@@ -288,7 +300,7 @@ namespace GUI.Types.Renderer
         {
             activeMeshGroups = new HashSet<string>(meshGroups.Intersect(setMeshGroups));
 
-            if (meshGroups.Count > 1)
+            if (meshGroups.Length > 1)
             {
                 activeMeshRenderers.Clear();
                 foreach (var group in activeMeshGroups)

@@ -20,7 +20,6 @@ namespace GUI.Types.Renderer
         public int MeshId { get; set; }
         public int FirstMeshlet { get; set; }
         public int NumMeshlets { get; set; }
-        public RenderMaterial OriginalMaterial { get; init; }
         public RenderMaterial Material { get; set; }
         public uint VertexArrayObject { get; set; }
         public VertexDrawBuffer VertexBuffer { get; set; }

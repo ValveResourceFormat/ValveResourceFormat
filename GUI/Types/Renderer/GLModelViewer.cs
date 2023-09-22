@@ -171,7 +171,7 @@ namespace GUI.Types.Renderer
                 {
                     materialGroupListBox = AddSelection("Material Group", (selectedGroup, _) =>
                     {
-                        modelSceneNode?.SetSkin(selectedGroup);
+                        modelSceneNode?.SetMaterialGroup(selectedGroup);
                     });
 
                     materialGroupListBox.Items.AddRange(materialGroups);

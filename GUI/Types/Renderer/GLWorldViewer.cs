@@ -376,9 +376,9 @@ namespace GUI.Types.Renderer
                                 }
 
                                 // Set same material group
-                                if (glModelViewer.materialGroupListBox != null && worldModel.ActiveSkin != null)
+                                if (glModelViewer.materialGroupListBox != null && worldModel.ActiveMaterialGroup != null)
                                 {
-                                    var skinId = glModelViewer.materialGroupListBox.FindStringExact(worldModel.ActiveSkin);
+                                    var skinId = glModelViewer.materialGroupListBox.FindStringExact(worldModel.ActiveMaterialGroup);
 
                                     if (skinId != -1)
                                     {
