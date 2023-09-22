@@ -391,8 +391,9 @@ namespace GUI.Types.Renderer
             "g_vCubeFog_Offset_Scale_Bias_Exponent",
             "g_vCubeFog_Height_Offset_Scale_Exponent_Log2Mip",
             "g_vCubeFogCullingParams_ExposureBias_MaxOpacity",
-            "g_tFogCubeTexture",
         };
+
+        static readonly string[] ReservedTextures = Enum.GetNames<ReservedTextureSlots>();
 
         private void ApplyMaterialDefaults(RenderMaterial mat)
         {
@@ -414,7 +415,8 @@ namespace GUI.Types.Renderer
                 var isScalar = type == ActiveUniformType.Float;
                 var isBoolean = type == ActiveUniformType.Bool;
 
-                if (isTexture && !mat.Textures.ContainsKey(name))
+                if (isTexture && !mat.Textures.ContainsKey(name)
+                    && !ReservedTextures.Any(x => name.Contains(x, StringComparison.CurrentCultureIgnoreCase)))
                 {
                     mat.Textures[name] = name switch
                     {

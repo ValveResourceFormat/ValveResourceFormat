@@ -119,7 +119,7 @@ namespace GUI.Types.Renderer
         {
             if (CubeFogActive)
             {
-                shader.SetTexture((int)ReservedTextureSlots.CubemapFog, "g_tFogCubeTexture", CubemapFog.CubemapFogTexture);
+                shader.SetTexture((int)ReservedTextureSlots.FogCubeTexture, "g_tFogCubeTexture", CubemapFog.CubemapFogTexture);
             }
         }
     }

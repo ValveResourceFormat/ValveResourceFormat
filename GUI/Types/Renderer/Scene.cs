@@ -245,7 +245,6 @@ namespace GUI.Types.Renderer
             }
 
             renderContext.RenderPass = RenderPass.Translucent;
-
             MeshBatchRenderer.Render(renderTranslucentDrawCalls, renderContext);
             renderTranslucentDrawCalls.Clear();
 
@@ -253,6 +252,7 @@ namespace GUI.Types.Renderer
             {
                 renderLooseNodes[i].Node.Render(renderContext);
             }
+            renderLooseNodes.Clear();
 
             if (camera.Picker is not null && camera.Picker.IsActive)
             {
@@ -260,7 +260,6 @@ namespace GUI.Types.Renderer
                 RenderWithCamera(camera, buffers, cullFrustum);
             }
 
-            renderLooseNodes.Clear();
         }
 
         public void SetEnabledLayers(HashSet<string> layers)

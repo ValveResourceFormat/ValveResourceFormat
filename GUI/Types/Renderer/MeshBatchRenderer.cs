@@ -125,11 +125,12 @@ namespace GUI.Types.Renderer
                             buffer.SetBlockBinding(shader);
                         }
 
+                        context.LightingInfo.SetLightmapTextures(shader);
                         context.FogInfo.SetCubemapFogTexture(shader);
                     }
 
                     material = request.Call.Material;
-                    material.Render(shader, context.LightingInfo);
+                    material.Render(shader);
                 }
 
                 Draw(ref uniforms, request);

@@ -9,12 +9,19 @@ namespace GUI.Types.Renderer
     enum ReservedTextureSlots
     {
         AnimationTexture = 0,
-        CubemapFog = 1,
+        Lightmap1,
+        Lightmap2,
+        Lightmap3,
+        Lightmap4,
+        BRDFLookup,
+        EnvironmentMap,
+        FogCubeTexture,
+        Last = FogCubeTexture,
     }
 
     class RenderMaterial
     {
-        private const int TextureUnitStart = 2; // Reserve texture slots. Must always be the size of ReservedTextureSlots.
+        private const int TextureUnitStart = (int)ReservedTextureSlots.Last + 1;
 
         public Shader Shader { get; set; }
         public Material Material { get; }
@@ -75,7 +82,7 @@ namespace GUI.Types.Renderer
             }
         }
 
-        public void Render(Shader shader = default, WorldLightingInfo lightingInfo = default)
+        public void Render(Shader shader = default)
         {
             textureUnit = TextureUnitStart;
 
@@ -92,17 +99,6 @@ namespace GUI.Types.Renderer
                 if (shader.SetTexture(textureUnit, name, texture))
                 {
                     textureUnit++;
-                }
-            }
-
-            if (lightingInfo != default)
-            {
-                foreach (var (name, texture) in lightingInfo.Lightmaps)
-                {
-                    if (shader.SetTexture(textureUnit, name, texture))
-                    {
-                        textureUnit++;
-                    }
                 }
             }
 
