@@ -15,8 +15,8 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="SharpGLTF.Toolkit" Version="1.0.0-alpha0030" />
-    <PackageReference Include="SkiaSharp" Version="2.88.5" />
-    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="2.88.5" />
+    <PackageReference Include="SkiaSharp" Version="2.88.6" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="2.88.6" />
     <PackageReference Include="ValveKeyValue" Version="0.9.0.267" />
     <PackageReference Include="ZstdSharp.Port" Version="0.7.2" />
     <PackageReference Include="KeyValues2" Version="0.3.0" />
