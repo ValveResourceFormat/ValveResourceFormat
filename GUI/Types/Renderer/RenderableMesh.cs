@@ -74,8 +74,7 @@ namespace GUI.Types.Renderer
                     VBIBHashCode,
                     call.VertexBuffer,
                     call.Material,
-                    call.IndexBuffer.Id,
-                    call.BaseVertex);
+                    call.IndexBuffer.Id);
             }
         }
 
@@ -245,7 +244,7 @@ namespace GUI.Types.Renderer
                 vertexBuffer.InputLayoutFields = vertexBufferVbib.InputLayoutFields;
                 drawCall.VertexBuffer = vertexBuffer;
 
-                drawCall.BaseVertex = objectDrawCall.GetUInt32Property("m_nBaseVertex") * vertexBuffer.ElementSizeInBytes;
+                drawCall.BaseVertex = objectDrawCall.GetUInt32Property("m_nBaseVertex");
                 //drawCall.VertexCount = objectDrawCall.GetUInt32Property("m_nVertexCount");
             }
 
@@ -270,8 +269,7 @@ namespace GUI.Types.Renderer
                 VBIBHashCode,
                 drawCall.VertexBuffer,
                 drawCall.Material,
-                drawCall.IndexBuffer.Id,
-                drawCall.BaseVertex);
+                drawCall.IndexBuffer.Id);
 
             return drawCall;
         }

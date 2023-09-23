@@ -209,7 +209,13 @@ namespace GUI.Types.Renderer
                 GL.Uniform3(uniforms.TintDrawCall, request.Call.TintColor);
             }
 
-            GL.DrawElements(request.Call.PrimitiveType, request.Call.IndexCount, request.Call.IndexType, (IntPtr)request.Call.StartIndex);
+            GL.DrawElementsBaseVertex(
+                request.Call.PrimitiveType,
+                request.Call.IndexCount,
+                request.Call.IndexType,
+                (IntPtr)request.Call.StartIndex,
+                (int)request.Call.BaseVertex
+            );
         }
     }
 }

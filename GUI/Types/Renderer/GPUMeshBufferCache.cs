@@ -18,7 +18,6 @@ namespace GUI.Types.Renderer
             public Shader Shader;
             public uint VertexIndex;
             public uint IndexIndex;
-            public uint BaseVertex;
         }
 
         public GPUMeshBufferCache()
@@ -41,7 +40,7 @@ namespace GUI.Types.Renderer
             }
         }
 
-        public uint GetVertexArrayObject(int key, VertexDrawBuffer curVertexBuffer, RenderMaterial material, uint idxIndex, uint baseVertex)
+        public uint GetVertexArrayObject(int key, VertexDrawBuffer curVertexBuffer, RenderMaterial material, uint idxIndex)
         {
             var gpuVbib = GetVertexIndexBuffers(key, null);
             var vaoKey = new VAOKey
@@ -50,7 +49,6 @@ namespace GUI.Types.Renderer
                 Shader = material.Shader,
                 VertexIndex = curVertexBuffer.Id,
                 IndexIndex = idxIndex,
-                BaseVertex = baseVertex,
             };
 
             if (vertexArrayObjects.TryGetValue(vaoKey, out var vaoHandle))
@@ -101,7 +99,7 @@ namespace GUI.Types.Renderer
                     continue;
                 }
 
-                BindVertexAttrib(attribute, attributeLocation, (int)curVertexBuffer.ElementSizeInBytes, baseVertex);
+                BindVertexAttrib(attribute, attributeLocation, (int)curVertexBuffer.ElementSizeInBytes, (IntPtr)attribute.Offset);
             }
 
             GL.BindVertexArray(0);
@@ -110,58 +108,58 @@ namespace GUI.Types.Renderer
             return newVaoHandle;
         }
 
-        private static void BindVertexAttrib(VBIB.RenderInputLayoutField attribute, int attributeLocation, int stride, uint baseVertex)
+        private static void BindVertexAttrib(VBIB.RenderInputLayoutField attribute, int attributeLocation, int stride, IntPtr offset)
         {
             GL.EnableVertexAttribArray(attributeLocation);
 
             switch (attribute.Format)
             {
                 case DXGI_FORMAT.R32G32B32_FLOAT:
-                    GL.VertexAttribPointer(attributeLocation, 3, VertexAttribPointerType.Float, false, stride, (IntPtr)(baseVertex + attribute.Offset));
+                    GL.VertexAttribPointer(attributeLocation, 3, VertexAttribPointerType.Float, false, stride, offset);
                     break;
 
                 case DXGI_FORMAT.R8G8B8A8_UNORM:
-                    GL.VertexAttribPointer(attributeLocation, 4, VertexAttribPointerType.UnsignedByte, false, stride, (IntPtr)(baseVertex + attribute.Offset));
+                    GL.VertexAttribPointer(attributeLocation, 4, VertexAttribPointerType.UnsignedByte, false, stride, offset);
                     break;
 
                 case DXGI_FORMAT.R32_FLOAT:
-                    GL.VertexAttribPointer(attributeLocation, 1, VertexAttribPointerType.Float, false, stride, (IntPtr)(baseVertex + attribute.Offset));
+                    GL.VertexAttribPointer(attributeLocation, 1, VertexAttribPointerType.Float, false, stride, offset);
                     break;
 
                 case DXGI_FORMAT.R32G32_FLOAT:
-                    GL.VertexAttribPointer(attributeLocation, 2, VertexAttribPointerType.Float, false, stride, (IntPtr)(baseVertex + attribute.Offset));
+                    GL.VertexAttribPointer(attributeLocation, 2, VertexAttribPointerType.Float, false, stride, offset);
                     break;
 
                 case DXGI_FORMAT.R16G16_FLOAT:
-                    GL.VertexAttribPointer(attributeLocation, 2, VertexAttribPointerType.HalfFloat, false, stride, (IntPtr)(baseVertex + attribute.Offset));
+                    GL.VertexAttribPointer(attributeLocation, 2, VertexAttribPointerType.HalfFloat, false, stride, offset);
                     break;
 
                 case DXGI_FORMAT.R32G32B32A32_FLOAT:
-                    GL.VertexAttribPointer(attributeLocation, 4, VertexAttribPointerType.Float, false, stride, (IntPtr)(baseVertex + attribute.Offset));
+                    GL.VertexAttribPointer(attributeLocation, 4, VertexAttribPointerType.Float, false, stride, offset);
                     break;
 
                 case DXGI_FORMAT.R8G8B8A8_UINT:
-                    GL.VertexAttribPointer(attributeLocation, 4, VertexAttribPointerType.UnsignedByte, false, stride, (IntPtr)(baseVertex + attribute.Offset));
+                    GL.VertexAttribPointer(attributeLocation, 4, VertexAttribPointerType.UnsignedByte, false, stride, offset);
                     break;
 
                 case DXGI_FORMAT.R16G16_SINT:
-                    GL.VertexAttribIPointer(attributeLocation, 2, VertexAttribIntegerType.Short, stride, (IntPtr)(baseVertex + attribute.Offset));
+                    GL.VertexAttribIPointer(attributeLocation, 2, VertexAttribIntegerType.Short, stride, offset);
                     break;
 
                 case DXGI_FORMAT.R16G16B16A16_SINT:
-                    GL.VertexAttribIPointer(attributeLocation, 4, VertexAttribIntegerType.Short, stride, (IntPtr)(baseVertex + attribute.Offset));
+                    GL.VertexAttribIPointer(attributeLocation, 4, VertexAttribIntegerType.Short, stride, offset);
                     break;
 
                 case DXGI_FORMAT.R16G16_SNORM:
-                    GL.VertexAttribPointer(attributeLocation, 2, VertexAttribPointerType.Short, true, stride, (IntPtr)(baseVertex + attribute.Offset));
+                    GL.VertexAttribPointer(attributeLocation, 2, VertexAttribPointerType.Short, true, stride, offset);
                     break;
 
                 case DXGI_FORMAT.R16G16_UNORM:
-                    GL.VertexAttribPointer(attributeLocation, 2, VertexAttribPointerType.UnsignedShort, true, stride, (IntPtr)(baseVertex + attribute.Offset));
+                    GL.VertexAttribPointer(attributeLocation, 2, VertexAttribPointerType.UnsignedShort, true, stride, offset);
                     break;
 
                 case DXGI_FORMAT.R32_UINT:
-                    GL.VertexAttribIPointer(attributeLocation, 1, VertexAttribIntegerType.UnsignedInt, stride, (IntPtr)(baseVertex + attribute.Offset));
+                    GL.VertexAttribIPointer(attributeLocation, 1, VertexAttribIntegerType.UnsignedInt, stride, offset);
                     break;
 
                 default:
