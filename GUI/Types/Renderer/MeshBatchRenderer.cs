@@ -77,11 +77,9 @@ namespace GUI.Types.Renderer
             public int CubeMapArrayIndices;
         }
 
-        /// <summary>
-        /// Minimizes state changes by grouping draw calls by shader and material.
-        /// </summary>
         private static void DrawBatch(List<Request> requests, Scene.RenderContext context)
         {
+            uint vao = 0;
             Shader shader = null;
             RenderMaterial material = null;
             Uniforms uniforms = new();
@@ -91,6 +89,12 @@ namespace GUI.Types.Renderer
                 if (!context.Scene.ShowToolsMaterials && request.Call.Material.IsToolsMaterial)
                 {
                     continue;
+                }
+
+                if (vao != request.Call.VertexArrayObject)
+                {
+                    vao = request.Call.VertexArrayObject;
+                    GL.BindVertexArray(vao);
                 }
 
                 if (material != request.Call.Material)
@@ -205,7 +209,6 @@ namespace GUI.Types.Renderer
                 GL.Uniform3(uniforms.TintDrawCall, request.Call.TintColor);
             }
 
-            GL.BindVertexArray(request.Call.VertexArrayObject);
             GL.DrawElements(request.Call.PrimitiveType, request.Call.IndexCount, request.Call.IndexType, (IntPtr)request.Call.StartIndex);
         }
     }
