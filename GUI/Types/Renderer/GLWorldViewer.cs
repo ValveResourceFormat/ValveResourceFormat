@@ -6,7 +6,6 @@ using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Forms;
 using GUI.Utils;
-using OpenTK.Input;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Utils;
 using static GUI.Controls.SavedCameraPositionsControl;
@@ -262,7 +261,7 @@ namespace GUI.Types.Renderer
 
             if (pickingResponse.Intent == PickingIntent.Select)
             {
-                if (Keyboard.GetState().IsKeyDown(Key.ControlLeft))
+                if ((ModifierKeys & Keys.Control) > 0)
                 {
                     selectedNodeRenderer.ToggleNode(sceneNode);
                 }

@@ -8,7 +8,6 @@ using GUI.Utils;
 using OpenTK;
 using OpenTK.Graphics;
 using OpenTK.Graphics.OpenGL;
-using OpenTK.Input;
 using SkiaSharp;
 using static GUI.Types.Renderer.PickingTexture;
 using Vector2 = System.Numerics.Vector2;
@@ -41,7 +40,11 @@ namespace GUI.Controls
         long lastUpdate;
         int frames;
 
-        Vector2 initialMousePosition;
+        bool MouseOverRenderArea;
+        Point MouseDelta;
+        Point MousePreviousPosition;
+        Point InitialMousePosition;
+        TrackedKeys CurrentlyPressedKeys;
 
         public GLViewerControl()
         {
@@ -67,9 +70,12 @@ namespace GUI.Controls
             GLControl.MouseLeave += OnMouseLeave;
             GLControl.MouseUp += OnMouseUp;
             GLControl.MouseDown += OnMouseDown;
+            GLControl.MouseMove += OnMouseMove;
             GLControl.MouseWheel += OnMouseWheel;
             GLControl.KeyDown += OnKeyDown;
+            GLControl.KeyUp += OnKeyUp;
             GLControl.GotFocus += OnGotFocus;
+            GLControl.LostFocus += OnLostFocus;
             GLControl.VisibleChanged += OnVisibleChanged;
             Disposed += OnDisposed;
 
@@ -79,6 +85,8 @@ namespace GUI.Controls
 
         protected virtual void OnKeyDown(object sender, KeyEventArgs e)
         {
+            CurrentlyPressedKeys |= RemapKey(e.KeyCode);
+
             if (e.KeyData == (Keys.Control | Keys.C))
             {
                 var title = Program.MainForm.Text;
@@ -132,6 +140,11 @@ namespace GUI.Controls
             }
         }
 
+        private void OnKeyUp(object sender, KeyEventArgs e)
+        {
+            CurrentlyPressedKeys &= ~RemapKey(e.KeyCode);
+        }
+
         private void OnFullScreenFormClosed(object sender, EventArgs e)
         {
             glControlContainer.Controls.Add(GLControl);
@@ -160,11 +173,6 @@ namespace GUI.Controls
             checkbox.CheckBox.CheckedChanged += (_, __) =>
             {
                 changeCallback(checkbox.CheckBox.Checked);
-
-                if (this is not GLTextureViewer)
-                {
-                    GLControl.Focus();
-                }
             };
 
             controlsPanel.Controls.Add(checkbox);
@@ -186,11 +194,6 @@ namespace GUI.Controls
             {
                 selectionControl.Refresh();
                 changeCallback(selectionControl.ComboBox.SelectedItem as string, selectionControl.ComboBox.SelectedIndex);
-
-                if (this is not GLTextureViewer)
-                {
-                    GLControl.Focus();
-                }
             };
 
             return selectionControl.ComboBox;
@@ -213,11 +216,6 @@ namespace GUI.Controls
                 {
                     selectionControl.Refresh();
                     changeCallback(selectionControl.CheckedListBox.CheckedItems.OfType<string>());
-
-                    if (this is not GLTextureViewer)
-                    {
-                        GLControl.Focus();
-                    }
                 }));
             };
 
@@ -254,9 +252,12 @@ namespace GUI.Controls
             GLControl.MouseLeave -= OnMouseLeave;
             GLControl.MouseUp -= OnMouseUp;
             GLControl.MouseDown -= OnMouseDown;
+            GLControl.MouseMove -= OnMouseMove;
             GLControl.MouseWheel -= OnMouseWheel;
             GLControl.KeyDown -= OnKeyDown;
+            GLControl.KeyUp -= OnKeyUp;
             GLControl.GotFocus -= OnGotFocus;
+            GLControl.LostFocus -= OnLostFocus;
             GLControl.VisibleChanged -= OnVisibleChanged;
             Disposed -= OnDisposed;
         }
@@ -272,19 +273,29 @@ namespace GUI.Controls
 
         private void OnMouseLeave(object sender, EventArgs e)
         {
-            Camera.MouseOverRenderArea = false;
+            MouseOverRenderArea = false;
         }
 
         private void OnMouseEnter(object sender, EventArgs e)
         {
-            Camera.MouseOverRenderArea = true;
+            MouseOverRenderArea = true;
         }
 
         protected virtual void OnMouseDown(object sender, WinFormsMouseEventArgs e)
         {
+            if (e.Button != MouseButtons.Left && e.Button != MouseButtons.Right)
+            {
+                return;
+            }
+
+            InitialMousePosition = new Point(e.X, e.Y);
+            MouseDelta = Point.Empty;
+            MousePreviousPosition = GLControl.PointToScreen(InitialMousePosition);
+
             if (e.Button == MouseButtons.Left)
             {
-                initialMousePosition = new Vector2(e.X, e.Y);
+                CurrentlyPressedKeys |= TrackedKeys.MouseLeft;
+
                 if (e.Clicks == 2)
                 {
                     var intent = ModifierKeys.HasFlag(Keys.Control)
@@ -296,7 +307,8 @@ namespace GUI.Controls
             /* TODO: phase this obscure bind out */
             else if (e.Button == MouseButtons.Right)
             {
-                initialMousePosition = new Vector2(e.X, e.Y);
+                CurrentlyPressedKeys |= TrackedKeys.MouseRight;
+
                 if (e.Clicks == 2)
                 {
                     Camera.Picker?.Request.NextFrame(e.X, e.Y, PickingIntent.Open);
@@ -306,19 +318,79 @@ namespace GUI.Controls
 
         protected virtual void OnMouseUp(object sender, WinFormsMouseEventArgs e)
         {
-            if (initialMousePosition != new Vector2(e.X, e.Y))
-            {
-                return;
-            }
-
             if (e.Button == MouseButtons.Left)
             {
-                Camera.Picker?.Request.NextFrame(e.X, e.Y, PickingIntent.Select);
+                CurrentlyPressedKeys &= ~TrackedKeys.MouseLeft;
+
+                if (InitialMousePosition == new Point(e.X, e.Y))
+                {
+                    Camera.Picker?.Request.NextFrame(e.X, e.Y, PickingIntent.Select);
+                }
             }
             else if (e.Button == MouseButtons.Right)
             {
                 // right click context menu?
+                CurrentlyPressedKeys &= ~TrackedKeys.MouseRight;
             }
+
+            if ((CurrentlyPressedKeys & TrackedKeys.MouseLeftOrRight) == 0)
+            {
+                MouseDelta = Point.Empty;
+            }
+        }
+
+        protected virtual void OnMouseMove(object sender, WinFormsMouseEventArgs e)
+        {
+            if ((CurrentlyPressedKeys & TrackedKeys.MouseLeftOrRight) == 0)
+            {
+                return;
+            }
+
+            var position = GLControl.PointToScreen(new Point(e.X, e.Y));
+            var topLeft = GLControl.PointToScreen(Point.Empty);
+            var bottomRight = topLeft + GLControl.Size;
+
+            if (FullScreenForm != null)
+            {
+                // Windows has a 1px edge on bottom of the screen where cursor can't reach
+                bottomRight.Y -= 1;
+            }
+
+            var positionWrapped = position;
+
+            if (position.X <= topLeft.X)
+            {
+                MouseDelta.X--;
+                positionWrapped.X = bottomRight.X - 1;
+            }
+            else if (position.X >= bottomRight.X)
+            {
+                MouseDelta.X++;
+                positionWrapped.X = topLeft.X + 1;
+            }
+
+            if (position.Y <= topLeft.Y)
+            {
+                MouseDelta.Y--;
+                positionWrapped.Y = bottomRight.Y - 1;
+            }
+            else if (position.Y >= bottomRight.Y)
+            {
+                MouseDelta.Y++;
+                positionWrapped.Y = topLeft.Y + 1;
+            }
+
+            if (positionWrapped != position)
+            {
+                // When wrapping cursor, add only 1px delta movement above
+                MousePreviousPosition = positionWrapped;
+                Cursor.Position = positionWrapped;
+                return;
+            }
+
+            MouseDelta.X += position.X - MousePreviousPosition.X;
+            MouseDelta.Y += position.Y - MousePreviousPosition.Y;
+            MousePreviousPosition = position;
         }
 
         protected virtual void OnMouseWheel(object sender, WinFormsMouseEventArgs e)
@@ -436,35 +508,23 @@ namespace GUI.Controls
 
             var frameTime = (float)elapsed.TotalSeconds;
 
-            if (this is not GLTextureViewer)
+            if (MouseOverRenderArea && this is not GLTextureViewer)
             {
-                Camera.HandleInput(Mouse.GetState(), Keyboard.GetState());
-                Camera.Tick(frameTime);
-            }
+                var pressedKeys = CurrentlyPressedKeys;
+                var modifierKeys = ModifierKeys;
 
-            if (Camera.MouseDragging)
-            {
-                var cursor = Cursor.Position;
-                var topLeft = GLControl.PointToScreen(Point.Empty);
-                var bottomRight = topLeft + GLControl.Size;
-
-                if (cursor.X < topLeft.X)
+                if ((modifierKeys & Keys.Shift) > 0)
                 {
-                    Cursor.Position = new Point(bottomRight.X, cursor.Y);
-                }
-                else if (cursor.X > bottomRight.X)
-                {
-                    Cursor.Position = new Point(topLeft.X, cursor.Y);
+                    pressedKeys |= TrackedKeys.Shift;
                 }
 
-                if (cursor.Y < topLeft.Y)
+                if ((modifierKeys & Keys.Alt) > 0)
                 {
-                    Cursor.Position = new Point(cursor.X, bottomRight.Y);
+                    pressedKeys |= TrackedKeys.Alt;
                 }
-                else if (cursor.Y > bottomRight.Y)
-                {
-                    Cursor.Position = new Point(cursor.X, topLeft.Y);
-                }
+
+                Camera.Tick(frameTime, pressedKeys, MouseDelta);
+                MouseDelta = Point.Empty;
             }
 
             GLPaint?.Invoke(this, new RenderEventArgs { FrameTime = frameTime });
@@ -556,6 +616,25 @@ namespace GUI.Controls
             HandleResize();
             Draw();
         }
+
+        private void OnLostFocus(object sender, EventArgs e)
+        {
+            CurrentlyPressedKeys = TrackedKeys.None;
+            MouseDelta = Point.Empty;
+        }
+
+        private static TrackedKeys RemapKey(Keys key) => key switch
+        {
+            Keys.W => TrackedKeys.Forward,
+            Keys.A => TrackedKeys.Left,
+            Keys.S => TrackedKeys.Back,
+            Keys.D => TrackedKeys.Right,
+            Keys.Q => TrackedKeys.Up,
+            Keys.Z => TrackedKeys.Down,
+            Keys.LShiftKey => TrackedKeys.Shift,
+            Keys.LMenu => TrackedKeys.Alt,
+            _ => TrackedKeys.None,
+        };
 
         private static void CheckOpenGL()
         {

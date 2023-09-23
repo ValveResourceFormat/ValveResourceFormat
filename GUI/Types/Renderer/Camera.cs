@@ -1,5 +1,5 @@
+using System.Drawing;
 using GUI.Utils;
-using OpenTK.Input;
 
 namespace GUI.Types.Renderer
 {
@@ -30,18 +30,8 @@ namespace GUI.Types.Renderer
         public Frustum ViewFrustum { get; } = new Frustum();
         public PickingTexture Picker { get; set; }
 
-        // Set from outside this class by forms code
-        public bool MouseOverRenderArea { get; set; }
-
         private Vector2 WindowSize;
         private float AspectRatio;
-
-        public bool MouseDragging { get; private set; }
-
-        private Vector2 MouseDelta;
-        private Vector2 MousePreviousPosition;
-
-        private KeyboardState KeyboardState;
 
         public Camera()
         {
@@ -173,25 +163,20 @@ namespace GUI.Types.Renderer
             RecalculateMatrices();
         }
 
-        public void Tick(float deltaTime)
+        public void Tick(float deltaTime, TrackedKeys keyboardState, Point mouseDelta)
         {
-            if (!MouseOverRenderArea)
-            {
-                return;
-            }
-
-            if (KeyboardState.IsKeyDown(Key.ShiftLeft))
+            if ((keyboardState & TrackedKeys.Shift) > 0)
             {
                 // Camera truck and pedestal movement (blender calls this pan)
                 var speed = AltMovementSpeed * deltaTime * SpeedModifiers[CurrentSpeedModifier];
 
-                Location += GetUpVector() * speed * -MouseDelta.Y;
-                Location += GetRightVector() * speed * MouseDelta.X;
+                Location += GetUpVector() * speed * -mouseDelta.Y;
+                Location += GetRightVector() * speed * mouseDelta.X;
             }
-            else if (KeyboardState.IsKeyDown(Key.AltLeft))
+            else if ((keyboardState & TrackedKeys.Alt) > 0)
             {
                 // Move forward or backwards when holding alt
-                var totalDelta = MouseDelta.X + (MouseDelta.Y * -1);
+                var totalDelta = mouseDelta.X + (mouseDelta.Y * -1);
                 var speed = AltMovementSpeed * deltaTime * SpeedModifiers[CurrentSpeedModifier];
 
                 Location += GetForwardVector() * totalDelta * speed;
@@ -199,11 +184,11 @@ namespace GUI.Types.Renderer
             else
             {
                 // Use the keyboard state to update position
-                HandleKeyboardInput(deltaTime);
+                HandleKeyboardInput(deltaTime, keyboardState);
 
                 // Full width of the screen is a 1 PI (180deg)
-                Yaw -= MathF.PI * MouseDelta.X / WindowSize.X;
-                Pitch -= MathF.PI / AspectRatio * MouseDelta.Y / WindowSize.Y;
+                Yaw -= MathF.PI * mouseDelta.X / WindowSize.X;
+                Pitch -= MathF.PI / AspectRatio * mouseDelta.Y / WindowSize.Y;
             }
 
             ClampRotation();
@@ -242,63 +227,36 @@ namespace GUI.Types.Renderer
             return SpeedModifiers[CurrentSpeedModifier];
         }
 
-        public void HandleInput(MouseState mouseState, KeyboardState keyboardState)
-        {
-            KeyboardState = keyboardState;
-
-            if (MouseOverRenderArea && (mouseState.LeftButton == ButtonState.Pressed || mouseState.RightButton == ButtonState.Pressed))
-            {
-                if (!MouseDragging)
-                {
-                    MouseDragging = true;
-                    MousePreviousPosition = new Vector2(mouseState.X, mouseState.Y);
-                }
-
-                var mouseNewCoords = new Vector2(mouseState.X, mouseState.Y);
-
-                MouseDelta.X = mouseNewCoords.X - MousePreviousPosition.X;
-                MouseDelta.Y = mouseNewCoords.Y - MousePreviousPosition.Y;
-
-                MousePreviousPosition = mouseNewCoords;
-            }
-
-            if (!MouseOverRenderArea || !mouseState.IsConnected || (mouseState.LeftButton == ButtonState.Released && mouseState.RightButton == ButtonState.Released))
-            {
-                MouseDragging = false;
-                MouseDelta = default;
-            }
-        }
-
-        private void HandleKeyboardInput(float deltaTime)
+        private void HandleKeyboardInput(float deltaTime, TrackedKeys keyboardState)
         {
             var speed = MovementSpeed * deltaTime * SpeedModifiers[CurrentSpeedModifier];
 
-            if (KeyboardState.IsKeyDown(Key.W))
+            if ((keyboardState & TrackedKeys.Forward) > 0)
             {
                 Location += GetForwardVector() * speed;
             }
 
-            if (KeyboardState.IsKeyDown(Key.S))
+            if ((keyboardState & TrackedKeys.Back) > 0)
             {
                 Location -= GetForwardVector() * speed;
             }
 
-            if (KeyboardState.IsKeyDown(Key.D))
+            if ((keyboardState & TrackedKeys.Right) > 0)
             {
                 Location += GetRightVector() * speed;
             }
 
-            if (KeyboardState.IsKeyDown(Key.A))
+            if ((keyboardState & TrackedKeys.Left) > 0)
             {
                 Location -= GetRightVector() * speed;
             }
 
-            if (KeyboardState.IsKeyDown(Key.Z))
+            if ((keyboardState & TrackedKeys.Down) > 0)
             {
                 Location += new Vector3(0, 0, -speed);
             }
 
-            if (KeyboardState.IsKeyDown(Key.Q))
+            if ((keyboardState & TrackedKeys.Up) > 0)
             {
                 Location += new Vector3(0, 0, speed);
             }

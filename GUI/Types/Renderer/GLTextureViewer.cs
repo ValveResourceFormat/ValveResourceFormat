@@ -105,7 +105,6 @@ namespace GUI.Types.Renderer
             GuiContext = guiContext;
 
             GLLoad += OnLoad;
-            GLControl.MouseMove += OnMouseMove;
             GLControl.PreviewKeyDown += OnPreviewKeyDown;
 
             SetZoomLabel();
@@ -344,7 +343,6 @@ namespace GUI.Types.Renderer
         {
             if (disposing)
             {
-                GLControl.MouseMove -= OnMouseMove;
                 GLControl.PreviewKeyDown -= OnPreviewKeyDown;
                 GLPaint -= OnPaint;
 
@@ -547,7 +545,7 @@ namespace GUI.Types.Renderer
             base.OnKeyDown(sender, e);
         }
 
-        private void OnMouseMove(object sender, MouseEventArgs e)
+        protected override void OnMouseMove(object sender, MouseEventArgs e)
         {
             if (ClickPosition == null)
             {
