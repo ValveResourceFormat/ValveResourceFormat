@@ -363,6 +363,31 @@ namespace GUI.Controls
             Camera.HandleInput(Mouse.GetState(), Keyboard.GetState());
             Camera.Tick(frameTime);
 
+            if (Camera.MouseDragging)
+            {
+                var cursor = Cursor.Position;
+                var topLeft = GLControl.PointToScreen(Point.Empty);
+                var bottomRight = topLeft + GLControl.Size;
+
+                if (cursor.X < topLeft.X)
+                {
+                    Cursor.Position = new Point(bottomRight.X, cursor.Y);
+                }
+                else if (cursor.X > bottomRight.X)
+                {
+                    Cursor.Position = new Point(topLeft.X, cursor.Y);
+                }
+
+                if (cursor.Y < topLeft.Y)
+                {
+                    Cursor.Position = new Point(cursor.X, bottomRight.Y);
+                }
+                else if (cursor.Y > bottomRight.Y)
+                {
+                    Cursor.Position = new Point(cursor.X, topLeft.Y);
+                }
+            }
+
             GL.ClearColor(Settings.BackgroundColor);
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 

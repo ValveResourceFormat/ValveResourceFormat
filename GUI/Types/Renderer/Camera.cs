@@ -39,7 +39,7 @@ namespace GUI.Types.Renderer
         private Vector2 WindowSize;
         private float AspectRatio;
 
-        private bool MouseDragging;
+        public bool MouseDragging { get; private set; }
 
         private Vector2 MouseDelta;
         private Vector2 MousePreviousPosition;
