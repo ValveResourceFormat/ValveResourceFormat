@@ -28,7 +28,6 @@ namespace GUI.Types.Renderer
         public IKeyValueCollection VsInputSignature { get; }
         public Dictionary<string, RenderTexture> Textures { get; } = new();
         public bool IsTranslucent { get; }
-        public bool IsAlphaTest { get; }
         public bool IsOverlay { get; }
         public bool IsToolsMaterial { get; }
 
@@ -64,8 +63,8 @@ namespace GUI.Types.Renderer
                 || material.ShaderName == "vr_glass.vfx"
                 || material.ShaderName == "vr_glass_markable.vfx"
                 || material.ShaderName == "csgo_glass.vfx"
-                || material.ShaderName == "csgo_effects.vfx";
-            IsAlphaTest = !IsTranslucent && material.IntParams.GetValueOrDefault("F_ALPHA_TEST") == 1;
+                || material.ShaderName == "csgo_effects.vfx"
+                || material.ShaderName == "tools_sprite.vfx";
             isAdditiveBlend = material.IntParams.GetValueOrDefault("F_ADDITIVE_BLEND") == 1;
             isRenderBackfaces = material.IntParams.GetValueOrDefault("F_RENDER_BACKFACES") == 1;
             hasDepthBias = material.IntParams.GetValueOrDefault("F_DEPTHBIAS") == 1 || material.IntParams.GetValueOrDefault("F_DEPTH_BIAS") == 1;
