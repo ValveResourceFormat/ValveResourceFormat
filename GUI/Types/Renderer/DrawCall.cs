@@ -7,9 +7,9 @@ namespace GUI.Types.Renderer
     class DrawCall
     {
         public PrimitiveType PrimitiveType { get; set; }
-        public uint BaseVertex { get; set; }
+        public int BaseVertex { get; set; }
         //public uint VertexCount { get; set; }
-        public uint StartIndex { get; set; }
+        public nint StartIndex { get; set; } // pointer for GL call
         public int IndexCount { get; set; }
         //public float UvDensity { get; set; }     //TODO
         //public string Flags { get; set; }        //TODO

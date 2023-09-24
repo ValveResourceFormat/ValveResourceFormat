@@ -221,7 +221,7 @@ namespace GUI.Types.Renderer
                 drawCall.IndexBuffer = indexBuffer;
 
                 var indexElementSize = vbib.IndexBuffers[(int)drawCall.IndexBuffer.Id].ElementSizeInBytes;
-                drawCall.StartIndex = objectDrawCall.GetUInt32Property("m_nStartIndex") * indexElementSize;
+                drawCall.StartIndex = (nint)(objectDrawCall.GetUInt32Property("m_nStartIndex") * indexElementSize);
                 drawCall.IndexCount = objectDrawCall.GetInt32Property("m_nIndexCount");
 
                 drawCall.IndexType = indexElementSize switch
@@ -244,7 +244,7 @@ namespace GUI.Types.Renderer
                 vertexBuffer.InputLayoutFields = vertexBufferVbib.InputLayoutFields;
                 drawCall.VertexBuffer = vertexBuffer;
 
-                drawCall.BaseVertex = objectDrawCall.GetUInt32Property("m_nBaseVertex");
+                drawCall.BaseVertex = objectDrawCall.GetInt32Property("m_nBaseVertex");
                 //drawCall.VertexCount = objectDrawCall.GetUInt32Property("m_nVertexCount");
             }
 

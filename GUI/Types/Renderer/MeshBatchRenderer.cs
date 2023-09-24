@@ -213,8 +213,8 @@ namespace GUI.Types.Renderer
                 request.Call.PrimitiveType,
                 request.Call.IndexCount,
                 request.Call.IndexType,
-                (IntPtr)request.Call.StartIndex,
-                (int)request.Call.BaseVertex
+                request.Call.StartIndex,
+                request.Call.BaseVertex
             );
         }
     }
