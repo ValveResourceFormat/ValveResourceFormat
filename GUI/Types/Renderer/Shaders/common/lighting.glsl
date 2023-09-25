@@ -69,9 +69,10 @@ void CalculateDirectLighting(inout LightingTerms_t lighting, inout MaterialPrope
 
 #define UseLightmapDirectionality 1
 
+// fixed values until we can reset state in material system
 uniform float g_flDirectionalLightmapStrength = 1.0;
 uniform float g_flDirectionalLightmapMinZ = 0.05;
-uniform vec4 g_vLightmapParams = vec4(0.0); // ???? directional non-intensity?? it's set to 0.0 in all places ive looked
+const vec4 g_vLightmapParams = vec4(0.0); // ???? directional non-intensity?? it's set to 0.0 in all places ive looked
 
 const float colorSpaceMul = 254 / 255;
 
