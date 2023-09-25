@@ -43,6 +43,10 @@ namespace GUI.Types.ParticleRenderer
         /// </summary>
         private bool InfiniteBounds;
 
+        /// <summary>
+        /// Cache a reference to <see cref="EmitParticle"/> as to not allocate one for every emitted particle.
+        /// </summary>
+        private Action emitParticleAction;
 
         public ControlPoint MainControlPoint
         {
@@ -60,6 +64,8 @@ namespace GUI.Types.ParticleRenderer
 
         public ParticleRenderer(ParticleSystem particleSystem, VrfGuiContext vrfGuiContext)
         {
+            emitParticleAction = EmitParticle;
+
             childParticleRenderers = new List<ParticleRenderer>();
             this.vrfGuiContext = vrfGuiContext;
 
@@ -103,7 +109,7 @@ namespace GUI.Types.ParticleRenderer
 
             foreach (var emitter in Emitters)
             {
-                emitter.Start(EmitParticle);
+                emitter.Start(emitParticleAction);
             }
 
             foreach (var childParticleRenderer in childParticleRenderers)
