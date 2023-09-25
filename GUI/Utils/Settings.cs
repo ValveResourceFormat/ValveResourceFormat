@@ -152,8 +152,14 @@ namespace GUI.Utils
         {
             Config.BackgroundColor = ColorTranslator.ToHtml(BackgroundColor);
 
-            using var stream = new FileStream(SettingsFilePath, FileMode.Create, FileAccess.Write, FileShare.None);
-            KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Serialize(stream, Config, nameof(ValveResourceFormat));
+            var tempFile = Path.GetTempFileName();
+
+            using (var stream = new FileStream(tempFile, FileMode.Create, FileAccess.Write, FileShare.None))
+            {
+                KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Serialize(stream, Config, nameof(ValveResourceFormat));
+            }
+
+            File.Move(tempFile, SettingsFilePath, overwrite: true);
         }
 
         public static void TrackRecentFile(string path)
