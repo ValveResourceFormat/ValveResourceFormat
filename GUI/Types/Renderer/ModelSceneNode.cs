@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
@@ -94,22 +95,32 @@ namespace GUI.Types.Renderer
             var newBoundingBox = LocalBoundingBox;
 
             // Update animation matrices
-            var matrices = AnimationController.GetAnimationMatrices();
 
-            // Update animation texture
-            GL.BindTexture(TextureTarget.Texture2D, animationTexture);
-            GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba32f, 4, bonesCount, 0, PixelFormat.Rgba, PixelType.Float, matrices);
-            GL.BindTexture(TextureTarget.Texture2D, 0);
+            var matrices = ArrayPool<Matrix4x4>.Shared.Rent(bonesCount);
 
-            var first = true;
-            foreach (var matrix in matrices)
+            try
             {
-                var bbox = LocalBoundingBox.Transform(matrix);
-                newBoundingBox = first ? bbox : newBoundingBox.Union(bbox);
-                first = false;
-            }
+                AnimationController.GetAnimationMatrices(matrices);
 
-            LocalBoundingBox = newBoundingBox;
+                // Update animation texture
+                GL.BindTexture(TextureTarget.Texture2D, animationTexture);
+                GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba32f, 4, bonesCount, 0, PixelFormat.Rgba, PixelType.Float, matrices);
+                GL.BindTexture(TextureTarget.Texture2D, 0);
+
+                var first = true;
+                foreach (var matrix in matrices)
+                {
+                    var bbox = LocalBoundingBox.Transform(matrix);
+                    newBoundingBox = first ? bbox : newBoundingBox.Union(bbox);
+                    first = false;
+                }
+
+                LocalBoundingBox = newBoundingBox;
+            }
+            finally
+            {
+                ArrayPool<Matrix4x4>.Shared.Return(matrices);
+            }
         }
 
         public override void Render(Scene.RenderContext context)
