@@ -1024,7 +1024,7 @@ namespace ValveResourceFormat.IO
             return mesh;
         }
 
-        private (Node skeletonNode, Node[] joints) CreateGltfSkeleton(Scene scene, Skeleton skeleton, string modelName)
+        private static (Node skeletonNode, Node[] joints) CreateGltfSkeleton(Scene scene, Skeleton skeleton, string modelName)
         {
             if (skeleton.Bones.Length == 0)
             {
@@ -1041,7 +1041,7 @@ namespace ValveResourceFormat.IO
             return (skeletonNode, joints);
         }
 
-        private void CreateBonesRecursive(Bone bone, Node parent, ref Node[] joints)
+        private static void CreateBonesRecursive(Bone bone, Node parent, ref Node[] joints)
         {
             var node = parent.CreateNode(bone.Name)
                 .WithLocalTranslation(bone.Position)

@@ -198,7 +198,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             return GetAnimationMatrices(frame, frameCache.Skeleton);
         }
 
-        private Matrix4x4[] GetAnimationMatrices(Frame frame, Skeleton skeleton)
+        private static Matrix4x4[] GetAnimationMatrices(Frame frame, Skeleton skeleton)
         {
             // Create output array
             var matrices = new Matrix4x4[skeleton.Bones.Length];
@@ -235,7 +235,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// <summary>
         /// Get animation matrix recursively.
         /// </summary>
-        private void GetAnimationMatrixRecursive(Bone bone, Matrix4x4 bindPose, Matrix4x4 invBindPose, Frame frame, ref Matrix4x4[] matrices)
+        private static void GetAnimationMatrixRecursive(Bone bone, Matrix4x4 bindPose, Matrix4x4 invBindPose, Frame frame, ref Matrix4x4[] matrices)
         {
             // Calculate world space inverse bind pose
             invBindPose *= bone.InverseBindPose;
