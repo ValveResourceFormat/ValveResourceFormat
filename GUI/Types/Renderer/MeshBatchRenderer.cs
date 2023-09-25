@@ -23,7 +23,7 @@ namespace GUI.Types.Renderer
         {
             if (a.Call.Material.Shader.Program == b.Call.Material.Shader.Program)
             {
-                return a.Call.Material.GetHashCode() - b.Call.Material.GetHashCode();
+                return a.Call.Material.SortId - b.Call.Material.SortId;
             }
 
             return a.Call.Material.Shader.Program - b.Call.Material.Shader.Program;

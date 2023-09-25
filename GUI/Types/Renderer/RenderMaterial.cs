@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using OpenTK.Graphics.OpenGL;
@@ -23,6 +24,7 @@ namespace GUI.Types.Renderer
     {
         private const int TextureUnitStart = (int)ReservedTextureSlots.Last + 1;
 
+        public int SortId { get; }
         public Shader Shader { get; set; }
         public Material Material { get; }
         public IKeyValueCollection VsInputSignature { get; }
@@ -57,6 +59,7 @@ namespace GUI.Types.Renderer
         RenderMaterial(Material material)
         {
             Material = material;
+
             IsToolsMaterial = material.IntAttributes.ContainsKey("tools.toolsmaterial");
             IsTranslucent = (material.IntParams.GetValueOrDefault("F_TRANSLUCENT") == 1)
                 || material.IntAttributes.ContainsKey("mapbuilder.water")
@@ -79,6 +82,8 @@ namespace GUI.Types.Renderer
                 isMod2x = blendMode == 3;
                 isAdditiveBlend = blendMode == 4;
             }
+
+            SortId = GetHashCode(); // It doesn't really matter what we use, it could be a random value
         }
 
         public void Render(Shader shader = default)
