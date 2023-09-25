@@ -38,16 +38,16 @@ namespace GUI.Controls
 
         private void Scan()
         {
-            var vpkImage = MainForm.ImageList.Images.IndexOfKey("vpk");
-            var vcsImage = MainForm.ImageList.Images.IndexOfKey("vcs");
-            var mapImage = MainForm.ImageList.Images.IndexOfKey("map");
-            var pluginImage = MainForm.ImageList.Images.IndexOfKey("_plugin");
-            var folderImage = MainForm.ImageList.Images.IndexOfKey("_folder");
-            var recentImage = MainForm.ImageList.Images.IndexOfKey("_recent");
+            var vpkImage = MainForm.ImageListLookup["vpk"];
+            var vcsImage = MainForm.ImageListLookup["vcs"];
+            var mapImage = MainForm.ImageListLookup["map"];
+            var pluginImage = MainForm.ImageListLookup["_plugin"];
+            var folderImage = MainForm.ImageListLookup["_folder"];
+            var recentImage = MainForm.ImageListLookup["_recent"];
 
             // Bookmarks
             {
-                var bookmarkImage = MainForm.ImageList.Images.IndexOfKey("_bookmark");
+                var bookmarkImage = MainForm.ImageListLookup["_bookmark"];
                 var bookmarkedFiles = GetBookmarkedFileNodes();
                 var bookmarkedFilesTreeNode = new TreeNode("Bookmarks")
                 {
@@ -456,7 +456,7 @@ namespace GUI.Controls
             return paths.Select(path =>
             {
                 var pathDisplay = path.Replace(Path.DirectorySeparatorChar, '/');
-                var extension = Path.GetExtension(path);
+                var extension = Path.GetExtension(path).ToLowerInvariant();
 
                 if (extension == ".vpk" && pathDisplay.Contains("/maps/", StringComparison.Ordinal))
                 {

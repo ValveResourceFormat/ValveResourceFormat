@@ -244,7 +244,7 @@ namespace GUI.Controls
 
                     if (!ExtensionIconList.TryGetValue(file.TypeName, out var image))
                     {
-                        image = ExtensionIconList["_default"];
+                        image = MainForm.ImageListLookup["_default"];
                     }
 
                     var newNode = new BetterTreeNode(fileName, file)
@@ -312,29 +312,15 @@ namespace GUI.Controls
 
         public void GenerateIconList(IEnumerable<string> extensions)
         {
-            ExtensionIconList = new()
-            {
-                { "_default", ImageList.Images.IndexOfKey("_default") },
-                { "_folder", ImageList.Images.IndexOfKey("_folder") },
-            };
+            var defaultImage = MainForm.ImageListLookup["_default"];
+
+            ExtensionIconList = new();
 
             foreach (var originalExtension in extensions)
             {
-                var extension = originalExtension;
+                var image = MainForm.GetImageIndexForExtension(originalExtension.ToLowerInvariant());
 
-                if (extension.EndsWith("_c", StringComparison.Ordinal))
-                {
-                    extension = extension[0..^2];
-                }
-
-                var image = ImageList.Images.IndexOfKey(extension);
-
-                if (image == -1 && extension.Length > 0 && extension[0] == 'v')
-                {
-                    image = ImageList.Images.IndexOfKey(extension[1..]);
-                }
-
-                if (image == -1)
+                if (image == defaultImage)
                 {
                     continue;
                 }
@@ -353,7 +339,7 @@ namespace GUI.Controls
         {
             if (!string.IsNullOrWhiteSpace(file.DirectoryName))
             {
-                var folderImage = ExtensionIconList["_folder"];
+                var folderImage = MainForm.ImageListLookup["_folder"];
                 var subPaths = file.DirectoryName.Split(Package.DirectorySeparatorChar);
 
                 foreach (var subPath in subPaths)
@@ -388,7 +374,7 @@ namespace GUI.Controls
 
             if (!ExtensionIconList.TryGetValue(file.TypeName, out var image))
             {
-                image = ExtensionIconList["_default"];
+                image = MainForm.ImageListLookup["_default"];
             }
 
             var newNode = new BetterTreeNode(fileName, file)

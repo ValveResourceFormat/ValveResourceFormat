@@ -16,7 +16,6 @@ namespace GUI.Types.Viewers
     class Package : IViewer
     {
         internal const string DELETED_FILES_FOLDER = "@@ Deleted Files @@";
-        public ImageList ImageList { get; set; }
         private VrfGuiContext VrfGuiContext;
 
         public static bool IsAccepted(uint magic)
@@ -45,7 +44,7 @@ namespace GUI.Types.Viewers
             vrfGuiContext.CurrentPackage = package;
 
             // create a TreeView with search capabilities, register its events, and add it to the tab
-            var treeViewWithSearch = new TreeViewWithSearchResults(ImageList);
+            var treeViewWithSearch = new TreeViewWithSearchResults();
             treeViewWithSearch.InitializeTreeViewFromPackage(vrfGuiContext);
             treeViewWithSearch.TreeNodeMouseDoubleClick += VPK_OpenFile;
             treeViewWithSearch.TreeNodeRightClick += VPK_OnContextMenu;

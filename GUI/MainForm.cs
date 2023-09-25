@@ -23,9 +23,36 @@ namespace GUI
     {
         // Disposable fields should be disposed
         // for some reason disposing it makes closing GUI very slow
-        public static ImageList ImageList { get; } = LoadAssetTypes();
+        public static ImageList ImageList { get; }
+        public static Dictionary<string, int> ImageListLookup { get; }
 
         private SearchForm searchForm;
+
+        static MainForm()
+        {
+            ImageList = new ImageList
+            {
+                ColorDepth = ColorDepth.Depth32Bit
+            };
+
+            var assembly = Assembly.GetExecutingAssembly();
+            var names = assembly.GetManifestResourceNames().Where(n => n.StartsWith("GUI.AssetTypes.", StringComparison.Ordinal)).ToList();
+
+            ImageListLookup = new(names.Count);
+
+            foreach (var name in names)
+            {
+                var extension = name.Split('.')[2];
+
+                using var stream = assembly.GetManifestResourceStream(name);
+                ImageList.Images.Add(extension, Image.FromStream(stream));
+
+                // Keep our own lookup because IndexOfKey is slow and not thread safe
+                var index = ImageList.Images.IndexOfKey(extension); // O(n)
+                ImageListLookup.Add(extension, index);
+                Debug.Assert(index >= 0);
+            }
+        }
 
         public MainForm()
         {
@@ -48,7 +75,7 @@ namespace GUI
 
             var consoleTab = new ConsoleTab();
             var consoleTabPage = consoleTab.CreateTab();
-            consoleTabPage.ImageIndex = ImageList.Images.IndexOfKey("_console");
+            consoleTabPage.ImageIndex = ImageListLookup["_console"];
             mainTabs.TabPages.Add(consoleTabPage);
 
             var version = Application.ProductVersion;
@@ -365,27 +392,6 @@ namespace GUI
             ShowHideSearch();
         }
 
-        private static ImageList LoadAssetTypes()
-        {
-            var imageList = new ImageList
-            {
-                ColorDepth = ColorDepth.Depth32Bit
-            };
-
-            var assembly = Assembly.GetExecutingAssembly();
-            var names = assembly.GetManifestResourceNames().Where(n => n.StartsWith("GUI.AssetTypes.", StringComparison.Ordinal));
-
-            foreach (var name in names)
-            {
-                var res = name.Split('.');
-
-                using var stream = assembly.GetManifestResourceStream(name);
-                imageList.Images.Add(res[2], Image.FromStream(stream));
-            }
-
-            return imageList;
-        }
-
         private void OnTabClick(object sender, MouseEventArgs e)
         {
             //Work out what tab we're interacting with
@@ -596,10 +602,7 @@ namespace GUI
 
             if (Types.Viewers.Package.IsAccepted(magic))
             {
-                var tab = new Types.Viewers.Package
-                {
-                    ImageList = ImageList, // TODO: Move this directly into Package
-                }.Create(vrfGuiContext, input);
+                var tab = new Types.Viewers.Package().Create(vrfGuiContext, input);
 
                 return tab;
             }
@@ -1017,7 +1020,7 @@ namespace GUI
                 ToolTipText = "Explorer"
             };
             explorerTab.Controls.Add(loadingFile);
-            explorerTab.ImageIndex = ImageList.Images.IndexOfKey("_folder_star");
+            explorerTab.ImageIndex = ImageListLookup["_folder_star"];
             mainTabs.TabPages.Insert(1, explorerTab);
             mainTabs.SelectTab(explorerTab);
 
@@ -1049,19 +1052,17 @@ namespace GUI
                 extension = extension[0..^2];
             }
 
-            var image = ImageList.Images.IndexOfKey(extension);
-
-            if (image == -1 && extension.Length > 0 && extension[0] == 'v')
+            if (ImageListLookup.TryGetValue(extension, out var image))
             {
-                image = ImageList.Images.IndexOfKey(extension[1..]);
+                return image;
             }
 
-            if (image == -1)
+            if (extension.Length > 0 && extension[0] == 'v' && ImageListLookup.TryGetValue(extension[1..], out image))
             {
-                image = ImageList.Images.IndexOfKey("_default");
+                return image;
             }
 
-            return image;
+            return ImageListLookup["_default"];
         }
 
         private void CheckForUpdatesToolStripMenuItem_Click(object sender, EventArgs e)

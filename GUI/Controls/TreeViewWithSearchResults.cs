@@ -15,7 +15,6 @@ namespace GUI.Controls
     /// </summary>
     partial class TreeViewWithSearchResults : UserControl
     {
-        private readonly ImageList imageList;
         public bool DeletedFilesRecovered { get; private set; }
 
         public event TreeNodeMouseClickEventHandler TreeNodeMouseDoubleClick; // when a TreeNode is double clicked
@@ -25,23 +24,13 @@ namespace GUI.Controls
 
         /// <summary>
         /// Initializes a new instance of the <see cref="TreeViewWithSearchResults"/> class.
-        /// Constructor to require an image list for display on listed TreeView nodes and ListView items.
-        /// </summary>
-        /// <param name="imageList">Image list.</param>
-        public TreeViewWithSearchResults(ImageList imageList)
-            : this()
-        {
-            this.imageList = imageList;
-            Dock = DockStyle.Fill;
-        }
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="TreeViewWithSearchResults"/> class.
         /// Require a default constructor for the designer.
         /// </summary>
-        private TreeViewWithSearchResults()
+        public TreeViewWithSearchResults()
         {
             InitializeComponent();
+
+            Dock = DockStyle.Fill;
 
             mainListView.MouseDoubleClick += MainListView_MouseDoubleClick;
             mainListView.MouseDown += MainListView_MouseDown;
@@ -141,7 +130,7 @@ namespace GUI.Controls
             control.Name = "treeViewVpk";
             control.VrfGuiContext = vrfGuiContext;
             control.Dock = DockStyle.Fill;
-            control.ImageList = imageList;
+            control.ImageList = MainForm.ImageList;
             control.ShowRootLines = false;
 
             control.GenerateIconList(vrfGuiContext.CurrentPackage.Entries.Keys.ToList());
@@ -153,7 +142,7 @@ namespace GUI.Controls
             }
 
             var name = Path.GetFileName(vrfGuiContext.FileName);
-            var vpkImage = MainForm.ImageList.Images.IndexOfKey("vpk");
+            var vpkImage = MainForm.ImageListLookup["vpk"];
             var root = new BetterTreeNode(name, vrfGuiContext.CurrentPackage.Entries.Count)
             {
                 Name = "root",
@@ -201,7 +190,7 @@ namespace GUI.Controls
 
                 Invoke((MethodInvoker)(() =>
                 {
-                    var deletedImage = MainForm.ImageList.Images.IndexOfKey("_deleted");
+                    var deletedImage = MainForm.ImageListLookup["_deleted"];
 
                     if (foundFiles.Count == 0)
                     {
@@ -429,7 +418,7 @@ namespace GUI.Controls
             mainListView.Columns.Add("Name");
             mainListView.Columns.Add("Size");
             mainListView.Columns.Add("Type");
-            mainListView.SmallImageList = imageList;
+            mainListView.SmallImageList = MainForm.ImageList;
         }
 
         private void AddNodeToListView(BetterTreeNode node)
