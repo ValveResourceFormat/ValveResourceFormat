@@ -238,7 +238,7 @@ namespace GUI.Types.Renderer
                     {
                         isFirstLine = false;
                         builder.Append("#define ");
-                        builder.Append(Path.GetFileNameWithoutExtension(originalShaderName));
+                        builder.Append(Path.GetFileNameWithoutExtension(originalShaderName) + "_vfx");
                         builder.Append(" 1 // :VrfPreprocessed\n");
                         AppendLineNumber(lineNum, currentSourceFileNumber);
                     }

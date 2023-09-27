@@ -8,9 +8,9 @@ float diffuseLobe(float NoL, float roughness)
 }
 
 
-#if (F_DIFFUSE_WRAP == 1) || (F_DIFFSUE_WRAP == 1) || defined(vr_xen_foliage)
+#if (F_DIFFUSE_WRAP == 1) || defined(vr_xen_foliage_vfx)
 // idea: what if we included individual features in tiny files per feature. they would all be used in #includes
-#define useDiffuseWrap
+#define S_DIFFUSE_WRAP
 
 // Used in vr_xen_foliage, vr_eyeball (not supported yet bc alt param names), and optionally in vr_complex
 uniform float g_flDiffuseExponent = 1.0;
@@ -150,7 +150,7 @@ vec3 specularLighting(vec3 lightVector, vec3 normal, MaterialProperties_t mat)
 	float NoV = saturate( dot(normal, mat.ViewDir) );
 	float VoH = ClampToPositive(dot(lightVector, halfVector));
 
-#if defined(vr_complex) && (F_CLOTH_SHADING == 1)
+#if defined(vr_complex_vfx) && (F_CLOTH_SHADING == 1)
     return SpecularCloth(mat.Roughness, NoL, NoH, NoV, VoH, mat.SpecularColor);
 #else
 
@@ -184,7 +184,7 @@ vec3 specularLighting(vec3 lightVector, vec3 normal, MaterialProperties_t mat)
 // Calculate PBR shading for a light
 void CalculateShading(inout LightingTerms_t lighting, vec3 lightVector, vec3 lightColor, MaterialProperties_t mat)
 {
-#if defined(useDiffuseWrap)
+#if defined(S_DIFFUSE_WRAP)
     vec3 diffuseLight = diffuseWrapped(mat.Normal, lightVector);
 #else
     float diffuseLight = diffuseLobe(ClampToPositive(dot(mat.Normal, lightVector)), GetIsoRoughness(mat.Roughness));

@@ -1,56 +1,41 @@
 #if defined(NEED_CURVATURE) && (F_USE_PER_VERTEX_CURVATURE == 0)
-// Expensive, only used in skin shaders
-float GetCurvature(vec3 vNormal, vec3 vPositionWS)
-{
-	return length(fwidth(vNormal)) / length(fwidth(vPositionWS));
-}
+    // Expensive, only used in skin shaders
+    float GetCurvature(vec3 vNormal, vec3 vPositionWS)
+    {
+        return length(fwidth(vNormal)) / length(fwidth(vPositionWS));
+    }
 #endif
-
-
 
 // Geometric roughness. Essentially just Specular Anti-Aliasing
 float CalculateGeometricRoughnessFactor(vec3 geometricNormal)
 {
-	vec3 normalDerivX = dFdxCoarse(geometricNormal);
-	vec3 normalDerivY = dFdyCoarse(geometricNormal);
-	float geometricRoughnessFactor = pow(saturate(max(dot(normalDerivX, normalDerivX), dot(normalDerivY, normalDerivY))), 0.333);
-	return geometricRoughnessFactor;
+    vec3 normalDerivX = dFdxCoarse(geometricNormal);
+    vec3 normalDerivY = dFdyCoarse(geometricNormal);
+    float geometricRoughnessFactor = pow(saturate(max(dot(normalDerivX, normalDerivX), dot(normalDerivY, normalDerivY))), 0.333);
+    return geometricRoughnessFactor;
 }
 
 float AdjustRoughnessByGeometricNormal( float roughness, vec3 geometricNormal )
 {
-	float geometricRoughnessFactor = CalculateGeometricRoughnessFactor(geometricNormal);
+    float geometricRoughnessFactor = CalculateGeometricRoughnessFactor(geometricNormal);
 
-	return max(roughness, geometricRoughnessFactor);
+    return max(roughness, geometricRoughnessFactor);
 }
 
 vec2 AdjustRoughnessByGeometricNormal( vec2 roughness, vec3 geometricNormal )
 {
-	float geometricRoughnessFactor = CalculateGeometricRoughnessFactor(geometricNormal);
+    float geometricRoughnessFactor = CalculateGeometricRoughnessFactor(geometricNormal);
 
-	return max(roughness, vec2(geometricRoughnessFactor));
+    return max(roughness, vec2(geometricRoughnessFactor));
 }
 
-
-
-
-
-
-
-float applyBlendModulation(float blendFactor, float blendMask, float blendSoftness)
+float ApplyBlendModulation(float blendFactor, float blendMask, float blendSoftness)
 {
     float minb = max(0.0, blendMask - blendSoftness);
     float maxb = min(1.0, blendMask + blendSoftness);
 
     return smoothstep(minb, maxb, blendFactor);
 }
-
-
-
-
-
-
-
 
 
 // Struct full of everything needed for lighting, for easy access around the shader.
@@ -162,10 +147,7 @@ void InitProperties(out MaterialProperties_t mat, vec3 GeometricNormal)
 }
 
 
-
-
-
-#if defined(vr_skin) || defined(vr_xen_foliage)
+#if defined(vr_skin_vfx) || defined(vr_xen_foliage_vfx)
 #define DIFFUSE_AO_COLOR_BLEED
 #endif
 
@@ -184,11 +166,6 @@ void SetDiffuseColorBleed(inout MaterialProperties_t mat)
 
 #endif
 
-
-
-
-
-
 float GetIsoRoughness(float Roughness)
 {
     return Roughness;
@@ -198,11 +175,6 @@ float GetIsoRoughness(vec2 Roughness)
 {
     return dot(Roughness, vec2(0.5));
 }
-
-
-
-
-
 
 
 //-------------------------------------------------------------------------
@@ -254,46 +226,35 @@ vec3 calculateWorldNormal(vec3 normalMap, vec3 normal, vec3 tangent, vec3 bitang
 
 #if (F_USE_BENT_NORMALS == 1)
 
-uniform sampler2D g_tBentNormal;
+    uniform sampler2D g_tBentNormal;
 
-void GetBentNormal(inout MaterialProperties_t mat, vec2 texCoords)
-{
-    vec3 bentNormalTexel = DecodeNormal( texture(g_tBentNormal, texCoords) );
-    mat.AmbientGeometricNormal = calculateWorldNormal(bentNormalTexel, mat.GeometricNormal, mat.Tangent, mat.Bitangent);
+    void GetBentNormal(inout MaterialProperties_t mat, vec2 texCoords)
+    {
+        vec3 bentNormalTexel = DecodeNormal( texture(g_tBentNormal, texCoords) );
+        mat.AmbientGeometricNormal = calculateWorldNormal(bentNormalTexel, mat.GeometricNormal, mat.Tangent, mat.Bitangent);
 
-    // this is how they blend in the bent normal; by re-converting the normal map to tangent space using the bent geo normal
-    mat.AmbientNormal = calculateWorldNormal(mat.NormalMap, mat.AmbientGeometricNormal, mat.Tangent, mat.Bitangent);
-}
+        // this is how they blend in the bent normal; by re-converting the normal map to tangent space using the bent geo normal
+        mat.AmbientNormal = calculateWorldNormal(mat.NormalMap, mat.AmbientGeometricNormal, mat.Tangent, mat.Bitangent);
+    }
 #endif
-
-
-
 
 
 //-------------------------------------------------------------------------
 //                              ALPHA TEST
 //-------------------------------------------------------------------------
 
+#if (F_ALPHA_TEST == 1) || (alphatest)
 
-#if (F_ALPHA_TEST == 1) || (alphaTest)
+    uniform float g_flAntiAliasedEdgeStrength = 1.0;
 
-uniform float g_flAntiAliasedEdgeStrength = 1.0;
-
-float AlphaTestAntiAliasing(float flOpacity, vec2 UVs)
-{
-	float flAlphaTestAA = saturate( (flOpacity - g_flAlphaTestReference) / ClampToPositive( fwidth(flOpacity) ) + 0.5 );
-	float flAlphaTestAA_Amount = min(1.0, length( fwidth(UVs) ) * 4.0);
-	float flAntiAliasAlphaBlend = mix(1.0, flAlphaTestAA_Amount, g_flAntiAliasedEdgeStrength);
-	return mix( flAlphaTestAA, flOpacity, flAntiAliasAlphaBlend );
-}
-
+    float AlphaTestAntiAliasing(float flOpacity, vec2 UVs)
+    {
+        float flAlphaTestAA = saturate( (flOpacity - g_flAlphaTestReference) / ClampToPositive( fwidth(flOpacity) ) + 0.5 );
+        float flAlphaTestAA_Amount = min(1.0, length( fwidth(UVs) ) * 4.0);
+        float flAntiAliasAlphaBlend = mix(1.0, flAlphaTestAA_Amount, g_flAntiAliasedEdgeStrength);
+        return mix( flAlphaTestAA, flOpacity, flAntiAliasAlphaBlend );
+    }
 #endif
-
-
-
-
-
-
 
 
 //-------------------------------------------------------------------------
@@ -303,9 +264,9 @@ float AlphaTestAntiAliasing(float flOpacity, vec2 UVs)
 #if (F_DETAIL_TEXTURE > 0)
 
 // Xen foliage detail textures always has both color and normal
-#define DETAIL_COLOR_MOD2X (F_DETAIL_TEXTURE == 1) && !defined(vr_xen_foliage)
-#define DETAIL_COLOR_OVERLAY ((F_DETAIL_TEXTURE == 2) || (F_DETAIL_TEXTURE == 4)) || defined(vr_xen_foliage)
-#define DETAIL_NORMALS ((F_DETAIL_TEXTURE == 3) || (F_DETAIL_TEXTURE == 4)) || defined(vr_xen_foliage)
+#define DETAIL_COLOR_MOD2X (F_DETAIL_TEXTURE == 1) && !defined(vr_xen_foliage_vfx)
+#define DETAIL_COLOR_OVERLAY ((F_DETAIL_TEXTURE == 2) || (F_DETAIL_TEXTURE == 4)) || defined(vr_xen_foliage_vfx)
+#define DETAIL_NORMALS ((F_DETAIL_TEXTURE == 3) || (F_DETAIL_TEXTURE == 4)) || defined(vr_xen_foliage_vfx)
 
 uniform float g_flDetailBlendFactor = 1.0;
 uniform float g_flDetailBlendToFull = 0.0;
@@ -330,116 +291,98 @@ void applyDetailTexture(inout vec3 Albedo, inout vec3 NormalMap, vec2 detailMask
     detailMask = g_flDetailBlendFactor * max(detailMask, g_flDetailBlendToFull);
 
     // MOD2X
-#if (DETAIL_COLOR_MOD2X)
+    #if (DETAIL_COLOR_MOD2X)
 
-    vec3 DetailTexture = texture(g_tDetail, vDetailTexCoords).rgb * MOD2X_MUL;
-    Albedo *= mix(vec3(1.0), DetailTexture, detailMask);
+        vec3 DetailTexture = texture(g_tDetail, vDetailTexCoords).rgb * MOD2X_MUL;
+        Albedo *= mix(vec3(1.0), DetailTexture, detailMask);
 
-// OVERLAY
-#elif (DETAIL_COLOR_OVERLAY)
+    // OVERLAY
+    #elif (DETAIL_COLOR_OVERLAY)
 
-    vec3 DetailTexture = DETAIL_CONST * texture(g_tDetail, vDetailTexCoords).rgb;
+        vec3 DetailTexture = DETAIL_CONST * texture(g_tDetail, vDetailTexCoords).rgb;
 
-    // blend in linear space! this is actually in the code, so we're doing the right thing!
-    vec3 linearAlbedo = pow(Albedo, invGamma);
-    vec3 overlayScreen = 1.0 - (1.0 - DetailTexture) * (1.0 - linearAlbedo) * 2.0;
-    vec3 overlayMul = DetailTexture * linearAlbedo * 2.0;
+        // blend in linear space! this is actually in the code, so we're doing the right thing!
+        vec3 linearAlbedo = pow(Albedo, invGamma);
+        vec3 overlayScreen = 1.0 - (1.0 - DetailTexture) * (1.0 - linearAlbedo) * 2.0;
+        vec3 overlayMul = DetailTexture * linearAlbedo * 2.0;
 
-    vec3 linearBlendedOverlay = mix(overlayMul, overlayScreen, greaterThanEqual(linearAlbedo, vec3(0.5)));
-    vec3 gammaBlendedOverlay = pow(linearBlendedOverlay, gamma);
+        vec3 linearBlendedOverlay = mix(overlayMul, overlayScreen, greaterThanEqual(linearAlbedo, vec3(0.5)));
+        vec3 gammaBlendedOverlay = pow(linearBlendedOverlay, gamma);
 
-    Albedo = mix(Albedo, gammaBlendedOverlay, detailMask);
+        Albedo = mix(Albedo, gammaBlendedOverlay, detailMask);
 
-#endif
+    #endif
 
-
-// NORMALS
-#if (DETAIL_NORMALS)
-    vec3 DetailNormal = DecodeNormal(texture(g_tNormalDetail, vDetailTexCoords));
-    DetailNormal = mix(vec3(0, 0, 1), DetailNormal, detailMask * g_flDetailNormalStrength);
-    // literally i dont even know
-    NormalMap = NormalMap * DetailNormal.z + vec3(NormalMap.z * DetailNormal.z * DetailNormal.xy, 0.0);
-
-#endif
+    // NORMALS
+    #if (DETAIL_NORMALS)
+        vec3 DetailNormal = DecodeNormal(texture(g_tNormalDetail, vDetailTexCoords));
+        DetailNormal = mix(vec3(0, 0, 1), DetailNormal, detailMask * g_flDetailNormalStrength);
+        // literally i dont even know
+        NormalMap = NormalMap * DetailNormal.z + vec3(NormalMap.z * DetailNormal.z * DetailNormal.xy, 0.0);
+    #endif
 }
 
 #endif
-
-
-
 
 // GLASS
+#if (F_GLASS == 1) || defined(glass_vfx_common)
 
+    uniform bool g_bFresnel = true;
+    uniform float g_flEdgeColorFalloff = 3.0;
+    uniform float g_flEdgeColorMaxOpacity = 0.5;
+    uniform float g_flEdgeColorThickness = 0.1;
+    uniform vec4 g_vEdgeColor;
+    uniform float g_flRefractScale = 0.1;
 
-#if (F_GLASS == 1) || defined(glass)
-uniform bool g_bFresnel = true;
-uniform float g_flEdgeColorFalloff = 3.0;
-uniform float g_flEdgeColorMaxOpacity = 0.5;
-uniform float g_flEdgeColorThickness = 0.1;
-uniform vec4 g_vEdgeColor;
-uniform float g_flRefractScale = 0.1;
+    // todo: is this right?
+    // todo2: inout mat properties
+    vec4 GetGlassMaterial(MaterialProperties_t mat)
+    {
+        float viewDotNormalInv = saturate(1.0 - (dot(mat.ViewDir, mat.Normal) - g_flEdgeColorThickness));
+        float fresnel = saturate(pow(viewDotNormalInv, g_flEdgeColorFalloff)) * g_flEdgeColorMaxOpacity;
+        vec4 fresnelColor = vec4(g_vEdgeColor.xyz, g_bFresnel ? fresnel : 0.0);
 
-// todo: is this right?
-// todo2: inout mat properties
-vec4 GetGlassMaterial(MaterialProperties_t mat)
-{
-    float viewDotNormalInv = saturate(1.0 - (dot(mat.ViewDir, mat.Normal) - g_flEdgeColorThickness));
-    float fresnel = saturate(pow(viewDotNormalInv, g_flEdgeColorFalloff)) * g_flEdgeColorMaxOpacity;
-    vec4 fresnelColor = vec4(g_vEdgeColor.xyz, g_bFresnel ? fresnel : 0.0);
-
-    return mix(vec4(mat.Albedo, mat.Opacity), fresnelColor, g_flOpacityScale);
-}
+        return mix(vec4(mat.Albedo, mat.Opacity), fresnelColor, g_flOpacityScale);
+    }
 #endif
-
-
-
-
-
-
 
 // Cloth Sheen
+#if (F_CLOTH_SHADING == 1) && defined(csgo_character_vfx)
 
-#if (F_CLOTH_SHADING == 1) && defined(csgo_character)
-uniform float g_flSheenScale = 0.667;
-uniform vec4 g_flSheenTintColor = vec4(1.0);
+    uniform float g_flSheenScale = 0.667;
+    uniform vec4 g_flSheenTintColor = vec4(1.0);
 
-vec3 ApplySheen(float reflectance, vec3 albedo, float clothMask)
-{
-    return mix(vec3(reflectance), saturate((SrgbGammaToLinear(g_flSheenTintColor.rgb) * sqrt(albedo)) * g_flSheenScale), clothMask);
-}
-
+    vec3 ApplySheen(float reflectance, vec3 albedo, float clothMask)
+    {
+        return mix(vec3(reflectance), saturate((SrgbGammaToLinear(g_flSheenTintColor.rgb) * sqrt(albedo)) * g_flSheenScale), clothMask);
+    }
 #endif
-
-
-
-
 
 // CS2 Decals
-
 #if (F_DECAL_TEXTURE == 1)
 
-#if (F_SECONDARY_UV == 1) || (F_FORCE_UV2 == 1)
-uniform bool g_bUseSecondaryUvForDecal;
-#endif
-uniform sampler2D g_tDecal;
+    uniform sampler2D g_tDecal;
+    #if (F_SECONDARY_UV == 1) || (F_FORCE_UV2 == 1)
+        uniform bool g_bUseSecondaryUvForDecal;
+    #endif
 
-vec3 ApplyDecalTexture(vec3 albedo)
-{
-#if (F_SECONDARY_UV == 1) || (F_FORCE_UV2 == 1)
-    vec2 coords = (g_bUseSecondaryUvForDecal || (F_FORCE_UV2 == 1)) ? vTexCoord2.xy : vTexCoordOut.xy;
-#else
-    vec2 coords = vTexCoordOut.xy;
-#endif
-    vec4 decalTex = texture(g_tDecal, coords);
+    vec3 ApplyDecalTexture(vec3 albedo)
+    {
+    #if (F_SECONDARY_UV == 1) || (F_FORCE_UV2 == 1)
+        vec2 coords = (g_bUseSecondaryUvForDecal || (F_FORCE_UV2 == 1)) ? vTexCoord2.xy : vTexCoordOut.xy;
+    #else
+        vec2 coords = vTexCoordOut.xy;
+    #endif
+        vec4 decalTex = texture(g_tDecal, coords);
 
-    // this is just a uniform in actual code
-    if (F_DECAL_BLEND_MODE == 0)
-    {
-        return mix(albedo, decalTex.rgb, decalTex.a);
+        // this is just a uniform in actual code
+        if (F_DECAL_BLEND_MODE == 0)
+        {
+            return mix(albedo, decalTex.rgb, decalTex.a);
+        }
+        else
+        {
+            return albedo * decalTex.rgb;
+        }
     }
-    else
-    {
-        return albedo * decalTex.rgb;
-    }
-}
 #endif

@@ -1,12 +1,12 @@
 #version 460
 
-#if !(defined(csgo_environment) || defined(csgo_environment_blend))
+#if !(defined(csgo_environment_vfx) || defined(csgo_environment_blend_vfx))
     #error "This shader is not supported!"
 #endif
 
 #include "common/utils.glsl"
 
-#if defined(csgo_environment)
+#if defined(csgo_environment_vfx)
 #include "common/animation.glsl"
 #endif
 
@@ -33,7 +33,7 @@ layout (location = 1) in vec2 vTEXCOORD;
     out vec3 vPerVertexLightingOut;
 #endif
 
-#if defined(csgo_environment_blend)
+#if defined(csgo_environment_blend_vfx)
     in vec4 vTEXCOORD4;
     out vec4 vColorBlendValues;
 #endif
@@ -68,7 +68,7 @@ uniform vec4 g_vTexCoordOffset1 = vec4(0.0);
 uniform vec4 g_vTexCoordScale1 = vec4(1.0);
 
 // Material 2
-#if defined(csgo_environment_blend)
+#if defined(csgo_environment_blend_vfx)
     uniform float g_flTexCoordRotation2 = 0.0;
     uniform vec4 g_vTexCoordCenter2 = vec4(0.5);
     uniform vec4 g_vTexCoordOffset2 = vec4(0.0);
@@ -143,7 +143,7 @@ void main()
     );
 #endif
 
-#if defined(csgo_environment_blend)
+#if defined(csgo_environment_blend_vfx)
     vTexCoord.zw = RotateVector2D(vTEXCOORD.xy,
         g_flTexCoordRotation2,
         g_vTexCoordScale2.xy,

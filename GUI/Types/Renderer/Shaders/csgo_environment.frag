@@ -57,7 +57,7 @@ uniform float g_flHeightMapScale1 = 0;
 uniform float g_flHeightMapZeroPoint1 = 0;
 
 // Material 2
-#if defined(csgo_environment_blend)
+#if defined(csgo_environment_blend_vfx)
     in vec4 vColorBlendValues;
 
     uniform sampler2D g_tColor2;
@@ -119,7 +119,7 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
     color.rgb = pow(color.rgb, gamma);
 
     // Blending
-#if defined(csgo_environment_blend)
+#if defined(csgo_environment_blend_vfx)
     vec4 colorTex2 = texture(g_tColor2, vTexCoord.zw);
     vec4 heightTex2 = texture(g_tHeight2, vTexCoord.zw);
     vec4 normalTex2 = texture(g_tNormal2, vTexCoord.zw);
@@ -134,7 +134,7 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
     float blendMask2 = heightTex2.r * g_flHeightMapScale2 + g_flHeightMapZeroPoint2;
     blendMask = (blendMask + blendMask2) * 0.5;
 
-    blendFactor = applyBlendModulation(blendFactor, blendMask, g_flBlendSoftness2);
+    blendFactor = ApplyBlendModulation(blendFactor, blendMask, g_flBlendSoftness2);
 
     color = mix(color, colorTex2, blendFactor);
     height = mix(height, heightTex2, blendFactor);
@@ -222,7 +222,7 @@ void main()
 
     outputColor.rgb = pow(combinedLighting, invGamma);
 
-#if defined(csgo_environment_blend)
+#if defined(csgo_environment_blend_vfx)
     //outputColor.rgb = mat.Albedo;
     //outputColor.rgb = texture(g_tHeight2, texCoord).rgb;
 #endif
@@ -282,7 +282,7 @@ void main()
     outputColor = vVertexColor;
 #endif
 
-#if renderMode_Terrain_Blend == 1 && defined(csgo_environment_blend)
+#if renderMode_Terrain_Blend == 1 && defined(csgo_environment_blend_vfx)
     outputColor.rgb = vColorBlendValues.rga;
 #endif
 }

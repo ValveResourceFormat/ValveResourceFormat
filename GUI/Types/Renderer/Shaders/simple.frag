@@ -19,16 +19,16 @@
 #define D_BAKED_LIGHTING_FROM_LIGHTPROBE 0
 #define LightmapGameVersionNumber 0
 
-#if defined(vr_simple_2way_blend) || defined (csgo_simple_2way_blend) || defined(steampal_2way_blend_mask)
-    #define simple_2way_blend
-#elif defined(vr_simple) || defined(csgo_simple)
-    #define simple
-#elif defined(vr_complex) || defined(csgo_complex)
-    #define complex
-#elif defined(vr_glass) || defined(csgo_glass)
-    #define glass
-#elif defined(vr_static_overlay) || defined(csgo_static_overlay)
-    #define static_overlay
+#if defined(vr_simple_2way_blend_vfx) || defined (csgo_simple_2way_blend_vfx) || defined(steampal_2way_blend_mask_vfx)
+    #define simple_blend_common
+#elif defined(vr_simple_vfx) || defined(csgo_simple_vfx)
+    #define simple_vfx_common
+#elif defined(vr_complex_vfx) || defined(csgo_complex_vfx)
+    #define complex_vfx_common
+#elif defined(vr_glass_vfx) || defined(csgo_glass_vfx)
+    #define glass_vfx_common
+#elif defined(vr_static_overlay_vfx) || defined(csgo_static_overlay_vfx)
+    #define static_overlay_vfx_common
 #endif
 
 //Parameter defines - These are default values and can be overwritten based on material/model parameters
@@ -73,7 +73,6 @@
 #define F_CLOTH_SHADING 0
 #define F_USE_BENT_NORMALS 0
 #define F_DIFFUSE_WRAP 0
-#define F_DIFFSUE_WRAP 0 // typo that existed for part of HLA's development
 #define F_TRANSMISSIVE_BACKFACE_NDOTL 0 // todo
 #define F_NO_SPECULAR_AT_FULL_ROUGHNESS 0
 // SKIN
@@ -109,34 +108,34 @@ centroid in vec3 vCentroidNormalOut;
     #endif
 #endif
 
-#if defined(csgo_lightmappedgeneric) || defined(csgo_vertexlitgeneric)
+#if defined(csgo_lightmappedgeneric_vfx) || defined(csgo_vertexlitgeneric_vfx)
     #define S_SPECULAR F_SPECULAR_INDIRECT
-#elif defined(vr_complex)
+#elif defined(vr_complex_vfx)
     #define S_SPECULAR F_SPECULAR
-#elif defined(generic)
+#elif defined(generic_vfx)
     #define S_SPECULAR 0
 #else
     #define S_SPECULAR 1 // Indirect
 #endif
 
 
-#if defined(steampal_2way_blend_mask)
+#if defined(steampal_2way_blend_mask_vfx)
     uniform sampler2D g_tLayer2Color;
     uniform sampler2D g_tLayer2NormalRoughness;
-#elif (defined(simple_2way_blend) || (F_LAYERS > 0))
+#elif (defined(simple_blend_common) || (F_LAYERS > 0))
     in vec4 vColorBlendValues;
     uniform sampler2D g_tLayer2Color;
     uniform sampler2D g_tLayer2NormalRoughness;
 #endif
 
-#if defined(vr_skin)
+#if defined(vr_skin_vfx)
     uniform sampler2D g_tCombinedMasks;
     uniform vec4 g_vTransmissionColor = vec4(0.74902, 0.231373, 0.011765, 0.0);
     uniform float g_flMouthInteriorBrightnessScale = 1.0;
 #endif
 
 #if (F_SELF_ILLUM == 1)
-    #if !defined(vr_skin)
+    #if !defined(vr_skin_vfx)
         uniform sampler2D g_tSelfIllumMask;
     #endif
     uniform float g_flSelfIllumAlbedoFactor = 0.0;
@@ -158,20 +157,19 @@ uniform sampler2D g_tTintMask;
 uniform float g_flAlphaTestReference = 0.5;
 uniform float g_flOpacityScale = 1.0;
 
-#define hasUniformMetalness (defined(simple) || defined(complex)) && (F_METALNESS_TEXTURE == 0)
-#define hasColorAlphaMetalness (defined(simple) || defined(complex)) && (F_METALNESS_TEXTURE == 1)
-#define hasColorAlphaAO (defined(vr_simple) && (F_AMBIENT_OCCLUSION_TEXTURE == 1) && (F_METALNESS_TEXTURE == 0)) || (F_ENABLE_AMBIENT_OCCLUSION == 1) // only vr_simple
-#define hasMetalnessTexture (defined(complex) && (F_METALNESS_TEXTURE == 1) && ((F_RETRO_REFLECTIVE == 1) || (F_ALPHA_TEST == 1) || (F_TRANSLUCENT == 1))) || defined(csgo_weapon) || defined(csgo_character)
-// lightmapped generic (and the 4way blend) has an ao texture for other layers. cables.vfx also has one but that shader changes between games
-#define hasAmbientOcclusionTexture ( (defined(vr_simple) && (F_AMBIENT_OCCLUSION_TEXTURE == 1) && (F_METALNESS_TEXTURE == 1)) || defined(complex) || defined(csgo_foliage) || defined(csgo_weapon) || defined(csgo_character) || defined(csgo_lightmappedgeneric) || defined(csgo_vertexlitgeneric))
-#define unlit (defined(csgo_unlitgeneric) || (F_FULLBRIGHT == 1) || (F_UNLIT == 1) || (defined(static_overlay) && F_LIT == 0))
-#define alphaTest (F_ALPHA_TEST == 1) || ((defined(csgo_unlitgeneric) || defined(static_overlay)) && (F_BLEND_MODE == 2))
-#define blendTranslucent (F_TRANSLUCENT == 1) || ((defined(csgo_unlitgeneric) || defined(static_overlay)) && (F_BLEND_MODE == 1)) // need to set this up on the cpu side
-#define blendMembrane (defined(vr_complex) && (F_TRANSLUCENT == 2))
+#define _uniformMetalness (defined(simple_vfx_common) || defined(complex_vfx_common)) && (F_METALNESS_TEXTURE == 0)
+#define _colorAlphaMetalness (defined(simple_vfx_common) || defined(complex_vfx_common)) && (F_METALNESS_TEXTURE == 1)
+#define _colorAlphaAO (defined(vr_simple_vfx) && (F_AMBIENT_OCCLUSION_TEXTURE == 1) && (F_METALNESS_TEXTURE == 0)) || (F_ENABLE_AMBIENT_OCCLUSION == 1) // only vr_simple_vfx
+#define _metalnessTexture (defined(complex_vfx_common) && (F_METALNESS_TEXTURE == 1) && ((F_RETRO_REFLECTIVE == 1) || (F_ALPHA_TEST == 1) || (F_TRANSLUCENT == 1))) || defined(csgo_weapon_vfx) || defined(csgo_character_vfx)
+#define _ambientOcclusionTexture ( (defined(vr_simple_vfx) && (F_AMBIENT_OCCLUSION_TEXTURE == 1) && (F_METALNESS_TEXTURE == 1)) || defined(complex_vfx_common) || defined(csgo_foliage_vfx) || defined(csgo_weapon_vfx) || defined(csgo_character_vfx) || defined(csgo_lightmappedgeneric_vfx) || defined(csgo_vertexlitgeneric_vfx))
 
-#if (hasUniformMetalness)
+#define unlit (defined(unlit_vfx) || defined(csgo_unlitgeneric_vfx) || (F_FULLBRIGHT == 1) || (F_UNLIT == 1) || (defined(static_overlay_vfx_common) && F_LIT == 0))
+#define alphatest (F_ALPHA_TEST == 1) || ((defined(csgo_unlitgeneric_vfx) || defined(static_overlay_vfx_common)) && (F_BLEND_MODE == 2))
+#define translucent (F_TRANSLUCENT == 1) || ((defined(csgo_unlitgeneric_vfx) || defined(static_overlay_vfx_common)) && (F_BLEND_MODE == 1)) // need to set this up on the cpu side
+
+#if (_uniformMetalness)
     uniform float g_flMetalness = 0.0;
-#elif (hasMetalnessTexture)
+#elif (_metalnessTexture)
     uniform sampler2D g_tMetalness;
 #endif
 
@@ -182,14 +180,15 @@ uniform vec4 g_vTexCoordScale2 = vec4(1.0);
     uniform float g_flBlendSoftness;
 #endif
 
-#if defined(simple_2way_blend)
+#if defined(simple_blend_common)
     uniform sampler2D g_tMask;
     uniform float g_flMetalnessA = 0.0;
     uniform float g_flMetalnessB = 0.0;
-#if defined(steampal_2way_blend_mask)
-    uniform float g_BlendFalloff = 0.0;
-    uniform float g_BlendHeight = 0.0;
-#endif
+
+    #if defined(steampal_2way_blend_mask_vfx)
+        uniform float g_BlendFalloff = 0.0;
+        uniform float g_BlendHeight = 0.0;
+    #endif
 #endif
 
 #if (F_RETRO_REFLECTIVE == 1)
@@ -199,10 +198,10 @@ uniform vec4 g_vTexCoordScale2 = vec4(1.0);
 #if (F_SCALE_NORMAL_MAP == 1)
     uniform float g_flNormalMapScaleFactor = 1.0;
 #endif
+
 uniform float g_flBumpStrength = 1.0;
 
-
-#if (hasAmbientOcclusionTexture)
+#if (_ambientOcclusionTexture)
     uniform sampler2D g_tAmbientOcclusion;
 #endif
 
@@ -242,7 +241,7 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 
 
     // Blending
-#if (F_LAYERS > 0) || defined(simple_2way_blend) || defined(steampal_2way_blend_mask)
+#if (F_LAYERS > 0) || defined(simple_blend_common) || defined(steampal_2way_blend_mask_vfx)
     vec2 texCoordB = texCoord * g_vTexCoordScale2.xy;
 
     vec4 color2 = texture(g_tLayer2Color, texCoordB);
@@ -256,28 +255,28 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
         vec4 blendModTexel = texture(g_tBlendModulation, texCoordB);
 
         #if (F_FANCY_BLENDING == 1)
-            blendFactor = applyBlendModulation(blendFactor, blendModTexel.g, blendModTexel.r);
+            blendFactor = ApplyBlendModulation(blendFactor, blendModTexel.g, blendModTexel.r);
         #elif (F_FANCY_BLENDING == 2)
-            blendFactor = applyBlendModulation(blendFactor, blendModTexel.g, g_flBlendSoftness);
+            blendFactor = ApplyBlendModulation(blendFactor, blendModTexel.g, g_flBlendSoftness);
         #elif (F_FANCY_BLENDING == 3)
-            blendFactor = applyBlendModulation(blendFactor, blendModTexel.a, g_flBlendSoftness);
+            blendFactor = ApplyBlendModulation(blendFactor, blendModTexel.a, g_flBlendSoftness);
         #endif
-    #elif defined(steampal_2way_blend_mask)
+    #elif defined(steampal_2way_blend_mask_vfx)
         float blendFactor = texture(g_tMask, texCoordB).x;
 
-        blendFactor = applyBlendModulation(blendFactor, g_BlendFalloff, g_BlendHeight);
+        blendFactor = ApplyBlendModulation(blendFactor, g_BlendFalloff, g_BlendHeight);
 
-    #elif (defined(simple_2way_blend))
+    #elif (defined(simple_blend_common))
         float blendFactor = vColorBlendValues.r;
         vec4 blendModTexel = texture(g_tMask, texCoordB);
 
-        #if defined(csgo_simple_2way_blend)
+        #if defined(csgo_simple_2way_blend_vfx)
             float softnessPaint = vColorBlendValues.a;
         #else
             float softnessPaint = vColorBlendValues.g;
         #endif
 
-        blendFactor = applyBlendModulation(blendFactor, blendModTexel.r, softnessPaint);
+        blendFactor = ApplyBlendModulation(blendFactor, blendModTexel.r, softnessPaint);
     #else
         float blendFactor = vColorBlendValues.r;
     #endif
@@ -300,7 +299,7 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 
 
     // Vr_skin unique stuff
-#if defined(vr_skin)
+#if defined(vr_skin_vfx)
     // r=MouthMask, g=AO, b=selfillum/tint mask, a=SSS/opacity
     vec4 combinedMasks = texture(g_tCombinedMasks, texCoord);
 
@@ -317,7 +316,7 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
         mat.SSSMask = combinedMasks.a;
     #endif
 
-    #if (F_TRANSLUCENT > 0) || (alphaTest == 1)
+    #if (F_TRANSLUCENT > 0) || (alphatest == 1)
         mat.Opacity = combinedMasks.a;
     #endif
 #endif
@@ -326,7 +325,7 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
     mat.Albedo = color.rgb;
     mat.Opacity = color.a;
 /*
-#if defined(static_overlay) && (F_PAINT_VERTEX_COLORS == 1)
+#if defined(static_overlay_vfx_common) && (F_PAINT_VERTEX_COLORS == 1)
     mat.Opacity *= vVertexColorOut.a;
 #endif
 */
@@ -336,7 +335,7 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 #endif
 
     // Alpha test
-#if (alphaTest == 1)
+#if (alphatest == 1)
     mat.Opacity = AlphaTestAntiAliasing(mat.Opacity, texCoord);
 
     if (mat.Opacity - 0.001 < g_flAlphaTestReference)   discard;
@@ -392,7 +391,7 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 
 
     // Metalness
-#if (hasMetalnessTexture)
+#if (_metalnessTexture)
     // a = rimmask
     vec4 metalnessTexture = texture(g_tMetalness, texCoord);
 
@@ -402,23 +401,23 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
         // not exclusive to csgo_character
         mat.ExtraParams.x = metalnessTexture.r;
     #endif
-    #if defined(csgo_character)
+    #if defined(csgo_character_vfx)
         mat.ClothMask = metalnessTexture.b * (1.0 - metalnessTexture.g);
-    #elif defined(csgo_weapon)
+    #elif defined(csgo_weapon_vfx)
         mat.RoughnessTex = metalnessTexture.r;
     #endif
-#elif (hasUniformMetalness)
+#elif (_uniformMetalness)
     mat.Metalness = g_flMetalness;
-#elif (hasColorAlphaMetalness)
+#elif (_colorAlphaMetalness)
     mat.Metalness = color.a;
-#elif (defined(simple_2way_blend))
+#elif defined(simple_blend_common)
     mat.Metalness = mix(g_flMetalnessA, g_flMetalnessB, blendFactor);
 #endif
 
     // Ambient Occlusion
-#if (hasColorAlphaAO)
+#if (_colorAlphaAO)
     mat.AmbientOcclusion = color.a;
-#elif (hasAmbientOcclusionTexture)
+#elif (_ambientOcclusionTexture)
     #if (F_SECONDARY_UV == 1) || (F_FORCE_UV2 == 1)
         mat.AmbientOcclusion = texture(g_tAmbientOcclusion, (g_bUseSecondaryUvForAmbientOcclusion || (F_FORCE_UV2 == 1)) ? vTexCoord2 : texCoord).r;
     #else
@@ -426,10 +425,10 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
     #endif
 #endif
 
-#if defined(vr_complex) && (F_METALNESS_TEXTURE == 0) && (F_RETRO_REFLECTIVE == 1)
+#if defined(vr_complex_vfx) && (F_METALNESS_TEXTURE == 0) && (F_RETRO_REFLECTIVE == 1)
     mat.ExtraParams.x = g_flRetroReflectivity;
 #endif
-#if defined(vr_complex) && (F_CLOTH_SHADING == 1)
+#if defined(vr_complex_vfx) && (F_CLOTH_SHADING == 1)
     mat.ClothMask = 1.0;
 #endif
 
@@ -451,7 +450,7 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 
     mat.DiffuseColor = mat.Albedo - mat.Albedo * mat.Metalness;
 
-#if (F_CLOTH_SHADING == 1) && defined(csgo_character)
+#if (F_CLOTH_SHADING == 1) && defined(csgo_character_vfx)
     vec3 F0 = ApplySheen(0.04, mat.Albedo, mat.ClothMask);
 #else
     const vec3 F0 = vec3(0.04);
@@ -459,7 +458,7 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
     mat.SpecularColor = mix(F0, mat.Albedo, mat.Metalness);
 
     // Self illum
-    #if (F_SELF_ILLUM == 1) && !defined(vr_xen_foliage) // xen foliage has really complicated selfillum and is wrong with this code
+    #if (F_SELF_ILLUM == 1) && !defined(vr_xen_foliage_vfx) // xen foliage has really complicated selfillum and is wrong with this code
         #if (F_SECONDARY_UV == 1) || (F_FORCE_UV2 == 1)
             vec2 selfIllumCoords = (g_bUseSecondaryUvForSelfIllum || (F_FORCE_UV2 == 1)) ? vTexCoord2 : texCoord;
         #else
@@ -468,7 +467,7 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 
         selfIllumCoords += fract(g_vSelfIllumScrollSpeed.xy * g_flTime);
 
-        #if !defined(vr_skin)
+        #if !defined(vr_skin_vfx)
             float selfIllumMask = texture(g_tSelfIllumMask, selfIllumCoords).r; // is this float or rgb?
         #endif
 
@@ -476,7 +475,7 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
         mat.IllumColor = selfIllumScale * selfIllumMask * mix(vec3(1.0), mat.Albedo, g_flSelfIllumAlbedoFactor);
     #endif
 
-    #if defined(vr_skin)
+    #if defined(vr_skin_vfx)
         mat.TransmissiveColor = SrgbGammaToLinear(g_vTransmissionColor.rgb) * color.a;
 
         float mouthOcclusion = mix(1.0, g_flMouthInteriorBrightnessScale, mat.ExtraParams.a);
@@ -484,7 +483,7 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
         mat.AmbientOcclusion *= mouthOcclusion;
     #endif
 
-    #if (F_GLASS == 1) || defined(glass)
+    #if (F_GLASS == 1) || defined(glass_vfx_common)
         vec4 glassResult = GetGlassMaterial(mat);
         mat.Albedo = glassResult.rgb; 
         mat.Opacity = glassResult.a;
@@ -538,14 +537,14 @@ void main()
     #endif
 
     // wip
-    #if defined(hasTransmission)
+    #if defined(S_TRANSMISSIVE_BACKFACE_NDOTL)
         vec3 transmissiveLighting = o.TransmissiveDirect * mat.TransmissiveColor;
     #else
         const vec3 transmissiveLighting = vec3(0.0);
     #endif
 
     // Unique HLA Membrane blend mode: specular unaffected by opacity
-    #if blendMembrane
+    #if defined(vr_complex_vfx) && (F_TRANSLUCENT == 2)
         vec3 combinedLighting = specularLighting + (mat.DiffuseColor * diffuseLighting + transmissiveLighting + mat.IllumColor) * mat.Opacity;
         outputColor.a = 1.0;
     #else
@@ -620,7 +619,7 @@ void main()
     outputColor = vVertexColorOut;
 #endif
 
-#if renderMode_Terrain_Blend == 1 && (F_LAYERS > 0 || defined(simple_2way_blend))
+#if renderMode_Terrain_Blend == 1 && (F_LAYERS > 0 || defined(simple_blend_common))
     outputColor.rgb = vColorBlendValues.rgb;
 #endif
 

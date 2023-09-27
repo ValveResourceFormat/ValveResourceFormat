@@ -9,7 +9,7 @@
 
 #define F_NOTINT 0
 #define F_VERTEX_COLOR 0
-#define F_PAINT_VERTEX_COLORS 0 // csgo_static_overlay
+#define F_PAINT_VERTEX_COLORS 0 // csgo_static_overlay_vfx
 #define F_LAYERS 0
 #define F_SECONDARY_UV 0
 #define F_FORCE_UV2 0
@@ -20,11 +20,11 @@
 #define F_SPHERICAL_PROJECTED_ANISOTROPIC_TANGENTS 0
 //End of parameter defines
 
-#if defined(vr_simple_2way_blend) || defined (csgo_simple_2way_blend)
-    #define simple_2way_blend
+#if defined(vr_simple_2way_blend_vfx) || defined (csgo_simple_2way_blend_vfx)
+    #define simple_2way_blend_vfx
 #endif
-#if defined(vr_simple_2way_blend) || defined(vr_simple_2way_parallax) || defined(vr_simple_3way_parallax) || defined(vr_simple_blend_to_triplanar) || defined(vr_simple_blend_to_xen_membrane)
-    #define vr_blend
+#if defined(vr_simple_2way_blend_vfx) || defined(vr_simple_2way_parallax_vfx) || defined(vr_simple_3way_parallax_vfx) || defined(vr_simple_blend_to_triplanar_vfx) || defined(vr_simple_blend_to_xen_membrane_vfx)
+    #define vr_blend_vfx_common
 #endif
 
 #include "common/animation.glsl"
@@ -44,7 +44,7 @@ in vec2 vTEXCOORD;
     in vec2 vLightmapUV;
     out vec3 vLightmapUVScaled;
 #elif D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1
-    #if defined(vr_standard)
+    #if defined(vr_standard_vfx)
         #undef F_VERTEX_COLOR
         #undef F_PAINT_VERTEX_COLORS
         in vec4 vCOLOR1;
@@ -54,10 +54,10 @@ in vec2 vTEXCOORD;
     out vec3 vPerVertexLightingOut;
 #endif
 
-#if (F_LAYERS > 0) || defined(simple_2way_blend) || defined(vr_blend)
-    #if defined(vr_simple_2way_blend) || defined(vr_blend)
+#if (F_LAYERS > 0) || defined(simple_2way_blend_vfx) || defined(vr_blend_vfx_common)
+    #if defined(vr_simple_2way_blend_vfx) || defined(vr_blend_vfx_common)
         #define vBLEND_COLOR vTEXCOORD2
-        #if defined(vr_blend)
+        #if defined(vr_blend_vfx_common)
             #define vBLEND_ALPHA vTEXCOORD3
             in vec4 vBLEND_ALPHA;
         #endif
@@ -212,7 +212,7 @@ void main()
 #if D_BAKED_LIGHTING_FROM_LIGHTMAP == 1
     vLightmapUVScaled = vec3(vLightmapUV * g_vLightmapUvScale.xy, 0);
 #elif D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1
-    #if defined(vr_standard)
+    #if defined(vr_standard_vfx)
         vec4 vPerVertexLighting = vCOLOR1;
     #endif
     vec3 Light = vPerVertexLighting.rgb * 6.0 * vPerVertexLighting.a;
@@ -238,14 +238,14 @@ void main()
     vDetailTexCoords = RotateVector2D(detailCoords, g_flDetailTexCoordRotation, g_vDetailTexCoordScale.xy, g_vDetailTexCoordOffset.xy);
 #endif
 
-#if (F_LAYERS > 0) || defined(simple_2way_blend) || defined(vr_blend)
+#if (F_LAYERS > 0) || defined(simple_2way_blend_vfx) || defined(vr_blend_vfx_common)
     vColorBlendValues = vBLEND_COLOR;
 
-    #if defined(csgo_simple_2way_blend) || (F_LAYERS > 0)
+    #if defined(csgo_simple_2way_blend_vfx) || (F_LAYERS > 0)
         vColorBlendValues /= 255.0;
     #endif
 
-    #if defined(vr_blend)
+    #if defined(vr_blend_vfx_common)
         vColorBlendValues.y = max(0.5 * vBLEND_ALPHA.x, 0.1);
     #endif
 #endif

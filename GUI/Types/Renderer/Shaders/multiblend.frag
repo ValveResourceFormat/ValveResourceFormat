@@ -70,7 +70,7 @@ vec3 interpolateTint(int id, vec3 tint1, vec3 tint2, vec2 coords)
 }
 
 // from texturing.glsl
-float applyBlendModulation(float blendFactor, float blendMask, float blendSoftness)
+float ApplyBlendModulation(float blendFactor, float blendMask, float blendSoftness)
 {
     float minb = max(0.0, blendMask - blendSoftness);
     float maxb = min(1.0, blendMask + blendSoftness);
@@ -115,17 +115,17 @@ void main()
 
 
     // Get blend weights
-    float blendWeight1 = applyBlendModulation(vBlendWeights.x, color1.w, vBlendAlphas.x);
+    float blendWeight1 = ApplyBlendModulation(vBlendWeights.x, color1.w, vBlendAlphas.x);
 
     float invBlendWeight1 = 1.0 - blendWeight1;
 
 #if F_TWO_LAYER_BLEND == 0
-    float blendWeight2 = applyBlendModulation(vBlendWeights.y, color2.w, vBlendAlphas.y);
+    float blendWeight2 = ApplyBlendModulation(vBlendWeights.y, color2.w, vBlendAlphas.y);
     blendWeight2 = clamp(blendWeight2, 0.0, invBlendWeight1);
 
     float invBlendWeight2 = invBlendWeight1 - blendWeight2;
 
-    float blendWeight3 = applyBlendModulation(vBlendWeights.z, color3.w, vBlendAlphas.z);
+    float blendWeight3 = ApplyBlendModulation(vBlendWeights.z, color3.w, vBlendAlphas.z);
     blendWeight3 = clamp(blendWeight3, 0.0, invBlendWeight2);
 
     // remaining weight
