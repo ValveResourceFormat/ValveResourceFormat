@@ -14,6 +14,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         public string Name { get; }
         public float Fps { get; }
         public int FrameCount { get; }
+        public bool IsLooping { get; }
         private AnimationFrameBlock[] FrameBlocks { get; }
         private AnimationSegmentDecoder[] SegmentArray { get; }
 
@@ -23,6 +24,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             Name = animDesc.GetProperty<string>("m_name");
             Fps = animDesc.GetFloatProperty("fps");
             SegmentArray = segmentArray;
+
+            var flags = animDesc.GetSubCollection("m_flags");
+            IsLooping = flags.GetProperty<bool>("m_bLooping");
 
             var pDataObject = animDesc.GetProperty<object>("m_pData");
             var pData = pDataObject is NTROValue[] ntroArray
