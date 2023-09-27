@@ -57,7 +57,7 @@ namespace GUI.Types.Renderer
                     continue;
                 }
 
-                var newResource = guiContext.LoadFileByAnyMeansNecessary(lumpName + "_c");
+                var newResource = guiContext.LoadFileCompiled(lumpName);
 
                 if (newResource == null)
                 {
@@ -74,7 +74,7 @@ namespace GUI.Types.Renderer
             {
                 if (worldNode != null)
                 {
-                    var newResource = guiContext.LoadFileByAnyMeansNecessary(worldNode + ".vwnod_c");
+                    var newResource = guiContext.LoadFile(string.Concat(worldNode, ".vwnod_c"));
                     if (newResource == null)
                     {
                         continue;
@@ -110,7 +110,7 @@ namespace GUI.Types.Renderer
             }
 
             PhysAggregateData phys = null;
-            var physResource = guiContext.LoadFileByAnyMeansNecessary(Path.Join(worldPhysicsFolder, "world_physics.vmdl_c"));
+            var physResource = guiContext.LoadFile(Path.Join(worldPhysicsFolder, "world_physics.vmdl_c"));
 
             if (physResource != null)
             {
@@ -118,7 +118,7 @@ namespace GUI.Types.Renderer
             }
             else
             {
-                physResource = guiContext.LoadFileByAnyMeansNecessary(Path.Join(worldPhysicsFolder, "world_physics.vphys_c"));
+                physResource = guiContext.LoadFile(Path.Join(worldPhysicsFolder, "world_physics.vphys_c"));
 
                 if (physResource != null)
                 {
@@ -190,7 +190,7 @@ namespace GUI.Types.Renderer
 
             foreach (var childEntityName in childEntities)
             {
-                var newResource = guiContext.LoadFileByAnyMeansNecessary(childEntityName + "_c");
+                var newResource = guiContext.LoadFileCompiled(childEntityName);
 
                 if (newResource == null)
                 {
@@ -250,7 +250,7 @@ namespace GUI.Types.Renderer
                     {
                         // TODO: Skybox loading always differs per game for some reason, we need to figure out how to load them properly without hackery
                         var skyboxWorldPath = $"maps/{Path.GetFileNameWithoutExtension(targetmapname)}/world.vwrld_c";
-                        var skyboxPackage = guiContext.LoadFileByAnyMeansNecessary(skyboxWorldPath);
+                        var skyboxPackage = guiContext.LoadFile(skyboxWorldPath);
 
                         if (skyboxPackage == null && guiContext.ParentGuiContext != null)
                         {
@@ -276,7 +276,7 @@ namespace GUI.Types.Renderer
                                 skyboxNewPackage.Read(skyboxVpk);
 
                                 guiContext.ParentGuiContext.FileLoader.AddPackageToSearch(skyboxNewPackage);
-                                skyboxPackage = guiContext.LoadFileByAnyMeansNecessary(skyboxWorldPath);
+                                skyboxPackage = guiContext.LoadFile(skyboxWorldPath);
                             }
                         }
 
@@ -313,7 +313,7 @@ namespace GUI.Types.Renderer
                     {
                         Translation = Vector3.Zero
                     };
-                    using var skyMaterial = guiContext.LoadFileByAnyMeansNecessary(skyname + "_c");
+                    using var skyMaterial = guiContext.LoadFileCompiled(skyname);
 
                     scene.Sky = new SceneSky(scene)
                     {
@@ -486,7 +486,7 @@ namespace GUI.Types.Renderer
 
                             if (!string.IsNullOrEmpty(material))
                             {
-                                using var matFile = guiContext.LoadFileByAnyMeansNecessary(material + "_c");
+                                using var matFile = guiContext.LoadFileCompiled(material);
                                 var mat = guiContext.MaterialLoader.LoadMaterial(matFile);
 
                                 if (mat != null && mat.Textures.TryGetValue("g_tSkyTexture", out fogTexture))
@@ -697,7 +697,7 @@ namespace GUI.Types.Renderer
 
                 if (particle != null)
                 {
-                    var particleResource = guiContext.LoadFileByAnyMeansNecessary(particle + "_c");
+                    var particleResource = guiContext.LoadFileCompiled(particle);
 
                     if (particleResource != null)
                     {
@@ -769,11 +769,11 @@ namespace GUI.Types.Renderer
                     continue;
                 }
 
-                var newEntity = guiContext.LoadFileByAnyMeansNecessary(model + "_c");
+                var newEntity = guiContext.LoadFileCompiled(model);
 
                 if (newEntity == null)
                 {
-                    var errorModelResource = guiContext.LoadFileByAnyMeansNecessary("models/dev/error.vmdl_c");
+                    var errorModelResource = guiContext.LoadFile("models/dev/error.vmdl_c");
 
                     if (errorModelResource != null)
                     {
@@ -856,7 +856,7 @@ namespace GUI.Types.Renderer
                     var refPhysicsPaths = newModel.GetReferencedPhysNames().ToArray();
                     if (refPhysicsPaths.Any())
                     {
-                        var newResource = guiContext.LoadFileByAnyMeansNecessary(refPhysicsPaths.First() + "_c");
+                        var newResource = guiContext.LoadFileCompiled(refPhysicsPaths.First());
                         if (newResource != null)
                         {
                             phys = (PhysAggregateData)newResource.DataBlock;
@@ -891,7 +891,7 @@ namespace GUI.Types.Renderer
                 {
                     filename = file;
 
-                    resource = guiContext.LoadFileByAnyMeansNecessary(file + "_c");
+                    resource = guiContext.LoadFileCompiled(file);
 
                     if (resource != null)
                     {

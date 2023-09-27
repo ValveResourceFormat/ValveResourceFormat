@@ -107,7 +107,7 @@ namespace GUI.Types.Viewers
 
                 case ResourceType.Map:
                     {
-                        var mapResource = vrfGuiContext.LoadFileByAnyMeansNecessary(Path.Join(resource.FileName[..^7], "world.vwrld_c"));
+                        var mapResource = vrfGuiContext.LoadFile(Path.Join(resource.FileName[..^7], "world.vwrld_c"));
                         if (mapResource != null)
                         {
                             var mapTab = new TabPage("MAP");

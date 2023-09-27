@@ -71,7 +71,7 @@ namespace GUI.Types.Renderer
                 return mat;
             }
 
-            var resource = VrfGuiContext.LoadFileByAnyMeansNecessary(name + "_c");
+            var resource = VrfGuiContext.LoadFileCompiled(name);
             mat = LoadMaterial(resource, shaderArguments);
 
             Materials.Add(cacheKey, mat);
@@ -149,7 +149,7 @@ namespace GUI.Types.Renderer
 
         public RenderTexture LoadTexture(string name)
         {
-            var textureResource = VrfGuiContext.LoadFileByAnyMeansNecessary(name + "_c");
+            var textureResource = VrfGuiContext.LoadFileCompiled(name);
 
             if (textureResource == null)
             {

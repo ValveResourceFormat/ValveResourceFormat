@@ -470,7 +470,7 @@ namespace GUI.Types.ParticleRenderer
         {
             foreach (var childName in childNames)
             {
-                var childResource = vrfGuiContext.LoadFileByAnyMeansNecessary(childName + "_c");
+                var childResource = vrfGuiContext.LoadFileCompiled(childName);
 
                 if (childResource == null)
                 {

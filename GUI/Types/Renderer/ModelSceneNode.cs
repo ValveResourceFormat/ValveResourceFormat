@@ -200,7 +200,7 @@ namespace GUI.Types.Renderer
             // Load referred meshes from file (only load meshes with LoD 1)
             foreach (var refMesh in GetLod1RefMeshes())
             {
-                var newResource = Scene.GuiContext.LoadFileByAnyMeansNecessary(refMesh.MeshName + "_c");
+                var newResource = Scene.GuiContext.LoadFileCompiled(refMesh.MeshName);
                 if (newResource == null)
                 {
                     continue;

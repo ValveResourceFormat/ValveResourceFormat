@@ -60,7 +60,7 @@ namespace GUI.Types.Renderer
                     throw new NotImplementedException("More than one referenced mesh");
                 }
 
-                var newResource = Scene.GuiContext.LoadFileByAnyMeansNecessary(refMesh.MeshName + "_c");
+                var newResource = Scene.GuiContext.LoadFileCompiled(refMesh.MeshName);
                 if (newResource == null)
                 {
                     return;

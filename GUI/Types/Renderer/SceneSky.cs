@@ -93,7 +93,7 @@ namespace GUI.Types.Renderer
 
         public override void SetRenderMode(string mode)
         {
-            using var mat = Scene.GuiContext.LoadFileByAnyMeansNecessary(Scene.Sky?.Material.Material.Name + "_c");
+            using var mat = Scene.GuiContext.LoadFileCompiled(Scene.Sky?.Material.Material.Name);
             Material = Scene.GuiContext.MaterialLoader.LoadMaterial(mat);
         }
     }

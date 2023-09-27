@@ -67,8 +67,10 @@ namespace GUI.Utils
             }
         }
 
-        public Resource LoadFileByAnyMeansNecessary(string file) =>
-            FileLoader.LoadFile(file);
+        public Resource LoadFile(string file) => FileLoader.LoadFile(file);
+
+        private const string CompiledFileSuffix = "_c";
+        public Resource LoadFileCompiled(string file) => FileLoader.LoadFile(string.Concat(file, CompiledFileSuffix));
 
         public void ClearCache()
         {

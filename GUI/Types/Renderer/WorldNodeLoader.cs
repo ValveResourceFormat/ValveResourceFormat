@@ -55,7 +55,7 @@ namespace GUI.Types.Renderer
 
                 if (renderableModel != null)
                 {
-                    var newResource = guiContext.LoadFileByAnyMeansNecessary(renderableModel + "_c");
+                    var newResource = guiContext.LoadFileCompiled(renderableModel);
 
                     if (newResource == null)
                     {
@@ -81,7 +81,7 @@ namespace GUI.Types.Renderer
 
                 if (!string.IsNullOrEmpty(renderable))
                 {
-                    var newResource = guiContext.LoadFileByAnyMeansNecessary(renderable + "_c");
+                    var newResource = guiContext.LoadFileCompiled(renderable);
 
                     if (newResource == null)
                     {
@@ -108,7 +108,7 @@ namespace GUI.Types.Renderer
 
                 if (renderableModel != null)
                 {
-                    var newResource = guiContext.LoadFileByAnyMeansNecessary(renderableModel + "_c");
+                    var newResource = guiContext.LoadFileCompiled(renderableModel);
                     if (newResource == null)
                     {
                         continue;

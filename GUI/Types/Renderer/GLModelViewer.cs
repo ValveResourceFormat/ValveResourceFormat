@@ -139,7 +139,7 @@ namespace GUI.Types.Renderer
                                 " Please report this on https://github.com/ValveResourceFormat/ValveResourceFormat and provide the file that caused this.");
                         }
 
-                        var newResource = Scene.GuiContext.LoadFileByAnyMeansNecessary(refPhysicsPaths.First() + "_c");
+                        var newResource = Scene.GuiContext.LoadFileCompiled(refPhysicsPaths.First());
                         if (newResource != null)
                         {
                             phys = (PhysAggregateData)newResource.DataBlock;
