@@ -71,24 +71,15 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             {
                 return PrevFrame;
             }
-            if (frameIndex == NextFrame.FrameIndex)
-            {
-                return NextFrame;
-            }
+
+            var frame = NextFrame;
+            NextFrame = PrevFrame;
+            PrevFrame = frame;
 
             // Only two frames are cached at a time to minimize memory usage, especially with Autoplay enabled
-            Frame frame;
-            if (frameIndex == (NextFrame.FrameIndex + 1) % anim.FrameCount)
+            if (frameIndex == frame.FrameIndex)
             {
-                frame = PrevFrame;
-                PrevFrame = NextFrame;
-                NextFrame = frame;
-            }
-            else
-            {
-                frame = NextFrame;
-                NextFrame = PrevFrame;
-                PrevFrame = frame;
+                return frame;
             }
 
             // We make an assumption that frames within one animation
