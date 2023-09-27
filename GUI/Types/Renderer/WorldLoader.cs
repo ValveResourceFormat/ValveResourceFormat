@@ -468,6 +468,7 @@ namespace GUI.Types.Renderer
                                 if (skyEntity != null)
                                 {
                                     material = skyEntity.GetProperty<string>("skyname") ?? skyEntity.GetProperty<string>("skybox_material_day");
+                                    transform = EntityTransformHelper.CalculateTransformationMatrix(skyEntity); // steal rotation from env_sky
                                 }
                                 else
                                 {
