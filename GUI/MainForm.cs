@@ -692,17 +692,20 @@ namespace GUI
         private void CopyFileNameToolStripMenuItem_Click(object sender, EventArgs e)
         {
             var control = ((ContextMenuStrip)((ToolStripMenuItem)sender).Owner).SourceControl;
+            VrfGuiContext context;
             List<TreeNode> selectedNodes;
 
-            if (control is TreeView treeView)
+            if (control is BetterTreeView treeView)
             {
+                context = treeView.VrfGuiContext;
                 selectedNodes = new List<TreeNode>
                 {
                     treeView.SelectedNode
                 };
             }
-            else if (control is ListView listView)
+            else if (control is BetterListView listView)
             {
+                context = listView.VrfGuiContext;
                 selectedNodes = new List<TreeNode>(listView.SelectedItems.Count);
 
                 foreach (ListViewItem selectedNode in listView.SelectedItems)
@@ -715,10 +718,18 @@ namespace GUI
                 throw new InvalidDataException("Unknown state");
             }
 
+            var wantsFullPath = ModifierKeys.HasFlag(Keys.Shift);
             var sb = new StringBuilder();
 
             foreach (var selectedNode in selectedNodes.Cast<BetterTreeNode>())
             {
+                if (wantsFullPath)
+                {
+                    sb.Append("vpk:");
+                    sb.Append(context.FileName);
+                    sb.Append(':');
+                }
+
                 if (!selectedNode.IsFolder)
                 {
                     var packageEntry = selectedNode.PackageEntry;
