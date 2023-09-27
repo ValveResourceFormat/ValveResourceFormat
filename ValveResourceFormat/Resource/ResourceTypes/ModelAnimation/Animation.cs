@@ -196,7 +196,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         {
             // Get bone transformations
             var frame = FrameCount != 0
-                ? frameCache.GetFrame(this, time)
+                ? frameCache.GetInterpolatedFrame(this, time)
                 : null;
 
             GetAnimationMatrices(matrices, frame, frameCache.Skeleton);
@@ -210,19 +210,19 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             }
         }
 
-        public void DecodeFrame(int frameIndex, Frame outFrame)
+        public void DecodeFrame(Frame outFrame)
         {
             // Read all frame blocks
             foreach (var frameBlock in FrameBlocks)
             {
                 // Only consider blocks that actual contain info for this frame
-                if (frameIndex >= frameBlock.StartFrame && frameIndex <= frameBlock.EndFrame)
+                if (outFrame.FrameIndex >= frameBlock.StartFrame && outFrame.FrameIndex <= frameBlock.EndFrame)
                 {
                     foreach (var segmentIndex in frameBlock.SegmentIndexArray)
                     {
                         var segment = SegmentArray[segmentIndex];
                         // Segment could be null for unknown decoders
-                        segment?.Read(frameIndex - frameBlock.StartFrame, outFrame);
+                        segment?.Read(outFrame.FrameIndex - frameBlock.StartFrame, outFrame);
                     }
                 }
             }

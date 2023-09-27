@@ -4,33 +4,47 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 {
     public class AnimationFrameCache
     {
-        private (int FrameIndex, Frame Frame) PreviousFrame;
-        private (int FrameIndex, Frame Frame) NextFrame;
+        private Frame PrevFrame;
+        private Frame NextFrame;
         private readonly Frame InterpolatedFrame;
         public Skeleton Skeleton { get; }
 
         public AnimationFrameCache(Skeleton skeleton)
         {
-            PreviousFrame = (-1, new Frame(skeleton));
-            NextFrame = (-1, new Frame(skeleton));
+            PrevFrame = new Frame(skeleton);
+            NextFrame = new Frame(skeleton);
             InterpolatedFrame = new Frame(skeleton);
             Skeleton = skeleton;
             Clear();
         }
 
         /// <summary>
+        /// Clears interpolated frame bones and frame cache.
+        /// Should be used on animation change.
+        /// </summary>
+        public void Clear()
+        {
+            PrevFrame.Clear(Skeleton);
+            NextFrame.Clear(Skeleton);
+        }
+
+        /// <summary>
         /// Get the animation frame at a time.
         /// </summary>
         /// <param name="time">The time to get the frame for.</param>
-        public Frame GetFrame(Animation anim, float time)
+        public Frame GetInterpolatedFrame(Animation anim, float time)
         {
             // Calculate the index of the current frame
             var frameIndex = (int)(time * anim.Fps) % anim.FrameCount;
             var t = ((time * anim.Fps) - frameIndex) % 1;
+            var nextFrameIndex = (frameIndex + 1) % anim.FrameCount;
 
             // Get current and next frame
             var frame1 = GetFrame(anim, frameIndex);
-            var frame2 = GetFrame(anim, (frameIndex + 1) % anim.FrameCount);
+            var frame2 = GetFrame(anim, nextFrameIndex);
+
+            // TODO: frame1 gets overwritten when animation restarts causing a glitch in the animation
+            //Debug.Assert(frame1.FrameIndex == frameIndex);
 
             // Interpolate bone positions, angles and scale
             for (var i = 0; i < frame1.Bones.Length; i++)
@@ -46,51 +60,39 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         }
 
         /// <summary>
-        /// Clears interpolated frame bones and frame cache.
-        /// Should be used on animation change.
-        /// </summary>
-        public void Clear()
-        {
-            PreviousFrame = (-1, PreviousFrame.Frame);
-            PreviousFrame.Frame.Clear(Skeleton);
-
-            NextFrame = (-1, NextFrame.Frame);
-            NextFrame.Frame.Clear(Skeleton);
-        }
-
-        /// <summary>
         /// Get the animation frame at a given index.
         /// </summary>
         public Frame GetFrame(Animation anim, int frameIndex)
         {
             // Try to lookup cached (precomputed) frame - happens when GUI Autoplay runs faster than animation FPS
-            if (frameIndex == PreviousFrame.FrameIndex)
+            if (frameIndex == PrevFrame.FrameIndex)
             {
-                return PreviousFrame.Frame;
+                return PrevFrame;
             }
             if (frameIndex == NextFrame.FrameIndex)
             {
-                return NextFrame.Frame;
+                return NextFrame;
             }
 
             // Only two frames are cached at a time to minimize memory usage, especially with Autoplay enabled
             Frame frame;
-            if (frameIndex > PreviousFrame.FrameIndex)
+            if (frameIndex > PrevFrame.FrameIndex)
             {
-                frame = PreviousFrame.Frame;
-                PreviousFrame = NextFrame;
-                NextFrame = (frameIndex, frame);
+                frame = PrevFrame;
+                PrevFrame = NextFrame;
+                NextFrame = frame;
             }
             else
             {
-                frame = NextFrame.Frame;
-                NextFrame = PreviousFrame;
-                PreviousFrame = (frameIndex, frame);
+                frame = NextFrame;
+                NextFrame = PrevFrame;
+                PrevFrame = frame;
             }
+
             // We make an assumption that frames within one animation
             // contain identical bone sets, so we don't clear frame here
-
-            anim.DecodeFrame(frameIndex, frame);
+            frame.FrameIndex = frameIndex;
+            anim.DecodeFrame(frame);
 
             return frame;
         }

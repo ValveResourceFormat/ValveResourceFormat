@@ -64,7 +64,7 @@ namespace GUI.Types.Renderer
                 }
                 else
                 {
-                    frame = animationController.FrameCache.GetFrame(animationController.ActiveAnimation, animationController.Time);
+                    frame = animationController.FrameCache.GetInterpolatedFrame(animationController.ActiveAnimation, animationController.Time);
                 }
             }
 

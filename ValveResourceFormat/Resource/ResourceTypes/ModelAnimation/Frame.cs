@@ -5,6 +5,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 {
     public class Frame
     {
+        public int FrameIndex { get; set; } = 1;
         public FrameBone[] Bones { get; }
 
         public Frame(Skeleton skeleton)

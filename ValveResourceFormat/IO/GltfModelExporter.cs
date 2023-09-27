@@ -406,7 +406,8 @@ namespace ValveResourceFormat.IO
 
                     for (var frameIndex = 0; frameIndex < animation.FrameCount; frameIndex++)
                     {
-                        animation.DecodeFrame(frameIndex, frame);
+                        frame.FrameIndex = frameIndex;
+                        animation.DecodeFrame(frame);
                         var time = frameIndex / fps;
                         var prevFrameTime = (frameIndex - 1) / fps;
 
