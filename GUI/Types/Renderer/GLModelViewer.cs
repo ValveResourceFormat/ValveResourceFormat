@@ -25,6 +25,7 @@ namespace GUI.Types.Renderer
         private CheckBox animationPlayPause;
         private CheckBox showSkeletonCheckbox;
         private GLViewerTrackBarControl animationTrackBar;
+        private GLViewerTrackBarControl slowmodeTrackBar;
         public CheckedListBox meshGroupListBox { get; private set; }
         public ComboBox materialGroupListBox { get; private set; }
         private ModelSceneNode modelSceneNode;
@@ -58,6 +59,7 @@ namespace GUI.Types.Renderer
                 animationComboBox?.Dispose();
                 animationPlayPause?.Dispose();
                 animationTrackBar?.Dispose();
+                slowmodeTrackBar?.Dispose();
                 meshGroupListBox?.Dispose();
                 materialGroupListBox?.Dispose();
                 physicsGroupsComboBox?.Dispose();
@@ -90,8 +92,19 @@ namespace GUI.Types.Renderer
                     modelSceneNode.AnimationController.Frame = frame;
                 }
             });
+
+            slowmodeTrackBar = AddTrackBar(value =>
+            {
+                modelSceneNode.AnimationController.FrametimeMultiplier = value / 100f;
+            });
+            slowmodeTrackBar.TrackBar.TickFrequency = 10;
+            slowmodeTrackBar.TrackBar.Minimum = 0;
+            slowmodeTrackBar.TrackBar.Maximum = 100;
+            slowmodeTrackBar.TrackBar.Value = 100;
+
             animationPlayPause.Enabled = false;
             animationTrackBar.Enabled = false;
+            slowmodeTrackBar.Enabled = false;
 
             var previousPaused = false;
             animationTrackBar.TrackBar.MouseDown += (_, __) =>
@@ -194,6 +207,7 @@ namespace GUI.Types.Renderer
                         }
                         animationTrackBar.Enabled = animation != null;
                         animationPlayPause.Enabled = animation != null;
+                        slowmodeTrackBar.Enabled = animation != null;
 
                         frame = 0;
                     }

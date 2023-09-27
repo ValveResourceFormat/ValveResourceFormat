@@ -9,6 +9,7 @@ namespace GUI.Types.Renderer
         private readonly AnimationFrameCache animationFrameCache;
         private Action<Animation, int> updateHandler = (_, __) => { };
         private Animation activeAnimation;
+        public float FrametimeMultiplier { get; set; } = 1.0f;
         public float Time { get; private set; }
         private bool shouldUpdate;
 
@@ -56,7 +57,7 @@ namespace GUI.Types.Renderer
                 return res;
             }
 
-            Time += timeStep;
+            Time += timeStep * FrametimeMultiplier;
             updateHandler(activeAnimation, Frame);
             shouldUpdate = false;
             return true;
