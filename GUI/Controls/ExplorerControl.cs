@@ -463,6 +463,11 @@ namespace GUI.Controls
                     extension = ".map";
                 }
 
+                if (extension.Length > 0)
+                {
+                    extension = extension[1..];
+                }
+
                 var imageIndex = MainForm.GetImageIndexForExtension(extension);
 
                 var toAdd = new TreeNode(pathDisplay)

@@ -508,7 +508,15 @@ namespace GUI
 
             var loadingFile = new LoadingFile();
             tab.Controls.Add(loadingFile);
-            tab.ImageIndex = GetImageIndexForExtension(Path.GetExtension(tab.Text));
+
+            var extension = Path.GetExtension(tab.Text);
+
+            if (extension.Length > 0)
+            {
+                extension = extension[1..];
+            }
+
+            tab.ImageIndex = GetImageIndexForExtension(extension);
 
             mainTabs.TabPages.Add(tab);
             mainTabs.SelectTab(tab);
@@ -1053,11 +1061,6 @@ namespace GUI
 
         public static int GetImageIndexForExtension(string extension)
         {
-            if (extension.Length > 0)
-            {
-                extension = extension[1..];
-            }
-
             if (extension.EndsWith("_c", StringComparison.Ordinal))
             {
                 extension = extension[0..^2];
