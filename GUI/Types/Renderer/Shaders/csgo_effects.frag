@@ -45,7 +45,7 @@ uniform float g_flFresnelMax = 1.0;
 uniform float g_flFresnelMin;
 uniform float g_flOpacityScale = 1.0;
 
-uniform vec3 m_vTintColorDrawCall;
+uniform vec4 vTint;
 
 #include "common/ViewConstants.glsl"
 
@@ -61,7 +61,7 @@ void main()
     float mask3 = texture(g_tMask3, vTexCoordOut * g_vMask3Scale.xy + (g_vMask3PanSpeed.xy * g_flTime)).x;
 
     //Calculate tint color
-    vec3 tintColor = m_vTintColorDrawCall.rgb;
+    vec3 tintColor = vTint.rgb;
 
     #if F_TINT_MASK == 1
         // does texcoord scale really only apply to the tint mask?

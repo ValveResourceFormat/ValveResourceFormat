@@ -248,11 +248,20 @@ namespace GUI.Types.Renderer
                 //drawCall.VertexCount = objectDrawCall.GetUInt32Property("m_nVertexCount");
             }
 
+            var tintAlpha = Vector4.One;
+
             if (objectDrawCall.ContainsKey("m_vTintColor"))
             {
                 var tintColor = objectDrawCall.GetSubCollection("m_vTintColor").ToVector3();
-                drawCall.TintColor = new OpenTK.Vector3(tintColor.X, tintColor.Y, tintColor.Z);
+                tintAlpha = new Vector4(tintColor, 1.0f);
             }
+
+            if (objectDrawCall.ContainsKey("m_flAlpha"))
+            {
+                tintAlpha.W = objectDrawCall.GetFloatProperty("m_flAlpha");
+            }
+
+            drawCall.TintColor = tintAlpha;
 
             if (objectDrawCall.ContainsKey("m_nMeshID"))
             {

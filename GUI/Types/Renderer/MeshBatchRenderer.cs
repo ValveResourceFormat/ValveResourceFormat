@@ -69,7 +69,6 @@ namespace GUI.Types.Renderer
             public int NumBones;
             public int Transform;
             public int Tint;
-            public int TintDrawCall;
             public int ObjectId;
             public int MeshId;
             public int ShaderId;
@@ -113,8 +112,7 @@ namespace GUI.Types.Renderer
                             AnimationTexture = shader.GetUniformLocation("animationTexture"),
                             NumBones = shader.GetUniformLocation("fNumBones"),
                             Transform = shader.GetUniformLocation("transform"),
-                            Tint = shader.GetUniformLocation("m_vTintColorSceneObject"),
-                            TintDrawCall = shader.GetUniformLocation("m_vTintColorDrawCall"),
+                            Tint = shader.GetUniformLocation("vTint"),
                             CubeMapArrayIndices = shader.GetUniformLocation("g_iEnvMapArrayIndices"),
                             ObjectId = shader.GetUniformLocation("sceneObjectId"),
                             MeshId = shader.GetUniformLocation("meshId"),
@@ -129,8 +127,8 @@ namespace GUI.Types.Renderer
                             buffer.SetBlockBinding(shader);
                         }
 
-                        context.LightingInfo.SetLightmapTextures(shader);
-                        context.FogInfo.SetCubemapFogTexture(shader);
+                        context.Scene.LightingInfo.SetLightmapTextures(shader);
+                        context.Scene.FogInfo.SetCubemapFogTexture(shader);
                     }
 
                     material = request.Call.Material;
@@ -200,13 +198,8 @@ namespace GUI.Types.Renderer
 
             if (uniforms.Tint > -1)
             {
-                var tint = request.Mesh.Tint.ToOpenTK();
+                var tint = (request.Mesh.Tint * request.Call.TintColor).ToOpenTK();
                 GL.Uniform4(uniforms.Tint, tint);
-            }
-
-            if (uniforms.TintDrawCall > -1)
-            {
-                GL.Uniform3(uniforms.TintDrawCall, request.Call.TintColor);
             }
 
             GL.DrawElementsBaseVertex(

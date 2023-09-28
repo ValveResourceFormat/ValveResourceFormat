@@ -16,8 +16,7 @@ uniform mat4 transform;
 uniform vec4 g_vTexCoordOffset;
 uniform vec4 g_vTexCoordScale;
 
-uniform vec4 m_vTintColorSceneObject;
-uniform vec3 m_vTintColorDrawCall;
+uniform vec4 vTint;
 
 void main()
 {
@@ -26,7 +25,5 @@ void main()
     vFragPosition = fragPosition.xyz / fragPosition.w;
 
     vTexCoordOut = vTEXCOORD * g_vTexCoordScale.xy + g_vTexCoordOffset.xy;
-
-    vTintColorFadeOut.rgb = m_vTintColorSceneObject.rgb * m_vTintColorDrawCall;
-    vTintColorFadeOut.a = m_vTintColorSceneObject.a;
+    vTintColorFadeOut = vTint;
 }

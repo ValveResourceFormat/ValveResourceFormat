@@ -31,6 +31,7 @@ out vec2 vTexCoord3Out;
 
 #include "common/ViewConstants.glsl"
 uniform mat4 transform;
+uniform vec4 vTint = vec4(1.0);
 
 uniform float g_flTexCoordScale0;
 uniform float g_flTexCoordScale1;
@@ -42,8 +43,7 @@ uniform float g_flTexCoordRotate1;
 uniform float g_flTexCoordRotate2;
 uniform float g_flTexCoordRotate3;
 
-// TODO: reset uniforms to default when not present in the vmat. Otherwise the entire landscape will be scrolling
-/*uniform vec4 g_vTexCoordOffset0 = vec4(0.0);
+uniform vec4 g_vTexCoordOffset0 = vec4(0.0);
 uniform vec4 g_vTexCoordOffset1 = vec4(0.0);
 uniform vec4 g_vTexCoordOffset2 = vec4(0.0);
 uniform vec4 g_vTexCoordOffset3 = vec4(0.0);
@@ -51,18 +51,15 @@ uniform vec4 g_vTexCoordOffset3 = vec4(0.0);
 uniform vec4 g_vTexCoordScroll0 = vec4(0.0);
 uniform vec4 g_vTexCoordScroll1 = vec4(0.0);
 uniform vec4 g_vTexCoordScroll2 = vec4(0.0);
-uniform vec4 g_vTexCoordScroll3 = vec4(0.0);*/
-
-uniform vec4 m_vTintColorSceneObject = vec4(1.0);
-uniform vec3 m_vTintColorDrawCall = vec3(1.0);
+uniform vec4 g_vTexCoordScroll3 = vec4(0.0);
 
 
-vec2 getTexCoord(float scale, float rotation) {//, vec4 offset, vec4 scroll) {
+vec2 getTexCoord(float scale, float rotation, vec4 offset, vec4 scroll) {
 
     //Transform degrees to radians
     float r = radians(rotation);
 
-    vec2 totalOffset = vec2(0.0);//(scroll.xy * g_flTime) + offset.xy;
+    vec2 totalOffset = (scroll.xy * g_flTime) + offset.xy;
 
     //Scale texture
     vec2 coord = vTEXCOORD - vec2(0.5);
@@ -93,10 +90,10 @@ void main()
     vTangentOut = normalize(normalTransform * tangent.xyz);
     vBitangentOut = tangent.w * cross(vNormalOut, vTangentOut);
 
-    vTexCoordOut = getTexCoord(g_flTexCoordScale0, g_flTexCoordRotate0);//, g_vTexCoordOffset0, g_vTexCoordScroll0);
-    vTexCoord1Out = getTexCoord(g_flTexCoordScale1, g_flTexCoordRotate1);//, g_vTexCoordOffset1, g_vTexCoordScroll1);
-    vTexCoord2Out = getTexCoord(g_flTexCoordScale2, g_flTexCoordRotate2);//, g_vTexCoordOffset2, g_vTexCoordScroll2);
-    vTexCoord3Out = getTexCoord(g_flTexCoordScale3, g_flTexCoordRotate3);//, g_vTexCoordOffset3, g_vTexCoordScroll3);
+    vTexCoordOut = getTexCoord(g_flTexCoordScale0, g_flTexCoordRotate0, g_vTexCoordOffset0, g_vTexCoordScroll0);
+    vTexCoord1Out = getTexCoord(g_flTexCoordScale1, g_flTexCoordRotate1, g_vTexCoordOffset1, g_vTexCoordScroll1);
+    vTexCoord2Out = getTexCoord(g_flTexCoordScale2, g_flTexCoordRotate2, g_vTexCoordOffset2, g_vTexCoordScroll2);
+    vTexCoord3Out = getTexCoord(g_flTexCoordScale3, g_flTexCoordRotate3, g_vTexCoordOffset3, g_vTexCoordScroll3);
 
 
     //vTEXCOORD1 - (X,Y,Z) - tex1, 2, and 3 blend softness (not working right now), W - reserved for worldspace uvs
@@ -108,6 +105,6 @@ void main()
     vBlendAlphas.xyz = vec3(0.25);//max(vTEXCOORD1.xyz * 0.5, 1e-6);
     vBlendAlphas.w = 0.0;
 
-    vVertexColor.rgb = SrgbGammaToLinear(m_vTintColorDrawCall.rgb) * m_vTintColorSceneObject.rgb * SrgbGammaToLinear(vTEXCOORD2.rgb/255);
-    vVertexColor.a = m_vTintColorSceneObject.a;
+    vVertexColor.rgb = SrgbGammaToLinear(vTint.rgb) * SrgbGammaToLinear(vTEXCOORD2.rgb/255);
+    vVertexColor.a = vTint.a;
 }

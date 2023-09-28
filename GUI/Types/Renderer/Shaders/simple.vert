@@ -87,14 +87,13 @@ out vec3 vBitangentOut;
 centroid out vec3 vCentroidNormalOut;
 out vec2 vTexCoordOut;
 
-uniform vec4 m_vTintColorSceneObject;
-uniform vec3 m_vTintColorDrawCall;
 uniform vec4 g_vColorTint = vec4(1.0);
 uniform float g_flModelTintAmount = 1.0;
 uniform float g_flFadeExponent = 1.0;
 
 #include "common/ViewConstants.glsl"
 uniform mat4 transform;
+uniform vec4 vTint;
 
 uniform vec4 g_vTexCoordOffset;
 uniform vec4 g_vTexCoordScale = vec4(1.0);
@@ -162,9 +161,9 @@ vec4 GetTintColor()
 {
     vec4 TintFade = vec4(1.0);
 #if F_NOTINT == 0
-    TintFade.rgb = mix(vec3(1.0), m_vTintColorSceneObject.rgb * m_vTintColorDrawCall * g_vColorTint.rgb, g_flModelTintAmount);
+    TintFade.rgb = mix(vec3(1.0), vTint.rgb * g_vColorTint.rgb, g_flModelTintAmount);
 #endif
-    TintFade.a = pow(m_vTintColorSceneObject.a * g_vColorTint.a, g_flFadeExponent);
+    TintFade.a = pow(vTint.a * g_vColorTint.a, g_flFadeExponent);
     return TintFade;
 }
 

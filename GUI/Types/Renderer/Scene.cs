@@ -24,8 +24,6 @@ namespace GUI.Types.Renderer
             public Scene Scene { get; init; }
             public Camera Camera { get; init; }
             public List<UniformBuffers.IBlockBindableBuffer> Buffers { get; set; }
-            public WorldLightingInfo LightingInfo { get; set; }
-            public WorldFogInfo FogInfo { get; set; }
             public RenderPass RenderPass { get; set; }
             public Shader ReplacementShader { get; set; }
         }
@@ -212,8 +210,6 @@ namespace GUI.Types.Renderer
                 Scene = this,
                 Camera = camera,
                 Buffers = buffers,
-                LightingInfo = LightingInfo,
-                FogInfo = FogInfo,
                 RenderPass = RenderPass.Opaque,
             };
 

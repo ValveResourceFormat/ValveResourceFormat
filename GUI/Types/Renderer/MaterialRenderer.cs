@@ -84,9 +84,8 @@ namespace GUI.Types.Renderer
             GL.BindVertexArray(quadVao);
             GL.EnableVertexAttribArray(0);
 
-            shader.SetUniform4("m_vTintColorSceneObject", Vector4.One);
-            shader.SetUniform3("m_vTintColorDrawCall", Vector3.One);
             shader.SetUniform4x4("transform", Matrix4x4.Identity);
+            shader.SetUniform4("vTint", Vector4.One);
 
             material.Render(shader);
 

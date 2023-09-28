@@ -1,4 +1,4 @@
-using OpenTK;
+using System.Numerics;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Blocks;
 
@@ -13,7 +13,7 @@ namespace GUI.Types.Renderer
         public int IndexCount { get; set; }
         //public float UvDensity { get; set; }     //TODO
         //public string Flags { get; set; }        //TODO
-        public Vector3 TintColor { get; set; } = Vector3.One;
+        public Vector4 TintColor { get; set; } = Vector4.One;
 
         public AABB? DrawBounds { get; set; }
 

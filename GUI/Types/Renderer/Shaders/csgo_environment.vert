@@ -51,8 +51,6 @@ centroid out vec3 vCentroidNormalOut;
 out vec4 vTexCoord;
 out vec4 vVertexColor;
 
-uniform vec4 m_vTintColorSceneObject;
-uniform vec3 m_vTintColorDrawCall;
 uniform vec4 g_vColorTint = vec4(1.0);
 uniform float g_flModelTintAmount = 1.0;
 uniform float g_flFadeExponent = 1.0;
@@ -60,6 +58,7 @@ uniform float g_flFadeExponent = 1.0;
 #include "common/ViewConstants.glsl"
 #include "common/LightingConstants.glsl"
 uniform mat4 transform;
+uniform vec4 vTint;
 
 // Material 1
 uniform float g_flTexCoordRotation1 = 0.0;
@@ -87,9 +86,8 @@ uniform vec4 g_vTexCoordScale1 = vec4(1.0);
 vec4 GetTintColor()
 {
     vec4 TintFade = vec4(1.0);
-    TintFade.rgb = mix(vec3(1.0), m_vTintColorSceneObject.rgb * m_vTintColorDrawCall * g_vColorTint.rgb, g_flModelTintAmount);
-    TintFade.rgb = SrgbLinearToGamma(TintFade.rgb);
-    TintFade.a = pow(m_vTintColorSceneObject.a * g_vColorTint.a, g_flFadeExponent);
+    TintFade.rgb = mix(vec3(1.0), SrgbLinearToGamma(vTint.rgb * g_vColorTint.rgb), g_flModelTintAmount);
+    TintFade.a = pow(vTint.a * g_vColorTint.a, g_flFadeExponent);
     return TintFade;
 }
 
