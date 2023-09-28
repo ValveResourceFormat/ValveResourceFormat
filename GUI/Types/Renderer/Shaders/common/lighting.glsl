@@ -27,7 +27,7 @@ vec3 getSunDir()
 
 vec3 getSunColor()
 {
-    return vLightColor.rgb;
+    return SrgbGammaToLinear(vLightColor.rgb) * vLightColor.a;
 }
 
 
@@ -57,10 +57,9 @@ void CalculateDirectLighting(inout LightingTerms_t lighting, inout MaterialPrope
     #endif
 #endif
 
-    vec3 lightColor = visibility * getSunColor();
     if (visibility > 0.0)
     {
-        CalculateShading(lighting, lightVector, vec3(visibility), mat);
+        CalculateShading(lighting, lightVector, visibility * getSunColor(), mat);
     }
 }
 
