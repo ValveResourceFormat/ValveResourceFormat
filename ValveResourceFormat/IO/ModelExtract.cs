@@ -398,8 +398,17 @@ public class ModelExtract
             KVObject keyvalues;
             using (var ms = new MemoryStream(Encoding.UTF8.GetBytes(keyvaluesString)))
             {
-                keyvalues = KeyValues3.ParseKVFile(ms).Root;
-            };
+                try
+                {
+                    keyvalues = KeyValues3.ParseKVFile(ms).Root;
+                }
+                catch (Exception e)
+                {
+                    // TODO: Current parser fails when root is "null", so just skip over them for now
+                    Console.Error.WriteLine(e.ToString());
+                    return;
+                }
+            }
 
             if (keyvalues.ContainsKey("anim_graph_resource"))
             {
