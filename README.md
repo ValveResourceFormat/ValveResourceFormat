@@ -1,4 +1,4 @@
-<h1 align="center">VRF / Valve Resource Format</h1>
+<h1 align="center"><img src="./Icons/source2viewer.png" width="64" align="center"> Source 2 Viewer</h1>
 
 <p align="center">
     <a href="https://github.com/ValveResourceFormat/ValveResourceFormat/actions">
@@ -11,6 +11,8 @@
         <img src="https://img.shields.io/codecov/c/github/ValveResourceFormat/ValveResourceFormat/master?logo=codecov&logoColor=ffffff&style=for-the-badge">
     </a>
 </p>
+
+*\* The library component of Source 2 Viewer is called ValveResourceFormat (VRF).*
 
 Valve's Source 2 resource file format parser, decompiler, and exporter.
 Source 2 files usually end with `_c`, for example `.vmdl_c`.
