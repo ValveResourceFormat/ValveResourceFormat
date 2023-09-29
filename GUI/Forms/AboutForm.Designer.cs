@@ -150,7 +150,6 @@ namespace GUI.Forms
             SizeGripStyle = SizeGripStyle.Hide;
             StartPosition = FormStartPosition.CenterParent;
             Text = "About";
-            TopMost = true;
             ((System.ComponentModel.ISupportInitialize)icon).EndInit();
             ResumeLayout(false);
             PerformLayout();
