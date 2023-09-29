@@ -180,12 +180,23 @@ namespace GUI.Forms
             antiAliasingComboBox.TabIndex = 13;
             antiAliasingComboBox.SelectedIndexChanged += OnAntiAliasingValueChanged;
             // 
+            // registerAssociationButton
+            // 
+            registerAssociationButton.Location = new System.Drawing.Point(432, 213);
+            registerAssociationButton.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            registerAssociationButton.Name = "registerAssociationButton";
+            registerAssociationButton.Size = new System.Drawing.Size(222, 27);
+            registerAssociationButton.TabIndex = 16;
+            registerAssociationButton.Text = "Register .vpk file association";
+            registerAssociationButton.UseVisualStyleBackColor = true;
+            registerAssociationButton.Click += OnRegisterAssociationButtonClick;
+            // 
             // vsyncLabel
             // 
             vsyncLabel.AutoSize = true;
             vsyncLabel.Location = new System.Drawing.Point(15, 354);
             vsyncLabel.Name = "vsyncLabel";
-            vsyncLabel.Size = new System.Drawing.Size(42, 15);
+            vsyncLabel.Size = new System.Drawing.Size(76, 15);
             vsyncLabel.TabIndex = 14;
             vsyncLabel.Text = "Vertical Sync:";
             // 
@@ -198,17 +209,6 @@ namespace GUI.Forms
             vsyncCheckBox.TabIndex = 15;
             vsyncCheckBox.UseVisualStyleBackColor = true;
             vsyncCheckBox.CheckedChanged += OnVsyncValueChanged;
-            // 
-            // registerAssociationButton
-            // 
-            registerAssociationButton.Location = new System.Drawing.Point(432, 213);
-            registerAssociationButton.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
-            registerAssociationButton.Name = "registerAssociationButton";
-            registerAssociationButton.Size = new System.Drawing.Size(222, 27);
-            registerAssociationButton.TabIndex = 16;
-            registerAssociationButton.Text = "Register .vpk file association";
-            registerAssociationButton.UseVisualStyleBackColor = true;
-            registerAssociationButton.Click += OnRegisterAssociationButtonClick;
             // 
             // SettingsForm
             // 
@@ -234,6 +234,7 @@ namespace GUI.Forms
             Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             Name = "SettingsForm";
             ShowIcon = false;
+            ShowInTaskbar = false;
             StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
             Text = "Settings";
             Load += SettingsForm_Load;
