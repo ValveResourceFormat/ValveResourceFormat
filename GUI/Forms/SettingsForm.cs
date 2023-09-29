@@ -39,6 +39,7 @@ namespace GUI.Forms
 
             maxTextureSizeInput.Value = Settings.Config.MaxTextureSize;
             fovInput.Value = Settings.Config.FieldOfView;
+            vsyncCheckBox.Checked = Settings.Config.Vsync != 0;
 
             var strings = new string[AntiAliasingSampleOptions.Length];
             var selectedSamples = -1;
@@ -177,6 +178,18 @@ namespace GUI.Forms
             }
 
             Settings.Config.AntiAliasingSamples = newValue;
+        }
+
+        private void OnVsyncValueChanged(object sender, EventArgs e)
+        {
+            var newValue = vsyncCheckBox.Checked ? 1 : 0;
+
+            if (newValue == Settings.Config.Vsync)
+            {
+                return;
+            }
+
+            Settings.Config.Vsync = newValue;
         }
 
         private void OnRegisterAssociationButtonClick(object sender, EventArgs e) => RegisterFileAssociation();

@@ -299,6 +299,7 @@ namespace GUI.Controls
         private void OnLoad(object sender, EventArgs e)
         {
             GLControl.MakeCurrent();
+            GLControl.VSync = Settings.Config.Vsync != 0;
 
             CheckOpenGL();
 

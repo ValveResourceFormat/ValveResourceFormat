@@ -42,6 +42,8 @@ namespace GUI.Forms
             antiAliasingLabel = new System.Windows.Forms.Label();
             antiAliasingComboBox = new System.Windows.Forms.ComboBox();
             registerAssociationButton = new System.Windows.Forms.Button();
+            vsyncLabel = new System.Windows.Forms.Label();
+            vsyncCheckBox = new System.Windows.Forms.CheckBox();
             ((System.ComponentModel.ISupportInitialize)maxTextureSizeInput).BeginInit();
             ((System.ComponentModel.ISupportInitialize)fovInput).BeginInit();
             SuspendLayout();
@@ -178,13 +180,32 @@ namespace GUI.Forms
             antiAliasingComboBox.TabIndex = 13;
             antiAliasingComboBox.SelectedIndexChanged += OnAntiAliasingValueChanged;
             // 
+            // vsyncLabel
+            // 
+            vsyncLabel.AutoSize = true;
+            vsyncLabel.Location = new System.Drawing.Point(15, 354);
+            vsyncLabel.Name = "vsyncLabel";
+            vsyncLabel.Size = new System.Drawing.Size(42, 15);
+            vsyncLabel.TabIndex = 14;
+            vsyncLabel.Text = "Vertical Sync:";
+            // 
+            // vsyncCheckBox
+            // 
+            vsyncCheckBox.AutoSize = true;
+            vsyncCheckBox.Location = new System.Drawing.Point(116, 354);
+            vsyncCheckBox.Name = "vsyncCheckBox";
+            vsyncCheckBox.Size = new System.Drawing.Size(15, 14);
+            vsyncCheckBox.TabIndex = 15;
+            vsyncCheckBox.UseVisualStyleBackColor = true;
+            vsyncCheckBox.CheckedChanged += OnVsyncValueChanged;
+            // 
             // registerAssociationButton
             // 
             registerAssociationButton.Location = new System.Drawing.Point(432, 213);
             registerAssociationButton.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             registerAssociationButton.Name = "registerAssociationButton";
             registerAssociationButton.Size = new System.Drawing.Size(222, 27);
-            registerAssociationButton.TabIndex = 14;
+            registerAssociationButton.TabIndex = 16;
             registerAssociationButton.Text = "Register .vpk file association";
             registerAssociationButton.UseVisualStyleBackColor = true;
             registerAssociationButton.Click += OnRegisterAssociationButtonClick;
@@ -193,8 +214,10 @@ namespace GUI.Forms
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            ClientSize = new System.Drawing.Size(668, 364);
+            ClientSize = new System.Drawing.Size(668, 389);
             Controls.Add(registerAssociationButton);
+            Controls.Add(vsyncCheckBox);
+            Controls.Add(vsyncLabel);
             Controls.Add(antiAliasingComboBox);
             Controls.Add(antiAliasingLabel);
             Controls.Add(fovInput);
@@ -235,6 +258,8 @@ namespace GUI.Forms
         private System.Windows.Forms.Label fovLabel;
         private System.Windows.Forms.Label antiAliasingLabel;
         private System.Windows.Forms.ComboBox antiAliasingComboBox;
+        private System.Windows.Forms.Label vsyncLabel;
+        private System.Windows.Forms.CheckBox vsyncCheckBox;
         private System.Windows.Forms.Button registerAssociationButton;
     }
 }

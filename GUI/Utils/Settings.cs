@@ -12,7 +12,7 @@ namespace GUI.Utils
 {
     static class Settings
     {
-        private const int SettingsFileCurrentVersion = 3;
+        private const int SettingsFileCurrentVersion = 4;
         private const int RecentFilesLimit = 20;
 
         public class AppConfig
@@ -33,6 +33,7 @@ namespace GUI.Utils
             public int WindowHeight { get; set; }
             public int WindowState { get; set; } = (int)FormWindowState.Normal;
             public float Volume { get; set; }
+            public int Vsync { get; set; }
             public int _VERSION_DO_NOT_MODIFY { get; set; }
         }
 
@@ -143,6 +144,11 @@ namespace GUI.Utils
             if (Config._VERSION_DO_NOT_MODIFY < 3) // version 3: added volume
             {
                 Config.Volume = 0.5f;
+            }
+
+            if (Config._VERSION_DO_NOT_MODIFY < 4)
+            {
+                Config.Vsync = 1;
             }
 
             Config._VERSION_DO_NOT_MODIFY = SettingsFileCurrentVersion;
