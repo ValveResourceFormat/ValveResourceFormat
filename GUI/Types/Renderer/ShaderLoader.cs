@@ -330,6 +330,8 @@ namespace GUI.Types.Renderer
                     return "global_lit_simple";
                 case "water_dota.vfx":
                     return "water";
+                case "csgo_water_fancy.vfx":
+                    return "water_csgo";
                 case "hero.vfx":
                 case "hero_underlords.vfx":
                     return "dota_hero";
