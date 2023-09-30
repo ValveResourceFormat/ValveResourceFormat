@@ -73,7 +73,10 @@ public sealed class MaterialExtract
             var images = GetTextureUnpackInfos(type, filePath, omitDefaults: true, omitUniforms: true);
             var vtex = new TextureExtract(texture).ToMaterialMaps(images);
 
-            vmat.AdditionalFiles.Add(vtex);
+            if (vtex.SubFiles.Count > 0)
+            {
+                vmat.AdditionalFiles.Add(vtex);
+            }
         }
 
         return vmat;
@@ -130,7 +133,8 @@ public sealed class MaterialExtract
     public IEnumerable<UnpackInfo> GetTextureUnpackInfos(string textureType, string texturePath, bool omitDefaults, bool omitUniforms)
     {
         var isInput0 = true;
-        foreach (var (channel, newTextureType) in shaderDataProvider.GetInputsForTexture(textureType, material))
+        var shaderProvidedInputs = shaderDataProvider.GetInputsForTexture(textureType, material).ToList();
+        foreach (var (channel, newTextureType) in shaderProvidedInputs)
         {
             if (omitUniforms && material.VectorParams.ContainsKey(newTextureType))
             {
@@ -188,7 +192,7 @@ public sealed class MaterialExtract
             root.Add(new KVObject(key, $"[{value.X:N6} {value.Y:N6} {value.Z:N6} {value.W:N6}]"));
         }
 
-        var originalTextures = new KVObject("VRF Original Textures", new List<KVObject>());
+        var originalTextures = new KVObject("Compiled Textures", new List<KVObject>());
         foreach (var (key, value) in material.TextureParams)
         {
             foreach (var unpackInfo in GetTextureUnpackInfos(key, value, false, true))

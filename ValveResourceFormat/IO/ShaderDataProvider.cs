@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using ValveResourceFormat.CompiledShader;
@@ -212,6 +213,14 @@ namespace ValveResourceFormat.IO
                             yield return (Channel.A, textureProcessorInputs[1]);
                         }
 
+                        yield break;
+                    }
+
+                    // Compiler generated texture
+                    // https://github.com/ValveResourceFormat/ValveResourceFormat/issues/630
+                    if (channel.TexProcessorName == "AnisoRoughness_RG" && textureProcessorInputs.Length > 1)
+                    {
+                        Debug.Assert(textureProcessorInputs[0] == "TextureNormal" && textureProcessorInputs[1] == "TextureRoughness");
                         yield break;
                     }
 
