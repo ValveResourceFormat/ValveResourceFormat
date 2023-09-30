@@ -69,6 +69,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// <param name="skeleton">The same skeleton that was passed to the constructor.</param>
         public void Clear(Skeleton skeleton)
         {
+            FrameIndex = -1;
+
             for (var i = 0; i < Bones.Length; i++)
             {
                 Bones[i].Position = skeleton.Bones[i].Position;
