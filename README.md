@@ -49,7 +49,7 @@ This repository is split into three components:
 - Binary KeyValues3 parser
 - NTRO support
 
-## Why does VRF suck?
+## Limitations
 
 This tool is based entirely on a reverse engineered effort because Valve does not provide any documentation or Source 2 code (SDK or engine code), while the Source 1 SDK and leaked engine code are helpful, a lot of systems and formats have changed.
 
