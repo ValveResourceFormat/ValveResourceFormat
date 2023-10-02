@@ -344,7 +344,7 @@ namespace GUI.Types.Renderer
                 case "csgo_environment_blend.vfx":
                     return "csgo_environment";
                 default:
-                    return "simple";
+                    return "complex";
             }
         }
 
