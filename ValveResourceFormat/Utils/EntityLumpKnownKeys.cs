@@ -3287,6 +3287,7 @@ namespace ValveResourceFormat.Utils
                 "lightoverride",
                 "lightprobetexture_dli",
                 "lightprobetexture_dls",
+                "lightprobetexture_dlsd",
                 "lightprobetexture_dlshd",
                 "lightprobetexture",
                 "lightradius",
