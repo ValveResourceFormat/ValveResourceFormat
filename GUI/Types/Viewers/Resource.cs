@@ -14,6 +14,7 @@ using ValveResourceFormat.Blocks;
 using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.Viewers
 {
@@ -139,6 +140,12 @@ namespace GUI.Types.Viewers
                     var meshRendererTab = new TabPage("MESH");
                     meshRendererTab.Controls.Add(new GLModelViewer(vrfGuiContext, (Mesh)resource.DataBlock));
                     resTabs.TabPages.Add(meshRendererTab);
+                    break;
+
+                case ResourceType.SmartProp:
+                    var smartPropRendererTab = new TabPage("SMART PROP");
+                    smartPropRendererTab.Controls.Add(new GLModelViewer(vrfGuiContext, (SmartProp)resource.DataBlock));
+                    resTabs.TabPages.Add(smartPropRendererTab);
                     break;
 
                 case ResourceType.Material:

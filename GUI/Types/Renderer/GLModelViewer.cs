@@ -10,6 +10,7 @@ using GUI.Controls;
 using GUI.Utils;
 using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.Renderer
 {
@@ -20,6 +21,7 @@ namespace GUI.Types.Renderer
     {
         private readonly Model model;
         private readonly Mesh mesh;
+        private readonly SmartProp smartProp;
         private PhysAggregateData phys;
         public ComboBox animationComboBox { get; private set; }
         private CheckBox animationPlayPause;
@@ -31,7 +33,6 @@ namespace GUI.Types.Renderer
         private ModelSceneNode modelSceneNode;
         private MeshSceneNode meshSceneNode;
         private SkeletonSceneNode skeletonSceneNode;
-        private IEnumerable<PhysSceneNode> physSceneNodes;
         private CheckedListBox physicsGroupsComboBox;
 
         public GLModelViewer(VrfGuiContext guiContext, Model model)
@@ -50,6 +51,12 @@ namespace GUI.Types.Renderer
            : base(guiContext, Frustum.CreateEmpty())
         {
             this.phys = phys;
+        }
+
+        public GLModelViewer(VrfGuiContext guiContext, SmartProp smartProp)
+            : base(guiContext, Frustum.CreateEmpty())
+        {
+            this.smartProp = smartProp;
         }
 
         protected override void Dispose(bool disposing)
@@ -231,7 +238,7 @@ namespace GUI.Types.Renderer
 
             if (phys != null)
             {
-                physSceneNodes = PhysSceneNode.CreatePhysSceneNodes(Scene, phys, null);
+                var physSceneNodes = PhysSceneNode.CreatePhysSceneNodes(Scene, phys, null);
 
                 foreach (var physSceneNode in physSceneNodes)
                 {
@@ -271,6 +278,63 @@ namespace GUI.Types.Renderer
                     {
                         SetEnabledPhysicsGroups(enabledPhysicsGroups.ToHashSet());
                     });
+                }
+            }
+
+            if (smartProp != null)
+            {
+                var children = smartProp.Data.GetArray("m_Children");
+
+                foreach (var child in children)
+                {
+                    var className = child.GetStringProperty("_class");
+
+                    switch (className)
+                    {
+                        case "CSmartPropElement_Model":
+                            {
+                                using var resource = GuiContext.LoadFileCompiled(child.GetStringProperty("m_sModelName"));
+                                var model = (Model)resource.DataBlock;
+
+                                modelSceneNode = new ModelSceneNode(Scene, model);
+                                Scene.Add(modelSceneNode, true);
+
+                                break;
+                            }
+                        case "CSmartPropElement_SmartProp":
+                            {
+                                // TODO: m_sSmartProp - create SmartPropSceneNode?
+                                break;
+                            }
+                        case "CSmartPropElement_Group":
+                        case "CSmartPropElement_PickOne":
+                            {
+                                var pickOneChildren = child.GetArray("m_Children");
+
+                                // TODO: This probably should recurse into parent smartprop loader
+                                foreach (var pickOneChild in pickOneChildren)
+                                {
+                                    var pickOneClass = pickOneChild.GetStringProperty("_class");
+
+                                    if (pickOneClass != "CSmartPropElement_Model")
+                                    {
+                                        Console.WriteLine($"Unhandled smart prop class {className}");
+                                        continue;
+                                    }
+
+                                    using var resource = GuiContext.LoadFileCompiled(pickOneChild.GetStringProperty("m_sModelName"));
+                                    var model = (Model)resource.DataBlock;
+
+                                    modelSceneNode = new ModelSceneNode(Scene, model);
+                                    Scene.Add(modelSceneNode, true);
+                                }
+
+                                break;
+                            }
+                        default:
+                            Console.WriteLine($"Unhandled smart prop class {className}");
+                            break;
+                    }
                 }
             }
 

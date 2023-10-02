@@ -471,6 +471,9 @@ namespace ValveResourceFormat
                 case ResourceType.PhysicsCollisionMesh:
                     return new PhysAggregateData();
 
+                case ResourceType.SmartProp:
+                    return new SmartProp();
+
                 case ResourceType.Mesh:
                     return new Mesh(BlockType.DATA);
             }
@@ -524,6 +527,7 @@ namespace ValveResourceFormat
                    || type == ResourceType.EntityLump
                    || type == ResourceType.PhysicsCollisionMesh
                    || type == ResourceType.Morph
+                   || type == ResourceType.SmartProp
                    || type == ResourceType.PostProcessing;
         }
 
