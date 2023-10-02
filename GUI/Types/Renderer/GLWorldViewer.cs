@@ -254,6 +254,11 @@ namespace GUI.Types.Renderer
 
             var sceneNode = Scene.Find(pixelInfo.ObjectId);
 
+            if (sceneNode == null)
+            {
+                return;
+            }
+
             if (pickingResponse.Intent == PickingIntent.Select)
             {
                 if (Keyboard.GetState().IsKeyDown(Key.ControlLeft))
