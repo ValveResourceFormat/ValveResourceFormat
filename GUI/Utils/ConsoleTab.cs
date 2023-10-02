@@ -1,84 +1,106 @@
 using System;
 using System.Drawing;
+using System.Globalization;
 using System.IO;
 using System.Text;
 using System.Windows.Forms;
+using FastColoredTextBoxNS;
+using GUI.Controls;
 
 namespace GUI.Utils
 {
     internal class ConsoleTab : IDisposable
     {
-        private MyLogger logger;
-
         private class MyLogger : TextWriter
         {
-            public StringBuilder ConsoleTextBuffer = new();
-            private readonly TextBox control;
+            private readonly Action<string> action;
 
-            public MyLogger(TextBox control)
+            public MyLogger(Action<string> action)
             {
-                this.control = control;
-
-                control.VisibleChanged += VisibleChanged;
+                this.action = action;
             }
 
             public override Encoding Encoding => null;
 
-            public override void WriteLine(string value)
-            {
-                if (control.IsDisposed)
-                {
-                    return;
-                }
-
-                var logLine = $"[{DateTime.Now:HH:mm:ss.fff}] {value}{Environment.NewLine}";
-
-                if (!control.Visible)
-                {
-                    // If we happen to spam console text somewhere, appending every line to console bogs down performance (yay winforms)
-                    // so accumulate it into a buffer and append it all at once when visibility changes
-                    ConsoleTextBuffer.Append(logLine);
-                    return;
-                }
-
-                if (control.InvokeRequired)
-                {
-                    control.Invoke(new MethodInvoker(delegate { WriteLine(value); }));
-                    return;
-                }
-
-                control.AppendText(logLine);
-            }
-
-            private void VisibleChanged(object sender, EventArgs e)
-            {
-                if (ConsoleTextBuffer.Length > 0)
-                {
-                    var str = ConsoleTextBuffer.ToString();
-                    ConsoleTextBuffer.Clear();
-                    control.AppendText(str);
-                }
-            }
+            public override void WriteLine(string value) => action(value);
         }
+
+        private static readonly TextStyle TextStyleError = new(Brushes.Orange, null, FontStyle.Regular);
+        private static readonly TextStyle TextStyleTime = new(Brushes.DarkGray, null, FontStyle.Regular);
+
+        private CodeTextBox control;
+        private MyLogger loggerOut;
+        private MyLogger loggerError;
 
         public void Dispose()
         {
-            if (logger != null)
+            if (control != null)
             {
-                logger.Dispose();
-                logger = null;
+                control.Dispose();
+                control = null;
             }
+
+            if (loggerOut != null)
+            {
+                loggerOut.Dispose();
+                loggerOut = null;
+            }
+
+            if (loggerError != null)
+            {
+                loggerError.Dispose();
+                loggerError = null;
+            }
+        }
+
+        public void WriteLine(string value, TextStyle style)
+        {
+            if (control.IsDisposed)
+            {
+                return;
+            }
+
+            control.BeginUpdate();
+
+            var lastLine = control.Lines.Count;
+
+            control.AppendText($"[{DateTime.Now:HH:mm:ss.fff}] ", TextStyleTime);
+            control.AppendText(value, style);
+            control.AppendText(Environment.NewLine);
+
+            // Add fold for multi line strings
+            var index = -1;
+            var newLines = 0;
+
+            while (-1 != (index = value.IndexOf('\n', index + 1)))
+            {
+                newLines++;
+            }
+
+            if (newLines > 0)
+            {
+                var marker = lastLine.ToString(CultureInfo.InvariantCulture);
+                control[lastLine - 1].FoldingStartMarker = marker;
+                control[lastLine - 1 + newLines].FoldingEndMarker = marker;
+            }
+
+            control.EndUpdate();
         }
 
         public TabPage CreateTab()
         {
             var bgColor = Color.FromArgb(37, 37, 37);
-            var control = new MonospaceTextBox
+            control = new CodeTextBox
             {
                 BackColor = bgColor,
                 ForeColor = Color.FromArgb(240, 240, 240),
-                Text = $"- Welcome to Source 2 Viewer v{Application.ProductVersion}{Environment.NewLine}- If you are experiencing an issue, try using latest unstable build from https://valveresourceformat.github.io/{Environment.NewLine}{Environment.NewLine}"
+                Paddings = new Padding(0, 10, 0, 10),
             };
+            control.VisibleChanged += VisibleChanged;
+
+            using var textStyleGreen = new TextStyle(Brushes.LightGreen, null, FontStyle.Regular);
+            control.AppendText($"- Welcome to Source 2 Viewer v{Application.ProductVersion}{Environment.NewLine}", textStyleGreen);
+            control.AppendText($"- If you are experiencing an issue, try using latest unstable build from https://valveresourceformat.github.io/{Environment.NewLine}{Environment.NewLine}");
 
             var tab = new TabPage("Console")
             {
@@ -86,11 +108,21 @@ namespace GUI.Utils
             };
             tab.Controls.Add(control);
 
-            logger = new MyLogger(control);
-            Console.SetOut(logger);
-            Console.SetError(logger);
+            loggerOut = new MyLogger((message) => WriteLine(message, null));
+            Console.SetOut(loggerOut);
+
+            loggerError = new MyLogger((message) => WriteLine(message, TextStyleError));
+            Console.SetError(loggerError);
+
+            Console.Error.WriteLine("test error\nlol");
 
             return tab;
+        }
+
+        private void VisibleChanged(object sender, EventArgs e)
+        {
+            var control = (CodeTextBox)sender;
+            control.GoEnd();
         }
     }
 }

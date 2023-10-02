@@ -5,6 +5,8 @@ using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using FastColoredTextBoxNS;
+using GUI.Controls;
 using GUI.Types.Audio;
 using GUI.Types.Renderer;
 using GUI.Utils;
@@ -62,7 +64,7 @@ namespace GUI.Types.Viewers
                         {
                             AutoScroll = true,
                         };
-                        var control = new MonospaceTextBox
+                        var control = new CodeTextBox
                         {
                             Text = e.ToString(),
                         };
@@ -306,7 +308,7 @@ namespace GUI.Types.Viewers
             }
             catch (Exception ex)
             {
-                var control = new MonospaceTextBox
+                var control = new CodeTextBox
                 {
                     Text = ex.ToString(),
                 };
@@ -351,10 +353,11 @@ namespace GUI.Types.Viewers
                 return;
             }
 
-            var textBox = new MonospaceTextBox();
+            var textBox = new CodeTextBox
+            {
+                Text = block.ToString().ReplaceLineEndings()
+            };
             blockTab.Controls.Add(textBox);
-
-            textBox.Text = block.ToString().ReplaceLineEndings();
         }
 
         private static void AddReconstructedContentTab(VrfGuiContext vrfGuiContext, ValveResourceFormat.Resource resource, TabControl resTabs)
@@ -363,7 +366,7 @@ namespace GUI.Types.Viewers
             {
                 case ResourceType.Material:
                     var vmatTab = IViewer.AddContentTab(resTabs, "Reconstructed vmat", new MaterialExtract(resource).ToValveMaterial());
-                    var textBox = (MonospaceTextBox)vmatTab.Controls[0];
+                    var textBox = (CodeTextBox)vmatTab.Controls[0];
                     Task.Run(() => textBox.Text = new MaterialExtract(resource, vrfGuiContext.FileLoader).ToValveMaterial().ReplaceLineEndings());
                     break;
 

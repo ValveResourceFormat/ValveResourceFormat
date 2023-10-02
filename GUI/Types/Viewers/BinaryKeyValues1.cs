@@ -1,5 +1,6 @@
 using System.IO;
 using System.Windows.Forms;
+using GUI.Controls;
 using GUI.Utils;
 using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes;
@@ -45,7 +46,7 @@ namespace GUI.Types.Viewers
 
             var text = reader.ReadToEnd();
 
-            var control = new MonospaceTextBox
+            var control = new CodeTextBox
             {
                 Text = text.ReplaceLineEndings(),
             };

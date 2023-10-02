@@ -14,6 +14,9 @@
     <AssemblyName>Source2Viewer</AssemblyName>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="FCTB" Version="2.16.24">
+        <NoWarn>NU1701</NoWarn>
+    </PackageReference>
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.1.1">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>

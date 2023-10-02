@@ -318,10 +318,9 @@ namespace GUI.Controls
             }
             catch (Exception exception)
             {
-                var control = new MonospaceTextBox
+                var control = new CodeTextBox
                 {
                     Text = exception.ToString().ReplaceLineEndings(),
-                    Dock = DockStyle.Fill
                 };
 
                 glControlContainer.Controls.Clear();

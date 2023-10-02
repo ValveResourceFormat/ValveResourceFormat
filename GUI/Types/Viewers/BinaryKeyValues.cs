@@ -1,5 +1,6 @@
 using System.IO;
 using System.Windows.Forms;
+using GUI.Controls;
 using GUI.Utils;
 using ValveResourceFormat.ResourceTypes;
 
@@ -32,7 +33,7 @@ namespace GUI.Types.Viewers
 
             kv3stream.Close();
 
-            var control = new MonospaceTextBox
+            var control = new CodeTextBox
             {
                 Text = kv3.ToString().ReplaceLineEndings(),
             };

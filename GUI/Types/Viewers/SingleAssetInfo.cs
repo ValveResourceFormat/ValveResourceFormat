@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.IO;
 using System.Text;
 using System.Windows.Forms;
+using GUI.Controls;
 using GUI.Utils;
 using SteamDatabase.ValvePak;
 using ValveKeyValue;
@@ -62,10 +63,9 @@ namespace GUI.Types.Viewers
             fileInfo.AppendLine($"Size: {entry.Length} ({entry.Length.ToFileSizeString()})");
             fileInfo.AppendLine($"Preloaded bytes: {entry.SmallData.Length}");
 
-            var fileControl = new MonospaceTextBox
+            var fileControl = new CodeTextBox
             {
                 Text = fileInfo.ToString().ReplaceLineEndings(),
-                Dock = DockStyle.Fill
             };
 
             tab.Controls.Add(fileControl);
@@ -117,10 +117,9 @@ namespace GUI.Types.Viewers
             using var ms = new MemoryStream();
             KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Serialize(ms, assetInfo, "Asset Info");
 
-            var infoControl = new MonospaceTextBox
+            var infoControl = new CodeTextBox
             {
                 Text = Encoding.UTF8.GetString(ms.ToArray()).ReplaceLineEndings(),
-                Dock = DockStyle.Fill
             };
 
             tab.Controls.Add(infoControl);

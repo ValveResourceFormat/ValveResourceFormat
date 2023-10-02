@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Windows.Forms;
+using GUI.Controls;
 using GUI.Utils;
 
 namespace GUI.Types.Viewers
@@ -55,7 +56,7 @@ namespace GUI.Types.Viewers
             if (!hasNullBytes)
             {
                 var textTab = new TabPage("Text");
-                var text = new MonospaceTextBox
+                var text = new CodeTextBox
                 {
                     Text = System.Text.Encoding.UTF8.GetString(span).ReplaceLineEndings(),
                 };

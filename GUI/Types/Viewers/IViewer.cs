@@ -1,5 +1,6 @@
 using System;
 using System.Windows.Forms;
+using GUI.Controls;
 using GUI.Utils;
 
 namespace GUI.Types.Viewers
@@ -28,7 +29,7 @@ namespace GUI.Types.Viewers
                 extract = content.ToString();
             }
 
-            var control = new MonospaceTextBox
+            var control = new CodeTextBox
             {
                 Text = extract.ReplaceLineEndings(),
             };

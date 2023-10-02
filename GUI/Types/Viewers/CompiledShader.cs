@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Windows.Forms;
+using GUI.Controls;
 using GUI.Utils;
 using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.IO;
@@ -406,7 +407,7 @@ namespace GUI.Types.Viewers
                 case GlslSource:
                     {
                         gpuSourceTab = new TabPage(gpuSourceTabTitle);
-                        var gpuSourceGlslText = new MonospaceTextBox
+                        var gpuSourceGlslText = new CodeTextBox
                         {
                             Text = Encoding.UTF8.GetString(gpuSource.Sourcebytes).ReplaceLineEndings(),
                         };
@@ -471,7 +472,7 @@ namespace GUI.Types.Viewers
                             zframeFile.ZframeId, 0, spvc_backend.SPVC_BACKEND_GLSL);
 
                         var textTab = new TabPage("SPIR-V");
-                        var textBox = new MonospaceTextBox()
+                        var textBox = new CodeTextBox()
                         {
                             Text = reflectedSource.ReplaceLineEndings(),
                         };

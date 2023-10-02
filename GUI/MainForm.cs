@@ -530,7 +530,7 @@ namespace GUI
                     {
                         loadingFile.Dispose();
 
-                        var control = new MonospaceTextBox
+                        var control = new CodeTextBox
                         {
                             Text = ex.ToString(),
                         };

@@ -1,5 +1,6 @@
 using System.IO;
 using System.Windows.Forms;
+using GUI.Controls;
 using GUI.Utils;
 
 namespace GUI.Types.Viewers
@@ -26,7 +27,7 @@ namespace GUI.Types.Viewers
                 toolsAssetInfo.Read(vrfGuiContext.FileName);
             }
 
-            var text = new MonospaceTextBox
+            var text = new CodeTextBox
             {
                 Text = toolsAssetInfo.ToString().ReplaceLineEndings(),
             };
