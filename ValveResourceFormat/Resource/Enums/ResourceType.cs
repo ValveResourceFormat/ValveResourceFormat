@@ -139,6 +139,9 @@ namespace ValveResourceFormat
         [Extension("pulse")]
         PulseGraphDef,
 
+        [Extension("vsmart")]
+        SmartProp,
+
         [Extension("sbox")] // TODO: Managed resources can have any extension
         SboxManagedResource,
 
