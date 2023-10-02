@@ -283,9 +283,17 @@ namespace GUI.Controls
 #if DEBUG
         private static void OnDebugMessage(DebugSource source, DebugType type, int id, DebugSeverity severity, int length, IntPtr pMessage, IntPtr pUserParam)
         {
+            var severityStr = severity.ToString().Replace("DebugSeverity", string.Empty, StringComparison.Ordinal);
+            var sourceStr = source.ToString().Replace("DebugSource", string.Empty, StringComparison.Ordinal);
+            var typeStr = type.ToString().Replace("DebugType", string.Empty, StringComparison.Ordinal);
             var message = System.Runtime.InteropServices.Marshal.PtrToStringUTF8(pMessage, length);
+            var error = $"[{severityStr} {sourceStr} {typeStr}] {message}";
 
-            Console.WriteLine($"[OpenGL {severity} {source} {type}] {message}");
+            switch (type)
+            {
+                case DebugType.DebugTypeError: Log.Error("OpenGL", error); break;
+                default: Log.Debug("OpenGL", error); break;
+            }
 
             if (type == DebugType.DebugTypeError || severity == DebugSeverity.DebugSeverityHigh || severity == DebugSeverity.DebugSeverityMedium)
             {
