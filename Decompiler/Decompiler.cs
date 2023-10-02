@@ -880,70 +880,76 @@ namespace Decompiler
 
                 Console.WriteLine("\t[archive index: {0:D3}] {1}", file.ArchiveIndex, filePath);
 
-                package.ReadEntry(file, out var output);
-                ContentFile contentFile = null;
+                package.ReadEntry(file, out var rawFileData);
 
-                if (type.EndsWith("_c", StringComparison.Ordinal) && Decompile)
-                {
-                    using var resource = new Resource
-                    {
-                        FileName = filePath,
-                    };
-                    using var memory = new MemoryStream(output);
-
-                    try
-                    {
-                        resource.Read(memory);
-
-                        extension = FileExtract.GetExtension(resource) ?? type[..^2];
-
-                        if (GltfModelExporter.CanExport(resource))
-                        {
-                            var outputExtension = GltfExportFormat;
-                            var outputFile = Path.Combine(OutputFile, Path.ChangeExtension(filePath, outputExtension));
-
-                            Directory.CreateDirectory(Path.GetDirectoryName(outputFile));
-
-                            gltfModelExporter.Export(resource, outputFile);
-
-                            continue;
-                        }
-
-                        contentFile = FileExtract.Extract(resource, fileLoader);
-                    }
-                    catch (Exception e)
-                    {
-                        LogException(e, filePath, package.FileName);
-                        contentFile?.Dispose();
-                        contentFile = null;
-                    }
-                }
-
-                using (contentFile)
+                // Not a file that can be decompiled, or no decompilation was requested
+                if (!Decompile || !type.EndsWith("_c", StringComparison.Ordinal))
                 {
                     if (OutputFile != null)
                     {
+                        var outputFile = filePath;
+
                         if (RecursiveSearchArchives)
                         {
-                            filePath = Path.Combine(parentPath, filePath);
+                            outputFile = Path.Combine(parentPath, outputFile);
+                        }
+
+                        outputFile = GetOutputPath(outputFile, useOutputAsDirectory: true);
+
+                        DumpFile(outputFile, rawFileData);
+                    }
+
+                    return;
+                }
+
+                using var resource = new Resource
+                {
+                    FileName = filePath,
+                };
+                using var memory = new MemoryStream(rawFileData);
+
+                try
+                {
+                    resource.Read(memory);
+
+                    extension = FileExtract.GetExtension(resource) ?? type[..^2];
+
+                    if (GltfModelExporter.CanExport(resource))
+                    {
+                        var outputExtension = GltfExportFormat;
+                        var outputFile = Path.Combine(OutputFile, Path.ChangeExtension(filePath, outputExtension));
+
+                        Directory.CreateDirectory(Path.GetDirectoryName(outputFile));
+
+                        gltfModelExporter.Export(resource, outputFile);
+
+                        continue;
+                    }
+
+                    using var contentFile = FileExtract.Extract(resource, fileLoader);
+
+                    if (OutputFile != null)
+                    {
+                        var outputFile = filePath;
+
+                        if (RecursiveSearchArchives)
+                        {
+                            outputFile = Path.Combine(parentPath, outputFile);
                         }
 
                         if (type != extension)
                         {
-                            filePath = Path.ChangeExtension(filePath, extension);
+                            outputFile = Path.ChangeExtension(outputFile, extension);
                         }
 
-                        filePath = GetOutputPath(filePath, useOutputAsDirectory: true);
+                        outputFile = GetOutputPath(outputFile, useOutputAsDirectory: true);
 
-                        if (Decompile && contentFile is not null)
-                        {
-                            DumpContentFile(filePath, contentFile, allowSubFilesFromExternalRefs);
-                        }
-                        else
-                        {
-                            DumpFile(filePath, output);
-                        }
+                        DumpContentFile(outputFile, contentFile, allowSubFilesFromExternalRefs);
                     }
+                }
+                catch (Exception e)
+                {
+                    LogException(e, filePath, parentPath);
                 }
             }
         }
