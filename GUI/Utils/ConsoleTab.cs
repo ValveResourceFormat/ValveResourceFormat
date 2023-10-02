@@ -25,8 +25,9 @@ namespace GUI.Utils
             public override void WriteLine(string value) => action(value);
         }
 
-        private static readonly TextStyle TextStyleError = new(Brushes.Orange, null, FontStyle.Regular);
         private static readonly TextStyle TextStyleTime = new(Brushes.DarkGray, null, FontStyle.Regular);
+        private static readonly TextStyle TextStyleError = new(Brushes.Orange, null, FontStyle.Regular);
+        private static readonly TextStyle TextStyleDebug = new(Brushes.LightGreen, null, FontStyle.Regular);
 
         private CodeTextBox control;
         private MyLogger loggerOut;
@@ -53,7 +54,7 @@ namespace GUI.Utils
             }
         }
 
-        public void WriteLine(string value, TextStyle style)
+        public void WriteLine(Log.Category category, string component, string message)
         {
             if (control.IsDisposed)
             {
@@ -63,16 +64,23 @@ namespace GUI.Utils
             control.BeginUpdate();
 
             var lastLine = control.Lines.Count;
+            var style = category switch
+            {
+                Log.Category.DEBUG => TextStyleDebug,
+                Log.Category.WARN => TextStyleError,
+                Log.Category.ERROR => TextStyleError,
+                _ => null,
+            };
 
-            control.AppendText($"[{DateTime.Now:HH:mm:ss.fff}] ", TextStyleTime);
-            control.AppendText(value, style);
-            control.AppendText(Environment.NewLine);
+            control.AppendText($"[{DateTime.Now:HH:mm:ss.fff}] [{component}] ", TextStyleTime);
+            control.AppendText(string.Concat(message, Environment.NewLine), style);
 
             // Add fold for multi line strings
+            // TODO: For multiline strings, indent them with the time/component size
             var index = -1;
             var newLines = 0;
 
-            while (-1 != (index = value.IndexOf('\n', index + 1)))
+            while (-1 != (index = message.IndexOf('\n', index + 1)))
             {
                 newLines++;
             }
@@ -98,23 +106,22 @@ namespace GUI.Utils
             };
             control.VisibleChanged += VisibleChanged;
 
-            using var textStyleGreen = new TextStyle(Brushes.LightGreen, null, FontStyle.Regular);
-            control.AppendText($"- Welcome to Source 2 Viewer v{Application.ProductVersion}{Environment.NewLine}", textStyleGreen);
+            control.AppendText($"- Welcome to Source 2 Viewer v{Application.ProductVersion}{Environment.NewLine}", TextStyleDebug);
             control.AppendText($"- If you are experiencing an issue, try using latest unstable build from https://valveresourceformat.github.io/{Environment.NewLine}{Environment.NewLine}");
 
-            var tab = new TabPage("Console")
+            const string CONSOLE = "Console";
+
+            var tab = new TabPage(CONSOLE)
             {
                 BackColor = bgColor,
             };
             tab.Controls.Add(control);
 
-            loggerOut = new MyLogger((message) => WriteLine(message, null));
+            loggerOut = new MyLogger((message) => WriteLine(Log.Category.INFO, CONSOLE, message));
             Console.SetOut(loggerOut);
 
-            loggerError = new MyLogger((message) => WriteLine(message, TextStyleError));
+            loggerError = new MyLogger((message) => WriteLine(Log.Category.ERROR, CONSOLE, message));
             Console.SetError(loggerError);
-
-            Console.Error.WriteLine("test error\nlol");
 
             return tab;
         }

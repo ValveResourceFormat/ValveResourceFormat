@@ -435,30 +435,12 @@ namespace GUI.Controls
 
             hasCheckedOpenGL = true;
 
-            Console.WriteLine("OpenGL version: " + GL.GetString(StringName.Version));
-            Console.WriteLine("OpenGL vendor: " + GL.GetString(StringName.Vendor));
-            Console.WriteLine("OpenGL renderer: " + GL.GetString(StringName.Renderer));
-            Console.WriteLine("GLSL version: " + GL.GetString(StringName.ShadingLanguageVersion));
+            Log.Debug(nameof(GLViewerControl), $"OpenGL version: {GL.GetString(StringName.Version)}");
+            Log.Debug(nameof(GLViewerControl), $"OpenGL vendor: {GL.GetString(StringName.Vendor)}");
+            Log.Debug(nameof(GLViewerControl), $"OpenGL renderer: {GL.GetString(StringName.Renderer)}");
+            Log.Debug(nameof(GLViewerControl), $"GLSL version: {GL.GetString(StringName.ShadingLanguageVersion)}");
 
-            var extensions = new HashSet<string>();
-            var count = GL.GetInteger(GetPName.NumExtensions);
-            for (var i = 0; i < count; i++)
-            {
-                var extension = GL.GetString(StringNameIndexed.Extensions, i);
-                if (!extensions.Contains(extension))
-                {
-                    extensions.Add(extension);
-                }
-            }
-
-            if (extensions.Contains("GL_EXT_texture_filter_anisotropic"))
-            {
-                MaterialLoader.MaxTextureMaxAnisotropy = GL.GetFloat((GetPName)ExtTextureFilterAnisotropic.MaxTextureMaxAnisotropyExt);
-            }
-            else
-            {
-                Console.Error.WriteLine("GL_EXT_texture_filter_anisotropic is not supported");
-            }
+            MaterialLoader.MaxTextureMaxAnisotropy = GL.GetFloat((GetPName)ExtTextureFilterAnisotropic.MaxTextureMaxAnisotropyExt);
         }
     }
 }

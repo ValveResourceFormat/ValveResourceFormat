@@ -74,6 +74,7 @@ namespace GUI
             };
 
             var consoleTab = new ConsoleTab();
+            Log.SetConsoleTab(consoleTab);
             var consoleTabPage = consoleTab.CreateTab();
             consoleTabPage.ImageIndex = ImageListLookup["_console"];
             mainTabs.TabPages.Add(consoleTabPage);
