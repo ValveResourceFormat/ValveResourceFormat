@@ -430,10 +430,12 @@ namespace GUI.Types.Renderer
             return hash.GetCurrentHashAsUInt64();
         }
 
-#if DEBUG
+#if DEBUG // Reload shaders at runtime
+        private static string ShadersFolderPathOnDisk = GetShadersFolder();
+
         public FileSystemWatcher ShaderWatcher { get; } = new()
         {
-            Path = GetShaderDiskPath(""),
+            Path = ShadersFolderPathOnDisk,
             NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite,
             IncludeSubdirectories = true,
             EnableRaisingEvents = true,
@@ -446,17 +448,28 @@ namespace GUI.Types.Renderer
             ShaderWatcher.Filters.Add("*.frag");
         }
 
-        // Reload shaders at runtime
-        private static string GetShaderDiskPath(string name)
+        private static string GetShadersFolder()
         {
-            var guiFolderRoot = Path.GetDirectoryName(System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName);
+            var root = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
 
-            while (Path.GetFileName(guiFolderRoot) != "GUI")
+            var failsafe = 10;
+
+            while (Path.GetFileName(root) != "GUI")
             {
-                guiFolderRoot = Path.GetDirectoryName(guiFolderRoot);
+                root = Path.GetDirectoryName(root);
+
+                if (failsafe-- == 0)
+                {
+                    throw new DirectoryNotFoundException("Failed to find GUI folder for the shaders, are you debugging in some unconventional setup?");
+                }
             }
 
-            return Path.Combine(Path.GetDirectoryName(guiFolderRoot), ShaderDirectory.Replace('.', '/'), name);
+            return Path.GetDirectoryName(root);
+        }
+
+        private static string GetShaderDiskPath(string name)
+        {
+            return Path.Combine(ShadersFolderPathOnDisk, ShaderDirectory.Replace('.', '/'), name);
         }
 #endif
     }
