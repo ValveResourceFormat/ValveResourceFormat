@@ -360,7 +360,7 @@ namespace GUI.Types.ParticleRenderer
                 }
                 else
                 {
-                    Console.WriteLine($"Unsupported emitter class '{emitterClass}'.");
+                    Log.Warn(nameof(ParticleRenderer), $"Unsupported emitter class '{emitterClass}'.");
                 }
             }
 
@@ -385,7 +385,7 @@ namespace GUI.Types.ParticleRenderer
                 }
                 else
                 {
-                    Console.WriteLine($"Unsupported initializer class '{initializerClass}'.");
+                    Log.Warn(nameof(ParticleRenderer), $"Unsupported initializer class '{initializerClass}'.");
                 }
             }
 
@@ -410,7 +410,7 @@ namespace GUI.Types.ParticleRenderer
                 }
                 else
                 {
-                    Console.WriteLine($"Unsupported operator class '{operatorClass}'.");
+                    Log.Warn(nameof(ParticleRenderer), $"Unsupported operator class '{operatorClass}'.");
                 }
             }
 
@@ -435,7 +435,7 @@ namespace GUI.Types.ParticleRenderer
                 }
                 else
                 {
-                    Console.WriteLine($"Unsupported renderer class '{rendererClass}'.");
+                    Log.Warn(nameof(ParticleRenderer), $"Unsupported renderer class '{rendererClass}'.");
                 }
             }
 
@@ -459,7 +459,7 @@ namespace GUI.Types.ParticleRenderer
                 }
                 else
                 {
-                    Console.WriteLine($"Unsupported pre-emission operator class '{preEmissionOperatorClass}'.");
+                    Log.Warn(nameof(ParticleRenderer), $"Unsupported pre-emission operator class '{preEmissionOperatorClass}'.");
                 }
             }
 

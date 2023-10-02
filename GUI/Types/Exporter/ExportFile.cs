@@ -41,7 +41,7 @@ namespace GUI.Types.Exporter
                 if (extension == null)
                 {
                     stream.Dispose();
-                    Console.WriteLine($"Export for \"{fileName}\" has no suitable extension");
+                    Log.Error(nameof(ExportFile), $"Export for \"{fileName}\" has no suitable extension");
                     return;
                 }
 
@@ -108,7 +108,7 @@ namespace GUI.Types.Exporter
                 {
                     Settings.Config.SaveDirectory = Path.GetDirectoryName(dialog.FileName);
 
-                    Console.WriteLine($"Saved \"{Path.GetFileName(dialog.FileName)}\"");
+                    Log.Info(nameof(ExportFile), $"Saved \"{Path.GetFileName(dialog.FileName)}\"");
 
                     using var streamOutput = dialog.OpenFile();
                     stream.CopyTo(streamOutput);

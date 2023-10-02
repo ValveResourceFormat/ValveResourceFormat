@@ -94,7 +94,7 @@ namespace GUI.Types.Renderer
                 if (attributeLocation == -1)
                 {
 #if DEBUG
-                    Console.WriteLine($"Attribute {attribute.SemanticName} ({attribute.SemanticIndex}) could not be bound in shader {material.Shader.Name} (insg: {insgElemName})");
+                    Utils.Log.Debug(nameof(GPUMeshBufferCache), $"Attribute {attribute.SemanticName} ({attribute.SemanticIndex}) could not be bound in shader {material.Shader.Name} (insg: {insgElemName})");
 #endif
                     continue;
                 }

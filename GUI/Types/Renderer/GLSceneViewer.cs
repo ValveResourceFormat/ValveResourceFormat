@@ -141,7 +141,7 @@ namespace GUI.Types.Renderer
             timer.Start();
             LoadScene();
             timer.Stop();
-            Console.WriteLine($"[{GetType().Name}] Loading scene time: {timer.Elapsed}, shader variants: {GuiContext.ShaderLoader.ShaderCount}, materials: {GuiContext.MaterialLoader.MaterialCount}");
+            Log.Debug(GetType().Name, $"Loading scene time: {timer.Elapsed}, shader variants: {GuiContext.ShaderLoader.ShaderCount}, materials: {GuiContext.MaterialLoader.MaterialCount}");
 
             if (Scene.AllNodes.Any() && this is not GLWorldViewer)
             {
@@ -333,7 +333,7 @@ namespace GUI.Types.Renderer
                     lastReload = DateTime.Now;
                     reloadSemaphore.Release();
                     reloadStopWatch.Stop();
-                    Console.WriteLine($"Shader reload time: {reloadStopWatch.Elapsed}, number of variants: {GuiContext.ShaderLoader.ShaderCount}");
+                    Log.Debug(nameof(GLSceneViewer), $"Shader reload time: {reloadStopWatch.Elapsed}, number of variants: {GuiContext.ShaderLoader.ShaderCount}");
                 }
 
                 if (error != null)
@@ -372,7 +372,7 @@ namespace GUI.Types.Renderer
                     return; // Visual Studio writes to temporary file
                 }
 
-                Console.WriteLine($"[Hotload] {e.ChangeType} detected at {e.FullPath}");
+                Log.Debug("ShaderHotload", $"{e.ChangeType} detected at {e.FullPath}");
 
                 var now = DateTime.Now;
                 var timeSinceLastChange = now - lastChanged;

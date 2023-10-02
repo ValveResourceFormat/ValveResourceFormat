@@ -157,7 +157,7 @@ namespace GUI.Controls
             };
             progressDialog.OnProcess += (_, __) =>
             {
-                Console.WriteLine("Pattern search");
+                Log.Info(nameof(BetterTreeView), "Pattern search");
 
                 var maxArchiveIndex = -1;
                 var sortedEntriesPerArchive = new Dictionary<int, List<PackageEntry>>();
@@ -234,7 +234,7 @@ namespace GUI.Controls
                     );
                 }
 
-                Console.WriteLine($"Found {matches.Count} matches");
+                Log.Info(nameof(BetterTreeView), $"Found {matches.Count} matches");
 
                 progressDialog.SetProgress($"Found {matches.Count} matches");
 

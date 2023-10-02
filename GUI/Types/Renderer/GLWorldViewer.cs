@@ -96,7 +96,7 @@ namespace GUI.Types.Renderer
 
             if (!pos.Success)
             {
-                Console.WriteLine("Failed to find setpos in clipboard text.");
+                Log.Error(nameof(GLWorldViewer), "Failed to find setpos in clipboard text.");
                 return;
             }
 
@@ -324,7 +324,7 @@ namespace GUI.Types.Renderer
                 return;
             }
 
-            Console.WriteLine($"Opening {sceneNode.Name} (Id: {pixelInfo.ObjectId})");
+            Log.Info(nameof(GLWorldViewer), $"Opening {sceneNode.Name} (Id: {pixelInfo.ObjectId})");
 
             var foundFile = GuiContext.FileLoader.FindFileWithContext(sceneNode.Name + "_c");
 

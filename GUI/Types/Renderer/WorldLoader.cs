@@ -472,7 +472,7 @@ namespace GUI.Types.Renderer
                                 }
                                 else
                                 {
-                                    Console.WriteLine($"Disabling cubemap fog because failed to find env_sky of target name {skyEntTargetName}.");
+                                    Log.Warn(nameof(WorldLoader), $"Disabling cubemap fog because failed to find env_sky of target name {skyEntTargetName}.");
                                     scene.FogInfo.CubeFogActive = false;
                                 }
                             }

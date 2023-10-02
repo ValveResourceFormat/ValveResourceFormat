@@ -344,7 +344,7 @@ namespace GUI.Types.Renderer
                     if (!LightingInfo.EnvMaps.TryGetValue(node.CubeMapPrecomputedHandshake, out preCalculated))
                     {
 #if DEBUG
-                        Console.WriteLine($"A envmap with handshake [{node.CubeMapPrecomputedHandshake}] does not exist for node at {node.BoundingBox.Center}");
+                        Log.Debug(nameof(Scene), $"A envmap with handshake [{node.CubeMapPrecomputedHandshake}] does not exist for node at {node.BoundingBox.Center}");
 #endif
                         continue;
                     }
@@ -381,7 +381,7 @@ namespace GUI.Types.Renderer
                     var vrfCalculated = node.EnvMaps.FirstOrDefault();
                     if (vrfCalculated is null)
                     {
-                        Console.WriteLine($"Could not find any envmaps for node at {node.BoundingBox.Center}. Valve precalculated envmap is at {preCalculated.BoundingBox.Center} [{node.CubeMapPrecomputedHandshake}]");
+                        Log.Debug(nameof(Scene), $"Could not find any envmaps for node at {node.BoundingBox.Center}. Valve precalculated envmap is at {preCalculated.BoundingBox.Center} [{node.CubeMapPrecomputedHandshake}]");
                         continue;
                     }
 
@@ -393,7 +393,7 @@ namespace GUI.Types.Renderer
                     var vrfDistance = Vector3.Distance(lightingOrigin, vrfCalculated.BoundingBox.Center);
                     var precalculatedDistance = Vector3.Distance(lightingOrigin, LightingInfo.EnvMaps[node.CubeMapPrecomputedHandshake].BoundingBox.Center);
 
-                    Console.WriteLine($"Calculated envmap doesn't match with the precalculated one" +
+                    Log.Debug(nameof(Scene), $"Calculated envmap doesn't match with the precalculated one" +
                         $" (dists: vrf={vrfDistance} s2={precalculatedDistance}) for node at {node.BoundingBox.Center} [{node.CubeMapPrecomputedHandshake}]");
                 }
 #endif

@@ -155,7 +155,7 @@ namespace GUI.Types.Renderer
                         //TODO are there any models with more than one vphys?
                         if (refPhysicsPaths.Length != 1)
                         {
-                            Console.WriteLine($"Model has more than 1 vphys ({refPhysicsPaths.Length})." +
+                            Log.Debug(nameof(GLModelViewer), $"Model has more than 1 vphys ({refPhysicsPaths.Length})." +
                                 " Please report this on https://github.com/ValveResourceFormat/ValveResourceFormat and provide the file that caused this.");
                         }
 
@@ -318,7 +318,7 @@ namespace GUI.Types.Renderer
 
                                     if (pickOneClass != "CSmartPropElement_Model")
                                     {
-                                        Console.WriteLine($"Unhandled smart prop class {className}");
+                                        Log.Warn(nameof(GLModelViewer), $"Unhandled smart prop class {className}");
                                         continue;
                                     }
 
@@ -332,7 +332,7 @@ namespace GUI.Types.Renderer
                                 break;
                             }
                         default:
-                            Console.WriteLine($"Unhandled smart prop class {className}");
+                            Log.Warn(nameof(GLModelViewer), $"Unhandled smart prop class {className}");
                             break;
                     }
                 }
@@ -399,7 +399,7 @@ namespace GUI.Types.Renderer
 
             if (pickingResponse.Intent == PickingTexture.PickingIntent.Select)
             {
-                Console.WriteLine($"Selected mesh {pickingResponse.PixelInfo.MeshId}, ({pickingResponse.PixelInfo.ObjectId}.");
+                Log.Info(nameof(GLModelViewer), $"Selected mesh {pickingResponse.PixelInfo.MeshId}, ({pickingResponse.PixelInfo.ObjectId}.");
 
                 var sceneNode = Scene.Find(pickingResponse.PixelInfo.ObjectId);
                 selectedNodeRenderer.SelectNode(sceneNode);

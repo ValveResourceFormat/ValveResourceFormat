@@ -325,7 +325,7 @@ namespace GUI.Controls
                     if (t.Exception != null)
                     {
                         scanningTreeNode.Text = t.Exception.Message;
-                        Console.WriteLine(t.Exception.ToString());
+                        Log.Error(nameof(ExplorerControl), t.Exception.ToString());
                     }
                     else
                     {

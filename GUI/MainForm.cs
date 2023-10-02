@@ -144,7 +144,7 @@ namespace GUI
                     file = dirFile;
                 }
 
-                Console.WriteLine($"Opening {file}");
+                Log.Info(nameof(MainForm), $"Opening {file}");
 
                 var package = new Package();
                 package.OptimizeEntriesForBinarySearch(StringComparison.OrdinalIgnoreCase);
@@ -165,7 +165,7 @@ namespace GUI
 
                 innerFile = packageFile.GetFullPath();
 
-                Console.WriteLine($"Opening {innerFile}");
+                Log.Info(nameof(MainForm), $"Opening {innerFile}");
 
                 var vrfGuiContext = new VrfGuiContext(innerFile, null)
                 {
@@ -328,7 +328,7 @@ namespace GUI
             }
 
             //Close the requested tab
-            Console.WriteLine($"Closing {tab.Text}");
+            Log.Info(nameof(MainForm), $"Closing {tab.Text}");
 
             if (isClosingCurrentTab && tabIndex > 0)
             {
@@ -467,7 +467,7 @@ namespace GUI
 
         public void OpenFile(string fileName)
         {
-            Console.WriteLine($"Opening {fileName}");
+            Log.Info(nameof(MainForm), $"Opening {fileName}");
 
             if (Regexes.VpkNumberArchive().IsMatch(fileName))
             {
@@ -475,7 +475,7 @@ namespace GUI
 
                 if (File.Exists(fixedPackage))
                 {
-                    Console.WriteLine($"You opened \"{Path.GetFileName(fileName)}\" but there is \"{Path.GetFileName(fixedPackage)}\"");
+                    Log.Warn(nameof(MainForm), $"You opened \"{Path.GetFileName(fileName)}\" but there is \"{Path.GetFileName(fixedPackage)}\"");
                     fileName = fixedPackage;
                 }
             }
@@ -983,7 +983,7 @@ namespace GUI
 
             Settings.Config.SaveDirectory = Path.GetDirectoryName(saveDialog.FileName);
 
-            Console.WriteLine($"Packing '{inputDirectory}' to '{saveDialog.FileName}'...");
+            Log.Info(nameof(MainForm), $"Packing '{inputDirectory}' to '{saveDialog.FileName}'...");
 
             using var package = new Package();
 
@@ -1009,7 +1009,7 @@ namespace GUI
 
             var result = $"Created {Path.GetFileName(saveDialog.FileName)} with {fileCount} files of size {((uint)fileSize).ToFileSizeString()}.";
 
-            Console.WriteLine(result);
+            Log.Info(nameof(MainForm), result);
 
             OpenFile(saveDialog.FileName);
 

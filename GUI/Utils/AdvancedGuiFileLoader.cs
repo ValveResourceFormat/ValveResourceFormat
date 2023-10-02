@@ -116,7 +116,7 @@ namespace GUI.Utils
             if (entry != null)
             {
 #if DEBUG_FILE_LOAD
-                Console.WriteLine($"Loaded \"{file}\" from current vpk");
+                Log.Debug(nameof(AdvancedGuiFileLoader), $"Loaded \"{file}\" from current vpk");
 #endif
 
                 return (null, GuiContext, GuiContext.CurrentPackage, entry);
@@ -142,7 +142,7 @@ namespace GUI.Utils
 
                 if (!CachedPackages.TryGetValue(searchPath, out var package))
                 {
-                    Console.WriteLine($"Preloading vpk \"{searchPath}\"");
+                    Log.Info(nameof(AdvancedGuiFileLoader), $"Preloading vpk \"{searchPath}\"");
 
                     package = new Package();
                     package.OptimizeEntriesForBinarySearch(StringComparison.OrdinalIgnoreCase);
@@ -171,7 +171,7 @@ namespace GUI.Utils
                 {
                     if (!CachedPackages.TryGetValue(searchPath.GetFileName(), out var package))
                     {
-                        Console.WriteLine($"Preloading vpk \"{searchPath.GetFullPath()}\" from parent vpk");
+                        Log.Info(nameof(AdvancedGuiFileLoader), $"Preloading vpk \"{searchPath.GetFullPath()}\" from parent vpk");
 
                         var stream = GetPackageEntryStream(GuiContext.CurrentPackage, searchPath);
                         package = new Package();
@@ -192,7 +192,7 @@ namespace GUI.Utils
                 if (entry != null)
                 {
 #if DEBUG_FILE_LOAD
-                    Console.WriteLine($"Loaded \"{file}\" from preloaded vpk \"{package.FileName}\"");
+                    Log.Debug(nameof(AdvancedGuiFileLoader), $"Loaded \"{file}\" from preloaded vpk \"{package.FileName}\"");
 #endif
 
                     return (null, null, package, entry);
@@ -371,7 +371,7 @@ namespace GUI.Utils
                 }
             }
 
-            Console.WriteLine($"Found \"{gameInfo["game"]}\" from \"{gameinfoPath}\"");
+            Log.Info(nameof(AdvancedGuiFileLoader), $"Found \"{gameInfo["game"]}\" from \"{gameinfoPath}\"");
 
             foreach (var searchPath in (IEnumerable<KVObject>)gameInfo["FileSystem"]["SearchPaths"])
             {
@@ -441,7 +441,7 @@ namespace GUI.Utils
                     if (GuiContext.FileName == vpk)
                     {
 #if DEBUG_FILE_LOAD
-                        Console.WriteLine($"VPK \"{vpk}\" is the same we just opened, skipping");
+                        Log.Debug(nameof(AdvancedGuiFileLoader), $"VPK \"{vpk}\" is the same we just opened, skipping");
 #endif
                         continue;
                     }
@@ -449,12 +449,12 @@ namespace GUI.Utils
                     if (Settings.Config.GameSearchPaths.Contains(vpk))
                     {
 #if DEBUG_FILE_LOAD
-                        Console.WriteLine($"VPK \"{vpk}\" is already user-defined, skipping");
+                        Log.Debug(nameof(AdvancedGuiFileLoader), $"VPK \"{vpk}\" is already user-defined, skipping");
 #endif
                         continue;
                     }
 
-                    Console.WriteLine($"Preloading vpk \"{vpk}\"");
+                    Log.Info(nameof(AdvancedGuiFileLoader), $"Preloading vpk \"{vpk}\"");
 
                     var package = new Package();
                     package.OptimizeEntriesForBinarySearch(StringComparison.OrdinalIgnoreCase);
@@ -464,7 +464,7 @@ namespace GUI.Utils
 
                 if (!Settings.Config.GameSearchPaths.Contains(folder) && CurrentGameSearchPaths.Add(folder))
                 {
-                    Console.WriteLine($"Added folder \"{folder}\" to game search paths");
+                    Log.Info(nameof(AdvancedGuiFileLoader), $"Added folder \"{folder}\" to game search paths");
                 }
             }
         }
@@ -480,7 +480,7 @@ namespace GUI.Utils
                 directory = Path.GetDirectoryName(directory);
 
 #if DEBUG_FILE_LOAD
-                Console.WriteLine($"Scanning \"{directory}\"");
+                Log.Debug(nameof(AdvancedGuiFileLoader), $"Scanning \"{directory}\"");
 #endif
 
                 var currentDirectory = Path.GetFileName(directory);
@@ -546,7 +546,7 @@ namespace GUI.Utils
             }
 
 #if DEBUG_FILE_LOAD
-            Console.WriteLine($"Parsed appid {appId} for workshop file {filePath}");
+            Log.Debug(nameof(AdvancedGuiFileLoader), $"Parsed appid {appId} for workshop file {filePath}");
 #endif
 
             var steamPath = filePath[..(contentIndex + "steamapps/".Length)];
@@ -606,7 +606,7 @@ namespace GUI.Utils
 
                     if (File.Exists(vpk))
                     {
-                        Console.WriteLine($"Preloading vpk \"{vpk}\"");
+                        Log.Info(nameof(AdvancedGuiFileLoader), $"Preloading vpk \"{vpk}\"");
 
                         var package = new Package();
                         package.OptimizeEntriesForBinarySearch(StringComparison.OrdinalIgnoreCase);
@@ -634,7 +634,7 @@ namespace GUI.Utils
                 if (File.Exists(path))
                 {
 #if DEBUG_FILE_LOAD
-                    Console.WriteLine($"Loaded \"{file}\" from disk: \"{path}\"");
+                    Log.Debug(nameof(AdvancedGuiFileLoader), $"Loaded \"{file}\" from disk: \"{path}\"");
 #endif
 
                     return path;

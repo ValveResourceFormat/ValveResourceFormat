@@ -59,7 +59,7 @@ namespace GUI.Utils
 
             if (File.Exists(legacySettings) && !File.Exists(SettingsFilePath))
             {
-                Console.WriteLine($"Moving '{legacySettings}' to '{SettingsFilePath}'.");
+                Log.Info(nameof(Settings), $"Moving '{legacySettings}' to '{SettingsFilePath}'.");
 
                 File.Move(legacySettings, SettingsFilePath);
             }
@@ -74,15 +74,14 @@ namespace GUI.Utils
             }
             catch (Exception e)
             {
-                Console.WriteLine($"Failed to parse '{SettingsFilePath}', is it corrupted?");
-                Console.WriteLine(e);
+                Log.Error(nameof(Settings), $"Failed to parse '{SettingsFilePath}', is it corrupted?{Environment.NewLine}{e}");
 
                 try
                 {
                     var corruptedPath = Path.ChangeExtension(SettingsFilePath, $".corrupted-{DateTimeOffset.Now.ToUnixTimeSeconds()}.txt");
                     File.Move(SettingsFilePath, corruptedPath);
 
-                    Console.WriteLine($"Corrupted '{Path.GetFileName(SettingsFilePath)}' has been renamed to '{Path.GetFileName(corruptedPath)}'.");
+                    Log.Error(nameof(Settings), $"Corrupted '{Path.GetFileName(SettingsFilePath)}' has been renamed to '{Path.GetFileName(corruptedPath)}'.");
 
                     Save();
                 }

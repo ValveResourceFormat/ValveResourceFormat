@@ -75,7 +75,7 @@ namespace GUI.Types.Viewers
             {
                 if (archiveIndex - previousArchiveIndex > 1)
                 {
-                    Console.WriteLine($"There is probably an unused {previousArchiveIndex:D3}.vpk");
+                    Log.Warn(nameof(Package), $"There is probably an unused {previousArchiveIndex:D3}.vpk");
                 }
 
                 previousArchiveIndex = archiveIndex;
@@ -189,7 +189,7 @@ namespace GUI.Types.Viewers
                         }
                         catch (Exception ex)
                         {
-                            Console.WriteLine($"File {hiddenIndex} - {ex.Message}");
+                            Log.Debug(nameof(Package), $"File {hiddenIndex} - {ex.Message}");
 
                             newEntry.FileName += $" ({length} bytes)";
 
@@ -243,7 +243,7 @@ namespace GUI.Types.Viewers
                     }
                     catch (Exception e)
                     {
-                        Console.WriteLine(e.Message);
+                        Log.Debug(nameof(Package), e.Message);
                     }
 
                     if (archiveFileSize != nextOffset)
@@ -253,7 +253,7 @@ namespace GUI.Types.Viewers
                 }
             }
 
-            Console.WriteLine($"Found {hiddenIndex} deleted files totaling {totalSlackSize.ToFileSizeString()}");
+            Log.Info(nameof(Package), $"Found {hiddenIndex} deleted files totaling {totalSlackSize.ToFileSizeString()}");
 
             return hiddenFiles;
         }

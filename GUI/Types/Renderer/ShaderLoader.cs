@@ -6,6 +6,7 @@ using System.IO.Hashing;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Utils;
 
@@ -116,7 +117,7 @@ namespace GUI.Types.Renderer
                 CachedShaders[newShaderCacheHash] = shader;
 
                 var argsDescription = GetArgumentDescription(shaderName, arguments);
-                Console.WriteLine($"Shader '{shaderName}' as '{shaderFileName}' ({argsDescription}) {newShaderCacheHash} compiled and linked succesfully");
+                Log.Info(nameof(ShaderLoader), $"Shader '{shaderName}' as '{shaderFileName}' ({argsDescription}) {newShaderCacheHash} compiled and linked succesfully");
                 return shader;
             }
             catch (InvalidProgramException)

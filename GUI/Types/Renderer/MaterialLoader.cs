@@ -427,7 +427,7 @@ namespace GUI.Types.Renderer
                     };
 
 #if DEBUG
-                    Console.WriteLine($"{mat.Material.Name}: Missing {name} set to a default texture!");
+                    Log.Debug(nameof(MaterialLoader), $"{mat.Material.Name}: Missing {name} set to a default texture!");
 #endif
                 }
                 else if (isVector && !mat.Material.VectorParams.ContainsKey(name))
@@ -442,7 +442,7 @@ namespace GUI.Types.Renderer
 
                     mat.Material.VectorParams[name] = value;
 #if DEBUG
-                    Console.WriteLine($"{mat.Material.Name}: Missing {name} set to {value}!");
+                    Log.Debug(nameof(MaterialLoader), $"{mat.Material.Name}: Missing {name} set to {value}!");
 #endif
                 }
                 else if (isScalar && !mat.Material.FloatParams.ContainsKey(name))
@@ -457,7 +457,7 @@ namespace GUI.Types.Renderer
 
                     mat.Material.FloatParams[name] = value;
 #if DEBUG
-                    Console.WriteLine($"{mat.Material.Name}: Missing {name} set to {value}f!");
+                    Log.Debug(nameof(MaterialLoader), $"{mat.Material.Name}: Missing {name} set to {value}f!");
 #endif
                 }
                 else if (isBoolean && !mat.Material.IntParams.ContainsKey(name))
@@ -470,7 +470,7 @@ namespace GUI.Types.Renderer
 
                     mat.Material.IntParams[name] = value ? 1 : 0;
 #if DEBUG
-                    Console.WriteLine($"{mat.Material.Name}: Missing {name} set to {value}!");
+                    Log.Debug(nameof(MaterialLoader), $"{mat.Material.Name}: Missing {name} set to {value}!");
 #endif
                 }
             }

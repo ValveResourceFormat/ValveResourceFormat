@@ -207,7 +207,7 @@ namespace GUI.Types.Viewers
                         var row = grid.Rows[e.RowIndex];
                         var name = (string)row.Cells["Name"].Value;
 
-                        Console.WriteLine($"Opening {name} from external refs");
+                        Log.Debug(nameof(Resource), $"Opening {name} from external refs");
 
                         var foundFile = vrfGuiContext.FileLoader.FindFileWithContext(name + "_c");
                         if (foundFile.Context == null)
@@ -290,7 +290,7 @@ namespace GUI.Types.Viewers
                 }
                 catch (Exception e)
                 {
-                    Console.WriteLine(e);
+                    Log.Error(nameof(Resource), e.ToString());
                     AddByteViewControl(resource, block, blockTab);
                 }
 
