@@ -1,6 +1,8 @@
 #version 460
 
 #include "common/utils.glsl"
+#include "common/ViewConstants.glsl"
+
 #define renderMode_Color 0
 #define renderMode_SpriteEffects 0
 #define renderMode_VertexColor 0
@@ -46,8 +48,6 @@ uniform float g_flFresnelMin;
 uniform float g_flOpacityScale = 1.0;
 
 uniform vec4 vTint;
-
-#include "common/ViewConstants.glsl"
 
 #include "common/fog.glsl"
 

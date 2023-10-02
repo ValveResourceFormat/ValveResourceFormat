@@ -1,12 +1,22 @@
 #version 460
 
 #include "common/utils.glsl"
+#include "common/features.glsl"
+#include "common/ViewConstants.glsl"
+#include "common/LightingConstants.glsl"
+
+#include "common/animation.glsl"
+
+layout (location = 0) in vec3 vPOSITION;
+in vec2 vTEXCOORD;
+#include "common/compression.glsl"
+
+#if (F_SECONDARY_UV == 1) || (F_FORCE_UV2 == 1)
+    in vec4 vTEXCOORD2;
+    out vec2 vTexCoord2;
+#endif
 
 //Parameter defines - These are default values and can be overwritten based on material/model parameters
-#define D_BAKED_LIGHTING_FROM_LIGHTMAP 0
-#define D_BAKED_LIGHTING_FROM_VERTEX_STREAM 0
-#define D_BAKED_LIGHTING_FROM_LIGHTPROBE 0
-
 #define F_NOTINT 0
 #define F_VERTEX_COLOR 0
 #define F_PAINT_VERTEX_COLORS 0 // csgo_static_overlay_vfx
@@ -26,19 +36,6 @@
 #if defined(vr_simple_2way_blend_vfx) || defined(vr_simple_2way_parallax_vfx) || defined(vr_simple_3way_parallax_vfx) || defined(vr_simple_blend_to_triplanar_vfx) || defined(vr_simple_blend_to_xen_membrane_vfx)
     #define vr_blend_vfx_common
 #endif
-
-#include "common/animation.glsl"
-
-layout (location = 0) in vec3 vPOSITION;
-in vec2 vTEXCOORD;
-#include "common/compression.glsl"
-
-#if (F_SECONDARY_UV == 1) || (F_FORCE_UV2 == 1)
-    in vec4 vTEXCOORD2;
-    out vec2 vTexCoord2;
-#endif
-
-#include "common/LightingConstants.glsl"
 
 #if D_BAKED_LIGHTING_FROM_LIGHTMAP == 1
     in vec2 vLightmapUV;
@@ -91,7 +88,6 @@ uniform vec4 g_vColorTint = vec4(1.0);
 uniform float g_flModelTintAmount = 1.0;
 uniform float g_flFadeExponent = 1.0;
 
-#include "common/ViewConstants.glsl"
 uniform mat4 transform;
 uniform vec4 vTint;
 
@@ -101,7 +97,7 @@ uniform vec4 g_vTexCoordScrollSpeed;
 uniform vec4 g_vTexCoordCenter = vec4(0.5);
 uniform float g_flTexCoordRotation = 0.0;
 
-#if F_TEXTURE_ANIMATION == 1
+#if (F_TEXTURE_ANIMATION == 1)
     uniform vec4 g_vAnimationGrid = vec4(1, 1, 0, 0);
     uniform int g_nNumAnimationCells = 1;
     uniform float g_flAnimationTimePerFrame;
@@ -110,36 +106,36 @@ uniform float g_flTexCoordRotation = 0.0;
 #endif
 
 #if (F_SPHERICAL_PROJECTED_ANISOTROPIC_TANGENTS == 1)
-uniform float g_vSphericalAnisotropyAngle = 180.0;
-uniform vec4 g_vSphericalAnisotropyPole = vec4(0, 0, 1, 0);
+    uniform float g_vSphericalAnisotropyAngle = 180.0;
+    uniform vec4 g_vSphericalAnisotropyPole = vec4(0, 0, 1, 0);
 
-out vec3 vAnisoBitangentOut;
+    out vec3 vAnisoBitangentOut;
 
-vec3 GetSphericalProjectedAnisoBitangent(vec3 normal, vec3 tangent)
-{
-    float angle = (g_vSphericalAnisotropyAngle / 90.0) - 1.0;
-
-    vec3 vAnisoTangent = cross(g_vSphericalAnisotropyPole.xyz, normal);
-    // Prevent length of 0
-    vAnisoTangent = mix(vAnisoTangent, tangent, bvec3(length(vec3(equal(vAnisoTangent, vec3(0.0)))) != 0.0));
-
-    if (g_vSphericalAnisotropyAngle != 0.0)
+    vec3 GetSphericalProjectedAnisoBitangent(vec3 normal, vec3 tangent)
     {
-        vec3 rotated1 = mix(cross(normal, vAnisoTangent), vAnisoTangent, ClampToPositive(g_vSphericalAnisotropyAngle));
-        vAnisoTangent = mix(rotated1, -vAnisoTangent, ClampToPositive(-g_vSphericalAnisotropyAngle));
+        float angle = (g_vSphericalAnisotropyAngle / 90.0) - 1.0;
+
+        vec3 vAnisoTangent = cross(g_vSphericalAnisotropyPole.xyz, normal);
+        // Prevent length of 0
+        vAnisoTangent = mix(vAnisoTangent, tangent, bvec3(length(vec3(equal(vAnisoTangent, vec3(0.0)))) != 0.0));
+
+        if (g_vSphericalAnisotropyAngle != 0.0)
+        {
+            vec3 rotated1 = mix(cross(normal, vAnisoTangent), vAnisoTangent, ClampToPositive(g_vSphericalAnisotropyAngle));
+            vAnisoTangent = mix(rotated1, -vAnisoTangent, ClampToPositive(-g_vSphericalAnisotropyAngle));
+        }
+        return vAnisoTangent;
     }
-    return vAnisoTangent;
-}
 #endif
 
 vec2 GetAnimatedUVs(vec2 texCoords)
 {
-    #if F_TEXTURE_ANIMATION == 1
+    #if (F_TEXTURE_ANIMATION == 1)
         uint frame = uint(g_flAnimationFrame);
         uint cells = uint(g_nNumAnimationCells);
-        #if F_TEXTURE_ANIMATION_MODE == 0 // Sequential
+        #if (F_TEXTURE_ANIMATION_MODE == 0) // Sequential
             frame = uint((g_flAnimationTimeOffset + g_flTime) / g_flAnimationTimePerFrame) % cells;
-        #elif F_TEXTURE_ANIMATION_MODE == 1 // Random
+        #elif (F_TEXTURE_ANIMATION_MODE == 1) // Random
             frame = uint(Random2D(vec2(g_flAnimationFrame)) * float(g_nNumAnimationCells));
         #endif
 
@@ -154,7 +150,6 @@ vec2 GetAnimatedUVs(vec2 texCoords)
 
     texCoords = RotateVector2D(texCoords, g_flTexCoordRotation, g_vTexCoordScale.xy, g_vTexCoordOffset.xy, g_vTexCoordCenter.xy);
     return texCoords + g_vTexCoordScrollSpeed.xy * g_flTime;
-    //return texCoords * g_vTexCoordScale.xy + g_vTexCoordOffset.xy + (g_vTexCoordScrollSpeed.xy * g_flTime);
 }
 
 vec4 GetTintColor()
@@ -169,14 +164,14 @@ vec4 GetTintColor()
 
 #if (F_DETAIL_TEXTURE > 0)
 
-uniform float g_flDetailTexCoordRotation = 0.0;
-uniform vec4 g_vDetailTexCoordOffset = vec4(0.0);
-uniform vec4 g_vDetailTexCoordScale = vec4(1.0);
-out vec2 vDetailTexCoords;
+    uniform float g_flDetailTexCoordRotation = 0.0;
+    uniform vec4 g_vDetailTexCoordOffset = vec4(0.0);
+    uniform vec4 g_vDetailTexCoordScale = vec4(1.0);
+    out vec2 vDetailTexCoords;
 
-#if (F_SECONDARY_UV == 1) || (F_FORCE_UV2 == 1)
-    uniform bool g_bUseSecondaryUvForDetailTexture = false; // this doesn't always show up
-#endif
+    #if (F_SECONDARY_UV == 1) || (F_FORCE_UV2 == 1)
+        uniform bool g_bUseSecondaryUvForDetailTexture = false; // this doesn't always show up
+    #endif
 
 #endif
 
@@ -208,9 +203,9 @@ void main()
 	vTexCoordOut = GetAnimatedUVs(vTEXCOORD.xy);
 #endif
 
-#if D_BAKED_LIGHTING_FROM_LIGHTMAP == 1
+#if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
     vLightmapUVScaled = vec3(vLightmapUV * g_vLightmapUvScale.xy, 0);
-#elif D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1
+#elif (D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1)
     #if defined(vr_standard_vfx)
         vec4 vPerVertexLighting = vCOLOR1;
     #endif
@@ -220,7 +215,7 @@ void main()
 
     vVertexColorOut = GetTintColor();
 
-#if F_PAINT_VERTEX_COLORS == 1
+#if (F_PAINT_VERTEX_COLORS == 1)
     vVertexColorOut *= vCOLOR / 255.0f;
 #endif
 
@@ -228,7 +223,7 @@ void main()
     vTexCoord2 = vTEXCOORD2.xy;
 #endif
 
-#if F_DETAIL_TEXTURE > 0
+#if (F_DETAIL_TEXTURE > 0)
     #if (F_SECONDARY_UV == 1) || (F_FORCE_UV2 == 1)
         vec2 detailCoords = (g_bUseSecondaryUvForDetailTexture || (F_FORCE_UV2 == 1)) ? vTexCoord2 : vTexCoordOut;
     #else

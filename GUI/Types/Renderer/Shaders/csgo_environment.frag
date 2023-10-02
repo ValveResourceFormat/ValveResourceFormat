@@ -88,10 +88,8 @@ uniform float g_flHeightMapZeroPoint1 = 0;
 #include "common/ViewConstants.glsl"
 #include "common/LightingConstants.glsl"
 
-// These two must be first
 #include "common/lighting_common.glsl"
 #include "common/texturing.glsl"
-
 #include "common/pbr.glsl"
 
 #if (S_SPECULAR == 1 || renderMode_Cubemaps == 1)
