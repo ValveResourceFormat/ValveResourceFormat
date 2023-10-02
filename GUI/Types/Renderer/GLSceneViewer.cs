@@ -372,7 +372,7 @@ namespace GUI.Types.Renderer
                     return; // Visual Studio writes to temporary file
                 }
 
-                Log.Debug("ShaderHotload", $"{e.ChangeType} detected at {e.FullPath}");
+                Log.Debug("ShaderHotload", $"{e.ChangeType} {e.FullPath}");
 
                 var now = DateTime.Now;
                 var timeSinceLastChange = now - lastChanged;

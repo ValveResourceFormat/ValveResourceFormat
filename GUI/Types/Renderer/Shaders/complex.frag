@@ -165,7 +165,7 @@ uniform sampler2D g_tTintMask;
     uniform float g_flAlphaTestReference = 0.5;
 #endif
 
-#if (translucent == 1)
+#if (translucent == 1 || (F_GLASS == 1) || defined(glass_vfx_common))
     uniform float g_flOpacityScale = 1.0;
 #endif
 

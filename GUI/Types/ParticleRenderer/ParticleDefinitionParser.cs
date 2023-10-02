@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Linq;
 using System.Numerics;
 using GUI.Types.ParticleRenderer;
+using GUI.Utils;
 using ValveResourceFormat;
 using ValveResourceFormat.Serialization;
 
@@ -109,7 +110,7 @@ record struct ParticleDefinitionParser(IKeyValueCollection Data)
                 default:
                     if (pfParameters.ContainsKey("m_flLiteralValue"))
                     {
-                        Console.Error.WriteLine($"Number provider of type {type} is not directly supported, but it has m_flLiteralValue.");
+                        Log.Warn(nameof(ParticleDefinitionParser), $"Number provider of type {type} is not directly supported, but it has m_flLiteralValue.");
                         return new LiteralNumberProvider(pfParameters.GetFloatProperty("m_flLiteralValue"));
                     }
 
@@ -166,7 +167,7 @@ record struct ParticleDefinitionParser(IKeyValueCollection Data)
                 default:
                     if (pvecParameters.ContainsKey("m_vLiteralValue"))
                     {
-                        Console.Error.WriteLine($"Vector provider of type {type} is not directly supported, but it has m_vLiteralValue.");
+                        Log.Warn(nameof(ParticleDefinitionParser), $"Vector provider of type {type} is not directly supported, but it has m_vLiteralValue.");
                         return new LiteralVectorProvider(parse.Vector3("m_vLiteralValue"));
                     }
 
