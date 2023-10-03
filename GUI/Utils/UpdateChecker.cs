@@ -95,7 +95,7 @@ static class UpdateChecker
         }
         catch (Exception e)
         {
-            await Console.Error.WriteLineAsync($"Failed to check for updates: {e.Message}").ConfigureAwait(false);
+            Log.Error(nameof(UpdateChecker), $"Failed to check for updates: {e.Message}");
 
             MessageBox.Show($"Failed to check for updates: {e.Message}");
         }

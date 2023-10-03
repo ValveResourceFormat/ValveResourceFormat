@@ -1,6 +1,7 @@
 using System;
 using System.Windows.Forms;
 using GUI.Controls;
+using GUI.Utils;
 using NAudio.Wave;
 using NLayer.NAudioSupport;
 using ValveResourceFormat;
@@ -31,7 +32,7 @@ namespace GUI.Types.Audio
             }
             catch (Exception e)
             {
-                Console.Error.WriteLine(e);
+                Log.Error(nameof(AudioPlayer), e.ToString());
 
                 var msg = new Label
                 {

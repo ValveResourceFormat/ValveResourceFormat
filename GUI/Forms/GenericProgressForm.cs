@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using GUI.Utils;
 
 namespace GUI.Forms
 {
@@ -63,10 +64,10 @@ namespace GUI.Forms
                     {
                         foreach (var exception in t.Exception.Flatten().InnerExceptions)
                         {
-                            Console.Error.WriteLine(exception);
+                            Log.Error(nameof(GenericProgressForm), exception.ToString());
                         }
 
-                        Console.Error.WriteLine("Search existing issues or create a new one here: https://github.com/ValveResourceFormat/ValveResourceFormat/issues");
+                        Log.Error(nameof(GenericProgressForm), "Search existing issues or create a new one here: https://github.com/ValveResourceFormat/ValveResourceFormat/issues");
 
                         SetProgress($"An exception occured, view console tab for more information. ({t.Exception.InnerException.Message})");
 

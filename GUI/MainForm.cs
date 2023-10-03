@@ -121,7 +121,7 @@ namespace GUI
 
                 if (innerFilePosition == -1)
                 {
-                    Console.Error.WriteLine($"For vpk: protocol to work, specify a file path inside of the package, for example: \"vpk:C:/path/pak01_dir.vpk:inner/file.vmdl_c\"");
+                    Log.Error(nameof(MainForm), $"For vpk: protocol to work, specify a file path inside of the package, for example: \"vpk:C:/path/pak01_dir.vpk:inner/file.vmdl_c\"");
 
                     OpenFile(file);
 
@@ -137,7 +137,7 @@ namespace GUI
 
                     if (!File.Exists(dirFile))
                     {
-                        Console.Error.WriteLine($"File '{file}' does not exist.");
+                        Log.Error(nameof(MainForm), $"File '{file}' does not exist.");
                         return;
                     }
 
@@ -158,7 +158,7 @@ namespace GUI
 
                     if (packageFile == null)
                     {
-                        Console.Error.WriteLine($"File '{packageFile}' does not exist in package '{file}'.");
+                        Log.Error(nameof(MainForm), $"File '{packageFile}' does not exist in package '{file}'.");
                         return;
                     }
                 }
@@ -181,7 +181,7 @@ namespace GUI
                 var file = args[i];
                 if (!File.Exists(file))
                 {
-                    Console.Error.WriteLine($"File '{file}' does not exist.");
+                    Log.Error(nameof(MainForm), $"File '{file}' does not exist.");
                     continue;
                 }
 
@@ -806,7 +806,7 @@ namespace GUI
                 }
                 catch (Exception ex)
                 {
-                    Console.Error.WriteLine(ex.Message);
+                    Log.Error(nameof(MainForm), $"Failed to start process: {ex.Message}");
                 }
             }
         }

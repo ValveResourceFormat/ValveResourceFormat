@@ -2,6 +2,7 @@ using System;
 using System.Globalization;
 using System.Threading;
 using System.Windows.Forms;
+using GUI.Utils;
 
 namespace GUI
 {
@@ -45,7 +46,7 @@ namespace GUI
 
         private static void ShowError(Exception exception)
         {
-            Console.Error.WriteLine(exception);
+            Log.Error(nameof(Program), exception.ToString());
 
             MessageBox.Show(
                 $"{exception.Message}{Environment.NewLine}{Environment.NewLine}See console for more information.{Environment.NewLine}{Environment.NewLine}Try using latest unstable build to see if the issue persists.{Environment.NewLine}Source 2 Viewer Version: {Application.ProductVersion[..16]}",

@@ -326,7 +326,7 @@ namespace GUI.Types.Renderer
                 catch (Exception ex)
                 {
                     error = ex.Message;
-                    Console.Error.WriteLine(error);
+                    Log.Error(nameof(GLSceneViewer), error.ToString());
                 }
                 finally
                 {

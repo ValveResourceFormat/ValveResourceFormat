@@ -202,7 +202,7 @@ namespace GUI.Types.Renderer
 
             if (!format.HasValue && !internalFormat.HasValue)
             {
-                Console.Error.WriteLine($"Don't support {data.Format} but don't want to crash either. Using error texture!");
+                Log.Warn(nameof(MaterialLoader), $"Don't support {data.Format} but don't want to crash either. Using error texture!");
                 return GetErrorTexture();
             }
 

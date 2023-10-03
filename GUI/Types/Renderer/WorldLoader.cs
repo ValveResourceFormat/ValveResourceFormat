@@ -717,7 +717,7 @@ namespace GUI.Types.Renderer
                         }
                         catch (Exception e)
                         {
-                            Console.Error.WriteLine($"Failed to setup particle '{particle}': {e}");
+                            Log.Error(nameof(WorldLoader), $"Failed to setup particle '{particle}': {e}");
                         }
                     }
                 }

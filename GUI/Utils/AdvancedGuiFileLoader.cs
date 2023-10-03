@@ -208,12 +208,12 @@ namespace GUI.Utils
 
             if (logNotFound)
             {
-                Console.Error.WriteLine($"Failed to load \"{file}\". Did you configure VPK paths in settings correctly?");
+                Log.Error(nameof(AdvancedGuiFileLoader), $"Failed to load \"{file}\". Did you configure VPK paths in settings correctly?");
             }
 
             if (string.IsNullOrEmpty(file) || file == "_c")
             {
-                Console.Error.WriteLine($"Empty string passed to file loader here: {Environment.StackTrace}");
+                Log.Debug(nameof(AdvancedGuiFileLoader), $"Empty string passed to file loader here: {Environment.StackTrace}");
 
 #if DEBUG_FILE_LOAD
                 System.Diagnostics.Debugger.Break();
@@ -288,7 +288,7 @@ namespace GUI.Utils
 
             if (selectedPlatformType == VcsPlatformType.Undetermined)
             {
-                Console.Error.WriteLine($"Failed to find shader \"{shaderName}\".");
+                Log.Error(nameof(AdvancedGuiFileLoader), $"Failed to find shader \"{shaderName}\".");
 
                 return collection;
             }
@@ -366,7 +366,7 @@ namespace GUI.Utils
                 }
                 catch (Exception e)
                 {
-                    Console.Error.WriteLine(e);
+                    Log.Error(nameof(AdvancedGuiFileLoader), e.ToString());
                     return;
                 }
             }

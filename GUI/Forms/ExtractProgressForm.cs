@@ -122,8 +122,9 @@ namespace GUI.Forms
 
             if (t.IsFaulted)
             {
-                Console.Error.WriteLine(t.Exception);
-                SetProgress(t.Exception.ToString());
+                var ex = t.Exception.ToString();
+                Log.Error(nameof(ExtractProgressForm), ex);
+                SetProgress(ex);
 
                 cancellationTokenSource.Cancel();
             }
@@ -304,7 +305,7 @@ namespace GUI.Forms
             }
             catch (Exception e)
             {
-                await Console.Error.WriteLineAsync($"Failed to extract '{inFilePath}': {e}").ConfigureAwait(false);
+                Log.Error(nameof(ExtractProgressForm), $"Failed to extract '{inFilePath}': {e}");
                 SetProgress($"Failed to extract '{inFilePath}': {e.Message}");
             }
             finally
@@ -336,7 +337,7 @@ namespace GUI.Forms
                 }
                 catch (Exception e)
                 {
-                    await Console.Error.WriteLineAsync($"Failed to extract subfile '{contentSubFile.FileName}': {e}").ConfigureAwait(false);
+                    Log.Error(nameof(ExtractProgressForm), $"Failed to extract subfile '{contentSubFile.FileName}': {e}");
                     SetProgress($"Failed to extract subfile '{contentSubFile.FileName}': {e.Message}");
                     continue;
                 }
