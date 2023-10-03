@@ -848,7 +848,8 @@ namespace Decompiler
                 return;
             }
 
-            var fileLoader = new BasicVpkFileLoader(package);
+            var context = new VrfContext(package);
+            var fileLoader = new BasicVpkFileLoader(context);
             var gltfModelExporter = new GltfModelExporter(fileLoader)
             {
                 ExportMaterials = GltfExportMaterials,
