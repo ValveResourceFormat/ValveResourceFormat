@@ -18,10 +18,11 @@ namespace GUI.Types.Renderer
             public RenderableMesh RenderMesh { get; init; }
             public DrawCall DrawCall { get; init; }
 
-            /// <summary>
-            /// In the format of 255,255,255
-            /// </summary>
-            public Vector3? Tint { get; set; }
+            public Vector4 Tint
+            {
+                get => RenderMesh.Tint;
+                set => RenderMesh.Tint = value;
+            }
 
             public Fragment(Scene scene, SceneNode parent, AABB bounds) : base(scene)
             {
@@ -109,11 +110,13 @@ namespace GUI.Types.Renderer
                 var drawCallIndex = fragmentData.GetInt32Property("m_nDrawCallIndex");
                 var drawCall = RenderMesh.DrawCallsOpaque[drawCallIndex];
                 var drawBounds = drawCall.DrawBounds ?? RenderMesh.BoundingBox;
+                var tintColor = fragmentData.GetSubCollection("m_vTintColor").ToVector3();
+
                 var fragment = new Fragment(Scene, this, drawBounds)
                 {
-                    Tint = fragmentData.GetSubCollection("m_vTintColor").ToVector3(),
                     DrawCall = drawCall,
                     RenderMesh = RenderMesh,
+                    Tint = new Vector4(tintColor / 255f, 1f),
                     Parent = this,
                     LightProbeVolumePrecomputedHandshake = lightProbeVolumePrecomputedHandshake,
                 };
