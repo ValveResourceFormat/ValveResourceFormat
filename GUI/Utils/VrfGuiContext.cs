@@ -42,12 +42,12 @@ namespace GUI.Utils
         public VrfGuiContext(string fileName, VrfGuiContext parentGuiContext)
         {
             FileName = fileName;
+            ParentGuiContext = parentGuiContext;
+            CurrentPackage = parentGuiContext?.CurrentPackage;
             MaterialLoader = new MaterialLoader(this);
             ShaderLoader = new ShaderLoader();
             FileLoader = new AdvancedGuiFileLoader(this);
             MeshBufferCache = new GPUMeshBufferCache();
-            ParentGuiContext = parentGuiContext;
-            CurrentPackage = parentGuiContext?.CurrentPackage;
 
             Task.Run(FillSurfacePropertyHashes);
         }

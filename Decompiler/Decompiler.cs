@@ -740,7 +740,7 @@ namespace Decompiler
                             {
                                 while (queue.TryDequeue(out var file))
                                 {
-                                    using var entryStream = BasicVpkFileLoader.GetPackageEntryStream(package, file);
+                                    using var entryStream = GameFileLoader.GetPackageEntryStream(package, file);
                                     ProcessFile(file.GetFullPath(), entryStream, path);
                                 }
                             }));
@@ -848,7 +848,7 @@ namespace Decompiler
                 return;
             }
 
-            var fileLoader = new BasicVpkFileLoader(package);
+            using var fileLoader = new GameFileLoader(package, package.FileName);
             var gltfModelExporter = new GltfModelExporter(fileLoader)
             {
                 ExportMaterials = GltfExportMaterials,
