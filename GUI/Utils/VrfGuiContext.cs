@@ -54,6 +54,11 @@ namespace GUI.Utils
 
         public void FillSurfacePropertyHashes()
         {
+            if (ParentGuiContext != null)
+            {
+                return;
+            }
+
             using var vsurf = FileLoader.LoadFile("surfaceproperties/surfaceproperties.vsurf_c");
             if (vsurf is not null && vsurf.DataBlock is BinaryKV3 kv3)
             {
