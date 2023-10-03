@@ -26,7 +26,8 @@ namespace GUI.Utils
         }
 
         private static readonly TextStyle TextStyleTime = new(Brushes.DarkGray, null, FontStyle.Regular);
-        private static readonly TextStyle TextStyleError = new(Brushes.Orange, null, FontStyle.Regular);
+        private static readonly TextStyle TextStyleError = new(Brushes.Orange, Brushes.DarkRed, FontStyle.Regular);
+        private static readonly TextStyle TextStyleWarn = new(Brushes.Orange, null, FontStyle.Regular);
         private static readonly TextStyle TextStyleDebug = new(Brushes.LightGreen, null, FontStyle.Regular);
 
         private CodeTextBox control;
@@ -67,7 +68,7 @@ namespace GUI.Utils
             var style = category switch
             {
                 Log.Category.DEBUG => TextStyleDebug,
-                Log.Category.WARN => TextStyleError,
+                Log.Category.WARN => TextStyleWarn,
                 Log.Category.ERROR => TextStyleError,
                 _ => null,
             };
