@@ -10,8 +10,9 @@ using ValveResourceFormat.CompiledShader;
 
 namespace ValveResourceFormat.IO
 {
-    public class GameFileLoader : IFileLoader
+    public class GameFileLoader : IFileLoader, IDisposable
     {
+        private static readonly Dictionary<string, Package> CachedPackages = new();
         protected virtual List<string> SettingsGameSearchPaths { get; } = new();
         protected HashSet<string> CurrentGameSearchPaths { get; } = new();
         protected List<Package> CurrentGamePackages { get; } = new();
@@ -21,7 +22,31 @@ namespace ValveResourceFormat.IO
         private readonly string[] modIdentifiers = new[] { "gameinfo.gi", "addoninfo.txt", ".sbproj" };
         private bool ProvidedGameInfosScanned;
 
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                foreach (var package in CachedPackages.Values)
+                {
+                    package.Dispose();
+                }
 
+                CachedPackages.Clear();
+
+                foreach (var package in CurrentGamePackages)
+                {
+                    package.Dispose();
+                }
+
+                CurrentGamePackages.Clear();
+            }
+        }
+
+        public void Dispose()
+        {
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
+        }
 
         /// <summary>
         /// fileName is needed when used by GUI when package has not yet been resolved
@@ -273,7 +298,7 @@ namespace ValveResourceFormat.IO
             return null;
         }
 
-        public (string PathOnDisk, Package Package, PackageEntry PackageEntry) FindFile(string file, bool logNotFound = true)
+        public virtual (string PathOnDisk, Package Package, PackageEntry PackageEntry) FindFile(string file, bool logNotFound = true)
         {
             var entry = CurrentPackage?.FindEntry(file);
 
@@ -292,22 +317,22 @@ namespace ValveResourceFormat.IO
                 FindAndLoadSearchPaths();
             }
 
-            var paths = new List<string>(); //TODO: Settings.Config.GameSearchPaths.ToList();
+            var paths = SettingsGameSearchPaths.ToList();
             var packages = CurrentGamePackages.ToList();
 
             foreach (var searchPath in paths.Where(searchPath => searchPath.EndsWith(".vpk", StringComparison.InvariantCulture)).ToList())
             {
                 paths.Remove(searchPath);
 
-                // if (!CachedPackages.TryGetValue(searchPath, out var package))
-                // {
-                Console.WriteLine($"Preloading vpk \"{searchPath}\"");
+                if (!CachedPackages.TryGetValue(searchPath, out var package))
+                {
+                    Console.WriteLine($"Preloading vpk \"{searchPath}\"");
 
-                var package = new Package();
-                package.OptimizeEntriesForBinarySearch(StringComparison.OrdinalIgnoreCase);
-                package.Read(searchPath);
-                // CachedPackages[searchPath] = package;
-                // }
+                    package = new Package();
+                    package.OptimizeEntriesForBinarySearch(StringComparison.OrdinalIgnoreCase);
+                    package.Read(searchPath);
+                    CachedPackages[searchPath] = package;
+                }
 
                 packages.Add(package);
             }
@@ -328,17 +353,17 @@ namespace ValveResourceFormat.IO
             {
                 foreach (var searchPath in vpkEntries)
                 {
-                    // if (!CachedPackages.TryGetValue(searchPath.GetFileName(), out var package))
-                    // {
-                    Console.WriteLine($"Preloading vpk \"{searchPath.GetFullPath()}\" from parent vpk");
+                    if (!CachedPackages.TryGetValue(searchPath.GetFileName(), out var package))
+                    {
+                        Console.WriteLine($"Preloading vpk \"{searchPath.GetFullPath()}\" from parent vpk");
 
-                    var stream = GetPackageEntryStream(CurrentPackage, searchPath);
-                    var package = new Package();
-                    package.OptimizeEntriesForBinarySearch(StringComparison.OrdinalIgnoreCase);
-                    package.SetFileName(searchPath.GetFileName());
-                    package.Read(stream);
-                    //     CachedPackages[searchPath.GetFileName()] = package;
-                    // }
+                        var stream = GetPackageEntryStream(CurrentPackage, searchPath);
+                        package = new Package();
+                        package.OptimizeEntriesForBinarySearch(StringComparison.OrdinalIgnoreCase);
+                        package.SetFileName(searchPath.GetFileName());
+                        package.Read(stream);
+                        CachedPackages[searchPath.GetFileName()] = package;
+                    }
 
                     packages.Add(package);
                 }
@@ -382,28 +407,9 @@ namespace ValveResourceFormat.IO
             return (null, null, null);
         }
 
-        public Resource LoadFile(string file)
+        public virtual Resource LoadFile(string file)
         {
-            // if (CurrentPackage == null) throw new NullReferenceException("CurrentPackage is null");
-            // var entry = CurrentPackage.FindEntry(file);
-
-            // if (entry == null)
-            // {
-            //     Console.WriteLine("Not found: {0}", file);
-            //     return null;
-            // }
-
-            // CurrentPackage.ReadEntry(entry, out var output, false);
-
-            // var resource = new Resource
-            // {
-            //     FileName = file,
-            // };
-            // resource.Read(new MemoryStream(output));
-
-            // return resource;
-
-            var resource = new Resource
+            Resource resource = new Resource
             {
                 FileName = file,
             };
@@ -413,22 +419,16 @@ namespace ValveResourceFormat.IO
             if (foundFile.PathOnDisk != null)
             {
                 resource.Read(foundFile.PathOnDisk);
-                //CachedResources[file] = resource;
-
                 return resource;
             }
             else if (foundFile.PackageEntry != null)
             {
                 var stream = GetPackageEntryStream(foundFile.Package, foundFile.PackageEntry);
                 resource.Read(stream);
-                //CachedResources[file] = resource;
-
                 return resource;
             }
 
-            Console.WriteLine("Not found: {0}", file);
             return null;
-
         }
 
         public ShaderCollection LoadShader(string shaderName) => null;

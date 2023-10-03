@@ -3,20 +3,15 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.IO.Enumeration;
-using System.IO.MemoryMappedFiles;
-using System.Linq;
 using SteamDatabase.ValvePak;
-using ValveKeyValue;
 using ValveResourceFormat;
 using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.IO;
 
 namespace GUI.Utils
 {
-    class AdvancedGuiFileLoader : GameFileLoader, IFileLoader, IDisposable
+    class AdvancedGuiFileLoader : GameFileLoader, IFileLoader
     {
-        private static readonly Dictionary<string, Package> CachedPackages = new();
         private readonly Dictionary<string, Resource> CachedResources = new();
         private readonly Dictionary<string, ShaderCollection> CachedShaders = new();
         private readonly object shaderCacheLock = new();
@@ -25,14 +20,13 @@ namespace GUI.Utils
 
         private bool GamePackagesScanned;
         private bool ShaderPackagesScanned;
-        private bool ProvidedGameInfosScanned;
 
         public AdvancedGuiFileLoader(VrfGuiContext guiContext) : base(guiContext.CurrentPackage, guiContext.FileName)
         {
             GuiContext = guiContext;
         }
 
-        protected virtual void Dispose(bool disposing)
+        protected override void Dispose(bool disposing)
         {
             if (disposing)
             {
@@ -46,26 +40,8 @@ namespace GUI.Utils
                     }
                 }
 
-                foreach (var package in CachedPackages.Values)
-                {
-                    package.Dispose();
-                }
-
-                CachedPackages.Clear();
-
-                foreach (var package in CurrentGamePackages)
-                {
-                    package.Dispose();
-                }
-
-                CurrentGamePackages.Clear();
+                base.Dispose(disposing);
             }
-        }
-
-        public void Dispose()
-        {
-            Dispose(disposing: true);
-            GC.SuppressFinalize(this);
         }
 
         public void ClearCache()
@@ -126,100 +102,8 @@ namespace GUI.Utils
                 return GuiContext.ParentGuiContext.FileLoader.FindFile(file);
             }
 
-            if (!GamePackagesScanned)
-            {
-                GamePackagesScanned = true;
-                FindAndLoadSearchPaths();
-            }
-
-            var paths = Settings.Config.GameSearchPaths.ToList();
-            var packages = CurrentGamePackages.ToList();
-
-            foreach (var searchPath in paths.Where(searchPath => searchPath.EndsWith(".vpk", StringComparison.InvariantCulture)).ToList())
-            {
-                paths.Remove(searchPath);
-
-                if (!CachedPackages.TryGetValue(searchPath, out var package))
-                {
-                    Log.Info(nameof(AdvancedGuiFileLoader), $"Preloading vpk \"{searchPath}\"");
-
-                    package = new Package();
-                    package.OptimizeEntriesForBinarySearch(StringComparison.OrdinalIgnoreCase);
-                    package.Read(searchPath);
-                    CachedPackages[searchPath] = package;
-                }
-
-                packages.Add(package);
-            }
-
-            foreach (var searchPath in paths.Where(searchPath => searchPath.EndsWith("gameinfo.gi", StringComparison.InvariantCulture)).ToList())
-            {
-                paths.Remove(searchPath);
-
-                if (!ProvidedGameInfosScanned)
-                {
-                    FindAndLoadSearchPaths(searchPath);
-                }
-            }
-
-            ProvidedGameInfosScanned = true;
-
-            if (GuiContext.CurrentPackage != null && GuiContext.CurrentPackage.Entries.TryGetValue("vpk", out var vpkEntries))
-            {
-                foreach (var searchPath in vpkEntries)
-                {
-                    if (!CachedPackages.TryGetValue(searchPath.GetFileName(), out var package))
-                    {
-                        Log.Info(nameof(AdvancedGuiFileLoader), $"Preloading vpk \"{searchPath.GetFullPath()}\" from parent vpk");
-
-                        var stream = GetPackageEntryStream(GuiContext.CurrentPackage, searchPath);
-                        package = new Package();
-                        package.OptimizeEntriesForBinarySearch(StringComparison.OrdinalIgnoreCase);
-                        package.SetFileName(searchPath.GetFileName());
-                        package.Read(stream);
-                        CachedPackages[searchPath.GetFileName()] = package;
-                    }
-
-                    packages.Add(package);
-                }
-            }
-
-            foreach (var package in packages)
-            {
-                entry = package?.FindEntry(file);
-
-                if (entry != null)
-                {
-#if DEBUG_FILE_LOAD
-                    Log.Debug(nameof(AdvancedGuiFileLoader), $"Loaded \"{file}\" from preloaded vpk \"{package.FileName}\"");
-#endif
-
-                    return (null, null, package, entry);
-                }
-            }
-
-            var path = FindResourcePath(paths.Concat(CurrentGameSearchPaths).ToList(), file, GuiContext.FileName);
-
-            if (path != null)
-            {
-                return (path, null, null, null);
-            }
-
-            if (logNotFound)
-            {
-                Log.Error(nameof(AdvancedGuiFileLoader), $"Failed to load \"{file}\". Did you configure VPK paths in settings correctly?");
-            }
-
-            if (string.IsNullOrEmpty(file) || file == "_c")
-            {
-                Log.Debug(nameof(AdvancedGuiFileLoader), $"Empty string passed to file loader here: {Environment.StackTrace}");
-
-#if DEBUG_FILE_LOAD
-                System.Diagnostics.Debugger.Break();
-#endif
-            }
-
-            return (null, null, null, null);
+            (string PathOnDisk, Package Package, PackageEntry PackageEntry) = base.FindFile(file, logNotFound);
+            return (PathOnDisk, null, Package, PackageEntry);
         }
 
         private ShaderCollection LoadShaderFromDisk(string shaderName)
@@ -315,7 +199,7 @@ namespace GUI.Utils
             }
         }
 
-        public new Resource LoadFile(string file)
+        public override Resource LoadFile(string file)
         {
             // TODO: Might conflict where same file name is available in different paths
             if (CachedResources.TryGetValue(file, out var resource) && resource.Reader != null)
@@ -323,30 +207,9 @@ namespace GUI.Utils
                 return resource;
             }
 
-            resource = new Resource
-            {
-                FileName = file,
-            };
-
-            var foundFile = FindFile(file);
-
-            if (foundFile.PathOnDisk != null)
-            {
-                resource.Read(foundFile.PathOnDisk);
-                CachedResources[file] = resource;
-
-                return resource;
-            }
-            else if (foundFile.PackageEntry != null)
-            {
-                var stream = GetPackageEntryStream(foundFile.Package, foundFile.PackageEntry);
-                resource.Read(stream);
-                CachedResources[file] = resource;
-
-                return resource;
-            }
-
-            return null;
+            resource = base.LoadFile(file);
+            if (resource != null) CachedResources[file] = resource;
+            return resource;
         }
 
         public void AddPackageToSearch(Package package)
