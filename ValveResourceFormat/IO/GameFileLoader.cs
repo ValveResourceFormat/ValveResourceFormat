@@ -53,10 +53,10 @@ namespace ValveResourceFormat.IO
         /// </summary>
         /// <param name="package"></param>
         /// <param name="fileName"></param>
-        public GameFileLoader(Package package, string fileName = null)
+        public GameFileLoader(Package package, string fileName)
         {
             CurrentPackage = package;
-            FileName = package != null ? package.FileName : fileName;
+            FileName = fileName;
         }
 
         protected HashSet<string> FindGameFoldersForWorkshopFile()

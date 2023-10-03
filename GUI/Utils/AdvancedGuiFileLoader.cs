@@ -184,7 +184,7 @@ namespace GUI.Utils
             return collection;
         }
 
-        public new ShaderCollection LoadShader(string shaderName)
+        public ShaderCollection LoadShader(string shaderName)
         {
             lock (shaderCacheLock)
             {
@@ -208,7 +208,10 @@ namespace GUI.Utils
             }
 
             resource = base.LoadFile(file);
-            if (resource != null) CachedResources[file] = resource;
+            if (resource != null)
+            {
+                CachedResources[file] = resource;
+            }
             return resource;
         }
 

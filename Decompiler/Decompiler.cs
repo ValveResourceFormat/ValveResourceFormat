@@ -848,7 +848,7 @@ namespace Decompiler
                 return;
             }
 
-            var fileLoader = new GameFileLoader(package);
+            var fileLoader = new GameFileLoader(package, package.FileName);
             var gltfModelExporter = new GltfModelExporter(fileLoader)
             {
                 ExportMaterials = GltfExportMaterials,
