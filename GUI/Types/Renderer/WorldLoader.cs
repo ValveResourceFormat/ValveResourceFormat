@@ -582,7 +582,8 @@ namespace GUI.Types.Renderer
                         {
                             arrayIndex = legacyCubemapArrayIndex++;
 
-                            scene.LightingInfo.Lightmaps.TryAdd($"g_tEnvironmentMap[{arrayIndex}]", envMapTexture);
+                            // TODO: This doesn't really work
+                            //scene.LightingInfo.Lightmaps.TryAdd($"g_tEnvironmentMap[{arrayIndex}]", envMapTexture);
                         }
                         else
                         {

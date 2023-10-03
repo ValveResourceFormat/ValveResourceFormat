@@ -169,7 +169,7 @@ namespace GUI.Types.Renderer
             }
             #endregion
 
-            if (uniforms.CubeMapArrayIndices != -1)
+            if (uniforms.CubeMapArrayIndices != -1 && request.Node.EnvMapIds != null)
             {
                 GL.Uniform1(uniforms.CubeMapArrayIndices, request.Node.EnvMapIds.Length, request.Node.EnvMapIds);
             }
