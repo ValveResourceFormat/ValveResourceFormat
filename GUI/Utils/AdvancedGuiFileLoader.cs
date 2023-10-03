@@ -184,7 +184,7 @@ namespace GUI.Utils
             return collection;
         }
 
-        public ShaderCollection LoadShader(string shaderName)
+        public new ShaderCollection LoadShader(string shaderName)
         {
             lock (shaderCacheLock)
             {
