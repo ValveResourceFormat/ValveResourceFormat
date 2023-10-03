@@ -220,7 +220,7 @@ namespace GUI.Forms
             SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_FLUSH, IntPtr.Zero, IntPtr.Zero);
 
             MessageBox.Show(
-                $"Registered .vpk file association. If you move the {Path.GetFileName(applicationPath)}, you will have to register it again.",
+                $"Registered .vpk file association as well as \"vpk:\" protocol link handling.{Environment.NewLine}{Environment.NewLine}If you move {Path.GetFileName(applicationPath)}, you will have to register it again.",
                 "File association registered",
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Information
