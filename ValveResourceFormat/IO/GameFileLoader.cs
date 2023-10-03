@@ -10,23 +10,28 @@ using ValveResourceFormat.CompiledShader;
 
 namespace ValveResourceFormat.IO
 {
-    public class BasicVpkFileLoader : IFileLoader
+    public class GameFileLoader : IFileLoader
     {
         protected virtual List<string> SettingsGameSearchPaths { get; } = new();
         protected HashSet<string> CurrentGameSearchPaths { get; } = new();
         protected List<Package> CurrentGamePackages { get; } = new();
+        private string FileName;
         private readonly Package CurrentPackage;
-        private readonly VrfContext Context;
         private bool GamePackagesScanned;
         private readonly string[] modIdentifiers = new[] { "gameinfo.gi", "addoninfo.txt", ".sbproj" };
         private bool ProvidedGameInfosScanned;
 
 
 
-        public BasicVpkFileLoader(VrfContext context)
+        /// <summary>
+        /// fileName is needed when used by GUI when package has not yet been resolved
+        /// </summary>
+        /// <param name="package"></param>
+        /// <param name="fileName"></param>
+        public GameFileLoader(Package package, string fileName = null)
         {
-            Context = context;
-            CurrentPackage = context.CurrentPackage;
+            CurrentPackage = package;
+            FileName = package != null ? package.FileName : fileName;
         }
 
         protected HashSet<string> FindGameFoldersForWorkshopFile()
@@ -35,7 +40,7 @@ namespace ValveResourceFormat.IO
 
             // If we're loading a file from steamapps/workshop folder, attempt to discover gameinfos and load vpks for the game
             const string STEAMAPPS_WORKSHOP_CONTENT = "steamapps/workshop/content";
-            var filePath = Context.FileName.Replace('\\', '/');
+            var filePath = FileName.Replace('\\', '/');
             var contentIndex = filePath.IndexOf(STEAMAPPS_WORKSHOP_CONTENT, StringComparison.InvariantCultureIgnoreCase);
 
             if (contentIndex == -1)
@@ -60,7 +65,6 @@ namespace ValveResourceFormat.IO
             }
 
 #if DEBUG_FILE_LOAD
-            //TODO: Log.Debug(nameof(BasicVpkFileLoader), $"Parsed appid {appId} for workshop file {filePath}");
             Console.WriteLine($"Parsed appid {appId} for workshop file {filePath}");
 #endif
 
@@ -121,13 +125,11 @@ namespace ValveResourceFormat.IO
                 }
                 catch (Exception e)
                 {
-                    //TODO: Log.Error(nameof(BasicVpkFileLoader), e.ToString());
                     Console.Error.WriteLine(e);
                     return;
                 }
             }
 
-            //TODO: Log.Info(nameof(BasicVpkFileLoader), $"Found \"{gameInfo["game"]}\" from \"{gameinfoPath}\"");
             Console.WriteLine($"Found \"{gameInfo["game"]}\" from \"{gameinfoPath}\"");
 
             foreach (var searchPath in (IEnumerable<KVObject>)gameInfo["FileSystem"]["SearchPaths"])
@@ -194,10 +196,9 @@ namespace ValveResourceFormat.IO
                         break;
                     }
 
-                    if (Context.FileName == vpk)
+                    if (FileName == vpk)
                     {
 #if DEBUG_FILE_LOAD
-                        //TODO: Log.Debug(nameof(BasicVpkFileLoader), $"VPK \"{vpk}\" is the same we just opened, skipping");
                         Console.WriteLine($"VPK \"{vpk}\" is the same we just opened, skipping");
 #endif
                         continue;
@@ -206,13 +207,11 @@ namespace ValveResourceFormat.IO
                     if (SettingsGameSearchPaths.Contains(vpk))
                     {
 #if DEBUG_FILE_LOAD
-                        //TODO: Log.Debug(nameof(BasicVpkFileLoader), $"VPK \"{vpk}\" is already user-defined, skipping");
                         Console.WriteLine($"VPK \"{vpk}\" is already user-defined, skipping");
 #endif
                         continue;
                     }
 
-                    //TODO: Log.Info(nameof(BasicVpkFileLoader), $"Preloading vpk \"{vpk}\"");
                     Console.WriteLine($"Preloading vpk \"{vpk}\"");
 
                     var package = new Package();
@@ -223,7 +222,6 @@ namespace ValveResourceFormat.IO
 
                 if (!SettingsGameSearchPaths.Contains(folder) && CurrentGameSearchPaths.Add(folder))
                 {
-                    //TODO: Log.Info(nameof(BasicVpkFileLoader), $"Added folder \"{folder}\" to game search paths");
                     Console.WriteLine($"Added folder \"{folder}\" to game search paths");
                 }
             }
@@ -231,7 +229,7 @@ namespace ValveResourceFormat.IO
 
         protected string GetModIdentifierFile()
         {
-            var directory = Context.FileName;
+            var directory = FileName;
             var i = 10;
             var isLastWorkshop = false;
 
@@ -240,7 +238,6 @@ namespace ValveResourceFormat.IO
                 directory = Path.GetDirectoryName(directory);
 
 #if DEBUG_FILE_LOAD
-                //TODO: Log.Debug(nameof(BasicVpkFileLoader), $"Scanning \"{directory}\"");
                 Console.WriteLine($"Scanning \"{directory}\"");
 #endif
 
@@ -327,7 +324,7 @@ namespace ValveResourceFormat.IO
 
             ProvidedGameInfosScanned = true;
 
-            if (Context.CurrentPackage != null && Context.CurrentPackage.Entries.TryGetValue("vpk", out var vpkEntries))
+            if (CurrentPackage != null && CurrentPackage.Entries.TryGetValue("vpk", out var vpkEntries))
             {
                 foreach (var searchPath in vpkEntries)
                 {
@@ -335,7 +332,7 @@ namespace ValveResourceFormat.IO
                     // {
                     Console.WriteLine($"Preloading vpk \"{searchPath.GetFullPath()}\" from parent vpk");
 
-                    var stream = GetPackageEntryStream(Context.CurrentPackage, searchPath);
+                    var stream = GetPackageEntryStream(CurrentPackage, searchPath);
                     var package = new Package();
                     package.OptimizeEntriesForBinarySearch(StringComparison.OrdinalIgnoreCase);
                     package.SetFileName(searchPath.GetFileName());
@@ -361,7 +358,7 @@ namespace ValveResourceFormat.IO
                 }
             }
 
-            var path = FindResourcePath(paths.Concat(CurrentGameSearchPaths).ToList(), file, Context.FileName);
+            var path = FindResourcePath(paths.Concat(CurrentGameSearchPaths).ToList(), file, FileName);
 
             if (path != null)
             {
@@ -471,7 +468,6 @@ namespace ValveResourceFormat.IO
                 if (File.Exists(path))
                 {
 #if DEBUG_FILE_LOAD
-                    //TODO: Log.Debug(nameof(BasicVpkFileLoader), $"Loaded \"{file}\" from disk: \"{path}\"");
                     Console.WriteLine($"Loaded \"{file}\" from disk: \"{path}\"");
 #endif
 

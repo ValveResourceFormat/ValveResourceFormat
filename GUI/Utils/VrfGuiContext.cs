@@ -11,9 +11,11 @@ using System.Threading.Tasks;
 
 namespace GUI.Utils
 {
-    class VrfGuiContext : VrfContext
+    class VrfGuiContext : IDisposable
     {
-        public override string FileName { get; }
+        public string FileName { get; }
+
+        public Package CurrentPackage { get; set; }
 
         public MaterialLoader MaterialLoader { get; }
 
@@ -37,14 +39,15 @@ namespace GUI.Utils
 
         private QuadIndexBuffer quadIndices;
 
-        public VrfGuiContext(string fileName, VrfGuiContext parentGuiContext) : base(parentGuiContext?.CurrentPackage)
+        public VrfGuiContext(string fileName, VrfGuiContext parentGuiContext)
         {
             FileName = fileName;
+            ParentGuiContext = parentGuiContext;
+            CurrentPackage = parentGuiContext?.CurrentPackage;
             MaterialLoader = new MaterialLoader(this);
             ShaderLoader = new ShaderLoader();
             FileLoader = new AdvancedGuiFileLoader(this);
             MeshBufferCache = new GPUMeshBufferCache();
-            ParentGuiContext = parentGuiContext;
 
             Task.Run(FillSurfacePropertyHashes);
         }
@@ -75,9 +78,8 @@ namespace GUI.Utils
             //ShaderLoader.ClearCache();
         }
 
-        protected override void Dispose(bool disposing)
+        protected virtual void Dispose(bool disposing)
         {
-            base.Dispose(disposing);
             if (disposing)
             {
                 ParentGuiContext = null;
@@ -91,6 +93,13 @@ namespace GUI.Utils
                 FileLoader.Dispose();
                 ShaderLoader.Dispose();
             }
+        }
+
+        public void Dispose()
+        {
+            // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
         }
     }
 }

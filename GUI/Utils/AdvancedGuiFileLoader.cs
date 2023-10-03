@@ -14,7 +14,7 @@ using ValveResourceFormat.IO;
 
 namespace GUI.Utils
 {
-    class AdvancedGuiFileLoader : BasicVpkFileLoader, IFileLoader, IDisposable
+    class AdvancedGuiFileLoader : GameFileLoader, IFileLoader, IDisposable
     {
         private static readonly Dictionary<string, Package> CachedPackages = new();
         private readonly Dictionary<string, Resource> CachedResources = new();
@@ -27,7 +27,7 @@ namespace GUI.Utils
         private bool ShaderPackagesScanned;
         private bool ProvidedGameInfosScanned;
 
-        public AdvancedGuiFileLoader(VrfGuiContext guiContext) : base(guiContext)
+        public AdvancedGuiFileLoader(VrfGuiContext guiContext) : base(guiContext.CurrentPackage, guiContext.FileName)
         {
             GuiContext = guiContext;
         }
