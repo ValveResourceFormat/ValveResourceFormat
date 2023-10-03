@@ -32,6 +32,7 @@ uniform sampler2D g_tNormal;
 uniform sampler2D g_tMasks1;
 uniform sampler2D g_tMasks2;
 //uniform sampler2D g_tDiffuseWarp;
+uniform vec4 vTint;
 
 #include "common/ViewConstants.glsl"
 
@@ -147,6 +148,7 @@ void main()
 
     //Simply multiply the color from the color texture with the illumination
     outputColor = vec4(finalColor, color.a);
+    outputColor *= vTint;
 
     // == End of shader
 
