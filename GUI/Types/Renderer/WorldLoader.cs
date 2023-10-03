@@ -508,6 +508,11 @@ namespace GUI.Types.Renderer
                             }
                         }
 
+                        if (fogTexture == null)
+                        {
+                            scene.FogInfo.CubeFogActive = false;
+                        }
+
                         scene.FogInfo.CubemapFog = new SceneCubemapFog(scene)
                         {
                             StartDist = startDist,
