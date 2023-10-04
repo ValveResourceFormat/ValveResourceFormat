@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -58,6 +59,7 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
+        [DebuggerDisplay("{Type} \"{Name}\" = \"{Data}\"")]
         public class EntityProperty
         {
             public EntityFieldType Type { get; set; }
