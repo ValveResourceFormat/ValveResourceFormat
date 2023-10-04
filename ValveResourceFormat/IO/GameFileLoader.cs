@@ -14,21 +14,29 @@ namespace ValveResourceFormat.IO
 {
     public class GameFileLoader : IFileLoader, IDisposable
     {
+        private static readonly string[] ModIdentifiers = new[]
+        {
+            "gameinfo.gi",
+            "addoninfo.txt",
+            ".sbproj",
+        };
+
         private static readonly Dictionary<string, Package> CachedPackages = new();
+        private readonly Dictionary<string, ShaderCollection> CachedShaders = new();
+        private readonly object shaderCacheLock = new();
 
         /// <summary>
         /// A list of folders, VPKs, gameinfo.gi files to load during file discovery.
         /// </summary>
         protected virtual List<string> UserProvidedGameSearchPaths { get; } = new();
 
-        protected HashSet<string> CurrentGameSearchPaths { get; } = new();
+        private HashSet<string> CurrentGameSearchPaths { get; } = new();
         protected List<Package> CurrentGamePackages { get; } = new();
         private readonly string CurrentFileName;
         private readonly Package CurrentPackage;
-        protected bool GamePackagesScanned { get; set; } // TODO: Make private after moving shader stuff
+        private bool GamePackagesScanned;
+        private bool ShaderPackagesScanned;
         private bool ProvidedGameInfosScanned;
-
-        private readonly string[] modIdentifiers = new[] { "gameinfo.gi", "addoninfo.txt", ".sbproj" };
 
         /// <summary>
         /// fileName is needed when used by GUI when package has not yet been resolved
@@ -58,6 +66,14 @@ namespace ValveResourceFormat.IO
                 }
 
                 CurrentGamePackages.Clear();
+
+                lock (shaderCacheLock)
+                {
+                    foreach (var shader in CachedShaders.Values)
+                    {
+                        shader.Dispose();
+                    }
+                }
             }
         }
 
@@ -177,8 +193,93 @@ namespace ValveResourceFormat.IO
             return (null, null, null);
         }
 
-        // TODO: Implement code from gui loader
-        public ShaderCollection LoadShader(string shaderName) => null;
+        protected virtual ShaderCollection LoadShaderFromDisk(string shaderName)
+        {
+            if (!GamePackagesScanned)
+            {
+                GamePackagesScanned = true;
+                FindAndLoadSearchPaths();
+            }
+
+            if (!ShaderPackagesScanned)
+            {
+                ShaderPackagesScanned = true;
+                FindAndLoadShaderPackages();
+            }
+
+            var collection = new ShaderCollection();
+
+            bool TryLoadShader(VcsProgramType programType, VcsPlatformType platformType, VcsShaderModelType modelType)
+            {
+                var shaderFile = new ShaderFile();
+                var path = Path.Join("shaders", "vfx", ShaderUtilHelpers.ComputeVCSFileName(shaderName, programType, platformType, modelType));
+                var foundFile = FindFile(path, logNotFound: false);
+
+                if (foundFile.PathOnDisk != null)
+                {
+                    var stream = File.OpenRead(foundFile.PathOnDisk);
+                    shaderFile.Read(path, stream);
+                }
+                else if (foundFile.PackageEntry != null)
+                {
+                    var stream = GetPackageEntryStream(foundFile.Package, foundFile.PackageEntry);
+                    shaderFile.Read(path, stream);
+                }
+
+                if (shaderFile.VcsPlatformType == platformType)
+                {
+                    collection.Add(shaderFile);
+                    return true;
+                }
+
+                return false;
+            }
+
+            var selectedPlatformType = VcsPlatformType.Undetermined;
+            var selectedModelType = VcsShaderModelType.Undetermined;
+
+            for (var platformType = (VcsPlatformType)0; platformType < VcsPlatformType.Undetermined && selectedPlatformType == VcsPlatformType.Undetermined; platformType++)
+            {
+                for (var modelType = VcsShaderModelType._60; modelType > VcsShaderModelType._20; modelType--)
+                {
+                    if (TryLoadShader(VcsProgramType.Features, platformType, modelType))
+                    {
+                        selectedPlatformType = platformType;
+                        selectedModelType = modelType;
+                        break;
+                    }
+                }
+            }
+
+            if (selectedPlatformType == VcsPlatformType.Undetermined)
+            {
+                Console.Error.WriteLine($"Failed to find shader \"{shaderName}\".");
+
+                return collection;
+            }
+
+            for (var programType = VcsProgramType.VertexShader; programType < VcsProgramType.Undetermined; programType++)
+            {
+                TryLoadShader(programType, selectedPlatformType, selectedModelType);
+            }
+
+            return collection;
+        }
+
+        public ShaderCollection LoadShader(string shaderName)
+        {
+            lock (shaderCacheLock)
+            {
+                if (CachedShaders.TryGetValue(shaderName, out var shader))
+                {
+                    return shader;
+                }
+
+                shader = LoadShaderFromDisk(shaderName);
+                CachedShaders.Add(shaderName, shader);
+                return shader;
+            }
+        }
 
         public virtual Resource LoadFile(string file)
         {
@@ -351,7 +452,7 @@ namespace ValveResourceFormat.IO
 
                 isLastWorkshop = currentDirectory == "workshop";
 
-                foreach (var modIdentifier in modIdentifiers)
+                foreach (var modIdentifier in ModIdentifiers)
                 {
                     var path = Path.Combine(directory, modIdentifier);
                     if (File.Exists(path))
@@ -467,6 +568,30 @@ namespace ValveResourceFormat.IO
             }
 
             return null;
+        }
+
+        private void FindAndLoadShaderPackages()
+        {
+            foreach (var folder in CurrentGameSearchPaths)
+            {
+                for (var platformType = (VcsPlatformType)0; platformType < VcsPlatformType.Undetermined; platformType++)
+                {
+                    var shaderName = $"shaders_{platformType.ToString().ToLowerInvariant()}_dir.vpk";
+                    var vpk = Path.Combine(folder, shaderName);
+
+                    if (File.Exists(vpk))
+                    {
+                        Console.WriteLine($"Preloading vpk \"{vpk}\"");
+
+                        var package = new Package();
+                        package.OptimizeEntriesForBinarySearch(StringComparison.OrdinalIgnoreCase);
+                        package.Read(vpk);
+                        CurrentGamePackages.Add(package);
+
+                        break; // One for each folder
+                    }
+                }
+            }
         }
 
         /// <summary>
