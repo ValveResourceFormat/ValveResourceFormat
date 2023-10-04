@@ -26,6 +26,7 @@ namespace GUI.Controls
         private const int APPID_RECENT_FILES = -1000;
         private const int APPID_BOOKMARKS = -1001;
         private readonly List<TreeDataNode> TreeData = new();
+        private static readonly Dictionary<string, string> WorkshopAddons = new();
 
         public ExplorerControl()
         {
@@ -247,13 +248,16 @@ namespace GUI.Controls
                                 using var stream = File.OpenRead(publishDataPath);
                                 var publishData = kvDeserializer.Deserialize(stream);
                                 var addonTitle = publishData["title"];
+                                var displayTitle = $"[Workshop {item.Name}] {addonTitle}";
 
-                                foundFiles.Add(new TreeNode($"[Workshop {item.Name}] {addonTitle}")
+                                foundFiles.Add(new TreeNode(displayTitle)
                                 {
                                     Tag = vpk,
                                     ImageIndex = pluginImage,
                                     SelectedImageIndex = pluginImage,
                                 });
+
+                                WorkshopAddons[vpk] = displayTitle;
                             }
                         }
                     }
@@ -316,6 +320,16 @@ namespace GUI.Controls
                         {
                             OnFilterTextBoxTextChanged(null, null); // Hack: re-filter
                         }
+                    });
+                }
+
+                // Update bookmarks and recent files with workshop titles
+                if (WorkshopAddons.Count > 0)
+                {
+                    InvokeWorkaround(() =>
+                    {
+                        RedrawList(APPID_BOOKMARKS, GetBookmarkedFileNodes());
+                        RedrawList(APPID_RECENT_FILES, GetRecentFileNodes());
                     });
                 }
             }).ContinueWith(t =>
@@ -447,19 +461,29 @@ namespace GUI.Controls
             return paths.Select(path =>
             {
                 var pathDisplay = path.Replace(Path.DirectorySeparatorChar, '/');
-                var extension = Path.GetExtension(path).ToLowerInvariant();
+                var imageIndex = -1;
 
-                if (extension == ".vpk" && pathDisplay.Contains("/maps/", StringComparison.Ordinal))
+                if (WorkshopAddons.TryGetValue(path, out var displayTitle))
                 {
-                    extension = ".map";
+                    imageIndex = MainForm.ImageListLookup["_plugin"];
+                    pathDisplay = $"{pathDisplay} {displayTitle}";
                 }
-
-                if (extension.Length > 0)
+                else
                 {
-                    extension = extension[1..];
-                }
+                    var extension = Path.GetExtension(path).ToLowerInvariant();
 
-                var imageIndex = MainForm.GetImageIndexForExtension(extension);
+                    if (extension == ".vpk" && pathDisplay.Contains("/maps/", StringComparison.Ordinal))
+                    {
+                        extension = ".map";
+                    }
+
+                    if (extension.Length > 0)
+                    {
+                        extension = extension[1..];
+                    }
+
+                    imageIndex = MainForm.GetImageIndexForExtension(extension);
+                }
 
                 var toAdd = new TreeNode(pathDisplay)
                 {
