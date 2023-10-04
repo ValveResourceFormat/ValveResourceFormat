@@ -743,6 +743,7 @@ namespace GUI.Types.Renderer
                     {
                         byte[] bytes => new Vector3(bytes[0], bytes[1], bytes[2]),
                         Vector3 vec => vec,
+                        Vector4 vec4 => new Vector3(vec4.X, vec4.Y, vec4.Z),
                         _ => throw new NotImplementedException()
                     } / 255.0f;
 
