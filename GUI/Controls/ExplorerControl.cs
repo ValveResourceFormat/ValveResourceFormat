@@ -355,15 +355,6 @@ namespace GUI.Controls
             {
                 Program.MainForm.OpenFile(path);
             }
-            else if (Directory.Exists(path))
-            {
-                Process.Start(new ProcessStartInfo()
-                {
-                    FileName = path + Path.DirectorySeparatorChar,
-                    UseShellExecute = true,
-                    Verb = "open"
-                });
-            }
         }
 
         private void OnTreeViewNodeMouseClick(object sender, TreeNodeMouseClickEventArgs e)
