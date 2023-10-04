@@ -34,19 +34,68 @@ namespace ValveResourceFormat.IO
         protected List<Package> CurrentGamePackages { get; } = new();
         private readonly string CurrentFileName;
         private readonly Package CurrentPackage;
-        private bool GamePackagesScanned;
         private bool ShaderPackagesScanned;
-        private bool ProvidedGameInfosScanned;
 
         /// <summary>
         /// fileName is needed when used by GUI when package has not yet been resolved
         /// </summary>
-        /// <param name="package">The current package to search for files in.</param>
-        /// <param name="fileName">The path on disk to the current file that is being opened.</param>
-        public GameFileLoader(Package package, string fileName)
+        /// <param name="currentPackage">The current package to search for files in.</param>
+        /// <param name="currentFileName">The path on disk to the current file that is being opened.</param>
+        public GameFileLoader(Package currentPackage, string currentFileName)
         {
-            CurrentPackage = package;
-            CurrentFileName = fileName;
+            CurrentPackage = currentPackage;
+            CurrentFileName = currentFileName;
+
+            // Find gameinfo.gi by walking up from the current file, preload vpks and add folders to search paths
+            FindAndLoadSearchPaths();
+
+            var paths = UserProvidedGameSearchPaths.ToList();
+
+            // Find any gameinfo files specified by the user
+            foreach (var searchPath in paths.Where(searchPath => searchPath.EndsWith("gameinfo.gi", StringComparison.InvariantCulture)).ToList())
+            {
+                paths.Remove(searchPath);
+
+                FindAndLoadSearchPaths(searchPath);
+            }
+
+            // Find any .vpk files specified by the user in settings (GUI)
+            foreach (var searchPath in paths.Where(searchPath => searchPath.EndsWith(".vpk", StringComparison.InvariantCulture)).ToList())
+            {
+                paths.Remove(searchPath);
+
+                if (!CachedPackages.TryGetValue(searchPath, out var package))
+                {
+                    Console.WriteLine($"Preloading vpk \"{searchPath}\"");
+
+                    package = new Package();
+                    package.OptimizeEntriesForBinarySearch(StringComparison.OrdinalIgnoreCase);
+                    package.Read(searchPath);
+                    CachedPackages[searchPath] = package;
+                }
+
+                CurrentGamePackages.Add(package);
+            }
+
+            // Add remaining paths specified by the user
+            foreach (var searchPath in paths)
+            {
+                CurrentGameSearchPaths.Add(searchPath);
+            }
+
+#if DEBUG_FILE_LOAD
+            Console.Error.WriteLine("Current VPKs to search in order:");
+
+            foreach (var searchPath in CurrentGamePackages)
+            {
+                Console.Error.WriteLine($"{searchPath.FileName}.vpk");
+            }
+
+            foreach (var searchPath in CurrentGameSearchPaths)
+            {
+                Console.Error.WriteLine(searchPath);
+            }
+#endif
         }
 
         protected virtual void Dispose(bool disposing)
@@ -85,6 +134,7 @@ namespace ValveResourceFormat.IO
 
         public virtual (string PathOnDisk, Package Package, PackageEntry PackageEntry) FindFile(string file, bool logNotFound = true)
         {
+            // Check current package
             var entry = CurrentPackage?.FindEntry(file);
 
             if (entry != null)
@@ -96,45 +146,22 @@ namespace ValveResourceFormat.IO
                 return (null, CurrentPackage, entry);
             }
 
-            if (!GamePackagesScanned)
+            // Check additional packages
+            foreach (var package in CurrentGamePackages)
             {
-                GamePackagesScanned = true;
-                FindAndLoadSearchPaths();
-            }
+                entry = package?.FindEntry(file);
 
-            // TODO: Optimize this code for less allocations
-            var paths = UserProvidedGameSearchPaths.ToList();
-            var packages = CurrentGamePackages.ToList();
-
-            foreach (var searchPath in paths.Where(searchPath => searchPath.EndsWith(".vpk", StringComparison.InvariantCulture)).ToList())
-            {
-                paths.Remove(searchPath);
-
-                if (!CachedPackages.TryGetValue(searchPath, out var package))
+                if (entry != null)
                 {
-                    Console.WriteLine($"Preloading vpk \"{searchPath}\"");
+#if DEBUG_FILE_LOAD
+                    Console.WriteLine($"Loaded \"{file}\" from preloaded vpk \"{package.FileName}\"");
+#endif
 
-                    package = new Package();
-                    package.OptimizeEntriesForBinarySearch(StringComparison.OrdinalIgnoreCase);
-                    package.Read(searchPath);
-                    CachedPackages[searchPath] = package;
-                }
-
-                packages.Add(package);
-            }
-
-            foreach (var searchPath in paths.Where(searchPath => searchPath.EndsWith("gameinfo.gi", StringComparison.InvariantCulture)).ToList())
-            {
-                paths.Remove(searchPath);
-
-                if (!ProvidedGameInfosScanned)
-                {
-                    FindAndLoadSearchPaths(searchPath);
+                    return (null, package, entry);
                 }
             }
 
-            ProvidedGameInfosScanned = true;
-
+            // Check for any nested packages in current package (e.g. skybox vpk in a map vpk)
             if (CurrentPackage != null && CurrentPackage.Entries.TryGetValue("vpk", out var vpkEntries))
             {
                 foreach (var searchPath in vpkEntries)
@@ -151,25 +178,21 @@ namespace ValveResourceFormat.IO
                         CachedPackages[searchPath.GetFileName()] = package;
                     }
 
-                    packages.Add(package);
-                }
-            }
+                    entry = package?.FindEntry(file);
 
-            foreach (var package in packages)
-            {
-                entry = package?.FindEntry(file);
-
-                if (entry != null)
-                {
+                    if (entry != null)
+                    {
 #if DEBUG_FILE_LOAD
-                    Console.WriteLine($"Loaded \"{file}\" from preloaded vpk \"{package.FileName}\"");
+                        Console.WriteLine($"Loaded \"{file}\" from nested vpk \"{package.FileName}\"");
 #endif
 
-                    return (null, package, entry);
+                        return (null, package, entry);
+                    }
                 }
             }
 
-            var path = FindResourcePath(paths.Concat(CurrentGameSearchPaths).ToList(), file, CurrentFileName);
+            // As a last resort, check on disk
+            var path = FindResourcePath(CurrentGameSearchPaths, file, CurrentFileName);
 
             if (path != null)
             {
@@ -190,6 +213,7 @@ namespace ValveResourceFormat.IO
                 System.Diagnostics.Debugger.Break();
 #endif
             }
+
 #endif
 
             return (null, null, null);
@@ -197,12 +221,6 @@ namespace ValveResourceFormat.IO
 
         protected virtual ShaderCollection LoadShaderFromDisk(string shaderName)
         {
-            if (!GamePackagesScanned)
-            {
-                GamePackagesScanned = true;
-                FindAndLoadSearchPaths();
-            }
-
             if (!ShaderPackagesScanned)
             {
                 ShaderPackagesScanned = true;
@@ -547,11 +565,12 @@ namespace ValveResourceFormat.IO
             return folders;
         }
 
-        private static string FindResourcePath(IList<string> paths, string file, string currentFullPath = null)
+        private static string FindResourcePath(HashSet<string> paths, string file, string currentFullPath = null)
         {
             if (currentFullPath != null)
             {
-                paths = paths.OrderByDescending(x => currentFullPath.StartsWith(x, StringComparison.Ordinal)).ToList();
+                // TODO: Remove this sorting
+                paths = paths.OrderByDescending(x => currentFullPath.StartsWith(x, StringComparison.Ordinal)).ToHashSet();
             }
 
             foreach (var searchPath in paths)
