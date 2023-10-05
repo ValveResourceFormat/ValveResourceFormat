@@ -120,7 +120,7 @@ Magic        | Description
 `0xC4CCACE8` | tools asset info
 `0xC4CCACE9` | tools asset info (newer version)
 `0x32736376` | vcs2 - compiled shader
-`0x31415926` | murmurhash2 seed used in various places (like entity keys)
+`0x31415926` | murmurhash2 seed used in various places (like entity keys), Decimal: 826366246
 `VFONT1`     | "encrypted" font file
 
 ## License
