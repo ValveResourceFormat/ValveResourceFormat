@@ -1427,7 +1427,9 @@ namespace ValveResourceFormat.IO
                     // Old behavior, use the texture directly if the first input matches.
                     if (!AdaptTextures)
                     {
-                        if (!blendNameComparer.Equals(renderTextureInputs.First().Name, GltfInputs.First().Name))
+                        var renderTextureFirst = renderTextureInputs.FirstOrDefault();
+                        var gltfTextureFirst = GltfInputs.First();
+                        if (renderTextureFirst.Name is null || !blendNameComparer.Equals(renderTextureFirst.Name, gltfTextureFirst.Name))
                         {
                             continue;
                         }
