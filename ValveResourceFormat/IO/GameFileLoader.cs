@@ -82,6 +82,8 @@ namespace ValveResourceFormat.IO
                     {
                         shader.Dispose();
                     }
+
+                    CachedShaders.Clear();
                 }
             }
         }
