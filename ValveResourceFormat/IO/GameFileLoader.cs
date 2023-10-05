@@ -580,12 +580,7 @@ namespace ValveResourceFormat.IO
 
                     if (File.Exists(vpk))
                     {
-                        Console.WriteLine($"Preloading vpk \"{vpk}\"");
-
-                        var package = new Package();
-                        package.OptimizeEntriesForBinarySearch(StringComparison.OrdinalIgnoreCase);
-                        package.Read(vpk);
-                        CurrentGamePackages.Add(package);
+                        AddPackageToSearch(vpk);
 
                         break; // One for each folder
                     }
