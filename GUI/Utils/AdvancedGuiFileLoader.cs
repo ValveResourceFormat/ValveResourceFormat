@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using SteamDatabase.ValvePak;
 using ValveResourceFormat;
 using ValveResourceFormat.CompiledShader;
@@ -11,11 +13,33 @@ namespace GUI.Utils
         private readonly Dictionary<string, Resource> CachedResources = new();
         private readonly VrfGuiContext GuiContext;
 
-        protected override List<string> UserProvidedGameSearchPaths { get; } = Settings.Config.GameSearchPaths;
-
         public AdvancedGuiFileLoader(VrfGuiContext guiContext) : base(guiContext.CurrentPackage, guiContext.FileName)
         {
             GuiContext = guiContext;
+
+            var paths = Settings.Config.GameSearchPaths.ToList();
+
+            // Find any gameinfo files specified by the user in settings
+            foreach (var searchPath in paths.Where(searchPath => searchPath.EndsWith("gameinfo.gi", StringComparison.InvariantCulture)).ToList())
+            {
+                paths.Remove(searchPath);
+
+                FindAndLoadSearchPaths(searchPath);
+            }
+
+            // Find any .vpk files specified by the user
+            foreach (var searchPath in paths.Where(searchPath => searchPath.EndsWith(".vpk", StringComparison.InvariantCulture)).ToList())
+            {
+                paths.Remove(searchPath);
+
+                AddPackageToSearch(searchPath);
+            }
+
+            // Add remaining paths specified by the user
+            foreach (var searchPath in paths)
+            {
+                AddDiskPathToSearch(searchPath);
+            }
         }
 
         protected override void Dispose(bool disposing)
@@ -133,11 +157,6 @@ namespace GUI.Utils
             }
 
             return resource;
-        }
-
-        public void AddPackageToSearch(Package package)
-        {
-            CurrentGamePackages.Add(package);
         }
     }
 }

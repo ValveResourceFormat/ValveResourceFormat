@@ -21,17 +21,11 @@ namespace ValveResourceFormat.IO
             ".sbproj",
         };
 
-        private static readonly Dictionary<string, Package> CachedPackages = new();
+        private readonly Dictionary<string, Package> CachedPackages = new();
         private readonly Dictionary<string, ShaderCollection> CachedShaders = new();
-        private readonly object shaderCacheLock = new();
-
-        /// <summary>
-        /// A list of folders, VPKs, gameinfo.gi files to load during file discovery.
-        /// </summary>
-        protected virtual List<string> UserProvidedGameSearchPaths { get; } = new();
-
-        private HashSet<string> CurrentGameSearchPaths { get; } = new();
-        protected List<Package> CurrentGamePackages { get; } = new();
+        private readonly object CachedShadersLock = new();
+        private readonly HashSet<string> CurrentGameSearchPaths = new();
+        private readonly List<Package> CurrentGamePackages = new();
         private readonly string CurrentFileName;
         private readonly Package CurrentPackage;
         private bool ShaderPackagesScanned;
@@ -48,40 +42,6 @@ namespace ValveResourceFormat.IO
 
             // Find gameinfo.gi by walking up from the current file, preload vpks and add folders to search paths
             FindAndLoadSearchPaths();
-
-            var paths = UserProvidedGameSearchPaths.ToList();
-
-            // Find any gameinfo files specified by the user
-            foreach (var searchPath in paths.Where(searchPath => searchPath.EndsWith("gameinfo.gi", StringComparison.InvariantCulture)).ToList())
-            {
-                paths.Remove(searchPath);
-
-                FindAndLoadSearchPaths(searchPath);
-            }
-
-            // Find any .vpk files specified by the user in settings (GUI)
-            foreach (var searchPath in paths.Where(searchPath => searchPath.EndsWith(".vpk", StringComparison.InvariantCulture)).ToList())
-            {
-                paths.Remove(searchPath);
-
-                if (!CachedPackages.TryGetValue(searchPath, out var package))
-                {
-                    Console.WriteLine($"Preloading vpk \"{searchPath}\"");
-
-                    package = new Package();
-                    package.OptimizeEntriesForBinarySearch(StringComparison.OrdinalIgnoreCase);
-                    package.Read(searchPath);
-                    CachedPackages[searchPath] = package;
-                }
-
-                CurrentGamePackages.Add(package);
-            }
-
-            // Add remaining paths specified by the user
-            foreach (var searchPath in paths)
-            {
-                CurrentGameSearchPaths.Add(searchPath);
-            }
 
 #if DEBUG_FILE_LOAD
             Console.Error.WriteLine("Current VPKs to search in order:");
@@ -116,7 +76,7 @@ namespace ValveResourceFormat.IO
 
                 CurrentGamePackages.Clear();
 
-                lock (shaderCacheLock)
+                lock (CachedShadersLock)
                 {
                     foreach (var shader in CachedShaders.Values)
                     {
@@ -288,7 +248,7 @@ namespace ValveResourceFormat.IO
 
         public ShaderCollection LoadShader(string shaderName)
         {
-            lock (shaderCacheLock)
+            lock (CachedShadersLock)
             {
                 if (CachedShaders.TryGetValue(shaderName, out var shader))
                 {
@@ -354,6 +314,38 @@ namespace ValveResourceFormat.IO
             }
         }
 
+        public bool AddDiskPathToSearch(string searchPath)
+        {
+            var success = CurrentGameSearchPaths.Add(searchPath);
+
+            if (success)
+            {
+                Console.WriteLine($"Added folder \"{searchPath}\" to game search paths");
+            }
+
+            return success;
+        }
+
+        public void AddPackageToSearch(string searchPath)
+        {
+            if (!CachedPackages.TryGetValue(searchPath, out var package))
+            {
+                Console.WriteLine($"Preloading vpk \"{searchPath}\"");
+
+                package = new Package();
+                package.OptimizeEntriesForBinarySearch(StringComparison.OrdinalIgnoreCase);
+                package.Read(searchPath);
+                CachedPackages[searchPath] = package;
+
+                AddPackageToSearch(package);
+            }
+        }
+
+        public void AddPackageToSearch(Package package)
+        {
+            CurrentGamePackages.Add(package);
+        }
+
         protected void FindAndLoadSearchPaths(string modIdentifierPath = null)
         {
             modIdentifierPath ??= GetModIdentifierFile();
@@ -416,26 +408,10 @@ namespace ValveResourceFormat.IO
                         continue;
                     }
 
-                    if (UserProvidedGameSearchPaths.Contains(vpk))
-                    {
-#if DEBUG_FILE_LOAD
-                        Console.WriteLine($"VPK \"{vpk}\" is already user-defined, skipping");
-#endif
-                        continue;
-                    }
-
-                    Console.WriteLine($"Preloading vpk \"{vpk}\"");
-
-                    var package = new Package();
-                    package.OptimizeEntriesForBinarySearch(StringComparison.OrdinalIgnoreCase);
-                    package.Read(vpk);
-                    CurrentGamePackages.Add(package);
+                    AddPackageToSearch(vpk);
                 }
 
-                if (!UserProvidedGameSearchPaths.Contains(folder) && CurrentGameSearchPaths.Add(folder))
-                {
-                    Console.WriteLine($"Added folder \"{folder}\" to game search paths");
-                }
+                AddDiskPathToSearch(folder);
             }
         }
 
