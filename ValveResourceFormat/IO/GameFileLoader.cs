@@ -26,8 +26,9 @@ namespace ValveResourceFormat.IO
         private readonly HashSet<string> CurrentGameSearchPaths = new();
         private readonly List<Package> CurrentGamePackages = new();
         private readonly string CurrentFileName;
-        private readonly Package CurrentPackage;
         private bool ShaderPackagesScanned;
+
+        public Package CurrentPackage { get; set; }
 
         /// <summary>
         /// fileName is needed when used by GUI when package has not yet been resolved
@@ -40,7 +41,10 @@ namespace ValveResourceFormat.IO
             CurrentFileName = currentFileName;
 
             // Find gameinfo.gi by walking up from the current file, preload vpks and add folders to search paths
-            FindAndLoadSearchPaths();
+            if (CurrentFileName != null)
+            {
+                FindAndLoadSearchPaths();
+            }
 
 #if DEBUG_FILE_LOAD
             Console.Error.WriteLine("Current VPKs to search in order:");
@@ -290,7 +294,19 @@ namespace ValveResourceFormat.IO
             return success;
         }
 
-        public void AddPackageToSearch(string searchPath)
+        public bool RemoveDiskPathFromSearch(string searchPath)
+        {
+            var success = CurrentGameSearchPaths.Remove(searchPath);
+
+            if (success)
+            {
+                Console.WriteLine($"Removed folder \"{searchPath}\" from game search paths");
+            }
+
+            return success;
+        }
+
+        public Package AddPackageToSearch(string searchPath)
         {
             Console.WriteLine($"Preloading vpk \"{searchPath}\"");
 
@@ -299,11 +315,18 @@ namespace ValveResourceFormat.IO
             package.Read(searchPath);
 
             AddPackageToSearch(package);
+
+            return package;
         }
 
         public void AddPackageToSearch(Package package)
         {
             CurrentGamePackages.Add(package);
+        }
+
+        public bool RemovePackageFromSearch(Package package)
+        {
+            return CurrentGamePackages.Remove(package);
         }
 
         protected void FindAndLoadSearchPaths(string modIdentifierPath = null)

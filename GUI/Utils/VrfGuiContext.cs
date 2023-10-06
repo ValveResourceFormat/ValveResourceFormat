@@ -19,9 +19,9 @@ namespace GUI.Utils
 
         public MaterialLoader MaterialLoader { get; }
 
-        public ShaderLoader ShaderLoader { get; }
+        public ShaderLoader ShaderLoader { get; private set; }
         public GPUMeshBufferCache MeshBufferCache { get; }
-        public AdvancedGuiFileLoader FileLoader { get; }
+        public AdvancedGuiFileLoader FileLoader { get; private set; }
         public VrfGuiContext ParentGuiContext { get; private set; }
         public ToolsAssetInfo ToolsAssetInfo { get; set; }
 
@@ -96,7 +96,10 @@ namespace GUI.Utils
                 }
 
                 FileLoader.Dispose();
+                FileLoader = null;
+
                 ShaderLoader.Dispose();
+                ShaderLoader = null;
             }
         }
 

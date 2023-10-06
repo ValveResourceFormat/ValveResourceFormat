@@ -6,6 +6,7 @@ using System.Linq;
 using System.Numerics;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
+using SteamDatabase.ValvePak;
 using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization;
@@ -855,33 +856,39 @@ namespace GUI.Types.Renderer
             // Maps have to be packed in a vpk?
             var vpkFile = Path.ChangeExtension(targetmapname, ".vpk");
             var vpkFound = guiContext.FileLoader.FindFile(vpkFile);
+            Package package;
 
             // Load the skybox map vpk and make it searchable in the file loader
             if (vpkFound.PathOnDisk != null)
             {
-                // TODO: Due to the way gui contexts works, we're preloading the vpk into parent context
-                guiContext.ParentGuiContext.FileLoader.AddPackageToSearch(vpkFound.PathOnDisk);
+                Log.Info(nameof(WorldLoader), $"Opening skybox \"{vpkFound.PathOnDisk}\"");
+
+                package = new Package();
+                package.OptimizeEntriesForBinarySearch(StringComparison.OrdinalIgnoreCase);
+                package.Read(vpkFound.PathOnDisk);
             }
             else if (vpkFound.PackageEntry != null)
             {
                 var innerVpkName = vpkFound.PackageEntry.GetFullPath();
 
-                Log.Info(nameof(WorldLoader), $"Preloading vpk \"{innerVpkName}\" from \"{vpkFound.Package.FileName}\"");
+                Log.Info(nameof(WorldLoader), $"Opening skybox \"{innerVpkName}\" from \"{vpkFound.Package.FileName}\"");
 
                 // TODO: Should FileLoader have a method that opens stream for us?
                 var stream = AdvancedGuiFileLoader.GetPackageEntryStream(vpkFound.Package, vpkFound.PackageEntry);
 
-                var package = new SteamDatabase.ValvePak.Package();
+                package = new Package();
                 package.SetFileName(innerVpkName);
                 package.OptimizeEntriesForBinarySearch(StringComparison.OrdinalIgnoreCase);
                 package.Read(stream);
-
-                guiContext.ParentGuiContext.FileLoader.AddPackageToSearch(package);
             }
             else
             {
                 return; // Not found logged by FindFile
             }
+
+            var skyboxContext = new VrfGuiContext(null, guiContext);
+            skyboxContext.CurrentPackage = package;
+            skyboxContext.FileLoader.CurrentPackage = package;
 
             var worldName = Path.Join(
                 Path.GetDirectoryName(targetmapname),
@@ -889,14 +896,15 @@ namespace GUI.Types.Renderer
                 "world.vwrld_c"
             );
 
-            var skyboxWorld = guiContext.LoadFile(worldName);
+            var skyboxWorld = skyboxContext.LoadFile(worldName);
 
             if (skyboxWorld == null)
             {
+                skyboxContext.Dispose();
                 return;
             }
 
-            SkyboxScene = new Scene(guiContext);
+            SkyboxScene = new Scene(skyboxContext);
 
             SkyboxScene.FogInfo.GradientFogActive = scene.FogInfo.GradientFogActive;
             SkyboxScene.FogInfo.CubeFogActive = scene.FogInfo.CubeFogActive;
