@@ -404,6 +404,11 @@ namespace ValveResourceFormat.IO
             var i = 10;
             var isLastWorkshop = false;
 
+            if (!Path.IsPathFullyQualified(directory))
+            {
+                return null;
+            }
+
             while (i-- > 0)
             {
                 directory = Path.GetDirectoryName(directory);
