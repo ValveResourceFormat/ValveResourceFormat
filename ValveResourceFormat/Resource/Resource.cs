@@ -474,6 +474,9 @@ namespace ValveResourceFormat
                 case ResourceType.SmartProp:
                     return new SmartProp();
 
+                case ResourceType.AnimationGraph:
+                    return new AnimGraph();
+
                 case ResourceType.Mesh:
                     return new Mesh(BlockType.DATA);
             }
@@ -528,6 +531,7 @@ namespace ValveResourceFormat
                    || type == ResourceType.PhysicsCollisionMesh
                    || type == ResourceType.Morph
                    || type == ResourceType.SmartProp
+                   || type == ResourceType.AnimationGraph
                    || type == ResourceType.PostProcessing;
         }
 

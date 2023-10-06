@@ -59,6 +59,13 @@ namespace GUI.Types.Renderer
             this.smartProp = smartProp;
         }
 
+        public GLModelViewer(VrfGuiContext guiContext, AnimGraph animGraph)
+            : base(guiContext, Frustum.CreateEmpty())
+        {
+            var animGraphAssociatedModel = animGraph.Data.GetProperty<string>("m_modelName");
+            this.model = (Model)guiContext.LoadFileCompiled(animGraphAssociatedModel).DataBlock;
+        }
+
         protected override void Dispose(bool disposing)
         {
             if (disposing)

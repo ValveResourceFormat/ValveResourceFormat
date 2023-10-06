@@ -150,6 +150,12 @@ namespace GUI.Types.Viewers
                     resTabs.TabPages.Add(smartPropRendererTab);
                     break;
 
+                case ResourceType.AnimationGraph:
+                    var animGraphModelRendererTab = new TabPage("ANIMATION GRAPH");
+                    animGraphModelRendererTab.Controls.Add(new GLModelViewer(vrfGuiContext, (AnimGraph)resource.DataBlock));
+                    resTabs.TabPages.Add(animGraphModelRendererTab);
+                    break;
+
                 case ResourceType.Material:
                     if (((Material)resource.DataBlock).ShaderName == "sky.vfx")
                     {
