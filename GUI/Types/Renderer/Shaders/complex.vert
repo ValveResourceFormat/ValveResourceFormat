@@ -60,20 +60,19 @@ in vec2 vTEXCOORD;
     out vec4 vColorBlendValues;
 #endif
 
+#if (F_FOLIAGE_ANIMATION > 0)
+    in vec4 vTEXCOORD1;
+#endif
+
 #if (F_SECONDARY_UV == 1) || (F_FORCE_UV2 == 1)
     in vec4 vTEXCOORD2;
     out vec2 vTexCoord2;
+#elif (F_FOLIAGE_ANIMATION > 0)
+    in vec4 vTEXCOORD2;
 #endif
 
 #if (F_VERTEX_COLOR == 1) || (F_PAINT_VERTEX_COLORS == 1)
     in vec4 vCOLOR;
-#endif
-
-#if (F_FOLIAGE_ANIMATION > 0)
-    in vec4 vTEXCOORD1;
-    #ifndef vTEXCOORD2
-        in vec4 vTEXCOORD2;
-    #endif
 #endif
 
 out vec4 vVertexColorOut;
