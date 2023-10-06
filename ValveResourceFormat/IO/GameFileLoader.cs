@@ -21,7 +21,6 @@ namespace ValveResourceFormat.IO
             ".sbproj",
         };
 
-        private readonly Dictionary<string, Package> CachedPackages = new();
         private readonly Dictionary<string, ShaderCollection> CachedShaders = new();
         private readonly object CachedShadersLock = new();
         private readonly HashSet<string> CurrentGameSearchPaths = new();
@@ -62,13 +61,6 @@ namespace ValveResourceFormat.IO
         {
             if (disposing)
             {
-                foreach (var package in CachedPackages.Values)
-                {
-                    package.Dispose();
-                }
-
-                CachedPackages.Clear();
-
                 foreach (var package in CurrentGamePackages)
                 {
                     package.Dispose();
@@ -120,36 +112,6 @@ namespace ValveResourceFormat.IO
 #endif
 
                     return (null, package, entry);
-                }
-            }
-
-            // Check for any nested packages in current package (e.g. skybox vpk in a map vpk)
-            if (CurrentPackage != null && CurrentPackage.Entries.TryGetValue("vpk", out var vpkEntries))
-            {
-                foreach (var searchPath in vpkEntries)
-                {
-                    if (!CachedPackages.TryGetValue(searchPath.GetFileName(), out var package))
-                    {
-                        Console.WriteLine($"Preloading vpk \"{searchPath.GetFullPath()}\" from parent vpk");
-
-                        var stream = GetPackageEntryStream(CurrentPackage, searchPath);
-                        package = new Package();
-                        package.OptimizeEntriesForBinarySearch(StringComparison.OrdinalIgnoreCase);
-                        package.SetFileName(searchPath.GetFileName());
-                        package.Read(stream);
-                        CachedPackages[searchPath.GetFileName()] = package;
-                    }
-
-                    entry = package?.FindEntry(file);
-
-                    if (entry != null)
-                    {
-#if DEBUG_FILE_LOAD
-                        Console.WriteLine($"Loaded \"{file}\" from nested vpk \"{package.FileName}\"");
-#endif
-
-                        return (null, package, entry);
-                    }
                 }
             }
 
@@ -330,17 +292,13 @@ namespace ValveResourceFormat.IO
 
         public void AddPackageToSearch(string searchPath)
         {
-            if (!CachedPackages.TryGetValue(searchPath, out var package))
-            {
-                Console.WriteLine($"Preloading vpk \"{searchPath}\"");
+            Console.WriteLine($"Preloading vpk \"{searchPath}\"");
 
-                package = new Package();
-                package.OptimizeEntriesForBinarySearch(StringComparison.OrdinalIgnoreCase);
-                package.Read(searchPath);
-                CachedPackages[searchPath] = package;
+            var package = new Package();
+            package.OptimizeEntriesForBinarySearch(StringComparison.OrdinalIgnoreCase);
+            package.Read(searchPath);
 
-                AddPackageToSearch(package);
-            }
+            AddPackageToSearch(package);
         }
 
         public void AddPackageToSearch(Package package)
