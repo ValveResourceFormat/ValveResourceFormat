@@ -861,17 +861,14 @@ namespace GUI.Types.Renderer
             // Load the skybox map vpk and make it searchable in the file loader
             if (vpkFound.PathOnDisk != null)
             {
-                Log.Info(nameof(WorldLoader), $"Opening skybox \"{vpkFound.PathOnDisk}\"");
-
-                package = new Package();
-                package.OptimizeEntriesForBinarySearch(StringComparison.OrdinalIgnoreCase);
-                package.Read(vpkFound.PathOnDisk);
+                // TODO: Due to the way gui contexts works, we're preloading the vpk into parent context
+                package = guiContext.ParentGuiContext.FileLoader.AddPackageToSearch(vpkFound.PathOnDisk);
             }
             else if (vpkFound.PackageEntry != null)
             {
                 var innerVpkName = vpkFound.PackageEntry.GetFullPath();
 
-                Log.Info(nameof(WorldLoader), $"Opening skybox \"{innerVpkName}\" from \"{vpkFound.Package.FileName}\"");
+                Log.Info(nameof(WorldLoader), $"Preloading vpk \"{innerVpkName}\" from \"{vpkFound.Package.FileName}\"");
 
                 // TODO: Should FileLoader have a method that opens stream for us?
                 var stream = AdvancedGuiFileLoader.GetPackageEntryStream(vpkFound.Package, vpkFound.PackageEntry);
@@ -880,15 +877,13 @@ namespace GUI.Types.Renderer
                 package.SetFileName(innerVpkName);
                 package.OptimizeEntriesForBinarySearch(StringComparison.OrdinalIgnoreCase);
                 package.Read(stream);
+
+                guiContext.ParentGuiContext.FileLoader.AddPackageToSearch(package);
             }
             else
             {
                 return; // Not found logged by FindFile
             }
-
-            var skyboxContext = new VrfGuiContext(null, guiContext);
-            skyboxContext.CurrentPackage = package;
-            skyboxContext.FileLoader.CurrentPackage = package;
 
             var worldName = Path.Join(
                 Path.GetDirectoryName(targetmapname),
@@ -896,15 +891,15 @@ namespace GUI.Types.Renderer
                 "world.vwrld_c"
             );
 
-            var skyboxWorld = skyboxContext.LoadFile(worldName);
+            var skyboxWorld = guiContext.LoadFile(worldName);
 
             if (skyboxWorld == null)
             {
-                skyboxContext.Dispose();
+                guiContext.ParentGuiContext.FileLoader.RemovePackageFromSearch(package);
                 return;
             }
 
-            SkyboxScene = new Scene(skyboxContext);
+            SkyboxScene = new Scene(guiContext);
 
             SkyboxScene.FogInfo.GradientFogActive = scene.FogInfo.GradientFogActive;
             SkyboxScene.FogInfo.CubeFogActive = scene.FogInfo.CubeFogActive;
@@ -913,6 +908,8 @@ namespace GUI.Types.Renderer
 
             var skyboxReferenceOffset = EntityTransformHelper.ParseVector(entity.GetProperty<string>("origin"));
             SkyboxScene.WorldOffset += skyboxReferenceOffset;
+
+            guiContext.ParentGuiContext.FileLoader.RemovePackageFromSearch(package);
         }
 
         private void CreateDefaultEntity(EntityLump.Entity entity, string classname, Matrix4x4 transformationMatrix)
