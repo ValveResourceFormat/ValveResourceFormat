@@ -13,9 +13,14 @@ namespace GUI.Utils
         private readonly Dictionary<string, Resource> CachedResources = new();
         private readonly VrfGuiContext GuiContext;
 
-        public AdvancedGuiFileLoader(VrfGuiContext guiContext) : base(guiContext.CurrentPackage, guiContext.FileName)
+        public AdvancedGuiFileLoader(VrfGuiContext guiContext) : base(null, guiContext.FileName)
         {
             GuiContext = guiContext;
+
+            if (guiContext.ParentGuiContext != null)
+            {
+                return;
+            }
 
             var paths = Settings.Config.GameSearchPaths.ToList();
 

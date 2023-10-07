@@ -15,7 +15,17 @@ namespace GUI.Utils
     {
         public string FileName { get; }
 
-        public Package CurrentPackage { get; set; }
+        public Package CurrentPackage
+        {
+            get
+            {
+                return FileLoader.CurrentPackage;
+            }
+            set
+            {
+                FileLoader.CurrentPackage = value;
+            }
+        }
 
         public MaterialLoader MaterialLoader { get; }
 
@@ -43,7 +53,6 @@ namespace GUI.Utils
         {
             FileName = fileName;
             ParentGuiContext = parentGuiContext;
-            CurrentPackage = parentGuiContext?.CurrentPackage;
             MaterialLoader = new MaterialLoader(this);
             ShaderLoader = new ShaderLoader();
             FileLoader = new AdvancedGuiFileLoader(this);

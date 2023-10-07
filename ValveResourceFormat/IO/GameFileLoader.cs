@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.Enumeration;
 using System.IO.MemoryMappedFiles;
-using System.Linq;
 using SteamDatabase.ValvePak;
 using ValveKeyValue;
 using ValveResourceFormat.CompiledShader;
@@ -120,7 +119,7 @@ namespace ValveResourceFormat.IO
             }
 
             // As a last resort, check on disk
-            var path = FindResourcePath(CurrentGameSearchPaths, file, CurrentFileName);
+            var path = FindFileOnDisk(file);
 
             if (path != null)
             {
@@ -129,7 +128,7 @@ namespace ValveResourceFormat.IO
 
             if (logNotFound)
             {
-                Console.Error.WriteLine($"Failed to load \"{file}\". Did you configure VPK paths in settings correctly?");
+                Console.Error.WriteLine($"Failed to load \"{file}\"");
             }
 
 #if DEBUG
@@ -529,17 +528,11 @@ namespace ValveResourceFormat.IO
             return folders;
         }
 
-        private static string FindResourcePath(HashSet<string> paths, string file, string currentFullPath = null)
+        private string FindFileOnDisk(string file)
         {
-            if (currentFullPath != null)
+            foreach (var folder in CurrentGameSearchPaths)
             {
-                // TODO: Remove this sorting
-                paths = paths.OrderByDescending(x => currentFullPath.StartsWith(x, StringComparison.Ordinal)).ToHashSet();
-            }
-
-            foreach (var searchPath in paths)
-            {
-                var path = Path.Combine(searchPath, file);
+                var path = Path.Combine(folder, file);
                 path = Path.GetFullPath(path);
 
                 if (File.Exists(path))

@@ -585,7 +585,7 @@ namespace GUI
 
             if (file != null)
             {
-                vrfGuiContext.CurrentPackage.ReadEntry(file, out input, validateCrc: file.CRC32 > 0);
+                vrfGuiContext.ParentGuiContext.CurrentPackage.ReadEntry(file, out input, validateCrc: file.CRC32 > 0);
             }
 
             if (input != null)
