@@ -59,19 +59,7 @@ namespace GUI
             InitializeComponent();
 
             mainTabs.ImageList = ImageList;
-            mainTabs.SelectedIndexChanged += (tabControl, e) =>
-            {
-                if (string.IsNullOrEmpty(mainTabs.SelectedTab?.ToolTipText))
-                {
-                    Text = "Source 2 Viewer";
-                }
-                else
-                {
-                    Text = $"Source 2 Viewer - {mainTabs.SelectedTab.ToolTipText}";
-                }
-
-                ShowHideSearch();
-            };
+            mainTabs.SelectedIndexChanged += OnMainSelectedTabChanged;
 
             var consoleTab = new ConsoleTab();
             Log.SetConsoleTab(consoleTab);
@@ -167,26 +155,31 @@ namespace GUI
 
                 Log.Info(nameof(MainForm), $"Opening {innerFile}");
 
-                var vrfGuiContext = new VrfGuiContext(innerFile, null)
+                var vrfGuiContext = new VrfGuiContext(file, null)
                 {
                     CurrentPackage = package
                 };
-                OpenFile(vrfGuiContext, packageFile);
-
-                return;
+                var fileContext = new VrfGuiContext(innerFile, vrfGuiContext);
+                OpenFile(fileContext, packageFile);
             }
-
-            for (var i = 1; i < args.Length; i++)
+            else
             {
-                var file = args[i];
-                if (!File.Exists(file))
-                {
-                    Log.Error(nameof(MainForm), $"File '{file}' does not exist.");
-                    continue;
-                }
 
-                OpenFile(file);
+                for (var i = 1; i < args.Length; i++)
+                {
+                    var file = args[i];
+                    if (!File.Exists(file))
+                    {
+                        Log.Error(nameof(MainForm), $"File '{file}' does not exist.");
+                        continue;
+                    }
+
+                    OpenFile(file);
+                }
             }
+
+            // Force refresh title due to OpenFile calls above, SelectedIndexChanged is not called in the same tick
+            OnMainSelectedTabChanged(null, null);
         }
 
         protected override void OnLoad(EventArgs e)
@@ -287,6 +280,20 @@ namespace GUI
             vpkContextMenu.Show(control, position);
         }
 
+        private void OnMainSelectedTabChanged(object sender, EventArgs e)
+        {
+            if (string.IsNullOrEmpty(mainTabs.SelectedTab?.ToolTipText))
+            {
+                Text = "Source 2 Viewer";
+            }
+            else
+            {
+                Text = $"Source 2 Viewer - {mainTabs.SelectedTab.ToolTipText}";
+            }
+
+            ShowHideSearch();
+        }
+
         private void ShowHideSearch()
         {
             // enable/disable the search button as necessary
@@ -337,8 +344,6 @@ namespace GUI
 
             mainTabs.TabPages.Remove(tab);
 
-            ShowHideSearch();
-
             tab.Tag = null; // Clear out ExportData, required for GC to collect to VrfGuiContext
             tab.Dispose();
         }
@@ -351,8 +356,6 @@ namespace GUI
             {
                 CloseTab(mainTabs.TabPages[tabCount - i]);
             }
-
-            ShowHideSearch();
         }
 
         private void CloseTabsToLeft(TabPage basePage)
@@ -367,8 +370,6 @@ namespace GUI
             {
                 CloseTab(mainTabs.TabPages[i]);
             }
-
-            ShowHideSearch();
         }
 
         private void CloseTabsToRight(TabPage basePage)
@@ -389,8 +390,6 @@ namespace GUI
 
                 CloseTab(mainTabs.TabPages[tabCount - i]);
             }
-
-            ShowHideSearch();
         }
 
         private void OnTabClick(object sender, MouseEventArgs e)
