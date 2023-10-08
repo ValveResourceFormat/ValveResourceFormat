@@ -448,7 +448,8 @@ namespace Decompiler
 
                 if (OutputFile != null)
                 {
-                    using var contentFile = FileExtract.Extract(resource, null);
+                    using var fileLoader = new GameFileLoader(null, resource.FileName);
+                    using var contentFile = FileExtract.Extract(resource, fileLoader);
 
                     path = Path.ChangeExtension(path, extension);
                     var outFilePath = GetOutputPath(path);
