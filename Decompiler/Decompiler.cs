@@ -842,7 +842,7 @@ namespace Decompiler
                 }
             }
 
-            if (!package.Entries.ContainsKey(type))
+            if (!package.Entries.TryGetValue(type, out var entries))
             {
                 Console.WriteLine("There are no files of type \"{0}\".", type);
 
@@ -856,8 +856,6 @@ namespace Decompiler
                 AdaptTextures = GltfExportAdaptTextures,
                 ProgressReporter = new Progress<string>(progress => Console.WriteLine($"--- {progress}")),
             };
-
-            var entries = package.Entries[type];
 
             foreach (var file in entries)
             {

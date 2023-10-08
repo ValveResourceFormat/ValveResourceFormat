@@ -1121,9 +1121,9 @@ namespace ValveResourceFormat.IO
             }
 
             material.Alpha = isTranslucent > 0 ? AlphaMode.BLEND : (isAlphaTest > 0 ? AlphaMode.MASK : AlphaMode.OPAQUE);
-            if (isAlphaTest > 0 && renderMaterial.FloatParams.ContainsKey("g_flAlphaTestReference"))
+            if (isAlphaTest > 0 && renderMaterial.FloatParams.TryGetValue("g_flAlphaTestReference", out var alphaTestReference))
             {
-                material.AlphaCutoff = renderMaterial.FloatParams["g_flAlphaTestReference"];
+                material.AlphaCutoff = alphaTestReference;
             }
 
             if (renderMaterial.IntParams.TryGetValue("F_RENDER_BACKFACES", out var doubleSided)

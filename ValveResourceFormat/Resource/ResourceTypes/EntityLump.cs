@@ -264,14 +264,8 @@ namespace ValveResourceFormat.ResourceTypes
                     {
                         key = $"key={property.Key}";
 
-                        if (!unknownKeys.ContainsKey(property.Key))
-                        {
-                            unknownKeys.Add(property.Key, 1);
-                        }
-                        else
-                        {
-                            unknownKeys[property.Key]++;
-                        }
+                        unknownKeys.TryGetValue(property.Key, out var currentCount);
+                        unknownKeys[property.Key] = currentCount + 1;
                     }
 
                     builder.AppendLine(CultureInfo.InvariantCulture, $"{key,-30} {property.Value.Type.ToString(),-10} {value}");

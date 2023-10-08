@@ -99,14 +99,13 @@ namespace Tests
             {
                 var name = Path.GetFileName(Path.GetDirectoryName(file));
 
-                if (!resources.ContainsKey(name))
+                if (!resources.TryGetValue(name, out var resource))
                 {
                     Assert.Fail("{0}: no such resource", name);
 
                     continue;
                 }
 
-                var resource = resources[name];
                 var blockName = Path.GetFileNameWithoutExtension(file);
 
                 Enum.TryParse(blockName, false, out BlockType blockType);
