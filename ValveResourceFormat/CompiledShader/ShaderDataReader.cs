@@ -1,6 +1,7 @@
 using System;
 using System.Globalization;
 using System.IO;
+using System.Text;
 
 namespace ValveResourceFormat.CompiledShader
 {
@@ -87,14 +88,7 @@ namespace ValveResourceFormat.CompiledShader
 
         public string ReadNullTermString()
         {
-            var str = "";
-            var b0 = ReadByte();
-            while (b0 > 0)
-            {
-                str += (char)b0;
-                b0 = ReadByte();
-            }
-            return str;
+            return this.ReadNullTermString(Encoding.UTF8);
         }
 
         public string ReadNullTermStringAtPosition(long ind = 0, bool rel = true)

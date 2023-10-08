@@ -213,12 +213,11 @@ namespace ValveResourceFormat.CompiledShader
                 var s5 = $"{sfRuleBlock.Rule}{sfRuleBlock.Range2[0]}";
                 var s6 = $"{CombineIntArray(sfRuleBlock.Values)}";
                 var s7 = $"{CombineIntArray(sfRuleBlock.Range2)}";
-                var blockSummary = $"{s0}  {s5,-10}  {s4,-BL}{s6,-10}{s7,-8}";
+                output.Write($"{s0}  {s5,-10}  {s4,-BL}{s6,-10}{s7,-8}");
                 for (var i = 1; i < breakNames.Length; i++)
                 {
-                    blockSummary += $"\n{"",7}{"",10}{"",16}{breakNames[i],-BL}{sfRuleBlock.Description,-BL}";
+                    output.Write($"\n{"",7}{"",10}{"",16}{breakNames[i],-BL}{sfRuleBlock.Description,-BL}");
                 }
-                output.Write(blockSummary);
                 output.BreakLine();
             }
             output.BreakLine();
@@ -287,12 +286,11 @@ namespace ValveResourceFormat.CompiledShader
                 var s5 = $"{dRuleBlock.Rule}{dRuleBlock.Range2[0]}";
                 var s6 = $"{CombineIntArray(dRuleBlock.Values)}";
                 var s7 = $"{CombineIntArray(dRuleBlock.Range2)}";
-                var blockSummary = $"{s0}  {s5,-10}  {s4,-BL}{s6,-10}{s7,-8}";
+                output.Write($"{s0}  {s5,-10}  {s4,-BL}{s6,-10}{s7,-8}");
                 for (var i = 1; i < breakNames.Length; i++)
                 {
-                    blockSummary += $"\n{"",-7}{"",-10}{"",-15}{"",-16}{breakNames[i],-BL}";
+                    output.Write($"\n{"",-7}{"",-10}{"",-15}{"",-16}{breakNames[i],-BL}");
                 }
-                output.Write(blockSummary);
                 output.BreakLine();
             }
             output.BreakLine();

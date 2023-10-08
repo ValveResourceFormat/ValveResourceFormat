@@ -193,12 +193,13 @@ namespace ValveResourceFormat.CompiledShader
 
         public string AttributesStringDescription()
         {
-            var attributesString = "";
+            var attributesString = new StringBuilder();
             foreach (var attribute in Attributes)
             {
-                attributesString += $"{attribute}\n";
+                attributesString.Append(attribute);
+                attributesString.Append('\n');
             }
-            return attributesString;
+            return attributesString.ToString();
         }
 
         public void Dispose()
