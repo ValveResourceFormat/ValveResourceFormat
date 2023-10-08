@@ -41,11 +41,12 @@ This repository is split into three components:
 </table>
 
 ## What's supported?
-- Model viewer and decompiler
-- Map viewer and decompiler
-- Sound player
 - VPK viewer which supports opening and exporting files
-- Read only VPK API
+- Creating new vpk archives
+- Model viewer and decompiler to glTF and modeldoc
+- Map viewer and decompiler to glTF and vmap
+- Material decompiler to vmat
+- Sound player
 - Binary KeyValues3 parser
 - NTRO support
 
@@ -55,51 +56,57 @@ This tool is based entirely on a reverse engineered effort because Valve does no
 
 The code contained in this repository is based on countless hours of reverse engineering Source 2 games and not all intricate details have been figured out.
 
-If you are interested in helping, take a look at the open issues.
+If you are interested in helping, take a look at the open issues and join our Discord.
 
 Not all formats are 100% supported, some parameters are still unknown and not fully understood.
 
 ## Supported resource types
 Ext      | Name                    | Support
 -------- | ----------------------- | -------
-vanim    | Animation               | 👍
 vagrp    | Animation Group         | 👍
+vanim    | Animation               | 👍
 vanmgrph | Animation Graph         | No
-vseq     | Sequence Group          | No
-vpcf     | Particle System         | 👍
-vmat     | Material                | 👍
-vmks     | Sheet                   | No
-vmesh    | Mesh                    | 👍
-vtex     | Compiled Texture        | 👍
-vmdl     | Model                   | 👍
-vphys    | Physics Collision Mesh  | 👍
-vsnd     | Sound                   | 👍
-vmorf    | MorphSet                | No
-vrman    | ResourceManifest        | 👍
-vwrld    | World                   | 👍
-vwnod    | WorldNode               | 👍
-vvis     | WorldVisibility         | No
+vcompmat | Composite Material      | No
+vcss     | Panorama Style          | 👍
+vdata    | Data                    | 👍
 vents    | EntityLump              | 👍
-vsurf    | Surface Properties      | No
+vjs      | Panorama Script         | 👍
+vmap     | Map                     | 👍
+vmat     | Material                | 👍
+vmdl     | Model                   | 👍
+vmesh    | Mesh                    | 👍
+vmks     | Sheet                   | No
+vmorf    | MorphSet                | No
+vpcf     | Particle System         | 👍
+vpdi     | Panorama Dynamic Images | No
+vphys    | Physics Collision Mesh  | 👍
+vpost    | Postprocessing Settings | 👍
+vpsf     | Particle Snapshot       | No
+vpulse   | Pulse Graph Definition  | No
+vrman    | ResourceManifest        | 👍
+vrmap    | Resource Remap Table    | No
+vrr      | Response rules          | 👍
+vrr      | Response Rules          | No
+vseq     | Sequence Group          | No
+vsmart   | Smart Prop              | Partially
+vsnap    | Particle Snapshot       | 👍
+vsnd     | Sound                   | 👍
 vsndevts | Sound Event Script      | 👍
 vsndstck | Sound Stack Script      | 👍
-vpost    | Postprocessing Settings | 👍
-vrmap    | Resource Remap Table    | No
-vcss     | Panorama Style          | 👍
-vxml     | Panorama Layout         | 👍
-vpdi     | Panorama Dynamic Images | No
-vjs      | Panorama Script         | 👍
+vsurf    | Surface Properties      | No
 vsvg     | Panorama Vector Graphic | 👍
-vsnap    | Particle Snapshot       | 👍
-~~vpsf~~ | ~~Particle Snapshot~~   | No
-vmap     | Map                     | 👍
-vrr      | Response rules          | 👍
+vtex     | Compiled Texture        | 👍
+vts      | Panorama TypeScript     | 👍
+vvis     | WorldVisibility         | No
+vwnod    | WorldNode               | 👍
+vwrld    | World                   | 👍
+vxml     | Panorama Layout         | 👍
 &nbsp;   | &nbsp;                  | &nbsp;
 vpk      | Pak (package)           | 👍 Handled by [ValvePak](https://github.com/ValveResourceFormat/ValvePak)
-vcs      | Compiled Shader         | 👍 Partially supported by `CompiledShader`
+vcs      | Compiled Shader         | 👍 Handled by `CompiledShader`
 vfont    | Bitmap Font             | 👍 Decrypts `VFONT1`, supported in Source 1 and Source 2.
 dat      | Closed Captions         | 👍 Handled by `ClosedCaptions`
-bin      | Tools Asset Info        | 👍 Partially handled by `ToolsAssetInfo`
+bin      | Tools Asset Info        | 👍 Handled by `ToolsAssetInfo`
 vdpn     | Dota Patch Notes        | 👍
 vdacdefs | DAC Game Defs Data      | No
 vfe      | Face poser              | No
