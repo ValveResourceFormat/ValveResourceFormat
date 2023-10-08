@@ -19,7 +19,8 @@ namespace GUI.Utils
         {
             get
             {
-                return FileLoader.CurrentPackage;
+                // TODO: Due to slight mess with current/parent contexts, return parent package if available to keep old behaviour
+                return FileLoader.CurrentPackage ?? ParentGuiContext?.CurrentPackage;
             }
             set
             {
