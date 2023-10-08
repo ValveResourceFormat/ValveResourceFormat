@@ -5,6 +5,7 @@ using System.Text;
 
 namespace ValveResourceFormat.CompiledShader
 {
+    // TODO: All these methods should be removed in favor of direct BinaryReader.Read calls.
     public class ShaderDataReader : BinaryReader
     {
         public bool IsSbox { get; init; }
@@ -17,64 +18,64 @@ namespace ValveResourceFormat.CompiledShader
             OutputWriter = outputWriter ?? ((x) => { Console.Write(x); });
         }
 
-        public byte ReadByteAtPosition(long ind = 0, bool rel = true)
+        public byte ReadByteAtPosition(long ind = 0)
         {
             var savedPosition = BaseStream.Position;
-            BaseStream.Position = rel ? BaseStream.Position + ind : ind;
+            BaseStream.Position += ind;
             var b0 = ReadByte();
             BaseStream.Position = savedPosition;
             return b0;
         }
 
-        public uint ReadUInt16AtPosition(long ind = 0, bool rel = true)
+        public uint ReadUInt16AtPosition(long ind = 0)
         {
             var savedPosition = BaseStream.Position;
-            BaseStream.Position = rel ? BaseStream.Position + ind : ind;
+            BaseStream.Position += ind;
             uint uint0 = ReadUInt16();
             BaseStream.Position = savedPosition;
             return uint0;
         }
 
-        public int ReadInt16AtPosition(long ind = 0, bool rel = true)
+        public int ReadInt16AtPosition(long ind = 0)
         {
             var savedPosition = BaseStream.Position;
-            BaseStream.Position = rel ? BaseStream.Position + ind : ind;
+            BaseStream.Position += ind;
             var s0 = ReadInt16();
             BaseStream.Position = savedPosition;
             return s0;
         }
 
-        public uint ReadUInt32AtPosition(long ind = 0, bool rel = true)
+        public uint ReadUInt32AtPosition(long ind = 0)
         {
             var savedPosition = BaseStream.Position;
-            BaseStream.Position = rel ? BaseStream.Position + ind : ind;
+            BaseStream.Position += ind;
             var uint0 = ReadUInt32();
             BaseStream.Position = savedPosition;
             return uint0;
         }
 
-        public int ReadInt32AtPosition(long ind = 0, bool rel = true)
+        public int ReadInt32AtPosition(long ind = 0)
         {
             var savedPosition = BaseStream.Position;
-            BaseStream.Position = rel ? BaseStream.Position + ind : ind;
+            BaseStream.Position += ind;
             var int0 = ReadInt32();
             BaseStream.Position = savedPosition;
             return int0;
         }
 
-        public float ReadSingleAtPosition(long ind = 0, bool rel = true)
+        public float ReadSingleAtPosition(long ind)
         {
             var savedPosition = BaseStream.Position;
-            BaseStream.Position = rel ? BaseStream.Position + ind : ind;
+            BaseStream.Position += ind;
             var float0 = ReadSingle();
             BaseStream.Position = savedPosition;
             return float0;
         }
 
-        public byte[] ReadBytesAtPosition(long ind, int len, bool rel = true)
+        public byte[] ReadBytesAtPosition(long ind, int len)
         {
             var savedPosition = BaseStream.Position;
-            BaseStream.Position = rel ? BaseStream.Position + ind : ind;
+            BaseStream.Position += ind;
             var bytes0 = ReadBytes(len);
             BaseStream.Position = savedPosition;
             return bytes0;
@@ -86,16 +87,10 @@ namespace ValveResourceFormat.CompiledShader
             return ShaderUtilHelpers.BytesToString(bytes0);
         }
 
-        public string ReadNullTermString()
-        {
-            return this.ReadNullTermString(Encoding.UTF8);
-        }
-
-        public string ReadNullTermStringAtPosition(long ind = 0, bool rel = true)
+        public string ReadNullTermStringAtPosition()
         {
             var savedPosition = BaseStream.Position;
-            BaseStream.Position = rel ? BaseStream.Position + ind : ind;
-            var str = ReadNullTermString();
+            var str = this.ReadNullTermString(Encoding.UTF8);
             BaseStream.Position = savedPosition;
             return str;
         }
@@ -143,9 +138,9 @@ namespace ValveResourceFormat.CompiledShader
             }
         }
 
-        public void ShowBytesAtPosition(int ind, int len, int breakLen = 32, bool rel = true)
+        public void ShowBytesAtPosition(int ind, int len, int breakLen = 32)
         {
-            var bytes0 = ReadBytesAtPosition(ind, len, rel);
+            var bytes0 = ReadBytesAtPosition(ind, len);
             var bytestr = ShaderUtilHelpers.BytesToString(bytes0, breakLen);
             OutputWriteLine(bytestr);
         }

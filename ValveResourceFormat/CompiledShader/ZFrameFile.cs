@@ -232,7 +232,7 @@ namespace ValveResourceFormat.CompiledShader
 
             public Attribute(ShaderDataReader datareader)
             {
-                Name0 = datareader.ReadNullTermString();
+                Name0 = datareader.ReadNullTermString(Encoding.UTF8);
                 Murmur32 = datareader.ReadUInt32();
                 var murmurCheck = MurmurHash2.Hash(Name0.ToLowerInvariant(), StringToken.MURMUR2SEED);
                 if (Murmur32 != murmurCheck)
@@ -260,7 +260,7 @@ namespace ValveResourceFormat.CompiledShader
                     Vfx.Type.Float => datareader.ReadSingle(),
                     Vfx.Type.Int => datareader.ReadInt32(),
                     Vfx.Type.Bool => datareader.ReadByte() != 0,
-                    Vfx.Type.String => datareader.ReadNullTermString(),
+                    Vfx.Type.String => datareader.ReadNullTermString(Encoding.UTF8),
                     Vfx.Type.Float2 => new Vector2(datareader.ReadSingle(), datareader.ReadSingle()),
                     Vfx.Type.Float3 => new Vector3(datareader.ReadSingle(), datareader.ReadSingle(), datareader.ReadSingle()),
                     _ => throw new ShaderParserException($"Unexpected attribute type {VfxType} has a constant value."),

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text;
 using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.CompiledShader
@@ -50,7 +51,7 @@ namespace ValveResourceFormat.CompiledShader
 
             Version = datareader.ReadInt32();
             datareader.BaseStream.Position += 4; // length of name, but not needed because it's always null-term
-            FileDescription = datareader.ReadNullTermString();
+            FileDescription = datareader.ReadNullTermString(Encoding.UTF8);
             DevShader = datareader.ReadInt32();
             Arg1 = datareader.ReadInt32();
             Arg2 = datareader.ReadInt32();
@@ -315,7 +316,7 @@ namespace ValveResourceFormat.CompiledShader
 
             for (var i = 0; i < checkboxNameCount; i++)
             {
-                CheckboxNames.Add(datareader.ReadNullTermString());
+                CheckboxNames.Add(datareader.ReadNullTermString(Encoding.UTF8));
             }
 
             if (Arg3 == 11)
@@ -354,7 +355,7 @@ namespace ValveResourceFormat.CompiledShader
             List<string> names = new();
             for (var i = 0; i < arg5; i++)
             {
-                var paramname = DataReader.ReadNullTermStringAtPosition(string_offset, rel: false);
+                var paramname = DataReader.ReadNullTermString(Encoding.UTF8);
                 names.Add(paramname);
                 string_offset += paramname.Length + 1;
             }
@@ -902,9 +903,9 @@ namespace ValveResourceFormat.CompiledShader
             SymbolsCount = datareader.ReadInt32();
             for (var i = 0; i < SymbolsCount; i++)
             {
-                var name = datareader.ReadNullTermString();
-                var type = datareader.ReadNullTermString();
-                var option = datareader.ReadNullTermString();
+                var name = datareader.ReadNullTermString(Encoding.UTF8);
+                var type = datareader.ReadNullTermString(Encoding.UTF8);
+                var option = datareader.ReadNullTermString(Encoding.UTF8);
                 var semanticIndex = datareader.ReadInt32();
                 SymbolsDefinition.Add((name, type, option, semanticIndex));
             }
