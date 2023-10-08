@@ -4,7 +4,6 @@ using System.Numerics;
 using GUI.Types.Renderer;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
-using ValveResourceFormat.ResourceTypes;
 
 namespace GUI.Types.ParticleRenderer.Renderers
 {
@@ -35,7 +34,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
         private readonly QuadIndexBuffer quadIndices;
         private int vertexBufferHandle;
 
-        private static bool wireframe;
+        private bool isWireframe;
 
 
         public RenderSprites(ParticleDefinitionParser parse, VrfGuiContext vrfGuiContext) : base(parse)
@@ -79,7 +78,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
         public override void SetWireframe(bool isWireframe)
         {
-            wireframe = isWireframe;
+            this.isWireframe = isWireframe;
             // Solid color
             shader.SetUniform1("isWireframe", isWireframe ? 1 : 0);
         }
@@ -288,7 +287,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
             GL.BindBuffer(BufferTarget.ElementArrayBuffer, quadIndices.GLHandle);
 
-            if (wireframe)
+            if (isWireframe)
             {
                 GL.PolygonMode(MaterialFace.FrontAndBack, PolygonMode.Line);
             }
@@ -312,7 +311,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
             GL.Disable(EnableCap.Blend);
 
-            if (wireframe)
+            if (isWireframe)
             {
                 GL.PolygonMode(MaterialFace.FrontAndBack, PolygonMode.Fill);
             }

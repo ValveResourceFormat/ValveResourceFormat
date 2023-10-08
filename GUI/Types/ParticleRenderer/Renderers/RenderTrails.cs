@@ -5,7 +5,6 @@ using GUI.Types.Renderer;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat;
-using ValveResourceFormat.ResourceTypes;
 
 namespace GUI.Types.ParticleRenderer.Renderers
 {
@@ -32,7 +31,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
         private readonly float maxLength = 2000f;
         private readonly float lengthFadeInTime;
 
-        private static bool wireframe;
+        private bool isWireframe;
 
         public RenderTrails(ParticleDefinitionParser parse, VrfGuiContext vrfGuiContext) : base(parse)
         {
@@ -74,7 +73,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
         public override void SetWireframe(bool isWireframe)
         {
-            wireframe = isWireframe;
+            this.isWireframe = isWireframe;
             shader.SetUniform1("isWireframe", isWireframe ? 1 : 0);
         }
 
@@ -142,7 +141,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
             modelViewRotation = Quaternion.Inverse(modelViewRotation);
             var billboardMatrix = Matrix4x4.CreateFromQuaternion(modelViewRotation);
 
-            if (wireframe)
+            if (isWireframe)
             {
                 GL.PolygonMode(MaterialFace.FrontAndBack, PolygonMode.Line);
             }
