@@ -33,7 +33,7 @@ namespace GUI.Types.Renderer.UniformBuffers
 
         // A buffer where the structure is marshalled into, before being sent to the GPU
         readonly float[] cpuBuffer;
-        GCHandle cpuBufferHandle;
+        readonly GCHandle cpuBufferHandle;
 
         const BufferTarget Target = BufferTarget.UniformBuffer;
 

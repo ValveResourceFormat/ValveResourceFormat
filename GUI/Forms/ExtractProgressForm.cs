@@ -18,7 +18,7 @@ namespace GUI.Forms
 {
     partial class ExtractProgressForm : Form
     {
-        private bool decompile;
+        private readonly bool decompile;
         private readonly string path;
         private readonly ExportData exportData;
         private readonly Dictionary<string, Queue<PackageEntry>> filesToExtractSorted;

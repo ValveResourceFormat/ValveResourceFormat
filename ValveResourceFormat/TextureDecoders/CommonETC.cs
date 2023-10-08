@@ -28,7 +28,7 @@ namespace ValveResourceFormat.TextureDecoders
 
 
         protected readonly uint[] m_buf = new uint[16];
-        protected byte[,] m_c = new byte[3, 3];
+        protected readonly byte[,] m_c = new byte[3, 3];
 
         protected void DecodeEtc2Block(Span<byte> block)
         {

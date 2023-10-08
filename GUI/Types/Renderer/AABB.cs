@@ -4,8 +4,8 @@ namespace GUI.Types.Renderer
 {
     internal struct AABB
     {
-        public Vector3 Min;
-        public Vector3 Max;
+        public readonly Vector3 Min;
+        public readonly Vector3 Max;
 
         public Vector3 Size => Max - Min;
         public Vector3 Center => (Min + Max) * 0.5f;

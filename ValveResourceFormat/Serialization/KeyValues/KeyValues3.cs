@@ -45,16 +45,16 @@ namespace ValveResourceFormat.Serialization.KeyValues
         {
             public StreamReader FileStream;
 
-            public KVObject Root = null;
+            public readonly KVObject Root = null;
 
             public string CurrentName;
-            public StringBuilder CurrentString;
+            public readonly StringBuilder CurrentString;
 
             public char PreviousChar;
-            public Queue<char> CharBuffer;
+            public readonly Queue<char> CharBuffer;
 
-            public Stack<KVObject> ObjStack;
-            public Stack<State> StateStack;
+            public readonly Stack<KVObject> ObjStack;
+            public readonly Stack<State> StateStack;
 
             public Parser()
             {

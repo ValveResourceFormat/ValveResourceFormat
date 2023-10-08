@@ -56,9 +56,9 @@ namespace ValveResourceFormat.IO
 
         private string DstDir;
         private CancellationToken CancellationToken;
-        private List<Task> MaterialGenerationTasks = new();
-        private Dictionary<string, Task<SharpGLTF.Schema2.Texture>> ExportedTextures = new();
-        private object TextureWriteSynchronizationLock = new(); // TODO: Use SemaphoreSlim?
+        private readonly List<Task> MaterialGenerationTasks = new();
+        private readonly Dictionary<string, Task<SharpGLTF.Schema2.Texture>> ExportedTextures = new();
+        private readonly object TextureWriteSynchronizationLock = new(); // TODO: Use SemaphoreSlim?
         private TextureSampler TextureSampler;
         private int TexturesExportedSoFar;
         private bool IsExporting;

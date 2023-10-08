@@ -35,10 +35,10 @@ namespace GUI.Types.Renderer
         private readonly static Dictionary<string, byte> EmptyArgs = new(0);
 
         private int sourceFileNumber;
-        private List<string> sourceFiles = new();
+        private readonly List<string> sourceFiles = new();
 
 #if DEBUG
-        private List<List<string>> sourceFileLines = new();
+        private readonly List<List<string>> sourceFileLines = new();
 #endif
 
         public Shader LoadShader(string shaderName, IReadOnlyDictionary<string, byte> arguments = null)
@@ -432,7 +432,7 @@ namespace GUI.Types.Renderer
         }
 
 #if DEBUG // Reload shaders at runtime
-        private static string ShadersFolderPathOnDisk = GetShadersFolder();
+        private static readonly string ShadersFolderPathOnDisk = GetShadersFolder();
 
         public FileSystemWatcher ShaderWatcher { get; } = new()
         {

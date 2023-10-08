@@ -10,7 +10,7 @@ namespace GUI.Types.Renderer
     class MaterialRenderer : SceneNode
     {
         private RenderMaterial material;
-        private Resource resource;
+        private readonly Resource resource;
         private readonly int quadVao;
 
         public MaterialRenderer(Scene scene, Resource resource) : base(scene)

@@ -29,9 +29,9 @@ namespace GUI.Types.ParticleRenderer.Operators
 
     class SpinYaw : ParticleFunctionOperator
     {
-        private float spinRate;
-        private float spinRateMin; // don't actually know if this is used or not. I don't think it is?
-        private float spinStopTime;
+        private readonly float spinRate;
+        private readonly float spinRateMin; // don't actually know if this is used or not. I don't think it is?
+        private readonly float spinStopTime;
         public SpinYaw(ParticleDefinitionParser parse) : base(parse)
         {
             spinRate = parse.Float("m_nSpinRateDegrees", spinRate);

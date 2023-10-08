@@ -113,8 +113,8 @@ namespace GUI.Types.ParticleRenderer.Utils
     /// </summary>
     class PiecewiseCurve
     {
-        private Vector2 CurveDomainMin;
-        private Vector2 CurveDomainMax;
+        private readonly Vector2 CurveDomainMin;
+        private readonly Vector2 CurveDomainMax;
         private readonly SplineCurve[] CurveSegments;
         private readonly bool IsLooped;
         public PiecewiseCurve(IKeyValueCollection curveInfo, bool isLooped)

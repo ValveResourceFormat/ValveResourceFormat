@@ -16,37 +16,37 @@ namespace GUI.Types.ParticleRenderer
 {
     internal class ParticleRenderer : IRenderer
     {
-        private List<ParticleFunctionPreEmissionOperator> PreEmissionOperators = new();
-        private List<ParticleFunctionEmitter> Emitters = new();
+        private readonly List<ParticleFunctionPreEmissionOperator> PreEmissionOperators = new();
+        private readonly List<ParticleFunctionEmitter> Emitters = new();
 
-        private List<ParticleFunctionInitializer> Initializers = new();
+        private readonly List<ParticleFunctionInitializer> Initializers = new();
 
-        private List<ParticleFunctionOperator> Operators = new();
+        private readonly List<ParticleFunctionOperator> Operators = new();
 
-        private List<ParticleFunctionRenderer> Renderers = new();
+        private readonly List<ParticleFunctionRenderer> Renderers = new();
 
         public AABB LocalBoundingBox { get; private set; } = new AABB(new Vector3(float.MinValue), new Vector3(float.MaxValue));
 
-        public int BehaviorVersion { get; private set; }
+        public int BehaviorVersion { get; }
 
-        private int InitialParticles;
-        private int MaxParticles;
+        private readonly int InitialParticles;
+        private readonly int MaxParticles;
 
         /// <summary>
         /// The particle bounds to use when calculating the bounding box of the particle system.
         /// This is added over the particle's radius value.
         /// </summary>
-        private AABB ParticleBoundingBox;
+        private readonly AABB ParticleBoundingBox;
 
         /// <summary>
         /// Set to true to never cull this particle system.
         /// </summary>
-        private bool InfiniteBounds;
+        private readonly bool InfiniteBounds;
 
         /// <summary>
         /// Cache a reference to <see cref="EmitParticle"/> as to not allocate one for every emitted particle.
         /// </summary>
-        private Action emitParticleAction;
+        private readonly Action emitParticleAction;
 
         public ControlPoint MainControlPoint
         {
@@ -344,8 +344,6 @@ namespace GUI.Types.ParticleRenderer
 
         private void SetupEmitters(IEnumerable<IKeyValueCollection> emitterData)
         {
-            var emitters = new List<ParticleFunctionEmitter>();
-
             foreach (var emitterInfo in emitterData)
             {
                 if (IsOperatorDisabled(emitterInfo))
@@ -356,21 +354,17 @@ namespace GUI.Types.ParticleRenderer
                 var emitterClass = emitterInfo.GetProperty<string>("_class");
                 if (ParticleControllerFactory.TryCreateEmitter(emitterClass, emitterInfo, out var emitter))
                 {
-                    emitters.Add(emitter);
+                    Emitters.Add(emitter);
                 }
                 else
                 {
                     Log.Warn(nameof(ParticleRenderer), $"Unsupported emitter class '{emitterClass}'.");
                 }
             }
-
-            Emitters = emitters;
         }
 
         private void SetupInitializers(IEnumerable<IKeyValueCollection> initializerData)
         {
-            var initializers = new List<ParticleFunctionInitializer>();
-
             foreach (var initializerInfo in initializerData)
             {
                 if (IsOperatorDisabled(initializerInfo))
@@ -381,21 +375,17 @@ namespace GUI.Types.ParticleRenderer
                 var initializerClass = initializerInfo.GetProperty<string>("_class");
                 if (ParticleControllerFactory.TryCreateInitializer(initializerClass, initializerInfo, out var initializer))
                 {
-                    initializers.Add(initializer);
+                    Initializers.Add(initializer);
                 }
                 else
                 {
                     Log.Warn(nameof(ParticleRenderer), $"Unsupported initializer class '{initializerClass}'.");
                 }
             }
-
-            Initializers = initializers;
         }
 
         private void SetupOperators(IEnumerable<IKeyValueCollection> operatorData)
         {
-            var operators = new List<ParticleFunctionOperator>();
-
             foreach (var operatorInfo in operatorData)
             {
                 if (IsOperatorDisabled(operatorInfo))
@@ -406,21 +396,17 @@ namespace GUI.Types.ParticleRenderer
                 var operatorClass = operatorInfo.GetProperty<string>("_class");
                 if (ParticleControllerFactory.TryCreateOperator(operatorClass, operatorInfo, out var @operator))
                 {
-                    operators.Add(@operator);
+                    Operators.Add(@operator);
                 }
                 else
                 {
                     Log.Warn(nameof(ParticleRenderer), $"Unsupported operator class '{operatorClass}'.");
                 }
             }
-
-            Operators = operators;
         }
 
         private void SetupRenderers(IEnumerable<IKeyValueCollection> rendererData)
         {
-            var renderers = new List<ParticleFunctionRenderer>();
-
             foreach (var rendererInfo in rendererData)
             {
                 if (IsOperatorDisabled(rendererInfo))
@@ -431,20 +417,16 @@ namespace GUI.Types.ParticleRenderer
                 var rendererClass = rendererInfo.GetProperty<string>("_class");
                 if (ParticleControllerFactory.TryCreateRender(rendererClass, rendererInfo, vrfGuiContext, out var renderer))
                 {
-                    renderers.Add(renderer);
+                    Renderers.Add(renderer);
                 }
                 else
                 {
                     Log.Warn(nameof(ParticleRenderer), $"Unsupported renderer class '{rendererClass}'.");
                 }
             }
-
-            Renderers = renderers;
         }
         private void SetupPreEmissionOperators(IEnumerable<IKeyValueCollection> preEmissionOperatorData)
         {
-            var preEmissionOperators = new List<ParticleFunctionPreEmissionOperator>();
-
             foreach (var preEmissionOperatorInfo in preEmissionOperatorData)
             {
                 if (IsOperatorDisabled(preEmissionOperatorInfo))
@@ -455,15 +437,13 @@ namespace GUI.Types.ParticleRenderer
                 var preEmissionOperatorClass = preEmissionOperatorInfo.GetProperty<string>("_class");
                 if (ParticleControllerFactory.TryCreatePreEmissionOperator(preEmissionOperatorClass, preEmissionOperatorInfo, out var preEmissionOperator))
                 {
-                    preEmissionOperators.Add(preEmissionOperator);
+                    PreEmissionOperators.Add(preEmissionOperator);
                 }
                 else
                 {
                     Log.Warn(nameof(ParticleRenderer), $"Unsupported pre-emission operator class '{preEmissionOperatorClass}'.");
                 }
             }
-
-            PreEmissionOperators = preEmissionOperators;
         }
 
         private void SetupChildParticles(IEnumerable<string> childNames)

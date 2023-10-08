@@ -12,7 +12,7 @@ namespace GUI.Types.Renderer
     /// </summary>
     class GLParticleViewer : GLSceneViewer
     {
-        private ParticleSystem particleSystem;
+        private readonly ParticleSystem particleSystem;
         private ParticleSceneNode particleSceneNode;
         private GLViewerTrackBarControl slowmodeTrackBar;
 

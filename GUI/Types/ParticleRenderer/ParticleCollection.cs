@@ -13,8 +13,8 @@ namespace GUI.Types.ParticleRenderer
         public Span<Particle> Current => new(current, 0, Count);
 
         public Particle Constants { get; }
-        private Particle[] initial;
-        private Particle[] current;
+        private readonly Particle[] initial;
+        private readonly Particle[] current;
 
         public int Capacity { get; }
         public int Count { get; private set; }

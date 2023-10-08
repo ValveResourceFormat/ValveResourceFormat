@@ -18,7 +18,7 @@ namespace GUI.Types.Renderer
         readonly int vboHandle;
         readonly int iboHandle;
         readonly int vaoHandle;
-        bool hasUntriangulatedVertices;
+        readonly bool hasUntriangulatedVertices;
 
         public PhysSceneNode(Scene scene, List<float> verts, List<int> inds, bool hasUntriangulatedVertices)
             : base(scene)

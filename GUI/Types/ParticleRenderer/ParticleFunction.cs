@@ -6,11 +6,11 @@ namespace GUI.Types.ParticleRenderer
     {
         //INumberProvider OpStrength; // operator strength
         //ParticleEndCapMode OpEndCapState; // operator end cap state
-        public float OpStartFadeInTime; // operator start fadein
-        public float OpEndFadeInTime; // operator end fadein
-        public float OpStartFadeOutTime; // operator start fadeout
-        public float OpEndFadeOutTime; // operator end fadeout
-        public float OpFadeOscillatePeriod; // operator fade oscillate
+        public readonly float OpStartFadeInTime; // operator start fadein
+        public readonly float OpEndFadeInTime; // operator end fadein
+        public readonly float OpStartFadeOutTime; // operator start fadeout
+        public readonly float OpEndFadeOutTime; // operator end fadeout
+        public readonly float OpFadeOscillatePeriod; // operator fade oscillate
         //bool NormalizeToStopTime; // normalize fade times to endcap
         //float OpTimeOffsetMin; // operator fade time offset min
         //float OpTimeOffsetMax; // operator fade time offset max
