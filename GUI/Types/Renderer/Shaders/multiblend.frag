@@ -78,28 +78,25 @@ float ApplyBlendModulation(float blendFactor, float blendMask, float blendSoftne
     return smoothstep(minb, maxb, blendFactor);
 }
 
-
-
 #if (F_NORMAL_MAP == 1)
+    vec3 DecodeNormal(vec4 bumpNormal)
+    {
+        vec2 temp = vec2(bumpNormal.w, bumpNormal.y) * 2.0 - 1.0;
+        temp.y = -temp.y;
+        return vec3(temp, sqrt(saturate(1 - dot(temp,temp))));
+    }
 
-vec3 DecodeNormal(vec4 bumpNormal)
-{
-    vec2 temp = vec2(bumpNormal.w, bumpNormal.y) * 2.0 - 1.0;
-    temp.y = -temp.y;
-    return vec3(temp, sqrt(saturate(1 - dot(temp,temp))));
-}
+    //Calculate the normal of this fragment in world space
+    vec3 calculateWorldNormal(vec3 normalMap, vec3 normal, vec3 tangent, vec3 bitangent)
+    {
+        //vec3 tangent = vec3(vNormalOut.z, vNormalOut.y, -vNormalOut.x);
+        //vec3 bitangent = cross(vNormalOut, tangent);
+        //Make the tangent space matrix
+        mat3 tangentSpace = mat3(tangent, bitangent, normal);
 
-//Calculate the normal of this fragment in world space
-vec3 calculateWorldNormal(vec3 normalMap, vec3 normal, vec3 tangent, vec3 bitangent)
-{
-    //vec3 tangent = vec3(vNormalOut.z, vNormalOut.y, -vNormalOut.x);
-    //vec3 bitangent = cross(vNormalOut, tangent);
-    //Make the tangent space matrix
-    mat3 tangentSpace = mat3(tangent, bitangent, normal);
-
-    //Calculate the tangent normal in world space and return it
-    return normalize(tangentSpace * normalMap);
-}
+        //Calculate the tangent normal in world space and return it
+        return normalize(tangentSpace * normalMap);
+    }
 #endif
 
 //Main entry point
@@ -147,11 +144,11 @@ void main()
     //Calculate each of the 4 colours to blend
 #if F_TINT_MASK
     // Include tint mask
-    vec3 tint0 = interpolateTint(0, SrgbGammaToLinear(g_vColorTint0.rgb), SrgbGammaToLinear(g_vColorTintB0.rgb), vTexCoordOut);
-    vec3 tint1 = interpolateTint(1, SrgbGammaToLinear(g_vColorTint1.rgb), SrgbGammaToLinear(g_vColorTintB1.rgb), vTexCoord1Out);
+    vec3 tint0 = SrgbGammaToLinear(interpolateTint(0, g_vColorTintB0.rgb, g_vColorTint0.rgb, vTexCoordOut));
+    vec3 tint1 = SrgbGammaToLinear(interpolateTint(1, g_vColorTintB1.rgb, g_vColorTint1.rgb, vTexCoord1Out));
     #if F_TWO_LAYER_BLEND == 0
-        vec3 tint2 = interpolateTint(2, SrgbGammaToLinear(g_vColorTint2.rgb), SrgbGammaToLinear(g_vColorTintB2.rgb), vTexCoord2Out);
-        vec3 tint3 = interpolateTint(3, SrgbGammaToLinear(g_vColorTint3.rgb), SrgbGammaToLinear(g_vColorTintB3.rgb), vTexCoord3Out);
+        vec3 tint2 = SrgbGammaToLinear(interpolateTint(2, g_vColorTintB2.rgb, g_vColorTint2.rgb, vTexCoord2Out));
+        vec3 tint3 = SrgbGammaToLinear(interpolateTint(3, g_vColorTintB3.rgb, g_vColorTint3.rgb, vTexCoord3Out));
     #endif
 #else
     vec3 tint0 = SrgbGammaToLinear(g_vColorTint0.rgb);
@@ -159,6 +156,7 @@ void main()
     vec3 tint2 = SrgbGammaToLinear(g_vColorTint2.rgb);
     vec3 tint3 = SrgbGammaToLinear(g_vColorTint3.rgb);
 #endif
+
     vec3 c0 = blendWeight0 * color0.rgb * tint0;
     vec3 c1 = blendWeight1 * color1.rgb * tint1;
     #if F_TWO_LAYER_BLEND == 0
@@ -174,7 +172,9 @@ void main()
     vec3 finalColor = c0 + c1;
 #endif
 
+
     finalColor *= vVertexColor.rgb * SrgbGammaToLinear(g_vGlobalTint.rgb);
+    finalColor = SrgbLinearToGamma(finalColor);
 
 #if (F_NORMAL_MAP == 1)
     //Get normal

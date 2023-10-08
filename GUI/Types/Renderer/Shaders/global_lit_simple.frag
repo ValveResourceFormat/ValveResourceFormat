@@ -156,6 +156,8 @@ void main()
     vec3 tintFactor = vTintColorFadeOut.rgb;
 #endif
 
+    tintFactor = SrgbLinearToGamma(tintFactor * g_vColorTint.rgb);
+
     //Simply multiply the color from the color texture with the illumination
     outputColor = vec4(illumination * color.rgb * g_vColorTint.rgb * tintFactor, color.a);
 

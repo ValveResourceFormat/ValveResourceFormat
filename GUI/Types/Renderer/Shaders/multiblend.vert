@@ -100,11 +100,11 @@ void main()
     //vTEXCOORD2 - Painted tint color
     //vTEXCOORD3 - X - amount of tex1, Y - amount of tex2, Z - amount of tex3, W - reserved for worldspace uvs
 
-    vBlendWeights.xyz = vTEXCOORD3.xyz / 255.0;
+    vBlendWeights.xyz = vTEXCOORD1.xyz / 255.0;
     vBlendWeights.w = 0.0;
-    vBlendAlphas.xyz = vec3(0.25);//max(vTEXCOORD1.xyz * 0.5, 1e-6);
+    vBlendAlphas.xyz = vTEXCOORD2.xyz / 255.0;//max(vTEXCOORD1.xyz * 0.5, 1e-6);
     vBlendAlphas.w = 0.0;
 
-    vVertexColor.rgb = SrgbGammaToLinear(vTint.rgb) * SrgbGammaToLinear(vTEXCOORD2.rgb/255);
+    vVertexColor.rgb = SrgbGammaToLinear(vTint.rgb) * SrgbGammaToLinear(vTEXCOORD3.rgb/255);
     vVertexColor.a = vTint.a;
 }
