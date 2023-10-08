@@ -98,84 +98,81 @@ namespace GUI
             Settings.Load();
 
             var args = Environment.GetCommandLineArgs();
-
-            // Handle vpk: protocol
-            if (args.Length > 1 && args[1].StartsWith("vpk:", StringComparison.InvariantCulture))
+            for (var i = 1; i < args.Length; i++)
             {
-                var file = string.Join(" ", args[1..])[4..]; // Strip executable path, and then strip vpk: prefix
-                file = System.Net.WebUtility.UrlDecode(file);
+                var file = args[i];
 
-                var innerFilePosition = file.LastIndexOf(".vpk:", StringComparison.InvariantCulture);
-
-                if (innerFilePosition == -1)
+                // Handle vpk: protocol
+                if (file.StartsWith("vpk:", StringComparison.InvariantCulture))
                 {
-                    Log.Error(nameof(MainForm), $"For vpk: protocol to work, specify a file path inside of the package, for example: \"vpk:C:/path/pak01_dir.vpk:inner/file.vmdl_c\"");
+                    file = System.Net.WebUtility.UrlDecode(file[4..]);
 
-                    OpenFile(file);
+                    var innerFilePosition = file.LastIndexOf(".vpk:", StringComparison.InvariantCulture);
 
-                    return;
-                }
-
-                var innerFile = file[(innerFilePosition + 5)..];
-                file = file[..(innerFilePosition + 4)];
-
-                if (!File.Exists(file))
-                {
-                    var dirFile = file[..innerFilePosition] + "_dir.vpk";
-
-                    if (!File.Exists(dirFile))
+                    if (innerFilePosition == -1)
                     {
-                        Log.Error(nameof(MainForm), $"File '{file}' does not exist.");
+                        Log.Error(nameof(MainForm), $"For vpk: protocol to work, specify a file path inside of the package, for example: \"vpk:C:/path/pak01_dir.vpk:inner/file.vmdl_c\"");
+
+                        OpenFile(file);
+
                         return;
                     }
 
-                    file = dirFile;
-                }
+                    var innerFile = file[(innerFilePosition + 5)..];
+                    file = file[..(innerFilePosition + 4)];
 
-                Log.Info(nameof(MainForm), $"Opening {file}");
+                    if (!File.Exists(file))
+                    {
+                        var dirFile = file[..innerFilePosition] + "_dir.vpk";
 
-                var package = new Package();
-                package.OptimizeEntriesForBinarySearch(StringComparison.OrdinalIgnoreCase);
-                package.Read(file);
+                        if (!File.Exists(dirFile))
+                        {
+                            Log.Error(nameof(MainForm), $"File '{file}' does not exist.");
+                            return;
+                        }
 
-                var packageFile = package.FindEntry(innerFile);
+                        file = dirFile;
+                    }
 
-                if (packageFile == null)
-                {
-                    packageFile = package.FindEntry(innerFile + "_c");
+                    Log.Info(nameof(MainForm), $"Opening {file}");
+
+                    var package = new Package();
+                    package.OptimizeEntriesForBinarySearch(StringComparison.OrdinalIgnoreCase);
+                    package.Read(file);
+
+                    var packageFile = package.FindEntry(innerFile);
 
                     if (packageFile == null)
                     {
-                        Log.Error(nameof(MainForm), $"File '{packageFile}' does not exist in package '{file}'.");
-                        return;
+                        packageFile = package.FindEntry(innerFile + "_c");
+
+                        if (packageFile == null)
+                        {
+                            Log.Error(nameof(MainForm), $"File '{packageFile}' does not exist in package '{file}'.");
+                            return;
+                        }
                     }
-                }
 
-                innerFile = packageFile.GetFullPath();
+                    innerFile = packageFile.GetFullPath();
 
-                Log.Info(nameof(MainForm), $"Opening {innerFile}");
+                    Log.Info(nameof(MainForm), $"Opening {innerFile}");
 
-                var vrfGuiContext = new VrfGuiContext(file, null)
-                {
-                    CurrentPackage = package
-                };
-                var fileContext = new VrfGuiContext(innerFile, vrfGuiContext);
-                OpenFile(fileContext, packageFile);
-            }
-            else
-            {
-
-                for (var i = 1; i < args.Length; i++)
-                {
-                    var file = args[i];
-                    if (!File.Exists(file))
+                    var vrfGuiContext = new VrfGuiContext(file, null)
                     {
-                        Log.Error(nameof(MainForm), $"File '{file}' does not exist.");
-                        continue;
-                    }
-
-                    OpenFile(file);
+                        CurrentPackage = package
+                    };
+                    var fileContext = new VrfGuiContext(innerFile, vrfGuiContext);
+                    OpenFile(fileContext, packageFile);
+                    continue;
                 }
+
+                if (!File.Exists(file))
+                {
+                    Log.Error(nameof(MainForm), $"File '{file}' does not exist.");
+                    continue;
+                }
+
+                OpenFile(file);
             }
 
             // Force refresh title due to OpenFile calls above, SelectedIndexChanged is not called in the same tick
