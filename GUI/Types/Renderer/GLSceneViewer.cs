@@ -95,6 +95,10 @@ namespace GUI.Types.Renderer
                     SkyboxScene.ShowToolsMaterials = v;
                 }
             });
+            AddCheckBox("Show Wireframe", false, (v) =>
+            {
+                GL.PolygonMode(MaterialFace.FrontAndBack, v ? PolygonMode.Line : PolygonMode.Fill);
+            });
 
             GLLoad += OnLoad;
         }
