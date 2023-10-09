@@ -33,14 +33,6 @@ namespace ValveResourceFormat.IO
 {
     public class GltfModelExporter
     {
-        private static readonly ISet<ResourceType> ResourceTypesThatAreGltfExportable = new HashSet<ResourceType>()
-        {
-            ResourceType.Mesh,
-            ResourceType.Model,
-            ResourceType.WorldNode,
-            ResourceType.World
-        };
-
         // NOTE: Swaps Y and Z axes - gltf up axis is Y (source engine up is Z)
         // Also divides by 100, gltf units are in meters, source engine units are in inches
         // https://github.com/KhronosGroup/glTF/tree/master/specification/2.0#coordinate-system-and-units
@@ -74,8 +66,12 @@ namespace ValveResourceFormat.IO
             shaderDataProvider = new ShaderDataProvider(fileLoader);
         }
 
-        public static bool CanExport(Resource resource)
-            => ResourceTypesThatAreGltfExportable.Contains(resource.ResourceType);
+        public static bool CanExport(Resource resource) => resource.ResourceType
+            is ResourceType.Mesh
+            or ResourceType.Model
+            or ResourceType.WorldNode
+            or ResourceType.World
+            or ResourceType.Map;
 
 #if DEBUG_VALIDATE_GLTF
 #pragma warning disable CS0168 // Variable is declared but never used
@@ -132,6 +128,14 @@ namespace ValveResourceFormat.IO
                     case ResourceType.World:
                         ExportToFile(resource.FileName, targetPath, (VWorld)resource.DataBlock);
                         break;
+                    case ResourceType.Map:
+                        {
+                            var firstWorldFile = resource.ExternalReferences.ResourceRefInfoList.First(static r => Path.GetExtension(r.Name) == ".vwrld");
+                            var worldFile = string.Concat(firstWorldFile.Name, "_c");
+                            var mapResource = FileLoader.LoadFile(worldFile) ?? throw new FileNotFoundException($"Failed to load \"{worldFile}\"");
+                            ExportToFile(resource.FileName, targetPath, (VWorld)mapResource.DataBlock);
+                            break;
+                        }
                     default:
                         throw new ArgumentException($"{resource.ResourceType} not supported for gltf export");
                 }

@@ -49,8 +49,8 @@ namespace GUI.Types.Exporter
 
                 if (GltfModelExporter.CanExport(resource))
                 {
-                    var gltfFilter = "glTF|*.gltf";
-                    var glbFilter = "glTF Binary|*.glb";
+                    const string gltfFilter = "glTF|*.gltf";
+                    const string glbFilter = "glTF Binary|*.glb";
 
                     filter = $"{gltfFilter}|{glbFilter}|{filter}";
                 }
