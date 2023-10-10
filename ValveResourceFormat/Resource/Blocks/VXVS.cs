@@ -17,7 +17,7 @@ namespace ValveResourceFormat.Blocks
 
         public override void WriteText(IndentedTextWriter writer)
         {
-            throw new NotImplementedException();
+            writer.WriteLine("Parsing world visiblity is not implemented. If you're up to the task, try to reverse engineer it!");
         }
     }
 }
