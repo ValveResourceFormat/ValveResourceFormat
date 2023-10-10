@@ -2,7 +2,6 @@ using System;
 using System.IO;
 using NUnit.Framework;
 using ValveResourceFormat;
-using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.IO;
 
 namespace Tests
@@ -10,12 +9,6 @@ namespace Tests
     [TestFixture]
     public class MapExtractTest
     {
-        public class NullFileLoader : IFileLoader
-        {
-            public Resource LoadFile(string file) => null;
-            public ShaderCollection LoadShader(string shaderName) => null;
-        }
-
         [Test]
         public void TestMapExtractVmapInit()
         {
