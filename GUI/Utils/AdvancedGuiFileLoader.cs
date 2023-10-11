@@ -100,38 +100,30 @@ namespace GUI.Utils
         // Same as FindFile, but also returns the context and package that the file was found in
         private (string PathOnDisk, VrfGuiContext Context, Package Package, PackageEntry PackageEntry) FindFileWithContextRecursive(string file)
         {
-            var entry = GuiContext.CurrentPackage?.FindEntry(file);
-
-            if (entry != null)
-            {
-                return (null, GuiContext, GuiContext.CurrentPackage, entry);
-            }
-
-            if (GuiContext.ParentGuiContext != null)
-            {
-                return GuiContext.ParentGuiContext.FileLoader.FindFileWithContextRecursive(file);
-            }
-
             var (pathOnDisk, package, packageEntry) = base.FindFile(file);
-            return (pathOnDisk, null, package, packageEntry);
+
+            if (pathOnDisk != null || packageEntry != null || GuiContext.ParentGuiContext == null)
+            {
+                return (pathOnDisk, null, package, packageEntry);
+            }
+
+            return GuiContext.ParentGuiContext.FileLoader.FindFileWithContextRecursive(file);
         }
 
         // Override to add support for parent file loaders
         public override (string PathOnDisk, Package Package, PackageEntry PackageEntry) FindFile(string file, bool logNotFound = true)
         {
-            var entry = GuiContext.CurrentPackage?.FindEntry(file);
+            var hasParent = GuiContext.ParentGuiContext != null;
+            var shouldLogNotFound = logNotFound && !hasParent;
 
-            if (entry != null)
+            var entry = base.FindFile(file, shouldLogNotFound);
+
+            if (!hasParent || entry.PathOnDisk != null || entry.PackageEntry != null)
             {
-                return (null, GuiContext.CurrentPackage, entry);
+                return entry;
             }
 
-            if (GuiContext.ParentGuiContext != null)
-            {
-                return GuiContext.ParentGuiContext.FileLoader.FindFile(file, logNotFound);
-            }
-
-            return base.FindFile(file, logNotFound);
+            return GuiContext.ParentGuiContext.FileLoader.FindFile(file, logNotFound);
         }
 
         // Override to add support for parent file loaders

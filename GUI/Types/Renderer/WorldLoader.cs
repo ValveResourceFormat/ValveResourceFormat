@@ -862,7 +862,7 @@ namespace GUI.Types.Renderer
             if (vpkFound.PathOnDisk != null)
             {
                 // TODO: Due to the way gui contexts works, we're preloading the vpk into parent context
-                package = guiContext.ParentGuiContext.FileLoader.AddPackageToSearch(vpkFound.PathOnDisk);
+                package = guiContext.FileLoader.AddPackageToSearch(vpkFound.PathOnDisk);
             }
             else if (vpkFound.PackageEntry != null)
             {
@@ -878,7 +878,7 @@ namespace GUI.Types.Renderer
                 package.OptimizeEntriesForBinarySearch(StringComparison.OrdinalIgnoreCase);
                 package.Read(stream);
 
-                guiContext.ParentGuiContext.FileLoader.AddPackageToSearch(package);
+                guiContext.FileLoader.AddPackageToSearch(package);
             }
             else
             {
@@ -895,7 +895,7 @@ namespace GUI.Types.Renderer
 
             if (skyboxWorld == null)
             {
-                guiContext.ParentGuiContext.FileLoader.RemovePackageFromSearch(package);
+                guiContext.FileLoader.RemovePackageFromSearch(package);
                 return;
             }
 
@@ -909,7 +909,7 @@ namespace GUI.Types.Renderer
             var skyboxReferenceOffset = EntityTransformHelper.ParseVector(entity.GetProperty<string>("origin"));
             SkyboxScene.WorldOffset += skyboxReferenceOffset;
 
-            guiContext.ParentGuiContext.FileLoader.RemovePackageFromSearch(package);
+            guiContext.FileLoader.RemovePackageFromSearch(package);
         }
 
         private void CreateDefaultEntity(EntityLump.Entity entity, string classname, Matrix4x4 transformationMatrix)
