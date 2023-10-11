@@ -310,7 +310,7 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
         mat.SSSMask = combinedMasks.a;
     #endif
 
-    #if (F_TRANSLUCENT > 0) || (alphatest == 1)
+    #if (F_TRANSLUCENT == 1) || (alphatest == 1)
         mat.Opacity = combinedMasks.a;
     #endif
 #endif
@@ -323,7 +323,7 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 #endif
 */
 
-#if (F_TRANSLUCENT > 0)
+#if (F_TRANSLUCENT == 1)
     mat.Opacity *= g_flOpacityScale;
 #endif
 
