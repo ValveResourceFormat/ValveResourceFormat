@@ -46,6 +46,36 @@ namespace GUI.Controls
             var folderImage = MainForm.ImageListLookup["_folder"];
             var recentImage = MainForm.ImageListLookup["_recent"];
 
+            int GetSortPriorityForImage(int image)
+            {
+                if (image == vpkImage)
+                {
+                    return 10;
+                }
+                else if (image == vcsImage)
+                {
+                    return 9;
+                }
+                else if (image == mapImage)
+                {
+                    return 8;
+                }
+
+                return 0;
+            }
+
+            int SortFileNodes(TreeNode a, TreeNode b)
+            {
+                var image = GetSortPriorityForImage(b.ImageIndex).CompareTo(GetSortPriorityForImage(a.ImageIndex));
+
+                if (image != 0)
+                {
+                    return image;
+                }
+
+                return string.Compare(a.Text, b.Text, StringComparison.OrdinalIgnoreCase);
+            }
+
             // Bookmarks
             {
                 var bookmarkImage = MainForm.ImageListLookup["_bookmark"];
@@ -267,7 +297,7 @@ namespace GUI.Controls
                     }
 
                     // Sort the files and create the nodes
-                    foundFiles.Sort(static (a, b) => string.Compare(a.Text, b.Text, StringComparison.OrdinalIgnoreCase));
+                    foundFiles.Sort(SortFileNodes);
                     var foundFilesArray = foundFiles.ToArray();
 
                     var imageKey = $"@app{appID}";
