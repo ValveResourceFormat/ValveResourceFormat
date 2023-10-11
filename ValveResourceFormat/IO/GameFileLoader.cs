@@ -345,17 +345,19 @@ namespace ValveResourceFormat.IO
                     return;
                 }
 
-                folders = new HashSet<string>();
-
                 var rootFolder = Path.GetDirectoryName(modIdentifierPath);
                 var assumedGameRoot = Path.GetDirectoryName(rootFolder);
 
                 if (Path.GetFileName(modIdentifierPath) == "gameinfo.gi")
                 {
+                    folders = new HashSet<string>();
+
                     HandleGameInfo(folders, assumedGameRoot, modIdentifierPath);
                 }
                 else
                 {
+                    folders = FindGameFoldersForWorkshopFile();
+
                     var addonsSuffix = "_addons";
                     if (assumedGameRoot.EndsWith(addonsSuffix, StringComparison.InvariantCultureIgnoreCase))
                     {
