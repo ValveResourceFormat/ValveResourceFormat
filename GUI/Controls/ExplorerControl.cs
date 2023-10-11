@@ -229,6 +229,11 @@ namespace GUI.Controls
                         var vpkName = vpk[(gamePath.Length + 1)..].Replace(Path.DirectorySeparatorChar, '/');
                         var fileName = Path.GetFileName(vpkName);
 
+                        if (fileName.EndsWith("_bakeresourcecache.vpk", StringComparison.Ordinal))
+                        {
+                            continue;
+                        }
+
                         if (fileName.StartsWith("shaders_", StringComparison.Ordinal))
                         {
                             image = vcsImage;
