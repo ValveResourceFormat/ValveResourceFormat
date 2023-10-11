@@ -25,6 +25,7 @@ namespace ValveResourceFormat.IO
         private readonly HashSet<string> CurrentGameSearchPaths = new();
         private readonly List<Package> CurrentGamePackages = new();
         private readonly string CurrentFileName;
+        private string PreferredAddonFolderOnDisk;
         private bool ShaderPackagesScanned;
 
         public Package CurrentPackage { get; set; }
@@ -101,6 +102,22 @@ namespace ValveResourceFormat.IO
 #endif
 
                 return (null, CurrentPackage, entry);
+            }
+
+            // For addons, always check addon folder first before checking all the other game search paths
+            if (PreferredAddonFolderOnDisk != null)
+            {
+                var addonPath = Path.Combine(PreferredAddonFolderOnDisk, file);
+                addonPath = Path.GetFullPath(addonPath);
+
+                if (File.Exists(addonPath))
+                {
+#if DEBUG_FILE_LOAD
+                    Console.WriteLine($"Loaded addon file \"{file}\" from disk: \"{addonPath}\"");
+#endif
+
+                    return (addonPath, null, null);
+                }
             }
 
             // Check additional packages
@@ -358,7 +375,7 @@ namespace ValveResourceFormat.IO
                 {
                     folders = FindGameFoldersForWorkshopFile();
 
-                    var addonsSuffix = "_addons";
+                    const string addonsSuffix = "_addons";
                     if (assumedGameRoot.EndsWith(addonsSuffix, StringComparison.InvariantCultureIgnoreCase))
                     {
                         var mainGameDir = assumedGameRoot[..^addonsSuffix.Length];
@@ -368,7 +385,7 @@ namespace ValveResourceFormat.IO
                         }
                     }
 
-                    folders.Add(rootFolder);
+                    PreferredAddonFolderOnDisk = rootFolder;
                 }
             }
 
