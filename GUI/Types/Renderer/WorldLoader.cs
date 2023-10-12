@@ -24,7 +24,7 @@ namespace GUI.Types.Renderer
 
         public HashSet<string> DefaultEnabledLayers { get; } = new HashSet<string>() { "Entities" };
 
-        public IDictionary<string, Matrix4x4> CameraMatrices { get; } = new Dictionary<string, Matrix4x4>();
+        public Dictionary<string, Matrix4x4> CameraMatrices { get; } = new();
 
         public Scene SkyboxScene { get; set; }
 

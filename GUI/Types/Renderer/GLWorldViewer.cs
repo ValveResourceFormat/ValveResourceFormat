@@ -145,8 +145,6 @@ namespace GUI.Types.Renderer
 
         protected override void LoadScene()
         {
-            // TODO: This method iterates over Scene.AllNodes multiple types with linq, do one big loop instead
-
             if (world != null)
             {
                 var result = new WorldLoader(world, Scene);
@@ -171,25 +169,40 @@ namespace GUI.Types.Renderer
                     AddCheckBox("Show Skybox", ShowSkybox, (v) => ShowSkybox = v);
                 }
 
-                var worldLayers = Scene.AllNodes
-                    .Select(r => r.LayerName)
-                    .Distinct();
-                SetAvailableLayers(worldLayers);
+                var uniqueWorldLayers = new HashSet<string>(2); // world_layer_base + Entities
+                var uniquePhysicsGroups = new HashSet<string>();
 
-                if (worldLayers.Any())
+                foreach (var node in Scene.AllNodes)
                 {
+                    uniqueWorldLayers.Add(node.LayerName);
+
+                    if (node is PhysSceneNode physSceneNode)
+                    {
+                        uniquePhysicsGroups.Add(physSceneNode.PhysGroupName);
+                    }
+                }
+
+                if (uniqueWorldLayers.Count > 0)
+                {
+                    SetAvailableLayers(uniqueWorldLayers);
+
                     foreach (var worldLayer in result.DefaultEnabledLayers)
                     {
                         var checkboxIndex = worldLayersComboBox.FindStringExact(worldLayer);
 
                         if (checkboxIndex > -1)
                         {
-                            worldLayersComboBox.SetItemCheckState(worldLayersComboBox.FindStringExact(worldLayer), CheckState.Checked);
+                            worldLayersComboBox.SetItemCheckState(checkboxIndex, CheckState.Checked);
                         }
                     }
                 }
 
-                if (result.CameraMatrices.Any())
+                if (uniquePhysicsGroups.Count > 0)
+                {
+                    SetAvailablPhysicsGroups(uniquePhysicsGroups);
+                }
+
+                if (result.CameraMatrices.Count > 0)
                 {
                     if (cameraComboBox == default)
                     {
@@ -227,15 +240,6 @@ namespace GUI.Types.Renderer
                 {
                     worldLayersComboBox.SetItemChecked(i, true);
                 }
-            }
-
-            // Physics groups
-            {
-                var physGroups = Scene.AllNodes
-                    .OfType<PhysSceneNode>()
-                    .Select(r => r.PhysGroupName)
-                    .Distinct();
-                SetAvailablPhysicsGroups(physGroups);
             }
 
             Invoke(savedCameraPositionsControl.RefreshSavedPositions);
