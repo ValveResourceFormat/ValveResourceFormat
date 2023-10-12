@@ -42,7 +42,7 @@ namespace GUI.Utils
         private CodeTextBox control;
         private MyLogger loggerOut;
         private MyLogger loggerError;
-        private readonly Queue<LogLine> LogQueue = new();
+        private readonly Queue<LogLine> LogQueue = new(16);
 
         public void Dispose()
         {
@@ -171,6 +171,12 @@ namespace GUI.Utils
 
             var control = (CodeTextBox)sender;
             control.GoEnd();
+        }
+
+        internal void ClearBuffer()
+        {
+            LogQueue.Clear();
+            control.Clear();
         }
     }
 }

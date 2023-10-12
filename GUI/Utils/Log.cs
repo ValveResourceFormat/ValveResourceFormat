@@ -22,4 +22,5 @@ internal static class Log
     public static void Info(string component, string message) => console.WriteLine(Category.INFO, component, message);
     public static void Warn(string component, string message) => console.WriteLine(Category.WARN, component, message);
     public static void Error(string component, string message) => console.WriteLine(Category.ERROR, component, message);
+    public static void ClearConsole() => console.ClearBuffer();
 }

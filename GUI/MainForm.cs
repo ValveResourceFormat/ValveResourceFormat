@@ -408,6 +408,8 @@ namespace GUI
                 exportAsIsToolStripMenuItem.Visible = canExport;
                 decompileExportToolStripMenuItem.Visible = canExport;
 
+                clearConsoleToolStripMenuItem.Visible = tabIndex == 0;
+
                 //Show context menu at the mouse position
                 tabContextMenuStrip.Tag = e.Location;
                 tabContextMenuStrip.Show((Control)sender, e.Location);
@@ -1066,6 +1068,11 @@ namespace GUI
             }
 
             return ImageListLookup["_default"];
+        }
+
+        private void ClearConsoleToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            Log.ClearConsole();
         }
 
         private void CheckForUpdatesToolStripMenuItem_Click(object sender, EventArgs e)
