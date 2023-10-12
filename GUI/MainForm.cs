@@ -347,6 +347,8 @@ namespace GUI
 
         private void CloseAllTabs()
         {
+            mainTabs.SelectedIndex = 0;
+
             //Close all tabs currently open (excluding console)
             var tabCount = mainTabs.TabPages.Count;
             for (var i = 1; i < tabCount; i++)
@@ -357,13 +359,8 @@ namespace GUI
 
         private void CloseTabsToLeft(TabPage basePage)
         {
-            if (mainTabs.SelectedTab == null)
-            {
-                return;
-            }
-
             //Close all tabs to the left of the base (excluding console)
-            for (var i = GetTabIndex(basePage); i > 0; i--)
+            for (var i = GetTabIndex(basePage) - 1; i > 0; i--)
             {
                 CloseTab(mainTabs.TabPages[i]);
             }
@@ -371,11 +368,6 @@ namespace GUI
 
         private void CloseTabsToRight(TabPage basePage)
         {
-            if (mainTabs.SelectedTab == null)
-            {
-                return;
-            }
-
             //Close all tabs to the right of the base one
             var tabCount = mainTabs.TabPages.Count;
             for (var i = 1; i < tabCount; i++)
