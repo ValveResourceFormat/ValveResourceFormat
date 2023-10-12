@@ -93,7 +93,6 @@ namespace GUI.Utils
             if (control.Visible)
             {
                 DrainQueue();
-                control.GoEnd();
             }
         }
 
@@ -131,6 +130,7 @@ namespace GUI.Utils
                 }
             }
 
+            control.GoEnd();
             control.EndUpdate();
         }
 
@@ -168,9 +168,6 @@ namespace GUI.Utils
         private void VisibleChanged(object sender, EventArgs e)
         {
             DrainQueue();
-
-            var control = (CodeTextBox)sender;
-            control.GoEnd();
         }
 
         internal void ClearBuffer()
