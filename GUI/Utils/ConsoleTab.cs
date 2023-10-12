@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Globalization;
 using System.IO;
@@ -25,6 +26,14 @@ namespace GUI.Utils
             public override void WriteLine(string value) => action(value);
         }
 
+        private struct LogLine
+        {
+            public DateTime Time;
+            public string Component;
+            public string Message;
+            public TextStyle Style;
+        }
+
         private static readonly TextStyle TextStyleTime = new(Brushes.DarkGray, null, FontStyle.Regular);
         private static readonly TextStyle TextStyleError = new(Brushes.Orange, Brushes.DarkRed, FontStyle.Regular);
         private static readonly TextStyle TextStyleWarn = new(Brushes.Orange, null, FontStyle.Regular);
@@ -33,6 +42,7 @@ namespace GUI.Utils
         private CodeTextBox control;
         private MyLogger loggerOut;
         private MyLogger loggerError;
+        private readonly Queue<LogLine> LogQueue = new();
 
         public void Dispose()
         {
@@ -62,9 +72,6 @@ namespace GUI.Utils
                 return;
             }
 
-            control.BeginUpdate();
-
-            var lastLine = control.Lines.Count;
             var style = category switch
             {
                 Log.Category.DEBUG => TextStyleDebug,
@@ -73,24 +80,55 @@ namespace GUI.Utils
                 _ => null,
             };
 
-            control.AppendText($"[{DateTime.Now:HH:mm:ss.fff}] [{component}] ", TextStyleTime);
-            control.AppendText(string.Concat(message, Environment.NewLine), style);
-
-            // Add fold for multi line strings
-            // TODO: For multiline strings, indent them with the time/component size
-            var index = -1;
-            var newLines = 0;
-
-            while (-1 != (index = message.IndexOf('\n', index + 1)))
+            // If we happen to spam console text somewhere, appending every line to console bogs down performance (yay winforms)
+            // so accumulate it into a buffer and append it all at once when visibility changes
+            LogQueue.Enqueue(new LogLine
             {
-                newLines++;
+                Time = DateTime.Now,
+                Component = component,
+                Message = message,
+                Style = style
+            });
+
+            if (control.Visible)
+            {
+                DrainQueue();
+                control.GoEnd();
+            }
+        }
+
+        private void DrainQueue()
+        {
+            if (LogQueue.Count == 0)
+            {
+                return;
             }
 
-            if (newLines > 0)
+            control.BeginUpdate();
+
+            while (LogQueue.TryDequeue(out var line))
             {
-                var marker = lastLine.ToString(CultureInfo.InvariantCulture);
-                control[lastLine - 1].FoldingStartMarker = marker;
-                control[lastLine - 1 + newLines].FoldingEndMarker = marker;
+                var lastLine = control.Lines.Count;
+
+                control.AppendText($"[{line.Time:HH:mm:ss.fff}] [{line.Component}] ", TextStyleTime);
+                control.AppendText(string.Concat(line.Message, Environment.NewLine), line.Style);
+
+                // Add fold for multi line strings
+                // TODO: For multiline strings, indent them with the time/component size
+                var index = -1;
+                var newLines = 0;
+
+                while (-1 != (index = line.Message.IndexOf('\n', index + 1)))
+                {
+                    newLines++;
+                }
+
+                if (newLines > 0)
+                {
+                    var marker = lastLine.ToString(CultureInfo.InvariantCulture);
+                    control[lastLine - 1].FoldingStartMarker = marker;
+                    control[lastLine - 1 + newLines].FoldingEndMarker = marker;
+                }
             }
 
             control.EndUpdate();
@@ -129,6 +167,8 @@ namespace GUI.Utils
 
         private void VisibleChanged(object sender, EventArgs e)
         {
+            DrainQueue();
+
             var control = (CodeTextBox)sender;
             control.GoEnd();
         }
