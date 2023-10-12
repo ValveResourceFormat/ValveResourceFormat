@@ -61,6 +61,7 @@ namespace GUI
             closeToolStripMenuItems = new ToolStripMenuItem();
             exportAsIsToolStripMenuItem = new ToolStripMenuItem();
             decompileExportToolStripMenuItem = new ToolStripMenuItem();
+            clearConsoleToolStripMenuItem = new ToolStripMenuItem();
             vpkContextMenu = new ContextMenuStrip(components);
             extractToolStripMenuItem = new ToolStripMenuItem();
             decompileToolStripMenuItem = new ToolStripMenuItem();
@@ -69,7 +70,6 @@ namespace GUI
             openWithDefaultAppToolStripMenuItem = new ToolStripMenuItem();
             viewAssetInfoToolStripMenuItem = new ToolStripMenuItem();
             verifyPackageContentsToolStripMenuItem = new ToolStripMenuItem();
-            clearConsoleToolStripMenuItem = new ToolStripMenuItem();
             menuStrip.SuspendLayout();
             tabContextMenuStrip.SuspendLayout();
             vpkContextMenu.SuspendLayout();
@@ -223,7 +223,7 @@ namespace GUI
             // tabContextMenuStrip
             // 
             tabContextMenuStrip.ImageScalingSize = new System.Drawing.Size(24, 24);
-            tabContextMenuStrip.Items.AddRange(new ToolStripItem[] { closeToolStripMenuItem, closeToolStripMenuItemsToRight, closeToolStripMenuItemsToLeft, closeToolStripMenuItems, exportAsIsToolStripMenuItem, decompileExportToolStripMenuItem, clearConsoleToolStripMenuItem });
+            tabContextMenuStrip.Items.AddRange(new ToolStripItem[] { closeToolStripMenuItem, closeToolStripMenuItems, closeToolStripMenuItemsToRight, closeToolStripMenuItemsToLeft, exportAsIsToolStripMenuItem, decompileExportToolStripMenuItem, clearConsoleToolStripMenuItem });
             tabContextMenuStrip.LayoutStyle = ToolStripLayoutStyle.Table;
             tabContextMenuStrip.Name = "contextMenuStrip1";
             tabContextMenuStrip.Size = new System.Drawing.Size(234, 236);
@@ -234,7 +234,7 @@ namespace GUI
             closeToolStripMenuItem.Name = "closeToolStripMenuItem";
             closeToolStripMenuItem.ShortcutKeys = Keys.Control | Keys.W;
             closeToolStripMenuItem.Size = new System.Drawing.Size(233, 30);
-            closeToolStripMenuItem.Text = "Close this &tab";
+            closeToolStripMenuItem.Text = "Close &tab";
             closeToolStripMenuItem.Click += CloseToolStripMenuItem_Click;
             // 
             // closeToolStripMenuItemsToRight
@@ -265,6 +265,7 @@ namespace GUI
             // 
             // exportAsIsToolStripMenuItem
             // 
+            exportAsIsToolStripMenuItem.Image = (System.Drawing.Image)resources.GetObject("exportAsIsToolStripMenuItem.Image");
             exportAsIsToolStripMenuItem.Name = "exportAsIsToolStripMenuItem";
             exportAsIsToolStripMenuItem.Size = new System.Drawing.Size(233, 30);
             exportAsIsToolStripMenuItem.Text = "Export as is";
@@ -272,10 +273,19 @@ namespace GUI
             // 
             // decompileExportToolStripMenuItem
             // 
+            decompileExportToolStripMenuItem.Image = (System.Drawing.Image)resources.GetObject("decompileExportToolStripMenuItem.Image");
             decompileExportToolStripMenuItem.Name = "decompileExportToolStripMenuItem";
             decompileExportToolStripMenuItem.Size = new System.Drawing.Size(233, 30);
             decompileExportToolStripMenuItem.Text = "Decompile && export";
             decompileExportToolStripMenuItem.Click += DecompileToolStripMenuItem_Click;
+            // 
+            // clearConsoleToolStripMenuItem
+            // 
+            clearConsoleToolStripMenuItem.Image = (System.Drawing.Image)resources.GetObject("clearConsoleToolStripMenuItem.Image");
+            clearConsoleToolStripMenuItem.Name = "clearConsoleToolStripMenuItem";
+            clearConsoleToolStripMenuItem.Size = new System.Drawing.Size(233, 30);
+            clearConsoleToolStripMenuItem.Text = "Clear console";
+            clearConsoleToolStripMenuItem.Click += ClearConsoleToolStripMenuItem_Click;
             // 
             // vpkContextMenu
             // 
@@ -335,13 +345,6 @@ namespace GUI
             verifyPackageContentsToolStripMenuItem.Size = new System.Drawing.Size(199, 22);
             verifyPackageContentsToolStripMenuItem.Text = "Verify package contents";
             verifyPackageContentsToolStripMenuItem.Click += VerifyPackageContentsToolStripMenuItem_Click;
-            // 
-            // clearConsoleToolStripMenuItem
-            // 
-            clearConsoleToolStripMenuItem.Name = "clearConsoleToolStripMenuItem";
-            clearConsoleToolStripMenuItem.Size = new System.Drawing.Size(233, 30);
-            clearConsoleToolStripMenuItem.Text = "Clear console";
-            clearConsoleToolStripMenuItem.Click += ClearConsoleToolStripMenuItem_Click;
             // 
             // MainForm
             // 
