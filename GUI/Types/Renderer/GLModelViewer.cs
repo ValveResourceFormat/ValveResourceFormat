@@ -140,10 +140,14 @@ namespace GUI.Types.Renderer
             });
         }
 
+        public override void PreSceneLoad()
+        {
+            base.PreSceneLoad();
+            LoadDefaultEnviromentMap();
+        }
+
         protected override void LoadScene()
         {
-            LoadDefaultEnviromentMap();
-
             if (model != null)
             {
                 modelSceneNode = new ModelSceneNode(Scene, model);
@@ -344,14 +348,12 @@ namespace GUI.Types.Renderer
                     }
                 }
             }
-
-            Scene.CalculateEnvironmentMaps();
         }
 
         private void LoadDefaultEnviromentMap()
         {
             var assembly = Assembly.GetExecutingAssembly();
-            using var stream = assembly.GetManifestResourceStream($"GUI.Utils.inspect_agents_custom_cubemap.vtex_c");
+            using var stream = assembly.GetManifestResourceStream("GUI.Utils.inspect_agents_custom_cubemap.vtex_c");
 
             using var resource = new Resource()
             {

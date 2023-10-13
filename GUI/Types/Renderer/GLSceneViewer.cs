@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Numerics;
+using System.Reflection;
 using System.Threading;
 using System.Windows.Forms;
 using GUI.Controls;
@@ -11,6 +12,7 @@ using GUI.Types.ParticleRenderer;
 using GUI.Types.Renderer.UniformBuffers;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
+using ValveResourceFormat;
 
 namespace GUI.Types.Renderer
 {
@@ -126,26 +128,30 @@ namespace GUI.Types.Renderer
             bufferSet = new List<IBlockBindableBuffer>(2) { viewBuffer, lightingBuffer };
         }
 
-        protected abstract void LoadScene();
-
-        protected abstract void OnPicked(object sender, PickingTexture.PickingResponse pixelInfo);
-
-        protected virtual void OnLoad(object sender, EventArgs e)
+        public virtual void PreSceneLoad()
         {
-            baseGrid = new InfiniteGrid(Scene);
-            selectedNodeRenderer = new(Scene);
+            const string vtexFileName = "ggx_integrate_brdf_lut_schlick.vtex_c";
 
-            Camera.SetViewportSize(GLControl.Width, GLControl.Height);
+            // prefer loading from game, fallback to embedded
+            var brdfLutResource = GuiContext.LoadFile("textures/dev/" + vtexFileName);
+            Stream stream = null;
+            if (brdfLutResource == null)
+            {
+                var assembly = Assembly.GetExecutingAssembly();
+                stream = assembly.GetManifestResourceStream("GUI.Utils." + vtexFileName);
 
-            Camera.Picker = new PickingTexture(Scene.GuiContext, OnPicked);
+                brdfLutResource = new Resource() { FileName = vtexFileName };
+                brdfLutResource.Read(stream);
+            }
 
-            CreateBuffers();
+            // TODO: add annoying force clamp for lut
+            Scene.LightingInfo.Lightmaps["g_tBRDFLookup"] = GuiContext.MaterialLoader.LoadTexture(brdfLutResource);
+            brdfLutResource?.Dispose();
+        }
 
-            var timer = new Stopwatch();
-            timer.Start();
-            LoadScene();
-            timer.Stop();
-            Log.Debug(GetType().Name, $"Loading scene time: {timer.Elapsed}, shader variants: {GuiContext.ShaderLoader.ShaderCount}, materials: {GuiContext.MaterialLoader.MaterialCount}");
+        public virtual void PostSceneLoad()
+        {
+            Scene.CalculateEnvironmentMaps();
 
             if (Scene.AllNodes.Any() && this is not GLWorldViewer)
             {
@@ -180,6 +186,30 @@ namespace GUI.Types.Renderer
             dynamicOctreeRenderer = new OctreeDebugRenderer<SceneNode>(Scene.DynamicOctree, Scene.GuiContext, true);
 
             SetAvailableRenderModes();
+        }
+
+        protected abstract void LoadScene();
+
+        protected abstract void OnPicked(object sender, PickingTexture.PickingResponse pixelInfo);
+
+        protected virtual void OnLoad(object sender, EventArgs e)
+        {
+            baseGrid = new InfiniteGrid(Scene);
+            selectedNodeRenderer = new(Scene);
+
+            Camera.SetViewportSize(GLControl.Width, GLControl.Height);
+
+            Camera.Picker = new PickingTexture(Scene.GuiContext, OnPicked);
+
+            CreateBuffers();
+
+            var timer = Stopwatch.StartNew();
+            PreSceneLoad();
+            LoadScene();
+            timer.Stop();
+            Log.Debug(GetType().Name, $"Loading scene time: {timer.Elapsed}, shader variants: {GuiContext.ShaderLoader.ShaderCount}, materials: {GuiContext.MaterialLoader.MaterialCount}");
+
+            PostSceneLoad();
 
             GLLoad -= OnLoad;
             GLPaint += OnPaint;
