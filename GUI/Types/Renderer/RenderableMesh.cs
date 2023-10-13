@@ -103,6 +103,21 @@ namespace GUI.Types.Renderer
             }
         }
 
+        public void SetMaterialForMaterialViewer(Resource resourceMaterial)
+        {
+            foreach (var drawCall in DrawCalls)
+            {
+                var material = drawCall.Material;
+                var materialData = material.Material;
+
+                // Recycle non-material-derived shader arguments
+                var staticParams = materialData.GetShaderArguments();
+                var dynamicParams = new Dictionary<string, byte>(material.Shader.Parameters.Except(staticParams));
+
+                drawCall.Material = guiContext.MaterialLoader.LoadMaterial(resourceMaterial, dynamicParams);
+            }
+        }
+
         private void ConfigureDrawCalls(Scene scene, VBIB vbib, IKeyValueCollection[] sceneObjects, Dictionary<string, string> materialReplacementTable)
         {
             guiContext.MeshBufferCache.GetVertexIndexBuffers(VBIBHashCode, vbib);

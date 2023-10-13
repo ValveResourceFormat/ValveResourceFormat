@@ -1,5 +1,5 @@
 using System;
-using System.Numerics;
+using System.Reflection;
 using System.Windows.Forms;
 using GUI.Types.Viewers;
 using GUI.Utils;
@@ -12,13 +12,12 @@ namespace GUI.Types.Renderer
     /// GL Render control with material controls (render modes maybe at some point?).
     /// Renders a list of MatarialRenderers.
     /// </summary>
-    class GLMaterialViewer : GLSceneViewer
+    class GLMaterialViewer : GLModelViewer
     {
         private readonly ValveResourceFormat.Resource Resource;
         private readonly TabControl Tabs;
-        private MaterialRenderer Renderer;
 
-        public GLMaterialViewer(VrfGuiContext guiContext, ValveResourceFormat.Resource resource, TabControl tabs) : base(guiContext, Frustum.CreateEmpty())
+        public GLMaterialViewer(VrfGuiContext guiContext, ValveResourceFormat.Resource resource, TabControl tabs) : base(guiContext)
         {
             Resource = resource;
             Tabs = tabs;
@@ -26,13 +25,25 @@ namespace GUI.Types.Renderer
 
         protected override void LoadScene()
         {
-            Renderer = new MaterialRenderer(Scene, Resource);
-            Scene.Add(Renderer, false);
-        }
+            base.LoadScene();
 
-        protected override void OnPaint(object sender, RenderEventArgs e)
-        {
-            Renderer.Render(new Scene.RenderContext());
+            var assembly = Assembly.GetExecutingAssembly();
+            using var stream = assembly.GetManifestResourceStream($"GUI.Utils.env_cubemap.vmdl_c");
+
+            using var cubemapResource = new ValveResourceFormat.Resource()
+            {
+                FileName = "env_cubemap.vmdl_c"
+            };
+            cubemapResource.Read(stream);
+
+            var node = new ModelSceneNode(Scene, (Model)cubemapResource.DataBlock);
+
+            foreach (var renderable in node.RenderableMeshes)
+            {
+                renderable.SetMaterialForMaterialViewer(Resource);
+            }
+
+            Scene.Add(node, false);
         }
 
         private void OnShadersButtonClick(object s, EventArgs e)
@@ -78,7 +89,8 @@ namespace GUI.Types.Renderer
 
         protected override void InitializeControl()
         {
-            //AddRenderModeSelectionControl();
+            base.InitializeControl();
+
             AddShaderButton();
         }
 

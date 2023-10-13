@@ -35,6 +35,12 @@ namespace GUI.Types.Renderer
         private SkeletonSceneNode skeletonSceneNode;
         private CheckedListBox physicsGroupsComboBox;
 
+        public GLModelViewer(VrfGuiContext guiContext)
+            : base(guiContext, Frustum.CreateEmpty())
+        {
+            //
+        }
+
         public GLModelViewer(VrfGuiContext guiContext, Model model)
             : base(guiContext, Frustum.CreateEmpty())
         {

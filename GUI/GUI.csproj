@@ -39,6 +39,7 @@
     <EmbeddedResource Include="Types\Renderer\Shaders\**" />
     <EmbeddedResource Include="Utils\inspect_agents_custom_cubemap.vtex_c" />
     <EmbeddedResource Include="Utils\ggx_integrate_brdf_lut_schlick.vtex_c" />
+    <EmbeddedResource Include="Utils\env_cubemap.vmdl_c" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\ValveResourceFormat\ValveResourceFormat.csproj">
