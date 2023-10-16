@@ -87,28 +87,22 @@ namespace GUI.Forms
                 return;
             }
 
-            void SelectedValueChanged(object sender, EventArgs e)
-            {
-                var control = (ComboBox)sender;
-                var type = (string)control.Tag;
-
-                if (control.SelectedIndex == 0)
-                {
-                    fileTypesToExtract[type].OutputFormat = null;
-                    return;
-                }
-
-                fileTypesToExtract[type].OutputFormat = (string)control.SelectedItem;
-            }
-
             using var typesDialog = new ExtractOutputTypesForm();
-            typesDialog.ChangeTypeEvent += SelectedValueChanged;
+            typesDialog.ChangeTypeEvent += OnTypesDialogSelectedValueChanged;
 
             foreach (var type in fileTypesToExtract.OrderByDescending(x => x.Value.Count))
             {
-                var firstType = type.Key.EndsWith("_c", StringComparison.OrdinalIgnoreCase)
-                    ? type.Key[..^2].ToLowerInvariant()
-                    : type.Key.ToLowerInvariant();
+                /// See <see cref="FileExtract.GetExtension"/>
+                var firstType = type.Key switch
+                {
+                    "vjs_c" => "js",
+                    "vts_c" => "js",
+                    "vxml_c" => "xml",
+                    "vcss_c" => "css",
+                    "vsvg_c" => "svg",
+                    _ when type.Key.EndsWith("_c", StringComparison.OrdinalIgnoreCase) => type.Key[..^2],
+                    _ => type.Key,
+                };
 
                 var outputTypes = new List<string>()
                 {
@@ -121,19 +115,40 @@ namespace GUI.Forms
                     outputTypes.Add("gltf");
                     outputTypes.Add("glb");
                 }
-
-                /// TODO: Sounds and images, see <see cref="FileExtract.GetExtension"/>
+                else if (firstType == "vtex")
+                {
+                    outputTypes.Insert(1, "image");
+                }
+                else if (firstType == "vsnd")
+                {
+                    outputTypes.Insert(1, "sound");
+                }
 
                 typesDialog.AddTypeToTable(type.Key, type.Value.Count, outputTypes);
             }
 
             var result = typesDialog.ShowDialog();
-            typesDialog.ChangeTypeEvent -= SelectedValueChanged;
+            typesDialog.ChangeTypeEvent -= OnTypesDialogSelectedValueChanged;
 
             if (result == DialogResult.Continue)
             {
                 ShowDialog();
             }
+        }
+
+        private void OnTypesDialogSelectedValueChanged(object sender, EventArgs e)
+        {
+            var control = (ComboBox)sender;
+            var type = (string)control.Tag;
+
+            // TODO: Remember last selected value in settings?
+            if (control.SelectedIndex == 0)
+            {
+                fileTypesToExtract[type].OutputFormat = null;
+                return;
+            }
+
+            fileTypesToExtract[type].OutputFormat = (string)control.SelectedItem;
         }
 
         protected override void OnShown(EventArgs e)
@@ -244,8 +259,9 @@ namespace GUI.Forms
                 cancellationTokenSource.Token.ThrowIfCancellationRequested();
 
                 var packageFile = filesToExtract.Dequeue();
+                var fileFullName = packageFile.GetFullPath();
 
-                if (extractedFiles.Contains(packageFile.GetFullPath()))
+                if (extractedFiles.Contains(fileFullName))
                 {
                     continue;
                 }
@@ -255,15 +271,11 @@ namespace GUI.Forms
                     extractProgressBar.Value = 100 - (int)(filesToExtract.Count / (float)initialCount * 100.0f);
                 });
 
-                SetProgress($"Extracting {packageFile.GetFullPath()}");
-
                 var stream = AdvancedGuiFileLoader.GetPackageEntryStream(exportData.VrfGuiContext.CurrentPackage, packageFile);
-                var outFilePath = Path.Combine(path, packageFile.GetFullPath());
+                var outFilePath = Path.Combine(path, fileFullName);
                 var outFolder = Path.GetDirectoryName(outFilePath);
 
-                var type = packageFile.TypeName[..^2]; // Remove "_c"
-
-                if (fileTypesToExtract.TryGetValue(type, out var outputType))
+                if (fileTypesToExtract.TryGetValue(packageFile.TypeName, out var outputType))
                 {
                     if (outputType.OutputFormat == null)
                     {
@@ -274,9 +286,11 @@ namespace GUI.Forms
                     outFilePath = Path.ChangeExtension(outFilePath, outputType.OutputFormat);
                 }
 
+                SetProgress($"Extracting {fileFullName}");
+
                 Directory.CreateDirectory(outFolder);
 
-                if (!decompile || !outFilePath.EndsWith("_c", StringComparison.Ordinal))
+                if (!decompile || !packageFile.TypeName.EndsWith("_c", StringComparison.Ordinal))
                 {
                     // Extract as is
                     var outStream = File.OpenWrite(outFilePath);
@@ -288,17 +302,19 @@ namespace GUI.Forms
 
                 using var resource = new Resource
                 {
-                    FileName = packageFile.GetFullPath(),
+                    FileName = fileFullName,
                 };
                 resource.Read(stream);
 
-                await ExtractFile(resource, packageFile.GetFullPath(), outFilePath).ConfigureAwait(false);
+                await ExtractFile(resource, fileFullName, outFilePath).ConfigureAwait(false);
             }
         }
 
         public async Task ExtractFile(Resource resource, string inFilePath, string outFilePath, bool flatSubfiles = false)
         {
-            if (GltfModelExporter.CanExport(resource) && Path.GetExtension(outFilePath) is ".glb" or ".gltf")
+            var outExtension = Path.GetExtension(outFilePath);
+
+            if (GltfModelExporter.CanExport(resource) && outExtension is ".glb" or ".gltf")
             {
                 gltfExporter.Export(resource, outFilePath, cancellationTokenSource.Token);
                 if (gltfExporter.FileLoader is TrackingFileLoader trackingFileLoader)
@@ -309,23 +325,21 @@ namespace GUI.Forms
                 return;
             }
 
-            // TODO: Use provided extension
-            var extension = FileExtract.GetExtension(resource);
-
-            if (extension == null)
+            if (outExtension == ".sound" || outExtension == ".image" || outExtension.EndsWith("_c", StringComparison.Ordinal))
             {
-                outFilePath = outFilePath[..^2]; // remove "_c"
-            }
-            else
-            {
-                outFilePath = Path.ChangeExtension(outFilePath, extension);
-            }
+                var extension = FileExtract.GetExtension(resource);
 
-            ContentFile contentFile = null;
-            if (outFilePath.EndsWith(".vmap", StringComparison.Ordinal))
+                if (extension != null)
+                {
+                    outFilePath = Path.ChangeExtension(outFilePath, extension);
+                }
+            }
+            else if (outExtension == ".vmap")
             {
                 flatSubfiles = false;
             }
+
+            ContentFile contentFile = null;
 
             try
             {
