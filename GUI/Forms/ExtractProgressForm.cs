@@ -148,36 +148,24 @@ namespace GUI.Forms
 
         public void QueueFiles(BetterTreeNode root)
         {
-            if (root.IsFolder)
-            {
-                foreach (BetterTreeNode node in root.Nodes)
-                {
-                    if (!node.IsFolder)
-                    {
-                        var file = node.PackageEntry;
-                        if (decompile && filesToExtractSorted.TryGetValue(file.TypeName, out var specializedQueue))
-                        {
-                            specializedQueue.Enqueue(file);
-                            continue;
-                        }
-
-                        filesToExtract.Enqueue(file);
-                    }
-                    else
-                    {
-                        QueueFiles(node);
-                    }
-                }
-            }
-            else
+            if (!root.IsFolder)
             {
                 var file = root.PackageEntry;
+
                 if (decompile && filesToExtractSorted.TryGetValue(file.TypeName, out var specializedQueue))
                 {
                     specializedQueue.Enqueue(file);
+                    return;
                 }
 
                 filesToExtract.Enqueue(file);
+
+                return;
+            }
+
+            foreach (BetterTreeNode node in root.Nodes)
+            {
+                QueueFiles(node);
             }
         }
 
