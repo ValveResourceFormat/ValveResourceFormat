@@ -18,14 +18,21 @@ namespace GUI.Forms
 {
     partial class ExtractProgressForm : Form
     {
+        private class FileTypeToExtract
+        {
+            public string OutputFormat;
+            public int Count = 1;
+        }
+
         private readonly bool decompile;
         private readonly string path;
         private readonly ExportData exportData;
-        private readonly Dictionary<string, Queue<PackageEntry>> filesToExtractSorted;
-        private readonly Queue<PackageEntry> filesToExtract;
-        private readonly HashSet<string> extractedFiles;
+        private readonly Dictionary<string, Queue<PackageEntry>> filesToExtractSorted = new();
+        private readonly Dictionary<string, FileTypeToExtract> fileTypesToExtract = new();
+        private readonly Queue<PackageEntry> filesToExtract = new();
+        private readonly HashSet<string> extractedFiles = new();
+        private CancellationTokenSource cancellationTokenSource = new();
         private readonly GltfModelExporter gltfExporter;
-        private CancellationTokenSource cancellationTokenSource;
         private Stopwatch exportStopwatch;
 
         private static readonly List<ResourceType> ExtractOrder = new()
@@ -50,16 +57,11 @@ namespace GUI.Forms
         {
             InitializeComponent();
 
-            cancellationTokenSource = new CancellationTokenSource();
-
-            filesToExtractSorted = new();
             foreach (var resourceType in ExtractOrder)
             {
                 var extension = FileExtract.GetExtension(resourceType);
-                filesToExtractSorted.Add(extension + "_c", new Queue<PackageEntry>());
+                filesToExtractSorted.Add(extension + "_c", new());
             }
-            filesToExtract = new Queue<PackageEntry>();
-            extractedFiles = new HashSet<string>();
 
             this.path = path;
             this.decompile = decompile;
@@ -74,6 +76,63 @@ namespace GUI.Forms
                 {
                     ProgressReporter = new Progress<string>(SetProgress),
                 };
+            }
+        }
+
+        public void Execute()
+        {
+            if (fileTypesToExtract.Count == 0)
+            {
+                ShowDialog();
+                return;
+            }
+
+            void SelectedValueChanged(object sender, EventArgs e)
+            {
+                var control = (ComboBox)sender;
+                var type = (string)control.Tag;
+
+                if (control.SelectedIndex == 0)
+                {
+                    fileTypesToExtract[type].OutputFormat = null;
+                    return;
+                }
+
+                fileTypesToExtract[type].OutputFormat = (string)control.SelectedItem;
+            }
+
+            using var typesDialog = new ExtractOutputTypesForm();
+            typesDialog.ChangeTypeEvent += SelectedValueChanged;
+
+            foreach (var type in fileTypesToExtract.OrderByDescending(x => x.Value.Count))
+            {
+                var firstType = type.Key.EndsWith("_c", StringComparison.OrdinalIgnoreCase)
+                    ? type.Key[..^2].ToLowerInvariant()
+                    : type.Key.ToLowerInvariant();
+
+                var outputTypes = new List<string>()
+                {
+                    "* Do not export *",
+                    firstType,
+                };
+
+                if (firstType is "vmdl" or "vmesh" or "vmap" or "vwrld" or "vwnod")
+                {
+                    outputTypes.Add("gltf");
+                    outputTypes.Add("glb");
+                }
+
+                /// TODO: Sounds and images, see <see cref="FileExtract.GetExtension"/>
+
+                typesDialog.AddTypeToTable(type.Key, type.Value.Count, outputTypes);
+            }
+
+            var result = typesDialog.ShowDialog();
+            typesDialog.ChangeTypeEvent -= SelectedValueChanged;
+
+            if (result == DialogResult.Continue)
+            {
+                ShowDialog();
             }
         }
 
@@ -152,6 +211,15 @@ namespace GUI.Forms
             {
                 var file = root.PackageEntry;
 
+                if (fileTypesToExtract.TryGetValue(file.TypeName, out var fileType))
+                {
+                    fileType.Count++;
+                }
+                else
+                {
+                    fileTypesToExtract[file.TypeName] = new FileTypeToExtract(); // Type to be filled in later
+                }
+
                 if (decompile && filesToExtractSorted.TryGetValue(file.TypeName, out var specializedQueue))
                 {
                     specializedQueue.Enqueue(file);
@@ -159,7 +227,6 @@ namespace GUI.Forms
                 }
 
                 filesToExtract.Enqueue(file);
-
                 return;
             }
 
@@ -194,6 +261,19 @@ namespace GUI.Forms
                 var outFilePath = Path.Combine(path, packageFile.GetFullPath());
                 var outFolder = Path.GetDirectoryName(outFilePath);
 
+                var type = packageFile.TypeName[..^2]; // Remove "_c"
+
+                if (fileTypesToExtract.TryGetValue(type, out var outputType))
+                {
+                    if (outputType.OutputFormat == null)
+                    {
+                        // Skip this file type
+                        continue;
+                    }
+
+                    outFilePath = Path.ChangeExtension(outFilePath, outputType.OutputFormat);
+                }
+
                 Directory.CreateDirectory(outFolder);
 
                 if (!decompile || !outFilePath.EndsWith("_c", StringComparison.Ordinal))
@@ -212,11 +292,6 @@ namespace GUI.Forms
                 };
                 resource.Read(stream);
 
-                if (GltfModelExporter.CanExport(resource))
-                {
-                    outFilePath = Path.ChangeExtension(outFilePath, "glb");
-                }
-
                 await ExtractFile(resource, packageFile.GetFullPath(), outFilePath).ConfigureAwait(false);
             }
         }
@@ -234,6 +309,7 @@ namespace GUI.Forms
                 return;
             }
 
+            // TODO: Use provided extension
             var extension = FileExtract.GetExtension(resource);
 
             if (extension == null)

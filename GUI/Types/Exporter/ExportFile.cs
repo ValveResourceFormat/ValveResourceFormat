@@ -92,7 +92,7 @@ namespace GUI.Types.Exporter
                         }, CancellationToken.None);
                     }
                 };
-                extractDialog.ShowDialog();
+                extractDialog.Execute();
             }
             else
             {
@@ -148,7 +148,7 @@ namespace GUI.Types.Exporter
 
                 var extractDialog = new ExtractProgressForm(exportData, dialog.SelectedPath, decompile);
                 extractDialog.QueueFiles(selectedNode);
-                extractDialog.ShowDialog();
+                extractDialog.Execute();
             }
         }
 
@@ -180,7 +180,7 @@ namespace GUI.Types.Exporter
                 extractDialog.QueueFiles((BetterTreeNode)item.Tag);
             }
 
-            extractDialog.ShowDialog();
+            extractDialog.Execute();
         }
     }
 }
