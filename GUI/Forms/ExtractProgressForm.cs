@@ -81,7 +81,7 @@ namespace GUI.Forms
 
         public void Execute()
         {
-            if (fileTypesToExtract.Count == 0)
+            if (filesToExtract.Count == 0)
             {
                 ShowDialog();
                 return;
@@ -124,7 +124,10 @@ namespace GUI.Forms
                     outputTypes.Insert(1, "sound");
                 }
 
-                typesDialog.AddTypeToTable(type.Key, type.Value.Count, outputTypes);
+                type.Value.OutputFormat = outputTypes[1];
+
+                // Select first suggested type, the 0th item is always "do not export"
+                typesDialog.AddTypeToTable(type.Key, type.Value.Count, outputTypes, 1);
             }
 
             var result = typesDialog.ShowDialog();

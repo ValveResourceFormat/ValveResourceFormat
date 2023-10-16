@@ -13,7 +13,7 @@ namespace GUI.Forms
             InitializeComponent();
         }
 
-        public void AddTypeToTable(string type, int count, List<string> outputTypes)
+        public void AddTypeToTable(string type, int count, List<string> outputTypes, int defaultType)
         {
             var row = typesTable.RowCount;
             typesTable.RowCount = row + 1;
@@ -31,7 +31,7 @@ namespace GUI.Forms
                 DropDownStyle = ComboBoxStyle.DropDownList,
             };
             dropdown.Items.AddRange(outputTypes.ToArray());
-            dropdown.SelectedIndex = 1; // Select first suggested type, the 0th item is always "do not export"
+            dropdown.SelectedIndex = defaultType;
             dropdown.SelectedIndexChanged += ChangeTypeEvent; // TODO: leak?
 
             typesTable.Controls.Add(dropdown, 1, row);
