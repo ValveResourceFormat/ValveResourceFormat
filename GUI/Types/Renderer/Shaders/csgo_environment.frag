@@ -67,7 +67,7 @@ uniform float g_flHeightMapZeroPoint1 = 0;
     #if (F_DETAIL_NORMAL == 1)
         uniform sampler2D g_tNormalDetail2;
     #endif
-    
+
     #if (F_SHARED_COLOR_OVERLAY == 1)
         //uniform sampler2D g_tSharedColorOverlay;
     #endif
@@ -128,7 +128,7 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
     colorTex2.rgb = pow(colorTex2.rgb, gamma);
 
     float blendFactor = vColorBlendValues.r;
-    float blendMask = heightTex2.r * g_flHeightMapScale1 + g_flHeightMapZeroPoint1;
+    float blendMask = height.r * g_flHeightMapScale1 + g_flHeightMapZeroPoint1;
     float blendMask2 = heightTex2.r * g_flHeightMapScale2 + g_flHeightMapZeroPoint2;
     blendMask = (blendMask + blendMask2) * 0.5;
 
@@ -157,7 +157,7 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 
     // Normals and Roughness
     mat.NormalMap = DecodeNormal(normal);
-    
+
     mat.RoughnessTex = normal.b;
 
     // Detail texture
