@@ -70,11 +70,7 @@ namespace GUI.Types.Renderer
                 }
 
                 call.Material.Shader = guiContext.ShaderLoader.LoadShader(call.Material.Shader.Name, parameters);
-                call.VertexArrayObject = guiContext.MeshBufferCache.GetVertexArrayObject(
-                    VBIBHashCode,
-                    call.VertexBuffer,
-                    call.Material,
-                    call.IndexBuffer.Id);
+                UpdateVertexArrayObject(call);
             }
         }
 
@@ -99,6 +95,7 @@ namespace GUI.Types.Renderer
                     var dynamicParams = new Dictionary<string, byte>(material.Shader.Parameters.Except(staticParams));
 
                     drawCall.Material = guiContext.MaterialLoader.GetMaterial(replacementName, dynamicParams);
+                    UpdateVertexArrayObject(drawCall);
                 }
             }
         }
@@ -115,7 +112,17 @@ namespace GUI.Types.Renderer
                 var dynamicParams = new Dictionary<string, byte>(material.Shader.Parameters.Except(staticParams));
 
                 drawCall.Material = guiContext.MaterialLoader.LoadMaterial(resourceMaterial, dynamicParams);
+                UpdateVertexArrayObject(drawCall);
             }
+        }
+
+        private void UpdateVertexArrayObject(DrawCall drawCall)
+        {
+            drawCall.VertexArrayObject = guiContext.MeshBufferCache.GetVertexArrayObject(
+                   VBIBHashCode,
+                   drawCall.VertexBuffer,
+                   drawCall.Material,
+                   drawCall.IndexBuffer.Id);
         }
 
         private void ConfigureDrawCalls(Scene scene, VBIB vbib, IKeyValueCollection[] sceneObjects, Dictionary<string, string> materialReplacementTable)
