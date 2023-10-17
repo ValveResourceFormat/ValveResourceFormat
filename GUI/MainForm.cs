@@ -961,6 +961,7 @@ namespace GUI
             {
                 InitialDirectory = Settings.Config.SaveDirectory,
                 FileName = Path.GetFileNameWithoutExtension(inputDirectory),
+                AddToRecent = true,
                 Title = "Save VPK package",
                 DefaultExt = "vpk",
                 Filter = "Valve Pak|*.vpk"

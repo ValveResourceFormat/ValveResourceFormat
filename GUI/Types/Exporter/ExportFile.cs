@@ -57,10 +57,12 @@ namespace GUI.Types.Exporter
 
                 using var dialog = new SaveFileDialog
                 {
+                    Title = "Choose where to save the file",
                     FileName = Path.GetFileNameWithoutExtension(fileName),
                     InitialDirectory = Settings.Config.SaveDirectory,
                     DefaultExt = extension,
                     Filter = filter,
+                    AddToRecent = true,
                 };
 
                 var result = dialog.ShowDialog();
@@ -96,11 +98,13 @@ namespace GUI.Types.Exporter
             }
             else
             {
-                var dialog = new SaveFileDialog
+                using var dialog = new SaveFileDialog
                 {
+                    Title = "Choose where to save the file",
                     InitialDirectory = Settings.Config.SaveDirectory,
                     Filter = "All files (*.*)|*.*",
                     FileName = fileName,
+                    AddToRecent = true,
                 };
                 var userOK = dialog.ShowDialog();
 
@@ -129,24 +133,12 @@ namespace GUI.Types.Exporter
             else
             {
                 // We are a folder
-                using var dialog = new FolderBrowserDialog
-                {
-                    InitialDirectory = Settings.Config.SaveDirectory,
-                };
-
-                if (dialog.ShowDialog() != DialogResult.OK)
-                {
-                    return;
-                }
-
-                Settings.Config.SaveDirectory = dialog.SelectedPath;
-
                 var exportData = new ExportData
                 {
                     VrfGuiContext = vrfGuiContext,
                 };
 
-                var extractDialog = new ExtractProgressForm(exportData, dialog.SelectedPath, decompile);
+                var extractDialog = new ExtractProgressForm(exportData, null, decompile);
                 extractDialog.QueueFiles(selectedNode);
                 extractDialog.Execute();
             }
@@ -154,24 +146,12 @@ namespace GUI.Types.Exporter
 
         public static void ExtractFilesFromListViewNodes(BetterListView.SelectedListViewItemCollection items, VrfGuiContext vrfGuiContext, bool decompile)
         {
-            using var dialog = new FolderBrowserDialog
-            {
-                InitialDirectory = Settings.Config.SaveDirectory,
-            };
-
-            if (dialog.ShowDialog() != DialogResult.OK)
-            {
-                return;
-            }
-
-            Settings.Config.SaveDirectory = dialog.SelectedPath;
-
             var exportData = new ExportData
             {
                 VrfGuiContext = vrfGuiContext,
             };
 
-            var extractDialog = new ExtractProgressForm(exportData, dialog.SelectedPath, decompile);
+            var extractDialog = new ExtractProgressForm(exportData, null, decompile);
 
             // When queuing files this way, it'll preserve the original tree
             // which is probably unwanted behaviour? It works tho /shrug

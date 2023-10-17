@@ -80,33 +80,38 @@ namespace GUI.Forms
 
             using var saveFileDialog = new SaveFileDialog
             {
+                InitialDirectory = Settings.Config.SaveDirectory,
                 Filter = "PNG Image|*.png|JPG Image|*.jpg|Tiff Image|*.tiff|Bitmap Image|*.bmp",
                 Title = "Save an Image File",
                 FileName = name,
+                AddToRecent = true,
             };
-            saveFileDialog.ShowDialog(this);
 
-            if (!string.IsNullOrEmpty(saveFileDialog.FileName))
+            if (saveFileDialog.ShowDialog(this) != DialogResult.OK)
             {
-                var format = ImageFormat.Png;
-
-                switch (saveFileDialog.FilterIndex)
-                {
-                    case 2:
-                        format = ImageFormat.Jpeg;
-                        break;
-
-                    case 3:
-                        format = ImageFormat.Tiff;
-                        break;
-                    case 4:
-                        format = ImageFormat.Bmp;
-                        break;
-                }
-
-                using var fs = (FileStream)saveFileDialog.OpenFile();
-                pictureBox1.Image.Save(fs, format);
+                return;
             }
+
+            Settings.Config.SaveDirectory = Path.GetDirectoryName(saveFileDialog.FileName);
+
+            var format = ImageFormat.Png;
+
+            switch (saveFileDialog.FilterIndex)
+            {
+                case 2:
+                    format = ImageFormat.Jpeg;
+                    break;
+
+                case 3:
+                    format = ImageFormat.Tiff;
+                    break;
+                case 4:
+                    format = ImageFormat.Bmp;
+                    break;
+            }
+
+            using var fs = (FileStream)saveFileDialog.OpenFile();
+            pictureBox1.Image.Save(fs, format);
         }
 
         private void OnChannelMenuItem_Click(object sender, EventArgs e)

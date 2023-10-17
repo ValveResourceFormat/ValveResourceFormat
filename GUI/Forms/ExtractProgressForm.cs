@@ -25,7 +25,7 @@ namespace GUI.Forms
         }
 
         private readonly bool decompile;
-        private readonly string path;
+        private string path;
         private readonly ExportData exportData;
         private readonly Dictionary<string, Queue<PackageEntry>> filesToExtractSorted = new();
         private readonly Dictionary<string, FileTypeToExtract> fileTypesToExtract = new();
@@ -87,6 +87,32 @@ namespace GUI.Forms
                 return;
             }
 
+            if (decompile && ShowTypesDialog() != DialogResult.Continue)
+            {
+                return;
+            }
+
+            using var dialog = new FolderBrowserDialog
+            {
+                Description = "Choose which folder to extract files to",
+                UseDescriptionForTitle = true,
+                SelectedPath = Settings.Config.SaveDirectory,
+                AddToRecent = true,
+            };
+
+            if (dialog.ShowDialog() != DialogResult.OK)
+            {
+                return;
+            }
+
+            path = dialog.SelectedPath;
+            Settings.Config.SaveDirectory = dialog.SelectedPath;
+
+            ShowDialog();
+        }
+
+        private DialogResult ShowTypesDialog()
+        {
             using var typesDialog = new ExtractOutputTypesForm();
             typesDialog.ChangeTypeEvent += OnTypesDialogSelectedValueChanged;
 
@@ -133,10 +159,7 @@ namespace GUI.Forms
             var result = typesDialog.ShowDialog();
             typesDialog.ChangeTypeEvent -= OnTypesDialogSelectedValueChanged;
 
-            if (result == DialogResult.Continue)
-            {
-                ShowDialog();
-            }
+            return result;
         }
 
         private void OnTypesDialogSelectedValueChanged(object sender, EventArgs e)
@@ -278,7 +301,7 @@ namespace GUI.Forms
                 var outFilePath = Path.Combine(path, fileFullName);
                 var outFolder = Path.GetDirectoryName(outFilePath);
 
-                if (fileTypesToExtract.TryGetValue(packageFile.TypeName, out var outputType))
+                if (decompile && fileTypesToExtract.TryGetValue(packageFile.TypeName, out var outputType))
                 {
                     if (outputType.OutputFormat == null)
                     {
