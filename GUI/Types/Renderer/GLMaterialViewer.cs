@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Reflection;
 using System.Windows.Forms;
 using GUI.Types.Viewers;
@@ -16,11 +17,22 @@ namespace GUI.Types.Renderer
     {
         private readonly ValveResourceFormat.Resource Resource;
         private readonly TabControl Tabs;
+        private TableLayoutPanel ParamsTable;
 
         public GLMaterialViewer(VrfGuiContext guiContext, ValveResourceFormat.Resource resource, TabControl tabs) : base(guiContext)
         {
             Resource = resource;
             Tabs = tabs;
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                ParamsTable?.Dispose();
+            }
+
+            base.Dispose(disposing);
         }
 
         protected override void LoadScene()
@@ -44,6 +56,62 @@ namespace GUI.Types.Renderer
             }
 
             Scene.Add(node, false);
+
+#if DEBUG
+            // Assume cubemap model only has one opaque draw call
+            var drawCall = node.RenderableMeshes[0].DrawCallsOpaque[0];
+            var usedParams = drawCall.Material.Shader.GetAllUniformNames().Select(x => x.Name).ToHashSet();
+
+            foreach (var (paramName, currentValue) in drawCall.Material.Material.FloatParams.OrderBy(x => x.Key))
+            {
+                if (!usedParams.Contains(paramName))
+                {
+                    continue;
+                }
+
+                var row = ParamsTable.RowCount;
+                ParamsTable.RowCount = row + 2;
+                ParamsTable.RowStyles.Add(new RowStyle(SizeType.Absolute, 20F));
+                ParamsTable.RowStyles.Add(new RowStyle(SizeType.Absolute, 40F));
+
+                ParamsTable.Controls.Add(new Label()
+                {
+                    Dock = DockStyle.Fill,
+                    AutoSize = false,
+                    Text = paramName
+                }, 0, row);
+
+                var currentParamName = paramName;
+                var input = new NumericUpDown
+                {
+                    Width = ParamsTable.Width / 2,
+                    Minimum = decimal.MinValue,
+                    Maximum = decimal.MaxValue,
+                    DecimalPlaces = 6,
+                    Increment = 0.1M,
+                    Value = (decimal)currentValue
+                };
+                input.ValueChanged += (sender, e) =>
+                {
+                    drawCall.Material.Material.FloatParams[currentParamName] = (float)input.Value;
+                };
+                input.MouseWheel += (sender, e) =>
+                {
+                    // Fix bug where one scroll causes increments more than once, https://stackoverflow.com/a/16338022
+                    (e as HandledMouseEventArgs).Handled = true;
+
+                    if (e.Delta > 0)
+                    {
+                        input.Value += input.Increment;
+                    }
+                    else if (e.Delta < 0)
+                    {
+                        input.Value -= input.Increment;
+                    }
+                };
+                ParamsTable.Controls.Add(input, 0, row + 1);
+            }
+#endif
         }
 
         private void OnShadersButtonClick(object s, EventArgs e)
@@ -92,6 +160,17 @@ namespace GUI.Types.Renderer
             base.InitializeControl();
 
             AddShaderButton();
+
+            ParamsTable = new TableLayoutPanel
+            {
+                AutoScroll = true,
+                Width = 220,
+                Height = 300,
+            };
+            AddControl(ParamsTable);
+
+            ParamsTable.ColumnCount = 1;
+            ParamsTable.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize, 1));
         }
 
         protected override void OnPicked(object sender, PickingTexture.PickingResponse pixelInfo)
