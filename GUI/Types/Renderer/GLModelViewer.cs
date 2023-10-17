@@ -69,7 +69,8 @@ namespace GUI.Types.Renderer
             : base(guiContext, Frustum.CreateEmpty())
         {
             var animGraphAssociatedModel = animGraph.Data.GetProperty<string>("m_modelName");
-            this.model = (Model)guiContext.LoadFileCompiled(animGraphAssociatedModel).DataBlock;
+            var modelResource = guiContext.LoadFileCompiled(animGraphAssociatedModel) ?? guiContext.LoadFileCompiled("models/dev/error.vmdl");
+            this.model = (Model)modelResource?.DataBlock;
         }
 
         protected override void Dispose(bool disposing)
