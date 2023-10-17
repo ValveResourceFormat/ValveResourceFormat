@@ -105,6 +105,23 @@ namespace GUI.Utils
 
             control.BeginUpdate();
 
+            // Fast path when the queue is too big, because calling AppendText is slow due to some subpar code in the text control resetting timers
+            if (LogQueue.Count > 1000)
+            {
+                var sb = new StringBuilder();
+
+                while (LogQueue.TryDequeue(out var line))
+                {
+                    sb.Append($"[{line.Time:HH:mm:ss.fff}] [{line.Component}] ");
+                    sb.Append(string.Concat(line.Message, Environment.NewLine));
+                }
+
+                control.AppendText(sb.ToString());
+                control.GoEnd();
+                control.EndUpdate();
+                return;
+            }
+
             while (LogQueue.TryDequeue(out var line))
             {
                 var lastLine = control.Lines.Count;
