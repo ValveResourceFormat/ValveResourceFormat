@@ -1,27 +1,17 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Numerics;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Utils;
-using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.Renderer
 {
-    /// <summary>
-    /// GL Render control with model controls (render mode, animation panels).
-    /// </summary>
-    class GLModelViewer : GLSceneViewer
+    class GLModelViewer : GLSingleNodeViewer
     {
-        private readonly Model model;
-        private readonly Mesh mesh;
-        private readonly SmartProp smartProp;
+        protected Model model { get; init; }
         private PhysAggregateData phys;
         public ComboBox animationComboBox { get; private set; }
         private CheckBox animationPlayPause;
@@ -31,46 +21,22 @@ namespace GUI.Types.Renderer
         public CheckedListBox meshGroupListBox { get; private set; }
         public ComboBox materialGroupListBox { get; private set; }
         private ModelSceneNode modelSceneNode;
-        private MeshSceneNode meshSceneNode;
         private SkeletonSceneNode skeletonSceneNode;
         private CheckedListBox physicsGroupsComboBox;
 
-        public GLModelViewer(VrfGuiContext guiContext)
-            : base(guiContext, Frustum.CreateEmpty())
+        public GLModelViewer(VrfGuiContext guiContext) : base(guiContext)
         {
             //
         }
 
-        public GLModelViewer(VrfGuiContext guiContext, Model model)
-            : base(guiContext, Frustum.CreateEmpty())
+        public GLModelViewer(VrfGuiContext guiContext, Model model) : base(guiContext)
         {
             this.model = model;
         }
 
-        public GLModelViewer(VrfGuiContext guiContext, Mesh mesh)
-           : base(guiContext, Frustum.CreateEmpty())
-        {
-            this.mesh = mesh;
-        }
-
-        public GLModelViewer(VrfGuiContext guiContext, PhysAggregateData phys)
-           : base(guiContext, Frustum.CreateEmpty())
+        public GLModelViewer(VrfGuiContext guiContext, PhysAggregateData phys) : base(guiContext)
         {
             this.phys = phys;
-        }
-
-        public GLModelViewer(VrfGuiContext guiContext, SmartProp smartProp)
-            : base(guiContext, Frustum.CreateEmpty())
-        {
-            this.smartProp = smartProp;
-        }
-
-        public GLModelViewer(VrfGuiContext guiContext, AnimGraph animGraph)
-            : base(guiContext, Frustum.CreateEmpty())
-        {
-            var animGraphAssociatedModel = animGraph.Data.GetProperty<string>("m_modelName");
-            var modelResource = guiContext.LoadFileCompiled(animGraphAssociatedModel) ?? guiContext.LoadFileCompiled("models/dev/error.vmdl");
-            this.model = (Model)modelResource?.DataBlock;
         }
 
         protected override void Dispose(bool disposing)
@@ -90,11 +56,8 @@ namespace GUI.Types.Renderer
             base.Dispose(disposing);
         }
 
-        protected override void InitializeControl()
+        private void AddAnimationControls()
         {
-            AddRenderModeSelectionControl();
-            AddBaseGridControl();
-
             animationComboBox = AddSelection("Animation", (animation, _) =>
             {
                 modelSceneNode?.SetAnimation(animation);
@@ -137,32 +100,38 @@ namespace GUI.Types.Renderer
             {
                 modelSceneNode.AnimationController.IsPaused = previousPaused;
             };
-
-            showSkeletonCheckbox = AddCheckBox("Show skeleton", false, isChecked =>
-            {
-                if (skeletonSceneNode != null)
-                {
-                    skeletonSceneNode.Enabled = isChecked;
-                }
-            });
-        }
-
-        public override void PreSceneLoad()
-        {
-            base.PreSceneLoad();
-            LoadDefaultEnviromentMap();
         }
 
         protected override void LoadScene()
         {
+            base.LoadScene();
+
             if (model != null)
             {
                 modelSceneNode = new ModelSceneNode(Scene, model);
-                SetAvailableAnimations(modelSceneNode.GetSupportedAnimationNames());
                 Scene.Add(modelSceneNode, true);
+
+                var animations = modelSceneNode.GetSupportedAnimationNames().ToArray();
+
+                if (animations.Length > 0)
+                {
+                    AddAnimationControls();
+                    SetAvailableAnimations(animations);
+                }
 
                 skeletonSceneNode = new SkeletonSceneNode(Scene, modelSceneNode.AnimationController, model.Skeleton);
                 Scene.Add(skeletonSceneNode, true);
+
+                if (model.Skeleton.Bones.Length > 0)
+                {
+                    showSkeletonCheckbox = AddCheckBox("Show skeleton", false, isChecked =>
+                    {
+                        if (skeletonSceneNode != null)
+                        {
+                            skeletonSceneNode.Enabled = isChecked;
+                        }
+                    });
+                }
 
                 phys = model.GetEmbeddedPhys();
                 if (phys == null)
@@ -197,10 +166,7 @@ namespace GUI.Types.Renderer
                         {
                             listBox.SetItemChecked(listBox.FindStringExact(group), true);
                         }
-                    }, selectedGroups =>
-                    {
-                        modelSceneNode.SetActiveMeshGroups(selectedGroups);
-                    });
+                    }, modelSceneNode.SetActiveMeshGroups);
                 }
 
                 var materialGroupNames = model.GetMaterialGroups().Select(group => group.Name).ToArray<object>();
@@ -244,14 +210,7 @@ namespace GUI.Types.Renderer
             }
             else
             {
-                SetAvailableAnimations(Enumerable.Empty<string>());
                 Camera.Picker.OnPicked -= OnPicked;
-            }
-
-            if (mesh != null)
-            {
-                meshSceneNode = new MeshSceneNode(Scene, mesh, 0);
-                Scene.Add(meshSceneNode, false);
             }
 
             if (phys != null)
@@ -298,89 +257,6 @@ namespace GUI.Types.Renderer
                     });
                 }
             }
-
-            if (smartProp != null)
-            {
-                var children = smartProp.Data.GetArray("m_Children");
-
-                foreach (var child in children)
-                {
-                    var className = child.GetStringProperty("_class");
-
-                    switch (className)
-                    {
-                        case "CSmartPropElement_Model":
-                            {
-                                using var resource = GuiContext.LoadFileCompiled(child.GetStringProperty("m_sModelName"));
-                                var model = (Model)resource.DataBlock;
-
-                                modelSceneNode = new ModelSceneNode(Scene, model);
-                                Scene.Add(modelSceneNode, true);
-
-                                break;
-                            }
-                        case "CSmartPropElement_SmartProp":
-                            {
-                                // TODO: m_sSmartProp - create SmartPropSceneNode?
-                                break;
-                            }
-                        case "CSmartPropElement_Group":
-                        case "CSmartPropElement_PickOne":
-                            {
-                                var pickOneChildren = child.GetArray("m_Children");
-
-                                // TODO: This probably should recurse into parent smartprop loader
-                                foreach (var pickOneChild in pickOneChildren)
-                                {
-                                    var pickOneClass = pickOneChild.GetStringProperty("_class");
-
-                                    if (pickOneClass != "CSmartPropElement_Model")
-                                    {
-                                        Log.Warn(nameof(GLModelViewer), $"Unhandled smart prop class {className}");
-                                        continue;
-                                    }
-
-                                    using var resource = GuiContext.LoadFileCompiled(pickOneChild.GetStringProperty("m_sModelName"));
-                                    var model = (Model)resource.DataBlock;
-
-                                    modelSceneNode = new ModelSceneNode(Scene, model);
-                                    Scene.Add(modelSceneNode, true);
-                                }
-
-                                break;
-                            }
-                        default:
-                            Log.Warn(nameof(GLModelViewer), $"Unhandled smart prop class {className}");
-                            break;
-                    }
-                }
-            }
-        }
-
-        private void LoadDefaultEnviromentMap()
-        {
-            var assembly = Assembly.GetExecutingAssembly();
-            using var stream = assembly.GetManifestResourceStream("GUI.Utils.inspect_agents_custom_cubemap.vtex_c");
-
-            using var resource = new Resource()
-            {
-                FileName = "vrf_default_cubemap.vtex_c"
-            };
-            resource.Read(stream);
-
-            var texture = Scene.GuiContext.MaterialLoader.LoadTexture(resource);
-            var envMap = new SceneEnvMap(Scene, new AABB(new Vector3(float.MinValue), new Vector3(float.MaxValue)))
-            {
-                Transform = Matrix4x4.Identity,
-                EdgeFadeDists = Vector3.Zero,
-                HandShake = 0,
-                ProjectionMode = 0,
-                EnvMapTexture = texture,
-            };
-
-            Scene.LightingInfo.Lightmaps.TryAdd("g_tEnvironmentMap", texture);
-            Scene.LightingInfo.EnvMaps.Add(0, envMap);
-            Scene.RenderAttributes["SCENE_ENVIRONMENT_TYPE"] = 2;
         }
 
         private void SetEnabledPhysicsGroups(HashSet<string> physicsGroups)
@@ -389,14 +265,6 @@ namespace GUI.Types.Renderer
             {
                 physNode.Enabled = physicsGroups.Contains(physNode.PhysGroupName);
             }
-        }
-
-        protected override void OnPaint(object sender, RenderEventArgs e)
-        {
-            Scene.LightingInfo.LightingData.SunLightPosition = Camera.ViewProjectionMatrix;
-            Scene.LightingInfo.LightingData.SunLightColor = Vector4.One;
-
-            base.OnPaint(sender, e);
         }
 
         protected override void OnPicked(object sender, PickingTexture.PickingResponse pickingResponse)
@@ -451,18 +319,16 @@ namespace GUI.Types.Renderer
             }
         }
 
-        private void SetAvailableAnimations(IEnumerable<string> animations)
+        private void SetAvailableAnimations(string[] animations)
         {
             animationComboBox.BeginUpdate();
             animationComboBox.Items.Clear();
 
-            var animationsArray = animations.ToArray();
-
-            if (animationsArray.Length > 0)
+            if (animations.Length > 0)
             {
                 animationComboBox.Enabled = true;
-                animationComboBox.Items.Add($"({animationsArray.Length} animations available)");
-                animationComboBox.Items.AddRange(animationsArray);
+                animationComboBox.Items.Add($"({animations.Length} animations available)");
+                animationComboBox.Items.AddRange(animations);
                 animationComboBox.SelectedIndex = 0;
             }
             else

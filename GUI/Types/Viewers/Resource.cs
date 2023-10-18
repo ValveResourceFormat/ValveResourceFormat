@@ -2,10 +2,8 @@ using System;
 using System.ComponentModel;
 using System.Drawing;
 using System.IO;
-using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using FastColoredTextBoxNS;
 using GUI.Controls;
 using GUI.Types.Audio;
 using GUI.Types.Renderer;
@@ -13,10 +11,8 @@ using GUI.Utils;
 using SkiaSharp;
 using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
-using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.Viewers
 {
@@ -140,19 +136,19 @@ namespace GUI.Types.Viewers
 
                 case ResourceType.Mesh:
                     var meshRendererTab = new TabPage("MESH");
-                    meshRendererTab.Controls.Add(new GLModelViewer(vrfGuiContext, (Mesh)resource.DataBlock));
+                    meshRendererTab.Controls.Add(new GLMeshViewer(vrfGuiContext, (Mesh)resource.DataBlock));
                     resTabs.TabPages.Add(meshRendererTab);
                     break;
 
                 case ResourceType.SmartProp:
                     var smartPropRendererTab = new TabPage("SMART PROP");
-                    smartPropRendererTab.Controls.Add(new GLModelViewer(vrfGuiContext, (SmartProp)resource.DataBlock));
+                    smartPropRendererTab.Controls.Add(new GLSmartPropViewer(vrfGuiContext, (SmartProp)resource.DataBlock));
                     resTabs.TabPages.Add(smartPropRendererTab);
                     break;
 
                 case ResourceType.AnimationGraph:
                     var animGraphModelRendererTab = new TabPage("ANIMATION GRAPH");
-                    animGraphModelRendererTab.Controls.Add(new GLModelViewer(vrfGuiContext, (AnimGraph)resource.DataBlock));
+                    animGraphModelRendererTab.Controls.Add(new GLAnimGraphViewer(vrfGuiContext, (AnimGraph)resource.DataBlock));
                     resTabs.TabPages.Add(animGraphModelRendererTab);
                     break;
 

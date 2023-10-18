@@ -13,7 +13,7 @@ namespace GUI.Types.Renderer
     /// GL Render control with material controls (render modes maybe at some point?).
     /// Renders a list of MatarialRenderers.
     /// </summary>
-    class GLMaterialViewer : GLModelViewer
+    class GLMaterialViewer : GLSingleNodeViewer
     {
         private readonly ValveResourceFormat.Resource Resource;
         private readonly TabControl Tabs;
@@ -157,8 +157,7 @@ namespace GUI.Types.Renderer
 
         protected override void InitializeControl()
         {
-            base.InitializeControl();
-
+            AddRenderModeSelectionControl();
             AddShaderButton();
 
             ParamsTable = new TableLayoutPanel
@@ -171,11 +170,6 @@ namespace GUI.Types.Renderer
 
             ParamsTable.ColumnCount = 1;
             ParamsTable.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize, 1));
-        }
-
-        protected override void OnPicked(object sender, PickingTexture.PickingResponse pixelInfo)
-        {
-            //
         }
     }
 }
