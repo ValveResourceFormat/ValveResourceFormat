@@ -36,7 +36,7 @@ namespace GUI.Controls
                 }
                 catch (Exception driverCreateException)
                 {
-                    MessageBox.Show(driverCreateException.Message);
+                    MessageBox.Show(driverCreateException.Message, "Failed to play audio");
                     return;
                 }
             }

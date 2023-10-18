@@ -97,7 +97,7 @@ static class UpdateChecker
         {
             Log.Error(nameof(UpdateChecker), $"Failed to check for updates: {e.Message}");
 
-            MessageBox.Show($"Failed to check for updates: {e.Message}");
+            MessageBox.Show($"Failed to check for updates: {e.Message}", "Update check failed");
         }
     }
 

@@ -81,9 +81,9 @@ namespace GUI.Forms
 
         public void Execute()
         {
-            if (filesToExtract.Count == 0)
+            if (filesToExtract.Count == 0 && filesToExtractSorted.Sum(x => x.Value.Count) == 0)
             {
-                ShowDialog();
+                MessageBox.Show("There are no files to extract", "Failed to extract");
                 return;
             }
 

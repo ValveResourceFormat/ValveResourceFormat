@@ -94,7 +94,7 @@ namespace GUI.Types.Exporter
                         }, CancellationToken.None);
                     }
                 };
-                extractDialog.Execute();
+                extractDialog.ShowDialog();
             }
             else
             {
