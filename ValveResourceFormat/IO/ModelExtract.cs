@@ -663,7 +663,7 @@ public class ModelExtract
             }
             else if (attribute.SemanticName is "BLENDINDICES")
             {
-                vertexData.JointCount = Math.Max(vertexData.JointCount, 1);
+                vertexData.JointCount = 4;
 
                 var blendIndices = VBIB.GetBlendIndicesArray(vertexBuffer, attribute);
                 vertexData.AddStream(semantic, Array.ConvertAll(blendIndices, i => (int)i));
@@ -671,8 +671,6 @@ public class ModelExtract
             }
             else if (attribute.SemanticName is "BLENDWEIGHT" or "BLENDWEIGHTS")
             {
-                vertexData.JointCount = 4;
-
                 var vectorWeights = VBIB.GetBlendWeightsArray(vertexBuffer, attribute);
                 var flatWeights = MemoryMarshal.Cast<Vector4, float>(vectorWeights).ToArray();
 
@@ -712,6 +710,14 @@ public class ModelExtract
                 default:
                     throw new NotImplementedException($"Stream {semantic} has an unexpected number of components: {attributeFormat.ElementCount}.");
             }
+        }
+
+        if (vertexData.VertexFormat.Contains("blendindices$0") && !vertexData.VertexFormat.Contains("blendweights$0"))
+        {
+            var blendIndicesLength = vertexData.TryGetValue("blendindices$0", out var blendIndices)
+                ? ((ICollection<int>)blendIndices).Count
+                : throw new InvalidOperationException("blendindices$0 stream not found");
+            vertexData.AddStream("blendweights$0", Enumerable.Repeat(1f, blendIndicesLength).ToArray());
         }
     }
 
@@ -854,6 +860,7 @@ public class ModelExtract
             dmeModel.BaseStates.Add(transformList);
 
             var vertexData = dmeVertexBuffers[i] = new DmeVertexData { Name = "bind" };
+            dag.Shape.Name = name;
             dag.Shape.CurrentState = vertexData;
             dag.Shape.BaseStates.Add(vertexData);
         }
