@@ -109,8 +109,7 @@ namespace ValveResourceFormat.IO
         /// <summary>
         /// Get precise texture inputs by querying the shader files. 
         /// </summary>
-        private IEnumerable<(Channel Channel, string Name)>
-            GetInputsForTexture_Internal(string textureType, Material material, KeyValuePair<string, byte> forcedStatic = default)
+        private List<(Channel Channel, string Name)> GetInputsForTexture_Internal(string textureType, Material material)
         {
             var shader = fileLoader.LoadShader(material.ShaderName);
             if (shader?.Features == null)
@@ -118,17 +117,36 @@ namespace ValveResourceFormat.IO
                 return null;
             }
 
-            var @params = shader.Features.ParamBlocks.FindAll(p => p.Name == textureType).ToArray();
-            if (@params.Length == 0)
+            var @params = shader.Features.ParamBlocks.FindAll(p => p.Name == textureType).ToList();
+
+            if (@params.Count == 0)
             {
                 throw new InvalidDataException($"Features file for '{shader.Features.ShaderName}' does not contain a parameter named '{textureType}'");
             }
-            else if (@params.Length == 1)
+
+            // vr_simple (hlvr): g_tAmbientOcclusion[1] ChannelIndices (-1,-1,-1,-1)
+            @params = @params.Where(p => p.ChannelCount > 0).ToList();
+
+            if (@params.Count == 0)
             {
-                var inputs = GetParameterInputs(@params[0], shader.Features);
-                return inputs;
+                throw new InvalidDataException($"None of the variants of '{textureType}' had any channel defined in shader '{shader.Features.ShaderName}'.");
             }
-            else
+
+            var determinedParameter = @params[0];
+            var originatingShaderFile = shader.Features;
+
+            if (@params.Count > 1)
+            {
+                (determinedParameter, originatingShaderFile) = DetermineParameterReferencedByMaterial(shader, material, textureType);
+            }
+
+            return GetParameterInputs(determinedParameter, originatingShaderFile).ToList();
+
+            /// <summary>
+            /// Determine which of the parameter variants is the one referenced by the material.
+            /// </summary>
+            (ParamBlock, ShaderFile) DetermineParameterReferencedByMaterial(ShaderCollection shader, Material material, string paramName,
+                KeyValuePair<string, byte> forcedStatic = default)
             {
                 var featureState = GetMaterialFeatureState(material);
 
@@ -139,15 +157,15 @@ namespace ValveResourceFormat.IO
 
                 foreach (var shaderFile in collectionOrdered)
                 {
-                    var fileParams = shaderFile.ParamBlocks.FindAll(p => p.Name == textureType).ToArray();
-                    if (fileParams.Length == 0)
+                    var fileParams = shaderFile.ParamBlocks.FindAll(p => p.Name == paramName).ToList();
+                    if (fileParams.Count == 0)
                     {
                         continue;
                     }
 
                     // Dota seems to want one of S_MODE_FORWARD / S_MODE_DEFERRED enabled for textures
                     // to be referenced in the writeseq blocks.
-                    var staticState = new Dictionary<string, byte>() { { "S_MODE_FORWARD", 1 } };
+                    var staticState = new Dictionary<string, byte>(2) { { "S_MODE_FORWARD", 1 } };
 
                     if (forcedStatic.Key is not null)
                     {
@@ -161,8 +179,9 @@ namespace ValveResourceFormat.IO
                     // materials with bad feature configuration. That or the material data is just bad/incompatible.
                     if (!shaderFile.ZframesLookup.ContainsKey(zframeId))
                     {
-                        // Game code probably goes through the sfRules and switches off only some of the parameters.
+                        // Game code probably goes through the sfRules and switches off only some of the features.
                         // But here we just fall back to first zframe (effectively switches all off).
+                        // TODO: the determined param will most likely be incorrect, fix this
                         zframeId = 0;
                     }
 
@@ -176,8 +195,7 @@ namespace ValveResourceFormat.IO
                         var referencedParam = fileParams.FirstOrDefault(p => p.BlockIndex == writeSequenceField.ParamId);
                         if (referencedParam != null)
                         {
-                            var inputs = GetParameterInputs(referencedParam, shaderFile);
-                            return inputs;
+                            return (referencedParam, shaderFile);
                         }
                     }
 
@@ -186,12 +204,13 @@ namespace ValveResourceFormat.IO
                         // Try again with S_MODE_TOOLS_VIS
                         // Fixes hlvr/pak01/materials/skybox/sky_stars_01.vmat
                         // Jumps from zframe 0x230a to 0x280230a, ends up matching the 2nd g_tNormal, with Box mips.
-                        return GetInputsForTexture_Internal(textureType, material, forcedStatic: new KeyValuePair<string, byte>("S_MODE_TOOLS_VIS", 1));
+                        return DetermineParameterReferencedByMaterial(shader, material, paramName, forcedStatic: new KeyValuePair<string, byte>("S_MODE_TOOLS_VIS", 1));
                     }
                 }
 
+                // TODO: Ignore possibly unused texture for export? (Issue #652)
                 throw new InvalidDataException(
-                    $"Varying parameter '{textureType}' in '{shader.Features.ShaderName}' could not be resolved. "
+                    $"Varying parameter '{paramName}' in '{shader.Features.ShaderName}' could not be resolved. "
                     + $"Features ({string.Join(", ", featureState.Select(p => $"{p.Key}={p.Value}"))})");
             }
 
