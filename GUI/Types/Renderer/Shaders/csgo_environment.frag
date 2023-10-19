@@ -76,9 +76,38 @@ uniform float g_flHeightMapZeroPoint1 = 0;
         // ...
     #endif
 
-    uniform float g_flBlendSoftness2 = 0.0;
     uniform float g_flHeightMapScale2 = 1.0;
     uniform float g_flHeightMapZeroPoint2 = 0.0;
+
+    vec2 GetBlendWeights(vec2 heightTex, vec2 heightScale, vec2 heightZero, vec4 terrainBlend)
+    {
+        float blendFactor = terrainBlend.x;
+        float blendSoftness = terrainBlend.w;
+
+        // Weight calculations
+        float h1 = heightScale.x + blendSoftness;
+        float height1 = (heightTex.x - heightZero.x) * h1;
+        float h2 = heightScale.y + blendSoftness;
+        float h22 = (heightTex.y - heightZero.y) * (heightScale.y - blendSoftness);
+
+        float blend1 = (-heightZero.x * h1, - ((1.0 - heightZero.y) * h2)) - blendSoftness;
+        float blend2 = (1.0 - heightZero.x) * h1 - ((-heightZero.y) * h2);
+
+        float h2x = h22 + mix(blend1, blend2, blendFactor);
+
+        vec2 weights = vec2(height1, h2x) - vec2(max(height1, h2x) - blendSoftness);
+        
+        // Clamp negative values
+        weights = max(weights, vec2(0.0));
+
+        // Bias towards material 1
+        weights.x += 0.001;
+
+        // Normalize
+        weights = weights / vec2(weights.x + weights.y);
+
+        return weights;
+    }
 #endif
 
 #if (F_ALPHA_TEST == 1)
@@ -118,28 +147,26 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 
     // Blending
 #if defined(csgo_environment_blend_vfx)
-    vec4 colorTex2 = texture(g_tColor2, vTexCoord.zw);
-    vec4 heightTex2 = texture(g_tHeight2, vTexCoord.zw);
-    vec4 normalTex2 = texture(g_tNormal2, vTexCoord.zw);
+    vec4 color2 = texture(g_tColor2, vTexCoord.zw);
+    vec4 height2 = texture(g_tHeight2, vTexCoord.zw);
+    vec4 normal2 = texture(g_tNormal2, vTexCoord.zw);
     #if (F_DETAIL_NORMAL == 1)
         vec2 detailNormal2 = texture(g_tNormalDetail2, vDetailTexCoords).rg;
     #endif
 
-    colorTex2.rgb = pow(colorTex2.rgb, gamma);
+    color2.rgb = pow(color2.rgb, gamma);
 
-    float blendFactor = vColorBlendValues.r;
-    float blendMask = height.r * g_flHeightMapScale1 + g_flHeightMapZeroPoint1;
-    float blendMask2 = heightTex2.r * g_flHeightMapScale2 + g_flHeightMapZeroPoint2;
-    blendMask = (blendMask + blendMask2) * 0.5;
+    vec2 weights = GetBlendWeights(
+        vec2(height.r, height2.r),
+        vec2(g_flHeightMapScale1, g_flHeightMapScale2),
+        vec2(g_flHeightMapZeroPoint1, g_flHeightMapZeroPoint2),
+        vColorBlendValues
+    );
 
-    blendFactor = ApplyBlendModulation(blendFactor, blendMask, g_flBlendSoftness2);
-
-    color = mix(color, colorTex2, blendFactor);
-    height = mix(height, heightTex2, blendFactor);
-    // It's more correct to blend normals after decoding, but it's not actually how S2 does it
-    normal = mix(normal, normalTex2, blendFactor);
+    color = color * weights.x + color2 * weights.y;
+    height = height * weights.x + height2 * weights.y;
+    normal = normal * weights.x + normal2 * weights.y;
 #endif
-
 
     mat.Albedo = color.rgb;
     mat.Opacity = color.a;
