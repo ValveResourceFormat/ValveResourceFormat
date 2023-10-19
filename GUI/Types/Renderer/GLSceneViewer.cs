@@ -131,22 +131,29 @@ namespace GUI.Types.Renderer
         public virtual void PreSceneLoad()
         {
             const string vtexFileName = "ggx_integrate_brdf_lut_schlick.vtex_c";
+            var assembly = Assembly.GetExecutingAssembly();
 
-            // prefer loading from game, fallback to embedded
+            // Load brdf lut, preferably from game.
             var brdfLutResource = GuiContext.LoadFile("textures/dev/" + vtexFileName);
-            Stream stream = null;
+            Stream brdfStream = null;
             if (brdfLutResource == null)
             {
-                var assembly = Assembly.GetExecutingAssembly();
-                stream = assembly.GetManifestResourceStream("GUI.Utils." + vtexFileName);
+                brdfStream = assembly.GetManifestResourceStream("GUI.Utils." + vtexFileName);
 
                 brdfLutResource = new Resource() { FileName = vtexFileName };
-                brdfLutResource.Read(stream);
+                brdfLutResource.Read(brdfStream);
             }
 
             // TODO: add annoying force clamp for lut
             Scene.LightingInfo.Lightmaps["g_tBRDFLookup"] = GuiContext.MaterialLoader.LoadTexture(brdfLutResource);
             brdfLutResource?.Dispose();
+
+            // Load default cube fog texture.
+            using var cubeFogStream = assembly.GetManifestResourceStream("GUI.Utils.sky_furnace.vtex_c");
+            using var cubeFogResource = new Resource() { FileName = "default_cube.vtex_c" };
+            cubeFogResource.Read(cubeFogStream);
+
+            Scene.FogInfo.DefaultFogTexture = GuiContext.MaterialLoader.LoadTexture(cubeFogResource);
         }
 
         public virtual void PostSceneLoad()

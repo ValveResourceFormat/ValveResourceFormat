@@ -22,6 +22,7 @@ namespace GUI.Types.Renderer
         // For now we're only using one gradient fog
         public SceneGradientFog GradientFog { get; set; }
         public SceneCubemapFog CubemapFog { get; set; }
+        public RenderTexture DefaultFogTexture { get; set; }
 
         /*
         // VOLUMETRIC FOG
@@ -117,10 +118,8 @@ namespace GUI.Types.Renderer
         }
         public void SetCubemapFogTexture(Shader shader)
         {
-            if (CubeFogActive)
-            {
-                shader.SetTexture((int)ReservedTextureSlots.FogCubeTexture, "g_tFogCubeTexture", CubemapFog.CubemapFogTexture);
-            }
+            var fogCubeTexture = CubeFogActive ? CubemapFog.CubemapFogTexture : DefaultFogTexture;
+            shader.SetTexture((int)ReservedTextureSlots.FogCubeTexture, "g_tFogCubeTexture", fogCubeTexture);
         }
     }
 }
