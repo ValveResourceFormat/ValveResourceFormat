@@ -153,6 +153,12 @@ namespace GUI.Types.Renderer
         {
             Scene.CalculateEnvironmentMaps();
 
+            if (SkyboxScene != null)
+            {
+                SkyboxScene.LightingInfo.Lightmaps["g_tBRDFLookup"] = Scene.LightingInfo.Lightmaps["g_tBRDFLookup"];
+                SkyboxScene.CalculateEnvironmentMaps();
+            }
+
             if (Scene.AllNodes.Any() && this is not GLWorldViewer)
             {
                 var first = true;
