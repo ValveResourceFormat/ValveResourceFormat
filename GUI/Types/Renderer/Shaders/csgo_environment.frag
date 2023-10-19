@@ -90,7 +90,7 @@ uniform float g_flHeightMapZeroPoint1 = 0;
         float h2 = heightScale.y + blendSoftness;
         float h22 = (heightTex.y - heightZero.y) * (heightScale.y - blendSoftness);
 
-        float blend1 = (-heightZero.x * h1, - ((1.0 - heightZero.y) * h2)) - blendSoftness;
+        float blend1 = (-heightZero.x * h1 - ((1.0 - heightZero.y) * h2)) - blendSoftness;
         float blend2 = (1.0 - heightZero.x) * h1 - ((-heightZero.y) * h2);
 
         float h2x = h22 + mix(blend1, blend2, blendFactor);
