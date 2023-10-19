@@ -34,7 +34,9 @@ namespace GUI.Types.Renderer
 
         protected UniformBuffer<ViewConstants> viewBuffer;
         private UniformBuffer<LightingConstants> lightingBuffer;
-        private List<IBlockBindableBuffer> bufferSet;
+        public IReadOnlyList<IBlockBindableBuffer> Buffers { get; private set; }
+        public Dictionary<(ReservedTextureSlots, string), RenderTexture> Textures { get; } = new();
+
         private bool skipRenderModeChange;
         private ComboBox renderModeComboBox;
         private InfiniteGrid baseGrid;
@@ -125,7 +127,7 @@ namespace GUI.Types.Renderer
             viewBuffer = new(0);
             lightingBuffer = new(1);
 
-            bufferSet = new List<IBlockBindableBuffer>(2) { viewBuffer, lightingBuffer };
+            Buffers = new List<IBlockBindableBuffer>(2) { viewBuffer, lightingBuffer };
         }
 
         public virtual void PreSceneLoad()
@@ -145,7 +147,7 @@ namespace GUI.Types.Renderer
             }
 
             // TODO: add annoying force clamp for lut
-            Scene.LightingInfo.Lightmaps["g_tBRDFLookup"] = GuiContext.MaterialLoader.LoadTexture(brdfLutResource);
+            Textures[(ReservedTextureSlots.BRDFLookup, "g_tBRDFLookup")] = GuiContext.MaterialLoader.LoadTexture(brdfLutResource);
             brdfLutResource?.Dispose();
 
             // Load default cube fog texture.
@@ -162,7 +164,6 @@ namespace GUI.Types.Renderer
 
             if (SkyboxScene != null)
             {
-                SkyboxScene.LightingInfo.Lightmaps["g_tBRDFLookup"] = Scene.LightingInfo.Lightmaps["g_tBRDFLookup"];
                 SkyboxScene.CalculateEnvironmentMaps();
             }
 
@@ -260,7 +261,7 @@ namespace GUI.Types.Renderer
             GL.DepthRange(0, 0.95);
 
             UpdateSceneBuffers(Scene, Camera);
-            Scene.RenderWithCamera(Camera, bufferSet, lockedCullFrustum);
+            Scene.RenderWithCamera(Camera, this, lockedCullFrustum);
 
             {
                 GL.DepthRange(0.95, 1.0);
@@ -275,7 +276,7 @@ namespace GUI.Types.Renderer
 
                     SkyboxScene.Update(e.FrameTime);
                     UpdateSceneBuffers(SkyboxScene, skyboxCamera);
-                    SkyboxScene.RenderWithCamera(skyboxCamera, bufferSet, skyboxLockedCullFrustum);
+                    SkyboxScene.RenderWithCamera(skyboxCamera, this, skyboxLockedCullFrustum);
 
                     // Back to main Scene
                     UpdateSceneBuffers(Scene, Camera);

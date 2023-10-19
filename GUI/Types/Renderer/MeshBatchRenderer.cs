@@ -122,9 +122,14 @@ namespace GUI.Types.Renderer
 
                         GL.UseProgram(shader.Program);
 
-                        foreach (var buffer in context.Buffers)
+                        foreach (var buffer in context.View.Buffers)
                         {
                             buffer.SetBlockBinding(shader);
+                        }
+
+                        foreach (var ((Slot, Name), Texture) in context.View.Textures)
+                        {
+                            shader.SetTexture((int)Slot, Name, Texture);
                         }
 
                         context.Scene.LightingInfo.SetLightmapTextures(shader);

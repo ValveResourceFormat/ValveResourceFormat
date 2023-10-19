@@ -21,9 +21,9 @@ namespace GUI.Types.Renderer
 
         public struct RenderContext
         {
+            public GLSceneViewer View { get; init; }
             public Scene Scene { get; init; }
             public Camera Camera { get; init; }
-            public List<UniformBuffers.IBlockBindableBuffer> Buffers { get; set; }
             public RenderPass RenderPass { get; set; }
             public Shader ReplacementShader { get; set; }
         }
@@ -127,7 +127,7 @@ namespace GUI.Types.Renderer
         private readonly static List<MeshBatchRenderer.Request> renderStaticOverlays = new();
         private readonly static List<MeshBatchRenderer.Request> renderTranslucentDrawCalls = new();
 
-        public void RenderWithCamera(Camera camera, List<UniformBuffers.IBlockBindableBuffer> buffers, Frustum cullFrustum = null)
+        public void RenderWithCamera(Camera camera, GLSceneViewer view, Frustum cullFrustum = null)
         {
             cullFrustum ??= camera.ViewFrustum;
 
@@ -209,7 +209,7 @@ namespace GUI.Types.Renderer
             {
                 Scene = this,
                 Camera = camera,
-                Buffers = buffers,
+                View = view,
                 RenderPass = RenderPass.Opaque,
             };
 
@@ -253,7 +253,7 @@ namespace GUI.Types.Renderer
             if (camera.Picker is not null && camera.Picker.IsActive)
             {
                 camera.Picker.Finish();
-                RenderWithCamera(camera, buffers, cullFrustum);
+                RenderWithCamera(camera, view, cullFrustum);
             }
 
         }
