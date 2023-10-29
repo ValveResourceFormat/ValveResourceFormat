@@ -40,7 +40,7 @@ namespace GUI.Forms
             tableLayoutPanel1 = new System.Windows.Forms.TableLayoutPanel();
             extractProgressBar = new System.Windows.Forms.ProgressBar();
             cancelButton = new System.Windows.Forms.Button();
-            progressLog = new CodeTextBox();
+            progressLog = new System.Windows.Forms.TextBox();
             tableLayoutPanel1.SuspendLayout();
             SuspendLayout();
             // 
@@ -93,6 +93,7 @@ namespace GUI.Forms
             progressLog.Multiline = true;
             progressLog.Name = "progressLog";
             progressLog.ReadOnly = true;
+            progressLog.ScrollBars = System.Windows.Forms.ScrollBars.Both;
             progressLog.Size = new System.Drawing.Size(658, 322);
             progressLog.TabIndex = 3;
             progressLog.WordWrap = false;
@@ -119,6 +120,6 @@ namespace GUI.Forms
         private System.Windows.Forms.TableLayoutPanel tableLayoutPanel1;
         private System.Windows.Forms.ProgressBar extractProgressBar;
         private System.Windows.Forms.Button cancelButton;
-        private CodeTextBox progressLog;
+        private System.Windows.Forms.TextBox progressLog;
     }
 }

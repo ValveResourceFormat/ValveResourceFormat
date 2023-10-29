@@ -490,10 +490,7 @@ namespace GUI.Forms
 
             Invoke(() =>
             {
-                progressLog.BeginUpdate();
                 progressLog.AppendText($"[{DateTime.Now:HH:mm:ss.fff}] {text}{Environment.NewLine}");
-                progressLog.GoEnd();
-                progressLog.EndUpdate();
             });
         }
     }
