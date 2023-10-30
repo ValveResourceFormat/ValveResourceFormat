@@ -18,6 +18,8 @@ namespace GUI.Controls
 {
     partial class GLViewerControl : UserControl
     {
+        static readonly TimeSpan FpsUpdateTimeSpan = TimeSpan.FromSeconds(1);
+
         public GLControl GLControl { get; }
 
         private int currentControlsHeight;
@@ -356,17 +358,10 @@ namespace GUI.Controls
             }
 
             var currentTime = Stopwatch.GetTimestamp();
-            var elapsed = currentTime - lastUpdate;
+            var elapsed = Stopwatch.GetElapsedTime(lastUpdate, currentTime);
             lastUpdate = currentTime;
 
-            if (elapsed <= Program.TickFrequency)
-            {
-                GLControl.Invalidate();
-
-                return;
-            }
-
-            var frameTime = elapsed * Program.TickFrequency / Program.TicksPerSecond;
+            var frameTime = (float)elapsed.TotalSeconds;
 
             Camera.HandleInput(Mouse.GetState(), Keyboard.GetState());
             Camera.Tick(frameTime);
@@ -406,9 +401,9 @@ namespace GUI.Controls
 
             frames++;
 
-            var fpsElapsed = (currentTime - lastFpsUpdate) * Program.TickFrequency;
+            var fpsElapsed = Stopwatch.GetElapsedTime(lastFpsUpdate, currentTime);
 
-            if (fpsElapsed >= Program.TicksPerSecond)
+            if (fpsElapsed >= FpsUpdateTimeSpan)
             {
                 SetFps(frames);
                 lastFpsUpdate = currentTime;

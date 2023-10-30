@@ -261,14 +261,14 @@ namespace GUI.Controls
                     });
 
                     var lastUpdate = 0L;
-                    var updateInterval = (long)(Program.TicksPerSecond / 3f / Program.TickFrequency); // 3 times per second
+                    var updateInterval = TimeSpan.FromMilliseconds(400);
 
                     var progressReporter = new Progress<string>(progress =>
                     {
                         var value = Math.Min(++processed, maximum);
 
                         var currentTime = System.Diagnostics.Stopwatch.GetTimestamp();
-                        var elapsed = currentTime - lastUpdate;
+                        var elapsed = System.Diagnostics.Stopwatch.GetElapsedTime(lastUpdate, currentTime);
 
                         if (elapsed < updateInterval)
                         {
