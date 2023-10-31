@@ -898,7 +898,7 @@ namespace Decompiler
                         DumpFile(outputFile, rawFileData);
                     }
 
-                    return;
+                    continue;
                 }
 
                 using var resource = new Resource
