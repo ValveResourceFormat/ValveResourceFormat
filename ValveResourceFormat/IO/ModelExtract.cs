@@ -725,19 +725,23 @@ public class ModelExtract
     {
         var uniformSurface = PhysicsSurfaceNames[hull.SurfacePropertyIndex];
         var uniformCollisionTags = PhysicsCollisionTags[hull.CollisionAttributeIndex];
-        return ToDmxMesh(hull.Shape, hull.UserFriendlyName, uniformSurface, uniformCollisionTags);
+        // https://github.com/ValveResourceFormat/ValveResourceFormat/issues/660#issuecomment-1795499191
+        var fixRenderMeshCompileCrash = Type == ModelExtractType.Map_PhysicsToRenderMesh;
+        return ToDmxMesh(hull.Shape, hull.UserFriendlyName, uniformSurface, uniformCollisionTags, fixRenderMeshCompileCrash);
     }
 
     public byte[] ToDmxMesh(MeshDescriptor mesh)
     {
         var uniformSurface = PhysicsSurfaceNames[mesh.SurfacePropertyIndex];
         var uniformCollisionTags = PhysicsCollisionTags[mesh.CollisionAttributeIndex];
-        return ToDmxMesh(mesh.Shape, mesh.UserFriendlyName, uniformSurface, uniformCollisionTags, PhysicsSurfaceNames);
+        var fixRenderMeshCompileCrash = Type == ModelExtractType.Map_PhysicsToRenderMesh;
+        return ToDmxMesh(mesh.Shape, mesh.UserFriendlyName, uniformSurface, uniformCollisionTags, PhysicsSurfaceNames, fixRenderMeshCompileCrash);
     }
 
     public static byte[] ToDmxMesh(RnShapes.Hull hull, string name,
         string uniformSurface,
-        HashSet<string> uniformCollisionTags)
+        HashSet<string> uniformCollisionTags,
+        bool appendVertexNormalStream = false)
     {
         using var dmx = new Datamodel.Datamodel("model", 22);
         DmxModelBaseLayout(name, out var dmeModel, out var dag, out var vertexData);
@@ -767,6 +771,11 @@ public class ModelExtract
         var indices = Enumerable.Range(0, hull.Vertices.Length * 3).ToArray();
         vertexData.AddIndexedStream("position$0", hull.Vertices, indices);
 
+        if (appendVertexNormalStream)
+        {
+            vertexData.AddIndexedStream("normal$0", Enumerable.Repeat(new Vector3(0, 0, 0), hull.Vertices.Length).ToArray(), indices);
+        }
+
         TieElementRoot(dmx, dmeModel);
         using var stream = new MemoryStream();
         dmx.Save(stream, "keyvalues2", 4);
@@ -777,7 +786,8 @@ public class ModelExtract
     public static byte[] ToDmxMesh(RnShapes.Mesh mesh, string name,
         string uniformSurface,
         HashSet<string> uniformCollisionTags,
-        string[] surfaceList)
+        string[] surfaceList,
+        bool appendVertexNormalStream = false)
     {
         using var dmx = new Datamodel.Datamodel("model", 22);
         DmxModelBaseLayout(name, out var dmeModel, out var dag, out var vertexData);
@@ -826,6 +836,11 @@ public class ModelExtract
         }
 
         vertexData.AddIndexedStream("position$0", mesh.Vertices, indices);
+
+        if (appendVertexNormalStream)
+        {
+            vertexData.AddIndexedStream("normal$0", Enumerable.Repeat(new Vector3(0, 0, 0), mesh.Vertices.Length).ToArray(), indices);
+        }
 
         TieElementRoot(dmx, dmeModel);
         using var stream = new MemoryStream();
