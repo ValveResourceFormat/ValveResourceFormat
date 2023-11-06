@@ -22,7 +22,8 @@ namespace ValveResourceFormat.CompiledShader
         public List<Attribute> Attributes { get; } = new();
         public int[] VShaderInputs { get; } = Array.Empty<int>();
         public List<ZDataBlock> DataBlocks { get; } = new();
-        public int[] UnknownArg { get; }
+        public bool[] IsReusedSource { get; }
+        public byte[] UnknownArg { get; }
         public byte[] Flags0 { get; }
         public byte Flagbyte0 { get; }
         public byte Flagbyte1 { get; }
@@ -82,10 +83,12 @@ namespace ValveResourceFormat.CompiledShader
                 DataBlocks.Add(dataBlock);
             }
             int uknownArgCount = DataReader.ReadInt16();
-            UnknownArg = new int[uknownArgCount];
+            IsReusedSource = new bool[uknownArgCount];
+            UnknownArg = new byte[uknownArgCount];
             for (var i = 0; i < uknownArgCount; i++)
             {
-                UnknownArg[i] = DataReader.ReadInt16();
+                IsReusedSource[i] = DataReader.ReadBoolean();
+                UnknownArg[i] = DataReader.ReadByte();
             }
             Flags0 = DataReader.ReadBytes(4);
             Flagbyte0 = DataReader.ReadByte();

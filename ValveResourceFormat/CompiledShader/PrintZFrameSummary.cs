@@ -255,8 +255,8 @@ namespace ValveResourceFormat.CompiledShader
             var gpuSourceName = zframeFile.GpuSources[0].GetBlockName().ToLowerInvariant();
             var sourceHeader = $"{gpuSourceName}-source";
             string[] dConfigHeaders = isVertexShader ?
-                    new string[] { "config-id", dNamesHeader, "write-seq.", sourceHeader, "gpu-inputs", "unknown-arg" } :
-                    new string[] { "config-id", dNamesHeader, "write-seq.", sourceHeader, "unknown-arg" };
+                    new string[] { "config-id", dNamesHeader, "write-seq.", sourceHeader, "gpu-inputs", nameof(ZFrameFile.IsReusedSource), nameof(ZFrameFile.UnknownArg) } :
+                    new string[] { "config-id", dNamesHeader, "write-seq.", sourceHeader, nameof(ZFrameFile.IsReusedSource), nameof(ZFrameFile.UnknownArg) };
             OutputFormatterTabulatedData tabulatedConfigFull = new(OutputWriter);
             tabulatedConfigFull.DefineHeaders(dConfigHeaders);
 
@@ -267,8 +267,8 @@ namespace ValveResourceFormat.CompiledShader
                 if (dBlockCount % 100 == 0)
                 {
                     tabulatedConfigFull.AddTabulatedRow(isVertexShader ?
-                        new string[] { "", dNamesHeader, "", "", "", "" } :
-                        new string[] { "", dNamesHeader, "", "", "" });
+                        new string[] { "", dNamesHeader, "", "", "", "", "" } :
+                        new string[] { "", dNamesHeader, "", "", "", "" });
                 }
                 var configIdText = $"0x{blockId:x}";
                 var configCombText = hasNoDConfigsDefined ? $"{"(default)",-14}" : tabbedConfigs.Pop();
@@ -280,11 +280,12 @@ namespace ValveResourceFormat.CompiledShader
                 var vsInputs = isVertexShader ?
                     zframeFile.VShaderInputs[blockId] : -1;
                 var gpuInputText = vsInputs >= 0 ? $"VS-symbols[{zframeFile.VShaderInputs[blockId]}]" : "[none]";
+                var isReusedSource = zframeFile.IsReusedSource[blockId] ? "yes" : string.Empty;
                 var arg0Text = $"{zframeFile.UnknownArg[blockId]}";
                 tabulatedConfigFull.AddTabulatedRow(
                     isVertexShader ?
-                    new string[] { configIdText, configCombText, writeSeqText, sourceLink, gpuInputText, arg0Text } :
-                    new string[] { configIdText, configCombText, writeSeqText, sourceLink, arg0Text });
+                    new string[] { configIdText, configCombText, writeSeqText, sourceLink, gpuInputText, isReusedSource, arg0Text } :
+                    new string[] { configIdText, configCombText, writeSeqText, sourceLink, isReusedSource, arg0Text });
             }
 
             tabulatedConfigFull.PrintTabulatedValues();
