@@ -751,7 +751,7 @@ public class ModelExtract
         faceSet.Material.MaterialName = new SurfaceTagCombo(uniformSurface, uniformCollisionTags).StringMaterial;
         dag.Shape.FaceSets.Add(faceSet);
 
-        Debug.Assert(hull.Faces.Length + hull.Vertices.Length == (hull.Edges.Length / 2) + 2);
+        Debug.Assert(hull.Faces.Length + hull.VertexPositions.Length == (hull.Edges.Length / 2) + 2);
 
         foreach (var face in hull.Faces)
         {
@@ -768,12 +768,12 @@ public class ModelExtract
             faceSet.Faces.Add(-1);
         }
 
-        var indices = Enumerable.Range(0, hull.Vertices.Length * 3).ToArray();
-        vertexData.AddIndexedStream("position$0", hull.Vertices, indices);
+        var indices = Enumerable.Range(0, hull.VertexPositions.Length * 3).ToArray();
+        vertexData.AddIndexedStream("position$0", hull.VertexPositions, indices);
 
         if (appendVertexNormalStream)
         {
-            vertexData.AddIndexedStream("normal$0", Enumerable.Repeat(new Vector3(0, 0, 0), hull.Vertices.Length).ToArray(), indices);
+            vertexData.AddIndexedStream("normal$0", Enumerable.Repeat(new Vector3(0, 0, 0), hull.VertexPositions.Length).ToArray(), indices);
         }
 
         TieElementRoot(dmx, dmeModel);

@@ -117,7 +117,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
             Max = data.GetSubCollection("m_vMax").ToVector3();
             Materials = data.GetArray<object>("m_Materials").Select(Convert.ToInt32).ToArray();
             Nodes = ParseNodes(data);
-            Vertices = Hull.ParseVertices(data);
+            Vertices = Hull.ParseVertexPositions(data);
             Triangles = ParseTriangles(data);
             OrthographicAreas = data.GetSubCollection("m_vOrthographicAreas").ToVector3();
         }

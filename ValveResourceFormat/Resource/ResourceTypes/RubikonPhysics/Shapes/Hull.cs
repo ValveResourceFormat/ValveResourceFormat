@@ -95,9 +95,15 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
         public Region RegionSVM { get; set; }
 
         /// <summary>
-        /// Hull vertices (x1, y1, z1, x2, y2, z2, ...)
+        /// Hull vertex indices. Hulls can have up to 255 vertices.
         /// </summary>
-        public Vector3[] Vertices { get; set; }
+        /// </remarks> Empty for resources compiled before 2023-11-4. </remarks>
+        public byte[] Vertices { get; set; }
+
+        /// <summary>
+        /// Hull vertex positions.
+        /// /// </summary>
+        public Vector3[] VertexPositions { get; set; }
 
         /// <summary>
         /// Hull face planes with outward pointing normals (n1, -d1, n2, -d2, ...)
@@ -127,6 +133,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
             Centroid = data.GetSubCollection("m_vCentroid").ToVector3();
             MaxAngularRadius = data.GetFloatProperty("m_flMaxAngularRadius");
             Vertices = ParseVertices(data);
+            VertexPositions = ParseVertexPositions(data);
             Edges = ParseEdges(data);
             Faces = ParseFaces(data);
             Planes = ParsePlanes(data);
@@ -141,7 +148,22 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
             RegionSVM = regionSVM == null ? null : new Region(regionSVM);
         }
 
-        public static Vector3[] ParseVertices(IKeyValueCollection data)
+        // 2023-11-4: Explicit vertex indices 
+        public static bool HasExplicitVertexIndices(IKeyValueCollection data)
+            => data.ContainsKey("m_VertexPositions");
+
+        public static byte[] ParseVertices(IKeyValueCollection data)
+        {
+            if (!HasExplicitVertexIndices(data))
+            {
+                return Array.Empty<byte>();
+            }
+
+            var verticesBlob = data.GetArray<byte>("m_Vertices");
+            return verticesBlob.ToArray();
+        }
+
+        public static Vector3[] ParseVertexPositions(IKeyValueCollection data)
         {
             if (data.IsNotBlobType("m_Vertices"))
             {
@@ -149,11 +171,14 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
                 return verticesArr.Select(v => v.ToVector3()).ToArray();
             }
 
-            var verticesBlob = data.GetArray<byte>("m_Vertices");
-            return Enumerable.Range(0, verticesBlob.Length / 12)
-                .Select(i => new Vector3(BitConverter.ToSingle(verticesBlob, i * 12),
-                    BitConverter.ToSingle(verticesBlob, (i * 12) + 4),
-                    BitConverter.ToSingle(verticesBlob, (i * 12) + 8)))
+            var vertexPositionsBlob = HasExplicitVertexIndices(data)
+                ? data.GetArray<byte>("m_VertexPositions")
+                : data.GetArray<byte>("m_Vertices");
+
+            return Enumerable.Range(0, vertexPositionsBlob.Length / 12)
+                .Select(i => new Vector3(BitConverter.ToSingle(vertexPositionsBlob, i * 12),
+                    BitConverter.ToSingle(vertexPositionsBlob, (i * 12) + 4),
+                    BitConverter.ToSingle(vertexPositionsBlob, (i * 12) + 8)))
                 .ToArray();
         }
 

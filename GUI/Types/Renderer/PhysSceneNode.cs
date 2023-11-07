@@ -147,7 +147,7 @@ namespace GUI.Types.Renderer
                     //var surfacePropertyIndex = capsule.SurfacePropertyIndex;
 
                     var vertOffset = verts[collisionAttributeIndex].Count / 7;
-                    foreach (var v in hull.Shape.Vertices)
+                    foreach (var v in hull.Shape.VertexPositions)
                     {
                         var vec = v;
                         if (bindPose.Any())
