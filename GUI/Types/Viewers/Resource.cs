@@ -60,10 +60,7 @@ namespace GUI.Types.Viewers
                         {
                             AutoScroll = true,
                         };
-                        var control = new CodeTextBox
-                        {
-                            Text = e.ToString(),
-                        };
+                        var control = new CodeTextBox(e.ToString());
 
                         tab2.Controls.Add(control);
                         resTabs.TabPages.Add(tab2);
@@ -310,10 +307,7 @@ namespace GUI.Types.Viewers
             }
             catch (Exception ex)
             {
-                var control = new CodeTextBox
-                {
-                    Text = ex.ToString(),
-                };
+                var control = new CodeTextBox(ex.ToString());
 
                 var tabEx = new TabPage("Decompile Error");
                 tabEx.Controls.Add(control);
@@ -355,10 +349,7 @@ namespace GUI.Types.Viewers
                 return;
             }
 
-            var textBox = new CodeTextBox
-            {
-                Text = block.ToString().ReplaceLineEndings()
-            };
+            var textBox = new CodeTextBox(block.ToString());
             blockTab.Controls.Add(textBox);
         }
 

@@ -407,10 +407,7 @@ namespace GUI.Types.Viewers
                 case GlslSource:
                     {
                         gpuSourceTab = new TabPage(gpuSourceTabTitle);
-                        var gpuSourceGlslText = new CodeTextBox
-                        {
-                            Text = Encoding.UTF8.GetString(gpuSource.Sourcebytes).ReplaceLineEndings(),
-                        };
+                        var gpuSourceGlslText = new CodeTextBox(Encoding.UTF8.GetString(gpuSource.Sourcebytes));
                         gpuSourceTab.Controls.Add(gpuSourceGlslText);
                         break;
                     }
@@ -472,10 +469,7 @@ namespace GUI.Types.Viewers
                             zframeFile.ZframeId, 0, spvc_backend.SPVC_BACKEND_GLSL);
 
                         var textTab = new TabPage("SPIR-V");
-                        var textBox = new CodeTextBox()
-                        {
-                            Text = reflectedSource.ReplaceLineEndings(),
-                        };
+                        var textBox = new CodeTextBox(reflectedSource);
                         textTab.Controls.Add(textBox);
                         resTabs.TabPages.Add(textTab);
                         resTabs.SelectedTab = textTab;

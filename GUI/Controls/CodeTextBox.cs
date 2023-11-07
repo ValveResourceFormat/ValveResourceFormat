@@ -1,3 +1,4 @@
+using System;
 using System.Drawing;
 using System.Windows.Forms;
 using FastColoredTextBoxNS;
@@ -6,7 +7,9 @@ namespace GUI.Controls
 {
     internal class CodeTextBox : FastColoredTextBox
     {
-        public CodeTextBox() : base()
+        private string LazyText;
+
+        public CodeTextBox(string text) : base()
         {
             const int FontSize = 9;
 
@@ -26,15 +29,39 @@ namespace GUI.Controls
             ReadOnly = true;
             AllowMacroRecording = false;
             AutoIndent = false;
+            Disposed += OnDisposed;
             TextChanged += OnTextChanged;
+
+            if (!string.IsNullOrEmpty(text))
+            {
+                LazyText = text;
+                VisibleChanged += OnVisibleChanged;
+            }
 
             // TODO: Handle OnZoomChanged and save zoom in settings
         }
 
+        private void OnDisposed(object sender, EventArgs e)
+        {
+            Disposed -= OnDisposed;
+            VisibleChanged -= OnVisibleChanged;
+            TextChanged -= OnTextChanged;
+        }
+
+        private void OnVisibleChanged(object sender, EventArgs e)
+        {
+            VisibleChanged -= OnVisibleChanged;
+
+            Cursor.Current = Cursors.WaitCursor;
+
+            base.Text = LazyText;
+            LazyText = null;
+
+            Cursor.Current = Cursors.Default;
+        }
+
         private void OnTextChanged(object sender, TextChangedEventArgs e)
         {
-            TextChanged -= OnTextChanged;
-
             ClearUndo();
 
             e.ChangedRange.SetFoldingMarkers("{", "}");

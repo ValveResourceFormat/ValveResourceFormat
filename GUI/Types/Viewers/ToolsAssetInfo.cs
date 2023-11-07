@@ -27,10 +27,7 @@ namespace GUI.Types.Viewers
                 toolsAssetInfo.Read(vrfGuiContext.FileName);
             }
 
-            var text = new CodeTextBox
-            {
-                Text = toolsAssetInfo.ToString().ReplaceLineEndings(),
-            };
+            var text = new CodeTextBox(toolsAssetInfo.ToString());
             tab.Controls.Add(text);
 
             return tab;

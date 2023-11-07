@@ -46,11 +46,7 @@ namespace GUI.Types.Viewers
 
             var text = reader.ReadToEnd();
 
-            var control = new CodeTextBox
-            {
-                Text = text.ReplaceLineEndings(),
-            };
-
+            var control = new CodeTextBox(text);
             var tab = new TabPage();
             tab.Controls.Add(control);
 

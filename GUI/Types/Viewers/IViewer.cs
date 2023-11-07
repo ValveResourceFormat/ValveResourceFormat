@@ -29,11 +29,7 @@ namespace GUI.Types.Viewers
                 extract = content.ToString();
             }
 
-            var control = new CodeTextBox
-            {
-                Text = extract.ReplaceLineEndings(),
-            };
-
+            var control = new CodeTextBox(extract);
             var tab = new TabPage(name);
             tab.Controls.Add(control);
             resTabs.TabPages.Add(tab);

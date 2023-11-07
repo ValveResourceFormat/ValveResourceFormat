@@ -154,7 +154,7 @@ namespace GUI.Utils
         public TabPage CreateTab()
         {
             var bgColor = Color.FromArgb(37, 37, 37);
-            control = new CodeTextBox
+            control = new CodeTextBox(null)
             {
                 BackColor = bgColor,
                 ForeColor = Color.FromArgb(240, 240, 240),

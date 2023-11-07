@@ -521,10 +521,7 @@ namespace GUI
                     {
                         loadingFile.Dispose();
 
-                        var control = new CodeTextBox
-                        {
-                            Text = ex.ToString(),
-                        };
+                        var control = new CodeTextBox(ex.ToString());
 
                         tab.Controls.Add(control);
 

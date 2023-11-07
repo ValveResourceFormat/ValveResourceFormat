@@ -33,10 +33,7 @@ namespace GUI.Types.Viewers
 
             kv3stream.Close();
 
-            var control = new CodeTextBox
-            {
-                Text = kv3.ToString().ReplaceLineEndings(),
-            };
+            var control = new CodeTextBox(kv3.ToString());
             tab.Controls.Add(control);
 
             return tab;
