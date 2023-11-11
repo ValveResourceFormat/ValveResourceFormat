@@ -509,7 +509,7 @@ namespace GUI
 
             tab.ImageIndex = GetImageIndexForExtension(extension);
 
-            mainTabs.TabPages.Add(tab);
+            mainTabs.TabPages.Insert(mainTabs.SelectedIndex + 1, tab);
             mainTabs.SelectTab(tab);
 
             var task = Task.Factory.StartNew(() => ProcessFile(vrfGuiContext, file));
