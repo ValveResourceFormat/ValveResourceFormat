@@ -748,6 +748,15 @@ public class ModelExtract
         clip.TimeFrame.Duration = TimeSpan.FromSeconds((double)(anim.FrameCount - 1) / anim.Fps);
         clip.FrameRate = anim.Fps;
 
+        Frame[] frames = new Frame[anim.FrameCount];
+        for (int i = 0; i < anim.FrameCount; i++)
+        {
+            Frame frame = new Frame(model.Skeleton);
+            frame.FrameIndex = i;
+            anim.DecodeFrame(frame);
+            frames[i] = frame;
+        }
+
         foreach (var bone in model.Skeleton.Bones)
         {
             var transform = transforms[bone.Index];
@@ -763,9 +772,7 @@ public class ModelExtract
 
             for (int i = 0; i < anim.FrameCount; i++)
             {
-                Frame frame = new Frame(model.Skeleton);
-                frame.FrameIndex = i;
-                anim.DecodeFrame(frame);
+                Frame frame = frames[i];
 
                 TimeSpan time = TimeSpan.FromSeconds((double)i / anim.Fps);
 
