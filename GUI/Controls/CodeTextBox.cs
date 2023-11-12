@@ -27,6 +27,7 @@ namespace GUI.Controls
             Dock = DockStyle.Fill;
             BorderStyle = BorderStyle.None;
             ReadOnly = true;
+            AllowDrop = false;
             AllowMacroRecording = false;
             AutoIndent = false;
             Disposed += OnDisposed;
