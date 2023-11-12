@@ -4,6 +4,7 @@
 #include "common/features.glsl"
 #include "common/ViewConstants.glsl"
 #include "common/LightingConstants.glsl"
+#include "complex.features"
 
 #include "common/animation.glsl"
 
@@ -14,12 +15,6 @@ in vec2 vTEXCOORD;
 //Parameter defines - These are default values and can be overwritten based on material/model parameters
 #define F_NOTINT 0
 #define F_VERTEX_COLOR 0
-#define F_PAINT_VERTEX_COLORS 0 // csgo_static_overlay_vfx
-#define F_LAYERS 0
-#define F_SECONDARY_UV 0
-#define F_FORCE_UV2 0
-#define F_DETAIL_TEXTURE 0
-#define F_FOLIAGE_ANIMATION 0
 #define F_TEXTURE_ANIMATION 0
 #define F_TEXTURE_ANIMATION_MODE 0
 #define F_SPHERICAL_PROJECTED_ANISOTROPIC_TANGENTS 0
@@ -60,21 +55,19 @@ in vec2 vTEXCOORD;
     out vec4 vColorBlendValues;
 #endif
 
-#if defined(csgo_foliage_vfx)
-    #define vFoliageParams vCOLOR // vcs says texcoord3?
+#if defined(foliage_vfx_common)
+    #if defined(csgo_foliage_vfx)
+        #define vFoliageParams vCOLOR // vcs says texcoord3?
+    #elif defined(vr_complex_vfx)
+        #define vFoliageParams vTEXCOORD3
+    #endif
     in vec3 vFoliageParams;
     out vec3 vFoliageParamsOut;
-#endif
-
-#if (F_FOLIAGE_ANIMATION > 0)
-    in vec4 vTEXCOORD1;
 #endif
 
 #if (F_SECONDARY_UV == 1) || (F_FORCE_UV2 == 1)
     in vec4 vTEXCOORD2;
     out vec2 vTexCoord2;
-#elif (F_FOLIAGE_ANIMATION > 0)
-    in vec4 vTEXCOORD2;
 #endif
 
 #if (F_VERTEX_COLOR == 1) || (F_PAINT_VERTEX_COLORS == 1)
@@ -201,14 +194,13 @@ void main()
     vAnisoBitangentOut = normalTransform * GetSphericalProjectedAnisoBitangent(normal, tangent.xyz);
 #endif
 
-#if defined(csgo_foliage_vfx)
+#if defined(foliage_vfx_common)
     // Interpolating out for viewing with foliage rendermode
     vFoliageParamsOut = vFoliageParams;
 #endif
 
 #if (F_FOLIAGE_ANIMATION > 0)
-    // TODO: this should always be texcoord semanticindex 0
-	vTexCoordOut = GetAnimatedUVs(vTEXCOORD2.xy);
+	vTexCoordOut = GetAnimatedUVs(vTEXCOORD.xy);
 #else
 	vTexCoordOut = GetAnimatedUVs(vTEXCOORD.xy);
 #endif

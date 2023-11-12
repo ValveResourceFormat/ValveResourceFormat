@@ -5,6 +5,7 @@
 #include "common/features.glsl"
 #include "common/ViewConstants.glsl"
 #include "common/LightingConstants.glsl"
+#include "complex.features"
 
 // Render modes -- Switched on/off by code
 #define renderMode_Diffuse 0
@@ -36,7 +37,6 @@
 #define F_FULLBRIGHT 0
 #define F_LIT 0
 #define F_UNLIT 0
-#define F_PAINT_VERTEX_COLORS 0
 #define F_ADDITIVE_BLEND 0
 #define F_ALPHA_TEST 0
 #define F_TRANSLUCENT 0
@@ -49,20 +49,16 @@
 #define F_DONT_FLIP_BACKFACE_NORMALS 0
 #define F_SCALE_NORMAL_MAP 0
 // TEXTURING
-#define F_LAYERS 0
 #define F_TINT_MASK 0
 #define F_FANCY_BLENDING 0
 #define F_METALNESS_TEXTURE 0
 #define F_AMBIENT_OCCLUSION_TEXTURE 0
 #define F_FANCY_BLENDING 0
-#define F_DETAIL_TEXTURE 0
 #define F_SELF_ILLUM 0
-#define F_SECONDARY_UV 0
 #define F_ENABLE_AMBIENT_OCCLUSION 0 // simple_2way_blend
 #define F_ENABLE_TINT_MASKS 0 // simple_2way_blend
 #define F_DECAL_TEXTURE 0
 #define F_DECAL_BLEND_MODE 0
-#define F_FORCE_UV2 0
 // SHADING
 #define F_SPECULAR 0
 #define F_SPECULAR_INDIRECT 0
@@ -112,7 +108,7 @@ uniform sampler2D g_tTintMask;
     #endif
 #endif
 
-#if defined(csgo_foliage_vfx)
+#if defined(foliage_vfx_common)
     in vec3 vFoliageParamsOut;
 #endif
 
@@ -602,7 +598,7 @@ void main()
     outputColor = vVertexColorOut;
 #endif
 
-#if renderMode_Foliage_Params == 1 && defined(csgo_foliage_vfx)
+#if renderMode_Foliage_Params == 1 && defined(foliage_vfx_common)
     outputColor.rgb = vFoliageParamsOut.rgb;
 #endif
 
