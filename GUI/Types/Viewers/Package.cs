@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Enumeration;
 using System.Linq;
 using System.Text;
 using System.Windows.Forms;
@@ -13,14 +14,33 @@ using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
 
 namespace GUI.Types.Viewers
 {
+#pragma warning disable CA1001 // TreeView is not owned by this class, set to null in VPK_Disposed
     class Package : IViewer
+#pragma warning restore CA1001
     {
         internal const string DELETED_FILES_FOLDER = "@@ Deleted Files @@";
         private VrfGuiContext VrfGuiContext;
+        private TreeViewWithSearchResults TreeView;
+        private bool IsEditingPackage; // TODO: Allow editing existing vpks (but not chunked ones)
 
         public static bool IsAccepted(uint magic)
         {
             return magic == SteamDatabase.ValvePak.Package.MAGIC;
+        }
+
+        public Control CreateEmpty(VrfGuiContext vrfGuiContext)
+        {
+            VrfGuiContext = vrfGuiContext;
+            IsEditingPackage = true;
+
+            var package = new SteamDatabase.ValvePak.Package();
+            package.AddFile("README.txt", Array.Empty<byte>()); // TODO: Otherwise package.Entries is null
+
+            vrfGuiContext.CurrentPackage = package;
+
+            CreateTreeViewWithSearchResults();
+
+            return TreeView;
         }
 
         public TabPage Create(VrfGuiContext vrfGuiContext, byte[] input)
@@ -43,17 +63,77 @@ namespace GUI.Types.Viewers
 
             vrfGuiContext.CurrentPackage = package;
 
-            // create a TreeView with search capabilities, register its events, and add it to the tab
-            var treeViewWithSearch = new TreeViewWithSearchResults();
-            treeViewWithSearch.InitializeTreeViewFromPackage(vrfGuiContext);
-            treeViewWithSearch.TreeNodeMouseDoubleClick += VPK_OpenFile;
-            treeViewWithSearch.TreeNodeRightClick += VPK_OnContextMenu;
-            treeViewWithSearch.ListViewItemDoubleClick += VPK_OpenFile;
-            treeViewWithSearch.ListViewItemRightClick += VPK_OnContextMenu;
-            treeViewWithSearch.Disposed += VPK_Disposed;
-            tab.Controls.Add(treeViewWithSearch);
+            CreateTreeViewWithSearchResults();
+            tab.Controls.Add(TreeView);
 
             return tab;
+        }
+
+        private void CreateTreeViewWithSearchResults()
+        {
+            // create a TreeView with search capabilities, register its events, and add it to the tab
+            TreeView = new TreeViewWithSearchResults(this);
+            TreeView.InitializeTreeViewFromPackage(VrfGuiContext);
+            TreeView.TreeNodeMouseDoubleClick += VPK_OpenFile;
+            TreeView.TreeNodeRightClick += VPK_OnContextMenu;
+            TreeView.ListViewItemDoubleClick += VPK_OpenFile;
+            TreeView.ListViewItemRightClick += VPK_OnContextMenu;
+            TreeView.Disposed += VPK_Disposed;
+        }
+
+        public void AddFilesFromFolder(string inputDirectory)
+        {
+            var files = new FileSystemEnumerable<string>(
+                inputDirectory,
+                (ref FileSystemEntry entry) => entry.ToSpecifiedFullPath(),
+                new EnumerationOptions
+                {
+                    RecurseSubdirectories = true,
+                }
+            );
+
+            // TODO: This is not adding to the selected folder, but to root
+            foreach (var file in files)
+            {
+                if (!File.Exists(file))
+                {
+                    continue;
+                }
+
+                var name = file[(inputDirectory.Length + 1)..];
+                var data = File.ReadAllBytes(file);
+
+                var entry = VrfGuiContext.CurrentPackage.AddFile(name, data);
+                TreeView.AddFileNode(entry);
+            }
+        }
+
+        public void SaveToFile(string fileName)
+        {
+            VrfGuiContext.CurrentPackage.Write(fileName);
+
+            var fileCount = 0;
+            var fileSize = 0u;
+
+            foreach (var fileType in VrfGuiContext.CurrentPackage.Entries)
+            {
+                foreach (var file in fileType.Value)
+                {
+                    fileCount++;
+                    fileSize += file.TotalLength;
+                }
+            }
+
+            var result = $"Created {Path.GetFileName(fileName)} with {fileCount} files of size {fileSize.ToFileSizeString()}.";
+
+            Log.Info(nameof(Package), result);
+
+            MessageBox.Show(
+                result,
+                "VPK created",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information
+            );
         }
 
         internal static List<PackageEntry> RecoverDeletedFiles(SteamDatabase.ValvePak.Package package, Action<string> setProgress)
@@ -306,6 +386,7 @@ namespace GUI.Types.Viewers
                 treeViewWithSearch.ListViewItemDoubleClick -= VPK_OpenFile;
                 treeViewWithSearch.ListViewItemRightClick -= VPK_OnContextMenu;
                 treeViewWithSearch.Disposed -= VPK_Disposed;
+                TreeView = null;
             }
         }
 
@@ -347,6 +428,20 @@ namespace GUI.Types.Viewers
 
         private void VPK_OnContextMenu(object sender, TreeNodeMouseClickEventArgs e)
         {
+            if (IsEditingPackage)
+            {
+                var treeNode = e.Node as BetterTreeNode;
+
+                if (!treeNode.IsFolder)
+                {
+                    // TODO: Remove files/folders
+                    return;
+                }
+
+                Program.MainForm.ShowVpkEditingContextMenu(e.Node.TreeView, e.Location);
+                return;
+            }
+
             var isRoot = e.Node is BetterTreeNode node && node.Level == 0 && node.Name == "root";
 
             Program.MainForm.ShowVpkContextMenu(e.Node.TreeView, e.Location, isRoot);
@@ -359,6 +454,11 @@ namespace GUI.Types.Viewers
         /// <param name="e">Event data.</param>
         private void VPK_OnContextMenu(object sender, ListViewItemClickEventArgs e)
         {
+            if (IsEditingPackage)
+            {
+                return;
+            }
+
             if (e.Node is ListViewItem listViewItem && listViewItem.Tag is TreeNode node)
             {
                 if (node.TreeView != null)

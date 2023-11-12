@@ -16,6 +16,7 @@ namespace GUI.Controls
     partial class TreeViewWithSearchResults : UserControl
     {
         public bool DeletedFilesRecovered { get; private set; }
+        public Types.Viewers.Package Viewer { get; }
 
         public event TreeNodeMouseClickEventHandler TreeNodeMouseDoubleClick; // when a TreeNode is double clicked
         public event TreeNodeMouseClickEventHandler TreeNodeRightClick; // when a TreeNode is single clicked
@@ -26,7 +27,7 @@ namespace GUI.Controls
         /// Initializes a new instance of the <see cref="TreeViewWithSearchResults"/> class.
         /// Require a default constructor for the designer.
         /// </summary>
-        public TreeViewWithSearchResults()
+        public TreeViewWithSearchResults(Types.Viewers.Package viewer)
         {
             InitializeComponent();
 
@@ -43,6 +44,7 @@ namespace GUI.Controls
             mainTreeView.NodeMouseDoubleClick += MainTreeView_NodeMouseDoubleClick;
             mainTreeView.NodeMouseClick += MainTreeView_NodeMouseClick;
             mainTreeView.AfterSelect += MainTreeView_AfterSelect;
+            Viewer = viewer;
         }
 
         private void MainListView_Disposed(object sender, EventArgs e)
@@ -174,6 +176,12 @@ namespace GUI.Controls
             }
 
             control.EndUpdate();
+        }
+
+        internal void AddFileNode(PackageEntry file)
+        {
+            var root = mainTreeView.Nodes[0] as BetterTreeNode;
+            mainTreeView.AddFileNode(root, file);
         }
 
         internal void RecoverDeletedFiles()
