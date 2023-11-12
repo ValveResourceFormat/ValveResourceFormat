@@ -19,8 +19,9 @@ namespace ValveResourceFormat.CompiledShader
         public int Arg5 { get; }
         public int Arg6 { get; }
         public int Arg7 { get; } = -1;
+        public int[] Arg8 { get; }
         public List<(string Name, string Shader, string StaticConfig)> Modes { get; } = new();
-        public List<(string, string)> EditorIDs { get; } = new();
+        public List<(Guid, string)> EditorIDs { get; } = new();
         public FeaturesHeaderBlock(ShaderDataReader datareader) : base(datareader)
         {
             var vcsMagicId = datareader.ReadInt32();
@@ -58,6 +59,8 @@ namespace ValveResourceFormat.CompiledShader
             Arg3 = datareader.ReadInt32();
             Arg4 = datareader.ReadInt32();
             Arg5 = datareader.ReadInt32();
+
+            // v68 removed two args. TODO: confirm which ones
             if (VcsFileVersion < 68)
             {
                 Arg6 = datareader.ReadInt32();
@@ -67,12 +70,14 @@ namespace ValveResourceFormat.CompiledShader
                     Arg7 = datareader.ReadInt32();
                 }
             }
-            var modeCount = datareader.ReadInt32();
+
+            Arg8 = new int[(int)AdditionalFiles];
             for (var i = VcsAdditionalFiles.None; i < AdditionalFiles; i++)
             {
-                // Note the modeCount is overwritten
-                modeCount = datareader.ReadInt32();
+                Arg8[(int)i] = datareader.ReadInt32();
             };
+
+            var modeCount = datareader.ReadInt32();
 
             for (var i = 0; i < modeCount; i++)
             {
@@ -98,13 +103,12 @@ namespace ValveResourceFormat.CompiledShader
 
             for (var i = 0; i < maxFileReference; i++)
             {
-                EditorIDs.Add((datareader.ReadBytesAsString(16), $"// Editor ref {i} to program {(VcsProgramType)i}"));
+                EditorIDs.Add((new Guid(datareader.ReadBytes(16)), $"// {(VcsProgramType)i}"));
             }
 
             if (VcsFileVersion >= 64)
             {
-                EditorIDs.Add((datareader.ReadBytesAsString(16),
-                               $"// Editor ref {maxFileReference} - common editor reference shared by multiple files"));
+                EditorIDs.Add((new Guid(datareader.ReadBytes(16)), "// Common editor/compiler hash shared by multiple different vcs files."));
             }
         }
 
@@ -113,18 +117,14 @@ namespace ValveResourceFormat.CompiledShader
             DataReader.BaseStream.Position = Start;
             DataReader.ShowByteCount("vcs file");
             DataReader.ShowBytes(4, "\"vcs2\"");
-            var vcs_version = DataReader.ReadInt32AtPosition();
-            DataReader.ShowBytes(4, $"version {vcs_version}");
+            DataReader.ShowBytes(4, $"{nameof(VcsFileVersion)} = {VcsFileVersion}");
             DataReader.BreakLine();
             DataReader.ShowByteCount("features header");
-            var has_psrs_file = 0;
-            if (vcs_version >= 64)
+            if (VcsFileVersion >= 64)
             {
-                has_psrs_file = DataReader.ReadInt32AtPosition();
-                DataReader.ShowBytes(4, "has_psrs_file = " + (has_psrs_file > 0 ? "True" : "False"));
+                DataReader.ShowBytes(4, $"{nameof(AdditionalFiles)} = {AdditionalFiles}");
             }
-            var version = DataReader.ReadInt32AtPosition();
-            DataReader.ShowBytes(4, $"Version = {version}");
+            DataReader.ShowBytes(4, $"{nameof(Version)} = {Version}");
             var len_name_description = DataReader.ReadInt32AtPosition();
             DataReader.ShowBytes(4, $"{len_name_description} len of name");
             DataReader.BreakLine();
@@ -134,73 +134,49 @@ namespace ValveResourceFormat.CompiledShader
             DataReader.BreakLine();
             DataReader.ShowByteCount();
             DataReader.ShowBytes(4, $"DevShader bool");
-            var arg1 = DataReader.ReadUInt32AtPosition(4);
-            var arg2 = DataReader.ReadUInt32AtPosition(8);
-            var arg3 = DataReader.ReadUInt32AtPosition(12);
             DataReader.ShowBytes(12, 4, breakLine: false);
-            DataReader.TabComment($"({arg1},{arg2},{arg3})");
-            var arg4 = DataReader.ReadUInt32AtPosition(0);
-            var arg5 = DataReader.ReadUInt32AtPosition(4);
-            var arg6 = DataReader.ReadUInt32AtPosition(8);
-            if (vcs_version >= 64)
-            {
-                var arg7 = DataReader.ReadUInt32AtPosition(12);
-                DataReader.ShowBytes(16, 4, breakLine: false);
-                DataReader.TabComment($"({arg4},{arg5},{arg6},{arg7})");
-            }
-            else
-            {
-                DataReader.ShowBytes(12, 4, breakLine: false);
-                DataReader.TabComment($"({arg4},{arg5},{arg6})");
-            }
+            DataReader.TabComment($"({nameof(Arg1)}={Arg1},{nameof(Arg2)}={Arg2},{nameof(Arg3)}={Arg3})");
+
+            var numArgs = VcsFileVersion < 64
+                ? 3
+                : VcsFileVersion < 68 ? 4 : 2;
+            var dismissString = VcsFileVersion < 64
+                ? nameof(Arg7)
+                : VcsFileVersion < 68 ? "none" : "two args (v68)";
+            DataReader.ShowBytes(numArgs * 4, 4, breakLine: false);
+            DataReader.TabComment($"{nameof(Arg4)}={Arg4},{nameof(Arg5)}={Arg5},{nameof(Arg6)}={Arg6},{nameof(Arg7)}={Arg7}) dismissing: {dismissString}");
 
             DataReader.BreakLine();
             DataReader.ShowByteCount();
-            var argument_count = DataReader.ReadInt32AtPosition();
-            DataReader.ShowBytes(4, $"argument_count = {argument_count}");
-            if (has_psrs_file == 1)
+
+            for (var i = 0; i < (int)AdditionalFiles; i++)
             {
-                // nr_of_arguments becomes overwritten
-                argument_count = DataReader.ReadInt32AtPosition();
-                DataReader.ShowBytes(4, $"argument_count = {argument_count} (overridden)");
+                DataReader.ShowBytes(4, $"arg8[{i}] = {Arg8[i]} (additional file {i})");
             }
+
+            DataReader.ShowBytes(4, $"mode count = {Modes.Count}");
             DataReader.BreakLine();
             DataReader.ShowByteCount();
-            for (var i = 0; i < argument_count; i++)
+            foreach (var mode in Modes)
             {
-                var default_name = DataReader.ReadNullTermStringAtPosition();
-                DataReader.Comment($"{default_name}");
-                DataReader.ShowBytes(128);
-                var has_s_argument = DataReader.ReadUInt32AtPosition();
-                DataReader.ShowBytes(4);
-                if (has_s_argument > 0)
+                DataReader.Comment(mode.Name);
+                DataReader.ShowBytes(64);
+                DataReader.Comment(mode.Shader);
+                DataReader.ShowBytes(64);
+                DataReader.ShowBytes(4, "Has static config?");
+                if (mode.StaticConfig.Length != 0)
                 {
-                    var sSymbolArgValue = DataReader.ReadUInt32AtPosition(64);
-                    var sSymbolName = DataReader.ReadNullTermStringAtPosition();
-                    DataReader.Comment($"{sSymbolName}");
+                    DataReader.Comment(mode.StaticConfig);
                     DataReader.ShowBytes(68);
                 }
             }
             DataReader.BreakLine();
             DataReader.ShowByteCount("Editor/Shader stack for generating the file");
-            DataReader.ShowBytes(16, "Editor ref. ID0 (produces this file)");
-            DataReader.ShowBytes(16, breakLine: false);
-            DataReader.TabComment($"Editor ref. ID1 - usually a ref to the vs file ({VcsProgramType.VertexShader})");
-            DataReader.ShowBytes(16, breakLine: false);
-            DataReader.TabComment($"Editor ref. ID2 - usually a ref to the ps file ({VcsProgramType.PixelShader})");
-            DataReader.ShowBytes(16, "Editor ref. ID3");
-            DataReader.ShowBytes(16, "Editor ref. ID4");
-            DataReader.ShowBytes(16, "Editor ref. ID5");
-            DataReader.ShowBytes(16, "Editor ref. ID6");
-            if (vcs_version >= 64 && has_psrs_file == 0)
+            foreach (var (guid, comment) in EditorIDs)
             {
-                DataReader.ShowBytes(16, "Editor ref. ID7 - common editor reference shared by multiple files");
+                DataReader.ShowBytes(16, comment);
             }
-            if (vcs_version >= 64 && has_psrs_file == 1)
-            {
-                DataReader.ShowBytes(16, $"Editor ref. ID7 - reference to psrs file ({VcsProgramType.PixelShaderRenderState})");
-                DataReader.ShowBytes(16, "Editor ref. ID8 - common editor reference shared by multiple files");
-            }
+
             DataReader.BreakLine();
         }
     }
@@ -208,8 +184,8 @@ namespace ValveResourceFormat.CompiledShader
     public class VsPsHeaderBlock : ShaderDataBlock
     {
         public int VcsFileVersion { get; }
-        public string FileID0 { get; }
-        public string FileID1 { get; }
+        public Guid FileID0 { get; }
+        public Guid FileID1 { get; }
         public VsPsHeaderBlock(ShaderDataReader datareader) : base(datareader)
         {
             var vcsMagicId = datareader.ReadInt32();
@@ -236,8 +212,8 @@ namespace ValveResourceFormat.CompiledShader
                     VcsFileVersion--;
                 }
             }
-            FileID0 = datareader.ReadBytesAsString(16);
-            FileID1 = datareader.ReadBytesAsString(16);
+            FileID0 = new Guid(datareader.ReadBytes(16));
+            FileID1 = new Guid(datareader.ReadBytes(16));
         }
 
         public void PrintByteDetail()
@@ -257,7 +233,7 @@ namespace ValveResourceFormat.CompiledShader
             DataReader.BreakLine();
             DataReader.ShowByteCount("Editor/Shader stack for generating the file");
             DataReader.ShowBytes(16, "Editor ref. ID0 (produces this file)");
-            DataReader.ShowBytes(16, "Editor ref. ID1 - common editor reference shared by multiple files");
+            DataReader.ShowBytes(16, "Common editor/compiler hash shared by multiple different vcs files.");
         }
     }
 

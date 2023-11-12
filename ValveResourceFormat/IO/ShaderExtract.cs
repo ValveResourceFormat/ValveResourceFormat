@@ -336,7 +336,7 @@ public sealed class ShaderExtract
             using var zFrame = Vertex.GetZFrameFileByIndex(i);
             var staticConfigState = staticConfig.GetConfigState(zFrame.ZframeId);
 
-            foreach (var vsEnd in zFrame.VsEndBlocks)
+            foreach (var vsEnd in zFrame.EndBlocks)
             {
                 var dynamicConfigState = dynamicConfig.GetConfigState(vsEnd.BlockIdRef);
                 var vsInputId = zFrame.VShaderInputs[vsEnd.BlockIdRef];
@@ -637,7 +637,7 @@ public sealed class ShaderExtract
                     variant0Source.Append(Encoding.UTF8.GetString(glsl.Sourcebytes));
                     variant0Source.AppendLine("// ---------  GLSL source end  --------- ");
                 }
-                else if (gpuSource is VulkanSource spirv && !spirv.HasEmptySource() && SpirvCompiler is not null)
+                else if (gpuSource is VulkanSource spirv && !spirv.IsEmpty() && SpirvCompiler is not null)
                 {
                     variant0Source.Append(SpirvCompiler.Invoke(spirv, Shaders, shader.VcsProgramType, zFrame.ZframeId, dynamicId));
                     variant0Source.AppendLine("// ---------  SPIRV -> HLSL end  --------- ");

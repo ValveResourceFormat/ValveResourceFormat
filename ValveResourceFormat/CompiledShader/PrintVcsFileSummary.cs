@@ -65,21 +65,23 @@ namespace ValveResourceFormat.CompiledShader
 
             output.WriteLine($"VFX File Desc: {shaderFile.FeaturesHeader.FileDescription}");
             output.BreakLine();
-            output.WriteLine($"has_psrs_file = {shaderFile.FeaturesHeader.AdditionalFiles}");
-            output.WriteLine($"{nameof(shaderFile.FeaturesHeader.Version)} = {shaderFile.FeaturesHeader.Version}");
+            output.WriteLine($"has additional file = {shaderFile.FeaturesHeader.AdditionalFiles}");
             var ftHeader = shaderFile.FeaturesHeader;
+            if (ftHeader.Arg8.Length > 0)
+            {
+                output.WriteLine($"additional file bool flags ({string.Join(",", ftHeader.Arg8)})");
+            }
+            output.WriteLine($"{nameof(shaderFile.FeaturesHeader.Version)} = {shaderFile.FeaturesHeader.Version}");
             output.WriteLine($"{nameof(ftHeader.DevShader)} = {ftHeader.DevShader}");
             output.WriteLine($"bool flags = ({ftHeader.Arg1},{ftHeader.Arg2},{ftHeader.Arg3}," +
                 $"{ftHeader.Arg4},{ftHeader.Arg5},{ftHeader.Arg6},{ftHeader.Arg7}) (related to editor dependencies)");
             output.WriteLine($"possible editor description = {shaderFile.PossibleEditorDescription}");
             output.BreakLine();
             output.WriteLine("Editor/Shader compiler stack");
-            for (var i = 0; i < ftHeader.EditorIDs.Count - 1; i++)
+            foreach (var v in ftHeader.EditorIDs)
             {
-                output.WriteLine($"{ftHeader.EditorIDs[i].Item1}    {ftHeader.EditorIDs[i].Item2}");
+                output.WriteLine($"MD5    {v.Item1}    {v.Item2}");
             }
-            output.WriteLine($"{ftHeader.EditorIDs[^1].Item1}    // Editor ref. ID{ftHeader.EditorIDs.Count - 1} " +
-                $"- common editor reference shared by multiple files");
             output.BreakLine();
             if (ftHeader.Modes.Count == 0)
             {
@@ -131,9 +133,8 @@ namespace ValveResourceFormat.CompiledShader
             output.BreakLine();
 
             output.WriteLine("Editor/Shader compiler stack");
-            output.WriteLine($"{shaderFile.VspsHeader.FileID0}    // Editor ref. ID0 (produces this file)");
-            output.WriteLine($"{shaderFile.VspsHeader.FileID1}    // Editor ref. ID1 " +
-                $"- common editor reference shared by multiple files");
+            output.WriteLine($"MD5    {shaderFile.VspsHeader.FileID0}    // {shaderFile.VcsProgramType}");
+            output.WriteLine($"MD5    {shaderFile.VspsHeader.FileID1}    // Common editor/compiler hash shared by multiple different vcs files.");
             output.WriteLine($"possible editor description = {shaderFile.PossibleEditorDescription}");
             output.BreakLine();
         }

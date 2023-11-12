@@ -325,7 +325,14 @@ namespace GUI.Types.Viewers
                 zframeFile = shaderFile.GetZFrameFile(zframeId, outputWriter: buffer.Write);
                 if (byteVersion)
                 {
-                    zframeFile.PrintByteDetail();
+                    try
+                    {
+                        zframeFile.PrintByteDetail();
+                    }
+                    catch (Exception e)
+                    {
+                        zframeFile.DataReader.OutputWrite(e.ToString());
+                    }
                 }
                 else
                 {
@@ -474,11 +481,14 @@ namespace GUI.Types.Viewers
                         resTabs.TabPages.Add(textTab);
                         resTabs.SelectedTab = textTab;
 
-                        Program.MainForm.Invoke((MethodInvoker)(() =>
+                        if (!vulkanSource.IsEmpty())
                         {
-                            sourceBv.SetBytes(vulkanSource.GetSpirvBytes());
-                            metadataBv.SetBytes(vulkanSource.GetMetaDataBytes());
-                        }));
+                            Program.MainForm.Invoke((MethodInvoker)(() =>
+                            {
+                                sourceBv.SetBytes(vulkanSource.Bytecode.ToArray());
+                                metadataBv.SetBytes(vulkanSource.Metadata.ToArray());
+                            }));
+                        }
 
                         break;
                     }
@@ -499,7 +509,7 @@ namespace GUI.Types.Viewers
 
             try
             {
-                SpirvCrossApi.spvc_context_parse_spirv(context, vulkanSource.GetSpirvBytes(), out var parsedIr).CheckResult();
+                SpirvCrossApi.spvc_context_parse_spirv(context, vulkanSource.Bytecode, out var parsedIr).CheckResult();
                 SpirvCrossApi.spvc_context_create_compiler(context, backend, parsedIr, spvc_capture_mode.SPVC_CAPTURE_MODE_TAKE_OWNERSHIP, out var compiler).CheckResult();
 
                 SpirvCrossApi.spvc_compiler_create_compiler_options(compiler, out var options).CheckResult();
@@ -520,7 +530,7 @@ namespace GUI.Types.Viewers
 
                 SpirvCrossApi.spvc_compiler_compile(compiler, out var code).CheckResult();
 
-                buffer.WriteLine($"// SPIR-V source ({vulkanSource.MetaDataOffset}), {backend} reflection with SPIRV-Cross by KhronosGroup");
+                buffer.WriteLine($"// SPIR-V source ({vulkanSource.MetaDataSize}), {backend} reflection with SPIRV-Cross by KhronosGroup");
                 buffer.WriteLine($"// {ValveResourceFormat.Utils.StringToken.VRF_GENERATOR}");
                 buffer.WriteLine();
                 buffer.WriteLine(code.ReplaceLineEndings());

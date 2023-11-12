@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 
 namespace ValveResourceFormat.CompiledShader
 {
@@ -10,11 +11,11 @@ namespace ValveResourceFormat.CompiledShader
         public int H1 { get; }
         public int H2 { get; }
 
-        public byte[] Dataload { get; }
         public WriteSeqField[] Fields { get; }
         public IReadOnlyList<WriteSeqField> Evaluated => Fields[..H1];
         public IReadOnlyList<WriteSeqField> Segment1 => Fields[H1..H2];
         public IReadOnlyList<WriteSeqField> Globals => Fields[H2..];
+        public ReadOnlySpan<byte> Dataload => MemoryMarshal.AsBytes<WriteSeqField>(Fields);
 
         public ZDataBlock(ShaderDataReader datareader, int blockId) : base(datareader)
         {
@@ -26,93 +27,72 @@ namespace ValveResourceFormat.CompiledShader
             Fields = new WriteSeqField[H0];
             for (var i = 0; i < H0; i++)
             {
-                Fields[i] = new WriteSeqField(datareader);
-            }
-
-            datareader.BaseStream.Position -= H0 * 4;
-            if (H0 > 0)
-            {
-                Dataload = datareader.ReadBytes(H0 * 4);
+                Fields[i] = MemoryMarshal.AsRef<WriteSeqField>(datareader.ReadBytes(4));
             }
         }
     }
 
-    public class WriteSeqField : ShaderDataBlock
+    [StructLayout(LayoutKind.Sequential, Pack = 1, Size = 4)]
+    public struct WriteSeqField
     {
         public byte ParamId { get; }
         public byte UnknBuff { get; }
         public byte Dest { get; }
         public byte Control { get; }
-
-        public WriteSeqField(ShaderDataReader datareader) : base(datareader)
-        {
-            ParamId = datareader.ReadByte();
-            UnknBuff = datareader.ReadByte();
-            Dest = datareader.ReadByte();
-            Control = datareader.ReadByte();
-        }
     }
 
     public abstract class GpuSource : ShaderDataBlock
     {
+        public abstract string BlockName { get; }
         public int SourceId { get; }
-        public int Offset { get; protected set; }
+        public int Size { get; protected set; }
         public byte[] Sourcebytes { get; protected set; } = Array.Empty<byte>();
-        public byte[] HashMD5 { get; protected set; }
+        public Guid HashMD5 { get; protected set; }
         protected GpuSource(ShaderDataReader datareader, int sourceId) : base(datareader)
         {
             SourceId = sourceId;
+            Size = datareader.ReadInt32();
         }
-        public string GetHashAsString()
+
+        public bool IsEmpty()
         {
-            var stringId = ShaderUtilHelpers.BytesToString(HashMD5);
-            stringId = stringId.Replace(" ", "", StringComparison.InvariantCulture).ToLowerInvariant();
-            return stringId;
+            return Size == 0;
         }
-        public bool HasEmptySource()
-        {
-            return Sourcebytes.Length == 0;
-        }
-        public string GetSourceDetails()
-        {
-            return $"// {GetBlockName()}[{SourceId}] source bytes ({Sourcebytes.Length}) hash={GetHashAsString()}";
-        }
-        public abstract string GetBlockName();
     }
 
     public class GlslSource : GpuSource
     {
+        public override string BlockName => "GLSL";
         public int Arg0 { get; } // always 3
         // offset2, if present, always observes offset2 == offset + 8
         // offset2 can also be interpreted as the source-size
-        public int Offset2 { get; } = -1;
-        public GlslSource(ShaderDataReader datareader, int sourceId) : base(datareader, sourceId)
+        public int SizeText { get; } = -1;
+
+        public GlslSource(ShaderDataReader datareader, int sourceId)
+            : base(datareader, sourceId)
         {
-            Offset = datareader.ReadInt32();
-            if (Offset > 0)
+            if (Size > 0)
             {
-                Arg0 = datareader.ReadInt32();
-                Offset2 = datareader.ReadInt32();
-                Sourcebytes = datareader.ReadBytes(Offset2 - 1); // -1 because the sourcebytes are null-term
-                datareader.BaseStream.Position += 1;
+                Arg0 = DataReader.ReadInt32();
+                SizeText = DataReader.ReadInt32();
+                Sourcebytes = DataReader.ReadBytes(SizeText - 1); // -1 because the sourcebytes are null-term
+                DataReader.BaseStream.Position += 1;
             }
-            HashMD5 = datareader.ReadBytes(16);
-        }
-        public override string GetBlockName()
-        {
-            return $"GLSL";
+
+            HashMD5 = new Guid(datareader.ReadBytes(16));
         }
     }
 
     public class DxilSource : GpuSource
     {
+        public override string BlockName => "DXIL";
         public int Arg0 { get; } // always 3
         public int Arg1 { get; } // always 0xFFFF or 0xFFFE
         public int HeaderBytes { get; }
+
         public DxilSource(ShaderDataReader datareader, int sourceId) : base(datareader, sourceId)
         {
-            Offset = datareader.ReadInt32();
-            if (Offset > 0)
+            if (Size > 0)
             {
                 Arg0 = datareader.ReadInt16();
                 Arg1 = (int)datareader.ReadUInt16();
@@ -123,13 +103,10 @@ namespace ValveResourceFormat.CompiledShader
                 }
 
                 HeaderBytes = (int)datareader.ReadUInt16() * 4; // size is given as a 4-byte count
-                Sourcebytes = datareader.ReadBytes(Offset - 8); // size of source equals offset-8
+                Sourcebytes = datareader.ReadBytes(Size - 8);
             }
-            HashMD5 = datareader.ReadBytes(16);
-        }
-        public override string GetBlockName()
-        {
-            return $"DXIL";
+
+            HashMD5 = new Guid(datareader.ReadBytes(16));
         }
     }
 
@@ -138,49 +115,37 @@ namespace ValveResourceFormat.CompiledShader
      */
     public class DxbcSource : GpuSource
     {
+        public override string BlockName => "DXBC";
+
         public DxbcSource(ShaderDataReader datareader, int sourceId) : base(datareader, sourceId)
         {
-            Offset = datareader.ReadInt32();
-            if (Offset > 0)
+            if (Size > 0)
             {
-                Sourcebytes = datareader.ReadBytes(Offset);
+                Sourcebytes = datareader.ReadBytes(Size);
             }
-            HashMD5 = datareader.ReadBytes(16);
-        }
-        public override string GetBlockName()
-        {
-            return $"DXBC";
+
+            HashMD5 = new Guid(datareader.ReadBytes(16));
         }
     }
 
     public class VulkanSource : GpuSource
     {
+        public override string BlockName => "VULKAN";
         public int Arg0 { get; } = -1;
-        public int MetaDataOffset { get; } = -1;
-        public int MetaDataLength { get; }
+        public int MetaDataSize { get; } = -1;
+        public Span<byte> Bytecode => Sourcebytes.AsSpan()[0..MetaDataSize];
+        public Span<byte> Metadata => Sourcebytes.AsSpan()[MetaDataSize..];
+
         public VulkanSource(ShaderDataReader datareader, int sourceId) : base(datareader, sourceId)
         {
-            Offset = datareader.ReadInt32();
-            if (Offset > 0)
+            if (Size > 0)
             {
                 Arg0 = datareader.ReadInt32();
-                MetaDataOffset = datareader.ReadInt32();
-                Sourcebytes = datareader.ReadBytes(Offset - 8);
-                MetaDataLength = Sourcebytes.Length - MetaDataOffset;
+                MetaDataSize = datareader.ReadInt32();
+                Sourcebytes = datareader.ReadBytes(Size - 8);
             }
-            HashMD5 = datareader.ReadBytes(16);
-        }
-        public override string GetBlockName()
-        {
-            return $"VULKAN";
-        }
-        public byte[] GetSpirvBytes()
-        {
-            return Sourcebytes[0..MetaDataOffset];
-        }
-        public byte[] GetMetaDataBytes()
-        {
-            return Sourcebytes[MetaDataOffset..];
+
+            HashMD5 = new Guid(datareader.ReadBytes(16));
         }
     }
 }

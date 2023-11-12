@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using static ValveResourceFormat.CompiledShader.ShaderDataReader;
 using static ValveResourceFormat.CompiledShader.ShaderUtilHelpers;
 
@@ -91,7 +92,7 @@ namespace ValveResourceFormat.CompiledShader
             writeSequences.Add(BytesToString(zframeFile.LeadingData.Dataload, -1), seqCount++);
             foreach (var zBlock in zframeFile.DataBlocks)
             {
-                if (zBlock.Dataload == null)
+                if (zBlock.Fields.Length == 0)
                 {
                     continue;
                 }
@@ -107,7 +108,7 @@ namespace ValveResourceFormat.CompiledShader
         }
 
         /*
-         * Occasionally leadingData.h0 (leadingData is the first datablock, always present) is 0 we create the empty
+         * Occasionally leadingData field count (leadingData is the first datablock, always present) is 0 we create the empty
          * write sequence WRITESEQ[0] (configurations may refer to it) otherwise sequences assigned -1 mean the write
          * sequence doesn't contain any data and not needed.
          */
@@ -123,7 +124,7 @@ namespace ValveResourceFormat.CompiledShader
 
             foreach (var zBlock in zframeFile.DataBlocks)
             {
-                if (zBlock.Dataload == null)
+                if (zBlock.Fields.Length == 0)
                 {
                     sequencesMap.Add(zBlock.BlockId, -1);
                     continue;
@@ -235,7 +236,7 @@ namespace ValveResourceFormat.CompiledShader
             OutputFormatterTabulatedData tabulatedConfigCombinations = new(OutputWriter);
             tabulatedConfigCombinations.DefineHeaders(shortenedNames.ToArray());
 
-            var activeBlockIds = GetActiveBlockIds();
+            var activeBlockIds = zframeFile.EndBlocks.Select(endBlock => endBlock.BlockIdRef);
             foreach (var blockId in activeBlockIds)
             {
                 var dBlockConfig = shaderFile.GetDBlockConfig(blockId);
@@ -252,11 +253,11 @@ namespace ValveResourceFormat.CompiledShader
             }
             OutputWriteLine("");
             var dNamesHeader = hasNoDConfigsDefined ? "" : tabbedConfigs.Pop();
-            var gpuSourceName = zframeFile.GpuSources[0].GetBlockName().ToLowerInvariant();
+            var gpuSourceName = zframeFile.GpuSources[0].BlockName.ToLowerInvariant();
             var sourceHeader = $"{gpuSourceName}-source";
             string[] dConfigHeaders = isVertexShader ?
-                    new string[] { "config-id", dNamesHeader, "write-seq.", sourceHeader, "gpu-inputs", nameof(ZFrameFile.IsReusedSource), nameof(ZFrameFile.UnknownArg) } :
-                    new string[] { "config-id", dNamesHeader, "write-seq.", sourceHeader, nameof(ZFrameFile.IsReusedSource), nameof(ZFrameFile.UnknownArg) };
+                    new string[] { "config-id", dNamesHeader, "write-seq.", sourceHeader, "gpu-inputs", nameof(ZFrameFile.UnknownArg), nameof(ZFrameFile.UnknownArg2), nameof(GpuSource.HashMD5) } :
+                    new string[] { "config-id", dNamesHeader, "write-seq.", sourceHeader, nameof(ZFrameFile.UnknownArg), nameof(ZFrameFile.UnknownArg2), nameof(GpuSource.HashMD5) };
             OutputFormatterTabulatedData tabulatedConfigFull = new(OutputWriter);
             tabulatedConfigFull.DefineHeaders(dConfigHeaders);
 
@@ -267,8 +268,8 @@ namespace ValveResourceFormat.CompiledShader
                 if (dBlockCount % 100 == 0)
                 {
                     tabulatedConfigFull.AddTabulatedRow(isVertexShader ?
-                        new string[] { "", dNamesHeader, "", "", "", "", "" } :
-                        new string[] { "", dNamesHeader, "", "", "", "" });
+                        new string[] { "", dNamesHeader, "", "", "", "", "", "" } :
+                        new string[] { "", dNamesHeader, "", "", "", "", "" });
                 }
                 var configIdText = $"0x{blockId:x}";
                 var configCombText = hasNoDConfigsDefined ? $"{"(default)",-14}" : tabbedConfigs.Pop();
@@ -276,16 +277,17 @@ namespace ValveResourceFormat.CompiledShader
                 var blockSource = blockIdToSource[blockId];
                 var sourceLink = showRichTextBoxLinks ?
                     @$"\\source\{blockSource.SourceId}" :
-                    $"{gpuSourceName}[{blockSource.GetHashAsString()}]";
+                    $"{gpuSourceName}[{blockSource.HashMD5}]";
                 var vsInputs = isVertexShader ?
                     zframeFile.VShaderInputs[blockId] : -1;
                 var gpuInputText = vsInputs >= 0 ? $"VS-symbols[{zframeFile.VShaderInputs[blockId]}]" : "[none]";
-                var isReusedSource = zframeFile.IsReusedSource[blockId] ? "yes" : string.Empty;
-                var arg0Text = $"{zframeFile.UnknownArg[blockId]}";
+                var arg1Text = $"{zframeFile.UnknownArg[blockId]}";
+                var arg2Text = $"{zframeFile.UnknownArg2[blockId]}";
+                var hash = blockSource.HashMD5.ToString();
                 tabulatedConfigFull.AddTabulatedRow(
                     isVertexShader ?
-                    new string[] { configIdText, configCombText, writeSeqText, sourceLink, gpuInputText, isReusedSource, arg0Text } :
-                    new string[] { configIdText, configCombText, writeSeqText, sourceLink, isReusedSource, arg0Text });
+                    new string[] { configIdText, configCombText, writeSeqText, sourceLink, gpuInputText, arg1Text, arg2Text, hash } :
+                    new string[] { configIdText, configCombText, writeSeqText, sourceLink, arg1Text, arg2Text, hash });
             }
 
             tabulatedConfigFull.PrintTabulatedValues();
@@ -306,43 +308,12 @@ namespace ValveResourceFormat.CompiledShader
             return abbreviations;
         }
 
-        private List<int> GetActiveBlockIds()
-        {
-            List<int> blockIds = new();
-            if (zframeFile.VcsProgramType == VcsProgramType.PixelShader)
-            {
-                foreach (var psEndBlock in zframeFile.PsEndBlocks)
-                {
-                    blockIds.Add(psEndBlock.BlockIdRef);
-                }
-            }
-            else
-            {
-                {
-                    foreach (var vsEndBlock in zframeFile.VsEndBlocks)
-                    {
-                        blockIds.Add(vsEndBlock.BlockIdRef);
-                    }
-                }
-            }
-            return blockIds;
-        }
-
         static Dictionary<int, GpuSource> GetBlockIdToSource(ZFrameFile zframeFile)
         {
             Dictionary<int, GpuSource> blockIdToSource = new();
-            if (zframeFile.VcsProgramType == VcsProgramType.PixelShader)
+            foreach (var endBlock in zframeFile.EndBlocks)
             {
-                foreach (var psEndBlock in zframeFile.PsEndBlocks)
-                {
-                    blockIdToSource.Add(psEndBlock.BlockIdRef, zframeFile.GpuSources[psEndBlock.SourceRef]);
-                }
-            }
-            {
-                foreach (var vsEndBlock in zframeFile.VsEndBlocks)
-                {
-                    blockIdToSource.Add(vsEndBlock.BlockIdRef, zframeFile.GpuSources[vsEndBlock.SourceRef]);
-                }
+                blockIdToSource.Add(endBlock.BlockIdRef, zframeFile.GpuSources[endBlock.SourceRef]);
             }
             return blockIdToSource;
         }
@@ -370,41 +341,28 @@ namespace ValveResourceFormat.CompiledShader
 
         private void PrintEndBlocks()
         {
-            var headerText = "End blocks";
-            OutputWriteLine($"{headerText}");
+            var headerText = $"End blocks";
+            OutputWriteLine(headerText);
             OutputWriteLine(new string('-', headerText.Length));
 
             var vcsFiletype = shaderFile.VcsProgramType;
-            if (vcsFiletype == VcsProgramType.VertexShader || vcsFiletype == VcsProgramType.GeometryShader ||
-                vcsFiletype == VcsProgramType.ComputeShader || vcsFiletype == VcsProgramType.DomainShader ||
-                vcsFiletype == VcsProgramType.HullShader)
+
+            OutputWriteLine($"{zframeFile.EndBlocks.Count:X02} 00 00 00   // end blocks ({zframeFile.EndBlocks.Count})");
+            OutputWriteLine("");
+
+            foreach (var endBlock in zframeFile.EndBlocks)
             {
-                OutputWriteLine($"{zframeFile.VsEndBlocks.Count:X02} 00 00 00   // end blocks ({zframeFile.VsEndBlocks.Count})");
-                OutputWriteLine("");
-                foreach (var vsEndBlock in zframeFile.VsEndBlocks)
+                OutputWriteLine($"block-ref         {endBlock.BlockIdRef}");
+                OutputWriteLine($"arg0              {endBlock.Arg0}");
+                OutputWriteLine($"source-ref        {endBlock.SourceRef}");
+                OutputWriteLine($"source-pointer    {endBlock.SourcePointer}");
+
+                if (endBlock is ZFrameFile.HsEndBlock hsEndBlock)
                 {
-                    OutputWriteLine($"block-ref         {vsEndBlock.BlockIdRef}");
-                    OutputWriteLine($"arg0              {vsEndBlock.Arg0}");
-                    OutputWriteLine($"source-ref        {vsEndBlock.SourceRef}");
-                    OutputWriteLine($"source-pointer    {vsEndBlock.SourcePointer}");
-                    if (vcsFiletype == VcsProgramType.HullShader)
-                    {
-                        OutputWriteLine($"hs-arg            {vsEndBlock.HullShaderArg}");
-                    }
-                    OutputWriteLine($"{BytesToString(vsEndBlock.Databytes)}");
-                    OutputWriteLine("");
+                    OutputWriteLine($"hs-arg            {hsEndBlock.HullShaderArg}");
                 }
-            }
-            else
-            {
-                OutputWriteLine($"{zframeFile.PsEndBlocks.Count:X02} 00 00 00   // end blocks ({zframeFile.PsEndBlocks.Count})");
-                OutputWriteLine("");
-                foreach (var psEndBlock in zframeFile.PsEndBlocks)
+                else if (endBlock is ZFrameFile.PsEndBlock psEndBlock)
                 {
-                    OutputWriteLine($"block-ref         {psEndBlock.BlockIdRef}");
-                    OutputWriteLine($"arg0              {psEndBlock.Arg0}");
-                    OutputWriteLine($"source-ref        {psEndBlock.SourceRef}");
-                    OutputWriteLine($"source-pointer    {psEndBlock.SourcePointer}");
                     OutputWriteLine($"has data ({psEndBlock.HasData0},{psEndBlock.HasData1},{psEndBlock.HasData2})");
                     if (psEndBlock.HasData0)
                     {
@@ -419,13 +377,15 @@ namespace ValveResourceFormat.CompiledShader
                     if (psEndBlock.HasData2)
                     {
                         OutputWriteLine("// data-section 2");
-                        OutputWriteLine($"{BytesToString(psEndBlock.Data2[0..3])}");
-                        OutputWriteLine($"{BytesToString(psEndBlock.Data2[3..27])}");
-                        OutputWriteLine($"{BytesToString(psEndBlock.Data2[27..51])}");
-                        OutputWriteLine($"{BytesToString(psEndBlock.Data2[51..75])}");
+                        var data2 = psEndBlock.Data2.AsSpan();
+                        OutputWriteLine($"{BytesToString(data2[0..3])}");
+                        OutputWriteLine($"{BytesToString(data2[3..27])}");
+                        OutputWriteLine($"{BytesToString(data2[27..51])}");
+                        OutputWriteLine($"{BytesToString(data2[51..75])}");
                     }
-                    OutputWriteLine("");
                 }
+
+                OutputWriteLine("");
             }
         }
 

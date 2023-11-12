@@ -258,7 +258,7 @@ namespace ValveResourceFormat.CompiledShader
             return stringCollection.ToArray();
         }
 
-        public static string BytesToString(byte[] databytes, int breakLen = 32)
+        public static string BytesToString(ReadOnlySpan<byte> databytes, int breakLen = 32)
         {
             if (databytes == null || databytes.Length == 0)
             {
