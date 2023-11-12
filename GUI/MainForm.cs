@@ -262,6 +262,11 @@ namespace GUI
                 CloseTabsToRight(mainTabs.SelectedTab);
             }
 
+            if (keyData == (Keys.Control | Keys.R) || keyData == Keys.F5)
+            {
+                CloseAndReOpenActiveTab();
+            }
+
             return base.ProcessCmdKey(ref msg, keyData);
         }
 
@@ -318,6 +323,19 @@ namespace GUI
             }
 
             return -1;
+        }
+
+        private void CloseAndReOpenActiveTab()
+        {
+            var tab = mainTabs.SelectedTab;
+            if (tab is not null && tab.Tag is ExportData exportData)
+            {
+                var (newFileContext, packageEntry) = exportData.VrfGuiContext.FileLoader.FindFileWithContext(
+                    exportData.PackageEntry?.GetFullPath() ?? exportData.VrfGuiContext.FileName
+                );
+                OpenFile(newFileContext, packageEntry);
+                CloseTab(tab);
+            }
         }
 
         private void CloseTab(TabPage tab)
