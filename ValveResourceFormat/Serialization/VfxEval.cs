@@ -172,7 +172,6 @@ namespace ValveResourceFormat.Serialization.VfxEval
         private void ParseExpression(byte[] binaryBlob)
         {
             using var dataReader = new BinaryReader(new MemoryStream(binaryBlob));
-            OffsetAtBranchExits.Push(0);
 
             while (dataReader.BaseStream.Position < binaryBlob.Length)
             {
@@ -190,7 +189,8 @@ namespace ValveResourceFormat.Serialization.VfxEval
         private void ProcessOps(OPCODE op, BinaryReader dataReader)
         {
             // when exiting a branch, combine the conditional expressions on the stack into one
-            if (OffsetAtBranchExits.Peek() == dataReader.BaseStream.Position)
+            while (OffsetAtBranchExits.Count > 0
+                && OffsetAtBranchExits.Peek() == dataReader.BaseStream.Position)
             {
                 OffsetAtBranchExits.Pop();
                 var branchType = OffsetAtBranchExits.Pop();
@@ -207,7 +207,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
                             var exp2 = Expressions.Pop();
                             var exp1 = Expressions.Pop();
                             // it's not safe to trim here
-                            // string expConditional = $"({trimb2(exp1)} ? {trimb2(exp2)} : {trimb2(exp3)})";
+                            // string expConditional = $"({Trimbrackets(exp1)} ? {Trimbrackets(exp2)} : {Trimbrackets(exp3)})";
                             var expConditional = $"({exp1} ? {exp2} : {exp3})";
                             Expressions.Push(expConditional);
                         }
@@ -324,7 +324,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
                 var varId = dataReader.ReadByte();
                 var locVarname = GetLocalVarName(varId);
                 var exp = Expressions.Pop();
-                var assignExpression = $"{locVarname} = {Trimb(exp)};";
+                var assignExpression = $"{locVarname} = {Trimbrackets(exp)};";
                 DynamicExpressionList.Add(assignExpression);
                 return;
             }
@@ -417,7 +417,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
                     throw new InvalidDataException($"Looks like we did not read the data correctly (position: {dataReader.BaseStream.Position})");
                 }
                 var finalExp = Expressions.Pop();
-                finalExp = Trimb(finalExp);
+                finalExp = Trimbrackets(finalExp);
                 if (OmitReturnStatement)
                 {
                     DynamicExpressionList.Add(finalExp);
@@ -442,13 +442,13 @@ namespace ValveResourceFormat.Serialization.VfxEval
             var exp1 = Expressions.Pop();
             if (nrArguments == 1)
             {
-                Expressions.Push($"{funcName}({Trimb(exp1)})");
+                Expressions.Push($"{funcName}({Trimbrackets(exp1)})");
                 return;
             }
             var exp2 = Expressions.Pop();
             if (nrArguments == 2)
             {
-                Expressions.Push($"{funcName}({Trimb(exp2)},{Trimb(exp1)})");
+                Expressions.Push($"{funcName}({Trimbrackets(exp2)},{Trimbrackets(exp1)})");
                 return;
             }
             var exp3 = Expressions.Pop();
@@ -456,13 +456,13 @@ namespace ValveResourceFormat.Serialization.VfxEval
             {
                 // Trimming the brackets here because it's always safe to remove these from functions
                 // (as they always carry their own brackets)
-                Expressions.Push($"{funcName}({Trimb(exp3)},{Trimb(exp2)},{Trimb(exp1)})");
+                Expressions.Push($"{funcName}({Trimbrackets(exp3)},{Trimbrackets(exp2)},{Trimbrackets(exp1)})");
                 return;
             }
             var exp4 = Expressions.Pop();
             if (nrArguments == 4)
             {
-                Expressions.Push($"{funcName}({Trimb(exp4)},{Trimb(exp3)},{Trimb(exp2)},{Trimb(exp1)})");
+                Expressions.Push($"{funcName}({Trimbrackets(exp4)},{Trimbrackets(exp3)},{Trimbrackets(exp2)},{Trimbrackets(exp1)})");
                 return;
             }
 
@@ -486,7 +486,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
         // The approach to removing brackets is not optimised in any way, arithmetic expressions
         // will accumulate brackets and it's not trivial to know when it's safe to remove them
         // For example 1+2+3+4 will decompile as ((1+2)+3)+4
-        private static string Trimb(string exp)
+        private static string Trimbrackets(string exp)
         {
             return exp[0] == '(' && exp[^1] == ')' ? exp[1..^1] : exp;
         }

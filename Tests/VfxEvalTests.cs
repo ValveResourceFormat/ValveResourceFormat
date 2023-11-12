@@ -317,7 +317,7 @@ namespace Tests
                 "1A 05 07 00 00 40 40 0D 04 4C 00 54 00 07 00 00 00 00 02 59 00 07 00 00 00 00 00");
 
             // (F_TEXTURE_FILTERING == 0 ? ANISOTROPIC : (F_TEXTURE_FILTERING == 1 ? BILINEAR : (F_TEXTURE_FILTERING == 2 ? TRILINEAR : (F_TEXTURE_FILTERING == 3 ? POINT : NEAREST))))
-            var expectedResult = "(COND[5]==3) ? 0 : 0";
+            var expectedResult = "(COND[5]==0) ? 85 : ((COND[5]==1) ? 20 : ((COND[5]==2) ? 21 : ((COND[5]==3) ? 0 : 0)))";
 
             Assert.AreEqual(expectedResult, new VfxEval(nestedTernaryBin, omitReturnStatement: true).DynamicExpressionResult);
         }
