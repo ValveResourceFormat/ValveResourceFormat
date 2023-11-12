@@ -13,6 +13,7 @@
 #define renderMode_Cubemaps 0
 #define renderMode_Irradiance 0
 #define renderMode_VertexColor 0
+#define renderMode_Foliage_Params 0
 #define renderMode_Terrain_Blend 0
 #define renderMode_ExtraParams 0
 
@@ -109,6 +110,10 @@ uniform sampler2D g_tTintMask;
     #if F_SELF_ILLUM == 1
         uniform bool g_bUseSecondaryUvForSelfIllum = false;
     #endif
+#endif
+
+#if defined(csgo_foliage_vfx)
+    in vec3 vFoliageParamsOut;
 #endif
 
 #if defined(vr_complex_vfx)
@@ -595,6 +600,10 @@ void main()
 
 #if renderMode_VertexColor == 1
     outputColor = vVertexColorOut;
+#endif
+
+#if renderMode_Foliage_Params == 1 && defined(csgo_foliage_vfx)
+    outputColor.rgb = vFoliageParamsOut.rgb;
 #endif
 
 #if renderMode_Terrain_Blend == 1 && (defined(csgo_generic_blend) || defined(simple_blend_common))

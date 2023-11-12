@@ -60,6 +60,12 @@ in vec2 vTEXCOORD;
     out vec4 vColorBlendValues;
 #endif
 
+#if defined(csgo_foliage_vfx)
+    #define vFoliageParams vCOLOR // vcs says texcoord3?
+    in vec3 vFoliageParams;
+    out vec3 vFoliageParamsOut;
+#endif
+
 #if (F_FOLIAGE_ANIMATION > 0)
     in vec4 vTEXCOORD1;
 #endif
@@ -193,6 +199,11 @@ void main()
 
 #if (F_SPHERICAL_PROJECTED_ANISOTROPIC_TANGENTS == 1)
     vAnisoBitangentOut = normalTransform * GetSphericalProjectedAnisoBitangent(normal, tangent.xyz);
+#endif
+
+#if defined(csgo_foliage_vfx)
+    // Interpolating out for viewing with foliage rendermode
+    vFoliageParamsOut = vFoliageParams;
 #endif
 
 #if (F_FOLIAGE_ANIMATION > 0)
