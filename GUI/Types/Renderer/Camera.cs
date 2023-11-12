@@ -198,6 +198,13 @@ namespace GUI.Types.Renderer
             RecalculateMatrices();
         }
 
+        public float ModifySpeed(float subRange)
+        {
+            subRange = Math.Clamp(subRange, 0, 1.0f);
+            CurrentSpeedModifier = (int)Math.Round(subRange * (SpeedModifiers.Length - 1));
+            return SpeedModifiers[CurrentSpeedModifier];
+        }
+
         public float ModifySpeed(bool increase)
         {
             if (increase)
