@@ -16,6 +16,7 @@ using RnShapes = ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes;
 using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Serialization.KeyValues;
 using ValveResourceFormat.Utils;
+using ValveResourceFormat.ResourceTypes.ModelAnimation;
 
 
 namespace ValveResourceFormat.IO;
@@ -33,6 +34,7 @@ public class ModelExtract
 
     public List<(HullDescriptor Hull, string FileName)> PhysHullsToExtract { get; } = new();
     public List<(MeshDescriptor Mesh, string FileName)> PhysMeshesToExtract { get; } = new();
+    public List<(Animation Anim, string FileName)> AnimationsToExtract { get; } = new();
 
     public string[] PhysicsSurfaceNames { get; private set; }
     public HashSet<string>[] PhysicsCollisionTags { get; private set; }
@@ -84,6 +86,7 @@ public class ModelExtract
         }
 
         EnqueueMeshes();
+        EnqueueAnimations();
     }
 
     /// <summary>
@@ -102,6 +105,7 @@ public class ModelExtract
         this.physAggregateData = physAggregateData;
         this.fileName = fileName;
         EnqueueMeshes();
+        EnqueueAnimations();
     }
 
     private void EnqueueMeshes()
@@ -139,6 +143,14 @@ public class ModelExtract
             vmdl.AddSubFile(
                 Path.GetFileName(physMesh.FileName),
                 () => ToDmxMesh(physMesh.Mesh)
+            );
+        }
+
+        foreach (var anim in AnimationsToExtract)
+        {
+            vmdl.AddSubFile(
+                Path.GetFileName(anim.FileName),
+                () => ToDmxAnim(model, anim.Anim)
             );
         }
 
@@ -498,6 +510,16 @@ public class ModelExtract
     static string GetDmxFileName_ForReferenceMesh(string fileName)
         => Path.ChangeExtension(fileName, ".dmx").Replace('\\', '/');
 
+    string GetDmxFileName_ForAnimation(string animationName)
+    {
+        var fileName = GetFileName();
+        return (Path.GetDirectoryName(fileName)
+            + Path.DirectorySeparatorChar
+            + animationName
+            + ".dmx")
+            .Replace('\\', '/');
+    }
+
     private void EnqueueRenderMeshes()
     {
         if (model == null)
@@ -590,6 +612,14 @@ public class ModelExtract
         }
     }
 
+    private void EnqueueAnimations()
+    {
+        foreach (var anim in model.GetEmbeddedAnimations())
+        {
+            AnimationsToExtract.Add((anim, GetDmxFileName_ForAnimation(anim.Name)));
+        }
+    }
+
     public static byte[] ToDmxMesh(Mesh mesh, string name, Dictionary<string, IKeyValueCollection> materialInputSignatures = null)
     {
         var mdat = mesh.Data;
@@ -635,6 +665,157 @@ public class ModelExtract
 
         TieElementRoot(dmx, dmeModel);
         using var stream = new MemoryStream();
+        dmx.Save(stream, "keyvalues2", 4);
+
+        return stream.ToArray();
+    }
+
+    private static DmeModel BuildDmeDagSkeleton(Skeleton skeleton, out DmeTransform[] transforms)
+    {
+        var dmeSkeleton = new DmeModel();
+        var children = new ElementArray();
+
+        transforms = new DmeTransform[skeleton.Bones.Length];
+        var boneDags = new DmeDag[skeleton.Bones.Length];
+
+        foreach (var bone in skeleton.Bones)
+        {
+            var dag = new DmeDag();
+            dag.Name = bone.Name;
+
+            dag.Transform.Name = bone.Name;
+            dag.Transform.Position = bone.Position;
+            dag.Transform.Orientation = bone.Angle;
+
+            boneDags[bone.Index] = dag;
+            transforms[bone.Index] = dag.Transform;
+        }
+
+        foreach (var bone in skeleton.Bones)
+        {
+            var boneDag = boneDags[bone.Index];
+            if (bone.Parent != null)
+            {
+                var parentDag = boneDags[bone.Parent.Index];
+                parentDag.Children.Add(boneDag);
+            }
+            else
+            {
+                dmeSkeleton.Children.Add(boneDag);
+            }
+        }
+
+        return dmeSkeleton;
+    }
+
+    private static DmeChannel BuildDmeChannel<T>(string name, DmeTransform transform, string toAttribute, out DmeLog<T> log)
+    {
+        var channel = new DmeChannel();
+        channel.Name = name;
+        channel.ToElement = transform;
+        channel.ToAttribute = toAttribute;
+        channel.Mode = 3;
+
+        log = new DmeLog<T>();
+        var logLayer = new DmeLogLayer<T>();
+
+        channel.Log = log;
+        log.AddLayer(logLayer);
+
+        return channel;
+    }
+
+    private static void ProcessBoneFrameForDmeChannel(Bone bone, Frame frame, TimeSpan time, DmeLogLayer<Vector3> positionLayer, DmeLogLayer<Quaternion> orientationLayer)
+    {
+        var frameBone = frame.Bones[bone.Index];
+
+        positionLayer.Times.Add(time);
+        positionLayer.LayerValues[frame.FrameIndex] = frameBone.Position;
+
+        orientationLayer.Times.Add(time);
+        orientationLayer.LayerValues[frame.FrameIndex] = frameBone.Angle;
+    }
+
+    public static byte[] ToDmxAnim(Model model, Animation anim)
+    {
+        using var dmx = new Datamodel.Datamodel("model", 22);
+
+        var skeleton = BuildDmeDagSkeleton(model.Skeleton, out var transforms);
+
+        var animationList = new DmeAnimationList();
+        var clip = new DmeChannelsClip();
+
+        clip.TimeFrame.Duration = TimeSpan.FromSeconds((double)(anim.FrameCount - 1) / anim.Fps);
+        clip.FrameRate = anim.Fps;
+
+        Frame[] frames = new Frame[anim.FrameCount];
+        for (int i = 0; i < anim.FrameCount; i++)
+        {
+            Frame frame = new Frame(model.Skeleton);
+            frame.FrameIndex = i;
+            anim.DecodeFrame(frame);
+            frames[i] = frame;
+        }
+
+        foreach (var bone in model.Skeleton.Bones)
+        {
+            var transform = transforms[bone.Index];
+
+            var positionChannel = BuildDmeChannel<Vector3>($"{bone.Name}_p", transform, "position", out var positionLog);
+            var orientationChannel = BuildDmeChannel<Quaternion>($"{bone.Name}_o", transform, "orientation", out var orientationLog);
+
+            var positionLogLayer = positionLog.GetLayer(0);
+            var orientationLogLayer = orientationLog.GetLayer(0);
+
+            positionLogLayer.LayerValues = new Vector3[anim.FrameCount];
+            orientationLogLayer.LayerValues = new Quaternion[anim.FrameCount];
+
+            for (int i = 0; i < anim.FrameCount; i++)
+            {
+                Frame frame = frames[i];
+
+                TimeSpan time = TimeSpan.FromSeconds((double)i / anim.Fps);
+
+                ProcessBoneFrameForDmeChannel(bone, frame, time, positionLogLayer, orientationLogLayer);
+
+                //If both layers are 0s only, modeldoc will ignore the animations on this bone.
+                //We'll replace the position layer's values, that has a very small value outside of the range of the animation.
+                if (positionLogLayer.IsLayerZero() && orientationLogLayer.IsLayerZero())
+                {
+                    positionLogLayer.Times.Clear();
+                    positionLogLayer.Times.AddRange(new TimeSpan[] {
+                        TimeSpan.FromSeconds(-0.2f),
+                        TimeSpan.FromSeconds(-0.1f),
+                        TimeSpan.FromSeconds(0f)
+                    });
+
+                    positionLogLayer.LayerValues = new Vector3[] {
+                        Vector3.Zero,
+                        new Vector3(0, 0, 0.00001f),
+                        Vector3.Zero,
+                    };
+                }
+            }
+
+            clip.Channels.Add(positionChannel);
+            clip.Channels.Add(orientationChannel);
+        }
+
+        animationList.Animations.Add(clip);
+
+        using var stream = new MemoryStream();
+
+        dmx.Root = new Element(dmx, "root", null, "DmElement")
+        {
+            ["skeleton"] = skeleton,
+            ["animationList"] = animationList,
+            ["exportTags"] = new Element(dmx, "exportTags", null, "DmeExportTags")
+            {
+                ["app"] = "sfm", //modeldoc won't import dmx animations without this
+                ["source"] = $"Generated with {ValveResourceFormat.Utils.StringToken.VRF_GENERATOR}",
+            }
+        };
+
         dmx.Save(stream, "keyvalues2", 4);
 
         return stream.ToArray();
