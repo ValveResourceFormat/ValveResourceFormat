@@ -105,7 +105,6 @@ public class ModelExtract
         this.physAggregateData = physAggregateData;
         this.fileName = fileName;
         EnqueueMeshes();
-        EnqueueAnimations();
     }
 
     private void EnqueueMeshes()
@@ -614,9 +613,12 @@ public class ModelExtract
 
     private void EnqueueAnimations()
     {
-        foreach (var anim in model.GetEmbeddedAnimations())
+        if (model != null)
         {
-            AnimationsToExtract.Add((anim, GetDmxFileName_ForAnimation(anim.Name)));
+            foreach (var anim in model.GetEmbeddedAnimations())
+            {
+                AnimationsToExtract.Add((anim, GetDmxFileName_ForAnimation(anim.Name)));
+            }
         }
     }
 
