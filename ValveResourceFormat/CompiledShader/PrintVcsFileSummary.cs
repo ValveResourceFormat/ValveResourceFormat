@@ -97,12 +97,12 @@ namespace ValveResourceFormat.CompiledShader
             {
                 output.WriteLine($"Primary static modes (this file has only one default mode)");
             }
-            output.DefineHeaders(new string[] { "name", "shader", "mode" });
-            output.AddTabulatedRow(new string[] { "----", "----", "----" });
+            output.DefineHeaders(new string[] { "name", "shader", "mode", "value" });
+            output.AddTabulatedRow(new string[] { "----", "----", "----", "----" });
             foreach (var mode in ftHeader.Modes)
             {
                 var staticName = mode.StaticConfig.Length == 0 ? "(default)" : mode.StaticConfig;
-                output.AddTabulatedRow(new string[] { mode.Name, mode.Shader, staticName });
+                output.AddTabulatedRow(new string[] { mode.Name, mode.Shader, staticName, BlankNegOne(mode.Value) });
             }
             output.PrintTabulatedValues();
             output.BreakLine();

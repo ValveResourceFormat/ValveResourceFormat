@@ -20,7 +20,7 @@ namespace ValveResourceFormat.CompiledShader
         public int Arg6 { get; }
         public int Arg7 { get; } = -1;
         public int[] Arg8 { get; }
-        public List<(string Name, string Shader, string StaticConfig)> Modes { get; } = new();
+        public List<(string Name, string Shader, string StaticConfig, int Value)> Modes { get; } = new();
         public List<(Guid, string)> EditorIDs { get; } = new();
         public FeaturesHeaderBlock(ShaderDataReader datareader) : base(datareader)
         {
@@ -87,12 +87,14 @@ namespace ValveResourceFormat.CompiledShader
                 datareader.BaseStream.Position += 64;
 
                 var static_config = string.Empty;
+                var value = -1;
                 if (datareader.ReadInt32() > 0)
                 {
                     static_config = datareader.ReadNullTermStringAtPosition();
-                    datareader.BaseStream.Position += 68;
+                    datareader.BaseStream.Position += 64;
+                    value = datareader.ReadInt32();
                 }
-                Modes.Add((name, shader, static_config));
+                Modes.Add((name, shader, static_config, value));
             }
 
             var maxFileReference = (int)VcsProgramType.PixelShaderRenderState + (int)AdditionalFiles;
