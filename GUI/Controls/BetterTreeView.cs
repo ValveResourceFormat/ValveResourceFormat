@@ -336,7 +336,8 @@ namespace GUI.Controls
         /// <param name="currentNode">Root node.</param>
         /// <param name="file">File entry.</param>
         /// <param name="skipDeletedRootFolder">If true, ignore root folder for recovered deleted files.</param>
-        public void AddFileNode(BetterTreeNode currentNode, PackageEntry file, bool skipDeletedRootFolder = false)
+        /// <param name="manualAdd">When a file is being added after initial render, lookup icon directly.</param>
+        public void AddFileNode(BetterTreeNode currentNode, PackageEntry file, bool skipDeletedRootFolder = false, bool manualAdd = false)
         {
             if (!string.IsNullOrWhiteSpace(file.DirectoryName))
             {
@@ -372,8 +373,13 @@ namespace GUI.Controls
             }
 
             var fileName = file.GetFileName();
+            int image;
 
-            if (!ExtensionIconList.TryGetValue(file.TypeName, out var image))
+            if (manualAdd)
+            {
+                image = MainForm.GetImageIndexForExtension(file.TypeName.ToLowerInvariant());
+            }
+            else if (!ExtensionIconList.TryGetValue(file.TypeName, out image))
             {
                 image = MainForm.ImageListLookup["_default"];
             }

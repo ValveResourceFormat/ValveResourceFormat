@@ -181,7 +181,7 @@ namespace GUI.Controls
         internal void AddFileNode(PackageEntry file)
         {
             var root = mainTreeView.Nodes[0] as BetterTreeNode;
-            mainTreeView.AddFileNode(root, file);
+            mainTreeView.AddFileNode(root, file, manualAdd: true);
         }
 
         internal void RecoverDeletedFiles()
