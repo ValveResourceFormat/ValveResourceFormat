@@ -21,6 +21,7 @@ namespace GUI.Types.Viewers
         internal const string DELETED_FILES_FOLDER = "@@ Deleted Files @@";
         private VrfGuiContext VrfGuiContext;
         private TreeViewWithSearchResults TreeView;
+        private BetterTreeNode LastContextTreeNode;
         private bool IsEditingPackage; // TODO: Allow editing existing vpks (but not chunked ones)
 
         public static bool IsAccepted(uint magic)
@@ -92,6 +93,15 @@ namespace GUI.Types.Viewers
                 }
             );
 
+            var prefix = string.Empty;
+            TreeNode parent = LastContextTreeNode;
+
+            while (parent != null && parent.Level > 0)
+            {
+                prefix = Path.Join(parent.Name, prefix);
+                parent = parent.Parent;
+            }
+
             // TODO: This is not adding to the selected folder, but to root
             foreach (var file in files)
             {
@@ -102,6 +112,11 @@ namespace GUI.Types.Viewers
 
                 var name = file[(inputDirectory.Length + 1)..];
                 var data = File.ReadAllBytes(file);
+
+                if (prefix.Length > 0)
+                {
+                    name = Path.Join(prefix, name);
+                }
 
                 var entry = VrfGuiContext.CurrentPackage.AddFile(name, data);
                 TreeView.AddFileNode(entry);
@@ -387,6 +402,7 @@ namespace GUI.Types.Viewers
                 treeViewWithSearch.ListViewItemRightClick -= VPK_OnContextMenu;
                 treeViewWithSearch.Disposed -= VPK_Disposed;
                 TreeView = null;
+                LastContextTreeNode = null;
             }
         }
 
@@ -431,6 +447,8 @@ namespace GUI.Types.Viewers
             if (IsEditingPackage)
             {
                 var treeNode = e.Node as BetterTreeNode;
+
+                LastContextTreeNode = treeNode;
 
                 if (!treeNode.IsFolder)
                 {

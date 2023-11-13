@@ -47,6 +47,7 @@ namespace GUI
             var packageViewer = (mainTabs.SelectedTab.Controls["TreeViewWithSearchResults"] as TreeViewWithSearchResults).Viewer;
             packageViewer.AddFilesFromFolder(inputDirectory);
         }
+
         private void OnSaveVPKToDiskToolStripMenuItem_Click(object sender, EventArgs e)
         {
             using var saveDialog = new SaveFileDialog
