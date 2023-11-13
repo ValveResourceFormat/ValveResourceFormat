@@ -1,4 +1,4 @@
-﻿namespace GUI.Forms
+namespace GUI.Forms
 {
     partial class SearchForm
     {
@@ -28,83 +28,87 @@
         /// </summary>
         private void InitializeComponent()
         {
-            this.findButton = new System.Windows.Forms.Button();
-            this.cancelButton = new System.Windows.Forms.Button();
-            this.findTextBox = new System.Windows.Forms.TextBox();
-            this.findLabel = new System.Windows.Forms.Label();
-            this.searchTypeComboBox = new System.Windows.Forms.ComboBox();
-            this.SuspendLayout();
+            findButton = new System.Windows.Forms.Button();
+            cancelButton = new System.Windows.Forms.Button();
+            findTextBox = new System.Windows.Forms.TextBox();
+            findLabel = new System.Windows.Forms.Label();
+            searchTypeComboBox = new System.Windows.Forms.ComboBox();
+            SuspendLayout();
             // 
             // findButton
             // 
-            this.findButton.Location = new System.Drawing.Point(261, 12);
-            this.findButton.Name = "findButton";
-            this.findButton.Size = new System.Drawing.Size(75, 23);
-            this.findButton.TabIndex = 0;
-            this.findButton.Text = "Find";
-            this.findButton.UseVisualStyleBackColor = true;
-            this.findButton.Click += new System.EventHandler(this.FindButton_Click);
+            findButton.DialogResult = System.Windows.Forms.DialogResult.OK;
+            findButton.Location = new System.Drawing.Point(304, 14);
+            findButton.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            findButton.Name = "findButton";
+            findButton.Size = new System.Drawing.Size(88, 27);
+            findButton.TabIndex = 0;
+            findButton.Text = "Find";
+            findButton.UseVisualStyleBackColor = true;
             // 
             // cancelButton
             // 
-            this.cancelButton.DialogResult = System.Windows.Forms.DialogResult.Cancel;
-            this.cancelButton.Location = new System.Drawing.Point(261, 41);
-            this.cancelButton.Name = "cancelButton";
-            this.cancelButton.Size = new System.Drawing.Size(75, 23);
-            this.cancelButton.TabIndex = 1;
-            this.cancelButton.Text = "Cancel";
-            this.cancelButton.UseVisualStyleBackColor = true;
-            this.cancelButton.Click += new System.EventHandler(this.CancelButton_Click);
+            cancelButton.DialogResult = System.Windows.Forms.DialogResult.Cancel;
+            cancelButton.Location = new System.Drawing.Point(304, 47);
+            cancelButton.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            cancelButton.Name = "cancelButton";
+            cancelButton.Size = new System.Drawing.Size(88, 27);
+            cancelButton.TabIndex = 1;
+            cancelButton.Text = "Cancel";
+            cancelButton.UseVisualStyleBackColor = true;
             // 
             // findTextBox
             // 
-            this.findTextBox.Location = new System.Drawing.Point(69, 14);
-            this.findTextBox.Name = "findTextBox";
-            this.findTextBox.Size = new System.Drawing.Size(186, 20);
-            this.findTextBox.TabIndex = 2;
+            findTextBox.Location = new System.Drawing.Point(80, 16);
+            findTextBox.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            findTextBox.Name = "findTextBox";
+            findTextBox.Size = new System.Drawing.Size(216, 23);
+            findTextBox.TabIndex = 2;
             // 
             // findLabel
             // 
-            this.findLabel.AutoSize = true;
-            this.findLabel.Location = new System.Drawing.Point(12, 17);
-            this.findLabel.Name = "findLabel";
-            this.findLabel.Size = new System.Drawing.Size(56, 13);
-            this.findLabel.TabIndex = 3;
-            this.findLabel.Text = "Find what:";
+            findLabel.AutoSize = true;
+            findLabel.Location = new System.Drawing.Point(14, 20);
+            findLabel.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            findLabel.Name = "findLabel";
+            findLabel.Size = new System.Drawing.Size(62, 15);
+            findLabel.TabIndex = 3;
+            findLabel.Text = "Find what:";
             // 
             // searchTypeComboBox
             // 
-            this.searchTypeComboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
-            this.searchTypeComboBox.FormattingEnabled = true;
-            this.searchTypeComboBox.Location = new System.Drawing.Point(69, 41);
-            this.searchTypeComboBox.Name = "searchTypeComboBox";
-            this.searchTypeComboBox.Size = new System.Drawing.Size(186, 21);
-            this.searchTypeComboBox.TabIndex = 5;
+            searchTypeComboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            searchTypeComboBox.FormattingEnabled = true;
+            searchTypeComboBox.Location = new System.Drawing.Point(80, 47);
+            searchTypeComboBox.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            searchTypeComboBox.Name = "searchTypeComboBox";
+            searchTypeComboBox.Size = new System.Drawing.Size(216, 23);
+            searchTypeComboBox.TabIndex = 5;
             // 
             // SearchForm
             // 
-            this.AcceptButton = this.findButton;
-            this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
-            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.CancelButton = this.cancelButton;
-            this.ClientSize = new System.Drawing.Size(348, 88);
-            this.Controls.Add(this.searchTypeComboBox);
-            this.Controls.Add(this.findLabel);
-            this.Controls.Add(this.findTextBox);
-            this.Controls.Add(this.cancelButton);
-            this.Controls.Add(this.findButton);
-            this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
-            this.MaximizeBox = false;
-            this.MinimizeBox = false;
-            this.Name = "SearchForm";
-            this.ShowIcon = false;
-            this.ShowInTaskbar = false;
-            this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
-            this.Text = "Find";
-            this.Load += new System.EventHandler(this.SearchForm_Load);
-            this.ResumeLayout(false);
-            this.PerformLayout();
-
+            AcceptButton = findButton;
+            AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
+            AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            CancelButton = cancelButton;
+            ClientSize = new System.Drawing.Size(406, 102);
+            Controls.Add(searchTypeComboBox);
+            Controls.Add(findLabel);
+            Controls.Add(findTextBox);
+            Controls.Add(cancelButton);
+            Controls.Add(findButton);
+            FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
+            Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            MaximizeBox = false;
+            MinimizeBox = false;
+            Name = "SearchForm";
+            ShowIcon = false;
+            ShowInTaskbar = false;
+            StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
+            Text = "Find";
+            Load += SearchForm_Load;
+            ResumeLayout(false);
+            PerformLayout();
         }
 
         #endregion

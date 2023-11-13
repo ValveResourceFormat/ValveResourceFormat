@@ -82,6 +82,20 @@ namespace GUI.Types.Viewers
             TreeView.Disposed += VPK_Disposed;
         }
 
+        public void AddFolder(string directory)
+        {
+            var prefix = GetCurrentPrefix();
+
+            if (prefix.Length > 0)
+            {
+                directory = Path.Join(prefix, directory);
+            }
+
+            directory = directory.Replace('\\', SteamDatabase.ValvePak.Package.DirectorySeparatorChar);
+
+            TreeView.AddFolderNode(directory);
+        }
+
         public void AddFilesFromFolder(string inputDirectory)
         {
             var files = new FileSystemEnumerable<string>(
@@ -93,14 +107,16 @@ namespace GUI.Types.Viewers
                 }
             );
 
-            var prefix = string.Empty;
-            TreeNode parent = LastContextTreeNode;
+            AddFiles(files, inputDirectory);
+        }
 
-            while (parent != null && parent.Level > 0)
-            {
-                prefix = Path.Join(parent.Name, prefix);
-                parent = parent.Parent;
-            }
+        public void AddFiles(IEnumerable<string> files, string inputDirectory = null)
+        {
+            var prefix = GetCurrentPrefix();
+
+            Cursor.Current = Cursors.WaitCursor;
+
+            TreeView.BeginUpdate();
 
             // TODO: This is not adding to the selected folder, but to root
             foreach (var file in files)
@@ -110,7 +126,7 @@ namespace GUI.Types.Viewers
                     continue;
                 }
 
-                var name = file[(inputDirectory.Length + 1)..];
+                var name = inputDirectory == null ? Path.GetFileName(file) : file[(inputDirectory.Length + 1)..];
                 var data = File.ReadAllBytes(file);
 
                 if (prefix.Length > 0)
@@ -121,6 +137,10 @@ namespace GUI.Types.Viewers
                 var entry = VrfGuiContext.CurrentPackage.AddFile(name, data);
                 TreeView.AddFileNode(entry);
             }
+
+            TreeView.EndUpdate();
+
+            Cursor.Current = Cursors.Default;
         }
 
         public void SaveToFile(string fileName)
@@ -139,7 +159,7 @@ namespace GUI.Types.Viewers
                 }
             }
 
-            var result = $"Created {Path.GetFileName(fileName)} with {fileCount} files of size {fileSize.ToFileSizeString()}.";
+            var result = $"Created {Path.GetFileName(fileName)} with {fileCount} files of size {HumanReadableByteSizeFormatter.Format(fileSize)}.";
 
             Log.Info(nameof(Package), result);
 
@@ -440,6 +460,20 @@ namespace GUI.Types.Viewers
                 var vrfGuiContext = new VrfGuiContext(file.GetFullPath(), VrfGuiContext);
                 Program.MainForm.OpenFile(vrfGuiContext, file);
             }
+        }
+
+        private string GetCurrentPrefix()
+        {
+            var prefix = string.Empty;
+            TreeNode parent = LastContextTreeNode;
+
+            while (parent != null && parent.Level > 0)
+            {
+                prefix = Path.Join(parent.Name, prefix);
+                parent = parent.Parent;
+            }
+
+            return prefix;
         }
 
         private void VPK_OnContextMenu(object sender, TreeNodeMouseClickEventArgs e)

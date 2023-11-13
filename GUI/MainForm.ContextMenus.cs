@@ -3,6 +3,7 @@ using System.Drawing;
 using System.IO;
 using System.Windows.Forms;
 using GUI.Controls;
+using GUI.Forms;
 using GUI.Utils;
 
 namespace GUI
@@ -26,7 +27,28 @@ namespace GUI
             vpkEditingContextMenu.Show(control, position);
         }
 
-        private void OnVpkAddNewFileToolStripMenuItem_Click(object sender, EventArgs e)
+        private void OnVpkCreateFolderToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            using var dialog = new PromptForm("New folder name");
+
+            if (dialog.ShowDialog() != DialogResult.OK || dialog.ResultText.Length < 1)
+            {
+                return;
+            }
+
+            var directory = dialog.ResultText;
+
+            if (directory.IndexOfAny(Path.GetInvalidPathChars()) != -1)
+            {
+                MessageBox.Show("Entered folder name contains invalid characters.", "Invalid characters");
+                return;
+            }
+
+            var packageViewer = (mainTabs.SelectedTab.Controls["TreeViewWithSearchResults"] as TreeViewWithSearchResults).Viewer;
+            packageViewer.AddFolder(directory);
+        }
+
+        private void OnVpkAddNewFolderToolStripMenuItem_Click(object sender, EventArgs e)
         {
             using var openDialog = new FolderBrowserDialog
             {
@@ -46,6 +68,28 @@ namespace GUI
 
             var packageViewer = (mainTabs.SelectedTab.Controls["TreeViewWithSearchResults"] as TreeViewWithSearchResults).Viewer;
             packageViewer.AddFilesFromFolder(inputDirectory);
+        }
+
+        private void OnVpkAddNewFileToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            using var openDialog = new OpenFileDialog
+            {
+                Title = "Choose which files to add to the VPK",
+                InitialDirectory = Settings.Config.OpenDirectory,
+                AddToRecent = true,
+                Multiselect = true,
+            };
+
+            if (openDialog.ShowDialog() != DialogResult.OK || openDialog.FileNames.Length < 1)
+            {
+                return;
+            }
+
+            var inputDirectory = openDialog.FileNames;
+            Settings.Config.OpenDirectory = Path.GetDirectoryName(openDialog.FileName);
+
+            var packageViewer = (mainTabs.SelectedTab.Controls["TreeViewWithSearchResults"] as TreeViewWithSearchResults).Viewer;
+            packageViewer.AddFiles(openDialog.FileNames);
         }
 
         private void OnSaveVPKToDiskToolStripMenuItem_Click(object sender, EventArgs e)

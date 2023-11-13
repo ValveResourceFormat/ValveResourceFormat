@@ -121,6 +121,16 @@ namespace GUI.Controls
             }
         }
 
+        internal void BeginUpdate()
+        {
+            mainTreeView.BeginUpdate();
+        }
+
+        internal void EndUpdate()
+        {
+            mainTreeView.EndUpdate();
+        }
+
         /// <summary>
         /// Initializes the TreeView in the control with the contents of the passed Package. Contents are sorted and expanded by default.
         /// </summary>
@@ -176,6 +186,12 @@ namespace GUI.Controls
             }
 
             control.EndUpdate();
+        }
+
+        internal void AddFolderNode(string directoryName)
+        {
+            var root = mainTreeView.Nodes[0] as BetterTreeNode;
+            BetterTreeView.AddFolderNode(root, directoryName, 0u);
         }
 
         internal void AddFileNode(PackageEntry file)

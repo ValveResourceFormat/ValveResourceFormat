@@ -330,6 +330,41 @@ namespace GUI.Controls
             }
         }
 
+        public static BetterTreeNode AddFolderNode(BetterTreeNode currentNode, string directory, uint size, bool skipDeletedRootFolder = false)
+        {
+            var folderImage = MainForm.ImageListLookup["_folder"];
+            var subPaths = directory.Split(Package.DirectorySeparatorChar);
+
+            foreach (var subPath in subPaths)
+            {
+                if (skipDeletedRootFolder && subPath == Types.Viewers.Package.DELETED_FILES_FOLDER)
+                {
+                    continue;
+                }
+
+                var subNode = (BetterTreeNode)currentNode.Nodes[subPath];
+
+                if (subNode == null)
+                {
+                    var toAdd = new BetterTreeNode(subPath, size)
+                    {
+                        Name = subPath,
+                        ImageIndex = folderImage,
+                        SelectedImageIndex = folderImage,
+                    };
+                    currentNode.Nodes.Add(toAdd);
+                    currentNode = toAdd;
+                }
+                else
+                {
+                    currentNode = subNode;
+                    currentNode.TotalSize += size;
+                }
+            }
+
+            return currentNode;
+        }
+
         /// <summary>
         /// Adds a node to the tree based on the passed file information. This is useful when building a directory-based tree.
         /// </summary>
@@ -341,35 +376,7 @@ namespace GUI.Controls
         {
             if (!string.IsNullOrWhiteSpace(file.DirectoryName))
             {
-                var folderImage = MainForm.ImageListLookup["_folder"];
-                var subPaths = file.DirectoryName.Split(Package.DirectorySeparatorChar);
-
-                foreach (var subPath in subPaths)
-                {
-                    if (skipDeletedRootFolder && subPath == Types.Viewers.Package.DELETED_FILES_FOLDER)
-                    {
-                        continue;
-                    }
-
-                    var subNode = (BetterTreeNode)currentNode.Nodes[subPath];
-
-                    if (subNode == null)
-                    {
-                        var toAdd = new BetterTreeNode(subPath, file.TotalLength)
-                        {
-                            Name = subPath,
-                            ImageIndex = folderImage,
-                            SelectedImageIndex = folderImage,
-                        };
-                        currentNode.Nodes.Add(toAdd);
-                        currentNode = toAdd;
-                    }
-                    else
-                    {
-                        currentNode = subNode;
-                        currentNode.TotalSize += file.TotalLength;
-                    }
-                }
+                currentNode = AddFolderNode(currentNode, file.DirectoryName, file.TotalLength, skipDeletedRootFolder);
             }
 
             var fileName = file.GetFileName();
