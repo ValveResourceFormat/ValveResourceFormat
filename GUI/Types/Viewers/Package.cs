@@ -118,6 +118,8 @@ namespace GUI.Types.Viewers
 
             TreeView.BeginUpdate();
 
+            var resourceEntries = new List<PackageEntry>();
+
             // TODO: This is not adding to the selected folder, but to root
             foreach (var file in files)
             {
@@ -136,11 +138,30 @@ namespace GUI.Types.Viewers
 
                 var entry = VrfGuiContext.CurrentPackage.AddFile(name, data);
                 TreeView.AddFileNode(entry);
+
+                if (data.Length >= 6)
+                {
+                    var magicResourceVersion = BitConverter.ToUInt16(data, 4);
+
+                    if (Resource.IsAccepted(magicResourceVersion) && name.EndsWith("_c", StringComparison.Ordinal))
+                    {
+                        resourceEntries.Add(entry);
+                    }
+                }
             }
 
             TreeView.EndUpdate();
 
             Cursor.Current = Cursors.Default;
+
+            if (resourceEntries.Count > 0 && MessageBox.Show(
+                "Would you like to scan and all dependencies of the compiled file (ending in \"_c\") you just added?",
+                "Detected a compiled resource",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question) == DialogResult.Yes)
+            {
+                MessageBox.Show("TODO :)");
+            }
         }
 
         public void SaveToFile(string fileName)
