@@ -780,23 +780,24 @@ public class ModelExtract
             }
 
             //If both layers are 0s only, modeldoc will ignore the animations on this bone.
-            //We'll replace the position layer's values with one that has a very small value outside of the range of the animation.
-            if (positionLogLayer.IsLayerZero() && orientationLogLayer.IsLayerZero())
+            //In that case, replace the position layer's values with one that has a very small value outside of the range of the animation.
+            //Do the same if there's only a single frame, since modeldoc also ignores animations that don't have any movement at all (Fixes #663)
+            if (anim.FrameCount == 1 || (positionLogLayer.IsLayerZero() && orientationLogLayer.IsLayerZero()))
             {
                 positionLogLayer.Times.Clear();
                 positionLogLayer.Times.AddRange(new TimeSpan[] {
-                        TimeSpan.FromSeconds(-0.2f),
-                        TimeSpan.FromSeconds(-0.1f),
-                        TimeSpan.FromSeconds(0f)
-                    });
+                    TimeSpan.FromSeconds(-0.2f),
+                    TimeSpan.FromSeconds(-0.1f),
+                    TimeSpan.FromSeconds(0f)
+                });
 
+                var layerValue = positionLogLayer.LayerValues[0];
                 positionLogLayer.LayerValues = new Vector3[] {
-                        Vector3.Zero,
-                        new Vector3(0, 0, 0.00001f),
-                        Vector3.Zero,
-                    };
+                    layerValue,
+                    layerValue + new Vector3(0, 0, 0.00001f),
+                    layerValue,
+                };
             }
-
             clip.Channels.Add(positionChannel);
             clip.Channels.Add(orientationChannel);
         }
