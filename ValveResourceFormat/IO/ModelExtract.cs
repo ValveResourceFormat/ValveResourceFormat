@@ -777,24 +777,24 @@ public class ModelExtract
                 TimeSpan time = TimeSpan.FromSeconds((double)i / anim.Fps);
 
                 ProcessBoneFrameForDmeChannel(bone, frame, time, positionLogLayer, orientationLogLayer);
+            }
 
-                //If both layers are 0s only, modeldoc will ignore the animations on this bone.
-                //We'll replace the position layer's values, that has a very small value outside of the range of the animation.
-                if (positionLogLayer.IsLayerZero() && orientationLogLayer.IsLayerZero())
-                {
-                    positionLogLayer.Times.Clear();
-                    positionLogLayer.Times.AddRange(new TimeSpan[] {
+            //If both layers are 0s only, modeldoc will ignore the animations on this bone.
+            //We'll replace the position layer's values with one that has a very small value outside of the range of the animation.
+            if (positionLogLayer.IsLayerZero() && orientationLogLayer.IsLayerZero())
+            {
+                positionLogLayer.Times.Clear();
+                positionLogLayer.Times.AddRange(new TimeSpan[] {
                         TimeSpan.FromSeconds(-0.2f),
                         TimeSpan.FromSeconds(-0.1f),
                         TimeSpan.FromSeconds(0f)
                     });
 
-                    positionLogLayer.LayerValues = new Vector3[] {
+                positionLogLayer.LayerValues = new Vector3[] {
                         Vector3.Zero,
                         new Vector3(0, 0, 0.00001f),
                         Vector3.Zero,
                     };
-                }
             }
 
             clip.Channels.Add(positionChannel);
