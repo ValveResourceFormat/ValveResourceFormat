@@ -199,11 +199,7 @@ void main()
     vFoliageParamsOut = vFoliageParams;
 #endif
 
-#if (F_FOLIAGE_ANIMATION > 0)
-	vTexCoordOut = GetAnimatedUVs(vTEXCOORD.xy);
-#else
-	vTexCoordOut = GetAnimatedUVs(vTEXCOORD.xy);
-#endif
+    vTexCoordOut = GetAnimatedUVs(vTEXCOORD.xy);
 
 #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
     vLightmapUVScaled = vec3(vLightmapUV * g_vLightmapUvScale.xy, 0);
