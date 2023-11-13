@@ -4,6 +4,8 @@ using System.Globalization;
 using System.Linq;
 using System.Numerics;
 using ValveResourceFormat.IO;
+using ValveResourceFormat.ResourceTypes.ModelFlex;
+using ValveResourceFormat.ResourceTypes.ModelFlex.FlexOps;
 using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Serialization.KeyValues;
 using ValveResourceFormat.Serialization.NTRO;
@@ -13,6 +15,7 @@ namespace ValveResourceFormat.ResourceTypes
     public class Morph : KeyValuesOrNTRO
     {
         public Dictionary<string, Vector3[]> FlexData { get; private set; }
+        public FlexRule[] FlexRules { get; private set; }
 
         public Morph(BlockType type) : base(type, "MorphSetData_t")
         {
@@ -133,6 +136,38 @@ namespace ValveResourceFormat.ResourceTypes
 
                 FlexData.Add(morphName, rectData);
             }
+
+            FlexRules = GetMorphKeyValueCollection(Data, "m_FlexRules")
+                .Select(kv => ParseFlexRule(kv.Value))
+                .ToArray();
+        }
+
+        private static FlexRule ParseFlexRule(object obj)
+        {
+            if (obj is not KVObject kv)
+            {
+                throw new ArgumentException("Parameter is not KVObject");
+            }
+
+            var flexId = kv.GetInt32Property("m_nFlex");
+
+            var flexOps = kv.GetSubCollection("m_FlexOps")
+                .Select(flexOp => ParseFlexOp(flexOp.Value))
+                .ToArray();
+
+            return new FlexRule(flexId, flexOps);
+        }
+
+        private static FlexOp ParseFlexOp(object obj)
+        {
+            if (obj is not KVObject kv)
+            {
+                throw new ArgumentException("Parameter is not KVObject");
+            }
+
+            var opCode = kv.GetStringProperty("m_OpCode");
+            var data = kv.GetFloatProperty("m_Data");
+            return FlexOp.Build(opCode, data);
         }
 
         private static MorphBundleType ParseBundleType(object bundleType)
