@@ -34,6 +34,7 @@ namespace GUI.Controls
 
             mainListView.MouseDoubleClick += MainListView_MouseDoubleClick;
             mainListView.MouseDown += MainListView_MouseDown;
+            mainListView.ColumnClick += MainListView_ColumnClick;
             mainListView.Resize += MainListView_Resize;
             mainListView.Disposed += MainListView_Disposed;
             mainListView.FullRowSelect = true;
@@ -48,6 +49,7 @@ namespace GUI.Controls
         {
             mainListView.MouseDoubleClick -= MainListView_MouseDoubleClick;
             mainListView.MouseDown -= MainListView_MouseDown;
+            mainListView.ColumnClick -= MainListView_ColumnClick;
             mainListView.Resize -= MainListView_Resize;
             mainListView.Disposed -= MainListView_Disposed;
 
@@ -333,6 +335,32 @@ namespace GUI.Controls
             ResizeListViewColumns();
 
             mainListView.EndUpdate();
+        }
+
+        private void MainListView_ColumnClick(object sender, ColumnClickEventArgs e)
+        {
+            mainListView.ListViewItemSorter ??= new ListViewColumnSorter();
+
+            var sorter = (ListViewColumnSorter)mainListView.ListViewItemSorter;
+
+            if (e.Column == sorter.SortColumn)
+            {
+                if (sorter.Order == SortOrder.Ascending)
+                {
+                    sorter.Order = SortOrder.Descending;
+                }
+                else
+                {
+                    sorter.Order = SortOrder.Ascending;
+                }
+            }
+            else
+            {
+                sorter.SortColumn = e.Column;
+                sorter.Order = SortOrder.Ascending;
+            }
+
+            mainListView.Sort();
         }
 
         /// <summary>
