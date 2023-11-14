@@ -9,15 +9,15 @@ namespace GUI.Types.Renderer
 {
     enum ReservedTextureSlots
     {
-        AnimationTexture = 0,
+        BRDFLookup = 0,
+        FogCubeTexture,
         Lightmap1,
         Lightmap2,
         Lightmap3,
         Lightmap4,
-        BRDFLookup,
         EnvironmentMap,
-        FogCubeTexture,
-        Last = FogCubeTexture,
+        AnimationTexture,
+        Last = AnimationTexture,
     }
 
     class RenderMaterial
