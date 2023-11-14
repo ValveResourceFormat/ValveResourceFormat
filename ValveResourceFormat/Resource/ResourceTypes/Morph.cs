@@ -16,6 +16,7 @@ namespace ValveResourceFormat.ResourceTypes
     {
         public Dictionary<string, Vector3[]> FlexData { get; private set; }
         public FlexRule[] FlexRules { get; private set; }
+        public FlexController[] FlexControllers { get; private set; }
 
         public Morph(BlockType type) : base(type, "MorphSetData_t")
         {
@@ -140,6 +141,24 @@ namespace ValveResourceFormat.ResourceTypes
             FlexRules = GetMorphKeyValueCollection(Data, "m_FlexRules")
                 .Select(kv => ParseFlexRule(kv.Value))
                 .ToArray();
+
+            FlexControllers = GetMorphKeyValueCollection(Data, "m_FlexControllers")
+                .Select(kv => ParseFlexController(kv.Value))
+                .ToArray();
+        }
+        private static FlexController ParseFlexController(object obj)
+        {
+            if (obj is not IKeyValueCollection kv)
+            {
+                throw new ArgumentException("Parameter is not IKeyValueCollection");
+            }
+
+            var name = kv.GetStringProperty("m_szName");
+            var min = kv.GetFloatProperty("min");
+            var max = kv.GetFloatProperty("max");
+            //There's also a m_szType field, but it seems to be always "default"
+
+            return new FlexController(name, min, max);
         }
 
         private static FlexRule ParseFlexRule(object obj)
