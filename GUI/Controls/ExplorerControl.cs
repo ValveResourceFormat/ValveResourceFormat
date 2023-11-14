@@ -178,7 +178,7 @@ namespace GUI.Controls
                 }
             }
 
-            if (!gamePathsToScan.Any())
+            if (gamePathsToScan.Count == 0)
             {
                 return;
             }
@@ -449,7 +449,7 @@ namespace GUI.Controls
                     return child.Text.Contains(filterTextBox.Text, StringComparison.OrdinalIgnoreCase);
                 });
 
-                if (foundChildren.Any())
+                if (foundChildren.Length > 0)
                 {
                     node.ParentNode.Nodes.AddRange(foundChildren);
                     node.ParentNode.Expand();
@@ -607,7 +607,7 @@ namespace GUI.Controls
             RedrawList(APPID_BOOKMARKS, GetBookmarkedFileNodes());
         }
 
-        private Image GetAppResizedImage(string path)
+        private Bitmap GetAppResizedImage(string path)
         {
             var originalImage = Image.FromFile(path);
 

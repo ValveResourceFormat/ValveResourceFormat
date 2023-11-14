@@ -678,10 +678,12 @@ public sealed class ShaderExtract
         {
             writer.WriteLine();
 
+#pragma warning disable CA1861 // Avoid constant arrays as arguments
             foreach (var line in variant0Source.ToString().Split(new string[] { "\n", "\r\n" }, StringSplitOptions.None))
             {
                 writer.WriteLine(line);
             }
+#pragma warning restore CA1861
 
             writer.WriteLine();
         }

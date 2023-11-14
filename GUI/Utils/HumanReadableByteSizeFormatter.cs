@@ -8,10 +8,7 @@ internal static class HumanReadableByteSizeFormatter
     // https://stackoverflow.com/a/11124118
     public static string Format(long value)
     {
-        if (value < 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(value));
-        }
+        ArgumentOutOfRangeException.ThrowIfNegative(value);
 
         string suffix;
         double readable;

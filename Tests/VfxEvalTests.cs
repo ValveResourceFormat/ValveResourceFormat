@@ -300,7 +300,7 @@ namespace Tests
             var expectedResultWithNoFeatures = "COND[1] || 0";
             var expectedResultWithFeatures = "F_B || 0";
             Assert.AreEqual(expectedResultWithNoFeatures, new VfxEval(testInput1, omitReturnStatement: true).DynamicExpressionResult);
-            Assert.AreEqual(expectedResultWithFeatures, new VfxEval(testInput1, omitReturnStatement: true, features: new[] { "F_A", "F_B" }).DynamicExpressionResult);
+            Assert.AreEqual(expectedResultWithFeatures, new VfxEval(testInput1, omitReturnStatement: true, features: ["F_A", "F_B"]).DynamicExpressionResult);
 
             var testInput2 = ParseString("1D 3C 13 92 A3 1E A4 06 1F 00 00");
             var expectedResult2 = "SrgbGammaToLinear(EVAL[a392133c].xyz)";

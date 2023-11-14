@@ -286,7 +286,7 @@ namespace ValveResourceFormat.IO
             WriteModelFile(exportedModel, fileName);
         }
 
-        private IList<(VModel Model, string ModelName, Matrix4x4 Transform)> LoadWorldNodeModels(VWorldNode worldNode)
+        private List<(VModel Model, string ModelName, Matrix4x4 Transform)> LoadWorldNodeModels(VWorldNode worldNode)
         {
             var models = new List<(VModel, string, Matrix4x4)>();
             foreach (var sceneObject in worldNode.SceneObjects)

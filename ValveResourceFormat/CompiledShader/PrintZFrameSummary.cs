@@ -149,13 +149,13 @@ namespace ValveResourceFormat.CompiledShader
             OutputFormatterTabulatedData tabulatedData = new(OutputWriter);
             var emptyRow = new string[] { "", "", "", "", "" };
             tabulatedData.DefineHeaders(zframeFile.LeadingData.H0 > 0 ?
-                new string[] { "segment", "", nameof(WriteSeqField.Dest), nameof(WriteSeqField.Control), nameof(WriteSeqField.UnknBuff) } :
+                ["segment", "", nameof(WriteSeqField.Dest), nameof(WriteSeqField.Control), nameof(WriteSeqField.UnknBuff)] :
                 emptyRow);
             if (zframeFile.LeadingData.H0 > 0)
             {
                 tabulatedData.AddTabulatedRow(emptyRow);
             }
-            tabulatedData.AddTabulatedRow(new string[] { "WRITESEQ[0]", "", "", "", "" });
+            tabulatedData.AddTabulatedRow(["WRITESEQ[0]", "", "", "", ""]);
             var dataBlock0 = zframeFile.LeadingData;
             PrintParamWriteSequence(dataBlock0, tabulatedData);
             tabulatedData.AddTabulatedRow(emptyRow);
@@ -167,7 +167,7 @@ namespace ValveResourceFormat.CompiledShader
                 {
                     lastSeq = item.Value;
                     var dataBlock = zframeFile.DataBlocks[item.Key];
-                    tabulatedData.AddTabulatedRow(new string[] { $"WRITESEQ[{lastSeq}]", "", "", "", "" });
+                    tabulatedData.AddTabulatedRow([$"WRITESEQ[{lastSeq}]", "", "", "", ""]);
                     PrintParamWriteSequence(dataBlock, tabulatedData);
                     tabulatedData.AddTabulatedRow(emptyRow);
                 }
@@ -201,12 +201,12 @@ namespace ValveResourceFormat.CompiledShader
                     var buffDesc = field.UnknBuff == 0x00 ? $"{"_",7}" : $"{field.UnknBuff,7}";
                     var arg1Desc = field.Dest == 0xff ? $"{"_",7}" : $"{field.Dest,7}";
                     var arg2Desc = field.Control == 0xff ? $"{"_",10}" : $"{field.Control,10}";
-                    tabulatedData.AddTabulatedRow(new string[] { i == 0 ? segmentDesc : string.Empty, paramDesc, arg1Desc, arg2Desc, buffDesc });
+                    tabulatedData.AddTabulatedRow([i == 0 ? segmentDesc : string.Empty, paramDesc, arg1Desc, arg2Desc, buffDesc]);
                 }
             }
             else
             {
-                tabulatedData.AddTabulatedRow(new string[] { segmentDesc, "[empty]", "", "", "" });
+                tabulatedData.AddTabulatedRow([segmentDesc, "[empty]", "", "", ""]);
             }
         }
 
@@ -224,19 +224,19 @@ namespace ValveResourceFormat.CompiledShader
             OutputWriteLine(new string('-', configHeader.Length));
 
             OutputFormatterTabulatedData tabulatedConfigNames = new(OutputWriter);
-            tabulatedConfigNames.DefineHeaders(new string[] { "", "abbrev." });
+            tabulatedConfigNames.DefineHeaders(["", "abbrev."]);
 
             List<string> shortenedNames = new();
             foreach (var abbrev in abbreviations)
             {
-                tabulatedConfigNames.AddTabulatedRow(new string[] { $"{abbrev.Item1}", $"{abbrev.Item2}" });
+                tabulatedConfigNames.AddTabulatedRow([$"{abbrev.Item1}", $"{abbrev.Item2}"]);
                 shortenedNames.Add(abbrev.Item2);
             }
 
             OutputFormatterTabulatedData tabulatedConfigCombinations = new(OutputWriter);
             tabulatedConfigCombinations.DefineHeaders(shortenedNames.ToArray());
 
-            var activeBlockIds = zframeFile.EndBlocks.Select(endBlock => endBlock.BlockIdRef);
+            var activeBlockIds = zframeFile.EndBlocks.Select(endBlock => endBlock.BlockIdRef).ToList();
             foreach (var blockId in activeBlockIds)
             {
                 var dBlockConfig = shaderFile.GetDBlockConfig(blockId);
@@ -256,8 +256,8 @@ namespace ValveResourceFormat.CompiledShader
             var gpuSourceName = zframeFile.GpuSources[0].BlockName.ToLowerInvariant();
             var sourceHeader = $"{gpuSourceName}-source";
             string[] dConfigHeaders = isVertexShader ?
-                    new string[] { "config-id", dNamesHeader, "write-seq.", sourceHeader, "gpu-inputs", nameof(ZFrameFile.UnknownArg), nameof(ZFrameFile.UnknownArg2), nameof(GpuSource.HashMD5) } :
-                    new string[] { "config-id", dNamesHeader, "write-seq.", sourceHeader, nameof(ZFrameFile.UnknownArg), nameof(ZFrameFile.UnknownArg2), nameof(GpuSource.HashMD5) };
+                    ["config-id", dNamesHeader, "write-seq.", sourceHeader, "gpu-inputs", nameof(ZFrameFile.UnknownArg), nameof(ZFrameFile.UnknownArg2), nameof(GpuSource.HashMD5)] :
+                    ["config-id", dNamesHeader, "write-seq.", sourceHeader, nameof(ZFrameFile.UnknownArg), nameof(ZFrameFile.UnknownArg2), nameof(GpuSource.HashMD5)];
             OutputFormatterTabulatedData tabulatedConfigFull = new(OutputWriter);
             tabulatedConfigFull.DefineHeaders(dConfigHeaders);
 
@@ -268,8 +268,8 @@ namespace ValveResourceFormat.CompiledShader
                 if (dBlockCount % 100 == 0)
                 {
                     tabulatedConfigFull.AddTabulatedRow(isVertexShader ?
-                        new string[] { "", dNamesHeader, "", "", "", "", "", "" } :
-                        new string[] { "", dNamesHeader, "", "", "", "", "" });
+                        ["", dNamesHeader, "", "", "", "", "", ""] :
+                        ["", dNamesHeader, "", "", "", "", ""]);
                 }
                 var configIdText = $"0x{blockId:x}";
                 var configCombText = hasNoDConfigsDefined ? $"{"(default)",-14}" : tabbedConfigs.Pop();
@@ -286,8 +286,8 @@ namespace ValveResourceFormat.CompiledShader
                 var hash = blockSource.HashMD5.ToString();
                 tabulatedConfigFull.AddTabulatedRow(
                     isVertexShader ?
-                    new string[] { configIdText, configCombText, writeSeqText, sourceLink, gpuInputText, arg1Text, arg2Text, hash } :
-                    new string[] { configIdText, configCombText, writeSeqText, sourceLink, arg1Text, arg2Text, hash });
+                    [configIdText, configCombText, writeSeqText, sourceLink, gpuInputText, arg1Text, arg2Text, hash] :
+                    [configIdText, configCombText, writeSeqText, sourceLink, arg1Text, arg2Text, hash]);
             }
 
             tabulatedConfigFull.PrintTabulatedValues();

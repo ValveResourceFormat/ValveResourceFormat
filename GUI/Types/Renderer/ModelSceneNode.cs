@@ -183,7 +183,7 @@ namespace GUI.Types.Renderer
         {
             animations.AddRange(model.GetAllAnimations(Scene.GuiContext.FileLoader));
 
-            if (animations.Any())
+            if (animations.Count != 0)
             {
                 SetupAnimationTextures();
             }

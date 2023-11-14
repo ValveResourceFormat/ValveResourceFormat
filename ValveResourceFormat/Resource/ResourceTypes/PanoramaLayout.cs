@@ -80,7 +80,7 @@ namespace ValveResourceFormat.ResourceTypes
             var attributes = NodeAttributes(node);
             var nodeChildren = NodeChildren(node).ToList();
 
-            if (!nodeChildren.Any())
+            if (nodeChildren.Count == 0)
             {
                 PrintOpenNode(name, attributes, " />", writer);
                 return;
@@ -173,8 +173,7 @@ namespace ValveResourceFormat.ResourceTypes
         private static IEnumerable<IKeyValueCollection> NodeAttributes(IKeyValueCollection node) => SubNodes(node).Where(n => IsAttribute(n));
         private static IEnumerable<IKeyValueCollection> NodeChildren(IKeyValueCollection node) => SubNodes(node).Where(n => !IsAttribute(n));
 
-
-        private static IEnumerable<IKeyValueCollection> SubNodes(IKeyValueCollection node)
+        private static IKeyValueCollection[] SubNodes(IKeyValueCollection node)
         {
             if (node.ContainsKey("vecChildren"))
             {

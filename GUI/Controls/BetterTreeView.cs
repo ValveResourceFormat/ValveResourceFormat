@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -99,7 +100,7 @@ namespace GUI.Controls
         /// </summary>
         /// <param name="matchFunction">Function which performs matching on the TreeNode. Returns true if there's a match.</param>
         /// <returns>Returns matched nodes.</returns>
-        private IList<BetterTreeNode> Search(Func<BetterTreeNode, bool> matchFunction)
+        private ReadOnlyCollection<BetterTreeNode> Search(Func<BetterTreeNode, bool> matchFunction)
         {
             var searchQueue = new Queue<BetterTreeNode>();
 
@@ -137,7 +138,7 @@ namespace GUI.Controls
             return matchedNodes.AsReadOnly();
         }
 
-        private IList<BetterTreeNode> SearchFileContents(byte[] pattern)
+        private List<BetterTreeNode> SearchFileContents(byte[] pattern)
         {
             if (pattern.Length < 3)
             {

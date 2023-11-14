@@ -289,7 +289,9 @@ namespace GUI.Types.Renderer
             throw new InvalidProgramException($"{errorType} {shaderFile} (original={originalShaderName}):\n{info}");
         }
 
+#pragma warning disable CA1859 // Use concrete types
         private static Stream GetShaderStream(string name)
+#pragma warning restore CA1859
         {
 #if DEBUG
             return File.Open(GetShaderDiskPath(name), FileMode.Open, FileAccess.Read, FileShare.ReadWrite);

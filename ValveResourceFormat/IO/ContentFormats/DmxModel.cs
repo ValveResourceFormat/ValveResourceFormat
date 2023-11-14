@@ -167,14 +167,14 @@ public abstract class DmeTypedLog<T> : DMElement
 {
     protected DmeTypedLog(string namePostfix)
     {
-        string typeName = typeof(T).Name;
+        var typeName = typeof(T).Name;
         if (char.IsLower(typeName[0]))
         {
-            typeName = char.ToUpper(typeName[0]) + typeName.Substring(1);
+            typeName = char.ToUpperInvariant(typeName[0]) + typeName[1..];
         }
 
         ClassName = $"Dme{typeName}{namePostfix}";
-        Name = $"{typeName.ToLower()} log";
+        Name = $"{typeName.ToLowerInvariant()} log";
     }
 }
 

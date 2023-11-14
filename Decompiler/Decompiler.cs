@@ -222,7 +222,7 @@ namespace Decompiler
                     dirs.AddRange(vpks);
                 }
 
-                if (!dirs.Any())
+                if (dirs.Count == 0)
                 {
                     Console.Error.WriteLine($"Unable to find any \"_c\" compiled files in \"{InputFile}\" folder.");
 
@@ -782,7 +782,7 @@ namespace Decompiler
 
                     while ((line = file.ReadLine()) != null)
                     {
-                        var split = line.Split(new[] { ' ' }, 2);
+                        var split = line.Split([' '], 2);
 
                         if (split.Length == 2)
                         {

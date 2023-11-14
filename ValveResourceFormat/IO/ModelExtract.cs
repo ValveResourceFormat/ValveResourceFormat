@@ -254,7 +254,7 @@ public class ModelExtract
             }
         }
 
-        if (PhysHullsToExtract.Any() || PhysMeshesToExtract.Any())
+        if (PhysHullsToExtract.Count > 0 || PhysMeshesToExtract.Count > 0)
         {
             if (Type == ModelExtractType.Map_PhysicsToRenderMesh)
             {

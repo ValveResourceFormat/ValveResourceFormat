@@ -69,7 +69,7 @@ static class UpdateChecker
             var stableReleaseData = await stableReleaseTask.ConfigureAwait(false);
             var newVersion = stableReleaseData?.tag_name ?? "0.0";
 
-            if (newVersion.StartsWith("v", StringComparison.InvariantCulture)) // Just in case we tag a release with "v" prefix by mistake
+            if (newVersion.StartsWith('v')) // Just in case we tag a release with "v" prefix by mistake
             {
                 newVersion = newVersion[1..];
             }

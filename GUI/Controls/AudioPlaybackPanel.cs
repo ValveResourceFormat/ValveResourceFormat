@@ -9,7 +9,7 @@ namespace GUI.Controls
 {
     internal partial class AudioPlaybackPanel : UserControl
     {
-        private IWavePlayer waveOut;
+        private WaveOutEvent waveOut;
         private WaveStream waveStream;
         private Action<float> setVolumeDelegate;
 
@@ -52,7 +52,7 @@ namespace GUI.Controls
             UpdateTime();
         }
 
-        private ISampleProvider CreateInputStream()
+        private MeteringSampleProvider CreateInputStream()
         {
             var sampleChannel = new SampleChannel(waveStream, true);
             sampleChannel.PreVolumeMeter += OnPreVolumeMeter;

@@ -19,7 +19,7 @@ namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
                 writer.Indent++;
                 writer.WriteLine("CResourceString m_Name = \"{0}\"", Name);
 
-                var lines = Value.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
+                var lines = Value.Split(["\r\n", "\n"], StringSplitOptions.None);
 
                 if (lines.Length > 1)
                 {

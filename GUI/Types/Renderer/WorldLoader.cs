@@ -803,7 +803,7 @@ namespace GUI.Types.Renderer
                 if (phys == null)
                 {
                     var refPhysicsPaths = newModel.GetReferencedPhysNames().ToArray();
-                    if (refPhysicsPaths.Any())
+                    if (refPhysicsPaths.Length != 0)
                     {
                         var newResource = guiContext.LoadFileCompiled(refPhysicsPaths.First());
                         if (newResource != null)

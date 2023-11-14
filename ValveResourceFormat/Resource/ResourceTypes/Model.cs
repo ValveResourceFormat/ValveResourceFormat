@@ -23,7 +23,7 @@ namespace ValveResourceFormat.ResourceTypes
         }
         private List<Animation> CachedAnimations;
         private Skeleton cachedSkeleton { get; set; }
-        private readonly IDictionary<(VBIB VBIB, int MeshIndex), VBIB> remappedVBIBCache = new Dictionary<(VBIB VBIB, int MeshIndex), VBIB>();
+        private readonly Dictionary<(VBIB VBIB, int MeshIndex), VBIB> remappedVBIBCache = new();
 
         public void SetSkeletonFilteredForLod0()
         {

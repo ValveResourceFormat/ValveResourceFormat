@@ -15,7 +15,7 @@ namespace ValveResourceFormat
         /// </summary>
         public const string TabString = "\t";
 
-        private readonly TextWriter writer;
+        private readonly StringWriter writer;
         private int indentLevel;
         private bool tabsPending;
 

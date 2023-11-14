@@ -15,8 +15,8 @@ namespace GUI.Types.ParticleRenderer
         // These can all be found in particle.dll
 
         // Register particle emitters
-        private static readonly IDictionary<string, Func<ParticleDefinitionParser, ParticleFunctionEmitter>> EmitterDictionary
-            = new Dictionary<string, Func<ParticleDefinitionParser, ParticleFunctionEmitter>>
+        private static readonly Dictionary<string, Func<ParticleDefinitionParser, ParticleFunctionEmitter>> EmitterDictionary
+            = new()
             {
                 ["C_OP_InstantaneousEmitter"] = (emitterInfo) => new InstantaneousEmitter(emitterInfo),
                 ["C_OP_ContinuousEmitter"] = (emitterInfo) => new ContinuousEmitter(emitterInfo),
@@ -24,8 +24,8 @@ namespace GUI.Types.ParticleRenderer
             };
 
         // Register particle initializers
-        private static readonly IDictionary<string, Func<ParticleDefinitionParser, ParticleFunctionInitializer>> InitializerDictionary
-            = new Dictionary<string, Func<ParticleDefinitionParser, ParticleFunctionInitializer>>
+        private static readonly Dictionary<string, Func<ParticleDefinitionParser, ParticleFunctionInitializer>> InitializerDictionary
+            = new()
             {
                 ["C_INIT_AddVectorToVector"] = initializerInfo => new AddVectorToVector(initializerInfo),
                 ["C_INIT_CreateAlongPath"] = initializerInfo => new CreateAlongPath(initializerInfo),
@@ -61,8 +61,8 @@ namespace GUI.Types.ParticleRenderer
             };
 
         // Register particle operators
-        private static readonly IDictionary<string, Func<ParticleDefinitionParser, ParticleFunctionOperator>> OperatorDictionary
-            = new Dictionary<string, Func<ParticleDefinitionParser, ParticleFunctionOperator>>
+        private static readonly Dictionary<string, Func<ParticleDefinitionParser, ParticleFunctionOperator>> OperatorDictionary
+            = new()
             {
                 ["C_OP_AlphaDecay"] = operatorInfo => new AlphaDecay(operatorInfo),
                 ["C_OP_BasicMovement"] = operatorInfo => new BasicMovement(operatorInfo),
@@ -108,16 +108,16 @@ namespace GUI.Types.ParticleRenderer
             };
 
         // Register particle renderers
-        private static readonly IDictionary<string, Func<ParticleDefinitionParser, VrfGuiContext, ParticleFunctionRenderer>> RendererDictionary
-            = new Dictionary<string, Func<ParticleDefinitionParser, VrfGuiContext, ParticleFunctionRenderer>>
+        private static readonly Dictionary<string, Func<ParticleDefinitionParser, VrfGuiContext, ParticleFunctionRenderer>> RendererDictionary
+            = new()
             {
                 ["C_OP_RenderSprites"] = (rendererInfo, vrfGuiContext) => new RenderSprites(rendererInfo, vrfGuiContext),
                 ["C_OP_RenderTrails"] = (rendererInfo, vrfGuiContext) => new RenderTrails(rendererInfo, vrfGuiContext),
             };
 
         // Register particle pre-emission operators (mostly stuff with control points)
-        private static readonly IDictionary<string, Func<ParticleDefinitionParser, ParticleFunctionPreEmissionOperator>> PreEmissionOperatorDictionary
-            = new Dictionary<string, Func<ParticleDefinitionParser, ParticleFunctionPreEmissionOperator>>
+        private static readonly Dictionary<string, Func<ParticleDefinitionParser, ParticleFunctionPreEmissionOperator>> PreEmissionOperatorDictionary
+            = new()
             {
                 ["C_OP_DistanceBetweenCPsToCP"] = preEmissionOperatorInfo => new DistanceBetweenCPsToCP(preEmissionOperatorInfo),
                 ["C_OP_RampCPLinearRandom"] = preEmissionOperatorInfo => new RampCPLinearRandom(preEmissionOperatorInfo),
