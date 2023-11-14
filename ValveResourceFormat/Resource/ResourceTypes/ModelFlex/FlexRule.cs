@@ -23,9 +23,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelFlex
             FlexOps = flexOps;
         }
 
-        public float Evaluate(float value)
+        public float Evaluate(float[] flexControllerValues)
         {
-            var context = new FlexRuleContext(value);
+            var context = new FlexRuleContext(flexControllerValues);
 
             foreach (var item in FlexOps)
             {

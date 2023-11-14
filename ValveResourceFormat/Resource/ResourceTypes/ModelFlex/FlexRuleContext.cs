@@ -8,12 +8,12 @@ namespace ValveResourceFormat.ResourceTypes.ModelFlex
 {
     public class FlexRuleContext
     {
-        public float FetchValue { get; }
+        public float[] ControllerValues { get; }
         public Stack<float> Stack { get; } = new();
 
-        public FlexRuleContext(float value)
+        public FlexRuleContext(float[] controllerValues)
         {
-            FetchValue = value;
+            ControllerValues = controllerValues;
         }
     }
 }
