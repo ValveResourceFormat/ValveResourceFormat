@@ -144,9 +144,9 @@ namespace ValveResourceFormat.ResourceTypes
 
         private static FlexRule ParseFlexRule(object obj)
         {
-            if (obj is not KVObject kv)
+            if (obj is not IKeyValueCollection kv)
             {
-                throw new ArgumentException("Parameter is not KVObject");
+                throw new ArgumentException("Parameter is not IKeyValueCollection");
             }
 
             var flexId = kv.GetInt32Property("m_nFlex");
@@ -160,9 +160,9 @@ namespace ValveResourceFormat.ResourceTypes
 
         private static FlexOp ParseFlexOp(object obj)
         {
-            if (obj is not KVObject kv)
+            if (obj is not IKeyValueCollection kv)
             {
-                throw new ArgumentException("Parameter is not KVObject");
+                throw new ArgumentException("Parameter is not IKeyValueCollection");
             }
 
             var opCode = kv.GetStringProperty("m_OpCode");
