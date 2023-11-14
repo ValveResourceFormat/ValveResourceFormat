@@ -13,12 +13,12 @@ namespace GUI.Controls
         /// <summary>
         /// True if this node represents a directory in the tree view
         /// </summary>
-        public bool IsFolder => ItemCount >= 0;
+        public bool IsFolder => PackageEntry == null;
 
         /// <summary>
-        /// If this is a directory, the number of files in the directory. Otherwise 0.
+        /// If this is a directory, summed up size of all the files in this dictionary (recursively). Otherwise -1.
         /// </summary>
-        public int ItemCount { get; set; } = -1;
+        public long TotalSize { get; set; } = -1;
 
         /// <summary>
         /// If this is a file, the <see cref="PackageEntry"/> representing the file. Otherwise null.
@@ -37,10 +37,10 @@ namespace GUI.Controls
         /// <summary>
         /// Create a new instance of <see cref="VrfTreeViewData"/> for a directory
         /// </summary>
-        public BetterTreeNode(string text, int count)
+        public BetterTreeNode(string text, uint size)
             : base(text)
         {
-            ItemCount = count;
+            TotalSize = size;
         }
     }
 }

@@ -143,7 +143,7 @@ namespace GUI.Controls
 
             var name = Path.GetFileName(vrfGuiContext.FileName);
             var vpkImage = MainForm.ImageListLookup["vpk"];
-            var root = new BetterTreeNode(name, vrfGuiContext.CurrentPackage.Entries.Count)
+            var root = new BetterTreeNode(name, 0u)
             {
                 Name = "root",
                 ImageIndex = vpkImage,
@@ -207,7 +207,7 @@ namespace GUI.Controls
                     mainTreeView.BeginUpdate();
 
                     var name = $"Deleted files ({foundFiles.Count} files found, names are guessed)";
-                    var root = new BetterTreeNode(name, foundFiles.Count)
+                    var root = new BetterTreeNode(name, 0u)
                     {
                         Name = name,
                         ImageIndex = deletedImage,
@@ -432,13 +432,13 @@ namespace GUI.Controls
             if (!node.IsFolder)
             {
                 var file = node.PackageEntry;
-                item.SubItems.Add(file.TotalLength.ToFileSizeString());
+                item.SubItems.Add(HumanReadableByteSizeFormatter.Format(file.TotalLength));
                 item.SubItems.Add(file.TypeName);
             }
             else
             {
-                item.SubItems.Add($"{node.ItemCount} items");
-                item.SubItems.Add("folder");
+                item.SubItems.Add(HumanReadableByteSizeFormatter.Format(node.TotalSize));
+                item.SubItems.Add(string.Empty);
             }
 
             mainListView.Items.Add(item);

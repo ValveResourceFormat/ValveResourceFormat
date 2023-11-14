@@ -1013,7 +1013,7 @@ namespace GUI
 
             package.Write(saveDialog.FileName);
 
-            var result = $"Created {Path.GetFileName(saveDialog.FileName)} with {fileCount} files of size {((uint)fileSize).ToFileSizeString()}.";
+            var result = $"Created {Path.GetFileName(saveDialog.FileName)} with {fileCount} files of size {HumanReadableByteSizeFormatter.Format(fileSize)}.";
 
             Log.Info(nameof(MainForm), result);
 

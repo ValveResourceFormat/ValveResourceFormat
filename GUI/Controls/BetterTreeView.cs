@@ -353,7 +353,7 @@ namespace GUI.Controls
 
                     if (subNode == null)
                     {
-                        var toAdd = new BetterTreeNode(subPath, 1)
+                        var toAdd = new BetterTreeNode(subPath, file.TotalLength)
                         {
                             Name = subPath,
                             ImageIndex = folderImage,
@@ -365,7 +365,7 @@ namespace GUI.Controls
                     else
                     {
                         currentNode = subNode;
-                        currentNode.ItemCount++;
+                        currentNode.TotalSize += file.TotalLength;
                     }
                 }
             }
