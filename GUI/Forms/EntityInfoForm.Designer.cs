@@ -56,12 +56,14 @@ namespace GUI.Forms
             // 
             // ColumnName
             // 
+            ColumnName.FillWeight = 30F;
             ColumnName.HeaderText = "Name";
             ColumnName.Name = "ColumnName";
             ColumnName.ReadOnly = true;
             // 
             // ColumnValue
             // 
+            ColumnValue.FillWeight = 70F;
             ColumnValue.HeaderText = "Value";
             ColumnValue.Name = "ColumnValue";
             ColumnValue.ReadOnly = true;

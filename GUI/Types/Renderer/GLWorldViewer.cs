@@ -279,52 +279,34 @@ namespace GUI.Types.Renderer
 
             if (pickingResponse.Intent == PickingIntent.Details)
             {
+                using var entityDialog = new EntityInfoForm(GuiContext.FileLoader);
+
                 if (sceneNode.EntityData == null)
                 {
-                    return;
+                    entityDialog.Text = $"{sceneNode.GetType().Name}: {sceneNode.Name}";
+                    entityDialog.AddColumn("Model", sceneNode.Name);
+                    entityDialog.AddColumn("Tint", sceneNode switch
+                    {
+                        ModelSceneNode model => model.Tint.ToString(),
+                        SceneAggregate.Fragment fragment => fragment.Tint.ToString(),
+                        _ => "N/A",
+                    });
+
+                    if (sceneNode is SceneAggregate.Fragment sceneFragment)
+                    {
+                        var material = sceneFragment.DrawCall.Material.Material;
+                        entityDialog.AddColumn("Shader", material.ShaderName);
+                        entityDialog.AddColumn("Material", material.Name);
+                    }
+
+                    entityDialog.AddColumn("Layer", sceneNode.LayerName);
                 }
-
-                Dictionary<uint, string> knownKeys = null;
-
-                using var entityDialog = new EntityInfoForm();
-
-                foreach (var property in sceneNode.EntityData.Properties)
+                else
                 {
-                    var name = property.Value.Name;
-
-                    if (name == null)
-                    {
-                        if (knownKeys == null)
-                        {
-                            knownKeys = StringToken.InvertedTable;
-                        }
-
-                        if (knownKeys.TryGetValue(property.Key, out var knownKey))
-                        {
-                            name = knownKey;
-                        }
-                        else
-                        {
-                            name = $"key={property.Key}";
-                        }
-                    }
-
-                    var value = property.Value.Data;
-
-                    if (value.GetType() == typeof(byte[]))
-                    {
-                        var tmp = value as byte[];
-                        value = string.Join(' ', tmp.Select(p => p.ToString(CultureInfo.InvariantCulture)).ToArray());
-                    }
-
-                    entityDialog.AddColumn(name, value.ToString());
+                    ShowEntityProperties(sceneNode, entityDialog);
                 }
-
-                var classname = sceneNode.EntityData.GetProperty<string>("classname");
-                entityDialog.Text = $"Object: {classname}";
 
                 entityDialog.ShowDialog();
-
                 return;
             }
 
@@ -412,6 +394,43 @@ namespace GUI.Types.Renderer
                 CancellationToken.None,
                 TaskContinuationOptions.OnlyOnRanToCompletion,
                 TaskScheduler.Default);
+        }
+
+        private static void ShowEntityProperties(SceneNode sceneNode, EntityInfoForm entityDialog)
+        {
+            Dictionary<uint, string> knownKeys = null;
+
+            foreach (var property in sceneNode.EntityData.Properties)
+            {
+                var name = property.Value.Name;
+
+                if (name == null)
+                {
+                    knownKeys ??= StringToken.InvertedTable;
+
+                    if (knownKeys.TryGetValue(property.Key, out var knownKey))
+                    {
+                        name = knownKey;
+                    }
+                    else
+                    {
+                        name = $"key={property.Key}";
+                    }
+                }
+
+                var value = property.Value.Data;
+
+                if (value.GetType() == typeof(byte[]))
+                {
+                    var tmp = value as byte[];
+                    value = string.Join(' ', tmp.Select(p => p.ToString(CultureInfo.InvariantCulture)).ToArray());
+                }
+
+                entityDialog.AddColumn(name, value.ToString());
+            }
+
+            var classname = sceneNode.EntityData.GetProperty<string>("classname");
+            entityDialog.Text = $"Entity: {classname}";
         }
 
         private void SetAvailableLayers(IEnumerable<string> worldLayers)
