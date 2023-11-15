@@ -104,7 +104,7 @@ namespace GUI.Types.Renderer
 
                 if (!inserted)
                 {
-                    Elements ??= new List<Element>();
+                    Elements ??= [];
 
                     Elements.Add(element);
                 }

@@ -62,8 +62,8 @@ namespace ValveResourceFormat.Blocks
             public IEnumerator<KeyValuePair<string, object>> GetEnumerator()
                 => new KeyValuePair<string, object>[]
                 {
-                    new KeyValuePair<string, object>("id", Id),
-                    new KeyValuePair<string, object>("name", Name),
+                    new("id", Id),
+                    new("name", Name),
                 }
                     .AsEnumerable()
                     .GetEnumerator();
@@ -86,7 +86,7 @@ namespace ValveResourceFormat.Blocks
 
         public ResourceExtRefList()
         {
-            ResourceRefInfoList = new List<ResourceReferenceInfo>();
+            ResourceRefInfoList = [];
         }
 
         public override void Read(BinaryReader reader, Resource resource)

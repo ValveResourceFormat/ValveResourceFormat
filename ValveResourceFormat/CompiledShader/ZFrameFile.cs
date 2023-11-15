@@ -19,10 +19,10 @@ namespace ValveResourceFormat.CompiledShader
         public VcsShaderModelType VcsShaderModelType { get; }
         public long ZframeId { get; }
         public ZDataBlock LeadingData { get; }
-        public List<Attribute> Attributes { get; } = new();
-        internal List<short> attributeBlockLengths { get; } = new();
-        public int[] VShaderInputs { get; } = Array.Empty<int>();
-        public List<ZDataBlock> DataBlocks { get; } = new();
+        public List<Attribute> Attributes { get; } = [];
+        internal List<short> attributeBlockLengths { get; } = [];
+        public int[] VShaderInputs { get; } = [];
+        public List<ZDataBlock> DataBlocks { get; } = [];
         public byte[] UnknownArg { get; }
         public byte[] UnknownArg2 { get; }
         public byte[] Flags0 { get; }
@@ -30,8 +30,8 @@ namespace ValveResourceFormat.CompiledShader
         public byte Flagbyte1 { get; }
         public int GpuSourceCount { get; }
         public byte Flagbyte2 { get; }
-        public List<GpuSource> GpuSources { get; } = new();
-        public List<EndBlock> EndBlocks { get; } = new();
+        public List<GpuSource> GpuSources { get; } = [];
+        public List<EndBlock> EndBlocks { get; } = [];
         public int NrEndBlocks { get; }
         public int NonZeroDataBlockCount { get; }
 

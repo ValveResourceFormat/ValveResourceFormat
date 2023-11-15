@@ -28,7 +28,7 @@ namespace GUI.Types.Renderer
         public Shader Shader { get; set; }
         public Material Material { get; }
         public IKeyValueCollection VsInputSignature { get; }
-        public Dictionary<string, RenderTexture> Textures { get; } = new();
+        public Dictionary<string, RenderTexture> Textures { get; } = [];
         public bool IsTranslucent { get; }
         public bool IsOverlay { get; }
         public bool IsToolsMaterial { get; }

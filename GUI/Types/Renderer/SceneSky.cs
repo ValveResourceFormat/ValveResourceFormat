@@ -8,7 +8,8 @@ namespace GUI.Types.Renderer
         public Vector3 Tint { get; set; } = Vector3.One;
         public RenderMaterial Material { get; set; }
         private readonly int boxVao;
-        private readonly float[] boxTriangles = {
+        private readonly float[] boxTriangles = [
+#pragma warning disable format
             // positions
             -1.0f,  1.0f, -1.0f,
             -1.0f, -1.0f, -1.0f,
@@ -51,7 +52,8 @@ namespace GUI.Types.Renderer
             1.0f, -1.0f, -1.0f,
             -1.0f, -1.0f,  1.0f,
             1.0f, -1.0f,  1.0f
-        };
+#pragma warning restore format
+        ];
 
         public SceneSky(Scene scene) : base(scene)
         {

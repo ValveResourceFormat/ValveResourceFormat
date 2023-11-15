@@ -25,8 +25,8 @@ namespace GUI.Controls
 
         private const int APPID_RECENT_FILES = -1000;
         private const int APPID_BOOKMARKS = -1001;
-        private readonly List<TreeDataNode> TreeData = new();
-        private static readonly Dictionary<string, string> WorkshopAddons = new();
+        private readonly List<TreeDataNode> TreeData = [];
+        private static readonly Dictionary<string, string> WorkshopAddons = [];
 
         public ExplorerControl()
         {
@@ -457,7 +457,7 @@ namespace GUI.Controls
                 }
             }
 
-            treeView.Nodes.AddRange(foundNodes.ToArray());
+            treeView.Nodes.AddRange([.. foundNodes]);
             treeView.EndUpdate();
         }
 
@@ -537,7 +537,7 @@ namespace GUI.Controls
 
             var recentFilesNode = TreeData.Find(node => node.AppID == APPID_RECENT_FILES);
             recentFilesNode.ParentNode.Nodes.Clear();
-            recentFilesNode.Children = Array.Empty<TreeNode>();
+            recentFilesNode.Children = [];
         }
 
         private void OnRevealInFileExplorerClick(object sender, EventArgs e)

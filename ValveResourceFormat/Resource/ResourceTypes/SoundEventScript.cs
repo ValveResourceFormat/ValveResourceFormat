@@ -12,7 +12,7 @@ namespace ValveResourceFormat.ResourceTypes
         public override void Read(BinaryReader reader, Resource resource)
         {
             base.Read(reader, resource);
-            SoundEventScriptValue = new Dictionary<string, string>();
+            SoundEventScriptValue = [];
 
             // Output is VSoundEventScript_t we need to iterate m_SoundEvents inside it.
             var soundEvents = (NTROArray)Output["m_SoundEvents"];

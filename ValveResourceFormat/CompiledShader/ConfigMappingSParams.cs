@@ -127,8 +127,8 @@ namespace ValveResourceFormat.CompiledShader
         {
             if (shaderFile.SfBlocks.Count == 0)
             {
-                offsets = Array.Empty<int>();
-                nr_states = Array.Empty<int>();
+                offsets = [];
+                nr_states = [];
                 return;
             }
 

@@ -163,7 +163,7 @@ namespace ValveResourceFormat.CompiledShader
                 var configStates2 = "";
                 if (item.RangeMax > 1)
                 {
-                    configStates2 = $"{CombineStringArray(item.CheckboxNames.ToArray())}";
+                    configStates2 = $"{CombineStringArray([.. item.CheckboxNames])}";
                 }
 
                 output.AddTabulatedRow([$"[{item.BlockIndex,2}]",
@@ -236,7 +236,7 @@ namespace ValveResourceFormat.CompiledShader
                 output.BreakLine();
                 return;
             }
-            int[] pad = { 7, 40, 7, 7, 7 };
+            int[] pad = [7, 40, 7, 7, 7];
             var h0 = "index";
             var h1 = "name";
             var h2 = "arg2";
@@ -473,7 +473,7 @@ namespace ValveResourceFormat.CompiledShader
             }
             else
             {
-                output.DefineHeaders(Array.Empty<string>());
+                output.DefineHeaders([]);
                 output.WriteLine("[none defined]");
             }
             foreach (var channelBlock in shaderFile.ChannelBlocks)
@@ -583,15 +583,15 @@ namespace ValveResourceFormat.CompiledShader
             ConfigMappingSParams configGen = new(shaderFile);
             output.WriteLine(new string('-', zframesHeader.Length));
             // collect names in the order they appear
-            List<string> sfNames = new();
-            List<string> abbreviations = new();
+            List<string> sfNames = [];
+            List<string> abbreviations = [];
             foreach (var sfBlock in shaderFile.SfBlocks)
             {
                 var sfShortName = ShortenShaderParam(sfBlock.Name).ToLowerInvariant();
                 abbreviations.Add($"{sfBlock.Name}({sfShortName})");
                 sfNames.Add(sfShortName);
             }
-            var breakabbreviations = CombineValuesBreakString(abbreviations.ToArray(), 120);
+            var breakabbreviations = CombineValuesBreakString([.. abbreviations], 120);
             foreach (var abbr in breakabbreviations)
             {
                 output.WriteLine(abbr);
@@ -601,7 +601,7 @@ namespace ValveResourceFormat.CompiledShader
                 output.BreakLine();
             }
 
-            var configHeader = CombineStringsSpaceSep(sfNames.ToArray(), 6);
+            var configHeader = CombineStringsSpaceSep([.. sfNames], 6);
             configHeader = $"{new string(' ', 16)}{configHeader}";
             foreach (var zframeDesc in shaderFile.ZframesLookup)
             {

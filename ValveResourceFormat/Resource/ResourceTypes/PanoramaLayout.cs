@@ -182,10 +182,10 @@ namespace ValveResourceFormat.ResourceTypes
 
             if (node.ContainsKey("child"))
             {
-                return new[] { node.GetSubCollection("child") };
+                return [node.GetSubCollection("child")];
             }
 
-            return Array.Empty<IKeyValueCollection>();
+            return [];
         }
     }
 }

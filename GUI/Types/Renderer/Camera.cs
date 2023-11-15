@@ -11,15 +11,15 @@ namespace GUI.Types.Renderer
         private const float MovementSpeed = 300f; // WASD movement, per second
         private const float AltMovementSpeed = 10f; // Holding shift or alt movement
 
-        private readonly float[] SpeedModifiers = new float[]
-        {
+        private readonly float[] SpeedModifiers =
+        [
             0.1f,
             0.5f,
             1.0f,
             2.0f,
             5.0f,
             10.0f,
-        };
+        ];
         private int CurrentSpeedModifier = 2;
 
         public Vector3 Location { get; private set; }

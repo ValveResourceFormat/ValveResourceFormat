@@ -29,12 +29,12 @@ public class ModelExtract
     private readonly IFileLoader fileLoader;
     private readonly string fileName;
 
-    public List<(Mesh Mesh, string FileName)> RenderMeshesToExtract { get; } = new();
-    public Dictionary<string, IKeyValueCollection> MaterialInputSignatures { get; } = new();
+    public List<(Mesh Mesh, string FileName)> RenderMeshesToExtract { get; } = [];
+    public Dictionary<string, IKeyValueCollection> MaterialInputSignatures { get; } = [];
 
-    public List<(HullDescriptor Hull, string FileName)> PhysHullsToExtract { get; } = new();
-    public List<(MeshDescriptor Mesh, string FileName)> PhysMeshesToExtract { get; } = new();
-    public List<(Animation Anim, string FileName)> AnimationsToExtract { get; } = new();
+    public List<(HullDescriptor Hull, string FileName)> PhysHullsToExtract { get; } = [];
+    public List<(MeshDescriptor Mesh, string FileName)> PhysMeshesToExtract { get; } = [];
+    public List<(Animation Anim, string FileName)> AnimationsToExtract { get; } = [];
 
     public string[] PhysicsSurfaceNames { get; private set; }
     public HashSet<string>[] PhysicsCollisionTags { get; private set; }
@@ -50,7 +50,7 @@ public class ModelExtract
         public bool Equals(SurfaceTagCombo other) => GetHashCode() == other.GetHashCode();
     }
 
-    public HashSet<SurfaceTagCombo> SurfaceTagCombos { get; } = new();
+    public HashSet<SurfaceTagCombo> SurfaceTagCombos { get; } = [];
 
     public enum ModelExtractType
     {
@@ -718,7 +718,7 @@ public class ModelExtract
         channel.ToAttribute = toAttribute;
         channel.Mode = 3;
 
-        log = new DmeLog<T>();
+        log = [];
         var logLayer = new DmeLogLayer<T>();
 
         channel.Log = log;
@@ -794,11 +794,11 @@ public class ModelExtract
                 });
 
                 var layerValue = positionLogLayer.LayerValues[0];
-                positionLogLayer.LayerValues = new Vector3[] {
+                positionLogLayer.LayerValues = [
                     layerValue,
                     layerValue + new Vector3(0, 0, 0.00001f),
                     layerValue,
-                };
+                ];
             }
             clip.Channels.Add(positionChannel);
             clip.Channels.Add(orientationChannel);

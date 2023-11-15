@@ -32,7 +32,7 @@ namespace GUI.Types.Renderer
         public SceneSky Sky { get; set; }
         public WorldLightingInfo LightingInfo { get; } = new();
         public WorldFogInfo FogInfo { get; set; } = new();
-        public Dictionary<string, byte> RenderAttributes { get; } = new();
+        public Dictionary<string, byte> RenderAttributes { get; } = [];
         public VrfGuiContext GuiContext { get; }
         public Octree<SceneNode> StaticOctree { get; }
         public Octree<SceneNode> DynamicOctree { get; }
@@ -45,8 +45,8 @@ namespace GUI.Types.Renderer
 
         public IEnumerable<SceneNode> AllNodes => staticNodes.Concat(dynamicNodes);
 
-        private readonly List<SceneNode> staticNodes = new();
-        private readonly List<SceneNode> dynamicNodes = new();
+        private readonly List<SceneNode> staticNodes = [];
+        private readonly List<SceneNode> dynamicNodes = [];
 
         public Scene(VrfGuiContext context, float sizeHint = 32768)
         {
@@ -121,11 +121,11 @@ namespace GUI.Types.Renderer
 
         // Since we only ever draw one scene at a time, these can be static
         // And they are fields here so they only ever grow without having to re-allocate these arrays every frame
-        private readonly static List<SceneNode> cullingResult = new();
-        private readonly static List<MeshBatchRenderer.Request> renderLooseNodes = new();
-        private readonly static List<MeshBatchRenderer.Request> renderOpaqueDrawCalls = new();
-        private readonly static List<MeshBatchRenderer.Request> renderStaticOverlays = new();
-        private readonly static List<MeshBatchRenderer.Request> renderTranslucentDrawCalls = new();
+        private readonly static List<SceneNode> cullingResult = [];
+        private readonly static List<MeshBatchRenderer.Request> renderLooseNodes = [];
+        private readonly static List<MeshBatchRenderer.Request> renderOpaqueDrawCalls = [];
+        private readonly static List<MeshBatchRenderer.Request> renderStaticOverlays = [];
+        private readonly static List<MeshBatchRenderer.Request> renderTranslucentDrawCalls = [];
 
         public void RenderWithCamera(Camera camera, GLSceneViewer view, Frustum cullFrustum = null)
         {

@@ -19,23 +19,23 @@ internal class CMapRootElement : DMElement
     public bool Show3DGrid { get; set; } = true;
     [DMProperty(name: "itemFile")]
     public string ItemFile { get; set; } = string.Empty;
-    public CStoredCamera DefaultCamera { get; set; } = new CStoredCamera();
+    public CStoredCamera DefaultCamera { get; set; } = [];
     [DMProperty(name: "3dcameras")]
-    public CStoredCameras Cameras { get; set; } = new CStoredCameras();
-    public CMapWorld World { get; set; } = new CMapWorld();
-    public CVisibilityMgr Visibility { get; set; } = new CVisibilityMgr();
+    public CStoredCameras Cameras { get; set; } = [];
+    public CMapWorld World { get; set; } = [];
+    public CVisibilityMgr Visibility { get; set; } = [];
     [DMProperty(name: "mapVariables")]
-    public CMapVariableSet MapVariables { get; set; } = new CMapVariableSet();
+    public CMapVariableSet MapVariables { get; set; } = [];
     [DMProperty(name: "rootSelectionSet")]
-    public CMapSelectionSet RootSelectionSet { get; set; } = new CMapSelectionSet();
+    public CMapSelectionSet RootSelectionSet { get; set; } = [];
     [DMProperty(name: "m_ReferencedMeshSnapshots")]
-    public Datamodel.ElementArray ReferencedMeshSnapshots { get; } = new();
+    public Datamodel.ElementArray ReferencedMeshSnapshots { get; } = [];
     [DMProperty(name: "m_bIsCordoning")]
     public bool IsCordoning { get; set; }
     [DMProperty(name: "m_bCordonsVisible")]
     public bool CordonsVisible { get; set; }
     [DMProperty(name: "nodeInstanceData")]
-    public Datamodel.ElementArray NodeInstanceData { get; } = new();
+    public Datamodel.ElementArray NodeInstanceData { get; } = [];
 }
 
 [LowercaseProperties]
@@ -50,7 +50,7 @@ internal class CStoredCameras : DMElement
 {
     [DMProperty(name: "activecamera")]
     public int ActiveCameraIndex { get; set; } = -1;
-    public Datamodel.ElementArray Cameras { get; } = new();
+    public Datamodel.ElementArray Cameras { get; } = [];
 }
 
 [CamelCaseProperties]
@@ -63,23 +63,23 @@ internal abstract class MapNode : DMElement
     public int NodeID { get; set; }
     public ulong ReferenceID { get; set; }
 
-    public Datamodel.ElementArray Children { get; } = new();
+    public Datamodel.ElementArray Children { get; } = [];
 
     public bool EditorOnly { get; set; }
     [DMProperty(name: "force_hidden")]
     public bool ForceHidden { get; set; }
     public bool TransformLocked { get; set; }
-    public Datamodel.StringArray VariableTargetKeys { get; } = new();
-    public Datamodel.StringArray VariableNames { get; } = new();
+    public Datamodel.StringArray VariableTargetKeys { get; } = [];
+    public Datamodel.StringArray VariableNames { get; } = [];
 }
 
 [CamelCaseProperties]
 internal abstract class BaseEntity : MapNode
 {
-    public DmePlugList RelayPlugData { get; set; } = new DmePlugList();
-    public Datamodel.ElementArray ConnectionsData { get; } = new();
+    public DmePlugList RelayPlugData { get; set; } = [];
+    public Datamodel.ElementArray ConnectionsData { get; } = [];
     [DMProperty(name: "entity_properties")]
-    public EditGameClassProps EntityProperties { get; set; } = new EditGameClassProps();
+    public EditGameClassProps EntityProperties { get; set; } = [];
 
     public BaseEntity WithProperty(string name, string value)
     {
@@ -104,10 +104,10 @@ internal abstract class BaseEntity : MapNode
 [CamelCaseProperties]
 internal class DmePlugList : DMElement
 {
-    public Datamodel.StringArray Names { get; } = new();
-    public Datamodel.IntArray DataTypes { get; } = new();
-    public Datamodel.IntArray PlugTypes { get; } = new();
-    public Datamodel.StringArray Descriptions { get; } = new();
+    public Datamodel.StringArray Names { get; } = [];
+    public Datamodel.IntArray DataTypes { get; } = [];
+    public Datamodel.IntArray PlugTypes { get; } = [];
+    public Datamodel.StringArray Descriptions { get; } = [];
 }
 
 [CamelCaseProperties]
@@ -148,25 +148,25 @@ internal class CMapWorld : BaseEntity
 [CamelCaseProperties]
 internal class CVisibilityMgr : MapNode
 {
-    public Datamodel.ElementArray Nodes { get; } = new();
-    public Datamodel.IntArray HiddenFlags { get; } = new();
+    public Datamodel.ElementArray Nodes { get; } = [];
+    public Datamodel.IntArray HiddenFlags { get; } = [];
 }
 
 [CamelCaseProperties]
 internal class CMapVariableSet : DMElement
 {
-    public Datamodel.StringArray VariableNames { get; } = new();
-    public Datamodel.StringArray VariableValues { get; } = new();
-    public Datamodel.StringArray VariableTypeNames { get; } = new();
-    public Datamodel.StringArray VariableTypeParameters { get; } = new();
+    public Datamodel.StringArray VariableNames { get; } = [];
+    public Datamodel.StringArray VariableValues { get; } = [];
+    public Datamodel.StringArray VariableTypeNames { get; } = [];
+    public Datamodel.StringArray VariableTypeParameters { get; } = [];
     [DMProperty(name: "m_ChoiceGroups")]
-    public Datamodel.ElementArray ChoiceGroups { get; } = new();
+    public Datamodel.ElementArray ChoiceGroups { get; } = [];
 }
 
 [CamelCaseProperties]
 internal class CMapSelectionSet : DMElement
 {
-    public Datamodel.ElementArray Children { get; } = new();
+    public Datamodel.ElementArray Children { get; } = [];
     public string SelectionSetName { get; set; } = string.Empty;
     public DMElement SelectionSetData { get; set; }
 }
@@ -227,7 +227,7 @@ internal class CMapMesh : MapNode
     public string PhysicsInteractsAs { get; set; } = string.Empty;
     public string PhysicsInteractWsith { get; set; } = string.Empty;
     public string PhysicsInteractsExclude { get; set; } = string.Empty;
-    public CDmePolygonMesh MeshData { get; set; } = new CDmePolygonMesh();
+    public CDmePolygonMesh MeshData { get; set; } = [];
     public bool UseAsOccluder { get; set; }
     public bool PhysicsSimplificationOverride { get; set; }
     public float PhysicsSimplificationError { get; set; }
@@ -239,79 +239,79 @@ internal class CDmePolygonMesh : MapNode
     /// <summary>
     /// Index to one of the edges stemming from this vertex.
     /// </summary>
-    public Datamodel.IntArray VertexEdgeIndices { get; } = new();
+    public Datamodel.IntArray VertexEdgeIndices { get; } = [];
 
     /// <summary>
     /// Index to the <see cref="VertexData"/> streams.
     /// </summary>
-    public Datamodel.IntArray VertexDataIndices { get; } = new();
+    public Datamodel.IntArray VertexDataIndices { get; } = [];
 
     /// <summary>
     /// The origin (or destination, I'm not sure) vertex of this edge.
     /// </summary>
-    public Datamodel.IntArray EdgeVertexIndices { get; } = new();
+    public Datamodel.IntArray EdgeVertexIndices { get; } = [];
 
     /// <summary>
     /// Index to the opposite/twin edge.
     /// </summary>
-    public Datamodel.IntArray EdgeOppositeIndices { get; } = new();
+    public Datamodel.IntArray EdgeOppositeIndices { get; } = [];
 
     /// <summary>
     /// Index to the next edge in the loop, in counter-clockwise order.
     /// </summary>
-    public Datamodel.IntArray EdgeNextIndices { get; } = new();
+    public Datamodel.IntArray EdgeNextIndices { get; } = [];
 
     /// <summary>
     /// Per half-edge index to the adjacent face. -1 if void (open edge).
     /// </summary>
-    public Datamodel.IntArray EdgeFaceIndices { get; } = new();
+    public Datamodel.IntArray EdgeFaceIndices { get; } = [];
 
     /// <summary>
     /// Per half-edge index to the <see cref="EdgeData"/> streams.
     /// </summary>
-    public Datamodel.IntArray EdgeDataIndices { get; } = new();
+    public Datamodel.IntArray EdgeDataIndices { get; } = [];
 
     /// <summary>
     /// Per half-edge index to the <see cref="FaceVertexData"/> streams.
     /// </summary>
-    public Datamodel.IntArray EdgeVertexDataIndices { get; } = new();
+    public Datamodel.IntArray EdgeVertexDataIndices { get; } = [];
 
     /// <summary>
     /// Per face index to one of the *inner* edges encapsulating this face.
     /// </summary>
-    public Datamodel.IntArray FaceEdgeIndices { get; } = new();
+    public Datamodel.IntArray FaceEdgeIndices { get; } = [];
 
     /// <summary>
     /// Per face index to the <see cref="FaceData"/> streams.
     /// </summary>
-    public Datamodel.IntArray FaceDataIndices { get; } = new();
+    public Datamodel.IntArray FaceDataIndices { get; } = [];
 
     /// <summary>
     /// List of material names. Indexed by the 'meshindex' <see cref="FaceData"/> stream.
     /// </summary>
-    public Datamodel.StringArray Materials { get; } = new();
+    public Datamodel.StringArray Materials { get; } = [];
 
     /// <summary>
     /// Stores vertex positions.
     /// </summary>
-    public CDmePolygonMeshDataArray VertexData { get; } = new();
+    public CDmePolygonMeshDataArray VertexData { get; } = [];
 
     /// <summary>
     /// Stores vertex uv, normal, tangent, etc. Two per vertex (for each half?).
     /// </summary>
-    public CDmePolygonMeshDataArray FaceVertexData { get; } = new();
+    public CDmePolygonMeshDataArray FaceVertexData { get; } = [];
 
     /// <summary>
     /// Stores edge data such as soft or hard normals.
     /// </summary>
-    public CDmePolygonMeshDataArray EdgeData { get; } = new();
+    public CDmePolygonMeshDataArray EdgeData { get; } = [];
 
     /// <summary>
     /// Stores face data such as texture scale, UV offset, material, lightmap bias.
     /// </summary>
-    public CDmePolygonMeshDataArray FaceData { get; } = new();
+    public CDmePolygonMeshDataArray FaceData { get; } = [];
 
-    public CDmePolygonMeshSubdivisionData SubdivisionData { get; } = new();
+    public CDmePolygonMeshSubdivisionData SubdivisionData { get; } = [];
 }
 
 [CamelCaseProperties]
@@ -321,17 +321,17 @@ internal class CDmePolygonMeshDataArray : DMElement
     /// <summary>
     /// Array of <see cref="CDmePolygonMeshDataStream"/>.
     /// </summary>
-    public Datamodel.ElementArray Streams { get; } = new();
+    public Datamodel.ElementArray Streams { get; } = [];
 }
 
 [CamelCaseProperties]
 internal class CDmePolygonMeshSubdivisionData : DMElement
 {
-    public Datamodel.IntArray SubdivisionLevels { get; set; } = new();
+    public Datamodel.IntArray SubdivisionLevels { get; set; } = [];
     /// <summary>
     /// Array of <see cref="CDmePolygonMeshDataStream"/>.
     /// </summary>
-    public Datamodel.ElementArray Streams { get; } = new();
+    public Datamodel.ElementArray Streams { get; } = [];
 }
 
 [CamelCaseProperties]

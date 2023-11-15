@@ -8,7 +8,7 @@ namespace ValveResourceFormat.TextureDecoders
 {
     internal class DecodeETC2EAC : CommonETC, ITextureDecoder
     {
-        private static readonly byte[] WriteOrderTableRev = { 15, 11, 7, 3, 14, 10, 6, 2, 13, 9, 5, 1, 12, 8, 4, 0 };
+        private static readonly byte[] WriteOrderTableRev = [15, 11, 7, 3, 14, 10, 6, 2, 13, 9, 5, 1, 12, 8, 4, 0];
         private static readonly sbyte[,] Etc2AlphaModTable =
         {
             {-3, -6,  -9, -15, 2, 5, 8, 14},

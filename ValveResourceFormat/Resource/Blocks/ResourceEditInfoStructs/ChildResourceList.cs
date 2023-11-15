@@ -27,7 +27,7 @@ namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
 
         public ChildResourceList()
         {
-            List = new List<ReferenceInfo>();
+            List = [];
         }
 
         public override void Read(BinaryReader reader, Resource resource)

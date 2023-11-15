@@ -63,8 +63,8 @@ namespace GUI.Types.Renderer
 
             for (var i = 0; i < groupCount; i++)
             {
-                verts[i] = new();
-                inds[i] = new();
+                verts[i] = [];
+                inds[i] = [];
             }
 
             var bindPose = phys.BindPose;

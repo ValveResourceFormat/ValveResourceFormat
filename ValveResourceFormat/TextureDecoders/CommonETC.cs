@@ -7,7 +7,7 @@ namespace ValveResourceFormat.TextureDecoders
 {
     internal class CommonETC
     {
-        protected static readonly byte[] WriteOrderTable = { 0, 4, 8, 12, 1, 5, 9, 13, 2, 6, 10, 14, 3, 7, 11, 15 };
+        protected static readonly byte[] WriteOrderTable = [0, 4, 8, 12, 1, 5, 9, 13, 2, 6, 10, 14, 3, 7, 11, 15];
         protected static readonly int[,] Etc1ModifierTable =
         {
             { 2, 8, -2, -8, },
@@ -24,7 +24,7 @@ namespace ValveResourceFormat.TextureDecoders
             {0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1},
             {0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1}
         };
-        protected static readonly byte[] Etc2DistanceTable = { 3, 6, 11, 16, 23, 32, 41, 64 };
+        protected static readonly byte[] Etc2DistanceTable = [3, 6, 11, 16, 23, 32, 41, 64];
 
 
         protected readonly uint[] m_buf = new uint[16];
@@ -57,12 +57,12 @@ namespace ValveResourceFormat.TextureDecoders
                     }
                     byte d = Etc2DistanceTable[block[3] >> 1 & 6 | block[3] & 1];
                     uint[] color_set =
-                    {
+                    [
                         ApplicateColorRaw(m_c, 0),
                         ApplicateColor(m_c, 1, d),
                         ApplicateColorRaw(m_c, 1),
                         ApplicateColor(m_c, 1, -d)
-                    };
+                    ];
                     for (int i = 0; i < 16; i++, j >>= 1, k >>= 1)
                     {
                         m_buf[WriteOrderTable[i]] = color_set[k << 1 & 2 | j & 1];
@@ -90,12 +90,12 @@ namespace ValveResourceFormat.TextureDecoders
                     }
                     byte d = Etc2DistanceTable[di];
                     uint[] color_set =
-                    {
+                    [
                         ApplicateColor(m_c, 0, d),
                         ApplicateColor(m_c, 0, -d),
                         ApplicateColor(m_c, 1, d),
                         ApplicateColor(m_c, 1, -d)
-                    };
+                    ];
                     for (int i = 0; i < 16; i++, j >>= 1, k >>= 1)
                     {
                         m_buf[WriteOrderTable[i]] = color_set[k << 1 & 2 | j & 1];
@@ -132,7 +132,7 @@ namespace ValveResourceFormat.TextureDecoders
                 else
                 {
                     // differential
-                    byte[] code = { (byte)(block[3] >> 5), (byte)(block[3] >> 2 & 7) };
+                    byte[] code = [(byte)(block[3] >> 5), (byte)(block[3] >> 2 & 7)];
                     int ti = block[3] & 1;
                     unchecked
                     {
@@ -158,7 +158,7 @@ namespace ValveResourceFormat.TextureDecoders
             else
             {
                 // individual
-                byte[] code = { (byte)(block[3] >> 5), (byte)(block[3] >> 2 & 7) };
+                byte[] code = [(byte)(block[3] >> 5), (byte)(block[3] >> 2 & 7)];
                 int ti = block[3] & 1;
                 unchecked
                 {

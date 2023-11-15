@@ -289,7 +289,7 @@ public sealed class MaterialExtract
         {
             var toolattributes = new List<KVObject>()
                 {
-                    new KVObject("SubrectDefinition", subrectDefinition)
+                    new("SubrectDefinition", subrectDefinition)
                 };
 
             root.Add(new KVObject("ToolAttributes", toolattributes));
@@ -306,13 +306,13 @@ public sealed class MaterialExtract
     internal sealed class LayeredTextureNameComparer : IEqualityComparer<string>
     {
         public readonly HashSet<string> _unlayeredTextures;
-        public static readonly string[] layerNameConventions = new[]
-        {
+        public static readonly string[] layerNameConventions =
+        [
             "Texture{0}A", // hlvr
             "Texture{0}1", // cs2
             "Texture{0}0",
             "TextureLayer1{0}", // steamvr
-        };
+        ];
 
         public LayeredTextureNameComparer(HashSet<string> unlayeredTextures)
         {

@@ -20,11 +20,11 @@ namespace GUI.Types.Renderer
         private readonly World world;
         private readonly VrfGuiContext guiContext;
 
-        public List<EntityLump.Entity> Entities { get; } = new();
+        public List<EntityLump.Entity> Entities { get; } = [];
 
-        public HashSet<string> DefaultEnabledLayers { get; } = new HashSet<string>() { "Entities" };
+        public HashSet<string> DefaultEnabledLayers { get; } = ["Entities"];
 
-        public Dictionary<string, Matrix4x4> CameraMatrices { get; } = new();
+        public Dictionary<string, Matrix4x4> CameraMatrices { get; } = [];
 
         public Scene SkyboxScene { get; set; }
 
@@ -137,8 +137,8 @@ namespace GUI.Types.Renderer
             {"direct_light_strengths", "g_tDirectLightStrengths"},
         };
 
-        private readonly string[] LightmapSetV81 = { "g_tIrradiance", "g_tDirectionalIrradiance", "g_tDirectLightIndices", "g_tDirectLightStrengths" };
-        private readonly string[] LightmapSetV82 = { "g_tIrradiance", "g_tDirectionalIrradiance", "g_tDirectLightShadows" };
+        private readonly string[] LightmapSetV81 = ["g_tIrradiance", "g_tDirectionalIrradiance", "g_tDirectLightIndices", "g_tDirectLightStrengths"];
+        private readonly string[] LightmapSetV82 = ["g_tIrradiance", "g_tDirectionalIrradiance", "g_tDirectLightShadows"];
 
         private void LoadWorldLightingInfo()
         {

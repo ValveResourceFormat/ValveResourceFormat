@@ -11,10 +11,11 @@ namespace ValveResourceFormat.Serialization.VfxEval
         // parsed data assigned here
         public string DynamicExpressionResult { get; private set; }
         // parse the input one line at a time
-        private readonly List<string> DynamicExpressionList = new();
+        private readonly List<string> DynamicExpressionList = [];
 
         // function reference, name and number of arguments
-        private readonly (string Name, int ArgumentCount)[] FUNCTION_REF = {
+        private readonly (string Name, int ArgumentCount)[] FUNCTION_REF = [
+#pragma warning disable format
             ("sin",        1),     // 00
             ("cos",        1),     // 01
             ("tan",        1),     // 02
@@ -72,7 +73,8 @@ namespace ValveResourceFormat.Serialization.VfxEval
             ("degrees",             1), // 37
             ("MatrixColorTint2",    2), // 38
             ("MatrixColorTint3",    3), // 39
-        };
+#pragma warning restore format
+        ];
 
         private enum OPCODE
         {
@@ -136,7 +138,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
         // check on each OPS if we are exiting a branch,
         // when we do we should combine expressions on the stack
         private readonly Stack<uint> OffsetAtBranchExits = new();
-        private readonly Dictionary<uint, string> LocalVariableNames = new();
+        private readonly Dictionary<uint, string> LocalVariableNames = [];
 
         // build a dictionary of the external variables seen, passed as 'renderAttributesUsed'
         private static readonly ConcurrentDictionary<uint, string> ExternalVarsReference = new();
@@ -471,7 +473,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
 
         private static string GetSwizzle(byte b)
         {
-            string[] axes = { "x", "y", "z", "w" };
+            string[] axes = ["x", "y", "z", "w"];
             var swizzle = axes[b & 3] + axes[(b >> 2) & 3] + axes[(b >> 4) & 3] + axes[(b >> 6) & 3];
             var i = 3;
             while (i > 0 && swizzle[i - 1] == swizzle[i])

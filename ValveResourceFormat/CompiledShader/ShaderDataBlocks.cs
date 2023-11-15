@@ -20,8 +20,8 @@ namespace ValveResourceFormat.CompiledShader
         public int Arg6 { get; }
         public int Arg7 { get; } = -1;
         public int[] Arg8 { get; }
-        public List<(string Name, string Shader, string StaticConfig, int Value)> Modes { get; } = new();
-        public List<(Guid, string)> EditorIDs { get; } = new();
+        public List<(string Name, string Shader, string StaticConfig, int Value)> Modes { get; } = [];
+        public List<(Guid, string)> EditorIDs { get; } = [];
         public FeaturesHeaderBlock(ShaderDataReader datareader) : base(datareader)
         {
             var vcsMagicId = datareader.ReadInt32();
@@ -271,7 +271,7 @@ namespace ValveResourceFormat.CompiledShader
         public int Arg3 { get; } // S_TOOLS_ENABLED = 1, S_SHADER_QUALITY = 2
         public int FeatureIndex { get; }
         public int Arg5 { get; }
-        public List<string> CheckboxNames { get; } = new();
+        public List<string> CheckboxNames { get; } = [];
         public SfBlock(ShaderDataReader datareader, int blockIndex) : base(datareader)
         {
             BlockIndex = blockIndex;
@@ -330,7 +330,7 @@ namespace ValveResourceFormat.CompiledShader
             DataReader.ShowBytes(4, $"({arg4}) known values [-1,28]");
             DataReader.ShowBytes(4, $"{arg5} additional string params");
             var string_offset = (int)DataReader.BaseStream.Position;
-            List<string> names = new();
+            List<string> names = [];
             for (var i = 0; i < arg5; i++)
             {
                 var paramname = DataReader.ReadNullTermString(Encoding.UTF8);
@@ -399,12 +399,12 @@ namespace ValveResourceFormat.CompiledShader
 
         private int[] ReadIntRange()
         {
-            List<int> ints0 = new();
+            List<int> ints0 = [];
             while (DataReader.ReadInt32AtPosition() >= 0)
             {
                 ints0.Add(DataReader.ReadInt32());
             }
-            return ints0.ToArray();
+            return [.. ints0];
         }
         private int[] ReadByteFlags()
         {
@@ -493,8 +493,8 @@ namespace ValveResourceFormat.CompiledShader
         public UiType UiType { get; }
         public float Res0 { get; }
         public LeadFlags Lead0 { get; }
-        public byte[] DynExp { get; } = Array.Empty<byte>();
-        public byte[] SBMSBytes { get; } = Array.Empty<byte>();
+        public byte[] DynExp { get; } = [];
+        public byte[] SBMSBytes { get; } = [];
         public int Tex { get; }
         public Vfx.Type VfxType { get; }
         public ParameterType ParamType { get; }
@@ -523,7 +523,7 @@ namespace ValveResourceFormat.CompiledShader
         public int Arg12 { get; }
         public string ImageSuffix { get; }
         public string ImageProcessor { get; }
-        public byte[] V65Data { get; } = Array.Empty<byte>();
+        public byte[] V65Data { get; } = [];
         public ParamBlock(ShaderDataReader datareader, int blockIndex, int vcsVersion) : base(datareader)
         {
             BlockIndex = blockIndex;
@@ -815,7 +815,7 @@ namespace ValveResourceFormat.CompiledShader
         public int BufferSize { get; }
         public int Arg0 { get; }
         public int ParamCount { get; }
-        public List<(string Name, int Offset, int VectorSize, int Depth, int Length)> BufferParams { get; } = new();
+        public List<(string Name, int Offset, int VectorSize, int Depth, int Length)> BufferParams { get; } = [];
         public uint BlockCrc { get; }
         public BufferBlock(ShaderDataReader datareader, int blockIndex) : base(datareader)
         {
@@ -873,7 +873,7 @@ namespace ValveResourceFormat.CompiledShader
     {
         public int BlockIndex { get; }
         public int SymbolsCount { get; }
-        public List<(string Name, string Type, string Option, int SemanticIndex)> SymbolsDefinition { get; } = new();
+        public List<(string Name, string Type, string Option, int SemanticIndex)> SymbolsDefinition { get; } = [];
 
         public VertexSymbolsBlock(ShaderDataReader datareader, int blockIndex) : base(datareader)
         {

@@ -15,12 +15,12 @@ namespace ValveResourceFormat.Serialization.NTRO
         public NTROStruct(string name)
         {
             Name = name;
-            Contents = new Dictionary<string, NTROValue>();
+            Contents = [];
         }
 
         public NTROStruct(params NTROValue[] values)
         {
-            Contents = new Dictionary<string, NTROValue>();
+            Contents = [];
             for (var i = 0; i < values.Length; i++)
             {
                 Contents.Add(i.ToString(CultureInfo.InvariantCulture), values[i]);

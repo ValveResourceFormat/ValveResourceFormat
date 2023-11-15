@@ -16,7 +16,7 @@ namespace ValveResourceFormat.ResourceTypes
     {
         public class Entity
         {
-            public Dictionary<uint, EntityProperty> Properties { get; } = new Dictionary<uint, EntityProperty>();
+            public Dictionary<uint, EntityProperty> Properties { get; } = [];
             public List<IKeyValueCollection> Connections { get; internal set; }
 
             public T GetProperty<T>(string name)
@@ -95,7 +95,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             if (connections.Length > 0)
             {
-                entity.Connections = connections.ToList();
+                entity.Connections = [.. connections];
             }
 
             return entity;

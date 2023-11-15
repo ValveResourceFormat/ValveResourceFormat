@@ -18,9 +18,9 @@ namespace GUI.Types.Renderer
         public Vector4 Tint { get; set; } = Vector4.One;
 
         private readonly VrfGuiContext guiContext;
-        public List<DrawCall> DrawCallsOpaque { get; } = new List<DrawCall>();
+        public List<DrawCall> DrawCallsOpaque { get; } = [];
         public List<DrawCall> DrawCallsOverlay { get; } = new List<DrawCall>(1);
-        public List<DrawCall> DrawCallsBlended { get; } = new List<DrawCall>();
+        public List<DrawCall> DrawCallsBlended { get; } = [];
         private IEnumerable<DrawCall> DrawCalls => DrawCallsOpaque.Concat(DrawCallsOverlay).Concat(DrawCallsBlended);
 
         public int? AnimationTexture { get; private set; }
@@ -135,7 +135,7 @@ namespace GUI.Types.Renderer
                 var objectDrawCalls = sceneObject.GetArray("m_drawCalls");
                 var objectDrawBounds = sceneObject.ContainsKey("m_drawBounds")
                     ? sceneObject.GetArray("m_drawBounds")
-                    : Array.Empty<IKeyValueCollection>();
+                    : [];
 
                 foreach (var objectDrawCall in objectDrawCalls)
                 {

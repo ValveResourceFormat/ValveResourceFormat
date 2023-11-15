@@ -28,17 +28,17 @@ namespace GUI.Types.Renderer
         [GeneratedRegex(@"ERROR: (?<SourceFile>[0-9]+):(?<Line>[0-9]+):")]
         private static partial Regex AmdGlslError();
 
-        private readonly Dictionary<ulong, Shader> CachedShaders = new();
+        private readonly Dictionary<ulong, Shader> CachedShaders = [];
         public int ShaderCount => CachedShaders.Count;
-        private readonly Dictionary<string, HashSet<string>> ShaderDefines = new();
+        private readonly Dictionary<string, HashSet<string>> ShaderDefines = [];
 
         private readonly static Dictionary<string, byte> EmptyArgs = new(0);
 
         private int sourceFileNumber;
-        private readonly List<string> sourceFiles = new();
+        private readonly List<string> sourceFiles = [];
 
 #if DEBUG
-        private readonly List<List<string>> sourceFileLines = new();
+        private readonly List<List<string>> sourceFileLines = [];
 #endif
 
         public Shader LoadShader(string shaderName, IReadOnlyDictionary<string, byte> arguments = null)

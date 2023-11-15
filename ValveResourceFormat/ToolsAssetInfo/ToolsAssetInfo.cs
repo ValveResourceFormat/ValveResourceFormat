@@ -38,18 +38,18 @@ namespace ValveResourceFormat.ToolsAssetInfo
             public bool UpToDate { get; set; }
             public bool CompileFailed { get; set; }
 
-            public List<SearchPath> SearchPathsGameRoot { get; } = new();
-            public List<SearchPath> SearchPathsContentRoot { get; } = new();
-            public List<InputDependency> InputDependencies { get; } = new();
-            public List<InputDependency> AdditionalInputDependencies { get; } = new();
-            public List<string> ExternalReferences { get; } = new();
-            public List<string> ChildResources { get; } = new();
-            public List<string> AdditionalRelatedFiles { get; } = new();
-            public List<string> WeakReferences { get; } = new();
-            public List<SpecialDependency> SpecialDependencies { get; } = new();
-            public Dictionary<string, object> SearchableUserData { get; } = new();
-            public Dictionary<string, List<string>> SubassetDefinitions { get; } = new();
-            public Dictionary<string, Dictionary<string, int>> SubassetReferences { get; } = new();
+            public List<SearchPath> SearchPathsGameRoot { get; } = [];
+            public List<SearchPath> SearchPathsContentRoot { get; } = [];
+            public List<InputDependency> InputDependencies { get; } = [];
+            public List<InputDependency> AdditionalInputDependencies { get; } = [];
+            public List<string> ExternalReferences { get; } = [];
+            public List<string> ChildResources { get; } = [];
+            public List<string> AdditionalRelatedFiles { get; } = [];
+            public List<string> WeakReferences { get; } = [];
+            public List<SpecialDependency> SpecialDependencies { get; } = [];
+            public Dictionary<string, object> SearchableUserData { get; } = [];
+            public Dictionary<string, List<string>> SubassetDefinitions { get; } = [];
+            public Dictionary<string, Dictionary<string, int>> SubassetReferences { get; } = [];
         }
 
         public const uint MAGIC = 0xC4CCACE8;
@@ -59,7 +59,7 @@ namespace ValveResourceFormat.ToolsAssetInfo
         /// <summary>
         /// All the assets.
         /// </summary>
-        public Dictionary<string, File> Files { get; } = new();
+        public Dictionary<string, File> Files { get; } = [];
 
         /// <summary>
         /// Opens and reads the given filename.
@@ -126,8 +126,8 @@ namespace ValveResourceFormat.ToolsAssetInfo
             }
             else
             {
-                subassetDefinitions = new();
-                subassetValues = new();
+                subassetDefinitions = [];
+                subassetValues = [];
             }
 
             string ConstructFilePath(ulong hash)
@@ -389,7 +389,7 @@ namespace ValveResourceFormat.ToolsAssetInfo
 
                         if (!file.SubassetDefinitions.TryGetValue(definitionKey, out var list))
                         {
-                            list = new();
+                            list = [];
                             file.SubassetDefinitions[definitionKey] = list;
                         }
 
@@ -411,7 +411,7 @@ namespace ValveResourceFormat.ToolsAssetInfo
 
                         if (!file.SubassetReferences.TryGetValue(definitionKey, out var list))
                         {
-                            list = new();
+                            list = [];
                             file.SubassetReferences[definitionKey] = list;
                         }
 

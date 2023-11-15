@@ -117,7 +117,7 @@ namespace GUI.Types.Viewers
                             DirectoryName = DELETED_FILES_FOLDER,
                             TypeName = " ",
                             CRC32 = 0,
-                            SmallData = Array.Empty<byte>(),
+                            SmallData = [],
                             ArchiveIndex = archiveIndex,
                             Offset = offset,
                             Length = length,
@@ -207,7 +207,7 @@ namespace GUI.Types.Viewers
 
                         if (!package.Entries.TryGetValue(newEntry.TypeName, out var typeEntries))
                         {
-                            typeEntries = new List<PackageEntry>();
+                            typeEntries = [];
                             package.Entries.Add(newEntry.TypeName, typeEntries);
                         }
 

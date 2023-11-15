@@ -139,7 +139,7 @@ namespace GUI.Types.Renderer
                 saveName = $"{originalName} (#{duplicateCameraIndex++})";
             }
 
-            Settings.Config.SavedCameras.Add(saveName, new[] { cam.Location.X, cam.Location.Y, cam.Location.Z, cam.Pitch, cam.Yaw });
+            Settings.Config.SavedCameras.Add(saveName, [cam.Location.X, cam.Location.Y, cam.Location.Z, cam.Pitch, cam.Yaw]);
             Settings.InvokeRefreshCamerasOnSave();
         }
 
@@ -221,7 +221,7 @@ namespace GUI.Types.Renderer
                         cameraComboBox.SelectedIndex = 0;
                     }
 
-                    cameraComboBox.Items.AddRange(result.CameraMatrices.Keys.ToArray<object>());
+                    cameraComboBox.Items.AddRange([.. result.CameraMatrices.Keys]);
                 }
             }
 

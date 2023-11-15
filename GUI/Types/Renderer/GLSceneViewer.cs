@@ -35,7 +35,7 @@ namespace GUI.Types.Renderer
         protected UniformBuffer<ViewConstants> viewBuffer;
         private UniformBuffer<LightingConstants> lightingBuffer;
         public IReadOnlyList<IBlockBindableBuffer> Buffers { get; private set; }
-        public Dictionary<(ReservedTextureSlots, string), RenderTexture> Textures { get; } = new();
+        public Dictionary<(ReservedTextureSlots, string), RenderTexture> Textures { get; } = [];
 
         private bool skipRenderModeChange;
         private ComboBox renderModeComboBox;

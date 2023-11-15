@@ -87,7 +87,7 @@ namespace ValveResourceFormat.CompiledShader
          */
         public Dictionary<string, int> GetUniqueWriteSequences()
         {
-            Dictionary<string, int> writeSequences = new();
+            Dictionary<string, int> writeSequences = [];
             var seqCount = 0;
             writeSequences.Add(BytesToString(zframeFile.LeadingData.Dataload, -1), seqCount++);
             foreach (var zBlock in zframeFile.DataBlocks)
@@ -226,7 +226,7 @@ namespace ValveResourceFormat.CompiledShader
             OutputFormatterTabulatedData tabulatedConfigNames = new(OutputWriter);
             tabulatedConfigNames.DefineHeaders(["", "abbrev."]);
 
-            List<string> shortenedNames = new();
+            List<string> shortenedNames = [];
             foreach (var abbrev in abbreviations)
             {
                 tabulatedConfigNames.AddTabulatedRow([$"{abbrev.Item1}", $"{abbrev.Item2}"]);
@@ -234,7 +234,7 @@ namespace ValveResourceFormat.CompiledShader
             }
 
             OutputFormatterTabulatedData tabulatedConfigCombinations = new(OutputWriter);
-            tabulatedConfigCombinations.DefineHeaders(shortenedNames.ToArray());
+            tabulatedConfigCombinations.DefineHeaders([.. shortenedNames]);
 
             var activeBlockIds = zframeFile.EndBlocks.Select(endBlock => endBlock.BlockIdRef).ToList();
             foreach (var blockId in activeBlockIds)
@@ -299,7 +299,7 @@ namespace ValveResourceFormat.CompiledShader
 
         private List<(string, string)> DConfigsAbbreviations()
         {
-            List<(string, string)> abbreviations = new();
+            List<(string, string)> abbreviations = [];
             foreach (var dBlock in shaderFile.DBlocks)
             {
                 var abbreviation = ShortenShaderParam(dBlock.Name).ToLowerInvariant();
@@ -310,7 +310,7 @@ namespace ValveResourceFormat.CompiledShader
 
         static Dictionary<int, GpuSource> GetBlockIdToSource(ZFrameFile zframeFile)
         {
-            Dictionary<int, GpuSource> blockIdToSource = new();
+            Dictionary<int, GpuSource> blockIdToSource = [];
             foreach (var endBlock in zframeFile.EndBlocks)
             {
                 blockIdToSource.Add(endBlock.BlockIdRef, zframeFile.GpuSources[endBlock.SourceRef]);

@@ -27,9 +27,9 @@ namespace Decompiler
     [VersionOptionFromMember(MemberName = nameof(GetVersion))]
     public partial class Decompiler
     {
-        private readonly Dictionary<string, ResourceStat> stats = new();
-        private readonly Dictionary<string, string> uniqueSpecialDependancies = new();
-        private readonly HashSet<uint> unknownEntityKeys = new();
+        private readonly Dictionary<string, ResourceStat> stats = [];
+        private readonly Dictionary<string, string> uniqueSpecialDependancies = [];
+        private readonly HashSet<uint> unknownEntityKeys = [];
 
         private readonly object ConsoleWriterLock = new();
         private int CurrentFile;

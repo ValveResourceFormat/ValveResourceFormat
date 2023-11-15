@@ -156,11 +156,11 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
         {
             if (!HasExplicitVertexIndices(data))
             {
-                return Array.Empty<byte>();
+                return [];
             }
 
             var verticesBlob = data.GetArray<byte>("m_Vertices");
-            return verticesBlob.ToArray();
+            return [.. verticesBlob];
         }
 
         public static Vector3[] ParseVertexPositions(IKeyValueCollection data)

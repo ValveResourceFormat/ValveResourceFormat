@@ -10,7 +10,7 @@ namespace GUI.Forms
 {
     partial class SettingsForm : Form
     {
-        private static readonly int[] AntiAliasingSampleOptions = new[] { 0, 2, 4, 8, 16 };
+        private static readonly int[] AntiAliasingSampleOptions = [0, 2, 4, 8, 16];
 
         [DllImport("shell32.dll", CharSet = CharSet.Auto, SetLastError = true)]
         [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]

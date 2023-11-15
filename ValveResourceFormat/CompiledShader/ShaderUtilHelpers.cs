@@ -232,11 +232,11 @@ namespace ValveResourceFormat.CompiledShader
 
         public static string[] CombineValuesBreakString(string[] strings0, int breakLen)
         {
-            List<string> stringCollection = new();
+            List<string> stringCollection = [];
             if (strings0.Length == 0)
             {
                 stringCollection.Add("");
-                return stringCollection.ToArray();
+                return [.. stringCollection];
             }
             var line = strings0[0] + ", ";
             for (var i = 1; i < strings0.Length; i++)
@@ -255,7 +255,7 @@ namespace ValveResourceFormat.CompiledShader
             {
                 stringCollection.Add(line[0..^2]);
             }
-            return stringCollection.ToArray();
+            return [.. stringCollection];
         }
 
         public static string BytesToString(ReadOnlySpan<byte> databytes, int breakLen = 32)
@@ -335,9 +335,9 @@ namespace ValveResourceFormat.CompiledShader
 
             public void DefineHeaders(string[] headers)
             {
-                headerValues = new();
-                tabulatedValues = new();
-                columnWidths = new();
+                headerValues = [];
+                tabulatedValues = [];
+                columnWidths = [];
                 foreach (var s in headers)
                 {
                     headerValues.Add(s);
@@ -351,8 +351,8 @@ namespace ValveResourceFormat.CompiledShader
                 {
                     throw new ShaderParserException("wrong number of columns");
                 }
-                List<string> newRow = new();
-                List<List<string>> additionalRows = new();
+                List<string> newRow = [];
+                List<List<string>> additionalRows = [];
                 for (var i = 0; i < rowMembers.Length; i++)
                 {
                     var multipleLines = rowMembers[i].Split("\n");
@@ -391,7 +391,7 @@ namespace ValveResourceFormat.CompiledShader
             }
             private List<string> EmptyRow()
             {
-                List<string> newRow = new();
+                List<string> newRow = [];
                 for (var i = 0; i < headerValues.Count; i++)
                 {
                     newRow.Add("");
@@ -401,7 +401,7 @@ namespace ValveResourceFormat.CompiledShader
 
             public List<string> BuildTabulatedRows(int spacing = 2, bool reverse = false)
             {
-                List<string> tabbedRows = new();
+                List<string> tabbedRows = [];
                 if (tabulatedValues.Count == 1 && tabulatedValues[0].Count == 0)
                 {
                     return tabbedRows;

@@ -21,7 +21,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
         }
 
         private readonly ParticleField FieldOutput = ParticleField.Position;
-        private readonly List<PointDefinition> pointList = new();
+        private readonly List<PointDefinition> pointList = [];
 
         private readonly int numPointsOnPath = 20;
         private readonly bool usePath;

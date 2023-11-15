@@ -11,7 +11,7 @@ namespace GUI.Types.Renderer
         {
             var rv = new Frustum
             {
-                Planes = Array.Empty<Vector4>(),
+                Planes = [],
             };
             return rv;
         }

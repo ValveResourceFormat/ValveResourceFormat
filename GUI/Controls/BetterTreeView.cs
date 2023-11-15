@@ -179,7 +179,7 @@ namespace GUI.Controls
 
                         if (!sortedEntriesPerArchive.TryGetValue(entry.ArchiveIndex, out var archiveEntries))
                         {
-                            archiveEntries = new();
+                            archiveEntries = [];
                             sortedEntriesPerArchive.Add(entry.ArchiveIndex, archiveEntries);
                         }
 
@@ -315,7 +315,7 @@ namespace GUI.Controls
         {
             var defaultImage = MainForm.ImageListLookup["_default"];
 
-            ExtensionIconList = new();
+            ExtensionIconList = [];
 
             foreach (var originalExtension in extensions)
             {

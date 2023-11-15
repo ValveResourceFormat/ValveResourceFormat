@@ -712,10 +712,10 @@ namespace GUI
             if (control is BetterTreeView treeView)
             {
                 context = treeView.VrfGuiContext;
-                selectedNodes = new List<TreeNode>
-                {
+                selectedNodes =
+                [
                     treeView.SelectedNode
-                };
+                ];
             }
             else if (control is BetterListView listView)
             {
@@ -765,10 +765,10 @@ namespace GUI
 
             if (control is TreeView treeView)
             {
-                selectedNodes = new List<BetterTreeNode>
-                {
+                selectedNodes =
+                [
                     (BetterTreeNode)treeView.SelectedNode
-                };
+                ];
             }
             else if (control is ListView listView)
             {

@@ -13,17 +13,17 @@ namespace ValveResourceFormat.IO
 {
     public class GameFileLoader : IFileLoader, IDisposable
     {
-        private static readonly string[] ModIdentifiers = new[]
-        {
+        private static readonly string[] ModIdentifiers =
+        [
             "gameinfo.gi",
             "addoninfo.txt",
             ".sbproj",
-        };
+        ];
 
-        private readonly Dictionary<string, ShaderCollection> CachedShaders = new();
+        private readonly Dictionary<string, ShaderCollection> CachedShaders = [];
         private readonly object CachedShadersLock = new();
-        private readonly HashSet<string> CurrentGameSearchPaths = new();
-        private readonly List<Package> CurrentGamePackages = new();
+        private readonly HashSet<string> CurrentGameSearchPaths = [];
+        private readonly List<Package> CurrentGamePackages = [];
         private readonly string CurrentFileName;
         private string PreferredAddonFolderOnDisk;
         private bool ShaderPackagesScanned;
@@ -367,7 +367,7 @@ namespace ValveResourceFormat.IO
 
                 if (Path.GetFileName(modIdentifierPath) == "gameinfo.gi")
                 {
-                    folders = new HashSet<string>();
+                    folders = [];
 
                     HandleGameInfo(folders, assumedGameRoot, modIdentifierPath);
                 }

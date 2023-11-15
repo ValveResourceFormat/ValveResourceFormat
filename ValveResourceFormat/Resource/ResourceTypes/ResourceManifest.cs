@@ -8,7 +8,7 @@ namespace ValveResourceFormat.ResourceTypes
 {
     public class ResourceManifest : ResourceData
     {
-        public List<List<string>> Resources { get; private set; } = new();
+        public List<List<string>> Resources { get; private set; } = [];
 
         public override void Read(BinaryReader reader, Resource resource)
         {
@@ -24,10 +24,10 @@ namespace ValveResourceFormat.ResourceTypes
                 };
                 ntro.Read(reader, resource);
 
-                Resources = new List<List<string>>
-                {
-                    new List<string>(ntro.Output.GetArray<string>("m_ResourceFileNameList")),
-                };
+                Resources =
+                [
+                    new(ntro.Output.GetArray<string>("m_ResourceFileNameList")),
+                ];
 
                 return;
             }

@@ -250,7 +250,7 @@ namespace GUI.Types.Renderer
 
                         listBox.EndUpdate();
 
-                        SetEnabledPhysicsGroups(physicsGroups.ToHashSet());
+                        SetEnabledPhysicsGroups([.. physicsGroups]);
                     }, (enabledPhysicsGroups) =>
                     {
                         SetEnabledPhysicsGroups(enabledPhysicsGroups.ToHashSet());

@@ -139,7 +139,7 @@ namespace ValveResourceFormat
         public Resource()
         {
             ResourceType = ResourceType.Unknown;
-            Blocks = new List<Block>();
+            Blocks = [];
         }
 
         /// <summary>

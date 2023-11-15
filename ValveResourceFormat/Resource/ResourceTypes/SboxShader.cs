@@ -8,7 +8,7 @@ namespace ValveResourceFormat.ResourceTypes
     public class SboxShader : ResourceData
     {
         public override BlockType Type { get; }
-        public ShaderCollection Shaders { get; } = new ShaderCollection();
+        public ShaderCollection Shaders { get; } = [];
 
         record struct OnDiskShaderFile(VcsProgramType Type, uint Offset, uint Size);
 

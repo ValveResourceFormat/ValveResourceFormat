@@ -36,7 +36,7 @@ namespace ValveResourceFormat.IO
         /// <summary>
         /// Additional files that make up this content file. E.g. for a vtex, this would be the PNG files.
         /// </summary>
-        public List<SubFile> SubFiles { get; init; } = new List<SubFile>();
+        public List<SubFile> SubFiles { get; init; } = [];
 
         /// <summary>
         /// Additional extracted resources. E.g. for a vmat, this would be the vtex files.
@@ -44,7 +44,7 @@ namespace ValveResourceFormat.IO
         /// You might want to ignore further extracts on these files—especially lone extracts,
         /// since this is most likely their most optimal extract context.
         /// </summary>
-        public List<ContentFile> AdditionalFiles { get; init; } = new();
+        public List<ContentFile> AdditionalFiles { get; init; } = [];
 
         protected bool Disposed { get; private set; }
 
@@ -93,7 +93,7 @@ namespace ValveResourceFormat.IO
     /// </summary>
     public class TrackingFileLoader : IFileLoader
     {
-        public HashSet<string> LoadedFilePaths { get; } = new HashSet<string>();
+        public HashSet<string> LoadedFilePaths { get; } = [];
         private readonly IFileLoader fileLoader;
 
         public Resource LoadFile(string file)
@@ -146,7 +146,7 @@ namespace ValveResourceFormat.IO
                     {
                         using var soundStream = ((Sound)resource.DataBlock).GetSoundStream();
                         soundStream.TryGetBuffer(out var buffer);
-                        contentFile.Data = buffer.ToArray();
+                        contentFile.Data = [.. buffer];
 
                         break;
                     }
