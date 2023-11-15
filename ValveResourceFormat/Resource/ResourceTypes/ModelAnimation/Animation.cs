@@ -94,23 +94,35 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                     container.Length - (int)containerReader.BaseStream.Position
                 );
 
-                var remapTable = localChannel.RemapTable
-                    .Select(i => Array.IndexOf(elements, i))
-                    .ToArray();
-                var wantedElements = remapTable.Where(boneID => boneID != -1).ToArray();
-                remapTable = remapTable
-                    .Select((boneID, i) => (boneID, i))
-                    .Where(t => t.boneID != -1)
-                    .Select(t => t.i)
-                    .ToArray();
+                int[] wantedElements;
+                int[] remapTable;
+
+                if (localChannel.Attribute == AnimationChannelAttribute.Data)
+                {
+                    //TODO: Figure out the element order here
+                    remapTable = elements;
+                    wantedElements = new int[elements.Length];
+                    for (var j = 0; j < elements.Length; j++)
+                    {
+                        wantedElements[j] = j;
+                    }
+                }
+                else
+                {
+                    remapTable = localChannel.RemapTable
+                        .Select(i => Array.IndexOf(elements, i))
+                        .ToArray();
+                    wantedElements = remapTable.Where(boneID => boneID != -1).ToArray();
+                    remapTable = remapTable
+                        .Select((boneID, i) => (boneID, i))
+                        .Where(t => t.boneID != -1)
+                        .Select(t => t.i)
+                        .ToArray();
+                }
 
                 if (localChannel.Attribute == AnimationChannelAttribute.Unknown)
                 {
-                    if (localChannel.Attribute != AnimationChannelAttribute.Data)
-                    {
-                        Console.Error.WriteLine($"Unknown channel attribute encountered with '{decoder}' decoder");
-                    }
-
+                    Console.Error.WriteLine($"Unknown channel attribute encountered with '{decoder}' decoder");
                     continue;
                 }
 

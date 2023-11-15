@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Numerics;
 
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation
@@ -7,6 +8,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
     {
         public int FrameIndex { get; set; } = 1;
         public FrameBone[] Bones { get; }
+        public Dictionary<string, float> Datas { get; } = new();
 
         public Frame(Skeleton skeleton)
         {
@@ -80,6 +82,11 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                     break;
 #endif
             }
+        }
+
+        public void SetDataAttribute(string dataName, float data)
+        {
+            Datas[dataName] = data;
         }
 
         /// <summary>
