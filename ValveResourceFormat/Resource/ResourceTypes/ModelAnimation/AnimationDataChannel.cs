@@ -7,7 +7,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
     public class AnimationDataChannel
     {
         public int[] RemapTable { get; } // Bone ID => Element Index
-        public string ChannelAttribute { get; }
+        public AnimationChannelAttribute Attribute { get; }
 
         public AnimationDataChannel(Skeleton skeleton, IKeyValueCollection dataChannel, int channelElements)
         {
@@ -26,7 +26,14 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                 }
             }
 
-            ChannelAttribute = dataChannel.GetProperty<string>("m_szVariableName");
+            var channelAttribute = dataChannel.GetProperty<string>("m_szVariableName");
+            Attribute = channelAttribute switch
+            {
+                "Position" => AnimationChannelAttribute.Position,
+                "Angle" => AnimationChannelAttribute.Angle,
+                "Scale" => AnimationChannelAttribute.Scale,
+                _ => AnimationChannelAttribute.Unknown,
+            };
         }
     }
 }
