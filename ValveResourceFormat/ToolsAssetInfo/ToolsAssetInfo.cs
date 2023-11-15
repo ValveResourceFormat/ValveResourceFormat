@@ -11,7 +11,7 @@ namespace ValveResourceFormat.ToolsAssetInfo
     {
         public class File
         {
-            public struct InputDependency
+            public readonly struct InputDependency
             {
                 public string Filename { get; init; }
                 public uint FileCRC { get; init; }
@@ -19,7 +19,7 @@ namespace ValveResourceFormat.ToolsAssetInfo
                 public bool FileExists { get; init; }
             }
 
-            public struct SearchPath
+            public readonly struct SearchPath
             {
                 public string Filename { get; init; }
                 public byte[] UnknownBits { get; init; }

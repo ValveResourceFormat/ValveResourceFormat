@@ -82,7 +82,7 @@ public struct UiGroup
         return (name, order);
     }
 
-    public override string ToString()
+    public readonly override string ToString()
     {
         return CompactString;
     }

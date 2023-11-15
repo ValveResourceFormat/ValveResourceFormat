@@ -39,7 +39,7 @@ namespace GUI.Types.ParticleRenderer
         public readonly float NormalizedAge => Age / Math.Max(0.0001f, Lifetime); //Old version: 1 - (Lifetime / ConstantLifetime);
         public float Speed
         {
-            get => Velocity.Length();
+            readonly get => Velocity.Length();
             set => Velocity = Vector3.Normalize(Velocity) * value;
         }
         public int Sequence { get; set; } = 0;
@@ -75,7 +75,7 @@ namespace GUI.Types.ParticleRenderer
             Sequence = parse.Int32("m_nConstantSequenceNumber1", Sequence);
         }
 
-        public Matrix4x4 GetTransformationMatrix(float radiusScale = 1f)
+        public readonly Matrix4x4 GetTransformationMatrix(float radiusScale = 1f)
         {
             var scaleMatrix = Matrix4x4.CreateScale(Radius * radiusScale);
             var translationMatrix = Matrix4x4.CreateTranslation(Position.X, Position.Y, Position.Z);
@@ -83,7 +83,7 @@ namespace GUI.Types.ParticleRenderer
             return Matrix4x4.Multiply(scaleMatrix, translationMatrix);
         }
 
-        public Matrix4x4 GetRotationMatrix()
+        public readonly Matrix4x4 GetRotationMatrix()
         {
             var rotationMatrix = Matrix4x4.Multiply(Matrix4x4.CreateRotationZ(MathUtils.ToRadians(Rotation.Z)), Matrix4x4.CreateRotationY(MathUtils.ToRadians(Rotation.Y)));
             return rotationMatrix;

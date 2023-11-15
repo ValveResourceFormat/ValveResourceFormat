@@ -33,7 +33,7 @@ namespace ValveResourceFormat.CompiledShader
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1, Size = 4)]
-    public struct WriteSeqField
+    public readonly struct WriteSeqField
     {
         public byte ParamId { get; }
         public byte UnknBuff { get; }
