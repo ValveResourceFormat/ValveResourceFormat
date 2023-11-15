@@ -4,25 +4,21 @@ using System.Numerics;
 
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders
 {
-    public class CCompressedStaticQuaternion : AnimationSegmentDecoder
+    public class CCompressedStaticQuaternion : AnimationSegmentDecoder<Quaternion>
     {
         private readonly Quaternion[] Data;
 
-        public CCompressedStaticQuaternion(ArraySegment<byte> data, int[] wantedElements, int[] remapTable,
-            AnimationChannelAttribute channelAttribute) : base(remapTable, channelAttribute)
+        public CCompressedStaticQuaternion(AnimationSegmentDecoderContext context) : base(context)
         {
-            Data = wantedElements.Select(i =>
+            Data = Context.WantedElements.Select(i =>
             {
-                return SegmentHelpers.ReadQuaternion(data.Slice(i * 6));
+                return SegmentHelpers.ReadQuaternion(Context.Data.Slice(i * 6));
             }).ToArray();
         }
 
-        public override void Read(int frameIndex, Frame outFrame)
+        public override Quaternion Read(int frameIndex, int i)
         {
-            for (var i = 0; i < RemapTable.Length; i++)
-            {
-                outFrame.SetAttribute(RemapTable[i], ChannelAttribute, Data[i]);
-            }
+            return Data[i];
         }
     }
 }

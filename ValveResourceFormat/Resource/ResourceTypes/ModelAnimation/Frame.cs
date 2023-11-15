@@ -14,6 +14,26 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             Clear(skeleton);
         }
 
+        public void SetAttribute(int bone, AnimationChannelAttribute attribute, object data)
+        {
+            if (data is Vector3 vector3)
+            {
+                SetAttribute(bone, attribute, vector3);
+            }
+            else if (data is Quaternion quaternion)
+            {
+                SetAttribute(bone, attribute, quaternion);
+            }
+            else if (data is float fl)
+            {
+                SetAttribute(bone, attribute, fl);
+            }
+            else
+            {
+                throw new ArgumentException("Unexpected data type");
+            }
+        }
+
         public void SetAttribute(int bone, AnimationChannelAttribute attribute, Vector3 data)
         {
             switch (attribute)

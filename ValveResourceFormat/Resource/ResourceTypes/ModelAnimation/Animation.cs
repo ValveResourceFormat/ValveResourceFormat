@@ -16,9 +16,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         public int FrameCount { get; }
         public bool IsLooping { get; }
         private AnimationFrameBlock[] FrameBlocks { get; }
-        private AnimationSegmentDecoder[] SegmentArray { get; }
+        private IAnimationSegmentDecoder[] SegmentArray { get; }
 
-        private Animation(IKeyValueCollection animDesc, AnimationSegmentDecoder[] segmentArray)
+        private Animation(IKeyValueCollection animDesc, IAnimationSegmentDecoder[] segmentArray)
         {
             // Get animation properties
             Name = animDesc.GetProperty<string>("m_name");
@@ -68,7 +68,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             }
 
             var segmentArrayKV = animationData.GetArray("m_segmentArray");
-            var segmentArray = new AnimationSegmentDecoder[segmentArrayKV.Length];
+            var segmentArray = new IAnimationSegmentDecoder[segmentArrayKV.Length];
             for (var i = 0; i < segmentArrayKV.Length; i++)
             {
                 var segmentKV = segmentArrayKV[i];
@@ -114,39 +114,45 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                     continue;
                 }
 
+                var decodeContext = new AnimationSegmentDecoderContext(containerSegment, elements);
+                //decodeContext.ChannelAttribute = localChannel.ChannelAttribute;
+                decodeContext.RemapTable = remapTable;
+                decodeContext.WantedElements = wantedElements;
+                decodeContext.Channel = localChannel;
+
                 // Look at the decoder to see what to read
                 switch (decoder)
                 {
                     case "CCompressedStaticFullVector3":
-                        segmentArray[i] = new CCompressedStaticFullVector3(containerSegment, wantedElements, remapTable, localChannel.Attribute);
+                        segmentArray[i] = new CCompressedStaticFullVector3(decodeContext);
                         break;
                     case "CCompressedStaticVector3":
-                        segmentArray[i] = new CCompressedStaticVector3(containerSegment, wantedElements, remapTable, localChannel.Attribute);
+                        segmentArray[i] = new CCompressedStaticVector3(decodeContext);
                         break;
                     case "CCompressedStaticQuaternion":
-                        segmentArray[i] = new CCompressedStaticQuaternion(containerSegment, wantedElements, remapTable, localChannel.Attribute);
+                        segmentArray[i] = new CCompressedStaticQuaternion(decodeContext);
                         break;
                     case "CCompressedStaticFloat":
-                        segmentArray[i] = new CCompressedStaticFloat(containerSegment, wantedElements, remapTable, localChannel.Attribute);
+                        segmentArray[i] = new CCompressedStaticFloat(decodeContext);
                         break;
 
                     case "CCompressedFullVector3":
-                        segmentArray[i] = new CCompressedFullVector3(containerSegment, wantedElements, remapTable, numElements, localChannel.Attribute);
+                        segmentArray[i] = new CCompressedFullVector3(decodeContext);
                         break;
                     case "CCompressedDeltaVector3":
-                        segmentArray[i] = new CCompressedDeltaVector3(containerSegment, wantedElements, remapTable, numElements, localChannel.Attribute);
+                        segmentArray[i] = new CCompressedDeltaVector3(decodeContext);
                         break;
                     case "CCompressedAnimVector3":
-                        segmentArray[i] = new CCompressedAnimVector3(containerSegment, wantedElements, remapTable, numElements, localChannel.Attribute);
+                        segmentArray[i] = new CCompressedAnimVector3(decodeContext);
                         break;
                     case "CCompressedAnimQuaternion":
-                        segmentArray[i] = new CCompressedAnimQuaternion(containerSegment, wantedElements, remapTable, numElements, localChannel.Attribute);
+                        segmentArray[i] = new CCompressedAnimQuaternion(decodeContext);
                         break;
                     case "CCompressedFullQuaternion":
-                        segmentArray[i] = new CCompressedFullQuaternion(containerSegment, wantedElements, remapTable, numElements, localChannel.Attribute);
+                        segmentArray[i] = new CCompressedFullQuaternion(decodeContext);
                         break;
                     case "CCompressedFullFloat":
-                        segmentArray[i] = new CCompressedFullFloat(containerSegment, wantedElements, remapTable, numElements, localChannel.Attribute);
+                        segmentArray[i] = new CCompressedFullFloat(decodeContext);
                         break;
 #if DEBUG
                     default:
