@@ -69,12 +69,12 @@ namespace ValveResourceFormat.ResourceTypes
             public object Data { get; set; }
         }
 
-        public IEnumerable<string> GetChildEntityNames()
+        public string[] GetChildEntityNames()
         {
             return Data.GetArray<string>("m_childLumps");
         }
 
-        public IEnumerable<Entity> GetEntities()
+        public List<Entity> GetEntities()
             => Data.GetArray("m_entityKeyValues")
                 .Select(ParseEntityProperties)
                 .ToList();
