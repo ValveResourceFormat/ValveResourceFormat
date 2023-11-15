@@ -24,12 +24,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
             UserFriendlyName = data.GetStringProperty("m_UserFriendlyName");
 
             var memberName = typeof(T).Name;
-            var shapeData = data.GetSubCollection("m_" + memberName);
-            if (shapeData == null)
-            {
-                throw new InvalidDataException("Member name is not correct for shape type: " + memberName);
-            }
-
+            var shapeData = data.GetSubCollection("m_" + memberName) ?? throw new InvalidDataException("Member name is not correct for shape type: " + memberName);
             Shape = DeserializeShape(shapeData);
         }
 

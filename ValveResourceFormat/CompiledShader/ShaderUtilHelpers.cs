@@ -197,7 +197,7 @@ namespace ValveResourceFormat.CompiledShader
         public static string[] IntArrayToStrings(int[] ints, int nulledValue = int.MaxValue)
         {
             var stringTokens = new string[ints.Length];
-            for (int i = 0; i < ints.Length; i++)
+            for (var i = 0; i < ints.Length; i++)
             {
                 stringTokens[i] = ints[i] == nulledValue ? "_" : $"{ints[i]}";
             }
@@ -428,7 +428,7 @@ namespace ValveResourceFormat.CompiledShader
 
             public void PrintTabulatedValues(int spacing = 2)
             {
-                List<string> tabbedRows = BuildTabulatedRows(spacing);
+                var tabbedRows = BuildTabulatedRows(spacing);
                 foreach (var row in tabbedRows)
                 {
                     WriteLine(row);

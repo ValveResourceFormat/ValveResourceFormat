@@ -436,13 +436,13 @@ namespace GUI
 
         private void OnAboutItemClick(object sender, EventArgs e)
         {
-            var form = new AboutForm();
+            using var form = new AboutForm();
             form.ShowDialog(this);
         }
 
         private void OnSettingsItemClick(object sender, EventArgs e)
         {
-            var form = new SettingsForm();
+            using var form = new SettingsForm();
             form.ShowDialog(this);
         }
 

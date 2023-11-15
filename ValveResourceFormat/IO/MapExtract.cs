@@ -94,12 +94,7 @@ public sealed class MapExtract
         LumpFolder = mapRoot + "/" + mapName;
 
         var vmapPath = LumpFolder + ".vmap_c";
-        var vmapResource = FileLoader.LoadFile(vmapPath);
-        if (vmapResource is null)
-        {
-            throw new FileNotFoundException($"Failed to find vmap_c resource at {vmapPath}");
-        }
-
+        var vmapResource = FileLoader.LoadFile(vmapPath) ?? throw new FileNotFoundException($"Failed to find vmap_c resource at {vmapPath}");
         InitMapExtract(vmapResource);
     }
 
@@ -117,13 +112,7 @@ public sealed class MapExtract
 
         var worldPath = Path.Combine(LumpFolder, "world.vwrld_c");
         FolderExtractFilter.Add(worldPath);
-        using var worldResource = FileLoader.LoadFile(worldPath);
-
-        if (worldResource == null)
-        {
-            throw new FileNotFoundException($"Failed to find world resource, which is required for vmap_c extract, at {worldPath}");
-        }
-
+        using var worldResource = FileLoader.LoadFile(worldPath) ?? throw new FileNotFoundException($"Failed to find world resource, which is required for vmap_c extract, at {worldPath}");
         InitWorldExtract(worldResource);
     }
 

@@ -43,18 +43,18 @@ namespace ValveResourceFormat.TextureDecoders
             using var pixels = res.PeekPixels();
             var output = pixels.GetPixelSpan<byte>();
 
-            int bcw = (width + 3) / 4;
-            int bch = (height + 3) / 4;
-            int clen_last = (width + 3) % 4 + 1;
-            int d = 0;
+            var bcw = (width + 3) / 4;
+            var bch = (height + 3) / 4;
+            var clen_last = (width + 3) % 4 + 1;
+            var d = 0;
 
-            for (int t = 0; t < bch; t++)
+            for (var t = 0; t < bch; t++)
             {
-                for (int s = 0; s < bcw; s++, d += 16)
+                for (var s = 0; s < bcw; s++, d += 16)
                 {
                     DecodeEtc2Block(input.Slice(d + 8, 8));
                     DecodeEtc2a8Block(input.Slice(d, 8));
-                    int clen = (s < bcw - 1 ? 4 : clen_last) * 4;
+                    var clen = (s < bcw - 1 ? 4 : clen_last) * 4;
                     for (int i = 0, y = t * 4; i < 4 && y < height; i++, y++)
                     {
                         // TODO: This is rather silly
@@ -70,12 +70,12 @@ namespace ValveResourceFormat.TextureDecoders
         {
             int @base = block[0];
             int data1 = block[1];
-            int mul = data1 >> 4;
+            var mul = data1 >> 4;
             if (mul == 0)
             {
-                for (int i = 0; i < 16; i++)
+                for (var i = 0; i < 16; i++)
                 {
-                    uint c = m_buf[WriteOrderTableRev[i]];
+                    var c = m_buf[WriteOrderTableRev[i]];
                     c &= 0x00FFFFFF;
                     c |= unchecked((uint)(@base << 24));
                     m_buf[WriteOrderTableRev[i]] = c;
@@ -83,11 +83,11 @@ namespace ValveResourceFormat.TextureDecoders
             }
             else
             {
-                int table = data1 & 0xF;
-                ulong l = Get6SwapedBytes(block);
-                for (int i = 0; i < 16; i++, l >>= 3)
+                var table = data1 & 0xF;
+                var l = Get6SwapedBytes(block);
+                for (var i = 0; i < 16; i++, l >>= 3)
                 {
-                    uint c = m_buf[WriteOrderTableRev[i]];
+                    var c = m_buf[WriteOrderTableRev[i]];
                     c &= 0x00FFFFFF;
                     c |= unchecked((uint)(Clamp255(@base + mul * Etc2AlphaModTable[table, l & 7]) << 24));
                     m_buf[WriteOrderTableRev[i]] = c;

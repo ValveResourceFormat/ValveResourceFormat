@@ -32,17 +32,17 @@ namespace ValveResourceFormat.TextureDecoders
 
         protected void DecodeEtc2Block(Span<byte> block)
         {
-            ushort j = (ushort)(block[6] << 8 | block[7]);
-            ushort k = (ushort)(block[4] << 8 | block[5]);
+            var j = (ushort)(block[6] << 8 | block[7]);
+            var k = (ushort)(block[4] << 8 | block[5]);
 
             if ((block[3] & 2) != 0)
             {
-                byte r = (byte)(block[0] & 0xf8);
-                short dr = (short)((block[0] << 3 & 0x18) - (block[0] << 3 & 0x20));
-                byte g = (byte)(block[1] & 0xf8);
-                short dg = (short)((block[1] << 3 & 0x18) - (block[1] << 3 & 0x20));
-                byte b = (byte)(block[2] & 0xf8);
-                short db = (short)((block[2] << 3 & 0x18) - (block[2] << 3 & 0x20));
+                var r = (byte)(block[0] & 0xf8);
+                var dr = (short)((block[0] << 3 & 0x18) - (block[0] << 3 & 0x20));
+                var g = (byte)(block[1] & 0xf8);
+                var dg = (short)((block[1] << 3 & 0x18) - (block[1] << 3 & 0x20));
+                var b = (byte)(block[2] & 0xf8);
+                var db = (short)((block[2] << 3 & 0x18) - (block[2] << 3 & 0x20));
                 if (r + dr < 0 || r + dr > 255)
                 {
                     // T
@@ -55,7 +55,7 @@ namespace ValveResourceFormat.TextureDecoders
                         m_c[1, 1] = (byte)(block[2] & 0x0f | block[2] << 4);
                         m_c[1, 2] = (byte)(block[3] & 0xf0 | block[3] >> 4);
                     }
-                    byte d = Etc2DistanceTable[block[3] >> 1 & 6 | block[3] & 1];
+                    var d = Etc2DistanceTable[block[3] >> 1 & 6 | block[3] & 1];
                     uint[] color_set =
                     [
                         ApplicateColorRaw(m_c, 0),
@@ -63,7 +63,7 @@ namespace ValveResourceFormat.TextureDecoders
                         ApplicateColorRaw(m_c, 1),
                         ApplicateColor(m_c, 1, -d)
                     ];
-                    for (int i = 0; i < 16; i++, j >>= 1, k >>= 1)
+                    for (var i = 0; i < 16; i++, j >>= 1, k >>= 1)
                     {
                         m_buf[WriteOrderTable[i]] = color_set[k << 1 & 2 | j & 1];
                     }
@@ -83,12 +83,12 @@ namespace ValveResourceFormat.TextureDecoders
                         m_c[1, 1] |= (byte)(m_c[1, 1] >> 4);
                         m_c[1, 2] = (byte)(block[3] << 1 & 0xf0 | block[3] >> 3 & 0xf);
                     }
-                    int di = block[3] & 4 | block[3] << 1 & 2;
+                    var di = block[3] & 4 | block[3] << 1 & 2;
                     if (m_c[0, 0] > m_c[1, 0] || (m_c[0, 0] == m_c[1, 0] && (m_c[0, 1] > m_c[1, 1] || (m_c[0, 1] == m_c[1, 1] && m_c[0, 2] >= m_c[1, 2]))))
                     {
                         ++di;
                     }
-                    byte d = Etc2DistanceTable[di];
+                    var d = Etc2DistanceTable[di];
                     uint[] color_set =
                     [
                         ApplicateColor(m_c, 0, d),
@@ -96,7 +96,7 @@ namespace ValveResourceFormat.TextureDecoders
                         ApplicateColor(m_c, 1, d),
                         ApplicateColor(m_c, 1, -d)
                     ];
-                    for (int i = 0; i < 16; i++, j >>= 1, k >>= 1)
+                    for (var i = 0; i < 16; i++, j >>= 1, k >>= 1)
                     {
                         m_buf[WriteOrderTable[i]] = color_set[k << 1 & 2 | j & 1];
                     }
@@ -120,11 +120,11 @@ namespace ValveResourceFormat.TextureDecoders
                     }
                     for (int y = 0, i = 0; y < 4; y++)
                     {
-                        for (int x = 0; x < 4; x++, i++)
+                        for (var x = 0; x < 4; x++, i++)
                         {
-                            int ri = Clamp255((x * (m_c[1, 0] - m_c[0, 0]) + y * (m_c[2, 0] - m_c[0, 0]) + 4 * m_c[0, 0] + 2) >> 2);
-                            int gi = Clamp255((x * (m_c[1, 1] - m_c[0, 1]) + y * (m_c[2, 1] - m_c[0, 1]) + 4 * m_c[0, 1] + 2) >> 2);
-                            int bi = Clamp255((x * (m_c[1, 2] - m_c[0, 2]) + y * (m_c[2, 2] - m_c[0, 2]) + 4 * m_c[0, 2] + 2) >> 2);
+                            var ri = Clamp255((x * (m_c[1, 0] - m_c[0, 0]) + y * (m_c[2, 0] - m_c[0, 0]) + 4 * m_c[0, 0] + 2) >> 2);
+                            var gi = Clamp255((x * (m_c[1, 1] - m_c[0, 1]) + y * (m_c[2, 1] - m_c[0, 1]) + 4 * m_c[0, 1] + 2) >> 2);
+                            var bi = Clamp255((x * (m_c[1, 2] - m_c[0, 2]) + y * (m_c[2, 2] - m_c[0, 2]) + 4 * m_c[0, 2] + 2) >> 2);
                             m_buf[i] = Color(ri, gi, bi, 255);
                         }
                     }
@@ -133,7 +133,7 @@ namespace ValveResourceFormat.TextureDecoders
                 {
                     // differential
                     byte[] code = [(byte)(block[3] >> 5), (byte)(block[3] >> 2 & 7)];
-                    int ti = block[3] & 1;
+                    var ti = block[3] & 1;
                     unchecked
                     {
                         m_c[0, 0] = (byte)(r | r >> 5);
@@ -146,11 +146,11 @@ namespace ValveResourceFormat.TextureDecoders
                         m_c[1, 1] |= (byte)(m_c[1, 1] >> 5);
                         m_c[1, 2] |= (byte)(m_c[1, 2] >> 5);
                     }
-                    for (int i = 0; i < 16; i++, j >>= 1, k >>= 1)
+                    for (var i = 0; i < 16; i++, j >>= 1, k >>= 1)
                     {
-                        byte s = Etc1SubblockTable[ti, i];
-                        int index = k << 1 & 2 | j & 1;
-                        int m = Etc1ModifierTable[code[s], index];
+                        var s = Etc1SubblockTable[ti, i];
+                        var index = k << 1 & 2 | j & 1;
+                        var m = Etc1ModifierTable[code[s], index];
                         m_buf[WriteOrderTable[i]] = ApplicateColor(m_c, s, m);
                     }
                 }
@@ -159,7 +159,7 @@ namespace ValveResourceFormat.TextureDecoders
             {
                 // individual
                 byte[] code = [(byte)(block[3] >> 5), (byte)(block[3] >> 2 & 7)];
-                int ti = block[3] & 1;
+                var ti = block[3] & 1;
                 unchecked
                 {
                     m_c[0, 0] = (byte)(block[0] & 0xf0 | block[0] >> 4);
@@ -169,11 +169,11 @@ namespace ValveResourceFormat.TextureDecoders
                     m_c[0, 2] = (byte)(block[2] & 0xf0 | block[2] >> 4);
                     m_c[1, 2] = (byte)(block[2] & 0x0f | block[2] << 4);
                 }
-                for (int i = 0; i < 16; i++, j >>= 1, k >>= 1)
+                for (var i = 0; i < 16; i++, j >>= 1, k >>= 1)
                 {
-                    byte s = Etc1SubblockTable[ti, i];
-                    int index = k << 1 & 2 | j & 1;
-                    int m = Etc1ModifierTable[code[s], index];
+                    var s = Etc1SubblockTable[ti, i];
+                    var index = k << 1 & 2 | j & 1;
+                    var m = Etc1ModifierTable[code[s], index];
                     m_buf[WriteOrderTable[i]] = ApplicateColor(m_c, s, m);
                 }
             }

@@ -165,10 +165,7 @@ namespace GUI.Controls
         {
             var selectionControl = new GLViewerMultiSelectionControl(name);
 
-            if (initializeCallback != null)
-            {
-                initializeCallback(selectionControl.CheckedListBox);
-            }
+            initializeCallback?.Invoke(selectionControl.CheckedListBox);
 
             controlsPanel.Controls.Add(selectionControl);
 

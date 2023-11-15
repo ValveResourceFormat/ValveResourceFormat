@@ -224,3 +224,6 @@ csharp_style_prefer_tuple_swap = false:suggestion
 dotnet_naming_rule.interface_should_be_begins_with_i.severity = silent
 dotnet_naming_rule.types_should_be_pascal_case.severity = silent
 dotnet_naming_rule.non_field_members_should_be_pascal_case.severity = silent
+
+# IDE1006: Naming Styles
+dotnet_diagnostic.IDE1006.severity = none

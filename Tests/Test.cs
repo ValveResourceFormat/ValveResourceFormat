@@ -11,7 +11,7 @@ using ValveResourceFormat.Utils;
 namespace Tests
 {
     [TestFixture]
-    public class Test
+    public partial class Test
     {
         // TODO: Add asserts for blocks/resources that were skipped
 
@@ -123,8 +123,8 @@ namespace Tests
                 var expectedOutput = File.ReadAllText(file);
 
                 // We don't care about Valve's messy whitespace, so just strip it.
-                actualOutput = Regex.Replace(actualOutput, @"\s+", string.Empty);
-                expectedOutput = Regex.Replace(expectedOutput, @"\s+", string.Empty);
+                actualOutput = SpaceRegex().Replace(actualOutput, string.Empty);
+                expectedOutput = SpaceRegex().Replace(expectedOutput, string.Empty);
 
                 //Assert.AreEqual(expectedOutput, actualOutput);
                 if (expectedOutput != actualOutput)
@@ -160,5 +160,8 @@ namespace Tests
 
             Assert.That(ex.Message, Does.Contain("Use ValvePak"));
         }
+
+        [GeneratedRegex(@"\s+")]
+        private static partial Regex SpaceRegex();
     }
 }

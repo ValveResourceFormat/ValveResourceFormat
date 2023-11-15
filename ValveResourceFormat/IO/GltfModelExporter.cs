@@ -878,7 +878,7 @@ namespace ValveResourceFormat.IO
                         );
                         var defaultWeights = Enumerable.Repeat(baseWeights, jointAccessor.Count).ToList();
 
-                        BufferView bufferView = exportedModel.CreateBufferView(16 * defaultWeights.Count, 0, BufferMode.ARRAY_BUFFER);
+                        var bufferView = exportedModel.CreateBufferView(16 * defaultWeights.Count, 0, BufferMode.ARRAY_BUFFER);
                         new Vector4Array(bufferView.Content).Fill(defaultWeights);
                         weightsAccessor = exportedModel.CreateAccessor();
                         weightsAccessor.SetVertexData(bufferView, 0, defaultWeights.Count, DimensionType.VEC4);

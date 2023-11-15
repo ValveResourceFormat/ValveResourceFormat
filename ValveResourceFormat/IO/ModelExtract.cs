@@ -682,8 +682,10 @@ public class ModelExtract
 
         foreach (var bone in skeleton.Bones)
         {
-            var dag = new DmeDag();
-            dag.Name = bone.Name;
+            var dag = new DmeDag
+            {
+                Name = bone.Name
+            };
 
             dag.Transform.Name = bone.Name;
             dag.Transform.Position = bone.Position;
@@ -712,11 +714,13 @@ public class ModelExtract
 
     private static DmeChannel BuildDmeChannel<T>(string name, DmeTransform transform, string toAttribute, out DmeLog<T> log)
     {
-        var channel = new DmeChannel();
-        channel.Name = name;
-        channel.ToElement = transform;
-        channel.ToAttribute = toAttribute;
-        channel.Mode = 3;
+        var channel = new DmeChannel
+        {
+            Name = name,
+            ToElement = transform,
+            ToAttribute = toAttribute,
+            Mode = 3
+        };
 
         log = [];
         var logLayer = new DmeLogLayer<T>();
@@ -750,11 +754,13 @@ public class ModelExtract
         clip.TimeFrame.Duration = TimeSpan.FromSeconds((double)(anim.FrameCount - 1) / anim.Fps);
         clip.FrameRate = anim.Fps;
 
-        Frame[] frames = new Frame[anim.FrameCount];
-        for (int i = 0; i < anim.FrameCount; i++)
+        var frames = new Frame[anim.FrameCount];
+        for (var i = 0; i < anim.FrameCount; i++)
         {
-            Frame frame = new Frame(model.Skeleton);
-            frame.FrameIndex = i;
+            var frame = new Frame(model.Skeleton)
+            {
+                FrameIndex = i
+            };
             anim.DecodeFrame(frame);
             frames[i] = frame;
         }
@@ -772,11 +778,11 @@ public class ModelExtract
             positionLogLayer.LayerValues = new Vector3[anim.FrameCount];
             orientationLogLayer.LayerValues = new Quaternion[anim.FrameCount];
 
-            for (int i = 0; i < anim.FrameCount; i++)
+            for (var i = 0; i < anim.FrameCount; i++)
             {
-                Frame frame = frames[i];
+                var frame = frames[i];
 
-                TimeSpan time = TimeSpan.FromSeconds((double)i / anim.Fps);
+                var time = TimeSpan.FromSeconds((double)i / anim.Fps);
 
                 ProcessBoneFrameForDmeChannel(bone, frame, time, positionLogLayer, orientationLogLayer);
             }

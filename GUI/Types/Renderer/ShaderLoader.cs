@@ -56,7 +56,7 @@ namespace GUI.Types.Renderer
                 }
             }
 
-            int shaderProgram = -1;
+            var shaderProgram = -1;
 
             try
             {

@@ -457,7 +457,7 @@ namespace GUI.Types.Viewers
                     var cubemapBitmap = new SKBitmap(tex.ActualWidth * 4, tex.ActualHeight * 3, SKColorType.Bgra8888, SKAlphaType.Unpremul);
                     using var cubemapCanvas = new SKCanvas(cubemapBitmap);
 
-                    for (int face = 0; face < 6; face++)
+                    for (var face = 0; face < 6; face++)
                     {
                         using var faceBitmap = tex.GenerateBitmap(depth: i, face: (Texture.CubemapFace)face);
 

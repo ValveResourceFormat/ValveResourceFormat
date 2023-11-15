@@ -214,7 +214,7 @@ namespace Decompiler
                         return 1;
                     }
 
-                    var vpkRegex = new Regex(@"_[0-9]{3}\.vpk$");
+                    var vpkRegex = VpkArchiveIndexRegex();
                     var vpks = Directory
                         .EnumerateFiles(InputFile, "*.vpk", SearchOption.AllDirectories)
                         .Where(s => !vpkRegex.IsMatch(s));
@@ -1210,5 +1210,8 @@ namespace Decompiler
             info.Append("GitHub: https://github.com/ValveResourceFormat/ValveResourceFormat");
             return info.ToString();
         }
+
+        [GeneratedRegex(@"_[0-9]{3}\.vpk$")]
+        private static partial Regex VpkArchiveIndexRegex();
     }
 }

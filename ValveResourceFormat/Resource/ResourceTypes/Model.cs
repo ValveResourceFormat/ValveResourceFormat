@@ -14,10 +14,7 @@ namespace ValveResourceFormat.ResourceTypes
         {
             get
             {
-                if (cachedSkeleton == null)
-                {
-                    cachedSkeleton = Skeleton.FromModelData(Data, filterBonesUsedByLod0: false);
-                }
+                cachedSkeleton ??= Skeleton.FromModelData(Data, filterBonesUsedByLod0: false);
                 return cachedSkeleton;
             }
         }

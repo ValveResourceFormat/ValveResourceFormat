@@ -40,7 +40,7 @@ namespace ValveResourceFormat.Utils
         }
 
         public static void Assert<T>(bool condition, T actualMagic,
-            [CallerArgumentExpression("condition")] string conditionExpression = null)
+            [CallerArgumentExpression(nameof(condition))] string conditionExpression = null)
         {
             if (!condition)
             {

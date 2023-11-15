@@ -162,10 +162,7 @@ namespace GUI.Types.Renderer
         {
             Scene.CalculateEnvironmentMaps();
 
-            if (SkyboxScene != null)
-            {
-                SkyboxScene.CalculateEnvironmentMaps();
-            }
+            SkyboxScene?.CalculateEnvironmentMaps();
 
             if (Scene.AllNodes.Any() && this is not GLWorldViewer)
             {

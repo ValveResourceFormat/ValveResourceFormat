@@ -458,8 +458,10 @@ namespace GUI.Types.ParticleRenderer
                 }
 
                 var childSystemDefinition = (ParticleSystem)childResource.DataBlock;
-                var childSystem = new ParticleRenderer(childSystemDefinition, vrfGuiContext);
-                childSystem.MainControlPoint = MainControlPoint;
+                var childSystem = new ParticleRenderer(childSystemDefinition, vrfGuiContext)
+                {
+                    MainControlPoint = MainControlPoint
+                };
 
                 childParticleRenderers.Add(childSystem);
             }

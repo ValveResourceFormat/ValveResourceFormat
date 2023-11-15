@@ -775,11 +775,11 @@ namespace ValveResourceFormat.Blocks
                             switch (formatElementSize)
                             {
                                 case 4:
-                                    BitConverter.TryWriteBytes(bufSpan.Slice(i + j),
+                                    BitConverter.TryWriteBytes(bufSpan[(i + j)..],
                                         remapTable[Math.Min(BitConverter.ToUInt32(buf.Data, i + j), maxRemapTableIdx)]);
                                     break;
                                 case 2:
-                                    BitConverter.TryWriteBytes(bufSpan.Slice(i + j),
+                                    BitConverter.TryWriteBytes(bufSpan[(i + j)..],
                                         (short)remapTable[Math.Min(BitConverter.ToUInt16(buf.Data, i + j), maxRemapTableIdx)]);
                                     break;
                                 case 1:
