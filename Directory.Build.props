@@ -9,6 +9,7 @@
     <FileVersion>$(ProjectVersion)</FileVersion>
     <Version>$(ProjectVersion)</Version>
   </PropertyGroup>
+
   <PropertyGroup>
     <Deterministic>true</Deterministic>
     <DebugSymbols>true</DebugSymbols>
@@ -19,8 +20,9 @@
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <AnalysisMode>AllEnabledByDefault</AnalysisMode>
-    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <Configurations>Debug;Release;DebugFast</Configurations>
   </PropertyGroup>
+
   <PropertyGroup>
     <Authors>ValveResourceFormat Contributors</Authors>
     <Copyright>Copyright © ValveResourceFormat Contributors</Copyright>
@@ -28,5 +30,12 @@
     <RepositoryType>git</RepositoryType>
     <PackageProjectUrl>https://valveresourceformat.github.io/</PackageProjectUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
+  </PropertyGroup>
+
+  <!-- Default configuration for fast-debugging builds -->
+  <PropertyGroup Condition="'$(Configuration)' == 'DebugFast'">
+    <AnalysisMode>AllDisabledByDefault</AnalysisMode>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <DefineConstants>$(DefineConstants);DEBUG</DefineConstants>
   </PropertyGroup>
 </Project>
