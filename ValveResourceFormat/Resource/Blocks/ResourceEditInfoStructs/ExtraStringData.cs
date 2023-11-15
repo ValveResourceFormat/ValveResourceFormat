@@ -19,7 +19,7 @@ namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
                 writer.Indent++;
                 writer.WriteLine("CResourceString m_Name = \"{0}\"", Name);
 
-                var lines = Value.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
+                var lines = Value.Split(["\r\n", "\n"], StringSplitOptions.None);
 
                 if (lines.Length > 1)
                 {
@@ -50,7 +50,7 @@ namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
 
         public ExtraStringData()
         {
-            List = new List<EditStringData>();
+            List = [];
         }
 
         public override void Read(BinaryReader reader, Resource resource)

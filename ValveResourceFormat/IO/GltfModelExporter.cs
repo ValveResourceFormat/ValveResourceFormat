@@ -48,8 +48,8 @@ namespace ValveResourceFormat.IO
 
         private string DstDir;
         private CancellationToken CancellationToken;
-        private readonly List<Task> MaterialGenerationTasks = new();
-        private readonly Dictionary<string, Task<SharpGLTF.Schema2.Texture>> ExportedTextures = new();
+        private readonly List<Task> MaterialGenerationTasks = [];
+        private readonly Dictionary<string, Task<SharpGLTF.Schema2.Texture>> ExportedTextures = [];
         private readonly object TextureWriteSynchronizationLock = new(); // TODO: Use SemaphoreSlim?
         private TextureSampler TextureSampler;
         private int TexturesExportedSoFar;
@@ -57,7 +57,7 @@ namespace ValveResourceFormat.IO
 
         // In SatelliteImages mode, SharpGLTF will still load and validate images.
         // To save memory, we initiate MemoryImage with a a dummy image instead.
-        private readonly byte[] dummyPng = new byte[] { 137, 80, 78, 71, 0, 0, 0, 0, 0, 0, 0, 0 };
+        private readonly byte[] dummyPng = [137, 80, 78, 71, 0, 0, 0, 0, 0, 0, 0, 0];
 
         public GltfModelExporter(IFileLoader fileLoader)
         {
@@ -286,7 +286,7 @@ namespace ValveResourceFormat.IO
             WriteModelFile(exportedModel, fileName);
         }
 
-        private IList<(VModel Model, string ModelName, Matrix4x4 Transform)> LoadWorldNodeModels(VWorldNode worldNode)
+        private List<(VModel Model, string ModelName, Matrix4x4 Transform)> LoadWorldNodeModels(VWorldNode worldNode)
         {
             var models = new List<(VModel, string, Matrix4x4)>();
             foreach (var sceneObject in worldNode.SceneObjects)
@@ -641,7 +641,7 @@ namespace ValveResourceFormat.IO
             if (MaterialGenerationTasks.Count > 0)
             {
                 ProgressReporter?.Report("Waiting for materials to finish exporting...");
-                Task.WaitAll(MaterialGenerationTasks.ToArray(), CancellationToken);
+                Task.WaitAll([.. MaterialGenerationTasks], CancellationToken);
             }
 
             ProgressReporter?.Report($"Writing model to file '{Path.GetFileName(filePath)}'...");
@@ -878,7 +878,7 @@ namespace ValveResourceFormat.IO
                         );
                         var defaultWeights = Enumerable.Repeat(baseWeights, jointAccessor.Count).ToList();
 
-                        BufferView bufferView = exportedModel.CreateBufferView(16 * defaultWeights.Count, 0, BufferMode.ARRAY_BUFFER);
+                        var bufferView = exportedModel.CreateBufferView(16 * defaultWeights.Count, 0, BufferMode.ARRAY_BUFFER);
                         new Vector4Array(bufferView.Content).Fill(defaultWeights);
                         weightsAccessor = exportedModel.CreateAccessor();
                         weightsAccessor.SetVertexData(bufferView, 0, defaultWeights.Count, DimensionType.VEC4);

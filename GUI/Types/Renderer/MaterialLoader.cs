@@ -17,8 +17,8 @@ namespace GUI.Types.Renderer
 {
     class MaterialLoader
     {
-        private readonly Dictionary<ulong, RenderMaterial> Materials = new();
-        private readonly Dictionary<string, RenderTexture> Textures = new();
+        private readonly Dictionary<ulong, RenderMaterial> Materials = [];
+        private readonly Dictionary<string, RenderTexture> Textures = [];
         private readonly VrfGuiContext VrfGuiContext;
         private RenderTexture ErrorTexture;
         private RenderTexture DefaultNormal;
@@ -28,11 +28,11 @@ namespace GUI.Types.Renderer
 
         private readonly Dictionary<string, string[]> TextureAliases = new()
         {
-            ["g_tLayer2Color"] = new[] { "g_tColorB" },
-            ["g_tColor"] = new[] { "g_tColor2", "g_tColor1", "g_tColorA", "g_tColorB", "g_tColorC", "g_tGlassDust" },
-            ["g_tNormal"] = new[] { "g_tNormalA", "g_tNormalRoughness", "g_tLayer1NormalRoughness" },
-            ["g_tLayer2NormalRoughness"] = new[] { "g_tNormalB" },
-            ["g_tAmbientOcclusion"] = new[] { "g_tLayer1AmbientOcclusion" },
+            ["g_tLayer2Color"] = ["g_tColorB"],
+            ["g_tColor"] = ["g_tColor2", "g_tColor1", "g_tColorA", "g_tColorB", "g_tColorC", "g_tGlassDust"],
+            ["g_tNormal"] = ["g_tNormalA", "g_tNormalRoughness", "g_tLayer1NormalRoughness"],
+            ["g_tLayer2NormalRoughness"] = ["g_tNormalB"],
+            ["g_tAmbientOcclusion"] = ["g_tLayer1AmbientOcclusion"],
         };
 
         public MaterialLoader(VrfGuiContext guiContext)
@@ -380,7 +380,7 @@ namespace GUI.Types.Renderer
         }
 
         static readonly string[] NonMaterialUniforms =
-        {
+        [
             "g_flTime",
             "g_vCameraPositionWs",
             "g_vLightmapUvScale",
@@ -391,7 +391,7 @@ namespace GUI.Types.Renderer
             "g_vCubeFog_Offset_Scale_Bias_Exponent",
             "g_vCubeFog_Height_Offset_Scale_Exponent_Log2Mip",
             "g_vCubeFogCullingParams_ExposureBias_MaxOpacity",
-        };
+        ];
 
         static readonly string[] ReservedTextures = Enum.GetNames<ReservedTextureSlots>();
 
@@ -510,7 +510,7 @@ namespace GUI.Types.Renderer
         }
 
         public static RenderTexture CreateSolidTexture(float r, float g, float b)
-            => GenerateColorTexture(1, 1, new[] { r, g, b, 1f });
+            => GenerateColorTexture(1, 1, [r, g, b, 1f]);
 
         public RenderTexture GetDefaultNormal()
         {

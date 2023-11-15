@@ -35,7 +35,7 @@ namespace GUI.Types.Renderer
         protected UniformBuffer<ViewConstants> viewBuffer;
         private UniformBuffer<LightingConstants> lightingBuffer;
         public IReadOnlyList<IBlockBindableBuffer> Buffers { get; private set; }
-        public Dictionary<(ReservedTextureSlots, string), RenderTexture> Textures { get; } = new();
+        public Dictionary<(ReservedTextureSlots, string), RenderTexture> Textures { get; } = [];
 
         private bool skipRenderModeChange;
         private ComboBox renderModeComboBox;
@@ -162,10 +162,7 @@ namespace GUI.Types.Renderer
         {
             Scene.CalculateEnvironmentMaps();
 
-            if (SkyboxScene != null)
-            {
-                SkyboxScene.CalculateEnvironmentMaps();
-            }
+            SkyboxScene?.CalculateEnvironmentMaps();
 
             if (Scene.AllNodes.Any() && this is not GLWorldViewer)
             {

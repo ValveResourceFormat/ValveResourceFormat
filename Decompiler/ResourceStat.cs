@@ -17,7 +17,7 @@ namespace Decompiler
             Version = resource.Version;
             Count = 1;
             Info = info;
-            FilePaths = new List<string>() { filePath };
+            FilePaths = [filePath];
         }
 
         public ResourceStat(string info, string filePath)
@@ -26,7 +26,7 @@ namespace Decompiler
             Version = 0;
             Count = 1;
             Info = info;
-            FilePaths = new List<string>() { filePath };
+            FilePaths = [filePath];
         }
     }
 }

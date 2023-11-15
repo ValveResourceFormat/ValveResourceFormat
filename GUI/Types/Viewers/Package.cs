@@ -117,7 +117,7 @@ namespace GUI.Types.Viewers
                             DirectoryName = DELETED_FILES_FOLDER,
                             TypeName = " ",
                             CRC32 = 0,
-                            SmallData = Array.Empty<byte>(),
+                            SmallData = [],
                             ArchiveIndex = archiveIndex,
                             Offset = offset,
                             Length = length,
@@ -207,7 +207,7 @@ namespace GUI.Types.Viewers
 
                         if (!package.Entries.TryGetValue(newEntry.TypeName, out var typeEntries))
                         {
-                            typeEntries = new List<PackageEntry>();
+                            typeEntries = [];
                             package.Entries.Add(newEntry.TypeName, typeEntries);
                         }
 
@@ -216,7 +216,7 @@ namespace GUI.Types.Viewers
 
                         if (hiddenFiles.Count % 100 == 0)
                         {
-                            setProgress($"Scanning for deleted files, this may take a while… Found {hiddenFiles.Count} files ({totalSlackSize.ToFileSizeString()}) so far…");
+                            setProgress($"Scanning for deleted files, this may take a while… Found {hiddenFiles.Count} files ({HumanReadableByteSizeFormatter.Format(totalSlackSize)}) so far…");
                         }
                     }
                 }
@@ -253,7 +253,7 @@ namespace GUI.Types.Viewers
                 }
             }
 
-            Log.Info(nameof(Package), $"Found {hiddenIndex} deleted files totaling {totalSlackSize.ToFileSizeString()}");
+            Log.Info(nameof(Package), $"Found {hiddenIndex} deleted files totaling {HumanReadableByteSizeFormatter.Format(totalSlackSize)}");
 
             return hiddenFiles;
         }

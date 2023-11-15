@@ -29,12 +29,12 @@ public class ModelExtract
     private readonly IFileLoader fileLoader;
     private readonly string fileName;
 
-    public List<(Mesh Mesh, string FileName)> RenderMeshesToExtract { get; } = new();
-    public Dictionary<string, IKeyValueCollection> MaterialInputSignatures { get; } = new();
+    public List<(Mesh Mesh, string FileName)> RenderMeshesToExtract { get; } = [];
+    public Dictionary<string, IKeyValueCollection> MaterialInputSignatures { get; } = [];
 
-    public List<(HullDescriptor Hull, string FileName)> PhysHullsToExtract { get; } = new();
-    public List<(MeshDescriptor Mesh, string FileName)> PhysMeshesToExtract { get; } = new();
-    public List<(Animation Anim, string FileName)> AnimationsToExtract { get; } = new();
+    public List<(HullDescriptor Hull, string FileName)> PhysHullsToExtract { get; } = [];
+    public List<(MeshDescriptor Mesh, string FileName)> PhysMeshesToExtract { get; } = [];
+    public List<(Animation Anim, string FileName)> AnimationsToExtract { get; } = [];
 
     public string[] PhysicsSurfaceNames { get; private set; }
     public HashSet<string>[] PhysicsCollisionTags { get; private set; }
@@ -50,7 +50,7 @@ public class ModelExtract
         public bool Equals(SurfaceTagCombo other) => GetHashCode() == other.GetHashCode();
     }
 
-    public HashSet<SurfaceTagCombo> SurfaceTagCombos { get; } = new();
+    public HashSet<SurfaceTagCombo> SurfaceTagCombos { get; } = [];
 
     public enum ModelExtractType
     {
@@ -254,7 +254,7 @@ public class ModelExtract
             }
         }
 
-        if (PhysHullsToExtract.Any() || PhysMeshesToExtract.Any())
+        if (PhysHullsToExtract.Count > 0 || PhysMeshesToExtract.Count > 0)
         {
             if (Type == ModelExtractType.Map_PhysicsToRenderMesh)
             {
@@ -682,8 +682,10 @@ public class ModelExtract
 
         foreach (var bone in skeleton.Bones)
         {
-            var dag = new DmeDag();
-            dag.Name = bone.Name;
+            var dag = new DmeDag
+            {
+                Name = bone.Name
+            };
 
             dag.Transform.Name = bone.Name;
             dag.Transform.Position = bone.Position;
@@ -712,13 +714,15 @@ public class ModelExtract
 
     private static DmeChannel BuildDmeChannel<T>(string name, DmeTransform transform, string toAttribute, out DmeLog<T> log)
     {
-        var channel = new DmeChannel();
-        channel.Name = name;
-        channel.ToElement = transform;
-        channel.ToAttribute = toAttribute;
-        channel.Mode = 3;
+        var channel = new DmeChannel
+        {
+            Name = name,
+            ToElement = transform,
+            ToAttribute = toAttribute,
+            Mode = 3
+        };
 
-        log = new DmeLog<T>();
+        log = [];
         var logLayer = new DmeLogLayer<T>();
 
         channel.Log = log;
@@ -750,11 +754,13 @@ public class ModelExtract
         clip.TimeFrame.Duration = TimeSpan.FromSeconds((double)(anim.FrameCount - 1) / anim.Fps);
         clip.FrameRate = anim.Fps;
 
-        Frame[] frames = new Frame[anim.FrameCount];
-        for (int i = 0; i < anim.FrameCount; i++)
+        var frames = new Frame[anim.FrameCount];
+        for (var i = 0; i < anim.FrameCount; i++)
         {
-            Frame frame = new Frame(model.Skeleton);
-            frame.FrameIndex = i;
+            var frame = new Frame(model.Skeleton)
+            {
+                FrameIndex = i
+            };
             anim.DecodeFrame(frame);
             frames[i] = frame;
         }
@@ -772,11 +778,11 @@ public class ModelExtract
             positionLogLayer.LayerValues = new Vector3[anim.FrameCount];
             orientationLogLayer.LayerValues = new Quaternion[anim.FrameCount];
 
-            for (int i = 0; i < anim.FrameCount; i++)
+            for (var i = 0; i < anim.FrameCount; i++)
             {
-                Frame frame = frames[i];
+                var frame = frames[i];
 
-                TimeSpan time = TimeSpan.FromSeconds((double)i / anim.Fps);
+                var time = TimeSpan.FromSeconds((double)i / anim.Fps);
 
                 ProcessBoneFrameForDmeChannel(bone, frame, time, positionLogLayer, orientationLogLayer);
             }
@@ -794,11 +800,11 @@ public class ModelExtract
                 });
 
                 var layerValue = positionLogLayer.LayerValues[0];
-                positionLogLayer.LayerValues = new Vector3[] {
+                positionLogLayer.LayerValues = [
                     layerValue,
                     layerValue + new Vector3(0, 0, 0.00001f),
                     layerValue,
-                };
+                ];
             }
             clip.Channels.Add(positionChannel);
             clip.Channels.Add(orientationChannel);

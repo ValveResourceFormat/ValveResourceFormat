@@ -2,7 +2,7 @@ using System.Numerics;
 
 namespace GUI.Types.Renderer
 {
-    internal struct AABB
+    internal readonly struct AABB
     {
         public readonly Vector3 Min;
         public readonly Vector3 Max;

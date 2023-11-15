@@ -256,18 +256,18 @@ public sealed class MaterialExtract
             "worldmappingheight"
         };
 
-        if (attributes.Any())
+        if (attributes.Count > 0)
         {
             // Some attributes are actually SystemAttributes
             var systemAttributes = attributes.Where(attribute => attributesThatAreSystemAttributes.Contains(attribute.Name.ToLowerInvariant())).ToList();
             attributes = attributes.Except(systemAttributes).ToList();
 
-            if (attributes.Any())
+            if (attributes.Count > 0)
             {
                 root.Add(new KVObject("Attributes", attributes));
             }
 
-            if (systemAttributes.Any())
+            if (systemAttributes.Count > 0)
             {
                 root.Add(new KVObject("SystemAttributes", systemAttributes));
             }
@@ -277,19 +277,19 @@ public sealed class MaterialExtract
 
         if (editInfo is ResourceEditInfo2 redi2)
         {
-            subrectDefinition = redi2.SearchableUserData.Where(x => x.Key.ToLowerInvariant() == "subrectdefinition").FirstOrDefault().Value as string;
+            subrectDefinition = redi2.SearchableUserData.Where(x => x.Key.Equals("subrectdefinition", StringComparison.OrdinalIgnoreCase)).FirstOrDefault().Value as string;
         }
         else if (editInfo is not null)
         {
             var extraStringData = (Blocks.ResourceEditInfoStructs.ExtraStringData)editInfo.Structs[ResourceEditInfo.REDIStruct.ExtraStringData];
-            subrectDefinition = extraStringData.List.Where(x => x.Name.ToLowerInvariant() == "subrectdefinition").FirstOrDefault()?.Value;
+            subrectDefinition = extraStringData.List.Where(x => x.Name.Equals("subrectdefinition", StringComparison.OrdinalIgnoreCase)).FirstOrDefault()?.Value;
         }
 
         if (subrectDefinition != null)
         {
             var toolattributes = new List<KVObject>()
                 {
-                    new KVObject("SubrectDefinition", subrectDefinition)
+                    new("SubrectDefinition", subrectDefinition)
                 };
 
             root.Add(new KVObject("ToolAttributes", toolattributes));
@@ -306,13 +306,13 @@ public sealed class MaterialExtract
     internal sealed class LayeredTextureNameComparer : IEqualityComparer<string>
     {
         public readonly HashSet<string> _unlayeredTextures;
-        public static readonly string[] layerNameConventions = new[]
-        {
+        public static readonly string[] layerNameConventions =
+        [
             "Texture{0}A", // hlvr
             "Texture{0}1", // cs2
             "Texture{0}0",
             "TextureLayer1{0}", // steamvr
-        };
+        ];
 
         public LayeredTextureNameComparer(HashSet<string> unlayeredTextures)
         {

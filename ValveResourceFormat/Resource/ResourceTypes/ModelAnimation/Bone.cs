@@ -7,7 +7,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
     {
         public int Index { get; }
         public Bone Parent { get; private set; }
-        public List<Bone> Children { get; } = new List<Bone>();
+        public List<Bone> Children { get; } = [];
 
         public string Name { get; }
 

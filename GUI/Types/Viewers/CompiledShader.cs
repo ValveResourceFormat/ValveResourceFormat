@@ -124,7 +124,7 @@ namespace GUI.Types.Viewers
 
         private static ShaderCollection GetShaderCollection(string targetFilename, VrfPackage vrfPackage)
         {
-            ShaderCollection shaderCollection = new();
+            ShaderCollection shaderCollection = [];
             if (vrfPackage != null)
             {
                 // search the package
@@ -230,7 +230,7 @@ namespace GUI.Types.Viewers
 #pragma warning restore CA2213
             private readonly ShaderCollection shaderCollection;
             private readonly ShaderTabControl tabControl;
-            private readonly List<string> relatedFiles = new();
+            private readonly List<string> relatedFiles = [];
             public ShaderRichTextBox(VcsProgramType leadProgramType, ShaderTabControl tabControl,
                 ShaderCollection shaderCollection, bool byteVersion = false) : base()
             {

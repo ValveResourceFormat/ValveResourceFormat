@@ -16,14 +16,14 @@ namespace GUI.Types.ParticleRenderer
 {
     internal class ParticleRenderer : IRenderer
     {
-        private readonly List<ParticleFunctionPreEmissionOperator> PreEmissionOperators = new();
-        private readonly List<ParticleFunctionEmitter> Emitters = new();
+        private readonly List<ParticleFunctionPreEmissionOperator> PreEmissionOperators = [];
+        private readonly List<ParticleFunctionEmitter> Emitters = [];
 
-        private readonly List<ParticleFunctionInitializer> Initializers = new();
+        private readonly List<ParticleFunctionInitializer> Initializers = [];
 
-        private readonly List<ParticleFunctionOperator> Operators = new();
+        private readonly List<ParticleFunctionOperator> Operators = [];
 
-        private readonly List<ParticleFunctionRenderer> Renderers = new();
+        private readonly List<ParticleFunctionRenderer> Renderers = [];
 
         public AABB LocalBoundingBox { get; private set; } = new AABB(new Vector3(float.MinValue), new Vector3(float.MaxValue));
 
@@ -66,7 +66,7 @@ namespace GUI.Types.ParticleRenderer
         {
             emitParticleAction = EmitParticle;
 
-            childParticleRenderers = new List<ParticleRenderer>();
+            childParticleRenderers = [];
             this.vrfGuiContext = vrfGuiContext;
 
             var parse = new ParticleDefinitionParser(particleSystem.Data);
@@ -458,8 +458,10 @@ namespace GUI.Types.ParticleRenderer
                 }
 
                 var childSystemDefinition = (ParticleSystem)childResource.DataBlock;
-                var childSystem = new ParticleRenderer(childSystemDefinition, vrfGuiContext);
-                childSystem.MainControlPoint = MainControlPoint;
+                var childSystem = new ParticleRenderer(childSystemDefinition, vrfGuiContext)
+                {
+                    MainControlPoint = MainControlPoint
+                };
 
                 childParticleRenderers.Add(childSystem);
             }

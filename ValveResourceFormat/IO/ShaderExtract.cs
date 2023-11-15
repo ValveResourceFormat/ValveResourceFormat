@@ -148,7 +148,7 @@ public sealed class ShaderExtract
     private string ToVFXInternal(ShaderExtractParams options)
     {
         Options = options;
-        IncludeWriters = new();
+        IncludeWriters = [];
         PreprocessCommon();
 
         return "//=================================================================================================\n"
@@ -678,10 +678,12 @@ public sealed class ShaderExtract
         {
             writer.WriteLine();
 
+#pragma warning disable CA1861 // Avoid constant arrays as arguments
             foreach (var line in variant0Source.ToString().Split(new string[] { "\n", "\r\n" }, StringSplitOptions.None))
             {
                 writer.WriteLine(line);
             }
+#pragma warning restore CA1861
 
             writer.WriteLine();
         }
@@ -1062,7 +1064,7 @@ public sealed class ShaderExtract
             return;
         }
 
-        VariantParameterNames = new HashSet<string>();
+        VariantParameterNames = [];
         var encountered = new HashSet<string>(paramBlocks.Count);
         foreach (var paramBlock in paramBlocks)
         {
@@ -1075,7 +1077,7 @@ public sealed class ShaderExtract
             encountered.Add(paramBlock.Name);
         }
 
-        VariantParameterIndices = new HashSet<int>();
+        VariantParameterIndices = [];
         foreach (var paramBlock in paramBlocks)
         {
             if (VariantParameterNames.Contains(paramBlock.Name))

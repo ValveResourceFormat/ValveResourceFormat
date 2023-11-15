@@ -9,17 +9,17 @@ namespace ValveResourceFormat.IO.ContentFormats.DmxModel;
 [CamelCaseProperties]
 internal class DmeModel : DMElement
 {
-    public DmeTransform Transform { get; set; } = new();
+    public DmeTransform Transform { get; set; } = [];
     public DMElement Shape { get; set; }
     public bool Visible { get; set; } = true;
-    public Datamodel.ElementArray Children { get; } = new();
-    public Datamodel.ElementArray JointList { get; set; } = new();
+    public Datamodel.ElementArray Children { get; } = [];
+    public Datamodel.ElementArray JointList { get; set; } = [];
 
     /// <summary>
     /// List of <see cref="DmeTransformsList"/> elements.
     /// </summary>
-    public Datamodel.ElementArray BaseStates { get; set; } = new();
-    public DmeAxisSystem AxisSystem { get; set; } = new();
+    public Datamodel.ElementArray BaseStates { get; set; } = [];
+    public DmeAxisSystem AxisSystem { get; set; } = [];
 }
 
 [CamelCaseProperties]
@@ -43,16 +43,16 @@ public class DmeTransformsList : DMElement
     /// <summary>
     /// List of <see cref="DmeTransform"/> elements.
     /// </summary>
-    public Datamodel.ElementArray Transforms { get; } = new();
+    public Datamodel.ElementArray Transforms { get; } = [];
 }
 
 [CamelCaseProperties]
 public class DmeDag : DMElement
 {
-    public DmeTransform Transform { get; } = new();
-    public DmeMesh Shape { get; } = new();
+    public DmeTransform Transform { get; } = [];
+    public DmeMesh Shape { get; } = [];
     public bool Visible { get; set; } = true;
-    public Datamodel.ElementArray Children { get; } = new();
+    public Datamodel.ElementArray Children { get; } = [];
 }
 
 [CamelCaseProperties]
@@ -61,17 +61,17 @@ public class DmeMesh : DMElement
     public bool Visible { get; set; } = true;
     public DMElement BindState { get; set; }
     public DMElement CurrentState { get; set; }
-    public Datamodel.ElementArray BaseStates { get; } = new();
-    public Datamodel.ElementArray DeltaStates { get; } = new();
-    public Datamodel.ElementArray FaceSets { get; } = new();
-    public Datamodel.Vector2Array DeltaStateWeights { get; } = new();
-    public Datamodel.Vector2Array DeltaStateWeightsLagged { get; } = new();
+    public Datamodel.ElementArray BaseStates { get; } = [];
+    public Datamodel.ElementArray DeltaStates { get; } = [];
+    public Datamodel.ElementArray FaceSets { get; } = [];
+    public Datamodel.Vector2Array DeltaStateWeights { get; } = [];
+    public Datamodel.Vector2Array DeltaStateWeightsLagged { get; } = [];
 }
 
 [CamelCaseProperties]
 public class DmeFaceSet : DMElement
 {
-    public Datamodel.IntArray Faces { get; } = new();
+    public Datamodel.IntArray Faces { get; } = [];
     public DmeMaterial Material { get; } = new() { Name = "material" };
 
     public class DmeMaterial : DMElement
@@ -84,7 +84,7 @@ public class DmeFaceSet : DMElement
 [CamelCaseProperties]
 public class DmeVertexData : DMElement
 {
-    public Datamodel.StringArray VertexFormat { get; } = new();
+    public Datamodel.StringArray VertexFormat { get; } = [];
     public int JointCount { get; set; }
     public bool FlipVCoordinates { get; set; }
 
@@ -105,19 +105,19 @@ public class DmeVertexData : DMElement
 [CamelCaseProperties]
 public class DmeAnimationList : DMElement
 {
-    public Datamodel.ElementArray Animations { get; } = new();
+    public Datamodel.ElementArray Animations { get; } = [];
 }
 
 [CamelCaseProperties]
 public class DmeChannelsClip : DMElement
 {
-    public DmeTimeFrame TimeFrame { get; } = new();
+    public DmeTimeFrame TimeFrame { get; } = [];
     public Datamodel.Color Color { get; set; }
     public string Text { get; set; } = "";
     public bool Mute { get; set; }
-    public Datamodel.ElementArray TrackGroups { get; } = new();
+    public Datamodel.ElementArray TrackGroups { get; } = [];
     public float DisplayScale { get; set; } = 1f;
-    public Datamodel.ElementArray Channels { get; } = new();
+    public Datamodel.ElementArray Channels { get; } = [];
     public float FrameRate { get; set; } = 30f;
 }
 
@@ -167,14 +167,14 @@ public abstract class DmeTypedLog<T> : DMElement
 {
     protected DmeTypedLog(string namePostfix)
     {
-        string typeName = typeof(T).Name;
+        var typeName = typeof(T).Name;
         if (char.IsLower(typeName[0]))
         {
-            typeName = char.ToUpper(typeName[0]) + typeName.Substring(1);
+            typeName = char.ToUpperInvariant(typeName[0]) + typeName[1..];
         }
 
         ClassName = $"Dme{typeName}{namePostfix}";
-        Name = $"{typeName.ToLower()} log";
+        Name = $"{typeName.ToLowerInvariant()} log";
     }
 }
 
@@ -183,16 +183,16 @@ public class DmeLog<T> : DmeTypedLog<T>
 {
     public DmeLog() : base("Log") { }
     [DMProperty("layers")]
-    public Datamodel.ElementArray Layers { get; set; } = new();
+    public Datamodel.ElementArray Layers { get; set; } = [];
     [DMProperty("curveinfo")]
     public DMElement CurveInfo { get; set; }
     [DMProperty("usedefaultvalue")]
     public bool UseDefaultValue { get; set; }
     [DMProperty("defaultvalue")]
     public T DefaultValue { get; set; }
-    public Datamodel.TimeSpanArray BookmarksX { get; } = new();
-    public Datamodel.TimeSpanArray BookmarksY { get; } = new();
-    public Datamodel.TimeSpanArray BookmarksZ { get; } = new();
+    public Datamodel.TimeSpanArray BookmarksX { get; } = [];
+    public Datamodel.TimeSpanArray BookmarksY { get; } = [];
+    public Datamodel.TimeSpanArray BookmarksZ { get; } = [];
 
     public DmeLogLayer<T> GetLayer(int index)
     {
@@ -209,9 +209,9 @@ public class DmeLog<T> : DmeTypedLog<T>
 public class DmeLogLayer<T> : DmeTypedLog<T>
 {
     public DmeLogLayer() : base("LogLayer") { }
-    public Datamodel.TimeSpanArray Times { get; set; } = new();
+    public Datamodel.TimeSpanArray Times { get; set; } = [];
     [DMProperty("curvetypes")]
-    public Datamodel.IntArray CurveTypes { get; } = new();
+    public Datamodel.IntArray CurveTypes { get; } = [];
     [DMProperty("values")]
     public T[] LayerValues { get; set; }
 

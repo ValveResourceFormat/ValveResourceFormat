@@ -12,6 +12,8 @@ namespace GUI.Utils;
 static class UpdateChecker
 {
 #pragma warning disable CA1812 // TODO: Source generator is not working
+
+#pragma warning disable IDE1006 // Naming Styles
     public class GithubRelease
     {
         public string tag_name { get; set; }
@@ -27,6 +29,7 @@ static class UpdateChecker
 
         public Run[] workflow_runs { get; set; }
     }
+#pragma warning restore IDE1006 // Naming Styles
 
     /*
     [JsonSourceGenerationOptions(GenerationMode = JsonSourceGenerationMode.Serialization)]
@@ -69,7 +72,7 @@ static class UpdateChecker
             var stableReleaseData = await stableReleaseTask.ConfigureAwait(false);
             var newVersion = stableReleaseData?.tag_name ?? "0.0";
 
-            if (newVersion.StartsWith("v", StringComparison.InvariantCulture)) // Just in case we tag a release with "v" prefix by mistake
+            if (newVersion.StartsWith('v')) // Just in case we tag a release with "v" prefix by mistake
             {
                 newVersion = newVersion[1..];
             }

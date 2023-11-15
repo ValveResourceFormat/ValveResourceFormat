@@ -19,7 +19,7 @@ namespace GUI.Types.ParticleRenderer
         //float OpTimeScaleMin; // operator fade time scale min
         //float OpTimeScaleMax; // operator fade time scale max
 
-        bool StrengthFastPath;
+        readonly bool StrengthFastPath;
 
         public ParticleFunction(ParticleDefinitionParser parse)
         {

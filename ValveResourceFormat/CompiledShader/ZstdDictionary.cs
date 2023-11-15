@@ -106,7 +106,7 @@ namespace ValveResourceFormat.CompiledShader
     public static class ZstdDictionary
     {
         private static byte[] zstdDict;
-        private static readonly object zstdDictLock = new object();
+        private static readonly object zstdDictLock = new();
 
         public static byte[] GetDictionary()
         {

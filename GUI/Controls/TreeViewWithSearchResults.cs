@@ -34,6 +34,7 @@ namespace GUI.Controls
 
             mainListView.MouseDoubleClick += MainListView_MouseDoubleClick;
             mainListView.MouseDown += MainListView_MouseDown;
+            mainListView.ColumnClick += MainListView_ColumnClick;
             mainListView.Resize += MainListView_Resize;
             mainListView.Disposed += MainListView_Disposed;
             mainListView.FullRowSelect = true;
@@ -48,6 +49,7 @@ namespace GUI.Controls
         {
             mainListView.MouseDoubleClick -= MainListView_MouseDoubleClick;
             mainListView.MouseDown -= MainListView_MouseDown;
+            mainListView.ColumnClick -= MainListView_ColumnClick;
             mainListView.Resize -= MainListView_Resize;
             mainListView.Disposed -= MainListView_Disposed;
 
@@ -143,7 +145,7 @@ namespace GUI.Controls
 
             var name = Path.GetFileName(vrfGuiContext.FileName);
             var vpkImage = MainForm.ImageListLookup["vpk"];
-            var root = new BetterTreeNode(name, vrfGuiContext.CurrentPackage.Entries.Count)
+            var root = new BetterTreeNode(name, 0u)
             {
                 Name = "root",
                 ImageIndex = vpkImage,
@@ -207,7 +209,7 @@ namespace GUI.Controls
                     mainTreeView.BeginUpdate();
 
                     var name = $"Deleted files ({foundFiles.Count} files found, names are guessed)";
-                    var root = new BetterTreeNode(name, foundFiles.Count)
+                    var root = new BetterTreeNode(name, 0u)
                     {
                         Name = name,
                         ImageIndex = deletedImage,
@@ -335,6 +337,32 @@ namespace GUI.Controls
             mainListView.EndUpdate();
         }
 
+        private void MainListView_ColumnClick(object sender, ColumnClickEventArgs e)
+        {
+            mainListView.ListViewItemSorter ??= new ListViewColumnSorter();
+
+            var sorter = (ListViewColumnSorter)mainListView.ListViewItemSorter;
+
+            if (e.Column == sorter.SortColumn)
+            {
+                if (sorter.Order == SortOrder.Ascending)
+                {
+                    sorter.Order = SortOrder.Descending;
+                }
+                else
+                {
+                    sorter.Order = SortOrder.Ascending;
+                }
+            }
+            else
+            {
+                sorter.SortColumn = e.Column;
+                sorter.Order = SortOrder.Ascending;
+            }
+
+            mainListView.Sort();
+        }
+
         /// <summary>
         /// When the user clicks in the ListView, check if the user clicks outside of a ListViewItem. If so, de-select any previously selected ListViewItems. In addition,
         /// if the user right clicked an item in the ListView, let our subscribers know what was clicked and where in case a context menu is needed to be shown.
@@ -432,13 +460,13 @@ namespace GUI.Controls
             if (!node.IsFolder)
             {
                 var file = node.PackageEntry;
-                item.SubItems.Add(file.TotalLength.ToFileSizeString());
+                item.SubItems.Add(HumanReadableByteSizeFormatter.Format(file.TotalLength));
                 item.SubItems.Add(file.TypeName);
             }
             else
             {
-                item.SubItems.Add($"{node.ItemCount} items");
-                item.SubItems.Add("folder");
+                item.SubItems.Add(HumanReadableByteSizeFormatter.Format(node.TotalSize));
+                item.SubItems.Add(string.Empty);
             }
 
             mainListView.Items.Add(item);

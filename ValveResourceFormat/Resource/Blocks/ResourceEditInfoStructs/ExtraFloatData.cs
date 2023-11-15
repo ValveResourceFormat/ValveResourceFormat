@@ -27,7 +27,7 @@ namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
 
         public ExtraFloatData()
         {
-            List = new List<EditFloatData>();
+            List = [];
         }
 
         public override void Read(BinaryReader reader, Resource resource)

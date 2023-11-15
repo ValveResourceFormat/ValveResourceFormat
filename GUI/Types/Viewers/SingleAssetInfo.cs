@@ -60,7 +60,7 @@ namespace GUI.Types.Viewers
             fileInfo.AppendLine($"CRC: {entry.CRC32:X2}");
             fileInfo.AppendLine($"Archive: {entry.ArchiveIndex}");
             fileInfo.AppendLine($"Offset: {entry.Offset}");
-            fileInfo.AppendLine($"Size: {entry.Length} ({entry.Length.ToFileSizeString()})");
+            fileInfo.AppendLine($"Size: {entry.Length} ({HumanReadableByteSizeFormatter.Format(entry.Length)})");
             fileInfo.AppendLine($"Preloaded bytes: {entry.SmallData.Length}");
 
             var fileControl = new CodeTextBox(fileInfo.ToString());

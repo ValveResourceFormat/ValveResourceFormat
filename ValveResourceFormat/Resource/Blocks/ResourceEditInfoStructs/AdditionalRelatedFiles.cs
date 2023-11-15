@@ -27,7 +27,7 @@ namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
 
         public AdditionalRelatedFiles()
         {
-            List = new List<AdditionalRelatedFile>();
+            List = [];
         }
 
         public override void Read(BinaryReader reader, Resource resource)

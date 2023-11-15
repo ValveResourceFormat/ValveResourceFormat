@@ -23,7 +23,7 @@ record struct ParticleDefinitionParser(IKeyValueCollection Data)
     {
         if (!Data.ContainsKey(k))
         {
-            return System.Array.Empty<ParticleDefinitionParser>();
+            return [];
         }
 
         return Data.GetArray(k).Select(item => new ParticleDefinitionParser(item)).ToArray();

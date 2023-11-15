@@ -32,11 +32,11 @@ public sealed class MapExtract
         return (original, editable);
     }
 
-    private List<string> AssetReferences { get; } = new();
-    private List<string> ModelsToExtract { get; } = new();
-    private Dictionary<string, string> ModelEntityAssociations { get; } = new();
-    private List<string> MeshesToExtract { get; } = new();
-    private List<string> FolderExtractFilter { get; } = new();
+    private List<string> AssetReferences { get; } = [];
+    private List<string> ModelsToExtract { get; } = [];
+    private Dictionary<string, string> ModelEntityAssociations { get; } = [];
+    private List<string> MeshesToExtract { get; } = [];
+    private List<string> FolderExtractFilter { get; } = [];
 
     private List<CMapWorldLayer> WorldLayers { get; set; }
     private Dictionary<int, MapNode> UniqueNodeIds { get; set; }
@@ -94,12 +94,7 @@ public sealed class MapExtract
         LumpFolder = mapRoot + "/" + mapName;
 
         var vmapPath = LumpFolder + ".vmap_c";
-        var vmapResource = FileLoader.LoadFile(vmapPath);
-        if (vmapResource is null)
-        {
-            throw new FileNotFoundException($"Failed to find vmap_c resource at {vmapPath}");
-        }
-
+        var vmapResource = FileLoader.LoadFile(vmapPath) ?? throw new FileNotFoundException($"Failed to find vmap_c resource at {vmapPath}");
         InitMapExtract(vmapResource);
     }
 
@@ -117,13 +112,7 @@ public sealed class MapExtract
 
         var worldPath = Path.Combine(LumpFolder, "world.vwrld_c");
         FolderExtractFilter.Add(worldPath);
-        using var worldResource = FileLoader.LoadFile(worldPath);
-
-        if (worldResource == null)
-        {
-            throw new FileNotFoundException($"Failed to find world resource, which is required for vmap_c extract, at {worldPath}");
-        }
-
+        using var worldResource = FileLoader.LoadFile(worldPath) ?? throw new FileNotFoundException($"Failed to find world resource, which is required for vmap_c extract, at {worldPath}");
         InitWorldExtract(worldResource);
     }
 
@@ -193,8 +182,8 @@ public sealed class MapExtract
 
     public static readonly Dictionary<string, HashSet<string>> ToolTextureMultiTags = new()
     {
-        ["clip"] = new HashSet<string> { "npcclip", "playerclip" },
-        ["invisibleladder"] = new HashSet<string> { "ladder", "passbullets" },
+        ["clip"] = ["npcclip", "playerclip"],
+        ["invisibleladder"] = ["ladder", "passbullets"],
     };
 
     public static string GetToolTextureNameForCollisionTags(ModelExtract.SurfaceTagCombo combo)
@@ -298,10 +287,10 @@ public sealed class MapExtract
         using var datamodel = new Datamodel.Datamodel("vmap", 29);
 
         datamodel.PrefixAttributes.Add("map_asset_references", AssetReferences);
-        datamodel.Root = MapDocument = new();
+        datamodel.Root = MapDocument = [];
 
-        WorldLayers = new();
-        UniqueNodeIds = new();
+        WorldLayers = [];
+        UniqueNodeIds = [];
 
         if (!string.IsNullOrEmpty(WorldPhysicsName))
         {
@@ -520,7 +509,7 @@ public sealed class MapExtract
             var transformIndex = 0;
             var fragmentTransforms = agg.ContainsKey("m_fragmentTransforms")
                 ? agg.GetArray("m_fragmentTransforms")
-                : Array.Empty<IKeyValueCollection>();
+                : [];
 
             BaseEntity NewPropStatic() => new CMapEntity()
                 .WithClassName("prop_static")

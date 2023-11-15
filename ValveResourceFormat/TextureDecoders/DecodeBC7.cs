@@ -81,8 +81,9 @@ namespace ValveResourceFormat.TextureDecoders
         /// <summary>
         /// BPTC anchor index values for the second subset of three-subset partitioning, by partition number.
         /// </summary>
-        private static readonly byte[] BC7AnchorIndices32 = new byte[64]
-        {
+        private static readonly byte[] BC7AnchorIndices32 =
+        [
+#pragma warning disable format
             3, 3, 15, 15, 8, 3, 15, 15,
             8, 8, 6, 6, 6, 5, 3, 3,
             3, 3, 8, 15, 3, 3, 6, 10,
@@ -91,13 +92,15 @@ namespace ValveResourceFormat.TextureDecoders
             15, 3, 15, 5, 15, 15, 15, 15,
             3, 15, 5, 5, 5, 8, 5, 10,
             5, 10, 8, 13, 15, 12, 3, 3,
-        };
+#pragma warning restore format
+        ];
 
         /// <summary>
         /// BPTC anchor index values for the third subset of three-subset partitioning, by partition number.
         /// </summary>
-        private static readonly byte[] BC7AnchorIndices33 = new byte[64]
-        {
+        private static readonly byte[] BC7AnchorIndices33 =
+        [
+#pragma warning disable format
             15, 8, 8, 3, 15, 15, 3, 8,
             15, 15, 15, 15, 15, 15, 15, 8,
             15, 8, 15, 3, 15, 8, 15, 8,
@@ -106,8 +109,9 @@ namespace ValveResourceFormat.TextureDecoders
             6, 15, 8, 15, 3, 6, 6, 8,
             15, 3, 15, 15, 15, 15, 15, 15,
             15, 15, 15, 15, 3, 15, 15, 8,
-        };
-        private static readonly byte[] BC7IndLength = { 3, 3, 2, 2, 2, 2, 4, 2 };
+#pragma warning restore format
+        ];
+        private static readonly byte[] BC7IndLength = [3, 3, 2, 2, 2, 2, 4, 2];
 
         readonly int w;
         readonly int h;

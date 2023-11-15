@@ -104,7 +104,7 @@ namespace GUI.Types.Renderer
 
                 if (!inserted)
                 {
-                    Elements ??= new List<Element>();
+                    Elements ??= [];
 
                     Elements.Add(element);
                 }
@@ -198,30 +198,21 @@ namespace GUI.Types.Renderer
 
         public Octree(float size)
         {
-            if (size <= 0)
-            {
-                throw new ArgumentOutOfRangeException(nameof(size));
-            }
+            ArgumentOutOfRangeException.ThrowIfNegativeOrZero(size);
 
             Root = new Node(null, new Vector3(-size * 0.5f), new Vector3(size));
         }
 
         public void Insert(T obj, AABB bounds)
         {
-            if (obj == null)
-            {
-                throw new ArgumentNullException(nameof(obj));
-            }
+            ArgumentNullException.ThrowIfNull(obj);
 
             Root.Insert(new Element { ClientObject = obj, BoundingBox = bounds });
         }
 
         public void Remove(T obj, AABB bounds)
         {
-            if (obj == null)
-            {
-                throw new ArgumentNullException(nameof(obj));
-            }
+            ArgumentNullException.ThrowIfNull(obj);
 
             var (node, index) = Root.Find(obj, bounds);
             node?.Elements.RemoveAt(index);
@@ -229,10 +220,7 @@ namespace GUI.Types.Renderer
 
         public void Update(T obj, AABB oldBounds, AABB newBounds)
         {
-            if (obj == null)
-            {
-                throw new ArgumentNullException(nameof(obj));
-            }
+            ArgumentNullException.ThrowIfNull(obj);
 
             var (node, index) = Root.Find(obj, oldBounds);
             if (node != null)

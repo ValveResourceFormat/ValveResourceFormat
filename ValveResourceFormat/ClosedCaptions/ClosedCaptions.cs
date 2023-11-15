@@ -51,7 +51,7 @@ namespace ValveResourceFormat.ClosedCaptions
             }
 
             using var reader = new BinaryReader(input, Encoding.UTF8, true);
-            Captions = new List<ClosedCaption>();
+            Captions = [];
 
             if (reader.ReadUInt32() != MAGIC)
             {

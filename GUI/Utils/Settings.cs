@@ -17,13 +17,13 @@ namespace GUI.Utils
 
         public class AppConfig
         {
-            public List<string> GameSearchPaths { get; set; } = new();
+            public List<string> GameSearchPaths { get; set; } = [];
             public string BackgroundColor { get; set; } = string.Empty;
             public string OpenDirectory { get; set; } = string.Empty;
             public string SaveDirectory { get; set; } = string.Empty;
-            public List<string> BookmarkedFiles { get; set; } = new();
+            public List<string> BookmarkedFiles { get; set; } = [];
             public List<string> RecentFiles { get; set; } = new(RecentFilesLimit);
-            public Dictionary<string, float[]> SavedCameras { get; set; } = new();
+            public Dictionary<string, float[]> SavedCameras { get; set; } = [];
             public int MaxTextureSize { get; set; }
             public int FieldOfView { get; set; }
             public int AntiAliasingSamples { get; set; }
@@ -105,8 +105,8 @@ namespace GUI.Utils
                 BackgroundColor = Color.FromArgb(60, 60, 60);
             }
 
-            Config.SavedCameras ??= new();
-            Config.BookmarkedFiles ??= new();
+            Config.SavedCameras ??= [];
+            Config.BookmarkedFiles ??= [];
             Config.RecentFiles ??= new(RecentFilesLimit);
 
             if (string.IsNullOrEmpty(Config.OpenDirectory) && RuntimeInformation.IsOSPlatform(OSPlatform.Windows))

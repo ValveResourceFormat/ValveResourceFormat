@@ -13,7 +13,7 @@ namespace GUI.Types.Renderer
         public IReadOnlyDictionary<string, byte> Parameters { get; init; }
         public HashSet<string> RenderModes { get; init; }
 
-        private Dictionary<string, int> Uniforms { get; } = new Dictionary<string, int>();
+        private Dictionary<string, int> Uniforms { get; } = [];
 
         public int NameHash => Name.GetHashCode(StringComparison.OrdinalIgnoreCase);
 

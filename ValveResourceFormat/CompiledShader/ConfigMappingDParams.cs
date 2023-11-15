@@ -30,8 +30,8 @@ namespace ValveResourceFormat.CompiledShader
         {
             if (shaderFile.DBlocks.Count == 0)
             {
-                offsets = Array.Empty<int>();
-                nr_states = Array.Empty<int>();
+                offsets = [];
+                nr_states = [];
                 return;
             }
 

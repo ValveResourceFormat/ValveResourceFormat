@@ -15,7 +15,7 @@ namespace ValveResourceFormat.ResourceTypes
             public uint Unknown2 { get; set; } // TODO: unconfirmed
         }
 
-        public List<NameEntry> Names { get; } = new();
+        public List<NameEntry> Names { get; } = [];
 
         public byte[] Data { get; private set; }
         public uint CRC32 { get; private set; }

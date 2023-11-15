@@ -35,15 +35,15 @@ namespace GUI.Types.Renderer
         public List<RenderableMesh> RenderableMeshes => activeMeshRenderers;
         public string ActiveMaterialGroup => activeMaterialGroup.Name;
 
-        private readonly List<RenderableMesh> meshRenderers = new();
-        private readonly List<Animation> animations = new();
+        private readonly List<RenderableMesh> meshRenderers = [];
+        private readonly List<Animation> animations = [];
 
 
         private int animationTexture = -1;
         private readonly int bonesCount;
 
-        private HashSet<string> activeMeshGroups = new();
-        private List<RenderableMesh> activeMeshRenderers = new();
+        private HashSet<string> activeMeshGroups = [];
+        private List<RenderableMesh> activeMeshRenderers = [];
         private (string Name, string[] Materials) activeMaterialGroup;
         private Dictionary<string, string> materialTable;
 
@@ -183,7 +183,7 @@ namespace GUI.Types.Renderer
         {
             animations.AddRange(model.GetAllAnimations(Scene.GuiContext.FileLoader));
 
-            if (animations.Any())
+            if (animations.Count != 0)
             {
                 SetupAnimationTextures();
             }

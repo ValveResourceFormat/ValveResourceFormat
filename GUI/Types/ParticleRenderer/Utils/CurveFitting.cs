@@ -104,7 +104,7 @@ namespace GUI.Types.ParticleRenderer.Utils
         public float Y { get; set; }
         public TangentType IncomingTangent { get; set; }
         public TangentType OutgoingTangent { get; set; }
-        public Vector2 Pos => new Vector2(X, Y);
+        public Vector2 Pos => new(X, Y);
     }
 
     /// <summary>

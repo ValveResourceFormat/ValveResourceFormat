@@ -82,17 +82,17 @@ void ParseFile(string file)
             {
                 value = behaviour.Values[0];
 
-                if (!value.StartsWith("materials/"))
+                if (!value.StartsWith("materials/", StringComparison.Ordinal))
                 {
                     value = "materials/" + value;
                 }
 
-                if (value.EndsWith(".vmt"))
+                if (value.EndsWith(".vmt", StringComparison.Ordinal))
                 {
                     value = value[..^4] + ".vmat";
                 }
 
-                if (!value.EndsWith(".vmat"))
+                if (!value.EndsWith(".vmat", StringComparison.Ordinal))
                 {
                     value += ".vmat";
                 }
@@ -191,12 +191,13 @@ void ParseFile(string file)
                 {
                     IDictionary<string, EntityInfo> colors = _class.ClassType == ClassType.BaseClass ? baseEntities : allEntities;
 
-                    if (!colors.ContainsKey(_class.Name))
+                    if (!colors.TryGetValue(_class.Name, out var colorValue))
                     {
-                        colors[_class.Name] = new();
+                        colorValue = new();
+                        colors[_class.Name] = colorValue;
                     }
 
-                    colors[_class.Name].Color ??= color;
+                    colorValue.Color ??= color;
                 }
             }
 
@@ -218,12 +219,13 @@ void ParseFile(string file)
 
                     IDictionary<string, EntityInfo> entity = _class.ClassType == ClassType.BaseClass ? baseEntities : allEntities;
 
-                    if (!entity.ContainsKey(_class.Name))
+                    if (!entity.TryGetValue(_class.Name, out var lineValue))
                     {
-                        entity[_class.Name] = new();
+                        lineValue = new();
+                        entity[_class.Name] = lineValue;
                     }
 
-                    entity[_class.Name].Lines.Add(line);
+                    lineValue.Lines.Add(line);
                 }
             }
         }
@@ -266,7 +268,7 @@ void WriteEntities()
         if (icons.Count > 0)
         {
             var iconsStr = string.Join(@""", """, icons);
-            fields.Add($"Icons = new[] {{ \"{iconsStr}\" }}");
+            fields.Add($"Icons = [\"{iconsStr}\"]");
         }
 
         if (icon.Value.Color != null)
@@ -277,7 +279,7 @@ void WriteEntities()
         if (icon.Value.Lines.Count > 0)
         {
             var linesStr = string.Join(", ", icon.Value.Lines);
-            fields.Add($"Lines = new[] {{ {linesStr} }}");
+            fields.Add($"Lines = [{linesStr}]");
         }
 
         str.Append("            ");
@@ -313,7 +315,7 @@ void WriteProperties()
 
 class EntityInfo
 {
-    public HashSet<string> Icons = new();
+    public HashSet<string> Icons = [];
     public string? Color;
-    public HashSet<string> Lines = new();
+    public HashSet<string> Lines = [];
 }

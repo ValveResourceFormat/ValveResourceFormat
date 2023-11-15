@@ -17,8 +17,10 @@ namespace ValveResourceFormat.IO
 
     public class ShaderDataProvider : IShaderDataProvider
     {
+#pragma warning disable CA1859 // Use concrete types when possible for improved performance
         private readonly IFileLoader fileLoader;
         private readonly IShaderDataProvider basicProvider;
+#pragma warning restore CA1859
 
         public ShaderDataProvider(IFileLoader fileLoader, bool useFallback = true)
         {

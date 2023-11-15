@@ -20,11 +20,11 @@ namespace GUI.Types.Renderer
         private readonly World world;
         private readonly VrfGuiContext guiContext;
 
-        public List<EntityLump.Entity> Entities { get; } = new();
+        public List<EntityLump.Entity> Entities { get; } = [];
 
-        public HashSet<string> DefaultEnabledLayers { get; } = new HashSet<string>() { "Entities" };
+        public HashSet<string> DefaultEnabledLayers { get; } = ["Entities"];
 
-        public Dictionary<string, Matrix4x4> CameraMatrices { get; } = new();
+        public Dictionary<string, Matrix4x4> CameraMatrices { get; } = [];
 
         public Scene SkyboxScene { get; set; }
 
@@ -58,7 +58,7 @@ namespace GUI.Types.Renderer
                 }
 
                 var entityLump = (EntityLump)newResource.DataBlock;
-                LoadEntitiesFromLump(entityLump, "world_layer_base"); // TODO: Hardcoded layer name
+                LoadEntitiesFromLump(entityLump, "world_layer_base", Matrix4x4.Identity); // TODO: Hardcoded layer name
             }
 
             // Output is World_t we need to iterate m_worldNodes inside it.
@@ -137,8 +137,8 @@ namespace GUI.Types.Renderer
             {"direct_light_strengths", "g_tDirectLightStrengths"},
         };
 
-        private readonly string[] LightmapSetV81 = { "g_tIrradiance", "g_tDirectionalIrradiance", "g_tDirectLightIndices", "g_tDirectLightStrengths" };
-        private readonly string[] LightmapSetV82 = { "g_tIrradiance", "g_tDirectionalIrradiance", "g_tDirectLightShadows" };
+        private readonly string[] LightmapSetV81 = ["g_tIrradiance", "g_tDirectionalIrradiance", "g_tDirectLightIndices", "g_tDirectLightStrengths"];
+        private readonly string[] LightmapSetV82 = ["g_tIrradiance", "g_tDirectionalIrradiance", "g_tDirectLightShadows"];
 
         private void LoadWorldLightingInfo()
         {
@@ -175,9 +175,10 @@ namespace GUI.Types.Renderer
             };
         }
 
-        private void LoadEntitiesFromLump(EntityLump entityLump, string layerName = null)
+        private void LoadEntitiesFromLump(EntityLump entityLump, string layerName, Matrix4x4 parentTransform)
         {
             var childEntities = entityLump.GetChildEntityNames();
+            var childEntityLumps = new Dictionary<string, EntityLump>(childEntities.Length);
 
             foreach (var childEntityName in childEntities)
             {
@@ -191,7 +192,7 @@ namespace GUI.Types.Renderer
                 var childLump = (EntityLump)newResource.DataBlock;
                 var childName = childLump.Data.GetProperty<string>("m_name");
 
-                LoadEntitiesFromLump(childLump, childName);
+                childEntityLumps.Add(childName, childLump);
             }
 
             static bool IsCubemapOrProbe(string cls)
@@ -219,6 +220,8 @@ namespace GUI.Types.Renderer
                     continue; // do not draw
                 }
 
+                var transformationMatrix = parentTransform * EntityTransformHelper.CalculateTransformationMatrix(entity);
+
                 if (classname == "info_world_layer")
                 {
                     var spawnflags = entity.GetPropertyUnchecked<uint>("spawnflags");
@@ -233,6 +236,19 @@ namespace GUI.Types.Renderer
                 else if (classname == "skybox_reference")
                 {
                     LoadSkybox(entity);
+                }
+                else if (classname == "point_template")
+                {
+                    var entityLumpName = entity.GetProperty<string>("entitylumpname");
+
+                    if (childEntityLumps.TryGetValue(entityLumpName, out var childLump))
+                    {
+                        LoadEntitiesFromLump(childLump, entityLumpName, transformationMatrix);
+                    }
+                    else
+                    {
+                        Log.Warn(nameof(WorldLoader), $"Failed to find child entity lump with name {entityLumpName}.");
+                    }
                 }
                 else if (classname == "env_sky" || classname == "ent_dota_lightinfo")
                 {
@@ -250,7 +266,7 @@ namespace GUI.Types.Renderer
                         };
                     }
 
-                    var rotation = EntityTransformHelper.CalculateTransformationMatrix(entity) with
+                    var rotation = transformationMatrix with
                     {
                         Translation = Vector3.Zero
                     };
@@ -341,8 +357,6 @@ namespace GUI.Types.Renderer
                     {
                         scene.FogInfo.CubeFogActive = true;
 
-                        var transform = EntityTransformHelper.CalculateTransformationMatrix(entity);
-
                         var lodBias = entity.GetPropertyUnchecked<float>("cubemapfoglodbiase");
 
                         var falloffExponent = entity.GetPropertyUnchecked<float>("cubemapfogfalloffexponent");
@@ -409,7 +423,7 @@ namespace GUI.Types.Renderer
                                 if (skyEntity != null)
                                 {
                                     material = skyEntity.GetProperty<string>("skyname") ?? skyEntity.GetProperty<string>("skybox_material_day");
-                                    transform = EntityTransformHelper.CalculateTransformationMatrix(skyEntity); // steal rotation from env_sky
+                                    transformationMatrix = EntityTransformHelper.CalculateTransformationMatrix(skyEntity); // steal rotation from env_sky
                                 }
                                 else
                                 {
@@ -463,7 +477,7 @@ namespace GUI.Types.Renderer
                             HeightEnd = heightEnd,
                             HeightExponent = heightExponent,
                             LodBias = lodBias,
-                            Transform = transform,
+                            Transform = transformationMatrix,
                             CubemapFogTexture = fogTexture,
                             Opacity = opacity,
                             ExposureBias = exposureBias,
@@ -486,8 +500,6 @@ namespace GUI.Types.Renderer
                     {
                         handShake = 0;
                     }
-
-                    var transform = EntityTransformHelper.CalculateTransformationMatrix(entity);
 
                     AABB bounds = default;
                     if (classname == "env_cubemap")
@@ -554,7 +566,7 @@ namespace GUI.Types.Renderer
                         var envMap = new SceneEnvMap(scene, bounds)
                         {
                             LayerName = layerName,
-                            Transform = transform,
+                            Transform = transformationMatrix,
                             HandShake = handShake,
                             ArrayIndex = arrayIndex,
                             IndoorOutdoorLevel = indoorOutdoorLevel,
@@ -578,7 +590,7 @@ namespace GUI.Types.Renderer
                         var lightProbe = new SceneLightProbe(scene, bounds)
                         {
                             LayerName = layerName,
-                            Transform = transform,
+                            Transform = transformationMatrix,
                             HandShake = handShake,
                             Irradiance = irradianceTexture,
                         };
@@ -608,8 +620,6 @@ namespace GUI.Types.Renderer
                         }
                     }
                 }
-
-                var transformationMatrix = EntityTransformHelper.CalculateTransformationMatrix(entity);
 
                 if (transformationMatrix == default)
                 {
@@ -803,7 +813,7 @@ namespace GUI.Types.Renderer
                 if (phys == null)
                 {
                     var refPhysicsPaths = newModel.GetReferencedPhysNames().ToArray();
-                    if (refPhysicsPaths.Any())
+                    if (refPhysicsPaths.Length != 0)
                     {
                         var newResource = guiContext.LoadFileCompiled(refPhysicsPaths.First());
                         if (newResource != null)

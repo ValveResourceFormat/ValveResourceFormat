@@ -27,9 +27,9 @@ namespace Decompiler
     [VersionOptionFromMember(MemberName = nameof(GetVersion))]
     public partial class Decompiler
     {
-        private readonly Dictionary<string, ResourceStat> stats = new();
-        private readonly Dictionary<string, string> uniqueSpecialDependancies = new();
-        private readonly HashSet<uint> unknownEntityKeys = new();
+        private readonly Dictionary<string, ResourceStat> stats = [];
+        private readonly Dictionary<string, string> uniqueSpecialDependancies = [];
+        private readonly HashSet<uint> unknownEntityKeys = [];
 
         private readonly object ConsoleWriterLock = new();
         private int CurrentFile;
@@ -214,7 +214,7 @@ namespace Decompiler
                         return 1;
                     }
 
-                    var vpkRegex = new Regex(@"_[0-9]{3}\.vpk$");
+                    var vpkRegex = VpkArchiveIndexRegex();
                     var vpks = Directory
                         .EnumerateFiles(InputFile, "*.vpk", SearchOption.AllDirectories)
                         .Where(s => !vpkRegex.IsMatch(s));
@@ -222,7 +222,7 @@ namespace Decompiler
                     dirs.AddRange(vpks);
                 }
 
-                if (!dirs.Any())
+                if (dirs.Count == 0)
                 {
                     Console.Error.WriteLine($"Unable to find any \"_c\" compiled files in \"{InputFile}\" folder.");
 
@@ -782,7 +782,7 @@ namespace Decompiler
 
                     while ((line = file.ReadLine()) != null)
                     {
-                        var split = line.Split(new[] { ' ' }, 2);
+                        var split = line.Split([' '], 2);
 
                         if (split.Length == 2)
                         {
@@ -1210,5 +1210,8 @@ namespace Decompiler
             info.Append("GitHub: https://github.com/ValveResourceFormat/ValveResourceFormat");
             return info.ToString();
         }
+
+        [GeneratedRegex(@"_[0-9]{3}\.vpk$")]
+        private static partial Regex VpkArchiveIndexRegex();
     }
 }

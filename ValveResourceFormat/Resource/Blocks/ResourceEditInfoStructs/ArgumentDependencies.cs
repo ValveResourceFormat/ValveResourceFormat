@@ -31,7 +31,7 @@ namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
 
         public ArgumentDependencies()
         {
-            List = new List<ArgumentDependency>();
+            List = [];
         }
 
         public override void Read(BinaryReader reader, Resource resource)

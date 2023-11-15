@@ -10,11 +10,13 @@ namespace GUI.Forms
 {
     partial class SettingsForm : Form
     {
-        private static readonly int[] AntiAliasingSampleOptions = new[] { 0, 2, 4, 8, 16 };
+        private static readonly int[] AntiAliasingSampleOptions = [0, 2, 4, 8, 16];
 
+#pragma warning disable SYSLIB1054 // Use 'LibraryImportAttribute' instead of 'DllImportAttribute' to generate P/Invoke marshalling code at compile time - this requires unsafe code
         [DllImport("shell32.dll", CharSet = CharSet.Auto, SetLastError = true)]
         [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         private static extern void SHChangeNotify(uint wEventId, uint uFlags, IntPtr dwItem1, IntPtr dwItem2);
+#pragma warning restore SYSLIB1054
 
         private const int SHCNE_ASSOCCHANGED = 0x8000000;
         private const int SHCNF_FLUSH = 0x1000;

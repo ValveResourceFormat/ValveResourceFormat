@@ -436,13 +436,13 @@ namespace GUI
 
         private void OnAboutItemClick(object sender, EventArgs e)
         {
-            var form = new AboutForm();
+            using var form = new AboutForm();
             form.ShowDialog(this);
         }
 
         private void OnSettingsItemClick(object sender, EventArgs e)
         {
-            var form = new SettingsForm();
+            using var form = new SettingsForm();
             form.ShowDialog(this);
         }
 
@@ -712,10 +712,10 @@ namespace GUI
             if (control is BetterTreeView treeView)
             {
                 context = treeView.VrfGuiContext;
-                selectedNodes = new List<TreeNode>
-                {
+                selectedNodes =
+                [
                     treeView.SelectedNode
-                };
+                ];
             }
             else if (control is BetterListView listView)
             {
@@ -765,10 +765,10 @@ namespace GUI
 
             if (control is TreeView treeView)
             {
-                selectedNodes = new List<BetterTreeNode>
-                {
+                selectedNodes =
+                [
                     (BetterTreeNode)treeView.SelectedNode
-                };
+                ];
             }
             else if (control is ListView listView)
             {
@@ -1013,7 +1013,7 @@ namespace GUI
 
             package.Write(saveDialog.FileName);
 
-            var result = $"Created {Path.GetFileName(saveDialog.FileName)} with {fileCount} files of size {((uint)fileSize).ToFileSizeString()}.";
+            var result = $"Created {Path.GetFileName(saveDialog.FileName)} with {fileCount} files of size {HumanReadableByteSizeFormatter.Format(fileSize)}.";
 
             Log.Info(nameof(MainForm), result);
 

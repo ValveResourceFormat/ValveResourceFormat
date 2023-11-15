@@ -59,7 +59,7 @@ namespace ValveResourceFormat.ResourceTypes
             using var skiaBitmap = texture.GenerateBitmap();
             var texPixels = skiaBitmap.Pixels;
 
-            FlexData = new Dictionary<string, Vector3[]>();
+            FlexData = [];
 
             //Some vmorf_c may be another old struct(NTROValue, eg: models/heroes/faceless_void/faceless_void_body.vmdl_c).
             //the latest struct is IKeyValueCollection.

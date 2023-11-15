@@ -112,7 +112,7 @@ namespace GUI.Types.Renderer
             AddLine(vertices, c4, c8, r, g, b, a);
         }
 
-        private void AddOctreeNode(List<float> vertices, Octree<T>.Node node, int depth)
+        private static void AddOctreeNode(List<float> vertices, Octree<T>.Node node, int depth)
         {
             AddBox(vertices, node.Region, 1.0f, 1.0f, 1.0f, node.HasElements ? 1.0f : 0.1f);
 

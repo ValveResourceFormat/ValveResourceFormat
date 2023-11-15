@@ -30,14 +30,14 @@ namespace ValveResourceFormat.CompiledShader
         public int VcsVersion { get; private set; }
         public bool IsSbox { get; init; }
         public int PossibleEditorDescription { get; private set; } // 17 for all up to date files. 14 seen in old test files
-        public List<SfBlock> SfBlocks { get; private set; } = new();
-        public List<ConstraintBlock> SfConstraintBlocks { get; private set; } = new();
-        public List<DBlock> DBlocks { get; private set; } = new();
-        public List<ConstraintBlock> DConstraintBlocks { get; private set; } = new();
-        public List<ParamBlock> ParamBlocks { get; private set; } = new();
-        public List<ChannelBlock> ChannelBlocks { get; private set; } = new();
-        public List<BufferBlock> BufferBlocks { get; private set; } = new();
-        public List<VertexSymbolsBlock> SymbolBlocks { get; private set; } = new();
+        public List<SfBlock> SfBlocks { get; private set; } = [];
+        public List<ConstraintBlock> SfConstraintBlocks { get; private set; } = [];
+        public List<DBlock> DBlocks { get; private set; } = [];
+        public List<ConstraintBlock> DConstraintBlocks { get; private set; } = [];
+        public List<ParamBlock> ParamBlocks { get; private set; } = [];
+        public List<ChannelBlock> ChannelBlocks { get; private set; } = [];
+        public List<BufferBlock> BufferBlocks { get; private set; } = [];
+        public List<VertexSymbolsBlock> SymbolBlocks { get; private set; } = [];
 
         // Zframe data assigned to the ZFrameDataDescription class are key pieces of
         // information needed to decompress and retrieve zframes (to save processing zframes are only
@@ -46,7 +46,7 @@ namespace ValveResourceFormat.CompiledShader
         // sorted dictionary enables retrieval based on the order they are seen; by calling
         // zframesLookup.ElementAt(zframeIndex). We also retrieve them based on their id using
         // zframesLookup[zframeId]. Both methods are useful in different contexts (be aware not to mix them up).
-        public SortedDictionary<long, ZFrameDataDescription> ZframesLookup { get; } = new();
+        public SortedDictionary<long, ZFrameDataDescription> ZframesLookup { get; } = [];
         public StaticCache ZFrameCache { get; private set; }
         private ConfigMappingDParams dBlockConfigGen;
 
@@ -422,8 +422,8 @@ namespace ValveResourceFormat.CompiledShader
             // the call to datareader.ShowEndOfFile()
             //
             //
-            List<uint> zFrameIds = new();
-            List<long> zFrameDataOffsets = new();
+            List<uint> zFrameIds = [];
+            List<long> zFrameDataOffsets = [];
 
             DataReader.ShowByteCount();
             zFrameCount = DataReader.ReadUInt32AtPosition();

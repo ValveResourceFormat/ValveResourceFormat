@@ -6,7 +6,7 @@ namespace ValveResourceFormat.CompiledShader
     public sealed class StaticCache : IDisposable
     {
         private readonly ShaderFile shaderFile;
-        private readonly Dictionary<long, ZFrameFile> cache = new();
+        private readonly Dictionary<long, ZFrameFile> cache = [];
         private readonly LinkedList<long> lru = new();
         private int maxCacheSize = 1;
 

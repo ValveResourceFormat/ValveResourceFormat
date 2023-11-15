@@ -75,7 +75,7 @@ namespace ValveResourceFormat.ResourceTypes
                 public bool AlphaCrop { get; set; }
                 public bool NoColor { get; set; }
                 public bool NoAlpha { get; set; }
-                public Dictionary<string, float> FloatParams { get; } = new();
+                public Dictionary<string, float> FloatParams { get; } = [];
             }
 
             public Sequence[] Sequences { get; set; }
@@ -144,7 +144,7 @@ namespace ValveResourceFormat.ResourceTypes
 
         public Texture()
         {
-            ExtraData = new Dictionary<VTexExtraData, byte[]>();
+            ExtraData = [];
         }
 
         public override void Read(BinaryReader reader, Resource resource)
@@ -162,13 +162,13 @@ namespace ValveResourceFormat.ResourceTypes
 
             Flags = (VTexFlags)reader.ReadUInt16();
 
-            Reflectivity = new[]
-            {
+            Reflectivity =
+            [
                 reader.ReadSingle(),
                 reader.ReadSingle(),
                 reader.ReadSingle(),
                 reader.ReadSingle(),
-            };
+            ];
             Width = reader.ReadUInt16();
             Height = reader.ReadUInt16();
             Depth = reader.ReadUInt16();

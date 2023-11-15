@@ -195,39 +195,7 @@ namespace GUI.Types.Viewers
                                     .ResourceRefInfoList), null),
                     };
 
-                    void OnCellDoubleClick(object sender, DataGridViewCellEventArgs e)
-                    {
-                        if (e.RowIndex < 0)
-                        {
-                            return;
-                        }
-
-                        var grid = (DataGridView)sender;
-                        var row = grid.Rows[e.RowIndex];
-                        var name = (string)row.Cells["Name"].Value;
-
-                        Log.Debug(nameof(Resource), $"Opening {name} from external refs");
-
-                        var foundFile = vrfGuiContext.FileLoader.FindFileWithContext(name + "_c");
-                        if (foundFile.Context == null)
-                        {
-                            foundFile = vrfGuiContext.FileLoader.FindFileWithContext(name);
-                        }
-
-                        if (foundFile.Context != null)
-                        {
-                            Program.MainForm.OpenFile(foundFile.Context, foundFile.PackageEntry);
-                        }
-                    }
-
-                    void OnDisposed(object o, EventArgs e)
-                    {
-                        externalRefs.CellDoubleClick -= OnCellDoubleClick;
-                        externalRefs.Disposed -= OnDisposed;
-                    }
-
-                    externalRefs.CellDoubleClick += OnCellDoubleClick;
-                    externalRefs.Disposed += OnDisposed;
+                    AddDataGridExternalRefAction(vrfGuiContext.FileLoader, externalRefs, "Name");
                     externalRefsTab.Controls.Add(externalRefs);
 
                     resTabs.TabPages.Add(externalRefsTab);
@@ -317,6 +285,48 @@ namespace GUI.Types.Viewers
             tab.Controls.Add(resTabs);
 
             return tab;
+        }
+
+        public static void AddDataGridExternalRefAction(AdvancedGuiFileLoader guiFileLoader, DataGridView dataGrid,
+            string columnName, Action<bool> secondAction = null)
+        {
+            void OnCellDoubleClick(object sender, DataGridViewCellEventArgs e)
+            {
+                if (e.RowIndex < 0)
+                {
+                    return;
+                }
+
+                var grid = (DataGridView)sender;
+                var row = grid.Rows[e.RowIndex];
+                var colName = columnName;
+                var name = (string)row.Cells[colName].Value;
+
+                Log.Debug(nameof(Resource), $"Opening {name} from external refs");
+
+                var foundFile = guiFileLoader.FindFileWithContext(name + "_c");
+                if (foundFile.Context == null)
+                {
+                    foundFile = guiFileLoader.FindFileWithContext(name);
+                }
+
+                var bFound = foundFile.Context != null;
+                if (bFound)
+                {
+                    Program.MainForm.OpenFile(foundFile.Context, foundFile.PackageEntry);
+                }
+
+                secondAction?.Invoke(bFound);
+            }
+
+            void OnDisposed(object o, EventArgs e)
+            {
+                dataGrid.CellDoubleClick -= OnCellDoubleClick;
+                dataGrid.Disposed -= OnDisposed;
+            }
+
+            dataGrid.CellDoubleClick += OnCellDoubleClick;
+            dataGrid.Disposed += OnDisposed;
         }
 
         private static void AddByteViewControl(ValveResourceFormat.Resource resource, Block block, TabPage blockTab)
@@ -447,7 +457,7 @@ namespace GUI.Types.Viewers
                     var cubemapBitmap = new SKBitmap(tex.ActualWidth * 4, tex.ActualHeight * 3, SKColorType.Bgra8888, SKAlphaType.Unpremul);
                     using var cubemapCanvas = new SKCanvas(cubemapBitmap);
 
-                    for (int face = 0; face < 6; face++)
+                    for (var face = 0; face < 6; face++)
                     {
                         using var faceBitmap = tex.GenerateBitmap(depth: i, face: (Texture.CubemapFace)face);
 

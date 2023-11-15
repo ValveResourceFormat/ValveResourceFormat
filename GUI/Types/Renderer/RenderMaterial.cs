@@ -9,15 +9,15 @@ namespace GUI.Types.Renderer
 {
     enum ReservedTextureSlots
     {
-        AnimationTexture = 0,
+        BRDFLookup = 0,
+        FogCubeTexture,
         Lightmap1,
         Lightmap2,
         Lightmap3,
         Lightmap4,
-        BRDFLookup,
         EnvironmentMap,
-        FogCubeTexture,
-        Last = FogCubeTexture,
+        AnimationTexture,
+        Last = AnimationTexture,
     }
 
     class RenderMaterial
@@ -28,7 +28,7 @@ namespace GUI.Types.Renderer
         public Shader Shader { get; set; }
         public Material Material { get; }
         public IKeyValueCollection VsInputSignature { get; }
-        public Dictionary<string, RenderTexture> Textures { get; } = new();
+        public Dictionary<string, RenderTexture> Textures { get; } = [];
         public bool IsTranslucent { get; }
         public bool IsOverlay { get; }
         public bool IsToolsMaterial { get; }

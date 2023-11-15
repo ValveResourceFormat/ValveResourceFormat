@@ -24,7 +24,7 @@ namespace ValveResourceFormat.Blocks
 
                 public Field()
                 {
-                    Indirections = new List<byte>();
+                    Indirections = [];
                 }
 
                 public void WriteText(IndentedTextWriter writer)
@@ -68,7 +68,7 @@ namespace ValveResourceFormat.Blocks
 
             public ResourceDiskStruct()
             {
-                FieldIntrospection = new List<Field>();
+                FieldIntrospection = [];
             }
 
             public void WriteText(IndentedTextWriter writer)
@@ -130,7 +130,7 @@ namespace ValveResourceFormat.Blocks
 
             public ResourceDiskEnum()
             {
-                EnumValueIntrospection = new List<Value>();
+                EnumValueIntrospection = [];
             }
 
             public void WriteText(IndentedTextWriter writer)
@@ -167,8 +167,8 @@ namespace ValveResourceFormat.Blocks
 
         public ResourceIntrospectionManifest()
         {
-            ReferencedStructs = new List<ResourceDiskStruct>();
-            ReferencedEnums = new List<ResourceDiskEnum>();
+            ReferencedStructs = [];
+            ReferencedEnums = [];
         }
 
         public override void Read(BinaryReader reader, Resource resource)

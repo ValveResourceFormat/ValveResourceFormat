@@ -14,16 +14,13 @@ namespace ValveResourceFormat.ResourceTypes
         {
             get
             {
-                if (cachedSkeleton == null)
-                {
-                    cachedSkeleton = Skeleton.FromModelData(Data, filterBonesUsedByLod0: false);
-                }
+                cachedSkeleton ??= Skeleton.FromModelData(Data, filterBonesUsedByLod0: false);
                 return cachedSkeleton;
             }
         }
         private List<Animation> CachedAnimations;
         private Skeleton cachedSkeleton { get; set; }
-        private readonly IDictionary<(VBIB VBIB, int MeshIndex), VBIB> remappedVBIBCache = new Dictionary<(VBIB VBIB, int MeshIndex), VBIB>();
+        private readonly Dictionary<(VBIB VBIB, int MeshIndex), VBIB> remappedVBIBCache = [];
 
         public void SetSkeletonFilteredForLod0()
         {
@@ -59,10 +56,10 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 return res;
             }
-            res = vbib.RemapBoneIndices(VBIB.CombineRemapTables(new int[][] {
+            res = vbib.RemapBoneIndices(VBIB.CombineRemapTables([
                 GetRemapTable(meshIndex),
                 Skeleton.LocalRemapTable,
-            }));
+            ]));
             remappedVBIBCache.Add((vbib, meshIndex), res);
             return res;
         }
@@ -199,7 +196,7 @@ namespace ValveResourceFormat.ResourceTypes
                 }
             }
 
-            CachedAnimations = animations.ToList();
+            CachedAnimations = [.. animations];
 
             return CachedAnimations;
         }

@@ -27,16 +27,16 @@ namespace GUI.Forms
         private readonly bool decompile;
         private string path;
         private readonly ExportData exportData;
-        private readonly Dictionary<string, Queue<PackageEntry>> filesToExtractSorted = new();
-        private readonly Dictionary<string, FileTypeToExtract> fileTypesToExtract = new();
+        private readonly Dictionary<string, Queue<PackageEntry>> filesToExtractSorted = [];
+        private readonly Dictionary<string, FileTypeToExtract> fileTypesToExtract = [];
         private readonly Queue<PackageEntry> filesToExtract = new();
-        private readonly HashSet<string> extractedFiles = new();
+        private readonly HashSet<string> extractedFiles = [];
         private CancellationTokenSource cancellationTokenSource = new();
         private readonly GltfModelExporter gltfExporter;
         private Stopwatch exportStopwatch;
 
-        private static readonly List<ResourceType> ExtractOrder = new()
-        {
+        private static readonly List<ResourceType> ExtractOrder =
+        [
             ResourceType.Map,
             ResourceType.World,
             ResourceType.WorldNode,
@@ -49,7 +49,7 @@ namespace GUI.Forms
 
             ResourceType.Material,
             ResourceType.Texture,
-        };
+        ];
 
         public Action<ExtractProgressForm, CancellationToken> ShownCallback { get; init; }
 

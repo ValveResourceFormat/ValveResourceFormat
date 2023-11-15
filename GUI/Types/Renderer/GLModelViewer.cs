@@ -137,7 +137,7 @@ namespace GUI.Types.Renderer
                 if (phys == null)
                 {
                     var refPhysicsPaths = model.GetReferencedPhysNames().ToArray();
-                    if (refPhysicsPaths.Any())
+                    if (refPhysicsPaths.Length != 0)
                     {
                         //TODO are there any models with more than one vphys?
                         if (refPhysicsPaths.Length != 1)
@@ -223,7 +223,7 @@ namespace GUI.Types.Renderer
                 }
 
                 // Physics are not shown by default unless the model has no meshes
-                var enabledAllPhysByDefault = modelSceneNode == null || !modelSceneNode.RenderableMeshes.Any();
+                var enabledAllPhysByDefault = modelSceneNode == null || modelSceneNode.RenderableMeshes.Count == 0;
 
                 var physicsGroups = Scene.AllNodes
                     .OfType<PhysSceneNode>()
@@ -250,7 +250,7 @@ namespace GUI.Types.Renderer
 
                         listBox.EndUpdate();
 
-                        SetEnabledPhysicsGroups(physicsGroups.ToHashSet());
+                        SetEnabledPhysicsGroups([.. physicsGroups]);
                     }, (enabledPhysicsGroups) =>
                     {
                         SetEnabledPhysicsGroups(enabledPhysicsGroups.ToHashSet());

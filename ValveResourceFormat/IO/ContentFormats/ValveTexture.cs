@@ -10,7 +10,7 @@ internal class CDmeVtex : DMElement
     /// <summary>
     /// Array of <see cref="CDmeInputTexture"/> elements describing each input image.
     /// </summary>
-    public Datamodel.ElementArray InputTextureArray { get; set; } = new();
+    public Datamodel.ElementArray InputTextureArray { get; set; } = [];
 
     /// <summary>
     /// Type of texture to generate.
@@ -36,7 +36,7 @@ internal class CDmeVtex : DMElement
 
     /// <summary>
     /// Array of <see cref="CDmeTextureOutputChannel"/> elements describing sets of output channels.
-    public Datamodel.ElementArray TextureOutputChannelArray { get; set; } = new();
+    public Datamodel.ElementArray TextureOutputChannelArray { get; set; } = [];
 
     /// <summary>
     /// Whether to clamp the S, T and U coordinates respectively.
@@ -111,16 +111,16 @@ public class CDmeInputTexture : DMElement
     */
 
     public string TypeString { get; set; } = "2D";
-    public Datamodel.ElementArray ImageProcessorArray { get; } = new();
+    public Datamodel.ElementArray ImageProcessorArray { get; } = [];
 }
 
 [HungarianProperties]
 public class CDmeTextureOutputChannel : DMElement
 {
-    public Datamodel.StringArray InputTextureArray { get; } = new();
+    public Datamodel.StringArray InputTextureArray { get; } = [];
     public string SrcChannels { get; set; } = "rgba";
     public string DstChannels { get; set; } = "rgba";
-    public CDmeImageProcessor MipAlgorithm { get; } = new();
+    public CDmeImageProcessor MipAlgorithm { get; } = [];
     public string OutputColorSpace { get; set; } = "srgb";
 }
 

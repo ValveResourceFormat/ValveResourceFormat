@@ -16,7 +16,7 @@ namespace ValveResourceFormat.ResourceTypes
     {
         public class Entity
         {
-            public Dictionary<uint, EntityProperty> Properties { get; } = new Dictionary<uint, EntityProperty>();
+            public Dictionary<uint, EntityProperty> Properties { get; } = [];
             public List<IKeyValueCollection> Connections { get; internal set; }
 
             public T GetProperty<T>(string name)
@@ -69,12 +69,12 @@ namespace ValveResourceFormat.ResourceTypes
             public object Data { get; set; }
         }
 
-        public IEnumerable<string> GetChildEntityNames()
+        public string[] GetChildEntityNames()
         {
             return Data.GetArray<string>("m_childLumps");
         }
 
-        public IEnumerable<Entity> GetEntities()
+        public List<Entity> GetEntities()
             => Data.GetArray("m_entityKeyValues")
                 .Select(ParseEntityProperties)
                 .ToList();
@@ -95,7 +95,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             if (connections.Length > 0)
             {
-                entity.Connections = connections.ToList();
+                entity.Connections = [.. connections];
             }
 
             return entity;

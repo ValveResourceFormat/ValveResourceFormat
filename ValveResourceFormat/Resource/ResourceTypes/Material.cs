@@ -17,15 +17,15 @@ namespace ValveResourceFormat.ResourceTypes
         public string Name { get; set; } = string.Empty;
         public string ShaderName { get; set; } = string.Empty;
 
-        public Dictionary<string, long> IntParams { get; } = new Dictionary<string, long>();
-        public Dictionary<string, float> FloatParams { get; } = new Dictionary<string, float>();
-        public Dictionary<string, Vector4> VectorParams { get; } = new Dictionary<string, Vector4>();
-        public Dictionary<string, string> TextureParams { get; } = new Dictionary<string, string>();
-        public Dictionary<string, long> IntAttributes { get; } = new Dictionary<string, long>();
-        public Dictionary<string, float> FloatAttributes { get; } = new Dictionary<string, float>();
-        public Dictionary<string, Vector4> VectorAttributes { get; } = new Dictionary<string, Vector4>();
-        public Dictionary<string, string> StringAttributes { get; } = new Dictionary<string, string>();
-        public Dictionary<string, string> DynamicExpressions { get; } = new Dictionary<string, string>();
+        public Dictionary<string, long> IntParams { get; } = [];
+        public Dictionary<string, float> FloatParams { get; } = [];
+        public Dictionary<string, Vector4> VectorParams { get; } = [];
+        public Dictionary<string, string> TextureParams { get; } = [];
+        public Dictionary<string, long> IntAttributes { get; } = [];
+        public Dictionary<string, float> FloatAttributes { get; } = [];
+        public Dictionary<string, Vector4> VectorAttributes { get; } = [];
+        public Dictionary<string, string> StringAttributes { get; } = [];
+        public Dictionary<string, string> DynamicExpressions { get; } = [];
 
 
         public override void Read(BinaryReader reader, Resource resource)

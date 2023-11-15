@@ -46,15 +46,15 @@ public sealed class ImageSubFile : SubFile
 
 public sealed class TextureExtract
 {
-    private static readonly string[] CubemapNames = new[]
-    {
+    private static readonly string[] CubemapNames =
+    [
         "rt",
         "lf",
         "bk",
         "ft",
         "up",
         "dn",
-    };
+    ];
 
     private readonly Texture texture;
     private readonly string fileName;
@@ -337,7 +337,7 @@ public sealed class TextureExtract
     {
         public SKColor DefaultColor { get; init; } = SKColors.Black;
         public SKBitmap Bitmap { get; private set; }
-        private readonly HashSet<ChannelMapping> Packed = new();
+        private readonly HashSet<ChannelMapping> Packed = [];
 
         public void Collect(SKPixmap srcPixels, ChannelMapping srcChannel, ChannelMapping dstChannel, bool invert, string fileName)
         {
@@ -421,7 +421,7 @@ public sealed class TextureExtract
     public bool TryGetMksData(out Dictionary<SKRectI, string> sprites, out string mks)
     {
         mks = string.Empty;
-        sprites = new Dictionary<SKRectI, string>();
+        sprites = [];
 
         if (!isSpriteSheet)
         {

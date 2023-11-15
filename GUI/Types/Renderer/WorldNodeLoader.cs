@@ -23,7 +23,7 @@ namespace GUI.Types.Renderer
             }
             else
             {
-                LayerNames = Array.Empty<string>();
+                LayerNames = [];
             }
         }
 

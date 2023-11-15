@@ -63,8 +63,8 @@ namespace GUI.Types.Renderer
 
             for (var i = 0; i < groupCount; i++)
             {
-                verts[i] = new();
-                inds[i] = new();
+                verts[i] = [];
+                inds[i] = [];
             }
 
             var bindPose = phys.BindPose;
@@ -85,7 +85,7 @@ namespace GUI.Types.Renderer
 
                     hasUntriangulatedVertices[collisionAttributeIndex] = true; // TODO: Remove this
 
-                    if (bindPose.Any())
+                    if (bindPose.Length != 0)
                     {
                         center = Vector3.Transform(center, bindPose[p]);
                     }
@@ -116,7 +116,7 @@ namespace GUI.Types.Renderer
 
                     hasUntriangulatedVertices[collisionAttributeIndex] = true; // TODO: Remove this
 
-                    if (bindPose.Any())
+                    if (bindPose.Length != 0)
                     {
                         center[0] = Vector3.Transform(center[0], bindPose[p]);
                         center[1] = Vector3.Transform(center[1], bindPose[p]);
@@ -150,7 +150,7 @@ namespace GUI.Types.Renderer
                     foreach (var v in hull.Shape.VertexPositions)
                     {
                         var vec = v;
-                        if (bindPose.Any())
+                        if (bindPose.Length != 0)
                         {
                             vec = Vector3.Transform(vec, bindPose[p]);
                         }
@@ -212,7 +212,7 @@ namespace GUI.Types.Renderer
                     foreach (var vec in mesh.Shape.Vertices)
                     {
                         var v = vec;
-                        if (bindPose.Any())
+                        if (bindPose.Length != 0)
                         {
                             v = Vector3.Transform(vec, bindPose[p]);
                         }

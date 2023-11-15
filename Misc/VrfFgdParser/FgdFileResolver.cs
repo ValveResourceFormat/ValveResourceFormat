@@ -3,14 +3,9 @@ using Sledge.Formats.FileSystem;
 
 namespace VrfFgdParser;
 
-public sealed class FgdFileResolver : IFileResolver
+public sealed class FgdFileResolver(string path) : IFileResolver
 {
-    private string directory;
-
-    public FgdFileResolver(string path)
-    {
-        directory = Path.GetDirectoryName(path)!;
-    }
+    private readonly string directory = Path.GetDirectoryName(path)!;
 
     Stream IFileResolver.OpenFile(string path)
     {

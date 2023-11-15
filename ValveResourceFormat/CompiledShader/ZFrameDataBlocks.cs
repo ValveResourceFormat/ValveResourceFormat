@@ -33,7 +33,7 @@ namespace ValveResourceFormat.CompiledShader
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1, Size = 4)]
-    public struct WriteSeqField
+    public readonly struct WriteSeqField
     {
         public byte ParamId { get; }
         public byte UnknBuff { get; }
@@ -46,7 +46,7 @@ namespace ValveResourceFormat.CompiledShader
         public abstract string BlockName { get; }
         public int SourceId { get; }
         public int Size { get; protected set; }
-        public byte[] Sourcebytes { get; protected set; } = Array.Empty<byte>();
+        public byte[] Sourcebytes { get; protected set; } = [];
         public Guid HashMD5 { get; protected set; }
         protected GpuSource(ShaderDataReader datareader, int sourceId) : base(datareader)
         {

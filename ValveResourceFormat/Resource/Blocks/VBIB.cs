@@ -47,8 +47,8 @@ namespace ValveResourceFormat.Blocks
 
         public VBIB()
         {
-            VertexBuffers = new List<OnDiskBufferData>();
-            IndexBuffers = new List<OnDiskBufferData>();
+            VertexBuffers = [];
+            IndexBuffers = [];
         }
 
         public VBIB(IKeyValueCollection data) : this()
@@ -765,7 +765,7 @@ namespace ValveResourceFormat.Blocks
                     var field = buf.InputLayoutFields[blendIndices];
                     var (formatElementSize, formatElementCount) = GetFormatInfo(field);
                     var formatSize = formatElementSize * formatElementCount;
-                    buf.Data = buf.Data.ToArray();
+                    buf.Data = [.. buf.Data];
                     var bufSpan = buf.Data.AsSpan();
                     var maxRemapTableIdx = remapTable.Length - 1;
                     for (var i = (int)field.Offset; i < buf.Data.Length; i += (int)buf.ElementSizeInBytes)
@@ -775,11 +775,11 @@ namespace ValveResourceFormat.Blocks
                             switch (formatElementSize)
                             {
                                 case 4:
-                                    BitConverter.TryWriteBytes(bufSpan.Slice(i + j),
+                                    BitConverter.TryWriteBytes(bufSpan[(i + j)..],
                                         remapTable[Math.Min(BitConverter.ToUInt32(buf.Data, i + j), maxRemapTableIdx)]);
                                     break;
                                 case 2:
-                                    BitConverter.TryWriteBytes(bufSpan.Slice(i + j),
+                                    BitConverter.TryWriteBytes(bufSpan[(i + j)..],
                                         (short)remapTable[Math.Min(BitConverter.ToUInt16(buf.Data, i + j), maxRemapTableIdx)]);
                                     break;
                                 case 1:

@@ -21,7 +21,7 @@ namespace ValveResourceFormat.ResourceTypes
                 throw new UnexpectedMagicException("Unknown version", version, nameof(version));
             }
 
-            SoundStackScriptValue = new Dictionary<string, string>();
+            SoundStackScriptValue = [];
 
             var count = reader.ReadInt32();
             var offset = reader.BaseStream.Position;

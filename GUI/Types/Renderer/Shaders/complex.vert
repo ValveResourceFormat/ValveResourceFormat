@@ -42,14 +42,10 @@ in vec2 vTEXCOORD;
 #endif
 
 #if (F_LAYERS > 0) || defined(simple_2way_blend_vfx) || defined(vr_blend_vfx_common)
-    #if defined(vr_simple_2way_blend_vfx) || defined(vr_blend_vfx_common)
-        #define vBLEND_COLOR vTEXCOORD2
-        #if defined(vr_blend_vfx_common)
-            #define vBLEND_ALPHA vTEXCOORD3
-            in vec4 vBLEND_ALPHA;
-        #endif
-    #else
-        #define vBLEND_COLOR vTEXCOORD4
+    #define vBLEND_COLOR vTEXCOORD4
+    #if defined(vr_blend_vfx_common)
+        #define vBLEND_ALPHA vTEXCOORD5
+        in vec4 vBLEND_ALPHA;
     #endif
     in vec4 vBLEND_COLOR;
     out vec4 vColorBlendValues;
@@ -232,10 +228,7 @@ void main()
 
 #if (F_LAYERS > 0) || defined(simple_2way_blend_vfx) || defined(vr_blend_vfx_common)
     vColorBlendValues = vBLEND_COLOR;
-
-    #if defined(csgo_simple_2way_blend_vfx) || (F_LAYERS > 0)
-        vColorBlendValues /= 255.0;
-    #endif
+    vColorBlendValues /= 255.0;
 
     #if defined(vr_blend_vfx_common)
         vColorBlendValues.y = max(0.5 * vBLEND_ALPHA.x, 0.1);
