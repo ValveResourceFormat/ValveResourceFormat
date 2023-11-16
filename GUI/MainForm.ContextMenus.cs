@@ -22,8 +22,15 @@ namespace GUI
             vpkContextMenu.Show(control, position);
         }
 
-        public void ShowVpkEditingContextMenu(Control control, Point position)
+        public void ShowVpkEditingContextMenu(Control control, Point position, bool isRootNode, bool isFolderNode)
         {
+            vpkEditSaveToDiskToolStripMenuItem.Visible = isRootNode;
+            vpkEditRemoveThisFileToolStripMenuItem.Visible = !isFolderNode;
+            vpkEditRemoveThisFolderToolStripMenuItem.Visible = isFolderNode && !isRootNode;
+            vpkEditAddExistingFilesToolStripMenuItem.Visible = isFolderNode;
+            vpkEditAddExistingFolderToolStripMenuItem.Visible = isFolderNode;
+            vpkEditCreateFolderToolStripMenuItem.Visible = isFolderNode;
+
             vpkEditingContextMenu.Show(control, position);
         }
 
@@ -90,6 +97,12 @@ namespace GUI
 
             var packageViewer = (mainTabs.SelectedTab.Controls["TreeViewWithSearchResults"] as TreeViewWithSearchResults).Viewer;
             packageViewer.AddFiles(openDialog.FileNames);
+        }
+
+        private void OnVpkEditingRemoveThisToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            var packageViewer = (mainTabs.SelectedTab.Controls["TreeViewWithSearchResults"] as TreeViewWithSearchResults).Viewer;
+            packageViewer.RemoveCurrentFiles();
         }
 
         private void OnSaveVPKToDiskToolStripMenuItem_Click(object sender, EventArgs e)

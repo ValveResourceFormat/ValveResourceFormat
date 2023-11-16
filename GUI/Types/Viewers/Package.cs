@@ -164,6 +164,26 @@ namespace GUI.Types.Viewers
             }
         }
 
+        public void RemoveCurrentFiles() => RemoveRecursiveFiles(LastContextTreeNode);
+
+        public void RemoveRecursiveFiles(BetterTreeNode node)
+        {
+            for (var i = node.Nodes.Count - 1; i >= 0; i--)
+            {
+                RemoveRecursiveFiles((BetterTreeNode)node.Nodes[i]);
+            }
+
+            if (node.PackageEntry != null)
+            {
+                VrfGuiContext.CurrentPackage.RemoveFile(node.PackageEntry);
+            }
+
+            if (node.Level > 0)
+            {
+                node.Remove();
+            }
+        }
+
         public void SaveToFile(string fileName)
         {
             VrfGuiContext.CurrentPackage.Write(fileName);
@@ -499,23 +519,17 @@ namespace GUI.Types.Viewers
 
         private void VPK_OnContextMenu(object sender, TreeNodeMouseClickEventArgs e)
         {
+            var isRoot = e.Node is BetterTreeNode node && node.Level == 0 && node.Name == "root";
+
             if (IsEditingPackage)
             {
                 var treeNode = e.Node as BetterTreeNode;
 
                 LastContextTreeNode = treeNode;
 
-                if (!treeNode.IsFolder)
-                {
-                    // TODO: Remove files/folders
-                    return;
-                }
-
-                Program.MainForm.ShowVpkEditingContextMenu(e.Node.TreeView, e.Location);
+                Program.MainForm.ShowVpkEditingContextMenu(e.Node.TreeView, e.Location, isRoot, treeNode.IsFolder);
                 return;
             }
-
-            var isRoot = e.Node is BetterTreeNode node && node.Level == 0 && node.Name == "root";
 
             Program.MainForm.ShowVpkContextMenu(e.Node.TreeView, e.Location, isRoot);
         }

@@ -71,10 +71,12 @@ namespace GUI
             viewAssetInfoToolStripMenuItem = new ToolStripMenuItem();
             verifyPackageContentsToolStripMenuItem = new ToolStripMenuItem();
             vpkEditingContextMenu = new ContextMenuStrip(components);
-            addNewFileOrFolderToolStripMenuItem = new ToolStripMenuItem();
-            addExistingFilesToolStripMenuItem = new ToolStripMenuItem();
-            saveVPKToDiskToolStripMenuItem = new ToolStripMenuItem();
-            createFolderToolStripMenuItem = new ToolStripMenuItem();
+            vpkEditCreateFolderToolStripMenuItem = new ToolStripMenuItem();
+            vpkEditAddExistingFolderToolStripMenuItem = new ToolStripMenuItem();
+            vpkEditAddExistingFilesToolStripMenuItem = new ToolStripMenuItem();
+            vpkEditRemoveThisFolderToolStripMenuItem = new ToolStripMenuItem();
+            vpkEditRemoveThisFileToolStripMenuItem = new ToolStripMenuItem();
+            vpkEditSaveToDiskToolStripMenuItem = new ToolStripMenuItem();
             menuStrip.SuspendLayout();
             tabContextMenuStrip.SuspendLayout();
             vpkContextMenu.SuspendLayout();
@@ -216,7 +218,7 @@ namespace GUI
             // mainTabs
             // 
             mainTabs.Dock = DockStyle.Fill;
-            mainTabs.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            mainTabs.Font = new System.Drawing.Font("Segoe UI", 9F);
             mainTabs.Location = new System.Drawing.Point(0, 24);
             mainTabs.Margin = new Padding(0);
             mainTabs.Name = "mainTabs";
@@ -297,7 +299,7 @@ namespace GUI
             // 
             vpkContextMenu.Items.AddRange(new ToolStripItem[] { extractToolStripMenuItem, decompileToolStripMenuItem, toolStripSeparator1, copyFileNameToolStripMenuItem, openWithDefaultAppToolStripMenuItem, viewAssetInfoToolStripMenuItem, verifyPackageContentsToolStripMenuItem, recoverDeletedToolStripMenuItem });
             vpkContextMenu.Name = "vpkContextMenu";
-            vpkContextMenu.Size = new System.Drawing.Size(200, 164);
+            vpkContextMenu.Size = new System.Drawing.Size(200, 186);
             // 
             // extractToolStripMenuItem
             // 
@@ -354,37 +356,57 @@ namespace GUI
             // 
             // vpkEditingContextMenu
             // 
-            vpkEditingContextMenu.Items.AddRange(new ToolStripItem[] { createFolderToolStripMenuItem, addNewFileOrFolderToolStripMenuItem, addExistingFilesToolStripMenuItem, saveVPKToDiskToolStripMenuItem });
+            vpkEditingContextMenu.Items.AddRange(new ToolStripItem[] { vpkEditCreateFolderToolStripMenuItem, vpkEditAddExistingFolderToolStripMenuItem, vpkEditAddExistingFilesToolStripMenuItem, vpkEditRemoveThisFolderToolStripMenuItem, vpkEditRemoveThisFileToolStripMenuItem, vpkEditSaveToDiskToolStripMenuItem });
             vpkEditingContextMenu.Name = "vpkEditingContextMenu";
-            vpkEditingContextMenu.Size = new System.Drawing.Size(181, 114);
+            vpkEditingContextMenu.Size = new System.Drawing.Size(175, 136);
             // 
-            // addNewFileOrFolderToolStripMenuItem
+            // vpkEditCreateFolderToolStripMenuItem
             // 
-            addNewFileOrFolderToolStripMenuItem.Name = "addNewFileOrFolderToolStripMenuItem";
-            addNewFileOrFolderToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
-            addNewFileOrFolderToolStripMenuItem.Text = "&Add existing folder";
-            addNewFileOrFolderToolStripMenuItem.Click += this.OnVpkAddNewFolderToolStripMenuItem_Click;
+            vpkEditCreateFolderToolStripMenuItem.Image = (System.Drawing.Image)resources.GetObject("vpkEditCreateFolderToolStripMenuItem.Image");
+            vpkEditCreateFolderToolStripMenuItem.Name = "vpkEditCreateFolderToolStripMenuItem";
+            vpkEditCreateFolderToolStripMenuItem.Size = new System.Drawing.Size(174, 22);
+            vpkEditCreateFolderToolStripMenuItem.Text = "Create folder";
+            vpkEditCreateFolderToolStripMenuItem.Click += OnVpkCreateFolderToolStripMenuItem_Click;
             // 
-            // addExistingFilesToolStripMenuItem
+            // vpkEditAddExistingFolderToolStripMenuItem
             // 
-            addExistingFilesToolStripMenuItem.Name = "addExistingFilesToolStripMenuItem";
-            addExistingFilesToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
-            addExistingFilesToolStripMenuItem.Text = "Add existing &files";
-            addExistingFilesToolStripMenuItem.Click += OnVpkAddNewFileToolStripMenuItem_Click;
+            vpkEditAddExistingFolderToolStripMenuItem.Image = (System.Drawing.Image)resources.GetObject("vpkEditAddExistingFolderToolStripMenuItem.Image");
+            vpkEditAddExistingFolderToolStripMenuItem.Name = "vpkEditAddExistingFolderToolStripMenuItem";
+            vpkEditAddExistingFolderToolStripMenuItem.Size = new System.Drawing.Size(174, 22);
+            vpkEditAddExistingFolderToolStripMenuItem.Text = "&Add existing folder";
+            vpkEditAddExistingFolderToolStripMenuItem.Click += OnVpkAddNewFolderToolStripMenuItem_Click;
             // 
-            // saveVPKToDiskToolStripMenuItem
+            // vpkEditAddExistingFilesToolStripMenuItem
             // 
-            saveVPKToDiskToolStripMenuItem.Name = "saveVPKToDiskToolStripMenuItem";
-            saveVPKToDiskToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
-            saveVPKToDiskToolStripMenuItem.Text = "&Save VPK to disk";
-            saveVPKToDiskToolStripMenuItem.Click += OnSaveVPKToDiskToolStripMenuItem_Click;
+            vpkEditAddExistingFilesToolStripMenuItem.Image = (System.Drawing.Image)resources.GetObject("vpkEditAddExistingFilesToolStripMenuItem.Image");
+            vpkEditAddExistingFilesToolStripMenuItem.Name = "vpkEditAddExistingFilesToolStripMenuItem";
+            vpkEditAddExistingFilesToolStripMenuItem.Size = new System.Drawing.Size(174, 22);
+            vpkEditAddExistingFilesToolStripMenuItem.Text = "Add existing &files";
+            vpkEditAddExistingFilesToolStripMenuItem.Click += OnVpkAddNewFileToolStripMenuItem_Click;
             // 
-            // createFolderToolStripMenuItem
+            // vpkEditRemoveThisFolderToolStripMenuItem
             // 
-            createFolderToolStripMenuItem.Name = "createFolderToolStripMenuItem";
-            createFolderToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
-            createFolderToolStripMenuItem.Text = "Create folder";
-            createFolderToolStripMenuItem.Click += OnVpkCreateFolderToolStripMenuItem_Click;
+            vpkEditRemoveThisFolderToolStripMenuItem.Image = (System.Drawing.Image)resources.GetObject("vpkEditRemoveThisFolderToolStripMenuItem.Image");
+            vpkEditRemoveThisFolderToolStripMenuItem.Name = "vpkEditRemoveThisFolderToolStripMenuItem";
+            vpkEditRemoveThisFolderToolStripMenuItem.Size = new System.Drawing.Size(174, 22);
+            vpkEditRemoveThisFolderToolStripMenuItem.Text = "&Remove this folder";
+            vpkEditRemoveThisFolderToolStripMenuItem.Click += OnVpkEditingRemoveThisToolStripMenuItem_Click;
+            // 
+            // vpkEditRemoveThisFileToolStripMenuItem
+            // 
+            vpkEditRemoveThisFileToolStripMenuItem.Image = (System.Drawing.Image)resources.GetObject("vpkEditRemoveThisFileToolStripMenuItem.Image");
+            vpkEditRemoveThisFileToolStripMenuItem.Name = "vpkEditRemoveThisFileToolStripMenuItem";
+            vpkEditRemoveThisFileToolStripMenuItem.Size = new System.Drawing.Size(174, 22);
+            vpkEditRemoveThisFileToolStripMenuItem.Text = "&Remove this file";
+            vpkEditRemoveThisFileToolStripMenuItem.Click += OnVpkEditingRemoveThisToolStripMenuItem_Click;
+            // 
+            // vpkEditSaveToDiskToolStripMenuItem
+            // 
+            vpkEditSaveToDiskToolStripMenuItem.Image = (System.Drawing.Image)resources.GetObject("vpkEditSaveToDiskToolStripMenuItem.Image");
+            vpkEditSaveToDiskToolStripMenuItem.Name = "vpkEditSaveToDiskToolStripMenuItem";
+            vpkEditSaveToDiskToolStripMenuItem.Size = new System.Drawing.Size(174, 22);
+            vpkEditSaveToDiskToolStripMenuItem.Text = "&Save VPK to disk";
+            vpkEditSaveToDiskToolStripMenuItem.Click += OnSaveVPKToDiskToolStripMenuItem_Click;
             // 
             // MainForm
             // 
@@ -447,10 +469,12 @@ namespace GUI
         private ToolStripMenuItem newVersionAvailableToolStripMenuItem;
         private ToolStripMenuItem checkForUpdatesToolStripMenuItem;
         private ToolStripMenuItem clearConsoleToolStripMenuItem;
-        private ToolStripMenuItem addNewFileOrFolderToolStripMenuItem;
-        private ToolStripMenuItem saveVPKToDiskToolStripMenuItem;
-        private ToolStripMenuItem addExistingFilesToolStripMenuItem;
-        private ToolStripMenuItem createFolderToolStripMenuItem;
+        private ToolStripMenuItem vpkEditAddExistingFolderToolStripMenuItem;
+        private ToolStripMenuItem vpkEditSaveToDiskToolStripMenuItem;
+        private ToolStripMenuItem vpkEditAddExistingFilesToolStripMenuItem;
+        private ToolStripMenuItem vpkEditCreateFolderToolStripMenuItem;
+        private ToolStripMenuItem vpkEditRemoveThisFolderToolStripMenuItem;
+        private ToolStripMenuItem vpkEditRemoveThisFileToolStripMenuItem;
     }
 }
 
