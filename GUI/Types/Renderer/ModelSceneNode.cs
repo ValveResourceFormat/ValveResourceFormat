@@ -195,7 +195,7 @@ namespace GUI.Types.Renderer
             foreach (var embeddedMesh in model.GetEmbeddedMeshesAndLoD().Where(m => (m.LoDMask & 1) != 0))
             {
                 embeddedMesh.Mesh.MorphData?.LoadFlexData(Scene.GuiContext.FileLoader);
-                meshRenderers.Add(new RenderableMesh(embeddedMesh.Mesh, embeddedMesh.MeshIndex, Scene, model, materialTable));
+                meshRenderers.Add(new RenderableMesh(embeddedMesh.Mesh, embeddedMesh.MeshIndex, Scene, model, materialTable, embeddedMesh.Mesh.MorphData));
             }
 
             // Load referred meshes from file (only load meshes with LoD 1)

@@ -28,10 +28,12 @@ namespace GUI.Types.Renderer
 
         public int MeshIndex { get; }
 
+        public MorphComposite MorphComposite { get; }
+
         private readonly int VBIBHashCode;
 
         public RenderableMesh(Mesh mesh, int meshIndex, Scene scene, Model model = null,
-            Dictionary<string, string> initialMaterialTable = null)
+            Dictionary<string, string> initialMaterialTable = null, Morph morph = null)
         {
             guiContext = scene.GuiContext;
 
@@ -48,6 +50,11 @@ namespace GUI.Types.Renderer
 
             var meshSceneObjects = mesh.Data.GetArray("m_sceneObjects");
             ConfigureDrawCalls(scene, vbib, meshSceneObjects, initialMaterialTable);
+
+            if (morph != null)
+            {
+                MorphComposite = new MorphComposite(guiContext, morph);
+            }
         }
 
         public IEnumerable<string> GetSupportedRenderModes()
@@ -264,6 +271,7 @@ namespace GUI.Types.Renderer
                 var vertexBufferVbib = vbib.VertexBuffers[(int)vertexBuffer.Id];
                 vertexBuffer.ElementSizeInBytes = vertexBufferVbib.ElementSizeInBytes;
                 vertexBuffer.InputLayoutFields = vertexBufferVbib.InputLayoutFields;
+
                 drawCall.VertexBuffer = vertexBuffer;
 
                 drawCall.BaseVertex = objectDrawCall.GetInt32Property("m_nBaseVertex");
