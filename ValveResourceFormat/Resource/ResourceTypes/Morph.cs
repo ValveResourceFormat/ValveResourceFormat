@@ -234,5 +234,9 @@ namespace ValveResourceFormat.ResourceTypes
             return kvObj as IKeyValueCollection;
         }
 
+        public IKeyValueCollection GetMorphDatas()
+        {
+            return GetMorphKeyValueCollection(Data, "m_morphDatas");
+        }
     }
 }
