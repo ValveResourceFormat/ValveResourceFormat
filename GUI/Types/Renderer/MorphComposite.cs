@@ -24,6 +24,7 @@ namespace GUI.Types.Renderer
         private int vertexArray;
         private float[] rawVertices;
         private RenderTexture morphAtlas;
+        private int rectsOnTexture;
 
         private readonly QuadIndexBuffer quadIndices;
 
@@ -90,7 +91,7 @@ namespace GUI.Types.Renderer
             GL.EnableVertexAttribArray(0);
             GL.BindBuffer(BufferTarget.ElementArrayBuffer, quadIndices.GLHandle);
             GL.BindBuffer(BufferTarget.ArrayBuffer, vertexBufferHandle);
-            GL.BufferData(BufferTarget.ArrayBuffer, rawVertices.Length * sizeof(float), rawVertices, BufferUsageHint.DynamicDraw);
+            GL.BufferData(BufferTarget.ArrayBuffer, rectsOnTexture * VertexSize * 4 * sizeof(float), rawVertices, BufferUsageHint.DynamicDraw);
 
             //render target
             GL.BindTexture(TextureTarget.Texture2D, CompositeTexture);
@@ -110,7 +111,7 @@ namespace GUI.Types.Renderer
             GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.ColorAttachment0, TextureTarget.Texture2D, CompositeTexture, 0);
 
             GL.Viewport(0, 0, 2048, 2048);
-            GL.DrawElements(BeginMode.Triangles, (rawVertices.Length / VertexSize / 4) * 6, DrawElementsType.UnsignedShort, 0);
+            GL.DrawElements(BeginMode.Triangles, rectsOnTexture * 6, DrawElementsType.UnsignedShort, 0);
 
             //unbind everything
             GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
@@ -184,6 +185,8 @@ namespace GUI.Types.Renderer
                     case "morph":
                         morphState = 1f;
                         break;
+                    default:
+                        continue;
                 }
 
 
@@ -223,6 +226,8 @@ namespace GUI.Types.Renderer
                     i++;
                 }
             }
+
+            rectsOnTexture = i;
         }
         private void SetRectData(int rectI, MorphCompositeRectData data)
         {
