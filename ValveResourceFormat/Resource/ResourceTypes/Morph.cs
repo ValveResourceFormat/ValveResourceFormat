@@ -17,6 +17,8 @@ namespace ValveResourceFormat.ResourceTypes
         public Dictionary<string, Vector3[]> FlexData { get; private set; }
         public FlexRule[] FlexRules { get; private set; }
         public FlexController[] FlexControllers { get; private set; }
+        public Texture Texture { get; private set; }
+        public Resource TextureResource { get; private set; }
 
         public Morph(BlockType type) : base(type, "MorphSetData_t")
         {
@@ -44,8 +46,8 @@ namespace ValveResourceFormat.ResourceTypes
                 return;
             }
 
-            var textureResource = fileLoader.LoadFile(atlasPath + "_c");
-            if (textureResource == null)
+            TextureResource = fileLoader.LoadFile(atlasPath + "_c");
+            if (TextureResource == null)
             {
                 return;
             }
@@ -53,10 +55,10 @@ namespace ValveResourceFormat.ResourceTypes
             var width = Data.GetInt32Property("m_nWidth");
             var height = Data.GetInt32Property("m_nHeight");
 
-            var texture = (Texture)textureResource.DataBlock;
-            var texWidth = texture.Width;
-            var texHeight = texture.Height;
-            using var skiaBitmap = texture.GenerateBitmap();
+            Texture = (Texture)TextureResource.DataBlock;
+            var texWidth = Texture.Width;
+            var texHeight = Texture.Height;
+            using var skiaBitmap = Texture.GenerateBitmap();
             var texPixels = skiaBitmap.Pixels;
 
             FlexData = [];
