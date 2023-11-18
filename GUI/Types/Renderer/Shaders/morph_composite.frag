@@ -11,7 +11,7 @@ out vec4 outputColor;
 
 void main()
 {
-    vec2 targetTexCoords = vec2(texCoords.x, -texCoords.y);
+    vec2 targetTexCoords = vec2(texCoords.x, texCoords.y);
     vec4 pixel = (texture(morphAtlas, targetTexCoords) * range) + offset;
     float alpha = pixel.w;
     outputColor = vec4(pixel.xyz * morphState.x, 0.0);

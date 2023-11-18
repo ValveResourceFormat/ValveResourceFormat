@@ -15,6 +15,8 @@ namespace GUI.Types.Renderer
 
         public int CompositeTexture { get; }
         public Morph Morph { get; }
+        public int Width { get; }
+        public int Height { get; }
 
         private int frameBuffer;
         private Shader shader;
@@ -27,8 +29,6 @@ namespace GUI.Types.Renderer
 
         struct MorphCompositeRectData
         {
-            public int Width;
-            public int Height;
             public float LeftX;
             public float TopY;
             public float WidthU;
@@ -60,6 +60,9 @@ namespace GUI.Types.Renderer
             InitVertexBuffer();
 
             FillVerticies();
+
+            Width = Morph.Data.GetInt32Property("m_nWidth");
+            Height = Morph.Data.GetInt32Property("m_nHeight");
 
             Render();
         }
@@ -152,9 +155,6 @@ namespace GUI.Types.Renderer
         {
             var morphDatas = Morph.GetMorphDatas();
 
-            var width = Morph.Data.GetInt32Property("m_nWidth");
-            var height = Morph.Data.GetInt32Property("m_nHeight");
-
             var i = 0;
             foreach (var pair in morphDatas)
             {
@@ -178,10 +178,11 @@ namespace GUI.Types.Renderer
                     case "inflate_none":
                         morphState = -0.00988f;
                         break;
-                    case "jaw":
+                    case "jawDrop":
                         morphState = 1f;
                         break;
-                    default:
+                    case "morph":
+                        morphState = 1f;
                         break;
                 }
 
@@ -199,9 +200,6 @@ namespace GUI.Types.Renderer
 
                     var vertexData = new MorphCompositeRectData
                     {
-                        Width = width,
-                        Height = height,
-
                         LeftX = morphRectData.GetInt32Property("m_nXLeftDst"),
                         TopY = morphRectData.GetInt32Property("m_nYTopDst"),
                         WidthU = morphRectData.GetFloatProperty("m_flUWidthSrc"),
@@ -228,17 +226,21 @@ namespace GUI.Types.Renderer
         }
         private void SetRectData(int rectI, MorphCompositeRectData data)
         {
+            const float pixelSize = 1 / 2048f;
             var stride = rectI * 4;
 
-            var topLeftX = VertexOffset + (data.LeftX * 2 / 2048f) - 1;
-            var topLeftY = 1 - (VertexOffset + (data.TopY * 2 / 2048f));
-            var bottomRightX = topLeftX + data.WidthU * 2;
-            var bottomRightY = topLeftY - data.HeightV * 2;
+            var widthScale = morphAtlas.Width / 2048f;
+            var heightScale = morphAtlas.Height / 2048f;
+
+            var topLeftX = VertexOffset + (data.LeftX * pixelSize * 2) - 1;
+            var topLeftY = 1 - (VertexOffset + data.TopY * pixelSize * 2);
+            var bottomRightX = topLeftX + widthScale * data.WidthU * 2;
+            var bottomRightY = topLeftY - heightScale * data.HeightV * 2;
 
             var topLeftU = data.LeftU;
             var topLeftV = data.TopV;
             var bottomRightU = topLeftU + data.WidthU;
-            var bottomRightV = topLeftV - data.HeightV;
+            var bottomRightV = topLeftV + data.HeightV;
 
             SetVertex(stride + 0, topLeftX, topLeftY, topLeftU, topLeftV, data);
             SetVertex(stride + 1, bottomRightX, topLeftY, bottomRightU, topLeftV, data);
