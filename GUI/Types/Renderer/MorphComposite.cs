@@ -5,6 +5,7 @@ using GUI.Utils;
 using OpenTK;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.ResourceTypes.ModelFlex;
 using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.Renderer
@@ -27,6 +28,7 @@ namespace GUI.Types.Renderer
         private RenderTexture morphAtlas;
         private List<int>[] morphRects;
         private HashSet<int> usedRects = new();
+        private int morphCount;
 
         private readonly QuadIndexBuffer quadIndices;
 
@@ -158,7 +160,7 @@ namespace GUI.Types.Renderer
             var morphDatas = Morph.GetMorphDatas();
 
             //TODO: better way of finding morph count
-            var morphCount = Morph.GetFlexDescriptors().Count;
+            morphCount = Morph.GetFlexDescriptors().Count;
             morphRects = new List<int>[morphCount];
 
             var rectCount = 0;
@@ -304,6 +306,14 @@ namespace GUI.Types.Renderer
                 {
                     usedRects.Remove(rect);
                 }
+            }
+        }
+        public void SetMorphsFromFlexes(FlexStateManager flexStateManager)
+        {
+            for (var i = 0; i < morphCount; i++)
+            {
+                var morphValue = flexStateManager.EvaluateMorph(i);
+                SetMorphValue(i, morphValue);
             }
         }
     }
