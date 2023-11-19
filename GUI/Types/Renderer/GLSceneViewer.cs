@@ -257,6 +257,7 @@ namespace GUI.Types.Renderer
 
             GL.DepthRange(0, 0.95);
 
+            GL.Viewport(0, 0, GLControl.Width, GLControl.Height);
             UpdateSceneBuffers(Scene, Camera);
             Scene.RenderWithCamera(Camera, this, lockedCullFrustum);
 
