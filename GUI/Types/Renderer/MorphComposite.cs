@@ -64,8 +64,6 @@ namespace GUI.Types.Renderer
 
             Width = Morph.Data.GetInt32Property("m_nWidth");
             Height = Morph.Data.GetInt32Property("m_nHeight");
-
-            Render();
         }
 
         private int GetMorphBundleCount()
