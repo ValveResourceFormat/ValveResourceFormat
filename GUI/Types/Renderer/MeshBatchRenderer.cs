@@ -76,6 +76,7 @@ namespace GUI.Types.Renderer
             public int CubeMapArrayIndices;
             public int MorphCompositeTexture;
             public int MorphCompositeTextureSize;
+            public int MorphVertexIdOffset;
         }
 
         private static void DrawBatch(List<Request> requests, Scene.RenderContext context)
@@ -121,7 +122,8 @@ namespace GUI.Types.Renderer
                             ShaderId = shader.GetUniformLocation("shaderId"),
                             ShaderProgramId = shader.GetUniformLocation("shaderProgramId"),
                             MorphCompositeTexture = shader.GetUniformLocation("morphCompositeTexture"),
-                            MorphCompositeTextureSize = shader.GetUniformLocation("morphCompositeTextureSize")
+                            MorphCompositeTextureSize = shader.GetUniformLocation("morphCompositeTextureSize"),
+                            MorphVertexIdOffset = shader.GetUniformLocation("morphVertexIdOffset")
                         };
 
                         GL.UseProgram(shader.Program);
@@ -215,6 +217,11 @@ namespace GUI.Types.Renderer
                 if (uniforms.MorphCompositeTextureSize != -1)
                 {
                     GL.Uniform2(uniforms.MorphCompositeTextureSize, (float)morphComposite.Width, (float)morphComposite.Height);
+                }
+
+                if (uniforms.MorphVertexIdOffset != -1)
+                {
+                    GL.Uniform1(uniforms.MorphVertexIdOffset, request.Call.VertexIdOffset);
                 }
             }
 
