@@ -7,6 +7,7 @@ using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.ResourceTypes.ModelFlex;
 using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Utils;
 
@@ -29,6 +30,7 @@ namespace GUI.Types.Renderer
         public int MeshIndex { get; }
 
         public MorphComposite MorphComposite { get; }
+        public FlexStateManager FlexStateManager { get; }
 
         private readonly int VBIBHashCode;
 
@@ -54,6 +56,7 @@ namespace GUI.Types.Renderer
             if (morph != null)
             {
                 MorphComposite = new MorphComposite(guiContext, morph);
+                FlexStateManager = new FlexStateManager(morph.FlexRules, morph.FlexControllers);
             }
         }
 

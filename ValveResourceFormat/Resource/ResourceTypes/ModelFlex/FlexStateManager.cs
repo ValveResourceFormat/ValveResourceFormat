@@ -53,6 +53,13 @@ namespace ValveResourceFormat.ResourceTypes.ModelFlex
                 controllerValues[id] = Math.Clamp(value, controller.Min, controller.Max);
             }
         }
+        public void SetControllerValues(Dictionary<string, float> datas)
+        {
+            foreach (var item in datas)
+            {
+                SetControllerValue(item.Key, item.Value);
+            }
+        }
         public float EvaluateMorph(int morphId)
         {
             var ruleId = morphIdToRuleId[morphId];

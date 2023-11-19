@@ -116,6 +116,19 @@ namespace GUI.Types.Renderer
                 }
 
                 LocalBoundingBox = newBoundingBox;
+
+                var datas = AnimationController.GetDatas();
+                foreach (var renderableMesh in activeMeshRenderers)
+                {
+                    if (renderableMesh.MorphComposite == null || renderableMesh.FlexStateManager == null)
+                    {
+                        continue;
+                    }
+
+                    renderableMesh.FlexStateManager.SetControllerValues(datas);
+                    renderableMesh.MorphComposite.SetMorphsFromFlexes(renderableMesh.FlexStateManager);
+                    renderableMesh.MorphComposite.Render();
+                }
             }
             finally
             {
