@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Numerics;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 
@@ -87,6 +88,18 @@ namespace GUI.Types.Renderer
             else
             {
                 activeAnimation.GetAnimationMatrices(matrices, animationFrameCache, Time);
+            }
+        }
+
+        public Dictionary<string, float> GetDatas()
+        {
+            if (IsPaused)
+            {
+                return activeAnimation.GetDatas(animationFrameCache, Frame);
+            }
+            else
+            {
+                return activeAnimation.GetDatas(animationFrameCache, Time);
             }
         }
 

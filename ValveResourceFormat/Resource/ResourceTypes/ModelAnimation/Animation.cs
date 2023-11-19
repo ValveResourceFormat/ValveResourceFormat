@@ -185,6 +185,23 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         private static IKeyValueCollection GetAnimationData(Resource resource)
             => resource.DataBlock.AsKeyValueCollection();
 
+        public Dictionary<string, float> GetDatas(AnimationFrameCache frameCache, int frameIndex)
+        {
+            var frame = frameCache.GetFrame(this, frameIndex);
+            return frame.Datas;
+        }
+
+        public Dictionary<string, float> GetDatas(AnimationFrameCache frameCache, float time)
+        {
+            if (FrameCount == 0)
+            {
+                return new Dictionary<string, float>();
+            }
+
+            var frame = frameCache.GetInterpolatedFrame(this, time);
+            return frame.Datas;
+        }
+
         /// <summary>
         /// Get the animation matrix for each bone.
         /// </summary>
