@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using GUI.Utils;
 using OpenTK;
@@ -22,9 +23,10 @@ namespace GUI.Types.Renderer
         private Shader shader;
         private int vertexBufferHandle;
         private int vertexArray;
-        private float[] rawVertices;
+        private float[] allVertices;
         private RenderTexture morphAtlas;
-        private int rectsOnTexture;
+        private List<int>[] morphRects;
+        private HashSet<int> usedRects = new();
 
         private readonly QuadIndexBuffer quadIndices;
 
@@ -37,8 +39,6 @@ namespace GUI.Types.Renderer
             public float LeftU;
             public float TopV;
 
-            public float MorphState;
-
             public Vector4 Offsets;
             public Vector4 Ranges;
         }
@@ -48,7 +48,7 @@ namespace GUI.Types.Renderer
             morphAtlas = vrfGuiContext.MaterialLoader.LoadTexture(morph.TextureResource);
             Morph = morph;
 
-            rawVertices = new float[GetMorphBundleCount() * 4 * VertexSize];
+            allVertices = new float[GetMorphBundleCount() * 4 * VertexSize];
 
             quadIndices = vrfGuiContext.QuadIndices;
             shader = vrfGuiContext.ShaderLoader.LoadShader("vrf.morph_composite");
@@ -76,6 +76,8 @@ namespace GUI.Types.Renderer
         }
         public void Render()
         {
+            var vertexBuffer = BuildVertexBuffer();
+
             GL.UseProgram(shader.Program);
 
             GL.Enable(EnableCap.Blend);
@@ -91,7 +93,7 @@ namespace GUI.Types.Renderer
             GL.EnableVertexAttribArray(0);
             GL.BindBuffer(BufferTarget.ElementArrayBuffer, quadIndices.GLHandle);
             GL.BindBuffer(BufferTarget.ArrayBuffer, vertexBufferHandle);
-            GL.BufferData(BufferTarget.ArrayBuffer, rectsOnTexture * VertexSize * 4 * sizeof(float), rawVertices, BufferUsageHint.DynamicDraw);
+            GL.BufferData(BufferTarget.ArrayBuffer, vertexBuffer.Length * sizeof(float), vertexBuffer, BufferUsageHint.DynamicDraw);
 
             //render target
             GL.BindTexture(TextureTarget.Texture2D, CompositeTexture);
@@ -111,7 +113,7 @@ namespace GUI.Types.Renderer
             GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.ColorAttachment0, TextureTarget.Texture2D, CompositeTexture, 0);
 
             GL.Viewport(0, 0, 2048, 2048);
-            GL.DrawElements(BeginMode.Triangles, rectsOnTexture * 6, DrawElementsType.UnsignedShort, 0);
+            GL.DrawElements(BeginMode.Triangles, (vertexBuffer.Length / VertexSize / 4) * 6, DrawElementsType.UnsignedShort, 0);
 
             //unbind everything
             GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
@@ -156,44 +158,27 @@ namespace GUI.Types.Renderer
         {
             var morphDatas = Morph.GetMorphDatas();
 
-            var i = 0;
+            //TODO: better way of finding morph count
+            var morphCount = Morph.GetFlexDescriptors().Count;
+            morphRects = new List<int>[morphCount];
+
+            var rectCount = 0;
             foreach (var pair in morphDatas)
             {
+                var morphId = int.Parse(pair.Key);
+                morphRects[morphId] = new List<int>(10);
+
                 if (pair.Value is not IKeyValueCollection morphData)
                 {
                     continue;
                 }
 
-                var morphName = morphData.GetStringProperty("m_name");
-
-                //TODO: Get morph state
-                var morphState = 0f;
-                switch (morphName)
-                {
-                    case "inflate_late":
-                        morphState = 0.02083f;
-                        break;
-                    case "inflate_early":
-                        morphState = 0.99074f;
-                        break;
-                    case "inflate_none":
-                        morphState = -0.00988f;
-                        break;
-                    case "jawDrop":
-                        morphState = 1f;
-                        break;
-                    case "morph":
-                        morphState = 1f;
-                        break;
-                    default:
-                        continue;
-                }
-
-
                 var morphRectDatas = morphData.GetSubCollection("m_morphRectDatas");
 
                 foreach (var rectPair in morphRectDatas)
                 {
+                    morphRects[morphId].Add(rectCount);
+
                     var morphRectData = (IKeyValueCollection)rectPair.Value;
                     //TODO: Implement normal/wrinkle bundle type (second bundle data usually, if exists)
                     var bundleData = (IKeyValueCollection)morphRectData.GetSubCollection("m_bundleDatas").First().Value;
@@ -218,16 +203,25 @@ namespace GUI.Types.Renderer
                         Ranges = new Vector4(
                             ranges[0], ranges[1], ranges[2], ranges[3]
                         ),
-
-                        MorphState = morphState,
                     };
 
-                    SetRectData(i, vertexData);
-                    i++;
+                    SetRectData(rectCount, vertexData);
+                    rectCount++;
                 }
             }
+        }
+        private float[] BuildVertexBuffer()
+        {
+            var rectCount = usedRects.Count;
+            var buffer = new float[rectCount * 4 * VertexSize];
 
-            rectsOnTexture = i;
+            var addedRects = 0;
+            foreach (var rect in usedRects)
+            {
+                Array.Copy(allVertices, rect * 4 * VertexSize, buffer, addedRects * 4 * VertexSize, VertexSize * 4);
+                addedRects++;
+            }
+            return buffer;
         }
         private void SetRectData(int rectI, MorphCompositeRectData data)
         {
@@ -256,22 +250,62 @@ namespace GUI.Types.Renderer
         {
             var stride = vertex * VertexSize;
 
-            rawVertices[stride + 0] = x;
-            rawVertices[stride + 1] = y;
-            rawVertices[stride + 2] = data.MorphState;
-            rawVertices[stride + 3] = data.MorphState;
-            rawVertices[stride + 4] = u;
-            rawVertices[stride + 5] = v;
-            rawVertices[stride + 6] = u;
-            rawVertices[stride + 7] = v;
-            rawVertices[stride + 8] = data.Offsets.X;
-            rawVertices[stride + 9] = data.Offsets.Y;
-            rawVertices[stride + 10] = data.Offsets.Z;
-            rawVertices[stride + 11] = data.Offsets.W;
-            rawVertices[stride + 12] = data.Ranges.X;
-            rawVertices[stride + 13] = data.Ranges.Y;
-            rawVertices[stride + 14] = data.Ranges.Z;
-            rawVertices[stride + 15] = data.Ranges.W;
+            allVertices[stride + 0] = x;
+            allVertices[stride + 1] = y;
+            allVertices[stride + 2] = 0f;
+            allVertices[stride + 3] = 0f;
+            allVertices[stride + 4] = u;
+            allVertices[stride + 5] = v;
+            allVertices[stride + 6] = u;
+            allVertices[stride + 7] = v;
+            allVertices[stride + 8] = data.Offsets.X;
+            allVertices[stride + 9] = data.Offsets.Y;
+            allVertices[stride + 10] = data.Offsets.Z;
+            allVertices[stride + 11] = data.Offsets.W;
+            allVertices[stride + 12] = data.Ranges.X;
+            allVertices[stride + 13] = data.Ranges.Y;
+            allVertices[stride + 14] = data.Ranges.Z;
+            allVertices[stride + 15] = data.Ranges.W;
+        }
+        private void SetVertexMorphValue(int vertex, float val)
+        {
+            var stride = vertex * VertexSize;
+
+            allVertices[stride + 2] = val;
+            allVertices[stride + 3] = val;
+        }
+        private float GetMorphValue(int morphId)
+        {
+            var rects = morphRects[morphId];
+            if (rects.Count == 0)
+            {
+                return 0f;
+            }
+
+            return allVertices[rects.First() * 4 * VertexSize];
+        }
+        public void SetMorphValue(int morphId, float value)
+        {
+            var morphValue = GetMorphValue(morphId);
+            var isUsed = Math.Abs(morphValue) > 0.001f;
+
+            foreach (var rect in morphRects[morphId])
+            {
+                var stride = rect * 4;
+                SetVertexMorphValue(stride + 0, value);
+                SetVertexMorphValue(stride + 1, value);
+                SetVertexMorphValue(stride + 2, value);
+                SetVertexMorphValue(stride + 3, value);
+
+                if (isUsed)
+                {
+                    usedRects.Add(rect);
+                }
+                else
+                {
+                    usedRects.Remove(rect);
+                }
+            }
         }
     }
 }
