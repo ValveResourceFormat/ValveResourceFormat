@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Numerics;
 
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation
@@ -7,11 +8,32 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
     {
         public int FrameIndex { get; set; } = 1;
         public FrameBone[] Bones { get; }
+        public Dictionary<string, float> Datas { get; } = new();
 
         public Frame(Skeleton skeleton)
         {
             Bones = new FrameBone[skeleton.Bones.Length];
             Clear(skeleton);
+        }
+
+        public void SetAttribute(int bone, AnimationChannelAttribute attribute, object data)
+        {
+            if (data is Vector3 vector3)
+            {
+                SetAttribute(bone, attribute, vector3);
+            }
+            else if (data is Quaternion quaternion)
+            {
+                SetAttribute(bone, attribute, quaternion);
+            }
+            else if (data is float fl)
+            {
+                SetAttribute(bone, attribute, fl);
+            }
+            else
+            {
+                throw new ArgumentException("Unexpected data type");
+            }
         }
 
         public void SetAttribute(int bone, AnimationChannelAttribute attribute, Vector3 data)
@@ -60,6 +82,11 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                     break;
 #endif
             }
+        }
+
+        public void SetDataAttribute(string dataName, float data)
+        {
+            Datas[dataName] = data;
         }
 
         /// <summary>

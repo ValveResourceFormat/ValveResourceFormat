@@ -5,6 +5,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         Position,
         Angle,
         Scale,
+        Data,
         Unknown,
     }
 }

@@ -4,30 +4,26 @@ using System.Numerics;
 
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders
 {
-    public class CCompressedStaticFullVector3 : AnimationSegmentDecoder
+    public class CCompressedStaticFullVector3 : AnimationSegmentDecoder<Vector3>
     {
         private readonly Vector3[] Data;
 
-        public CCompressedStaticFullVector3(ArraySegment<byte> data, int[] wantedElements, int[] remapTable,
-            AnimationChannelAttribute channelAttribute) : base(remapTable, channelAttribute)
+        public CCompressedStaticFullVector3(AnimationSegmentDecoderContext context) : base(context)
         {
-            Data = wantedElements.Select(i =>
+            Data = Context.WantedElements.Select(i =>
             {
                 var offset = i * (3 * 4);
                 return new Vector3(
-                    BitConverter.ToSingle(data.Slice(offset + (0 * 4))),
-                    BitConverter.ToSingle(data.Slice(offset + (1 * 4))),
-                    BitConverter.ToSingle(data.Slice(offset + (2 * 4)))
+                    BitConverter.ToSingle(Context.Data.Slice(offset + (0 * 4))),
+                    BitConverter.ToSingle(Context.Data.Slice(offset + (1 * 4))),
+                    BitConverter.ToSingle(Context.Data.Slice(offset + (2 * 4)))
                 );
             }).ToArray();
         }
 
-        public override void Read(int frameIndex, Frame outFrame)
+        public override Vector3 Read(int frameIndex, int i)
         {
-            for (var i = 0; i < RemapTable.Length; i++)
-            {
-                outFrame.SetAttribute(RemapTable[i], ChannelAttribute, Data[i]);
-            }
+            return Data[i];
         }
     }
 }
