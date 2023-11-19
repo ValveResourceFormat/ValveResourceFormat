@@ -136,6 +136,7 @@ namespace GUI.Types.Renderer
         {
             guiContext.MeshBufferCache.GetVertexIndexBuffers(VBIBHashCode, vbib);
 
+            var vertexOffset = 0;
             foreach (var sceneObject in sceneObjects)
             {
                 var i = 0;
@@ -202,6 +203,9 @@ namespace GUI.Types.Renderer
                     {
                         DrawCallsOpaque.Add(drawCall);
                     }
+
+                    drawCall.VertexIdOffset = vertexOffset;
+                    vertexOffset += objectDrawCall.GetInt32Property("m_nVertexCount");
 
                     i++;
                 }
