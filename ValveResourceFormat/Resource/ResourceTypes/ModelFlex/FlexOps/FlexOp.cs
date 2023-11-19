@@ -16,26 +16,27 @@ namespace ValveResourceFormat.ResourceTypes.ModelFlex.FlexOps
             Data = data;
         }
 
-        public static FlexOp Build(string opCode, float data)
+        public static FlexOp Build(string opCode, int data)
         {
+            float floatData = BitConverter.Int32BitsToSingle(data);
             switch (opCode)
             {
                 case "FLEX_OP_FETCH1":
                     return new FlexOpFetch1(data);
                 case "FLEX_OP_CONST":
-                    return new FlexOpConst(data);
+                    return new FlexOpConst(floatData);
                 case "FLEX_OP_MAX":
-                    return new FlexOpMax(data);
+                    return new FlexOpMax(floatData);
                 case "FLEX_OP_MIN":
-                    return new FlexOpMin(data);
+                    return new FlexOpMin(floatData);
                 case "FLEX_OP_ADD":
-                    return new FlexOpAdd(data);
+                    return new FlexOpAdd(floatData);
                 case "FLEX_OP_SUB":
-                    return new FlexOpSub(data);
+                    return new FlexOpSub(floatData);
                 case "FLEX_OP_MUL":
-                    return new FlexOpMul(data);
+                    return new FlexOpMul(floatData);
                 case "FLEX_OP_DIV":
-                    return new FlexOpDiv(data);
+                    return new FlexOpDiv(floatData);
                 default:
                     throw new ArgumentException($"Unknown flex opcode: {opCode}");
             }

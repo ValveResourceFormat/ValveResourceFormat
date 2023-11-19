@@ -187,7 +187,7 @@ namespace ValveResourceFormat.ResourceTypes
             }
 
             var opCode = kv.GetStringProperty("m_OpCode");
-            var data = kv.GetFloatProperty("m_Data");
+            var data = kv.GetInt32Property("m_Data");
             return FlexOp.Build(opCode, data);
         }
 
