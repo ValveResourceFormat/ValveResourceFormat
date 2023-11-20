@@ -63,7 +63,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             foreach (var dataName in dataNames)
             {
                 frame1.Datas.TryGetValue(dataName, out var frame1Data);
-                frame1.Datas.TryGetValue(dataName, out var frame2Data);
+                frame2.Datas.TryGetValue(dataName, out var frame2Data);
 
                 InterpolatedFrame.SetDataAttribute(dataName, float.Lerp(frame1Data, frame2Data, t));
             }
