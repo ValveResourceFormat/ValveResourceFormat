@@ -23,6 +23,12 @@ namespace ValveResourceFormat.ResourceTypes
         {
         }
 
+        public int GetMorphCount()
+        {
+            var flexDesc = Data.GetArray("m_FlexDesc");
+            return flexDesc.Length;
+        }
+
         public List<string> GetFlexDescriptors()
         {
             var flexDesc = Data.GetArray("m_FlexDesc");

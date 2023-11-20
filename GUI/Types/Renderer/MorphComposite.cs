@@ -165,8 +165,7 @@ namespace GUI.Types.Renderer
         {
             var morphDatas = Morph.GetMorphDatas();
 
-            //TODO: better way of finding morph count
-            morphCount = Morph.GetFlexDescriptors().Count;
+            morphCount = Morph.GetMorphCount();
             morphRects = new List<int>[morphCount];
 
             var rectCount = 0;
