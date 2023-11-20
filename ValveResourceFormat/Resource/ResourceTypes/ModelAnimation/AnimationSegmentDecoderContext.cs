@@ -12,8 +12,6 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         public int[] Elements { get; }
         public int[] WantedElements { get; set; }
         public int[] RemapTable { get; set; }
-        //public int elementCount { get; set; }
-        //public AnimationChannelAttribute ChannelAttribute { get; set; }
         public AnimationDataChannel Channel { get; set; }
 
         public AnimationSegmentDecoderContext(ArraySegment<byte> data, int[] elements)

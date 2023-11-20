@@ -126,7 +126,6 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                 }
 
                 var decodeContext = new AnimationSegmentDecoderContext(containerSegment, elements);
-                //decodeContext.ChannelAttribute = localChannel.ChannelAttribute;
                 decodeContext.RemapTable = remapTable;
                 decodeContext.WantedElements = wantedElements;
                 decodeContext.Channel = localChannel;
