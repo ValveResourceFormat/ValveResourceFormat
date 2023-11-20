@@ -70,10 +70,16 @@ namespace GUI.Types.Renderer
 
         private int GetMorphBundleCount()
         {
-            //TODO: Clean up
-            return Morph.GetMorphDatas()
-                .Sum(morphData => ((IKeyValueCollection)morphData.Value).GetSubCollection("m_morphRectDatas").Count());
+            var morphDatas = Morph.GetMorphDatas();
+            return morphDatas.Sum(morphData => GetMorphDataBundleCount((IKeyValueCollection)morphData.Value));
         }
+
+        private static int GetMorphDataBundleCount(IKeyValueCollection morphData)
+        {
+            var rectDatas = morphData.GetSubCollection("m_morphRectDatas");
+            return rectDatas.Count();
+        }
+
         public void Render()
         {
             var vertexBuffer = BuildVertexBuffer();
