@@ -27,7 +27,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders
 
         public override Vector3 Read(int frameIndex, int i)
         {
-            var offset = frameIndex * Context.Elements.Length * 3;
+            var offset = frameIndex * Context.RemapTable.Length * 3;
 
             return new Vector3(
                     (float)Data[offset + i * 3 + 0],

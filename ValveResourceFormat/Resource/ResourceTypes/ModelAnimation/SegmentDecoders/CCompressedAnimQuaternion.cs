@@ -29,7 +29,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders
         public override Quaternion Read(int frameIndex, int i)
         {
             const int elementSize = 6;
-            var offset = frameIndex * Context.Elements.Length * elementSize;
+            var offset = frameIndex * Context.RemapTable.Length * elementSize;
 
             return SegmentHelpers.ReadQuaternion(new ReadOnlySpan<byte>(
                     Data,

@@ -35,7 +35,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             }
             else
             {
-                for (var i = 0; i < Context.Elements.Length; i++)
+                for (var i = 0; i < Context.RemapTable.Length; i++)
                 {
                     outFrame.SetAttribute(Context.RemapTable[i], Context.Channel.Attribute, Read(frameIndex, i));
                 }

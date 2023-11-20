@@ -32,7 +32,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders
 
         public override Vector3 Read(int frameIndex, int i)
         {
-            var offset = frameIndex * Context.Elements.Length;
+            var offset = frameIndex * Context.RemapTable.Length;
             return Data[offset + i];
         }
     }
