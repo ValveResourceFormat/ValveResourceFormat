@@ -5,7 +5,6 @@ using GUI.Utils;
 using OpenTK;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.ResourceTypes.ModelFlex;
 using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.Renderer

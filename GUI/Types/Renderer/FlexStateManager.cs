@@ -1,10 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using ValveResourceFormat.ResourceTypes.ModelFlex;
 
-namespace ValveResourceFormat.ResourceTypes.ModelFlex
+namespace GUI.Types.Renderer
 {
     public class FlexStateManager
     {
