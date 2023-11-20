@@ -9,8 +9,8 @@
     {
         int vertexId = gl_VertexID + morphVertexIdOffset;
         return vec2(
-            1.5/2048 + mod(vertexId, morphCompositeTextureSize.x) / 2048.0,
-            1 - (1.5/2048 + floor(vertexId / morphCompositeTextureSize.x) / 2048.0)
+            (1.5 + mod(vertexId, morphCompositeTextureSize.x)) / 2048.0,
+            1 - (1.5 + floor(vertexId / morphCompositeTextureSize.x)) / 2048.0
         );
     }
 
