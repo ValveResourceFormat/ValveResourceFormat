@@ -14,7 +14,6 @@ namespace ValveResourceFormat.ResourceTypes
 {
     public class Morph : KeyValuesOrNTRO
     {
-        public Dictionary<string, Vector3[]> FlexData { get; private set; }
         public FlexRule[] FlexRules { get; private set; }
         public FlexController[] FlexControllers { get; private set; }
         public Texture Texture { get; private set; }
@@ -38,37 +37,24 @@ namespace ValveResourceFormat.ResourceTypes
             return result;
         }
 
-        public void LoadFlexData(IFileLoader fileLoader)
+        public Dictionary<string, Vector3[]> GetFlexVertexData()
         {
-            var atlasPath = Data.GetStringProperty("m_pTextureAtlas");
-            if (string.IsNullOrEmpty(atlasPath))
-            {
-                return;
-            }
-
-            TextureResource = fileLoader.LoadFile(atlasPath + "_c");
-            if (TextureResource == null)
-            {
-                return;
-            }
+            var flexData = new Dictionary<string, Vector3[]>();
 
             var width = Data.GetInt32Property("m_nWidth");
             var height = Data.GetInt32Property("m_nHeight");
 
-            Texture = (Texture)TextureResource.DataBlock;
             var texWidth = Texture.Width;
             var texHeight = Texture.Height;
             using var skiaBitmap = Texture.GenerateBitmap();
             var texPixels = skiaBitmap.Pixels;
-
-            FlexData = [];
 
             //Some vmorf_c may be another old struct(NTROValue, eg: models/heroes/faceless_void/faceless_void_body.vmdl_c).
             //the latest struct is IKeyValueCollection.
             var morphDatas = GetMorphKeyValueCollection(Data, "m_morphDatas");
             if (morphDatas == null || !morphDatas.Any())
             {
-                return;
+                return flexData;
             }
 
             var bundleTypes = GetMorphKeyValueCollection(Data, "m_bundleTypes").Select(kv => ParseBundleType(kv.Value)).ToArray();
@@ -137,8 +123,27 @@ namespace ValveResourceFormat.ResourceTypes
                     }
                 }
 
-                FlexData.Add(morphName, rectData);
+                flexData.Add(morphName, rectData);
             }
+
+            return flexData;
+        }
+
+        public void LoadFlexData(IFileLoader fileLoader)
+        {
+            var atlasPath = Data.GetStringProperty("m_pTextureAtlas");
+            if (string.IsNullOrEmpty(atlasPath))
+            {
+                return;
+            }
+
+            TextureResource = fileLoader.LoadFile(atlasPath + "_c");
+            if (TextureResource == null)
+            {
+                return;
+            }
+
+            Texture = (Texture)TextureResource.DataBlock;
 
             FlexRules = GetMorphKeyValueCollection(Data, "m_FlexRules")
                 .Select(kv => ParseFlexRule(kv.Value))
