@@ -773,7 +773,6 @@ public class ModelExtract
             anim.DecodeFrame(frame);
             frames[i] = frame;
 
-            //TODO: Find morph names from the model's morph datas instead?
             foreach (var dataName in frame.Datas.Keys)
             {
                 dataNames.Add(dataName);
