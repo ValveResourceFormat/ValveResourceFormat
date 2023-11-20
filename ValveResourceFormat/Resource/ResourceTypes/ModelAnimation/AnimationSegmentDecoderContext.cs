@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 {
-    public class AnimationSegmentDecoderContext
+    public struct AnimationSegmentDecoderContext
     {
         public ArraySegment<byte> Data { get; }
         public int[] Elements { get; }
