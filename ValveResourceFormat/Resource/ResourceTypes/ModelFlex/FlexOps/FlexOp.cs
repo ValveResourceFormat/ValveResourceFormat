@@ -38,7 +38,10 @@ namespace ValveResourceFormat.ResourceTypes.ModelFlex.FlexOps
                 case "FLEX_OP_DIV":
                     return new FlexOpDiv(floatData);
                 default:
-                    throw new ArgumentException($"Unknown flex opcode: {opCode}");
+#if DEBUG
+                    Console.WriteLine($"Unknown flex opcode: {opCode}");
+#endif
+                    return null;
             }
         }
     }
