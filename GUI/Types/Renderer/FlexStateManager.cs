@@ -59,6 +59,13 @@ namespace GUI.Types.Renderer
                 SetControllerValue(item.Key, item.Value);
             }
         }
+        public void ResetControllers()
+        {
+            for (var i = 0; i < controllerValues.Length; i++)
+            {
+                controllerValues[i] = 0f;
+            }
+        }
         public float EvaluateMorph(int morphId)
         {
             var ruleId = morphIdToRuleId[morphId];

@@ -83,10 +83,25 @@ namespace GUI.Types.Renderer
             LoadAnimations(model);
         }
 
+        private void RenderMorphComposites()
+        {
+            foreach (var renderableMesh in activeMeshRenderers)
+            {
+                if (renderableMesh.MorphComposite == null || renderableMesh.FlexStateManager == null)
+                {
+                    continue;
+                }
+
+                renderableMesh.MorphComposite.SetMorphsFromFlexes(renderableMesh.FlexStateManager);
+                renderableMesh.MorphComposite?.Render();
+            }
+        }
+
         public override void Update(Scene.UpdateContext context)
         {
             if (!AnimationController.Update(context.Timestep))
             {
+                RenderMorphComposites();
                 return;
             }
 
@@ -285,6 +300,7 @@ namespace GUI.Types.Renderer
                 foreach (var renderer in meshRenderers)
                 {
                     renderer.SetAnimationTexture(animationTexture, bonesCount);
+                    renderer.FlexStateManager?.ResetControllers();
                 }
             }
             else
@@ -292,6 +308,7 @@ namespace GUI.Types.Renderer
                 foreach (var renderer in meshRenderers)
                 {
                     renderer.SetAnimationTexture(null, 0);
+                    renderer.FlexStateManager?.ResetControllers();
                 }
             }
         }
