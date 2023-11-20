@@ -16,6 +16,7 @@ namespace GUI.Controls
     partial class TreeViewWithSearchResults : UserControl
     {
         public bool DeletedFilesRecovered { get; private set; }
+        public Types.Viewers.Package Viewer { get; }
 
         public event TreeNodeMouseClickEventHandler TreeNodeMouseDoubleClick; // when a TreeNode is double clicked
         public event TreeNodeMouseClickEventHandler TreeNodeRightClick; // when a TreeNode is single clicked
@@ -26,7 +27,7 @@ namespace GUI.Controls
         /// Initializes a new instance of the <see cref="TreeViewWithSearchResults"/> class.
         /// Require a default constructor for the designer.
         /// </summary>
-        public TreeViewWithSearchResults()
+        public TreeViewWithSearchResults(Types.Viewers.Package viewer)
         {
             InitializeComponent();
 
@@ -43,6 +44,7 @@ namespace GUI.Controls
             mainTreeView.NodeMouseDoubleClick += MainTreeView_NodeMouseDoubleClick;
             mainTreeView.NodeMouseClick += MainTreeView_NodeMouseClick;
             mainTreeView.AfterSelect += MainTreeView_AfterSelect;
+            Viewer = viewer;
         }
 
         private void MainListView_Disposed(object sender, EventArgs e)
@@ -119,6 +121,16 @@ namespace GUI.Controls
             }
         }
 
+        internal void BeginUpdate()
+        {
+            mainTreeView.BeginUpdate();
+        }
+
+        internal void EndUpdate()
+        {
+            mainTreeView.EndUpdate();
+        }
+
         /// <summary>
         /// Initializes the TreeView in the control with the contents of the passed Package. Contents are sorted and expanded by default.
         /// </summary>
@@ -174,6 +186,18 @@ namespace GUI.Controls
             }
 
             control.EndUpdate();
+        }
+
+        internal void AddFolderNode(string directoryName)
+        {
+            var root = mainTreeView.Nodes[0] as BetterTreeNode;
+            BetterTreeView.AddFolderNode(root, directoryName, 0u);
+        }
+
+        internal void AddFileNode(PackageEntry file)
+        {
+            var root = mainTreeView.Nodes[0] as BetterTreeNode;
+            mainTreeView.AddFileNode(root, file, manualAdd: true);
         }
 
         internal void RecoverDeletedFiles()

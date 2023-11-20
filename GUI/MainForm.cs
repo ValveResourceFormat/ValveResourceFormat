@@ -270,17 +270,6 @@ namespace GUI
             return base.ProcessCmdKey(ref msg, keyData);
         }
 
-        public void ShowVpkContextMenu(Control control, Point position, bool isRootNode)
-        {
-            copyFileNameToolStripMenuItem.Visible = !isRootNode;
-            openWithDefaultAppToolStripMenuItem.Visible = !isRootNode;
-            viewAssetInfoToolStripMenuItem.Visible = !isRootNode;
-
-            verifyPackageContentsToolStripMenuItem.Visible = isRootNode;
-            recoverDeletedToolStripMenuItem.Visible = isRootNode;
-
-            vpkContextMenu.Show(control, position);
-        }
 
         private void OnMainSelectedTabChanged(object sender, EventArgs e)
         {
@@ -947,84 +936,16 @@ namespace GUI
 
         private void CreateVpkFromFolderToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            using var openDialog = new FolderBrowserDialog
+            var contents = new Types.Viewers.Package().CreateEmpty(new VrfGuiContext("new.vpk", null));
+
+            var tab = new TabPage("New VPK")
             {
-                Description = "Choose which folder to pack into a VPK",
-                UseDescriptionForTitle = true,
-                SelectedPath = Settings.Config.OpenDirectory,
-                AddToRecent = true,
+                ToolTipText = "New VPK"
             };
-
-            if (openDialog.ShowDialog() != DialogResult.OK)
-            {
-                return;
-            }
-
-            var inputDirectory = openDialog.SelectedPath;
-            Settings.Config.OpenDirectory = inputDirectory;
-
-            var files = new FileSystemEnumerable<string>(
-                inputDirectory,
-                (ref FileSystemEntry entry) => entry.ToSpecifiedFullPath(),
-                new EnumerationOptions
-                {
-                    RecurseSubdirectories = true,
-                }
-            );
-
-            using var saveDialog = new SaveFileDialog
-            {
-                InitialDirectory = Settings.Config.SaveDirectory,
-                FileName = Path.GetFileNameWithoutExtension(inputDirectory),
-                AddToRecent = true,
-                Title = "Save VPK package",
-                DefaultExt = "vpk",
-                Filter = "Valve Pak|*.vpk"
-            };
-
-            if (saveDialog.ShowDialog() != DialogResult.OK)
-            {
-                return;
-            }
-
-            Settings.Config.SaveDirectory = Path.GetDirectoryName(saveDialog.FileName);
-
-            Log.Info(nameof(MainForm), $"Packing '{inputDirectory}' to '{saveDialog.FileName}'...");
-
-            using var package = new Package();
-
-            var fileCount = 0;
-            var fileSize = 0;
-
-            foreach (var file in files)
-            {
-                if (!File.Exists(file))
-                {
-                    continue;
-                }
-
-                var name = file[(inputDirectory.Length + 1)..];
-                var data = File.ReadAllBytes(file);
-                package.AddFile(name, data);
-
-                fileCount++;
-                fileSize += data.Length;
-            }
-
-            package.Write(saveDialog.FileName);
-
-            var result = $"Created {Path.GetFileName(saveDialog.FileName)} with {fileCount} files of size {HumanReadableByteSizeFormatter.Format(fileSize)}.";
-
-            Log.Info(nameof(MainForm), result);
-
-            OpenFile(saveDialog.FileName);
-
-            MessageBox.Show(
-                result,
-                "VPK created",
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Information
-            );
+            tab.Controls.Add(contents);
+            tab.ImageIndex = ImageListLookup["vpk"];
+            mainTabs.TabPages.Add(tab);
+            mainTabs.SelectTab(tab);
         }
 
         private void RegisterVpkFileAssociationToolStripMenuItem_Click(object sender, EventArgs e) => SettingsForm.RegisterFileAssociation();

@@ -34,23 +34,6 @@ namespace GUI.Forms
             searchTypeComboBox.SelectedIndex = 0;
         }
 
-        public void HideSearchType()
-        {
-            searchTypeComboBox.Hide();
-        }
-
-        private void FindButton_Click(object sender, EventArgs e)
-        {
-            DialogResult = DialogResult.OK;
-            Close();
-        }
-
-        private void CancelButton_Click(object sender, EventArgs e)
-        {
-            DialogResult = DialogResult.Cancel;
-            Close();
-        }
-
         /// <summary>
         /// On form load, setup the combo box search options and set the textbox as the focused control.
         /// </summary>
