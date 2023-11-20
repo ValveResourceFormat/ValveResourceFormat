@@ -13,11 +13,5 @@ vec2 getMorphUV()
 
 vec3 getMorphOffset()
 {
-    /*if (gl_VertexID == 34 || gl_VertexID == 26) {
-        return vec3(0,0,20);
-    }
-    else {
-    return vec3(0,0,0);
-    }*/
     return texture(morphCompositeTexture, getMorphUV()).xyz;
 }
