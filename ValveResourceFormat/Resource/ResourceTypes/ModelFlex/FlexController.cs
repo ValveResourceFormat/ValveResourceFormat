@@ -12,8 +12,13 @@ namespace ValveResourceFormat.ResourceTypes.ModelFlex
         public float Min { get; private set; }
         public float Max { get; private set; }
 
-        public FlexController(string name, float min, float max)
+        public FlexController(string name, string type, float min, float max)
         {
+            if (type != "default")
+            {
+                throw new NotImplementedException($"Unknown FlexController type: {type}");
+            }
+
             Name = name;
             Min = min;
             Max = max;

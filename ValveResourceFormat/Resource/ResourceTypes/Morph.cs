@@ -167,11 +167,11 @@ namespace ValveResourceFormat.ResourceTypes
             }
 
             var name = kv.GetStringProperty("m_szName");
+            var type = kv.GetStringProperty("m_szType");
             var min = kv.GetFloatProperty("min");
             var max = kv.GetFloatProperty("max");
-            //There's also a m_szType field, but it seems to be always "default"
 
-            return new FlexController(name, min, max);
+            return new FlexController(name, type, min, max);
         }
 
         private static FlexRule ParseFlexRule(object obj)
