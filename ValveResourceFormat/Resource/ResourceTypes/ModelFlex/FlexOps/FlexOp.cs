@@ -37,6 +37,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelFlex.FlexOps
                     return new FlexOpMul(floatData);
                 case "FLEX_OP_DIV":
                     return new FlexOpDiv(floatData);
+                case "FLEX_OP_NWAY":
+                    return new FlexOpNWay(data);
                 default:
 #if DEBUG
                     Console.WriteLine($"Unknown flex opcode: {opCode}");
