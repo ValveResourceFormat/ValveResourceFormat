@@ -99,7 +99,6 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
                 if (localChannel.Attribute == AnimationChannelAttribute.Data)
                 {
-                    //TODO: Figure out the element order here
                     remapTable = elements;
                     wantedElements = new int[elements.Length];
                     for (var j = 0; j < elements.Length; j++)
