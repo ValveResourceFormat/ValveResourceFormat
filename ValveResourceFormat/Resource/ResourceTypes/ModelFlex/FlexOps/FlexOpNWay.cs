@@ -39,7 +39,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelFlex.FlexOps
             }
             else if (tCurrent < t4)
             {
-                outValue = 1 - float.Lerp(0, value, (tCurrent - t3) / (t4 - t3));
+                outValue = float.Lerp(value, 0, (tCurrent - t3) / (t4 - t3));
             }
             else
             {
