@@ -223,7 +223,7 @@ namespace GUI.Types.Renderer
             // Get embedded meshes
             foreach (var embeddedMesh in model.GetEmbeddedMeshesAndLoD().Where(m => (m.LoDMask & 1) != 0))
             {
-                embeddedMesh.Mesh.MorphData?.LoadFlexData(Scene.GuiContext.FileLoader);
+                embeddedMesh.Mesh.LoadExternalMorphData(Scene.GuiContext.FileLoader);
                 meshRenderers.Add(new RenderableMesh(embeddedMesh.Mesh, embeddedMesh.MeshIndex, Scene, model, materialTable, embeddedMesh.Mesh.MorphData));
             }
 
