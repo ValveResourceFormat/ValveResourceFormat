@@ -17,7 +17,6 @@ namespace GUI.Controls
             {
                 using var font = new FontFamily("Cascadia Mono");
                 Font = new Font(font, FontSize);
-
             }
             catch
             {
@@ -33,7 +32,11 @@ namespace GUI.Controls
             Disposed += OnDisposed;
             TextChanged += OnTextChanged;
 
-            if (!string.IsNullOrEmpty(text))
+            if (Visible)
+            {
+                Text = text;
+            }
+            else if (!string.IsNullOrEmpty(text))
             {
                 LazyText = text;
                 VisibleChanged += OnVisibleChanged;
