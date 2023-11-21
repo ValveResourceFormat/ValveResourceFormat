@@ -108,7 +108,16 @@ namespace ValveResourceFormat.ResourceTypes
                 }
             }
 
-            MorphData?.LoadFlexData(fileLoader);
+            if (MorphData != null)
+            {
+                MorphData.LoadFlexData(fileLoader);
+
+                //If texture was not loaded, that means that this model doesn't have any valid morph data.
+                if (MorphData.TextureResource == null)
+                {
+                    MorphData = null;
+                }
+            }
         }
     }
 }
