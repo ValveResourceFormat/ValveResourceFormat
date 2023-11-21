@@ -312,13 +312,5 @@ namespace GUI.Types.Renderer
                 }
             }
         }
-        public void SetMorphsFromFlexes(FlexStateManager flexStateManager)
-        {
-            for (var i = 0; i < morphCount; i++)
-            {
-                var morphValue = flexStateManager.EvaluateMorph(i);
-                SetMorphValue(i, morphValue);
-            }
-        }
     }
 }

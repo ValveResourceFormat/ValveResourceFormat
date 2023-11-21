@@ -1,35 +1,38 @@
+using GUI.Utils;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelFlex;
 
 namespace GUI.Types.Renderer
 {
-    public class FlexStateManager
+    class FlexStateManager
     {
-        public FlexRule[] Rules { get; }
-        public FlexController[] Controllers { get; }
+        public Morph Morph { get; }
         private Dictionary<string, int> controllerNameToId = new();
         private Dictionary<int, int> morphIdToRuleId = new();
         private float[] controllerValues;
+        public MorphComposite MorphComposite { get; }
 
-        public FlexStateManager(FlexRule[] rules, FlexController[] controllers)
+        public FlexStateManager(VrfGuiContext guiContext, Morph morph)
         {
-            Rules = rules;
-            Controllers = controllers;
+            Morph = morph;
 
-            for (var i = 0; i < Controllers.Length; i++)
+            for (var i = 0; i < Morph.FlexControllers.Length; i++)
             {
-                var controller = Controllers[i];
+                var controller = Morph.FlexControllers[i];
                 controllerNameToId.Add(controller.Name, i);
             }
-            controllerValues = new float[Controllers.Length];
+            controllerValues = new float[Morph.FlexControllers.Length];
 
-            for (var i = 0; i < Rules.Length; i++)
+            for (var i = 0; i < Morph.FlexRules.Length; i++)
             {
-                var rule = Rules[i];
+                var rule = Morph.FlexRules[i];
                 morphIdToRuleId[rule.FlexID] = i;
             }
+
+            MorphComposite = new MorphComposite(guiContext, morph);
         }
         public int GetControllerId(string name)
         {
@@ -47,7 +50,7 @@ namespace GUI.Types.Renderer
             int id = GetControllerId(name);
             if (id != -1)
             {
-                var controller = Controllers[id];
+                var controller = Morph.FlexControllers[id];
 
                 controllerValues[id] = Math.Clamp(value, controller.Min, controller.Max);
             }
@@ -69,9 +72,17 @@ namespace GUI.Types.Renderer
         public float EvaluateMorph(int morphId)
         {
             var ruleId = morphIdToRuleId[morphId];
-            var rule = Rules[ruleId];
+            var rule = Morph.FlexRules[ruleId];
 
             return rule.Evaluate(controllerValues);
+        }
+        public void UpdateComposite()
+        {
+            foreach (var i in morphIdToRuleId.Keys)
+            {
+                var morphValue = EvaluateMorph(i);
+                MorphComposite.SetMorphValue(i, morphValue);
+            }
         }
     }
 }

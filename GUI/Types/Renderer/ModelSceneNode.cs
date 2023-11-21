@@ -87,13 +87,13 @@ namespace GUI.Types.Renderer
         {
             foreach (var renderableMesh in activeMeshRenderers)
             {
-                if (renderableMesh.MorphComposite == null || renderableMesh.FlexStateManager == null)
+                if (renderableMesh.FlexStateManager == null)
                 {
                     continue;
                 }
 
-                renderableMesh.MorphComposite.SetMorphsFromFlexes(renderableMesh.FlexStateManager);
-                renderableMesh.MorphComposite?.Render();
+                renderableMesh.FlexStateManager.UpdateComposite();
+                renderableMesh.FlexStateManager.MorphComposite.Render();
             }
         }
 
@@ -141,14 +141,14 @@ namespace GUI.Types.Renderer
             var datas = AnimationController.GetDatas();
             foreach (var renderableMesh in activeMeshRenderers)
             {
-                if (renderableMesh.MorphComposite == null || renderableMesh.FlexStateManager == null)
+                if (renderableMesh.FlexStateManager == null)
                 {
                     continue;
                 }
 
                 renderableMesh.FlexStateManager.SetControllerValues(datas);
-                renderableMesh.MorphComposite.SetMorphsFromFlexes(renderableMesh.FlexStateManager);
-                renderableMesh.MorphComposite.Render();
+                renderableMesh.FlexStateManager.UpdateComposite();
+                renderableMesh.FlexStateManager.MorphComposite.Render();
             }
         }
 

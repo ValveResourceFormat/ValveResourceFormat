@@ -207,7 +207,7 @@ namespace GUI.Types.Renderer
                 }
             }
 
-            var morphComposite = request.Mesh.MorphComposite;
+            var morphComposite = request.Mesh.FlexStateManager?.MorphComposite;
             if (morphComposite != null && uniforms.MorphCompositeTexture != -1)
             {
                 GL.ActiveTexture(TextureUnit.Texture0 + (int)ReservedTextureSlots.MorphCompositeTexture);

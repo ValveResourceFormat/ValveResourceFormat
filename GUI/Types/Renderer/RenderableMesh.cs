@@ -29,7 +29,6 @@ namespace GUI.Types.Renderer
 
         public int MeshIndex { get; }
 
-        public MorphComposite MorphComposite { get; }
         public FlexStateManager FlexStateManager { get; }
 
         private readonly int VBIBHashCode;
@@ -55,8 +54,7 @@ namespace GUI.Types.Renderer
 
             if (morph != null)
             {
-                MorphComposite = new MorphComposite(guiContext, morph);
-                FlexStateManager = new FlexStateManager(morph.FlexRules, morph.FlexControllers);
+                FlexStateManager = new FlexStateManager(guiContext, morph);
             }
         }
 
