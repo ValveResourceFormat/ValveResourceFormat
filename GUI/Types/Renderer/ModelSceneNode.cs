@@ -301,7 +301,6 @@ namespace GUI.Types.Renderer
                 foreach (var renderer in meshRenderers)
                 {
                     renderer.SetAnimationTexture(animationTexture, bonesCount);
-                    renderer.FlexStateManager?.ResetControllers();
                 }
             }
             else
@@ -309,7 +308,6 @@ namespace GUI.Types.Renderer
                 foreach (var renderer in meshRenderers)
                 {
                     renderer.SetAnimationTexture(null, 0);
-                    renderer.FlexStateManager?.ResetControllers();
                 }
             }
         }

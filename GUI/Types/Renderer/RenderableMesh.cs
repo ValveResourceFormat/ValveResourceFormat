@@ -86,6 +86,8 @@ namespace GUI.Types.Renderer
         {
             AnimationTexture = texture;
             AnimationTextureSize = animationTextureSize;
+
+            FlexStateManager?.ResetControllers();
         }
 
         public void ReplaceMaterials(Dictionary<string, string> materialTable)
