@@ -1,4 +1,3 @@
-using System;
 using System.Diagnostics;
 using System.Linq;
 using System.Numerics;
@@ -10,10 +9,6 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         private Frame PrevFrame;
         private Frame NextFrame;
         private readonly Frame InterpolatedFrame;
-
-        private Animation lastAnimation;
-        private float lastTime;
-
         public Skeleton Skeleton { get; }
 
         public AnimationFrameCache(Skeleton skeleton)
@@ -41,10 +36,6 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// <param name="time">The time to get the frame for.</param>
         public Frame GetInterpolatedFrame(Animation anim, float time)
         {
-            if (lastAnimation == anim && Math.Abs(lastTime - time) < 0.0001)
-            {
-                return InterpolatedFrame;
-            }
             // Calculate the index of the current frame
             var frameIndex = (int)(time * anim.Fps) % anim.FrameCount;
             var nextFrameIndex = (frameIndex + 1) % anim.FrameCount;
@@ -76,9 +67,6 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
                 InterpolatedFrame.SetDataAttribute(dataName, float.Lerp(frame1Data, frame2Data, t));
             }
-
-            lastAnimation = anim;
-            lastTime = time;
 
             return InterpolatedFrame;
         }
