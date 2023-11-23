@@ -14,8 +14,8 @@
     <PackageReference Include="SkiaSharp" Version="2.88.6" />
     <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="2.88.6" />
     <PackageReference Include="ValveKeyValue" Version="0.9.0.267" />
-    <PackageReference Include="ValvePak" Version="1.6.1.71" />
-    <PackageReference Include="ZstdSharp.Port" Version="0.7.3" />
+    <PackageReference Include="ValvePak" Version="1.6.2.76" />
+    <PackageReference Include="ZstdSharp.Port" Version="0.7.4" />
     <PackageReference Include="KeyValues2" Version="0.3.0" />
   </ItemGroup>
   <ItemGroup>
