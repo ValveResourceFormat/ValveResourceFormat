@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Enumeration;
@@ -279,11 +280,12 @@ namespace GUI.Types.Viewers
                             Length = length,
                         };
 
-                        package.ReadEntry(newEntry, out var bytes, validateCrc: false);
-                        var stream = new MemoryStream(bytes);
+                        var bytes = ArrayPool<byte>.Shared.Rent((int)newEntry.TotalLength);
 
                         try
                         {
+                            package.ReadEntry(newEntry, bytes, validateCrc: false);
+                            using var stream = new MemoryStream(bytes);
                             using var resource = new ValveResourceFormat.Resource();
                             resource.Read(stream, verifyFileSize: false);
 
@@ -359,6 +361,10 @@ namespace GUI.Types.Viewers
                             {
                                 newEntry.TypeName = "txt";
                             }
+                        }
+                        finally
+                        {
+                            ArrayPool<byte>.Shared.Return(bytes);
                         }
 
                         if (!package.Entries.TryGetValue(newEntry.TypeName, out var typeEntries))
