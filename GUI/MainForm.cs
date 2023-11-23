@@ -754,10 +754,14 @@ namespace GUI
 
             if (control is TreeView treeView)
             {
-                selectedNodes =
-                [
-                    (BetterTreeNode)treeView.SelectedNode
-                ];
+                var treeNode = (BetterTreeNode)treeView.SelectedNode;
+
+                if (treeNode.IsFolder)
+                {
+                    return;
+                }
+
+                selectedNodes = [treeNode];
             }
             else if (control is ListView listView)
             {
@@ -765,7 +769,14 @@ namespace GUI
 
                 foreach (ListViewItem selectedNode in listView.SelectedItems)
                 {
-                    selectedNodes.Add((BetterTreeNode)selectedNode.Tag);
+                    var treeNode = (BetterTreeNode)selectedNode.Tag;
+
+                    if (treeNode.IsFolder)
+                    {
+                        return;
+                    }
+
+                    selectedNodes.Add(treeNode);
                 }
             }
             else
@@ -773,13 +784,18 @@ namespace GUI
                 throw new InvalidDataException("Unknown state");
             }
 
+            if (selectedNodes.Count > 5 && MessageBox.Show(
+                $"You are trying to open {selectedNodes.Count} files in the default app for each of these files, are you sure you want to continue?",
+                "Trying to open many files in the default app",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question
+            ) != DialogResult.Yes)
+            {
+                return;
+            }
+
             foreach (var selectedNode in selectedNodes)
             {
-                if (selectedNode.IsFolder)
-                {
-                    return;
-                }
-
                 if (selectedNode.TreeView is not BetterTreeView nodeTreeView)
                 {
                     throw new Exception("Unexpected tree view");
