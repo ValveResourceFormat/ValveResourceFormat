@@ -79,27 +79,15 @@ namespace GUI.Types.Renderer
             Frame = activeAnimation == null ? 0 : activeAnimation.FrameCount - 1;
         }
 
-        public void GetAnimationMatrices(Matrix4x4[] matrices)
+        public Frame GetFrame()
         {
             if (IsPaused)
             {
-                activeAnimation.GetAnimationMatrices(matrices, animationFrameCache, Frame);
+                return animationFrameCache.GetFrame(activeAnimation, Frame);
             }
             else
             {
-                activeAnimation.GetAnimationMatrices(matrices, animationFrameCache, Time);
-            }
-        }
-
-        public Dictionary<string, float> GetDatas()
-        {
-            if (IsPaused)
-            {
-                return activeAnimation.GetDatas(animationFrameCache, Frame);
-            }
-            else
-            {
-                return activeAnimation.GetDatas(animationFrameCache, Time);
+                return animationFrameCache.GetInterpolatedFrame(activeAnimation, Time);
             }
         }
 

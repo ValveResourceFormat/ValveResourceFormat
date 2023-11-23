@@ -113,9 +113,11 @@ namespace GUI.Types.Renderer
 
             var matrices = ArrayPool<Matrix4x4>.Shared.Rent(bonesCount);
 
+            var frame = AnimationController.GetFrame();
+
             try
             {
-                AnimationController.GetAnimationMatrices(matrices);
+                Animation.GetAnimationMatrices(matrices, frame, AnimationController.FrameCache.Skeleton);
 
                 // Update animation texture
                 GL.BindTexture(TextureTarget.Texture2D, animationTexture);
@@ -138,7 +140,7 @@ namespace GUI.Types.Renderer
             }
 
             //Update morphs
-            var datas = AnimationController.GetDatas();
+            var datas = frame.Datas;
             foreach (var renderableMesh in activeMeshRenderers)
             {
                 if (renderableMesh.FlexStateManager == null)

@@ -224,7 +224,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             GetAnimationMatrices(matrices, frame, frameCache.Skeleton);
         }
 
-        private static void GetAnimationMatrices(Matrix4x4[] matrices, Frame frame, Skeleton skeleton)
+        public static void GetAnimationMatrices(Matrix4x4[] matrices, Frame frame, Skeleton skeleton)
         {
             foreach (var root in skeleton.Roots)
             {
