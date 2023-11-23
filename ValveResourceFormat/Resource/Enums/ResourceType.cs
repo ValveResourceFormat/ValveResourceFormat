@@ -142,6 +142,9 @@ namespace ValveResourceFormat
         [Extension("vsmart")]
         SmartProp,
 
+        [Extension("herolist")]
+        DotaHeroList,
+
         [Extension("sbox")] // TODO: Managed resources can have any extension
         SboxManagedResource,
 

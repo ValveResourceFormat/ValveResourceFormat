@@ -463,6 +463,7 @@ namespace ValveResourceFormat
 
                 case ResourceType.SboxManagedResource:
                 case ResourceType.ArtifactItem:
+                case ResourceType.DotaHeroList:
                     return new Plaintext();
 
                 case ResourceType.Shader:
@@ -588,6 +589,8 @@ namespace ValveResourceFormat
                     return ResourceType.PulseGraphDef;
                 case "SmartProp":
                     return ResourceType.SmartProp;
+                case "DotaHeroList":
+                    return ResourceType.DotaHeroList;
                 case "SBData":
                 case "ManagedResourceCompiler": // This is without the "Compile" prefix
                     return ResourceType.SboxManagedResource;
