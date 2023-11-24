@@ -361,7 +361,7 @@ namespace ValveResourceFormat.IO
             {
                 var animations = model.GetAllAnimations(FileLoader);
                 // Add animations
-                var frame = new Frame(model.Skeleton);
+                var frame = new Frame(model.Skeleton, model.FlexControllers);
                 var boneCount = model.Skeleton.Bones.Length;
 
                 var rotationDicts = Enumerable.Range(0, boneCount)

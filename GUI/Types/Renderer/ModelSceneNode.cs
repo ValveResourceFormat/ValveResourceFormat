@@ -70,7 +70,7 @@ namespace GUI.Types.Renderer
                 model.SetSkeletonFilteredForLod0();
             }
 
-            AnimationController = new(model.Skeleton);
+            AnimationController = new(model.Skeleton, model.FlexControllers);
             bonesCount = model.Skeleton.Bones.Length;
 
             if (skin != null)
@@ -226,6 +226,8 @@ namespace GUI.Types.Renderer
             foreach (var embeddedMesh in model.GetEmbeddedMeshesAndLoD().Where(m => (m.LoDMask & 1) != 0))
             {
                 embeddedMesh.Mesh.LoadExternalMorphData(Scene.GuiContext.FileLoader);
+                model.SetExternalMorphData(embeddedMesh.Mesh.MorphData);
+
                 meshRenderers.Add(new RenderableMesh(embeddedMesh.Mesh, embeddedMesh.MeshIndex, Scene, model, materialTable, embeddedMesh.Mesh.MorphData));
             }
 

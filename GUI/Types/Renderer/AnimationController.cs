@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Numerics;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
+using ValveResourceFormat.ResourceTypes.ModelFlex;
 
 namespace GUI.Types.Renderer
 {
@@ -39,9 +40,9 @@ namespace GUI.Types.Renderer
             }
         }
 
-        public AnimationController(Skeleton skeleton)
+        public AnimationController(Skeleton skeleton, FlexController[] flexControllers)
         {
-            animationFrameCache = new(skeleton);
+            animationFrameCache = new(skeleton, flexControllers);
         }
 
         public bool Update(float timeStep)

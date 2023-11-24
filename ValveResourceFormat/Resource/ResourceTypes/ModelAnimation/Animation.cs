@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Numerics;
 using ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders;
+using ValveResourceFormat.ResourceTypes.ModelFlex;
 using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Serialization.NTRO;
 
@@ -43,7 +44,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         }
 
         public static IEnumerable<Animation> FromData(IKeyValueCollection animationData, IKeyValueCollection decodeKey,
-            Skeleton skeleton)
+            Skeleton skeleton, FlexController[] flexControllers)
         {
             var animArray = animationData.GetArray<IKeyValueCollection>("m_animArray");
 
@@ -64,7 +65,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             var dataChannelArray = new AnimationDataChannel[dataChannelArrayKV.Length];
             for (var i = 0; i < dataChannelArrayKV.Length; i++)
             {
-                dataChannelArray[i] = new AnimationDataChannel(skeleton, dataChannelArrayKV[i], channelElements);
+                dataChannelArray[i] = new AnimationDataChannel(skeleton, flexControllers, dataChannelArrayKV[i], channelElements);
             }
 
             var segmentArrayKV = animationData.GetArray("m_segmentArray");
@@ -94,30 +95,15 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                     container.Length - (int)containerReader.BaseStream.Position
                 );
 
-                int[] wantedElements;
-                int[] remapTable;
-
-                if (localChannel.Attribute == AnimationChannelAttribute.Data)
-                {
-                    remapTable = elements;
-                    wantedElements = new int[elements.Length];
-                    for (var j = 0; j < elements.Length; j++)
-                    {
-                        wantedElements[j] = j;
-                    }
-                }
-                else
-                {
-                    remapTable = localChannel.RemapTable
-                        .Select(i => Array.IndexOf(elements, i))
-                        .ToArray();
-                    wantedElements = remapTable.Where(boneID => boneID != -1).ToArray();
-                    remapTable = remapTable
-                        .Select((boneID, i) => (boneID, i))
-                        .Where(t => t.boneID != -1)
-                        .Select(t => t.i)
-                        .ToArray();
-                }
+                var remapTable = localChannel.RemapTable
+                    .Select(i => Array.IndexOf(elements, i))
+                    .ToArray();
+                var wantedElements = remapTable.Where(boneID => boneID != -1).ToArray();
+                remapTable = remapTable
+                    .Select((boneID, i) => (boneID, i))
+                    .Where(t => t.boneID != -1)
+                    .Select(t => t.i)
+                    .ToArray();
 
                 if (localChannel.Attribute == AnimationChannelAttribute.Unknown)
                 {
@@ -177,28 +163,11 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                 .ToArray();
         }
 
-        public static IEnumerable<Animation> FromResource(Resource resource, IKeyValueCollection decodeKey, Skeleton skeleton)
-            => FromData(GetAnimationData(resource), decodeKey, skeleton);
+        public static IEnumerable<Animation> FromResource(Resource resource, IKeyValueCollection decodeKey, Skeleton skeleton, FlexController[] flexControllers)
+            => FromData(GetAnimationData(resource), decodeKey, skeleton, flexControllers);
 
         private static IKeyValueCollection GetAnimationData(Resource resource)
             => resource.DataBlock.AsKeyValueCollection();
-
-        public Dictionary<string, float> GetDatas(AnimationFrameCache frameCache, int frameIndex)
-        {
-            var frame = frameCache.GetFrame(this, frameIndex);
-            return frame.Datas;
-        }
-
-        public Dictionary<string, float> GetDatas(AnimationFrameCache frameCache, float time)
-        {
-            if (FrameCount == 0)
-            {
-                return new Dictionary<string, float>();
-            }
-
-            var frame = frameCache.GetInterpolatedFrame(this, time);
-            return frame.Datas;
-        }
 
         /// <summary>
         /// Get the animation matrix for each bone.

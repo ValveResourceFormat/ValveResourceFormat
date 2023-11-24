@@ -742,9 +742,9 @@ public class ModelExtract
         orientationLayer.LayerValues[frame.FrameIndex] = frameBone.Angle;
     }
 
-    private static void ProcessMorphFrameForDmeChannel(string morphName, Frame frame, TimeSpan time, DmeLogLayer<float> morphLayer)
+    private static void ProcessMorphFrameForDmeChannel(int morphId, Frame frame, TimeSpan time, DmeLogLayer<float> morphLayer)
     {
-        var morphValue = frame.Datas[morphName];
+        var morphValue = frame.Datas[morphId];
 
         morphLayer.Times.Add(time);
         morphLayer.LayerValues[frame.FrameIndex] = morphValue;
@@ -762,21 +762,15 @@ public class ModelExtract
         clip.TimeFrame.Duration = TimeSpan.FromSeconds((double)(anim.FrameCount - 1) / anim.Fps);
         clip.FrameRate = anim.Fps;
 
-        var dataNames = new HashSet<string>();
         var frames = new Frame[anim.FrameCount];
         for (var i = 0; i < anim.FrameCount; i++)
         {
-            var frame = new Frame(model.Skeleton)
+            var frame = new Frame(model.Skeleton, model.FlexControllers)
             {
                 FrameIndex = i
             };
             anim.DecodeFrame(frame);
             frames[i] = frame;
-
-            foreach (var dataName in frame.Datas.Keys)
-            {
-                dataNames.Add(dataName);
-            }
         }
 
         foreach (var bone in model.Skeleton.Bones)
@@ -824,24 +818,23 @@ public class ModelExtract
             clip.Channels.Add(positionChannel);
             clip.Channels.Add(orientationChannel);
         }
-
-        foreach (var morph in dataNames)
+        for (var morphId = 0; morphId < model.FlexControllers.Length; morphId++)
         {
+            var flexController = model.FlexControllers[morphId];
+
             var morphElement = new Element();
-            morphElement.Name = morph;
+            morphElement.Name = flexController.Name;
             morphElement.Add("flexWeight", 0f);
 
-            var morphChannel = BuildDmeChannel<float>($"{morph}_flex_channel", morphElement, "flexWeight", out var morphLog);
+            var morphChannel = BuildDmeChannel<float>($"{flexController.Name}_flex_channel", morphElement, "flexWeight", out var morphLog);
             var morphLogLayer = morphLog.GetLayer(0);
             morphLogLayer.LayerValues = new float[anim.FrameCount];
 
             for (int i = 0; i < anim.FrameCount; i++)
             {
                 Frame frame = frames[i];
-
                 TimeSpan time = TimeSpan.FromSeconds((double)i / anim.Fps);
-
-                ProcessMorphFrameForDmeChannel(morph, frame, time, morphLogLayer);
+                ProcessMorphFrameForDmeChannel(morphId, frame, time, morphLogLayer);
             }
             clip.Channels.Add(morphChannel);
         }

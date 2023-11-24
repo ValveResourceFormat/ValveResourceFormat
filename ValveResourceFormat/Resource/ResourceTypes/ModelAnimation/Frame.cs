@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Numerics;
+using ValveResourceFormat.ResourceTypes.ModelFlex;
 
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 {
@@ -8,11 +9,12 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
     {
         public int FrameIndex { get; set; } = 1;
         public FrameBone[] Bones { get; }
-        public Dictionary<string, float> Datas { get; } = new();
+        public float[] Datas { get; }
 
-        public Frame(Skeleton skeleton)
+        public Frame(Skeleton skeleton, FlexController[] flexControllers)
         {
             Bones = new FrameBone[skeleton.Bones.Length];
+            Datas = new float[flexControllers.Length];
             Clear(skeleton);
         }
 
@@ -76,17 +78,16 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                     Bones[bone].Scale = data;
                     break;
 
+                case AnimationChannelAttribute.Data:
+                    Datas[bone] = data;
+                    break;
+
 #if DEBUG
                 default:
                     Console.WriteLine($"Unknown frame attribute '{attribute}' encountered with float data");
                     break;
 #endif
             }
-        }
-
-        public void SetDataAttribute(string dataName, float data)
-        {
-            Datas[dataName] = data;
         }
 
         /// <summary>

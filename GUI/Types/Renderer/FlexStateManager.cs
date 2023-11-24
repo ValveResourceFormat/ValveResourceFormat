@@ -55,11 +55,12 @@ namespace GUI.Types.Renderer
                 controllerValues[id] = Math.Clamp(value, controller.Min, controller.Max);
             }
         }
-        public void SetControllerValues(Dictionary<string, float> datas)
+        public void SetControllerValues(float[] datas)
         {
-            foreach (var item in datas)
+            var length = Math.Min(datas.Length, controllerValues.Length);
+            for (var i = 0; i < length; i++)
             {
-                SetControllerValue(item.Key, item.Value);
+                controllerValues[i] = datas[i];
             }
         }
         public void ResetControllers()
