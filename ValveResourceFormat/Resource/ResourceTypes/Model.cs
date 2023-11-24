@@ -38,7 +38,7 @@ namespace ValveResourceFormat.ResourceTypes
             var morph = Resource.GetBlockByType(BlockType.MRPH) as Morph;
             if (morph == null)
             {
-                return new FlexController[0];
+                return Array.Empty<FlexController>();
             }
 
             var flexControllersData = morph.Data.GetArray("m_FlexControllers");
