@@ -111,14 +111,10 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                     continue;
                 }
 
-                var decodeContext = new AnimationSegmentDecoderContext
-                {
-                    Data = containerSegment,
-                    Elements = elements,
-                    RemapTable = remapTable,
-                    WantedElements = wantedElements,
-                    Channel = localChannel
-                };
+                var decodeContext = new AnimationSegmentDecoderContext(containerSegment, elements);
+                decodeContext.RemapTable = remapTable;
+                decodeContext.WantedElements = wantedElements;
+                decodeContext.Channel = localChannel;
 
                 // Look at the decoder to see what to read
                 switch (decoder)
