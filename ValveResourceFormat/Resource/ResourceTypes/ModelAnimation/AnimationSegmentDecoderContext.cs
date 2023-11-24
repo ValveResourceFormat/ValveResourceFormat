@@ -8,16 +8,10 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 {
     public struct AnimationSegmentDecoderContext
     {
-        public ArraySegment<byte> Data { get; }
-        public int[] Elements { get; }
+        public ArraySegment<byte> Data { get; set; }
+        public int[] Elements { get; set; }
         public int[] WantedElements { get; set; }
         public int[] RemapTable { get; set; }
         public AnimationDataChannel Channel { get; set; }
-
-        public AnimationSegmentDecoderContext(ArraySegment<byte> data, int[] elements)
-        {
-            Data = data;
-            Elements = elements;
-        }
     }
 }
