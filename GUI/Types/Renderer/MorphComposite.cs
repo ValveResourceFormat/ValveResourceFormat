@@ -118,6 +118,7 @@ namespace GUI.Types.Renderer
             GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.ColorAttachment0, TextureTarget.Texture2D, CompositeTexture, 0);
 
             GL.Viewport(0, 0, 2048, 2048);
+            GL.ClearColor(0, 0, 0, 0);
             GL.Clear(ClearBufferMask.ColorBufferBit);
             GL.DrawElements(BeginMode.Triangles, (vertexBuffer.Length / VertexSize / 4) * 6, DrawElementsType.UnsignedShort, 0);
 
