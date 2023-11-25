@@ -38,14 +38,14 @@ namespace GUI.Types.Renderer
             var length = Math.Min(datas.Length, controllerValues.Length);
             for (var i = 0; i < length; i++)
             {
-                controllerValues[i] = datas[i];
+                SetControllerValue(i, datas[i]);
             }
         }
         public void ResetControllers()
         {
             for (var i = 0; i < controllerValues.Length; i++)
             {
-                controllerValues[i] = 0f;
+                SetControllerValue(i, 0f);
             }
         }
         public float EvaluateMorph(int morphId)
