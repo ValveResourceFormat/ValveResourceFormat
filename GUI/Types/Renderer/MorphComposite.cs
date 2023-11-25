@@ -61,7 +61,7 @@ namespace GUI.Types.Renderer
 
             InitVertexBuffer();
 
-            FillVerticies();
+            FillVertices();
 
             Width = Morph.Data.GetInt32Property("m_nWidth");
             Height = Morph.Data.GetInt32Property("m_nHeight");
@@ -160,7 +160,7 @@ namespace GUI.Types.Renderer
             GL.BindVertexArray(0);
         }
 
-        private void FillVerticies()
+        private void FillVertices()
         {
             var morphDatas = Morph.GetMorphDatas();
 
