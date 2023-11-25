@@ -10,7 +10,6 @@ namespace GUI.Types.Renderer
     class FlexStateManager
     {
         public Morph Morph { get; }
-        private Dictionary<string, int> controllerNameToId = new();
         private Dictionary<int, int> morphIdToRuleId = new();
         private float[] controllerValues;
         public MorphComposite MorphComposite { get; }
@@ -19,11 +18,6 @@ namespace GUI.Types.Renderer
         {
             Morph = morph;
 
-            for (var i = 0; i < Morph.FlexControllers.Length; i++)
-            {
-                var controller = Morph.FlexControllers[i];
-                controllerNameToId.Add(controller.Name, i);
-            }
             controllerValues = new float[Morph.FlexControllers.Length];
 
             for (var i = 0; i < Morph.FlexRules.Length; i++)
@@ -34,26 +28,10 @@ namespace GUI.Types.Renderer
 
             MorphComposite = new MorphComposite(guiContext, morph);
         }
-        public int GetControllerId(string name)
+        public void SetControllerValue(int id, float value)
         {
-            if (controllerNameToId.TryGetValue(name, out var id))
-            {
-                return id;
-            }
-            else
-            {
-                return -1;
-            }
-        }
-        public void SetControllerValue(string name, float value)
-        {
-            int id = GetControllerId(name);
-            if (id != -1)
-            {
-                var controller = Morph.FlexControllers[id];
-
-                controllerValues[id] = Math.Clamp(value, controller.Min, controller.Max);
-            }
+            var controller = Morph.FlexControllers[id];
+            controllerValues[id] = Math.Clamp(value, controller.Min, controller.Max);
         }
         public void SetControllerValues(float[] datas)
         {
