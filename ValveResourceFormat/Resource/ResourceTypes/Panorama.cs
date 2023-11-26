@@ -24,17 +24,12 @@ namespace ValveResourceFormat.ResourceTypes
         {
             reader.BaseStream.Position = Offset;
 
-            if (resource.EditInfo.Structs.TryGetValue(ResourceEditInfo.REDIStruct.SpecialDependencies, out var specialBlock))
+            if ((resource.ResourceType == ResourceType.PanoramaScript && resource.Version >= 4)
+            || (resource.ResourceType == ResourceType.PanoramaTypescript && resource.Version >= 2))
             {
-                var specialDeps = (SpecialDependencies)specialBlock;
-                var isPlaintext = specialDeps.List[0]?.CompilerIdentifier is "CompileJavaScript" or "CompileTypeScript";
+                Data = reader.ReadBytes((int)Size);
 
-                if (isPlaintext)
-                {
-                    Data = reader.ReadBytes((int)Size);
-
-                    return;
-                }
+                return;
             }
 
             CRC32 = reader.ReadUInt32();
