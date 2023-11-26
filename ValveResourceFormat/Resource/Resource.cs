@@ -231,6 +231,11 @@ namespace ValveResourceFormat
                 var size = Reader.ReadUInt32();
                 Block block = null;
 
+                if (size == 0)
+                {
+                    continue;
+                }
+
                 // Peek data to detect VKV3
                 // Valve has deprecated NTRO as reported by resourceinfo.exe
                 // TODO: Find a better way without checking against resource type
