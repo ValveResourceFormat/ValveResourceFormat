@@ -3,37 +3,41 @@ using System.Numerics;
 
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders
 {
-    public class CCompressedFullVector3 : AnimationSegmentDecoder<Vector3>
+    public class CCompressedFullVector3 : AnimationSegmentDecoder
     {
         private readonly Vector3[] Data;
 
-        public CCompressedFullVector3(AnimationSegmentDecoderContext context) : base(context)
+        public CCompressedFullVector3(ArraySegment<byte> data, int[] wantedElements, int[] remapTable,
+            int elementCount, AnimationChannelAttribute channelAttribute) : base(remapTable, channelAttribute)
         {
             const int elementSize = 3 * 4;
-            var stride = Context.Elements.Length * elementSize;
-            var elements = Context.Data.Count / stride;
+            var stride = elementCount * elementSize;
+            var elements = data.Count / stride;
 
-            Data = new Vector3[Context.Elements.Length * elements];
+            Data = new Vector3[remapTable.Length * elements];
 
             var pos = 0;
             for (var i = 0; i < elements; i++)
             {
-                foreach (var j in Context.WantedElements)
+                foreach (var j in wantedElements)
                 {
                     var offset = i * stride + j * elementSize;
                     Data[pos++] = new Vector3(
-                        BitConverter.ToSingle(Context.Data.Slice(offset + (0 * 4), 4)),
-                        BitConverter.ToSingle(Context.Data.Slice(offset + (1 * 4), 4)),
-                        BitConverter.ToSingle(Context.Data.Slice(offset + (2 * 4), 4))
+                        BitConverter.ToSingle(data.Slice(offset + (0 * 4), 4)),
+                        BitConverter.ToSingle(data.Slice(offset + (1 * 4), 4)),
+                        BitConverter.ToSingle(data.Slice(offset + (2 * 4), 4))
                     );
                 }
             }
         }
 
-        public override Vector3 Read(int frameIndex, int i)
+        public override void Read(int frameIndex, Frame outFrame)
         {
-            var offset = frameIndex * Context.RemapTable.Length;
-            return Data[offset + i];
+            var offset = frameIndex * RemapTable.Length;
+            for (var i = 0; i < RemapTable.Length; i++)
+            {
+                outFrame.SetAttribute(RemapTable[i], ChannelAttribute, Data[offset + i]);
+            }
         }
     }
 }

@@ -3,21 +3,25 @@ using System.Linq;
 
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders
 {
-    public class CCompressedStaticFloat : AnimationSegmentDecoder<float>
+    public class CCompressedStaticFloat : AnimationSegmentDecoder
     {
         private readonly float[] Data;
 
-        public CCompressedStaticFloat(AnimationSegmentDecoderContext context) : base(context)
+        public CCompressedStaticFloat(ArraySegment<byte> data, int[] wantedElements, int[] remapTable,
+            AnimationChannelAttribute channelAttribute) : base(remapTable, channelAttribute)
         {
-            Data = context.WantedElements.Select(i =>
+            Data = wantedElements.Select(i =>
             {
-                return BitConverter.ToSingle(Context.Data.Slice(i * 4));
+                return BitConverter.ToSingle(data.Slice(i * 4));
             }).ToArray();
         }
 
-        public override float Read(int frameIndex, int i)
+        public override void Read(int frameIndex, Frame outFrame)
         {
-            return Data[i];
+            for (var i = 0; i < RemapTable.Length; i++)
+            {
+                outFrame.SetAttribute(RemapTable[i], ChannelAttribute, Data[i]);
+            }
         }
     }
 }

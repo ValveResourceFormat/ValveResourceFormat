@@ -4,32 +4,36 @@ using System.Numerics;
 
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders
 {
-    public class CCompressedFullQuaternion : AnimationSegmentDecoder<Quaternion>
+    public class CCompressedFullQuaternion : AnimationSegmentDecoder
     {
         private readonly Quaternion[] Data;
 
-        public CCompressedFullQuaternion(AnimationSegmentDecoderContext context) : base(context)
+        public CCompressedFullQuaternion(ArraySegment<byte> data, int[] wantedElements, int[] remapTable,
+            int elementCount, AnimationChannelAttribute channelAttribute) : base(remapTable, channelAttribute)
         {
             const int elementSize = 4 * 4;
-            var stride = Context.Elements.Length * elementSize;
-            Data = Enumerable.Range(0, Context.Data.Count / stride)
-                .SelectMany(i => Context.WantedElements.Select(j =>
+            var stride = elementCount * elementSize;
+            Data = Enumerable.Range(0, data.Count / stride)
+                .SelectMany(i => wantedElements.Select(j =>
                 {
                     var offset = i * stride + j * elementSize;
                     return new Quaternion(
-                        BitConverter.ToSingle(Context.Data.Slice(offset + (0 * 4))),
-                        BitConverter.ToSingle(Context.Data.Slice(offset + (1 * 4))),
-                        BitConverter.ToSingle(Context.Data.Slice(offset + (2 * 4))),
-                        BitConverter.ToSingle(Context.Data.Slice(offset + (3 * 4)))
+                        BitConverter.ToSingle(data.Slice(offset + (0 * 4))),
+                        BitConverter.ToSingle(data.Slice(offset + (1 * 4))),
+                        BitConverter.ToSingle(data.Slice(offset + (2 * 4))),
+                        BitConverter.ToSingle(data.Slice(offset + (3 * 4)))
                     );
                 }).ToArray())
                 .ToArray();
         }
 
-        public override Quaternion Read(int frameIndex, int i)
+        public override void Read(int frameIndex, Frame outFrame)
         {
-            var offset = frameIndex * Context.RemapTable.Length;
-            return Data[offset + i];
+            var offset = frameIndex * RemapTable.Length;
+            for (var i = 0; i < RemapTable.Length; i++)
+            {
+                outFrame.SetAttribute(RemapTable[i], ChannelAttribute, Data[offset + i]);
+            }
         }
     }
 }

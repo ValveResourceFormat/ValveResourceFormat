@@ -1,41 +1,47 @@
 using System;
-using System.Numerics;
 
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders
 {
-    public class CCompressedAnimQuaternion : AnimationSegmentDecoder<Quaternion>
+    public class CCompressedAnimQuaternion : AnimationSegmentDecoder
     {
         private readonly byte[] Data;
 
-        public CCompressedAnimQuaternion(AnimationSegmentDecoderContext context) : base(context)
+        public CCompressedAnimQuaternion(ArraySegment<byte> data, int[] wantedElements, int[] remapTable,
+            int elementCount, AnimationChannelAttribute channelAttribute) : base(remapTable, channelAttribute)
         {
             const int elementSize = 6;
-            var stride = Context.Elements.Length * elementSize;
-            var elements = Context.Data.Count / stride;
+            var stride = elementCount * elementSize;
+            var elements = data.Count / stride;
 
-            Data = new byte[Context.Elements.Length * elementSize * elements];
+            Data = new byte[remapTable.Length * elementSize * elements];
 
             var pos = 0;
             for (var i = 0; i < elements; i++)
             {
-                foreach (var j in Context.WantedElements)
+                foreach (var j in wantedElements)
                 {
-                    Context.Data.Slice(i * stride + j * elementSize, elementSize).CopyTo(Data, pos);
+                    data.Slice(i * stride + j * elementSize, elementSize).CopyTo(Data, pos);
                     pos += elementSize;
                 }
             }
         }
 
-        public override Quaternion Read(int frameIndex, int i)
+        public override void Read(int frameIndex, Frame outFrame)
         {
             const int elementSize = 6;
-            var offset = frameIndex * Context.RemapTable.Length * elementSize;
-
-            return SegmentHelpers.ReadQuaternion(new ReadOnlySpan<byte>(
-                    Data,
-                    offset + i * elementSize,
-                    elementSize
-                ));
+            var offset = frameIndex * RemapTable.Length * elementSize;
+            for (var i = 0; i < RemapTable.Length; i++)
+            {
+                outFrame.SetAttribute(
+                    RemapTable[i],
+                    ChannelAttribute,
+                    SegmentHelpers.ReadQuaternion(new ReadOnlySpan<byte>(
+                        Data,
+                        offset + i * elementSize,
+                        elementSize
+                    ))
+                );
+            }
         }
     }
 }

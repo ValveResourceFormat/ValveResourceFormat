@@ -1,28 +1,16 @@
-using System;
-
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 {
-    public interface IAnimationSegmentDecoder
+    public abstract class AnimationSegmentDecoder
     {
-        public AnimationSegmentDecoderContext Context { get; }
-        public void Read(int frameIndex, Frame outFrame);
-    }
-    public abstract class AnimationSegmentDecoder<T> : IAnimationSegmentDecoder
-    {
-        public AnimationSegmentDecoderContext Context { get; }
+        public int[] RemapTable { get; }
+        public AnimationChannelAttribute ChannelAttribute { get; }
 
-        protected AnimationSegmentDecoder(AnimationSegmentDecoderContext context)
+        protected AnimationSegmentDecoder(int[] remapTable, AnimationChannelAttribute channelAttribute)
         {
-            Context = context;
+            RemapTable = remapTable;
+            ChannelAttribute = channelAttribute;
         }
 
-        public abstract T Read(int frameIndex, int i);
-        public void Read(int frameIndex, Frame outFrame)
-        {
-            for (var i = 0; i < Context.RemapTable.Length; i++)
-            {
-                outFrame.SetAttribute(Context.RemapTable[i], Context.Channel.Attribute, Read(frameIndex, i));
-            }
-        }
+        public abstract void Read(int frameIndex, Frame outFrame);
     }
 }

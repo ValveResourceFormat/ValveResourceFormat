@@ -3,26 +3,30 @@ using System.Linq;
 
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders
 {
-    public class CCompressedFullFloat : AnimationSegmentDecoder<float>
+    public class CCompressedFullFloat : AnimationSegmentDecoder
     {
         private readonly float[] Data;
 
-        public CCompressedFullFloat(AnimationSegmentDecoderContext context) : base(context)
+        public CCompressedFullFloat(ArraySegment<byte> data, int[] wantedElements, int[] remapTable,
+            int elementCount, AnimationChannelAttribute channelAttribute) : base(remapTable, channelAttribute)
         {
             const int elementSize = 4;
-            var stride = Context.Elements.Length * elementSize;
-            Data = Enumerable.Range(0, Context.Data.Count / stride)
-                .SelectMany(i => Context.WantedElements.Select(j =>
+            var stride = elementCount * elementSize;
+            Data = Enumerable.Range(0, data.Count / stride)
+                .SelectMany(i => wantedElements.Select(j =>
                 {
-                    return BitConverter.ToSingle(Context.Data.Slice(i * stride + j * elementSize));
+                    return BitConverter.ToSingle(data.Slice(i * stride + j * elementSize));
                 }).ToArray())
                 .ToArray();
         }
 
-        public override float Read(int frameIndex, int i)
+        public override void Read(int frameIndex, Frame outFrame)
         {
-            var offset = frameIndex * Context.RemapTable.Length;
-            return Data[offset + i];
+            var offset = frameIndex * RemapTable.Length;
+            for (var i = 0; i < RemapTable.Length; i++)
+            {
+                outFrame.SetAttribute(RemapTable[i], ChannelAttribute, Data[offset + i]);
+            }
         }
     }
 }
