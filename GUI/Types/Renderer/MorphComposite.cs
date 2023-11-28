@@ -24,6 +24,8 @@ namespace GUI.Types.Renderer
         private int vertexBufferHandle;
         private int vertexArray;
         private float[] allVertices;
+        private float[] usedVerticies;
+        private int usedVerticiesLength;
         private RenderTexture morphAtlas;
         private List<int>[] morphRects;
         private HashSet<int> usedRects = new();
@@ -50,6 +52,7 @@ namespace GUI.Types.Renderer
             Morph = morph;
 
             allVertices = new float[GetMorphBundleCount() * 4 * VertexSize];
+            usedVerticies = new float[allVertices.Length];
 
             quadIndices = vrfGuiContext.QuadIndices;
             shader = vrfGuiContext.ShaderLoader.LoadShader("vrf.morph_composite");
@@ -81,7 +84,7 @@ namespace GUI.Types.Renderer
 
         public void Render()
         {
-            var vertexBuffer = BuildVertexBuffer();
+            BuildVertexBuffer();
 
             GL.UseProgram(shader.Program);
 
@@ -98,7 +101,7 @@ namespace GUI.Types.Renderer
             GL.EnableVertexAttribArray(0);
             GL.BindBuffer(BufferTarget.ElementArrayBuffer, quadIndices.GLHandle);
             GL.BindBuffer(BufferTarget.ArrayBuffer, vertexBufferHandle);
-            GL.BufferData(BufferTarget.ArrayBuffer, vertexBuffer.Length * sizeof(float), vertexBuffer, BufferUsageHint.DynamicDraw);
+            GL.BufferData(BufferTarget.ArrayBuffer, usedVerticiesLength * sizeof(float), usedVerticies, BufferUsageHint.DynamicDraw);
 
             //render target
             GL.BindTexture(TextureTarget.Texture2D, CompositeTexture);
@@ -120,7 +123,7 @@ namespace GUI.Types.Renderer
             GL.Viewport(0, 0, 2048, 2048);
             GL.ClearColor(0, 0, 0, 0);
             GL.Clear(ClearBufferMask.ColorBufferBit);
-            GL.DrawElements(BeginMode.Triangles, (vertexBuffer.Length / VertexSize / 4) * 6, DrawElementsType.UnsignedShort, 0);
+            GL.DrawElements(BeginMode.Triangles, (usedVerticiesLength / VertexSize / 4) * 6, DrawElementsType.UnsignedShort, 0);
 
             //unbind everything
             GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
@@ -216,18 +219,17 @@ namespace GUI.Types.Renderer
                 }
             }
         }
-        private float[] BuildVertexBuffer()
+        private void BuildVertexBuffer()
         {
             var rectCount = usedRects.Count;
-            var buffer = new float[rectCount * 4 * VertexSize];
+            usedVerticiesLength = rectCount * 4 * VertexSize;
 
             var addedRects = 0;
             foreach (var rect in usedRects)
             {
-                Array.Copy(allVertices, rect * 4 * VertexSize, buffer, addedRects * 4 * VertexSize, VertexSize * 4);
+                Array.Copy(allVertices, rect * 4 * VertexSize, usedVerticies, addedRects * 4 * VertexSize, VertexSize * 4);
                 addedRects++;
             }
-            return buffer;
         }
         private void SetRectData(int rectI, MorphCompositeRectData data)
         {
