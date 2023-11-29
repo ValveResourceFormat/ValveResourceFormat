@@ -13,8 +13,6 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
         public AnimationDataChannel(Skeleton skeleton, FlexController[] flexControllers, IKeyValueCollection dataChannel, int channelElements)
         {
-            RemapTable = Enumerable.Range(0, skeleton.Bones.Length).Select(_ => -1).ToArray();
-
             var elementNameArray = dataChannel.GetArray<string>("m_szElementNameArray");
             var elementIndexArray = dataChannel.GetIntegerArray("m_nElementIndexArray");
 
@@ -27,6 +25,17 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                 "data" => AnimationChannelAttribute.Data,
                 _ => AnimationChannelAttribute.Unknown,
             };
+
+            int remapLength;
+            if (Attribute == AnimationChannelAttribute.Data)
+            {
+                remapLength = flexControllers.Length;
+            }
+            else
+            {
+                remapLength = skeleton.Bones.Length;
+            }
+            RemapTable = Enumerable.Range(0, remapLength).Select(_ => -1).ToArray();
 
             for (var i = 0; i < elementIndexArray.Length; i++)
             {
