@@ -11,6 +11,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelFlex
     {
         public int FlexID { get; }
         public FlexOp[] FlexOps { get; }
+        private Stack<float> stack = new();
 
         public FlexRule(int flexID, FlexOp[] flexOps)
         {
@@ -25,11 +26,20 @@ namespace ValveResourceFormat.ResourceTypes.ModelFlex
 
         public float Evaluate(float[] flexControllerValues)
         {
-            var context = new FlexRuleContext(flexControllerValues);
+            var context = new FlexRuleContext(stack, flexControllerValues);
 
             foreach (var item in FlexOps)
             {
                 item.Run(context);
+            }
+
+            if (stack.Count > 1)
+            {
+                throw new Exception("FlexRule stack had multiple values after evaluation");
+            }
+            else if (stack.Count == 0)
+            {
+                throw new Exception("FlexRule stack was empty after evaluation");
             }
 
             return context.Stack.Pop();

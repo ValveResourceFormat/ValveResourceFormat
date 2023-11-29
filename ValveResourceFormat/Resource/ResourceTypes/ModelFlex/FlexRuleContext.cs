@@ -6,14 +6,15 @@ using System.Threading.Tasks;
 
 namespace ValveResourceFormat.ResourceTypes.ModelFlex
 {
-    public class FlexRuleContext
+    public struct FlexRuleContext
     {
         public float[] ControllerValues { get; }
-        public Stack<float> Stack { get; } = new();
+        public Stack<float> Stack { get; }
 
-        public FlexRuleContext(float[] controllerValues)
+        public FlexRuleContext(Stack<float> stack, float[] controllerValues)
         {
             ControllerValues = controllerValues;
+            Stack = stack;
         }
     }
 }
