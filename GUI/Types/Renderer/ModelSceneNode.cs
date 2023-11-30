@@ -70,7 +70,7 @@ namespace GUI.Types.Renderer
                 model.SetSkeletonFilteredForLod0();
             }
 
-            AnimationController = new(model.Skeleton);
+            AnimationController = new(model.Skeleton, model.FlexControllers);
             bonesCount = model.Skeleton.Bones.Length;
 
             if (skin != null)
@@ -83,10 +83,25 @@ namespace GUI.Types.Renderer
             LoadAnimations(model);
         }
 
+        private void RenderMorphComposites()
+        {
+            foreach (var renderableMesh in activeMeshRenderers)
+            {
+                if (renderableMesh.FlexStateManager == null)
+                {
+                    continue;
+                }
+
+                renderableMesh.FlexStateManager.UpdateComposite();
+                renderableMesh.FlexStateManager.MorphComposite.Render();
+            }
+        }
+
         public override void Update(Scene.UpdateContext context)
         {
             if (!AnimationController.Update(context.Timestep))
             {
+                RenderMorphComposites();
                 return;
             }
 
@@ -98,9 +113,11 @@ namespace GUI.Types.Renderer
 
             var matrices = ArrayPool<Matrix4x4>.Shared.Rent(bonesCount);
 
+            var frame = AnimationController.GetFrame();
+
             try
             {
-                AnimationController.GetAnimationMatrices(matrices);
+                Animation.GetAnimationMatrices(matrices, frame, AnimationController.FrameCache.Skeleton);
 
                 // Update animation texture
                 GL.BindTexture(TextureTarget.Texture2D, animationTexture);
@@ -120,6 +137,20 @@ namespace GUI.Types.Renderer
             finally
             {
                 ArrayPool<Matrix4x4>.Shared.Return(matrices);
+            }
+
+            //Update morphs
+            var datas = frame.Datas;
+            foreach (var renderableMesh in activeMeshRenderers)
+            {
+                if (renderableMesh.FlexStateManager == null)
+                {
+                    continue;
+                }
+
+                renderableMesh.FlexStateManager.SetControllerValues(datas);
+                renderableMesh.FlexStateManager.UpdateComposite();
+                renderableMesh.FlexStateManager.MorphComposite.Render();
             }
         }
 
@@ -194,7 +225,10 @@ namespace GUI.Types.Renderer
             // Get embedded meshes
             foreach (var embeddedMesh in model.GetEmbeddedMeshesAndLoD().Where(m => (m.LoDMask & 1) != 0))
             {
-                meshRenderers.Add(new RenderableMesh(embeddedMesh.Mesh, embeddedMesh.MeshIndex, Scene, model, materialTable));
+                embeddedMesh.Mesh.LoadExternalMorphData(Scene.GuiContext.FileLoader);
+                model.SetExternalMorphData(embeddedMesh.Mesh.MorphData);
+
+                meshRenderers.Add(new RenderableMesh(embeddedMesh.Mesh, embeddedMesh.MeshIndex, Scene, model, materialTable, embeddedMesh.Mesh.MorphData));
             }
 
             // Load referred meshes from file (only load meshes with LoD 1)

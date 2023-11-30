@@ -74,6 +74,9 @@ namespace GUI.Types.Renderer
             public int ShaderId;
             public int ShaderProgramId;
             public int CubeMapArrayIndices;
+            public int MorphCompositeTexture;
+            public int MorphCompositeTextureSize;
+            public int MorphVertexIdOffset;
         }
 
         private static void DrawBatch(List<Request> requests, Scene.RenderContext context)
@@ -117,7 +120,10 @@ namespace GUI.Types.Renderer
                             ObjectId = shader.GetUniformLocation("sceneObjectId"),
                             MeshId = shader.GetUniformLocation("meshId"),
                             ShaderId = shader.GetUniformLocation("shaderId"),
-                            ShaderProgramId = shader.GetUniformLocation("shaderProgramId")
+                            ShaderProgramId = shader.GetUniformLocation("shaderProgramId"),
+                            MorphCompositeTexture = shader.GetUniformLocation("morphCompositeTexture"),
+                            MorphCompositeTextureSize = shader.GetUniformLocation("morphCompositeTextureSize"),
+                            MorphVertexIdOffset = shader.GetUniformLocation("morphVertexIdOffset")
                         };
 
                         GL.UseProgram(shader.Program);
@@ -198,6 +204,24 @@ namespace GUI.Types.Renderer
                 {
                     var numBones = MathF.Max(1, request.Mesh.AnimationTextureSize - 1);
                     GL.Uniform1(uniforms.NumBones, numBones);
+                }
+            }
+
+            var morphComposite = request.Mesh.FlexStateManager?.MorphComposite;
+            if (morphComposite != null && uniforms.MorphCompositeTexture != -1)
+            {
+                GL.ActiveTexture(TextureUnit.Texture0 + (int)ReservedTextureSlots.MorphCompositeTexture);
+                GL.BindTexture(TextureTarget.Texture2D, morphComposite.CompositeTexture);
+                GL.Uniform1(uniforms.MorphCompositeTexture, (int)ReservedTextureSlots.MorphCompositeTexture);
+
+                if (uniforms.MorphCompositeTextureSize != -1)
+                {
+                    GL.Uniform2(uniforms.MorphCompositeTextureSize, (float)morphComposite.Width, (float)morphComposite.Height);
+                }
+
+                if (uniforms.MorphVertexIdOffset != -1)
+                {
+                    GL.Uniform1(uniforms.MorphVertexIdOffset, request.Call.VertexIdOffset);
                 }
             }
 

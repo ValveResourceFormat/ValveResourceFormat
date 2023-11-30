@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.Numerics;
+using ValveResourceFormat.ResourceTypes.ModelFlex;
 
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 {
@@ -7,10 +9,12 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
     {
         public int FrameIndex { get; set; } = 1;
         public FrameBone[] Bones { get; }
+        public float[] Datas { get; }
 
-        public Frame(Skeleton skeleton)
+        public Frame(Skeleton skeleton, FlexController[] flexControllers)
         {
             Bones = new FrameBone[skeleton.Bones.Length];
+            Datas = new float[flexControllers.Length];
             Clear(skeleton);
         }
 
@@ -52,6 +56,10 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             {
                 case AnimationChannelAttribute.Scale:
                     Bones[bone].Scale = data;
+                    break;
+
+                case AnimationChannelAttribute.Data:
+                    Datas[bone] = data;
                     break;
 
 #if DEBUG

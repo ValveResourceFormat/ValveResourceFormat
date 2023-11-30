@@ -361,7 +361,7 @@ namespace ValveResourceFormat.IO
             {
                 var animations = model.GetAllAnimations(FileLoader);
                 // Add animations
-                var frame = new Frame(model.Skeleton);
+                var frame = new Frame(model.Skeleton, model.FlexControllers);
                 var boneCount = model.Skeleton.Bones.Length;
 
                 var rotationDicts = Enumerable.Range(0, boneCount)
@@ -977,11 +977,15 @@ namespace ValveResourceFormat.IO
                             throw new NotImplementedException("Unknown PrimitiveType in drawCall! (" + primitiveType + ")");
                     }
 
-                    if (vmesh.MorphData != null && vmesh.MorphData.FlexData != null)
+                    if (vmesh.MorphData != null)
                     {
-                        var vertexCount = drawCall.GetInt32Property("m_nVertexCount");
-                        AddMorphTargetsToPrimitive(vmesh.MorphData, primitive, exportedModel, vertexOffset, vertexCount);
-                        vertexOffset += vertexCount;
+                        var flexData = vmesh.MorphData.GetFlexVertexData();
+                        if (flexData != null)
+                        {
+                            var vertexCount = drawCall.GetInt32Property("m_nVertexCount");
+                            AddMorphTargetsToPrimitive(vmesh.MorphData, flexData, primitive, exportedModel, vertexOffset, vertexCount);
+                            vertexOffset += vertexCount;
+                        }
                     }
 
                     DebugValidateGLTF();
@@ -1060,14 +1064,14 @@ namespace ValveResourceFormat.IO
             }
         }
 
-        private static void AddMorphTargetsToPrimitive(Morph morph, MeshPrimitive primitive, ModelRoot model, int vertexOffset, int vertexCount)
+        private static void AddMorphTargetsToPrimitive(Morph morph, Dictionary<string, Vector3[]> flexData, MeshPrimitive primitive, ModelRoot model, int vertexOffset, int vertexCount)
         {
             var morphIndex = 0;
             var flexDesc = morph.GetFlexDescriptors();
 
             foreach (var morphName in flexDesc)
             {
-                if (!morph.FlexData.TryGetValue(morphName, out var rectData))
+                if (!flexData.TryGetValue(morphName, out var rectData))
                 {
                     continue;
                 }

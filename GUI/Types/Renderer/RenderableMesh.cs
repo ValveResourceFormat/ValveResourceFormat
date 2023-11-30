@@ -7,6 +7,7 @@ using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.ResourceTypes.ModelFlex;
 using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Utils;
 
@@ -28,10 +29,12 @@ namespace GUI.Types.Renderer
 
         public int MeshIndex { get; }
 
+        public FlexStateManager FlexStateManager { get; }
+
         private readonly int VBIBHashCode;
 
         public RenderableMesh(Mesh mesh, int meshIndex, Scene scene, Model model = null,
-            Dictionary<string, string> initialMaterialTable = null)
+            Dictionary<string, string> initialMaterialTable = null, Morph morph = null)
         {
             guiContext = scene.GuiContext;
 
@@ -48,6 +51,11 @@ namespace GUI.Types.Renderer
 
             var meshSceneObjects = mesh.Data.GetArray("m_sceneObjects");
             ConfigureDrawCalls(scene, vbib, meshSceneObjects, initialMaterialTable);
+
+            if (morph != null)
+            {
+                FlexStateManager = new FlexStateManager(guiContext, morph);
+            }
         }
 
         public IEnumerable<string> GetSupportedRenderModes()
@@ -78,6 +86,8 @@ namespace GUI.Types.Renderer
         {
             AnimationTexture = texture;
             AnimationTextureSize = animationTextureSize;
+
+            FlexStateManager?.ResetControllers();
         }
 
         public void ReplaceMaterials(Dictionary<string, string> materialTable)
@@ -129,6 +139,7 @@ namespace GUI.Types.Renderer
         {
             guiContext.MeshBufferCache.GetVertexIndexBuffers(VBIBHashCode, vbib);
 
+            var vertexOffset = 0;
             foreach (var sceneObject in sceneObjects)
             {
                 var i = 0;
@@ -195,6 +206,9 @@ namespace GUI.Types.Renderer
                     {
                         DrawCallsOpaque.Add(drawCall);
                     }
+
+                    drawCall.VertexIdOffset = vertexOffset;
+                    vertexOffset += objectDrawCall.GetInt32Property("m_nVertexCount");
 
                     i++;
                 }
@@ -264,6 +278,7 @@ namespace GUI.Types.Renderer
                 var vertexBufferVbib = vbib.VertexBuffers[(int)vertexBuffer.Id];
                 vertexBuffer.ElementSizeInBytes = vertexBufferVbib.ElementSizeInBytes;
                 vertexBuffer.InputLayoutFields = vertexBufferVbib.InputLayoutFields;
+
                 drawCall.VertexBuffer = vertexBuffer;
 
                 drawCall.BaseVertex = objectDrawCall.GetInt32Property("m_nBaseVertex");

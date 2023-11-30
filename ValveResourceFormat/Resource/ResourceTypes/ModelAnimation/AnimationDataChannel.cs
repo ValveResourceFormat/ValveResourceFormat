@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
+using ValveResourceFormat.ResourceTypes.ModelFlex;
 using ValveResourceFormat.Serialization;
 
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation
@@ -7,26 +9,55 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
     public class AnimationDataChannel
     {
         public int[] RemapTable { get; } // Bone ID => Element Index
-        public string ChannelAttribute { get; }
+        public AnimationChannelAttribute Attribute { get; }
 
-        public AnimationDataChannel(Skeleton skeleton, IKeyValueCollection dataChannel, int channelElements)
+        public AnimationDataChannel(Skeleton skeleton, FlexController[] flexControllers, IKeyValueCollection dataChannel, int channelElements)
         {
-            RemapTable = Enumerable.Range(0, skeleton.Bones.Length).Select(_ => -1).ToArray();
-
             var elementNameArray = dataChannel.GetArray<string>("m_szElementNameArray");
             var elementIndexArray = dataChannel.GetIntegerArray("m_nElementIndexArray");
+
+            var channelAttribute = dataChannel.GetProperty<string>("m_szVariableName");
+            Attribute = channelAttribute switch
+            {
+                "Position" => AnimationChannelAttribute.Position,
+                "Angle" => AnimationChannelAttribute.Angle,
+                "Scale" => AnimationChannelAttribute.Scale,
+                "data" => AnimationChannelAttribute.Data,
+                _ => AnimationChannelAttribute.Unknown,
+            };
+
+            int remapLength;
+            if (Attribute == AnimationChannelAttribute.Data)
+            {
+                remapLength = flexControllers.Length;
+            }
+            else
+            {
+                remapLength = skeleton.Bones.Length;
+            }
+            RemapTable = Enumerable.Range(0, remapLength).Select(_ => -1).ToArray();
 
             for (var i = 0; i < elementIndexArray.Length; i++)
             {
                 var elementName = elementNameArray[i];
-                var boneID = Array.FindIndex(skeleton.Bones, bone => bone.Name == elementName);
-                if (boneID != -1)
+                var elementIndex = (int)elementIndexArray[i];
+
+                int id;
+                if (Attribute == AnimationChannelAttribute.Data)
                 {
-                    RemapTable[boneID] = (int)elementIndexArray[i];
+                    id = Array.FindIndex(flexControllers, contr => contr.Name == elementName);
+                }
+                else
+                {
+                    id = Array.FindIndex(skeleton.Bones, bone => bone.Name == elementName);
+                }
+
+                if (id != -1)
+                {
+                    RemapTable[id] = elementIndex;
                 }
             }
 
-            ChannelAttribute = dataChannel.GetProperty<string>("m_szVariableName");
         }
     }
 }

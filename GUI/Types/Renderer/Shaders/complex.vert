@@ -7,6 +7,7 @@
 #include "complex.features"
 
 #include "common/animation.glsl"
+#include "common/morph.glsl"
 
 layout (location = 0) in vec3 vPOSITION;
 in vec2 vTEXCOORD;
@@ -173,7 +174,7 @@ vec4 GetTintColor()
 void main()
 {
     mat4 skinTransform = transform * getSkinMatrix();
-    vec4 fragPosition = skinTransform * vec4(vPOSITION, 1.0);
+    vec4 fragPosition = skinTransform * vec4(vPOSITION + getMorphOffset(), 1.0);
     gl_Position = g_matViewToProjection * fragPosition;
     vFragPosition = fragPosition.xyz / fragPosition.w;
 

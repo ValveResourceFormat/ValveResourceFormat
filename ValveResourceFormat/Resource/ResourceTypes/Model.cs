@@ -4,6 +4,7 @@ using System.Linq;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
+using ValveResourceFormat.ResourceTypes.ModelFlex;
 using ValveResourceFormat.Serialization;
 
 namespace ValveResourceFormat.ResourceTypes
@@ -18,9 +19,50 @@ namespace ValveResourceFormat.ResourceTypes
                 return cachedSkeleton;
             }
         }
+        public FlexController[] FlexControllers
+        {
+            get
+            {
+                cachedFlexControllers ??= GetFlexControllers();
+                return cachedFlexControllers;
+            }
+        }
+
         private List<Animation> CachedAnimations;
         private Skeleton cachedSkeleton { get; set; }
+        private FlexController[] cachedFlexControllers { get; set; }
         private readonly Dictionary<(VBIB VBIB, int MeshIndex), VBIB> remappedVBIBCache = [];
+
+        private FlexController[] GetFlexControllers()
+        {
+            var morph = Resource.GetBlockByType(BlockType.MRPH) as Morph;
+            if (morph == null)
+            {
+                return Array.Empty<FlexController>();
+            }
+
+            var flexControllersData = morph.Data.GetArray("m_FlexControllers");
+
+            var flexControllers = flexControllersData.Select(d =>
+            {
+                var name = d.GetStringProperty("m_szName");
+                var type = d.GetStringProperty("m_szType");
+                var min = d.GetFloatProperty("min");
+                var max = d.GetFloatProperty("max");
+                return new FlexController(name, type, min, max);
+            });
+            return flexControllers.ToArray();
+        }
+
+        public void SetExternalMorphData(Morph morph)
+        {
+            if (morph == null)
+            {
+                return;
+            }
+
+            cachedFlexControllers = morph.FlexControllers;
+        }
 
         public void SetSkeletonFilteredForLod0()
         {
@@ -173,7 +215,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             var animationDataBlock = Resource.GetBlockByIndex(animDataBlockIndex) as KeyValuesOrNTRO;
 
-            return Animation.FromData(animationDataBlock.Data, decodeKey, Skeleton);
+            return Animation.FromData(animationDataBlock.Data, decodeKey, Skeleton, FlexControllers);
         }
 
         public IEnumerable<Animation> GetAllAnimations(IFileLoader fileLoader)
@@ -192,7 +234,7 @@ namespace ValveResourceFormat.ResourceTypes
                 var animGroup = fileLoader.LoadFile(animGroupPath + "_c");
                 if (animGroup != default)
                 {
-                    animations.AddRange(AnimationGroupLoader.LoadAnimationGroup(animGroup, fileLoader, Skeleton));
+                    animations.AddRange(AnimationGroupLoader.LoadAnimationGroup(animGroup, fileLoader, Skeleton, FlexControllers));
                 }
             }
 

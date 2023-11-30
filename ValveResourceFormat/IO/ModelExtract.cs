@@ -712,12 +712,12 @@ public class ModelExtract
         return dmeSkeleton;
     }
 
-    private static DmeChannel BuildDmeChannel<T>(string name, DmeTransform transform, string toAttribute, out DmeLog<T> log)
+    private static DmeChannel BuildDmeChannel<T>(string name, Element toElement, string toAttribute, out DmeLog<T> log)
     {
         var channel = new DmeChannel
         {
             Name = name,
-            ToElement = transform,
+            ToElement = toElement,
             ToAttribute = toAttribute,
             Mode = 3
         };
@@ -742,6 +742,14 @@ public class ModelExtract
         orientationLayer.LayerValues[frame.FrameIndex] = frameBone.Angle;
     }
 
+    private static void ProcessFlexFrameForDmeChannel(int flexId, Frame frame, TimeSpan time, DmeLogLayer<float> flexLayer)
+    {
+        var flexValue = frame.Datas[flexId];
+
+        flexLayer.Times.Add(time);
+        flexLayer.LayerValues[frame.FrameIndex] = flexValue;
+    }
+
     public static byte[] ToDmxAnim(Model model, Animation anim)
     {
         using var dmx = new Datamodel.Datamodel("model", 22);
@@ -757,7 +765,7 @@ public class ModelExtract
         var frames = new Frame[anim.FrameCount];
         for (var i = 0; i < anim.FrameCount; i++)
         {
-            var frame = new Frame(model.Skeleton)
+            var frame = new Frame(model.Skeleton, model.FlexControllers)
             {
                 FrameIndex = i
             };
@@ -806,8 +814,29 @@ public class ModelExtract
                     layerValue,
                 ];
             }
+
             clip.Channels.Add(positionChannel);
             clip.Channels.Add(orientationChannel);
+        }
+        for (var flexId = 0; flexId < model.FlexControllers.Length; flexId++)
+        {
+            var flexController = model.FlexControllers[flexId];
+
+            var flexElement = new Element();
+            flexElement.Name = flexController.Name;
+            flexElement.Add("flexWeight", 0f);
+
+            var flexChannel = BuildDmeChannel<float>($"{flexController.Name}_flex_channel", flexElement, "flexWeight", out var flexLog);
+            var flexLogLayer = flexLog.GetLayer(0);
+            flexLogLayer.LayerValues = new float[anim.FrameCount];
+
+            for (int i = 0; i < anim.FrameCount; i++)
+            {
+                Frame frame = frames[i];
+                TimeSpan time = TimeSpan.FromSeconds((double)i / anim.Fps);
+                ProcessFlexFrameForDmeChannel(flexId, frame, time, flexLogLayer);
+            }
+            clip.Channels.Add(flexChannel);
         }
 
         animationList.Animations.Add(clip);

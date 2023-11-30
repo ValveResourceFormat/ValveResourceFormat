@@ -1,5 +1,7 @@
 using System.Diagnostics;
+using System.Linq;
 using System.Numerics;
+using ValveResourceFormat.ResourceTypes.ModelFlex;
 
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 {
@@ -10,11 +12,11 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         private readonly Frame InterpolatedFrame;
         public Skeleton Skeleton { get; }
 
-        public AnimationFrameCache(Skeleton skeleton)
+        public AnimationFrameCache(Skeleton skeleton, FlexController[] flexControllers)
         {
-            PrevFrame = new Frame(skeleton);
-            NextFrame = new Frame(skeleton);
-            InterpolatedFrame = new Frame(skeleton);
+            PrevFrame = new Frame(skeleton, flexControllers);
+            NextFrame = new Frame(skeleton, flexControllers);
+            InterpolatedFrame = new Frame(skeleton, flexControllers);
             Skeleton = skeleton;
             Clear();
         }
@@ -56,6 +58,14 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                 InterpolatedFrame.Bones[i].Position = Vector3.Lerp(frame1Bone.Position, frame2Bone.Position, t);
                 InterpolatedFrame.Bones[i].Angle = Quaternion.Slerp(frame1Bone.Angle, frame2Bone.Angle, t);
                 InterpolatedFrame.Bones[i].Scale = frame1Bone.Scale + (frame2Bone.Scale - frame1Bone.Scale) * t;
+            }
+
+            for (var i = 0; i < frame1.Datas.Length; i++)
+            {
+                var frame1Data = frame1.Datas[i];
+                var frame2Data = frame2.Datas[i];
+
+                InterpolatedFrame.Datas[i] = float.Lerp(frame1Data, frame2Data, t);
             }
 
             return InterpolatedFrame;

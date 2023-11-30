@@ -25,6 +25,7 @@ namespace GUI.Types.Renderer
         public VertexDrawBuffer VertexBuffer { get; set; }
         public DrawElementsType IndexType { get; set; }
         public IndexDrawBuffer IndexBuffer { get; set; }
+        public int VertexIdOffset { get; set; }
     }
 
     internal struct IndexDrawBuffer

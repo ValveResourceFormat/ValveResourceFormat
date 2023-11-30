@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.Numerics;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
+using ValveResourceFormat.ResourceTypes.ModelFlex;
 
 namespace GUI.Types.Renderer
 {
@@ -38,9 +40,9 @@ namespace GUI.Types.Renderer
             }
         }
 
-        public AnimationController(Skeleton skeleton)
+        public AnimationController(Skeleton skeleton, FlexController[] flexControllers)
         {
-            animationFrameCache = new(skeleton);
+            animationFrameCache = new(skeleton, flexControllers);
         }
 
         public bool Update(float timeStep)
@@ -78,15 +80,15 @@ namespace GUI.Types.Renderer
             Frame = activeAnimation == null ? 0 : activeAnimation.FrameCount - 1;
         }
 
-        public void GetAnimationMatrices(Matrix4x4[] matrices)
+        public Frame GetFrame()
         {
-            if (IsPaused)
+            if (IsPaused || activeAnimation.FrameCount == 0)
             {
-                activeAnimation.GetAnimationMatrices(matrices, animationFrameCache, Frame);
+                return animationFrameCache.GetFrame(activeAnimation, Frame);
             }
             else
             {
-                activeAnimation.GetAnimationMatrices(matrices, animationFrameCache, Time);
+                return animationFrameCache.GetInterpolatedFrame(activeAnimation, Time);
             }
         }
 

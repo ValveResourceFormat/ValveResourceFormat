@@ -102,9 +102,6 @@ namespace GUI.Types.Renderer
 
             RecalculateMatrices();
 
-            // setup viewport
-            GL.Viewport(0, 0, viewportWidth, viewportHeight);
-
             Picker?.Resize(viewportWidth, viewportHeight);
         }
 

@@ -17,7 +17,8 @@ namespace GUI.Types.Renderer
         Lightmap4,
         EnvironmentMap,
         AnimationTexture,
-        Last = AnimationTexture,
+        MorphCompositeTexture,
+        Last = MorphCompositeTexture,
     }
 
     class RenderMaterial

@@ -4,6 +4,8 @@ using System.Globalization;
 using System.Linq;
 using System.Numerics;
 using ValveResourceFormat.IO;
+using ValveResourceFormat.ResourceTypes.ModelFlex;
+using ValveResourceFormat.ResourceTypes.ModelFlex.FlexOps;
 using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Serialization.KeyValues;
 using ValveResourceFormat.Serialization.NTRO;
@@ -12,10 +14,19 @@ namespace ValveResourceFormat.ResourceTypes
 {
     public class Morph : KeyValuesOrNTRO
     {
-        public Dictionary<string, Vector3[]> FlexData { get; private set; }
+        public FlexRule[] FlexRules { get; private set; }
+        public FlexController[] FlexControllers { get; private set; }
+        public Texture Texture { get; private set; }
+        public Resource TextureResource { get; private set; }
 
         public Morph(BlockType type) : base(type, "MorphSetData_t")
         {
+        }
+
+        public int GetMorphCount()
+        {
+            var flexDesc = Data.GetArray("m_FlexDesc");
+            return flexDesc.Length;
         }
 
         public List<string> GetFlexDescriptors()
@@ -32,37 +43,24 @@ namespace ValveResourceFormat.ResourceTypes
             return result;
         }
 
-        public void LoadFlexData(IFileLoader fileLoader)
+        public Dictionary<string, Vector3[]> GetFlexVertexData()
         {
-            var atlasPath = Data.GetStringProperty("m_pTextureAtlas");
-            if (string.IsNullOrEmpty(atlasPath))
-            {
-                return;
-            }
-
-            var textureResource = fileLoader.LoadFile(atlasPath + "_c");
-            if (textureResource == null)
-            {
-                return;
-            }
+            var flexData = new Dictionary<string, Vector3[]>();
 
             var width = Data.GetInt32Property("m_nWidth");
             var height = Data.GetInt32Property("m_nHeight");
 
-            var texture = (Texture)textureResource.DataBlock;
-            var texWidth = texture.Width;
-            var texHeight = texture.Height;
-            using var skiaBitmap = texture.GenerateBitmap();
+            var texWidth = Texture.Width;
+            var texHeight = Texture.Height;
+            using var skiaBitmap = Texture.GenerateBitmap();
             var texPixels = skiaBitmap.Pixels;
-
-            FlexData = [];
 
             //Some vmorf_c may be another old struct(NTROValue, eg: models/heroes/faceless_void/faceless_void_body.vmdl_c).
             //the latest struct is IKeyValueCollection.
             var morphDatas = GetMorphKeyValueCollection(Data, "m_morphDatas");
             if (morphDatas == null || !morphDatas.Any())
             {
-                return;
+                return flexData;
             }
 
             var bundleTypes = GetMorphKeyValueCollection(Data, "m_bundleTypes").Select(kv => ParseBundleType(kv.Value)).ToArray();
@@ -131,8 +129,83 @@ namespace ValveResourceFormat.ResourceTypes
                     }
                 }
 
-                FlexData.Add(morphName, rectData);
+                flexData.Add(morphName, rectData);
             }
+
+            return flexData;
+        }
+
+        public void LoadFlexData(IFileLoader fileLoader)
+        {
+            var atlasPath = Data.GetStringProperty("m_pTextureAtlas");
+            if (string.IsNullOrEmpty(atlasPath))
+            {
+                return;
+            }
+
+            TextureResource = fileLoader.LoadFile(atlasPath + "_c");
+            if (TextureResource == null)
+            {
+                return;
+            }
+
+            Texture = (Texture)TextureResource.DataBlock;
+
+            FlexRules = GetMorphKeyValueCollection(Data, "m_FlexRules")
+                .Select(kv => ParseFlexRule(kv.Value))
+                .ToArray();
+
+            FlexControllers = GetMorphKeyValueCollection(Data, "m_FlexControllers")
+                .Select(kv => ParseFlexController(kv.Value))
+                .ToArray();
+        }
+        private static FlexController ParseFlexController(object obj)
+        {
+            if (obj is not IKeyValueCollection kv)
+            {
+                throw new ArgumentException("Parameter is not IKeyValueCollection");
+            }
+
+            var name = kv.GetStringProperty("m_szName");
+            var type = kv.GetStringProperty("m_szType");
+            var min = kv.GetFloatProperty("min");
+            var max = kv.GetFloatProperty("max");
+
+            return new FlexController(name, type, min, max);
+        }
+
+        private static FlexRule ParseFlexRule(object obj)
+        {
+            if (obj is not IKeyValueCollection kv)
+            {
+                throw new ArgumentException("Parameter is not IKeyValueCollection");
+            }
+
+            var flexId = kv.GetInt32Property("m_nFlex");
+
+            var flexOps = kv.GetSubCollection("m_FlexOps")
+                .Select(flexOp => ParseFlexOp(flexOp.Value))
+                .ToArray();
+
+            if (flexOps.Any(op => op == null))
+            {
+                //There's an unimplemented flexop type in this rule, let's make a flexrule that sets the morph to zero instead to avoid exceptions.
+                flexOps = [new FlexOpConst(0f)];
+            }
+
+            return new FlexRule(flexId, flexOps);
+        }
+
+        private static FlexOp ParseFlexOp(object obj)
+        {
+            if (obj is not IKeyValueCollection kv)
+            {
+                throw new ArgumentException("Parameter is not IKeyValueCollection");
+            }
+
+            var opCode = kv.GetStringProperty("m_OpCode");
+            var data = kv.GetInt32Property("m_Data");
+            return FlexOp.Build(opCode, data);
         }
 
         private static MorphBundleType ParseBundleType(object bundleType)
@@ -178,5 +251,9 @@ namespace ValveResourceFormat.ResourceTypes
             return kvObj as IKeyValueCollection;
         }
 
+        public IKeyValueCollection GetMorphDatas()
+        {
+            return GetMorphKeyValueCollection(Data, "m_morphDatas");
+        }
     }
 }
