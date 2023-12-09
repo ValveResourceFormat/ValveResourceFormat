@@ -18,6 +18,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         public bool IsLooping { get; }
         private AnimationFrameBlock[] FrameBlocks { get; }
         private AnimationSegmentDecoder[] SegmentArray { get; }
+        private AnimationMovement[] MovementArray { get; }
 
         private Animation(IKeyValueCollection animDesc, AnimationSegmentDecoder[] segmentArray)
         {
@@ -40,6 +41,13 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             for (var i = 0; i < frameBlockArray.Length; i++)
             {
                 FrameBlocks[i] = new AnimationFrameBlock(frameBlockArray[i]);
+            }
+
+            var movementArray = animDesc.GetArray("m_movementArray");
+            MovementArray = new AnimationMovement[movementArray.Length];
+            for (var i = 0; i < movementArray.Length; i++)
+            {
+                MovementArray[i] = new AnimationMovement(movementArray[i]);
             }
         }
 
