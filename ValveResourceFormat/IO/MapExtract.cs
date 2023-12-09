@@ -34,6 +34,7 @@ public sealed class MapExtract
 
     private List<string> AssetReferences { get; } = [];
     private List<string> ModelsToExtract { get; } = [];
+    private List<ContentFile> PreExportedFragments { get; } = [];
     private Dictionary<string, string> ModelEntityAssociations { get; } = [];
     private List<string> MeshesToExtract { get; } = [];
     private List<string> FolderExtractFilter { get; } = [];
@@ -290,6 +291,8 @@ public sealed class MapExtract
             }
         }
 
+        vmap.AdditionalFiles.AddRange(PreExportedFragments);
+
         // Add these files so they can be filtered out in folder extract
         vmap.AdditionalFiles.AddRange(FolderExtractFilter.Select(r => new ContentFile { FileName = r }));
 
@@ -509,13 +512,6 @@ public sealed class MapExtract
             StaticPropFinalize(propStatic, layerIndex, layerNodes, isEmbeddedModel);
         }
 
-        private static string GetFragmentModelName(string modelName, int drawCallIndex)
-        {
-            const string vmdlExt = ".vmdl";
-            var fragmentModelName = modelName[..^vmdlExt.Length] + "_draw" + drawCallIndex + vmdlExt;
-            return fragmentModelName;
-        }
-
         void AggregateToStaticProps(IKeyValueCollection agg, int layerIndex, List<MapNode> layerNodes)
         {
             var modelName = agg.GetProperty<string>("m_renderableModel");
@@ -525,6 +521,18 @@ public sealed class MapExtract
             var aggregateMeshes = agg.GetArray("m_aggregateMeshes");
 
             ModelsToExtract.Add(modelName);
+            IKeyValueCollection[] drawCalls = null;
+
+            // maybe not load and export model here
+            using (var modelRes = FileLoader.LoadFile(modelName + "_c"))
+            {
+                // TODO: reference meshes
+                var mesh = ((Model)modelRes.DataBlock).GetEmbeddedMeshes().First();
+                drawCalls = mesh.Mesh.Data.GetArray("m_sceneObjects").First().GetArray("m_drawCalls");
+
+                var extract = new ModelExtract(model, FileLoader) { Type = ModelExtractType.Map_AggregateSplit };
+                PreExportedFragments.AddRange(extract.ToMapSplitModels());
+            }
 
             var transformIndex = 0;
             var fragmentTransforms = agg.ContainsKey("m_fragmentTransforms")
@@ -543,7 +551,7 @@ public sealed class MapExtract
             {
                 var drawCallIndex = fragment.GetInt32Property("m_nDrawCallIndex");
 
-                var fragmentModelName = GetFragmentModelName(modelName, drawCallIndex);
+                var fragmentModelName = ModelExtract.GetFragmentModelName(modelName, drawCallIndex);
 
                 var instance = NewPropStatic(fragmentModelName);
                 AssetReferences.Add(fragmentModelName);
@@ -555,9 +563,11 @@ public sealed class MapExtract
 
                 if (fragment.ContainsKey("m_vTintColor"))
                 {
-                    // TODO: tint alpha from draw call
                     tint = fragment.GetSubCollection("m_vTintColor").ToVector3();
                 }
+
+                tint *= drawCalls[drawCallIndex].GetSubCollection("m_vTintColor").ToVector3();
+                alpha *= drawCalls[drawCallIndex].GetFloatProperty("m_flAlpha");
 
                 if (fragmentTransforms.Length > 0)
                 {

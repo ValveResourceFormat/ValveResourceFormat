@@ -545,9 +545,25 @@ public class ModelExtract
         return angles * (180 / MathF.PI);
     }
 
+    public IEnumerable<ContentFile> ToContentFiles_DrawCallSplit()
+    {
+        //
+    }
+
+    public static byte[] ToDmxMesh_DrawCallSplit()
+    {
+        //
+    }
+
     public string GetFileName()
         => model?.Data.GetProperty<string>("m_name")
             ?? fileName;
+
+    public static string GetFragmentModelName(string aggModelName, int drawCallIndex)
+    {
+        const string vmdlExt = ".vmdl";
+        return aggModelName[..^vmdlExt.Length] + "_draw" + drawCallIndex + vmdlExt;
+    }
 
     string GetDmxFileName_ForEmbeddedMesh(string subString, int number = 0)
     {
