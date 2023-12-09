@@ -495,6 +495,13 @@ public sealed class MapExtract
             StaticPropFinalize(propStatic, layerIndex, layerNodes, isEmbeddedModel);
         }
 
+        private static string GetFragmentModelName(string modelName, int drawCallIndex)
+        {
+            const string vmdlExt = ".vmdl";
+            var fragmentModelName = modelName[..^vmdlExt.Length] + "_draw" + drawCallIndex + vmdlExt;
+            return fragmentModelName;
+        }
+
         void AggregateToStaticProps(IKeyValueCollection agg, int layerIndex, List<MapNode> layerNodes)
         {
             var modelName = agg.GetProperty<string>("m_renderableModel");
@@ -503,7 +510,6 @@ public sealed class MapExtract
 
             var aggregateMeshes = agg.GetArray("m_aggregateMeshes");
 
-            AssetReferences.Add(modelName);
             ModelsToExtract.Add(modelName);
 
             var transformIndex = 0;
@@ -511,7 +517,7 @@ public sealed class MapExtract
                 ? agg.GetArray("m_fragmentTransforms")
                 : [];
 
-            BaseEntity NewPropStatic() => new CMapEntity()
+            BaseEntity NewPropStatic(string modelName) => new CMapEntity()
                 .WithClassName("prop_static")
                 .WithProperty("model", modelName)
                 .WithProperty("baketoworld", StringBool(true));
@@ -521,7 +527,13 @@ public sealed class MapExtract
 
             foreach (var fragment in aggregateMeshes)
             {
-                var instance = NewPropStatic();
+                var drawCallIndex = fragment.GetInt32Property("m_nDrawCallIndex");
+
+                var fragmentModelName = GetFragmentModelName(modelName, drawCallIndex);
+
+                var instance = NewPropStatic(fragmentModelName);
+                AssetReferences.Add(fragmentModelName);
+
                 var tint = Vector3.One * 255f;
                 var alpha = 255f;
 
@@ -529,21 +541,11 @@ public sealed class MapExtract
 
                 if (fragment.ContainsKey("m_vTintColor"))
                 {
+                    // TODO: tint alpha from draw call
                     tint = fragment.GetSubCollection("m_vTintColor").ToVector3();
                 }
 
-                if (fragmentTransforms.Length == 0)
-                {
-                    // TODO: Split aggregate into fragment models (each draw call separate)
-                    if (aggregateMeshes.Length == 1)
-                    {
-                        SetPropertiesFromFlags(instance, fragmentFlags);
-                        SetTintAlpha(instance, new Vector4(tint, alpha));
-                    }
-                    StaticPropFinalize(instance, layerIndex, layerNodes, true);
-                    break;
-                }
-                else
+                if (fragmentTransforms.Length > 0)
                 {
                     if (instanceGroup is null)
                     {
@@ -579,7 +581,14 @@ public sealed class MapExtract
                     instance.Origin = transform.Translation;
                     SetPropertiesFromFlags(instance, fragmentFlags);
                     SetTintAlpha(instance, new Vector4(tint, alpha));
+
+                    continue;
                 }
+
+                SetPropertiesFromFlags(instance, fragmentFlags);
+                SetTintAlpha(instance, new Vector4(tint, alpha));
+
+                StaticPropFinalize(instance, layerIndex, layerNodes, true);
             }
         }
 
