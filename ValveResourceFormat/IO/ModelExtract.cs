@@ -29,7 +29,9 @@ public class ModelExtract
     private readonly IFileLoader fileLoader;
     private readonly string fileName;
 
-    public List<(Mesh Mesh, string FileName)> RenderMeshesToExtract { get; } = [];
+    public record struct ImportFilter(bool ExcludeByDefault, HashSet<string> Filter);
+    public record struct RenderMeshExtractConfiguration(Mesh Mesh, string FileName, ImportFilter ImportFilter = default);
+    public List<RenderMeshExtractConfiguration> RenderMeshesToExtract { get; } = [];
     public Dictionary<string, IKeyValueCollection> MaterialInputSignatures { get; } = [];
 
     public List<(HullDescriptor Hull, string FileName)> PhysHullsToExtract { get; } = [];
@@ -96,7 +98,7 @@ public class ModelExtract
     /// <param name="fileName">File name of the mesh e.g "models/my_mesh.vmesh"</param>
     public ModelExtract(Mesh mesh, string fileName)
     {
-        RenderMeshesToExtract.Add((mesh, GetDmxFileName_ForReferenceMesh(fileName)));
+        RenderMeshesToExtract.Add(new(mesh, GetDmxFileName_ForReferenceMesh(fileName)));
         this.fileName = Path.ChangeExtension(fileName, ".vmdl");
     }
 
@@ -249,6 +251,17 @@ public class ModelExtract
                     "RenderMeshFile",
                     ("filename", renderMesh.FileName)
                 );
+
+                if (renderMesh.ImportFilter != default)
+                {
+                    var importFilter = new KVObject("import_filter");
+                    {
+                        importFilter.AddProperty("exclude_by_default", MakeValue(renderMesh.ImportFilter.ExcludeByDefault));
+                        importFilter.AddProperty("exception_list", MakeArrayValue(renderMesh.ImportFilter.Filter));
+                    }
+
+                    renderMeshFile.AddProperty("import_filter", MakeValue(importFilter));
+                }
 
                 AddItem(renderMeshList.Value, renderMeshFile);
             }
@@ -489,12 +502,43 @@ public class ModelExtract
         }
     }
 
-    public IEnumerable<ContentFile> ToContentFiles_DrawCallSplit()
+    public static IEnumerable<ContentFile> GetContentFiles_DrawCallSplit(Mesh mesh, string fileName, int drawCallCount)
     {
-        //
+        var extract = new ModelExtract(mesh, fileName) { Type = ModelExtractType.Map_AggregateSplit };
+
+        var sharedDmxFileName = GetDmxFileName_ForReferenceMesh(fileName);
+        var sharedDmxExtractMethod = () => ToDmxMesh(
+            mesh,
+            Path.GetFileNameWithoutExtension(fileName),
+            extract.MaterialInputSignatures,
+            splitDrawCallsIntoSeparateSubmeshes: true
+        );
+
+        var sharedMeshExtractConfiguration = new RenderMeshExtractConfiguration(mesh, sharedDmxFileName, new(true, new(1)));
+        extract.RenderMeshesToExtract.Clear();
+        extract.RenderMeshesToExtract.Add(sharedMeshExtractConfiguration);
+
+        for (var i = 0; i < drawCallCount; i++)
+        {
+            sharedMeshExtractConfiguration.ImportFilter.Filter.Clear();
+            sharedMeshExtractConfiguration.ImportFilter.Filter.Add("draw" + i);
+
+            var vmdl = new ContentFile
+            {
+                Data = Encoding.UTF8.GetBytes(extract.ToValveModel()),
+                FileName = GetFragmentModelName(fileName, i),
+            };
+
+            if (i == 0)
+            {
+                vmdl.AddSubFile(Path.GetFileName(sharedDmxFileName), sharedDmxExtractMethod);
+            }
+
+            yield return vmdl;
+        }
     }
 
-    public static byte[] ToDmxMesh_DrawCallSplit()
+    public static void ToDmxMesh_DrawCallSplit()
     {
         //
     }
@@ -547,7 +591,7 @@ public class ModelExtract
         var i = 0;
         foreach (var embedded in model.GetEmbeddedMeshes())
         {
-            RenderMeshesToExtract.Add((embedded.Mesh, GetDmxFileName_ForEmbeddedMesh(embedded.Name, i++)));
+            RenderMeshesToExtract.Add(new(embedded.Mesh, GetDmxFileName_ForEmbeddedMesh(embedded.Name, i++)));
         }
 
         foreach (var reference in model.GetReferenceMeshNamesAndLoD())
@@ -560,7 +604,7 @@ public class ModelExtract
             }
 
             GrabMaterialInputSignatures(resource);
-            RenderMeshesToExtract.Add(((Mesh)resource.DataBlock, GetDmxFileName_ForReferenceMesh(reference.MeshName)));
+            RenderMeshesToExtract.Add(new((Mesh)resource.DataBlock, GetDmxFileName_ForReferenceMesh(reference.MeshName)));
         }
 
         void GrabMaterialInputSignatures(Resource resource)
@@ -638,7 +682,8 @@ public class ModelExtract
         }
     }
 
-    public static byte[] ToDmxMesh(Mesh mesh, string name, Dictionary<string, IKeyValueCollection> materialInputSignatures = null)
+    public static byte[] ToDmxMesh(Mesh mesh, string name, Dictionary<string, IKeyValueCollection> materialInputSignatures = null,
+        bool splitDrawCallsIntoSeparateSubmeshes = false)
     {
         var mdat = mesh.Data;
         var mbuf = mesh.VBIB;
@@ -648,6 +693,7 @@ public class ModelExtract
         DmxModelMultiVertexBufferLayout(name, mbuf.VertexBuffers.Count, out var dmeModel, out var dags, out var dmeVertexBuffers);
 
         IKeyValueCollection materialInputSignature = null;
+        var drawCallIndex = 0;
 
         foreach (var sceneObject in mdat.GetArray("m_sceneObjects"))
         {
@@ -667,12 +713,32 @@ public class ModelExtract
                 var startIndex = drawCall.GetInt32Property("m_nStartIndex");
                 var indexCount = drawCall.GetInt32Property("m_nIndexCount");
 
+                var dag = dags[vertexBufferIndex];
+
+                if (splitDrawCallsIntoSeparateSubmeshes)
+                {
+                    if (drawCallIndex > 0)
+                    {
+                        // new submesh with same vertex buffer as first submesh
+                        dag = new DmeDag();
+                        dmeModel.Children.Add(dag);
+                        dmeModel.JointList.Add(dag);
+                        dag.Shape.CurrentState = dmeVertexBuffers[vertexBufferIndex];
+                        dag.Shape.BaseStates.Add(dmeVertexBuffers[vertexBufferIndex]);
+                    }
+
+                    dag.Shape.Name = "draw" + drawCallIndex;
+                }
+
                 GenerateTriangleFaceSetFromIndexBuffer(
-                    dags[vertexBufferIndex],
+                    dag,
                     indexBuffer[startIndex..(startIndex + indexCount)],
                     baseVertex,
                     material,
-                    $"{startIndex}..{startIndex + indexCount}");
+                    $"{startIndex}..{startIndex + indexCount}"
+                );
+
+                drawCallIndex++;
             }
         }
 
