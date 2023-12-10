@@ -520,7 +520,7 @@ public sealed class MapExtract
 
             var aggregateMeshes = agg.GetArray("m_aggregateMeshes");
 
-            ModelsToExtract.Add(modelName);
+            //ModelsToExtract.Add(modelName);
             IKeyValueCollection[] drawCalls = null;
 
             // maybe not load and export model here
@@ -530,8 +530,7 @@ public sealed class MapExtract
                 var mesh = ((Model)modelRes.DataBlock).GetEmbeddedMeshes().First();
                 drawCalls = mesh.Mesh.Data.GetArray("m_sceneObjects").First().GetArray("m_drawCalls");
 
-                var extract = new ModelExtract(model, FileLoader) { Type = ModelExtractType.Map_AggregateSplit };
-                PreExportedFragments.AddRange(extract.ToMapSplitModels());
+                PreExportedFragments.AddRange(ModelExtract.GetContentFiles_DrawCallSplit(mesh.Mesh, modelName, drawCalls.Length));
             }
 
             var transformIndex = 0;
