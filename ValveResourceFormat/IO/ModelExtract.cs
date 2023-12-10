@@ -120,7 +120,7 @@ public class ModelExtract
         var vmdl = new ContentFile
         {
             Data = Encoding.UTF8.GetBytes(ToValveModel()),
-            FileName = GetFileName(),
+            FileName = GetModelName(),
         };
 
         foreach (var renderMesh in RenderMeshesToExtract)
@@ -502,11 +502,19 @@ public class ModelExtract
         }
     }
 
-    public static IEnumerable<ContentFile> GetContentFiles_DrawCallSplit(Mesh mesh, string fileName, int drawCallCount)
+    public static IEnumerable<ContentFile> GetContentFiles_DrawCallSplit(Resource aggregateModelResource, IFileLoader fileLoader, int drawCallCount)
     {
-        var extract = new ModelExtract(mesh, fileName) { Type = ModelExtractType.Map_AggregateSplit };
+        var extract = new ModelExtract(aggregateModelResource, fileLoader) { Type = ModelExtractType.Map_AggregateSplit };
+        Debug.Assert(extract.RenderMeshesToExtract.Count == 1);
 
-        var sharedDmxFileName = GetDmxFileName_ForReferenceMesh(fileName);
+        if (extract.RenderMeshesToExtract.Count == 0)
+        {
+            yield break;
+        }
+
+        var mesh = extract.RenderMeshesToExtract[0].Mesh;
+        var fileName = extract.RenderMeshesToExtract[0].FileName;
+
         var sharedDmxExtractMethod = () => ToDmxMesh(
             mesh,
             Path.GetFileNameWithoutExtension(fileName),
@@ -514,7 +522,7 @@ public class ModelExtract
             splitDrawCallsIntoSeparateSubmeshes: true
         );
 
-        var sharedMeshExtractConfiguration = new RenderMeshExtractConfiguration(mesh, sharedDmxFileName, new(true, new(1)));
+        var sharedMeshExtractConfiguration = new RenderMeshExtractConfiguration(mesh, fileName, new(true, new(1)));
         extract.RenderMeshesToExtract.Clear();
         extract.RenderMeshesToExtract.Add(sharedMeshExtractConfiguration);
 
@@ -526,12 +534,12 @@ public class ModelExtract
             var vmdl = new ContentFile
             {
                 Data = Encoding.UTF8.GetBytes(extract.ToValveModel()),
-                FileName = GetFragmentModelName(fileName, i),
+                FileName = GetFragmentModelName(extract.GetModelName(), i),
             };
 
             if (i == 0)
             {
-                vmdl.AddSubFile(Path.GetFileName(sharedDmxFileName), sharedDmxExtractMethod);
+                vmdl.AddSubFile(Path.GetFileName(fileName), sharedDmxExtractMethod);
             }
 
             yield return vmdl;
@@ -543,7 +551,7 @@ public class ModelExtract
         //
     }
 
-    public string GetFileName()
+    public string GetModelName()
         => model?.Data.GetProperty<string>("m_name")
             ?? fileName;
 
@@ -555,7 +563,7 @@ public class ModelExtract
 
     string GetDmxFileName_ForEmbeddedMesh(string subString, int number = 0)
     {
-        var fileName = GetFileName();
+        var fileName = GetModelName();
         return (Path.GetDirectoryName(fileName)
             + Path.DirectorySeparatorChar
             + Path.GetFileNameWithoutExtension(fileName)
@@ -571,7 +579,7 @@ public class ModelExtract
 
     string GetDmxFileName_ForAnimation(string animationName)
     {
-        var fileName = GetFileName();
+        var fileName = GetModelName();
         return (Path.GetDirectoryName(fileName)
             + Path.DirectorySeparatorChar
             + animationName

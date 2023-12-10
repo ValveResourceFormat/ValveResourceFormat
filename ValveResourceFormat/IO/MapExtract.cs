@@ -516,7 +516,7 @@ public sealed class MapExtract
                 var mesh = ((Model)modelRes.DataBlock).GetEmbeddedMeshes().First();
                 drawCalls = mesh.Mesh.Data.GetArray("m_sceneObjects").First().GetArray("m_drawCalls");
 
-                PreExportedFragments.AddRange(ModelExtract.GetContentFiles_DrawCallSplit(mesh.Mesh, modelName, drawCalls.Length));
+                PreExportedFragments.AddRange(ModelExtract.GetContentFiles_DrawCallSplit(modelRes, FileLoader, drawCalls.Length));
             }
 
             var transformIndex = 0;
