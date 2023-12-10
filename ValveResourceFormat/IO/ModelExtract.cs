@@ -29,7 +29,10 @@ public class ModelExtract
     private readonly IFileLoader fileLoader;
     private readonly string fileName;
 
+#pragma warning disable CA2227 // Collection properties should be read only
     public record struct ImportFilter(bool ExcludeByDefault, HashSet<string> Filter);
+#pragma warning restore CA2227 // Collection properties should be read only
+
     public record struct RenderMeshExtractConfiguration(Mesh Mesh, string FileName, ImportFilter ImportFilter = default);
     public List<RenderMeshExtractConfiguration> RenderMeshesToExtract { get; } = [];
     public Dictionary<string, IKeyValueCollection> MaterialInputSignatures { get; } = [];
