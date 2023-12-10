@@ -52,7 +52,7 @@ namespace GUI.Types.Exporter
                     const string gltfFilter = "glTF|*.gltf";
                     const string glbFilter = "glTF Binary|*.glb";
 
-                    filter = $"{gltfFilter}|{glbFilter}|{filter}";
+                    filter = $"{filter}|{gltfFilter}|{glbFilter}";
                 }
 
                 using var dialog = new SaveFileDialog
