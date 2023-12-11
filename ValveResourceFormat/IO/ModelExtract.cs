@@ -240,6 +240,7 @@ public class ModelExtract
         var renderMeshList = MakeLazyList("RenderMeshList");
         var animationList = MakeLazyList("AnimationList");
         var physicsShapeList = MakeLazyList("PhysicsShapeList");
+        var skeleton = MakeLazyList("Skeleton");
 
         if (RenderMeshesToExtract.Count != 0)
         {
@@ -279,6 +280,39 @@ public class ModelExtract
             }
         }
 
+        if (model != null)
+        {
+            ExtractModelKeyValues(root.Node);
+
+            if (model.Skeleton.Roots.Length > 0)
+            {
+                AddBonesRecursive(model.Skeleton.Roots, skeleton.Value);
+            }
+
+            static void AddBonesRecursive(IEnumerable<Bone> bones, KVObject parent)
+            {
+                foreach (var bone in bones)
+                {
+                    var boneDefinitionNode = MakeNode(
+                        "Bone",
+                        ("name", bone.Name),
+                        ("origin", bone.Position),
+                        ("angles", ToEulerAngles(bone.Angle)),
+                        ("do_not_discard", true)
+                    );
+
+                    AddItem(parent, boneDefinitionNode);
+
+                    if (bone.Children.Count > 0)
+                    {
+                        var childBones = new KVObject(null, isArray: true);
+                        boneDefinitionNode.AddProperty("children", MakeValue(childBones));
+                        AddBonesRecursive(bone.Children, childBones);
+                    }
+                }
+            }
+        }
+
         if (physAggregateData is not null)
         {
             foreach (var physicsPart in physAggregateData.Parts)
@@ -312,7 +346,6 @@ public class ModelExtract
             }
         }
 
-        ExtractModelKeyValues(root.Node);
 
         return new KV3File(kv, format: "modeldoc28:version{fb63b6ca-f435-4aa0-a2c7-c66ddc651dca}").ToString();
         //return new KV3File(kv, format: "modeldoc32:version{c5dcef98-b629-46ab-88e3-a17c005c935e}").ToString();
@@ -383,11 +416,6 @@ public class ModelExtract
 
         void ExtractModelKeyValues(KVObject rootNode)
         {
-            if (model == null)
-            {
-                return;
-            }
-
             if (model.Data.ContainsKey("m_refAnimIncludeModels"))
             {
                 foreach (var animIncludeModel in model.Data.GetArray<string>("m_refAnimIncludeModels"))
@@ -487,6 +515,34 @@ public class ModelExtract
                 AddItem(gameDataList, genericGameData);
             }
         }
+    }
+
+    internal static Vector3 ToEulerAngles(Quaternion q)
+    {
+        Vector3 angles = new();
+
+        // roll / x
+        float sinr_cosp = 2 * (q.W * q.X + q.Y * q.Z);
+        float cosr_cosp = 1 - 2 * (q.X * q.X + q.Y * q.Y);
+        angles.X = MathF.Atan2(sinr_cosp, cosr_cosp);
+
+        // pitch / y
+        float sinp = 2 * (q.W * q.Y - q.Z * q.X);
+        if (Math.Abs(sinp) >= 1)
+        {
+            angles.Y = MathF.CopySign(MathF.PI / 2, sinp);
+        }
+        else
+        {
+            angles.Y = MathF.Asin(sinp);
+        }
+
+        // yaw / z
+        float siny_cosp = 2 * (q.W * q.Z + q.X * q.Y);
+        float cosy_cosp = 1 - 2 * (q.Y * q.Y + q.Z * q.Z);
+        angles.Z = MathF.Atan2(siny_cosp, cosy_cosp);
+
+        return angles * (180 / MathF.PI);
     }
 
     public string GetFileName()
