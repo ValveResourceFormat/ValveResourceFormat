@@ -565,7 +565,7 @@ public sealed class MapExtract
                     tint = fragment.GetSubCollection("m_vTintColor").ToVector3();
                 }
 
-                tint *= drawCalls[drawCallIndex].GetSubCollection("m_vTintColor").ToVector3();
+                tint *= SrgbLinearToGamma(drawCalls[drawCallIndex].GetSubCollection("m_vTintColor").ToVector3());
                 alpha *= drawCalls[drawCallIndex].GetFloatProperty("m_flAlpha");
 
                 if (fragmentTransforms.Length > 0)
@@ -903,4 +903,25 @@ public sealed class MapExtract
         };
     }
     #endregion Entities
+
+    private static Vector3 SrgbLinearToGamma(Vector3 vLinearColor)
+    {
+        Vector3 vLinearSegment = vLinearColor * (float)12.92;
+        var power = new Vector3(1.0f / 2.4f, 1.0f / 2.4f, 1.0f / 2.4f);
+        float poweredX = (float)Math.Pow(vLinearColor.X, power.X);
+        float poweredY = (float)Math.Pow(vLinearColor.Y, power.Y);
+        float poweredZ = (float)Math.Pow(vLinearColor.Z, power.Z);
+
+        Vector3 vExpSegment = new Vector3(
+            (poweredX * 1.055f) - 0.055f,
+            (poweredY * 1.055f) - 0.055f,
+            (poweredZ * 1.055f) - 0.055f
+            );
+
+        Vector3 vGammaColor = new Vector3((vLinearColor.X <= 0.0031308) ? vLinearSegment.X : vExpSegment.X,
+                                (vLinearColor.Y <= 0.0031308) ? vLinearSegment.Y : vExpSegment.Y,
+                                (vLinearColor.Z <= 0.0031308) ? vLinearSegment.Z : vExpSegment.Z);
+
+        return vGammaColor;
+    }
 }
