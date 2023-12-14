@@ -23,13 +23,13 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             }
         }
 
-        public int EndFrame { get; set; }
-        public MotionFlag MotionFlags { get; set; }
-        public float V0 { get; set; }
-        public float V1 { get; set; }
-        public float Angle { get; set; }
-        public Vector3 Vector { get; set; }
-        public Vector3 Position { get; set; }
+        public int EndFrame { get; }
+        public MotionFlag MotionFlags { get; }
+        public float V0 { get; }
+        public float V1 { get; }
+        public float Angle { get; }
+        public Vector3 Vector { get; }
+        public Vector3 Position { get; }
 
         public AnimationMovement(IKeyValueCollection frameBlock)
         {
