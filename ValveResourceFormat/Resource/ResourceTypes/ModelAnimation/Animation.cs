@@ -201,6 +201,11 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// </summary>
         public AnimationMovement.MovementData GetMovementOffsetData(float time)
         {
+            if (!HasMovementData())
+            {
+                return new();
+            }
+
             GetMovementForTime(time, out var movement, out var nextMovement, out var t);
             return AnimationMovement.Lerp(movement, nextMovement, t);
         }
