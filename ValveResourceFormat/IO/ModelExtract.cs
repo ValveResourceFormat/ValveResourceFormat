@@ -828,7 +828,30 @@ public class ModelExtract
             anim.DecodeFrame(frame);
             frames[i] = frame;
         }
+        //Root motion
+        var rootPositionChannel = BuildDmeChannel<Vector3>($"_p", skeleton.Transform, "position", out var rootPositionLog);
+        var rootOrientationChannel = BuildDmeChannel<Quaternion>($"_o", skeleton.Transform, "orientation", out var rootOrientationLog);
+        var rootPositionLayer = rootPositionLog.GetLayer(0);
+        var rootOrientationLayer = rootOrientationLog.GetLayer(0);
+        rootPositionLayer.LayerValues = new Vector3[anim.MovementArray.Length];
+        rootOrientationLayer.LayerValues = new Quaternion[anim.MovementArray.Length];
+        for (var i = 0; i < anim.MovementArray.Length; i++)
+        {
+            var movement = anim.MovementArray[i];
 
+            var time = TimeSpan.FromSeconds((double)movement.EndFrame / anim.Fps);
+
+            rootPositionLayer.LayerValues[i] = movement.Position;
+            rootPositionLayer.Times.Add(time);
+
+            var degrees = movement.Angle * 0.0174532925f;
+            rootOrientationLayer.LayerValues[i] = Quaternion.CreateFromAxisAngle(Vector3.UnitZ, degrees);
+            rootOrientationLayer.Times.Add(time);
+        }
+        clip.Channels.Add(rootPositionChannel);
+        clip.Channels.Add(rootOrientationChannel);
+
+        //Bone anims
         foreach (var bone in model.Skeleton.Bones)
         {
             var transform = transforms[bone.Index];
@@ -874,6 +897,8 @@ public class ModelExtract
             clip.Channels.Add(positionChannel);
             clip.Channels.Add(orientationChannel);
         }
+
+        //Flex anims
         for (var flexId = 0; flexId < model.FlexControllers.Length; flexId++)
         {
             var flexController = model.FlexControllers[flexId];

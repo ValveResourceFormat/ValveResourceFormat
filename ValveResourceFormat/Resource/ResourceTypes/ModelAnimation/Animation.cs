@@ -18,7 +18,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         public bool IsLooping { get; }
         private AnimationFrameBlock[] FrameBlocks { get; }
         private AnimationSegmentDecoder[] SegmentArray { get; }
-        private AnimationMovement[] MovementArray { get; }
+        public AnimationMovement[] MovementArray { get; }
 
         private Animation(IKeyValueCollection animDesc, AnimationSegmentDecoder[] segmentArray)
         {
