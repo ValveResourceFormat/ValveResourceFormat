@@ -29,5 +29,11 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             Vector = new Vector3(frameBlock.GetFloatArray("vector"));
             Position = new Vector3(frameBlock.GetFloatArray("position"));
         }
+
+        public Matrix4x4 GetMatrix()
+        {
+            var rotationRad = Angle * 0.0174532925f; //Deg to rad
+            return Matrix4x4.CreateRotationZ(rotationRad) * Matrix4x4.CreateTranslation(Position);
+        }
     }
 }
