@@ -191,6 +191,11 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             return MovementArray.Length - 1;
         }
 
+        public bool HasMovementData()
+        {
+            return MovementArray.Length > 0;
+        }
+
         /// <summary>
         /// Returns interpolated root motion data
         /// </summary>

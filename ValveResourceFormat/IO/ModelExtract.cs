@@ -808,6 +808,10 @@ public class ModelExtract
 
     private static void ProcessRootMotionChannel(Animation anim, DmeModel skeleton, DmeChannelsClip clip)
     {
+        if (!anim.HasMovementData())
+        {
+            return;
+        }
         var rootPositionChannel = BuildDmeChannel<Vector3>($"_p", skeleton.Transform, "position", out var rootPositionLog);
         var rootPositionLayer = rootPositionLog.GetLayer(0);
         rootPositionLayer.LayerValues = new Vector3[anim.FrameCount];
