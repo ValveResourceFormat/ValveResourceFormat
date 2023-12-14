@@ -13,8 +13,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
     {
         public struct MovementData
         {
-            public Vector3 Position;
-            public float Angle;
+            public Vector3 Position { get; }
+            public float Angle { get; }
 
             public MovementData(Vector3 position, float angle)
             {
