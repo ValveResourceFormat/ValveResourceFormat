@@ -810,11 +810,15 @@ public class ModelExtract
     {
         var rootPositionChannel = BuildDmeChannel<Vector3>($"_p", skeleton.Transform, "position", out var rootPositionLog);
         var rootPositionLayer = rootPositionLog.GetLayer(0);
-        rootPositionLayer.LayerValues = new Vector3[anim.MovementArray.Length ];
+        rootPositionLayer.LayerValues = new Vector3[anim.MovementArray.Length + 1];
+        rootPositionLayer.LayerValues[0] = Vector3.Zero;
+        rootPositionLayer.Times.Add(TimeSpan.FromSeconds(0));
 
         var rootOrientationChannel = BuildDmeChannel<Quaternion>($"_o", skeleton.Transform, "orientation", out var rootOrientationLog);
         var rootOrientationLayer = rootOrientationLog.GetLayer(0);
-        rootOrientationLayer.LayerValues = new Quaternion[anim.MovementArray.Length];
+        rootOrientationLayer.LayerValues = new Quaternion[anim.MovementArray.Length + 1];
+        rootOrientationLayer.LayerValues[0] = Quaternion.Identity;
+        rootOrientationLayer.Times.Add(TimeSpan.FromSeconds(0));
 
         for (var i = 0; i < anim.MovementArray.Length; i++)
         {
@@ -822,11 +826,11 @@ public class ModelExtract
 
             var time = TimeSpan.FromSeconds((double)movement.EndFrame / anim.Fps);
 
-            rootPositionLayer.LayerValues[i] = movement.Position;
+            rootPositionLayer.LayerValues[i + 1] = movement.Position;
             rootPositionLayer.Times.Add(time);
 
             var degrees = movement.Angle * 0.0174532925f; //Deg to rad
-            rootOrientationLayer.LayerValues[i] = Quaternion.CreateFromAxisAngle(Vector3.UnitZ, degrees);
+            rootOrientationLayer.LayerValues[i + 1] = Quaternion.CreateFromAxisAngle(Vector3.UnitZ, degrees);
             rootOrientationLayer.Times.Add(time);
         }
         clip.Channels.Add(rootPositionChannel);
