@@ -890,7 +890,7 @@ public class ModelExtract
             //If both layers are 0s only, modeldoc will ignore the animations on this bone.
             //In that case, replace the position layer's values with one that has a very small value outside of the range of the animation.
             //Do the same if there's only a single frame, since modeldoc also ignores animations that don't have any movement at all (Fixes #663)
-            if (anim.FrameCount == 1 || (positionLogLayer.IsLayerZero() && orientationLogLayer.IsLayerZero()))
+            if (anim.FrameCount == 1 || positionLogLayer.IsLayerZero() || orientationLogLayer.IsLayerZero())
             {
                 positionLogLayer.Times.Clear();
                 positionLogLayer.Times.AddRange(new TimeSpan[] {
