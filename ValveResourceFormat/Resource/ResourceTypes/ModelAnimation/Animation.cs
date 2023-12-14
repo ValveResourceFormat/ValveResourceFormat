@@ -172,6 +172,64 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         private static IKeyValueCollection GetAnimationData(Resource resource)
             => resource.DataBlock.AsKeyValueCollection();
 
+        private int GetMovementIndexForTime(float time)
+        {
+            return GetMovementIndexForFrame((int)Math.Floor(time * Fps));
+        }
+
+        private int GetMovementIndexForFrame(int frame)
+        {
+            for (int i = 1; i < MovementArray.Length; i++)
+            {
+                var movement = MovementArray[i];
+                if (movement.EndFrame > frame)
+                {
+                    return i - 1;
+                }
+            }
+            return MovementArray.Length - 1;
+        }
+
+        public AnimationMovement.MovementData GetMovementOffsetData(float time)
+        {
+            GetMovementForTime(time, out var movement, out var nextMovement, out var t);
+            return AnimationMovement.Lerp(movement, nextMovement, t);
+        }
+
+        private void GetMovementForTime(float time, out AnimationMovement lastMovement, out AnimationMovement nextMovement, out float t)
+        {
+            time = time % (FrameCount / Fps);
+            var lastMovementIndex = GetMovementIndexForTime(time);
+            var nextMovementIndex = lastMovementIndex + 1;
+
+            if (lastMovementIndex == 0)
+            {
+                lastMovement = null;
+                nextMovement = MovementArray[lastMovementIndex];
+                var movementTime = nextMovement.EndFrame / Fps;
+                t = time / movementTime;
+                return;
+            }
+            else if (nextMovementIndex >= MovementArray.Length)
+            {
+                lastMovement = MovementArray[lastMovementIndex];
+                nextMovement = null;
+                t = 0f;
+                return;
+            }
+
+            lastMovement = MovementArray[lastMovementIndex];
+            nextMovement = MovementArray[nextMovementIndex];
+
+
+            var startTime = lastMovement.EndFrame / Fps;
+            var endTime = nextMovement.EndFrame / Fps;
+
+            var len = endTime - startTime;
+
+            t = Math.Min(1f, (time - startTime) / len);
+        }
+
         /// <summary>
         /// Get the animation matrix for each bone.
         /// </summary>

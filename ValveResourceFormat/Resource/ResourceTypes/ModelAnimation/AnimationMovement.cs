@@ -11,6 +11,18 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 {
     public class AnimationMovement
     {
+        public struct MovementData
+        {
+            public Vector3 Position;
+            public float Angle;
+
+            public MovementData(Vector3 position, float angle)
+            {
+                Position = position;
+                Angle = angle;
+            }
+        }
+
         public int EndFrame { get; set; }
         public MotionFlag MotionFlags { get; set; }
         public float V0 { get; set; }
@@ -30,10 +42,33 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             Position = new Vector3(frameBlock.GetFloatArray("position"));
         }
 
-        public Matrix4x4 GetMatrix()
+        public static MovementData Lerp(AnimationMovement a, AnimationMovement b, float t)
         {
-            var rotationRad = Angle * 0.0174532925f; //Deg to rad
-            return Matrix4x4.CreateRotationZ(rotationRad) * Matrix4x4.CreateTranslation(Position);
+            if (a == null && b == null)
+            {
+                return new();
+            }
+
+            if (a == null)
+            {
+                return Lerp(Vector3.Zero, 0, b.Position, b.Angle, t);
+            }
+            else if (b == null)
+            {
+                return Lerp(a.Position, a.Angle, Vector3.Zero, 0f, t);
+            }
+            else
+            {
+                return Lerp(a.Position, a.Angle, b.Position, b.Angle, t);
+            }
+        }
+
+        private static MovementData Lerp(Vector3 aPos, float aAngle, Vector3 bPos, float bAngle, float t)
+        {
+            var position = Vector3.Lerp(aPos, bPos, t);
+            var angle = float.Lerp(aAngle, bAngle, t);
+
+            return new MovementData(position, angle);
         }
     }
 }
