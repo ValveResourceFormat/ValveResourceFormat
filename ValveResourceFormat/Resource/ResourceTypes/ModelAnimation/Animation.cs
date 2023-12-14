@@ -174,7 +174,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
         private int GetMovementIndexForTime(float time)
         {
-            return GetMovementIndexForFrame((int)Math.Floor(time * Fps));
+            var frame = (int)Math.Floor(time * Fps);
+            return GetMovementIndexForFrame(frame);
         }
 
         private int GetMovementIndexForFrame(int frame)
@@ -190,12 +191,18 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             return MovementArray.Length - 1;
         }
 
+        /// <summary>
+        /// Returns interpolated root motion data
+        /// </summary>
         public AnimationMovement.MovementData GetMovementOffsetData(float time)
         {
             GetMovementForTime(time, out var movement, out var nextMovement, out var t);
             return AnimationMovement.Lerp(movement, nextMovement, t);
         }
 
+        /// <summary>
+        /// Returns root motion data at the specified animation time for interpolation.
+        /// </summary>
         private void GetMovementForTime(float time, out AnimationMovement lastMovement, out AnimationMovement nextMovement, out float t)
         {
             time = time % (FrameCount / Fps);
@@ -206,6 +213,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             {
                 lastMovement = null;
                 nextMovement = MovementArray[lastMovementIndex];
+
                 var movementTime = nextMovement.EndFrame / Fps;
                 t = time / movementTime;
                 return;
@@ -214,6 +222,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             {
                 lastMovement = MovementArray[lastMovementIndex];
                 nextMovement = null;
+
                 t = 0f;
                 return;
             }
@@ -221,13 +230,13 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             lastMovement = MovementArray[lastMovementIndex];
             nextMovement = MovementArray[nextMovementIndex];
 
-
             var startTime = lastMovement.EndFrame / Fps;
             var endTime = nextMovement.EndFrame / Fps;
 
-            var len = endTime - startTime;
+            var movementDuration = endTime - startTime;
+            var elapsedTime = time - startTime;
 
-            t = Math.Min(1f, (time - startTime) / len);
+            t = Math.Min(1f, elapsedTime / movementDuration);
         }
 
         /// <summary>
