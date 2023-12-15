@@ -37,6 +37,7 @@ public sealed class MapExtract
     private Dictionary<string, string> ModelEntityAssociations { get; } = [];
     private List<string> MeshesToExtract { get; } = [];
     private List<string> FolderExtractFilter { get; } = [];
+    private List<string> SnapshotsToExtract { get; } = [];
 
     private List<CMapWorldLayer> WorldLayers { get; set; }
     private Dictionary<int, MapNode> UniqueNodeIds { get; set; }
@@ -273,6 +274,19 @@ public sealed class MapExtract
 
                 var vmdl = modelExtract.ToContentFile();
                 vmap.AdditionalFiles.Add(vmdl);
+            }
+        }
+
+        // Export all gathered vsnap files
+        foreach (var snapshotName in SnapshotsToExtract)
+        {
+            using var snapshot = FileLoader.LoadFile(snapshotName + "_c");
+            if (snapshot is not null)
+            {
+                var snapshotExtract = new SnapshotExtract(snapshot);
+                var vsnap = snapshotExtract.ToContentFile();
+                vsnap.FileName = snapshotName;
+                vmap.AdditionalFiles.Add(vsnap);
             }
         }
 
@@ -713,6 +727,16 @@ public sealed class MapExtract
                     destNode.Children.Add(brushGroup);
                     continue;
                 }
+            }
+
+            var snapshotFile = compiledEntity.GetProperty<string>(StringToken.Get("snapshot_file"));
+            if (snapshotFile != null && PathIsSubPath(snapshotFile, LumpFolder))
+            {
+                snapshotFile = snapshotFile.Replace('\\', '/');
+                SnapshotsToExtract.Add(snapshotFile);
+
+                // snapshot_mesh needs to be set to 0 in order for it to use the vsnap file
+                mapEntity.WithProperty("snapshot_mesh", "0");
             }
 
             destNode.Children.Add(mapEntity);
