@@ -1,3 +1,4 @@
+using System.IO;
 using System.Runtime.CompilerServices;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
@@ -50,9 +51,16 @@ namespace ValveResourceFormat.Utils
                     }
             }
 
-            using (FileExtract.Extract(resource, new NullFileLoader()))
+            try
             {
-                // Test extraction code flow
+                using (FileExtract.Extract(resource, new NullFileLoader()))
+                {
+                    // Test extraction code flow
+                }
+            }
+            catch (FileNotFoundException)
+            {
+                // ignore for now because we use null file loader, map extract throws
             }
         }
     }
