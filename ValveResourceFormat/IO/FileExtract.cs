@@ -128,6 +128,7 @@ namespace ValveResourceFormat.IO
             switch (resource.ResourceType)
             {
                 case ResourceType.Map:
+                case ResourceType.World:
                     contentFile = new MapExtract(resource, fileLoader).ToContentFile();
                     break;
 
