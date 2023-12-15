@@ -85,56 +85,56 @@ jobs:
       run: dotnet publish --configuration Release --self-contained --runtime osx-arm64 Decompiler/Decompiler.csproj
 
     - name: Upload GUI
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: matrix.os == 'windows-latest'
       with:
         name: Source2Viewer
         path: GUI/bin/Release/win-x64/publish
 
     - name: Upload nupkg
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: matrix.os == 'windows-latest'
       with:
         name: nupkg
         path: 'ValveResourceFormat/bin/Release/*.nupkg'
 
     - name: Upload Decompiler (Windows x64)
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: matrix.os == 'windows-latest'
       with:
         name: Decompiler-windows-x64
         path: Decompiler/bin/Release/win-x64/publish
 
     - name: Upload Decompiler (Linux x64)
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: matrix.os == 'ubuntu-latest'
       with:
         name: Decompiler-linux-x64
         path: Decompiler/bin/Release/linux-x64/publish
 
     - name: Upload Decompiler (Linux arm)
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: matrix.os == 'ubuntu-latest'
       with:
         name: Decompiler-linux-arm
         path: Decompiler/bin/Release/linux-arm/publish
 
     - name: Upload Decompiler (Linux arm64)
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: matrix.os == 'ubuntu-latest'
       with:
         name: Decompiler-linux-arm64
         path: Decompiler/bin/Release/linux-arm64/publish
 
     - name: Upload Decompiler (macOS x64)
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: matrix.os == 'macos-latest'
       with:
         name: Decompiler-macos-x64
         path: Decompiler/bin/Release/osx-x64/publish
 
     - name: Upload Decompiler (macOS arm64)
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: matrix.os == 'macos-latest'
       with:
         name: Decompiler-macos-arm64
@@ -155,7 +155,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Download artifacts
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         path: artifacts
 
