@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 namespace ValveResourceFormat
 {
     [Flags]
-    public enum ModelAnimationMotionFlag
+    public enum ModelAnimationMotionFlags
     {
         TX = 64,
         TY = 128,

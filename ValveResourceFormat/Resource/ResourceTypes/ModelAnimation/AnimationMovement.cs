@@ -24,7 +24,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         }
 
         public int EndFrame { get; }
-        public ModelAnimationMotionFlag MotionFlags { get; }
+        public ModelAnimationMotionFlags MotionFlags { get; }
         public float V0 { get; }
         public float V1 { get; }
         public float Angle { get; }
@@ -34,7 +34,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         public AnimationMovement(IKeyValueCollection frameBlock)
         {
             EndFrame = frameBlock.GetInt32Property("endframe");
-            MotionFlags = (ModelAnimationMotionFlag)frameBlock.GetInt32Property("motionflags");
+            MotionFlags = (ModelAnimationMotionFlags)frameBlock.GetInt32Property("motionflags");
             V0 = frameBlock.GetInt32Property("v0");
             V1 = frameBlock.GetInt32Property("v1");
             Angle = frameBlock.GetFloatProperty("angle");
