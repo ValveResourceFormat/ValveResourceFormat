@@ -180,12 +180,12 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
         private int GetMovementIndexForFrame(int frame)
         {
-            for (int i = 1; i < MovementArray.Length; i++)
+            for (int i = 0; i < MovementArray.Length; i++)
             {
                 var movement = MovementArray[i];
                 if (movement.EndFrame > frame)
                 {
-                    return i - 1;
+                    return i;
                 }
             }
             return MovementArray.Length - 1;
@@ -216,29 +216,20 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         private void GetMovementForTime(float time, out AnimationMovement lastMovement, out AnimationMovement nextMovement, out float t)
         {
             time = time % (FrameCount / Fps);
-            var lastMovementIndex = GetMovementIndexForTime(time);
-            var nextMovementIndex = lastMovementIndex + 1;
+            var nextMovementIndex = GetMovementIndexForTime(time);
+            var lastMovementIndex = nextMovementIndex - 1;
 
-            if (lastMovementIndex == 0)
+            nextMovement = MovementArray[nextMovementIndex];
+            if (nextMovementIndex == 0)
             {
                 lastMovement = null;
-                nextMovement = MovementArray[lastMovementIndex];
 
                 var movementTime = nextMovement.EndFrame / Fps;
                 t = time / movementTime;
                 return;
             }
-            else if (nextMovementIndex >= MovementArray.Length)
-            {
-                lastMovement = MovementArray[lastMovementIndex];
-                nextMovement = null;
-
-                t = 0f;
-                return;
-            }
 
             lastMovement = MovementArray[lastMovementIndex];
-            nextMovement = MovementArray[nextMovementIndex];
 
             var startTime = lastMovement.EndFrame / Fps;
             var endTime = nextMovement.EndFrame / Fps;
