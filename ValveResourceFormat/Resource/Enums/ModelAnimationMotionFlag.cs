@@ -4,10 +4,10 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace ValveResourceFormat.ResourceTypes.ModelAnimation
+namespace ValveResourceFormat
 {
     [Flags]
-    public enum MotionFlag
+    public enum ModelAnimationMotionFlag
     {
         TX = 64,
         TY = 128,
