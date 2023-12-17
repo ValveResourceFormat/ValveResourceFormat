@@ -273,6 +273,20 @@ public class ModelExtract
             }
         }
 
+        if (AnimationsToExtract.Count > 0)
+        {
+            foreach (var animation in AnimationsToExtract)
+            {
+                var animationFile = MakeNode(
+                    "AnimFile",
+                    ("name", animation.Anim.Name),
+                    ("source_filename", animation.FileName)
+                );
+
+                AddItem(animationList.Value, animationFile);
+            }
+        }
+
         if (PhysHullsToExtract.Count > 0 || PhysMeshesToExtract.Count > 0)
         {
             if (Type == ModelExtractType.Map_PhysicsToRenderMesh)
