@@ -18,6 +18,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         public bool IsLooping { get; }
         private AnimationFrameBlock[] FrameBlocks { get; }
         private AnimationSegmentDecoder[] SegmentArray { get; }
+        private AnimationMovement[] MovementArray { get; }
 
         private Animation(IKeyValueCollection animDesc, AnimationSegmentDecoder[] segmentArray)
         {
@@ -40,6 +41,13 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             for (var i = 0; i < frameBlockArray.Length; i++)
             {
                 FrameBlocks[i] = new AnimationFrameBlock(frameBlockArray[i]);
+            }
+
+            var movementArray = animDesc.GetArray("m_movementArray");
+            MovementArray = new AnimationMovement[movementArray.Length];
+            for (var i = 0; i < movementArray.Length; i++)
+            {
+                MovementArray[i] = new AnimationMovement(movementArray[i]);
             }
         }
 
@@ -163,6 +171,74 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
         private static IKeyValueCollection GetAnimationData(Resource resource)
             => resource.DataBlock.AsKeyValueCollection();
+
+        private int GetMovementIndexForTime(float time)
+        {
+            var frame = (int)Math.Floor(time * Fps);
+            return GetMovementIndexForFrame(frame);
+        }
+
+        private int GetMovementIndexForFrame(int frame)
+        {
+            for (int i = 0; i < MovementArray.Length; i++)
+            {
+                var movement = MovementArray[i];
+                if (movement.EndFrame > frame)
+                {
+                    return i;
+                }
+            }
+            return MovementArray.Length - 1;
+        }
+
+        public bool HasMovementData()
+        {
+            return MovementArray.Length > 0;
+        }
+
+        /// <summary>
+        /// Returns interpolated root motion data
+        /// </summary>
+        public AnimationMovement.MovementData GetMovementOffsetData(float time)
+        {
+            if (!HasMovementData())
+            {
+                return new();
+            }
+
+            GetMovementForTime(time, out var movement, out var nextMovement, out var t);
+            return AnimationMovement.Lerp(movement, nextMovement, t);
+        }
+
+        /// <summary>
+        /// Returns root motion data at the specified animation time for interpolation.
+        /// </summary>
+        private void GetMovementForTime(float time, out AnimationMovement lastMovement, out AnimationMovement nextMovement, out float t)
+        {
+            time = time % (FrameCount / Fps);
+            var nextMovementIndex = GetMovementIndexForTime(time);
+            var lastMovementIndex = nextMovementIndex - 1;
+
+            nextMovement = MovementArray[nextMovementIndex];
+            if (nextMovementIndex == 0)
+            {
+                lastMovement = null;
+
+                var movementTime = nextMovement.EndFrame / Fps;
+                t = time / movementTime;
+                return;
+            }
+
+            lastMovement = MovementArray[lastMovementIndex];
+
+            var startTime = lastMovement.EndFrame / Fps;
+            var endTime = nextMovement.EndFrame / Fps;
+
+            var movementDuration = endTime - startTime;
+            var elapsedTime = time - startTime;
+
+            t = Math.Min(1f, elapsedTime / movementDuration);
+        }
 
         /// <summary>
         /// Get the animation matrix for each bone.

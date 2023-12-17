@@ -806,29 +806,65 @@ public class ModelExtract
         flexLayer.LayerValues[frame.FrameIndex] = flexValue;
     }
 
-    public static byte[] ToDmxAnim(Model model, Animation anim)
+    private static void ProcessRootMotionChannel(Animation anim, DmeModel skeleton, DmeChannelsClip clip)
     {
-        using var dmx = new Datamodel.Datamodel("model", 22);
+        if (!anim.HasMovementData())
+        {
+            return;
+        }
+        var rootPositionChannel = BuildDmeChannel<Vector3>($"_p", skeleton.Transform, "position", out var rootPositionLog);
+        var rootPositionLayer = rootPositionLog.GetLayer(0);
+        rootPositionLayer.LayerValues = new Vector3[anim.FrameCount];
 
-        var skeleton = BuildDmeDagSkeleton(model.Skeleton, out var transforms);
+        var rootOrientationChannel = BuildDmeChannel<Quaternion>($"_o", skeleton.Transform, "orientation", out var rootOrientationLog);
+        var rootOrientationLayer = rootOrientationLog.GetLayer(0);
+        rootOrientationLayer.LayerValues = new Quaternion[anim.FrameCount];
 
-        var animationList = new DmeAnimationList();
-        var clip = new DmeChannelsClip();
-
-        clip.TimeFrame.Duration = TimeSpan.FromSeconds((double)(anim.FrameCount - 1) / anim.Fps);
-        clip.FrameRate = anim.Fps;
-
-        var frames = new Frame[anim.FrameCount];
         for (var i = 0; i < anim.FrameCount; i++)
         {
-            var frame = new Frame(model.Skeleton, model.FlexControllers)
-            {
-                FrameIndex = i
-            };
-            anim.DecodeFrame(frame);
-            frames[i] = frame;
+            var time = i / anim.Fps;
+            var timespan = TimeSpan.FromSeconds(time);
+
+            var movement = anim.GetMovementOffsetData(time);
+
+            rootPositionLayer.LayerValues[i] = movement.Position;
+            rootPositionLayer.Times.Add(timespan);
+
+            var degrees = movement.Angle * 0.0174532925f; //Deg to rad
+            rootOrientationLayer.LayerValues[i] = Quaternion.CreateFromAxisAngle(Vector3.UnitZ, degrees);
+            rootOrientationLayer.Times.Add(timespan);
         }
 
+        clip.Channels.Add(rootPositionChannel);
+        clip.Channels.Add(rootOrientationChannel);
+    }
+
+    private static void ProcessFlexChannels(Model model, Animation anim, DmeChannelsClip clip, Frame[] frames)
+    {
+        for (var flexId = 0; flexId < model.FlexControllers.Length; flexId++)
+        {
+            var flexController = model.FlexControllers[flexId];
+
+            var flexElement = new Element();
+            flexElement.Name = flexController.Name;
+            flexElement.Add("flexWeight", 0f);
+
+            var flexChannel = BuildDmeChannel<float>($"{flexController.Name}_flex_channel", flexElement, "flexWeight", out var flexLog);
+            var flexLogLayer = flexLog.GetLayer(0);
+            flexLogLayer.LayerValues = new float[anim.FrameCount];
+
+            for (int i = 0; i < anim.FrameCount; i++)
+            {
+                Frame frame = frames[i];
+                TimeSpan time = TimeSpan.FromSeconds((double)i / anim.Fps);
+                ProcessFlexFrameForDmeChannel(flexId, frame, time, flexLogLayer);
+            }
+            clip.Channels.Add(flexChannel);
+        }
+    }
+
+    private static void ProcessBoneChannels(Model model, Animation anim, DmeTransform[] transforms, DmeChannelsClip clip, Frame[] frames)
+    {
         foreach (var bone in model.Skeleton.Bones)
         {
             var transform = transforms[bone.Index];
@@ -854,7 +890,7 @@ public class ModelExtract
             //If both layers are 0s only, modeldoc will ignore the animations on this bone.
             //In that case, replace the position layer's values with one that has a very small value outside of the range of the animation.
             //Do the same if there's only a single frame, since modeldoc also ignores animations that don't have any movement at all (Fixes #663)
-            if (anim.FrameCount == 1 || (positionLogLayer.IsLayerZero() && orientationLogLayer.IsLayerZero()))
+            if (anim.FrameCount == 1 || positionLogLayer.IsLayerZero() || orientationLogLayer.IsLayerZero())
             {
                 positionLogLayer.Times.Clear();
                 positionLogLayer.Times.AddRange(new TimeSpan[] {
@@ -874,26 +910,34 @@ public class ModelExtract
             clip.Channels.Add(positionChannel);
             clip.Channels.Add(orientationChannel);
         }
-        for (var flexId = 0; flexId < model.FlexControllers.Length; flexId++)
+    }
+
+    public static byte[] ToDmxAnim(Model model, Animation anim)
+    {
+        using var dmx = new Datamodel.Datamodel("model", 22);
+
+        var skeleton = BuildDmeDagSkeleton(model.Skeleton, out var transforms);
+
+        var animationList = new DmeAnimationList();
+        var clip = new DmeChannelsClip();
+
+        clip.TimeFrame.Duration = TimeSpan.FromSeconds((double)(anim.FrameCount - 1) / anim.Fps);
+        clip.FrameRate = anim.Fps;
+
+        var frames = new Frame[anim.FrameCount];
+        for (var i = 0; i < anim.FrameCount; i++)
         {
-            var flexController = model.FlexControllers[flexId];
-
-            var flexElement = new Element();
-            flexElement.Name = flexController.Name;
-            flexElement.Add("flexWeight", 0f);
-
-            var flexChannel = BuildDmeChannel<float>($"{flexController.Name}_flex_channel", flexElement, "flexWeight", out var flexLog);
-            var flexLogLayer = flexLog.GetLayer(0);
-            flexLogLayer.LayerValues = new float[anim.FrameCount];
-
-            for (int i = 0; i < anim.FrameCount; i++)
+            var frame = new Frame(model.Skeleton, model.FlexControllers)
             {
-                Frame frame = frames[i];
-                TimeSpan time = TimeSpan.FromSeconds((double)i / anim.Fps);
-                ProcessFlexFrameForDmeChannel(flexId, frame, time, flexLogLayer);
-            }
-            clip.Channels.Add(flexChannel);
+                FrameIndex = i
+            };
+            anim.DecodeFrame(frame);
+            frames[i] = frame;
         }
+
+        ProcessRootMotionChannel(anim, skeleton, clip);
+        ProcessBoneChannels(model, anim, transforms, clip, frames);
+        ProcessFlexChannels(model, anim, clip, frames);
 
         animationList.Animations.Add(clip);
 
