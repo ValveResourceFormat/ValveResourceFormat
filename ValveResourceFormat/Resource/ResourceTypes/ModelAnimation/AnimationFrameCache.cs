@@ -37,6 +37,11 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// <param name="time">The time to get the frame for.</param>
         public Frame GetInterpolatedFrame(Animation anim, float time)
         {
+            if (anim.FrameCount <= 1)
+            {
+                return GetFrame(anim, 0);
+            }
+
             // Calculate the index of the current frame
             var frameIndex = (int)(time * anim.Fps) % (anim.FrameCount - 1);
             var nextFrameIndex = (frameIndex + 1) % anim.FrameCount;

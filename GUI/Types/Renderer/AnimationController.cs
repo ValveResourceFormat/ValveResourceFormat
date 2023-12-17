@@ -82,7 +82,7 @@ namespace GUI.Types.Renderer
 
         public Frame GetFrame()
         {
-            if (IsPaused || activeAnimation.FrameCount == 0)
+            if (IsPaused)
             {
                 return animationFrameCache.GetFrame(activeAnimation, Frame);
             }
