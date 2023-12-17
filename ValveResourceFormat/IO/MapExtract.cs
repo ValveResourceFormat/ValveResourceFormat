@@ -630,10 +630,22 @@ public sealed class MapExtract
                     instance.Origin = drawCenters[i];
                 }
 
+                if (instanceGroup is null)
+                {
+                    Debug.Assert(aggregateHasTransforms == false, "aggregate also has instanced transforms");
+
+                    instanceGroup = new CMapGroup
+                    {
+                        Name = "[MultiDraw] " + Path.GetFileNameWithoutExtension(modelName),
+                    };
+
+                    GetWorldLayerNode(layerIndex, layerNodes).Children.Add(instanceGroup);
+                }
+
                 SetPropertiesFromFlags(instance, fragmentFlags);
                 SetTintAlpha(instance, new Vector4(tint, alpha));
 
-                StaticPropFinalize(instance, layerIndex, layerNodes, true);
+                instanceGroup.Children.Add(instance);
             }
         }
 
