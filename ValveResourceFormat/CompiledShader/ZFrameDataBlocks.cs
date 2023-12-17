@@ -35,10 +35,19 @@ namespace ValveResourceFormat.CompiledShader
     [StructLayout(LayoutKind.Sequential, Pack = 1, Size = 4)]
     public readonly struct WriteSeqField
     {
-        public byte ParamId { get; }
-        public byte UnknBuff { get; }
+        private readonly byte paramId;
+        public WriteSeqFieldFlags UnknFlags { get; }
         public byte Dest { get; }
         public byte Control { get; }
+
+        public int ParamId => UnknFlags.HasFlag(WriteSeqFieldFlags.ExtraParam) ? paramId | 0x100 : paramId;
+    }
+
+    [Flags]
+    public enum WriteSeqFieldFlags : byte
+    {
+        None = 0,
+        ExtraParam = 0x1,
     }
 
     public abstract class GpuSource : ShaderDataBlock

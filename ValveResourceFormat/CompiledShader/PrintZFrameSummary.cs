@@ -149,7 +149,7 @@ namespace ValveResourceFormat.CompiledShader
             OutputFormatterTabulatedData tabulatedData = new(OutputWriter);
             var emptyRow = new string[] { "", "", "", "", "" };
             tabulatedData.DefineHeaders(zframeFile.LeadingData.H0 > 0 ?
-                ["segment", "", nameof(WriteSeqField.Dest), nameof(WriteSeqField.Control), nameof(WriteSeqField.UnknBuff)] :
+                ["segment", "", nameof(WriteSeqField.Dest), nameof(WriteSeqField.Control), nameof(WriteSeqField.UnknFlags)] :
                 emptyRow);
             if (zframeFile.LeadingData.H0 > 0)
             {
@@ -198,7 +198,7 @@ namespace ValveResourceFormat.CompiledShader
                 {
                     var field = segment[i];
                     var paramDesc = $"[{field.ParamId}] {shaderFile.ParamBlocks[field.ParamId].Name}";
-                    var buffDesc = field.UnknBuff == 0x00 ? $"{"_",7}" : $"{field.UnknBuff,7}";
+                    var buffDesc = field.UnknFlags == WriteSeqFieldFlags.None ? $"{"_",7}" : $"{field.UnknFlags,7}";
                     var arg1Desc = field.Dest == 0xff ? $"{"_",7}" : $"{field.Dest,7}";
                     var arg2Desc = field.Control == 0xff ? $"{"_",10}" : $"{field.Control,10}";
                     tabulatedData.AddTabulatedRow([i == 0 ? segmentDesc : string.Empty, paramDesc, arg1Desc, arg2Desc, buffDesc]);
