@@ -38,7 +38,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         public Frame GetInterpolatedFrame(Animation anim, float time)
         {
             // Calculate the index of the current frame
-            var frameIndex = (int)(time * anim.Fps) % anim.FrameCount;
+            var frameIndex = (int)(time * anim.Fps) % (anim.FrameCount - 1);
             var nextFrameIndex = (frameIndex + 1) % anim.FrameCount;
             var t = ((time * anim.Fps) - frameIndex) % 1;
 
