@@ -521,22 +521,34 @@ public sealed class MapExtract
             var aggregateMeshes = agg.GetArray("m_aggregateMeshes");
 
             //ModelsToExtract.Add(modelName);
-            IKeyValueCollection[] drawCalls = null;
+            var drawCalls = Array.Empty<IKeyValueCollection>();
+            var drawCenters = Array.Empty<Vector3>();
+
+            var transformIndex = 0;
+            var fragmentTransforms = agg.ContainsKey("m_fragmentTransforms")
+                ? agg.GetArray("m_fragmentTransforms")
+                : [];
+
+            var aggregateHasTransforms = fragmentTransforms.Length > 0;
 
             // maybe not load and export model here
             using (var modelRes = FileLoader.LoadFile(modelName + "_c"))
             {
                 // TODO: reference meshes
                 var mesh = ((Model)modelRes.DataBlock).GetEmbeddedMeshes().First();
-                drawCalls = mesh.Mesh.Data.GetArray("m_sceneObjects").First().GetArray("m_drawCalls");
+                var sceneObject = mesh.Mesh.Data.GetArray("m_sceneObjects").First();
+                drawCalls = sceneObject.GetArray("m_drawCalls");
 
-                PreExportedFragments.AddRange(ModelExtract.GetContentFiles_DrawCallSplit(modelRes, FileLoader, drawCalls.Length));
+                if (!aggregateHasTransforms)
+                {
+                    drawCenters = (sceneObject.ContainsKey("m_drawBounds") ? sceneObject.GetArray("m_drawBounds") : [])
+                        .Select(aabb => (aabb.GetSubCollection("m_vMinBounds").ToVector3() + aabb.GetSubCollection("m_vMaxBounds").ToVector3()) / 2f)
+                        .ToArray();
+                }
+
+                PreExportedFragments.AddRange(ModelExtract.GetContentFiles_DrawCallSplit(modelRes, FileLoader, drawCenters, drawCalls.Length));
             }
 
-            var transformIndex = 0;
-            var fragmentTransforms = agg.ContainsKey("m_fragmentTransforms")
-                ? agg.GetArray("m_fragmentTransforms")
-                : [];
 
             BaseEntity NewPropStatic(string modelName) => new CMapEntity()
                 .WithClassName("prop_static")
@@ -548,15 +560,17 @@ public sealed class MapExtract
 
             foreach (var fragment in aggregateMeshes)
             {
-                var drawCallIndex = fragment.GetInt32Property("m_nDrawCallIndex");
-
-                var fragmentModelName = ModelExtract.GetFragmentModelName(modelName, drawCallIndex);
-
-                var instance = NewPropStatic(fragmentModelName);
-                AssetReferences.Add(fragmentModelName);
+                var i = fragment.GetInt32Property("m_nDrawCallIndex");
 
                 var tint = Vector3.One * 255f;
                 var alpha = 255f;
+
+                var drawCall = drawCalls[i];
+
+                var fragmentModelName = ModelExtract.GetFragmentModelName(modelName, i);
+
+                var instance = NewPropStatic(fragmentModelName);
+                AssetReferences.Add(fragmentModelName);
 
                 var fragmentFlags = fragment.GetEnumValue<ObjectTypeFlags>("m_objectFlags", normalize: true);
 
@@ -565,10 +579,11 @@ public sealed class MapExtract
                     tint = fragment.GetSubCollection("m_vTintColor").ToVector3();
                 }
 
-                tint *= SrgbLinearToGamma(drawCalls[drawCallIndex].GetSubCollection("m_vTintColor").ToVector3());
-                alpha *= drawCalls[drawCallIndex].GetFloatProperty("m_flAlpha");
+                var drawCallTint = drawCall.GetSubCollection("m_vTintColor").ToVector3();
+                tint *= SrgbLinearToGamma(drawCallTint);
+                alpha *= drawCall.GetFloatProperty("m_flAlpha");
 
-                if (fragmentTransforms.Length > 0)
+                if (aggregateHasTransforms)
                 {
                     if (instanceGroup is null)
                     {
@@ -606,6 +621,13 @@ public sealed class MapExtract
                     SetTintAlpha(instance, new Vector4(tint, alpha));
 
                     continue;
+                }
+
+                if (drawCenters.Length > 0)
+                {
+                    // fragment recentering
+                    // apply positive vector in the vmap, and negative vector in the vmdl
+                    instance.Origin = drawCenters[i];
                 }
 
                 SetPropertiesFromFlags(instance, fragmentFlags);

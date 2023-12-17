@@ -66,6 +66,7 @@ public class ModelExtract
 
     public ModelExtractType Type { get; init; } = ModelExtractType.Default;
     public Func<SurfaceTagCombo, string> PhysicsToRenderMaterialNameProvider { get; init; }
+    public Vector3 Translation { get; set; }
 
     public ModelExtract(Resource modelResource, IFileLoader fileLoader)
     {
@@ -246,6 +247,7 @@ public class ModelExtract
         var animationList = MakeLazyList("AnimationList");
         var physicsShapeList = MakeLazyList("PhysicsShapeList");
         var skeleton = MakeLazyList("Skeleton");
+        var modelModifierList = MakeLazyList("ModelModifierList");
 
         if (RenderMeshesToExtract.Count != 0)
         {
@@ -360,6 +362,11 @@ public class ModelExtract
                     AddItem(physicsShapeList.Value, physicsShapeCapsule);
                 }
             }
+        }
+
+        if (Translation != Vector3.Zero)
+        {
+            AddItem(modelModifierList.Value, MakeNode("ModelModifier_Translate", ("translation", Translation)));
         }
 
 
@@ -561,7 +568,7 @@ public class ModelExtract
         return angles * (180 / MathF.PI);
     }
 
-    public static IEnumerable<ContentFile> GetContentFiles_DrawCallSplit(Resource aggregateModelResource, IFileLoader fileLoader, int drawCallCount)
+    public static IEnumerable<ContentFile> GetContentFiles_DrawCallSplit(Resource aggregateModelResource, IFileLoader fileLoader, Vector3[] drawOrigins, int drawCallCount)
     {
         var extract = new ModelExtract(aggregateModelResource, fileLoader) { Type = ModelExtractType.Map_AggregateSplit };
         Debug.Assert(extract.RenderMeshesToExtract.Count == 1);
@@ -589,6 +596,10 @@ public class ModelExtract
         {
             sharedMeshExtractConfiguration.ImportFilter.Filter.Clear();
             sharedMeshExtractConfiguration.ImportFilter.Filter.Add("draw" + i);
+
+            extract.Translation = drawOrigins.Length > i
+                ? -1 * drawOrigins[i]
+                : Vector3.Zero;
 
             var vmdl = new ContentFile
             {
