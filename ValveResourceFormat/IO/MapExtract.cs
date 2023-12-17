@@ -940,21 +940,23 @@ public sealed class MapExtract
 
     private static Vector3 SrgbLinearToGamma(Vector3 vLinearColor)
     {
-        Vector3 vLinearSegment = vLinearColor * (float)12.92;
-        var power = new Vector3(1.0f / 2.4f, 1.0f / 2.4f, 1.0f / 2.4f);
-        float poweredX = (float)Math.Pow(vLinearColor.X, power.X);
-        float poweredY = (float)Math.Pow(vLinearColor.Y, power.Y);
-        float poweredZ = (float)Math.Pow(vLinearColor.Z, power.Z);
+        var vLinearSegment = vLinearColor * 12.92f;
+        const float power = 1.0f / 2.4f;
 
-        Vector3 vExpSegment = new Vector3(
-            (poweredX * 1.055f) - 0.055f,
-            (poweredY * 1.055f) - 0.055f,
-            (poweredZ * 1.055f) - 0.055f
-            );
+        var vExpSegment = new Vector3(
+            MathF.Pow(vLinearColor.X, power),
+            MathF.Pow(vLinearColor.Y, power),
+            MathF.Pow(vLinearColor.Z, power)
+        );
 
-        Vector3 vGammaColor = new Vector3((vLinearColor.X <= 0.0031308) ? vLinearSegment.X : vExpSegment.X,
-                                (vLinearColor.Y <= 0.0031308) ? vLinearSegment.Y : vExpSegment.Y,
-                                (vLinearColor.Z <= 0.0031308) ? vLinearSegment.Z : vExpSegment.Z);
+        vExpSegment *= 1.055f;
+        vExpSegment -= new Vector3(0.055f);
+
+        var vGammaColor = new Vector3(
+            (vLinearColor.X <= 0.0031308) ? vLinearSegment.X : vExpSegment.X,
+            (vLinearColor.Y <= 0.0031308) ? vLinearSegment.Y : vExpSegment.Y,
+            (vLinearColor.Z <= 0.0031308) ? vLinearSegment.Z : vExpSegment.Z
+        );
 
         return vGammaColor;
     }
