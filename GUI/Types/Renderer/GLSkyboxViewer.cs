@@ -8,7 +8,7 @@ namespace GUI.Types.Renderer
         private readonly Resource materialResource;
 
         public GLSkyboxViewer(VrfGuiContext guiContext, Resource material)
-            : base(guiContext)
+            : base(guiContext, Frustum.CreateEmpty())
         {
             materialResource = material;
         }

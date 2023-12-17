@@ -51,6 +51,7 @@ namespace GUI.Types.Renderer
             lockedCullFrustum = cullFrustum;
 
             InitializeControl();
+            AddWireframeToggleControl();
 
             GLLoad += OnLoad;
         }
@@ -99,10 +100,8 @@ namespace GUI.Types.Renderer
                     SkyboxScene.ShowToolsMaterials = v;
                 }
             });
-            AddCheckBox("Show Wireframe", false, (v) =>
-            {
-                GL.PolygonMode(MaterialFace.FrontAndBack, v ? PolygonMode.Line : PolygonMode.Fill);
-            });
+
+            AddWireframeToggleControl();
 
             GLLoad += OnLoad;
         }
@@ -310,6 +309,14 @@ namespace GUI.Types.Renderer
             ShowBaseGrid = true;
 
             AddCheckBox("Show Grid", ShowBaseGrid, (v) => ShowBaseGrid = v);
+        }
+
+        protected void AddWireframeToggleControl()
+        {
+            AddCheckBox("Show Wireframe", false, (v) =>
+            {
+                GL.PolygonMode(MaterialFace.FrontAndBack, v ? PolygonMode.Line : PolygonMode.Fill);
+            });
         }
 
         protected void AddRenderModeSelectionControl()
