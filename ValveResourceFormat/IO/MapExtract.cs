@@ -614,9 +614,13 @@ public sealed class MapExtract
                     }
 
                     var transform = fragmentTransforms[transformIndex++].ToMatrix4x4();
+                    Matrix4x4.Decompose(transform, out var scales, out var rotation, out var translation);
 
-                    // Instance properties TODO: angles, scales
-                    instance.Origin = transform.Translation;
+                    instance.Origin = translation;
+                    var angles = ModelExtract.ToEulerAngles(rotation);
+                    instance.Angles = angles;
+                    instance.Scales = scales;
+
                     SetPropertiesFromFlags(instance, fragmentFlags);
                     SetTintAlpha(instance, new Vector4(tint, alpha));
 
