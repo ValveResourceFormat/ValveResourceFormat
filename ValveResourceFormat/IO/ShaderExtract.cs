@@ -1213,7 +1213,7 @@ public sealed class ShaderExtract
             }
         }
 
-        // Other annotations: MaxRes(<=8192), UiStep(?), Source(?), UiVisibility(?)
+        // Other annotations: MaxRes(<=8192), UiStep(?), Source(?)
 
         HandleParameterAttribute(param, annotations);
 
@@ -1227,14 +1227,18 @@ public sealed class ShaderExtract
             annotations.Add($"UiGroup(\"{param.UiGroup.CompactString}\");");
         }
 
+        var stageSpecificGlobals = new Lazy<string[]>(() => paramBlocks.Select(p => p.Name).ToArray());
+
         if (param.DynExp.Length > 0)
         {
-            var globals = paramBlocks.Select(p => p.Name).ToArray();
-            var dynEx = new VfxEval(param.DynExp, globals, omitReturnStatement: true, FeatureNames).DynamicExpressionResult;
-            dynEx = dynEx.Replace(param.Name, "this", StringComparison.Ordinal);
-            dynEx = dynEx.Replace("\n", "\n" + new string('\t', writer.Indent + 1), StringComparison.Ordinal);
-
+            var dynEx = GetDynamicExpressionStringShared(param.DynExp, param, writer, FeatureNames, stageSpecificGlobals.Value);
             annotations.Add($"Expression({dynEx});");
+        }
+
+        if (param.UiVisibilityExp.Length > 0)
+        {
+            var dynEx = GetDynamicExpressionStringShared(param.UiVisibilityExp, param, writer, FeatureNames, stageSpecificGlobals.Value);
+            annotations.Add($"UiVisibility({dynEx});");
         }
 
         writer.WriteLine($"{Vfx.GetTypeName(param.VfxType)} {param.Name}{GetVfxAttributes(annotations)};");
@@ -1324,6 +1328,14 @@ public sealed class ShaderExtract
         return attributes.Count > 0
             ? " < " + string.Join(" ", attributes) + " >"
             : string.Empty;
+    }
+
+    private static string GetDynamicExpressionStringShared(byte[] bytecode, ParamBlock param, IndentedTextWriter writer, IReadOnlyList<string> features, IReadOnlyList<string> globals)
+    {
+        var dynEx = new VfxEval(bytecode, globals, omitReturnStatement: true, features).DynamicExpressionResult;
+        dynEx = dynEx.Replace(param.Name, "this", StringComparison.Ordinal);
+        dynEx = dynEx.Replace("\n", "\n" + new string('\t', writer.Indent + 1), StringComparison.Ordinal);
+        return dynEx;
     }
 
     private static string GetChannelFromChannelBlock(ChannelBlock channelBlock, IReadOnlyList<ParamBlock> paramBlocks)

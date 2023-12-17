@@ -156,7 +156,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
             ParseExpression(binaryBlob);
         }
 
-        public VfxEval(byte[] binaryBlob, string[] renderAttributesUsed, bool omitReturnStatement = false, IReadOnlyList<string> features = null)
+        public VfxEval(byte[] binaryBlob, IReadOnlyList<string> renderAttributesUsed, bool omitReturnStatement = false, IReadOnlyList<string> features = null)
         {
             OmitReturnStatement = omitReturnStatement;
             Features = features;
