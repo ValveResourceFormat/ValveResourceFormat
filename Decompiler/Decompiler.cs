@@ -15,6 +15,7 @@ using McMaster.Extensions.CommandLineUtils;
 using SteamDatabase.ValvePak;
 using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
+using ValveResourceFormat.ClosedCaptions;
 using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
@@ -403,6 +404,7 @@ namespace Decompiler
                 case ShaderFile.MAGIC: ParseVCS(path, stream, originalPath); return;
                 case ToolsAssetInfo.MAGIC2:
                 case ToolsAssetInfo.MAGIC: ParseToolsAssetInfo(path, stream); return;
+                case ClosedCaptions.MAGIC: ParseClosedCaptions(path, stream); return;
             }
 
             if (BinaryKV3.IsBinaryKV3(magic))
@@ -601,6 +603,22 @@ namespace Decompiler
 
                     DumpFile(path, output);
                 }
+            }
+            catch (Exception e)
+            {
+                LogException(e, path);
+            }
+        }
+
+        private void ParseClosedCaptions(string path, Stream stream)
+        {
+            var captions = new ClosedCaptions();
+
+            try
+            {
+                captions.Read(path, stream);
+
+                Console.WriteLine(captions.ToString());
             }
             catch (Exception e)
             {
