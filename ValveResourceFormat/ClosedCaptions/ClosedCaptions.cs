@@ -1,8 +1,10 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Text;
+using ValveKeyValue;
 
 namespace ValveResourceFormat.ClosedCaptions
 {
@@ -11,6 +13,8 @@ namespace ValveResourceFormat.ClosedCaptions
         public const int MAGIC = 0x44434356; // "VCCD"
 
         public List<ClosedCaption> Captions { get; private set; }
+
+        private string FileName;
 
         public IEnumerator<ClosedCaption> GetEnumerator()
         {
@@ -45,6 +49,8 @@ namespace ValveResourceFormat.ClosedCaptions
         /// <param name="input">The input <see cref="Stream"/> to read from.</param>
         public void Read(string filename, Stream input)
         {
+            FileName = Path.GetFileName(filename);
+
             if (!filename.StartsWith("subtitles_", StringComparison.Ordinal))
             {
                 // TODO: Throw warning?
@@ -98,6 +104,25 @@ namespace ValveResourceFormat.ClosedCaptions
         IEnumerator IEnumerable.GetEnumerator()
         {
             return ((IEnumerable<ClosedCaption>)Captions).GetEnumerator();
+        }
+
+        public override string ToString()
+        {
+            var captionsToExport = new Dictionary<uint, string>(Captions.Count);
+
+            foreach (var caption in Captions)
+            {
+                captionsToExport.Add(caption.Hash, caption.Text);
+            }
+
+            using var ms = new MemoryStream();
+            KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Serialize(ms, captionsToExport, FileName);
+
+            var sb = new StringBuilder();
+            sb.AppendLine(CultureInfo.InvariantCulture, $"// {Utils.StringToken.VRF_GENERATOR}");
+            sb.Append(Encoding.UTF8.GetString(ms.ToArray()));
+
+            return sb.ToString();
         }
     }
 }

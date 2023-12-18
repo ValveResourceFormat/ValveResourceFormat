@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.IO;
 using System.Windows.Forms;
+using GUI.Controls;
 using GUI.Utils;
 using ValveResourceFormat.ClosedCaptions;
 
@@ -15,7 +16,12 @@ namespace GUI.Types.Viewers
 
         public TabPage Create(VrfGuiContext vrfGuiContext, byte[] input)
         {
-            var tab = new TabPage();
+            var tabOuterPage = new TabPage();
+            var tabControl = new TabControl
+            {
+                Dock = DockStyle.Fill,
+            };
+            tabOuterPage.Controls.Add(tabControl);
             var captions = new ValveResourceFormat.ClosedCaptions.ClosedCaptions();
 
             if (input != null)
@@ -27,6 +33,7 @@ namespace GUI.Types.Viewers
                 captions.Read(vrfGuiContext.FileName);
             }
 
+            var tabPage = new TabPage("Captions");
             var control = new DataGridView
             {
                 Dock = DockStyle.Fill,
@@ -37,9 +44,15 @@ namespace GUI.Types.Viewers
                 DataSource = new BindingSource(new BindingList<ClosedCaption>(captions.Captions), null),
                 ScrollBars = ScrollBars.Both,
             };
-            tab.Controls.Add(control);
+            tabPage.Controls.Add(control);
+            tabControl.Controls.Add(tabPage);
 
-            return tab;
+            tabPage = new TabPage("Text");
+            var textControl = new CodeTextBox(captions.ToString());
+            tabPage.Controls.Add(textControl);
+            tabControl.Controls.Add(tabPage);
+
+            return tabOuterPage;
         }
     }
 }
