@@ -199,7 +199,7 @@ namespace ValveResourceFormat.ResourceTypes
                     ExtraData.Add(type, reader.ReadBytes((int)size));
                     reader.BaseStream.Position -= size;
 
-                    if (type == VTexExtraData.DATA_METADATA)
+                    if (type == VTexExtraData.METADATA)
                     {
                         reader.ReadUInt16();
                         var nw = reader.ReadUInt16();
