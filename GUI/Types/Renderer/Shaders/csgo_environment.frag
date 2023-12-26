@@ -53,6 +53,7 @@ uniform sampler2D g_tNormal1;
     uniform sampler2D g_tSecondaryAO;
 #endif
 
+uniform bool g_bModelTint1 = true;
 uniform float g_flHeightMapScale1 = 0;
 uniform float g_flHeightMapZeroPoint1 = 0;
 
@@ -76,6 +77,7 @@ uniform float g_flHeightMapZeroPoint1 = 0;
         // ...
     #endif
 
+    uniform bool g_bModelTint2 = true;
     uniform float g_flHeightMapScale2 = 1.0;
     uniform float g_flHeightMapZeroPoint2 = 0.0;
 
@@ -145,6 +147,9 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 
     color.rgb = pow(color.rgb, gamma);
 
+    vec3 tintFactor = 1.0 - height.g * (1.0 - vVertexColor.rgb);
+    color.rgb *= (g_bModelTint1) ? tintFactor : vec3(1.0);
+
     // Blending
 #if defined(csgo_environment_blend_vfx)
     vec4 color2 = texture(g_tColor2, vTexCoord.zw);
@@ -155,6 +160,7 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
     #endif
 
     color2.rgb = pow(color2.rgb, gamma);
+    color.rgb *= (g_bModelTint2) ? tintFactor : vec3(1.0);
 
     vec2 weights = GetBlendWeights(
         vec2(height.r, height2.r),
@@ -177,10 +183,6 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 
     if (mat.Opacity - 0.001 < g_flAlphaTestReference)   discard;
 #endif
-
-    // Tinting
-    vec3 tintFactor = 1.0 - height.g * (1.0 - vVertexColor.rgb);
-    mat.Albedo *= tintFactor;
 
     // Normals and Roughness
     mat.NormalMap = DecodeNormal(normal);
