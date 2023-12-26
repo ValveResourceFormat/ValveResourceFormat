@@ -363,8 +363,9 @@ namespace GUI.Types.Renderer
 
             var renderShader = context.ReplacementShader ?? shader;
 
+            GL.DepthMask(false);
             GL.Enable(EnableCap.Blend);
-            GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.SrcAlphaSaturate);
+            GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
 
             GL.UseProgram(renderShader.Program);
 
@@ -374,6 +375,13 @@ namespace GUI.Types.Renderer
 
             GL.BindVertexArray(vaoHandle);
 
+            GL.Enable(EnableCap.PolygonOffsetLine);
+            GL.Enable(EnableCap.PolygonOffsetFill);
+            GL.PolygonOffset(-1, -1);
+
+            //GL.LineWidth(1.5f);
+            GL.DrawElements(PrimitiveType.Lines, indexCount, DrawElementsType.UnsignedInt, 0);
+
             if (!hasUntriangulatedVertices)
             {
                 // triangles
@@ -381,9 +389,9 @@ namespace GUI.Types.Renderer
             }
 
             GL.Disable(EnableCap.Blend);
-
-            // lines
-            GL.DrawElements(PrimitiveType.Lines, indexCount, DrawElementsType.UnsignedInt, 0);
+            GL.Disable(EnableCap.PolygonOffsetLine);
+            GL.Disable(EnableCap.PolygonOffsetFill);
+            GL.DepthMask(true);
 
             GL.UseProgram(0);
             GL.BindVertexArray(0);
