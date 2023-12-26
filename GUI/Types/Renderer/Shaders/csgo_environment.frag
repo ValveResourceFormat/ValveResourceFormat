@@ -55,6 +55,7 @@ uniform sampler2D g_tNormal1;
 #endif
 
 uniform bool g_bModelTint1 = true;
+uniform vec4 g_vTextureColorTint1 = vec4(1.0);
 uniform float g_flHeightMapScale1 = 0;
 uniform float g_flHeightMapZeroPoint1 = 0;
 
@@ -79,6 +80,7 @@ uniform float g_flHeightMapZeroPoint1 = 0;
     #endif
 
     uniform bool g_bModelTint2 = true;
+    uniform vec4 g_vTextureColorTint2 = vec4(1.0);
     uniform float g_flHeightMapScale2 = 1.0;
     uniform float g_flHeightMapZeroPoint2 = 0.0;
 
@@ -147,7 +149,7 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
     #endif
 
     vec3 tintFactor1 = (g_bModelTint1)
-        ? 1.0 - height.g * (1.0 - vVertexColor.rgb)
+        ? 1.0 - height.g * (1.0 - vVertexColor.rgb * (g_vTextureColorTint1.rgb))
         : vec3(1.0);
 
     color.rgb = pow(color.rgb, gamma);
@@ -163,7 +165,7 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
     #endif
 
     vec3 tintFactor2 = (g_bModelTint1)
-        ? 1.0 - height2.g * (1.0 - vVertexColor.rgb)
+        ? 1.0 - height2.g * (1.0 - vVertexColor.rgb * (g_vTextureColorTint2.rgb))
         : vec3(1.0);
 
     color2.rgb = pow(color2.rgb, gamma);
