@@ -127,6 +127,12 @@ void CalculateIndirectLighting(inout LightingTerms_t lighting, inout MaterialPro
 
 #elif (D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1)
     lighting.DiffuseIndirect = vPerVertexLightingOut.rgb;
+#elif (D_BAKED_LIGHTING_FROM_LIGHTPROBE == 1)
+    // todo: probe lighting
+#else
+    #if defined(S_SPECULAR) && (S_SPECULAR == 1)
+        lighting.DiffuseIndirect = GetEnvironmentDiffuse(mat.GeometricNormal);
+    #endif
 #endif
 
     // Environment Maps
