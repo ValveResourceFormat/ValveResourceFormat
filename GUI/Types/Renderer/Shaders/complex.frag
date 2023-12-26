@@ -170,6 +170,10 @@ uniform sampler2D g_tTintMask;
     uniform float g_flOpacityScale = 1.0;
 #endif
 
+#if defined(csgo_glass_vfx)
+    uniform vec4 g_flTranslucencyRemap = vec4(0.0, 0.1, 0.0, 0.0);
+#endif
+
 #if (_uniformMetalness)
     uniform float g_flMetalness = 0.0;
 #elif (_metalnessTexture)
@@ -475,8 +479,11 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 
     #if (F_GLASS == 1) || defined(glass_vfx_common)
         vec4 glassResult = GetGlassMaterial(mat);
-        mat.Albedo = glassResult.rgb; 
+        mat.Albedo = glassResult.rgb;
         mat.Opacity = glassResult.a;
+        #if defined(csgo_glass_vfx)
+            mat.Opacity = mix(g_flTranslucencyRemap.x, g_flTranslucencyRemap.y, mat.Opacity);
+        #endif
     #endif
 
 

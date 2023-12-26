@@ -451,6 +451,9 @@ namespace GUI.Types.Renderer
                     {
                         "g_flBumpStrength" or "g_flFadeExponent" or "g_flModelTintAmount" or "g_flDirectionalLightmapStrength" => 1f,
                         "g_flAmbientOcclusionDirectDiffuse" or "g_flAmbientOcclusionDirectSpecular" => 1f,
+                        _ when name.Contains("brightness", StringComparison.OrdinalIgnoreCase) => 1f,
+                        _ when name.Contains("contrast", StringComparison.OrdinalIgnoreCase) => 1f,
+                        _ when name.Contains("saturation", StringComparison.OrdinalIgnoreCase) => 1f,
                         "g_flDirectionalLightmapMinZ" => 0.05f,
                         _ => 0f,
                     };

@@ -54,8 +54,18 @@ uniform sampler2D g_tNormal1;
     uniform sampler2D g_tSecondaryAO;
 #endif
 
+uniform bool g_bMetalness1;
 uniform bool g_bModelTint1 = true;
+uniform float g_fTextureColorBrightness1 = 1.0;
+uniform float g_fTextureColorContrast1 = 1.0;
+uniform float g_fTextureColorSaturation1 = 1.0;
 uniform vec4 g_vTextureColorTint1 = vec4(1.0);
+uniform float g_fTextureNormalContrast1 = 1.0;
+uniform float g_fTextureRoughnessBrightness1 = 1.0;
+uniform float g_fTextureRoughnessContrast1 = 1.0;
+uniform float g_fTintMaskBrightness1 = 1.0;
+uniform float g_fTintMaskContrast1 = 1.0;
+
 uniform float g_flHeightMapScale1 = 0;
 uniform float g_flHeightMapZeroPoint1 = 0;
 
@@ -79,8 +89,18 @@ uniform float g_flHeightMapZeroPoint1 = 0;
         // ...
     #endif
 
+    uniform bool g_bMetalness2;
     uniform bool g_bModelTint2 = true;
+    uniform float g_fTextureColorBrightness2 = 1.0;
+    uniform float g_fTextureColorContrast2 = 1.0;
+    uniform float g_fTextureColorSaturation2 = 1.0;
     uniform vec4 g_vTextureColorTint2 = vec4(1.0);
+    uniform float g_fTextureNormalContrast2 = 1.0;
+    uniform float g_fTextureRoughnessBrightness2 = 1.0;
+    uniform float g_fTextureRoughnessContrast2 = 1.0;
+    uniform float g_fTintMaskBrightness2 = 1.0;
+    uniform float g_fTintMaskContrast2 = 1.0;
+
     uniform float g_flHeightMapScale2 = 1.0;
     uniform float g_flHeightMapZeroPoint2 = 0.0;
 
@@ -135,6 +155,20 @@ uniform float g_flHeightMapZeroPoint1 = 0;
 // Must be last
 #include "common/lighting.glsl"
 
+vec3 AdjustBrightnessContrastSaturation(vec3 color, float brightness, float contrast, float saturation)
+{
+    // Brightness
+    //color = color * brightness;
+
+    // Contrast
+    //color = (color - 0.5) * contrast + 0.5;
+
+    // Saturation
+    //color = mix(GetLuma(color), color, saturation);
+
+    return color;
+}
+
 // Get material properties (possibly from two layers)
 MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 {
@@ -148,11 +182,20 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
         vec2 detailNormal = texture(g_tNormalDetail1, vDetailTexCoords).rg;
     #endif
 
+    height.g *= g_fTintMaskBrightness1;
+    height.g = (height.g - 0.5) * g_fTintMaskContrast1 + 0.5;
+    height.g = clamp(height.g, 0.0, 1.0);
+    height.a = g_bMetalness1 ? height.a : 0.0;
+    normal.rg = (normal.rg - 0.5) * g_fTextureNormalContrast1 + 0.5;
+    normal.b = (normal.b - 0.5) * g_fTextureRoughnessContrast1 + 0.5;
+    normal.b *= g_fTextureRoughnessBrightness1;
+
     vec3 tintFactor1 = (g_bModelTint1)
         ? 1.0 - height.g * (1.0 - vVertexColor.rgb * (g_vTextureColorTint1.rgb))
         : vec3(1.0);
 
     color.rgb = pow(color.rgb, gamma);
+    color.rgb = AdjustBrightnessContrastSaturation(color.rgb, g_fTextureColorBrightness1, g_fTextureColorContrast1, g_fTextureColorSaturation1);
     color.rgb *= tintFactor1;
 
     // Blending
@@ -164,11 +207,20 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
         vec2 detailNormal2 = texture(g_tNormalDetail2, vDetailTexCoords).rg;
     #endif
 
-    vec3 tintFactor2 = (g_bModelTint1)
+    height2.g *= g_fTintMaskBrightness2;
+    height2.g = (height2.g - 0.5) * g_fTintMaskContrast2 + 0.5;
+    height2.g = clamp(height2.g, 0.0, 1.0);
+    height2.a = g_bMetalness2 ? height2.a : 0.0;
+    normal2.rg = (normal2.rg - 0.5) * g_fTextureNormalContrast2 + 0.5;
+    normal2.b = (normal2.b - 0.5) * g_fTextureRoughnessContrast2 + 0.5;
+    normal2.b *= g_fTextureRoughnessBrightness2;
+
+    vec3 tintFactor2 = (g_bModelTint2)
         ? 1.0 - height2.g * (1.0 - vVertexColor.rgb * (g_vTextureColorTint2.rgb))
         : vec3(1.0);
 
     color2.rgb = pow(color2.rgb, gamma);
+    color2.rgb = AdjustBrightnessContrastSaturation(color2.rgb, g_fTextureColorBrightness2, g_fTextureColorContrast2, g_fTextureColorSaturation2);
     color2.rgb *= tintFactor2;
 
     vec2 weights = GetBlendWeights(
