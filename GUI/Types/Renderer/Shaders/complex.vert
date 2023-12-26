@@ -211,7 +211,11 @@ void main()
     vVertexColorOut = GetTintColor();
 
 #if (F_PAINT_VERTEX_COLORS == 1)
-    vVertexColorOut *= vCOLOR / 255.0f;
+    // TODO: ApplyVBIBDefaults
+    if (vCOLOR.rgba != vec4(0, 0, 0, 1))
+    {
+        vVertexColorOut *= vCOLOR / 255.0f;
+    }
 #endif
 
 #if (F_SECONDARY_UV == 1) || (F_FORCE_UV2 == 1)

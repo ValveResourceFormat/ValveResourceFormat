@@ -17,6 +17,8 @@ layout (location = 0) in vec3 vPOSITION;
 layout (location = 1) in vec2 vTEXCOORD;
 #include "common/compression.glsl"
 
+in vec4 vCOLOR;
+out vec4 vBlendColorTint;
 
 #if (F_SECONDARY_UV == 1)
     in vec2 vTEXCOORD2;
@@ -38,10 +40,6 @@ layout (location = 1) in vec2 vTEXCOORD;
     out vec4 vColorBlendValues;
 #endif
 
-
-#if (F_PAINT_VERTEX_COLORS == 1)
-    in vec4 vCOLOR;
-#endif
 
 out vec3 vFragPosition;
 out vec3 vNormalOut;
@@ -125,9 +123,15 @@ void main()
 
     vVertexColor = GetTintColor();
 
-#if (F_PAINT_VERTEX_COLORS == 1)
-    vVertexColor *= vCOLOR / 255.0f;
-#endif
+    // TODO: ApplyVBIBDefaults
+    if (vCOLOR.rgba == vec4(0, 0, 0, 1))
+    {
+        vBlendColorTint = vec4(1.0f);
+    }
+    else
+    {
+        vBlendColorTint = vCOLOR / 255.0;
+    }
 
 #if (F_SECONDARY_UV == 1)
     vTexCoord2 = vTEXCOORD2.xy;

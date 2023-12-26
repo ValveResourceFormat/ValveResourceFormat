@@ -416,13 +416,13 @@ namespace GUI.Types.Renderer
                 var isBoolean = type == ActiveUniformType.Bool;
 
                 if (isTexture && !mat.Textures.ContainsKey(name)
-                    && !ReservedTextures.Any(x => name.Contains(x, StringComparison.CurrentCultureIgnoreCase)))
+                    && !ReservedTextures.Any(x => name.Contains(x, StringComparison.OrdinalIgnoreCase)))
                 {
                     mat.Textures[name] = name switch
                     {
-                        _ when name.Contains("color", StringComparison.CurrentCultureIgnoreCase) => GetErrorTexture(),
-                        _ when name.Contains("normal", StringComparison.CurrentCultureIgnoreCase) => GetDefaultNormal(),
-                        _ when name.Contains("mask", StringComparison.CurrentCultureIgnoreCase) => GetDefaultMask(),
+                        _ when name.Contains("color", StringComparison.OrdinalIgnoreCase) => GetErrorTexture(),
+                        _ when name.Contains("normal", StringComparison.OrdinalIgnoreCase) => GetDefaultNormal(),
+                        _ when name.Contains("mask", StringComparison.OrdinalIgnoreCase) => GetDefaultMask(),
                         _ => GetErrorTexture(),
                     };
 
@@ -434,9 +434,9 @@ namespace GUI.Types.Renderer
                 {
                     var value = name switch
                     {
-                        _ when name.Contains("tint", StringComparison.CurrentCultureIgnoreCase) => Vector4.One,
-                        _ when name.Contains("scale", StringComparison.CurrentCultureIgnoreCase) => Vector4.One,
-                        _ when name.Contains("center", StringComparison.CurrentCultureIgnoreCase) => new Vector4(0.5f),
+                        _ when name.Contains("tint", StringComparison.OrdinalIgnoreCase) => Vector4.One,
+                        _ when name.Contains("scale", StringComparison.OrdinalIgnoreCase) => Vector4.One,
+                        _ when name.Contains("center", StringComparison.OrdinalIgnoreCase) => new Vector4(0.5f),
                         _ => Vector4.Zero,
                     };
 
@@ -465,7 +465,7 @@ namespace GUI.Types.Renderer
                     var value = name switch
                     {
                         "g_bFogEnabled" => true,
-                        _ when name.StartsWith("g_bModelTint", StringComparison.CurrentCultureIgnoreCase) => true,
+                        _ when name.StartsWith("g_bModelTint", StringComparison.Ordinal) => true,
                         _ => false,
                     };
 

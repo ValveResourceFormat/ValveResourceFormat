@@ -32,6 +32,7 @@ in vec3 vTangentOut;
 in vec3 vBitangentOut;
 in vec4 vTexCoord;
 in vec4 vVertexColor;
+in vec4 vBlendColorTint;
 
 #if (F_SECONDARY_UV == 1)
     in vec2 vTexCoord2;
@@ -145,10 +146,12 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
         vec2 detailNormal = texture(g_tNormalDetail1, vDetailTexCoords).rg;
     #endif
 
-    color.rgb = pow(color.rgb, gamma);
+    vec3 tintFactor1 = (g_bModelTint1)
+        ? 1.0 - height.g * (1.0 - vVertexColor.rgb)
+        : vec3(1.0);
 
-    vec3 tintFactor = 1.0 - height.g * (1.0 - vVertexColor.rgb);
-    color.rgb *= (g_bModelTint1) ? tintFactor : vec3(1.0);
+    color.rgb = pow(color.rgb, gamma);
+    color.rgb *= tintFactor1;
 
     // Blending
 #if defined(csgo_environment_blend_vfx)
@@ -159,8 +162,12 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
         vec2 detailNormal2 = texture(g_tNormalDetail2, vDetailTexCoords).rg;
     #endif
 
+    vec3 tintFactor2 = (g_bModelTint1)
+        ? 1.0 - height2.g * (1.0 - vVertexColor.rgb)
+        : vec3(1.0);
+
     color2.rgb = pow(color2.rgb, gamma);
-    color.rgb *= (g_bModelTint2) ? tintFactor : vec3(1.0);
+    color2.rgb *= tintFactor2;
 
     vec2 weights = GetBlendWeights(
         vec2(height.r, height2.r),
