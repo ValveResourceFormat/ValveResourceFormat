@@ -65,6 +65,7 @@ uniform float g_fTextureRoughnessBrightness1 = 1.0;
 uniform float g_fTextureRoughnessContrast1 = 1.0;
 uniform float g_fTintMaskBrightness1 = 1.0;
 uniform float g_fTintMaskContrast1 = 1.0;
+uniform int g_nVertexColorMode1 = 0;
 
 uniform float g_flHeightMapScale1 = 0;
 uniform float g_flHeightMapZeroPoint1 = 0;
@@ -100,6 +101,7 @@ uniform float g_flHeightMapZeroPoint1 = 0;
     uniform float g_fTextureRoughnessContrast2 = 1.0;
     uniform float g_fTintMaskBrightness2 = 1.0;
     uniform float g_fTintMaskContrast2 = 1.0;
+    uniform int g_nVertexColorMode2 = 0;
 
     uniform float g_flHeightMapScale2 = 1.0;
     uniform float g_flHeightMapZeroPoint2 = 0.0;
@@ -158,13 +160,13 @@ uniform float g_flHeightMapZeroPoint1 = 0;
 vec3 AdjustBrightnessContrastSaturation(vec3 color, float brightness, float contrast, float saturation)
 {
     // Brightness
-    //color = color * brightness;
+    color = color * RemapVal(brightness, -8.0, 1.0, 0.0, 1.0);
 
     // Contrast
-    //color = (color - 0.5) * contrast + 0.5;
+    color = (color - 0.1) * contrast + 0.1;
 
     // Saturation
-    //color = mix(GetLuma(color), color, saturation);
+    color = mix(GetLuma(color).xxx, color, saturation);
 
     return color;
 }
@@ -182,14 +184,15 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
         vec2 detailNormal = texture(g_tNormalDetail1, vDetailTexCoords).rg;
     #endif
 
-    height.g *= g_fTintMaskBrightness1;
     height.g = (height.g - 0.5) * g_fTintMaskContrast1 + 0.5;
-    height.g = clamp(height.g, 0.0, 1.0);
+    height.g *= g_fTintMaskBrightness1;
+    height.g = saturate(height.g); 
     height.a = g_bMetalness1 ? height.a : 0.0;
     normal.rg = (normal.rg - 0.5) * g_fTextureNormalContrast1 + 0.5;
     normal.b = (normal.b - 0.5) * g_fTextureRoughnessContrast1 + 0.5;
     normal.b *= g_fTextureRoughnessBrightness1;
 
+    // todo: adjust for tints above 1.0 (and remove clamp above)
     vec3 tintFactor1 = (g_bModelTint1)
         ? 1.0 - height.g * (1.0 - vVertexColor.rgb * (g_vTextureColorTint1.rgb))
         : vec3(1.0);
@@ -197,6 +200,7 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
     color.rgb = pow(color.rgb, gamma);
     color.rgb = AdjustBrightnessContrastSaturation(color.rgb, g_fTextureColorBrightness1, g_fTextureColorContrast1, g_fTextureColorSaturation1);
     color.rgb *= tintFactor1;
+    color.rgb *= g_nVertexColorMode1 == 1 ? vBlendColorTint.rgb : vec3(1.0);
 
     // Blending
 #if defined(csgo_environment_blend_vfx)
@@ -207,9 +211,9 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
         vec2 detailNormal2 = texture(g_tNormalDetail2, vDetailTexCoords).rg;
     #endif
 
-    height2.g *= g_fTintMaskBrightness2;
     height2.g = (height2.g - 0.5) * g_fTintMaskContrast2 + 0.5;
-    height2.g = clamp(height2.g, 0.0, 1.0);
+    height2.g *= g_fTintMaskBrightness2;
+    height2.g = saturate(height2.g); 
     height2.a = g_bMetalness2 ? height2.a : 0.0;
     normal2.rg = (normal2.rg - 0.5) * g_fTextureNormalContrast2 + 0.5;
     normal2.b = (normal2.b - 0.5) * g_fTextureRoughnessContrast2 + 0.5;
@@ -222,6 +226,8 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
     color2.rgb = pow(color2.rgb, gamma);
     color2.rgb = AdjustBrightnessContrastSaturation(color2.rgb, g_fTextureColorBrightness2, g_fTextureColorContrast2, g_fTextureColorSaturation2);
     color2.rgb *= tintFactor2;
+    color2.rgb *= g_nVertexColorMode2 == 1 ? vBlendColorTint.rgb : vec3(1.0);
+
 
     vec2 weights = GetBlendWeights(
         vec2(height.r, height2.r),

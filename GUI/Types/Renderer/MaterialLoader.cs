@@ -437,6 +437,7 @@ namespace GUI.Types.Renderer
                         _ when name.Contains("tint", StringComparison.OrdinalIgnoreCase) => Vector4.One,
                         _ when name.Contains("scale", StringComparison.OrdinalIgnoreCase) => Vector4.One,
                         _ when name.Contains("center", StringComparison.OrdinalIgnoreCase) => new Vector4(0.5f),
+                        "g_flTranslucencyRemap" => new Vector4(0, 1, 0, 0),
                         _ => Vector4.Zero,
                     };
 
