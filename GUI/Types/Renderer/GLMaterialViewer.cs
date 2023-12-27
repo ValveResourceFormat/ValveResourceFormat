@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Windows.Forms;
@@ -62,14 +63,10 @@ namespace GUI.Types.Renderer
 #if DEBUG
             // Assume cubemap model only has one opaque draw call
             var drawCall = node.RenderableMeshes[0].DrawCallsOpaque[0];
-            var usedParams = drawCall.Material.Shader.GetAllUniformNames().Select(x => x.Name).ToHashSet();
 
-            foreach (var (paramName, currentValue) in drawCall.Material.Material.FloatParams.OrderBy(x => x.Key))
+            foreach (var (paramName, initialValue) in drawCall.Material.Shader.Default.Material.FloatParams.OrderBy(x => x.Key))
             {
-                if (!usedParams.Contains(paramName))
-                {
-                    continue;
-                }
+                var currentvalue = drawCall.Material.Material.FloatParams.GetValueOrDefault(paramName, initialValue);
 
                 var row = ParamsTable.RowCount;
                 ParamsTable.RowCount = row + 2;
@@ -91,7 +88,7 @@ namespace GUI.Types.Renderer
                     Maximum = decimal.MaxValue,
                     DecimalPlaces = 6,
                     Increment = 0.1M,
-                    Value = (decimal)currentValue
+                    Value = (decimal)initialValue
                 };
                 input.ValueChanged += (sender, e) =>
                 {

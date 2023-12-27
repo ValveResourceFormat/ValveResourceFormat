@@ -20,9 +20,9 @@ namespace GUI.Types.Renderer
         private readonly Dictionary<ulong, RenderMaterial> Materials = [];
         private readonly Dictionary<string, RenderTexture> Textures = [];
         private readonly VrfGuiContext VrfGuiContext;
-        private RenderTexture ErrorTexture;
-        private RenderTexture DefaultNormal;
-        private RenderTexture DefaultMask;
+        private static RenderTexture ErrorTexture;
+        private static RenderTexture DefaultNormal;
+        private static RenderTexture DefaultMask;
         public static float MaxTextureMaxAnisotropy { get; set; }
         public int MaterialCount => Materials.Count;
 
@@ -128,8 +128,6 @@ namespace GUI.Types.Renderer
 
                 return false;
             }
-
-            ApplyMaterialDefaults(mat);
 
             return mat;
         }
@@ -375,7 +373,6 @@ namespace GUI.Types.Renderer
         public RenderMaterial GetErrorMaterial()
         {
             var errorMat = new RenderMaterial(VrfGuiContext.ShaderLoader.LoadShader("vrf.error"));
-            ApplyMaterialDefaults(errorMat);
             return errorMat;
         }
 
@@ -395,10 +392,18 @@ namespace GUI.Types.Renderer
 
         static readonly string[] ReservedTextures = Enum.GetNames<ReservedTextureSlots>();
 
-        private void ApplyMaterialDefaults(RenderMaterial mat)
+        public static void ApplyMaterialDefaults(RenderMaterial mat)
         {
-            foreach (var (name, type, size) in mat.Shader.GetAllUniformNames())
+            var vec4Val = new float[4];
+            var uniforms = mat.Shader.GetAllUniformNames();
+
+            foreach (var uniform in uniforms)
             {
+                var name = uniform.Name;
+                var type = uniform.Type;
+                var index = uniform.Index;
+                var size = uniform.Size;
+
                 if (NonMaterialUniforms.Contains(name) || !name.StartsWith("g_", StringComparison.InvariantCulture))
                 {
                     continue;
@@ -409,11 +414,11 @@ namespace GUI.Types.Renderer
                     continue;
                 }
 
-                // Maybe able to grab defaults from glsl?
                 var isTexture = type >= ActiveUniformType.Sampler1D && type <= ActiveUniformType.Sampler2DRectShadow;
                 var isVector = type == ActiveUniformType.FloatVec4;
                 var isScalar = type == ActiveUniformType.Float;
                 var isBoolean = type == ActiveUniformType.Bool;
+                var isInteger = type is ActiveUniformType.Int or ActiveUniformType.UnsignedInt;
 
                 if (isTexture && !mat.Textures.ContainsKey(name)
                     && !ReservedTextures.Any(x => name.Contains(x, StringComparison.OrdinalIgnoreCase)))
@@ -425,63 +430,27 @@ namespace GUI.Types.Renderer
                         _ when name.Contains("mask", StringComparison.OrdinalIgnoreCase) => GetDefaultMask(),
                         _ => GetErrorTexture(),
                     };
-
-#if DEBUG
-                    Log.Debug(nameof(MaterialLoader), $"{mat.Material.Name}: Missing {name} set to a default texture!");
-#endif
                 }
                 else if (isVector && !mat.Material.VectorParams.ContainsKey(name))
                 {
-                    var value = name switch
-                    {
-                        _ when name.Contains("tint", StringComparison.OrdinalIgnoreCase) => Vector4.One,
-                        _ when name.Contains("scale", StringComparison.OrdinalIgnoreCase) => Vector4.One,
-                        _ when name.Contains("center", StringComparison.OrdinalIgnoreCase) => new Vector4(0.5f),
-                        "g_flTranslucencyRemap" => new Vector4(0, 1, 0, 0),
-                        _ => Vector4.Zero,
-                    };
-
-                    mat.Material.VectorParams[name] = value;
-#if DEBUG
-                    Log.Debug(nameof(MaterialLoader), $"{mat.Material.Name}: Missing {name} set to {value}!");
-#endif
+                    vec4Val[0] = vec4Val[1] = vec4Val[2] = vec4Val[3] = 0f;
+                    GL.GetUniform(mat.Shader.Program, mat.Shader.GetUniformLocation(name), vec4Val);
+                    mat.Material.VectorParams[name] = new Vector4(vec4Val[0], vec4Val[1], vec4Val[2], vec4Val[3]);
                 }
                 else if (isScalar && !mat.Material.FloatParams.ContainsKey(name))
                 {
-                    var value = name switch
-                    {
-                        "g_flBumpStrength" or "g_flFadeExponent" or "g_flModelTintAmount" or "g_flDirectionalLightmapStrength" => 1f,
-                        "g_flAmbientOcclusionDirectDiffuse" or "g_flAmbientOcclusionDirectSpecular" => 1f,
-                        _ when name.Contains("brightness", StringComparison.OrdinalIgnoreCase) => 1f,
-                        _ when name.Contains("contrast", StringComparison.OrdinalIgnoreCase) => 1f,
-                        _ when name.Contains("saturation", StringComparison.OrdinalIgnoreCase) => 1f,
-                        "g_flDirectionalLightmapMinZ" => 0.05f,
-                        _ => 0f,
-                    };
-
-                    mat.Material.FloatParams[name] = value;
-#if DEBUG
-                    Log.Debug(nameof(MaterialLoader), $"{mat.Material.Name}: Missing {name} set to {value}f!");
-#endif
+                    GL.GetUniform(mat.Shader.Program, mat.Shader.GetUniformLocation(name), out float flVal);
+                    mat.Material.FloatParams[name] = flVal;
                 }
                 else if (isBoolean && !mat.Material.IntParams.ContainsKey(name))
                 {
-                    var value = name switch
-                    {
-                        "g_bFogEnabled" => true,
-                        _ when name.StartsWith("g_bModelTint", StringComparison.Ordinal) => true,
-                        _ => false,
-                    };
-
-                    mat.Material.IntParams[name] = value ? 1 : 0;
-#if DEBUG
-                    Log.Debug(nameof(MaterialLoader), $"{mat.Material.Name}: Missing {name} set to {value}!");
-#endif
+                    GL.GetUniform(mat.Shader.Program, mat.Shader.GetUniformLocation(name), out int intVal);
+                    mat.Material.IntParams[name] = intVal;
                 }
             }
         }
 
-        public RenderTexture GetErrorTexture()
+        public static RenderTexture GetErrorTexture()
         {
             if (ErrorTexture == null)
             {
@@ -517,13 +486,13 @@ namespace GUI.Types.Renderer
         public static RenderTexture CreateSolidTexture(float r, float g, float b)
             => GenerateColorTexture(1, 1, [r, g, b, 1f]);
 
-        public RenderTexture GetDefaultNormal()
+        public static RenderTexture GetDefaultNormal()
         {
             DefaultNormal ??= CreateSolidTexture(0.5f, 0.5f, 1.0f);
             return DefaultNormal;
         }
 
-        public RenderTexture GetDefaultMask()
+        public static RenderTexture GetDefaultMask()
         {
             DefaultMask ??= CreateSolidTexture(1.0f, 1.0f, 1.0f);
             return DefaultMask;

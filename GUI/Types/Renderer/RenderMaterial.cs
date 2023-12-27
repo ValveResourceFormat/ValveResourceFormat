@@ -99,32 +99,32 @@ namespace GUI.Types.Renderer
                 return;
             }
 
-            foreach (var (name, texture) in Textures)
+            foreach (var (name, defaultTexture) in shader.Default.Textures)
             {
+                var texture = Textures.GetValueOrDefault(name, defaultTexture);
+
                 if (shader.SetTexture(textureUnit, name, texture))
                 {
                     textureUnit++;
                 }
             }
 
-            foreach (var param in Material.IntParams)
+            foreach (var param in shader.Default.Material.IntParams)
             {
-                if (param.Key.Length < 1 || param.Key[0] == 'F')
-                {
-                    continue;
-                }
-
-                shader.SetUniform1(param.Key, (int)param.Value);
+                var value = (int)Material.IntParams.GetValueOrDefault(param.Key, param.Value);
+                shader.SetUniform1(param.Key, value);
             }
 
-            foreach (var param in Material.FloatParams)
+            foreach (var param in shader.Default.Material.FloatParams)
             {
-                shader.SetUniform1(param.Key, param.Value);
+                var value = Material.FloatParams.GetValueOrDefault(param.Key, param.Value);
+                shader.SetUniform1(param.Key, value);
             }
 
-            foreach (var param in Material.VectorParams)
+            foreach (var param in shader.Default.Material.VectorParams)
             {
-                shader.SetUniform4(param.Key, param.Value);
+                var value = Material.VectorParams.GetValueOrDefault(param.Key, param.Value);
+                shader.SetUniform4(param.Key, value);
             }
 
             if (IsTranslucent)

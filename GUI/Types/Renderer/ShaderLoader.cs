@@ -112,6 +112,8 @@ namespace GUI.Types.Renderer
                     ThrowShaderError(log, shaderFileName, shaderName, "Failed to link shader");
                 }
 
+                MaterialLoader.ApplyMaterialDefaults(shader.Default);
+
                 ShaderDefines[shaderName] = defines;
                 var newShaderCacheHash = CalculateShaderCacheHash(shaderName, arguments);
                 CachedShaders[newShaderCacheHash] = shader;

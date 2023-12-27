@@ -14,17 +14,24 @@ namespace GUI.Types.Renderer
         public HashSet<string> RenderModes { get; init; }
 
         private Dictionary<string, int> Uniforms { get; } = [];
+        public RenderMaterial Default;
+
+        public Shader()
+        {
+            Name = "unnamed";
+            Default = new RenderMaterial(this);
+        }
 
         public int NameHash => Name.GetHashCode(StringComparison.OrdinalIgnoreCase);
 
-        public IEnumerable<(string Name, ActiveUniformType Type, int Size)> GetAllUniformNames()
+        public IEnumerable<(string Name, int Index, ActiveUniformType Type, int Size)> GetAllUniformNames()
         {
             GL.GetProgram(Program, GetProgramParameterName.ActiveUniforms, out var count);
             for (var i = 0; i < count; i++)
             {
                 var uniformName = GL.GetActiveUniform(Program, i, out var size, out var uniformType);
 
-                yield return (uniformName, uniformType, size);
+                yield return (uniformName, i, uniformType, size);
             }
         }
 
