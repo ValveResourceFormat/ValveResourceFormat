@@ -34,8 +34,6 @@ namespace GUI.Types.ParticleRenderer.Renderers
         private readonly QuadIndexBuffer quadIndices;
         private int vertexBufferHandle;
 
-        private bool isWireframe;
-
 
         public RenderSprites(ParticleDefinitionParser parse, VrfGuiContext vrfGuiContext) : base(parse)
         {
@@ -78,7 +76,6 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
         public override void SetWireframe(bool isWireframe)
         {
-            this.isWireframe = isWireframe;
             // Solid color
             shader.SetUniform1("isWireframe", isWireframe ? 1 : 0);
         }
@@ -287,11 +284,6 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
             GL.BindBuffer(BufferTarget.ElementArrayBuffer, quadIndices.GLHandle);
 
-            if (isWireframe)
-            {
-                GL.PolygonMode(MaterialFace.FrontAndBack, PolygonMode.Line);
-            }
-
             // DRAW
             GL.DrawElements(BeginMode.Triangles, particleBag.Count * 6, DrawElementsType.UnsignedShort, 0);
 
@@ -310,11 +302,6 @@ namespace GUI.Types.ParticleRenderer.Renderers
             }
 
             GL.Disable(EnableCap.Blend);
-
-            if (isWireframe)
-            {
-                GL.PolygonMode(MaterialFace.FrontAndBack, PolygonMode.Fill);
-            }
         }
 
         public override IEnumerable<string> GetSupportedRenderModes() => shader.RenderModes;

@@ -24,6 +24,7 @@ namespace GUI.Types.Renderer
 
         private bool ShowBaseGrid;
         public bool ShowSkybox { get; set; } = true;
+        public bool IsWireframe { get; set; }
 
         public float Uptime { get; private set; }
 
@@ -254,6 +255,11 @@ namespace GUI.Types.Renderer
                 Camera = Camera
             };
 
+            if (IsWireframe)
+            {
+                GL.PolygonMode(MaterialFace.FrontAndBack, PolygonMode.Line);
+            }
+
             GL.DepthRange(0, 0.95);
 
             GL.Viewport(0, 0, GLControl.Width, GLControl.Height);
@@ -286,6 +292,11 @@ namespace GUI.Types.Renderer
                 GL.DepthRange(0, 0.95);
             }
 
+            if (IsWireframe)
+            {
+                GL.PolygonMode(MaterialFace.FrontAndBack, PolygonMode.Fill);
+            }
+
             selectedNodeRenderer.Render(genericRenderContext);
 
             if (showStaticOctree)
@@ -313,10 +324,7 @@ namespace GUI.Types.Renderer
 
         protected void AddWireframeToggleControl()
         {
-            AddCheckBox("Show Wireframe", false, (v) =>
-            {
-                GL.PolygonMode(MaterialFace.FrontAndBack, v ? PolygonMode.Line : PolygonMode.Fill);
-            });
+            AddCheckBox("Show Wireframe", false, (v) => IsWireframe = v);
         }
 
         protected void AddRenderModeSelectionControl()

@@ -476,6 +476,7 @@ namespace GUI.Types.ParticleRenderer
                 || parse.Enum<ParticleEndCapMode>("m_nOpEndCapState", default) == ParticleEndCapMode.PARTICLE_ENDCAP_ENDCAP_ON;
         }
 
+        // todo: set this when viewer checkbox is toggled
         public void SetWireframe(bool isWireframe)
         {
             foreach (var renderer in Renderers)

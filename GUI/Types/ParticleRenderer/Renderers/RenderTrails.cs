@@ -31,8 +31,6 @@ namespace GUI.Types.ParticleRenderer.Renderers
         private readonly float maxLength = 2000f;
         private readonly float lengthFadeInTime;
 
-        private bool isWireframe;
-
         public RenderTrails(ParticleDefinitionParser parse, VrfGuiContext vrfGuiContext) : base(parse)
         {
             guiContext = vrfGuiContext;
@@ -73,7 +71,6 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
         public override void SetWireframe(bool isWireframe)
         {
-            this.isWireframe = isWireframe;
             shader.SetUniform1("isWireframe", isWireframe ? 1 : 0);
         }
 
@@ -140,11 +137,6 @@ namespace GUI.Types.ParticleRenderer.Renderers
             Matrix4x4.Decompose(modelViewMatrix, out _, out var modelViewRotation, out _);
             modelViewRotation = Quaternion.Inverse(modelViewRotation);
             var billboardMatrix = Matrix4x4.CreateFromQuaternion(modelViewRotation);
-
-            if (isWireframe)
-            {
-                GL.PolygonMode(MaterialFace.FrontAndBack, PolygonMode.Line);
-            }
 
             // Todo: this could be adapted into renderropes without much difficulty
             foreach (ref var particle in particles)
@@ -228,7 +220,6 @@ namespace GUI.Types.ParticleRenderer.Renderers
             }
 
             GL.Disable(EnableCap.Blend);
-            GL.PolygonMode(MaterialFace.FrontAndBack, PolygonMode.Fill);
         }
 
         public override IEnumerable<string> GetSupportedRenderModes() => shader.RenderModes;
