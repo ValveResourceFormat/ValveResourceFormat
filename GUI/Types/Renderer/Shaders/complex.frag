@@ -43,10 +43,8 @@
 #define F_BLEND_MODE 0
 #define F_GLASS 0
 #define F_DISABLE_TONE_MAPPING 0
-#define F_RENDER_BACKFACES 0
 #define F_MORPH_SUPPORTED 0
 #define F_WRINKLE 0
-#define F_DONT_FLIP_BACKFACE_NORMALS 0
 #define F_SCALE_NORMAL_MAP 0
 // TEXTURING
 #define F_TINT_MASK 0
@@ -58,7 +56,7 @@
 #define F_ENABLE_AMBIENT_OCCLUSION 0 // simple_2way_blend
 #define F_ENABLE_TINT_MASKS 0 // simple_2way_blend
 #define F_DECAL_TEXTURE 0
-#define F_DECAL_BLEND_MODE 0
+uniform int F_DECAL_BLEND_MODE;
 // SHADING
 #define F_SPECULAR 0
 #define F_SPECULAR_INDIRECT 0
@@ -171,7 +169,7 @@ uniform sampler2D g_tTintMask;
 #endif
 
 #if defined(csgo_glass_vfx)
-    uniform vec4 g_flTranslucencyRemap = vec4(0.0, 0.1, 0.0, 0.0);
+    uniform vec4 g_flTranslucencyRemap = vec4(0.0, 1.0, 0.0, 0.0);
 #endif
 
 #if (_uniformMetalness)

@@ -17,7 +17,7 @@ in vec2 vTEXCOORD;
 #define F_NOTINT 0
 #define F_VERTEX_COLOR 0
 #define F_TEXTURE_ANIMATION 0
-#define F_TEXTURE_ANIMATION_MODE 0
+uniform int F_TEXTURE_ANIMATION_MODE;
 #define F_SPHERICAL_PROJECTED_ANISOTROPIC_TANGENTS 0
 //End of parameter defines
 
@@ -128,11 +128,10 @@ vec2 GetAnimatedUVs(vec2 texCoords)
     #if (F_TEXTURE_ANIMATION == 1)
         uint frame = uint(g_flAnimationFrame);
         uint cells = uint(g_nNumAnimationCells);
-        #if (F_TEXTURE_ANIMATION_MODE == 0) // Sequential
+        if (F_TEXTURE_ANIMATION_MODE == 0) // Sequential
             frame = uint((g_flAnimationTimeOffset + g_flTime) / g_flAnimationTimePerFrame) % cells;
-        #elif (F_TEXTURE_ANIMATION_MODE == 1) // Random
+        else if (F_TEXTURE_ANIMATION_MODE == 1) // Random
             frame = uint(Random2D(vec2(g_flAnimationFrame)) * float(g_nNumAnimationCells));
-        #endif
 
         vec2 atlasGridInv = vec2(1.0) / g_vAnimationGrid.xy;
         vec2 atlasOffset = vec2(uvec2(

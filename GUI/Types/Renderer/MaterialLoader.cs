@@ -404,7 +404,12 @@ namespace GUI.Types.Renderer
                 var index = uniform.Index;
                 var size = uniform.Size;
 
-                if (NonMaterialUniforms.Contains(name) || !name.StartsWith("g_", StringComparison.InvariantCulture))
+                if (NonMaterialUniforms.Contains(name))
+                {
+                    continue;
+                }
+
+                if (!name.StartsWith("g_", StringComparison.Ordinal) && !name.StartsWith("F_", StringComparison.Ordinal))
                 {
                     continue;
                 }
@@ -442,7 +447,7 @@ namespace GUI.Types.Renderer
                     GL.GetUniform(mat.Shader.Program, mat.Shader.GetUniformLocation(name), out float flVal);
                     mat.Material.FloatParams[name] = flVal;
                 }
-                else if (isBoolean && !mat.Material.IntParams.ContainsKey(name))
+                else if ((isBoolean || isInteger) && !mat.Material.IntParams.ContainsKey(name))
                 {
                     GL.GetUniform(mat.Shader.Program, mat.Shader.GetUniformLocation(name), out int intVal);
                     mat.Material.IntParams[name] = intVal;

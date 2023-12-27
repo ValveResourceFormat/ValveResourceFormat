@@ -5,7 +5,7 @@
 #define LightmapGameVersionNumber 0
 
 #define F_DO_NOT_CAST_SHADOWS 0
-#define F_RENDER_BACKFACES 0
-#define F_DONT_FLIP_BACKFACE_NORMALS 0 // New in CS2
+uniform int F_RENDER_BACKFACES;
+uniform int F_DONT_FLIP_BACKFACE_NORMALS; // New in CS2
 #define F_DISABLE_Z_BUFFERING 0
 #define F_DISABLE_Z_PREPASS 0

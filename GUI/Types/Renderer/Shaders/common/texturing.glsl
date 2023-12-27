@@ -139,11 +139,11 @@ void InitProperties(out MaterialProperties_t mat, vec3 GeometricNormal)
 #endif
     //prop.NumDynamicLights = 0;
 
-
-#if (F_RENDER_BACKFACES == 1) && (F_DONT_FLIP_BACKFACE_NORMALS == 0)
-    // when rendering backfaces, they invert normal so it appears front-facing
-    mat.GeometricNormal *= gl_FrontFacing ? 1.0 : -1.0;
-#endif
+    if (F_RENDER_BACKFACES == 1 && F_DONT_FLIP_BACKFACE_NORMALS == 0)
+    {
+        // when rendering backfaces, they invert normal so it appears front-facing
+        mat.GeometricNormal *= gl_FrontFacing ? 1.0 : -1.0;
+    }
 }
 
 
@@ -375,7 +375,6 @@ void applyDetailTexture(inout vec3 Albedo, inout vec3 NormalMap, vec2 detailMask
     #endif
         vec4 decalTex = texture(g_tDecal, coords);
 
-        // this is just a uniform in actual code
         if (F_DECAL_BLEND_MODE == 0)
         {
             return mix(albedo, decalTex.rgb, decalTex.a);
