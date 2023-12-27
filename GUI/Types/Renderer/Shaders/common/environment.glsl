@@ -110,7 +110,7 @@ vec3 CalculateAnisoCubemapWarpVector(MaterialProperties_t mat)
 // Grab the indirect diffuse term from the closest environment map
 vec3 GetEnvironmentDiffuse(vec3 surfaceNormal)
 {
-    #if (SCENE_ENVIRONMENT_TYPE == 0)
+    #if (SCENE_ENVIRONMENT_TYPE == 0 || SCENE_ENVIRONMENT_TYPE == 1)
         return g_vClearColor.rgb;
     #else
         vec3 R = surfaceNormal;
