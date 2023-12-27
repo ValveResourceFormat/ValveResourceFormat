@@ -227,7 +227,9 @@ namespace GUI.Types.Renderer
 
             if (uniforms.Tint > -1)
             {
-                var tint = (request.Mesh.Tint * request.Call.TintColor).ToOpenTK();
+                var instanceTint = (request.Node is SceneAggregate.Fragment fragment) ? fragment.Tint : Vector4.One;
+                var tint = (request.Mesh.Tint * request.Call.TintColor * instanceTint).ToOpenTK();
+
                 GL.Uniform4(uniforms.Tint, tint);
             }
 

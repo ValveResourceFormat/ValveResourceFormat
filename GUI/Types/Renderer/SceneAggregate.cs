@@ -18,11 +18,7 @@ namespace GUI.Types.Renderer
             public RenderableMesh RenderMesh { get; init; }
             public DrawCall DrawCall { get; init; }
 
-            public Vector4 Tint
-            {
-                get => RenderMesh.Tint;
-                set => RenderMesh.Tint = value;
-            }
+            public Vector4 Tint { get; set; } = Vector4.One;
 
             public Fragment(Scene scene, SceneNode parent, AABB bounds) : base(scene)
             {

@@ -284,19 +284,34 @@ namespace GUI.Types.Renderer
                 if (sceneNode.EntityData == null)
                 {
                     entityDialog.Text = $"{sceneNode.GetType().Name}: {sceneNode.Name}";
-                    entityDialog.AddColumn("Model", sceneNode.Name);
-                    entityDialog.AddColumn("Tint", sceneNode switch
+
+                    static string ToRenderColor(Vector4 tint)
                     {
-                        ModelSceneNode model => model.Tint.ToString(),
-                        SceneAggregate.Fragment fragment => fragment.Tint.ToString(),
-                        _ => "N/A",
-                    });
+                        tint *= 255.0f;
+                        return $"{tint.X:F0} {tint.Y:F0} {tint.Z:F0}";
+                    }
 
                     if (sceneNode is SceneAggregate.Fragment sceneFragment)
                     {
                         var material = sceneFragment.DrawCall.Material.Material;
                         entityDialog.AddColumn("Shader", material.ShaderName);
                         entityDialog.AddColumn("Material", material.Name);
+                        var tris = sceneFragment.DrawCall.IndexCount / 3;
+                        entityDialog.AddColumn("Triangles / Clusters / Per Cluster", $"{tris} / {sceneFragment.DrawCall.NumMeshlets} / {tris / sceneFragment.DrawCall.NumMeshlets}");
+
+                        entityDialog.AddColumn("Model Tint", ToRenderColor(sceneFragment.DrawCall.TintColor));
+                        entityDialog.AddColumn("Model Alpha", $"{sceneFragment.DrawCall.TintColor.W:F6}");
+
+                        if (sceneFragment.Tint != Vector4.One)
+                        {
+                            entityDialog.AddColumn("Instance Tint", ToRenderColor(sceneFragment.Tint));
+                            entityDialog.AddColumn("Final Tint", ToRenderColor(sceneFragment.DrawCall.TintColor * sceneFragment.Tint));
+                        }
+                    }
+                    else if (sceneNode is ModelSceneNode modelSceneNode)
+                    {
+                        entityDialog.AddColumn("Model Tint", ToRenderColor(modelSceneNode.Tint));
+                        entityDialog.AddColumn("Model Alpha", $"{modelSceneNode.Tint.W:F6}");
                     }
 
                     entityDialog.AddColumn("Layer", sceneNode.LayerName);
