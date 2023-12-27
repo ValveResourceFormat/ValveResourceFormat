@@ -296,8 +296,18 @@ namespace GUI.Types.Renderer
                         var material = sceneFragment.DrawCall.Material.Material;
                         entityDialog.AddColumn("Shader", material.ShaderName);
                         entityDialog.AddColumn("Material", material.Name);
+
                         var tris = sceneFragment.DrawCall.IndexCount / 3;
-                        entityDialog.AddColumn("Triangles / Clusters / Per Cluster", $"{tris} / {sceneFragment.DrawCall.NumMeshlets} / {tris / sceneFragment.DrawCall.NumMeshlets}");
+                        if (sceneFragment.DrawCall.NumMeshlets > 0)
+                        {
+                            var clusters = sceneFragment.DrawCall.NumMeshlets;
+                            var trisPerCluster = tris / clusters;
+                            entityDialog.AddColumn("Triangles / Clusters / Per Cluster", $"{tris} / {clusters} / {trisPerCluster}");
+                        }
+                        else
+                        {
+                            entityDialog.AddColumn("Triangles", $"{tris}");
+                        }
 
                         entityDialog.AddColumn("Model Tint", ToRenderColor(sceneFragment.DrawCall.TintColor));
                         entityDialog.AddColumn("Model Alpha", $"{sceneFragment.DrawCall.TintColor.W:F6}");
