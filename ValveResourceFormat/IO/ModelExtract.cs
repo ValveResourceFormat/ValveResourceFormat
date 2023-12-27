@@ -1266,10 +1266,10 @@ public class ModelExtract
         var indices = new int[mesh.Triangles.Length * 3];
         for (var t = 0; t < mesh.Triangles.Length; t++)
         {
-            for (var i = 0; i < 3; i++)
-            {
-                indices[t * 3 + i] = mesh.Triangles[t].Indices[i];
-            }
+            var triangle = mesh.Triangles[t];
+            indices[t * 3] = triangle.X;
+            indices[t * 3 + 1] = triangle.Y;
+            indices[t * 3 + 2] = triangle.Z;
         }
 
         vertexData.AddIndexedStream("position$0", mesh.Vertices, indices);

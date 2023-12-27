@@ -229,12 +229,12 @@ namespace GUI.Types.Renderer
 
                     foreach (var tri in mesh.Shape.Triangles)
                     {
-                        inds[collisionAttributeIndex].Add(vertOffset + tri.Indices[0]);
-                        inds[collisionAttributeIndex].Add(vertOffset + tri.Indices[1]);
-                        inds[collisionAttributeIndex].Add(vertOffset + tri.Indices[1]);
-                        inds[collisionAttributeIndex].Add(vertOffset + tri.Indices[2]);
-                        inds[collisionAttributeIndex].Add(vertOffset + tri.Indices[2]);
-                        inds[collisionAttributeIndex].Add(vertOffset + tri.Indices[0]);
+                        inds[collisionAttributeIndex].Add(vertOffset + tri.X);
+                        inds[collisionAttributeIndex].Add(vertOffset + tri.Y);
+                        inds[collisionAttributeIndex].Add(vertOffset + tri.Y);
+                        inds[collisionAttributeIndex].Add(vertOffset + tri.Z);
+                        inds[collisionAttributeIndex].Add(vertOffset + tri.Z);
+                        inds[collisionAttributeIndex].Add(vertOffset + tri.X);
                     }
 
                     var bbox = new AABB(mesh.Shape.Min, mesh.Shape.Max);

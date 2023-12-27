@@ -60,25 +60,36 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
             }
         }
 
-        public struct Triangle
+        public readonly struct Triangle
         {
-            public int[] Indices { get; set; }
+#pragma warning disable CA1051 // Do not declare visible instance fields
+            /// <summary>The X component of the triangle.</summary>
+            public readonly int X;
+            /// <summary>The Y component of the triangle.</summary>
+            public readonly int Y;
+            /// <summary>The Z component of the triangle.</summary>
+            public readonly int Z;
+#pragma warning restore CA1051 // Do not declare visible instance fields
 
             public Triangle(IKeyValueCollection data)
             {
-                Indices = data.GetArray<object>("m_nIndex").Select(Convert.ToInt32).ToArray();
-                if (Indices.Length != 3)
+                var indices = data.GetArray<object>("m_nIndex").Select(Convert.ToInt32).ToArray();
+
+                if (indices.Length != 3)
                 {
                     throw new InvalidDataException("Triangle must have 3 indices");
                 }
+
+                X = indices[0];
+                Y = indices[1];
+                Z = indices[2];
             }
 
             public Triangle(ReadOnlySpan<byte> data)
             {
-                Indices = new int[3];
-                Indices[0] = BitConverter.ToInt32(data[..4]);
-                Indices[1] = BitConverter.ToInt32(data.Slice(4, 4));
-                Indices[2] = BitConverter.ToInt32(data.Slice(8, 4));
+                X = BitConverter.ToInt32(data[..4]);
+                Y = BitConverter.ToInt32(data.Slice(4, 4));
+                Z = BitConverter.ToInt32(data.Slice(8, 4));
             }
         }
 
