@@ -1,3 +1,4 @@
+using System;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.ResourceTypes;
 
@@ -42,5 +43,13 @@ namespace GUI.Types.Renderer
         public void Bind() => GL.BindTexture(Target, Handle);
         public void Unbind() => GL.BindTexture(Target, 0);
         public BindingContext BindingContext() => new(Bind, Unbind);
+
+        public void SetFiltering(TextureMinFilter min, TextureMagFilter mag)
+        {
+            Bind();
+            GL.TexParameter(Target, TextureParameterName.TextureMinFilter, (int)min);
+            GL.TexParameter(Target, TextureParameterName.TextureMagFilter, (int)mag);
+            Unbind();
+        }
     }
 }

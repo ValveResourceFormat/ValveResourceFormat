@@ -102,7 +102,7 @@ vec3 F_Schlick(float cosTheta, vec3 F0)
 vec3 GetRetroReflectiveNormal(float retroReflectivity, vec3 L, vec3 V, vec3 N, vec3 H)
 {
     vec3 retroReflectionVector = L - reflect(-V, N);
-    return normalize(mix(H, retroReflectionVector, retroReflectivity));
+    return normalize(mix(N, retroReflectionVector, retroReflectivity));
 }
 
 #endif

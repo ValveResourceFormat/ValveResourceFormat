@@ -13,7 +13,7 @@
 #define renderMode_PBR 0
 #define renderMode_Cubemaps 0
 #define renderMode_Irradiance 0
-#define renderMode_VertexColor 0
+#define renderMode_Tint 0
 #define renderMode_Foliage_Params 0
 #define renderMode_Terrain_Blend 0
 #define renderMode_ExtraParams 0
@@ -160,7 +160,7 @@ uniform sampler2D g_tTintMask;
 #define _metalnessTexture (defined(complex_vfx_common) && (F_METALNESS_TEXTURE == 1) && ((F_RETRO_REFLECTIVE == 1) || (F_ALPHA_TEST == 1) || (F_TRANSLUCENT == 1))) || defined(csgo_weapon_vfx) || defined(csgo_character_vfx)
 #define _ambientOcclusionTexture ( (defined(vr_simple_vfx) && (F_AMBIENT_OCCLUSION_TEXTURE == 1) && (F_METALNESS_TEXTURE == 1)) || defined(complex_vfx_common) || defined(csgo_foliage_vfx) || defined(csgo_weapon_vfx) || defined(csgo_character_vfx) || defined(csgo_generic_vfx_common))
 
-#define unlit (defined(unlit_vfx) || defined(csgo_unlitgeneric_vfx) || (F_FULLBRIGHT == 1) || (F_UNLIT == 1) || (defined(static_overlay_vfx_common) && F_LIT == 0))
+#define unlit (defined(vr_unlit_vfx) || defined(unlit_vfx) || defined(csgo_unlitgeneric_vfx) || (F_FULLBRIGHT == 1) || (F_UNLIT == 1) || (defined(static_overlay_vfx_common) && F_LIT == 0))
 #define alphatest (F_ALPHA_TEST == 1) || ((defined(csgo_unlitgeneric_vfx) || defined(static_overlay_vfx_common)) && (F_BLEND_MODE == 2))
 #define translucent (F_TRANSLUCENT == 1) || ((defined(csgo_unlitgeneric_vfx) || defined(static_overlay_vfx_common)) && (F_BLEND_MODE == 1)) // need to set this up on the cpu side
 
@@ -204,8 +204,17 @@ uniform sampler2D g_tTintMask;
     #endif
 
     #if defined(vr_standard_blend_vfx)
-        uniform sampler2D g_tLayer1Color2;
-        uniform sampler2D g_tLayer2Color2;
+
+        #if (F_SPECULAR == 1)
+            // uniform sampler2D g_tColor1;
+            uniform sampler2D g_tLayer1Color;
+            #define VR_STANDARD_Color2 g_tLayer1Color
+        #else
+            uniform sampler2D g_tLayer1Color2;
+            uniform sampler2D g_tLayer2Color2;
+            #define VR_STANDARD_Color2 g_tLayer1Color2
+        #endif
+
         uniform sampler2D g_tLayer1RevealMask;
         uniform float g_flLayer1BlendSoftness = 0.5;
 
@@ -266,7 +275,7 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
     vec2 texCoordB = texCoord * g_vTexCoordScale2.xy;
 
     #if defined(vr_standard_blend_vfx)
-        vec4 color2 = texture(g_tLayer1Color2, texCoordB);
+        vec4 color2 = texture(VR_STANDARD_Color2, texCoordB);
         vec4 normalTexture2 = normalTexture;
         #if (F_BLEND_NORMALS == 1)
             normalTexture2 = texture(g_tLayer1Normal, texCoordB);
@@ -354,13 +363,19 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
     #endif
 #endif
 
+#if defined(csgo_character_vfx)
+    #if (F_SUBSURFACE_SCATTERING == 1)
+        //mat.SSSMask = texture(g_tSSSMask, texCoord).g;
+    #endif
+#endif
+
     mat.Albedo = color.rgb;
     mat.Opacity = color.a;
-/*
+
 #if defined(static_overlay_vfx_common) && (F_PAINT_VERTEX_COLORS == 1)
     mat.Opacity *= vVertexColorOut.a;
 #endif
-*/
+
 
 #if (F_TRANSLUCENT == 1)
     mat.Opacity *= g_flOpacityScale;
@@ -642,7 +657,7 @@ void main()
     outputColor = vec4(pow(lighting.DiffuseIndirect, invGamma), 1.0);
 #endif
 
-#if renderMode_VertexColor == 1
+#if renderMode_Tint == 1
     outputColor = vVertexColorOut;
 #endif
 

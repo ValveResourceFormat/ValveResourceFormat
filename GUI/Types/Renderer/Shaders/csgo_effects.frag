@@ -5,7 +5,7 @@
 
 #define renderMode_Color 0
 #define renderMode_SpriteEffects 0
-#define renderMode_VertexColor 0
+#define renderMode_Tint 0
 
 in vec3 vFragPosition;
 in vec3 vNormalOut;
@@ -100,7 +100,7 @@ void main()
 
 #if renderMode_Color == 1
     outputColor = color * mask1;
-#elif renderMode_VertexColor == 1
+#elif renderMode_Tint == 1
     outputColor = vColorOut / 255.0;
 #elif renderMode_SpriteEffects
     outputColor = vec4(mask1, mask2, mask3, 1);

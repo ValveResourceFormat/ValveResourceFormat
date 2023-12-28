@@ -25,9 +25,9 @@ namespace GUI.Types.Renderer
             foreach (var texture in material.Textures.Values)
             {
                 texture.Bind();
-                GL.TexParameter(texture.Target, TextureParameterName.TextureWrapS, (int)TextureWrapMode.Clamp);
-                GL.TexParameter(texture.Target, TextureParameterName.TextureWrapT, (int)TextureWrapMode.Clamp);
-                GL.TexParameter(texture.Target, TextureParameterName.TextureWrapR, (int)TextureWrapMode.Clamp);
+                GL.TexParameter(texture.Target, TextureParameterName.TextureWrapS, (int)TextureWrapMode.ClampToEdge);
+                GL.TexParameter(texture.Target, TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToEdge);
+                GL.TexParameter(texture.Target, TextureParameterName.TextureWrapR, (int)TextureWrapMode.ClampToEdge);
                 texture.Unbind();
             }
 

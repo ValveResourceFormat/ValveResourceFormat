@@ -10,7 +10,7 @@
 #define renderMode_PBR 0
 #define renderMode_Cubemaps 0
 #define renderMode_Irradiance 0
-#define renderMode_VertexColor 0
+#define renderMode_Tint 0
 #define renderMode_Terrain_Blend 0
 
 #include "common/features.glsl"
@@ -364,7 +364,7 @@ void main()
     outputColor = vec4(pow(lighting.DiffuseIndirect, invGamma), 1.0);
 #endif
 
-#if renderMode_VertexColor == 1
+#if renderMode_Tint == 1
     outputColor = vVertexColor;
 #endif
 

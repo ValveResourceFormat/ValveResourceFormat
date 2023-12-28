@@ -329,10 +329,6 @@ namespace GUI.Types.Renderer
                     return "sky";
                 case "tools_sprite.vfx":
                     return "sprite";
-                case "vr_unlit.vfx":
-                    return "vr_unlit";
-                case "vr_black_unlit.vfx":
-                    return "vr_black_unlit";
                 case "global_lit_simple.vfx":
                     return "global_lit_simple";
                 case "water_dota.vfx":
