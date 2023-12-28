@@ -2,6 +2,7 @@
 #define D_BAKED_LIGHTING_FROM_LIGHTMAP 0
 #define D_BAKED_LIGHTING_FROM_VERTEX_STREAM 0
 #define D_BAKED_LIGHTING_FROM_LIGHTPROBE 0
+#define LightmapVersionNumber 0
 #define LightmapGameVersionNumber 0
 
 #define F_DO_NOT_CAST_SHADOWS 0

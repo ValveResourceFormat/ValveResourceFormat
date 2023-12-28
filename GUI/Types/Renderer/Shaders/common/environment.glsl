@@ -2,10 +2,9 @@
 
 #if (SCENE_ENVIRONMENT_TYPE == 0) // None or missing environment map
     // ...
-#else
-#if (SCENE_ENVIRONMENT_TYPE == 1) // Per-object cube map
-    uniform samplerCube g_tEnvironmentMap[MAX_ENVMAPS];
-    uniform int g_iEnvMapArrayIndices[MAX_ENVMAPS];
+#elif (SCENE_ENVIRONMENT_TYPE == 1) // Per-object cube map
+    uniform samplerCube g_tEnvironmentMap;
+    //uniform int g_iEnvMapArrayIndices[MAX_ENVMAPS];
 #elif (SCENE_ENVIRONMENT_TYPE == 2) // Per scene cube map array
     uniform samplerCubeArray g_tEnvironmentMap;
     uniform int g_iEnvMapArrayIndices[MAX_ENVMAPS];
@@ -31,18 +30,18 @@ vec3 CubemapParallaxCorrection(vec3 envMapLocalPos, vec3 localReflectionVector, 
 
 float GetEnvMapLOD(float roughness, vec3 R, float clothMask)
 {
-#if (renderMode_Cubemaps == 1)
-    return 0.0;
-#else
-    float EnvMapMipCount = g_vEnvMapSizeConstants.x;
+    #if (renderMode_Cubemaps == 1)
+        return 0.0;
+    #endif
+
+    const float EnvMapMipCount = g_vEnvMapSizeConstants.x;
 
     #if F_CLOTH_SHADING == 1
         float lod = mix(roughness, pow(roughness, 0.125), clothMask);
         return lod * EnvMapMipCount;
-    #else
-        return roughness * EnvMapMipCount;
     #endif
-#endif
+        
+    return roughness * EnvMapMipCount;
 }
 
 
@@ -81,75 +80,67 @@ vec3 EnvBRDF(vec3 specColor, float rough, vec3 N, vec3 V)
     return specColor * GGXLut.x + GGXLut.y;
 }
 
-#if F_CLOTH_SHADING == 1
-float EnvBRDFCloth(float roughness, vec3 N, vec3 V)
-{
-    float NoH = dot(normalize(N + V), N);
-    return D_Cloth(roughness, NoH) / 8.0;
-}
+#if (F_CLOTH_SHADING == 1)
+    float EnvBRDFCloth(float roughness, vec3 N, vec3 V)
+    {
+        float NoH = dot(normalize(N + V), N);
+        return D_Cloth(roughness, NoH) / 8.0;
+    }
 #endif
 
 
 // In CS2, anisotropic cubemaps are default enabled with aniso gloss
 #if ((F_ANISOTROPIC_GLOSS == 1) && ((F_SPECULAR_CUBE_MAP_ANISOTROPIC_WARP == 1) || !defined(vr_complex_vfx)))
-vec3 CalculateAnisoCubemapWarpVector(MaterialProperties_t mat)
-{
-    // is this like part of the material struct in the og code? it's calculated at the start
-    vec2 roughnessOverRoughness = mat.Roughness.xy / mat.Roughness.yx;
-    vec3 warpDirection = mix(mat.AnisotropicBitangent, mat.AnisotropicTangent, vec3(step(roughnessOverRoughness.y, roughnessOverRoughness.x))); // in HLA this just uses vertex tangent
+    vec3 CalculateAnisoCubemapWarpVector(MaterialProperties_t mat)
+    {
+        // is this like part of the material struct in the og code? it's calculated at the start
+        vec2 roughnessOverRoughness = mat.Roughness.xy / mat.Roughness.yx;
+        vec3 warpDirection = mix(mat.AnisotropicBitangent, mat.AnisotropicTangent, vec3(step(roughnessOverRoughness.y, roughnessOverRoughness.x))); // in HLA this just uses vertex tangent
 
-    float warpAmount = (1.0 - min(roughnessOverRoughness.x, roughnessOverRoughness.y)) * 0.5;
-    vec3 warpedVector = normalize(cross(cross(mat.ViewDir, warpDirection), warpDirection));
+        float warpAmount = (1.0 - min(roughnessOverRoughness.x, roughnessOverRoughness.y)) * 0.5;
+        vec3 warpedVector = normalize(cross(cross(mat.ViewDir, warpDirection), warpDirection));
 
-    return normalize(mix(mat.AmbientNormal, warpedVector, warpAmount));
-}
+        return normalize(mix(mat.AmbientNormal, warpedVector, warpAmount));
+    }
 #endif
 
-#endif
 
-// Grab the indirect diffuse term from the closest environment map
-vec3 GetEnvironmentDiffuse(vec3 surfaceNormal)
+vec3 GetEnvironment(MaterialProperties_t mat, out vec3 diffuse)
 {
-    #if (SCENE_ENVIRONMENT_TYPE == 0 || SCENE_ENVIRONMENT_TYPE == 1)
-        return g_vClearColor.rgb;
+    #if (renderMode_Cubemaps == 1)
+        vec3 reflectionNormal = mat.GeometricNormal;
+    #elif ((F_ANISOTROPIC_GLOSS == 1) && ((F_SPECULAR_CUBE_MAP_ANISOTROPIC_WARP == 1) || !defined(vr_complex_vfx)))
+        vec3 reflectionNormal = CalculateAnisoCubemapWarpVector(mat);
     #else
-        vec3 R = surfaceNormal;
-        int localCubemap = g_iEnvMapArrayIndices[0];
-
-        return textureLod(g_tEnvironmentMap, vec4(R, localCubemap), g_vEnvMapSizeConstants.x).rgb;
+        vec3 reflectionNormal = mat.AmbientNormal;
     #endif
-}
-
-
-vec3 GetEnvironment(MaterialProperties_t mat, LightingTerms_t lighting)
-{
-    #if (SCENE_ENVIRONMENT_TYPE == 0)
-        return g_vClearColor.rgb;
-    #else
-
-#if (renderMode_Cubemaps == 1)
-    vec3 reflectionNormal = mat.GeometricNormal;
-#elif ((F_ANISOTROPIC_GLOSS == 1) && ((F_SPECULAR_CUBE_MAP_ANISOTROPIC_WARP == 1) || !defined(vr_complex_vfx)))
-    vec3 reflectionNormal = CalculateAnisoCubemapWarpVector(mat);
-#else
-    vec3 reflectionNormal = mat.AmbientNormal;
-#endif
 
     // Reflection Vector
     vec3 R = normalize(reflect(-mat.ViewDir, reflectionNormal));
+    vec3 R_Diffuse = mat.AmbientNormal;
 
-#if (F_ANISOTROPIC_GLOSS == 1)
-    float roughness = sqrt(max(mat.Roughness.x, mat.Roughness.y));
-#else
-    float roughness = mat.Roughness;
-#endif
-
-    float lod = GetEnvMapLOD(roughness, R, mat.ClothMask);
+    #if (F_ANISOTROPIC_GLOSS == 1)
+        float roughness = sqrt(max(mat.Roughness.x, mat.Roughness.y));
+    #else
+        float roughness = mat.Roughness;
+    #endif
 
     vec3 envMap = vec3(0.0);
+
+    const float lod = GetEnvMapLOD(roughness, R, 0.0);
+    const float lod_Diffuse = g_vEnvMapSizeConstants.x; // max lod
+
+    #if (SCENE_ENVIRONMENT_TYPE == 0)
+        envMap = max(g_vClearColor.rgb, vec3(0.3, 0.1, 0.1));
+        diffuse = max(g_vClearColor.rgb, vec3(0.1, 0.1, 0.3));
+    #elif (SCENE_ENVIRONMENT_TYPE == 1)
+        envMap = textureLod(g_tEnvironmentMap, R, lod).rgb;
+        diffuse = textureLod(g_tEnvironmentMap, R_Diffuse, lod_Diffuse).rgb * 0.5;
+    #elif (SCENE_ENVIRONMENT_TYPE == 2)
+
     float totalWeight = 0.01;
 
-    for (int i = 0; i < g_vEnvMapSizeConstants.y; i++) {
+    for (int i = 0; i < 144; i++) {
         int envMapArrayIndex = g_iEnvMapArrayIndices[i];
         vec4 proxySphere = g_vEnvMapProxySphere[envMapArrayIndex];
         bool isBoxProjection = proxySphere.w == 1.0f;
@@ -159,24 +150,22 @@ vec3 GetEnvironment(MaterialProperties_t mat, LightingTerms_t lighting)
         vec3 envMapLocalPos = envMapWorldToLocal * vec4(vFragPosition, 1.0);
         float weight = 1.0f;
 
-        #if (SCENE_ENVIRONMENT_TYPE == 2)
-            vec3 dists = g_vEnvMapEdgeFadeDists[envMapArrayIndex].xyz;
+        vec3 dists = g_vEnvMapEdgeFadeDists[envMapArrayIndex].xyz;
 
-            if (isBoxProjection) {
-                vec3 envInvEdgeWidth = 1.0 / dists;
-                vec3 envmapClampedFadeMax = clamp((envMapBoxMax - envMapLocalPos) * envInvEdgeWidth, vec3(0.0), vec3(1.0));
-                vec3 envmapClampedFadeMin = clamp((envMapLocalPos - envMapBoxMin) * envInvEdgeWidth, vec3(0.0), vec3(1.0));
-                float distanceFromEdge = min(min3(envmapClampedFadeMin), min3(envmapClampedFadeMax));
+        if (isBoxProjection) {
+            vec3 envInvEdgeWidth = 1.0 / dists;
+            vec3 envmapClampedFadeMax = clamp((envMapBoxMax - envMapLocalPos) * envInvEdgeWidth, vec3(0.0), vec3(1.0));
+            vec3 envmapClampedFadeMin = clamp((envMapLocalPos - envMapBoxMin) * envInvEdgeWidth, vec3(0.0), vec3(1.0));
+            float distanceFromEdge = min(min3(envmapClampedFadeMin), min3(envmapClampedFadeMax));
 
-                if (distanceFromEdge == 0.0)
-                {
-                    continue;
-                }
-
-                // blend using a smooth curve
-                weight = (pow2(distanceFromEdge) * (3.0 - (2.0 * distanceFromEdge))) * (1.0 - totalWeight);
+            if (distanceFromEdge == 0.0)
+            {
+                continue;
             }
-        #endif
+
+            // blend using a smooth curve
+            weight = (pow2(distanceFromEdge) * (3.0 - (2.0 * distanceFromEdge))) * (1.0 - totalWeight);
+        }
 
         totalWeight += weight;
 
@@ -192,11 +181,8 @@ vec3 GetEnvironment(MaterialProperties_t mat, LightingTerms_t lighting)
             #endif
         #endif
 
-        #if (SCENE_ENVIRONMENT_TYPE == 1)
-            envMap += textureLod(g_tEnvironmentMap[envMapArrayIndex], coords, lod).rgb * weight;
-        #elif (SCENE_ENVIRONMENT_TYPE == 2)
-            envMap += textureLod(g_tEnvironmentMap, vec4(coords, envMapArrayIndex), lod).rgb * weight;
-        #endif
+        envMap += textureLod(g_tEnvironmentMap, vec4(coords, envMapArrayIndex), lod).rgb * weight;
+        diffuse += textureLod(g_tEnvironmentMap, vec4(coords, envMapArrayIndex), lod_Diffuse).rgb * weight;
 
         if (totalWeight > 0.99)
         {
@@ -204,9 +190,14 @@ vec3 GetEnvironment(MaterialProperties_t mat, LightingTerms_t lighting)
         }
     }
 
-#if (renderMode_Cubemaps == 1)
-    return envMap;
-#else
+    diffuse = mix(diffuse*2.0, diffuse*2.6, GetLuma(diffuse));
+
+    #endif // SCENE_ENVIRONMENT_TYPE == 2
+
+    #if (renderMode_Cubemaps == 1)
+        return envMap;
+    #endif
+
     vec3 brdf = EnvBRDF(mat.SpecularColor, GetIsoRoughness(mat.Roughness), mat.AmbientNormal, mat.ViewDir);
 
     #if (F_CLOTH_SHADING == 1)
@@ -215,9 +206,11 @@ vec3 GetEnvironment(MaterialProperties_t mat, LightingTerms_t lighting)
         brdf = mix(brdf, clothBrdf, mat.ClothMask);
     #endif
 
-    float normalizationTerm = GetEnvMapNormalization(GetIsoRoughness(mat.Roughness), mat.AmbientNormal, lighting.DiffuseIndirect);
+    return brdf * envMap;
+}
 
-    return brdf * envMap * normalizationTerm;
-#endif
-    #endif
+vec3 GetEnvironment(MaterialProperties_t mat)
+{
+    vec3 diffuse;
+    return GetEnvironment(mat, diffuse);
 }

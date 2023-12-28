@@ -75,6 +75,10 @@ uniform int F_DECAL_BLEND_MODE;
 #define F_USE_PER_VERTEX_CURVATURE 0 // todo
 #define F_SSS_MASK 0 // todo
 
+// vr_standard
+#define F_HIGH_QUALITY_GLOSS 0 
+#define F_BLEND_NORMALS 0
+
 #define HemiOctIsoRoughness_RG_B 0
 //End of feature defines
 
@@ -124,7 +128,7 @@ uniform sampler2D g_tTintMask;
     #define csgo_generic_blend
 #endif
 
-#if (defined(simple_blend_common) || defined(csgo_generic_blend))
+#if (defined(simple_blend_common) || defined(csgo_generic_blend) || defined(vr_standard_blend_vfx))
     #if !defined(steampal_2way_blend_mask_vfx)
         in vec4 vColorBlendValues;
     #endif
@@ -194,6 +198,24 @@ uniform sampler2D g_tTintMask;
     #endif
 #endif
 
+#if defined(vr_standard_vfx)
+    #if (F_HIGH_QUALITY_GLOSS == 1)
+        uniform sampler2D g_tGloss;
+    #endif
+
+    #if defined(vr_standard_blend_vfx)
+        uniform sampler2D g_tLayer1Color2;
+        uniform sampler2D g_tLayer2Color2;
+        uniform sampler2D g_tLayer1RevealMask;
+        uniform float g_flLayer1BlendSoftness = 0.5;
+
+        #if (F_BLEND_NORMALS == 1)
+            uniform sampler2D g_tLayer1Normal;
+        #endif
+    #endif
+
+#endif
+
 #if (F_RETRO_REFLECTIVE == 1)
     uniform float g_flRetroReflectivity = 1.0;
 #endif
@@ -240,11 +262,20 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
     color.rgb = pow(color.rgb, gamma);
 
     // Blending
-#if defined(csgo_generic_blend) || defined(simple_blend_common)
+#if defined(csgo_generic_blend) || defined(simple_blend_common)  || defined(vr_standard_blend_vfx)
     vec2 texCoordB = texCoord * g_vTexCoordScale2.xy;
 
-    vec4 color2 = texture(g_tLayer2Color, texCoordB);
-    vec4 normalTexture2 = texture(g_tLayer2NormalRoughness, texCoordB);
+    #if defined(vr_standard_blend_vfx)
+        vec4 color2 = texture(g_tLayer1Color2, texCoordB);
+        vec4 normalTexture2 = normalTexture;
+        #if (F_BLEND_NORMALS == 1)
+            normalTexture2 = texture(g_tLayer1Normal, texCoordB);
+        #endif
+    #else
+        vec4 color2 = texture(g_tLayer2Color, texCoordB);
+        vec4 normalTexture2 = texture(g_tLayer2NormalRoughness, texCoordB);
+    #endif
+
 
     color2.rgb = pow(color2.rgb, gamma);
 
@@ -276,6 +307,11 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
         #endif
 
         blendFactor = ApplyBlendModulation(blendFactor, blendModTexel.r, softnessPaint);
+    #elif (defined(vr_standard_blend_vfx))
+        float blendFactor = vColorBlendValues.r;
+        vec4 blendModTexel = texture(g_tLayer1RevealMask, texCoordB);
+
+        blendFactor = ApplyBlendModulation(blendFactor, blendModTexel.g, blendModTexel.r * g_flLayer1BlendSoftness);
     #else
         float blendFactor = vColorBlendValues.r;
     #endif
@@ -362,6 +398,13 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
     mat.RoughnessTex = texture(g_tAnisoGloss, texCoord).rg;
 #else
     mat.RoughnessTex = normalTexture.b;
+
+    #if defined(vr_standard_vfx)
+        #if (F_HIGH_QUALITY_GLOSS == 1)
+            mat.RoughnessTex = texture(g_tGloss, texCoord).g;
+        #endif
+    #endif
+
 #endif
 
 
@@ -587,7 +630,7 @@ void main()
 
 #if (renderMode_Cubemaps == 1)
     // No bumpmaps, full reflectivity
-    vec3 viewmodeEnvMap = GetEnvironment(mat, lighting).rgb;
+    vec3 viewmodeEnvMap = GetEnvironment(mat).rgb;
     outputColor.rgb = pow(viewmodeEnvMap, invGamma);
 #endif
 
@@ -607,7 +650,7 @@ void main()
     outputColor.rgb = vFoliageParamsOut.rgb;
 #endif
 
-#if renderMode_Terrain_Blend == 1 && (defined(csgo_generic_blend) || defined(simple_blend_common))
+#if renderMode_Terrain_Blend == 1 && (defined(csgo_generic_blend) || defined(simple_blend_common) || defined(vr_standard_blend_vfx))
     outputColor.rgb = vColorBlendValues.rgb;
 #endif
 

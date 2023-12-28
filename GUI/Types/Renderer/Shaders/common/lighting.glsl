@@ -117,7 +117,7 @@ void CalculateIndirectLighting(inout LightingTerms_t lighting, inout MaterialPro
     lighting.DiffuseIndirect = vec3(0.3);
 
     // Indirect Lighting
-#if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1) && (LightmapGameVersionNumber > 0)
+#if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
     vec3 irradiance = texture(g_tIrradiance, vLightmapUVScaled).rgb;
     vec4 vAHDData = texture(g_tDirectionalIrradiance, vLightmapUVScaled);
 
@@ -130,14 +130,19 @@ void CalculateIndirectLighting(inout LightingTerms_t lighting, inout MaterialPro
 #elif (D_BAKED_LIGHTING_FROM_LIGHTPROBE == 1)
     // todo: probe lighting
 #else
-    #if defined(S_SPECULAR) && (S_SPECULAR == 1)
-        lighting.DiffuseIndirect = GetEnvironmentDiffuse(mat.GeometricNormal);
-    #endif
+    #define NoBakeLighting 1
 #endif
 
     // Environment Maps
 #if defined(S_SPECULAR) && (S_SPECULAR == 1)
-    lighting.SpecularIndirect = GetEnvironment(mat, lighting);
+    vec3 ambientDiffuse;
+    float normalizationTerm = GetEnvMapNormalization(GetIsoRoughness(mat.Roughness), mat.AmbientNormal, lighting.DiffuseIndirect);
+
+    lighting.SpecularIndirect = GetEnvironment(mat, ambientDiffuse) * normalizationTerm;
+    #if defined(NoBakeLighting)
+        // maybe mix with light_environment skyambientcolor
+        lighting.DiffuseIndirect = mix(ambientDiffuse, lighting.DiffuseIndirect, bvec3(ambientDiffuse == vec3(0.0)));
+    #endif
 #endif
 }
 

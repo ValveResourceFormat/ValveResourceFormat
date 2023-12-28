@@ -137,6 +137,7 @@ namespace GUI.Types.Renderer
             {"direct_light_strengths", "g_tDirectLightStrengths"},
         };
 
+        private readonly string[] LightmapSetV81_SteamVr = ["g_tIrradiance", "g_tDirectionalIrradiance"];
         private readonly string[] LightmapSetV81 = ["g_tIrradiance", "g_tDirectionalIrradiance", "g_tDirectLightIndices", "g_tDirectLightStrengths"];
         private readonly string[] LightmapSetV82 = ["g_tIrradiance", "g_tDirectionalIrradiance", "g_tDirectLightShadows"];
 
@@ -173,6 +174,16 @@ namespace GUI.Types.Renderer
                 (8, 2) => LightmapSetV82.All(lightmapPresent),
                 _ => false,
             };
+
+            if (!result.HasValidLightmaps && LightmapSetV81_SteamVr.All(lightmapPresent))
+            {
+                // SteamVR Home for now
+                if (result.LightmapVersionNumber == 8 && result.LightmapGameVersionNumber == 1)
+                {
+                    result.LightmapGameVersionNumber = 0;
+                    result.HasValidLightmaps = true;
+                }
+            }
         }
 
         private void LoadEntitiesFromLump(EntityLump entityLump, string layerName, Matrix4x4 parentTransform)
@@ -540,8 +551,7 @@ namespace GUI.Types.Renderer
                         {
                             arrayIndex = legacyCubemapArrayIndex++;
 
-                            // TODO: This doesn't really work
-                            //scene.LightingInfo.Lightmaps.TryAdd($"g_tEnvironmentMap[{arrayIndex}]", envMapTexture);
+                            scene.LightingInfo.Lightmaps.TryAdd($"g_tEnvironmentMap", envMapTexture);
                         }
                         else
                         {

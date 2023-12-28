@@ -16,11 +16,7 @@
 #include "common/features.glsl"
 #include "csgo_environment.features"
 
-#if (LightmapGameVersionNumber == 0)
-    #define S_SPECULAR 0 // No cubemaps in non-lightmapped scenes
-#else
-    #define S_SPECULAR 1 // Indirect
-#endif
+#define S_SPECULAR 1 // Indirect
 
 #define HemiOctIsoRoughness_RG_B 0
 
@@ -56,7 +52,7 @@ uniform sampler2D g_tNormal1;
 
 uniform bool g_bMetalness1;
 uniform bool g_bModelTint1 = true;
-uniform int g_nColorCorrectionMode1 = 1;
+uniform int g_nColorCorrectionMode1 = 0;
 uniform float g_fTextureColorBrightness1 = 1.0;
 uniform float g_fTextureColorContrast1 = 1.0;
 uniform float g_fTextureColorSaturation1 = 1.0;
@@ -93,7 +89,7 @@ uniform float g_flHeightMapZeroPoint1 = 0;
 
     uniform bool g_bMetalness2;
     uniform bool g_bModelTint2 = true;
-    uniform int g_nColorCorrectionMode2 = 1;
+    uniform int g_nColorCorrectionMode2 = 0;
     uniform float g_fTextureColorBrightness2 = 1.0;
     uniform float g_fTextureColorContrast2 = 1.0;
     uniform float g_fTextureColorSaturation2 = 1.0;
@@ -220,7 +216,7 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
         : vec3(1.0);
 
     color2.rgb = pow(color2.rgb, gamma);
-    color2.rgb = mix(color.rgb, AdjustBrightnessContrastSaturation(color2.rgb, g_fTextureColorBrightness2, g_fTextureColorContrast2, g_fTextureColorSaturation2), bvec3(g_nColorCorrectionMode2 == 1));
+    color2.rgb = mix(color2.rgb, AdjustBrightnessContrastSaturation(color2.rgb, g_fTextureColorBrightness2, g_fTextureColorContrast2, g_fTextureColorSaturation2), bvec3(g_nColorCorrectionMode2 == 1));
     color2.rgb *= tintFactor2;
     color2.rgb *= g_nVertexColorMode2 == 1 ? vBlendColorTint.rgb : vec3(1.0);
 
@@ -356,7 +352,7 @@ void main()
 
 #if (renderMode_Cubemaps == 1)
     // No bumpmaps, full reflectivity
-    vec3 viewmodeEnvMap = GetEnvironment(mat, lighting).rgb;
+    vec3 viewmodeEnvMap = GetEnvironment(mat).rgb;
     outputColor.rgb = pow(viewmodeEnvMap, invGamma);
 #endif
 
