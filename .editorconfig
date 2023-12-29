@@ -227,3 +227,7 @@ dotnet_naming_rule.non_field_members_should_be_pascal_case.severity = silent
 
 # IDE1006: Naming Styles
 dotnet_diagnostic.IDE1006.severity = none
+
+# Disable very slow analyzers - https://github.com/dotnet/roslyn-analyzers/issues/6737
+dotnet_diagnostic.CA5403.severity = none # Do not hard-code certificate
+dotnet_diagnostic.CA5390.severity = none # Do not hard-code encryption key
