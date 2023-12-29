@@ -30,7 +30,7 @@ namespace GUI.Types.Renderer
         private List<int>[] morphRects;
         private HashSet<int> usedRects = new();
         private int morphCount;
-        private bool renderTargetInitialized = false;
+        private bool renderTargetInitialized;
 
         private readonly QuadIndexBuffer quadIndices;
 
