@@ -39,7 +39,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
         {
             guiContext = vrfGuiContext;
             shader = vrfGuiContext.ShaderLoader.LoadShader(ShaderName);
-            quadIndices = vrfGuiContext.QuadIndices;
+            quadIndices = vrfGuiContext.MeshBufferCache.QuadIndices;
 
             // The same quad is reused for all particles
             quadVao = SetupQuadBuffer();

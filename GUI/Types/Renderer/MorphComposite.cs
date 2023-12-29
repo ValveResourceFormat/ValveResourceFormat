@@ -54,7 +54,7 @@ namespace GUI.Types.Renderer
             allVertices = new float[GetMorphBundleCount() * 4 * VertexSize];
             usedVertices = new float[allVertices.Length];
 
-            quadIndices = vrfGuiContext.QuadIndices;
+            quadIndices = vrfGuiContext.MeshBufferCache.QuadIndices;
             shader = vrfGuiContext.ShaderLoader.LoadShader("vrf.morph_composite");
 
             GL.UseProgram(shader.Program);

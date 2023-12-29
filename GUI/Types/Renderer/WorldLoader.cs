@@ -335,14 +335,14 @@ namespace GUI.Types.Renderer
                         var strength = entity.GetPropertyUnchecked<float>("fogstrength");
                         var colorData = entity.GetProperty("fogcolor");
 
-                        var color = new Vector3(255f);
+                        var color = new Vector3(1f);
 
                         if (colorData != null)
                         {
                             switch (colorData.Type)
                             {
                                 case EntityFieldType.Vector:
-                                    color = (Vector3)colorData.Data;
+                                    color = (Vector3)colorData.Data / 255.0f;
                                     break;
                                 case EntityFieldType.Color32:
                                     // todo make this a function

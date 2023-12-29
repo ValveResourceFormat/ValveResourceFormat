@@ -36,20 +36,6 @@ namespace GUI.Utils
         public VrfGuiContext ParentGuiContext { get; private set; }
         public ToolsAssetInfo ToolsAssetInfo { get; set; }
 
-        // TODO: This buffer should not be here
-        [DebuggerBrowsable(DebuggerBrowsableState.Never)]
-        public QuadIndexBuffer QuadIndices
-        {
-            get
-            {
-                quadIndices ??= new QuadIndexBuffer(65532);
-
-                return quadIndices;
-            }
-        }
-
-        private QuadIndexBuffer quadIndices;
-
         public VrfGuiContext(string fileName, VrfGuiContext parentGuiContext)
         {
             FileName = fileName;

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
@@ -11,6 +12,20 @@ namespace GUI.Types.Renderer
     {
         private readonly Dictionary<int, GPUMeshBuffers> gpuBuffers = [];
         private readonly Dictionary<VAOKey, uint> vertexArrayObjects = [];
+        private QuadIndexBuffer quadIndices;
+
+
+        [DebuggerBrowsable(DebuggerBrowsableState.Never)]
+        public QuadIndexBuffer QuadIndices
+        {
+            get
+            {
+                quadIndices ??= new QuadIndexBuffer(65532);
+
+                return quadIndices;
+            }
+        }
+
 
         private struct VAOKey
         {
