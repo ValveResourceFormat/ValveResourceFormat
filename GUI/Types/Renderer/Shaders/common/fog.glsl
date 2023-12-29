@@ -1,3 +1,7 @@
+//? #version 460
+//? #include "ViewConstants.glsl"
+//? #include "utils.glsl"
+
 // Fog pixel shaders.
 
 // Per-material

@@ -1,3 +1,5 @@
+//? #version 460
+
 // Todo: include all lighting glsl files within lighting.glsl, so it's only one include.
 // That would make the order of includes less important and easier to understand/maintain.
 struct LightingTerms_t

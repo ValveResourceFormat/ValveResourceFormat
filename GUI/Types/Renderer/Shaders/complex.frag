@@ -5,7 +5,7 @@
 #include "common/features.glsl"
 #include "common/ViewConstants.glsl"
 #include "common/LightingConstants.glsl"
-#include "complex.features"
+#include "complex_features.glsl"
 
 // Render modes -- Switched on/off by code
 #define renderMode_Diffuse 0

@@ -1,3 +1,12 @@
+//? #version 460
+//? #include "features.glsl"
+//? #include "utils.glsl"
+//? #include "texturing.glsl"
+//? #include "LightingConstants.glsl"
+//? #include "lighting_common.glsl"
+//? #include "pbr.glsl"
+//? #include "lighting.glsl"
+
 #define SCENE_ENVIRONMENT_TYPE 0
 
 #if (SCENE_ENVIRONMENT_TYPE == 0) // None or missing environment map

@@ -1,3 +1,6 @@
+//? #version 460
+//? #include "utils.glsl"
+
 // File containing vertex inputs and functions to deal with compressed normals and tangents.
 
 #ifndef utils

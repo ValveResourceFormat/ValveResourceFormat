@@ -4,7 +4,7 @@
 #include "common/features.glsl"
 #include "common/ViewConstants.glsl"
 #include "common/LightingConstants.glsl"
-#include "complex.features"
+#include "complex_features.glsl"
 
 #include "common/animation.glsl"
 #include "common/morph.glsl"

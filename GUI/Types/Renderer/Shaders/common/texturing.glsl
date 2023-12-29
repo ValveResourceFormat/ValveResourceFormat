@@ -1,3 +1,8 @@
+//? #version 460
+//? #include "LightingConstants.glsl"
+//? #include "features.glsl"
+//? #include "utils.glsl"
+
 #if defined(NEED_CURVATURE) && (F_USE_PER_VERTEX_CURVATURE == 0)
     // Expensive, only used in skin shaders
     float GetCurvature(vec3 vNormal, vec3 vPositionWS)

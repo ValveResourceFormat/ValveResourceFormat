@@ -14,7 +14,7 @@
 #define renderMode_Terrain_Blend 0
 
 #include "common/features.glsl"
-#include "csgo_environment.features"
+#include "csgo_environment_features.glsl"
 
 #define S_SPECULAR 1 // Indirect
 

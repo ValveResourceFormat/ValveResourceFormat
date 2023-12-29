@@ -1,3 +1,8 @@
+//? #version 460
+//? #include "features.glsl"
+//? #include "utils.glsl"
+//? #include "texturing.glsl"
+//? #include "lighting_common.glsl"
 
 // DIFFUSE LIGHTING
 

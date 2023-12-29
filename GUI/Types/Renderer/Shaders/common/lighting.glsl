@@ -1,3 +1,11 @@
+//? #version 460
+//? #include "features.glsl"
+//? #include "utils.glsl"
+//? #include "LightingConstants.glsl"
+//? #include "lighting_common.glsl"
+//? #include "texturing.glsl"
+//? #include "pbr.glsl"
+
 #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
     in vec3 vLightmapUVScaled;
     uniform sampler2DArray g_tIrradiance;
