@@ -3,7 +3,7 @@
 #include "common/animation.glsl"
 
 layout (location = 0) in vec3 vPOSITION;
-layout (location = 1) in vec2 vTEXCOORD;
+layout (location = 3) in vec2 vTEXCOORD;
 #include "common/compression.glsl"
 in vec4 vCOLOR;
 

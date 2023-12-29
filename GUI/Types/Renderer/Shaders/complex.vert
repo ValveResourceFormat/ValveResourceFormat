@@ -10,7 +10,7 @@
 #include "common/morph.glsl"
 
 layout (location = 0) in vec3 vPOSITION;
-in vec2 vTEXCOORD;
+layout (location = 3) in vec2 vTEXCOORD;
 #include "common/compression.glsl"
 
 //Parameter defines - These are default values and can be overwritten based on material/model parameters

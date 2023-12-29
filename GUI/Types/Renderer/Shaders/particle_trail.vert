@@ -1,6 +1,6 @@
 #version 460
 
-in vec3 aVertexPosition;
+layout (location = 0) in vec3 aVertexPosition;
 
 #include "common/ViewConstants.glsl"
 uniform mat4 uModelMatrix;

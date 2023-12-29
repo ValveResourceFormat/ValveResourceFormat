@@ -1,6 +1,6 @@
 #version 460
 
-in vec3 aVertexPosition;
+layout (location = 0) in vec3 aVertexPosition;
 in vec4 aVertexColor;
 out vec4 vtxColor;
 

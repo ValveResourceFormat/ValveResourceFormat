@@ -1,8 +1,8 @@
 #version 460
 
-in vec3 aVertexPosition;
-in vec4 aVertexColor;
-in vec2 aTexCoords;
+layout (location = 0) in vec3 aVertexPosition;
+layout (location = 3) in vec2 aTexCoords;
+layout (location = 4) in vec4 aVertexColor;
 
 #include "common/ViewConstants.glsl"
 

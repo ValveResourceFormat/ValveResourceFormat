@@ -1,5 +1,5 @@
-in vec4 vBLENDINDICES;
-in vec4 vBLENDWEIGHT;
+layout (location = 1) in vec4 vBLENDINDICES;
+layout (location = 2) in vec4 vBLENDWEIGHT;
 
 uniform float bAnimated = 0;
 uniform float fNumBones = 1;

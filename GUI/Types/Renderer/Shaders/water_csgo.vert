@@ -1,9 +1,9 @@
 #version 460
 
 layout (location = 0) in vec3 vPOSITION;
-in vec2 vTEXCOORD;
-//in vec2 vLightmapUV;
+layout (location = 3) in vec2 vTEXCOORD;
 #include "common/compression.glsl"
+//in vec2 vLightmapUV;
 in vec4 vCOLOR;
 
 out vec3 vFragPosition;

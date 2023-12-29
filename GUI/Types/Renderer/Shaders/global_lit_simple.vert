@@ -7,9 +7,9 @@
 //End of parameter defines
 
 layout (location = 0) in vec3 vPOSITION;
+layout (location = 3) in vec2 vTEXCOORD;
 #include "common/compression.glsl"
 
-in vec2 vTEXCOORD;
 #if (F_PAINT_VERTEX_COLORS == 1)
     in vec4 vTEXCOORD2;
     out vec4 vVertexColorOut;
