@@ -94,6 +94,11 @@ vec4 GetTintColor()
 void main()
 {
     mat4 skinTransform = transform;
+
+    #if defined(csgo_environment_vfx)
+        skinTransform *= getSkinMatrix();
+    #endif
+
     vec4 fragPosition = skinTransform * vec4(vPOSITION, 1.0);
     gl_Position = g_matViewToProjection * fragPosition;
     vFragPosition = fragPosition.xyz / fragPosition.w;
