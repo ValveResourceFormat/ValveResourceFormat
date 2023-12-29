@@ -60,10 +60,10 @@ namespace Tests
             foreach (var testCase in testCases)
             {
                 var result = ComputeVCSFileName(testCase.FileName);
-                Assert.AreEqual(testCase.ShaderName, result.ShaderName);
-                Assert.AreEqual(testCase.Platform, result.PlatformType);
-                Assert.AreEqual(testCase.ShaderModel, result.ShaderModelType);
-                Assert.AreEqual(testCase.ProgramType, result.ProgramType);
+                Assert.That(result.ShaderName, Is.EqualTo(testCase.ShaderName));
+                Assert.That(result.PlatformType, Is.EqualTo(testCase.Platform));
+                Assert.That(result.ShaderModelType, Is.EqualTo(testCase.ShaderModel));
+                Assert.That(result.ProgramType, Is.EqualTo(testCase.ProgramType));
             }
         }
 

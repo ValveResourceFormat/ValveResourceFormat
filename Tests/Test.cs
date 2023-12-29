@@ -37,7 +37,7 @@ namespace Tests
 
                 resources.Add(Path.GetFileName(file), resource);
 
-                Assert.AreNotEqual(ResourceType.Unknown, resource.ResourceType);
+                Assert.That(resource.ResourceType, Is.Not.EqualTo(ResourceType.Unknown));
 
                 // Verify extension
                 var extension = Path.GetExtension(file);
@@ -50,7 +50,7 @@ namespace Tests
                 var type = typeof(ResourceType).GetMember(resource.ResourceType.ToString()).First();
                 var attribute = "." + ((ExtensionAttribute)type.GetCustomAttributes(typeof(ExtensionAttribute), false).First()).Extension;
 
-                Assert.AreEqual(extension, attribute, file);
+                Assert.That(attribute, Is.EqualTo(extension), file);
 
                 if (resource.ResourceType != ResourceType.Map) /// Tested by <see cref="MapExtractTest"/>
                 {
@@ -101,7 +101,7 @@ namespace Tests
 
                 if (!resources.TryGetValue(name, out var resource))
                 {
-                    Assert.Fail("{0}: no such resource", name);
+                    Assert.Fail($"{name}: no such resource");
 
                     continue;
                 }
@@ -112,7 +112,7 @@ namespace Tests
 
                 if (!resource.ContainsBlockType(blockType))
                 {
-                    Assert.Fail("{0}: no such block: {1}", name, blockType);
+                    Assert.Fail($"{name}: no such block: {blockType}");
 
                     continue;
                 }

@@ -20,7 +20,8 @@ namespace Tests
                 using var decryptedStream = new MemoryStream(decryptedFont);
                 using var expected = new FileStream(Path.ChangeExtension(file, "ttf"), FileMode.Open, FileAccess.Read);
 
-                FileAssert.AreEqual(expected, decryptedStream);
+                // TODO: Do not use legacy
+                NUnit.Framework.Legacy.FileAssert.AreEqual(expected, decryptedStream);
             }
         }
     }

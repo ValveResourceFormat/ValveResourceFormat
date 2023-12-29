@@ -420,7 +420,8 @@ namespace ValveResourceFormat.CompiledShader
                     output.AddTabulatedRow([$"[{("" + param.BlockIndex).PadLeft(indexPad)}]",
                         $"{param.Name}",
                         $"{param.UiType,2},{param.Lead0,2},{BlankNegOne(param.Tex),2},{Vfx.GetTypeName(param.VfxType)},{param.ParamType,2},{param.VecSize,2},{param.Id}",
-                        dynExpstring, uiVisibilityString]);
+                        dynExpstring,
+                        uiVisibilityString]);
                 }
                 output.PrintTabulatedValues();
             }

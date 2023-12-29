@@ -33,7 +33,7 @@ namespace Tests
             Assert.That(exception.Message, Contains.Substring("file loader must be provided to load the map's lumps"));
 
             var extract = new MapExtract(worldResource, new NullFileLoader());
-            Assert.AreEqual(extract.LumpFolder, Path.GetDirectoryName(worldPath));
+            Assert.That(Path.GetDirectoryName(worldPath), Is.EqualTo(extract.LumpFolder));
 
             extract.ToValveMap();
 
