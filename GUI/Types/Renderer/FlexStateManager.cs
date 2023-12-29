@@ -28,18 +28,30 @@ namespace GUI.Types.Renderer
 
             MorphComposite = new MorphComposite(guiContext, morph);
         }
-        public void SetControllerValue(int id, float value)
+        public bool SetControllerValue(int id, float value)
         {
             var controller = Morph.FlexControllers[id];
-            controllerValues[id] = Math.Clamp(value, controller.Min, controller.Max);
+            value = Math.Clamp(value, controller.Min, controller.Max);
+            if (controllerValues[id] == value)
+            {
+                return false;
+            }
+
+            controllerValues[id] = value;
+            return true;
         }
-        public void SetControllerValues(float[] datas)
+        public bool SetControllerValues(float[] datas)
         {
             var length = Math.Min(datas.Length, controllerValues.Length);
+            var changed = false;
             for (var i = 0; i < length; i++)
             {
-                SetControllerValue(i, datas[i]);
+                if (SetControllerValue(i, datas[i]))
+                {
+                    changed = true;
+                }
             }
+            return changed;
         }
         public void ResetControllers()
         {
