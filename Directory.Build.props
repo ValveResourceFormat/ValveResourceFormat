@@ -20,7 +20,6 @@
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <TreatWarningsAsErrors Condition="'$(Configuration)' == 'Release'">true</TreatWarningsAsErrors>
     <AnalysisMode>AllEnabledByDefault</AnalysisMode>
-    <Configurations>Debug;Release;DebugFast</Configurations>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -30,12 +29,5 @@
     <RepositoryType>git</RepositoryType>
     <PackageProjectUrl>https://valveresourceformat.github.io/</PackageProjectUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-  </PropertyGroup>
-
-  <!-- Default configuration for fast-debugging builds -->
-  <PropertyGroup Condition="'$(Configuration)' == 'DebugFast'">
-    <AnalysisMode>AllDisabledByDefault</AnalysisMode>
-    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
-    <DefineConstants>$(DefineConstants);DEBUG</DefineConstants>
   </PropertyGroup>
 </Project>
