@@ -30,6 +30,7 @@ namespace GUI.Types.Renderer
         private List<int>[] morphRects;
         private HashSet<int> usedRects = new();
         private int morphCount;
+        private bool renderTargetInitialized;
 
         private readonly QuadIndexBuffer quadIndices;
 
@@ -82,6 +83,17 @@ namespace GUI.Types.Renderer
             return rectDatas.Count();
         }
 
+        private void InitRenderTarget()
+        {
+            GL.BindTexture(TextureTarget.Texture2D, CompositeTexture);
+            GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgb16f, 2048, 2048, 0, PixelFormat.Rgba, PixelType.Float, 0);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Nearest);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMinFilter.Nearest);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureWrapMode.ClampToEdge);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToEdge);
+            GL.BindTexture(TextureTarget.Texture2D, 0);
+        }
+
         public void Render()
         {
             BuildVertexBuffer();
@@ -103,14 +115,11 @@ namespace GUI.Types.Renderer
             GL.BindBuffer(BufferTarget.ArrayBuffer, vertexBufferHandle);
             GL.BufferData(BufferTarget.ArrayBuffer, usedVerticesLength * sizeof(float), usedVertices, BufferUsageHint.DynamicDraw);
 
-            //render target
-            GL.BindTexture(TextureTarget.Texture2D, CompositeTexture);
-            GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgb16f, 2048, 2048, 0, PixelFormat.Rgba, PixelType.Float, 0);
-            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Nearest);
-            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMinFilter.Nearest);
-            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureWrapMode.ClampToEdge);
-            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToEdge);
-            GL.BindTexture(TextureTarget.Texture2D, 0);
+            if (!renderTargetInitialized)
+            {
+                InitRenderTarget();
+                renderTargetInitialized = true;
+            }
 
             shader.SetTexture(0, "morphAtlas", morphAtlas);
 

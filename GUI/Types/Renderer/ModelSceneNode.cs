@@ -101,7 +101,6 @@ namespace GUI.Types.Renderer
         {
             if (!AnimationController.Update(context.Timestep))
             {
-                RenderMorphComposites();
                 return;
             }
 
@@ -148,9 +147,11 @@ namespace GUI.Types.Renderer
                     continue;
                 }
 
-                renderableMesh.FlexStateManager.SetControllerValues(datas);
-                renderableMesh.FlexStateManager.UpdateComposite();
-                renderableMesh.FlexStateManager.MorphComposite.Render();
+                if (renderableMesh.FlexStateManager.SetControllerValues(datas))
+                {
+                    renderableMesh.FlexStateManager.UpdateComposite();
+                    renderableMesh.FlexStateManager.MorphComposite.Render();
+                }
             }
         }
 
