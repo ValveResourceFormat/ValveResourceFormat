@@ -438,7 +438,7 @@ namespace GUI.Types.Renderer
 
         public FileSystemWatcher ShaderWatcher { get; } = new()
         {
-            Path = ShadersFolderPathOnDisk,
+            Path = GetShaderDiskPath(string.Empty),
             NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite,
             IncludeSubdirectories = true,
             EnableRaisingEvents = true,
