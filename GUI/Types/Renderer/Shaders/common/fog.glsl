@@ -1,4 +1,4 @@
-//? #version 460
+#version 460
 //? #include "ViewConstants.glsl"
 //? #include "utils.glsl"
 

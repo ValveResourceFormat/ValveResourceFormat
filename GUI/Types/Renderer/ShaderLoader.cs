@@ -16,6 +16,7 @@ namespace GUI.Types.Renderer
     {
         private const string ShaderDirectory = "GUI.Types.Renderer.Shaders.";
         private const string RenderModeDefinePrefix = "renderMode_";
+        private const string ExpectedShaderVersion = "#version 460";
 
         [GeneratedRegex("^#include \"(?<IncludeName>[^\"]+)\"")]
         private static partial Regex RegexInclude();
@@ -156,7 +157,7 @@ namespace GUI.Types.Renderer
                 builder.Append('\n');
             }
 
-            void LoadShaderString(string shaderFileToLoad)
+            void LoadShaderString(string shaderFileToLoad, bool isInclude)
             {
                 using var stream = GetShaderStream(shaderFileToLoad);
                 using var reader = new StreamReader(stream);
@@ -173,6 +174,20 @@ namespace GUI.Types.Renderer
                 while ((line = reader.ReadLine()) != null)
                 {
                     lineNum++;
+
+                    if (lineNum == 2)
+                    {
+                        if (line != ExpectedShaderVersion)
+                        {
+                            throw new InvalidProgramException($"First line must be '{ExpectedShaderVersion}' in '{shaderFileToLoad}'");
+                        }
+
+                        if (isInclude)
+                        {
+                            // We add #version even in includes so that they can be compiled individually for better editing experience
+                            continue;
+                        }
+                    }
 
 #if DEBUG
                     currentSourceLines.Add(line);
@@ -191,7 +206,7 @@ namespace GUI.Types.Renderer
                             var includeName = match.Groups["IncludeName"].Value;
 
                             AppendLineNumber(1, sourceFileNumber);
-                            LoadShaderString(includeName);
+                            LoadShaderString(includeName, isInclude: true);
                             AppendLineNumber(lineNum, currentSourceFileNumber);
 
                             continue;
@@ -248,7 +263,7 @@ namespace GUI.Types.Renderer
                 }
             }
 
-            LoadShaderString(shaderFile);
+            LoadShaderString(shaderFile, isInclude: false);
 
             var preprocessedShaderSource = builder.ToString();
 

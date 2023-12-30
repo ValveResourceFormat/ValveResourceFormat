@@ -1,4 +1,4 @@
-//? #version 460
+#version 460
 
 // Baked lighting
 #define D_BAKED_LIGHTING_FROM_LIGHTMAP 0

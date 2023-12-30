@@ -1,4 +1,4 @@
-//? #version 460
+#version 460
 
 layout (location = 1) in vec4 vBLENDINDICES;
 layout (location = 2) in vec4 vBLENDWEIGHT;

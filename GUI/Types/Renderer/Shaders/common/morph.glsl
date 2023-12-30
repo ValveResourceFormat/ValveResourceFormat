@@ -1,4 +1,4 @@
-//? #version 460
+#version 460
 
 #define F_MORPH_SUPPORTED 0
 

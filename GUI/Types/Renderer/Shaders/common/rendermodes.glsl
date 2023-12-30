@@ -1,4 +1,4 @@
-//? #version 460
+#version 460
 //? #include "utils.glsl"
 
 #define renderMode_FullBright 0

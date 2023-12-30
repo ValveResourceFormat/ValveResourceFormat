@@ -1,4 +1,4 @@
-//? #version 460
+#version 460
 
 layout(std140) uniform ViewConstants {
     mat4 g_matViewToProjection;

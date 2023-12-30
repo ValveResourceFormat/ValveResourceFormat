@@ -1,4 +1,4 @@
-//? #version 460
+#version 460
 //? #include "LightingConstants.glsl"
 //? #include "features.glsl"
 //? #include "utils.glsl"

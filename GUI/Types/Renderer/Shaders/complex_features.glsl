@@ -1,4 +1,4 @@
-//? #version 460
+#version 460
 
 // Common features
 #define F_LAYERS 0

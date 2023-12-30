@@ -1,4 +1,4 @@
-//? #version 460
+#version 460
 
 #define MAX_ENVMAPS 144
 
