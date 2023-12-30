@@ -1,4 +1,4 @@
-#version 460 core
+#version 460
 
 layout (location = 0) in vec3 vPOSITION;
 layout (location = 3) in vec2 vTEXCOORD;

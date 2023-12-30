@@ -171,7 +171,7 @@ namespace GUI.Types.Renderer
 
                     if (!resolvedIncludes.Add(shaderFileToLoad))
                     {
-                        Console.WriteLine($"{shaderFileToLoad} already loaded");
+                        //Console.WriteLine($"{shaderFileToLoad} already loaded");
                         return;
                     }
                 }
