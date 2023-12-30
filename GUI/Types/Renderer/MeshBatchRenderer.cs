@@ -79,6 +79,8 @@ namespace GUI.Types.Renderer
             public int MorphVertexIdOffset;
         }
 
+        private static readonly Queue<RenderTexture> instanceBoundTextures = new(capacity: 4);
+
         private static void DrawBatch(List<Request> requests, Scene.RenderContext context)
         {
             uint vao = 0;
@@ -187,42 +189,27 @@ namespace GUI.Types.Renderer
 
             if (uniforms.Animated != -1)
             {
-                GL.Uniform1(uniforms.Animated, request.Mesh.AnimationTexture.HasValue ? 1.0f : 0.0f);
+                GL.Uniform1(uniforms.Animated, request.Mesh.AnimationTexture is null ? 0.0f : 1.0f);
             }
 
-            //Push animation texture to the shader (if it supports it)
-            if (request.Mesh.AnimationTexture.HasValue)
+            // Push animation texture to the shader (if it supports it)
+            if (uniforms.AnimationTexture != -1 && request.Mesh.AnimationTexture != null)
             {
-                if (uniforms.AnimationTexture != -1)
-                {
-                    GL.ActiveTexture(TextureUnit.Texture0 + (int)ReservedTextureSlots.AnimationTexture);
-                    GL.BindTexture(TextureTarget.Texture2D, request.Mesh.AnimationTexture.Value);
-                    GL.Uniform1(uniforms.AnimationTexture, (int)ReservedTextureSlots.AnimationTexture);
-                }
+                instanceBoundTextures.Enqueue(request.Mesh.AnimationTexture);
+                Shader.SetTexture((int)ReservedTextureSlots.AnimationTexture, uniforms.AnimationTexture, request.Mesh.AnimationTexture);
 
-                if (uniforms.NumBones != -1)
-                {
-                    var numBones = MathF.Max(1, request.Mesh.AnimationTextureSize - 1);
-                    GL.Uniform1(uniforms.NumBones, numBones);
-                }
+                var numBones = MathF.Max(1, request.Mesh.AnimationTexture.Height - 1);
+                GL.Uniform1(uniforms.NumBones, numBones);
             }
 
             var morphComposite = request.Mesh.FlexStateManager?.MorphComposite;
             if (morphComposite != null && uniforms.MorphCompositeTexture != -1)
             {
-                GL.ActiveTexture(TextureUnit.Texture0 + (int)ReservedTextureSlots.MorphCompositeTexture);
-                GL.BindTexture(TextureTarget.Texture2D, morphComposite.CompositeTexture);
-                GL.Uniform1(uniforms.MorphCompositeTexture, (int)ReservedTextureSlots.MorphCompositeTexture);
+                instanceBoundTextures.Enqueue(morphComposite.CompositeTexture);
+                Shader.SetTexture((int)ReservedTextureSlots.MorphCompositeTexture, uniforms.MorphCompositeTexture, morphComposite.CompositeTexture);
 
-                if (uniforms.MorphCompositeTextureSize != -1)
-                {
-                    GL.Uniform2(uniforms.MorphCompositeTextureSize, (float)morphComposite.Width, (float)morphComposite.Height);
-                }
-
-                if (uniforms.MorphVertexIdOffset != -1)
-                {
-                    GL.Uniform1(uniforms.MorphVertexIdOffset, request.Call.VertexIdOffset);
-                }
+                GL.Uniform2(uniforms.MorphCompositeTextureSize, (float)morphComposite.CompositeTexture.Width, (float)morphComposite.CompositeTexture.Height);
+                GL.Uniform1(uniforms.MorphVertexIdOffset, request.Call.VertexIdOffset);
             }
 
             if (uniforms.Tint > -1)
@@ -240,6 +227,13 @@ namespace GUI.Types.Renderer
                 request.Call.StartIndex,
                 request.Call.BaseVertex
             );
+
+
+            while (instanceBoundTextures.Count > 0)
+            {
+                var texture = instanceBoundTextures.Dequeue();
+                texture.Unbind();
+            }
         }
     }
 }

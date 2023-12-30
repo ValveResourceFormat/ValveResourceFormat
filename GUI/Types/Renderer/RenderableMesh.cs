@@ -7,7 +7,6 @@ using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.ResourceTypes.ModelFlex;
 using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Utils;
 
@@ -24,7 +23,7 @@ namespace GUI.Types.Renderer
         public List<DrawCall> DrawCallsBlended { get; } = [];
         private IEnumerable<DrawCall> DrawCalls => DrawCallsOpaque.Concat(DrawCallsOverlay).Concat(DrawCallsBlended);
 
-        public int? AnimationTexture { get; private set; }
+        public RenderTexture AnimationTexture { get; private set; }
         public int AnimationTextureSize { get; private set; }
 
         public int MeshIndex { get; }
@@ -82,10 +81,9 @@ namespace GUI.Types.Renderer
             }
         }
 
-        public void SetAnimationTexture(int? texture, int animationTextureSize)
+        public void SetAnimationTexture(RenderTexture texture)
         {
             AnimationTexture = texture;
-            AnimationTextureSize = animationTextureSize;
 
             FlexStateManager?.ResetControllers();
         }

@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.ResourceTypes;
 
@@ -44,12 +45,50 @@ namespace GUI.Types.Renderer
         public void Unbind() => GL.BindTexture(Target, 0);
         public BindingContext BindingContext() => new(Bind, Unbind);
 
+        // todo: bindless parameters TexParameter -> TextureParameter
+        public void SetWrapMode(TextureWrapMode wrap)
+        {
+            Assert_IsBound();
+            GL.TexParameter(Target, TextureParameterName.TextureWrapS, (int)wrap);
+
+            if (Height > 1)
+            {
+                GL.TexParameter(Target, TextureParameterName.TextureWrapT, (int)wrap);
+            }
+
+            if (Depth > 1)
+            {
+                GL.TexParameter(Target, TextureParameterName.TextureWrapR, (int)wrap);
+            }
+        }
+
         public void SetFiltering(TextureMinFilter min, TextureMagFilter mag)
         {
-            Bind();
+            Assert_IsBound();
             GL.TexParameter(Target, TextureParameterName.TextureMinFilter, (int)min);
             GL.TexParameter(Target, TextureParameterName.TextureMagFilter, (int)mag);
-            Unbind();
+        }
+
+        private void Assert_IsBound()
+        {
+#if DEBUG
+            // no GetPName for this
+            if (Target == TextureTarget.TextureCubeMapArray)
+            {
+                return;
+            }
+
+            var current = GL.GetInteger(Target switch
+            {
+                TextureTarget.Texture2D => GetPName.TextureBinding2D,
+                TextureTarget.Texture2DArray => GetPName.TextureBinding2DArray,
+                TextureTarget.TextureCubeMap => GetPName.TextureBindingCubeMap,
+                TextureTarget.TextureCubeMapArray => GetPName.TextureBindingCubeMap,
+                _ => GetPName.TextureBinding2D,
+            });
+
+            Debug.Assert(current == Handle, $"Texture {Handle} is not bound, current is {current}");
+#endif
         }
     }
 }

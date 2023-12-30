@@ -165,15 +165,16 @@ namespace GUI.Types.Renderer
                     var renderTexture = guiContext.MaterialLoader.LoadTexture(lightmap);
                     result.Lightmaps[uniformName] = renderTexture;
 
-                    if (name == "direct_light_indices")
+                    using (renderTexture.BindingContext())
                     {
-                        // point sampling
-                        renderTexture.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
-                    }
+                        if (name == "direct_light_indices")
+                        {
+                            // point sampling
+                            renderTexture.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
+                        }
 
-                    GL.TexParameter(renderTexture.Target, TextureParameterName.TextureWrapS, (int)TextureWrapMode.ClampToEdge);
-                    GL.TexParameter(renderTexture.Target, TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToEdge);
-                    GL.TexParameter(renderTexture.Target, TextureParameterName.TextureWrapR, (int)TextureWrapMode.ClampToEdge);
+                        renderTexture.SetWrapMode(TextureWrapMode.ClampToEdge);
+                    }
                 }
             }
 

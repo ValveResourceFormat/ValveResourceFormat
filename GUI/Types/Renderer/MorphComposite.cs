@@ -14,10 +14,8 @@ namespace GUI.Types.Renderer
         private const float VertexOffset = 2f / 2048f;
         private const int VertexSize = 16;
 
-        public int CompositeTexture { get; }
+        public RenderTexture CompositeTexture { get; }
         public Morph Morph { get; }
-        public int Width { get; }
-        public int Height { get; }
 
         private int frameBuffer;
         private Shader shader;
@@ -60,15 +58,15 @@ namespace GUI.Types.Renderer
 
             GL.UseProgram(shader.Program);
 
-            CompositeTexture = GL.GenTexture();
+            var width = Morph.Data.GetInt32Property("m_nWidth");
+            var height = Morph.Data.GetInt32Property("m_nHeight");
+            CompositeTexture = new(TextureTarget.Texture2D, width, height, 1, 1);
+
             frameBuffer = GL.GenFramebuffer();
 
             InitVertexBuffer();
 
             FillVertices();
-
-            Width = Morph.Data.GetInt32Property("m_nWidth");
-            Height = Morph.Data.GetInt32Property("m_nHeight");
         }
 
         private int GetMorphBundleCount()
@@ -85,13 +83,12 @@ namespace GUI.Types.Renderer
 
         private void InitRenderTarget()
         {
-            GL.BindTexture(TextureTarget.Texture2D, CompositeTexture);
-            GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgb16f, 2048, 2048, 0, PixelFormat.Rgba, PixelType.Float, 0);
-            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Nearest);
-            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMinFilter.Nearest);
-            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureWrapMode.ClampToEdge);
-            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToEdge);
-            GL.BindTexture(TextureTarget.Texture2D, 0);
+            using var _ = CompositeTexture.BindingContext();
+
+            GL.TexImage2D(CompositeTexture.Target, 0, PixelInternalFormat.Rgb16f, 2048, 2048, 0, PixelFormat.Rgba, PixelType.Float, 0);
+
+            CompositeTexture.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
+            CompositeTexture.SetWrapMode(TextureWrapMode.ClampToEdge);
         }
 
         public void Render()
@@ -126,7 +123,7 @@ namespace GUI.Types.Renderer
             //draw
             GL.BindFramebuffer(FramebufferTarget.Framebuffer, frameBuffer);
 
-            GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.ColorAttachment0, TextureTarget.Texture2D, CompositeTexture, 0);
+            GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.ColorAttachment0, CompositeTexture.Target, CompositeTexture.Handle, 0);
 
             GL.Viewport(0, 0, 2048, 2048);
             GL.ClearColor(0, 0, 0, 0);

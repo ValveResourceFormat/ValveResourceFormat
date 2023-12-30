@@ -258,13 +258,11 @@ namespace GUI.Types.Renderer
             if (MaxTextureMaxAnisotropy >= 4)
             {
                 GL.TexParameter(target, (TextureParameterName)ExtTextureFilterAnisotropic.TextureMaxAnisotropyExt, MaxTextureMaxAnisotropy);
-                GL.TexParameter(target, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.LinearMipmapLinear);
-                GL.TexParameter(target, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
+                tex.SetFiltering(TextureMinFilter.LinearMipmapLinear, TextureMagFilter.Linear);
             }
             else
             {
-                GL.TexParameter(target, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Nearest);
-                GL.TexParameter(target, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest);
+                tex.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
             }
 
             GL.TexParameter(target, TextureParameterName.TextureWrapS, (int)clampModeS);
@@ -510,10 +508,8 @@ namespace GUI.Types.Renderer
 
             GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba32f, width, height, 0, PixelFormat.Rgba, PixelType.Float, color);
             GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMaxLevel, 0);
-            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Nearest);
-            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest);
-            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureWrapMode.Repeat);
-            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.Repeat);
+            texture.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
+            texture.SetWrapMode(TextureWrapMode.Repeat);
 
             return texture;
         }
