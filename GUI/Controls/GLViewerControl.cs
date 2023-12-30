@@ -249,9 +249,13 @@ namespace GUI.Controls
                 initialMousePosition = new Vector2(e.X, e.Y);
                 if (e.Clicks == 2)
                 {
-                    Camera.Picker?.Request.NextFrame(e.X, e.Y, PickingIntent.Details);
+                    var intent = ModifierKeys.HasFlag(Keys.Control)
+                        ? PickingIntent.Open
+                        : PickingIntent.Details;
+                    Camera.Picker?.Request.NextFrame(e.X, e.Y, intent);
                 }
             }
+            /* TODO: phase this obscure bind out */
             else if (e.Button == MouseButtons.Right)
             {
                 initialMousePosition = new Vector2(e.X, e.Y);
@@ -264,12 +268,19 @@ namespace GUI.Controls
 
         private void OnMouseUp(object sender, WinFormsMouseEventArgs e)
         {
-            if (e.Button != MouseButtons.Left || initialMousePosition != new Vector2(e.X, e.Y))
+            if (initialMousePosition != new Vector2(e.X, e.Y))
             {
                 return;
             }
 
-            Camera.Picker?.Request.NextFrame(e.X, e.Y, PickingIntent.Select);
+            if (e.Button == MouseButtons.Left)
+            {
+                Camera.Picker?.Request.NextFrame(e.X, e.Y, PickingIntent.Select);
+            }
+            else if (e.Button == MouseButtons.Right)
+            {
+                // right click context menu?
+            }
         }
 
         private void OnMouseWheel(object sender, WinFormsMouseEventArgs e)
