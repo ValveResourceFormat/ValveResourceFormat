@@ -1,11 +1,8 @@
 #version 460
-//? #include "utils.glsl"
+
+#include "utils.glsl"
 
 // File containing vertex inputs and functions to deal with compressed normals and tangents.
-
-#ifndef utils
-#include "common/utils.glsl"
-#endif
 
 #define D_COMPRESSED_NORMALS_AND_TANGENTS 0
 
