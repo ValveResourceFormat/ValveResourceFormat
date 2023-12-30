@@ -474,6 +474,49 @@ namespace GUI.Types.Renderer
         {
             return Path.Combine(ShadersFolderPathOnDisk, ShaderDirectory.Replace('.', '/'), name);
         }
+
+        public static void ValidateShaders()
+        {
+            using var loader = new ShaderLoader();
+            var folder = GetShaderDiskPath(string.Empty);
+
+            var shaders = Directory.GetFiles(folder, "*.frag");
+
+            using var control = new OpenTK.GLControl(OpenTK.Graphics.GraphicsMode.Default, 4, 6, OpenTK.Graphics.GraphicsContextFlags.Default);
+            control.MakeCurrent();
+
+            foreach (var shader in shaders)
+            {
+                var shaderFileName = Path.GetFileNameWithoutExtension(shader);
+
+                loader.LoadShader(shaderFileName);
+            }
+
+            var includes = Directory.GetFiles(folder, "*.glsl");
+
+            foreach (var include in includes)
+            {
+                var shaderFileName = Path.GetFileName(include);
+                var fragmentShader = GL.CreateShader(ShaderType.FragmentShader);
+                loader.LoadShader(fragmentShader, shaderFileName, shaderFileName, EmptyArgs, []);
+                GL.DeleteShader(fragmentShader);
+            }
+
+            /*
+            includes = Directory.GetFiles(Path.Join(folder, "common"), "*.glsl");
+
+            foreach (var include in includes)
+            {
+                var shaderFileName = $"common/{Path.GetFileName(include)}";
+                var fragmentShader = GL.CreateShader(ShaderType.FragmentShader);
+                loader.LoadShader(fragmentShader, shaderFileName, shaderFileName, EmptyArgs, []);
+                GL.DeleteShader(fragmentShader);
+            }
+            */
+
+            System.Windows.Forms.MessageBox.Show("Shaders validated", "Shaders validated");
+            Environment.Exit(0);
+        }
 #endif
     }
 }

@@ -4,7 +4,6 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
-using System.IO.Enumeration;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -98,6 +97,15 @@ namespace GUI
             Settings.Load();
 
             var args = Environment.GetCommandLineArgs();
+
+#if DEBUG
+            if (args.Length > 1 && args[1] == "validate_shaders")
+            {
+                GUI.Types.Renderer.ShaderLoader.ValidateShaders();
+                return;
+            }
+#endif
+
             for (var i = 1; i < args.Length; i++)
             {
                 var file = args[i];
