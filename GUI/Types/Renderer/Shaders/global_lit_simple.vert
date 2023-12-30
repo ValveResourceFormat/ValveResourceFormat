@@ -22,14 +22,12 @@ out vec3 vBitangentOut;
 out vec2 vTexCoordOut;
 out vec4 vTintColorFadeOut;
 
-uniform vec4 g_vTexCoordOffset;
-uniform vec4 g_vTexCoordScale;
+uniform vec4 g_vTexCoordOffset = vec4(0.0);
+uniform vec4 g_vTexCoordScale = vec4(1.0);
 
 #include "common/ViewConstants.glsl"
 uniform mat4 transform;
 uniform vec4 vTint;
-
-uniform vec4 g_vColorTint;
 
 void main()
 {
@@ -47,7 +45,7 @@ void main()
     vTangentOut = normalize(normalTransform * tangent.xyz);
     vBitangentOut = tangent.w * cross(vNormalOut, vTangentOut);
 
-    vTintColorFadeOut = vTint * g_vColorTint;
+    vTintColorFadeOut = vTint;
     vTexCoordOut = vTEXCOORD * g_vTexCoordScale.xy + g_vTexCoordOffset.xy;
 
     #if (F_PAINT_VERTEX_COLORS == 1)

@@ -33,10 +33,10 @@ out vec2 vTexCoord3Out;
 uniform mat4 transform;
 uniform vec4 vTint = vec4(1.0);
 
-uniform float g_flTexCoordScale0;
-uniform float g_flTexCoordScale1;
-uniform float g_flTexCoordScale2;
-uniform float g_flTexCoordScale3;
+uniform float g_flTexCoordScale0 = 1.0;
+uniform float g_flTexCoordScale1 = 1.0;
+uniform float g_flTexCoordScale2 = 1.0;
+uniform float g_flTexCoordScale3 = 1.0;
 
 uniform float g_flTexCoordRotate0;
 uniform float g_flTexCoordRotate1;

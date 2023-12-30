@@ -149,7 +149,7 @@ vec3 GetEnvironment(MaterialProperties_t mat, out vec3 diffuse)
 
     float totalWeight = 0.01;
 
-    for (int i = 0; i < 144; i++) {
+    for (int i = 0; i < g_vEnvMapSizeConstants.y; i++) {
         int envMapArrayIndex = g_iEnvMapArrayIndices[i];
         vec4 proxySphere = g_vEnvMapProxySphere[envMapArrayIndex];
         bool isBoxProjection = proxySphere.w == 1.0f;

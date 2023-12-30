@@ -62,8 +62,8 @@ out vec4 outputColor;
 
 #include "common/ViewConstants.glsl"
 
-uniform vec4 g_vColorTint;
-uniform float g_flOpacityScale;
+uniform vec4 g_vColorTint = vec4(1.0);
+uniform float g_flOpacityScale = 1.0;
 
 uniform float g_flAlphaTestReference = 0.5;
 
@@ -119,7 +119,7 @@ void main()
             color.a = scrollTexel.y;
         #endif
     #else
-        vec4 color = vec4(g_vColorTint.xyz, 1.0);
+        vec4 color = vec4(1.0);
     #endif
 
     #if (F_NORMAL_MAP == 1)
@@ -159,7 +159,7 @@ void main()
     tintFactor = SrgbLinearToGamma(tintFactor * g_vColorTint.rgb);
 
     //Simply multiply the color from the color texture with the illumination
-    outputColor = vec4(illumination * color.rgb * g_vColorTint.rgb * tintFactor, color.a);
+    outputColor = vec4(illumination * color.rgb * tintFactor, color.a);
 
     #if (F_PAINT_VERTEX_COLORS == 1)
         outputColor.rgb *= vVertexColorOut.rgb;
