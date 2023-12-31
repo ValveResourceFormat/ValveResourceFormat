@@ -307,12 +307,12 @@ void applyDetailTexture(inout vec3 Albedo, inout vec3 NormalMap, vec2 detailMask
         vec3 DetailTexture = DETAIL_CONST * texture(g_tDetail, vDetailTexCoords).rgb;
 
         // blend in linear space! this is actually in the code, so we're doing the right thing!
-        vec3 linearAlbedo = pow(Albedo, invGamma);
+        vec3 linearAlbedo = SrgbLinearToGamma(Albedo);
         vec3 overlayScreen = 1.0 - (1.0 - DetailTexture) * (1.0 - linearAlbedo) * 2.0;
         vec3 overlayMul = DetailTexture * linearAlbedo * 2.0;
 
         vec3 linearBlendedOverlay = mix(overlayMul, overlayScreen, greaterThanEqual(linearAlbedo, vec3(0.5)));
-        vec3 gammaBlendedOverlay = pow(linearBlendedOverlay, gamma);
+        vec3 gammaBlendedOverlay = SrgbGammaToLinear(linearBlendedOverlay);
 
         Albedo = mix(Albedo, gammaBlendedOverlay, detailMask);
 

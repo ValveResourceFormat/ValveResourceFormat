@@ -57,7 +57,7 @@ void main()
 #else
     vColor.rgb = skyTexel.rgb;
 #endif
-    vColor.rgb = pow(vColor.rgb, invGamma);
+    vColor.rgb = SrgbLinearToGamma(vColor.rgb);
 
     //vColor.rgb *= (1.0 + g_flBrightnessExposureBias);
     //vColor.rgb *= (1.0 + g_flRenderOnlyExposureBias);

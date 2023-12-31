@@ -268,7 +268,7 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
     vec4 color = texture(g_tColor, texCoord);
     vec4 normalTexture = texture(g_tNormal, texCoord);
 
-    color.rgb = pow(color.rgb, gamma);
+    color.rgb = SrgbGammaToLinear(color.rgb);
 
     // Blending
 #if defined(csgo_generic_blend) || defined(simple_blend_common)  || defined(vr_standard_blend_vfx)
@@ -286,7 +286,7 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
     #endif
 
 
-    color2.rgb = pow(color2.rgb, gamma);
+    color2.rgb = SrgbGammaToLinear(color2.rgb);
 
     // 0: VertexBlend 1: BlendModulateTexture,rg 2: NewLayerBlending,g 3: NewLayerBlending,a
     #if (defined(csgo_generic_vfx_common) && F_FANCY_BLENDING > 0)
@@ -603,16 +603,16 @@ void main()
     ApplyFog(outputColor.rgb, mat.PositionWS);
 
 #if (F_DISABLE_TONE_MAPPING == 0)
-    outputColor.rgb = pow(outputColor.rgb, invGamma);
+    outputColor.rgb = SrgbLinearToGamma(outputColor.rgb);
 #endif
 
 #if renderMode_FullBright == 1
     vec3 fullbrightLighting = CalculateFullbrightLighting(mat.Albedo, mat.Normal, mat.ViewDir);
-    outputColor.rgb = pow(fullbrightLighting, invGamma);
+    outputColor.rgb = SrgbLinearToGamma(fullbrightLighting);
 #endif
 
 #if renderMode_Color == 1
-    outputColor = vec4(pow(mat.Albedo, invGamma), 1.0);
+    outputColor = vec4(SrgbLinearToGamma(mat.Albedo), 1.0);
 #endif
 
 #if renderMode_BumpMap == 1
@@ -632,11 +632,11 @@ void main()
 #endif
 
 #if (renderMode_Diffuse == 1) && (unlit != 1)
-    outputColor.rgb = pow(diffuseLighting * 0.5, invGamma);
+    outputColor.rgb = SrgbLinearToGamma(diffuseLighting * 0.5);
 #endif
 
 #if (renderMode_Specular == 1) && (unlit != 1)
-    outputColor.rgb = pow(specularLighting, invGamma);
+    outputColor.rgb = SrgbLinearToGamma(specularLighting);
 #endif
 
 #if renderMode_PBR == 1
@@ -646,15 +646,15 @@ void main()
 #if (renderMode_Cubemaps == 1)
     // No bumpmaps, full reflectivity
     vec3 viewmodeEnvMap = GetEnvironment(mat).rgb;
-    outputColor.rgb = pow(viewmodeEnvMap, invGamma);
+    outputColor.rgb = SrgbLinearToGamma(viewmodeEnvMap);
 #endif
 
 #if renderMode_Illumination == 1
-    outputColor = vec4(pow(lighting.DiffuseDirect + lighting.SpecularDirect, invGamma), 1.0);
+    outputColor = vec4(SrgbLinearToGamma(lighting.DiffuseDirect + lighting.SpecularDirect), 1.0);
 #endif
 
 #if renderMode_Irradiance == 1 && (F_GLASS == 0)
-    outputColor = vec4(pow(lighting.DiffuseIndirect, invGamma), 1.0);
+    outputColor = vec4(SrgbLinearToGamma(lighting.DiffuseIndirect), 1.0);
 #endif
 
 #if renderMode_Tint == 1
