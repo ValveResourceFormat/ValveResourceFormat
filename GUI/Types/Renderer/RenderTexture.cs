@@ -69,10 +69,9 @@ namespace GUI.Types.Renderer
             GL.TexParameter(Target, TextureParameterName.TextureMagFilter, (int)mag);
         }
 
-#pragma warning disable ca1822 // does not access instance data and can be marked as static (release mode)
+#if DEBUG
         private void Assert_IsBound()
         {
-#if DEBUG
             // no GetPName for this
             if (Target == TextureTarget.TextureCubeMapArray)
             {
@@ -89,8 +88,12 @@ namespace GUI.Types.Renderer
             });
 
             Debug.Assert(current == Handle, $"Texture {Handle} is not bound, current is {current}");
-#endif
         }
-#pragma warning restore ca1822
+#else
+        private static void Assert_IsBound()
+        {
+            // noop
+        }
+#endif
     }
 }
