@@ -1,5 +1,8 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.Threading;
 using GUI.Utils;
 using OpenTK;
 using OpenTK.Graphics;
@@ -12,29 +15,84 @@ namespace GUI.Types.Renderer;
 
 class GLTextureDecoder : IDisposable // ITextureDecoder
 {
-    private readonly GameWindow GLWindow;
-    private readonly GraphicsContext GLContext;
-    public VrfGuiContext GuiContext { get; }
+    private readonly VrfGuiContext guiContext;
+    private readonly ConcurrentQueue<DecodeRequest> decodeQueue;
+    private readonly Thread GLThread;
+
+
+    public record DecodeRequest(SKBitmap Bitmap, Resource TextureResource, int Mip, int Depth, ChannelMapping Channels)
+    {
+        public bool Done { get; set; }
+    };
+
+    private GameWindow GLWindow;
+    private GraphicsContext GLContext;
 
     public GLTextureDecoder(VrfGuiContext guiContext)
     {
-        GuiContext = guiContext;
+        this.guiContext = guiContext;
+        decodeQueue = new();
 
-        GLWindow = new GameWindow(1, 1);
-        GLContext = new GraphicsContext(new GraphicsMode(new ColorFormat(8), 0, 0, 0, 0, 1), GLWindow.WindowInfo);
-        //GLContext.MakeCurrent(GLWindow.WindowInfo);
+        // create a thread context for OpenGL
+        GLThread = new Thread(Initialize)
+        {
+            IsBackground = true,
+            Name = "OpenGL Thread",
+            Priority = ThreadPriority.AboveNormal,
+
+        };
+        GLThread.Start();
     }
 
-    public void Decode(SKBitmap bitmap, Resource textureResource, int depth, int mip, ChannelMapping channels)
+    private void Initialize()
     {
+        GLWindow = new GameWindow(4096, 4096);
+        GLContext = new GraphicsContext(new GraphicsMode(new ColorFormat(8, 8, 8, 8)), GLWindow.WindowInfo, 4, 6, GraphicsContextFlags.Offscreen);
         GLContext.MakeCurrent(GLWindow.WindowInfo);
-        RenderTexture inputTexture = GuiContext.MaterialLoader.LoadTexture(textureResource);
+
+        GL.Enable(EnableCap.DebugOutput);
+        GL.Enable(EnableCap.DebugOutputSynchronous);
+        GL.DebugMessageCallback((source, type, id, severity, length, message, userParam) =>
+        {
+            Log.Warn(nameof(GLTextureDecoder), $"GL: {type} {message}");
+        }, IntPtr.Zero);
+
+        while (true)
+        {
+            if (!decodeQueue.TryDequeue(out var decodeRequest))
+            {
+                Thread.Sleep(100);
+                continue;
+            }
+
+
+            Decode(decodeRequest);
+            decodeRequest.Bitmap.NotifyPixelsChanged();
+        }
+    }
+
+    public void Decode(SKBitmap bitmap, Resource textureResource, int mip, int depth, ChannelMapping channels)
+    {
+        var request = new DecodeRequest(bitmap, textureResource, mip, depth, channels);
+        decodeQueue.Enqueue(request);
+
+        while (!request.Done)
+        {
+            Thread.Sleep(100);
+        }
+    }
+
+    private void Decode(DecodeRequest request)
+    {
+        //GLContext.MakeCurrent(GLWindow.WindowInfo);
+        RenderTexture inputTexture = guiContext.MaterialLoader.LoadTexture(request.TextureResource);
         inputTexture.Bind();
         inputTexture.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
 
+        // TODO: this is limited by window size (needs separate fbo)
         GL.Viewport(0, 0, inputTexture.Width, inputTexture.Height);
-        GL.ClearColor(0, 0, 0, 1);
         GL.Clear(ClearBufferMask.ColorBufferBit);
+        //GL.ClearColor(0, 0, 0, 1);
         GL.DepthMask(false);
         GL.Disable(EnableCap.DepthTest);
 
@@ -43,7 +101,7 @@ class GLTextureDecoder : IDisposable // ITextureDecoder
 
         // TODO: get HemiOctIsoRoughness_RG_B from somewhere
 
-        var shader = GuiContext.ShaderLoader.LoadShader("vrf.texture_decode", new Dictionary<string, byte>
+        var shader = guiContext.ShaderLoader.LoadShader("vrf.texture_decode", new Dictionary<string, byte>
         {
             [textureType] = 1
         });
@@ -54,9 +112,9 @@ class GLTextureDecoder : IDisposable // ITextureDecoder
         shader.SetUniform4("g_vInputTextureSize", new System.Numerics.Vector4(
             inputTexture.Width, inputTexture.Height, inputTexture.Depth, inputTexture.NumMipLevels
         ));
-        shader.SetUniform1("g_nSelectedMip", Math.Clamp(mip, 0, inputTexture.NumMipLevels - 1));
-        shader.SetUniform1("g_nSelectedDepth", Math.Clamp(depth, 0, inputTexture.Depth - 1));
-        shader.SetUniform1("g_nChannelMapping", channels.PackedValue);
+        shader.SetUniform1("g_nSelectedMip", Math.Clamp(request.Mip, 0, inputTexture.NumMipLevels - 1));
+        shader.SetUniform1("g_nSelectedDepth", Math.Clamp(request.Depth, 0, inputTexture.Depth - 1));
+        shader.SetUniform1("g_nChannelMapping", request.Channels.PackedValue);
 
         // full screen triangle
         GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
@@ -65,9 +123,11 @@ class GLTextureDecoder : IDisposable // ITextureDecoder
         GL.UseProgram(0);
 
         // extract pixels from framebuffer
-        GL.ReadPixels(0, 0, inputTexture.Width, inputTexture.Height, PixelFormat.Rgba, PixelType.UnsignedByte, bitmap.GetPixels(out _));
+        var pixels = request.Bitmap.GetPixels(out var length);
+        Debug.Assert(length == inputTexture.Width * inputTexture.Height * 4);
+        GL.ReadPixels(0, 0, inputTexture.Width, inputTexture.Height, PixelFormat.Rgba, PixelType.UnsignedByte, pixels);
 
-        GLContext.MakeCurrent(null);
+        request.Done = true;
     }
 
     public void Dispose()
