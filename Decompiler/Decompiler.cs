@@ -677,9 +677,7 @@ namespace Decompiler
             {
                 try
                 {
-                    package.VerifyHashes();
-
-                    Console.WriteLine("VPK verification succeeded");
+                    VerifyVPK(package);
                 }
                 catch (Exception e)
                 {
@@ -842,6 +840,48 @@ namespace Decompiler
                     }
                 }
             }
+        }
+
+        private void VerifyVPK(Package package)
+        {
+            if (!package.IsSignatureValid())
+            {
+                throw new InvalidDataException("The signature in this package is not valid.");
+            }
+
+            Console.WriteLine("Verifying hashes...");
+
+            package.VerifyHashes();
+
+            var processed = 0;
+            var maximum = 1f;
+
+            var progressReporter = new Progress<string>(progress =>
+            {
+                if (processed++ % 1000 == 0)
+                {
+                    Console.WriteLine($"[{processed / maximum * 100f,6:#00.00}%] {progress}");
+                }
+            });
+
+            if (package.ArchiveMD5Entries.Count > 0)
+            {
+                maximum = package.ArchiveMD5Entries.Count;
+
+                Console.WriteLine("Verifying chunk hashes...");
+
+                package.VerifyChunkHashes(progressReporter);
+            }
+            else
+            {
+                maximum = package.Entries.Sum(x => x.Value.Count);
+
+                Console.WriteLine("Verifying file checksums...");
+
+                package.VerifyFileChecksums(progressReporter);
+            }
+
+            Console.WriteLine("Success.");
         }
 
         private void DumpVPK(string parentPath, Package package, string type, Dictionary<string, uint> manifestData)
