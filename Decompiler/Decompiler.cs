@@ -843,7 +843,7 @@ namespace Decompiler
             }
         }
 
-        private void VerifyVPK(Package package)
+        private static void VerifyVPK(Package package)
         {
             if (!package.IsSignatureValid())
             {
