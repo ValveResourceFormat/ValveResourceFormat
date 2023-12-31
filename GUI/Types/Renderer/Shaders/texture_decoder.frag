@@ -1,7 +1,7 @@
 #version 460
 
 uniform sampler2D g_tInputTexture;
-uniform vec4 g_vInputTextureSize
+uniform vec4 g_vInputTextureSize;
 
 uniform int g_nSelectedMip;
 uniform int g_nSelectedDepth;
@@ -19,7 +19,7 @@ void main()
 {
     vec2 vTexCoord = gl_FragCoord.xy / g_vInputTextureSize.xy;
 
-    vec4 vColor = texture2DLod(g_tInputTexture, vTexCoord, g_nSelectedMip);
+    vec4 vColor = textureLod(g_tInputTexture, vTexCoord, float(g_nSelectedMip) / g_vInputTextureSize.w);
 
     #if defined(HemiOctIsoRoughness_RG_B)
         float flRoughness = vColor.b;
@@ -44,4 +44,5 @@ void main()
     );
 
     vColorOutput = mix(vec4(0, 0, 0, 1), vRemappedColor, bWriteMask);
+    //vColorOutput = vec4(1,0,1,1);
 }

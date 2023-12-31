@@ -5,8 +5,10 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using GUI.Types.Renderer;
 using GUI.Utils;
 using SkiaSharp;
+using ValveResourceFormat;
 using Channels = ValveResourceFormat.CompiledShader.ChannelMapping;
 
 namespace GUI.Forms
@@ -14,6 +16,11 @@ namespace GUI.Forms
     partial class Texture : UserControl
     {
         private string name;
+
+        private bool useHardwareDecoding;
+        private GLTextureDecoder hardwareDecoder;
+        private Resource textureResource;
+
         private SKBitmap skBitmap;
         private CancellationTokenSource cts;
         private Task channelChangingTask;
@@ -21,6 +28,24 @@ namespace GUI.Forms
         public Texture()
         {
             InitializeComponent();
+        }
+
+        public void InitGpuDecoder(VrfGuiContext vrfGuiContext, Resource resource)
+        {
+            hardwareDecoder = new GLTextureDecoder(vrfGuiContext);
+            textureResource = resource;
+        }
+
+        public void SetFromGpu()
+        {
+            if (!useHardwareDecoding)
+            {
+                return;
+            }
+
+            var bitmap = new SKBitmap(skBitmap.Width, skBitmap.Height);
+            hardwareDecoder.Decode(bitmap, textureResource, 0, 0, Channels.RGBA);
+            SetImage(bitmap, name, skBitmap.Width, skBitmap.Height);
         }
 
         public void SetImage(SKBitmap skBitmap, string name, int w, int h)
@@ -42,6 +67,12 @@ namespace GUI.Forms
         /// </summary>
         private void SetChannels(Channels channels)
         {
+            if (useHardwareDecoding)
+            {
+                SetChannelsGpu(channels);
+                return;
+            }
+
             if (skBitmap == null)
             {
                 return;
@@ -79,6 +110,11 @@ namespace GUI.Forms
             {
                 image?.Dispose();
             }
+        }
+
+        private static void SetChannelsGpu(Channels channels)
+        {
+            //throw new NotImplementedException();
         }
 
         private void ContextMenuStrip1_ItemClicked(object sender, ToolStripItemClickedEventArgs e)
@@ -125,6 +161,25 @@ namespace GUI.Forms
 
             using var fs = (FileStream)saveFileDialog.OpenFile();
             pictureBox1.Image.Save(fs, format);
+        }
+
+        private void HardwareDecodeCheckBox_Click(object sender, EventArgs e)
+        {
+            var item = sender as ToolStripMenuItem;
+
+            if (item.Checked)
+            {
+                item.Checked = false;
+                useHardwareDecoding = false;
+
+                pictureBox1.Image.Dispose();
+                pictureBox1.Image = skBitmap.ToBitmap();
+                return;
+            }
+
+            item.Checked = true;
+            useHardwareDecoding = true;
+            SetFromGpu();
         }
 
         private void OnChannelMenuItem_Click(object sender, EventArgs e)

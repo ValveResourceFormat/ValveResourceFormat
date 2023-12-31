@@ -260,7 +260,6 @@ namespace GUI.Types.Renderer
 
             // Dispose texture otherwise we run out of memory
             // TODO: This might conflict when opening multiple files due to shit caching
-            textureResource.Dispose();
 
             if (MaxTextureMaxAnisotropy >= 4)
             {
