@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Numerics;
 using GUI.Types.Renderer.UniformBuffers;
@@ -7,7 +8,7 @@ using GUI.Utils;
 
 namespace GUI.Types.Renderer
 {
-    class Scene
+    partial class Scene
     {
         public readonly struct UpdateContext
         {
@@ -30,7 +31,7 @@ namespace GUI.Types.Renderer
 
         public Camera MainCamera { get; set; }
         public SceneSky Sky { get; set; }
-        public WorldLightingInfo LightingInfo { get; } = new();
+        public WorldLightingInfo LightingInfo { get; }
         public WorldFogInfo FogInfo { get; set; } = new();
         public Dictionary<string, byte> RenderAttributes { get; } = [];
         public VrfGuiContext GuiContext { get; }
@@ -53,6 +54,8 @@ namespace GUI.Types.Renderer
             GuiContext = context;
             StaticOctree = new Octree<SceneNode>(sizeHint);
             DynamicOctree = new Octree<SceneNode>(sizeHint);
+
+            LightingInfo = new(this);
         }
 
         public void Add(SceneNode node, bool dynamic)
@@ -297,12 +300,33 @@ namespace GUI.Types.Renderer
                 return;
             }
 
-            var firstTexture = LightingInfo.EnvMaps.Values.First().EnvMapTexture;
+            var firstTexture = LightingInfo.EnvMaps.First().EnvMapTexture;
 
             LightingInfo.LightingData.EnvMapSizeConstants = new Vector4(firstTexture.NumMipLevels - 1, firstTexture.Depth, 0, 0);
 
-            foreach (var envMap in LightingInfo.EnvMaps.Values)
+            int ArrayIndexCompare(SceneEnvMap a, SceneEnvMap b) => a.ArrayIndex.CompareTo(b.ArrayIndex);
+            int HandShakeCompare(SceneEnvMap a, SceneEnvMap b) => a.HandShake.CompareTo(b.HandShake);
+
+            LightingInfo.EnvMaps.Sort(LightingInfo.CubemapType switch
             {
+                CubemapType.CubemapArray => ArrayIndexCompare,
+                _ => HandShakeCompare
+            });
+
+            var i = 0;
+            foreach (var envMap in LightingInfo.EnvMaps)
+            {
+                if (i >= LightingConstants.MAX_ENVMAPS)
+                {
+                    Log.Error(nameof(WorldLoader), $"Envmap array index {i} is too large, skipping! Max: {LightingConstants.MAX_ENVMAPS}");
+                    continue;
+                }
+
+                if (LightingInfo.CubemapType == CubemapType.CubemapArray)
+                {
+                    Debug.Assert(envMap.ArrayIndex == i, "Envmap array index mismatch");
+                }
+
                 var nodes = StaticOctree.Query(envMap.BoundingBox);
 
                 foreach (var node in nodes)
@@ -317,50 +341,41 @@ namespace GUI.Types.Renderer
                     node.EnvMaps.Add(envMap);
                 }
 
-                if (envMap.ArrayIndex < 0)
-                {
-                    continue;
-                }
-
-                Matrix4x4.Invert(envMap.Transform, out var invertedTransform);
-
-                LightingInfo.LightingData.EnvMapWorldToLocal[envMap.ArrayIndex] = invertedTransform;
-                LightingInfo.LightingData.EnvMapBoxMins[envMap.ArrayIndex] = new Vector4(envMap.LocalBoundingBox.Min, 0);
-                LightingInfo.LightingData.EnvMapBoxMaxs[envMap.ArrayIndex] = new Vector4(envMap.LocalBoundingBox.Max, 0);
-                LightingInfo.LightingData.EnvMapEdgeInvEdgeWidth[envMap.ArrayIndex] = new Vector4(envMap.EdgeFadeDists, 0);
-                LightingInfo.LightingData.EnvMapProxySphere[envMap.ArrayIndex] = new Vector4(envMap.Transform.Translation, envMap.ProjectionMode);
-                LightingInfo.LightingData.EnvMapColorRotated[envMap.ArrayIndex] = new Vector4(envMap.Tint, 0);
-
-                // TODO
-                LightingInfo.LightingData.EnvMapNormalizationSH[envMap.ArrayIndex] = new Vector4(0, 0, 0, 1);
+                UpdateGpuEnvmapData(envMap, i);
+                i++;
             }
 
             foreach (var node in AllNodes)
             {
-                SceneEnvMap preCalculated = default;
+                var preComputedHandshake = node.CubeMapPrecomputedHandshake;
+                SceneEnvMap preComputed = default;
 
-                if (node.CubeMapPrecomputedHandshake > 0)
+                if (preComputedHandshake > 0)
                 {
-                    if (!LightingInfo.EnvMaps.TryGetValue(node.CubeMapPrecomputedHandshake, out preCalculated))
+                    if (LightingInfo.CubemapType == CubemapType.IndividualCubemaps
+                        && preComputedHandshake <= LightingInfo.EnvMaps.Count)
                     {
-#if DEBUG
-                        Log.Debug(nameof(Scene), $"A envmap with handshake [{node.CubeMapPrecomputedHandshake}] does not exist for node at {node.BoundingBox.Center}");
-#endif
-                        continue;
+                        // SteamVR Home node handshake as envmap index
+                        node.EnvMaps.Clear();
+                        node.EnvMaps.Add(LightingInfo.EnvMaps[preComputedHandshake - 1]);
                     }
-
-                    // Prefer precalculated env map for legacy games (steamvr)
-                    if (preCalculated.EnvMapTexture.Target == OpenTK.Graphics.OpenGL.TextureTarget.TextureCubeMap)
+                    else if (LightingInfo.EnvMapHandshakes.TryGetValue(preComputedHandshake, out preComputed))
                     {
                         node.EnvMaps.Clear();
-                        node.EnvMaps.Add(preCalculated);
-                        continue;
+                        node.EnvMaps.Add(preComputed);
+                    }
+                    else
+                    {
+#if DEBUG
+                        Log.Debug(nameof(Scene), $"A envmap with handshake [{preComputedHandshake}] does not exist for node at {node.BoundingBox.Center}");
+#endif
                     }
                 }
 
                 var lightingOrigin = node.LightingOrigin ?? Vector3.Zero;
                 if (node.LightingOrigin.HasValue)
                 {
+                    // in source2 this is a dynamic combo D_SPECULAR_CUBEMAP_STATIC=1, and i guess without a loop (similar to SCENE_CUBEMAP_TYPE=1)
                     node.EnvMaps = node.EnvMaps
                         .OrderBy((envMap) => Vector3.Distance(lightingOrigin, envMap.BoundingBox.Center))
                         .ToList();
@@ -373,31 +388,63 @@ namespace GUI.Types.Renderer
                         .ToList();
                 }
 
-                node.EnvMapIds = node.EnvMaps.Select(x => x.ArrayIndex).ToArray();
+                var max = 16;
+                if (node.EnvMaps.Count > max)
+                {
+                    Log.Warn("Renderer", $"Performance warning: more than {max} envmaps binned for node {node.DebugName}");
+                }
+
+                node.EnvMapIds = LightingInfo.CubemapType switch
+                {
+                    CubemapType.CubemapArray => node.EnvMaps.Select(x => x.ArrayIndex).ToArray(),
+                    _ => node.EnvMaps.Select(e => LightingInfo.EnvMaps.IndexOf(e)).ToArray()
+                };
 
 #if DEBUG
-                if (preCalculated != default)
+                if (preComputed != default)
                 {
-                    var vrfCalculated = node.EnvMaps.FirstOrDefault();
-                    if (vrfCalculated is null)
+                    var vrfComputed = node.EnvMaps.FirstOrDefault();
+                    if (vrfComputed is null)
                     {
-                        Log.Debug(nameof(Scene), $"Could not find any envmaps for node at {node.BoundingBox.Center}. Valve precalculated envmap is at {preCalculated.BoundingBox.Center} [{node.CubeMapPrecomputedHandshake}]");
+                        Log.Debug(nameof(Scene), $"Could not find any envmaps for node {node.DebugName}. Valve precomputed envmap is at {preComputed.BoundingBox.Center} [{preComputedHandshake}]");
                         continue;
                     }
 
-                    if (vrfCalculated.HandShake == node.CubeMapPrecomputedHandshake)
+                    if (vrfComputed.HandShake == preComputedHandshake)
                     {
                         continue;
                     }
 
-                    var vrfDistance = Vector3.Distance(lightingOrigin, vrfCalculated.BoundingBox.Center);
-                    var precalculatedDistance = Vector3.Distance(lightingOrigin, LightingInfo.EnvMaps[node.CubeMapPrecomputedHandshake].BoundingBox.Center);
+                    var vrfDistance = Vector3.Distance(lightingOrigin, vrfComputed.BoundingBox.Center);
+                    var preComputedDistance = Vector3.Distance(lightingOrigin, LightingInfo.EnvMapHandshakes[preComputedHandshake].BoundingBox.Center);
 
-                    Log.Debug(nameof(Scene), $"Calculated envmap doesn't match with the precalculated one" +
-                        $" (dists: vrf={vrfDistance} s2={precalculatedDistance}) for node at {node.BoundingBox.Center} [{node.CubeMapPrecomputedHandshake}]");
+                    var anyIndex = node.EnvMaps.FindIndex(x => x.HandShake == preComputedHandshake);
+
+                    Log.Debug(nameof(Scene), $"Topmost calculated envmap doesn't match with the precomputed one" +
+                        $" (dists: vrf={vrfDistance} s2={preComputedDistance}) for node at {node.BoundingBox.Center} [{preComputedHandshake}]" +
+                        (anyIndex > 0 ? $" (however it's still binned at a higher iterate index {anyIndex})" : string.Empty));
                 }
 #endif
+                if (LightingInfo.CubemapType == CubemapType.CubemapArray)
+                {
+                    node.EnvMaps = null; // no longer need
+                }
             }
+        }
+
+        private void UpdateGpuEnvmapData(SceneEnvMap envMap, int index)
+        {
+            Matrix4x4.Invert(envMap.Transform, out var invertedTransform);
+
+            LightingInfo.LightingData.EnvMapWorldToLocal[index] = invertedTransform;
+            LightingInfo.LightingData.EnvMapBoxMins[index] = new Vector4(envMap.LocalBoundingBox.Min, 0);
+            LightingInfo.LightingData.EnvMapBoxMaxs[index] = new Vector4(envMap.LocalBoundingBox.Max, 0);
+            LightingInfo.LightingData.EnvMapEdgeInvEdgeWidth[index] = new Vector4(envMap.EdgeFadeDists, 0);
+            LightingInfo.LightingData.EnvMapProxySphere[index] = new Vector4(envMap.Transform.Translation, envMap.ProjectionMode);
+            LightingInfo.LightingData.EnvMapColorRotated[index] = new Vector4(envMap.Tint, 0);
+
+            // TODO
+            LightingInfo.LightingData.EnvMapNormalizationSH[index] = new Vector4(0, 0, 0, 1);
         }
     }
 }

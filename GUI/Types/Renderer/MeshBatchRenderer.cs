@@ -66,6 +66,7 @@ namespace GUI.Types.Renderer
         {
             public int Animated;
             public int AnimationTexture;
+            public int EnvmapTexture;
             public int NumBones;
             public int Transform;
             public int Tint;
@@ -79,6 +80,11 @@ namespace GUI.Types.Renderer
             public int MorphVertexIdOffset;
         }
 
+        private ref struct Config
+        {
+            public bool NeedsCubemapBinding;
+        }
+
         private static readonly Queue<RenderTexture> instanceBoundTextures = new(capacity: 4);
 
         private static void DrawBatch(List<Request> requests, Scene.RenderContext context)
@@ -87,6 +93,10 @@ namespace GUI.Types.Renderer
             Shader shader = null;
             RenderMaterial material = null;
             Uniforms uniforms = new();
+            Config config = new()
+            {
+                NeedsCubemapBinding = context.Scene.LightingInfo.CubemapType == Scene.CubemapType.IndividualCubemaps
+            };
 
             foreach (var request in requests)
             {
@@ -115,6 +125,7 @@ namespace GUI.Types.Renderer
                         {
                             Animated = shader.GetUniformLocation("bAnimated"),
                             AnimationTexture = shader.GetUniformLocation("animationTexture"),
+                            EnvmapTexture = shader.GetUniformLocation("g_tEnvironmentMap"),
                             NumBones = shader.GetUniformLocation("fNumBones"),
                             Transform = shader.GetUniformLocation("transform"),
                             Tint = shader.GetUniformLocation("vTint"),
@@ -148,14 +159,14 @@ namespace GUI.Types.Renderer
                     material.Render(shader);
                 }
 
-                Draw(ref uniforms, request);
+                Draw(ref uniforms, ref config, request);
             }
 
             material?.PostRender();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static void Draw(ref Uniforms uniforms, Request request)
+        private static void Draw(ref Uniforms uniforms, ref Config config, Request request)
         {
             var transformTk = request.Transform.ToOpenTK();
             GL.UniformMatrix4(uniforms.Transform, false, ref transformTk);
@@ -184,7 +195,20 @@ namespace GUI.Types.Renderer
 
             if (uniforms.CubeMapArrayIndices != -1 && request.Node.EnvMapIds != null)
             {
-                GL.Uniform1(uniforms.CubeMapArrayIndices, request.Node.EnvMapIds.Length, request.Node.EnvMapIds);
+                if (config.NeedsCubemapBinding && request.Node.EnvMaps.Count > 0)
+                {
+                    var envmap = request.Node.EnvMaps[0].EnvMapTexture;
+                    var envmapDataIndex = request.Node.EnvMapIds[0];
+
+                    instanceBoundTextures.Enqueue(envmap);
+                    Shader.SetTexture((int)ReservedTextureSlots.EnvironmentMap, uniforms.EnvmapTexture, envmap);
+
+                    GL.Uniform1(uniforms.CubeMapArrayIndices, envmapDataIndex);
+                }
+                else
+                {
+                    GL.Uniform1(uniforms.CubeMapArrayIndices, request.Node.EnvMapIds.Length, request.Node.EnvMapIds);
+                }
             }
 
             if (uniforms.Animated != -1)
@@ -229,9 +253,8 @@ namespace GUI.Types.Renderer
             );
 
 
-            while (instanceBoundTextures.Count > 0)
+            while (instanceBoundTextures.TryDequeue(out var texture))
             {
-                var texture = instanceBoundTextures.Dequeue();
                 texture.Unbind();
             }
         }

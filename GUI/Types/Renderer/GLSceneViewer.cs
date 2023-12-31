@@ -11,6 +11,7 @@ using GUI.Controls;
 using GUI.Types.ParticleRenderer;
 using GUI.Types.Renderer.UniformBuffers;
 using GUI.Utils;
+using OpenTK.Graphics;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat;
 
@@ -222,24 +223,30 @@ namespace GUI.Types.Renderer
 
             PostSceneLoad();
 
+            viewBuffer.Data.ClearColor = Settings.BackgroundColor;
+            ClearColor = Scene.Sky is null ? viewBuffer.Data.ClearColor : FastClear;
+
             GLLoad -= OnLoad;
             GLPaint += OnPaint;
 
             GuiContext.ClearCache();
         }
 
+        // https://gpuopen.com/learn/rdna-performance-guide/#clears
+        private readonly Color4 FastClear = Color4.Black;
+        private Color4 ClearColor;
+
         protected virtual void OnPaint(object sender, RenderEventArgs e)
         {
+            GL.ClearColor(ClearColor);
+            GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
+
             Uptime += e.FrameTime;
             viewBuffer.Data.Time = Uptime;
 
             Scene.Update(e.FrameTime);
 
             selectedNodeRenderer.Update(new Scene.UpdateContext(e.FrameTime));
-
-            // Todo: this should be set once on init, and toggled when there's F_RENDER_BACKFACES
-            GL.Enable(EnableCap.CullFace);
-            GL.Enable(EnableCap.DepthTest);
 
             void UpdateSceneBuffers(Scene scene, Camera camera)
             {

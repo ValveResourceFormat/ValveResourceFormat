@@ -45,7 +45,7 @@ namespace GUI.Types.Renderer
             resource.Read(stream);
 
             var texture = Scene.GuiContext.MaterialLoader.LoadTexture(resource);
-            var envMap = new SceneEnvMap(Scene, new AABB(new Vector3(float.MinValue), new Vector3(float.MaxValue)))
+            var environmentMap = new SceneEnvMap(Scene, new AABB(new Vector3(float.MinValue), new Vector3(float.MaxValue)))
             {
                 Transform = Matrix4x4.Identity,
                 EdgeFadeDists = Vector3.Zero,
@@ -54,9 +54,7 @@ namespace GUI.Types.Renderer
                 EnvMapTexture = texture,
             };
 
-            Scene.LightingInfo.Lightmaps.TryAdd("g_tEnvironmentMap", texture);
-            Scene.LightingInfo.EnvMaps.Add(0, envMap);
-            Scene.RenderAttributes["SCENE_ENVIRONMENT_TYPE"] = 2;
+            Scene.LightingInfo.AddEnvironmentMap(environmentMap);
         }
 
         protected override void OnPaint(object sender, RenderEventArgs e)

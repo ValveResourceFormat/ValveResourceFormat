@@ -7,14 +7,14 @@
 //? #include "pbr.glsl"
 //? #include "lighting.glsl"
 
-#define SCENE_ENVIRONMENT_TYPE 0
+#define SCENE_CUBEMAP_TYPE 0 // 0 = None, 1 = Per-batch cube map, 2 = Per-scene cube map array
 
-#if (SCENE_ENVIRONMENT_TYPE == 0) // None or missing environment map
+#if (SCENE_CUBEMAP_TYPE == 0)
     // ...
-#elif (SCENE_ENVIRONMENT_TYPE == 1) // Per-object cube map
+#elif (SCENE_CUBEMAP_TYPE == 1)
     uniform samplerCube g_tEnvironmentMap;
-    //uniform int g_iEnvMapArrayIndices[MAX_ENVMAPS];
-#elif (SCENE_ENVIRONMENT_TYPE == 2) // Per scene cube map array
+    uniform int g_iEnvMapArrayIndices;
+#elif (SCENE_CUBEMAP_TYPE == 2)
     uniform samplerCubeArray g_tEnvironmentMap;
     uniform int g_iEnvMapArrayIndices[MAX_ENVMAPS];
 #endif
@@ -40,7 +40,7 @@ vec3 CubemapParallaxCorrection(vec3 envMapLocalPos, vec3 localReflectionVector, 
 float GetEnvMapLOD(float roughness, vec3 R, float clothMask)
 {
     #if (renderMode_Cubemaps == 1)
-        return 0.0;
+        return sin(g_flTime * 3);
     #endif
 
     const float EnvMapMipCount = g_vEnvMapSizeConstants.x;
@@ -113,6 +113,14 @@ vec3 EnvBRDF(vec3 specColor, float rough, vec3 N, vec3 V)
     }
 #endif
 
+vec3 GetCorrectedSampleCoords(vec3 R, mat4x3 envMapWorldToLocal, vec3 envMapLocalPos, bool isBoxProjection, vec3 envMapBoxMin, vec3 envMapBoxMax)
+{
+    vec3 localReflectionVector = envMapWorldToLocal * vec4(R, 0.0);
+    return isBoxProjection
+        ? CubemapParallaxCorrection(envMapLocalPos, localReflectionVector, envMapBoxMin, envMapBoxMax)
+        : R;
+}
+
 
 vec3 GetEnvironment(MaterialProperties_t mat, out vec3 diffuse)
 {
@@ -134,18 +142,40 @@ vec3 GetEnvironment(MaterialProperties_t mat, out vec3 diffuse)
         float roughness = mat.Roughness;
     #endif
 
+    #if (F_CLOTH_SHADING == 1)
+        // changed, original was just true
+        const bool bIsClothShading = mat.ClothMask > 0.0;
+    #else
+        const bool bIsClothShading = false;
+    #endif
+
+    #if renderMode_Cubemaps == 1
+        roughness = 0.0;
+    #endif
+
     vec3 envMap = vec3(0.0);
 
     const float lod = GetEnvMapLOD(roughness, R, 0.0);
     const float lod_Diffuse = g_vEnvMapSizeConstants.x; // max lod
 
-    #if (SCENE_ENVIRONMENT_TYPE == 0)
+    #if (SCENE_CUBEMAP_TYPE == 0)
         envMap = max(g_vClearColor.rgb, vec3(0.3, 0.1, 0.1));
         diffuse = max(g_vClearColor.rgb, vec3(0.1, 0.1, 0.3));
-    #elif (SCENE_ENVIRONMENT_TYPE == 1)
-        envMap = textureLod(g_tEnvironmentMap, R, lod).rgb;
-        diffuse = textureLod(g_tEnvironmentMap, R_Diffuse, lod_Diffuse).rgb * 0.5;
-    #elif (SCENE_ENVIRONMENT_TYPE == 2)
+    #elif (SCENE_CUBEMAP_TYPE == 1)
+        int envMapArrayIndex = g_iEnvMapArrayIndices;
+        vec4 proxySphere = g_vEnvMapProxySphere[envMapArrayIndex];
+        bool isBoxProjection = proxySphere.w == 1.0f;
+        vec3 envMapBoxMin = g_vEnvMapBoxMins[envMapArrayIndex].xyz;
+        vec3 envMapBoxMax = g_vEnvMapBoxMaxs[envMapArrayIndex].xyz;
+        mat4x3 envMapWorldToLocal = mat4x3(g_matEnvMapWorldToLocal[envMapArrayIndex]);
+        vec3 envMapLocalPos = envMapWorldToLocal * vec4(vFragPosition, 1.0);
+
+        vec3 coords = GetCorrectedSampleCoords(R, envMapWorldToLocal, envMapLocalPos, isBoxProjection, envMapBoxMin, envMapBoxMax);
+        coords = mix(coords, mat.AmbientNormal, (bIsClothShading) ? sqrt(roughness) : roughness); // blend to fully corrected
+
+        envMap = textureLod(g_tEnvironmentMap, coords, lod).rgb;
+        diffuse = textureLod(g_tEnvironmentMap, coords, lod_Diffuse).rgb * 0.5;
+    #elif (SCENE_CUBEMAP_TYPE == 2)
 
     float totalWeight = 0.01;
 
@@ -178,17 +208,8 @@ vec3 GetEnvironment(MaterialProperties_t mat, out vec3 diffuse)
 
         totalWeight += weight;
 
-        vec3 localReflectionVector = envMapWorldToLocal * vec4(R, 0.0);
-        vec3 coords = isBoxProjection ? CubemapParallaxCorrection(envMapLocalPos, localReflectionVector, envMapBoxMin, envMapBoxMax) : R;
-
-        #if renderMode_Cubemaps == 0
-            // blend to fully corrected
-            #if (F_CLOTH_SHADING == 1)
-                coords = mix(coords, mat.AmbientNormal, sqrt(roughness));
-            #else
-                coords = mix(coords, mat.AmbientNormal, roughness);
-            #endif
-        #endif
+        vec3 coords = GetCorrectedSampleCoords(R, envMapWorldToLocal, envMapLocalPos, isBoxProjection, envMapBoxMin, envMapBoxMax);
+        coords = mix(coords, mat.AmbientNormal, (bIsClothShading) ? sqrt(roughness) : roughness); // blend to fully corrected
 
         envMap += textureLod(g_tEnvironmentMap, vec4(coords, envMapArrayIndex), lod).rgb * weight;
         diffuse += textureLod(g_tEnvironmentMap, vec4(coords, envMapArrayIndex), lod_Diffuse).rgb * weight;
@@ -201,7 +222,7 @@ vec3 GetEnvironment(MaterialProperties_t mat, out vec3 diffuse)
 
     diffuse = mix(diffuse*2.0, diffuse*2.6, GetLuma(diffuse));
 
-    #endif // SCENE_ENVIRONMENT_TYPE == 2
+    #endif // SCENE_CUBEMAP_TYPE == 2
 
     #if (renderMode_Cubemaps == 1)
         return envMap;

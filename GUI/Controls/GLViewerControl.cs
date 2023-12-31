@@ -321,7 +321,12 @@ namespace GUI.Controls
 
             CheckOpenGL();
 
+            // Application semantics / default state
             GL.Enable(EnableCap.TextureCubeMapSeamless);
+            GL.Enable(EnableCap.CullFace);
+            GL.CullFace(CullFaceMode.Back);
+            GL.Enable(EnableCap.DepthTest);
+            //GL.Enable(EnableCap.FramebufferSrgb);
 
 #if DEBUG
             GL.Enable(EnableCap.DebugOutput);
@@ -394,9 +399,6 @@ namespace GUI.Controls
                     Cursor.Position = new Point(cursor.X, topLeft.Y);
                 }
             }
-
-            GL.ClearColor(Settings.BackgroundColor);
-            GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 
             GLPaint?.Invoke(this, new RenderEventArgs { FrameTime = frameTime });
 

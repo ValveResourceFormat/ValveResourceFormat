@@ -234,8 +234,6 @@ namespace GUI.Types.Renderer
 
             Entities.AddRange(entities);
 
-            var legacyCubemapArrayIndex = 0;
-
             foreach (var (entity, classname) in entitiesReordered)
             {
                 if (classname == "worldspawn")
@@ -544,13 +542,6 @@ namespace GUI.Types.Renderer
                             entity.GetProperty<string>("cubemaptexture")
                         );
 
-                        scene.RenderAttributes["SCENE_ENVIRONMENT_TYPE"] = envMapTexture.Target switch
-                        {
-                            TextureTarget.TextureCubeMapArray => 2,
-                            TextureTarget.TextureCubeMap => 1,
-                            _ => 0,
-                        };
-
                         var arrayIndexData = entity.GetProperty("array_index")?.Data;
                         var arrayIndex = arrayIndexData switch
                         {
@@ -558,22 +549,6 @@ namespace GUI.Types.Renderer
                             string s => int.Parse(s, CultureInfo.InvariantCulture),
                             _ => 0,
                         };
-
-                        if (envMapTexture.Target == TextureTarget.TextureCubeMap)
-                        {
-                            arrayIndex = legacyCubemapArrayIndex++;
-
-                            scene.LightingInfo.Lightmaps.TryAdd($"g_tEnvironmentMap", envMapTexture);
-                        }
-                        else
-                        {
-                            scene.LightingInfo.Lightmaps.TryAdd("g_tEnvironmentMap", envMapTexture);
-                        }
-
-                        if (arrayIndex >= UniformBuffers.LightingConstants.MAX_ENVMAPS)
-                        {
-                            throw new InvalidDataException($"Envmap array index {arrayIndex} is too large! Max: {UniformBuffers.LightingConstants.MAX_ENVMAPS - 1}");
-                        }
 
                         var indoorOutdoorLevelData = entity.GetProperty("indoor_outdoor_level")?.Data;
                         var indoorOutdoorLevel = indoorOutdoorLevelData switch
@@ -597,10 +572,7 @@ namespace GUI.Types.Renderer
                             EnvMapTexture = envMapTexture,
                         };
 
-                        if (handShake > 0)
-                        {
-                            scene.LightingInfo.EnvMaps.Add(handShake, envMap);
-                        }
+                        scene.LightingInfo.AddEnvironmentMap(envMap);
                     }
 
                     if (classname == "env_combined_light_probe_volume" || classname == "env_light_probe_volume")
@@ -636,10 +608,7 @@ namespace GUI.Types.Renderer
                             lightProbe.DirectLightShadows = guiContext.MaterialLoader.GetTexture(dlsdName);
                         }
 
-                        if (handShake > 0)
-                        {
-                            scene.LightingInfo.LightProbes.Add(handShake, lightProbe);
-                        }
+                        scene.LightingInfo.AddProbe(lightProbe);
                     }
                 }
 

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
 using OpenTK.Graphics.OpenGL;
 
@@ -82,10 +83,28 @@ namespace GUI.Types.Renderer
 
                 if (debugCubeMaps)
                 {
-                    foreach (var envMap in node.EnvMaps)
+                    var tiedEnvmaps = Scene.LightingInfo.CubemapType switch
                     {
-                        OctreeDebugRenderer<SceneNode>.AddBox(vertices, envMap.Transform, envMap.LocalBoundingBox, 0.7f, 0.0f, 1.0f, 1.0f);
-                        OctreeDebugRenderer<SceneNode>.AddLine(vertices, envMap.Transform.Translation, node.BoundingBox.Center, 1.0f, 0.0f, 0.0f, 1.0f);
+                        Scene.CubemapType.CubemapArray => node.EnvMapIds.Select(id => Scene.LightingInfo.EnvMaps[id]),
+                        _ => node.EnvMaps
+                    };
+
+                    var i = 0;
+
+                    foreach (var tiedEnvMap in tiedEnvmaps)
+                    {
+                        OctreeDebugRenderer<SceneNode>.AddBox(vertices, tiedEnvMap.Transform, tiedEnvMap.LocalBoundingBox, 0.7f, 0.0f, 1.0f, 1.0f);
+
+                        if (Scene.LightingInfo.CubemapType is Scene.CubemapType.IndividualCubemaps && i == 0)
+                        {
+                            OctreeDebugRenderer<SceneNode>.AddLine(vertices, tiedEnvMap.Transform.Translation, node.BoundingBox.Center, 0.0f, 1.0f, 0.0f, 1.0f);
+                            i++;
+                            continue;
+                        }
+
+                        var fractionToTen = (float)i / 10;
+                        OctreeDebugRenderer<SceneNode>.AddLine(vertices, tiedEnvMap.Transform.Translation, node.BoundingBox.Center, 1.0f, fractionToTen, fractionToTen, 1.0f);
+                        i++;
                     }
                 }
 

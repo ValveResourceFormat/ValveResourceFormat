@@ -1,10 +1,12 @@
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Numerics;
 using ValveResourceFormat.ResourceTypes;
 
 namespace GUI.Types.Renderer
 {
+    [DebuggerDisplay("{DebugName}")]
     internal abstract class SceneNode
     {
         public Matrix4x4 Transform
@@ -32,6 +34,8 @@ namespace GUI.Types.Renderer
 
         public string Name { get; init; }
         public uint Id { get; set; }
+
+        public string DebugName => $"{Name} ({Id}) at {BoundingBox.Center.X:F2} {BoundingBox.Center.Y:F2} {BoundingBox.Center.Z:F2}";
 
         public Scene Scene { get; }
 
