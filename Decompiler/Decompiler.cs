@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
@@ -937,36 +938,39 @@ namespace Decompiler
 
                 Console.WriteLine("\t[archive index: {0:D3}] {1}", file.ArchiveIndex, filePath);
 
-                package.ReadEntry(file, out var rawFileData);
-
-                // Not a file that can be decompiled, or no decompilation was requested
-                if (!Decompile || !type.EndsWith("_c", StringComparison.Ordinal))
-                {
-                    if (OutputFile != null)
-                    {
-                        var outputFile = filePath;
-
-                        if (RecursiveSearchArchives)
-                        {
-                            outputFile = Path.Combine(parentPath, outputFile);
-                        }
-
-                        outputFile = GetOutputPath(outputFile, useOutputAsDirectory: true);
-
-                        DumpFile(outputFile, rawFileData);
-                    }
-
-                    continue;
-                }
-
-                using var resource = new Resource
-                {
-                    FileName = filePath,
-                };
-                using var memory = new MemoryStream(rawFileData);
+                var totalLength = (int)file.TotalLength;
+                var rawFileData = ArrayPool<byte>.Shared.Rent(totalLength);
 
                 try
                 {
+                    package.ReadEntry(file, rawFileData);
+
+                    // Not a file that can be decompiled, or no decompilation was requested
+                    if (!Decompile || !type.EndsWith("_c", StringComparison.Ordinal))
+                    {
+                        if (OutputFile != null)
+                        {
+                            var outputFile = filePath;
+
+                            if (RecursiveSearchArchives)
+                            {
+                                outputFile = Path.Combine(parentPath, outputFile);
+                            }
+
+                            outputFile = GetOutputPath(outputFile, useOutputAsDirectory: true);
+
+                            DumpFile(outputFile, rawFileData.AsSpan()[..totalLength]);
+                        }
+
+                        continue;
+                    }
+
+                    using var resource = new Resource
+                    {
+                        FileName = filePath,
+                    };
+                    using var memory = new MemoryStream(rawFileData, 0, totalLength);
+
                     resource.Read(memory);
 
                     extension = FileExtract.GetExtension(resource) ?? type[..^2];
@@ -1007,6 +1011,10 @@ namespace Decompiler
                 catch (Exception e)
                 {
                     LogException(e, filePath, parentPath);
+                }
+                finally
+                {
+                    ArrayPool<byte>.Shared.Return(rawFileData);
                 }
             }
         }
