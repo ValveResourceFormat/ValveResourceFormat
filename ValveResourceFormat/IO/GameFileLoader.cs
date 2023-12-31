@@ -13,6 +13,8 @@ namespace ValveResourceFormat.IO
 {
     public class GameFileLoader : IFileLoader, IDisposable
     {
+        private const string AddonsSuffix = "_addons";
+
         private static readonly string[] ModIdentifiers =
         [
             "gameinfo.gi",
@@ -375,10 +377,9 @@ namespace ValveResourceFormat.IO
                 {
                     folders = FindGameFoldersForWorkshopFile();
 
-                    const string addonsSuffix = "_addons";
-                    if (assumedGameRoot.EndsWith(addonsSuffix, StringComparison.InvariantCultureIgnoreCase))
+                    if (assumedGameRoot.EndsWith(AddonsSuffix, StringComparison.InvariantCultureIgnoreCase))
                     {
-                        var mainGameDir = assumedGameRoot[..^addonsSuffix.Length];
+                        var mainGameDir = assumedGameRoot[..^AddonsSuffix.Length];
                         if (Directory.Exists(mainGameDir))
                         {
                             folders.Add(mainGameDir);
@@ -431,16 +432,27 @@ namespace ValveResourceFormat.IO
             {
                 directory = Path.GetDirectoryName(directory);
 
-#if DEBUG_FILE_LOAD
-                Console.WriteLine($"Scanning \"{directory}\"");
-#endif
-
-                var currentDirectory = Path.GetFileName(directory);
-
                 if (directory == null)
                 {
                     return null;
                 }
+
+#if DEBUG_FILE_LOAD
+                Console.WriteLine($"Scanning \"{directory}\"");
+#endif
+
+                if (directory.EndsWith(AddonsSuffix, StringComparison.InvariantCultureIgnoreCase))
+                {
+                    var mainGameDir = directory[..^AddonsSuffix.Length];
+                    var mainGameInfo = Path.Join(mainGameDir, "gameinfo.gi");
+
+                    if (File.Exists(mainGameInfo))
+                    {
+                        return mainGameInfo;
+                    }
+                }
+
+                var currentDirectory = Path.GetFileName(directory);
 
                 if (currentDirectory == "steamapps")
                 {
