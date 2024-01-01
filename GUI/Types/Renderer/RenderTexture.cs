@@ -4,7 +4,7 @@ using ValveResourceFormat.ResourceTypes;
 
 namespace GUI.Types.Renderer
 {
-    class RenderTexture
+    class RenderTexture : IDisposable
     {
         public TextureTarget Target { get; }
         public int Handle { get; }
@@ -66,6 +66,11 @@ namespace GUI.Types.Renderer
             Assert_IsBound();
             GL.TexParameter(Target, TextureParameterName.TextureMinFilter, (int)min);
             GL.TexParameter(Target, TextureParameterName.TextureMagFilter, (int)mag);
+        }
+
+        public void Dispose()
+        {
+            GL.DeleteTexture(Handle);
         }
 
 #if DEBUG
