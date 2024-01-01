@@ -13,6 +13,31 @@ uint GetColorIndex(uint nChannelMapping, uint nChannel)
     return (nChannelMapping >> (nChannel * 8)) & 0xff;
 }
 
+#define HemiOctIsoRoughness_RG_B 0
+
+#if HemiOctIsoRoughness_RG_B == 1
+    vec3 PackToColor( vec3 vValue )
+    {
+        return ( ( vValue.xyz * 0.5 ) + 0.5 );
+    }
+
+    vec3 oct_to_float32x3(vec2 e)
+    {
+        vec3 v = vec3(e.xy, 1.0 - abs(e.x) - abs(e.y));
+        return normalize(v);
+    }
+
+    // Unpack HemiOct normal map
+    vec3 DecodeNormal(vec4 bumpNormal)
+    {
+        //Reconstruct the tangent vector from the map
+        vec2 temp = vec2(bumpNormal.x + bumpNormal.y - 1.003922, bumpNormal.x - bumpNormal.y);
+        vec3 tangentNormal = oct_to_float32x3(temp);
+
+        return tangentNormal;
+    }
+#endif
+
 layout(location = 0) out vec4 vColorOutput;
 
 void main()
@@ -21,9 +46,9 @@ void main()
 
     vec4 vColor = textureLod(g_tInputTexture, vTexCoord, float(g_nSelectedMip) / g_vInputTextureSize.w);
 
-    #if defined(HemiOctIsoRoughness_RG_B)
+    #if HemiOctIsoRoughness_RG_B == 1
         float flRoughness = vColor.b;
-        vColor.rgb = DecodeNormal(vColor.rgb);
+        vColor.rgb = PackToColor(oct_to_float32x3(vec2(vColor.x + vColor.y - 1.003922, vColor.x - vColor.y)));
         vColor.a = flRoughness;
     #endif
 
@@ -34,15 +59,19 @@ void main()
         GetColorIndex(g_nChannelMapping, 3)
     );
 
-    bvec4 bWriteMask = bvec4(vRemapIndices != uvec4(0xFF));
+    // Single channel texture write to RGB
+    bool bSingleChannel = (vRemapIndices.yzw == uvec3(0xFF));
+    if (bSingleChannel)
+    {
+        vColorOutput = vec4(vec3(vColor[vRemapIndices.x]), 1.0);
+    }
+    else
+    {
+        bvec4 bWriteMask = bvec4(vRemapIndices.x != 0xFF, vRemapIndices.y != 0xFF, vRemapIndices.z != 0xFF, vRemapIndices.w != 0xFF);
+        vec4 vRemappedColor = vec4(vColor[vRemapIndices.x], vColor[vRemapIndices.y], vColor[vRemapIndices.z], vColor[vRemapIndices.w]);
 
-    vec4 vRemappedColor = vec4(
-        vColor[vRemapIndices.x],
-        vColor[vRemapIndices.y],
-        vColor[vRemapIndices.z],
-        vColor[vRemapIndices.w]
-    );
+        vColorOutput = mix(vec4(0, 0, 0, 1), vRemappedColor, bWriteMask);
+    }
 
-    vColorOutput = mix(vec4(0, 0, 0, 1), vRemappedColor, bWriteMask);
-    //vColorOutput = vec4(1,0,1,1);
+    //vColorOutput = vec4(vColorOutput.rgb, 1.0);
 }
