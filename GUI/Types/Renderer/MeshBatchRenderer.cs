@@ -67,7 +67,6 @@ namespace GUI.Types.Renderer
             public int Animated;
             public int AnimationTexture;
             public int EnvmapTexture;
-            public int NumBones;
             public int Transform;
             public int Tint;
             public int ObjectId;
@@ -126,7 +125,6 @@ namespace GUI.Types.Renderer
                             Animated = shader.GetUniformLocation("bAnimated"),
                             AnimationTexture = shader.GetUniformLocation("animationTexture"),
                             EnvmapTexture = shader.GetUniformLocation("g_tEnvironmentMap"),
-                            NumBones = shader.GetUniformLocation("fNumBones"),
                             Transform = shader.GetUniformLocation("transform"),
                             Tint = shader.GetUniformLocation("vTint"),
                             CubeMapArrayIndices = shader.GetUniformLocation("g_iEnvMapArrayIndices"),
@@ -213,17 +211,14 @@ namespace GUI.Types.Renderer
 
             if (uniforms.Animated != -1)
             {
-                GL.Uniform1(uniforms.Animated, request.Mesh.AnimationTexture is null ? 0.0f : 1.0f);
-            }
+                var bAnimated = request.Mesh.AnimationTexture != null;
+                GL.Uniform1(uniforms.Animated, bAnimated ? 1u : 0u);
 
-            // Push animation texture to the shader (if it supports it)
-            if (uniforms.AnimationTexture != -1 && request.Mesh.AnimationTexture != null)
-            {
-                instanceBoundTextures.Enqueue(request.Mesh.AnimationTexture);
-                Shader.SetTexture((int)ReservedTextureSlots.AnimationTexture, uniforms.AnimationTexture, request.Mesh.AnimationTexture);
-
-                var numBones = MathF.Max(1, request.Mesh.AnimationTexture.Height - 1);
-                GL.Uniform1(uniforms.NumBones, numBones);
+                if (bAnimated && uniforms.AnimationTexture != -1)
+                {
+                    instanceBoundTextures.Enqueue(request.Mesh.AnimationTexture);
+                    Shader.SetTexture((int)ReservedTextureSlots.AnimationTexture, uniforms.AnimationTexture, request.Mesh.AnimationTexture);
+                }
             }
 
             var morphComposite = request.Mesh.FlexStateManager?.MorphComposite;
