@@ -2,6 +2,7 @@ using System;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -9,6 +10,8 @@ using GUI.Types.Renderer;
 using GUI.Utils;
 using SkiaSharp;
 using ValveResourceFormat;
+using ValveResourceFormat.Blocks;
+using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
 using Channels = ValveResourceFormat.CompiledShader.ChannelMapping;
 
 namespace GUI.Forms
@@ -17,7 +20,6 @@ namespace GUI.Forms
     {
         private string name;
 
-        private bool useHardwareDecoding;
         private GLTextureDecoder hardwareDecoder;
         private Resource textureResource;
 
@@ -36,18 +38,6 @@ namespace GUI.Forms
             textureResource = resource;
         }
 
-        public void SetFromGpu()
-        {
-            if (!useHardwareDecoding)
-            {
-                return;
-            }
-
-            var bitmap = new SKBitmap(skBitmap.Width, skBitmap.Height);
-            hardwareDecoder.Decode(bitmap, textureResource, 0, 0, Channels.RGBA);
-            SetImage(bitmap, name, skBitmap.Width, skBitmap.Height);
-        }
-
         public void SetImage(SKBitmap skBitmap, string name, int w, int h)
         {
             this.skBitmap = skBitmap;
@@ -57,9 +47,11 @@ namespace GUI.Forms
 
         public void SetImage(Bitmap image, string name, int w, int h)
         {
+            var previous = pictureBox1.Image;
             pictureBox1.Image = image;
             this.name = name;
             pictureBox1.MaximumSize = new Size(w, h);
+            previous?.Dispose();
         }
 
         /// <summary>
@@ -67,9 +59,9 @@ namespace GUI.Forms
         /// </summary>
         private void SetChannels(Channels channels)
         {
-            if (useHardwareDecoding)
+            if (hardwareDecodeCheckBox.Checked)
             {
-                SetChannelsGpu(channels);
+                DecodeTextureGpu(channels);
                 return;
             }
 
@@ -78,43 +70,38 @@ namespace GUI.Forms
                 return;
             }
 
-            Image image = null;
-            if (channels == Channels.RGBA || (skBitmap.AlphaType == SKAlphaType.Opaque && channels == Channels.RGB))
+            Bitmap bitmap = null;
+            var useOriginal = channels == Channels.RGBA || (skBitmap.AlphaType == SKAlphaType.Opaque && channels == Channels.RGB);
+            if (useOriginal)
             {
-                image = skBitmap.ToBitmap();
+                bitmap = skBitmap.ToBitmap();
             }
             else
             {
-                var pngBytes = ValveResourceFormat.IO.TextureExtract.ToPngImageChannels(skBitmap, channels);
-                image = Image.FromStream(new MemoryStream(pngBytes));
+                var newSkiaBitmap = ValveResourceFormat.IO.TextureExtract.ToBitmapChannels(skBitmap, channels);
+                bitmap = newSkiaBitmap.ToBitmap();
             }
 
             try
             {
-                if (cts.IsCancellationRequested)
+                if (cts is null || cts.IsCancellationRequested)
                 {
                     return;
                 }
 
-                var imageRef = image;
+                var bitmapRef = bitmap;
 
                 Invoke(() =>
                 {
-                    pictureBox1.Image.Dispose();
-                    pictureBox1.Image = imageRef;
+                    SetImage(bitmap, name, skBitmap.Width, skBitmap.Height);
                 });
 
-                image = null;
+                bitmap = null;
             }
             finally
             {
-                image?.Dispose();
+                bitmap?.Dispose();
             }
-        }
-
-        private static void SetChannelsGpu(Channels channels)
-        {
-            //throw new NotImplementedException();
         }
 
         private void ContextMenuStrip1_ItemClicked(object sender, ToolStripItemClickedEventArgs e)
@@ -167,19 +154,62 @@ namespace GUI.Forms
         {
             var item = sender as ToolStripMenuItem;
 
+            var channels = GetSelectedChannelMode();
+
             if (item.Checked)
             {
                 item.Checked = false;
-                useHardwareDecoding = false;
-
-                pictureBox1.Image.Dispose();
-                pictureBox1.Image = skBitmap.ToBitmap();
+                SetChannels(channels);
                 return;
             }
 
             item.Checked = true;
-            useHardwareDecoding = true;
-            SetFromGpu();
+            DecodeTextureGpu(GetSelectedChannelMode());
+        }
+
+        private void DecodeTextureGpu(Channels channels)
+        {
+            if (textureResource is null)
+            {
+                return;
+            }
+
+            var hemiOctRB = false;
+
+            if (textureResource.EditInfo.Structs.TryGetValue(ResourceEditInfo.REDIStruct.SpecialDependencies, out var specialDepsRedi))
+            {
+                var specialDeps = (SpecialDependencies)specialDepsRedi;
+                hemiOctRB = specialDeps.List.Any(dependancy => dependancy.CompilerIdentifier == "CompileTexture" && dependancy.String == "Texture Compiler Version Mip HemiOctIsoRoughness_RG_B");
+            }
+
+            // using?
+            using var bitmap = new SKBitmap(skBitmap.Width, skBitmap.Height, SKColorType.Rgba8888, SKAlphaType.Unpremul);
+            hardwareDecoder.Decode(new GLTextureDecoder.DecodeRequest(bitmap, textureResource, 0, 0, channels)
+            {
+                HemiOctRB = hemiOctRB,
+            });
+
+            var previous = pictureBox1.Image;
+            SetImage(bitmap.ToBitmap(), name, skBitmap.Width, skBitmap.Height);
+            previous.Dispose();
+        }
+
+        private Channels GetSelectedChannelMode()
+        {
+            foreach (var item in viewChannelsToolStripMenuItem.DropDownItems)
+            {
+                if (item is not ToolStripMenuItem menuItem)
+                {
+                    continue;
+                }
+
+                if (menuItem.Checked)
+                {
+                    return (Channels)menuItem.Tag;
+                }
+            }
+
+            return Channels.RGBA;
         }
 
         private void OnChannelMenuItem_Click(object sender, EventArgs e)

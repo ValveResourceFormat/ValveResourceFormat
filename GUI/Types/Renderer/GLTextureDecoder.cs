@@ -2,7 +2,6 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using System.Threading;
 using GUI.Utils;
 using OpenTK;
@@ -10,8 +9,6 @@ using OpenTK.Graphics;
 using OpenTK.Graphics.OpenGL;
 using SkiaSharp;
 using ValveResourceFormat;
-using ValveResourceFormat.Blocks;
-using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
 using ValveResourceFormat.CompiledShader;
 
 namespace GUI.Types.Renderer;
@@ -19,13 +16,16 @@ namespace GUI.Types.Renderer;
 class GLTextureDecoder : IDisposable // ITextureDecoder
 {
     private readonly VrfGuiContext guiContext;
+    private readonly AutoResetEvent queueUpdateEvent = new(false);
     private readonly ConcurrentQueue<DecodeRequest> decodeQueue;
     private readonly Thread GLThread;
 
 
     public record DecodeRequest(SKBitmap Bitmap, Resource TextureResource, int Mip, int Depth, ChannelMapping Channels)
     {
-        public bool Done { get; set; }
+        public bool HemiOctRB { get; init; }
+
+        public ManualResetEvent DoneEvent { get; } = new ManualResetEvent(false);
         public float DecodeTime { get; set; }
         public float TotalTime { get; set; }
     };
@@ -51,6 +51,18 @@ class GLTextureDecoder : IDisposable // ITextureDecoder
         GLThread.Start();
     }
 
+    public void Decode(DecodeRequest request)
+    {
+        var sw = Stopwatch.StartNew();
+        decodeQueue.Enqueue(request);
+        queueUpdateEvent.Set();
+
+        request.DoneEvent.WaitOne();
+        request.TotalTime = sw.ElapsedMilliseconds;
+
+        Log.Debug(nameof(GLTextureDecoder), $"Decoded in {request.DecodeTime}ms, total (including comm overhead) {request.TotalTime}ms");
+    }
+
     private void Initialize()
     {
         GLWindow = new GameWindow(1, 1);
@@ -58,7 +70,7 @@ class GLTextureDecoder : IDisposable // ITextureDecoder
         GLContext.MakeCurrent(GLWindow.WindowInfo);
 
         FrameBuffer = GL.GenFramebuffer();
-        // Bind and stay on this framebuffer, the game window frame buffer is limited.
+        // Bind and stay on this framebuffer, the game window frame buffer is limited by screen size
         GL.BindFramebuffer(FramebufferTarget.Framebuffer, FrameBuffer);
 
         FrameBufferColor = new RenderTexture(TextureTarget.Texture2D, 4096, 4096, 1, 1);
@@ -87,33 +99,17 @@ class GLTextureDecoder : IDisposable // ITextureDecoder
         {
             if (!decodeQueue.TryDequeue(out var decodeRequest))
             {
-                Thread.Sleep(100);
+                queueUpdateEvent.WaitOne();
                 continue;
             }
 
-
-            Decode(decodeRequest);
+            Decode_Thread(decodeRequest);
             decodeRequest.Bitmap.NotifyPixelsChanged();
+            decodeRequest.DoneEvent.Set();
         }
     }
 
-    public void Decode(SKBitmap bitmap, Resource textureResource, int mip, int depth, ChannelMapping channels)
-    {
-        var sw = Stopwatch.StartNew();
-        var request = new DecodeRequest(bitmap, textureResource, mip, depth, channels);
-        decodeQueue.Enqueue(request);
-
-        while (!request.Done)
-        {
-            Thread.Sleep(100);
-        }
-
-        request.TotalTime = sw.ElapsedMilliseconds;
-
-        Log.Debug(nameof(GLTextureDecoder), $"Decoded in {request.DecodeTime}ms, total (including comm overhead) {request.TotalTime}ms");
-    }
-
-    private void Decode(DecodeRequest request)
+    private void Decode_Thread(DecodeRequest request)
     {
         //GLContext.MakeCurrent(GLWindow.WindowInfo);
         var sw = Stopwatch.StartNew();
@@ -130,17 +126,10 @@ class GLTextureDecoder : IDisposable // ITextureDecoder
         // TYPE_TEXTURE2D
         var textureType = "TYPE_" + inputTexture.Target.ToString().ToUpperInvariant();
 
-        var hemiOctRB = false;
-        if (request.TextureResource.EditInfo.Structs.TryGetValue(ResourceEditInfo.REDIStruct.SpecialDependencies, out var specialDepsRedi))
-        {
-            var specialDeps = (SpecialDependencies)specialDepsRedi;
-            hemiOctRB = specialDeps.List.Any(dependancy => dependancy.CompilerIdentifier == "CompileTexture" && dependancy.String == "Texture Compiler Version Mip HemiOctIsoRoughness_RG_B");
-        }
-
         var shader = guiContext.ShaderLoader.LoadShader("vrf.texture_decode", new Dictionary<string, byte>
         {
             [textureType] = 1,
-            ["HemiOctIsoRoughness_RG_B"] = hemiOctRB ? (byte)1 : (byte)0,
+            ["HemiOctIsoRoughness_RG_B"] = request.HemiOctRB ? (byte)1 : (byte)0,
         });
 
         GL.UseProgram(shader.Program);
@@ -166,12 +155,12 @@ class GLTextureDecoder : IDisposable // ITextureDecoder
         GL.ReadPixels(0, 0, inputTexture.Width, inputTexture.Height, PixelFormat.Rgba, PixelType.UnsignedByte, pixels);
         GL.Finish();
 
-        request.Done = true;
         request.DecodeTime = sw.ElapsedMilliseconds;
     }
 
     public void Dispose()
     {
+        queueUpdateEvent.Dispose();
         GLContext?.Dispose();
         GLWindow?.Dispose();
         FrameBufferColor?.Dispose();
