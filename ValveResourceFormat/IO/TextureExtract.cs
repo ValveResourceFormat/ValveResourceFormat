@@ -7,6 +7,7 @@ using SkiaSharp;
 using ValveResourceFormat.ResourceTypes;
 using ChannelMapping = ValveResourceFormat.CompiledShader.ChannelMapping;
 using ValveResourceFormat.IO.ContentFormats.ValveTexture;
+using System.Diagnostics;
 
 namespace ValveResourceFormat.IO;
 
@@ -204,10 +205,32 @@ public sealed class TextureExtract
 
     public static byte[] ToPngImageChannels(SKBitmap bitmap, ChannelMapping channel)
     {
+        if (channel == ChannelMapping.RGBA)
+        {
+            return EncodePng(bitmap);
+        }
+        else if (channel == ChannelMapping.RG || channel == ChannelMapping.RGB)
+        {
+            // faster path? png encoder understands pixelmap with SKAlphaType.Opaque
+            using var alphaBitmap = new SKBitmap(bitmap.Info);
+            using var newPixelmap = alphaBitmap.PeekPixels();
+            using var pixelmap = bitmap.PeekPixels();
+            pixelmap.GetPixelSpan<SKColor>().CopyTo(newPixelmap.GetPixelSpan<SKColor>());
+
+            using var alphaPixelmap = newPixelmap.WithAlphaType(SKAlphaType.Opaque);
+            return EncodePng(alphaPixelmap);
+        }
+
+        using var newBitmap = ToBitmapChannels(bitmap, channel);
+        return EncodePng(newBitmap);
+    }
+
+    public static SKBitmap ToBitmapChannels(SKBitmap bitmap, ChannelMapping channel)
+    {
         if (channel.Count == 1)
         {
-            using var newBitmap = new SKBitmap(bitmap.Width, bitmap.Height, SKColorType.Gray8, SKAlphaType.Opaque);
-            using var newPixelmap = newBitmap.PeekPixels();
+            var newBitmap = new SKBitmap(bitmap.Width, bitmap.Height, SKColorType.Gray8, SKAlphaType.Opaque);
+            var newPixelmap = newBitmap.PeekPixels();
             using var pixelmap = bitmap.PeekPixels();
 
             var newPixels = newPixelmap.GetPixelSpan<byte>();
@@ -225,23 +248,28 @@ public sealed class TextureExtract
                 };
             }
 
-            return EncodePng(newPixelmap);
+            return newBitmap;
         }
         else if (channel == ChannelMapping.RG || channel == ChannelMapping.RGB)
         {
             // Wipe out the alpha channel
-            using var newBitmap = new SKBitmap(bitmap.Info);
-            using var newPixelmap = newBitmap.PeekPixels();
+            var newBitmap = new SKBitmap(bitmap.Info.WithAlphaType(SKAlphaType.Opaque));
+            var newPixelmap = newBitmap.PeekPixels();
             using var pixelmap = bitmap.PeekPixels();
-            pixelmap.GetPixelSpan<SKColor>().CopyTo(newPixelmap.GetPixelSpan<SKColor>());
 
-            using var alphaPixelmap = newPixelmap.WithAlphaType(SKAlphaType.Opaque);
+            var newPixels = newPixelmap.GetPixelSpan<SKColor>();
+            var pixels = pixelmap.GetPixelSpan<SKColor>();
 
-            return EncodePng(alphaPixelmap);
+            for (var i = 0; i < pixels.Length; i++)
+            {
+                newPixels[i] = pixels[i].WithAlpha(0xFF);
+            }
+
+            return newBitmap;
         }
         else if (channel == ChannelMapping.RGBA)
         {
-            return EncodePng(bitmap);
+            return bitmap.Copy();
         }
         else
         {
@@ -249,8 +277,8 @@ public sealed class TextureExtract
             var newBitmapType = bitmap.Info
                 .WithAlphaType(channel.Count < 4 ? SKAlphaType.Opaque : SKAlphaType.Unpremul)
                 .WithColorType(SKColorType.Rgba8888);
-            using var newBitmap = new SKBitmap(newBitmapType);
-            using var newPixelmap = newBitmap.PeekPixels();
+            var newBitmap = new SKBitmap(newBitmapType);
+            var newPixelmap = newBitmap.PeekPixels();
             using var pixelmap = bitmap.PeekPixels();
 
             var newPixels = newPixelmap.GetPixelSpan<SKColor>();
@@ -276,7 +304,7 @@ public sealed class TextureExtract
                 newPixels[i] = new SKColor(color);
             }
 
-            return EncodePng(newPixelmap);
+            return newBitmap;
         }
     }
 

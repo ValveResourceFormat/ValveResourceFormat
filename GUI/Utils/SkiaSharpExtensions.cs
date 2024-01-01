@@ -18,7 +18,12 @@ namespace GUI.Utils
 
         public static Bitmap ToBitmap(this SKImage skiaImage)
         {
-            var bitmap = new Bitmap(skiaImage.Width, skiaImage.Height, PixelFormat.Format32bppPArgb);
+            var bitmap = new Bitmap(skiaImage.Width, skiaImage.Height, skiaImage.ColorType switch
+            {
+                SKColorType.Bgra8888 => skiaImage.AlphaType == SKAlphaType.Premul ? PixelFormat.Format32bppPArgb : PixelFormat.Format32bppArgb,
+                SKColorType.Rgb888x => PixelFormat.Format32bppRgb,
+                _ => PixelFormat.Format32bppArgb,
+            });
             var bitmapData = bitmap.LockBits(new Rectangle(0, 0, bitmap.Width, bitmap.Height), ImageLockMode.WriteOnly, bitmap.PixelFormat);
 
             using (var pixmap = new SKPixmap(new SKImageInfo(bitmapData.Width, bitmapData.Height), bitmapData.Scan0, bitmapData.Stride))
