@@ -71,7 +71,6 @@ void main()
         vec4 vRemappedColor = vec4(vColor[vRemapIndices.x], vColor[vRemapIndices.y], vColor[vRemapIndices.z], vColor[vRemapIndices.w]);
 
         vColorOutput = mix(vec4(0, 0, 0, 1), vRemappedColor, bWriteMask);
+        //vColorOutput = vec4(vColorOutput.rgb, 1.0);
     }
-
-    //vColorOutput = vec4(vColorOutput.rgb, 1.0);
 }
