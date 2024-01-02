@@ -12,7 +12,9 @@ using SkiaSharp;
 using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
+using TextureData = ValveResourceFormat.ResourceTypes.Texture;
 using Channels = ValveResourceFormat.CompiledShader.ChannelMapping;
+using System.Diagnostics;
 
 namespace GUI.Forms
 {
@@ -20,8 +22,9 @@ namespace GUI.Forms
     {
         private string name;
 
-        private GLTextureDecoder hardwareDecoder;
+        private readonly GLTextureDecoder hardwareDecoder;
         private Resource textureResource;
+        private TextureData texture;
 
         private SKBitmap skBitmap;
         private CancellationTokenSource cts;
@@ -32,10 +35,20 @@ namespace GUI.Forms
             InitializeComponent();
         }
 
-        public void InitGpuDecoder(VrfGuiContext vrfGuiContext, Resource resource)
+        public Texture(VrfGuiContext vrfGuiContext) : this()
         {
             hardwareDecoder = new GLTextureDecoder(vrfGuiContext);
+        }
+
+        public void SetTexture(Resource resource, bool hardwareDecode = false)
+        {
             textureResource = resource;
+            name = resource.FileName;
+            texture = (TextureData)resource.DataBlock;
+
+            hardwareDecodeCheckBox.Checked = hardwareDecode;
+            CancelPreviousChannelChange();
+            SetChannels(Channels.RGBA);
         }
 
         public void SetImage(SKBitmap skBitmap, string name, int w, int h)
@@ -65,43 +78,166 @@ namespace GUI.Forms
                 return;
             }
 
+            var sw = Stopwatch.StartNew();
+            var decodeTime = 0f;
+            var totalTime = 0f;
+
             if (skBitmap == null)
             {
-                return;
-            }
-
-            Bitmap bitmap = null;
-            var useOriginal = channels == Channels.RGBA || (skBitmap.AlphaType == SKAlphaType.Opaque && channels == Channels.RGB);
-            if (useOriginal)
-            {
-                bitmap = skBitmap.ToBitmap();
-            }
-            else
-            {
-                var newSkiaBitmap = ValveResourceFormat.IO.TextureExtract.ToBitmapChannels(skBitmap, channels);
-                bitmap = newSkiaBitmap.ToBitmap();
-            }
-
-            try
-            {
-                if (cts is null || cts.IsCancellationRequested)
+                if (texture == null)
                 {
                     return;
                 }
 
-                var bitmapRef = bitmap;
+                name ??= textureResource.FileName;
+                skBitmap = texture.GenerateBitmap();
 
-                Invoke(() =>
+                decodeTime = sw.ElapsedMilliseconds;
+
+                if (cts.IsCancellationRequested)
                 {
-                    SetImage(bitmap, name, skBitmap.Width, skBitmap.Height);
-                });
+                    return;
+                }
+            }
 
-                bitmap = null;
-            }
-            finally
+            var useOriginal = channels == Channels.RGBA || (skBitmap.AlphaType == SKAlphaType.Opaque && channels == Channels.RGB);
+            if (useOriginal)
             {
-                bitmap?.Dispose();
+                Invoke(() => SetImage(skBitmap, name, skBitmap.Width, skBitmap.Height));
+                totalTime = sw.ElapsedMilliseconds;
+                Log.Debug(nameof(Texture), $"Software decode finished in {decodeTime}ms (ToBitmap() {totalTime - decodeTime}ms)");
+                return;
             }
+
+            using var newSkiaBitmap = ValveResourceFormat.IO.TextureExtract.ToBitmapChannels(skBitmap, channels);
+            if (cts.IsCancellationRequested)
+            {
+                return;
+            }
+
+            Invoke(() => SetImage(newSkiaBitmap.ToBitmap(), name, newSkiaBitmap.Width, newSkiaBitmap.Height));
+
+            totalTime = sw.ElapsedMilliseconds;
+            Log.Debug(nameof(Texture), $"Software decode finished in {decodeTime}ms (channel processing: {totalTime - decodeTime}ms)");
+        }
+
+        private void DecodeTextureGpu(Channels channels)
+        {
+            if (texture is null)
+            {
+                return;
+            }
+
+            var hemiOctRB = false;
+
+            if (textureResource is not null && textureResource.EditInfo.Structs.TryGetValue(ResourceEditInfo.REDIStruct.SpecialDependencies, out var specialDepsRedi))
+            {
+                var specialDeps = (SpecialDependencies)specialDepsRedi;
+                hemiOctRB = specialDeps.List.Any(dependency => dependency.CompilerIdentifier == "CompileTexture" && dependency.String == "Texture Compiler Version Mip HemiOctIsoRoughness_RG_B");
+            }
+
+            // using?
+            using var bitmap = new SKBitmap(texture.Width, texture.Height, SKColorType.Rgba8888, SKAlphaType.Unpremul);
+            hardwareDecoder.Decode(new GLTextureDecoder.DecodeRequest(bitmap, texture, 0, 0, channels)
+            {
+                HemiOctRB = hemiOctRB,
+            });
+
+            DrawSpriteSheetOverlay(bitmap);
+            SetImage(bitmap.ToBitmap(), name, texture.Width, texture.Height);
+        }
+
+        private void DrawSpriteSheetOverlay(SKBitmap bitmap)
+        {
+            var sheet = texture?.GetSpriteSheetData();
+            if (sheet == null)
+            {
+                return;
+            }
+
+            using var canvas = new SKCanvas(bitmap);
+            using var color1 = new SKPaint
+            {
+                Style = SKPaintStyle.Stroke,
+                Color = new SKColor(0, 100, 255, 200),
+                StrokeWidth = 1,
+            };
+            using var color2 = new SKPaint
+            {
+                Style = SKPaintStyle.Stroke,
+                Color = new SKColor(255, 100, 0, 200),
+                StrokeWidth = 1,
+            };
+
+            foreach (var sequence in sheet.Sequences)
+            {
+                foreach (var frame in sequence.Frames)
+                {
+                    foreach (var image in frame.Images)
+                    {
+                        canvas.DrawRect(image.GetCroppedRect(bitmap.Width, bitmap.Height), color1);
+                        canvas.DrawRect(image.GetUncroppedRect(bitmap.Width, bitmap.Height), color2);
+                    }
+                }
+            }
+        }
+
+        private Channels GetSelectedChannelMode()
+        {
+            foreach (var item in viewChannelsToolStripMenuItem.DropDownItems)
+            {
+                if (item is ToolStripMenuItem menuItem && menuItem.Checked)
+                {
+                    return (Channels)menuItem.Tag;
+                }
+            }
+
+            return Channels.RGBA;
+        }
+
+        private void HardwareDecodeCheckBox_Click(object sender, EventArgs e)
+        {
+            var item = sender as ToolStripMenuItem;
+            item.Checked = !item.Checked;
+
+            var channels = GetSelectedChannelMode();
+            CancelPreviousChannelChange();
+            SetChannels(channels);
+        }
+
+        private void OnChannelMenuItem_Click(object sender, EventArgs e)
+        {
+            var item = sender as ToolStripMenuItem;
+            if (item.Checked)
+            {
+                return;
+            }
+
+            CancelPreviousChannelChange();
+
+            channelChangingTask = Task.Run(() => SetChannels((Channels)item.Tag), cts.Token);
+            channelChangingTask.ContinueWith((t) =>
+            {
+                if (t.IsCompletedSuccessfully)
+                {
+                    foreach (var i in item.GetCurrentParent().Items)
+                    {
+                        if (i is not ToolStripMenuItem menuItem)
+                        {
+                            continue;
+                        }
+
+                        Invoke(() => menuItem.Checked = menuItem == item);
+                    }
+                }
+            }, TaskScheduler.FromCurrentSynchronizationContext());
+        }
+
+        private void CancelPreviousChannelChange()
+        {
+            cts?.Cancel();
+            cts?.Dispose();
+            cts = new CancellationTokenSource();
         }
 
         private void ContextMenuStrip1_ItemClicked(object sender, ToolStripItemClickedEventArgs e)
@@ -135,7 +271,7 @@ namespace GUI.Forms
             switch (saveFileDialog.FilterIndex)
             {
                 case 2:
-                    format = ImageFormat.Jpeg;
+                    format = ImageFormat.Exif;
                     break;
 
                 case 3:
@@ -148,98 +284,6 @@ namespace GUI.Forms
 
             using var fs = (FileStream)saveFileDialog.OpenFile();
             pictureBox1.Image.Save(fs, format);
-        }
-
-        private void HardwareDecodeCheckBox_Click(object sender, EventArgs e)
-        {
-            var item = sender as ToolStripMenuItem;
-
-            var channels = GetSelectedChannelMode();
-
-            if (item.Checked)
-            {
-                item.Checked = false;
-                SetChannels(channels);
-                return;
-            }
-
-            item.Checked = true;
-            DecodeTextureGpu(GetSelectedChannelMode());
-        }
-
-        private void DecodeTextureGpu(Channels channels)
-        {
-            if (textureResource is null)
-            {
-                return;
-            }
-
-            var hemiOctRB = false;
-
-            if (textureResource.EditInfo.Structs.TryGetValue(ResourceEditInfo.REDIStruct.SpecialDependencies, out var specialDepsRedi))
-            {
-                var specialDeps = (SpecialDependencies)specialDepsRedi;
-                hemiOctRB = specialDeps.List.Any(dependancy => dependancy.CompilerIdentifier == "CompileTexture" && dependancy.String == "Texture Compiler Version Mip HemiOctIsoRoughness_RG_B");
-            }
-
-            // using?
-            using var bitmap = new SKBitmap(skBitmap.Width, skBitmap.Height, SKColorType.Rgba8888, SKAlphaType.Unpremul);
-            hardwareDecoder.Decode(new GLTextureDecoder.DecodeRequest(bitmap, textureResource, 0, 0, channels)
-            {
-                HemiOctRB = hemiOctRB,
-            });
-
-            var previous = pictureBox1.Image;
-            SetImage(bitmap.ToBitmap(), name, skBitmap.Width, skBitmap.Height);
-            previous.Dispose();
-        }
-
-        private Channels GetSelectedChannelMode()
-        {
-            foreach (var item in viewChannelsToolStripMenuItem.DropDownItems)
-            {
-                if (item is not ToolStripMenuItem menuItem)
-                {
-                    continue;
-                }
-
-                if (menuItem.Checked)
-                {
-                    return (Channels)menuItem.Tag;
-                }
-            }
-
-            return Channels.RGBA;
-        }
-
-        private void OnChannelMenuItem_Click(object sender, EventArgs e)
-        {
-            var item = sender as ToolStripMenuItem;
-            if (item.Checked)
-            {
-                return;
-            }
-
-            cts?.Cancel();
-            cts?.Dispose();
-            cts = new CancellationTokenSource();
-
-            channelChangingTask = Task.Run(() => SetChannels((Channels)item.Tag), cts.Token);
-            channelChangingTask.ContinueWith((t) =>
-            {
-                if (t.IsCompletedSuccessfully)
-                {
-                    foreach (var i in item.GetCurrentParent().Items)
-                    {
-                        if (i is not ToolStripMenuItem menuItem)
-                        {
-                            continue;
-                        }
-
-                        Invoke(() => menuItem.Checked = menuItem == item);
-                    }
-                }
-            }, TaskScheduler.FromCurrentSynchronizationContext());
         }
     }
 }

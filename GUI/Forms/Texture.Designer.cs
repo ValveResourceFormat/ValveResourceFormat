@@ -28,8 +28,12 @@ namespace GUI.Forms
                     channelChangingTask.ContinueWith(t =>
                     {
                         t.Dispose();
-                        skBitmap.Dispose();
+                        skBitmap?.Dispose();
                     });
+                }
+                else
+                {
+                    skBitmap?.Dispose();
                 }
 
                 hardwareDecoder?.Dispose();
