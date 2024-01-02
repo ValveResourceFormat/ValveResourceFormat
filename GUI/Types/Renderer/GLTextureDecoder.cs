@@ -117,7 +117,7 @@ class GLTextureDecoder : IDisposable // ITextureDecoder
         // Bind and stay on this framebuffer, the game window frame buffer is limited by screen size
         GL.BindFramebuffer(FramebufferTarget.Framebuffer, FrameBuffer);
 
-        FrameBufferColor = new RenderTexture(TextureTarget.Texture2D, 4096, 4096, 1, 1);
+        FrameBufferColor = new RenderTexture(TextureTarget.Texture2D, 8192, 8192, 1, 1);
         using (FrameBufferColor.BindingContext())
         {
             //FrameBufferColor.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);

@@ -1,6 +1,15 @@
 #version 460
 
-uniform sampler2D g_tInputTexture;
+#define TYPE_TEXTURE2D 0
+#define TYPE_TEXTURE2DARRAY 1
+
+#if TYPE_TEXTURE2D == 1
+    #define TEXTURE_TYPE sampler2D
+#elif TYPE_TEXTURE2DARRAY == 1
+    #define TEXTURE_TYPE sampler2DArray
+#endif
+
+uniform TEXTURE_TYPE g_tInputTexture;
 uniform vec4 g_vInputTextureSize;
 
 uniform int g_nSelectedMip;
@@ -42,7 +51,13 @@ layout(location = 0) out vec4 vColorOutput;
 
 void main()
 {
-    vec2 vTexCoord = gl_FragCoord.xy / g_vInputTextureSize.xy;
+    vec2 vTexCoord2D = gl_FragCoord.xy / g_vInputTextureSize.xy;
+
+    #if TYPE_TEXTURE2D == 1
+        vec2 vTexCoord = vTexCoord2D;
+    #elif TYPE_TEXTURE2DARRAY == 1
+        vec3 vTexCoord = vec3(vTexCoord2D, g_nSelectedDepth);
+    #endif
 
     vec4 vColor = textureLod(g_tInputTexture, vTexCoord, float(g_nSelectedMip) / g_vInputTextureSize.w);
 
