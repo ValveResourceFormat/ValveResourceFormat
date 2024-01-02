@@ -43,7 +43,7 @@ class GLTextureDecoder : IDisposable // ITextureDecoder
         GLThread = new Thread(Initialize_NoExcept)
         {
             IsBackground = true,
-            Name = "OpenGL Thread",
+            Name = nameof(GLTextureDecoder),
         };
         GLThread.Start();
     }
@@ -100,12 +100,13 @@ class GLTextureDecoder : IDisposable // ITextureDecoder
             }
         }
 
+        // TODO: Remove this
         GL.Enable(EnableCap.DebugOutput);
         GL.Enable(EnableCap.DebugOutputSynchronous);
         GL.DebugMessageCallback((source, type, id, severity, length, message, userParam) =>
         {
             var msg = System.Runtime.InteropServices.Marshal.PtrToStringUTF8(message, length);
-            Log.Warn(nameof(GLTextureDecoder), $"GL: {type} {message}");
+            Log.Warn(nameof(GLTextureDecoder), $"GL: {type} {msg}");
         }, IntPtr.Zero);
 
         GL.Flush();
