@@ -161,7 +161,18 @@ namespace GUI.Types.Renderer
         public RenderTexture LoadTexture(Resource textureResource, bool srgbRead = false)
         {
             var data = (Texture)textureResource.DataBlock;
+            var tex = LoadTexture(data);
 
+#if DEBUG
+            var textureName = System.IO.Path.GetFileName(textureResource.FileName);
+            GL.ObjectLabel(ObjectLabelIdentifier.Texture, tex.Handle, textureName.Length, textureName);
+#endif
+
+            return tex;
+        }
+
+        public RenderTexture LoadTexture(Texture data)
+        {
             var target = TextureTarget.Texture2D;
             var clampModeS = data.Flags.HasFlag(VTexFlags.SUGGEST_CLAMPS) ? TextureWrapMode.ClampToBorder : TextureWrapMode.Repeat;
             var clampModeT = data.Flags.HasFlag(VTexFlags.SUGGEST_CLAMPT) ? TextureWrapMode.ClampToBorder : TextureWrapMode.Repeat;
@@ -199,11 +210,6 @@ namespace GUI.Types.Renderer
             }
 
             using var _ = tex.BindingContext();
-
-#if DEBUG
-            var textureName = System.IO.Path.GetFileName(textureResource.FileName);
-            GL.ObjectLabel(ObjectLabelIdentifier.Texture, tex.Handle, textureName.Length, textureName);
-#endif
 
             if (!format.HasValue && !internalFormat.HasValue)
             {

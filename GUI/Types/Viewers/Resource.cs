@@ -565,51 +565,12 @@ namespace GUI.Types.Viewers
                 return;
             }
 
-            var sheet = tex.GetSpriteSheetData();
-            var bitmap = tex.GenerateBitmap();
-
-            if (sheet != null)
-            {
-                using var canvas = new SKCanvas(bitmap);
-                using var color1 = new SKPaint
-                {
-                    Style = SKPaintStyle.Stroke,
-                    Color = new SKColor(0, 100, 255, 200),
-                    StrokeWidth = 1,
-                };
-                using var color2 = new SKPaint
-                {
-                    Style = SKPaintStyle.Stroke,
-                    Color = new SKColor(255, 100, 0, 200),
-                    StrokeWidth = 1,
-                };
-
-                foreach (var sequence in sheet.Sequences)
-                {
-                    foreach (var frame in sequence.Frames)
-                    {
-                        foreach (var image in frame.Images)
-                        {
-                            canvas.DrawRect(image.GetCroppedRect(bitmap.Width, bitmap.Height), color1);
-                            canvas.DrawRect(image.GetUncroppedRect(bitmap.Width, bitmap.Height), color2);
-                        }
-                    }
-                }
-            }
-
-            var control = new Forms.Texture
+            var control = new Forms.Texture(vrfGuiContext)
             {
                 BackColor = Color.Black,
             };
 
-            control.InitGpuDecoder(vrfGuiContext, resource);
-
-            control.SetImage(
-                bitmap,
-                Path.GetFileNameWithoutExtension(vrfGuiContext.FileName),
-                tex.ActualWidth,
-                tex.ActualHeight
-            );
+            control.SetTexture(resource, hardwareDecode: true);
 
             var tab = new TabPage("TEXTURE")
             {
