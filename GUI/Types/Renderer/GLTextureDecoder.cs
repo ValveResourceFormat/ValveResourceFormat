@@ -20,19 +20,10 @@ class GLTextureDecoder : IDisposable // ITextureDecoder
     private readonly ConcurrentQueue<DecodeRequest> decodeQueue;
     private readonly Thread GLThread;
 
-    public record DecodeRequest(SKBitmap Bitmap, Texture Texture, int Mip, int Depth, ChannelMapping Channels)
-    {
-        public bool HemiOctRB { get; init; }
-
-        public ManualResetEvent DoneEvent { get; } = new(false);
-        public bool Success { get; set; }
-        public float DecodeTime { get; set; }
-        public float TotalTime { get; set; }
-    };
-
     private GLControl GLControl;
     private int FrameBuffer;
     private RenderTexture FrameBufferColor;
+    private DecodeRequest activeRequest;
 
     public GLTextureDecoder(VrfGuiContext guiContext)
     {
@@ -44,25 +35,58 @@ class GLTextureDecoder : IDisposable // ITextureDecoder
         {
             IsBackground = true,
             Name = nameof(GLTextureDecoder),
+            Priority = ThreadPriority.AboveNormal,
         };
+
+        IsRunning = true;
         GLThread.Start();
     }
 
-    public bool Initialized { get; private set; }
-    public bool IsAvailable => Initialized && GLThread.IsAlive;
+    public record DecodeRequest(SKBitmap Bitmap, Texture Texture, int Mip, int Depth, ChannelMapping Channels) : IDisposable
+    {
+        public bool HemiOctRB { get; init; }
+
+        public ManualResetEvent DoneEvent { get; } = new(false);
+        public bool Success { get; set; }
+        public TimeSpan DecodeTime { get; set; }
+        public TimeSpan ResponseTime { get; set; }
+
+        public bool Wait(int timeout = Timeout.Infinite) => DoneEvent.WaitOne(timeout);
+
+        public void MarkAsDone(bool successfully)
+        {
+            Success = successfully;
+            DoneEvent.Set();
+        }
+
+        public void Dispose()
+        {
+            DoneEvent.Dispose();
+            GC.SuppressFinalize(this);
+        }
+    }
+
+    public bool IsRunning { get; private set; }
 
     public bool Decode(DecodeRequest request)
     {
+        if (!IsRunning)
+        {
+            Log.Warn(nameof(GLTextureDecoder), "Decoder thread is no longer available.");
+            return false;
+        }
+
         var sw = Stopwatch.StartNew();
         decodeQueue.Enqueue(request);
         queueUpdateEvent.Set();
 
-        request.DoneEvent.WaitOne();
-        request.TotalTime = sw.ElapsedMilliseconds;
+        request.Wait();
+        request.ResponseTime = sw.Elapsed - request.DecodeTime;
 
-        Log.Debug(nameof(GLTextureDecoder), $"Decode finished in {request.DecodeTime}ms (wait overhead: {request.TotalTime - request.DecodeTime}ms)");
+        var status = request.Success ? "succeeded" : "failed";
+        Log.Debug(nameof(GLTextureDecoder), $"Decode {status} in {request.DecodeTime.Milliseconds}ms (response time: {request.ResponseTime.Milliseconds}ms)");
 
-        return true;
+        return request.Success;
     }
 
     private void Initialize_NoExcept()
@@ -73,7 +97,14 @@ class GLTextureDecoder : IDisposable // ITextureDecoder
         }
         catch (Exception e)
         {
-            Log.Error(nameof(GLTextureDecoder), $"Failed to initialize GL context: {e}");
+            Log.Error(nameof(GLTextureDecoder), $"GL context failure: {e}");
+        }
+        finally
+        {
+            IsRunning = false;
+            CleanupRequests();
+            Dispose_ThreadResources();
+            Log.Warn(nameof(GLTextureDecoder), "Decoder thread has exited. It is no longer available.");
         }
     }
 
@@ -110,24 +141,24 @@ class GLTextureDecoder : IDisposable // ITextureDecoder
         }, IntPtr.Zero);
 
         GL.Flush();
-        Initialized = true;
 
         while (true)
         {
             if (!decodeQueue.TryDequeue(out var decodeRequest))
             {
-                Thread.CurrentThread.Priority = ThreadPriority.BelowNormal;
                 queueUpdateEvent.WaitOne();
-                Thread.CurrentThread.Priority = ThreadPriority.AboveNormal;
-                continue;
+                if (IsRunning)
+                {
+                    continue;
+                }
+
+                // we are supposed to exit, so break out of the loop
+                break;
             }
 
-            if (Decode_Thread(decodeRequest))
-            {
-                decodeRequest.Success = true;
-            }
-
-            decodeRequest.DoneEvent.Set();
+            activeRequest = decodeRequest;
+            var successfully = Decode_Thread(activeRequest);
+            activeRequest.MarkAsDone(successfully);
         }
     }
 
@@ -137,7 +168,7 @@ class GLTextureDecoder : IDisposable // ITextureDecoder
         var inputTexture = guiContext.MaterialLoader.LoadTexture(request.Texture);
         if (inputTexture == MaterialLoader.GetErrorTexture())
         {
-            Log.Warn(nameof(GLTextureDecoder), $"Failure loading texture.");
+            Log.Warn(nameof(GLTextureDecoder), $"Failure loading texture (unsupported format?).");
             return false;
         }
 
@@ -183,15 +214,46 @@ class GLTextureDecoder : IDisposable // ITextureDecoder
         GL.ReadPixels(0, 0, inputTexture.Width, inputTexture.Height, PixelFormat.Rgba, PixelType.UnsignedByte, pixels);
         GL.Finish();
 
-        request.DecodeTime = sw.ElapsedMilliseconds;
+        request.DecodeTime = sw.Elapsed;
         return true;
+    }
+
+    private void Dispose_ThreadResources()
+    {
+        GLControl?.Dispose();
+        FrameBufferColor?.Dispose();
+        GL.DeleteFramebuffer(FrameBuffer);
+    }
+
+    private void Exit()
+    {
+        IsRunning = false;  // signal the thread that it should exit
+        queueUpdateEvent.Set(); // wake the thread up
+        GLThread.Join(); // wait for the thread to exit
+    }
+
+    private void CleanupRequests()
+    {
+        if (activeRequest != null)
+        {
+            activeRequest.MarkAsDone(successfully: false);
+            activeRequest.Dispose();
+            activeRequest = null;
+        }
+
+        foreach (var queuedRequest in decodeQueue)
+        {
+            queuedRequest.MarkAsDone(successfully: false);
+            queuedRequest.Dispose();
+        }
+
+        decodeQueue.Clear();
     }
 
     public void Dispose()
     {
+        Exit();
         queueUpdateEvent.Dispose();
-        GLControl?.Dispose();
-        FrameBufferColor?.Dispose();
-        GL.DeleteFramebuffer(FrameBuffer);
+        Log.Info(nameof(GLTextureDecoder), "Decoder has been disposed.");
     }
 }
