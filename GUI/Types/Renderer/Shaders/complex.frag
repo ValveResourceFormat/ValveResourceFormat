@@ -76,7 +76,7 @@ uniform int F_DECAL_BLEND_MODE;
 #define F_SSS_MASK 0 // todo
 
 // vr_standard
-#define F_HIGH_QUALITY_GLOSS 0 
+#define F_HIGH_QUALITY_GLOSS 0
 #define F_BLEND_NORMALS 0
 
 #define HemiOctIsoRoughness_RG_B 0
@@ -373,6 +373,7 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
     mat.Opacity = color.a;
 
 #if defined(static_overlay_vfx_common) && (F_PAINT_VERTEX_COLORS == 1)
+    mat.Albedo *= vVertexColorOut.rgb;
     mat.Opacity *= vVertexColorOut.a;
 #endif
 

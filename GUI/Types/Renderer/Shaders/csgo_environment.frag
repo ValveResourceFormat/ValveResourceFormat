@@ -29,13 +29,11 @@ in vec3 vNormalOut;
 in vec3 vTangentOut;
 in vec3 vBitangentOut;
 in vec4 vTexCoord;
+in vec4 vTexCoord2;
 in vec4 vTintColor_ModelAmount;
 centroid in vec4 vVertexColor_Alpha;
 in vec4 vBlendColorTint;
 
-#if (F_SECONDARY_UV == 1)
-    in vec2 vTexCoord2;
-#endif
 
 out vec4 outputColor;
 
@@ -51,6 +49,7 @@ uniform sampler2D g_tNormal1;
 
 #if (F_SECONDARY_AO == 1)
     uniform sampler2D g_tSecondaryAO;
+    uniform vec4 g_vSecondaryAmbientOcclusionLevels = vec4(0, 0.5, 1, 0);
 #endif
 
 uniform bool g_bMetalness1;
@@ -66,6 +65,7 @@ uniform float g_fTextureRoughnessContrast1 = 1.0;
 uniform float g_fTintMaskBrightness1 = 1.0;
 uniform float g_fTintMaskContrast1 = 1.0;
 uniform int g_nVertexColorMode1 = 0;
+uniform vec4 g_vAmbientOcclusionLevels1 = vec4(0, 0.5, 1, 0);
 
 uniform float g_flHeightMapScale1 = 0;
 uniform float g_flHeightMapZeroPoint1 = 0;
@@ -83,7 +83,12 @@ uniform float g_flHeightMapZeroPoint1 = 0;
     #endif
 
     #if (F_SHARED_COLOR_OVERLAY == 1)
-        //uniform sampler2D g_tSharedColorOverlay;
+        uniform sampler2D g_tSharedColorOverlay;
+
+        uniform int g_nColorOverlayMode;                    // "0=Both Layers,1=Layer 1,2=Layer 2"
+        uniform int g_nColorOverlayTintMask;                // "0=Mask Both Layers,1=Mask Layer 1,2=Mask Layer 2,3==Unmasked"
+        uniform float g_flOverlayDarknessContrast = 1.0;    // 0.2 .. 2.0
+        uniform float g_flOverlayBrightnessContrast = 1.0;  // 0.2 .. 2.0
     #endif
 
     #if (F_BLEND_EFFECTS > 0)
@@ -103,6 +108,7 @@ uniform float g_flHeightMapZeroPoint1 = 0;
     uniform float g_fTintMaskBrightness2 = 1.0;
     uniform float g_fTintMaskContrast2 = 1.0;
     uniform int g_nVertexColorMode2 = 0;
+    uniform vec4 g_vAmbientOcclusionLevels2 = vec4(0, 0.5, 1, 0);
 
     uniform float g_flHeightMapScale2 = 1.0;
     uniform float g_flHeightMapZeroPoint2 = 0.0;
@@ -177,22 +183,37 @@ vec3 AdjustBrightnessContrastSaturation(vec3 color, float brightness, float cont
 }
 
 // Get material properties (possibly from two layers)
-MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
+MaterialProperties_t GetMaterial(vec3 vertexNormals)
 {
     MaterialProperties_t mat;
     InitProperties(mat, vertexNormals);
 
-    vec4 color = texture(g_tColor1, texCoord);
-    vec4 height = texture(g_tHeight1, texCoord);
-    vec4 normal = texture(g_tNormal1, texCoord);
+    // vTexCoord = Layer1 (xy) shared color overlay (zw)
+    // vTexCoord2 = Layer2 (xy) UV2 (zw)
+    // vDetailTexCoords = Detail (normal) UVs
+
+    vec4 color = texture(g_tColor1, vTexCoord.xy);
+    vec4 height = texture(g_tHeight1, vTexCoord.xy);
+    vec4 normal = texture(g_tNormal1, vTexCoord.xy);
     #if (F_DETAIL_NORMAL == 1)
         vec2 detailNormal = texture(g_tNormalDetail1, vDetailTexCoords).rg;
     #endif
+
+    vec3 aoLevels = g_vAmbientOcclusionLevels1.xyz;
 
     float tintMask1 = saturate(((height.g - 0.5) * g_fTintMaskContrast1 + 0.5) * g_fTintMaskBrightness1);
     height.a = g_bMetalness1 ? height.a : 0.0;
     normal.rg = (normal.rg - 0.5) * g_fTextureNormalContrast1 + 0.5;
     normal.b = saturate(((normal.b - 0.5) * g_fTextureRoughnessContrast1 + 0.5) * g_fTextureRoughnessBrightness1);
+
+    vec3 overlayFactor = vec3(1.0);
+
+    #if (F_SHARED_COLOR_OVERLAY == 1)
+        vec3 overlay = SrgbGammaToLinear(texture(g_tSharedColorOverlay, vTexCoord.zw).rgb) * 2.0 - 1.0;
+        vec3 _15235 = (((vec3(1.0) - pow(vec3(1.0) - max(vec3(0.0), overlay), vec3(g_flOverlayBrightnessContrast))) * g_flOverlayBrightnessContrast)
+            + ((pow(vec3(1.0) + min(vec3(0.0), overlay), vec3(g_flOverlayDarknessContrast)) - vec3(1.0)) * g_flOverlayDarknessContrast)) + vec3(1.0);
+        overlayFactor = max(vec3(0.0), _15235);
+    #endif
 
     color.rgb = SrgbGammaToLinear(color.rgb);
 
@@ -224,14 +245,21 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
     color.rgb *= tintFactor1;
 #endif
 
+    #if (F_SHARED_COLOR_OVERLAY == 1)
+        // 0=Both, 1=Layer 1
+        const bool g_bColorOverlayLayer1 = g_nColorOverlayMode == 0 || g_nColorOverlayMode == 1;
+        const bool g_bColorOverlayMaskLayer1 = g_nColorOverlayTintMask == 0 || g_nColorOverlayTintMask == 1;
+        color.rgb *= mix(vec3(1.0), overlayFactor, vec3((g_bColorOverlayMaskLayer1 ? tintMask1 : 1.0) * float(g_bColorOverlayLayer1)));
+    #endif
+
     color.rgb *= g_nVertexColorMode1 == 1 ? vVertexColor_Alpha.rgb : vec3(1.0);
     color.rgb = (color.rgb);
 
     // Blending
 #if defined(csgo_environment_blend_vfx)
-    vec4 color2 = texture(g_tColor2, vTexCoord.zw);
-    vec4 height2 = texture(g_tHeight2, vTexCoord.zw);
-    vec4 normal2 = texture(g_tNormal2, vTexCoord.zw);
+    vec4 color2 = texture(g_tColor2, vTexCoord2.xy);
+    vec4 height2 = texture(g_tHeight2, vTexCoord2.xy);
+    vec4 normal2 = texture(g_tNormal2, vTexCoord2.xy);
     #if (F_DETAIL_NORMAL == 1)
         vec2 detailNormal2 = texture(g_tNormalDetail2, vDetailTexCoords).rg;
     #endif
@@ -264,6 +292,13 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
     color2.rgb *= tintFactor2;
 #endif
 
+    #if (F_SHARED_COLOR_OVERLAY == 1)
+        // 0=Both, 2=Layer 2
+        const bool g_bColorOverlayLayer2 = g_nColorOverlayMode == 0 || g_nColorOverlayMode == 2;
+        const bool g_bColorOverlayMaskLayer2 = g_nColorOverlayTintMask == 0 || g_nColorOverlayTintMask == 2;
+        color2.rgb *= mix(vec3(1.0), overlayFactor, vec3((g_bColorOverlayMaskLayer2 ? tintMask2 : 1.0) * float(g_bColorOverlayLayer2)));
+    #endif
+
     color2.rgb *= g_nVertexColorMode2 == 1 ? vVertexColor_Alpha.rgb : vec3(1.0);
     color2.rgb = (color2.rgb);
 
@@ -280,17 +315,26 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
     color = color * weights.x + color2 * weights.y;
     height = height * weights.x + height2 * weights.y;
     normal = normal * weights.x + normal2 * weights.y;
+    aoLevels = aoLevels * weights.x + g_vAmbientOcclusionLevels2.xyz * weights.y;
 #endif
 
     mat.Albedo = color.rgb;
-    mat.Opacity = color.a;
+    mat.AmbientOcclusion = color.a;
 
     // Alpha test
-#if (F_ALPHA_TEST == 1)
-    mat.Opacity = AlphaTestAntiAliasing(mat.Opacity, texCoord);
+    #if (F_ALPHA_TEST == 1)
+        mat.AmbientOcclusion = height.b;
+        mat.Opacity = AlphaTestAntiAliasing(color.a, vTexCoord.xy);
 
-    if (mat.Opacity - 0.001 < g_flAlphaTestReference)   discard;
-#endif
+        if (mat.Opacity - 0.001 < g_flAlphaTestReference)   discard;
+    #endif
+
+    //mat.AmbientOcclusion = LevelsAdjust(mat.AmbientOcclusion, aoLevels);
+
+    #if (F_SECONDARY_AO == 1)
+        float flSecondAO = texture(g_tSecondaryAO, vTexCoord.zw).r;
+        mat.AmbientOcclusion *= LevelsAdjust(flSecondAO, g_vSecondaryAmbientOcclusionLevels.xyz);
+    #endif
 
     // Normals and Roughness
     mat.NormalMap = DecodeNormal(normal);
@@ -298,25 +342,20 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
     mat.RoughnessTex = normal.b;
 
     // Detail texture
-#if (F_DETAIL_NORMAL == 1)
-    // this is wrong. todo
-    mat.NormalMap.xy = (mat.NormalMap.xy + detailNormal) * vec2(0.5);
-#endif
+    #if (F_DETAIL_NORMAL == 1)
+        // this is wrong. todo
+        mat.NormalMap.xy = (mat.NormalMap.xy + detailNormal) * vec2(0.5);
+    #endif
 
     mat.Normal = calculateWorldNormal(mat.NormalMap, mat.GeometricNormal, mat.Tangent, mat.Bitangent);
 
     mat.Height = height.r;
     mat.Metalness = height.a;
-    mat.AmbientOcclusion = color.a;
 
     mat.Roughness = AdjustRoughnessByGeometricNormal(mat.RoughnessTex, mat.GeometricNormal);
 
     mat.AmbientNormal = mat.Normal;
     mat.AmbientGeometricNormal = mat.GeometricNormal;
-
-#if (F_SHARED_COLOR_OVERLAY == 1)
-    //mat.Albedo = ApplyDecalTexture(texture(g_tSharedColorOverlay, texCoord));
-#endif
 
     mat.DiffuseColor = mat.Albedo - mat.Albedo * mat.Metalness;
 
@@ -334,10 +373,9 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 void main()
 {
     vec3 vertexNormal = SwitchCentroidNormal(vNormalOut, vCentroidNormalOut);
-    vec2 texCoord = vTexCoord.xy;
 
     // Get material
-    MaterialProperties_t mat = GetMaterial(texCoord, vertexNormal);
+    MaterialProperties_t mat = GetMaterial(vertexNormal);
 
     LightingTerms_t lighting = InitLighting();
 

@@ -85,6 +85,17 @@ float GetLuma(vec3 Color) {
 	return dot( Color, vec3(0.2126, 0.7152, 0.0722) );
 }
 
+float LevelsAdjust(float component, vec3 L_BlackWhiteGamma)
+{
+    vec3 levels = vec3(
+        -L_BlackWhiteGamma.x,
+        -1.4427 * log2(max(0.0001, 1.0 - L_BlackWhiteGamma.y)),
+        2.0 - L_BlackWhiteGamma.z
+    );
+
+    return mix(levels.x, levels.y, pow(component, levels.z));
+}
+
 float SrgbGammaToLinear(float color)
 {
     float vLinearSegment = color / 12.92;

@@ -70,7 +70,7 @@ uniform int F_TEXTURE_ANIMATION_MODE;
 #endif
 
 #if (F_SECONDARY_UV == 1) || (F_FORCE_UV2 == 1)
-    in vec4 vTEXCOORD2;
+    in vec4 vTEXCOORD1;
     out vec2 vTexCoord2;
 #endif
 
@@ -159,7 +159,7 @@ vec4 GetTintColor()
 #if F_NOTINT == 0
     TintFade.rgb = mix(vec3(1.0), vTint.rgb * g_vColorTint.rgb, g_flModelTintAmount);
 #endif
-    TintFade.a = pow(vTint.a * g_vColorTint.a, g_flFadeExponent);
+    TintFade.a = pow(vTint.a, g_flFadeExponent);
     return TintFade;
 }
 
@@ -225,7 +225,7 @@ void main()
 #endif
 
 #if (F_SECONDARY_UV == 1) || (F_FORCE_UV2 == 1)
-    vTexCoord2 = vTEXCOORD2.xy;
+    vTexCoord2 = vTEXCOORD1.xy;
 #endif
 
 #if (F_DETAIL_TEXTURE > 0)

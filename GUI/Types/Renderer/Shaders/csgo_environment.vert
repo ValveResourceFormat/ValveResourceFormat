@@ -20,10 +20,7 @@ layout (location = 3) in vec2 vTEXCOORD;
 in vec4 vCOLOR;
 
 #if (F_SECONDARY_UV == 1)
-    in vec2 vTEXCOORD2;
-    out vec2 vTexCoord2;
-#else
-    vec2 vTexCoord2; // fake reference
+    in vec2 vTEXCOORD1;
 #endif
 
 #if D_BAKED_LIGHTING_FROM_LIGHTMAP == 1
@@ -46,6 +43,7 @@ out vec3 vTangentOut;
 out vec3 vBitangentOut;
 centroid out vec3 vCentroidNormalOut;
 out vec4 vTexCoord;
+out vec4 vTexCoord2;
 out vec4 vTintColor_ModelAmount;
 centroid out vec4 vVertexColor_Alpha;
 
@@ -71,6 +69,14 @@ uniform vec4 g_vTexCoordScale1 = vec4(1.0);
     uniform vec4 g_vTexCoordScale2 = vec4(1.0);
 
     uniform float g_flBlendSoftness2 = 0.0;
+
+    #if (F_SHARED_COLOR_OVERLAY == 1)
+        uniform float g_flOverlayTexCoordRotation = 0.0;
+        uniform vec4 g_vOverlayTexCoordCenter = vec4(0.5);
+        uniform vec4 g_vOverlayTexCoordOffset = vec4(0.0);
+        uniform vec4 g_vOverlayTexCoordScale = vec4(1.0);
+    #endif
+
 #endif
 
 #if (F_DETAIL_NORMAL == 1)
@@ -111,12 +117,12 @@ void main()
         g_vTexCoordCenter1.xy
     );
 
-#if D_BAKED_LIGHTING_FROM_LIGHTMAP == 1
-    vLightmapUVScaled = vec3(vLightmapUV * g_vLightmapUvScale.xy, 0);
-#elif D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1
-    vec3 Light = vPerVertexLighting.rgb * 6.0 * vPerVertexLighting.a;
-    vPerVertexLightingOut = pow2(Light);
-#endif
+    #if D_BAKED_LIGHTING_FROM_LIGHTMAP == 1
+        vLightmapUVScaled = vec3(vLightmapUV * g_vLightmapUvScale.xy, 0);
+    #elif D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1
+        vec3 Light = vPerVertexLighting.rgb * 6.0 * vPerVertexLighting.a;
+        vPerVertexLightingOut = pow2(Light);
+    #endif
 
     // original code has SrgbGammaToLinear
     vTintColor_ModelAmount.rgb = (vTint.rgb);
@@ -134,31 +140,41 @@ void main()
 
     vVertexColor_Alpha = vec4(SrgbGammaToLinear(g_vColorTint.rgb) * vVertexPaint, vTint.a);
 
-#if (F_SECONDARY_UV == 1)
-    vTexCoord2 = vTEXCOORD2.xy;
-#endif
+    #if (F_SECONDARY_UV == 1)
+        vTexCoord2.zw = vTEXCOORD1.xy;
+    #endif
 
-#if (F_DETAIL_NORMAL == 1)
-    const bool DetailUseSecondaryUV = (F_SECONDARY_UV == 1 && F_DETAIL_NORMAL_USES_SECONDARY_UVS == 1);
-    vDetailTexCoords = RotateVector2D(DetailUseSecondaryUV ? vTexCoord2 : vTexCoord.xy,
-        g_flDetailTexCoordRotation1,
-        g_vDetailTexCoordScale1.xy,
-        g_vDetailTexCoordOffset1.xy,
-        g_vDetailTexCoordCenter1.xy
-    );
-#endif
+    #if (F_DETAIL_NORMAL == 1)
+        const bool bDetailNormalUsesUV2 = (F_SECONDARY_UV == 1 && F_DETAIL_NORMAL_USES_SECONDARY_UVS == 1);
+        vDetailTexCoords = RotateVector2D(bDetailNormalUsesUV2 ? vTexCoord2.zw : vTEXCOORD.xy,
+            g_flDetailTexCoordRotation1,
+            g_vDetailTexCoordScale1.xy,
+            g_vDetailTexCoordOffset1.xy,
+            g_vDetailTexCoordCenter1.xy
+        );
+    #endif
 
-#if defined(csgo_environment_blend_vfx)
-    vTexCoord.zw = RotateVector2D(vTEXCOORD.xy,
-        g_flTexCoordRotation2,
-        g_vTexCoordScale2.xy,
-        g_vTexCoordOffset2.xy,
-        g_vTexCoordCenter2.xy
-    );
+    #if defined(csgo_environment_blend_vfx)
+        vTexCoord2.xy = RotateVector2D(vTEXCOORD.xy,
+            g_flTexCoordRotation2,
+            g_vTexCoordScale2.xy,
+            g_vTexCoordOffset2.xy,
+            g_vTexCoordCenter2.xy
+        );
 
-    vColorBlendValues = vTEXCOORD4 / 255.0f;
-    vColorBlendValues.a = clamp(vColorBlendValues.a + g_flBlendSoftness2, 0.001, 1.0);
-#endif
+        vColorBlendValues = vTEXCOORD4 / 255.0f;
+        vColorBlendValues.a = clamp(vColorBlendValues.a + g_flBlendSoftness2, 0.001, 1.0);
+
+        #if (F_SHARED_COLOR_OVERLAY == 1)
+            vTexCoord.zw = RotateVector2D((F_SECONDARY_UV == 1) ? vTexCoord2.zw : vTEXCOORD.xy,
+                g_flOverlayTexCoordRotation,
+                g_vOverlayTexCoordScale.xy,
+                g_vOverlayTexCoordOffset.xy,
+                g_vOverlayTexCoordCenter.xy
+            );
+        #endif
+
+    #endif
 
     vCentroidNormalOut = vNormalOut;
 }

@@ -49,7 +49,7 @@ float GetEnvMapLOD(float roughness, vec3 R, float clothMask)
         float lod = mix(roughness, pow(roughness, 0.125), clothMask);
         return lod * EnvMapMipCount;
     #endif
-        
+
     return roughness * EnvMapMipCount;
 }
 
