@@ -105,7 +105,7 @@ namespace GUI.Forms
             {
                 Invoke(() => SetImage(skBitmap, name, skBitmap.Width, skBitmap.Height));
                 totalTime = sw.ElapsedMilliseconds;
-                Log.Debug(nameof(Texture), $"Software decode finished in {decodeTime}ms (ToBitmap() {totalTime - decodeTime}ms)");
+                Log.Debug(nameof(Texture), $"Software decode succeeded in {decodeTime}ms (ToBitmap overhead: {totalTime - decodeTime}ms)");
                 return;
             }
 
@@ -118,14 +118,14 @@ namespace GUI.Forms
             Invoke(() => SetImage(newSkiaBitmap.ToBitmap(), name, newSkiaBitmap.Width, newSkiaBitmap.Height));
 
             totalTime = sw.ElapsedMilliseconds;
-            Log.Debug(nameof(Texture), $"Software decode finished in {decodeTime}ms (channel processing: {totalTime - decodeTime}ms)");
+            Log.Debug(nameof(Texture), $"Software decode succeeded in {totalTime}ms (channel processing)");
         }
 
-        private void DecodeTextureGpu(Channels channels)
+        private bool DecodeTextureGpu(Channels channels)
         {
             if (texture is null)
             {
-                return;
+                return false;
             }
 
             var hemiOctRB = false;
@@ -138,13 +138,19 @@ namespace GUI.Forms
 
             // using?
             using var bitmap = new SKBitmap(texture.Width, texture.Height, SKColorType.Rgba8888, SKAlphaType.Unpremul);
-            hardwareDecoder.Decode(new GLTextureDecoder.DecodeRequest(bitmap, texture, 0, 0, channels)
+            var success = hardwareDecoder.Decode(new GLTextureDecoder.DecodeRequest(bitmap, texture, 0, 0, channels)
             {
                 HemiOctRB = hemiOctRB,
             });
 
+            if (!success)
+            {
+                return false;
+            }
+
             DrawSpriteSheetOverlay(bitmap);
             SetImage(bitmap.ToBitmap(), name, texture.Width, texture.Height);
+            return true;
         }
 
         private void DrawSpriteSheetOverlay(SKBitmap bitmap)
