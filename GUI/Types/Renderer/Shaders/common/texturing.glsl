@@ -68,6 +68,7 @@ struct MaterialProperties_t
 #endif
 
     float AmbientOcclusion;
+    float Height;
     vec3 DiffuseAO; // vec3 because Diffuse AO can be tinted
     float SpecularAO;
     vec4 ExtraParams;
@@ -101,7 +102,7 @@ void InitProperties(out MaterialProperties_t mat, vec3 GeometricNormal)
     mat.GeometricNormal = normalize(GeometricNormal);
     mat.Tangent = normalize(vTangentOut);
     mat.Bitangent = normalize(vBitangentOut);
-    
+
     mat.Albedo = vec3(0.0);
     mat.Opacity = 1.0;
     mat.Metalness = 0.0;
@@ -116,6 +117,7 @@ void InitProperties(out MaterialProperties_t mat, vec3 GeometricNormal)
     mat.RoughnessTex = 0.0;
 #endif
     mat.AmbientOcclusion = 1.0;
+    mat.Height = 0.5;
     mat.DiffuseAO = vec3(1.0);
     mat.SpecularAO = 1.0;
     // r = retro reflectivity, g = misc, b = misc, a = misc/rimmask?

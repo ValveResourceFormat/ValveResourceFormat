@@ -18,7 +18,6 @@ layout (location = 3) in vec2 vTEXCOORD;
 #include "common/compression.glsl"
 
 in vec4 vCOLOR;
-out vec4 vBlendColorTint;
 
 #if (F_SECONDARY_UV == 1)
     in vec2 vTEXCOORD2;
@@ -47,11 +46,11 @@ out vec3 vTangentOut;
 out vec3 vBitangentOut;
 centroid out vec3 vCentroidNormalOut;
 out vec4 vTexCoord;
-out vec4 vVertexColor;
+out vec4 vTintColor_ModelAmount;
+centroid out vec4 vVertexColor_Alpha;
 
 uniform vec4 g_vColorTint = vec4(1.0);
 uniform float g_flModelTintAmount = 1.0;
-uniform float g_flFadeExponent = 1.0;
 
 #include "common/ViewConstants.glsl"
 #include "common/LightingConstants.glsl"
@@ -83,13 +82,6 @@ uniform vec4 g_vTexCoordScale1 = vec4(1.0);
     out vec2 vDetailTexCoords;
 #endif
 
-vec4 GetTintColor()
-{
-    vec4 TintFade = vec4(1.0);
-    TintFade.rgb = mix(vec3(1.0), SrgbLinearToGamma(vTint.rgb * g_vColorTint.rgb), g_flModelTintAmount);
-    TintFade.a = pow(vTint.a * g_vColorTint.a, g_flFadeExponent);
-    return TintFade;
-}
 
 void main()
 {
@@ -126,17 +118,21 @@ void main()
     vPerVertexLightingOut = pow2(Light);
 #endif
 
-    vVertexColor = GetTintColor();
+    // original code has SrgbGammaToLinear
+    vTintColor_ModelAmount.rgb = (vTint.rgb);
+    float flLowestPoint = min(vTintColor_ModelAmount.r, min(vTintColor_ModelAmount.g, vTintColor_ModelAmount.b));
+    vTintColor_ModelAmount.a = g_flModelTintAmount * (1.0 - flLowestPoint);
+
+    vec3 vVertexPaint = vec3(1.0);
 
     // TODO: ApplyVBIBDefaults
-    if (vCOLOR.rgba == vec4(0, 0, 0, 1))
+    if (vCOLOR.rgba != vec4(0, 0, 0, 1))
     {
-        vBlendColorTint = vec4(1.0f);
+        vec4 vColorNormalized = vCOLOR / 255.0;
+        vVertexPaint =  mix(vec3(1.0), vColorNormalized.rgb, vec3(vColorNormalized.a));
     }
-    else
-    {
-        vBlendColorTint = vCOLOR / 255.0;
-    }
+
+    vVertexColor_Alpha = vec4(SrgbGammaToLinear(g_vColorTint.rgb) * vVertexPaint, vTint.a);
 
 #if (F_SECONDARY_UV == 1)
     vTexCoord2 = vTEXCOORD2.xy;

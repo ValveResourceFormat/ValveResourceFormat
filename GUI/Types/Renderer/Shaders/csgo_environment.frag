@@ -12,6 +12,8 @@
 #define renderMode_Irradiance 0
 #define renderMode_Tint 0
 #define renderMode_Terrain_Blend 0
+#define renderMode_Height 0
+#define renderMode_VertexColor 0
 
 #include "common/features.glsl"
 #include "csgo_environment_features.glsl"
@@ -27,7 +29,8 @@ in vec3 vNormalOut;
 in vec3 vTangentOut;
 in vec3 vBitangentOut;
 in vec4 vTexCoord;
-in vec4 vVertexColor;
+in vec4 vTintColor_ModelAmount;
+centroid in vec4 vVertexColor_Alpha;
 in vec4 vBlendColorTint;
 
 #if (F_SECONDARY_UV == 1)
@@ -104,16 +107,17 @@ uniform float g_flHeightMapZeroPoint1 = 0;
     uniform float g_flHeightMapScale2 = 1.0;
     uniform float g_flHeightMapZeroPoint2 = 0.0;
 
-    vec2 GetBlendWeights(vec2 heightTex, vec2 heightScale, vec2 heightZero, vec4 terrainBlend)
+    vec2 GetBlendWeights(vec2 heightTex, vec2 heightScale, vec2 heightZero, vec4 vColorBlendValues)
     {
-        float blendFactor = terrainBlend.x;
-        float blendSoftness = terrainBlend.w;
+        float blendFactor = vColorBlendValues.x;
+        float blendSoftness = vColorBlendValues.w;
 
         // Weight calculations
         float h1 = heightScale.x + blendSoftness;
-        float height1 = (heightTex.x - heightZero.x) * h1;
+        float height1 = heightTex.x * h1;
+
         float h2 = heightScale.y + blendSoftness;
-        float h22 = (heightTex.y - heightZero.y) * (heightScale.y - blendSoftness);
+        float h22 = heightTex.y * (heightScale.y - blendSoftness);
 
         float blend1 = (-heightZero.x * h1 - ((1.0 - heightZero.y) * h2)) - blendSoftness;
         float blend2 = (1.0 - heightZero.x) * h1 - ((-heightZero.y) * h2);
@@ -121,7 +125,7 @@ uniform float g_flHeightMapZeroPoint1 = 0;
         float h2x = h22 + mix(blend1, blend2, blendFactor);
 
         vec2 weights = vec2(height1, h2x) - vec2(max(height1, h2x) - blendSoftness);
-        
+
         // Clamp negative values
         weights = max(weights, vec2(0.0));
 
@@ -138,6 +142,9 @@ uniform float g_flHeightMapZeroPoint1 = 0;
 #if (F_ALPHA_TEST == 1)
     uniform float g_flAlphaTestReference = 0.5;
 #endif
+
+#define tinting_code_new
+uniform float g_flModelTintAmount = 1.0;
 
 #include "common/ViewConstants.glsl"
 #include "common/LightingConstants.glsl"
@@ -182,20 +189,43 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
         vec2 detailNormal = texture(g_tNormalDetail1, vDetailTexCoords).rg;
     #endif
 
-    height.g = saturate(((height.g - 0.5) * g_fTintMaskContrast1 + 0.5) * g_fTintMaskBrightness1);
+    float tintMask1 = saturate(((height.g - 0.5) * g_fTintMaskContrast1 + 0.5) * g_fTintMaskBrightness1);
     height.a = g_bMetalness1 ? height.a : 0.0;
     normal.rg = (normal.rg - 0.5) * g_fTextureNormalContrast1 + 0.5;
     normal.b = saturate(((normal.b - 0.5) * g_fTextureRoughnessContrast1 + 0.5) * g_fTextureRoughnessBrightness1);
 
-    // todo: adjust for tints above 1.0 (and remove clamp above)
-    vec3 tintFactor1 = (g_bModelTint1)
-        ? 1.0 - height.g * (1.0 - vVertexColor.rgb * (g_vTextureColorTint1.rgb))
-        : vec3(1.0);
-
     color.rgb = SrgbGammaToLinear(color.rgb);
+
+#if defined(tinting_code_new)
+    vec3 tintColorNorm = normalize(max(vTintColor_ModelAmount.xyz, vec3(0.001)));
+    float tintColorNormLuma = GetLuma(tintColorNorm);
+
+    vec3 adjust1 = AdjustBrightnessContrastSaturation(color.rgb, g_fTextureColorBrightness1, g_fTextureColorContrast1, g_fTextureColorSaturation1);
+    vec3 color1MaybeAdjusted = mix(color.rgb, adjust1, bvec3(g_nColorCorrectionMode1 == 1));
+
+    vec3 tintAdjusted = mix(color1MaybeAdjusted, adjust1, vec3(tintMask1)).xyz ;
+    float tintAdjustedLuma = GetLuma(tintAdjusted);
+
+    float tintColorAdjustedLumaRatio = tintAdjustedLuma / tintColorNormLuma;
+    float tintAdjustedLuma3x = 3.0 * tintAdjustedLuma;
+
+    float tintColorHighestPoint = max(vTintColor_ModelAmount.x, max(vTintColor_ModelAmount.y, vTintColor_ModelAmount.z));
+    float highPointXLuma = tintAdjustedLuma3x * tintColorHighestPoint;
+    vec3 tintResult = saturate(mix(adjust1, tintColorNorm * min(tintColorAdjustedLumaRatio, highPointXLuma), vec3((vTintColor_ModelAmount.w * tintMask1) * float(g_bModelTint1))));
+
+    vec3 tintFactor1 = mix(vec3(1.0), (g_vTextureColorTint1.rgb), tintMask1);
+    color.rgb = tintResult * tintFactor1;
+#else
+    vec3 vTint = mix(vec3(1.0), SrgbLinearToGamma(vTintColor_ModelAmount.rgb), g_flModelTintAmount);
+
+    vec3 layerTint1 = mix(vec3(1.0), vTint, vec3(g_bModelTint1)) * (g_vTextureColorTint1.rgb);
+    vec3 tintFactor1 = mix(vec3(1.0), layerTint1, tintMask1);
     color.rgb = mix(color.rgb, AdjustBrightnessContrastSaturation(color.rgb, g_fTextureColorBrightness1, g_fTextureColorContrast1, g_fTextureColorSaturation1), bvec3(g_nColorCorrectionMode1 == 1));
     color.rgb *= tintFactor1;
-    color.rgb *= g_nVertexColorMode1 == 1 ? vBlendColorTint.rgb : vec3(1.0);
+#endif
+
+    color.rgb *= g_nVertexColorMode1 == 1 ? vVertexColor_Alpha.rgb : vec3(1.0);
+    color.rgb = (color.rgb);
 
     // Blending
 #if defined(csgo_environment_blend_vfx)
@@ -206,20 +236,39 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
         vec2 detailNormal2 = texture(g_tNormalDetail2, vDetailTexCoords).rg;
     #endif
 
-    height2.g = saturate(((height2.g - 0.5) * g_fTintMaskContrast2 + 0.5) * g_fTintMaskBrightness2);
+    float tintMask2 = saturate(((height2.g - 0.5) * g_fTintMaskContrast2 + 0.5) * g_fTintMaskBrightness2);
     height2.a = g_bMetalness2 ? height2.a : 0.0;
     normal2.rg = (normal2.rg - 0.5) * g_fTextureNormalContrast2 + 0.5;
     normal2.b = saturate(((normal2.b - 0.5) * g_fTextureRoughnessContrast2 + 0.5) * g_fTextureRoughnessBrightness2);
 
-    vec3 tintFactor2 = (g_bModelTint2)
-        ? 1.0 - height2.g * (1.0 - vVertexColor.rgb * (g_vTextureColorTint2.rgb))
-        : vec3(1.0);
-
     color2.rgb = SrgbGammaToLinear(color2.rgb);
+
+#if defined(tinting_code_new)
+    vec3 adjust2 = AdjustBrightnessContrastSaturation(color2.rgb, g_fTextureColorBrightness2, g_fTextureColorContrast2, g_fTextureColorSaturation2);
+    vec3 color2MaybeAdjusted = mix(color2.rgb, adjust2, bvec3(g_nColorCorrectionMode2 == 1));
+
+    vec3 tintAdjusted2 = mix(color2MaybeAdjusted, adjust2, vec3(tintMask2)).xyz;
+    float tintAdjusted2Luma = GetLuma(tintAdjusted2);
+
+    float tintColorAdjusted2LumaRatio = tintAdjusted2Luma / tintColorNormLuma;
+    float tintAdjusted2Luma3x = 3.0 * tintAdjusted2Luma;
+
+    vec3 tintResult2 = saturate(mix(adjust2, tintColorNorm * min(tintColorAdjusted2LumaRatio, tintAdjusted2Luma3x * tintColorHighestPoint), vec3((vTintColor_ModelAmount.w * tintMask2) * float(g_bModelTint2))));
+
+    vec3 tintFactor2 = mix(vec3(1.0), (g_vTextureColorTint2.rgb), tintMask2);
+    color2.rgb = tintResult2 * tintFactor2;
+#else
+    vec3 layerTint2 = mix(vec3(1.0), vTint, vec3(g_bModelTint2)) * (g_vTextureColorTint2.rgb);
+    vec3 tintFactor2 = mix(vec3(1.0), layerTint2, tintMask2);
     color2.rgb = mix(color2.rgb, AdjustBrightnessContrastSaturation(color2.rgb, g_fTextureColorBrightness2, g_fTextureColorContrast2, g_fTextureColorSaturation2), bvec3(g_nColorCorrectionMode2 == 1));
     color2.rgb *= tintFactor2;
-    color2.rgb *= g_nVertexColorMode2 == 1 ? vBlendColorTint.rgb : vec3(1.0);
+#endif
 
+    color2.rgb *= g_nVertexColorMode2 == 1 ? vVertexColor_Alpha.rgb : vec3(1.0);
+    color2.rgb = (color2.rgb);
+
+    height.r -= g_flHeightMapZeroPoint1;
+    height2.r -= g_flHeightMapZeroPoint2;
 
     vec2 weights = GetBlendWeights(
         vec2(height.r, height2.r),
@@ -256,6 +305,7 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 
     mat.Normal = calculateWorldNormal(mat.NormalMap, mat.GeometricNormal, mat.Tangent, mat.Bitangent);
 
+    mat.Height = height.r;
     mat.Metalness = height.a;
     mat.AmbientOcclusion = color.a;
 
@@ -291,8 +341,6 @@ void main()
 
     LightingTerms_t lighting = InitLighting();
 
-    outputColor = vec4(mat.Albedo, mat.Opacity);
-
     CalculateDirectLighting(lighting, mat);
     CalculateIndirectLighting(lighting, mat);
 
@@ -308,9 +356,8 @@ void main()
 
     outputColor.rgb = SrgbLinearToGamma(combinedLighting);
 
-#if defined(csgo_environment_blend_vfx)
-    //outputColor.rgb = mat.Albedo;
-    //outputColor.rgb = texture(g_tHeight2, texCoord).rgb;
+#if renderMode_Height == 1
+    outputColor.rgb = mat.Height.xxx;
 #endif
 
 #if renderMode_FullBright == 1
@@ -365,7 +412,11 @@ void main()
 #endif
 
 #if renderMode_Tint == 1
-    outputColor = vVertexColor;
+    outputColor = vec4(vTintColor_ModelAmount.rgb, vVertexColor_Alpha.a);
+#endif
+
+#if renderMode_VertexColor == 1
+    outputColor.rgb = vVertexColor_Alpha.rgb;
 #endif
 
 #if renderMode_Terrain_Blend == 1 && defined(csgo_environment_blend_vfx)
