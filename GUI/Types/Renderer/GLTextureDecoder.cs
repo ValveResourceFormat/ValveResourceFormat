@@ -142,18 +142,12 @@ class GLTextureDecoder : IDisposable // ITextureDecoder
 
         GL.Flush();
 
-        while (true)
+        while (IsRunning)
         {
             if (!decodeQueue.TryDequeue(out var decodeRequest))
             {
                 queueUpdateEvent.WaitOne();
-                if (IsRunning)
-                {
-                    continue;
-                }
-
-                // we are supposed to exit, so break out of the loop
-                break;
+                continue;
             }
 
             activeRequest = decodeRequest;
