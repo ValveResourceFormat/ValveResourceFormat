@@ -287,20 +287,23 @@ namespace GUI.Types.Renderer
                         };
                     }
 
-                    var rotation = transformationMatrix with
+                    if (!entity.GetProperty<bool>("start_disabled"))
                     {
-                        Translation = Vector3.Zero
-                    };
-                    using var skyMaterial = guiContext.LoadFileCompiled(skyname);
+                        var rotation = transformationMatrix with
+                        {
+                            Translation = Vector3.Zero
+                        };
+                        using var skyMaterial = guiContext.LoadFileCompiled(skyname);
 
-                    scene.Sky = new SceneSky(scene)
-                    {
-                        Name = skyname,
-                        LayerName = layerName,
-                        Tint = tintColor,
-                        Transform = rotation,
-                        Material = guiContext.MaterialLoader.LoadMaterial(skyMaterial),
-                    };
+                        scene.Sky = new SceneSky(scene)
+                        {
+                            Name = skyname,
+                            LayerName = layerName,
+                            Tint = tintColor,
+                            Transform = rotation,
+                            Material = guiContext.MaterialLoader.LoadMaterial(skyMaterial),
+                        };
+                    }
                 }
                 else if (classname == "env_gradient_fog")
                 {
@@ -468,15 +471,8 @@ namespace GUI.Types.Renderer
 
                                 if (mat != null && mat.Textures.TryGetValue("g_tSkyTexture", out fogTexture))
                                 {
-                                    if (!mat.Material.FloatParams.TryGetValue("g_flBrightnessExposureBias", out var brightnessExposureBias))
-                                    {
-                                        brightnessExposureBias = 0f;
-                                    }
-
-                                    if (!mat.Material.FloatParams.TryGetValue("g_flRenderOnlyExposureBias", out var renderOnlyExposureBias))
-                                    {
-                                        renderOnlyExposureBias = 0f;
-                                    }
+                                    var brightnessExposureBias = mat.Material.FloatParams.GetValueOrDefault("g_flBrightnessExposureBias", 0f);
+                                    var renderOnlyExposureBias = mat.Material.FloatParams.GetValueOrDefault("g_flRenderOnlyExposureBias", 0f);
 
                                     // These are both logarithms, so this is equivalent to a multiply of the raw value
                                     exposureBias = brightnessExposureBias + renderOnlyExposureBias;

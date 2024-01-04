@@ -53,22 +53,19 @@ uniform vec4 g_vVolFogPostWorldToFrustumScale;
 uniform vec4 g_vVolFogPostWorldToFrustumBias;
 uniform mat4 g_mVolFogFromWorld; // original code is an array of length 2, and the code uses address [1]
 uniform sampler3D g_tFogVolume;
-
-#if !defined(g_tBlueNoise)
 uniform sampler2D g_tBlueNoise;
-#endif
 
 void ApplyVolumetricFog( inout vec3 PixelColor, vec3 positionWS )
 {
     vec3 blueNoise = texture(g_tBlueNoise, gl_FragCoord.xy * g_vScreenSpaceDitherParams.zz + g_vScreenSpaceDitherParams.xy ) );
 	vec3 volFogWorldPosJittered = positionWS + (blueNoise * g_vVolFogDitherScaleBias.xxx + g_vVolFogDitherScaleBias.yyy);
-	
+
 	vec4 projectedWorldPos = vec4(volFogWorldPosJittered, 1.0 ) * g_mVolFogFromWorld[0];
 
 	vec3 frustumProjection = vec3(projectedWorldPos.xy / projectedWorldPos.ww, projectedWorldPos.w );
     frustumProjection = frustumProjection * g_vVolFogPostWorldToFrustumScale.xyz + g_vVolFogPostWorldToFrustumBias.xyz;
 	vec4 volFogCoords = vec4( frustumProjection.xy, sqrt(ClampToPositive(frustumProjection.z)), ProjectedWorldPos.w ); //coords for the volfog sample are xyw in asm and xyz in vulkan
-	
+
 	vec4 volumetricFogColor = texture( g_tFogVolume, volFogCoords);
 	PixelColor = ( PixelColor * volumetricFogColor.a ) + volumetricFogColor.rgb;
 }
