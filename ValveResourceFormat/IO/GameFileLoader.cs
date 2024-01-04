@@ -253,22 +253,32 @@ namespace ValveResourceFormat.IO
             {
                 FileName = file,
             };
+            Resource resourceToReturn = null;
 
-            var foundFile = FindFile(file);
-
-            if (foundFile.PathOnDisk != null)
+            try
             {
-                resource.Read(foundFile.PathOnDisk);
-                return resource;
+                var foundFile = FindFile(file);
+
+                if (foundFile.PathOnDisk != null)
+                {
+                    resource.Read(foundFile.PathOnDisk);
+                    resourceToReturn = resource;
+                    resource = null;
+                }
+                else if (foundFile.PackageEntry != null)
+                {
+                    var stream = GetPackageEntryStream(foundFile.Package, foundFile.PackageEntry);
+                    resource.Read(stream);
+                    resourceToReturn = resource;
+                    resource = null;
+                }
             }
-            else if (foundFile.PackageEntry != null)
+            finally
             {
-                var stream = GetPackageEntryStream(foundFile.Package, foundFile.PackageEntry);
-                resource.Read(stream);
-                return resource;
+                resource?.Dispose();
             }
 
-            return null;
+            return resourceToReturn;
         }
 
         private static void HandleGameInfo(HashSet<string> folders, string gameRoot, string gameinfoPath)
