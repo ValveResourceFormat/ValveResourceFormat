@@ -72,7 +72,7 @@ namespace Tests
             Assert.That(materialExtract.ToValveMaterial(), Is.Not.Empty);
         }
 
-        public static IEnumerable<TestCaseData> PngImageChannelsSource()
+        private static IEnumerable<TestCaseData> PngImageChannelsSource()
         {
             var c1234 = new SKColor(1, 2, 3, 4);
             yield return new TestCaseData(c1234, ChannelMapping.R, new SKColor(1, 1, 1));
@@ -123,12 +123,15 @@ namespace Tests
 
             var png = TextureExtract.ToPngImageChannels(img, channels);
             using var result = SKBitmap.Decode(png, img.Info);
-            Assert.That(result.Width, Is.EqualTo(1));
-            Assert.That(result.Height, Is.EqualTo(1));
-            Assert.That(result.ColorType, Is.EqualTo(SKColorType.Bgra8888));
-            Assert.That(result.AlphaType, Is.EqualTo(SKAlphaType.Unpremul));
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Width, Is.EqualTo(1));
+                Assert.That(result.Height, Is.EqualTo(1));
+                Assert.That(result.ColorType, Is.EqualTo(SKColorType.Bgra8888));
+                Assert.That(result.AlphaType, Is.EqualTo(SKAlphaType.Unpremul));
 
-            Assert.That(result.GetPixel(0, 0), Is.EqualTo(colorOut));
+                Assert.That(result.GetPixel(0, 0), Is.EqualTo(colorOut));
+            });
         }
     }
 }

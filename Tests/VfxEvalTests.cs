@@ -299,12 +299,16 @@ namespace Tests
             var testInput1 = ParseString("1A 01 04 07 00 0F 00 07 00 00 80 3F 02 14 00 07 00 00 00 00 00");
             var expectedResultWithNoFeatures = "COND[1] || 0";
             var expectedResultWithFeatures = "F_B || 0";
-            Assert.That(new VfxEval(testInput1, omitReturnStatement: true).DynamicExpressionResult, Is.EqualTo(expectedResultWithNoFeatures));
-            Assert.That(new VfxEval(testInput1, omitReturnStatement: true, features: ["F_A", "F_B"]).DynamicExpressionResult, Is.EqualTo(expectedResultWithFeatures));
 
             var testInput2 = ParseString("1D 3C 13 92 A3 1E A4 06 1F 00 00");
             var expectedResult2 = "SrgbGammaToLinear(EVAL[a392133c].xyz)";
-            Assert.That(new VfxEval(testInput2, omitReturnStatement: true).DynamicExpressionResult, Is.EqualTo(expectedResult2));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(new VfxEval(testInput1, omitReturnStatement: true).DynamicExpressionResult, Is.EqualTo(expectedResultWithNoFeatures));
+                Assert.That(new VfxEval(testInput1, omitReturnStatement: true, features: ["F_A", "F_B"]).DynamicExpressionResult, Is.EqualTo(expectedResultWithFeatures));
+                Assert.That(new VfxEval(testInput2, omitReturnStatement: true).DynamicExpressionResult, Is.EqualTo(expectedResult2));
+            });
         }
 
         [Test]

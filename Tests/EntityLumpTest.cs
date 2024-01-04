@@ -23,14 +23,20 @@ namespace Tests
 
             var entities = entityLump.GetEntities().ToList();
 
-            Assert.That(entities.Count, Is.EqualTo(23));
-            Assert.That(entities[0].Properties.Count, Is.EqualTo(26));
-            Assert.That(entities[22].Properties.Count, Is.EqualTo(56));
+            Assert.That(entities, Has.Count.EqualTo(23));
+            Assert.Multiple(() =>
+            {
+                Assert.That(entities[0].Properties, Has.Count.EqualTo(26));
+                Assert.That(entities[22].Properties, Has.Count.EqualTo(56));
+            });
 
             var classname = entities[0].GetProperty("classname");
             Assert.That(classname, Is.Not.Null);
-            Assert.That(classname.Type, Is.EqualTo(EntityFieldType.CString));
-            Assert.That(classname.Data, Is.EqualTo("worldspawn"));
+            Assert.Multiple(() =>
+            {
+                Assert.That(classname.Type, Is.EqualTo(EntityFieldType.CString));
+                Assert.That(classname.Data, Is.EqualTo("worldspawn"));
+            });
 
             var classnameString = entities[0].GetProperty<string>("classname");
             Assert.That(classnameString, Is.EqualTo("worldspawn"));

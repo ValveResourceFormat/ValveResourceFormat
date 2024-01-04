@@ -60,10 +60,13 @@ namespace Tests
             foreach (var testCase in testCases)
             {
                 var result = ComputeVCSFileName(testCase.FileName);
-                Assert.That(result.ShaderName, Is.EqualTo(testCase.ShaderName));
-                Assert.That(result.PlatformType, Is.EqualTo(testCase.Platform));
-                Assert.That(result.ShaderModelType, Is.EqualTo(testCase.ShaderModel));
-                Assert.That(result.ProgramType, Is.EqualTo(testCase.ProgramType));
+                Assert.Multiple(() =>
+                {
+                    Assert.That(result.ShaderName, Is.EqualTo(testCase.ShaderName));
+                    Assert.That(result.PlatformType, Is.EqualTo(testCase.Platform));
+                    Assert.That(result.ShaderModelType, Is.EqualTo(testCase.ShaderModel));
+                    Assert.That(result.ProgramType, Is.EqualTo(testCase.ProgramType));
+                });
             }
         }
 
@@ -105,55 +108,57 @@ namespace Tests
         [Test]
         public void TestChannelMapping()
         {
-            Assert.That(ChannelMapping.R.PackedValue, Is.EqualTo(0xFFFFFF00));
-            Assert.That(ChannelMapping.G.PackedValue, Is.EqualTo(0xFFFFFF01));
-            Assert.That(ChannelMapping.B.PackedValue, Is.EqualTo(0xFFFFFF02));
-            Assert.That(ChannelMapping.A.PackedValue, Is.EqualTo(0xFFFFFF03));
-            Assert.That(ChannelMapping.RGB.PackedValue, Is.EqualTo(0xFF020100));
-            Assert.That(ChannelMapping.RGBA.PackedValue, Is.EqualTo(0x03020100));
+            Assert.Multiple(() =>
+            {
+                Assert.That(ChannelMapping.R.PackedValue, Is.EqualTo(0xFFFFFF00));
+                Assert.That(ChannelMapping.G.PackedValue, Is.EqualTo(0xFFFFFF01));
+                Assert.That(ChannelMapping.B.PackedValue, Is.EqualTo(0xFFFFFF02));
+                Assert.That(ChannelMapping.A.PackedValue, Is.EqualTo(0xFFFFFF03));
+                Assert.That(ChannelMapping.RGB.PackedValue, Is.EqualTo(0xFF020100));
+                Assert.That(ChannelMapping.RGBA.PackedValue, Is.EqualTo(0x03020100));
 
-            Assert.That(ChannelMapping.RGBA.Channels[0], Is.EqualTo(ChannelMapping.Channel.R));
-            Assert.That(ChannelMapping.RGBA.Channels[1], Is.EqualTo(ChannelMapping.Channel.G));
-            Assert.That(ChannelMapping.AG.Channels[1], Is.EqualTo(ChannelMapping.Channel.G));
+                Assert.That(ChannelMapping.RGBA.Channels[0], Is.EqualTo(ChannelMapping.Channel.R));
+                Assert.That(ChannelMapping.RGBA.Channels[1], Is.EqualTo(ChannelMapping.Channel.G));
+                Assert.That(ChannelMapping.AG.Channels[1], Is.EqualTo(ChannelMapping.Channel.G));
 
-            Assert.That(ChannelMapping.RGBA.Count, Is.EqualTo(4));
-            Assert.That(ChannelMapping.RGB.Count, Is.EqualTo(3));
-            Assert.That(ChannelMapping.RG.Count, Is.EqualTo(2));
-            Assert.That(ChannelMapping.G.Count, Is.EqualTo(1));
-            Assert.That(ChannelMapping.NULL.Count, Is.EqualTo(0));
+                Assert.That(ChannelMapping.RGBA.Count, Is.EqualTo(4));
+                Assert.That(ChannelMapping.RGB.Count, Is.EqualTo(3));
+                Assert.That(ChannelMapping.RG.Count, Is.EqualTo(2));
+                Assert.That(ChannelMapping.G.Count, Is.EqualTo(1));
+                Assert.That(ChannelMapping.NULL.Count, Is.EqualTo(0));
+                Assert.That(ChannelMapping.RGBA.ValidChannels, Is.EqualTo(new[] { ChannelMapping.Channel.R, ChannelMapping.Channel.G, ChannelMapping.Channel.B, ChannelMapping.Channel.A }));
+                Assert.That(ChannelMapping.RGB.ValidChannels, Is.EqualTo(new[] { ChannelMapping.Channel.R, ChannelMapping.Channel.G, ChannelMapping.Channel.B }));
+                Assert.That(ChannelMapping.RG.ValidChannels, Is.EqualTo(new[] { ChannelMapping.Channel.R, ChannelMapping.Channel.G }));
+                Assert.That(ChannelMapping.AG.ValidChannels, Is.EqualTo(new[] { ChannelMapping.Channel.A, ChannelMapping.Channel.G }));
+                Assert.That(ChannelMapping.A.ValidChannels, Is.EqualTo(new[] { ChannelMapping.Channel.A }));
+                Assert.That(ChannelMapping.R.ValidChannels, Is.EqualTo(new[] { ChannelMapping.Channel.R }));
 
-            Assert.That(ChannelMapping.RGBA.ValidChannels, Is.EqualTo(new[] { ChannelMapping.Channel.R, ChannelMapping.Channel.G, ChannelMapping.Channel.B, ChannelMapping.Channel.A }));
-            Assert.That(ChannelMapping.RGB.ValidChannels, Is.EqualTo(new[] { ChannelMapping.Channel.R, ChannelMapping.Channel.G, ChannelMapping.Channel.B }));
-            Assert.That(ChannelMapping.RG.ValidChannels, Is.EqualTo(new[] { ChannelMapping.Channel.R, ChannelMapping.Channel.G }));
-            Assert.That(ChannelMapping.AG.ValidChannels, Is.EqualTo(new[] { ChannelMapping.Channel.A, ChannelMapping.Channel.G }));
-            Assert.That(ChannelMapping.A.ValidChannels, Is.EqualTo(new[] { ChannelMapping.Channel.A }));
-            Assert.That(ChannelMapping.R.ValidChannels, Is.EqualTo(new[] { ChannelMapping.Channel.R }));
+                Assert.That((byte)ChannelMapping.R, Is.EqualTo(0x00));
+                Assert.That((byte)ChannelMapping.G, Is.EqualTo(0x01));
+                Assert.That((byte)ChannelMapping.B, Is.EqualTo(0x02));
+                Assert.That((byte)ChannelMapping.A, Is.EqualTo(0x03));
 
-            Assert.That((byte)ChannelMapping.R, Is.EqualTo(0x00));
-            Assert.That((byte)ChannelMapping.G, Is.EqualTo(0x01));
-            Assert.That((byte)ChannelMapping.B, Is.EqualTo(0x02));
-            Assert.That((byte)ChannelMapping.A, Is.EqualTo(0x03));
+                Assert.That(ChannelMapping.R, Is.EqualTo(ChannelMapping.FromUInt32(0xFFFFFF00)));
+                Assert.That(ChannelMapping.G, Is.EqualTo(ChannelMapping.FromUInt32(0xFFFFFF01)));
+                Assert.That(ChannelMapping.AG, Is.EqualTo(ChannelMapping.FromUInt32(0xFFFF0103)));
 
-            Assert.That(ChannelMapping.R, Is.EqualTo(ChannelMapping.FromUInt32(0xFFFFFF00)));
-            Assert.That(ChannelMapping.G, Is.EqualTo(ChannelMapping.FromUInt32(0xFFFFFF01)));
-            Assert.That(ChannelMapping.AG, Is.EqualTo(ChannelMapping.FromUInt32(0xFFFF0103)));
+                // New in version 67
+                Assert.That(ChannelMapping.RGBA, Is.EqualTo(ChannelMapping.FromUInt32(0x33221100)));
+                Assert.That(ChannelMapping.AG, Is.EqualTo(ChannelMapping.FromUInt32(0xFFFF1130)));
 
-            // New in version 67
-            Assert.That(ChannelMapping.RGBA, Is.EqualTo(ChannelMapping.FromUInt32(0x33221100)));
-            Assert.That(ChannelMapping.AG, Is.EqualTo(ChannelMapping.FromUInt32(0xFFFF1130)));
+                Assert.That(ChannelMapping.R.ToString(), Is.EqualTo("R"));
+                Assert.That(ChannelMapping.G.ToString(), Is.EqualTo("G"));
+                Assert.That(ChannelMapping.B.ToString(), Is.EqualTo("B"));
+                Assert.That(ChannelMapping.A.ToString(), Is.EqualTo("A"));
+                Assert.That(ChannelMapping.AG.ToString(), Is.EqualTo("AG"));
+                Assert.That(ChannelMapping.RGB.ToString(), Is.EqualTo("RGB"));
+                Assert.That(ChannelMapping.NULL.ToString(), Is.EqualTo("0xFFFFFFFF"));
 
-            Assert.That(ChannelMapping.R.ToString(), Is.EqualTo("R"));
-            Assert.That(ChannelMapping.G.ToString(), Is.EqualTo("G"));
-            Assert.That(ChannelMapping.B.ToString(), Is.EqualTo("B"));
-            Assert.That(ChannelMapping.A.ToString(), Is.EqualTo("A"));
-            Assert.That(ChannelMapping.AG.ToString(), Is.EqualTo("AG"));
-            Assert.That(ChannelMapping.RGB.ToString(), Is.EqualTo("RGB"));
-            Assert.That(ChannelMapping.NULL.ToString(), Is.EqualTo("0xFFFFFFFF"));
+                Assert.Throws<ArgumentOutOfRangeException>(() => ChannelMapping.FromChannels(0x04));
+                Assert.Throws<ArgumentOutOfRangeException>(() => ChannelMapping.FromChannels(0x05));
 
-            Assert.Throws<ArgumentOutOfRangeException>(() => ChannelMapping.FromChannels(0x04));
-            Assert.Throws<ArgumentOutOfRangeException>(() => ChannelMapping.FromChannels(0x05));
-
-            Assert.That(ChannelMapping.FromChannels(0xFF), Is.EqualTo(ChannelMapping.NULL));
+                Assert.That(ChannelMapping.FromChannels(0xFF), Is.EqualTo(ChannelMapping.NULL));
+            });
         }
 
         [Test]
@@ -190,7 +195,9 @@ namespace Tests
             using var collection = new ShaderCollection();
             foreach (var file in Directory.GetFiles(ShadersDir, "error_pc_40_*.vcs"))
             {
+#pragma warning disable CA2000 // Dispose objects before losing scope - ShaderCollection disposes them
                 var shader = new ShaderFile();
+#pragma warning restore CA2000
                 shader.Read(file);
                 collection.Add(shader);
             }
@@ -239,11 +246,14 @@ namespace Tests
             foreach (var (compactString, expected) in testCases)
             {
                 var parsed = UiGroup.FromCompactString(compactString);
-                Assert.That(parsed.Heading, Is.EqualTo(expected.Heading));
-                Assert.That(parsed.HeadingOrder, Is.EqualTo(expected.HeadingOrder));
-                Assert.That(parsed.Group, Is.EqualTo(expected.Group));
-                Assert.That(parsed.GroupOrder, Is.EqualTo(expected.GroupOrder));
-                Assert.That(parsed.VariableOrder, Is.EqualTo(expected.VariableOrder));
+                Assert.Multiple(() =>
+                {
+                    Assert.That(parsed.Heading, Is.EqualTo(expected.Heading));
+                    Assert.That(parsed.HeadingOrder, Is.EqualTo(expected.HeadingOrder));
+                    Assert.That(parsed.Group, Is.EqualTo(expected.Group));
+                    Assert.That(parsed.GroupOrder, Is.EqualTo(expected.GroupOrder));
+                    Assert.That(parsed.VariableOrder, Is.EqualTo(expected.VariableOrder));
+                });
             }
         }
     }
