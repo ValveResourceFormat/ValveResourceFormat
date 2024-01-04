@@ -57,10 +57,10 @@ void main()
 #else
     vColor.rgb = skyTexel.rgb;
 #endif
-    vColor.rgb = SrgbLinearToGamma(vColor.rgb);
+    vColor.rgb *= (1.0 + g_flBrightnessExposureBias);
+    vColor.rgb *= (1.0 + g_flRenderOnlyExposureBias);
 
-    //vColor.rgb *= (1.0 + g_flBrightnessExposureBias);
-    //vColor.rgb *= (1.0 + g_flRenderOnlyExposureBias);
+    vColor.rgb = SrgbLinearToGamma(vColor.rgb);
     vColor.rgb *= m_vTint;
     vColor.rgb = ClampToPositive(vColor.rgb);
     vColor.rgb *= g_flToneMapScalarLinear;

@@ -40,7 +40,8 @@ void ApplyCubemapFog(inout vec3 pixelColor, vec3 positionWS, vec3 posRelativeToC
 
     float cubemapFogOpacity = saturate(cubemapFogBlend) * g_vCubeFogCullingParams_ExposureBias_MaxOpacity.a;
 
-    vec3 cubemapFogColor = textureLod(g_tFogCubeTexture, fogCoords.xyz, cubemapFogLod).rgb * g_vCubeFogCullingParams_ExposureBias_MaxOpacity.z;
+    vec3 cubemapFogColor = textureLod(g_tFogCubeTexture, fogCoords.xyz, cubemapFogLod).rgb;
+    cubemapFogColor *= g_vCubeFogCullingParams_ExposureBias_MaxOpacity.z;  //* g_vCubeFog_ExposureBias.x;
     pixelColor = mix(pixelColor, cubemapFogColor, cubemapFogOpacity);
 }
 
