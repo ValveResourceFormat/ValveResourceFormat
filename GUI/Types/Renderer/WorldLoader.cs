@@ -275,9 +275,11 @@ namespace GUI.Types.Renderer
                 {
                     var skyname = entity.GetProperty<string>("skyname") ?? entity.GetProperty<string>("skybox_material_day");
                     var tintColor = Vector3.One;
+                    var disabled = false;
 
                     if (classname == "env_sky")
                     {
+                        disabled = entity.GetProperty<bool>("startdisabled");
                         var skyTintColor = entity.GetProperty("tint_color");
                         tintColor = skyTintColor?.Data switch
                         {
@@ -287,7 +289,7 @@ namespace GUI.Types.Renderer
                         };
                     }
 
-                    if (!entity.GetProperty<bool>("start_disabled"))
+                    if (!disabled)
                     {
                         var rotation = transformationMatrix with
                         {
