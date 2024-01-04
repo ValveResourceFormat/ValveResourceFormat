@@ -138,7 +138,9 @@ namespace GUI.Types.Viewers
                     {
                         var programType = ComputeVCSFileName($"{vcsEntry.FileName}.vcs").ProgramType;
                         vrfPackage.ReadEntry(vcsEntry, out var shaderDatabytes);
+#pragma warning disable CA2000 // Dispose objects before losing scope - controlled by ShaderCollection
                         ShaderFile relatedShaderFile = new();
+#pragma warning restore CA2000
                         relatedShaderFile.Read($"{vcsEntry.FileName}.vcs", new MemoryStream(shaderDatabytes));
                         shaderCollection.Add(relatedShaderFile);
                     }
@@ -154,7 +156,9 @@ namespace GUI.Types.Viewers
                     if (Path.GetFileName(vcsFile).StartsWith(vcsCollectionName, StringComparison.InvariantCulture))
                     {
                         var programType = ComputeVCSFileName(vcsFile).ProgramType;
+#pragma warning disable CA2000 // Dispose objects before losing scope - controlled by ShaderCollection
                         ShaderFile relatedShaderFile = new();
+#pragma warning restore CA2000
                         relatedShaderFile.Read(vcsFile);
                         shaderCollection.Add(relatedShaderFile);
                     }

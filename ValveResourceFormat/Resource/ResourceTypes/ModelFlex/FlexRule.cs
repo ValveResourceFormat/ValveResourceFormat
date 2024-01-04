@@ -1,8 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using ValveResourceFormat.ResourceTypes.ModelFlex.FlexOps;
 
 namespace ValveResourceFormat.ResourceTypes.ModelFlex
@@ -11,7 +8,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelFlex
     {
         public int FlexID { get; }
         public FlexOp[] FlexOps { get; }
-        private Stack<float> stack = new();
+        private readonly Stack<float> stack = new();
 
         public FlexRule(int flexID, FlexOp[] flexOps)
         {
@@ -33,13 +30,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelFlex
                 item.Run(context);
             }
 
-            if (stack.Count > 1)
+            if (stack.Count != 1)
             {
-                throw new Exception("FlexRule stack had multiple values after evaluation");
-            }
-            else if (stack.Count == 0)
-            {
-                throw new Exception("FlexRule stack was empty after evaluation");
+                throw new InvalidOperationException($"FlexRule stack had {stack.Count} values after evaluation");
             }
 
             return context.Stack.Pop();

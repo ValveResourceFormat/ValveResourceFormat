@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using static ValveResourceFormat.CompiledShader.ShaderDataReader;
 using static ValveResourceFormat.CompiledShader.ShaderUtilHelpers;
@@ -364,16 +365,16 @@ namespace ValveResourceFormat.CompiledShader
                     $"{param.VfxType}",
                     $"{param.Res0}",
                     $"{BlankNegOne(param.Tex),2}",
-                    param.Arg3.ToString(),
-                    param.Arg4.ToString(),
+                    param.Arg3.ToString(CultureInfo.InvariantCulture),
+                    param.Arg4.ToString(CultureInfo.InvariantCulture),
                     $"{BlankNegOne(param.Arg12),2}",
-                    param.Arg5.ToString(),
-                    param.Arg6.ToString(),
+                    param.Arg5.ToString(CultureInfo.InvariantCulture),
+                    param.Arg6.ToString(CultureInfo.InvariantCulture),
                     $"{param.VecSize,2}",
-                    param.Id.ToString(),
-                    param.Arg9.ToString(),
-                    param.Arg10.ToString(),
-                    param.Arg11.ToString(),
+                    param.Id.ToString(CultureInfo.InvariantCulture),
+                    param.Arg9.ToString(CultureInfo.InvariantCulture),
+                    param.Arg10.ToString(CultureInfo.InvariantCulture),
+                    param.Arg11.ToString(CultureInfo.InvariantCulture),
                     dynExpExists,
                     param.StringData,
                     $"{param.Lead0}",

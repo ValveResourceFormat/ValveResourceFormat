@@ -142,12 +142,12 @@ namespace GUI.Controls
         {
             if (pattern.Length < 3)
             {
-                throw new Exception("Search input is too short.");
+                throw new ArgumentException("Search input is too short.", nameof(pattern));
             }
 
             if (VrfGuiContext.ParentGuiContext != null)
             {
-                throw new Exception("Inner paks are not supported.");
+                throw new InvalidOperationException("Inner paks are not supported.");
             }
 
             var results = new List<BetterTreeNode>();

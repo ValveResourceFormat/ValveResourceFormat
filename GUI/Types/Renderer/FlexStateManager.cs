@@ -1,17 +1,15 @@
 using GUI.Utils;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.ResourceTypes.ModelFlex;
 
 namespace GUI.Types.Renderer
 {
     class FlexStateManager
     {
         public Morph Morph { get; }
-        private Dictionary<int, int> morphIdToRuleId = new();
-        private float[] controllerValues;
+        private readonly Dictionary<int, int> morphIdToRuleId = [];
+        private readonly float[] controllerValues;
         public MorphComposite MorphComposite { get; }
 
         public FlexStateManager(VrfGuiContext guiContext, Morph morph)

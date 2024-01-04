@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using GUI.Utils;
 using OpenTK;
@@ -17,16 +18,16 @@ namespace GUI.Types.Renderer
         public RenderTexture CompositeTexture { get; }
         public Morph Morph { get; }
 
-        private int frameBuffer;
-        private Shader shader;
+        private readonly int frameBuffer;
+        private readonly Shader shader;
         private int vertexBufferHandle;
         private int vertexArray;
-        private float[] allVertices;
-        private float[] usedVertices;
+        private readonly float[] allVertices;
+        private readonly float[] usedVertices;
         private int usedVerticesLength;
-        private RenderTexture morphAtlas;
+        private readonly RenderTexture morphAtlas;
         private List<int>[] morphRects;
-        private HashSet<int> usedRects = new();
+        private readonly HashSet<int> usedRects = [];
         private int morphCount;
         private bool renderTargetInitialized;
 
@@ -179,7 +180,7 @@ namespace GUI.Types.Renderer
             var rectCount = 0;
             foreach (var pair in morphDatas)
             {
-                var morphId = int.Parse(pair.Key);
+                var morphId = int.Parse(pair.Key, CultureInfo.InvariantCulture);
                 morphRects[morphId] = new List<int>(10);
 
                 if (pair.Value is not IKeyValueCollection morphData)

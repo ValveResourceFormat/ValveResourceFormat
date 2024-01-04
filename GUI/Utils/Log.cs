@@ -1,5 +1,3 @@
-using System;
-
 namespace GUI.Utils;
 
 internal static class Log

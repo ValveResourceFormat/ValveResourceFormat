@@ -28,7 +28,7 @@ namespace GUI.Types.Renderer
 
         private readonly static Dictionary<string, byte> EmptyArgs = new(0);
 
-        private ShaderParser Parser = new();
+        private readonly ShaderParser Parser = new();
 
         public Shader LoadShader(string shaderName, IReadOnlyDictionary<string, byte> arguments = null)
         {

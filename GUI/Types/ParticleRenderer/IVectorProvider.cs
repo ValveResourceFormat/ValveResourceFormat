@@ -242,7 +242,8 @@ namespace GUI.Types.ParticleRenderer
                         return MathUtils.Lerp(blend, stop1.Color, stop2.Color);
                     }
                 }
-                throw new IndexOutOfRangeException("gradient error wtf lol???");
+
+                throw new InvalidOperationException("Gradient error");
             }
         }
     }

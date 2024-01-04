@@ -14,7 +14,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelFlex.FlexOps
 
         public static FlexOp Build(string opCode, int data)
         {
-            float floatData = BitConverter.Int32BitsToSingle(data);
+            var floatData = BitConverter.Int32BitsToSingle(data);
             switch (opCode)
             {
                 case "FLEX_OP_FETCH1":

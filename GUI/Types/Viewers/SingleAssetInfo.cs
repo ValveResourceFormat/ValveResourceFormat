@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Globalization;
 using System.IO;
 using System.Text;
 using System.Windows.Forms;
@@ -56,12 +57,12 @@ namespace GUI.Types.Viewers
 
             var fileInfo = new StringBuilder();
 
-            fileInfo.AppendLine($"Name: {filePath}");
-            fileInfo.AppendLine($"CRC: {entry.CRC32:X2}");
-            fileInfo.AppendLine($"Archive: {entry.ArchiveIndex}");
-            fileInfo.AppendLine($"Offset: {entry.Offset}");
-            fileInfo.AppendLine($"Size: {entry.Length} ({HumanReadableByteSizeFormatter.Format(entry.Length)})");
-            fileInfo.AppendLine($"Preloaded bytes: {entry.SmallData.Length}");
+            fileInfo.AppendLine(CultureInfo.InvariantCulture, $"Name: {filePath}");
+            fileInfo.AppendLine(CultureInfo.InvariantCulture, $"CRC: {entry.CRC32:X2}");
+            fileInfo.AppendLine(CultureInfo.InvariantCulture, $"Archive: {entry.ArchiveIndex}");
+            fileInfo.AppendLine(CultureInfo.InvariantCulture, $"Offset: {entry.Offset}");
+            fileInfo.AppendLine(CultureInfo.InvariantCulture, $"Size: {entry.Length} ({HumanReadableByteSizeFormatter.Format(entry.Length)})");
+            fileInfo.AppendLine(CultureInfo.InvariantCulture, $"Preloaded bytes: {entry.SmallData.Length}");
 
             var fileControl = new CodeTextBox(fileInfo.ToString());
 

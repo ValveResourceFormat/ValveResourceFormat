@@ -68,12 +68,12 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                 decoderArray[i] = decoderArrayKV[i].GetProperty<string>("m_szName");
             }
 
-            var channelElements = decodeKey.GetInt32Property("m_nChannelElements");
+            //var channelElements = decodeKey.GetInt32Property("m_nChannelElements");
             var dataChannelArrayKV = decodeKey.GetArray("m_dataChannelArray");
             var dataChannelArray = new AnimationDataChannel[dataChannelArrayKV.Length];
             for (var i = 0; i < dataChannelArrayKV.Length; i++)
             {
-                dataChannelArray[i] = new AnimationDataChannel(skeleton, flexControllers, dataChannelArrayKV[i], channelElements);
+                dataChannelArray[i] = new AnimationDataChannel(skeleton, flexControllers, dataChannelArrayKV[i]);
             }
 
             var segmentArrayKV = animationData.GetArray("m_segmentArray");
@@ -180,7 +180,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
         private int GetMovementIndexForFrame(int frame)
         {
-            for (int i = 0; i < MovementArray.Length; i++)
+            for (var i = 0; i < MovementArray.Length; i++)
             {
                 var movement = MovementArray[i];
                 if (movement.EndFrame > frame)
@@ -215,7 +215,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// </summary>
         private void GetMovementForTime(float time, out AnimationMovement lastMovement, out AnimationMovement nextMovement, out float t)
         {
-            time = time % (FrameCount / Fps);
+            time %= FrameCount / Fps;
+
             var nextMovementIndex = GetMovementIndexForTime(time);
             var lastMovementIndex = nextMovementIndex - 1;
 

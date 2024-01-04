@@ -354,7 +354,7 @@ namespace GUI.Types.Renderer
                                     color.Z = colorBytes[2] / 255.0f;
                                     break;
                                 default:
-                                    throw new Exception("unknown entity type");
+                                    throw new UnexpectedMagicException("unknown entity type", (int)colorData.Type, nameof(colorData.Type));
                             }
                         }
 

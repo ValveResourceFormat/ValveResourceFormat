@@ -2,7 +2,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using ValveResourceFormat.Blocks;
-using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
 
 namespace ValveResourceFormat.ResourceTypes
 {

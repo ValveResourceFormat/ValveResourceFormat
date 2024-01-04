@@ -1,6 +1,4 @@
-using System.Numerics;
 using GUI.Types.Renderer;
-using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 
 namespace GUI.Types.ParticleRenderer

@@ -1,6 +1,4 @@
 using System;
-using System.Collections.Generic;
-using System.Numerics;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.ResourceTypes.ModelFlex;
 

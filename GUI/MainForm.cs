@@ -806,7 +806,7 @@ namespace GUI
             {
                 if (selectedNode.TreeView is not BetterTreeView nodeTreeView)
                 {
-                    throw new Exception("Unexpected tree view");
+                    throw new InvalidOperationException("Unexpected tree view");
                 }
 
                 var file = selectedNode.PackageEntry;

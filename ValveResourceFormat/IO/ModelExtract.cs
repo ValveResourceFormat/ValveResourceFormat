@@ -559,7 +559,7 @@ public class ModelExtract
         Vector3 angles = new();
 
         // pitch / x
-        float sinp = 2 * (q.W * q.Y - q.Z * q.X);
+        var sinp = 2 * (q.W * q.Y - q.Z * q.X);
         if (Math.Abs(sinp) >= 1)
         {
             angles.X = MathF.CopySign(MathF.PI / 2, sinp);
@@ -570,13 +570,13 @@ public class ModelExtract
         }
 
         // yaw / y
-        float siny_cosp = 2 * (q.W * q.Z + q.X * q.Y);
-        float cosy_cosp = 1 - 2 * (q.Y * q.Y + q.Z * q.Z);
+        var siny_cosp = 2 * (q.W * q.Z + q.X * q.Y);
+        var cosy_cosp = 1 - 2 * (q.Y * q.Y + q.Z * q.Z);
         angles.Y = MathF.Atan2(siny_cosp, cosy_cosp);
 
         // roll / z
-        float sinr_cosp = 2 * (q.W * q.X + q.Y * q.Z);
-        float cosr_cosp = 1 - 2 * (q.X * q.X + q.Y * q.Y);
+        var sinr_cosp = 2 * (q.W * q.X + q.Y * q.Z);
+        var cosr_cosp = 1 - 2 * (q.X * q.X + q.Y * q.Y);
         angles.Z = MathF.Atan2(sinr_cosp, cosr_cosp);
 
         return angles * (180 / MathF.PI);
@@ -595,7 +595,7 @@ public class ModelExtract
         var mesh = extract.RenderMeshesToExtract[0].Mesh;
         var fileName = extract.RenderMeshesToExtract[0].FileName;
 
-        var sharedDmxExtractMethod = () => ToDmxMesh(
+        byte[] sharedDmxExtractMethod() => ToDmxMesh(
             mesh,
             Path.GetFileNameWithoutExtension(fileName),
             extract.MaterialInputSignatures,
@@ -812,7 +812,7 @@ public class ModelExtract
                     if (drawCallIndex > 0)
                     {
                         // new submesh with same vertex buffer as first submesh
-                        dag = new DmeDag();
+                        dag = [];
                         dmeModel.Children.Add(dag);
                         dmeModel.JointList.Add(dag);
                         dag.Shape.CurrentState = dmeVertexBuffers[vertexBufferIndex];
@@ -963,18 +963,20 @@ public class ModelExtract
         {
             var flexController = model.FlexControllers[flexId];
 
-            var flexElement = new Element();
-            flexElement.Name = flexController.Name;
+            var flexElement = new Element
+            {
+                Name = flexController.Name
+            };
             flexElement.Add("flexWeight", 0f);
 
             var flexChannel = BuildDmeChannel<float>($"{flexController.Name}_flex_channel", flexElement, "flexWeight", out var flexLog);
             var flexLogLayer = flexLog.GetLayer(0);
             flexLogLayer.LayerValues = new float[anim.FrameCount];
 
-            for (int i = 0; i < anim.FrameCount; i++)
+            for (var i = 0; i < anim.FrameCount; i++)
             {
-                Frame frame = frames[i];
-                TimeSpan time = TimeSpan.FromSeconds((double)i / anim.Fps);
+                var frame = frames[i];
+                var time = TimeSpan.FromSeconds((double)i / anim.Fps);
                 ProcessFlexFrameForDmeChannel(flexId, frame, time, flexLogLayer);
             }
             clip.Channels.Add(flexChannel);

@@ -293,10 +293,10 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 // http://soundfile.sapp.org/doc/WaveFormat/
                 // http://www.codeproject.com/Articles/129173/Writing-a-Proper-Wave-File
-                var headerRiff = new byte[] { 0x52, 0x49, 0x46, 0x46 };
-                var formatWave = new byte[] { 0x57, 0x41, 0x56, 0x45 };
-                var formatTag = new byte[] { 0x66, 0x6d, 0x74, 0x20 };
-                var subChunkId = new byte[] { 0x64, 0x61, 0x74, 0x61 };
+                var headerRiff = "RIFF"u8.ToArray();
+                var formatWave = "WAVE"u8.ToArray();
+                var formatTag = "fmt "u8.ToArray();
+                var subChunkId = "data"u8.ToArray();
 
                 var byteRate = SampleRate * Channels * (Bits / 8);
                 var blockAlign = Channels * (Bits / 8);

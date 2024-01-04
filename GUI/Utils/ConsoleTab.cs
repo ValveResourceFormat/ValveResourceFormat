@@ -112,7 +112,7 @@ namespace GUI.Utils
 
                 while (LogQueue.TryDequeue(out var line))
                 {
-                    sb.Append($"[{line.Time:HH:mm:ss.fff}] [{line.Component}] ");
+                    sb.Append(CultureInfo.InvariantCulture, $"[{line.Time:HH:mm:ss.fff}] [{line.Component}] ");
                     sb.Append(string.Concat(line.Message, Environment.NewLine));
                 }
 

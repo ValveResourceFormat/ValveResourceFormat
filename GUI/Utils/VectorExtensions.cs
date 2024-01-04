@@ -10,8 +10,9 @@ namespace GUI.Utils
         {
             if (floatarr.Length < 3)
             {
-                throw new IndexOutOfRangeException("ToVector3 needs float array of at least length 3.");
+                throw new ArgumentException("ToVector3 needs float array of at least length 3.", nameof(floatarr));
             }
+
             return new Vector3(floatarr[0], floatarr[1], floatarr[2]);
         }
 
@@ -20,8 +21,9 @@ namespace GUI.Utils
         {
             if (floatarr.Length < 3)
             {
-                throw new IndexOutOfRangeException("ToVector3 needs float array of at least length 3.");
+                throw new ArgumentException("ToVector3 needs float array of at least length 3.", nameof(floatarr));
             }
+
             return new Vector3((float)floatarr[0], (float)floatarr[1], (float)floatarr[2]);
         }
 

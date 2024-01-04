@@ -1,5 +1,4 @@
 using System.Numerics;
-using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer.Initializers
 {

@@ -1,9 +1,7 @@
 using System;
-using System.Globalization;
 using GUI.Types.ParticleRenderer.Utils;
 using GUI.Utils;
 using ValveResourceFormat;
-using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer
 {

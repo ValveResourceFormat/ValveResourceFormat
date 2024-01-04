@@ -1,7 +1,6 @@
 using System;
 using System.Numerics;
 using GUI.Utils;
-using OpenTK.Graphics.OpenGL;
 using OpenTK.Input;
 
 namespace GUI.Types.Renderer

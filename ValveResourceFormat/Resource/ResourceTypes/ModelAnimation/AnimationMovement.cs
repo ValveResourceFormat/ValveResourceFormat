@@ -1,17 +1,11 @@
-using Datamodel;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Numerics;
-using System.Text;
-using System.Threading.Tasks;
 using ValveResourceFormat.Serialization;
 
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 {
     public class AnimationMovement
     {
-        public struct MovementData
+        public readonly struct MovementData
         {
             public Vector3 Position { get; }
             public float Angle { get; }

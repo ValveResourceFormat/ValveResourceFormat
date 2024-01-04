@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using ValveResourceFormat.Blocks;
@@ -35,10 +34,9 @@ namespace ValveResourceFormat.ResourceTypes
 
         private FlexController[] GetFlexControllers()
         {
-            var morph = Resource.GetBlockByType(BlockType.MRPH) as Morph;
-            if (morph == null)
+            if (Resource.GetBlockByType(BlockType.MRPH) is not Morph morph)
             {
-                return Array.Empty<FlexController>();
+                return [];
             }
 
             var flexControllersData = morph.Data.GetArray("m_FlexControllers");

@@ -1,4 +1,3 @@
-using System;
 using static ValveResourceFormat.CompiledShader.ShaderUtilHelpers;
 
 namespace ValveResourceFormat.CompiledShader

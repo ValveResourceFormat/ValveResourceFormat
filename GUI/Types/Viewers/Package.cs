@@ -36,7 +36,7 @@ namespace GUI.Types.Viewers
             IsEditingPackage = true;
 
             var package = new SteamDatabase.ValvePak.Package();
-            package.AddFile("README.txt", Array.Empty<byte>()); // TODO: Otherwise package.Entries is null
+            package.AddFile("README.txt", []); // TODO: Otherwise package.Entries is null
 
             vrfGuiContext.CurrentPackage = package;
 
@@ -482,7 +482,7 @@ namespace GUI.Types.Viewers
         {
             if (e.Node is not BetterTreeNode node)
             {
-                throw new Exception("Unexpected tree node type");
+                throw new ArgumentException("Unexpected tree node type", nameof(e));
             }
 
             OpenFileFromNode(node);
@@ -492,7 +492,7 @@ namespace GUI.Types.Viewers
         {
             if (e.Node is not BetterTreeNode node)
             {
-                throw new Exception("Unexpected tree node type");
+                throw new ArgumentException("Unexpected tree node type", nameof(e));
             }
 
             OpenFileFromNode(node);
