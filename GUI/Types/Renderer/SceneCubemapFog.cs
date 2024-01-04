@@ -27,24 +27,24 @@ class SceneCubemapFog : SceneNode
     // Height width ADDS to heightStart
     public Vector4 Height_OffsetScaleExponentLog2Mip(Vector3 mapOffset, float mapScale)
     {
-        float offset;
-        float scale;
-        if (UseHeightFog || ((HeightEnd - HeightStart) > 0)) // width = 0 is a substitution for UseHeightFog
+        var offset = 1f;
+        var scale = 0.000001f;
+        var exponent = 0f;
+
+        if (HeightEnd - HeightStart > 0) // width = 0 is a substitution for UseHeightFog
         {
             var bias = (HeightStart - mapOffset.Z) / mapScale;
 
-            scale = mapScale / (HeightEnd - HeightStart);
-            offset = -(bias * scale);
-            //Console.WriteLine($"height cubefog {new Vector4(offset, scale, HeightExponent, CubemapFogTexture.NumMipLevels)}");
-        }
-        else
-        {
-            offset = 0f;
-            scale = 0f; // is this right?
+            scale = mapScale / (HeightStart - HeightEnd);
+            offset = 1f - (bias * scale);
+            exponent = HeightExponent;
         }
 
-        return new Vector4(offset, scale, HeightExponent, Math.Min(7f, CubemapFogTexture.NumMipLevels)); // these latter two values are wrong on deskjob?
+        var value = new Vector4(offset, scale, exponent, Math.Min(7f, CubemapFogTexture.NumMipLevels)); // these latter two values are wrong on deskjob?
+
+        return value;
     }
+
     public Vector4 CullingParams_Opacity(Vector3 mapOffset, float mapScale)
     {
         var distCull = StartDist / mapScale;

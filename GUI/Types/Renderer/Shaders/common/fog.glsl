@@ -33,7 +33,7 @@ void ApplyCubemapFog(inout vec3 pixelColor, vec3 positionWS, vec3 posRelativeToC
     cubeFogComponents.x = pow(ClampToPositive(pixelDepth * g_vCubeFog_Offset_Scale_Bias_Exponent.y + g_vCubeFog_Offset_Scale_Bias_Exponent.x), g_vCubeFog_Offset_Scale_Bias_Exponent.w);
     cubeFogComponents.y = pow(ClampToPositive(positionWS.z * g_vCubeFog_Height_Offset_Scale_Exponent_Log2Mip.y + g_vCubeFog_Height_Offset_Scale_Exponent_Log2Mip.x), g_vCubeFog_Height_Offset_Scale_Exponent_Log2Mip.z);
 
-    float cubemapFogBlend = min(1.0, max(cubeFogComponents.x, cubeFogComponents.y) );
+    float cubemapFogBlend = saturate(cubeFogComponents.x) * saturate(cubeFogComponents.y);
 
     vec3 fogCoords = normalize((vec4(normalize(posRelativeToCamera), 0.0) * g_matvCubeFogSkyWsToOs).xyz);
     float cubemapFogLod = saturate( 1.0 - cubemapFogBlend * g_vCubeFog_Offset_Scale_Bias_Exponent.z ) * g_vCubeFog_Height_Offset_Scale_Exponent_Log2Mip.w;
