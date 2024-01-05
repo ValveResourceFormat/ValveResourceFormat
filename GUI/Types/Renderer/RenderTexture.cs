@@ -83,6 +83,7 @@ namespace GUI.Types.Renderer
                 TextureTarget.Texture2DArray => GetPName.TextureBinding2DArray,
                 TextureTarget.TextureCubeMap => GetPName.TextureBindingCubeMap,
                 TextureTarget.TextureCubeMapArray => GetPName.TextureBindingCubeMap,
+                TextureTarget.Texture2DMultisample => GetPName.TextureBinding2DMultisample,
                 _ => GetPName.TextureBinding2D,
             });
 
