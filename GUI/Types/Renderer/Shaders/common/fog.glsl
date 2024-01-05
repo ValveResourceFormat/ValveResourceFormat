@@ -10,10 +10,10 @@ uniform bool g_bFogEnabled = true;
 #define USE_VOLUMETRIC_FOG 0
 #define USE_SPHERICAL_VIGNETTE_TERRIBLEIDEA 0
 
-void ApplyGradientFog(inout vec3 pixelColor, vec3 positionWS, float pixelDepth)
+void ApplyGradientFog(inout vec3 pixelColor, vec3 positionWS, vec3 cameraCenteredPixelPos)
 {
     vec2 gradientFogComponents; // x for View Space depth, y for height in World Space
-    gradientFogComponents.x = sqrt(pixelDepth);
+    gradientFogComponents.x = length(cameraCenteredPixelPos);
     gradientFogComponents.y = positionWS.z;
 
     gradientFogComponents = pow( saturate(gradientFogComponents * g_vGradientFogBiasAndScale.zw + g_vGradientFogBiasAndScale.xy), m_vGradientFogExponents );
@@ -27,10 +27,10 @@ void ApplyGradientFog(inout vec3 pixelColor, vec3 positionWS, float pixelDepth)
 
 uniform samplerCube g_tFogCubeTexture;
 
-void ApplyCubemapFog(inout vec3 pixelColor, vec3 positionWS, vec3 posRelativeToCamera, float pixelDepth)
+void ApplyCubemapFog(inout vec3 pixelColor, vec3 positionWS, vec3 posRelativeToCamera)
 {
     vec2 cubeFogComponents;
-    cubeFogComponents.x = pow(ClampToPositive(pixelDepth * g_vCubeFog_Offset_Scale_Bias_Exponent.y + g_vCubeFog_Offset_Scale_Bias_Exponent.x), g_vCubeFog_Offset_Scale_Bias_Exponent.w);
+    cubeFogComponents.x = pow(ClampToPositive(length(posRelativeToCamera.xy) * g_vCubeFog_Offset_Scale_Bias_Exponent.y + g_vCubeFog_Offset_Scale_Bias_Exponent.x), g_vCubeFog_Offset_Scale_Bias_Exponent.w);
     cubeFogComponents.y = pow(ClampToPositive(positionWS.z * g_vCubeFog_Height_Offset_Scale_Exponent_Log2Mip.y + g_vCubeFog_Height_Offset_Scale_Exponent_Log2Mip.x), g_vCubeFog_Height_Offset_Scale_Exponent_Log2Mip.z);
 
     float cubemapFogBlend = saturate(cubeFogComponents.x) * saturate(cubeFogComponents.y);
@@ -107,7 +107,7 @@ void ApplyFog(inout vec3 pixelColor, vec3 positionWS)
             bool bPixelHasGradientFog = (horizontalDistanceQuadratic > g_vGradientFogCullingParams.x) || (positionWS.z > g_vGradientFogCullingParams.y);
             if (bPixelHasGradientFog)
             {
-                ApplyGradientFog(pixelColor, positionWS, length(cameraCenteredPixelPos));
+                ApplyGradientFog(pixelColor, positionWS, cameraCenteredPixelPos);
             }
         }
 
@@ -118,7 +118,7 @@ void ApplyFog(inout vec3 pixelColor, vec3 positionWS)
             bool bPixelHasCubemapFog = (distanceQuadratic > g_vCubeFogCullingParams_ExposureBias_MaxOpacity.x) || (positionWS.z > g_vCubeFogCullingParams_ExposureBias_MaxOpacity.y);
             if (bPixelHasCubemapFog)
             {
-                ApplyCubemapFog(pixelColor, positionWS, cameraCenteredPixelPos, sqrt(distanceQuadratic));
+                ApplyCubemapFog(pixelColor, positionWS, cameraCenteredPixelPos);
             }
         }
 
