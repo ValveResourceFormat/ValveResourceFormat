@@ -321,7 +321,7 @@ namespace GUI.Controls
 
             CheckOpenGL();
 
-            CreateFrameBuffer();
+            CreateDefaultFramebuffer();
 
             // Application semantics / default state
             GL.Enable(EnableCap.TextureCubeMapSeamless);
@@ -364,8 +364,10 @@ namespace GUI.Controls
         private RenderTexture fboDepth;
         private (PixelInternalFormat InternalFormat, PixelFormat Format, PixelType Type) fboColorFormat;
         private (PixelInternalFormat InternalFormat, PixelType Type) fboDepthFormat;
+        private int MaxSamples;
+        private int NumSamples => Math.Clamp(Settings.Config.AntiAliasingSamples, 1, MaxSamples);
 
-        private void CreateFrameBuffer()
+        private void CreateDefaultFramebuffer()
         {
             fbo = GL.GenFramebuffer();
             GL.BindFramebuffer(FramebufferTarget.Framebuffer, fbo);
@@ -376,11 +378,13 @@ namespace GUI.Controls
             fboColorFormat = (PixelInternalFormat.Rgba8, PixelFormat.Rgba, PixelType.UnsignedByte);
             fboDepthFormat = (PixelInternalFormat.DepthComponent32f, PixelType.Float);
 
+            MaxSamples = GL.GetInteger(GetPName.MaxSamples);
+
             using (fboColor.BindingContext())
             {
                 fboColor.SetWrapMode(TextureWrapMode.ClampToEdge);
                 fboColor.SetFiltering(TextureMinFilter.Linear, TextureMagFilter.Linear);
-                GL.TexImage2DMultisample((TextureTargetMultisample)fboColor.Target, Settings.Config.AntiAliasingSamples, fboColorFormat.InternalFormat, 1, 1, false);
+                GL.TexImage2DMultisample((TextureTargetMultisample)fboColor.Target, NumSamples, fboColorFormat.InternalFormat, 1, 1, false);
 
                 GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.ColorAttachment0, fboColor.Target, fboColor.Handle, 0);
             }
@@ -389,7 +393,7 @@ namespace GUI.Controls
             {
                 fboDepth.SetWrapMode(TextureWrapMode.ClampToEdge);
                 fboDepth.SetFiltering(TextureMinFilter.Linear, TextureMagFilter.Linear);
-                GL.TexImage2DMultisample((TextureTargetMultisample)fboDepth.Target, Settings.Config.AntiAliasingSamples, fboDepthFormat.InternalFormat, 1, 1, false);
+                GL.TexImage2DMultisample((TextureTargetMultisample)fboDepth.Target, NumSamples, fboDepthFormat.InternalFormat, 1, 1, false);
 
                 GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.DepthAttachment, fboDepth.Target, fboDepth.Handle, 0);
             }
@@ -501,16 +505,21 @@ namespace GUI.Controls
             {
                 using (fboColor.BindingContext())
                 {
-                    GL.TexImage2DMultisample(TextureTargetMultisample.Texture2DMultisample, Settings.Config.AntiAliasingSamples, fboColorFormat.InternalFormat, w, h, false);
-                    //GL.TexImage2D(fboDepth.Target, 0, fboColorFormat.InternalFormat, w, h, 0, fboColorFormat.Format, fboColorFormat.Type, IntPtr.Zero);
+                    GL.TexImage2DMultisample((TextureTargetMultisample)fboColor.Target, NumSamples, fboColorFormat.InternalFormat, w, h, false);
                 }
 
                 using (fboDepth.BindingContext())
                 {
-                    GL.TexImage2DMultisample((TextureTargetMultisample)fboDepth.Target, Settings.Config.AntiAliasingSamples, fboDepthFormat.InternalFormat, w, h, false);
-                    //GL.TexImage2D(fboDepth.Target, 0, fboDepthFormat.InternalFormat, w, h, 0, PixelFormat.DepthComponent, fboDepthFormat.Type, IntPtr.Zero);
+                    GL.TexImage2DMultisample((TextureTargetMultisample)fboDepth.Target, NumSamples, fboDepthFormat.InternalFormat, w, h, false);
                 }
             }
+        }
+
+        private void DisposeFramebuffer()
+        {
+            GL.DeleteFramebuffer(fbo);
+            GL.DeleteTexture(fboColor.Handle);
+            GL.DeleteTexture(fboDepth.Handle);
         }
 
         private void OnGotFocus(object sender, EventArgs e)

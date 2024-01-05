@@ -19,16 +19,8 @@ namespace GUI.Controls
             if (disposing)
             {
                 components?.Dispose();
-
                 FullScreenForm?.Dispose();
-
-                //fboColor?.Dispose();
-                //fboDepth?.Dispose();
-
-                GL.DeleteTexture(fboColor.Handle);
-                GL.DeleteTexture(fboDepth.Handle);
-                GL.DeleteFramebuffer(fbo);
-
+                DisposeFramebuffer();
             }
             base.Dispose(disposing);
         }
