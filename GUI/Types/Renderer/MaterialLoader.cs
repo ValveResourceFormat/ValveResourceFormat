@@ -122,7 +122,8 @@ namespace GUI.Types.Renderer
             {
                 if (mat.Shader.GetUniformLocation(name) != -1)
                 {
-                    mat.Textures[name] = GetTexture(path);
+                    var srgbRead = mat.Shader.SrgbSamplers.Contains(name);
+                    mat.Textures[name] = GetTexture(path, srgbRead);
                     return true;
                 }
 
@@ -133,19 +134,19 @@ namespace GUI.Types.Renderer
         }
 
 
-        public RenderTexture GetTexture(string name)
+        public RenderTexture GetTexture(string name, bool srgbRead = false)
         {
             if (Textures.TryGetValue(name, out var tex))
             {
                 return tex;
             }
 
-            tex = LoadTexture(name);
+            tex = LoadTexture(name, srgbRead);
             Textures.Add(name, tex);
             return tex;
         }
 
-        public RenderTexture LoadTexture(string name)
+        public RenderTexture LoadTexture(string name, bool srgbRead = false)
         {
             var textureResource = VrfGuiContext.LoadFileCompiled(name);
 
@@ -154,10 +155,10 @@ namespace GUI.Types.Renderer
                 return GetErrorTexture();
             }
 
-            return LoadTexture(textureResource);
+            return LoadTexture(textureResource, srgbRead);
         }
 
-        public RenderTexture LoadTexture(Resource textureResource)
+        public RenderTexture LoadTexture(Resource textureResource, bool srgbRead = false)
         {
             var data = (Texture)textureResource.DataBlock;
 
@@ -190,6 +191,12 @@ namespace GUI.Types.Renderer
 
             var internalFormat = GetPixelInternalFormat(data.Format);
             var format = GetInternalFormat(data.Format);
+
+            if (srgbRead)
+            {
+                internalFormat = (PixelInternalFormat?)ToSrgb((InternalFormat?)internalFormat);
+                format = ToSrgb(format);
+            }
 
             using var _ = tex.BindingContext();
 
@@ -325,6 +332,19 @@ namespace GUI.Types.Renderer
                 VTexFormat.RGBA16161616F => InternalFormat.Rgba16f,
                 VTexFormat.I8 => InternalFormat.Intensity8,
                 _ => null // Unsupported texture format
+            };
+
+        private static InternalFormat? ToSrgb(InternalFormat? format)
+            => format switch
+            {
+                InternalFormat.CompressedRgbaS3tcDxt1Ext => InternalFormat.CompressedSrgbAlphaS3tcDxt1Ext,
+                InternalFormat.CompressedRgbaS3tcDxt5Ext => InternalFormat.CompressedSrgbAlphaS3tcDxt5Ext,
+                InternalFormat.CompressedRgb8Etc2 => InternalFormat.CompressedSrgb8Etc2,
+                InternalFormat.CompressedRgba8Etc2Eac => InternalFormat.CompressedSrgb8Alpha8Etc2Eac,
+                InternalFormat.CompressedRgbaBptcUnorm => InternalFormat.CompressedSrgbAlphaBptcUnorm,
+                InternalFormat.Rgba8 => InternalFormat.Srgb8Alpha8,
+                InternalFormat.Rgb8 => InternalFormat.Srgb8,
+                _ => format
             };
 
         private static PixelInternalFormat? GetPixelInternalFormat(VTexFormat vformat)

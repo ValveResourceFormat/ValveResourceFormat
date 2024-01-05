@@ -12,6 +12,7 @@ namespace GUI.Types.Renderer
         public int Program { get; set; }
         public IReadOnlyDictionary<string, byte> Parameters { get; init; }
         public HashSet<string> RenderModes { get; init; }
+        public HashSet<string> SrgbSamplers { get; init; }
 
         private Dictionary<string, int> Uniforms { get; } = [];
         public RenderMaterial Default;

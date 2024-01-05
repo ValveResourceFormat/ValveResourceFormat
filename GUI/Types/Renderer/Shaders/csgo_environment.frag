@@ -38,7 +38,7 @@ in vec4 vBlendColorTint;
 out vec4 outputColor;
 
 // Material 1
-uniform sampler2D g_tColor1;
+uniform sampler2D g_tColor1; // SrgbRead(true)
 uniform sampler2D g_tHeight1;
 uniform sampler2D g_tNormal1;
 
@@ -74,7 +74,7 @@ uniform float g_flHeightMapZeroPoint1 = 0;
 #if defined(csgo_environment_blend_vfx)
     in vec4 vColorBlendValues;
 
-    uniform sampler2D g_tColor2;
+    uniform sampler2D g_tColor2; // SrgbRead(true)
     uniform sampler2D g_tHeight2;
     uniform sampler2D g_tNormal2;
 
@@ -83,7 +83,7 @@ uniform float g_flHeightMapZeroPoint1 = 0;
     #endif
 
     #if (F_SHARED_COLOR_OVERLAY == 1)
-        uniform sampler2D g_tSharedColorOverlay;
+        uniform sampler2D g_tSharedColorOverlay; // SrgbRead(true)
 
         uniform int g_nColorOverlayMode;                    // "0=Both Layers,1=Layer 1,2=Layer 2"
         uniform int g_nColorOverlayTintMask;                // "0=Mask Both Layers,1=Mask Layer 1,2=Mask Layer 2,3==Unmasked"
@@ -209,13 +209,11 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
     vec3 overlayFactor = vec3(1.0);
 
     #if (F_SHARED_COLOR_OVERLAY == 1)
-        vec3 overlay = SrgbGammaToLinear(texture(g_tSharedColorOverlay, vTexCoord.zw).rgb) * 2.0 - 1.0;
+        vec3 overlay = texture(g_tSharedColorOverlay, vTexCoord.zw).rgb * 2.0 - 1.0;
         vec3 _15235 = (((vec3(1.0) - pow(vec3(1.0) - max(vec3(0.0), overlay), vec3(g_flOverlayBrightnessContrast))) * g_flOverlayBrightnessContrast)
             + ((pow(vec3(1.0) + min(vec3(0.0), overlay), vec3(g_flOverlayDarknessContrast)) - vec3(1.0)) * g_flOverlayDarknessContrast)) + vec3(1.0);
         overlayFactor = max(vec3(0.0), _15235);
     #endif
-
-    color.rgb = SrgbGammaToLinear(color.rgb);
 
 #if defined(tinting_code_new)
     vec3 tintColorNorm = normalize(max(vTintColor_ModelAmount.xyz, vec3(0.001)));
@@ -268,8 +266,6 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
     height2.a = g_bMetalness2 ? height2.a : 0.0;
     normal2.rg = (normal2.rg - 0.5) * g_fTextureNormalContrast2 + 0.5;
     normal2.b = saturate(((normal2.b - 0.5) * g_fTextureRoughnessContrast2 + 0.5) * g_fTextureRoughnessBrightness2);
-
-    color2.rgb = SrgbGammaToLinear(color2.rgb);
 
 #if defined(tinting_code_new)
     vec3 adjust2 = AdjustBrightnessContrastSaturation(color2.rgb, g_fTextureColorBrightness2, g_fTextureColorContrast2, g_fTextureColorSaturation2);

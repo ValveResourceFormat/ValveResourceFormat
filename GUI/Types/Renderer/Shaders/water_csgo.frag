@@ -13,7 +13,7 @@ in vec4 vColorBlendValues;
 
 out vec4 outputColor;
 
-//uniform sampler2D g_tColor;
+//uniform sampler2D g_tColor; // SrgbRead(true)
 //uniform sampler2D g_tDebris;
 //uniform sampler2D g_tDebrisNormal;
 //uniform sampler2D g_tSceneDepth;

@@ -4,6 +4,7 @@ using System.Globalization;
 using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
+using static GUI.Types.Renderer.ShaderLoader;
 
 namespace GUI.Types.Renderer
 {
@@ -12,10 +13,15 @@ namespace GUI.Types.Renderer
         private const string ShaderDirectory = "GUI.Types.Renderer.Shaders.";
         private const string ExpectedShaderVersion = "#version 460";
 
-        [GeneratedRegex("^#include \"(?<IncludeName>[^\"]+)\"")]
+        [GeneratedRegex("^\\s*#include \"(?<IncludeName>[^\"]+)\"")]
         private static partial Regex RegexInclude();
-        [GeneratedRegex("^#define (?<ParamName>\\S+) (?<DefaultValue>\\S+)")]
+        [GeneratedRegex("^\\s*#define (?<ParamName>\\S+) (?<DefaultValue>\\S+)")]
         private static partial Regex RegexDefine();
+
+        // regex that detects "uniform samplerx sampler; // SrgbRead(true)"
+        // accept whitespace in front
+        [GeneratedRegex("^\\s*uniform sampler(?<SamplerType>\\S+) (?<SamplerName>\\S+);\\s*// SrgbRead\\(true\\)")]
+        private static partial Regex RegexSamplerWithSrgbRead();
 
         private int sourceFileNumber;
         public List<string> SourceFiles { get; } = [];
@@ -34,7 +40,7 @@ namespace GUI.Types.Renderer
 #endif
         }
 
-        public string PreprocessShader(string shaderFile, string originalShaderName, IReadOnlyDictionary<string, byte> arguments, HashSet<string> defines)
+        public string PreprocessShader(string shaderFile, string originalShaderName, IReadOnlyDictionary<string, byte> arguments, ParsedShaderData parsedData)
         {
             var isFirstLine = true;
             var resolvedIncludes = new HashSet<string>(4);
@@ -131,7 +137,7 @@ namespace GUI.Types.Renderer
                         {
                             var defineName = match.Groups["ParamName"].Value;
 
-                            defines.Add(defineName);
+                            parsedData.Defines.Add(defineName);
 
                             // Check if this parameter is in the arguments
                             if (!arguments.TryGetValue(defineName, out var value))
@@ -151,6 +157,17 @@ namespace GUI.Types.Renderer
                             builder.Append(" // :VrfPreprocessed\n");
 
                             continue;
+                        }
+                    }
+
+                    {
+                        var match = RegexSamplerWithSrgbRead().Match(line);
+                        if (match.Success)
+                        {
+                            var samplerName = match.Groups["SamplerName"].Value;
+                            var samplerType = match.Groups["SamplerType"].Value;
+
+                            parsedData.SrgbSamplers.Add(samplerName);
                         }
                     }
 

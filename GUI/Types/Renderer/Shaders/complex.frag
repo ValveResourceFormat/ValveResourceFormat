@@ -92,7 +92,7 @@ in vec4 vVertexColorOut;
 
 out vec4 outputColor;
 
-uniform sampler2D g_tColor;
+uniform sampler2D g_tColor; // SrgbRead(true)
 uniform sampler2D g_tNormal;
 uniform sampler2D g_tTintMask;
 
@@ -207,11 +207,11 @@ uniform sampler2D g_tTintMask;
 
         #if (F_SPECULAR == 1)
             // uniform sampler2D g_tColor1;
-            uniform sampler2D g_tLayer1Color;
+            uniform sampler2D g_tLayer1Color; // SrgbRead(true)
             #define VR_STANDARD_Color2 g_tLayer1Color
         #else
-            uniform sampler2D g_tLayer1Color2;
-            uniform sampler2D g_tLayer2Color2;
+            uniform sampler2D g_tLayer1Color2; // SrgbRead(true)
+            uniform sampler2D g_tLayer2Color2; // SrgbRead(true)
             #define VR_STANDARD_Color2 g_tLayer1Color2
         #endif
 
@@ -268,8 +268,6 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
     vec4 color = texture(g_tColor, texCoord);
     vec4 normalTexture = texture(g_tNormal, texCoord);
 
-    color.rgb = SrgbGammaToLinear(color.rgb);
-
     // Blending
 #if defined(csgo_generic_blend) || defined(simple_blend_common)  || defined(vr_standard_blend_vfx)
     vec2 texCoordB = texCoord * g_vTexCoordScale2.xy;
@@ -284,9 +282,6 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
         vec4 color2 = texture(g_tLayer2Color, texCoordB);
         vec4 normalTexture2 = texture(g_tLayer2NormalRoughness, texCoordB);
     #endif
-
-
-    color2.rgb = SrgbGammaToLinear(color2.rgb);
 
     // 0: VertexBlend 1: BlendModulateTexture,rg 2: NewLayerBlending,g 3: NewLayerBlending,a
     #if (defined(csgo_generic_vfx_common) && F_FANCY_BLENDING > 0)
