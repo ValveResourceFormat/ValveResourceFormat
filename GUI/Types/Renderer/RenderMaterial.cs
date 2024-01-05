@@ -74,13 +74,26 @@ namespace GUI.Types.Renderer
             IsOverlay = (material.IntParams.GetValueOrDefault("F_OVERLAY") == 1)
                 || (IsTranslucent && hasDepthBias && material.ShaderName is "csgo_vertexlitgeneric.vfx" or "csgo_complex.vfx");
 
+            var blendMode = 0;
+
             if (material.ShaderName.EndsWith("static_overlay.vfx", System.StringComparison.Ordinal))
             {
                 IsOverlay = true;
-                var blendMode = material.IntParams.GetValueOrDefault("F_BLEND_MODE");
+                blendMode = (int)material.IntParams.GetValueOrDefault("F_BLEND_MODE");
+            }
+
+            if (material.ShaderName == "csgo_unlitgeneric.vfx")
+            {
+                blendMode = (int)material.IntParams.GetValueOrDefault("F_BLEND_MODE");
+            }
+
+            if (blendMode > 0)
+            {
                 IsTranslucent = blendMode > 0 && blendMode != 2;
                 isMod2x = blendMode == 3;
                 isAdditiveBlend = blendMode == 4;
+                // 5 = multiply
+                // 6 = modthenadd
             }
 
             SortId = GetHashCode(); // It doesn't really matter what we use, it could be a random value
