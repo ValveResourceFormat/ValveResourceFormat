@@ -140,7 +140,7 @@ namespace GUI.Types.Renderer
             if (hasDepthBias || IsOverlay)
             {
                 GL.Enable(EnableCap.PolygonOffsetFill);
-                GL.PolygonOffset(-0.05f, -64);
+                GL.PolygonOffsetClamp(0, 64, 0.0005f);
             }
 
             if (isRenderBackfaces)
@@ -160,7 +160,7 @@ namespace GUI.Types.Renderer
             if (hasDepthBias || IsOverlay)
             {
                 GL.Disable(EnableCap.PolygonOffsetFill);
-                GL.PolygonOffset(0, 0);
+                GL.PolygonOffsetClamp(0, 0, 0);
             }
 
             if (isRenderBackfaces)

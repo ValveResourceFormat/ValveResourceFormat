@@ -97,11 +97,29 @@ namespace GUI.Types.Renderer
             WindowSize = new Vector2(viewportWidth, viewportHeight);
 
             // Calculate projection matrix
-            ProjectionMatrix = Matrix4x4.CreatePerspectiveFieldOfView(GetFOV(), AspectRatio, 1.0f, 20000.0f);
+            ProjectionMatrix = CreatePerspectiveFieldOfView_ReverseZ(GetFOV(), AspectRatio, 0.5f, float.PositiveInfinity);
 
             RecalculateMatrices();
 
             Picker?.Resize(viewportWidth, viewportHeight);
+        }
+
+        /// <inheritdoc cref="Matrix4x4.CreatePerspectiveFieldOfView"/>
+        /// <remarks>Note: Reverse-Z. Far plane is swapped with near plane.</remarks>
+        private static Matrix4x4 CreatePerspectiveFieldOfView_ReverseZ(float fov, float aspectRatio, float nearPlane, float farPlane)
+        {
+            var yScale = 1.0f / MathF.Tan(fov * 0.5f);
+            var xScale = yScale / aspectRatio;
+            var (n, f) = (nearPlane, farPlane);
+
+            return new Matrix4x4
+            {
+                M11 = xScale,
+                M22 = yScale,
+                M33 = n / (f - n),
+                M34 = -1.0f,
+                M43 = n
+            };
         }
 
         public void CopyFrom(Camera fromOther)
@@ -117,7 +135,7 @@ namespace GUI.Types.Renderer
 
         public void SetScaledProjectionMatrix()
         {
-            ProjectionMatrix = Matrix4x4.CreatePerspectiveFieldOfView(GetFOV(), AspectRatio, 10f * Scale, 20000.0f * Scale);
+            ProjectionMatrix = CreatePerspectiveFieldOfView_ReverseZ(GetFOV(), AspectRatio, 10f * Scale, 20000.0f * Scale);
         }
 
         public void SetLocation(Vector3 location)

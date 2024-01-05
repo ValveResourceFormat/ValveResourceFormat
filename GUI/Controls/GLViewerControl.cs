@@ -59,7 +59,7 @@ namespace GUI.Controls
             flags |= GraphicsContextFlags.Debug;
 #endif
 
-            GLControl = new GLControl(new GraphicsMode(32, 24, 0, Settings.Config.AntiAliasingSamples), 4, 6, flags);
+            GLControl = new GLControl(new GraphicsMode(32, 32, 0, Settings.Config.AntiAliasingSamples), 4, 6, flags);
             GLControl.Load += OnLoad;
             GLControl.Paint += OnPaint;
             GLControl.Resize += OnResize;
@@ -326,7 +326,11 @@ namespace GUI.Controls
             GL.Enable(EnableCap.CullFace);
             GL.CullFace(CullFaceMode.Back);
             GL.Enable(EnableCap.DepthTest);
-            //GL.Enable(EnableCap.FramebufferSrgb);
+
+            // reverse z
+            GL.ClipControl(ClipOrigin.LowerLeft, ClipDepthMode.ZeroToOne);
+            GL.DepthFunc(DepthFunction.Greater);
+            GL.ClearDepth(0.0f);
 
 #if DEBUG
             GL.Enable(EnableCap.DebugOutput);

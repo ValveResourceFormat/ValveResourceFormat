@@ -267,14 +267,14 @@ namespace GUI.Types.Renderer
                 GL.PolygonMode(MaterialFace.FrontAndBack, PolygonMode.Line);
             }
 
-            GL.DepthRange(0, 0.95);
+            GL.DepthRange(0.05, 1);
 
             GL.Viewport(0, 0, GLControl.Width, GLControl.Height);
             UpdateSceneBuffers(Scene, Camera);
             Scene.RenderWithCamera(Camera, this, lockedCullFrustum);
 
             {
-                GL.DepthRange(0.95, 1.0);
+                GL.DepthRange(0, 0.05);
 
                 // 3D Sky
                 // TODO: Translucents in a combined pass
@@ -296,7 +296,7 @@ namespace GUI.Types.Renderer
                 // 2D Sky
                 Scene.Sky?.Render(genericRenderContext);
 
-                GL.DepthRange(0, 0.95);
+                GL.DepthRange(0.05, 1);
             }
 
             if (IsWireframe)

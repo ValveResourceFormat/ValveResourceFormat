@@ -76,7 +76,7 @@ namespace GUI.Types.Renderer
 
         public override void Render(Scene.RenderContext context)
         {
-            GL.DepthFunc(DepthFunction.Lequal);
+            GL.DepthFunc(DepthFunction.Gequal);
 
             GL.UseProgram(Material.Shader.Program);
             GL.BindVertexArray(boxVao);
@@ -90,7 +90,7 @@ namespace GUI.Types.Renderer
             GL.UseProgram(0);
             GL.BindVertexArray(0);
 
-            GL.DepthFunc(DepthFunction.Less);
+            GL.DepthFunc(DepthFunction.Greater);
         }
 
         public override void SetRenderMode(string mode)
