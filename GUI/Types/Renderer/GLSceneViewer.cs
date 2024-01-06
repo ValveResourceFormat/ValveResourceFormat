@@ -255,12 +255,29 @@ namespace GUI.Types.Renderer
                 lightingBuffer.Data = scene.LightingInfo.LightingData;
             }
 
-            var genericRenderContext = new Scene.RenderContext
+renderpass_begin:
+
+            var renderContext = new Scene.RenderContext
             {
-                Camera = Camera
+                View = this,
+                Camera = Camera,
+                Framebuffer = DefaultFrameBuffer,
             };
 
-            GL.BindFramebuffer(FramebufferTarget.Framebuffer, DefaultFrameBuffer);
+            // could be done better
+            if (Camera.Picker.IsActive)
+            {
+                renderContext.ReplacementShader = Camera.Picker.Shader;
+                renderContext.Framebuffer = Camera.Picker.Framebuffer;
+                // GL.ClearColor(0, 0, 0, 0);
+            }
+            else if (Camera.Picker.DebugShader is not null)
+            {
+                renderContext.ReplacementShader = Camera.Picker.DebugShader;
+            }
+
+            GL.Viewport(0, 0, GLControl.Width, GLControl.Height);
+            GL.BindFramebuffer(FramebufferTarget.Framebuffer, renderContext.Framebuffer);
             GL.ClearColor(ClearColor);
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 
@@ -271,9 +288,9 @@ namespace GUI.Types.Renderer
 
             GL.DepthRange(0.05, 1);
 
-            GL.Viewport(0, 0, GLControl.Width, GLControl.Height);
             UpdateSceneBuffers(Scene, Camera);
-            Scene.RenderWithCamera(Camera, this, lockedCullFrustum);
+            renderContext.Scene = Scene;
+            Scene.RenderWithCamera(renderContext, lockedCullFrustum);
 
             {
                 GL.DepthRange(0, 0.05);
@@ -285,18 +302,26 @@ namespace GUI.Types.Renderer
                     skyboxCamera.CopyFrom(Camera);
                     skyboxCamera.SetScaledProjectionMatrix();
                     skyboxCamera.SetLocation(Camera.Location - SkyboxScene.WorldOffset);
+                    renderContext.Camera = skyboxCamera;
 
                     UpdateSceneBuffers(SkyboxScene, skyboxCamera);
-                    SkyboxScene.RenderWithCamera(skyboxCamera, this, skyboxLockedCullFrustum);
+                    renderContext.Scene = SkyboxScene;
+                    SkyboxScene.RenderWithCamera(renderContext, skyboxLockedCullFrustum);
 
                     // Back to main Scene
                     UpdateSceneBuffers(Scene, Camera);
                 }
 
                 // 2D Sky
-                Scene.Sky?.Render(genericRenderContext);
+                Scene.Sky?.Render(renderContext);
 
                 GL.DepthRange(0.05, 1);
+            }
+
+            if (Camera.Picker.IsActive)
+            {
+                Camera.Picker.Finish();
+                goto renderpass_begin;
             }
 
             if (IsWireframe)
@@ -304,7 +329,7 @@ namespace GUI.Types.Renderer
                 GL.PolygonMode(MaterialFace.FrontAndBack, PolygonMode.Fill);
             }
 
-            selectedNodeRenderer.Render(genericRenderContext);
+            selectedNodeRenderer.Render(renderContext);
 
             if (showStaticOctree)
             {
@@ -318,7 +343,7 @@ namespace GUI.Types.Renderer
 
             if (ShowBaseGrid)
             {
-                baseGrid.Render(genericRenderContext);
+                baseGrid.Render(renderContext);
             }
         }
 

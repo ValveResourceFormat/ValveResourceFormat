@@ -55,7 +55,7 @@ class PickingTexture : IDisposable
 
     private int width = 4;
     private int height = 4;
-    private int fboHandle;
+    public int Framebuffer { get; private set; } = -1;
     private int colorHandle;
     private int depthHandle;
     private readonly VrfGuiContext guiContext;
@@ -70,8 +70,8 @@ class PickingTexture : IDisposable
 
     public void Setup()
     {
-        fboHandle = GL.GenFramebuffer();
-        GL.BindFramebuffer(FramebufferTarget.Framebuffer, fboHandle);
+        Framebuffer = GL.GenFramebuffer();
+        GL.BindFramebuffer(FramebufferTarget.Framebuffer, Framebuffer);
 
         colorHandle = GL.GenTexture();
         GL.BindTexture(TextureTarget.Texture2D, colorHandle);
@@ -93,13 +93,6 @@ class PickingTexture : IDisposable
 
         GL.BindTexture(TextureTarget.Texture2D, 0);
         GL.BindFramebuffer(FramebufferTarget.Framebuffer, guiContext.DefaultFrameBuffer);
-    }
-
-    public void Render()
-    {
-        GL.BindFramebuffer(FramebufferTarget.DrawFramebuffer, fboHandle);
-        GL.ClearColor(0, 0, 0, 0);
-        GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
     }
 
     public void Finish()
@@ -135,15 +128,13 @@ class PickingTexture : IDisposable
         GL.Flush();
         GL.Finish();
 
-        GL.BindFramebuffer(FramebufferTarget.ReadFramebuffer, fboHandle);
+        GL.BindFramebuffer(FramebufferTarget.ReadFramebuffer, Framebuffer);
         GL.ReadBuffer(ReadBufferMode.ColorAttachment0);
 
         var pixelInfo = new PixelInfo();
         GL.ReadPixels(width, this.height - height, 1, 1, PixelFormat.RgbaInteger, PixelType.UnsignedInt, ref pixelInfo);
 
         GL.ReadBuffer(ReadBufferMode.None);
-        GL.BindFramebuffer(FramebufferTarget.ReadFramebuffer, guiContext.DefaultFrameBuffer);
-
         return pixelInfo;
     }
 
@@ -170,6 +161,6 @@ class PickingTexture : IDisposable
         OnPicked = null;
         GL.DeleteTexture(colorHandle);
         GL.DeleteTexture(depthHandle);
-        GL.DeleteFramebuffer(fboHandle);
+        GL.DeleteFramebuffer(Framebuffer);
     }
 }

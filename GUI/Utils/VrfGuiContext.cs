@@ -35,7 +35,6 @@ namespace GUI.Utils
         public AdvancedGuiFileLoader FileLoader { get; private set; }
         public VrfGuiContext ParentGuiContext { get; private set; }
         public ToolsAssetInfo ToolsAssetInfo { get; set; }
-        public int DefaultFrameBuffer { get; set; }
 
         public VrfGuiContext(string fileName, VrfGuiContext parentGuiContext)
         {

@@ -22,8 +22,9 @@ namespace GUI.Types.Renderer
         public struct RenderContext
         {
             public GLSceneViewer View { get; init; }
-            public Scene Scene { get; init; }
-            public Camera Camera { get; init; }
+            public Scene Scene { get; set; }
+            public Camera Camera { get; set; }
+            public int Framebuffer { get; set; }
             public RenderPass RenderPass { get; set; }
             public Shader ReplacementShader { get; set; }
         }
@@ -129,8 +130,9 @@ namespace GUI.Types.Renderer
         private readonly static List<MeshBatchRenderer.Request> renderStaticOverlays = [];
         private readonly static List<MeshBatchRenderer.Request> renderTranslucentDrawCalls = [];
 
-        public void RenderWithCamera(Camera camera, GLSceneViewer view, Frustum cullFrustum = null)
+        public void RenderWithCamera(RenderContext renderContext, Frustum cullFrustum = null)
         {
+            var camera = renderContext.Camera;
             cullFrustum ??= camera.ViewFrustum;
 
             StaticOctree.Root.Query(cullFrustum, cullingResult);
@@ -206,28 +208,6 @@ namespace GUI.Types.Renderer
 
             renderLooseNodes.Sort(MeshBatchRenderer.CompareCameraDistance);
 
-            // Opaque render pass
-            var renderContext = new RenderContext
-            {
-                Scene = this,
-                Camera = camera,
-                View = view,
-                RenderPass = RenderPass.Opaque,
-            };
-
-            if (camera.Picker is not null)
-            {
-                if (camera.Picker.IsActive)
-                {
-                    camera.Picker.Render();
-                    renderContext.ReplacementShader = camera.Picker.Shader;
-                }
-                else if (camera.Picker.DebugShader is not null)
-                {
-                    renderContext.ReplacementShader = camera.Picker.DebugShader;
-                }
-            }
-
             renderContext.RenderPass = RenderPass.Opaque;
             MeshBatchRenderer.Render(renderOpaqueDrawCalls, renderContext);
             renderOpaqueDrawCalls.Clear();
@@ -251,13 +231,6 @@ namespace GUI.Types.Renderer
                 renderLooseNodes[i].Node.Render(renderContext);
             }
             renderLooseNodes.Clear();
-
-            if (camera.Picker is not null && camera.Picker.IsActive)
-            {
-                camera.Picker.Finish();
-                RenderWithCamera(camera, view, cullFrustum);
-            }
-
         }
 
         public void SetEnabledLayers(HashSet<string> layers)
