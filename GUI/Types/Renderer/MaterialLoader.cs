@@ -474,33 +474,30 @@ namespace GUI.Types.Renderer
         {
             if (ErrorTexture == null)
             {
-                var color = new[]
+                ReadOnlySpan<float> color1 = [0.4f, 0.1f, 0.3f, 1f];
+                ReadOnlySpan<float> color2 = [0f, 0.5f, 0f, 1f];
+
+                var color = new float[16 * 4];
+
+                for (var i = 0; i < 16; i++)
                 {
-                    0.9f, 0.2f, 0.8f, 1f,
-                    0f, 0.9f, 0f, 1f,
-                    0.9f, 0.2f, 0.8f, 1f,
-                    0f, 0.9f, 0f, 1f,
-
-                    0f, 0.9f, 0f, 1f,
-                    0.9f, 0.2f, 0.8f, 1f,
-                    0f, 0.9f, 0f, 1f,
-                    0.9f, 0.2f, 0.8f, 1f,
-
-                    0.9f, 0.2f, 0.8f, 1f,
-                    0f, 0.9f, 0f, 1f,
-                    0.9f, 0.2f, 0.8f, 1f,
-                    0f, 0.9f, 0f, 1f,
-
-                    0f, 0.9f, 0f, 1f,
-                    0.9f, 0.2f, 0.8f, 1f,
-                    0f, 0.9f, 0f, 1f,
-                    0.9f, 0.2f, 0.8f, 1f,
-                };
+                    var checkerboardX = i / 4 % 2;
+                    var colorToUse = i % 2 == checkerboardX ? color1 : color2;
+                    var pixel = color.AsSpan(i * 4, 4);
+                    colorToUse.CopyTo(pixel);
+                }
 
                 ErrorTexture = GenerateColorTexture(4, 4, color);
             }
 
             return ErrorTexture;
+        }
+
+        public static void PurgeDefaultTextures()
+        {
+            ErrorTexture = null;
+            DefaultNormal = null;
+            DefaultMask = null;
         }
 
         public static RenderTexture CreateSolidTexture(float r, float g, float b)

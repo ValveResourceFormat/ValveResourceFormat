@@ -91,6 +91,8 @@ namespace GUI.Utils
                     CurrentPackage = null;
                 }
 
+                MaterialLoader.PurgeDefaultTextures();
+
                 FileLoader.Dispose();
                 FileLoader = null;
 
