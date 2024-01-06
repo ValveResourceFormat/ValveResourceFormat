@@ -67,6 +67,12 @@ void main() {
         }
     }
 
+    if (bIsNearOrigin)
+    {
+        gridColor.xyz *= 1.2;
+        fading *= 1.4;
+    }
+
     gridColor.a *= fading * angleFade;
     outputColor = gridColor *  float(t > 0);
 }
