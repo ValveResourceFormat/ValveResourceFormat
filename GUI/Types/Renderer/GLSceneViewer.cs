@@ -211,7 +211,7 @@ namespace GUI.Types.Renderer
 
             Camera.SetViewportSize(GLControl.Width, GLControl.Height);
 
-            Camera.Picker = new PickingTexture(Scene.GuiContext, OnPicked);
+            Camera.Picker = new PickingTexture(Scene.GuiContext, DefaultFrameBuffer, OnPicked);
 
             CreateBuffers();
 
@@ -268,7 +268,7 @@ renderpass_begin:
             if (Camera.Picker.IsActive)
             {
                 renderContext.ReplacementShader = Camera.Picker.Shader;
-                renderContext.Framebuffer = Camera.Picker.Framebuffer;
+                renderContext.Framebuffer = Camera.Picker.FboHandle;
                 // GL.ClearColor(0, 0, 0, 0);
             }
             else if (Camera.Picker.DebugShader is not null)
@@ -405,8 +405,9 @@ renderpass_begin:
                 {
                     if (Camera.Picker is not null)
                     {
+                        // todo: just reload shader.
                         Camera.Picker.Dispose();
-                        Camera.Picker = new PickingTexture(Scene.GuiContext, OnPicked);
+                        Camera.Picker = new PickingTexture(Scene.GuiContext, DefaultFrameBuffer, OnPicked);
                         Camera.Picker.Resize(GLControl.Width, GLControl.Height);
                     }
 

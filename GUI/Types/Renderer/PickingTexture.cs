@@ -1,11 +1,11 @@
 using System;
 using System.Collections.Generic;
 using GUI.Utils;
-using OpenTK.Graphics.OpenGL4;
+using OpenTK.Graphics.OpenGL;
 
 namespace GUI.Types.Renderer;
 
-class PickingTexture : IDisposable
+class PickingTexture : Framebuffer
 {
     public class PickingRequest
     {
@@ -53,52 +53,52 @@ class PickingTexture : IDisposable
 
     public bool IsActive => Request.ActiveNextFrame;
 
-    private int width = 4;
-    private int height = 4;
-    public int Framebuffer { get; private set; } = -1;
-    private int colorHandle;
-    private int depthHandle;
     private readonly VrfGuiContext guiContext;
 
-    public PickingTexture(VrfGuiContext vrfGuiContext, EventHandler<PickingResponse> onPicked)
+    public PickingTexture(VrfGuiContext vrfGuiContext, /*Framebuffer*/ int depthSource, EventHandler<PickingResponse> onPicked)
     {
         guiContext = vrfGuiContext;
         Shader = vrfGuiContext.ShaderLoader.LoadShader("vrf.picking");
         OnPicked += onPicked;
-        Setup();
+
+        ColorFormat = new(PixelInternalFormat.Rgba32ui, PixelFormat.RgbaInteger, PixelType.UnsignedInt);
+        DepthFormat = DepthAttachmentFormat.Depth32F;
+        Target = TextureTarget.Texture2D;
     }
 
-    public void Setup()
+    public override void Resize(int width, int height)
     {
-        Framebuffer = GL.GenFramebuffer();
-        GL.BindFramebuffer(FramebufferTarget.Framebuffer, Framebuffer);
+        base.Resize(width, height);
 
-        colorHandle = GL.GenTexture();
-        GL.BindTexture(TextureTarget.Texture2D, colorHandle);
-        GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba32ui, width, height, 0, PixelFormat.RgbaInteger, PixelType.UnsignedInt, IntPtr.Zero);
-        GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Nearest);
-        GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMinFilter.Nearest);
-        GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.ColorAttachment0, TextureTarget.Texture2D, colorHandle, 0);
-
-        depthHandle = GL.GenTexture();
-        GL.BindTexture(TextureTarget.Texture2D, depthHandle);
-        GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.DepthComponent, width, height, 0, PixelFormat.DepthComponent, PixelType.Float, IntPtr.Zero);
-        GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.DepthAttachment, TextureTarget.Texture2D, depthHandle, 0);
-
-        var status = GL.CheckFramebufferStatus(FramebufferTarget.Framebuffer);
-        if (status != FramebufferErrorCode.FramebufferComplete)
+        // resize is a good place to initialize the framebuffer with proper dimensions
+        if (InitialStatus == FramebufferErrorCode.FramebufferUndefined)
         {
-            throw new InvalidOperationException($"Framebuffer failed to bind with error: {status}");
-        }
+            if (width <= 0 || height <= 0)
+            {
+                return;
+            }
 
-        GL.BindTexture(TextureTarget.Texture2D, 0);
-        GL.BindFramebuffer(FramebufferTarget.Framebuffer, guiContext.DefaultFrameBuffer);
+            Initialize();
+
+            using (Color.BindingContext())
+            {
+                Color.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
+            }
+
+            // share depth with main framebuffer
+            //Depth = depthSource.Depth;
+
+            if (InitialStatus != FramebufferErrorCode.FramebufferComplete)
+            {
+                // dispose?
+                throw new InvalidOperationException($"Framebuffer failed to bind with error: {InitialStatus}");
+            }
+        }
     }
+
 
     public void Finish()
     {
-        GL.BindFramebuffer(FramebufferTarget.DrawFramebuffer, guiContext.DefaultFrameBuffer);
-
         if (Request.ActiveNextFrame)
         {
             Request.ActiveNextFrame = false;
@@ -111,28 +111,18 @@ class PickingTexture : IDisposable
         }
     }
 
-    public void Resize(int width, int height)
-    {
-        this.width = width;
-        this.height = height;
-
-        GL.BindTexture(TextureTarget.Texture2D, colorHandle);
-        GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba32ui, width, height, 0, PixelFormat.RgbaInteger, PixelType.UnsignedInt, IntPtr.Zero);
-
-        GL.BindTexture(TextureTarget.Texture2D, depthHandle);
-        GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.DepthComponent, width, height, 0, PixelFormat.DepthComponent, PixelType.Float, IntPtr.Zero);
-    }
-
     public PixelInfo ReadPixelInfo(int width, int height)
     {
         GL.Flush();
         GL.Finish();
 
-        GL.BindFramebuffer(FramebufferTarget.ReadFramebuffer, Framebuffer);
+        GL.BindFramebuffer(FramebufferTarget.ReadFramebuffer, FboHandle);
         GL.ReadBuffer(ReadBufferMode.ColorAttachment0);
 
+        height = Height - height; // flip y
+
         var pixelInfo = new PixelInfo();
-        GL.ReadPixels(width, this.height - height, 1, 1, PixelFormat.RgbaInteger, PixelType.UnsignedInt, ref pixelInfo);
+        GL.ReadPixels(width, height, 1, 1, ColorFormat.PixelFormat, ColorFormat.PixelType, ref pixelInfo);
 
         GL.ReadBuffer(ReadBufferMode.None);
         return pixelInfo;
@@ -156,11 +146,13 @@ class PickingTexture : IDisposable
         DebugShader = null;
     }
 
-    public void Dispose()
+    protected override void Dispose(bool disposing)
     {
-        OnPicked = null;
-        GL.DeleteTexture(colorHandle);
-        GL.DeleteTexture(depthHandle);
-        GL.DeleteFramebuffer(Framebuffer);
+        if (disposing)
+        {
+            OnPicked = null;
+        }
+
+        base.Dispose(disposing);
     }
 }
