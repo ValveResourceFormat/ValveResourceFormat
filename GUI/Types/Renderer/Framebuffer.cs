@@ -1,5 +1,6 @@
 
 using System;
+using OpenTK.Graphics;
 using OpenTK.Graphics.OpenGL;
 
 namespace GUI.Types.Renderer;
@@ -11,9 +12,10 @@ class Framebuffer : IDisposable
 
     public int Width { get; protected set; }
     public int Height { get; protected set; }
+    public bool HasValidDimensions() => Width > 0 && Height > 0;
 
     public TextureTarget Target { get; protected set; }
-    public int NumSamples { get; protected set; }
+    public int NumSamples { get; set; }
     public RenderTexture? Color { get; protected set; }
     public RenderTexture? Depth { get; protected set; }
 
@@ -24,16 +26,44 @@ class Framebuffer : IDisposable
     public FramebufferErrorCode InitialStatus { get; private set; } = FramebufferErrorCode.FramebufferUndefined;
     public FramebufferTarget TargetState { get; set; } = FramebufferTarget.Framebuffer;
 
+
+    #region Render state
+    private static readonly Color4 FastClear = Color4.Black; // https://gpuopen.com/learn/rdna-performance-guide/#clears
+    public Color4 ClearColor { get; set; } = FastClear;
+    public ClearBufferMask ClearMask { get; set; } = ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit;
+    #endregion
+
     public void Bind(FramebufferTarget targetState = FramebufferTarget.Framebuffer)
     {
         TargetState = targetState;
         GL.BindFramebuffer(targetState, FboHandle);
     }
 
-    protected Framebuffer()
+    public void BeginRender()
+    {
+        Bind();
+        GL.ClearColor(ClearColor);
+        GL.Clear(ClearMask);
+    }
+
+    public Framebuffer()
     {
         FboHandle = GL.GenFramebuffer();
     }
+
+    #region Default OpenGL Framebuffer instance, and equality checks
+    Framebuffer(bool defaultInstance)
+    {
+        FboHandle = 0;
+        InitialStatus = FramebufferErrorCode.FramebufferComplete;
+    }
+
+    public static Framebuffer GLDefault = new(defaultInstance: true);
+
+    public static bool operator ==(Framebuffer left, Framebuffer right) => left.FboHandle == right.FboHandle;
+    public static bool operator !=(Framebuffer left, Framebuffer right) => left.FboHandle != right.FboHandle;
+
+    #endregion
 
     public record class AttachmentFormat(PixelInternalFormat InternalFormat, PixelFormat PixelFormat, PixelType PixelType);
     public record class DepthAttachmentFormat(PixelInternalFormat InternalFormat, PixelType PixelType)
@@ -44,7 +74,7 @@ class Framebuffer : IDisposable
             => new(depthFormat.InternalFormat, PixelFormat.DepthComponent, depthFormat.PixelType);
     }
 
-    public static Framebuffer Create(int width, int height, int msaa, AttachmentFormat? colorFormat, DepthAttachmentFormat? depthFormat)
+    public static Framebuffer Prepare(int width, int height, int msaa, AttachmentFormat? colorFormat, DepthAttachmentFormat? depthFormat)
     {
         var rt = new Framebuffer
         {
@@ -56,17 +86,10 @@ class Framebuffer : IDisposable
             Height = height,
         };
 
-        rt.Initialize();
-
-        if (rt.InitialStatus != FramebufferErrorCode.FramebufferComplete)
-        {
-            throw new InvalidOperationException($"Framebuffer failed to bind with error: {rt.InitialStatus}");
-        }
-
         return rt;
     }
 
-    protected FramebufferErrorCode Initialize()
+    public FramebufferErrorCode Initialize()
     {
         if (Target == 0)
         {
@@ -78,9 +101,14 @@ class Framebuffer : IDisposable
             throw new InvalidOperationException("Framebuffer has no attachments");
         }
 
-        if (Width <= 0 || Height <= 0)
+        if (!HasValidDimensions())
         {
             throw new InvalidOperationException("Framebuffer has invalid sizes: " + Width + "x" + Height);
+        }
+
+        if (InitialStatus != FramebufferErrorCode.FramebufferUndefined)
+        {
+            throw new InvalidOperationException("Framebuffer has already been initialized");
         }
 
         Bind();
@@ -121,6 +149,12 @@ class Framebuffer : IDisposable
         {
             GL.TexImage2D(attachment.Target, 0, format.InternalFormat, width, height, 0, format.PixelFormat, format.PixelType, IntPtr.Zero);
         }
+    }
+
+    public void Resize(int width, int height, int msaa)
+    {
+        NumSamples = msaa;
+        Resize(width, height);
     }
 
     public virtual void Resize(int width, int height)

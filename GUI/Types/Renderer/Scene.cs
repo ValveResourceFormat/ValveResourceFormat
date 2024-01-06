@@ -24,7 +24,7 @@ namespace GUI.Types.Renderer
             public GLSceneViewer View { get; init; }
             public Scene Scene { get; set; }
             public Camera Camera { get; set; }
-            public int Framebuffer { get; set; }
+            public Framebuffer Framebuffer { get; set; }
             public RenderPass RenderPass { get; set; }
             public Shader ReplacementShader { get; set; }
         }

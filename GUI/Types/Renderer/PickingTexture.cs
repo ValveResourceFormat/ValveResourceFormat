@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using GUI.Utils;
+using OpenTK.Graphics;
 using OpenTK.Graphics.OpenGL;
 
 namespace GUI.Types.Renderer;
@@ -54,16 +55,19 @@ class PickingTexture : Framebuffer
     public bool IsActive => Request.ActiveNextFrame;
 
     private readonly VrfGuiContext guiContext;
+    private readonly Framebuffer depthSource;
 
-    public PickingTexture(VrfGuiContext vrfGuiContext, /*Framebuffer*/ int depthSource, EventHandler<PickingResponse> onPicked)
+    public PickingTexture(VrfGuiContext vrfGuiContext, Framebuffer depthSource, EventHandler<PickingResponse> onPicked)
     {
         guiContext = vrfGuiContext;
+        this.depthSource = depthSource;
         Shader = vrfGuiContext.ShaderLoader.LoadShader("vrf.picking");
         OnPicked += onPicked;
 
         ColorFormat = new(PixelInternalFormat.Rgba32ui, PixelFormat.RgbaInteger, PixelType.UnsignedInt);
         DepthFormat = DepthAttachmentFormat.Depth32F;
         Target = TextureTarget.Texture2D;
+        ClearColor = Color4.Black;
     }
 
     public override void Resize(int width, int height)
@@ -73,7 +77,7 @@ class PickingTexture : Framebuffer
         // resize is a good place to initialize the framebuffer with proper dimensions
         if (InitialStatus == FramebufferErrorCode.FramebufferUndefined)
         {
-            if (width <= 0 || height <= 0)
+            if (!HasValidDimensions())
             {
                 return;
             }
@@ -85,8 +89,6 @@ class PickingTexture : Framebuffer
                 Color.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
             }
 
-            // share depth with main framebuffer
-            //Depth = depthSource.Depth;
 
             if (InitialStatus != FramebufferErrorCode.FramebufferComplete)
             {

@@ -211,7 +211,7 @@ namespace GUI.Types.Renderer
 
             Camera.SetViewportSize(GLControl.Width, GLControl.Height);
 
-            Camera.Picker = new PickingTexture(Scene.GuiContext, DefaultFrameBuffer, OnPicked);
+            Camera.Picker = new PickingTexture(Scene.GuiContext, MainFramebuffer, OnPicked);
 
             CreateBuffers();
 
@@ -224,7 +224,10 @@ namespace GUI.Types.Renderer
             PostSceneLoad();
 
             viewBuffer.Data.ClearColor = Settings.BackgroundColor;
-            ClearColor = Scene.Sky is null ? viewBuffer.Data.ClearColor : FastClear;
+            if (Scene.Sky is null)
+            {
+                MainFramebuffer.ClearColor = viewBuffer.Data.ClearColor;
+            }
 
             GLLoad -= OnLoad;
             GLPaint += OnPaint;
@@ -232,9 +235,6 @@ namespace GUI.Types.Renderer
             GuiContext.ClearCache();
         }
 
-        // https://gpuopen.com/learn/rdna-performance-guide/#clears
-        private readonly Color4 FastClear = Color4.Black;
-        private Color4 ClearColor;
 
         protected virtual void OnPaint(object sender, RenderEventArgs e)
         {
@@ -261,15 +261,14 @@ renderpass_begin:
             {
                 View = this,
                 Camera = Camera,
-                Framebuffer = DefaultFrameBuffer,
+                Framebuffer = MainFramebuffer,
             };
 
             // could be done better
             if (Camera.Picker.IsActive)
             {
                 renderContext.ReplacementShader = Camera.Picker.Shader;
-                renderContext.Framebuffer = Camera.Picker.FboHandle;
-                // GL.ClearColor(0, 0, 0, 0);
+                renderContext.Framebuffer = Camera.Picker;
             }
             else if (Camera.Picker.DebugShader is not null)
             {
@@ -277,9 +276,7 @@ renderpass_begin:
             }
 
             GL.Viewport(0, 0, GLControl.Width, GLControl.Height);
-            GL.BindFramebuffer(FramebufferTarget.Framebuffer, renderContext.Framebuffer);
-            GL.ClearColor(ClearColor);
-            GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
+            renderContext.Framebuffer.BeginRender();
 
             if (IsWireframe)
             {
@@ -407,7 +404,7 @@ renderpass_begin:
                     {
                         // todo: just reload shader.
                         Camera.Picker.Dispose();
-                        Camera.Picker = new PickingTexture(Scene.GuiContext, DefaultFrameBuffer, OnPicked);
+                        Camera.Picker = new PickingTexture(Scene.GuiContext, MainFramebuffer, OnPicked);
                         Camera.Picker.Resize(GLControl.Width, GLControl.Height);
                     }
 

@@ -314,12 +314,17 @@ namespace GUI.Controls
         private static readonly DebugProc OpenGLDebugMessageDelegate = OnDebugMessage;
 #endif
 
+        public Framebuffer MainFramebuffer;
+        private int MaxSamples;
+        private int NumSamples => Math.Max(1, Math.Min(Settings.Config.AntiAliasingSamples, MaxSamples));
+
         private void OnLoad(object sender, EventArgs e)
         {
             GLControl.MakeCurrent();
             GLControl.VSync = Settings.Config.Vsync != 0;
 
             CheckOpenGL();
+            MaxSamples = GL.GetInteger(GetPName.MaxSamples);
 
             // Application semantics / default state
             GL.Enable(EnableCap.TextureCubeMapSeamless);
@@ -339,8 +344,16 @@ namespace GUI.Controls
             GL.DebugMessageCallback(OpenGLDebugMessageDelegate, IntPtr.Zero);
 #endif
 
+
             try
             {
+                MainFramebuffer = Framebuffer.Prepare(GLControl.Width,
+                    GLControl.Height,
+                    NumSamples,
+                    new(PixelInternalFormat.R11fG11fB10f, PixelFormat.Rgb, PixelType.UnsignedInt),
+                    Framebuffer.DepthAttachmentFormat.Depth32F
+                );
+
                 GLLoad?.Invoke(this, e);
             }
             catch (Exception exception)
@@ -357,51 +370,6 @@ namespace GUI.Controls
             GLPostLoad = null;
         }
 
-        public int DefaultFrameBuffer;
-        private RenderTexture fboColor;
-        private RenderTexture fboDepth;
-        private (PixelInternalFormat InternalFormat, PixelFormat Format, PixelType Type) fboColorFormat;
-        private (PixelInternalFormat InternalFormat, PixelType Type) fboDepthFormat;
-        private int MaxSamples;
-        private int NumSamples => Math.Clamp(Settings.Config.AntiAliasingSamples, 1, MaxSamples);
-
-        private void CreateDefaultFramebuffer()
-        {
-            DefaultFrameBuffer = GL.GenFramebuffer();
-            GL.BindFramebuffer(FramebufferTarget.Framebuffer, DefaultFrameBuffer);
-            Log.Debug(nameof(GLViewerControl), $"Created default framebuffer {DefaultFrameBuffer}");
-
-            fboColor = new RenderTexture(TextureTarget.Texture2DMultisample, GLControl.Width, GLControl.Height, 1, 1);
-            fboDepth = new RenderTexture(TextureTarget.Texture2DMultisample, GLControl.Width, GLControl.Height, 1, 1);
-
-            fboColorFormat = (PixelInternalFormat.R11fG11fB10f, PixelFormat.Rgba, PixelType.UnsignedByte);
-            fboDepthFormat = (PixelInternalFormat.DepthComponent32f, PixelType.Float);
-
-            MaxSamples = GL.GetInteger(GetPName.MaxSamples);
-
-            using (fboColor.BindingContext())
-            {
-                GL.TexImage2DMultisample((TextureTargetMultisample)fboColor.Target, NumSamples, fboColorFormat.InternalFormat, GLControl.Width, GLControl.Height, false);
-
-                GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.ColorAttachment0, fboColor.Target, fboColor.Handle, 0);
-            }
-
-            using (fboDepth.BindingContext())
-            {
-                GL.TexImage2DMultisample((TextureTargetMultisample)fboDepth.Target, NumSamples, fboDepthFormat.InternalFormat, GLControl.Width, GLControl.Height, false);
-
-                GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.DepthAttachment, fboDepth.Target, fboDepth.Handle, 0);
-            }
-
-            var status = GL.CheckFramebufferStatus(FramebufferTarget.Framebuffer);
-            if (status != FramebufferErrorCode.FramebufferComplete)
-            {
-                DefaultFrameBuffer = 0;
-                //throw new InvalidOperationException($"Framebuffer failed to bind with error: {status}");
-                Log.Error(nameof(GLViewerControl), $"Framebuffer failed to bind with error: {status}");
-            }
-        }
-
         private void OnPaint(object sender, EventArgs e)
         {
             Application.DoEvents();
@@ -411,6 +379,11 @@ namespace GUI.Controls
         private void Draw()
         {
             if (!GLControl.Visible || GLControl.IsDisposed || !GLControl.Context.IsCurrent)
+            {
+                return;
+            }
+
+            if (MainFramebuffer.InitialStatus != FramebufferErrorCode.FramebufferComplete)
             {
                 return;
             }
@@ -451,14 +424,17 @@ namespace GUI.Controls
 
             GLPaint?.Invoke(this, new RenderEventArgs { FrameTime = frameTime });
 
-            if (DefaultFrameBuffer != 0)
+            // blit to the default opengl framebuffer used by the control
+            if (MainFramebuffer != Framebuffer.GLDefault)
             {
-                GL.BindFramebuffer(FramebufferTarget.ReadFramebuffer, DefaultFrameBuffer);
+                MainFramebuffer.Bind(FramebufferTarget.ReadFramebuffer);
                 GL.ReadBuffer(ReadBufferMode.ColorAttachment0);
-                GL.BindFramebuffer(FramebufferTarget.DrawFramebuffer, 0);
+
+                Framebuffer.GLDefault.Bind(FramebufferTarget.DrawFramebuffer);
                 GL.DrawBuffer(DrawBufferMode.Back);
 
-                GL.BlitFramebuffer(0, 0, GLControl.Width, GLControl.Height, 0, 0, GLControl.Width, GLControl.Height, ClearBufferMask.ColorBufferBit, BlitFramebufferFilter.Nearest);
+                var (w, h) = (GLControl.Width, GLControl.Height);
+                GL.BlitFramebuffer(0, 0, w, h, 0, 0, w, h, ClearBufferMask.ColorBufferBit, BlitFramebufferFilter.Nearest);
                 GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
                 GL.Finish();
             }
@@ -480,44 +456,47 @@ namespace GUI.Controls
 
         private void OnResize(object sender, EventArgs e)
         {
-            HandleResize();
-
-            if (DefaultFrameBuffer == 0 && HasValidSize())
+            if (MainFramebuffer is null)
             {
-                CreateDefaultFramebuffer();
+                return;
             }
 
+            HandleResize();
             Draw();
         }
-
-        private bool HasValidSize() => GLControl.Width > 0 && GLControl.Height > 0;
 
 
         private void HandleResize()
         {
             var (w, h) = (GLControl.Width, GLControl.Height);
 
-            Camera.SetViewportSize(w, h);
-
-            if (fboColor != null && fboDepth != null)
+            if (w <= 0 || h <= 0)
             {
-                using (fboColor.BindingContext())
-                {
-                    GL.TexImage2DMultisample((TextureTargetMultisample)fboColor.Target, NumSamples, fboColorFormat.InternalFormat, w, h, false);
-                }
+                return;
+            }
 
-                using (fboDepth.BindingContext())
+            MainFramebuffer.Resize(w, h, NumSamples);
+
+            if (MainFramebuffer.InitialStatus == FramebufferErrorCode.FramebufferUndefined)
+            {
+                var status = MainFramebuffer.Initialize();
+
+                if (status != FramebufferErrorCode.FramebufferComplete)
                 {
-                    GL.TexImage2DMultisample((TextureTargetMultisample)fboDepth.Target, NumSamples, fboDepthFormat.InternalFormat, w, h, false);
+                    Log.Error(nameof(GLViewerControl), $"Framebuffer failed to bind with error: {status}");
+                    Log.Info(nameof(GLViewerControl), "Falling back to default framebuffer.");
+
+                    DisposeFramebuffer();
+                    MainFramebuffer = Framebuffer.GLDefault;
                 }
             }
+
+            Camera.SetViewportSize(w, h);
         }
 
         private void DisposeFramebuffer()
         {
-            GL.DeleteFramebuffer(DefaultFrameBuffer);
-            GL.DeleteTexture(fboColor.Handle);
-            GL.DeleteTexture(fboDepth.Handle);
+            MainFramebuffer.Dispose();
         }
 
         private void OnGotFocus(object sender, EventArgs e)
