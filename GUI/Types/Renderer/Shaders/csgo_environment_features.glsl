@@ -6,14 +6,13 @@
 // Blend specific features
 #if defined(csgo_environment_blend_vfx)
 
-// Blend Effects
-#define F_BLEND_EFFECTS 0
-#define F_BORDER_ROUGHNESS 0
-#define F_BORDER_BLEND_MODE 0 // 0="Multiply", 1="Add", 2="Overlay", 3="Colorize"
+    // Blend Effects
+    #define F_BLEND_EFFECTS 0
+    #define F_BORDER_ROUGHNESS 0
+    #define F_BORDER_BLEND_MODE 0 // 0="Multiply", 1="Add", 2="Overlay", 3="Colorize"
 
-#define F_SHARED_COLOR_OVERLAY 0
-#define F_DEPTH_BIAS 0
-
+    #define F_SHARED_COLOR_OVERLAY 0
+    #define F_DEPTH_BIAS 0
 #endif
 
 #define F_DETAIL_NORMAL 0

@@ -132,7 +132,7 @@ uniform sampler2D g_tTintMask;
     #if !defined(steampal_2way_blend_mask_vfx)
         in vec4 vColorBlendValues;
     #endif
-    uniform sampler2D g_tLayer2Color;
+    uniform sampler2D g_tLayer2Color; // SrgbRead(true)
     uniform sampler2D g_tLayer2NormalRoughness;
     uniform vec4 g_vTexCoordScale2 = vec4(1.0);
 #endif
