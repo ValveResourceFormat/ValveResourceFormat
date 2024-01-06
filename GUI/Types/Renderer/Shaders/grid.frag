@@ -20,23 +20,18 @@ float computeDepth(vec4 clip_space_pos) {
     return (clip_space_pos.z / clip_space_pos.w);
 }
 
-float computeLinearDepth(vec4 clip_space_pos) {
-    float clip_space_depth = (clip_space_pos.z / clip_space_pos.w) * 2.0 - 1.0; // put back between -1 and 1
-    float linearDepth = (2.0 * near * far) / (far + near - clip_space_depth * (far - near)); // get linear value between 0.01 and 100
-    return linearDepth / far; // normalize
-}
-
 void main() {
     float t = -nearPoint.z / (farPoint.z - nearPoint.z);
     vec3 fragPos3D = nearPoint + t * (farPoint - nearPoint);
     vec2 fragPosAbs = abs(fragPos3D.xy);
     vec4 clip_space_pos = g_matWorldToProjection * g_matWorldToView * vec4(fragPos3D.xyz, 1.0);
+    float linearDepth = computeDepth(clip_space_pos);
 
-    gl_FragDepth = ((gl_DepthRange.diff * computeDepth(clip_space_pos)) + gl_DepthRange.near + gl_DepthRange.far) / 2.0;
+    gl_FragDepth = ((gl_DepthRange.diff * linearDepth) + gl_DepthRange.near);
 
-    float linearDepth = computeLinearDepth(clip_space_pos);
     float fading = max(0, (0.5 - linearDepth));
-    float scale = lessThanEqual(fragPosAbs, vec2(120.0)) == bvec2(1.0) ? 15.0 : 60.0;
+    bool bIsNearOrigin = lessThanEqual(fragPosAbs, vec2(120.0)) == bvec2(1.0);
+    float scale = bIsNearOrigin ? 15.0 : 60.0;
     vec2 coord = fragPos3D.xy / scale;
     vec2 derivative = fwidth(fragPos3D.xy)  / scale;
 
@@ -45,7 +40,7 @@ void main() {
     vec4 gridColor = vec4(0.9, 0.9, 1.0, 1.0 - min(line, 1.0));
 
     float angleFade = min(1.0, pow(abs(normalize(fragPos3D - g_vCameraPositionWs).z), 1.4) * 100); // 1.4 and 100 are arbitrary values
-    gridColor.xyz *= fading * angleFade;
+    angleFade = mix(1.0, angleFade, min(length(fragPosAbs) / 2000, 1.0));
 
     vec2 axisLines = abs(coord) / derivative;
 
