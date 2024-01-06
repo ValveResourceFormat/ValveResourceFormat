@@ -384,13 +384,6 @@ namespace GUI.Types.Renderer
                 _ => PixelType.UnsignedByte
             };
 
-
-        public RenderMaterial GetErrorMaterial()
-        {
-            var errorMat = new RenderMaterial(VrfGuiContext.ShaderLoader.LoadShader("vrf.error"));
-            return errorMat;
-        }
-
         static readonly string[] NonMaterialUniforms =
         [
             "g_flTime",
@@ -470,7 +463,13 @@ namespace GUI.Types.Renderer
             }
         }
 
-        public RenderTexture GetErrorTexture()
+        private RenderMaterial GetErrorMaterial()
+        {
+            var errorMat = new RenderMaterial(VrfGuiContext.ShaderLoader.LoadShader("vrf.error"));
+            return errorMat;
+        }
+
+        private RenderTexture GetErrorTexture()
         {
             if (ErrorTexture == null)
             {
@@ -493,16 +492,16 @@ namespace GUI.Types.Renderer
             return ErrorTexture;
         }
 
-        public static RenderTexture CreateSolidTexture(float r, float g, float b)
+        private static RenderTexture CreateSolidTexture(float r, float g, float b)
             => GenerateColorTexture(1, 1, [r, g, b, 1f]);
 
-        public RenderTexture GetDefaultNormal()
+        private RenderTexture GetDefaultNormal()
         {
             DefaultNormal ??= CreateSolidTexture(0.5f, 0.5f, 1.0f);
             return DefaultNormal;
         }
 
-        public RenderTexture GetDefaultMask()
+        private RenderTexture GetDefaultMask()
         {
             DefaultMask ??= CreateSolidTexture(1.0f, 1.0f, 1.0f);
             return DefaultMask;
