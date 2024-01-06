@@ -279,7 +279,10 @@ namespace GUI.Types.Renderer
 
                     if (classname == "env_sky")
                     {
+                        // If it has "startdisabled", only take it if we haven't found any others yet.
                         disabled = entity.GetProperty<bool>("startdisabled");
+                        disabled = disabled && scene.Sky != null;
+
                         var skyTintColor = entity.GetProperty("tint_color");
                         tintColor = skyTintColor?.Data switch
                         {
