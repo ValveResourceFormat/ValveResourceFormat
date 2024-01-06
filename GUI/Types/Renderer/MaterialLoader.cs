@@ -20,9 +20,9 @@ namespace GUI.Types.Renderer
         private readonly Dictionary<ulong, RenderMaterial> Materials = [];
         private readonly Dictionary<string, RenderTexture> Textures = [];
         private readonly VrfGuiContext VrfGuiContext;
-        private static RenderTexture ErrorTexture;
-        private static RenderTexture DefaultNormal;
-        private static RenderTexture DefaultMask;
+        private RenderTexture ErrorTexture;
+        private RenderTexture DefaultNormal;
+        private RenderTexture DefaultMask;
         public static float MaxTextureMaxAnisotropy { get; set; }
         public int MaterialCount => Materials.Count;
 
@@ -407,7 +407,7 @@ namespace GUI.Types.Renderer
 
         static readonly string[] ReservedTextures = Enum.GetNames<ReservedTextureSlots>();
 
-        public static void ApplyMaterialDefaults(RenderMaterial mat)
+        public void ApplyMaterialDefaults(RenderMaterial mat)
         {
             var vec4Val = new float[4];
             var uniforms = mat.Shader.GetAllUniformNames();
@@ -470,7 +470,7 @@ namespace GUI.Types.Renderer
             }
         }
 
-        public static RenderTexture GetErrorTexture()
+        public RenderTexture GetErrorTexture()
         {
             if (ErrorTexture == null)
             {
@@ -493,23 +493,16 @@ namespace GUI.Types.Renderer
             return ErrorTexture;
         }
 
-        public static void PurgeDefaultTextures()
-        {
-            ErrorTexture = null;
-            DefaultNormal = null;
-            DefaultMask = null;
-        }
-
         public static RenderTexture CreateSolidTexture(float r, float g, float b)
             => GenerateColorTexture(1, 1, [r, g, b, 1f]);
 
-        public static RenderTexture GetDefaultNormal()
+        public RenderTexture GetDefaultNormal()
         {
             DefaultNormal ??= CreateSolidTexture(0.5f, 0.5f, 1.0f);
             return DefaultNormal;
         }
 
-        public static RenderTexture GetDefaultMask()
+        public RenderTexture GetDefaultMask()
         {
             DefaultMask ??= CreateSolidTexture(1.0f, 1.0f, 1.0f);
             return DefaultMask;

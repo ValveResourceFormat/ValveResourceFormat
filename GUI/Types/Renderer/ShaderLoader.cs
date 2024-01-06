@@ -30,10 +30,23 @@ namespace GUI.Types.Renderer
 
         private readonly ShaderParser Parser = new();
 
+        private readonly VrfGuiContext VrfGuiContext;
+
         public class ParsedShaderData
         {
             public HashSet<string> Defines = [];
             public HashSet<string> SrgbSamplers = [];
+        }
+
+        public ShaderLoader(VrfGuiContext guiContext)
+        {
+            VrfGuiContext = guiContext;
+
+#if DEBUG
+            ShaderWatcher.Filters.Add("*.glsl");
+            ShaderWatcher.Filters.Add("*.vert");
+            ShaderWatcher.Filters.Add("*.frag");
+#endif
         }
 
         public Shader LoadShader(string shaderName, IReadOnlyDictionary<string, byte> arguments = null)
@@ -109,7 +122,7 @@ namespace GUI.Types.Renderer
                     ThrowShaderError(log, shaderFileName, shaderName, "Failed to link shader");
                 }
 
-                MaterialLoader.ApplyMaterialDefaults(shader.Default);
+                VrfGuiContext.MaterialLoader.ApplyMaterialDefaults(shader.Default);
 
                 ShaderDefines[shaderName] = parsedData.Defines;
                 var newShaderCacheHash = CalculateShaderCacheHash(shaderName, arguments);
@@ -316,16 +329,9 @@ namespace GUI.Types.Renderer
             EnableRaisingEvents = true,
         };
 
-        public ShaderLoader()
-        {
-            ShaderWatcher.Filters.Add("*.glsl");
-            ShaderWatcher.Filters.Add("*.vert");
-            ShaderWatcher.Filters.Add("*.frag");
-        }
-
         public static void ValidateShaders()
         {
-            using var loader = new ShaderLoader();
+            using var loader = new ShaderLoader(new VrfGuiContext(null, null));
             var folder = ShaderParser.GetShaderDiskPath(string.Empty);
 
             var shaders = Directory.GetFiles(folder, "*.frag");

@@ -41,7 +41,7 @@ namespace GUI.Utils
             FileName = fileName;
             ParentGuiContext = parentGuiContext;
             MaterialLoader = new MaterialLoader(this);
-            ShaderLoader = new ShaderLoader();
+            ShaderLoader = new ShaderLoader(this);
             FileLoader = new AdvancedGuiFileLoader(this);
             MeshBufferCache = new GPUMeshBufferCache();
 
@@ -90,8 +90,6 @@ namespace GUI.Utils
                     CurrentPackage.Dispose();
                     CurrentPackage = null;
                 }
-
-                MaterialLoader.PurgeDefaultTextures();
 
                 FileLoader.Dispose();
                 FileLoader = null;
