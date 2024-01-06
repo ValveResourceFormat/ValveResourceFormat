@@ -553,7 +553,9 @@ public sealed class MapExtract
             BaseEntity NewPropStatic(string modelName) => new CMapEntity()
                 .WithClassName("prop_static")
                 .WithProperty("model", modelName)
-                .WithProperty("baketoworld", StringBool(true));
+                .WithProperty("baketoworld", StringBool(true))
+                .WithProperty("disablemerging", StringBool(true))
+                .WithProperty("visoccluder", StringBool(true));
 
             var UseHammerInstances = false;
             CMapGroup instanceGroup = null;
