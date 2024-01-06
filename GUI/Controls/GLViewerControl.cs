@@ -374,7 +374,7 @@ namespace GUI.Controls
             fboColor = new RenderTexture(TextureTarget.Texture2DMultisample, GLControl.Width, GLControl.Height, 1, 1);
             fboDepth = new RenderTexture(TextureTarget.Texture2DMultisample, GLControl.Width, GLControl.Height, 1, 1);
 
-            fboColorFormat = (PixelInternalFormat.Rgba8, PixelFormat.Rgba, PixelType.UnsignedByte);
+            fboColorFormat = (PixelInternalFormat.R11fG11fB10f, PixelFormat.Rgba, PixelType.UnsignedByte);
             fboDepthFormat = (PixelInternalFormat.DepthComponent32f, PixelType.Float);
 
             MaxSamples = GL.GetInteger(GetPName.MaxSamples);
