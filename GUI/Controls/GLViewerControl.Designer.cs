@@ -1,5 +1,4 @@
 using System.Windows.Forms;
-using OpenTK.Graphics.OpenGL;
 
 namespace GUI.Controls
 {

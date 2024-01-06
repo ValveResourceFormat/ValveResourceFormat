@@ -1,4 +1,3 @@
-
 using System;
 using OpenTK.Graphics;
 using OpenTK.Graphics.OpenGL;
@@ -26,22 +25,20 @@ class Framebuffer : IDisposable
     public FramebufferErrorCode InitialStatus { get; private set; } = FramebufferErrorCode.FramebufferUndefined;
     public FramebufferTarget TargetState { get; set; } = FramebufferTarget.Framebuffer;
 
-
-    #region Render state
-    private static readonly Color4 FastClear = Color4.Black; // https://gpuopen.com/learn/rdna-performance-guide/#clears
-    public Color4 ClearColor { get; set; } = FastClear;
-    public ClearBufferMask ClearMask { get; set; } = ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit;
-    #endregion
-
-    public void Bind(FramebufferTarget targetState = FramebufferTarget.Framebuffer)
+    public void Bind(FramebufferTarget targetState)
     {
         TargetState = targetState;
         GL.BindFramebuffer(targetState, FboHandle);
     }
 
-    public void BeginRender()
+    #region Render state
+    public Color4 ClearColor { get; set; } = Color4.Black; // https://gpuopen.com/learn/rdna-performance-guide/#clears
+    public ClearBufferMask ClearMask { get; set; } = ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit;
+    #endregion
+
+    public void Clear()
     {
-        Bind();
+        Bind(FramebufferTarget.Framebuffer);
         GL.ClearColor(ClearColor);
         GL.Clear(ClearMask);
     }
@@ -60,8 +57,11 @@ class Framebuffer : IDisposable
 
     public static Framebuffer GLDefault = new(defaultInstance: true);
 
-    public static bool operator ==(Framebuffer left, Framebuffer right) => left.FboHandle == right.FboHandle;
-    public static bool operator !=(Framebuffer left, Framebuffer right) => left.FboHandle != right.FboHandle;
+    public override bool Equals(object? obj) => obj is Framebuffer other && other.FboHandle == FboHandle;
+    public override int GetHashCode() => FboHandle.GetHashCode();
+
+    public static bool operator ==(Framebuffer left, Framebuffer right) => left.Equals(right);
+    public static bool operator !=(Framebuffer left, Framebuffer right) => !left.Equals(right);
 
     #endregion
 
@@ -76,7 +76,7 @@ class Framebuffer : IDisposable
 
     public static Framebuffer Prepare(int width, int height, int msaa, AttachmentFormat? colorFormat, DepthAttachmentFormat? depthFormat)
     {
-        var rt = new Framebuffer
+        var fbo = new Framebuffer
         {
             NumSamples = msaa,
             Target = msaa > 0 ? TextureTarget.Texture2DMultisample : TextureTarget.Texture2D,
@@ -86,7 +86,7 @@ class Framebuffer : IDisposable
             Height = height,
         };
 
-        return rt;
+        return fbo;
     }
 
     public FramebufferErrorCode Initialize()
@@ -111,9 +111,9 @@ class Framebuffer : IDisposable
             throw new InvalidOperationException("Framebuffer has already been initialized");
         }
 
-        Bind();
         var (width, height) = (Width, Height);
         var fboTarget = FramebufferTarget.Framebuffer;
+        Bind(fboTarget);
 
         if (ColorFormat != null)
         {
@@ -176,6 +176,14 @@ class Framebuffer : IDisposable
             {
                 ResizeAttachment(Depth, DepthFormat!, width, height);
             }
+        }
+    }
+
+    public void CheckStatus_ThrowIfIncomplete(string name = "")
+    {
+        if (InitialStatus != FramebufferErrorCode.FramebufferComplete)
+        {
+            throw new InvalidOperationException($"Fbo '{name} failed to initialize with error: {InitialStatus}");
         }
     }
 

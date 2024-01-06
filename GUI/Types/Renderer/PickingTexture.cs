@@ -55,12 +55,13 @@ class PickingTexture : Framebuffer
     public bool IsActive => Request.ActiveNextFrame;
 
     private readonly VrfGuiContext guiContext;
-    private readonly Framebuffer depthSource;
 
-    public PickingTexture(VrfGuiContext vrfGuiContext, Framebuffer depthSource, EventHandler<PickingResponse> onPicked)
+    // could share depth buffer with main framebuffer, but msaa doesn't match
+    // private readonly Framebuffer depthSource;
+
+    public PickingTexture(VrfGuiContext vrfGuiContext, EventHandler<PickingResponse> onPicked)
     {
         guiContext = vrfGuiContext;
-        this.depthSource = depthSource;
         Shader = vrfGuiContext.ShaderLoader.LoadShader("vrf.picking");
         OnPicked += onPicked;
 
@@ -89,15 +90,9 @@ class PickingTexture : Framebuffer
                 Color.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
             }
 
-
-            if (InitialStatus != FramebufferErrorCode.FramebufferComplete)
-            {
-                // dispose?
-                throw new InvalidOperationException($"Framebuffer failed to bind with error: {InitialStatus}");
-            }
+            CheckStatus_ThrowIfIncomplete(nameof(PickingTexture));
         }
     }
-
 
     public void Finish()
     {
