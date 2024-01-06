@@ -82,20 +82,6 @@ namespace GUI.Types.Renderer
             LoadAnimations(model);
         }
 
-        private void RenderMorphComposites()
-        {
-            foreach (var renderableMesh in activeMeshRenderers)
-            {
-                if (renderableMesh.FlexStateManager == null)
-                {
-                    continue;
-                }
-
-                renderableMesh.FlexStateManager.UpdateComposite();
-                renderableMesh.FlexStateManager.MorphComposite.Render();
-            }
-        }
-
         public override void Update(Scene.UpdateContext context)
         {
             if (!AnimationController.Update(context.Timestep))

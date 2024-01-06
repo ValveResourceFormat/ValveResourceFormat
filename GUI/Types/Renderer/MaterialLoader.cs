@@ -265,12 +265,9 @@ namespace GUI.Types.Renderer
             if (MaxTextureMaxAnisotropy >= 4)
             {
                 GL.TexParameter(target, (TextureParameterName)ExtTextureFilterAnisotropic.TextureMaxAnisotropyExt, MaxTextureMaxAnisotropy);
-                tex.SetFiltering(TextureMinFilter.LinearMipmapLinear, TextureMagFilter.Linear);
             }
-            else
-            {
-                tex.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
-            }
+
+            tex.SetFiltering(TextureMinFilter.LinearMipmapLinear, TextureMagFilter.Linear);
 
             GL.TexParameter(target, TextureParameterName.TextureWrapS, (int)clampModeS);
             GL.TexParameter(target, TextureParameterName.TextureWrapT, (int)clampModeT);

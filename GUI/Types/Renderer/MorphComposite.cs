@@ -132,7 +132,7 @@ namespace GUI.Types.Renderer
             GL.DrawElements(BeginMode.Triangles, (usedVerticesLength / VertexSize / 4) * 6, DrawElementsType.UnsignedShort, 0);
 
             //unbind everything
-            GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
+            GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0); // todo: default buffer
             GL.BindBuffer(BufferTarget.ElementArrayBuffer, 0);
             GL.BindBuffer(BufferTarget.ArrayBuffer, 0);
             GL.BindRenderbuffer(RenderbufferTarget.Renderbuffer, 0);

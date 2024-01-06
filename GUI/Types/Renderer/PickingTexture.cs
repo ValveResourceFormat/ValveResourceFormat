@@ -92,7 +92,7 @@ class PickingTexture : IDisposable
         }
 
         GL.BindTexture(TextureTarget.Texture2D, 0);
-        GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
+        GL.BindFramebuffer(FramebufferTarget.Framebuffer, guiContext.DefaultFrameBuffer);
     }
 
     public void Render()
@@ -104,7 +104,7 @@ class PickingTexture : IDisposable
 
     public void Finish()
     {
-        GL.BindFramebuffer(FramebufferTarget.DrawFramebuffer, 0);
+        GL.BindFramebuffer(FramebufferTarget.DrawFramebuffer, guiContext.DefaultFrameBuffer);
 
         if (Request.ActiveNextFrame)
         {
@@ -142,7 +142,7 @@ class PickingTexture : IDisposable
         GL.ReadPixels(width, this.height - height, 1, 1, PixelFormat.RgbaInteger, PixelType.UnsignedInt, ref pixelInfo);
 
         GL.ReadBuffer(ReadBufferMode.None);
-        GL.BindFramebuffer(FramebufferTarget.ReadFramebuffer, 0);
+        GL.BindFramebuffer(FramebufferTarget.ReadFramebuffer, guiContext.DefaultFrameBuffer);
 
         return pixelInfo;
     }

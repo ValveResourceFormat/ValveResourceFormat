@@ -238,13 +238,11 @@ namespace GUI.Types.Renderer
 
         protected virtual void OnPaint(object sender, RenderEventArgs e)
         {
-            GL.ClearColor(ClearColor);
-            GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
-
             Uptime += e.FrameTime;
             viewBuffer.Data.Time = Uptime;
 
             Scene.Update(e.FrameTime);
+            SkyboxScene?.Update(e.FrameTime);
 
             selectedNodeRenderer.Update(new Scene.UpdateContext(e.FrameTime));
 
@@ -261,6 +259,10 @@ namespace GUI.Types.Renderer
             {
                 Camera = Camera
             };
+
+            GL.BindFramebuffer(FramebufferTarget.Framebuffer, DefaultFrameBuffer);
+            GL.ClearColor(ClearColor);
+            GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 
             if (IsWireframe)
             {
@@ -284,8 +286,6 @@ namespace GUI.Types.Renderer
                     skyboxCamera.SetScaledProjectionMatrix();
                     skyboxCamera.SetLocation(Camera.Location - SkyboxScene.WorldOffset);
 
-                    SkyboxScene.Update(e.FrameTime);
-                    GL.Viewport(0, 0, GLControl.Width, GLControl.Height); //Update may have changed the viewport
                     UpdateSceneBuffers(SkyboxScene, skyboxCamera);
                     SkyboxScene.RenderWithCamera(skyboxCamera, this, skyboxLockedCullFrustum);
 

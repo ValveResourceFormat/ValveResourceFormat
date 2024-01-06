@@ -59,7 +59,7 @@ namespace GUI.Controls
             flags |= GraphicsContextFlags.Debug;
 #endif
 
-            GLControl = new GLControl(new GraphicsMode(32, 0, 0, 0), 4, 6, flags);
+            GLControl = new GLControl(new GraphicsMode(32, 1, 0, 0, 0, 2), 4, 6, flags);
             GLControl.Load += OnLoad;
             GLControl.Paint += OnPaint;
             GLControl.Resize += OnResize;
@@ -321,8 +321,6 @@ namespace GUI.Controls
 
             CheckOpenGL();
 
-            CreateDefaultFramebuffer();
-
             // Application semantics / default state
             GL.Enable(EnableCap.TextureCubeMapSeamless);
             GL.Enable(EnableCap.CullFace);
@@ -359,7 +357,7 @@ namespace GUI.Controls
             GLPostLoad = null;
         }
 
-        private int fbo;
+        public int DefaultFrameBuffer;
         private RenderTexture fboColor;
         private RenderTexture fboDepth;
         private (PixelInternalFormat InternalFormat, PixelFormat Format, PixelType Type) fboColorFormat;
@@ -369,11 +367,12 @@ namespace GUI.Controls
 
         private void CreateDefaultFramebuffer()
         {
-            fbo = GL.GenFramebuffer();
-            GL.BindFramebuffer(FramebufferTarget.Framebuffer, fbo);
+            DefaultFrameBuffer = GL.GenFramebuffer();
+            GL.BindFramebuffer(FramebufferTarget.Framebuffer, DefaultFrameBuffer);
+            Log.Debug(nameof(GLViewerControl), $"Created default framebuffer {DefaultFrameBuffer}");
 
-            fboColor = new RenderTexture(TextureTarget.Texture2DMultisample, 1, 1, 1, 1);
-            fboDepth = new RenderTexture(TextureTarget.Texture2DMultisample, 1, 1, 1, 1);
+            fboColor = new RenderTexture(TextureTarget.Texture2DMultisample, GLControl.Width, GLControl.Height, 1, 1);
+            fboDepth = new RenderTexture(TextureTarget.Texture2DMultisample, GLControl.Width, GLControl.Height, 1, 1);
 
             fboColorFormat = (PixelInternalFormat.Rgba8, PixelFormat.Rgba, PixelType.UnsignedByte);
             fboDepthFormat = (PixelInternalFormat.DepthComponent32f, PixelType.Float);
@@ -382,18 +381,14 @@ namespace GUI.Controls
 
             using (fboColor.BindingContext())
             {
-                fboColor.SetWrapMode(TextureWrapMode.ClampToEdge);
-                fboColor.SetFiltering(TextureMinFilter.Linear, TextureMagFilter.Linear);
-                GL.TexImage2DMultisample((TextureTargetMultisample)fboColor.Target, NumSamples, fboColorFormat.InternalFormat, 1, 1, false);
+                GL.TexImage2DMultisample((TextureTargetMultisample)fboColor.Target, NumSamples, fboColorFormat.InternalFormat, GLControl.Width, GLControl.Height, false);
 
                 GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.ColorAttachment0, fboColor.Target, fboColor.Handle, 0);
             }
 
             using (fboDepth.BindingContext())
             {
-                fboDepth.SetWrapMode(TextureWrapMode.ClampToEdge);
-                fboDepth.SetFiltering(TextureMinFilter.Linear, TextureMagFilter.Linear);
-                GL.TexImage2DMultisample((TextureTargetMultisample)fboDepth.Target, NumSamples, fboDepthFormat.InternalFormat, 1, 1, false);
+                GL.TexImage2DMultisample((TextureTargetMultisample)fboDepth.Target, NumSamples, fboDepthFormat.InternalFormat, GLControl.Width, GLControl.Height, false);
 
                 GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.DepthAttachment, fboDepth.Target, fboDepth.Handle, 0);
             }
@@ -401,7 +396,9 @@ namespace GUI.Controls
             var status = GL.CheckFramebufferStatus(FramebufferTarget.Framebuffer);
             if (status != FramebufferErrorCode.FramebufferComplete)
             {
-                throw new InvalidOperationException($"Framebuffer failed to bind with error: {status}");
+                DefaultFrameBuffer = 0;
+                //throw new InvalidOperationException($"Framebuffer failed to bind with error: {status}");
+                Log.Error(nameof(GLViewerControl), $"Framebuffer failed to bind with error: {status}");
             }
         }
 
@@ -452,27 +449,19 @@ namespace GUI.Controls
                 }
             }
 
-            GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
-            var status0 = GL.CheckFramebufferStatus(FramebufferTarget.Framebuffer);
-
-            GL.BindFramebuffer(FramebufferTarget.Framebuffer, fbo);
-            var status1 = GL.CheckFramebufferStatus(FramebufferTarget.Framebuffer);
-
-            if (fbo == 0 || status0 != status1)
-            {
-                return;
-            }
-
-            GL.BindFramebuffer(FramebufferTarget.Framebuffer, fbo);
-
             GLPaint?.Invoke(this, new RenderEventArgs { FrameTime = frameTime });
 
-            GL.BindFramebuffer(FramebufferTarget.ReadFramebuffer, fbo);
-            GL.ReadBuffer(ReadBufferMode.ColorAttachment0);
-            GL.BindFramebuffer(FramebufferTarget.DrawFramebuffer, 0);
-            GL.DrawBuffer(DrawBufferMode.Front);
-            GL.BlitFramebuffer(0, 0, GLControl.Width, GLControl.Height, 0, 0, GLControl.Width, GLControl.Height, ClearBufferMask.ColorBufferBit, BlitFramebufferFilter.Nearest);
-            GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
+            if (DefaultFrameBuffer != 0)
+            {
+                GL.BindFramebuffer(FramebufferTarget.ReadFramebuffer, DefaultFrameBuffer);
+                GL.ReadBuffer(ReadBufferMode.ColorAttachment0);
+                GL.BindFramebuffer(FramebufferTarget.DrawFramebuffer, 0);
+                GL.DrawBuffer(DrawBufferMode.Back);
+
+                GL.BlitFramebuffer(0, 0, GLControl.Width, GLControl.Height, 0, 0, GLControl.Width, GLControl.Height, ClearBufferMask.ColorBufferBit, BlitFramebufferFilter.Nearest);
+                GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
+                GL.Finish();
+            }
 
             GLControl.SwapBuffers();
             GLControl.Invalidate();
@@ -492,8 +481,17 @@ namespace GUI.Controls
         private void OnResize(object sender, EventArgs e)
         {
             HandleResize();
+
+            if (DefaultFrameBuffer == 0 && HasValidSize())
+            {
+                CreateDefaultFramebuffer();
+            }
+
             Draw();
         }
+
+        private bool HasValidSize() => GLControl.Width > 0 && GLControl.Height > 0;
+
 
         private void HandleResize()
         {
@@ -517,7 +515,7 @@ namespace GUI.Controls
 
         private void DisposeFramebuffer()
         {
-            GL.DeleteFramebuffer(fbo);
+            GL.DeleteFramebuffer(DefaultFrameBuffer);
             GL.DeleteTexture(fboColor.Handle);
             GL.DeleteTexture(fboDepth.Handle);
         }
