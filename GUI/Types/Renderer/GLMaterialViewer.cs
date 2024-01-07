@@ -129,15 +129,25 @@ namespace GUI.Types.Renderer
                 var result = ShaderDataProvider.GetStaticConfiguration_ForFeatureState(shaders.Features, stage, featureState);
 
                 var zframeTab = new TabPage($"{stage.VcsProgramType} Static[{result.ZFrameId}]");
-                var zframeRichTextBox = new CompiledShader.ZFrameRichTextBox(Tabs, stage, shaders, result.ZFrameId);
-                zframeTab.Controls.Add(zframeRichTextBox);
 
-                using var zFrame = stage.GetZFrameFile(result.ZFrameId);
-                var gpuSourceTab = CompiledShader.CreateDecompiledTabPage(shaders, stage, zFrame, 0, $"{stage.VcsProgramType} Source[0]");
+                try
+                {
+                    var zframeRichTextBox = new CompiledShader.ZFrameRichTextBox(Tabs, stage, shaders, result.ZFrameId);
+                    zframeTab.Controls.Add(zframeRichTextBox);
 
-                Tabs.Controls.Add(zframeTab);
-                Tabs.TabPages.Add(gpuSourceTab);
-                Tabs.SelectTab(gpuSourceTab);
+                    using var zFrame = stage.GetZFrameFile(result.ZFrameId);
+                    var gpuSourceTab = CompiledShader.CreateDecompiledTabPage(shaders, stage, zFrame, 0, $"{stage.VcsProgramType} Source[0]");
+
+                    Tabs.Controls.Add(zframeTab);
+                    Tabs.TabPages.Add(gpuSourceTab);
+                    Tabs.SelectTab(gpuSourceTab);
+
+                    zframeTab = null;
+                }
+                finally
+                {
+                    zframeTab?.Dispose();
+                }
             }
         }
 

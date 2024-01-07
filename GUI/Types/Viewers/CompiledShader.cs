@@ -131,18 +131,28 @@ namespace GUI.Types.Viewers
                 var filename = Path.GetFileName(targetFilename);
                 var vcsCollectionName = filename[..filename.LastIndexOf('_')]; // in the form water_dota_pcgl_40
                 var vcsEntries = vrfPackage.Entries["vcs"];
-                // vcsEntry.FileName is in the form bloom_dota_pcgl_30_ps (without vcs extension)
+
                 foreach (var vcsEntry in vcsEntries)
                 {
+                    // vcsEntry.FileName is in the form bloom_dota_pcgl_30_ps (without vcs extension)
                     if (vcsEntry.FileName.StartsWith(vcsCollectionName, StringComparison.InvariantCulture))
                     {
                         var programType = ComputeVCSFileName($"{vcsEntry.FileName}.vcs").ProgramType;
+
                         vrfPackage.ReadEntry(vcsEntry, out var shaderDatabytes);
-#pragma warning disable CA2000 // Dispose objects before losing scope - controlled by ShaderCollection
-                        ShaderFile relatedShaderFile = new();
-#pragma warning restore CA2000
-                        relatedShaderFile.Read($"{vcsEntry.FileName}.vcs", new MemoryStream(shaderDatabytes));
-                        shaderCollection.Add(relatedShaderFile);
+
+                        var relatedShaderFile = new ShaderFile();
+
+                        try
+                        {
+                            relatedShaderFile.Read($"{vcsEntry.FileName}.vcs", new MemoryStream(shaderDatabytes));
+                            shaderCollection.Add(relatedShaderFile);
+                            relatedShaderFile = null;
+                        }
+                        finally
+                        {
+                            relatedShaderFile?.Dispose();
+                        }
                     }
                 }
             }
@@ -151,19 +161,28 @@ namespace GUI.Types.Viewers
                 // search file-system
                 var filename = Path.GetFileName(targetFilename);
                 var vcsCollectionName = filename[..filename.LastIndexOf('_')];
+
                 foreach (var vcsFile in Directory.GetFiles(Path.GetDirectoryName(targetFilename)))
                 {
                     if (Path.GetFileName(vcsFile).StartsWith(vcsCollectionName, StringComparison.InvariantCulture))
                     {
                         var programType = ComputeVCSFileName(vcsFile).ProgramType;
-#pragma warning disable CA2000 // Dispose objects before losing scope - controlled by ShaderCollection
-                        ShaderFile relatedShaderFile = new();
-#pragma warning restore CA2000
-                        relatedShaderFile.Read(vcsFile);
-                        shaderCollection.Add(relatedShaderFile);
+                        var relatedShaderFile = new ShaderFile();
+
+                        try
+                        {
+                            relatedShaderFile.Read(vcsFile);
+                            shaderCollection.Add(relatedShaderFile);
+                            relatedShaderFile = null;
+                        }
+                        finally
+                        {
+                            relatedShaderFile?.Dispose();
+                        }
                     }
                 }
             }
+
             return shaderCollection;
         }
 

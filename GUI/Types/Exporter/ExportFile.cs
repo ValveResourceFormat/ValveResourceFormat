@@ -94,7 +94,16 @@ namespace GUI.Types.Exporter
                         }, CancellationToken.None);
                     }
                 };
-                extractDialog.ShowDialog();
+
+                try
+                {
+                    extractDialog.ShowDialog();
+                    extractDialog = null;
+                }
+                finally
+                {
+                    extractDialog?.Dispose();
+                }
             }
             else
             {
@@ -139,8 +148,17 @@ namespace GUI.Types.Exporter
                 };
 
                 var extractDialog = new ExtractProgressForm(exportData, null, decompile);
-                extractDialog.QueueFiles(selectedNode);
-                extractDialog.Execute();
+
+                try
+                {
+                    extractDialog.QueueFiles(selectedNode);
+                    extractDialog.Execute();
+                    extractDialog = null;
+                }
+                finally
+                {
+                    extractDialog?.Dispose();
+                }
             }
         }
 
@@ -153,14 +171,22 @@ namespace GUI.Types.Exporter
 
             var extractDialog = new ExtractProgressForm(exportData, null, decompile);
 
-            // When queuing files this way, it'll preserve the original tree
-            // which is probably unwanted behaviour? It works tho /shrug
-            foreach (ListViewItem item in items)
+            try
             {
-                extractDialog.QueueFiles((BetterTreeNode)item.Tag);
-            }
+                // When queuing files this way, it'll preserve the original tree
+                // which is probably unwanted behaviour? It works tho /shrug
+                foreach (ListViewItem item in items)
+                {
+                    extractDialog.QueueFiles((BetterTreeNode)item.Tag);
+                }
 
-            extractDialog.Execute();
+                extractDialog.Execute();
+                extractDialog = null;
+            }
+            finally
+            {
+                extractDialog?.Dispose();
+            }
         }
     }
 }

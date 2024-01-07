@@ -454,30 +454,50 @@ namespace GUI.Types.Viewers
                     {
                         BackColor = Color.Black,
                     };
-                    var cubemapBitmap = new SKBitmap(tex.ActualWidth * 4, tex.ActualHeight * 3, SKColorType.Bgra8888, SKAlphaType.Unpremul);
-                    using var cubemapCanvas = new SKCanvas(cubemapBitmap);
 
-                    for (var face = 0; face < 6; face++)
+                    try
                     {
-                        using var faceBitmap = tex.GenerateBitmap(depth: i, face: (Texture.CubemapFace)face);
+                        var cubemapBitmap = new SKBitmap(tex.ActualWidth * 4, tex.ActualHeight * 3, SKColorType.Bgra8888, SKAlphaType.Unpremul);
 
-                        var offset = CUBEMAP_OFFSETS[face];
-                        cubemapCanvas.DrawBitmap(faceBitmap, tex.ActualWidth * offset.X, tex.ActualHeight * offset.Y);
+                        try
+                        {
+                            using var cubemapCanvas = new SKCanvas(cubemapBitmap);
+
+                            for (var face = 0; face < 6; face++)
+                            {
+                                using var faceBitmap = tex.GenerateBitmap(depth: i, face: (Texture.CubemapFace)face);
+
+                                var offset = CUBEMAP_OFFSETS[face];
+                                cubemapCanvas.DrawBitmap(faceBitmap, tex.ActualWidth * offset.X, tex.ActualHeight * offset.Y);
+                            }
+
+                            cubemapControl.SetImage(
+                                cubemapBitmap,
+                                Path.GetFileNameWithoutExtension(vrfGuiContext.FileName),
+                                cubemapBitmap.Width,
+                                cubemapBitmap.Height
+                            );
+
+                            var cubemapTab = new TabPage($"#{i}")
+                            {
+                                AutoScroll = true,
+                            };
+                            cubemapTab.Controls.Add(cubemapControl);
+                            cubemapContainer.Controls.Add(cubemapTab);
+
+                            cubemapBitmap = null;
+                        }
+                        finally
+                        {
+                            cubemapBitmap?.Dispose();
+                        }
+
+                        cubemapControl = null;
                     }
-
-                    cubemapControl.SetImage(
-                        cubemapBitmap,
-                        Path.GetFileNameWithoutExtension(vrfGuiContext.FileName),
-                        cubemapBitmap.Width,
-                        cubemapBitmap.Height
-                    );
-
-                    var cubemapTab = new TabPage($"#{i}")
+                    finally
                     {
-                        AutoScroll = true,
-                    };
-                    cubemapTab.Controls.Add(cubemapControl);
-                    cubemapContainer.Controls.Add(cubemapTab);
+                        cubemapControl?.Dispose();
+                    }
                 }
 
                 var cubemapParentTab = new TabPage("CUBEMAP");

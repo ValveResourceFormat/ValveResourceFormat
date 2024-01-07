@@ -195,11 +195,18 @@ namespace Tests
             using var collection = new ShaderCollection();
             foreach (var file in Directory.GetFiles(ShadersDir, "error_pc_40_*.vcs"))
             {
-#pragma warning disable CA2000 // Dispose objects before losing scope - ShaderCollection disposes them
                 var shader = new ShaderFile();
-#pragma warning restore CA2000
-                shader.Read(file);
-                collection.Add(shader);
+
+                try
+                {
+                    shader.Read(file);
+                    collection.Add(shader);
+                    shader = null;
+                }
+                finally
+                {
+                    shader?.Dispose();
+                }
             }
 
             var extract = new ShaderExtract(collection);

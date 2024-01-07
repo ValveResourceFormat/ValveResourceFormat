@@ -1322,7 +1322,9 @@ namespace ValveResourceFormat.IO
 
                 if (textureResource == null)
                 {
-                    return new SKBitmap(); // TODO: Test that this doesn't cause issues
+                    bitmap = new SKBitmap(); // TODO: Test that this doesn't cause issues
+                    openBitmaps[texturePath] = bitmap;
+                    return bitmap;
                 }
 
                 lock (textureResource)

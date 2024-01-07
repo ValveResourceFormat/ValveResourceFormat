@@ -179,24 +179,33 @@ namespace ValveResourceFormat.IO
             bool TryLoadShader(VcsProgramType programType, VcsPlatformType platformType, VcsShaderModelType modelType)
             {
                 var shaderFile = new ShaderFile();
-                var path = Path.Join("shaders", "vfx", ShaderUtilHelpers.ComputeVCSFileName(shaderName, programType, platformType, modelType));
-                var foundFile = FindFile(path, logNotFound: false);
 
-                if (foundFile.PathOnDisk != null)
+                try
                 {
-                    var stream = File.OpenRead(foundFile.PathOnDisk);
-                    shaderFile.Read(path, stream);
-                }
-                else if (foundFile.PackageEntry != null)
-                {
-                    var stream = GetPackageEntryStream(foundFile.Package, foundFile.PackageEntry);
-                    shaderFile.Read(path, stream);
-                }
+                    var path = Path.Join("shaders", "vfx", ShaderUtilHelpers.ComputeVCSFileName(shaderName, programType, platformType, modelType));
+                    var foundFile = FindFile(path, logNotFound: false);
 
-                if (shaderFile.VcsPlatformType == platformType)
+                    if (foundFile.PathOnDisk != null)
+                    {
+                        var stream = File.OpenRead(foundFile.PathOnDisk);
+                        shaderFile.Read(path, stream);
+                    }
+                    else if (foundFile.PackageEntry != null)
+                    {
+                        var stream = GetPackageEntryStream(foundFile.Package, foundFile.PackageEntry);
+                        shaderFile.Read(path, stream);
+                    }
+
+                    if (shaderFile.VcsPlatformType == platformType)
+                    {
+                        collection.Add(shaderFile);
+                        shaderFile = null;
+                        return true;
+                    }
+                }
+                finally
                 {
-                    collection.Add(shaderFile);
-                    return true;
+                    shaderFile?.Dispose();
                 }
 
                 return false;

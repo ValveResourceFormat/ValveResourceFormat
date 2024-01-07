@@ -58,13 +58,26 @@ namespace GUI.Forms
                 image = Image.FromStream(new MemoryStream(pngBytes));
             }
 
-            if (!cts.IsCancellationRequested)
+            try
             {
+                if (cts.IsCancellationRequested)
+                {
+                    return;
+                }
+
+                var imageRef = image;
+
                 Invoke(() =>
                 {
                     pictureBox1.Image.Dispose();
-                    pictureBox1.Image = image;
+                    pictureBox1.Image = imageRef;
                 });
+
+                image = null;
+            }
+            finally
+            {
+                image?.Dispose();
             }
         }
 

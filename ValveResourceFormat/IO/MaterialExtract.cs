@@ -77,6 +77,10 @@ public sealed class MaterialExtract
             {
                 vmat.AdditionalFiles.Add(vtex);
             }
+            else
+            {
+                vtex.Dispose();
+            }
         }
 
         return vmat;

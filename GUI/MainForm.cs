@@ -145,32 +145,50 @@ namespace GUI
                     Log.Info(nameof(MainForm), $"Opening {file}");
 
                     var package = new Package();
-                    package.OptimizeEntriesForBinarySearch(StringComparison.OrdinalIgnoreCase);
-                    package.Read(file);
-
-                    var packageFile = package.FindEntry(innerFile);
-
-                    if (packageFile == null)
+                    try
                     {
-                        packageFile = package.FindEntry(innerFile + "_c");
+                        package.OptimizeEntriesForBinarySearch(StringComparison.OrdinalIgnoreCase);
+                        package.Read(file);
+
+                        var packageFile = package.FindEntry(innerFile);
 
                         if (packageFile == null)
                         {
-                            Log.Error(nameof(MainForm), $"File '{packageFile}' does not exist in package '{file}'.");
-                            return;
+                            packageFile = package.FindEntry(innerFile + "_c");
+
+                            if (packageFile == null)
+                            {
+                                Log.Error(nameof(MainForm), $"File '{packageFile}' does not exist in package '{file}'.");
+                                return;
+                            }
+                        }
+
+                        innerFile = packageFile.GetFullPath();
+
+                        Log.Info(nameof(MainForm), $"Opening {innerFile}");
+
+                        var vrfGuiContext = new VrfGuiContext(file, null)
+                        {
+                            CurrentPackage = package
+                        };
+                        package = null;
+
+                        try
+                        {
+                            var fileContext = new VrfGuiContext(innerFile, vrfGuiContext);
+                            OpenFile(fileContext, packageFile);
+                            vrfGuiContext = null;
+                        }
+                        finally
+                        {
+                            vrfGuiContext?.Dispose();
                         }
                     }
-
-                    innerFile = packageFile.GetFullPath();
-
-                    Log.Info(nameof(MainForm), $"Opening {innerFile}");
-
-                    var vrfGuiContext = new VrfGuiContext(file, null)
+                    finally
                     {
-                        CurrentPackage = package
-                    };
-                    var fileContext = new VrfGuiContext(innerFile, vrfGuiContext);
-                    OpenFile(fileContext, packageFile);
+                        package?.Dispose();
+                    }
+
                     continue;
                 }
 
@@ -914,7 +932,15 @@ namespace GUI
                 {
                     var fileStream = File.OpenRead(exportData.VrfGuiContext.FileName);
 
-                    ExportFile.ExtractFileFromStream(Path.GetFileName(exportData.VrfGuiContext.FileName), fileStream, exportData.VrfGuiContext, decompile);
+                    try
+                    {
+                        ExportFile.ExtractFileFromStream(Path.GetFileName(exportData.VrfGuiContext.FileName), fileStream, exportData.VrfGuiContext, decompile);
+                        fileStream = null; // ExtractFileFromStream should dispose it when done, not `using` here in case there's some threading
+                    }
+                    finally
+                    {
+                        fileStream?.Dispose();
+                    }
                 }
             }
             else
@@ -990,14 +1016,24 @@ namespace GUI
             {
                 ToolTipText = "Explorer"
             };
-            explorerTab.Controls.Add(loadingFile);
-            explorerTab.ImageIndex = ImageListLookup["_folder_star"];
-            mainTabs.TabPages.Insert(1, explorerTab);
-            mainTabs.SelectTab(explorerTab);
+            TabPage explorerTabRef = null;
+
+            try
+            {
+                explorerTab.Controls.Add(loadingFile);
+                explorerTab.ImageIndex = ImageListLookup["_folder_star"];
+                mainTabs.TabPages.Insert(1, explorerTab);
+                mainTabs.SelectTab(explorerTab);
+                explorerTabRef = explorerTab;
+                explorerTab = null;
+            }
+            finally
+            {
+                explorerTab?.Dispose();
+            }
 
             Task.Factory.StartNew(() =>
             {
-                //
                 var explorer = new ExplorerControl
                 {
                     Dock = DockStyle.Fill,
@@ -1006,7 +1042,7 @@ namespace GUI
                 Invoke(() =>
                 {
                     loadingFile.Dispose();
-                    explorerTab.Controls.Add(explorer);
+                    explorerTabRef.Controls.Add(explorer);
                 });
             });
         }

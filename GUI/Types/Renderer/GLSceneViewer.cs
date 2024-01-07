@@ -373,7 +373,9 @@ renderpass_begin:
                 Icon = TaskDialogIcon.Error,
             };
 
+#pragma warning disable CA2000 // Dispose objects before losing scope
             var reloadSemaphore = new SemaphoreSlim(1, 1);
+#pragma warning restore CA2000 // This is debug only code, so who cares
             var reloadStopWatch = new Stopwatch();
 
             var lastChanged = DateTime.MinValue;

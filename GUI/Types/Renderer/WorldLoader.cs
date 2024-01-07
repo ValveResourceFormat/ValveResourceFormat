@@ -866,11 +866,21 @@ namespace GUI.Types.Renderer
                 var stream = AdvancedGuiFileLoader.GetPackageEntryStream(vpkFound.Package, vpkFound.PackageEntry);
 
                 package = new Package();
-                package.SetFileName(innerVpkName);
-                package.OptimizeEntriesForBinarySearch(StringComparison.OrdinalIgnoreCase);
-                package.Read(stream);
 
-                guiContext.FileLoader.AddPackageToSearch(package);
+                try
+                {
+                    package.SetFileName(innerVpkName);
+                    package.OptimizeEntriesForBinarySearch(StringComparison.OrdinalIgnoreCase);
+                    package.Read(stream);
+
+                    guiContext.FileLoader.AddPackageToSearch(package);
+
+                    package = null;
+                }
+                finally
+                {
+                    package?.Dispose();
+                }
             }
             else
             {
