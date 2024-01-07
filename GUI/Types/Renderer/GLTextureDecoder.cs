@@ -22,8 +22,7 @@ class GLTextureDecoder : IDisposable // ITextureDecoder
 
 #pragma warning disable CA2213 // Disposable fields should be disposed (handled in Dispose_ThreadResources)
     private GLControl GLControl;
-    private int FrameBuffer;
-    private RenderTexture FrameBufferColor;
+    private Framebuffer Framebuffer;
     private DecodeRequest activeRequest;
 #pragma warning restore CA2213 // Disposable fields should be disposed (handled in Dispose_ThreadResources)
 
@@ -115,23 +114,9 @@ class GLTextureDecoder : IDisposable // ITextureDecoder
         GLControl = new GLControl(new GraphicsMode(new ColorFormat(8, 8, 8, 8)), 4, 6, GraphicsContextFlags.Offscreen);
         GLControl.MakeCurrent();
 
-        FrameBuffer = GL.GenFramebuffer();
-        // Bind and stay on this framebuffer, the game window frame buffer is limited by screen size
-        GL.BindFramebuffer(FramebufferTarget.Framebuffer, FrameBuffer);
-
-        FrameBufferColor = new RenderTexture(TextureTarget.Texture2D, 8192, 8192, 1, 1);
-        using (FrameBufferColor.BindingContext())
-        {
-            //FrameBufferColor.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
-            GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba8, FrameBufferColor.Width, FrameBufferColor.Height, 0, PixelFormat.Rgba, PixelType.UnsignedByte, IntPtr.Zero);
-            GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.ColorAttachment0, FrameBufferColor.Target, FrameBufferColor.Handle, 0);
-
-            var status = GL.CheckFramebufferStatus(FramebufferTarget.Framebuffer);
-            if (status != FramebufferErrorCode.FramebufferComplete)
-            {
-                throw new InvalidOperationException($"Framebuffer failed to bind with error: {status}");
-            }
-        }
+        Framebuffer = Framebuffer.Prepare(8192, 8192, 0, new(PixelInternalFormat.Rgba8, PixelFormat.Rgba, PixelType.UnsignedByte), null);
+        Framebuffer.Initialize();
+        Framebuffer.CheckStatus_ThrowIfIncomplete(nameof(GLTextureDecoder));
 
         // TODO: Remove this
         GL.Enable(EnableCap.DebugOutput);
@@ -217,9 +202,8 @@ class GLTextureDecoder : IDisposable // ITextureDecoder
 
     private void Dispose_ThreadResources()
     {
+        Framebuffer?.Dispose();
         GLControl?.Dispose();
-        FrameBufferColor?.Dispose();
-        GL.DeleteFramebuffer(FrameBuffer);
     }
 
     private void Exit()
