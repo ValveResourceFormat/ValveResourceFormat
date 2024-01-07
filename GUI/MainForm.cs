@@ -171,16 +171,18 @@ namespace GUI
                         {
                             CurrentPackage = package
                         };
+                        var fileContext = new VrfGuiContext(innerFile, vrfGuiContext);
                         package = null;
 
                         try
                         {
-                            var fileContext = new VrfGuiContext(innerFile, vrfGuiContext);
                             OpenFile(fileContext, packageFile);
+                            fileContext = null;
                             vrfGuiContext = null;
                         }
                         finally
                         {
+                            fileContext?.Dispose();
                             vrfGuiContext?.Dispose();
                         }
                     }
@@ -511,7 +513,7 @@ namespace GUI
 
         public Task<TabPage> OpenFile(VrfGuiContext vrfGuiContext, PackageEntry file)
         {
-            var tab = new TabPage(Path.GetFileName(vrfGuiContext.FileName))
+            var tabTemp = new TabPage(Path.GetFileName(vrfGuiContext.FileName))
             {
                 ToolTipText = vrfGuiContext.FileName,
                 Tag = new ExportData
@@ -520,30 +522,39 @@ namespace GUI
                     VrfGuiContext = vrfGuiContext,
                 }
             };
+            var tab = tabTemp;
 
-            var parentContext = vrfGuiContext.ParentGuiContext;
-
-            while (parentContext != null)
+            try
             {
-                tab.ToolTipText = $"{parentContext.FileName} > {tab.ToolTipText}";
+                var parentContext = vrfGuiContext.ParentGuiContext;
 
-                parentContext = parentContext.ParentGuiContext;
+                while (parentContext != null)
+                {
+                    tab.ToolTipText = $"{parentContext.FileName} > {tab.ToolTipText}";
+
+                    parentContext = parentContext.ParentGuiContext;
+                }
+
+                var extension = Path.GetExtension(tab.Text);
+
+                if (extension.Length > 0)
+                {
+                    extension = extension[1..];
+                }
+
+                tab.ImageIndex = GetImageIndexForExtension(extension);
+
+                mainTabs.TabPages.Insert(mainTabs.SelectedIndex + 1, tab);
+                mainTabs.SelectTab(tab);
+                tabTemp = null;
+            }
+            finally
+            {
+                tabTemp?.Dispose();
             }
 
             var loadingFile = new LoadingFile();
             tab.Controls.Add(loadingFile);
-
-            var extension = Path.GetExtension(tab.Text);
-
-            if (extension.Length > 0)
-            {
-                extension = extension[1..];
-            }
-
-            tab.ImageIndex = GetImageIndexForExtension(extension);
-
-            mainTabs.TabPages.Insert(mainTabs.SelectedIndex + 1, tab);
-            mainTabs.SelectTab(tab);
 
             var task = Task.Factory.StartNew(() => ProcessFile(vrfGuiContext, file));
 
@@ -637,7 +648,18 @@ namespace GUI
             }
             else if (Types.Viewers.CompiledShader.IsAccepted(magic))
             {
-                return new Types.Viewers.CompiledShader().Create(vrfGuiContext, input);
+                var viewer = new Types.Viewers.CompiledShader();
+
+                try
+                {
+                    var tab = viewer.Create(vrfGuiContext, input);
+                    viewer = null;
+                    return tab;
+                }
+                finally
+                {
+                    viewer?.Dispose();
+                }
             }
             else if (Types.Viewers.ClosedCaptions.IsAccepted(magic))
             {

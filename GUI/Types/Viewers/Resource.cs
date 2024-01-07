@@ -26,18 +26,29 @@ namespace GUI.Types.Viewers
         public TabPage Create(VrfGuiContext vrfGuiContext, byte[] input)
         {
             var tab = new TabPage();
-            var resource = new ValveResourceFormat.Resource
+            var resourceTemp = new ValveResourceFormat.Resource
             {
                 FileName = vrfGuiContext.FileName,
             };
+            var resource = resourceTemp;
 
-            if (input != null)
+            try
             {
-                resource.Read(new MemoryStream(input));
+                if (input != null)
+                {
+                    resource.Read(new MemoryStream(input));
+                }
+                else
+                {
+                    resource.Read(vrfGuiContext.FileName);
+                }
+
+                resourceTemp = null;
             }
-            else
+            finally
             {
-                resource.Read(vrfGuiContext.FileName);
+                // Only dispose resource if it throws within Read(), tough luck below this
+                resourceTemp?.Dispose();
             }
 
             var resTabs = new TabControl
@@ -250,6 +261,7 @@ namespace GUI.Types.Viewers
                 }
 
                 var blockTab = new TabPage(block.Type.ToString());
+                resTabs.TabPages.Add(blockTab);
 
                 try
                 {
@@ -260,8 +272,6 @@ namespace GUI.Types.Viewers
                     Log.Error(nameof(Resource), e.ToString());
                     AddByteViewControl(resource, block, blockTab);
                 }
-
-                resTabs.TabPages.Add(blockTab);
 
                 if (block.Type == BlockType.DATA && selectData)
                 {

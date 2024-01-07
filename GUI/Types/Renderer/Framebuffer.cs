@@ -49,13 +49,13 @@ class Framebuffer : IDisposable
     }
 
     #region Default OpenGL Framebuffer instance, and equality checks
-    Framebuffer(bool defaultInstance)
+    Framebuffer(int fboHandle)
     {
-        FboHandle = 0;
+        FboHandle = fboHandle;
         InitialStatus = FramebufferErrorCode.FramebufferComplete;
     }
 
-    public static Framebuffer GLDefault = new(defaultInstance: true);
+    public static Framebuffer GLDefault = new(fboHandle: 0);
 
     public override bool Equals(object? obj) => obj is Framebuffer other && other.FboHandle == FboHandle;
     public override int GetHashCode() => FboHandle.GetHashCode();

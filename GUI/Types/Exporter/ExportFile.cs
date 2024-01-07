@@ -30,61 +30,73 @@ namespace GUI.Types.Exporter
                     VrfGuiContext = new VrfGuiContext(null, vrfGuiContext),
                 };
 
-                var resource = new Resource
+                var resourceTemp = new Resource
                 {
                     FileName = fileName,
                 };
-                resource.Read(stream);
+                var resource = resourceTemp;
+                string filaNameToSave;
 
-                var extension = FileExtract.GetExtension(resource);
-
-                if (extension == null)
+                try
                 {
-                    stream.Dispose();
-                    Log.Error(nameof(ExportFile), $"Export for \"{fileName}\" has no suitable extension");
-                    return;
+                    resource.Read(stream);
+
+                    var extension = FileExtract.GetExtension(resource);
+
+                    if (extension == null)
+                    {
+                        stream.Dispose();
+                        Log.Error(nameof(ExportFile), $"Export for \"{fileName}\" has no suitable extension");
+                        return;
+                    }
+
+                    var filter = $"{extension} file|*.{extension}";
+
+                    if (GltfModelExporter.CanExport(resource))
+                    {
+                        const string gltfFilter = "glTF|*.gltf";
+                        const string glbFilter = "glTF Binary|*.glb";
+
+                        filter = $"{filter}|{gltfFilter}|{glbFilter}";
+                    }
+
+                    using var dialog = new SaveFileDialog
+                    {
+                        Title = "Choose where to save the file",
+                        FileName = Path.GetFileNameWithoutExtension(fileName),
+                        InitialDirectory = Settings.Config.SaveDirectory,
+                        DefaultExt = extension,
+                        Filter = filter,
+                        AddToRecent = true,
+                    };
+
+                    var result = dialog.ShowDialog();
+
+                    if (result != DialogResult.OK)
+                    {
+                        return;
+                    }
+
+                    filaNameToSave = dialog.FileName;
+                    resourceTemp = null;
+                }
+                finally
+                {
+                    resourceTemp?.Dispose();
                 }
 
-                var filter = $"{extension} file|*.{extension}";
-
-                if (GltfModelExporter.CanExport(resource))
-                {
-                    const string gltfFilter = "glTF|*.gltf";
-                    const string glbFilter = "glTF Binary|*.glb";
-
-                    filter = $"{filter}|{gltfFilter}|{glbFilter}";
-                }
-
-                using var dialog = new SaveFileDialog
-                {
-                    Title = "Choose where to save the file",
-                    FileName = Path.GetFileNameWithoutExtension(fileName),
-                    InitialDirectory = Settings.Config.SaveDirectory,
-                    DefaultExt = extension,
-                    Filter = filter,
-                    AddToRecent = true,
-                };
-
-                var result = dialog.ShowDialog();
-
-                if (result != DialogResult.OK)
-                {
-                    stream.Dispose();
-                    return;
-                }
-
-                var directory = Path.GetDirectoryName(dialog.FileName);
+                var directory = Path.GetDirectoryName(filaNameToSave);
                 Settings.Config.SaveDirectory = directory;
 
                 var extractDialog = new ExtractProgressForm(exportData, directory, true)
                 {
                     ShownCallback = (form, cancellationToken) =>
                     {
-                        form.SetProgress($"Extracting {fileName} to \"{Path.GetFileName(dialog.FileName)}\"");
+                        form.SetProgress($"Extracting {fileName} to \"{Path.GetFileName(filaNameToSave)}\"");
 
                         Task.Run(async () =>
                         {
-                            await form.ExtractFile(resource, fileName, dialog.FileName, true).ConfigureAwait(false);
+                            await form.ExtractFile(resource, fileName, filaNameToSave, true).ConfigureAwait(false);
                         }, cancellationToken).ContinueWith(t =>
                         {
                             stream.Dispose();
