@@ -349,11 +349,21 @@ namespace GUI.Types.Viewers
             if (resource.ResourceType == ResourceType.Shader && block is SboxShader shaderBlock)
             {
                 var viewer = new CompiledShader();
-                var shaderTabs = viewer.SetResourceBlockTabControl(blockTab, shaderBlock.Shaders);
 
-                foreach (var shaderFile in shaderBlock.Shaders)
+                try
                 {
-                    shaderTabs.CreateShaderFileTab(shaderBlock.Shaders, shaderFile.VcsProgramType);
+                    var shaderTabs = viewer.SetResourceBlockTabControl(blockTab, shaderBlock.Shaders);
+
+                    foreach (var shaderFile in shaderBlock.Shaders)
+                    {
+                        shaderTabs.CreateShaderFileTab(shaderBlock.Shaders, shaderFile.VcsProgramType);
+                    }
+
+                    viewer = null;
+                }
+                finally
+                {
+                    viewer?.Dispose();
                 }
 
                 return;

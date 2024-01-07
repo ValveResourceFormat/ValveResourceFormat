@@ -187,8 +187,7 @@ namespace ValveResourceFormat.IO
 
                     if (foundFile.PathOnDisk != null)
                     {
-                        var stream = File.OpenRead(foundFile.PathOnDisk);
-                        shaderFile.Read(path, stream);
+                        shaderFile.Read(foundFile.PathOnDisk);
                     }
                     else if (foundFile.PackageEntry != null)
                     {
