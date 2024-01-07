@@ -14,10 +14,11 @@ namespace ValveResourceFormat.IO
     public class GameFileLoader : IFileLoader, IDisposable
     {
         private const string AddonsSuffix = "_addons";
+        private const string GameinfoGi = "gameinfo.gi";
 
         private static readonly string[] ModIdentifiers =
         [
-            "gameinfo.gi",
+            GameinfoGi,
             "addoninfo.txt",
             ".sbproj",
         ];
@@ -377,7 +378,7 @@ namespace ValveResourceFormat.IO
                 var rootFolder = Path.GetDirectoryName(modIdentifierPath);
                 var assumedGameRoot = Path.GetDirectoryName(rootFolder);
 
-                if (Path.GetFileName(modIdentifierPath) == "gameinfo.gi")
+                if (Path.GetFileName(modIdentifierPath) == GameinfoGi)
                 {
                     folders = [];
 
@@ -390,7 +391,7 @@ namespace ValveResourceFormat.IO
                     if (assumedGameRoot.EndsWith(AddonsSuffix, StringComparison.InvariantCultureIgnoreCase))
                     {
                         var mainGameDir = assumedGameRoot[..^AddonsSuffix.Length];
-                        var mainGameInfo = Path.Join(mainGameDir, "gameinfo.gi");
+                        var mainGameInfo = Path.Join(mainGameDir, GameinfoGi);
 
                         if (File.Exists(mainGameInfo))
                         {
@@ -460,7 +461,7 @@ namespace ValveResourceFormat.IO
                 if (directory.EndsWith(AddonsSuffix, StringComparison.InvariantCultureIgnoreCase))
                 {
                     var mainGameDir = directory[..^AddonsSuffix.Length];
-                    var mainGameInfo = Path.Join(mainGameDir, "gameinfo.gi");
+                    var mainGameInfo = Path.Join(mainGameDir, GameinfoGi);
 
                     if (File.Exists(mainGameInfo))
                     {
@@ -563,7 +564,7 @@ namespace ValveResourceFormat.IO
                     MaxRecursionDepth = 5,
                 })
             {
-                ShouldIncludePredicate = static (ref FileSystemEntry entry) => !entry.IsDirectory && entry.FileName.Equals("gameinfo.gi", StringComparison.Ordinal)
+                ShouldIncludePredicate = static (ref FileSystemEntry entry) => !entry.IsDirectory && entry.FileName.Equals(GameinfoGi, StringComparison.Ordinal)
             };
 
             foreach (var gameInfo in gameInfos)
