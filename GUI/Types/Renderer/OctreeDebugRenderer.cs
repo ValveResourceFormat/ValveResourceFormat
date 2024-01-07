@@ -156,7 +156,7 @@ namespace GUI.Types.Renderer
             GL.BufferData(BufferTarget.ArrayBuffer, vertices.Count * sizeof(float), vertices.ToArray(), dynamic ? BufferUsageHint.DynamicDraw : BufferUsageHint.StaticDraw);
         }
 
-        public void Render(Camera camera, RenderPass renderPass)
+        public void Render()
         {
             if (dynamic)
             {

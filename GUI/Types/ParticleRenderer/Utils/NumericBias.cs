@@ -3,7 +3,9 @@ namespace GUI.Types.ParticleRenderer.Utils
     // template for shared remapping functionality
     static class NumericBias
     {
+#pragma warning disable IDE0060 // Remove unused parameter - TODO: Remove this suppression when this is actually implemented
         public static float ApplyBias(float number, float bias, ParticleFloatBiasType biasType = ParticleFloatBiasType.PF_BIAS_TYPE_STANDARD)
+#pragma warning restore IDE0060 // Remove unused parameter
         {
             // !!!!REPLACE LATER!!!!
 

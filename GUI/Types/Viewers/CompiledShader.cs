@@ -523,8 +523,10 @@ namespace GUI.Types.Viewers
             return gpuSourceTab;
         }
 
+#pragma warning disable IDE0060 // Remove unused parameter - TODO: these parameters are used in the `spirvcross` branch
         public static string AttemptSpirvReflection(VulkanSource vulkanSource, ShaderCollection vcsFiles, VcsProgramType stage,
             long zFrameId, long dynamicId, spvc_backend backend)
+#pragma warning restore IDE0060 // Remove unused parameter
         {
             SpirvCrossApi.spvc_context_create(out var context).CheckResult();
 

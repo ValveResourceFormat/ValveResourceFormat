@@ -16,13 +16,14 @@ class SceneCubemapFog : SceneNode
     public RenderTexture CubemapFogTexture { get; set; }
     public float ExposureBias { get; set; }
 
-    public Vector4 OffsetScaleBiasExponent(Vector3 mapOffset, float mapScale)
+    public Vector4 OffsetScaleBiasExponent(float mapScale)
     {
         var scale = mapScale / (EndDist - StartDist);
         var offset = -(StartDist * scale) / mapScale;
 
         return new Vector4(offset, scale, LodBias, FalloffExponent);
     }
+
     // HeightWidth is equal to HeightEnd - HeightStart
     // Height width ADDS to heightStart
     public Vector4 Height_OffsetScaleExponentLog2Mip(Vector3 mapOffset, float mapScale)

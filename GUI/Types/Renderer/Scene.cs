@@ -348,16 +348,14 @@ namespace GUI.Types.Renderer
                 if (node.LightingOrigin.HasValue)
                 {
                     // in source2 this is a dynamic combo D_SPECULAR_CUBEMAP_STATIC=1, and i guess without a loop (similar to SCENE_CUBEMAP_TYPE=1)
-                    node.EnvMaps = node.EnvMaps
-                        .OrderBy((envMap) => Vector3.Distance(lightingOrigin, envMap.BoundingBox.Center))
-                        .ToList();
+                    node.EnvMaps = [.. node.EnvMaps.OrderBy((envMap) => Vector3.Distance(lightingOrigin, envMap.BoundingBox.Center))];
                 }
                 else
                 {
-                    node.EnvMaps = node.EnvMaps
+                    node.EnvMaps = [.. node.EnvMaps
                         .OrderByDescending((envMap) => envMap.IndoorOutdoorLevel)
                         .ThenBy((envMap) => Vector3.Distance(node.BoundingBox.Center, envMap.BoundingBox.Center))
-                        .ToList();
+                    ];
                 }
 
                 var max = 16;

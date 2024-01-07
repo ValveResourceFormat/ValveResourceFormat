@@ -330,12 +330,12 @@ renderpass_begin:
 
             if (showStaticOctree)
             {
-                staticOctreeRenderer.Render(Camera, RenderPass.Opaque);
+                staticOctreeRenderer.Render();
             }
 
             if (showDynamicOctree)
             {
-                dynamicOctreeRenderer.Render(Camera, RenderPass.Opaque);
+                dynamicOctreeRenderer.Render();
             }
 
             if (ShowBaseGrid)

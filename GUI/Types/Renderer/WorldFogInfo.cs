@@ -98,7 +98,7 @@ namespace GUI.Types.Renderer
             if (CubeFogActive)
             {
                 viewConstants.FogTypeEnabled[2] = viewerFogEnabled && CubeFogActive;
-                viewConstants.CubeFog_Offset_Scale_Bias_Exponent = CubemapFog.OffsetScaleBiasExponent(worldOffset, mapScale);
+                viewConstants.CubeFog_Offset_Scale_Bias_Exponent = CubemapFog.OffsetScaleBiasExponent(mapScale);
                 viewConstants.CubeFog_Height_Offset_Scale_Exponent_Log2Mip = CubemapFog.Height_OffsetScaleExponentLog2Mip(worldOffset, mapScale);
                 viewConstants.CubeFogCullingParams_ExposureBias_MaxOpacity = CubemapFog.CullingParams_Opacity(worldOffset, mapScale);
                 viewConstants.CubeFogSkyWsToOs = CubemapFog.Transform;

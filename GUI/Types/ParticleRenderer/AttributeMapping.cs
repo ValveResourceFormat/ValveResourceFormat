@@ -37,8 +37,8 @@ namespace GUI.Types.ParticleRenderer
         private readonly float output0;
         private readonly float output1;
 
-        private readonly ParticleFloatBiasType biasType;
-        private readonly float biasParameter;
+        //private readonly ParticleFloatBiasType biasType;
+        //private readonly float biasParameter;
 
         private readonly PiecewiseCurve curve;
 
@@ -84,11 +84,13 @@ namespace GUI.Types.ParticleRenderer
 
             }
 
+#if false // TODO: implement
             if (MapType == PfMapType.RemapBiased)
             {
                 biasType = parse.Enum<ParticleFloatBiasType>("m_nBiasType");
                 biasParameter = parse.Float("m_flBiasParameter");
             }
+#endif
         }
 
         public float ApplyMapping(float value)
@@ -110,7 +112,7 @@ namespace GUI.Types.ParticleRenderer
 
                     if (InputMode == PfInputMode.Looped) { remappedTo0_1RangeBiased = MathUtils.Fract(remappedTo0_1RangeBiased); }
 
-                    // Insert bias processing here. Shared with randombiased mode in INumberProvider
+                    // TODO: Insert bias processing here. Shared with randombiased mode in INumberProvider
 
                     return MathUtils.Lerp(remappedTo0_1RangeBiased, output0, output1);
 

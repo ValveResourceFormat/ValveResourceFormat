@@ -102,16 +102,20 @@ namespace GUI.Types.ParticleRenderer
     class DetailLevelNumberProvider : INumberProvider
     {
         private readonly float lod0;
+#if false
         private readonly float lod1;
         private readonly float lod2;
         private readonly float lod3;
+#endif
 
         public DetailLevelNumberProvider(ParticleDefinitionParser parse)
         {
             lod0 = parse.Float("m_flLOD0");
+#if false
             lod1 = parse.Float("m_flLOD1");
             lod2 = parse.Float("m_flLOD2");
             lod3 = parse.Float("m_flLOD3");
+#endif
         }
 
         // Just assume detail level is Ultra
@@ -203,15 +207,17 @@ namespace GUI.Types.ParticleRenderer
     // Control Point Component
     class ControlPointComponentNumberProvider : INumberProvider
     {
-        private readonly AttributeMapping attributeMapping;
+        //private readonly AttributeMapping attributeMapping;
         private readonly int cp;
         private readonly int vectorComponent;
+
         public ControlPointComponentNumberProvider(ParticleDefinitionParser parse)
         {
-            attributeMapping = new AttributeMapping(parse);
+            //attributeMapping = new AttributeMapping(parse);
             cp = parse.Int32("m_nControlPoint");
             vectorComponent = parse.Int32("m_nVectorComponent");
         }
+
         public float NextNumber(ref Particle particle, ParticleSystemRenderState renderState)
         {
             return renderState.GetControlPoint(cp).Position.GetComponent(vectorComponent);
