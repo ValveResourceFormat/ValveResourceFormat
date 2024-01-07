@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.IO.Hashing;
 using System.Text;
 using ValveKeyValue;
 
@@ -25,7 +26,7 @@ namespace ValveResourceFormat.ClosedCaptions
         {
             get
             {
-                var hash = Crc32.Compute(Encoding.UTF8.GetBytes(key));
+                var hash = Crc32.HashToUInt32(Encoding.UTF8.GetBytes(key));
                 return Captions.Find(caption => caption.Hash == hash);
             }
         }
