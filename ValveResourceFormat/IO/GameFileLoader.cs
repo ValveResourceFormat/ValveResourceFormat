@@ -390,7 +390,13 @@ namespace ValveResourceFormat.IO
                     if (assumedGameRoot.EndsWith(AddonsSuffix, StringComparison.InvariantCultureIgnoreCase))
                     {
                         var mainGameDir = assumedGameRoot[..^AddonsSuffix.Length];
-                        if (Directory.Exists(mainGameDir))
+                        var mainGameInfo = Path.Join(mainGameDir, "gameinfo.gi");
+
+                        if (File.Exists(mainGameInfo))
+                        {
+                            HandleGameInfo(folders, Path.GetDirectoryName(mainGameDir), mainGameInfo);
+                        }
+                        else if (Directory.Exists(mainGameDir))
                         {
                             folders.Add(mainGameDir);
                         }
