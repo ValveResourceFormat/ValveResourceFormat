@@ -171,7 +171,7 @@ namespace GUI.Types.Renderer
             return tex;
         }
 
-        public RenderTexture LoadTexture(Texture data)
+        public RenderTexture LoadTexture(Texture data, bool srgbRead = false)
         {
             var target = TextureTarget.Texture2D;
             var clampModeS = data.Flags.HasFlag(VTexFlags.SUGGEST_CLAMPS) ? TextureWrapMode.ClampToBorder : TextureWrapMode.Repeat;
