@@ -191,51 +191,28 @@ namespace GUI.Types.Renderer
         }
 
         // Map Valve's shader names to shader files VRF has
-        private static string GetShaderFileByName(string shaderName)
+        private static string GetShaderFileByName(string shaderName) => shaderName switch
         {
-            if (shaderName.Contains("black_unlit", StringComparison.InvariantCulture))
-            {
-                return "vr_black_unlit";
-            }
+            "vrf.default" => "default",
+            "vrf.grid" => "grid",
+            "vrf.picking" => "picking",
+            "vrf.particle.sprite" => "particle_sprite",
+            "vrf.particle.trail" => "particle_trail",
+            "vrf.morph_composite" => "morph_composite",
 
-            switch (shaderName)
-            {
-                case "vrf.default":
-                    return "default";
-                case "vrf.grid":
-                    return "grid";
-                case "vrf.picking":
-                    return "picking";
-                case "vrf.particle.sprite":
-                    return "particle_sprite";
-                case "vrf.particle.trail":
-                    return "particle_trail";
-                case "vrf.morph_composite":
-                    return "morph_composite";
-                case "sky.vfx":
-                    return "sky";
-                case "tools_sprite.vfx":
-                    return "sprite";
-                case "global_lit_simple.vfx":
-                    return "global_lit_simple";
-                case "water_dota.vfx":
-                    return "water";
-                case "csgo_water_fancy.vfx":
-                    return "water_csgo";
-                case "hero.vfx":
-                case "hero_underlords.vfx":
-                    return "dota_hero";
-                case "multiblend.vfx":
-                    return "multiblend";
-                case "csgo_effects.vfx":
-                    return "csgo_effects";
-                case "csgo_environment.vfx":
-                case "csgo_environment_blend.vfx":
-                    return "csgo_environment";
-                default:
-                    return "complex";
-            }
-        }
+            "sky.vfx" => "sky",
+            "tools_sprite.vfx" => "sprite",
+            "global_lit_simple.vfx" => "global_lit_simple",
+            "vr_black_unlit.vfx" or "csgo_black_unlit.vfx" => "vr_black_unlit",
+            "water_dota.vfx" => "water",
+            "csgo_water_fancy.vfx" => "water_csgo",
+            "hero.vfx" or "hero_underlords.vfx" => "dota_hero",
+            "multiblend.vfx" => "multiblend",
+            "csgo_effects.vfx" => "csgo_effects",
+            "csgo_environment.vfx" or "csgo_environment_blend.vfx" => "csgo_environment",
+
+            _ => "complex",
+        };
 
         public void ClearCache()
         {
