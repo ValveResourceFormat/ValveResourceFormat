@@ -157,6 +157,15 @@ class GLTextureDecoder : IDisposable // ITextureDecoder
         inputTexture.Bind();
         inputTexture.SetFiltering(TextureMinFilter.NearestMipmapNearest, TextureMagFilter.Nearest);
 
+        if (request.Channels == ChannelMapping.RGBA
+            && request.HemiOctRB == false)
+        {
+            GL.GetTexImage(inputTexture.Target, request.Mip, PixelFormat.Rgba, PixelType.UnsignedByte, request.Bitmap.GetPixels());
+            Log.Info(nameof(GLTextureDecoder), "Using GL.GetTexImage");
+            request.DecodeTime = sw.Elapsed;
+            return true;
+        }
+
         GL.Viewport(0, 0, inputTexture.Width, inputTexture.Height);
         GL.Clear(ClearBufferMask.ColorBufferBit);
         //GL.ClearColor(0, 0, 0, 1);
