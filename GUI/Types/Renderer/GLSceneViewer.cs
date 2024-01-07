@@ -138,18 +138,24 @@ namespace GUI.Types.Renderer
 
             // Load brdf lut, preferably from game.
             var brdfLutResource = GuiContext.LoadFile("textures/dev/" + vtexFileName);
-            Stream brdfStream = null;
-            if (brdfLutResource == null)
+
+            try
             {
-                brdfStream = assembly.GetManifestResourceStream("GUI.Utils." + vtexFileName);
+                if (brdfLutResource == null)
+                {
+                    using var brdfStream = assembly.GetManifestResourceStream("GUI.Utils." + vtexFileName);
 
-                brdfLutResource = new Resource() { FileName = vtexFileName };
-                brdfLutResource.Read(brdfStream);
+                    brdfLutResource = new Resource() { FileName = vtexFileName };
+                    brdfLutResource.Read(brdfStream);
+                }
+
+                // TODO: add annoying force clamp for lut
+                Textures[(ReservedTextureSlots.BRDFLookup, "g_tBRDFLookup")] = GuiContext.MaterialLoader.LoadTexture(brdfLutResource);
             }
-
-            // TODO: add annoying force clamp for lut
-            Textures[(ReservedTextureSlots.BRDFLookup, "g_tBRDFLookup")] = GuiContext.MaterialLoader.LoadTexture(brdfLutResource);
-            brdfLutResource?.Dispose();
+            finally
+            {
+                brdfLutResource?.Dispose();
+            }
 
             // Load default cube fog texture.
             using var cubeFogStream = assembly.GetManifestResourceStream("GUI.Utils.sky_furnace.vtex_c");
