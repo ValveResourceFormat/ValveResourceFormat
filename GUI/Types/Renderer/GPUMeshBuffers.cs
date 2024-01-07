@@ -8,10 +8,8 @@ namespace GUI.Types.Renderer
     {
         public struct Buffer
         {
-#pragma warning disable CA1051 // Do not declare visible instance fields
             public uint Handle;
             public long Size;
-#pragma warning restore CA1051 // Do not declare visible instance fields
         }
 
         public Buffer[] VertexBuffers { get; private set; }

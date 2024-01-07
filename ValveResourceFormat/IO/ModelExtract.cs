@@ -72,9 +72,9 @@ public class ModelExtract
     {
         ArgumentNullException.ThrowIfNull(fileLoader);
 
-        this.modelResource = modelResource;
-        this.model = (Model)modelResource.DataBlock;
         this.fileLoader = fileLoader;
+        this.modelResource = modelResource;
+        model = (Model)modelResource.DataBlock;
 
         var refPhysics = model.GetReferencedPhysNames().FirstOrDefault();
         if (refPhysics != null)

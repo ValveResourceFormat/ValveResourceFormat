@@ -13,7 +13,6 @@ static class UpdateChecker
 {
 #pragma warning disable CA1812 // TODO: Source generator is not working
 
-#pragma warning disable IDE1006 // Naming Styles
     public class GithubRelease
     {
         public string tag_name { get; set; }
@@ -29,7 +28,6 @@ static class UpdateChecker
 
         public Run[] workflow_runs { get; set; }
     }
-#pragma warning restore IDE1006 // Naming Styles
 
     /*
     [JsonSourceGenerationOptions(GenerationMode = JsonSourceGenerationMode.Serialization)]
