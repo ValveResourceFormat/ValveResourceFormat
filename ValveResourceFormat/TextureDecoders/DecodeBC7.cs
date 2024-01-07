@@ -115,14 +115,12 @@ namespace ValveResourceFormat.TextureDecoders
 
         readonly int w;
         readonly int h;
-        readonly bool invert;
         readonly bool hemiOctRB;
 
-        public DecodeBC7(int w, int h, bool hemiOctRB, bool invert)
+        public DecodeBC7(int w, int h, bool hemiOctRB)
         {
             this.w = w;
             this.h = h;
-            this.invert = invert;
             this.hemiOctRB = hemiOctRB;
         }
 
@@ -384,11 +382,6 @@ namespace ValveResourceFormat.TextureDecoders
                                 data[pixelIndex + 2] = (byte)(((nx / l * 0.5f) + 0.5f) * 255);
                                 data[pixelIndex + 1] = (byte)(((ny / l * 0.5f) + 0.5f) * 255);
                                 data[pixelIndex + 0] = (byte)(((nz / l * 0.5f) + 0.5f) * 255);
-                            }
-
-                            if (invert)
-                            {
-                                data[pixelIndex + 1] = (byte)~data[pixelIndex + 1];  // LegacySource1InvertNormals
                             }
                         }
                     }

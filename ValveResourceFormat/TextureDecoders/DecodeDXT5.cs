@@ -9,16 +9,14 @@ namespace ValveResourceFormat.TextureDecoders
         readonly int h;
         readonly bool yCoCg;
         readonly bool normalize;
-        readonly bool invert;
         readonly bool hemiOct;
 
-        public DecodeDXT5(int w, int h, bool yCoCg, bool normalize, bool invert, bool hemiOct)
+        public DecodeDXT5(int w, int h, bool yCoCg, bool normalize, bool hemiOct)
         {
             this.w = w;
             this.h = h;
             this.yCoCg = yCoCg;
             this.normalize = normalize;
-            this.invert = invert;
             this.hemiOct = hemiOct;
         }
 
@@ -90,11 +88,6 @@ namespace ValveResourceFormat.TextureDecoders
                                     data[dataIndex + 0] = ClampColor((deriveB / 2) + 128);  // unpremul B and normalize
                                     data[dataIndex + 3] = 255;
                                 }
-                            }
-
-                            if (invert)
-                            {
-                                data[dataIndex + 1] = (byte)~data[dataIndex + 1];  // LegacySource1InvertNormals
                             }
                         }
                     }

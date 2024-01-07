@@ -439,7 +439,6 @@ namespace ValveResourceFormat.ResourceTypes
                 case VTexFormat.DXT5:
                     var yCoCg = false;
                     var normalize = false;
-                    var invert = false;
                     var hemiOct = false;
 
                     if (Resource.EditInfo.Structs.TryGetValue(ResourceEditInfo.REDIStruct.SpecialDependencies, out var specialDepsRedi))
@@ -451,7 +450,7 @@ namespace ValveResourceFormat.ResourceTypes
                         hemiOct = specialDeps.List.Any(dependancy => dependancy.CompilerIdentifier == "CompileTexture" && dependancy.String == "Texture Compiler Version Mip HemiOctAnisoRoughness");
                     }
 
-                    decoder = new DecodeDXT5(blockWidth, blockHeight, yCoCg, normalize, invert, hemiOct);
+                    decoder = new DecodeDXT5(blockWidth, blockHeight, yCoCg, normalize, hemiOct);
                     break;
 
                 case VTexFormat.I8:
@@ -508,7 +507,6 @@ namespace ValveResourceFormat.ResourceTypes
 
                 case VTexFormat.BC7:
                     var hemiOctRB = false;
-                    invert = false;
 
                     if (Resource.EditInfo.Structs.TryGetValue(ResourceEditInfo.REDIStruct.SpecialDependencies, out specialDepsRedi))
                     {
@@ -516,13 +514,12 @@ namespace ValveResourceFormat.ResourceTypes
                         hemiOctRB = specialDeps.List.Any(dependancy => dependancy.CompilerIdentifier == "CompileTexture" && dependancy.String == "Texture Compiler Version Mip HemiOctIsoRoughness_RG_B");
                     }
 
-                    decoder = new DecodeBC7(blockWidth, blockHeight, hemiOctRB, invert);
+                    decoder = new DecodeBC7(blockWidth, blockHeight, hemiOctRB);
                     break;
 
                 case VTexFormat.ATI2N:
                     normalize = false;
                     hemiOctRB = false;
-                    invert = false;
 
                     if (Resource.EditInfo.Structs.TryGetValue(ResourceEditInfo.REDIStruct.SpecialDependencies, out specialDepsRedi))
                     {
@@ -531,7 +528,7 @@ namespace ValveResourceFormat.ResourceTypes
                         hemiOctRB = specialDeps.List.Any(dependancy => dependancy.CompilerIdentifier == "CompileTexture" && dependancy.String == "Texture Compiler Version Mip HemiOctIsoRoughness_RG_B");
                     }
 
-                    decoder = new DecodeATI2N(blockWidth, blockHeight, normalize, hemiOctRB, invert);
+                    decoder = new DecodeATI2N(blockWidth, blockHeight, normalize, hemiOctRB);
                     break;
 
                 case VTexFormat.IA88:
