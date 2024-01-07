@@ -628,22 +628,10 @@ namespace ValveResourceFormat.IO
         /// </summary>
         public static Stream GetPackageEntryStream(Package package, PackageEntry entry)
         {
-            // Files in a vpk that isn't split
-            if (!package.IsDirVPK || entry.ArchiveIndex == 32767 || entry.SmallData.Length > 0)
+            lock (package)
             {
-                byte[] output;
-
-                lock (package)
-                {
-                    package.ReadEntry(entry, out output, false);
-                }
-
-                return new MemoryStream(output);
+                return package.GetMemoryMappedStreamIfPossible(entry);
             }
-
-            var path = $"{package.FileName}_{entry.ArchiveIndex:D3}.vpk";
-            var stream = MemoryMappedFile.CreateFromFile(path, FileMode.Open, null, 0, MemoryMappedFileAccess.Read);
-            return stream.CreateViewStream(entry.Offset, entry.Length, MemoryMappedFileAccess.Read);
         }
     }
 }
