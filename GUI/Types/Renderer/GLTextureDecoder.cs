@@ -20,10 +20,12 @@ class GLTextureDecoder : IDisposable // ITextureDecoder
     private readonly ConcurrentQueue<DecodeRequest> decodeQueue;
     private readonly Thread GLThread;
 
+#pragma warning disable CA2213 // Disposable fields should be disposed (handled in Dispose_ThreadResources)
     private GLControl GLControl;
     private int FrameBuffer;
     private RenderTexture FrameBufferColor;
     private DecodeRequest activeRequest;
+#pragma warning restore CA2213 // Disposable fields should be disposed (handled in Dispose_ThreadResources)
 
     public GLTextureDecoder(VrfGuiContext guiContext)
     {
@@ -160,11 +162,12 @@ class GLTextureDecoder : IDisposable // ITextureDecoder
     {
         var sw = Stopwatch.StartNew();
         var inputTexture = guiContext.MaterialLoader.LoadTexture(request.Texture);
+        /*
         if (inputTexture == MaterialLoader.GetErrorTexture())
         {
             Log.Warn(nameof(GLTextureDecoder), $"Failure loading texture (unsupported format?).");
             return false;
-        }
+        }*/
 
         inputTexture.Bind();
         inputTexture.SetFiltering(TextureMinFilter.NearestMipmapNearest, TextureMagFilter.Nearest);
