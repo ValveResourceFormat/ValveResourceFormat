@@ -414,7 +414,9 @@ public sealed class TextureExtract
 
     private static byte[] EncodePng(SKPixmap pixels)
     {
-        using var png = pixels.Encode(SKPngEncoderOptions.Default);
+        var options = new SKPngEncoderOptions(SKPngEncoderFilterFlags.AllFilters, zLibLevel: 4);
+
+        using var png = pixels.Encode(options);
         return png.ToArray();
     }
 
