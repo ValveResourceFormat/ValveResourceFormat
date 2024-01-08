@@ -146,9 +146,9 @@ namespace GUI.Types.Renderer
                             buffer.SetBlockBinding(shader);
                         }
 
-                        foreach (var ((Slot, Name), Texture) in context.View.Textures)
+                        foreach (var (slot, name, texture) in context.View.Textures)
                         {
-                            shader.SetTexture((int)Slot, Name, Texture);
+                            shader.SetTexture((int)slot, name, texture);
                         }
 
                         context.Scene.LightingInfo.SetLightmapTextures(shader);

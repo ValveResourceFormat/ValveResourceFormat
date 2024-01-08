@@ -37,7 +37,7 @@ namespace GUI.Types.Renderer
         protected UniformBuffer<ViewConstants> viewBuffer;
         private UniformBuffer<LightingConstants> lightingBuffer;
         public IReadOnlyList<IBlockBindableBuffer> Buffers { get; private set; }
-        public Dictionary<(ReservedTextureSlots, string), RenderTexture> Textures { get; } = [];
+        public List<(ReservedTextureSlots Slot, string Name, RenderTexture Texture)> Textures { get; } = [];
 
         private bool skipRenderModeChange;
         private ComboBox renderModeComboBox;
@@ -141,16 +141,18 @@ namespace GUI.Types.Renderer
 
             try
             {
+                Stream brdfStream; // Will be used by LoadTexture, and disposed by resource
+
                 if (brdfLutResource == null)
                 {
-                    using var brdfStream = assembly.GetManifestResourceStream("GUI.Utils." + vtexFileName);
+                    brdfStream = assembly.GetManifestResourceStream("GUI.Utils." + vtexFileName);
 
                     brdfLutResource = new Resource() { FileName = vtexFileName };
                     brdfLutResource.Read(brdfStream);
                 }
 
                 // TODO: add annoying force clamp for lut
-                Textures[(ReservedTextureSlots.BRDFLookup, "g_tBRDFLookup")] = GuiContext.MaterialLoader.LoadTexture(brdfLutResource);
+                Textures.Add(new(ReservedTextureSlots.BRDFLookup, "g_tBRDFLookup", GuiContext.MaterialLoader.LoadTexture(brdfLutResource)));
             }
             finally
             {
