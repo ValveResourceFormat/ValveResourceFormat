@@ -129,10 +129,12 @@ namespace GUI.Forms
             }
 
             var hemiOctRB = false;
+            var yCoCg = false;
 
             if (textureResource is not null && textureResource.EditInfo.Structs.TryGetValue(ResourceEditInfo.REDIStruct.SpecialDependencies, out var specialDepsRedi))
             {
                 var specialDeps = (SpecialDependencies)specialDepsRedi;
+                yCoCg = specialDeps.List.Any(dependancy => dependancy.CompilerIdentifier == "CompileTexture" && dependancy.String == "Texture Compiler Version Image YCoCg Conversion");
                 hemiOctRB = specialDeps.List.Any(dependency => dependency.CompilerIdentifier == "CompileTexture" && dependency.String == "Texture Compiler Version Mip HemiOctIsoRoughness_RG_B");
             }
 
@@ -141,6 +143,7 @@ namespace GUI.Forms
             var success = hardwareDecoder.Decode(new GLTextureDecoder.DecodeRequest(bitmap, texture, 0, 0, channels)
             {
                 HemiOctRB = hemiOctRB,
+                YCoCg = yCoCg,
             });
 
             if (!success)

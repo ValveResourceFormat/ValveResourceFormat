@@ -65,6 +65,7 @@ class GLTextureDecoder : IDisposable // ITextureDecoder
     public record DecodeRequest(SKBitmap Bitmap, Texture Texture, int Mip, int Depth, ChannelMapping Channels) : IDisposable
     {
         public bool HemiOctRB { get; init; }
+        public bool YCoCg { get; init; }
 
         public ManualResetEvent DoneEvent { get; } = new(false);
         public bool Success { get; set; }
@@ -177,7 +178,7 @@ class GLTextureDecoder : IDisposable // ITextureDecoder
         inputTexture.SetFiltering(TextureMinFilter.NearestMipmapNearest, TextureMagFilter.Nearest);
 
         if (request.Channels == ChannelMapping.RGBA
-            && request.HemiOctRB == false)
+            && request.HemiOctRB == false && request.YCoCg == false)
         {
             GL.GetTexImage(inputTexture.Target, request.Mip, PixelFormat.Rgba, PixelType.UnsignedByte, request.Bitmap.GetPixels());
             Log.Info(nameof(GLTextureDecoder), "Using GL.GetTexImage");
@@ -198,6 +199,7 @@ class GLTextureDecoder : IDisposable // ITextureDecoder
         {
             [textureType] = 1,
             ["HemiOctIsoRoughness_RG_B"] = request.HemiOctRB ? (byte)1 : (byte)0,
+            ["YCoCg_Conversion"] = request.YCoCg ? (byte)1 : (byte)0,
         });
 
         GL.UseProgram(shader.Program);
