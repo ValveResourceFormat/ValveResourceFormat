@@ -406,6 +406,16 @@ namespace ValveResourceFormat.ResourceTypes
                 }
             }
 
+            var width = MipLevelSize(ActualWidth, MipmapLevelToExtract);
+            var height = MipLevelSize(ActualHeight, MipmapLevelToExtract);
+
+            if (HardwareAcceleratedTextureDecoder.Decoder != null)
+            {
+                var skiaBitmap2 = new SKBitmap(width, height, SKColorType.Bgra8888, SKAlphaType.Unpremul);
+                HardwareAcceleratedTextureDecoder.Decoder.Decode(skiaBitmap2, this);
+                return skiaBitmap2;
+            }
+
             Reader.BaseStream.Position = DataOffset;
 
             SkipMipmaps();
@@ -422,8 +432,6 @@ namespace ValveResourceFormat.ResourceTypes
                     return SKBitmap.Decode(Reader.ReadBytes(CalculatePngSize()));
             }
 
-            var width = MipLevelSize(ActualWidth, MipmapLevelToExtract);
-            var height = MipLevelSize(ActualHeight, MipmapLevelToExtract);
             var blockWidth = MipLevelSize(Width, MipmapLevelToExtract);
             var blockHeight = MipLevelSize(Height, MipmapLevelToExtract);
 

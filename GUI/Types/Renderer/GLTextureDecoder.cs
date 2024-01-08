@@ -10,8 +10,27 @@ using OpenTK.Graphics.OpenGL;
 using SkiaSharp;
 using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.Utils;
 
 namespace GUI.Types.Renderer;
+
+class GLTextureDecoderForLibrary : IHardwareTextureDecoder
+{
+    private readonly GLTextureDecoder hardwareDecoder;
+
+    public GLTextureDecoderForLibrary()
+    {
+        hardwareDecoder = new GLTextureDecoder(new VrfGuiContext(null, null));
+    }
+
+    public void Decode(SKBitmap bitmap, Texture texture)
+    {
+        hardwareDecoder.Decode(new GLTextureDecoder.DecodeRequest(bitmap, texture, 0, 0, ChannelMapping.RGBA)
+        {
+            HemiOctRB = false,
+        });
+    }
+}
 
 class GLTextureDecoder : IDisposable // ITextureDecoder
 {
