@@ -13,8 +13,10 @@ using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Forms;
 using GUI.Types.Exporter;
+using GUI.Types.Renderer;
 using GUI.Utils;
 using SteamDatabase.ValvePak;
+using ValveResourceFormat.Utils;
 
 namespace GUI
 {
@@ -51,6 +53,9 @@ namespace GUI
                 ImageListLookup.Add(extension, index);
                 Debug.Assert(index >= 0);
             }
+
+            // TODO: Experiment
+            HardwareAcceleratedTextureDecoder.Decoder = new GLTextureDecoderForLibrary();
         }
 
         public MainForm()
