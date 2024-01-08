@@ -23,6 +23,7 @@ uint GetColorIndex(uint nChannelMapping, uint nChannel)
 }
 
 #define HemiOctIsoRoughness_RG_B 0
+#define YCoCg_Conversion 0
 
 #if HemiOctIsoRoughness_RG_B == 1
     vec3 PackToColor( vec3 vValue )
@@ -47,6 +48,23 @@ uint GetColorIndex(uint nChannelMapping, uint nChannel)
     }
 #endif
 
+#if YCoCg_Conversion == 1
+    vec3 DecodeYCoCg(vec4 YCoCg)
+    {
+        float scale = (YCoCg.z * (255.0 / 8.0)) + 1.0;
+        float Co = (YCoCg.x + (-128.0 / 255.0)) / scale;
+        float Cg = (YCoCg.y + (-128.0 / 255.0)) / scale;
+        float Y = YCoCg.w;
+
+        float R = Y + Co - Cg;
+        float G = Y + Cg;
+        float B = Y - Co - Cg;
+
+        vec3 color = vec3(R, G, B);
+        return color;
+    }
+#endif
+
 layout(location = 0) out vec4 vColorOutput;
 
 void main()
@@ -65,6 +83,11 @@ void main()
         float flRoughness = vColor.b;
         vColor.rgb = PackToColor(oct_to_float32x3(vec2(vColor.x + vColor.y - 1.003922, vColor.x - vColor.y)));
         vColor.a = flRoughness;
+    #endif
+
+    #if YCoCg_Conversion == 1
+        vColor.rgb = DecodeYCoCg(vColor);
+        vColor.a = 1.0;
     #endif
 
     uvec4 vRemapIndices = uvec4(

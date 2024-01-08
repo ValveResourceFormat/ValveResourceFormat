@@ -38,9 +38,7 @@ vec3 DecodeYCoCg(vec4 YCoCg)
     float G = Y + Cg;
     float B = Y - Co - Cg;
 
-    vec3 color = vec3(R, G, B);
-
-    return SrgbGammaToLinear(color);
+    return vec3(R, G, B);
 }
 
 void main()
@@ -50,6 +48,7 @@ void main()
 
 #if defined(ENCODING_YCOCG)
     vColor.rgb = DecodeYCoCg(skyTexel);
+    vColor.rgb = SrgbGammaToLinear(vColor.rgb);
 #elif defined(ENCODING_RGBM)
     const float MaxRange = 6.0;
     vColor.rgb = skyTexel.rgb * (skyTexel.a * MaxRange);
