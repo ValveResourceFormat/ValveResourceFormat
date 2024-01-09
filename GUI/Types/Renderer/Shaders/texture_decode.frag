@@ -118,11 +118,15 @@ void main()
         vBackgroundColor = CheckerboardPattern(vScreenCoords);
         vTexCoord.xy = AdjustTextureViewerUvs(vScreenCoords);
 
-        bWithinAlphaBounds = vTexCoord.x > 1.0 && vTexCoord.x <= 2.0 && vTexCoord.y <= 1.0;
+        bool bIsWideImage = g_vInputTextureSize.x > g_vInputTextureSize.y;
+        vec2 vAlphaRegionTexCoord = bIsWideImage ? vTexCoord.yx : vTexCoord.xy;
+
+        bWithinAlphaBounds = vAlphaRegionTexCoord.x > 1.0 && vAlphaRegionTexCoord.x <= 2.0 && vAlphaRegionTexCoord.y <= 1.0;
 
         if (g_bWantsSeparateAlpha && bWithinAlphaBounds)
         {
-            vTexCoord.x -= 1.0;
+            vAlphaRegionTexCoord.x -= 1.0;
+            vTexCoord.xy = bIsWideImage ? vAlphaRegionTexCoord.yx : vAlphaRegionTexCoord.xy;
         }
     }
 
