@@ -139,7 +139,7 @@ namespace GUI.Forms
             }
 
             // using?
-            using var bitmap = new SKBitmap(texture.Width, texture.Height, SKColorType.Rgba8888, SKAlphaType.Unpremul);
+            using var bitmap = new SKBitmap(texture.Width, texture.Height, SKColorType.Bgra8888, SKAlphaType.Unpremul);
             var success = hardwareDecoder.Decode(new GLTextureDecoder.DecodeRequest(bitmap, texture, 0, 0, channels)
             {
                 HemiOctRB = hemiOctRB,
