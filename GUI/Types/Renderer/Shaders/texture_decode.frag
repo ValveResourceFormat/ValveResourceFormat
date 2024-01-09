@@ -82,6 +82,7 @@ layout(location = 0) out vec4 vColorOutput;
 void main()
 {
     vec2 vTexCoord2D = gl_FragCoord.xy / g_vViewportSize.xy;
+    vTexCoord2D.y = 1.0 - vTexCoord2D.y;
 
     #if TYPE_TEXTURE2D == 1
         vec2 vTexCoord = vTexCoord2D;
