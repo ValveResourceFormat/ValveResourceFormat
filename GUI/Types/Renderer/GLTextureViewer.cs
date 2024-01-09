@@ -21,7 +21,10 @@ namespace GUI.Types.Renderer
 
         private Vector2? ClickPosition;
         private Vector2 Position;
+        private Vector2 PositionOld;
         private float TextureScale = 1f;
+        private float TextureScaleOld = 1f;
+        private float TextureScaleChangeTime;
         private Button ResetButton;
         private bool FirstPaint = true;
 
@@ -43,8 +46,13 @@ namespace GUI.Types.Renderer
 
             ResetButton.Click += (_, __) =>
             {
-                TextureScale = 1f;
+                PositionOld = Position;
                 Position = Vector2.Zero;
+
+                TextureScaleOld = TextureScale;
+                TextureScale = 1f;
+                TextureScaleChangeTime = 0f;
+
                 SetZoomLabel();
             };
 
@@ -90,7 +98,8 @@ namespace GUI.Types.Renderer
 
         protected override void OnMouseWheel(object sender, MouseEventArgs e)
         {
-            var oldScale = TextureScale;
+            (TextureScaleOld, PositionOld) = GetCurrentPositionAndScale();
+            TextureScaleChangeTime = 0f;
 
             if (e.Delta < 0)
             {
@@ -104,7 +113,7 @@ namespace GUI.Types.Renderer
             TextureScale = Math.Clamp(TextureScale, 0.1f, 50f);
 
             var pos = new Vector2(e.Location.X, e.Location.Y);
-            var posPrev = (pos + Position) / oldScale;
+            var posPrev = (pos + PositionOld) / TextureScaleOld;
             var posNewScale = posPrev * TextureScale;
             Position = posNewScale - pos;
 
@@ -232,6 +241,10 @@ namespace GUI.Types.Renderer
                 );
             }
 
+            TextureScaleChangeTime += e.FrameTime;
+
+            var (scale, position) = GetCurrentPositionAndScale();
+
             GL.Viewport(0, 0, GLControl.Width, GLControl.Height);
             MainFramebuffer.Clear();
 
@@ -240,8 +253,8 @@ namespace GUI.Types.Renderer
             //shader.SetUniform4x4("transform", Matrix4x4.CreateOrthographic(1f, 1f, 0, 1));
             shader.SetUniform1("g_bTextureViewer", 1u);
             shader.SetUniform2("g_vViewportSize", new Vector2(MainFramebuffer.Width, MainFramebuffer.Height));
-            shader.SetUniform2("g_vViewportPosition", Position);
-            shader.SetUniform1("g_flScale", TextureScale);
+            shader.SetUniform2("g_vViewportPosition", position);
+            shader.SetUniform1("g_flScale", scale);
 
             shader.SetTexture(0, "g_tInputTexture", texture);
             shader.SetUniform4("g_vInputTextureSize", new Vector4(texture.Width, texture.Height, texture.Depth, texture.NumMipLevels));
@@ -251,6 +264,17 @@ namespace GUI.Types.Renderer
 
             GL.BindVertexArray(vao);
             GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
+        }
+
+        private (float Scale, Vector2 Position) GetCurrentPositionAndScale()
+        {
+            var time = Math.Min(TextureScaleChangeTime / 0.4f, 1.0f);
+            time = 1f - MathF.Pow(1f - time, 5f); // easeOutQuint
+
+            var position = Vector2.Lerp(PositionOld, Position, time);
+            var scale = float.Lerp(TextureScaleOld, TextureScale, time);
+
+            return (scale, position);
         }
     }
 }
