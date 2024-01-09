@@ -44,6 +44,12 @@ namespace GUI.Types.Renderer
                 [textureType] = 1,
             });
 
+            MainFramebuffer.ClearColor = OpenTK.Graphics.Color4.Green;
+            MainFramebuffer.ClearMask = ClearBufferMask.ColorBufferBit;
+            GL.DepthMask(false);
+            GL.Disable(EnableCap.DepthTest);
+            GL.Disable(EnableCap.CullFace); // TODO: the triangle should be frontfacing?
+
             GLLoad -= OnLoad;
             GLPaint += OnPaint;
         }
