@@ -67,6 +67,7 @@ uint GetColorIndex(uint nChannelMapping, uint nChannel)
 uniform bool g_bTextureViewer = false;
 uniform vec2 g_vViewportSize;
 uniform float g_fZoomScale = 1.0;
+uniform bool g_bWantsSeparateAlpha = true;
 
 vec2 AdjustTextureViewerUvs(vec2 vTexCoord)
 {
@@ -105,6 +106,7 @@ void main()
     #endif
 
     vec3 vBackgroundColor = vec3(0.0);
+    bool bWithinAlphaBounds = false;
 
     if (g_bTextureViewer)
     {
@@ -112,6 +114,13 @@ void main()
 
         vBackgroundColor = CheckerboardPattern(vScreenCoords);
         vTexCoord.xy = AdjustTextureViewerUvs(vScreenCoords);
+
+        bWithinAlphaBounds = vTexCoord.x > 1.0 && vTexCoord.x <= 2.0 && vTexCoord.y <= 1.0;
+
+        if (g_bWantsSeparateAlpha && bWithinAlphaBounds)
+        {
+            vTexCoord.x -= 1.0;
+        }
     }
 
     vec4 vColor = textureLod(g_tInputTexture, vTexCoord, float(g_nSelectedMip) / g_vInputTextureSize.w);
@@ -152,9 +161,22 @@ void main()
     if (g_bTextureViewer)
     {
         float flBackgroundMix = 1.0;
+        bool bWithinImageBounds = vTexCoord.x <= 1.0 && vTexCoord.y <= 1.0;
 
-        if (vTexCoord.x <= 1.0 && vTexCoord.y <= 1.0)
+        if (g_bWantsSeparateAlpha && (bWithinImageBounds || bWithinAlphaBounds))
+        {
+            if (bWithinAlphaBounds)
+            {
+                vColorOutput.rgb = vColorOutput.aaa;
+            }
+
+            vColorOutput.a = 1.0;
+        }
+
+        if (bWithinImageBounds)
+        {
             flBackgroundMix -= vColorOutput.a;
+        }
 
         vColorOutput.rgb = mix(vColorOutput.rgb, vBackgroundColor, flBackgroundMix);
     }

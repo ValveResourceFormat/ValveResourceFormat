@@ -107,13 +107,6 @@ namespace GUI.Types.Renderer
 #endif
         }
 
-        public static ChannelMapping RGB_AlphaSeparate = ChannelMapping.FromChannels(
-            ChannelMapping.Channel.R,
-            ChannelMapping.Channel.G,
-            ChannelMapping.Channel.B,
-            0x1C
-        );
-
         private void OnPaint(object sender, RenderEventArgs e)
         {
             GL.Viewport(0, 0, GLControl.Width, GLControl.Height);
