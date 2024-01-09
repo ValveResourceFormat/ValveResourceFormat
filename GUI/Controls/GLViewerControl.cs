@@ -403,8 +403,11 @@ namespace GUI.Controls
 
             var frameTime = (float)elapsed.TotalSeconds;
 
-            Camera.HandleInput(Mouse.GetState(), Keyboard.GetState());
-            Camera.Tick(frameTime);
+            if (Camera is not GLTextureViewer.TextureViewerCamera)
+            {
+                Camera.HandleInput(Mouse.GetState(), Keyboard.GetState());
+                Camera.Tick(frameTime);
+            }
 
             if (Camera.MouseDragging)
             {
