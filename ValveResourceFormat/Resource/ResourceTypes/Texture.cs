@@ -371,8 +371,8 @@ namespace ValveResourceFormat.ResourceTypes
             return null;
         }
 
-        internal bool IsRawJpeg => Format is VTexFormat.JPEG_DXT5 or VTexFormat.JPEG_RGBA8888;
-        internal bool IsRawPng => Format is VTexFormat.PNG_DXT5 or VTexFormat.PNG_RGBA8888;
+        public bool IsRawJpeg => Format is VTexFormat.JPEG_DXT5 or VTexFormat.JPEG_RGBA8888;
+        public bool IsRawPng => Format is VTexFormat.PNG_DXT5 or VTexFormat.PNG_RGBA8888;
 
         internal byte[] ReadRawImageData()
         {
@@ -409,11 +409,23 @@ namespace ValveResourceFormat.ResourceTypes
             var width = MipLevelSize(ActualWidth, MipmapLevelToExtract);
             var height = MipLevelSize(ActualHeight, MipmapLevelToExtract);
 
-            if (HardwareAcceleratedTextureDecoder.Decoder != null)
+            if (HardwareAcceleratedTextureDecoder.Decoder != null && !IsRawJpeg && !IsRawPng) // TODO: Move this further down
             {
                 var skiaBitmap2 = new SKBitmap(width, height, SKColorType.Bgra8888, SKAlphaType.Unpremul);
-                HardwareAcceleratedTextureDecoder.Decoder.Decode(skiaBitmap2, this);
-                return skiaBitmap2;
+
+                try
+                {
+                    if (HardwareAcceleratedTextureDecoder.Decoder.Decode(skiaBitmap2, this))
+                    {
+                        var bitmapToReturn = skiaBitmap2;
+                        skiaBitmap2 = null;
+                        return bitmapToReturn;
+                    }
+                }
+                finally
+                {
+                    skiaBitmap2?.Dispose();
+                }
             }
 
             Reader.BaseStream.Position = DataOffset;

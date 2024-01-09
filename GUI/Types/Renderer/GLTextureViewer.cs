@@ -5,7 +5,10 @@ using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
+using SkiaSharp;
+using ValveResourceFormat;
 using ValveResourceFormat.CompiledShader;
+using ValveResourceFormat.ResourceTypes;
 
 namespace GUI.Types.Renderer
 {
@@ -106,7 +109,20 @@ namespace GUI.Types.Renderer
 
         private void OnLoad(object sender, EventArgs e)
         {
-            texture = GuiContext.MaterialLoader.LoadTexture(Resource);
+            var textureData = (Texture)Resource.DataBlock;
+
+            if (textureData.IsRawJpeg || textureData.IsRawPng)
+            {
+                using var bitmap = textureData.GenerateBitmap();
+                texture = new RenderTexture(TextureTarget.Texture2D, textureData);
+                using var _ = texture.BindingContext();
+
+                GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba8, texture.Width, texture.Height, 0, PixelFormat.Bgra, PixelType.UnsignedByte, bitmap.GetPixels());
+            }
+            else
+            {
+                texture = GuiContext.MaterialLoader.LoadTexture(Resource);
+            }
 
             using (texture.BindingContext())
             {

@@ -14,7 +14,7 @@ using ValveResourceFormat.Utils;
 
 namespace GUI.Types.Renderer;
 
-class GLTextureDecoderForLibrary : IHardwareTextureDecoder
+class GLTextureDecoderForLibrary : IHardwareTextureDecoder, IDisposable
 {
     private readonly GLTextureDecoder hardwareDecoder;
 
@@ -23,12 +23,19 @@ class GLTextureDecoderForLibrary : IHardwareTextureDecoder
         hardwareDecoder = new GLTextureDecoder(new VrfGuiContext(null, null));
     }
 
-    public void Decode(SKBitmap bitmap, Texture texture)
+    public bool Decode(SKBitmap bitmap, Texture texture)
     {
-        hardwareDecoder.Decode(new GLTextureDecoder.DecodeRequest(bitmap, texture, 0, 0, ChannelMapping.RGBA)
+        using var request = new GLTextureDecoder.DecodeRequest(bitmap, texture, 0, 0, ChannelMapping.RGBA)
         {
             HemiOctRB = false,
-        });
+        };
+
+        return hardwareDecoder.Decode(request);
+    }
+
+    public void Dispose()
+    {
+        hardwareDecoder.Dispose();
     }
 }
 
