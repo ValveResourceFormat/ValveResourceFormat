@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Numerics;
+using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
@@ -37,12 +38,19 @@ namespace GUI.Types.Renderer
         {
             texture = GuiContext.MaterialLoader.LoadTexture(Resource);
 
+            using (texture.BindingContext())
+            {
+                texture.SetWrapMode(TextureWrapMode.ClampToBorder);
+            }
+
             var textureType = "TYPE_" + texture.Target.ToString().ToUpperInvariant();
 
-            shader = GuiContext.ShaderLoader.LoadShader("vrf.texture_viewer", new Dictionary<string, byte>
+            var arguments = new Dictionary<string, byte>
             {
                 [textureType] = 1,
-            });
+            };
+
+            shader = GuiContext.ShaderLoader.LoadShader("vrf.texture_viewer", arguments);
 
             MainFramebuffer.ClearColor = OpenTK.Graphics.Color4.Green;
             MainFramebuffer.ClearMask = ClearBufferMask.ColorBufferBit;
@@ -52,6 +60,23 @@ namespace GUI.Types.Renderer
 
             GLLoad -= OnLoad;
             GLPaint += OnPaint;
+
+#if DEBUG
+            var button = new Button
+            {
+                Text = "Reload shader",
+                AutoSize = true,
+            };
+
+            button.Click += (_, _) =>
+            {
+                GuiContext.ShaderLoader.ClearCache();
+
+                shader = GuiContext.ShaderLoader.LoadShader("vrf.texture_viewer", arguments);
+            };
+
+            AddControl(button);
+#endif
         }
 
         private void OnPaint(object sender, RenderEventArgs e)
