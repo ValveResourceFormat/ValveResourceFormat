@@ -200,6 +200,7 @@ namespace GUI.Types.Renderer
             "vrf.particle.trail" => "particle_trail",
             "vrf.morph_composite" => "morph_composite",
             "vrf.texture_decode" => "texture_decode",
+            "vrf.texture_viewer" => "texture_viewer",
 
             "sky.vfx" => "sky",
             "tools_sprite.vfx" => "sprite",

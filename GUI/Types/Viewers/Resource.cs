@@ -565,6 +565,11 @@ namespace GUI.Types.Viewers
                 return;
             }
 
+            var textureControl = new GLTextureViewer(vrfGuiContext, resource);
+            var tab2 = new TabPage("TEXTURE GL");
+            tab2.Controls.Add(textureControl);
+            resTabs.TabPages.Add(tab2);
+
             var control = new Forms.Texture(vrfGuiContext)
             {
                 BackColor = Color.Black,
