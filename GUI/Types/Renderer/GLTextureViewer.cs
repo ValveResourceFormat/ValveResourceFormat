@@ -15,6 +15,7 @@ namespace GUI.Types.Renderer
         private readonly ValveResourceFormat.Resource Resource;
         private RenderTexture texture;
         private Shader shader;
+        private int vao;
 
         public GLTextureViewer(VrfGuiContext guiContext, ValveResourceFormat.Resource resource) : base()
         {
@@ -52,6 +53,7 @@ namespace GUI.Types.Renderer
             };
 
             shader = GuiContext.ShaderLoader.LoadShader("vrf.texture_viewer", arguments);
+            vao = GL.GenVertexArray();
 
             MainFramebuffer.ClearColor = OpenTK.Graphics.Color4.Green;
             MainFramebuffer.ClearMask = ClearBufferMask.ColorBufferBit;
@@ -87,8 +89,6 @@ namespace GUI.Types.Renderer
 
             GL.UseProgram(shader.Program);
 
-            texture.Bind();
-
             //shader.SetUniform4x4("transform", Matrix4x4.CreateOrthographic(1f, 1f, 0, 1));
             shader.SetUniform4x4("transform", Matrix4x4.Identity);
 
@@ -103,12 +103,8 @@ namespace GUI.Types.Renderer
             shader.SetUniform1("g_nChannelMapping", ChannelMapping.RGBA.PackedValue);
             shader.SetUniform1("g_fZoomScale", (float)Camera.CurrentSpeedModifier);
 
+            GL.BindVertexArray(vao);
             GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
-            //GL.DrawArrays(PrimitiveType.TriangleStrip, 0, 4);
-
-            texture.Unbind();
-
-            GL.UseProgram(0);
         }
     }
 }
