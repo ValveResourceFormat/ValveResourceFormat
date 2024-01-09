@@ -67,16 +67,16 @@ uint GetColorIndex(uint nChannelMapping, uint nChannel)
 
 uniform bool g_bMaintainAspectRatio = false;
 uniform vec2 g_vViewportSize;
-uniform float g_fZoomScale;
+uniform float g_fZoomScale = 1.0;
 
 vec2 AdjustTextureViewerUvs(vec2 vTexCoord)
 {
     if (g_bMaintainAspectRatio)
     {
+        vTexCoord.y = 1.0 - vTexCoord.y;
         vTexCoord.xy = vTexCoord.xy * (g_vViewportSize.xy / g_vInputTextureSize.xy);
+        vTexCoord.xy /= g_fZoomScale;
     }
-
-    vTexCoord.xy /= g_fZoomScale;
 
     return vTexCoord;
 }
@@ -86,7 +86,6 @@ layout(location = 0) out vec4 vColorOutput;
 void main()
 {
     vec2 vTexCoord2D = gl_FragCoord.xy / g_vViewportSize.xy;
-    vTexCoord2D.y = 1.0 - vTexCoord2D.y;
 
     #if TYPE_TEXTURE2D == 1
         vec2 vTexCoord = vTexCoord2D;
