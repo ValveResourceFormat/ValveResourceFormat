@@ -5,7 +5,6 @@ using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
-using SkiaSharp;
 using ValveResourceFormat;
 using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.ResourceTypes;
@@ -15,7 +14,7 @@ namespace GUI.Types.Renderer
     class GLTextureViewer : GLViewerControl, IGLViewer
     {
         private readonly VrfGuiContext GuiContext;
-        private readonly ValveResourceFormat.Resource Resource;
+        private readonly Resource Resource;
         private RenderTexture texture;
         private Shader shader;
         private int vao;
@@ -24,8 +23,9 @@ namespace GUI.Types.Renderer
         private Vector2 Position;
         private float TextureScale = 1f;
         private Button ResetButton;
+        private bool FirstPaint = true;
 
-        public GLTextureViewer(VrfGuiContext guiContext, ValveResourceFormat.Resource resource) : base()
+        public GLTextureViewer(VrfGuiContext guiContext, Resource resource) : base()
         {
             GuiContext = guiContext;
             Resource = resource;
@@ -33,7 +33,7 @@ namespace GUI.Types.Renderer
             GLLoad += OnLoad;
             GLControl.MouseMove += OnMouseMove;
 
-            SetMoveSpeedOrZoomLabel($"Zoom: {TextureScale * 100:0.0}% (scroll to change)");
+            SetZoomLabel();
 
             ResetButton = new Button
             {
@@ -45,6 +45,7 @@ namespace GUI.Types.Renderer
             {
                 TextureScale = 1f;
                 Position = Vector2.Zero;
+                SetZoomLabel();
             };
 
             AddControl(ResetButton);
@@ -63,6 +64,8 @@ namespace GUI.Types.Renderer
 
             base.Dispose(disposing);
         }
+
+        private void SetZoomLabel() => SetMoveSpeedOrZoomLabel($"Zoom: {TextureScale * 100:0.0}% (scroll to change)");
 
         private void OnMouseMove(object sender, MouseEventArgs e)
         {
@@ -104,7 +107,7 @@ namespace GUI.Types.Renderer
             var posNewScale = posPrev * TextureScale;
             Position = posNewScale - pos;
 
-            SetMoveSpeedOrZoomLabel($"Zoom: {TextureScale * 100:0.0}% (scroll to change)");
+            SetZoomLabel();
         }
 
         private void OnLoad(object sender, EventArgs e)
@@ -121,6 +124,7 @@ namespace GUI.Types.Renderer
             }
             else
             {
+                // TODO: LoadTexture has things like max texture size and anisotrophy, need to ignore these
                 texture = GuiContext.MaterialLoader.LoadTexture(Resource);
             }
 
@@ -172,6 +176,26 @@ namespace GUI.Types.Renderer
 
         private void OnPaint(object sender, RenderEventArgs e)
         {
+            if (FirstPaint)
+            {
+                FirstPaint = false; // OnLoad has control size of 0 for some reason
+
+                if (GLControl.Width < texture.Width || GLControl.Height < texture.Height)
+                {
+                    TextureScale = Math.Min(
+                        GLControl.Width / (float)texture.Width,
+                        GLControl.Height / (float)texture.Height
+                    );
+
+                    SetZoomLabel();
+                }
+
+                Position = -new Vector2(
+                    GLControl.Width / 2f - texture.Width / 2f * TextureScale,
+                    GLControl.Height / 2f - texture.Height / 2f * TextureScale
+                );
+            }
+
             GL.Viewport(0, 0, GLControl.Width, GLControl.Height);
             MainFramebuffer.Clear();
 
