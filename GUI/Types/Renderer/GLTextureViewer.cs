@@ -13,22 +13,22 @@ namespace GUI.Types.Renderer
     {
         public class TextureViewerCamera : Camera
         {
-            public float ZoomLevel = 1f;
+            public float TextureScale = 1f;
 
             public float ModifyZoom(bool increase)
             {
                 if (increase)
                 {
-                    ZoomLevel *= 1.25f;
+                    TextureScale *= 1.25f;
                 }
                 else
                 {
-                    ZoomLevel /= 1.25f;
+                    TextureScale /= 1.25f;
                 }
 
-                ZoomLevel = Math.Clamp(ZoomLevel, 0.1f, 50f);
+                TextureScale = Math.Clamp(TextureScale, 0.1f, 50f);
 
-                return ZoomLevel;
+                return TextureScale;
             }
         }
 
@@ -48,6 +48,10 @@ namespace GUI.Types.Renderer
             Camera = TextureCamera;
 
             GLLoad += OnLoad;
+            GLControl.MouseDown += OnMouseDown;
+            GLControl.MouseMove += OnMouseMove;
+            GLControl.MouseUp += OnMouseUp;
+            //GLControl.MouseWheel += OnMouseWheel;
         }
 
         protected override void Dispose(bool disposing)
@@ -58,6 +62,31 @@ namespace GUI.Types.Renderer
             }
 
             base.Dispose(disposing);
+        }
+
+        private Vector2? ClickPosition;
+        private Vector2 Position;
+
+        private void OnMouseMove(object sender, MouseEventArgs e)
+        {
+            if (ClickPosition == null)
+            {
+                return;
+            }
+
+            var p = new Vector2(e.Location.X, e.Location.Y);
+
+            Position = ClickPosition.Value - p;
+        }
+
+        private void OnMouseDown(object sender, MouseEventArgs e)
+        {
+            ClickPosition = new Vector2(e.Location.X, e.Location.Y);
+        }
+
+        private void OnMouseUp(object sender, MouseEventArgs mouseEventArgs)
+        {
+            ClickPosition = null;
         }
 
         private void OnLoad(object sender, EventArgs e)
@@ -90,20 +119,23 @@ namespace GUI.Types.Renderer
             GLPaint += OnPaint;
 
 #if DEBUG
-            var button = new Button
+            // TODO: Remove this later
+            void Hotload(object s, System.IO.FileSystemEventArgs e)
             {
-                Text = "Reload shader",
-                AutoSize = true,
-            };
+                if (e.FullPath.EndsWith(".TMP", StringComparison.Ordinal))
+                {
+                    return;
+                }
 
-            button.Click += (_, _) =>
-            {
                 GuiContext.ShaderLoader.ClearCache();
 
                 shader = GuiContext.ShaderLoader.LoadShader("vrf.texture_decode", arguments);
-            };
+            }
 
-            AddControl(button);
+            GuiContext.ShaderLoader.ShaderWatcher.SynchronizingObject = this;
+            GuiContext.ShaderLoader.ShaderWatcher.Changed += Hotload;
+            GuiContext.ShaderLoader.ShaderWatcher.Created += Hotload;
+            GuiContext.ShaderLoader.ShaderWatcher.Renamed += Hotload;
 #endif
         }
 
@@ -117,7 +149,8 @@ namespace GUI.Types.Renderer
             //shader.SetUniform4x4("transform", Matrix4x4.CreateOrthographic(1f, 1f, 0, 1));
             shader.SetUniform1("g_bTextureViewer", 1u);
             shader.SetUniform2("g_vViewportSize", new Vector2(MainFramebuffer.Width, MainFramebuffer.Height));
-            shader.SetUniform1("g_fZoomScale", TextureCamera.ZoomLevel);
+            shader.SetUniform2("g_vViewportPosition", Position);
+            shader.SetUniform1("g_flScale", TextureCamera.TextureScale);
 
             shader.SetTexture(0, "g_tInputTexture", texture);
             shader.SetUniform4("g_vInputTextureSize", new Vector4(texture.Width, texture.Height, texture.Depth, texture.NumMipLevels));
