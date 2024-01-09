@@ -81,7 +81,7 @@ namespace GUI.Types.Renderer
 
         private void OnMouseDown(object sender, MouseEventArgs e)
         {
-            ClickPosition = new Vector2(e.Location.X, e.Location.Y);
+            ClickPosition = Position + new Vector2(e.Location.X, e.Location.Y);
         }
 
         private void OnMouseUp(object sender, MouseEventArgs mouseEventArgs)
