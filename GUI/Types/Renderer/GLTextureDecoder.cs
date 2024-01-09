@@ -211,7 +211,7 @@ class GLTextureDecoder : IDisposable // ITextureDecoder
         ));
         shader.SetUniform1("g_nSelectedMip", Math.Clamp(request.Mip, 0, inputTexture.NumMipLevels - 1));
         shader.SetUniform1("g_nSelectedDepth", Math.Clamp(request.Depth, 0, inputTexture.Depth - 1));
-        shader.SetUniform1("g_nChannelMapping", request.Channels.PackedValue);
+        shader.SetUniform1("g_nSelectedChannels", request.Channels.PackedValue);
 
         // full screen triangle
         GL.DrawArrays(PrimitiveType.Triangles, 0, 3);

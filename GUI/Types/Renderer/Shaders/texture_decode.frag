@@ -14,8 +14,7 @@ uniform vec4 g_vInputTextureSize;
 
 uniform int g_nSelectedMip;
 uniform int g_nSelectedDepth;
-
-uniform uint g_nChannelMapping = 0x03020100; // RGBA
+uniform uint g_nSelectedChannels = 0x03020100; // RGBA
 
 uint GetColorIndex(uint nChannelMapping, uint nChannel)
 {
@@ -65,18 +64,14 @@ uint GetColorIndex(uint nChannelMapping, uint nChannel)
     }
 #endif
 
-uniform bool g_bMaintainAspectRatio = false;
+uniform bool g_bTextureViewer = false;
 uniform vec2 g_vViewportSize;
 uniform float g_fZoomScale = 1.0;
 
 vec2 AdjustTextureViewerUvs(vec2 vTexCoord)
 {
-    if (g_bMaintainAspectRatio)
-    {
-        vTexCoord.y = 1.0 - vTexCoord.y;
-        vTexCoord.xy = vTexCoord.xy * (g_vViewportSize.xy / g_vInputTextureSize.xy);
-        vTexCoord.xy /= g_fZoomScale;
-    }
+    vTexCoord.xy = vTexCoord.xy * (g_vViewportSize.xy / g_vInputTextureSize.xy);
+    vTexCoord.xy /= g_fZoomScale;
 
     return vTexCoord;
 }
@@ -86,9 +81,9 @@ vec3 CheckerboardPattern(vec2 vScreenCoords)
     const vec3 color1 = vec3(0.9, 0.9, 0.9);
     const vec3 color2 = vec3(0.6, 0.6, 0.6);
 
-    const vec2 vSizeInPixels = vec2(48);
+    const vec2 vSizeInPixels = vec2(32);
 
-    vec2 vTexCoord = vScreenCoords / vSizeInPixels;
+    vec2 vTexCoord = vScreenCoords * g_vViewportSize / vSizeInPixels;
     vec2 vCell = floor(vTexCoord);
     vec2 vFrac = fract(vTexCoord);
 
@@ -101,23 +96,25 @@ layout(location = 0) out vec4 vColorOutput;
 
 void main()
 {
-    vec2 vTexCoord2D = gl_FragCoord.xy / g_vViewportSize.xy;
+    vec2 vScreenCoords = gl_FragCoord.xy / g_vViewportSize.xy;
 
     #if TYPE_TEXTURE2D == 1
-        vec2 vTexCoord = vTexCoord2D;
+        vec2 vTexCoord = vScreenCoords;
     #elif TYPE_TEXTURE2DARRAY == 1
-        vec3 vTexCoord = vec3(vTexCoord2D, g_nSelectedDepth);
+        vec3 vTexCoord = vec3(vScreenCoords, g_nSelectedDepth);
     #endif
 
-    vTexCoord = AdjustTextureViewerUvs(vTexCoord);
+    vec3 vBackgroundColor = vec3(0.0);
+
+    if (g_bTextureViewer)
+    {
+        vScreenCoords.y = 1.0 - vScreenCoords.y;
+
+        vBackgroundColor = CheckerboardPattern(vScreenCoords);
+        vTexCoord.xy = AdjustTextureViewerUvs(vScreenCoords);
+    }
 
     vec4 vColor = textureLod(g_tInputTexture, vTexCoord, float(g_nSelectedMip) / g_vInputTextureSize.w);
-
-    if (vTexCoord.x > 1.0 || vTexCoord.y > 1.0)
-    {
-        vColor.rgb = CheckerboardPattern(gl_FragCoord.xy);
-        vColor.a = 1.0;
-    }
 
     #if HemiOctIsoRoughness_RG_B == 1
         float flRoughness = vColor.b;
@@ -131,10 +128,10 @@ void main()
     #endif
 
     uvec4 vRemapIndices = uvec4(
-        GetColorIndex(g_nChannelMapping, 0),
-        GetColorIndex(g_nChannelMapping, 1),
-        GetColorIndex(g_nChannelMapping, 2),
-        GetColorIndex(g_nChannelMapping, 3)
+        GetColorIndex(g_nSelectedChannels, 0),
+        GetColorIndex(g_nSelectedChannels, 1),
+        GetColorIndex(g_nSelectedChannels, 2),
+        GetColorIndex(g_nSelectedChannels, 3)
     );
 
     // Single channel texture write to RGB
@@ -150,5 +147,15 @@ void main()
 
         vColorOutput = mix(vec4(0, 0, 0, 1), vRemappedColor, bWriteMask);
         //vColorOutput = vec4(vColorOutput.rgb, 1.0);
+    }
+
+    if (g_bTextureViewer)
+    {
+        float flBackgroundMix = 1.0;
+
+        if (vTexCoord.x <= 1.0 && vTexCoord.y <= 1.0)
+            flBackgroundMix -= vColorOutput.a;
+
+        vColorOutput.rgb = mix(vColorOutput.rgb, vBackgroundColor, flBackgroundMix);
     }
 }

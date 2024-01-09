@@ -52,7 +52,7 @@ namespace GUI.Types.Renderer
                 [textureType] = 1,
             };
 
-            shader = GuiContext.ShaderLoader.LoadShader("vrf.texture_viewer", arguments);
+            shader = GuiContext.ShaderLoader.LoadShader("vrf.texture_decode", arguments);
             vao = GL.GenVertexArray();
 
             MainFramebuffer.ClearColor = OpenTK.Graphics.Color4.Green;
@@ -75,12 +75,19 @@ namespace GUI.Types.Renderer
             {
                 GuiContext.ShaderLoader.ClearCache();
 
-                shader = GuiContext.ShaderLoader.LoadShader("vrf.texture_viewer", arguments);
+                shader = GuiContext.ShaderLoader.LoadShader("vrf.texture_decode", arguments);
             };
 
             AddControl(button);
 #endif
         }
+
+        public static ChannelMapping RGB_AlphaSeparate = ChannelMapping.FromChannels(
+            ChannelMapping.Channel.R,
+            ChannelMapping.Channel.G,
+            ChannelMapping.Channel.B,
+            0x1C
+        );
 
         private void OnPaint(object sender, RenderEventArgs e)
         {
@@ -90,18 +97,15 @@ namespace GUI.Types.Renderer
             GL.UseProgram(shader.Program);
 
             //shader.SetUniform4x4("transform", Matrix4x4.CreateOrthographic(1f, 1f, 0, 1));
-            shader.SetUniform4x4("transform", Matrix4x4.Identity);
+            shader.SetUniform1("g_bTextureViewer", 1u);
+            shader.SetUniform2("g_vViewportSize", new Vector2(MainFramebuffer.Width, MainFramebuffer.Height));
+            shader.SetUniform1("g_fZoomScale", (float)Camera.CurrentSpeedModifier);
 
             shader.SetTexture(0, "g_tInputTexture", texture);
-            shader.SetUniform1("g_bMaintainAspectRatio", 1);
-            shader.SetUniform2("g_vViewportSize", new Vector2(MainFramebuffer.Width, MainFramebuffer.Height));
-            shader.SetUniform4("g_vInputTextureSize", new Vector4(
-                texture.Width, texture.Height, texture.Depth, texture.NumMipLevels
-            ));
+            shader.SetUniform4("g_vInputTextureSize", new Vector4(texture.Width, texture.Height, texture.Depth, texture.NumMipLevels));
             shader.SetUniform1("g_nSelectedMip", 0);
             shader.SetUniform1("g_nSelectedDepth", 0);
-            shader.SetUniform1("g_nChannelMapping", ChannelMapping.RGBA.PackedValue);
-            shader.SetUniform1("g_fZoomScale", (float)Camera.CurrentSpeedModifier);
+            shader.SetUniform1("g_nSelectedChannels", ChannelMapping.RGBA.PackedValue);
 
             GL.BindVertexArray(vao);
             GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
