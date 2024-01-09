@@ -465,7 +465,6 @@ namespace GUI.Controls
             Draw();
         }
 
-
         private void HandleResize()
         {
             var (w, h) = (GLControl.Width, GLControl.Height);
@@ -496,7 +495,7 @@ namespace GUI.Controls
 
         private void DisposeFramebuffer()
         {
-            MainFramebuffer.Dispose();
+            MainFramebuffer?.Dispose();
         }
 
         private void OnGotFocus(object sender, EventArgs e)
