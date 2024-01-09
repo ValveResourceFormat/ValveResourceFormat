@@ -29,7 +29,7 @@ namespace GUI.Controls
             public float FrameTime { get; set; }
         }
 
-        public Camera Camera { get; }
+        public Camera Camera { get; protected set; }
 
         public event EventHandler<RenderEventArgs> GLPaint;
         public event EventHandler GLLoad;
@@ -285,6 +285,15 @@ namespace GUI.Controls
 
         private void OnMouseWheel(object sender, WinFormsMouseEventArgs e)
         {
+            if (Camera is GLTextureViewer.TextureViewerCamera textureCamera)
+            {
+                var zoom = textureCamera.ModifyZoom(e.Delta > 0) * 100;
+
+                moveSpeed.Text = $"Zoom: {zoom:0.0}% (scroll to change)";
+
+                return;
+            }
+
             var modifier = Camera.ModifySpeed(e.Delta > 0);
 
             moveSpeed.Text = $"Move speed: {modifier:0.0}x (scroll to change)";

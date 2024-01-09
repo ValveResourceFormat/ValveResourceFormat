@@ -11,8 +11,30 @@ namespace GUI.Types.Renderer
 {
     class GLTextureViewer : GLViewerControl, IGLViewer
     {
+        public class TextureViewerCamera : Camera
+        {
+            public float ZoomLevel = 1f;
+
+            public float ModifyZoom(bool increase)
+            {
+                if (increase)
+                {
+                    ZoomLevel *= 1.25f;
+                }
+                else
+                {
+                    ZoomLevel /= 1.25f;
+                }
+
+                ZoomLevel = Math.Clamp(ZoomLevel, 0.1f, 50f);
+
+                return ZoomLevel;
+            }
+        }
+
         private readonly VrfGuiContext GuiContext;
         private readonly ValveResourceFormat.Resource Resource;
+        private readonly TextureViewerCamera TextureCamera;
         private RenderTexture texture;
         private Shader shader;
         private int vao;
@@ -21,6 +43,9 @@ namespace GUI.Types.Renderer
         {
             GuiContext = guiContext;
             Resource = resource;
+
+            TextureCamera = new TextureViewerCamera();
+            Camera = TextureCamera;
 
             GLLoad += OnLoad;
         }
@@ -99,7 +124,7 @@ namespace GUI.Types.Renderer
             //shader.SetUniform4x4("transform", Matrix4x4.CreateOrthographic(1f, 1f, 0, 1));
             shader.SetUniform1("g_bTextureViewer", 1u);
             shader.SetUniform2("g_vViewportSize", new Vector2(MainFramebuffer.Width, MainFramebuffer.Height));
-            shader.SetUniform1("g_fZoomScale", (float)Camera.CurrentSpeedModifier);
+            shader.SetUniform1("g_fZoomScale", TextureCamera.ZoomLevel);
 
             shader.SetTexture(0, "g_tInputTexture", texture);
             shader.SetUniform4("g_vInputTextureSize", new Vector4(texture.Width, texture.Height, texture.Depth, texture.NumMipLevels));

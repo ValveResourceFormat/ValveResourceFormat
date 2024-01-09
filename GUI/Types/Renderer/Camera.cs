@@ -19,7 +19,7 @@ namespace GUI.Types.Renderer
             5.0f,
             10.0f,
         ];
-        public int CurrentSpeedModifier = 2;
+        private int CurrentSpeedModifier = 2;
 
         public Vector3 Location { get; private set; }
         public float Pitch { get; private set; }
