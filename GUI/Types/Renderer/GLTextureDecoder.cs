@@ -137,6 +137,7 @@ class GLTextureDecoder : IDisposable // ITextureDecoder
         Framebuffer = Framebuffer.Prepare(8192, 8192, 0, new(PixelInternalFormat.Rgba8, PixelFormat.Rgba, PixelType.UnsignedByte), null);
         Framebuffer.Initialize();
         Framebuffer.CheckStatus_ThrowIfIncomplete(nameof(GLTextureDecoder));
+        Framebuffer.ClearMask = ClearBufferMask.ColorBufferBit;
 
         // TODO: Remove this
         GL.Enable(EnableCap.DebugOutput);
@@ -187,8 +188,7 @@ class GLTextureDecoder : IDisposable // ITextureDecoder
         }
 
         GL.Viewport(0, 0, inputTexture.Width, inputTexture.Height);
-        GL.Clear(ClearBufferMask.ColorBufferBit);
-        //GL.ClearColor(0, 0, 0, 1);
+        Framebuffer.Clear();
         GL.DepthMask(false);
         GL.Disable(EnableCap.DepthTest);
 
