@@ -242,7 +242,7 @@ namespace GUI.Controls
             Camera.MouseOverRenderArea = true;
         }
 
-        private void OnMouseDown(object sender, WinFormsMouseEventArgs e)
+        protected virtual void OnMouseDown(object sender, WinFormsMouseEventArgs e)
         {
             if (e.Button == MouseButtons.Left)
             {
@@ -266,7 +266,7 @@ namespace GUI.Controls
             }
         }
 
-        private void OnMouseUp(object sender, WinFormsMouseEventArgs e)
+        protected virtual void OnMouseUp(object sender, WinFormsMouseEventArgs e)
         {
             if (initialMousePosition != new Vector2(e.X, e.Y))
             {
@@ -283,21 +283,14 @@ namespace GUI.Controls
             }
         }
 
-        private void OnMouseWheel(object sender, WinFormsMouseEventArgs e)
+        protected virtual void OnMouseWheel(object sender, WinFormsMouseEventArgs e)
         {
-            if (Camera is GLTextureViewer.TextureViewerCamera textureCamera)
-            {
-                var zoom = textureCamera.ModifyZoom(e.Delta > 0) * 100;
-
-                moveSpeed.Text = $"Zoom: {zoom:0.0}% (scroll to change)";
-
-                return;
-            }
-
             var modifier = Camera.ModifySpeed(e.Delta > 0);
 
-            moveSpeed.Text = $"Move speed: {modifier:0.0}x (scroll to change)";
+            SetMoveSpeedOrZoomLabel($"Move speed: {modifier:0.0}x (scroll to change)");
         }
+
+        protected void SetMoveSpeedOrZoomLabel(string text) => moveSpeed.Text = text;
 
 #if DEBUG
         private static void OnDebugMessage(DebugSource source, DebugType type, int id, DebugSeverity severity, int length, IntPtr pMessage, IntPtr pUserParam)
@@ -403,7 +396,7 @@ namespace GUI.Controls
 
             var frameTime = (float)elapsed.TotalSeconds;
 
-            if (Camera is not GLTextureViewer.TextureViewerCamera)
+            if (this is not GLTextureViewer)
             {
                 Camera.HandleInput(Mouse.GetState(), Keyboard.GetState());
                 Camera.Tick(frameTime);

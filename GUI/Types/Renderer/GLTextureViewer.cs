@@ -11,61 +11,55 @@ namespace GUI.Types.Renderer
 {
     class GLTextureViewer : GLViewerControl, IGLViewer
     {
-        public class TextureViewerCamera : Camera
-        {
-            public float TextureScale = 1f;
-
-            public float ModifyZoom(bool increase)
-            {
-                if (increase)
-                {
-                    TextureScale *= 1.25f;
-                }
-                else
-                {
-                    TextureScale /= 1.25f;
-                }
-
-                TextureScale = Math.Clamp(TextureScale, 0.1f, 50f);
-
-                return TextureScale;
-            }
-        }
-
         private readonly VrfGuiContext GuiContext;
         private readonly ValveResourceFormat.Resource Resource;
-        private readonly TextureViewerCamera TextureCamera;
         private RenderTexture texture;
         private Shader shader;
         private int vao;
+
+        private Vector2? ClickPosition;
+        private Vector2 Position;
+        private float TextureScale = 1f;
+        private Button ResetButton;
 
         public GLTextureViewer(VrfGuiContext guiContext, ValveResourceFormat.Resource resource) : base()
         {
             GuiContext = guiContext;
             Resource = resource;
 
-            TextureCamera = new TextureViewerCamera();
-            Camera = TextureCamera;
-
             GLLoad += OnLoad;
-            GLControl.MouseDown += OnMouseDown;
             GLControl.MouseMove += OnMouseMove;
-            GLControl.MouseUp += OnMouseUp;
-            //GLControl.MouseWheel += OnMouseWheel;
+
+            SetMoveSpeedOrZoomLabel($"Zoom: {TextureScale * 100:0.0}% (scroll to change)");
+
+            ResetButton = new Button
+            {
+                Text = "Reset zoom",
+                AutoSize = true,
+            };
+
+            ResetButton.Click += (_, __) =>
+            {
+                TextureScale = 1f;
+                Position = Vector2.Zero;
+            };
+
+            AddControl(ResetButton);
         }
 
         protected override void Dispose(bool disposing)
         {
             if (disposing)
             {
+                GLControl.MouseMove -= OnMouseMove;
                 GLPaint -= OnPaint;
+
+                ResetButton.Dispose();
+                ResetButton = null;
             }
 
             base.Dispose(disposing);
         }
-
-        private Vector2? ClickPosition;
-        private Vector2 Position;
 
         private void OnMouseMove(object sender, MouseEventArgs e)
         {
@@ -74,19 +68,40 @@ namespace GUI.Types.Renderer
                 return;
             }
 
-            var p = new Vector2(e.Location.X, e.Location.Y);
-
-            Position = ClickPosition.Value - p;
+            Position = ClickPosition.Value - new Vector2(e.Location.X, e.Location.Y);
         }
 
-        private void OnMouseDown(object sender, MouseEventArgs e)
+        protected override void OnMouseDown(object sender, MouseEventArgs e)
         {
             ClickPosition = Position + new Vector2(e.Location.X, e.Location.Y);
         }
 
-        private void OnMouseUp(object sender, MouseEventArgs mouseEventArgs)
+        protected override void OnMouseUp(object sender, MouseEventArgs mouseEventArgs)
         {
             ClickPosition = null;
+        }
+
+        protected override void OnMouseWheel(object sender, MouseEventArgs e)
+        {
+            var oldScale = TextureScale;
+
+            if (e.Delta < 0)
+            {
+                TextureScale /= 1.25f;
+            }
+            else
+            {
+                TextureScale *= 1.25f;
+            }
+
+            TextureScale = Math.Clamp(TextureScale, 0.1f, 50f);
+
+            var pos = new Vector2(e.Location.X, e.Location.Y);
+            var posPrev = (pos + Position) / oldScale;
+            var posNewScale = posPrev * TextureScale;
+            Position = posNewScale - pos;
+
+            SetMoveSpeedOrZoomLabel($"Zoom: {TextureScale * 100:0.0}% (scroll to change)");
         }
 
         private void OnLoad(object sender, EventArgs e)
@@ -150,7 +165,7 @@ namespace GUI.Types.Renderer
             shader.SetUniform1("g_bTextureViewer", 1u);
             shader.SetUniform2("g_vViewportSize", new Vector2(MainFramebuffer.Width, MainFramebuffer.Height));
             shader.SetUniform2("g_vViewportPosition", Position);
-            shader.SetUniform1("g_flScale", TextureCamera.TextureScale);
+            shader.SetUniform1("g_flScale", TextureScale);
 
             shader.SetTexture(0, "g_tInputTexture", texture);
             shader.SetUniform4("g_vInputTextureSize", new Vector4(texture.Width, texture.Height, texture.Depth, texture.NumMipLevels));
