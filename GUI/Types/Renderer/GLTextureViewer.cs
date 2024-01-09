@@ -116,13 +116,24 @@ namespace GUI.Types.Renderer
         {
             var width = texture.Width * TextureScale;
             var height = texture.Height * TextureScale;
-            var edgeX = texture.Width * 0.1f;
-            var edgeY = texture.Height * 0.1f;
 
-            Position = new Vector2(
-                Math.Clamp(Position.X, Math.Min(0, -(GLControl.Width - edgeX)), Math.Max(0, width - edgeX)),
-                Math.Clamp(Position.Y, Math.Min(0, -(GLControl.Height - edgeY)), Math.Max(0, height - edgeY))
-            );
+            if (GLControl.Width >= width)
+            {
+                Position.X = -(GLControl.Width / 2f - width / 2f);
+            }
+            else
+            {
+                Position.X = Math.Clamp(Position.X, 0, width - GLControl.Width);
+            }
+
+            if (GLControl.Height >= height)
+            {
+                Position.Y = -(GLControl.Height / 2f - height / 2f);
+            }
+            else
+            {
+                Position.Y = Math.Clamp(Position.Y, 0, height - GLControl.Height);
+            }
         }
 
         protected override void OnResize(object sender, EventArgs e)
