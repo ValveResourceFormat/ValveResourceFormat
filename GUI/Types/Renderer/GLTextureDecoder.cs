@@ -205,6 +205,7 @@ class GLTextureDecoder : IDisposable // ITextureDecoder
         GL.UseProgram(shader.Program);
 
         shader.SetTexture(0, "g_tInputTexture", inputTexture);
+        shader.SetUniform2("g_vViewportSize", new System.Numerics.Vector2(inputTexture.Width, inputTexture.Height));
         shader.SetUniform4("g_vInputTextureSize", new System.Numerics.Vector4(
             inputTexture.Width, inputTexture.Height, inputTexture.Depth, inputTexture.NumMipLevels
         ));
