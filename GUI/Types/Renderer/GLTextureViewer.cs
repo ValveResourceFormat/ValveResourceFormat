@@ -75,6 +75,7 @@ namespace GUI.Types.Renderer
             }
 
             Position = ClickPosition.Value - new Vector2(e.Location.X, e.Location.Y);
+            ClampPosition();
         }
 
         protected override void OnMouseDown(object sender, MouseEventArgs e)
@@ -107,7 +108,31 @@ namespace GUI.Types.Renderer
             var posNewScale = posPrev * TextureScale;
             Position = posNewScale - pos;
 
+            ClampPosition();
             SetZoomLabel();
+        }
+
+        private void ClampPosition()
+        {
+            var width = texture.Width * TextureScale;
+            var height = texture.Height * TextureScale;
+            var edgeX = texture.Width * 0.1f;
+            var edgeY = texture.Height * 0.1f;
+
+            Position = new Vector2(
+                Math.Clamp(Position.X, Math.Min(0, -(GLControl.Width - edgeX)), Math.Max(0, width - edgeX)),
+                Math.Clamp(Position.Y, Math.Min(0, -(GLControl.Height - edgeY)), Math.Max(0, height - edgeY))
+            );
+        }
+
+        protected override void OnResize(object sender, EventArgs e)
+        {
+            base.OnResize(sender, e);
+
+            if (texture != null)
+            {
+                ClampPosition();
+            }
         }
 
         private void OnLoad(object sender, EventArgs e)
