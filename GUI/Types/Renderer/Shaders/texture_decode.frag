@@ -81,6 +81,22 @@ vec2 AdjustTextureViewerUvs(vec2 vTexCoord)
     return vTexCoord;
 }
 
+vec3 CheckerboardPattern(vec2 vScreenCoords)
+{
+    const vec3 color1 = vec3(0.9, 0.9, 0.9);
+    const vec3 color2 = vec3(0.6, 0.6, 0.6);
+
+    const vec2 vSizeInPixels = vec2(48);
+
+    vec2 vTexCoord = vScreenCoords / vSizeInPixels;
+    vec2 vCell = floor(vTexCoord);
+    vec2 vFrac = fract(vTexCoord);
+
+    vec3 vColor = mix(color1, color2, mod(vCell.x + vCell.y, 2.0));
+
+    return vColor;
+}
+
 layout(location = 0) out vec4 vColorOutput;
 
 void main()
@@ -96,6 +112,12 @@ void main()
     vTexCoord = AdjustTextureViewerUvs(vTexCoord);
 
     vec4 vColor = textureLod(g_tInputTexture, vTexCoord, float(g_nSelectedMip) / g_vInputTextureSize.w);
+
+    if (vTexCoord.x > 1.0 || vTexCoord.y > 1.0)
+    {
+        vColor.rgb = CheckerboardPattern(gl_FragCoord.xy);
+        vColor.a = 1.0;
+    }
 
     #if HemiOctIsoRoughness_RG_B == 1
         float flRoughness = vColor.b;
