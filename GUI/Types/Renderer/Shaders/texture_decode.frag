@@ -164,7 +164,7 @@ void main()
     if (g_bTextureViewer)
     {
         float flBackgroundMix = 1.0;
-        bool bWithinImageBounds = vTexCoord.x <= 1.0 && vTexCoord.y <= 1.0;
+        bool bWithinImageBounds = vTexCoord.x <= 1.0 && vTexCoord.y <= 1.0 && vTexCoord.x >= 0.0 && vTexCoord.y >= 0.0;
 
         if (g_bWantsSeparateAlpha && (bWithinImageBounds || bWithinAlphaBounds))
         {
