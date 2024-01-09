@@ -72,10 +72,10 @@ uniform bool g_bWantsSeparateAlpha = true;
 
 vec2 AdjustTextureViewerUvs(vec2 vTexCoord)
 {
+    vTexCoord += g_vViewportPosition / g_vViewportSize;
+
     vTexCoord.xy *= g_vViewportSize / g_vInputTextureSize.xy;
     vTexCoord.xy /= g_flScale;
-
-    vTexCoord += g_vViewportPosition / g_vViewportSize;
 
     return vTexCoord;
 }
