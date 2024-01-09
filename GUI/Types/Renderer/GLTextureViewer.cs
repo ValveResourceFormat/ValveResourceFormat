@@ -41,6 +41,7 @@ namespace GUI.Types.Renderer
             using (texture.BindingContext())
             {
                 texture.SetWrapMode(TextureWrapMode.ClampToBorder);
+                texture.SetFiltering(TextureMinFilter.Linear, TextureMagFilter.Nearest);
             }
 
             var textureType = "TYPE_" + texture.Target.ToString().ToUpperInvariant();
@@ -88,7 +89,7 @@ namespace GUI.Types.Renderer
 
             texture.Bind();
 
-            //shader.SetUniform4x4("transform", Matrix4x4.CreateOrthographic(texture.Width, texture.Height, 0, 1));
+            //shader.SetUniform4x4("transform", Matrix4x4.CreateOrthographic(1f, 1f, 0, 1));
             shader.SetUniform4x4("transform", Matrix4x4.Identity);
 
             shader.SetTexture(0, "g_tInputTexture", texture);
@@ -100,6 +101,7 @@ namespace GUI.Types.Renderer
             shader.SetUniform1("g_nSelectedMip", 0);
             shader.SetUniform1("g_nSelectedDepth", 0);
             shader.SetUniform1("g_nChannelMapping", ChannelMapping.RGBA.PackedValue);
+            shader.SetUniform1("g_fZoomScale", (float)Camera.CurrentSpeedModifier);
 
             GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
             //GL.DrawArrays(PrimitiveType.TriangleStrip, 0, 4);

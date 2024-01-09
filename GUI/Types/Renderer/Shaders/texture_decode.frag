@@ -67,6 +67,7 @@ uint GetColorIndex(uint nChannelMapping, uint nChannel)
 
 uniform bool g_bMaintainAspectRatio = false;
 uniform vec2 g_vViewportSize;
+uniform float g_fZoomScale;
 
 vec2 AdjustTextureViewerUvs(vec2 vTexCoord)
 {
@@ -74,6 +75,9 @@ vec2 AdjustTextureViewerUvs(vec2 vTexCoord)
     {
         vTexCoord.xy = vTexCoord.xy * (g_vViewportSize.xy / g_vInputTextureSize.xy);
     }
+
+    vTexCoord.xy /= g_fZoomScale;
+
     return vTexCoord;
 }
 
