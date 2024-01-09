@@ -459,7 +459,7 @@ namespace GUI.Controls
             }
         }
 
-        private void OnResize(object sender, EventArgs e)
+        protected virtual void OnResize(object sender, EventArgs e)
         {
             if (MainFramebuffer is null)
             {
