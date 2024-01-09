@@ -92,6 +92,8 @@ namespace GUI.Types.Renderer
             shader.SetUniform4x4("transform", Matrix4x4.Identity);
 
             shader.SetTexture(0, "g_tInputTexture", texture);
+            shader.SetUniform1("g_bMaintainAspectRatio", 1);
+            shader.SetUniform2("g_vViewportSize", new Vector2(MainFramebuffer.Width, MainFramebuffer.Height));
             shader.SetUniform4("g_vInputTextureSize", new Vector4(
                 texture.Width, texture.Height, texture.Depth, texture.NumMipLevels
             ));

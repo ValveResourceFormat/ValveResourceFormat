@@ -65,17 +65,31 @@ uint GetColorIndex(uint nChannelMapping, uint nChannel)
     }
 #endif
 
+uniform bool g_bMaintainAspectRatio = false;
+uniform vec2 g_vViewportSize;
+
+vec2 AdjustTextureViewerUvs(vec2 vTexCoord)
+{
+    if (g_bMaintainAspectRatio)
+    {
+        vTexCoord.xy = vTexCoord.xy * (g_vViewportSize.xy / g_vInputTextureSize.xy);
+    }
+    return vTexCoord;
+}
+
 layout(location = 0) out vec4 vColorOutput;
 
 void main()
 {
-    vec2 vTexCoord2D = gl_FragCoord.xy / g_vInputTextureSize.xy;
+    vec2 vTexCoord2D = gl_FragCoord.xy / g_vViewportSize.xy;
 
     #if TYPE_TEXTURE2D == 1
         vec2 vTexCoord = vTexCoord2D;
     #elif TYPE_TEXTURE2DARRAY == 1
         vec3 vTexCoord = vec3(vTexCoord2D, g_nSelectedDepth);
     #endif
+
+    vTexCoord = AdjustTextureViewerUvs(vTexCoord);
 
     vec4 vColor = textureLod(g_tInputTexture, vTexCoord, float(g_nSelectedMip) / g_vInputTextureSize.w);
 
