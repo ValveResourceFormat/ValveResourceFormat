@@ -13,5 +13,5 @@ public static class HardwareAcceleratedTextureDecoder
 
 public interface IHardwareTextureDecoder
 {
-    public abstract void Decode(SKBitmap bitmap, Texture texture);
+    public abstract bool Decode(SKBitmap bitmap, Texture texture);
 }
