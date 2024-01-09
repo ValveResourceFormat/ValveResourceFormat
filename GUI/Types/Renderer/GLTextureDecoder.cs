@@ -134,7 +134,9 @@ class GLTextureDecoder : IDisposable // ITextureDecoder
         GLControl = new GLControl(new GraphicsMode(new ColorFormat(8, 8, 8, 8)), 4, 6, GraphicsContextFlags.Offscreen);
         GLControl.MakeCurrent();
 
-        Framebuffer = Framebuffer.Prepare(8192, 8192, 0, new(PixelInternalFormat.Rgba8, PixelFormat.Rgba, PixelType.UnsignedByte), null);
+        // TODO: resize framebuffer on request.
+        GL.GetInternalformat(ImageTarget.Texture2D, SizedInternalFormat.Rgba8, InternalFormatParameter.InternalformatPreferred, 1, out int internalFormatPreferred);
+        Framebuffer = Framebuffer.Prepare(8192, 8192, 0, new((PixelInternalFormat)internalFormatPreferred, PixelFormat.Bgra, PixelType.UnsignedByte), null);
         Framebuffer.Initialize();
         Framebuffer.CheckStatus_ThrowIfIncomplete(nameof(GLTextureDecoder));
         Framebuffer.ClearMask = ClearBufferMask.ColorBufferBit;
@@ -181,7 +183,7 @@ class GLTextureDecoder : IDisposable // ITextureDecoder
         if (request.Channels == ChannelMapping.RGBA
             && request.HemiOctRB == false && request.YCoCg == false)
         {
-            GL.GetTexImage(inputTexture.Target, request.Mip, PixelFormat.Rgba, PixelType.UnsignedByte, request.Bitmap.GetPixels());
+            GL.GetTexImage(inputTexture.Target, request.Mip, PixelFormat.Bgra, PixelType.UnsignedByte, request.Bitmap.GetPixels());
             Log.Info(nameof(GLTextureDecoder), "Using GL.GetTexImage");
             request.DecodeTime = sw.Elapsed;
             return true;
@@ -224,7 +226,7 @@ class GLTextureDecoder : IDisposable // ITextureDecoder
         // extract pixels from framebuffer
         var pixels = request.Bitmap.GetPixels(out var length);
         Debug.Assert(length == inputTexture.Width * inputTexture.Height * 4);
-        GL.ReadPixels(0, 0, inputTexture.Width, inputTexture.Height, PixelFormat.Rgba, PixelType.UnsignedByte, pixels);
+        GL.ReadPixels(0, 0, inputTexture.Width, inputTexture.Height, PixelFormat.Bgra, PixelType.UnsignedByte, pixels);
         GL.Finish();
 
         request.DecodeTime = sw.Elapsed;
