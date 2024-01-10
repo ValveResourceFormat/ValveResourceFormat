@@ -28,8 +28,12 @@ namespace GUI.Types.Renderer
         private float TextureScale = 1f;
         private float TextureScaleOld = 1f;
         private float TextureScaleChangeTime;
-        private Button ResetButton;
+
+        private int SelectedDepth;
+
         private bool FirstPaint = true;
+        private Button ResetButton;
+        private ComboBox depthComboBox;
 
         public GLTextureViewer(VrfGuiContext guiContext, Resource resource) : base()
         {
@@ -60,6 +64,19 @@ namespace GUI.Types.Renderer
             };
 
             AddControl(ResetButton);
+
+            var textureData = (Texture)Resource.DataBlock;
+
+            if (textureData.Depth > 1)
+            {
+                depthComboBox = AddSelection("Depth", (name, index) =>
+                {
+                    SelectedDepth = index;
+                });
+
+                depthComboBox.Items.AddRange(Enumerable.Range(0, textureData.Depth).Select(x => $"#{x}").ToArray());
+                depthComboBox.SelectedIndex = 0;
+            }
         }
 
         protected override void Dispose(bool disposing)
@@ -71,6 +88,9 @@ namespace GUI.Types.Renderer
 
                 ResetButton.Dispose();
                 ResetButton = null;
+
+                depthComboBox?.Dispose();
+                depthComboBox = null;
             }
 
             base.Dispose(disposing);
@@ -275,7 +295,7 @@ namespace GUI.Types.Renderer
             shader.SetTexture(0, "g_tInputTexture", texture);
             shader.SetUniform4("g_vInputTextureSize", new Vector4(texture.Width, texture.Height, texture.Depth, texture.NumMipLevels));
             shader.SetUniform1("g_nSelectedMip", 0);
-            shader.SetUniform1("g_nSelectedDepth", 0);
+            shader.SetUniform1("g_nSelectedDepth", SelectedDepth);
             shader.SetUniform1("g_nSelectedChannels", ChannelMapping.RGBA.PackedValue);
 
             GL.BindVertexArray(vao);
