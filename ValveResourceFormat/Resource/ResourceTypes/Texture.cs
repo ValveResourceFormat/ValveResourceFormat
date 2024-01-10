@@ -848,8 +848,6 @@ namespace ValveResourceFormat.ResourceTypes
 
         public TextureCodec RetrieveCodecFromResourceEditInfo()
         {
-            ArgumentNullException.ThrowIfNull(editInfo, nameof(editInfo));
-
             var codec = TextureCodec.None;
 
             if (IsRawPng || IsRawJpeg)
