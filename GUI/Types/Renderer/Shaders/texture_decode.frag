@@ -1,7 +1,7 @@
 #version 460
 
 #define TYPE_TEXTURE2D 0
-#define TYPE_TEXTURE2DARRAY 1
+#define TYPE_TEXTURE2DARRAY 0
 
 #if TYPE_TEXTURE2D == 1
     #define TEXTURE_TYPE sampler2D
@@ -22,7 +22,7 @@ uint GetColorIndex(uint nChannelMapping, uint nChannel)
 }
 
 #define YCoCg_Conversion 0
-#define HemiOctIsoRoughness_RG_B 1
+#define HemiOctIsoRoughness_RG_B 0
 #define NormalizeNormals 0
 #define DXT5nm 0
 
@@ -121,7 +121,7 @@ void main()
 
     vec4 vColor = textureLod(g_tInputTexture, vTexCoord, float(g_nSelectedMip) / g_vInputTextureSize.w);
 
-    #if DXT5nm == 0
+    #if DXT5nm == 1
         float flRed = vColor.r;
         vColor.r = vColor.a;
         vColor.a = flRed;
