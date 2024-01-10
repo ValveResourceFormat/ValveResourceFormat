@@ -18,8 +18,9 @@ namespace GUI.Types.Renderer
 {
     class GLTextureViewer : GLViewerControl, IGLViewer
     {
-        private readonly VrfGuiContext GuiContext;
-        private readonly Resource Resource;
+        private VrfGuiContext GuiContext;
+        private Resource Resource;
+        private SKBitmap Bitmap;
         private RenderTexture texture;
         private Shader shader;
         private int vao;
@@ -39,29 +40,14 @@ namespace GUI.Types.Renderer
         private ComboBox depthComboBox;
         private CheckedListBox decodeFlagsListBox;
 
-        public GLTextureViewer(VrfGuiContext guiContext, Resource resource) : base()
+        private GLTextureViewer(VrfGuiContext guiContext) : base()
         {
             GuiContext = guiContext;
-            Resource = resource;
 
             GLLoad += OnLoad;
             GLControl.MouseMove += OnMouseMove;
 
             SetZoomLabel();
-
-            var textureData = (Texture)Resource.DataBlock;
-            decodeFlags = Texture.RetrieveCodecFromResourceEditInfo(Resource);
-
-            AddControl(new Label
-            {
-                Text = $"Size: {textureData.Width}x{textureData.Height}",
-                Width = 200,
-            });
-            AddControl(new Label
-            {
-                Text = $"Format: {textureData.Format}",
-                Width = 200,
-            });
 
             ResetButton = new Button
             {
@@ -82,6 +68,35 @@ namespace GUI.Types.Renderer
             };
 
             AddControl(ResetButton);
+        }
+
+        public GLTextureViewer(VrfGuiContext guiContext, SKBitmap bitmap) : this(guiContext)
+        {
+            Bitmap = bitmap;
+        }
+
+        public GLTextureViewer(VrfGuiContext guiContext, Resource resource) : this(guiContext)
+        {
+            Resource = resource;
+
+            var textureData = (Texture)Resource.DataBlock;
+
+            if (!textureData.IsRawJpeg && !textureData.IsRawPng)
+            {
+                // TODO: Move this check into RetrieveCodecFromResourceEditInfo and make it non static
+                decodeFlags = Texture.RetrieveCodecFromResourceEditInfo(Resource);
+            }
+
+            AddControl(new Label
+            {
+                Text = $"Size: {textureData.Width}x{textureData.Height}",
+                Width = 200,
+            });
+            AddControl(new Label
+            {
+                Text = $"Format: {textureData.Format}",
+                Width = 200,
+            });
 
             if (textureData.Depth > 1)
             {
@@ -144,6 +159,12 @@ namespace GUI.Types.Renderer
             {
                 GLControl.MouseMove -= OnMouseMove;
                 GLPaint -= OnPaint;
+
+                GuiContext = null;
+                Resource = null;
+
+                Bitmap?.Dispose();
+                Bitmap = null;
 
                 ResetButton.Dispose();
                 ResetButton = null;
@@ -245,43 +266,56 @@ namespace GUI.Types.Renderer
         {
             texture?.Dispose();
 
-            var textureData = (Texture)Resource.DataBlock;
-            var isCpuDecodedImage = textureData.IsRawJpeg || textureData.IsRawPng;
-
-            if (isCpuDecodedImage || forceSoftwareDecode)
+            if (Resource == null)
             {
-                SKBitmap bitmap;
+                Debug.Assert(Bitmap != null);
+                Debug.Assert(Bitmap.ColorType == SKColorType.Bgra8888);
 
-                lock (HardwareAcceleratedTextureDecoder.Decoder)
-                {
-                    // GUI provides hardware decoder for texture decoding, but here we do not want to use it
-                    var decoder = HardwareAcceleratedTextureDecoder.Decoder;
-                    HardwareAcceleratedTextureDecoder.Decoder = null;
+                texture = new RenderTexture(TextureTarget.Texture2D, Bitmap.Width, Bitmap.Height, 1, 1);
+                using var _ = texture.BindingContext();
 
-                    try
-                    {
-                        bitmap = textureData.GenerateBitmap();
-                    }
-                    finally
-                    {
-                        HardwareAcceleratedTextureDecoder.Decoder = decoder;
-                    }
-                }
-
-                using (bitmap)
-                {
-                    Debug.Assert(bitmap.ColorType == SKColorType.Bgra8888);
-
-                    texture = new RenderTexture(TextureTarget.Texture2D, textureData);
-                    using var _ = texture.BindingContext();
-
-                    GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba8, texture.Width, texture.Height, 0, PixelFormat.Bgra, PixelType.UnsignedByte, bitmap.GetPixels());
-                }
+                GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba8, texture.Width, texture.Height, 0, PixelFormat.Bgra, PixelType.UnsignedByte, Bitmap.GetPixels());
             }
             else
             {
-                // TODO: LoadTexture has things like max texture size and anisotrophy, need to ignore these
-                texture = GuiContext.MaterialLoader.LoadTexture(Resource);
+                var textureData = (Texture)Resource.DataBlock;
+                var isCpuDecodedImage = textureData.IsRawJpeg || textureData.IsRawPng;
+
+                if (isCpuDecodedImage || forceSoftwareDecode)
+                {
+                    SKBitmap bitmap;
+
+                    lock (HardwareAcceleratedTextureDecoder.Decoder)
+                    {
+                        // GUI provides hardware decoder for texture decoding, but here we do not want to use it
+                        var decoder = HardwareAcceleratedTextureDecoder.Decoder;
+                        HardwareAcceleratedTextureDecoder.Decoder = null;
+
+                        try
+                        {
+                            bitmap = textureData.GenerateBitmap();
+                        }
+                        finally
+                        {
+                            HardwareAcceleratedTextureDecoder.Decoder = decoder;
+                        }
+                    }
+
+                    using (bitmap)
+                    {
+                        Debug.Assert(bitmap.ColorType == SKColorType.Bgra8888);
+
+                        texture = new RenderTexture(TextureTarget.Texture2D, textureData);
+                        using var _ = texture.BindingContext();
+
+                        GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba8, texture.Width, texture.Height, 0, PixelFormat.Bgra, PixelType.UnsignedByte, bitmap.GetPixels());
+                    }
+                }
+                else
+                {
+                    // TODO: LoadTexture has things like max texture size and anisotrophy, need to ignore these
+                    texture = GuiContext.MaterialLoader.LoadTexture(Resource);
+                }
             }
 
             using (texture.BindingContext())
@@ -291,11 +325,6 @@ namespace GUI.Types.Renderer
             }
 
             var textureType = "TYPE_" + texture.Target.ToString().ToUpperInvariant();
-
-            if (isCpuDecodedImage)
-            {
-                decodeFlags = TextureCodec.None;
-            }
 
             var arguments = new Dictionary<string, byte>
             {
