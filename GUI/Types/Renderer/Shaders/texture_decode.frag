@@ -12,8 +12,15 @@
 uniform TEXTURE_TYPE g_tInputTexture;
 uniform vec4 g_vInputTextureSize;
 
+#define YCoCg_Conversion (1 << 0)
+#define RGBM (1 << 1)
+#define HemiOctIsoRoughness_RG_B (1 << 2)
+#define NormalizeNormals (1 << 3)
+#define Dxt5nm (1 << 4)
+
 uniform int g_nSelectedMip;
 uniform int g_nSelectedDepth;
+uniform int g_nDecodeFlags;
 uniform uint g_nSelectedChannels = 0x03020100; // RGBA
 
 uint GetColorIndex(uint nChannelMapping, uint nChannel)
@@ -21,10 +28,6 @@ uint GetColorIndex(uint nChannelMapping, uint nChannel)
     return (nChannelMapping >> (nChannel * 8)) & 0xff;
 }
 
-#define YCoCg_Conversion 0
-#define HemiOctIsoRoughness_RG_B 0
-#define NormalizeNormals 0
-#define DXT5nm 0
 
 vec3 PackToColor( vec3 vValue )
 {
@@ -121,29 +124,34 @@ void main()
 
     vec4 vColor = textureLod(g_tInputTexture, vTexCoord, float(g_nSelectedMip) / g_vInputTextureSize.w);
 
-    #if DXT5nm == 1
+    // similar to a channel mapping value of 0x00020103
+    if ((g_nDecodeFlags & Dxt5nm) != 0)
+    {
         float flRed = vColor.r;
         vColor.r = vColor.a;
         vColor.a = flRed;
-    #endif
+    }
 
-    #if HemiOctIsoRoughness_RG_B == 1
+    if ((g_nDecodeFlags & HemiOctIsoRoughness_RG_B) != 0)
+    {
         float flRoughness = vColor.b;
         vColor.rgb = PackToColor(oct_to_float32x3(vec2(vColor.x + vColor.y - 1.003922, vColor.x - vColor.y)));
         vColor.a = flRoughness;
-    #endif
+    }
 
-    #if NormalizeNormals == 1
+    if ((g_nDecodeFlags & NormalizeNormals) != 0)
+    {
         vec2 normalXy = (vColor.rg) * 2.0 - 1.0;
         float derivedZ = sqrt(1.0 - (normalXy.x * normalXy.x) - (normalXy.y * normalXy.y));
         vColor.rgb = vec3(normalXy.xy / 2 + 0.5, derivedZ);
         vColor.a = 1.0;
-    #endif
+    }
 
-    #if YCoCg_Conversion == 1
+    if ((g_nDecodeFlags & YCoCg_Conversion) != 0)
+    {
         vColor.rgb = DecodeYCoCg(vColor);
         vColor.a = 1.0;
-    #endif
+    }
 
     uvec4 vRemapIndices = uvec4(
         GetColorIndex(g_nSelectedChannels, 0),

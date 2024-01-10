@@ -7,10 +7,9 @@ using GUI.Controls;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat;
-using ValveResourceFormat.Blocks;
-using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
 using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.TextureDecoders;
 
 namespace GUI.Types.Renderer
 {
@@ -30,10 +29,12 @@ namespace GUI.Types.Renderer
         private float TextureScaleChangeTime;
 
         private int SelectedDepth;
+        private TextureCodec decodeFlags;
 
         private bool FirstPaint = true;
         private Button ResetButton;
         private ComboBox depthComboBox;
+        private CheckedListBox decodeFlagsListBox;
 
         public GLTextureViewer(VrfGuiContext guiContext, Resource resource) : base()
         {
@@ -46,6 +47,7 @@ namespace GUI.Types.Renderer
             SetZoomLabel();
 
             var textureData = (Texture)Resource.DataBlock;
+            decodeFlags = Texture.RetrieveCodecFromResourceEditInfo(Resource);
 
             AddControl(new Label
             {
@@ -88,6 +90,41 @@ namespace GUI.Types.Renderer
                 depthComboBox.Items.AddRange(Enumerable.Range(0, textureData.Depth).Select(x => $"#{x}").ToArray());
                 depthComboBox.SelectedIndex = 0;
             }
+
+            decodeFlagsListBox = AddMultiSelection("Texture Conversion",
+                listBox =>
+                {
+                    var values = Enum.GetValues(typeof(TextureCodec));
+
+                    var i = 0;
+                    for (var flag = 0; flag < values.Length; flag++)
+                    {
+                        var value = (TextureCodec)values.GetValue(flag);
+                        var name = Enum.GetName(value);
+
+                        // check for combined flag, or flag 0 (none)
+                        if (value == 0 || (value & (value - 1)) != 0)
+                        {
+                            continue;
+                        }
+
+                        listBox.Items.Add(name);
+                        var setCheckedState = decodeFlags.HasFlag(value);
+                        listBox.SetItemChecked(i, setCheckedState);
+                        i++;
+                    }
+
+                },
+                checkedItemNames =>
+                {
+                    decodeFlags = TextureCodec.None;
+
+                    foreach (var itemName in checkedItemNames)
+                    {
+                        decodeFlags |= (TextureCodec)Enum.Parse(typeof(TextureCodec), itemName);
+                    }
+                }
+            );
         }
 
         protected override void Dispose(bool disposing)
@@ -102,6 +139,9 @@ namespace GUI.Types.Renderer
 
                 depthComboBox?.Dispose();
                 depthComboBox = null;
+
+                decodeFlagsListBox?.Dispose();
+                decodeFlagsListBox = null;
             }
 
             base.Dispose(disposing);
@@ -216,21 +256,14 @@ namespace GUI.Types.Renderer
 
             var textureType = "TYPE_" + texture.Target.ToString().ToUpperInvariant();
 
-            var hemiOctRB = false;
-            var yCoCg = false;
-
-            if (!isCpuDecodedImage && Resource.EditInfo.Structs.TryGetValue(ResourceEditInfo.REDIStruct.SpecialDependencies, out var specialDepsRedi))
+            if (isCpuDecodedImage)
             {
-                var specialDeps = (SpecialDependencies)specialDepsRedi;
-                yCoCg = specialDeps.List.Any(dependancy => dependancy.CompilerIdentifier == "CompileTexture" && dependancy.String == "Texture Compiler Version Image YCoCg Conversion");
-                hemiOctRB = specialDeps.List.Any(dependency => dependency.CompilerIdentifier == "CompileTexture" && dependency.String == "Texture Compiler Version Mip HemiOctIsoRoughness_RG_B");
+                decodeFlags = TextureCodec.None;
             }
 
             var arguments = new Dictionary<string, byte>
             {
                 [textureType] = 1,
-                ["HemiOctIsoRoughness_RG_B"] = hemiOctRB ? (byte)1 : (byte)0,
-                ["YCoCg_Conversion"] = yCoCg ? (byte)1 : (byte)0,
             };
 
             shader = GuiContext.ShaderLoader.LoadShader("vrf.texture_decode", arguments);
@@ -308,6 +341,7 @@ namespace GUI.Types.Renderer
             shader.SetUniform1("g_nSelectedMip", 0);
             shader.SetUniform1("g_nSelectedDepth", SelectedDepth);
             shader.SetUniform1("g_nSelectedChannels", ChannelMapping.RGBA.PackedValue);
+            shader.SetUniform1("g_nDecodeFlags", (int)decodeFlags);
 
             GL.BindVertexArray(vao);
             GL.DrawArrays(PrimitiveType.Triangles, 0, 3);

@@ -15,6 +15,7 @@ using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
 using TextureData = ValveResourceFormat.ResourceTypes.Texture;
 using Channels = ValveResourceFormat.CompiledShader.ChannelMapping;
 using System.Diagnostics;
+using ValveResourceFormat.TextureDecoders;
 
 namespace GUI.Forms
 {
@@ -129,23 +130,18 @@ namespace GUI.Forms
                 return false;
             }
 
-            var hemiOctRB = false;
-            var yCoCg = false;
+            var decodeFlags = TextureCodec.None;
 
-            if (textureResource is not null && textureResource.EditInfo.Structs.TryGetValue(ResourceEditInfo.REDIStruct.SpecialDependencies, out var specialDepsRedi))
+            if (textureResource is not null)
             {
-                var specialDeps = (SpecialDependencies)specialDepsRedi;
-                yCoCg = specialDeps.List.Any(dependancy => dependancy.CompilerIdentifier == "CompileTexture" && dependancy.String == "Texture Compiler Version Image YCoCg Conversion");
-                hemiOctRB = specialDeps.List.Any(dependency => dependency.CompilerIdentifier == "CompileTexture" && dependency.String == "Texture Compiler Version Mip HemiOctIsoRoughness_RG_B");
+                decodeFlags = TextureData.RetrieveCodecFromResourceEditInfo(textureResource);
             }
 
             // using?
             using var bitmap = new SKBitmap(texture.Width, texture.Height, SKColorType.Bgra8888, SKAlphaType.Unpremul);
-            var success = hardwareDecoder.Decode(new GLTextureDecoder.DecodeRequest(bitmap, texture, 0, 0, channels)
-            {
-                HemiOctRB = hemiOctRB,
-                YCoCg = yCoCg,
-            });
+
+            using var request = new GLTextureDecoder.DecodeRequest(bitmap, texture, 0, 0, channels, decodeFlags);
+            var success = hardwareDecoder.Decode(request);
 
             if (!success)
             {
