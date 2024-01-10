@@ -21,54 +21,43 @@ uint GetColorIndex(uint nChannelMapping, uint nChannel)
     return (nChannelMapping >> (nChannel * 8)) & 0xff;
 }
 
-#define HemiOctIsoRoughness_RG_B 0
 #define YCoCg_Conversion 0
+#define HemiOctIsoRoughness_RG_B 1
+#define NormalizeNormals 0
+#define DXT5nm 0
 
-#if HemiOctIsoRoughness_RG_B == 1
-    vec3 PackToColor( vec3 vValue )
-    {
-        return ( ( vValue.xyz * 0.5 ) + 0.5 );
-    }
+vec3 PackToColor( vec3 vValue )
+{
+    return ( ( vValue.xyz * 0.5 ) + 0.5 );
+}
 
-    vec3 oct_to_float32x3(vec2 e)
-    {
-        vec3 v = vec3(e.xy, 1.0 - abs(e.x) - abs(e.y));
-        return normalize(v);
-    }
+vec3 oct_to_float32x3(vec2 e)
+{
+    vec3 v = vec3(e.xy, 1.0 - abs(e.x) - abs(e.y));
+    return normalize(v);
+}
 
-    // Unpack HemiOct normal map
-    vec3 DecodeNormal(vec4 bumpNormal)
-    {
-        //Reconstruct the tangent vector from the map
-        vec2 temp = vec2(bumpNormal.x + bumpNormal.y - 1.003922, bumpNormal.x - bumpNormal.y);
-        vec3 tangentNormal = oct_to_float32x3(temp);
+vec3 DecodeYCoCg(vec4 YCoCg)
+{
+    float scale = (YCoCg.z * (255.0 / 8.0)) + 1.0;
+    float Co = (YCoCg.x + (-128.0 / 255.0)) / scale;
+    float Cg = (YCoCg.y + (-128.0 / 255.0)) / scale;
+    float Y = YCoCg.w;
 
-        return tangentNormal;
-    }
-#endif
+    float R = Y + Co - Cg;
+    float G = Y + Cg;
+    float B = Y - Co - Cg;
 
-#if YCoCg_Conversion == 1
-    vec3 DecodeYCoCg(vec4 YCoCg)
-    {
-        float scale = (YCoCg.z * (255.0 / 8.0)) + 1.0;
-        float Co = (YCoCg.x + (-128.0 / 255.0)) / scale;
-        float Cg = (YCoCg.y + (-128.0 / 255.0)) / scale;
-        float Y = YCoCg.w;
+    vec3 color = vec3(R, G, B);
+    return color;
+}
 
-        float R = Y + Co - Cg;
-        float G = Y + Cg;
-        float B = Y - Co - Cg;
-
-        vec3 color = vec3(R, G, B);
-        return color;
-    }
-#endif
 
 uniform bool g_bTextureViewer = false;
 uniform vec2 g_vViewportSize;
 uniform vec2 g_vViewportPosition;
 uniform float g_flScale = 1.0;
-uniform bool g_bWantsSeparateAlpha = true;
+uniform bool g_bWantsSeparateAlpha = false;
 
 vec2 AdjustTextureViewerUvs(vec2 vTexCoord)
 {
@@ -132,10 +121,23 @@ void main()
 
     vec4 vColor = textureLod(g_tInputTexture, vTexCoord, float(g_nSelectedMip) / g_vInputTextureSize.w);
 
+    #if DXT5nm == 0
+        float flRed = vColor.r;
+        vColor.r = vColor.a;
+        vColor.a = flRed;
+    #endif
+
     #if HemiOctIsoRoughness_RG_B == 1
         float flRoughness = vColor.b;
         vColor.rgb = PackToColor(oct_to_float32x3(vec2(vColor.x + vColor.y - 1.003922, vColor.x - vColor.y)));
         vColor.a = flRoughness;
+    #endif
+
+    #if NormalizeNormals == 1
+        vec2 normalXy = (vColor.rg) * 2.0 - 1.0;
+        float derivedZ = sqrt(1.0 - (normalXy.x * normalXy.x) - (normalXy.y * normalXy.y));
+        vColor.rgb = vec3(normalXy.xy / 2 + 0.5, derivedZ);
+        vColor.a = 1.0;
     #endif
 
     #if YCoCg_Conversion == 1
