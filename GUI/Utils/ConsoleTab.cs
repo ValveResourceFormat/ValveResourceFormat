@@ -92,7 +92,7 @@ namespace GUI.Utils
 
             if (control.Visible)
             {
-                DrainQueue();
+                control.BeginInvoke(DrainQueue);
             }
         }
 
