@@ -354,6 +354,7 @@ namespace GUI.Types.Renderer
                 VTexFormat.RGBA16161616 => PixelInternalFormat.Rgba16,
                 VTexFormat.RGBA16161616F => PixelInternalFormat.Rgba16f,
                 VTexFormat.RGBA8888 => PixelInternalFormat.Rgba8,
+                VTexFormat.BGRA8888 => PixelInternalFormat.Rgba8,
                 _ => null // Unsupported texture format
             };
 
@@ -366,6 +367,7 @@ namespace GUI.Types.Renderer
                 VTexFormat.RG1616 => PixelFormat.Rg,
                 VTexFormat.RG1616F => PixelFormat.Rg,
                 VTexFormat.RG3232F => PixelFormat.Rg,
+                VTexFormat.BGRA8888 => PixelFormat.Bgra,
                 _ => PixelFormat.Rgba
             };
 
