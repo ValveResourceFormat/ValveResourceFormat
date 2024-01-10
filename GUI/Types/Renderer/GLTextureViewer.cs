@@ -80,7 +80,6 @@ namespace GUI.Types.Renderer
             Resource = resource;
 
             var textureData = (Texture)Resource.DataBlock;
-            decodeFlags = Texture.RetrieveCodecFromResourceEditInfo(Resource.EditInfo, textureData);
 
             AddControl(new Label
             {
@@ -340,7 +339,7 @@ namespace GUI.Types.Renderer
 
             // TODO: LoadTexture has things like max texture size and anisotrophy, need to ignore these
             texture = GuiContext.MaterialLoader.LoadTexture(Resource);
-            decodeFlags = Texture.RetrieveCodecFromResourceEditInfo(Resource.EditInfo, textureData);
+            decodeFlags = textureData.RetrieveCodecFromResourceEditInfo();
         }
 
         private void OnLoad(object sender, EventArgs e)
