@@ -37,45 +37,15 @@ namespace ValveResourceFormat.TextureDecoders
                 mul /= 1.0f + mul;
                 mul /= y;
 
-
-                if (hr < 0)
-                {
-                    hr = 0;
-                }
-
-                if (hr > 1)
-                {
-                    hr = 1;
-                }
-
-                if (hg < 0)
-                {
-                    hg = 0;
-                }
-
-                if (hg > 1)
-                {
-                    hg = 1;
-                }
-
-                if (hb < 0)
-                {
-                    hb = 0;
-                }
-
-                if (hb > 1)
-                {
-                    hb = 1;
-                }
                 hr = MathF.Pow((y + (1.403f * v)) * mul, 2.25f);
                 hg = MathF.Pow((y - (0.344f * u) - (0.714f * v)) * mul, 2.25f);
                 hb = MathF.Pow((y + (1.770f * u)) * mul, 2.25f);
 
                 data[j] = new SKColor(
-                    (byte)(hr * 255),
-                    (byte)(hg * 255),
-                    (byte)(hb * 255),
-                    (byte)(ha * 255)
+                    (byte)(Common.ClampHighRangeColor(hr) * 255),
+                    (byte)(Common.ClampHighRangeColor(hg) * 255),
+                    (byte)(Common.ClampHighRangeColor(hb) * 255),
+                    (byte)(Common.ClampHighRangeColor(ha) * 255)
                 );
             }
         }

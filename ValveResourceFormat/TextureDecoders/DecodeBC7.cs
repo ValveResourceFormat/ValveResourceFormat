@@ -1,6 +1,7 @@
 // Copyright 2020 lewa_j [https://github.com/lewa-j]
 // Reference: https://www.khronos.org/registry/DataFormat/specs/1.3/dataformat.1.3.html#BPTC
 using System;
+using System.Runtime.InteropServices;
 using SkiaSharp;
 
 namespace ValveResourceFormat.TextureDecoders
@@ -126,8 +127,10 @@ namespace ValveResourceFormat.TextureDecoders
 
         public void Decode(SKBitmap bitmap, Span<byte> input)
         {
-            using var pixels = bitmap.PeekPixels();
-            var data = pixels.GetPixelSpan<byte>();
+            using var pixmap = bitmap.PeekPixels();
+            var data = pixmap.GetPixelSpan<byte>();
+            var pixels = MemoryMarshal.Cast<byte, Color>(data);
+
             var blockCountX = (w + 3) / 4;
             var blockCountY = (h + 3) / 4;
             var offset = 0;
@@ -287,7 +290,8 @@ namespace ValveResourceFormat.TextureDecoders
                         for (var bx = 0; bx < 4; bx++)
                         {
                             var io = (by * 4) + bx;
-                            var pixelIndex = (((j * 4) + by) * bitmap.RowBytes) + (((i * 4) + bx) * 4);
+                            var dataIndex = (((j * 4) + by) * bitmap.RowBytes) + (((i * 4) + bx) * 4);
+                            var pixelIndex = dataIndex / 4;
 
                             byte cweight = 0;
                             byte aweight = 0;
@@ -346,42 +350,34 @@ namespace ValveResourceFormat.TextureDecoders
                                 aweight = cweight;
                             }
 
-                            if ((i * 4) + bx >= bitmap.Width || data.Length <= pixelIndex + 3)
+                            if ((i * 4) + bx >= bitmap.Width || data.Length <= dataIndex + 3)
                             {
                                 continue;
                             }
 
-                            data[pixelIndex] = (byte)BPTCInterpolateFactor(cweight, endpoints[subset, 2], endpoints[subset + 1, 2]);
-                            data[pixelIndex + 1] = (byte)BPTCInterpolateFactor(cweight, endpoints[subset, 1], endpoints[subset + 1, 1]);
-                            data[pixelIndex + 2] = (byte)BPTCInterpolateFactor(cweight, endpoints[subset, 0], endpoints[subset + 1, 0]);
+                            pixels[pixelIndex].b = (byte)BPTCInterpolateFactor(cweight, endpoints[subset, 2], endpoints[subset + 1, 2]);
+                            pixels[pixelIndex].g = (byte)BPTCInterpolateFactor(cweight, endpoints[subset, 1], endpoints[subset + 1, 1]);
+                            pixels[pixelIndex].r = (byte)BPTCInterpolateFactor(cweight, endpoints[subset, 0], endpoints[subset + 1, 0]);
 
                             if (m < 4)
                             {
-                                data[pixelIndex + 3] = byte.MaxValue;
+                                pixels[pixelIndex].a = byte.MaxValue;
                             }
                             else
                             {
-                                data[pixelIndex + 3] = (byte)BPTCInterpolateFactor(aweight, endpoints[subset, 3], endpoints[subset + 1, 3]);
+                                pixels[pixelIndex].a = (byte)BPTCInterpolateFactor(aweight, endpoints[subset, 3], endpoints[subset + 1, 3]);
 
                                 if ((m == 4 || m == 5) && rb != 0)
                                 {
-                                    var t = data[pixelIndex + 3];
-                                    data[pixelIndex + 3] = data[pixelIndex + 3 - rb];
-                                    data[pixelIndex + 3 - rb] = t;
+                                    var t = data[dataIndex + 3];
+                                    data[dataIndex + 3] = data[dataIndex + 3 - rb];
+                                    data[dataIndex + 3 - rb] = t;
                                 }
                             }
 
                             if (hemiOctRB)
                             {
-                                var nx = ((data[pixelIndex + 2] + data[pixelIndex + 1]) / 255.0f) - 1.003922f;
-                                var ny = (data[pixelIndex + 2] - data[pixelIndex + 1]) / 255.0f;
-                                var nz = 1 - Math.Abs(nx) - Math.Abs(ny);
-
-                                var l = MathF.Sqrt((nx * nx) + (ny * ny) + (nz * nz));
-                                data[pixelIndex + 3] = data[pixelIndex + 0]; //b to alpha
-                                data[pixelIndex + 2] = (byte)(((nx / l * 0.5f) + 0.5f) * 255);
-                                data[pixelIndex + 1] = (byte)(((ny / l * 0.5f) + 0.5f) * 255);
-                                data[pixelIndex + 0] = (byte)(((nz / l * 0.5f) + 0.5f) * 255);
+                                Common.Undo_HemiOct(ref pixels[pixelIndex]);
                             }
                         }
                     }

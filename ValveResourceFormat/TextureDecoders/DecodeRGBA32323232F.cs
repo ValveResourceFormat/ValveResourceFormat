@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.InteropServices;
 using SkiaSharp;
 
 namespace ValveResourceFormat.TextureDecoders
@@ -10,19 +11,19 @@ namespace ValveResourceFormat.TextureDecoders
             using var pixels = res.PeekPixels();
             var span = pixels.GetPixelSpan<SKColor>();
             var offset = 0;
+            var stride = 4 * sizeof(float);
 
             for (var i = 0; i < span.Length; i++)
             {
-                var r = BitConverter.ToSingle(input.Slice(offset, sizeof(float)));
-                offset += sizeof(float);
-                var g = BitConverter.ToSingle(input.Slice(offset, sizeof(float)));
-                offset += sizeof(float);
-                var b = BitConverter.ToSingle(input.Slice(offset, sizeof(float)));
-                offset += sizeof(float);
-                var a = BitConverter.ToSingle(input.Slice(offset, sizeof(float)));
-                offset += sizeof(float);
+                var skColorF = MemoryMarshal.Cast<byte, SKColorF>(input.Slice(offset, stride))[0];
+                offset += stride;
 
-                span[i] = new SKColor((byte)(r * 255), (byte)(g * 255), (byte)(b * 255), (byte)(a * 255));
+                span[i] = new SKColor(
+                    (byte)(Common.ClampHighRangeColor(skColorF.Red) * 255),
+                    (byte)(Common.ClampHighRangeColor(skColorF.Green) * 255),
+                    (byte)(Common.ClampHighRangeColor(skColorF.Blue) * 255),
+                    (byte)(Common.ClampHighRangeColor(skColorF.Alpha) * 255)
+                );
             }
         }
     }

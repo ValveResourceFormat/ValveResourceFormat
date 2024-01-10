@@ -33,7 +33,7 @@ namespace ValveResourceFormat.TextureDecoders
             }
         }
 
-        internal static void DecompressBlockDXT1(int x, int y, int width, Span<byte> blockStorage, Span<byte> pixels, int stride)
+        internal static void DecompressBlockDXT1(int x, int y, int width, Span<byte> blockStorage, Span<byte> data, int stride)
         {
             var color0 = (ushort)(blockStorage[0] | blockStorage[1] << 8);
             var color1 = (ushort)(blockStorage[2] | blockStorage[3] << 8);
@@ -96,12 +96,12 @@ namespace ValveResourceFormat.TextureDecoders
 
                     var pixelIndex = ((y + j) * stride) + ((x + i) * 4);
 
-                    if (x + i < width && pixels.Length > pixelIndex + 3)
+                    if (x + i < width && data.Length > pixelIndex + 3)
                     {
-                        pixels[pixelIndex] = finalB;
-                        pixels[pixelIndex + 1] = finalG;
-                        pixels[pixelIndex + 2] = finalR;
-                        pixels[pixelIndex + 3] = byte.MaxValue;
+                        data[pixelIndex] = finalB;
+                        data[pixelIndex + 1] = finalG;
+                        data[pixelIndex + 2] = finalR;
+                        data[pixelIndex + 3] = byte.MaxValue;
                     }
                 }
             }

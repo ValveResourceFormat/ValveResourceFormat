@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.InteropServices;
 using SkiaSharp;
 
 namespace ValveResourceFormat.TextureDecoders
@@ -20,8 +21,10 @@ namespace ValveResourceFormat.TextureDecoders
 
         public void Decode(SKBitmap imageInfo, Span<byte> input)
         {
-            using var pixels = imageInfo.PeekPixels();
-            var data = pixels.GetPixelSpan<byte>();
+            using var pixmap = imageInfo.PeekPixels();
+            var data = pixmap.GetPixelSpan<byte>();
+            var pixels = MemoryMarshal.Cast<byte, Color>(data);
+
             var blockCountX = (w + 3) / 4;
             var blockCountY = (h + 3) / 4;
             var offset = 0;
@@ -42,49 +45,29 @@ namespace ValveResourceFormat.TextureDecoders
                         for (var x = 0; x < 4; x++)
                         {
                             var dataIndex = ofs + ((x + (y * w)) * 4);
+                            var pixelIndex = dataIndex / 4;
+
                             if (data.Length < dataIndex + 3)
                             {
                                 break;
                             }
 
-                            data[dataIndex + 0] = 0; //b
-                            data[dataIndex + 3] = byte.MaxValue;
+                            pixels[pixelIndex].b = 0; //b
+                            pixels[pixelIndex].a = byte.MaxValue;
+
                             if (normalize)
                             {
-                                var swizzleR = (data[dataIndex + 2] * 2) - 255;     // premul R
-                                var swizzleG = (data[dataIndex + 1] * 2) - 255;     // premul G
-                                var deriveB = (int)Math.Sqrt((255 * 255) - (swizzleR * swizzleR) - (swizzleG * swizzleG));
-                                data[dataIndex + 2] = ClampColor((swizzleR / 2) + 128); // unpremul R and normalize (128 = forward, or facing viewer)
-                                data[dataIndex + 1] = ClampColor((swizzleG / 2) + 128); // unpremul G and normalize
-                                data[dataIndex + 0] = ClampColor((deriveB / 2) + 128);  // unpremul B and normalize
+                                Common.Undo_NormalizeNormals(ref pixels[pixelIndex]);
                             }
 
                             if (hemiOctRB)
                             {
-                                var nx = ((data[dataIndex + 2] + data[dataIndex + 1]) / 255.0f) - 1.003922f;
-                                var ny = (data[dataIndex + 2] - data[dataIndex + 1]) / 255.0f;
-                                var nz = 1 - Math.Abs(nx) - Math.Abs(ny);
-
-                                var l = MathF.Sqrt((nx * nx) + (ny * ny) + (nz * nz));
-                                data[dataIndex + 3] = data[dataIndex + 0]; //b to alpha
-                                data[dataIndex + 2] = (byte)(((nx / l * 0.5f) + 0.5f) * 255);
-                                data[dataIndex + 1] = (byte)(((ny / l * 0.5f) + 0.5f) * 255);
-                                data[dataIndex + 0] = (byte)(((nz / l * 0.5f) + 0.5f) * 255);
+                                Common.Undo_HemiOct(ref pixels[pixelIndex]);
                             }
                         }
                     }
                 }
             }
-        }
-
-        private static byte ClampColor(int a)
-        {
-            if (a > 255)
-            {
-                return 255;
-            }
-
-            return a < 0 ? (byte)0 : (byte)a;
         }
     }
 }

@@ -18,7 +18,12 @@ namespace ValveResourceFormat.TextureDecoders
                 var g = (float)BitConverter.ToHalf(input.Slice(offset, 2));
                 offset += 2;
 
-                span[i] = new SKColor((byte)(r * 255), (byte)(g * 255), 0, 255);
+                span[i] = new SKColor(
+                    (byte)(Common.ClampHighRangeColor(r) * 255),
+                    (byte)(Common.ClampHighRangeColor(g) * 255),
+                    0,
+                    255
+                );
             }
         }
     }
