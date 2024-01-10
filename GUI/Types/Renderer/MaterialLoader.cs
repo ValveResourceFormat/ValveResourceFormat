@@ -161,7 +161,7 @@ namespace GUI.Types.Renderer
         public RenderTexture LoadTexture(Resource textureResource, bool srgbRead = false)
         {
             var data = (Texture)textureResource.DataBlock;
-            var tex = LoadTexture(data);
+            var tex = LoadTexture(data, srgbRead);
 
 #if DEBUG
             var textureName = System.IO.Path.GetFileName(textureResource.FileName);
