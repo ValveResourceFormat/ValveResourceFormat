@@ -134,7 +134,7 @@ namespace GUI.Forms
 
             if (textureResource is not null)
             {
-                decodeFlags = TextureData.RetrieveCodecFromResourceEditInfo(textureResource);
+                decodeFlags = TextureData.RetrieveCodecFromResourceEditInfo(textureResource.EditInfo, texture);
             }
 
             // using?
