@@ -1,11 +1,14 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat;
+using ValveResourceFormat.Blocks;
+using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
 using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.ResourceTypes;
 
@@ -158,8 +161,9 @@ namespace GUI.Types.Renderer
         private void OnLoad(object sender, EventArgs e)
         {
             var textureData = (Texture)Resource.DataBlock;
+            var isCpuDecodedImage = textureData.IsRawJpeg || textureData.IsRawPng;
 
-            if (textureData.IsRawJpeg || textureData.IsRawPng)
+            if (isCpuDecodedImage)
             {
                 using var bitmap = textureData.GenerateBitmap();
                 texture = new RenderTexture(TextureTarget.Texture2D, textureData);
@@ -181,9 +185,21 @@ namespace GUI.Types.Renderer
 
             var textureType = "TYPE_" + texture.Target.ToString().ToUpperInvariant();
 
+            var hemiOctRB = false;
+            var yCoCg = false;
+
+            if (!isCpuDecodedImage && Resource.EditInfo.Structs.TryGetValue(ResourceEditInfo.REDIStruct.SpecialDependencies, out var specialDepsRedi))
+            {
+                var specialDeps = (SpecialDependencies)specialDepsRedi;
+                yCoCg = specialDeps.List.Any(dependancy => dependancy.CompilerIdentifier == "CompileTexture" && dependancy.String == "Texture Compiler Version Image YCoCg Conversion");
+                hemiOctRB = specialDeps.List.Any(dependency => dependency.CompilerIdentifier == "CompileTexture" && dependency.String == "Texture Compiler Version Mip HemiOctIsoRoughness_RG_B");
+            }
+
             var arguments = new Dictionary<string, byte>
             {
                 [textureType] = 1,
+                ["HemiOctIsoRoughness_RG_B"] = hemiOctRB ? (byte)1 : (byte)0,
+                ["YCoCg_Conversion"] = yCoCg ? (byte)1 : (byte)0,
             };
 
             shader = GuiContext.ShaderLoader.LoadShader("vrf.texture_decode", arguments);
