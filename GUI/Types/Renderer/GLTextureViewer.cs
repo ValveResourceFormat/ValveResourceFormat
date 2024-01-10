@@ -174,6 +174,7 @@ namespace GUI.Types.Renderer
         {
             (TextureScaleOld, PositionOld) = GetCurrentPositionAndScale();
             TextureScaleChangeTime = 0f;
+            ClickPosition = null;
 
             if (e.Delta < 0)
             {
