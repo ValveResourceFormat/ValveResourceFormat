@@ -45,6 +45,19 @@ namespace GUI.Types.Renderer
 
             SetZoomLabel();
 
+            var textureData = (Texture)Resource.DataBlock;
+
+            AddControl(new Label
+            {
+                Text = $"Size: {textureData.Width}x{textureData.Height}",
+                Width = 200,
+            });
+            AddControl(new Label
+            {
+                Text = $"Format: {textureData.Format}",
+                Width = 200,
+            });
+
             ResetButton = new Button
             {
                 Text = "Reset zoom",
@@ -64,8 +77,6 @@ namespace GUI.Types.Renderer
             };
 
             AddControl(ResetButton);
-
-            var textureData = (Texture)Resource.DataBlock;
 
             if (textureData.Depth > 1)
             {
