@@ -61,6 +61,13 @@ namespace GUI.Types.Viewers
             switch (resource.ResourceType)
             {
                 case ResourceType.Texture:
+                    {
+                        var textureControl = new GLTextureViewer(vrfGuiContext, resource);
+                        var tabGl = new TabPage("TEXTURE GL");
+                        tabGl.Controls.Add(textureControl);
+                        resTabs.TabPages.Add(tabGl);
+                    }
+
                     try
                     {
                         AddTexture(vrfGuiContext, resource, resTabs);
@@ -564,11 +571,6 @@ namespace GUI.Types.Viewers
 
                 return;
             }
-
-            var textureControl = new GLTextureViewer(vrfGuiContext, resource);
-            var tab2 = new TabPage("TEXTURE GL");
-            tab2.Controls.Add(textureControl);
-            resTabs.TabPages.Add(tab2);
 
             var control = new Forms.Texture(vrfGuiContext)
             {
