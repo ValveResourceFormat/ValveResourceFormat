@@ -44,9 +44,16 @@ namespace GUI.Types.Renderer
         {
             VsInputSignature = insg;
 
-            var combinedShaderParameters = shaderArguments == null ? material.GetShaderArguments() : shaderArguments
-                .Concat(material.GetShaderArguments())
-                .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+            var materialArguments = material.GetShaderArguments();
+            var combinedShaderParameters = shaderArguments ?? materialArguments;
+
+            if (shaderArguments != null)
+            {
+                foreach (var kvp in materialArguments)
+                {
+                    combinedShaderParameters[kvp.Key] = kvp.Value;
+                }
+            }
 
             Shader = shaderLoader.LoadShader(material.ShaderName, combinedShaderParameters);
         }
