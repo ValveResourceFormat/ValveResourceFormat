@@ -589,6 +589,12 @@ namespace GUI
 
                         foreach (Control c in t.Result.Controls)
                         {
+                            if (tab.IsDisposed || tab.Disposing)
+                            {
+                                c.Dispose();
+                                continue;
+                            }
+
                             tab.Controls.Add(c);
                         }
                     }
