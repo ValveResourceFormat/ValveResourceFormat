@@ -33,12 +33,27 @@ namespace GUI.Types.Renderer
         private float TextureScaleChangeTime;
 
         private int SelectedDepth;
+        private ChannelMapping SelectedChannels = ChannelMapping.RGB;
+        private bool WantsSeparateAlpha;
         private TextureCodec decodeFlags;
 
         private bool FirstPaint = true;
         private Button ResetButton;
         private ComboBox depthComboBox;
         private CheckedListBox decodeFlagsListBox;
+        private ComboBox channelsComboBox;
+        private CheckBox softwareDecodeCheckBox;
+
+        const int DefaultSelection = 3;
+        static readonly (ChannelMapping Channels, bool SplitAlpha, string ChoiceString)[] ChannelsComboBoxOrder = [
+            (ChannelMapping.R, false,   "Red"),
+            (ChannelMapping.G, false,   "Green"),
+            (ChannelMapping.B, false,   "Blue"),
+            (ChannelMapping.RGB, false, "Opaque"),
+            (ChannelMapping.RGBA, false,"Transparent"),
+            (ChannelMapping.A, false,   "Alpha"),
+            (ChannelMapping.RGBA, true,  "Opaque with split Alpha"),
+        ];
 
         private GLTextureViewer(VrfGuiContext guiContext) : base()
         {
@@ -116,12 +131,26 @@ namespace GUI.Types.Renderer
                 }
             );
 
-            if (!textureData.IsRawJpeg && !textureData.IsRawPng)
+
+            channelsComboBox = AddSelection("Channels", (name, index) =>
             {
-                AddCheckBox("Hardware decode", true, (state) =>
-                {
-                    SetupTexture(!state);
-                });
+                SelectedChannels = ChannelsComboBoxOrder[index].Channels;
+                WantsSeparateAlpha = ChannelsComboBoxOrder[index].SplitAlpha;
+            });
+
+            for (var i = 0; i < ChannelsComboBoxOrder.Length; i++)
+            {
+                channelsComboBox.Items.Add(ChannelsComboBoxOrder[i].ChoiceString);
+            }
+
+            channelsComboBox.SelectedIndex = DefaultSelection;
+
+            softwareDecodeCheckBox = AddCheckBox("Software decode", false, SetupTexture);
+
+            if (textureData.IsRawJpeg || textureData.IsRawPng)
+            {
+                softwareDecodeCheckBox.Checked = true;
+                softwareDecodeCheckBox.Enabled = false;
             }
         }
 
@@ -170,6 +199,14 @@ namespace GUI.Types.Renderer
 
                 decodeFlagsListBox?.Dispose();
                 decodeFlagsListBox = null;
+
+                channelsComboBox?.Dispose();
+                channelsComboBox = null;
+
+                softwareDecodeCheckBox?.Dispose();
+                softwareDecodeCheckBox = null;
+
+                texture?.Dispose();
             }
 
             base.Dispose(disposing);
@@ -419,7 +456,8 @@ namespace GUI.Types.Renderer
             shader.SetUniform4("g_vInputTextureSize", new Vector4(texture.Width, texture.Height, texture.Depth, texture.NumMipLevels));
             shader.SetUniform1("g_nSelectedMip", 0);
             shader.SetUniform1("g_nSelectedDepth", SelectedDepth);
-            shader.SetUniform1("g_nSelectedChannels", ChannelMapping.RGBA.PackedValue);
+            shader.SetUniform1("g_nSelectedChannels", SelectedChannels.PackedValue);
+            shader.SetUniform1("g_bWantsSeparateAlpha", WantsSeparateAlpha ? 1u : 0u);
             shader.SetUniform1("g_nDecodeFlags", (int)decodeFlags);
 
             GL.BindVertexArray(vao);
