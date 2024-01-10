@@ -37,7 +37,8 @@ namespace GUI.Forms
 
         public Texture(VrfGuiContext vrfGuiContext) : this()
         {
-            hardwareDecoder = new GLTextureDecoder(vrfGuiContext);
+            var separateContext = new VrfGuiContext(null, vrfGuiContext); // Needs its own shader cache
+            hardwareDecoder = new GLTextureDecoder(separateContext);
         }
 
         public void SetTexture(Resource resource, bool hardwareDecode = false)
