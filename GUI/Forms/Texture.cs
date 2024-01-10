@@ -42,7 +42,7 @@ namespace GUI.Forms
             hardwareDecoder = new GLTextureDecoder(separateContext);
         }
 
-        public void SetTexture(Resource resource, bool hardwareDecode = false)
+        public async void SetTexture(Resource resource, bool hardwareDecode = false)
         {
             textureResource = resource;
             name = resource.FileName;
@@ -50,6 +50,8 @@ namespace GUI.Forms
 
             hardwareDecodeCheckBox.Checked = hardwareDecode;
             CancelPreviousChannelChange();
+
+            await Task.Run(() => { while (IsHandleCreated && !IsDisposed) { } }).ConfigureAwait(false);
             SetChannels(Channels.RGBA);
         }
 
@@ -74,9 +76,8 @@ namespace GUI.Forms
         /// </summary>
         private void SetChannels(Channels channels)
         {
-            if (hardwareDecodeCheckBox.Checked)
+            if (hardwareDecodeCheckBox.Checked && DecodeTextureGpu(channels))
             {
-                DecodeTextureGpu(channels);
                 return;
             }
 
@@ -125,7 +126,7 @@ namespace GUI.Forms
 
         private bool DecodeTextureGpu(Channels channels)
         {
-            if (texture is null)
+            if (texture is null || texture.IsRawJpeg || texture.IsRawPng)
             {
                 return false;
             }
