@@ -10,6 +10,7 @@ using OpenTK.Graphics.OpenGL;
 using SkiaSharp;
 using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.TextureDecoders;
 using ValveResourceFormat.Utils;
 
 namespace GUI.Types.Renderer;
@@ -25,10 +26,7 @@ class GLTextureDecoderForLibrary : IHardwareTextureDecoder, IDisposable
 
     public bool Decode(SKBitmap bitmap, Texture texture)
     {
-        using var request = new GLTextureDecoder.DecodeRequest(bitmap, texture, 0, 0, ChannelMapping.RGBA)
-        {
-            HemiOctRB = false,
-        };
+        using var request = new GLTextureDecoder.DecodeRequest(bitmap, texture, 0, 0, ChannelMapping.RGBA, TextureCodec.None);
 
         return hardwareDecoder.Decode(request);
     }
@@ -69,11 +67,8 @@ class GLTextureDecoder : IDisposable // ITextureDecoder
         GLThread.Start();
     }
 
-    public record DecodeRequest(SKBitmap Bitmap, Texture Texture, int Mip, int Depth, ChannelMapping Channels) : IDisposable
+    public record DecodeRequest(SKBitmap Bitmap, Texture Texture, int Mip, int Depth, ChannelMapping Channels, TextureCodec DecodeFlags) : IDisposable
     {
-        public bool HemiOctRB { get; init; }
-        public bool YCoCg { get; init; }
-
         public ManualResetEvent DoneEvent { get; } = new(false);
         public bool Success { get; set; }
         public TimeSpan DecodeTime { get; set; }
@@ -84,11 +79,21 @@ class GLTextureDecoder : IDisposable // ITextureDecoder
         public void MarkAsDone(bool successfully)
         {
             Success = successfully;
-            DoneEvent.Set();
+            if (!disposedValue)
+            {
+                DoneEvent.Set();
+            }
         }
 
+        private bool disposedValue;
         public void Dispose()
         {
+            if (disposedValue)
+            {
+                return;
+            }
+
+            disposedValue = true;
             DoneEvent.Dispose();
             GC.SuppressFinalize(this);
         }
@@ -169,7 +174,9 @@ class GLTextureDecoder : IDisposable // ITextureDecoder
 
             activeRequest = decodeRequest;
             var successfully = Decode_Thread(activeRequest);
-            activeRequest.MarkAsDone(successfully);
+            activeRequest = null;
+
+            decodeRequest.MarkAsDone(successfully);
         }
     }
 
@@ -177,24 +184,19 @@ class GLTextureDecoder : IDisposable // ITextureDecoder
     {
         var sw = Stopwatch.StartNew();
         var inputTexture = guiContext.MaterialLoader.LoadTexture(request.Texture);
-        /*
-        if (inputTexture == MaterialLoader.GetErrorTexture())
-        {
-            Log.Warn(nameof(GLTextureDecoder), $"Failure loading texture (unsupported format?).");
-            return false;
-        }*/
 
         inputTexture.Bind();
         inputTexture.SetFiltering(TextureMinFilter.NearestMipmapNearest, TextureMagFilter.Nearest);
 
-        if (request.Channels == ChannelMapping.RGBA
-            && request.HemiOctRB == false && request.YCoCg == false)
+        /*
+        if (request.Channels == ChannelMapping.RGBA && request.DecodeFlags == TextureCodec.None)
         {
             GL.GetTexImage(inputTexture.Target, request.Mip, PixelFormat.Bgra, PixelType.UnsignedByte, request.Bitmap.GetPixels());
             Log.Info(nameof(GLTextureDecoder), "Using GL.GetTexImage");
             request.DecodeTime = sw.Elapsed;
             return true;
         }
+        */
 
         GL.Viewport(0, 0, inputTexture.Width, inputTexture.Height);
         Framebuffer.Clear();
@@ -207,8 +209,6 @@ class GLTextureDecoder : IDisposable // ITextureDecoder
         var shader = guiContext.ShaderLoader.LoadShader("vrf.texture_decode", new Dictionary<string, byte>
         {
             [textureType] = 1,
-            ["HemiOctIsoRoughness_RG_B"] = request.HemiOctRB ? (byte)1 : (byte)0,
-            ["YCoCg_Conversion"] = request.YCoCg ? (byte)1 : (byte)0,
         });
 
         GL.UseProgram(shader.Program);
@@ -221,6 +221,7 @@ class GLTextureDecoder : IDisposable // ITextureDecoder
         shader.SetUniform1("g_nSelectedMip", Math.Clamp(request.Mip, 0, inputTexture.NumMipLevels - 1));
         shader.SetUniform1("g_nSelectedDepth", Math.Clamp(request.Depth, 0, inputTexture.Depth - 1));
         shader.SetUniform1("g_nSelectedChannels", request.Channels.PackedValue);
+        shader.SetUniform1("g_nDecodeFlags", (int)request.DecodeFlags);
 
         // full screen triangle
         GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
@@ -275,6 +276,7 @@ class GLTextureDecoder : IDisposable // ITextureDecoder
     {
         Exit();
         queueUpdateEvent.Dispose();
+        guiContext.Dispose();
         Log.Info(nameof(GLTextureDecoder), "Decoder has been disposed.");
     }
 }
