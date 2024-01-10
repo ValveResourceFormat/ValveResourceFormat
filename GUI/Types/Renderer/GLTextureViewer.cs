@@ -1,15 +1,18 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Numerics;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
+using SkiaSharp;
 using ValveResourceFormat;
 using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.TextureDecoders;
+using ValveResourceFormat.Utils;
 
 namespace GUI.Types.Renderer
 {
@@ -125,6 +128,14 @@ namespace GUI.Types.Renderer
                     }
                 }
             );
+
+            if (!textureData.IsRawJpeg && !textureData.IsRawPng)
+            {
+                AddCheckBox("Hardware decode", true, (state) =>
+                {
+                    UploadTexture(!state);
+                });
+            }
         }
 
         protected override void Dispose(bool disposing)
@@ -230,18 +241,42 @@ namespace GUI.Types.Renderer
             }
         }
 
-        private void OnLoad(object sender, EventArgs e)
+        private void UploadTexture(bool forceSoftwareDecode)
         {
+            texture?.Dispose();
+
             var textureData = (Texture)Resource.DataBlock;
             var isCpuDecodedImage = textureData.IsRawJpeg || textureData.IsRawPng;
 
-            if (isCpuDecodedImage)
+            if (isCpuDecodedImage || forceSoftwareDecode)
             {
-                using var bitmap = textureData.GenerateBitmap();
-                texture = new RenderTexture(TextureTarget.Texture2D, textureData);
-                using var _ = texture.BindingContext();
+                SKBitmap bitmap;
 
-                GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba8, texture.Width, texture.Height, 0, PixelFormat.Bgra, PixelType.UnsignedByte, bitmap.GetPixels());
+                lock (HardwareAcceleratedTextureDecoder.Decoder)
+                {
+                    // GUI provides hardware decoder for texture decoding, but here we do not want to use it
+                    var decoder = HardwareAcceleratedTextureDecoder.Decoder;
+                    HardwareAcceleratedTextureDecoder.Decoder = null;
+
+                    try
+                    {
+                        bitmap = textureData.GenerateBitmap();
+                    }
+                    finally
+                    {
+                        HardwareAcceleratedTextureDecoder.Decoder = decoder;
+                    }
+                }
+
+                using (bitmap)
+                {
+                    Debug.Assert(bitmap.ColorType == SKColorType.Bgra8888);
+
+                    texture = new RenderTexture(TextureTarget.Texture2D, textureData);
+                    using var _ = texture.BindingContext();
+
+                    GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba8, texture.Width, texture.Height, 0, PixelFormat.Bgra, PixelType.UnsignedByte, bitmap.GetPixels());
+                }
             }
             else
             {
@@ -268,6 +303,12 @@ namespace GUI.Types.Renderer
             };
 
             shader = GuiContext.ShaderLoader.LoadShader("vrf.texture_decode", arguments);
+        }
+
+        private void OnLoad(object sender, EventArgs e)
+        {
+            UploadTexture(false);
+
             vao = GL.GenVertexArray();
 
             MainFramebuffer.ClearColor = OpenTK.Graphics.Color4.Green;
@@ -290,7 +331,7 @@ namespace GUI.Types.Renderer
 
                 GuiContext.ShaderLoader.ClearCache();
 
-                shader = GuiContext.ShaderLoader.LoadShader("vrf.texture_decode", arguments);
+                shader = GuiContext.ShaderLoader.LoadShader("vrf.texture_decode", shader.Parameters);
             }
 
             GuiContext.ShaderLoader.ShaderWatcher.SynchronizingObject = this;
