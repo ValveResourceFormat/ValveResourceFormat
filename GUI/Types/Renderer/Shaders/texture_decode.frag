@@ -16,7 +16,7 @@ uniform vec4 g_vInputTextureSize;
 #define RGBM (1 << 1)
 #define HemiOctIsoRoughness_RG_B (1 << 2)
 #define NormalizeNormals (1 << 3)
-#define Dxt5nm (1 << 4)
+#define Dxt5nm_AlphaGreen (1 << 4)
 
 uniform int g_nSelectedMip;
 uniform int g_nSelectedDepth;
@@ -125,11 +125,9 @@ void main()
     vec4 vColor = textureLod(g_tInputTexture, vTexCoord, float(g_nSelectedMip) / g_vInputTextureSize.w);
 
     // similar to a channel mapping value of 0x00020103
-    if ((g_nDecodeFlags & Dxt5nm) != 0)
+    if ((g_nDecodeFlags & Dxt5nm_AlphaGreen) != 0)
     {
-        float flRed = vColor.r;
-        vColor.r = vColor.a;
-        vColor.a = flRed;
+        vColor.rgba = vColor.agbr;
     }
 
     if ((g_nDecodeFlags & HemiOctIsoRoughness_RG_B) != 0)
@@ -143,8 +141,8 @@ void main()
     {
         vec2 normalXy = (vColor.rg) * 2.0 - 1.0;
         float derivedZ = sqrt(1.0 - (normalXy.x * normalXy.x) - (normalXy.y * normalXy.y));
-        vColor.rgb = vec3(normalXy.xy / 2 + 0.5, derivedZ);
-        vColor.a = 1.0;
+        derivedZ = mix(derivedZ, 1.0, isnan(derivedZ)); // todo: becomes NaN if we are out of bounds
+        vColor.rgb = PackToColor(vec3(normalXy.xy, isnan(derivedZ) ? 1.0 : derivedZ));
     }
 
     if ((g_nDecodeFlags & YCoCg_Conversion) != 0)

@@ -80,12 +80,7 @@ namespace GUI.Types.Renderer
             Resource = resource;
 
             var textureData = (Texture)Resource.DataBlock;
-
-            if (!textureData.IsRawJpeg && !textureData.IsRawPng)
-            {
-                // TODO: Move this check into RetrieveCodecFromResourceEditInfo and make it non static
-                decodeFlags = Texture.RetrieveCodecFromResourceEditInfo(Resource);
-            }
+            decodeFlags = Texture.RetrieveCodecFromResourceEditInfo(Resource.EditInfo, textureData);
 
             AddControl(new Label
             {
@@ -110,29 +105,7 @@ namespace GUI.Types.Renderer
             }
 
             decodeFlagsListBox = AddMultiSelection("Texture Conversion",
-                listBox =>
-                {
-                    var values = Enum.GetValues(typeof(TextureCodec));
-
-                    var i = 0;
-                    for (var flag = 0; flag < values.Length; flag++)
-                    {
-                        var value = (TextureCodec)values.GetValue(flag);
-                        var name = Enum.GetName(value);
-
-                        // check for combined flag, or flag 0 (none)
-                        if (value == 0 || (value & (value - 1)) != 0)
-                        {
-                            continue;
-                        }
-
-                        listBox.Items.Add(name);
-                        var setCheckedState = decodeFlags.HasFlag(value);
-                        listBox.SetItemChecked(i, setCheckedState);
-                        i++;
-                    }
-
-                },
+                SetInitialDecodeFlagsState,
                 checkedItemNames =>
                 {
                     decodeFlags = TextureCodec.None;
@@ -148,8 +121,32 @@ namespace GUI.Types.Renderer
             {
                 AddCheckBox("Hardware decode", true, (state) =>
                 {
-                    UploadTexture(!state);
+                    SetupTexture(!state);
                 });
+            }
+        }
+
+        private void SetInitialDecodeFlagsState(CheckedListBox listBox)
+        {
+            listBox.Items.Clear();
+            var values = Enum.GetValues(typeof(TextureCodec));
+
+            var i = 0;
+            for (var flag = 0; flag < values.Length; flag++)
+            {
+                var value = (TextureCodec)values.GetValue(flag);
+                var name = Enum.GetName(value);
+
+                // check for combined flag, or flag 0 (none)
+                if (value == 0 || (value & (value - 1)) != 0)
+                {
+                    continue;
+                }
+
+                listBox.Items.Add(name);
+                var setCheckedState = decodeFlags.HasFlag(value);
+                listBox.SetItemChecked(i, setCheckedState);
+                i++;
             }
         }
 
@@ -262,60 +259,15 @@ namespace GUI.Types.Renderer
             }
         }
 
-        private void UploadTexture(bool forceSoftwareDecode)
+        private void SetupTexture(bool forceSoftwareDecode)
         {
             texture?.Dispose();
 
-            if (Resource == null)
+            UploadTexture(forceSoftwareDecode);
+
+            if (decodeFlagsListBox != null)
             {
-                Debug.Assert(Bitmap != null);
-                Debug.Assert(Bitmap.ColorType == SKColorType.Bgra8888);
-
-                texture = new RenderTexture(TextureTarget.Texture2D, Bitmap.Width, Bitmap.Height, 1, 1);
-                using var _ = texture.BindingContext();
-
-                GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba8, texture.Width, texture.Height, 0, PixelFormat.Bgra, PixelType.UnsignedByte, Bitmap.GetPixels());
-            }
-            else
-            {
-                var textureData = (Texture)Resource.DataBlock;
-                var isCpuDecodedImage = textureData.IsRawJpeg || textureData.IsRawPng;
-
-                if (isCpuDecodedImage || forceSoftwareDecode)
-                {
-                    SKBitmap bitmap;
-
-                    lock (HardwareAcceleratedTextureDecoder.Decoder)
-                    {
-                        // GUI provides hardware decoder for texture decoding, but here we do not want to use it
-                        var decoder = HardwareAcceleratedTextureDecoder.Decoder;
-                        HardwareAcceleratedTextureDecoder.Decoder = null;
-
-                        try
-                        {
-                            bitmap = textureData.GenerateBitmap();
-                        }
-                        finally
-                        {
-                            HardwareAcceleratedTextureDecoder.Decoder = decoder;
-                        }
-                    }
-
-                    using (bitmap)
-                    {
-                        Debug.Assert(bitmap.ColorType == SKColorType.Bgra8888);
-
-                        texture = new RenderTexture(TextureTarget.Texture2D, textureData);
-                        using var _ = texture.BindingContext();
-
-                        GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba8, texture.Width, texture.Height, 0, PixelFormat.Bgra, PixelType.UnsignedByte, bitmap.GetPixels());
-                    }
-                }
-                else
-                {
-                    // TODO: LoadTexture has things like max texture size and anisotrophy, need to ignore these
-                    texture = GuiContext.MaterialLoader.LoadTexture(Resource);
-                }
+                SetInitialDecodeFlagsState(decodeFlagsListBox);
             }
 
             using (texture.BindingContext())
@@ -334,9 +286,66 @@ namespace GUI.Types.Renderer
             shader = GuiContext.ShaderLoader.LoadShader("vrf.texture_decode", arguments);
         }
 
+        private void UploadTexture(bool forceSoftwareDecode)
+        {
+            if (Resource == null)
+            {
+                Debug.Assert(Bitmap != null);
+                Debug.Assert(Bitmap.ColorType == SKColorType.Bgra8888);
+
+                texture = new RenderTexture(TextureTarget.Texture2D, Bitmap.Width, Bitmap.Height, 1, 1);
+                decodeFlags = TextureCodec.None;
+
+                using var _ = texture.BindingContext();
+                GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba8, texture.Width, texture.Height, 0, PixelFormat.Bgra, PixelType.UnsignedByte, Bitmap.GetPixels());
+                return;
+            }
+
+            var textureData = (Texture)Resource.DataBlock;
+            var isCpuDecodedFormat = textureData.IsRawJpeg || textureData.IsRawPng;
+
+            if (isCpuDecodedFormat || forceSoftwareDecode)
+            {
+                SKBitmap bitmap;
+
+                lock (HardwareAcceleratedTextureDecoder.Decoder)
+                {
+                    // GUI provides hardware decoder for texture decoding, but here we do not want to use it
+                    var decoder = HardwareAcceleratedTextureDecoder.Decoder;
+                    HardwareAcceleratedTextureDecoder.Decoder = null;
+
+                    try
+                    {
+                        bitmap = textureData.GenerateBitmap();
+                    }
+                    finally
+                    {
+                        HardwareAcceleratedTextureDecoder.Decoder = decoder;
+                    }
+                }
+
+                using (bitmap)
+                {
+                    Debug.Assert(bitmap.ColorType == SKColorType.Bgra8888);
+
+                    texture = new RenderTexture(TextureTarget.Texture2D, textureData);
+                    decodeFlags = TextureCodec.None;
+
+                    using var _ = texture.BindingContext();
+                    GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba8, texture.Width, texture.Height, 0, PixelFormat.Bgra, PixelType.UnsignedByte, bitmap.GetPixels());
+                }
+
+                return;
+            }
+
+            // TODO: LoadTexture has things like max texture size and anisotrophy, need to ignore these
+            texture = GuiContext.MaterialLoader.LoadTexture(Resource);
+            decodeFlags = Texture.RetrieveCodecFromResourceEditInfo(Resource.EditInfo, textureData);
+        }
+
         private void OnLoad(object sender, EventArgs e)
         {
-            UploadTexture(false);
+            SetupTexture(false);
 
             vao = GL.GenVertexArray();
 
