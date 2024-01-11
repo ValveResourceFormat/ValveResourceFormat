@@ -269,6 +269,7 @@ namespace GUI.Types.Renderer
                 renderer.LayerEnabled = layers.Contains(renderer.LayerName);
             }
 
+            LastFrustum = -1;
             StaticOctree.Clear();
             DynamicOctree.Clear();
 
