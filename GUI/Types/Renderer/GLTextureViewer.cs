@@ -30,7 +30,7 @@ namespace GUI.Types.Renderer
         private Vector2 PositionOld;
         private float TextureScale = 1f;
         private float TextureScaleOld = 1f;
-        private float TextureScaleChangeTime;
+        private float TextureScaleChangeTime = 10f;
 
         private int SelectedDepth;
         private ChannelMapping SelectedChannels = ChannelMapping.RGB;
@@ -492,13 +492,22 @@ namespace GUI.Types.Renderer
 
                 if (GLControl.Width < ActualTextureSize.X || GLControl.Height < ActualTextureSize.Y)
                 {
+                    // Initially scale image to fit if it's bigger than the viewport
                     TextureScale = Math.Min(
                         GLControl.Width / ActualTextureSize.X,
                         GLControl.Height / ActualTextureSize.Y
                     );
-
-                    SetZoomLabel();
                 }
+                else
+                {
+                    // Initially scale image to the minimum scale if it's very small
+                    TextureScale = Math.Max(
+                        1f,
+                        0.1f * 256f / MathF.Max(ActualTextureSize.X, ActualTextureSize.Y)
+                    );
+                }
+
+                SetZoomLabel();
 
                 Position = -new Vector2(
                     GLControl.Width / 2f - ActualTextureSizeScaled.X / 2f,
