@@ -11,6 +11,7 @@ using OpenTK;
 using OpenTK.Graphics;
 using OpenTK.Graphics.OpenGL;
 using OpenTK.Input;
+using SkiaSharp;
 using static GUI.Types.Renderer.PickingTexture;
 using WinFormsMouseEventArgs = System.Windows.Forms.MouseEventArgs;
 
@@ -79,6 +80,27 @@ namespace GUI.Controls
 
         protected virtual void OnKeyUp(object sender, KeyEventArgs e)
         {
+            if (e.KeyData == (Keys.Control | Keys.C))
+            {
+                var title = Program.MainForm.Text;
+                Program.MainForm.Text = "Source 2 Viewer - Copying image to clipboard…";
+
+                using var bitmap = new SKBitmap(MainFramebuffer.Width, MainFramebuffer.Height, SKColorType.Bgra8888, SKAlphaType.Unpremul);
+                var pixels = bitmap.GetPixels(out var length);
+
+                GL.Flush();
+                GL.Finish();
+                GL.ReadPixels(0, 0, MainFramebuffer.Width, MainFramebuffer.Height, PixelFormat.Bgra, PixelType.UnsignedByte, pixels);
+
+                // TODO: The image is upside down
+                using var bitmap2 = bitmap.ToBitmap();
+                Clipboard.SetImage(bitmap2);
+
+                Program.MainForm.Text = title;
+
+                return;
+            }
+
             if ((e.KeyCode == Keys.Escape || e.KeyCode == Keys.F11) && FullScreenForm != null)
             {
                 FullScreenForm.Close();
