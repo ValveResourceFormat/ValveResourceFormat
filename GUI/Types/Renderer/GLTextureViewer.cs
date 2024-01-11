@@ -250,7 +250,10 @@ namespace GUI.Types.Renderer
                 TextureScale *= 1.25f;
             }
 
-            TextureScale = Math.Clamp(TextureScale, 0.1f, 50f);
+            var scaleMinMax = new Vector2(0.1f, 50f);
+            scaleMinMax *= 256 / MathF.Max(ActualTextureSize.X, ActualTextureSize.Y);
+
+            TextureScale = Math.Clamp(TextureScale, scaleMinMax.X, scaleMinMax.Y);
 
             var pos = new Vector2(e.Location.X, e.Location.Y);
             var posPrev = (pos + PositionOld) / TextureScaleOld;
@@ -261,27 +264,53 @@ namespace GUI.Types.Renderer
             SetZoomLabel();
         }
 
+        public Vector2 ActualTextureSize
+        {
+            get
+            {
+                if (WantsSeparateAlpha)
+                {
+                    var isWide = texture.Width > texture.Height;
+                    return new Vector2(
+                        isWide ? texture.Width : texture.Width * 2,
+                        isWide ? texture.Height * 2 : texture.Height
+                    );
+                }
+
+                return new Vector2(texture.Width, texture.Height);
+            }
+        }
+
+        public Vector2 ActualTextureSizeScaled => ActualTextureSize * TextureScale;
+        public bool IsZoomedIn;
+        public bool MovedFromOrigin_Unzoomed;
+
         private void ClampPosition()
         {
-            var width = texture.Width * TextureScale;
-            var height = texture.Height * TextureScale;
+            var width = ActualTextureSizeScaled.X;
+            var height = ActualTextureSizeScaled.Y;
 
-            if (GLControl.Width >= width)
+            if (ClickPosition != null && !IsZoomedIn)
             {
-                Position.X = -(GLControl.Width / 2f - width / 2f);
+                MovedFromOrigin_Unzoomed = true;
             }
-            else
+
+            IsZoomedIn = GLControl.Height < height && GLControl.Width < width;
+
+            if (IsZoomedIn)
             {
                 Position.X = Math.Clamp(Position.X, 0, width - GLControl.Width);
+                Position.Y = Math.Clamp(Position.Y, 0, height - GLControl.Height);
+                MovedFromOrigin_Unzoomed = false;
+                return;
             }
 
-            if (GLControl.Height >= height)
+            if (!MovedFromOrigin_Unzoomed)
             {
-                Position.Y = -(GLControl.Height / 2f - height / 2f);
-            }
-            else
-            {
-                Position.Y = Math.Clamp(Position.Y, 0, height - GLControl.Height);
+                Position = -new Vector2(
+                    GLControl.Width / 2f - ActualTextureSizeScaled.X / 2f,
+                    GLControl.Height / 2f - ActualTextureSizeScaled.Y / 2f
+                );
             }
         }
 
@@ -421,19 +450,19 @@ namespace GUI.Types.Renderer
             {
                 FirstPaint = false; // OnLoad has control size of 0 for some reason
 
-                if (GLControl.Width < texture.Width || GLControl.Height < texture.Height)
+                if (GLControl.Width < ActualTextureSize.X || GLControl.Height < ActualTextureSize.Y)
                 {
                     TextureScale = Math.Min(
-                        GLControl.Width / (float)texture.Width,
-                        GLControl.Height / (float)texture.Height
+                        GLControl.Width / ActualTextureSize.X,
+                        GLControl.Height / ActualTextureSize.Y
                     );
 
                     SetZoomLabel();
                 }
 
                 Position = -new Vector2(
-                    GLControl.Width / 2f - texture.Width / 2f * TextureScale,
-                    GLControl.Height / 2f - texture.Height / 2f * TextureScale
+                    GLControl.Width / 2f - ActualTextureSizeScaled.X / 2f,
+                    GLControl.Height / 2f - ActualTextureSizeScaled.Y / 2f
                 );
             }
 
