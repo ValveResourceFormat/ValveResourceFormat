@@ -378,7 +378,7 @@ namespace GUI.Types.Renderer
             using (texture.BindingContext())
             {
                 texture.SetWrapMode(TextureWrapMode.ClampToBorder);
-                texture.SetFiltering(TextureMinFilter.Linear, TextureMagFilter.Nearest);
+                texture.SetFiltering(TextureMinFilter.LinearMipmapLinear, TextureMagFilter.Nearest);
             }
 
             var textureType = "TYPE_" + texture.Target.ToString().ToUpperInvariant();
@@ -402,7 +402,7 @@ namespace GUI.Types.Renderer
                 decodeFlags = TextureCodec.None;
 
                 using var _ = texture.BindingContext();
-                GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba8, texture.Width, texture.Height, 0, PixelFormat.Bgra, PixelType.UnsignedByte, Bitmap.GetPixels());
+                GL.TexImage2D(texture.Target, 0, PixelInternalFormat.Rgba8, texture.Width, texture.Height, 0, PixelFormat.Bgra, PixelType.UnsignedByte, Bitmap.GetPixels());
                 return;
             }
 
@@ -437,7 +437,8 @@ namespace GUI.Types.Renderer
                     decodeFlags = TextureCodec.None;
 
                     using var _ = texture.BindingContext();
-                    GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba8, texture.Width, texture.Height, 0, PixelFormat.Bgra, PixelType.UnsignedByte, bitmap.GetPixels());
+                    GL.TexImage2D(texture.Target, 0, PixelInternalFormat.Rgba8, texture.Width, texture.Height, 0, PixelFormat.Bgra, PixelType.UnsignedByte, bitmap.GetPixels());
+                    GL.TexParameter(texture.Target, TextureParameterName.TextureMaxLevel, 0);
                 }
 
                 return;
