@@ -421,20 +421,17 @@ namespace GUI.Types.Renderer
             {
                 SKBitmap bitmap;
 
-                lock (HardwareAcceleratedTextureDecoder.Decoder)
-                {
-                    // GUI provides hardware decoder for texture decoding, but here we do not want to use it
-                    var decoder = HardwareAcceleratedTextureDecoder.Decoder;
-                    HardwareAcceleratedTextureDecoder.Decoder = null;
+                // GUI provides hardware decoder for texture decoding, but here we do not want to use it
+                var decoder = HardwareAcceleratedTextureDecoder.Decoder;
+                HardwareAcceleratedTextureDecoder.Decoder = null;
 
-                    try
-                    {
-                        bitmap = textureData.GenerateBitmap();
-                    }
-                    finally
-                    {
-                        HardwareAcceleratedTextureDecoder.Decoder = decoder;
-                    }
+                try
+                {
+                    bitmap = textureData.GenerateBitmap();
+                }
+                finally
+                {
+                    HardwareAcceleratedTextureDecoder.Decoder = decoder;
                 }
 
                 using (bitmap)
