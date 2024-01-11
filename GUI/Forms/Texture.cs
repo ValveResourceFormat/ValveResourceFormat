@@ -2,31 +2,18 @@ using System;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using GUI.Types.Renderer;
 using GUI.Utils;
 using SkiaSharp;
-using ValveResourceFormat;
-using ValveResourceFormat.Blocks;
-using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
-using TextureData = ValveResourceFormat.ResourceTypes.Texture;
 using Channels = ValveResourceFormat.CompiledShader.ChannelMapping;
-using System.Diagnostics;
-using ValveResourceFormat.TextureDecoders;
 
 namespace GUI.Forms
 {
     partial class Texture : UserControl
     {
         private string name;
-
-        private readonly GLTextureDecoder hardwareDecoder;
-        private Resource textureResource;
-        private TextureData texture;
-
         private SKBitmap skBitmap;
         private CancellationTokenSource cts;
         private Task channelChangingTask;
@@ -34,25 +21,6 @@ namespace GUI.Forms
         public Texture()
         {
             InitializeComponent();
-        }
-
-        public Texture(VrfGuiContext vrfGuiContext) : this()
-        {
-            var separateContext = new VrfGuiContext(null, vrfGuiContext); // Needs its own shader cache
-            hardwareDecoder = new GLTextureDecoder(separateContext);
-        }
-
-        public async void SetTexture(Resource resource, bool hardwareDecode = false)
-        {
-            textureResource = resource;
-            name = resource.FileName;
-            texture = (TextureData)resource.DataBlock;
-
-            hardwareDecodeCheckBox.Checked = hardwareDecode;
-            CancelPreviousChannelChange();
-
-            await Task.Run(() => { while (IsHandleCreated && !IsDisposed) { } }).ConfigureAwait(false);
-            SetChannels(Channels.RGBA);
         }
 
         public void SetImage(SKBitmap skBitmap, string name, int w, int h)
@@ -64,11 +32,9 @@ namespace GUI.Forms
 
         public void SetImage(Bitmap image, string name, int w, int h)
         {
-            var previous = pictureBox1.Image;
             pictureBox1.Image = image;
             this.name = name;
             pictureBox1.MaximumSize = new Size(w, h);
-            previous?.Dispose();
         }
 
         /// <summary>
@@ -76,175 +42,43 @@ namespace GUI.Forms
         /// </summary>
         private void SetChannels(Channels channels)
         {
-            if (hardwareDecodeCheckBox.Checked && DecodeTextureGpu(channels))
+            if (skBitmap == null)
             {
                 return;
             }
 
-            var sw = Stopwatch.StartNew();
-            var decodeTime = 0f;
-            var totalTime = 0f;
-
-            if (skBitmap == null)
+            Image image = null;
+            if (channels == Channels.RGBA || (skBitmap.AlphaType == SKAlphaType.Opaque && channels == Channels.RGB))
             {
-                if (texture == null)
-                {
-                    return;
-                }
+                image = skBitmap.ToBitmap();
+            }
+            else
+            {
+                var pngBytes = ValveResourceFormat.IO.TextureExtract.ToPngImageChannels(skBitmap, channels);
+                image = Image.FromStream(new MemoryStream(pngBytes));
+            }
 
-                name ??= textureResource.FileName;
-                skBitmap = texture.GenerateBitmap();
-
-                decodeTime = sw.ElapsedMilliseconds;
-
+            try
+            {
                 if (cts.IsCancellationRequested)
                 {
                     return;
                 }
-            }
 
-            var useOriginal = channels == Channels.RGBA || (skBitmap.AlphaType == SKAlphaType.Opaque && channels == Channels.RGB);
-            if (useOriginal)
-            {
-                Invoke(() => SetImage(skBitmap, name, skBitmap.Width, skBitmap.Height));
-                totalTime = sw.ElapsedMilliseconds;
-                Log.Debug(nameof(Texture), $"Software decode succeeded in {decodeTime}ms (ToBitmap overhead: {totalTime - decodeTime}ms)");
-                return;
-            }
+                var imageRef = image;
 
-            using var newSkiaBitmap = ValveResourceFormat.IO.TextureExtract.ToBitmapChannels(skBitmap, channels);
-            if (cts.IsCancellationRequested)
-            {
-                return;
-            }
-
-            Invoke(() => SetImage(newSkiaBitmap.ToBitmap(), name, newSkiaBitmap.Width, newSkiaBitmap.Height));
-
-            totalTime = sw.ElapsedMilliseconds;
-            Log.Debug(nameof(Texture), $"Software decode succeeded in {totalTime}ms (channel processing)");
-        }
-
-        private bool DecodeTextureGpu(Channels channels)
-        {
-            if (texture is null || texture.IsRawJpeg || texture.IsRawPng)
-            {
-                return false;
-            }
-
-            var decodeFlags = TextureCodec.None;
-
-            if (textureResource is not null)
-            {
-                decodeFlags = texture.RetrieveCodecFromResourceEditInfo();
-            }
-
-            // using?
-            using var bitmap = new SKBitmap(texture.Width, texture.Height, SKColorType.Bgra8888, SKAlphaType.Unpremul);
-
-            using var request = new GLTextureDecoder.DecodeRequest(bitmap, texture, 0, 0, channels, decodeFlags);
-            var success = hardwareDecoder.Decode(request);
-
-            if (!success)
-            {
-                return false;
-            }
-
-            DrawSpriteSheetOverlay(bitmap);
-            SetImage(bitmap.ToBitmap(), name, texture.Width, texture.Height);
-            return true;
-        }
-
-        private void DrawSpriteSheetOverlay(SKBitmap bitmap)
-        {
-            var sheet = texture?.GetSpriteSheetData();
-            if (sheet == null)
-            {
-                return;
-            }
-
-            using var canvas = new SKCanvas(bitmap);
-            using var color1 = new SKPaint
-            {
-                Style = SKPaintStyle.Stroke,
-                Color = new SKColor(0, 100, 255, 200),
-                StrokeWidth = 1,
-            };
-            using var color2 = new SKPaint
-            {
-                Style = SKPaintStyle.Stroke,
-                Color = new SKColor(255, 100, 0, 200),
-                StrokeWidth = 1,
-            };
-
-            foreach (var sequence in sheet.Sequences)
-            {
-                foreach (var frame in sequence.Frames)
+                Invoke(() =>
                 {
-                    foreach (var image in frame.Images)
-                    {
-                        canvas.DrawRect(image.GetCroppedRect(bitmap.Width, bitmap.Height), color1);
-                        canvas.DrawRect(image.GetUncroppedRect(bitmap.Width, bitmap.Height), color2);
-                    }
-                }
+                    pictureBox1.Image.Dispose();
+                    pictureBox1.Image = imageRef;
+                });
+
+                image = null;
             }
-        }
-
-        private Channels GetSelectedChannelMode()
-        {
-            foreach (var item in viewChannelsToolStripMenuItem.DropDownItems)
+            finally
             {
-                if (item is ToolStripMenuItem menuItem && menuItem.Checked)
-                {
-                    return (Channels)menuItem.Tag;
-                }
+                image?.Dispose();
             }
-
-            return Channels.RGBA;
-        }
-
-        private void HardwareDecodeCheckBox_Click(object sender, EventArgs e)
-        {
-            var item = sender as ToolStripMenuItem;
-            item.Checked = !item.Checked;
-
-            var channels = GetSelectedChannelMode();
-            CancelPreviousChannelChange();
-            SetChannels(channels);
-        }
-
-        private void OnChannelMenuItem_Click(object sender, EventArgs e)
-        {
-            var item = sender as ToolStripMenuItem;
-            if (item.Checked)
-            {
-                return;
-            }
-
-            CancelPreviousChannelChange();
-
-            channelChangingTask = Task.Run(() => SetChannels((Channels)item.Tag), cts.Token);
-            channelChangingTask.ContinueWith((t) =>
-            {
-                if (t.IsCompletedSuccessfully)
-                {
-                    foreach (var i in item.GetCurrentParent().Items)
-                    {
-                        if (i is not ToolStripMenuItem menuItem)
-                        {
-                            continue;
-                        }
-
-                        Invoke(() => menuItem.Checked = menuItem == item);
-                    }
-                }
-            }, TaskScheduler.FromCurrentSynchronizationContext());
-        }
-
-        private void CancelPreviousChannelChange()
-        {
-            cts?.Cancel();
-            cts?.Dispose();
-            cts = new CancellationTokenSource();
         }
 
         private void ContextMenuStrip1_ItemClicked(object sender, ToolStripItemClickedEventArgs e)
@@ -291,6 +125,36 @@ namespace GUI.Forms
 
             using var fs = (FileStream)saveFileDialog.OpenFile();
             pictureBox1.Image.Save(fs, format);
+        }
+
+        private void OnChannelMenuItem_Click(object sender, EventArgs e)
+        {
+            var item = sender as ToolStripMenuItem;
+            if (item.Checked)
+            {
+                return;
+            }
+
+            cts?.Cancel();
+            cts?.Dispose();
+            cts = new CancellationTokenSource();
+
+            channelChangingTask = Task.Run(() => SetChannels((Channels)item.Tag), cts.Token);
+            channelChangingTask.ContinueWith((t) =>
+            {
+                if (t.IsCompletedSuccessfully)
+                {
+                    foreach (var i in item.GetCurrentParent().Items)
+                    {
+                        if (i is not ToolStripMenuItem menuItem)
+                        {
+                            continue;
+                        }
+
+                        Invoke(() => menuItem.Checked = menuItem == item);
+                    }
+                }
+            }, TaskScheduler.FromCurrentSynchronizationContext());
         }
     }
 }

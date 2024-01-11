@@ -46,13 +46,13 @@ namespace GUI.Types.Renderer
 
         const int DefaultSelection = 3;
         static readonly (ChannelMapping Channels, bool SplitAlpha, string ChoiceString)[] ChannelsComboBoxOrder = [
-            (ChannelMapping.R, false,   "Red"),
-            (ChannelMapping.G, false,   "Green"),
-            (ChannelMapping.B, false,   "Blue"),
+            (ChannelMapping.R, false, "Red"),
+            (ChannelMapping.G, false, "Green"),
+            (ChannelMapping.B, false, "Blue"),
             (ChannelMapping.RGB, false, "Opaque"),
-            (ChannelMapping.RGBA, false,"Transparent"),
-            (ChannelMapping.A, false,   "Alpha"),
-            (ChannelMapping.RGBA, true,  "Opaque with split Alpha"),
+            (ChannelMapping.RGBA, false, "Transparent"),
+            (ChannelMapping.A, false, "Alpha"),
+            (ChannelMapping.RGBA, true, "Opaque with split Alpha"),
         ];
 
         private GLTextureViewer(VrfGuiContext guiContext) : base()
