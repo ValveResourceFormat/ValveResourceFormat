@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Numerics;
 using System.Windows.Forms;
@@ -113,6 +114,16 @@ namespace GUI.Types.Renderer
             Resource = resource;
 
             var textureData = (Texture)Resource.DataBlock;
+
+            var saveButton = new Button
+            {
+                Text = "Save to disk…",
+                AutoSize = true,
+            };
+
+            saveButton.Click += OnSaveButtonClick;
+
+            AddControl(saveButton);
 
             AddControl(new Label
             {
@@ -256,6 +267,56 @@ namespace GUI.Types.Renderer
             }
 
             base.Dispose(disposing);
+        }
+
+        private void OnSaveButtonClick(object sender, EventArgs e)
+        {
+            using var saveFileDialog = new SaveFileDialog
+            {
+                InitialDirectory = Settings.Config.SaveDirectory,
+                Filter = "PNG Image|*.png|JPG Image|*.jpg", // Bitmap Image|*.bmp doesn't work in skia
+                Title = "Save an Image File",
+                FileName = Path.GetFileNameWithoutExtension(Resource.FileName),
+                AddToRecent = true,
+            };
+
+            if (saveFileDialog.ShowDialog(this) != DialogResult.OK)
+            {
+                return;
+            }
+
+            Settings.Config.SaveDirectory = Path.GetDirectoryName(saveFileDialog.FileName);
+
+            // TODO: nonpow2 sizes?
+            using var bitmap = new SKBitmap(texture.Width, texture.Height, SKColorType.Bgra8888, SKAlphaType.Unpremul);
+            var pixels = bitmap.GetPixels(out var length);
+
+            // extract pixels from framebuffer
+            GL.Viewport(0, 0, texture.Width, texture.Height);
+
+            //Draw(isTextureViewer: false);
+
+            GL.Flush();
+            GL.Finish();
+            GL.ReadPixels(0, 0, bitmap.Width, bitmap.Height, PixelFormat.Bgra, PixelType.UnsignedByte, pixels);
+
+            var format = SKEncodedImageFormat.Png;
+
+            switch (saveFileDialog.FilterIndex)
+            {
+                case 2:
+                    format = SKEncodedImageFormat.Jpeg;
+                    break;
+                case 3:
+                    format = SKEncodedImageFormat.Bmp;
+                    break;
+            }
+
+            var test = bitmap.GetPixelSpan();
+
+            using var pixmap = bitmap.PeekPixels();
+            using var fs = saveFileDialog.OpenFile();
+            var t = pixmap.Encode(fs, format, 100);
         }
 
         private void SetZoomLabel() => SetMoveSpeedOrZoomLabel($"Zoom: {TextureScale * 100:0.0}% (scroll to change)");
@@ -523,15 +584,21 @@ namespace GUI.Types.Renderer
 
             TextureScaleChangeTime += e.FrameTime;
 
+            GL.Viewport(0, 0, GLControl.Width, GLControl.Height);
+
+            Draw();
+        }
+
+        private void Draw(bool isTextureViewer = true)
+        {
             var (scale, position) = GetCurrentPositionAndScale();
 
-            GL.Viewport(0, 0, GLControl.Width, GLControl.Height);
             MainFramebuffer.Clear();
 
             GL.UseProgram(shader.Program);
 
             //shader.SetUniform4x4("transform", Matrix4x4.CreateOrthographic(1f, 1f, 0, 1));
-            shader.SetUniform1("g_bTextureViewer", 1u);
+            shader.SetUniform1("g_bTextureViewer", isTextureViewer ? 1u : 0u);
             shader.SetUniform2("g_vViewportSize", new Vector2(MainFramebuffer.Width, MainFramebuffer.Height));
             shader.SetUniform2("g_vViewportPosition", position);
             shader.SetUniform1("g_flScale", scale);
