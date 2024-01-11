@@ -158,25 +158,9 @@ namespace GUI.Types.Renderer
             return LoadTexture(textureResource, srgbRead);
         }
 
-        public RenderTexture LoadTexture(Resource textureResource, bool srgbRead = false)
+        public RenderTexture LoadTexture(Resource textureResource, bool srgbRead = false, bool isViewerRequest = false)
         {
             var data = (Texture)textureResource.DataBlock;
-            var tex = LoadTexture(data, srgbRead);
-
-            // Dispose texture otherwise we run out of memory
-            // TODO: This might conflict when opening multiple files due to shit caching
-            textureResource.Dispose();
-
-#if DEBUG
-            var textureName = System.IO.Path.GetFileName(textureResource.FileName);
-            GL.ObjectLabel(ObjectLabelIdentifier.Texture, tex.Handle, textureName.Length, textureName);
-#endif
-
-            return tex;
-        }
-
-        public RenderTexture LoadTexture(Texture data, bool srgbRead = false)
-        {
             var target = TextureTarget.Texture2D;
             var clampModeS = data.Flags.HasFlag(VTexFlags.SUGGEST_CLAMPS) ? TextureWrapMode.ClampToBorder : TextureWrapMode.Repeat;
             var clampModeT = data.Flags.HasFlag(VTexFlags.SUGGEST_CLAMPT) ? TextureWrapMode.ClampToBorder : TextureWrapMode.Repeat;
@@ -215,6 +199,11 @@ namespace GUI.Types.Renderer
 
             using var _ = tex.BindingContext();
 
+#if DEBUG
+            var textureName = System.IO.Path.GetFileName(textureResource.FileName);
+            GL.ObjectLabel(ObjectLabelIdentifier.Texture, tex.Handle, textureName.Length, textureName);
+#endif
+
             if (!format.HasValue && !internalFormat.HasValue)
             {
                 Log.Warn(nameof(MaterialLoader), $"Don't support {data.Format} but don't want to crash either. Using error texture!");
@@ -228,7 +217,7 @@ namespace GUI.Types.Renderer
 
             var maxTextureSize = Settings.Config.MaxTextureSize;
 
-            if (data.Flags.HasFlag(VTexFlags.TEXTURE_ARRAY) || data.Flags.HasFlag(VTexFlags.VOLUME_TEXTURE))
+            if (isViewerRequest || data.Flags.HasFlag(VTexFlags.TEXTURE_ARRAY) || data.Flags.HasFlag(VTexFlags.VOLUME_TEXTURE))
             {
                 maxTextureSize = int.MaxValue;
             }
@@ -268,9 +257,16 @@ namespace GUI.Types.Renderer
 
             GL.TexParameter(target, TextureParameterName.TextureBaseLevel, minMipLevel);
 
-            if (MaxTextureMaxAnisotropy >= 4)
+            if (!isViewerRequest)
             {
-                GL.TexParameter(target, (TextureParameterName)ExtTextureFilterAnisotropic.TextureMaxAnisotropyExt, MaxTextureMaxAnisotropy);
+                // Dispose texture otherwise we run out of memory
+                // TODO: This might conflict when opening multiple files due to shit caching
+                textureResource.Dispose();
+
+                if (MaxTextureMaxAnisotropy >= 4)
+                {
+                    GL.TexParameter(target, (TextureParameterName)ExtTextureFilterAnisotropic.TextureMaxAnisotropyExt, MaxTextureMaxAnisotropy);
+                }
             }
 
             tex.SetFiltering(TextureMinFilter.LinearMipmapLinear, TextureMagFilter.Linear);

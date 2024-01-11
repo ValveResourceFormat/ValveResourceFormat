@@ -8,6 +8,7 @@ using OpenTK;
 using OpenTK.Graphics;
 using OpenTK.Graphics.OpenGL;
 using SkiaSharp;
+using ValveResourceFormat;
 using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.TextureDecoders;
@@ -24,9 +25,9 @@ class GLTextureDecoderForLibrary : IHardwareTextureDecoder, IDisposable
         hardwareDecoder = new GLTextureDecoder(new VrfGuiContext(null, null));
     }
 
-    public bool Decode(SKBitmap bitmap, Texture texture)
+    public bool Decode(SKBitmap bitmap, Resource resource)
     {
-        using var request = new GLTextureDecoder.DecodeRequest(bitmap, texture, 0, 0, ChannelMapping.RGBA, TextureCodec.None);
+        using var request = new GLTextureDecoder.DecodeRequest(bitmap, resource, 0, 0, ChannelMapping.RGBA, TextureCodec.None);
 
         return hardwareDecoder.Decode(request);
     }
@@ -67,7 +68,7 @@ class GLTextureDecoder : IDisposable // ITextureDecoder
         GLThread.Start();
     }
 
-    public record DecodeRequest(SKBitmap Bitmap, Texture Texture, int Mip, int Depth, ChannelMapping Channels, TextureCodec DecodeFlags) : IDisposable
+    public record DecodeRequest(SKBitmap Bitmap, Resource Resource, int Mip, int Depth, ChannelMapping Channels, TextureCodec DecodeFlags) : IDisposable
     {
         public ManualResetEvent DoneEvent { get; } = new(false);
         public bool Success { get; set; }
@@ -183,7 +184,7 @@ class GLTextureDecoder : IDisposable // ITextureDecoder
     private bool Decode_Thread(DecodeRequest request)
     {
         var sw = Stopwatch.StartNew();
-        var inputTexture = guiContext.MaterialLoader.LoadTexture(request.Texture);
+        var inputTexture = guiContext.MaterialLoader.LoadTexture(request.Resource, isViewerRequest: true);
 
         inputTexture.Bind();
         inputTexture.SetFiltering(TextureMinFilter.NearestMipmapNearest, TextureMagFilter.Nearest);

@@ -13,5 +13,11 @@ public static class HardwareAcceleratedTextureDecoder
 
 public interface IHardwareTextureDecoder
 {
-    public abstract bool Decode(SKBitmap bitmap, Texture texture);
+    /// <summary>
+    /// Decode a texture.
+    /// </summary>
+    /// <param name="bitmap">The bitmap to put the result into.</param>
+    /// <param name="resource">The texture resource to decode.</param>
+    /// <returns>Return false if decode is unsuccessful, will fallback to software decode.</returns>
+    public abstract bool Decode(SKBitmap bitmap, Resource resource);
 }
