@@ -418,7 +418,7 @@ namespace GUI.Types.Renderer
             MainFramebuffer.ClearMask = ClearBufferMask.ColorBufferBit;
             GL.DepthMask(false);
             GL.Disable(EnableCap.DepthTest);
-            GL.Disable(EnableCap.CullFace); // TODO: the triangle should be frontfacing?
+            GL.Disable(EnableCap.CullFace);
 
             GLLoad -= OnLoad;
             GLPaint += OnPaint;
