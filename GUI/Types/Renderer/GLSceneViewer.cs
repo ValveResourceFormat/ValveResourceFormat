@@ -128,7 +128,16 @@ namespace GUI.Types.Renderer
             viewBuffer = new(0);
             lightingBuffer = new(1);
 
-            Buffers = new List<IBlockBindableBuffer>(2) { viewBuffer, lightingBuffer };
+            Buffers = [viewBuffer, lightingBuffer];
+        }
+
+        void UpdateSceneBuffersGpu(Scene scene, Camera camera)
+        {
+            camera.SetViewConstants(viewBuffer.Data);
+            scene.SetFogConstants(viewBuffer.Data);
+            viewBuffer.Update();
+
+            lightingBuffer.Data = scene.LightingInfo.LightingData;
         }
 
         public virtual void PreSceneLoad()
@@ -250,20 +259,20 @@ namespace GUI.Types.Renderer
             viewBuffer.Data.Time = Uptime;
 
             Scene.Update(e.FrameTime);
-            SkyboxScene?.Update(e.FrameTime);
+
+            if (SkyboxScene != null)
+            {
+                SkyboxScene.Update(e.FrameTime);
+
+                skyboxCamera.CopyFrom(Camera);
+                skyboxCamera.SetScaledProjectionMatrix();
+                skyboxCamera.SetLocation(Camera.Location - SkyboxScene.WorldOffset);
+            }
 
             selectedNodeRenderer.Update(new Scene.UpdateContext(e.FrameTime));
 
-            void UpdateSceneBuffers(Scene scene, Camera camera)
-            {
-                camera.SetViewConstants(viewBuffer.Data);
-                scene.SetFogConstants(viewBuffer.Data);
-                viewBuffer.Update();
-
-                lightingBuffer.Data = scene.LightingInfo.LightingData;
-            }
-
-renderpass_begin:
+            Scene.CollectSceneDrawCalls(Camera, lockedCullFrustum);
+            SkyboxScene?.CollectSceneDrawCalls(skyboxCamera, skyboxLockedCullFrustum);
 
             var renderContext = new Scene.RenderContext
             {
@@ -272,67 +281,21 @@ renderpass_begin:
                 Framebuffer = MainFramebuffer,
             };
 
-            // could be done better
             if (Camera.Picker.IsActive)
             {
                 renderContext.ReplacementShader = Camera.Picker.Shader;
                 renderContext.Framebuffer = Camera.Picker;
+
+                RenderScenesWithView(renderContext);
+                Camera.Picker.Finish();
             }
-            else if (Camera.Picker.DebugShader is not null)
+
+            if (Camera.Picker.DebugShader is not null)
             {
                 renderContext.ReplacementShader = Camera.Picker.DebugShader;
             }
 
-            GL.Viewport(0, 0, GLControl.Width, GLControl.Height);
-            renderContext.Framebuffer.Clear();
-
-            if (IsWireframe)
-            {
-                GL.PolygonMode(MaterialFace.FrontAndBack, PolygonMode.Line);
-            }
-
-            GL.DepthRange(0.05, 1);
-
-            UpdateSceneBuffers(Scene, Camera);
-            renderContext.Scene = Scene;
-            Scene.RenderWithCamera(renderContext, lockedCullFrustum);
-
-            {
-                GL.DepthRange(0, 0.05);
-
-                // 3D Sky
-                // TODO: Translucents in a combined pass
-                if (ShowSkybox && SkyboxScene != null)
-                {
-                    skyboxCamera.CopyFrom(Camera);
-                    skyboxCamera.SetScaledProjectionMatrix();
-                    skyboxCamera.SetLocation(Camera.Location - SkyboxScene.WorldOffset);
-                    renderContext.Camera = skyboxCamera;
-
-                    UpdateSceneBuffers(SkyboxScene, skyboxCamera);
-                    renderContext.Scene = SkyboxScene;
-                    SkyboxScene.RenderWithCamera(renderContext, skyboxLockedCullFrustum);
-
-                    // Back to main Scene
-                    UpdateSceneBuffers(Scene, Camera);
-                }
-
-                // 2D Sky
-                Scene.Sky?.Render(renderContext);
-
-                GL.DepthRange(0.05, 1);
-            }
-
-            if (Camera.Picker.IsActive)
-            {
-                Camera.Picker.Finish();
-                goto renderpass_begin;
-            }
-
-            if (IsWireframe)
-            {
-                GL.PolygonMode(MaterialFace.FrontAndBack, PolygonMode.Fill);
-            }
+            RenderScenesWithView(renderContext);
 
             selectedNodeRenderer.Render(renderContext);
 
@@ -349,6 +312,51 @@ renderpass_begin:
             if (ShowBaseGrid)
             {
                 baseGrid.Render(renderContext);
+            }
+        }
+
+        private void RenderScenesWithView(Scene.RenderContext renderContext)
+        {
+            GL.Viewport(0, 0, renderContext.Framebuffer.Width, renderContext.Framebuffer.Height);
+            renderContext.Framebuffer.Clear();
+
+            // TODO: check if renderpass allows wireframe mode
+            if (IsWireframe)
+            {
+                GL.PolygonMode(MaterialFace.FrontAndBack, PolygonMode.Line);
+            }
+
+            GL.DepthRange(0.05, 1);
+            UpdateSceneBuffersGpu(Scene, Camera);
+
+            renderContext.Scene = Scene;
+            Scene.RenderOpaqueLayer(renderContext);
+
+            // 3D Sky
+            GL.DepthRange(0, 0.05);
+            if (ShowSkybox && SkyboxScene != null)
+            {
+                renderContext.Camera = skyboxCamera;
+
+                UpdateSceneBuffersGpu(SkyboxScene, skyboxCamera);
+                renderContext.Scene = SkyboxScene;
+
+                SkyboxScene.RenderOpaqueLayer(renderContext);
+                SkyboxScene.RenderTranslucentLayer(renderContext);
+
+                // Back to main Scene
+                UpdateSceneBuffersGpu(Scene, Camera);
+            }
+
+            // 2D Sky
+            Scene.Sky?.Render(renderContext);
+            GL.DepthRange(0.05, 1);
+
+            Scene.RenderTranslucentLayer(renderContext);
+
+            if (IsWireframe)
+            {
+                GL.PolygonMode(MaterialFace.FrontAndBack, PolygonMode.Fill);
             }
         }
 
