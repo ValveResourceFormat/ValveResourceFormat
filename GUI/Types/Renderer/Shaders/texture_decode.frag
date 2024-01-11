@@ -122,7 +122,7 @@ void main()
         }
     }
 
-    vec4 vColor = textureLod(g_tInputTexture, vTexCoord, float(g_nSelectedMip) / g_vInputTextureSize.w);
+    vec4 vColor = textureLod(g_tInputTexture, vTexCoord, float(g_nSelectedMip));
 
     // similar to a channel mapping value of 0x00020103
     if ((g_nDecodeFlags & Dxt5nm_AlphaGreen) != 0)

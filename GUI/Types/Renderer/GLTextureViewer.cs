@@ -32,17 +32,14 @@ namespace GUI.Types.Renderer
         private float TextureScaleOld = 1f;
         private float TextureScaleChangeTime = 10f;
 
+        private int SelectedMip;
         private int SelectedDepth;
         private ChannelMapping SelectedChannels = ChannelMapping.RGB;
         private bool WantsSeparateAlpha;
         private TextureCodec decodeFlags;
 
         private bool FirstPaint = true;
-        private Button ResetButton;
-        private ComboBox depthComboBox;
         private CheckedListBox decodeFlagsListBox;
-        private ComboBox channelsComboBox;
-        private CheckBox softwareDecodeCheckBox;
 
         private Vector2 ActualTextureSize
         {
@@ -85,13 +82,13 @@ namespace GUI.Types.Renderer
 
             SetZoomLabel();
 
-            ResetButton = new Button
+            var resetButton = new Button
             {
                 Text = "Reset zoom",
                 AutoSize = true,
             };
 
-            ResetButton.Click += (_, __) =>
+            resetButton.Click += (_, __) =>
             {
                 TextureScaleOld = TextureScale;
                 TextureScale = 1f;
@@ -103,7 +100,7 @@ namespace GUI.Types.Renderer
                 SetZoomLabel();
             };
 
-            AddControl(ResetButton);
+            AddControl(resetButton);
         }
 
         public GLTextureViewer(VrfGuiContext guiContext, SKBitmap bitmap) : this(guiContext)
@@ -128,9 +125,22 @@ namespace GUI.Types.Renderer
                 Width = 200,
             });
 
+            ComboBox mipComboBox = null;
+
+            if (textureData.NumMipLevels > 1)
+            {
+                mipComboBox = AddSelection("Mip level", (name, index) =>
+                {
+                    SelectedMip = index;
+                });
+
+                mipComboBox.Items.AddRange(Enumerable.Range(0, textureData.NumMipLevels).Select(x => $"#{x}").ToArray());
+                mipComboBox.SelectedIndex = 0;
+            }
+
             if (textureData.Depth > 1)
             {
-                depthComboBox = AddSelection("Depth", (name, index) =>
+                var depthComboBox = AddSelection("Depth", (name, index) =>
                 {
                     SelectedDepth = index;
                 });
@@ -152,7 +162,7 @@ namespace GUI.Types.Renderer
                 }
             );
 
-            channelsComboBox = AddSelection("Channels", (name, index) =>
+            var channelsComboBox = AddSelection("Channels", (name, index) =>
             {
                 if (texture == null)
                 {
@@ -186,7 +196,15 @@ namespace GUI.Types.Renderer
             channelsComboBox.SelectedIndex = DefaultSelection;
 
             var forceSoftwareDecode = textureData.IsRawJpeg || textureData.IsRawPng;
-            softwareDecodeCheckBox = AddCheckBox("Software decode", forceSoftwareDecode, SetupTexture);
+            var softwareDecodeCheckBox = AddCheckBox("Software decode", forceSoftwareDecode, (state) =>
+            {
+                SetupTexture(state);
+
+                if (mipComboBox != null)
+                {
+                    mipComboBox.Enabled = !state;
+                }
+            });
 
             if (forceSoftwareDecode)
             {
@@ -231,20 +249,8 @@ namespace GUI.Types.Renderer
                 Bitmap?.Dispose();
                 Bitmap = null;
 
-                ResetButton.Dispose();
-                ResetButton = null;
-
-                depthComboBox?.Dispose();
-                depthComboBox = null;
-
                 decodeFlagsListBox?.Dispose();
                 decodeFlagsListBox = null;
-
-                channelsComboBox?.Dispose();
-                channelsComboBox = null;
-
-                softwareDecodeCheckBox?.Dispose();
-                softwareDecodeCheckBox = null;
 
                 texture?.Dispose();
             }
@@ -377,7 +383,7 @@ namespace GUI.Types.Renderer
 
             using (texture.BindingContext())
             {
-                texture.SetWrapMode(TextureWrapMode.ClampToBorder);
+                texture.SetWrapMode(TextureWrapMode.ClampToEdge);
                 texture.SetFiltering(TextureMinFilter.LinearMipmapLinear, TextureMagFilter.Nearest);
             }
 
@@ -403,6 +409,8 @@ namespace GUI.Types.Renderer
 
                 using var _ = texture.BindingContext();
                 GL.TexImage2D(texture.Target, 0, PixelInternalFormat.Rgba8, texture.Width, texture.Height, 0, PixelFormat.Bgra, PixelType.UnsignedByte, Bitmap.GetPixels());
+                GL.TexParameter(texture.Target, TextureParameterName.TextureMaxLevel, 0);
+
                 return;
             }
 
@@ -533,7 +541,7 @@ namespace GUI.Types.Renderer
 
             shader.SetTexture(0, "g_tInputTexture", texture);
             shader.SetUniform4("g_vInputTextureSize", new Vector4(texture.Width, texture.Height, texture.Depth, texture.NumMipLevels));
-            shader.SetUniform1("g_nSelectedMip", 0);
+            shader.SetUniform1("g_nSelectedMip", SelectedMip);
             shader.SetUniform1("g_nSelectedDepth", SelectedDepth);
             shader.SetUniform1("g_nSelectedChannels", SelectedChannels.PackedValue);
             shader.SetUniform1("g_bWantsSeparateAlpha", WantsSeparateAlpha ? 1u : 0u);
