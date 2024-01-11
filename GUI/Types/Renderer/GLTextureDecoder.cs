@@ -233,8 +233,11 @@ class GLTextureDecoder : IDisposable // ITextureDecoder
 
         // extract pixels from framebuffer
         var pixels = request.Bitmap.GetPixels(out var length);
+
+        Debug.Assert(request.Bitmap.ColorType == SKColorType.Bgra8888);
         Debug.Assert(length == inputTexture.Width * inputTexture.Height * 4);
-        GL.ReadPixels(0, 0, inputTexture.Width, inputTexture.Height, PixelFormat.Bgra, PixelType.UnsignedByte, pixels);
+
+        GL.ReadPixels(0, 0, request.Bitmap.Width, request.Bitmap.Height, PixelFormat.Bgra, PixelType.UnsignedByte, pixels);
         GL.Finish();
 
         request.DecodeTime = sw.Elapsed;
