@@ -44,6 +44,27 @@ namespace GUI.Types.Renderer
         private ComboBox channelsComboBox;
         private CheckBox softwareDecodeCheckBox;
 
+        private Vector2 ActualTextureSize
+        {
+            get
+            {
+                if (WantsSeparateAlpha)
+                {
+                    var isWide = texture.Width > texture.Height;
+                    return new Vector2(
+                        isWide ? texture.Width : texture.Width * 2,
+                        isWide ? texture.Height * 2 : texture.Height
+                    );
+                }
+
+                return new Vector2(texture.Width, texture.Height);
+            }
+        }
+
+        private Vector2 ActualTextureSizeScaled => ActualTextureSize * TextureScale;
+        private bool IsZoomedIn;
+        private bool MovedFromOrigin_Unzoomed;
+
         const int DefaultSelection = 3;
         static readonly (ChannelMapping Channels, bool SplitAlpha, string ChoiceString)[] ChannelsComboBoxOrder = [
             (ChannelMapping.R, false, "Red"),
@@ -131,11 +152,30 @@ namespace GUI.Types.Renderer
                 }
             );
 
-
             channelsComboBox = AddSelection("Channels", (name, index) =>
             {
+                if (texture == null)
+                {
+                    return;
+                }
+
+                var wasSeparateAlpha = WantsSeparateAlpha;
+                var oldTextureSize = ActualTextureSizeScaled;
+
                 SelectedChannels = ChannelsComboBoxOrder[index].Channels;
                 WantsSeparateAlpha = ChannelsComboBoxOrder[index].SplitAlpha;
+
+                if (wasSeparateAlpha || WantsSeparateAlpha)
+                {
+                    TextureScaleChangeTime = 0f;
+                    TextureScaleOld = TextureScale;
+
+                    PositionOld = Position;
+                    Position -= oldTextureSize / 2f;
+                    Position += ActualTextureSizeScaled / 2f;
+
+                    ClampPosition();
+                }
             });
 
             for (var i = 0; i < ChannelsComboBoxOrder.Length; i++)
@@ -274,27 +314,6 @@ namespace GUI.Types.Renderer
             ClampPosition();
             SetZoomLabel();
         }
-
-        public Vector2 ActualTextureSize
-        {
-            get
-            {
-                if (WantsSeparateAlpha)
-                {
-                    var isWide = texture.Width > texture.Height;
-                    return new Vector2(
-                        isWide ? texture.Width : texture.Width * 2,
-                        isWide ? texture.Height * 2 : texture.Height
-                    );
-                }
-
-                return new Vector2(texture.Width, texture.Height);
-            }
-        }
-
-        public Vector2 ActualTextureSizeScaled => ActualTextureSize * TextureScale;
-        public bool IsZoomedIn;
-        public bool MovedFromOrigin_Unzoomed;
 
         private void ClampPosition()
         {
