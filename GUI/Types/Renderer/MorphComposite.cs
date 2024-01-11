@@ -86,7 +86,7 @@ namespace GUI.Types.Renderer
         {
             using var _ = CompositeTexture.BindingContext();
 
-            GL.TexImage2D(CompositeTexture.Target, 0, PixelInternalFormat.Rgb16f, 2048, 2048, 0, PixelFormat.Rgba, PixelType.Float, 0);
+            GL.TexImage2D(CompositeTexture.Target, 0, PixelInternalFormat.Rgb16f, 2048, 2048, 0, PixelFormat.Rgba, PixelType.HalfFloat, IntPtr.Zero);
 
             CompositeTexture.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
             CompositeTexture.SetWrapMode(TextureWrapMode.ClampToEdge);
