@@ -305,7 +305,12 @@ namespace GUI.Types.Renderer
                 return;
             }
 
-            if (!MovedFromOrigin_Unzoomed)
+            if (MovedFromOrigin_Unzoomed)
+            {
+                Position.X = Math.Clamp(Position.X, Math.Min(0, -GLControl.Width + width), 0);
+                Position.Y = Math.Clamp(Position.Y, Math.Min(0, -GLControl.Height + height), 0);
+            }
+            else
             {
                 Position = -new Vector2(
                     GLControl.Width / 2f - ActualTextureSizeScaled.X / 2f,
