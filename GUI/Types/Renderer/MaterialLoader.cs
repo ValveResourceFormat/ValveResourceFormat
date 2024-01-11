@@ -163,6 +163,10 @@ namespace GUI.Types.Renderer
             var data = (Texture)textureResource.DataBlock;
             var tex = LoadTexture(data, srgbRead);
 
+            // Dispose texture otherwise we run out of memory
+            // TODO: This might conflict when opening multiple files due to shit caching
+            textureResource.Dispose();
+
 #if DEBUG
             var textureName = System.IO.Path.GetFileName(textureResource.FileName);
             GL.ObjectLabel(ObjectLabelIdentifier.Texture, tex.Handle, textureName.Length, textureName);
@@ -263,9 +267,6 @@ namespace GUI.Types.Renderer
             }
 
             GL.TexParameter(target, TextureParameterName.TextureBaseLevel, minMipLevel);
-
-            // Dispose texture otherwise we run out of memory
-            // TODO: This might conflict when opening multiple files due to shit caching
 
             if (MaxTextureMaxAnisotropy >= 4)
             {
