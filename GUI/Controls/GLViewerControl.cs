@@ -77,7 +77,7 @@ namespace GUI.Controls
             glControlContainer.Controls.Add(GLControl);
         }
 
-        private void OnKeyUp(object sender, KeyEventArgs e)
+        protected virtual void OnKeyUp(object sender, KeyEventArgs e)
         {
             if ((e.KeyCode == Keys.Escape || e.KeyCode == Keys.F11) && FullScreenForm != null)
             {
