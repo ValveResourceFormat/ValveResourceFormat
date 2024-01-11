@@ -89,17 +89,7 @@ namespace GUI.Types.Renderer
                 AutoSize = true,
             };
 
-            resetButton.Click += (_, __) =>
-            {
-                TextureScaleOld = TextureScale;
-                TextureScale = 1f;
-                TextureScaleChangeTime = 0f;
-
-                PositionOld = Position;
-                CenterPosition();
-
-                SetZoomLabel();
-            };
+            resetButton.Click += (_, __) => ResetZoom();
 
             AddControl(resetButton);
         }
@@ -319,6 +309,18 @@ namespace GUI.Types.Renderer
             var t = pixmap.Encode(fs, format, 100);
         }
 
+        private void ResetZoom()
+        {
+            TextureScaleOld = TextureScale;
+            TextureScale = 1f;
+            TextureScaleChangeTime = 0f;
+
+            PositionOld = Position;
+            CenterPosition();
+
+            SetZoomLabel();
+        }
+
         private void SetZoomLabel() => SetMoveSpeedOrZoomLabel($"Zoom: {TextureScale * 100:0.0}% (scroll to change)");
 
         protected override void OnKeyUp(object sender, KeyEventArgs e)
@@ -326,6 +328,12 @@ namespace GUI.Types.Renderer
             if (e.KeyData == (Keys.Control | Keys.S))
             {
                 OnSaveButtonClick(null, null);
+                return;
+            }
+
+            if (e.KeyData == (Keys.Control | Keys.NumPad0) || e.KeyData == (Keys.Control | Keys.D0))
+            {
+                ResetZoom();
                 return;
             }
 
