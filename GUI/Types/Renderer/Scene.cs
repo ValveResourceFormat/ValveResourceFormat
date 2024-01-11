@@ -122,9 +122,32 @@ namespace GUI.Types.Renderer
             }
         }
 
-        // Since we only ever draw one scene at a time, these can be static
-        // And they are fields here so they only ever grow without having to re-allocate these arrays every frame
-        private readonly static List<SceneNode> cullingResult = [];
+        private readonly List<SceneNode> CullResult = [];
+        private readonly List<SceneNode> DynamicCullResult = [];
+        private int LastFrustum = -1;
+        private int StaticCount;
+
+        public IEnumerable<SceneNode> GetFrustumCullResult(Frustum frustum)
+        {
+            var currentFrustum = frustum.GetHashCode();
+            if (LastFrustum != currentFrustum)
+            {
+                LastFrustum = currentFrustum;
+
+                CullResult.Clear();
+                StaticOctree.Root.Query(frustum, CullResult);
+                StaticCount = CullResult.Count;
+            }
+            else
+            {
+                CullResult.RemoveRange(StaticCount, CullResult.Count - StaticCount);
+            }
+
+            DynamicOctree.Root.Query(frustum, CullResult);
+            return CullResult;
+        }
+
+
         private readonly static List<MeshBatchRenderer.Request> renderLooseNodes = [];
         private readonly static List<MeshBatchRenderer.Request> renderOpaqueDrawCalls = [];
         private readonly static List<MeshBatchRenderer.Request> renderStaticOverlays = [];
@@ -135,11 +158,10 @@ namespace GUI.Types.Renderer
             var camera = renderContext.Camera;
             cullFrustum ??= camera.ViewFrustum;
 
-            StaticOctree.Root.Query(cullFrustum, cullingResult);
-            DynamicOctree.Root.Query(cullFrustum, cullingResult);
+            var cullResult = GetFrustumCullResult(cullFrustum);
 
             // Collect mesh calls
-            foreach (var node in cullingResult)
+            foreach (var node in cullResult)
             {
                 if (node is IRenderableMeshCollection meshCollection)
                 {
@@ -204,7 +226,6 @@ namespace GUI.Types.Renderer
                 }
             }
 
-            cullingResult.Clear();
 
             renderLooseNodes.Sort(MeshBatchRenderer.CompareCameraDistance);
 

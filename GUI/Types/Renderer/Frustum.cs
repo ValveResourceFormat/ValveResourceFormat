@@ -73,5 +73,16 @@ namespace GUI.Types.Renderer
 
             return true;
         }
+
+        public int GetHashCode()
+        {
+            var hash = 0;
+            for (var i = 0; i < Planes.Length; ++i)
+            {
+                hash ^= Planes[i].GetHashCode();
+            }
+
+            return hash;
+        }
     }
 }
