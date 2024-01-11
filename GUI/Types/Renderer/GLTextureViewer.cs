@@ -221,8 +221,19 @@ namespace GUI.Types.Renderer
                 return;
             }
 
-            Position = ClickPosition.Value - new Vector2(e.Location.X, e.Location.Y);
+            var oldPosition = Position;
+            var mousePosition = new Vector2(e.Location.X, e.Location.Y);
+
+            Position = ClickPosition.Value - mousePosition;
+
             ClampPosition();
+
+            // When cursor moves past the edge, but the picture does not move, update click position
+            // so that moving mouse in opposite direction instantly moves the picture, instead of waiting to move to the initial click position
+            if (oldPosition == Position)
+            {
+                ClickPosition = Position + mousePosition;
+            }
         }
 
         protected override void OnMouseDown(object sender, MouseEventArgs e)
