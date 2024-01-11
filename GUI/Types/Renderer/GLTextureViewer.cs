@@ -72,12 +72,12 @@ namespace GUI.Types.Renderer
 
             ResetButton.Click += (_, __) =>
             {
-                PositionOld = Position;
-                Position = Vector2.Zero;
-
                 TextureScaleOld = TextureScale;
                 TextureScale = 1f;
                 TextureScaleChangeTime = 0f;
+
+                PositionOld = Position;
+                CenterPosition();
 
                 SetZoomLabel();
             };
@@ -323,11 +323,16 @@ namespace GUI.Types.Renderer
             }
             else
             {
-                Position = -new Vector2(
-                    GLControl.Width / 2f - ActualTextureSizeScaled.X / 2f,
-                    GLControl.Height / 2f - ActualTextureSizeScaled.Y / 2f
-                );
+                CenterPosition();
             }
+        }
+
+        private void CenterPosition()
+        {
+            Position = -new Vector2(
+                GLControl.Width / 2f - ActualTextureSizeScaled.X / 2f,
+                GLControl.Height / 2f - ActualTextureSizeScaled.Y / 2f
+            );
         }
 
         protected override void OnResize(object sender, EventArgs e)
