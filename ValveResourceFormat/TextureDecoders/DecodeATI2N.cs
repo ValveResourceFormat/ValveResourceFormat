@@ -8,15 +8,13 @@ namespace ValveResourceFormat.TextureDecoders
     {
         readonly int w;
         readonly int h;
-        readonly bool normalize;
-        readonly bool hemiOctRB;
+        readonly TextureCodec decodeFlags;
 
-        public DecodeATI2N(int w, int h, bool normalize, bool hemiOctRB)
+        public DecodeATI2N(int w, int h, TextureCodec codec)
         {
             this.w = w;
             this.h = h;
-            this.normalize = normalize;
-            this.hemiOctRB = hemiOctRB;
+            decodeFlags = codec;
         }
 
         public void Decode(SKBitmap imageInfo, Span<byte> input)
@@ -55,12 +53,12 @@ namespace ValveResourceFormat.TextureDecoders
                             pixels[pixelIndex].b = 0; //b
                             pixels[pixelIndex].a = byte.MaxValue;
 
-                            if (normalize)
+                            if ((decodeFlags & TextureCodec.NormalizeNormals) != 0)
                             {
                                 Common.Undo_NormalizeNormals(ref pixels[pixelIndex]);
                             }
 
-                            if (hemiOctRB)
+                            if ((decodeFlags & TextureCodec.HemiOctRB) != 0)
                             {
                                 Common.Undo_HemiOct(ref pixels[pixelIndex]);
                             }

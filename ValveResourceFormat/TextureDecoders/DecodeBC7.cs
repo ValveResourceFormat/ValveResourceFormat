@@ -116,13 +116,13 @@ namespace ValveResourceFormat.TextureDecoders
 
         readonly int w;
         readonly int h;
-        readonly bool hemiOctRB;
+        readonly TextureCodec decodeFlags;
 
-        public DecodeBC7(int w, int h, bool hemiOctRB)
+        public DecodeBC7(int w, int h, TextureCodec codec)
         {
             this.w = w;
             this.h = h;
-            this.hemiOctRB = hemiOctRB;
+            decodeFlags = codec;
         }
 
         public void Decode(SKBitmap bitmap, Span<byte> input)
@@ -375,7 +375,7 @@ namespace ValveResourceFormat.TextureDecoders
                                 }
                             }
 
-                            if (hemiOctRB)
+                            if ((decodeFlags & TextureCodec.HemiOctRB) != 0)
                             {
                                 Common.Undo_HemiOct(ref pixels[pixelIndex]);
                             }

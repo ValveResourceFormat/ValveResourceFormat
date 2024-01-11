@@ -17,13 +17,42 @@ namespace ValveResourceFormat.TextureDecoders
         }*/
     }
 
+    [Flags]
+    public enum TextureCodec
+    {
+        None = 0,
+
+        /// <summary>
+        /// Co, Cg, Scale, and Y stored in RGBA respectively.
+        /// </summary>
+        YCoCg = 1 << 0,
+
+        /// <summary>
+        /// HDR content stored in 8 bit by muliplying colors with alpha
+        /// and another constant (typically 16)
+        /// </summary>
+        RGBM = 1 << 1, // todo
+
+        /// <summary>
+        /// Hemi Octahedron surface normal data in RB. Widens to RGB.
+        /// </summary>
+        HemiOctRB = 1 << 2,
+
+        NormalizeNormals = 1 << 3,
+
+        /// <summary>
+        ///  Swizzle red with alpha (exploiting higher bitcount alpha in dxt5)
+        /// </summary>
+        Dxt5nm = 1 << 4,
+    }
+
     internal class Common
     {
         public static void Undo_YCoCg(ref Color color)
         {
-            var s = (color.b >> 3) + 1;
-            var co = (color.r - 128) / s;
-            var cg = (color.g - 128) / s;
+            var scale = (color.b >> 3) + 1;
+            var co = (color.r - 128) / scale;
+            var cg = (color.g - 128) / scale;
 
             var y = color.a;
 
@@ -55,7 +84,6 @@ namespace ValveResourceFormat.TextureDecoders
             color.g = (byte)(((ny / l * 0.5f) + 0.5f) * 255);
             color.b = (byte)(((nz / l * 0.5f) + 0.5f) * 255);
         }
-
 
         public static byte ClampColor(int a)
         {

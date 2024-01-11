@@ -8,17 +8,13 @@ namespace ValveResourceFormat.TextureDecoders
     {
         readonly int w;
         readonly int h;
-        readonly bool yCoCg;
-        readonly bool normalize;
-        readonly bool hemiOct;
+        readonly TextureCodec decodeFlags;
 
-        public DecodeDXT5(int w, int h, bool yCoCg, bool normalize, bool hemiOct)
+        public DecodeDXT5(int w, int h, TextureCodec codec)
         {
             this.w = w;
             this.h = h;
-            this.yCoCg = yCoCg;
-            this.normalize = normalize;
-            this.hemiOct = hemiOct;
+            decodeFlags = codec;
         }
 
         public void Decode(SKBitmap imageInfo, Span<byte> input)
@@ -57,18 +53,19 @@ namespace ValveResourceFormat.TextureDecoders
                                 break;
                             }
 
-                            if (yCoCg)
+                            if ((decodeFlags & TextureCodec.YCoCg) != 0)
                             {
                                 Common.Undo_YCoCg(ref pixels[pixelIndex]);
                             }
 
-                            if (normalize)
+                            // todo: dxt5nm check
+                            if ((decodeFlags & TextureCodec.NormalizeNormals) != 0)
                             {
                                 var red = pixels[pixelIndex].r;
                                 pixels[pixelIndex].r = pixels[pixelIndex].a; //r to alpha
                                 pixels[pixelIndex].a = red;
 
-                                if (hemiOct)
+                                if ((decodeFlags & TextureCodec.HemiOctRB) != 0)
                                 {
                                     Common.Undo_HemiOct(ref pixels[pixelIndex]);
                                 }
@@ -83,7 +80,7 @@ namespace ValveResourceFormat.TextureDecoders
             }
         }
 
-        internal static void Decompress8BitBlock(int bx, int w, int offset, ulong block, Span<byte> pixels, int stride)
+        internal static void Decompress8BitBlock(int bx, int w, int offset, ulong block, Span<byte> data, int stride)
         {
             var e0 = (byte)(block & 0xFF);
             var e1 = (byte)(block >> 8 & 0xFF);
@@ -98,38 +95,38 @@ namespace ValveResourceFormat.TextureDecoders
                     uint index = (byte)(code & 0x07);
                     code >>= 3;
 
-                    if (bx + x >= w || pixels.Length <= dataIndex)
+                    if (bx + x >= w || data.Length <= dataIndex)
                     {
                         continue;
                     }
 
                     if (index == 0)
                     {
-                        pixels[dataIndex] = e0;
+                        data[dataIndex] = e0;
                     }
                     else if (index == 1)
                     {
-                        pixels[dataIndex] = e1;
+                        data[dataIndex] = e1;
                     }
                     else
                     {
                         if (e0 > e1)
                         {
-                            pixels[dataIndex] = (byte)((((8 - index) * e0) + ((index - 1) * e1)) / 7);
+                            data[dataIndex] = (byte)((((8 - index) * e0) + ((index - 1) * e1)) / 7);
                         }
                         else
                         {
                             if (index == 6)
                             {
-                                pixels[dataIndex] = 0;
+                                data[dataIndex] = 0;
                             }
                             else if (index == 7)
                             {
-                                pixels[dataIndex] = 255;
+                                data[dataIndex] = 255;
                             }
                             else
                             {
-                                pixels[dataIndex] = (byte)((((6 - index) * e0) + ((index - 1) * e1)) / 5);
+                                data[dataIndex] = (byte)((((6 - index) * e0) + ((index - 1) * e1)) / 5);
                             }
                         }
                     }

@@ -429,6 +429,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             var skiaBitmap = new SKBitmap(width, height, SKColorType.Bgra8888, SKAlphaType.Unpremul);
             ITextureDecoder decoder = null;
+            var codec = RetrieveCodecFromResourceEditInfo();
 
             switch (Format)
             {
@@ -437,20 +438,7 @@ namespace ValveResourceFormat.ResourceTypes
                     break;
 
                 case VTexFormat.DXT5:
-                    var yCoCg = false;
-                    var normalize = false;
-                    var hemiOct = false;
-
-                    if (Resource.EditInfo.Structs.TryGetValue(ResourceEditInfo.REDIStruct.SpecialDependencies, out var specialDepsRedi))
-                    {
-                        var specialDeps = (SpecialDependencies)specialDepsRedi;
-
-                        yCoCg = specialDeps.List.Any(dependancy => dependancy.CompilerIdentifier == "CompileTexture" && dependancy.String == "Texture Compiler Version Image YCoCg Conversion");
-                        normalize = specialDeps.List.Any(dependancy => dependancy.CompilerIdentifier == "CompileTexture" && dependancy.String == "Texture Compiler Version Image NormalizeNormals");
-                        hemiOct = specialDeps.List.Any(dependancy => dependancy.CompilerIdentifier == "CompileTexture" && dependancy.String == "Texture Compiler Version Mip HemiOctAnisoRoughness");
-                    }
-
-                    decoder = new DecodeDXT5(blockWidth, blockHeight, yCoCg, normalize, hemiOct);
+                    decoder = new DecodeDXT5(blockWidth, blockHeight, codec);
                     break;
 
                 case VTexFormat.I8:
@@ -506,29 +494,11 @@ namespace ValveResourceFormat.ResourceTypes
                     break;
 
                 case VTexFormat.BC7:
-                    var hemiOctRB = false;
-
-                    if (Resource.EditInfo.Structs.TryGetValue(ResourceEditInfo.REDIStruct.SpecialDependencies, out specialDepsRedi))
-                    {
-                        var specialDeps = (SpecialDependencies)specialDepsRedi;
-                        hemiOctRB = specialDeps.List.Any(dependancy => dependancy.CompilerIdentifier == "CompileTexture" && dependancy.String == "Texture Compiler Version Mip HemiOctIsoRoughness_RG_B");
-                    }
-
-                    decoder = new DecodeBC7(blockWidth, blockHeight, hemiOctRB);
+                    decoder = new DecodeBC7(blockWidth, blockHeight, codec);
                     break;
 
                 case VTexFormat.ATI2N:
-                    normalize = false;
-                    hemiOctRB = false;
-
-                    if (Resource.EditInfo.Structs.TryGetValue(ResourceEditInfo.REDIStruct.SpecialDependencies, out specialDepsRedi))
-                    {
-                        var specialDeps = (SpecialDependencies)specialDepsRedi;
-                        normalize = specialDeps.List.Any(dependancy => dependancy.CompilerIdentifier == "CompileTexture" && dependancy.String == "Texture Compiler Version Image NormalizeNormals");
-                        hemiOctRB = specialDeps.List.Any(dependancy => dependancy.CompilerIdentifier == "CompileTexture" && dependancy.String == "Texture Compiler Version Mip HemiOctIsoRoughness_RG_B");
-                    }
-
-                    decoder = new DecodeATI2N(blockWidth, blockHeight, normalize, hemiOctRB);
+                    decoder = new DecodeATI2N(blockWidth, blockHeight, codec);
                     break;
 
                 case VTexFormat.IA88:
@@ -852,6 +822,52 @@ namespace ValveResourceFormat.ResourceTypes
             size >>= level;
 
             return Math.Max(size, 1);
+        }
+
+        public TextureCodec RetrieveCodecFromResourceEditInfo()
+        {
+            var codec = TextureCodec.None;
+
+            if (IsRawPng || IsRawJpeg)
+            {
+                return codec;
+            }
+
+            if (Resource.EditInfo == null
+            || !Resource.EditInfo.Structs.TryGetValue(ResourceEditInfo.REDIStruct.SpecialDependencies, out var specialDepsRedi))
+            {
+                return codec;
+            }
+
+            var specialDeps = (SpecialDependencies)specialDepsRedi;
+            var textureCompilerDependencies = specialDeps.List.Where(dependancy => dependancy.CompilerIdentifier == "CompileTexture");
+
+            foreach (var processorAlgorithm in textureCompilerDependencies)
+            {
+                codec |= processorAlgorithm.String switch
+                {
+                    // Image processor algorithms
+                    "Texture Compiler Version Image YCoCg Conversion" => TextureCodec.YCoCg,
+                    "Texture Compiler Version Image NormalizeNormals" => TextureCodec.NormalizeNormals,
+
+                    // Mipmap processor algorithms
+                    "Texture Compiler Version Mip HemiOctIsoRoughness_RG_B" => TextureCodec.HemiOctRB,
+                    "Texture Compiler Version Mip HemiOctAnisoRoughness" => TextureCodec.HemiOctRB, // do we lose one of the roughness components? (anisotropic is xy)
+                    _ => TextureCodec.None,
+                };
+            }
+
+            if (Format == VTexFormat.DXT5 && codec.HasFlag(TextureCodec.NormalizeNormals))
+            {
+                codec |= TextureCodec.Dxt5nm;
+            }
+            else if (Format == VTexFormat.BC7 && codec.HasFlag(TextureCodec.HemiOctRB)
+                                              && codec.HasFlag(TextureCodec.NormalizeNormals))
+            {
+                codec &= ~TextureCodec.NormalizeNormals;
+            }
+
+            return codec;
         }
 
         public override string ToString()
