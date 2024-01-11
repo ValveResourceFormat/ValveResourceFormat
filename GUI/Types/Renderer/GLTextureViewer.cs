@@ -278,18 +278,7 @@ namespace GUI.Types.Renderer
             Settings.Config.SaveDirectory = Path.GetDirectoryName(saveFileDialog.FileName);
 
             // TODO: nonpow2 sizes?
-            using var bitmap = new SKBitmap(texture.Width, texture.Height, SKColorType.Bgra8888, SKAlphaType.Unpremul);
-            var pixels = bitmap.GetPixels(out var length);
-
-            // extract pixels from framebuffer
-            GL.Viewport(0, 0, texture.Width, texture.Height);
-
-            //Draw(isTextureViewer: false);
-
-            GL.Flush();
-            GL.Finish();
-            GL.ReadPixels(0, 0, bitmap.Width, bitmap.Height, PixelFormat.Bgra, PixelType.UnsignedByte, pixels);
-
+            using var bitmap = ReadPixelsToBitmap();
             var format = SKEncodedImageFormat.Png;
 
             switch (saveFileDialog.FilterIndex)
@@ -307,6 +296,33 @@ namespace GUI.Types.Renderer
             using var pixmap = bitmap.PeekPixels();
             using var fs = saveFileDialog.OpenFile();
             var t = pixmap.Encode(fs, format, 100);
+        }
+
+        private SKBitmap ReadPixelsToBitmap()
+        {
+            var bitmap = new SKBitmap(texture.Width, texture.Height, SKColorType.Bgra8888, SKAlphaType.Unpremul);
+
+            try
+            {
+                var pixels = bitmap.GetPixels(out var length);
+
+                // extract pixels from framebuffer
+                GL.Viewport(0, 0, texture.Width, texture.Height);
+
+                //Draw(isTextureViewer: false);
+
+                GL.Flush();
+                GL.Finish();
+                GL.ReadPixels(0, 0, bitmap.Width, bitmap.Height, PixelFormat.Bgra, PixelType.UnsignedByte, pixels);
+
+                var bitmapToReturn = bitmap;
+                bitmap = null;
+                return bitmapToReturn;
+            }
+            finally
+            {
+                bitmap?.Dispose();
+            }
         }
 
         private void ResetZoom()
@@ -328,6 +344,20 @@ namespace GUI.Types.Renderer
             if (e.KeyData == (Keys.Control | Keys.S))
             {
                 OnSaveButtonClick(null, null);
+                return;
+            }
+
+            if (e.KeyData == (Keys.Control | Keys.C))
+            {
+                var title = Program.MainForm.Text;
+                Program.MainForm.Text = "Source 2 Viewer - Copying image to clipboard…";
+
+                using var bitmap = ReadPixelsToBitmap();
+                using var bitmap2 = bitmap.ToBitmap();
+                Clipboard.SetImage(bitmap2);
+
+                Program.MainForm.Text = title;
+
                 return;
             }
 
