@@ -450,7 +450,7 @@ namespace GUI.Types.Renderer
             }
 
             // TODO: LoadTexture has things like max texture size and anisotrophy, need to ignore these
-            texture = GuiContext.MaterialLoader.LoadTexture(Resource);
+            texture = GuiContext.MaterialLoader.LoadTexture(Resource, isViewerRequest: true);
             decodeFlags = textureData.RetrieveCodecFromResourceEditInfo();
         }
 
