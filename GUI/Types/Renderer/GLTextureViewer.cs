@@ -145,11 +145,11 @@ namespace GUI.Types.Renderer
 
             channelsComboBox.SelectedIndex = DefaultSelection;
 
-            softwareDecodeCheckBox = AddCheckBox("Software decode", false, SetupTexture);
+            var forceSoftwareDecode = textureData.IsRawJpeg || textureData.IsRawPng;
+            softwareDecodeCheckBox = AddCheckBox("Software decode", forceSoftwareDecode, SetupTexture);
 
-            if (textureData.IsRawJpeg || textureData.IsRawPng)
+            if (forceSoftwareDecode)
             {
-                softwareDecodeCheckBox.Checked = true;
                 softwareDecodeCheckBox.Enabled = false;
             }
         }
