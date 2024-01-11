@@ -321,6 +321,17 @@ namespace GUI.Types.Renderer
 
         private void SetZoomLabel() => SetMoveSpeedOrZoomLabel($"Zoom: {TextureScale * 100:0.0}% (scroll to change)");
 
+        protected override void OnKeyUp(object sender, KeyEventArgs e)
+        {
+            if (e.KeyData == (Keys.Control | Keys.S))
+            {
+                OnSaveButtonClick(null, null);
+                return;
+            }
+
+            base.OnKeyUp(sender, e);
+        }
+
         private void OnMouseMove(object sender, MouseEventArgs e)
         {
             if (ClickPosition == null)
