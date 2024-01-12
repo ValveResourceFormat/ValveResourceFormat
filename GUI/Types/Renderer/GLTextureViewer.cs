@@ -373,6 +373,18 @@ namespace GUI.Types.Renderer
                 return;
             }
 
+            if (e.KeyData == (Keys.Control | Keys.Add) || e.KeyData == (Keys.Control | Keys.Oemplus))
+            {
+                OnMouseWheel(null, new MouseEventArgs(MouseButtons.None, 0, GLControl.Width / 2, GLControl.Height / 2, 1));
+                return;
+            }
+
+            if (e.KeyData == (Keys.Control | Keys.Subtract) || e.KeyData == (Keys.Control | Keys.OemMinus))
+            {
+                OnMouseWheel(null, new MouseEventArgs(MouseButtons.None, 0, GLControl.Width / 2, GLControl.Height / 2, -1));
+                return;
+            }
+
             base.OnKeyUp(sender, e);
         }
 
