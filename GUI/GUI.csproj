@@ -33,7 +33,7 @@
   <ItemGroup>
     <EmbeddedResource Include="AssetTypes\*" />
     <EmbeddedResource Include="Types\Renderer\Shaders\**" />
-    <EmbeddedResource Include="Utils\inspect_agents_custom_cubemap.vtex_c" />
+    <EmbeddedResource Include="Utils\industrial_sunset_puresky.vtex_c" />
     <EmbeddedResource Include="Utils\ggx_integrate_brdf_lut_schlick.vtex_c" />
     <EmbeddedResource Include="Utils\env_cubemap.vmdl_c" />
     <EmbeddedResource Include="Utils\sky_furnace.vtex_c" />

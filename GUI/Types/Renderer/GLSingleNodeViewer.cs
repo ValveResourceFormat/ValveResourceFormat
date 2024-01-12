@@ -36,7 +36,7 @@ namespace GUI.Types.Renderer
         private void LoadDefaultEnviromentMap()
         {
             var assembly = Assembly.GetExecutingAssembly();
-            using var stream = assembly.GetManifestResourceStream("GUI.Utils.inspect_agents_custom_cubemap.vtex_c");
+            using var stream = assembly.GetManifestResourceStream("GUI.Utils.industrial_sunset_puresky.vtex_c");
 
             using var resource = new Resource()
             {
