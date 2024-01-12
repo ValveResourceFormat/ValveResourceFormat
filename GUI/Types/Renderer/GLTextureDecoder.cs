@@ -204,9 +204,7 @@ class GLTextureDecoder : IDisposable // ITextureDecoder
         GL.DepthMask(false);
         GL.Disable(EnableCap.DepthTest);
 
-        // TYPE_TEXTURE2D
-        var textureType = "TYPE_" + inputTexture.Target.ToString().ToUpperInvariant();
-
+        var textureType = GetTextureTypeDefine(inputTexture.Target);
         var shader = guiContext.ShaderLoader.LoadShader("vrf.texture_decode", new Dictionary<string, byte>
         {
             [textureType] = 1,
@@ -283,4 +281,13 @@ class GLTextureDecoder : IDisposable // ITextureDecoder
         guiContext.Dispose();
         Log.Info(nameof(GLTextureDecoder), "Decoder has been disposed.");
     }
+
+    public static string GetTextureTypeDefine(TextureTarget target) => target switch
+    {
+        TextureTarget.Texture2D => "TYPE_TEXTURE2D",
+        TextureTarget.Texture2DArray => "TYPE_TEXTURE2DARRAY",
+        TextureTarget.TextureCubeMap => "TYPE_TEXTURECUBEMAP",
+        TextureTarget.TextureCubeMapArray => "TYPE_TEXTURECUBEMAPARRAY",
+        _ => throw new UnexpectedMagicException("Unsupported texture type", (int)target, target.ToString())
+    };
 }
