@@ -137,14 +137,10 @@ void main()
 {
     vec2 vScreenCoords = gl_FragCoord.xy / g_vViewportSize.xy;
 
-    #if TYPE_TEXTURE2D == 1
+    #if TYPE_TEXTURE2D == 1 || TYPE_TEXTURECUBEMAP == 1
         vec2 vTexCoord = vScreenCoords;
-    #elif TYPE_TEXTURE2DARRAY == 1
+    #elif TYPE_TEXTURE2DARRAY == 1 || TYPE_TEXTURECUBEMAPARRAY == 1
         vec3 vTexCoord = vec3(vScreenCoords, g_nSelectedDepth);
-    #elif TYPE_TEXTURECUBEMAP == 1
-        vec3 vTexCoord = GetCubemapFaceCoords(vScreenCoords, 0);
-    #elif TYPE_TEXTURECUBEMAPARRAY == 1
-        vec4 vTexCoord = vec4(GetCubemapFaceCoords(vScreenCoords, 0), g_nSelectedDepth);
     #else
         #error "Missing vTexCoord for TYPE_xxxx"
     #endif
@@ -171,7 +167,16 @@ void main()
         }
     }
 
-    vec4 vColor = textureLod(g_tInputTexture, vTexCoord, float(g_nSelectedMip));
+    // cubemaps take a direction vector as sample coords
+    #if TYPE_TEXTURECUBEMAP == 1
+        vec3 vSampleCoords = GetCubemapFaceCoords(vTexCoord.xy, 0);
+    #elif TYPE_TEXTURECUBEMAPARRAY == 1
+        vec4 vSampleCoords = vec4(GetCubemapFaceCoords(vTexCoord.xy, 0), vTexCoord.z);
+    #else
+        vec2 vSampleCoords = vTexCoord.xy;
+    #endif
+
+    vec4 vColor = textureLod(g_tInputTexture, vSampleCoords, float(g_nSelectedMip));
 
     // similar to a channel mapping value of 0x00020103
     if ((g_nDecodeFlags & Dxt5nm_AlphaGreen) != 0)
