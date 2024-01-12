@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using OpenTK.Graphics.OpenGL;
+using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization;
 
@@ -261,10 +262,30 @@ namespace GUI.Types.Renderer
                 var tags = attributes.GetArray<string>("m_InteractAsStrings") ?? attributes.GetArray<string>("m_PhysicsTagStrings");
                 var group = attributes.GetStringProperty("m_CollisionGroupString");
 
-                var name = $"[{string.Join(", ", tags)}]";
+                var tooltexture = MapExtract.GetToolTextureShortenedName_ForInteractStrings(new HashSet<string>(tags));
+
+                var name = string.Empty;
+
                 if (group != null)
                 {
-                    name = $"{name} {group}";
+                    if (group.Equals("default", StringComparison.OrdinalIgnoreCase))
+                    {
+                        name = $"- default";
+                    }
+                    else if (!group.Equals("conditionallysolid", StringComparison.OrdinalIgnoreCase))
+                    {
+                        name = group;
+                    }
+                }
+
+                if (tags.Length > 0)
+                {
+                    name = $"[{string.Join(", ", tags)}]" + name;
+                }
+
+                if (tooltexture != "nodraw")
+                {
+                    name = $"- {tooltexture} {name}";
                 }
 
                 var physSceneNode = new PhysSceneNode(scene, verts[i], inds[i], hasUntriangulatedVertices[i])

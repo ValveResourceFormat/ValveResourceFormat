@@ -182,6 +182,7 @@ public sealed class MapExtract
         };
     }
 
+    // TODO: we should be parsing fgds and collision_*.txt files from game to remain correct.
     public static readonly Dictionary<string, HashSet<string>> ToolTextureMultiTags = new()
     {
         ["clip"] = ["npcclip", "playerclip"],
@@ -190,17 +191,24 @@ public sealed class MapExtract
 
     public static string GetToolTextureNameForCollisionTags(ModelExtract.SurfaceTagCombo combo)
     {
-        var texture = ToolTextureMultiTags.FirstOrDefault(x => x.Value.SetEquals(combo.InteractAsStrings)).Key;
-        var tag = combo.InteractAsStrings.FirstOrDefault();
+        var shortenedToolTextureName = GetToolTextureShortenedName_ForInteractStrings(combo.InteractAsStrings);
+
+        return $"materials/tools/tools{shortenedToolTextureName}.vmat";
+    }
+
+    public static string GetToolTextureShortenedName_ForInteractStrings(HashSet<string> interactAsStrings)
+    {
+        var texture = ToolTextureMultiTags.FirstOrDefault(x => x.Value.SetEquals(interactAsStrings)).Key;
+        var tag = interactAsStrings.FirstOrDefault();
         texture ??= tag switch
         {
             "playerclip" or "npcclip" or "blocksound" => tag,
             "sky" => "skybox",
             "csgo_grenadeclip" => "grenadeclip",
+            "ladder" => "invisibleladder",
             _ => "nodraw",
         };
-
-        return $"materials/tools/tools{texture}.vmat";
+        return texture;
     }
 
     // These appear in FGD as "auto_apply_material"

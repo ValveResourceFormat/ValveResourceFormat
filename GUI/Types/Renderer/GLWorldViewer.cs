@@ -479,7 +479,7 @@ namespace GUI.Types.Renderer
         {
             physicsGroupsComboBox.Items.Clear();
 
-            var physicsGroupsArray = physicsGroups.ToArray();
+            var physicsGroupsArray = physicsGroups.OrderByDescending(s => s.Contains('-', StringComparison.Ordinal)).ToArray();
 
             if (physicsGroupsArray.Length > 0)
             {
