@@ -154,7 +154,10 @@ namespace GUI.Controls
             {
                 changeCallback(checkbox.CheckBox.Checked);
 
-                GLControl.Focus();
+                if (this is not GLTextureViewer)
+                {
+                    GLControl.Focus();
+                }
             };
 
             controlsPanel.Controls.Add(checkbox);
@@ -177,7 +180,10 @@ namespace GUI.Controls
                 selectionControl.Refresh();
                 changeCallback(selectionControl.ComboBox.SelectedItem as string, selectionControl.ComboBox.SelectedIndex);
 
-                GLControl.Focus();
+                if (this is not GLTextureViewer)
+                {
+                    GLControl.Focus();
+                }
             };
 
             return selectionControl.ComboBox;
@@ -201,7 +207,10 @@ namespace GUI.Controls
                     selectionControl.Refresh();
                     changeCallback(selectionControl.CheckedListBox.CheckedItems.OfType<string>());
 
-                    GLControl.Focus();
+                    if (this is not GLTextureViewer)
+                    {
+                        GLControl.Focus();
+                    }
                 }));
             };
 
