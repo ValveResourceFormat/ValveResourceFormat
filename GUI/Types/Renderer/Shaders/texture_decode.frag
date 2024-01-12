@@ -36,6 +36,41 @@ uint GetColorIndex(uint nChannelMapping, uint nChannel)
     return (nChannelMapping >> (nChannel * 8)) & 0xff;
 }
 
+vec3 GetCubemapFaceCoords(vec2 vTexCoord, int nFace)
+{
+    vec3 vFaceCoord = vec3(0.0);
+    vec2 vMapCoord = 2 * vTexCoord - 1;
+
+    // can be simplified
+
+    if (nFace == 0) // +X
+    {
+        vFaceCoord = vec3(1.0, vMapCoord.x, vMapCoord.y);
+    }
+    else if (nFace == 1) // -X
+    {
+        vFaceCoord = vec3(-1.0, vMapCoord.x, vMapCoord.y);
+    }
+    else if (nFace == 2) // +Y
+    {
+        vFaceCoord = vec3(vMapCoord.x, 1.0, vMapCoord.y);
+    }
+    else if (nFace == 3) // -Y
+    {
+        vFaceCoord = vec3(vMapCoord.x, -1.0, vMapCoord.y);
+    }
+    else if (nFace == 4) // +Z
+    {
+        vFaceCoord = vec3(vMapCoord.x, vMapCoord.y, 1.0);
+    }
+    else if (nFace == 5) // -Z
+    {
+        vFaceCoord = vec3(vMapCoord.x, vMapCoord.y, -1.0);
+    }
+
+    return vFaceCoord;
+}
+
 
 vec3 PackToColor( vec3 vValue )
 {
@@ -107,9 +142,9 @@ void main()
     #elif TYPE_TEXTURE2DARRAY == 1
         vec3 vTexCoord = vec3(vScreenCoords, g_nSelectedDepth);
     #elif TYPE_TEXTURECUBEMAP == 1
-        vec3 vTexCoord = vec3(vScreenCoords, g_nSelectedDepth); // TODO: wrong
+        vec3 vTexCoord = GetCubemapFaceCoords(vScreenCoords, 0);
     #elif TYPE_TEXTURECUBEMAPARRAY == 1
-        vec4 vTexCoord = vec4(vScreenCoords, 0, g_nSelectedDepth); // TODO: wrong
+        vec4 vTexCoord = vec4(GetCubemapFaceCoords(vScreenCoords, 0), g_nSelectedDepth);
     #else
         #error "Missing vTexCoord for TYPE_xxxx"
     #endif
