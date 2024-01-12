@@ -39,6 +39,7 @@ namespace GUI.Forms
             labelRuntime = new Label();
             label3 = new Label();
             icon = new PictureBox();
+            keybinds = new Button();
             ((System.ComponentModel.ISupportInitialize)icon).BeginInit();
             SuspendLayout();
             // 
@@ -126,12 +127,24 @@ namespace GUI.Forms
             icon.TabIndex = 11;
             icon.TabStop = false;
             // 
+            // keybinds
+            // 
+            keybinds.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            keybinds.Location = new System.Drawing.Point(550, 99);
+            keybinds.Name = "keybinds";
+            keybinds.Size = new System.Drawing.Size(100, 23);
+            keybinds.TabIndex = 12;
+            keybinds.Text = "View keybinds";
+            keybinds.UseVisualStyleBackColor = true;
+            keybinds.Click += OnKeybindsClick;
+            // 
             // AboutForm
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             BackColor = System.Drawing.Color.White;
             ClientSize = new System.Drawing.Size(662, 191);
+            Controls.Add(keybinds);
             Controls.Add(icon);
             Controls.Add(label3);
             Controls.Add(labelRuntime);
@@ -165,5 +178,6 @@ namespace GUI.Forms
         private Label labelRuntime;
         private Label label3;
         private PictureBox icon;
+        private Button keybinds;
     }
 }

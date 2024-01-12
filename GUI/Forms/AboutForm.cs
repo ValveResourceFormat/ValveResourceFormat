@@ -29,6 +29,11 @@ namespace GUI.Forms
             OpenUrl("https://github.com/ValveResourceFormat/ValveResourceFormat/releases");
         }
 
+        private void OnKeybindsClick(object sender, System.EventArgs e)
+        {
+            OpenUrl("https://github.com/ValveResourceFormat/ValveResourceFormat/wiki/Source-2-Viewer-Keybinds");
+        }
+
         private static void OpenUrl(string url)
         {
             Process.Start(new ProcessStartInfo("cmd", $"/c start {url}")
