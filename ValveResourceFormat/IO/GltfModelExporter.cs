@@ -1348,8 +1348,17 @@ namespace ValveResourceFormat.IO
                 ProgressReporter?.Report($"Adding texture {key}");
 #endif
 
+                // Maybe GltfChannel should be preferred instead.
+                var channel = mainInstruction.ValveChannel;
+
+                if (mainInstruction.ValveChannel == ChannelMapping.RGBA && mainInstruction.GltfChannel == ChannelMapping.RGB)
+                {
+                    // Some apps such as Blender do not like the excess alpha channel.
+                    channel = ChannelMapping.RGB;
+                }
+
                 var bitmap = GetBitmap(texturePath);
-                var pngBytes = TextureExtract.ToPngImageChannels(bitmap, mainInstruction.ValveChannel);
+                var pngBytes = TextureExtract.ToPngImageChannels(bitmap, channel);
 
                 return await WriteTexture(key, pngBytes).ConfigureAwait(false);
             };
