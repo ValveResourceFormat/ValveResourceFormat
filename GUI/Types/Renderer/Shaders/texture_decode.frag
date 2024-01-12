@@ -3,6 +3,7 @@
 #define TYPE_TEXTURE2D 0
 #define TYPE_TEXTURE2DARRAY 0
 #define TYPE_TEXTURECUBEMAP 0
+#define TYPE_TEXTURECUBEMAPARRAY 0
 
 #if TYPE_TEXTURE2D == 1
     #define TEXTURE_TYPE sampler2D
@@ -10,6 +11,8 @@
     #define TEXTURE_TYPE sampler2DArray
 #elif TYPE_TEXTURECUBEMAP == 1
     #define TEXTURE_TYPE samplerCube
+#elif TYPE_TEXTURECUBEMAPARRAY == 1
+    #define TEXTURE_TYPE samplerCubeArray
 #else
     #error "Missing TEXTURE_TYPE"
 #endif
@@ -105,6 +108,8 @@ void main()
         vec3 vTexCoord = vec3(vScreenCoords, g_nSelectedDepth);
     #elif TYPE_TEXTURECUBEMAP == 1
         vec3 vTexCoord = vec3(vScreenCoords, g_nSelectedDepth); // TODO: wrong
+    #elif TYPE_TEXTURECUBEMAPARRAY == 1
+        vec4 vTexCoord = vec4(vScreenCoords, 0, g_nSelectedDepth); // TODO: wrong
     #else
         #error "Missing vTexCoord for TYPE_xxxx"
     #endif

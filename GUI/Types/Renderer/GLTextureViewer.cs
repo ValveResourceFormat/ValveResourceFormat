@@ -497,8 +497,7 @@ namespace GUI.Types.Renderer
                 texture.SetFiltering(TextureMinFilter.LinearMipmapLinear, TextureMagFilter.Nearest);
             }
 
-            var textureType = "TYPE_" + texture.Target.ToString().ToUpperInvariant();
-
+            var textureType = GLTextureDecoder.GetTextureTypeDefine(texture.Target);
             var arguments = new Dictionary<string, byte>
             {
                 [textureType] = 1,
