@@ -127,6 +127,7 @@ namespace GUI.Types.Renderer
             });
 
             ComboBox mipComboBox = null;
+            CheckBox softwareDecodeCheckBox = null;
 
             if (textureData.NumMipLevels > 1)
             {
@@ -144,6 +145,11 @@ namespace GUI.Types.Renderer
                 var depthComboBox = AddSelection("Depth", (name, index) =>
                 {
                     SelectedDepth = index;
+
+                    if (softwareDecodeCheckBox != null && softwareDecodeCheckBox.Checked)
+                    {
+                        SetupTexture(true);
+                    }
                 });
 
                 depthComboBox.Items.AddRange(Enumerable.Range(0, textureData.Depth).Select(x => $"#{x}").ToArray());
@@ -197,7 +203,7 @@ namespace GUI.Types.Renderer
             channelsComboBox.SelectedIndex = DefaultSelection;
 
             var forceSoftwareDecode = textureData.IsRawJpeg || textureData.IsRawPng;
-            var softwareDecodeCheckBox = AddCheckBox("Software decode", forceSoftwareDecode, (state) =>
+            softwareDecodeCheckBox = AddCheckBox("Software decode", forceSoftwareDecode, (state) =>
             {
                 SetupTexture(state);
 
