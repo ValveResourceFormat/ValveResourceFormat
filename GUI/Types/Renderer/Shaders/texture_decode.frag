@@ -2,11 +2,16 @@
 
 #define TYPE_TEXTURE2D 0
 #define TYPE_TEXTURE2DARRAY 0
+#define TYPE_TEXTURECUBEMAP 0
 
 #if TYPE_TEXTURE2D == 1
     #define TEXTURE_TYPE sampler2D
 #elif TYPE_TEXTURE2DARRAY == 1
     #define TEXTURE_TYPE sampler2DArray
+#elif TYPE_TEXTURECUBEMAP == 1
+    #define TEXTURE_TYPE samplerCube
+#else
+    #error "Missing TEXTURE_TYPE"
 #endif
 
 uniform TEXTURE_TYPE g_tInputTexture;
@@ -98,6 +103,10 @@ void main()
         vec2 vTexCoord = vScreenCoords;
     #elif TYPE_TEXTURE2DARRAY == 1
         vec3 vTexCoord = vec3(vScreenCoords, g_nSelectedDepth);
+    #elif TYPE_TEXTURECUBEMAP == 1
+        vec3 vTexCoord = vec3(vScreenCoords, g_nSelectedDepth); // TODO: wrong
+    #else
+        #error "Missing vTexCoord for TYPE_xxxx"
     #endif
 
     vec3 vBackgroundColor = vec3(0.0);
