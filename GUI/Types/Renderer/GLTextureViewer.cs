@@ -80,6 +80,7 @@ namespace GUI.Types.Renderer
 
             GLLoad += OnLoad;
             GLControl.MouseMove += OnMouseMove;
+            GLControl.PreviewKeyDown += OnPreviewKeyDown;
 
             SetZoomLabel();
 
@@ -248,6 +249,7 @@ namespace GUI.Types.Renderer
             if (disposing)
             {
                 GLControl.MouseMove -= OnMouseMove;
+                GLControl.PreviewKeyDown -= OnPreviewKeyDown;
                 GLPaint -= OnPaint;
 
                 GuiContext = null;
@@ -345,6 +347,14 @@ namespace GUI.Types.Renderer
 
         private void SetZoomLabel() => SetMoveSpeedOrZoomLabel($"Zoom: {TextureScale * 100:0.0}% (scroll to change)");
 
+        private void OnPreviewKeyDown(object sender, PreviewKeyDownEventArgs e)
+        {
+            if (e.KeyCode is Keys.Up or Keys.Down or Keys.Left or Keys.Right)
+            {
+                e.IsInputKey = true;
+            }
+        }
+
         protected override void OnKeyDown(object sender, KeyEventArgs e)
         {
             if (e.KeyData == (Keys.Control | Keys.S))
@@ -383,6 +393,29 @@ namespace GUI.Types.Renderer
             {
                 OnMouseWheel(null, new MouseEventArgs(MouseButtons.None, 0, GLControl.Width / 2, GLControl.Height / 2, -1));
                 return;
+            }
+
+            if (e.KeyCode is Keys.Up or Keys.Down or Keys.Left or Keys.Right)
+            {
+                var move = 10f * TextureScale;
+                var delta = e.KeyCode switch
+                {
+                    Keys.Up => new Vector2(0, -move),
+                    Keys.Down => new Vector2(0, move),
+                    Keys.Left => new Vector2(-move, 0),
+                    Keys.Right => new Vector2(move, 0),
+                    _ => throw new NotImplementedException(),
+                };
+
+                if (!IsZoomedIn)
+                {
+                    MovedFromOrigin_Unzoomed = true;
+                }
+
+                (TextureScaleOld, PositionOld) = GetCurrentPositionAndScale();
+                TextureScaleChangeTime = 0f;
+                Position += delta;
+                ClampPosition();
             }
 
             base.OnKeyDown(sender, e);
