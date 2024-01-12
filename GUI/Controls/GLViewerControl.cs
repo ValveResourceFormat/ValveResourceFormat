@@ -69,7 +69,7 @@ namespace GUI.Controls
             GLControl.MouseUp += OnMouseUp;
             GLControl.MouseDown += OnMouseDown;
             GLControl.MouseWheel += OnMouseWheel;
-            GLControl.KeyUp += OnKeyUp;
+            GLControl.KeyDown += OnKeyDown;
             GLControl.GotFocus += OnGotFocus;
             GLControl.VisibleChanged += OnVisibleChanged;
             Disposed += OnDisposed;
@@ -78,7 +78,7 @@ namespace GUI.Controls
             glControlContainer.Controls.Add(GLControl);
         }
 
-        protected virtual void OnKeyUp(object sender, KeyEventArgs e)
+        protected virtual void OnKeyDown(object sender, KeyEventArgs e)
         {
             if (e.KeyData == (Keys.Control | Keys.C))
             {
@@ -239,7 +239,7 @@ namespace GUI.Controls
             GLControl.MouseUp -= OnMouseUp;
             GLControl.MouseDown -= OnMouseDown;
             GLControl.MouseWheel -= OnMouseWheel;
-            GLControl.KeyUp -= OnKeyUp;
+            GLControl.KeyDown -= OnKeyDown;
             GLControl.GotFocus -= OnGotFocus;
             GLControl.VisibleChanged -= OnVisibleChanged;
             Disposed -= OnDisposed;
