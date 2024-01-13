@@ -35,6 +35,7 @@ namespace GUI.Types.Renderer
 
         private int SelectedMip;
         private int SelectedDepth;
+        private int SelectedCubeFace;
         private ChannelMapping SelectedChannels = ChannelMapping.RGB;
         private bool WantsSeparateAlpha;
         private TextureCodec decodeFlags;
@@ -155,6 +156,17 @@ namespace GUI.Types.Renderer
 
                 depthComboBox.Items.AddRange(Enumerable.Range(0, textureData.Depth).Select(x => $"#{x}").ToArray());
                 depthComboBox.SelectedIndex = 0;
+            }
+
+            if ((textureData.Flags & VTexFlags.CUBE_TEXTURE) != 0)
+            {
+                var cubeFaceComboBox = AddSelection("Cube face", (name, index) =>
+                {
+                    SelectedCubeFace = index;
+                });
+
+                cubeFaceComboBox.Items.AddRange(Enum.GetNames(typeof(Texture.CubemapFace)));
+                cubeFaceComboBox.SelectedIndex = 0;
             }
 
             decodeFlagsListBox = AddMultiSelection("Texture Conversion",
@@ -706,6 +718,7 @@ namespace GUI.Types.Renderer
             shader.SetUniform4("g_vInputTextureSize", new Vector4(texture.Width, texture.Height, texture.Depth, texture.NumMipLevels));
             shader.SetUniform1("g_nSelectedMip", SelectedMip);
             shader.SetUniform1("g_nSelectedDepth", SelectedDepth);
+            shader.SetUniform1("g_nSelectedCubeFace", SelectedCubeFace);
             shader.SetUniform1("g_nSelectedChannels", SelectedChannels.PackedValue);
             shader.SetUniform1("g_bWantsSeparateAlpha", WantsSeparateAlpha ? 1u : 0u);
             shader.SetUniform1("g_nDecodeFlags", (int)decodeFlags);
