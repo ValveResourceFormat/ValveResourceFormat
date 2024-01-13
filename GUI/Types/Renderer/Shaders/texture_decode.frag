@@ -28,6 +28,7 @@ uniform vec4 g_vInputTextureSize;
 
 uniform int g_nSelectedMip;
 uniform int g_nSelectedDepth;
+uniform int g_nSelectedCubeFace;
 uniform int g_nDecodeFlags;
 uniform uint g_nSelectedChannels = 0x03020100; // RGBA
 
@@ -41,7 +42,7 @@ vec3 GetCubemapFaceCoords(vec2 vTexCoord, int nFace)
     vec3 vFaceCoord = vec3(0.0);
     vec2 vMapCoord = 2 * vTexCoord - 1;
 
-    // can be simplified
+    vMapCoord.y = -vMapCoord.y;
 
     if (nFace == 0) // +X
     {
@@ -169,9 +170,9 @@ void main()
 
     // cubemaps take a direction vector as sample coords
     #if TYPE_TEXTURECUBEMAP == 1
-        vec3 vSampleCoords = GetCubemapFaceCoords(vTexCoord.xy, 0);
+        vec3 vSampleCoords = GetCubemapFaceCoords(vTexCoord.xy, g_nSelectedCubeFace);
     #elif TYPE_TEXTURECUBEMAPARRAY == 1
-        vec4 vSampleCoords = vec4(GetCubemapFaceCoords(vTexCoord.xy, 0), vTexCoord.z);
+        vec4 vSampleCoords = vec4(GetCubemapFaceCoords(vTexCoord.xy, g_nSelectedCubeFace), vTexCoord.z);
     #else
         vec2 vSampleCoords = vTexCoord.xy;
     #endif
