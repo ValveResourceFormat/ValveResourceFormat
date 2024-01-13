@@ -139,8 +139,10 @@ namespace ValveResourceFormat.ResourceTypes
 
         private float[] RadianceCoefficients;
 
-        public ushort ActualWidth => NonPow2Width > 0 ? NonPow2Width : Width;
-        public ushort ActualHeight => NonPow2Height > 0 ? NonPow2Height : Height;
+        // Some textures have displayrect set to 1x1, but that's not the expected size
+        // If it's set to 1x1, but the real size does not expand to 4x4 (the usual block compression size), ignore it
+        public ushort ActualWidth => NonPow2Width > 0 && (NonPow2Width != 1 || Width == 4) ? NonPow2Width : Width;
+        public ushort ActualHeight => NonPow2Height > 0 && (NonPow2Height != 1 || Height == 4) ? NonPow2Height : Height;
 
         public Texture()
         {
