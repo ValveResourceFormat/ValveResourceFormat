@@ -42,15 +42,13 @@ vec3 GetCubemapFaceCoords(vec2 vTexCoord, int nFace)
     vec3 vFaceCoord = vec3(0.0);
     vec2 vMapCoord = 2 * vTexCoord - 1;
 
-    vMapCoord.y = -vMapCoord.y;
-
     if (nFace == 0) // +X
     {
-        vFaceCoord = vec3(1.0, vMapCoord.x, vMapCoord.y);
+        vFaceCoord = vec3(1.0, -vMapCoord.y, -vMapCoord.x);
     }
     else if (nFace == 1) // -X
     {
-        vFaceCoord = vec3(-1.0, vMapCoord.x, vMapCoord.y);
+        vFaceCoord = vec3(-1.0, -vMapCoord.y, vMapCoord.x);
     }
     else if (nFace == 2) // +Y
     {
@@ -58,15 +56,15 @@ vec3 GetCubemapFaceCoords(vec2 vTexCoord, int nFace)
     }
     else if (nFace == 3) // -Y
     {
-        vFaceCoord = vec3(vMapCoord.x, -1.0, vMapCoord.y);
+        vFaceCoord = vec3(vMapCoord.x, -1.0, -vMapCoord.y);
     }
     else if (nFace == 4) // +Z
     {
-        vFaceCoord = vec3(vMapCoord.x, vMapCoord.y, 1.0);
+        vFaceCoord = vec3(vMapCoord.x, -vMapCoord.y, 1.0);
     }
     else if (nFace == 5) // -Z
     {
-        vFaceCoord = vec3(vMapCoord.x, vMapCoord.y, -1.0);
+        vFaceCoord = vec3(-vMapCoord.x, -vMapCoord.y, -1.0);
     }
 
     return vFaceCoord;
