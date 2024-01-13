@@ -80,7 +80,7 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
 
     private bool IsRunning;
 
-    public bool Decode(SKBitmap bitmap, Resource resource, int mip, uint depth, CubemapFace face)
+    public bool Decode(SKBitmap bitmap, Resource resource, uint depth, CubemapFace face, uint mipLevel)
     {
         if (!IsRunning)
         {
@@ -88,7 +88,7 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
             return false;
         }
 
-        using var request = new DecodeRequest(bitmap, resource, mip, (int)depth, face, ChannelMapping.RGBA, TextureCodec.None);
+        using var request = new DecodeRequest(bitmap, resource, (int)mipLevel, (int)depth, face, ChannelMapping.RGBA, TextureCodec.None);
 
         var sw = Stopwatch.StartNew();
         decodeQueue.Enqueue(request);

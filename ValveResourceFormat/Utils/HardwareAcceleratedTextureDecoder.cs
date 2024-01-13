@@ -19,6 +19,9 @@ public interface IHardwareTextureDecoder
     /// </summary>
     /// <param name="bitmap">The bitmap to put the result into.</param>
     /// <param name="resource">The texture resource to decode.</param>
+    /// <param name="depth">The depth to extract.</param>
+    /// <param name="face">The face to extract for cube textures.</param>
+    /// <param name="mipLevel">The mip level to extract.</param>
     /// <returns>Return false if decode is unsuccessful, will fallback to software decode.</returns>
-    public abstract bool Decode(SKBitmap bitmap, Resource resource, int mip, uint depth, CubemapFace face);
+    public abstract bool Decode(SKBitmap bitmap, Resource resource, uint depth, CubemapFace face, uint mipLevel);
 }
