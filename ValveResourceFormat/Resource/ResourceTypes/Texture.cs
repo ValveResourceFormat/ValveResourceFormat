@@ -730,23 +730,6 @@ namespace ValveResourceFormat.ResourceTypes
         }
 
         /// <summary>
-        /// Get decompressed texture at specified mip level. Use mipLevel=0 to get the highest resolution.
-        /// </summary>
-        public byte[] GetDecompressedTextureAtMipLevel(int mipLevel)
-        {
-            Reader.BaseStream.Position = DataOffset;
-
-            SkipMipmaps(mipLevel);
-
-            var uncompressedSize = CalculateBufferSizeForMipLevel(mipLevel);
-            var output = new byte[uncompressedSize];
-
-            ReadTexture(mipLevel, output);
-
-            return output;
-        }
-
-        /// <summary>
         /// Biggest buffer size to be used with <see cref="GetEveryMipLevelTexture"/>.
         /// </summary>
         public int GetBiggestBufferSize() => CalculateBufferSizeForMipLevel(0);
