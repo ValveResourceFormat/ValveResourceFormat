@@ -16,8 +16,6 @@ namespace ValveResourceFormat.ResourceTypes
 {
     public class Texture : ResourceData
     {
-        private const short MipmapLevelToExtract = 0; // for debugging purposes
-
         public enum CubemapFace
         {
             PositiveX, // rt
@@ -379,19 +377,24 @@ namespace ValveResourceFormat.ResourceTypes
             if (IsRawPng || IsRawJpeg)
             {
                 Reader.BaseStream.Position = DataOffset;
-                SkipMipmaps();
+                SkipMipmaps(0);
                 return Reader.ReadBytes(CalculateTextureDataSize());
             }
 
             return null;
         }
 
-        public SKBitmap GenerateBitmap(uint depth = 0, CubemapFace face = 0)
+        /// <summary>
+        /// Generate a bitmap for given parameters.
+        /// </summary>
+        /// <param name="depth">The depth to extract.</param>
+        /// <param name="face">The face to extract for cube textures.</param>
+        /// <param name="mipLevel">The mip level to extract.</param>
+        /// <returns>Skia bitmap.</returns>
+        public SKBitmap GenerateBitmap(uint depth = 0, CubemapFace face = 0, uint mipLevel = 0)
         {
-            if (depth >= Depth)
-            {
-                throw new ArgumentException($"Depth must be less than {Depth}.", nameof(depth));
-            }
+            ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(depth, Depth, nameof(depth));
+            ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(mipLevel, NumMipLevels, nameof(mipLevel));
 
             if (face > 0)
             {
@@ -400,14 +403,11 @@ namespace ValveResourceFormat.ResourceTypes
                     throw new ArgumentException($"This is not a cubemap texture.", nameof(face));
                 }
 
-                if ((int)face >= 6)
-                {
-                    throw new ArgumentException($"Face must be less than 6.", nameof(face));
-                }
+                ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual((int)face, 6, nameof(face));
             }
 
-            var width = MipLevelSize(ActualWidth, MipmapLevelToExtract);
-            var height = MipLevelSize(ActualHeight, MipmapLevelToExtract);
+            var width = MipLevelSize(ActualWidth, mipLevel);
+            var height = MipLevelSize(ActualHeight, mipLevel);
 
             if (HardwareAcceleratedTextureDecoder.Decoder != null && !IsRawJpeg && !IsRawPng) // TODO: Move this further down
             {
@@ -415,7 +415,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                 try
                 {
-                    if (HardwareAcceleratedTextureDecoder.Decoder.Decode(skiaBitmap2, Resource, MipmapLevelToExtract, depth, face))
+                    if (HardwareAcceleratedTextureDecoder.Decoder.Decode(skiaBitmap2, Resource, depth, face, mipLevel))
                     {
                         var bitmapToReturn = skiaBitmap2;
                         skiaBitmap2 = null;
@@ -430,7 +430,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             Reader.BaseStream.Position = DataOffset;
 
-            SkipMipmaps();
+            SkipMipmaps(mipLevel);
 
             switch (Format)
             {
@@ -444,8 +444,8 @@ namespace ValveResourceFormat.ResourceTypes
                     return SKBitmap.Decode(Reader.ReadBytes(CalculatePngSize()));
             }
 
-            var blockWidth = MipLevelSize(Width, MipmapLevelToExtract);
-            var blockHeight = MipLevelSize(Height, MipmapLevelToExtract);
+            var blockWidth = MipLevelSize(Width, mipLevel);
+            var blockHeight = MipLevelSize(Height, mipLevel);
 
             var skiaBitmap = new SKBitmap(width, height, SKColorType.Bgra8888, SKAlphaType.Unpremul);
             ITextureDecoder decoder = null;
@@ -547,14 +547,14 @@ namespace ValveResourceFormat.ResourceTypes
                 throw new UnexpectedMagicException("Unhandled image type", (int)Format, nameof(Format));
             }
 
-            var uncompressedSize = CalculateBufferSizeForMipLevel(MipmapLevelToExtract);
+            var uncompressedSize = CalculateBufferSizeForMipLevel(mipLevel);
             var buf = ArrayPool<byte>.Shared.Rent(uncompressedSize);
 
             try
             {
                 var span = buf.AsSpan(0, uncompressedSize);
 
-                ReadTexture(MipmapLevelToExtract, span);
+                ReadTexture(mipLevel, span);
 
                 if ((Flags & VTexFlags.CUBE_TEXTURE) != 0)
                 {
@@ -609,7 +609,7 @@ namespace ValveResourceFormat.ResourceTypes
             }
             else
             {
-                for (var j = 0; j < NumMipLevels; j++)
+                for (var j = 0u; j < NumMipLevels; j++)
                 {
                     bytes += CalculateBufferSizeForMipLevel(j);
                 }
@@ -618,7 +618,7 @@ namespace ValveResourceFormat.ResourceTypes
             return bytes;
         }
 
-        private int CalculateBufferSizeForMipLevel(int mipLevel)
+        private int CalculateBufferSizeForMipLevel(uint mipLevel)
         {
             var bytesPerPixel = BlockSize;
             var width = MipLevelSize(Width, mipLevel);
@@ -669,14 +669,14 @@ namespace ValveResourceFormat.ResourceTypes
             return width * height * Depth * bytesPerPixel;
         }
 
-        private void SkipMipmaps(int desiredMipLevel = MipmapLevelToExtract)
+        private void SkipMipmaps(uint desiredMipLevel)
         {
             if (NumMipLevels < 2)
             {
                 return;
             }
 
-            for (var j = NumMipLevels - 1; j > desiredMipLevel; j--)
+            for (var j = NumMipLevels - 1u; j > desiredMipLevel; j--)
             {
                 var size = CalculateBufferSizeForMipLevel(j);
 
@@ -694,7 +694,7 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
-        private void ReadTexture(int mipLevel, Span<byte> output)
+        private void ReadTexture(uint mipLevel, Span<byte> output)
         {
             if (!IsActuallyCompressedMips)
             {
@@ -759,10 +759,10 @@ namespace ValveResourceFormat.ResourceTypes
 
                 hasAlreadyReturnedMip = true;
 
-                var uncompressedSize = CalculateBufferSizeForMipLevel(i);
+                var uncompressedSize = CalculateBufferSizeForMipLevel((uint)i);
                 var output = buffer.AsSpan(0, uncompressedSize);
 
-                ReadTexture(i, output);
+                ReadTexture((uint)i, output);
 
                 yield return (i, width, height, uncompressedSize);
             }
@@ -820,9 +820,9 @@ namespace ValveResourceFormat.ResourceTypes
             return size;
         }
 
-        private static int MipLevelSize(int size, int level)
+        private static int MipLevelSize(int size, uint level)
         {
-            size >>= level;
+            size >>= (int)level;
 
             return Math.Max(size, 1);
         }
@@ -982,7 +982,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             if (!IsRawPng && !IsRawJpeg)
             {
-                for (var j = 0; j < NumMipLevels; j++)
+                for (var j = 0u; j < NumMipLevels; j++)
                 {
                     writer.WriteLine($"Mip level {j} - buffer size: {CalculateBufferSizeForMipLevel(j)}");
                 }

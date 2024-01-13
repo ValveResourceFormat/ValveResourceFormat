@@ -129,14 +129,18 @@ namespace GUI.Types.Renderer
                 Width = 200,
             });
 
-            ComboBox mipComboBox = null;
             CheckBox softwareDecodeCheckBox = null;
 
             if (textureData.NumMipLevels > 1)
             {
-                mipComboBox = AddSelection("Mip level", (name, index) =>
+                var mipComboBox = AddSelection("Mip level", (name, index) =>
                 {
                     SelectedMip = index;
+
+                    if (softwareDecodeCheckBox != null && softwareDecodeCheckBox.Checked)
+                    {
+                        SetupTexture(true);
+                    }
                 });
 
                 mipComboBox.Items.AddRange(Enumerable.Range(0, textureData.NumMipLevels).Select(x => $"#{x}").ToArray());
@@ -225,11 +229,6 @@ namespace GUI.Types.Renderer
             softwareDecodeCheckBox = AddCheckBox("Software decode", forceSoftwareDecode, (state) =>
             {
                 SetupTexture(state);
-
-                if (mipComboBox != null)
-                {
-                    mipComboBox.Enabled = !state;
-                }
             });
 
             if (forceSoftwareDecode)
@@ -605,7 +604,7 @@ namespace GUI.Types.Renderer
 
                 try
                 {
-                    bitmap = textureData.GenerateBitmap((uint)SelectedDepth, (CubemapFace)SelectedCubeFace);
+                    bitmap = textureData.GenerateBitmap((uint)SelectedDepth, (CubemapFace)SelectedCubeFace, (uint)SelectedMip);
                 }
                 finally
                 {
@@ -620,7 +619,7 @@ namespace GUI.Types.Renderer
                     decodeFlags = TextureCodec.None;
 
                     using var _ = texture.BindingContext();
-                    GL.TexImage2D(texture.Target, 0, PixelInternalFormat.Rgba8, texture.Width, texture.Height, 0, PixelFormat.Bgra, PixelType.UnsignedByte, bitmap.GetPixels());
+                    GL.TexImage2D(texture.Target, 0, PixelInternalFormat.Rgba8, bitmap.Width, bitmap.Height, 0, PixelFormat.Bgra, PixelType.UnsignedByte, bitmap.GetPixels());
                     GL.TexParameter(texture.Target, TextureParameterName.TextureMaxLevel, 0);
                 }
 
