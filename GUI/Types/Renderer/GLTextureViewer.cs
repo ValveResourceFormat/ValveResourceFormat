@@ -14,6 +14,7 @@ using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.TextureDecoders;
 using ValveResourceFormat.Utils;
+using static ValveResourceFormat.ResourceTypes.Texture;
 
 namespace GUI.Types.Renderer
 {
@@ -163,6 +164,11 @@ namespace GUI.Types.Renderer
                 var cubeFaceComboBox = AddSelection("Cube face", (name, index) =>
                 {
                     SelectedCubeFace = index;
+
+                    if (softwareDecodeCheckBox != null && softwareDecodeCheckBox.Checked)
+                    {
+                        SetupTexture(true);
+                    }
                 });
 
                 cubeFaceComboBox.Items.AddRange(Enum.GetNames(typeof(Texture.CubemapFace)));
@@ -599,7 +605,7 @@ namespace GUI.Types.Renderer
 
                 try
                 {
-                    bitmap = textureData.GenerateBitmap();
+                    bitmap = textureData.GenerateBitmap((uint)SelectedDepth, (CubemapFace)SelectedCubeFace);
                 }
                 finally
                 {
