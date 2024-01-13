@@ -54,8 +54,7 @@ namespace GUI
                 Debug.Assert(index >= 0);
             }
 
-            // TODO: Experiment
-            HardwareAcceleratedTextureDecoder.Decoder = new GLTextureDecoderForLibrary();
+            HardwareAcceleratedTextureDecoder.Decoder = new GLTextureDecoder();
         }
 
         public MainForm()
