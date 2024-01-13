@@ -12,32 +12,11 @@ using ValveResourceFormat;
 using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.TextureDecoders;
 using ValveResourceFormat.Utils;
+using static ValveResourceFormat.ResourceTypes.Texture;
 
 namespace GUI.Types.Renderer;
 
-class GLTextureDecoderForLibrary : IHardwareTextureDecoder, IDisposable
-{
-    private readonly GLTextureDecoder hardwareDecoder;
-
-    public GLTextureDecoderForLibrary()
-    {
-        hardwareDecoder = new GLTextureDecoder(new VrfGuiContext(null, null));
-    }
-
-    public bool Decode(SKBitmap bitmap, Resource resource)
-    {
-        using var request = new GLTextureDecoder.DecodeRequest(bitmap, resource, 0, 0, ChannelMapping.RGBA, TextureCodec.None);
-
-        return hardwareDecoder.Decode(request);
-    }
-
-    public void Dispose()
-    {
-        hardwareDecoder.Dispose();
-    }
-}
-
-class GLTextureDecoder : IDisposable // ITextureDecoder
+class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
 {
     private readonly VrfGuiContext guiContext;
     private readonly AutoResetEvent queueUpdateEvent = new(false);
@@ -50,9 +29,9 @@ class GLTextureDecoder : IDisposable // ITextureDecoder
     private DecodeRequest activeRequest;
 #pragma warning restore CA2213 // Disposable fields should be disposed (handled in Dispose_ThreadResources)
 
-    public GLTextureDecoder(VrfGuiContext guiContext)
+    public GLTextureDecoder()
     {
-        this.guiContext = guiContext;
+        guiContext = new VrfGuiContext(null, null);
         decodeQueue = new();
 
         // create a thread context for OpenGL
@@ -67,7 +46,7 @@ class GLTextureDecoder : IDisposable // ITextureDecoder
         GLThread.Start();
     }
 
-    public record DecodeRequest(SKBitmap Bitmap, Resource Resource, int Mip, int Depth, ChannelMapping Channels, TextureCodec DecodeFlags) : IDisposable
+    private record DecodeRequest(SKBitmap Bitmap, Resource Resource, int Mip, int Depth, CubemapFace Face, ChannelMapping Channels, TextureCodec DecodeFlags) : IDisposable
     {
         public ManualResetEvent DoneEvent { get; } = new(false);
         public bool Success { get; set; }
@@ -99,15 +78,17 @@ class GLTextureDecoder : IDisposable // ITextureDecoder
         }
     }
 
-    public bool IsRunning { get; private set; }
+    private bool IsRunning;
 
-    public bool Decode(DecodeRequest request)
+    public bool Decode(SKBitmap bitmap, Resource resource, int mip, uint depth, CubemapFace face)
     {
         if (!IsRunning)
         {
             Log.Warn(nameof(GLTextureDecoder), "Decoder thread is no longer available.");
             return false;
         }
+
+        using var request = new DecodeRequest(bitmap, resource, mip, (int)depth, face, ChannelMapping.RGBA, TextureCodec.None);
 
         var sw = Stopwatch.StartNew();
         decodeQueue.Enqueue(request);
@@ -216,8 +197,9 @@ class GLTextureDecoder : IDisposable // ITextureDecoder
         shader.SetUniform4("g_vInputTextureSize", new System.Numerics.Vector4(
             inputTexture.Width, inputTexture.Height, inputTexture.Depth, inputTexture.NumMipLevels
         ));
-        shader.SetUniform1("g_nSelectedMip", Math.Clamp(request.Mip, 0, inputTexture.NumMipLevels - 1));
-        shader.SetUniform1("g_nSelectedDepth", Math.Clamp(request.Depth, 0, inputTexture.Depth - 1));
+        shader.SetUniform1("g_nSelectedMip", request.Mip);
+        shader.SetUniform1("g_nSelectedDepth", request.Depth);
+        shader.SetUniform1("g_nSelectedCubeFace", (int)request.Face);
         shader.SetUniform1("g_nSelectedChannels", request.Channels.PackedValue);
         shader.SetUniform1("g_nDecodeFlags", (int)request.DecodeFlags);
 

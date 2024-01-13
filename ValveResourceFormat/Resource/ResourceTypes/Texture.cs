@@ -417,7 +417,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                 try
                 {
-                    if (HardwareAcceleratedTextureDecoder.Decoder.Decode(skiaBitmap2, Resource))
+                    if (HardwareAcceleratedTextureDecoder.Decoder.Decode(skiaBitmap2, Resource, MipmapLevelToExtract, depth, face))
                     {
                         var bitmapToReturn = skiaBitmap2;
                         skiaBitmap2 = null;
