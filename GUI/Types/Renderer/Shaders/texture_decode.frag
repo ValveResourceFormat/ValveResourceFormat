@@ -20,11 +20,15 @@
 uniform TEXTURE_TYPE g_tInputTexture;
 uniform vec4 g_vInputTextureSize;
 
+#include "common/utils.glsl"
+
 #define YCoCg_Conversion (1 << 0)
 #define RGBM (1 << 1)
 #define HemiOctIsoRoughness_RG_B (1 << 2)
 #define NormalizeNormals (1 << 3)
 #define Dxt5nm_AlphaGreen (1 << 4)
+#define ColorSpace_Gamma (1 << 5)
+#define ColorSpace_Linear (1 << 6)
 
 uniform int g_nSelectedMip;
 uniform int g_nSelectedDepth;
@@ -70,11 +74,6 @@ vec3 GetCubemapFaceCoords(vec2 vTexCoord, int nFace)
     return vFaceCoord;
 }
 
-
-vec3 PackToColor( vec3 vValue )
-{
-    return ( ( vValue.xyz * 0.5 ) + 0.5 );
-}
 
 vec3 oct_to_float32x3(vec2 e)
 {
@@ -202,6 +201,16 @@ void main()
     {
         vColor.rgb = DecodeYCoCg(vColor);
         vColor.a = 1.0;
+    }
+
+    if ((g_nDecodeFlags & ColorSpace_Gamma) != 0)
+    {
+        vColor.rgb = SrgbGammaToLinear(vColor.rgb);
+    }
+
+    if ((g_nDecodeFlags & ColorSpace_Linear) != 0)
+    {
+        vColor.rgb = SrgbLinearToGamma(vColor.rgb);
     }
 
     uvec4 vRemapIndices = uvec4(
