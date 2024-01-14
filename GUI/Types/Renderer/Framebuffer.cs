@@ -54,9 +54,7 @@ class Framebuffer : IDisposable
         FboHandle = fboHandle;
         InitialStatus = FramebufferErrorCode.FramebufferComplete;
     }
-
-    public static Framebuffer GLDefault = new(fboHandle: 0);
-
+    public static Framebuffer GetGLDefaultFramebuffer() => new(fboHandle: 0);
     public override bool Equals(object? obj) => obj is Framebuffer other && other.FboHandle == FboHandle;
     public override int GetHashCode() => FboHandle.GetHashCode();
 

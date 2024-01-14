@@ -351,6 +351,7 @@ namespace GUI.Controls
         private static readonly DebugProc OpenGLDebugMessageDelegate = OnDebugMessage;
 #endif
 
+        public Framebuffer GLDefaultFramebuffer;
         public Framebuffer MainFramebuffer;
         private int MaxSamples;
         private int NumSamples => Math.Max(1, Math.Min(Settings.Config.AntiAliasingSamples, MaxSamples));
@@ -362,6 +363,7 @@ namespace GUI.Controls
 
             CheckOpenGL();
             MaxSamples = GL.GetInteger(GetPName.MaxSamples);
+            GLDefaultFramebuffer = Framebuffer.GetGLDefaultFramebuffer();
 
             // Application semantics / default state
             GL.Enable(EnableCap.TextureCubeMapSeamless);
@@ -465,17 +467,17 @@ namespace GUI.Controls
             GLPaint?.Invoke(this, new RenderEventArgs { FrameTime = frameTime });
 
             // blit to the default opengl framebuffer used by the control
-            if (MainFramebuffer != Framebuffer.GLDefault)
+            if (MainFramebuffer != GLDefaultFramebuffer)
             {
                 MainFramebuffer.Bind(FramebufferTarget.ReadFramebuffer);
                 GL.ReadBuffer(ReadBufferMode.ColorAttachment0);
 
-                Framebuffer.GLDefault.Bind(FramebufferTarget.DrawFramebuffer);
+                GLDefaultFramebuffer.Bind(FramebufferTarget.DrawFramebuffer);
                 GL.DrawBuffer(DrawBufferMode.Back);
 
                 var (w, h) = (GLControl.Width, GLControl.Height);
                 GL.BlitFramebuffer(0, 0, w, h, 0, 0, w, h, ClearBufferMask.ColorBufferBit, BlitFramebufferFilter.Nearest);
-                GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
+                GLDefaultFramebuffer.Bind(FramebufferTarget.Framebuffer);
                 GL.Finish();
             }
 
@@ -514,6 +516,7 @@ namespace GUI.Controls
                 return;
             }
 
+            GLDefaultFramebuffer.Resize(w, h);
             MainFramebuffer.Resize(w, h, NumSamples);
 
             if (MainFramebuffer.InitialStatus == FramebufferErrorCode.FramebufferUndefined)
@@ -526,7 +529,7 @@ namespace GUI.Controls
                     Log.Info(nameof(GLViewerControl), "Falling back to default framebuffer.");
 
                     DisposeFramebuffer();
-                    MainFramebuffer = Framebuffer.GLDefault;
+                    MainFramebuffer = GLDefaultFramebuffer;
                 }
             }
 
@@ -535,11 +538,17 @@ namespace GUI.Controls
 
         private void DisposeFramebuffer()
         {
+            GLDefaultFramebuffer?.Dispose();
             MainFramebuffer?.Dispose();
         }
 
         private void OnGotFocus(object sender, EventArgs e)
         {
+            if (!MainFramebuffer.HasValidDimensions())
+            {
+                return;
+            }
+
             GLControl.MakeCurrent();
             HandleResize();
             Draw();
