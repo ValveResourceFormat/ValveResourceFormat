@@ -195,12 +195,6 @@ vec3 SwitchCentroidNormal(vec3 vNormalWs, vec3 vCentroidNormalWs)
 }
 
 
-vec3 oct_to_float32x3(vec2 e)
-{
-    vec3 v = vec3(e.xy, 1.0 - abs(e.x) - abs(e.y));
-    return normalize(v);
-}
-
 // Unpack HemiOct normal map
 vec3 DecodeNormal(vec4 bumpNormal)
 {

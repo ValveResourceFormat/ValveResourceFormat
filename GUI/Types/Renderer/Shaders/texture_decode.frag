@@ -74,29 +74,6 @@ vec3 GetCubemapFaceCoords(vec2 vTexCoord, int nFace)
     return vFaceCoord;
 }
 
-
-vec3 oct_to_float32x3(vec2 e)
-{
-    vec3 v = vec3(e.xy, 1.0 - abs(e.x) - abs(e.y));
-    return normalize(v);
-}
-
-vec3 DecodeYCoCg(vec4 YCoCg)
-{
-    float scale = (YCoCg.z * (255.0 / 8.0)) + 1.0;
-    float Co = (YCoCg.x + (-128.0 / 255.0)) / scale;
-    float Cg = (YCoCg.y + (-128.0 / 255.0)) / scale;
-    float Y = YCoCg.w;
-
-    float R = Y + Co - Cg;
-    float G = Y + Cg;
-    float B = Y - Co - Cg;
-
-    vec3 color = vec3(R, G, B);
-    return color;
-}
-
-
 uniform bool g_bTextureViewer = false;
 uniform vec2 g_vViewportSize;
 uniform vec2 g_vViewportPosition;

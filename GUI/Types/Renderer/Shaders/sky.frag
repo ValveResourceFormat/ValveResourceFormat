@@ -27,20 +27,6 @@ uniform vec3 m_vTint = vec3(1.0, 1.0, 1.0);
 const float g_flToneMapScalarLinear = 1.0;
 
 
-vec3 DecodeYCoCg(vec4 YCoCg)
-{
-    float scale = (YCoCg.z * (255.0 / 8.0)) + 1.0;
-    float Co = (YCoCg.x + (-128.0 / 255.0)) / scale;
-    float Cg = (YCoCg.y + (-128.0 / 255.0)) / scale;
-    float Y = YCoCg.w;
-
-    float R = Y + Co - Cg;
-    float G = Y + Cg;
-    float B = Y - Co - Cg;
-
-    return vec3(R, G, B);
-}
-
 void main()
 {
     vec3 vEyeToSkyDirWs = normalize(vSkyLookupInterpolant);
