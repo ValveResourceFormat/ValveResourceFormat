@@ -88,7 +88,9 @@ uniform vec2 g_vViewportSize;
 uniform vec2 g_vViewportPosition;
 uniform float g_flScale = 1.0;
 uniform bool g_bWantsSeparateAlpha = false;
-uniform bool g_bCubeEquiRectangularProjection = true;
+uniform int g_nCubemapProjectionType;
+
+#define g_bCubeEquiRectangularProjection (g_nCubemapProjectionType == 1)
 
 vec2 AdjustTextureViewerUvs(vec2 vTexCoord)
 {
@@ -98,6 +100,17 @@ vec2 AdjustTextureViewerUvs(vec2 vTexCoord)
     vTexCoord.xy /= g_flScale;
 
     return vTexCoord;
+}
+
+vec2 GetImageDimensionsMultiplier()
+{
+    //if (g_bWantsSeparateAlpha)
+    //    return vec2(2.0, 1.0);
+
+    if (g_bCubeEquiRectangularProjection)
+        return vec2(4.0, 2.0);
+
+    return vec2(1.0);
 }
 
 vec3 CheckerboardPattern(vec2 vScreenCoords)
@@ -143,7 +156,7 @@ void main()
         bool bIsWideImage = g_vInputTextureSize.x > g_vInputTextureSize.y;
         vec2 vAlphaRegionTexCoord = bIsWideImage ? vTexCoord.yx : vTexCoord.xy;
 
-        bWithinAlphaBounds = vAlphaRegionTexCoord.x > 1.0 && vAlphaRegionTexCoord.x <= 2.0 && vAlphaRegionTexCoord.y <= 1.0;
+        bWithinAlphaBounds = vAlphaRegionTexCoord.x >= 1.0 && vAlphaRegionTexCoord.x < 2.0 && vAlphaRegionTexCoord.x >= 0.0 && vAlphaRegionTexCoord.y < 1.0;
 
         if (g_bWantsSeparateAlpha && bWithinAlphaBounds)
         {
@@ -161,9 +174,14 @@ void main()
         #endif
 
         if (g_bCubeEquiRectangularProjection)
+        {
+            vTexCoord.xy /= GetImageDimensionsMultiplier();
             vSampleCoords.xyz = EquirectangularProjection(vTexCoord.xy);
+        }
         else
+        {
             vSampleCoords.xyz = GetCubemapFaceCoords(vTexCoord.xy, g_nSelectedCubeFace);
+        }
     #else
         #define vSampleCoords vTexCoord
     #endif
@@ -232,7 +250,7 @@ void main()
     if (g_bTextureViewer)
     {
         float flBackgroundMix = 1.0;
-        bool bWithinImageBounds = vTexCoord.x <= 1.0 && vTexCoord.y <= 1.0 && vTexCoord.x >= 0.0 && vTexCoord.y >= 0.0;
+        bool bWithinImageBounds = vTexCoord.x < 1.0 && vTexCoord.y < 1.0 && vTexCoord.x >= 0.0 && vTexCoord.y >= 0.0;
 
         if (g_bWantsSeparateAlpha && (bWithinImageBounds || bWithinAlphaBounds))
         {

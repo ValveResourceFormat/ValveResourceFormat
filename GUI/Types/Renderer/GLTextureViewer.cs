@@ -34,11 +34,19 @@ namespace GUI.Types.Renderer
         private float TextureScaleOld = 1f;
         private float TextureScaleChangeTime = 10f;
 
+        enum CubemapProjection
+        {
+            None,
+            Equirectangular,
+            Cube,
+        }
+
         private int SelectedMip;
         private int SelectedDepth;
         private int SelectedCubeFace;
         private ChannelMapping SelectedChannels = ChannelMapping.RGB;
         private bool WantsSeparateAlpha;
+        private CubemapProjection CubemapProjectionType;
         private TextureCodec decodeFlags;
 
         private bool FirstPaint = true;
@@ -48,16 +56,23 @@ namespace GUI.Types.Renderer
         {
             get
             {
-                if (WantsSeparateAlpha)
+                var size = new Vector2(texture.Width, texture.Height);
+
+                if (CubemapProjectionType == CubemapProjection.Equirectangular)
                 {
-                    var isWide = texture.Width > texture.Height;
-                    return new Vector2(
-                        isWide ? texture.Width : texture.Width * 2,
-                        isWide ? texture.Height * 2 : texture.Height
-                    );
+                    size *= new Vector2(4, 2);
                 }
 
-                return new Vector2(texture.Width, texture.Height);
+                if (WantsSeparateAlpha)
+                {
+                    var mult = texture.Width > texture.Height
+                        ? new Vector2(1, 2)
+                        : new Vector2(2, 1);
+
+                    size *= mult;
+                }
+
+                return size;
             }
         }
 
@@ -177,6 +192,14 @@ namespace GUI.Types.Renderer
 
                 cubeFaceComboBox.Items.AddRange(Enum.GetNames(typeof(Texture.CubemapFace)));
                 cubeFaceComboBox.SelectedIndex = 0;
+
+                var equirectangularProjectionCheckBox = AddSelection("Projection type", (name, index) =>
+                {
+                    CubemapProjectionType = (CubemapProjection)index;
+                });
+
+                equirectangularProjectionCheckBox.Items.AddRange(Enum.GetNames(typeof(CubemapProjection)));
+                equirectangularProjectionCheckBox.SelectedIndex = (int)CubemapProjection.Equirectangular;
             }
 
             decodeFlagsListBox = AddMultiSelection("Texture Conversion",
@@ -726,6 +749,7 @@ namespace GUI.Types.Renderer
             shader.SetUniform1("g_nSelectedCubeFace", SelectedCubeFace);
             shader.SetUniform1("g_nSelectedChannels", SelectedChannels.PackedValue);
             shader.SetUniform1("g_bWantsSeparateAlpha", WantsSeparateAlpha ? 1u : 0u);
+            shader.SetUniform1("g_nCubemapProjectionType", (int)CubemapProjectionType);
             shader.SetUniform1("g_nDecodeFlags", (int)decodeFlags);
 
             GL.BindVertexArray(vao);
