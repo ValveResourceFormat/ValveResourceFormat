@@ -190,12 +190,31 @@ namespace GUI.Types.Renderer
                     }
                 });
 
-                cubeFaceComboBox.Items.AddRange(Enum.GetNames(typeof(Texture.CubemapFace)));
+                cubeFaceComboBox.Items.AddRange(Enum.GetNames(typeof(CubemapFace)));
                 cubeFaceComboBox.SelectedIndex = 0;
 
                 var equirectangularProjectionCheckBox = AddSelection("Projection type", (name, index) =>
                 {
+                    cubeFaceComboBox.Enabled = index == 0;
+
+                    if (softwareDecodeCheckBox == null)
+                    {
+                        CubemapProjectionType = (CubemapProjection)index;
+                        return;
+                    }
+
+                    var oldTextureSize = ActualTextureSizeScaled;
+
                     CubemapProjectionType = (CubemapProjection)index;
+
+                    TextureScaleChangeTime = 0f;
+                    TextureScaleOld = TextureScale;
+
+                    PositionOld = Position;
+                    Position -= oldTextureSize;
+                    Position += ActualTextureSizeScaled;
+
+                    ClampPosition();
                 });
 
                 equirectangularProjectionCheckBox.Items.AddRange(Enum.GetNames(typeof(CubemapProjection)));
