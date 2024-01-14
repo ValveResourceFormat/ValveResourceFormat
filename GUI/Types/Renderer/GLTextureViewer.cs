@@ -58,10 +58,12 @@ namespace GUI.Types.Renderer
             {
                 var size = new Vector2(texture.Width, texture.Height);
 
-                if (CubemapProjectionType == CubemapProjection.Equirectangular)
+                size *= CubemapProjectionType switch
                 {
-                    size *= new Vector2(4, 2);
-                }
+                    CubemapProjection.Equirectangular => new Vector2(4, 2),
+                    CubemapProjection.Cube => new Vector2(4, 3),
+                    _ => new Vector2(1, 1),
+                };
 
                 if (WantsSeparateAlpha)
                 {
@@ -218,7 +220,7 @@ namespace GUI.Types.Renderer
                 });
 
                 equirectangularProjectionCheckBox.Items.AddRange(Enum.GetNames(typeof(CubemapProjection)));
-                equirectangularProjectionCheckBox.SelectedIndex = (int)CubemapProjection.Equirectangular;
+                equirectangularProjectionCheckBox.SelectedIndex = (int)CubemapProjection.Cube;
             }
 
             decodeFlagsListBox = AddMultiSelection("Texture Conversion",

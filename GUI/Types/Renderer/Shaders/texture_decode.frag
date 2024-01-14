@@ -74,6 +74,7 @@ vec3 GetCubemapFaceCoords(vec2 vTexCoord, int nFace)
     return vFaceCoord;
 }
 
+// https://wiki.panotools.org/Equirectangular_Projection
 vec3 EquirectangularProjection(vec2 vTexCoord)
 {
     vec2 vMapCoord = -2 * vTexCoord.xy - 1;
@@ -81,6 +82,26 @@ vec3 EquirectangularProjection(vec2 vTexCoord)
     vec3 rayDirection = vec3(cos(thetaphi.y) * cos(thetaphi.x), cos(thetaphi.y) * sin(thetaphi.x), -sin(thetaphi.y));
 
     return rayDirection;
+}
+
+// https://wiki.panotools.org/Cubic_Projection
+vec3 CubicProjection(vec2 vTexCoord)
+{
+//   /*
+    vec4 vTop = vec4(0, 5, 0, 0);
+    vec4 vFront = vec4(1, 2, 3, 4);
+    vec4 vBottom = vec4(0, 6, 0, 0);
+    mat4x3 vRegion = mat4x3(
+        vTop.x, vFront.x, vBottom.x,
+        vTop.y, vFront.y, vBottom.y,
+        vTop.z, vFront.z, vBottom.z,
+        vTop.w, vFront.w, vBottom.w
+    );
+
+    vec2 scaled = vTexCoord * vec2(4, 3);
+    int nFace = int(vRegion[int(scaled.x)][int(scaled.y)]) - 1;
+
+    return GetCubemapFaceCoords(fract(scaled.xy), nFace);
 }
 
 uniform bool g_bTextureViewer = false;
@@ -91,6 +112,7 @@ uniform bool g_bWantsSeparateAlpha = false;
 uniform int g_nCubemapProjectionType;
 
 #define g_bCubeEquiRectangularProjection (g_nCubemapProjectionType == 1)
+#define g_bCubeCubicProjection (g_nCubemapProjectionType == 2)
 
 vec2 AdjustTextureViewerUvs(vec2 vTexCoord)
 {
@@ -100,17 +122,6 @@ vec2 AdjustTextureViewerUvs(vec2 vTexCoord)
     vTexCoord.xy /= g_flScale;
 
     return vTexCoord;
-}
-
-vec2 GetImageDimensionsMultiplier()
-{
-    //if (g_bWantsSeparateAlpha)
-    //    return vec2(2.0, 1.0);
-
-    if (g_bCubeEquiRectangularProjection)
-        return vec2(4.0, 2.0);
-
-    return vec2(1.0);
 }
 
 vec3 CheckerboardPattern(vec2 vScreenCoords)
@@ -175,8 +186,13 @@ void main()
 
         if (g_bCubeEquiRectangularProjection)
         {
-            vTexCoord.xy /= GetImageDimensionsMultiplier();
+            vTexCoord.xy /= vec2(4, 2);
             vSampleCoords.xyz = EquirectangularProjection(vTexCoord.xy);
+        }
+        else if (g_bCubeCubicProjection)
+        {
+            vTexCoord.xy /= vec2(4, 3);
+            vSampleCoords.xyz = CubicProjection(vTexCoord.xy);
         }
         else
         {
