@@ -85,16 +85,20 @@ namespace GUI.Controls
                 var title = Program.MainForm.Text;
                 Program.MainForm.Text = "Source 2 Viewer - Copying image to clipboard…";
 
-                using var bitmap = new SKBitmap(MainFramebuffer.Width, MainFramebuffer.Height, SKColorType.Bgra8888, SKAlphaType.Unpremul);
+                using var bitmap = new SKBitmap(MainFramebuffer.Width, MainFramebuffer.Height, SKColorType.Bgra8888, SKAlphaType.Opaque);
                 var pixels = bitmap.GetPixels(out var length);
 
                 GL.Flush();
                 GL.Finish();
                 GL.ReadPixels(0, 0, MainFramebuffer.Width, MainFramebuffer.Height, PixelFormat.Bgra, PixelType.UnsignedByte, pixels);
 
-                // TODO: The image is upside down
-                using var bitmap2 = bitmap.ToBitmap();
-                Clipboard.SetImage(bitmap2);
+                // Flip y
+                using var canvas = new SKCanvas(bitmap);
+                canvas.Scale(1, -1, 0, bitmap.Height / 2f);
+                canvas.DrawBitmap(bitmap, new SKPoint());
+
+                using var bitmapWindows = bitmap.ToBitmap();
+                Clipboard.SetImage(bitmapWindows);
 
                 Program.MainForm.Text = title;
 
