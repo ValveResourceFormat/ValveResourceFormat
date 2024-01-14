@@ -44,6 +44,16 @@ namespace ValveResourceFormat.TextureDecoders
         ///  Swizzle red with alpha (exploiting higher bitcount alpha in dxt5)
         /// </summary>
         Dxt5nm = 1 << 4,
+
+        /// <summary>
+        /// Colors are in linear space. Converts to sRGB gamma space.
+        /// </summary>
+        ColorSpaceLinear = 1 << 5,
+
+        /// <summary>
+        /// Colors are in sRGB gamma space. Converts to linear space.
+        /// </summary>
+        ColorSpaceSrgb = 1 << 6,
     }
 
     internal class Common
