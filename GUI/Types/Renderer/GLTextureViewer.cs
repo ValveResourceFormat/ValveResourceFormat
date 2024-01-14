@@ -375,13 +375,19 @@ namespace GUI.Types.Renderer
                 var pixels = bitmap.GetPixels(out var length);
 
                 // extract pixels from framebuffer
-                GL.Viewport(0, 0, texture.Width, texture.Height);
+                GL.Viewport(0, 0, bitmap.Width, bitmap.Height);
+                GLDefaultFramebuffer.Clear();
 
-                //Draw(isTextureViewer: false);
+                Draw(captureFullSizeImage: true);
 
                 GL.Flush();
                 GL.Finish();
+
+                GLDefaultFramebuffer.Bind(FramebufferTarget.ReadFramebuffer);
+                GL.ReadBuffer(ReadBufferMode.ColorAttachment0);
                 GL.ReadPixels(0, 0, bitmap.Width, bitmap.Height, PixelFormat.Bgra, PixelType.UnsignedByte, pixels);
+
+                MainFramebuffer.Bind(FramebufferTarget.Framebuffer);
 
                 var bitmapToReturn = bitmap;
                 bitmap = null;
@@ -688,6 +694,13 @@ namespace GUI.Types.Renderer
 
             vao = GL.GenVertexArray();
 
+            // Use non-msaa framebuffer for texture viewer
+            if (MainFramebuffer != GLDefaultFramebuffer)
+            {
+                MainFramebuffer.Dispose();
+                MainFramebuffer = GLDefaultFramebuffer;
+            }
+
             MainFramebuffer.ClearColor = OpenTK.Graphics.Color4.Green;
             MainFramebuffer.ClearMask = ClearBufferMask.ColorBufferBit;
             GL.DepthMask(false);
@@ -732,21 +745,18 @@ namespace GUI.Types.Renderer
             TextureScaleChangeTime += e.FrameTime;
 
             GL.Viewport(0, 0, GLControl.Width, GLControl.Height);
-
+            MainFramebuffer.Clear();
             Draw();
         }
 
-        private void Draw(bool isTextureViewer = true)
+        private void Draw(bool captureFullSizeImage = false)
         {
-            var (scale, position) = GetCurrentPositionAndScale();
-
-            MainFramebuffer.Clear();
-
             GL.UseProgram(shader.Program);
 
-            //shader.SetUniform4x4("transform", Matrix4x4.CreateOrthographic(1f, 1f, 0, 1));
-            shader.SetUniform1("g_bTextureViewer", isTextureViewer ? 1u : 0u);
+            shader.SetUniform1("g_bTextureViewer", captureFullSizeImage ? 0u : 1u);
             shader.SetUniform2("g_vViewportSize", new Vector2(MainFramebuffer.Width, MainFramebuffer.Height));
+
+            var (scale, position) = GetCurrentPositionAndScale();
             shader.SetUniform2("g_vViewportPosition", position);
             shader.SetUniform1("g_flScale", scale);
 

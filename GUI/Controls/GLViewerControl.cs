@@ -85,12 +85,16 @@ namespace GUI.Controls
                 var title = Program.MainForm.Text;
                 Program.MainForm.Text = "Source 2 Viewer - Copying image to clipboard…";
 
-                using var bitmap = new SKBitmap(MainFramebuffer.Width, MainFramebuffer.Height, SKColorType.Bgra8888, SKAlphaType.Opaque);
+                using var bitmap = new SKBitmap(GLDefaultFramebuffer.Width, GLDefaultFramebuffer.Height, SKColorType.Bgra8888, SKAlphaType.Opaque);
                 var pixels = bitmap.GetPixels(out var length);
 
                 GL.Flush();
                 GL.Finish();
-                GL.ReadPixels(0, 0, MainFramebuffer.Width, MainFramebuffer.Height, PixelFormat.Bgra, PixelType.UnsignedByte, pixels);
+
+                GLDefaultFramebuffer.Bind(FramebufferTarget.ReadFramebuffer);
+                GL.ReadBuffer(ReadBufferMode.ColorAttachment0);
+
+                GL.ReadPixels(0, 0, GLDefaultFramebuffer.Width, GLDefaultFramebuffer.Height, PixelFormat.Bgra, PixelType.UnsignedByte, pixels);
 
                 // Flip y
                 using var canvas = new SKCanvas(bitmap);
