@@ -18,34 +18,6 @@ namespace GUI.Types.Renderer;
 
 class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
 {
-    private readonly VrfGuiContext guiContext;
-    private readonly AutoResetEvent queueUpdateEvent = new(false);
-    private readonly ConcurrentQueue<DecodeRequest> decodeQueue;
-    private readonly Thread GLThread;
-
-#pragma warning disable CA2213 // Disposable fields should be disposed (handled in Dispose_ThreadResources)
-    private GLControl GLControl;
-    private Framebuffer Framebuffer;
-    private DecodeRequest activeRequest;
-#pragma warning restore CA2213 // Disposable fields should be disposed (handled in Dispose_ThreadResources)
-
-    public GLTextureDecoder()
-    {
-        guiContext = new VrfGuiContext(null, null);
-        decodeQueue = new();
-
-        // create a thread context for OpenGL
-        GLThread = new Thread(Initialize_NoExcept)
-        {
-            IsBackground = true,
-            Name = nameof(GLTextureDecoder),
-            Priority = ThreadPriority.AboveNormal,
-        };
-
-        IsRunning = true;
-        GLThread.Start();
-    }
-
     private record DecodeRequest(SKBitmap Bitmap, Resource Resource, int Mip, int Depth, CubemapFace Face, ChannelMapping Channels, TextureCodec DecodeFlags) : IDisposable
     {
         public ManualResetEvent DoneEvent { get; } = new(false);
@@ -78,10 +50,34 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
         }
     }
 
+    private readonly VrfGuiContext guiContext = new(null, null);
+    private readonly AutoResetEvent queueUpdateEvent = new(false);
+    private readonly ConcurrentQueue<DecodeRequest> decodeQueue = new();
+
+    private Thread GLThread;
     private bool IsRunning;
+
+#pragma warning disable CA2213 // Disposable fields should be disposed (handled in Dispose_ThreadResources)
+    private GLControl GLControl;
+    private Framebuffer Framebuffer;
+#pragma warning restore CA2213
 
     public bool Decode(SKBitmap bitmap, Resource resource, uint depth, CubemapFace face, uint mipLevel)
     {
+        if (GLThread == null)
+        {
+            IsRunning = true;
+
+            // create a thread context for OpenGL
+            GLThread = new Thread(Initialize_NoExcept)
+            {
+                IsBackground = true,
+                Name = nameof(GLTextureDecoder),
+                Priority = ThreadPriority.AboveNormal,
+            };
+            GLThread.Start();
+        }
+
         if (!IsRunning)
         {
             Log.Warn(nameof(GLTextureDecoder), "Decoder thread is no longer available.");
@@ -134,34 +130,30 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
         Framebuffer.CheckStatus_ThrowIfIncomplete(nameof(GLTextureDecoder));
         Framebuffer.ClearMask = ClearBufferMask.ColorBufferBit;
 
-        // TODO: Remove this
-        GL.Enable(EnableCap.DebugOutput);
-        GL.Enable(EnableCap.DebugOutputSynchronous);
-        GL.DebugMessageCallback((source, type, id, severity, length, message, userParam) =>
-        {
-            var msg = System.Runtime.InteropServices.Marshal.PtrToStringUTF8(message, length);
-            Log.Warn(nameof(GLTextureDecoder), $"GL: {type} {msg}");
-        }, IntPtr.Zero);
-
-        GL.Flush();
-
         while (IsRunning)
         {
+#pragma warning disable CA2000 // Dispose objects before losing scope - already disposed by the code that enqueues
             if (!decodeQueue.TryDequeue(out var decodeRequest))
             {
                 queueUpdateEvent.WaitOne();
                 continue;
             }
+#pragma warning restore CA2000
 
-            activeRequest = decodeRequest;
-            var successfully = Decode_Thread(activeRequest);
-            activeRequest = null;
-
-            decodeRequest.MarkAsDone(successfully);
+            try
+            {
+                var successfully = ProcessDecodeRequest(decodeRequest);
+                decodeRequest.MarkAsDone(successfully);
+            }
+            catch
+            {
+                decodeRequest.MarkAsDone(false);
+                throw;
+            }
         }
     }
 
-    private bool Decode_Thread(DecodeRequest request)
+    private bool ProcessDecodeRequest(DecodeRequest request)
     {
         var sw = Stopwatch.StartNew();
         var inputTexture = guiContext.MaterialLoader.LoadTexture(request.Resource, isViewerRequest: true);
@@ -239,13 +231,6 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
 
     private void CleanupRequests()
     {
-        if (activeRequest != null)
-        {
-            activeRequest.MarkAsDone(successfully: false);
-            activeRequest.Dispose();
-            activeRequest = null;
-        }
-
         foreach (var queuedRequest in decodeQueue)
         {
             queuedRequest.MarkAsDone(successfully: false);
