@@ -183,39 +183,37 @@ namespace GUI.Types.Renderer
             if ((textureData.Flags & VTexFlags.CUBE_TEXTURE) != 0)
             {
                 ComboBox cubeFaceComboBox = null;
+
                 var equirectangularProjectionCheckBox = AddSelection("Projection type", (name, index) =>
-                 {
-                     cubeFaceComboBox.Enabled = index == 0;
+                {
+                    cubeFaceComboBox.Enabled = index == 0;
 
-                     if (softwareDecodeCheckBox == null)
-                     {
-                         CubemapProjectionType = (CubemapProjection)index;
-                         return;
-                     }
+                    if (softwareDecodeCheckBox == null)
+                    {
+                        CubemapProjectionType = (CubemapProjection)index;
+                        return;
+                    }
 
-                     var oldTextureSize = ActualTextureSizeScaled;
+                    var oldTextureSize = ActualTextureSizeScaled;
 
-                     CubemapProjectionType = (CubemapProjection)index;
+                    CubemapProjectionType = (CubemapProjection)index;
 
-                     TextureScaleChangeTime = 0f;
-                     TextureScaleOld = TextureScale;
+                    TextureScaleChangeTime = 0f;
+                    TextureScaleOld = TextureScale;
 
-                     PositionOld = Position;
-                     Position -= oldTextureSize;
-                     Position += ActualTextureSizeScaled;
-
-                     ClampPosition();
-                 });
+                    PositionOld = Position;
+                    CenterPosition();
+                });
 
                 cubeFaceComboBox = AddSelection("Cube face", (name, index) =>
-                 {
-                     SelectedCubeFace = index;
+                {
+                    SelectedCubeFace = index;
 
-                     if (softwareDecodeCheckBox != null && softwareDecodeCheckBox.Checked)
-                     {
-                         SetupTexture(true);
-                     }
-                 });
+                    if (softwareDecodeCheckBox != null && softwareDecodeCheckBox.Checked)
+                    {
+                        SetupTexture(true);
+                    }
+                });
 
                 cubeFaceComboBox.Items.AddRange(Enum.GetNames(typeof(CubemapFace)));
                 cubeFaceComboBox.SelectedIndex = 0;
