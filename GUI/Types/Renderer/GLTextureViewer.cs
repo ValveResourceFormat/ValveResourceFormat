@@ -554,6 +554,14 @@ namespace GUI.Types.Renderer
 
             IsZoomedIn = GLControl.Height < height && GLControl.Width < width;
 
+            const float MaxRatioForClamping = 4f;
+            var ratio = width / height;
+
+            if (ratio > MaxRatioForClamping || ratio < 1 / MaxRatioForClamping)
+            {
+                return;
+            }
+
             if (IsZoomedIn)
             {
                 Position.X = Math.Clamp(Position.X, 0, width - GLControl.Width);
