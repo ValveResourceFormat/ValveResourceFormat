@@ -690,26 +690,6 @@ namespace GUI.Types.Renderer
 
             GLLoad -= OnLoad;
             GLPaint += OnPaint;
-
-#if DEBUG
-            // TODO: Remove this later
-            void Hotload(object s, System.IO.FileSystemEventArgs e)
-            {
-                if (e.FullPath.EndsWith(".TMP", StringComparison.Ordinal))
-                {
-                    return;
-                }
-
-                GuiContext.ShaderLoader.ClearCache();
-
-                shader = GuiContext.ShaderLoader.LoadShader("vrf.texture_decode", shader.Parameters);
-            }
-
-            GuiContext.ShaderLoader.ShaderWatcher.SynchronizingObject = this;
-            GuiContext.ShaderLoader.ShaderWatcher.Changed += Hotload;
-            GuiContext.ShaderLoader.ShaderWatcher.Created += Hotload;
-            GuiContext.ShaderLoader.ShaderWatcher.Renamed += Hotload;
-#endif
         }
 
         private void OnPaint(object sender, RenderEventArgs e)
