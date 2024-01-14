@@ -1,5 +1,6 @@
 using SkiaSharp;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.TextureDecoders;
 using static ValveResourceFormat.ResourceTypes.Texture;
 
 namespace ValveResourceFormat.Utils;
@@ -23,5 +24,5 @@ public interface IHardwareTextureDecoder
     /// <param name="face">The face to extract for cube textures.</param>
     /// <param name="mipLevel">The mip level to extract.</param>
     /// <returns>Return false if decode is unsuccessful, will fallback to software decode.</returns>
-    public abstract bool Decode(SKBitmap bitmap, Resource resource, uint depth, CubemapFace face, uint mipLevel);
+    public abstract bool Decode(SKBitmap bitmap, Resource resource, uint depth, CubemapFace face, uint mipLevel, TextureCodec decodeFlags);
 }

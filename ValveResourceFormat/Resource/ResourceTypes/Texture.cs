@@ -409,25 +409,6 @@ namespace ValveResourceFormat.ResourceTypes
             var width = MipLevelSize(ActualWidth, mipLevel);
             var height = MipLevelSize(ActualHeight, mipLevel);
 
-            if (HardwareAcceleratedTextureDecoder.Decoder != null && !IsRawJpeg && !IsRawPng) // TODO: Move this further down
-            {
-                var skiaBitmap2 = new SKBitmap(width, height, SKColorType.Bgra8888, SKAlphaType.Unpremul);
-
-                try
-                {
-                    if (HardwareAcceleratedTextureDecoder.Decoder.Decode(skiaBitmap2, Resource, depth, face, mipLevel))
-                    {
-                        var bitmapToReturn = skiaBitmap2;
-                        skiaBitmap2 = null;
-                        return bitmapToReturn;
-                    }
-                }
-                finally
-                {
-                    skiaBitmap2?.Dispose();
-                }
-            }
-
             Reader.BaseStream.Position = DataOffset;
 
             SkipMipmaps(mipLevel);
@@ -444,12 +425,32 @@ namespace ValveResourceFormat.ResourceTypes
                     return SKBitmap.Decode(Reader.ReadBytes(CalculatePngSize()));
             }
 
+            var decodeFlags = RetrieveCodecFromResourceEditInfo();
+
+            if (HardwareAcceleratedTextureDecoder.Decoder != null)
+            {
+                var skiaBitmap2 = new SKBitmap(width, height, SKColorType.Bgra8888, SKAlphaType.Unpremul);
+
+                try
+                {
+                    if (HardwareAcceleratedTextureDecoder.Decoder.Decode(skiaBitmap2, Resource, depth, face, mipLevel, decodeFlags))
+                    {
+                        var bitmapToReturn = skiaBitmap2;
+                        skiaBitmap2 = null;
+                        return bitmapToReturn;
+                    }
+                }
+                finally
+                {
+                    skiaBitmap2?.Dispose();
+                }
+            }
+
             var blockWidth = MipLevelSize(Width, mipLevel);
             var blockHeight = MipLevelSize(Height, mipLevel);
 
             var skiaBitmap = new SKBitmap(width, height, SKColorType.Bgra8888, SKAlphaType.Unpremul);
             ITextureDecoder decoder = null;
-            var codec = RetrieveCodecFromResourceEditInfo();
 
             switch (Format)
             {
@@ -458,7 +459,7 @@ namespace ValveResourceFormat.ResourceTypes
                     break;
 
                 case VTexFormat.DXT5:
-                    decoder = new DecodeDXT5(blockWidth, blockHeight, codec);
+                    decoder = new DecodeDXT5(blockWidth, blockHeight, decodeFlags);
                     break;
 
                 case VTexFormat.I8:
@@ -514,11 +515,11 @@ namespace ValveResourceFormat.ResourceTypes
                     break;
 
                 case VTexFormat.BC7:
-                    decoder = new DecodeBC7(blockWidth, blockHeight, codec);
+                    decoder = new DecodeBC7(blockWidth, blockHeight, decodeFlags);
                     break;
 
                 case VTexFormat.ATI2N:
-                    decoder = new DecodeATI2N(blockWidth, blockHeight, codec);
+                    decoder = new DecodeATI2N(blockWidth, blockHeight, decodeFlags);
                     break;
 
                 case VTexFormat.IA88:
