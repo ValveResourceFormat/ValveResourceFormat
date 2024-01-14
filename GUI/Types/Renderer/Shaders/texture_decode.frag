@@ -88,9 +88,9 @@ vec3 EquirectangularProjection(vec2 vTexCoord)
 vec3 CubicProjection(vec2 vTexCoord)
 {
 //   /*
-    vec4 vTop = vec4(0, 5, 0, 0);
-    vec4 vFront = vec4(1, 2, 3, 4);
-    vec4 vBottom = vec4(0, 6, 0, 0);
+    vec4 vTop = vec4(0, 3, 0, 0);
+    vec4 vFront = vec4(2, 5, 1, 6);
+    vec4 vBottom = vec4(0, 4, 0, 0);
     mat4x3 vRegion = mat4x3(
         vTop.x, vFront.x, vBottom.x,
         vTop.y, vFront.y, vBottom.y,

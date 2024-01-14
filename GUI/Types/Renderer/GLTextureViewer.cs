@@ -38,7 +38,7 @@ namespace GUI.Types.Renderer
         {
             None,
             Equirectangular,
-            Cube,
+            Cubic,
         }
 
         private int SelectedMip;
@@ -61,7 +61,7 @@ namespace GUI.Types.Renderer
                 size *= CubemapProjectionType switch
                 {
                     CubemapProjection.Equirectangular => new Vector2(4, 2),
-                    CubemapProjection.Cube => new Vector2(4, 3),
+                    CubemapProjection.Cubic => new Vector2(4, 3),
                     _ => new Vector2(1, 1),
                 };
 
@@ -182,45 +182,46 @@ namespace GUI.Types.Renderer
 
             if ((textureData.Flags & VTexFlags.CUBE_TEXTURE) != 0)
             {
-                var cubeFaceComboBox = AddSelection("Cube face", (name, index) =>
-                {
-                    SelectedCubeFace = index;
+                ComboBox cubeFaceComboBox = null;
+                var equirectangularProjectionCheckBox = AddSelection("Projection type", (name, index) =>
+                 {
+                     cubeFaceComboBox.Enabled = index == 0;
 
-                    if (softwareDecodeCheckBox != null && softwareDecodeCheckBox.Checked)
-                    {
-                        SetupTexture(true);
-                    }
-                });
+                     if (softwareDecodeCheckBox == null)
+                     {
+                         CubemapProjectionType = (CubemapProjection)index;
+                         return;
+                     }
+
+                     var oldTextureSize = ActualTextureSizeScaled;
+
+                     CubemapProjectionType = (CubemapProjection)index;
+
+                     TextureScaleChangeTime = 0f;
+                     TextureScaleOld = TextureScale;
+
+                     PositionOld = Position;
+                     Position -= oldTextureSize;
+                     Position += ActualTextureSizeScaled;
+
+                     ClampPosition();
+                 });
+
+                cubeFaceComboBox = AddSelection("Cube face", (name, index) =>
+                 {
+                     SelectedCubeFace = index;
+
+                     if (softwareDecodeCheckBox != null && softwareDecodeCheckBox.Checked)
+                     {
+                         SetupTexture(true);
+                     }
+                 });
 
                 cubeFaceComboBox.Items.AddRange(Enum.GetNames(typeof(CubemapFace)));
                 cubeFaceComboBox.SelectedIndex = 0;
 
-                var equirectangularProjectionCheckBox = AddSelection("Projection type", (name, index) =>
-                {
-                    cubeFaceComboBox.Enabled = index == 0;
-
-                    if (softwareDecodeCheckBox == null)
-                    {
-                        CubemapProjectionType = (CubemapProjection)index;
-                        return;
-                    }
-
-                    var oldTextureSize = ActualTextureSizeScaled;
-
-                    CubemapProjectionType = (CubemapProjection)index;
-
-                    TextureScaleChangeTime = 0f;
-                    TextureScaleOld = TextureScale;
-
-                    PositionOld = Position;
-                    Position -= oldTextureSize;
-                    Position += ActualTextureSizeScaled;
-
-                    ClampPosition();
-                });
-
                 equirectangularProjectionCheckBox.Items.AddRange(Enum.GetNames(typeof(CubemapProjection)));
-                equirectangularProjectionCheckBox.SelectedIndex = (int)CubemapProjection.Cube;
+                equirectangularProjectionCheckBox.SelectedIndex = (int)CubemapProjection.Equirectangular;
             }
 
             decodeFlagsListBox = AddMultiSelection("Texture Conversion",
