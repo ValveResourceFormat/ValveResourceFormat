@@ -65,7 +65,7 @@ namespace GUI.Types.Renderer
                     _ => new Vector2(1, 1),
                 };
 
-                if (WantsSeparateAlpha)
+                if (WantsSeparateAlpha && CubemapProjectionType == CubemapProjection.None)
                 {
                     var mult = texture.Width > texture.Height
                         ? new Vector2(1, 2)
@@ -748,7 +748,7 @@ namespace GUI.Types.Renderer
             shader.SetUniform1("g_nSelectedDepth", SelectedDepth);
             shader.SetUniform1("g_nSelectedCubeFace", SelectedCubeFace);
             shader.SetUniform1("g_nSelectedChannels", SelectedChannels.PackedValue);
-            shader.SetUniform1("g_bWantsSeparateAlpha", WantsSeparateAlpha ? 1u : 0u);
+            shader.SetUniform1("g_bWantsSeparateAlpha", WantsSeparateAlpha && CubemapProjectionType == CubemapProjection.None ? 1u : 0u);
             shader.SetUniform1("g_nCubemapProjectionType", (int)CubemapProjectionType);
             shader.SetUniform1("g_nDecodeFlags", (int)decodeFlags);
 
