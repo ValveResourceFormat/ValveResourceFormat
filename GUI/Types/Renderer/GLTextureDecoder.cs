@@ -62,7 +62,7 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
     private Framebuffer Framebuffer;
 #pragma warning restore CA2213
 
-    public bool Decode(SKBitmap bitmap, Resource resource, uint depth, CubemapFace face, uint mipLevel)
+    public bool Decode(SKBitmap bitmap, Resource resource, uint depth, CubemapFace face, uint mipLevel, TextureCodec decodeFlags)
     {
         if (GLThread == null)
         {
@@ -84,7 +84,7 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
             return false;
         }
 
-        using var request = new DecodeRequest(bitmap, resource, (int)mipLevel, (int)depth, face, ChannelMapping.RGBA, TextureCodec.None);
+        using var request = new DecodeRequest(bitmap, resource, (int)mipLevel, (int)depth, face, ChannelMapping.RGBA, decodeFlags);
 
         var sw = Stopwatch.StartNew();
         decodeQueue.Enqueue(request);
@@ -123,9 +123,8 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
         GLControl = new GLControl(new GraphicsMode(new ColorFormat(8, 8, 8, 8)), 4, 6, GraphicsContextFlags.Offscreen);
         GLControl.MakeCurrent();
 
-        // TODO: resize framebuffer on request.
         GL.GetInternalformat(ImageTarget.Texture2D, SizedInternalFormat.Rgba8, InternalFormatParameter.InternalformatPreferred, 1, out int internalFormatPreferred);
-        Framebuffer = Framebuffer.Prepare(8192, 8192, 0, new((PixelInternalFormat)internalFormatPreferred, PixelFormat.Bgra, PixelType.UnsignedByte), null);
+        Framebuffer = Framebuffer.Prepare(4, 4, 0, new((PixelInternalFormat)internalFormatPreferred, PixelFormat.Bgra, PixelType.UnsignedByte), null);
         Framebuffer.Initialize();
         Framebuffer.CheckStatus_ThrowIfIncomplete(nameof(GLTextureDecoder));
         Framebuffer.ClearMask = ClearBufferMask.ColorBufferBit;
@@ -170,6 +169,11 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
             return true;
         }
         */
+
+        if (Framebuffer.Width < inputTexture.Width || Framebuffer.Height < inputTexture.Height)
+        {
+            Framebuffer.Resize(inputTexture.Width, inputTexture.Height);
+        }
 
         GL.Viewport(0, 0, inputTexture.Width, inputTexture.Height);
         Framebuffer.Clear();
