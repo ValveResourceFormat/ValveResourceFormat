@@ -76,7 +76,7 @@ vec3 GetCubemapFaceCoords(vec2 vTexCoord, int nFace)
 
 vec3 EquirectangularProjection(vec2 vTexCoord)
 {
-    vec2 vMapCoord = 2 * vTexCoord.xy - 1;
+    vec2 vMapCoord = -2 * vTexCoord.xy - 1;
     vec2 thetaphi = vMapCoord * vec2(PI, PI * 0.5) + vec2(0, 0);
     vec3 rayDirection = vec3(cos(thetaphi.y) * cos(thetaphi.x), cos(thetaphi.y) * sin(thetaphi.x), -sin(thetaphi.y));
 
