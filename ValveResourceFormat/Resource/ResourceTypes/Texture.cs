@@ -872,6 +872,11 @@ namespace ValveResourceFormat.ResourceTypes
                 codec &= ~TextureCodec.NormalizeNormals;
             }
 
+            if (Format is VTexFormat.BC6H)
+            {
+                codec |= TextureCodec.ColorSpaceLinear;
+            }
+
             return codec;
         }
 

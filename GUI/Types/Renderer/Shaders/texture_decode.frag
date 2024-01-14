@@ -27,8 +27,8 @@ uniform vec4 g_vInputTextureSize;
 #define HemiOctIsoRoughness_RG_B (1 << 2)
 #define NormalizeNormals (1 << 3)
 #define Dxt5nm_AlphaGreen (1 << 4)
-#define ColorSpace_Gamma (1 << 5)
-#define ColorSpace_Linear (1 << 6)
+#define ColorSpace_Linear (1 << 5)
+#define ColorSpace_Srgb (1 << 6)
 
 uniform int g_nSelectedMip;
 uniform int g_nSelectedDepth;
@@ -203,7 +203,7 @@ void main()
         vColor.a = 1.0;
     }
 
-    if ((g_nDecodeFlags & ColorSpace_Gamma) != 0)
+    if ((g_nDecodeFlags & ColorSpace_Srgb) != 0)
     {
         vColor.rgb = SrgbGammaToLinear(vColor.rgb);
     }
