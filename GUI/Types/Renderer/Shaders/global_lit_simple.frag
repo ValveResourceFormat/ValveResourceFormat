@@ -67,12 +67,6 @@ uniform float g_flOpacityScale = 1.0;
 
 uniform float g_flAlphaTestReference = 0.5;
 
-vec3 oct_to_float32x3(vec2 e)
-{
-    vec3 v = vec3(e.xy, 1.0 - abs(e.x) - abs(e.y));
-    return normalize(v);
-}
-
 //Calculate the normal of this fragment in world space
 vec3 calculateWorldNormal(vec4 bumpNormal)
 {
