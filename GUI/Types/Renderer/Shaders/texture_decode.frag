@@ -74,11 +74,21 @@ vec3 GetCubemapFaceCoords(vec2 vTexCoord, int nFace)
     return vFaceCoord;
 }
 
+vec3 EquirectangularProjection(vec2 vTexCoord)
+{
+    vec2 vMapCoord = 2 * vTexCoord.xy - 1;
+    vec2 thetaphi = vMapCoord * vec2(PI, PI * 0.5) + vec2(0, 0);
+    vec3 rayDirection = vec3(cos(thetaphi.y) * cos(thetaphi.x), cos(thetaphi.y) * sin(thetaphi.x), -sin(thetaphi.y));
+
+    return rayDirection;
+}
+
 uniform bool g_bTextureViewer = false;
 uniform vec2 g_vViewportSize;
 uniform vec2 g_vViewportPosition;
 uniform float g_flScale = 1.0;
 uniform bool g_bWantsSeparateAlpha = false;
+uniform bool g_bCubeEquiRectangularProjection = true;
 
 vec2 AdjustTextureViewerUvs(vec2 vTexCoord)
 {
@@ -143,10 +153,17 @@ void main()
     }
 
     // cubemaps take a direction vector as sample coords
-    #if TYPE_TEXTURECUBEMAP == 1
-        vec3 vSampleCoords = GetCubemapFaceCoords(vTexCoord.xy, g_nSelectedCubeFace);
-    #elif TYPE_TEXTURECUBEMAPARRAY == 1
-        vec4 vSampleCoords = vec4(GetCubemapFaceCoords(vTexCoord.xy, g_nSelectedCubeFace), vTexCoord.z);
+    #if (TYPE_TEXTURECUBEMAP == 1) || (TYPE_TEXTURECUBEMAPARRAY == 1)
+        #if TYPE_TEXTURECUBEMAP == 1
+            vec3 vSampleCoords;
+        #elif TYPE_TEXTURECUBEMAPARRAY == 1
+            vec4 vSampleCoords = vec4(0, 0, 0, vTexCoord.z);
+        #endif
+
+        if (g_bCubeEquiRectangularProjection)
+            vSampleCoords.xyz = EquirectangularProjection(vTexCoord.xy);
+        else
+            vSampleCoords.xyz = GetCubemapFaceCoords(vTexCoord.xy, g_nSelectedCubeFace);
     #else
         #define vSampleCoords vTexCoord
     #endif
