@@ -172,7 +172,7 @@ void main()
     #elif TYPE_TEXTURECUBEMAPARRAY == 1
         vec4 vSampleCoords = vec4(GetCubemapFaceCoords(vTexCoord.xy, g_nSelectedCubeFace), vTexCoord.z);
     #else
-        vec2 vSampleCoords = vTexCoord.xy;
+        #define vSampleCoords vTexCoord
     #endif
 
     vec4 vColor = textureLod(g_tInputTexture, vSampleCoords, float(g_nSelectedMip));
