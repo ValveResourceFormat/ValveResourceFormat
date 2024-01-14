@@ -10,7 +10,11 @@ out vec4 outputColor;
 #include "common/fog.glsl"
 
 void main(void) {
-    outputColor = vec4(0.0, 0.0, 0.0, 1.0);
+    outputColor.rgb = vec3(0.0);
 
-    ApplyFog(outputColor.rgb, vFragPosition);
+    if (g_bFogEnabled)
+    {
+        ApplyFog(outputColor.rgb, vFragPosition);
+        outputColor.rgb = SrgbLinearToGamma(outputColor.rgb);
+    }
 }
