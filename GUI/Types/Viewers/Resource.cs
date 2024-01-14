@@ -1,6 +1,5 @@
 using System;
 using System.ComponentModel;
-using System.Drawing;
 using System.IO;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -8,7 +7,6 @@ using GUI.Controls;
 using GUI.Types.Audio;
 using GUI.Types.Renderer;
 using GUI.Utils;
-using SkiaSharp;
 using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO;
@@ -63,25 +61,9 @@ namespace GUI.Types.Viewers
                 case ResourceType.Texture:
                     {
                         var textureControl = new GLTextureViewer(vrfGuiContext, resource);
-                        var tabGl = new TabPage("TEXTURE GL");
+                        var tabGl = new TabPage("TEXTURE");
                         tabGl.Controls.Add(textureControl);
                         resTabs.TabPages.Add(tabGl);
-                    }
-
-                    try
-                    {
-                        AddTexture(vrfGuiContext, resource, resTabs);
-                    }
-                    catch (Exception e)
-                    {
-                        var tab2 = new TabPage("TEXTURE")
-                        {
-                            AutoScroll = true,
-                        };
-                        var control = new CodeTextBox(e.ToString());
-
-                        tab2.Controls.Add(control);
-                        resTabs.TabPages.Add(tab2);
                     }
 
                     break;
@@ -451,177 +433,6 @@ namespace GUI.Types.Viewers
                         break;
                     }
             }
-        }
-
-        private static void AddTexture(VrfGuiContext vrfGuiContext, ValveResourceFormat.Resource resource, TabControl resTabs)
-        {
-            var tex = (Texture)resource.DataBlock;
-
-            if ((tex.Flags & VTexFlags.CUBE_TEXTURE) != 0)
-            {
-                var cubemapContainer = new TabControl
-                {
-                    Dock = DockStyle.Fill,
-                    Multiline = true,
-                };
-
-                var CUBEMAP_OFFSETS = new (float X, float Y)[]
-                {
-                    (2, 1), // PositiveX, // rt
-                    (0, 1), // NegativeX, // lf
-                    (1, 0), // PositiveY, // bk
-                    (1, 2), // NegativeY, // ft
-                    (1, 1), // PositiveZ, // up
-                    (3, 1), // NegativeZ, // dn
-                };
-
-                for (uint i = 0; i < tex.Depth; i++)
-                {
-                    var cubemapControl = new Forms.Texture
-                    {
-                        BackColor = Color.Black,
-                    };
-
-                    try
-                    {
-                        var cubemapBitmap = new SKBitmap(tex.ActualWidth * 4, tex.ActualHeight * 3, SKColorType.Bgra8888, SKAlphaType.Unpremul);
-
-                        try
-                        {
-                            using var cubemapCanvas = new SKCanvas(cubemapBitmap);
-
-                            for (var face = 0; face < 6; face++)
-                            {
-                                using var faceBitmap = tex.GenerateBitmap(depth: i, face: (Texture.CubemapFace)face);
-
-                                var offset = CUBEMAP_OFFSETS[face];
-                                cubemapCanvas.DrawBitmap(faceBitmap, tex.ActualWidth * offset.X, tex.ActualHeight * offset.Y);
-                            }
-
-                            cubemapControl.SetImage(
-                                cubemapBitmap,
-                                Path.GetFileNameWithoutExtension(vrfGuiContext.FileName),
-                                cubemapBitmap.Width,
-                                cubemapBitmap.Height
-                            );
-
-                            var cubemapTab = new TabPage($"#{i}")
-                            {
-                                AutoScroll = true,
-                            };
-                            cubemapTab.Controls.Add(cubemapControl);
-                            cubemapContainer.Controls.Add(cubemapTab);
-
-                            cubemapBitmap = null;
-                        }
-                        finally
-                        {
-                            cubemapBitmap?.Dispose();
-                        }
-
-                        cubemapControl = null;
-                    }
-                    finally
-                    {
-                        cubemapControl?.Dispose();
-                    }
-                }
-
-                var cubemapParentTab = new TabPage("CUBEMAP");
-                cubemapParentTab.Controls.Add(cubemapContainer);
-                resTabs.TabPages.Add(cubemapParentTab);
-
-                return;
-            }
-            else if (tex.Depth > 1)
-            {
-                var depthContainer = new TabControl
-                {
-                    Dock = DockStyle.Fill,
-                    Multiline = true,
-                };
-
-                for (uint i = 0; i < tex.Depth; i++)
-                {
-                    var depthControl = new Forms.Texture
-                    {
-                        BackColor = Color.Black,
-                    };
-
-                    var depthBitmap = tex.GenerateBitmap(depth: i);
-
-                    depthControl.SetImage(
-                        depthBitmap,
-                        Path.GetFileNameWithoutExtension(vrfGuiContext.FileName),
-                        tex.ActualWidth,
-                        tex.ActualHeight
-                    );
-
-                    var depthTab = new TabPage($"#{i}")
-                    {
-                        AutoScroll = true,
-                    };
-                    depthTab.Controls.Add(depthControl);
-                    depthContainer.Controls.Add(depthTab);
-                }
-
-                var cubemapParentTab = new TabPage("TEXTURE");
-                cubemapParentTab.Controls.Add(depthContainer);
-                resTabs.TabPages.Add(cubemapParentTab);
-
-                return;
-            }
-
-            var sheet = tex.GetSpriteSheetData();
-            var bitmap = tex.GenerateBitmap();
-
-            if (sheet != null)
-            {
-                using var canvas = new SKCanvas(bitmap);
-                using var color1 = new SKPaint
-                {
-                    Style = SKPaintStyle.Stroke,
-                    Color = new SKColor(0, 100, 255, 200),
-                    StrokeWidth = 1,
-                };
-                using var color2 = new SKPaint
-                {
-                    Style = SKPaintStyle.Stroke,
-                    Color = new SKColor(255, 100, 0, 200),
-                    StrokeWidth = 1,
-                };
-
-                foreach (var sequence in sheet.Sequences)
-                {
-                    foreach (var frame in sequence.Frames)
-                    {
-                        foreach (var image in frame.Images)
-                        {
-                            canvas.DrawRect(image.GetCroppedRect(bitmap.Width, bitmap.Height), color1);
-                            canvas.DrawRect(image.GetUncroppedRect(bitmap.Width, bitmap.Height), color2);
-                        }
-                    }
-                }
-            }
-
-            var control = new Forms.Texture
-            {
-                BackColor = Color.Black,
-            };
-
-            control.SetImage(
-                bitmap,
-                Path.GetFileNameWithoutExtension(vrfGuiContext.FileName),
-                tex.ActualWidth,
-                tex.ActualHeight
-            );
-
-            var tab = new TabPage("TEXTURE")
-            {
-                AutoScroll = true,
-            };
-            tab.Controls.Add(control);
-            resTabs.TabPages.Add(tab);
         }
     }
 }
