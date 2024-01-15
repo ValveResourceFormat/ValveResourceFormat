@@ -133,7 +133,15 @@ namespace GUI.Types.Renderer
 
             saveButton.Click += OnSaveButtonClick;
 
+            var copyLabel = new Label
+            {
+                Text = "or Ctrl-C to copy",
+            };
+
             AddControl(saveButton);
+            AddControl(copyLabel);
+
+            copyLabel.Location = new System.Drawing.Point(saveButton.Width, saveButton.Location.Y + 5);
 
             AddControl(new Label
             {
