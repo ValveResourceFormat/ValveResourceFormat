@@ -105,6 +105,7 @@ vec3 CubicProjection(vec2 vTexCoord)
 }
 
 uniform bool g_bTextureViewer = false;
+uniform bool g_bCapturingScreenshot = false;
 uniform vec2 g_vViewportSize;
 uniform vec2 g_vViewportPosition;
 uniform float g_flScale = 1.0;
@@ -159,9 +160,12 @@ void main()
 
     if (g_bTextureViewer)
     {
-        vScreenCoords.y = 1.0 - vScreenCoords.y;
+        if (!g_bCapturingScreenshot)
+        {
+            vScreenCoords.y = 1.0 - vScreenCoords.y;
+            vBackgroundColor = CheckerboardPattern(vScreenCoords);
+        }
 
-        vBackgroundColor = CheckerboardPattern(vScreenCoords);
         vTexCoord.xy = AdjustTextureViewerUvs(vScreenCoords);
 
         bool bIsWideImage = g_vInputTextureSize.x > g_vInputTextureSize.y;
