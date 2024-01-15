@@ -330,6 +330,7 @@ namespace GUI.Types.Renderer
                 decodeFlagsListBox = null;
 
                 texture?.Dispose();
+                SaveAsFbo?.Dispose();
             }
 
             base.Dispose(disposing);
@@ -374,6 +375,7 @@ namespace GUI.Types.Renderer
             var t = pixmap.Encode(fs, format, 100);
         }
 
+        private Framebuffer SaveAsFbo;
         private SKBitmap ReadPixelsToBitmap()
         {
             var size = ActualTextureSize;
@@ -385,18 +387,17 @@ namespace GUI.Types.Renderer
 
                 // extract pixels from framebuffer
                 GL.Viewport(0, 0, bitmap.Width, bitmap.Height);
-                GLDefaultFramebuffer.Clear();
+                SaveAsFbo.Resize(bitmap.Width, bitmap.Height);
+                SaveAsFbo.Clear();
 
-                Draw(captureFullSizeImage: true);
+                Draw(SaveAsFbo, captureFullSizeImage: true);
 
                 GL.Flush();
                 GL.Finish();
 
-                GLDefaultFramebuffer.Bind(FramebufferTarget.ReadFramebuffer);
+                SaveAsFbo.Bind(FramebufferTarget.ReadFramebuffer);
                 GL.ReadBuffer(ReadBufferMode.ColorAttachment0);
                 GL.ReadPixels(0, 0, bitmap.Width, bitmap.Height, PixelFormat.Bgra, PixelType.UnsignedByte, pixels);
-
-                MainFramebuffer.Bind(FramebufferTarget.Framebuffer);
 
                 var bitmapToReturn = bitmap;
                 bitmap = null;
@@ -404,6 +405,7 @@ namespace GUI.Types.Renderer
             }
             finally
             {
+                MainFramebuffer.Bind(FramebufferTarget.Framebuffer);
                 bitmap?.Dispose();
             }
         }
@@ -718,6 +720,9 @@ namespace GUI.Types.Renderer
                 MainFramebuffer = GLDefaultFramebuffer;
             }
 
+            SaveAsFbo = Framebuffer.Prepare(4, 4, 0, new(PixelInternalFormat.Rgba8, PixelFormat.Bgra, PixelType.UnsignedByte), null);
+            SaveAsFbo.Initialize();
+
             MainFramebuffer.ClearColor = OpenTK.Graphics.Color4.Green;
             MainFramebuffer.ClearMask = ClearBufferMask.ColorBufferBit;
             GL.DepthMask(false);
@@ -763,15 +768,15 @@ namespace GUI.Types.Renderer
 
             GL.Viewport(0, 0, GLControl.Width, GLControl.Height);
             MainFramebuffer.Clear();
-            Draw();
+            Draw(MainFramebuffer);
         }
 
-        private void Draw(bool captureFullSizeImage = false)
+        private void Draw(Framebuffer fbo, bool captureFullSizeImage = false)
         {
             GL.UseProgram(shader.Program);
 
             shader.SetUniform1("g_bTextureViewer", captureFullSizeImage ? 0u : 1u);
-            shader.SetUniform2("g_vViewportSize", new Vector2(MainFramebuffer.Width, MainFramebuffer.Height));
+            shader.SetUniform2("g_vViewportSize", new Vector2(fbo.Width, fbo.Height));
 
             var (scale, position) = GetCurrentPositionAndScale();
             shader.SetUniform2("g_vViewportPosition", position);
