@@ -775,10 +775,14 @@ namespace GUI.Types.Renderer
         {
             GL.UseProgram(shader.Program);
 
-            shader.SetUniform1("g_bTextureViewer", captureFullSizeImage ? 0u : 1u);
+            shader.SetUniform1("g_bTextureViewer", 1u);
             shader.SetUniform2("g_vViewportSize", new Vector2(fbo.Width, fbo.Height));
 
-            var (scale, position) = GetCurrentPositionAndScale();
+            var (scale, position) = captureFullSizeImage
+                ? (1f, Vector2.Zero)
+                : GetCurrentPositionAndScale();
+
+            shader.SetUniform1("g_bCapturingScreenshot", captureFullSizeImage ? 1u : 0u);
             shader.SetUniform2("g_vViewportPosition", position);
             shader.SetUniform1("g_flScale", scale);
 
