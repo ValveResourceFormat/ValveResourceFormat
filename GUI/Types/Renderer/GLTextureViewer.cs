@@ -558,20 +558,28 @@ namespace GUI.Types.Renderer
                 MovedFromOrigin_Unzoomed = true;
             }
 
-            IsZoomedIn = GLControl.Height < height && GLControl.Width < width;
-
-            const float MaxRatioForClamping = 4f;
-            var ratio = width / height;
-
-            if (ratio > MaxRatioForClamping || ratio < 1 / MaxRatioForClamping)
-            {
-                return;
-            }
+            IsZoomedIn = GLControl.Height < height || GLControl.Width < width;
 
             if (IsZoomedIn)
             {
-                Position.X = Math.Clamp(Position.X, 0, width - GLControl.Width);
-                Position.Y = Math.Clamp(Position.Y, 0, height - GLControl.Height);
+                if (GLControl.Width < width)
+                {
+                    Position.X = Math.Clamp(Position.X, 0, width - GLControl.Width);
+                }
+                else
+                {
+                    Position.X = Math.Clamp(Position.X, Math.Min(0, -GLControl.Width + width), 0);
+                }
+
+                if (GLControl.Height < height)
+                {
+                    Position.Y = Math.Clamp(Position.Y, 0, height - GLControl.Height);
+                }
+                else
+                {
+                    Position.Y = Math.Clamp(Position.Y, Math.Min(0, -GLControl.Height + height), 0);
+                }
+
                 MovedFromOrigin_Unzoomed = false;
                 return;
             }
