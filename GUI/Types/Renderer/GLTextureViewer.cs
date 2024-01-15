@@ -446,8 +446,7 @@ namespace GUI.Types.Renderer
                 Program.MainForm.Text = "Source 2 Viewer - Copying image to clipboard…";
 
                 using var bitmap = ReadPixelsToBitmap();
-                using var bitmap2 = bitmap.ToBitmap();
-                Clipboard.SetImage(bitmap2);
+                ClipboardSetImage(bitmap);
 
                 Program.MainForm.Text = title;
 
@@ -809,6 +808,23 @@ namespace GUI.Types.Renderer
             var scale = float.Lerp(TextureScaleOld, TextureScale, time);
 
             return (scale, position);
+        }
+
+        private static void ClipboardSetImage(SKBitmap bitmap)
+        {
+            var data = new DataObject();
+
+            using var bitmapWindows = bitmap.ToBitmap();
+            data.SetData(DataFormats.Bitmap, true, bitmapWindows);
+
+            using var pngStream = new MemoryStream();
+            using var pixels = bitmap.PeekPixels();
+            var png = pixels.Encode(pngStream, new SKPngEncoderOptions(SKPngEncoderFilterFlags.Sub, zLibLevel: 1));
+
+            bitmapWindows.Save(pngStream, System.Drawing.Imaging.ImageFormat.Png);
+            data.SetData("PNG", false, pngStream);
+
+            Clipboard.SetDataObject(data, copy: true);
         }
     }
 }
