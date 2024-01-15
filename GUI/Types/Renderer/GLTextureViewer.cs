@@ -368,7 +368,8 @@ namespace GUI.Types.Renderer
 
         private SKBitmap ReadPixelsToBitmap()
         {
-            var bitmap = new SKBitmap(texture.Width, texture.Height, SKColorType.Bgra8888, SKAlphaType.Unpremul);
+            var size = ActualTextureSize;
+            var bitmap = new SKBitmap((int)size.X, (int)size.Y, SKColorType.Bgra8888, SKAlphaType.Unpremul);
 
             try
             {
