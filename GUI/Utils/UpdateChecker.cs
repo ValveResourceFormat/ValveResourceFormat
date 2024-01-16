@@ -4,15 +4,14 @@ using System;
 using System.Globalization;
 using System.Net.Http;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace GUI.Utils;
 
-static class UpdateChecker
+static partial class UpdateChecker
 {
-#pragma warning disable CA1812 // TODO: Source generator is not working
-
     public class GithubRelease
     {
         public string tag_name { get; set; }
@@ -29,14 +28,12 @@ static class UpdateChecker
         public Run[] workflow_runs { get; set; }
     }
 
-    /*
-    [JsonSourceGenerationOptions(GenerationMode = JsonSourceGenerationMode.Serialization)]
+    [JsonSourceGenerationOptions(GenerationMode = JsonSourceGenerationMode.Metadata)]
     [JsonSerializable(typeof(GithubActionRuns))]
     [JsonSerializable(typeof(GithubRelease))]
     partial class SourceGenerationContext : JsonSerializerContext
     {
     }
-    */
 
     public static bool IsNewVersionAvailable { get; private set; }
     public static bool IsNewVersionStableBuild { get; private set; }
@@ -109,7 +106,7 @@ static class UpdateChecker
 
         using var jsonStream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
 
-        return await JsonSerializer.DeserializeAsync<GithubRelease>(jsonStream).ConfigureAwait(false);
+        return await JsonSerializer.DeserializeAsync(jsonStream, SourceGenerationContext.Default.GithubRelease).ConfigureAwait(false);
     }
 
 #if !CI_RELEASE_BUILD
@@ -120,7 +117,7 @@ static class UpdateChecker
 
         using var jsonStream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
 
-        return await JsonSerializer.DeserializeAsync<GithubActionRuns>(jsonStream).ConfigureAwait(false);
+        return await JsonSerializer.DeserializeAsync(jsonStream, SourceGenerationContext.Default.GithubActionRuns).ConfigureAwait(false);
     }
 #endif
 }
