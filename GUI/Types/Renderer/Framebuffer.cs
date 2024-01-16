@@ -58,8 +58,17 @@ class Framebuffer : IDisposable
     public override bool Equals(object? obj) => obj is Framebuffer other && other.FboHandle == FboHandle;
     public override int GetHashCode() => FboHandle.GetHashCode();
 
-    public static bool operator ==(Framebuffer left, Framebuffer right) => left.Equals(right);
-    public static bool operator !=(Framebuffer left, Framebuffer right) => !left.Equals(right);
+    public static bool operator ==(Framebuffer left, Framebuffer right)
+    {
+        if (left is null)
+        {
+            return right is null;
+        }
+
+        return left.Equals(right);
+    }
+
+    public static bool operator !=(Framebuffer left, Framebuffer right) => !(left == right);
 
     #endregion
 

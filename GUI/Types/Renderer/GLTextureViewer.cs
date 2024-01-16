@@ -48,6 +48,7 @@ namespace GUI.Types.Renderer
         private bool WantsSeparateAlpha;
         private CubemapProjection CubemapProjectionType;
         private TextureCodec decodeFlags;
+        private Framebuffer SaveAsFbo;
 
         private bool FirstPaint = true;
         private CheckedListBox decodeFlagsListBox;
@@ -375,7 +376,6 @@ namespace GUI.Types.Renderer
             var t = pixmap.Encode(fs, format, 100);
         }
 
-        private Framebuffer SaveAsFbo;
         private SKBitmap ReadPixelsToBitmap()
         {
             var size = ActualTextureSize;
@@ -387,7 +387,17 @@ namespace GUI.Types.Renderer
 
                 // extract pixels from framebuffer
                 GL.Viewport(0, 0, bitmap.Width, bitmap.Height);
-                SaveAsFbo.Resize(bitmap.Width, bitmap.Height);
+
+                if (SaveAsFbo == null)
+                {
+                    SaveAsFbo = Framebuffer.Prepare(bitmap.Width, bitmap.Height, 0, new(PixelInternalFormat.Rgba8, PixelFormat.Bgra, PixelType.UnsignedByte), null);
+                    SaveAsFbo.Initialize();
+                }
+                else
+                {
+                    SaveAsFbo.Resize(bitmap.Width, bitmap.Height);
+                }
+
                 SaveAsFbo.Clear();
 
                 Draw(SaveAsFbo, captureFullSizeImage: true);
@@ -718,9 +728,6 @@ namespace GUI.Types.Renderer
                 MainFramebuffer.Dispose();
                 MainFramebuffer = GLDefaultFramebuffer;
             }
-
-            SaveAsFbo = Framebuffer.Prepare(4, 4, 0, new(PixelInternalFormat.Rgba8, PixelFormat.Bgra, PixelType.UnsignedByte), null);
-            SaveAsFbo.Initialize();
 
             MainFramebuffer.ClearColor = OpenTK.Graphics.Color4.Green;
             MainFramebuffer.ClearMask = ClearBufferMask.ColorBufferBit;
