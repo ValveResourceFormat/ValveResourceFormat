@@ -506,7 +506,7 @@ namespace ValveResourceFormat
 
             extension = extension.EndsWith("_c", StringComparison.Ordinal) ? extension[1..^2] : extension[1..];
 
-            foreach (ResourceType typeValue in Enum.GetValues(typeof(ResourceType)))
+            foreach (var typeValue in Enum.GetValues<ResourceType>())
             {
                 if (typeValue == ResourceType.Unknown)
                 {

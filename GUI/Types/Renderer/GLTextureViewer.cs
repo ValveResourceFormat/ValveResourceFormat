@@ -224,10 +224,10 @@ namespace GUI.Types.Renderer
                     }
                 });
 
-                cubeFaceComboBox.Items.AddRange(Enum.GetNames(typeof(CubemapFace)));
+                cubeFaceComboBox.Items.AddRange(Enum.GetNames<CubemapFace>());
                 cubeFaceComboBox.SelectedIndex = 0;
 
-                equirectangularProjectionCheckBox.Items.AddRange(Enum.GetNames(typeof(CubemapProjection)));
+                equirectangularProjectionCheckBox.Items.AddRange(Enum.GetNames<CubemapProjection>());
                 equirectangularProjectionCheckBox.SelectedIndex = (int)CubemapProjection.Equirectangular;
             }
 
@@ -292,7 +292,7 @@ namespace GUI.Types.Renderer
         private void SetInitialDecodeFlagsState(CheckedListBox listBox)
         {
             listBox.Items.Clear();
-            var values = Enum.GetValues(typeof(TextureCodec));
+            var values = Enum.GetValues<TextureCodec>();
 
             var i = 0;
             for (var flag = 0; flag < values.Length; flag++)
