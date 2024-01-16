@@ -187,7 +187,7 @@ namespace ValveResourceFormat.IO
                         zframeId = 0;
                     }
 
-                    shaderFile.ZFrameCache.EnsureCapacity(configured.StaticConfig.Length ^ 2);
+                    shaderFile.ZFrameCache.EnsureCapacity(configured.StaticConfig.Length);
 
                     var staticVariant = shaderFile.ZFrameCache.Get(zframeId);
 
