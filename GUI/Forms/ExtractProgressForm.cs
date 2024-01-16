@@ -59,7 +59,7 @@ namespace GUI.Forms
 
             foreach (var resourceType in ExtractOrder)
             {
-                var extension = FileExtract.GetExtension(resourceType);
+                var extension = resourceType.GetExtension();
                 filesToExtractSorted.Add(extension + "_c", new());
             }
 
@@ -118,7 +118,7 @@ namespace GUI.Forms
 
             foreach (var type in fileTypesToExtract.OrderByDescending(x => x.Value.Count))
             {
-                /// See <see cref="FileExtract.GetExtension"/>
+                /// See <see cref="ResourceTypeExtensions.GetExtension(ResourceType)"/>
                 var firstType = type.Key switch
                 {
                     "vjs_c" => "js",
@@ -196,7 +196,7 @@ namespace GUI.Forms
                 {
                     foreach (var resourceType in ExtractOrder)
                     {
-                        var extension = FileExtract.GetExtension(resourceType);
+                        var extension = resourceType.GetExtension();
                         var files = filesToExtractSorted[extension + "_c"];
 
                         if (files.Count > 0)

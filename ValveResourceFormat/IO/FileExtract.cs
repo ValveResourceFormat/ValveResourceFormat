@@ -264,18 +264,7 @@ namespace ValveResourceFormat.IO
                     break;
             }
 
-            return GetExtension(resource.ResourceType);
-        }
-
-        public static string GetExtension(ResourceType resourceType)
-        {
-            if (resourceType != ResourceType.Unknown)
-            {
-                var type = typeof(ResourceType).GetMember(resourceType.ToString())[0];
-                return ((ExtensionAttribute)type.GetCustomAttributes(typeof(ExtensionAttribute), false)[0]).Extension;
-            }
-
-            return null;
+            return resource.ResourceType.GetExtension();
         }
     }
 }

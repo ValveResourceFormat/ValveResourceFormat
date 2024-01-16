@@ -307,8 +307,7 @@ namespace GUI.Types.Viewers
 
                             if (resource.ResourceType != ResourceType.Unknown)
                             {
-                                var type = typeof(ResourceType).GetMember(resource.ResourceType.ToString())[0];
-                                var resourceTypeExtension = ((ExtensionAttribute)type.GetCustomAttributes(typeof(ExtensionAttribute), false)[0]).Extension;
+                                var resourceTypeExtension = resource.ResourceType.GetExtension();
                                 resourceTypeExtensionWithDot = string.Concat(".", resourceTypeExtension);
                                 newEntry.TypeName = string.Concat(resourceTypeExtension, "_c");
                             }

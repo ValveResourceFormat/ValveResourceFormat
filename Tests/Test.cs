@@ -47,9 +47,7 @@ namespace Tests
                     extension = extension[..^2];
                 }
 
-                var type = typeof(ResourceType).GetMember(resource.ResourceType.ToString()).First();
-                var attribute = "." + ((ExtensionAttribute)type.GetCustomAttributes(typeof(ExtensionAttribute), false).First()).Extension;
-
+                var attribute = "." + resource.ResourceType.GetExtension();
                 Assert.That(attribute, Is.EqualTo(extension), file);
 
                 if (resource.ResourceType != ResourceType.Map) /// Tested by <see cref="MapExtractTest"/>

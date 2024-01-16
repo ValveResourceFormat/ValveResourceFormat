@@ -508,15 +508,7 @@ namespace ValveResourceFormat
 
             foreach (var typeValue in Enum.GetValues<ResourceType>())
             {
-                if (typeValue == ResourceType.Unknown)
-                {
-                    continue;
-                }
-
-                var type = typeof(ResourceType).GetMember(typeValue.ToString())[0];
-                var typeExt = (ExtensionAttribute)type.GetCustomAttributes(typeof(ExtensionAttribute), false)[0];
-
-                if (typeExt.Extension == extension)
+                if (typeValue.GetExtension() == extension)
                 {
                     return typeValue;
                 }
