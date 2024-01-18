@@ -79,7 +79,8 @@ namespace GUI.Types.Renderer
 
         private Vector3 GetRightVector()
         {
-            return new Vector3(MathF.Cos(Yaw - OpenTK.MathHelper.PiOver2), MathF.Sin(Yaw - OpenTK.MathHelper.PiOver2), 0);
+            const float piOver2 = MathF.PI / 2f;
+            return new Vector3(MathF.Cos(Yaw - piOver2), MathF.Sin(Yaw - piOver2), 0);
         }
 
         public void SetViewConstants(UniformBuffers.ViewConstants viewConstants)
