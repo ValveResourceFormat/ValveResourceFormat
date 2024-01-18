@@ -59,6 +59,7 @@ namespace GUI.Types.Viewers
             switch (resource.ResourceType)
             {
                 case ResourceType.Texture:
+                case ResourceType.PanoramaVectorGraphic:
                     {
                         var textureControl = new GLTextureViewer(vrfGuiContext, resource);
                         var tabGl = new TabPage("TEXTURE");

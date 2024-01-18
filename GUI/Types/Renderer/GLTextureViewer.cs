@@ -4,11 +4,14 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Numerics;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using SkiaSharp;
+using Svg.Skia;
 using ValveResourceFormat;
 using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.ResourceTypes;
@@ -20,12 +23,23 @@ namespace GUI.Types.Renderer
 {
     class GLTextureViewer : GLViewerControl, IGLViewer
     {
+        enum CubemapProjection
+        {
+            None,
+            Equirectangular,
+            Cubic,
+        }
+
         private VrfGuiContext GuiContext;
         private Resource Resource;
         private SKBitmap Bitmap;
+        private SKSvg Svg;
         private RenderTexture texture;
         private Shader shader;
         private int vao;
+
+        private SKBitmap NextBitmapToSet;
+        private int NextBitmapVersion;
 
         private Vector2? ClickPosition;
         private Vector2 Position;
@@ -33,13 +47,8 @@ namespace GUI.Types.Renderer
         private float TextureScale = 1f;
         private float TextureScaleOld = 1f;
         private float TextureScaleChangeTime = 10f;
-
-        enum CubemapProjection
-        {
-            None,
-            Equirectangular,
-            Cubic,
-        }
+        private float OriginalWidth;
+        private float OriginalHeight;
 
         private int SelectedMip;
         private int SelectedDepth;
@@ -57,7 +66,7 @@ namespace GUI.Types.Renderer
         {
             get
             {
-                var size = new Vector2(texture.Width, texture.Height);
+                var size = new Vector2(OriginalWidth, OriginalHeight);
 
                 size *= CubemapProjectionType switch
                 {
@@ -68,7 +77,7 @@ namespace GUI.Types.Renderer
 
                 if (WantsSeparateAlpha && CubemapProjectionType == CubemapProjection.None)
                 {
-                    var mult = texture.Width > texture.Height
+                    var mult = OriginalWidth > OriginalHeight
                         ? new Vector2(1, 2)
                         : new Vector2(2, 1);
 
@@ -118,13 +127,13 @@ namespace GUI.Types.Renderer
         public GLTextureViewer(VrfGuiContext guiContext, SKBitmap bitmap) : this(guiContext)
         {
             Bitmap = bitmap;
+
+            AddChannelsComboBox();
         }
 
         public GLTextureViewer(VrfGuiContext guiContext, Resource resource) : this(guiContext)
         {
             Resource = resource;
-
-            var textureData = (Texture)Resource.DataBlock;
 
             var saveButton = new Button
             {
@@ -143,6 +152,22 @@ namespace GUI.Types.Renderer
             AddControl(copyLabel);
 
             copyLabel.Location = new System.Drawing.Point(saveButton.Width, saveButton.Location.Y + 5);
+
+            if (Resource.ResourceType == ResourceType.PanoramaVectorGraphic)
+            {
+                AddChannelsComboBox();
+
+                using var ms = new MemoryStream(((Panorama)resource.DataBlock).Data);
+                Svg = new SKSvg();
+                Svg.Load(ms);
+
+                OriginalWidth = Svg.Picture.CullRect.Width;
+                OriginalHeight = Svg.Picture.CullRect.Height;
+
+                return;
+            }
+
+            var textureData = (Texture)Resource.DataBlock;
 
             AddControl(new Label
             {
@@ -244,6 +269,22 @@ namespace GUI.Types.Renderer
                 }
             );
 
+            AddChannelsComboBox();
+
+            var forceSoftwareDecode = textureData.IsRawJpeg || textureData.IsRawPng;
+            softwareDecodeCheckBox = AddCheckBox("Software decode", forceSoftwareDecode, (state) =>
+            {
+                SetupTexture(state);
+            });
+
+            if (forceSoftwareDecode)
+            {
+                softwareDecodeCheckBox.Enabled = false;
+            }
+        }
+
+        private void AddChannelsComboBox()
+        {
             var channelsComboBox = AddSelection("Channels", (name, index) =>
             {
                 if (texture == null)
@@ -276,17 +317,6 @@ namespace GUI.Types.Renderer
             }
 
             channelsComboBox.SelectedIndex = DefaultSelection;
-
-            var forceSoftwareDecode = textureData.IsRawJpeg || textureData.IsRawPng;
-            softwareDecodeCheckBox = AddCheckBox("Software decode", forceSoftwareDecode, (state) =>
-            {
-                SetupTexture(state);
-            });
-
-            if (forceSoftwareDecode)
-            {
-                softwareDecodeCheckBox.Enabled = false;
-            }
         }
 
         private void SetInitialDecodeFlagsState(CheckedListBox listBox)
@@ -326,6 +356,13 @@ namespace GUI.Types.Renderer
 
                 Bitmap?.Dispose();
                 Bitmap = null;
+
+                Interlocked.Increment(ref NextBitmapVersion);
+                NextBitmapToSet?.Dispose();
+                NextBitmapToSet = null;
+
+                Svg?.Dispose();
+                Svg = null;
 
                 decodeFlagsListBox?.Dispose();
                 decodeFlagsListBox = null;
@@ -430,6 +467,12 @@ namespace GUI.Types.Renderer
             CenterPosition();
 
             SetZoomLabel();
+
+            if (Svg != null)
+            {
+                Interlocked.Increment(ref NextBitmapVersion);
+                Task.Run(GenerateNewSvgBitmap);
+            }
         }
 
         private void SetZoomLabel() => SetMoveSpeedOrZoomLabel($"Zoom: {TextureScale * 100:0.0}% (scroll to change)");
@@ -566,6 +609,13 @@ namespace GUI.Types.Renderer
 
             ClampPosition();
             SetZoomLabel();
+
+            if (Svg != null && TextureScaleOld != TextureScale)
+            {
+                // Reupload image with new scale
+                Interlocked.Increment(ref NextBitmapVersion);
+                Task.Run(GenerateNewSvgBitmap);
+            }
         }
 
         private void ClampPosition()
@@ -650,6 +700,17 @@ namespace GUI.Types.Renderer
                 texture.SetFiltering(TextureMinFilter.LinearMipmapLinear, TextureMagFilter.Nearest);
             }
 
+            if (Svg == null)
+            {
+                OriginalWidth = texture.Width;
+                OriginalHeight = texture.Height;
+            }
+
+            if (shader != null)
+            {
+                return;
+            }
+
             var textureType = GLTextureDecoder.GetTextureTypeDefine(texture.Target);
             var arguments = new Dictionary<string, byte>
             {
@@ -661,17 +722,23 @@ namespace GUI.Types.Renderer
 
         private void UploadTexture(bool forceSoftwareDecode)
         {
-            if (Resource == null)
+            if (Bitmap != null)
             {
-                Debug.Assert(Bitmap != null);
-                Debug.Assert(Bitmap.ColorType == SKColorType.Bgra8888);
+                UploadBitmap(Bitmap);
 
-                texture = new RenderTexture(TextureTarget.Texture2D, Bitmap.Width, Bitmap.Height, 1, 1);
-                decodeFlags = TextureCodec.None;
+                return;
+            }
 
-                using var _ = texture.BindingContext();
-                GL.TexImage2D(texture.Target, 0, PixelInternalFormat.Rgba8, texture.Width, texture.Height, 0, PixelFormat.Bgra, PixelType.UnsignedByte, Bitmap.GetPixels());
-                GL.TexParameter(texture.Target, TextureParameterName.TextureMaxLevel, 0);
+            if (Svg != null)
+            {
+                GenerateNewSvgBitmap();
+
+                using (NextBitmapToSet)
+                {
+                    UploadBitmap(NextBitmapToSet);
+                }
+
+                NextBitmapToSet = null;
 
                 return;
             }
@@ -698,27 +765,63 @@ namespace GUI.Types.Renderer
 
                 using (bitmap)
                 {
-                    Debug.Assert(bitmap.ColorType == SKColorType.Bgra8888);
-
-                    texture = new RenderTexture(TextureTarget.Texture2D, textureData);
-                    decodeFlags = TextureCodec.None;
-
-                    using var _ = texture.BindingContext();
-                    GL.TexImage2D(texture.Target, 0, PixelInternalFormat.Rgba8, bitmap.Width, bitmap.Height, 0, PixelFormat.Bgra, PixelType.UnsignedByte, bitmap.GetPixels());
-                    GL.TexParameter(texture.Target, TextureParameterName.TextureMaxLevel, 0);
+                    UploadBitmap(bitmap);
                 }
 
                 return;
             }
 
-            // TODO: LoadTexture has things like max texture size and anisotrophy, need to ignore these
             texture = GuiContext.MaterialLoader.LoadTexture(Resource, isViewerRequest: true);
             decodeFlags = textureData.RetrieveCodecFromResourceEditInfo();
         }
 
+        private void UploadBitmap(SKBitmap bitmap)
+        {
+            Debug.Assert(bitmap != null);
+            Debug.Assert(bitmap.ColorType == SKColorType.Bgra8888);
+
+            texture = new RenderTexture(TextureTarget.Texture2D, bitmap.Width, bitmap.Height, 1, 1);
+            decodeFlags = TextureCodec.None;
+
+            using var _ = texture.BindingContext();
+            GL.TexImage2D(texture.Target, 0, PixelInternalFormat.Rgba8, texture.Width, texture.Height, 0, PixelFormat.Bgra, PixelType.UnsignedByte, bitmap.GetPixels());
+            GL.TexParameter(texture.Target, TextureParameterName.TextureMaxLevel, 0);
+        }
+
+        private void GenerateNewSvgBitmap()
+        {
+            var version = NextBitmapVersion;
+
+            var width = Svg.Picture.CullRect.Width * TextureScale;
+            var height = Svg.Picture.CullRect.Height * TextureScale;
+            var imageInfo = new SKImageInfo((int)width, (int)height, SKColorType.Bgra8888, SKAlphaType.Premul, null);
+
+            var bitmap = new SKBitmap(imageInfo);
+
+            try
+            {
+                using var canvas = new SKCanvas(bitmap);
+                canvas.Scale(TextureScale, TextureScale);
+                canvas.DrawPicture(Svg.Picture);
+
+                if (version == NextBitmapVersion)
+                {
+                    NextBitmapToSet = bitmap;
+                    bitmap = null;
+                }
+            }
+            finally
+            {
+                bitmap?.Dispose();
+            }
+        }
+
         private void OnLoad(object sender, EventArgs e)
         {
-            SetupTexture(false);
+            if (Svg == null) /// Svg will be setup on <see cref="FirstPaint"/> because it needs to be rescaled
+            {
+                SetupTexture(false);
+            }
 
             vao = GL.GenVertexArray();
 
@@ -745,13 +848,18 @@ namespace GUI.Types.Renderer
             {
                 FirstPaint = false; // OnLoad has control size of 0 for some reason
 
-                if (GLControl.Width < ActualTextureSize.X || GLControl.Height < ActualTextureSize.Y)
+                if (GLControl.Width < ActualTextureSize.X || GLControl.Height < ActualTextureSize.Y || Svg != null)
                 {
                     // Initially scale image to fit if it's bigger than the viewport
                     TextureScale = Math.Min(
                         GLControl.Width / ActualTextureSize.X,
                         GLControl.Height / ActualTextureSize.Y
                     );
+
+                    if (Svg != null)
+                    {
+                        SetupTexture(false);
+                    }
                 }
                 else
                 {
@@ -768,6 +876,17 @@ namespace GUI.Types.Renderer
                     GLControl.Width / 2f - ActualTextureSizeScaled.X / 2f,
                     GLControl.Height / 2f - ActualTextureSizeScaled.Y / 2f
                 );
+            }
+            else if (NextBitmapToSet != null)
+            {
+                texture?.Dispose();
+
+                using (NextBitmapToSet)
+                {
+                    UploadBitmap(NextBitmapToSet);
+                }
+
+                NextBitmapToSet = null;
             }
 
             TextureScaleChangeTime += e.FrameTime;
@@ -793,7 +912,7 @@ namespace GUI.Types.Renderer
             shader.SetUniform1("g_flScale", scale);
 
             shader.SetTexture(0, "g_tInputTexture", texture);
-            shader.SetUniform4("g_vInputTextureSize", new Vector4(texture.Width, texture.Height, texture.Depth, texture.NumMipLevels));
+            shader.SetUniform4("g_vInputTextureSize", new Vector4(OriginalWidth, OriginalHeight, texture.Depth, texture.NumMipLevels));
             shader.SetUniform1("g_nSelectedMip", SelectedMip);
             shader.SetUniform1("g_nSelectedDepth", SelectedDepth);
             shader.SetUniform1("g_nSelectedCubeFace", SelectedCubeFace);
