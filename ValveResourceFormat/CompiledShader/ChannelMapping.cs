@@ -9,7 +9,7 @@ namespace ValveResourceFormat.CompiledShader
     /// </summary>
     public class ChannelMapping : IEquatable<ChannelMapping>
     {
-        public struct Channel
+        public readonly struct Channel
         {
             public const byte R = 0x00;
             public const byte G = 0x01;

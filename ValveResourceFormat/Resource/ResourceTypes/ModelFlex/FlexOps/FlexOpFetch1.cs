@@ -12,7 +12,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelFlex.FlexOps
             ControllerId = (int)Math.Round(data);
         }
 
-        public override void Run(FlexRuleContext context)
+        public override void Run(in FlexRuleContext context)
         {
             context.Stack.Push(context.ControllerValues[ControllerId]);
         }

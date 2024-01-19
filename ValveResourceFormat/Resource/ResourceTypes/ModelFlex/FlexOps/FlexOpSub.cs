@@ -4,7 +4,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelFlex.FlexOps
     {
         public FlexOpSub(float data) : base(data) { }
 
-        public override void Run(FlexRuleContext context)
+        public override void Run(in FlexRuleContext context)
         {
             var v1 = context.Stack.Pop();
             var v2 = context.Stack.Pop();

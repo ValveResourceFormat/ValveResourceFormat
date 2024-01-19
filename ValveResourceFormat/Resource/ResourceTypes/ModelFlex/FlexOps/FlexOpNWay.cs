@@ -6,7 +6,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelFlex.FlexOps
     {
         public FlexOpNWay(float data) : base(data) { }
 
-        public override void Run(FlexRuleContext context)
+        public override void Run(in FlexRuleContext context)
         {
             var tController = BitConverter.SingleToInt32Bits(context.Stack.Pop());
             var valueController = (int)Math.Round(Data);

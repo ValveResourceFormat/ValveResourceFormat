@@ -110,7 +110,7 @@ namespace GUI.Types.Renderer
                 }
             }
 
-            public (Node Node, int Index) Find(T clientObject, AABB bounds)
+            public (Node Node, int Index) Find(T clientObject, in AABB bounds)
             {
                 if (HasElements)
                 {
@@ -143,7 +143,7 @@ namespace GUI.Types.Renderer
                 Children = null;
             }
 
-            public void Query(AABB boundingBox, List<T> results)
+            public void Query(in AABB boundingBox, List<T> results)
             {
                 if (HasElements)
                 {
@@ -203,14 +203,14 @@ namespace GUI.Types.Renderer
             Root = new Node(null, new Vector3(-size * 0.5f), new Vector3(size));
         }
 
-        public void Insert(T obj, AABB bounds)
+        public void Insert(T obj, in AABB bounds)
         {
             ArgumentNullException.ThrowIfNull(obj);
 
             Root.Insert(new Element { ClientObject = obj, BoundingBox = bounds });
         }
 
-        public void Remove(T obj, AABB bounds)
+        public void Remove(T obj, in AABB bounds)
         {
             ArgumentNullException.ThrowIfNull(obj);
 
@@ -218,7 +218,7 @@ namespace GUI.Types.Renderer
             node?.Elements.RemoveAt(index);
         }
 
-        public void Update(T obj, AABB oldBounds, AABB newBounds)
+        public void Update(T obj, in AABB oldBounds, in AABB newBounds)
         {
             ArgumentNullException.ThrowIfNull(obj);
 
@@ -265,7 +265,7 @@ namespace GUI.Types.Renderer
             Root.Clear();
         }
 
-        public List<T> Query(AABB boundingBox)
+        public List<T> Query(in AABB boundingBox)
         {
             var results = new List<T>();
             Root.Query(boundingBox, results);

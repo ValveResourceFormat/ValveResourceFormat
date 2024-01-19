@@ -5,7 +5,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelFlex.FlexOps
     public abstract class FlexOp
     {
         public float Data { get; private set; }
-        public abstract void Run(FlexRuleContext context);
+        public abstract void Run(in FlexRuleContext context);
 
         protected FlexOp(float data)
         {

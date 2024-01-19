@@ -15,7 +15,7 @@ namespace GUI.Types.Renderer
             return rv;
         }
 
-        public void Update(Matrix4x4 viewProjectionMatrix)
+        public void Update(in Matrix4x4 viewProjectionMatrix)
         {
             Planes[0] = Vector4.Normalize(new Vector4(
                 viewProjectionMatrix.M14 + viewProjectionMatrix.M11,
@@ -56,7 +56,7 @@ namespace GUI.Types.Renderer
             return rv;
         }
 
-        public bool Intersects(AABB box)
+        public bool Intersects(in AABB box)
         {
             for (var i = 0; i < Planes.Length; ++i)
             {

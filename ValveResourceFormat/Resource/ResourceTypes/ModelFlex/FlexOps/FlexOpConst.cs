@@ -4,7 +4,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelFlex.FlexOps
     {
         public FlexOpConst(float data) : base(data) { }
 
-        public override void Run(FlexRuleContext context)
+        public override void Run(in FlexRuleContext context)
         {
             context.Stack.Push(Data);
         }

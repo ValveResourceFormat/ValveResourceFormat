@@ -30,7 +30,7 @@ namespace GUI.Types.Renderer
                 point.Z >= Min.Z && point.Z <= Max.Z;
         }
 
-        public bool Intersects(AABB other)
+        public bool Intersects(in AABB other)
         {
             return
                 other.Max.X >= Min.X && other.Min.X <= Max.X &&
@@ -38,7 +38,7 @@ namespace GUI.Types.Renderer
                 other.Max.Z >= Min.Z && other.Min.Z <= Max.Z;
         }
 
-        public bool Contains(AABB other)
+        public bool Contains(in AABB other)
         {
             return
                 other.Min.X >= Min.X && other.Max.X <= Max.X &&
@@ -46,12 +46,12 @@ namespace GUI.Types.Renderer
                 other.Min.Z >= Min.Z && other.Max.Z <= Max.Z;
         }
 
-        public AABB Union(AABB other)
+        public AABB Union(in AABB other)
         {
             return new AABB(Vector3.Min(Min, other.Min), Vector3.Max(Max, other.Max));
         }
 
-        public AABB Translate(Vector3 offset)
+        public AABB Translate(in Vector3 offset)
         {
             return new AABB(Min + offset, Max + offset);
         }
@@ -59,7 +59,7 @@ namespace GUI.Types.Renderer
         // Note: Since we're dealing with AABBs here, the resulting AABB is likely to be bigger than the original if rotation
         // and whatnot is involved. This problem compounds with multiple transformations. Therefore, endeavour to premultiply matrices
         // and only use this at the last step.
-        public AABB Transform(Matrix4x4 transform)
+        public AABB Transform(in Matrix4x4 transform)
         {
             var c1 = Vector3.Transform(new Vector3(Min.X, Min.Y, Min.Z), transform);
             var c2 = Vector3.Transform(new Vector3(Max.X, Min.Y, Min.Z), transform);

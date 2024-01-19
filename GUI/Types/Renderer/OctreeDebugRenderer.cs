@@ -61,7 +61,7 @@ namespace GUI.Types.Renderer
             vertices.Add(a);
         }
 
-        public static void AddBox(List<float> vertices, AABB box, float r, float g, float b, float a)
+        public static void AddBox(List<float> vertices, in AABB box, float r, float g, float b, float a)
         {
             // Adding a box will add many vertices, so ensure the required capacity for it up front
             vertices.EnsureCapacity(vertices.Count + 14 * 12);
@@ -82,7 +82,7 @@ namespace GUI.Types.Renderer
             AddLine(vertices, new Vector3(box.Min.X, box.Max.Y, box.Min.Z), new Vector3(box.Min.X, box.Max.Y, box.Max.Z), r, g, b, a);
         }
 
-        public static void AddBox(List<float> vertices, Matrix4x4 transform, AABB box, float r, float g, float b, float a)
+        public static void AddBox(List<float> vertices, in Matrix4x4 transform, in AABB box, float r, float g, float b, float a)
         {
             // Adding a box will add many vertices, so ensure the required capacity for it up front
             vertices.EnsureCapacity(vertices.Count + 14 * 12);

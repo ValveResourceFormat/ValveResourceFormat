@@ -140,12 +140,12 @@ public sealed class ShaderExtract
         return ToVFXInternal(ShaderExtractParams.Inspect);
     }
 
-    public (string VfxContent, IDictionary<string, string> Includes) ToVFX(ShaderExtractParams options)
+    public (string VfxContent, IDictionary<string, string> Includes) ToVFX(in ShaderExtractParams options)
     {
         return (ToVFXInternal(options), IncludeWriters.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.ToString()));
     }
 
-    private string ToVFXInternal(ShaderExtractParams options)
+    private string ToVFXInternal(in ShaderExtractParams options)
     {
         Options = options;
         IncludeWriters = [];
