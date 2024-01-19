@@ -11,10 +11,10 @@ namespace ValveResourceFormat.TextureDecoders
 
             for (int i = 0, j = 0; j < data.Length; i += 8, j++)
             {
-                var hr = BitConverter.ToUInt16(input.Slice(i, 2)) / 256f;
-                var hg = BitConverter.ToUInt16(input.Slice(i + 2, 2)) / 256f;
-                var hb = BitConverter.ToUInt16(input.Slice(i + 2, 4)) / 256f;
-                var ha = BitConverter.ToUInt16(input.Slice(i + 2, 6)) / 256f;
+                var hr = (float)BitConverter.ToUInt16(input.Slice(i, 2)) / uint.MaxValue;
+                var hg = (float)BitConverter.ToUInt16(input.Slice(i + 2, 2)) / uint.MaxValue;
+                var hb = (float)BitConverter.ToUInt16(input.Slice(i + 2, 4)) / uint.MaxValue;
+                var ha = (float)BitConverter.ToUInt16(input.Slice(i + 2, 6)) / uint.MaxValue;
 
                 data[j] = new SKColorF(hr, hg, hb, ha);
             }

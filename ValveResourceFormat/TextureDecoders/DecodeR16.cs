@@ -12,10 +12,10 @@ namespace ValveResourceFormat.TextureDecoders
 
             for (var i = 0; i < span.Length; i++)
             {
-                var hr = BitConverter.ToUInt16(input[offset..(offset + 2)]) / 256f;
+                var r = (float)BitConverter.ToUInt16(input.Slice(offset, sizeof(ushort))) / ushort.MaxValue;
                 offset += 2;
 
-                span[i] = new SKColorF(hr, 0f, 0f);
+                span[i] = new SKColorF(r, 0f, 0f);
             }
         }
 
