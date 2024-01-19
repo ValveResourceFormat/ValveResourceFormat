@@ -23,9 +23,9 @@ namespace ValveResourceFormat.TextureDecoders
 
         public void DecodeLowDynamicRange(SKBitmap bitmap, Span<byte> input)
         {
-            using var pixels = bitmap.PeekPixels();
-            var data = pixels.GetPixelSpan<byte>();
-            var rowBytes = bitmap.RowBytes;
+            using var pixmap = bitmap.PeekPixels();
+            var pixels = pixmap.GetPixelSpan<SKColorF>();
+            var bitmapWidth = bitmap.Width;
             var offset = 0;
 
             var endpoints = new ushort[4, 3];
@@ -312,7 +312,8 @@ namespace ValveResourceFormat.TextureDecoders
                     {
                         for (var bx = 0; bx < 4; bx++)
                         {
-                            var pixelIndex = (((j * 4) + by) * rowBytes) + (((i * 4) + bx) * 4);
+                            var pixelIndex = (((j * 4) + by) * bitmapWidth) + (i * 4) + bx;
+
                             var io = (by * 4) + bx;
 
                             var isAnchor = 0;
@@ -332,15 +333,21 @@ namespace ValveResourceFormat.TextureDecoders
                                 ib >>= 3 - isAnchor;
                             }
 
+                            /*
+                            LDR code
                             for (var e = 0; e < 3; e++)
                             {
                                 var factor = BPTCInterpolateFactor(cweight, endpoints[subset, e], endpoints[subset + 1, e]);
                                 //gamma correction and mul 4
                                 factor = (ushort)Math.Min(0xFFFF, Math.Pow(factor / (float)((1U << 16) - 1), 2.2f) * ((1U << 16) - 1) * 4);
                                 data[pixelIndex + 2 - e] = (byte)(factor >> 8);
-                            }
+                            }*/
 
-                            data[pixelIndex + 3] = byte.MaxValue;
+                            var hr = (float)BPTCInterpolateFactor(cweight, endpoints[subset, 0], endpoints[subset + 1, 0]) / ushort.MaxValue;
+                            var hg = (float)BPTCInterpolateFactor(cweight, endpoints[subset, 1], endpoints[subset + 1, 1]) / ushort.MaxValue;
+                            var hb = (float)BPTCInterpolateFactor(cweight, endpoints[subset, 2], endpoints[subset + 1, 2]) / ushort.MaxValue;
+
+                            pixels[pixelIndex] = new SKColorF(hr, hg, hb, 1.0f);
                         }
                     }
                 }
