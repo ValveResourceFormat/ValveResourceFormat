@@ -787,13 +787,19 @@ namespace GUI.Types.Renderer
         private void UploadBitmap(SKBitmap bitmap)
         {
             Debug.Assert(bitmap != null);
-            Debug.Assert(bitmap.ColorType == SKColorType.Bgra8888);
 
             texture = new RenderTexture(TextureTarget.Texture2D, bitmap.Width, bitmap.Height, 1, 1);
             decodeFlags = TextureCodec.None;
 
-            GL.TextureStorage2D(texture.Handle, 1, SizedInternalFormat.Rgba8, texture.Width, texture.Height);
-            GL.TextureSubImage2D(texture.Handle, 0, 0, 0, texture.Width, texture.Height, PixelFormat.Bgra, PixelType.UnsignedByte, bitmap.GetPixels());
+            var (sizedInternalFormat, pixelFormat, pixelType) = bitmap.ColorType switch
+            {
+                SKColorType.Bgra8888 => (SizedInternalFormat.Rgba8, PixelFormat.Bgra, PixelType.UnsignedByte),
+                SKColorType.RgbaF32 => (SizedInternalFormat.Rgba32f, PixelFormat.Rgba, PixelType.Float),
+                _ => throw new InvalidOperationException("Unsupported color type: {bitmap.ColorType}"),
+            };
+
+            GL.TextureStorage2D(texture.Handle, 1, sizedInternalFormat, texture.Width, texture.Height);
+            GL.TextureSubImage2D(texture.Handle, 0, 0, 0, texture.Width, texture.Height, pixelFormat, pixelType, bitmap.GetPixels());
         }
 
         private void GenerateNewSvgBitmap()
