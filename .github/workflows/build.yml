@@ -48,11 +48,11 @@ jobs:
           nuget-${{ runner.os }}-
           nuget-
 
-    - name: Build CLI
-      run: dotnet build -c Release ./Decompiler/Decompiler.csproj
-
     - name: Build Library
       run: dotnet build -c Release ./ValveResourceFormat/ValveResourceFormat.csproj
+
+    - name: Build CLI
+      run: dotnet build -c Release ./Decompiler/Decompiler.csproj
 
     - name: Build GUI
       if: matrix.os == 'windows-latest'
