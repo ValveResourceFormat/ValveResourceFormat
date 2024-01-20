@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using NUnit.Framework;
+using SteamDatabase.ValvePak;
 using ValveResourceFormat;
 using ValveResourceFormat.IO;
 
@@ -41,6 +42,27 @@ namespace Tests
             //Assert.That(contentFile, Is.Not.Null);
             //Assert.That(contentFile.Data, Is.Not.Null);
             //Assert.That(contentFile.Data.Length, Is.GreaterThan(0));
+        }
+
+        [Test]
+        public void TestMapExtractFromVpk()
+        {
+            var vpkPath = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "small_map_with_material.vpk");
+
+            using var package = new Package();
+            package.Read(vpkPath);
+
+            using var loader = new GameFileLoader(package, vpkPath);
+
+            using var worldResource = loader.LoadFile("maps/ui/nametag.vmap_c");
+
+            var extract = new MapExtract(worldResource, loader);
+
+            extract.ToValveMap();
+
+            var contentFile = extract.ToContentFile();
+            Assert.That(contentFile, Is.Not.Null);
+            Assert.That(contentFile.Data, Is.Not.Null);
         }
     }
 }
