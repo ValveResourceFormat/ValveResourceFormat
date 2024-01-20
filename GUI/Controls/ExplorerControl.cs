@@ -178,6 +178,10 @@ namespace GUI.Controls
                 }
             }
 
+#if DEBUG
+            DebugAddEmbeddedResourcesToTree();
+#endif
+
             if (gamePathsToScan.Count == 0)
             {
                 return;
@@ -399,6 +403,13 @@ namespace GUI.Controls
         private void OnTreeViewNodeMouseDoubleClick(object sender, TreeNodeMouseClickEventArgs e)
         {
             var path = (string)e.Node.Tag;
+
+#if DEBUG
+            if (DebugOpenEmbeddedResource(path))
+            {
+                return;
+            }
+#endif
 
             if (File.Exists(path))
             {
@@ -624,5 +635,67 @@ namespace GUI.Controls
 
             return destImage;
         }
+
+#if DEBUG
+        private void DebugAddEmbeddedResourcesToTree()
+        {
+            var assembly = System.Reflection.Assembly.GetExecutingAssembly();
+            var embeddedResources = assembly.GetManifestResourceNames().Where(n => n.StartsWith("GUI.Utils.", StringComparison.Ordinal) && n.EndsWith("_c", StringComparison.Ordinal));
+
+            var imageIndex = MainForm.GetImageIndexForExtension("bsp");
+            var embeddedFilesTreeNode = new TreeNode("Embedded Resources")
+            {
+                ImageIndex = imageIndex,
+                SelectedImageIndex = imageIndex,
+                ContextMenuStrip = recentFilesContextMenuStrip,
+            };
+
+            foreach (var embeddedResource in embeddedResources)
+            {
+                var extension = Path.GetExtension(embeddedResource).ToLowerInvariant();
+                imageIndex = MainForm.GetImageIndexForExtension(extension[1..]);
+
+                var debugTreeNode = new TreeNode(embeddedResource)
+                {
+                    Tag = $"vrf_embedded:{embeddedResource}",
+                    ImageIndex = imageIndex,
+                    SelectedImageIndex = imageIndex,
+                };
+                embeddedFilesTreeNode.Nodes.Add(debugTreeNode);
+            }
+
+            treeView.Nodes.Add(embeddedFilesTreeNode);
+        }
+
+        private static bool DebugOpenEmbeddedResource(string path)
+        {
+            if (!path.StartsWith("vrf_embedded:", StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            var name = path["vrf_embedded:".Length..];
+
+            var assembly = System.Reflection.Assembly.GetExecutingAssembly();
+            using var stream = assembly.GetManifestResourceStream(name);
+            using var ms = new MemoryStream((int)stream.Length);
+
+            using var package = new SteamDatabase.ValvePak.Package();
+            stream.CopyTo(ms);
+            var file = package.AddFile(name, ms.ToArray());
+
+#pragma warning disable CA2000 // Dispose objects before losing scope -- debug code who cares
+            var contextPackage = new VrfGuiContext("vrf_embedded.vpk", null)
+            {
+                CurrentPackage = package
+            };
+            var contextFile = new VrfGuiContext(name, contextPackage);
+#pragma warning restore CA2000
+
+            Program.MainForm.OpenFile(contextFile, file);
+
+            return true;
+        }
+#endif
     }
 }
