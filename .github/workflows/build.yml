@@ -28,6 +28,9 @@ jobs:
 
     runs-on: ${{ matrix.os }}
 
+    env:
+      NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
+
     steps:
     - uses: actions/checkout@v4
 
@@ -35,6 +38,15 @@ jobs:
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: 8.0.x
+
+    - name: Cache NuGet
+      uses: actions/cache@v3
+      with:
+        path: ${{ env.NUGET_PACKAGES }}
+        key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj') }}
+        restore-keys: |
+          nuget-${{ runner.os }}-
+          nuget-
 
     - name: Build CLI
       run: dotnet build -c Release ./Decompiler/Decompiler.csproj
