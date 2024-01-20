@@ -3,7 +3,9 @@ Sample Rate: 11025
 Bits: 8
 SampleSize: 1
 SampleCount: 2387
-Format: 1
+Format: PCM
 Channels: 1
-LoopStart: -1
-Duration: 00:00:00.2170000 (0.2165079)
+LoopStart: (-00:00:01) -1
+LoopEnd: (00:00:00) 0
+Duration: 00:00:00.2165079 (0.21650794)
+StreamingDataSize: 2387

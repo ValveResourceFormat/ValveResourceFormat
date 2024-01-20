@@ -120,6 +120,8 @@ namespace Tests
 
                 // We don't care about Valve's messy whitespace, so just strip it.
                 actualOutput = SpaceRegex().Replace(actualOutput, string.Empty);
+
+                expectedOutput = expectedOutput.Replace("Source 2 Viewer - https://valveresourceformat.github.io", StringToken.VRF_GENERATOR, StringComparison.Ordinal);
                 expectedOutput = SpaceRegex().Replace(expectedOutput, string.Empty);
 
                 //Assert.That(actualOutput, Is.EqualTo(expectedOutput));

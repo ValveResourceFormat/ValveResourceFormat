@@ -1,22 +1,23 @@
+<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:generic:version{7412167c-06e9-4698-aff2-e63eb59037e7} -->
 {
 	_class = "CRenderMesh"
-	m_sceneObjects =
+	m_sceneObjects = 
 	[
 		{
 			_class = "CSceneObjectData"
-			m_vMinBounds =
+			m_vMinBounds = 
 			[
 				-4.000000,
 				-4.000000,
 				-4.000000,
 			]
-			m_vMaxBounds =
+			m_vMaxBounds = 
 			[
 				4.000000,
 				4.000000,
 				4.000000,
 			]
-			m_drawCalls =
+			m_drawCalls = 
 			[
 				{
 					_class = "CMaterialDrawDescriptor"
@@ -29,20 +30,20 @@
 					m_nInstanceCount = 0
 					m_flUvDensity = 0.080000
 					m_nFlags = "MESH_DRAW_FLAGS_USE_COMPRESSED_NORMAL_TANGENT"
-					m_vTintColor =
+					m_vTintColor = 
 					[
 						1.000000,
 						1.000000,
 						1.000000,
 					]
-					m_indexBuffer =
+					m_indexBuffer = 
 					{
 						_class = "RenderBufferBinding_t"
 						m_hBuffer = 0
 						m_nBindOffsetBytes = 0
 					}
 					m_material = resource:"materials/models/props_vehicles/c130_propeller.vmat"
-					m_vertexBuffers =
+					m_vertexBuffers = 
 					[
 						{
 							m_hBuffer = 0
@@ -51,7 +52,7 @@
 					]
 				},
 			]
-			m_vTintColor =
+			m_vTintColor = 
 			[
 				0.000000,
 				0.000000,
@@ -61,44 +62,44 @@
 		},
 	]
 	m_morphSet = null
-	m_constraints =
+	m_constraints = 
 	[
 	]
-	m_skeleton =
+	m_skeleton = 
 	{
 		_class = "CRenderSkeleton"
-		m_bones =
+		m_bones = 
 		[
 			{
 				_class = "RenderSkeletonBone_t"
 				m_boneName = "Base"
 				m_parentName = ""
-				m_invBindPose =
+				m_invBindPose = 
 				[
 					1.000000,
 					0.000000,
 					0.000000,
-					0.000000,
+					-0.000000,
 					0.000000,
 					0.000000,
 					1.000000,
-					0.000000,
+					-0.000000,
 					0.000000,
 					-1.000000,
 					0.000000,
-					0.000000,
+					-0.000000,
 				]
-				m_bbox =
+				m_bbox = 
 				{
 					_class = "SkeletonBoneBbox_t"
-					m_vecCenter =
+					m_vecCenter = 
 					[
 						0.000000,
 						0.000000,
 						0.000000,
 					]
 					m_pad0 = 0.000000
-					m_vecSize =
+					m_vecSize = 
 					[
 						4.000000,
 						4.000001,
@@ -112,32 +113,32 @@
 				_class = "RenderSkeletonBone_t"
 				m_boneName = "Attachment_1"
 				m_parentName = ""
-				m_invBindPose =
+				m_invBindPose = 
 				[
 					1.000000,
 					0.000000,
 					0.000000,
-					0.000000,
+					-0.000000,
 					0.000000,
 					0.000000,
 					1.000000,
-					0.000000,
+					-0.000000,
 					0.000000,
 					-1.000000,
 					0.000000,
-					0.000000,
+					-0.000000,
 				]
-				m_bbox =
+				m_bbox = 
 				{
 					_class = "SkeletonBoneBbox_t"
-					m_vecCenter =
+					m_vecCenter = 
 					[
 						0.000000,
 						0.000000,
 						0.000000,
 					]
 					m_pad0 = 0.000000
-					m_vecSize =
+					m_vecSize = 
 					[
 						0.040000,
 						0.040000,
@@ -151,32 +152,32 @@
 				_class = "RenderSkeletonBone_t"
 				m_boneName = "Attachment_2"
 				m_parentName = "Base"
-				m_invBindPose =
+				m_invBindPose = 
 				[
 					0.000000,
 					-1.000000,
 					0.000000,
-					0.000000,
+					-0.000000,
 					1.000000,
 					0.000000,
 					0.000000,
-					0.000000,
+					-0.000000,
 					0.000000,
 					0.000000,
 					1.000000,
-					0.000000,
+					-0.000000,
 				]
-				m_bbox =
+				m_bbox = 
 				{
 					_class = "SkeletonBoneBbox_t"
-					m_vecCenter =
+					m_vecCenter = 
 					[
 						0.000000,
 						0.000000,
 						0.000000,
 					]
 					m_pad0 = 0.000000
-					m_vecSize =
+					m_vecSize = 
 					[
 						0.000000,
 						0.000000,
@@ -190,32 +191,32 @@
 				_class = "RenderSkeletonBone_t"
 				m_boneName = "Attachment_3"
 				m_parentName = "Base"
-				m_invBindPose =
+				m_invBindPose = 
 				[
 					0.000000,
 					-1.000000,
 					0.000000,
-					0.000000,
+					-0.000000,
 					1.000000,
 					0.000000,
 					0.000000,
-					0.000000,
+					-0.000000,
 					0.000000,
 					0.000000,
 					1.000000,
-					0.000000,
+					-0.000000,
 				]
-				m_bbox =
+				m_bbox = 
 				{
 					_class = "SkeletonBoneBbox_t"
-					m_vecCenter =
+					m_vecCenter = 
 					[
 						0.000000,
 						0.000000,
 						0.000000,
 					]
 					m_pad0 = 0.000000
-					m_vecSize =
+					m_vecSize = 
 					[
 						0.000000,
 						0.000000,
@@ -229,32 +230,32 @@
 				_class = "RenderSkeletonBone_t"
 				m_boneName = "Attachment_4"
 				m_parentName = "Base"
-				m_invBindPose =
+				m_invBindPose = 
 				[
 					0.000000,
 					-1.000000,
 					0.000000,
-					0.000000,
+					-0.000000,
 					1.000000,
 					0.000000,
 					0.000000,
-					0.000000,
+					-0.000000,
 					0.000000,
 					0.000000,
 					1.000000,
-					0.000000,
+					-0.000000,
 				]
-				m_bbox =
+				m_bbox = 
 				{
 					_class = "SkeletonBoneBbox_t"
-					m_vecCenter =
+					m_vecCenter = 
 					[
 						0.000000,
 						0.000000,
 						0.000000,
 					]
 					m_pad0 = 0.000000
-					m_vecSize =
+					m_vecSize = 
 					[
 						0.000000,
 						0.000000,
@@ -265,57 +266,63 @@
 				m_flSphereRadius = 0.000000
 			},
 		]
-		m_boneParents =
+		m_boneParents = 
 		[
 		]
 		m_nFlags = "RenderSkeletonData_t::FLAG_BLEND_WEIGHT_COUNT_SHIFT"
 		m_nBoneWeightCount = 3
 	}
-	m_attachments =
+	m_attachments = 
 	[
 		{
 			key = "Attachment_1"
-			value =
+			value = 
 			{
 				m_name = "Attachment_1"
-				m_influenceNames =
+				m_influenceNames = 
 				[
 					"Attachment_1",
 					"",
 					"",
 				]
-				m_vInfluenceOffsets =
+				m_vInfluenceOffsets = 
 				[
+					
 					[
 						0.000000,
 						0.000000,
 						0.000000,
 					],
+					
 					[
 						0.000000,
 						0.000000,
 						0.000000,
 					],
+					
 					[
 						0.000000,
 						0.000000,
 						0.000000,
 					],
 				]
-				m_vInfluenceRotations =
+				m_vInfluenceRotations = 
 				[
+					
 					[
 						0.000000,
 						0.000000,
 						0.000000,
 						1.000000,
 					],
+					
 					[
 						0.000000,
 						0.000000,
 						0.000000,
 						1.000000,
 					],
+					
 					[
 						0.000000,
 						0.000000,
@@ -323,13 +330,13 @@
 						1.000000,
 					],
 				]
-				m_influenceWeights =
+				m_influenceWeights = 
 				[
 					1.000000,
 					0.000000,
 					0.000000,
 				]
-				m_influenceFlags =
+				m_influenceFlags = 
 				[
 					"ATTACHMENT_INFLUENCE_FLAGS_NONE",
 					"ATTACHMENT_INFLUENCE_FLAGS_NONE",
@@ -340,47 +347,53 @@
 		},
 		{
 			key = "Attachment_2"
-			value =
+			value = 
 			{
 				m_name = "Attachment_2"
-				m_influenceNames =
+				m_influenceNames = 
 				[
 					"Attachment_2",
 					"",
 					"",
 				]
-				m_vInfluenceOffsets =
+				m_vInfluenceOffsets = 
 				[
+					
 					[
 						0.000000,
 						0.000000,
 						0.000000,
 					],
+					
 					[
 						0.000000,
 						0.000000,
 						0.000000,
 					],
+					
 					[
 						0.000000,
 						0.000000,
 						0.000000,
 					],
 				]
-				m_vInfluenceRotations =
+				m_vInfluenceRotations = 
 				[
+					
+					[
+						0.000000,
+						-0.000000,
+						0.000000,
+						1.000000,
+					],
+					
 					[
 						0.000000,
 						0.000000,
 						0.000000,
 						1.000000,
 					],
-					[
-						0.000000,
-						0.000000,
-						0.000000,
-						1.000000,
-					],
+					
 					[
 						0.000000,
 						0.000000,
@@ -388,13 +401,13 @@
 						1.000000,
 					],
 				]
-				m_influenceWeights =
+				m_influenceWeights = 
 				[
 					1.000000,
 					0.000000,
 					0.000000,
 				]
-				m_influenceFlags =
+				m_influenceFlags = 
 				[
 					"ATTACHMENT_INFLUENCE_FLAGS_NONE",
 					"ATTACHMENT_INFLUENCE_FLAGS_NONE",
@@ -405,47 +418,53 @@
 		},
 		{
 			key = "Attachment_3"
-			value =
+			value = 
 			{
 				m_name = "Attachment_3"
-				m_influenceNames =
+				m_influenceNames = 
 				[
 					"Attachment_3",
 					"",
 					"",
 				]
-				m_vInfluenceOffsets =
+				m_vInfluenceOffsets = 
 				[
+					
 					[
 						0.000000,
 						0.000000,
 						0.000000,
 					],
+					
 					[
 						0.000000,
 						0.000000,
 						0.000000,
 					],
+					
 					[
 						0.000000,
 						0.000000,
 						0.000000,
 					],
 				]
-				m_vInfluenceRotations =
+				m_vInfluenceRotations = 
 				[
+					
+					[
+						0.000000,
+						-0.000000,
+						0.000000,
+						1.000000,
+					],
+					
 					[
 						0.000000,
 						0.000000,
 						0.000000,
 						1.000000,
 					],
-					[
-						0.000000,
-						0.000000,
-						0.000000,
-						1.000000,
-					],
+					
 					[
 						0.000000,
 						0.000000,
@@ -453,13 +472,13 @@
 						1.000000,
 					],
 				]
-				m_influenceWeights =
+				m_influenceWeights = 
 				[
 					1.000000,
 					0.000000,
 					0.000000,
 				]
-				m_influenceFlags =
+				m_influenceFlags = 
 				[
 					"ATTACHMENT_INFLUENCE_FLAGS_NONE",
 					"ATTACHMENT_INFLUENCE_FLAGS_NONE",
@@ -470,47 +489,53 @@
 		},
 		{
 			key = "Attachment_4"
-			value =
+			value = 
 			{
 				m_name = "Attachment_4"
-				m_influenceNames =
+				m_influenceNames = 
 				[
 					"Attachment_4",
 					"",
 					"",
 				]
-				m_vInfluenceOffsets =
+				m_vInfluenceOffsets = 
 				[
+					
 					[
 						0.000000,
 						0.000000,
 						0.000000,
 					],
+					
 					[
 						0.000000,
 						0.000000,
 						0.000000,
 					],
+					
 					[
 						0.000000,
 						0.000000,
 						0.000000,
 					],
 				]
-				m_vInfluenceRotations =
+				m_vInfluenceRotations = 
 				[
+					
+					[
+						0.000000,
+						-0.000000,
+						0.000000,
+						1.000000,
+					],
+					
 					[
 						0.000000,
 						0.000000,
 						0.000000,
 						1.000000,
 					],
-					[
-						0.000000,
-						0.000000,
-						0.000000,
-						1.000000,
-					],
+					
 					[
 						0.000000,
 						0.000000,
@@ -518,13 +543,13 @@
 						1.000000,
 					],
 				]
-				m_influenceWeights =
+				m_influenceWeights = 
 				[
 					1.000000,
 					0.000000,
 					0.000000,
 				]
-				m_influenceFlags =
+				m_influenceFlags = 
 				[
 					"ATTACHMENT_INFLUENCE_FLAGS_NONE",
 					"ATTACHMENT_INFLUENCE_FLAGS_NONE",
@@ -534,19 +559,19 @@
 			}
 		},
 	]
-	m_hitboxsets =
+	m_hitboxsets = 
 	[
 		{
 			key = "default"
-			value =
+			value = 
 			{
 				m_name = "default"
 				m_nNameHash = 1977497166
-				m_HitBoxes =
+				m_HitBoxes = 
 				[
 					{
 						_class = "CHitBox"
-						m_forcedRotation =
+						m_forcedRotation = 
 						[
 							1.000000,
 							0.000000,
@@ -566,7 +591,7 @@
 						m_sBoneName = "Base"
 						m_nBoneNameHash = 690760755
 						m_nGroupId = 0
-						m_cRenderColor =
+						m_cRenderColor = 
 						[
 							255,
 							255,
@@ -574,13 +599,13 @@
 							64,
 						]
 						m_nHitBoxIndex = 0
-						m_vMinBounds =
+						m_vMinBounds = 
 						[
 							-4.000000,
 							-4.000001,
 							-4.000001,
 						]
-						m_vMaxBounds =
+						m_vMaxBounds = 
 						[
 							4.000000,
 							4.000001,
