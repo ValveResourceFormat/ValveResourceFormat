@@ -1,6 +1,6 @@
-using GUI.Utils;
 using System;
 using System.Collections.Generic;
+using GUI.Utils;
 using ValveResourceFormat.ResourceTypes;
 
 namespace GUI.Types.Renderer

@@ -1,7 +1,7 @@
-using DMElement = Datamodel.Element;
-using Datamodel.Format;
-using System.Numerics;
 using System;
+using System.Numerics;
+using Datamodel.Format;
+using DMElement = Datamodel.Element;
 
 namespace ValveResourceFormat.IO.ContentFormats.DmxModel;
 

@@ -1,6 +1,6 @@
 using System.Numerics;
-using DMElement = Datamodel.Element;
 using Datamodel.Format;
+using DMElement = Datamodel.Element;
 
 namespace ValveResourceFormat.IO.ContentFormats.ValveMap;
 

@@ -4,9 +4,9 @@ using System.Globalization;
 using System.IO;
 using System.Text;
 using SkiaSharp;
+using ValveResourceFormat.IO.ContentFormats.ValveTexture;
 using ValveResourceFormat.ResourceTypes;
 using ChannelMapping = ValveResourceFormat.CompiledShader.ChannelMapping;
-using ValveResourceFormat.IO.ContentFormats.ValveTexture;
 
 namespace ValveResourceFormat.IO;
 

@@ -11,12 +11,12 @@ using Datamodel;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO.ContentFormats.DmxModel;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics;
-using RnShapes = ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes;
 using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Serialization.KeyValues;
 using ValveResourceFormat.Utils;
-using ValveResourceFormat.ResourceTypes.ModelAnimation;
+using RnShapes = ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes;
 
 
 namespace ValveResourceFormat.IO;

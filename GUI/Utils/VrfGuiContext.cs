@@ -1,13 +1,13 @@
 using System;
 using System.Diagnostics;
+using System.Threading.Tasks;
 using GUI.Types.Renderer;
 using SteamDatabase.ValvePak;
 using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.ToolsAssetInfo;
 using ValveResourceFormat.Serialization;
+using ValveResourceFormat.ToolsAssetInfo;
 using ValveResourceFormat.Utils;
-using System.Threading.Tasks;
 
 namespace GUI.Utils
 {
