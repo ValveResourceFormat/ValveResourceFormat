@@ -115,8 +115,6 @@ namespace Tests
                     continue;
                 }
 
-                TestContext.Out.WriteLine($"Verifying file '{file}' - {blockType}");
-
                 var actualOutput = resource.GetBlockByType(blockType).ToString();
                 var expectedOutput = File.ReadAllText(file);
 
@@ -124,7 +122,7 @@ namespace Tests
                 actualOutput = SpaceRegex().Replace(actualOutput, string.Empty);
                 expectedOutput = SpaceRegex().Replace(expectedOutput, string.Empty);
 
-                //Assert.AreEqual(expectedOutput, actualOutput);
+                //Assert.That(actualOutput, Is.EqualTo(expectedOutput));
                 if (expectedOutput != actualOutput)
                 {
                     TestContext.Error.WriteLine($"File '{file}' has mismatching ToString() in {blockType}");

@@ -59,7 +59,7 @@ jobs:
       run: dotnet build -c Release ./ValveResourceFormat/ValveResourceFormat.csproj
 
     - name: Run tests
-      run: dotnet test -v normal ./Tests/Tests.csproj /p:CollectCoverage=true /p:CoverletOutputFormat=lcov /p:CoverletOutput='./lcov.info' /p:Include="[ValveResourceFormat*]*"
+      run: dotnet test ./Tests/Tests.csproj /p:CollectCoverage=true /p:CoverletOutputFormat=lcov /p:CoverletOutput='./lcov.info' /p:Include="[ValveResourceFormat*]*"
 
 #    - name: Check formatting
 #      if: matrix.os == 'ubuntu-latest'
