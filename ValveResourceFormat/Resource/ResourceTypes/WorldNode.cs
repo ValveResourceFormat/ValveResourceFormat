@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using ValveResourceFormat.Serialization;
 
 namespace ValveResourceFormat.ResourceTypes

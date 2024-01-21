@@ -1,4 +1,3 @@
-using System.Numerics;
 using GUI.Types.ParticleRenderer.Utils;
 using GUI.Utils;
 

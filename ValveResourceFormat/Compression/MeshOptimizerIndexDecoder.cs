@@ -1,7 +1,6 @@
 /**
  * C# Port of https://github.com/zeux/meshoptimizer/blob/master/src/indexcodec.cpp
  */
-using System;
 using System.Buffers.Binary;
 using System.IO;
 

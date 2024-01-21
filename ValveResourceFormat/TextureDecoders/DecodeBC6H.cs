@@ -1,6 +1,5 @@
 // Copyright 2020 lewa_j [https://github.com/lewa-j]
 // Reference: https://registry.khronos.org/DataFormat/specs/1.3/dataformat.1.3.html#bptc_bc6h
-using System;
 using SkiaSharp;
 
 namespace ValveResourceFormat.TextureDecoders

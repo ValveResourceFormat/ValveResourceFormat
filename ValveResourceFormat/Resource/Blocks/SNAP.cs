@@ -1,8 +1,6 @@
 using System.Collections;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Numerics;
 using ValveResourceFormat.Compression;
 using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Utils;

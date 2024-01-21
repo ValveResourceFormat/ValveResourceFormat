@@ -1,4 +1,3 @@
-using System;
 using GUI.Types.ParticleRenderer.Utils;
 using GUI.Utils;
 using ValveResourceFormat;

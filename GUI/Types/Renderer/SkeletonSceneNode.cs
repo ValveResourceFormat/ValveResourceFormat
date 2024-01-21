@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-using System.Numerics;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using PrimitiveType = OpenTK.Graphics.OpenGL.PrimitiveType;

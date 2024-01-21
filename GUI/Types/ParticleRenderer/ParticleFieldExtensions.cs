@@ -1,5 +1,3 @@
-using System;
-using System.Numerics;
 using ValveResourceFormat;
 
 namespace GUI.Types.ParticleRenderer

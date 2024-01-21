@@ -1,5 +1,3 @@
-using System;
-
 namespace GUI.Types.ParticleRenderer.Initializers
 {
     class RandomSequence : ParticleFunctionInitializer

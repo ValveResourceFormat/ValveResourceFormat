@@ -31,4 +31,10 @@
     <PackageProjectUrl>https://valveresourceformat.github.io/</PackageProjectUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Using Include="System" />
+    <Using Include="System.Numerics" />
+    <Using Include="System.Collections.Generic" />
+  </ItemGroup>
 </Project>

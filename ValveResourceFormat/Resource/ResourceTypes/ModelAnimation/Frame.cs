@@ -1,5 +1,3 @@
-using System;
-using System.Numerics;
 using ValveResourceFormat.ResourceTypes.ModelFlex;
 
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation

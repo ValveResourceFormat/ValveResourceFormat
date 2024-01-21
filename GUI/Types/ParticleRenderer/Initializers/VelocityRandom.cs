@@ -1,6 +1,3 @@
-using System;
-using System.Numerics;
-
 namespace GUI.Types.ParticleRenderer.Initializers
 {
     class VelocityRandom : ParticleFunctionInitializer

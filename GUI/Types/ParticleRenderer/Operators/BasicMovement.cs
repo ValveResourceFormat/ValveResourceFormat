@@ -1,5 +1,3 @@
-using System.Numerics;
-
 namespace GUI.Types.ParticleRenderer.Operators
 {
     class BasicMovement : ParticleFunctionOperator

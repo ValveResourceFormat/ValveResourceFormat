@@ -1,5 +1,3 @@
-using System.Numerics;
-
 namespace GUI.Types.Renderer
 {
     internal readonly struct AABB

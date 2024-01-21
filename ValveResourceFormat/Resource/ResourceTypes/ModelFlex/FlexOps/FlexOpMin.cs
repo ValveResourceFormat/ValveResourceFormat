@@ -1,5 +1,3 @@
-using System;
-
 namespace ValveResourceFormat.ResourceTypes.ModelFlex.FlexOps
 {
     public class FlexOpMin : FlexOp

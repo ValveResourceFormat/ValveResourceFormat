@@ -1,5 +1,3 @@
-using System;
-
 namespace GUI.Types.ParticleRenderer.Emitters
 {
     class InstantaneousEmitter : ParticleFunctionEmitter

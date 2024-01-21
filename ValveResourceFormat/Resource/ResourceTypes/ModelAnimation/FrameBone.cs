@@ -1,5 +1,3 @@
-using System.Numerics;
-
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 {
     public struct FrameBone

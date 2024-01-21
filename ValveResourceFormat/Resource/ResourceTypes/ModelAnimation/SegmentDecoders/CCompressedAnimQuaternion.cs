@@ -1,5 +1,3 @@
-using System;
-
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders
 {
     public class CCompressedAnimQuaternion : AnimationSegmentDecoder

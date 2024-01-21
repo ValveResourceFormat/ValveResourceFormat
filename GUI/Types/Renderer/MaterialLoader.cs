@@ -1,10 +1,7 @@
-using System;
 using System.Buffers;
-using System.Collections.Generic;
 using System.Globalization;
 using System.IO.Hashing;
 using System.Linq;
-using System.Numerics;
 using System.Text;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;

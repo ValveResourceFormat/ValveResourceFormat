@@ -1,5 +1,3 @@
-using System;
-
 namespace GUI.Types.ParticleRenderer.Emitters
 {
     abstract class ParticleFunctionEmitter : ParticleFunction

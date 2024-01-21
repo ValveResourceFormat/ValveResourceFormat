@@ -1,4 +1,3 @@
-using System;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Blocks;
 

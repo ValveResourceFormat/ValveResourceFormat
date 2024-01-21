@@ -1,6 +1,5 @@
 // Copyright 2020 lewa_j [https://github.com/lewa-j]
 // Reference: https://www.khronos.org/registry/DataFormat/specs/1.3/dataformat.1.3.html#BPTC
-using System;
 using System.Runtime.InteropServices;
 using SkiaSharp;
 

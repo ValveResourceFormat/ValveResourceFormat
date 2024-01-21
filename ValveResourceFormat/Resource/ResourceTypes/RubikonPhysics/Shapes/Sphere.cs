@@ -1,4 +1,3 @@
-using System.Numerics;
 using ValveResourceFormat.Serialization;
 
 namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes

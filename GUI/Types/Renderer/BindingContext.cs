@@ -1,5 +1,3 @@
-using System;
-
 namespace GUI.Types.Renderer;
 
 readonly struct BindingContext : IDisposable

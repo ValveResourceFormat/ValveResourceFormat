@@ -1,5 +1,3 @@
-using System;
-using System.Numerics;
 using GUI.Utils;
 using ValveResourceFormat;
 using ValveResourceFormat.Serialization;

@@ -1,7 +1,5 @@
 using System.Buffers;
-using System.Collections.Generic;
 using System.Linq;
-using System.Numerics;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;

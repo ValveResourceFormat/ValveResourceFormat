@@ -1,7 +1,6 @@
 /**
  * C# Port of https://github.com/zeux/meshoptimizer/blob/master/src/vertexcodec.cpp
  */
-using System;
 using System.Buffers;
 
 namespace ValveResourceFormat.Compression

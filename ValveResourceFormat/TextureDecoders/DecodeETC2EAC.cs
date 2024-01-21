@@ -1,6 +1,5 @@
 // Credit to https://github.com/mafaca/Etc
 
-using System;
 using System.Runtime.CompilerServices;
 using SkiaSharp;
 

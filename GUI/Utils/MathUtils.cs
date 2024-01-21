@@ -1,6 +1,3 @@
-using System;
-using System.Numerics;
-
 namespace GUI.Utils
 {
     static class MathUtils

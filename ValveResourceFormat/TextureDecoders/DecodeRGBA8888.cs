@@ -1,4 +1,3 @@
-using System;
 using SkiaSharp;
 
 namespace ValveResourceFormat.TextureDecoders

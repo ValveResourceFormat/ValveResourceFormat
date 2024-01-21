@@ -1,5 +1,3 @@
-using System;
-using System.Numerics;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.Serialization;

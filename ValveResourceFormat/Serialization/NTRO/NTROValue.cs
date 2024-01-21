@@ -1,4 +1,3 @@
-using System;
 using System.Globalization;
 using ValveResourceFormat.Serialization.KeyValues;
 using ValveResourceFormat.Utils;

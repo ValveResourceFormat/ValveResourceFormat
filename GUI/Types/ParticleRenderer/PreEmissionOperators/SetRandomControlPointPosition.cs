@@ -1,5 +1,3 @@
-using System;
-using System.Numerics;
 using GUI.Utils;
 
 namespace GUI.Types.ParticleRenderer.PreEmissionOperators

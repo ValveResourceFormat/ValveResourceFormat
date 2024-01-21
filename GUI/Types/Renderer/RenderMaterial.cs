@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-using System.Linq;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization;

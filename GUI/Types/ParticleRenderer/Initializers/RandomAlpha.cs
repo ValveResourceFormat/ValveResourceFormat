@@ -1,4 +1,3 @@
-using System;
 using GUI.Utils;
 
 namespace GUI.Types.ParticleRenderer.Initializers

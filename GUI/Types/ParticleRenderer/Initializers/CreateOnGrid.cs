@@ -1,6 +1,3 @@
-using System;
-using System.Numerics;
-
 namespace GUI.Types.ParticleRenderer.Initializers
 {
     // this single initializer delayed this release by months

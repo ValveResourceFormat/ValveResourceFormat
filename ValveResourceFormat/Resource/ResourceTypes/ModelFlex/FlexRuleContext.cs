@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-
 namespace ValveResourceFormat.ResourceTypes.ModelFlex
 {
     public readonly struct FlexRuleContext

@@ -1,6 +1,4 @@
-using System;
 using System.Globalization;
-using System.Numerics;
 using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.Utils

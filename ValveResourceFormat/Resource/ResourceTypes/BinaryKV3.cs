@@ -1,4 +1,3 @@
-using System;
 using System.Buffers;
 using System.IO;
 using K4os.Compression.LZ4;

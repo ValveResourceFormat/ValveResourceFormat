@@ -1,5 +1,3 @@
-using System.Numerics;
-
 namespace GUI.Types.ParticleRenderer.Initializers
 {
     class PositionOffset : ParticleFunctionInitializer

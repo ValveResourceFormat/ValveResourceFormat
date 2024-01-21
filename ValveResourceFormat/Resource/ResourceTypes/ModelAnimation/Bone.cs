@@ -1,6 +1,3 @@
-using System.Collections.Generic;
-using System.Numerics;
-
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 {
     public class Bone

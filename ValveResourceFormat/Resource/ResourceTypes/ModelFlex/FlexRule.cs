@@ -1,5 +1,3 @@
-using System;
-using System.Collections.Generic;
 using ValveResourceFormat.ResourceTypes.ModelFlex.FlexOps;
 
 namespace ValveResourceFormat.ResourceTypes.ModelFlex

@@ -1,10 +1,7 @@
 //#define DEBUG_FILE_LOAD
 
-using System;
-using System.Collections.Generic;
 using System.IO;
 using System.IO.Enumeration;
-using System.IO.MemoryMappedFiles;
 using SteamDatabase.ValvePak;
 using ValveKeyValue;
 using ValveResourceFormat.CompiledShader;

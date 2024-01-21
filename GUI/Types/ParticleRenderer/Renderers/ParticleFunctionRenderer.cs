@@ -1,6 +1,3 @@
-using System.Collections.Generic;
-using System.Numerics;
-
 namespace GUI.Types.ParticleRenderer.Renderers
 {
     abstract class ParticleFunctionRenderer : ParticleFunction

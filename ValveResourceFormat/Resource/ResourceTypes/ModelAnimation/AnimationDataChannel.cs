@@ -1,4 +1,3 @@
-using System;
 using System.Linq;
 using ValveResourceFormat.ResourceTypes.ModelFlex;
 using ValveResourceFormat.Serialization;

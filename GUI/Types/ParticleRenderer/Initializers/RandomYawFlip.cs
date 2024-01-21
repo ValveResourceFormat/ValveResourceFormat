@@ -1,4 +1,3 @@
-using System;
 using ValveResourceFormat;
 
 namespace GUI.Types.ParticleRenderer.Initializers

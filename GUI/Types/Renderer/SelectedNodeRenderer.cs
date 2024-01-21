@@ -1,6 +1,4 @@
-using System.Collections.Generic;
 using System.Linq;
-using System.Numerics;
 using OpenTK.Graphics.OpenGL;
 
 namespace GUI.Types.Renderer

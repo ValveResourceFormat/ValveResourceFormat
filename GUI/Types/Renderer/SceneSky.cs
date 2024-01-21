@@ -1,4 +1,3 @@
-using System.Numerics;
 using OpenTK.Graphics.OpenGL;
 
 namespace GUI.Types.Renderer

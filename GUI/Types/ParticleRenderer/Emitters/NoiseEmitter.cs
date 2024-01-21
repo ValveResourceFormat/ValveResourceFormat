@@ -1,4 +1,3 @@
-using System;
 using GUI.Types.ParticleRenderer.Utils;
 
 namespace GUI.Types.ParticleRenderer.Emitters

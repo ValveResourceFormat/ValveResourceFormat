@@ -1,4 +1,3 @@
-using System;
 using GUI.Utils;
 using ValveResourceFormat;
 

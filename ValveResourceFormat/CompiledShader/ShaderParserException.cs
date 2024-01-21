@@ -1,5 +1,3 @@
-using System;
-
 namespace ValveResourceFormat.CompiledShader
 {
     public class ShaderParserException : Exception

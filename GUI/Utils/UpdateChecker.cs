@@ -1,6 +1,5 @@
 //#define CI_RELEASE_BUILD // for testing. For CI builds, it is set in Directory.Build.props
 
-using System;
 using System.Globalization;
 using System.Net.Http;
 using System.Text.Json;

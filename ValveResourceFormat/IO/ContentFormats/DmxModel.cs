@@ -1,5 +1,3 @@
-using System;
-using System.Numerics;
 using Datamodel.Format;
 using DMElement = Datamodel.Element;
 

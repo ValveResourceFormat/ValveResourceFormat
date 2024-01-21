@@ -1,4 +1,3 @@
-using System;
 using System.IO;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.CompiledShader;

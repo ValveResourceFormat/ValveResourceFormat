@@ -1,5 +1,3 @@
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.Globalization;
@@ -13,6 +11,7 @@ using OpenTK.Graphics.OpenGL;
 using OpenTK.Input;
 using SkiaSharp;
 using static GUI.Types.Renderer.PickingTexture;
+using Vector2 = System.Numerics.Vector2;
 using WinFormsMouseEventArgs = System.Windows.Forms.MouseEventArgs;
 
 namespace GUI.Controls

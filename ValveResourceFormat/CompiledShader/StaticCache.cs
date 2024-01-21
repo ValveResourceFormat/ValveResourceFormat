@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-
 namespace ValveResourceFormat.CompiledShader
 {
     public sealed class StaticCache : IDisposable

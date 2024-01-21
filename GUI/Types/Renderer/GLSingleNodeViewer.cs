@@ -1,4 +1,3 @@
-using System.Numerics;
 using System.Reflection;
 using GUI.Utils;
 using ValveResourceFormat;

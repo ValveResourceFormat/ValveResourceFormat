@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using System.Diagnostics;
 using GUI.Types.Renderer.UniformBuffers;
 using GUI.Utils;

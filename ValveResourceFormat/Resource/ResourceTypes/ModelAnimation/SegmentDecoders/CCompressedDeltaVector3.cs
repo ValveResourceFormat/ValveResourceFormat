@@ -1,6 +1,3 @@
-using System;
-using System.Numerics;
-
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders
 {
     public class CCompressedDeltaVector3 : AnimationSegmentDecoder
