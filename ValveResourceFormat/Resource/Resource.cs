@@ -1,4 +1,5 @@
 using System.IO;
+using System.Reflection;
 using System.Text;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
@@ -210,7 +211,7 @@ namespace ValveResourceFormat
 
             if (FileName != null)
             {
-                ResourceType = DetermineResourceTypeByFileExtension();
+                ResourceType = DetermineResourceTypeByFileExtension(Path.GetExtension(FileName));
             }
 
             Version = Reader.ReadUInt16();
@@ -493,10 +494,8 @@ namespace ValveResourceFormat
             return new ResourceData();
         }
 
-        private ResourceType DetermineResourceTypeByFileExtension(string extension = null)
+        internal static ResourceType DetermineResourceTypeByFileExtension(string extension)
         {
-            extension ??= Path.GetExtension(FileName);
-
             if (string.IsNullOrEmpty(extension))
             {
                 return ResourceType.Unknown;
@@ -504,11 +503,15 @@ namespace ValveResourceFormat
 
             extension = extension.EndsWith("_c", StringComparison.Ordinal) ? extension[1..^2] : extension[1..];
 
-            foreach (var typeValue in Enum.GetValues<ResourceType>())
+            var fields = typeof(ResourceType).GetFields(BindingFlags.Public | BindingFlags.Static);
+
+            foreach (var field in fields)
             {
-                if (typeValue.GetExtension() == extension)
+                var fieldExtension = field.GetCustomAttribute<ExtensionAttribute>(inherit: false)?.Extension;
+
+                if (fieldExtension == extension)
                 {
-                    return typeValue;
+                    return (ResourceType)field.GetValue(null);
                 }
             }
 
