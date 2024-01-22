@@ -246,7 +246,7 @@ internal class CDmePolygonMesh : MapNode
     public Datamodel.IntArray VertexDataIndices { get; } = [];
 
     /// <summary>
-    /// The origin (or destination, I'm not sure) vertex of this edge.
+    /// The destination vertex of this edge.
     /// </summary>
     public Datamodel.IntArray EdgeVertexIndices { get; } = [];
 
@@ -326,7 +326,7 @@ internal class CDmePolygonMeshDataArray : DMElement
 [CamelCaseProperties]
 internal class CDmePolygonMeshSubdivisionData : DMElement
 {
-    public Datamodel.IntArray SubdivisionLevels { get; set; } = [];
+    public Datamodel.IntArray SubdivisionLevels { get; } = [];
     /// <summary>
     /// Array of <see cref="CDmePolygonMeshDataStream"/>.
     /// </summary>

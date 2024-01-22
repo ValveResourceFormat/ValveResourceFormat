@@ -84,7 +84,7 @@ public partial class ModelExtract
         {
             vmdl.AddSubFile(
                 Path.GetFileName(renderMesh.FileName),
-                () => ToDmxMesh(renderMesh.Mesh, Path.GetFileNameWithoutExtension(renderMesh.FileName), MaterialInputSignatures)
+                () => ToDmxMesh(renderMesh.Mesh, Path.GetFileNameWithoutExtension(renderMesh.FileName), new() { MaterialInputSignatures = MaterialInputSignatures })
             );
         }
 
