@@ -241,7 +241,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// <summary>
         /// Get the animation matrix for each bone.
         /// </summary>
-        public void GetAnimationMatrices(Matrix4x4[] matrices, AnimationFrameCache frameCache, int frameIndex)
+        public void GetAnimationMatrices(Span<Matrix4x4> matrices, AnimationFrameCache frameCache, int frameIndex)
         {
             // Get bone transformations
             var frame = frameCache.GetFrame(this, frameIndex);
@@ -252,7 +252,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// <summary>
         /// Get the animation matrix for each bone.
         /// </summary>
-        public void GetAnimationMatrices(Matrix4x4[] matrices, AnimationFrameCache frameCache, float time)
+        public void GetAnimationMatrices(Span<Matrix4x4> matrices, AnimationFrameCache frameCache, float time)
         {
             // Get bone transformations
             var frame = FrameCount != 0
@@ -262,7 +262,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             GetAnimationMatrices(matrices, frame, frameCache.Skeleton);
         }
 
-        public static void GetAnimationMatrices(Matrix4x4[] matrices, Frame frame, Skeleton skeleton)
+        public static void GetAnimationMatrices(Span<Matrix4x4> matrices, Frame frame, Skeleton skeleton)
         {
             foreach (var root in skeleton.Roots)
             {
@@ -291,7 +291,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// <summary>
         /// Get animation matrix recursively.
         /// </summary>
-        private static void GetAnimationMatrixRecursive(Bone bone, Matrix4x4 bindPose, Matrix4x4 invBindPose, Frame frame, Matrix4x4[] matrices)
+        private static void GetAnimationMatrixRecursive(Bone bone, Matrix4x4 bindPose, Matrix4x4 invBindPose, Frame frame, Span<Matrix4x4> matrices)
         {
             // Calculate world space inverse bind pose
             invBindPose *= bone.InverseBindPose;

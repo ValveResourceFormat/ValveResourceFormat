@@ -1,5 +1,6 @@
 using System.Buffers;
 using System.Linq;
+using System.Runtime.InteropServices;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
@@ -93,7 +94,8 @@ namespace GUI.Types.Renderer
 
             // Update animation matrices
 
-            var matrices = ArrayPool<Matrix4x4>.Shared.Rent(animationTexture.Height);
+            var floatBuffer = ArrayPool<float>.Shared.Rent(animationTexture.Height * 16);
+            var matrices = MemoryMarshal.Cast<float, Matrix4x4>(floatBuffer);
 
             var frame = AnimationController.GetFrame();
 
@@ -104,7 +106,7 @@ namespace GUI.Types.Renderer
                 // Update animation texture
                 using (animationTexture.BindingContext())
                 {
-                    GL.TexImage2D(animationTexture.Target, 0, PixelInternalFormat.Rgba32f, animationTexture.Width, animationTexture.Height, 0, PixelFormat.Rgba, PixelType.Float, matrices);
+                    GL.TexImage2D(animationTexture.Target, 0, PixelInternalFormat.Rgba32f, animationTexture.Width, animationTexture.Height, 0, PixelFormat.Rgba, PixelType.Float, floatBuffer);
                 }
 
                 var first = true;
@@ -119,7 +121,7 @@ namespace GUI.Types.Renderer
             }
             finally
             {
-                ArrayPool<Matrix4x4>.Shared.Return(matrices);
+                ArrayPool<float>.Shared.Return(floatBuffer);
             }
 
             //Update morphs
