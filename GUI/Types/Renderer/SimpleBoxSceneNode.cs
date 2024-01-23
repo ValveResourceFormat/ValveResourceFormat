@@ -89,6 +89,11 @@ namespace GUI.Types.Renderer
 
         public override void Render(Scene.RenderContext context)
         {
+            if (context.RenderPass != RenderPass.AfterOpaque)
+            {
+                return;
+            }
+
             var renderShader = context.ReplacementShader ?? shader;
 
             GL.UseProgram(renderShader.Program);

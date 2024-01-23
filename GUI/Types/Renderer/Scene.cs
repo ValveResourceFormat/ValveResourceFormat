@@ -249,13 +249,12 @@ namespace GUI.Types.Renderer
 
         public void RenderTranslucentLayer(RenderContext renderContext)
         {
-            // TODO: these loose nodes need to be appropriately tagged as translucent.
+            renderContext.RenderPass = RenderPass.Translucent;
             foreach (var request in renderLooseNodes)
             {
                 request.Node.Render(renderContext);
             }
 
-            renderContext.RenderPass = RenderPass.Translucent;
             MeshBatchRenderer.Render(renderTranslucentDrawCalls, renderContext);
         }
 
