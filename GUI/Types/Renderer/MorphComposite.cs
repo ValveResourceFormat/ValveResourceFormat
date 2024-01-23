@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Globalization;
 using System.Linq;
 using GUI.Utils;
@@ -20,8 +21,6 @@ namespace GUI.Types.Renderer
         private int vertexBufferHandle;
         private int vertexArray;
         private readonly float[] allVertices;
-        private readonly float[] usedVertices;
-        private int usedVerticesLength;
         private readonly RenderTexture morphAtlas;
         private List<int>[] morphRects;
         private readonly HashSet<int> usedRects = [];
@@ -49,7 +48,6 @@ namespace GUI.Types.Renderer
             Morph = morph;
 
             allVertices = new float[GetMorphBundleCount() * 4 * VertexSize];
-            usedVertices = new float[allVertices.Length];
 
             quadIndices = vrfGuiContext.MeshBufferCache.QuadIndices;
             shader = vrfGuiContext.ShaderLoader.LoadShader("vrf.morph_composite");
@@ -91,8 +89,6 @@ namespace GUI.Types.Renderer
 
         public void Render()
         {
-            BuildVertexBuffer();
-
             GL.UseProgram(shader.Program);
 
             GL.Enable(EnableCap.Blend);
@@ -108,7 +104,20 @@ namespace GUI.Types.Renderer
             GL.EnableVertexAttribArray(0);
             GL.BindBuffer(BufferTarget.ElementArrayBuffer, quadIndices.GLHandle);
             GL.BindBuffer(BufferTarget.ArrayBuffer, vertexBufferHandle);
-            GL.BufferData(BufferTarget.ArrayBuffer, usedVerticesLength * sizeof(float), usedVertices, BufferUsageHint.DynamicDraw);
+
+            var usedVerticesLength = usedRects.Count * 4 * VertexSize;
+            var usedVertices = ArrayPool<float>.Shared.Rent(usedVerticesLength);
+
+            try
+            {
+                BuildVertexBuffer(usedVertices);
+
+                GL.BufferData(BufferTarget.ArrayBuffer, usedVerticesLength * sizeof(float), usedVertices, BufferUsageHint.DynamicDraw);
+            }
+            finally
+            {
+                ArrayPool<float>.Shared.Return(usedVertices);
+            }
 
             if (!renderTargetInitialized)
             {
@@ -222,11 +231,8 @@ namespace GUI.Types.Renderer
                 }
             }
         }
-        private void BuildVertexBuffer()
+        private void BuildVertexBuffer(float[] usedVertices)
         {
-            var rectCount = usedRects.Count;
-            usedVerticesLength = rectCount * 4 * VertexSize;
-
             var addedRects = 0;
             foreach (var rect in usedRects)
             {
