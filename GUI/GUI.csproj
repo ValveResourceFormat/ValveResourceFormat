@@ -38,6 +38,7 @@
     <EmbeddedResource Include="Utils\ggx_integrate_brdf_lut_schlick.vtex_c" />
     <EmbeddedResource Include="Utils\env_cubemap.vmdl_c" />
     <EmbeddedResource Include="Utils\sky_furnace.vtex_c" />
+    <EmbeddedResource Include="Utils\jetbrains_mono_msdf.png" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\ValveResourceFormat\ValveResourceFormat.csproj">
