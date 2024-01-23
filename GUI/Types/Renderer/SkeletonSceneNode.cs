@@ -65,7 +65,7 @@ namespace GUI.Types.Renderer
                 }
             }
 
-            var vertices = new List<float>();
+            var vertices = new List<SimpleVertex>();
 
             foreach (var root in skeleton.Roots)
             {
@@ -78,7 +78,7 @@ namespace GUI.Types.Renderer
             GL.BufferData(BufferTarget.ArrayBuffer, vertices.Count * sizeof(float), vertices.ToArray(), BufferUsageHint.DynamicDraw);
         }
 
-        private static void GetAnimationMatrixRecursive(List<float> vertices, Bone bone, Matrix4x4 bindPose, Frame frame)
+        private static void GetAnimationMatrixRecursive(List<SimpleVertex> vertices, Bone bone, Matrix4x4 bindPose, Frame frame)
         {
             var oldBindPose = bindPose;
 
@@ -97,7 +97,7 @@ namespace GUI.Types.Renderer
 
             if (!oldBindPose.IsIdentity)
             {
-                OctreeDebugRenderer<SceneNode>.AddLine(vertices, bindPose.Translation, oldBindPose.Translation, 0, 1, 1, 1);
+                OctreeDebugRenderer<SceneNode>.AddLine(vertices, bindPose.Translation, oldBindPose.Translation, new(0, 1, 1, 1));
             }
 
             foreach (var child in bone.Children)

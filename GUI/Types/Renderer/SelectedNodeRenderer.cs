@@ -26,14 +26,13 @@ namespace GUI.Types.Renderer
             GL.BindVertexArray(vaoHandle);
             GL.BindBuffer(BufferTarget.ArrayBuffer, vboHandle);
 
-            const int stride = sizeof(float) * 7;
             var positionAttributeLocation = GL.GetAttribLocation(shader.Program, "aVertexPosition");
             GL.EnableVertexAttribArray(positionAttributeLocation);
-            GL.VertexAttribPointer(positionAttributeLocation, 3, VertexAttribPointerType.Float, false, stride, 0);
+            GL.VertexAttribPointer(positionAttributeLocation, 3, VertexAttribPointerType.Float, false, SimpleVertex.SizeInBytes, 0);
 
             var colorAttributeLocation = GL.GetAttribLocation(shader.Program, "aVertexColor");
             GL.EnableVertexAttribArray(colorAttributeLocation);
-            GL.VertexAttribPointer(colorAttributeLocation, 4, VertexAttribPointerType.Float, false, stride, sizeof(float) * 3);
+            GL.VertexAttribPointer(colorAttributeLocation, 4, VertexAttribPointerType.Float, false, SimpleVertex.SizeInBytes, sizeof(float) * 3);
 
             GL.BindVertexArray(0);
         }
@@ -82,11 +81,11 @@ namespace GUI.Types.Renderer
         {
             disableDepth = selectedNodes.Count > 1;
 
-            var vertices = new List<float>();
+            var vertices = new List<SimpleVertex>();
 
             foreach (var node in selectedNodes)
             {
-                OctreeDebugRenderer<SceneNode>.AddBox(vertices, node.Transform, node.LocalBoundingBox, 1.0f, 1.0f, 0.0f, 1.0f);
+                OctreeDebugRenderer<SceneNode>.AddBox(vertices, node.Transform, node.LocalBoundingBox, new(1.0f, 1.0f, 0.0f, 1.0f));
 
                 if (debugCubeMaps)
                 {
@@ -100,17 +99,18 @@ namespace GUI.Types.Renderer
 
                     foreach (var tiedEnvMap in tiedEnvmaps)
                     {
-                        OctreeDebugRenderer<SceneNode>.AddBox(vertices, tiedEnvMap.Transform, tiedEnvMap.LocalBoundingBox, 0.7f, 0.0f, 1.0f, 1.0f);
+                        OctreeDebugRenderer<SceneNode>.AddBox(vertices, tiedEnvMap.Transform, tiedEnvMap.LocalBoundingBox, new(0.7f, 0.0f, 1.0f, 1.0f));
 
                         if (Scene.LightingInfo.CubemapType is Scene.CubemapType.IndividualCubemaps && i == 0)
                         {
-                            OctreeDebugRenderer<SceneNode>.AddLine(vertices, tiedEnvMap.Transform.Translation, node.BoundingBox.Center, 0.0f, 1.0f, 0.0f, 1.0f);
+                            OctreeDebugRenderer<SceneNode>.AddLine(vertices, tiedEnvMap.Transform.Translation, node.BoundingBox.Center, new(0.0f, 1.0f, 0.0f, 1.0f));
                             i++;
                             continue;
                         }
 
                         var fractionToTen = (float)i / 10;
-                        OctreeDebugRenderer<SceneNode>.AddLine(vertices, tiedEnvMap.Transform.Translation, node.BoundingBox.Center, 1.0f, fractionToTen, fractionToTen, 1.0f);
+                        var color = new Vector4(1.0f, fractionToTen, fractionToTen, 1.0f);
+                        OctreeDebugRenderer<SceneNode>.AddLine(vertices, tiedEnvMap.Transform.Translation, node.BoundingBox.Center, color);
                         i++;
                     }
                 }
@@ -136,17 +136,17 @@ namespace GUI.Types.Renderer
                             );
                         }
 
-                        OctreeDebugRenderer<SceneNode>.AddBox(vertices, node.Transform, bounds, 0.0f, 1.0f, 0.0f, 1.0f);
+                        OctreeDebugRenderer<SceneNode>.AddBox(vertices, node.Transform, bounds, new(0.0f, 1.0f, 0.0f, 1.0f));
 
                         disableDepth = true;
                     }
                 }
             }
 
-            vertexCount = vertices.Count / 7;
+            vertexCount = vertices.Count;
 
             GL.BindBuffer(BufferTarget.ArrayBuffer, vboHandle);
-            GL.BufferData(BufferTarget.ArrayBuffer, vertices.Count * sizeof(float), vertices.ToArray(), BufferUsageHint.StaticDraw);
+            GL.BufferData(BufferTarget.ArrayBuffer, vertices.Count * SimpleVertex.SizeInBytes, vertices.ToArray(), BufferUsageHint.StaticDraw);
         }
 
         public override void Update(Scene.UpdateContext context)

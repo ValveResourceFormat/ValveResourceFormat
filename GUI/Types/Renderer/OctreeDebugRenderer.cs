@@ -1,8 +1,16 @@
+using System.Linq;
+using System.Runtime.InteropServices;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 
 namespace GUI.Types.Renderer
 {
+    [StructLayout(LayoutKind.Sequential)]
+    public record struct SimpleVertex(Vector3 Position, Vector4 Color)
+    {
+        public static readonly int SizeInBytes = Marshal.SizeOf<SimpleVertex>();
+    }
+
     class OctreeDebugRenderer<T>
         where T : class
     {
@@ -28,61 +36,48 @@ namespace GUI.Types.Renderer
             GL.BindVertexArray(vaoHandle);
             GL.BindBuffer(BufferTarget.ArrayBuffer, vboHandle);
 
-            const int stride = sizeof(float) * 7;
             var positionAttributeLocation = GL.GetAttribLocation(shader.Program, "aVertexPosition");
             GL.EnableVertexAttribArray(positionAttributeLocation);
-            GL.VertexAttribPointer(positionAttributeLocation, 3, VertexAttribPointerType.Float, false, stride, 0);
+            GL.VertexAttribPointer(positionAttributeLocation, 3, VertexAttribPointerType.Float, false, SimpleVertex.SizeInBytes, 0);
 
             var colorAttributeLocation = GL.GetAttribLocation(shader.Program, "aVertexColor");
             GL.EnableVertexAttribArray(colorAttributeLocation);
-            GL.VertexAttribPointer(colorAttributeLocation, 4, VertexAttribPointerType.Float, false, stride, sizeof(float) * 3);
+            GL.VertexAttribPointer(colorAttributeLocation, 4, VertexAttribPointerType.Float, false, SimpleVertex.SizeInBytes, sizeof(float) * 3);
 
             GL.BindVertexArray(0);
         }
 
-        public static void AddLine(List<float> vertices, Vector3 from, Vector3 to, float r, float g, float b, float a)
+        public static void AddLine(List<SimpleVertex> vertices, Vector3 from, Vector3 to, Vector4 color)
         {
-            vertices.Add(from.X);
-            vertices.Add(from.Y);
-            vertices.Add(from.Z);
-            vertices.Add(r);
-            vertices.Add(g);
-            vertices.Add(b);
-            vertices.Add(a);
-            vertices.Add(to.X);
-            vertices.Add(to.Y);
-            vertices.Add(to.Z);
-            vertices.Add(r);
-            vertices.Add(g);
-            vertices.Add(b);
-            vertices.Add(a);
+            vertices.Add(new SimpleVertex(from, color));
+            vertices.Add(new SimpleVertex(to, color));
         }
 
-        public static void AddBox(List<float> vertices, in AABB box, float r, float g, float b, float a)
+        public static void AddBox(List<SimpleVertex> vertices, in AABB box, Vector4 color)
         {
             // Adding a box will add many vertices, so ensure the required capacity for it up front
-            vertices.EnsureCapacity(vertices.Count + 14 * 12);
+            vertices.EnsureCapacity(vertices.Count + 2 * 12);
 
-            AddLine(vertices, new Vector3(box.Min.X, box.Min.Y, box.Min.Z), new Vector3(box.Max.X, box.Min.Y, box.Min.Z), r, g, b, a);
-            AddLine(vertices, new Vector3(box.Max.X, box.Min.Y, box.Min.Z), new Vector3(box.Max.X, box.Max.Y, box.Min.Z), r, g, b, a);
-            AddLine(vertices, new Vector3(box.Max.X, box.Max.Y, box.Min.Z), new Vector3(box.Min.X, box.Max.Y, box.Min.Z), r, g, b, a);
-            AddLine(vertices, new Vector3(box.Min.X, box.Max.Y, box.Min.Z), new Vector3(box.Min.X, box.Min.Y, box.Min.Z), r, g, b, a);
+            AddLine(vertices, new Vector3(box.Min.X, box.Min.Y, box.Min.Z), new Vector3(box.Max.X, box.Min.Y, box.Min.Z), color);
+            AddLine(vertices, new Vector3(box.Max.X, box.Min.Y, box.Min.Z), new Vector3(box.Max.X, box.Max.Y, box.Min.Z), color);
+            AddLine(vertices, new Vector3(box.Max.X, box.Max.Y, box.Min.Z), new Vector3(box.Min.X, box.Max.Y, box.Min.Z), color);
+            AddLine(vertices, new Vector3(box.Min.X, box.Max.Y, box.Min.Z), new Vector3(box.Min.X, box.Min.Y, box.Min.Z), color);
 
-            AddLine(vertices, new Vector3(box.Min.X, box.Min.Y, box.Max.Z), new Vector3(box.Max.X, box.Min.Y, box.Max.Z), r, g, b, a);
-            AddLine(vertices, new Vector3(box.Max.X, box.Min.Y, box.Max.Z), new Vector3(box.Max.X, box.Max.Y, box.Max.Z), r, g, b, a);
-            AddLine(vertices, new Vector3(box.Max.X, box.Max.Y, box.Max.Z), new Vector3(box.Min.X, box.Max.Y, box.Max.Z), r, g, b, a);
-            AddLine(vertices, new Vector3(box.Min.X, box.Max.Y, box.Max.Z), new Vector3(box.Min.X, box.Min.Y, box.Max.Z), r, g, b, a);
+            AddLine(vertices, new Vector3(box.Min.X, box.Min.Y, box.Max.Z), new Vector3(box.Max.X, box.Min.Y, box.Max.Z), color);
+            AddLine(vertices, new Vector3(box.Max.X, box.Min.Y, box.Max.Z), new Vector3(box.Max.X, box.Max.Y, box.Max.Z), color);
+            AddLine(vertices, new Vector3(box.Max.X, box.Max.Y, box.Max.Z), new Vector3(box.Min.X, box.Max.Y, box.Max.Z), color);
+            AddLine(vertices, new Vector3(box.Min.X, box.Max.Y, box.Max.Z), new Vector3(box.Min.X, box.Min.Y, box.Max.Z), color);
 
-            AddLine(vertices, new Vector3(box.Min.X, box.Min.Y, box.Min.Z), new Vector3(box.Min.X, box.Min.Y, box.Max.Z), r, g, b, a);
-            AddLine(vertices, new Vector3(box.Max.X, box.Min.Y, box.Min.Z), new Vector3(box.Max.X, box.Min.Y, box.Max.Z), r, g, b, a);
-            AddLine(vertices, new Vector3(box.Max.X, box.Max.Y, box.Min.Z), new Vector3(box.Max.X, box.Max.Y, box.Max.Z), r, g, b, a);
-            AddLine(vertices, new Vector3(box.Min.X, box.Max.Y, box.Min.Z), new Vector3(box.Min.X, box.Max.Y, box.Max.Z), r, g, b, a);
+            AddLine(vertices, new Vector3(box.Min.X, box.Min.Y, box.Min.Z), new Vector3(box.Min.X, box.Min.Y, box.Max.Z), color);
+            AddLine(vertices, new Vector3(box.Max.X, box.Min.Y, box.Min.Z), new Vector3(box.Max.X, box.Min.Y, box.Max.Z), color);
+            AddLine(vertices, new Vector3(box.Max.X, box.Max.Y, box.Min.Z), new Vector3(box.Max.X, box.Max.Y, box.Max.Z), color);
+            AddLine(vertices, new Vector3(box.Min.X, box.Max.Y, box.Min.Z), new Vector3(box.Min.X, box.Max.Y, box.Max.Z), color);
         }
 
-        public static void AddBox(List<float> vertices, in Matrix4x4 transform, in AABB box, float r, float g, float b, float a)
+        public static void AddBox(List<SimpleVertex> vertices, in Matrix4x4 transform, in AABB box, Vector4 color)
         {
             // Adding a box will add many vertices, so ensure the required capacity for it up front
-            vertices.EnsureCapacity(vertices.Count + 14 * 12);
+            vertices.EnsureCapacity(vertices.Count + 2 * 12);
 
             var c1 = Vector3.Transform(new Vector3(box.Min.X, box.Min.Y, box.Min.Z), transform);
             var c2 = Vector3.Transform(new Vector3(box.Max.X, box.Min.Y, box.Min.Z), transform);
@@ -93,35 +88,35 @@ namespace GUI.Types.Renderer
             var c7 = Vector3.Transform(new Vector3(box.Max.X, box.Max.Y, box.Max.Z), transform);
             var c8 = Vector3.Transform(new Vector3(box.Min.X, box.Max.Y, box.Max.Z), transform);
 
-            AddLine(vertices, c1, c2, r, g, b, a);
-            AddLine(vertices, c2, c3, r, g, b, a);
-            AddLine(vertices, c3, c4, r, g, b, a);
-            AddLine(vertices, c4, c1, r, g, b, a);
+            AddLine(vertices, c1, c2, color);
+            AddLine(vertices, c2, c3, color);
+            AddLine(vertices, c3, c4, color);
+            AddLine(vertices, c4, c1, color);
 
-            AddLine(vertices, c5, c6, r, g, b, a);
-            AddLine(vertices, c6, c7, r, g, b, a);
-            AddLine(vertices, c7, c8, r, g, b, a);
-            AddLine(vertices, c8, c5, r, g, b, a);
+            AddLine(vertices, c5, c6, color);
+            AddLine(vertices, c6, c7, color);
+            AddLine(vertices, c7, c8, color);
+            AddLine(vertices, c8, c5, color);
 
-            AddLine(vertices, c1, c5, r, g, b, a);
-            AddLine(vertices, c2, c6, r, g, b, a);
-            AddLine(vertices, c3, c7, r, g, b, a);
-            AddLine(vertices, c4, c8, r, g, b, a);
+            AddLine(vertices, c1, c5, color);
+            AddLine(vertices, c2, c6, color);
+            AddLine(vertices, c3, c7, color);
+            AddLine(vertices, c4, c8, color);
         }
 
-        private static void AddOctreeNode(List<float> vertices, Octree<T>.Node node, int depth)
+        private static void AddOctreeNode(List<SimpleVertex> vertices, Octree<T>.Node node, int depth)
         {
-            AddBox(vertices, node.Region, 1.0f, 1.0f, 1.0f, node.HasElements ? 1.0f : 0.1f);
+            AddBox(vertices, node.Region, Vector4.One with { W = node.HasElements ? 1.0f : 0.25f });
 
             if (node.HasElements)
             {
                 foreach (var element in node.Elements)
                 {
                     var shading = Math.Min(1.0f, depth * 0.1f);
-                    AddBox(vertices, element.BoundingBox, 1.0f, shading, 0.0f, 1.0f);
+                    AddBox(vertices, element.BoundingBox, new Vector4(1.0f, shading, 0.0f, 1.0f));
 
-                    // AddLine(vertices, element.BoundingBox.Min, node.Region.Min, 1.0f, shading, 0.0f, 0.5f);
-                    // AddLine(vertices, element.BoundingBox.Max, node.Region.Max, 1.0f, shading, 0.0f, 0.5f);
+                    // AddLine(vertices, element.BoundingBox.Min, node.Region.Min, new Vector4(1.0f, shading, 0.0f, 0.5f));
+                    // AddLine(vertices, element.BoundingBox.Max, node.Region.Max, new Vector4(1.0f, shading, 0.0f, 0.5f));
                 }
             }
 
@@ -145,12 +140,12 @@ namespace GUI.Types.Renderer
 
         private void Rebuild()
         {
-            var vertices = new List<float>();
+            var vertices = new List<SimpleVertex>();
             AddOctreeNode(vertices, octree.Root, 0);
-            vertexCount = vertices.Count / 7;
+            vertexCount = vertices.Count;
 
             GL.BindBuffer(BufferTarget.ArrayBuffer, vboHandle);
-            GL.BufferData(BufferTarget.ArrayBuffer, vertices.Count * sizeof(float), vertices.ToArray(), dynamic ? BufferUsageHint.DynamicDraw : BufferUsageHint.StaticDraw);
+            GL.BufferData(BufferTarget.ArrayBuffer, vertexCount * SimpleVertex.SizeInBytes, vertices.ToArray(), dynamic ? BufferUsageHint.DynamicDraw : BufferUsageHint.StaticDraw);
         }
 
         public void Render()
