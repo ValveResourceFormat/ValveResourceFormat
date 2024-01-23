@@ -8,9 +8,13 @@ uniform sampler2D animationTexture;
 
 mat4 getMatrix(float id) {
     int boneIndex = int(id);
-    /*if (boneIndex >= textureSize(animationTexture, 0).y) {
+
+    // Issue #705 out of bounds bone index (model needs ApplyVBIBDefaults)
+    // Model:  hlvr/models/props/xen/xen_villi_medium.vmdl
+    // In map: hlvr/maps/a3_distillery.vmap
+    if (boneIndex >= textureSize(animationTexture, 0).y) {
         return mat4(1.0);
-    }*/
+    }
 
     return mat4(
         texelFetch(animationTexture, ivec2(0, boneIndex), 0),
