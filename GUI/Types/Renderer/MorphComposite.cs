@@ -106,17 +106,25 @@ namespace GUI.Types.Renderer
             GL.BindBuffer(BufferTarget.ArrayBuffer, vertexBufferHandle);
 
             var usedVerticesLength = usedRects.Count * 4 * VertexSize;
-            var usedVertices = ArrayPool<float>.Shared.Rent(usedVerticesLength);
 
-            try
+            if (usedVerticesLength == allVertices.Length)
             {
-                BuildVertexBuffer(usedVertices);
-
-                GL.BufferData(BufferTarget.ArrayBuffer, usedVerticesLength * sizeof(float), usedVertices, BufferUsageHint.DynamicDraw);
+                GL.BufferData(BufferTarget.ArrayBuffer, usedVerticesLength * sizeof(float), allVertices, BufferUsageHint.DynamicDraw);
             }
-            finally
+            else
             {
-                ArrayPool<float>.Shared.Return(usedVertices);
+                var usedVertices = ArrayPool<float>.Shared.Rent(usedVerticesLength);
+
+                try
+                {
+                    BuildVertexBuffer(usedVertices);
+
+                    GL.BufferData(BufferTarget.ArrayBuffer, usedVerticesLength * sizeof(float), usedVertices, BufferUsageHint.DynamicDraw);
+                }
+                finally
+                {
+                    ArrayPool<float>.Shared.Return(usedVertices);
+                }
             }
 
             if (!renderTargetInitialized)
