@@ -1,3 +1,4 @@
+using System.Buffers;
 using GUI.Types.Renderer;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
@@ -26,8 +27,6 @@ namespace GUI.Types.ParticleRenderer.Renderers
         private readonly ParticleBlendMode blendMode = ParticleBlendMode.PARTICLE_OUTPUT_BLEND_MODE_ALPHA;
         private readonly INumberProvider overbrightFactor = new LiteralNumberProvider(1);
         private readonly ParticleOrientation orientationType;
-
-        private float[] rawVertices;
         private readonly QuadIndexBuffer quadIndices;
         private int vertexBufferHandle;
 
@@ -105,21 +104,6 @@ namespace GUI.Types.ParticleRenderer.Renderers
             return vao;
         }
 
-        private void EnsureSpaceForVertices(int count)
-        {
-            var numFloats = count * VertexSize;
-
-            if (rawVertices == null)
-            {
-                rawVertices = new float[numFloats];
-            }
-            else if (rawVertices.Length < numFloats)
-            {
-                var nextSize = ((count / 64) + 1) * 64 * VertexSize;
-                Array.Resize(ref rawVertices, nextSize);
-            }
-        }
-
         private void UpdateVertices(ParticleCollection particles, ParticleSystemRenderState systemRenderState, Matrix4x4 modelViewMatrix)
         {
             // Create billboarding rotation (always facing camera)
@@ -128,117 +112,124 @@ namespace GUI.Types.ParticleRenderer.Renderers
             var billboardMatrix = Matrix4x4.CreateFromQuaternion(modelViewRotation);
 
             // Update vertex buffer
-            EnsureSpaceForVertices(particles.Count * 4);
+            var rawVertices = ArrayPool<float>.Shared.Rent(particles.Count * VertexSize * 4);
 
-            var i = 0;
-            foreach (ref var particle in particles.Current)
+            try
             {
-                var radiusScale = this.radiusScale.NextNumber(ref particle, systemRenderState);
-
-                // Positions
-                var modelMatrix = orientationType == ParticleOrientation.PARTICLE_ORIENTATION_SCREEN_ALIGNED
-                    ? particle.GetRotationMatrix() * billboardMatrix * particle.GetTransformationMatrix(radiusScale)
-                    : particle.GetRotationMatrix() * particle.GetTransformationMatrix(radiusScale);
-
-                var tl = Vector4.Transform(new Vector4(-1, -1, 0, 1), modelMatrix);
-                var bl = Vector4.Transform(new Vector4(-1, 1, 0, 1), modelMatrix);
-                var br = Vector4.Transform(new Vector4(1, 1, 0, 1), modelMatrix);
-                var tr = Vector4.Transform(new Vector4(1, -1, 0, 1), modelMatrix);
-
-                var quadStart = i * VertexSize * 4;
-                rawVertices[quadStart + 0] = tl.X;
-                rawVertices[quadStart + 1] = tl.Y;
-                rawVertices[quadStart + 2] = tl.Z;
-                rawVertices[quadStart + (VertexSize * 1) + 0] = bl.X;
-                rawVertices[quadStart + (VertexSize * 1) + 1] = bl.Y;
-                rawVertices[quadStart + (VertexSize * 1) + 2] = bl.Z;
-                rawVertices[quadStart + (VertexSize * 2) + 0] = br.X;
-                rawVertices[quadStart + (VertexSize * 2) + 1] = br.Y;
-                rawVertices[quadStart + (VertexSize * 2) + 2] = br.Z;
-                rawVertices[quadStart + (VertexSize * 3) + 0] = tr.X;
-                rawVertices[quadStart + (VertexSize * 3) + 1] = tr.Y;
-                rawVertices[quadStart + (VertexSize * 3) + 2] = tr.Z;
-
-                var alphaScale = this.alphaScale.NextNumber(ref particle, systemRenderState);
-                // Colors
-                for (var j = 0; j < 4; ++j)
+                var i = 0;
+                foreach (ref var particle in particles.Current)
                 {
-                    rawVertices[quadStart + (VertexSize * j) + 3] = particle.Color.X;
-                    rawVertices[quadStart + (VertexSize * j) + 4] = particle.Color.Y;
-                    rawVertices[quadStart + (VertexSize * j) + 5] = particle.Color.Z;
-                    rawVertices[quadStart + (VertexSize * j) + 6] = particle.Alpha * alphaScale;
-                }
+                    var radiusScale = this.radiusScale.NextNumber(ref particle, systemRenderState);
 
-                // UVs
-                var spriteSheetData = texture.SpriteSheetData;
-                if (spriteSheetData != null && spriteSheetData.Sequences.Length > 0 && spriteSheetData.Sequences[0].Frames.Length > 0)
-                {
-                    var sequence = spriteSheetData.Sequences[particle.Sequence % spriteSheetData.Sequences.Length];
+                    // Positions
+                    var modelMatrix = orientationType == ParticleOrientation.PARTICLE_ORIENTATION_SCREEN_ALIGNED
+                        ? particle.GetRotationMatrix() * billboardMatrix * particle.GetTransformationMatrix(radiusScale)
+                        : particle.GetRotationMatrix() * particle.GetTransformationMatrix(radiusScale);
 
-                    var animationTime = animationType switch
+                    var tl = Vector4.Transform(new Vector4(-1, -1, 0, 1), modelMatrix);
+                    var bl = Vector4.Transform(new Vector4(-1, 1, 0, 1), modelMatrix);
+                    var br = Vector4.Transform(new Vector4(1, 1, 0, 1), modelMatrix);
+                    var tr = Vector4.Transform(new Vector4(1, -1, 0, 1), modelMatrix);
+
+                    var quadStart = i * VertexSize * 4;
+                    rawVertices[quadStart + 0] = tl.X;
+                    rawVertices[quadStart + 1] = tl.Y;
+                    rawVertices[quadStart + 2] = tl.Z;
+                    rawVertices[quadStart + (VertexSize * 1) + 0] = bl.X;
+                    rawVertices[quadStart + (VertexSize * 1) + 1] = bl.Y;
+                    rawVertices[quadStart + (VertexSize * 1) + 2] = bl.Z;
+                    rawVertices[quadStart + (VertexSize * 2) + 0] = br.X;
+                    rawVertices[quadStart + (VertexSize * 2) + 1] = br.Y;
+                    rawVertices[quadStart + (VertexSize * 2) + 2] = br.Z;
+                    rawVertices[quadStart + (VertexSize * 3) + 0] = tr.X;
+                    rawVertices[quadStart + (VertexSize * 3) + 1] = tr.Y;
+                    rawVertices[quadStart + (VertexSize * 3) + 2] = tr.Z;
+
+                    var alphaScale = this.alphaScale.NextNumber(ref particle, systemRenderState);
+                    // Colors
+                    for (var j = 0; j < 4; ++j)
                     {
-                        ParticleAnimationType.ANIMATION_TYPE_FIXED_RATE => particle.Age,
-                        ParticleAnimationType.ANIMATION_TYPE_FIT_LIFETIME => particle.NormalizedAge,
-                        ParticleAnimationType.ANIMATION_TYPE_MANUAL_FRAMES => particle.Age, // literally dont know what to do with this one
-                        _ => particle.Age,
-                    };
-
-                    var frameId = 0;
-
-                    if (sequence.Frames.Length > 1)
-                    {
-                        if (animateInFps)
-                        {
-                            frameId = (int)Math.Floor(animationRate * animationTime);
-                        }
-                        else
-                        {
-                            frameId = (int)Math.Floor(sequence.Frames.Length * animationRate * animationTime);
-                        }
-
-                        if (sequence.Clamp)
-                        {
-                            frameId = Math.Min(frameId, sequence.Frames.Length - 1);
-                        }
-                        else
-                        {
-                            frameId %= sequence.Frames.Length;
-                        }
+                        rawVertices[quadStart + (VertexSize * j) + 3] = particle.Color.X;
+                        rawVertices[quadStart + (VertexSize * j) + 4] = particle.Color.Y;
+                        rawVertices[quadStart + (VertexSize * j) + 5] = particle.Color.Z;
+                        rawVertices[quadStart + (VertexSize * j) + 6] = particle.Alpha * alphaScale;
                     }
 
-                    var currentFrame = sequence.Frames[frameId];
-                    var currentImage = currentFrame.Images[0]; // TODO: Support more than one image per frame?
+                    // UVs
+                    var spriteSheetData = texture.SpriteSheetData;
+                    if (spriteSheetData != null && spriteSheetData.Sequences.Length > 0 && spriteSheetData.Sequences[0].Frames.Length > 0)
+                    {
+                        var sequence = spriteSheetData.Sequences[particle.Sequence % spriteSheetData.Sequences.Length];
 
-                    // Lerp frame coords and size
-                    var offset = currentImage.UncroppedMin;
-                    var scale = currentImage.UncroppedMax - currentImage.UncroppedMin;
+                        var animationTime = animationType switch
+                        {
+                            ParticleAnimationType.ANIMATION_TYPE_FIXED_RATE => particle.Age,
+                            ParticleAnimationType.ANIMATION_TYPE_FIT_LIFETIME => particle.NormalizedAge,
+                            ParticleAnimationType.ANIMATION_TYPE_MANUAL_FRAMES => particle.Age, // literally dont know what to do with this one
+                            _ => particle.Age,
+                        };
 
-                    rawVertices[quadStart + (VertexSize * 0) + 7] = offset.X;
-                    rawVertices[quadStart + (VertexSize * 0) + 8] = offset.Y + scale.Y;
-                    rawVertices[quadStart + (VertexSize * 1) + 7] = offset.X;
-                    rawVertices[quadStart + (VertexSize * 1) + 8] = offset.Y;
-                    rawVertices[quadStart + (VertexSize * 2) + 7] = offset.X + scale.X;
-                    rawVertices[quadStart + (VertexSize * 2) + 8] = offset.Y;
-                    rawVertices[quadStart + (VertexSize * 3) + 7] = offset.X + scale.X;
-                    rawVertices[quadStart + (VertexSize * 3) + 8] = offset.Y + scale.Y;
+                        var frameId = 0;
+
+                        if (sequence.Frames.Length > 1)
+                        {
+                            if (animateInFps)
+                            {
+                                frameId = (int)Math.Floor(animationRate * animationTime);
+                            }
+                            else
+                            {
+                                frameId = (int)Math.Floor(sequence.Frames.Length * animationRate * animationTime);
+                            }
+
+                            if (sequence.Clamp)
+                            {
+                                frameId = Math.Min(frameId, sequence.Frames.Length - 1);
+                            }
+                            else
+                            {
+                                frameId %= sequence.Frames.Length;
+                            }
+                        }
+
+                        var currentFrame = sequence.Frames[frameId];
+                        var currentImage = currentFrame.Images[0]; // TODO: Support more than one image per frame?
+
+                        // Lerp frame coords and size
+                        var offset = currentImage.UncroppedMin;
+                        var scale = currentImage.UncroppedMax - currentImage.UncroppedMin;
+
+                        rawVertices[quadStart + (VertexSize * 0) + 7] = offset.X;
+                        rawVertices[quadStart + (VertexSize * 0) + 8] = offset.Y + scale.Y;
+                        rawVertices[quadStart + (VertexSize * 1) + 7] = offset.X;
+                        rawVertices[quadStart + (VertexSize * 1) + 8] = offset.Y;
+                        rawVertices[quadStart + (VertexSize * 2) + 7] = offset.X + scale.X;
+                        rawVertices[quadStart + (VertexSize * 2) + 8] = offset.Y;
+                        rawVertices[quadStart + (VertexSize * 3) + 7] = offset.X + scale.X;
+                        rawVertices[quadStart + (VertexSize * 3) + 8] = offset.Y + scale.Y;
+                    }
+                    else
+                    {
+                        rawVertices[quadStart + (VertexSize * 0) + 7] = 0;
+                        rawVertices[quadStart + (VertexSize * 0) + 8] = 1;
+                        rawVertices[quadStart + (VertexSize * 1) + 7] = 0;
+                        rawVertices[quadStart + (VertexSize * 1) + 8] = 0;
+                        rawVertices[quadStart + (VertexSize * 2) + 7] = 1;
+                        rawVertices[quadStart + (VertexSize * 2) + 8] = 0;
+                        rawVertices[quadStart + (VertexSize * 3) + 7] = 1;
+                        rawVertices[quadStart + (VertexSize * 3) + 8] = 1;
+                    }
+
+                    i++;
                 }
-                else
-                {
-                    rawVertices[quadStart + (VertexSize * 0) + 7] = 0;
-                    rawVertices[quadStart + (VertexSize * 0) + 8] = 1;
-                    rawVertices[quadStart + (VertexSize * 1) + 7] = 0;
-                    rawVertices[quadStart + (VertexSize * 1) + 8] = 0;
-                    rawVertices[quadStart + (VertexSize * 2) + 7] = 1;
-                    rawVertices[quadStart + (VertexSize * 2) + 8] = 0;
-                    rawVertices[quadStart + (VertexSize * 3) + 7] = 1;
-                    rawVertices[quadStart + (VertexSize * 3) + 8] = 1;
-                }
 
-                i++;
+                GL.BindBuffer(BufferTarget.ArrayBuffer, vertexBufferHandle);
+                GL.BufferData(BufferTarget.ArrayBuffer, particles.Count * VertexSize * 4 * sizeof(float), rawVertices, BufferUsageHint.DynamicDraw);
             }
-
-            GL.BindBuffer(BufferTarget.ArrayBuffer, vertexBufferHandle);
-            GL.BufferData(BufferTarget.ArrayBuffer, particles.Count * VertexSize * 4 * sizeof(float), rawVertices, BufferUsageHint.DynamicDraw);
+            finally
+            {
+                ArrayPool<float>.Shared.Return(rawVertices);
+            }
         }
 
         public override void Render(ParticleCollection particleBag, ParticleSystemRenderState systemRenderState, Matrix4x4 modelViewMatrix)
