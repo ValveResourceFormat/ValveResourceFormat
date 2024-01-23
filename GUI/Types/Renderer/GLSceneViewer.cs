@@ -583,5 +583,16 @@ namespace GUI.Types.Renderer
                 Program.MainForm.Text = title;
             }
         }
+
+        protected override void OnKeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyData == Keys.Delete)
+            {
+                selectedNodeRenderer.DisableSelectedNodes();
+                return;
+            }
+
+            base.OnKeyDown(sender, e);
+        }
     }
 }

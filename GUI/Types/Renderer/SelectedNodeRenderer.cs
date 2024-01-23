@@ -69,6 +69,15 @@ namespace GUI.Types.Renderer
             UpdateBuffer();
         }
 
+        public void DisableSelectedNodes()
+        {
+            foreach (var node in selectedNodes)
+            {
+                node.LayerEnabled = !node.LayerEnabled;
+                node.Scene.UpdateOctrees();
+            }
+        }
+
         private void UpdateBuffer()
         {
             disableDepth = selectedNodes.Count > 1;

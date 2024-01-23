@@ -265,6 +265,11 @@ namespace GUI.Types.Renderer
                 renderer.LayerEnabled = layers.Contains(renderer.LayerName);
             }
 
+            UpdateOctrees();
+        }
+
+        public void UpdateOctrees()
+        {
             LastFrustum = -1;
             StaticOctree.Clear();
             DynamicOctree.Clear();
