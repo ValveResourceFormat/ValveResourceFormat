@@ -65,8 +65,11 @@ namespace GUI.Utils
 
         public void AddChildren()
         {
-            TotalChildren++;
             Children++;
+
+#if DEBUG
+            TotalChildren++;
+#endif
         }
 
         public void RemoveChildren()
@@ -105,9 +108,16 @@ namespace GUI.Utils
 
         protected virtual void Dispose(bool disposing)
         {
-            if (!disposing || Children != 0)
+            if (!disposing)
             {
+                return;
+            }
+
+            if (Children != 0)
+            {
+#if DEBUG
                 Log.Debug(nameof(VrfGuiContext), $"#{ContextId} Dispose ignored (children: {Children}, has parent: {ParentGuiContext != null})");
+#endif
 
                 WantsToBeDisposed = true;
                 return;
