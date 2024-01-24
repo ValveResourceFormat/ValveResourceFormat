@@ -116,8 +116,8 @@ void GetOptionallyCompressedNormalTangent(out vec3 normal, out vec4 tangent)
         normal = vNORMAL.xyz;
         tangent = vTANGENT.xyzw;
     #elif (D_COMPRESSED_NORMALS_AND_TANGENTS == 1)
-        normal = DecompressNormal(vNORMAL);
-        tangent = DecompressTangent(vNORMAL);
+        normal = DecompressNormal(vNORMAL * 255.0);
+        tangent = DecompressTangent(vNORMAL * 255.0);
     #elif (D_COMPRESSED_NORMALS_AND_TANGENTS == 2)
         DecompressNormalTangent2(vNORMAL, normal, tangent);
     #endif

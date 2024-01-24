@@ -220,7 +220,7 @@ void main()
     // TODO: ApplyVBIBDefaults
     if (vCOLOR.rgba != vec4(0, 0, 0, 1))
     {
-        vVertexColorOut *= vCOLOR / 255.0f;
+        vVertexColorOut *= vCOLOR;
     }
 #endif
 

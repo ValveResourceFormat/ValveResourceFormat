@@ -25,5 +25,5 @@ void main()
     GetOptionallyCompressedNormalTangent(vNormalOut, vTangentOut);
 
     vTexCoordOut = vTEXCOORD;
-    vColorBlendValues = vCOLOR / 255.0f;
+    vColorBlendValues = vCOLOR;
 }

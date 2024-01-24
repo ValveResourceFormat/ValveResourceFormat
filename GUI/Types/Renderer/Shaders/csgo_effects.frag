@@ -89,10 +89,10 @@ void main()
     fade = mix(g_flFadeMin, g_flFadeMax, 1.0 - fade);
     fade = saturate(fade);
 
-    opacity = opacity * fresnel * fade * (vColorOut.a / 255.0);
+    opacity = opacity * fresnel * fade * vColorOut.a;
 
     outputColor = vec4(
-        color.rgb * tintColor * g_flColorBoost * (vColorOut.rgb / 255.0),
+        color.rgb * tintColor * g_flColorBoost * vColorOut.rgb,
         opacity
     );
 
@@ -101,7 +101,7 @@ void main()
 #if renderMode_Color == 1
     outputColor = color * mask1;
 #elif renderMode_Tint == 1
-    outputColor = vColorOut / 255.0;
+    outputColor = vColorOut;
 #elif renderMode_SpriteEffects
     outputColor = vec4(mask1, mask2, mask3, 1);
 #endif

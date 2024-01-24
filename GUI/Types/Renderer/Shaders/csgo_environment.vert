@@ -134,8 +134,7 @@ void main()
     // TODO: ApplyVBIBDefaults
     if (vCOLOR.rgba != vec4(0, 0, 0, 1))
     {
-        vec4 vColorNormalized = vCOLOR / 255.0;
-        vVertexPaint =  mix(vec3(1.0), vColorNormalized.rgb, vec3(vColorNormalized.a));
+        vVertexPaint =  mix(vec3(1.0), vCOLOR.rgb, vec3(vCOLOR.a));
     }
 
     vVertexColor_Alpha = vec4(SrgbGammaToLinear(g_vColorTint.rgb) * vVertexPaint, vTint.a);
@@ -162,7 +161,7 @@ void main()
             g_vTexCoordCenter2.xy
         );
 
-        vColorBlendValues = vTEXCOORD4 / 255.0f;
+        vColorBlendValues = vTEXCOORD4;
         vColorBlendValues.a = clamp(vColorBlendValues.a + g_flBlendSoftness2, 0.001, 1.0);
 
         #if (F_SHARED_COLOR_OVERLAY == 1)

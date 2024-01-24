@@ -49,6 +49,6 @@ void main()
     vTexCoordOut = vTEXCOORD * g_vTexCoordScale.xy + g_vTexCoordOffset.xy;
 
     #if (F_PAINT_VERTEX_COLORS == 1)
-        vVertexColorOut = vTEXCOORD2 / 255.0;
+        vVertexColorOut = vTEXCOORD2;
     #endif
 }
