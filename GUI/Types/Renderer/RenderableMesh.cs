@@ -65,12 +65,12 @@ namespace GUI.Types.Renderer
             {
                 // Recycle old shader parameters that are not render modes since we are scrapping those anyway
                 var parameters = call.Material.Shader.Parameters
-                    .Where(kvp => !kvp.Key.StartsWith("renderMode", StringComparison.InvariantCulture))
+                    .Where(kvp => !kvp.Key.StartsWith(ShaderLoader.RenderModeDefinePrefix, StringComparison.Ordinal))
                     .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
 
                 if (renderMode != null && call.Material.Shader.RenderModes.Contains(renderMode))
                 {
-                    parameters.Add($"renderMode_{renderMode}", 1);
+                    parameters.Add(string.Concat(ShaderLoader.RenderModeDefinePrefix, renderMode), 1);
                 }
 
                 call.Material.Shader = guiContext.ShaderLoader.LoadShader(call.Material.Shader.Name, parameters);

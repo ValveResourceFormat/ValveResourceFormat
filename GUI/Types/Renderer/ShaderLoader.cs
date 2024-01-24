@@ -12,7 +12,7 @@ namespace GUI.Types.Renderer
 {
     partial class ShaderLoader : IDisposable
     {
-        private const string RenderModeDefinePrefix = "renderMode_";
+        public const string RenderModeDefinePrefix = "renderMode_";
 
         [GeneratedRegex(@"(?<SourceFile>[0-9]+)\((?<Line>[0-9]+)\) : error C(?<ErrorNumber>[0-9]+):")]
         private static partial Regex NvidiaGlslError();

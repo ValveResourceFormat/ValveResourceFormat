@@ -300,7 +300,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
             if (renderMode != null && shader.RenderModes.Contains(renderMode))
             {
-                parameters.Add($"renderMode_{renderMode}", 1);
+                parameters.Add(string.Concat(ShaderLoader.RenderModeDefinePrefix, renderMode), 1);
             }
 
             shader = guiContext.ShaderLoader.LoadShader(ShaderName, parameters);

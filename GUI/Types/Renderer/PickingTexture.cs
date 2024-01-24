@@ -133,7 +133,7 @@ class PickingTexture : Framebuffer
             DebugShader = guiContext.ShaderLoader.LoadShader("vrf.picking", new Dictionary<string, byte>
             {
                 { "F_DEBUG_PICKER", 1 },
-                { "renderMode_" + renderMode, 1 },
+                { string.Concat(ShaderLoader.RenderModeDefinePrefix, renderMode), 1 },
             });
             return;
         }
