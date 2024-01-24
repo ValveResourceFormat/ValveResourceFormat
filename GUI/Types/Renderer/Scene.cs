@@ -124,7 +124,7 @@ namespace GUI.Types.Renderer
         private int StaticCount;
         private int LastFrustum = -1;
 
-        public IEnumerable<SceneNode> GetFrustumCullResults(Frustum frustum)
+        public List<SceneNode> GetFrustumCullResults(Frustum frustum)
         {
             var currentFrustum = frustum.GetHashCode();
             if (LastFrustum != currentFrustum)

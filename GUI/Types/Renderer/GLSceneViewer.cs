@@ -31,7 +31,7 @@ namespace GUI.Types.Renderer
 
         protected UniformBuffer<ViewConstants> viewBuffer;
         private UniformBuffer<LightingConstants> lightingBuffer;
-        public IReadOnlyList<IBlockBindableBuffer> Buffers { get; private set; }
+        public List<IBlockBindableBuffer> Buffers { get; private set; }
         public List<(ReservedTextureSlots Slot, string Name, RenderTexture Texture)> Textures { get; } = [];
 
         private bool skipRenderModeChange;
