@@ -186,6 +186,11 @@ namespace GUI.Types.Renderer
                     //var surfacePropertyIndex = capsule.SurfacePropertyIndex;
 
                     var baseVertex = verts[collisionAttributeIndex].Count;
+
+                    // meshes can be large, so ensure capacity up front
+                    verts[collisionAttributeIndex].EnsureCapacity(baseVertex + mesh.Shape.Vertices.Length);
+                    inds[collisionAttributeIndex].EnsureCapacity(inds[collisionAttributeIndex].Count + mesh.Shape.Triangles.Length * 6);
+
                     foreach (var vec in mesh.Shape.Vertices)
                     {
                         var v = vec;
