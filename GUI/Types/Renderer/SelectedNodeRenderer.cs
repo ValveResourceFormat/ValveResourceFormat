@@ -26,13 +26,7 @@ namespace GUI.Types.Renderer
             GL.BindVertexArray(vaoHandle);
             GL.BindBuffer(BufferTarget.ArrayBuffer, vboHandle);
 
-            var positionAttributeLocation = GL.GetAttribLocation(shader.Program, "aVertexPosition");
-            GL.EnableVertexAttribArray(positionAttributeLocation);
-            GL.VertexAttribPointer(positionAttributeLocation, 3, VertexAttribPointerType.Float, false, SimpleVertex.SizeInBytes, 0);
-
-            var colorAttributeLocation = GL.GetAttribLocation(shader.Program, "aVertexColor");
-            GL.EnableVertexAttribArray(colorAttributeLocation);
-            GL.VertexAttribPointer(colorAttributeLocation, 4, VertexAttribPointerType.UnsignedByte, true, SimpleVertex.SizeInBytes, sizeof(float) * 3);
+            SimpleVertex.BindDefaultShaderLayout(shader.Program);
 
             GL.BindVertexArray(0);
         }

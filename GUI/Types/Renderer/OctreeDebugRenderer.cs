@@ -8,6 +8,17 @@ namespace GUI.Types.Renderer
     public record struct SimpleVertex(Vector3 Position, Color32 Color)
     {
         public static readonly int SizeInBytes = Marshal.SizeOf<SimpleVertex>();
+
+        public static void BindDefaultShaderLayout(int shaderProgram)
+        {
+            var positionAttributeLocation = GL.GetAttribLocation(shaderProgram, "aVertexPosition");
+            GL.EnableVertexAttribArray(positionAttributeLocation);
+            GL.VertexAttribPointer(positionAttributeLocation, 3, VertexAttribPointerType.Float, false, SimpleVertex.SizeInBytes, 0);
+
+            var colorAttributeLocation = GL.GetAttribLocation(shaderProgram, "aVertexColor");
+            GL.EnableVertexAttribArray(colorAttributeLocation);
+            GL.VertexAttribPointer(colorAttributeLocation, 4, VertexAttribPointerType.UnsignedByte, true, SimpleVertex.SizeInBytes, sizeof(float) * 3);
+        }
     }
 
     class OctreeDebugRenderer<T>
@@ -35,13 +46,7 @@ namespace GUI.Types.Renderer
             GL.BindVertexArray(vaoHandle);
             GL.BindBuffer(BufferTarget.ArrayBuffer, vboHandle);
 
-            var positionAttributeLocation = GL.GetAttribLocation(shader.Program, "aVertexPosition");
-            GL.EnableVertexAttribArray(positionAttributeLocation);
-            GL.VertexAttribPointer(positionAttributeLocation, 3, VertexAttribPointerType.Float, false, SimpleVertex.SizeInBytes, 0);
-
-            var colorAttributeLocation = GL.GetAttribLocation(shader.Program, "aVertexColor");
-            GL.EnableVertexAttribArray(colorAttributeLocation);
-            GL.VertexAttribPointer(colorAttributeLocation, 4, VertexAttribPointerType.UnsignedByte, true, SimpleVertex.SizeInBytes, sizeof(float) * 3);
+            SimpleVertex.BindDefaultShaderLayout(shader.Program);
 
             GL.BindVertexArray(0);
         }

@@ -38,14 +38,7 @@ namespace GUI.Types.Renderer
             GL.BindBuffer(BufferTarget.ElementArrayBuffer, iboHandle);
             GL.BufferData(BufferTarget.ElementArrayBuffer, inds.Count * sizeof(int), inds.ToArray(), BufferUsageHint.StaticDraw);
 
-            const int stride = sizeof(float) * 7;
-            var positionAttributeLocation = GL.GetAttribLocation(shader.Program, "aVertexPosition");
-            GL.EnableVertexAttribArray(positionAttributeLocation);
-            GL.VertexAttribPointer(positionAttributeLocation, 3, VertexAttribPointerType.Float, false, stride, 0);
-
-            var colorAttributeLocation = GL.GetAttribLocation(shader.Program, "aVertexColor");
-            GL.EnableVertexAttribArray(colorAttributeLocation);
-            GL.VertexAttribPointer(colorAttributeLocation, 4, VertexAttribPointerType.UnsignedByte, true, stride, sizeof(float) * 3);
+            SimpleVertex.BindDefaultShaderLayout(shader.Program);
 
             GL.BindVertexArray(0);
         }

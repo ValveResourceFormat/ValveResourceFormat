@@ -934,7 +934,11 @@ namespace GUI.Types.Renderer
 
             if (resource == null)
             {
-                var color = hammerEntity?.Color ?? new Vector3(255, 0, 255);
+                var color = new Color32(255, 0, 255, 255);
+                if (hammerEntity?.Color != null)
+                {
+                    color = color with { R = (byte)hammerEntity.Color.X, G = (byte)hammerEntity.Color.Y, B = (byte)hammerEntity.Color.Z };
+                }
 
                 var boxNode = new SimpleBoxSceneNode(scene, color, new Vector3(16f))
                 {

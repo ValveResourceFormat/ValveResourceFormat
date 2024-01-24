@@ -1,3 +1,4 @@
+using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using PrimitiveType = OpenTK.Graphics.OpenGL.PrimitiveType;
 
@@ -6,64 +7,38 @@ namespace GUI.Types.Renderer
     class SimpleBoxSceneNode : SceneNode
     {
         readonly Shader shader;
-        readonly int vertexCount;
         readonly int vaoHandle;
+        const int vertexCount = 8;
 
-        public SimpleBoxSceneNode(Scene scene, Vector3 color, Vector3 size)
+        static readonly byte[] CubeIndices =
+        [
+            0, 3, 2, 0, 1, 3, // Face1
+            4, 1, 0, 4, 5, 1, // Face2
+            4, 2, 6, 4, 0, 2, // Face3
+            6, 2, 3, 6, 3, 7, // Face4
+            5, 7, 3, 5, 3, 1, // Face5
+            4, 6, 7, 4, 7, 5, // Face6
+        ];
+
+        public SimpleBoxSceneNode(Scene scene, Color32 color, Vector3 scale)
             : base(scene)
         {
-            var x = size.X / 2f;
-            var y = size.Y / 2f;
-            var z = size.Z / 2f;
+            var v = scale / 2f;
 
-            LocalBoundingBox = new AABB(new Vector3(-x, -y, -z), new Vector3(x, y, z));
+            LocalBoundingBox = new AABB(-v, v);
 
-            var r = color.X / 255f;
-            var g = color.Y / 255f;
-            var b = color.Z / 255f;
-            var a = 1.0f;
+            var vertices = new SimpleVertex[vertexCount];
 
-            var vertices = new float[]
+            for (var i = 0; i < vertexCount; i++)
             {
-                -x,-y,-z, r, g, b, a,
-                -x,-y, z, r, g, b, a,
-                -x, y, z, r, g, b, a,
-                 x, y,-z, r, g, b, a,
-                -x,-y,-z, r, g, b, a,
-                -x, y,-z, r, g, b, a,
-                 x,-y, z, r, g, b, a,
-                -x,-y,-z, r, g, b, a,
-                 x,-y,-z, r, g, b, a,
-                 x, y,-z, r, g, b, a,
-                 x,-y,-z, r, g, b, a,
-                -x,-y,-z, r, g, b, a,
-                -x,-y,-z, r, g, b, a,
-                -x, y, z, r, g, b, a,
-                -x, y,-z, r, g, b, a,
-                 x,-y, z, r, g, b, a,
-                -x,-y, z, r, g, b, a,
-                -x,-y,-z, r, g, b, a,
-                -x, y, z, r, g, b, a,
-                -x,-y, z, r, g, b, a,
-                 x,-y, z, r, g, b, a,
-                 x, y, z, r, g, b, a,
-                 x,-y,-z, r, g, b, a,
-                 x, y,-z, r, g, b, a,
-                 x,-y,-z, r, g, b, a,
-                 x, y, z, r, g, b, a,
-                 x,-y, z, r, g, b, a,
-                 x, y, z, r, g, b, a,
-                 x, y,-z, r, g, b, a,
-                -x, y,-z, r, g, b, a,
-                 x, y, z, r, g, b, a,
-                -x, y,-z, r, g, b, a,
-                -x, y, z, r, g, b, a,
-                 x, y, z, r, g, b, a,
-                -x, y, z, r, g, b, a,
-                 x,-y, z, r, g, b, a,
-            };
+                var unitVector = new Vector3((i & 4) >> 2, (i & 2) >> 1, i & 1) * 2f - Vector3.One;
+                vertices[i].Position = v * unitVector;
+                vertices[i].Color = color;
+            }
 
-            vertexCount = vertices.Length / 7;
+            // triangles: 12
+            // vertex data: 32 floats / 128 bytes
+            // indices: 9 uints / 36 bytes
 
             shader = Scene.GuiContext.ShaderLoader.LoadShader("vrf.default");
             GL.UseProgram(shader.Program);
@@ -73,16 +48,13 @@ namespace GUI.Types.Renderer
 
             var vboHandle = GL.GenBuffer();
             GL.BindBuffer(BufferTarget.ArrayBuffer, vboHandle);
-            GL.BufferData(BufferTarget.ArrayBuffer, vertices.Length * sizeof(float), vertices, BufferUsageHint.StaticDraw);
+            GL.BufferData(BufferTarget.ArrayBuffer, vertexCount * SimpleVertex.SizeInBytes, vertices, BufferUsageHint.StaticDraw);
 
-            const int stride = sizeof(float) * 7;
-            var positionAttributeLocation = GL.GetAttribLocation(shader.Program, "aVertexPosition");
-            GL.EnableVertexAttribArray(positionAttributeLocation);
-            GL.VertexAttribPointer(positionAttributeLocation, 3, VertexAttribPointerType.Float, false, stride, 0);
+            var iboHandle = GL.GenBuffer();
+            GL.BindBuffer(BufferTarget.ElementArrayBuffer, iboHandle);
+            GL.BufferData(BufferTarget.ElementArrayBuffer, CubeIndices.Length * sizeof(byte), CubeIndices, BufferUsageHint.StaticDraw);
 
-            var colorAttributeLocation = GL.GetAttribLocation(shader.Program, "aVertexColor");
-            GL.EnableVertexAttribArray(colorAttributeLocation);
-            GL.VertexAttribPointer(colorAttributeLocation, 4, VertexAttribPointerType.UnsignedByte, true, stride, sizeof(float) * 3);
+            SimpleVertex.BindDefaultShaderLayout(shader.Program);
 
             GL.BindVertexArray(0);
         }
@@ -103,7 +75,7 @@ namespace GUI.Types.Renderer
             renderShader.SetUniform1("sceneObjectId", Id);
 
             GL.BindVertexArray(vaoHandle);
-            GL.DrawArrays(PrimitiveType.Triangles, 0, vertexCount);
+            GL.DrawElements(PrimitiveType.Triangles, CubeIndices.Length, DrawElementsType.UnsignedByte, 0);
 
             GL.UseProgram(0);
             GL.BindVertexArray(0);
