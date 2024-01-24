@@ -361,5 +361,15 @@ namespace GUI.Types.Renderer
                 first = false;
             }
         }
+
+#if DEBUG
+        public override void UpdateVertexArrayObjects()
+        {
+            foreach (var renderer in meshRenderers)
+            {
+                renderer.UpdateVertexArrayObjects();
+            }
+        }
+#endif
     }
 }

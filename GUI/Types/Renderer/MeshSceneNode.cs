@@ -35,5 +35,9 @@ namespace GUI.Types.Renderer
         {
             // This node does not render itself; it uses the batching system via IRenderableMeshCollection
         }
+
+#if DEBUG
+        public override void UpdateVertexArrayObjects() => RenderableMeshes[0].UpdateVertexArrayObjects();
+#endif
     }
 }

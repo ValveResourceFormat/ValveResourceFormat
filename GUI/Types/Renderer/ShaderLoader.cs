@@ -31,7 +31,7 @@ namespace GUI.Types.Renderer
         private readonly VrfGuiContext VrfGuiContext;
 
 #if DEBUG
-        private ShaderHotReload ShaderHotReload;
+        public ShaderHotReload ShaderHotReload { get; private set; }
 #endif
 
         public class ParsedShaderData
@@ -231,8 +231,12 @@ namespace GUI.Types.Renderer
         public void Dispose()
         {
 #if DEBUG
-            ShaderHotReload.ReloadShader -= OnHotReload;
-            ShaderHotReload.Dispose();
+            if (ShaderHotReload != null)
+            {
+                ShaderHotReload.ReloadShader -= OnHotReload;
+                ShaderHotReload.Dispose();
+                ShaderHotReload = null;
+            }
 #endif
 
             ShaderDefines.Clear();
@@ -324,7 +328,10 @@ namespace GUI.Types.Renderer
                 var newShader = CompileAndLinkShader(shader.Name, shader.Parameters);
 
                 GL.DeleteProgram(shader.Program);
+
                 shader.Program = newShader.Program;
+                shader.RenderModes.Clear();
+                shader.RenderModes.UnionWith(newShader.RenderModes);
             }
         }
 

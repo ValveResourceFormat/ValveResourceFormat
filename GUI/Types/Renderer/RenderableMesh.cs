@@ -78,6 +78,16 @@ namespace GUI.Types.Renderer
             }
         }
 
+#if DEBUG
+        public void UpdateVertexArrayObjects()
+        {
+            foreach (var call in DrawCalls)
+            {
+                UpdateVertexArrayObject(call);
+            }
+        }
+#endif
+
         public void SetAnimationTexture(RenderTexture texture)
         {
             AnimationTexture = texture;

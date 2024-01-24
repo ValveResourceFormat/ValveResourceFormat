@@ -51,6 +51,10 @@ namespace GUI.Types.Renderer
             AddWireframeToggleControl();
 
             GLLoad += OnLoad;
+
+#if DEBUG
+            guiContext.ShaderLoader.ShaderHotReload.ReloadShader += OnHotReload;
+#endif
         }
 
         protected GLSceneViewer(VrfGuiContext guiContext) : base(guiContext)
@@ -449,5 +453,23 @@ namespace GUI.Types.Renderer
 
             base.OnKeyDown(sender, e);
         }
+
+#if DEBUG
+        private void OnHotReload(object sender, string e)
+        {
+            foreach (var node in Scene.AllNodes)
+            {
+                node.UpdateVertexArrayObjects();
+            }
+
+            if (SkyboxScene != null)
+            {
+                foreach (var node in SkyboxScene.AllNodes)
+                {
+                    node.UpdateVertexArrayObjects();
+                }
+            }
+        }
+#endif
     }
 }

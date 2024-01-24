@@ -61,5 +61,11 @@ namespace GUI.Types.Renderer
         public virtual void SetRenderMode(string mode)
         {
         }
+
+#if DEBUG
+        public virtual void UpdateVertexArrayObjects()
+        {
+        }
+#endif
     }
 }

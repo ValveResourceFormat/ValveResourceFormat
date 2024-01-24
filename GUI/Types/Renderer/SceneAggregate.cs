@@ -136,5 +136,9 @@ namespace GUI.Types.Renderer
         {
             RenderMesh.SetRenderMode(renderMode);
         }
+
+#if DEBUG
+        public override void UpdateVertexArrayObjects() => RenderMesh.UpdateVertexArrayObjects();
+#endif
     }
 }
