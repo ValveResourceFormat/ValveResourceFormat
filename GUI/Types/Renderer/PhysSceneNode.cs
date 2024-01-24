@@ -16,13 +16,10 @@ namespace GUI.Types.Renderer
         readonly int vboHandle;
         readonly int iboHandle;
         readonly int vaoHandle;
-        readonly bool hasUntriangulatedVertices;
 
-        public PhysSceneNode(Scene scene, List<float> verts, List<int> inds, bool hasUntriangulatedVertices)
+        public PhysSceneNode(Scene scene, List<SimpleVertex> verts, List<int> inds)
             : base(scene)
         {
-            this.hasUntriangulatedVertices = hasUntriangulatedVertices;
-
             shader = Scene.GuiContext.ShaderLoader.LoadShader("vrf.default");
             GL.UseProgram(shader.Program);
 
@@ -31,7 +28,7 @@ namespace GUI.Types.Renderer
 
             vboHandle = GL.GenBuffer();
             GL.BindBuffer(BufferTarget.ArrayBuffer, vboHandle);
-            GL.BufferData(BufferTarget.ArrayBuffer, verts.Count * sizeof(float), verts.ToArray(), BufferUsageHint.StaticDraw);
+            GL.BufferData(BufferTarget.ArrayBuffer, verts.Count * SimpleVertex.SizeInBytes, verts.ToArray(), BufferUsageHint.StaticDraw);
 
             iboHandle = GL.GenBuffer();
             indexCount = inds.Count;
@@ -46,11 +43,10 @@ namespace GUI.Types.Renderer
         public static IEnumerable<PhysSceneNode> CreatePhysSceneNodes(Scene scene, PhysAggregateData phys, string fileName)
         {
             var groupCount = phys.CollisionAttributes.Count;
-            var verts = new List<float>[groupCount];
+            var verts = new List<SimpleVertex>[groupCount];
             var inds = new List<int>[groupCount];
             var boundingBoxes = new AABB[groupCount];
             var boundingBoxInitted = new bool[groupCount];
-            var hasUntriangulatedVertices = new bool[groupCount];
 
             for (var i = 0; i < groupCount; i++)
             {
@@ -73,8 +69,6 @@ namespace GUI.Types.Renderer
                     //var surfacePropertyIndex = capsule.SurfacePropertyIndex;
                     var center = sphere.Shape.Center;
                     var radius = sphere.Shape.Radius;
-
-                    hasUntriangulatedVertices[collisionAttributeIndex] = true; // TODO: Remove this
 
                     if (bindPose.Length != 0)
                     {
@@ -104,8 +98,6 @@ namespace GUI.Types.Renderer
                     //var surfacePropertyIndex = capsule.SurfacePropertyIndex;
                     var center = capsule.Shape.Center;
                     var radius = capsule.Shape.Radius;
-
-                    hasUntriangulatedVertices[collisionAttributeIndex] = true; // TODO: Remove this
 
                     if (bindPose.Length != 0)
                     {
@@ -137,7 +129,7 @@ namespace GUI.Types.Renderer
                     var collisionAttributeIndex = hull.CollisionAttributeIndex;
                     //var surfacePropertyIndex = capsule.SurfacePropertyIndex;
 
-                    var vertOffset = verts[collisionAttributeIndex].Count / 7;
+                    var baseVertex = verts[collisionAttributeIndex].Count;
                     foreach (var v in hull.Shape.VertexPositions)
                     {
                         var vec = v;
@@ -146,14 +138,8 @@ namespace GUI.Types.Renderer
                             vec = Vector3.Transform(vec, bindPose[p]);
                         }
 
-                        verts[collisionAttributeIndex].Add(vec.X);
-                        verts[collisionAttributeIndex].Add(vec.Y);
-                        verts[collisionAttributeIndex].Add(vec.Z);
                         //color red
-                        verts[collisionAttributeIndex].Add(1);
-                        verts[collisionAttributeIndex].Add(0);
-                        verts[collisionAttributeIndex].Add(0);
-                        verts[collisionAttributeIndex].Add(0.3f);
+                        verts[collisionAttributeIndex].Add(new(vec, new(1f, 0f, 0f, 0.3f)));
                     }
 
                     foreach (var face in hull.Shape.Faces)
@@ -169,12 +155,12 @@ namespace GUI.Types.Renderer
                                 break;
                             }
 
-                            inds[collisionAttributeIndex].Add(vertOffset + hull.Shape.Edges[startEdge].Origin);
-                            inds[collisionAttributeIndex].Add(vertOffset + hull.Shape.Edges[edge].Origin);
-                            inds[collisionAttributeIndex].Add(vertOffset + hull.Shape.Edges[edge].Origin);
-                            inds[collisionAttributeIndex].Add(vertOffset + hull.Shape.Edges[nextEdge].Origin);
-                            inds[collisionAttributeIndex].Add(vertOffset + hull.Shape.Edges[nextEdge].Origin);
-                            inds[collisionAttributeIndex].Add(vertOffset + hull.Shape.Edges[startEdge].Origin);
+                            inds[collisionAttributeIndex].Add(baseVertex + hull.Shape.Edges[startEdge].Origin);
+                            inds[collisionAttributeIndex].Add(baseVertex + hull.Shape.Edges[edge].Origin);
+                            inds[collisionAttributeIndex].Add(baseVertex + hull.Shape.Edges[edge].Origin);
+                            inds[collisionAttributeIndex].Add(baseVertex + hull.Shape.Edges[nextEdge].Origin);
+                            inds[collisionAttributeIndex].Add(baseVertex + hull.Shape.Edges[nextEdge].Origin);
+                            inds[collisionAttributeIndex].Add(baseVertex + hull.Shape.Edges[startEdge].Origin);
 
                             edge = nextEdge;
                         }
@@ -199,7 +185,7 @@ namespace GUI.Types.Renderer
                     var collisionAttributeIndex = mesh.CollisionAttributeIndex;
                     //var surfacePropertyIndex = capsule.SurfacePropertyIndex;
 
-                    var vertOffset = verts[collisionAttributeIndex].Count / 7;
+                    var baseVertex = verts[collisionAttributeIndex].Count;
                     foreach (var vec in mesh.Shape.Vertices)
                     {
                         var v = vec;
@@ -208,24 +194,18 @@ namespace GUI.Types.Renderer
                             v = Vector3.Transform(vec, bindPose[p]);
                         }
 
-                        verts[collisionAttributeIndex].Add(v.X);
-                        verts[collisionAttributeIndex].Add(v.Y);
-                        verts[collisionAttributeIndex].Add(v.Z);
                         //color blue
-                        verts[collisionAttributeIndex].Add(0);
-                        verts[collisionAttributeIndex].Add(0);
-                        verts[collisionAttributeIndex].Add(1);
-                        verts[collisionAttributeIndex].Add(0.3f);
+                        verts[collisionAttributeIndex].Add(new(v, new(0f, 0f, 1f, 0.3f)));
                     }
 
                     foreach (var tri in mesh.Shape.Triangles)
                     {
-                        inds[collisionAttributeIndex].Add(vertOffset + tri.X);
-                        inds[collisionAttributeIndex].Add(vertOffset + tri.Y);
-                        inds[collisionAttributeIndex].Add(vertOffset + tri.Y);
-                        inds[collisionAttributeIndex].Add(vertOffset + tri.Z);
-                        inds[collisionAttributeIndex].Add(vertOffset + tri.Z);
-                        inds[collisionAttributeIndex].Add(vertOffset + tri.X);
+                        inds[collisionAttributeIndex].Add(baseVertex + tri.X);
+                        inds[collisionAttributeIndex].Add(baseVertex + tri.Y);
+                        inds[collisionAttributeIndex].Add(baseVertex + tri.Y);
+                        inds[collisionAttributeIndex].Add(baseVertex + tri.Z);
+                        inds[collisionAttributeIndex].Add(baseVertex + tri.Z);
+                        inds[collisionAttributeIndex].Add(baseVertex + tri.X);
                     }
 
                     var bbox = new AABB(mesh.Shape.Min, mesh.Shape.Max);
@@ -242,7 +222,7 @@ namespace GUI.Types.Renderer
                 }
             }
 
-            var scenes = phys.CollisionAttributes.Select((attributes, i) =>
+            var nodes = phys.CollisionAttributes.Select((attributes, i) =>
             {
                 if (verts.Length == 0) // TODO: Remove this
                 {
@@ -278,7 +258,7 @@ namespace GUI.Types.Renderer
                     name = $"- {tooltexture} {name}";
                 }
 
-                var physSceneNode = new PhysSceneNode(scene, verts[i], inds[i], hasUntriangulatedVertices[i])
+                var physSceneNode = new PhysSceneNode(scene, verts[i], inds[i])
                 {
                     Name = fileName,
                     PhysGroupName = name,
@@ -287,17 +267,17 @@ namespace GUI.Types.Renderer
 
                 return physSceneNode;
             }).ToArray();
-            return scenes;
+            return nodes;
         }
 
-        private static void AddCapsule(List<float> verts, List<int> inds, Vector3 c0, Vector3 c1, float radius)
+        private static void AddCapsule(List<SimpleVertex> verts, List<int> inds, Vector3 c0, Vector3 c1, float radius)
         {
             var mtx = Matrix4x4.CreateLookAt(c0, c1, Vector3.UnitY);
             mtx.Translation = Vector3.Zero;
             AddSphere(verts, inds, c0, radius);
             AddSphere(verts, inds, c1, radius);
 
-            var vertOffset = verts.Count / 7;
+            var baseVertex = verts.Count;
 
             for (var i = 0; i < 4; i++)
             {
@@ -308,41 +288,25 @@ namespace GUI.Types.Renderer
                 vr = Vector3.Transform(vr, mtx);
                 var v = vr + c0;
 
-                verts.Add(v.X);
-                verts.Add(v.Y);
-                verts.Add(v.Z);
                 //color red
-                verts.Add(1);
-                verts.Add(0);
-                verts.Add(0);
-                verts.Add(1);
+                verts.Add(new(v, new(1f, 0f, 0f, 1f)));
+                verts.Add(new(vr + c1, new(1f, 0f, 0f, 1f)));
 
-                v = vr + c1;
-
-                verts.Add(v.X);
-                verts.Add(v.Y);
-                verts.Add(v.Z);
-                //color red
-                verts.Add(1);
-                verts.Add(0);
-                verts.Add(0);
-                verts.Add(1);
-
-                inds.Add(vertOffset + i * 2);
-                inds.Add(vertOffset + i * 2 + 1);
+                inds.Add(baseVertex + i * 2);
+                inds.Add(baseVertex + i * 2 + 1);
             }
         }
 
-        private static void AddSphere(List<float> verts, List<int> inds, Vector3 center, float radius)
+        private static void AddSphere(List<SimpleVertex> verts, List<int> inds, Vector3 center, float radius)
         {
             AddCircle(verts, inds, center, radius, Matrix4x4.Identity);
             AddCircle(verts, inds, center, radius, Matrix4x4.CreateRotationX(MathF.PI * 0.5f));
             AddCircle(verts, inds, center, radius, Matrix4x4.CreateRotationY(MathF.PI * 0.5f));
         }
 
-        private static void AddCircle(List<float> verts, List<int> inds, Vector3 center, float radius, Matrix4x4 mtx)
+        private static void AddCircle(List<SimpleVertex> verts, List<int> inds, Vector3 center, float radius, Matrix4x4 mtx)
         {
-            var vertOffset = verts.Count / 7;
+            var baseVertex = verts.Count;
             for (var i = 0; i < 16; i++)
             {
                 var v = new Vector3(
@@ -351,17 +315,11 @@ namespace GUI.Types.Renderer
                     0);
                 v = Vector3.Transform(v, mtx) + center;
 
-                verts.Add(v.X);
-                verts.Add(v.Y);
-                verts.Add(v.Z);
-                //color red
-                verts.Add(1);
-                verts.Add(0);
-                verts.Add(1);
-                verts.Add(1);
+                // color red
+                verts.Add(new(v, new(1f, 0f, 0f, 1f)));
 
-                inds.Add(vertOffset + i);
-                inds.Add(vertOffset + (i + 1) % 16);
+                inds.Add(baseVertex + i);
+                inds.Add(baseVertex + (i + 1) % 16);
             }
         }
 
@@ -393,11 +351,8 @@ namespace GUI.Types.Renderer
             //GL.LineWidth(1.5f);
             GL.DrawElements(PrimitiveType.Lines, indexCount, DrawElementsType.UnsignedInt, 0);
 
-            if (!hasUntriangulatedVertices)
-            {
-                // triangles
-                GL.DrawElements(PrimitiveType.TrianglesAdjacency, indexCount, DrawElementsType.UnsignedInt, 0);
-            }
+            // triangles
+            GL.DrawElements(PrimitiveType.Triangles, indexCount, DrawElementsType.UnsignedInt, 0);
 
             GL.Disable(EnableCap.Blend);
             GL.Disable(EnableCap.PolygonOffsetLine);
