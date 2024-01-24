@@ -13,32 +13,28 @@ namespace ValveResourceFormat.ResourceTypes.ModelFlex.FlexOps
         public static FlexOp Build(string opCode, int data)
         {
             var floatData = BitConverter.Int32BitsToSingle(data);
-            switch (opCode)
+            var flexOp = opCode switch
             {
-                case "FLEX_OP_FETCH1":
-                    return new FlexOpFetch1(data);
-                case "FLEX_OP_CONST":
-                    return new FlexOpConst(floatData);
-                case "FLEX_OP_MAX":
-                    return new FlexOpMax(floatData);
-                case "FLEX_OP_MIN":
-                    return new FlexOpMin(floatData);
-                case "FLEX_OP_ADD":
-                    return new FlexOpAdd(floatData);
-                case "FLEX_OP_SUB":
-                    return new FlexOpSub(floatData);
-                case "FLEX_OP_MUL":
-                    return new FlexOpMul(floatData);
-                case "FLEX_OP_DIV":
-                    return new FlexOpDiv(floatData);
-                case "FLEX_OP_NWAY":
-                    return new FlexOpNWay(data);
-                default:
+                "FLEX_OP_FETCH1" => new FlexOpFetch1(data),
+                "FLEX_OP_CONST" => new FlexOpConst(floatData),
+                "FLEX_OP_MAX" => new FlexOpMax(floatData),
+                "FLEX_OP_MIN" => new FlexOpMin(floatData),
+                "FLEX_OP_ADD" => new FlexOpAdd(floatData),
+                "FLEX_OP_SUB" => new FlexOpSub(floatData),
+                "FLEX_OP_MUL" => new FlexOpMul(floatData),
+                "FLEX_OP_DIV" => new FlexOpDiv(floatData),
+                "FLEX_OP_NWAY" => new FlexOpNWay(data),
+                _ => (FlexOp)null,
+            };
+
 #if DEBUG
-                    Console.WriteLine($"Unknown flex opcode: {opCode}");
-#endif
-                    return null;
+            if (flexOp is null)
+            {
+                Console.WriteLine($"Unknown flex opcode: {opCode}");
             }
+#endif
+
+            return flexOp;
         }
     }
 }

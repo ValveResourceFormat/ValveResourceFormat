@@ -101,7 +101,11 @@ dotnet_diagnostic.CA1308.severity = none
 # CA1852: Seal internal types
 dotnet_diagnostic.CA1852.severity = none
 
+# IDE0059: Remove unnecessary value assignment
 dotnet_diagnostic.IDE0059.severity = none
+
+# IDE0079: Remove unnecessary suppression
+dotnet_diagnostic.IDE0079.severity = none
 
 #
 # Dotnet code style settings:
