@@ -12,12 +12,14 @@ namespace GUI.Types.Renderer
 
         static readonly byte[] CubeIndices =
         [
+#pragma warning disable format
             0, 3, 2, 0, 1, 3, // Face1
             4, 1, 0, 4, 5, 1, // Face2
             4, 2, 6, 4, 0, 2, // Face3
             6, 2, 3, 6, 3, 7, // Face4
             5, 7, 3, 5, 3, 1, // Face5
             4, 6, 7, 4, 7, 5, // Face6
+#pragma warning restore format
         ];
 
         public SimpleBoxSceneNode(Scene scene, Color32 color, Vector3 scale)
