@@ -107,6 +107,10 @@ namespace GUI.Types.Renderer
 
                 var shader = new Shader
                 {
+#if DEBUG
+                    FileName = shaderFileName,
+#endif
+
                     Name = shaderName,
                     Parameters = arguments,
                     Program = shaderProgram,
@@ -290,15 +294,33 @@ namespace GUI.Types.Renderer
         }
 
 #if DEBUG
-        private void OnHotReload(object sender, string e)
+        private void OnHotReload(object sender, string name)
         {
-            ReloadAllShaders();
+            var ext = Path.GetExtension(name);
+
+            if (ext is ".frag" or ".vert")
+            {
+                // If frag or vert file changed, then we can only reload this shader
+                name = Path.GetFileNameWithoutExtension(name);
+            }
+            else
+            {
+                // Otherwise reload all shaders (common, etc)
+                name = null;
+            }
+
+            ReloadAllShaders(name);
         }
 
-        public void ReloadAllShaders()
+        public void ReloadAllShaders(string name = null)
         {
             foreach (var shader in CachedShaders.Values)
             {
+                if (name != null && shader.FileName != name)
+                {
+                    continue;
+                }
+
                 var newShader = CompileAndLinkShader(shader.Name, shader.Parameters);
 
                 GL.DeleteProgram(shader.Program);

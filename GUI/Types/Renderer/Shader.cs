@@ -5,7 +5,7 @@ namespace GUI.Types.Renderer
 {
     class Shader
     {
-        public string Name { get; set; }
+        public string Name { get; init; }
         public int Program { get; set; }
         public IReadOnlyDictionary<string, byte> Parameters { get; init; }
         public HashSet<string> RenderModes { get; init; }
@@ -13,6 +13,10 @@ namespace GUI.Types.Renderer
 
         private Dictionary<string, int> Uniforms { get; } = [];
         public RenderMaterial Default;
+
+#if DEBUG
+        public string FileName { get; init; }
+#endif
 
         public Shader()
         {

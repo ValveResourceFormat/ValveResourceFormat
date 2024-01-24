@@ -82,7 +82,7 @@ class ShaderHotReload : IDisposable
             return; // Visual Studio writes to temporary file
         }
 
-        Log.Debug(nameof(ShaderHotReload), $"{e.ChangeType} {e.FullPath} ({e.Name})");
+        Log.Debug(nameof(ShaderHotReload), $"{e.ChangeType} {e.FullPath}");
 
         var now = DateTime.Now;
         var timeSinceLastChange = now - lastChanged;
