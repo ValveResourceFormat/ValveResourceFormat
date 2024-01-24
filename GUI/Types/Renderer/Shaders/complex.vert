@@ -240,10 +240,6 @@ void main()
 #if (F_LAYERS > 0) || defined(simple_2way_blend_vfx) || defined(vr_blend_vfx_common) || defined(vr_standard_blend_vfx)
     vColorBlendValues = vBLEND_COLOR;
 
-#if !defined(vr_standard_blend_vfx)
-    vColorBlendValues /= 255.0;
-#endif
-
     #if defined(vr_blend_vfx_common)
         vColorBlendValues.y = max(0.5 * vBLEND_ALPHA.x, 0.1);
     #endif
