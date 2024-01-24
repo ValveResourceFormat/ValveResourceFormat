@@ -32,7 +32,7 @@ namespace GUI.Types.Renderer
 
             var colorAttributeLocation = GL.GetAttribLocation(shader.Program, "aVertexColor");
             GL.EnableVertexAttribArray(colorAttributeLocation);
-            GL.VertexAttribPointer(colorAttributeLocation, 4, VertexAttribPointerType.Float, false, SimpleVertex.SizeInBytes, sizeof(float) * 3);
+            GL.VertexAttribPointer(colorAttributeLocation, 4, VertexAttribPointerType.UnsignedByte, true, SimpleVertex.SizeInBytes, sizeof(float) * 3);
 
             GL.BindVertexArray(0);
         }
@@ -109,7 +109,7 @@ namespace GUI.Types.Renderer
                         }
 
                         var fractionToTen = (float)i / 10;
-                        var color = new Vector4(1.0f, fractionToTen, fractionToTen, 1.0f);
+                        var color = new Utils.Color32(1.0f, fractionToTen, fractionToTen, 1.0f);
                         OctreeDebugRenderer<SceneNode>.AddLine(vertices, tiedEnvMap.Transform.Translation, node.BoundingBox.Center, color);
                         i++;
                     }

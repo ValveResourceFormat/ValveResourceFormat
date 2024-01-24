@@ -1,4 +1,3 @@
-using System.Linq;
 using System.Runtime.InteropServices;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
@@ -6,7 +5,7 @@ using OpenTK.Graphics.OpenGL;
 namespace GUI.Types.Renderer
 {
     [StructLayout(LayoutKind.Sequential)]
-    public record struct SimpleVertex(Vector3 Position, Vector4 Color)
+    public record struct SimpleVertex(Vector3 Position, Color32 Color)
     {
         public static readonly int SizeInBytes = Marshal.SizeOf<SimpleVertex>();
     }
@@ -42,18 +41,18 @@ namespace GUI.Types.Renderer
 
             var colorAttributeLocation = GL.GetAttribLocation(shader.Program, "aVertexColor");
             GL.EnableVertexAttribArray(colorAttributeLocation);
-            GL.VertexAttribPointer(colorAttributeLocation, 4, VertexAttribPointerType.Float, false, SimpleVertex.SizeInBytes, sizeof(float) * 3);
+            GL.VertexAttribPointer(colorAttributeLocation, 4, VertexAttribPointerType.UnsignedByte, true, SimpleVertex.SizeInBytes, sizeof(float) * 3);
 
             GL.BindVertexArray(0);
         }
 
-        public static void AddLine(List<SimpleVertex> vertices, Vector3 from, Vector3 to, Vector4 color)
+        public static void AddLine(List<SimpleVertex> vertices, Vector3 from, Vector3 to, Color32 color)
         {
             vertices.Add(new SimpleVertex(from, color));
             vertices.Add(new SimpleVertex(to, color));
         }
 
-        public static void AddBox(List<SimpleVertex> vertices, in AABB box, Vector4 color)
+        public static void AddBox(List<SimpleVertex> vertices, in AABB box, Color32 color)
         {
             // Adding a box will add many vertices, so ensure the required capacity for it up front
             vertices.EnsureCapacity(vertices.Count + 2 * 12);
@@ -74,7 +73,7 @@ namespace GUI.Types.Renderer
             AddLine(vertices, new Vector3(box.Min.X, box.Max.Y, box.Min.Z), new Vector3(box.Min.X, box.Max.Y, box.Max.Z), color);
         }
 
-        public static void AddBox(List<SimpleVertex> vertices, in Matrix4x4 transform, in AABB box, Vector4 color)
+        public static void AddBox(List<SimpleVertex> vertices, in Matrix4x4 transform, in AABB box, Color32 color)
         {
             // Adding a box will add many vertices, so ensure the required capacity for it up front
             vertices.EnsureCapacity(vertices.Count + 2 * 12);
@@ -106,14 +105,14 @@ namespace GUI.Types.Renderer
 
         private static void AddOctreeNode(List<SimpleVertex> vertices, Octree<T>.Node node, int depth)
         {
-            AddBox(vertices, node.Region, Vector4.One with { W = node.HasElements ? 1.0f : 0.25f });
+            AddBox(vertices, node.Region, Color32.White with { A = node.HasElements ? (byte)255 : (byte)64 });
 
             if (node.HasElements)
             {
                 foreach (var element in node.Elements)
                 {
                     var shading = Math.Min(1.0f, depth * 0.1f);
-                    AddBox(vertices, element.BoundingBox, new Vector4(1.0f, shading, 0.0f, 1.0f));
+                    AddBox(vertices, element.BoundingBox, new(1.0f, shading, 0.0f, 1.0f));
 
                     // AddLine(vertices, element.BoundingBox.Min, node.Region.Min, new Vector4(1.0f, shading, 0.0f, 0.5f));
                     // AddLine(vertices, element.BoundingBox.Max, node.Region.Max, new Vector4(1.0f, shading, 0.0f, 0.5f));

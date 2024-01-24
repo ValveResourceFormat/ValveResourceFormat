@@ -37,7 +37,7 @@ namespace GUI.Types.Renderer
 
             var colorAttributeLocation = GL.GetAttribLocation(shader.Program, "aVertexColor");
             GL.EnableVertexAttribArray(colorAttributeLocation);
-            GL.VertexAttribPointer(colorAttributeLocation, 4, VertexAttribPointerType.Float, false, stride, sizeof(float) * 3);
+            GL.VertexAttribPointer(colorAttributeLocation, 4, VertexAttribPointerType.UnsignedByte, true, stride, sizeof(float) * 3);
 
             GL.BindVertexArray(0);
         }
@@ -72,10 +72,10 @@ namespace GUI.Types.Renderer
                 GetAnimationMatrixRecursive(vertices, root, Matrix4x4.Identity, frame);
             }
 
-            vertexCount = vertices.Count / 7;
+            vertexCount = vertices.Count;
 
             GL.BindBuffer(BufferTarget.ArrayBuffer, vboHandle);
-            GL.BufferData(BufferTarget.ArrayBuffer, vertices.Count * sizeof(float), vertices.ToArray(), BufferUsageHint.DynamicDraw);
+            GL.BufferData(BufferTarget.ArrayBuffer, vertices.Count * SimpleVertex.SizeInBytes, vertices.ToArray(), BufferUsageHint.DynamicDraw);
         }
 
         private static void GetAnimationMatrixRecursive(List<SimpleVertex> vertices, Bone bone, Matrix4x4 bindPose, Frame frame)
@@ -97,7 +97,7 @@ namespace GUI.Types.Renderer
 
             if (!oldBindPose.IsIdentity)
             {
-                OctreeDebugRenderer<SceneNode>.AddLine(vertices, bindPose.Translation, oldBindPose.Translation, new(0, 1, 1, 1));
+                OctreeDebugRenderer<SceneNode>.AddLine(vertices, bindPose.Translation, oldBindPose.Translation, new(0f, 1f, 1f, 1f));
             }
 
             foreach (var child in bone.Children)
