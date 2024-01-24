@@ -682,15 +682,21 @@ namespace GUI.Controls
             stream.CopyTo(ms);
             var file = package.AddFile(name, ms.ToArray());
 
-#pragma warning disable CA2000 // Dispose objects before losing scope -- debug code who cares
-            var contextPackage = new VrfGuiContext("vrf_embedded.vpk", null)
+            using var contextPackage = new VrfGuiContext("vrf_embedded.vpk", null)
             {
                 CurrentPackage = package
             };
             var contextFile = new VrfGuiContext(name, contextPackage);
-#pragma warning restore CA2000
 
-            Program.MainForm.OpenFile(contextFile, file);
+            try
+            {
+                Program.MainForm.OpenFile(contextFile, file);
+                contextFile = null;
+            }
+            finally
+            {
+                contextFile?.Dispose();
+            }
 
             return true;
         }

@@ -337,7 +337,8 @@ namespace GUI.Types.Renderer
 
         public static void ValidateShaders()
         {
-            using var loader = new ShaderLoader(new VrfGuiContext(null, null));
+            using var context = new VrfGuiContext(null, null);
+            using var loader = new ShaderLoader(context);
             var folder = ShaderParser.GetShaderDiskPath(string.Empty);
 
             var shaders = Directory.GetFiles(folder, "*.frag");

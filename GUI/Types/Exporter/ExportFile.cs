@@ -114,6 +114,7 @@ namespace GUI.Types.Exporter
                 finally
                 {
                     extractDialog?.Dispose();
+                    exportData.VrfGuiContext.Dispose();
                 }
             }
             else

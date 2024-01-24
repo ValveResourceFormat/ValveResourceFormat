@@ -28,15 +28,27 @@ namespace GUI.Utils
         }
 
         public MaterialLoader MaterialLoader { get; }
-
         public ShaderLoader ShaderLoader { get; private set; }
         public GPUMeshBufferCache MeshBufferCache { get; }
         public AdvancedGuiFileLoader FileLoader { get; private set; }
         public VrfGuiContext ParentGuiContext { get; private set; }
         public ToolsAssetInfo ToolsAssetInfo { get; set; }
 
+        private int Children;
+        private bool WantsToBeDisposed;
+
+#if DEBUG
+        private int TotalChildren;
+        private static int LastContextId;
+        private readonly int ContextId = ++LastContextId;
+#endif
+
         public VrfGuiContext(string fileName, VrfGuiContext parentGuiContext)
         {
+#if DEBUG
+            Log.Debug(nameof(VrfGuiContext), $"#{ContextId} created");
+#endif
+
             FileName = fileName;
             ParentGuiContext = parentGuiContext;
             MaterialLoader = new MaterialLoader(this);
@@ -44,16 +56,29 @@ namespace GUI.Utils
             FileLoader = new AdvancedGuiFileLoader(this);
             MeshBufferCache = new GPUMeshBufferCache();
 
-            Task.Run(FillSurfacePropertyHashes);
-        }
-
-        public void FillSurfacePropertyHashes()
-        {
             if (ParentGuiContext != null)
             {
-                return;
+                ParentGuiContext.AddChildren();
+                Task.Run(FillSurfacePropertyHashes);
             }
+        }
 
+        public void AddChildren()
+        {
+            TotalChildren++;
+            Children++;
+        }
+
+        public void RemoveChildren()
+        {
+            if (--Children == 0 && WantsToBeDisposed)
+            {
+                Dispose();
+            }
+        }
+
+        private void FillSurfacePropertyHashes()
+        {
             using var vsurf = FileLoader.LoadFile("surfaceproperties/surfaceproperties.vsurf_c");
             if (vsurf is not null && vsurf.DataBlock is BinaryKV3 kv3)
             {
@@ -80,19 +105,38 @@ namespace GUI.Utils
 
         protected virtual void Dispose(bool disposing)
         {
-            if (disposing)
+            if (!disposing || Children != 0)
             {
-                ParentGuiContext = null;
+                Log.Debug(nameof(VrfGuiContext), $"#{ContextId} Dispose ignored (children: {Children}, has parent: {ParentGuiContext != null})");
 
-                if (CurrentPackage != null)
+                WantsToBeDisposed = true;
+                return;
+            }
+
+#if DEBUG
+            Log.Debug(nameof(VrfGuiContext), $"#{ContextId} Dispose (total children: {TotalChildren}, has parent: {ParentGuiContext != null}, prev: {WantsToBeDisposed})");
+#endif
+
+            if (ParentGuiContext != null)
+            {
+                ParentGuiContext.RemoveChildren();
+                ParentGuiContext = null;
+            }
+
+            if (FileLoader != null)
+            {
+                if (FileLoader.CurrentPackage != null)
                 {
-                    CurrentPackage.Dispose();
-                    CurrentPackage = null;
+                    FileLoader.CurrentPackage.Dispose();
+                    FileLoader.CurrentPackage = null;
                 }
 
                 FileLoader.Dispose();
                 FileLoader = null;
+            }
 
+            if (ShaderLoader != null)
+            {
                 ShaderLoader.Dispose();
                 ShaderLoader = null;
             }
@@ -100,7 +144,6 @@ namespace GUI.Utils
 
         public void Dispose()
         {
-            // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
             Dispose(disposing: true);
             GC.SuppressFinalize(this);
         }

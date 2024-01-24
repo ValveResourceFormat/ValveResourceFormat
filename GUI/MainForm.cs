@@ -51,8 +51,6 @@ namespace GUI
                 ImageListLookup.Add(extension, index);
                 Debug.Assert(index >= 0);
             }
-
-            HardwareAcceleratedTextureDecoder.Decoder = new GLTextureDecoder();
         }
 
         public MainForm()
@@ -97,6 +95,8 @@ namespace GUI
             searchForm = new SearchForm();
 
             Settings.Load();
+
+            HardwareAcceleratedTextureDecoder.Decoder = new GLTextureDecoder();
 
             var args = Environment.GetCommandLineArgs();
 
@@ -180,7 +180,6 @@ namespace GUI
                         {
                             OpenFile(fileContext, packageFile);
                             fileContext = null;
-                            vrfGuiContext = null;
                         }
                         finally
                         {
@@ -377,9 +376,14 @@ namespace GUI
             }
 
             mainTabs.TabPages.Remove(tab);
-
-            tab.Tag = null; // Clear out ExportData, required for GC to collect to VrfGuiContext
+            var oldTag = tab.Tag;
+            tab.Tag = null;
             tab.Dispose();
+
+            if (oldTag is ExportData exportData)
+            {
+                exportData.VrfGuiContext.Dispose();
+            }
         }
 
         private void CloseAllTabs()
