@@ -10,7 +10,6 @@ using OpenTK.Graphics;
 using OpenTK.Graphics.OpenGL;
 using SkiaSharp;
 using static GUI.Types.Renderer.PickingTexture;
-using Vector2 = System.Numerics.Vector2;
 using WinFormsMouseEventArgs = System.Windows.Forms.MouseEventArgs;
 
 namespace GUI.Controls
@@ -46,7 +45,7 @@ namespace GUI.Controls
         Point InitialMousePosition;
         TrackedKeys CurrentlyPressedKeys;
 
-        public GLViewerControl()
+        public GLViewerControl(VrfGuiContext guiContext)
         {
             InitializeComponent();
             Dock = DockStyle.Fill;
@@ -81,6 +80,24 @@ namespace GUI.Controls
 
             GLControl.Dock = DockStyle.Fill;
             glControlContainer.Controls.Add(GLControl);
+
+#if DEBUG
+            guiContext.ShaderLoader.EnableHotReload(GLControl);
+
+            var button = new Button
+            {
+                Text = "Reload shaders",
+                AutoSize = true,
+            };
+            button.Click += OnButtonClick;
+
+            void OnButtonClick(object s, EventArgs e)
+            {
+                guiContext.ShaderLoader.ReloadAllShaders();
+            }
+
+            AddControl(button);
+#endif
         }
 
         protected virtual void OnKeyDown(object sender, KeyEventArgs e)

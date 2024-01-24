@@ -100,7 +100,7 @@ namespace GUI.Types.Renderer
             (ChannelMapping.RGBA, true, "Opaque with split Alpha"),
         ];
 
-        private GLTextureViewer(VrfGuiContext guiContext) : base()
+        private GLTextureViewer(VrfGuiContext guiContext) : base(guiContext)
         {
             GuiContext = guiContext;
 

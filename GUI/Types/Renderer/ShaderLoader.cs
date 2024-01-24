@@ -30,6 +30,10 @@ namespace GUI.Types.Renderer
 
         private readonly VrfGuiContext VrfGuiContext;
 
+#if DEBUG
+        private ShaderHotReload ShaderHotReload;
+#endif
+
         public class ParsedShaderData
         {
             public HashSet<string> Defines = [];
@@ -39,17 +43,18 @@ namespace GUI.Types.Renderer
         public ShaderLoader(VrfGuiContext guiContext)
         {
             VrfGuiContext = guiContext;
+        }
 
 #if DEBUG
-            ShaderWatcher.Filters.Add("*.glsl");
-            ShaderWatcher.Filters.Add("*.vert");
-            ShaderWatcher.Filters.Add("*.frag");
-#endif
+        public void EnableHotReload(OpenTK.GLControl glControl)
+        {
+            ShaderHotReload = new(glControl);
+            ShaderHotReload.ReloadShader += OnHotReload;
         }
+#endif
 
         public Shader LoadShader(string shaderName, IReadOnlyDictionary<string, byte> arguments = null)
         {
-            var shaderFileName = GetShaderFileByName(shaderName);
             arguments ??= EmptyArgs;
 
             if (ShaderDefines.ContainsKey(shaderName))
@@ -62,11 +67,20 @@ namespace GUI.Types.Renderer
                 }
             }
 
+            var shader = CompileAndLinkShader(shaderName, arguments);
+            var newShaderCacheHash = CalculateShaderCacheHash(shaderName, arguments);
+            CachedShaders[newShaderCacheHash] = shader;
+            return shader;
+        }
+
+        private Shader CompileAndLinkShader(string shaderName, IReadOnlyDictionary<string, byte> arguments)
+        {
             var shaderProgram = -1;
 
             try
             {
                 var parsedData = new ParsedShaderData();
+                var shaderFileName = GetShaderFileByName(shaderName);
 
                 // Vertex shader
                 var vertexName = $"{shaderFileName}.vert";
@@ -85,13 +99,11 @@ namespace GUI.Types.Renderer
 
                 shaderProgram = GL.CreateProgram();
 
-
 #if DEBUG
                 GL.ObjectLabel(ObjectLabelIdentifier.Program, shaderProgram, shaderFileName.Length, shaderFileName);
                 GL.ObjectLabel(ObjectLabelIdentifier.Shader, vertexShader, vertexName.Length, vertexName);
                 GL.ObjectLabel(ObjectLabelIdentifier.Shader, fragmentShader, fragmentName.Length, fragmentName);
 #endif
-
 
                 var shader = new Shader
                 {
@@ -123,11 +135,10 @@ namespace GUI.Types.Renderer
                 VrfGuiContext.MaterialLoader.ApplyMaterialDefaults(shader.Default);
 
                 ShaderDefines[shaderName] = parsedData.Defines;
-                var newShaderCacheHash = CalculateShaderCacheHash(shaderName, arguments);
-                CachedShaders[newShaderCacheHash] = shader;
 
                 var argsDescription = GetArgumentDescription(shaderName, arguments);
-                Log.Info(nameof(ShaderLoader), $"Shader '{shaderName}' as '{shaderFileName}' ({argsDescription}) {newShaderCacheHash} compiled and linked succesfully");
+                Log.Info(nameof(ShaderLoader), $"Shader '{shaderName}' as '{shaderFileName}' ({argsDescription}) compiled and linked succesfully");
+
                 return shader;
             }
             catch (InvalidProgramException)
@@ -213,33 +224,15 @@ namespace GUI.Types.Renderer
             _ => "complex",
         };
 
-        public void ClearCache()
+        public void Dispose()
         {
-            /* Do not destroy all shaders for now because not all scene nodes reload their own shaders yet
-            foreach (var shader in CachedShaders.Values)
-            {
-                GL.DeleteProgram(shader.Program);
-            }
-            */
+#if DEBUG
+            ShaderHotReload.ReloadShader -= OnHotReload;
+            ShaderHotReload.Dispose();
+#endif
 
             ShaderDefines.Clear();
             CachedShaders.Clear();
-        }
-
-        protected virtual void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                ClearCache();
-#if DEBUG
-                ShaderWatcher.Dispose();
-#endif
-            }
-        }
-
-        public void Dispose()
-        {
-            Dispose(disposing: true);
             GC.SuppressFinalize(this);
         }
 
@@ -296,14 +289,22 @@ namespace GUI.Types.Renderer
             return hash.GetCurrentHashAsUInt64();
         }
 
-#if DEBUG // Reload shaders at runtime
-        public FileSystemWatcher ShaderWatcher { get; } = new()
+#if DEBUG
+        private void OnHotReload(object sender, string e)
         {
-            Path = ShaderParser.GetShaderDiskPath(string.Empty),
-            NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite,
-            IncludeSubdirectories = true,
-            EnableRaisingEvents = true,
-        };
+            ReloadAllShaders();
+        }
+
+        public void ReloadAllShaders()
+        {
+            foreach (var shader in CachedShaders.Values)
+            {
+                var newShader = CompileAndLinkShader(shader.Name, shader.Parameters);
+
+                GL.DeleteProgram(shader.Program);
+                shader.Program = newShader.Program;
+            }
+        }
 
         public static void ValidateShaders()
         {

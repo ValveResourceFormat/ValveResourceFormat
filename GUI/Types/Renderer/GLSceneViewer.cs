@@ -2,7 +2,6 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Threading;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Types.ParticleRenderer;
@@ -43,7 +42,7 @@ namespace GUI.Types.Renderer
         private OctreeDebugRenderer<SceneNode> dynamicOctreeRenderer;
         protected SelectedNodeRenderer selectedNodeRenderer;
 
-        protected GLSceneViewer(VrfGuiContext guiContext, Frustum cullFrustum) : base()
+        protected GLSceneViewer(VrfGuiContext guiContext, Frustum cullFrustum) : base(guiContext)
         {
             Scene = new Scene(guiContext);
             lockedCullFrustum = cullFrustum;
@@ -54,7 +53,7 @@ namespace GUI.Types.Renderer
             GLLoad += OnLoad;
         }
 
-        protected GLSceneViewer(VrfGuiContext guiContext) : base()
+        protected GLSceneViewer(VrfGuiContext guiContext) : base(guiContext)
         {
             Scene = new Scene(guiContext)
             {
@@ -370,150 +369,6 @@ namespace GUI.Types.Renderer
 
         protected void AddRenderModeSelectionControl()
         {
-#if DEBUG
-            var button = new Button
-            {
-                Text = "Reload shaders",
-                AutoSize = true,
-            };
-
-            var errorReloadingPage = new TaskDialogPage()
-            {
-                SizeToContent = true,
-                AllowCancel = true,
-                Buttons = { TaskDialogButton.OK },
-                Icon = TaskDialogIcon.Error,
-            };
-
-#pragma warning disable CA2000 // Dispose objects before losing scope
-            var reloadSemaphore = new SemaphoreSlim(1, 1);
-#pragma warning restore CA2000 // This is debug only code, so who cares
-            var reloadStopWatch = new Stopwatch();
-
-            var lastChanged = DateTime.MinValue;
-            var lastReload = DateTime.MinValue;
-            var changeCoolDown = TimeSpan.FromSeconds(1);
-            var reloadCoolDown = TimeSpan.FromSeconds(0.5); // There is a change that happens right after reload
-
-            void ReloadShaders()
-            {
-                if (!reloadSemaphore.Wait(0))
-                {
-                    return;
-                }
-
-                reloadStopWatch.Restart();
-
-                if (errorReloadingPage.BoundDialog != null)
-                {
-                    errorReloadingPage.Caption = "Reloading shaders…";
-                }
-
-                GuiContext.ShaderLoader.ClearCache();
-
-                string error = null;
-                try
-                {
-                    if (Camera.Picker is not null)
-                    {
-                        // todo: just reload shader.
-                        Camera.Picker.Dispose();
-                        Camera.Picker = new PickingTexture(Scene.GuiContext, OnPicked);
-                        Camera.Picker.Resize(GLControl.Width, GLControl.Height);
-                    }
-
-                    baseGrid.ReloadShader();
-
-                    SetRenderMode(renderModeComboBox?.SelectedItem as string);
-                    SetAvailableRenderModes(renderModeComboBox?.SelectedIndex ?? 0);
-                }
-                catch (Exception ex)
-                {
-                    error = ex.Message;
-                    Log.Error(nameof(GLSceneViewer), error.ToString());
-                }
-                finally
-                {
-                    lastReload = DateTime.Now;
-                    reloadSemaphore.Release();
-                    reloadStopWatch.Stop();
-                    Log.Debug(nameof(GLSceneViewer), $"Shader reload time: {reloadStopWatch.Elapsed}, number of variants: {GuiContext.ShaderLoader.ShaderCount}");
-                }
-
-                if (error != null)
-                {
-                    // Hide GLControl to fix message box not showing up correctly
-                    // Ref: https://stackoverflow.com/a/5080752
-                    GLControl.Visible = false;
-
-                    errorReloadingPage.Caption = "Failed to reload shaders";
-                    errorReloadingPage.Text = error;
-
-                    if (errorReloadingPage.BoundDialog == null)
-                    {
-                        TaskDialog.ShowDialog(this, errorReloadingPage);
-                    }
-
-                    GLControl.Visible = true;
-                }
-                else
-                {
-                    errorReloadingPage.BoundDialog?.Close();
-                }
-            }
-
-            button.Click += OnButtonClick;
-
-            void OnButtonClick(object s, EventArgs e)
-            {
-                ReloadShaders();
-            }
-
-            void Hotload(object s, FileSystemEventArgs e)
-            {
-                if (e.FullPath.EndsWith(".TMP", StringComparison.Ordinal))
-                {
-                    return; // Visual Studio writes to temporary file
-                }
-
-                Log.Debug("ShaderHotload", $"{e.ChangeType} {e.FullPath}");
-
-                var now = DateTime.Now;
-                var timeSinceLastChange = now - lastChanged;
-                var timeSinceLastReload = now - lastReload;
-
-                if (!Visible || reloadSemaphore.CurrentCount == 0
-                    || timeSinceLastReload < reloadCoolDown
-                    || timeSinceLastChange < changeCoolDown)
-                {
-                    return;
-                }
-
-                lastChanged = now;
-
-                ReloadShaders();
-            };
-
-            void OnDisposedLocal(object e, EventArgs a)
-            {
-                Disposed -= OnDisposedLocal;
-                button.Click -= OnButtonClick;
-                GuiContext.ShaderLoader.ShaderWatcher.SynchronizingObject = null;
-                GuiContext.ShaderLoader.ShaderWatcher.Changed -= Hotload;
-                GuiContext.ShaderLoader.ShaderWatcher.Created -= Hotload;
-                GuiContext.ShaderLoader.ShaderWatcher.Renamed -= Hotload;
-                reloadSemaphore.Dispose();
-            }
-
-            GuiContext.ShaderLoader.ShaderWatcher.SynchronizingObject = this;
-            GuiContext.ShaderLoader.ShaderWatcher.Changed += Hotload;
-            GuiContext.ShaderLoader.ShaderWatcher.Created += Hotload;
-            GuiContext.ShaderLoader.ShaderWatcher.Renamed += Hotload;
-            Disposed += OnDisposedLocal;
-
-            AddControl(button);
-#endif
-
             renderModeComboBox ??= AddSelection("Render Mode", (renderMode, _) =>
             {
                 if (skipRenderModeChange)

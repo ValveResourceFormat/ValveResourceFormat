@@ -2,6 +2,7 @@ using System.Globalization;
 using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
+using GUI.Utils;
 using static GUI.Types.Renderer.ShaderLoader;
 
 namespace GUI.Types.Renderer
@@ -206,7 +207,22 @@ namespace GUI.Types.Renderer
 
         private static FileStream GetShaderStream(string name)
         {
-            return File.Open(GetShaderDiskPath(name), FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            var path = GetShaderDiskPath(name);
+
+            try
+            {
+                return File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            }
+            catch (IOException e)
+            {
+                Log.Error(nameof(ShaderParser), e.Message);
+
+                // Sometimes hot reloading shaders throws "The process cannot access the file x because it is being used by another process."
+                // Just sleep for a second and try again
+                System.Threading.Thread.Sleep(TimeSpan.FromSeconds(1));
+
+                return File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            }
         }
 
         public static string GetShaderDiskPath(string name)
