@@ -105,6 +105,10 @@ namespace GUI.Types.Renderer
             AddWireframeToggleControl();
 
             GLLoad += OnLoad;
+
+#if DEBUG
+            guiContext.ShaderLoader.ShaderHotReload.ReloadShader += OnHotReload;
+#endif
         }
 
         protected override void Dispose(bool disposing)
@@ -115,6 +119,10 @@ namespace GUI.Types.Renderer
                 lightingBuffer?.Dispose();
 
                 GLPaint -= OnPaint;
+
+#if DEBUG
+                GuiContext.ShaderLoader.ShaderHotReload.ReloadShader -= OnHotReload;
+#endif
             }
 
             base.Dispose(disposing);
@@ -385,22 +393,34 @@ namespace GUI.Types.Renderer
             });
         }
 
-        private void SetAvailableRenderModes(int index = 0)
+        private void SetAvailableRenderModes(bool keepCurrentSelection = false)
         {
             if (renderModeComboBox != null)
             {
+                var selectedIndex = 0;
                 var supportedRenderModes = Scene.AllNodes
                     .SelectMany(r => r.GetSupportedRenderModes())
                     .Concat(Camera.Picker.Shader.RenderModes)
                     .Distinct()
-                    .Prepend("Default Render Mode");
+                    .Prepend("Default Render Mode")
+                    .ToArray();
+
+                if (keepCurrentSelection)
+                {
+                    selectedIndex = Array.IndexOf(supportedRenderModes, renderModeComboBox.SelectedItem.ToString());
+
+                    if (selectedIndex < 0)
+                    {
+                        selectedIndex = 0;
+                    }
+                }
 
                 renderModeComboBox.BeginUpdate();
                 renderModeComboBox.Items.Clear();
                 renderModeComboBox.Enabled = true;
-                renderModeComboBox.Items.AddRange(supportedRenderModes.ToArray());
+                renderModeComboBox.Items.AddRange(supportedRenderModes);
                 skipRenderModeChange = true;
-                renderModeComboBox.SelectedIndex = index;
+                renderModeComboBox.SelectedIndex = selectedIndex;
                 renderModeComboBox.EndUpdate();
             }
         }
@@ -457,6 +477,11 @@ namespace GUI.Types.Renderer
 #if DEBUG
         private void OnHotReload(object sender, string e)
         {
+            if (renderModeComboBox != null)
+            {
+                SetAvailableRenderModes(true);
+            }
+
             foreach (var node in Scene.AllNodes)
             {
                 node.UpdateVertexArrayObjects();
