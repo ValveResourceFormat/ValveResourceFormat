@@ -402,6 +402,11 @@ namespace GUI.Controls
         {
             var path = (string)e.Node.Tag;
 
+            if (path == null)
+            {
+                return;
+            }
+
 #if DEBUG
             if (DebugOpenEmbeddedResource(path))
             {
