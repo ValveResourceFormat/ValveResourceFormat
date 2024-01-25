@@ -78,10 +78,8 @@ namespace GUI.Types.Renderer.UniformBuffers
 
         public void Update()
         {
-            Bind();
             WriteToCpuBuffer();
-            GL.BufferSubData(Target, IntPtr.Zero, Size, cpuBuffer);
-            Unbind();
+            GL.NamedBufferSubData(Handle, IntPtr.Zero, Size, cpuBuffer);
         }
 
         public void Dispose()
