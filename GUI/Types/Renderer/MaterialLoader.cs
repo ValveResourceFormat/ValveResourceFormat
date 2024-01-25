@@ -303,7 +303,7 @@ namespace GUI.Types.Renderer
 #pragma warning disable format
             VTexFormat.ATI1N           => new((SizedInternalFormat)InternalFormat.CompressedRedRgtc1,             (SizedInternalFormat)InternalFormat.CompressedRedRgtc1), // No srgb
             VTexFormat.ATI2N           => new((SizedInternalFormat)InternalFormat.CompressedRgRgtc2,              (SizedInternalFormat)InternalFormat.CompressedRgRgtc2),  // No srgb
-            VTexFormat.BC6H            => new((SizedInternalFormat)InternalFormat.CompressedRgbBptcUnsignedFloat, (SizedInternalFormat)InternalFormat.CompressedSrgbAlphaBptcUnorm),
+            VTexFormat.BC6H            => new((SizedInternalFormat)InternalFormat.CompressedRgbBptcUnsignedFloat, (SizedInternalFormat)InternalFormat.CompressedRgbBptcUnsignedFloat), // No srgb
             VTexFormat.BC7             => new((SizedInternalFormat)InternalFormat.CompressedRgbaBptcUnorm,        (SizedInternalFormat)InternalFormat.CompressedSrgbAlphaBptcUnorm),
             VTexFormat.DXT1            => new((SizedInternalFormat)InternalFormat.CompressedRgbaS3tcDxt1Ext,      (SizedInternalFormat)InternalFormat.CompressedSrgbAlphaS3tcDxt1Ext),
             VTexFormat.DXT5            => new((SizedInternalFormat)InternalFormat.CompressedRgbaS3tcDxt5Ext,      (SizedInternalFormat)InternalFormat.CompressedSrgbAlphaS3tcDxt5Ext),
