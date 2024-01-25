@@ -10,7 +10,6 @@ namespace GUI.Types.Renderer
 {
     class MorphComposite
     {
-        private const float VertexOffset = 2f / 2048f;
         private const int VertexSize = 16;
 
         public RenderTexture CompositeTexture { get; }
@@ -79,12 +78,12 @@ namespace GUI.Types.Renderer
 
         private void InitRenderTarget()
         {
-            using var _ = CompositeTexture.BindingContext();
-
-            GL.TexImage2D(CompositeTexture.Target, 0, PixelInternalFormat.Rgb16f, 2048, 2048, 0, PixelFormat.Rgba, PixelType.HalfFloat, IntPtr.Zero);
+            const int TextureSize = 2048;
 
             CompositeTexture.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
             CompositeTexture.SetWrapMode(TextureWrapMode.ClampToEdge);
+
+            GL.TextureStorage2D(CompositeTexture.Handle, 1, SizedInternalFormat.Rgb16f, TextureSize, TextureSize);
         }
 
         public void Render()
@@ -250,14 +249,17 @@ namespace GUI.Types.Renderer
         }
         private void SetRectData(int rectI, MorphCompositeRectData data)
         {
-            const float pixelSize = 1 / 2048f;
+            const float TextureSize = 2048f;
+            const float VertexOffset = 2f / TextureSize;
+            const float PixelSize = 1 / TextureSize;
+
             var stride = rectI * 4;
 
-            var widthScale = morphAtlas.Width / 2048f;
-            var heightScale = morphAtlas.Height / 2048f;
+            var widthScale = morphAtlas.Width / TextureSize;
+            var heightScale = morphAtlas.Height / TextureSize;
 
-            var topLeftX = VertexOffset + (data.LeftX * pixelSize * 2) - 1;
-            var topLeftY = 1 - (VertexOffset + data.TopY * pixelSize * 2);
+            var topLeftX = VertexOffset + (data.LeftX * PixelSize * 2) - 1;
+            var topLeftY = 1 - (VertexOffset + data.TopY * PixelSize * 2);
             var bottomRightX = topLeftX + widthScale * data.WidthU * 2;
             var bottomRightY = topLeftY - heightScale * data.HeightV * 2;
 
