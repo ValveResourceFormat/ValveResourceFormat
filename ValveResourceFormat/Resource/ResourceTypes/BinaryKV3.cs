@@ -115,7 +115,6 @@ namespace ValveResourceFormat.ResourceTypes
             Format = new Guid(reader.ReadBytes(16));
 
             using var outStream = new MemoryStream();
-            using var outWrite = new BinaryWriter(outStream, System.Text.Encoding.UTF8, true);
             using var outRead = new BinaryReader(outStream, System.Text.Encoding.UTF8, true);
 
             // Valve's implementation lives in LoadKV3Binary()
