@@ -139,8 +139,7 @@ namespace GUI.Types.Renderer
 
             vertexCount = vertices.Count;
 
-            GL.BindBuffer(BufferTarget.ArrayBuffer, vboHandle);
-            GL.BufferData(BufferTarget.ArrayBuffer, vertices.Count * SimpleVertex.SizeInBytes, vertices.ToArray(), BufferUsageHint.StaticDraw);
+            GL.NamedBufferData(vboHandle, vertices.Count * SimpleVertex.SizeInBytes, vertices.ToArray(), BufferUsageHint.StaticDraw);
         }
 
         public override void Update(Scene.UpdateContext context)

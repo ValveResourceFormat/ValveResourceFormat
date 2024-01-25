@@ -223,8 +223,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
                     i++;
                 }
 
-                GL.BindBuffer(BufferTarget.ArrayBuffer, vertexBufferHandle);
-                GL.BufferData(BufferTarget.ArrayBuffer, particles.Count * VertexSize * 4 * sizeof(float), rawVertices, BufferUsageHint.DynamicDraw);
+                GL.NamedBufferData(vertexBufferHandle, particles.Count * VertexSize * 4 * sizeof(float), rawVertices, BufferUsageHint.DynamicDraw);
             }
             finally
             {
