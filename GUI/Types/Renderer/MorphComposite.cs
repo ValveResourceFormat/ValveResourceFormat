@@ -138,7 +138,7 @@ namespace GUI.Types.Renderer
             //draw
             GL.BindFramebuffer(FramebufferTarget.Framebuffer, frameBuffer);
 
-            GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.ColorAttachment0, CompositeTexture.Target, CompositeTexture.Handle, 0);
+            GL.NamedFramebufferTexture(frameBuffer, FramebufferAttachment.ColorAttachment0, CompositeTexture.Handle, 0);
 
             GL.Viewport(0, 0, 2048, 2048);
             GL.ClearColor(0, 0, 0, 0);

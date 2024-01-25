@@ -127,8 +127,8 @@ class Framebuffer : IDisposable
             using (Color.BindingContext())
             {
                 ResizeAttachment(Color, ColorFormat, width, height);
-                GL.FramebufferTexture2D(fboTarget, FramebufferAttachment.ColorAttachment0, Color.Target, Color.Handle, 0);
             }
+            GL.NamedFramebufferTexture(FboHandle, FramebufferAttachment.ColorAttachment0, Color.Handle, 0);
         }
 
         if (DepthFormat != null)
@@ -137,8 +137,8 @@ class Framebuffer : IDisposable
             using (Depth.BindingContext())
             {
                 ResizeAttachment(Depth, DepthFormat, width, height);
-                GL.FramebufferTexture2D(fboTarget, FramebufferAttachment.DepthAttachment, Depth.Target, Depth.Handle, 0);
             }
+            GL.NamedFramebufferTexture(FboHandle, FramebufferAttachment.DepthAttachment, Depth.Handle, 0);
         }
 
         InitialStatus = GL.CheckFramebufferStatus(fboTarget);
