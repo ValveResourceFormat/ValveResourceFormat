@@ -244,13 +244,10 @@ namespace GUI.Types.Renderer
             // Create animation texture
             animationTexture = new(TextureTarget.Texture2D, 4, bonesCount, 1, 1);
 
-            using (animationTexture.BindingContext())
-            {
-                // Set clamping to edges
-                animationTexture.SetWrapMode(TextureWrapMode.ClampToEdge);
-                // Set nearest-neighbor sampling since we don't want to interpolate matrix rows
-                animationTexture.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
-            }
+            // Set clamping to edges
+            animationTexture.SetWrapMode(TextureWrapMode.ClampToEdge);
+            // Set nearest-neighbor sampling since we don't want to interpolate matrix rows
+            animationTexture.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
         }
 
         public IEnumerable<string> GetSupportedAnimationNames()

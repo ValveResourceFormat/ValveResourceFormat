@@ -83,10 +83,7 @@ class PickingTexture : Framebuffer
 
             Initialize();
 
-            using (Color.BindingContext())
-            {
-                Color.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
-            }
+            Color.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
 
             CheckStatus_ThrowIfIncomplete(nameof(PickingTexture));
         }

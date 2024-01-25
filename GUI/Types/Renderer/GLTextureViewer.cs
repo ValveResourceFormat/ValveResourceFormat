@@ -684,16 +684,15 @@ namespace GUI.Types.Renderer
 
             UploadTexture(forceSoftwareDecode);
 
+            Debug.Assert(texture != null);
+
             if (decodeFlagsListBox != null)
             {
                 SetInitialDecodeFlagsState(decodeFlagsListBox);
             }
 
-            using (texture.BindingContext())
-            {
-                texture.SetWrapMode(TextureWrapMode.ClampToEdge);
-                texture.SetFiltering(TextureMinFilter.LinearMipmapLinear, TextureMagFilter.Nearest);
-            }
+            texture.SetWrapMode(TextureWrapMode.ClampToEdge);
+            texture.SetFiltering(TextureMinFilter.LinearMipmapLinear, TextureMagFilter.Nearest);
 
             if (Svg == null)
             {
@@ -780,7 +779,7 @@ namespace GUI.Types.Renderer
 
             using var _ = texture.BindingContext();
             GL.TexImage2D(texture.Target, 0, PixelInternalFormat.Rgba8, texture.Width, texture.Height, 0, PixelFormat.Bgra, PixelType.UnsignedByte, bitmap.GetPixels());
-            GL.TexParameter(texture.Target, TextureParameterName.TextureMaxLevel, 0);
+            GL.TextureParameter(texture.Handle, TextureParameterName.TextureMaxLevel, 0);
         }
 
         private void GenerateNewSvgBitmap()

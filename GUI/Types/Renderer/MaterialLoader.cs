@@ -225,7 +225,7 @@ namespace GUI.Types.Renderer
                 {
                     if (maxMipLevelNotSet)
                     {
-                        GL.TexParameter(target, TextureParameterName.TextureMaxLevel, i);
+                        GL.TextureParameter(tex.Handle, TextureParameterName.TextureMaxLevel, i);
                         maxMipLevelNotSet = false;
                     }
 
@@ -252,7 +252,7 @@ namespace GUI.Types.Renderer
                 ArrayPool<byte>.Shared.Return(buffer);
             }
 
-            GL.TexParameter(target, TextureParameterName.TextureBaseLevel, minMipLevel);
+            GL.TextureParameter(tex.Handle, TextureParameterName.TextureBaseLevel, minMipLevel);
 
             if (!isViewerRequest)
             {
@@ -262,15 +262,15 @@ namespace GUI.Types.Renderer
 
                 if (MaxTextureMaxAnisotropy >= 4)
                 {
-                    GL.TexParameter(target, (TextureParameterName)ExtTextureFilterAnisotropic.TextureMaxAnisotropyExt, MaxTextureMaxAnisotropy);
+                    GL.TextureParameter(tex.Handle, (TextureParameterName)ExtTextureFilterAnisotropic.TextureMaxAnisotropyExt, MaxTextureMaxAnisotropy);
                 }
             }
 
             tex.SetFiltering(TextureMinFilter.LinearMipmapLinear, TextureMagFilter.Linear);
 
-            GL.TexParameter(target, TextureParameterName.TextureWrapS, (int)clampModeS);
-            GL.TexParameter(target, TextureParameterName.TextureWrapT, (int)clampModeT);
-            GL.TexParameter(target, TextureParameterName.TextureWrapR, (int)clampModeU);
+            GL.TextureParameter(tex.Handle, TextureParameterName.TextureWrapS, (int)clampModeS);
+            GL.TextureParameter(tex.Handle, TextureParameterName.TextureWrapT, (int)clampModeT);
+            GL.TextureParameter(tex.Handle, TextureParameterName.TextureWrapR, (int)clampModeU);
 
             return tex;
         }
@@ -514,7 +514,7 @@ namespace GUI.Types.Renderer
             using var _ = texture.BindingContext();
 
             GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba32f, width, height, 0, PixelFormat.Rgba, PixelType.Float, color);
-            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMaxLevel, 0);
+            GL.TextureParameter(texture.Handle, TextureParameterName.TextureMaxLevel, 0);
             texture.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
             texture.SetWrapMode(TextureWrapMode.Repeat);
 

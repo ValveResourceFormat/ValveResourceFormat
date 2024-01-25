@@ -155,7 +155,6 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
         var sw = Stopwatch.StartNew();
         var inputTexture = guiContext.MaterialLoader.LoadTexture(request.Resource, isViewerRequest: true);
 
-        inputTexture.Bind();
         inputTexture.SetFiltering(TextureMinFilter.NearestMipmapNearest, TextureMagFilter.Nearest);
 
         /*
@@ -200,7 +199,6 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
         // full screen triangle
         GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
 
-        inputTexture.Unbind();
         inputTexture.Dispose();
         GL.UseProgram(0);
 

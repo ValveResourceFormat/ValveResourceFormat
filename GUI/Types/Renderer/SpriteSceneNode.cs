@@ -22,10 +22,7 @@ namespace GUI.Types.Renderer
             // Forcefully clamp sprites so they don't render extra pixels on edges
             foreach (var texture in material.Textures.Values)
             {
-                using (texture.BindingContext())
-                {
-                    texture.SetWrapMode(TextureWrapMode.ClampToEdge);
-                }
+                texture.SetWrapMode(TextureWrapMode.ClampToEdge);
             }
 
             quadVao = SetupSquareQuadBuffer(material.Shader);

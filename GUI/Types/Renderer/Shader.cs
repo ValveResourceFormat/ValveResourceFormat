@@ -161,8 +161,7 @@ namespace GUI.Types.Renderer
 
         public static void SetTexture(int slot, int uniformLocation, RenderTexture texture)
         {
-            GL.ActiveTexture(TextureUnit.Texture0 + slot);
-            texture.Bind();
+            GL.BindTextureUnit(slot, texture.Handle);
             GL.Uniform1(uniformLocation, slot);
         }
     }

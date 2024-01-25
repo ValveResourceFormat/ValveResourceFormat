@@ -162,16 +162,13 @@ namespace GUI.Types.Renderer
                     var renderTexture = guiContext.MaterialLoader.LoadTexture(lightmap);
                     result.Lightmaps[uniformName] = renderTexture;
 
-                    using (renderTexture.BindingContext())
+                    if (name == "direct_light_indices")
                     {
-                        if (name == "direct_light_indices")
-                        {
-                            // point sampling
-                            renderTexture.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
-                        }
-
-                        renderTexture.SetWrapMode(TextureWrapMode.ClampToEdge);
+                        // point sampling
+                        renderTexture.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
                     }
+
+                    renderTexture.SetWrapMode(TextureWrapMode.ClampToEdge);
                 }
             }
 

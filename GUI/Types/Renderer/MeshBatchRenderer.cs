@@ -81,7 +81,7 @@ namespace GUI.Types.Renderer
             public bool NeedsCubemapBinding;
         }
 
-        private static readonly Queue<RenderTexture> instanceBoundTextures = new(capacity: 4);
+        private static readonly Queue<int> instanceBoundTextures = new(capacity: 4);
 
         private static void DrawBatch(List<Request> requests, Scene.RenderContext context)
         {
@@ -195,7 +195,7 @@ namespace GUI.Types.Renderer
                     var envmap = request.Node.EnvMaps[0].EnvMapTexture;
                     var envmapDataIndex = request.Node.EnvMapIds[0];
 
-                    instanceBoundTextures.Enqueue(envmap);
+                    instanceBoundTextures.Enqueue((int)ReservedTextureSlots.EnvironmentMap);
                     Shader.SetTexture((int)ReservedTextureSlots.EnvironmentMap, uniforms.EnvmapTexture, envmap);
 
                     GL.Uniform1(uniforms.CubeMapArrayIndices, envmapDataIndex);
@@ -213,7 +213,7 @@ namespace GUI.Types.Renderer
 
                 if (bAnimated && uniforms.AnimationTexture != -1)
                 {
-                    instanceBoundTextures.Enqueue(request.Mesh.AnimationTexture);
+                    instanceBoundTextures.Enqueue((int)ReservedTextureSlots.AnimationTexture);
                     Shader.SetTexture((int)ReservedTextureSlots.AnimationTexture, uniforms.AnimationTexture, request.Mesh.AnimationTexture);
                 }
             }
@@ -221,7 +221,7 @@ namespace GUI.Types.Renderer
             var morphComposite = request.Mesh.FlexStateManager?.MorphComposite;
             if (morphComposite != null && uniforms.MorphCompositeTexture != -1)
             {
-                instanceBoundTextures.Enqueue(morphComposite.CompositeTexture);
+                instanceBoundTextures.Enqueue((int)ReservedTextureSlots.MorphCompositeTexture);
                 Shader.SetTexture((int)ReservedTextureSlots.MorphCompositeTexture, uniforms.MorphCompositeTexture, morphComposite.CompositeTexture);
 
                 GL.Uniform2(uniforms.MorphCompositeTextureSize, (float)morphComposite.CompositeTexture.Width, (float)morphComposite.CompositeTexture.Height);
@@ -244,10 +244,9 @@ namespace GUI.Types.Renderer
                 request.Call.BaseVertex
             );
 
-
-            while (instanceBoundTextures.TryDequeue(out var texture))
+            while (instanceBoundTextures.TryDequeue(out var slot))
             {
-                texture.Unbind();
+                GL.BindTextureUnit(slot, 0);
             }
         }
     }
