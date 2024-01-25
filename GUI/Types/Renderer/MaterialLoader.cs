@@ -424,16 +424,16 @@ namespace GUI.Types.Renderer
         {
             if (ErrorTexture == null)
             {
-                ReadOnlySpan<float> color1 = [0.4f, 0.1f, 0.3f, 1f];
-                ReadOnlySpan<float> color2 = [0f, 0.5f, 0f, 1f];
+                ReadOnlySpan<byte> color1 = [100, 25, 75];
+                ReadOnlySpan<byte> color2 = [0, 127, 0];
 
-                var color = new float[16 * 4];
+                var color = new byte[16 * 3];
 
                 for (var i = 0; i < 16; i++)
                 {
                     var checkerboardX = i / 4 % 2;
                     var colorToUse = i % 2 == checkerboardX ? color1 : color2;
-                    var pixel = color.AsSpan(i * 4, 4);
+                    var pixel = color.AsSpan(i * 3, 3);
                     colorToUse.CopyTo(pixel);
                 }
 
@@ -443,30 +443,18 @@ namespace GUI.Types.Renderer
             return ErrorTexture;
         }
 
-        private static RenderTexture CreateSolidTexture(float r, float g, float b)
-            => GenerateColorTexture(1, 1, [r, g, b, 1f]);
+        private static RenderTexture CreateSolidTexture(byte r, byte g, byte b) => GenerateColorTexture(1, 1, [r, g, b]);
+        private RenderTexture GetDefaultNormal() => DefaultNormal ??= CreateSolidTexture(127, 127, 255);
+        private RenderTexture GetDefaultMask() => DefaultMask ??= CreateSolidTexture(255, 255, 255);
 
-        private RenderTexture GetDefaultNormal()
-        {
-            DefaultNormal ??= CreateSolidTexture(0.5f, 0.5f, 1.0f);
-            return DefaultNormal;
-        }
-
-        private RenderTexture GetDefaultMask()
-        {
-            DefaultMask ??= CreateSolidTexture(1.0f, 1.0f, 1.0f);
-            return DefaultMask;
-        }
-
-        private static RenderTexture GenerateColorTexture(int width, int height, float[] color)
+        private static RenderTexture GenerateColorTexture(int width, int height, byte[] color)
         {
             var texture = new RenderTexture(TextureTarget.Texture2D, width, height, 1, 1);
-            using var _ = texture.BindingContext();
-
-            GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba32f, width, height, 0, PixelFormat.Rgba, PixelType.Float, color);
-            GL.TextureParameter(texture.Handle, TextureParameterName.TextureMaxLevel, 0);
             texture.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
             texture.SetWrapMode(TextureWrapMode.Repeat);
+
+            GL.TextureStorage2D(texture.Handle, 1, SizedInternalFormat.Rgb8, width, height);
+            GL.TextureSubImage2D(texture.Handle, 0, 0, 0, width, height, PixelFormat.Rgb, PixelType.UnsignedByte, color);
 
             return texture;
         }
