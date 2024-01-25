@@ -1,4 +1,5 @@
 using System.Buffers;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO.Hashing;
 using System.Linq;
@@ -194,8 +195,6 @@ namespace GUI.Types.Renderer
                 format = ToSrgb(format);
             }
 
-            using var _ = tex.BindingContext();
-
 #if DEBUG
             var textureName = System.IO.Path.GetFileName(textureResource.FileName);
             GL.ObjectLabel(ObjectLabelIdentifier.Texture, tex.Handle, textureName.Length, textureName);
@@ -207,7 +206,21 @@ namespace GUI.Types.Renderer
                 return GetErrorTexture();
             }
 
-            var buffer = ArrayPool<byte>.Shared.Rent(data.GetBiggestBufferSize());
+            var depth = data.Depth;
+
+            if (target == TextureTarget.TextureCubeMap || target == TextureTarget.TextureCubeMapArray)
+            {
+                depth *= 6;
+            }
+
+            if (target == TextureTarget.Texture2DArray || target == TextureTarget.TextureCubeMapArray)
+            {
+                GL.TextureStorage3D(tex.Handle, data.NumMipLevels, GetSizedInternalFormat(data.Format), data.Width, data.Height, depth);
+            }
+            else
+            {
+                GL.TextureStorage2D(tex.Handle, data.NumMipLevels, GetSizedInternalFormat(data.Format), data.Width, data.Height);
+            }
 
             var maxMipLevelNotSet = true;
             var minMipLevel = 0;
@@ -218,6 +231,8 @@ namespace GUI.Types.Renderer
             {
                 maxTextureSize = int.MaxValue;
             }
+
+            var buffer = ArrayPool<byte>.Shared.Rent(data.GetBiggestBufferSize());
 
             try
             {
@@ -231,20 +246,7 @@ namespace GUI.Types.Renderer
 
                     minMipLevel = i;
 
-                    if (target == TextureTarget.TextureCubeMap)
-                    {
-                        for (var face = Texture.CubemapFace.PositiveX; face <= Texture.CubemapFace.NegativeZ; face++)
-                        {
-                            var faceSize = bufferSize / 6;
-                            var faceOffset = faceSize * (int)face;
-                            LoadTextureImplShared(data.Format, internalFormat, format, i, width, height, data.Depth,
-                                faceSize, buffer[faceOffset..(faceOffset + faceSize)], TextureTarget.TextureCubeMapPositiveX + (int)face);
-                        }
-                    }
-                    else
-                    {
-                        LoadTextureImplShared(data.Format, internalFormat, format, i, width, height, data.Depth, bufferSize, buffer, target);
-                    }
+                    LoadTextureImplShared(data.Format, internalFormat, i, width, height, depth, bufferSize, buffer, target, tex.Handle);
                 }
             }
             finally
@@ -275,42 +277,49 @@ namespace GUI.Types.Renderer
             return tex;
         }
 
-        private static void LoadTextureImplShared(VTexFormat vtexFormat, PixelInternalFormat? internalFormat, InternalFormat? format,
-            int level, int width, int height, int depth, int bufferSize, byte[] buffer, TextureTarget target)
+        private static void LoadTextureImplShared(VTexFormat vtexFormat, PixelInternalFormat? internalFormat,
+            int level, int width, int height, int depth, int bufferSize, byte[] buffer, TextureTarget target, int handle)
         {
-            if (target == TextureTarget.TextureCubeMapArray)
-            {
-                depth *= 6;
-            }
-
-            var is3d = target == TextureTarget.Texture2DArray || target == TextureTarget.TextureCubeMapArray;
+            var is3d = target == TextureTarget.TextureCubeMap || target == TextureTarget.Texture2DArray || target == TextureTarget.TextureCubeMapArray;
+            var pixelFormat = GetPixelFormat(vtexFormat);
+            var pixelType = GetPixelType(vtexFormat);
 
             if (internalFormat.HasValue)
             {
-                var pixelFormat = GetPixelFormat(vtexFormat);
-                var pixelType = GetPixelType(vtexFormat);
-
                 if (is3d)
                 {
-                    GL.TexImage3D(target, level, internalFormat.Value, width, height, depth, 0, pixelFormat, pixelType, buffer);
+                    GL.TextureSubImage3D(handle, level, 0, 0, 0, width, height, depth, pixelFormat, pixelType, buffer);
                 }
                 else
                 {
-                    GL.TexImage2D(target, level, internalFormat.Value, width, height, 0, pixelFormat, pixelType, buffer);
+                    GL.TextureSubImage2D(handle, level, 0, 0, width, height, pixelFormat, pixelType, buffer);
                 }
             }
             else
             {
                 if (is3d)
                 {
-                    GL.CompressedTexImage3D(target, level, format.Value, width, height, depth, 0, bufferSize, buffer);
+                    GL.CompressedTextureSubImage3D(handle, level, 0, 0, 0, width, height, depth, pixelFormat, bufferSize, buffer);
                 }
                 else
                 {
-                    GL.CompressedTexImage2D(target, level, format.Value, width, height, 0, bufferSize, buffer);
+                    GL.CompressedTextureSubImage2D(handle, level, 0, 0, width, height, pixelFormat, bufferSize, buffer);
                 }
             }
         }
+
+        private static SizedInternalFormat GetSizedInternalFormat(VTexFormat vformat) => vformat switch
+        {
+            VTexFormat.DXT1 => (SizedInternalFormat)InternalFormat.CompressedRgbaS3tcDxt1Ext,
+            VTexFormat.DXT5 => (SizedInternalFormat)InternalFormat.CompressedRgbaS3tcDxt5Ext,
+            VTexFormat.BC6H => (SizedInternalFormat)InternalFormat.CompressedRgbBptcUnsignedFloat,
+            VTexFormat.BC7 => (SizedInternalFormat)InternalFormat.CompressedRgbaBptcUnorm,
+            VTexFormat.ATI1N => (SizedInternalFormat)InternalFormat.CompressedRedRgtc1,
+            VTexFormat.ATI2N => (SizedInternalFormat)InternalFormat.CompressedRgRgtc2,
+            VTexFormat.RGBA8888 => SizedInternalFormat.Rgba8,
+            VTexFormat.RGBA16161616F => SizedInternalFormat.Rgba16f,
+            _ => throw new NotImplementedException($"Unsupported texture format {vformat}")
+        };
 
         private static InternalFormat? GetInternalFormat(VTexFormat vformat)
             => vformat switch
@@ -360,6 +369,12 @@ namespace GUI.Types.Renderer
         private static PixelFormat GetPixelFormat(VTexFormat vformat)
             => vformat switch
             {
+                VTexFormat.DXT1 => (PixelFormat)InternalFormat.CompressedRgbaS3tcDxt1Ext,
+                VTexFormat.DXT5 => (PixelFormat)InternalFormat.CompressedRgbaS3tcDxt5Ext,
+                VTexFormat.ATI1N => (PixelFormat)InternalFormat.CompressedRedRgtc1,
+                VTexFormat.ATI2N => (PixelFormat)InternalFormat.CompressedRgRgtc2,
+                VTexFormat.BC6H => (PixelFormat)InternalFormat.CompressedRgbBptcUnsignedFloat,
+                VTexFormat.BC7 => (PixelFormat)InternalFormat.CompressedRgbaBptcUnorm,
                 VTexFormat.R16 => PixelFormat.Red,
                 VTexFormat.R16F => PixelFormat.Red,
                 VTexFormat.R32F => PixelFormat.Red,
