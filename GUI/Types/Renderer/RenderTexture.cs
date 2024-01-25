@@ -20,6 +20,9 @@ namespace GUI.Types.Renderer
         {
             Target = target;
             Handle = GL.GenTexture();
+
+            BindAction = Bind;
+            UnbindAction = Unbind;
         }
 
         public RenderTexture(TextureTarget target, Texture data) : this(target)
@@ -42,7 +45,10 @@ namespace GUI.Types.Renderer
 
         public void Bind() => GL.BindTexture(Target, Handle);
         public void Unbind() => GL.BindTexture(Target, 0);
-        public BindingContext BindingContext() => new(Bind, Unbind);
+        // TODO: Replace binding with opengl DSA apis, these fields is to prevent Action() allocs
+        private readonly Action BindAction;
+        private readonly Action UnbindAction;
+        public BindingContext BindingContext() => new(BindAction, UnbindAction);
 
         // todo: bindless parameters TexParameter -> TextureParameter
         public void SetWrapMode(TextureWrapMode wrap)
