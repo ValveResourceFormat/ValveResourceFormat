@@ -2,7 +2,7 @@
 
 #define MAX_ENVMAPS 144
 
-layout(std140) uniform LightingConstants {
+layout(std140, binding = 3) uniform LightingConstants {
     vec4 g_vLightmapUvScale;
     mat4 vLightPosition;
     vec4 vLightColor;
