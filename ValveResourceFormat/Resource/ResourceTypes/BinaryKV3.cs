@@ -74,18 +74,21 @@ namespace ValveResourceFormat.ResourceTypes
                     break;
                 default: throw new UnexpectedMagicException("Invalid KV3 signature", magic, nameof(magic));
             }
+
+            stringArray = null;
+            typesArray = null;
+            uncompressedBlockLengthArray = null;
         }
 
-        private void DecompressLZ4(BinaryReader reader, MemoryStream outStream)
+        private static void DecompressLZ4(BinaryReader reader, MemoryStream outStream, int compressedSize, int uncompressedSize)
         {
-            var uncompressedSize = reader.ReadUInt32();
-            var compressedSize = (int)(Size - (reader.BaseStream.Position - Offset));
-            var output = new Span<byte>(new byte[uncompressedSize]);
-            var buf = ArrayPool<byte>.Shared.Rent(compressedSize);
+            var outputBuf = ArrayPool<byte>.Shared.Rent(uncompressedSize);
+            var inputBuf = ArrayPool<byte>.Shared.Rent(compressedSize);
 
             try
             {
-                var input = buf.AsSpan(0, compressedSize);
+                var output = outputBuf.AsSpan(0, uncompressedSize);
+                var input = inputBuf.AsSpan(0, compressedSize);
                 reader.Read(input);
 
                 var written = LZ4Codec.Decode(input, output);
@@ -94,13 +97,15 @@ namespace ValveResourceFormat.ResourceTypes
                 {
                     throw new InvalidDataException($"Failed to decompress LZ4 (expected {output.Length} bytes, got {written}).");
                 }
+
+                outStream.Write(output);
             }
             finally
             {
-                ArrayPool<byte>.Shared.Return(buf);
+                ArrayPool<byte>.Shared.Return(outputBuf);
+                ArrayPool<byte>.Shared.Return(inputBuf);
             }
 
-            outStream.Write(output);
             outStream.Seek(0, SeekOrigin.Begin);
         }
 
@@ -126,7 +131,9 @@ namespace ValveResourceFormat.ResourceTypes
             }
             else if (Encoding.CompareTo(KV3_ENCODING_BINARY_BLOCK_LZ4) == 0)
             {
-                DecompressLZ4(reader, outStream);
+                var uncompressedSize = reader.ReadInt32();
+                var compressedSize = (int)(Size - (reader.BaseStream.Position - Offset));
+                DecompressLZ4(reader, outStream, compressedSize, uncompressedSize);
             }
             else if (Encoding.CompareTo(KV3_ENCODING_BINARY_UNCOMPRESSED) == 0)
             {
@@ -168,15 +175,26 @@ namespace ValveResourceFormat.ResourceTypes
             if (compressionMethod == 0)
             {
                 var length = reader.ReadInt32();
+                var outputBuf = ArrayPool<byte>.Shared.Rent(length);
 
-                var output = new Span<byte>(new byte[length]);
-                reader.Read(output);
-                outStream.Write(output);
+                try
+                {
+                    var output = outputBuf.AsSpan(0, length);
+                    reader.Read(output);
+                    outStream.Write(output);
+                }
+                finally
+                {
+                    ArrayPool<byte>.Shared.Return(outputBuf);
+                }
+
                 outStream.Seek(0, SeekOrigin.Begin);
             }
             else if (compressionMethod == 1)
             {
-                DecompressLZ4(reader, outStream);
+                var uncompressedSize = reader.ReadInt32();
+                var compressedSize = (int)(Size - (reader.BaseStream.Position - Offset));
+                DecompressLZ4(reader, outStream, compressedSize, uncompressedSize);
             }
             else
             {
@@ -288,9 +306,20 @@ namespace ValveResourceFormat.ResourceTypes
                     throw new UnexpectedMagicException("Unhandled", compressionFrameSize, nameof(compressionFrameSize));
                 }
 
-                var output = new Span<byte>(new byte[compressedSize]);
-                reader.Read(output);
-                outStream.Write(output);
+                var outputBuf = ArrayPool<byte>.Shared.Rent((int)compressedSize);
+
+                try
+                {
+                    var output = outputBuf.AsSpan(0, (int)compressedSize);
+                    reader.Read(output);
+                    outStream.Write(output);
+                }
+                finally
+                {
+                    ArrayPool<byte>.Shared.Return(outputBuf);
+                }
+
+                outStream.Seek(0, SeekOrigin.Begin);
             }
             else if (compressionMethod == 1)
             {
@@ -304,27 +333,7 @@ namespace ValveResourceFormat.ResourceTypes
                     throw new UnexpectedMagicException("Unhandled", compressionFrameSize, nameof(compressionFrameSize));
                 }
 
-                var output = new Span<byte>(new byte[uncompressedSize]);
-                var buf = ArrayPool<byte>.Shared.Rent((int)compressedSize);
-
-                try
-                {
-                    var input = buf.AsSpan(0, (int)compressedSize);
-                    reader.Read(input);
-
-                    var written = LZ4Codec.Decode(input, output);
-
-                    if (written != output.Length)
-                    {
-                        throw new InvalidDataException($"Failed to decompress LZ4 (expected {output.Length} bytes, got {written}).");
-                    }
-                }
-                finally
-                {
-                    ArrayPool<byte>.Shared.Return(buf);
-                }
-
-                outStream.Write(output);
+                DecompressLZ4(reader, outStream, (int)compressedSize, (int)uncompressedSize);
             }
             else if (compressionMethod == 2)
             {
@@ -341,32 +350,35 @@ namespace ValveResourceFormat.ResourceTypes
                 using var zstd = new ZstdSharp.Decompressor();
 
                 var totalSize = uncompressedSize + blockTotalSize;
-                var output = new Span<byte>(new byte[totalSize]);
-                var buf = ArrayPool<byte>.Shared.Rent((int)compressedSize);
+                var outputBuf = ArrayPool<byte>.Shared.Rent((int)totalSize);
+                var inputBuf = ArrayPool<byte>.Shared.Rent((int)compressedSize);
 
                 try
                 {
-                    var input = buf.AsSpan(0, (int)compressedSize);
+                    var output = outputBuf.AsSpan(0, (int)totalSize);
+                    var input = inputBuf.AsSpan(0, (int)compressedSize);
                     reader.Read(input);
 
                     if (!zstd.TryUnwrap(input, output, out var written) || totalSize != written)
                     {
                         throw new InvalidDataException($"Failed to decompress zstd correctly (written {written} bytes, expected {totalSize} bytes)");
                     }
+
+                    outStream.Write(output);
                 }
                 finally
                 {
-                    ArrayPool<byte>.Shared.Return(buf);
+                    ArrayPool<byte>.Shared.Return(outputBuf);
+                    ArrayPool<byte>.Shared.Return(inputBuf);
                 }
 
-                outStream.Write(output);
+                outStream.Seek(0, SeekOrigin.Begin);
             }
             else
             {
                 throw new UnexpectedMagicException("Unknown compression method", compressionMethod, nameof(compressionMethod));
             }
 
-            outStream.Seek(0, SeekOrigin.Begin);
             using var outRead = new BinaryReader(outStream, System.Text.Encoding.UTF8, true);
 
             currentBinaryBytesOffset = 0;
@@ -458,12 +470,14 @@ namespace ValveResourceFormat.ResourceTypes
                     while (outRead.BaseStream.Position < outRead.BaseStream.Length)
                     {
                         var compressedBlockLength = outRead.ReadUInt16();
-                        var output = new Span<byte>(new byte[compressionFrameSize]);
-                        var buf = ArrayPool<byte>.Shared.Rent(compressedBlockLength);
+
+                        var outputBuf = ArrayPool<byte>.Shared.Rent(compressionFrameSize);
+                        var inputBuf = ArrayPool<byte>.Shared.Rent(compressedBlockLength);
 
                         try
                         {
-                            var input = buf.AsSpan(0, compressedBlockLength);
+                            var output = outputBuf.AsSpan(0, compressionFrameSize);
+                            var input = inputBuf.AsSpan(0, compressedBlockLength);
 
                             reader.Read(input);
 
@@ -485,7 +499,8 @@ namespace ValveResourceFormat.ResourceTypes
                         }
                         finally
                         {
-                            ArrayPool<byte>.Shared.Return(buf);
+                            ArrayPool<byte>.Shared.Return(outputBuf);
+                            ArrayPool<byte>.Shared.Return(inputBuf);
                         }
                     }
                 }
