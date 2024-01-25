@@ -104,10 +104,7 @@ namespace GUI.Types.Renderer
                 Animation.GetAnimationMatrices(matrices, frame, AnimationController.FrameCache.Skeleton);
 
                 // Update animation texture
-                using (animationTexture.BindingContext())
-                {
-                    GL.TexImage2D(animationTexture.Target, 0, PixelInternalFormat.Rgba32f, animationTexture.Width, animationTexture.Height, 0, PixelFormat.Rgba, PixelType.Float, floatBuffer);
-                }
+                GL.TextureSubImage2D(animationTexture.Handle, 0, 0, 0, animationTexture.Width, animationTexture.Height, PixelFormat.Rgba, PixelType.Float, floatBuffer);
 
                 var first = true;
                 foreach (var matrix in matrices)
@@ -253,6 +250,8 @@ namespace GUI.Types.Renderer
             animationTexture.SetWrapMode(TextureWrapMode.ClampToEdge);
             // Set nearest-neighbor sampling since we don't want to interpolate matrix rows
             animationTexture.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
+
+            GL.TextureStorage2D(animationTexture.Handle, 1, SizedInternalFormat.Rgba32f, animationTexture.Width, animationTexture.Height);
         }
 
         public IEnumerable<string> GetSupportedAnimationNames()
