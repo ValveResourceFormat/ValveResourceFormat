@@ -135,6 +135,7 @@ namespace GUI.Types.Renderer
 
         public RenderTexture GetTexture(string name, bool srgbRead = false)
         {
+            // TODO: Create texture view for srgb textures
             var cache = srgbRead ? TexturesSrgb : Textures;
 
             if (cache.TryGetValue(name, out var tex))
@@ -189,7 +190,7 @@ namespace GUI.Types.Renderer
 
             var tex = new RenderTexture(target, data);
             var format = GetTextureFormat(data.Format);
-            var sizedInternalFormat = srgbRead ? format.InternalSrgbFormat : format.InternalFormat;
+            var sizedInternalFormat = srgbRead && format.InternalSrgbFormat is not null ? format.InternalSrgbFormat.Value : format.InternalFormat;
 
 #if DEBUG
             var textureName = System.IO.Path.GetFileName(textureResource.FileName);
@@ -290,40 +291,40 @@ namespace GUI.Types.Renderer
         }
 
         /// <param name="InternalFormat">Specifies the sized internal format to be used to store texture image data.</param>
-        /// <param name="InternalSrgbFormat">Same as <see cref="InternalFormat"/>, but for sRGB textures.</param>
+        /// <param name="InternalSrgbFormat">Same as <see cref="InternalFormat"/>, but for sRGB textures. Null if no sRGB format.</param>
         /// <param name="PixelFormat">Specifies the format of the pixel data. Must be null if the format is compressed.</param>
         /// <param name="PixelType">Specifies the data type of the pixel data. Must be null if the format is compressed.</param>
         /// <see href="https://registry.khronos.org/OpenGL-Refpages/gl4/html/glTexStorage2D.xhtml"/>
         /// <see href="https://registry.khronos.org/OpenGL-Refpages/gl4/html/glTexSubImage2D.xhtml"/>
-        record struct TextureFormatMapping(SizedInternalFormat InternalFormat, SizedInternalFormat InternalSrgbFormat, PixelFormat? PixelFormat = null, PixelType? PixelType = null);
+        record struct TextureFormatMapping(SizedInternalFormat InternalFormat, PixelFormat? PixelFormat = null, PixelType? PixelType = null, SizedInternalFormat? InternalSrgbFormat = null);
 
         private static TextureFormatMapping GetTextureFormat(VTexFormat vformat) => vformat switch
         {
 #pragma warning disable format
-            VTexFormat.ATI1N           => new((SizedInternalFormat)InternalFormat.CompressedRedRgtc1,             (SizedInternalFormat)InternalFormat.CompressedRedRgtc1), // No srgb
-            VTexFormat.ATI2N           => new((SizedInternalFormat)InternalFormat.CompressedRgRgtc2,              (SizedInternalFormat)InternalFormat.CompressedRgRgtc2),  // No srgb
-            VTexFormat.BC6H            => new((SizedInternalFormat)InternalFormat.CompressedRgbBptcUnsignedFloat, (SizedInternalFormat)InternalFormat.CompressedRgbBptcUnsignedFloat), // No srgb
-            VTexFormat.BC7             => new((SizedInternalFormat)InternalFormat.CompressedRgbaBptcUnorm,        (SizedInternalFormat)InternalFormat.CompressedSrgbAlphaBptcUnorm),
-            VTexFormat.DXT1            => new((SizedInternalFormat)InternalFormat.CompressedRgbaS3tcDxt1Ext,      (SizedInternalFormat)InternalFormat.CompressedSrgbAlphaS3tcDxt1Ext),
-            VTexFormat.DXT5            => new((SizedInternalFormat)InternalFormat.CompressedRgbaS3tcDxt5Ext,      (SizedInternalFormat)InternalFormat.CompressedSrgbAlphaS3tcDxt5Ext),
-            VTexFormat.ETC2            => new((SizedInternalFormat)InternalFormat.CompressedRgb8Etc2,             (SizedInternalFormat)InternalFormat.CompressedSrgb8Etc2),
-            VTexFormat.ETC2_EAC        => new((SizedInternalFormat)InternalFormat.CompressedRgba8Etc2Eac,         (SizedInternalFormat)InternalFormat.CompressedSrgb8Alpha8Etc2Eac),
+            VTexFormat.ATI1N           => new((SizedInternalFormat)InternalFormat.CompressedRedRgtc1),
+            VTexFormat.ATI2N           => new((SizedInternalFormat)InternalFormat.CompressedRgRgtc2),
+            VTexFormat.BC6H            => new((SizedInternalFormat)InternalFormat.CompressedRgbBptcUnsignedFloat),
+            VTexFormat.BC7             => new((SizedInternalFormat)InternalFormat.CompressedRgbaBptcUnorm,        InternalSrgbFormat: (SizedInternalFormat)InternalFormat.CompressedSrgbAlphaBptcUnorm),
+            VTexFormat.DXT1            => new((SizedInternalFormat)InternalFormat.CompressedRgbaS3tcDxt1Ext,      InternalSrgbFormat: (SizedInternalFormat)InternalFormat.CompressedSrgbAlphaS3tcDxt1Ext),
+            VTexFormat.DXT5            => new((SizedInternalFormat)InternalFormat.CompressedRgbaS3tcDxt5Ext,      InternalSrgbFormat: (SizedInternalFormat)InternalFormat.CompressedSrgbAlphaS3tcDxt5Ext),
+            VTexFormat.ETC2            => new((SizedInternalFormat)InternalFormat.CompressedRgb8Etc2,             InternalSrgbFormat: (SizedInternalFormat)InternalFormat.CompressedSrgb8Etc2),
+            VTexFormat.ETC2_EAC        => new((SizedInternalFormat)InternalFormat.CompressedRgba8Etc2Eac,         InternalSrgbFormat: (SizedInternalFormat)InternalFormat.CompressedSrgb8Alpha8Etc2Eac),
 
-            VTexFormat.R16             => new(SizedInternalFormat.R16,        SizedInternalFormat.R16,         PixelFormat.Red,  PixelType.UnsignedShort),
-            VTexFormat.RG1616          => new(SizedInternalFormat.Rg16,       SizedInternalFormat.Rg16,        PixelFormat.Rg,   PixelType.UnsignedShort),
-            VTexFormat.RGBA16161616    => new(SizedInternalFormat.Rgba16,     SizedInternalFormat.Rgba16,      PixelFormat.Rgba, PixelType.UnsignedShort),
+            VTexFormat.R16             => new(SizedInternalFormat.R16,        PixelFormat.Red,    PixelType.UnsignedShort),
+            VTexFormat.RG1616          => new(SizedInternalFormat.Rg16,       PixelFormat.Rg,     PixelType.UnsignedShort),
+            VTexFormat.RGBA16161616    => new(SizedInternalFormat.Rgba16,     PixelFormat.Rgba,   PixelType.UnsignedShort),
 
-            VTexFormat.R16F            => new(SizedInternalFormat.R16f,       SizedInternalFormat.R16f,        PixelFormat.Red,  PixelType.HalfFloat),
-            VTexFormat.RG1616F         => new(SizedInternalFormat.Rg16f,      SizedInternalFormat.Rg16f,       PixelFormat.Rg,   PixelType.HalfFloat),
-            VTexFormat.RGBA16161616F   => new(SizedInternalFormat.Rgba16f,    SizedInternalFormat.Rgba16f,     PixelFormat.Rgba, PixelType.HalfFloat),
+            VTexFormat.R16F            => new(SizedInternalFormat.R16f,       PixelFormat.Red,    PixelType.HalfFloat),
+            VTexFormat.RG1616F         => new(SizedInternalFormat.Rg16f,      PixelFormat.Rg,     PixelType.HalfFloat),
+            VTexFormat.RGBA16161616F   => new(SizedInternalFormat.Rgba16f,    PixelFormat.Rgba,   PixelType.HalfFloat),
 
-            VTexFormat.R32F            => new(SizedInternalFormat.R32f,       SizedInternalFormat.R32f,        PixelFormat.Red,  PixelType.Float),
-            VTexFormat.RG3232F         => new(SizedInternalFormat.Rg32f,      SizedInternalFormat.Rg32f,       PixelFormat.Rg,   PixelType.Float),
-            VTexFormat.RGBA32323232F   => new(SizedInternalFormat.Rgba32f,    SizedInternalFormat.Rgba32f,     PixelFormat.Rgba, PixelType.Float),
+            VTexFormat.R32F            => new(SizedInternalFormat.R32f,       PixelFormat.Red,    PixelType.Float),
+            VTexFormat.RG3232F         => new(SizedInternalFormat.Rg32f,      PixelFormat.Rg,     PixelType.Float),
+            VTexFormat.RGBA32323232F   => new(SizedInternalFormat.Rgba32f,    PixelFormat.Rgba,   PixelType.Float),
 
-            VTexFormat.RGBA8888        => new(SizedInternalFormat.Rgba8,      SizedInternalFormat.Srgb8Alpha8, PixelFormat.Rgba, PixelType.UnsignedByte),
-            VTexFormat.BGRA8888        => new(SizedInternalFormat.Rgba8,      SizedInternalFormat.Srgb8Alpha8, PixelFormat.Bgra, PixelType.UnsignedByte),
-            //VTexFormat.I8              => new(SizedInternalFormat.Intensity8, SizedInternalFormat.Intensity8,  PixelFormat.Red,  PixelType.UnsignedByte),
+            VTexFormat.RGBA8888        => new(SizedInternalFormat.Rgba8,      PixelFormat.Rgba,   PixelType.UnsignedByte,     SizedInternalFormat.Srgb8Alpha8),
+            VTexFormat.BGRA8888        => new(SizedInternalFormat.Rgba8,      PixelFormat.Bgra,   PixelType.UnsignedByte,     SizedInternalFormat.Srgb8Alpha8),
+            //VTexFormat.I8              => new(SizedInternalFormat.Intensity8, PixelFormat.Red,  PixelType.UnsignedByte),
 
             //VTexFormat.IA88
             //VTexFormat.R11_EAC
