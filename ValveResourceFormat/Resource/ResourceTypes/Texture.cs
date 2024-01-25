@@ -740,24 +740,19 @@ namespace ValveResourceFormat.ResourceTypes
         /// </summary>
         /// <param name="buffer">Buffer to use when yielding textures, it should be size of <see cref="GetBiggestBufferSize"/> or bigger. This buffer is reused for every mip level.</param>
         /// <param name="maxTextureSize">Max size of texture in pixels.</param>
-        public IEnumerable<(int Level, int Width, int Height, int BufferSize)> GetEveryMipLevelTexture(byte[] buffer, int maxTextureSize = int.MaxValue)
+        public IEnumerable<(int Level, int Width, int Height, int BufferSize)> GetEveryMipLevelTexture(byte[] buffer, int minMipLevelAllowed = 0)
         {
             Reader.BaseStream.Position = Offset + Size;
-
-            // Support max texture size, however if there is no smaller (or equal) mip level for requested size, we have to return the first available level
-            var hasAlreadyReturnedMip = false;
 
             for (var i = NumMipLevels - 1; i >= 0; i--)
             {
                 var width = Width >> i;
                 var height = Height >> i;
 
-                if (hasAlreadyReturnedMip && (width > maxTextureSize || height > maxTextureSize))
+                if (i < minMipLevelAllowed)
                 {
                     break;
                 }
-
-                hasAlreadyReturnedMip = true;
 
                 var uncompressedSize = CalculateBufferSizeForMipLevel((uint)i);
                 var output = buffer.AsSpan(0, uncompressedSize);

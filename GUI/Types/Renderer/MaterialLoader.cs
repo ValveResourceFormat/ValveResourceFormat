@@ -203,38 +203,39 @@ namespace GUI.Types.Renderer
                 depth *= 6;
             }
 
+            var minMipLevelAllowed = 0;
+            var texWidth = data.Width;
+            var texHeight = data.Height;
+
+            if (!isViewerRequest && !is3d && data.NumMipLevels > 1)
+            {
+                var maxUserTextureSize = Settings.Config.MaxTextureSize;
+
+                while (minMipLevelAllowed + 1 < data.NumMipLevels && (texWidth > maxUserTextureSize || texHeight > maxUserTextureSize))
+                {
+                    minMipLevelAllowed++;
+
+                    texWidth >>= 1;
+                    texHeight >>= 1;
+                }
+            }
+
             if (target == TextureTarget.Texture2DArray || target == TextureTarget.TextureCubeMapArray)
             {
-                GL.TextureStorage3D(tex.Handle, data.NumMipLevels, sizedInternalFormat, data.Width, data.Height, depth);
+                GL.TextureStorage3D(tex.Handle, data.NumMipLevels - minMipLevelAllowed, sizedInternalFormat, texWidth, texHeight, depth);
             }
             else
             {
-                GL.TextureStorage2D(tex.Handle, data.NumMipLevels, sizedInternalFormat, data.Width, data.Height);
-            }
-
-            var maxMipLevelNotSet = true;
-            var minMipLevel = 0;
-
-            var maxTextureSize = Settings.Config.MaxTextureSize;
-
-            if (isViewerRequest || data.Flags.HasFlag(VTexFlags.TEXTURE_ARRAY) || data.Flags.HasFlag(VTexFlags.VOLUME_TEXTURE))
-            {
-                maxTextureSize = int.MaxValue;
+                GL.TextureStorage2D(tex.Handle, data.NumMipLevels - minMipLevelAllowed, sizedInternalFormat, texWidth, texHeight);
             }
 
             var buffer = ArrayPool<byte>.Shared.Rent(data.GetBiggestBufferSize());
 
             try
             {
-                foreach (var (level, width, height, bufferSize) in data.GetEveryMipLevelTexture(buffer, maxTextureSize))
+                foreach (var (level, width, height, bufferSize) in data.GetEveryMipLevelTexture(buffer, minMipLevelAllowed))
                 {
-                    if (maxMipLevelNotSet)
-                    {
-                        GL.TextureParameter(tex.Handle, TextureParameterName.TextureMaxLevel, level);
-                        maxMipLevelNotSet = false;
-                    }
-
-                    minMipLevel = level;
+                    var realLevel = level - minMipLevelAllowed;
 
                     if (format.PixelType is not null)
                     {
@@ -242,22 +243,22 @@ namespace GUI.Types.Renderer
 
                         if (is3d)
                         {
-                            GL.TextureSubImage3D(tex.Handle, level, 0, 0, 0, width, height, depth, format.PixelFormat.Value, format.PixelType.Value, buffer);
+                            GL.TextureSubImage3D(tex.Handle, realLevel, 0, 0, 0, width, height, depth, format.PixelFormat.Value, format.PixelType.Value, buffer);
                         }
                         else
                         {
-                            GL.TextureSubImage2D(tex.Handle, level, 0, 0, width, height, format.PixelFormat.Value, format.PixelType.Value, buffer);
+                            GL.TextureSubImage2D(tex.Handle, realLevel, 0, 0, width, height, format.PixelFormat.Value, format.PixelType.Value, buffer);
                         }
                     }
                     else
                     {
                         if (is3d)
                         {
-                            GL.CompressedTextureSubImage3D(tex.Handle, level, 0, 0, 0, width, height, depth, (PixelFormat)sizedInternalFormat, bufferSize, buffer);
+                            GL.CompressedTextureSubImage3D(tex.Handle, realLevel, 0, 0, 0, width, height, depth, (PixelFormat)sizedInternalFormat, bufferSize, buffer);
                         }
                         else
                         {
-                            GL.CompressedTextureSubImage2D(tex.Handle, level, 0, 0, width, height, (PixelFormat)sizedInternalFormat, bufferSize, buffer);
+                            GL.CompressedTextureSubImage2D(tex.Handle, realLevel, 0, 0, width, height, (PixelFormat)sizedInternalFormat, bufferSize, buffer);
                         }
                     }
                 }
@@ -266,8 +267,6 @@ namespace GUI.Types.Renderer
             {
                 ArrayPool<byte>.Shared.Return(buffer);
             }
-
-            GL.TextureParameter(tex.Handle, TextureParameterName.TextureBaseLevel, minMipLevel);
 
             if (!isViewerRequest)
             {
