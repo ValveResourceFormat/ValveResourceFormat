@@ -244,6 +244,11 @@ namespace GUI.Types.Renderer
             // Create animation texture
             animationTexture = new(TextureTarget.Texture2D, 4, bonesCount, 1, 1);
 
+#if DEBUG
+            var textureName = nameof(animationTexture);
+            GL.ObjectLabel(ObjectLabelIdentifier.Texture, animationTexture.Handle, textureName.Length, textureName);
+#endif
+
             // Set clamping to edges
             animationTexture.SetWrapMode(TextureWrapMode.ClampToEdge);
             // Set nearest-neighbor sampling since we don't want to interpolate matrix rows
