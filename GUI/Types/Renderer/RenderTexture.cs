@@ -20,8 +20,6 @@ namespace GUI.Types.Renderer
             Target = target;
             GL.CreateTextures(target, 1, out int handle);
             Handle = handle;
-            BindAction = Bind;
-            UnbindAction = Unbind;
         }
 
         public RenderTexture(TextureTarget target, Texture data) : this(target)
@@ -41,13 +39,6 @@ namespace GUI.Types.Renderer
             Depth = depth;
             NumMipLevels = mipcount;
         }
-
-        public void Bind() => GL.BindTexture(Target, Handle);
-        public void Unbind() => GL.BindTexture(Target, 0);
-        // TODO: Replace binding with opengl DSA apis, these fields is to prevent Action() allocs
-        private readonly Action BindAction;
-        private readonly Action UnbindAction;
-        public BindingContext BindingContext() => new(BindAction, UnbindAction);
 
         public void SetWrapMode(TextureWrapMode wrap)
         {
