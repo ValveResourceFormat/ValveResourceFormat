@@ -335,15 +335,6 @@ namespace GUI.Types.Renderer
             _ => throw new NotImplementedException($"Unsupported texture format {vformat}")
         };
 
-#if false
-        private static PixelFormat GetPixelFormat(VTexFormat vformat)
-            => vformat switch
-            {
-                VTexFormat.BGRA8888 => PixelFormat.Bgra,
-                _ => PixelFormat.Rgba
-            };
-#endif
-
         static readonly string[] NonMaterialUniforms =
         [
             "g_flTime",
