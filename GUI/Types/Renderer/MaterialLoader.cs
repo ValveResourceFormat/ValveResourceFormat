@@ -17,6 +17,7 @@ namespace GUI.Types.Renderer
     {
         private readonly Dictionary<ulong, RenderMaterial> Materials = [];
         private readonly Dictionary<string, RenderTexture> Textures = [];
+        private readonly Dictionary<string, RenderTexture> TexturesSrgb = [];
         private readonly VrfGuiContext VrfGuiContext;
         private RenderTexture ErrorTexture;
         private RenderTexture DefaultNormal;
@@ -134,13 +135,15 @@ namespace GUI.Types.Renderer
 
         public RenderTexture GetTexture(string name, bool srgbRead = false)
         {
-            if (Textures.TryGetValue(name, out var tex))
+            var cache = srgbRead ? TexturesSrgb : Textures;
+
+            if (cache.TryGetValue(name, out var tex))
             {
                 return tex;
             }
 
             tex = LoadTexture(name, srgbRead);
-            Textures.Add(name, tex);
+            cache.Add(name, tex);
             return tex;
         }
 
