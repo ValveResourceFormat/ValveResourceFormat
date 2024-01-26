@@ -189,11 +189,9 @@ namespace ValveResourceFormat.ResourceTypes
 
         public IEnumerable<Animation> GetEmbeddedAnimations()
         {
-            var embeddedAnimations = new List<Animation>();
-
             if (!Resource.ContainsBlockType(BlockType.CTRL))
             {
-                return embeddedAnimations;
+                return Enumerable.Empty<Animation>();
             }
 
             var ctrl = Resource.GetBlockByType(BlockType.CTRL) as BinaryKV3;
@@ -201,7 +199,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             if (embeddedAnimation == null)
             {
-                return embeddedAnimations;
+                return Enumerable.Empty<Animation>();
             }
 
             var groupDataBlockIndex = (int)embeddedAnimation.GetIntegerProperty("group_data_block");

@@ -1,5 +1,5 @@
-using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders;
 using ValveResourceFormat.ResourceTypes.ModelFlex;
 using ValveResourceFormat.Serialization;
@@ -79,30 +79,25 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             {
                 var segmentKV = segmentArrayKV[i];
                 var container = segmentKV.GetArray<byte>("m_container");
+                var containerSpan = container.AsSpan();
                 var localChannel = dataChannelArray[segmentKV.GetInt32Property("m_nLocalChannel")];
-                using var containerReader = new BinaryReader(new MemoryStream(container));
+
                 // Read header
-                var decoder = decoderArray[containerReader.ReadInt16()];
-                var cardinality = containerReader.ReadInt16();
-                var numElements = containerReader.ReadInt16();
-                var totalLength = containerReader.ReadInt16();
+                var decoder = decoderArray[BitConverter.ToInt16(containerSpan[0..2])];
+                //var cardinality = BitConverter.ToInt16(containerSpan[2..4]);
+                var numElements = BitConverter.ToInt16(containerSpan[4..6]);
+                //var totalLength = BitConverter.ToInt16(containerSpan[6..8]);
 
                 // Read bone list
-                var elements = new int[numElements];
-                for (var j = 0; j < numElements; j++)
+                var end = 8 + numElements * 2;
+                var elements = MemoryMarshal.Cast<byte, short>(containerSpan[8..end]);
+                var remapTable = new int[localChannel.RemapTable.Length];
+
+                for (var j = 0; j < remapTable.Length; j++)
                 {
-                    elements[j] = containerReader.ReadInt16();
+                    remapTable[j] = elements.IndexOf((short)localChannel.RemapTable[j]);
                 }
 
-                var containerSegment = new ArraySegment<byte>(
-                    container,
-                    (int)containerReader.BaseStream.Position,
-                    container.Length - (int)containerReader.BaseStream.Position
-                );
-
-                var remapTable = localChannel.RemapTable
-                    .Select(i => Array.IndexOf(elements, i))
-                    .ToArray();
                 var wantedElements = remapTable.Where(boneID => boneID != -1).ToArray();
                 remapTable = remapTable
                     .Select((boneID, i) => (boneID, i))
@@ -115,6 +110,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                     Console.Error.WriteLine($"Unknown channel attribute encountered with '{decoder}' decoder");
                     continue;
                 }
+
+                var containerSegment = new ArraySegment<byte>(container, end, container.Length - end);
 
                 // Look at the decoder to see what to read
                 switch (decoder)
