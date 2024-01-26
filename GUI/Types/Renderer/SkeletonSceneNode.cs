@@ -90,7 +90,8 @@ namespace GUI.Types.Renderer
 
             if (!oldBindPose.IsIdentity)
             {
-                OctreeDebugRenderer<SceneNode>.AddLine(vertices, bindPose.Translation, oldBindPose.Translation, new(0f, 1f, 1f, 1f));
+                var fade = Random.Shared.NextSingle() * 0.5f + 0.5f;
+                OctreeDebugRenderer<SceneNode>.AddLine(vertices, bindPose.Translation, oldBindPose.Translation, new(1f - fade, 1f, fade, 1f));
             }
 
             foreach (var child in bone.Children)
@@ -108,6 +109,7 @@ namespace GUI.Types.Renderer
 
             var renderShader = context.ReplacementShader ?? shader;
 
+            GL.DepthFunc(DepthFunction.Always);
             GL.UseProgram(renderShader.Program);
 
             renderShader.SetUniform4x4("transform", Transform);
@@ -119,6 +121,7 @@ namespace GUI.Types.Renderer
 
             GL.UseProgram(0);
             GL.BindVertexArray(0);
+            GL.DepthFunc(DepthFunction.Greater);
         }
     }
 }
