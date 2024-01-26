@@ -1,3 +1,4 @@
+using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using PrimitiveType = OpenTK.Graphics.OpenGL.PrimitiveType;
 
@@ -8,21 +9,12 @@ namespace GUI.Types.Renderer
         readonly Shader shader;
         readonly int vaoHandle;
 
-        public LineSceneNode(Scene scene, Vector3 color, Vector3 start, Vector3 end)
+        public LineSceneNode(Scene scene, Color32 color, Vector3 start, Vector3 end)
             : base(scene)
         {
             LocalBoundingBox = new AABB(start, end);
 
-            var r = color.X / 255f;
-            var g = color.Y / 255f;
-            var b = color.Z / 255f;
-            var a = 1.0f;
-
-            var vertices = new float[]
-            {
-                start.X, start.Y, start.Z, r, g, b, a,
-                end.X, end.Y, end.Z, r, g, b, a,
-            };
+            SimpleVertex[] vertices = [new(start, color), new(end, color)];
 
             shader = Scene.GuiContext.ShaderLoader.LoadShader("vrf.default");
             GL.UseProgram(shader.Program);
@@ -32,16 +24,9 @@ namespace GUI.Types.Renderer
 
             var vboHandle = GL.GenBuffer();
             GL.BindBuffer(BufferTarget.ArrayBuffer, vboHandle);
-            GL.BufferData(BufferTarget.ArrayBuffer, vertices.Length * sizeof(float), vertices, BufferUsageHint.StaticDraw);
+            GL.BufferData(BufferTarget.ArrayBuffer, 2 * SimpleVertex.SizeInBytes, vertices, BufferUsageHint.StaticDraw);
 
-            const int stride = sizeof(float) * 7;
-            var positionAttributeLocation = GL.GetAttribLocation(shader.Program, "aVertexPosition");
-            GL.EnableVertexAttribArray(positionAttributeLocation);
-            GL.VertexAttribPointer(positionAttributeLocation, 3, VertexAttribPointerType.Float, false, stride, 0);
-
-            var colorAttributeLocation = GL.GetAttribLocation(shader.Program, "aVertexColor");
-            GL.EnableVertexAttribArray(colorAttributeLocation);
-            GL.VertexAttribPointer(colorAttributeLocation, 4, VertexAttribPointerType.UnsignedByte, true, stride, sizeof(float) * 3);
+            SimpleVertex.BindDefaultShaderLayout(shader.Program);
 
             GL.BindVertexArray(0);
         }

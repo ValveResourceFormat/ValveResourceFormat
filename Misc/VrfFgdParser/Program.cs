@@ -34,6 +34,27 @@ WriteProperties();
 
 return 0;
 
+static string ConstructColor(Behaviour behaviour)
+{
+    var color = string.Empty;
+
+    if (behaviour.Values.All(x => x == "255"))
+    {
+        return "Color32.White";
+    }
+
+    if (behaviour.Values.Count == 3)
+    {
+        color = $"new Color32({behaviour.Values[0]}, {behaviour.Values[1]}, {behaviour.Values[2]})";
+    }
+    else if (behaviour.Values.Count == 4)
+    {
+        color = $"new Color32({behaviour.Values[0]}, {behaviour.Values[1]}, {behaviour.Values[2]}, {behaviour.Values[3]})";
+    }
+
+    return color;
+}
+
 void ParseFile(string file)
 {
     var isSource2 = File.Exists(Path.Join(Path.GetDirectoryName(file), "gameinfo.gi"));
@@ -171,7 +192,7 @@ void ParseFile(string file)
 
                 if (behaviour.Name == "color" && behaviour.Values.Count >= 3)
                 {
-                    color = $"new Vector3({behaviour.Values[0]}, {behaviour.Values[1]}, {behaviour.Values[2]})";
+                    color = ConstructColor(behaviour);
                 }
 
                 if (color == null && _class.ClassType != ClassType.BaseClass)
@@ -205,7 +226,7 @@ void ParseFile(string file)
             {
                 if (behaviour.Name == "line" && behaviour.Values.Count > 3)
                 {
-                    var color = $"new Vector3({behaviour.Values[0]}, {behaviour.Values[1]}, {behaviour.Values[2]})";
+                    var color = ConstructColor(behaviour);
                     var line = string.Empty;
 
                     if (behaviour.Values.Count == 5)
