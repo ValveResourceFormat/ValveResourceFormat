@@ -22,9 +22,9 @@ namespace ValveResourceFormat.Compression
             offset = (offset + (cond ? 1 : 0)) & 15;
         }
 
-        private static uint DecodeVByte(BinaryReader data)
+        private static uint DecodeVByte(Span<byte> data, ref int position)
         {
-            var lead = (uint)data.ReadByte();
+            var lead = (uint)data[position++];
 
             if (lead < 128)
             {
@@ -36,7 +36,7 @@ namespace ValveResourceFormat.Compression
 
             for (var i = 0; i < 4; i++)
             {
-                var group = (uint)data.ReadByte();
+                var group = (uint)data[position++];
                 result |= (group & 127) << shift;
                 shift += 7;
 
@@ -49,9 +49,9 @@ namespace ValveResourceFormat.Compression
             return result;
         }
 
-        private static uint DecodeIndex(BinaryReader data, uint last)
+        private static uint DecodeIndex(Span<byte> data, uint last, ref int position)
         {
-            var v = DecodeVByte(data);
+            var v = DecodeVByte(data, ref position);
             var d = (uint)((v >> 1) ^ -(v & 1));
 
             return last + d;
@@ -113,127 +113,122 @@ namespace ValveResourceFormat.Compression
 
             var codeauxTable = buffer[^16..];
 
-            var destination = new Span<byte>(new byte[indexCount * indexSize]);
+            var destinationArray = new byte[indexCount * indexSize];
+            var destination = destinationArray.AsSpan();
+            var position = 0;
 
-            using (var stream = new MemoryStream(data.ToArray()))
-            using (var dataReader = new BinaryReader(stream))
+            for (var i = 0; i < indexCount; i += 3)
             {
-                for (var i = 0; i < indexCount; i += 3)
+                var codetri = buffer[bufferIndex++];
+
+                if (codetri < 0xf0)
                 {
-                    var codetri = buffer[bufferIndex++];
+                    var fe = codetri >> 4;
 
-                    if (codetri < 0xf0)
+                    var (a, b) = edgeFifo[(edgeFifoOffset - 1 - fe) & 15];
+
+                    var fec = codetri & 15;
+
+                    if (fec != 15)
                     {
-                        var fe = codetri >> 4;
+                        var c = fec == 0 ? next : vertexFifo[(vertexFifoOffset - 1 - fec) & 15];
 
-                        var (a, b) = edgeFifo[(edgeFifoOffset - 1 - fe) & 15];
+                        var fec0 = fec == 0;
+                        next += fec0 ? 1u : 0u;
 
-                        var fec = codetri & 15;
+                        WriteTriangle(destination, i, indexSize, a, b, c);
 
-                        if (fec != 15)
-                        {
-                            var c = fec == 0 ? next : vertexFifo[(vertexFifoOffset - 1 - fec) & 15];
+                        PushVertexFifo(vertexFifo, ref vertexFifoOffset, c, fec0);
 
-                            var fec0 = fec == 0;
-                            next += fec0 ? 1u : 0u;
-
-                            WriteTriangle(destination, i, indexSize, a, b, c);
-
-                            PushVertexFifo(vertexFifo, ref vertexFifoOffset, c, fec0);
-
-                            PushEdgeFifo(edgeFifo, ref edgeFifoOffset, c, b);
-                            PushEdgeFifo(edgeFifo, ref edgeFifoOffset, a, c);
-                        }
-                        else
-                        {
-                            var c = last = DecodeIndex(dataReader, last);
-
-                            WriteTriangle(destination, i, indexSize, a, b, c);
-
-                            PushVertexFifo(vertexFifo, ref vertexFifoOffset, c);
-
-                            PushEdgeFifo(edgeFifo, ref edgeFifoOffset, c, b);
-                            PushEdgeFifo(edgeFifo, ref edgeFifoOffset, a, c);
-                        }
+                        PushEdgeFifo(edgeFifo, ref edgeFifoOffset, c, b);
+                        PushEdgeFifo(edgeFifo, ref edgeFifoOffset, a, c);
                     }
                     else
                     {
-                        if (codetri < 0xfe)
-                        {
-                            var codeaux = codeauxTable[codetri & 15];
+                        var c = last = DecodeIndex(data, last, ref position);
 
-                            var feb = codeaux >> 4;
-                            var fec = codeaux & 15;
+                        WriteTriangle(destination, i, indexSize, a, b, c);
 
-                            var a = next++;
+                        PushVertexFifo(vertexFifo, ref vertexFifoOffset, c);
 
-                            var b = (feb == 0) ? next : vertexFifo[(vertexFifoOffset - feb) & 15];
-
-                            var feb0 = feb == 0 ? 1u : 0u;
-                            next += feb0;
-
-                            var c = (fec == 0) ? next : vertexFifo[(vertexFifoOffset - fec) & 15];
-
-                            var fec0 = fec == 0 ? 1u : 0u;
-                            next += fec0;
-
-                            WriteTriangle(destination, i, indexSize, a, b, c);
-
-                            PushVertexFifo(vertexFifo, ref vertexFifoOffset, a);
-                            PushVertexFifo(vertexFifo, ref vertexFifoOffset, b, feb0 == 1u);
-                            PushVertexFifo(vertexFifo, ref vertexFifoOffset, c, fec0 == 1u);
-
-                            PushEdgeFifo(edgeFifo, ref edgeFifoOffset, b, a);
-                            PushEdgeFifo(edgeFifo, ref edgeFifoOffset, c, b);
-                            PushEdgeFifo(edgeFifo, ref edgeFifoOffset, a, c);
-                        }
-                        else
-                        {
-                            var codeaux = (uint)dataReader.ReadByte();
-
-                            var fea = codetri == 0xfe ? 0 : 15;
-                            var feb = codeaux >> 4;
-                            var fec = codeaux & 15;
-
-                            var a = (fea == 0) ? next++ : 0;
-                            var b = (feb == 0) ? next++ : vertexFifo[(vertexFifoOffset - feb) & 15];
-                            var c = (fec == 0) ? next++ : vertexFifo[(vertexFifoOffset - fec) & 15];
-
-                            if (fea == 15)
-                            {
-                                last = a = DecodeIndex(dataReader, last);
-                            }
-
-                            if (feb == 15)
-                            {
-                                last = b = DecodeIndex(dataReader, last);
-                            }
-
-                            if (fec == 15)
-                            {
-                                last = c = DecodeIndex(dataReader, last);
-                            }
-
-                            WriteTriangle(destination, i, indexSize, a, b, c);
-
-                            PushVertexFifo(vertexFifo, ref vertexFifoOffset, a);
-                            PushVertexFifo(vertexFifo, ref vertexFifoOffset, b, (feb == 0) || (feb == 15));
-                            PushVertexFifo(vertexFifo, ref vertexFifoOffset, c, (fec == 0) || (fec == 15));
-
-                            PushEdgeFifo(edgeFifo, ref edgeFifoOffset, b, a);
-                            PushEdgeFifo(edgeFifo, ref edgeFifoOffset, c, b);
-                            PushEdgeFifo(edgeFifo, ref edgeFifoOffset, a, c);
-                        }
+                        PushEdgeFifo(edgeFifo, ref edgeFifoOffset, c, b);
+                        PushEdgeFifo(edgeFifo, ref edgeFifoOffset, a, c);
                     }
                 }
-
-                if (stream.Position != stream.Length)
+                else if (codetri < 0xfe)
                 {
-                    throw new InvalidDataException("we didn't read all data bytes and stopped before the boundary between data and codeaux table");
+                    var codeaux = codeauxTable[codetri & 15];
+
+                    var feb = codeaux >> 4;
+                    var fec = codeaux & 15;
+
+                    var a = next++;
+
+                    var b = (feb == 0) ? next : vertexFifo[(vertexFifoOffset - feb) & 15];
+
+                    var feb0 = feb == 0 ? 1u : 0u;
+                    next += feb0;
+
+                    var c = (fec == 0) ? next : vertexFifo[(vertexFifoOffset - fec) & 15];
+
+                    var fec0 = fec == 0 ? 1u : 0u;
+                    next += fec0;
+
+                    WriteTriangle(destination, i, indexSize, a, b, c);
+
+                    PushVertexFifo(vertexFifo, ref vertexFifoOffset, a);
+                    PushVertexFifo(vertexFifo, ref vertexFifoOffset, b, feb0 == 1u);
+                    PushVertexFifo(vertexFifo, ref vertexFifoOffset, c, fec0 == 1u);
+
+                    PushEdgeFifo(edgeFifo, ref edgeFifoOffset, b, a);
+                    PushEdgeFifo(edgeFifo, ref edgeFifoOffset, c, b);
+                    PushEdgeFifo(edgeFifo, ref edgeFifoOffset, a, c);
+                }
+                else
+                {
+                    var codeaux = (uint)data[position++];
+
+                    var fea = codetri == 0xfe ? 0 : 15;
+                    var feb = codeaux >> 4;
+                    var fec = codeaux & 15;
+
+                    var a = (fea == 0) ? next++ : 0;
+                    var b = (feb == 0) ? next++ : vertexFifo[(vertexFifoOffset - feb) & 15];
+                    var c = (fec == 0) ? next++ : vertexFifo[(vertexFifoOffset - fec) & 15];
+
+                    if (fea == 15)
+                    {
+                        last = a = DecodeIndex(data, last, ref position);
+                    }
+
+                    if (feb == 15)
+                    {
+                        last = b = DecodeIndex(data, last, ref position);
+                    }
+
+                    if (fec == 15)
+                    {
+                        last = c = DecodeIndex(data, last, ref position);
+                    }
+
+                    WriteTriangle(destination, i, indexSize, a, b, c);
+
+                    PushVertexFifo(vertexFifo, ref vertexFifoOffset, a);
+                    PushVertexFifo(vertexFifo, ref vertexFifoOffset, b, (feb == 0) || (feb == 15));
+                    PushVertexFifo(vertexFifo, ref vertexFifoOffset, c, (fec == 0) || (fec == 15));
+
+                    PushEdgeFifo(edgeFifo, ref edgeFifoOffset, b, a);
+                    PushEdgeFifo(edgeFifo, ref edgeFifoOffset, c, b);
+                    PushEdgeFifo(edgeFifo, ref edgeFifoOffset, a, c);
                 }
             }
 
-            return destination.ToArray();
+            if (position != data.Length)
+            {
+                throw new InvalidDataException("we didn't read all data bytes and stopped before the boundary between data and codeaux table");
+            }
+
+            return destinationArray;
         }
     }
 }

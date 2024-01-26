@@ -86,36 +86,24 @@ namespace ValveResourceFormat.Blocks
             var indexBufferOffset = reader.ReadUInt32();
             var indexBufferCount = reader.ReadUInt32();
 
+            VertexBuffers.EnsureCapacity((int)vertexBufferCount);
             reader.BaseStream.Position = Offset + vertexBufferOffset;
             for (var i = 0; i < vertexBufferCount; i++)
             {
-                var vertexBuffer = ReadOnDiskBufferData(reader);
-
-                var decompressedSize = vertexBuffer.ElementCount * vertexBuffer.ElementSizeInBytes;
-                if (vertexBuffer.Data.Length != decompressedSize)
-                {
-                    vertexBuffer.Data = MeshOptimizerVertexDecoder.DecodeVertexBuffer((int)vertexBuffer.ElementCount, (int)vertexBuffer.ElementSizeInBytes, vertexBuffer.Data);
-                }
-
+                var vertexBuffer = ReadOnDiskBufferData(reader, isVertex: true);
                 VertexBuffers.Add(vertexBuffer);
             }
 
+            IndexBuffers.EnsureCapacity((int)indexBufferCount);
             reader.BaseStream.Position = Offset + 8 + indexBufferOffset; //8 to take into account vertexOffset / count
             for (var i = 0; i < indexBufferCount; i++)
             {
-                var indexBuffer = ReadOnDiskBufferData(reader);
-
-                var decompressedSize = indexBuffer.ElementCount * indexBuffer.ElementSizeInBytes;
-                if (indexBuffer.Data.Length != decompressedSize)
-                {
-                    indexBuffer.Data = MeshOptimizerIndexDecoder.DecodeIndexBuffer((int)indexBuffer.ElementCount, (int)indexBuffer.ElementSizeInBytes, indexBuffer.Data);
-                }
-
+                var indexBuffer = ReadOnDiskBufferData(reader, isVertex: false);
                 IndexBuffers.Add(indexBuffer);
             }
         }
 
-        private static OnDiskBufferData ReadOnDiskBufferData(BinaryReader reader)
+        private static OnDiskBufferData ReadOnDiskBufferData(BinaryReader reader, bool isVertex)
         {
             var buffer = default(OnDiskBufferData);
 
@@ -159,7 +147,35 @@ namespace ValveResourceFormat.Blocks
 
             reader.BaseStream.Position = refB + dataOffset;
 
-            buffer.Data = reader.ReadBytes(totalSize); //can be compressed
+            var decompressedSize = (int)(buffer.ElementCount * buffer.ElementSizeInBytes);
+
+            if (totalSize != decompressedSize)
+            {
+                var temp = ArrayPool<byte>.Shared.Rent(totalSize);
+
+                try
+                {
+                    var span = temp.AsSpan(0, totalSize);
+                    reader.Read(span);
+
+                    if (isVertex)
+                    {
+                        buffer.Data = MeshOptimizerVertexDecoder.DecodeVertexBuffer((int)buffer.ElementCount, (int)buffer.ElementSizeInBytes, span);
+                    }
+                    else
+                    {
+                        buffer.Data = MeshOptimizerIndexDecoder.DecodeIndexBuffer((int)buffer.ElementCount, (int)buffer.ElementSizeInBytes, span);
+                    }
+                }
+                finally
+                {
+                    ArrayPool<byte>.Shared.Return(temp);
+                }
+            }
+            else
+            {
+                buffer.Data = reader.ReadBytes(totalSize);
+            }
 
             reader.BaseStream.Position = refB + 8; //Go back to the index array to read the next iteration.
 
