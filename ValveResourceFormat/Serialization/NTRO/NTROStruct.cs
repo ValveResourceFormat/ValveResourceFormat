@@ -218,7 +218,7 @@ namespace ValveResourceFormat.Serialization.NTRO
 
         public KVObject ToKVObject()
         {
-            var kv = new KVObject(Name);
+            var kv = new KVObject(Name, capacity: Contents.Count);
             foreach (var entry in Contents)
             {
                 kv.AddProperty(entry.Key, entry.Value.ToKVValue());

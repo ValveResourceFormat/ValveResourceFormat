@@ -16,16 +16,16 @@ namespace ValveResourceFormat.Serialization.KeyValues
         public readonly bool IsArray;
         public int Count { get; private set; }
 
-        public KVObject(string name)
+        public KVObject(string name, int capacity = 0)
         {
             Key = name;
-            Properties = new Dictionary<string, KVValue>();
+            Properties = new Dictionary<string, KVValue>(capacity);
             IsArray = false;
             Count = 0;
         }
 
-        public KVObject(string name, bool isArray)
-            : this(name)
+        public KVObject(string name, bool isArray, int capacity = 0)
+            : this(name, capacity)
         {
             IsArray = isArray;
         }

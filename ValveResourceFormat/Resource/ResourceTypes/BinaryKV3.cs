@@ -741,7 +741,8 @@ namespace ValveResourceFormat.ResourceTypes
                     break;
                 case KVType.ARRAY:
                     var arrayLength = reader.ReadInt32();
-                    var array = new KVObject(name, true);
+                    var array = new KVObject(name, isArray: true, capacity: arrayLength);
+
                     for (var i = 0; i < arrayLength; i++)
                     {
                         ParseBinaryKV3(reader, array, true);
@@ -768,7 +769,7 @@ namespace ValveResourceFormat.ResourceTypes
                     }
 
                     var (subType, subFlagInfo) = ReadType(reader);
-                    var typedArray = new KVObject(name, true);
+                    var typedArray = new KVObject(name, isArray: true, capacity: typeArrayLength);
 
                     for (var i = 0; i < typeArrayLength; i++)
                     {
@@ -779,7 +780,8 @@ namespace ValveResourceFormat.ResourceTypes
                     break;
                 case KVType.OBJECT:
                     var objectLength = reader.ReadInt32();
-                    var newObject = new KVObject(name, false);
+                    var newObject = new KVObject(name, isArray: false, capacity: objectLength);
+
                     for (var i = 0; i < objectLength; i++)
                     {
                         ParseBinaryKV3(reader, newObject, false);

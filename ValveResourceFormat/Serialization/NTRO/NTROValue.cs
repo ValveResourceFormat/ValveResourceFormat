@@ -66,7 +66,7 @@ namespace ValveResourceFormat.Serialization.NTRO
                     throw new InvalidOperationException($"Can only make array from a NTROStruct value, not ({typeof(T)}).");
                 }
 
-                var arrayObject = new KVObject(type.ToString(), true);
+                var arrayObject = new KVObject(type.ToString(), true, capacity: num);
                 for (var i = 0; i < num; i++)
                 {
                     var index = i.ToString(CultureInfo.InvariantCulture);

@@ -126,7 +126,7 @@ namespace ValveResourceFormat.Serialization.NTRO
                 return new KVValue(KVType.BINARY_BLOB, blob);
             }
 
-            var arrayObject = new KVObject($"{Type}[{Count}]", true);
+            var arrayObject = new KVObject($"{Type}[{Count}]", true, capacity: Count);
             foreach (var entry in this)
             {
                 arrayObject.AddProperty(null, entry.ToKVValue());

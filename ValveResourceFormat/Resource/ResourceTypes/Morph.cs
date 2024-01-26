@@ -237,7 +237,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             if (kvObj is NTROValue[] ntroArray)
             {
-                var kv = new KVObject("root", true);
+                var kv = new KVObject("root", true, capacity: ntroArray.Length);
                 foreach (var ntro in ntroArray)
                 {
                     kv.AddProperty("", ntro.ToKVValue());
