@@ -31,7 +31,7 @@ namespace GUI.Controls
             Disposed += OnDisposed;
             TextChanged += OnTextChanged;
 
-            if (Visible)
+            if (Visible && Parent != null)
             {
                 Text = text;
             }
@@ -53,6 +53,11 @@ namespace GUI.Controls
 
         private void OnVisibleChanged(object sender, EventArgs e)
         {
+            if (!Visible)
+            {
+                return;
+            }
+
             VisibleChanged -= OnVisibleChanged;
 
             Cursor.Current = Cursors.WaitCursor;
