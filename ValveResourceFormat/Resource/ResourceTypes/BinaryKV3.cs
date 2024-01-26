@@ -35,8 +35,9 @@ namespace ValveResourceFormat.ResourceTypes
 
         private string[] stringArray;
         private byte[] typesArray;
-        private BinaryReader uncompressedBlockDataReader;
+        private ArraySegment<byte> uncompressedBlocks;
         private int[] uncompressedBlockLengthArray;
+        private int uncompressedBlockOffset;
         private long currentCompressedBlockIndex;
         private long currentTypeIndex;
         private long currentEightBytesOffset;
@@ -80,7 +81,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             Debug.Assert(typesArray == null);
             Debug.Assert(uncompressedBlockLengthArray == null);
-            Debug.Assert(uncompressedBlockDataReader == null);
+            Debug.Assert(uncompressedBlocks == null);
         }
 
         private static void DecompressLZ4(BinaryReader reader, Span<byte> output, int compressedSize)
@@ -461,12 +462,14 @@ namespace ValveResourceFormat.ResourceTypes
                     throw new UnexpectedMagicException("Invalid trailer", trailer, nameof(trailer));
                 }
 
-                var uncompressedBlocksBuffer = ArrayPool<byte>.Shared.Rent((int)blockTotalSize);
+                byte[] uncompressedBlocksBuffer = null;
 
                 try
                 {
                     if (compressionMethod == 0)
                     {
+                        uncompressedBlocksBuffer = ArrayPool<byte>.Shared.Rent((int)blockTotalSize);
+
                         var offset = 0;
 
                         for (var i = 0; i < blockCount; i++)
@@ -475,9 +478,13 @@ namespace ValveResourceFormat.ResourceTypes
                             reader.Read(uncompressedBlocksBuffer.AsSpan(offset, length));
                             offset += length;
                         }
+
+                        uncompressedBlocks = new ArraySegment<byte>(uncompressedBlocksBuffer, 0, (int)blockTotalSize);
                     }
                     else if (compressionMethod == 1)
                     {
+                        uncompressedBlocksBuffer = ArrayPool<byte>.Shared.Rent((int)blockTotalSize);
+
                         using var lz4decoder = new LZ4ChainDecoder(compressionFrameSize, 0);
                         var offset = 0;
 
@@ -506,22 +513,20 @@ namespace ValveResourceFormat.ResourceTypes
                                 ArrayPool<byte>.Shared.Return(inputBuf);
                             }
                         }
+
+                        uncompressedBlocks = new ArraySegment<byte>(uncompressedBlocksBuffer, 0, (int)blockTotalSize);
                     }
                     else if (compressionMethod == 2)
                     {
                         // This is supposed to be a streaming decompress using ZSTD_decompressStream,
-                        // but as it turns out, zstd unwrap above already decompressed all of the blocks for us,
-                        // so all we need to do is just copy the buffer.
+                        // but as it turns out, zstd unwrap above already decompressed all of the blocks for us.
                         // It's possible that Valve's code needs extra decompress because they set ZSTD_d_stableOutBuffer parameter.
-                        outRead.Read(uncompressedBlocksBuffer.AsSpan(0, (int)blockTotalSize));
+                        uncompressedBlocks = new ArraySegment<byte>(outputBuf, (int)outRead.BaseStream.Position, (int)blockTotalSize);
                     }
                     else
                     {
                         throw new UnexpectedMagicException("Unimplemented compression method in block decoder", compressionMethod, nameof(compressionMethod));
                     }
-
-                    using var uncompressedBlocks = new MemoryStream(uncompressedBlocksBuffer, 0, (int)blockTotalSize);
-                    uncompressedBlockDataReader = new BinaryReader(uncompressedBlocks);
 
                     // Move back to the start of the KV data for reading.
                     outRead.BaseStream.Position = kvDataOffset;
@@ -530,13 +535,12 @@ namespace ValveResourceFormat.ResourceTypes
                 }
                 finally
                 {
-                    ArrayPool<byte>.Shared.Return(uncompressedBlocksBuffer);
-
-                    if (uncompressedBlockDataReader != null)
+                    if (uncompressedBlocksBuffer != null)
                     {
-                        uncompressedBlockDataReader.Dispose();
-                        uncompressedBlockDataReader = null;
+                        ArrayPool<byte>.Shared.Return(uncompressedBlocksBuffer);
                     }
+
+                    uncompressedBlocks = null;
                 }
             }
             finally
@@ -746,9 +750,11 @@ namespace ValveResourceFormat.ResourceTypes
                     parent.AddProperty(name, MakeValue(datatype, id == -1 ? string.Empty : stringArray[id], flagInfo));
                     break;
                 case KVType.BINARY_BLOB:
-                    if (uncompressedBlockDataReader != null)
+                    if (uncompressedBlocks != null)
                     {
-                        var output = uncompressedBlockDataReader.ReadBytes(uncompressedBlockLengthArray[currentCompressedBlockIndex++]);
+                        var blockLength = uncompressedBlockLengthArray[currentCompressedBlockIndex++];
+                        var output = uncompressedBlocks[uncompressedBlockOffset..(uncompressedBlockOffset + blockLength)].ToArray();
+                        uncompressedBlockOffset += blockLength;
                         parent.AddProperty(name, MakeValue(datatype, output, flagInfo));
                         break;
                     }
