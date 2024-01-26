@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.IO;
 using System.Text;
 
@@ -73,23 +74,40 @@ namespace ValveResourceFormat
 
         private static string ReadNullTermUtf8String(BinaryReader stream)
         {
-            using var ms = new MemoryStream();
+            const int BufferLength = 32;
+            var buffer = ArrayPool<byte>.Shared.Rent(BufferLength);
 
-            while (true)
+            try
             {
-                var b = stream.ReadByte();
+                var position = 0;
 
-                if (b == 0x00)
+                do
                 {
-                    break;
+                    if (position >= buffer.Length)
+                    {
+                        var newBuffer = ArrayPool<byte>.Shared.Rent(buffer.Length + BufferLength);
+                        Buffer.BlockCopy(buffer, 0, newBuffer, 0, buffer.Length);
+                        ArrayPool<byte>.Shared.Return(buffer);
+                        buffer = newBuffer;
+                    }
+
+                    var b = stream.ReadByte();
+
+                    if (b == 0x00)
+                    {
+                        break;
+                    }
+
+                    buffer[position++] = b;
                 }
+                while (true);
 
-                ms.WriteByte(b);
+                return Encoding.UTF8.GetString(buffer[..position]);
             }
-
-            ms.TryGetBuffer(out var buffer);
-
-            return Encoding.UTF8.GetString(buffer);
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(buffer);
+            }
         }
     }
 }
