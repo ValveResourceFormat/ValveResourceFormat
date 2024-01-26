@@ -105,6 +105,6 @@ void main()
     vBlendAlphas.xyz = vTEXCOORD2.xyz;//max(vTEXCOORD1.xyz * 0.5, 1e-6);
     vBlendAlphas.w = 0.0;
 
-    vVertexColor.rgb = SrgbGammaToLinear(vTint.rgb) * SrgbGammaToLinear(vTEXCOORD3.rgb/255);
+    vVertexColor.rgb = SrgbGammaToLinear(vTint.rgb) * SrgbGammaToLinear(vTEXCOORD3.rgb);
     vVertexColor.a = vTint.a;
 }
