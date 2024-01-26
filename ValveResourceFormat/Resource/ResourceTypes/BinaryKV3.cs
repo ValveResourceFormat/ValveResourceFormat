@@ -1,4 +1,5 @@
 using System.Buffers;
+using System.Diagnostics;
 using System.IO;
 using K4os.Compression.LZ4;
 using K4os.Compression.LZ4.Encoders;
@@ -76,8 +77,10 @@ namespace ValveResourceFormat.ResourceTypes
             }
 
             stringArray = null;
-            typesArray = null;
-            uncompressedBlockLengthArray = null;
+
+            Debug.Assert(typesArray == null);
+            Debug.Assert(uncompressedBlockLengthArray == null);
+            Debug.Assert(uncompressedBlockDataReader == null);
         }
 
         private static void DecompressLZ4(BinaryReader reader, Span<byte> output, int compressedSize)
@@ -240,18 +243,24 @@ namespace ValveResourceFormat.ResourceTypes
                 }
 
                 // bytes after the string table is kv types, minus 4 static bytes at the end
-                var typesLength = outRead.BaseStream.Length - 4 - outRead.BaseStream.Position;
-                typesArray = new byte[typesLength];
+                var typesLength = (int)(outRead.BaseStream.Length - 4 - outRead.BaseStream.Position);
 
-                for (var i = 0; i < typesLength; i++)
+                typesArray = ArrayPool<byte>.Shared.Rent(typesLength);
+
+                try
                 {
-                    typesArray[i] = outRead.ReadByte();
+                    outRead.Read(typesArray.AsSpan(0, typesLength));
+
+                    // Move back to the start of the KV data for reading.
+                    outRead.BaseStream.Position = kvDataOffset;
+
+                    Data = ParseBinaryKV3(outRead, null, true);
                 }
-
-                // Move back to the start of the KV data for reading.
-                outRead.BaseStream.Position = kvDataOffset;
-
-                Data = ParseBinaryKV3(outRead, null, true);
+                finally
+                {
+                    ArrayPool<byte>.Shared.Return(typesArray);
+                    typesArray = null;
+                }
             }
             finally
             {
@@ -418,13 +427,10 @@ namespace ValveResourceFormat.ResourceTypes
                     stringArray[i] = outRead.ReadNullTermString(System.Text.Encoding.UTF8);
                 }
 
-                var typesLength = stringAndTypesBufferSize - (outRead.BaseStream.Position - stringArrayStartPosition);
-                typesArray = new byte[typesLength];
+                var typesLength = (int)(stringAndTypesBufferSize - (outRead.BaseStream.Position - stringArrayStartPosition));
 
-                for (var i = 0; i < typesLength; i++)
-                {
-                    typesArray[i] = outRead.ReadByte();
-                }
+                typesArray = ArrayPool<byte>.Shared.Rent(typesLength);
+                outRead.Read(typesArray.AsSpan(0, typesLength));
 
                 if (blockCount == 0)
                 {
@@ -442,7 +448,7 @@ namespace ValveResourceFormat.ResourceTypes
                     return;
                 }
 
-                uncompressedBlockLengthArray = new int[blockCount];
+                uncompressedBlockLengthArray = ArrayPool<int>.Shared.Rent((int)blockCount);
 
                 for (var i = 0; i < blockCount; i++)
                 {
@@ -538,6 +544,18 @@ namespace ValveResourceFormat.ResourceTypes
                 if (outputBuf != null)
                 {
                     ArrayPool<byte>.Shared.Return(outputBuf);
+                }
+
+                if (typesArray != null)
+                {
+                    ArrayPool<byte>.Shared.Return(typesArray);
+                    typesArray = null;
+                }
+
+                if (uncompressedBlockLengthArray != null)
+                {
+                    ArrayPool<int>.Shared.Return(uncompressedBlockLengthArray);
+                    uncompressedBlockLengthArray = null;
                 }
             }
         }
