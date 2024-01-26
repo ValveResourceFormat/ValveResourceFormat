@@ -3,6 +3,7 @@
 using System;
 using System.Globalization;
 using System.Linq;
+using System.Runtime.CompilerServices;
 
 namespace ValveResourceFormat.Serialization.KeyValues
 {
@@ -121,7 +122,8 @@ namespace ValveResourceFormat.Serialization.KeyValues
 
                     foreach (var oneByte in byteArray)
                     {
-                        writer.Write(oneByte.ToString("X2"));
+                        writer.Write(HexToCharUpper(oneByte >> 4));
+                        writer.Write(HexToCharUpper(oneByte));
 
                         if (++count % 32 == 0)
                         {
@@ -129,7 +131,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
                         }
                         else
                         {
-                            writer.Write(" ");
+                            writer.Write(' ');
                         }
                     }
 
@@ -175,6 +177,20 @@ namespace ValveResourceFormat.Serialization.KeyValues
             }
 
             return input;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static char HexToCharUpper(int value)
+        {
+            value &= 0xF;
+            value += '0';
+
+            if (value > '9')
+            {
+                value += ('A' - ('9' + 1));
+            }
+
+            return (char)value;
         }
     }
 }
