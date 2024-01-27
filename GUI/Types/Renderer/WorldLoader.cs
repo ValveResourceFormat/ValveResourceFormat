@@ -24,6 +24,7 @@ namespace GUI.Types.Renderer
         public Dictionary<string, Matrix4x4> CameraMatrices { get; } = [];
 
         public Scene SkyboxScene { get; set; }
+        public SceneSkybox2D Skybox2dScene { get; set; }
 
         public WorldLoader(World world, Scene scene)
         {
@@ -275,7 +276,7 @@ namespace GUI.Types.Renderer
                     {
                         // If it has "startdisabled", only take it if we haven't found any others yet.
                         disabled = entity.GetProperty<bool>("startdisabled");
-                        disabled = disabled && scene.Sky != null;
+                        disabled = disabled && Skybox2dScene != null;
 
                         var skyTintColor = entity.GetProperty("tint_color");
                         tintColor = skyTintColor?.Data switch
@@ -294,10 +295,8 @@ namespace GUI.Types.Renderer
                         };
                         using var skyMaterial = guiContext.LoadFileCompiled(skyname);
 
-                        scene.Sky = new SceneSky(scene)
+                        Skybox2dScene = new SceneSkybox2D
                         {
-                            Name = skyname,
-                            LayerName = layerName,
                             Tint = tintColor,
                             Transform = rotation,
                             Material = guiContext.MaterialLoader.LoadMaterial(skyMaterial),

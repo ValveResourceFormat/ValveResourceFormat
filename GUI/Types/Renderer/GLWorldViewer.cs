@@ -165,6 +165,8 @@ namespace GUI.Types.Renderer
                     AddCheckBox("Show Skybox", ShowSkybox, (v) => ShowSkybox = v);
                 }
 
+                Skybox2dScene = result.Skybox2dScene;
+
                 var uniqueWorldLayers = new HashSet<string>(2); // world_layer_base + Entities
                 var uniquePhysicsGroups = new HashSet<string>();
 

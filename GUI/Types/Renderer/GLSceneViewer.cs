@@ -16,6 +16,7 @@ namespace GUI.Types.Renderer
     {
         public Scene Scene { get; }
         public Scene SkyboxScene { get; protected set; }
+        public SceneSkybox2D Skybox2dScene { get; protected set; }
         public VrfGuiContext GuiContext => Scene.GuiContext;
 
         private bool ShowBaseGrid;
@@ -248,7 +249,7 @@ namespace GUI.Types.Renderer
             PostSceneLoad();
 
             viewBuffer.Data.ClearColor = Settings.BackgroundColor;
-            if (Scene.Sky is null)
+            if (Skybox2dScene is null)
             {
                 MainFramebuffer.ClearColor = viewBuffer.Data.ClearColor;
             }
@@ -356,7 +357,7 @@ namespace GUI.Types.Renderer
             }
 
             // 2D Sky
-            Scene.Sky?.Render(renderContext);
+            Skybox2dScene?.Render();
             GL.DepthRange(0.05, 1);
 
             Scene.RenderTranslucentLayer(renderContext);
@@ -441,7 +442,6 @@ namespace GUI.Types.Renderer
             try
             {
                 Camera?.Picker.SetRenderMode(renderMode);
-                Scene.Sky?.SetRenderMode(renderMode);
                 selectedNodeRenderer.SetRenderMode(renderMode);
 
                 foreach (var node in Scene.AllNodes)

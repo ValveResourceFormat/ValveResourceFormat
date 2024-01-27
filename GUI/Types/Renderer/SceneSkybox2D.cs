@@ -2,10 +2,12 @@ using OpenTK.Graphics.OpenGL;
 
 namespace GUI.Types.Renderer
 {
-    class SceneSky : SceneNode
+    class SceneSkybox2D
     {
-        public Vector3 Tint { get; set; } = Vector3.One;
+        public Vector3 Tint { get; init; } = Vector3.One;
+        public Matrix4x4 Transform { get; init; } = Matrix4x4.Identity;
         public RenderMaterial Material { get; set; }
+
         private readonly int boxVao;
         private readonly float[] boxTriangles = [
 #pragma warning disable format
@@ -54,7 +56,7 @@ namespace GUI.Types.Renderer
 #pragma warning restore format
         ];
 
-        public SceneSky(Scene scene) : base(scene)
+        public SceneSkybox2D()
         {
             boxVao = GL.GenVertexArray();
             GL.BindVertexArray(boxVao);
@@ -69,11 +71,7 @@ namespace GUI.Types.Renderer
             GL.BindVertexArray(0);
         }
 
-        public override void Update(Scene.UpdateContext context)
-        {
-        }
-
-        public override void Render(Scene.RenderContext context)
+        public void Render()
         {
             GL.DepthFunc(DepthFunction.Equal);
 
@@ -90,12 +88,6 @@ namespace GUI.Types.Renderer
             GL.BindVertexArray(0);
 
             GL.DepthFunc(DepthFunction.Greater);
-        }
-
-        public override void SetRenderMode(string mode)
-        {
-            using var mat = Scene.GuiContext.LoadFileCompiled(Scene.Sky?.Material.Material.Name);
-            Material = Scene.GuiContext.MaterialLoader.LoadMaterial(mat);
         }
     }
 }
