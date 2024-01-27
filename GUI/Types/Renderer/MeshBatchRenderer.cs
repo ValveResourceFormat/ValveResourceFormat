@@ -213,14 +213,18 @@ namespace GUI.Types.Renderer
                 }
             }
 
-            var morphComposite = request.Mesh.FlexStateManager?.MorphComposite;
-            if (morphComposite != null && uniforms.MorphCompositeTexture != -1)
+            if (uniforms.MorphVertexIdOffset != -1)
             {
-                instanceBoundTextures.Enqueue((int)ReservedTextureSlots.MorphCompositeTexture);
-                Shader.SetTexture((int)ReservedTextureSlots.MorphCompositeTexture, uniforms.MorphCompositeTexture, morphComposite.CompositeTexture);
+                var morphComposite = request.Mesh.FlexStateManager?.MorphComposite;
+                if (morphComposite != null)
+                {
+                    instanceBoundTextures.Enqueue((int)ReservedTextureSlots.MorphCompositeTexture);
+                    Shader.SetTexture((int)ReservedTextureSlots.MorphCompositeTexture, uniforms.MorphCompositeTexture, morphComposite.CompositeTexture);
 
-                GL.Uniform2(uniforms.MorphCompositeTextureSize, (float)morphComposite.CompositeTexture.Width, (float)morphComposite.CompositeTexture.Height);
-                GL.Uniform1(uniforms.MorphVertexIdOffset, request.Call.VertexIdOffset);
+                    GL.Uniform2(uniforms.MorphCompositeTextureSize, (float)morphComposite.CompositeTexture.Width, (float)morphComposite.CompositeTexture.Height);
+                }
+
+                GL.Uniform1(uniforms.MorphVertexIdOffset, morphComposite != null ? request.Call.VertexIdOffset : -1);
             }
 
             if (uniforms.Tint > -1)

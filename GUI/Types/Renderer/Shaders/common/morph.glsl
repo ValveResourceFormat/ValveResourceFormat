@@ -1,8 +1,9 @@
 #version 460
 
 #define F_MORPH_SUPPORTED 0
+#define bMorphed (morphVertexIdOffset != -1)
 
-#if F_MORPH_SUPPORTED == 1
+#if (F_MORPH_SUPPORTED == 1)
     uniform sampler2D morphCompositeTexture;
     uniform vec2 morphCompositeTextureSize;
     uniform int morphVertexIdOffset;
@@ -15,14 +16,16 @@
             1 - (1.5 + floor(vertexId / morphCompositeTextureSize.x)) / 2048.0
         );
     }
-
-    vec3 getMorphOffset()
-    {
-        return texture(morphCompositeTexture, getMorphUV()).xyz;
-    }
-#else
-    vec3 getMorphOffset()
-    {
-        return vec3(0, 0, 0);
-    }
 #endif
+
+vec3 getMorphOffset()
+{
+    #if (F_MORPH_SUPPORTED == 1)
+        if (bMorphed)
+        {
+            return textureLod(morphCompositeTexture, getMorphUV(), 0).xyz;
+        }
+    #endif
+
+    return vec3(0, 0, 0);
+}
