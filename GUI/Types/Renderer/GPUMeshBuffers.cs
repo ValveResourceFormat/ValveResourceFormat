@@ -1,5 +1,4 @@
 using System.Buffers;
-using System.Diagnostics;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Blocks;
 

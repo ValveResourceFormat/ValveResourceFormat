@@ -568,7 +568,6 @@ namespace GUI.Controls
                 var (w, h) = (GLControl.Width, GLControl.Height);
                 GL.BlitFramebuffer(0, 0, w, h, 0, 0, w, h, ClearBufferMask.ColorBufferBit, BlitFramebufferFilter.Nearest);
                 GLDefaultFramebuffer.Bind(FramebufferTarget.Framebuffer);
-                GL.Finish();
 
 #if DEBUG
                 GL.PopDebugGroup();
