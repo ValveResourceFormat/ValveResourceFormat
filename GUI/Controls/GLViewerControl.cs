@@ -422,6 +422,11 @@ namespace GUI.Controls
 #if DEBUG
         private static void OnDebugMessage(DebugSource source, DebugType type, int id, DebugSeverity severity, int length, IntPtr pMessage, IntPtr pUserParam)
         {
+            if (source == DebugSource.DebugSourceApplication && severity == DebugSeverity.DebugSeverityNotification)
+            {
+                return;
+            }
+
             var severityStr = severity.ToString().Replace("DebugSeverity", string.Empty, StringComparison.Ordinal);
             var sourceStr = source.ToString().Replace("DebugSource", string.Empty, StringComparison.Ordinal);
             var typeStr = type.ToString().Replace("DebugType", string.Empty, StringComparison.Ordinal);
