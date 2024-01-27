@@ -62,7 +62,7 @@ namespace GUI.Types.Renderer
             GL.BindVertexArray(boxVao);
 
 #if DEBUG
-            var vaoLabel = nameof(SceneSky);
+            var vaoLabel = nameof(SceneSkybox2D);
             GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, boxVao, vaoLabel.Length, vaoLabel);
 #endif
 

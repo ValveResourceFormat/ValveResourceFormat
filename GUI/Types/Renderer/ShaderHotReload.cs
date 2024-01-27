@@ -66,7 +66,7 @@ class ShaderHotReload : IDisposable
 
     private void Hotload(object sender, FileSystemEventArgs e)
     {
-        if (glControl.Parent == null)
+        if (glControl?.Parent == null)
         {
             Dispose();
             return;
