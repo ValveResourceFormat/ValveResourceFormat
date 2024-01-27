@@ -554,6 +554,11 @@ namespace GUI.Controls
             // blit to the default opengl framebuffer used by the control
             if (MainFramebuffer != GLDefaultFramebuffer)
             {
+#if DEBUG
+                const string BlitFramebuffer = "Blit Framebuffer";
+                GL.PushDebugGroup(DebugSourceExternal.DebugSourceApplication, 1, BlitFramebuffer.Length, BlitFramebuffer);
+#endif
+
                 MainFramebuffer.Bind(FramebufferTarget.ReadFramebuffer);
                 GL.ReadBuffer(ReadBufferMode.ColorAttachment0);
 
@@ -564,6 +569,10 @@ namespace GUI.Controls
                 GL.BlitFramebuffer(0, 0, w, h, 0, 0, w, h, ClearBufferMask.ColorBufferBit, BlitFramebufferFilter.Nearest);
                 GLDefaultFramebuffer.Bind(FramebufferTarget.Framebuffer);
                 GL.Finish();
+
+#if DEBUG
+                GL.PopDebugGroup();
+#endif
             }
 
             GLControl.SwapBuffers();
