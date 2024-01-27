@@ -26,6 +26,11 @@ namespace GUI.Types.Renderer
             vaoHandle = GL.GenVertexArray();
             GL.BindVertexArray(vaoHandle);
 
+#if DEBUG
+            var vaoLabel = nameof(PhysSceneNode);
+            GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, vaoHandle, vaoLabel.Length, vaoLabel);
+#endif
+
             vboHandle = GL.GenBuffer();
             GL.BindBuffer(BufferTarget.ArrayBuffer, vboHandle);
             GL.BufferData(BufferTarget.ArrayBuffer, verts.Count * SimpleVertex.SizeInBytes, verts.ToArray(), BufferUsageHint.StaticDraw);

@@ -29,9 +29,22 @@ namespace GUI.Types.Renderer
 
         private readonly int VBIBHashCode;
 
+#if DEBUG
+        private readonly string DebugLabel;
+#endif
+
         public RenderableMesh(Mesh mesh, int meshIndex, Scene scene, Model model = null,
-            Dictionary<string, string> initialMaterialTable = null, Morph morph = null)
+            Dictionary<string, string> initialMaterialTable = null, Morph morph = null, string debugLabel = null)
         {
+#if DEBUG
+            if (debugLabel == null && model != null)
+            {
+                debugLabel = System.IO.Path.GetFileName(model.Data.GetStringProperty("m_name"));
+            }
+
+            DebugLabel = debugLabel;
+#endif
+
             guiContext = scene.GuiContext;
 
             var vbib = mesh.VBIB;
@@ -138,6 +151,13 @@ namespace GUI.Types.Renderer
                    drawCall.VertexBuffer,
                    drawCall.Material,
                    drawCall.IndexBuffer.Id);
+
+#if DEBUG
+            if (!string.IsNullOrEmpty(DebugLabel))
+            {
+                GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, drawCall.VertexArrayObject, DebugLabel.Length, DebugLabel);
+            }
+#endif
         }
 
         private void ConfigureDrawCalls(Scene scene, VBIB vbib, IKeyValueCollection[] sceneObjects, Dictionary<string, string> materialReplacementTable)
@@ -316,11 +336,7 @@ namespace GUI.Types.Renderer
                 drawCall.NumMeshlets = objectDrawCall.GetInt32Property("m_nNumMeshlets");
             }
 
-            drawCall.VertexArrayObject = guiContext.MeshBufferCache.GetVertexArrayObject(
-                VBIBHashCode,
-                drawCall.VertexBuffer,
-                drawCall.Material,
-                drawCall.IndexBuffer.Id);
+            UpdateVertexArrayObject(drawCall);
 
             return drawCall;
         }

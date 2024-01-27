@@ -11,6 +11,11 @@ namespace GUI.Types.Renderer
             GL.CreateBuffers(1, out int handle);
             GLHandle = handle;
 
+#if DEBUG
+            var bufferLabel = nameof(QuadIndexBuffer);
+            GL.ObjectLabel(ObjectLabelIdentifier.Buffer, handle, bufferLabel.Length, bufferLabel);
+#endif
+
             var indices = new ushort[size];
             for (var i = 0; i < size / 6; ++i)
             {

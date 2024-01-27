@@ -24,6 +24,12 @@ namespace GUI.Types.Renderer
 
             vaoHandle = GL.GenVertexArray();
             GL.BindVertexArray(vaoHandle);
+
+#if DEBUG
+            var vaoLabel = nameof(SelectedNodeRenderer);
+            GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, vaoHandle, vaoLabel.Length, vaoLabel);
+#endif
+
             GL.BindBuffer(BufferTarget.ArrayBuffer, vboHandle);
 
             SimpleVertex.BindDefaultShaderLayout(shader.Program);

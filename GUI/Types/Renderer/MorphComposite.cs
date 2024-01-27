@@ -62,6 +62,16 @@ namespace GUI.Types.Renderer
             InitVertexBuffer();
 
             FillVertices();
+
+#if DEBUG
+            var label = $"{nameof(MorphComposite)}: {System.IO.Path.GetFileName(morph.TextureResource.FileName)}";
+            GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, vertexArray, label.Length, label);
+            GL.ObjectLabel(ObjectLabelIdentifier.Texture, CompositeTexture.Handle, label.Length, label);
+
+            GL.BindFramebuffer(FramebufferTarget.Framebuffer, frameBuffer);
+            GL.ObjectLabel(ObjectLabelIdentifier.Framebuffer, frameBuffer, label.Length, label);
+            GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
+#endif
         }
 
         private int GetMorphBundleCount()

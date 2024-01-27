@@ -456,6 +456,11 @@ namespace GUI.Types.Renderer
             GL.TextureStorage2D(texture.Handle, 1, SizedInternalFormat.Rgb8, width, height);
             GL.TextureSubImage2D(texture.Handle, 0, 0, 0, width, height, PixelFormat.Rgb, PixelType.UnsignedByte, color);
 
+#if DEBUG
+            var label = width > 1 ? "ErrorTexture" : "ColorTexture";
+            GL.ObjectLabel(ObjectLabelIdentifier.Texture, texture.Handle, label.Length, label);
+#endif
+
             return texture;
         }
     }

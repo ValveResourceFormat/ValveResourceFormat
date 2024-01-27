@@ -58,6 +58,11 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
             texture = vrfGuiContext.MaterialLoader.LoadTexture(textureName);
 
+#if DEBUG
+            var vaoLabel = $"{nameof(RenderSprites)}: {System.IO.Path.GetFileName(textureName)}";
+            GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, quadVao, vaoLabel.Length, vaoLabel);
+#endif
+
             animateInFps = parse.Boolean("m_bAnimateInFPS", animateInFps);
             blendMode = parse.Enum<ParticleBlendMode>("m_nOutputBlendMode", blendMode);
             overbrightFactor = parse.NumberProvider("m_flOverbrightFactor", overbrightFactor);

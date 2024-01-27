@@ -61,6 +61,11 @@ namespace GUI.Types.Renderer
             boxVao = GL.GenVertexArray();
             GL.BindVertexArray(boxVao);
 
+#if DEBUG
+            var vaoLabel = nameof(SceneSky);
+            GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, boxVao, vaoLabel.Length, vaoLabel);
+#endif
+
             var vbo = GL.GenBuffer();
             GL.BindBuffer(BufferTarget.ArrayBuffer, vbo);
             GL.BufferData(BufferTarget.ArrayBuffer, boxTriangles.Length * sizeof(float), boxTriangles, BufferUsageHint.StaticDraw);

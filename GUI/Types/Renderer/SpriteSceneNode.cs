@@ -26,6 +26,12 @@ namespace GUI.Types.Renderer
             }
 
             quadVao = SetupSquareQuadBuffer(material.Shader);
+
+#if DEBUG
+            var vaoLabel = $"{nameof(SpriteSceneNode)}: {System.IO.Path.GetFileName(resource.FileName)}";
+            GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, quadVao, vaoLabel.Length, vaoLabel);
+#endif
+
             size = material.Material.FloatParams.GetValueOrDefault("g_flUniformPointSize", 16);
             size /= 2f; // correct the scale to actually be 16x16
 

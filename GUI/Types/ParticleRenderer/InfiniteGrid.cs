@@ -26,6 +26,11 @@ namespace GUI.Types.ParticleRenderer
             vao = GL.GenVertexArray();
             GL.BindVertexArray(vao);
 
+#if DEBUG
+            var vaoLabel = nameof(InfiniteGrid);
+            GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, vao, vaoLabel.Length, vaoLabel);
+#endif
+
             var vbo = GL.GenBuffer();
             GL.BindBuffer(BufferTarget.ArrayBuffer, vbo);
 
