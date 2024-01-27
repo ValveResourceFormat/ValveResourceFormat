@@ -439,8 +439,9 @@ namespace GUI.Controls
                 default: Log.Debug("OpenGL", error); break;
             }
 
+            if (type == DebugType.DebugTypeError)
             {
-                //Debugger.Break();
+                Debugger.Break();
             }
         }
 
