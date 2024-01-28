@@ -115,7 +115,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
             var sb = new StringBuilder(key.Length + 2);
             sb.Append('"');
 
-            if (key.Length > 0 && key[0] >= '0' && key[0] <= '9') // TODO: Use char.IsAsciiDigit from .NET 7
+            if (key.Length > 0 && char.IsAsciiDigit(key[0]))
             {
                 // Quote when first character is a digit
                 escaped = true;
@@ -150,8 +150,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
                         break;
 
                     default:
-                        // TODO: Use char.IsAsciiLetterOrDigit from .NET 7
-                        if (@char != '.' && @char != '_' && !((@char >= 'A' && @char <= 'Z') || (@char >= 'a' && @char <= 'z') || (@char >= '0' && @char <= '9')))
+                        if (@char != '.' && @char != '_' && !char.IsAsciiLetterOrDigit(@char))
                         {
                             escaped = true;
                         }
