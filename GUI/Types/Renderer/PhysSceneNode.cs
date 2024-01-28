@@ -133,9 +133,10 @@ namespace GUI.Types.Renderer
                 {
                     var collisionAttributeIndex = hull.CollisionAttributeIndex;
                     //var surfacePropertyIndex = capsule.SurfacePropertyIndex;
-
                     var baseVertex = verts[collisionAttributeIndex].Count;
-                    foreach (var v in hull.Shape.VertexPositions)
+
+                    var vertexPositions = hull.Shape.GetVertexPositions();
+                    foreach (var v in vertexPositions)
                     {
                         var vec = v;
                         if (bindPose.Length != 0)
@@ -147,25 +148,27 @@ namespace GUI.Types.Renderer
                         verts[collisionAttributeIndex].Add(new(vec, new(1f, 0f, 0f, 0.3f)));
                     }
 
-                    foreach (var face in hull.Shape.Faces)
+                    var faces = hull.Shape.GetFaces();
+                    var edges = hull.Shape.GetEdges();
+                    foreach (var face in faces)
                     {
                         var startEdge = face.Edge;
 
-                        for (var edge = hull.Shape.Edges[startEdge].Next; edge != startEdge;)
+                        for (var edge = edges[startEdge].Next; edge != startEdge;)
                         {
-                            var nextEdge = hull.Shape.Edges[edge].Next;
+                            var nextEdge = edges[edge].Next;
 
                             if (nextEdge == startEdge)
                             {
                                 break;
                             }
 
-                            inds[collisionAttributeIndex].Add(baseVertex + hull.Shape.Edges[startEdge].Origin);
-                            inds[collisionAttributeIndex].Add(baseVertex + hull.Shape.Edges[edge].Origin);
-                            inds[collisionAttributeIndex].Add(baseVertex + hull.Shape.Edges[edge].Origin);
-                            inds[collisionAttributeIndex].Add(baseVertex + hull.Shape.Edges[nextEdge].Origin);
-                            inds[collisionAttributeIndex].Add(baseVertex + hull.Shape.Edges[nextEdge].Origin);
-                            inds[collisionAttributeIndex].Add(baseVertex + hull.Shape.Edges[startEdge].Origin);
+                            inds[collisionAttributeIndex].Add(baseVertex + edges[startEdge].Origin);
+                            inds[collisionAttributeIndex].Add(baseVertex + edges[edge].Origin);
+                            inds[collisionAttributeIndex].Add(baseVertex + edges[edge].Origin);
+                            inds[collisionAttributeIndex].Add(baseVertex + edges[nextEdge].Origin);
+                            inds[collisionAttributeIndex].Add(baseVertex + edges[nextEdge].Origin);
+                            inds[collisionAttributeIndex].Add(baseVertex + edges[startEdge].Origin);
 
                             edge = nextEdge;
                         }
@@ -192,11 +195,14 @@ namespace GUI.Types.Renderer
 
                     var baseVertex = verts[collisionAttributeIndex].Count;
 
-                    // meshes can be large, so ensure capacity up front
-                    verts[collisionAttributeIndex].EnsureCapacity(baseVertex + mesh.Shape.Vertices.Length);
-                    inds[collisionAttributeIndex].EnsureCapacity(inds[collisionAttributeIndex].Count + mesh.Shape.Triangles.Length * 6);
+                    var triangles = mesh.Shape.GetTriangles();
+                    var vertices = mesh.Shape.GetVertices();
 
-                    foreach (var vec in mesh.Shape.Vertices)
+                    // meshes can be large, so ensure capacity up front
+                    verts[collisionAttributeIndex].EnsureCapacity(baseVertex + vertices.Length);
+                    inds[collisionAttributeIndex].EnsureCapacity(inds[collisionAttributeIndex].Count + triangles.Length * 6);
+
+                    foreach (var vec in vertices)
                     {
                         var v = vec;
                         if (bindPose.Length != 0)
@@ -208,7 +214,7 @@ namespace GUI.Types.Renderer
                         verts[collisionAttributeIndex].Add(new(v, new(0f, 0f, 1f, 0.3f)));
                     }
 
-                    foreach (var tri in mesh.Shape.Triangles)
+                    foreach (var tri in triangles)
                     {
                         inds[collisionAttributeIndex].Add(baseVertex + tri.X);
                         inds[collisionAttributeIndex].Add(baseVertex + tri.Y);

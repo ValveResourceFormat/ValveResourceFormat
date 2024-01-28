@@ -1187,15 +1187,19 @@ public class ModelExtract
         faceSet.Material.MaterialName = new SurfaceTagCombo(uniformSurface, uniformCollisionTags).StringMaterial;
         dag.Shape.FaceSets.Add(faceSet);
 
-        Debug.Assert(hull.Faces.Length + hull.VertexPositions.Length == (hull.Edges.Length / 2) + 2);
+        var edges = hull.GetEdges();
+        var faces = hull.GetFaces();
+        var vertexPositions = hull.GetVertexPositions().ToArray();
 
-        foreach (var face in hull.Faces)
+        Debug.Assert(faces.Length + vertexPositions.Length == (edges.Length / 2) + 2);
+
+        foreach (var face in faces)
         {
             var startEdge = face.Edge;
             var currentEdge = startEdge;
             do
             {
-                var e = hull.Edges[currentEdge];
+                var e = edges[currentEdge];
                 faceSet.Faces.Add(e.Origin);
                 currentEdge = e.Next;
             }
@@ -1204,12 +1208,12 @@ public class ModelExtract
             faceSet.Faces.Add(-1);
         }
 
-        var indices = Enumerable.Range(0, hull.VertexPositions.Length * 3).ToArray();
-        vertexData.AddIndexedStream("position$0", hull.VertexPositions, indices);
+        var indices = Enumerable.Range(0, vertexPositions.Length * 3).ToArray();
+        vertexData.AddIndexedStream("position$0", vertexPositions, indices);
 
         if (appendVertexNormalStream)
         {
-            vertexData.AddIndexedStream("normal$0", Enumerable.Repeat(new Vector3(0, 0, 0), hull.VertexPositions.Length).ToArray(), indices);
+            vertexData.AddIndexedStream("normal$0", Enumerable.Repeat(new Vector3(0, 0, 0), vertexPositions.Length).ToArray(), indices);
         }
 
         TieElementRoot(dmx, dmeModel);
@@ -1228,14 +1232,16 @@ public class ModelExtract
         using var dmx = new Datamodel.Datamodel("model", 22);
         DmxModelBaseLayout(name, out var dmeModel, out var dag, out var vertexData);
 
+        var triangles = mesh.GetTriangles();
+
         if (mesh.Materials.Length == 0)
         {
             var materialName = new SurfaceTagCombo(uniformSurface, uniformCollisionTags).StringMaterial;
-            GenerateTriangleFaceSet(dag, 0, mesh.Triangles.Length, materialName);
+            GenerateTriangleFaceSet(dag, 0, triangles.Length, materialName);
         }
         else
         {
-            Debug.Assert(mesh.Materials.Length == mesh.Triangles.Length);
+            Debug.Assert(mesh.Materials.Length == triangles.Length);
             Debug.Assert(surfaceList.Length > 0);
 
             Span<DmeFaceSet> faceSets = new DmeFaceSet[surfaceList.Length];
@@ -1262,20 +1268,22 @@ public class ModelExtract
             }
         }
 
-        var indices = new int[mesh.Triangles.Length * 3];
-        for (var t = 0; t < mesh.Triangles.Length; t++)
+        var indices = new int[triangles.Length * 3];
+        for (var t = 0; t < triangles.Length; t++)
         {
-            var triangle = mesh.Triangles[t];
+            var triangle = triangles[t];
             indices[t * 3] = triangle.X;
             indices[t * 3 + 1] = triangle.Y;
             indices[t * 3 + 2] = triangle.Z;
         }
 
-        vertexData.AddIndexedStream("position$0", mesh.Vertices, indices);
+        var vertices = mesh.GetVertices().ToArray();
+
+        vertexData.AddIndexedStream("position$0", vertices, indices);
 
         if (appendVertexNormalStream)
         {
-            vertexData.AddIndexedStream("normal$0", Enumerable.Repeat(new Vector3(0, 0, 0), mesh.Vertices.Length).ToArray(), indices);
+            vertexData.AddIndexedStream("normal$0", Enumerable.Repeat(new Vector3(0, 0, 0), vertices.Length).ToArray(), indices);
         }
 
         TieElementRoot(dmx, dmeModel);

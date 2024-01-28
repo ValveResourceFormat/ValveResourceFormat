@@ -1,10 +1,11 @@
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using ValveResourceFormat.Serialization;
 
 namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
 {
-    public struct Mesh
+    public readonly struct Mesh
     {
         public enum NodeType
         {
@@ -14,21 +15,23 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
             Leaf = 3,
         }
 
-        public struct Node
+        [StructLayout(LayoutKind.Sequential)]
+        public readonly struct Node
         {
-            public Vector3 Min { get; set; }
-            public Vector3 Max { get; set; }
+            public readonly Vector3 Min;
 
             /// <summary>
             /// The 2nd child offset and the node type/split axis.
             /// Type is stored in the first 2 MSBs.
             /// </summary>
-            public uint Children { get; set; }
+            public readonly uint Children;
+
+            public readonly Vector3 Max;
 
             /// <summary>
             /// If leaf node this is the offset into the associated triangle array
             /// </summary>
-            public uint TriangleOffset { get; set; }
+            public readonly uint TriangleOffset;
 
             public Node(IKeyValueCollection data)
             {
@@ -37,37 +40,17 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
                 Children = data.GetUInt32Property("m_nChildren");
                 TriangleOffset = data.GetUInt32Property("m_nTriangleOffset");
             }
-
-            public Node(ReadOnlySpan<byte> data)
-            {
-                Min = new Vector3(
-                    BitConverter.ToSingle(data[..4]),
-                    BitConverter.ToSingle(data.Slice(4, 4)),
-                    BitConverter.ToSingle(data.Slice(8, 4))
-                );
-
-                Children = BitConverter.ToUInt32(data.Slice(12, 4));
-
-                Max = new Vector3(
-                    BitConverter.ToSingle(data.Slice(16, 4)),
-                    BitConverter.ToSingle(data.Slice(20, 4)),
-                    BitConverter.ToSingle(data.Slice(24, 4))
-                );
-
-                TriangleOffset = BitConverter.ToUInt32(data.Slice(28, 4));
-            }
         }
 
+        [StructLayout(LayoutKind.Sequential)]
         public readonly struct Triangle
         {
-#pragma warning disable CA1051 // Do not declare visible instance fields
             /// <summary>The X component of the triangle.</summary>
             public readonly int X;
             /// <summary>The Y component of the triangle.</summary>
             public readonly int Y;
             /// <summary>The Z component of the triangle.</summary>
             public readonly int Z;
-#pragma warning restore CA1051 // Do not declare visible instance fields
 
             public Triangle(IKeyValueCollection data)
             {
@@ -82,81 +65,63 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
                 Y = indices[1];
                 Z = indices[2];
             }
-
-            public Triangle(ReadOnlySpan<byte> data)
-            {
-                X = BitConverter.ToInt32(data[..4]);
-                Y = BitConverter.ToInt32(data.Slice(4, 4));
-                Z = BitConverter.ToInt32(data.Slice(8, 4));
-            }
         }
 
-        public Vector3 Min { get; set; }
-        public Vector3 Max { get; set; }
+        public Vector3 Min { get; }
+        public Vector3 Max { get; }
 
 
         /// <summary>
         /// Per triangle index to surface properties. Can be empty if the whole mesh has the same material.
         /// </summary>
-        public int[] Materials { get; set; }
-
-        /// <summary>
-        /// The nodes of the loose kd-tree to accelerate ray casts and volume queries against this mesh.
-        /// </summary>
-        public Node[] Nodes { get; set; }
-
-        /// <summary>
-        /// The mesh vertices in the space of the parent shape.
-        /// </summary>
-        public Vector3[] Vertices { get; set; }
-
-        /// <summary>
-        /// The mesh triangles with additional topology information similar to the half-edge data structure.
-        /// </summary>
-        public Triangle[] Triangles { get; set; }
+        public int[] Materials { get; }
 
         /// <summary>
         /// Fraction 0..1 of coverage along YZ,ZX,XY sides of AABB
         /// </summary>
-        public Vector3 OrthographicAreas { get; set; }
+        public Vector3 OrthographicAreas { get; }
+        public IKeyValueCollection Data { get; }
 
         public Mesh(IKeyValueCollection data)
         {
+            Data = data;
             Min = data.GetSubCollection("m_vMin").ToVector3();
             Max = data.GetSubCollection("m_vMax").ToVector3();
             Materials = data.GetArray<object>("m_Materials").Select(Convert.ToInt32).ToArray();
-            Nodes = ParseNodes(data);
-            Vertices = Hull.ParseVertexPositions(data);
-            Triangles = ParseTriangles(data);
             OrthographicAreas = data.GetSubCollection("m_vOrthographicAreas").ToVector3();
         }
 
-        private static Node[] ParseNodes(IKeyValueCollection data)
+        /// <summary>
+        /// The mesh vertices in the space of the parent shape.
+        /// </summary>
+        public Span<Vector3> GetVertices() => Hull.ParseVertices(Data);
+
+        /// <summary>
+        /// The nodes of the loose kd-tree to accelerate ray casts and volume queries against this mesh.
+        /// </summary>
+        public Span<Node> ParseNodes()
         {
-            if (data.IsNotBlobType("m_Nodes"))
+            if (Data.IsNotBlobType("m_Nodes"))
             {
-                var nodesArr = data.GetArray("m_Nodes");
+                var nodesArr = Data.GetArray("m_Nodes");
                 return nodesArr.Select(n => new Node(n)).ToArray();
             }
 
-            var nodesBlob = data.GetArray<byte>("m_Nodes");
-            return Enumerable.Range(0, nodesBlob.Length / 32)
-                .Select(i => new Node(nodesBlob.AsSpan(i * 32, 32)))
-                .ToArray();
+            return MemoryMarshal.Cast<byte, Node>(Data.GetArray<byte>("m_Nodes"));
         }
 
-        private static Triangle[] ParseTriangles(IKeyValueCollection data)
+        /// <summary>
+        /// The mesh triangles with additional topology information similar to the half-edge data structure.
+        /// </summary>
+        public Span<Triangle> GetTriangles()
         {
-            if (data.IsNotBlobType("m_Triangles"))
+            if (Data.IsNotBlobType("m_Triangles"))
             {
-                var trianglesArr = data.GetArray("m_Triangles");
+                var trianglesArr = Data.GetArray("m_Triangles");
                 return trianglesArr.Select(t => new Triangle(t)).ToArray();
             }
 
-            var trianglesBlob = data.GetArray<byte>("m_Triangles");
-            return Enumerable.Range(0, trianglesBlob.Length / 12)
-                .Select(i => new Triangle(trianglesBlob.AsSpan(i * 12, 12)))
-                .ToArray();
+            return MemoryMarshal.Cast<byte, Triangle>(Data.GetArray<byte>("m_Triangles"));
         }
     }
 }
