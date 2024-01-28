@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using System.Drawing;
-using System.Globalization;
 using System.Linq;
 using System.Windows.Forms;
 using GUI.Types.Renderer;
@@ -16,11 +15,11 @@ namespace GUI.Controls
 {
     partial class GLViewerControl : UserControl
     {
-        static readonly TimeSpan FpsUpdateTimeSpan = TimeSpan.FromSeconds(1);
+        static readonly TimeSpan FpsUpdateTimeSpan = TimeSpan.FromSeconds(0.1);
 
         public GLControl GLControl { get; }
 
-        private int currentControlsHeight;
+        private int currentControlsHeight = 10;
 
         public struct RenderEventArgs
         {
@@ -34,10 +33,9 @@ namespace GUI.Controls
         public Action<GLViewerControl> GLPostLoad { get; set; }
         private static bool hasCheckedOpenGL;
 
+        private readonly Types.Renderer.TextRenderer textRenderer;
+
         protected Form FullScreenForm { get; private set; }
-        long lastFpsUpdate;
-        long lastUpdate;
-        int frames;
 
         bool MouseOverRenderArea;
         Point MouseDelta;
@@ -45,12 +43,18 @@ namespace GUI.Controls
         Point InitialMousePosition;
         TrackedKeys CurrentlyPressedKeys;
 
+        private long lastUpdate;
+        private long lastFpsUpdate;
+        private string lastFps;
+        private readonly float[] frameTimes = new float[30];
+        private int frameTimeNextId;
+        private int frametimeQuery1;
+        private int frametimeQuery2;
+
         public GLViewerControl(VrfGuiContext guiContext)
         {
             InitializeComponent();
             Dock = DockStyle.Fill;
-
-            currentControlsHeight = fpsLabel.Location.Y + fpsLabel.Height + 10;
 
             Camera = new Camera();
 
@@ -80,6 +84,8 @@ namespace GUI.Controls
 
             GLControl.Dock = DockStyle.Fill;
             glControlContainer.Controls.Add(GLControl);
+
+            textRenderer = new(guiContext);
 
 #if DEBUG
             guiContext.ShaderLoader.EnableHotReload(GLControl);
@@ -171,11 +177,6 @@ namespace GUI.Controls
             form.FormClosed -= OnFullScreenFormClosed;
 
             FullScreenForm = null;
-        }
-
-        private void SetFps(int fps)
-        {
-            fpsLabel.Text = fps.ToString(CultureInfo.InvariantCulture);
         }
 
         public void AddControl(Control control)
@@ -462,6 +463,14 @@ namespace GUI.Controls
             MaxSamples = GL.GetInteger(GetPName.MaxSamples);
             GLDefaultFramebuffer = Framebuffer.GetGLDefaultFramebuffer();
 
+            frametimeQuery1 = GL.GenQuery();
+            frametimeQuery2 = GL.GenQuery();
+
+            GL.BeginQuery(QueryTarget.TimeElapsed, frametimeQuery2);
+            GL.EndQuery(QueryTarget.TimeElapsed);
+
+            textRenderer.Load();
+
             // Application semantics / default state
             GL.Enable(EnableCap.TextureCubeMapSeamless);
             GL.Enable(EnableCap.CullFace);
@@ -479,7 +488,6 @@ namespace GUI.Controls
             GL.DebugMessageControl(DebugSourceControl.DebugSourceApi, DebugTypeControl.DebugTypeOther, DebugSeverityControl.DebugSeverityNotification, 0, Array.Empty<int>(), false);
             GL.DebugMessageCallback(OpenGLDebugMessageDelegate, IntPtr.Zero);
 #endif
-
 
             try
             {
@@ -549,7 +557,44 @@ namespace GUI.Controls
                 MouseDelta = Point.Empty;
             }
 
+            GL.BeginQuery(QueryTarget.TimeElapsed, frametimeQuery1);
+
             GLPaint?.Invoke(this, new RenderEventArgs { FrameTime = frameTime });
+
+            GL.EndQuery(QueryTarget.TimeElapsed);
+
+            currentTime = Stopwatch.GetTimestamp();
+            var fpsElapsed = Stopwatch.GetElapsedTime(lastFpsUpdate, currentTime);
+
+            frameTimes[frameTimeNextId++] = frameTime;
+            frameTimeNextId %= frameTimes.Length;
+
+            if (fpsElapsed >= FpsUpdateTimeSpan)
+            {
+                var frametimeQuery = frametimeQuery2;
+                frametimeQuery2 = frametimeQuery1;
+                frametimeQuery1 = frametimeQuery;
+
+                GL.GetQueryObject(frametimeQuery, GetQueryObjectParam.QueryResultNoWait, out long gpuTime);
+                var gpuFrameTime = gpuTime / 1_000_000f;
+
+                var fps = 1f / (frameTimes.Sum() / frameTimes.Length);
+                var cpuFrameTime = Stopwatch.GetElapsedTime(lastUpdate, currentTime).TotalMilliseconds;
+
+                lastFpsUpdate = currentTime;
+                lastFps = $"FPS: {fps:0} | CPU: {cpuFrameTime:0.0}ms | GPU: {gpuFrameTime:0.0}ms";
+            }
+
+#if DEBUG
+            const string TextRender = "Text Render";
+            GL.PushDebugGroup(DebugSourceExternal.DebugSourceApplication, 1, TextRender.Length, TextRender);
+#endif
+
+            textRenderer.RenderText(MainFramebuffer.Width, MainFramebuffer.Height, 2f, MainFramebuffer.Height - 4f, 14f, System.Numerics.Vector4.UnitW, lastFps);
+
+#if DEBUG
+            GL.PopDebugGroup();
+#endif
 
             // blit to the default opengl framebuffer used by the control
             if (MainFramebuffer != GLDefaultFramebuffer)
@@ -567,26 +612,20 @@ namespace GUI.Controls
 
                 var (w, h) = (GLControl.Width, GLControl.Height);
                 GL.BlitFramebuffer(0, 0, w, h, 0, 0, w, h, ClearBufferMask.ColorBufferBit, BlitFramebufferFilter.Nearest);
-                GLDefaultFramebuffer.Bind(FramebufferTarget.Framebuffer);
 
 #if DEBUG
                 GL.PopDebugGroup();
 #endif
             }
 
+            if (MainFramebuffer != GLDefaultFramebuffer)
+            {
+
+                GLDefaultFramebuffer.Bind(FramebufferTarget.Framebuffer);
+            }
+
             GLControl.SwapBuffers();
             GLControl.Invalidate();
-
-            frames++;
-
-            var fpsElapsed = Stopwatch.GetElapsedTime(lastFpsUpdate, currentTime);
-
-            if (fpsElapsed >= FpsUpdateTimeSpan)
-            {
-                SetFps(frames);
-                lastFpsUpdate = currentTime;
-                frames = 0;
-            }
         }
 
         protected virtual void OnResize(object sender, EventArgs e)

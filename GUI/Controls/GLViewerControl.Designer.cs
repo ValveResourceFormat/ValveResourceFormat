@@ -33,10 +33,8 @@ namespace GUI.Controls
         private void InitializeComponent()
         {
             glControlContainer = new Panel();
-            fpsLabel = new Label();
             controlsPanel = new Panel();
             moveSpeed = new Label();
-            label1 = new Label();
             controlsPanel.SuspendLayout();
             SuspendLayout();
             // 
@@ -50,20 +48,9 @@ namespace GUI.Controls
             glControlContainer.Size = new System.Drawing.Size(810, 412);
             glControlContainer.TabIndex = 0;
             // 
-            // fpsLabel
-            // 
-            fpsLabel.Location = new System.Drawing.Point(32, 8);
-            fpsLabel.Margin = new Padding(0, 0, 3, 0);
-            fpsLabel.Name = "fpsLabel";
-            fpsLabel.Size = new System.Drawing.Size(100, 15);
-            fpsLabel.TabIndex = 4;
-            fpsLabel.Text = "0";
-            // 
             // controlsPanel
             // 
             controlsPanel.Controls.Add(moveSpeed);
-            controlsPanel.Controls.Add(label1);
-            controlsPanel.Controls.Add(fpsLabel);
             controlsPanel.Dock = DockStyle.Left;
             controlsPanel.Location = new System.Drawing.Point(0, 0);
             controlsPanel.Margin = new Padding(0);
@@ -80,16 +67,6 @@ namespace GUI.Controls
             moveSpeed.Size = new System.Drawing.Size(193, 15);
             moveSpeed.TabIndex = 5;
             moveSpeed.Text = "Move speed: 1.0x (scroll to change)";
-            // 
-            // label1
-            // 
-            label1.AutoSize = true;
-            label1.Location = new System.Drawing.Point(3, 8);
-            label1.Margin = new Padding(3, 0, 0, 0);
-            label1.Name = "label1";
-            label1.Size = new System.Drawing.Size(29, 15);
-            label1.TabIndex = 3;
-            label1.Text = "FPS:";
             // 
             // GLViewerControl
             // 
@@ -108,9 +85,7 @@ namespace GUI.Controls
         #endregion
 
         private Panel glControlContainer;
-        private Label fpsLabel;
         private Panel controlsPanel;
-        private Label label1;
         private Label moveSpeed;
     }
 }
