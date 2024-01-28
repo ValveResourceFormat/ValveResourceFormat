@@ -96,11 +96,6 @@ namespace GUI.Types.Renderer
 
             foreach (var request in requests)
             {
-                if (!context.Scene.ShowToolsMaterials && request.Call.Material.IsToolsMaterial)
-                {
-                    continue;
-                }
-
                 if (vao != request.Call.VertexArrayObject)
                 {
                     vao = request.Call.VertexArrayObject;

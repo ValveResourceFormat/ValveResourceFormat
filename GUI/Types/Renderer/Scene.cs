@@ -154,6 +154,24 @@ namespace GUI.Types.Renderer
         private readonly List<MeshBatchRenderer.Request> renderStaticOverlays = [];
         private readonly List<MeshBatchRenderer.Request> renderTranslucentDrawCalls = [];
 
+        private void Add(MeshBatchRenderer.Request request, RenderPass renderPass)
+        {
+            if (renderPass != RenderPass.AfterOpaque && !ShowToolsMaterials && request.Call.Material.IsToolsMaterial)
+            {
+                return;
+            }
+
+            var queueList = renderPass switch
+            {
+                RenderPass.Opaque => renderOpaqueDrawCalls,
+                RenderPass.StaticOverlay => renderStaticOverlays,
+                RenderPass.Translucent => renderTranslucentDrawCalls,
+                _ => renderLooseNodes,
+            };
+
+            queueList.Add(request);
+        }
+
         public void CollectSceneDrawCalls(Camera camera, Frustum cullFrustum = null)
         {
             renderOpaqueDrawCalls.Clear();
@@ -173,37 +191,37 @@ namespace GUI.Types.Renderer
                     {
                         foreach (var call in mesh.DrawCallsOpaque)
                         {
-                            renderOpaqueDrawCalls.Add(new MeshBatchRenderer.Request
+                            Add(new MeshBatchRenderer.Request
                             {
                                 Transform = node.Transform,
                                 Mesh = mesh,
                                 Call = call,
                                 Node = node,
-                            });
+                            }, RenderPass.Opaque);
                         }
 
                         foreach (var call in mesh.DrawCallsOverlay)
                         {
-                            renderStaticOverlays.Add(new MeshBatchRenderer.Request
+                            Add(new MeshBatchRenderer.Request
                             {
                                 Transform = node.Transform,
                                 Mesh = mesh,
                                 Call = call,
                                 RenderOrder = node.OverlayRenderOrder,
                                 Node = node,
-                            });
+                            }, RenderPass.StaticOverlay);
                         }
 
                         foreach (var call in mesh.DrawCallsBlended)
                         {
-                            renderTranslucentDrawCalls.Add(new MeshBatchRenderer.Request
+                            Add(new MeshBatchRenderer.Request
                             {
                                 Transform = node.Transform,
                                 Mesh = mesh,
                                 Call = call,
                                 DistanceFromCamera = (node.BoundingBox.Center - camera.Location).LengthSquared(),
                                 Node = node,
-                            });
+                            }, RenderPass.Translucent);
                         }
                     }
                 }
@@ -212,21 +230,21 @@ namespace GUI.Types.Renderer
                 }
                 else if (node is SceneAggregate.Fragment fragment)
                 {
-                    renderOpaqueDrawCalls.Add(new MeshBatchRenderer.Request
+                    Add(new MeshBatchRenderer.Request
                     {
                         Transform = fragment.Transform,
                         Mesh = fragment.RenderMesh,
                         Call = fragment.DrawCall,
                         Node = node,
-                    });
+                    }, RenderPass.Opaque);
                 }
                 else
                 {
-                    renderLooseNodes.Add(new MeshBatchRenderer.Request
+                    Add(new MeshBatchRenderer.Request
                     {
                         DistanceFromCamera = (node.BoundingBox.Center - camera.Location).LengthSquared(),
                         Node = node,
-                    });
+                    }, RenderPass.AfterOpaque);
                 }
             }
 
