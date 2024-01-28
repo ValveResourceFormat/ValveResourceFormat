@@ -152,7 +152,7 @@ namespace GUI.Types.Renderer
                     break;
 
                 case DXGI_FORMAT.R8G8B8A8_UINT:
-                    GL.VertexAttribPointer(attributeLocation, 4, VertexAttribPointerType.UnsignedByte, false, stride, offset);
+                    GL.VertexAttribIPointer(attributeLocation, 4, VertexAttribIntegerType.UnsignedByte, stride, offset);
                     break;
 
                 case DXGI_FORMAT.R16G16_SINT:

@@ -1,13 +1,12 @@
 #version 460
 
-layout (location = 1) in vec4 vBLENDINDICES;
+layout (location = 1) in ivec4 vBLENDINDICES;
 layout (location = 2) in vec4 vBLENDWEIGHT;
 
 uniform bool bAnimated;
 uniform sampler2D animationTexture;
 
-mat4 getMatrix(float id) {
-    int boneIndex = int(id);
+mat4 getMatrix(int id) {
 
     // Issue #705 out of bounds bone index (model needs ApplyVBIBDefaults)
     // Model:  hlvr/models/props/xen/xen_villi_medium.vmdl
