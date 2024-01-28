@@ -48,6 +48,8 @@ namespace ValveResourceFormat.Serialization.KeyValues
 
         public void Serialize(IndentedTextWriter writer)
         {
+            writer.Grow(12 + Count * 3 + (writer.Indent + 1) * Count); // Not exact
+
             if (IsArray)
             {
                 SerializeArray(writer);
@@ -85,10 +87,11 @@ namespace ValveResourceFormat.Serialization.KeyValues
 
         private void SerializeArray(IndentedTextWriter writer)
         {
-            //Need to preserve the order
             writer.WriteLine();
             writer.WriteLine("[");
             writer.Indent++;
+
+            // Need to preserve the order
             for (var i = 0; i < Count; i++)
             {
                 Properties[i.ToString()].PrintValue(writer);

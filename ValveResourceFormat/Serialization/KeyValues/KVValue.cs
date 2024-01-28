@@ -116,6 +116,15 @@ namespace ValveResourceFormat.Serialization.KeyValues
                     var byteArray = (byte[])Value;
                     var count = 0;
 
+                    {
+                        // This might be longer than required
+                        var lines = byteArray.Length / 32;
+                        var size = 12 + byteArray.Length * 3;
+                        size += (writer.Indent + 1) * lines;
+                        size += Environment.NewLine.Length * lines;
+                        writer.Grow(size);
+                    }
+
                     writer.WriteLine();
                     writer.WriteLine("#[");
                     writer.Indent++;
