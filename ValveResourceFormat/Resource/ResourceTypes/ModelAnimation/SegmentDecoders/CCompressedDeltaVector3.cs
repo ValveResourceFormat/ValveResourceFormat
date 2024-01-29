@@ -27,15 +27,18 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders
             var deltaData = data.Slice(elementCount * 3 * baseElementSize);
             var stride = elementCount * deltaElementSize;
             var elements = deltaData.Count / stride;
+            var frames = elements / 3;
 
             DeltaData = new Half[remapTable.Length * elements];
 
             pos = 0;
-            for (var i = 0; i < elements; i++)
+            for (var i = 0; i < frames; i++)
             {
                 foreach (var j in wantedElements)
                 {
-                    DeltaData[pos++] = BitConverter.ToHalf(deltaData.Slice(i * stride + j * deltaElementSize, deltaElementSize));
+                    DeltaData[pos++] = BitConverter.ToHalf(deltaData.Slice(i * stride * 3 + j * deltaElementSize * 3 + deltaElementSize * 0, deltaElementSize));
+                    DeltaData[pos++] = BitConverter.ToHalf(deltaData.Slice(i * stride * 3 + j * deltaElementSize * 3 + deltaElementSize * 1, deltaElementSize));
+                    DeltaData[pos++] = BitConverter.ToHalf(deltaData.Slice(i * stride * 3 + j * deltaElementSize * 3 + deltaElementSize * 2, deltaElementSize));
                 }
             }
         }
