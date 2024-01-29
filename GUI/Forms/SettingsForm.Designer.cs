@@ -44,6 +44,8 @@ namespace GUI.Forms
             registerAssociationButton = new System.Windows.Forms.Button();
             vsyncLabel = new System.Windows.Forms.Label();
             vsyncCheckBox = new System.Windows.Forms.CheckBox();
+            displayFpsCheckBox = new System.Windows.Forms.CheckBox();
+            displayFpsLabel = new System.Windows.Forms.Label();
             ((System.ComponentModel.ISupportInitialize)maxTextureSizeInput).BeginInit();
             ((System.ComponentModel.ISupportInitialize)fovInput).BeginInit();
             SuspendLayout();
@@ -194,27 +196,49 @@ namespace GUI.Forms
             // vsyncLabel
             // 
             vsyncLabel.AutoSize = true;
-            vsyncLabel.Location = new System.Drawing.Point(15, 354);
+            vsyncLabel.Location = new System.Drawing.Point(432, 261);
             vsyncLabel.Name = "vsyncLabel";
             vsyncLabel.Size = new System.Drawing.Size(76, 15);
             vsyncLabel.TabIndex = 14;
             vsyncLabel.Text = "Vertical Sync:";
+            vsyncLabel.Click += vsyncLabel_Click;
             // 
             // vsyncCheckBox
             // 
             vsyncCheckBox.AutoSize = true;
-            vsyncCheckBox.Location = new System.Drawing.Point(116, 354);
+            vsyncCheckBox.Location = new System.Drawing.Point(533, 261);
             vsyncCheckBox.Name = "vsyncCheckBox";
             vsyncCheckBox.Size = new System.Drawing.Size(15, 14);
             vsyncCheckBox.TabIndex = 15;
             vsyncCheckBox.UseVisualStyleBackColor = true;
             vsyncCheckBox.CheckedChanged += OnVsyncValueChanged;
             // 
+            // displayFpsCheckBox
+            // 
+            displayFpsCheckBox.AutoSize = true;
+            displayFpsCheckBox.Location = new System.Drawing.Point(533, 295);
+            displayFpsCheckBox.Name = "displayFpsCheckBox";
+            displayFpsCheckBox.Size = new System.Drawing.Size(15, 14);
+            displayFpsCheckBox.TabIndex = 18;
+            displayFpsCheckBox.UseVisualStyleBackColor = true;
+            displayFpsCheckBox.CheckedChanged += OnDisplayFpsValueChanged;
+            // 
+            // displayFpsLabel
+            // 
+            displayFpsLabel.AutoSize = true;
+            displayFpsLabel.Location = new System.Drawing.Point(432, 295);
+            displayFpsLabel.Name = "displayFpsLabel";
+            displayFpsLabel.Size = new System.Drawing.Size(70, 15);
+            displayFpsLabel.TabIndex = 17;
+            displayFpsLabel.Text = "Display FPS:";
+            // 
             // SettingsForm
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            ClientSize = new System.Drawing.Size(668, 389);
+            ClientSize = new System.Drawing.Size(668, 367);
+            Controls.Add(displayFpsCheckBox);
+            Controls.Add(displayFpsLabel);
             Controls.Add(registerAssociationButton);
             Controls.Add(vsyncCheckBox);
             Controls.Add(vsyncLabel);
@@ -262,5 +286,7 @@ namespace GUI.Forms
         private System.Windows.Forms.Label vsyncLabel;
         private System.Windows.Forms.CheckBox vsyncCheckBox;
         private System.Windows.Forms.Button registerAssociationButton;
+        private System.Windows.Forms.CheckBox displayFpsCheckBox;
+        private System.Windows.Forms.Label displayFpsLabel;
     }
 }

@@ -41,6 +41,7 @@ namespace GUI.Forms
             maxTextureSizeInput.Value = Settings.Config.MaxTextureSize;
             fovInput.Value = Settings.Config.FieldOfView;
             vsyncCheckBox.Checked = Settings.Config.Vsync != 0;
+            displayFpsCheckBox.Checked = Settings.Config.DisplayFps != 0;
 
             var strings = new string[AntiAliasingSampleOptions.Length];
             var selectedSamples = -1;
@@ -147,50 +148,28 @@ namespace GUI.Forms
 
         private void OnMaxTextureSizeValueChanged(object sender, EventArgs e)
         {
-            var newValue = (int)maxTextureSizeInput.Value;
-
-            if (newValue == Settings.Config.MaxTextureSize)
-            {
-                return;
-            }
-
-            Settings.Config.MaxTextureSize = newValue;
+            Settings.Config.MaxTextureSize = (int)maxTextureSizeInput.Value;
         }
 
         private void OnFovValueChanged(object sender, EventArgs e)
         {
-            var newValue = (int)fovInput.Value;
-
-            if (newValue == Settings.Config.FieldOfView)
-            {
-                return;
-            }
-
-            Settings.Config.FieldOfView = newValue;
+            Settings.Config.FieldOfView = (int)fovInput.Value;
         }
 
         private void OnAntiAliasingValueChanged(object sender, EventArgs e)
         {
             var newValue = AntiAliasingSampleOptions[antiAliasingComboBox.SelectedIndex];
-
-            if (newValue == Settings.Config.AntiAliasingSamples)
-            {
-                return;
-            }
-
             Settings.Config.AntiAliasingSamples = newValue;
         }
 
         private void OnVsyncValueChanged(object sender, EventArgs e)
         {
-            var newValue = vsyncCheckBox.Checked ? 1 : 0;
+            Settings.Config.Vsync = vsyncCheckBox.Checked ? 1 : 0;
+        }
 
-            if (newValue == Settings.Config.Vsync)
-            {
-                return;
-            }
-
-            Settings.Config.Vsync = newValue;
+        private void OnDisplayFpsValueChanged(object sender, EventArgs e)
+        {
+            Settings.Config.DisplayFps = displayFpsCheckBox.Checked ? 1 : 0;
         }
 
         private void OnRegisterAssociationButtonClick(object sender, EventArgs e) => RegisterFileAssociation();

@@ -563,38 +563,41 @@ namespace GUI.Controls
 
             GL.EndQuery(QueryTarget.TimeElapsed);
 
-            currentTime = Stopwatch.GetTimestamp();
-            var fpsElapsed = Stopwatch.GetElapsedTime(lastFpsUpdate, currentTime);
-
-            frameTimes[frameTimeNextId++] = frameTime;
-            frameTimeNextId %= frameTimes.Length;
-
-            if (fpsElapsed >= FpsUpdateTimeSpan)
+            if (Settings.Config.DisplayFps != 0)
             {
-                var frametimeQuery = frametimeQuery2;
-                frametimeQuery2 = frametimeQuery1;
-                frametimeQuery1 = frametimeQuery;
+                currentTime = Stopwatch.GetTimestamp();
+                var fpsElapsed = Stopwatch.GetElapsedTime(lastFpsUpdate, currentTime);
 
-                GL.GetQueryObject(frametimeQuery, GetQueryObjectParam.QueryResultNoWait, out long gpuTime);
-                var gpuFrameTime = gpuTime / 1_000_000f;
+                frameTimes[frameTimeNextId++] = frameTime;
+                frameTimeNextId %= frameTimes.Length;
 
-                var fps = 1f / (frameTimes.Sum() / frameTimes.Length);
-                var cpuFrameTime = Stopwatch.GetElapsedTime(lastUpdate, currentTime).TotalMilliseconds;
+                if (fpsElapsed >= FpsUpdateTimeSpan)
+                {
+                    var frametimeQuery = frametimeQuery2;
+                    frametimeQuery2 = frametimeQuery1;
+                    frametimeQuery1 = frametimeQuery;
 
-                lastFpsUpdate = currentTime;
-                lastFps = $"FPS: {fps:0} | CPU: {cpuFrameTime:0.0}ms | GPU: {gpuFrameTime:0.0}ms";
+                    GL.GetQueryObject(frametimeQuery, GetQueryObjectParam.QueryResultNoWait, out long gpuTime);
+                    var gpuFrameTime = gpuTime / 1_000_000f;
+
+                    var fps = 1f / (frameTimes.Sum() / frameTimes.Length);
+                    var cpuFrameTime = Stopwatch.GetElapsedTime(lastUpdate, currentTime).TotalMilliseconds;
+
+                    lastFpsUpdate = currentTime;
+                    lastFps = $"FPS: {fps:0} | CPU: {cpuFrameTime:0.0}ms | GPU: {gpuFrameTime:0.0}ms";
+                }
+
+#if DEBUG
+                const string TextRender = "Text Render";
+                GL.PushDebugGroup(DebugSourceExternal.DebugSourceApplication, 1, TextRender.Length, TextRender);
+#endif
+
+                textRenderer.RenderText(MainFramebuffer.Width, MainFramebuffer.Height, 2f, MainFramebuffer.Height - 4f, 14f, System.Numerics.Vector4.UnitW, lastFps);
+
+#if DEBUG
+                GL.PopDebugGroup();
+#endif
             }
-
-#if DEBUG
-            const string TextRender = "Text Render";
-            GL.PushDebugGroup(DebugSourceExternal.DebugSourceApplication, 1, TextRender.Length, TextRender);
-#endif
-
-            textRenderer.RenderText(MainFramebuffer.Width, MainFramebuffer.Height, 2f, MainFramebuffer.Height - 4f, 14f, System.Numerics.Vector4.UnitW, lastFps);
-
-#if DEBUG
-            GL.PopDebugGroup();
-#endif
 
             // blit to the default opengl framebuffer used by the control
             if (MainFramebuffer != GLDefaultFramebuffer)

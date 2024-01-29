@@ -10,7 +10,7 @@ namespace GUI.Utils
 {
     static class Settings
     {
-        private const int SettingsFileCurrentVersion = 4;
+        private const int SettingsFileCurrentVersion = 5;
         private const int RecentFilesLimit = 20;
 
         public class AppConfig
@@ -32,6 +32,7 @@ namespace GUI.Utils
             public int WindowState { get; set; } = (int)FormWindowState.Normal;
             public float Volume { get; set; }
             public int Vsync { get; set; }
+            public int DisplayFps { get; set; }
             public int _VERSION_DO_NOT_MODIFY { get; set; }
         }
 
@@ -146,6 +147,11 @@ namespace GUI.Utils
             if (Config._VERSION_DO_NOT_MODIFY < 4)
             {
                 Config.Vsync = 1;
+            }
+
+            if (Config._VERSION_DO_NOT_MODIFY < 5)
+            {
+                Config.DisplayFps = 1;
             }
 
             Config._VERSION_DO_NOT_MODIFY = SettingsFileCurrentVersion;
