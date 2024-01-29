@@ -28,7 +28,6 @@ namespace GUI.Types.Renderer
         public Matrix4x4 CameraViewMatrix { get; private set; }
         public Matrix4x4 ViewProjectionMatrix { get; private set; }
         public Frustum ViewFrustum { get; } = new Frustum();
-        public PickingTexture Picker { get; set; }
 
         private Vector2 WindowSize;
         private float AspectRatio;
@@ -89,8 +88,6 @@ namespace GUI.Types.Renderer
             ProjectionMatrix = CreatePerspectiveFieldOfView_ReverseZ(GetFOV(), AspectRatio, 1.0f, 20000.0f);
 
             RecalculateMatrices();
-
-            Picker?.Resize(viewportWidth, viewportHeight);
         }
 
         /// <inheritdoc cref="Matrix4x4.CreatePerspectiveFieldOfView"/>

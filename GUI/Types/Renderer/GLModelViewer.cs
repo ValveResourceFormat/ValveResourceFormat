@@ -209,7 +209,7 @@ namespace GUI.Types.Renderer
             }
             else
             {
-                Camera.Picker.OnPicked -= OnPicked;
+                Picker.OnPicked -= OnPicked;
             }
 
             if (phys != null)

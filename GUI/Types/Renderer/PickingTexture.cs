@@ -6,22 +6,6 @@ namespace GUI.Types.Renderer;
 
 class PickingTexture : Framebuffer
 {
-    public class PickingRequest
-    {
-        public bool ActiveNextFrame;
-        public int CursorPositionX;
-        public int CursorPositionY;
-        public PickingIntent Intent;
-
-        public void NextFrame(int x, int y, PickingIntent intent)
-        {
-            ActiveNextFrame = true;
-            CursorPositionX = x;
-            CursorPositionY = y;
-            Intent = intent;
-        }
-    }
-
     internal enum PickingIntent
     {
         Select,
@@ -46,11 +30,14 @@ class PickingTexture : Framebuffer
     }
 
     public event EventHandler<PickingResponse> OnPicked;
-    public readonly PickingRequest Request = new();
-    public readonly Shader Shader;
-    public Shader DebugShader;
+    public Shader Shader { get; }
+    public Shader DebugShader { get; private set; }
+    public bool ActiveNextFrame { get; private set; }
 
-    public bool IsActive => Request.ActiveNextFrame;
+    private int CursorPositionX;
+    private int CursorPositionY;
+    private PickingIntent Intent;
+    private PickingResponse? Response;
 
     private readonly VrfGuiContext guiContext;
 
@@ -89,17 +76,34 @@ class PickingTexture : Framebuffer
         }
     }
 
+    public void RequestNextFrame(int x, int y, PickingIntent intent)
+    {
+        ActiveNextFrame = true;
+        CursorPositionX = x;
+        CursorPositionY = y;
+        Intent = intent;
+    }
+
     public void Finish()
     {
-        if (Request.ActiveNextFrame)
+        if (ActiveNextFrame)
         {
-            Request.ActiveNextFrame = false;
-            var pixelInfo = ReadPixelInfo(Request.CursorPositionX, Request.CursorPositionY);
-            OnPicked?.Invoke(this, new PickingResponse
+            ActiveNextFrame = false;
+            var pixelInfo = ReadPixelInfo(CursorPositionX, CursorPositionY);
+            Response = new PickingResponse
             {
-                Intent = Request.Intent,
+                Intent = Intent,
                 PixelInfo = pixelInfo,
-            });
+            };
+        }
+    }
+
+    public void TriggerEventIfAny()
+    {
+        if (Response is PickingResponse response)
+        {
+            Response = null;
+            OnPicked?.Invoke(this, response);
         }
     }
 
@@ -117,9 +121,6 @@ class PickingTexture : Framebuffer
 
         return pixelInfo;
     }
-
-    public IEnumerable<string> GetAvailableRenderModes()
-        => Shader.RenderModes;
 
     public void SetRenderMode(string renderMode)
     {

@@ -36,6 +36,7 @@ namespace GUI.Controls
         private readonly Types.Renderer.TextRenderer textRenderer;
 
         protected Form FullScreenForm { get; private set; }
+        protected PickingTexture Picker { get; set; }
 
         bool MouseOverRenderArea;
         Point MouseDelta;
@@ -319,7 +320,7 @@ namespace GUI.Controls
                     var intent = ModifierKeys.HasFlag(Keys.Control)
                         ? PickingIntent.Open
                         : PickingIntent.Details;
-                    Camera.Picker?.Request.NextFrame(e.X, e.Y, intent);
+                    Picker?.RequestNextFrame(e.X, e.Y, intent);
                 }
             }
             /* TODO: phase this obscure bind out */
@@ -329,7 +330,7 @@ namespace GUI.Controls
 
                 if (e.Clicks == 2)
                 {
-                    Camera.Picker?.Request.NextFrame(e.X, e.Y, PickingIntent.Open);
+                    Picker?.RequestNextFrame(e.X, e.Y, PickingIntent.Open);
                 }
             }
         }
@@ -342,7 +343,7 @@ namespace GUI.Controls
 
                 if (InitialMousePosition == new Point(e.X, e.Y))
                 {
-                    Camera.Picker?.Request.NextFrame(e.X, e.Y, PickingIntent.Select);
+                    Picker?.RequestNextFrame(e.X, e.Y, PickingIntent.Select);
                 }
             }
             else if (e.Button == MouseButtons.Right)
@@ -628,6 +629,7 @@ namespace GUI.Controls
             }
 
             GLControl.SwapBuffers();
+            Picker?.TriggerEventIfAny();
             GLControl.Invalidate();
         }
 
@@ -669,6 +671,7 @@ namespace GUI.Controls
             }
 
             Camera.SetViewportSize(w, h);
+            Picker?.Resize(w, h);
         }
 
         private void DisposeFramebuffer()

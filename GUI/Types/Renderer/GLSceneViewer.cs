@@ -234,9 +234,7 @@ namespace GUI.Types.Renderer
             baseGrid = new InfiniteGrid(Scene);
             selectedNodeRenderer = new(Scene);
 
-            Camera.SetViewportSize(GLControl.Width, GLControl.Height);
-
-            Camera.Picker = new PickingTexture(Scene.GuiContext, OnPicked);
+            Picker = new PickingTexture(Scene.GuiContext, OnPicked);
 
             CreateBuffers();
 
@@ -300,18 +298,18 @@ namespace GUI.Types.Renderer
                 Framebuffer = MainFramebuffer,
             };
 
-            if (Camera.Picker.IsActive)
+            if (Picker.ActiveNextFrame)
             {
-                renderContext.ReplacementShader = Camera.Picker.Shader;
-                renderContext.Framebuffer = Camera.Picker;
+                renderContext.ReplacementShader = Picker.Shader;
+                renderContext.Framebuffer = Picker;
 
                 RenderScenesWithView(renderContext);
-                Camera.Picker.Finish();
+                Picker.Finish();
             }
 
-            if (Camera.Picker.DebugShader is not null)
+            if (Picker.DebugShader is not null)
             {
-                renderContext.ReplacementShader = Camera.Picker.DebugShader;
+                renderContext.ReplacementShader = Picker.DebugShader;
             }
 
             RenderScenesWithView(renderContext);
@@ -462,7 +460,7 @@ namespace GUI.Types.Renderer
                 var selectedIndex = 0;
                 var supportedRenderModes = Scene.AllNodes
                     .SelectMany(r => r.GetSupportedRenderModes())
-                    .Concat(Camera.Picker.Shader.RenderModes)
+                    .Concat(Picker.Shader.RenderModes)
                     .Distinct()
                     .Prepend("Default Render Mode")
                     .ToArray();
@@ -502,7 +500,7 @@ namespace GUI.Types.Renderer
 
             try
             {
-                Camera?.Picker.SetRenderMode(renderMode);
+                Picker.SetRenderMode(renderMode);
                 selectedNodeRenderer.SetRenderMode(renderMode);
 
                 foreach (var node in Scene.AllNodes)
