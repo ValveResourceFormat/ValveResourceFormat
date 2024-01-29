@@ -584,7 +584,7 @@ namespace GUI.Controls
                     var cpuFrameTime = Stopwatch.GetElapsedTime(lastUpdate, currentTime).TotalMilliseconds;
 
                     lastFpsUpdate = currentTime;
-                    lastFps = $"FPS: {fps:0} | CPU: {cpuFrameTime:0.0}ms | GPU: {gpuFrameTime:0.0}ms";
+                    lastFps = $"FPS: {fps,-3:0}  CPU: {cpuFrameTime,-4:0.0}ms  GPU: {gpuFrameTime,-4:0.0}ms";
                 }
 
 #if DEBUG
