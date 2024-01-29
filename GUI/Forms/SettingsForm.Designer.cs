@@ -201,7 +201,6 @@ namespace GUI.Forms
             vsyncLabel.Size = new System.Drawing.Size(76, 15);
             vsyncLabel.TabIndex = 14;
             vsyncLabel.Text = "Vertical Sync:";
-            vsyncLabel.Click += vsyncLabel_Click;
             // 
             // vsyncCheckBox
             // 
