@@ -160,7 +160,6 @@ namespace GUI.Types.Renderer
                     SkyboxScene = result.SkyboxScene;
                     SkyboxScene.MainCamera = skyboxCamera;
                     SkyboxScene.FogInfo = Scene.FogInfo;
-                    skyboxCamera.Scale = SkyboxScene.WorldScale;
 
                     AddCheckBox("Show Skybox", ShowSkybox, (v) => ShowSkybox = v);
                 }

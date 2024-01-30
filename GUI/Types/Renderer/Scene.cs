@@ -38,9 +38,6 @@ namespace GUI.Types.Renderer
         public VrfGuiContext GuiContext { get; }
         public Octree<SceneNode> StaticOctree { get; }
         public Octree<SceneNode> DynamicOctree { get; }
-        public Vector3 WorldOffset { get; set; } = Vector3.Zero;
-        public float WorldScale { get; set; } = 1.0f;
-        // TODO: also store skybox reference rotation
 
         public bool ShowToolsMaterials { get; set; }
         public bool FogEnabled { get; set; } = true;
@@ -350,7 +347,7 @@ namespace GUI.Types.Renderer
 
         public void SetFogConstants(ViewConstants viewConstants)
         {
-            FogInfo.SetFogUniforms(viewConstants, FogEnabled, WorldOffset, WorldScale);
+            FogInfo.SetFogUniforms(viewConstants, FogEnabled, Vector3.Zero, 1f);
         }
 
         public void CalculateEnvironmentMaps()

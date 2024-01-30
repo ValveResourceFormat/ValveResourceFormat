@@ -274,9 +274,7 @@ namespace GUI.Types.Renderer
             if (SkyboxScene != null)
             {
                 SkyboxScene.Update(e.FrameTime);
-
                 skyboxCamera.CopyFrom(Camera);
-                skyboxCamera.SetLocation(Camera.Location - SkyboxScene.WorldOffset);
             }
 
             selectedNodeRenderer.Update(new Scene.UpdateContext(e.FrameTime));

@@ -26,6 +26,10 @@ namespace GUI.Types.Renderer
         public Scene SkyboxScene { get; set; }
         public SceneSkybox2D Skybox2dScene { get; set; }
 
+        public Vector3 WorldOffset { get; set; } = Vector3.Zero;
+        public float WorldScale { get; set; } = 1.0f;
+        // TODO: also store skybox reference rotation
+
         public WorldLoader(World world, Scene scene)
         {
             this.world = world;
@@ -634,8 +638,8 @@ namespace GUI.Types.Renderer
 
                 if (classname == "sky_camera")
                 {
-                    scene.WorldScale = entity.GetPropertyUnchecked<float>("scale");
-                    scene.WorldOffset = positionVector * -scene.WorldScale;
+                    WorldScale = entity.GetPropertyUnchecked<float>("scale");
+                    WorldOffset = positionVector;
                 }
 
                 if (particle != null)
@@ -902,7 +906,12 @@ namespace GUI.Types.Renderer
             var skyboxResult = new WorldLoader((World)skyboxWorld.DataBlock, SkyboxScene);
 
             var skyboxReferenceOffset = EntityTransformHelper.ParseVector(entity.GetProperty<string>("origin"));
-            SkyboxScene.WorldOffset += skyboxReferenceOffset;
+            skyboxResult.WorldOffset += skyboxReferenceOffset;
+
+            foreach (var node in SkyboxScene.AllNodes)
+            {
+                node.Transform *= Matrix4x4.CreateTranslation(-skyboxResult.WorldOffset) * Matrix4x4.CreateScale(skyboxResult.WorldScale);
+            }
 
             guiContext.FileLoader.RemovePackageFromSearch(package);
         }
