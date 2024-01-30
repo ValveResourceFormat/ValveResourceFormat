@@ -40,5 +40,13 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
             return s2 == 128 ? new Quaternion(w, x, y, z) : new Quaternion(x, y, z, w);
         }
+
+        public static Vector3 ReadHalfVector3(ReadOnlySpan<byte> bytes)
+        {
+            var x = BitConverter.ToHalf(bytes.Slice(0));
+            var y = BitConverter.ToHalf(bytes.Slice(2));
+            var z = BitConverter.ToHalf(bytes.Slice(4));
+            return new Vector3((float)x, (float)y, (float)z);
+        }
     }
 }
