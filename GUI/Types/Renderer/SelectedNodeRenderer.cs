@@ -13,11 +13,13 @@ namespace GUI.Types.Renderer
         private bool debugCubeMaps;
         private bool debugLightProbes;
         private readonly List<SceneNode> selectedNodes = new(1);
+        private readonly TextRenderer textRenderer;
 
         public bool UpdateEveryFrame { get; set; }
 
-        public SelectedNodeRenderer(Scene scene) : base(scene)
+        public SelectedNodeRenderer(Scene scene, TextRenderer textRenderer) : base(scene)
         {
+            this.textRenderer = textRenderer;
             shader = scene.GuiContext.ShaderLoader.LoadShader("vrf.default");
 
             GL.CreateVertexArrays(1, out vaoHandle);
@@ -183,6 +185,21 @@ namespace GUI.Types.Renderer
             GL.DepthMask(true);
             GL.Disable(EnableCap.Blend);
             GL.Enable(EnableCap.DepthTest);
+
+            foreach (var node in selectedNodes)
+            {
+                var name = node.DebugName;
+
+                if (node.EntityData != null)
+                {
+                    name = node.EntityData.GetProperty<string>("classname");
+                }
+
+                var position = node.BoundingBox.Center;
+                position.Z = node.BoundingBox.Max.Z;
+
+                textRenderer.RenderTextBillboard(context.Camera, position, 20f, Vector4.One, name, center: true);
+            }
         }
 
         public override void SetRenderMode(string mode)

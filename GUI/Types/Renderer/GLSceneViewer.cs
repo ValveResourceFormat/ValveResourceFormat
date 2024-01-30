@@ -227,7 +227,7 @@ namespace GUI.Types.Renderer
         {
             baseGrid = new InfiniteGrid(Scene);
             baseBackground = new SceneBackground(Scene);
-            selectedNodeRenderer = new(Scene);
+            selectedNodeRenderer = new(Scene, textRenderer);
 
             Picker = new PickingTexture(Scene.GuiContext, OnPicked);
 
