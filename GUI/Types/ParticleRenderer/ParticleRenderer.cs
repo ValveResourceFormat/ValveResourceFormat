@@ -267,16 +267,11 @@ namespace GUI.Types.ParticleRenderer
             return true;
         }
 
-        public void Render(Camera camera, RenderPass renderPass)
+        public void Render(Camera camera)
         {
-            if (renderPass != RenderPass.Translucent)
-            {
-                return;
-            }
-
             foreach (var childParticleRenderer in childParticleRenderers)
             {
-                childParticleRenderer.Render(camera, renderPass);
+                childParticleRenderer.Render(camera);
             }
 
             if (particleCollection.Count > 0)

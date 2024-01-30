@@ -29,7 +29,12 @@ namespace GUI.Types.Renderer
 
         public override void Render(Scene.RenderContext context)
         {
-            particleRenderer.Render(context.Camera, context.RenderPass);
+            if (context.RenderPass != RenderPass.Translucent || context.ReplacementShader is not null)
+            {
+                return;
+            }
+
+            particleRenderer.Render(context.Camera);
         }
 
         public override IEnumerable<string> GetSupportedRenderModes() => particleRenderer.GetSupportedRenderModes();
