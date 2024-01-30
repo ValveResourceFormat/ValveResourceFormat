@@ -18,7 +18,7 @@ using static ValveResourceFormat.ResourceTypes.Texture;
 
 namespace GUI.Types.Renderer
 {
-    class GLTextureViewer : GLViewerControl, IGLViewer
+    class GLTextureViewer : GLViewerControl
     {
         enum CubemapProjection
         {

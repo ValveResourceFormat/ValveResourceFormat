@@ -11,7 +11,7 @@ using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.ParticleRenderer
 {
-    internal class ParticleRenderer : IRenderer
+    internal class ParticleRenderer
     {
         private readonly List<ParticleFunctionPreEmissionOperator> PreEmissionOperators = [];
         private readonly List<ParticleFunctionEmitter> Emitters = [];

@@ -12,7 +12,7 @@ using ValveResourceFormat;
 
 namespace GUI.Types.Renderer
 {
-    internal abstract class GLSceneViewer : GLViewerControl, IGLViewer, IDisposable
+    internal abstract class GLSceneViewer : GLViewerControl, IDisposable
     {
         public Scene Scene { get; }
         public Scene SkyboxScene { get; protected set; }
