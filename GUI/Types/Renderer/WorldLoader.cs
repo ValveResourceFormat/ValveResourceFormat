@@ -910,7 +910,14 @@ namespace GUI.Types.Renderer
 
             foreach (var node in SkyboxScene.AllNodes)
             {
-                node.Transform *= Matrix4x4.CreateTranslation(-skyboxResult.WorldOffset) * Matrix4x4.CreateScale(skyboxResult.WorldScale);
+                if (node.LayerName == "Entities")
+                {
+                    node.Transform *= Matrix4x4.CreateTranslation(-skyboxResult.WorldOffset);
+                }
+                else
+                {
+                    node.Transform *= Matrix4x4.CreateTranslation(-skyboxResult.WorldOffset) * Matrix4x4.CreateScale(skyboxResult.WorldScale);
+                }
             }
 
             guiContext.FileLoader.RemovePackageFromSearch(package);
