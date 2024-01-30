@@ -43,9 +43,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
         public static Vector3 ReadHalfVector3(ReadOnlySpan<byte> bytes)
         {
-            var x = BitConverter.ToHalf(bytes.Slice(0));
-            var y = BitConverter.ToHalf(bytes.Slice(2));
-            var z = BitConverter.ToHalf(bytes.Slice(4));
+            var x = BitConverter.ToHalf(bytes);
+            var y = BitConverter.ToHalf(bytes[2..]);
+            var z = BitConverter.ToHalf(bytes[4..]);
             return new Vector3((float)x, (float)y, (float)z);
         }
     }
