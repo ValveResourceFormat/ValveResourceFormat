@@ -85,26 +85,25 @@ namespace GUI.Types.Renderer
             WindowSize = new Vector2(viewportWidth, viewportHeight);
 
             // Calculate projection matrix
-            ProjectionMatrix = CreatePerspectiveFieldOfView_ReverseZ(GetFOV(), AspectRatio, 1.0f, 20000.0f);
+            ProjectionMatrix = CreatePerspectiveFieldOfView_ReverseZ(GetFOV(), AspectRatio, 1.0f);
 
             RecalculateMatrices();
         }
 
         /// <inheritdoc cref="Matrix4x4.CreatePerspectiveFieldOfView"/>
-        /// <remarks>Note: Reverse-Z. Far plane is swapped with near plane.</remarks>
-        private static Matrix4x4 CreatePerspectiveFieldOfView_ReverseZ(float fov, float aspectRatio, float nearPlane, float farPlane)
+        /// <remarks>Note: Reverse-Z. Far plane is swapped with near plane. Far plane is set to infinite.</remarks>
+        private static Matrix4x4 CreatePerspectiveFieldOfView_ReverseZ(float fieldOfView, float aspectRatio, float nearPlaneDistance)
         {
-            var yScale = 1.0f / MathF.Tan(fov * 0.5f);
-            var xScale = yScale / aspectRatio;
-            var (n, f) = (nearPlane, farPlane);
+            var height = 1.0f / MathF.Tan(fieldOfView * 0.5f);
+            var width = height / aspectRatio;
 
             return new Matrix4x4
             {
-                M11 = xScale,
-                M22 = yScale,
-                M33 = n / (f - n),
+                M11 = width,
+                M22 = height,
+                M33 = 0.0f,
                 M34 = -1.0f,
-                M43 = n
+                M43 = nearPlaneDistance
             };
         }
 
@@ -117,11 +116,6 @@ namespace GUI.Types.Renderer
             Yaw = fromOther.Yaw;
             ProjectionMatrix = fromOther.ProjectionMatrix;
             CameraViewMatrix = fromOther.CameraViewMatrix;
-        }
-
-        public void SetScaledProjectionMatrix()
-        {
-            ProjectionMatrix = CreatePerspectiveFieldOfView_ReverseZ(GetFOV(), AspectRatio, 10f * Scale, 20000.0f * Scale);
         }
 
         public void SetLocation(Vector3 location)

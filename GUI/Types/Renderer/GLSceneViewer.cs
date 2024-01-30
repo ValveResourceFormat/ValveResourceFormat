@@ -276,7 +276,6 @@ namespace GUI.Types.Renderer
                 SkyboxScene.Update(e.FrameTime);
 
                 skyboxCamera.CopyFrom(Camera);
-                skyboxCamera.SetScaledProjectionMatrix();
                 skyboxCamera.SetLocation(Camera.Location - SkyboxScene.WorldOffset);
             }
 
