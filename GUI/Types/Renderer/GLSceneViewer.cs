@@ -244,25 +244,6 @@ namespace GUI.Types.Renderer
             Uptime += e.FrameTime;
             viewBuffer.Data.Time = Uptime;
 
-#if DEBUG
-            const string UpdateLoop = "Update Loop";
-            GL.PushDebugGroup(DebugSourceExternal.DebugSourceApplication, 1, UpdateLoop.Length, UpdateLoop);
-#endif
-
-            Scene.Update(e.FrameTime);
-            SkyboxScene?.Update(e.FrameTime);
-
-            selectedNodeRenderer.Update(new Scene.UpdateContext(e.FrameTime));
-
-            Scene.CollectSceneDrawCalls(Camera, lockedCullFrustum);
-            SkyboxScene?.CollectSceneDrawCalls(Camera, lockedCullFrustum);
-
-#if DEBUG
-            const string ScenesRender = "Scenes Render";
-            GL.PopDebugGroup();
-            GL.PushDebugGroup(DebugSourceExternal.DebugSourceApplication, 1, ScenesRender.Length, ScenesRender);
-#endif
-
             var renderContext = new Scene.RenderContext
             {
                 View = this,
@@ -270,48 +251,55 @@ namespace GUI.Types.Renderer
                 Framebuffer = MainFramebuffer,
             };
 
-            if (Picker.ActiveNextFrame)
+            using (new GLDebugGroup("Update Loop"))
             {
-                renderContext.ReplacementShader = Picker.Shader;
-                renderContext.Framebuffer = Picker;
+                Scene.Update(e.FrameTime);
+                SkyboxScene?.Update(e.FrameTime);
+
+                selectedNodeRenderer.Update(new Scene.UpdateContext(e.FrameTime));
+
+                Scene.CollectSceneDrawCalls(Camera, lockedCullFrustum);
+                SkyboxScene?.CollectSceneDrawCalls(Camera, lockedCullFrustum);
+            }
+
+            using (new GLDebugGroup("Scenes Render"))
+            {
+                if (Picker.ActiveNextFrame)
+                {
+                    renderContext.ReplacementShader = Picker.Shader;
+                    renderContext.Framebuffer = Picker;
+
+                    RenderScenesWithView(renderContext);
+                    Picker.Finish();
+                }
+
+                if (Picker.DebugShader is not null)
+                {
+                    renderContext.ReplacementShader = Picker.DebugShader;
+                }
 
                 RenderScenesWithView(renderContext);
-                Picker.Finish();
             }
 
-            if (Picker.DebugShader is not null)
+            using (new GLDebugGroup("Lines Render"))
             {
-                renderContext.ReplacementShader = Picker.DebugShader;
+                selectedNodeRenderer.Render(renderContext);
+
+                if (showStaticOctree)
+                {
+                    staticOctreeRenderer.Render();
+                }
+
+                if (showDynamicOctree)
+                {
+                    dynamicOctreeRenderer.Render();
+                }
+
+                if (ShowBaseGrid)
+                {
+                    baseGrid.Render(renderContext);
+                }
             }
-
-            RenderScenesWithView(renderContext);
-
-#if DEBUG
-            const string LinesRender = "Lines Render";
-            GL.PopDebugGroup();
-            GL.PushDebugGroup(DebugSourceExternal.DebugSourceApplication, 1, LinesRender.Length, LinesRender);
-#endif
-
-            selectedNodeRenderer.Render(renderContext);
-
-            if (showStaticOctree)
-            {
-                staticOctreeRenderer.Render();
-            }
-
-            if (showDynamicOctree)
-            {
-                dynamicOctreeRenderer.Render();
-            }
-
-            if (ShowBaseGrid)
-            {
-                baseGrid.Render(renderContext);
-            }
-
-#if DEBUG
-            GL.PopDebugGroup();
-#endif
         }
 
         private void RenderScenesWithView(Scene.RenderContext renderContext)
@@ -329,68 +317,44 @@ namespace GUI.Types.Renderer
             UpdateSceneBuffersGpu(Scene, Camera);
             lightingBuffer.Data = Scene.LightingInfo.LightingData;
 
-#if DEBUG
-            const string MainSceneOpaqueRender = "Main Scene Opaque Render";
-            GL.PushDebugGroup(DebugSourceExternal.DebugSourceApplication, 1, MainSceneOpaqueRender.Length, MainSceneOpaqueRender);
-#endif
-
-            renderContext.Scene = Scene;
-            Scene.RenderOpaqueLayer(renderContext);
-
-#if DEBUG
-            GL.PopDebugGroup();
-#endif
+            using (new GLDebugGroup("Main Scene Opaque Render"))
+            {
+                renderContext.Scene = Scene;
+                Scene.RenderOpaqueLayer(renderContext);
+            }
 
             // 3D Sky
             GL.DepthRange(0, 0.05);
             if (ShowSkybox && SkyboxScene != null)
             {
-#if DEBUG
-                const string SkySceneRender = "3D Sky Scene Render";
-                GL.PushDebugGroup(DebugSourceExternal.DebugSourceApplication, 1, SkySceneRender.Length, SkySceneRender);
-#endif
+                using (new GLDebugGroup("3D Sky Scene Render"))
+                {
+                    lightingBuffer.Data = SkyboxScene.LightingInfo.LightingData;
+                    renderContext.Scene = SkyboxScene;
 
-                lightingBuffer.Data = SkyboxScene.LightingInfo.LightingData;
-                renderContext.Scene = SkyboxScene;
+                    SkyboxScene.RenderOpaqueLayer(renderContext);
+                    SkyboxScene.RenderTranslucentLayer(renderContext);
 
-                SkyboxScene.RenderOpaqueLayer(renderContext);
-                SkyboxScene.RenderTranslucentLayer(renderContext);
-
-                lightingBuffer.Data = Scene.LightingInfo.LightingData;
-                renderContext.Scene = Scene;
-
-#if DEBUG
-                GL.PopDebugGroup();
-#endif
+                    lightingBuffer.Data = Scene.LightingInfo.LightingData;
+                    renderContext.Scene = Scene;
+                }
             }
 
             // 2D Sky
             if (Skybox2dScene is not null)
             {
-#if DEBUG
-                const string SkyRender = "2D Sky Render";
-                GL.PushDebugGroup(DebugSourceExternal.DebugSourceApplication, 1, SkyRender.Length, SkyRender);
-#endif
-
-                Skybox2dScene?.Render();
-
-#if DEBUG
-                GL.PopDebugGroup();
-#endif
+                using (new GLDebugGroup("2D Sky Render"))
+                {
+                    Skybox2dScene.Render();
+                }
             }
 
             GL.DepthRange(0.05, 1);
 
-#if DEBUG
-            const string MainSceneTranslucentRender = "Main Scene Translucent Render";
-            GL.PushDebugGroup(DebugSourceExternal.DebugSourceApplication, 1, MainSceneTranslucentRender.Length, MainSceneTranslucentRender);
-#endif
-
-            Scene.RenderTranslucentLayer(renderContext);
-
-#if DEBUG
-            GL.PopDebugGroup();
-#endif
+            using (new GLDebugGroup("Main Scene Translucent Render"))
+            {
+                Scene.RenderTranslucentLayer(renderContext);
+            }
 
             if (IsWireframe)
             {

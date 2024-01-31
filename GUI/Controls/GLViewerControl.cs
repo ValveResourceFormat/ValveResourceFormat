@@ -588,38 +588,26 @@ namespace GUI.Controls
                     lastFps = $"FPS: {fps,-3:0}  CPU: {cpuFrameTime,-4:0.0}ms  GPU: {gpuFrameTime,-4:0.0}ms";
                 }
 
-#if DEBUG
-                const string TextRender = "Text Render";
-                GL.PushDebugGroup(DebugSourceExternal.DebugSourceApplication, 1, TextRender.Length, TextRender);
-#endif
-
-                textRenderer.RenderText(MainFramebuffer.Width, MainFramebuffer.Height, 2f, MainFramebuffer.Height - 4f, 14f, System.Numerics.Vector4.UnitW, lastFps);
-
-#if DEBUG
-                GL.PopDebugGroup();
-#endif
+                using (new GLDebugGroup("Text Render"))
+                {
+                    textRenderer.RenderText(MainFramebuffer.Width, MainFramebuffer.Height, 2f, MainFramebuffer.Height - 4f, 14f, System.Numerics.Vector4.UnitW, lastFps);
+                }
             }
 
             // blit to the default opengl framebuffer used by the control
             if (MainFramebuffer != GLDefaultFramebuffer)
             {
-#if DEBUG
-                const string BlitFramebuffer = "Blit Framebuffer";
-                GL.PushDebugGroup(DebugSourceExternal.DebugSourceApplication, 1, BlitFramebuffer.Length, BlitFramebuffer);
-#endif
+                using (new GLDebugGroup("Blit Framebuffer"))
+                {
+                    MainFramebuffer.Bind(FramebufferTarget.ReadFramebuffer);
+                    GL.ReadBuffer(ReadBufferMode.ColorAttachment0);
 
-                MainFramebuffer.Bind(FramebufferTarget.ReadFramebuffer);
-                GL.ReadBuffer(ReadBufferMode.ColorAttachment0);
+                    GLDefaultFramebuffer.Bind(FramebufferTarget.DrawFramebuffer);
+                    GL.DrawBuffer(DrawBufferMode.Back);
 
-                GLDefaultFramebuffer.Bind(FramebufferTarget.DrawFramebuffer);
-                GL.DrawBuffer(DrawBufferMode.Back);
-
-                var (w, h) = (GLControl.Width, GLControl.Height);
-                GL.BlitFramebuffer(0, 0, w, h, 0, 0, w, h, ClearBufferMask.ColorBufferBit, BlitFramebufferFilter.Nearest);
-
-#if DEBUG
-                GL.PopDebugGroup();
-#endif
+                    var (w, h) = (GLControl.Width, GLControl.Height);
+                    GL.BlitFramebuffer(0, 0, w, h, 0, 0, w, h, ClearBufferMask.ColorBufferBit, BlitFramebufferFilter.Nearest);
+                }
             }
 
             if (MainFramebuffer != GLDefaultFramebuffer)
