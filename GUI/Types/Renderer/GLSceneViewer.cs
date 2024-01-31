@@ -126,8 +126,6 @@ namespace GUI.Types.Renderer
             camera.SetViewConstants(viewBuffer.Data);
             scene.SetFogConstants(viewBuffer.Data);
             viewBuffer.Update();
-
-            lightingBuffer.Data = scene.LightingInfo.LightingData;
         }
 
         public virtual void PreSceneLoad()
@@ -329,6 +327,7 @@ namespace GUI.Types.Renderer
 
             GL.DepthRange(0.05, 1);
             UpdateSceneBuffersGpu(Scene, Camera);
+            lightingBuffer.Data = Scene.LightingInfo.LightingData;
 
 #if DEBUG
             const string MainSceneOpaqueRender = "Main Scene Opaque Render";
@@ -351,14 +350,14 @@ namespace GUI.Types.Renderer
                 GL.PushDebugGroup(DebugSourceExternal.DebugSourceApplication, 1, SkySceneRender.Length, SkySceneRender);
 #endif
 
-                UpdateSceneBuffersGpu(SkyboxScene, Camera);
+                lightingBuffer.Data = SkyboxScene.LightingInfo.LightingData;
                 renderContext.Scene = SkyboxScene;
 
                 SkyboxScene.RenderOpaqueLayer(renderContext);
                 SkyboxScene.RenderTranslucentLayer(renderContext);
 
-                // Back to main Scene
-                UpdateSceneBuffersGpu(Scene, Camera);
+                lightingBuffer.Data = Scene.LightingInfo.LightingData;
+                renderContext.Scene = Scene;
 
 #if DEBUG
                 GL.PopDebugGroup();
