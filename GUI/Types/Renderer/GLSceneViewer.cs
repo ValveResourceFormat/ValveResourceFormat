@@ -16,7 +16,7 @@ namespace GUI.Types.Renderer
     {
         public Scene Scene { get; }
         public Scene SkyboxScene { get; protected set; }
-        public SceneSkybox2D Skybox2dScene { get; protected set; }
+        public SceneSkybox2D Skybox2D { get; protected set; }
         public VrfGuiContext GuiContext => Scene.GuiContext;
 
         private bool ShowBaseGrid;
@@ -227,7 +227,7 @@ namespace GUI.Types.Renderer
             PostSceneLoad();
 
             viewBuffer.Data.ClearColor = Settings.BackgroundColor;
-            if (Skybox2dScene is null)
+            if (Skybox2D is null)
             {
                 MainFramebuffer.ClearColor = viewBuffer.Data.ClearColor;
             }
@@ -341,11 +341,11 @@ namespace GUI.Types.Renderer
             }
 
             // 2D Sky
-            if (Skybox2dScene is not null)
+            if (Skybox2D is not null)
             {
                 using (new GLDebugGroup("2D Sky Render"))
                 {
-                    Skybox2dScene.Render();
+                    Skybox2D.Render();
                 }
             }
 

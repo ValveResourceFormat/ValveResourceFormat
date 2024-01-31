@@ -20,7 +20,7 @@ namespace GUI.Types.Renderer
 
         protected override void LoadScene()
         {
-            Skybox2dScene = new SceneSkybox2D
+            Skybox2D = new SceneSkybox2D
             {
                 Material = GuiContext.MaterialLoader.LoadMaterial(materialResource),
             };

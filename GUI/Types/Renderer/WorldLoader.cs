@@ -24,7 +24,7 @@ namespace GUI.Types.Renderer
         public Dictionary<string, Matrix4x4> CameraMatrices { get; } = [];
 
         public Scene SkyboxScene { get; set; }
-        public SceneSkybox2D Skybox2dScene { get; set; }
+        public SceneSkybox2D Skybox2D { get; set; }
 
         public Vector3 WorldOffset { get; set; } = Vector3.Zero;
         public float WorldScale { get; set; } = 1.0f;
@@ -280,7 +280,7 @@ namespace GUI.Types.Renderer
                     {
                         // If it has "startdisabled", only take it if we haven't found any others yet.
                         disabled = entity.GetProperty<bool>("startdisabled");
-                        disabled = disabled && Skybox2dScene != null;
+                        disabled = disabled && Skybox2D != null;
 
                         var skyTintColor = entity.GetProperty("tint_color");
                         tintColor = skyTintColor?.Data switch
@@ -299,7 +299,7 @@ namespace GUI.Types.Renderer
                         };
                         using var skyMaterial = guiContext.LoadFileCompiled(skyname);
 
-                        Skybox2dScene = new SceneSkybox2D
+                        Skybox2D = new SceneSkybox2D
                         {
                             Tint = tintColor,
                             Transform = rotation,
