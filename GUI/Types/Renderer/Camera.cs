@@ -22,7 +22,6 @@ namespace GUI.Types.Renderer
         public Vector3 Location { get; private set; }
         public float Pitch { get; private set; }
         public float Yaw { get; private set; }
-        public float Scale { get; set; } = 1.0f;
 
         private Matrix4x4 ProjectionMatrix;
         public Matrix4x4 CameraViewMatrix { get; private set; }
@@ -40,7 +39,7 @@ namespace GUI.Types.Renderer
 
         private void RecalculateMatrices()
         {
-            CameraViewMatrix = Matrix4x4.CreateScale(Scale) * Matrix4x4.CreateLookAt(Location, Location + GetForwardVector(), Vector3.UnitZ);
+            CameraViewMatrix = Matrix4x4.CreateLookAt(Location, Location + GetForwardVector(), Vector3.UnitZ);
             ViewProjectionMatrix = CameraViewMatrix * ProjectionMatrix;
             ViewFrustum.Update(ViewProjectionMatrix);
         }
@@ -75,7 +74,7 @@ namespace GUI.Types.Renderer
             viewConstants.WorldToProjection = ProjectionMatrix;
             viewConstants.WorldToView = CameraViewMatrix;
             viewConstants.ViewToProjection = ViewProjectionMatrix;
-            viewConstants.CameraPosition = Location / Scale;
+            viewConstants.CameraPosition = Location;
         }
 
         public void SetViewportSize(int viewportWidth, int viewportHeight)
@@ -116,6 +115,8 @@ namespace GUI.Types.Renderer
             Yaw = fromOther.Yaw;
             ProjectionMatrix = fromOther.ProjectionMatrix;
             CameraViewMatrix = fromOther.CameraViewMatrix;
+            ViewProjectionMatrix = fromOther.ViewProjectionMatrix;
+            ViewFrustum.Update(ViewProjectionMatrix);
         }
 
         public void SetLocation(Vector3 location)

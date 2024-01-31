@@ -13,17 +13,17 @@ class SceneCubemapFog : SceneNode
     public RenderTexture CubemapFogTexture { get; set; }
     public float ExposureBias { get; set; }
 
-    public Vector4 OffsetScaleBiasExponent(float mapScale)
+    public Vector4 OffsetScaleBiasExponent()
     {
-        var scale = mapScale / (EndDist - StartDist);
-        var offset = -(StartDist * scale) / mapScale;
+        var scale = 1f / (EndDist - StartDist);
+        var offset = -(StartDist * scale);
 
         return new Vector4(offset, scale, LodBias, FalloffExponent);
     }
 
     // HeightWidth is equal to HeightEnd - HeightStart
     // Height width ADDS to heightStart
-    public Vector4 Height_OffsetScaleExponentLog2Mip(Vector3 mapOffset, float mapScale)
+    public Vector4 Height_OffsetScaleExponentLog2Mip()
     {
         var offset = 1f;
         var scale = 0.000001f;
@@ -31,10 +31,8 @@ class SceneCubemapFog : SceneNode
 
         if (HeightEnd - HeightStart > 0) // width = 0 is a substitution for UseHeightFog
         {
-            var bias = (HeightStart - mapOffset.Z) / mapScale;
-
-            scale = mapScale / (HeightStart - HeightEnd);
-            offset = 1f - (bias * scale);
+            scale = 1f / (HeightStart - HeightEnd);
+            offset = 1f - (HeightStart * scale);
             exponent = HeightExponent;
         }
 
@@ -43,11 +41,10 @@ class SceneCubemapFog : SceneNode
         return value;
     }
 
-    public Vector4 CullingParams_Opacity(Vector3 mapOffset, float mapScale)
+    public Vector4 CullingParams_Opacity()
     {
-        var distCull = StartDist / mapScale;
-        distCull *= distCull;
-        var heightCull = (UseHeightFog || ((HeightEnd - HeightStart) > 0)) ? ((HeightStart - mapOffset.Z) / mapScale) : float.PositiveInfinity;
+        var distCull = StartDist * StartDist;
+        var heightCull = (UseHeightFog || ((HeightEnd - HeightStart) > 0)) ? HeightStart : float.PositiveInfinity;
 
         return new Vector4(distCull, heightCull, MathF.Pow(2f, ExposureBias), Opacity);
     }

@@ -31,16 +31,12 @@ namespace GUI.Types.Renderer
             public Shader ReplacementShader { get; set; }
         }
 
-        public Camera MainCamera { get; set; }
         public WorldLightingInfo LightingInfo { get; }
         public WorldFogInfo FogInfo { get; set; } = new();
         public Dictionary<string, byte> RenderAttributes { get; } = [];
         public VrfGuiContext GuiContext { get; }
         public Octree<SceneNode> StaticOctree { get; }
         public Octree<SceneNode> DynamicOctree { get; }
-        public Vector3 WorldOffset { get; set; } = Vector3.Zero;
-        public float WorldScale { get; set; } = 1.0f;
-        // TODO: also store skybox reference rotation
 
         public bool ShowToolsMaterials { get; set; }
         public bool FogEnabled { get; set; } = true;
@@ -255,64 +251,43 @@ namespace GUI.Types.Renderer
         {
             var camera = renderContext.Camera;
 
-#if DEBUG
-            const string RenderOpaque = "Opaque Render";
-            GL.PushDebugGroup(DebugSourceExternal.DebugSourceApplication, 0, RenderOpaque.Length, RenderOpaque);
-#endif
-
-            renderContext.RenderPass = RenderPass.Opaque;
-            MeshBatchRenderer.Render(renderOpaqueDrawCalls, renderContext);
-
-#if DEBUG
-            const string RenderStaticOverlay = "StaticOverlay Render";
-            GL.PopDebugGroup();
-            GL.PushDebugGroup(DebugSourceExternal.DebugSourceApplication, 0, RenderStaticOverlay.Length, RenderStaticOverlay);
-#endif
-
-            renderContext.RenderPass = RenderPass.StaticOverlay;
-            MeshBatchRenderer.Render(renderStaticOverlays, renderContext);
-
-#if DEBUG
-            const string RenderAfterOpaque = "AfterOpaque Render";
-            GL.PopDebugGroup();
-            GL.PushDebugGroup(DebugSourceExternal.DebugSourceApplication, 0, RenderAfterOpaque.Length, RenderAfterOpaque);
-#endif
-
-            renderContext.RenderPass = RenderPass.AfterOpaque;
-            foreach (var request in renderLooseNodes)
+            using (new GLDebugGroup("Opaque Render"))
             {
-                request.Node.Render(renderContext);
+                renderContext.RenderPass = RenderPass.Opaque;
+                MeshBatchRenderer.Render(renderOpaqueDrawCalls, renderContext);
             }
 
-#if DEBUG
-            GL.PopDebugGroup();
-#endif
+            using (new GLDebugGroup("StaticOverlay Render"))
+            {
+                renderContext.RenderPass = RenderPass.StaticOverlay;
+                MeshBatchRenderer.Render(renderStaticOverlays, renderContext);
+            }
+
+            using (new GLDebugGroup("AfterOpaque RenderLoose"))
+            {
+                renderContext.RenderPass = RenderPass.AfterOpaque;
+                foreach (var request in renderLooseNodes)
+                {
+                    request.Node.Render(renderContext);
+                }
+            }
         }
 
         public void RenderTranslucentLayer(RenderContext renderContext)
         {
-#if DEBUG
-            const string RenderTranslucentLoose = "Translucent RenderLoose";
-            GL.PushDebugGroup(DebugSourceExternal.DebugSourceApplication, 0, RenderTranslucentLoose.Length, RenderTranslucentLoose);
-#endif
-
-            renderContext.RenderPass = RenderPass.Translucent;
-            foreach (var request in renderLooseNodes)
+            using (new GLDebugGroup("Translucent RenderLoose"))
             {
-                request.Node.Render(renderContext);
+                renderContext.RenderPass = RenderPass.Translucent;
+                foreach (var request in renderLooseNodes)
+                {
+                    request.Node.Render(renderContext);
+                }
             }
 
-#if DEBUG
-            const string RenderTranslucent = "Translucent Render";
-            GL.PopDebugGroup();
-            GL.PushDebugGroup(DebugSourceExternal.DebugSourceApplication, 0, RenderTranslucent.Length, RenderTranslucent);
-#endif
-
-            MeshBatchRenderer.Render(renderTranslucentDrawCalls, renderContext);
-
-#if DEBUG
-            GL.PopDebugGroup();
-#endif
+            using (new GLDebugGroup("Translucent Render"))
+            {
+                MeshBatchRenderer.Render(renderTranslucentDrawCalls, renderContext);
+            }
         }
 
         public void SetEnabledLayers(HashSet<string> layers)
@@ -350,7 +325,7 @@ namespace GUI.Types.Renderer
 
         public void SetFogConstants(ViewConstants viewConstants)
         {
-            FogInfo.SetFogUniforms(viewConstants, FogEnabled, WorldOffset, WorldScale);
+            FogInfo.SetFogUniforms(viewConstants, FogEnabled);
         }
 
         public void CalculateEnvironmentMaps()

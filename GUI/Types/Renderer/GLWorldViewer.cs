@@ -77,9 +77,9 @@ namespace GUI.Types.Renderer
 
             if (!isSetRequest)
             {
-                var loc = Scene.MainCamera.Location;
-                pitch = -1.0f * Scene.MainCamera.Pitch * 180.0f / MathF.PI;
-                yaw = Scene.MainCamera.Yaw * 180.0f / MathF.PI;
+                var loc = Camera.Location;
+                pitch = -1.0f * Camera.Pitch * 180.0f / MathF.PI;
+                yaw = Camera.Yaw * 180.0f / MathF.PI;
 
                 Clipboard.SetText($"setpos {loc.X:F6} {loc.Y:F6} {loc.Z:F6}; setang {pitch:F6} {yaw:F6} 0.0");
 
@@ -106,7 +106,7 @@ namespace GUI.Types.Renderer
                 yaw = float.Parse(ang.Groups["yaw"].Value, CultureInfo.InvariantCulture) * MathF.PI / 180f;
             }
 
-            Scene.MainCamera.SetLocationPitchYaw(new Vector3(x, y, z), pitch, yaw);
+            Camera.SetLocationPitchYaw(new Vector3(x, y, z), pitch, yaw);
         }
 
         private void OnRestoreCameraRequest(object sender, RestoreCameraRequestEvent e)
@@ -115,7 +115,7 @@ namespace GUI.Types.Renderer
             {
                 if (savedFloats.Length == 5)
                 {
-                    Scene.MainCamera.SetLocationPitchYaw(
+                    Camera.SetLocationPitchYaw(
                         new Vector3(savedFloats[0], savedFloats[1], savedFloats[2]),
                         savedFloats[3],
                         savedFloats[4]);
@@ -125,7 +125,7 @@ namespace GUI.Types.Renderer
 
         private void OnSaveCameraRequest(object sender, EventArgs e)
         {
-            var cam = Scene.MainCamera;
+            var cam = Camera;
             var saveName = $"Camera at {cam.Location.X:F0} {cam.Location.Y:F0} {cam.Location.Z:F0}";
             var originalName = saveName;
             var duplicateCameraIndex = 1;
@@ -158,9 +158,7 @@ namespace GUI.Types.Renderer
                 if (result.SkyboxScene != null)
                 {
                     SkyboxScene = result.SkyboxScene;
-                    SkyboxScene.MainCamera = skyboxCamera;
                     SkyboxScene.FogInfo = Scene.FogInfo;
-                    skyboxCamera.Scale = SkyboxScene.WorldScale;
 
                     AddCheckBox("Show Skybox", ShowSkybox, (v) => ShowSkybox = v);
                 }
@@ -210,7 +208,7 @@ namespace GUI.Types.Renderer
                             {
                                 if (result.CameraMatrices.TryGetValue(cameraName, out var cameraMatrix))
                                 {
-                                    Scene.MainCamera.SetFromTransformMatrix(cameraMatrix);
+                                    Camera.SetFromTransformMatrix(cameraMatrix);
                                 }
                             }
                         });
@@ -342,7 +340,7 @@ namespace GUI.Types.Renderer
                 return;
             }
 
-            Matrix4x4.Invert(sceneNode.Transform * Scene.MainCamera.CameraViewMatrix, out var transform);
+            Matrix4x4.Invert(sceneNode.Transform * Camera.CameraViewMatrix, out var transform);
 
             FullScreenForm?.Close();
 

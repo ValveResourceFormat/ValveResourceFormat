@@ -1,3 +1,4 @@
+
 namespace GUI.Types.Renderer
 {
     /// <summary>
@@ -74,15 +75,15 @@ namespace GUI.Types.Renderer
 
         // Pass data to shader
 
-        public void SetFogUniforms(UniformBuffers.ViewConstants viewConstants, bool viewerFogEnabled, Vector3 worldOffset, float mapScale)
+        public void SetFogUniforms(UniformBuffers.ViewConstants viewConstants, bool viewerFogEnabled)
         {
             if (GradientFogActive)
             {
                 viewConstants.FogTypeEnabled[1] = viewerFogEnabled && GradientFogActive;
-                viewConstants.GradientFogBiasAndScale = GradientFog.GetBiasAndScale(worldOffset, mapScale);
+                viewConstants.GradientFogBiasAndScale = GradientFog.GetBiasAndScale();
                 viewConstants.GradientFogColor_Opacity = GradientFog.Color_Opacity;
                 viewConstants.GradientFogExponents = GradientFog.Exponents;
-                viewConstants.GradientFogCullingParams = GradientFog.CullingParams(worldOffset, mapScale);
+                viewConstants.GradientFogCullingParams = GradientFog.CullingParams;
             }
             else // Defaults
             {
@@ -96,9 +97,9 @@ namespace GUI.Types.Renderer
             if (CubeFogActive)
             {
                 viewConstants.FogTypeEnabled[2] = viewerFogEnabled && CubeFogActive;
-                viewConstants.CubeFog_Offset_Scale_Bias_Exponent = CubemapFog.OffsetScaleBiasExponent(mapScale);
-                viewConstants.CubeFog_Height_Offset_Scale_Exponent_Log2Mip = CubemapFog.Height_OffsetScaleExponentLog2Mip(worldOffset, mapScale);
-                viewConstants.CubeFogCullingParams_ExposureBias_MaxOpacity = CubemapFog.CullingParams_Opacity(worldOffset, mapScale);
+                viewConstants.CubeFog_Offset_Scale_Bias_Exponent = CubemapFog.OffsetScaleBiasExponent();
+                viewConstants.CubeFog_Height_Offset_Scale_Exponent_Log2Mip = CubemapFog.Height_OffsetScaleExponentLog2Mip();
+                viewConstants.CubeFogCullingParams_ExposureBias_MaxOpacity = CubemapFog.CullingParams_Opacity();
                 viewConstants.CubeFogSkyWsToOs = CubemapFog.Transform;
             }
             else
