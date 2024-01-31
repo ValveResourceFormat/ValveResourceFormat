@@ -31,7 +31,6 @@ namespace GUI.Types.Renderer
             public Shader ReplacementShader { get; set; }
         }
 
-        public Camera MainCamera { get; set; }
         public WorldLightingInfo LightingInfo { get; }
         public WorldFogInfo FogInfo { get; set; } = new();
         public Dictionary<string, byte> RenderAttributes { get; } = [];

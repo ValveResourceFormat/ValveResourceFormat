@@ -28,7 +28,6 @@ namespace GUI.Types.Renderer
         private bool showStaticOctree;
         private bool showDynamicOctree;
         private Frustum lockedCullFrustum;
-        private Frustum skyboxLockedCullFrustum;
 
         protected UniformBuffer<ViewConstants> viewBuffer;
         private UniformBuffer<LightingConstants> lightingBuffer;
@@ -38,7 +37,6 @@ namespace GUI.Types.Renderer
         private bool skipRenderModeChange;
         private ComboBox renderModeComboBox;
         private InfiniteGrid baseGrid;
-        protected readonly Camera skyboxCamera = new();
         private OctreeDebugRenderer<SceneNode> staticOctreeRenderer;
         private OctreeDebugRenderer<SceneNode> dynamicOctreeRenderer;
         protected SelectedNodeRenderer selectedNodeRenderer;
@@ -60,28 +58,12 @@ namespace GUI.Types.Renderer
 
         protected GLSceneViewer(VrfGuiContext guiContext) : base(guiContext)
         {
-            Scene = new Scene(guiContext)
-            {
-                MainCamera = Camera
-            };
+            Scene = new Scene(guiContext);
 
             InitializeControl();
             AddCheckBox("Lock Cull Frustum", false, (v) =>
             {
-                if (v)
-                {
-                    lockedCullFrustum = Scene.MainCamera.ViewFrustum.Clone();
-
-                    if (SkyboxScene != null)
-                    {
-                        skyboxLockedCullFrustum = SkyboxScene.MainCamera.ViewFrustum.Clone();
-                    }
-                }
-                else
-                {
-                    lockedCullFrustum = null;
-                    skyboxLockedCullFrustum = null;
-                }
+                lockedCullFrustum = v ? Camera.ViewFrustum.Clone() : null;
             });
             AddCheckBox("Show Static Octree", showStaticOctree, (v) =>
             {
@@ -270,17 +252,12 @@ namespace GUI.Types.Renderer
 #endif
 
             Scene.Update(e.FrameTime);
-
-            if (SkyboxScene != null)
-            {
-                SkyboxScene.Update(e.FrameTime);
-                skyboxCamera.CopyFrom(Camera);
-            }
+            SkyboxScene?.Update(e.FrameTime);
 
             selectedNodeRenderer.Update(new Scene.UpdateContext(e.FrameTime));
 
             Scene.CollectSceneDrawCalls(Camera, lockedCullFrustum);
-            SkyboxScene?.CollectSceneDrawCalls(skyboxCamera, skyboxLockedCullFrustum);
+            SkyboxScene?.CollectSceneDrawCalls(Camera, lockedCullFrustum);
 
 #if DEBUG
             const string ScenesRender = "Scenes Render";
@@ -374,9 +351,7 @@ namespace GUI.Types.Renderer
                 GL.PushDebugGroup(DebugSourceExternal.DebugSourceApplication, 1, SkySceneRender.Length, SkySceneRender);
 #endif
 
-                renderContext.Camera = skyboxCamera;
-
-                UpdateSceneBuffersGpu(SkyboxScene, skyboxCamera);
+                UpdateSceneBuffersGpu(SkyboxScene, Camera);
                 renderContext.Scene = SkyboxScene;
 
                 SkyboxScene.RenderOpaqueLayer(renderContext);

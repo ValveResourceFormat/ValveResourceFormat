@@ -307,7 +307,7 @@ namespace GUI.Types.Renderer
                                     .Controls.OfType<GLViewerControl>().First();
                                 if (glViewer is not null)
                                 {
-                                    glViewer.GLPostLoad = (viewerControl) => viewerControl.Camera.CopyFrom(Scene.MainCamera);
+                                    glViewer.GLPostLoad = (viewerControl) => viewerControl.Camera.CopyFrom(Camera);
                                 }
                             },
                         CancellationToken.None,
