@@ -920,6 +920,11 @@ namespace GUI.Types.Renderer
                 }
             }
 
+            foreach (var envmap in SkyboxScene.LightingInfo.EnvMaps)
+            {
+                envmap.Transform *= Matrix4x4.CreateTranslation(-skyboxResult.WorldOffset) * Matrix4x4.CreateScale(skyboxResult.WorldScale);
+            }
+
             guiContext.FileLoader.RemovePackageFromSearch(package);
         }
 
