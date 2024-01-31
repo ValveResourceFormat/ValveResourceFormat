@@ -167,7 +167,7 @@ namespace GUI.Types.Renderer
 
                 Skybox2dScene = result.Skybox2dScene;
 
-                var uniqueWorldLayers = new HashSet<string>(2); // world_layer_base + Entities
+                var uniqueWorldLayers = new HashSet<string>(4);
                 var uniquePhysicsGroups = new HashSet<string>();
 
                 foreach (var node in Scene.AllNodes)

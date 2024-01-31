@@ -19,7 +19,7 @@ namespace GUI.Types.Renderer
 
         public List<EntityLump.Entity> Entities { get; } = [];
 
-        public HashSet<string> DefaultEnabledLayers { get; } = ["Entities"];
+        public HashSet<string> DefaultEnabledLayers { get; } = ["Entities", "Particles"];
 
         public Dictionary<string, Matrix4x4> CameraMatrices { get; } = [];
 
@@ -652,7 +652,7 @@ namespace GUI.Types.Renderer
                             var particleNode = new ParticleSceneNode(scene, particleSystem)
                             {
                                 Transform = Matrix4x4.CreateTranslation(origin),
-                                LayerName = layerName,
+                                LayerName = "Particles",
                                 EntityData = entity,
                             };
                             scene.Add(particleNode, true);
