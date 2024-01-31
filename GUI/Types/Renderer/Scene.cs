@@ -346,7 +346,7 @@ namespace GUI.Types.Renderer
 
         public void SetFogConstants(ViewConstants viewConstants)
         {
-            FogInfo.SetFogUniforms(viewConstants, FogEnabled, Vector3.Zero, 1f);
+            FogInfo.SetFogUniforms(viewConstants, FogEnabled);
         }
 
         public void CalculateEnvironmentMaps()
