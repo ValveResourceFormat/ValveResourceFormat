@@ -362,17 +362,20 @@ namespace GUI.Types.Renderer
 
             GL.Enable(EnableCap.PolygonOffsetLine);
             GL.Enable(EnableCap.PolygonOffsetFill);
-            GL.PolygonOffset(-1, -1);
+            GL.PolygonOffsetClamp(0, 96, 0.0005f);
 
             //GL.LineWidth(1.5f);
             GL.DrawElements(PrimitiveType.Lines, indexCount, DrawElementsType.UnsignedInt, 0);
 
             // triangles
-            GL.DrawElements(PrimitiveType.Triangles, indexCount, DrawElementsType.UnsignedInt, 0);
+            GL.Disable(EnableCap.CullFace);
+            GL.DrawElements(PrimitiveType.TrianglesAdjacency, indexCount, DrawElementsType.UnsignedInt, 0);
 
             GL.Disable(EnableCap.Blend);
             GL.Disable(EnableCap.PolygonOffsetLine);
             GL.Disable(EnableCap.PolygonOffsetFill);
+            GL.PolygonOffsetClamp(0, 0, 0);
+            GL.Disable(EnableCap.CullFace);
             GL.DepthMask(true);
 
             GL.UseProgram(0);
