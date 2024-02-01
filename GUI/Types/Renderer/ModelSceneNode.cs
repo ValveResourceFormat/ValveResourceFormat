@@ -89,37 +89,39 @@ namespace GUI.Types.Renderer
                 return;
             }
 
-            UpdateBoundingBox(); // Reset back to the mesh bbox
-
-            var newBoundingBox = LocalBoundingBox;
-
-            // Update animation matrices
-
-            var floatBuffer = ArrayPool<float>.Shared.Rent(animationTexture.Height * 16);
-            var matrices = MemoryMarshal.Cast<float, Matrix4x4>(floatBuffer);
-
             var frame = AnimationController.GetFrame();
 
-            try
+            if (animationTexture != null)
             {
-                Animation.GetAnimationMatrices(matrices, frame, AnimationController.FrameCache.Skeleton);
+                // Update animation matrices
 
-                // Update animation texture
-                GL.TextureSubImage2D(animationTexture.Handle, 0, 0, 0, animationTexture.Width, animationTexture.Height, PixelFormat.Rgba, PixelType.Float, floatBuffer);
+                var floatBuffer = ArrayPool<float>.Shared.Rent(animationTexture.Height * 16);
+                var matrices = MemoryMarshal.Cast<float, Matrix4x4>(floatBuffer);
 
-                var first = true;
-                foreach (var matrix in matrices)
+                UpdateBoundingBox(); // Reset back to the mesh bbox
+                var newBoundingBox = LocalBoundingBox;
+
+                try
                 {
-                    var bbox = LocalBoundingBox.Transform(matrix);
-                    newBoundingBox = first ? bbox : newBoundingBox.Union(bbox);
-                    first = false;
-                }
+                    Animation.GetAnimationMatrices(matrices, frame, AnimationController.FrameCache.Skeleton);
 
-                LocalBoundingBox = newBoundingBox;
-            }
-            finally
-            {
-                ArrayPool<float>.Shared.Return(floatBuffer);
+                    // Update animation texture
+                    GL.TextureSubImage2D(animationTexture.Handle, 0, 0, 0, animationTexture.Width, animationTexture.Height, PixelFormat.Rgba, PixelType.Float, floatBuffer);
+
+                    var first = true;
+                    foreach (var matrix in matrices)
+                    {
+                        var bbox = LocalBoundingBox.Transform(matrix);
+                        newBoundingBox = first ? bbox : newBoundingBox.Union(bbox);
+                        first = false;
+                    }
+
+                    LocalBoundingBox = newBoundingBox;
+                }
+                finally
+                {
+                    ArrayPool<float>.Shared.Return(floatBuffer);
+                }
             }
 
             //Update morphs
@@ -234,7 +236,7 @@ namespace GUI.Types.Renderer
 
         private void SetupAnimationTextures()
         {
-            if (animationTexture != null)
+            if (bonesCount == 0 || animationTexture != null)
             {
                 return;
             }
