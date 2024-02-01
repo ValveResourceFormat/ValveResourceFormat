@@ -190,7 +190,7 @@ namespace GUI.Controls
         internal void AddFolderNode(string directoryName)
         {
             var root = mainTreeView.Nodes[0] as BetterTreeNode;
-            BetterTreeView.AddFolderNode(root, directoryName, 0u);
+            mainTreeView.AddFolderNode(root, directoryName, 0u);
         }
 
         internal void AddFileNode(PackageEntry file)

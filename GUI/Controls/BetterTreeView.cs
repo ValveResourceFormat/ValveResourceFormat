@@ -1,6 +1,8 @@
+using System.Buffers;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -18,6 +20,7 @@ namespace GUI.Controls
     partial class BetterTreeView : TreeView
     {
         private Dictionary<string, int> ExtensionIconList;
+        private int FolderImage;
 
         public VrfGuiContext VrfGuiContext { get; set; }
 
@@ -326,24 +329,24 @@ namespace GUI.Controls
 
                 ExtensionIconList.Add(originalExtension, image);
             }
+
+            FolderImage = MainForm.ImageListLookup["_folder"];
         }
 
-        public static BetterTreeNode AddFolderNode(BetterTreeNode currentNode, string directory, uint size)
+        public BetterTreeNode AddFolderNode(BetterTreeNode currentNode, string directory, uint size)
         {
-            var folderImage = MainForm.ImageListLookup["_folder"];
-            var subPaths = directory.Split(Package.DirectorySeparatorChar);
-
-            foreach (var subPath in subPaths)
+            foreach (var subPathSpan in directory.AsSpan().Split([Package.DirectorySeparatorChar]))
             {
-                var subNode = (BetterTreeNode)currentNode.Nodes[subPath];
+                var subPath = subPathSpan.ToString();
+                var subNode = Unsafe.As<BetterTreeNode>(currentNode.Nodes[subPath]);
 
                 if (subNode == null)
                 {
                     var toAdd = new BetterTreeNode(subPath, size)
                     {
                         Name = subPath,
-                        ImageIndex = folderImage,
-                        SelectedImageIndex = folderImage,
+                        ImageIndex = FolderImage,
+                        SelectedImageIndex = FolderImage,
                     };
                     currentNode.Nodes.Add(toAdd);
                     currentNode = toAdd;
