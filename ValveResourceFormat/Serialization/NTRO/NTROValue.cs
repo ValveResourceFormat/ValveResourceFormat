@@ -44,7 +44,7 @@ namespace ValveResourceFormat.Serialization.NTRO
                 SchemaFieldType.Int64 => new KVValue(KVType.INT64, Value),
                 SchemaFieldType.UInt64 => new KVValue(KVType.UINT64, Value),
                 SchemaFieldType.Float => new KVValue(KVType.DOUBLE, (double)(float)(object)Value),
-                SchemaFieldType.Vector2D => MakeArray<float>(Value, Type, KVType.DOUBLE, 2),
+                //SchemaFieldType.Vector2D => MakeArray<float>(Value, Type, KVType.DOUBLE, 2), // this is actually vector4[2]
                 SchemaFieldType.Vector3D => MakeArray<float>(Value, Type, KVType.DOUBLE, 3),
                 SchemaFieldType.Vector4D => MakeArray<float>(Value, Type, KVType.DOUBLE, 4),
                 SchemaFieldType.Quaternion => throw new NotImplementedException(),
