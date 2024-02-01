@@ -188,6 +188,10 @@ namespace ValveResourceFormat.Serialization.NTRO
                         return ((byte[])value.ValueObject).Select(v => (T)(object)v).ToArray();
                     }
                 }
+                else if (value is NTROValue<NTROStruct> valueStruct)
+                {
+                    return valueStruct.Value.Contents.Values.Select(v => (T)v.ValueObject).ToArray();
+                }
                 else
                 {
                     return ((NTROArray)value).Select(v => (T)v.ValueObject).ToArray();
