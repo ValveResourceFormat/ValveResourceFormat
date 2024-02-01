@@ -244,7 +244,7 @@ namespace GUI.Controls
 
                     foreach (var file in foundFiles)
                     {
-                        mainTreeView.AddFileNode(root, file, skipDeletedRootFolder: true);
+                        mainTreeView.AddFileNode(root, file);
                     }
 
                     root.Expand();

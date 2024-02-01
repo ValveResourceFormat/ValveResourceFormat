@@ -328,18 +328,13 @@ namespace GUI.Controls
             }
         }
 
-        public static BetterTreeNode AddFolderNode(BetterTreeNode currentNode, string directory, uint size, bool skipDeletedRootFolder = false)
+        public static BetterTreeNode AddFolderNode(BetterTreeNode currentNode, string directory, uint size)
         {
             var folderImage = MainForm.ImageListLookup["_folder"];
             var subPaths = directory.Split(Package.DirectorySeparatorChar);
 
             foreach (var subPath in subPaths)
             {
-                if (skipDeletedRootFolder && subPath == Types.Viewers.Package.DELETED_FILES_FOLDER)
-                {
-                    continue;
-                }
-
                 var subNode = (BetterTreeNode)currentNode.Nodes[subPath];
 
                 if (subNode == null)
@@ -368,13 +363,12 @@ namespace GUI.Controls
         /// </summary>
         /// <param name="currentNode">Root node.</param>
         /// <param name="file">File entry.</param>
-        /// <param name="skipDeletedRootFolder">If true, ignore root folder for recovered deleted files.</param>
         /// <param name="manualAdd">When a file is being added after initial render, lookup icon directly.</param>
-        public void AddFileNode(BetterTreeNode currentNode, PackageEntry file, bool skipDeletedRootFolder = false, bool manualAdd = false)
+        public void AddFileNode(BetterTreeNode currentNode, PackageEntry file, bool manualAdd = false)
         {
             if (!string.IsNullOrWhiteSpace(file.DirectoryName))
             {
-                currentNode = AddFolderNode(currentNode, file.DirectoryName, file.TotalLength, skipDeletedRootFolder);
+                currentNode = AddFolderNode(currentNode, file.DirectoryName, file.TotalLength);
             }
 
             var fileName = file.GetFileName();

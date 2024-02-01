@@ -17,7 +17,6 @@ namespace GUI.Types.Viewers
     class Package : IViewer
 #pragma warning restore CA1001
     {
-        internal const string DELETED_FILES_FOLDER = "@@ Deleted Files @@";
         private VrfGuiContext VrfGuiContext;
         private TreeViewWithSearchResults TreeView;
         private BetterTreeNode LastContextTreeNode;
@@ -269,7 +268,7 @@ namespace GUI.Types.Viewers
                         var newEntry = new PackageEntry
                         {
                             FileName = $"Archive {archiveIndex:D3} File {hiddenIndex}",
-                            DirectoryName = DELETED_FILES_FOLDER,
+                            DirectoryName = "Undetected filenames",
                             TypeName = " ",
                             CRC32 = 0,
                             SmallData = [],
@@ -334,7 +333,7 @@ namespace GUI.Types.Viewers
 
                             if (filepath != null)
                             {
-                                newEntry.DirectoryName = Path.Join(DELETED_FILES_FOLDER, Path.GetDirectoryName(filepath)).Replace('\\', SteamDatabase.ValvePak.Package.DirectorySeparatorChar);
+                                newEntry.DirectoryName = Path.GetDirectoryName(filepath).Replace('\\', SteamDatabase.ValvePak.Package.DirectorySeparatorChar);
                                 newEntry.FileName = Path.GetFileNameWithoutExtension(filepath);
                             }
                             else
