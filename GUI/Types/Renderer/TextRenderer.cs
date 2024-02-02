@@ -97,10 +97,10 @@ namespace GUI.Types.Renderer
             var letters = 0;
             var verticesSize = text.Length * Vertex.Size * 4;
             var vertexBuffer = ArrayPool<float>.Shared.Rent(verticesSize);
-            var vertices = MemoryMarshal.Cast<float, Vertex>(vertexBuffer);
 
             try
             {
+                var vertices = MemoryMarshal.Cast<float, Vertex>(vertexBuffer);
                 var i = 0;
 
                 foreach (var c in text)
@@ -139,7 +139,8 @@ namespace GUI.Types.Renderer
                     x += metrics.Advance * scale;
                 }
 
-                GL.BufferData(BufferTarget.ArrayBuffer, verticesSize * sizeof(float), vertexBuffer, BufferUsageHint.DynamicDraw);
+                verticesSize = i * Vertex.Size * sizeof(float);
+                GL.BufferData(BufferTarget.ArrayBuffer, verticesSize, vertexBuffer, BufferUsageHint.DynamicDraw);
             }
             finally
             {
