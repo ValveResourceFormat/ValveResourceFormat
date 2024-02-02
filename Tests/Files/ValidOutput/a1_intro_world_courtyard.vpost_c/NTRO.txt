@@ -1,0 +1,449 @@
+CResourceIntrospectionManifest
+{
+    uint32 m_nIntrospectionVersion = 0x00000004
+    Struct m_ReferencedStructs[4] =
+    [
+        CResourceDiskStruct
+        {
+            uint32 m_nIntrospectionVersion = 0x00000004
+            uint32 m_nId = 0xE0D16CBF
+            CResourceString m_pName = "PostProcessingResource_t"
+            uint32 m_nDiskCrc = 0xD0825FA4
+            int32 m_nUserVersion = 0
+            uint16 m_nDiskSize = 0x00CC
+            uint16 m_nAlignment = 0x0004
+            uint32 m_nBaseStructId = 0x00000000
+            Struct m_FieldIntrospection[8] =
+            [
+                CResourceDiskStructField
+                {
+                    CResourceString m_pFieldName = "m_bHasTonemapParams"
+                    int16 m_nCount = 0
+                    int16 m_nOnDiskOffset = 0
+                    uint8[0] m_Indirection =
+                    [
+                    ]
+                    uint32 m_nTypeData = 0x00000000
+                    int16 m_nType = 30
+                }
+                CResourceDiskStructField
+                {
+                    CResourceString m_pFieldName = "m_toneMapParams"
+                    int16 m_nCount = 0
+                    int16 m_nOnDiskOffset = 4
+                    uint8[0] m_Indirection =
+                    [
+                    ]
+                    uint32 m_nTypeData = 0xB6001891
+                    int16 m_nType = 1
+                }
+                CResourceDiskStructField
+                {
+                    CResourceString m_pFieldName = "m_bHasBloomParams"
+                    int16 m_nCount = 0
+                    int16 m_nOnDiskOffset = 36
+                    uint8[0] m_Indirection =
+                    [
+                    ]
+                    uint32 m_nTypeData = 0x00000000
+                    int16 m_nType = 30
+                }
+                CResourceDiskStructField
+                {
+                    CResourceString m_pFieldName = "m_bloomParams"
+                    int16 m_nCount = 0
+                    int16 m_nOnDiskOffset = 40
+                    uint8[0] m_Indirection =
+                    [
+                    ]
+                    uint32 m_nTypeData = 0x5F4FBF07
+                    int16 m_nType = 1
+                }
+                CResourceDiskStructField
+                {
+                    CResourceString m_pFieldName = "m_bHasVignetteParams"
+                    int16 m_nCount = 0
+                    int16 m_nOnDiskOffset = 152
+                    uint8[0] m_Indirection =
+                    [
+                    ]
+                    uint32 m_nTypeData = 0x00000000
+                    int16 m_nType = 30
+                }
+                CResourceDiskStructField
+                {
+                    CResourceString m_pFieldName = "m_vignetteParams"
+                    int16 m_nCount = 0
+                    int16 m_nOnDiskOffset = 156
+                    uint8[0] m_Indirection =
+                    [
+                    ]
+                    uint32 m_nTypeData = 0xC604171C
+                    int16 m_nType = 1
+                }
+                CResourceDiskStructField
+                {
+                    CResourceString m_pFieldName = "m_nColorCorrectionVolumeDim"
+                    int16 m_nCount = 0
+                    int16 m_nOnDiskOffset = 192
+                    uint8[0] m_Indirection =
+                    [
+                    ]
+                    uint32 m_nTypeData = 0x00000000
+                    int16 m_nType = 14
+                }
+                CResourceDiskStructField
+                {
+                    CResourceString m_pFieldName = "m_colorCorrectionVolumeData"
+                    int16 m_nCount = 0
+                    int16 m_nOnDiskOffset = 196
+                    uint8[1] m_Indirection =
+                    [
+                        04
+                    ]
+                    uint32 m_nTypeData = 0x00000000
+                    int16 m_nType = 28
+                }
+            ]
+            uint8 m_nStructFlags = 0x00
+        }
+        CResourceDiskStruct
+        {
+            uint32 m_nIntrospectionVersion = 0x00000004
+            uint32 m_nId = 0xB6001891
+            CResourceString m_pName = "PostProcessingTonemapParameters_t"
+            uint32 m_nDiskCrc = 0xF9E9352F
+            int32 m_nUserVersion = 0
+            uint16 m_nDiskSize = 0x0020
+            uint16 m_nAlignment = 0x0004
+            uint32 m_nBaseStructId = 0x00000000
+            Struct m_FieldIntrospection[8] =
+            [
+                CResourceDiskStructField
+                {
+                    CResourceString m_pFieldName = "m_flExposureBias"
+                    int16 m_nCount = 0
+                    int16 m_nOnDiskOffset = 0
+                    uint8[0] m_Indirection =
+                    [
+                    ]
+                    uint32 m_nTypeData = 0x00000000
+                    int16 m_nType = 18
+                }
+                CResourceDiskStructField
+                {
+                    CResourceString m_pFieldName = "m_flShoulderStrength"
+                    int16 m_nCount = 0
+                    int16 m_nOnDiskOffset = 4
+                    uint8[0] m_Indirection =
+                    [
+                    ]
+                    uint32 m_nTypeData = 0x00000000
+                    int16 m_nType = 18
+                }
+                CResourceDiskStructField
+                {
+                    CResourceString m_pFieldName = "m_flLinearStrength"
+                    int16 m_nCount = 0
+                    int16 m_nOnDiskOffset = 8
+                    uint8[0] m_Indirection =
+                    [
+                    ]
+                    uint32 m_nTypeData = 0x00000000
+                    int16 m_nType = 18
+                }
+                CResourceDiskStructField
+                {
+                    CResourceString m_pFieldName = "m_flLinearAngle"
+                    int16 m_nCount = 0
+                    int16 m_nOnDiskOffset = 12
+                    uint8[0] m_Indirection =
+                    [
+                    ]
+                    uint32 m_nTypeData = 0x00000000
+                    int16 m_nType = 18
+                }
+                CResourceDiskStructField
+                {
+                    CResourceString m_pFieldName = "m_flToeStrength"
+                    int16 m_nCount = 0
+                    int16 m_nOnDiskOffset = 16
+                    uint8[0] m_Indirection =
+                    [
+                    ]
+                    uint32 m_nTypeData = 0x00000000
+                    int16 m_nType = 18
+                }
+                CResourceDiskStructField
+                {
+                    CResourceString m_pFieldName = "m_flToeNum"
+                    int16 m_nCount = 0
+                    int16 m_nOnDiskOffset = 20
+                    uint8[0] m_Indirection =
+                    [
+                    ]
+                    uint32 m_nTypeData = 0x00000000
+                    int16 m_nType = 18
+                }
+                CResourceDiskStructField
+                {
+                    CResourceString m_pFieldName = "m_flToeDenom"
+                    int16 m_nCount = 0
+                    int16 m_nOnDiskOffset = 24
+                    uint8[0] m_Indirection =
+                    [
+                    ]
+                    uint32 m_nTypeData = 0x00000000
+                    int16 m_nType = 18
+                }
+                CResourceDiskStructField
+                {
+                    CResourceString m_pFieldName = "m_flWhitePoint"
+                    int16 m_nCount = 0
+                    int16 m_nOnDiskOffset = 28
+                    uint8[0] m_Indirection =
+                    [
+                    ]
+                    uint32 m_nTypeData = 0x00000000
+                    int16 m_nType = 18
+                }
+            ]
+            uint8 m_nStructFlags = 0x00
+        }
+        CResourceDiskStruct
+        {
+            uint32 m_nIntrospectionVersion = 0x00000004
+            uint32 m_nId = 0x5F4FBF07
+            CResourceString m_pName = "PostProcessingBloomParameters_t"
+            uint32 m_nDiskCrc = 0x91989ED1
+            int32 m_nUserVersion = 0
+            uint16 m_nDiskSize = 0x0070
+            uint16 m_nAlignment = 0x0004
+            uint32 m_nBaseStructId = 0x00000000
+            Struct m_FieldIntrospection[10] =
+            [
+                CResourceDiskStructField
+                {
+                    CResourceString m_pFieldName = "m_blendMode"
+                    int16 m_nCount = 0
+                    int16 m_nOnDiskOffset = 0
+                    uint8[0] m_Indirection =
+                    [
+                    ]
+                    uint32 m_nTypeData = 0x4517CEB7
+                    int16 m_nType = 2
+                }
+                CResourceDiskStructField
+                {
+                    CResourceString m_pFieldName = "m_flBloomStrength"
+                    int16 m_nCount = 0
+                    int16 m_nOnDiskOffset = 4
+                    uint8[0] m_Indirection =
+                    [
+                    ]
+                    uint32 m_nTypeData = 0x00000000
+                    int16 m_nType = 18
+                }
+                CResourceDiskStructField
+                {
+                    CResourceString m_pFieldName = "m_flScreenBloomStrength"
+                    int16 m_nCount = 0
+                    int16 m_nOnDiskOffset = 8
+                    uint8[0] m_Indirection =
+                    [
+                    ]
+                    uint32 m_nTypeData = 0x00000000
+                    int16 m_nType = 18
+                }
+                CResourceDiskStructField
+                {
+                    CResourceString m_pFieldName = "m_flBlurBloomStrength"
+                    int16 m_nCount = 0
+                    int16 m_nOnDiskOffset = 12
+                    uint8[0] m_Indirection =
+                    [
+                    ]
+                    uint32 m_nTypeData = 0x00000000
+                    int16 m_nType = 18
+                }
+                CResourceDiskStructField
+                {
+                    CResourceString m_pFieldName = "m_flBloomThreshold"
+                    int16 m_nCount = 0
+                    int16 m_nOnDiskOffset = 16
+                    uint8[0] m_Indirection =
+                    [
+                    ]
+                    uint32 m_nTypeData = 0x00000000
+                    int16 m_nType = 18
+                }
+                CResourceDiskStructField
+                {
+                    CResourceString m_pFieldName = "m_flBloomThresholdWidth"
+                    int16 m_nCount = 0
+                    int16 m_nOnDiskOffset = 20
+                    uint8[0] m_Indirection =
+                    [
+                    ]
+                    uint32 m_nTypeData = 0x00000000
+                    int16 m_nType = 18
+                }
+                CResourceDiskStructField
+                {
+                    CResourceString m_pFieldName = "m_flSkyboxBloomStrength"
+                    int16 m_nCount = 0
+                    int16 m_nOnDiskOffset = 24
+                    uint8[0] m_Indirection =
+                    [
+                    ]
+                    uint32 m_nTypeData = 0x00000000
+                    int16 m_nType = 18
+                }
+                CResourceDiskStructField
+                {
+                    CResourceString m_pFieldName = "m_flBloomStartValue"
+                    int16 m_nCount = 0
+                    int16 m_nOnDiskOffset = 28
+                    uint8[0] m_Indirection =
+                    [
+                    ]
+                    uint32 m_nTypeData = 0x00000000
+                    int16 m_nType = 18
+                }
+                CResourceDiskStructField
+                {
+                    CResourceString m_pFieldName = "m_flBlurWeight"
+                    int16 m_nCount = 5
+                    int16 m_nOnDiskOffset = 32
+                    uint8[0] m_Indirection =
+                    [
+                    ]
+                    uint32 m_nTypeData = 0x00000000
+                    int16 m_nType = 18
+                }
+                CResourceDiskStructField
+                {
+                    CResourceString m_pFieldName = "m_vBlurTint"
+                    int16 m_nCount = 5
+                    int16 m_nOnDiskOffset = 52
+                    uint8[0] m_Indirection =
+                    [
+                    ]
+                    uint32 m_nTypeData = 0x00000000
+                    int16 m_nType = 22
+                }
+            ]
+            uint8 m_nStructFlags = 0x00
+        }
+        CResourceDiskStruct
+        {
+            uint32 m_nIntrospectionVersion = 0x00000004
+            uint32 m_nId = 0xC604171C
+            CResourceString m_pName = "PostProcessingVignetteParameters_t"
+            uint32 m_nDiskCrc = 0x13D67981
+            int32 m_nUserVersion = 0
+            uint16 m_nDiskSize = 0x0024
+            uint16 m_nAlignment = 0x0004
+            uint32 m_nBaseStructId = 0x00000000
+            Struct m_FieldIntrospection[6] =
+            [
+                CResourceDiskStructField
+                {
+                    CResourceString m_pFieldName = "m_flVignetteStrength"
+                    int16 m_nCount = 0
+                    int16 m_nOnDiskOffset = 0
+                    uint8[0] m_Indirection =
+                    [
+                    ]
+                    uint32 m_nTypeData = 0x00000000
+                    int16 m_nType = 18
+                }
+                CResourceDiskStructField
+                {
+                    CResourceString m_pFieldName = "m_vCenter"
+                    int16 m_nCount = 0
+                    int16 m_nOnDiskOffset = 4
+                    uint8[0] m_Indirection =
+                    [
+                    ]
+                    uint32 m_nTypeData = 0x00000000
+                    int16 m_nType = 21
+                }
+                CResourceDiskStructField
+                {
+                    CResourceString m_pFieldName = "m_flRadius"
+                    int16 m_nCount = 0
+                    int16 m_nOnDiskOffset = 12
+                    uint8[0] m_Indirection =
+                    [
+                    ]
+                    uint32 m_nTypeData = 0x00000000
+                    int16 m_nType = 18
+                }
+                CResourceDiskStructField
+                {
+                    CResourceString m_pFieldName = "m_flRoundness"
+                    int16 m_nCount = 0
+                    int16 m_nOnDiskOffset = 16
+                    uint8[0] m_Indirection =
+                    [
+                    ]
+                    uint32 m_nTypeData = 0x00000000
+                    int16 m_nType = 18
+                }
+                CResourceDiskStructField
+                {
+                    CResourceString m_pFieldName = "m_flFeather"
+                    int16 m_nCount = 0
+                    int16 m_nOnDiskOffset = 20
+                    uint8[0] m_Indirection =
+                    [
+                    ]
+                    uint32 m_nTypeData = 0x00000000
+                    int16 m_nType = 18
+                }
+                CResourceDiskStructField
+                {
+                    CResourceString m_pFieldName = "m_vColorTint"
+                    int16 m_nCount = 0
+                    int16 m_nOnDiskOffset = 24
+                    uint8[0] m_Indirection =
+                    [
+                    ]
+                    uint32 m_nTypeData = 0x00000000
+                    int16 m_nType = 22
+                }
+            ]
+            uint8 m_nStructFlags = 0x00
+        }
+    ]
+    Struct m_ReferencedEnums[1] =
+    [
+        CResourceDiskEnum
+        {
+            uint32 m_nIntrospectionVersion = 0x00000004
+            uint32 m_nId = 0x4517CEB7
+            CResourceString m_pName = "BloomBlendMode_t"
+            uint32 m_nDiskCrc = 0x20B1D9E4
+            int32 m_nUserVersion = 0
+            Struct m_EnumValueIntrospection[3] =
+            [
+                CResourceDiskEnumValue
+                {
+                    CResourceString m_pEnumValueName = "BLOOM_BLEND_ADD"
+                    int32 m_nEnumValue = 0
+                }
+                CResourceDiskEnumValue
+                {
+                    CResourceString m_pEnumValueName = "BLOOM_BLEND_SCREEN"
+                    int32 m_nEnumValue = 1
+                }
+                CResourceDiskEnumValue
+                {
+                    CResourceString m_pEnumValueName = "BLOOM_BLEND_BLUR"
+                    int32 m_nEnumValue = 2
+                }
+            ]
+        }
+    ]
+}

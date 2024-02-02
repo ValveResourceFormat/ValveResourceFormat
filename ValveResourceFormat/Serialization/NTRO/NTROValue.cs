@@ -33,7 +33,6 @@ namespace ValveResourceFormat.Serialization.NTRO
             {
                 SchemaFieldType.Struct => new KVValue(KVType.OBJECT, (Value as NTROStruct).ToKVObject()),
                 SchemaFieldType.Enum => new KVValue(KVType.UINT64, Value),
-                SchemaFieldType.ExternalReference => throw new NotImplementedException(),
                 SchemaFieldType.Char => new KVValue(KVType.STRING, Value),
                 SchemaFieldType.SByte => new KVValue(KVType.INT64, Value),
                 SchemaFieldType.Byte => new KVValue(KVType.UINT64, Value),
@@ -44,19 +43,13 @@ namespace ValveResourceFormat.Serialization.NTRO
                 SchemaFieldType.Int64 => new KVValue(KVType.INT64, Value),
                 SchemaFieldType.UInt64 => new KVValue(KVType.UINT64, Value),
                 SchemaFieldType.Float => new KVValue(KVType.DOUBLE, (double)(float)(object)Value),
-                //SchemaFieldType.Vector2D => MakeArray<float>(Value, Type, KVType.DOUBLE, 2), // this is actually vector4[2]
+                SchemaFieldType.Vector2D => MakeArray<float>(Value, Type, KVType.DOUBLE, 2),
                 SchemaFieldType.Vector3D => MakeArray<float>(Value, Type, KVType.DOUBLE, 3),
                 SchemaFieldType.Vector4D => MakeArray<float>(Value, Type, KVType.DOUBLE, 4),
-                SchemaFieldType.Quaternion => throw new NotImplementedException(),
-                SchemaFieldType.Fltx4 => throw new NotImplementedException(),
                 SchemaFieldType.Color => MakeArray<byte>(Value, Type, KVType.INT64, 4),
                 SchemaFieldType.Boolean => new KVValue(KVType.BOOLEAN, Value),
                 SchemaFieldType.ResourceString => new KVValue(KVType.STRING, Value),
-                SchemaFieldType.Matrix3x4 => throw new NotImplementedException(),
-                SchemaFieldType.Matrix3x4a => throw new NotImplementedException(),
-                SchemaFieldType.Transform => throw new NotImplementedException(),
-                SchemaFieldType.FourVectors => throw new NotImplementedException(),
-                _ => throw new ArgumentOutOfRangeException(nameof(Type)),
+                _ => throw new NotImplementedException($"Converting {Type} to keyvalues is not implemented."),
             };
 
             static KVValue MakeArray<StructMembersType>(T value, SchemaFieldType type, KVType kvValuesType, int num)
@@ -172,10 +165,8 @@ namespace ValveResourceFormat.Serialization.NTRO
                     break;
 
                 case SchemaFieldType.Vector2D:
-                    var matrix2x4 = Value as NTROStruct;
-                    writer.WriteLine();
-                    writer.WriteLine($"{matrix2x4.GetFloatProperty("0"):F4} {matrix2x4.GetFloatProperty("1"):F4} {matrix2x4.GetFloatProperty("2"):F4} {matrix2x4.GetFloatProperty("3"):F4}");
-                    writer.WriteLine($"{matrix2x4.GetFloatProperty("4"):F4} {matrix2x4.GetFloatProperty("5"):F4} {matrix2x4.GetFloatProperty("6"):F4} {matrix2x4.GetFloatProperty("7"):F4}");
+                    var vector2 = (Value as NTROStruct).ToVector2();
+                    writer.WriteLine($"({vector2.X:F6}, {vector2.Y:F6})");
                     break;
 
                 case SchemaFieldType.Matrix3x4:
