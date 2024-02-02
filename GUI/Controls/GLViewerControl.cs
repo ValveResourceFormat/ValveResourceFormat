@@ -513,6 +513,8 @@ namespace GUI.Controls
             HandleResize();
             GLPostLoad?.Invoke(this);
             GLPostLoad = null;
+
+            lastUpdate = Stopwatch.GetTimestamp();
         }
 
         private void OnPaint(object sender, EventArgs e)
