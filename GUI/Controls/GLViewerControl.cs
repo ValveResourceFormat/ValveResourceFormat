@@ -539,7 +539,8 @@ namespace GUI.Controls
             var elapsed = Stopwatch.GetElapsedTime(lastUpdate, currentTime);
             lastUpdate = currentTime;
 
-            var frameTime = (float)elapsed.TotalSeconds;
+            // Clamp frametime because it is possible to go past 1 second when gl control is paused which may cause issues in things like particle rendering
+            var frameTime = MathF.Min(1f, (float)elapsed.TotalSeconds);
 
             if (MouseOverRenderArea && this is not GLTextureViewer)
             {
