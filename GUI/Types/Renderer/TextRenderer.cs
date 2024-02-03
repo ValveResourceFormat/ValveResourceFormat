@@ -49,39 +49,29 @@ namespace GUI.Types.Renderer
             GL.TextureStorage2D(fontTexture.Handle, 1, SizedInternalFormat.Rgba8, bitmap.Width, bitmap.Height);
             GL.TextureSubImage2D(fontTexture.Handle, 0, 0, 0, bitmap.Width, bitmap.Height, PixelFormat.Bgra, PixelType.UnsignedByte, bitmap.GetPixels());
 
-            // vao
-            GL.UseProgram(shader.Program);
-
-            // Create and bind VAO
-            vao = GL.GenVertexArray();
-            GL.BindVertexArray(vao);
-
-            bufferHandle = GL.GenBuffer();
-            GL.BindBuffer(BufferTarget.ArrayBuffer, bufferHandle);
-            GL.EnableVertexAttribArray(0);
-
+            // Create VAO
             var attributes = new List<(string Name, int Size)>
             {
                 ("vPOSITION", 2),
                 ("vTEXCOORD", 2),
                 ("vCOLOR", 4),
             };
-
             var stride = sizeof(float) * Vertex.Size;
             var offset = 0;
 
-            foreach (var (Name, Size) in attributes)
-            {
-                var attributeLocation = GL.GetAttribLocation(shader.Program, Name);
-                if (attributeLocation > -1)
-                {
-                    GL.EnableVertexAttribArray(attributeLocation);
-                    GL.VertexAttribPointer(attributeLocation, Size, VertexAttribPointerType.Float, false, stride, offset);
-                }
-                offset += sizeof(float) * Size;
-            }
+            GL.CreateVertexArrays(1, out vao);
+            GL.CreateBuffers(1, out bufferHandle);
+            GL.VertexArrayVertexBuffer(vao, 0, bufferHandle, 0, stride);
+            GL.VertexArrayElementBuffer(vao, quadIndices.GLHandle);
 
-            GL.BindVertexArray(0); // Unbind VAO
+            foreach (var (name, size) in attributes)
+            {
+                var attributeLocation = GL.GetAttribLocation(shader.Program, name);
+                GL.EnableVertexArrayAttrib(vao, attributeLocation);
+                GL.VertexArrayAttribFormat(vao, attributeLocation, size, VertexAttribType.Float, false, offset);
+                GL.VertexArrayAttribBinding(vao, attributeLocation, 0);
+                offset += sizeof(float) * size;
+            }
         }
 
         public void SetViewportSize(int viewportWidth, int viewportHeight)
@@ -91,15 +81,6 @@ namespace GUI.Types.Renderer
 
         public void RenderText(float x, float y, float scale, Vector4 color, string text)
         {
-            GL.UseProgram(shader.Program);
-
-            shader.SetUniform4x4("transform", Matrix4x4.CreateOrthographicOffCenter(0f, WindowSize.X, WindowSize.Y, 0f, -100f, 100f));
-            shader.SetTexture(0, "msdf", fontTexture);
-            shader.SetUniform1("g_fRange", TextureRange);
-
-            GL.BindVertexArray(vao);
-            GL.BindBuffer(BufferTarget.ArrayBuffer, bufferHandle);
-
             var letters = 0;
             var verticesSize = text.Length * Vertex.Size * 4;
             var vertexBuffer = ArrayPool<float>.Shared.Rent(verticesSize);
@@ -146,19 +127,26 @@ namespace GUI.Types.Renderer
                 }
 
                 verticesSize = i * Vertex.Size * sizeof(float);
-                GL.BufferData(BufferTarget.ArrayBuffer, verticesSize, vertexBuffer, BufferUsageHint.DynamicDraw);
+                GL.NamedBufferData(bufferHandle, verticesSize, vertexBuffer, BufferUsageHint.DynamicDraw);
             }
             finally
             {
                 ArrayPool<float>.Shared.Return(vertexBuffer);
             }
 
-            GL.BindBuffer(BufferTarget.ElementArrayBuffer, quadIndices.GLHandle);
+            GL.UseProgram(shader.Program);
+
+            shader.SetUniform4x4("transform", Matrix4x4.CreateOrthographicOffCenter(0f, WindowSize.X, WindowSize.Y, 0f, -100f, 100f));
+            shader.SetTexture(0, "msdf", fontTexture);
+            shader.SetUniform1("g_fRange", TextureRange);
 
             GL.DepthMask(false);
             GL.Enable(EnableCap.Blend);
             GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
+
+            GL.BindVertexArray(vao);
             GL.DrawElements(BeginMode.Triangles, letters * 6, DrawElementsType.UnsignedShort, 0);
+
             GL.Disable(EnableCap.Blend);
             GL.DepthMask(true);
         }
