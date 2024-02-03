@@ -9,7 +9,7 @@ namespace GUI.Types.Renderer
     class GPUMeshBufferCache
     {
         private readonly Dictionary<int, GPUMeshBuffers> gpuBuffers = [];
-        private readonly Dictionary<VAOKey, uint> vertexArrayObjects = [];
+        private readonly Dictionary<VAOKey, int> vertexArrayObjects = [];
         private QuadIndexBuffer quadIndices;
 
 
@@ -53,7 +53,7 @@ namespace GUI.Types.Renderer
             }
         }
 
-        public uint GetVertexArrayObject(int key, VertexDrawBuffer curVertexBuffer, RenderMaterial material, uint idxIndex)
+        public int GetVertexArrayObject(int key, VertexDrawBuffer curVertexBuffer, RenderMaterial material, uint idxIndex)
         {
             var gpuVbib = GetVertexIndexBuffers(key, null);
             var vaoKey = new VAOKey
@@ -69,11 +69,9 @@ namespace GUI.Types.Renderer
                 return vaoHandle;
             }
 
-            GL.GenVertexArrays(1, out uint newVaoHandle);
-
-            GL.BindVertexArray(newVaoHandle);
-            GL.BindBuffer(BufferTarget.ArrayBuffer, gpuVbib.VertexBuffers[curVertexBuffer.Id]);
-            GL.BindBuffer(BufferTarget.ElementArrayBuffer, gpuVbib.IndexBuffers[idxIndex]);
+            GL.CreateVertexArrays(1, out int newVaoHandle);
+            GL.VertexArrayVertexBuffer(newVaoHandle, 0, gpuVbib.VertexBuffers[curVertexBuffer.Id], 0, (int)curVertexBuffer.ElementSizeInBytes);
+            GL.VertexArrayElementBuffer(newVaoHandle, gpuVbib.IndexBuffers[idxIndex]);
 
             foreach (var attribute in curVertexBuffer.InputLayoutFields)
             {
@@ -112,67 +110,66 @@ namespace GUI.Types.Renderer
                     continue;
                 }
 
-                BindVertexAttrib(attribute, attributeLocation, (int)curVertexBuffer.ElementSizeInBytes, (IntPtr)attribute.Offset);
+                BindVertexAttrib(newVaoHandle, attribute, attributeLocation, (int)attribute.Offset);
             }
-
-            GL.BindVertexArray(0);
 
             vertexArrayObjects.Add(vaoKey, newVaoHandle);
             return newVaoHandle;
         }
 
-        private static void BindVertexAttrib(VBIB.RenderInputLayoutField attribute, int attributeLocation, int stride, IntPtr offset)
+        private static void BindVertexAttrib(int vao, VBIB.RenderInputLayoutField attribute, int attributeLocation, int offset)
         {
-            GL.EnableVertexAttribArray(attributeLocation);
+            GL.EnableVertexArrayAttrib(vao, attributeLocation);
+            GL.VertexArrayAttribBinding(vao, attributeLocation, 0);
 
             switch (attribute.Format)
             {
                 case DXGI_FORMAT.R32G32B32_FLOAT:
-                    GL.VertexAttribPointer(attributeLocation, 3, VertexAttribPointerType.Float, false, stride, offset);
+                    GL.VertexArrayAttribFormat(vao, attributeLocation, 3, VertexAttribType.Float, false, offset);
                     break;
 
                 case DXGI_FORMAT.R8G8B8A8_UNORM:
-                    GL.VertexAttribPointer(attributeLocation, 4, VertexAttribPointerType.UnsignedByte, true, stride, offset);
+                    GL.VertexArrayAttribFormat(vao, attributeLocation, 4, VertexAttribType.UnsignedByte, true, offset);
                     break;
 
                 case DXGI_FORMAT.R32_FLOAT:
-                    GL.VertexAttribPointer(attributeLocation, 1, VertexAttribPointerType.Float, false, stride, offset);
+                    GL.VertexArrayAttribFormat(vao, attributeLocation, 1, VertexAttribType.Float, false, offset);
                     break;
 
                 case DXGI_FORMAT.R32G32_FLOAT:
-                    GL.VertexAttribPointer(attributeLocation, 2, VertexAttribPointerType.Float, false, stride, offset);
+                    GL.VertexArrayAttribFormat(vao, attributeLocation, 2, VertexAttribType.Float, false, offset);
                     break;
 
                 case DXGI_FORMAT.R16G16_FLOAT:
-                    GL.VertexAttribPointer(attributeLocation, 2, VertexAttribPointerType.HalfFloat, false, stride, offset);
+                    GL.VertexArrayAttribFormat(vao, attributeLocation, 2, VertexAttribType.HalfFloat, false, offset);
                     break;
 
                 case DXGI_FORMAT.R32G32B32A32_FLOAT:
-                    GL.VertexAttribPointer(attributeLocation, 4, VertexAttribPointerType.Float, false, stride, offset);
+                    GL.VertexArrayAttribFormat(vao, attributeLocation, 4, VertexAttribType.Float, false, offset);
                     break;
 
                 case DXGI_FORMAT.R8G8B8A8_UINT:
-                    GL.VertexAttribIPointer(attributeLocation, 4, VertexAttribIntegerType.UnsignedByte, stride, offset);
+                    GL.VertexArrayAttribIFormat(vao, attributeLocation, 4, VertexAttribType.UnsignedByte, offset);
                     break;
 
                 case DXGI_FORMAT.R16G16_SINT:
-                    GL.VertexAttribIPointer(attributeLocation, 2, VertexAttribIntegerType.Short, stride, offset);
+                    GL.VertexArrayAttribIFormat(vao, attributeLocation, 2, VertexAttribType.Short, offset);
                     break;
 
                 case DXGI_FORMAT.R16G16B16A16_SINT:
-                    GL.VertexAttribIPointer(attributeLocation, 4, VertexAttribIntegerType.Short, stride, offset);
+                    GL.VertexArrayAttribIFormat(vao, attributeLocation, 4, VertexAttribType.Short, offset);
                     break;
 
                 case DXGI_FORMAT.R16G16_SNORM:
-                    GL.VertexAttribPointer(attributeLocation, 2, VertexAttribPointerType.Short, true, stride, offset);
+                    GL.VertexArrayAttribFormat(vao, attributeLocation, 2, VertexAttribType.Short, true, offset);
                     break;
 
                 case DXGI_FORMAT.R16G16_UNORM:
-                    GL.VertexAttribPointer(attributeLocation, 2, VertexAttribPointerType.UnsignedShort, true, stride, offset);
+                    GL.VertexArrayAttribFormat(vao, attributeLocation, 2, VertexAttribType.UnsignedShort, true, offset);
                     break;
 
                 case DXGI_FORMAT.R32_UINT:
-                    GL.VertexAttribIPointer(attributeLocation, 1, VertexAttribIntegerType.UnsignedInt, stride, offset);
+                    GL.VertexArrayAttribIFormat(vao, attributeLocation, 1, VertexAttribType.UnsignedInt, offset);
                     break;
 
                 default:

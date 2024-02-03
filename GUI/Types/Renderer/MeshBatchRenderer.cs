@@ -85,7 +85,7 @@ namespace GUI.Types.Renderer
 
         private static void DrawBatch(List<Request> requests, Scene.RenderContext context)
         {
-            uint vao = 0;
+            var vao = 0;
             Shader shader = null;
             RenderMaterial material = null;
             Uniforms uniforms = new();
