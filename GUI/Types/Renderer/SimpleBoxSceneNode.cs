@@ -43,27 +43,21 @@ namespace GUI.Types.Renderer
             // indices: 9 uints / 36 bytes
 
             shader = Scene.GuiContext.ShaderLoader.LoadShader("vrf.default");
-            GL.UseProgram(shader.Program);
 
-            vaoHandle = GL.GenVertexArray();
-            GL.BindVertexArray(vaoHandle);
+            GL.CreateVertexArrays(1, out vaoHandle);
+            GL.CreateBuffers(1, out int vboHandle);
+            GL.CreateBuffers(1, out int iboHandle);
+            GL.VertexArrayVertexBuffer(vaoHandle, 0, vboHandle, 0, SimpleVertex.SizeInBytes);
+            GL.VertexArrayElementBuffer(vaoHandle, iboHandle);
+            SimpleVertex.BindDefaultShaderLayout(vaoHandle, shader.Program);
+
+            GL.NamedBufferData(vboHandle, vertexCount * SimpleVertex.SizeInBytes, vertices, BufferUsageHint.StaticDraw);
+            GL.NamedBufferData(iboHandle, CubeIndices.Length, CubeIndices, BufferUsageHint.StaticDraw);
 
 #if DEBUG
             var vaoLabel = nameof(SimpleBoxSceneNode);
             GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, vaoHandle, vaoLabel.Length, vaoLabel);
 #endif
-
-            var vboHandle = GL.GenBuffer();
-            GL.BindBuffer(BufferTarget.ArrayBuffer, vboHandle);
-            GL.BufferData(BufferTarget.ArrayBuffer, vertexCount * SimpleVertex.SizeInBytes, vertices, BufferUsageHint.StaticDraw);
-
-            var iboHandle = GL.GenBuffer();
-            GL.BindBuffer(BufferTarget.ElementArrayBuffer, iboHandle);
-            GL.BufferData(BufferTarget.ElementArrayBuffer, CubeIndices.Length * sizeof(byte), CubeIndices, BufferUsageHint.StaticDraw);
-
-            SimpleVertex.BindDefaultShaderLayout(shader.Program);
-
-            GL.BindVertexArray(0);
         }
 
         public override void Render(Scene.RenderContext context)
