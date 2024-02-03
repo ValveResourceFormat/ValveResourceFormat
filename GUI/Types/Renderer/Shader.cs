@@ -29,9 +29,14 @@ namespace GUI.Types.Renderer
         public IEnumerable<(string Name, int Index, ActiveUniformType Type, int Size)> GetAllUniformNames()
         {
             GL.GetProgram(Program, GetProgramParameterName.ActiveUniforms, out var count);
+
+            Uniforms.EnsureCapacity(count);
+
             for (var i = 0; i < count; i++)
             {
                 var uniformName = GL.GetActiveUniform(Program, i, out var size, out var uniformType);
+
+                Uniforms[uniformName] = GL.GetUniformLocation(Program, uniformName);
 
                 yield return (uniformName, i, uniformType, size);
             }
