@@ -459,9 +459,10 @@ namespace GUI.Controls
             MaxSamples = GL.GetInteger(GetPName.MaxSamples);
             GLDefaultFramebuffer = Framebuffer.GetGLDefaultFramebuffer();
 
-            frametimeQuery1 = GL.GenQuery();
-            frametimeQuery2 = GL.GenQuery();
+            GL.CreateQueries(QueryTarget.TimeElapsed, 1, out frametimeQuery1);
+            GL.CreateQueries(QueryTarget.TimeElapsed, 1, out frametimeQuery2);
 
+            // Needed to fix crash on certain drivers
             GL.BeginQuery(QueryTarget.TimeElapsed, frametimeQuery2);
             GL.EndQuery(QueryTarget.TimeElapsed);
 

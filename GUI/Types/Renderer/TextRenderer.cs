@@ -26,7 +26,6 @@ namespace GUI.Types.Renderer
         private Shader shader;
         private int bufferHandle;
         private int vao;
-        private QuadIndexBuffer quadIndices;
         private Vector2 WindowSize;
 
         public TextRenderer(VrfGuiContext guiContext)
@@ -40,7 +39,6 @@ namespace GUI.Types.Renderer
             using var fontStream = assembly.GetManifestResourceStream("GUI.Utils.jetbrains_mono_msdf.png");
             using var bitmap = SKBitmap.Decode(fontStream);
 
-            quadIndices = guiContext.MeshBufferCache.QuadIndices;
             shader = guiContext.ShaderLoader.LoadShader("vrf.font_msdf");
 
             fontTexture = new RenderTexture(TextureTarget.Texture2D, (int)AtlasSize, (int)AtlasSize, 1, 1);
@@ -62,7 +60,7 @@ namespace GUI.Types.Renderer
             GL.CreateVertexArrays(1, out vao);
             GL.CreateBuffers(1, out bufferHandle);
             GL.VertexArrayVertexBuffer(vao, 0, bufferHandle, 0, stride);
-            GL.VertexArrayElementBuffer(vao, quadIndices.GLHandle);
+            GL.VertexArrayElementBuffer(vao, guiContext.MeshBufferCache.QuadIndices.GLHandle);
 
             foreach (var (name, size) in attributes)
             {

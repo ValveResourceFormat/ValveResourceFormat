@@ -44,7 +44,8 @@ class Framebuffer : IDisposable
 
     public Framebuffer()
     {
-        FboHandle = GL.GenFramebuffer();
+        GL.CreateFramebuffers(1, out int handle);
+        FboHandle = handle;
     }
 
     #region Default OpenGL Framebuffer instance, and equality checks
