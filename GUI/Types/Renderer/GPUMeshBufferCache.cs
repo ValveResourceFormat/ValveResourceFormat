@@ -72,8 +72,8 @@ namespace GUI.Types.Renderer
             GL.GenVertexArrays(1, out uint newVaoHandle);
 
             GL.BindVertexArray(newVaoHandle);
-            GL.BindBuffer(BufferTarget.ArrayBuffer, gpuVbib.VertexBuffers[curVertexBuffer.Id].Handle);
-            GL.BindBuffer(BufferTarget.ElementArrayBuffer, gpuVbib.IndexBuffers[idxIndex].Handle);
+            GL.BindBuffer(BufferTarget.ArrayBuffer, gpuVbib.VertexBuffers[curVertexBuffer.Id]);
+            GL.BindBuffer(BufferTarget.ElementArrayBuffer, gpuVbib.IndexBuffers[idxIndex]);
 
             foreach (var attribute in curVertexBuffer.InputLayoutFields)
             {
