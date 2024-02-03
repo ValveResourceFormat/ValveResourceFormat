@@ -34,11 +34,10 @@ namespace GUI.Types.Renderer.UniformBuffers
         readonly float[] cpuBuffer;
         readonly GCHandle cpuBufferHandle;
 
-        const BufferTarget Target = BufferTarget.UniformBuffer;
-
         public UniformBuffer(int bindingPoint)
         {
-            Handle = GL.GenBuffer();
+            GL.CreateBuffers(1, out int handle);
+            Handle = handle;
             BindingPoint = bindingPoint;
 
             Size = Marshal.SizeOf<T>();
@@ -51,15 +50,11 @@ namespace GUI.Types.Renderer.UniformBuffers
             Initialize();
 
             Name = typeof(T).Name;
+
 #if DEBUG
-            Bind();
             GL.ObjectLabel(ObjectLabelIdentifier.Buffer, Handle, Name.Length, Name);
-            Unbind();
 #endif
         }
-
-        void Bind() => GL.BindBuffer(Target, Handle);
-        static void Unbind() => GL.BindBuffer(Target, 0);
 
         private void WriteToCpuBuffer()
         {
@@ -69,11 +64,9 @@ namespace GUI.Types.Renderer.UniformBuffers
 
         private void Initialize()
         {
-            Bind();
             WriteToCpuBuffer();
-            GL.BufferData(Target, Size, cpuBuffer, BufferUsageHint.StaticDraw);
+            GL.NamedBufferData(Handle, Size, cpuBuffer, BufferUsageHint.StaticDraw);
             GL.BindBufferBase(BufferRangeTarget.UniformBuffer, BindingPoint, Handle);
-            Unbind();
         }
 
         public void Update()
