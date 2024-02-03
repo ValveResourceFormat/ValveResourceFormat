@@ -590,11 +590,6 @@ namespace GUI.Controls
                     lastFpsUpdate = currentTime;
                     lastFps = $"FPS: {fps,-3:0}  CPU: {cpuFrameTime,-4:0.0}ms  GPU: {gpuFrameTime,-4:0.0}ms";
                 }
-
-                using (new GLDebugGroup("Text Render"))
-                {
-                    textRenderer.RenderText(2f, MainFramebuffer.Height - 4f, 14f, new System.Numerics.Vector4(1, 1, 1, 1f), lastFps);
-                }
             }
 
             // blit to the default opengl framebuffer used by the control
@@ -610,13 +605,17 @@ namespace GUI.Controls
 
                     var (w, h) = (GLControl.Width, GLControl.Height);
                     GL.BlitFramebuffer(0, 0, w, h, 0, 0, w, h, ClearBufferMask.ColorBufferBit, BlitFramebufferFilter.Nearest);
+
+                    GLDefaultFramebuffer.Bind(FramebufferTarget.Framebuffer);
                 }
             }
 
-            if (MainFramebuffer != GLDefaultFramebuffer)
+            if (Settings.Config.DisplayFps != 0)
             {
-
-                GLDefaultFramebuffer.Bind(FramebufferTarget.Framebuffer);
+                using (new GLDebugGroup("Text Render"))
+                {
+                    textRenderer.RenderText(2f, MainFramebuffer.Height - 4f, 14f, new System.Numerics.Vector4(1, 1, 1, 1f), lastFps);
+                }
             }
 
             GLControl.SwapBuffers();
