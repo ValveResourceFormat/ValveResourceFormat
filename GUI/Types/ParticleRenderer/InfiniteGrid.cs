@@ -57,6 +57,7 @@ namespace GUI.Types.ParticleRenderer
 
             GL.UseProgram(0);
             GL.BindVertexArray(0);
+
             GL.Disable(EnableCap.Blend);
             GL.Enable(EnableCap.CullFace);
         }

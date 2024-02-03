@@ -134,18 +134,20 @@ namespace GUI.Types.Renderer
                 ArrayPool<float>.Shared.Return(vertexBuffer);
             }
 
-            GL.UseProgram(shader.Program);
-
-            shader.SetUniform4x4("transform", Matrix4x4.CreateOrthographicOffCenter(0f, WindowSize.X, WindowSize.Y, 0f, -100f, 100f));
-            shader.SetTexture(0, "msdf", fontTexture);
-            shader.SetUniform1("g_fRange", TextureRange);
-
             GL.DepthMask(false);
             GL.Enable(EnableCap.Blend);
             GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
 
+            GL.UseProgram(shader.Program);
+            shader.SetUniform4x4("transform", Matrix4x4.CreateOrthographicOffCenter(0f, WindowSize.X, WindowSize.Y, 0f, -100f, 100f));
+            shader.SetTexture(0, "msdf", fontTexture);
+            shader.SetUniform1("g_fRange", TextureRange);
+
             GL.BindVertexArray(vao);
             GL.DrawElements(BeginMode.Triangles, letters * 6, DrawElementsType.UnsignedShort, 0);
+
+            GL.UseProgram(0);
+            GL.BindVertexArray(0);
 
             GL.Disable(EnableCap.Blend);
             GL.DepthMask(true);
