@@ -27,6 +27,7 @@ namespace GUI.Types.Renderer
         private int bufferHandle;
         private int vao;
         private QuadIndexBuffer quadIndices;
+        private Vector2 WindowSize;
 
         public TextRenderer(VrfGuiContext guiContext)
         {
@@ -83,11 +84,16 @@ namespace GUI.Types.Renderer
             GL.BindVertexArray(0); // Unbind VAO
         }
 
-        public void RenderText(int width, int height, float x, float y, float scale, Vector4 color, string text)
+        public void SetViewportSize(int viewportWidth, int viewportHeight)
+        {
+            WindowSize = new Vector2(viewportWidth, viewportHeight);
+        }
+
+        public void RenderText(float x, float y, float scale, Vector4 color, string text)
         {
             GL.UseProgram(shader.Program);
 
-            shader.SetUniform4x4("transform", Matrix4x4.CreateOrthographicOffCenter(0f, width, height, 0f, -100f, 100f));
+            shader.SetUniform4x4("transform", Matrix4x4.CreateOrthographicOffCenter(0f, WindowSize.X, WindowSize.Y, 0f, -100f, 100f));
             shader.SetTexture(0, "msdf", fontTexture);
             shader.SetUniform1("g_fRange", TextureRange);
 
@@ -149,10 +155,12 @@ namespace GUI.Types.Renderer
 
             GL.BindBuffer(BufferTarget.ElementArrayBuffer, quadIndices.GLHandle);
 
+            GL.DepthMask(false);
             GL.Enable(EnableCap.Blend);
             GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
             GL.DrawElements(BeginMode.Triangles, letters * 6, DrawElementsType.UnsignedShort, 0);
             GL.Disable(EnableCap.Blend);
+            GL.DepthMask(true);
         }
 
         // Font metrics for JetBrainsMono-Regular.ttf generated using msdf-atlas-gen (use Misc/FontMsdfGen)

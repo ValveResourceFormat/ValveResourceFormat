@@ -593,7 +593,7 @@ namespace GUI.Controls
 
                 using (new GLDebugGroup("Text Render"))
                 {
-                    textRenderer.RenderText(MainFramebuffer.Width, MainFramebuffer.Height, 2f, MainFramebuffer.Height - 4f, 14f, System.Numerics.Vector4.UnitW, lastFps);
+                    textRenderer.RenderText(2f, MainFramebuffer.Height - 4f, 14f, new System.Numerics.Vector4(1, 1, 1, 1f), lastFps);
                 }
             }
 
@@ -662,6 +662,7 @@ namespace GUI.Controls
             }
 
             Camera.SetViewportSize(w, h);
+            textRenderer.SetViewportSize(w, h);
             Picker?.Resize(w, h);
         }
 
