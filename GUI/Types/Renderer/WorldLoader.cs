@@ -299,11 +299,10 @@ namespace GUI.Types.Renderer
                         };
                         using var skyMaterial = guiContext.LoadFileCompiled(skyname);
 
-                        Skybox2D = new SceneSkybox2D
+                        Skybox2D = new SceneSkybox2D(guiContext.MaterialLoader.LoadMaterial(skyMaterial))
                         {
                             Tint = tintColor,
                             Transform = rotation,
-                            Material = guiContext.MaterialLoader.LoadMaterial(skyMaterial),
                         };
                     }
                 }

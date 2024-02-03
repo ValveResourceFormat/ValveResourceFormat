@@ -20,10 +20,7 @@ namespace GUI.Types.Renderer
 
         protected override void LoadScene()
         {
-            Skybox2D = new SceneSkybox2D
-            {
-                Material = GuiContext.MaterialLoader.LoadMaterial(materialResource),
-            };
+            Skybox2D = new SceneSkybox2D(GuiContext.MaterialLoader.LoadMaterial(materialResource));
         }
 
         protected override void OnPicked(object sender, PickingTexture.PickingResponse pixelInfo)

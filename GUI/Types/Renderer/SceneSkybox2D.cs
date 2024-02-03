@@ -6,9 +6,9 @@ namespace GUI.Types.Renderer
     {
         public Vector3 Tint { get; init; } = Vector3.One;
         public Matrix4x4 Transform { get; init; } = Matrix4x4.Identity;
-        public RenderMaterial Material { get; set; }
+        public RenderMaterial Material { get; }
 
-        private readonly int boxVao;
+        private readonly int vaoHandle;
         private readonly float[] boxTriangles = [
 #pragma warning disable format
             // positions
@@ -56,24 +56,25 @@ namespace GUI.Types.Renderer
 #pragma warning restore format
         ];
 
-        public SceneSkybox2D()
+        public SceneSkybox2D(RenderMaterial material)
         {
-            boxVao = GL.GenVertexArray();
-            GL.BindVertexArray(boxVao);
+            Material = material;
+
+            GL.CreateVertexArrays(1, out vaoHandle);
+            GL.CreateBuffers(1, out int vboHandle);
+            GL.VertexArrayVertexBuffer(vaoHandle, 0, vboHandle, 0, sizeof(float) * 3);
+
+            var attributeLocation = GL.GetAttribLocation(material.Shader.Program, "aVertexPosition");
+            GL.EnableVertexArrayAttrib(vaoHandle, attributeLocation);
+            GL.VertexArrayAttribFormat(vaoHandle, attributeLocation, 3, VertexAttribType.Float, false, 0);
+            GL.VertexArrayAttribBinding(vaoHandle, attributeLocation, 0);
+
+            GL.NamedBufferData(vboHandle, boxTriangles.Length * sizeof(float), boxTriangles, BufferUsageHint.StaticDraw);
 
 #if DEBUG
             var vaoLabel = nameof(SceneSkybox2D);
-            GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, boxVao, vaoLabel.Length, vaoLabel);
+            GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, vaoHandle, vaoLabel.Length, vaoLabel);
 #endif
-
-            var vbo = GL.GenBuffer();
-            GL.BindBuffer(BufferTarget.ArrayBuffer, vbo);
-            GL.BufferData(BufferTarget.ArrayBuffer, boxTriangles.Length * sizeof(float), boxTriangles, BufferUsageHint.StaticDraw);
-
-            GL.EnableVertexAttribArray(0);
-            GL.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, false, 0, 0);
-
-            GL.BindVertexArray(0);
         }
 
         public void Render()
@@ -81,7 +82,7 @@ namespace GUI.Types.Renderer
             GL.DepthFunc(DepthFunction.Equal);
 
             GL.UseProgram(Material.Shader.Program);
-            GL.BindVertexArray(boxVao);
+            GL.BindVertexArray(vaoHandle);
 
             Material.Render();
             Material.Shader.SetUniform3("m_vTint", Tint);
