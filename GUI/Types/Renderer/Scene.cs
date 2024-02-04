@@ -324,6 +324,54 @@ namespace GUI.Types.Renderer
             FogInfo.SetFogUniforms(viewConstants, FogEnabled);
         }
 
+        public void CalculateLightProbeBindings()
+        {
+            if (LightingInfo.LightProbes.Count == 0)
+            {
+                return;
+            }
+
+            LightingInfo.LightProbes.Sort((a, b) => a.HandShake.CompareTo(b.HandShake));
+
+            foreach (var node in AllNodes)
+            {
+                var precomputedHandshake = node.LightProbeVolumePrecomputedHandshake;
+                if (precomputedHandshake == 0)
+                {
+                    continue;
+                }
+
+                if (LightingInfo.LightProbeType == LightProbeType.IndividualProbesIrradianceOnly && precomputedHandshake <= LightingInfo.LightProbes.Count)
+                {
+                    // SteamVR Home node handshake as probe index
+                    node.LightProbeBinding = LightingInfo.LightProbes[precomputedHandshake - 1];
+                    continue;
+                }
+
+                if (LightingInfo.ProbeHandshakes.TryGetValue(precomputedHandshake, out var precomputedProbe))
+                {
+                    node.LightProbeBinding = precomputedProbe;
+                    continue;
+                }
+            }
+
+            var sortedLightProbes = LightingInfo.LightProbes
+                .OrderByDescending(static lpv => lpv.IndoorOutdoorLevel)
+                .ThenBy(static lpv => lpv.AtlasSize.LengthSquared());
+
+            foreach (var probe in sortedLightProbes)
+            {
+                var nodes = new List<SceneNode>();
+                StaticOctree.Root.Query(probe.BoundingBox, nodes);
+                DynamicOctree.Root.Query(probe.BoundingBox, nodes);
+
+                foreach (var node in nodes)
+                {
+                    node.LightProbeBinding ??= probe;
+                }
+            }
+        }
+
         public void CalculateEnvironmentMaps()
         {
             if (LightingInfo.EnvMaps.Count == 0)
@@ -378,19 +426,19 @@ namespace GUI.Types.Renderer
 
             foreach (var node in AllNodes)
             {
-                var preComputedHandshake = node.CubeMapPrecomputedHandshake;
+                var precomputedHandshake = node.CubeMapPrecomputedHandshake;
                 SceneEnvMap preComputed = default;
 
-                if (preComputedHandshake > 0)
+                if (precomputedHandshake > 0)
                 {
                     if (LightingInfo.CubemapType == CubemapType.IndividualCubemaps
-                        && preComputedHandshake <= LightingInfo.EnvMaps.Count)
+                        && precomputedHandshake <= LightingInfo.EnvMaps.Count)
                     {
                         // SteamVR Home node handshake as envmap index
                         node.EnvMaps.Clear();
-                        node.EnvMaps.Add(LightingInfo.EnvMaps[preComputedHandshake - 1]);
+                        node.EnvMaps.Add(LightingInfo.EnvMaps[precomputedHandshake - 1]);
                     }
-                    else if (LightingInfo.EnvMapHandshakes.TryGetValue(preComputedHandshake, out preComputed))
+                    else if (LightingInfo.EnvMapHandshakes.TryGetValue(precomputedHandshake, out preComputed))
                     {
                         node.EnvMaps.Clear();
                         node.EnvMaps.Add(preComputed);
@@ -398,7 +446,7 @@ namespace GUI.Types.Renderer
                     else
                     {
 #if DEBUG
-                        Log.Debug(nameof(Scene), $"A envmap with handshake [{preComputedHandshake}] does not exist for node at {node.BoundingBox.Center}");
+                        Log.Debug(nameof(Scene), $"A envmap with handshake [{precomputedHandshake}] does not exist for node at {node.BoundingBox.Center}");
 #endif
                     }
                 }
@@ -435,22 +483,22 @@ namespace GUI.Types.Renderer
                     var vrfComputed = node.EnvMaps.FirstOrDefault();
                     if (vrfComputed is null)
                     {
-                        Log.Debug(nameof(Scene), $"Could not find any envmaps for node {node.DebugName}. Valve precomputed envmap is at {preComputed.BoundingBox.Center} [{preComputedHandshake}]");
+                        Log.Debug(nameof(Scene), $"Could not find any envmaps for node {node.DebugName}. Valve precomputed envmap is at {preComputed.BoundingBox.Center} [{precomputedHandshake}]");
                         continue;
                     }
 
-                    if (vrfComputed.HandShake == preComputedHandshake)
+                    if (vrfComputed.HandShake == precomputedHandshake)
                     {
                         continue;
                     }
 
                     var vrfDistance = Vector3.Distance(lightingOrigin, vrfComputed.BoundingBox.Center);
-                    var preComputedDistance = Vector3.Distance(lightingOrigin, LightingInfo.EnvMapHandshakes[preComputedHandshake].BoundingBox.Center);
+                    var preComputedDistance = Vector3.Distance(lightingOrigin, LightingInfo.EnvMapHandshakes[precomputedHandshake].BoundingBox.Center);
 
-                    var anyIndex = node.EnvMaps.FindIndex(x => x.HandShake == preComputedHandshake);
+                    var anyIndex = node.EnvMaps.FindIndex(x => x.HandShake == precomputedHandshake);
 
                     Log.Debug(nameof(Scene), $"Topmost calculated envmap doesn't match with the precomputed one" +
-                        $" (dists: vrf={vrfDistance} s2={preComputedDistance}) for node at {node.BoundingBox.Center} [{preComputedHandshake}]" +
+                        $" (dists: vrf={vrfDistance} s2={preComputedDistance}) for node at {node.BoundingBox.Center} [{precomputedHandshake}]" +
                         (anyIndex > 0 ? $" (however it's still binned at a higher iterate index {anyIndex})" : string.Empty));
                 }
 #endif

@@ -225,6 +225,10 @@ namespace GUI.Types.Renderer
                     {
                         shaderArguments.Add("D_BAKED_LIGHTING_FROM_VERTEX_STREAM", 1);
                     }
+                    else if (scene.LightingInfo.HasValidLightProbes)
+                    {
+                        shaderArguments.Add("D_BAKED_LIGHTING_FROM_PROBE", 1);
+                    }
 
                     var material = guiContext.MaterialLoader.GetMaterial(materialName, shaderArguments);
 

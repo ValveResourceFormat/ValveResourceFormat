@@ -4,11 +4,18 @@ using OpenTK.Graphics.OpenGL;
 
 namespace GUI.Types.Renderer.UniformBuffers
 {
-    interface IBlockBindableBuffer : IDisposable
+    interface IBuffer : IDisposable
     {
     }
 
-    class UniformBuffer<T> : IBlockBindableBuffer
+    public enum ReservedBufferSlots
+    {
+        View = 0,
+        Lighting = 1,
+        LightProbe = 2,
+    }
+
+    class UniformBuffer<T> : IBuffer
         where T : new()
     {
         public int Handle { get; }
@@ -42,6 +49,8 @@ namespace GUI.Types.Renderer.UniformBuffers
             GL.ObjectLabel(ObjectLabelIdentifier.Buffer, Handle, objectLabel.Length, objectLabel);
 #endif
         }
+
+        public UniformBuffer(ReservedBufferSlots slot) : this((int)slot) { }
 
         private void WriteToCpuBuffer()
         {

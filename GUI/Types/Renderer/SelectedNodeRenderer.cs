@@ -11,6 +11,7 @@ namespace GUI.Types.Renderer
         private int vertexCount;
         private bool disableDepth;
         private bool debugCubeMaps;
+        private bool debugLightProbes;
         private readonly List<SceneNode> selectedNodes = new(1);
 
         public bool UpdateEveryFrame { get; set; }
@@ -108,6 +109,12 @@ namespace GUI.Types.Renderer
                     }
                 }
 
+                if (debugLightProbes && node.LightProbeBinding is not null)
+                {
+                    OctreeDebugRenderer<SceneNode>.AddBox(vertices, node.LightProbeBinding.Transform, node.LightProbeBinding.LocalBoundingBox, new(1.0f, 0.0f, 1.0f, 1.0f));
+                    OctreeDebugRenderer<SceneNode>.AddLine(vertices, node.LightProbeBinding.Transform.Translation, node.BoundingBox.Center, new(1.0f, 0.0f, 1.0f, 1.0f));
+                }
+
                 if (node.EntityData != null)
                 {
                     var classname = node.EntityData.GetProperty<string>("classname");
@@ -183,6 +190,9 @@ namespace GUI.Types.Renderer
             shader = Scene.GuiContext.ShaderLoader.LoadShader("vrf.default");
 
             debugCubeMaps = mode == "Cubemaps";
+            debugLightProbes = mode == "Irradiance" || mode == "Illumination";
+
+            UpdateBuffer();
         }
     }
 }

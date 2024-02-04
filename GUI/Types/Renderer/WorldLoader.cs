@@ -164,7 +164,8 @@ namespace GUI.Types.Renderer
                 var name = Path.GetFileNameWithoutExtension(lightmap);
                 if (LightmapNameToUniformName.TryGetValue(name, out var uniformName))
                 {
-                    var renderTexture = guiContext.MaterialLoader.GetTexture(lightmap);
+                    var srgbRead = name == "irradiance";
+                    var renderTexture = guiContext.MaterialLoader.GetTexture(lightmap, srgbRead);
                     result.Lightmaps[uniformName] = renderTexture;
 
                     if (name == "direct_light_indices")
@@ -538,6 +539,14 @@ namespace GUI.Types.Renderer
                         );
                     }
 
+                    var indoorOutdoorLevelData = entity.GetProperty("indoor_outdoor_level")?.Data;
+                    var indoorOutdoorLevel = indoorOutdoorLevelData switch
+                    {
+                        int i => i,
+                        string s => int.Parse(s, CultureInfo.InvariantCulture),
+                        _ => 0,
+                    };
+
                     if (classname != "env_light_probe_volume")
                     {
                         var envMapTexture = guiContext.MaterialLoader.GetTexture(
@@ -546,14 +555,6 @@ namespace GUI.Types.Renderer
 
                         var arrayIndexData = entity.GetProperty("array_index")?.Data;
                         var arrayIndex = arrayIndexData switch
-                        {
-                            int i => i,
-                            string s => int.Parse(s, CultureInfo.InvariantCulture),
-                            _ => 0,
-                        };
-
-                        var indoorOutdoorLevelData = entity.GetProperty("indoor_outdoor_level")?.Data;
-                        var indoorOutdoorLevel = indoorOutdoorLevelData switch
                         {
                             int i => i,
                             string s => int.Parse(s, CultureInfo.InvariantCulture),
@@ -580,7 +581,8 @@ namespace GUI.Types.Renderer
                     if (classname == "env_combined_light_probe_volume" || classname == "env_light_probe_volume")
                     {
                         var irradianceTexture = guiContext.MaterialLoader.GetTexture(
-                            entity.GetProperty<string>("lightprobetexture")
+                            entity.GetProperty<string>("lightprobetexture"),
+                            srgbRead: true
                         );
 
                         var lightProbe = new SceneLightProbe(scene, bounds)
@@ -589,11 +591,12 @@ namespace GUI.Types.Renderer
                             Transform = transformationMatrix,
                             HandShake = handShake,
                             Irradiance = irradianceTexture,
+                            IndoorOutdoorLevel = indoorOutdoorLevel,
                         };
 
                         var dliName = entity.GetProperty<string>("lightprobetexture_dli");
                         var dlsName = entity.GetProperty<string>("lightprobetexture_dls");
-                        var dlsdName = entity.GetProperty<string>("lightprobetexture_dlsd");
+                        var dlsdName = entity.GetProperty<string>("lightprobetexture_dlshd");
 
                         if (dlsName != null)
                         {
@@ -603,11 +606,24 @@ namespace GUI.Types.Renderer
                         if (dliName != null)
                         {
                             lightProbe.DirectLightIndices = guiContext.MaterialLoader.GetTexture(dliName);
+                            lightProbe.DirectLightIndices.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
                         }
 
                         if (dlsdName != null)
                         {
                             lightProbe.DirectLightShadows = guiContext.MaterialLoader.GetTexture(dlsdName);
+
+                            lightProbe.AtlasSize = new Vector3(
+                                entity.GetPropertyUnchecked<float>("light_probe_size_x"),
+                                entity.GetPropertyUnchecked<float>("light_probe_size_y"),
+                                entity.GetPropertyUnchecked<float>("light_probe_size_z")
+                            );
+
+                            lightProbe.AtlasOffset = new Vector3(
+                                entity.GetPropertyUnchecked<float>("light_probe_atlas_x"),
+                                entity.GetPropertyUnchecked<float>("light_probe_atlas_y"),
+                                entity.GetPropertyUnchecked<float>("light_probe_atlas_z")
+                            );
                         }
 
                         scene.LightingInfo.AddProbe(lightProbe);

@@ -3,7 +3,7 @@
 // Baked lighting
 #define D_BAKED_LIGHTING_FROM_LIGHTMAP 0
 #define D_BAKED_LIGHTING_FROM_VERTEX_STREAM 0
-#define D_BAKED_LIGHTING_FROM_LIGHTPROBE 0
+#define D_BAKED_LIGHTING_FROM_PROBE 0
 #define LightmapVersionNumber 0
 #define LightmapGameVersionNumber 0
 

@@ -1,6 +1,6 @@
 #version 460
 
-layout(std140, binding = 2) uniform ViewConstants {
+layout(std140, binding = 0) uniform ViewConstants {
     mat4 g_matViewToProjection;
     mat4 g_matWorldToProjection;
     mat4 g_matWorldToView;

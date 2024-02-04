@@ -43,6 +43,7 @@ namespace GUI.Types.Renderer
         public int OverlayRenderOrder { get; set; }
         public int CubeMapPrecomputedHandshake { get; set; }
         public int LightProbeVolumePrecomputedHandshake { get; set; }
+        public SceneLightProbe LightProbeBinding { get; set; }
 
         public EntityLump.Entity EntityData { get; set; }
 

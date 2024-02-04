@@ -31,7 +31,7 @@ namespace GUI.Types.Renderer
 
         protected UniformBuffer<ViewConstants> viewBuffer;
         private UniformBuffer<LightingConstants> lightingBuffer;
-        public List<IBlockBindableBuffer> Buffers { get; private set; }
+        public List<IBuffer> Buffers { get; private set; }
         public List<(ReservedTextureSlots Slot, string Name, RenderTexture Texture)> Textures { get; } = [];
 
         private bool skipRenderModeChange;
@@ -115,8 +115,8 @@ namespace GUI.Types.Renderer
 
         private void CreateBuffers()
         {
-            viewBuffer = new(2);
-            lightingBuffer = new(3);
+            viewBuffer = new(ReservedBufferSlots.View);
+            lightingBuffer = new(ReservedBufferSlots.Lighting);
 
             Buffers = [viewBuffer, lightingBuffer];
         }
@@ -166,9 +166,14 @@ namespace GUI.Types.Renderer
 
         public virtual void PostSceneLoad()
         {
+            Scene.CalculateLightProbeBindings();
             Scene.CalculateEnvironmentMaps();
 
-            SkyboxScene?.CalculateEnvironmentMaps();
+            if (SkyboxScene != null)
+            {
+                SkyboxScene.CalculateLightProbeBindings();
+                SkyboxScene.CalculateEnvironmentMaps();
+            }
 
             if (Scene.AllNodes.Any() && this is not GLWorldViewer)
             {

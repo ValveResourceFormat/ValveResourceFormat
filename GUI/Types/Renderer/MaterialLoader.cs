@@ -167,22 +167,22 @@ namespace GUI.Types.Renderer
             var data = (Texture)textureResource.DataBlock;
             var target = TextureTarget.Texture2D;
             var is3d = false;
-            var clampModeS = data.Flags.HasFlag(VTexFlags.SUGGEST_CLAMPS) ? TextureWrapMode.ClampToBorder : TextureWrapMode.Repeat;
-            var clampModeT = data.Flags.HasFlag(VTexFlags.SUGGEST_CLAMPT) ? TextureWrapMode.ClampToBorder : TextureWrapMode.Repeat;
-            var clampModeU = data.Flags.HasFlag(VTexFlags.SUGGEST_CLAMPU) ? TextureWrapMode.ClampToBorder : TextureWrapMode.Repeat;
+            var clampModeS = (data.Flags & VTexFlags.SUGGEST_CLAMPS) != 0 ? TextureWrapMode.ClampToBorder : TextureWrapMode.Repeat;
+            var clampModeT = (data.Flags & VTexFlags.SUGGEST_CLAMPT) != 0 ? TextureWrapMode.ClampToBorder : TextureWrapMode.Repeat;
+            var clampModeU = (data.Flags & VTexFlags.SUGGEST_CLAMPU) != 0 ? TextureWrapMode.ClampToBorder : TextureWrapMode.Repeat;
 
-            if (data.Flags.HasFlag(VTexFlags.CUBE_TEXTURE))
+            if ((data.Flags & VTexFlags.CUBE_TEXTURE) != 0)
             {
                 is3d = true;
-                target = data.Flags.HasFlag(VTexFlags.TEXTURE_ARRAY) ? TextureTarget.TextureCubeMapArray : TextureTarget.TextureCubeMap;
+                target = (data.Flags & VTexFlags.TEXTURE_ARRAY) != 0 ? TextureTarget.TextureCubeMapArray : TextureTarget.TextureCubeMap;
                 clampModeS = TextureWrapMode.ClampToEdge;
                 clampModeT = TextureWrapMode.ClampToEdge;
                 clampModeU = TextureWrapMode.ClampToEdge;
             }
-            else if (data.Flags.HasFlag(VTexFlags.TEXTURE_ARRAY) || data.Flags.HasFlag(VTexFlags.VOLUME_TEXTURE))
+            else if ((data.Flags & (VTexFlags.TEXTURE_ARRAY | VTexFlags.VOLUME_TEXTURE)) != 0)
             {
                 is3d = true;
-                target = TextureTarget.Texture2DArray;
+                target = (data.Flags & VTexFlags.VOLUME_TEXTURE) != 0 ? TextureTarget.Texture3D : TextureTarget.Texture2DArray;
                 clampModeS = TextureWrapMode.ClampToEdge;
                 clampModeT = TextureWrapMode.ClampToEdge;
                 clampModeU = TextureWrapMode.ClampToEdge;
@@ -221,7 +221,7 @@ namespace GUI.Types.Renderer
                 }
             }
 
-            if (target == TextureTarget.Texture2DArray || target == TextureTarget.TextureCubeMapArray)
+            if (is3d && target != TextureTarget.TextureCubeMap)
             {
                 GL.TextureStorage3D(tex.Handle, data.NumMipLevels - minMipLevelAllowed, sizedInternalFormat, texWidth, texHeight, depth);
             }
@@ -351,7 +351,7 @@ namespace GUI.Types.Renderer
 
         static readonly string[] ReservedTextures = Enum.GetNames<ReservedTextureSlots>();
 
-        public void ApplyMaterialDefaults(RenderMaterial mat)
+        public void SetDefaultMaterialParameters(RenderMaterial mat)
         {
             var vec4Val = new float[4];
             var uniforms = mat.Shader.GetAllUniformNames();
@@ -363,7 +363,8 @@ namespace GUI.Types.Renderer
                 var index = uniform.Index;
                 var size = uniform.Size;
 
-                if (NonMaterialUniforms.Contains(name))
+                if (NonMaterialUniforms.Contains(name)
+                    || name.Contains("LightProbeVolume", StringComparison.OrdinalIgnoreCase))
                 {
                     continue;
                 }
@@ -378,7 +379,7 @@ namespace GUI.Types.Renderer
                     continue;
                 }
 
-                var isTexture = type >= ActiveUniformType.Sampler1D && type <= ActiveUniformType.Sampler2DRectShadow;
+                var isTexture = type is ActiveUniformType.Sampler2D or ActiveUniformType.SamplerCube;
                 var isVector = type == ActiveUniformType.FloatVec4;
                 var isScalar = type == ActiveUniformType.Float;
                 var isBoolean = type == ActiveUniformType.Bool;

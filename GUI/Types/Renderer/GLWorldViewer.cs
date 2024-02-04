@@ -330,6 +330,16 @@ namespace GUI.Types.Renderer
                         entityDialog.AddColumn("Model Alpha", $"{modelSceneNode.Tint.W:F6}");
                     }
 
+                    if (sceneNode.CubeMapPrecomputedHandshake > 0)
+                    {
+                        entityDialog.AddColumn("Cubemap Handshake", $"{sceneNode.CubeMapPrecomputedHandshake}");
+                    }
+
+                    if (sceneNode.LightProbeVolumePrecomputedHandshake > 0)
+                    {
+                        entityDialog.AddColumn("Light Probe Handshake", $"{sceneNode.LightProbeVolumePrecomputedHandshake}");
+                    }
+
                     entityDialog.AddColumn("Layer", sceneNode.LayerName);
                 }
                 else

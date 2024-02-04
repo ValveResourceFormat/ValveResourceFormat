@@ -251,6 +251,7 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
     public static string GetTextureTypeDefine(TextureTarget target) => target switch
     {
         TextureTarget.Texture2D => "TYPE_TEXTURE2D",
+        TextureTarget.Texture3D => "TYPE_TEXTURE3D",
         TextureTarget.Texture2DArray => "TYPE_TEXTURE2DARRAY",
         TextureTarget.TextureCubeMap => "TYPE_TEXTURECUBEMAP",
         TextureTarget.TextureCubeMapArray => "TYPE_TEXTURECUBEMAPARRAY",

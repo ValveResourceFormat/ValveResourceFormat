@@ -61,27 +61,50 @@ namespace GUI.Types.Renderer
 
         private ref struct Uniforms
         {
-            public int Animated;
-            public int AnimationTexture;
-            public int EnvmapTexture;
-            public int Transform;
-            public int Tint;
-            public int ObjectId;
-            public int MeshId;
-            public int ShaderId;
-            public int ShaderProgramId;
-            public int CubeMapArrayIndices;
-            public int MorphCompositeTexture;
-            public int MorphCompositeTextureSize;
-            public int MorphVertexIdOffset;
+            public int Animated = -1;
+            public int AnimationTexture = -1;
+            public int EnvmapTexture = -1;
+            public int LightProbeVolumeData = -1;
+            public int LPVIrradianceTexture = -1;
+            public int LPVIndicesTexture = -1;
+            public int LPVScalarsTexture = -1;
+            public int LPVShadowsTexture = -1;
+            public int Transform = -1;
+            public int Tint = -1;
+            public int ObjectId = -1;
+            public int MeshId = -1;
+            public int ShaderId = -1;
+            public int ShaderProgramId = -1;
+            public int CubeMapArrayIndices = -1;
+            public int MorphCompositeTexture = -1;
+            public int MorphCompositeTextureSize = -1;
+            public int MorphVertexIdOffset = -1;
+
+            public Uniforms() { }
         }
 
         private ref struct Config
         {
             public bool NeedsCubemapBinding;
+            public Scene.LightProbeType LightProbeType;
         }
 
         private static readonly Queue<int> instanceBoundTextures = new(capacity: 4);
+
+        private static void SetInstanceTexture(Shader shader, ReservedTextureSlots slot, int location, RenderTexture texture)
+        {
+            var slotIndex = (int)slot;
+            instanceBoundTextures.Enqueue(slotIndex);
+            shader.SetTexture(slotIndex, location, texture);
+        }
+
+        private static void UnbindInstanceTextures()
+        {
+            while (instanceBoundTextures.TryDequeue(out var slot))
+            {
+                GL.BindTextureUnit(slot, 0);
+            }
+        }
 
         private static void DrawBatch(List<Request> requests, Scene.RenderContext context)
         {
@@ -91,7 +114,8 @@ namespace GUI.Types.Renderer
             Uniforms uniforms = new();
             Config config = new()
             {
-                NeedsCubemapBinding = context.Scene.LightingInfo.CubemapType == Scene.CubemapType.IndividualCubemaps
+                NeedsCubemapBinding = context.Scene.LightingInfo.CubemapType == Scene.CubemapType.IndividualCubemaps,
+                LightProbeType = context.Scene.LightingInfo.LightProbeType,
             };
 
             foreach (var request in requests)
@@ -116,18 +140,39 @@ namespace GUI.Types.Renderer
                         {
                             Animated = shader.GetUniformLocation("bAnimated"),
                             AnimationTexture = shader.GetUniformLocation("animationTexture"),
-                            EnvmapTexture = shader.GetUniformLocation("g_tEnvironmentMap"),
                             Transform = shader.GetUniformLocation("transform"),
                             Tint = shader.GetUniformLocation("vTint"),
-                            CubeMapArrayIndices = shader.GetUniformLocation("g_iEnvMapArrayIndices"),
-                            ObjectId = shader.GetUniformLocation("sceneObjectId"),
-                            MeshId = shader.GetUniformLocation("meshId"),
-                            ShaderId = shader.GetUniformLocation("shaderId"),
-                            ShaderProgramId = shader.GetUniformLocation("shaderProgramId"),
-                            MorphCompositeTexture = shader.GetUniformLocation("morphCompositeTexture"),
-                            MorphCompositeTextureSize = shader.GetUniformLocation("morphCompositeTextureSize"),
-                            MorphVertexIdOffset = shader.GetUniformLocation("morphVertexIdOffset")
                         };
+
+                        if (shader.Parameters.ContainsKey("SCENE_CUBEMAP_TYPE"))
+                        {
+                            uniforms.EnvmapTexture = shader.GetUniformLocation("g_tEnvironmentMap");
+                            uniforms.CubeMapArrayIndices = shader.GetUniformLocation("g_iEnvMapArrayIndices");
+                        }
+
+                        if (shader.Parameters.ContainsKey("F_MORPH_SUPPORTED"))
+                        {
+                            uniforms.MorphCompositeTexture = shader.GetUniformLocation("morphCompositeTexture");
+                            uniforms.MorphCompositeTextureSize = shader.GetUniformLocation("morphCompositeTextureSize");
+                            uniforms.MorphVertexIdOffset = shader.GetUniformLocation("morphVertexIdOffset");
+                        }
+
+                        if (shader.Parameters.ContainsKey("D_BAKED_LIGHTING_FROM_PROBE"))
+                        {
+                            uniforms.LightProbeVolumeData = shader.GetUniformBlockIndex("LightProbeVolume");
+                            uniforms.LPVIrradianceTexture = shader.GetUniformLocation("g_tLPV_Irradiance");
+                            uniforms.LPVIndicesTexture = shader.GetUniformLocation("g_tLPV_Indices");
+                            uniforms.LPVScalarsTexture = shader.GetUniformLocation("g_tLPV_Scalars");
+                            uniforms.LPVShadowsTexture = shader.GetUniformLocation("g_tLPV_Shadows");
+                        }
+
+                        if (shader.Name == "vrf.picking")
+                        {
+                            uniforms.ObjectId = shader.GetUniformLocation("sceneObjectId");
+                            uniforms.MeshId = shader.GetUniformLocation("meshId");
+                            uniforms.ShaderId = shader.GetUniformLocation("shaderId");
+                            uniforms.ShaderProgramId = shader.GetUniformLocation("shaderProgramId");
+                        }
 
                         GL.UseProgram(shader.Program);
 
@@ -161,27 +206,13 @@ namespace GUI.Types.Renderer
             var transformTk = request.Transform.ToOpenTK();
             GL.ProgramUniformMatrix4(shader.Program, uniforms.Transform, false, ref transformTk);
 
-            #region Picking
             if (uniforms.ObjectId != -1)
             {
                 GL.ProgramUniform1((uint)shader.Program, uniforms.ObjectId, request.Node.Id);
-            }
-
-            if (uniforms.MeshId != -1)
-            {
                 GL.ProgramUniform1((uint)shader.Program, uniforms.MeshId, (uint)request.Mesh.MeshIndex);
-            }
-
-            if (uniforms.ShaderId != -1)
-            {
                 GL.ProgramUniform1((uint)shader.Program, uniforms.ShaderId, (uint)request.Call.Material.Shader.NameHash);
-            }
-
-            if (uniforms.ShaderProgramId != -1)
-            {
                 GL.ProgramUniform1((uint)shader.Program, uniforms.ShaderProgramId, (uint)request.Call.Material.Shader.Program);
             }
-            #endregion
 
             if (uniforms.CubeMapArrayIndices != -1 && request.Node.EnvMapIds != null)
             {
@@ -190,14 +221,29 @@ namespace GUI.Types.Renderer
                     var envmap = request.Node.EnvMaps[0].EnvMapTexture;
                     var envmapDataIndex = request.Node.EnvMapIds[0];
 
-                    instanceBoundTextures.Enqueue((int)ReservedTextureSlots.EnvironmentMap);
-                    shader.SetTexture((int)ReservedTextureSlots.EnvironmentMap, uniforms.EnvmapTexture, envmap);
-
+                    SetInstanceTexture(shader, ReservedTextureSlots.EnvironmentMap, uniforms.EnvmapTexture, envmap);
                     GL.ProgramUniform1(shader.Program, uniforms.CubeMapArrayIndices, envmapDataIndex);
                 }
                 else
                 {
                     GL.ProgramUniform1(shader.Program, uniforms.CubeMapArrayIndices, request.Node.EnvMapIds.Length, request.Node.EnvMapIds);
+                }
+            }
+
+            if (uniforms.LightProbeVolumeData != -1 && request.Node.LightProbeBinding != null)
+            {
+                var lightProbe = request.Node.LightProbeBinding;
+                lightProbe.SetGpuProbeData(shader, uniforms.LightProbeVolumeData, config.LightProbeType == Scene.LightProbeType.ProbeAtlas);
+
+                if (config.LightProbeType < Scene.LightProbeType.ProbeAtlas)
+                {
+                    SetInstanceTexture(shader, ReservedTextureSlots.Probe1, uniforms.LPVIrradianceTexture, lightProbe.Irradiance);
+
+                    if (config.LightProbeType > Scene.LightProbeType.IndividualProbesIrradianceOnly)
+                    {
+                        SetInstanceTexture(shader, ReservedTextureSlots.Probe2, uniforms.LPVIndicesTexture, lightProbe.DirectLightIndices);
+                        SetInstanceTexture(shader, ReservedTextureSlots.Probe3, uniforms.LPVScalarsTexture, lightProbe.DirectLightScalars);
+                    }
                 }
             }
 
@@ -208,8 +254,7 @@ namespace GUI.Types.Renderer
 
                 if (bAnimated && uniforms.AnimationTexture != -1)
                 {
-                    instanceBoundTextures.Enqueue((int)ReservedTextureSlots.AnimationTexture);
-                    shader.SetTexture((int)ReservedTextureSlots.AnimationTexture, uniforms.AnimationTexture, request.Mesh.AnimationTexture);
+                    SetInstanceTexture(shader, ReservedTextureSlots.AnimationTexture, uniforms.AnimationTexture, request.Mesh.AnimationTexture);
                 }
             }
 
@@ -218,9 +263,7 @@ namespace GUI.Types.Renderer
                 var morphComposite = request.Mesh.FlexStateManager?.MorphComposite;
                 if (morphComposite != null)
                 {
-                    instanceBoundTextures.Enqueue((int)ReservedTextureSlots.MorphCompositeTexture);
-                    shader.SetTexture((int)ReservedTextureSlots.MorphCompositeTexture, uniforms.MorphCompositeTexture, morphComposite.CompositeTexture);
-
+                    SetInstanceTexture(shader, ReservedTextureSlots.MorphCompositeTexture, uniforms.MorphCompositeTexture, morphComposite.CompositeTexture);
                     GL.ProgramUniform2(shader.Program, uniforms.MorphCompositeTextureSize, (float)morphComposite.CompositeTexture.Width, (float)morphComposite.CompositeTexture.Height);
                 }
 
@@ -243,10 +286,7 @@ namespace GUI.Types.Renderer
                 request.Call.BaseVertex
             );
 
-            while (instanceBoundTextures.TryDequeue(out var slot))
-            {
-                GL.BindTextureUnit(slot, 0);
-            }
+            UnbindInstanceTextures();
         }
     }
 }

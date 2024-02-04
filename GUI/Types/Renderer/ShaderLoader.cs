@@ -136,7 +136,7 @@ namespace GUI.Types.Renderer
                     ThrowShaderError(log, shaderFileName, shaderName, "Failed to link shader");
                 }
 
-                VrfGuiContext.MaterialLoader.ApplyMaterialDefaults(shader.Default);
+                VrfGuiContext.MaterialLoader.SetDefaultMaterialParameters(shader.Default);
 
                 ShaderDefines[shaderName] = parsedData.Defines;
 

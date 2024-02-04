@@ -14,6 +14,14 @@ partial class Scene
         CubemapArray,
     }
 
+    public enum LightProbeType : byte
+    {
+        IndividualProbesIrradianceOnly,
+        IndividualProbes,
+        ProbeAtlas,
+        Unknown,
+    }
+
     public class WorldLightingInfo(Scene scene)
     {
         public Dictionary<string, RenderTexture> Lightmaps { get; } = [];
@@ -22,6 +30,7 @@ partial class Scene
         public Dictionary<int, SceneEnvMap> EnvMapHandshakes { get; } = [];
         public Dictionary<int, SceneLightProbe> ProbeHandshakes { get; } = [];
         public bool HasValidLightmaps { get; set; }
+        public bool HasValidLightProbes { get; set; }
         public int LightmapVersionNumber { get; set; }
         public int LightmapGameVersionNumber { get; set; }
         public LightingConstants LightingData { get; set; } = new();
@@ -30,6 +39,12 @@ partial class Scene
         {
             get => (CubemapType)scene.RenderAttributes.GetValueOrDefault("SCENE_CUBEMAP_TYPE");
             set => scene.RenderAttributes["SCENE_CUBEMAP_TYPE"] = (byte)value;
+        }
+
+        public LightProbeType LightProbeType
+        {
+            get => (LightProbeType)scene.RenderAttributes.GetValueOrDefault("LightmapGameVersionNumber");
+            //set => scene.RenderAttributes["LightmapGameVersionNumber"] = (byte)value;
         }
 
         public void SetLightmapTextures(Shader shader)
@@ -42,7 +57,12 @@ partial class Scene
                 i++;
 
                 shader.SetTexture(slot, Name, Texture);
+            }
 
+            if (LightProbeType == LightProbeType.ProbeAtlas && LightProbes.Count > 0)
+            {
+                shader.SetTexture((int)ReservedTextureSlots.Probe1, "g_tLPV_Irradiance", LightProbes[0].Irradiance);
+                shader.SetTexture((int)ReservedTextureSlots.Probe2, "g_tLPV_Shadows", LightProbes[0].DirectLightShadows);
             }
         }
 
@@ -81,6 +101,16 @@ partial class Scene
 
         public void AddProbe(SceneLightProbe lightProbe)
         {
+            var validTextureSet = (scene.LightingInfo.LightProbeType, lightProbe) switch
+            {
+                (_, { Irradiance: null }) => false,
+                (LightProbeType.IndividualProbes, { DirectLightIndices: null } or { DirectLightScalars: null }) => false,
+                (LightProbeType.ProbeAtlas, { DirectLightShadows: null }) => false,
+                _ => true,
+            };
+
+            HasValidLightProbes = (scene.LightingInfo.LightProbes.Count == 0 || HasValidLightProbes) && validTextureSet;
+
             scene.LightingInfo.LightProbes.Add(lightProbe);
 
             if (lightProbe.HandShake > 0)
