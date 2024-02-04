@@ -85,7 +85,7 @@ namespace GUI.Types.Renderer
 
         private static void DrawBatch(List<Request> requests, Scene.RenderContext context)
         {
-            var vao = 0;
+            var vao = -1;
             Shader shader = null;
             RenderMaterial material = null;
             Uniforms uniforms = new();
@@ -147,7 +147,12 @@ namespace GUI.Types.Renderer
                 Draw(ref uniforms, ref config, request);
             }
 
-            material?.PostRender();
+            if (vao > -1)
+            {
+                material.PostRender();
+                GL.BindVertexArray(0);
+                GL.UseProgram(0);
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
