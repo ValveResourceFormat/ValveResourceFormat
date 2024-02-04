@@ -95,10 +95,7 @@ namespace GUI.Types.Renderer
             var translationMatrix = Matrix4x4.CreateTranslation(position.X, position.Y, position.Z);
 
             var test = billboardMatrix * scaleMatrix * translationMatrix;
-            var test2 = test.ToOpenTK();
-
-            var transformTk = Transform.ToOpenTK();
-            GL.UniformMatrix4(renderShader.GetUniformLocation("transform"), false, ref test2);
+            renderShader.SetUniform4x4("transform", test);
 
             renderShader.SetUniform1("bAnimated", 0.0f);
             renderShader.SetUniform1("sceneObjectId", Id);

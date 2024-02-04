@@ -6,17 +6,6 @@ namespace GUI.Types.Renderer.UniformBuffers
 {
     interface IBlockBindableBuffer : IDisposable
     {
-        int BindingPoint { get; }
-        string Name { get; }
-
-        public void SetBlockBinding(Shader shader)
-        {
-            var blockIndex = shader.GetUniformBlockIndex(Name);
-            if (blockIndex > -1)
-            {
-                GL.UniformBlockBinding(shader.Program, blockIndex, BindingPoint);
-            }
-        }
     }
 
     class UniformBuffer<T> : IBlockBindableBuffer
