@@ -119,12 +119,14 @@ namespace GUI.Controls
                 using var bitmap = new SKBitmap(GLDefaultFramebuffer.Width, GLDefaultFramebuffer.Height, SKColorType.Bgra8888, SKAlphaType.Opaque);
                 var pixels = bitmap.GetPixels(out var length);
 
+                if (MainFramebuffer != GLDefaultFramebuffer)
+                {
+                    var (w, h) = (GLControl.Width, GLControl.Height);
+                    GL.BlitNamedFramebuffer(MainFramebuffer.FboHandle, GLDefaultFramebuffer.FboHandle, 0, 0, w, h, 0, 0, w, h, ClearBufferMask.ColorBufferBit, BlitFramebufferFilter.Nearest);
+                }
+
                 GL.Flush();
                 GL.Finish();
-
-                GLDefaultFramebuffer.Bind(FramebufferTarget.ReadFramebuffer);
-                GL.ReadBuffer(ReadBufferMode.ColorAttachment0);
-
                 GL.ReadPixels(0, 0, GLDefaultFramebuffer.Width, GLDefaultFramebuffer.Height, PixelFormat.Bgra, PixelType.UnsignedByte, pixels);
 
                 // Flip y
@@ -603,14 +605,8 @@ namespace GUI.Controls
             {
                 using (new GLDebugGroup("Blit Framebuffer"))
                 {
-                    MainFramebuffer.Bind(FramebufferTarget.ReadFramebuffer);
-                    GL.ReadBuffer(ReadBufferMode.ColorAttachment0);
-
-                    GLDefaultFramebuffer.Bind(FramebufferTarget.DrawFramebuffer);
-                    GL.DrawBuffer(DrawBufferMode.Back);
-
                     var (w, h) = (GLControl.Width, GLControl.Height);
-                    GL.BlitFramebuffer(0, 0, w, h, 0, 0, w, h, ClearBufferMask.ColorBufferBit, BlitFramebufferFilter.Nearest);
+                    GL.BlitNamedFramebuffer(MainFramebuffer.FboHandle, GLDefaultFramebuffer.FboHandle, 0, 0, w, h, 0, 0, w, h, ClearBufferMask.ColorBufferBit, BlitFramebufferFilter.Nearest);
 
                     GLDefaultFramebuffer.Bind(FramebufferTarget.Framebuffer);
                 }
