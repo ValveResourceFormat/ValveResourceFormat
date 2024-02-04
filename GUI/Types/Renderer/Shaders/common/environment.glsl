@@ -122,7 +122,7 @@ vec3 GetCorrectedSampleCoords(vec3 R, mat4x3 envMapWorldToLocal, vec3 envMapLoca
 }
 
 
-vec3 GetEnvironment(MaterialProperties_t mat, out vec3 diffuse)
+vec3 GetEnvironment(MaterialProperties_t mat)
 {
     #if (renderMode_Cubemaps == 1)
         vec3 reflectionNormal = mat.GeometricNormal;
@@ -134,7 +134,6 @@ vec3 GetEnvironment(MaterialProperties_t mat, out vec3 diffuse)
 
     // Reflection Vector
     vec3 R = normalize(reflect(-mat.ViewDir, reflectionNormal));
-    vec3 R_Diffuse = mat.AmbientNormal;
 
     #if (F_ANISOTROPIC_GLOSS == 1)
         float roughness = sqrt(max(mat.Roughness.x, mat.Roughness.y));
@@ -156,11 +155,9 @@ vec3 GetEnvironment(MaterialProperties_t mat, out vec3 diffuse)
     vec3 envMap = vec3(0.0);
 
     const float lod = GetEnvMapLOD(roughness, R, 0.0);
-    const float lod_Diffuse = g_vEnvMapSizeConstants.x; // max lod
 
     #if (SCENE_CUBEMAP_TYPE == 0)
         envMap = max(g_vClearColor.rgb, vec3(0.3, 0.1, 0.1));
-        diffuse = max(g_vClearColor.rgb, vec3(0.1, 0.1, 0.3));
     #elif (SCENE_CUBEMAP_TYPE == 1)
         int envMapArrayIndex = g_iEnvMapArrayIndices;
         vec4 proxySphere = g_vEnvMapProxySphere[envMapArrayIndex];
@@ -174,7 +171,6 @@ vec3 GetEnvironment(MaterialProperties_t mat, out vec3 diffuse)
         coords = mix(coords, mat.AmbientNormal, (bIsClothShading) ? sqrt(roughness) : roughness); // blend to fully corrected
 
         envMap = textureLod(g_tEnvironmentMap, coords, lod).rgb;
-        diffuse = textureLod(g_tEnvironmentMap, coords, lod_Diffuse).rgb * 0.5;
     #elif (SCENE_CUBEMAP_TYPE == 2)
 
     float totalWeight = 0.01;
@@ -212,15 +208,12 @@ vec3 GetEnvironment(MaterialProperties_t mat, out vec3 diffuse)
         coords = mix(coords, mat.AmbientNormal, (bIsClothShading) ? sqrt(roughness) : roughness); // blend to fully corrected
 
         envMap += textureLod(g_tEnvironmentMap, vec4(coords, envMapArrayIndex), lod).rgb * weight;
-        diffuse += textureLod(g_tEnvironmentMap, vec4(coords, envMapArrayIndex), lod_Diffuse).rgb * weight;
 
         if (totalWeight > 0.99)
         {
             break;
         }
     }
-
-    diffuse = mix(diffuse*2.0, diffuse*2.6, GetLuma(diffuse));
 
     #endif // SCENE_CUBEMAP_TYPE == 2
 
@@ -237,10 +230,4 @@ vec3 GetEnvironment(MaterialProperties_t mat, out vec3 diffuse)
     #endif
 
     return brdf * envMap;
-}
-
-vec3 GetEnvironment(MaterialProperties_t mat)
-{
-    vec3 diffuse;
-    return GetEnvironment(mat, diffuse);
 }
