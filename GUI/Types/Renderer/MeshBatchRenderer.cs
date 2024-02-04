@@ -230,9 +230,9 @@ namespace GUI.Types.Renderer
             if (uniforms.Tint > -1)
             {
                 var instanceTint = (request.Node is SceneAggregate.Fragment fragment) ? fragment.Tint : Vector4.One;
-                var tint = (request.Mesh.Tint * request.Call.TintColor * instanceTint).ToOpenTK();
+                var tint = request.Mesh.Tint * request.Call.TintColor * instanceTint;
 
-                GL.ProgramUniform4(shader.Program, uniforms.Tint, tint);
+                GL.ProgramUniform4(shader.Program, uniforms.Tint, tint.X, tint.Y, tint.Z, tint.W);
             }
 
             GL.DrawElementsBaseVertex(

@@ -102,7 +102,7 @@ namespace GUI.Types.Renderer
             var uniformLocation = GetUniformLocation(name);
             if (uniformLocation > -1)
             {
-                GL.ProgramUniform2(Program, uniformLocation, value.ToOpenTK());
+                GL.ProgramUniform2(Program, uniformLocation, value.X, value.Y);
             }
         }
 
@@ -111,7 +111,7 @@ namespace GUI.Types.Renderer
             var uniformLocation = GetUniformLocation(name);
             if (uniformLocation > -1)
             {
-                GL.ProgramUniform3(Program, uniformLocation, value.ToOpenTK());
+                GL.ProgramUniform3(Program, uniformLocation, value.X, value.Y, value.Z);
             }
         }
 
@@ -120,7 +120,7 @@ namespace GUI.Types.Renderer
             var uniformLocation = GetUniformLocation(name);
             if (uniformLocation > -1)
             {
-                GL.ProgramUniform4(Program, uniformLocation, value.ToOpenTK());
+                GL.ProgramUniform4(Program, uniformLocation, value.X, value.Y, value.Z, value.W);
             }
         }
 
