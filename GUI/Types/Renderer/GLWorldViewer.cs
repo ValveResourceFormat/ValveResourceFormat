@@ -333,7 +333,20 @@ namespace GUI.Types.Renderer
 
             Log.Info(nameof(GLWorldViewer), $"Opening {sceneNode.Name} (Id: {pixelInfo.ObjectId})");
 
-            var foundFile = GuiContext.FileLoader.FindFileWithContext(sceneNode.Name + "_c");
+            var filename = sceneNode.Name;
+
+            if (sceneNode.EntityData != null)
+            {
+                // Perhaps this needs to check for correct classname?
+                var particle = sceneNode.EntityData.GetProperty<string>("effect_name");
+
+                if (particle != null)
+                {
+                    filename = particle;
+                }
+            }
+
+            var foundFile = GuiContext.FileLoader.FindFileWithContext(filename + "_c");
 
             if (foundFile.Context == null)
             {
