@@ -421,14 +421,8 @@ namespace GUI.Controls
 
         protected void SetMoveSpeedOrZoomLabel(string text) => moveSpeed.Text = text;
 
-#if DEBUG
         private static void OnDebugMessage(DebugSource source, DebugType type, int id, DebugSeverity severity, int length, IntPtr pMessage, IntPtr pUserParam)
         {
-            if (source == DebugSource.DebugSourceApplication && severity == DebugSeverity.DebugSeverityNotification)
-            {
-                return;
-            }
-
             var severityStr = severity.ToString().Replace("DebugSeverity", string.Empty, StringComparison.Ordinal);
             var sourceStr = source.ToString().Replace("DebugSource", string.Empty, StringComparison.Ordinal);
             var typeStr = type.ToString().Replace("DebugType", string.Empty, StringComparison.Ordinal);
@@ -441,14 +435,15 @@ namespace GUI.Controls
                 default: Log.Debug("OpenGL", error); break;
             }
 
+#if DEBUG
             if (type == DebugType.DebugTypeError)
             {
                 Debugger.Break();
             }
+#endif
         }
 
         private static readonly DebugProc OpenGLDebugMessageDelegate = OnDebugMessage;
-#endif
 
         public Framebuffer GLDefaultFramebuffer;
         public Framebuffer MainFramebuffer;
@@ -483,11 +478,21 @@ namespace GUI.Controls
             GL.DepthFunc(DepthFunction.Greater);
             GL.ClearDepth(0.0f);
 
-#if DEBUG
             GL.Enable(EnableCap.DebugOutput);
-            GL.Enable(EnableCap.DebugOutputSynchronous);
-            GL.DebugMessageControl(DebugSourceControl.DebugSourceApi, DebugTypeControl.DebugTypeOther, DebugSeverityControl.DebugSeverityNotification, 0, Array.Empty<int>(), false);
             GL.DebugMessageCallback(OpenGLDebugMessageDelegate, IntPtr.Zero);
+
+#if DEBUG
+            GL.Enable(EnableCap.DebugOutputSynchronous);
+
+            // Filter out performance warnings
+            GL.DebugMessageControl(DebugSourceControl.DebugSourceApi, DebugTypeControl.DebugTypeOther, DebugSeverityControl.DebugSeverityNotification, 0, Array.Empty<int>(), false);
+
+            // Filter out debug group push/pops
+            GL.DebugMessageControl(DebugSourceControl.DebugSourceApplication, DebugTypeControl.DontCare, DebugSeverityControl.DebugSeverityNotification, 0, Array.Empty<int>(), false);
+#else
+            // Only log high severity messages in release builds
+            GL.DebugMessageControl(DebugSourceControl.DontCare, DebugTypeControl.DontCare, DebugSeverityControl.DontCare, 0, Array.Empty<int>(), false);
+            GL.DebugMessageControl(DebugSourceControl.DontCare, DebugTypeControl.DontCare, DebugSeverityControl.DebugSeverityHigh, 0, Array.Empty<int>(), true);
 #endif
 
             try
