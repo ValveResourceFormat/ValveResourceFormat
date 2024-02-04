@@ -18,7 +18,6 @@ namespace GUI.Types.Renderer
         public SelectedNodeRenderer(Scene scene) : base(scene)
         {
             shader = scene.GuiContext.ShaderLoader.LoadShader("vrf.default");
-            GL.UseProgram(shader.Program);
 
             GL.CreateVertexArrays(1, out vaoHandle);
             GL.CreateBuffers(1, out vboHandle);
