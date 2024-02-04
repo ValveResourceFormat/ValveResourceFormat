@@ -73,6 +73,11 @@ namespace GUI.Types.Renderer
             GL.VertexArrayVertexBuffer(newVaoHandle, 0, gpuVbib.VertexBuffers[curVertexBuffer.Id], 0, (int)curVertexBuffer.ElementSizeInBytes);
             GL.VertexArrayElementBuffer(newVaoHandle, gpuVbib.IndexBuffers[idxIndex]);
 
+            // Workaround a bug in Intel drivers when mixing float and integer attributes
+            // See https://gist.github.com/stefalie/e17a20a88a0fdbd97110611569a6605f for reference
+            // We are using DSA apis, so we don't actually need to bind the VAO
+            GL.BindVertexArray(newVaoHandle);
+
             foreach (var attribute in curVertexBuffer.InputLayoutFields)
             {
                 var attributeLocation = -1;
@@ -112,6 +117,8 @@ namespace GUI.Types.Renderer
 
                 BindVertexAttrib(newVaoHandle, attribute, attributeLocation, (int)attribute.Offset);
             }
+
+            GL.BindVertexArray(0);
 
             vertexArrayObjects.Add(vaoKey, newVaoHandle);
             return newVaoHandle;
