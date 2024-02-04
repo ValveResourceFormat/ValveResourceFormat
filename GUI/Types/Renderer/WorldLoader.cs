@@ -164,7 +164,7 @@ namespace GUI.Types.Renderer
                 var name = Path.GetFileNameWithoutExtension(lightmap);
                 if (LightmapNameToUniformName.TryGetValue(name, out var uniformName))
                 {
-                    var renderTexture = guiContext.MaterialLoader.LoadTexture(lightmap);
+                    var renderTexture = guiContext.MaterialLoader.GetTexture(lightmap);
                     result.Lightmaps[uniformName] = renderTexture;
 
                     if (name == "direct_light_indices")
@@ -432,8 +432,7 @@ namespace GUI.Types.Renderer
 
                         if (fogSource == "0") // Cubemap From Texture, Disabled in CS2
                         {
-                            fogTexture = guiContext.MaterialLoader.LoadTexture(
-                                entity.GetProperty<string>("cubemapfogtexture"));
+                            fogTexture = guiContext.MaterialLoader.GetTexture(entity.GetProperty<string>("cubemapfogtexture"));
                         }
                         else
                         {

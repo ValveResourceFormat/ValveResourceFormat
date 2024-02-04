@@ -148,7 +148,7 @@ namespace GUI.Types.Renderer
             return tex;
         }
 
-        public RenderTexture LoadTexture(string name, bool srgbRead = false)
+        private RenderTexture LoadTexture(string name, bool srgbRead = false)
         {
             var textureResource = VrfGuiContext.LoadFileCompiled(name);
 
