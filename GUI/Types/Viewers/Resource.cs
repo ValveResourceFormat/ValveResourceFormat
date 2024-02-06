@@ -10,6 +10,8 @@ using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.ResourceTypes.Choreo;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace GUI.Types.Viewers
 {
@@ -430,6 +432,17 @@ namespace GUI.Types.Viewers
                         };
 
                         IViewer.AddContentTab<Func<string>>(resTabs, extract.GetVfxFileName(), extract.ToVFX, true);
+                        break;
+                    }
+
+                case ResourceType.ChoreoSceneFileData:
+                    {
+                        var vcdList = (ChoreoDataList)resource.DataBlock;
+                        foreach (var scene in vcdList.Scenes)
+                        {
+                            var kv = new KV3File(scene.ToKeyValues());
+                            var tab = IViewer.AddContentTab(resTabs, "VCD", kv);
+                        }
                         break;
                     }
             }
