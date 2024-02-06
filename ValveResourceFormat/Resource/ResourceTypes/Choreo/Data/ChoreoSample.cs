@@ -64,7 +64,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Data
             if (Bezier != null)
             {
                 var bezierKV = GetBezierKV();
-                kv.AddProperty("curvetype", new KVValue(KVType.OBJECT, bezierKV));
+                kv.AddProperty("bezier", new KVValue(KVType.OBJECT, bezierKV));
             }
 
             return kv;
