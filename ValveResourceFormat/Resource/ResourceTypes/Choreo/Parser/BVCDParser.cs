@@ -8,11 +8,13 @@ using System.Threading.Tasks;
 using ValveResourceFormat.ResourceTypes.Choreo.Enums;
 using ValveResourceFormat.ResourceTypes.Choreo.Flags;
 using ValveResourceFormat.ResourceTypes.Choreo.Data;
+using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
 {
     public class BVCDParser
     {
+        public const int MAGIC = 0x62766364; // "bvcd"
         public byte Version { get; init; }
         private BinaryReader reader;
         private string[] strings;
@@ -43,10 +45,10 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
 
         protected virtual ChoreoData Read()
         {
-            var magic = new string(reader.ReadChars(4));
-            if (magic != "bvcd")
+            var magic = reader.ReadUInt32();
+            if (magic != MAGIC)
             {
-                throw new InvalidDataException("The content of the given stream is not bvcd data");
+                throw new UnexpectedMagicException("The content of the given stream is not bvcd data", magic, "bvcd");
             }
             var version = reader.ReadByte();
             var crc = reader.ReadInt32();
