@@ -10,8 +10,6 @@ namespace GUI.Types.Renderer
     {
         private readonly int vaoHandle;
         private readonly RenderMaterial material;
-        private readonly Vector3 position;
-        private readonly float size;
 
         public SpriteSceneNode(Scene scene, VrfGuiContext vrfGuiContext, Resource resource, Vector3 position)
             : base(scene)
@@ -66,12 +64,11 @@ namespace GUI.Types.Renderer
             GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, vaoHandle, vaoLabel.Length, vaoLabel);
 #endif
 
-            size = material.Material.FloatParams.GetValueOrDefault("g_flUniformPointSize", 16);
-            size /= 2f; // correct the scale to actually be 16x16
+            var spriteSize = material.Material.FloatParams.GetValueOrDefault("g_flUniformPointSize", 16);
+            spriteSize /= 2f; // correct the scale to actually be 16x16
 
-            this.position = position;
-            var size3 = new Vector3(size);
-            LocalBoundingBox = new AABB(position - size3, position + size3);
+            LocalBoundingBox = new AABB(-Vector3.One, Vector3.One);
+            Transform = Matrix4x4.CreateScale(spriteSize) * Matrix4x4.CreateTranslation(position.X, position.Y, position.Z);
         }
 
         public override void Render(Scene.RenderContext context)
@@ -91,11 +88,8 @@ namespace GUI.Types.Renderer
             modelViewRotation = Quaternion.Inverse(modelViewRotation);
             var billboardMatrix = Matrix4x4.CreateFromQuaternion(modelViewRotation);
 
-            var scaleMatrix = Matrix4x4.CreateScale(size);
-            var translationMatrix = Matrix4x4.CreateTranslation(position.X, position.Y, position.Z);
-
-            var test = billboardMatrix * scaleMatrix * translationMatrix;
-            renderShader.SetUniform4x4("transform", test);
+            var transform = billboardMatrix * Transform;
+            renderShader.SetUniform4x4("transform", transform);
 
             renderShader.SetUniform1("bAnimated", 0.0f);
             renderShader.SetUniform1("sceneObjectId", Id);
