@@ -14,8 +14,8 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
 {
     public class BVCDParser
     {
-        public byte Version { get; init; }
         public const int MAGIC = 0x64637662; // "bvcd"
+        private byte version;
         private BinaryReader reader;
         private string[] strings;
 
@@ -50,7 +50,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
             {
                 throw new UnexpectedMagicException("The content of the given stream is not bvcd data", magic, "bvcd");
             }
-            var version = reader.ReadByte();
+            version = reader.ReadByte();
             var crc = reader.ReadInt32();
 
             var eventsCount = reader.ReadByte();
@@ -146,10 +146,12 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
             ChoreoRamp ramp;
             ramp = ReadRamp();
 
-            //there are two bytes before flags for dota 2 vcds (v17)
-            //var unk02 = reader.ReadByte();
-            //var unk03 = reader.ReadByte();
-
+            if (version >= 17)
+            {
+                //is the first occurance for these at version 17?
+                var unk02 = reader.ReadByte();
+                var unk03 = reader.ReadByte();
+            }
             var flags = (ChoreoFlags)reader.ReadByte();
 
             var distanceToTarget = reader.ReadSingle();
@@ -211,9 +213,17 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
             }
             else if (eventType == ChoreoEventType.Speak)
             {
-                closedCaptions = ReadClosedCaptions();
+                if (version < 17)
+                {
+                    closedCaptions = ReadClosedCaptions();
+                }
                 var unk02 = reader.ReadInt32(); //is this for speak only? what's this? maybe part of closedcaptions?
                 Debug.Assert(unk02 == 0);
+            }
+
+            if (version >= 17)
+            {
+                var unk03 = reader.ReadByte();
             }
 
             //eventId or unk01 is sometimes missing?
