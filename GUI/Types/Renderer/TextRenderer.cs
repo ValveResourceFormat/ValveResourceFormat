@@ -70,6 +70,12 @@ namespace GUI.Types.Renderer
                 GL.VertexArrayAttribBinding(vao, attributeLocation, 0);
                 offset += sizeof(float) * size;
             }
+
+#if DEBUG
+            var objectLabel = nameof(TextRenderer);
+            GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, vao, objectLabel.Length, objectLabel);
+            GL.ObjectLabel(ObjectLabelIdentifier.Texture, fontTexture.Handle, objectLabel.Length, objectLabel);
+#endif
         }
 
         public void SetViewportSize(int viewportWidth, int viewportHeight)

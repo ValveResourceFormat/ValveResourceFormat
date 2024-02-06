@@ -14,7 +14,6 @@ namespace GUI.Types.Renderer.UniformBuffers
         public int Handle { get; }
         public int Size { get; }
         public int BindingPoint { get; }
-        public string Name { get; }
 
         T data;
         public T Data { get => data; set { data = value; Update(); } }
@@ -38,10 +37,9 @@ namespace GUI.Types.Renderer.UniformBuffers
             data = new T();
             Initialize();
 
-            Name = typeof(T).Name;
-
 #if DEBUG
-            GL.ObjectLabel(ObjectLabelIdentifier.Buffer, Handle, Name.Length, Name);
+            var objectLabel = nameof(UniformBuffer<T>);
+            GL.ObjectLabel(ObjectLabelIdentifier.Buffer, Handle, objectLabel.Length, objectLabel);
 #endif
         }
 
