@@ -14,8 +14,8 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
 {
     public class BVCDParser
     {
-        public const int MAGIC = 0x62766364; // "bvcd"
         public byte Version { get; init; }
+        public const int MAGIC = 0x64637662; // "bvcd"
         private BinaryReader reader;
         private string[] strings;
 
