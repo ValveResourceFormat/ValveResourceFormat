@@ -11,13 +11,13 @@ using ValveResourceFormat.ResourceTypes.Choreo.Data;
 
 namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
 {
-    public abstract class BVCDParser
+    public class BVCDParser
     {
-        public abstract byte Version { get; }
+        public byte Version { get; init; }
         private BinaryReader reader;
         private string[] strings;
 
-        protected BVCDParser(BinaryReader reader, string[] strings)
+        private BVCDParser(BinaryReader reader, string[] strings)
         {
             this.reader = reader;
             this.strings = strings;
@@ -26,29 +26,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
         public static ChoreoData Parse(Stream stream, string[] strings)
         {
             using BinaryReader reader = new BinaryReader(stream);
-
-            var magic = new string(reader.ReadChars(4));
-            if (magic != "bvcd")
-            {
-                throw new InvalidDataException("The content of the given stream is not bvcd data");
-            }
-            var version = reader.ReadByte();
-            var crc = reader.ReadInt32();
-
-            BVCDParser parser;
-            switch (version)
-            {
-                case 8: //There are some v8 bvcds in HLA, but they decompile fine with the v9 parser.
-                case 9:
-                    parser = new BVCDParserV9(reader, strings);
-                    break;
-                case 17:
-                    parser = new BVCDParserV17(reader, strings);
-                    break;
-                default:
-                    throw new NotImplementedException($"BVCD version {version} is not supported");
-            }
-
+            var parser = new BVCDParser(reader, strings);
             return parser.Read();
         }
 
@@ -65,6 +43,14 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
 
         protected virtual ChoreoData Read()
         {
+            var magic = new string(reader.ReadChars(4));
+            if (magic != "bvcd")
+            {
+                throw new InvalidDataException("The content of the given stream is not bvcd data");
+            }
+            var version = reader.ReadByte();
+            var crc = reader.ReadInt32();
+
             var eventsCount = reader.ReadByte();
             var events = new ChoreoEvent[eventsCount];
             for (var i = 0; i < eventsCount; i++)
