@@ -112,7 +112,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Data
 
         private void AddKVFlag(KVObject kv, string name, ChoreoFlags flag, bool defaultValue = false)
         {
-            var set = Flags.HasFlag(ChoreoFlags.ResumeCondition);
+            var set = Flags.HasFlag(flag);
             if (set == defaultValue)
             {
                 return;
