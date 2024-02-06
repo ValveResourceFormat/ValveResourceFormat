@@ -98,7 +98,14 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Data
             //hardstopspeakevent (Speak)
             //volumematcheseventramp (Speak)
             //pitch (is this even in the bvcd?)
+            //all tag arrays
+            //EventFlex
+            //loop stuff
 
+            if (Ramp.Samples.Length > 0)
+            {
+                kv.AddProperty("event_ramp", new KVValue(KVType.OBJECT, Ramp.ToKeyValues()));
+            }
 
             return kv;
         }

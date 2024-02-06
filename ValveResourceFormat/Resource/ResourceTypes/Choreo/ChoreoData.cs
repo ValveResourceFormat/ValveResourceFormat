@@ -47,6 +47,11 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
             kv.AddProperty("events", new KVValue(KVType.ARRAY, events));
 
 
+            if (Ramp.Samples.Length > 0)
+            {
+                kv.AddProperty("scene_ramp", new KVValue(KVType.OBJECT, Ramp.ToKeyValues()));
+            }
+
             kv.AddProperty("ignorePhonemes", new KVValue(KVType.BOOLEAN, IgnorePhonemes));
 
             return kv;
