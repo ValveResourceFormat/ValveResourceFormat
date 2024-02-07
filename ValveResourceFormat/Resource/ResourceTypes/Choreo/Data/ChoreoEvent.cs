@@ -71,7 +71,8 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Data
             {
                 var ccType = ClosedCaptions.Type switch {
                     ChoreoClosedCaptionsType.Master => "cc_master",
-                    ChoreoClosedCaptionsType.Slave => "cc_slave", //TODO: is this actually named cc_slave?
+                    ChoreoClosedCaptionsType.Slave => "cc_slave",
+                    ChoreoClosedCaptionsType.Disabled => "cc_disabled",
                     _ => ""
                 };
                 kv.AddProperty("cctype", new KVValue(KVType.STRING, ccType));
@@ -93,21 +94,51 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Data
 
             kv.AddProperty("eventID", new KVValue(KVType.INT64, Id));
             //TODO: Missing properties:
-            //yaw (LookAt)
             //synctofollowinggesture (Gesture)
             //hardstopspeakevent (Speak)
             //volumematcheseventramp (Speak)
             //pitch (is this even in the bvcd?)
-            //all tag arrays
-            //EventFlex
+            //tag arrays
             //loop stuff
+
 
             if (Ramp.Samples.Length > 0)
             {
                 kv.AddProperty("event_ramp", new KVValue(KVType.OBJECT, Ramp.ToKeyValues()));
             }
 
+            AddTagArrayToKV(kv, "flextimingtags", FlexTimingTags);
+
+            if (EventFlex.Tracks.Length > 0)
+            {
+                //samples_use_time changes how sample times are interpreted when (re)compiling the .vcd.
+                //TODO: Verify whether samples_use_time is only used by flexanimations
+                kv.AddProperty("samples_use_time", new KVValue(KVType.BOOLEAN, true));
+                kv.AddProperty("flexanimations", new KVValue(KVType.OBJECT, EventFlex.ToKeyValues()));
+            }
+
             return kv;
+        }
+
+        private static void AddTagArrayToKV(KVObject parent, string name, ChoreoTag[] tags)
+        {
+            if (tags.Length == 0)
+            {
+                return;
+            }
+
+            var kv = new KVObject(null, true, tags.Length);
+
+            foreach (var tag in tags)
+            {
+                var tagKV = new KVObject(null);
+                tagKV.AddProperty("name", new KVValue(KVType.STRING, tag.Name));
+                tagKV.AddProperty("fraction", new KVValue(KVType.FLOAT, tag.Duration));
+
+                kv.AddProperty(null, new KVValue(KVType.OBJECT, tagKV));
+            }
+
+            parent.AddProperty(name, new KVValue(KVType.ARRAY, kv));
         }
 
         private void AddKVFlag(KVObject kv, string name, ChoreoFlags flag, bool defaultValue = false)

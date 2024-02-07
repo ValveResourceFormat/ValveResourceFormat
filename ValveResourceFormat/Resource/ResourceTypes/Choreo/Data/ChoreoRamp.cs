@@ -9,6 +9,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Data
         {
             Samples = samples;
         }
+
         public KVObject ToKeyValues()
         {
             var kv = new KVObject(null, true, Samples.Length);

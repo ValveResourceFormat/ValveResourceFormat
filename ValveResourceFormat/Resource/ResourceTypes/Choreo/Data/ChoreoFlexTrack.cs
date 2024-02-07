@@ -1,4 +1,5 @@
 using ValveResourceFormat.ResourceTypes.Choreo.Flags;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes.Choreo.Data
 {
@@ -19,6 +20,32 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Data
             MaxRange = maxRange;
             Samples = samples;
             ComboSamples = comboSamples;
+        }
+
+        public KVObject ToKeyValues()
+        {
+            var kv = new KVObject(null);
+
+            var isCombo = TrackFlags.HasFlag(ChoreoTrackFlags.Combo);
+
+            kv.AddProperty("name", new KVValue(KVType.STRING, Name));
+            if (isCombo)
+            {
+                kv.AddProperty("combo", new KVValue(KVType.BOOLEAN, true));
+            }
+            kv.AddProperty("min", new KVValue(KVType.FLOAT, MinRange));
+            kv.AddProperty("max", new KVValue(KVType.FLOAT, MaxRange));
+
+            if (Samples?.Samples.Length > 0)
+            {
+                kv.AddProperty("samples", new KVValue(KVType.OBJECT, Samples.ToKeyValues()));
+            }
+            if (isCombo && ComboSamples?.Samples.Length > 0)
+            {
+                kv.AddProperty("stereo", new KVValue(KVType.OBJECT, ComboSamples.ToKeyValues()));
+            }
+
+            return kv;
         }
     }
 }
