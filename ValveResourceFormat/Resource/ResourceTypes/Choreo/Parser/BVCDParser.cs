@@ -317,7 +317,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
 
             var samplesCurve = ReadRamp();
             ChoreoRamp comboSamplesCurve = null;
-            if (version >= 17)
+            if (flags.HasFlag(ChoreoTrackFlags.Combo) || version >= 17)
             {
                 comboSamplesCurve = ReadRamp();
             }
