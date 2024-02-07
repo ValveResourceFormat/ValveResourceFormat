@@ -82,6 +82,13 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Data
                 var noAttentuate = ClosedCaptions.Flags.HasFlag(ChoreoClosedCaptionsFlags.SuppressingCaptionAttenuation);
                 kv.AddProperty("cc_noattenuate", new KVValue(KVType.BOOLEAN, noAttentuate));
 
+                //TODO: These are not closed caption related flags. Should closedcaptions class be renamed?
+                var hardStopSpeakEvent = ClosedCaptions.Flags.HasFlag(ChoreoClosedCaptionsFlags.HardStopSpeakEvent);
+                kv.AddProperty("hardstopspeakevent", new KVValue(KVType.BOOLEAN, hardStopSpeakEvent));
+
+                var volumeMatchesEventRamp = ClosedCaptions.Flags.HasFlag(ChoreoClosedCaptionsFlags.VolumeMatchesEventRamp);
+                kv.AddProperty("volumematcheseventramp", new KVValue(KVType.BOOLEAN, volumeMatchesEventRamp));
+
                 //TODO: Print the rest of the caption flags
             }
 
@@ -92,14 +99,16 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Data
             AddKVFlag(kv, "forceshortmovement", ChoreoFlags.ForceShortMovement, false);
             AddKVFlag(kv, "lockbodyfacing", ChoreoFlags.LockBodyFacing, false);
 
+            if (Type == ChoreoEventType.Loop)
+            {
+                kv.AddProperty("loopcount", new KVValue(KVType.INT64, LoopCount));
+            }
+
             kv.AddProperty("eventID", new KVValue(KVType.INT64, Id));
             //TODO: Missing properties:
-            //synctofollowinggesture (Gesture)
-            //hardstopspeakevent (Speak)
-            //volumematcheseventramp (Speak)
-            //pitch (is this even in the bvcd?)
+            //synctofollowinggesture (missing from bvcd?)
+            //pitch (missing from bvcd?)
             //tag arrays
-            //loop stuff
 
 
             if (Ramp.Samples.Length > 0)
@@ -108,6 +117,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Data
             }
 
             AddTagArrayToKV(kv, "flextimingtags", FlexTimingTags);
+            AddTagArrayToKV(kv, "tags", RelativeTags);
 
             if (EventFlex.Tracks.Length > 0)
             {
