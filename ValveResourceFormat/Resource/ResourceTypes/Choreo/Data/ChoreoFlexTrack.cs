@@ -8,10 +8,10 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Data
         public ChoreoTrackFlags TrackFlags { get; private set; }
         public float MinRange { get; private set; }
         public float MaxRange { get; private set; } = 1f;
-        public ChoreoFlexSample[] Samples { get; private set; }
-        public ChoreoFlexSample[] ComboSamples { get; private set; }
+        public ChoreoRamp Samples { get; private set; }
+        public ChoreoRamp ComboSamples { get; private set; }
 
-        public ChoreoFlexTrack(string name, ChoreoTrackFlags trackFlags, float minRange, float maxRange, ChoreoFlexSample[] samples, ChoreoFlexSample[] comboSamples)
+        public ChoreoFlexTrack(string name, ChoreoTrackFlags trackFlags, float minRange, float maxRange, ChoreoRamp samples, ChoreoRamp comboSamples)
         {
             Name = name;
             TrackFlags = trackFlags;

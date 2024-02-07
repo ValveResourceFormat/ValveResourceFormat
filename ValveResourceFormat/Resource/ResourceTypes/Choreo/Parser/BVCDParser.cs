@@ -217,18 +217,16 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
                 {
                     closedCaptions = ReadClosedCaptions();
                 }
-                var unk02 = reader.ReadInt32(); //is this for speak only? what's this? maybe part of closedcaptions?
-                Debug.Assert(unk02 == 0);
-            }
-
-            if (version >= 17)
-            {
-                var unk03 = reader.ReadByte();
+                var soundStartDelay = reader.ReadSingle();
+                if (version >= 17)
+                {
+                    var unk03 = reader.ReadByte();
+                }
             }
 
             //eventId or unk01 is sometimes missing?
             var unk01 = reader.ReadInt32(); //this is likely a reference to another event's id, act1_refuge.vcdlist has non-zero values here
-            Debug.Assert(unk01 == 0);
+            //Debug.Assert(unk01 == 0);
             var eventId = reader.ReadInt32();
 
             var absoluteTags = playTags.Concat(shiftTags).ToArray();
@@ -317,41 +315,14 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
             var minRange = reader.ReadSingle();
             var maxRange = reader.ReadSingle();
 
-            var sampleCount = reader.ReadUInt16();
-            var samples = new ChoreoFlexSample[sampleCount];
-            for (var i = 0; i < sampleCount; i++)
+            var samplesCurve = ReadRamp();
+            ChoreoRamp comboSamplesCurve = null;
+            if (version >= 17)
             {
-                samples[i] = ReadFlexSample();
+                comboSamplesCurve = ReadRamp();
             }
 
-            ChoreoFlexSample[] comboSamples;
-            if (flags.HasFlag(ChoreoTrackFlags.Combo))
-            {
-                var comboSampleCount = reader.ReadUInt16();
-                comboSamples = new ChoreoFlexSample[comboSampleCount];
-                for (var i = 0; i < comboSampleCount; i++)
-                {
-                    comboSamples[i] = ReadFlexSample();
-                }
-            }
-            else
-            {
-                comboSamples = [];
-            }
-
-            return new ChoreoFlexTrack(name, flags, minRange, maxRange, samples, comboSamples);
-        }
-
-        protected virtual ChoreoFlexSample ReadFlexSample()
-        {
-            var time = reader.ReadSingle();
-            var value = reader.ReadByte() / 255f;
-
-            var curveData = reader.ReadUInt16();
-            var startCurve = (byte)((curveData >> 8) & 0xff);
-            var endCurve = (byte)(curveData & 0xff);
-
-            return new ChoreoFlexSample(time, value, startCurve, endCurve);
+            return new ChoreoFlexTrack(name, flags, minRange, maxRange, samplesCurve, comboSamplesCurve);
         }
     }
 }
