@@ -225,12 +225,11 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
             }
 
             //eventId or unk01 is sometimes missing?
-            var unk01 = reader.ReadInt32(); //this is likely a reference to another event's id, act1_refuge.vcdlist has non-zero values here
-            //Debug.Assert(unk01 == 0);
+            var constrainedEventId = reader.ReadInt32();
             var eventId = reader.ReadInt32();
 
             var absoluteTags = playTags.Concat(shiftTags).ToArray();
-            return new ChoreoEvent(eventType, name, eventStart, eventEnd, param1, param2, param3, ramp, flags, distanceToTarget, relativeTags, flexTimingTags, absoluteTags, sequenceDuration, usingRelativeTag, relativeTag, flex, loopCount, closedCaptions, eventId, unk01);
+            return new ChoreoEvent(eventType, name, eventStart, eventEnd, param1, param2, param3, ramp, flags, distanceToTarget, relativeTags, flexTimingTags, absoluteTags, sequenceDuration, usingRelativeTag, relativeTag, flex, loopCount, closedCaptions, eventId, constrainedEventId);
         }
         protected virtual ChoreoClosedCaptions ReadClosedCaptions()
         {

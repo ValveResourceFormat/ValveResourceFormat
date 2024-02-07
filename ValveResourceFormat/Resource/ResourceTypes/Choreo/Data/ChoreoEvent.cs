@@ -25,7 +25,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Data
         public byte LoopCount { get; private set; }
         public ChoreoClosedCaptions ClosedCaptions { get; private set; }
         public int Id { get; private set; }
-        public int Unk01 { get; private set; }
+        public int ConstrainedEventId { get; private set; }
 
         //todo: ew
         public ChoreoEvent(ChoreoEventType type, string name, float startTime, float endTime, string param1, string param2, string param3, ChoreoRamp ramp, ChoreoFlags flags, float distanceToTarget, ChoreoRelativeTag[] relativeTags, ChoreoFlexTimingTag[] flexTimingTags, ChoreoAbsoluteTag[] absoluteTags, float sequenceDuration, bool usingRelativeTag, ChoreoRelativeTag relativeTag, ChoreoEventFlex eventFlex, byte loopCount, ChoreoClosedCaptions closedCaptions, int id, int unk01)
@@ -50,7 +50,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Data
             LoopCount = loopCount;
             ClosedCaptions = closedCaptions;
             Id = id;
-            Unk01 = unk01;
+            ConstrainedEventId = unk01;
         }
 
         public KVObject ToKeyValues()
@@ -107,6 +107,11 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Data
             if (DistanceToTarget != 0.0f)
             {
                 kv.AddProperty("distancetotarget", new KVValue(KVType.FLOAT, DistanceToTarget));
+            }
+
+            if (ConstrainedEventId != 0)
+            {
+                kv.AddProperty("constrainedEventID", new KVValue(KVType.INT64, ConstrainedEventId));
             }
 
             kv.AddProperty("eventID", new KVValue(KVType.INT64, Id));
