@@ -420,7 +420,7 @@ namespace GUI.Types.Renderer
             return errorMat;
         }
 
-        private RenderTexture GetErrorTexture()
+        public RenderTexture GetErrorTexture()
         {
             if (ErrorTexture == null)
             {
