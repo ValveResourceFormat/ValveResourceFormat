@@ -331,12 +331,14 @@ namespace GUI.Types.Renderer
                 {
                     lightingBuffer.Data = SkyboxScene.LightingInfo.LightingData;
                     renderContext.Scene = SkyboxScene;
+                    renderContext.ReplacementShader?.SetUniform1("isSkybox", 1u);
 
                     SkyboxScene.RenderOpaqueLayer(renderContext);
                     SkyboxScene.RenderTranslucentLayer(renderContext);
 
                     lightingBuffer.Data = Scene.LightingInfo.LightingData;
                     renderContext.Scene = Scene;
+                    renderContext.ReplacementShader?.SetUniform1("isSkybox", 0u);
                 }
             }
 

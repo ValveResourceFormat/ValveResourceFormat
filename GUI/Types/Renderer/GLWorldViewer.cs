@@ -252,7 +252,8 @@ namespace GUI.Types.Renderer
                 return;
             }
 
-            var sceneNode = Scene.Find(pixelInfo.ObjectId);
+            var isInSkybox = pixelInfo.IsSkybox > 0;
+            var sceneNode = isInSkybox ? SkyboxScene.Find(pixelInfo.ObjectId) : Scene.Find(pixelInfo.ObjectId);
 
             if (sceneNode == null)
             {
@@ -325,6 +326,11 @@ namespace GUI.Types.Renderer
                 else
                 {
                     ShowEntityProperties(sceneNode, entityDialog);
+                }
+
+                if (isInSkybox)
+                {
+                    entityDialog.Text += " (in 3D skybox)";
                 }
 
                 entityDialog.ShowDialog();
