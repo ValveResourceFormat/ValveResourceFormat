@@ -104,6 +104,11 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Data
                 kv.AddProperty("loopcount", new KVValue(KVType.INT64, LoopCount));
             }
 
+            if (DistanceToTarget != 0.0f)
+            {
+                kv.AddProperty("distancetotarget", new KVValue(KVType.FLOAT, DistanceToTarget));
+            }
+
             kv.AddProperty("eventID", new KVValue(KVType.INT64, Id));
             //TODO: Missing properties:
             //synctofollowinggesture (missing from bvcd?)
