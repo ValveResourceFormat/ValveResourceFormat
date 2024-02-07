@@ -200,6 +200,10 @@ namespace ValveResourceFormat.IO
                     contentFile.Data = Encoding.UTF8.GetBytes(resource.DataBlock.ToString());
                     break;
 
+                case ResourceType.ChoreoSceneFileData:
+                    contentFile = new ChoreoExtract(resource).ToContentFile();
+                    break;
+
                 default:
                     {
                         if (resource.DataBlock is BinaryKV3 dataKv3)

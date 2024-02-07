@@ -1,0 +1,45 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.ResourceTypes.Choreo;
+using ValveResourceFormat.Serialization.KeyValues;
+
+namespace ValveResourceFormat.IO;
+
+public class ChoreoExtract
+{
+    private readonly Resource vcdlistResource;
+    private readonly ChoreoDataList choreoDataList;
+    public ChoreoExtract(Resource vcdlistResource)
+    {
+        this.vcdlistResource = vcdlistResource;
+        choreoDataList = (ChoreoDataList)vcdlistResource.DataBlock;
+    }
+
+    public ContentFile ToContentFile()
+    {
+        using var indentedTextWriter = new IndentedTextWriter();
+        choreoDataList.WriteText(indentedTextWriter);
+
+        var vcdlist = new ContentFile
+        {
+            Data = Encoding.UTF8.GetBytes(indentedTextWriter.ToString()),
+            FileName = vcdlistResource.FileName,
+        };
+
+        foreach (var scene in choreoDataList.Scenes)
+        {
+            var kv = new KV3File(scene.ToKeyValues());
+
+            vcdlist.AddSubFile(
+                scene.Name,
+                () => Encoding.UTF8.GetBytes(kv.ToString())
+            );
+        }
+
+        return vcdlist;
+    }
+}
