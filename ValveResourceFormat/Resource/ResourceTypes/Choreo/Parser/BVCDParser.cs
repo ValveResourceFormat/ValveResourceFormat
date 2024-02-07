@@ -241,12 +241,12 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
         }
         protected virtual ChoreoRamp ReadRamp()
         {
-            var sampleCount = reader.ReadByte();
+            var sampleCount = reader.ReadUInt16();
             var samples = new ChoreoSample[sampleCount];
 
             var samplesRead = 0;
             ChoreoSample lastSample = null;
-            var type = reader.ReadByte();
+            var type = 0;
             while (type != 0 || samplesRead < sampleCount)
             {
                 if (type == 0) //Sample
