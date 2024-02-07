@@ -615,7 +615,7 @@ namespace GUI.Types.Renderer
 
                 var model = entity.GetProperty<string>("model");
                 var particle = entity.GetProperty<string>("effect_name");
-                var animation = entity.GetProperty<string>("defaultanim");
+                var animation = entity.GetProperty<string>("defaultanim") ?? entity.GetProperty<string>("idleanim");
 
                 string skin = default;
                 var skinRaw = entity.GetProperty("skin");
