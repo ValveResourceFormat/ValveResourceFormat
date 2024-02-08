@@ -315,8 +315,8 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
                 }
                 else if (type == 1) //Curve type of last sample
                 {
-                    var inType = reader.ReadByte();
                     var outType = reader.ReadByte();
+                    var inType = reader.ReadByte();
                     var unk01 = reader.ReadByte(); //what's this
                     Debug.Assert(unk01 == 0); //Does this have to be 0?
 
