@@ -6,53 +6,27 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
 {
     public class ChoreoEvent
     {
-        public ChoreoEventType Type { get; private set; }
-        public string Name { get; private set; }
-        public float StartTime { get; private set; }
-        public float EndTime { get; private set; }
-        public string Param1 { get; private set; }
-        public string Param2 { get; private set; }
-        public string Param3 { get; private set; }
-        public ChoreoCurveData Ramp { get; private set; }
-        public ChoreoFlags Flags { get; private set; }
-        public float DistanceToTarget { get; private set; }
-        public ChoreoEventRelativeTag[] RelativeTags { get; private set; }
-        public ChoreoFlexTimingTag[] FlexTimingTags { get; private set; }
-        public ChoreoEventAbsoluteTag[] AbsoluteTags { get; private set; }
-        public float SequenceDuration { get; private set; }
-        public bool UsingRelativeTag { get; private set; }
-        public ChoreoEventRelativeTag RelativeTag { get; private set; }
-        public ChoreoEventFlex EventFlex { get; private set; }
-        public byte LoopCount { get; private set; }
-        public ChoreoClosedCaptions ClosedCaptions { get; private set; }
-        public int Id { get; private set; }
-        public int ConstrainedEventId { get; private set; }
-
-        //todo: ew
-        public ChoreoEvent(ChoreoEventType type, string name, float startTime, float endTime, string param1, string param2, string param3, ChoreoCurveData ramp, ChoreoFlags flags, float distanceToTarget, ChoreoEventRelativeTag[] relativeTags, ChoreoFlexTimingTag[] flexTimingTags, ChoreoEventAbsoluteTag[] absoluteTags, float sequenceDuration, bool usingRelativeTag, ChoreoEventRelativeTag relativeTag, ChoreoEventFlex eventFlex, byte loopCount, ChoreoClosedCaptions closedCaptions, int id, int unk01)
-        {
-            Type = type;
-            Name = name;
-            StartTime = startTime;
-            EndTime = endTime;
-            Param1 = param1;
-            Param2 = param2;
-            Param3 = param3;
-            Ramp = ramp;
-            Flags = flags;
-            DistanceToTarget = distanceToTarget;
-            RelativeTags = relativeTags;
-            FlexTimingTags = flexTimingTags;
-            AbsoluteTags = absoluteTags;
-            SequenceDuration = sequenceDuration;
-            UsingRelativeTag = usingRelativeTag;
-            RelativeTag = relativeTag;
-            EventFlex = eventFlex;
-            LoopCount = loopCount;
-            ClosedCaptions = closedCaptions;
-            Id = id;
-            ConstrainedEventId = unk01;
-        }
+        public ChoreoEventType Type { get; init; }
+        public string Name { get; init; }
+        public float StartTime { get; init; }
+        public float EndTime { get; init; }
+        public string Param1 { get; init; }
+        public string Param2 { get; init; }
+        public string Param3 { get; init; }
+        public ChoreoCurveData Ramp { get; init; }
+        public ChoreoFlags Flags { get; init; }
+        public float DistanceToTarget { get; init; }
+        public ChoreoEventRelativeTag[] RelativeTags { get; init; }
+        public ChoreoFlexTimingTag[] FlexTimingTags { get; init; }
+        public ChoreoEventAbsoluteTag[] AbsoluteTags { get; init; }
+        public float SequenceDuration { get; init; }
+        public bool UsingRelativeTag { get; init; }
+        public ChoreoEventRelativeTag RelativeTag { get; init; }
+        public ChoreoEventFlex EventFlex { get; init; }
+        public byte LoopCount { get; init; }
+        public ChoreoClosedCaptions ClosedCaptions { get; init; }
+        public int Id { get; init; }
+        public int ConstrainedEventId { get; init; }
 
         public KVObject ToKeyValues()
         {

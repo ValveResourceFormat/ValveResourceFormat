@@ -223,7 +223,31 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
             var eventId = reader.ReadInt32();
 
             var absoluteTags = playTags.Concat(shiftTags).ToArray();
-            return new ChoreoEvent(eventType, name, eventStart, eventEnd, param1, param2, param3, ramp, flags, distanceToTarget, relativeTags, flexTimingTags, absoluteTags, sequenceDuration, usingRelativeTag, relativeTag, flex, loopCount, closedCaptions, eventId, constrainedEventId);
+
+            return new ChoreoEvent
+            {
+                Type = eventType,
+                Name = name,
+                StartTime = eventStart,
+                EndTime = eventEnd,
+                Param1 = param1,
+                Param2 = param2,
+                Param3 = param3,
+                Ramp = ramp,
+                Flags = flags,
+                DistanceToTarget = distanceToTarget,
+                RelativeTags = relativeTags,
+                FlexTimingTags = flexTimingTags,
+                AbsoluteTags = absoluteTags,
+                SequenceDuration = sequenceDuration,
+                UsingRelativeTag = usingRelativeTag,
+                RelativeTag = relativeTag,
+                EventFlex = flex,
+                LoopCount = loopCount,
+                ClosedCaptions = closedCaptions,
+                ConstrainedEventId = constrainedEventId,
+                Id = eventId,
+            };
         }
 
         protected virtual ChoreoClosedCaptions ReadClosedCaptions()
