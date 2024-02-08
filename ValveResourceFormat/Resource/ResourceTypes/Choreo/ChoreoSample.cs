@@ -1,54 +1,10 @@
 using ValveResourceFormat.Serialization.KeyValues;
+using ValveResourceFormat.ResourceTypes.Choreo.Curves;
 
 namespace ValveResourceFormat.ResourceTypes.Choreo
 {
     public class ChoreoSample
     {
-        private static readonly string[] Interpolators = [
-            "default",
-            "catmullrom_normalize_x",
-            "easein",
-            "easeout",
-            "easeinout",
-            "bspline",
-            "linear_interp",
-            "kochanek",
-            "kochanek_early",
-            "kochanek_late",
-            "simple_cubic",
-            "catmullrom",
-            "catmullrom_normalize",
-            "catmullrom_tangent",
-            "exponential_decay",
-            "hold",
-            "bezier",
-        ];
-        public struct BezierData
-        {
-            public float InDegrees { get; set; }
-            public float InWeight { get; set; }
-            public float OutDegrees { get; set; }
-            public float OutWeight { get; set; }
-        }
-        public struct CurveType
-        {
-            public byte InType { get; set; }
-            public byte OutType { get; set; }
-            public string InTypeName
-            {
-                get
-                {
-                    return Interpolators[InType];
-                }
-            }
-            public string OutTypeName
-            {
-                get
-                {
-                    return Interpolators[OutType];
-                }
-            }
-        }
         public float Time { get; private set; }
         public float Value { get; private set; }
         public BezierData? Bezier { get; private set; }
