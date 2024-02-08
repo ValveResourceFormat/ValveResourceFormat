@@ -171,6 +171,15 @@ namespace GUI.Types.Viewers
                     resTabs.TabPages.Add(physRendererTab);
                     break;
 
+                case ResourceType.ChoreoDataList:
+                    {
+                        var choreoViewer = new ChoreoViewer(resource);
+                        var tabChoreoViewer = new TabPage("VCDLIST");
+                        tabChoreoViewer.Controls.Add(choreoViewer);
+                        resTabs.TabPages.Add(tabChoreoViewer);
+                        break;
+                    }
+
                 default:
                     selectData = true;
                     break;
@@ -431,17 +440,6 @@ namespace GUI.Types.Viewers
                         };
 
                         IViewer.AddContentTab<Func<string>>(resTabs, extract.GetVfxFileName(), extract.ToVFX, true);
-                        break;
-                    }
-
-                case ResourceType.ChoreoDataList:
-                    {
-                        var vcdList = (ChoreoDataList)resource.DataBlock;
-                        foreach (var scene in vcdList.Scenes)
-                        {
-                            var kv = new KV3File(scene.ToKeyValues());
-                            var tab = IViewer.AddContentTab(resTabs, "VCD", kv);
-                        }
                         break;
                     }
             }
