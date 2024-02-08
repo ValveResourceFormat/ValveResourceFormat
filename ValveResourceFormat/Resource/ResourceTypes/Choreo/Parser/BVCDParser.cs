@@ -66,7 +66,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
             var ramp = ReadCurveData();
             var ignorePhonemes = reader.ReadBoolean();
 
-            var data = new ChoreoScene(events, actors, ramp, ignorePhonemes);
+            var data = new ChoreoScene(version, events, actors, ramp, ignorePhonemes);
             return data;
         }
 

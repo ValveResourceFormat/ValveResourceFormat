@@ -6,18 +6,19 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
     {
         //These come from outside of the bvcd data
         public string Name { get; set; }
-        public byte Version { get; set; }
         public int Duration { get; set; }
         public int SoundDuration { get; set; }
         public int Unk1 { get; set; } //todo: what's this
 
+        public byte Version { get; private set; }
         public ChoreoEvent[] Events { get; private set; }
         public ChoreoActor[] Actors { get; private set; }
         public ChoreoCurveData Ramp { get; private set; }
         public bool IgnorePhonemes { get; private set; }
 
-        public ChoreoScene(ChoreoEvent[] events, ChoreoActor[] actors, ChoreoCurveData ramp, bool ignorePhonemes)
+        public ChoreoScene(byte version, ChoreoEvent[] events, ChoreoActor[] actors, ChoreoCurveData ramp, bool ignorePhonemes)
         {
+            Version = version;
             Events = events;
             Actors = actors;
             Ramp = ramp;
