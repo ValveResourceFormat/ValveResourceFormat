@@ -434,7 +434,7 @@ namespace GUI.Types.Viewers
                         break;
                     }
 
-                case ResourceType.ChoreoSceneFileData:
+                case ResourceType.ChoreoDataList:
                     {
                         var vcdList = (ChoreoDataList)resource.DataBlock;
                         foreach (var scene in vcdList.Scenes)
