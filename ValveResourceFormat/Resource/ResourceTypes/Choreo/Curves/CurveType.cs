@@ -1,3 +1,5 @@
+using ValveResourceFormat.Serialization.KeyValues;
+
 namespace ValveResourceFormat.ResourceTypes.Choreo.Curves
 {
     public struct CurveType
@@ -36,6 +38,14 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Curves
             {
                 return Interpolators[OutType];
             }
+        }
+
+        public KVValue ToKeyValue()
+        {
+            var curveIn = InTypeName;
+            var curveOut = OutTypeName;
+            var curveType = $"curve_{curveIn}_to_curve_{curveOut}";
+            return new KVValue(KVType.STRING, curveType);
         }
     }
 }

@@ -44,37 +44,13 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
 
             if (Curve != null)
             {
-                var curveIn = Curve.Value.InTypeName;
-                var curveOut = Curve.Value.OutTypeName;
-                var curveType = $"curve_{curveIn}_to_curve_{curveOut}";
-                kv.AddProperty("curvetype", new KVValue(KVType.STRING, curveType));
+                kv.AddProperty("curvetype", Curve.Value.ToKeyValue());
             }
 
             if (Bezier != null)
             {
-                var bezierKV = GetBezierKV();
-                kv.AddProperty("bezier", new KVValue(KVType.OBJECT, bezierKV));
+                kv.AddProperty("bezier", Bezier.Value.ToKeyValue());
             }
-
-            return kv;
-        }
-
-        private KVObject GetBezierKV()
-        {
-            var kv = new KVObject(null);
-
-            kv.AddProperty("unified", new KVValue(KVType.BOOLEAN, true)); //TODO: Where does this come from?
-            kv.AddProperty("unweighted", new KVValue(KVType.BOOLEAN, true)); //TODO: Where does this come from?
-
-            var inKV = new KVObject(null);
-            inKV.AddProperty("deg", new KVValue(KVType.FLOAT, Bezier.Value.InDegrees));
-            inKV.AddProperty("weight", new KVValue(KVType.FLOAT, Bezier.Value.InWeight));
-            kv.AddProperty("in", new KVValue(KVType.OBJECT, inKV));
-
-            var outKV = new KVObject(null);
-            outKV.AddProperty("deg", new KVValue(KVType.FLOAT, Bezier.Value.OutDegrees));
-            outKV.AddProperty("weight", new KVValue(KVType.FLOAT, Bezier.Value.OutWeight));
-            kv.AddProperty("out", new KVValue(KVType.OBJECT, outKV));
 
             return kv;
         }
