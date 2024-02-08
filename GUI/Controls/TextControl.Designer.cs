@@ -39,10 +39,10 @@ namespace GUI.Controls
             // 
             textContainer.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
             textContainer.BackColor = System.Drawing.Color.Transparent;
-            textContainer.Location = new System.Drawing.Point(220, 0);
+            textContainer.Location = new System.Drawing.Point(320, 0);
             textContainer.Margin = new Padding(4, 3, 4, 3);
             textContainer.Name = "textContainer";
-            textContainer.Size = new System.Drawing.Size(810, 412);
+            textContainer.Size = new System.Drawing.Size(710, 412);
             textContainer.TabIndex = 0;
             // 
             // controlsPanel
@@ -51,7 +51,7 @@ namespace GUI.Controls
             controlsPanel.Location = new System.Drawing.Point(0, 0);
             controlsPanel.Margin = new Padding(0);
             controlsPanel.Name = "controlsPanel";
-            controlsPanel.Size = new System.Drawing.Size(220, 412);
+            controlsPanel.Size = new System.Drawing.Size(320, 412);
             controlsPanel.TabIndex = 4;
             // 
             // TextControl
