@@ -29,22 +29,25 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
         {
             var kv = new KVObject(null);
 
-
-            var actors = new KVObject(null, isArray: true);
-            foreach (var actor in Actors)
+            if (Events.Length > 0)
             {
-                actors.AddProperty(null, new KVValue(KVType.OBJECT, actor.ToKeyValues()));
+                var events = new KVObject(null, isArray: true);
+                foreach (var choreoEvent in Events)
+                {
+                    events.AddProperty(null, new KVValue(KVType.OBJECT, choreoEvent.ToKeyValues()));
+                }
+                kv.AddProperty("events", new KVValue(KVType.ARRAY, events));
             }
-            kv.AddProperty("actors", new KVValue(KVType.ARRAY, actors));
 
-
-            var events = new KVObject(null, isArray: true);
-            foreach (var choreoEvent in Events)
+            if (Actors.Length > 0)
             {
-                events.AddProperty(null, new KVValue(KVType.OBJECT, choreoEvent.ToKeyValues()));
+                var actors = new KVObject(null, isArray: true);
+                foreach (var actor in Actors)
+                {
+                    actors.AddProperty(null, new KVValue(KVType.OBJECT, actor.ToKeyValues()));
+                }
+                kv.AddProperty("actors", new KVValue(KVType.ARRAY, actors));
             }
-            kv.AddProperty("events", new KVValue(KVType.ARRAY, events));
-
 
             if (Ramp.Samples.Length > 0)
             {
