@@ -104,25 +104,25 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
             return new ChoreoChannel(name, events, isActive);
         }
 
+        protected virtual ChoreoTag ReadTag()
+        {
+            var name = ReadString();
+            var value = reader.ReadByte() / 255f;
+            return new ChoreoTag(name, value);
+        }
+
         protected virtual ChoreoEventRelativeTag ReadRelativeTag()
         {
             var name = ReadString();
-            var value = reader.ReadByte() / 255f;
-            return new ChoreoEventRelativeTag(name, value);
+            var soundName = ReadString();
+            return new ChoreoEventRelativeTag(name, soundName);
         }
 
-        protected virtual ChoreoFlexTimingTag ReadFlexTimingTag()
-        {
-            var name = ReadString();
-            var value = reader.ReadByte() / 255f;
-            return new ChoreoFlexTimingTag(name, value);
-        }
-
-        protected virtual ChoreoEventAbsoluteTag ReadAbsoluteTag()
+        protected virtual ChoreoTag ReadAbsoluteTag()
         {
             var name = ReadString();
             var value = reader.ReadInt16() / 4096f;
-            return new ChoreoEventAbsoluteTag(name, value);
+            return new ChoreoTag(name, value);
         }
 
         protected virtual ChoreoEvent ReadEvent()
@@ -142,8 +142,10 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
 
             if (version >= 16)
             {
+                var unk01 = reader.ReadByte();
                 var unk02 = reader.ReadByte();
-                var unk03 = reader.ReadByte();
+                Debug.Assert(unk01 == 0);
+                Debug.Assert(unk02 == 0);
             }
             var flags = (ChoreoFlags)reader.ReadByte();
 
@@ -151,25 +153,25 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
 
             //relative tags
             var count = reader.ReadByte();
-            var relativeTags = new ChoreoEventRelativeTag[count];
+            var relativeTags = new ChoreoTag[count];
             for (var i = 0; i < count; i++)
             {
-                relativeTags[i] = ReadRelativeTag();
+                relativeTags[i] = ReadTag();
             }
 
             //flex timing tags
             count = reader.ReadByte();
-            var flexTimingTags = new ChoreoFlexTimingTag[count];
+            var flexTimingTags = new ChoreoTag[count];
             for (var i = 0; i < count; i++)
             {
-                flexTimingTags[i] = ReadFlexTimingTag();
+                flexTimingTags[i] = ReadTag();
             }
 
 
             //absolute tags
             //play tags
             count = reader.ReadByte();
-            var playTags = new ChoreoEventAbsoluteTag[count];
+            var playTags = new ChoreoTag[count];
             for (var i = 0; i < count; i++)
             {
                 playTags[i] = ReadAbsoluteTag();
@@ -177,7 +179,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
 
             //shift tags
             count = reader.ReadByte();
-            var shiftTags = new ChoreoEventAbsoluteTag[count];
+            var shiftTags = new ChoreoTag[count];
             for (var i = 0; i < count; i++)
             {
                 shiftTags[i] = ReadAbsoluteTag();
@@ -199,6 +201,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
             var flex = ReadFlex();
 
             byte loopCount = 0;
+            var soundStartDelay = 0f;
             ChoreoClosedCaptions closedCaptions = null;
             if (eventType == ChoreoEventType.Loop)
             {
@@ -210,7 +213,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
                 {
                     closedCaptions = ReadClosedCaptions();
                 }
-                var soundStartDelay = reader.ReadSingle();
+                soundStartDelay = reader.ReadSingle();
                 if (version >= 16)
                 {
                     var unk03 = reader.ReadByte();
@@ -221,8 +224,6 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
             //eventId or unk01 is sometimes missing?
             var constrainedEventId = reader.ReadInt32();
             var eventId = reader.ReadInt32();
-
-            var absoluteTags = playTags.Concat(shiftTags).ToArray();
 
             return new ChoreoEvent
             {
@@ -238,13 +239,15 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
                 DistanceToTarget = distanceToTarget,
                 RelativeTags = relativeTags,
                 FlexTimingTags = flexTimingTags,
-                AbsoluteTags = absoluteTags,
+                PlaybackTimeTags = playTags,
+                ShiftedTimeTags = shiftTags,
                 SequenceDuration = sequenceDuration,
                 UsingRelativeTag = usingRelativeTag,
                 RelativeTag = relativeTag,
                 EventFlex = flex,
                 LoopCount = loopCount,
                 ClosedCaptions = closedCaptions,
+                SoundStartDelay = soundStartDelay,
                 ConstrainedEventId = constrainedEventId,
                 Id = eventId,
             };

@@ -1,14 +1,14 @@
 namespace ValveResourceFormat.ResourceTypes.Choreo
 {
-    public abstract class ChoreoTag
+    public class ChoreoTag
     {
         public string Name { get; private set; }
-        public float Duration { get; private set; }
+        public float Fraction { get; private set; }
 
-        protected ChoreoTag(string name, float duration)
+        public ChoreoTag(string name, float fraction)
         {
             Name = name;
-            Duration = duration;
+            Fraction = fraction;
         }
     }
 }

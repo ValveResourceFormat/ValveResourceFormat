@@ -16,15 +16,17 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
         public ChoreoCurveData Ramp { get; init; }
         public ChoreoFlags Flags { get; init; }
         public float DistanceToTarget { get; init; }
-        public ChoreoEventRelativeTag[] RelativeTags { get; init; }
-        public ChoreoFlexTimingTag[] FlexTimingTags { get; init; }
-        public ChoreoEventAbsoluteTag[] AbsoluteTags { get; init; }
+        public ChoreoTag[] RelativeTags { get; init; }
+        public ChoreoTag[] FlexTimingTags { get; init; }
+        public ChoreoTag[] PlaybackTimeTags { get; init; }
+        public ChoreoTag[] ShiftedTimeTags { get; init; }
         public float SequenceDuration { get; init; }
         public bool UsingRelativeTag { get; init; }
         public ChoreoEventRelativeTag RelativeTag { get; init; }
         public ChoreoEventFlex EventFlex { get; init; }
         public byte LoopCount { get; init; }
         public ChoreoClosedCaptions ClosedCaptions { get; init; }
+        public float SoundStartDelay { get; init; }
         public int Id { get; init; }
         public int ConstrainedEventId { get; init; }
 
@@ -58,6 +60,12 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
                 var noAttentuate = ClosedCaptions.Flags.HasFlag(ChoreoClosedCaptionsFlags.SuppressingCaptionAttenuation);
                 kv.AddProperty("cc_noattenuate", new KVValue(KVType.BOOLEAN, noAttentuate));
 
+                var usingCombinedFile = ClosedCaptions.Flags.HasFlag(ChoreoClosedCaptionsFlags.UsingCombinedFile);
+                kv.AddProperty("cc_usingcombinedfile", new KVValue(KVType.BOOLEAN, usingCombinedFile));
+
+                var combinedUsesGender = ClosedCaptions.Flags.HasFlag(ChoreoClosedCaptionsFlags.CombinedUsingGenderToken);
+                kv.AddProperty("cc_combinedusesgender", new KVValue(KVType.BOOLEAN, combinedUsesGender));
+
                 //TODO: These are not closed caption related flags. Should closedcaptions class be renamed?
                 var hardStopSpeakEvent = ClosedCaptions.Flags.HasFlag(ChoreoClosedCaptionsFlags.HardStopSpeakEvent);
                 kv.AddProperty("hardstopspeakevent", new KVValue(KVType.BOOLEAN, hardStopSpeakEvent));
@@ -65,7 +73,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
                 var volumeMatchesEventRamp = ClosedCaptions.Flags.HasFlag(ChoreoClosedCaptionsFlags.VolumeMatchesEventRamp);
                 kv.AddProperty("volumematcheseventramp", new KVValue(KVType.BOOLEAN, volumeMatchesEventRamp));
 
-                //TODO: Print the rest of the caption flags
+                kv.AddProperty("startdelay", new KVValue(KVType.FLOAT, SoundStartDelay));
             }
 
             AddKVFlag(kv, "resumecondition", ChoreoFlags.ResumeCondition, false);
@@ -78,6 +86,16 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
             if (Type == ChoreoEventType.Loop)
             {
                 kv.AddProperty("loopcount", new KVValue(KVType.INT64, LoopCount));
+            }
+            else if (Type == ChoreoEventType.Gesture)
+            {
+                kv.AddProperty("sequenceduration", new KVValue(KVType.FLOAT, SequenceDuration));
+            }
+
+            if (UsingRelativeTag)
+            {
+                kv.AddProperty("relativetag_name", new KVValue(KVType.STRING, RelativeTag.Name));
+                kv.AddProperty("relativetag_sound", new KVValue(KVType.STRING, RelativeTag.SoundName));
             }
 
             if (DistanceToTarget != 0.0f)
@@ -94,7 +112,6 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
             //TODO: Missing properties:
             //synctofollowinggesture (missing from bvcd?)
             //pitch (missing from bvcd?)
-            //tag arrays
 
 
             if (Ramp.Samples.Length > 0)
@@ -104,6 +121,8 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
 
             AddTagArrayToKV(kv, "flextimingtags", FlexTimingTags);
             AddTagArrayToKV(kv, "tags", RelativeTags);
+            AddTagArrayToKV(kv, "playback_time", PlaybackTimeTags);
+            AddTagArrayToKV(kv, "shifted_time", ShiftedTimeTags);
 
             if (EventFlex.Tracks.Length > 0)
             {
@@ -129,7 +148,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
             {
                 var tagKV = new KVObject(null);
                 tagKV.AddProperty("name", new KVValue(KVType.STRING, tag.Name));
-                tagKV.AddProperty("fraction", new KVValue(KVType.FLOAT, tag.Duration));
+                tagKV.AddProperty("fraction", new KVValue(KVType.FLOAT, tag.Fraction));
 
                 kv.AddProperty(null, new KVValue(KVType.OBJECT, tagKV));
             }
