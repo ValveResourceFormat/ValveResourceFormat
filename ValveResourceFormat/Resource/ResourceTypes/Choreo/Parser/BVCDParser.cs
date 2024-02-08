@@ -76,6 +76,8 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
 
             var ignorePhonemes = reader.ReadBoolean();
 
+            Debug.Assert(reader.BaseStream.Position == reader.BaseStream.Length);
+
             var data = new ChoreoScene(version, events, actors, ramp, leftEdge, rightEdge, ignorePhonemes);
             return data;
         }
