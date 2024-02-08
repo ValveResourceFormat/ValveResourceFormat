@@ -14,14 +14,18 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
         public ChoreoEvent[] Events { get; private set; }
         public ChoreoActor[] Actors { get; private set; }
         public ChoreoCurveData Ramp { get; private set; }
+        public ChoreoEdge LeftEdge { get; private set; }
+        public ChoreoEdge RightEdge { get; private set; }
         public bool IgnorePhonemes { get; private set; }
 
-        public ChoreoScene(byte version, ChoreoEvent[] events, ChoreoActor[] actors, ChoreoCurveData ramp, bool ignorePhonemes)
+        public ChoreoScene(byte version, ChoreoEvent[] events, ChoreoActor[] actors, ChoreoCurveData ramp, ChoreoEdge leftEdge, ChoreoEdge rightEdge, bool ignorePhonemes)
         {
             Version = version;
             Events = events;
             Actors = actors;
             Ramp = ramp;
+            LeftEdge = leftEdge;
+            RightEdge = rightEdge;
             IgnorePhonemes = ignorePhonemes;
         }
 
@@ -49,6 +53,14 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
                 kv.AddProperty("actors", new KVValue(KVType.ARRAY, actors));
             }
 
+            if (LeftEdge != null)
+            {
+                kv.AddProperty("left_edge", new KVValue(KVType.OBJECT, LeftEdge.ToKeyValues()));
+            }
+            if (RightEdge != null)
+            {
+                kv.AddProperty("right_edge", new KVValue(KVType.OBJECT, RightEdge.ToKeyValues()));
+            }
             if (Ramp.Samples.Length > 0)
             {
                 kv.AddProperty("scene_ramp", new KVValue(KVType.OBJECT, Ramp.ToKeyValues()));

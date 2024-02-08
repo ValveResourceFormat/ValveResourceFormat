@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using ValveResourceFormat.ResourceTypes.Choreo.Enums;
+using ValveResourceFormat.ResourceTypes.Choreo.Curves;
 using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
@@ -64,9 +65,18 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
             }
 
             var ramp = ReadCurveData();
+
+            ChoreoEdge leftEdge = null;
+            ChoreoEdge rightEdge = null;
+            if (version >= 16)
+            {
+                leftEdge = ReadEdge();
+                rightEdge = ReadEdge();
+            }
+
             var ignorePhonemes = reader.ReadBoolean();
 
-            var data = new ChoreoScene(version, events, actors, ramp, ignorePhonemes);
+            var data = new ChoreoScene(version, events, actors, ramp, leftEdge, rightEdge, ignorePhonemes);
             return data;
         }
 
@@ -125,6 +135,28 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
             return new ChoreoTag(name, value);
         }
 
+        protected virtual ChoreoEdge ReadEdge()
+        {
+            var hasEdge = reader.ReadBoolean();
+            if (!hasEdge)
+            {
+                return null;
+            }
+            var toCurve = reader.ReadByte();
+            var fromCurve = reader.ReadByte();
+            var curve = new CurveType
+            {
+                InType = fromCurve,
+                OutType = toCurve
+            };
+
+            //TODO: There's two more bytes here, but only curve type and zero value can be set from faceposer. Is there something else here for newer versions?
+            reader.ReadBytes(2);
+
+            var zeroValue = reader.ReadSingle();
+            return new ChoreoEdge(curve, zeroValue);
+        }
+
         protected virtual ChoreoEvent ReadEvent()
         {
             var eventType = (ChoreoEventType)reader.ReadByte();
@@ -140,12 +172,13 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
             ChoreoCurveData ramp;
             ramp = ReadCurveData();
 
+            //TODO: Should these be a part of ChoreoCurveData?
+            ChoreoEdge leftEdge = null;
+            ChoreoEdge rightEdge = null;
             if (version >= 16)
             {
-                var unk01 = reader.ReadByte();
-                var unk02 = reader.ReadByte();
-                Debug.Assert(unk01 == 0);
-                Debug.Assert(unk02 == 0);
+                leftEdge = ReadEdge();
+                rightEdge = ReadEdge();
             }
             var flags = (ChoreoFlags)reader.ReadByte();
 
@@ -235,6 +268,8 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
                 Param2 = param2,
                 Param3 = param3,
                 Ramp = ramp,
+                LeftEdge = leftEdge,
+                RightEdge = rightEdge,
                 Flags = flags,
                 DistanceToTarget = distanceToTarget,
                 RelativeTags = relativeTags,
