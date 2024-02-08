@@ -14,6 +14,12 @@ namespace GUI.Types.Audio
         public AudioPlayer(Resource resource, TabPage tab)
         {
             var soundData = (Sound)resource.DataBlock;
+
+            if (soundData == null)
+            {
+                return;
+            }
+
             var stream = soundData.GetSoundStream();
 
             try

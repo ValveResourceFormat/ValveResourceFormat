@@ -55,124 +55,135 @@ namespace GUI.Types.Viewers
 
             var selectData = false;
 
-            switch (resource.ResourceType)
+            try
             {
-                case ResourceType.Texture:
-                case ResourceType.PanoramaVectorGraphic:
-                    {
-                        var textureControl = new GLTextureViewer(vrfGuiContext, resource);
-                        var tabGl = new TabPage("TEXTURE");
-                        tabGl.Controls.Add(textureControl);
-                        resTabs.TabPages.Add(tabGl);
-                    }
-
-                    break;
-
-                case ResourceType.Panorama:
-                    if (((Panorama)resource.DataBlock).Names.Count > 0)
-                    {
-                        var nameTab = new TabPage("PANORAMA NAMES");
-                        var nameControl = new DataGridView
+                switch (resource.ResourceType)
+                {
+                    case ResourceType.Texture:
+                    case ResourceType.PanoramaVectorGraphic:
                         {
-                            Dock = DockStyle.Fill,
-                            AutoSize = true,
-                            ReadOnly = true,
-                            AllowUserToAddRows = false,
-                            AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
-                            DataSource =
-                                new BindingSource(
-                                    new BindingList<Panorama.NameEntry>(((Panorama)resource.DataBlock).Names), null),
-                        };
-                        nameTab.Controls.Add(nameControl);
-                        resTabs.TabPages.Add(nameTab);
-                    }
-
-                    break;
-
-                case ResourceType.Particle:
-                    var particleRendererTab = new TabPage("PARTICLE");
-                    particleRendererTab.Controls.Add(new GLParticleViewer(vrfGuiContext, (ParticleSystem)resource.DataBlock));
-                    resTabs.TabPages.Add(particleRendererTab);
-                    break;
-
-                case ResourceType.Sound:
-                    var soundTab = new TabPage("SOUND");
-                    var ap = new AudioPlayer(resource, soundTab);
-                    resTabs.TabPages.Add(soundTab);
-                    break;
-
-                case ResourceType.Map:
-                    {
-                        var mapResource = vrfGuiContext.LoadFile(Path.Join(resource.FileName[..^7], "world.vwrld_c"));
-                        if (mapResource != null)
-                        {
-                            var mapTab = new TabPage("MAP");
-                            mapTab.Controls.Add(new GLWorldViewer(vrfGuiContext, (World)mapResource.DataBlock));
-                            resTabs.TabPages.Add(mapTab);
+                            var textureControl = new GLTextureViewer(vrfGuiContext, resource);
+                            var tabGl = new TabPage("TEXTURE");
+                            tabGl.Controls.Add(textureControl);
+                            resTabs.TabPages.Add(tabGl);
                         }
+
                         break;
-                    }
 
-                case ResourceType.World:
-                    var worldmeshTab = new TabPage("MAP");
-                    worldmeshTab.Controls.Add(new GLWorldViewer(vrfGuiContext, (World)resource.DataBlock));
-                    resTabs.TabPages.Add(worldmeshTab);
-                    break;
+                    case ResourceType.Panorama:
+                        if (((Panorama)resource.DataBlock).Names.Count > 0)
+                        {
+                            var nameTab = new TabPage("PANORAMA NAMES");
+                            var nameControl = new DataGridView
+                            {
+                                Dock = DockStyle.Fill,
+                                AutoSize = true,
+                                ReadOnly = true,
+                                AllowUserToAddRows = false,
+                                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                                DataSource =
+                                    new BindingSource(
+                                        new BindingList<Panorama.NameEntry>(((Panorama)resource.DataBlock).Names), null),
+                            };
+                            nameTab.Controls.Add(nameControl);
+                            resTabs.TabPages.Add(nameTab);
+                        }
 
-                case ResourceType.WorldNode:
-                    var nodemeshTab = new TabPage("WORLD NODE");
-                    nodemeshTab.Controls.Add(new GLWorldViewer(vrfGuiContext, (WorldNode)resource.DataBlock));
-                    resTabs.TabPages.Add(nodemeshTab);
-                    break;
-
-                case ResourceType.Model:
-                    var modelRendererTab = new TabPage("MODEL");
-                    modelRendererTab.Controls.Add(new GLModelViewer(vrfGuiContext, (Model)resource.DataBlock));
-                    resTabs.TabPages.Add(modelRendererTab);
-                    break;
-
-                case ResourceType.Mesh:
-                    var meshRendererTab = new TabPage("MESH");
-                    meshRendererTab.Controls.Add(new GLMeshViewer(vrfGuiContext, (Mesh)resource.DataBlock));
-                    resTabs.TabPages.Add(meshRendererTab);
-                    break;
-
-                case ResourceType.SmartProp:
-                    var smartPropRendererTab = new TabPage("SMART PROP");
-                    smartPropRendererTab.Controls.Add(new GLSmartPropViewer(vrfGuiContext, (SmartProp)resource.DataBlock));
-                    resTabs.TabPages.Add(smartPropRendererTab);
-                    break;
-
-                case ResourceType.AnimationGraph:
-                    var animGraphModelRendererTab = new TabPage("ANIMATION GRAPH");
-                    animGraphModelRendererTab.Controls.Add(new GLAnimGraphViewer(vrfGuiContext, (AnimGraph)resource.DataBlock));
-                    resTabs.TabPages.Add(animGraphModelRendererTab);
-                    break;
-
-                case ResourceType.Material:
-                    if (((Material)resource.DataBlock).ShaderName == "sky.vfx")
-                    {
-                        var skyboxTab = new TabPage("SKYBOX");
-                        var skybox = new GLSkyboxViewer(vrfGuiContext, resource);
-                        skyboxTab.Controls.Add(skybox);
-                        resTabs.TabPages.Add(skyboxTab);
                         break;
-                    }
 
-                    var materialRendererTab = new TabPage("MATERIAL");
-                    materialRendererTab.Controls.Add(new GLMaterialViewer(vrfGuiContext, resource, resTabs));
-                    resTabs.TabPages.Add(materialRendererTab);
+                    case ResourceType.Particle:
+                        var particleRendererTab = new TabPage("PARTICLE");
+                        particleRendererTab.Controls.Add(new GLParticleViewer(vrfGuiContext, (ParticleSystem)resource.DataBlock));
+                        resTabs.TabPages.Add(particleRendererTab);
+                        break;
 
-                    break;
-                case ResourceType.PhysicsCollisionMesh:
-                    var physRendererTab = new TabPage("PHYSICS");
-                    physRendererTab.Controls.Add(new GLModelViewer(vrfGuiContext, (PhysAggregateData)resource.DataBlock));
-                    resTabs.TabPages.Add(physRendererTab);
-                    break;
+                    case ResourceType.Sound:
+                        var soundTab = new TabPage("SOUND");
+                        var ap = new AudioPlayer(resource, soundTab);
+                        resTabs.TabPages.Add(soundTab);
+                        break;
 
-                default:
-                    selectData = true;
-                    break;
+                    case ResourceType.Map:
+                        {
+                            var mapResource = vrfGuiContext.LoadFile(Path.Join(resource.FileName[..^7], "world.vwrld_c"));
+                            if (mapResource != null)
+                            {
+                                var mapTab = new TabPage("MAP");
+                                mapTab.Controls.Add(new GLWorldViewer(vrfGuiContext, (World)mapResource.DataBlock));
+                                resTabs.TabPages.Add(mapTab);
+                            }
+                            break;
+                        }
+
+                    case ResourceType.World:
+                        var worldmeshTab = new TabPage("MAP");
+                        worldmeshTab.Controls.Add(new GLWorldViewer(vrfGuiContext, (World)resource.DataBlock));
+                        resTabs.TabPages.Add(worldmeshTab);
+                        break;
+
+                    case ResourceType.WorldNode:
+                        var nodemeshTab = new TabPage("WORLD NODE");
+                        nodemeshTab.Controls.Add(new GLWorldViewer(vrfGuiContext, (WorldNode)resource.DataBlock));
+                        resTabs.TabPages.Add(nodemeshTab);
+                        break;
+
+                    case ResourceType.Model:
+                        var modelRendererTab = new TabPage("MODEL");
+                        modelRendererTab.Controls.Add(new GLModelViewer(vrfGuiContext, (Model)resource.DataBlock));
+                        resTabs.TabPages.Add(modelRendererTab);
+                        break;
+
+                    case ResourceType.Mesh:
+                        var meshRendererTab = new TabPage("MESH");
+                        meshRendererTab.Controls.Add(new GLMeshViewer(vrfGuiContext, (Mesh)resource.DataBlock));
+                        resTabs.TabPages.Add(meshRendererTab);
+                        break;
+
+                    case ResourceType.SmartProp:
+                        var smartPropRendererTab = new TabPage("SMART PROP");
+                        smartPropRendererTab.Controls.Add(new GLSmartPropViewer(vrfGuiContext, (SmartProp)resource.DataBlock));
+                        resTabs.TabPages.Add(smartPropRendererTab);
+                        break;
+
+                    case ResourceType.AnimationGraph:
+                        var animGraphModelRendererTab = new TabPage("ANIMATION GRAPH");
+                        animGraphModelRendererTab.Controls.Add(new GLAnimGraphViewer(vrfGuiContext, (AnimGraph)resource.DataBlock));
+                        resTabs.TabPages.Add(animGraphModelRendererTab);
+                        break;
+
+                    case ResourceType.Material:
+                        if (((Material)resource.DataBlock).ShaderName == "sky.vfx")
+                        {
+                            var skyboxTab = new TabPage("SKYBOX");
+                            var skybox = new GLSkyboxViewer(vrfGuiContext, resource);
+                            skyboxTab.Controls.Add(skybox);
+                            resTabs.TabPages.Add(skyboxTab);
+                            break;
+                        }
+
+                        var materialRendererTab = new TabPage("MATERIAL");
+                        materialRendererTab.Controls.Add(new GLMaterialViewer(vrfGuiContext, resource, resTabs));
+                        resTabs.TabPages.Add(materialRendererTab);
+
+                        break;
+                    case ResourceType.PhysicsCollisionMesh:
+                        var physRendererTab = new TabPage("PHYSICS");
+                        physRendererTab.Controls.Add(new GLModelViewer(vrfGuiContext, (PhysAggregateData)resource.DataBlock));
+                        resTabs.TabPages.Add(physRendererTab);
+                        break;
+
+                    default:
+                        selectData = true;
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                var control = new CodeTextBox(ex.ToString());
+
+                var tabEx = new TabPage("Error");
+                tabEx.Controls.Add(control);
+                resTabs.TabPages.Add(tabEx);
             }
 
             foreach (var block in resource.Blocks)

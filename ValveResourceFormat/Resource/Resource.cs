@@ -117,6 +117,11 @@ namespace ValveResourceFormat
             {
                 var size = FileSize;
 
+                if (DataBlock == null)
+                {
+                    return size;
+                }
+
                 if (ResourceType == ResourceType.Sound)
                 {
                     var data = (Sound)DataBlock;
