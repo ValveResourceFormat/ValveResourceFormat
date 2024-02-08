@@ -1,9 +1,27 @@
 using ValveResourceFormat.Serialization.KeyValues;
 
-namespace ValveResourceFormat.ResourceTypes.Choreo.Data
+namespace ValveResourceFormat.ResourceTypes.Choreo
 {
     public class ChoreoSample
     {
+        private static string[] Interpolators = [
+            "default",
+            "catmullrom_normalize_x",
+            "easein",
+            "easeout",
+            "easeinout",
+            "bspline",
+            "linear_interp",
+            "kochanek",
+            "kochanek_early",
+            "kochanek_late",
+            "simple_cubic",
+            "catmullrom",
+            "catmullrom_normalize",
+            "catmullrom_tangent",
+            "exponential_decay",
+            "hold"
+        ];
         public struct BezierData
         {
             public float InDegrees { get; set; }
@@ -15,6 +33,20 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Data
         {
             public byte InType { get; set; }
             public byte OutType { get; set; }
+            public string InTypeName
+            {
+                get
+                {
+                    return Interpolators[InType];
+                }
+            }
+            public string OutTypeName
+            {
+                get
+                {
+                    return Interpolators[OutType];
+                }
+            }
         }
         public float Time { get; private set; }
         public float Value { get; private set; }
@@ -55,8 +87,8 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Data
 
             if (Curve != null)
             {
-                var curveIn = GetCurveTypeName(Curve.Value.InType);
-                var curveOut = GetCurveTypeName(Curve.Value.OutType);
+                var curveIn = Curve.Value.InTypeName;
+                var curveOut = Curve.Value.OutTypeName;
                 var curveType = $"curve_{curveIn}_to_curve_{curveOut}";
                 kv.AddProperty("curvetype", new KVValue(KVType.STRING, curveType));
             }
@@ -88,37 +120,6 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Data
             kv.AddProperty("out", new KVValue(KVType.OBJECT, outKV));
 
             return kv;
-        }
-
-        private static string GetCurveTypeName(byte index)
-        {
-            switch (index)
-            {
-                case 0x00:
-                    return "default"; //todo: is 0x00 default? verify
-                case 0x0A:
-                    return "simple_cubic";
-                case 0x05:
-                    return "bspline";
-                case 0x01:
-                    return "catmullrom_normalize_x";
-                case 0x02:
-                    return "easein";
-                case 0x03:
-                    return "easeout";
-                case 0x06:
-                    return "linear_interp";
-                case 0x07:
-                    return "kochanek";
-                case 0x08:
-                    return "kochanek_early";
-                case 0x09:
-                    return "kochanek_late";
-                case 0x10:
-                    return "bezier";
-                default:
-                    throw new NotImplementedException();
-            }
         }
     }
 }

@@ -1,15 +1,10 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace ValveResourceFormat.ResourceTypes.Choreo.Flags
+namespace ValveResourceFormat.ResourceTypes.Choreo.Enums
 {
     [Flags]
     public enum ChoreoTrackFlags
     {
         Enabled = 1,
         Combo = 2,
+        //ServerSide = 4, Inverted = 8 might be additional flags
     }
 }

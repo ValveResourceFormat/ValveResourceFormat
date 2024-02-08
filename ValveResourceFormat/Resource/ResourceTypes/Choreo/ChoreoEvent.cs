@@ -1,7 +1,8 @@
 using ValveResourceFormat.ResourceTypes.Choreo.Enums;
 using ValveResourceFormat.Serialization.KeyValues;
+using ValveResourceFormat.Utils;
 
-namespace ValveResourceFormat.ResourceTypes.Choreo.Data
+namespace ValveResourceFormat.ResourceTypes.Choreo
 {
     public class ChoreoEvent
     {
@@ -12,15 +13,15 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Data
         public string Param1 { get; private set; }
         public string Param2 { get; private set; }
         public string Param3 { get; private set; }
-        public ChoreoRamp Ramp { get; private set; }
+        public ChoreoCurveData Ramp { get; private set; }
         public ChoreoFlags Flags { get; private set; }
         public float DistanceToTarget { get; private set; }
-        public ChoreoRelativeTag[] RelativeTags { get; private set; }
+        public ChoreoEventRelativeTag[] RelativeTags { get; private set; }
         public ChoreoFlexTimingTag[] FlexTimingTags { get; private set; }
-        public ChoreoAbsoluteTag[] AbsoluteTags { get; private set; }
+        public ChoreoEventAbsoluteTag[] AbsoluteTags { get; private set; }
         public float SequenceDuration { get; private set; }
         public bool UsingRelativeTag { get; private set; }
-        public ChoreoRelativeTag RelativeTag { get; private set; }
+        public ChoreoEventRelativeTag RelativeTag { get; private set; }
         public ChoreoEventFlex EventFlex { get; private set; }
         public byte LoopCount { get; private set; }
         public ChoreoClosedCaptions ClosedCaptions { get; private set; }
@@ -28,7 +29,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Data
         public int ConstrainedEventId { get; private set; }
 
         //todo: ew
-        public ChoreoEvent(ChoreoEventType type, string name, float startTime, float endTime, string param1, string param2, string param3, ChoreoRamp ramp, ChoreoFlags flags, float distanceToTarget, ChoreoRelativeTag[] relativeTags, ChoreoFlexTimingTag[] flexTimingTags, ChoreoAbsoluteTag[] absoluteTags, float sequenceDuration, bool usingRelativeTag, ChoreoRelativeTag relativeTag, ChoreoEventFlex eventFlex, byte loopCount, ChoreoClosedCaptions closedCaptions, int id, int unk01)
+        public ChoreoEvent(ChoreoEventType type, string name, float startTime, float endTime, string param1, string param2, string param3, ChoreoCurveData ramp, ChoreoFlags flags, float distanceToTarget, ChoreoEventRelativeTag[] relativeTags, ChoreoFlexTimingTag[] flexTimingTags, ChoreoEventAbsoluteTag[] absoluteTags, float sequenceDuration, bool usingRelativeTag, ChoreoEventRelativeTag relativeTag, ChoreoEventFlex eventFlex, byte loopCount, ChoreoClosedCaptions closedCaptions, int id, int unk01)
         {
             Type = type;
             Name = name;
@@ -69,7 +70,8 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Data
 
             if (ClosedCaptions != null)
             {
-                var ccType = ClosedCaptions.Type switch {
+                var ccType = ClosedCaptions.Type switch
+                {
                     ChoreoClosedCaptionsType.Master => "cc_master",
                     ChoreoClosedCaptionsType.Slave => "cc_slave",
                     ChoreoClosedCaptionsType.Disabled => "cc_disabled",
@@ -173,32 +175,32 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Data
 
         private string TypeToKVString()
         {
-            switch (Type)
+            return Type switch
             {
-                case ChoreoEventType.Expression: return "expression";
-                case ChoreoEventType.Speak: return "speak";
-                case ChoreoEventType.Gesture: return "gesture";
-                case ChoreoEventType.LookAt: return "lookat";
+                ChoreoEventType.Expression => "expression",
+                ChoreoEventType.Speak => "speak",
+                ChoreoEventType.Gesture => "gesture",
+                ChoreoEventType.LookAt => "lookat",
                 //case ChoreoEventType.LookAtTransition: return "lookattransition";
-                case ChoreoEventType.MoveTo: return "moveto";
-                case ChoreoEventType.Face: return "face";
+                ChoreoEventType.MoveTo => "moveto",
+                ChoreoEventType.Face => "face",
                 //case ChoreoEventType.FaceTransition: return "facetransition";
-                case ChoreoEventType.FireTrigger: return "firetrigger";
-                case ChoreoEventType.Generic: return "generic";
-                case ChoreoEventType.Sequence: return "sequence";
-                case ChoreoEventType.FlexAnimation: return "flexanimation";
-                case ChoreoEventType.AnimgraphController: return "animgraphcontroller";
+                ChoreoEventType.FireTrigger => "firetrigger",
+                ChoreoEventType.Generic => "generic",
+                ChoreoEventType.Sequence => "sequence",
+                ChoreoEventType.FlexAnimation => "flexanimation",
+                ChoreoEventType.AnimgraphController => "animgraphcontroller",
                 //case ChoreoEventType.iklockleftarm: return "iklockleftarm";
                 //case ChoreoEventType.iklockrightarm: return "iklockrightarm";
-                case ChoreoEventType.SubScene: return "subscene";
-                case ChoreoEventType.Interrupt: return "interrupt";
-                case ChoreoEventType.PermitResponses: return "permitresponses";
-                case ChoreoEventType.Camera: return "camera";
-                case ChoreoEventType.Loop: return "loop";
-                case ChoreoEventType.Section: return "section";
-                case ChoreoEventType.StopPoint: return "stoppoint"; //TODO: verify stoppoint event's name
-                default: throw new NotImplementedException();
-            }
+                ChoreoEventType.SubScene => "subscene",
+                ChoreoEventType.Interrupt => "interrupt",
+                ChoreoEventType.PermitResponses => "permitresponses",
+                ChoreoEventType.Camera => "camera",
+                ChoreoEventType.Loop => "loop",
+                ChoreoEventType.Section => "section",
+                ChoreoEventType.StopPoint => "stoppoint",//TODO: verify stoppoint event's name
+                _ => throw new UnexpectedMagicException($"Unknown event type", (int)Type, nameof(Type)),
+            };
         }
     }
 }

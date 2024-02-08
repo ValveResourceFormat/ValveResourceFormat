@@ -10,7 +10,6 @@ using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.ResourceTypes.Choreo;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace GUI.Types.Viewers

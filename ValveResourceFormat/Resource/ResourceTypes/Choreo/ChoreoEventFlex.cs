@@ -1,11 +1,11 @@
 using ValveResourceFormat.Serialization.KeyValues;
 
-namespace ValveResourceFormat.ResourceTypes.Choreo.Data
+namespace ValveResourceFormat.ResourceTypes.Choreo
 {
     public class ChoreoEventFlex
     {
-        public ChoreoFlexTrack[] Tracks { get; private set; }
-        public ChoreoEventFlex(ChoreoFlexTrack[] tracks)
+        public ChoreoFlexAnimationTrack[] Tracks { get; private set; }
+        public ChoreoEventFlex(ChoreoFlexAnimationTrack[] tracks)
         {
             Tracks = tracks;
         }

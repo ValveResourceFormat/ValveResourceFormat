@@ -1,11 +1,6 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using ValveResourceFormat.Serialization.KeyValues;
 
-namespace ValveResourceFormat.ResourceTypes.Choreo.Data
+namespace ValveResourceFormat.ResourceTypes.Choreo
 {
     public class ChoreoActor
     {

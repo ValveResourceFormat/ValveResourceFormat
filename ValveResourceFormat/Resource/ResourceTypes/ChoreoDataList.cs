@@ -1,20 +1,18 @@
 using System.IO;
-using System.Linq;
 using System.Text;
 using System.Text.Json;
-using System.Text.Json.Serialization;
-using System.Xml.Linq;
 using ValveResourceFormat.Blocks;
+using ValveResourceFormat.ResourceTypes.Choreo;
 using ValveResourceFormat.ResourceTypes.Choreo.Parser;
 using LzmaDecoder = SevenZip.Compression.LZMA.Decoder;
 
-namespace ValveResourceFormat.ResourceTypes.Choreo
+namespace ValveResourceFormat.ResourceTypes
 {
     public class ChoreoDataList : ResourceData
     {
         public int Unk1 { get; private set; } //Always 24 - possibly version
         public int Unk2 { get; private set; }
-        public ChoreoData[] Scenes { get; private set; }
+        public ChoreoScene[] Scenes { get; private set; }
         public override void Read(BinaryReader reader, Resource resource)
         {
             reader.BaseStream.Position = Offset;
@@ -43,10 +41,8 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
         }
 
 
-        private static ChoreoData[] ReadScenes(BinaryReader reader, int sceneCount, string[] strings)
+        private static ChoreoScene[] ReadScenes(BinaryReader reader, int sceneCount, string[] strings)
         {
-            //var choreoDataBuilder = new ChoreoDataBuilder(strings);
-
             {
                 //todo: remove
 
@@ -56,7 +52,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
                     Console.WriteLine($"{i}: \"{strings[i]}\"");
                 }
             }
-            var scenes = new ChoreoData[sceneCount];
+            var scenes = new ChoreoScene[sceneCount];
             for (var i = 0; i < sceneCount; i++)
             {
                 scenes[i] = ReadScene(reader, strings);
@@ -64,14 +60,14 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
             return scenes;
         }
 
-        private static ChoreoData ReadScene(BinaryReader reader, string[] strings)
+        private static ChoreoScene ReadScene(BinaryReader reader, string[] strings)
         {
             var namePosition = ReadPosition(reader);
             var blockPosition = ReadPosition(reader);
             var length = reader.ReadInt32();
             var sceneDuration = reader.ReadInt32();
             var sceneSoundDuration = reader.ReadInt32();
-            var unk1 = reader.ReadInt32();
+            var unk1 = reader.ReadInt32(); //TODO: This is 1 if vcd has sounds, 0 otherwise. Can anything else be here? Why does this take up 4 bytes
 
             var previousPosition = reader.BaseStream.Position;
 
@@ -98,16 +94,6 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
             scene.Duration = sceneDuration;
             scene.SoundDuration = sceneSoundDuration;
             scene.Unk1 = unk1;
-
-            {
-                //todo: remove
-                var debugName = name.Replace(".vcd", ".json");
-                var path = "vcdtest/" + Path.GetDirectoryName(debugName);
-                Directory.CreateDirectory(path);
-                using var debugFile = File.OpenWrite($"vcdtest/{debugName}");
-                using var writer = new StreamWriter(debugFile);
-                writer.Write(JsonSerializer.Serialize(scene, new JsonSerializerOptions { WriteIndented = true }));
-            }
 
             return scene;
         }

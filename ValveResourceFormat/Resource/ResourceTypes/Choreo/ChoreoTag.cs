@@ -1,4 +1,4 @@
-namespace ValveResourceFormat.ResourceTypes.Choreo.Data
+namespace ValveResourceFormat.ResourceTypes.Choreo
 {
     public abstract class ChoreoTag
     {

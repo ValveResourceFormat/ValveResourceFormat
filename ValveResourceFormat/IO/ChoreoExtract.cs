@@ -4,7 +4,6 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.ResourceTypes.Choreo;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.IO;

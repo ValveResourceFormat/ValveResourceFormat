@@ -1,25 +1,25 @@
-using ValveResourceFormat.ResourceTypes.Choreo.Flags;
+using ValveResourceFormat.ResourceTypes.Choreo.Enums;
 using ValveResourceFormat.Serialization.KeyValues;
 
-namespace ValveResourceFormat.ResourceTypes.Choreo.Data
+namespace ValveResourceFormat.ResourceTypes.Choreo
 {
-    public class ChoreoFlexTrack
+    public class ChoreoFlexAnimationTrack
     {
         public string Name { get; private set; }
         public ChoreoTrackFlags TrackFlags { get; private set; }
         public float MinRange { get; private set; }
         public float MaxRange { get; private set; } = 1f;
-        public ChoreoRamp Samples { get; private set; }
-        public ChoreoRamp ComboSamples { get; private set; }
+        public ChoreoCurveData Ramp { get; private set; }
+        public ChoreoCurveData ComboRamp { get; private set; }
 
-        public ChoreoFlexTrack(string name, ChoreoTrackFlags trackFlags, float minRange, float maxRange, ChoreoRamp samples, ChoreoRamp comboSamples)
+        public ChoreoFlexAnimationTrack(string name, ChoreoTrackFlags trackFlags, float minRange, float maxRange, ChoreoCurveData samples, ChoreoCurveData comboSamples)
         {
             Name = name;
             TrackFlags = trackFlags;
             MinRange = minRange;
             MaxRange = maxRange;
-            Samples = samples;
-            ComboSamples = comboSamples;
+            Ramp = samples;
+            ComboRamp = comboSamples;
         }
 
         public KVObject ToKeyValues()
@@ -36,13 +36,13 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Data
             kv.AddProperty("min", new KVValue(KVType.FLOAT, MinRange));
             kv.AddProperty("max", new KVValue(KVType.FLOAT, MaxRange));
 
-            if (Samples?.Samples.Length > 0)
+            if (Ramp?.Samples.Length > 0)
             {
-                kv.AddProperty("samples", new KVValue(KVType.OBJECT, Samples.ToKeyValues()));
+                kv.AddProperty("samples", new KVValue(KVType.OBJECT, Ramp.ToKeyValues()));
             }
-            if (isCombo && ComboSamples?.Samples.Length > 0)
+            if (isCombo && ComboRamp?.Samples.Length > 0)
             {
-                kv.AddProperty("stereo", new KVValue(KVType.OBJECT, ComboSamples.ToKeyValues()));
+                kv.AddProperty("stereo", new KVValue(KVType.OBJECT, ComboRamp.ToKeyValues()));
             }
 
             return kv;

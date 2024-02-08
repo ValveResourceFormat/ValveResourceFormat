@@ -1,13 +1,7 @@
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using ValveResourceFormat.ResourceTypes.Choreo.Enums;
-using ValveResourceFormat.ResourceTypes.Choreo.Flags;
-using ValveResourceFormat.ResourceTypes.Choreo.Data;
 using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
@@ -25,7 +19,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
             this.strings = strings;
         }
 
-        public static ChoreoData Parse(Stream stream, string[] strings)
+        public static ChoreoScene Parse(Stream stream, string[] strings)
         {
             using BinaryReader reader = new BinaryReader(stream);
             var parser = new BVCDParser(reader, strings);
@@ -43,7 +37,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
             return strings[index];
         }
 
-        protected virtual ChoreoData Read()
+        protected virtual ChoreoScene Read()
         {
             var magic = reader.ReadUInt32();
             if (magic != MAGIC)
@@ -69,10 +63,10 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
                 actors[i] = actor;
             }
 
-            var ramp = ReadRamp();
+            var ramp = ReadCurveData();
             var ignorePhonemes = reader.ReadBoolean();
 
-            var data = new ChoreoData(events, actors, ramp, ignorePhonemes);
+            var data = new ChoreoScene(events, actors, ramp, ignorePhonemes);
             return data;
         }
 
@@ -110,11 +104,11 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
             return new ChoreoChannel(name, events, isActive);
         }
 
-        protected virtual ChoreoRelativeTag ReadRelativeTag()
+        protected virtual ChoreoEventRelativeTag ReadRelativeTag()
         {
             var name = ReadString();
             var value = reader.ReadByte() / 255f;
-            return new ChoreoRelativeTag(name, value);
+            return new ChoreoEventRelativeTag(name, value);
         }
 
         protected virtual ChoreoFlexTimingTag ReadFlexTimingTag()
@@ -124,11 +118,11 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
             return new ChoreoFlexTimingTag(name, value);
         }
 
-        protected virtual ChoreoAbsoluteTag ReadAbsoluteTag()
+        protected virtual ChoreoEventAbsoluteTag ReadAbsoluteTag()
         {
             var name = ReadString();
             var value = reader.ReadInt16() / 4096f;
-            return new ChoreoAbsoluteTag(name, value);
+            return new ChoreoEventAbsoluteTag(name, value);
         }
 
         protected virtual ChoreoEvent ReadEvent()
@@ -143,12 +137,11 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
             var param2 = ReadString();
             var param3 = ReadString();
 
-            ChoreoRamp ramp;
-            ramp = ReadRamp();
+            ChoreoCurveData ramp;
+            ramp = ReadCurveData();
 
-            if (version >= 17)
+            if (version >= 16)
             {
-                //is the first occurance for these at version 17?
                 var unk02 = reader.ReadByte();
                 var unk03 = reader.ReadByte();
             }
@@ -158,7 +151,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
 
             //relative tags
             var count = reader.ReadByte();
-            var relativeTags = new ChoreoRelativeTag[count];
+            var relativeTags = new ChoreoEventRelativeTag[count];
             for (var i = 0; i < count; i++)
             {
                 relativeTags[i] = ReadRelativeTag();
@@ -176,7 +169,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
             //absolute tags
             //play tags
             count = reader.ReadByte();
-            var playTags = new ChoreoAbsoluteTag[count];
+            var playTags = new ChoreoEventAbsoluteTag[count];
             for (var i = 0; i < count; i++)
             {
                 playTags[i] = ReadAbsoluteTag();
@@ -184,7 +177,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
 
             //shift tags
             count = reader.ReadByte();
-            var shiftTags = new ChoreoAbsoluteTag[count];
+            var shiftTags = new ChoreoEventAbsoluteTag[count];
             for (var i = 0; i < count; i++)
             {
                 shiftTags[i] = ReadAbsoluteTag();
@@ -197,7 +190,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
             }
 
             var usingRelativeTag = reader.ReadBoolean();
-            ChoreoRelativeTag relativeTag = null;
+            ChoreoEventRelativeTag relativeTag = null;
             if (usingRelativeTag)
             {
                 relativeTag = ReadRelativeTag();
@@ -213,14 +206,15 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
             }
             else if (eventType == ChoreoEventType.Speak)
             {
-                if (version < 17)
+                if (version < 16)
                 {
                     closedCaptions = ReadClosedCaptions();
                 }
                 var soundStartDelay = reader.ReadSingle();
-                if (version >= 17)
+                if (version >= 16)
                 {
                     var unk03 = reader.ReadByte();
+                    Debug.Assert(unk03 == 0);
                 }
             }
 
@@ -231,6 +225,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
             var absoluteTags = playTags.Concat(shiftTags).ToArray();
             return new ChoreoEvent(eventType, name, eventStart, eventEnd, param1, param2, param3, ramp, flags, distanceToTarget, relativeTags, flexTimingTags, absoluteTags, sequenceDuration, usingRelativeTag, relativeTag, flex, loopCount, closedCaptions, eventId, constrainedEventId);
         }
+
         protected virtual ChoreoClosedCaptions ReadClosedCaptions()
         {
             var type = (ChoreoClosedCaptionsType)reader.ReadByte();
@@ -238,7 +233,8 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
             var flags = (ChoreoClosedCaptionsFlags)reader.ReadByte();
             return new ChoreoClosedCaptions(type, token, flags);
         }
-        protected virtual ChoreoRamp ReadRamp()
+
+        protected virtual ChoreoCurveData ReadCurveData()
         {
             var sampleCount = reader.ReadUInt16();
             var samples = new ChoreoSample[sampleCount];
@@ -272,8 +268,9 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
                 type = reader.ReadByte();
             }
 
-            return new ChoreoRamp(samples);
+            return new ChoreoCurveData(samples);
         }
+
         protected virtual ChoreoSample ReadSample()
         {
             var time = reader.ReadSingle();
@@ -299,7 +296,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
         protected virtual ChoreoEventFlex ReadFlex()
         {
             var tracksCount = reader.ReadByte();
-            var tracks = new ChoreoFlexTrack[tracksCount];
+            var tracks = new ChoreoFlexAnimationTrack[tracksCount];
             for (var i = 0; i < tracksCount; i++)
             {
                 tracks[i] = ReadFlexTrack();
@@ -307,21 +304,22 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
 
             return new ChoreoEventFlex(tracks);
         }
-        protected virtual ChoreoFlexTrack ReadFlexTrack()
+
+        protected virtual ChoreoFlexAnimationTrack ReadFlexTrack()
         {
             var name = ReadString();
             var flags = (ChoreoTrackFlags)reader.ReadByte();
             var minRange = reader.ReadSingle();
             var maxRange = reader.ReadSingle();
 
-            var samplesCurve = ReadRamp();
-            ChoreoRamp comboSamplesCurve = null;
-            if (flags.HasFlag(ChoreoTrackFlags.Combo) || version >= 17)
+            var samplesCurve = ReadCurveData();
+            ChoreoCurveData comboSamplesCurve = null;
+            if (flags.HasFlag(ChoreoTrackFlags.Combo) || version >= 16)
             {
-                comboSamplesCurve = ReadRamp();
+                comboSamplesCurve = ReadCurveData();
             }
 
-            return new ChoreoFlexTrack(name, flags, minRange, maxRange, samplesCurve, comboSamplesCurve);
+            return new ChoreoFlexAnimationTrack(name, flags, minRange, maxRange, samplesCurve, comboSamplesCurve);
         }
     }
 }

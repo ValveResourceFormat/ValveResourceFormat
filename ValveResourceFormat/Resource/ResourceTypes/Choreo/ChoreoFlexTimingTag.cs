@@ -1,4 +1,4 @@
-namespace ValveResourceFormat.ResourceTypes.Choreo.Data
+namespace ValveResourceFormat.ResourceTypes.Choreo
 {
     public class ChoreoFlexTimingTag : ChoreoTag
     {

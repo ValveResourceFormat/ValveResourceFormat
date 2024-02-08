@@ -1,11 +1,11 @@
 using ValveResourceFormat.Serialization.KeyValues;
 
-namespace ValveResourceFormat.ResourceTypes.Choreo.Data
+namespace ValveResourceFormat.ResourceTypes.Choreo
 {
-    public class ChoreoRamp
+    public class ChoreoCurveData
     {
         public ChoreoSample[] Samples { get; private set; }
-        public ChoreoRamp(ChoreoSample[] samples)
+        public ChoreoCurveData(ChoreoSample[] samples)
         {
             Samples = samples;
         }

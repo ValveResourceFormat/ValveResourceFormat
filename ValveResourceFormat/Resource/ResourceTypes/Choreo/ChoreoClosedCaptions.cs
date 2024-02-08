@@ -1,6 +1,6 @@
 using ValveResourceFormat.ResourceTypes.Choreo.Enums;
 
-namespace ValveResourceFormat.ResourceTypes.Choreo.Data
+namespace ValveResourceFormat.ResourceTypes.Choreo
 {
     public class ChoreoClosedCaptions
     {

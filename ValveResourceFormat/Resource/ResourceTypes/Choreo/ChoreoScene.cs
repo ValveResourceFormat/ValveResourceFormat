@@ -1,10 +1,8 @@
-using System.Linq;
-using ValveResourceFormat.ResourceTypes.Choreo.Data;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes.Choreo
 {
-    public class ChoreoData
+    public class ChoreoScene
     {
         //These come from outside of the bvcd data
         public string Name { get; set; }
@@ -15,10 +13,10 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
 
         public ChoreoEvent[] Events { get; private set; }
         public ChoreoActor[] Actors { get; private set; }
-        public ChoreoRamp Ramp { get; private set; }
+        public ChoreoCurveData Ramp { get; private set; }
         public bool IgnorePhonemes { get; private set; }
 
-        public ChoreoData(ChoreoEvent[] events, ChoreoActor[] actors, ChoreoRamp ramp, bool ignorePhonemes)
+        public ChoreoScene(ChoreoEvent[] events, ChoreoActor[] actors, ChoreoCurveData ramp, bool ignorePhonemes)
         {
             Events = events;
             Actors = actors;
