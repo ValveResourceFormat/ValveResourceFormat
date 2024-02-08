@@ -38,6 +38,7 @@ namespace GUI.Controls
             else if (!string.IsNullOrEmpty(text))
             {
                 LazyText = text;
+                ParentChanged += OnVisibleChanged;
                 VisibleChanged += OnVisibleChanged;
             }
 
@@ -47,6 +48,7 @@ namespace GUI.Controls
         private void OnDisposed(object sender, EventArgs e)
         {
             Disposed -= OnDisposed;
+            ParentChanged -= OnVisibleChanged;
             VisibleChanged -= OnVisibleChanged;
             TextChanged -= OnTextChanged;
         }
@@ -58,6 +60,7 @@ namespace GUI.Controls
                 return;
             }
 
+            ParentChanged -= OnVisibleChanged;
             VisibleChanged -= OnVisibleChanged;
 
             Cursor.Current = Cursors.WaitCursor;
