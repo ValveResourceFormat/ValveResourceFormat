@@ -190,24 +190,30 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
                 ChoreoEventType.Speak => "speak",
                 ChoreoEventType.Gesture => "gesture",
                 ChoreoEventType.LookAt => "lookat",
-                //case ChoreoEventType.LookAtTransition: return "lookattransition";
                 ChoreoEventType.MoveTo => "moveto",
                 ChoreoEventType.Face => "face",
-                //case ChoreoEventType.FaceTransition: return "facetransition";
                 ChoreoEventType.FireTrigger => "firetrigger",
                 ChoreoEventType.Generic => "generic",
                 ChoreoEventType.Sequence => "sequence",
                 ChoreoEventType.FlexAnimation => "flexanimation",
                 ChoreoEventType.AnimgraphController => "animgraphcontroller",
-                //case ChoreoEventType.iklockleftarm: return "iklockleftarm";
-                //case ChoreoEventType.iklockrightarm: return "iklockrightarm";
                 ChoreoEventType.SubScene => "subscene",
                 ChoreoEventType.Interrupt => "interrupt",
                 ChoreoEventType.PermitResponses => "permitresponses",
-                ChoreoEventType.Camera => "camera",
+                ChoreoEventType.CameraOrScript => "camera", //TODO: return "script" if version>=16.
                 ChoreoEventType.Loop => "loop",
                 ChoreoEventType.Section => "section",
-                ChoreoEventType.StopPoint => "stoppoint",//TODO: verify stoppoint event's name
+                ChoreoEventType.StopPoint => "stoppoint",
+                ChoreoEventType.MoodBody => "moodbody",
+                ChoreoEventType.IKLockLeftArm => "iklockleftarm",
+                ChoreoEventType.IKLockRightArm => "iklockrightarm",
+                ChoreoEventType.NoBlink => "noblink",
+                ChoreoEventType.IgnoreAI => "ignoreai",
+                ChoreoEventType.HolsterWeapon => "holsterweapon",
+                ChoreoEventType.UnholsterWeapon => "unholsterweapon",
+                ChoreoEventType.AimAt => "aimat",
+                ChoreoEventType.IgnoreCollision => "ignorecollision",
+                ChoreoEventType.IgnoreLookAts => "ignorelookats",
                 _ => throw new UnexpectedMagicException($"Unknown event type", (int)Type, nameof(Type)),
             };
         }
