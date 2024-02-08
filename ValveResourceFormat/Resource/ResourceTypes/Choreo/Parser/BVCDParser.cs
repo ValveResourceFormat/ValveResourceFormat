@@ -286,7 +286,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
                 }
                 else
                 {
-                    throw new NotImplementedException($"Unexpected choreo sample data type ({type})");
+                    throw new UnexpectedMagicException($"Unexpected choreo sample data type", type, nameof(type));
                 }
 
                 type = reader.ReadByte();
