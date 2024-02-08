@@ -4,7 +4,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
 {
     public class ChoreoSample
     {
-        private static string[] Interpolators = [
+        private static readonly string[] Interpolators = [
             "default",
             "catmullrom_normalize_x",
             "easein",
@@ -20,7 +20,8 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
             "catmullrom_normalize",
             "catmullrom_tangent",
             "exponential_decay",
-            "hold"
+            "hold",
+            "bezier",
         ];
         public struct BezierData
         {
