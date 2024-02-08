@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -26,7 +27,7 @@ public class ChoreoExtract
         var vcdlist = new ContentFile
         {
             Data = Encoding.UTF8.GetBytes(indentedTextWriter.ToString()),
-            FileName = vcdlistResource.FileName,
+            FileName = Path.GetFileName(vcdlistResource.FileName),
         };
 
         foreach (var scene in choreoDataList.Scenes)
