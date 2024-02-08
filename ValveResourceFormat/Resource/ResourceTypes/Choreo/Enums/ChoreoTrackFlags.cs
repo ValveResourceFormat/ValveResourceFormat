@@ -5,6 +5,5 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Enums
     {
         Enabled = 1,
         Combo = 2,
-        //ServerSide = 4, Inverted = 8 might be additional flags
     }
 }

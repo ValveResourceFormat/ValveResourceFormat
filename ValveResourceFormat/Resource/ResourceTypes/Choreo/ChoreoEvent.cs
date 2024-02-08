@@ -113,6 +113,13 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
             kv.AddProperty("eventID", new KVValue(KVType.INT64, Id));
             //TODO: Missing properties:
             //synctofollowinggesture (missing from bvcd?)
+            //moveforwarddistance (missing from bvcd?)
+            //moverightdistance (missing from bvcd?)
+            //targetposition (missing from bvcd?)
+            //entrytag (might not exist)
+            //exittags (might not exist)
+            //startloop (might not exist)
+            //endloop (might not exist)
             //pitch (missing from bvcd?)
 
             if (LeftEdge != null)
