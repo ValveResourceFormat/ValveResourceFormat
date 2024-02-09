@@ -4,7 +4,8 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Enums
     public enum ChoreoEventType
     {
         //"lookattransition" and "facetransition" events exist in the v9 faceposer, but they become corrupted/invalid events in the vcd when compiled. Did these exist on any version?
-        Section = 1,
+        Unspecified,
+        Section,
         Expression,
         LookAt,
         MoveTo,

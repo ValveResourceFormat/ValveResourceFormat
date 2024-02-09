@@ -173,6 +173,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
         {
             return Type switch
             {
+                ChoreoEventType.Unspecified => "unspecified",
                 ChoreoEventType.Expression => "expression",
                 ChoreoEventType.Speak => "speak",
                 ChoreoEventType.Gesture => "gesture",

@@ -159,6 +159,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
             {
                 return eventValue switch
                 {
+                    0 => ChoreoEventType.Unspecified,
                     1 => ChoreoEventType.Section,
                     2 => ChoreoEventType.Expression,
                     3 => ChoreoEventType.LookAt,
