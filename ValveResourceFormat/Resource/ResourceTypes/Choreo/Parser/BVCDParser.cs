@@ -384,14 +384,13 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
             var sample = new ChoreoSample(time, value);
             if (hasBezier)
             {
-                var type = reader.ReadByte();
-                Debug.Assert(type == 3); //This seems to be always 3 for bezier data
+                var flags = (BezierFlags)reader.ReadByte();
                 var inDeg = reader.ReadSingle();
                 var inWeight = reader.ReadSingle();
                 var outDeg = reader.ReadSingle();
                 var outWeight = reader.ReadSingle();
 
-                sample.SetBezierData(inDeg, inWeight, outDeg, outWeight);
+                sample.SetBezierData(flags, inDeg, inWeight, outDeg, outWeight);
             }
 
             return sample;

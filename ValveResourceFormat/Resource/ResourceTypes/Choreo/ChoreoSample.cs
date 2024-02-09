@@ -15,10 +15,11 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
             Value = value;
         }
 
-        public void SetBezierData(float inDeg, float inWeight, float outDeg, float outWeight)
+        public void SetBezierData(BezierFlags flags, float inDeg, float inWeight, float outDeg, float outWeight)
         {
             Bezier = new BezierData
             {
+                Flags = flags,
                 InDegrees = inDeg,
                 InWeight = inWeight,
                 OutDegrees = outDeg,
