@@ -53,6 +53,7 @@ namespace GUI.Types.Viewers
                 Dock = DockStyle.Fill,
             };
 
+            TabPage specialTabPage = null;
             var selectData = false;
 
             try
@@ -63,17 +64,14 @@ namespace GUI.Types.Viewers
                     case ResourceType.PanoramaVectorGraphic:
                         {
                             var textureControl = new GLTextureViewer(vrfGuiContext, resource);
-                            var tabGl = new TabPage("TEXTURE");
-                            tabGl.Controls.Add(textureControl);
-                            resTabs.TabPages.Add(tabGl);
+                            specialTabPage = new TabPage("TEXTURE");
+                            specialTabPage.Controls.Add(textureControl);
+                            break;
                         }
-
-                        break;
 
                     case ResourceType.Panorama:
                         if (((Panorama)resource.DataBlock).Names.Count > 0)
                         {
-                            var nameTab = new TabPage("PANORAMA NAMES");
                             var nameControl = new DataGridView
                             {
                                 Dock = DockStyle.Fill,
@@ -85,96 +83,111 @@ namespace GUI.Types.Viewers
                                     new BindingSource(
                                         new BindingList<Panorama.NameEntry>(((Panorama)resource.DataBlock).Names), null),
                             };
-                            nameTab.Controls.Add(nameControl);
-                            resTabs.TabPages.Add(nameTab);
+                            specialTabPage = new TabPage("PANORAMA NAMES");
+                            specialTabPage.Controls.Add(nameControl);
                         }
 
                         break;
 
                     case ResourceType.Particle:
-                        var particleRendererTab = new TabPage("PARTICLE");
-                        particleRendererTab.Controls.Add(new GLParticleViewer(vrfGuiContext, (ParticleSystem)resource.DataBlock));
-                        resTabs.TabPages.Add(particleRendererTab);
-                        break;
+                        {
+                            specialTabPage = new TabPage("PARTICLE");
+                            specialTabPage.Controls.Add(new GLParticleViewer(vrfGuiContext, (ParticleSystem)resource.DataBlock));
+                            break;
+                        }
 
                     case ResourceType.Sound:
-                        var soundTab = new TabPage("SOUND");
-                        var ap = new AudioPlayer(resource, soundTab);
-                        resTabs.TabPages.Add(soundTab);
-                        break;
+                        {
+                            specialTabPage = new TabPage("SOUND");
+                            var ap = new AudioPlayer(resource, specialTabPage);
+                            break;
+                        }
 
                     case ResourceType.Map:
                         {
                             var mapResource = vrfGuiContext.LoadFile(Path.Join(resource.FileName[..^7], "world.vwrld_c"));
                             if (mapResource != null)
                             {
-                                var mapTab = new TabPage("MAP");
-                                mapTab.Controls.Add(new GLWorldViewer(vrfGuiContext, (World)mapResource.DataBlock));
-                                resTabs.TabPages.Add(mapTab);
+                                specialTabPage = new TabPage("MAP");
+                                specialTabPage.Controls.Add(new GLWorldViewer(vrfGuiContext, (World)mapResource.DataBlock));
                             }
                             break;
                         }
 
                     case ResourceType.World:
-                        var worldmeshTab = new TabPage("MAP");
-                        worldmeshTab.Controls.Add(new GLWorldViewer(vrfGuiContext, (World)resource.DataBlock));
-                        resTabs.TabPages.Add(worldmeshTab);
-                        break;
-
-                    case ResourceType.WorldNode:
-                        var nodemeshTab = new TabPage("WORLD NODE");
-                        nodemeshTab.Controls.Add(new GLWorldViewer(vrfGuiContext, (WorldNode)resource.DataBlock));
-                        resTabs.TabPages.Add(nodemeshTab);
-                        break;
-
-                    case ResourceType.Model:
-                        var modelRendererTab = new TabPage("MODEL");
-                        modelRendererTab.Controls.Add(new GLModelViewer(vrfGuiContext, (Model)resource.DataBlock));
-                        resTabs.TabPages.Add(modelRendererTab);
-                        break;
-
-                    case ResourceType.Mesh:
-                        var meshRendererTab = new TabPage("MESH");
-                        meshRendererTab.Controls.Add(new GLMeshViewer(vrfGuiContext, (Mesh)resource.DataBlock));
-                        resTabs.TabPages.Add(meshRendererTab);
-                        break;
-
-                    case ResourceType.SmartProp:
-                        var smartPropRendererTab = new TabPage("SMART PROP");
-                        smartPropRendererTab.Controls.Add(new GLSmartPropViewer(vrfGuiContext, (SmartProp)resource.DataBlock));
-                        resTabs.TabPages.Add(smartPropRendererTab);
-                        break;
-
-                    case ResourceType.AnimationGraph:
-                        var animGraphModelRendererTab = new TabPage("ANIMATION GRAPH");
-                        animGraphModelRendererTab.Controls.Add(new GLAnimGraphViewer(vrfGuiContext, (AnimGraph)resource.DataBlock));
-                        resTabs.TabPages.Add(animGraphModelRendererTab);
-                        break;
-
-                    case ResourceType.Material:
-                        if (((Material)resource.DataBlock).ShaderName == "sky.vfx")
                         {
-                            var skyboxTab = new TabPage("SKYBOX");
-                            var skybox = new GLSkyboxViewer(vrfGuiContext, resource);
-                            skyboxTab.Controls.Add(skybox);
-                            resTabs.TabPages.Add(skyboxTab);
+                            specialTabPage = new TabPage("MAP");
+                            specialTabPage.Controls.Add(new GLWorldViewer(vrfGuiContext, (World)resource.DataBlock));
                             break;
                         }
 
-                        var materialRendererTab = new TabPage("MATERIAL");
-                        materialRendererTab.Controls.Add(new GLMaterialViewer(vrfGuiContext, resource, resTabs));
-                        resTabs.TabPages.Add(materialRendererTab);
+                    case ResourceType.WorldNode:
+                        {
+                            specialTabPage = new TabPage("WORLD NODE");
+                            specialTabPage.Controls.Add(new GLWorldViewer(vrfGuiContext, (WorldNode)resource.DataBlock));
+                            break;
+                        }
 
-                        break;
+                    case ResourceType.Model:
+                        {
+                            specialTabPage = new TabPage("MODEL");
+                            specialTabPage.Controls.Add(new GLModelViewer(vrfGuiContext, (Model)resource.DataBlock));
+                            break;
+                        }
+
+                    case ResourceType.Mesh:
+                        {
+                            specialTabPage = new TabPage("MESH");
+                            specialTabPage.Controls.Add(new GLMeshViewer(vrfGuiContext, (Mesh)resource.DataBlock));
+                            break;
+                        }
+
+                    case ResourceType.SmartProp:
+                        {
+                            specialTabPage = new TabPage("SMART PROP");
+                            specialTabPage.Controls.Add(new GLSmartPropViewer(vrfGuiContext, (SmartProp)resource.DataBlock));
+                            break;
+                        }
+
+                    case ResourceType.AnimationGraph:
+                        {
+                            specialTabPage = new TabPage("ANIMATION GRAPH");
+                            specialTabPage.Controls.Add(new GLAnimGraphViewer(vrfGuiContext, (AnimGraph)resource.DataBlock));
+                            break;
+                        }
+
+                    case ResourceType.Material:
+                        {
+                            if (((Material)resource.DataBlock).ShaderName == "sky.vfx")
+                            {
+                                var skybox = new GLSkyboxViewer(vrfGuiContext, resource);
+                                specialTabPage = new TabPage("SKYBOX");
+                                specialTabPage.Controls.Add(skybox);
+                                break;
+                            }
+
+                            specialTabPage = new TabPage("MATERIAL");
+                            specialTabPage.Controls.Add(new GLMaterialViewer(vrfGuiContext, resource, resTabs));
+                            break;
+                        }
+
                     case ResourceType.PhysicsCollisionMesh:
-                        var physRendererTab = new TabPage("PHYSICS");
-                        physRendererTab.Controls.Add(new GLModelViewer(vrfGuiContext, (PhysAggregateData)resource.DataBlock));
-                        resTabs.TabPages.Add(physRendererTab);
-                        break;
+                        {
+                            specialTabPage = new TabPage("PHYSICS");
+                            specialTabPage.Controls.Add(new GLModelViewer(vrfGuiContext, (PhysAggregateData)resource.DataBlock));
+                            break;
+                        }
 
                     default:
                         selectData = true;
                         break;
+                }
+
+
+                if (specialTabPage != null)
+                {
+                    resTabs.TabPages.Add(specialTabPage);
+                    specialTabPage = null;
                 }
             }
             catch (Exception ex)
@@ -185,13 +198,15 @@ namespace GUI.Types.Viewers
                 tabEx.Controls.Add(control);
                 resTabs.TabPages.Add(tabEx);
             }
+            finally
+            {
+                specialTabPage?.Dispose();
+            }
 
             foreach (var block in resource.Blocks)
             {
                 if (block.Type == BlockType.RERL)
                 {
-                    var externalRefsTab = new TabPage("External Refs");
-
                     var externalRefs = new DataGridView
                     {
                         Dock = DockStyle.Fill,
@@ -207,8 +222,9 @@ namespace GUI.Types.Viewers
                     };
 
                     AddDataGridExternalRefAction(vrfGuiContext.FileLoader, externalRefs, "Name");
-                    externalRefsTab.Controls.Add(externalRefs);
 
+                    var externalRefsTab = new TabPage("External Refs");
+                    externalRefsTab.Controls.Add(externalRefs);
                     resTabs.TabPages.Add(externalRefsTab);
 
                     continue;
@@ -218,8 +234,6 @@ namespace GUI.Types.Viewers
                 {
                     if (((ResourceIntrospectionManifest)block).ReferencedStructs.Count > 0)
                     {
-                        var externalRefsTab = new TabPage("Introspection Manifest: Structs");
-
                         var externalRefs = new DataGridView
                         {
                             Dock = DockStyle.Fill,
@@ -234,13 +248,13 @@ namespace GUI.Types.Viewers
                                         ((ResourceIntrospectionManifest)block).ReferencedStructs), null),
                         };
 
+                        var externalRefsTab = new TabPage("Introspection Manifest: Structs");
                         externalRefsTab.Controls.Add(externalRefs);
                         resTabs.TabPages.Add(externalRefsTab);
                     }
 
                     if (((ResourceIntrospectionManifest)block).ReferencedEnums.Count > 0)
                     {
-                        var externalRefsTab = new TabPage("Introspection Manifest: Enums");
                         var externalRefs2 = new DataGridView
                         {
                             Dock = DockStyle.Fill,
@@ -255,6 +269,7 @@ namespace GUI.Types.Viewers
                                         ((ResourceIntrospectionManifest)block).ReferencedEnums), null),
                         };
 
+                        var externalRefsTab = new TabPage("Introspection Manifest: Enums");
                         externalRefsTab.Controls.Add(externalRefs2);
                         resTabs.TabPages.Add(externalRefsTab);
                     }
