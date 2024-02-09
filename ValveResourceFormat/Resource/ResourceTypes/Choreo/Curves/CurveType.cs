@@ -25,26 +25,12 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Curves
         ];
         public byte InType { get; set; }
         public byte OutType { get; set; }
-        public string InTypeName
-        {
-            get
-            {
-                return Interpolators[InType];
-            }
-        }
-        public string OutTypeName
-        {
-            get
-            {
-                return Interpolators[OutType];
-            }
-        }
+        public readonly string InTypeName => Interpolators[InType];
+        public readonly string OutTypeName => Interpolators[OutType];
 
         public KVValue ToKeyValue()
         {
-            var curveIn = InTypeName;
-            var curveOut = OutTypeName;
-            var curveType = $"curve_{curveIn}_to_curve_{curveOut}";
+            var curveType = $"curve_{InTypeName}_to_curve_{OutTypeName}";
             return new KVValue(KVType.STRING, curveType);
         }
     }
