@@ -352,8 +352,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
                 {
                     var outType = reader.ReadByte();
                     var inType = reader.ReadByte();
-                    var unk01 = reader.ReadByte(); //what's this
-                    Debug.Assert(unk01 == 0); //Does this have to be 0?
+                    Debug.Assert(reader.ReadByte() == 0); //Null termination
 
                     lastSample.SetCurveType(inType, outType);
                 }

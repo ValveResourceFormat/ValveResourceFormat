@@ -32,7 +32,7 @@ namespace GUI.Controls
             fileListView.Columns.Add("Name", 250);
             fileListView.Columns.Add("Version");
 
-            AddListItem(null, ".vcdlist", choreoDataList.Unk1);
+            AddListItem(null, ".vcdlist", choreoDataList.Version);
             for (var i = 0; i < choreoDataList.Scenes.Length; i++)
             {
                 var scene = choreoDataList.Scenes[i];

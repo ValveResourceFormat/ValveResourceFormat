@@ -1,6 +1,5 @@
 using System.IO;
 using System.Text;
-using System.Text.Json;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes.Choreo;
 using ValveResourceFormat.ResourceTypes.Choreo.Parser;
@@ -10,7 +9,7 @@ namespace ValveResourceFormat.ResourceTypes
 {
     public class ChoreoDataList : ResourceData
     {
-        public int Unk1 { get; private set; } //Always 24 - possibly version
+        public int Version { get; private set; }
         public int Unk2 { get; private set; }
         public ChoreoScene[] Scenes { get; private set; }
         public override void Read(BinaryReader reader, Resource resource)
@@ -18,7 +17,7 @@ namespace ValveResourceFormat.ResourceTypes
             reader.BaseStream.Position = Offset;
 
             //header
-            Unk1 = reader.ReadInt32();
+            Version = reader.ReadInt32();
             var sceneCount = reader.ReadInt32();
             var strings = ReadStrings(reader);
             Unk2 = reader.ReadInt32();
