@@ -229,12 +229,12 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
             }
             else if (eventType == ChoreoEventType.Speak)
             {
-                if (version < 16)
+                if (version < 17)
                 {
                     closedCaptions = ReadClosedCaptions();
                 }
                 soundStartDelay = reader.ReadSingle();
-                if (version >= 16)
+                if (version >= 17)
                 {
                     var unk03 = reader.ReadByte();
                     Debug.Assert(unk03 == 0);
