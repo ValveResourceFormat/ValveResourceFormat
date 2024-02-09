@@ -1,8 +1,9 @@
 namespace ValveResourceFormat.ResourceTypes.Choreo.Enums
 {
     [Flags]
-    public enum ChoreoClosedCaptionsFlags
+    public enum ChoreoSpeakFlags
     {
+        None = 0,
         UsingCombinedFile = 1,
         CombinedUsingGenderToken = 2,
         SuppressingCaptionAttenuation = 4,

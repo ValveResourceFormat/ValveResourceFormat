@@ -25,7 +25,9 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
         public ChoreoEventRelativeTag RelativeTag { get; init; }
         public ChoreoEventFlex EventFlex { get; init; }
         public byte LoopCount { get; init; }
-        public ChoreoClosedCaptions ClosedCaptions { get; init; }
+        public ChoreoClosedCaptionsType ClosedCaptionsType { get; init; }
+        public string ClosedCaptionsToken { get; init; }
+        public ChoreoSpeakFlags SpeakFlags { get; init; }
         public float SoundStartDelay { get; init; }
         public int Id { get; init; }
         public int ConstrainedEventId { get; init; }
@@ -44,9 +46,9 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
             kv.AddProperty("param2", new KVValue(KVType.STRING, Param2));
             kv.AddProperty("param3", new KVValue(KVType.STRING, Param3));
 
-            if (ClosedCaptions != null)
+            if (ClosedCaptionsType != ChoreoClosedCaptionsType.None)
             {
-                var ccType = ClosedCaptions.Type switch
+                var ccType = ClosedCaptionsType switch
                 {
                     ChoreoClosedCaptionsType.Master => "cc_master",
                     ChoreoClosedCaptionsType.Slave => "cc_slave",
@@ -54,34 +56,22 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
                     _ => ""
                 };
                 kv.AddProperty("cctype", new KVValue(KVType.STRING, ccType));
-
-                kv.AddProperty("cctoken", new KVValue(KVType.STRING, ClosedCaptions.Token));
-
-                var noAttentuate = ClosedCaptions.Flags.HasFlag(ChoreoClosedCaptionsFlags.SuppressingCaptionAttenuation);
-                kv.AddProperty("cc_noattenuate", new KVValue(KVType.BOOLEAN, noAttentuate));
-
-                var usingCombinedFile = ClosedCaptions.Flags.HasFlag(ChoreoClosedCaptionsFlags.UsingCombinedFile);
-                kv.AddProperty("cc_usingcombinedfile", new KVValue(KVType.BOOLEAN, usingCombinedFile));
-
-                var combinedUsesGender = ClosedCaptions.Flags.HasFlag(ChoreoClosedCaptionsFlags.CombinedUsingGenderToken);
-                kv.AddProperty("cc_combinedusesgender", new KVValue(KVType.BOOLEAN, combinedUsesGender));
-
-                //TODO: These are not closed caption related flags. Should closedcaptions class be renamed?
-                var hardStopSpeakEvent = ClosedCaptions.Flags.HasFlag(ChoreoClosedCaptionsFlags.HardStopSpeakEvent);
-                kv.AddProperty("hardstopspeakevent", new KVValue(KVType.BOOLEAN, hardStopSpeakEvent));
-
-                var volumeMatchesEventRamp = ClosedCaptions.Flags.HasFlag(ChoreoClosedCaptionsFlags.VolumeMatchesEventRamp);
-                kv.AddProperty("volumematcheseventramp", new KVValue(KVType.BOOLEAN, volumeMatchesEventRamp));
-
-                kv.AddProperty("startdelay", new KVValue(KVType.FLOAT, SoundStartDelay));
+                kv.AddProperty("cctoken", new KVValue(KVType.STRING, ClosedCaptionsToken));
             }
 
-            AddKVFlag(kv, "resumecondition", ChoreoFlags.ResumeCondition, false);
-            AddKVFlag(kv, "active", ChoreoFlags.IsActive, true);
-            AddKVFlag(kv, "fixedlength", ChoreoFlags.FixedLength, false);
-            AddKVFlag(kv, "playoverscript", ChoreoFlags.PlayOverScript, false);
-            AddKVFlag(kv, "forceshortmovement", ChoreoFlags.ForceShortMovement, false);
-            AddKVFlag(kv, "lockbodyfacing", ChoreoFlags.LockBodyFacing, false);
+            AddKVFlag(kv, "cc_noattenuate", SpeakFlags, ChoreoSpeakFlags.SuppressingCaptionAttenuation, false);
+            AddKVFlag(kv, "cc_usingcombinedfile", SpeakFlags, ChoreoSpeakFlags.UsingCombinedFile, false);
+            AddKVFlag(kv, "cc_combinedusesgender", SpeakFlags, ChoreoSpeakFlags.CombinedUsingGenderToken, false);
+            AddKVFlag(kv, "hardstopspeakevent", SpeakFlags, ChoreoSpeakFlags.HardStopSpeakEvent, false);
+            AddKVFlag(kv, "volumematcheseventramp", SpeakFlags, ChoreoSpeakFlags.VolumeMatchesEventRamp, false);
+            kv.AddProperty("startdelay", new KVValue(KVType.FLOAT, SoundStartDelay));
+
+            AddKVFlag(kv, "resumecondition", Flags, ChoreoFlags.ResumeCondition, false);
+            AddKVFlag(kv, "active", Flags, ChoreoFlags.IsActive, true);
+            AddKVFlag(kv, "fixedlength", Flags, ChoreoFlags.FixedLength, false);
+            AddKVFlag(kv, "playoverscript", Flags, ChoreoFlags.PlayOverScript, false);
+            AddKVFlag(kv, "forceshortmovement", Flags, ChoreoFlags.ForceShortMovement, false);
+            AddKVFlag(kv, "lockbodyfacing", Flags, ChoreoFlags.LockBodyFacing, false);
 
             if (Type == ChoreoEventType.Loop)
             {
@@ -170,9 +160,9 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
             parent.AddProperty(name, new KVValue(KVType.ARRAY, kv));
         }
 
-        private void AddKVFlag(KVObject kv, string name, ChoreoFlags flag, bool defaultValue = false)
+        private void AddKVFlag(KVObject kv, string name, Enum setFlags, Enum flag, bool defaultValue = false)
         {
-            var set = Flags.HasFlag(flag);
+            var set = setFlags.HasFlag(flag);
             if (set == defaultValue)
             {
                 return;

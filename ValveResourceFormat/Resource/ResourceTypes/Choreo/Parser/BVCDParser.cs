@@ -278,7 +278,10 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
 
             byte loopCount = 0;
             var soundStartDelay = 0f;
-            ChoreoClosedCaptions closedCaptions = null;
+
+            var ccType = ChoreoClosedCaptionsType.None;
+            string ccToken = null;
+            var speakFlags = ChoreoSpeakFlags.None;
             if (eventType == ChoreoEventType.Loop)
             {
                 loopCount = reader.ReadByte();
@@ -287,17 +290,13 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
             {
                 if (version < 17)
                 {
-                    closedCaptions = ReadClosedCaptions();
+                    ccType = (ChoreoClosedCaptionsType)reader.ReadByte();
+                    ccToken = ReadString();
                 }
+                speakFlags = (ChoreoSpeakFlags)reader.ReadByte();
                 soundStartDelay = reader.ReadSingle();
-                if (version >= 17)
-                {
-                    var unk03 = reader.ReadByte();
-                    Debug.Assert(unk03 == 0);
-                }
             }
 
-            //eventId or unk01 is sometimes missing?
             var constrainedEventId = reader.ReadInt32();
             var eventId = reader.ReadInt32();
 
@@ -322,19 +321,13 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
                 RelativeTag = relativeTag,
                 EventFlex = flex,
                 LoopCount = loopCount,
-                ClosedCaptions = closedCaptions,
+                ClosedCaptionsType = ccType,
+                ClosedCaptionsToken = ccToken,
+                SpeakFlags = speakFlags,
                 SoundStartDelay = soundStartDelay,
                 ConstrainedEventId = constrainedEventId,
                 Id = eventId,
             };
-        }
-
-        protected virtual ChoreoClosedCaptions ReadClosedCaptions()
-        {
-            var type = (ChoreoClosedCaptionsType)reader.ReadByte();
-            var token = ReadString();
-            var flags = (ChoreoClosedCaptionsFlags)reader.ReadByte();
-            return new ChoreoClosedCaptions(type, token, flags);
         }
 
         protected virtual ChoreoCurveData ReadCurveData()
