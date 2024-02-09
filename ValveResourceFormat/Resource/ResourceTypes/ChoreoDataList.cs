@@ -10,19 +10,16 @@ namespace ValveResourceFormat.ResourceTypes
     public class ChoreoDataList : ResourceData
     {
         public int Version { get; private set; }
-        public int Unk2 { get; private set; }
         public ChoreoScene[] Scenes { get; private set; }
         public override void Read(BinaryReader reader, Resource resource)
         {
             reader.BaseStream.Position = Offset;
 
-            //header
             Version = reader.ReadInt32();
             var sceneCount = reader.ReadInt32();
             var strings = ReadStrings(reader);
-            Unk2 = reader.ReadInt32();
+            reader.ReadInt32(); //Proportional to total length of strings or file size. Probably nothing useful.
 
-            //scene entries
             Scenes = ReadScenes(reader, sceneCount, strings);
         }
 
@@ -57,7 +54,7 @@ namespace ValveResourceFormat.ResourceTypes
             var length = reader.ReadInt32();
             var sceneDuration = reader.ReadInt32();
             var sceneSoundDuration = reader.ReadInt32();
-            var unk1 = reader.ReadInt32(); //TODO: This is 1 if vcd has sounds, 0 otherwise. Can anything else be here? Why does this take up 4 bytes
+            var hasSounds = reader.ReadInt32(); //This is always 0 or 1
 
             var previousPosition = reader.BaseStream.Position;
 
@@ -83,7 +80,7 @@ namespace ValveResourceFormat.ResourceTypes
             scene.Name = name;
             scene.Duration = sceneDuration;
             scene.SoundDuration = sceneSoundDuration;
-            scene.Unk1 = unk1;
+            scene.HasSounds = hasSounds != 0;
 
             return scene;
         }

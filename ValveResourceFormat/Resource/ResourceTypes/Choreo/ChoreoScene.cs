@@ -8,7 +8,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
         public string Name { get; set; }
         public int Duration { get; set; }
         public int SoundDuration { get; set; }
-        public int Unk1 { get; set; } //todo: what's this
+        public bool HasSounds { get; set; }
 
         public byte Version { get; private set; }
         public ChoreoEvent[] Events { get; private set; }
