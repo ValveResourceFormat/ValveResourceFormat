@@ -22,28 +22,21 @@ namespace GUI.Types.ParticleRenderer
 
             ReloadShader();
 
-            // Create and bind VAO
-            vao = GL.GenVertexArray();
-            GL.BindVertexArray(vao);
+            // Create VAO
+            GL.CreateVertexArrays(1, out vao);
+            GL.CreateBuffers(1, out int buffer);
+            GL.NamedBufferData(buffer, vertices.Length * sizeof(float), vertices, BufferUsageHint.StaticDraw);
+            GL.VertexArrayVertexBuffer(vao, 0, buffer, 0, sizeof(float) * 3);
+
+            var attributeLocation = GL.GetAttribLocation(shader.Program, "aVertexPosition");
+            GL.EnableVertexArrayAttrib(vao, attributeLocation);
+            GL.VertexArrayAttribFormat(vao, attributeLocation, 3, VertexAttribType.Float, false, 0);
+            GL.VertexArrayAttribBinding(vao, attributeLocation, 0);
 
 #if DEBUG
             var vaoLabel = nameof(InfiniteGrid);
             GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, vao, vaoLabel.Length, vaoLabel);
 #endif
-
-            var vbo = GL.GenBuffer();
-            GL.BindBuffer(BufferTarget.ArrayBuffer, vbo);
-
-            GL.BufferData(BufferTarget.ArrayBuffer, vertices.Length * sizeof(float), vertices, BufferUsageHint.StaticDraw);
-
-            GL.EnableVertexAttribArray(0);
-
-            var positionAttributeLocation = GL.GetAttribLocation(shader.Program, "aVertexPosition");
-            GL.EnableVertexAttribArray(positionAttributeLocation);
-            GL.VertexAttribPointer(positionAttributeLocation, 3, VertexAttribPointerType.Float, false, sizeof(float) * 3, 0);
-
-            GL.UseProgram(0);
-            GL.BindVertexArray(0);
         }
 
         public override void Update(Scene.UpdateContext context)
@@ -59,12 +52,12 @@ namespace GUI.Types.ParticleRenderer
 
             GL.UseProgram(shader.Program);
             GL.BindVertexArray(vao);
-            GL.EnableVertexAttribArray(0);
 
             GL.DrawArrays(PrimitiveType.Triangles, 0, 6);
 
             GL.UseProgram(0);
             GL.BindVertexArray(0);
+
             GL.Disable(EnableCap.Blend);
             GL.Enable(EnableCap.CullFace);
         }

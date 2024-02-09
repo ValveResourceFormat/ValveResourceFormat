@@ -117,12 +117,14 @@ namespace GUI.Controls
                 using var bitmap = new SKBitmap(GLDefaultFramebuffer.Width, GLDefaultFramebuffer.Height, SKColorType.Bgra8888, SKAlphaType.Opaque);
                 var pixels = bitmap.GetPixels(out var length);
 
+                if (MainFramebuffer != GLDefaultFramebuffer)
+                {
+                    var (w, h) = (GLControl.Width, GLControl.Height);
+                    GL.BlitNamedFramebuffer(MainFramebuffer.FboHandle, GLDefaultFramebuffer.FboHandle, 0, 0, w, h, 0, 0, w, h, ClearBufferMask.ColorBufferBit, BlitFramebufferFilter.Nearest);
+                }
+
                 GL.Flush();
                 GL.Finish();
-
-                GLDefaultFramebuffer.Bind(FramebufferTarget.ReadFramebuffer);
-                GL.ReadBuffer(ReadBufferMode.ColorAttachment0);
-
                 GL.ReadPixels(0, 0, GLDefaultFramebuffer.Width, GLDefaultFramebuffer.Height, PixelFormat.Bgra, PixelType.UnsignedByte, pixels);
 
                 // Flip y
@@ -337,14 +339,8 @@ namespace GUI.Controls
 
         protected void SetMoveSpeedOrZoomLabel(string text) => moveSpeed.Text = text;
 
-#if DEBUG
         private static void OnDebugMessage(DebugSource source, DebugType type, int id, DebugSeverity severity, int length, IntPtr pMessage, IntPtr pUserParam)
         {
-            if (source == DebugSource.DebugSourceApplication && severity == DebugSeverity.DebugSeverityNotification)
-            {
-                return;
-            }
-
             var severityStr = severity.ToString().Replace("DebugSeverity", string.Empty, StringComparison.Ordinal);
             var sourceStr = source.ToString().Replace("DebugSource", string.Empty, StringComparison.Ordinal);
             var typeStr = type.ToString().Replace("DebugType", string.Empty, StringComparison.Ordinal);
@@ -357,14 +353,15 @@ namespace GUI.Controls
                 default: Log.Debug("OpenGL", error); break;
             }
 
+#if DEBUG
             if (type == DebugType.DebugTypeError)
             {
                 Debugger.Break();
             }
+#endif
         }
 
         private static readonly DebugProc OpenGLDebugMessageDelegate = OnDebugMessage;
-#endif
 
         public Framebuffer GLDefaultFramebuffer;
         public Framebuffer MainFramebuffer;
@@ -380,9 +377,10 @@ namespace GUI.Controls
             MaxSamples = GL.GetInteger(GetPName.MaxSamples);
             GLDefaultFramebuffer = Framebuffer.GetGLDefaultFramebuffer();
 
-            frametimeQuery1 = GL.GenQuery();
-            frametimeQuery2 = GL.GenQuery();
+            GL.CreateQueries(QueryTarget.TimeElapsed, 1, out frametimeQuery1);
+            GL.CreateQueries(QueryTarget.TimeElapsed, 1, out frametimeQuery2);
 
+            // Needed to fix crash on certain drivers
             GL.BeginQuery(QueryTarget.TimeElapsed, frametimeQuery2);
             GL.EndQuery(QueryTarget.TimeElapsed);
 
@@ -399,11 +397,21 @@ namespace GUI.Controls
             GL.DepthFunc(DepthFunction.Greater);
             GL.ClearDepth(0.0f);
 
-#if DEBUG
             GL.Enable(EnableCap.DebugOutput);
-            GL.Enable(EnableCap.DebugOutputSynchronous);
-            GL.DebugMessageControl(DebugSourceControl.DebugSourceApi, DebugTypeControl.DebugTypeOther, DebugSeverityControl.DebugSeverityNotification, 0, Array.Empty<int>(), false);
             GL.DebugMessageCallback(OpenGLDebugMessageDelegate, IntPtr.Zero);
+
+#if DEBUG
+            GL.Enable(EnableCap.DebugOutputSynchronous);
+
+            // Filter out performance warnings
+            GL.DebugMessageControl(DebugSourceControl.DebugSourceApi, DebugTypeControl.DebugTypeOther, DebugSeverityControl.DebugSeverityNotification, 0, Array.Empty<int>(), false);
+
+            // Filter out debug group push/pops
+            GL.DebugMessageControl(DebugSourceControl.DebugSourceApplication, DebugTypeControl.DontCare, DebugSeverityControl.DebugSeverityNotification, 0, Array.Empty<int>(), false);
+#else
+            // Only log high severity messages in release builds
+            GL.DebugMessageControl(DebugSourceControl.DontCare, DebugTypeControl.DontCare, DebugSeverityControl.DontCare, 0, Array.Empty<int>(), false);
+            GL.DebugMessageControl(DebugSourceControl.DontCare, DebugTypeControl.DontCare, DebugSeverityControl.DebugSeverityHigh, 0, Array.Empty<int>(), true);
 #endif
 
             try
@@ -429,6 +437,8 @@ namespace GUI.Controls
             HandleResize();
             GLPostLoad?.Invoke(this);
             GLPostLoad = null;
+
+            lastUpdate = Stopwatch.GetTimestamp();
         }
 
         private void OnPaint(object sender, EventArgs e)
@@ -453,7 +463,8 @@ namespace GUI.Controls
             var elapsed = Stopwatch.GetElapsedTime(lastUpdate, currentTime);
             lastUpdate = currentTime;
 
-            var frameTime = (float)elapsed.TotalSeconds;
+            // Clamp frametime because it is possible to go past 1 second when gl control is paused which may cause issues in things like particle rendering
+            var frameTime = MathF.Min(1f, (float)elapsed.TotalSeconds);
 
             if (MouseOverRenderArea && this is not GLTextureViewer)
             {
@@ -503,11 +514,6 @@ namespace GUI.Controls
                     lastFpsUpdate = currentTime;
                     lastFps = $"FPS: {fps,-3:0}  CPU: {cpuFrameTime,-4:0.0}ms  GPU: {gpuFrameTime,-4:0.0}ms";
                 }
-
-                using (new GLDebugGroup("Text Render"))
-                {
-                    textRenderer.RenderText(MainFramebuffer.Width, MainFramebuffer.Height, 2f, MainFramebuffer.Height - 4f, 14f, System.Numerics.Vector4.UnitW, lastFps);
-                }
             }
 
             // blit to the default opengl framebuffer used by the control
@@ -515,21 +521,19 @@ namespace GUI.Controls
             {
                 using (new GLDebugGroup("Blit Framebuffer"))
                 {
-                    MainFramebuffer.Bind(FramebufferTarget.ReadFramebuffer);
-                    GL.ReadBuffer(ReadBufferMode.ColorAttachment0);
-
-                    GLDefaultFramebuffer.Bind(FramebufferTarget.DrawFramebuffer);
-                    GL.DrawBuffer(DrawBufferMode.Back);
-
                     var (w, h) = (GLControl.Width, GLControl.Height);
-                    GL.BlitFramebuffer(0, 0, w, h, 0, 0, w, h, ClearBufferMask.ColorBufferBit, BlitFramebufferFilter.Nearest);
+                    GL.BlitNamedFramebuffer(MainFramebuffer.FboHandle, GLDefaultFramebuffer.FboHandle, 0, 0, w, h, 0, 0, w, h, ClearBufferMask.ColorBufferBit, BlitFramebufferFilter.Nearest);
+
+                    GLDefaultFramebuffer.Bind(FramebufferTarget.Framebuffer);
                 }
             }
 
-            if (MainFramebuffer != GLDefaultFramebuffer)
+            if (Settings.Config.DisplayFps != 0)
             {
-
-                GLDefaultFramebuffer.Bind(FramebufferTarget.Framebuffer);
+                using (new GLDebugGroup("Text Render"))
+                {
+                    textRenderer.RenderText(2f, MainFramebuffer.Height - 4f, 14f, new System.Numerics.Vector4(1, 1, 1, 1f), lastFps);
+                }
             }
 
             GLControl.SwapBuffers();
@@ -575,6 +579,7 @@ namespace GUI.Controls
             }
 
             Camera.SetViewportSize(w, h);
+            textRenderer.SetViewportSize(w, h);
             Picker?.Resize(w, h);
         }
 
@@ -624,10 +629,7 @@ namespace GUI.Controls
 
             hasCheckedOpenGL = true;
 
-            Log.Debug(nameof(GLViewerControl), $"OpenGL version: {GL.GetString(StringName.Version)}");
-            Log.Debug(nameof(GLViewerControl), $"OpenGL vendor: {GL.GetString(StringName.Vendor)}");
-            Log.Debug(nameof(GLViewerControl), $"OpenGL renderer: {GL.GetString(StringName.Renderer)}");
-            Log.Debug(nameof(GLViewerControl), $"GLSL version: {GL.GetString(StringName.ShadingLanguageVersion)}");
+            Log.Debug("OpenGL", $"GPU: {GL.GetString(StringName.Renderer)}, Driver: {GL.GetString(StringName.Version)}, OS: {Environment.OSVersion}");
 
             MaterialLoader.MaxTextureMaxAnisotropy = GL.GetFloat((GetPName)ExtTextureFilterAnisotropic.MaxTextureMaxAnisotropyExt);
         }

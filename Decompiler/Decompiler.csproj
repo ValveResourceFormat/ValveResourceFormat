@@ -4,7 +4,7 @@
     <RollForward>LatestMajor</RollForward>
     <OutputType>Exe</OutputType>
     <Description>Source 2 resource decompiler and extractor</Description>
-    <ApplicationIcon>..\Icons\source2viewer.ico</ApplicationIcon>
+    <ApplicationIcon>..\Misc\Icons\source2viewer.ico</ApplicationIcon>
     <RuntimeIdentifiers>win-x64;linux-x64</RuntimeIdentifiers>
   </PropertyGroup>
   <ItemGroup>

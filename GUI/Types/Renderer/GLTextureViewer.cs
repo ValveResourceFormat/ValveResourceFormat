@@ -816,7 +816,8 @@ namespace GUI.Types.Renderer
                 SetupTexture(false);
             }
 
-            vao = GL.GenVertexArray();
+            // An empty VAO is required for some GPUs to not crash
+            GL.CreateVertexArrays(1, out vao);
 
             // Use non-msaa framebuffer for texture viewer
             if (MainFramebuffer != GLDefaultFramebuffer)
@@ -827,6 +828,7 @@ namespace GUI.Types.Renderer
 
             MainFramebuffer.ClearColor = OpenTK.Graphics.Color4.Green;
             MainFramebuffer.ClearMask = ClearBufferMask.ColorBufferBit;
+
             GL.DepthMask(false);
             GL.Disable(EnableCap.DepthTest);
             GL.Disable(EnableCap.CullFace);

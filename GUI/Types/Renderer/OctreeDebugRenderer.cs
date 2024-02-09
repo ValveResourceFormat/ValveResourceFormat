@@ -9,15 +9,19 @@ namespace GUI.Types.Renderer
     {
         public static readonly int SizeInBytes = Marshal.SizeOf<SimpleVertex>();
 
-        public static void BindDefaultShaderLayout(int shaderProgram)
+        public static void BindDefaultShaderLayout(int vao, int shaderProgram)
         {
             var positionAttributeLocation = GL.GetAttribLocation(shaderProgram, "aVertexPosition");
-            GL.EnableVertexAttribArray(positionAttributeLocation);
-            GL.VertexAttribPointer(positionAttributeLocation, 3, VertexAttribPointerType.Float, false, SimpleVertex.SizeInBytes, 0);
-
             var colorAttributeLocation = GL.GetAttribLocation(shaderProgram, "aVertexColor");
-            GL.EnableVertexAttribArray(colorAttributeLocation);
-            GL.VertexAttribPointer(colorAttributeLocation, 4, VertexAttribPointerType.UnsignedByte, true, SimpleVertex.SizeInBytes, sizeof(float) * 3);
+
+            GL.EnableVertexArrayAttrib(vao, positionAttributeLocation);
+            GL.EnableVertexArrayAttrib(vao, colorAttributeLocation);
+
+            GL.VertexArrayAttribFormat(vao, positionAttributeLocation, 3, VertexAttribType.Float, false, 0);
+            GL.VertexArrayAttribFormat(vao, colorAttributeLocation, 4, VertexAttribType.UnsignedByte, true, sizeof(float) * 3);
+
+            GL.VertexArrayAttribBinding(vao, positionAttributeLocation, 0);
+            GL.VertexArrayAttribBinding(vao, colorAttributeLocation, 0);
         }
     }
 
@@ -38,23 +42,16 @@ namespace GUI.Types.Renderer
             this.dynamic = dynamic;
 
             shader = shader = guiContext.ShaderLoader.LoadShader("vrf.default");
-            GL.UseProgram(shader.Program);
 
-            vboHandle = GL.GenBuffer();
-
-            vaoHandle = GL.GenVertexArray();
-            GL.BindVertexArray(vaoHandle);
+            GL.CreateVertexArrays(1, out vaoHandle);
+            GL.CreateBuffers(1, out vboHandle);
+            GL.VertexArrayVertexBuffer(vaoHandle, 0, vboHandle, 0, SimpleVertex.SizeInBytes);
+            SimpleVertex.BindDefaultShaderLayout(vaoHandle, shader.Program);
 
 #if DEBUG
             var vaoLabel = nameof(OctreeDebugRenderer<T>);
             GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, vaoHandle, vaoLabel.Length, vaoLabel);
 #endif
-
-            GL.BindBuffer(BufferTarget.ArrayBuffer, vboHandle);
-
-            SimpleVertex.BindDefaultShaderLayout(shader.Program);
-
-            GL.BindVertexArray(0);
         }
 
         public static void AddLine(List<SimpleVertex> vertices, Vector3 from, Vector3 to, Color32 color)

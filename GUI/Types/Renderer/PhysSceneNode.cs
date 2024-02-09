@@ -13,36 +13,28 @@ namespace GUI.Types.Renderer
 
         readonly Shader shader;
         readonly int indexCount;
-        readonly int vboHandle;
-        readonly int iboHandle;
         readonly int vaoHandle;
 
         public PhysSceneNode(Scene scene, List<SimpleVertex> verts, List<int> inds)
             : base(scene)
         {
+            indexCount = inds.Count;
             shader = Scene.GuiContext.ShaderLoader.LoadShader("vrf.default");
-            GL.UseProgram(shader.Program);
 
-            vaoHandle = GL.GenVertexArray();
-            GL.BindVertexArray(vaoHandle);
+            GL.CreateVertexArrays(1, out vaoHandle);
+            GL.CreateBuffers(1, out int vboHandle);
+            GL.CreateBuffers(1, out int iboHandle);
+            GL.VertexArrayVertexBuffer(vaoHandle, 0, vboHandle, 0, SimpleVertex.SizeInBytes);
+            GL.VertexArrayElementBuffer(vaoHandle, iboHandle);
+            SimpleVertex.BindDefaultShaderLayout(vaoHandle, shader.Program);
+
+            GL.NamedBufferData(vboHandle, verts.Count * SimpleVertex.SizeInBytes, verts.ToArray(), BufferUsageHint.StaticDraw);
+            GL.NamedBufferData(iboHandle, inds.Count * sizeof(int), inds.ToArray(), BufferUsageHint.StaticDraw);
 
 #if DEBUG
             var vaoLabel = nameof(PhysSceneNode);
             GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, vaoHandle, vaoLabel.Length, vaoLabel);
 #endif
-
-            vboHandle = GL.GenBuffer();
-            GL.BindBuffer(BufferTarget.ArrayBuffer, vboHandle);
-            GL.BufferData(BufferTarget.ArrayBuffer, verts.Count * SimpleVertex.SizeInBytes, verts.ToArray(), BufferUsageHint.StaticDraw);
-
-            iboHandle = GL.GenBuffer();
-            indexCount = inds.Count;
-            GL.BindBuffer(BufferTarget.ElementArrayBuffer, iboHandle);
-            GL.BufferData(BufferTarget.ElementArrayBuffer, inds.Count * sizeof(int), inds.ToArray(), BufferUsageHint.StaticDraw);
-
-            SimpleVertex.BindDefaultShaderLayout(shader.Program);
-
-            GL.BindVertexArray(0);
         }
 
         public static IEnumerable<PhysSceneNode> CreatePhysSceneNodes(Scene scene, PhysAggregateData phys, string fileName)

@@ -8,7 +8,7 @@ package viewer. For example `mp3.png` will be used for files ending with `.mp3`.
 
 These icons should all have the same size. Use [TinyPNG](https://tinypng.com/) to optimize them.
 
-If a high resolution icon is available (from Source 2 tools), put it in [Icons/AssetTypes](../Icons/AssetTypes) folder.
+If a high resolution icon is available (from Source 2 tools), put it in [Misc/Icons/AssetTypes](../Misc/Icons/AssetTypes) folder.
 
 ## Known entity key names
 
@@ -39,4 +39,4 @@ Use [VrfFgdParser](../Misc/VrfFgdParser) to extract them.
 
 [ShaderDataProvider.cs](../ValveResourceFormat/IO/ShaderDataProvider.cs) contains a list of shader names and which texture files are used, along with which channels they use.
 
-This is required for correct material extraction. These mappings are used as a fall-back when querying VCS files fails in some way. 
+This is required for correct material extraction. These mappings are used as a fall-back when querying VCS files fails in some way.

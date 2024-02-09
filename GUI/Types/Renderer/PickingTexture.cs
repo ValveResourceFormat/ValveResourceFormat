@@ -24,7 +24,7 @@ class PickingTexture : Framebuffer
 #pragma warning disable CS0649 // Field is never assigned to, and will always have its default value
         public uint ObjectId;
         public uint MeshId;
-        public uint Unused1;
+        public uint IsSkybox;
         public uint Unused2;
 #pragma warning restore CS0649  // Field is never assigned to, and will always have its default value
     }
@@ -107,7 +107,7 @@ class PickingTexture : Framebuffer
         }
     }
 
-    public PixelInfo ReadPixelInfo(int width, int height)
+    private PixelInfo ReadPixelInfo(int width, int height)
     {
         GL.Flush();
         GL.Finish();

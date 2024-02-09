@@ -17,23 +17,18 @@ namespace GUI.Types.Renderer
             SimpleVertex[] vertices = [new(start, color), new(end, color)];
 
             shader = Scene.GuiContext.ShaderLoader.LoadShader("vrf.default");
-            GL.UseProgram(shader.Program);
 
-            vaoHandle = GL.GenVertexArray();
-            GL.BindVertexArray(vaoHandle);
+            GL.CreateVertexArrays(1, out vaoHandle);
+            GL.CreateBuffers(1, out int vboHandle);
+            GL.VertexArrayVertexBuffer(vaoHandle, 0, vboHandle, 0, SimpleVertex.SizeInBytes);
+            SimpleVertex.BindDefaultShaderLayout(vaoHandle, shader.Program);
+
+            GL.NamedBufferData(vboHandle, 2 * SimpleVertex.SizeInBytes, vertices, BufferUsageHint.StaticDraw);
 
 #if DEBUG
             var vaoLabel = nameof(LineSceneNode);
             GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, vaoHandle, vaoLabel.Length, vaoLabel);
 #endif
-
-            var vboHandle = GL.GenBuffer();
-            GL.BindBuffer(BufferTarget.ArrayBuffer, vboHandle);
-            GL.BufferData(BufferTarget.ArrayBuffer, 2 * SimpleVertex.SizeInBytes, vertices, BufferUsageHint.StaticDraw);
-
-            SimpleVertex.BindDefaultShaderLayout(shader.Program);
-
-            GL.BindVertexArray(0);
         }
 
         public override void Render(Scene.RenderContext context)

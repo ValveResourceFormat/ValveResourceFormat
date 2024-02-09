@@ -6,17 +6,6 @@ namespace GUI.Types.Renderer.UniformBuffers
 {
     interface IBlockBindableBuffer : IDisposable
     {
-        int BindingPoint { get; }
-        string Name { get; }
-
-        public void SetBlockBinding(Shader shader)
-        {
-            var blockIndex = shader.GetUniformBlockIndex(Name);
-            if (blockIndex > -1)
-            {
-                GL.UniformBlockBinding(shader.Program, blockIndex, BindingPoint);
-            }
-        }
     }
 
     class UniformBuffer<T> : IBlockBindableBuffer
@@ -25,7 +14,6 @@ namespace GUI.Types.Renderer.UniformBuffers
         public int Handle { get; }
         public int Size { get; }
         public int BindingPoint { get; }
-        public string Name { get; }
 
         T data;
         public T Data { get => data; set { data = value; Update(); } }
@@ -34,11 +22,10 @@ namespace GUI.Types.Renderer.UniformBuffers
         readonly float[] cpuBuffer;
         readonly GCHandle cpuBufferHandle;
 
-        const BufferTarget Target = BufferTarget.UniformBuffer;
-
         public UniformBuffer(int bindingPoint)
         {
-            Handle = GL.GenBuffer();
+            GL.CreateBuffers(1, out int handle);
+            Handle = handle;
             BindingPoint = bindingPoint;
 
             Size = Marshal.SizeOf<T>();
@@ -50,16 +37,11 @@ namespace GUI.Types.Renderer.UniformBuffers
             data = new T();
             Initialize();
 
-            Name = typeof(T).Name;
 #if DEBUG
-            Bind();
-            GL.ObjectLabel(ObjectLabelIdentifier.Buffer, Handle, Name.Length, Name);
-            Unbind();
+            var objectLabel = nameof(UniformBuffer<T>);
+            GL.ObjectLabel(ObjectLabelIdentifier.Buffer, Handle, objectLabel.Length, objectLabel);
 #endif
         }
-
-        void Bind() => GL.BindBuffer(Target, Handle);
-        static void Unbind() => GL.BindBuffer(Target, 0);
 
         private void WriteToCpuBuffer()
         {
@@ -69,11 +51,9 @@ namespace GUI.Types.Renderer.UniformBuffers
 
         private void Initialize()
         {
-            Bind();
             WriteToCpuBuffer();
-            GL.BufferData(Target, Size, cpuBuffer, BufferUsageHint.StaticDraw);
+            GL.NamedBufferData(Handle, Size, cpuBuffer, BufferUsageHint.StaticDraw);
             GL.BindBufferBase(BufferRangeTarget.UniformBuffer, BindingPoint, Handle);
-            Unbind();
         }
 
         public void Update()

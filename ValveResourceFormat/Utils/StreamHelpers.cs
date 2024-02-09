@@ -74,8 +74,7 @@ namespace ValveResourceFormat
 
         private static string ReadNullTermUtf8String(BinaryReader stream)
         {
-            const int BufferLength = 32;
-            var buffer = ArrayPool<byte>.Shared.Rent(BufferLength);
+            var buffer = ArrayPool<byte>.Shared.Rent(32);
 
             try
             {
@@ -83,19 +82,19 @@ namespace ValveResourceFormat
 
                 do
                 {
-                    if (position >= buffer.Length)
-                    {
-                        var newBuffer = ArrayPool<byte>.Shared.Rent(buffer.Length + BufferLength);
-                        Buffer.BlockCopy(buffer, 0, newBuffer, 0, buffer.Length);
-                        ArrayPool<byte>.Shared.Return(buffer);
-                        buffer = newBuffer;
-                    }
-
                     var b = stream.ReadByte();
 
                     if (b == 0x00)
                     {
                         break;
+                    }
+
+                    if (position >= buffer.Length)
+                    {
+                        var newBuffer = ArrayPool<byte>.Shared.Rent(buffer.Length * 2);
+                        Buffer.BlockCopy(buffer, 0, newBuffer, 0, buffer.Length);
+                        ArrayPool<byte>.Shared.Return(buffer);
+                        buffer = newBuffer;
                     }
 
                     buffer[position++] = b;

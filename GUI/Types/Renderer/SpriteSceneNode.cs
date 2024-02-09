@@ -8,11 +8,8 @@ namespace GUI.Types.Renderer
 {
     class SpriteSceneNode : SceneNode
     {
-        private readonly int quadVao;
-
+        private readonly int vaoHandle;
         private readonly RenderMaterial material;
-        private readonly Vector3 position;
-        private readonly float size;
 
         public SpriteSceneNode(Scene scene, VrfGuiContext vrfGuiContext, Resource resource, Vector3 position)
             : base(scene)
@@ -25,32 +22,6 @@ namespace GUI.Types.Renderer
                 texture.SetWrapMode(TextureWrapMode.ClampToEdge);
             }
 
-            quadVao = SetupSquareQuadBuffer(material.Shader);
-
-#if DEBUG
-            var vaoLabel = $"{nameof(SpriteSceneNode)}: {System.IO.Path.GetFileName(resource.FileName)}";
-            GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, quadVao, vaoLabel.Length, vaoLabel);
-#endif
-
-            size = material.Material.FloatParams.GetValueOrDefault("g_flUniformPointSize", 16);
-            size /= 2f; // correct the scale to actually be 16x16
-
-            this.position = position;
-            var size3 = new Vector3(size);
-            LocalBoundingBox = new AABB(position - size3, position + size3);
-        }
-
-        public static int SetupSquareQuadBuffer(Shader shader)
-        {
-            GL.UseProgram(shader.Program);
-
-            // Create and bind VAO
-            var vao = GL.GenVertexArray();
-            GL.BindVertexArray(vao);
-
-            var vbo = GL.GenBuffer();
-            GL.BindBuffer(BufferTarget.ArrayBuffer, vbo);
-
             var vertices = new[]
             {
                 // position          ; normal                  ; texcoord    ; tangent                 ; blendindices            ; blendweight
@@ -59,11 +30,6 @@ namespace GUI.Types.Renderer
                 1.0f, -1.0f, 0.0f,   0.0f, 0.0f, 0.0f, 1.0f,   1.0f, 1.0f,   1.0f, 0.0f, 0.0f, 0.0f,   0.0f, 0.0f, 0.0f, 0.0f,   0.0f, 0.0f, 0.0f, 0.0f,
                 1.0f, 1.0f, 0.0f,    0.0f, 0.0f, 0.0f, 1.0f,   1.0f, 0.0f,   1.0f, 0.0f, 0.0f, 0.0f,   0.0f, 0.0f, 0.0f, 0.0f,   0.0f, 0.0f, 0.0f, 0.0f,
             };
-
-            GL.BufferData(BufferTarget.ArrayBuffer, vertices.Length * sizeof(float), vertices, BufferUsageHint.StaticDraw);
-
-            GL.EnableVertexAttribArray(0);
-
             var attributes = new List<(string Name, int Size)>
             {
                 ("vPOSITION", 3),
@@ -76,20 +42,33 @@ namespace GUI.Types.Renderer
             var stride = sizeof(float) * attributes.Sum(x => x.Size);
             var offset = 0;
 
-            foreach (var (Name, Size) in attributes)
+            GL.CreateVertexArrays(1, out vaoHandle);
+            GL.CreateBuffers(1, out int vboHandle);
+            GL.VertexArrayVertexBuffer(vaoHandle, 0, vboHandle, 0, stride);
+            GL.NamedBufferData(vboHandle, vertices.Length * sizeof(float), vertices, BufferUsageHint.StaticDraw);
+
+            foreach (var (name, size) in attributes)
             {
-                var attributeLocation = GL.GetAttribLocation(shader.Program, Name);
+                var attributeLocation = GL.GetAttribLocation(material.Shader.Program, name);
                 if (attributeLocation > -1)
                 {
-                    GL.EnableVertexAttribArray(attributeLocation);
-                    GL.VertexAttribPointer(attributeLocation, Size, VertexAttribPointerType.Float, false, stride, offset);
+                    GL.EnableVertexArrayAttrib(vaoHandle, attributeLocation);
+                    GL.VertexArrayAttribFormat(vaoHandle, attributeLocation, size, VertexAttribType.Float, false, offset);
+                    GL.VertexArrayAttribBinding(vaoHandle, attributeLocation, 0);
                 }
-                offset += sizeof(float) * Size;
+                offset += sizeof(float) * size;
             }
 
-            GL.BindVertexArray(0); // Unbind VAO
+#if DEBUG
+            var vaoLabel = $"{nameof(SpriteSceneNode)}: {System.IO.Path.GetFileName(resource.FileName)}";
+            GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, vaoHandle, vaoLabel.Length, vaoLabel);
+#endif
 
-            return vao;
+            var spriteSize = material.Material.FloatParams.GetValueOrDefault("g_flUniformPointSize", 16);
+            spriteSize /= 2f; // correct the scale to actually be 16x16
+
+            LocalBoundingBox = new AABB(-Vector3.One, Vector3.One);
+            Transform = Matrix4x4.CreateScale(spriteSize) * Matrix4x4.CreateTranslation(position.X, position.Y, position.Z);
         }
 
         public override void Render(Scene.RenderContext context)
@@ -102,21 +81,15 @@ namespace GUI.Types.Renderer
             var renderShader = context.ReplacementShader ?? material.Shader;
 
             GL.UseProgram(renderShader.Program);
-            GL.BindVertexArray(quadVao);
+            GL.BindVertexArray(vaoHandle);
 
             // Create billboarding rotation (always facing camera)
             Matrix4x4.Decompose(context.Camera.CameraViewMatrix, out _, out var modelViewRotation, out _);
             modelViewRotation = Quaternion.Inverse(modelViewRotation);
             var billboardMatrix = Matrix4x4.CreateFromQuaternion(modelViewRotation);
 
-            var scaleMatrix = Matrix4x4.CreateScale(size);
-            var translationMatrix = Matrix4x4.CreateTranslation(position.X, position.Y, position.Z);
-
-            var test = billboardMatrix * scaleMatrix * translationMatrix;
-            var test2 = test.ToOpenTK();
-
-            var transformTk = Transform.ToOpenTK();
-            GL.UniformMatrix4(renderShader.GetUniformLocation("transform"), false, ref test2);
+            var transform = billboardMatrix * Transform;
+            renderShader.SetUniform4x4("transform", transform);
 
             renderShader.SetUniform1("bAnimated", 0.0f);
             renderShader.SetUniform1("sceneObjectId", Id);

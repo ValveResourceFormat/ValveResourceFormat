@@ -3,10 +3,6 @@ using System.Linq;
 using GUI.Types.Renderer.UniformBuffers;
 using GUI.Utils;
 
-#if DEBUG
-using OpenTK.Graphics.OpenGL;
-#endif
-
 namespace GUI.Types.Renderer
 {
     partial class Scene

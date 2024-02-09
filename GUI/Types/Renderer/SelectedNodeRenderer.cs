@@ -18,23 +18,16 @@ namespace GUI.Types.Renderer
         public SelectedNodeRenderer(Scene scene) : base(scene)
         {
             shader = scene.GuiContext.ShaderLoader.LoadShader("vrf.default");
-            GL.UseProgram(shader.Program);
 
-            vboHandle = GL.GenBuffer();
-
-            vaoHandle = GL.GenVertexArray();
-            GL.BindVertexArray(vaoHandle);
+            GL.CreateVertexArrays(1, out vaoHandle);
+            GL.CreateBuffers(1, out vboHandle);
+            GL.VertexArrayVertexBuffer(vaoHandle, 0, vboHandle, 0, SimpleVertex.SizeInBytes);
+            SimpleVertex.BindDefaultShaderLayout(vaoHandle, shader.Program);
 
 #if DEBUG
             var vaoLabel = nameof(SelectedNodeRenderer);
             GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, vaoHandle, vaoLabel.Length, vaoLabel);
 #endif
-
-            GL.BindBuffer(BufferTarget.ArrayBuffer, vboHandle);
-
-            SimpleVertex.BindDefaultShaderLayout(shader.Program);
-
-            GL.BindVertexArray(0);
         }
 
         public void ToggleNode(SceneNode node)

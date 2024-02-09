@@ -29,9 +29,14 @@ namespace GUI.Types.Renderer
         public IEnumerable<(string Name, int Index, ActiveUniformType Type, int Size)> GetAllUniformNames()
         {
             GL.GetProgram(Program, GetProgramParameterName.ActiveUniforms, out var count);
+
+            Uniforms.EnsureCapacity(count);
+
             for (var i = 0; i < count; i++)
             {
                 var uniformName = GL.GetActiveUniform(Program, i, out var size, out var uniformType);
+
+                Uniforms[uniformName] = GL.GetUniformLocation(Program, uniformName);
 
                 yield return (uniformName, i, uniformType, size);
             }
@@ -70,7 +75,7 @@ namespace GUI.Types.Renderer
             var uniformLocation = GetUniformLocation(name);
             if (uniformLocation > -1)
             {
-                GL.Uniform1(uniformLocation, value);
+                GL.ProgramUniform1(Program, uniformLocation, value);
             }
         }
 
@@ -79,7 +84,7 @@ namespace GUI.Types.Renderer
             var uniformLocation = GetUniformLocation(name);
             if (uniformLocation > -1)
             {
-                GL.Uniform1(uniformLocation, value);
+                GL.ProgramUniform1(Program, uniformLocation, value);
             }
         }
 
@@ -88,7 +93,7 @@ namespace GUI.Types.Renderer
             var uniformLocation = GetUniformLocation(name);
             if (uniformLocation > -1)
             {
-                GL.Uniform1(uniformLocation, value);
+                GL.ProgramUniform1((uint)Program, uniformLocation, value);
             }
         }
 
@@ -97,7 +102,7 @@ namespace GUI.Types.Renderer
             var uniformLocation = GetUniformLocation(name);
             if (uniformLocation > -1)
             {
-                GL.Uniform2(uniformLocation, value.ToOpenTK());
+                GL.ProgramUniform2(Program, uniformLocation, value.X, value.Y);
             }
         }
 
@@ -106,7 +111,7 @@ namespace GUI.Types.Renderer
             var uniformLocation = GetUniformLocation(name);
             if (uniformLocation > -1)
             {
-                GL.Uniform3(uniformLocation, value.ToOpenTK());
+                GL.ProgramUniform3(Program, uniformLocation, value.X, value.Y, value.Z);
             }
         }
 
@@ -115,7 +120,7 @@ namespace GUI.Types.Renderer
             var uniformLocation = GetUniformLocation(name);
             if (uniformLocation > -1)
             {
-                GL.Uniform4(uniformLocation, value.ToOpenTK());
+                GL.ProgramUniform4(Program, uniformLocation, value.X, value.Y, value.Z, value.W);
             }
         }
 
@@ -124,7 +129,7 @@ namespace GUI.Types.Renderer
             var uniformLocation = GetUniformLocation(name);
             if (uniformLocation > -1)
             {
-                GL.Uniform4(uniformLocation, count, value);
+                GL.ProgramUniform4(Program, uniformLocation, count, value);
             }
         }
 
@@ -133,7 +138,7 @@ namespace GUI.Types.Renderer
             var uniformLocation = GetUniformLocation(name);
             if (uniformLocation > -1)
             {
-                GL.UniformMatrix4x3(uniformLocation, count, false, value);
+                GL.ProgramUniformMatrix4x3(Program, uniformLocation, count, false, value);
             }
         }
 
@@ -143,7 +148,7 @@ namespace GUI.Types.Renderer
             if (uniformLocation > -1)
             {
                 var matrix = value.ToOpenTK();
-                GL.UniformMatrix4(uniformLocation, transpose, ref matrix);
+                GL.ProgramUniformMatrix4(Program, uniformLocation, transpose, ref matrix);
             }
         }
 
@@ -159,10 +164,10 @@ namespace GUI.Types.Renderer
             return true;
         }
 
-        public static void SetTexture(int slot, int uniformLocation, RenderTexture texture)
+        public void SetTexture(int slot, int uniformLocation, RenderTexture texture)
         {
             GL.BindTextureUnit(slot, texture.Handle);
-            GL.Uniform1(uniformLocation, slot);
+            GL.ProgramUniform1(Program, uniformLocation, slot);
         }
     }
 }

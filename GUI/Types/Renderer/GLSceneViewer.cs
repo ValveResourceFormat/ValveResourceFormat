@@ -188,15 +188,11 @@ namespace GUI.Types.Renderer
                 }
 
                 // If there is no bbox, LookAt will break camera, so +1 to location
-                var location = new Vector3(bbox.Max.Z + 1f, 0, bbox.Max.Z) * 1.5f;
+                var offset = Math.Max(bbox.Max.X, bbox.Max.Z) + 1f * 1.5f;
+                var location = new Vector3(offset, 0, offset);
 
                 Camera.SetLocation(location);
                 Camera.LookAt(bbox.Center);
-            }
-            else
-            {
-                Camera.SetLocation(new Vector3(256));
-                Camera.LookAt(new Vector3(0));
             }
 
             staticOctreeRenderer = new OctreeDebugRenderer<SceneNode>(Scene.StaticOctree, Scene.GuiContext, false);
@@ -331,12 +327,14 @@ namespace GUI.Types.Renderer
                 {
                     lightingBuffer.Data = SkyboxScene.LightingInfo.LightingData;
                     renderContext.Scene = SkyboxScene;
+                    renderContext.ReplacementShader?.SetUniform1("isSkybox", 1u);
 
                     SkyboxScene.RenderOpaqueLayer(renderContext);
                     SkyboxScene.RenderTranslucentLayer(renderContext);
 
                     lightingBuffer.Data = Scene.LightingInfo.LightingData;
                     renderContext.Scene = Scene;
+                    renderContext.ReplacementShader?.SetUniform1("isSkybox", 0u);
                 }
             }
 

@@ -68,6 +68,11 @@ namespace GUI.Controls
 
         private void MainTreeView_NodeMouseDoubleClick(object sender, TreeNodeMouseClickEventArgs e)
         {
+            if (mainTreeView.SelectedNode is BetterTreeNode node && node.IsFolder)
+            {
+                return;
+            }
+
             TreeNodeMouseDoubleClick?.Invoke(sender, e);
         }
 

@@ -270,12 +270,6 @@ namespace ValveResourceFormat.ResourceTypes
                         field.Type,
                         new NTROStruct(
                             new NTROValue<float>(SchemaFieldType.Float, Reader.ReadSingle(), pointer),
-                            new NTROValue<float>(SchemaFieldType.Float, Reader.ReadSingle(), pointer),
-                            new NTROValue<float>(SchemaFieldType.Float, Reader.ReadSingle(), pointer),
-                            new NTROValue<float>(SchemaFieldType.Float, Reader.ReadSingle(), pointer),
-                            new NTROValue<float>(SchemaFieldType.Float, Reader.ReadSingle(), pointer),
-                            new NTROValue<float>(SchemaFieldType.Float, Reader.ReadSingle(), pointer),
-                            new NTROValue<float>(SchemaFieldType.Float, Reader.ReadSingle(), pointer),
                             new NTROValue<float>(SchemaFieldType.Float, Reader.ReadSingle(), pointer)),
                         pointer);
 

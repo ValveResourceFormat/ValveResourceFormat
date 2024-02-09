@@ -85,7 +85,7 @@ namespace GUI.Types.Renderer
 
         private static void DrawBatch(List<Request> requests, Scene.RenderContext context)
         {
-            uint vao = 0;
+            var vao = -1;
             Shader shader = null;
             RenderMaterial material = null;
             Uniforms uniforms = new();
@@ -144,37 +144,42 @@ namespace GUI.Types.Renderer
                     material.Render(shader);
                 }
 
-                Draw(ref uniforms, ref config, request);
+                Draw(shader, ref uniforms, ref config, request);
             }
 
-            material?.PostRender();
+            if (vao > -1)
+            {
+                material.PostRender();
+                GL.BindVertexArray(0);
+                GL.UseProgram(0);
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static void Draw(ref Uniforms uniforms, ref Config config, Request request)
+        private static void Draw(Shader shader, ref Uniforms uniforms, ref Config config, Request request)
         {
             var transformTk = request.Transform.ToOpenTK();
-            GL.UniformMatrix4(uniforms.Transform, false, ref transformTk);
+            GL.ProgramUniformMatrix4(shader.Program, uniforms.Transform, false, ref transformTk);
 
             #region Picking
             if (uniforms.ObjectId != -1)
             {
-                GL.Uniform1(uniforms.ObjectId, request.Node.Id);
+                GL.ProgramUniform1((uint)shader.Program, uniforms.ObjectId, request.Node.Id);
             }
 
             if (uniforms.MeshId != -1)
             {
-                GL.Uniform1(uniforms.MeshId, (uint)request.Mesh.MeshIndex);
+                GL.ProgramUniform1((uint)shader.Program, uniforms.MeshId, (uint)request.Mesh.MeshIndex);
             }
 
             if (uniforms.ShaderId != -1)
             {
-                GL.Uniform1(uniforms.ShaderId, (uint)request.Call.Material.Shader.NameHash);
+                GL.ProgramUniform1((uint)shader.Program, uniforms.ShaderId, (uint)request.Call.Material.Shader.NameHash);
             }
 
             if (uniforms.ShaderProgramId != -1)
             {
-                GL.Uniform1(uniforms.ShaderProgramId, (uint)request.Call.Material.Shader.Program);
+                GL.ProgramUniform1((uint)shader.Program, uniforms.ShaderProgramId, (uint)request.Call.Material.Shader.Program);
             }
             #endregion
 
@@ -186,25 +191,25 @@ namespace GUI.Types.Renderer
                     var envmapDataIndex = request.Node.EnvMapIds[0];
 
                     instanceBoundTextures.Enqueue((int)ReservedTextureSlots.EnvironmentMap);
-                    Shader.SetTexture((int)ReservedTextureSlots.EnvironmentMap, uniforms.EnvmapTexture, envmap);
+                    shader.SetTexture((int)ReservedTextureSlots.EnvironmentMap, uniforms.EnvmapTexture, envmap);
 
-                    GL.Uniform1(uniforms.CubeMapArrayIndices, envmapDataIndex);
+                    GL.ProgramUniform1(shader.Program, uniforms.CubeMapArrayIndices, envmapDataIndex);
                 }
                 else
                 {
-                    GL.Uniform1(uniforms.CubeMapArrayIndices, request.Node.EnvMapIds.Length, request.Node.EnvMapIds);
+                    GL.ProgramUniform1(shader.Program, uniforms.CubeMapArrayIndices, request.Node.EnvMapIds.Length, request.Node.EnvMapIds);
                 }
             }
 
             if (uniforms.Animated != -1)
             {
                 var bAnimated = request.Mesh.AnimationTexture != null;
-                GL.Uniform1(uniforms.Animated, bAnimated ? 1u : 0u);
+                GL.ProgramUniform1((uint)shader.Program, uniforms.Animated, bAnimated ? 1u : 0u);
 
                 if (bAnimated && uniforms.AnimationTexture != -1)
                 {
                     instanceBoundTextures.Enqueue((int)ReservedTextureSlots.AnimationTexture);
-                    Shader.SetTexture((int)ReservedTextureSlots.AnimationTexture, uniforms.AnimationTexture, request.Mesh.AnimationTexture);
+                    shader.SetTexture((int)ReservedTextureSlots.AnimationTexture, uniforms.AnimationTexture, request.Mesh.AnimationTexture);
                 }
             }
 
@@ -214,20 +219,20 @@ namespace GUI.Types.Renderer
                 if (morphComposite != null)
                 {
                     instanceBoundTextures.Enqueue((int)ReservedTextureSlots.MorphCompositeTexture);
-                    Shader.SetTexture((int)ReservedTextureSlots.MorphCompositeTexture, uniforms.MorphCompositeTexture, morphComposite.CompositeTexture);
+                    shader.SetTexture((int)ReservedTextureSlots.MorphCompositeTexture, uniforms.MorphCompositeTexture, morphComposite.CompositeTexture);
 
-                    GL.Uniform2(uniforms.MorphCompositeTextureSize, (float)morphComposite.CompositeTexture.Width, (float)morphComposite.CompositeTexture.Height);
+                    GL.ProgramUniform2(shader.Program, uniforms.MorphCompositeTextureSize, (float)morphComposite.CompositeTexture.Width, (float)morphComposite.CompositeTexture.Height);
                 }
 
-                GL.Uniform1(uniforms.MorphVertexIdOffset, morphComposite != null ? request.Call.VertexIdOffset : -1);
+                GL.ProgramUniform1(shader.Program, uniforms.MorphVertexIdOffset, morphComposite != null ? request.Call.VertexIdOffset : -1);
             }
 
             if (uniforms.Tint > -1)
             {
                 var instanceTint = (request.Node is SceneAggregate.Fragment fragment) ? fragment.Tint : Vector4.One;
-                var tint = (request.Mesh.Tint * request.Call.TintColor * instanceTint).ToOpenTK();
+                var tint = request.Mesh.Tint * request.Call.TintColor * instanceTint;
 
-                GL.Uniform4(uniforms.Tint, tint);
+                GL.ProgramUniform4(shader.Program, uniforms.Tint, tint.X, tint.Y, tint.Z, tint.W);
             }
 
             GL.DrawElementsBaseVertex(

@@ -1,11 +1,22 @@
-﻿// https://github.com/Chlumsky/msdfgen
-// https://github.com/Chlumsky/msdf-atlas-gen
+﻿// Run this with `dotnet run`. Place the exe and ttf in the same working directory.
 
 using System.Diagnostics;
 
 var msdfgenPath = "./msdf-atlas-gen.exe";
 var fontFilePath = "./JetBrainsMono-Regular.ttf";
-var pxRange = 6;
+var pxRange = 16;
+
+if (!File.Exists(fontFilePath))
+{
+    Console.Error.WriteLine($"{fontFilePath} does not exist. Download it from https://www.jetbrains.com/lp/mono/");
+    return 1;
+}
+
+if (!File.Exists(msdfgenPath))
+{
+    Console.Error.WriteLine($"{fontFilePath} does not exist. Download it from https://github.com/Chlumsky/msdf-atlas-gen/releases");
+    return 1;
+}
 
 var metrics = new FontMetric[128];
 
@@ -68,6 +79,8 @@ foreach (var metric in metrics)
 }
 
 Console.WriteLine("];");
+
+return 0;
 
 record FontMetric(Vector4 PlaneBounds, Vector4 AtlasBounds, float Advance);
 

@@ -2,7 +2,7 @@ using System.Diagnostics;
 
 namespace GUI.Utils
 {
-    [DebuggerDisplay("R={R}, G={G}, B={B}, A={A} (#{PackedValue:X8})")]
+    [DebuggerDisplay("R={R}, G={G}, B={B}, A={A} (#{string.Format(\"{0:X8}\", PackedValue),nq})")]
     public record struct Color32(uint PackedValue)
     {
         public static readonly Color32 White = new(0xFFFFFFFF);

@@ -146,11 +146,7 @@ void CalculateIndirectLighting(inout LightingTerms_t lighting, inout MaterialPro
     vec3 ambientDiffuse;
     float normalizationTerm = GetEnvMapNormalization(GetIsoRoughness(mat.Roughness), mat.AmbientNormal, lighting.DiffuseIndirect);
 
-    lighting.SpecularIndirect = GetEnvironment(mat, ambientDiffuse) * normalizationTerm;
-    #if defined(NoBakeLighting)
-        // maybe mix with light_environment skyambientcolor
-        lighting.DiffuseIndirect = mix(ambientDiffuse, lighting.DiffuseIndirect, bvec3(ambientDiffuse == vec3(0.0)));
-    #endif
+    lighting.SpecularIndirect = GetEnvironment(mat) * normalizationTerm;
 #endif
 }
 

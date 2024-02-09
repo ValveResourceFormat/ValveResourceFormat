@@ -11,6 +11,7 @@ uniform uint sceneObjectId;
 uniform uint meshId;
 uniform uint shaderId;
 uniform uint shaderProgramId;
+uniform uint isSkybox;
 
 #if F_DEBUG_PICKER == 1
     out vec4 outputColor;
@@ -42,6 +43,6 @@ uniform uint shaderProgramId;
     out uvec4 outputColor;
     void main()
     {
-        outputColor = uvec4(sceneObjectId, meshId, 0, 0);
+        outputColor = uvec4(sceneObjectId, meshId, isSkybox, 0);
     }
 #endif

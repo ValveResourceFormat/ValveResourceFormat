@@ -17,16 +17,14 @@ namespace GUI.Types.Renderer
 
         private readonly int frameBuffer;
         private readonly Shader shader;
-        private int vertexBufferHandle;
-        private int vertexArray;
+        private int vao;
+        private int bufferHandle;
         private readonly float[] allVertices;
         private readonly RenderTexture morphAtlas;
         private List<int>[] morphRects;
         private readonly HashSet<int> usedRects = [];
         private int morphCount;
         private bool renderTargetInitialized;
-
-        private readonly QuadIndexBuffer quadIndices;
 
         struct MorphCompositeRectData
         {
@@ -48,29 +46,23 @@ namespace GUI.Types.Renderer
 
             allVertices = new float[GetMorphBundleCount() * 4 * VertexSize];
 
-            quadIndices = vrfGuiContext.MeshBufferCache.QuadIndices;
             shader = vrfGuiContext.ShaderLoader.LoadShader("vrf.morph_composite");
-
-            GL.UseProgram(shader.Program);
 
             var width = Morph.Data.GetInt32Property("m_nWidth");
             var height = Morph.Data.GetInt32Property("m_nHeight");
             CompositeTexture = new(TextureTarget.Texture2D, width, height, 1, 1);
 
-            frameBuffer = GL.GenFramebuffer();
+            GL.CreateFramebuffers(1, out frameBuffer);
 
-            InitVertexBuffer();
+            InitVertexBuffer(vrfGuiContext);
 
             FillVertices();
 
 #if DEBUG
             var label = $"{nameof(MorphComposite)}: {System.IO.Path.GetFileName(morph.TextureResource.FileName)}";
-            GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, vertexArray, label.Length, label);
+            GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, vao, label.Length, label);
             GL.ObjectLabel(ObjectLabelIdentifier.Texture, CompositeTexture.Handle, label.Length, label);
-
-            GL.BindFramebuffer(FramebufferTarget.Framebuffer, frameBuffer);
             GL.ObjectLabel(ObjectLabelIdentifier.Framebuffer, frameBuffer, label.Length, label);
-            GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
 #endif
         }
 
@@ -94,31 +86,16 @@ namespace GUI.Types.Renderer
             CompositeTexture.SetWrapMode(TextureWrapMode.ClampToEdge);
 
             GL.TextureStorage2D(CompositeTexture.Handle, 1, SizedInternalFormat.Rgb16f, TextureSize, TextureSize);
+            GL.NamedFramebufferTexture(frameBuffer, FramebufferAttachment.ColorAttachment0, CompositeTexture.Handle, 0);
         }
 
         public void Render()
         {
-            GL.UseProgram(shader.Program);
-
-            GL.Enable(EnableCap.Blend);
-            GL.BlendFunc(BlendingFactor.SrcColor, BlendingFactor.One);
-            GL.BlendFunc(BlendingFactor.DstColor, BlendingFactor.One);
-            GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.One);
-            GL.BlendFunc(BlendingFactor.DstAlpha, BlendingFactor.One);
-            GL.BlendEquation(BlendEquationMode.FuncAdd);
-
-            GL.Disable(EnableCap.CullFace);
-
-            GL.BindVertexArray(vertexArray);
-            GL.EnableVertexAttribArray(0);
-            GL.BindBuffer(BufferTarget.ElementArrayBuffer, quadIndices.GLHandle);
-            GL.BindBuffer(BufferTarget.ArrayBuffer, vertexBufferHandle);
-
             var usedVerticesLength = usedRects.Count * 4 * VertexSize;
 
             if (usedVerticesLength == allVertices.Length)
             {
-                GL.BufferData(BufferTarget.ArrayBuffer, usedVerticesLength * sizeof(float), allVertices, BufferUsageHint.DynamicDraw);
+                GL.NamedBufferData(bufferHandle, usedVerticesLength * sizeof(float), allVertices, BufferUsageHint.DynamicDraw);
             }
             else
             {
@@ -128,7 +105,7 @@ namespace GUI.Types.Renderer
                 {
                     BuildVertexBuffer(usedVertices);
 
-                    GL.BufferData(BufferTarget.ArrayBuffer, usedVerticesLength * sizeof(float), usedVertices, BufferUsageHint.DynamicDraw);
+                    GL.NamedBufferData(bufferHandle, usedVerticesLength * sizeof(float), usedVertices, BufferUsageHint.DynamicDraw);
                 }
                 finally
                 {
@@ -142,55 +119,61 @@ namespace GUI.Types.Renderer
                 renderTargetInitialized = true;
             }
 
-            shader.SetTexture(0, "morphAtlas", morphAtlas);
+            GL.Disable(EnableCap.CullFace);
+            GL.Enable(EnableCap.Blend);
+            GL.BlendFunc(BlendingFactor.SrcColor, BlendingFactor.One);
+            GL.BlendFunc(BlendingFactor.DstColor, BlendingFactor.One);
+            GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.One);
+            GL.BlendFunc(BlendingFactor.DstAlpha, BlendingFactor.One);
+            GL.BlendEquation(BlendEquationMode.FuncAdd);
 
-            //draw
             GL.BindFramebuffer(FramebufferTarget.Framebuffer, frameBuffer);
-
-            GL.NamedFramebufferTexture(frameBuffer, FramebufferAttachment.ColorAttachment0, CompositeTexture.Handle, 0);
+            GL.UseProgram(shader.Program);
+            shader.SetTexture(0, "morphAtlas", morphAtlas);
 
             GL.Viewport(0, 0, 2048, 2048);
             GL.ClearColor(0, 0, 0, 0);
             GL.Clear(ClearBufferMask.ColorBufferBit);
+
+            GL.BindVertexArray(vao);
+
             GL.DrawElements(BeginMode.Triangles, (usedVerticesLength / VertexSize / 4) * 6, DrawElementsType.UnsignedShort, 0);
 
-            //unbind everything
-            //GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
-            GL.BindBuffer(BufferTarget.ElementArrayBuffer, 0);
-            GL.BindBuffer(BufferTarget.ArrayBuffer, 0);
-            GL.BindRenderbuffer(RenderbufferTarget.Renderbuffer, 0);
+            GL.UseProgram(0);
+            GL.BindVertexArray(0);
 
             GL.Disable(EnableCap.Blend);
             GL.Enable(EnableCap.CullFace);
-
-            GL.UseProgram(0);
         }
 
-        private void InitVertexBuffer()
+        private void InitVertexBuffer(VrfGuiContext guiContext)
         {
-            vertexArray = GL.GenVertexArray();
-            GL.BindVertexArray(vertexArray);
-
-            vertexBufferHandle = GL.GenBuffer();
-            GL.BindBuffer(BufferTarget.ArrayBuffer, vertexBufferHandle);
-
             var stride = sizeof(float) * VertexSize;
 
+            GL.CreateVertexArrays(1, out vao);
+            GL.CreateBuffers(1, out bufferHandle);
+            GL.VertexArrayVertexBuffer(vao, 0, bufferHandle, 0, stride);
+            GL.VertexArrayElementBuffer(vao, guiContext.MeshBufferCache.QuadIndices.GLHandle);
+
             var positionWeightsLocation = GL.GetAttribLocation(shader.Program, "vPositionWeights");
-            GL.VertexAttribPointer(positionWeightsLocation, 4, VertexAttribPointerType.Float, false, stride, 0);
             var texCoordsLocation = GL.GetAttribLocation(shader.Program, "vTexCoords");
-            GL.VertexAttribPointer(texCoordsLocation, 4, VertexAttribPointerType.Float, false, stride, sizeof(float) * 4);
             var offsetsLocation = GL.GetAttribLocation(shader.Program, "vOffsetsPositionSpeed");
-            GL.VertexAttribPointer(offsetsLocation, 4, VertexAttribPointerType.Float, false, stride, sizeof(float) * 8);
             var rangesLocation = GL.GetAttribLocation(shader.Program, "vRangesPositionSpeed");
-            GL.VertexAttribPointer(rangesLocation, 4, VertexAttribPointerType.Float, false, stride, sizeof(float) * 12);
 
-            GL.EnableVertexAttribArray(positionWeightsLocation);
-            GL.EnableVertexAttribArray(texCoordsLocation);
-            GL.EnableVertexAttribArray(offsetsLocation);
-            GL.EnableVertexAttribArray(rangesLocation);
+            GL.EnableVertexArrayAttrib(vao, positionWeightsLocation);
+            GL.EnableVertexArrayAttrib(vao, texCoordsLocation);
+            GL.EnableVertexArrayAttrib(vao, offsetsLocation);
+            GL.EnableVertexArrayAttrib(vao, rangesLocation);
 
-            GL.BindVertexArray(0);
+            GL.VertexArrayAttribFormat(vao, positionWeightsLocation, 4, VertexAttribType.Float, false, 0);
+            GL.VertexArrayAttribFormat(vao, texCoordsLocation, 4, VertexAttribType.Float, false, sizeof(float) * 4);
+            GL.VertexArrayAttribFormat(vao, offsetsLocation, 4, VertexAttribType.Float, false, sizeof(float) * 8);
+            GL.VertexArrayAttribFormat(vao, rangesLocation, 4, VertexAttribType.Float, false, sizeof(float) * 12);
+
+            GL.VertexArrayAttribBinding(vao, positionWeightsLocation, 0);
+            GL.VertexArrayAttribBinding(vao, texCoordsLocation, 0);
+            GL.VertexArrayAttribBinding(vao, offsetsLocation, 0);
+            GL.VertexArrayAttribBinding(vao, rangesLocation, 0);
         }
 
         private void FillVertices()

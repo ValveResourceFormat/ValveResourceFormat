@@ -11,7 +11,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
         private Shader shader;
         private readonly VrfGuiContext guiContext;
-        private readonly int quadVao;
+        private readonly int vaoHandle;
         private readonly RenderTexture texture;
 
         private readonly float animationRate = 0.1f;
@@ -34,7 +34,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
             shader = vrfGuiContext.ShaderLoader.LoadShader(ShaderName);
 
             // The same quad is reused for all particles
-            quadVao = SetupQuadBuffer();
+            vaoHandle = SetupQuadBuffer();
 
             string textureName = null;
 
@@ -52,11 +52,11 @@ namespace GUI.Types.ParticleRenderer.Renderers
                 }
             }
 
-            texture = vrfGuiContext.MaterialLoader.LoadTexture(textureName);
+            texture = vrfGuiContext.MaterialLoader.GetTexture(textureName);
 
 #if DEBUG
             var vaoLabel = $"{nameof(RenderTrails)}: {System.IO.Path.GetFileName(textureName)}";
-            GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, quadVao, vaoLabel.Length, vaoLabel);
+            GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, vaoHandle, vaoLabel.Length, vaoLabel);
 #endif
 
             blendMode = parse.Enum<ParticleBlendMode>("m_nOutputBlendMode", blendMode);
@@ -78,15 +78,6 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
         private int SetupQuadBuffer()
         {
-            GL.UseProgram(shader.Program);
-
-            // Create and bind VAO
-            var vao = GL.GenVertexArray();
-            GL.BindVertexArray(vao);
-
-            var vbo = GL.GenBuffer();
-            GL.BindBuffer(BufferTarget.ArrayBuffer, vbo);
-
             var vertices = new[]
             {
                 -1.0f, -1.0f, 0.0f,
@@ -95,14 +86,15 @@ namespace GUI.Types.ParticleRenderer.Renderers
                 1.0f, 1.0f, 0.0f,
             };
 
-            GL.BufferData(BufferTarget.ArrayBuffer, vertices.Length * sizeof(float), vertices, BufferUsageHint.StaticDraw);
+            GL.CreateVertexArrays(1, out int vao);
+            GL.CreateBuffers(1, out int buffer);
+            GL.NamedBufferData(buffer, vertices.Length * sizeof(float), vertices, BufferUsageHint.StaticDraw);
+            GL.VertexArrayVertexBuffer(vao, 0, buffer, 0, sizeof(float) * 3);
 
-            GL.EnableVertexAttribArray(0);
-
-            var positionAttributeLocation = GL.GetAttribLocation(shader.Program, "aVertexPosition");
-            GL.VertexAttribPointer(positionAttributeLocation, 3, VertexAttribPointerType.Float, false, 0, 0);
-
-            GL.BindVertexArray(0); // Unbind VAO
+            var attributeLocation = GL.GetAttribLocation(shader.Program, "aVertexPosition");
+            GL.EnableVertexArrayAttrib(vao, attributeLocation);
+            GL.VertexArrayAttribFormat(vao, attributeLocation, 3, VertexAttribType.Float, false, 0);
+            GL.VertexArrayAttribBinding(vao, attributeLocation, 0);
 
             return vao;
         }
@@ -112,7 +104,6 @@ namespace GUI.Types.ParticleRenderer.Renderers
             var particles = particleBag.Current;
 
             GL.Enable(EnableCap.Blend);
-
 
             if (blendMode == ParticleBlendMode.PARTICLE_OUTPUT_BLEND_MODE_ADD)
             {
@@ -125,8 +116,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
             GL.UseProgram(shader.Program);
 
-            GL.BindVertexArray(quadVao);
-            GL.EnableVertexAttribArray(0);
+            GL.BindVertexArray(vaoHandle);
 
             // set texture unit 0 as uTexture uniform
             shader.SetTexture(0, "uTexture", texture);

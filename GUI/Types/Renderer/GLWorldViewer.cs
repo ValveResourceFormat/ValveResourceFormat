@@ -141,6 +141,8 @@ namespace GUI.Types.Renderer
 
         protected override void LoadScene()
         {
+            var cameraSet = false;
+
             if (world != null)
             {
                 var result = new WorldLoader(world, Scene);
@@ -206,10 +208,7 @@ namespace GUI.Types.Renderer
                         {
                             if (index > 0)
                             {
-                                if (result.CameraMatrices.TryGetValue(cameraName, out var cameraMatrix))
-                                {
-                                    Camera.SetFromTransformMatrix(cameraMatrix);
-                                }
+                                Camera.SetFromTransformMatrix(result.CameraMatrices[index - 1].Transform);
                             }
                         });
 
@@ -217,8 +216,18 @@ namespace GUI.Types.Renderer
                         cameraComboBox.SelectedIndex = 0;
                     }
 
-                    cameraComboBox.Items.AddRange([.. result.CameraMatrices.Keys]);
+                    cameraComboBox.Items.AddRange([.. result.CameraMatrices.Select(static c => c.Name)]);
+
+                    Camera.SetFromTransformMatrix(result.CameraMatrices[0].Transform);
+                    Camera.SetLocation(Camera.Location + Camera.GetForwardVector() * 10f); // Escape the camera model
+                    cameraSet = true;
                 }
+            }
+
+            if (!cameraSet)
+            {
+                Camera.SetLocation(new Vector3(256));
+                Camera.LookAt(Vector3.Zero);
             }
 
             if (worldNode != null)
@@ -252,7 +261,8 @@ namespace GUI.Types.Renderer
                 return;
             }
 
-            var sceneNode = Scene.Find(pixelInfo.ObjectId);
+            var isInSkybox = pixelInfo.IsSkybox > 0;
+            var sceneNode = isInSkybox ? SkyboxScene.Find(pixelInfo.ObjectId) : Scene.Find(pixelInfo.ObjectId);
 
             if (sceneNode == null)
             {
@@ -327,13 +337,31 @@ namespace GUI.Types.Renderer
                     ShowEntityProperties(sceneNode, entityDialog);
                 }
 
+                if (isInSkybox)
+                {
+                    entityDialog.Text += " (in 3D skybox)";
+                }
+
                 entityDialog.ShowDialog();
                 return;
             }
 
             Log.Info(nameof(GLWorldViewer), $"Opening {sceneNode.Name} (Id: {pixelInfo.ObjectId})");
 
-            var foundFile = GuiContext.FileLoader.FindFileWithContext(sceneNode.Name + "_c");
+            var filename = sceneNode.Name;
+
+            if (sceneNode.EntityData != null)
+            {
+                // Perhaps this needs to check for correct classname?
+                var particle = sceneNode.EntityData.GetProperty<string>("effect_name");
+
+                if (particle != null)
+                {
+                    filename = particle;
+                }
+            }
+
+            var foundFile = GuiContext.FileLoader.FindFileWithContext(filename + "_c");
 
             if (foundFile.Context == null)
             {
