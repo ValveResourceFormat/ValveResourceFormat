@@ -667,11 +667,7 @@ namespace GUI.Types.Renderer
 
                 if (IsCamera(classname))
                 {
-                    var name = entity.GetProperty<string>("targetname") ?? string.Empty;
-                    var cameraName = string.IsNullOrEmpty(name)
-                        ? classname
-                        : name;
-
+                    var cameraName = entity.GetProperty<string>("cameraname") ?? entity.GetProperty<string>("targetname") ?? classname;
                     CameraMatrices.Add((cameraName, transformationMatrix));
                 }
                 else if (classname == "env_global_light" || classname == "light_environment")
