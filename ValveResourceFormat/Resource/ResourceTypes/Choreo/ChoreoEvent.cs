@@ -21,7 +21,6 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
         public ChoreoTag[] PlaybackTimeTags { get; init; }
         public ChoreoTag[] ShiftedTimeTags { get; init; }
         public float SequenceDuration { get; init; }
-        public bool UsingRelativeTag { get; init; }
         public ChoreoEventRelativeTag RelativeTag { get; init; }
         public ChoreoEventFlex EventFlex { get; init; }
         public byte LoopCount { get; init; }
@@ -82,7 +81,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
                 kv.AddProperty("sequenceduration", new KVValue(KVType.FLOAT, SequenceDuration));
             }
 
-            if (UsingRelativeTag)
+            if (RelativeTag != null)
             {
                 kv.AddProperty("relativetag_name", new KVValue(KVType.STRING, RelativeTag.Name));
                 kv.AddProperty("relativetag_sound", new KVValue(KVType.STRING, RelativeTag.SoundName));

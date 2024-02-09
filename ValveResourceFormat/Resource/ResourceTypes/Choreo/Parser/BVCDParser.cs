@@ -318,7 +318,6 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
                 PlaybackTimeTags = playTags,
                 ShiftedTimeTags = shiftTags,
                 SequenceDuration = sequenceDuration,
-                UsingRelativeTag = usingRelativeTag,
                 RelativeTag = relativeTag,
                 EventFlex = flex,
                 LoopCount = loopCount,
