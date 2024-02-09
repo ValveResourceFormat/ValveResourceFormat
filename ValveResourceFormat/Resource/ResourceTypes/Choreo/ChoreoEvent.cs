@@ -74,7 +74,8 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
 
             if (Type == ChoreoEventType.Loop)
             {
-                kv.AddProperty("loopcount", new KVValue(KVType.INT64, LoopCount));
+                var loopCount = LoopCount == byte.MaxValue ? -1 : LoopCount;
+                kv.AddProperty("loopcount", new KVValue(KVType.INT64, loopCount));
             }
             else if (Type == ChoreoEventType.Gesture)
             {
