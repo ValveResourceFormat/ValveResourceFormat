@@ -160,7 +160,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
             parent.AddProperty(name, new KVValue(KVType.ARRAY, kv));
         }
 
-        private void AddKVFlag(KVObject kv, string name, Enum setFlags, Enum flag, bool defaultValue = false)
+        private static void AddKVFlag(KVObject kv, string name, Enum setFlags, Enum flag, bool defaultValue = false)
         {
             var set = setFlags.HasFlag(flag);
             if (set == defaultValue)
