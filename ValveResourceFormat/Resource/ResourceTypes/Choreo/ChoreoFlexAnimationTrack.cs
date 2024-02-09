@@ -36,6 +36,16 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
             kv.AddProperty("min", new KVValue(KVType.FLOAT, MinRange));
             kv.AddProperty("max", new KVValue(KVType.FLOAT, MaxRange));
 
+            //Edges are the same for both curves
+            if (Ramp?.LeftEdge != null)
+            {
+                kv.AddProperty("left_edge", new KVValue(KVType.OBJECT, Ramp.LeftEdge.ToKeyValues()));
+            }
+            if (Ramp?.RightEdge != null)
+            {
+                kv.AddProperty("right_edge", new KVValue(KVType.OBJECT, Ramp.RightEdge.ToKeyValues()));
+            }
+
             if (Ramp?.Samples.Length > 0)
             {
                 kv.AddProperty("samples", new KVValue(KVType.OBJECT, Ramp.ToKeyValues()));
@@ -44,7 +54,6 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
             {
                 kv.AddProperty("stereo", new KVValue(KVType.OBJECT, ComboRamp.ToKeyValues()));
             }
-            //TODO: Print edges for curves
 
             return kv;
         }
