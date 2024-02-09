@@ -66,15 +66,6 @@ namespace ValveResourceFormat.ResourceTypes
 
             reader.BaseStream.Position = previousPosition;
 
-            {
-                //todo: remove
-                var debugName = name.Replace(".vcd", ".bvcd");
-                var path = "vcdtest/" + Path.GetDirectoryName(debugName);
-                Directory.CreateDirectory(path);
-                using var debugFile = File.OpenWrite($"vcdtest/{debugName}");
-                debugFile.Write(sceneBlock);
-            }
-
             using var sceneStream = new MemoryStream(sceneBlock);
             var scene = BVCDParser.Parse(sceneStream, strings);
             scene.Name = name;
