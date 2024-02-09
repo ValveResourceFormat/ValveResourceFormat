@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.IO;
 using System.Text;
 using ValveResourceFormat.Blocks;
@@ -82,24 +83,26 @@ namespace ValveResourceFormat.ResourceTypes
             var id = reader.ReadUInt32();
             if (id == MAGIC_LZMA)
             {
-                var uncompressedLength = reader.ReadInt32();
-                var compressedLength = reader.ReadInt32();
-
-                var lzmaDecoder = new LzmaDecoder();
-                lzmaDecoder.SetDecoderProperties(reader.ReadBytes(5));
-                var compressedBuffer = reader.ReadBytes(compressedLength);
-                using (var inputStream = new MemoryStream(compressedBuffer))
-                using (var outStream = new MemoryStream(uncompressedLength))
-                {
-                    lzmaDecoder.Code(inputStream, outStream, compressedBuffer.Length, uncompressedLength, null);
-                    return outStream.ToArray();
-                }
+                return ReadLZMASceneBlock(reader);
             }
             else
             {
                 reader.BaseStream.Position -= 4;
                 return reader.ReadBytes(length);
             }
+        }
+
+        private static byte[] ReadLZMASceneBlock(BinaryReader reader)
+        {
+            var uncompressedLength = reader.ReadInt32();
+            var compressedLength = reader.ReadInt32();
+
+            var lzmaDecoder = new LzmaDecoder();
+            lzmaDecoder.SetDecoderProperties(reader.ReadBytes(5));
+
+            using var outStream = new MemoryStream(uncompressedLength);
+            lzmaDecoder.Code(reader.BaseStream, outStream, compressedLength, uncompressedLength, null);
+            return outStream.ToArray();
         }
 
         private static string[] ReadStrings(BinaryReader reader)
