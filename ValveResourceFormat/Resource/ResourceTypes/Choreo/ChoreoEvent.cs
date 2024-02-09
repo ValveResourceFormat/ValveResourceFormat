@@ -29,8 +29,6 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
         public float SoundStartDelay { get; init; }
         public int Id { get; init; }
         public int ConstrainedEventId { get; init; }
-        public ChoreoEdge LeftEdge { get; init; }
-        public ChoreoEdge RightEdge { get; init; }
 
         public KVObject ToKeyValues()
         {
@@ -122,13 +120,13 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
             //endloop (might not exist)
             //pitch (missing from bvcd?)
 
-            if (LeftEdge != null)
+            if (Ramp?.LeftEdge != null)
             {
-                kv.AddProperty("left_edge", new KVValue(KVType.OBJECT, LeftEdge.ToKeyValues()));
+                kv.AddProperty("left_edge", new KVValue(KVType.OBJECT, Ramp.LeftEdge.ToKeyValues()));
             }
-            if (RightEdge != null)
+            if (Ramp?.RightEdge != null)
             {
-                kv.AddProperty("right_edge", new KVValue(KVType.OBJECT, RightEdge.ToKeyValues()));
+                kv.AddProperty("right_edge", new KVValue(KVType.OBJECT, Ramp.RightEdge.ToKeyValues()));
             }
             if (Ramp.Samples.Length > 0)
             {

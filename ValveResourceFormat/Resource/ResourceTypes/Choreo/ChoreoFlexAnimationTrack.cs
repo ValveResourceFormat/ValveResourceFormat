@@ -44,6 +44,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
             {
                 kv.AddProperty("stereo", new KVValue(KVType.OBJECT, ComboRamp.ToKeyValues()));
             }
+            //TODO: Print edges for curves
 
             return kv;
         }

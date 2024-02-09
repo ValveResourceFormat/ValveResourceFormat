@@ -66,19 +66,12 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
 
             var ramp = ReadCurveData();
 
-            ChoreoEdge leftEdge = null;
-            ChoreoEdge rightEdge = null;
-            if (version >= 16)
-            {
-                leftEdge = ReadEdge();
-                rightEdge = ReadEdge();
-            }
-
             var ignorePhonemes = reader.ReadBoolean();
+            //cs2 v17 has a single byte after ignorephonemes?
 
             Debug.Assert(reader.BaseStream.Position == reader.BaseStream.Length);
 
-            var data = new ChoreoScene(version, events, actors, ramp, leftEdge, rightEdge, ignorePhonemes);
+            var data = new ChoreoScene(version, events, actors, ramp, ignorePhonemes);
             return data;
         }
 
@@ -174,14 +167,6 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
             ChoreoCurveData ramp;
             ramp = ReadCurveData();
 
-            //TODO: Should these be a part of ChoreoCurveData?
-            ChoreoEdge leftEdge = null;
-            ChoreoEdge rightEdge = null;
-            if (version >= 16)
-            {
-                leftEdge = ReadEdge();
-                rightEdge = ReadEdge();
-            }
             var flags = (ChoreoFlags)reader.ReadByte();
 
             var distanceToTarget = reader.ReadSingle();
@@ -270,8 +255,6 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
                 Param2 = param2,
                 Param3 = param3,
                 Ramp = ramp,
-                LeftEdge = leftEdge,
-                RightEdge = rightEdge,
                 Flags = flags,
                 DistanceToTarget = distanceToTarget,
                 RelativeTags = relativeTags,
@@ -332,7 +315,15 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
                 type = reader.ReadByte();
             }
 
-            return new ChoreoCurveData(samples);
+            ChoreoEdge leftEdge = null;
+            ChoreoEdge rightEdge = null;
+            if (version >= 16)
+            {
+                leftEdge = ReadEdge();
+                rightEdge = ReadEdge();
+            }
+
+            return new ChoreoCurveData(samples, leftEdge, rightEdge);
         }
 
         protected virtual ChoreoSample ReadSample()
