@@ -1,3 +1,4 @@
+using System.IO.Hashing;
 using System.Linq;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
@@ -11,6 +12,8 @@ namespace GUI.Types.Renderer
 {
     class RenderableMesh
     {
+        private static readonly XxHash3 Hasher = new(StringToken.MURMUR2SEED);
+
         public AABB BoundingBox { get; }
         public Vector4 Tint { get; set; } = Vector4.One;
 
@@ -21,13 +24,12 @@ namespace GUI.Types.Renderer
         private IEnumerable<DrawCall> DrawCalls => DrawCallsOpaque.Concat(DrawCallsOverlay).Concat(DrawCallsBlended);
 
         public RenderTexture AnimationTexture { get; private set; }
-        public int AnimationTextureSize { get; private set; }
 
         public int MeshIndex { get; }
 
         public FlexStateManager FlexStateManager { get; }
 
-        private readonly int VBIBHashCode;
+        private readonly ulong VBIBHashCode;
 
 #if DEBUG
         private readonly string DebugLabel;
@@ -52,7 +54,19 @@ namespace GUI.Types.Renderer
             {
                 vbib = model.RemapBoneIndices(vbib, meshIndex);
             }
-            VBIBHashCode = vbib.GetHashCode();
+
+            foreach (var a in vbib.VertexBuffers)
+            {
+                Hasher.Append(a.Data);
+            }
+
+            foreach (var a in vbib.IndexBuffers)
+            {
+                Hasher.Append(a.Data);
+            }
+
+            VBIBHashCode = Hasher.GetCurrentHashAsUInt64();
+            Hasher.Reset();
 
             mesh.GetBounds();
             BoundingBox = new AABB(mesh.MinBounds, mesh.MaxBounds);
@@ -162,7 +176,12 @@ namespace GUI.Types.Renderer
 
         private void ConfigureDrawCalls(Scene scene, VBIB vbib, IKeyValueCollection[] sceneObjects, Dictionary<string, string> materialReplacementTable)
         {
-            guiContext.MeshBufferCache.GetVertexIndexBuffers(VBIBHashCode, vbib);
+            if (vbib.VertexBuffers.Count == 0)
+            {
+                return;
+            }
+
+            guiContext.MeshBufferCache.CreateVertexIndexBuffers(VBIBHashCode, vbib);
 
             var vertexOffset = 0;
             foreach (var sceneObject in sceneObjects)
@@ -209,7 +228,6 @@ namespace GUI.Types.Renderer
 
                     var material = guiContext.MaterialLoader.GetMaterial(materialName, shaderArguments);
 
-                    // TODO: Don't pass around so much shit
                     var drawCall = CreateDrawCall(objectDrawCall, material, vbib);
                     if (i < objectDrawBounds.Length)
                     {

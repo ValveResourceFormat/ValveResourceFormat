@@ -8,10 +8,9 @@ namespace GUI.Types.Renderer
 {
     class GPUMeshBufferCache
     {
-        private readonly Dictionary<int, GPUMeshBuffers> gpuBuffers = [];
+        private readonly Dictionary<ulong, GPUMeshBuffers> gpuBuffers = [];
         private readonly Dictionary<VAOKey, int> vertexArrayObjects = [];
         private QuadIndexBuffer quadIndices;
-
 
         [DebuggerBrowsable(DebuggerBrowsableState.Never)]
         public QuadIndexBuffer QuadIndices
@@ -24,42 +23,30 @@ namespace GUI.Types.Renderer
             }
         }
 
-
         private struct VAOKey
         {
             public GPUMeshBuffers VBIB;
-            public Shader Shader;
+            public int Shader;
             public uint VertexIndex;
             public uint IndexIndex;
         }
 
-        public GPUMeshBufferCache()
+        public void CreateVertexIndexBuffers(ulong key, VBIB vbib)
         {
-        }
-
-        public GPUMeshBuffers GetVertexIndexBuffers(int key, VBIB vbib)
-        {
-            if (gpuBuffers.TryGetValue(key, out var gpuVbib))
+            if (!gpuBuffers.ContainsKey(key))
             {
-                return gpuVbib;
-            }
-            else
-            {
-                ArgumentNullException.ThrowIfNull(vbib);
-
                 var newGpuVbib = new GPUMeshBuffers(vbib);
                 gpuBuffers.Add(key, newGpuVbib);
-                return newGpuVbib;
             }
         }
 
-        public int GetVertexArrayObject(int key, VertexDrawBuffer curVertexBuffer, RenderMaterial material, uint idxIndex)
+        public int GetVertexArrayObject(ulong key, VertexDrawBuffer curVertexBuffer, RenderMaterial material, uint idxIndex)
         {
-            var gpuVbib = GetVertexIndexBuffers(key, null);
+            var gpuVbib = gpuBuffers[key];
             var vaoKey = new VAOKey
             {
                 VBIB = gpuVbib,
-                Shader = material.Shader,
+                Shader = material.Shader.Program,
                 VertexIndex = curVertexBuffer.Id,
                 IndexIndex = idxIndex,
             };
