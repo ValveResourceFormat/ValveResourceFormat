@@ -128,6 +128,9 @@ namespace GUI.Types.Renderer
                     var baseVertex = verts[collisionAttributeIndex].Count;
 
                     var vertexPositions = hull.Shape.GetVertexPositions();
+
+                    verts[collisionAttributeIndex].EnsureCapacity(baseVertex + vertexPositions.Length);
+
                     foreach (var v in vertexPositions)
                     {
                         var vec = v;
@@ -142,6 +145,9 @@ namespace GUI.Types.Renderer
 
                     var faces = hull.Shape.GetFaces();
                     var edges = hull.Shape.GetEdges();
+
+                    inds[collisionAttributeIndex].EnsureCapacity(inds[collisionAttributeIndex].Count + faces.Length * 6); // TODO: This doesn't account for edges
+
                     foreach (var face in faces)
                     {
                         var startEdge = face.Edge;
@@ -307,6 +313,9 @@ namespace GUI.Types.Renderer
 
         private static void AddSphere(List<SimpleVertex> verts, List<int> inds, Vector3 center, float radius)
         {
+            verts.EnsureCapacity(verts.Count + 16 * 3);
+            inds.EnsureCapacity(inds.Count + 16 * 3 * 2);
+
             AddCircle(verts, inds, center, radius, Matrix4x4.Identity);
             AddCircle(verts, inds, center, radius, Matrix4x4.CreateRotationX(MathF.PI * 0.5f));
             AddCircle(verts, inds, center, radius, Matrix4x4.CreateRotationY(MathF.PI * 0.5f));

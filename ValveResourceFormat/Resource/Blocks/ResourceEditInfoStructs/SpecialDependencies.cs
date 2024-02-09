@@ -30,7 +30,7 @@ namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
 
         public SpecialDependencies()
         {
-            List = [];
+            List = new((int)Size);
         }
 
         public override void Read(BinaryReader reader, Resource resource)

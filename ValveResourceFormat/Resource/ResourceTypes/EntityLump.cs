@@ -109,57 +109,60 @@ namespace ValveResourceFormat.ResourceTypes
 
             var entity = new Entity();
 
-            void ReadValues(KVValue values)
-            {
-                if (values.Type != KVType.OBJECT)
-                {
-                    throw new UnexpectedMagicException("Unsupported entity data values type", (int)values.Type, nameof(values.Type));
-                }
-
-                foreach (var value in ((KVObject)values.Value).Properties)
-                {
-                    var hash = StringToken.Get(value.Key.ToLowerInvariant());
-                    var data = value.Value.Value;
-                    EntityFieldType type;
-
-                    if (value.Value.Type == KVType.ARRAY)
-                    {
-                        var arrayKv = (IKeyValueCollection)value.Value.Value;
-
-                        type = arrayKv.Count() switch
-                        {
-                            2 => EntityFieldType.Vector2d, // Did binary entity lumps not store vec2?
-                            3 => EntityFieldType.Vector,
-                            4 => EntityFieldType.Vector4D,
-                            _ => throw new NotImplementedException($"Unsupported array length of {arrayKv.Count()}"),
-                        };
-                        data = type switch
-                        {
-                            EntityFieldType.Vector2d => new Vector2(arrayKv.GetFloatProperty("0"), arrayKv.GetFloatProperty("1")),
-                            EntityFieldType.Vector => arrayKv.ToVector3(),
-                            EntityFieldType.Vector4D => arrayKv.ToVector4(),
-                            _ => throw new NotImplementedException(),
-                        };
-                    }
-                    else
-                    {
-                        type = ConvertKV3TypeToEntityFieldType(value.Value.Type);
-                    }
-
-                    var entityProperty = new EntityProperty
-                    {
-                        Type = type,
-                        Name = value.Key,
-                        Data = data,
-                    };
-                    entity.Properties.Add(hash, entityProperty);
-                }
-            }
-
-            ReadValues(((KVObject)entityKv).Properties["values"]);
-            ReadValues(((KVObject)entityKv).Properties["attributes"]);
+            ReadValues(entity, ((KVObject)entityKv).Properties["values"]);
+            ReadValues(entity, ((KVObject)entityKv).Properties["attributes"]);
 
             return entity;
+        }
+
+        private static void ReadValues(Entity entity, KVValue values)
+        {
+            if (values.Type != KVType.OBJECT)
+            {
+                throw new UnexpectedMagicException("Unsupported entity data values type", (int)values.Type, nameof(values.Type));
+            }
+
+            var properties = ((KVObject)values.Value).Properties;
+            entity.Properties.EnsureCapacity(entity.Properties.Count + properties.Count);
+
+            foreach (var value in properties)
+            {
+                var hash = StringToken.Get(value.Key.ToLowerInvariant());
+                var data = value.Value.Value;
+                EntityFieldType type;
+
+                if (value.Value.Type == KVType.ARRAY)
+                {
+                    var arrayKv = (IKeyValueCollection)value.Value.Value;
+
+                    type = arrayKv.Count() switch
+                    {
+                        2 => EntityFieldType.Vector2d, // Did binary entity lumps not store vec2?
+                        3 => EntityFieldType.Vector,
+                        4 => EntityFieldType.Vector4D,
+                        _ => throw new NotImplementedException($"Unsupported array length of {arrayKv.Count()}"),
+                    };
+                    data = type switch
+                    {
+                        EntityFieldType.Vector2d => new Vector2(arrayKv.GetFloatProperty("0"), arrayKv.GetFloatProperty("1")),
+                        EntityFieldType.Vector => arrayKv.ToVector3(),
+                        EntityFieldType.Vector4D => arrayKv.ToVector4(),
+                        _ => throw new NotImplementedException(),
+                    };
+                }
+                else
+                {
+                    type = ConvertKV3TypeToEntityFieldType(value.Value.Type);
+                }
+
+                var entityProperty = new EntityProperty
+                {
+                    Type = type,
+                    Name = value.Key,
+                    Data = data,
+                };
+                entity.Properties.Add(hash, entityProperty);
+            }
         }
 
         private static Entity ParseEntityProperties(byte[] bytes)
