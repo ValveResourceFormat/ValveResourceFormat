@@ -21,7 +21,7 @@ namespace GUI.Types.Renderer
 
         public HashSet<string> DefaultEnabledLayers { get; } = ["Entities", "Particles"];
 
-        public Dictionary<string, Matrix4x4> CameraMatrices { get; } = [];
+        public List<(string Name, Matrix4x4 Transform)> CameraMatrices { get; } = [];
 
         public Scene SkyboxScene { get; set; }
         public SceneSkybox2D Skybox2D { get; set; }
@@ -225,6 +225,12 @@ namespace GUI.Types.Renderer
 
             static bool IsFog(string cls)
                 => cls is "env_cubemap_fog" or "env_gradient_fog";
+
+            static bool IsCamera(string cls)
+                => cls == "sky_camera"
+                || cls == "point_devshot_camera"
+                || cls == "point_camera_vertical_fov"
+                || cls == "point_camera";
 
             var entities = entityLump.GetEntities().ToList();
             var entitiesReordered = entities
@@ -625,13 +631,6 @@ namespace GUI.Types.Renderer
                     skin = (string)skinRaw.Data;
                 }
 
-                var isGlobalLight = classname == "env_global_light" || classname == "light_environment";
-                var isCamera =
-                    classname == "sky_camera" ||
-                    classname == "point_devshot_camera" ||
-                    classname == "point_camera_vertical_fov" ||
-                    classname == "point_camera";
-
                 var positionVector = transformationMatrix.Translation;
 
                 if (classname == "sky_camera")
@@ -666,16 +665,16 @@ namespace GUI.Types.Renderer
                     }
                 }
 
-                if (isCamera)
+                if (IsCamera(classname))
                 {
                     var name = entity.GetProperty<string>("targetname") ?? string.Empty;
                     var cameraName = string.IsNullOrEmpty(name)
                         ? classname
                         : name;
 
-                    CameraMatrices.TryAdd(cameraName, transformationMatrix);
+                    CameraMatrices.Add((cameraName, transformationMatrix));
                 }
-                else if (isGlobalLight)
+                else if (classname == "env_global_light" || classname == "light_environment")
                 {
                     var colorNormalized = entity.GetProperty("color").Data switch
                     {

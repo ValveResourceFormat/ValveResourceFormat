@@ -206,10 +206,7 @@ namespace GUI.Types.Renderer
                         {
                             if (index > 0)
                             {
-                                if (result.CameraMatrices.TryGetValue(cameraName, out var cameraMatrix))
-                                {
-                                    Camera.SetFromTransformMatrix(cameraMatrix);
-                                }
+                                Camera.SetFromTransformMatrix(result.CameraMatrices[index - 1].Transform);
                             }
                         });
 
@@ -217,7 +214,7 @@ namespace GUI.Types.Renderer
                         cameraComboBox.SelectedIndex = 0;
                     }
 
-                    cameraComboBox.Items.AddRange([.. result.CameraMatrices.Keys]);
+                    cameraComboBox.Items.AddRange([.. result.CameraMatrices.Select(static c => c.Name)]);
                 }
             }
 
