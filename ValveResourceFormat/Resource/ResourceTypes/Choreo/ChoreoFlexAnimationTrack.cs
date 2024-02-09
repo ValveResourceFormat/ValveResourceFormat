@@ -26,9 +26,14 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
         {
             var kv = new KVObject(null);
 
+            var isDisabled = !TrackFlags.HasFlag(ChoreoTrackFlags.Enabled);
             var isCombo = TrackFlags.HasFlag(ChoreoTrackFlags.Combo);
 
             kv.AddProperty("name", new KVValue(KVType.STRING, Name));
+            if (isDisabled)
+            {
+                kv.AddProperty("disabled", new KVValue(KVType.BOOLEAN, true));
+            }
             if (isCombo)
             {
                 kv.AddProperty("combo", new KVValue(KVType.BOOLEAN, true));
