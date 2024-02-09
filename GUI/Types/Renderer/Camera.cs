@@ -45,7 +45,7 @@ namespace GUI.Types.Renderer
         }
 
         // Calculate forward vector from pitch and yaw
-        private Vector3 GetForwardVector()
+        public Vector3 GetForwardVector()
         {
             var yawSin = MathF.Sin(Yaw);
             var yawCos = MathF.Cos(Yaw);

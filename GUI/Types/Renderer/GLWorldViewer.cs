@@ -141,6 +141,8 @@ namespace GUI.Types.Renderer
 
         protected override void LoadScene()
         {
+            var cameraSet = false;
+
             if (world != null)
             {
                 var result = new WorldLoader(world, Scene);
@@ -215,7 +217,17 @@ namespace GUI.Types.Renderer
                     }
 
                     cameraComboBox.Items.AddRange([.. result.CameraMatrices.Select(static c => c.Name)]);
+
+                    Camera.SetFromTransformMatrix(result.CameraMatrices[0].Transform);
+                    Camera.SetLocation(Camera.Location + Camera.GetForwardVector() * 10f); // Escape the camera model
+                    cameraSet = true;
                 }
+            }
+
+            if (!cameraSet)
+            {
+                Camera.SetLocation(new Vector3(256));
+                Camera.LookAt(Vector3.Zero);
             }
 
             if (worldNode != null)

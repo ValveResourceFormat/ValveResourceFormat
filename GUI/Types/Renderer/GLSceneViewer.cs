@@ -194,11 +194,6 @@ namespace GUI.Types.Renderer
                 Camera.SetLocation(location);
                 Camera.LookAt(bbox.Center);
             }
-            else
-            {
-                Camera.SetLocation(new Vector3(256));
-                Camera.LookAt(new Vector3(0));
-            }
 
             staticOctreeRenderer = new OctreeDebugRenderer<SceneNode>(Scene.StaticOctree, Scene.GuiContext, false);
             dynamicOctreeRenderer = new OctreeDebugRenderer<SceneNode>(Scene.DynamicOctree, Scene.GuiContext, true);
