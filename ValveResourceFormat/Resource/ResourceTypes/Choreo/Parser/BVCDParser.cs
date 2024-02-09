@@ -152,9 +152,65 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
             return new ChoreoEdge(curve, zeroValue);
         }
 
+        protected ChoreoEventType RemapEventType(byte eventValue)
+        {
+            if (eventValue <= 16)
+            {
+                return eventValue switch
+                {
+                    1 => ChoreoEventType.Section,
+                    2 => ChoreoEventType.Expression,
+                    3 => ChoreoEventType.LookAt,
+                    4 => ChoreoEventType.MoveTo,
+                    5 => ChoreoEventType.Speak,
+                    6 => ChoreoEventType.Gesture,
+                    7 => ChoreoEventType.Sequence,
+                    8 => ChoreoEventType.Face,
+                    9 => ChoreoEventType.FireTrigger,
+                    10 => ChoreoEventType.FlexAnimation,
+                    11 => ChoreoEventType.SubScene,
+                    12 => ChoreoEventType.Loop,
+                    13 => ChoreoEventType.Interrupt,
+                    14 => ChoreoEventType.StopPoint,
+                    15 => ChoreoEventType.PermitResponses,
+                    16 => ChoreoEventType.Generic,
+                    _ => throw new UnexpectedMagicException("Unexpected event type", eventValue, "event type")
+                };
+            }
+            else if (version < 16)
+            {
+                return eventValue switch
+                {
+                    17 => ChoreoEventType.Camera,
+                    18 => ChoreoEventType.Script,
+                    19 => ChoreoEventType.AnimgraphController,
+                    _ => throw new UnexpectedMagicException("Unexpected event type", eventValue, "event type")
+                };
+            }
+            else
+            {
+                return eventValue switch
+                {
+                    17 => ChoreoEventType.Script,
+                    18 => ChoreoEventType.AnimgraphController,
+                    20 => ChoreoEventType.MoodBody,
+                    21 => ChoreoEventType.IKLockLeftArm,
+                    22 => ChoreoEventType.IKLockRightArm,
+                    23 => ChoreoEventType.NoBlink,
+                    24 => ChoreoEventType.IgnoreAI,
+                    25 => ChoreoEventType.HolsterWeapon,
+                    26 => ChoreoEventType.UnholsterWeapon,
+                    27 => ChoreoEventType.AimAt,
+                    28 => ChoreoEventType.IgnoreCollision,
+                    29 => ChoreoEventType.IgnoreLookAts,
+                    _ => throw new UnexpectedMagicException("Unexpected event type", eventValue, "event type")
+                };
+            }
+        }
+
         protected virtual ChoreoEvent ReadEvent()
         {
-            var eventType = (ChoreoEventType)reader.ReadByte();
+            var eventType = RemapEventType(reader.ReadByte());
             var name = ReadString();
 
             var eventStart = reader.ReadSingle();

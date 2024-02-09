@@ -1,11 +1,10 @@
 namespace ValveResourceFormat.ResourceTypes.Choreo.Enums
 {
+    //Enum values DO NOT line up with the compiled values. Newer vcd versions are missing the camera event.
     public enum ChoreoEventType
     {
         //"lookattransition" and "facetransition" events exist in the v9 faceposer, but they become corrupted/invalid events in the vcd when compiled. Did these exist on any version?
-        Invalid = -1,
-        Unspecified,
-        Section,
+        Section = 1,
         Expression,
         LookAt,
         MoveTo,
@@ -21,13 +20,10 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Enums
         StopPoint,
         PermitResponses,
         Generic,
-        /// <summary>
-        /// This is "camera" in vcd version 9, "script" in vcd version 17
-        /// </summary>
-        CameraOrScript,
+        Camera,
+        Script,
         AnimgraphController,
-        //Unknown value at 19. Does it exist?
-        MoodBody = 20,
+        MoodBody,
         IKLockLeftArm,
         IKLockRightArm,
         NoBlink,

@@ -198,7 +198,8 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
                 ChoreoEventType.SubScene => "subscene",
                 ChoreoEventType.Interrupt => "interrupt",
                 ChoreoEventType.PermitResponses => "permitresponses",
-                ChoreoEventType.CameraOrScript => "camera", //TODO: return "script" if version>=16.
+                ChoreoEventType.Camera => "camera",
+                ChoreoEventType.Script => "script",
                 ChoreoEventType.Loop => "loop",
                 ChoreoEventType.Section => "section",
                 ChoreoEventType.StopPoint => "stoppoint",
