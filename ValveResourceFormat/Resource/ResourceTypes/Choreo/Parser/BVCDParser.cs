@@ -67,9 +67,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
             var ramp = ReadCurveData();
 
             var ignorePhonemes = reader.ReadBoolean();
-            //cs2 v17 has a single byte after ignorephonemes?
-
-            Debug.Assert(reader.BaseStream.Position == reader.BaseStream.Length);
+            //CS2 v17 has a single 0x00 byte after ignorephonemes, but not Dota 2 v17.
 
             var data = new ChoreoScene(version, events, actors, ramp, ignorePhonemes);
             return data;
