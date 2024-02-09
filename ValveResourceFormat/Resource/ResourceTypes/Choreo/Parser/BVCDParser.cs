@@ -425,7 +425,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
 
             var samplesCurve = ReadCurveData();
             ChoreoCurveData comboSamplesCurve = null;
-            if (flags.HasFlag(ChoreoTrackFlags.Combo) || version >= 16)
+            if (flags.HasFlag(ChoreoTrackFlags.Combo))
             {
                 comboSamplesCurve = ReadCurveData();
             }
