@@ -13,13 +13,12 @@ namespace GUI.Types.Renderer
         private const int VertexSize = 16;
 
         public RenderTexture CompositeTexture { get; }
-        public Morph Morph { get; }
 
         private readonly int frameBuffer;
         private readonly Shader shader;
         private int vao;
         private int bufferHandle;
-        private readonly float[] allVertices;
+        private float[] allVertices;
         private readonly RenderTexture morphAtlas;
         private List<int>[] morphRects;
         private readonly HashSet<int> usedRects = [];
@@ -42,21 +41,17 @@ namespace GUI.Types.Renderer
         public MorphComposite(VrfGuiContext vrfGuiContext, Morph morph)
         {
             morphAtlas = vrfGuiContext.MaterialLoader.LoadTexture(morph.TextureResource);
-            Morph = morph;
-
-            allVertices = new float[GetMorphBundleCount() * 4 * VertexSize];
-
             shader = vrfGuiContext.ShaderLoader.LoadShader("vrf.morph_composite");
 
-            var width = Morph.Data.GetInt32Property("m_nWidth");
-            var height = Morph.Data.GetInt32Property("m_nHeight");
+            var width = morph.Data.GetInt32Property("m_nWidth");
+            var height = morph.Data.GetInt32Property("m_nHeight");
             CompositeTexture = new(TextureTarget.Texture2D, width, height, 1, 1);
 
             GL.CreateFramebuffers(1, out frameBuffer);
 
             InitVertexBuffer(vrfGuiContext);
 
-            FillVertices();
+            FillVertices(morph);
 
 #if DEBUG
             var label = $"{nameof(MorphComposite)}: {System.IO.Path.GetFileName(morph.TextureResource.FileName)}";
@@ -64,12 +59,6 @@ namespace GUI.Types.Renderer
             GL.ObjectLabel(ObjectLabelIdentifier.Texture, CompositeTexture.Handle, label.Length, label);
             GL.ObjectLabel(ObjectLabelIdentifier.Framebuffer, frameBuffer, label.Length, label);
 #endif
-        }
-
-        private int GetMorphBundleCount()
-        {
-            var morphDatas = Morph.GetMorphDatas();
-            return morphDatas.Sum(morphData => GetMorphDataBundleCount((IKeyValueCollection)morphData.Value));
         }
 
         private static int GetMorphDataBundleCount(IKeyValueCollection morphData)
@@ -176,11 +165,13 @@ namespace GUI.Types.Renderer
             GL.VertexArrayAttribBinding(vao, rangesLocation, 0);
         }
 
-        private void FillVertices()
+        private void FillVertices(Morph morph)
         {
-            var morphDatas = Morph.GetMorphDatas();
+            var morphDatas = morph.GetMorphDatas();
+            var bundleCount = morphDatas.Sum(morphData => GetMorphDataBundleCount((IKeyValueCollection)morphData.Value));
 
-            morphCount = Morph.GetMorphCount();
+            allVertices = new float[bundleCount * 4 * VertexSize];
+            morphCount = morph.GetMorphCount();
             morphRects = new List<int>[morphCount];
 
             var rectCount = 0;
@@ -231,6 +222,7 @@ namespace GUI.Types.Renderer
                 }
             }
         }
+
         private void BuildVertexBuffer(float[] usedVertices)
         {
             var addedRects = 0;
@@ -240,6 +232,7 @@ namespace GUI.Types.Renderer
                 addedRects++;
             }
         }
+
         private void SetRectData(int rectI, MorphCompositeRectData data)
         {
             const float TextureSize = 2048f;
@@ -266,6 +259,7 @@ namespace GUI.Types.Renderer
             SetVertex(stride + 2, bottomRightX, bottomRightY, bottomRightU, bottomRightV, data);
             SetVertex(stride + 3, topLeftX, bottomRightY, topLeftU, bottomRightV, data);
         }
+
         private void SetVertex(int vertex, float x, float y, float u, float v, MorphCompositeRectData data)
         {
             var stride = vertex * VertexSize;
@@ -287,6 +281,7 @@ namespace GUI.Types.Renderer
             allVertices[stride + 14] = data.Ranges.Z;
             allVertices[stride + 15] = data.Ranges.W;
         }
+
         private void SetVertexMorphValue(int vertex, float val)
         {
             var stride = vertex * VertexSize;
@@ -294,6 +289,7 @@ namespace GUI.Types.Renderer
             allVertices[stride + 2] = val;
             allVertices[stride + 3] = val;
         }
+
         private float GetMorphValue(int morphId)
         {
             var rects = morphRects[morphId];
@@ -304,6 +300,7 @@ namespace GUI.Types.Renderer
 
             return allVertices[rects.First() * 4 * VertexSize];
         }
+
         public void SetMorphValue(int morphId, float value)
         {
             var morphValue = GetMorphValue(morphId);
