@@ -12,11 +12,11 @@ namespace ValveResourceFormat.IO;
 public class ChoreoExtract
 {
     private readonly Resource vcdlistResource;
-    private readonly ChoreoDataList choreoDataList;
+    private readonly ChoreoSceneFileData choreoDataList;
     public ChoreoExtract(Resource vcdlistResource)
     {
         this.vcdlistResource = vcdlistResource;
-        choreoDataList = (ChoreoDataList)vcdlistResource.DataBlock;
+        choreoDataList = (ChoreoSceneFileData)vcdlistResource.DataBlock;
     }
 
     public ContentFile ToContentFile()

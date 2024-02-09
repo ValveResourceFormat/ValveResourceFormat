@@ -7,7 +7,7 @@ using LzmaDecoder = SevenZip.Compression.LZMA.Decoder;
 
 namespace ValveResourceFormat.ResourceTypes
 {
-    public class ChoreoDataList : ResourceData
+    public class ChoreoSceneFileData : ResourceData
     {
         public int Version { get; private set; }
         public ChoreoScene[] Scenes { get; private set; }

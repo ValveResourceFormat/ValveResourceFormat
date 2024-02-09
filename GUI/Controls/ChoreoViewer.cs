@@ -9,11 +9,11 @@ namespace GUI.Controls
 {
     class ChoreoViewer : TextControl
     {
-        private ChoreoDataList choreoDataList;
+        private ChoreoSceneFileData choreoDataList;
         private ListView fileListView;
         public ChoreoViewer(Resource resource)
         {
-            choreoDataList = (ChoreoDataList)resource.DataBlock;
+            choreoDataList = (ChoreoSceneFileData)resource.DataBlock;
             AddList();
         }
 

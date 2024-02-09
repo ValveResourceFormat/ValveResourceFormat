@@ -492,7 +492,7 @@ namespace ValveResourceFormat
                     return new Mesh(BlockType.DATA);
 
                 case ResourceType.ChoreoSceneFileData:
-                    return new ChoreoDataList();
+                    return new ChoreoSceneFileData();
             }
 
             if (ContainsBlockType(BlockType.NTRO))
