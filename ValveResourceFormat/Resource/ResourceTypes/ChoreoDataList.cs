@@ -42,15 +42,6 @@ namespace ValveResourceFormat.ResourceTypes
 
         private static ChoreoScene[] ReadScenes(BinaryReader reader, int sceneCount, string[] strings)
         {
-            {
-                //todo: remove
-
-                Console.WriteLine($"Strings:");
-                for (var i = 0; i < strings.Length; i++)
-                {
-                    Console.WriteLine($"{i}: \"{strings[i]}\"");
-                }
-            }
             var scenes = new ChoreoScene[sceneCount];
             for (var i = 0; i < sceneCount; i++)
             {
