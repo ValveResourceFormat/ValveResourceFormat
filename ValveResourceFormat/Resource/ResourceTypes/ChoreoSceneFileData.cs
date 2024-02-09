@@ -9,6 +9,7 @@ namespace ValveResourceFormat.ResourceTypes
 {
     public class ChoreoSceneFileData : ResourceData
     {
+        public const uint MAGIC_LZMA = 0x414D5A4C; //LZMA
         public int Version { get; private set; }
         public ChoreoScene[] Scenes { get; private set; }
         public override void Read(BinaryReader reader, Resource resource)
@@ -78,8 +79,8 @@ namespace ValveResourceFormat.ResourceTypes
 
         private static byte[] ReadSceneBlock(BinaryReader reader, int length)
         {
-            var id = new string(reader.ReadChars(4));
-            if (id == "LZMA")
+            var id = reader.ReadUInt32();
+            if (id == MAGIC_LZMA)
             {
                 var uncompressedLength = reader.ReadInt32();
                 var compressedLength = reader.ReadInt32();
