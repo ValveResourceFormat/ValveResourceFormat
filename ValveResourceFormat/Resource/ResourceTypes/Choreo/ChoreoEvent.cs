@@ -98,16 +98,6 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
             }
 
             kv.AddProperty("eventID", new KVValue(KVType.INT64, Id));
-            //TODO: Missing properties:
-            //synctofollowinggesture (missing from bvcd?)
-            //moveforwarddistance (missing from bvcd?)
-            //moverightdistance (missing from bvcd?)
-            //targetposition (missing from bvcd?)
-            //entrytag (might not exist)
-            //exittags (might not exist)
-            //startloop (might not exist)
-            //endloop (might not exist)
-            //pitch (missing from bvcd?)
 
             if (Ramp?.LeftEdge != null)
             {
@@ -129,8 +119,8 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
 
             if (EventFlex.Tracks.Length > 0)
             {
-                //samples_use_time changes how sample times are interpreted when (re)compiling the .vcd.
-                //TODO: Verify whether samples_use_time is only used by flexanimations
+                //If samples_use_time is 1, samples in the flex animations are interpreted as real time (probably meaning values are not clamped to 0.0-1.0)
+                //They're stored as real time in the vcd, so this has to be set to true
                 kv.AddProperty("samples_use_time", new KVValue(KVType.BOOLEAN, true));
                 kv.AddProperty("flexanimations", new KVValue(KVType.OBJECT, EventFlex.ToKeyValues()));
             }
