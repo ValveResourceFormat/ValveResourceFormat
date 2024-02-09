@@ -200,7 +200,7 @@ namespace ValveResourceFormat.IO
                     contentFile.Data = Encoding.UTF8.GetBytes(resource.DataBlock.ToString());
                     break;
 
-                case ResourceType.ChoreoDataList:
+                case ResourceType.ChoreoSceneFileData:
                     contentFile = new ChoreoExtract(resource).ToContentFile();
                     break;
 

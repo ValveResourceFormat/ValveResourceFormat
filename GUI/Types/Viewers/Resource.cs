@@ -179,7 +179,7 @@ namespace GUI.Types.Viewers
                             break;
                         }
 
-                    case ResourceType.ChoreoDataList:
+                    case ResourceType.ChoreoSceneFileData:
                         {
                             specialTabPage = new TabPage("VCDLIST");
                             specialTabPage.Controls.Add(new ChoreoViewer(resource));

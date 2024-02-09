@@ -81,7 +81,7 @@ namespace ValveResourceFormat
         ResourceRemapTable,
 
         [Extension("vcdlist")]
-        ChoreoDataList,
+        ChoreoSceneFileData,
 
         // All Panorama* are compiled just as CompilePanorama
         // vtxt is not a real extension

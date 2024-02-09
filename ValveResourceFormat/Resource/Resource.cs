@@ -491,7 +491,7 @@ namespace ValveResourceFormat
                 case ResourceType.Mesh:
                     return new Mesh(BlockType.DATA);
 
-                case ResourceType.ChoreoDataList:
+                case ResourceType.ChoreoSceneFileData:
                     return new ChoreoDataList();
             }
 
@@ -568,7 +568,7 @@ namespace ValveResourceFormat
                 case "RenderMesh":
                     return ResourceType.Mesh;
                 case "ChoreoSceneFileData":
-                    return ResourceType.ChoreoDataList;
+                    return ResourceType.ChoreoSceneFileData;
                 case "Panorama":
                     return input.String switch
                     {
