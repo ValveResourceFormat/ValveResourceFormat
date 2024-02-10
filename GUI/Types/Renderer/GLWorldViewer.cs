@@ -255,7 +255,7 @@ namespace GUI.Types.Renderer
             var pixelInfo = pickingResponse.PixelInfo;
 
             // Void
-            if (pixelInfo.ObjectId == 0)
+            if (pixelInfo.ObjectId == 0 || pixelInfo.Unused2 != 0)
             {
                 selectedNodeRenderer.SelectNode(null);
                 return;
