@@ -5,6 +5,7 @@ using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
 using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.ResourceTypes.Choreo;
 using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat
@@ -491,6 +492,9 @@ namespace ValveResourceFormat
 
                 case ResourceType.Mesh:
                     return new Mesh(BlockType.DATA);
+
+                case ResourceType.ChoreoSceneFileData:
+                    return new ChoreoSceneFileData();
             }
 
             if (ContainsBlockType(BlockType.NTRO))

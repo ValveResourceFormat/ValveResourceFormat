@@ -10,6 +10,7 @@ using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace GUI.Types.Viewers
 {
@@ -175,6 +176,13 @@ namespace GUI.Types.Viewers
                         {
                             specialTabPage = new TabPage("PHYSICS");
                             specialTabPage.Controls.Add(new GLModelViewer(vrfGuiContext, (PhysAggregateData)resource.DataBlock));
+                            break;
+                        }
+
+                    case ResourceType.ChoreoSceneFileData:
+                        {
+                            specialTabPage = new TabPage("VCDLIST");
+                            specialTabPage.Controls.Add(new ChoreoViewer(resource));
                             break;
                         }
 
