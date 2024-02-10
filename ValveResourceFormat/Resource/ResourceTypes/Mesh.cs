@@ -91,6 +91,10 @@ namespace ValveResourceFormat.ResourceTypes
             => drawCall.ContainsKey("m_bHasBakedLightingFromVertexStream")
                 && drawCall.GetProperty<bool>("m_bHasBakedLightingFromVertexStream");
 
+        public static bool IsOccluder(IKeyValueCollection drawCall)
+            => drawCall.ContainsKey("m_bIsOccluder")
+                && drawCall.GetProperty<bool>("m_bIsOccluder");
+
         public void LoadExternalMorphData(IFileLoader fileLoader)
         {
             if (MorphData == null)

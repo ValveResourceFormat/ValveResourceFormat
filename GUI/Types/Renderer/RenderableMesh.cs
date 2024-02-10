@@ -200,6 +200,11 @@ namespace GUI.Types.Renderer
                         materialName = replacementName;
                     }
 
+                    if (materialName == null && Mesh.IsOccluder(objectDrawCall))
+                    {
+                        continue;
+                    }
+
                     var shaderArguments = new Dictionary<string, byte>(scene.RenderAttributes);
 
                     if (Mesh.IsCompressedNormalTangent(objectDrawCall))
