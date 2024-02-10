@@ -27,6 +27,7 @@ namespace ValveResourceFormat.IO
         private readonly string CurrentFileName;
         private string PreferredAddonFolderOnDisk;
         private bool ShaderPackagesScanned;
+        private bool AttemptToLoadWorkshopDependencies;
 
         public Package CurrentPackage { get; set; }
 
@@ -117,6 +118,44 @@ namespace ValveResourceFormat.IO
 #endif
 
                     return (addonPath, null, null);
+                }
+            }
+
+            if (AttemptToLoadWorkshopDependencies && CurrentPackage != null)
+            {
+                AttemptToLoadWorkshopDependencies = false;
+
+#if DEBUG_FILE_LOAD
+                Console.WriteLine($"Attempting to find workshop dependencies while loading \"{file}\"");
+#endif
+
+                entry = CurrentPackage.FindEntry("addoninfo.txt");
+
+                if (entry != null)
+                {
+                    try
+                    {
+                        using var stream = GetPackageEntryStream(CurrentPackage, entry);
+                        var addonInfo = KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Deserialize(stream);
+
+                        // Completely assuming that workshop files are always packed as /appid/ugcid/ugcid.vpk
+                        var workshopRoot = Path.GetDirectoryName(Path.GetDirectoryName(CurrentFileName.AsSpan()));
+
+                        foreach (var dependency in (IEnumerable<KVObject>)addonInfo["Dependencies"])
+                        {
+                            var dependencyId = (uint)dependency.Value;
+                            var dependencyVpkPath = Path.Join(workshopRoot, $"{dependencyId}", $"{dependencyId}.vpk");
+
+                            if (File.Exists(dependencyVpkPath))
+                            {
+                                AddPackageToSearch(dependencyVpkPath);
+                            }
+                        }
+                    }
+                    catch
+                    {
+                        //
+                    }
                 }
             }
 
@@ -538,6 +577,10 @@ namespace ValveResourceFormat.IO
             var steamPath = filePath[..(contentIndex + "steamapps/".Length)];
             var appManifestPath = Path.Join(steamPath, $"appmanifest_{appId}.acf");
 
+            // SteamVR addons have addoninfo.txt file which contain dependency workshop ids,
+            // seemingly other games do not have this.
+            AttemptToLoadWorkshopDependencies = appId == 250820;
+
             // Load appmanifest to get the install directory for this appid
             KVObject appManifestKv;
 
@@ -546,7 +589,7 @@ namespace ValveResourceFormat.IO
                 using var appManifestStream = File.OpenRead(appManifestPath);
                 appManifestKv = KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Deserialize(appManifestStream, KVSerializerOptions.DefaultOptions);
             }
-            catch (Exception)
+            catch
             {
                 return folders;
             }
