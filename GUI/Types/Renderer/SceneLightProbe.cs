@@ -59,7 +59,7 @@ class SceneLightProbe : SceneNode
     {
     }
 
-    public void SetGpuProbeData(Shader shader, int lpvBufferIndex, bool isProbeAtlas)
+    public void SetGpuProbeData(bool isProbeAtlas)
     {
         // Note: does not expect the data to change within the probe's lifetime
         if (bufferHandle == -1)

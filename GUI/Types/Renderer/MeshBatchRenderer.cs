@@ -233,7 +233,7 @@ namespace GUI.Types.Renderer
             if (uniforms.LightProbeVolumeData != -1 && request.Node.LightProbeBinding != null)
             {
                 var lightProbe = request.Node.LightProbeBinding;
-                lightProbe.SetGpuProbeData(shader, uniforms.LightProbeVolumeData, config.LightProbeType == Scene.LightProbeType.ProbeAtlas);
+                lightProbe.SetGpuProbeData(config.LightProbeType == Scene.LightProbeType.ProbeAtlas);
 
                 if (config.LightProbeType < Scene.LightProbeType.ProbeAtlas)
                 {
