@@ -720,6 +720,10 @@ namespace GUI.Types.Renderer
                     _ => Vector4.One,
                 };
 
+                tint.X = (float)Math.Pow(tint.X, 2.2);
+                tint.Y = (float)Math.Pow(tint.Y, 2.2);
+                tint.Z = (float)Math.Pow(tint.Z, 2.2);
+
                 if (model == null)
                 {
                     CreateDefaultEntity(entity, classname, transformationMatrix);
