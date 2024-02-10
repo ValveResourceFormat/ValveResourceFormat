@@ -83,8 +83,7 @@ namespace GUI.Utils
 
             if (foundFile.Package != null)
             {
-                var parentContext = foundFile.Context?.ParentGuiContext;
-                parentContext ??= new VrfGuiContext(foundFile.Package.FileName, null)
+                var parentContext = new VrfGuiContext(foundFile.Package.FileName, foundFile.Context ?? GuiContext)
                 {
                     CurrentPackage = foundFile.Package
                 };
@@ -102,7 +101,7 @@ namespace GUI.Utils
 
             if (pathOnDisk != null || packageEntry != null || GuiContext.ParentGuiContext == null)
             {
-                return (pathOnDisk, null, package, packageEntry);
+                return (pathOnDisk, GuiContext, package, packageEntry);
             }
 
             return GuiContext.ParentGuiContext.FileLoader.FindFileWithContextRecursive(file);
