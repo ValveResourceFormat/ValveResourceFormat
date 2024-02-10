@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.IO;
 using System.Text;
 using System.Windows.Forms;
 using ValveResourceFormat;
@@ -14,10 +15,12 @@ namespace GUI.Controls
         public ChoreoViewer(Resource resource)
         {
             choreoDataList = (ChoreoSceneFileData)resource.DataBlock;
-            AddList();
+
+            var fileName = Path.GetFileNameWithoutExtension(resource.FileName) + ".vcdlist";
+            AddList(fileName);
         }
 
-        private void AddList()
+        private void AddList(string vcdListName)
         {
             fileListView = new ListView();
             fileListView.View = View.Details;
@@ -32,7 +35,7 @@ namespace GUI.Controls
             fileListView.Columns.Add("Name", 250);
             fileListView.Columns.Add("Version");
 
-            AddListItem(null, ".vcdlist", choreoDataList.Version);
+            AddListItem(null, vcdListName, choreoDataList.Version);
             for (var i = 0; i < choreoDataList.Scenes.Length; i++)
             {
                 var scene = choreoDataList.Scenes[i];
