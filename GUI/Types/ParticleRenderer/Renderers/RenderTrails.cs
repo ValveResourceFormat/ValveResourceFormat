@@ -52,7 +52,14 @@ namespace GUI.Types.ParticleRenderer.Renderers
                 }
             }
 
-            texture = vrfGuiContext.MaterialLoader.GetTexture(textureName);
+            if (textureName == null)
+            {
+                texture = vrfGuiContext.MaterialLoader.GetErrorTexture();
+            }
+            else
+            {
+                texture = vrfGuiContext.MaterialLoader.GetTexture(textureName);
+            }
 
 #if DEBUG
             var vaoLabel = $"{nameof(RenderTrails)}: {System.IO.Path.GetFileName(textureName)}";
