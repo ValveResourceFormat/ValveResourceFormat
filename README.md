@@ -1,4 +1,4 @@
-<h1 align="center"><img src="./Icons/source2viewer.png" width="64" align="center"> Source 2 Viewer</h1>
+<h1 align="center"><img src="./Misc/Icons/source2viewer.png" width="64" align="center"> Source 2 Viewer</h1>
 
 <p align="center">
     <a href="https://github.com/ValveResourceFormat/ValveResourceFormat/actions">
