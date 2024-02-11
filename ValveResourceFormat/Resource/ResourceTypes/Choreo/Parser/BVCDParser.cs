@@ -143,7 +143,8 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
             };
 
             //There's two more bytes here, but only curve type and zero value can be set from (v9) faceposer. Is there something else here for newer versions?
-            Debug.Assert(reader.ReadUInt16() == 0);
+            var unk = reader.ReadUInt16();
+            Debug.Assert(unk == 0);
 
             var zeroValue = reader.ReadSingle();
             return new ChoreoEdge(curve, zeroValue);
@@ -348,7 +349,8 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
                 {
                     var outType = reader.ReadByte();
                     var inType = reader.ReadByte();
-                    Debug.Assert(reader.ReadByte() == 0); //Null termination
+                    var nullTermination = reader.ReadByte();
+                    Debug.Assert(nullTermination == 0);
 
                     lastSample.SetCurveType(inType, outType);
                 }
