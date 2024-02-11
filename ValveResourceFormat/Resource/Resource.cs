@@ -5,7 +5,6 @@ using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
 using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.ResourceTypes.Choreo;
 using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat

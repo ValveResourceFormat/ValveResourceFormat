@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using ValveResourceFormat.ResourceTypes.Choreo.Enums;
 using ValveResourceFormat.ResourceTypes.Choreo.Curves;
 using ValveResourceFormat.Utils;
@@ -11,8 +10,8 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
     {
         public const int MAGIC = 0x64637662; // "bvcd"
         private byte version;
-        private BinaryReader reader;
-        private string[] strings;
+        private readonly BinaryReader reader;
+        private readonly string[] strings;
 
         private BVCDParser(BinaryReader reader, string[] strings)
         {
@@ -22,7 +21,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
 
         public static ChoreoScene Parse(Stream stream, string[] strings)
         {
-            using BinaryReader reader = new BinaryReader(stream);
+            using var reader = new BinaryReader(stream);
             var parser = new BVCDParser(reader, strings);
             return parser.Read();
         }

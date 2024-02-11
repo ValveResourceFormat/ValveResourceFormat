@@ -1,7 +1,7 @@
 using System.Buffers;
 using System.Runtime.InteropServices;
 using GUI.Types.Renderer.UniformBuffers;
-using OpenTK.Graphics.OpenGL4;
+using OpenTK.Graphics.OpenGL;
 
 namespace GUI.Types.Renderer;
 

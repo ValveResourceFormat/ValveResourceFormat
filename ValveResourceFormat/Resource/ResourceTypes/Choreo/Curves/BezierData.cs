@@ -11,13 +11,13 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Curves
     }
     public struct BezierData
     {
-        public BezierFlags Flags {  get; set; }
+        public BezierFlags Flags { get; set; }
         public float InDegrees { get; set; }
         public float InWeight { get; set; }
         public float OutDegrees { get; set; }
         public float OutWeight { get; set; }
 
-        public KVValue ToKeyValue()
+        public readonly KVValue ToKeyValue()
         {
             var kv = new KVObject(null);
 

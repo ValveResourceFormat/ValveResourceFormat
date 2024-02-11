@@ -1,4 +1,3 @@
-using System.Buffers;
 using System.IO;
 using System.Text;
 using ValveResourceFormat.Blocks;
@@ -13,6 +12,7 @@ namespace ValveResourceFormat.ResourceTypes
         public const uint MAGIC_LZMA = 0x414D5A4C; //LZMA
         public int Version { get; private set; }
         public ChoreoScene[] Scenes { get; private set; }
+
         public override void Read(BinaryReader reader, Resource resource)
         {
             reader.BaseStream.Position = Offset;
@@ -37,7 +37,6 @@ namespace ValveResourceFormat.ResourceTypes
         {
             return reader.BaseStream.Position + reader.ReadInt32();
         }
-
 
         private static ChoreoScene[] ReadScenes(BinaryReader reader, int sceneCount, string[] strings)
         {
@@ -129,6 +128,7 @@ namespace ValveResourceFormat.ResourceTypes
             reader.BaseStream.Position = previousPosition;
             return lengths;
         }
+
         private static string[] ReadStringsData(BinaryReader reader, long stringsPosition, int[] stringOffsets)
         {
             var previousPosition = reader.BaseStream.Position;

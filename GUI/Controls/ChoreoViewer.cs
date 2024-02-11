@@ -10,7 +10,7 @@ namespace GUI.Controls
 {
     class ChoreoViewer : TextControl
     {
-        private ChoreoSceneFileData choreoDataList;
+        private readonly ChoreoSceneFileData choreoDataList;
         private ListView fileListView;
         public ChoreoViewer(Resource resource)
         {
@@ -22,14 +22,16 @@ namespace GUI.Controls
 
         private void AddList(string vcdListName)
         {
-            fileListView = new ListView();
-            fileListView.View = View.Details;
-            fileListView.Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top;
-            fileListView.Dock = DockStyle.Fill;
+            fileListView = new ListView
+            {
+                View = View.Details,
+                Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top,
+                Dock = DockStyle.Fill,
 
-            fileListView.FullRowSelect = true;
-            fileListView.MultiSelect = false;
-            fileListView.ShowItemToolTips = true;
+                FullRowSelect = true,
+                MultiSelect = false,
+                ShowItemToolTips = true
+            };
             fileListView.ItemSelectionChanged += FileListView_ItemSelectionChanged;
 
             fileListView.Columns.Add("Name", 250);
