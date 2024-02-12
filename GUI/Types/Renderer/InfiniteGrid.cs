@@ -11,12 +11,12 @@ namespace GUI.Types.Renderer
         {
             var vertices = new[]
             {
-                1f, 1f, 0f,
-                -1f, -1f, 0f,
-                -1f, 1f, 0f,
-                -1f, -1f, 0f,
-                1f, 1f, 0f,
-                1f, -1f, 0f,
+                -1f, 1f,
+                -1f, -1f,
+                1f, 1f,
+                1f, -1f,
+                1f, 1f,
+                -1f, -1f,
             };
 
             ReloadShader();
@@ -25,11 +25,11 @@ namespace GUI.Types.Renderer
             GL.CreateVertexArrays(1, out vao);
             GL.CreateBuffers(1, out int buffer);
             GL.NamedBufferData(buffer, vertices.Length * sizeof(float), vertices, BufferUsageHint.StaticDraw);
-            GL.VertexArrayVertexBuffer(vao, 0, buffer, 0, sizeof(float) * 3);
+            GL.VertexArrayVertexBuffer(vao, 0, buffer, 0, sizeof(float) * 2);
 
             var attributeLocation = GL.GetAttribLocation(shader.Program, "aVertexPosition");
             GL.EnableVertexArrayAttrib(vao, attributeLocation);
-            GL.VertexArrayAttribFormat(vao, attributeLocation, 3, VertexAttribType.Float, false, 0);
+            GL.VertexArrayAttribFormat(vao, attributeLocation, 2, VertexAttribType.Float, false, 0);
             GL.VertexArrayAttribBinding(vao, attributeLocation, 0);
 
 #if DEBUG
@@ -46,7 +46,6 @@ namespace GUI.Types.Renderer
         public override void Render(Scene.RenderContext context)
         {
             GL.Enable(EnableCap.Blend);
-            GL.Disable(EnableCap.CullFace);
             GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
 
             GL.UseProgram(shader.Program);
@@ -58,7 +57,6 @@ namespace GUI.Types.Renderer
             GL.BindVertexArray(0);
 
             GL.Disable(EnableCap.Blend);
-            GL.Enable(EnableCap.CullFace);
         }
 
         public void ReloadShader()

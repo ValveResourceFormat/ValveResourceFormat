@@ -8,7 +8,6 @@ float far = 100;
 vec3 colorRed = vec3(0.9, 0.2, 0.2);
 vec3 colorGreen = vec3(0.2, 0.8, 0.2);
 
-in vec3 vtxPosition;
 in vec3 nearPoint;
 in vec3 farPoint;
 

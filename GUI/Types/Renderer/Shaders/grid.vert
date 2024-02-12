@@ -1,7 +1,6 @@
 #version 460
 
-in vec3 aVertexPosition;
-out vec3 vtxPosition;
+in vec2 aVertexPosition;
 out vec3 nearPoint;
 out vec3 farPoint;
 
@@ -15,9 +14,7 @@ vec3 UnprojectPoint(float x, float y, float z) {
 }
 
 void main(void) {
-    vtxPosition = aVertexPosition;
-
     nearPoint = UnprojectPoint(aVertexPosition.x, aVertexPosition.y, 0.0).xyz; // unprojecting on the near plane
     farPoint = UnprojectPoint(aVertexPosition.x, aVertexPosition.y, 0.99).xyz; // unprojecting on the far plane
-    gl_Position = vec4(aVertexPosition, 1.0); // using directly the clipped coordinates
+    gl_Position = vec4(aVertexPosition, 0.0, 1.0); // using directly the clipped coordinates
 }
