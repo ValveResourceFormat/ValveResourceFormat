@@ -8,6 +8,17 @@ namespace GUI.Types.Renderer
 {
     class SpriteSceneNode : SceneNode
     {
+        private static readonly float[] Vertices =
+        [
+#pragma warning disable format
+            // position          ; normal                  ; texcoord    ; tangent                 ; blendindices            ; blendweight
+            1.0f, -1.0f, 0.0f,   0.0f, 0.0f, 0.0f, 1.0f,   1.0f, 1.0f,   1.0f, 0.0f, 0.0f, 0.0f,   0.0f, 0.0f, 0.0f, 0.0f,   0.0f, 0.0f, 0.0f, 0.0f,
+            1.0f, 1.0f, 0.0f,    0.0f, 0.0f, 0.0f, 1.0f,   1.0f, 0.0f,   1.0f, 0.0f, 0.0f, 0.0f,   0.0f, 0.0f, 0.0f, 0.0f,   0.0f, 0.0f, 0.0f, 0.0f,
+            -1.0f, -1.0f, 0.0f,  0.0f, 0.0f, 0.0f, 1.0f,   0.0f, 1.0f,   1.0f, 0.0f, 0.0f, 0.0f,   0.0f, 0.0f, 0.0f, 0.0f,   0.0f, 0.0f, 0.0f, 0.0f,
+            -1.0f, 1.0f, 0.0f,   0.0f, 0.0f, 0.0f, 1.0f,   0.0f, 0.0f,   1.0f, 0.0f, 0.0f, 0.0f,   0.0f, 0.0f, 0.0f, 0.0f,   0.0f, 0.0f, 0.0f, 0.0f,
+#pragma warning restore format
+        ];
+
         private readonly int vaoHandle;
         private readonly RenderMaterial material;
 
@@ -22,14 +33,6 @@ namespace GUI.Types.Renderer
                 texture.SetWrapMode(TextureWrapMode.ClampToEdge);
             }
 
-            var vertices = new[]
-            {
-                // position          ; normal                  ; texcoord    ; tangent                 ; blendindices            ; blendweight
-                -1.0f, -1.0f, 0.0f,  0.0f, 0.0f, 0.0f, 1.0f,   0.0f, 1.0f,   1.0f, 0.0f, 0.0f, 0.0f,   0.0f, 0.0f, 0.0f, 0.0f,   0.0f, 0.0f, 0.0f, 0.0f,
-                -1.0f, 1.0f, 0.0f,   0.0f, 0.0f, 0.0f, 1.0f,   0.0f, 0.0f,   1.0f, 0.0f, 0.0f, 0.0f,   0.0f, 0.0f, 0.0f, 0.0f,   0.0f, 0.0f, 0.0f, 0.0f,
-                1.0f, -1.0f, 0.0f,   0.0f, 0.0f, 0.0f, 1.0f,   1.0f, 1.0f,   1.0f, 0.0f, 0.0f, 0.0f,   0.0f, 0.0f, 0.0f, 0.0f,   0.0f, 0.0f, 0.0f, 0.0f,
-                1.0f, 1.0f, 0.0f,    0.0f, 0.0f, 0.0f, 1.0f,   1.0f, 0.0f,   1.0f, 0.0f, 0.0f, 0.0f,   0.0f, 0.0f, 0.0f, 0.0f,   0.0f, 0.0f, 0.0f, 0.0f,
-            };
             var attributes = new List<(string Name, int Size)>
             {
                 ("vPOSITION", 3),
@@ -45,7 +48,7 @@ namespace GUI.Types.Renderer
             GL.CreateVertexArrays(1, out vaoHandle);
             GL.CreateBuffers(1, out int vboHandle);
             GL.VertexArrayVertexBuffer(vaoHandle, 0, vboHandle, 0, stride);
-            GL.NamedBufferData(vboHandle, vertices.Length * sizeof(float), vertices, BufferUsageHint.StaticDraw);
+            GL.NamedBufferData(vboHandle, Vertices.Length * sizeof(float), Vertices, BufferUsageHint.StaticDraw);
 
             foreach (var (name, size) in attributes)
             {
@@ -98,13 +101,9 @@ namespace GUI.Types.Renderer
 
             material.Render(renderShader);
 
-            GL.Disable(EnableCap.CullFace);
-
             GL.DrawArrays(PrimitiveType.TriangleStrip, 0, 4);
 
             material.PostRender();
-
-            GL.Enable(EnableCap.CullFace);
 
             GL.BindVertexArray(0);
             GL.UseProgram(0);
