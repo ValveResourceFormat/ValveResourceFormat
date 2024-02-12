@@ -4,7 +4,6 @@ using System.Linq;
 using System.Reflection;
 using System.Windows.Forms;
 using GUI.Controls;
-using GUI.Types.ParticleRenderer;
 using GUI.Types.Renderer.UniformBuffers;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;

@@ -1,7 +1,6 @@
-using GUI.Types.Renderer;
 using OpenTK.Graphics.OpenGL;
 
-namespace GUI.Types.ParticleRenderer
+namespace GUI.Types.Renderer
 {
     internal class InfiniteGrid : SceneNode
     {
