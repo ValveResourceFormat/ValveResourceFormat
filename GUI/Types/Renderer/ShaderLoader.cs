@@ -333,6 +333,7 @@ namespace GUI.Types.Renderer
                 shader.Program = newShader.Program;
                 shader.RenderModes.Clear();
                 shader.RenderModes.UnionWith(newShader.RenderModes);
+                shader.ClearUniformsCache();
             }
         }
 

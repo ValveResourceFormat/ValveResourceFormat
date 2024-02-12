@@ -11,7 +11,7 @@ namespace GUI.Types.Renderer
         public HashSet<string> RenderModes { get; init; }
         public HashSet<string> SrgbSamplers { get; init; }
 
-        private Dictionary<string, int> Uniforms { get; } = [];
+        private readonly Dictionary<string, int> Uniforms = [];
         public RenderMaterial Default;
 
 #if DEBUG
@@ -169,5 +169,9 @@ namespace GUI.Types.Renderer
             GL.BindTextureUnit(slot, texture.Handle);
             GL.ProgramUniform1(Program, uniformLocation, slot);
         }
+
+#if DEBUG
+        public void ClearUniformsCache() => Uniforms.Clear();
+#endif
     }
 }
