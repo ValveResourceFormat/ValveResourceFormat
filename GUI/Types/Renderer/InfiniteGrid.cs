@@ -2,12 +2,12 @@ using OpenTK.Graphics.OpenGL;
 
 namespace GUI.Types.Renderer
 {
-    internal class InfiniteGrid : SceneNode
+    internal class InfiniteGrid
     {
         private readonly int vao;
-        private Shader shader;
+        private readonly Shader shader;
 
-        public InfiniteGrid(Scene scene) : base(scene)
+        public InfiniteGrid(Scene scene)
         {
             var vertices = new[]
             {
@@ -19,7 +19,7 @@ namespace GUI.Types.Renderer
                 -1f, -1f,
             };
 
-            ReloadShader();
+            shader = scene.GuiContext.ShaderLoader.LoadShader("vrf.grid");
 
             // Create VAO
             GL.CreateVertexArrays(1, out vao);
@@ -38,12 +38,7 @@ namespace GUI.Types.Renderer
 #endif
         }
 
-        public override void Update(Scene.UpdateContext context)
-        {
-            // not required
-        }
-
-        public override void Render(Scene.RenderContext context)
+        public void Render()
         {
             GL.Enable(EnableCap.Blend);
             GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
@@ -57,11 +52,6 @@ namespace GUI.Types.Renderer
             GL.BindVertexArray(0);
 
             GL.Disable(EnableCap.Blend);
-        }
-
-        public void ReloadShader()
-        {
-            shader = Scene.GuiContext.ShaderLoader.LoadShader("vrf.grid");
         }
     }
 }

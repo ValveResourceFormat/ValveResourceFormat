@@ -297,7 +297,7 @@ namespace GUI.Types.Renderer
 
                 if (ShowBaseGrid)
                 {
-                    baseGrid.Render(renderContext);
+                    baseGrid.Render();
                 }
             }
         }
