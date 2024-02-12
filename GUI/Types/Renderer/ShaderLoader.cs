@@ -206,6 +206,7 @@ namespace GUI.Types.Renderer
         // Map Valve's shader names to shader files VRF has
         private static string GetShaderFileByName(string shaderName) => shaderName switch
         {
+            "vrf.background" => "background",
             "vrf.default" => "default",
             "vrf.grid" => "grid",
             "vrf.picking" => "picking",

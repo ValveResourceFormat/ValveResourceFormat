@@ -36,6 +36,7 @@ namespace GUI.Types.Renderer
         private bool skipRenderModeChange;
         private ComboBox renderModeComboBox;
         private InfiniteGrid baseGrid;
+        private SceneBackground baseBackground;
         private OctreeDebugRenderer<SceneNode> staticOctreeRenderer;
         private OctreeDebugRenderer<SceneNode> dynamicOctreeRenderer;
         protected SelectedNodeRenderer selectedNodeRenderer;
@@ -212,6 +213,7 @@ namespace GUI.Types.Renderer
         protected virtual void OnLoad(object sender, EventArgs e)
         {
             baseGrid = new InfiniteGrid(Scene);
+            baseBackground = new SceneBackground(Scene);
             selectedNodeRenderer = new(Scene);
 
             Picker = new PickingTexture(Scene.GuiContext, OnPicked);
@@ -366,6 +368,10 @@ namespace GUI.Types.Renderer
                 {
                     Skybox2D.Render();
                 }
+            }
+            else
+            {
+                baseBackground.Render();
             }
 
             GL.DepthRange(0.05, 1);
