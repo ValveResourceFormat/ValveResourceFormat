@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Drawing;
+using System.IO;
 using System.Linq;
 using System.Windows.Forms;
 using GUI.Types.Renderer;
@@ -114,26 +115,8 @@ namespace GUI.Controls
                 var title = Program.MainForm.Text;
                 Program.MainForm.Text = "Source 2 Viewer - Copying image to clipboard…";
 
-                using var bitmap = new SKBitmap(GLDefaultFramebuffer.Width, GLDefaultFramebuffer.Height, SKColorType.Bgra8888, SKAlphaType.Opaque);
-                var pixels = bitmap.GetPixels(out var length);
-
-                if (MainFramebuffer != GLDefaultFramebuffer)
-                {
-                    var (w, h) = (GLControl.Width, GLControl.Height);
-                    GL.BlitNamedFramebuffer(MainFramebuffer.FboHandle, GLDefaultFramebuffer.FboHandle, 0, 0, w, h, 0, 0, w, h, ClearBufferMask.ColorBufferBit, BlitFramebufferFilter.Nearest);
-                }
-
-                GL.Flush();
-                GL.Finish();
-                GL.ReadPixels(0, 0, GLDefaultFramebuffer.Width, GLDefaultFramebuffer.Height, PixelFormat.Bgra, PixelType.UnsignedByte, pixels);
-
-                // Flip y
-                using var canvas = new SKCanvas(bitmap);
-                canvas.Scale(1, -1, 0, bitmap.Height / 2f);
-                canvas.DrawBitmap(bitmap, new SKPoint());
-
-                using var bitmapWindows = bitmap.ToBitmap();
-                Clipboard.SetImage(bitmapWindows);
+                using var bitmap = ReadPixelsToBitmap();
+                ClipboardSetImage(bitmap);
 
                 Program.MainForm.Text = title;
 
@@ -162,6 +145,29 @@ namespace GUI.Controls
                 FullScreenForm.Focus();
                 FullScreenForm.FormClosed += OnFullScreenFormClosed;
             }
+        }
+
+        protected virtual SKBitmap ReadPixelsToBitmap()
+        {
+            var bitmap = new SKBitmap(GLDefaultFramebuffer.Width, GLDefaultFramebuffer.Height, SKColorType.Bgra8888, SKAlphaType.Opaque);
+            var pixels = bitmap.GetPixels(out var length);
+
+            if (MainFramebuffer != GLDefaultFramebuffer)
+            {
+                var (w, h) = (GLControl.Width, GLControl.Height);
+                GL.BlitNamedFramebuffer(MainFramebuffer.FboHandle, GLDefaultFramebuffer.FboHandle, 0, 0, w, h, 0, 0, w, h, ClearBufferMask.ColorBufferBit, BlitFramebufferFilter.Nearest);
+            }
+
+            GL.Flush();
+            GL.Finish();
+            GL.ReadPixels(0, 0, GLDefaultFramebuffer.Width, GLDefaultFramebuffer.Height, PixelFormat.Bgra, PixelType.UnsignedByte, pixels);
+
+            // Flip y
+            using var canvas = new SKCanvas(bitmap);
+            canvas.Scale(1, -1, 0, bitmap.Height / 2f);
+            canvas.DrawBitmap(bitmap, new SKPoint());
+
+            return bitmap;
         }
 
         private void OnKeyUp(object sender, KeyEventArgs e)
@@ -619,6 +625,23 @@ namespace GUI.Controls
             Keys.LMenu => TrackedKeys.Alt,
             _ => TrackedKeys.None,
         };
+
+        private static void ClipboardSetImage(SKBitmap bitmap)
+        {
+            var data = new DataObject();
+
+            using var bitmapWindows = bitmap.ToBitmap();
+            data.SetData(DataFormats.Bitmap, true, bitmapWindows);
+
+            using var pngStream = new MemoryStream();
+            using var pixels = bitmap.PeekPixels();
+            var png = pixels.Encode(pngStream, new SKPngEncoderOptions(SKPngEncoderFilterFlags.Sub, zLibLevel: 1));
+
+            bitmapWindows.Save(pngStream, System.Drawing.Imaging.ImageFormat.Png);
+            data.SetData("PNG", false, pngStream);
+
+            Clipboard.SetDataObject(data, copy: true);
+        }
 
         private static void CheckOpenGL()
         {

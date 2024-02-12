@@ -190,6 +190,22 @@ class Framebuffer : IDisposable
         }
     }
 
+    public void ChangeFormat(AttachmentFormat? colorFormat, DepthAttachmentFormat? depthFormat)
+    {
+        ColorFormat = colorFormat;
+        DepthFormat = depthFormat;
+
+        if (Color != null)
+        {
+            ResizeAttachment(Color, colorFormat!, Width, Height);
+        }
+
+        if (Depth != null)
+        {
+            ResizeAttachment(Depth, depthFormat!, Width, Height);
+        }
+    }
+
     public void CheckStatus_ThrowIfIncomplete(string name = "")
     {
         if (InitialStatus != FramebufferErrorCode.FramebufferComplete)

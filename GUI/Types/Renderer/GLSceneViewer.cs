@@ -302,6 +302,23 @@ namespace GUI.Types.Renderer
             }
         }
 
+        protected void DrawMainScene()
+        {
+            var renderContext = new Scene.RenderContext
+            {
+                View = this,
+                Camera = Camera,
+                Framebuffer = MainFramebuffer,
+                Scene = Scene,
+            };
+
+            UpdateSceneBuffersGpu(Scene, Camera);
+            lightingBuffer.Data = Scene.LightingInfo.LightingData;
+
+            Scene.RenderOpaqueLayer(renderContext);
+            Scene.RenderTranslucentLayer(renderContext);
+        }
+
         private void RenderScenesWithView(Scene.RenderContext renderContext)
         {
             GL.Viewport(0, 0, renderContext.Framebuffer.Width, renderContext.Framebuffer.Height);
