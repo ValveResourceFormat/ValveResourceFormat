@@ -35,8 +35,12 @@ namespace GUI.Types.Renderer
             for (var i = 0; i < count; i++)
             {
                 var uniformName = GL.GetActiveUniform(Program, i, out var size, out var uniformType);
+                var uniformLocation = GL.GetUniformLocation(Program, uniformName);
 
-                Uniforms[uniformName] = GL.GetUniformLocation(Program, uniformName);
+                if (uniformLocation > -1)
+                {
+                    Uniforms[uniformName] = uniformLocation;
+                }
 
                 yield return (uniformName, i, uniformType, size);
             }
