@@ -278,14 +278,19 @@ namespace ValveResourceFormat
 
                         EditInfo = (ResourceEditInfo)block;
 
-                        // Try to determine resource type by looking at first compiler indentifier
+                        // Try to determine resource type by looking at the compiler indentifiers
                         if (ResourceType == ResourceType.Unknown && EditInfo.Structs.TryGetValue(ResourceEditInfo.REDIStruct.SpecialDependencies, out var specialBlock))
                         {
                             var specialDeps = (SpecialDependencies)specialBlock;
 
-                            if (specialDeps.List.Count > 0)
+                            foreach (var specialDep in specialDeps.List)
                             {
-                                ResourceType = DetermineResourceTypeByCompilerIdentifier(specialDeps.List[0]);
+                                ResourceType = DetermineResourceTypeByCompilerIdentifier(specialDep);
+
+                                if (ResourceType != ResourceType.Unknown)
+                                {
+                                    break;
+                                }
                             }
                         }
 
