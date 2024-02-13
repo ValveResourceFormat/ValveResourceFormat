@@ -620,41 +620,29 @@ namespace GUI
             return task;
         }
 
-        private static TabPage ProcessFile(VrfGuiContext vrfGuiContext, PackageEntry file)
+        private static TabPage ProcessFile(VrfGuiContext vrfGuiContext, PackageEntry entry)
         {
-            uint magic = 0;
-            ushort magicResourceVersion = 0;
-            byte[] input = null;
+            Stream stream = null;
+            Span<byte> magicData = stackalloc byte[6];
 
-            if (file != null)
+            if (entry != null)
             {
-                vrfGuiContext.ParentGuiContext.CurrentPackage.ReadEntry(file, out input, validateCrc: file.CRC32 > 0);
-            }
-
-            if (input != null)
-            {
-                if (input.Length >= 6)
-                {
-                    magic = BitConverter.ToUInt32(input, 0);
-                    magicResourceVersion = BitConverter.ToUInt16(input, 4);
-                }
+                stream = vrfGuiContext.ParentGuiContext.CurrentPackage.GetMemoryMappedStreamIfPossible(entry);
+                stream.Read(magicData);
+                stream.Seek(-magicData.Length, SeekOrigin.Current);
             }
             else
             {
-                var magicData = new byte[6];
-
-                using (var fs = new FileStream(vrfGuiContext.FileName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
-                {
-                    fs.Read(magicData, 0, 6);
-                }
-
-                magic = BitConverter.ToUInt32(magicData, 0);
-                magicResourceVersion = BitConverter.ToUInt16(magicData, 4);
+                using var fs = new FileStream(vrfGuiContext.FileName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                fs.Read(magicData);
             }
+
+            var magic = BitConverter.ToUInt32(magicData[..4]);
+            var magicResourceVersion = BitConverter.ToUInt16(magicData[4..]);
 
             if (Types.Viewers.Package.IsAccepted(magic))
             {
-                var tab = new Types.Viewers.Package().Create(vrfGuiContext, input);
+                var tab = new Types.Viewers.Package().Create(vrfGuiContext, stream);
 
                 return tab;
             }
@@ -664,7 +652,7 @@ namespace GUI
 
                 try
                 {
-                    var tab = viewer.Create(vrfGuiContext, input);
+                    var tab = viewer.Create(vrfGuiContext, stream);
                     viewer = null;
                     return tab;
                 }
@@ -675,34 +663,34 @@ namespace GUI
             }
             else if (Types.Viewers.ClosedCaptions.IsAccepted(magic))
             {
-                return new Types.Viewers.ClosedCaptions().Create(vrfGuiContext, input);
+                return new Types.Viewers.ClosedCaptions().Create(vrfGuiContext, stream);
             }
             else if (Types.Viewers.ToolsAssetInfo.IsAccepted(magic))
             {
-                return new Types.Viewers.ToolsAssetInfo().Create(vrfGuiContext, input);
+                return new Types.Viewers.ToolsAssetInfo().Create(vrfGuiContext, stream);
             }
             else if (Types.Viewers.BinaryKeyValues.IsAccepted(magic))
             {
-                return new Types.Viewers.BinaryKeyValues().Create(vrfGuiContext, input);
+                return new Types.Viewers.BinaryKeyValues().Create(vrfGuiContext, stream);
             }
             else if (Types.Viewers.BinaryKeyValues1.IsAccepted(magic))
             {
-                return new Types.Viewers.BinaryKeyValues1().Create(vrfGuiContext, input);
+                return new Types.Viewers.BinaryKeyValues1().Create(vrfGuiContext, stream);
             }
             else if (Types.Viewers.Resource.IsAccepted(magicResourceVersion))
             {
-                return new Types.Viewers.Resource().Create(vrfGuiContext, input);
+                return new Types.Viewers.Resource().Create(vrfGuiContext, stream);
             }
             else if (Types.Viewers.Image.IsAccepted(magic))
             {
-                return new Types.Viewers.Image().Create(vrfGuiContext, input);
+                return new Types.Viewers.Image().Create(vrfGuiContext, stream);
             }
             else if (Types.Viewers.Audio.IsAccepted(magic, vrfGuiContext.FileName))
             {
-                return new Types.Viewers.Audio().Create(vrfGuiContext, input);
+                return new Types.Viewers.Audio().Create(vrfGuiContext, stream);
             }
 
-            return new Types.Viewers.ByteViewer().Create(vrfGuiContext, input);
+            return new Types.Viewers.ByteViewer().Create(vrfGuiContext, stream);
         }
 
         private void MainForm_DragDrop(object sender, DragEventArgs e)

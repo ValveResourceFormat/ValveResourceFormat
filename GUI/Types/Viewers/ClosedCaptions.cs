@@ -14,7 +14,7 @@ namespace GUI.Types.Viewers
             return magic == ValveResourceFormat.ClosedCaptions.ClosedCaptions.MAGIC;
         }
 
-        public TabPage Create(VrfGuiContext vrfGuiContext, byte[] input)
+        public TabPage Create(VrfGuiContext vrfGuiContext, Stream stream)
         {
             var tabOuterPage = new TabPage();
             var tabControl = new TabControl
@@ -24,9 +24,9 @@ namespace GUI.Types.Viewers
             tabOuterPage.Controls.Add(tabControl);
             var captions = new ValveResourceFormat.ClosedCaptions.ClosedCaptions();
 
-            if (input != null)
+            if (stream != null)
             {
-                captions.Read(vrfGuiContext.FileName, new MemoryStream(input));
+                captions.Read(vrfGuiContext.FileName, stream);
             }
             else
             {

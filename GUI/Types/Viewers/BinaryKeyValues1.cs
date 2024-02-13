@@ -14,14 +14,14 @@ namespace GUI.Types.Viewers
             return magic == BinaryKV1.MAGIC;
         }
 
-        public TabPage Create(VrfGuiContext vrfGuiContext, byte[] input)
+        public TabPage Create(VrfGuiContext vrfGuiContext, Stream input)
         {
             Stream stream;
             KVObject kv;
 
             if (input != null)
             {
-                stream = new MemoryStream(input);
+                stream = input;
             }
             else
             {

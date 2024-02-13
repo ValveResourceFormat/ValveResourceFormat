@@ -1,3 +1,4 @@
+using System.IO;
 using System.Windows.Forms;
 using GUI.Types.Renderer;
 using GUI.Utils;
@@ -14,13 +15,13 @@ namespace GUI.Types.Viewers
                    magic << 8 == 0x46494700; /* gif */
         }
 
-        public TabPage Create(VrfGuiContext vrfGuiContext, byte[] input)
+        public TabPage Create(VrfGuiContext vrfGuiContext, Stream stream)
         {
             SKBitmap bitmap;
 
-            if (input != null)
+            if (stream != null)
             {
-                bitmap = SKBitmap.Decode(input);
+                bitmap = SKBitmap.Decode(stream);
             }
             else
             {

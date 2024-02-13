@@ -77,7 +77,7 @@ namespace GUI.Types.Viewers
         public static string SpvToHlsl(VulkanSource v, ShaderCollection c, VcsProgramType s, long z, long d)
             => AttemptSpirvReflection(v, c, s, z, d, spvc_backend.SPVC_BACKEND_HLSL);
 
-        public TabPage Create(VrfGuiContext vrfGuiContext, byte[] input)
+        public TabPage Create(VrfGuiContext vrfGuiContext, Stream stream)
         {
             shaderCollection = GetShaderCollection(vrfGuiContext.FileName, vrfGuiContext.CurrentPackage);
 

@@ -15,21 +15,21 @@ namespace GUI.Types.Viewers
                     fileName.EndsWith(".mp3", StringComparison.InvariantCultureIgnoreCase);
         }
 
-        public TabPage Create(VrfGuiContext vrfGuiContext, byte[] input)
+        public TabPage Create(VrfGuiContext vrfGuiContext, Stream stream)
         {
             WaveStream waveStream;
 
-            if (input == null)
+            if (stream == null)
             {
                 waveStream = new AudioFileReader(vrfGuiContext.FileName);
             }
             else if (vrfGuiContext.FileName.EndsWith(".mp3", StringComparison.InvariantCultureIgnoreCase))
             {
-                waveStream = new Mp3FileReaderBase(new MemoryStream(input), wf => new Mp3FrameDecompressor(wf));
+                waveStream = new Mp3FileReaderBase(stream, wf => new Mp3FrameDecompressor(wf));
             }
             else
             {
-                waveStream = new WaveFileReader(new MemoryStream(input));
+                waveStream = new WaveFileReader(stream);
             }
 
             var tab = new TabPage();

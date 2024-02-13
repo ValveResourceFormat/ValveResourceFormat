@@ -13,14 +13,14 @@ namespace GUI.Types.Viewers
                    magic == ValveResourceFormat.ToolsAssetInfo.ToolsAssetInfo.MAGIC2;
         }
 
-        public TabPage Create(VrfGuiContext vrfGuiContext, byte[] input)
+        public TabPage Create(VrfGuiContext vrfGuiContext, Stream stream)
         {
             var tab = new TabPage();
             var toolsAssetInfo = new ValveResourceFormat.ToolsAssetInfo.ToolsAssetInfo();
 
-            if (input != null)
+            if (stream != null)
             {
-                toolsAssetInfo.Read(new MemoryStream(input));
+                toolsAssetInfo.Read(stream);
             }
             else
             {

@@ -9,7 +9,7 @@ namespace GUI.Types.Viewers
     {
         public static bool IsAccepted() => true;
 
-        public TabPage Create(VrfGuiContext vrfGuiContext, byte[] input)
+        public TabPage Create(VrfGuiContext vrfGuiContext, Stream stream)
         {
             var tab = new TabPage();
             var resTabs = new TabControl
@@ -26,7 +26,17 @@ namespace GUI.Types.Viewers
             bvTab.Controls.Add(bv);
             resTabs.TabPages.Add(bvTab);
 
-            input ??= File.ReadAllBytes(vrfGuiContext.FileName);
+            byte[] input;
+
+            if (stream == null)
+            {
+                input = File.ReadAllBytes(vrfGuiContext.FileName);
+            }
+            else
+            {
+                input = new byte[stream.Length];
+                stream.ReadExactly(input);
+            }
 
             var span = input.AsSpan();
             var firstNullByte = span.IndexOf((byte)0);

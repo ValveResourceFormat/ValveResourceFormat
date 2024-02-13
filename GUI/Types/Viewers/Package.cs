@@ -42,7 +42,7 @@ namespace GUI.Types.Viewers
             return TreeView;
         }
 
-        public TabPage Create(VrfGuiContext vrfGuiContext, byte[] input)
+        public TabPage Create(VrfGuiContext vrfGuiContext, Stream stream)
         {
             VrfGuiContext = vrfGuiContext;
 
@@ -50,10 +50,10 @@ namespace GUI.Types.Viewers
             var package = new SteamDatabase.ValvePak.Package();
             package.OptimizeEntriesForBinarySearch(StringComparison.OrdinalIgnoreCase);
 
-            if (input != null)
+            if (stream != null)
             {
                 package.SetFileName(vrfGuiContext.FileName);
-                package.Read(new MemoryStream(input));
+                package.Read(stream);
             }
             else
             {

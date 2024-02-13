@@ -10,15 +10,15 @@ namespace GUI.Types.Viewers
     {
         public static bool IsAccepted(uint magic) => BinaryKV3.IsBinaryKV3(magic);
 
-        public TabPage Create(VrfGuiContext vrfGuiContext, byte[] input)
+        public TabPage Create(VrfGuiContext vrfGuiContext, Stream stream)
         {
             var tab = new TabPage();
             var kv3 = new BinaryKV3();
             Stream kv3stream;
 
-            if (input != null)
+            if (stream != null)
             {
-                kv3stream = new MemoryStream(input);
+                kv3stream = stream;
             }
             else
             {
