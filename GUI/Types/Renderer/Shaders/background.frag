@@ -1,7 +1,6 @@
 #version 460
 
-in vec2 vtxPosition;
-
+in vec3 vSkyLookupInterpolant;
 out vec4 outputColor;
 
 #include "common/utils.glsl"
@@ -62,13 +61,8 @@ float latitude(float polar) {
 }
 
 void main() {
-    // TODO: wrong math
-    vec3 cameraPos = vec3(0, 1, -1);
-    vec3 dir = normalize(vec3(cameraPos.x + vtxPosition.x, cameraPos.y + vtxPosition.y, 0) - cameraPos);
-    dir = mat3(g_matWorldToView) * dir;
-
     // polar coordinates in lat/lon
-    vec2 polar = polarCoords(dir.xyz);
+    vec2 polar = polarCoords(vSkyLookupInterpolant.xyz);
 
     // goes from 0...1 from bottom to up
     // if the sphere is upside down:
