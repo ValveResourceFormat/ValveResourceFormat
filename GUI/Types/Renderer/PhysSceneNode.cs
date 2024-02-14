@@ -308,6 +308,7 @@ namespace GUI.Types.Renderer
 
                 inds.Add(baseVertex + i * 2);
                 inds.Add(baseVertex + i * 2 + 1);
+                inds.Add(baseVertex + i * 2);
             }
         }
 
