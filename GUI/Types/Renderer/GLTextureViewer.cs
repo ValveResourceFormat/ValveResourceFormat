@@ -176,6 +176,7 @@ namespace GUI.Types.Renderer
                 Width = 200,
             });
 
+            ComboBox cubemapProjectionComboBox = null;
             CheckBox softwareDecodeCheckBox = null;
 
             if (textureData.NumMipLevels > 1)
@@ -214,7 +215,7 @@ namespace GUI.Types.Renderer
             {
                 ComboBox cubeFaceComboBox = null;
 
-                var equirectangularProjectionCheckBox = AddSelection("Projection type", (name, index) =>
+                cubemapProjectionComboBox = AddSelection("Projection type", (name, index) =>
                 {
                     cubeFaceComboBox.Enabled = index == 0;
 
@@ -248,8 +249,8 @@ namespace GUI.Types.Renderer
                 cubeFaceComboBox.Items.AddRange(Enum.GetNames<CubemapFace>());
                 cubeFaceComboBox.SelectedIndex = 0;
 
-                equirectangularProjectionCheckBox.Items.AddRange(Enum.GetNames<CubemapProjection>());
-                equirectangularProjectionCheckBox.SelectedIndex = (int)CubemapProjection.Equirectangular;
+                cubemapProjectionComboBox.Items.AddRange(Enum.GetNames<CubemapProjection>());
+                cubemapProjectionComboBox.SelectedIndex = (int)CubemapProjection.Equirectangular;
             }
 
             decodeFlagsListBox = AddMultiSelection("Texture Conversion",
@@ -270,6 +271,19 @@ namespace GUI.Types.Renderer
             var forceSoftwareDecode = textureData.IsRawJpeg || textureData.IsRawPng;
             softwareDecodeCheckBox = AddCheckBox("Software decode", forceSoftwareDecode, (state) =>
             {
+                if ((textureData.Flags & VTexFlags.CUBE_TEXTURE) != 0)
+                {
+                    if (state)
+                    {
+                        cubemapProjectionComboBox.SelectedIndex = (int)CubemapProjection.None;
+                        cubemapProjectionComboBox.Enabled = false;
+                    }
+                    else
+                    {
+                        cubemapProjectionComboBox.Enabled = true;
+                    }
+                }
+
                 SetupTexture(state);
             });
 
@@ -687,12 +701,13 @@ namespace GUI.Types.Renderer
                 OriginalHeight = texture.Height;
             }
 
-            if (shader != null)
+            var textureType = GLTextureDecoder.GetTextureTypeDefine(texture.Target);
+
+            if (shader != null && shader.Parameters.ContainsKey(textureType))
             {
                 return;
             }
 
-            var textureType = GLTextureDecoder.GetTextureTypeDefine(texture.Target);
             var arguments = new Dictionary<string, byte>
             {
                 [textureType] = 1,
