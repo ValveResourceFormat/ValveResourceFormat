@@ -432,35 +432,15 @@ public sealed class TextureExtract
 
     public static byte[] ToExrImage(SKPixmap pixels)
     {
-        var writer = new ScanlineExrWriter();
-        writer.SetSize(pixels.Width, pixels.Height);
-
-        var r = new byte[pixels.Width * pixels.Height * 4];
-        var g = new byte[pixels.Width * pixels.Height * 4];
-        var b = new byte[pixels.Width * pixels.Height * 4];
-        var a = new byte[pixels.Width * pixels.Height * 4];
-
-        var redSpan = MemoryMarshal.Cast<byte, float>(r);
-        var greenSpan = MemoryMarshal.Cast<byte, float>(g);
-        var blueSpan = MemoryMarshal.Cast<byte, float>(b);
-        var alphaSpan = MemoryMarshal.Cast<byte, float>(a);
-
         var pixelSpan = pixels.GetPixelSpan<SKColorF>();
-
-        for (var p = 0; p < pixelSpan.Length; p++)
+        var floatSpan = MemoryMarshal.Cast<SKColorF, float>(pixelSpan);
+        var result = Exr.SaveEXRToMemory(floatSpan, pixels.Width, pixels.Height, components: 4, asFp16: false, out var exrData);
+        if (result != ResultCode.Success)
         {
-            redSpan[p] = pixelSpan[p].Red;
-            greenSpan[p] = pixelSpan[p].Green;
-            blueSpan[p] = pixelSpan[p].Blue;
-            alphaSpan[p] = pixelSpan[p].Alpha;
+            throw new InvalidOperationException($"Got result {result} while saving EXR image");
         }
 
-        writer.AddChannel("R", saveType: ExrPixelType.Float, r, dataType: ExrPixelType.Float);
-        writer.AddChannel("G", saveType: ExrPixelType.Float, g, dataType: ExrPixelType.Float);
-        writer.AddChannel("B", saveType: ExrPixelType.Float, b, dataType: ExrPixelType.Float);
-        writer.AddChannel("A", saveType: ExrPixelType.Float, a, dataType: ExrPixelType.Float);
-
-        return writer.Save();
+        return exrData;
     }
 
     public bool TryGetMksData(out Dictionary<SKRectI, string> sprites, out string mks)
