@@ -7,5 +7,10 @@ namespace GUI.Types.Renderer
             : base(new RenderMaterial(scene.GuiContext.ShaderLoader.LoadShader("vrf.background")))
         {
         }
+
+        public void SetLightBackground(bool enabled)
+        {
+            Material.Material.IntParams["g_bShowLightBackground"] = enabled ? 1 : 0;
+        }
     }
 }

@@ -19,6 +19,7 @@ namespace GUI.Types.Renderer
         public VrfGuiContext GuiContext => Scene.GuiContext;
 
         private bool ShowBaseGrid;
+        private bool ShowLightBackground;
         public bool ShowSkybox { get; set; } = true;
         public bool IsWireframe { get; set; }
 
@@ -392,6 +393,11 @@ namespace GUI.Types.Renderer
             ShowBaseGrid = true;
 
             AddCheckBox("Show Grid", ShowBaseGrid, (v) => ShowBaseGrid = v);
+            AddCheckBox("Show Light Background", ShowLightBackground, (v) =>
+            {
+                ShowLightBackground = v;
+                baseBackground.SetLightBackground(ShowLightBackground);
+            });
         }
 
         protected void AddWireframeToggleControl()
