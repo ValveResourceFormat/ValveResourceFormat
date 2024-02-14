@@ -24,7 +24,7 @@ namespace GUI.Types.Renderer
         public int ShaderCount => CachedShaders.Count;
         private readonly Dictionary<string, HashSet<string>> ShaderDefines = [];
 
-        private readonly static Dictionary<string, byte> EmptyArgs = new(0);
+        private readonly static Dictionary<string, byte> EmptyArgs = [];
 
         private readonly ShaderParser Parser = new();
 

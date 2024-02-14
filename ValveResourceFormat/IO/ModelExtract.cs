@@ -698,8 +698,8 @@ public class ModelExtract
 
         void GrabMaterialInputSignatures(Resource resource)
         {
-            var materialReferences = resource?.ExternalReferences?.ResourceRefInfoList.Where(r => r.Name[^4..] == "vmat");
-            foreach (var material in materialReferences ?? Enumerable.Empty<ResourceExtRefList.ResourceReferenceInfo>())
+            var materialReferences = resource?.ExternalReferences?.ResourceRefInfoList.Where(static r => r.Name[^4..] == "vmat");
+            foreach (var material in materialReferences ?? [])
             {
                 using var materialResource = fileLoader.LoadFile(material.Name + "_c");
                 MaterialInputSignatures[material.Name] = (materialResource?.DataBlock as Material)?.GetInputSignature();
@@ -1010,11 +1010,11 @@ public class ModelExtract
             if (anim.FrameCount == 1 || positionLogLayer.IsLayerZero() || orientationLogLayer.IsLayerZero())
             {
                 positionLogLayer.Times.Clear();
-                positionLogLayer.Times.AddRange(new TimeSpan[] {
+                positionLogLayer.Times.AddRange([
                     TimeSpan.FromSeconds(-0.2f),
                     TimeSpan.FromSeconds(-0.1f),
                     TimeSpan.FromSeconds(0f)
-                });
+                ]);
 
                 var layerValue = positionLogLayer.LayerValues[0];
                 positionLogLayer.LayerValues = [

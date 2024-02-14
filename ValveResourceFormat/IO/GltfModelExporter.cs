@@ -1100,15 +1100,15 @@ namespace ValveResourceFormat.IO
 
         public static readonly Dictionary<string, (ChannelMapping Channel, string Name)[]> GltfTextureMappings = new()
         {
-            ["BaseColor"] = new[] { (ChannelMapping.RGB, "TextureColor"), (ChannelMapping.A, "TextureTranslucency") },
-            ["Normal"] = new[] { (ChannelMapping.RGB, "TextureNormal") },
-            ["MetallicRoughness"] = new[] {
+            ["BaseColor"] = [(ChannelMapping.RGB, "TextureColor"), (ChannelMapping.A, "TextureTranslucency")],
+            ["Normal"] = [(ChannelMapping.RGB, "TextureNormal")],
+            ["MetallicRoughness"] = [
                 (ChannelMapping.R, string.Empty),
                 (ChannelMapping.G, "TextureRoughness"),
                 (ChannelMapping.B, "TextureMetalness")
-            },
-            ["Occlusion"] = new[] { (ChannelMapping.R, "TextureAmbientOcclusion") },
-            ["Emissive"] = new[] { (ChannelMapping.R, "TextureSelfIllumMask") },
+            ],
+            ["Occlusion"] = [(ChannelMapping.R, "TextureAmbientOcclusion")],
+            ["Emissive"] = [(ChannelMapping.R, "TextureSelfIllumMask")],
         };
 
         private async Task GenerateGLTFMaterialFromRenderMaterial(Material material, VMaterial renderMaterial, ModelRoot model)

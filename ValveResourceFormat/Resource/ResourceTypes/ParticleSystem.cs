@@ -26,7 +26,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             if (children == null)
             {
-                return Enumerable.Empty<string>();
+                return [];
             }
 
             if (enabledOnly)

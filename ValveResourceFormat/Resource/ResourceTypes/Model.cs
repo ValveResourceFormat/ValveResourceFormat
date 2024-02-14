@@ -191,7 +191,7 @@ namespace ValveResourceFormat.ResourceTypes
         {
             if (!Resource.ContainsBlockType(BlockType.CTRL))
             {
-                return Enumerable.Empty<Animation>();
+                return [];
             }
 
             var ctrl = Resource.GetBlockByType(BlockType.CTRL) as BinaryKV3;
@@ -199,7 +199,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             if (embeddedAnimation == null)
             {
-                return Enumerable.Empty<Animation>();
+                return [];
             }
 
             var groupDataBlockIndex = (int)embeddedAnimation.GetIntegerProperty("group_data_block");

@@ -42,7 +42,7 @@ namespace GUI.Controls
         /// <returns>A collection of nodes who match the conditions based on the search type.</returns>
         public IList<BetterTreeNode> Search(string value, SearchType searchType)
         {
-            IList<BetterTreeNode> results = new List<BetterTreeNode>();
+            IList<BetterTreeNode> results = [];
 
             if (searchType == SearchType.FileNamePartialMatch || searchType == SearchType.FullPath)
             {

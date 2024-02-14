@@ -166,7 +166,7 @@ namespace Tests
             using var shader = new ShaderFile();
             shader.Read(path);
 
-            var ex = Assert.Throws<InvalidOperationException>(() => new ShaderExtract(ShaderCollection.FromEnumerable(new[] { shader })));
+            var ex = Assert.Throws<InvalidOperationException>(() => new ShaderExtract(ShaderCollection.FromEnumerable([shader])));
 
             Assert.That(ex.Message, Does.Contain("cannot continue without at least a features file"));
         }
@@ -178,7 +178,7 @@ namespace Tests
             using var shader = new ShaderFile();
             shader.Read(path);
 
-            var extract = new ShaderExtract(ShaderCollection.FromEnumerable(new[] { shader }));
+            var extract = new ShaderExtract(ShaderCollection.FromEnumerable([shader]));
 
             var vfx = extract.ToVFX(ShaderExtract.ShaderExtractParams.Inspect);
             vfx = extract.ToVFX(ShaderExtract.ShaderExtractParams.Export);

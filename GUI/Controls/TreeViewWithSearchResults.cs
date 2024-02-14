@@ -151,7 +151,7 @@ namespace GUI.Controls
             control.ImageList = MainForm.ImageList;
             control.ShowRootLines = false;
 
-            control.GenerateIconList(vrfGuiContext.CurrentPackage.Entries.Keys.ToList());
+            control.GenerateIconList([.. vrfGuiContext.CurrentPackage.Entries.Keys]);
 
             if (!vrfGuiContext.CurrentPackage.IsDirVPK)
             {

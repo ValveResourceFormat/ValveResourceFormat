@@ -55,7 +55,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
             if (animArray.Length == 0)
             {
-                return Enumerable.Empty<Animation>();
+                return [];
             }
 
             var decoderArrayKV = animationData.GetArray("m_decoderArray");

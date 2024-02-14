@@ -58,7 +58,7 @@ namespace GUI.Types.Renderer
         public abstract void Update(Scene.UpdateContext context);
         public abstract void Render(Scene.RenderContext context);
 
-        public virtual IEnumerable<string> GetSupportedRenderModes() => Enumerable.Empty<string>();
+        public virtual IEnumerable<string> GetSupportedRenderModes() => [];
         public virtual void SetRenderMode(string mode)
         {
         }

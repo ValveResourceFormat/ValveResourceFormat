@@ -231,7 +231,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
             => GetEnumerator();
 
         #region Debugging
-#pragma warning disable IDE0052 // Remove unread private members
+#pragma warning disable IDE0051, IDE0052 // Remove unread private members
         internal string DebugRepresentation => DebugView.GetRepresentation(this);
 
         internal class DebugView
@@ -293,10 +293,10 @@ namespace ValveResourceFormat.Serialization.KeyValues
 
             [DebuggerBrowsable(DebuggerBrowsableState.RootHidden)]
             KVValue[] Items => obj.IsArray
-                ? obj.Properties.Values.ToArray()
+                ? [.. obj.Properties.Values]
                 : [];
         }
-#pragma warning restore IDE0052
+#pragma warning restore IDE0051, IDE0052
         #endregion Debugging
     }
 }

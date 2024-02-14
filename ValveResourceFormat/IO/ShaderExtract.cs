@@ -14,13 +14,13 @@ public sealed class ShaderExtract
     {
         public bool CollapseBuffers_InInclude { get; init; }
         public bool CollapseBuffers_InPlace { get; init; }
-        public static HashSet<string> BuffersToCollapse => new()
-        {
+        public static HashSet<string> BuffersToCollapse =>
+        [
             //"PerViewConstantBuffer_t",
             //"PerViewConstantBufferVR_t",
             //"PerViewLightingConstantBufferVr_t",
             //"DotaGlobalParams_t",
-        };
+        ];
 
         public bool ForceWrite_UncertainEnumsAsInts { get; init; }
         public bool NoHungarianTypeGuessing { get; init; }

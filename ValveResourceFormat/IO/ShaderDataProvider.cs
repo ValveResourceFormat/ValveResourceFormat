@@ -279,130 +279,130 @@ namespace ValveResourceFormat.IO
         {
             ["global_lit_simple"] = new()
             {
-                ["g_tColor"] = new[] { (Channel.RGB, "TextureColor"), (Channel.A, "TextureTranslucency") },
-                ["g_tNormal"] = new[] { (Channel.RGB, "TextureNormal") },
-                ["g_tSpecular"] = new[] { (Channel.R, "TextureReflectance"), (Channel.G, "TextureSelfIllum"), (Channel.B, "TextureBloom") },
+                ["g_tColor"] = [(Channel.RGB, "TextureColor"), (Channel.A, "TextureTranslucency")],
+                ["g_tNormal"] = [(Channel.RGB, "TextureNormal")],
+                ["g_tSpecular"] = [(Channel.R, "TextureReflectance"), (Channel.G, "TextureSelfIllum"), (Channel.B, "TextureBloom")],
             },
 
             ["multiblend"] = new()
             {
-                ["g_tColor0"] = new[] { (Channel.RGB, "TextureColor0") },
-                ["g_tColor1"] = new[] { (Channel.RGB, "TextureColor1"), (Channel.A, "TextureRevealMask1") },
-                ["g_tColor2"] = new[] { (Channel.RGB, "TextureColor2"), (Channel.A, "TextureRevealMask2") },
-                ["g_tColor3"] = new[] { (Channel.RGB, "TextureColor3"), (Channel.A, "TextureRevealMask3") },
-                ["g_tSpecular0"] = new[] { (Channel.R, "TextureReflectance0"), (Channel.G, "TextureSelfIllum0"), (Channel.B, "TextureBloom0") },
-                ["g_tSpecular1"] = new[] { (Channel.R, "TextureReflectance1"), (Channel.G, "TextureSelfIllum1"), (Channel.B, "TextureBloom1") },
-                ["g_tSpecular2"] = new[] { (Channel.R, "TextureReflectance2"), (Channel.G, "TextureSelfIllum2"), (Channel.B, "TextureBloom2") },
-                ["g_tSpecular3"] = new[] { (Channel.R, "TextureReflectance3"), (Channel.G, "TextureSelfIllum3"), (Channel.B, "TextureBloom3") },
-                ["g_tTintMasks"] = new[] { (Channel.R, "TextureTintMask0"), (Channel.G, "TextureTintMask1"), (Channel.B, "TextureTintMask2"), (Channel.A, "TextureTintMask3") },
-                ["g_tTint2Masks"] = new[] { (Channel.R, "TextureTint2Mask0"), (Channel.G, "TextureTint2Mask1"), (Channel.B, "TextureTint2Mask2"), (Channel.A, "TextureTint2Mask3") },
+                ["g_tColor0"] = [(Channel.RGB, "TextureColor0")],
+                ["g_tColor1"] = [(Channel.RGB, "TextureColor1"), (Channel.A, "TextureRevealMask1")],
+                ["g_tColor2"] = [(Channel.RGB, "TextureColor2"), (Channel.A, "TextureRevealMask2")],
+                ["g_tColor3"] = [(Channel.RGB, "TextureColor3"), (Channel.A, "TextureRevealMask3")],
+                ["g_tSpecular0"] = [(Channel.R, "TextureReflectance0"), (Channel.G, "TextureSelfIllum0"), (Channel.B, "TextureBloom0")],
+                ["g_tSpecular1"] = [(Channel.R, "TextureReflectance1"), (Channel.G, "TextureSelfIllum1"), (Channel.B, "TextureBloom1")],
+                ["g_tSpecular2"] = [(Channel.R, "TextureReflectance2"), (Channel.G, "TextureSelfIllum2"), (Channel.B, "TextureBloom2")],
+                ["g_tSpecular3"] = [(Channel.R, "TextureReflectance3"), (Channel.G, "TextureSelfIllum3"), (Channel.B, "TextureBloom3")],
+                ["g_tTintMasks"] = [(Channel.R, "TextureTintMask0"), (Channel.G, "TextureTintMask1"), (Channel.B, "TextureTintMask2"), (Channel.A, "TextureTintMask3")],
+                ["g_tTint2Masks"] = [(Channel.R, "TextureTint2Mask0"), (Channel.G, "TextureTint2Mask1"), (Channel.B, "TextureTint2Mask2"), (Channel.A, "TextureTint2Mask3")],
             },
 
             ["hero"] = new()
             {
-                ["g_tColor"] = new[] { (Channel.RGB, "TextureColor"), (Channel.A, "TextureTranslucency") },
-                ["g_tNormal"] = new[] { (Channel.RGB, "TextureNormal") },
-                ["g_tCubeMap"] = new[] { (Channel.RGBA, "TextureCubeMap") },
-                ["g_tCubeMapSeparateMask"] = new[] { (Channel.G, "TextureCubeMapSeparateMask") },
-                ["g_tFresnelWarp"] = new[] { (Channel.R, "TextureFresnelWarpRim"), (Channel.G, "TextureFresnelWarpColor"), (Channel.B, "TextureFresnelWarpSpec") },
-                ["g_tMasks1"] = new[] { (Channel.R, "TextureDetailMask"), (Channel.G, "TextureDiffuseWarpMask"), (Channel.B, "TextureMetalnessMask"), (Channel.A, "TextureSelfIllumMask") },
-                ["g_tMasks2"] = new[] { (Channel.R, "TextureSpecularMask"), (Channel.G, "TextureRimMask"), (Channel.B, "TextureTintByBaseMask"), (Channel.A, "TextureSpecularExponent") },
-                ["g_tDetail"] = new[] { (Channel.RGBA, "TextureDetail") },
-                ["g_tDetail2"] = new[] { (Channel.RGBA, "TextureDetail2") },
+                ["g_tColor"] = [(Channel.RGB, "TextureColor"), (Channel.A, "TextureTranslucency")],
+                ["g_tNormal"] = [(Channel.RGB, "TextureNormal")],
+                ["g_tCubeMap"] = [(Channel.RGBA, "TextureCubeMap")],
+                ["g_tCubeMapSeparateMask"] = [(Channel.G, "TextureCubeMapSeparateMask")],
+                ["g_tFresnelWarp"] = [(Channel.R, "TextureFresnelWarpRim"), (Channel.G, "TextureFresnelWarpColor"), (Channel.B, "TextureFresnelWarpSpec")],
+                ["g_tMasks1"] = [(Channel.R, "TextureDetailMask"), (Channel.G, "TextureDiffuseWarpMask"), (Channel.B, "TextureMetalnessMask"), (Channel.A, "TextureSelfIllumMask")],
+                ["g_tMasks2"] = [(Channel.R, "TextureSpecularMask"), (Channel.G, "TextureRimMask"), (Channel.B, "TextureTintByBaseMask"), (Channel.A, "TextureSpecularExponent")],
+                ["g_tDetail"] = [(Channel.RGBA, "TextureDetail")],
+                ["g_tDetail2"] = [(Channel.RGBA, "TextureDetail2")],
             },
 
             ["grasstile_preview"] = new()
             {
-                ["g_tColor"] = new[] { (Channel.RGB, "TextureColor"), (Channel.A, "TextureTranslucency") },
-                ["g_tTintMask"] = new[] { (Channel.G, "TextureTintMask") },
-                ["g_tSpecular"] = new[] { (Channel.G, "TextureReflectance") },
-                ["g_tSelfIllum"] = new[] { (Channel.G, "TextureSelfIllum") },
+                ["g_tColor"] = [(Channel.RGB, "TextureColor"), (Channel.A, "TextureTranslucency")],
+                ["g_tTintMask"] = [(Channel.G, "TextureTintMask")],
+                ["g_tSpecular"] = [(Channel.G, "TextureReflectance")],
+                ["g_tSelfIllum"] = [(Channel.G, "TextureSelfIllum")],
             },
 
             ["generic"] = new()
             {
-                ["g_tColor"] = new[] { (Channel.RGB, "TextureColor") },
-                ["g_tNormal"] = new[] { (Channel.RGB, "TextureNormal") },
-                ["g_tMetalnessReflectanceFresnel"] = new[] { (Channel.R, "TextureMetalness"), (Channel.G, "TextureReflectance"), (Channel.B, "TextureFresnel") },
-                ["g_tRoughness"] = new[] { (Channel.R, "TextureRoughness"), },
+                ["g_tColor"] = [(Channel.RGB, "TextureColor")],
+                ["g_tNormal"] = [(Channel.RGB, "TextureNormal")],
+                ["g_tMetalnessReflectanceFresnel"] = [(Channel.R, "TextureMetalness"), (Channel.G, "TextureReflectance"), (Channel.B, "TextureFresnel")],
+                ["g_tRoughness"] = [(Channel.R, "TextureRoughness"),],
             },
 
             ["vr_standard"] = new()
             {
-                ["g_tColor"] = new[] { (Channel.RGB, "TextureColor"), (Channel.A, "TextureTranslucency") },
-                ["g_tColor1"] = new[] { (Channel.RGB, "TextureColor") },
-                ["g_tColor2"] = new[] { (Channel.RGB, "TextureColor") },
-                ["g_tNormal"] = new[] { (Channel.RGB, "TextureNormal") },
-                ["g_tNormal1"] = new[] { (Channel.RGB, "TextureNormal") },
-                ["g_tNormal2"] = new[] { (Channel.RGB, "TextureNormal") },
+                ["g_tColor"] = [(Channel.RGB, "TextureColor"), (Channel.A, "TextureTranslucency")],
+                ["g_tColor1"] = [(Channel.RGB, "TextureColor")],
+                ["g_tColor2"] = [(Channel.RGB, "TextureColor")],
+                ["g_tNormal"] = [(Channel.RGB, "TextureNormal")],
+                ["g_tNormal1"] = [(Channel.RGB, "TextureNormal")],
+                ["g_tNormal2"] = [(Channel.RGB, "TextureNormal")],
             },
 
             ["vr_complex"] = new()
             {
-                ["g_tColor"] = new[] { (Channel.RGB, "TextureColor"), (Channel.A, string.Empty) }, // Alpha can be metal or translucency
-                ["g_tNormal"] = new[] { (Channel.RGB, "TextureNormal"), (Channel.A, "TextureRoughness") }, // TODO: Figure out anisotropic gloss
+                ["g_tColor"] = [(Channel.RGB, "TextureColor"), (Channel.A, string.Empty)], // Alpha can be metal or translucency
+                ["g_tNormal"] = [(Channel.RGB, "TextureNormal"), (Channel.A, "TextureRoughness")], // TODO: Figure out anisotropic gloss
 
                 // These all work fine thanks to consistent names, but we can clean them up to save disk size.
                 // E.g. RGBA -> R (Grayscale)
-                ["g_tAmbientOcclusion"] = new[] { (Channel.R, "TextureAmbientOcclusion") },
-                ["g_tTintMask"] = new[] { (Channel.R, "TextureTintMask") },
+                ["g_tAmbientOcclusion"] = [(Channel.R, "TextureAmbientOcclusion")],
+                ["g_tTintMask"] = [(Channel.R, "TextureTintMask")],
 
-                ["g_tMetalness"] = new[] { (Channel.R, "TextureMetalness") },
-                ["g_tSelfIllumMask"] = new[] { (Channel.R, "TextureSelfIllumMask") },
-                ["g_tBentNormal"] = new[] { (Channel.RGB, "TextureBentNormal") }, // ATI2N
+                ["g_tMetalness"] = [(Channel.R, "TextureMetalness")],
+                ["g_tSelfIllumMask"] = [(Channel.R, "TextureSelfIllumMask")],
+                ["g_tBentNormal"] = [(Channel.RGB, "TextureBentNormal")], // ATI2N
 
-                ["g_tDetail"] = new[] { (Channel.RGB, "TextureDetail") },
-                ["g_tDetailMask"] = new[] { (Channel.R, "TextureDetailMask") },
-                ["g_tNormalDetail"] = new[] { (Channel.RGB, "TextureNormalDetail") }, // ATI2N
+                ["g_tDetail"] = [(Channel.RGB, "TextureDetail")],
+                ["g_tDetailMask"] = [(Channel.R, "TextureDetailMask")],
+                ["g_tNormalDetail"] = [(Channel.RGB, "TextureNormalDetail")], // ATI2N
 
-                ["g_tSquishColor"] = new[] { (Channel.RGB, "TextureSquishColor") },
-                ["g_tStretchColor"] = new[] { (Channel.RGB, "TextureStretchColor") },
-                ["g_tSquishNormal"] = new[] { (Channel.RGB, "TextureSquishNormal") },
-                ["g_tStretchNormal"] = new[] { (Channel.RGB, "TextureStretchNormal") },
-                ["g_tSquishAmbientOcclusion"] = new[] { (Channel.R, "TextureSquishAmbientOcclusion") },
-                ["g_tStretchAmbientOcclusion"] = new[] { (Channel.R, "TextureStretchAmbientOcclusion") },
+                ["g_tSquishColor"] = [(Channel.RGB, "TextureSquishColor")],
+                ["g_tStretchColor"] = [(Channel.RGB, "TextureStretchColor")],
+                ["g_tSquishNormal"] = [(Channel.RGB, "TextureSquishNormal")],
+                ["g_tStretchNormal"] = [(Channel.RGB, "TextureStretchNormal")],
+                ["g_tSquishAmbientOcclusion"] = [(Channel.R, "TextureSquishAmbientOcclusion")],
+                ["g_tStretchAmbientOcclusion"] = [(Channel.R, "TextureStretchAmbientOcclusion")],
 
             },
 
             ["vr_simple"] = new()
             {
-                ["g_tColor"] = new[] { (Channel.RGB, "TextureColor"), (Channel.A, string.Empty) }, // Alpha can be ao, metal or nothing at all
-                ["g_tNormal"] = new[] { (Channel.RGB, "TextureNormal"), (Channel.A, "TextureRoughness") },
+                ["g_tColor"] = [(Channel.RGB, "TextureColor"), (Channel.A, string.Empty)], // Alpha can be ao, metal or nothing at all
+                ["g_tNormal"] = [(Channel.RGB, "TextureNormal"), (Channel.A, "TextureRoughness")],
 
-                ["g_tAmbientOcclusion"] = new[] { (Channel.R, "TextureAmbientOcclusion") },
-                ["g_tTintMask"] = new[] { (Channel.R, "TextureTintMask") },
+                ["g_tAmbientOcclusion"] = [(Channel.R, "TextureAmbientOcclusion")],
+                ["g_tTintMask"] = [(Channel.R, "TextureTintMask")],
             },
 
             ["vr_simple_2way_blend"] = new()
             {
-                ["g_tColorA"] = new[] { (Channel.RGB, "TextureColorA"), (Channel.A, "TextureMetalnessA") },
-                ["g_tNormalA"] = new[] { (Channel.RGB, "TextureNormalA"), (Channel.A, "TextureRoughnessA") },
-                ["g_tColorB"] = new[] { (Channel.RGB, "TextureColorB"), (Channel.A, "TextureMetalnessB") },
-                ["g_tNormalB"] = new[] { (Channel.RGB, "TextureNormalB"), (Channel.A, "TextureRoughnessB") },
+                ["g_tColorA"] = [(Channel.RGB, "TextureColorA"), (Channel.A, "TextureMetalnessA")],
+                ["g_tNormalA"] = [(Channel.RGB, "TextureNormalA"), (Channel.A, "TextureRoughnessA")],
+                ["g_tColorB"] = [(Channel.RGB, "TextureColorB"), (Channel.A, "TextureMetalnessB")],
+                ["g_tNormalB"] = [(Channel.RGB, "TextureNormalB"), (Channel.A, "TextureRoughnessB")],
 
-                ["g_tMask"] = new[] { (Channel.R, "TextureMask") },
+                ["g_tMask"] = [(Channel.R, "TextureMask")],
             },
 
             ["vr_eyeball"] = new()
             {
-                ["g_tColor"] = new[] { (Channel.RGB, "TextureColor"), (Channel.A, "TextureReflectance") },
-                ["g_tIris"] = new[] { (Channel.RGB, "IrisNormal"), (Channel.A, "IrisRoughness") },
-                ["g_tNormal"] = new[] { (Channel.AG, "TextureNormal") },
+                ["g_tColor"] = [(Channel.RGB, "TextureColor"), (Channel.A, "TextureReflectance")],
+                ["g_tIris"] = [(Channel.RGB, "IrisNormal"), (Channel.A, "IrisRoughness")],
+                ["g_tNormal"] = [(Channel.AG, "TextureNormal")],
 
-                ["g_tIrisMask"] = new[] { (Channel.R, "TextureIrisMask") },
-                ["g_tSelfIllumMask"] = new[] { (Channel.R, "TextureSelfIllumMask") },
+                ["g_tIrisMask"] = [(Channel.R, "TextureIrisMask")],
+                ["g_tSelfIllumMask"] = [(Channel.R, "TextureSelfIllumMask")],
             },
 
             ["csgo_weapon"] = new()
             {
-                ["g_tColor"] = new[] { (Channel.RGB, "TextureColor") },
-                ["g_tMetalness"] = new[] { (Channel.R, "TextureRoughness"), (Channel.G, "TextureMetalness") },
-                ["g_tAmbientOcclusion"] = new[] { (Channel.R, "TextureAmbientOcclusion") },
+                ["g_tColor"] = [(Channel.RGB, "TextureColor")],
+                ["g_tMetalness"] = [(Channel.R, "TextureRoughness"), (Channel.G, "TextureMetalness")],
+                ["g_tAmbientOcclusion"] = [(Channel.R, "TextureAmbientOcclusion")],
             },
 
             ["sky"] = new()
             {
-                ["g_tSkyTexture"] = new[] { (Channel.RGBA, "SkyTexture") },
+                ["g_tSkyTexture"] = [(Channel.RGBA, "SkyTexture")],
             }
         };
 
