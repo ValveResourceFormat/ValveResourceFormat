@@ -12,6 +12,7 @@ namespace ValveResourceFormat.IO
     {
         private const string AddonsSuffix = "_addons";
         private const string GameinfoGi = "gameinfo.gi";
+        public const string CompiledFileSuffix = "_c";
 
         private static readonly string[] ModIdentifiers =
         [
@@ -188,7 +189,7 @@ namespace ValveResourceFormat.IO
             }
 
 #if DEBUG
-            if (string.IsNullOrEmpty(file) || file == "_c")
+            if (string.IsNullOrEmpty(file) || file == CompiledFileSuffix)
             {
                 Console.Error.WriteLine($"Empty string passed to file loader here: {Environment.StackTrace}");
 
@@ -291,6 +292,8 @@ namespace ValveResourceFormat.IO
                 return shader;
             }
         }
+
+        public virtual Resource LoadFileCompiled(string file) => LoadFile(string.Concat(file, CompiledFileSuffix));
 
         public virtual Resource LoadFile(string file)
         {

@@ -22,7 +22,7 @@ namespace GUI.Types.Exporter
 
         public static void ExtractFileFromStream(string fileName, Stream stream, VrfGuiContext vrfGuiContext, bool decompile)
         {
-            if (decompile && fileName.EndsWith("_c", StringComparison.Ordinal))
+            if (decompile && fileName.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal))
             {
                 var exportData = new ExportData
                 {

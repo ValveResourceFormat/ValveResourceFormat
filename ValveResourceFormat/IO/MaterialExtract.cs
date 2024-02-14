@@ -54,7 +54,7 @@ public sealed class MaterialExtract
         var handledTextures = new List<string>(material.TextureParams.Count);
         foreach (var (type, filePath) in material.TextureParams)
         {
-            var textureCompiledName = filePath + "_c";
+            var textureCompiledName = filePath + GameFileLoader.CompiledFileSuffix;
             if (handledTextures.Contains(textureCompiledName))
             {
                 continue;

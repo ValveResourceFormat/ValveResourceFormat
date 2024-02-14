@@ -30,7 +30,7 @@ namespace ValveResourceFormat.IO
             // Load animation files
             foreach (var animationFile in animArray)
             {
-                var animResource = fileLoader.LoadFile(animationFile + "_c");
+                var animResource = fileLoader.LoadFileCompiled(animationFile);
 
                 if (animResource != null)
                 {

@@ -140,7 +140,7 @@ namespace ValveResourceFormat.ResourceTypes
                 return;
             }
 
-            TextureResource = fileLoader.LoadFile(atlasPath + "_c");
+            TextureResource = fileLoader.LoadFileCompiled(atlasPath);
             if (TextureResource == null)
             {
                 return;

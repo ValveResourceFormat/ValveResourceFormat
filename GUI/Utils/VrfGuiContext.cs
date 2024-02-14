@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using GUI.Types.Renderer;
 using SteamDatabase.ValvePak;
 using ValveResourceFormat;
+using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization;
 using ValveResourceFormat.ToolsAssetInfo;
@@ -96,9 +97,7 @@ namespace GUI.Utils
         }
 
         public Resource LoadFile(string file) => FileLoader.LoadFile(file);
-
-        private const string CompiledFileSuffix = "_c";
-        public Resource LoadFileCompiled(string file) => FileLoader.LoadFile(string.Concat(file, CompiledFileSuffix));
+        public Resource LoadFileCompiled(string file) => FileLoader.LoadFileCompiled(file);
 
         public void ClearCache()
         {

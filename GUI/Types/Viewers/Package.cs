@@ -10,6 +10,7 @@ using SteamDatabase.ValvePak;
 using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
+using ValveResourceFormat.IO;
 
 namespace GUI.Types.Viewers
 {
@@ -141,7 +142,7 @@ namespace GUI.Types.Viewers
                 {
                     var magicResourceVersion = BitConverter.ToUInt16(data, 4);
 
-                    if (Resource.IsAccepted(magicResourceVersion) && name.EndsWith("_c", StringComparison.Ordinal))
+                    if (Resource.IsAccepted(magicResourceVersion) && name.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal))
                     {
                         resourceEntries.Add(entry);
                     }
@@ -306,7 +307,7 @@ namespace GUI.Types.Viewers
                             {
                                 var resourceTypeExtension = resource.ResourceType.GetExtension();
                                 resourceTypeExtensionWithDot = string.Concat(".", resourceTypeExtension);
-                                newEntry.TypeName = string.Concat(resourceTypeExtension, "_c");
+                                newEntry.TypeName = string.Concat(resourceTypeExtension, GameFileLoader.CompiledFileSuffix);
                             }
 
                             string filepath = null;
@@ -327,7 +328,7 @@ namespace GUI.Types.Viewers
                                 // Fix panorama extension
                                 if (filepath != null && resourceTypeExtensionWithDot == ".vtxt")
                                 {
-                                    newEntry.TypeName = string.Concat(Path.GetExtension(filepath)[1..], "_c");
+                                    newEntry.TypeName = string.Concat(Path.GetExtension(filepath)[1..], GameFileLoader.CompiledFileSuffix);
                                 }
                             }
 

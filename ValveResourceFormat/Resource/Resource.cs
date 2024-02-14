@@ -4,6 +4,7 @@ using System.Text;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
 using ValveResourceFormat.CompiledShader;
+using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Utils;
 
@@ -516,7 +517,7 @@ namespace ValveResourceFormat
                 return ResourceType.Unknown;
             }
 
-            extension = extension.EndsWith("_c", StringComparison.Ordinal) ? extension[1..^2] : extension[1..];
+            extension = extension.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal) ? extension[1..^2] : extension[1..];
 
             var fields = typeof(ResourceType).GetFields(BindingFlags.Public | BindingFlags.Static);
 

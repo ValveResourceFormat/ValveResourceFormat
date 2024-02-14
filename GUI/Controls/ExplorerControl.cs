@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Utils;
 using ValveKeyValue;
+using ValveResourceFormat.IO;
 
 namespace GUI.Controls
 {
@@ -643,7 +644,7 @@ namespace GUI.Controls
         private void DebugAddEmbeddedResourcesToTree()
         {
             var assembly = System.Reflection.Assembly.GetExecutingAssembly();
-            var embeddedResources = assembly.GetManifestResourceNames().Where(n => n.StartsWith("GUI.Utils.", StringComparison.Ordinal) && n.EndsWith("_c", StringComparison.Ordinal));
+            var embeddedResources = assembly.GetManifestResourceNames().Where(n => n.StartsWith("GUI.Utils.", StringComparison.Ordinal) && n.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal));
 
             var imageIndex = MainForm.GetImageIndexForExtension("bsp");
             var embeddedFilesTreeNode = new TreeNode("Embedded Resources")

@@ -336,7 +336,7 @@ namespace GUI.Types.Viewers
 
                 Log.Debug(nameof(Resource), $"Opening {name} from external refs");
 
-                var foundFile = guiFileLoader.FindFileWithContext(name + "_c");
+                var foundFile = guiFileLoader.FindFileWithContext(name + GameFileLoader.CompiledFileSuffix);
                 if (foundFile.Context == null)
                 {
                     foundFile = guiFileLoader.FindFileWithContext(name);

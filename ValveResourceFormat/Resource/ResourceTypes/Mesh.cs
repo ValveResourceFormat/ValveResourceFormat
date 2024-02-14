@@ -102,7 +102,7 @@ namespace ValveResourceFormat.ResourceTypes
                 var morphSetPath = Data.GetStringProperty("m_morphSet");
                 if (!string.IsNullOrEmpty(morphSetPath))
                 {
-                    var morphSetResource = fileLoader.LoadFile(morphSetPath + "_c");
+                    var morphSetResource = fileLoader.LoadFileCompiled(morphSetPath);
                     if (morphSetResource != null)
                     {
                         MorphData = morphSetResource.GetBlockByType(BlockType.MRPH) as Morph;

@@ -226,7 +226,7 @@ namespace ValveResourceFormat.ResourceTypes
             // Load animations from referenced animation groups
             foreach (var animGroupPath in animGroupPaths)
             {
-                var animGroup = fileLoader.LoadFile(animGroupPath + "_c");
+                var animGroup = fileLoader.LoadFileCompiled(animGroupPath);
                 if (animGroup != default)
                 {
                     animations.AddRange(AnimationGroupLoader.LoadAnimationGroup(animGroup, fileLoader, Skeleton, FlexControllers));

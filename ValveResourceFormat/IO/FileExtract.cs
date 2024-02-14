@@ -25,7 +25,7 @@ namespace ValveResourceFormat.IO
             get => outFileName;
             set
             {
-                outFileName = value.EndsWith("_c", StringComparison.InvariantCultureIgnoreCase)
+                outFileName = value.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.InvariantCultureIgnoreCase)
                 ? value[..^2]
                 : value;
             }
@@ -104,6 +104,8 @@ namespace ValveResourceFormat.IO
 
             return resource;
         }
+
+        public Resource LoadFileCompiled(string file) => LoadFile(string.Concat(file, GameFileLoader.CompiledFileSuffix));
 
         public ShaderCollection LoadShader(string shaderName) => fileLoader.LoadShader(shaderName);
 

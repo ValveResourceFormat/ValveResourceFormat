@@ -201,7 +201,7 @@ namespace Decompiler
                             return false;
                         }
 
-                        return s.EndsWith("_c", StringComparison.Ordinal) || s.EndsWith(".vcs", StringComparison.Ordinal);
+                        return s.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal) || s.EndsWith(".vcs", StringComparison.Ordinal);
                     })
                     .ToList();
 
@@ -436,7 +436,7 @@ namespace Decompiler
                 {
                     extension = Path.GetExtension(path);
 
-                    if (extension.EndsWith("_c", StringComparison.Ordinal))
+                    if (extension.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal))
                     {
                         extension = extension[..^2];
                     }
@@ -708,7 +708,7 @@ namespace Decompiler
                             return RecursiveSearchArchives;
                         }
 
-                        return x.Key.EndsWith("_c", StringComparison.Ordinal);
+                        return x.Key.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal);
                     }).ToList();
                 }
 
@@ -944,7 +944,7 @@ namespace Decompiler
                     package.ReadEntry(file, rawFileData);
 
                     // Not a file that can be decompiled, or no decompilation was requested
-                    if (!Decompile || !type.EndsWith("_c", StringComparison.Ordinal))
+                    if (!Decompile || !type.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal))
                     {
                         if (OutputFile != null)
                         {

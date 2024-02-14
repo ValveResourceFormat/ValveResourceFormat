@@ -14,6 +14,7 @@ using GUI.Types.Exporter;
 using GUI.Types.Renderer;
 using GUI.Utils;
 using SteamDatabase.ValvePak;
+using ValveResourceFormat.IO;
 using ValveResourceFormat.Utils;
 
 namespace GUI
@@ -156,7 +157,7 @@ namespace GUI
 
                         if (packageFile == null)
                         {
-                            packageFile = package.FindEntry(innerFile + "_c");
+                            packageFile = package.FindEntry(innerFile + GameFileLoader.CompiledFileSuffix);
 
                             if (packageFile == null)
                             {
@@ -1071,7 +1072,7 @@ namespace GUI
 
         public static int GetImageIndexForExtension(string extension)
         {
-            if (extension.EndsWith("_c", StringComparison.Ordinal))
+            if (extension.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal))
             {
                 extension = extension[0..^2];
             }

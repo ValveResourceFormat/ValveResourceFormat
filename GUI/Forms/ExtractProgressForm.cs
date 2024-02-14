@@ -58,7 +58,7 @@ namespace GUI.Forms
             foreach (var resourceType in ExtractOrder)
             {
                 var extension = resourceType.GetExtension();
-                filesToExtractSorted.Add(extension + "_c", new());
+                filesToExtractSorted.Add(extension + GameFileLoader.CompiledFileSuffix, new());
             }
 
             this.path = path;
@@ -124,7 +124,7 @@ namespace GUI.Forms
                     "vxml_c" => "xml",
                     "vcss_c" => "css",
                     "vsvg_c" => "svg",
-                    _ when type.Key.EndsWith("_c", StringComparison.OrdinalIgnoreCase) => type.Key[..^2],
+                    _ when type.Key.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.OrdinalIgnoreCase) => type.Key[..^2],
                     _ => type.Key,
                 };
 
@@ -195,7 +195,7 @@ namespace GUI.Forms
                     foreach (var resourceType in ExtractOrder)
                     {
                         var extension = resourceType.GetExtension();
-                        var files = filesToExtractSorted[extension + "_c"];
+                        var files = filesToExtractSorted[extension + GameFileLoader.CompiledFileSuffix];
 
                         if (files.Count > 0)
                         {
@@ -314,7 +314,7 @@ namespace GUI.Forms
 
                 Directory.CreateDirectory(outFolder);
 
-                if (!decompile || !packageFile.TypeName.EndsWith("_c", StringComparison.Ordinal))
+                if (!decompile || !packageFile.TypeName.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal))
                 {
                     // Extract as is
                     var outStream = File.OpenWrite(outFilePath);
@@ -349,7 +349,7 @@ namespace GUI.Forms
                 return;
             }
 
-            if (outExtension == ".sound" || outExtension == ".image" || outExtension.EndsWith("_c", StringComparison.Ordinal))
+            if (outExtension == ".sound" || outExtension == ".image" || outExtension.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal))
             {
                 var extension = FileExtract.GetExtension(resource);
 
@@ -378,7 +378,7 @@ namespace GUI.Forms
                 string contentRelativeFolder;
                 foreach (var additionalFile in contentFile.AdditionalFiles)
                 {
-                    extractedFiles.Add(additionalFile.FileName + "_c");
+                    extractedFiles.Add(additionalFile.FileName + GameFileLoader.CompiledFileSuffix);
                     var fileNameOut = additionalFile.FileName;
 
                     if (additionalFile.Data != null)

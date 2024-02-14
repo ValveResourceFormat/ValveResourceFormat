@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using NUnit.Framework;
 using ValveResourceFormat;
+using ValveResourceFormat.IO;
 using ValveResourceFormat.Utils;
 
 namespace Tests
@@ -40,7 +41,7 @@ namespace Tests
                 // Verify extension
                 var extension = Path.GetExtension(file);
 
-                if (extension.EndsWith("_c", StringComparison.Ordinal))
+                if (extension.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal))
                 {
                     extension = extension[..^2];
                 }

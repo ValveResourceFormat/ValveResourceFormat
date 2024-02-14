@@ -165,7 +165,7 @@ public sealed class MapExtract
             return default;
         }
 
-        using var physicsResource = FileLoader.LoadFile(WorldPhysicsName + "_c");
+        using var physicsResource = FileLoader.LoadFileCompiled(WorldPhysicsName);
         if (physicsResource == null)
         {
             return default;
@@ -230,7 +230,7 @@ public sealed class MapExtract
         var physData = LoadWorldPhysics();
         if (physData != null)
         {
-            FolderExtractFilter.Add(WorldPhysicsName + "_c"); // TODO: put vphys on vmdl.AdditionalFiles
+            FolderExtractFilter.Add(WorldPhysicsName + GameFileLoader.CompiledFileSuffix); // TODO: put vphys on vmdl.AdditionalFiles
             var physModelNames = WorldPhysicsNamesToExtract(WorldPhysicsName);
 
             //var original = new ModelExtract(physData, physModelNames.Original).ToContentFile();
@@ -246,7 +246,7 @@ public sealed class MapExtract
 
         foreach (var meshName in MeshesToExtract)
         {
-            var meshNameCompiled = meshName + "_c";
+            var meshNameCompiled = meshName + GameFileLoader.CompiledFileSuffix;
             using var mesh = FileLoader.LoadFile(meshNameCompiled);
             if (mesh is not null)
             {
@@ -258,7 +258,7 @@ public sealed class MapExtract
 
         foreach (var modelName in ModelsToExtract)
         {
-            using var model = FileLoader.LoadFile(modelName + "_c");
+            using var model = FileLoader.LoadFileCompiled(modelName);
             if (model is not null)
             {
                 var data = (Model)model.DataBlock;
@@ -286,7 +286,7 @@ public sealed class MapExtract
         // Export all gathered vsnap files
         foreach (var snapshotName in SnapshotsToExtract)
         {
-            using var snapshot = FileLoader.LoadFile(snapshotName + "_c");
+            using var snapshot = FileLoader.LoadFileCompiled(snapshotName);
             if (snapshot is not null)
             {
                 var snapshotExtract = new SnapshotExtract(snapshot);
@@ -344,7 +344,7 @@ public sealed class MapExtract
 
         foreach (var entityLumpName in EntityLumpNames)
         {
-            var entityLumpCompiled = entityLumpName + "_c";
+            var entityLumpCompiled = entityLumpName + GameFileLoader.CompiledFileSuffix;
             FolderExtractFilter.Add(entityLumpCompiled);
 
             using var entityLumpResource = FileLoader.LoadFile(entityLumpCompiled);
@@ -537,7 +537,7 @@ public sealed class MapExtract
             var aggregateHasTransforms = fragmentTransforms.Length > 0;
 
             // maybe not load and export model here
-            using (var modelRes = FileLoader.LoadFile(modelName + "_c"))
+            using (var modelRes = FileLoader.LoadFileCompiled(modelName))
             {
                 // TODO: reference meshes
                 var mesh = ((Model)modelRes.DataBlock).GetEmbeddedMeshes().First();
@@ -698,7 +698,7 @@ public sealed class MapExtract
 
         foreach (var childLumpName in entityLump.GetChildEntityNames())
         {
-            using var entityLumpResource = FileLoader.LoadFile(childLumpName + "_c");
+            using var entityLumpResource = FileLoader.LoadFileCompiled(childLumpName);
             if (entityLumpResource is not null)
             {
                 GatherEntitiesFromLump((EntityLump)entityLumpResource.DataBlock);

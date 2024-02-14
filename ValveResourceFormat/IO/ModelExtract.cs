@@ -76,7 +76,7 @@ public class ModelExtract
         var refPhysics = model.GetReferencedPhysNames().FirstOrDefault();
         if (refPhysics != null)
         {
-            using var physResource = fileLoader.LoadFile(refPhysics + "_c");
+            using var physResource = fileLoader.LoadFileCompiled(refPhysics);
 
             if (physResource != null)
             {
@@ -685,7 +685,7 @@ public class ModelExtract
 
         foreach (var reference in model.GetReferenceMeshNamesAndLoD())
         {
-            using var resource = fileLoader.LoadFile(reference.MeshName + "_c");
+            using var resource = fileLoader.LoadFileCompiled(reference.MeshName);
 
             if (resource is null)
             {
@@ -701,7 +701,7 @@ public class ModelExtract
             var materialReferences = resource?.ExternalReferences?.ResourceRefInfoList.Where(static r => r.Name[^4..] == "vmat");
             foreach (var material in materialReferences ?? [])
             {
-                using var materialResource = fileLoader.LoadFile(material.Name + "_c");
+                using var materialResource = fileLoader.LoadFileCompiled(material.Name);
                 MaterialInputSignatures[material.Name] = (materialResource?.DataBlock as Material)?.GetInputSignature();
             }
         }

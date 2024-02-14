@@ -6,6 +6,7 @@ using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Forms;
 using GUI.Utils;
+using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Utils;
 using static GUI.Controls.SavedCameraPositionsControl;
@@ -371,7 +372,7 @@ namespace GUI.Types.Renderer
                 }
             }
 
-            var foundFile = GuiContext.FileLoader.FindFileWithContext(filename + "_c");
+            var foundFile = GuiContext.FileLoader.FindFileWithContext(filename + GameFileLoader.CompiledFileSuffix);
 
             if (foundFile.Context == null)
             {

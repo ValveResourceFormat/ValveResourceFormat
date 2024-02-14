@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Utils;
+using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
 
 namespace GUI.Types.Renderer
@@ -295,7 +296,7 @@ namespace GUI.Types.Renderer
                 var refMesh = modelSceneNode.GetLod1RefMeshes().FirstOrDefault(x => x.MeshIndex == pickingResponse.PixelInfo.MeshId);
                 if (refMesh.MeshName != null)
                 {
-                    var foundFile = GuiContext.FileLoader.FindFileWithContext(refMesh.MeshName + "_c");
+                    var foundFile = GuiContext.FileLoader.FindFileWithContext(refMesh.MeshName + GameFileLoader.CompiledFileSuffix);
                     if (foundFile.Context != null)
                     {
                         var task = Program.MainForm.OpenFile(foundFile.Context, foundFile.PackageEntry);

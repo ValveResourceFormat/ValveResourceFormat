@@ -152,5 +152,7 @@ namespace GUI.Utils
 
             return resource;
         }
+
+        public override Resource LoadFileCompiled(string file) => LoadFile(string.Concat(file, CompiledFileSuffix));
     }
 }

@@ -128,7 +128,7 @@ namespace ValveResourceFormat.IO
                     case ResourceType.Map:
                         {
                             var firstWorldFile = resource.ExternalReferences.ResourceRefInfoList.First(static r => Path.GetExtension(r.Name) == ".vwrld");
-                            var worldFile = string.Concat(firstWorldFile.Name, "_c");
+                            var worldFile = string.Concat(firstWorldFile.Name, GameFileLoader.CompiledFileSuffix);
                             var mapResource = FileLoader.LoadFile(worldFile) ?? throw new FileNotFoundException($"Failed to load \"{worldFile}\"");
                             ExportToFile(resource.FileName, targetPath, (VWorld)mapResource.DataBlock);
                             break;
@@ -187,7 +187,7 @@ namespace ValveResourceFormat.IO
                 {
                     continue;
                 }
-                var entityLumpResource = FileLoader.LoadFile(lumpName + "_c");
+                var entityLumpResource = FileLoader.LoadFileCompiled(lumpName);
                 if (entityLumpResource == null)
                 {
                     continue;
@@ -214,7 +214,7 @@ namespace ValveResourceFormat.IO
                     // TODO: Think about adding lights with KHR_lights_punctual
                 }
 
-                var modelResource = FileLoader.LoadFile(modelName + "_c");
+                var modelResource = FileLoader.LoadFileCompiled(modelName);
                 if (modelResource == null)
                 {
                     continue;
@@ -241,7 +241,7 @@ namespace ValveResourceFormat.IO
                 {
                     continue;
                 }
-                var childEntityLumpResource = FileLoader.LoadFile(childEntityName + "_c");
+                var childEntityLumpResource = FileLoader.LoadFileCompiled(childEntityName);
                 if (childEntityLumpResource == null)
                 {
                     continue;
@@ -294,7 +294,7 @@ namespace ValveResourceFormat.IO
                     continue;
                 }
 
-                var modelResource = FileLoader.LoadFile(renderableModel + "_c");
+                var modelResource = FileLoader.LoadFileCompiled(renderableModel);
                 if (modelResource == null)
                 {
                     continue;
@@ -312,7 +312,7 @@ namespace ValveResourceFormat.IO
 
                 if (renderableModel != null)
                 {
-                    var modelResource = FileLoader.LoadFile(renderableModel + "_c");
+                    var modelResource = FileLoader.LoadFileCompiled(renderableModel);
 
                     if (modelResource == null)
                     {
@@ -549,7 +549,7 @@ namespace ValveResourceFormat.IO
                 .Select(m =>
                 {
                     // Load mesh from file
-                    var meshResource = FileLoader.LoadFile(m.MeshName + "_c");
+                    var meshResource = FileLoader.LoadFileCompiled(m.MeshName);
                     var nodeName = Path.GetFileNameWithoutExtension(m.MeshName);
                     if (meshResource == null)
                     {
@@ -1008,7 +1008,7 @@ namespace ValveResourceFormat.IO
 
                     ProgressReporter?.Report($"Loading material: {materialPath}");
 
-                    var materialResource = FileLoader.LoadFile(materialPath + "_c");
+                    var materialResource = FileLoader.LoadFileCompiled(materialPath);
 
                     if (materialResource == null)
                     {
@@ -1315,7 +1315,7 @@ namespace ValveResourceFormat.IO
                 }
 
                 // Not being disposed because ORM may use same texture multiple times and there's issues with concurrency
-                var textureResource = FileLoader.LoadFile(texturePath + "_c");
+                var textureResource = FileLoader.LoadFileCompiled(texturePath);
 
                 if (textureResource == null)
                 {
