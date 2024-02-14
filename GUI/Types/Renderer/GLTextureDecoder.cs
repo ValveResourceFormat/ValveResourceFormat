@@ -9,6 +9,7 @@ using OpenTK.Graphics.OpenGL;
 using SkiaSharp;
 using ValveResourceFormat;
 using ValveResourceFormat.CompiledShader;
+using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.TextureDecoders;
 using ValveResourceFormat.Utils;
 using static ValveResourceFormat.ResourceTypes.Texture;
@@ -133,8 +134,7 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
 
         GLViewerControl.CheckOpenGL();
 
-        GL.GetInternalformat(ImageTarget.Texture2D, SizedInternalFormat.Rgba8, InternalFormatParameter.InternalformatPreferred, 1, out int internalFormatPreferred);
-        Framebuffer = Framebuffer.Prepare(4, 4, 0, new((PixelInternalFormat)internalFormatPreferred, PixelFormat.Bgra, PixelType.UnsignedByte), null);
+        Framebuffer = Framebuffer.Prepare(4, 4, 0, LDRFormat.Value, null);
         Framebuffer.Initialize();
         Framebuffer.CheckStatus_ThrowIfIncomplete(nameof(GLTextureDecoder));
         Framebuffer.ClearMask = ClearBufferMask.ColorBufferBit;
@@ -166,6 +166,20 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
     {
         var sw = Stopwatch.StartNew();
         var inputTexture = guiContext.MaterialLoader.LoadTexture(request.Resource, isViewerRequest: true);
+
+        var textureData = (Texture)request.Resource.DataBlock;
+
+        switch (textureData.IsHighDynamicRange, Framebuffer.ColorFormat.PixelType)
+        {
+            case (true, PixelType.UnsignedByte):
+                Framebuffer.ChangeFormat(HDRFormat.Value, null);
+                break;
+            case (false, PixelType.Float):
+                Framebuffer.ChangeFormat(LDRFormat.Value, null);
+                break;
+            default:
+                break;
+        }
 
         inputTexture.SetFiltering(TextureMinFilter.NearestMipmapNearest, TextureMagFilter.Nearest);
 
@@ -216,9 +230,12 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
 
         var pixels = request.Bitmap.GetPixels(out var length);
 
-        Debug.Assert(request.Bitmap.ColorType == SKColorType.Bgra8888);
+        var (bitmapFormat, bitmapSizeInBytes) = textureData.IsHighDynamicRange
+            ? (SKColorType.RgbaF32, 16)
+            : (SKColorType.Bgra8888, 4);
 
-        if (length > inputTexture.Width * inputTexture.Height * 4)
+        Debug.Assert(request.Bitmap.ColorType == bitmapFormat);
+        if (length < inputTexture.Width * inputTexture.Height * bitmapSizeInBytes)
         {
             return false;
         }
@@ -226,7 +243,7 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
         // extract pixels from framebuffer
         GL.Flush();
         GL.Finish();
-        GL.ReadPixels(0, 0, request.Bitmap.Width, request.Bitmap.Height, PixelFormat.Bgra, PixelType.UnsignedByte, pixels);
+        GL.ReadPixels(0, 0, request.Bitmap.Width, request.Bitmap.Height, Framebuffer.ColorFormat.PixelFormat, Framebuffer.ColorFormat.PixelType, pixels);
 
         request.DecodeTime = sw.Elapsed;
         return true;
@@ -262,6 +279,23 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
         queueUpdateEvent.Dispose();
         guiContext.Dispose();
         Log.Info(nameof(GLTextureDecoder), "Decoder has been disposed.");
+    }
+
+    public static (SizedInternalFormat SizedInternalFormat, PixelFormat PixelFormat, PixelType PixelType) GetImageExportFormat(bool hdr) => hdr switch
+    {
+        false => (SizedInternalFormat.Rgba8, PixelFormat.Bgra, PixelType.UnsignedByte),
+        true => (SizedInternalFormat.Rgba32f, PixelFormat.Rgba, PixelType.Float),
+    };
+
+    public Lazy<Framebuffer.AttachmentFormat> LDRFormat { get; } = new(() => GetPreferredFramebufferFormat(hdr: true));
+    public Lazy<Framebuffer.AttachmentFormat> HDRFormat { get; } = new(() => GetPreferredFramebufferFormat(hdr: false));
+
+    public static Framebuffer.AttachmentFormat GetPreferredFramebufferFormat(bool hdr)
+    {
+        var (internalFormat, pixelFormat, pixelType) = GetImageExportFormat(hdr);
+
+        GL.GetInternalformat(ImageTarget.Texture2D, internalFormat, InternalFormatParameter.InternalformatPreferred, 1, out int internalFormatPreferred);
+        return new((PixelInternalFormat)internalFormatPreferred, pixelFormat, pixelType);
     }
 
     public static string GetTextureTypeDefine(TextureTarget target) => target switch
