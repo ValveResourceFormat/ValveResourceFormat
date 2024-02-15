@@ -77,7 +77,7 @@
 
 vec3 getSunDir()
 {
-    return -normalize(mat3(vLightPosition) * vec3(-1, 0, 0));
+    return normalize(mat3(vLightPosition) * vec3(-1, 0, 0));
 }
 
 vec3 getSunColor()
@@ -89,7 +89,7 @@ vec3 getSunColor()
 // This should contain our direct lighting loop
 void CalculateDirectLighting(inout LightingTerms_t lighting, inout MaterialProperties_t mat)
 {
-    vec3 lightVector = normalize(-getSunDir());
+    vec3 lightVector = getSunDir();
 
     // Lighting
     float visibility = 1.0;
