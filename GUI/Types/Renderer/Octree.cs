@@ -188,6 +188,33 @@ namespace GUI.Types.Renderer
                     }
                 }
             }
+
+            public AABB GetBounds()
+            {
+                var mins = new Vector3(float.MaxValue);
+                var maxs = new Vector3(-float.MaxValue);
+
+                if (HasElements)
+                {
+                    foreach (var element in Elements)
+                    {
+                        mins = Vector3.Min(mins, element.BoundingBox.Min);
+                        maxs = Vector3.Max(maxs, element.BoundingBox.Max);
+                    }
+                }
+
+                if (HasChildren)
+                {
+                    foreach (var child in Children)
+                    {
+                        var childBounds = child.GetBounds();
+                        mins = Vector3.Min(mins, childBounds.Min);
+                        maxs = Vector3.Max(maxs, childBounds.Max);
+                    }
+                }
+
+                return new AABB(mins, maxs);
+            }
         }
 
         public Node Root { get; }

@@ -38,6 +38,7 @@ namespace GUI.Types.Renderer
         private readonly List<RenderableMesh> meshRenderers = [];
         private readonly List<Animation> animations = [];
 
+        public bool IsAnimated => animationTexture != null;
         private RenderTexture animationTexture;
         private readonly int bonesCount;
 
@@ -91,7 +92,7 @@ namespace GUI.Types.Renderer
 
             var frame = AnimationController.GetFrame();
 
-            if (animationTexture != null)
+            if (IsAnimated)
             {
                 // Update animation matrices
 

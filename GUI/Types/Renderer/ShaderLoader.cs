@@ -208,6 +208,7 @@ namespace GUI.Types.Renderer
         {
             "vrf.background" => "background",
             "vrf.default" => "default",
+            "vrf.depth_only" => "depth_only",
             "vrf.grid" => "grid",
             "vrf.picking" => "picking",
             "vrf.particle.sprite" => "particle_sprite",

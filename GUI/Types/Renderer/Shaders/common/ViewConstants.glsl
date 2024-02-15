@@ -6,6 +6,7 @@ layout(std140, binding = 0) uniform ViewConstants {
     mat4 g_matWorldToView;
     vec3 g_vCameraPositionWs;
     float g_flTime;
+    mat4 g_matWorldToShadow;
     vec4 g_vClearColor;
     bvec4 g_bFogTypeEnabled;
     vec4 g_vGradientFogBiasAndScale;

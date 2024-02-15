@@ -68,11 +68,12 @@ namespace GUI.Types.Renderer
             };
 
             Scene.LightingInfo.AddEnvironmentMap(environmentMap);
+            Scene.LightingInfo.UseSceneBoundsForSunLightFrustum = true;
         }
 
         protected override void OnPaint(object sender, RenderEventArgs e)
         {
-            Scene.LightingInfo.LightingData.SunLightPosition = Camera.ViewProjectionMatrix;
+            Scene.LightingInfo.LightingData.SunLightPosition = Camera.CameraViewMatrix;
             Scene.LightingInfo.LightingData.SunLightColor = Vector4.One;
 
             base.OnPaint(sender, e);

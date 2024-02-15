@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Linq;
 using GUI.Types.Renderer.UniformBuffers;
 using GUI.Utils;
+using static GUI.Types.Renderer.GLSceneViewer;
 
 namespace GUI.Types.Renderer
 {
@@ -217,9 +218,6 @@ namespace GUI.Types.Renderer
                         }
                     }
                 }
-                else if (node is SceneAggregate aggregate)
-                {
-                }
                 else if (node is SceneAggregate.Fragment fragment)
                 {
                     Add(new MeshBatchRenderer.Request
@@ -241,6 +239,99 @@ namespace GUI.Types.Renderer
             }
 
             renderLooseNodes.Sort(MeshBatchRenderer.CompareCameraDistance);
+        }
+
+        private List<SceneNode> CulledShadowNodes { get; } = [];
+        private Dictionary<DepthOnlyProgram, List<MeshBatchRenderer.Request>> CulledShadowDrawCalls { get; } = new()
+        {
+            [DepthOnlyProgram.Static] = [],
+            [DepthOnlyProgram.StaticAlphaTest] = [],
+            [DepthOnlyProgram.Animated] = [],
+        };
+
+        public void SetupSceneShadows(Camera camera, Span<Shader> depthOnlyShaders)
+        {
+            if (!LightingInfo.EnableDynamicShadows)
+            {
+                return;
+            }
+
+            LightingInfo.UpdateSunLightFrustum(camera);
+
+            foreach (var bucket in CulledShadowDrawCalls.Values)
+            {
+                bucket.Clear();
+            }
+
+            StaticOctree.Root.Query(LightingInfo.SunLightFrustum, CulledShadowNodes);
+
+            if (LightingInfo.HasBakedShadowsFromLightmap)
+            {
+                // Can also check for the NoShadows flag
+                CulledShadowNodes.RemoveAll(static node => node.LayerName != "Entities");
+            }
+
+            DynamicOctree.Root.Query(LightingInfo.SunLightFrustum, CulledShadowNodes);
+
+            List<RenderableMesh> listWithSingleMesh = [null];
+
+            foreach (var node in CulledShadowNodes)
+            {
+                List<RenderableMesh> meshes;
+
+                if (node is IRenderableMeshCollection meshCollection)
+                {
+                    meshes = meshCollection.RenderableMeshes;
+                }
+                else if (node is SceneAggregate aggregate)
+                {
+                    listWithSingleMesh[0] = aggregate.RenderMesh;
+                    meshes = listWithSingleMesh;
+                }
+                else
+                {
+                    continue;
+                }
+
+                var animated = node is ModelSceneNode model && model.IsAnimated;
+
+                foreach (var mesh in meshes)
+                {
+                    foreach (var opaqueCall in mesh.DrawCallsOpaque)
+                    {
+                        var bucket = (opaqueCall.Material.IsAlphaTest, animated) switch
+                        {
+                            (false, false) => DepthOnlyProgram.Static,
+                            (true, _) => DepthOnlyProgram.StaticAlphaTest,
+                            (false, true) => DepthOnlyProgram.Animated,
+                        };
+
+                        CulledShadowDrawCalls[bucket].Add(new MeshBatchRenderer.Request
+                        {
+                            Transform = node.Transform,
+                            Mesh = mesh,
+                            Call = opaqueCall,
+                            Node = node,
+                        });
+                    }
+                }
+            }
+
+            CulledShadowNodes.Clear();
+        }
+
+        public void RenderOpaqueShadows(RenderContext renderContext, Span<Shader> depthOnlyShaders)
+        {
+            using (new GLDebugGroup("Scene Shadows"))
+            {
+                renderContext.RenderPass = RenderPass.DepthOnly;
+
+                foreach (var (program, calls) in CulledShadowDrawCalls)
+                {
+                    renderContext.ReplacementShader = depthOnlyShaders[(int)program];
+                    MeshBatchRenderer.Render(calls, renderContext);
+                }
+            }
         }
 
         public void RenderOpaqueLayer(RenderContext renderContext)
