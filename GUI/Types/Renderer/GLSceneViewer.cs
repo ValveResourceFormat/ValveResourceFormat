@@ -229,18 +229,11 @@ namespace GUI.Types.Renderer
 
             PostSceneLoad();
 
-            viewBuffer.Data.ClearColor = Settings.BackgroundColor;
-            if (Skybox2D is null)
-            {
-                MainFramebuffer.ClearColor = viewBuffer.Data.ClearColor;
-            }
-
             GLLoad -= OnLoad;
             GLPaint += OnPaint;
 
             GuiContext.ClearCache();
         }
-
 
         protected virtual void OnPaint(object sender, RenderEventArgs e)
         {

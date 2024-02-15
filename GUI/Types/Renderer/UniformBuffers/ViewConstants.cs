@@ -11,7 +11,7 @@ namespace GUI.Types.Renderer.UniformBuffers
         public Matrix4x4 WorldToView = Matrix4x4.Identity;
         public Vector3 CameraPosition = Vector3.Zero;
         public float Time;
-        public Color4 ClearColor;
+        public Color4 ClearColor = Color4.Black;
 
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
         public bool[] FogTypeEnabled;

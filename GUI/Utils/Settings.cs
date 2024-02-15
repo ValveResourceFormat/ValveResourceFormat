@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Drawing;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
@@ -10,13 +9,12 @@ namespace GUI.Utils
 {
     static class Settings
     {
-        private const int SettingsFileCurrentVersion = 5;
+        private const int SettingsFileCurrentVersion = 6;
         private const int RecentFilesLimit = 20;
 
         public class AppConfig
         {
             public List<string> GameSearchPaths { get; set; } = [];
-            public string BackgroundColor { get; set; } = string.Empty;
             public string OpenDirectory { get; set; } = string.Empty;
             public string SaveDirectory { get; set; } = string.Empty;
             public List<string> BookmarkedFiles { get; set; } = [];
@@ -40,8 +38,6 @@ namespace GUI.Utils
         private static string SettingsFilePath;
 
         public static AppConfig Config { get; set; } = new AppConfig();
-
-        public static Color BackgroundColor { get; set; }
 
         public static event EventHandler RefreshCamerasOnSave;
         public static void InvokeRefreshCamerasOnSave() => RefreshCamerasOnSave.Invoke(null, null);
@@ -88,20 +84,6 @@ namespace GUI.Utils
                 {
                     //
                 }
-            }
-
-            try
-            {
-                BackgroundColor = ColorTranslator.FromHtml(Config.BackgroundColor);
-            }
-            catch
-            {
-                //
-            }
-
-            if (BackgroundColor.IsEmpty)
-            {
-                BackgroundColor = Color.FromArgb(60, 60, 60);
             }
 
             Config.SavedCameras ??= [];
@@ -159,8 +141,6 @@ namespace GUI.Utils
 
         public static void Save()
         {
-            Config.BackgroundColor = ColorTranslator.ToHtml(BackgroundColor);
-
             var tempFile = Path.GetTempFileName();
 
             using (var stream = new FileStream(tempFile, FileMode.Create, FileAccess.Write, FileShare.None))

@@ -32,7 +32,6 @@ namespace GUI.Forms
             gamePathsAdd = new System.Windows.Forms.Button();
             gamePathsRemove = new System.Windows.Forms.Button();
             gamePathsLabel = new System.Windows.Forms.Label();
-            bgColorPickButton = new System.Windows.Forms.Button();
             gamePathsAddFolder = new System.Windows.Forms.Button();
             maxTextureSizeLabel = new System.Windows.Forms.Label();
             maxTextureSizeInput = new System.Windows.Forms.NumericUpDown();
@@ -92,17 +91,6 @@ namespace GUI.Forms
             gamePathsLabel.TabIndex = 3;
             gamePathsLabel.Text = "Game content search paths";
             // 
-            // bgColorPickButton
-            // 
-            bgColorPickButton.Location = new System.Drawing.Point(14, 213);
-            bgColorPickButton.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
-            bgColorPickButton.Name = "bgColorPickButton";
-            bgColorPickButton.Size = new System.Drawing.Size(222, 27);
-            bgColorPickButton.TabIndex = 4;
-            bgColorPickButton.Text = "Set model viewer background color";
-            bgColorPickButton.UseVisualStyleBackColor = true;
-            bgColorPickButton.Click += OpenBackgroundColorPicker;
-            // 
             // gamePathsAddFolder
             // 
             gamePathsAddFolder.Location = new System.Drawing.Point(172, 150);
@@ -117,7 +105,7 @@ namespace GUI.Forms
             // maxTextureSizeLabel
             // 
             maxTextureSizeLabel.AutoSize = true;
-            maxTextureSizeLabel.Location = new System.Drawing.Point(15, 261);
+            maxTextureSizeLabel.Location = new System.Drawing.Point(14, 219);
             maxTextureSizeLabel.Name = "maxTextureSizeLabel";
             maxTextureSizeLabel.Size = new System.Drawing.Size(95, 15);
             maxTextureSizeLabel.TabIndex = 6;
@@ -126,7 +114,7 @@ namespace GUI.Forms
             // maxTextureSizeInput
             // 
             maxTextureSizeInput.Increment = new decimal(new int[] { 64, 0, 0, 0 });
-            maxTextureSizeInput.Location = new System.Drawing.Point(116, 259);
+            maxTextureSizeInput.Location = new System.Drawing.Point(115, 217);
             maxTextureSizeInput.Maximum = new decimal(new int[] { 10240, 0, 0, 0 });
             maxTextureSizeInput.Minimum = new decimal(new int[] { 1, 0, 0, 0 });
             maxTextureSizeInput.Name = "maxTextureSizeInput";
@@ -145,7 +133,7 @@ namespace GUI.Forms
             // 
             // fovInput
             // 
-            fovInput.Location = new System.Drawing.Point(116, 288);
+            fovInput.Location = new System.Drawing.Point(115, 247);
             fovInput.Maximum = new decimal(new int[] { 150, 0, 0, 0 });
             fovInput.Minimum = new decimal(new int[] { 1, 0, 0, 0 });
             fovInput.Name = "fovInput";
@@ -157,7 +145,7 @@ namespace GUI.Forms
             // fovLabel
             // 
             fovLabel.AutoSize = true;
-            fovLabel.Location = new System.Drawing.Point(15, 290);
+            fovLabel.Location = new System.Drawing.Point(14, 249);
             fovLabel.Name = "fovLabel";
             fovLabel.Size = new System.Drawing.Size(73, 15);
             fovLabel.TabIndex = 11;
@@ -166,7 +154,7 @@ namespace GUI.Forms
             // antiAliasingLabel
             // 
             antiAliasingLabel.AutoSize = true;
-            antiAliasingLabel.Location = new System.Drawing.Point(15, 322);
+            antiAliasingLabel.Location = new System.Drawing.Point(14, 279);
             antiAliasingLabel.Name = "antiAliasingLabel";
             antiAliasingLabel.Size = new System.Drawing.Size(77, 15);
             antiAliasingLabel.TabIndex = 12;
@@ -176,7 +164,7 @@ namespace GUI.Forms
             // 
             antiAliasingComboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             antiAliasingComboBox.FormattingEnabled = true;
-            antiAliasingComboBox.Location = new System.Drawing.Point(116, 319);
+            antiAliasingComboBox.Location = new System.Drawing.Point(115, 276);
             antiAliasingComboBox.Name = "antiAliasingComboBox";
             antiAliasingComboBox.Size = new System.Drawing.Size(120, 23);
             antiAliasingComboBox.TabIndex = 13;
@@ -196,7 +184,7 @@ namespace GUI.Forms
             // vsyncLabel
             // 
             vsyncLabel.AutoSize = true;
-            vsyncLabel.Location = new System.Drawing.Point(432, 261);
+            vsyncLabel.Location = new System.Drawing.Point(14, 309);
             vsyncLabel.Name = "vsyncLabel";
             vsyncLabel.Size = new System.Drawing.Size(76, 15);
             vsyncLabel.TabIndex = 14;
@@ -205,7 +193,7 @@ namespace GUI.Forms
             // vsyncCheckBox
             // 
             vsyncCheckBox.AutoSize = true;
-            vsyncCheckBox.Location = new System.Drawing.Point(533, 261);
+            vsyncCheckBox.Location = new System.Drawing.Point(115, 309);
             vsyncCheckBox.Name = "vsyncCheckBox";
             vsyncCheckBox.Size = new System.Drawing.Size(15, 14);
             vsyncCheckBox.TabIndex = 15;
@@ -215,7 +203,7 @@ namespace GUI.Forms
             // displayFpsCheckBox
             // 
             displayFpsCheckBox.AutoSize = true;
-            displayFpsCheckBox.Location = new System.Drawing.Point(533, 295);
+            displayFpsCheckBox.Location = new System.Drawing.Point(115, 339);
             displayFpsCheckBox.Name = "displayFpsCheckBox";
             displayFpsCheckBox.Size = new System.Drawing.Size(15, 14);
             displayFpsCheckBox.TabIndex = 18;
@@ -225,7 +213,7 @@ namespace GUI.Forms
             // displayFpsLabel
             // 
             displayFpsLabel.AutoSize = true;
-            displayFpsLabel.Location = new System.Drawing.Point(432, 295);
+            displayFpsLabel.Location = new System.Drawing.Point(14, 339);
             displayFpsLabel.Name = "displayFpsLabel";
             displayFpsLabel.Size = new System.Drawing.Size(70, 15);
             displayFpsLabel.TabIndex = 17;
@@ -235,7 +223,7 @@ namespace GUI.Forms
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            ClientSize = new System.Drawing.Size(668, 367);
+            ClientSize = new System.Drawing.Size(668, 387);
             Controls.Add(displayFpsCheckBox);
             Controls.Add(displayFpsLabel);
             Controls.Add(registerAssociationButton);
@@ -249,7 +237,6 @@ namespace GUI.Forms
             Controls.Add(maxTextureSizeInput);
             Controls.Add(maxTextureSizeLabel);
             Controls.Add(gamePathsAddFolder);
-            Controls.Add(bgColorPickButton);
             Controls.Add(gamePathsLabel);
             Controls.Add(gamePathsRemove);
             Controls.Add(gamePathsAdd);
@@ -273,7 +260,6 @@ namespace GUI.Forms
         private System.Windows.Forms.Button gamePathsAdd;
         private System.Windows.Forms.Button gamePathsRemove;
         private System.Windows.Forms.Label gamePathsLabel;
-        private System.Windows.Forms.Button bgColorPickButton;
         private System.Windows.Forms.Button gamePathsAddFolder;
         private System.Windows.Forms.Label maxTextureSizeLabel;
         private System.Windows.Forms.NumericUpDown maxTextureSizeInput;

@@ -127,25 +127,6 @@ namespace GUI.Forms
             gamePaths.Items.Add(dlg.SelectedPath);
         }
 
-        private void OpenBackgroundColorPicker(object sender, EventArgs e)
-        {
-            // Run the dialog on a separate thread, otherwise it will not work
-            // when opening settings while opentk is in focus
-            new System.Threading.Thread(() =>
-            {
-                var colorPicker = new ColorDialog
-                {
-                    Color = Settings.BackgroundColor,
-                };
-
-                // Update the text box color if the user clicks OK
-                if (colorPicker.ShowDialog() == DialogResult.OK)
-                {
-                    Settings.BackgroundColor = colorPicker.Color;
-                }
-            }).Start();
-        }
-
         private void OnMaxTextureSizeValueChanged(object sender, EventArgs e)
         {
             Settings.Config.MaxTextureSize = (int)maxTextureSizeInput.Value;
