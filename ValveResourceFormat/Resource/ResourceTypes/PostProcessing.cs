@@ -5,7 +5,7 @@ namespace ValveResourceFormat.ResourceTypes
 {
     public class PostProcessing : KeyValuesOrNTRO
     {
-        public PostProcessing() : base(BlockType.DATA, "PostProcessingResource_t", upgradeToKV3: true)
+        public PostProcessing() : base(BlockType.DATA, "PostProcessingResource_t")
         { }
 
         public IKeyValueCollection GetTonemapParams()
