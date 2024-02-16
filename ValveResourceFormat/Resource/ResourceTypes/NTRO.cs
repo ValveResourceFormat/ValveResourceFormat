@@ -137,10 +137,17 @@ namespace ValveResourceFormat.ResourceTypes
             //}
             if (field.Count > 0 || indirection == SchemaIndirectionType.ResourceArray)
             {
-                if (field.Type == SchemaFieldType.Byte)
+                if (field.Type == SchemaFieldType.Byte || field.Type == SchemaFieldType.Color)
                 {
                     //special case for byte arrays for faster access
-                    structEntry.AddProperty(field.FieldName, new KVValue(KVType.BINARY_BLOB, Reader.ReadBytes((int)count)));
+                    var sizeInBytes = field.Type switch
+                    {
+                        SchemaFieldType.Byte => 1,
+                        SchemaFieldType.Color => 4,
+                        _ => 0,
+                    };
+
+                    structEntry.AddProperty(field.FieldName, new KVValue(KVType.BINARY_BLOB, Reader.ReadBytes((int)count / sizeInBytes)));
                 }
                 else
                 {
