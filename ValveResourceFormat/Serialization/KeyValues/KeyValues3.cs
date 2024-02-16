@@ -53,6 +53,8 @@ namespace ValveResourceFormat.Serialization.KeyValues
             public readonly Stack<KVObject> ObjStack;
             public readonly Stack<State> StateStack;
 
+            public bool EndOfStream => FileStream.EndOfStream && CharBuffer.Count == 0;
+
             public Parser()
             {
                 //Initialise datastructures
@@ -84,7 +86,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
             };
 
             char c;
-            while (!parser.FileStream.EndOfStream)
+            while (!parser.EndOfStream)
             {
                 c = NextChar(parser);
 
