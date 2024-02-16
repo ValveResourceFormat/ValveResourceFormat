@@ -204,9 +204,14 @@ namespace ValveResourceFormat.Serialization.KeyValues
                     return [.. properties];
                 }
 
-                if (value.Type == KVType.BINARY_BLOB && typeof(T) == typeof(byte))
+                if (value.Type == KVType.BINARY_BLOB)
                 {
-                    return (T[])value.Value;
+                    if (typeof(T) == typeof(byte))
+                    {
+                        return (T[])value.Value;
+                    }
+
+                    return ((byte[])value.Value).Cast<T>().ToArray();
                 }
 
                 if (value.Type != KVType.ARRAY && value.Type != KVType.ARRAY_TYPED)
