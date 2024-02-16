@@ -173,38 +173,38 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 case SchemaFieldType.Struct:
                     var newStruct = Resource.IntrospectionManifest.ReferencedStructs.First(x => x.Id == field.TypeData);
-                    return new KVValue(KVType.OBJECT, ReadStructure(newStruct, Reader.BaseStream.Position));
+                    return BinaryKV3.MakeValue(KVType.OBJECT, ReadStructure(newStruct, Reader.BaseStream.Position));
 
                 case SchemaFieldType.Enum:
                     // TODO: Lookup in ReferencedEnums
-                    return new KVValue(KVType.UINT32, Reader.ReadUInt32());
+                    return BinaryKV3.MakeValue(KVType.UINT32, Reader.ReadUInt32());
 
                 case SchemaFieldType.SByte:
-                    return new KVValue(KVType.INT32, (int)Reader.ReadSByte());
+                    return BinaryKV3.MakeValue(KVType.INT32, (int)Reader.ReadSByte());
 
                 case SchemaFieldType.Byte:
-                    return new KVValue(KVType.UINT32, (uint)Reader.ReadByte());
+                    return BinaryKV3.MakeValue(KVType.UINT32, (uint)Reader.ReadByte());
 
                 case SchemaFieldType.Boolean:
-                    return new KVValue(KVType.BOOLEAN, Reader.ReadBoolean());
+                    return BinaryKV3.MakeValue(KVType.BOOLEAN, Reader.ReadBoolean());
 
                 case SchemaFieldType.Int16:
-                    return new KVValue(KVType.INT32, (int)Reader.ReadInt16());
+                    return BinaryKV3.MakeValue(KVType.INT32, (int)Reader.ReadInt16());
 
                 case SchemaFieldType.UInt16:
-                    return new KVValue(KVType.UINT32, Reader.ReadUInt16());
+                    return BinaryKV3.MakeValue(KVType.UINT32, (uint)Reader.ReadUInt16());
 
                 case SchemaFieldType.Int32:
-                    return new KVValue(KVType.INT32, Reader.ReadInt32());
+                    return BinaryKV3.MakeValue(KVType.INT32, Reader.ReadInt32());
 
                 case SchemaFieldType.UInt32:
-                    return new KVValue(KVType.UINT32, Reader.ReadUInt32());
+                    return BinaryKV3.MakeValue(KVType.UINT32, Reader.ReadUInt32());
 
                 case SchemaFieldType.Float:
-                    return new KVValue(KVType.FLOAT, Reader.ReadSingle());
+                    return BinaryKV3.MakeValue(KVType.FLOAT, (double)Reader.ReadSingle());
 
                 case SchemaFieldType.Int64:
-                    return new KVValue(KVType.INT64, Reader.ReadInt64());
+                    return BinaryKV3.MakeValue(KVType.INT64, Reader.ReadInt64());
 
                 case SchemaFieldType.ExternalReference:
                     var id = Reader.ReadUInt64();
@@ -212,10 +212,10 @@ namespace ValveResourceFormat.ResourceTypes
                         ? Resource.ExternalReferences?.ResourceRefInfoList.FirstOrDefault(c => c.Id == id)?.Name
                         : null;
 
-                    return new KVFlaggedValue(KVType.STRING, KVFlag.ResourceName, value);
+                    return BinaryKV3.MakeValue(KVType.STRING, value, KVFlag.ResourceName);
 
                 case SchemaFieldType.UInt64:
-                    return new KVValue(KVType.UINT64, Reader.ReadUInt64());
+                    return BinaryKV3.MakeValue(KVType.UINT64, Reader.ReadUInt64());
 
                 case SchemaFieldType.Vector3D:
                     {
@@ -223,7 +223,7 @@ namespace ValveResourceFormat.ResourceTypes
                         arrayObject.AddProperty(null, new KVValue(KVType.FLOAT, Reader.ReadSingle()));
                         arrayObject.AddProperty(null, new KVValue(KVType.FLOAT, Reader.ReadSingle()));
                         arrayObject.AddProperty(null, new KVValue(KVType.FLOAT, Reader.ReadSingle()));
-                        return new KVValue(KVType.ARRAY, arrayObject);
+                        return BinaryKV3.MakeValue(KVType.ARRAY, arrayObject);
                     }
 
                 case SchemaFieldType.Quaternion:
@@ -236,31 +236,31 @@ namespace ValveResourceFormat.ResourceTypes
                         arrayObject.AddProperty(null, new KVValue(KVType.FLOAT, Reader.ReadSingle()));
                         arrayObject.AddProperty(null, new KVValue(KVType.FLOAT, Reader.ReadSingle()));
                         arrayObject.AddProperty(null, new KVValue(KVType.FLOAT, Reader.ReadSingle()));
-                        return new KVValue(KVType.ARRAY, arrayObject);
+                        return BinaryKV3.MakeValue(KVType.ARRAY, arrayObject);
                     }
 
                 case SchemaFieldType.Color:
                     {
                         var arrayObject = new KVObject(field.Type.ToString(), isArray: true);
-                        arrayObject.AddProperty(null, new KVValue(KVType.INT32, (int)Reader.ReadByte()));
-                        arrayObject.AddProperty(null, new KVValue(KVType.INT32, (int)Reader.ReadByte()));
-                        arrayObject.AddProperty(null, new KVValue(KVType.INT32, (int)Reader.ReadByte()));
-                        arrayObject.AddProperty(null, new KVValue(KVType.INT32, (int)Reader.ReadByte()));
-                        return new KVValue(KVType.ARRAY, arrayObject);
+                        arrayObject.AddProperty(null, BinaryKV3.MakeValue(KVType.INT32, (int)Reader.ReadByte()));
+                        arrayObject.AddProperty(null, BinaryKV3.MakeValue(KVType.INT32, (int)Reader.ReadByte()));
+                        arrayObject.AddProperty(null, BinaryKV3.MakeValue(KVType.INT32, (int)Reader.ReadByte()));
+                        arrayObject.AddProperty(null, BinaryKV3.MakeValue(KVType.INT32, (int)Reader.ReadByte()));
+                        return BinaryKV3.MakeValue(KVType.ARRAY, arrayObject);
                     }
 
                 case SchemaFieldType.Char:
-                    return new KVValue(KVType.STRING, Reader.ReadOffsetString(Encoding.UTF8));
+                    return BinaryKV3.MakeValue(KVType.STRING, Reader.ReadOffsetString(Encoding.UTF8));
 
                 case SchemaFieldType.ResourceString:
-                    return new KVFlaggedValue(KVType.STRING, KVFlag.Resource, Reader.ReadOffsetString(Encoding.UTF8));
+                    return BinaryKV3.MakeValue(KVType.STRING, Reader.ReadOffsetString(Encoding.UTF8), KVFlag.Resource);
 
                 case SchemaFieldType.Vector2D:
                     {
                         var arrayObject = new KVObject(field.Type.ToString(), isArray: true);
                         arrayObject.AddProperty(null, new KVValue(KVType.FLOAT, Reader.ReadSingle()));
                         arrayObject.AddProperty(null, new KVValue(KVType.FLOAT, Reader.ReadSingle()));
-                        return new KVValue(KVType.ARRAY, arrayObject);
+                        return BinaryKV3.MakeValue(KVType.ARRAY, arrayObject);
                     }
 
                 case SchemaFieldType.Matrix3x4:
@@ -279,7 +279,7 @@ namespace ValveResourceFormat.ResourceTypes
                         arrayObject.AddProperty(null, new KVValue(KVType.FLOAT, Reader.ReadSingle()));
                         arrayObject.AddProperty(null, new KVValue(KVType.FLOAT, Reader.ReadSingle()));
                         arrayObject.AddProperty(null, new KVValue(KVType.FLOAT, Reader.ReadSingle()));
-                        return new KVValue(KVType.ARRAY, arrayObject);
+                        return BinaryKV3.MakeValue(KVType.ARRAY, arrayObject);
                     }
 
                 case SchemaFieldType.Transform:
@@ -293,7 +293,7 @@ namespace ValveResourceFormat.ResourceTypes
                         arrayObject.AddProperty(null, new KVValue(KVType.FLOAT, Reader.ReadSingle()));
                         arrayObject.AddProperty(null, new KVValue(KVType.FLOAT, Reader.ReadSingle()));
                         arrayObject.AddProperty(null, new KVValue(KVType.FLOAT, Reader.ReadSingle()));
-                        return new KVValue(KVType.ARRAY, arrayObject);
+                        return BinaryKV3.MakeValue(KVType.ARRAY, arrayObject);
                     }
 
                 default:
@@ -303,7 +303,7 @@ namespace ValveResourceFormat.ResourceTypes
 
         public override string ToString()
         {
-            return Output?.ToString() ?? "Nope.";
+            return new KV3File(Output).ToString() ?? "Nope.";
         }
     }
 }

@@ -887,7 +887,7 @@ namespace ValveResourceFormat.ResourceTypes
             return type;
         }
 
-        private static KVValue MakeValue(KVType type, object data, KVFlag flag)
+        public static KVValue MakeValue(KVType type, object data, KVFlag flag = KVFlag.None)
         {
             var realType = ConvertBinaryOnlyKVType(type);
 
