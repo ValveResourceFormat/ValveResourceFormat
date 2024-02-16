@@ -253,7 +253,7 @@ namespace ValveResourceFormat.ResourceTypes
                     return BinaryKV3.MakeValue(KVType.STRING, Reader.ReadOffsetString(Encoding.UTF8));
 
                 case SchemaFieldType.ResourceString:
-                    return BinaryKV3.MakeValue(KVType.STRING, Reader.ReadOffsetString(Encoding.UTF8), KVFlag.Resource);
+                    return BinaryKV3.MakeValue(KVType.STRING, Reader.ReadOffsetString(Encoding.UTF8));
 
                 case SchemaFieldType.Vector2D:
                     {
