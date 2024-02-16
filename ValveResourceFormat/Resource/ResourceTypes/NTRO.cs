@@ -212,6 +212,11 @@ namespace ValveResourceFormat.ResourceTypes
                         ? Resource.ExternalReferences?.ResourceRefInfoList.FirstOrDefault(c => c.Id == id)?.Name
                         : null;
 
+                    if (value == null)
+                    {
+                        return BinaryKV3.MakeValue(KVType.NULL, null);
+                    }
+
                     return BinaryKV3.MakeValue(KVType.STRING, value, KVFlag.ResourceName);
 
                 case SchemaFieldType.UInt64:
