@@ -3,7 +3,6 @@ using System.Linq;
 using System.Text;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Serialization.KeyValues;
-using ValveResourceFormat.Serialization.NTRO;
 using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.ResourceTypes

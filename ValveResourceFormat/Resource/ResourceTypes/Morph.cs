@@ -5,7 +5,6 @@ using ValveResourceFormat.ResourceTypes.ModelFlex;
 using ValveResourceFormat.ResourceTypes.ModelFlex.FlexOps;
 using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Serialization.KeyValues;
-using ValveResourceFormat.Serialization.NTRO;
 
 namespace ValveResourceFormat.ResourceTypes
 {
@@ -229,22 +228,6 @@ namespace ValveResourceFormat.ResourceTypes
         private static IKeyValueCollection GetMorphKeyValueCollection(IKeyValueCollection data, string name)
         {
             var kvObj = data.GetProperty<object>(name);
-
-            if (kvObj is NTROStruct ntroStruct)
-            {
-                return ntroStruct.ToKVObject();
-            }
-
-            if (kvObj is NTROValue[] ntroArray)
-            {
-                var kv = new KVObject("root", true, capacity: ntroArray.Length);
-                foreach (var ntro in ntroArray)
-                {
-                    kv.AddProperty("", ntro.ToKVValue());
-                }
-                return kv;
-            }
-
             return kvObj as IKeyValueCollection;
         }
 

@@ -4,7 +4,6 @@ using System.Text;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
-using ValveResourceFormat.Serialization.NTRO;
 
 namespace ValveResourceFormat.Serialization
 {
@@ -160,7 +159,7 @@ namespace ValveResourceFormat.Serialization
         }
 
         public static bool IsNotBlobType(this IKeyValueCollection collection, string key)
-            => collection is NTROStruct || ((KVObject)collection).Properties[key].Type == KVType.ARRAY;
+            => ((KVObject)collection).Properties[key].Type == KVType.ARRAY;
 
         public static Vector2 ToVector2(this IKeyValueCollection collection) => new(
             collection.GetFloatProperty("0"),

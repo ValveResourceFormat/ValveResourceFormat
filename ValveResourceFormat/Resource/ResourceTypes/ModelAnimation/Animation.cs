@@ -3,7 +3,6 @@ using System.Runtime.InteropServices;
 using ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders;
 using ValveResourceFormat.ResourceTypes.ModelFlex;
 using ValveResourceFormat.Serialization;
-using ValveResourceFormat.Serialization.NTRO;
 
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 {
@@ -28,9 +27,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             IsLooping = flags.GetProperty<bool>("m_bLooping");
 
             var pDataObject = animDesc.GetProperty<object>("m_pData");
-            var pData = pDataObject is NTROValue[] ntroArray
-                ? ntroArray[0].ValueObject as IKeyValueCollection
-                : pDataObject as IKeyValueCollection;
+            var pData = pDataObject as IKeyValueCollection;
             FrameCount = pData.GetInt32Property("m_nFrames");
 
             var frameBlockArray = pData.GetArray("m_frameblockArray");

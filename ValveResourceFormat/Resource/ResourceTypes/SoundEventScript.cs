@@ -1,5 +1,4 @@
 using System.IO;
-using ValveResourceFormat.Serialization.NTRO;
 
 namespace ValveResourceFormat.ResourceTypes
 {
