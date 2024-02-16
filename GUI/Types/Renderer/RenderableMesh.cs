@@ -278,27 +278,13 @@ namespace GUI.Types.Renderer
                 Material = material,
             };
 
-            var primitiveType = objectDrawCall.GetProperty<object>("m_nPrimitiveType");
+            var primitiveType = objectDrawCall.GetEnumValue<RenderPrimitiveType>("m_nPrimitiveType");
 
-            if (primitiveType is byte primitiveTypeByte)
+            drawCall.PrimitiveType = primitiveType switch
             {
-                if ((RenderPrimitiveType)primitiveTypeByte == RenderPrimitiveType.RENDER_PRIM_TRIANGLES)
-                {
-                    drawCall.PrimitiveType = PrimitiveType.Triangles;
-                }
-            }
-            else if (primitiveType is string primitiveTypeString)
-            {
-                if (primitiveTypeString == "RENDER_PRIM_TRIANGLES")
-                {
-                    drawCall.PrimitiveType = PrimitiveType.Triangles;
-                }
-            }
-
-            if (drawCall.PrimitiveType != PrimitiveType.Triangles)
-            {
-                throw new NotImplementedException("Unknown PrimitiveType in drawCall! (" + primitiveType + ")");
-            }
+                RenderPrimitiveType.RENDER_PRIM_TRIANGLES => PrimitiveType.Triangles,
+                _ => throw new NotImplementedException($"Unknown PrimitiveType in drawCall! {primitiveType}"),
+            };
 
             // Index buffer
             {

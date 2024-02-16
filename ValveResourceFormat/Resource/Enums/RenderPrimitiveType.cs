@@ -1,6 +1,6 @@
 namespace ValveResourceFormat
 {
-    public enum RenderPrimitiveType
+    public enum RenderPrimitiveType //: byte
     {
         RENDER_PRIM_POINTS = 0x0,
         RENDER_PRIM_LINES = 0x1,

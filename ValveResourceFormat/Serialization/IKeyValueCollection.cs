@@ -99,9 +99,13 @@ namespace ValveResourceFormat.Serialization
             {
                 return (TEnum)rawValue;
             }
-            else if (rawValue is long v)
+            else if (rawValue is uint u) // NTRO byte enums are upconverted to uint
             {
-                return (TEnum)(object)(int)v;
+                return (TEnum)(object)(int)u;
+            }
+            else if (rawValue is long l)
+            {
+                return (TEnum)(object)(int)l;
             }
 
             var strValue = (string)rawValue;
