@@ -49,6 +49,7 @@ namespace ValveResourceFormat.Serialization.NTRO
                 SchemaFieldType.Color => MakeArray<byte>(Value, Type, KVType.INT64, 4),
                 SchemaFieldType.Boolean => new KVValue(KVType.BOOLEAN, Value),
                 SchemaFieldType.ResourceString => new KVValue(KVType.STRING, Value),
+                SchemaFieldType.ExternalReference => new KVFlaggedValue(KVType.STRING, KVFlag.ResourceName, Value),
                 _ => throw new NotImplementedException($"Converting {Type} to keyvalues is not implemented."),
             };
 
