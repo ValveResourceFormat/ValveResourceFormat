@@ -131,23 +131,21 @@ namespace ValveResourceFormat.ResourceTypes
                 }
             }
 
-            //if (pointer)
-            //{
-            //    Writer.Write("{0} {1}* = (ptr) ->", ValveDataType(field.Type), field.FieldName);
-            //}
+            KVValue fieldValue = null;
+
             if (field.Count > 0 || indirection == SchemaIndirectionType.ResourceArray)
             {
                 if (field.Type == SchemaFieldType.Byte || field.Type == SchemaFieldType.Color)
                 {
-                    //special case for byte arrays for faster access
-                    var sizeInBytes = field.Type switch
+                    var size = field.Type switch
                     {
                         SchemaFieldType.Byte => 1,
                         SchemaFieldType.Color => 4,
                         _ => 0,
                     };
 
-                    structEntry.AddProperty(field.FieldName, new KVValue(KVType.BINARY_BLOB, Reader.ReadBytes((int)count / sizeInBytes)));
+                    //special case for byte arrays for faster access
+                    fieldValue = new KVValue(KVType.BINARY_BLOB, Reader.ReadBytes((int)count / size));
                 }
                 else
                 {
@@ -159,14 +157,16 @@ namespace ValveResourceFormat.ResourceTypes
                         ntroValues.AddProperty(null, ReadField(field));
                     }
 
-                    structEntry.AddProperty(field.FieldName, new KVValue(KVType.ARRAY, ntroValues));
+                    fieldValue = new KVValue(KVType.ARRAY, ntroValues);
                 }
             }
             else
             {
                 Debug.Assert(count == 1 && field.Count == 0);
-                structEntry.AddProperty(field.FieldName, ReadField(field));
+                fieldValue = ReadField(field);
             }
+
+            structEntry.AddProperty(field.FieldName, fieldValue);
 
             if (prevOffset > 0)
             {
