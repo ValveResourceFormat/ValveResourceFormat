@@ -29,12 +29,18 @@ namespace ValveResourceFormat.Serialization.NTRO
 
         public override KVValue ToKVValue()
         {
+            if (Type == SchemaFieldType.Byte && typeof(T) == typeof(byte[]))
+            {
+                //return new KVValue(KVType.BINARY_BLOB, Value);
+            }
+
             return Type switch
             {
                 SchemaFieldType.Struct => new KVValue(KVType.OBJECT, (Value as NTROStruct).ToKVObject()),
                 SchemaFieldType.Enum => new KVValue(KVType.UINT64, Value),
                 SchemaFieldType.Char => new KVValue(KVType.STRING, Value),
                 SchemaFieldType.SByte => new KVValue(KVType.INT64, Value),
+                //SchemaFieldType.Byte when typeof(T) == typeof(byte[]) => new KVValue(KVType.BINARY_BLOB, Value),
                 SchemaFieldType.Byte => new KVValue(KVType.UINT64, Value),
                 SchemaFieldType.Int16 => new KVValue(KVType.INT64, Value),
                 SchemaFieldType.UInt16 => new KVValue(KVType.UINT64, Value),

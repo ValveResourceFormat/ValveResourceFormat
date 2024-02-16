@@ -52,7 +52,7 @@ namespace ValveResourceFormat.ResourceTypes
                     Size = Size,
                 };
                 ntro.Read(reader, resource);
-                Data = ntro.Output.ToKVObject();
+                Data = ntro.Output;
                 BackingData = ntro;
             }
         }

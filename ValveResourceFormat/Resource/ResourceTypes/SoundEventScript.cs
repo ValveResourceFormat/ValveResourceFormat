@@ -12,6 +12,7 @@ namespace ValveResourceFormat.ResourceTypes
             base.Read(reader, resource);
             SoundEventScriptValue = [];
 
+            /* TODO
             // Output is VSoundEventScript_t we need to iterate m_SoundEvents inside it.
             var soundEvents = (NTROArray)Output["m_SoundEvents"];
 
@@ -27,6 +28,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                 SoundEventScriptValue.Add(soundName, soundValue);
             }
+            */
         }
 
         public override string ToString()
