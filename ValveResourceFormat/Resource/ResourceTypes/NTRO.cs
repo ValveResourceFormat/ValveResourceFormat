@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -73,6 +74,7 @@ namespace ValveResourceFormat.ResourceTypes
         private void ReadFieldIntrospection(ResourceIntrospectionManifest.ResourceDiskStruct.Field field, KVObject structEntry)
         {
             var count = (uint)field.Count;
+            var indirection = SchemaIndirectionType.Unknown;
 
             if (count == 0)
             {
@@ -95,7 +97,7 @@ namespace ValveResourceFormat.ResourceTypes
                     throw new NotImplementedException("Indirection.Count > 0 && field.Count > 0");
                 }
 
-                var indirection = (SchemaIndirectionType)field.Indirections[0]; // TODO: depth needs fixing?
+                indirection = (SchemaIndirectionType)field.Indirections[0]; // TODO: depth needs fixing?
 
                 var offset = Reader.ReadUInt32();
 
@@ -133,7 +135,7 @@ namespace ValveResourceFormat.ResourceTypes
             //{
             //    Writer.Write("{0} {1}* = (ptr) ->", ValveDataType(field.Type), field.FieldName);
             //}
-            if (field.Count > 0 || field.Indirections.Count > 0)
+            if (field.Count > 0 || indirection == SchemaIndirectionType.ResourceArray)
             {
                 if (field.Type == SchemaFieldType.Byte)
                 {
@@ -155,10 +157,8 @@ namespace ValveResourceFormat.ResourceTypes
             }
             else
             {
-                for (var i = 0; i < count; i++)
-                {
-                    structEntry.AddProperty(field.FieldName, ReadField(field));
-                }
+                Debug.Assert(count == 1 && field.Count == 0);
+                structEntry.AddProperty(field.FieldName, ReadField(field));
             }
 
             if (prevOffset > 0)
