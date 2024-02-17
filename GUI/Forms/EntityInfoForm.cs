@@ -9,7 +9,7 @@ namespace GUI.Forms
 {
     partial class EntityInfoForm : Form
     {
-        public EntityInfoForm(AdvancedGuiFileLoader guiFileLoader)
+        public EntityInfoForm(AdvancedGuiFileLoader guiFileLoader, bool entity)
         {
             InitializeComponent();
 
@@ -22,6 +22,15 @@ namespace GUI.Forms
                     Close();
                 }
             });
+
+            if (!entity)
+            {
+                //Keep only the first page (properties) if this is not an entity.
+                for (var i = tabControl1.TabCount - 1; i > 0; i--)
+                {
+                    tabControl1.TabPages.RemoveAt(i);
+                }
+            }
         }
 
         public void AddColumn(string name, string value)

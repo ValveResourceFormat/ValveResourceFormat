@@ -286,9 +286,14 @@ namespace GUI.Types.Renderer
 
             if (pickingResponse.Intent == PickingIntent.Details)
             {
-                using var entityDialog = new EntityInfoForm(GuiContext.FileLoader);
+                var isEntity = sceneNode.EntityData != null;
+                using var entityDialog = new EntityInfoForm(GuiContext.FileLoader, isEntity);
 
-                if (sceneNode.EntityData == null)
+                if (isEntity)
+                {
+                    ShowEntityProperties(sceneNode, entityDialog);
+                }
+                else
                 {
                     entityDialog.Text = $"{sceneNode.GetType().Name}: {sceneNode.Name}";
 
@@ -342,10 +347,6 @@ namespace GUI.Types.Renderer
                     }
 
                     entityDialog.AddColumn("Layer", sceneNode.LayerName);
-                }
-                else
-                {
-                    ShowEntityProperties(sceneNode, entityDialog);
                 }
 
                 if (isInSkybox)
