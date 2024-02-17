@@ -99,7 +99,7 @@ namespace ValveResourceFormat.ResourceTypes
 #if false
     static class PanoramaSourceMapDecoder
     {
-        public static byte[] Decode(byte[] data, IKeyValueCollection sourceMap)
+        public static byte[] Decode(byte[] data, KVObject sourceMap)
         {
             var mapping = sourceMap.GetArray("DBITSLC", kvArray => (kvArray.GetInt32Property("0"), kvArray.GetInt32Property("1"), kvArray.GetInt32Property("2")));
 

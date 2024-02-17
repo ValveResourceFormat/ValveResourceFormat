@@ -1,4 +1,5 @@
 using ValveResourceFormat.Serialization;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
 {
@@ -7,7 +8,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
         public Vector3 Center { get; set; }
         public float Radius { get; set; }
 
-        public Sphere(IKeyValueCollection data)
+        public Sphere(KVObject data)
         {
             Center = data.GetSubCollection("m_vCenter").ToVector3();
             Radius = data.GetFloatProperty("m_flRadius");

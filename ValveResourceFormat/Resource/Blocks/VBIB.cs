@@ -6,6 +6,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using ValveResourceFormat.Compression;
 using ValveResourceFormat.Serialization;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Blocks
 {
@@ -48,7 +49,7 @@ namespace ValveResourceFormat.Blocks
             IndexBuffers = [];
         }
 
-        public VBIB(IKeyValueCollection data) : this()
+        public VBIB(KVObject data) : this()
         {
             var vertexBuffers = data.GetArray("m_vertexBuffers");
             foreach (var vb in vertexBuffers)
@@ -182,7 +183,7 @@ namespace ValveResourceFormat.Blocks
             return buffer;
         }
 
-        private static OnDiskBufferData BufferDataFromDATA(IKeyValueCollection data)
+        private static OnDiskBufferData BufferDataFromDATA(KVObject data)
         {
             var buffer = new OnDiskBufferData
             {

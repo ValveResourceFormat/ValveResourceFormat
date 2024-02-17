@@ -1,6 +1,7 @@
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.Serialization;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes
 {
@@ -60,7 +61,7 @@ namespace ValveResourceFormat.ResourceTypes
             MaxBounds = maxBounds;
         }
 
-        public static bool IsCompressedNormalTangent(IKeyValueCollection drawCall)
+        public static bool IsCompressedNormalTangent(KVObject drawCall)
         {
             if (drawCall.ContainsKey("m_bUseCompressedNormalTangent"))
             {
@@ -83,15 +84,15 @@ namespace ValveResourceFormat.ResourceTypes
             };
         }
 
-        public static bool HasBakedLightingFromLightMap(IKeyValueCollection drawCall)
+        public static bool HasBakedLightingFromLightMap(KVObject drawCall)
             => drawCall.ContainsKey("m_bHasBakedLightingFromLightMap")
                 && drawCall.GetProperty<bool>("m_bHasBakedLightingFromLightMap");
 
-        public static bool HasBakedLightingFromVertexStream(IKeyValueCollection drawCall)
+        public static bool HasBakedLightingFromVertexStream(KVObject drawCall)
             => drawCall.ContainsKey("m_bHasBakedLightingFromVertexStream")
                 && drawCall.GetProperty<bool>("m_bHasBakedLightingFromVertexStream");
 
-        public static bool IsOccluder(IKeyValueCollection drawCall)
+        public static bool IsOccluder(KVObject drawCall)
             => drawCall.ContainsKey("m_bIsOccluder")
                 && drawCall.GetProperty<bool>("m_bIsOccluder");
 

@@ -123,7 +123,7 @@ namespace ValveResourceFormat.ResourceTypes
             return arguments;
         }
 
-        public IKeyValueCollection GetInputSignature()
+        public KVObject GetInputSignature()
         {
             if (Resource.ContainsBlockType(BlockType.INSG))
             {
@@ -161,7 +161,7 @@ namespace ValveResourceFormat.ResourceTypes
             public string D3DSemanticName { get; }
             public int D3DSemanticIndex { get; }
 
-            public InputSignatureElement(IKeyValueCollection data)
+            public InputSignatureElement(KVObject data)
             {
                 Name = data.GetProperty<string>("m_pName");
                 Semantic = data.GetProperty<string>("m_pSemantic");
@@ -170,9 +170,9 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
-        public static InputSignatureElement FindD3DInputSignatureElement(IKeyValueCollection insg, string d3dName, int d3dIndex)
+        public static InputSignatureElement FindD3DInputSignatureElement(KVObject insg, string d3dName, int d3dIndex)
         {
-            foreach (var elemData in insg.GetArray<IKeyValueCollection>("m_elems"))
+            foreach (var elemData in insg.GetArray<KVObject>("m_elems"))
             {
                 var elem = new InputSignatureElement(elemData);
                 if (elem.D3DSemanticName == d3dName && elem.D3DSemanticIndex == d3dIndex)

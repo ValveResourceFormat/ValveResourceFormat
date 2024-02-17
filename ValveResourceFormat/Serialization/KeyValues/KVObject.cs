@@ -9,7 +9,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
     //Datastructure for a KV Object
     [DebuggerDisplay("{DebugRepresentation,nq}")]
     [DebuggerTypeProxy(typeof(DebugView))]
-    public class KVObject : IKeyValueCollection
+    public class KVObject : IEnumerable<KeyValuePair<string, object>>
     {
         public string Key { get; }
         public Dictionary<string, KVValue> Properties { get; }

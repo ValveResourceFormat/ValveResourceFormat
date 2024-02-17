@@ -1,6 +1,7 @@
 using System.IO;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes;
 using ValveResourceFormat.Serialization;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
 {
@@ -16,7 +17,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
         {
         }
 
-        public void KV3Transfer(IKeyValueCollection data)
+        public void KV3Transfer(KVObject data)
         {
             CollisionAttributeIndex = data.GetInt32Property("m_nCollisionAttributeIndex");
             SurfacePropertyIndex = data.GetInt32Property("m_nSurfacePropertyIndex");
@@ -27,7 +28,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
             Shape = DeserializeShape(shapeData);
         }
 
-        public virtual T DeserializeShape(IKeyValueCollection data)
+        public virtual T DeserializeShape(KVObject data)
         {
             throw new NotImplementedException();
         }
@@ -35,21 +36,21 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
 
     public class SphereDescriptor : ShapeDescriptor<Sphere>
     {
-        public override Sphere DeserializeShape(IKeyValueCollection data) => new(data);
+        public override Sphere DeserializeShape(KVObject data) => new(data);
     }
 
     public class CapsuleDescriptor : ShapeDescriptor<Capsule>
     {
-        public override Capsule DeserializeShape(IKeyValueCollection data) => new(data);
+        public override Capsule DeserializeShape(KVObject data) => new(data);
     }
 
     public class HullDescriptor : ShapeDescriptor<Hull>
     {
-        public override Hull DeserializeShape(IKeyValueCollection data) => new(data);
+        public override Hull DeserializeShape(KVObject data) => new(data);
     }
 
     public class MeshDescriptor : ShapeDescriptor<Shapes.Mesh>
     {
-        public override Shapes.Mesh DeserializeShape(IKeyValueCollection data) => new(data);
+        public override Shapes.Mesh DeserializeShape(KVObject data) => new(data);
     }
 }

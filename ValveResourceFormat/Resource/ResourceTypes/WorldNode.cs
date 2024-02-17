@@ -1,10 +1,11 @@
 using ValveResourceFormat.Serialization;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes
 {
     public class WorldNode : KeyValuesOrNTRO
     {
-        public IReadOnlyList<IKeyValueCollection> SceneObjects
+        public IReadOnlyList<KVObject> SceneObjects
             => Data.GetArray("m_sceneObjects");
 
         /// <summary>
@@ -17,12 +18,12 @@ namespace ValveResourceFormat.ResourceTypes
                 ? Data.GetIntegerArray("m_sceneObjectLayerIndices")
                 : null;
 
-        public IReadOnlyList<IKeyValueCollection> AggregateSceneObjects
+        public IReadOnlyList<KVObject> AggregateSceneObjects
             => Data.ContainsKey("m_aggregateSceneObjects")
                 ? Data.GetArray("m_aggregateSceneObjects")
                 : [];
 
-        public IReadOnlyList<IKeyValueCollection> ClutterSceneObjects
+        public IReadOnlyList<KVObject> ClutterSceneObjects
             => Data.ContainsKey("m_clutterSceneObjects")
                 ? Data.GetArray("m_clutterSceneObjects")
                 : [];

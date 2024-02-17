@@ -32,7 +32,7 @@ public class ModelExtract
 
     public record struct RenderMeshExtractConfiguration(Mesh Mesh, string FileName, ImportFilter ImportFilter = default);
     public List<RenderMeshExtractConfiguration> RenderMeshesToExtract { get; } = [];
-    public Dictionary<string, IKeyValueCollection> MaterialInputSignatures { get; } = [];
+    public Dictionary<string, KVObject> MaterialInputSignatures { get; } = [];
 
     public List<(HullDescriptor Hull, string FileName)> PhysHullsToExtract { get; } = [];
     public List<(MeshDescriptor Mesh, string FileName)> PhysMeshesToExtract { get; } = [];
@@ -771,7 +771,7 @@ public class ModelExtract
         }
     }
 
-    public static byte[] ToDmxMesh(Mesh mesh, string name, Dictionary<string, IKeyValueCollection> materialInputSignatures = null,
+    public static byte[] ToDmxMesh(Mesh mesh, string name, Dictionary<string, KVObject> materialInputSignatures = null,
         bool splitDrawCallsIntoSeparateSubmeshes = false)
     {
         var mdat = mesh.Data;
@@ -781,7 +781,7 @@ public class ModelExtract
         using var dmx = new Datamodel.Datamodel("model", 22);
         DmxModelMultiVertexBufferLayout(name, mbuf.VertexBuffers.Count, out var dmeModel, out var dags, out var dmeVertexBuffers);
 
-        IKeyValueCollection materialInputSignature = null;
+        KVObject materialInputSignature = null;
         var drawCallIndex = 0;
 
         foreach (var sceneObject in mdat.GetArray("m_sceneObjects"))
@@ -1076,7 +1076,7 @@ public class ModelExtract
         return stream.ToArray();
     }
 
-    private static void FillDatamodelVertexData(VBIB.OnDiskBufferData vertexBuffer, DmeVertexData vertexData, IKeyValueCollection materialInputSignature)
+    private static void FillDatamodelVertexData(VBIB.OnDiskBufferData vertexBuffer, DmeVertexData vertexData, KVObject materialInputSignature)
     {
         var indices = Enumerable.Range(0, (int)vertexBuffer.ElementCount).ToArray(); // May break with non-unit strides, non-tri faces
 

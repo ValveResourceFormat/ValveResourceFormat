@@ -1,6 +1,7 @@
 using System.Linq;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace GUI.Types.Renderer
 {
@@ -65,7 +66,7 @@ namespace GUI.Types.Renderer
             LocalBoundingBox = RenderMesh.BoundingBox;
         }
 
-        public IEnumerable<Fragment> CreateFragments(IKeyValueCollection aggregateSceneObject)
+        public IEnumerable<Fragment> CreateFragments(KVObject aggregateSceneObject)
         {
             var aggregateMeshes = aggregateSceneObject.GetArray("m_aggregateMeshes");
 

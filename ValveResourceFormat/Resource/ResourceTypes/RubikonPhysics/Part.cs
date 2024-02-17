@@ -1,4 +1,5 @@
 using ValveResourceFormat.Serialization;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
 {
@@ -9,7 +10,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
         public Shape Shape { get; set; }
         public int CollisionAttributeIndex { get; set; }
 
-        public Part(IKeyValueCollection data)
+        public Part(KVObject data)
         {
             Flags = data.GetInt32Property("m_nFlags");
             Mass = data.GetFloatProperty("m_flMass");

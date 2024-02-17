@@ -1,6 +1,7 @@
 using System.Linq;
 using ValveResourceFormat.ResourceTypes.ModelFlex;
 using ValveResourceFormat.Serialization;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 {
@@ -9,7 +10,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         public int[] RemapTable { get; } // Bone ID => Element Index
         public AnimationChannelAttribute Attribute { get; }
 
-        public AnimationDataChannel(Skeleton skeleton, FlexController[] flexControllers, IKeyValueCollection dataChannel)
+        public AnimationDataChannel(Skeleton skeleton, FlexController[] flexControllers, KVObject dataChannel)
         {
             var elementNameArray = dataChannel.GetArray<string>("m_szElementNameArray");
             var elementIndexArray = dataChannel.GetIntegerArray("m_nElementIndexArray");

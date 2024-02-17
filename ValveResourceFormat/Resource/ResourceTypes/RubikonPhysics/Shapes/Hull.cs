@@ -1,6 +1,7 @@
 using System.Linq;
 using System.Runtime.InteropServices;
 using ValveResourceFormat.Serialization;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
 {
@@ -15,7 +16,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
             /// </summary>
             public readonly float Offset;
 
-            public Plane(IKeyValueCollection data)
+            public Plane(KVObject data)
             {
                 Normal = data.GetSubCollection("m_vNormal").ToVector3();
                 Offset = data.GetFloatProperty("m_flOffset");
@@ -33,7 +34,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
             public readonly byte Origin;
             public readonly byte Face;
 
-            public HalfEdge(IKeyValueCollection data)
+            public HalfEdge(KVObject data)
             {
                 Next = data.GetByteProperty("m_nNext");
                 Twin = data.GetByteProperty("m_nTwin");
@@ -50,7 +51,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
             /// </summary>
             public readonly byte Edge;
 
-            public Face(IKeyValueCollection data)
+            public Face(KVObject data)
             {
                 Edge = data.GetByteProperty("m_nEdge");
             }
@@ -59,9 +60,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
         public class Region
         {
             public object[] Nodes { get; }
-            public IKeyValueCollection Data { get; }
+            public KVObject Data { get; }
 
-            public Region(IKeyValueCollection data)
+            public Region(KVObject data)
             {
                 Data = data;
                 Nodes = null; // TODO
@@ -101,9 +102,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
         //public AABB Bounds { get; set; }
         public Vector3 Min { get; }
         public Vector3 Max { get; }
-        public IKeyValueCollection Data { get; }
+        public KVObject Data { get; }
 
-        public Hull(IKeyValueCollection data)
+        public Hull(KVObject data)
         {
             Centroid = data.GetSubCollection("m_vCentroid").ToVector3();
             MaxAngularRadius = data.GetFloatProperty("m_flMaxAngularRadius");
@@ -120,7 +121,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
         }
 
         // 2023-11-4: Explicit vertex indices
-        private static bool HasExplicitVertexIndices(IKeyValueCollection data)
+        private static bool HasExplicitVertexIndices(KVObject data)
             => data.ContainsKey("m_VertexPositions");
 
         /// <summary>
@@ -184,7 +185,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
             return MemoryMarshal.Cast<byte, Plane>(Data.GetArray<byte>("m_Planes"));
         }
 
-        internal static Span<Vector3> ParseVertices(IKeyValueCollection data)
+        internal static Span<Vector3> ParseVertices(KVObject data)
         {
             if (data.IsNotBlobType("m_Vertices"))
             {

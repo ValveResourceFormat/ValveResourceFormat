@@ -2,6 +2,7 @@ using System.IO;
 using System.Linq;
 using System.Security;
 using ValveResourceFormat.Serialization;
+using ValveResourceFormat.Serialization.KeyValues;
 using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.ResourceTypes
@@ -32,7 +33,7 @@ namespace ValveResourceFormat.ResourceTypes
 
     static class PanoramaLayoutPrinter
     {
-        public static string Print(IKeyValueCollection layoutRoot)
+        public static string Print(KVObject layoutRoot)
         {
             using var writer = new IndentedTextWriter();
 
@@ -50,7 +51,7 @@ namespace ValveResourceFormat.ResourceTypes
             return writer.ToString();
         }
 
-        private static void PrintNode(IKeyValueCollection node, IndentedTextWriter writer)
+        private static void PrintNode(KVObject node, IndentedTextWriter writer)
         {
             var type = node.GetProperty<string>("eType");
             switch (type)
@@ -67,13 +68,13 @@ namespace ValveResourceFormat.ResourceTypes
             };
         }
 
-        private static void PrintPanel(IKeyValueCollection node, IndentedTextWriter writer)
+        private static void PrintPanel(KVObject node, IndentedTextWriter writer)
         {
             var name = node.GetProperty<string>("name");
             PrintPanelBase(name, node, writer);
         }
 
-        private static void PrintPanelBase(string name, IKeyValueCollection node, IndentedTextWriter writer)
+        private static void PrintPanelBase(string name, KVObject node, IndentedTextWriter writer)
         {
             var attributes = NodeAttributes(node);
             var nodeChildren = NodeChildren(node).ToList();
@@ -96,7 +97,7 @@ namespace ValveResourceFormat.ResourceTypes
             writer.WriteLine($"</{name}>");
         }
 
-        private static void PrintInclude(IKeyValueCollection node, IndentedTextWriter writer)
+        private static void PrintInclude(KVObject node, IndentedTextWriter writer)
         {
             var reference = node.GetSubCollection("child");
 
@@ -105,7 +106,7 @@ namespace ValveResourceFormat.ResourceTypes
             writer.WriteLine(" />");
         }
 
-        private static void PrintScriptBody(IKeyValueCollection node, IndentedTextWriter writer)
+        private static void PrintScriptBody(KVObject node, IndentedTextWriter writer)
         {
             var content = node.GetProperty<string>("name");
 
@@ -114,7 +115,7 @@ namespace ValveResourceFormat.ResourceTypes
             writer.WriteLine("]]></script>");
         }
 
-        private static void PrintSnippet(IKeyValueCollection node, IndentedTextWriter writer)
+        private static void PrintSnippet(KVObject node, IndentedTextWriter writer)
         {
             var nodeChildren = NodeChildren(node);
 
@@ -132,14 +133,14 @@ namespace ValveResourceFormat.ResourceTypes
             writer.WriteLine("</snippet>");
         }
 
-        private static void PrintOpenNode(string name, IEnumerable<IKeyValueCollection> attributes, string nodeEnding, IndentedTextWriter writer)
+        private static void PrintOpenNode(string name, IEnumerable<KVObject> attributes, string nodeEnding, IndentedTextWriter writer)
         {
             writer.Write($"<{name}");
             PrintAttributes(attributes, writer);
             writer.WriteLine(nodeEnding);
         }
 
-        private static void PrintAttributes(IEnumerable<IKeyValueCollection> attributes, IndentedTextWriter writer)
+        private static void PrintAttributes(IEnumerable<KVObject> attributes, IndentedTextWriter writer)
         {
             foreach (var attribute in attributes)
             {
@@ -151,7 +152,7 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
-        private static void PrintAttributeOrReferenceValue(IKeyValueCollection attributeValue, IndentedTextWriter writer)
+        private static void PrintAttributeOrReferenceValue(KVObject attributeValue, IndentedTextWriter writer)
         {
             var value = attributeValue.GetProperty<string>("name");
             var type = attributeValue.GetProperty<string>("eType");
@@ -167,11 +168,11 @@ namespace ValveResourceFormat.ResourceTypes
             writer.Write($"\"{value}\"");
         }
 
-        private static bool IsAttribute(IKeyValueCollection node) => node.GetProperty<string>("eType") == "PANEL_ATTRIBUTE";
-        private static IEnumerable<IKeyValueCollection> NodeAttributes(IKeyValueCollection node) => SubNodes(node).Where(n => IsAttribute(n));
-        private static IEnumerable<IKeyValueCollection> NodeChildren(IKeyValueCollection node) => SubNodes(node).Where(n => !IsAttribute(n));
+        private static bool IsAttribute(KVObject node) => node.GetProperty<string>("eType") == "PANEL_ATTRIBUTE";
+        private static IEnumerable<KVObject> NodeAttributes(KVObject node) => SubNodes(node).Where(n => IsAttribute(n));
+        private static IEnumerable<KVObject> NodeChildren(KVObject node) => SubNodes(node).Where(n => !IsAttribute(n));
 
-        private static IKeyValueCollection[] SubNodes(IKeyValueCollection node)
+        private static KVObject[] SubNodes(KVObject node)
         {
             if (node.ContainsKey("vecChildren"))
             {

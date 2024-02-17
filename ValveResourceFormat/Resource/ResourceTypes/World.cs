@@ -1,5 +1,6 @@
 using System.Linq;
 using ValveResourceFormat.Serialization;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes
 {
@@ -8,7 +9,7 @@ namespace ValveResourceFormat.ResourceTypes
         public IReadOnlyCollection<string> GetEntityLumpNames()
             => Data.GetArray<string>("m_entityLumps");
 
-        public IKeyValueCollection GetWorldLightingInfo()
+        public KVObject GetWorldLightingInfo()
             => Data.GetSubCollection("m_worldLightingInfo");
 
         public IReadOnlyCollection<string> GetWorldNodeNames()

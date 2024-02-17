@@ -2,6 +2,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using ValveResourceFormat.Serialization;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
 {
@@ -33,7 +34,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
             /// </summary>
             public readonly uint TriangleOffset;
 
-            public Node(IKeyValueCollection data)
+            public Node(KVObject data)
             {
                 Min = data.GetSubCollection("m_vMin").ToVector3();
                 Max = data.GetSubCollection("m_vMax").ToVector3();
@@ -52,7 +53,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
             /// <summary>The Z component of the triangle.</summary>
             public readonly int Z;
 
-            public Triangle(IKeyValueCollection data)
+            public Triangle(KVObject data)
             {
                 var indices = data.GetArray<object>("m_nIndex").Select(Convert.ToInt32).ToArray();
 
@@ -80,9 +81,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
         /// Fraction 0..1 of coverage along YZ,ZX,XY sides of AABB
         /// </summary>
         public Vector3 OrthographicAreas { get; }
-        public IKeyValueCollection Data { get; }
+        public KVObject Data { get; }
 
-        public Mesh(IKeyValueCollection data)
+        public Mesh(KVObject data)
         {
             Data = data;
             Min = data.GetSubCollection("m_vMin").ToVector3();

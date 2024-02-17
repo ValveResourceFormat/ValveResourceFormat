@@ -1,6 +1,7 @@
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace GUI.Types.Renderer
 {
@@ -28,7 +29,7 @@ namespace GUI.Types.Renderer
         public int SortId { get; }
         public Shader Shader { get; set; }
         public Material Material { get; }
-        public IKeyValueCollection VsInputSignature { get; }
+        public KVObject VsInputSignature { get; }
         public Dictionary<string, RenderTexture> Textures { get; } = [];
         public bool IsTranslucent { get; }
         public bool IsOverlay { get; }
@@ -40,7 +41,7 @@ namespace GUI.Types.Renderer
         private readonly bool hasDepthBias;
         private int textureUnit;
 
-        public RenderMaterial(Material material, IKeyValueCollection insg, ShaderLoader shaderLoader, Dictionary<string, byte> shaderArguments)
+        public RenderMaterial(Material material, KVObject insg, ShaderLoader shaderLoader, Dictionary<string, byte> shaderArguments)
             : this(material)
         {
             VsInputSignature = insg;

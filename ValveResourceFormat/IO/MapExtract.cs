@@ -7,6 +7,7 @@ using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO.ContentFormats.ValveMap;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization;
+using ValveResourceFormat.Serialization.KeyValues;
 using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.IO;
@@ -449,7 +450,7 @@ public sealed class MapExtract
             properties["disableinlowquality"] = StringBool(objectFlags.HasFlag(ObjectTypeFlags.DisabledInLowQuality));
         }
 
-        void SceneObjectToStaticProp(IKeyValueCollection sceneObject, int layerIndex, List<MapNode> layerNodes)
+        void SceneObjectToStaticProp(KVObject sceneObject, int layerIndex, List<MapNode> layerNodes)
         {
             var modelName = sceneObject.GetProperty<string>("m_renderableModel");
             var meshName = sceneObject.GetProperty<string>("m_renderable");
@@ -517,7 +518,7 @@ public sealed class MapExtract
             StaticPropFinalize(propStatic, layerIndex, layerNodes, isEmbeddedModel);
         }
 
-        void AggregateToStaticProps(IKeyValueCollection agg, int layerIndex, List<MapNode> layerNodes)
+        void AggregateToStaticProps(KVObject agg, int layerIndex, List<MapNode> layerNodes)
         {
             var modelName = agg.GetProperty<string>("m_renderableModel");
             var anyFlags = agg.GetEnumValue<ObjectTypeFlags>("m_anyFlags", normalize: true);
@@ -526,7 +527,7 @@ public sealed class MapExtract
             var aggregateMeshes = agg.GetArray("m_aggregateMeshes");
 
             //ModelsToExtract.Add(modelName);
-            var drawCalls = Array.Empty<IKeyValueCollection>();
+            var drawCalls = Array.Empty<KVObject>();
             var drawCenters = Array.Empty<Vector3>();
 
             var transformIndex = 0;

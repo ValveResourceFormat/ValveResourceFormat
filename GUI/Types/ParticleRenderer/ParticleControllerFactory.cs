@@ -5,6 +5,7 @@ using GUI.Types.ParticleRenderer.PreEmissionOperators;
 using GUI.Types.ParticleRenderer.Renderers;
 using GUI.Utils;
 using ValveResourceFormat.Serialization;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace GUI.Types.ParticleRenderer
 {
@@ -127,7 +128,7 @@ namespace GUI.Types.ParticleRenderer
                 ["C_OP_StopAfterCPDuration"] = preEmissionOperatorInfo => new StopAfterDuration(preEmissionOperatorInfo),
             };
 
-        public static bool TryCreateEmitter(string name, IKeyValueCollection emitterInfo, out ParticleFunctionEmitter emitter)
+        public static bool TryCreateEmitter(string name, KVObject emitterInfo, out ParticleFunctionEmitter emitter)
         {
             if (EmitterDictionary.TryGetValue(name, out var factory))
             {
@@ -139,7 +140,7 @@ namespace GUI.Types.ParticleRenderer
             return false;
         }
 
-        public static bool TryCreateInitializer(string name, IKeyValueCollection initializerInfo, out ParticleFunctionInitializer initializer)
+        public static bool TryCreateInitializer(string name, KVObject initializerInfo, out ParticleFunctionInitializer initializer)
         {
             if (InitializerDictionary.TryGetValue(name, out var factory))
             {
@@ -151,7 +152,7 @@ namespace GUI.Types.ParticleRenderer
             return false;
         }
 
-        public static bool TryCreateOperator(string name, IKeyValueCollection operatorInfo, out ParticleFunctionOperator @operator)
+        public static bool TryCreateOperator(string name, KVObject operatorInfo, out ParticleFunctionOperator @operator)
         {
             if (OperatorDictionary.TryGetValue(name, out var factory))
             {
@@ -163,7 +164,7 @@ namespace GUI.Types.ParticleRenderer
             return false;
         }
 
-        public static bool TryCreateRender(string name, IKeyValueCollection rendererInfo, VrfGuiContext vrfGuiContext, out ParticleFunctionRenderer renderer)
+        public static bool TryCreateRender(string name, KVObject rendererInfo, VrfGuiContext vrfGuiContext, out ParticleFunctionRenderer renderer)
         {
             if (RendererDictionary.TryGetValue(name, out var factory))
             {
@@ -174,7 +175,7 @@ namespace GUI.Types.ParticleRenderer
             renderer = default;
             return false;
         }
-        public static bool TryCreatePreEmissionOperator(string name, IKeyValueCollection preEmissionOperatorInfo, out ParticleFunctionPreEmissionOperator preEmissionOperator)
+        public static bool TryCreatePreEmissionOperator(string name, KVObject preEmissionOperatorInfo, out ParticleFunctionPreEmissionOperator preEmissionOperator)
         {
             if (PreEmissionOperatorDictionary.TryGetValue(name, out var factory))
             {

@@ -3,6 +3,7 @@ using System.Runtime.InteropServices;
 using ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders;
 using ValveResourceFormat.ResourceTypes.ModelFlex;
 using ValveResourceFormat.Serialization;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 {
@@ -16,7 +17,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         private AnimationSegmentDecoder[] SegmentArray { get; }
         private AnimationMovement[] MovementArray { get; }
 
-        private Animation(IKeyValueCollection animDesc, AnimationSegmentDecoder[] segmentArray)
+        private Animation(KVObject animDesc, AnimationSegmentDecoder[] segmentArray)
         {
             // Get animation properties
             Name = animDesc.GetProperty<string>("m_name");
@@ -27,7 +28,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             IsLooping = flags.GetProperty<bool>("m_bLooping");
 
             var pDataObject = animDesc.GetProperty<object>("m_pData");
-            var pData = pDataObject as IKeyValueCollection;
+            var pData = pDataObject as KVObject;
             FrameCount = pData.GetInt32Property("m_nFrames");
 
             var frameBlockArray = pData.GetArray("m_frameblockArray");
@@ -45,10 +46,10 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             }
         }
 
-        public static IEnumerable<Animation> FromData(IKeyValueCollection animationData, IKeyValueCollection decodeKey,
+        public static IEnumerable<Animation> FromData(KVObject animationData, KVObject decodeKey,
             Skeleton skeleton, FlexController[] flexControllers)
         {
-            var animArray = animationData.GetArray<IKeyValueCollection>("m_animArray");
+            var animArray = animationData.GetArray<KVObject>("m_animArray");
 
             if (animArray.Length == 0)
             {
@@ -157,10 +158,10 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                 .ToArray();
         }
 
-        public static IEnumerable<Animation> FromResource(Resource resource, IKeyValueCollection decodeKey, Skeleton skeleton, FlexController[] flexControllers)
+        public static IEnumerable<Animation> FromResource(Resource resource, KVObject decodeKey, Skeleton skeleton, FlexController[] flexControllers)
             => FromData(GetAnimationData(resource), decodeKey, skeleton, flexControllers);
 
-        private static IKeyValueCollection GetAnimationData(Resource resource)
+        private static KVObject GetAnimationData(Resource resource)
             => resource.DataBlock.AsKeyValueCollection();
 
         private int GetMovementIndexForTime(float time)

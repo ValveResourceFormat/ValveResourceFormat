@@ -52,9 +52,9 @@ namespace ValveResourceFormat.ResourceTypes
             var texPixels = skiaBitmap.Pixels;
 
             //Some vmorf_c may be another old struct(NTROValue, eg: models/heroes/faceless_void/faceless_void_body.vmdl_c).
-            //the latest struct is IKeyValueCollection.
+            //the latest struct is KVObject.
             var morphDatas = GetMorphKeyValueCollection(Data, "m_morphDatas");
-            if (morphDatas == null || !morphDatas.Any())
+            if (morphDatas == null || morphDatas.Count == 0)
             {
                 return flexData;
             }
@@ -63,7 +63,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             foreach (var pair in morphDatas)
             {
-                if (pair.Value is not IKeyValueCollection morphData)
+                if (pair.Value is not KVObject morphData)
                 {
                     continue;
                 }
@@ -81,7 +81,7 @@ namespace ValveResourceFormat.ResourceTypes
                 var morphRectDatas = morphData.GetSubCollection("m_morphRectDatas");
                 foreach (var morphRectData in morphRectDatas)
                 {
-                    var rect = morphRectData.Value as IKeyValueCollection;
+                    var rect = morphRectData.Value as KVObject;
                     var xLeftDst = rect.GetInt32Property("m_nXLeftDst");
                     var yTopDst = rect.GetInt32Property("m_nYTopDst");
                     var rectWidth = (int)Math.Round(rect.GetFloatProperty("m_flUWidthSrc") * texWidth, 0);
@@ -99,7 +99,7 @@ namespace ValveResourceFormat.ResourceTypes
                             continue;
                         }
 
-                        var bundle = bundleData.Value as IKeyValueCollection;
+                        var bundle = bundleData.Value as KVObject;
                         var rectU = (int)Math.Round(bundle.GetFloatProperty("m_flULeftSrc") * texWidth, 0);
                         var rectV = (int)Math.Round(bundle.GetFloatProperty("m_flVTopSrc") * texHeight, 0);
                         var ranges = new Vector4(bundle.GetFloatArray("m_ranges"));
@@ -157,9 +157,9 @@ namespace ValveResourceFormat.ResourceTypes
         }
         private static FlexController ParseFlexController(object obj)
         {
-            if (obj is not IKeyValueCollection kv)
+            if (obj is not KVObject kv)
             {
-                throw new ArgumentException("Parameter is not IKeyValueCollection");
+                throw new ArgumentException("Parameter is not KVObject");
             }
 
             var name = kv.GetStringProperty("m_szName");
@@ -172,9 +172,9 @@ namespace ValveResourceFormat.ResourceTypes
 
         private static FlexRule ParseFlexRule(object obj)
         {
-            if (obj is not IKeyValueCollection kv)
+            if (obj is not KVObject kv)
             {
-                throw new ArgumentException("Parameter is not IKeyValueCollection");
+                throw new ArgumentException("Parameter is not KVObject");
             }
 
             var flexId = kv.GetInt32Property("m_nFlex");
@@ -194,9 +194,9 @@ namespace ValveResourceFormat.ResourceTypes
 
         private static FlexOp ParseFlexOp(object obj)
         {
-            if (obj is not IKeyValueCollection kv)
+            if (obj is not KVObject kv)
             {
-                throw new ArgumentException("Parameter is not IKeyValueCollection");
+                throw new ArgumentException("Parameter is not KVObject");
             }
 
             var opCode = kv.GetStringProperty("m_OpCode");
@@ -225,13 +225,13 @@ namespace ValveResourceFormat.ResourceTypes
             throw new NotImplementedException("Unhandled bundle type");
         }
 
-        private static IKeyValueCollection GetMorphKeyValueCollection(IKeyValueCollection data, string name)
+        private static KVObject GetMorphKeyValueCollection(KVObject data, string name)
         {
             var kvObj = data.GetProperty<object>(name);
-            return kvObj as IKeyValueCollection;
+            return kvObj as KVObject;
         }
 
-        public IKeyValueCollection GetMorphDatas()
+        public KVObject GetMorphDatas()
         {
             return GetMorphKeyValueCollection(Data, "m_morphDatas");
         }

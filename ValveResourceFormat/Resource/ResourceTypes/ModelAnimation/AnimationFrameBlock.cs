@@ -1,4 +1,5 @@
 using ValveResourceFormat.Serialization;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 {
@@ -8,7 +9,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         public int EndFrame { get; }
         public long[] SegmentIndexArray { get; }
 
-        public AnimationFrameBlock(IKeyValueCollection frameBlock)
+        public AnimationFrameBlock(KVObject frameBlock)
         {
             StartFrame = frameBlock.GetInt32Property("m_nStartFrame");
             EndFrame = frameBlock.GetInt32Property("m_nEndFrame");

@@ -1,5 +1,6 @@
 using System.Linq;
 using ValveResourceFormat.Serialization;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 {
@@ -12,7 +13,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// <summary>
         /// Initializes a new instance of the <see cref="Skeleton"/> class.
         /// </summary>
-        public static Skeleton FromModelData(IKeyValueCollection modelData, bool filterBonesUsedByLod0)
+        public static Skeleton FromModelData(KVObject modelData, bool filterBonesUsedByLod0)
         {
             // Check if there is any skeleton data present at all
             if (!modelData.ContainsKey("m_modelSkeleton"))
@@ -27,7 +28,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// <summary>
         /// Construct the Armature object from mesh skeleton KV data.
         /// </summary>
-        private Skeleton(IKeyValueCollection skeletonData, bool filterBonesUsedByLod0)
+        private Skeleton(KVObject skeletonData, bool filterBonesUsedByLod0)
         {
             var boneNames = skeletonData.GetArray<string>("m_boneName");
             var boneParents = skeletonData.GetIntegerArray("m_nParent");

@@ -4,8 +4,9 @@ using GUI.Types.ParticleRenderer;
 using GUI.Utils;
 using ValveResourceFormat;
 using ValveResourceFormat.Serialization;
+using ValveResourceFormat.Serialization.KeyValues;
 
-record struct ParticleDefinitionParser(IKeyValueCollection Data)
+record struct ParticleDefinitionParser(KVObject Data)
 {
     public readonly T GetValueOrDefault<T>(string key, Func<string, T> parsingMethod, T @default)
     {
@@ -65,7 +66,7 @@ record struct ParticleDefinitionParser(IKeyValueCollection Data)
     {
         var property = Data.GetProperty<object>(key);
 
-        if (property is IKeyValueCollection pfParameters)
+        if (property is KVObject pfParameters)
         {
             var type = pfParameters.GetProperty<string>("m_nType");
             var parse = new ParticleDefinitionParser(pfParameters);
@@ -126,7 +127,7 @@ record struct ParticleDefinitionParser(IKeyValueCollection Data)
     {
         var property = Data.GetProperty<object>(key);
 
-        if (property is IKeyValueCollection pvecParameters && pvecParameters.ContainsKey("m_nType"))
+        if (property is KVObject pvecParameters && pvecParameters.ContainsKey("m_nType"))
         {
             var type = pvecParameters.GetProperty<string>("m_nType");
             var parse = new ParticleDefinitionParser(pvecParameters);

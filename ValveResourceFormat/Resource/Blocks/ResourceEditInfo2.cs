@@ -2,6 +2,7 @@ using System.IO;
 using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Blocks
 {
@@ -15,7 +16,7 @@ namespace ValveResourceFormat.Blocks
         private BinaryKV3 BackingData;
 
         //public ? WeakReferenceList { get; private set; }
-        public IKeyValueCollection SearchableUserData { get; private set; }
+        public KVObject SearchableUserData { get; private set; }
 
         public ResourceEditInfo2()
         {

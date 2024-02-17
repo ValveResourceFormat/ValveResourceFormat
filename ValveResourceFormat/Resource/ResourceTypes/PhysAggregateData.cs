@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Linq;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics;
 using ValveResourceFormat.Serialization;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes
 {
@@ -23,7 +24,7 @@ namespace ValveResourceFormat.ResourceTypes
         public uint[] SurfacePropertyHashes
             => Data.GetArray<object>("m_surfacePropertyHashes").Select(Convert.ToUInt32).ToArray();
 
-        public IReadOnlyList<IKeyValueCollection> CollisionAttributes
+        public IReadOnlyList<KVObject> CollisionAttributes
             => Data.GetArray("m_collisionAttributes");
 
         private Part[] parts;

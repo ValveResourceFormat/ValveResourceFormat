@@ -4,6 +4,7 @@ using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.ResourceTypes.ModelFlex;
 using ValveResourceFormat.Serialization;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes
 {
@@ -242,7 +243,7 @@ namespace ValveResourceFormat.ResourceTypes
             => Data.GetArray<string>("m_meshGroups");
 
         public IEnumerable<(string Name, string[] Materials)> GetMaterialGroups()
-           => Data.GetArray<IKeyValueCollection>("m_materialGroups")
+           => Data.GetArray<KVObject>("m_materialGroups")
                 .Select(group => (group.GetProperty<string>("m_name"), group.GetArray<string>("m_materials")));
 
         public IEnumerable<string> GetDefaultMeshGroups()

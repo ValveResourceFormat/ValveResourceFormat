@@ -1,5 +1,6 @@
 using GUI.Utils;
 using ValveResourceFormat.Serialization;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace GUI.Types.ParticleRenderer.Utils
 {
@@ -115,7 +116,7 @@ namespace GUI.Types.ParticleRenderer.Utils
         private readonly Vector2 CurveDomainMax;
         private readonly SplineCurve[] CurveSegments;
         private readonly bool IsLooped;
-        public PiecewiseCurve(IKeyValueCollection curveInfo, bool isLooped)
+        public PiecewiseCurve(KVObject curveInfo, bool isLooped)
         {
             IsLooped = isLooped;
 

@@ -6,6 +6,7 @@ using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization;
+using ValveResourceFormat.Serialization.KeyValues;
 using ValveResourceFormat.Utils;
 
 namespace GUI.Types.Renderer
@@ -174,7 +175,7 @@ namespace GUI.Types.Renderer
 #endif
         }
 
-        private void ConfigureDrawCalls(Scene scene, VBIB vbib, IKeyValueCollection[] sceneObjects, Dictionary<string, string> materialReplacementTable)
+        private void ConfigureDrawCalls(Scene scene, VBIB vbib, KVObject[] sceneObjects, Dictionary<string, string> materialReplacementTable)
         {
             if (vbib.VertexBuffers.Count == 0)
             {
@@ -271,7 +272,7 @@ namespace GUI.Types.Renderer
             DrawCallsBlended.TrimExcess();
         }
 
-        private DrawCall CreateDrawCall(IKeyValueCollection objectDrawCall, RenderMaterial material, VBIB vbib)
+        private DrawCall CreateDrawCall(KVObject objectDrawCall, RenderMaterial material, VBIB vbib)
         {
             var drawCall = new DrawCall()
             {

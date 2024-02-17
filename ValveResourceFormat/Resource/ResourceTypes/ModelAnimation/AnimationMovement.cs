@@ -1,4 +1,5 @@
 using ValveResourceFormat.Serialization;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 {
@@ -24,7 +25,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         public Vector3 Vector { get; }
         public Vector3 Position { get; }
 
-        public AnimationMovement(IKeyValueCollection frameBlock)
+        public AnimationMovement(KVObject frameBlock)
         {
             EndFrame = frameBlock.GetInt32Property("endframe");
             MotionFlags = (ModelAnimationMotionFlags)frameBlock.GetInt32Property("motionflags");
