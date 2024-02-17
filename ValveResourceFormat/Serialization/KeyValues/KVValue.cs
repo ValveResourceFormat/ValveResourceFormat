@@ -108,6 +108,12 @@ namespace ValveResourceFormat.Serialization.KeyValues
                 case KVType.UINT64:
                     writer.Write(Convert.ToUInt64(Value, CultureInfo.InvariantCulture));
                     break;
+                case KVType.INT32:
+                    writer.Write(Convert.ToInt32(Value, CultureInfo.InvariantCulture));
+                    break;
+                case KVType.UINT32:
+                    writer.Write(Convert.ToUInt32(Value, CultureInfo.InvariantCulture));
+                    break;
                 case KVType.NULL:
                     writer.Write("null");
                     break;
