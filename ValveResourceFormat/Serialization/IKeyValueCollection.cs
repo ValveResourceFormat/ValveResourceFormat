@@ -199,28 +199,5 @@ namespace ValveResourceFormat.Serialization
                 array.GetFloatProperty("3"), array.GetFloatProperty("7"), array.GetFloatProperty("11"), column4.W
             );
         }
-
-        public static string Print(this KVObject collection) => PrintHelper(collection, 0);
-
-        private static string PrintHelper(KVObject collection, int indent)
-        {
-            var stringBuilder = new StringBuilder();
-            var space = new string(' ', indent * 4);
-            foreach (var kvp in collection)
-            {
-                if (kvp.Value is KVObject nestedCollection)
-                {
-                    stringBuilder.AppendLine(CultureInfo.InvariantCulture, $"{space}{kvp.Key} = {{");
-                    stringBuilder.Append(PrintHelper(nestedCollection, indent + 1));
-                    stringBuilder.AppendLine(CultureInfo.InvariantCulture, $"{space}}}");
-                }
-                else
-                {
-                    stringBuilder.AppendLine(CultureInfo.InvariantCulture, $"{space}{kvp.Key} = {kvp.Value}");
-                }
-            }
-
-            return stringBuilder.ToString();
-        }
     }
 }
