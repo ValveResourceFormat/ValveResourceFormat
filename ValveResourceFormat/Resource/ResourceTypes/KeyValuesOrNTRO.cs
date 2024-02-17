@@ -31,7 +31,6 @@ namespace ValveResourceFormat.ResourceTypes
             Resource = resource;
 
             // It is possible to have MDAT block with NTRO in a file, but it will be KV3 anyway.
-            // TODO: The whole KeyValuesOrNTRO needs a cleanup to more elegantly handle upconverting NTRO into KV3.
             if (!resource.ContainsBlockType(BlockType.NTRO) || KVBlockType == BlockType.MDAT)
             {
                 var kv3 = new BinaryKV3(KVBlockType)
