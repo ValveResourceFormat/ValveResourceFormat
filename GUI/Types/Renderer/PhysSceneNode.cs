@@ -24,7 +24,7 @@ namespace GUI.Types.Renderer
             : base(scene)
         {
             indexCount = inds.Count;
-            shader = Scene.GuiContext.ShaderLoader.LoadShader("vrf.default");
+            shader = Scene.GuiContext.ShaderLoader.LoadShader("vrf.physics");
 
             GL.CreateVertexArrays(1, out vaoHandle);
             GL.CreateBuffers(1, out int vboHandle);
@@ -405,6 +405,7 @@ namespace GUI.Types.Renderer
             var renderShader = context.ReplacementShader ?? shader;
 
             GL.DepthMask(false);
+            GL.DepthFunc(DepthFunction.Always);
             GL.Enable(EnableCap.Blend);
             GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
 
@@ -413,6 +414,8 @@ namespace GUI.Types.Renderer
             renderShader.SetUniform4x4("transform", Transform);
             renderShader.SetUniform1("bAnimated", 0.0f);
             renderShader.SetUniform1("sceneObjectId", Id);
+
+            renderShader.SetTexture(0, "g_tDepth", context.Framebuffer.Depth);
 
             GL.BindVertexArray(vaoHandle);
 
@@ -431,6 +434,7 @@ namespace GUI.Types.Renderer
             GL.Disable(EnableCap.PolygonOffsetFill);
             GL.PolygonOffsetClamp(0, 0, 0);
             GL.Enable(EnableCap.CullFace);
+            GL.DepthFunc(DepthFunction.Greater);
             GL.DepthMask(true);
 
             GL.UseProgram(0);

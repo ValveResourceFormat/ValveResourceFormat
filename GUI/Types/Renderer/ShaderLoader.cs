@@ -212,6 +212,7 @@ namespace GUI.Types.Renderer
             "vrf.picking" => "picking",
             "vrf.particle.sprite" => "particle_sprite",
             "vrf.particle.trail" => "particle_trail",
+            "vrf.physics" => "physics",
             "vrf.morph_composite" => "morph_composite",
             "vrf.texture_decode" => "texture_decode",
             "vrf.font_msdf" => "font_msdf",
