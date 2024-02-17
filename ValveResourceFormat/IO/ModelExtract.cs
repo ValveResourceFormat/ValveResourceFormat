@@ -277,8 +277,56 @@ public class ModelExtract
                 var animationFile = MakeNode(
                     "AnimFile",
                     ("name", animation.Anim.Name),
-                    ("source_filename", animation.FileName)
+                    ("source_filename", animation.FileName),
+                    ("fade_in_time", animation.Anim.SequenceParams.FadeInTime),
+                    ("fade_out_time", animation.Anim.SequenceParams.FadeOutTime),
+                    ("looping", animation.Anim.IsLooping),
+                    ("delta", animation.Anim.Delta),
+                    ("worldSpace", animation.Anim.Worldspace),
+                    ("hidden", animation.Anim.Hidden)
                 );
+
+                if (animation.Anim.Activities.Length > 0)
+                {
+                    var activity = animation.Anim.Activities[0];
+                    animationFile.AddProperty("activity_name", MakeValue(activity.Name));
+                    animationFile.AddProperty("activity_weight", MakeValue(activity.Weight));
+                }
+
+                var childrenKV = new KVObject(null, true, 1);
+                if (animation.Anim.HasMovementData())
+                {
+                    var flags = animation.Anim.Movements[0].MotionFlags;
+                    var extractMotion = MakeNode("ExtractMotion",
+                        ("extract_tx", flags.HasFlag(ModelAnimationMotionFlags.TX)),
+                        ("extract_ty", flags.HasFlag(ModelAnimationMotionFlags.TY)),
+                        ("extract_tz", flags.HasFlag(ModelAnimationMotionFlags.TZ)),
+                        ("extract_rz", flags.HasFlag(ModelAnimationMotionFlags.RZ)),
+                        ("linear", flags.HasFlag(ModelAnimationMotionFlags.Linear)),
+                        ("quadratic", false),
+                        ("motion_type", "uniform")
+                    );
+
+                    childrenKV.AddProperty(null, MakeValue(extractMotion));
+                }
+                foreach (var animEvent in animation.Anim.Events)
+                {
+                    var animEventNode = MakeNode("AnimEvent",
+                        ("event_class", animEvent.Name),
+                        ("event_frame", animEvent.Frame)
+                    );
+
+                    if (animEvent.EventData != null)
+                    {
+                        animEventNode.AddProperty("event_keys", MakeValue(animEvent.EventData));
+                    }
+                    childrenKV.AddProperty(null, MakeValue(animEventNode));
+                }
+
+                if (childrenKV.Count > 0)
+                {
+                    animationFile.AddProperty("children", MakeValue(childrenKV));
+                }
 
                 AddItem(animationList.Value, animationFile);
             }
