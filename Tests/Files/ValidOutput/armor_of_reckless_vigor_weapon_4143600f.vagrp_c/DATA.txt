@@ -1,220 +1,374 @@
-AnimationGroupResourceData_t
+<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:generic:version{7412167c-06e9-4698-aff2-e63eb59037e7} -->
+
+{
+	m_nFlags = 0
+	m_name = ""
+	m_localHAnimArray = 
+	[
+	]
+	m_includedGroupArray = 
+	[
+	]
+	m_directHSeqGroup = null
+	m_decodeKey = 
 	{
-		uint32 m_nFlags = 0x00000000
-		CResourceString m_name = ""
-		ExternalReference m_localHAnimArray[0] =
+		m_name = ""
+		m_boneArray = 
+		[
+			
+			{
+				m_name = "Root_0"
+				m_parent = -1
+				m_pos = 
+				[
+					-24.738680,
+					0.000000,
+					97.968260,
+				]
+				m_quat = 
+				[
+					0.000000,
+					0.000000,
+					0.000000,
+					1.000000,
+				]
+				m_qAlignment = 
+				[
+					0.000000,
+					0.000000,
+					0.000000,
+					0.000000,
+				]
+				m_flags = 0
+			},
+			
+			{
+				m_name = "Spine_0"
+				m_parent = 0
+				m_pos = 
+				[
+					-0.314964,
+					0.000000,
+					10.727520,
+				]
+				m_quat = 
+				[
+					0.000000,
+					-0.681197,
+					0.000000,
+					0.732101,
+				]
+				m_qAlignment = 
+				[
+					0.000000,
+					0.000000,
+					0.000000,
+					0.000000,
+				]
+				m_flags = 0
+			},
+			
+			{
+				m_name = "Spine_1"
+				m_parent = 1
+				m_pos = 
+				[
+					10.902790,
+					0.000000,
+					-0.000004,
+				]
+				m_quat = 
+				[
+					-0.000000,
+					0.122020,
+					-0.000000,
+					0.992528,
+				]
+				m_qAlignment = 
+				[
+					0.000000,
+					0.000000,
+					0.000000,
+					0.000000,
+				]
+				m_flags = 0
+			},
+			
+			{
+				m_name = "Spine_2"
+				m_parent = 2
+				m_pos = 
+				[
+					10.825580,
+					-0.000001,
+					-0.000015,
+				]
+				m_quat = 
+				[
+					0.000000,
+					0.152568,
+					-0.000000,
+					0.988293,
+				]
+				m_qAlignment = 
+				[
+					0.000000,
+					0.000000,
+					0.000000,
+					0.000000,
+				]
+				m_flags = 0
+			},
+			
+			{
+				m_name = "clavicle_L"
+				m_parent = 3
+				m_pos = 
+				[
+					21.465310,
+					9.863488,
+					2.667709,
+				]
+				m_quat = 
+				[
+					0.336291,
+					0.623454,
+					0.434484,
+					0.556271,
+				]
+				m_qAlignment = 
+				[
+					0.000000,
+					0.000000,
+					0.000000,
+					0.000000,
+				]
+				m_flags = 0
+			},
+			
+			{
+				m_name = "bicep_L"
+				m_parent = 4
+				m_pos = 
+				[
+					13.977750,
+					-0.000008,
+					0.000061,
+				]
+				m_quat = 
+				[
+					-0.896456,
+					0.115583,
+					0.213877,
+					0.370492,
+				]
+				m_qAlignment = 
+				[
+					0.000000,
+					0.000000,
+					0.000000,
+					0.000000,
+				]
+				m_flags = 0
+			},
+			
+			{
+				m_name = "elbow_L"
+				m_parent = 5
+				m_pos = 
+				[
+					35.601020,
+					-0.000046,
+					-0.000005,
+				]
+				m_quat = 
+				[
+					0.007588,
+					0.291183,
+					-0.009003,
+					0.956595,
+				]
+				m_qAlignment = 
+				[
+					0.000000,
+					0.000000,
+					0.000000,
+					0.000000,
+				]
+				m_flags = 0
+			},
+			
+			{
+				m_name = "wrist_L"
+				m_parent = 6
+				m_pos = 
+				[
+					36.483750,
+					-0.000076,
+					-0.000027,
+				]
+				m_quat = 
+				[
+					0.105269,
+					0.107275,
+					0.158816,
+					0.975801,
+				]
+				m_qAlignment = 
+				[
+					0.000000,
+					0.000000,
+					0.000000,
+					0.000000,
+				]
+				m_flags = 0
+			},
+			
+			{
+				m_name = "spear_1"
+				m_parent = 7
+				m_pos = 
+				[
+					37.153760,
+					115.343600,
+					7.885146,
+				]
+				m_quat = 
+				[
+					-0.007040,
+					-0.857018,
+					0.314904,
+					0.407806,
+				]
+				m_qAlignment = 
+				[
+					0.000000,
+					0.000000,
+					0.000000,
+					0.000000,
+				]
+				m_flags = 0
+			},
+		]
+		m_userArray = 
 		[
 		]
-		ExternalReference m_includedGroupArray[0] =
+		m_morphArray = 
 		[
 		]
-		ExternalReference m_directHSeqGroup = ID: 0000000000000000
-		Struct m_decodeKey = AnimationKeyResourceData_t
-		{
-			CResourceString m_name = ""
-			Struct m_boneArray[9] =
-			[
-				AnimResourceBone_t
-				{
-					CResourceString m_name = "Root_0"
-					int32 m_parent = -1
-					Vector m_pos = (-24.738680, 0.000000, 97.968260)
-					Quaternion m_quat = {x: 0.00, y: 0.00, z: 0.00, w: 1.00}
-					Quaternion m_qAlignment = {x: 0.00, y: 0.00, z: 0.00, w: 0.00}
-					int32 m_flags = 0
-				}
-				AnimResourceBone_t
-				{
-					CResourceString m_name = "Spine_0"
-					int32 m_parent = 0
-					Vector m_pos = (-0.314964, 0.000000, 10.727520)
-					Quaternion m_quat = {x: 0.00, y: -0.68, z: 0.00, w: 0.73}
-					Quaternion m_qAlignment = {x: 0.00, y: 0.00, z: 0.00, w: 0.00}
-					int32 m_flags = 0
-				}
-				AnimResourceBone_t
-				{
-					CResourceString m_name = "Spine_1"
-					int32 m_parent = 1
-					Vector m_pos = (10.902790, 0.000000, -0.000004)
-					Quaternion m_quat = {x: 0.00, y: 0.12, z: 0.00, w: 0.99}
-					Quaternion m_qAlignment = {x: 0.00, y: 0.00, z: 0.00, w: 0.00}
-					int32 m_flags = 0
-				}
-				AnimResourceBone_t
-				{
-					CResourceString m_name = "Spine_2"
-					int32 m_parent = 2
-					Vector m_pos = (10.825580, -0.000001, -0.000015)
-					Quaternion m_quat = {x: 0.00, y: 0.15, z: 0.00, w: 0.99}
-					Quaternion m_qAlignment = {x: 0.00, y: 0.00, z: 0.00, w: 0.00}
-					int32 m_flags = 0
-				}
-				AnimResourceBone_t
-				{
-					CResourceString m_name = "clavicle_L"
-					int32 m_parent = 3
-					Vector m_pos = (21.465310, 9.863488, 2.667709)
-					Quaternion m_quat = {x: 0.34, y: 0.62, z: 0.43, w: 0.56}
-					Quaternion m_qAlignment = {x: 0.00, y: 0.00, z: 0.00, w: 0.00}
-					int32 m_flags = 0
-				}
-				AnimResourceBone_t
-				{
-					CResourceString m_name = "bicep_L"
-					int32 m_parent = 4
-					Vector m_pos = (13.977750, -0.000008, 0.000061)
-					Quaternion m_quat = {x: -0.90, y: 0.12, z: 0.21, w: 0.37}
-					Quaternion m_qAlignment = {x: 0.00, y: 0.00, z: 0.00, w: 0.00}
-					int32 m_flags = 0
-				}
-				AnimResourceBone_t
-				{
-					CResourceString m_name = "elbow_L"
-					int32 m_parent = 5
-					Vector m_pos = (35.601020, -0.000046, -0.000005)
-					Quaternion m_quat = {x: 0.01, y: 0.29, z: -0.01, w: 0.96}
-					Quaternion m_qAlignment = {x: 0.00, y: 0.00, z: 0.00, w: 0.00}
-					int32 m_flags = 0
-				}
-				AnimResourceBone_t
-				{
-					CResourceString m_name = "wrist_L"
-					int32 m_parent = 6
-					Vector m_pos = (36.483750, -0.000076, -0.000027)
-					Quaternion m_quat = {x: 0.11, y: 0.11, z: 0.16, w: 0.98}
-					Quaternion m_qAlignment = {x: 0.00, y: 0.00, z: 0.00, w: 0.00}
-					int32 m_flags = 0
-				}
-				AnimResourceBone_t
-				{
-					CResourceString m_name = "spear_1"
-					int32 m_parent = 7
-					Vector m_pos = (37.153760, 115.343600, 7.885146)
-					Quaternion m_quat = {x: -0.01, y: -0.86, z: 0.31, w: 0.41}
-					Quaternion m_qAlignment = {x: 0.00, y: 0.00, z: 0.00, w: 0.00}
-					int32 m_flags = 0
-				}
-			]
-			Struct m_userArray[0] =
-			[
-			]
-			CResourceString m_morphArray[0] =
-			[
-			]
-			Struct m_IKChainArray[0] =
-			[
-			]
-			int32 m_nChannelElements = 18
-			Struct m_dataChannelArray[2] =
-			[
-				AnimResourceDataChannel_t
-				{
-					CResourceString m_szChannelClass = "BoneChannel"
-					CResourceString m_szVariableName = "Position"
-					int32 m_nFlags = 0
-					int32 m_nType = 3
-					CResourceString m_szGrouping = ""
-					CResourceString m_szDescription = ""
-					CResourceString m_szElementNameArray[9] =
-					[
-						"Root_0"
-						"Spine_0"
-						"Spine_1"
-						"Spine_2"
-						"clavicle_L"
-						"bicep_L"
-						"elbow_L"
-						"wrist_L"
-						"spear_1"
-					]
-					int32 m_nElementIndexArray[9] =
-					[
-						0
-						1
-						2
-						3
-						4
-						5
-						6
-						7
-						8
-					]
-					uint32 m_nElementMaskArray[9] =
-					[
-						0x00000001
-						0x00000008
-						0x00000080
-						0x00000400
-						0x00004000
-						0x00020000
-						0x00200000
-						0x01000000
-						0x10000000
-					]
-				}
-				AnimResourceDataChannel_t
-				{
-					CResourceString m_szChannelClass = "BoneChannel"
-					CResourceString m_szVariableName = "Angle"
-					int32 m_nFlags = 0
-					int32 m_nType = 4
-					CResourceString m_szGrouping = ""
-					CResourceString m_szDescription = ""
-					CResourceString m_szElementNameArray[9] =
-					[
-						"Root_0"
-						"Spine_0"
-						"Spine_1"
-						"Spine_2"
-						"clavicle_L"
-						"bicep_L"
-						"elbow_L"
-						"wrist_L"
-						"spear_1"
-					]
-					int32 m_nElementIndexArray[9] =
-					[
-						9
-						10
-						11
-						12
-						13
-						14
-						15
-						16
-						17
-					]
-					uint32 m_nElementMaskArray[9] =
-					[
-						0x00000001
-						0x00000008
-						0x00000080
-						0x00000400
-						0x00004000
-						0x00020000
-						0x00200000
-						0x01000000
-						0x10000000
-					]
-				}
-			]
-		}
-		Struct m_retarget = AnimationRetargetData_t
-		{
-			int32 m_bEnableRetarget = 0
-			int32 m_nRetargetStyle = 0
-			Struct m_element[0] =
-			[
-			]
-			Struct m_chain[0] =
-			[
-			]
-			CResourceString m_replicated[0] =
-			[
-			]
-		}
-		CResourceString m_szScripts[0] =
+		m_IKChainArray = 
+		[
+		]
+		m_nChannelElements = 18
+		m_dataChannelArray = 
+		[
+			
+			{
+				m_szChannelClass = "BoneChannel"
+				m_szVariableName = "Position"
+				m_nFlags = 0
+				m_nType = 3
+				m_szGrouping = ""
+				m_szDescription = ""
+				m_szElementNameArray = 
+				[
+					"Root_0",
+					"Spine_0",
+					"Spine_1",
+					"Spine_2",
+					"clavicle_L",
+					"bicep_L",
+					"elbow_L",
+					"wrist_L",
+					"spear_1",
+				]
+				m_nElementIndexArray = 
+				[
+					0,
+					1,
+					2,
+					3,
+					4,
+					5,
+					6,
+					7,
+					8,
+				]
+				m_nElementMaskArray = 
+				[
+					1,
+					8,
+					128,
+					1024,
+					16384,
+					131072,
+					2097152,
+					16777216,
+					268435456,
+				]
+			},
+			
+			{
+				m_szChannelClass = "BoneChannel"
+				m_szVariableName = "Angle"
+				m_nFlags = 0
+				m_nType = 4
+				m_szGrouping = ""
+				m_szDescription = ""
+				m_szElementNameArray = 
+				[
+					"Root_0",
+					"Spine_0",
+					"Spine_1",
+					"Spine_2",
+					"clavicle_L",
+					"bicep_L",
+					"elbow_L",
+					"wrist_L",
+					"spear_1",
+				]
+				m_nElementIndexArray = 
+				[
+					9,
+					10,
+					11,
+					12,
+					13,
+					14,
+					15,
+					16,
+					17,
+				]
+				m_nElementMaskArray = 
+				[
+					1,
+					8,
+					128,
+					1024,
+					16384,
+					131072,
+					2097152,
+					16777216,
+					268435456,
+				]
+			},
+		]
+	}
+	m_retarget = 
+	{
+		m_bEnableRetarget = 0
+		m_nRetargetStyle = 0
+		m_element = 
+		[
+		]
+		m_chain = 
+		[
+		]
+		m_replicated = 
 		[
 		]
 	}
+	m_szScripts = 
+	[
+	]
+}

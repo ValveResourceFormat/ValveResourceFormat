@@ -1,49 +1,68 @@
-World_t
+<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:generic:version{7412167c-06e9-4698-aff2-e63eb59037e7} -->
+
 {
-	Struct m_builderParams = WorldBuilderParams_t
+	m_builderParams = 
 	{
-		int32 m_nSizeBytesPerVoxel = 1048576000
-		float32 m_flMinDrawVolumeSize = 1024.000000
-		float32 m_flMinDistToCamera = 1024.000000
-		float32 m_flMinAtlasDist = 1000.000000
-		float32 m_flMinSimplifiedDist = 8192.000000
-		float32 m_flHorzFOV = 1.570796
-		float32 m_flHalfScreenWidth = 960.000000
-		int32 m_nAtlasTextureSizeX = 2048
-		int32 m_nAtlasTextureSizeY = 2048
-		int32 m_nUniqueTextureSizeX = 1024
-		int32 m_nUniqueTextureSizeY = 1024
-		int32 m_nCompressedAtlasSize = 1
-		float32 m_flGutterSize = 8.000000
-		float32 m_flUVMapThreshold = 0.300000
-		Vector3D m_vWorldUnitsPerTile = (10000.000000, 10000.000000, 1000.000000)
-		int32 m_nMaxTexScaleSlots = 128
-		bool m_bWrapInAtlas = false
-		uint8[3] m_padding =
+		m_nSizeBytesPerVoxel = 1048576000
+		m_flMinDrawVolumeSize = 1024.000000
+		m_flMinDistToCamera = 1024.000000
+		m_flMinAtlasDist = 1000.000000
+		m_flMinSimplifiedDist = 8192.000000
+		m_flHorzFOV = 1.570796
+		m_flHalfScreenWidth = 960.000000
+		m_nAtlasTextureSizeX = 2048
+		m_nAtlasTextureSizeY = 2048
+		m_nUniqueTextureSizeX = 1024
+		m_nUniqueTextureSizeY = 1024
+		m_nCompressedAtlasSize = 1
+		m_flGutterSize = 8.000000
+		m_flUVMapThreshold = 0.300000
+		m_vWorldUnitsPerTile = 
 		[
-			00
-			00
-			00
+			10000.000000,
+			10000.000000,
+			1000.000000,
+		]
+		m_nMaxTexScaleSlots = 128
+		m_bWrapInAtlas = false
+		m_padding = 
+		#[
+			00 00 00 
 		]
 	}
-	Struct m_worldNodes[1] =
+	m_worldNodes = 
 	[
-		NodeData_t
+		
 		{
-			int32 m_Flags = 192
-			int32 m_nParent = -1
-			Vector3D m_vOrigin = (0.000000, 0.000000, 0.000000)
-			Vector3D m_vMinBounds = (-8368.437500, -8256.000000, -3711.965332)
-			Vector3D m_vMaxBounds = (9216.000000, 8323.829102, 3584.000000)
-			float32 m_flMinimumDistance = -1.000000
-			int32 m_ChildNodeIndices[0] =
+			m_Flags = 192
+			m_nParent = -1
+			m_vOrigin = 
+			[
+				0.000000,
+				0.000000,
+				0.000000,
+			]
+			m_vMinBounds = 
+			[
+				-8368.438000,
+				-8256.000000,
+				-3711.965000,
+			]
+			m_vMaxBounds = 
+			[
+				9216.000000,
+				8323.829000,
+				3584.000000,
+			]
+			m_flMinimumDistance = -1.000000
+			m_ChildNodeIndices = 
 			[
 			]
-			CResourceString m_worldNodePrefix = "maps\dota\worldnodes\node000"
-		}
+			m_worldNodePrefix = "maps\dota\worldnodes\node000"
+		},
 	]
-	ExternalReference m_entityLumps[1] =
+	m_entityLumps = 
 	[
-		resource:"maps/dota/entities/default_ents.vents"
+		resource_name:"maps/dota/entities/default_ents.vents",
 	]
 }

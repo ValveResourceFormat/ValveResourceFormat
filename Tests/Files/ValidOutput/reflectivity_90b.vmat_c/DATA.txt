@@ -1,71 +1,90 @@
-MaterialResourceData_t
+<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:generic:version{7412167c-06e9-4698-aff2-e63eb59037e7} -->
+
 {
-	CResourceString m_materialName = "dev/helper/reflectivity_90b.vmat"
-	CResourceString m_shaderName = "global_lit_simple.vfx"
-	Struct m_intParams[0] =
+	m_materialName = "dev/helper/reflectivity_90b.vmat"
+	m_shaderName = "global_lit_simple.vfx"
+	m_intParams = 
 	[
 	]
-	Struct m_floatParams[0] =
+	m_floatParams = 
 	[
 	]
-	Struct m_vectorParams[3] =
+	m_vectorParams = 
 	[
-		MaterialParamVector_t
+		
 		{
-			Vector4D m_value = (1.000000, 1.000000, 1.000000, 0.000000)
-			CResourceString m_name = "g_vColorTint"
-		}
-		MaterialParamVector_t
+			m_value = 
+			[
+				1.000000,
+				1.000000,
+				1.000000,
+				0.000000,
+			]
+			m_name = "g_vColorTint"
+		},
+		
 		{
-			Vector4D m_value = (0.000000, 0.000000, 0.000000, 0.000000)
-			CResourceString m_name = "g_vTexCoordOffset"
-		}
-		MaterialParamVector_t
+			m_value = 
+			[
+				0.000000,
+				0.000000,
+				0.000000,
+				0.000000,
+			]
+			m_name = "g_vTexCoordOffset"
+		},
+		
 		{
-			Vector4D m_value = (1.000000, 1.000000, 0.000000, 0.000000)
-			CResourceString m_name = "g_vTexCoordScale"
-		}
+			m_value = 
+			[
+				1.000000,
+				1.000000,
+				0.000000,
+				0.000000,
+			]
+			m_name = "g_vTexCoordScale"
+		},
 	]
-	Struct m_textureParams[1] =
+	m_textureParams = 
 	[
-		MaterialParamTexture_t
+		
 		{
-			ExternalReference m_pValue = resource:"dev/helper/reflectivity_90b_color_tga_88186957.vtex"
-			CResourceString m_name = "g_tColor"
-		}
+			m_pValue = resource_name:"dev/helper/reflectivity_90b_color_tga_88186957.vtex"
+			m_name = "g_tColor"
+		},
 	]
-	Struct m_dynamicParams[0] =
+	m_dynamicParams = 
 	[
 	]
-	Struct m_dynamicTextureParams[0] =
+	m_dynamicTextureParams = 
 	[
 	]
-	Struct m_intAttributes[2] =
+	m_intAttributes = 
 	[
-		MaterialParamInt_t
+		
 		{
-			int32 m_nValue = 32
-			CResourceString m_name = "RepresentativeTextureWidth"
-		}
-		MaterialParamInt_t
+			m_nValue = 32
+			m_name = "RepresentativeTextureWidth"
+		},
+		
 		{
-			int32 m_nValue = 32
-			CResourceString m_name = "RepresentativeTextureHeight"
-		}
+			m_nValue = 32
+			m_name = "RepresentativeTextureHeight"
+		},
 	]
-	Struct m_floatAttributes[0] =
+	m_floatAttributes = 
 	[
 	]
-	Struct m_vectorAttributes[0] =
+	m_vectorAttributes = 
 	[
 	]
-	Struct m_textureAttributes[0] =
+	m_textureAttributes = 
 	[
 	]
-	Struct m_stringAttributes[0] =
+	m_stringAttributes = 
 	[
 	]
-	CResourceString m_renderAttributesUsed[0] =
+	m_renderAttributesUsed = 
 	[
 	]
 }

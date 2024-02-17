@@ -1,683 +1,684 @@
-SequenceGroupResourceData_t
-	{
-		CResourceString m_sName = "models/ghostanim.vseq"
-		uint32 m_nFlags = 0x00000000
-		CResourceString m_localSequenceNameArray[18] = 
-		[
-			"idle"
-			"@idle"
-			"c1m1_intro"
-			"@c1m1_intro"
-			"c2m1_intro"
-			"@c2m1_intro"
-			"c3m1_intro"
-			"@c3m1_intro"
-			"c4m1_intro"
-			"@c4m1_intro"
-			"c5m1_intro"
-			"@c5m1_intro"
-			"c6m1_intro"
-			"@c6m1_intro"
-			"intro_c3m1"
-			"@intro_c3m1"
-			"intro_placeholder"
-			"@intro_placeholder"
-		]
-		Struct m_localS1SeqDescArray[9] = 
-		[
-			SeqResourceS1SeqDesc_t
+<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:generic:version{7412167c-06e9-4698-aff2-e63eb59037e7} -->
+
+{
+	m_sName = "models/ghostanim.vseq"
+	m_nFlags = 0
+	m_localSequenceNameArray = 
+	[
+		"idle",
+		"@idle",
+		"c1m1_intro",
+		"@c1m1_intro",
+		"c2m1_intro",
+		"@c2m1_intro",
+		"c3m1_intro",
+		"@c3m1_intro",
+		"c4m1_intro",
+		"@c4m1_intro",
+		"c5m1_intro",
+		"@c5m1_intro",
+		"c6m1_intro",
+		"@c6m1_intro",
+		"intro_c3m1",
+		"@intro_c3m1",
+		"intro_placeholder",
+		"@intro_placeholder",
+	]
+	m_localS1SeqDescArray = 
+	[
+		
+		{
+			m_sName = "idle"
+			m_flags = 
 			{
-				CResourceString m_sName = "idle"
-				Struct m_flags = SeqResourceSeqDesc_t_Flag_t
-				{
-					bool m_bLooping = true
-					bool m_bSnap = false
-					bool m_bAutoplay = false
-					bool m_bPost = false
-					bool m_bHidden = false
-					bool m_bMulti = false
-					bool m_bLegacyDelta = false
-					bool m_bLegacyWorldspace = false
-					bool m_bLegacyCyclepose = false
-					bool m_bLegacyRealtime = false
-				}
-				Struct m_fetch = SeqResourceMultiFetch_t
-				{
-					Struct m_flags = SeqResourceMultiFetch_t_Flag_t
-					{
-						bool m_bRealtime = false
-						bool m_bCylepose = false
-						bool m_b0D = true
-						bool m_b1D = false
-						bool m_b2D = false
-						bool m_b2D_TRI = false
-					}
-					int16 m_localReferenceArray[1] = 
-					[
-						1
-					]
-					int32 m_nGroupSize[2] = 
-					[
-						1
-						1
-					]
-					int32 m_nLocalPose[2] = 
-					[
-						-1
-						-1
-					]
-					float32 m_poseKeyArray0[1] = 
-					[
-						0.000000
-					]
-					float32 m_poseKeyArray1[1] = 
-					[
-						0.000000
-					]
-					int32 m_nLocalCyclePoseParameter = -1
-					bool m_bCalculatePoseParameters = false
-				}
-				int32 m_nLocalWeightlist = 0
-				Struct m_autoLayerArray[0] = 
-				[
-				]
-				Struct m_IKLockArray[0] = 
-				[
-				]
-				Struct m_transition = SeqResourceTransition_t
-				{
-					float32 m_flFadeInTime = 0.200000
-					float32 m_flFadeOutTime = 0.200000
-				}
-				CResourceString m_keyValueText = ""
-				Struct m_activityArray[0] = 
-				[
-				]
+				m_bLooping = true
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = false
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
 			}
-			SeqResourceS1SeqDesc_t
+			m_fetch = 
 			{
-				CResourceString m_sName = "c1m1_intro"
-				Struct m_flags = SeqResourceSeqDesc_t_Flag_t
+				m_flags = 
 				{
-					bool m_bLooping = false
-					bool m_bSnap = false
-					bool m_bAutoplay = false
-					bool m_bPost = false
-					bool m_bHidden = false
-					bool m_bMulti = false
-					bool m_bLegacyDelta = false
-					bool m_bLegacyWorldspace = false
-					bool m_bLegacyCyclepose = false
-					bool m_bLegacyRealtime = false
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
 				}
-				Struct m_fetch = SeqResourceMultiFetch_t
-				{
-					Struct m_flags = SeqResourceMultiFetch_t_Flag_t
-					{
-						bool m_bRealtime = false
-						bool m_bCylepose = false
-						bool m_b0D = true
-						bool m_b1D = false
-						bool m_b2D = false
-						bool m_b2D_TRI = false
-					}
-					int16 m_localReferenceArray[1] = 
-					[
-						3
-					]
-					int32 m_nGroupSize[2] = 
-					[
-						1
-						1
-					]
-					int32 m_nLocalPose[2] = 
-					[
-						-1
-						-1
-					]
-					float32 m_poseKeyArray0[1] = 
-					[
-						0.000000
-					]
-					float32 m_poseKeyArray1[1] = 
-					[
-						0.000000
-					]
-					int32 m_nLocalCyclePoseParameter = -1
-					bool m_bCalculatePoseParameters = false
-				}
-				int32 m_nLocalWeightlist = 0
-				Struct m_autoLayerArray[0] = 
+				m_localReferenceArray = 
 				[
+					1,
 				]
-				Struct m_IKLockArray[0] = 
+				m_nGroupSize = 
 				[
+					1,
+					1,
 				]
-				Struct m_transition = SeqResourceTransition_t
-				{
-					float32 m_flFadeInTime = 0.200000
-					float32 m_flFadeOutTime = 0.200000
-				}
-				CResourceString m_keyValueText = ""
-				Struct m_activityArray[0] = 
+				m_nLocalPose = 
 				[
+					-1,
+					-1,
 				]
+				m_poseKeyArray0 = 
+				[
+					0.000000,
+				]
+				m_poseKeyArray1 = 
+				[
+					0.000000,
+				]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
 			}
-			SeqResourceS1SeqDesc_t
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = 
+			[
+			]
+			m_IKLockArray = 
+			[
+			]
+			m_transition = 
 			{
-				CResourceString m_sName = "c2m1_intro"
-				Struct m_flags = SeqResourceSeqDesc_t_Flag_t
-				{
-					bool m_bLooping = false
-					bool m_bSnap = false
-					bool m_bAutoplay = false
-					bool m_bPost = false
-					bool m_bHidden = false
-					bool m_bMulti = false
-					bool m_bLegacyDelta = false
-					bool m_bLegacyWorldspace = false
-					bool m_bLegacyCyclepose = false
-					bool m_bLegacyRealtime = false
-				}
-				Struct m_fetch = SeqResourceMultiFetch_t
-				{
-					Struct m_flags = SeqResourceMultiFetch_t_Flag_t
-					{
-						bool m_bRealtime = false
-						bool m_bCylepose = false
-						bool m_b0D = true
-						bool m_b1D = false
-						bool m_b2D = false
-						bool m_b2D_TRI = false
-					}
-					int16 m_localReferenceArray[1] = 
-					[
-						5
-					]
-					int32 m_nGroupSize[2] = 
-					[
-						1
-						1
-					]
-					int32 m_nLocalPose[2] = 
-					[
-						-1
-						-1
-					]
-					float32 m_poseKeyArray0[1] = 
-					[
-						0.000000
-					]
-					float32 m_poseKeyArray1[1] = 
-					[
-						0.000000
-					]
-					int32 m_nLocalCyclePoseParameter = -1
-					bool m_bCalculatePoseParameters = false
-				}
-				int32 m_nLocalWeightlist = 0
-				Struct m_autoLayerArray[0] = 
-				[
-				]
-				Struct m_IKLockArray[0] = 
-				[
-				]
-				Struct m_transition = SeqResourceTransition_t
-				{
-					float32 m_flFadeInTime = 0.200000
-					float32 m_flFadeOutTime = 0.200000
-				}
-				CResourceString m_keyValueText = ""
-				Struct m_activityArray[0] = 
-				[
-				]
+				m_flFadeInTime = 0.200000
+				m_flFadeOutTime = 0.200000
 			}
-			SeqResourceS1SeqDesc_t
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+			]
+		},
+		
+		{
+			m_sName = "c1m1_intro"
+			m_flags = 
 			{
-				CResourceString m_sName = "c3m1_intro"
-				Struct m_flags = SeqResourceSeqDesc_t_Flag_t
-				{
-					bool m_bLooping = false
-					bool m_bSnap = false
-					bool m_bAutoplay = false
-					bool m_bPost = false
-					bool m_bHidden = false
-					bool m_bMulti = false
-					bool m_bLegacyDelta = false
-					bool m_bLegacyWorldspace = false
-					bool m_bLegacyCyclepose = false
-					bool m_bLegacyRealtime = false
-				}
-				Struct m_fetch = SeqResourceMultiFetch_t
-				{
-					Struct m_flags = SeqResourceMultiFetch_t_Flag_t
-					{
-						bool m_bRealtime = false
-						bool m_bCylepose = false
-						bool m_b0D = true
-						bool m_b1D = false
-						bool m_b2D = false
-						bool m_b2D_TRI = false
-					}
-					int16 m_localReferenceArray[1] = 
-					[
-						7
-					]
-					int32 m_nGroupSize[2] = 
-					[
-						1
-						1
-					]
-					int32 m_nLocalPose[2] = 
-					[
-						-1
-						-1
-					]
-					float32 m_poseKeyArray0[1] = 
-					[
-						0.000000
-					]
-					float32 m_poseKeyArray1[1] = 
-					[
-						0.000000
-					]
-					int32 m_nLocalCyclePoseParameter = -1
-					bool m_bCalculatePoseParameters = false
-				}
-				int32 m_nLocalWeightlist = 0
-				Struct m_autoLayerArray[0] = 
-				[
-				]
-				Struct m_IKLockArray[0] = 
-				[
-				]
-				Struct m_transition = SeqResourceTransition_t
-				{
-					float32 m_flFadeInTime = 0.200000
-					float32 m_flFadeOutTime = 0.200000
-				}
-				CResourceString m_keyValueText = ""
-				Struct m_activityArray[0] = 
-				[
-				]
+				m_bLooping = false
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = false
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
 			}
-			SeqResourceS1SeqDesc_t
+			m_fetch = 
 			{
-				CResourceString m_sName = "c4m1_intro"
-				Struct m_flags = SeqResourceSeqDesc_t_Flag_t
+				m_flags = 
 				{
-					bool m_bLooping = false
-					bool m_bSnap = false
-					bool m_bAutoplay = false
-					bool m_bPost = false
-					bool m_bHidden = false
-					bool m_bMulti = false
-					bool m_bLegacyDelta = false
-					bool m_bLegacyWorldspace = false
-					bool m_bLegacyCyclepose = false
-					bool m_bLegacyRealtime = false
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
 				}
-				Struct m_fetch = SeqResourceMultiFetch_t
-				{
-					Struct m_flags = SeqResourceMultiFetch_t_Flag_t
-					{
-						bool m_bRealtime = false
-						bool m_bCylepose = false
-						bool m_b0D = true
-						bool m_b1D = false
-						bool m_b2D = false
-						bool m_b2D_TRI = false
-					}
-					int16 m_localReferenceArray[1] = 
-					[
-						9
-					]
-					int32 m_nGroupSize[2] = 
-					[
-						1
-						1
-					]
-					int32 m_nLocalPose[2] = 
-					[
-						-1
-						-1
-					]
-					float32 m_poseKeyArray0[1] = 
-					[
-						0.000000
-					]
-					float32 m_poseKeyArray1[1] = 
-					[
-						0.000000
-					]
-					int32 m_nLocalCyclePoseParameter = -1
-					bool m_bCalculatePoseParameters = false
-				}
-				int32 m_nLocalWeightlist = 0
-				Struct m_autoLayerArray[0] = 
+				m_localReferenceArray = 
 				[
+					3,
 				]
-				Struct m_IKLockArray[0] = 
+				m_nGroupSize = 
 				[
+					1,
+					1,
 				]
-				Struct m_transition = SeqResourceTransition_t
-				{
-					float32 m_flFadeInTime = 0.200000
-					float32 m_flFadeOutTime = 0.200000
-				}
-				CResourceString m_keyValueText = ""
-				Struct m_activityArray[0] = 
+				m_nLocalPose = 
 				[
+					-1,
+					-1,
 				]
+				m_poseKeyArray0 = 
+				[
+					0.000000,
+				]
+				m_poseKeyArray1 = 
+				[
+					0.000000,
+				]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
 			}
-			SeqResourceS1SeqDesc_t
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = 
+			[
+			]
+			m_IKLockArray = 
+			[
+			]
+			m_transition = 
 			{
-				CResourceString m_sName = "c5m1_intro"
-				Struct m_flags = SeqResourceSeqDesc_t_Flag_t
-				{
-					bool m_bLooping = false
-					bool m_bSnap = false
-					bool m_bAutoplay = false
-					bool m_bPost = false
-					bool m_bHidden = false
-					bool m_bMulti = false
-					bool m_bLegacyDelta = false
-					bool m_bLegacyWorldspace = false
-					bool m_bLegacyCyclepose = false
-					bool m_bLegacyRealtime = false
-				}
-				Struct m_fetch = SeqResourceMultiFetch_t
-				{
-					Struct m_flags = SeqResourceMultiFetch_t_Flag_t
-					{
-						bool m_bRealtime = false
-						bool m_bCylepose = false
-						bool m_b0D = true
-						bool m_b1D = false
-						bool m_b2D = false
-						bool m_b2D_TRI = false
-					}
-					int16 m_localReferenceArray[1] = 
-					[
-						11
-					]
-					int32 m_nGroupSize[2] = 
-					[
-						1
-						1
-					]
-					int32 m_nLocalPose[2] = 
-					[
-						-1
-						-1
-					]
-					float32 m_poseKeyArray0[1] = 
-					[
-						0.000000
-					]
-					float32 m_poseKeyArray1[1] = 
-					[
-						0.000000
-					]
-					int32 m_nLocalCyclePoseParameter = -1
-					bool m_bCalculatePoseParameters = false
-				}
-				int32 m_nLocalWeightlist = 0
-				Struct m_autoLayerArray[0] = 
-				[
-				]
-				Struct m_IKLockArray[0] = 
-				[
-				]
-				Struct m_transition = SeqResourceTransition_t
-				{
-					float32 m_flFadeInTime = 0.200000
-					float32 m_flFadeOutTime = 0.200000
-				}
-				CResourceString m_keyValueText = ""
-				Struct m_activityArray[0] = 
-				[
-				]
+				m_flFadeInTime = 0.200000
+				m_flFadeOutTime = 0.200000
 			}
-			SeqResourceS1SeqDesc_t
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+			]
+		},
+		
+		{
+			m_sName = "c2m1_intro"
+			m_flags = 
 			{
-				CResourceString m_sName = "c6m1_intro"
-				Struct m_flags = SeqResourceSeqDesc_t_Flag_t
-				{
-					bool m_bLooping = false
-					bool m_bSnap = false
-					bool m_bAutoplay = false
-					bool m_bPost = false
-					bool m_bHidden = false
-					bool m_bMulti = false
-					bool m_bLegacyDelta = false
-					bool m_bLegacyWorldspace = false
-					bool m_bLegacyCyclepose = false
-					bool m_bLegacyRealtime = false
-				}
-				Struct m_fetch = SeqResourceMultiFetch_t
-				{
-					Struct m_flags = SeqResourceMultiFetch_t_Flag_t
-					{
-						bool m_bRealtime = false
-						bool m_bCylepose = false
-						bool m_b0D = true
-						bool m_b1D = false
-						bool m_b2D = false
-						bool m_b2D_TRI = false
-					}
-					int16 m_localReferenceArray[1] = 
-					[
-						13
-					]
-					int32 m_nGroupSize[2] = 
-					[
-						1
-						1
-					]
-					int32 m_nLocalPose[2] = 
-					[
-						-1
-						-1
-					]
-					float32 m_poseKeyArray0[1] = 
-					[
-						0.000000
-					]
-					float32 m_poseKeyArray1[1] = 
-					[
-						0.000000
-					]
-					int32 m_nLocalCyclePoseParameter = -1
-					bool m_bCalculatePoseParameters = false
-				}
-				int32 m_nLocalWeightlist = 0
-				Struct m_autoLayerArray[0] = 
-				[
-				]
-				Struct m_IKLockArray[0] = 
-				[
-				]
-				Struct m_transition = SeqResourceTransition_t
-				{
-					float32 m_flFadeInTime = 0.200000
-					float32 m_flFadeOutTime = 0.200000
-				}
-				CResourceString m_keyValueText = ""
-				Struct m_activityArray[0] = 
-				[
-				]
+				m_bLooping = false
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = false
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
 			}
-			SeqResourceS1SeqDesc_t
+			m_fetch = 
 			{
-				CResourceString m_sName = "intro_c3m1"
-				Struct m_flags = SeqResourceSeqDesc_t_Flag_t
+				m_flags = 
 				{
-					bool m_bLooping = false
-					bool m_bSnap = false
-					bool m_bAutoplay = false
-					bool m_bPost = false
-					bool m_bHidden = false
-					bool m_bMulti = false
-					bool m_bLegacyDelta = false
-					bool m_bLegacyWorldspace = false
-					bool m_bLegacyCyclepose = false
-					bool m_bLegacyRealtime = false
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
 				}
-				Struct m_fetch = SeqResourceMultiFetch_t
-				{
-					Struct m_flags = SeqResourceMultiFetch_t_Flag_t
-					{
-						bool m_bRealtime = false
-						bool m_bCylepose = false
-						bool m_b0D = true
-						bool m_b1D = false
-						bool m_b2D = false
-						bool m_b2D_TRI = false
-					}
-					int16 m_localReferenceArray[1] = 
-					[
-						15
-					]
-					int32 m_nGroupSize[2] = 
-					[
-						1
-						1
-					]
-					int32 m_nLocalPose[2] = 
-					[
-						-1
-						-1
-					]
-					float32 m_poseKeyArray0[1] = 
-					[
-						0.000000
-					]
-					float32 m_poseKeyArray1[1] = 
-					[
-						0.000000
-					]
-					int32 m_nLocalCyclePoseParameter = -1
-					bool m_bCalculatePoseParameters = false
-				}
-				int32 m_nLocalWeightlist = 0
-				Struct m_autoLayerArray[0] = 
+				m_localReferenceArray = 
 				[
+					5,
 				]
-				Struct m_IKLockArray[0] = 
+				m_nGroupSize = 
 				[
+					1,
+					1,
 				]
-				Struct m_transition = SeqResourceTransition_t
-				{
-					float32 m_flFadeInTime = 0.200000
-					float32 m_flFadeOutTime = 0.200000
-				}
-				CResourceString m_keyValueText = ""
-				Struct m_activityArray[0] = 
+				m_nLocalPose = 
 				[
+					-1,
+					-1,
 				]
+				m_poseKeyArray0 = 
+				[
+					0.000000,
+				]
+				m_poseKeyArray1 = 
+				[
+					0.000000,
+				]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
 			}
-			SeqResourceS1SeqDesc_t
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = 
+			[
+			]
+			m_IKLockArray = 
+			[
+			]
+			m_transition = 
 			{
-				CResourceString m_sName = "intro_placeholder"
-				Struct m_flags = SeqResourceSeqDesc_t_Flag_t
-				{
-					bool m_bLooping = false
-					bool m_bSnap = false
-					bool m_bAutoplay = false
-					bool m_bPost = false
-					bool m_bHidden = false
-					bool m_bMulti = false
-					bool m_bLegacyDelta = false
-					bool m_bLegacyWorldspace = false
-					bool m_bLegacyCyclepose = false
-					bool m_bLegacyRealtime = false
-				}
-				Struct m_fetch = SeqResourceMultiFetch_t
-				{
-					Struct m_flags = SeqResourceMultiFetch_t_Flag_t
-					{
-						bool m_bRealtime = false
-						bool m_bCylepose = false
-						bool m_b0D = true
-						bool m_b1D = false
-						bool m_b2D = false
-						bool m_b2D_TRI = false
-					}
-					int16 m_localReferenceArray[1] = 
-					[
-						17
-					]
-					int32 m_nGroupSize[2] = 
-					[
-						1
-						1
-					]
-					int32 m_nLocalPose[2] = 
-					[
-						-1
-						-1
-					]
-					float32 m_poseKeyArray0[1] = 
-					[
-						0.000000
-					]
-					float32 m_poseKeyArray1[1] = 
-					[
-						0.000000
-					]
-					int32 m_nLocalCyclePoseParameter = -1
-					bool m_bCalculatePoseParameters = false
-				}
-				int32 m_nLocalWeightlist = 0
-				Struct m_autoLayerArray[0] = 
-				[
-				]
-				Struct m_IKLockArray[0] = 
-				[
-				]
-				Struct m_transition = SeqResourceTransition_t
-				{
-					float32 m_flFadeInTime = 0.200000
-					float32 m_flFadeOutTime = 0.200000
-				}
-				CResourceString m_keyValueText = ""
-				Struct m_activityArray[0] = 
-				[
-				]
+				m_flFadeInTime = 0.200000
+				m_flFadeOutTime = 0.200000
 			}
-		]
-		Struct m_localMultiSeqDescArray[0] = 
-		[
-		]
-		Struct m_localSynthAnimDescArray[0] = 
-		[
-		]
-		Struct m_localCmdSeqDescArray[0] = 
-		[
-		]
-		Struct m_localBoneMaskArray[1] = 
-		[
-			SeqResourceBoneMaskList_t
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+			]
+		},
+		
+		{
+			m_sName = "c3m1_intro"
+			m_flags = 
 			{
-				CResourceString m_sName = "default"
-				int16 m_nLocalBoneArray[0] = 
-				[
-				]
-				float32 m_flBoneWeightArray[0] = 
-				[
-				]
+				m_bLooping = false
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = false
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
 			}
-		]
-		CResourceString m_localBoneNameArray[0] = 
-		[
-		]
-		CResourceString m_localNodeName = ""
-		Struct m_localPoseParamArray[0] = 
-		[
-		]
-		CResourceString m_keyValueText = ""
-		Struct m_localIKAutoplayLockArray[0] = 
-		[
-		]
-	}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = 
+				[
+					7,
+				]
+				m_nGroupSize = 
+				[
+					1,
+					1,
+				]
+				m_nLocalPose = 
+				[
+					-1,
+					-1,
+				]
+				m_poseKeyArray0 = 
+				[
+					0.000000,
+				]
+				m_poseKeyArray1 = 
+				[
+					0.000000,
+				]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = 
+			[
+			]
+			m_IKLockArray = 
+			[
+			]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.200000
+				m_flFadeOutTime = 0.200000
+			}
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+			]
+		},
+		
+		{
+			m_sName = "c4m1_intro"
+			m_flags = 
+			{
+				m_bLooping = false
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = false
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = 
+				[
+					9,
+				]
+				m_nGroupSize = 
+				[
+					1,
+					1,
+				]
+				m_nLocalPose = 
+				[
+					-1,
+					-1,
+				]
+				m_poseKeyArray0 = 
+				[
+					0.000000,
+				]
+				m_poseKeyArray1 = 
+				[
+					0.000000,
+				]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = 
+			[
+			]
+			m_IKLockArray = 
+			[
+			]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.200000
+				m_flFadeOutTime = 0.200000
+			}
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+			]
+		},
+		
+		{
+			m_sName = "c5m1_intro"
+			m_flags = 
+			{
+				m_bLooping = false
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = false
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = 
+				[
+					11,
+				]
+				m_nGroupSize = 
+				[
+					1,
+					1,
+				]
+				m_nLocalPose = 
+				[
+					-1,
+					-1,
+				]
+				m_poseKeyArray0 = 
+				[
+					0.000000,
+				]
+				m_poseKeyArray1 = 
+				[
+					0.000000,
+				]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = 
+			[
+			]
+			m_IKLockArray = 
+			[
+			]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.200000
+				m_flFadeOutTime = 0.200000
+			}
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+			]
+		},
+		
+		{
+			m_sName = "c6m1_intro"
+			m_flags = 
+			{
+				m_bLooping = false
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = false
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = 
+				[
+					13,
+				]
+				m_nGroupSize = 
+				[
+					1,
+					1,
+				]
+				m_nLocalPose = 
+				[
+					-1,
+					-1,
+				]
+				m_poseKeyArray0 = 
+				[
+					0.000000,
+				]
+				m_poseKeyArray1 = 
+				[
+					0.000000,
+				]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = 
+			[
+			]
+			m_IKLockArray = 
+			[
+			]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.200000
+				m_flFadeOutTime = 0.200000
+			}
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+			]
+		},
+		
+		{
+			m_sName = "intro_c3m1"
+			m_flags = 
+			{
+				m_bLooping = false
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = false
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = 
+				[
+					15,
+				]
+				m_nGroupSize = 
+				[
+					1,
+					1,
+				]
+				m_nLocalPose = 
+				[
+					-1,
+					-1,
+				]
+				m_poseKeyArray0 = 
+				[
+					0.000000,
+				]
+				m_poseKeyArray1 = 
+				[
+					0.000000,
+				]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = 
+			[
+			]
+			m_IKLockArray = 
+			[
+			]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.200000
+				m_flFadeOutTime = 0.200000
+			}
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+			]
+		},
+		
+		{
+			m_sName = "intro_placeholder"
+			m_flags = 
+			{
+				m_bLooping = false
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = false
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = 
+				[
+					17,
+				]
+				m_nGroupSize = 
+				[
+					1,
+					1,
+				]
+				m_nLocalPose = 
+				[
+					-1,
+					-1,
+				]
+				m_poseKeyArray0 = 
+				[
+					0.000000,
+				]
+				m_poseKeyArray1 = 
+				[
+					0.000000,
+				]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = 
+			[
+			]
+			m_IKLockArray = 
+			[
+			]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.200000
+				m_flFadeOutTime = 0.200000
+			}
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+			]
+		},
+	]
+	m_localMultiSeqDescArray = 
+	[
+	]
+	m_localSynthAnimDescArray = 
+	[
+	]
+	m_localCmdSeqDescArray = 
+	[
+	]
+	m_localBoneMaskArray = 
+	[
+		
+		{
+			m_sName = "default"
+			m_nLocalBoneArray = 
+			[
+			]
+			m_flBoneWeightArray = 
+			[
+			]
+		},
+	]
+	m_localBoneNameArray = 
+	[
+	]
+	m_localNodeName = ""
+	m_localPoseParamArray = 
+	[
+	]
+	m_keyValueText = ""
+	m_localIKAutoplayLockArray = 
+	[
+	]
+}

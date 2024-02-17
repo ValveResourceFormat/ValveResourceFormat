@@ -1,266 +1,471 @@
-AnimationGroupResourceData_t
+<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:generic:version{7412167c-06e9-4698-aff2-e63eb59037e7} -->
+
+{
+	m_nFlags = 0
+	m_name = ""
+	m_localHAnimArray = 
+	[
+		resource_name:"models/285461c2/bad_ancient_ambient_blast_anim.vanim",
+	]
+	m_includedGroupArray = 
+	[
+	]
+	m_directHSeqGroup = null
+	m_decodeKey = 
 	{
-		uint32 m_nFlags = 0x00000000
-		CResourceString m_name = ""
-		ExternalReference m_localHAnimArray[1] =
+		m_name = ""
+		m_boneArray = 
 		[
-			ID: B821D364DD94CDCC
+			
+			{
+				m_name = "joint13"
+				m_parent = -1
+				m_pos = 
+				[
+					-45.343750,
+					-146.625000,
+					108.312500,
+				]
+				m_quat = 
+				[
+					0.499999,
+					0.499999,
+					0.499999,
+					0.500004,
+				]
+				m_qAlignment = 
+				[
+					0.000000,
+					0.000000,
+					0.000000,
+					0.000000,
+				]
+				m_flags = 0
+			},
+			
+			{
+				m_name = "joint6"
+				m_parent = -1
+				m_pos = 
+				[
+					-69.875000,
+					-205.875000,
+					452.000000,
+				]
+				m_quat = 
+				[
+					0.499999,
+					0.499999,
+					0.499999,
+					0.500004,
+				]
+				m_qAlignment = 
+				[
+					0.000000,
+					0.000000,
+					0.000000,
+					0.000000,
+				]
+				m_flags = 0
+			},
+			
+			{
+				m_name = "joint10"
+				m_parent = -1
+				m_pos = 
+				[
+					-105.187500,
+					-298.500000,
+					184.250000,
+				]
+				m_quat = 
+				[
+					0.499999,
+					0.499999,
+					0.499999,
+					0.500004,
+				]
+				m_qAlignment = 
+				[
+					0.000000,
+					0.000000,
+					0.000000,
+					0.000000,
+				]
+				m_flags = 0
+			},
+			
+			{
+				m_name = "joint3"
+				m_parent = -1
+				m_pos = 
+				[
+					-29.203120,
+					-101.812500,
+					276.500000,
+				]
+				m_quat = 
+				[
+					0.499999,
+					0.499999,
+					0.499999,
+					0.500004,
+				]
+				m_qAlignment = 
+				[
+					0.000000,
+					0.000000,
+					0.000000,
+					0.000000,
+				]
+				m_flags = 0
+			},
+			
+			{
+				m_name = "joint7"
+				m_parent = -1
+				m_pos = 
+				[
+					-86.812500,
+					-196.125000,
+					276.500000,
+				]
+				m_quat = 
+				[
+					0.499999,
+					0.499999,
+					0.499999,
+					0.500004,
+				]
+				m_qAlignment = 
+				[
+					0.000000,
+					0.000000,
+					0.000000,
+					0.000000,
+				]
+				m_flags = 0
+			},
+			
+			{
+				m_name = "joint11"
+				m_parent = -1
+				m_pos = 
+				[
+					-44.656250,
+					-145.500000,
+					444.250000,
+				]
+				m_quat = 
+				[
+					0.499999,
+					0.499999,
+					0.499999,
+					0.500004,
+				]
+				m_qAlignment = 
+				[
+					0.000000,
+					0.000000,
+					0.000000,
+					0.000000,
+				]
+				m_flags = 0
+			},
+			
+			{
+				m_name = "joint4"
+				m_parent = -1
+				m_pos = 
+				[
+					-23.718750,
+					-120.437500,
+					439.250000,
+				]
+				m_quat = 
+				[
+					0.499999,
+					0.499999,
+					0.499999,
+					0.500004,
+				]
+				m_qAlignment = 
+				[
+					0.000000,
+					0.000000,
+					0.000000,
+					0.000000,
+				]
+				m_flags = 0
+			},
+			
+			{
+				m_name = "joint8"
+				m_parent = -1
+				m_pos = 
+				[
+					-70.812500,
+					-207.000000,
+					100.625000,
+				]
+				m_quat = 
+				[
+					0.499999,
+					0.499999,
+					0.499999,
+					0.500004,
+				]
+				m_qAlignment = 
+				[
+					0.000000,
+					0.000000,
+					0.000000,
+					0.000000,
+				]
+				m_flags = 0
+			},
+			
+			{
+				m_name = "joint12"
+				m_parent = -1
+				m_pos = 
+				[
+					-56.250000,
+					-130.250000,
+					276.000000,
+				]
+				m_quat = 
+				[
+					0.499999,
+					0.499999,
+					0.499999,
+					0.500004,
+				]
+				m_qAlignment = 
+				[
+					0.000000,
+					0.000000,
+					0.000000,
+					0.000000,
+				]
+				m_flags = 0
+			},
+			
+			{
+				m_name = "joint5"
+				m_parent = -1
+				m_pos = 
+				[
+					-23.656250,
+					-120.812500,
+					113.375000,
+				]
+				m_quat = 
+				[
+					0.499999,
+					0.499999,
+					0.499999,
+					0.500004,
+				]
+				m_qAlignment = 
+				[
+					0.000000,
+					0.000000,
+					0.000000,
+					0.000000,
+				]
+				m_flags = 0
+			},
+			
+			{
+				m_name = "joint9"
+				m_parent = -1
+				m_pos = 
+				[
+					-107.687500,
+					-299.750000,
+					372.750000,
+				]
+				m_quat = 
+				[
+					0.499999,
+					0.499999,
+					0.499999,
+					0.500004,
+				]
+				m_qAlignment = 
+				[
+					0.000000,
+					0.000000,
+					0.000000,
+					0.000000,
+				]
+				m_flags = 0
+			},
+			
+			{
+				m_name = "joint2"
+				m_parent = -1
+				m_pos = 
+				[
+					15.640620,
+					-95.875000,
+					276.500000,
+				]
+				m_quat = 
+				[
+					0.499999,
+					0.499999,
+					0.499999,
+					0.500004,
+				]
+				m_qAlignment = 
+				[
+					0.000000,
+					0.000000,
+					0.000000,
+					0.000000,
+				]
+				m_flags = 0
+			},
 		]
-		ExternalReference m_includedGroupArray[0] =
+		m_userArray = 
 		[
 		]
-		ExternalReference m_directHSeqGroup = ID: 0000000000000000
-		Struct m_decodeKey = AnimationKeyResourceData_t
-		{
-			CResourceString m_name = ""
-			Struct m_boneArray[12] =
-			[
-				AnimResourceBone_t
-				{
-					CResourceString m_name = "joint13"
-					int32 m_parent = -1
-					Vector m_pos = (-45.343750, -146.625000, 108.312500)
-					Quaternion m_quat = {x: 0.50, y: 0.50, z: 0.50, w: 0.50}
-					Quaternion m_qAlignment = {x: 0.00, y: 0.00, z: 0.00, w: 0.00}
-					int32 m_flags = 0
-				}
-				AnimResourceBone_t
-				{
-					CResourceString m_name = "joint6"
-					int32 m_parent = -1
-					Vector m_pos = (-69.875000, -205.875000, 452.000000)
-					Quaternion m_quat = {x: 0.50, y: 0.50, z: 0.50, w: 0.50}
-					Quaternion m_qAlignment = {x: 0.00, y: 0.00, z: 0.00, w: 0.00}
-					int32 m_flags = 0
-				}
-				AnimResourceBone_t
-				{
-					CResourceString m_name = "joint10"
-					int32 m_parent = -1
-					Vector m_pos = (-105.187500, -298.500000, 184.250000)
-					Quaternion m_quat = {x: 0.50, y: 0.50, z: 0.50, w: 0.50}
-					Quaternion m_qAlignment = {x: 0.00, y: 0.00, z: 0.00, w: 0.00}
-					int32 m_flags = 0
-				}
-				AnimResourceBone_t
-				{
-					CResourceString m_name = "joint3"
-					int32 m_parent = -1
-					Vector m_pos = (-29.203130, -101.812500, 276.500000)
-					Quaternion m_quat = {x: 0.50, y: 0.50, z: 0.50, w: 0.50}
-					Quaternion m_qAlignment = {x: 0.00, y: 0.00, z: 0.00, w: 0.00}
-					int32 m_flags = 0
-				}
-				AnimResourceBone_t
-				{
-					CResourceString m_name = "joint7"
-					int32 m_parent = -1
-					Vector m_pos = (-86.812500, -196.125000, 276.500000)
-					Quaternion m_quat = {x: 0.50, y: 0.50, z: 0.50, w: 0.50}
-					Quaternion m_qAlignment = {x: 0.00, y: 0.00, z: 0.00, w: 0.00}
-					int32 m_flags = 0
-				}
-				AnimResourceBone_t
-				{
-					CResourceString m_name = "joint11"
-					int32 m_parent = -1
-					Vector m_pos = (-44.656250, -145.500000, 444.250000)
-					Quaternion m_quat = {x: 0.50, y: 0.50, z: 0.50, w: 0.50}
-					Quaternion m_qAlignment = {x: 0.00, y: 0.00, z: 0.00, w: 0.00}
-					int32 m_flags = 0
-				}
-				AnimResourceBone_t
-				{
-					CResourceString m_name = "joint4"
-					int32 m_parent = -1
-					Vector m_pos = (-23.718750, -120.437500, 439.250000)
-					Quaternion m_quat = {x: 0.50, y: 0.50, z: 0.50, w: 0.50}
-					Quaternion m_qAlignment = {x: 0.00, y: 0.00, z: 0.00, w: 0.00}
-					int32 m_flags = 0
-				}
-				AnimResourceBone_t
-				{
-					CResourceString m_name = "joint8"
-					int32 m_parent = -1
-					Vector m_pos = (-70.812500, -207.000000, 100.625000)
-					Quaternion m_quat = {x: 0.50, y: 0.50, z: 0.50, w: 0.50}
-					Quaternion m_qAlignment = {x: 0.00, y: 0.00, z: 0.00, w: 0.00}
-					int32 m_flags = 0
-				}
-				AnimResourceBone_t
-				{
-					CResourceString m_name = "joint12"
-					int32 m_parent = -1
-					Vector m_pos = (-56.250000, -130.250000, 276.000000)
-					Quaternion m_quat = {x: 0.50, y: 0.50, z: 0.50, w: 0.50}
-					Quaternion m_qAlignment = {x: 0.00, y: 0.00, z: 0.00, w: 0.00}
-					int32 m_flags = 0
-				}
-				AnimResourceBone_t
-				{
-					CResourceString m_name = "joint5"
-					int32 m_parent = -1
-					Vector m_pos = (-23.656250, -120.812500, 113.375000)
-					Quaternion m_quat = {x: 0.50, y: 0.50, z: 0.50, w: 0.50}
-					Quaternion m_qAlignment = {x: 0.00, y: 0.00, z: 0.00, w: 0.00}
-					int32 m_flags = 0
-				}
-				AnimResourceBone_t
-				{
-					CResourceString m_name = "joint9"
-					int32 m_parent = -1
-					Vector m_pos = (-107.687500, -299.750000, 372.750000)
-					Quaternion m_quat = {x: 0.50, y: 0.50, z: 0.50, w: 0.50}
-					Quaternion m_qAlignment = {x: 0.00, y: 0.00, z: 0.00, w: 0.00}
-					int32 m_flags = 0
-				}
-				AnimResourceBone_t
-				{
-					CResourceString m_name = "joint2"
-					int32 m_parent = -1
-					Vector m_pos = (15.640630, -95.875000, 276.500000)
-					Quaternion m_quat = {x: 0.50, y: 0.50, z: 0.50, w: 0.50}
-					Quaternion m_qAlignment = {x: 0.00, y: 0.00, z: 0.00, w: 0.00}
-					int32 m_flags = 0
-				}
-			]
-			Struct m_userArray[0] =
-			[
-			]
-			CResourceString m_morphArray[0] =
-			[
-			]
-			Struct m_IKChainArray[0] =
-			[
-			]
-			int32 m_nChannelElements = 24
-			Struct m_dataChannelArray[2] =
-			[
-				AnimResourceDataChannel_t
-				{
-					CResourceString m_szChannelClass = "BoneChannel"
-					CResourceString m_szVariableName = "Position"
-					int32 m_nFlags = 0
-					int32 m_nType = 3
-					CResourceString m_szGrouping = ""
-					CResourceString m_szDescription = ""
-					CResourceString m_szElementNameArray[12] =
-					[
-						"joint13"
-						"joint6"
-						"joint10"
-						"joint3"
-						"joint7"
-						"joint11"
-						"joint4"
-						"joint8"
-						"joint12"
-						"joint5"
-						"joint9"
-						"joint2"
-					]
-					int32 m_nElementIndexArray[12] =
-					[
-						0
-						1
-						2
-						3
-						4
-						5
-						6
-						7
-						8
-						9
-						10
-						11
-					]
-					uint32 m_nElementMaskArray[12] =
-					[
-						0x00000001
-						0x00000004
-						0x00000020
-						0x00000100
-						0x00000400
-						0x00002000
-						0x00010000
-						0x00040000
-						0x00200000
-						0x01000000
-						0x04000000
-						0x20000000
-					]
-				}
-				AnimResourceDataChannel_t
-				{
-					CResourceString m_szChannelClass = "BoneChannel"
-					CResourceString m_szVariableName = "Angle"
-					int32 m_nFlags = 0
-					int32 m_nType = 4
-					CResourceString m_szGrouping = ""
-					CResourceString m_szDescription = ""
-					CResourceString m_szElementNameArray[12] =
-					[
-						"joint13"
-						"joint6"
-						"joint10"
-						"joint3"
-						"joint7"
-						"joint11"
-						"joint4"
-						"joint8"
-						"joint12"
-						"joint5"
-						"joint9"
-						"joint2"
-					]
-					int32 m_nElementIndexArray[12] =
-					[
-						12
-						13
-						14
-						15
-						16
-						17
-						18
-						19
-						20
-						21
-						22
-						23
-					]
-					uint32 m_nElementMaskArray[12] =
-					[
-						0x00000001
-						0x00000004
-						0x00000020
-						0x00000100
-						0x00000400
-						0x00002000
-						0x00010000
-						0x00040000
-						0x00200000
-						0x01000000
-						0x04000000
-						0x20000000
-					]
-				}
-			]
-		}
-		Struct m_retarget = AnimationRetargetData_t
-		{
-			int32 m_bEnableRetarget = 0
-			int32 m_nRetargetStyle = 0
-			Struct m_element[0] =
-			[
-			]
-			Struct m_chain[0] =
-			[
-			]
-			CResourceString m_replicated[0] =
-			[
-			]
-		}
-		CResourceString m_szScripts[0] =
+		m_morphArray = 
+		[
+		]
+		m_IKChainArray = 
+		[
+		]
+		m_nChannelElements = 24
+		m_dataChannelArray = 
+		[
+			
+			{
+				m_szChannelClass = "BoneChannel"
+				m_szVariableName = "Position"
+				m_nFlags = 0
+				m_nType = 3
+				m_szGrouping = ""
+				m_szDescription = ""
+				m_szElementNameArray = 
+				[
+					"joint13",
+					"joint6",
+					"joint10",
+					"joint3",
+					"joint7",
+					"joint11",
+					"joint4",
+					"joint8",
+					"joint12",
+					"joint5",
+					"joint9",
+					"joint2",
+				]
+				m_nElementIndexArray = 
+				[
+					0,
+					1,
+					2,
+					3,
+					4,
+					5,
+					6,
+					7,
+					8,
+					9,
+					10,
+					11,
+				]
+				m_nElementMaskArray = 
+				[
+					1,
+					4,
+					32,
+					256,
+					1024,
+					8192,
+					65536,
+					262144,
+					2097152,
+					16777216,
+					67108864,
+					536870912,
+				]
+			},
+			
+			{
+				m_szChannelClass = "BoneChannel"
+				m_szVariableName = "Angle"
+				m_nFlags = 0
+				m_nType = 4
+				m_szGrouping = ""
+				m_szDescription = ""
+				m_szElementNameArray = 
+				[
+					"joint13",
+					"joint6",
+					"joint10",
+					"joint3",
+					"joint7",
+					"joint11",
+					"joint4",
+					"joint8",
+					"joint12",
+					"joint5",
+					"joint9",
+					"joint2",
+				]
+				m_nElementIndexArray = 
+				[
+					12,
+					13,
+					14,
+					15,
+					16,
+					17,
+					18,
+					19,
+					20,
+					21,
+					22,
+					23,
+				]
+				m_nElementMaskArray = 
+				[
+					1,
+					4,
+					32,
+					256,
+					1024,
+					8192,
+					65536,
+					262144,
+					2097152,
+					16777216,
+					67108864,
+					536870912,
+				]
+			},
+		]
+	}
+	m_retarget = 
+	{
+		m_bEnableRetarget = 0
+		m_nRetargetStyle = 0
+		m_element = 
+		[
+		]
+		m_chain = 
+		[
+		]
+		m_replicated = 
 		[
 		]
 	}
+	m_szScripts = 
+	[
+	]
+}
