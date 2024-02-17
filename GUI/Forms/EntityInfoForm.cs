@@ -72,7 +72,7 @@ namespace GUI.Forms
             dataGridOutputs.Rows.Clear();
         }
 
-        public void AddColumn(string name, string value)
+        public void AddProperty(string name, string value)
         {
             dataGrid.Rows.Add(new string[] { name, value });
         }

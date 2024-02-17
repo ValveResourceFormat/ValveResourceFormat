@@ -284,47 +284,47 @@ namespace GUI.Types.Renderer
                 if (sceneNode is SceneAggregate.Fragment sceneFragment)
                 {
                     var material = sceneFragment.DrawCall.Material.Material;
-                    entityInfoForm.AddColumn("Shader", material.ShaderName);
-                    entityInfoForm.AddColumn("Material", material.Name);
+                    entityInfoForm.AddProperty("Shader", material.ShaderName);
+                    entityInfoForm.AddProperty("Material", material.Name);
 
                     var tris = sceneFragment.DrawCall.IndexCount / 3;
                     if (sceneFragment.DrawCall.NumMeshlets > 0)
                     {
                         var clusters = sceneFragment.DrawCall.NumMeshlets;
                         var trisPerCluster = tris / clusters;
-                        entityInfoForm.AddColumn("Triangles / Clusters / Per Cluster", $"{tris} / {clusters} / {trisPerCluster}");
+                        entityInfoForm.AddProperty("Triangles / Clusters / Per Cluster", $"{tris} / {clusters} / {trisPerCluster}");
                     }
                     else
                     {
-                        entityInfoForm.AddColumn("Triangles", $"{tris}");
+                        entityInfoForm.AddProperty("Triangles", $"{tris}");
                     }
 
-                    entityInfoForm.AddColumn("Model Tint", ToRenderColor(sceneFragment.DrawCall.TintColor));
-                    entityInfoForm.AddColumn("Model Alpha", $"{sceneFragment.DrawCall.TintColor.W:F6}");
+                    entityInfoForm.AddProperty("Model Tint", ToRenderColor(sceneFragment.DrawCall.TintColor));
+                    entityInfoForm.AddProperty("Model Alpha", $"{sceneFragment.DrawCall.TintColor.W:F6}");
 
                     if (sceneFragment.Tint != Vector4.One)
                     {
-                        entityInfoForm.AddColumn("Instance Tint", ToRenderColor(sceneFragment.Tint));
-                        entityInfoForm.AddColumn("Final Tint", ToRenderColor(sceneFragment.DrawCall.TintColor * sceneFragment.Tint));
+                        entityInfoForm.AddProperty("Instance Tint", ToRenderColor(sceneFragment.Tint));
+                        entityInfoForm.AddProperty("Final Tint", ToRenderColor(sceneFragment.DrawCall.TintColor * sceneFragment.Tint));
                     }
                 }
                 else if (sceneNode is ModelSceneNode modelSceneNode)
                 {
-                    entityInfoForm.AddColumn("Model Tint", ToRenderColor(modelSceneNode.Tint));
-                    entityInfoForm.AddColumn("Model Alpha", $"{modelSceneNode.Tint.W:F6}");
+                    entityInfoForm.AddProperty("Model Tint", ToRenderColor(modelSceneNode.Tint));
+                    entityInfoForm.AddProperty("Model Alpha", $"{modelSceneNode.Tint.W:F6}");
                 }
 
                 if (sceneNode.CubeMapPrecomputedHandshake > 0)
                 {
-                    entityInfoForm.AddColumn("Cubemap Handshake", $"{sceneNode.CubeMapPrecomputedHandshake}");
+                    entityInfoForm.AddProperty("Cubemap Handshake", $"{sceneNode.CubeMapPrecomputedHandshake}");
                 }
 
                 if (sceneNode.LightProbeVolumePrecomputedHandshake > 0)
                 {
-                    entityInfoForm.AddColumn("Light Probe Handshake", $"{sceneNode.LightProbeVolumePrecomputedHandshake}");
+                    entityInfoForm.AddProperty("Light Probe Handshake", $"{sceneNode.LightProbeVolumePrecomputedHandshake}");
                 }
 
-                entityInfoForm.AddColumn("Layer", sceneNode.LayerName);
+                entityInfoForm.AddProperty("Layer", sceneNode.LayerName);
             }
 
             if (isInSkybox)
@@ -513,7 +513,7 @@ namespace GUI.Types.Renderer
                     value = string.Join(' ', tmp.Select(p => p.ToString(CultureInfo.InvariantCulture)).ToArray());
                 }
 
-                entityInfoForm.AddColumn(name, value.ToString());
+                entityInfoForm.AddProperty(name, value.ToString());
             }
 
             if (sceneNode.EntityData.Connections != null)
