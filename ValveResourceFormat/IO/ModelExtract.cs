@@ -1072,7 +1072,7 @@ public class ModelExtract
         }
 
         var newLayerValues = new Vector3[logLayer.LayerValues.Length + 2];
-        var newTimes = new TimeSpanArray(newLayerValues.Length + 2);
+        var newTimes = new TimeSpanArray(newLayerValues.Length);
 
         var baseValue = logLayer.LayerValues[0];
 
