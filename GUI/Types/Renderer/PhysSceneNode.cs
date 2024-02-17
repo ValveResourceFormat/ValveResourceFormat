@@ -304,7 +304,7 @@ namespace GUI.Types.Renderer
                 var c = baseVert1 + (Segments - segment) % Segments;
                 var d = baseVert1 + (Segments - (segment + 1)) % Segments;
 
-                AddTriangle(inds, 0, a, b, c);
+                AddTriangle(inds, 0, b, a, c);
                 AddTriangle(inds, 0, b, c, d);
             }
         }
@@ -373,7 +373,7 @@ namespace GUI.Types.Renderer
                     else
                     {
                         AddTriangle(inds, baseVertex, i, iNext, i + Segments);
-                        AddTriangle(inds, baseVertex, iNext + Segments, iNext, i + Segments);
+                        AddTriangle(inds, baseVertex, iNext, iNext + Segments, i + Segments);
                     }
                 }
             }
