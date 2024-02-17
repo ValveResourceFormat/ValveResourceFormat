@@ -13,9 +13,15 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         public float Fps { get; }
         public int FrameCount { get; }
         public bool IsLooping { get; }
+        public bool Hidden { get; init; }
+        public bool Delta { get; init; }
+        public bool Worldspace { get; init; }
         private AnimationFrameBlock[] FrameBlocks { get; }
         private AnimationSegmentDecoder[] SegmentArray { get; }
         private AnimationMovement[] MovementArray { get; }
+        public AnimationEvent[] Events { get; }
+        public AnimationActivity[] Activities { get; }
+        public AnimationSequenceParams SequenceParams { get; }
 
         private Animation(KVObject animDesc, AnimationSegmentDecoder[] segmentArray)
         {
@@ -26,6 +32,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
             var flags = animDesc.GetSubCollection("m_flags");
             IsLooping = flags.GetProperty<bool>("m_bLooping");
+            Hidden = flags.GetProperty<bool>("m_bHidden");
+            Delta = flags.GetProperty<bool>("m_bDelta");
+            Worldspace = flags.GetProperty<bool>("m_bLegacyWorldspace");
 
             var pDataObject = animDesc.GetProperty<object>("m_pData");
             var pData = pDataObject as KVObject;
@@ -44,6 +53,17 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             {
                 MovementArray[i] = new AnimationMovement(movementArray[i]);
             }
+
+            Events = animDesc.GetArray("m_eventArray")
+                                 .Select(x => new AnimationEvent(x))
+                                 .ToArray();
+
+            Activities = animDesc.GetArray("m_activityArray")
+                                    .Select(x => new AnimationActivity(x))
+                                    .ToArray();
+
+            var sequenceParams = animDesc.GetSubCollection("m_sequenceParams");
+            SequenceParams = new AnimationSequenceParams(sequenceParams);
         }
 
         public static IEnumerable<Animation> FromData(KVObject animationData, KVObject decodeKey,
