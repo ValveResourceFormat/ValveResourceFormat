@@ -310,21 +310,6 @@ namespace ValveResourceFormat
 
                     case BlockType.NTRO:
                         block.Read(Reader, this);
-
-                        if (ResourceType == ResourceType.Unknown && IntrospectionManifest.ReferencedStructs.Count > 0)
-                        {
-                            switch (IntrospectionManifest.ReferencedStructs[0].Name)
-                            {
-                                case "VSoundEventScript_t":
-                                    ResourceType = ResourceType.SoundEventScript;
-                                    break;
-
-                                case "CWorldVisibility":
-                                    ResourceType = ResourceType.WorldVisibility;
-                                    break;
-                            }
-                        }
-
                         break;
                 }
 
