@@ -18,7 +18,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         public bool Worldspace { get; init; }
         private AnimationFrameBlock[] FrameBlocks { get; }
         private AnimationSegmentDecoder[] SegmentArray { get; }
-        private AnimationMovement[] MovementArray { get; }
+        public AnimationMovement[] Movements { get; }
         public AnimationEvent[] Events { get; }
         public AnimationActivity[] Activities { get; }
         public AnimationSequenceParams SequenceParams { get; }
@@ -48,10 +48,10 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             }
 
             var movementArray = animDesc.GetArray("m_movementArray");
-            MovementArray = new AnimationMovement[movementArray.Length];
+            Movements = new AnimationMovement[movementArray.Length];
             for (var i = 0; i < movementArray.Length; i++)
             {
-                MovementArray[i] = new AnimationMovement(movementArray[i]);
+                Movements[i] = new AnimationMovement(movementArray[i]);
             }
 
             Events = animDesc.GetArray("m_eventArray")
@@ -192,20 +192,20 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
         private int GetMovementIndexForFrame(int frame)
         {
-            for (var i = 0; i < MovementArray.Length; i++)
+            for (var i = 0; i < Movements.Length; i++)
             {
-                var movement = MovementArray[i];
+                var movement = Movements[i];
                 if (movement.EndFrame > frame)
                 {
                     return i;
                 }
             }
-            return MovementArray.Length - 1;
+            return Movements.Length - 1;
         }
 
         public bool HasMovementData()
         {
-            return MovementArray.Length > 0;
+            return Movements.Length > 0;
         }
 
         /// <summary>
@@ -232,7 +232,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             var nextMovementIndex = GetMovementIndexForTime(time);
             var lastMovementIndex = nextMovementIndex - 1;
 
-            nextMovement = MovementArray[nextMovementIndex];
+            nextMovement = Movements[nextMovementIndex];
             if (nextMovementIndex == 0)
             {
                 lastMovement = null;
@@ -242,7 +242,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                 return;
             }
 
-            lastMovement = MovementArray[lastMovementIndex];
+            lastMovement = Movements[lastMovementIndex];
 
             var startTime = lastMovement.EndFrame / Fps;
             var endTime = nextMovement.EndFrame / Fps;
