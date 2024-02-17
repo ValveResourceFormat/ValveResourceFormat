@@ -135,12 +135,12 @@ namespace ValveResourceFormat.ResourceTypes
                 {
                     var arrayKv = (KVObject)value.Value.Value;
 
-                    type = arrayKv.Count() switch
+                    type = arrayKv.Count switch
                     {
                         2 => EntityFieldType.Vector2d, // Did binary entity lumps not store vec2?
                         3 => EntityFieldType.Vector,
                         4 => EntityFieldType.Vector4D,
-                        _ => throw new NotImplementedException($"Unsupported array length of {arrayKv.Count()}"),
+                        _ => throw new NotImplementedException($"Unsupported array length of {arrayKv.Count}"),
                     };
                     data = type switch
                     {
