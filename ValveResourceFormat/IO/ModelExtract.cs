@@ -998,6 +998,8 @@ public class ModelExtract
             rootOrientationLayer.Times.Add(timespan);
         }
 
+        ApplyModelDocHack(rootPositionLayer);
+
         clip.Channels.Add(rootPositionChannel);
         clip.Channels.Add(rootOrientationChannel);
     }
@@ -1052,29 +1054,63 @@ public class ModelExtract
                 ProcessBoneFrameForDmeChannel(bone, frame, time, positionLogLayer, orientationLogLayer);
             }
 
-            //If both layers are 0s only, modeldoc will ignore the animations on this bone.
-            //In that case, replace the position layer's values with one that has a very small value outside of the range of the animation.
-            //Do the same if there's only a single frame, since modeldoc also ignores animations that don't have any movement at all (Fixes #663)
-            if (anim.FrameCount == 1 || positionLogLayer.IsLayerZero() || orientationLogLayer.IsLayerZero())
-            {
-                positionLogLayer.Times.Clear();
-                positionLogLayer.Times.AddRange([
-                    TimeSpan.FromSeconds(-0.2f),
-                    TimeSpan.FromSeconds(-0.1f),
-                    TimeSpan.FromSeconds(0f)
-                ]);
-
-                var layerValue = positionLogLayer.LayerValues[0];
-                positionLogLayer.LayerValues = [
-                    layerValue,
-                    layerValue + new Vector3(0, 0, 0.00001f),
-                    layerValue,
-                ];
-            }
+            ApplyModelDocHack(positionLogLayer);
 
             clip.Channels.Add(positionChannel);
             clip.Channels.Add(orientationChannel);
         }
+    }
+
+    /// <summary>
+    /// Workaround for ModelDoc ignoring animation data on bone when bone doesn't have any motion
+    /// </summary>
+    private static void ApplyModelDocHack(DmeLogLayer<Vector3> logLayer)
+    {
+        if (DoesLayerHaveMotion(logLayer))
+        {
+            return;
+        }
+
+        var newLayerValues = new Vector3[logLayer.LayerValues.Length + 2];
+        var newTimes = new TimeSpanArray(newLayerValues.Length + 2);
+
+        var baseValue = logLayer.LayerValues[0];
+
+        newLayerValues[0] = baseValue + new Vector3(0, 0, 0.0001f);
+        newLayerValues[1] = baseValue;
+        newTimes.Add(TimeSpan.FromSeconds(-0.1f));
+        newTimes.Add(TimeSpan.FromSeconds(-0.05f));
+        for (var i = 0; i < logLayer.LayerValues.Length; i++)
+        {
+            newLayerValues[i + 2] = logLayer.LayerValues[i];
+            newTimes.Add(logLayer.Times[i]);
+        }
+
+        logLayer.LayerValues = newLayerValues;
+        logLayer.Times = newTimes;
+    }
+
+    private static bool DoesLayerHaveMotion(DmeLogLayer<Vector3> logLayer)
+    {
+        if (logLayer.LayerValues.Length <= 1)
+        {
+            return false;
+        }
+
+        var lastVal = logLayer.LayerValues[0];
+        for (var i = 1; i < logLayer.LayerValues.Length; i++)
+        {
+            var currentVal = logLayer.LayerValues[i];
+
+            if ((lastVal - currentVal).Length() >= 0.01f)
+            {
+                return true;
+            }
+
+            lastVal = currentVal;
+        }
+
+        return false;
     }
 
     public static byte[] ToDmxAnim(Model model, Animation anim)
