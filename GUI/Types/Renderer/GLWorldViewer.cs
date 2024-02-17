@@ -493,6 +493,14 @@ namespace GUI.Types.Renderer
                 entityDialog.AddColumn(name, value.ToString());
             }
 
+            if (sceneNode.EntityData.Connections != null)
+            {
+                foreach (var connection in sceneNode.EntityData.Connections)
+                {
+                    entityDialog.AddConnection(connection);
+                }
+            }
+
             var classname = sceneNode.EntityData.GetProperty<string>("classname");
             entityDialog.Text = $"Entity: {classname}";
         }
