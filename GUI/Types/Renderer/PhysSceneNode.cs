@@ -1,4 +1,5 @@
 using System.Linq;
+using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
@@ -8,6 +9,10 @@ namespace GUI.Types.Renderer
 {
     class PhysSceneNode : SceneNode
     {
+        // sphere/capsule constants
+        private const int Segments = 8;
+        private const int Bands = 5;
+
         public bool Enabled { get; set; }
         public string PhysGroupName { get; set; }
 
@@ -161,12 +166,12 @@ namespace GUI.Types.Renderer
                                 break;
                             }
 
-                            inds[collisionAttributeIndex].Add(baseVertex + edges[startEdge].Origin);
-                            inds[collisionAttributeIndex].Add(baseVertex + edges[edge].Origin);
-                            inds[collisionAttributeIndex].Add(baseVertex + edges[edge].Origin);
-                            inds[collisionAttributeIndex].Add(baseVertex + edges[nextEdge].Origin);
-                            inds[collisionAttributeIndex].Add(baseVertex + edges[nextEdge].Origin);
-                            inds[collisionAttributeIndex].Add(baseVertex + edges[startEdge].Origin);
+                            AddTriangle(
+                                inds[collisionAttributeIndex],
+                                baseVertex,
+                                edges[startEdge].Origin,
+                                edges[edge].Origin,
+                                edges[nextEdge].Origin);
 
                             edge = nextEdge;
                         }
@@ -214,12 +219,7 @@ namespace GUI.Types.Renderer
 
                     foreach (var tri in triangles)
                     {
-                        inds[collisionAttributeIndex].Add(baseVertex + tri.X);
-                        inds[collisionAttributeIndex].Add(baseVertex + tri.Y);
-                        inds[collisionAttributeIndex].Add(baseVertex + tri.Y);
-                        inds[collisionAttributeIndex].Add(baseVertex + tri.Z);
-                        inds[collisionAttributeIndex].Add(baseVertex + tri.Z);
-                        inds[collisionAttributeIndex].Add(baseVertex + tri.X);
+                        AddTriangle(inds[collisionAttributeIndex], baseVertex, tri.X, tri.Y, tri.Z);
                     }
 
                     var bbox = new AABB(mesh.Shape.Min, mesh.Shape.Max);
@@ -286,59 +286,113 @@ namespace GUI.Types.Renderer
 
         private static void AddCapsule(List<SimpleVertex> verts, List<int> inds, Vector3 c0, Vector3 c1, float radius)
         {
-            var mtx = Matrix4x4.CreateLookAt(c0, c1, Vector3.UnitY);
-            mtx.Translation = Vector3.Zero;
-            AddSphere(verts, inds, c0, radius);
-            AddSphere(verts, inds, c1, radius);
+            var up = Vector3.Normalize(c0 - c1);
 
+            var baseVert0 = verts.Count;
+            AddHemisphere(verts, inds, c0, radius, up);
+
+            var baseVert1 = verts.Count;
+            AddHemisphere(verts, inds, c1, radius, -up);
+
+            // connect hemispheres to create the cylinder
+            for (var segment = 0; segment < Segments; segment++)
+            {
+                var a = baseVert0 + segment;
+                var b = baseVert0 + (segment + 1) % Segments;
+
+                // second sphere has indices in reverse order (since its rotated the other way)
+                var c = baseVert1 + (Segments - segment) % Segments;
+                var d = baseVert1 + (Segments - (segment + 1)) % Segments;
+
+                AddTriangle(inds, 0, a, b, c);
+                AddTriangle(inds, 0, b, c, d);
+            }
+        }
+
+        static Vector3 GetOrtogonal(Vector3 a)
+        {
+            // Any vector not parallel to the given vector
+            var arbitraryVector = new Vector3(1, 0, 0);
+            if (arbitraryVector == a)
+            {
+                arbitraryVector = new Vector3(0, 1, 0);
+            }
+
+            return GetOrtogonal(a, arbitraryVector);
+        }
+        static Vector3 GetOrtogonal(Vector3 a, Vector3 b)
+        {
+            var sideVector = Vector3.Cross(a, b);
+            return Vector3.Normalize(sideVector);
+        }
+
+        private static void AddHemisphere(List<SimpleVertex> verts, List<int> inds, Vector3 center, float radius, Vector3 up)
+        {
             var baseVertex = verts.Count;
 
-            for (var i = 0; i < 4; i++)
+            var axisUp = Vector3.Normalize(up);
+            var axisAround = GetOrtogonal(up);
+            var v = GetOrtogonal(axisAround, axisUp);
+
+            // generate vertices
+            for (var band = 0; band < Bands; band++)
             {
-                var vr = new Vector3(
-                    MathF.Cos(i * MathF.PI / 2) * radius,
-                    MathF.Sin(i * MathF.PI / 2) * radius,
-                    0);
-                vr = Vector3.Transform(vr, mtx);
-                var v = vr + c0;
+                var angleUp = -MathUtils.ToRadians(band * (90.0f / Bands));
+                var quatUp = Quaternion.CreateFromAxisAngle(axisAround, angleUp);
 
-                //color red
-                verts.Add(new(v, new(1f, 0f, 0f, 1f)));
-                verts.Add(new(vr + c1, new(1f, 0f, 0f, 1f)));
+                for (var segment = 0; segment < Segments; segment++)
+                {
+                    var angleAround = MathUtils.ToRadians(segment * (360.0f / Segments));
+                    var quatAround = Quaternion.CreateFromAxisAngle(axisUp, angleAround);
 
-                inds.Add(baseVertex + i * 2);
-                inds.Add(baseVertex + i * 2 + 1);
-                inds.Add(baseVertex + i * 2);
+                    var point = Vector3.Transform(v, Quaternion.Multiply(quatAround, quatUp));
+                    var transformed = center + radius * Vector3.Normalize(point);
+
+                    verts.Add(new(transformed, new(1f, 1f, 0f, 0.3f)));
+                }
+            }
+
+            // midpoint
+            var topVertexIndex = verts.Count - baseVertex;
+            var transformedUp = center + radius * Vector3.Normalize(up);
+            verts.Add(new(transformedUp, new(1f, 1f, 0f, 0.3f)));
+
+            // generate triangles
+            for (var band = 0; band < Bands; band++)
+            {
+                for (var segment = 0; segment < Segments; segment++)
+                {
+                    var i = band * Segments + segment;
+                    var iNext = segment == Segments - 1 ? (band * Segments) : i + 1;
+
+                    if (band == Bands - 1)
+                    {
+                        // last band connects to midpoint only
+                        AddTriangle(inds, baseVertex, i, iNext, topVertexIndex);
+                    }
+                    else
+                    {
+                        AddTriangle(inds, baseVertex, i, iNext, i + Segments);
+                        AddTriangle(inds, baseVertex, iNext + Segments, iNext, i + Segments);
+                    }
+                }
             }
         }
 
         private static void AddSphere(List<SimpleVertex> verts, List<int> inds, Vector3 center, float radius)
         {
-            verts.EnsureCapacity(verts.Count + 16 * 3);
-            inds.EnsureCapacity(inds.Count + 16 * 3 * 2);
-
-            AddCircle(verts, inds, center, radius, Matrix4x4.Identity);
-            AddCircle(verts, inds, center, radius, Matrix4x4.CreateRotationX(MathF.PI * 0.5f));
-            AddCircle(verts, inds, center, radius, Matrix4x4.CreateRotationY(MathF.PI * 0.5f));
+            AddHemisphere(verts, inds, center, radius, Vector3.UnitZ);
+            AddHemisphere(verts, inds, center, radius, -Vector3.UnitZ);
         }
 
-        private static void AddCircle(List<SimpleVertex> verts, List<int> inds, Vector3 center, float radius, Matrix4x4 mtx)
+        private static void AddTriangle(List<int> inds, int baseVertex, int a, int b, int c)
         {
-            var baseVertex = verts.Count;
-            for (var i = 0; i < 16; i++)
-            {
-                var v = new Vector3(
-                    MathF.Cos(i * MathF.PI / 8) * radius,
-                    MathF.Sin(i * MathF.PI / 8) * radius,
-                    0);
-                v = Vector3.Transform(v, mtx) + center;
-
-                // color red
-                verts.Add(new(v, new(1f, 0f, 0f, 1f)));
-
-                inds.Add(baseVertex + i);
-                inds.Add(baseVertex + (i + 1) % 16);
-            }
+            inds.Add(baseVertex + a);
+            inds.Add(baseVertex + b);
+            inds.Add(baseVertex + b);
+            inds.Add(baseVertex + c);
+            inds.Add(baseVertex + c);
+            inds.Add(baseVertex + a);
         }
 
         public override void Render(Scene.RenderContext context)
