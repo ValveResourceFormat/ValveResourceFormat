@@ -16,7 +16,7 @@ namespace GUI.Forms
 
             Icon = Program.MainForm.Icon;
 
-            Resource.AddDataGridExternalRefAction(guiFileLoader, dataGrid, ColumnValue.Name, (referenceFound) =>
+            Resource.AddDataGridExternalRefAction(guiFileLoader, dataGridProperties, ColumnValue.Name, (referenceFound) =>
             {
                 if (referenceFound)
                 {
@@ -24,32 +24,32 @@ namespace GUI.Forms
                 }
             });
 
-            pages = new TabPage[tabControl1.TabPages.Count];
+            pages = new TabPage[tabControl.TabPages.Count];
             for (var i = 0; i < pages.Length; i++)
             {
-                pages[i] = tabControl1.TabPages[i];
+                pages[i] = tabControl.TabPages[i];
             }
         }
 
         private void SetTabCount(int count)
         {
-            if (tabControl1.TabCount == count)
+            if (tabControl.TabCount == count)
             {
                 return;
             }
-            else if (tabControl1.TabCount > count)
+            else if (tabControl.TabCount > count)
             {
-                tabControl1.TabIndex = count - 1;
-                for (var i = tabControl1.TabCount - 1; i >= count; i--)
+                tabControl.TabIndex = count - 1;
+                for (var i = tabControl.TabCount - 1; i >= count; i--)
                 {
-                    tabControl1.TabPages.RemoveAt(i);
+                    tabControl.TabPages.RemoveAt(i);
                 }
             }
             else
             {
-                for (var i = tabControl1.TabCount; i < count; i++)
+                for (var i = tabControl.TabCount; i < count; i++)
                 {
-                    tabControl1.TabPages.Add(pages[i]);
+                    tabControl.TabPages.Add(pages[i]);
                 }
             }
         }
@@ -68,13 +68,13 @@ namespace GUI.Forms
 
         public void Clear()
         {
-            dataGrid.Rows.Clear();
+            dataGridProperties.Rows.Clear();
             dataGridOutputs.Rows.Clear();
         }
 
         public void AddProperty(string name, string value)
         {
-            dataGrid.Rows.Add(new string[] { name, value });
+            dataGridProperties.Rows.Add(new string[] { name, value });
         }
 
         public void AddConnection(KVObject connectionData)
