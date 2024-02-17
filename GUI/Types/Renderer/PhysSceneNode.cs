@@ -397,7 +397,7 @@ namespace GUI.Types.Renderer
 
         public override void Render(Scene.RenderContext context)
         {
-            if (!Enabled)
+            if (!Enabled || context.RenderPass != RenderPass.Translucent)
             {
                 return;
             }
