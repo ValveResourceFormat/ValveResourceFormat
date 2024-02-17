@@ -460,9 +460,6 @@ namespace ValveResourceFormat
                 case ResourceType.Material:
                     return new Material();
 
-                case ResourceType.SoundEventScript:
-                    return new SoundEventScript();
-
                 case ResourceType.SoundStackScript:
                     return new SoundStackScript();
 
