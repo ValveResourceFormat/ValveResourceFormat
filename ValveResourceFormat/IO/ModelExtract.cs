@@ -463,7 +463,7 @@ public class ModelExtract
 
             var keyvaluesString = model.Data.GetSubCollection("m_modelInfo").GetProperty<string>("m_keyValueText");
 
-            if (string.IsNullOrEmpty(keyvaluesString))
+            if (string.IsNullOrEmpty(keyvaluesString) || !keyvaluesString.StartsWith("<!-- kv3 ", StringComparison.Ordinal))
             {
                 return;
             }
