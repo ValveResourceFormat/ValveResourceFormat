@@ -9,7 +9,8 @@ namespace GUI.Forms
 {
     partial class EntityInfoForm : Form
     {
-        public EntityInfoForm(AdvancedGuiFileLoader guiFileLoader, bool entity)
+        private TabPage[] pages;
+        public EntityInfoForm(AdvancedGuiFileLoader guiFileLoader)
         {
             InitializeComponent();
 
@@ -23,14 +24,52 @@ namespace GUI.Forms
                 }
             });
 
-            if (!entity)
+            pages = new TabPage[tabControl1.TabPages.Count];
+            for (var i = 0; i < pages.Length; i++)
             {
-                //Keep only the first page (properties) if this is not an entity.
-                for (var i = tabControl1.TabCount - 1; i > 0; i--)
+                pages[i] = tabControl1.TabPages[i];
+            }
+        }
+
+        private void SetTabCount(int count)
+        {
+            if (tabControl1.TabCount == count)
+            {
+                return;
+            }
+            else if (tabControl1.TabCount > count)
+            {
+                tabControl1.TabIndex = count - 1;
+                for (var i = tabControl1.TabCount - 1; i >= count; i--)
                 {
                     tabControl1.TabPages.RemoveAt(i);
                 }
             }
+            else
+            {
+                for (var i = tabControl1.TabCount; i < count; i++)
+                {
+                    tabControl1.TabPages.Add(pages[i]);
+                }
+            }
+        }
+
+        public void SetEntityLayout(bool isEntity)
+        {
+            if (isEntity)
+            {
+                SetTabCount(pages.Length);
+            }
+            else
+            {
+                SetTabCount(1);
+            }
+        }
+
+        public void Clear()
+        {
+            dataGrid.Rows.Clear();
+            dataGridOutputs.Rows.Clear();
         }
 
         public void AddColumn(string name, string value)

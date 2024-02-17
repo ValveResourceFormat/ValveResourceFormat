@@ -34,10 +34,10 @@ namespace GUI.Forms
             var dataGridViewCellStyle2 = new DataGridViewCellStyle();
             tabControl1 = new TabControl();
             tabPageProperties = new TabPage();
-            tabPageOutputs = new TabPage();
             dataGrid = new DataGridView();
             ColumnName = new DataGridViewTextBoxColumn();
             ColumnValue = new DataGridViewTextBoxColumn();
+            tabPageOutputs = new TabPage();
             dataGridOutputs = new DataGridView();
             Output = new DataGridViewTextBoxColumn();
             TargetEntity = new DataGridViewTextBoxColumn();
@@ -47,8 +47,8 @@ namespace GUI.Forms
             OnlyOnce = new DataGridViewTextBoxColumn();
             tabControl1.SuspendLayout();
             tabPageProperties.SuspendLayout();
-            tabPageOutputs.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)dataGrid).BeginInit();
+            tabPageOutputs.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)dataGridOutputs).BeginInit();
             SuspendLayout();
             // 
@@ -56,12 +56,12 @@ namespace GUI.Forms
             // 
             tabControl1.Controls.Add(tabPageProperties);
             tabControl1.Controls.Add(tabPageOutputs);
-            tabControl1.Location = new System.Drawing.Point(12, 12);
+            tabControl1.Dock = DockStyle.Fill;
+            tabControl1.Location = new System.Drawing.Point(0, 0);
             tabControl1.Name = "tabControl1";
             tabControl1.SelectedIndex = 0;
-            tabControl1.Size = new System.Drawing.Size(776, 426);
+            tabControl1.Size = new System.Drawing.Size(800, 450);
             tabControl1.TabIndex = 0;
-            tabControl1.Dock = DockStyle.Fill;
             // 
             // tabPageProperties
             // 
@@ -69,21 +69,10 @@ namespace GUI.Forms
             tabPageProperties.Location = new System.Drawing.Point(4, 24);
             tabPageProperties.Name = "tabPageProperties";
             tabPageProperties.Padding = new Padding(3);
-            tabPageProperties.Size = new System.Drawing.Size(768, 398);
+            tabPageProperties.Size = new System.Drawing.Size(792, 422);
             tabPageProperties.TabIndex = 0;
             tabPageProperties.Text = "Properties";
             tabPageProperties.UseVisualStyleBackColor = true;
-            // 
-            // tabPageOutputs
-            // 
-            tabPageOutputs.Controls.Add(dataGridOutputs);
-            tabPageOutputs.Location = new System.Drawing.Point(4, 24);
-            tabPageOutputs.Name = "tabPageOutputs";
-            tabPageOutputs.Padding = new Padding(3);
-            tabPageOutputs.Size = new System.Drawing.Size(768, 398);
-            tabPageOutputs.TabIndex = 1;
-            tabPageOutputs.Text = "Outputs";
-            tabPageOutputs.UseVisualStyleBackColor = true;
             // 
             // dataGrid
             // 
@@ -100,11 +89,11 @@ namespace GUI.Forms
             dataGridViewCellStyle1.WrapMode = DataGridViewTriState.True;
             dataGrid.DefaultCellStyle = dataGridViewCellStyle1;
             dataGrid.Dock = DockStyle.Fill;
-            dataGrid.Location = new System.Drawing.Point(6, 6);
+            dataGrid.Location = new System.Drawing.Point(3, 3);
             dataGrid.Name = "dataGrid";
             dataGrid.ReadOnly = true;
             dataGrid.RowHeadersVisible = false;
-            dataGrid.Size = new System.Drawing.Size(756, 386);
+            dataGrid.Size = new System.Drawing.Size(786, 416);
             dataGrid.TabIndex = 1;
             // 
             // ColumnName
@@ -121,14 +110,23 @@ namespace GUI.Forms
             ColumnValue.Name = "ColumnValue";
             ColumnValue.ReadOnly = true;
             // 
+            // tabPageOutputs
+            // 
+            tabPageOutputs.Controls.Add(dataGridOutputs);
+            tabPageOutputs.Location = new System.Drawing.Point(4, 24);
+            tabPageOutputs.Name = "tabPageOutputs";
+            tabPageOutputs.Padding = new Padding(3);
+            tabPageOutputs.Size = new System.Drawing.Size(792, 422);
+            tabPageOutputs.TabIndex = 1;
+            tabPageOutputs.Text = "Outputs";
+            tabPageOutputs.UseVisualStyleBackColor = true;
+            // 
             // dataGridOutputs
             // 
             dataGridOutputs.AllowUserToAddRows = false;
             dataGridOutputs.AllowUserToDeleteRows = false;
             dataGridOutputs.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
             dataGridOutputs.Columns.AddRange(new DataGridViewColumn[] { Output, TargetEntity, TargetInput, Parameter, Delay, OnlyOnce });
-            dataGridOutputs.Location = new System.Drawing.Point(6, 6);
-            dataGridOutputs.Name = "dataGridOutputs";
             dataGridViewCellStyle2.Alignment = DataGridViewContentAlignment.MiddleLeft;
             dataGridViewCellStyle2.BackColor = System.Drawing.SystemColors.Window;
             dataGridViewCellStyle2.Font = new System.Drawing.Font("Cascadia Mono", 10F);
@@ -138,10 +136,12 @@ namespace GUI.Forms
             dataGridViewCellStyle2.WrapMode = DataGridViewTriState.True;
             dataGridOutputs.DefaultCellStyle = dataGridViewCellStyle2;
             dataGridOutputs.Dock = DockStyle.Fill;
-            dataGridOutputs.Size = new System.Drawing.Size(756, 386);
-            dataGridOutputs.TabIndex = 0;
+            dataGridOutputs.Location = new System.Drawing.Point(3, 3);
+            dataGridOutputs.Name = "dataGridOutputs";
             dataGridOutputs.ReadOnly = true;
             dataGridOutputs.RowHeadersVisible = false;
+            dataGridOutputs.Size = new System.Drawing.Size(786, 416);
+            dataGridOutputs.TabIndex = 0;
             // 
             // Output
             // 
@@ -188,10 +188,11 @@ namespace GUI.Forms
             Name = "EntityInfoForm";
             StartPosition = FormStartPosition.CenterParent;
             Text = "EntityInfoForm";
+            TopMost = true;
             tabControl1.ResumeLayout(false);
             tabPageProperties.ResumeLayout(false);
-            tabPageOutputs.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)dataGrid).EndInit();
+            tabPageOutputs.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)dataGridOutputs).EndInit();
             ResumeLayout(false);
         }
