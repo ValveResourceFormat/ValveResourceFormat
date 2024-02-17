@@ -480,7 +480,11 @@ namespace GUI.Types.Renderer
 
                 var value = property.Value.Data;
 
-                if (value.GetType() == typeof(byte[]))
+                if (value == null)
+                {
+                    value = "";
+                }
+                else if (value.GetType() == typeof(byte[]))
                 {
                     var tmp = value as byte[];
                     value = string.Join(' ', tmp.Select(p => p.ToString(CultureInfo.InvariantCulture)).ToArray());
