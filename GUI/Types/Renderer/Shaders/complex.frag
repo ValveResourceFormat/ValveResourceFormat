@@ -529,15 +529,15 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
         mat.AmbientOcclusion *= mouthOcclusion;
     #endif
 
-    #if (F_GLASS == 1) || defined(glass_vfx_common)
+    #if (F_GLASS == 1) || defined(vr_glass_vfx)
         vec4 glassResult = GetGlassMaterial(mat);
         mat.Albedo = glassResult.rgb;
         mat.Opacity = glassResult.a;
-        #if defined(csgo_glass_vfx)
-            mat.Opacity = mix(g_flTranslucencyRemap.x, g_flTranslucencyRemap.y, mat.Opacity);
-        #endif
     #endif
 
+    #if defined(csgo_glass_vfx)
+        mat.Opacity = mix(g_flTranslucencyRemap.x, g_flTranslucencyRemap.y, mat.Opacity);
+    #endif
 
     mat.DiffuseAO = vec3(mat.AmbientOcclusion);
     mat.SpecularAO = mat.AmbientOcclusion;
