@@ -1,7 +1,6 @@
 using System.Collections;
 using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Serialization.KeyValues;
-using static ValveResourceFormat.ResourceTypes.ModelData.Attachments.Attachment;
 
 namespace ValveResourceFormat.ResourceTypes.ModelData.Attachments
 {
