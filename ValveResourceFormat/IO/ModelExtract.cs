@@ -541,9 +541,10 @@ public class ModelExtract
                 ("character_arm_config", null),
                 ("MovementSettings", "movementsettings"),
             };
-            var genericDataClassesList = new (string Class, string DataKey)[] {
-                ("ao_proxy_capsule", null),
-                ("ao_proxy_box", null),
+            var genericDataClassesList = new (string ListKey, string Class, string DataKey)[] {
+                ("ao_proxy_capsule_list", "ao_proxy_capsule", null),
+                ("ao_proxy_box_list", "ao_proxy_box", null),
+                ("hand_pose_list", "hand_pose_pair", null),
             };
 
             foreach (var genericDataClass in genericDataClasses)
@@ -557,7 +558,7 @@ public class ModelExtract
 
             foreach (var genericDataClass in genericDataClassesList)
             {
-                var dataKey = genericDataClass.Class + "_list";
+                var dataKey = genericDataClass.ListKey;
                 if (keyvalues.ContainsKey(dataKey))
                 {
                     var genericDataList = keyvalues.GetArray<KVObject>(dataKey);
