@@ -45,17 +45,15 @@ namespace ValveResourceFormat.ResourceTypes.ModelData.Attachments
             });
             var influenceOffsets = valueData.GetArray("m_vInfluenceOffsets", v => v.ToVector3());
             var influenceWeights = valueData.GetArray<double>("m_influenceWeights");
-            var influenceRootTransforms = valueData.GetArray<bool>("m_bInfluenceRootTransform");
 
             var influenceCount = valueData.GetInt32Property("m_nInfluences");
 
             influences = new Influence[influenceCount];
             for (var i = 0; i < influenceCount; i++)
             {
-                var influenceName = influenceRootTransforms[i] ? null : influenceNames[i];
                 influences[i] = new Influence
                 {
-                    Name = influenceName,
+                    Name = influenceNames[i],
                     Rotation = influenceRotations[i],
                     Offset = influenceOffsets[i],
                     Weight = influenceWeights[i]

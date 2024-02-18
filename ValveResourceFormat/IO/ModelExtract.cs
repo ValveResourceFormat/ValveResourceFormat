@@ -281,7 +281,7 @@ public class ModelExtract
                 var node = MakeNode("Attachment",
                     ("name", attachment.Name),
                     ("ignore_rotation", attachment.IgnoreRotation),
-                    ("parent_bone", mainInfluence.Name ?? ""),
+                    ("parent_bone", mainInfluence.Name),
                     ("relative_origin", mainInfluence.Offset),
                     ("relative_angles", ToEulerAngles(mainInfluence.Rotation)),
                     ("weight", mainInfluence.Weight)
@@ -294,7 +294,7 @@ public class ModelExtract
                     {
                         var influence = attachment[i];
                         var childNode = MakeNode("AttachmentInfluence",
-                            ("parent_bone", influence.Name ?? ""),
+                            ("parent_bone", influence.Name),
                             ("relative_origin", influence.Offset),
                             ("relative_angles", ToEulerAngles(influence.Rotation)),
                             ("weight", influence.Weight)
