@@ -272,6 +272,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
             UpdateVertices(particleBag, systemRenderState, modelViewMatrix);
 
             // Draw it
+#if false // TODO: messes with OIT
             if (blendMode == ParticleBlendMode.PARTICLE_OUTPUT_BLEND_MODE_ADD)
             {
                 GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.One);
@@ -284,6 +285,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
             {
                 GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
             }
+#endif
 
             GL.Disable(EnableCap.CullFace);
 

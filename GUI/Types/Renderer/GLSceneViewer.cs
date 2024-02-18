@@ -45,6 +45,8 @@ namespace GUI.Types.Renderer
         private OctreeDebugRenderer<SceneNode> staticOctreeRenderer;
         private OctreeDebugRenderer<SceneNode> dynamicOctreeRenderer;
         protected SelectedNodeRenderer selectedNodeRenderer;
+        private Shader WboitShader;
+        private int WboitVao;
 
         public enum DepthOnlyProgram
         {
@@ -219,6 +221,8 @@ namespace GUI.Types.Renderer
                 blueNoiseResource?.Dispose();
             }
 
+            GL.CreateVertexArrays(1, out WboitVao);
+            WboitShader = Scene.GuiContext.ShaderLoader.LoadShader("vrf.wboit");
         }
 
         public virtual void PostSceneLoad()
@@ -519,13 +523,32 @@ namespace GUI.Types.Renderer
             }
         }
 
-        private static void RenderTranslucentLayer(Scene scene, Scene.RenderContext renderContext)
+        private void RenderTranslucentLayer(Scene scene, Scene.RenderContext renderContext)
         {
+            TransparentFramebuffer.BindAndClear();
+
             GL.DepthMask(false);
             GL.Enable(EnableCap.Blend);
+            GL.BlendFunc(0, BlendingFactorSrc.One, BlendingFactorDest.One);
+            GL.BlendFunc(1, BlendingFactorSrc.Zero, BlendingFactorDest.OneMinusSrcColor);
 
             scene.RenderTranslucentLayer(renderContext);
 
+            renderContext.Framebuffer.Bind(FramebufferTarget.Framebuffer);
+
+            WboitShader.Use();
+            WboitShader.SetTexture(0, "colorTexture", TransparentFramebuffer.Color);
+            WboitShader.SetTexture(1, "alphaTexture", TransparentFramebuffer.Color2);
+
+            GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
+            GL.Disable(EnableCap.DepthTest);
+
+            GL.BindVertexArray(GuiContext.MeshBufferCache.EmptyVAO);
+            GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
+            GL.UseProgram(0);
+            GL.BindVertexArray(0);
+
+            GL.Enable(EnableCap.DepthTest);
             GL.Disable(EnableCap.Blend);
             GL.DepthMask(true);
         }

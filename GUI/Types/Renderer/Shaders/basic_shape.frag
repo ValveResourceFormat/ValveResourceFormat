@@ -39,6 +39,12 @@ vec4 boxmap( in sampler2D s, in vec3 p, in vec3 n, in float k )
     return (x*w.x + y*w.y + z*w.z) / (w.x + w.y + w.z);
 }
 
+#define F_TRANSLUCENT 0
+
+#if (F_TRANSLUCENT == 1)
+#include "common/translucent.glsl"
+#endif
+
 void main(void)
 {
     outputColor = vtxColor;
@@ -77,4 +83,8 @@ void main(void)
     {
         outputColor = vec4(SrgbGammaToLinear(vtxColor.rgb), 1.0);
     }
+
+    #if (F_TRANSLUCENT == 1)
+        outputColor = WeightColorTranslucency(outputColor);
+    #endif
 }

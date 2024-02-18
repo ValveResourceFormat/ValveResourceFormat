@@ -31,7 +31,20 @@ namespace GUI.Types.ParticleRenderer.Renderers
         public RenderTrails(ParticleDefinitionParser parse, VrfGuiContext vrfGuiContext) : base(parse)
         {
             guiContext = vrfGuiContext;
-            shader = vrfGuiContext.ShaderLoader.LoadShader(ShaderName);
+
+            blendMode = parse.Enum<ParticleBlendMode>("m_nOutputBlendMode", blendMode);
+
+            if (blendMode == ParticleBlendMode.PARTICLE_OUTPUT_BLEND_MODE_ADD)
+            {
+                shader = vrfGuiContext.ShaderLoader.LoadShader(ShaderName, new Dictionary<string, byte>()
+                {
+                    { "F_ADDITIVE_BLEND", 1 },
+                });
+            }
+            else
+            {
+                shader = vrfGuiContext.ShaderLoader.LoadShader(ShaderName);
+            }
 
             // The same quad is reused for all particles
             vaoHandle = SetupQuadBuffer();
@@ -66,7 +79,6 @@ namespace GUI.Types.ParticleRenderer.Renderers
             GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, vaoHandle, vaoLabel.Length, vaoLabel);
 #endif
 
-            blendMode = parse.Enum<ParticleBlendMode>("m_nOutputBlendMode", blendMode);
             overbrightFactor = parse.NumberProvider("m_flOverbrightFactor", overbrightFactor);
             orientationType = parse.Enum("m_nOrientationType", orientationType);
             animationRate = parse.Float("m_flAnimationRate", animationRate);
@@ -110,6 +122,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
         {
             var particles = particleBag.Current;
 
+#if false // TODO: messes with OIT
             if (blendMode == ParticleBlendMode.PARTICLE_OUTPUT_BLEND_MODE_ADD)
             {
                 GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.One);
@@ -118,6 +131,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
             {
                 GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
             }
+#endif
 
             shader.Use();
 

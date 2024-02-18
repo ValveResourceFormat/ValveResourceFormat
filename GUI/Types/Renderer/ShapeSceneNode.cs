@@ -17,6 +17,7 @@ namespace GUI.Types.Renderer
         public const int CapsuleTriangles = 2 * HemisphereTriangles + 2 * SphereSegments;
 
         protected readonly Shader shader;
+        protected readonly Shader shaderTranslucent;
         protected int indexCount;
         protected int vaoHandle;
         protected virtual bool Shaded { get; } = true;
@@ -25,6 +26,7 @@ namespace GUI.Types.Renderer
         private ShapeSceneNode(Scene scene) : base(scene)
         {
             shader = Scene.GuiContext.ShaderLoader.LoadShader("vrf.basic_shape");
+            shaderTranslucent = Scene.GuiContext.ShaderLoader.LoadShader("vrf.basic_shape", new Dictionary<string, byte>() { ["F_TRANSLUCENT"] = 1 });
         }
 
         public ShapeSceneNode(Scene scene, List<SimpleVertexNormal> verts, List<int> inds) : this(scene)
@@ -269,7 +271,7 @@ namespace GUI.Types.Renderer
                 return;
             }
 
-            var renderShader = context.ReplacementShader ?? shader;
+            var renderShader = context.ReplacementShader ?? (translucentPass ? shaderTranslucent : shader);
             renderShader.Use();
             renderShader.SetUniform4x4("transform", Transform);
             renderShader.SetBoneAnimationData(false);
@@ -287,8 +289,6 @@ namespace GUI.Types.Renderer
 
             if (translucentPass)
             {
-                GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
-
                 GL.Enable(EnableCap.PolygonOffsetLine);
                 GL.Enable(EnableCap.PolygonOffsetFill);
                 GL.PolygonOffsetClamp(0, 96, 0.0005f);

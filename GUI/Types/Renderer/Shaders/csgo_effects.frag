@@ -12,7 +12,9 @@ in vec3 vNormalOut;
 in vec2 vTexCoordOut;
 centroid in vec4 vColorOut;
 
-out vec4 outputColor;
+layout (location = 0) out vec4 outputColor;
+
+#include "common/translucent.glsl"
 
 #define F_TINT_MASK 0
 #define F_DEPTH_FEATHER 0
@@ -121,6 +123,8 @@ void main()
     );
 
     ApplyFog(outputColor.rgb, vFragPosition);
+
+    outputColor = WeightColorTranslucency(outputColor);
 
     if (g_iRenderMode == renderMode_Color)
     {

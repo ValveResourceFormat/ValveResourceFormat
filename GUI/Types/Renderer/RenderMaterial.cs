@@ -94,11 +94,14 @@ namespace GUI.Types.Renderer
                 }
             }
 
+            if (IsTranslucent && !IsOverlay)
+            {
+                combinedShaderParameters.Add("D_OIT_PASS", 1);
+            }
+
             SetRenderState();
             Shader = guiContext.ShaderLoader.LoadShader(material.ShaderName, combinedShaderParameters, blocking: false);
             ResetRenderState();
-
-            SortId = GetSortId();
         }
 
         [SetsRequiredMembers]
@@ -222,7 +225,7 @@ namespace GUI.Types.Renderer
                 GL.DepthMask(false);
             }
 
-            if (IsTranslucent)
+            if (IsTranslucent && IsOverlay)
             {
                 if (IsOverlay)
                 {

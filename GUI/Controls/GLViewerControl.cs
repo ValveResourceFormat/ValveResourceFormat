@@ -397,6 +397,7 @@ namespace GUI.Controls
 
         public Framebuffer GLDefaultFramebuffer;
         public Framebuffer MainFramebuffer;
+        public Framebuffer TransparentFramebuffer;
         private int MaxSamples;
         private int NumSamples => Math.Max(1, Math.Min(Settings.Config.AntiAliasingSamples, MaxSamples));
 
@@ -467,6 +468,14 @@ namespace GUI.Controls
                     new(PixelInternalFormat.Rgba16f, PixelFormat.Rgba, PixelType.HalfFloat),
                     Framebuffer.DepthAttachmentFormat.Depth32F
                 );
+
+                TransparentFramebuffer = Framebuffer.Prepare(GLControl.Width,
+                    GLControl.Height,
+                    NumSamples,
+                    new(PixelInternalFormat.Rgba16f, PixelFormat.Rgba, PixelType.HalfFloat),
+                    null
+                );
+                TransparentFramebuffer.Color2Format = new(PixelInternalFormat.R16f, PixelFormat.Red, PixelType.HalfFloat);
 
                 GLLoad?.Invoke(this, e);
             }
@@ -635,6 +644,7 @@ namespace GUI.Controls
             }
 
             GLDefaultFramebuffer.Resize(w, h);
+            TransparentFramebuffer.Resize(w, h, NumSamples);
 
             if (MainFramebuffer != GLDefaultFramebuffer)
             {
@@ -656,6 +666,17 @@ namespace GUI.Controls
                 }
             }
 
+            if (TransparentFramebuffer.InitialStatus == FramebufferErrorCode.FramebufferUndefined)
+            {
+                TransparentFramebuffer.Initialize();
+            }
+
+            if (MainFramebuffer.InitialStatus == FramebufferErrorCode.FramebufferComplete
+            && TransparentFramebuffer.InitialStatus == FramebufferErrorCode.FramebufferComplete)
+            {
+                GL.NamedFramebufferTexture(TransparentFramebuffer.FboHandle, FramebufferAttachment.DepthAttachment, MainFramebuffer.Depth.Handle, 0);
+            }
+
             Camera.SetViewportSize(w, h);
             textRenderer.SetViewportSize(w, h);
             Picker?.Resize(w, h);
@@ -665,6 +686,7 @@ namespace GUI.Controls
         {
             GLDefaultFramebuffer?.Dispose();
             MainFramebuffer?.Dispose();
+            TransparentFramebuffer?.Dispose();
         }
 
         private void OnAppActivated(object sender, EventArgs e)

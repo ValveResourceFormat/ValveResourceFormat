@@ -10,7 +10,9 @@ in vec3 vBitangentOut;
 
 in vec2 vTexCoordOut;
 
-out vec4 outputColor;
+layout (location = 0) out vec4 outputColor;
+
+#include "common/translucent.glsl"
 
 uniform sampler2D g_tFlow;
 uniform sampler2D g_tNormal;
@@ -67,4 +69,6 @@ void main()
     vec3 fresnelColor =  mix(g_vWaterFogColor.rgb, g_vLowEndSurfaceColor.rgb * pow(fresnel, 3.0), transparency);
 
     outputColor = vec4(fresnelColor + specularColor, transparency);
+
+    outputColor = WeightColorTranslucency(outputColor);
 }

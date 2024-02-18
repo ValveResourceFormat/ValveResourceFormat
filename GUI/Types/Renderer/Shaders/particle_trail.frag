@@ -17,7 +17,9 @@ uniform vec2 uUvScale;
 uniform float uAlpha;
 uniform float uOverbrightFactor;
 
-out vec4 fragColor;
+layout (location = 0) out vec4 fragColor;
+
+#include "common/translucent.glsl"
 
 void main(void) {
     vec4 color = texture(uTexture, uUvOffset + uv * uUvScale);
@@ -31,4 +33,6 @@ void main(void) {
     {
         fragColor = vec4(finalColor, 1.0);
     }
+
+    fragColor = WeightColorTranslucency(fragColor);
 }
