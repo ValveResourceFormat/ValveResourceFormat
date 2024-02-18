@@ -536,23 +536,51 @@ public class ModelExtract
                 rootNode.AddProperty("anim_graph_name", MakeValue(keyvalues.GetProperty<string>("anim_graph_resource")));
             }
 
-            var genericDataClasses = new (string Class, string DataKey)[] {
-                ("prop_data", null),
-                ("character_arm_config", null),
-                ("MovementSettings", "movementsettings"),
+            var genericDataClasses = new string[] {
+                "prop_data",
+                "character_arm_config",
+                "vr_carry_type",
+                "door_sounds",
+                "nav_data",
+                "npc_foot_sweep",
+                "ai_model_info",
+                "breakable_door_model",
+                "dynamic_interactions",
+                "explosion_behavior",
+                "eye_occlusion_renderer",
+                "fire_interactions",
+                "gastank_markup",
+                "hand_conform_data",
+                "handpose_data",
+                "physgun_interactions",
+                "weapon_metadata",
+                "glove_viewmodel_reference",
+                "composite_material_order",
             };
-            var genericDataClassesList = new (string ListKey, string Class, string DataKey)[] {
-                ("ao_proxy_capsule_list", "ao_proxy_capsule", null),
-                ("ao_proxy_box_list", "ao_proxy_box", null),
-                ("hand_pose_list", "hand_pose_pair", null),
+            var genericDataClassesList = new (string ListKey, string Class)[] {
+                ("ao_proxy_capsule_list", "ao_proxy_capsule"),
+                ("ao_proxy_box_list", "ao_proxy_box"),
+                ("particles_list", "particle"),
+                ("hand_pose_list", "hand_pose_pair"),
+                ("eye_data_list", "eye"),
+                ("bodygroup_driven_morph_list", "bodygroup_driven_morph"),
+                ("materialgroup_driven_morph_list", "materialgroup_driven_morph"),
+                ("animating_breakable_stage_list", "animating_breakable_stage"),
+                ("cables_list", "cable"),
+                ("high_quality_shadows_region_list", "high_quality_shadows_region"),
+                ("particle_cfg_list", "particle_cfg"),
+                ("snapshot_weights_upperbody_list", "snapshot_weights_upperbody"),
+                ("snapshot_weights_all_list", "snapshot_weights_all"),
+                ("patch_camera_preset_list", "patch_camera_preset"),
+                ("bodygroup_preset_list", "bodygroup_preset"),
             };
 
             foreach (var genericDataClass in genericDataClasses)
             {
-                if (keyvalues.ContainsKey(genericDataClass.Class))
+                if (keyvalues.ContainsKey(genericDataClass))
                 {
-                    var genericData = keyvalues.GetProperty<KVObject>(genericDataClass.Class);
-                    AddGenericGameData(gameDataList.Value, genericDataClass.Class, genericData, genericDataClass.DataKey);
+                    var genericData = keyvalues.GetProperty<KVObject>(genericDataClass);
+                    AddGenericGameData(gameDataList.Value, genericDataClass, genericData);
                 }
             }
 
@@ -564,7 +592,7 @@ public class ModelExtract
                     var genericDataList = keyvalues.GetArray<KVObject>(dataKey);
                     foreach (var genericData in genericDataList)
                     {
-                        AddGenericGameData(gameDataList.Value, genericDataClass.Class, genericData, genericDataClass.DataKey);
+                        AddGenericGameData(gameDataList.Value, genericDataClass.Class, genericData);
                     }
                 }
             }
@@ -577,6 +605,12 @@ public class ModelExtract
                     var lookAtChain = item.Value as KVObject;
                     AddGenericGameData(gameDataList.Value, "LookAtChain", lookAtChain, "lookat_chain");
                 }
+            }
+
+            if (keyvalues.ContainsKey("MovementSettings"))
+            {
+                var movementSettings = keyvalues.GetProperty<KVObject>("MovementSettings");
+                AddGenericGameData(gameDataList.Value, "MovementSettings", movementSettings, "movementsettings");
             }
 
 
