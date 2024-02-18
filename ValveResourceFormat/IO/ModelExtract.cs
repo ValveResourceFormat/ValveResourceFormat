@@ -277,8 +277,56 @@ public class ModelExtract
                 var animationFile = MakeNode(
                     "AnimFile",
                     ("name", animation.Anim.Name),
-                    ("source_filename", animation.FileName)
+                    ("source_filename", animation.FileName),
+                    ("fade_in_time", animation.Anim.SequenceParams.FadeInTime),
+                    ("fade_out_time", animation.Anim.SequenceParams.FadeOutTime),
+                    ("looping", animation.Anim.IsLooping),
+                    ("delta", animation.Anim.Delta),
+                    ("worldSpace", animation.Anim.Worldspace),
+                    ("hidden", animation.Anim.Hidden)
                 );
+
+                if (animation.Anim.Activities.Length > 0)
+                {
+                    var activity = animation.Anim.Activities[0];
+                    animationFile.AddProperty("activity_name", MakeValue(activity.Name));
+                    animationFile.AddProperty("activity_weight", MakeValue(activity.Weight));
+                }
+
+                var childrenKV = new KVObject(null, true, 1);
+                if (animation.Anim.HasMovementData())
+                {
+                    var flags = animation.Anim.Movements[0].MotionFlags;
+                    var extractMotion = MakeNode("ExtractMotion",
+                        ("extract_tx", flags.HasFlag(ModelAnimationMotionFlags.TX)),
+                        ("extract_ty", flags.HasFlag(ModelAnimationMotionFlags.TY)),
+                        ("extract_tz", flags.HasFlag(ModelAnimationMotionFlags.TZ)),
+                        ("extract_rz", flags.HasFlag(ModelAnimationMotionFlags.RZ)),
+                        ("linear", flags.HasFlag(ModelAnimationMotionFlags.Linear)),
+                        ("quadratic", false),
+                        ("motion_type", "uniform")
+                    );
+
+                    childrenKV.AddProperty(null, MakeValue(extractMotion));
+                }
+                foreach (var animEvent in animation.Anim.Events)
+                {
+                    var animEventNode = MakeNode("AnimEvent",
+                        ("event_class", animEvent.Name),
+                        ("event_frame", animEvent.Frame)
+                    );
+
+                    if (animEvent.EventData != null)
+                    {
+                        animEventNode.AddProperty("event_keys", MakeValue(animEvent.EventData));
+                    }
+                    childrenKV.AddProperty(null, MakeValue(animEventNode));
+                }
+
+                if (childrenKV.Count > 0)
+                {
+                    animationFile.AddProperty("children", MakeValue(childrenKV));
+                }
 
                 AddItem(animationList.Value, animationFile);
             }
@@ -950,6 +998,8 @@ public class ModelExtract
             rootOrientationLayer.Times.Add(timespan);
         }
 
+        ApplyModelDocHack(rootPositionLayer);
+
         clip.Channels.Add(rootPositionChannel);
         clip.Channels.Add(rootOrientationChannel);
     }
@@ -1004,29 +1054,63 @@ public class ModelExtract
                 ProcessBoneFrameForDmeChannel(bone, frame, time, positionLogLayer, orientationLogLayer);
             }
 
-            //If both layers are 0s only, modeldoc will ignore the animations on this bone.
-            //In that case, replace the position layer's values with one that has a very small value outside of the range of the animation.
-            //Do the same if there's only a single frame, since modeldoc also ignores animations that don't have any movement at all (Fixes #663)
-            if (anim.FrameCount == 1 || positionLogLayer.IsLayerZero() || orientationLogLayer.IsLayerZero())
-            {
-                positionLogLayer.Times.Clear();
-                positionLogLayer.Times.AddRange([
-                    TimeSpan.FromSeconds(-0.2f),
-                    TimeSpan.FromSeconds(-0.1f),
-                    TimeSpan.FromSeconds(0f)
-                ]);
-
-                var layerValue = positionLogLayer.LayerValues[0];
-                positionLogLayer.LayerValues = [
-                    layerValue,
-                    layerValue + new Vector3(0, 0, 0.00001f),
-                    layerValue,
-                ];
-            }
+            ApplyModelDocHack(positionLogLayer);
 
             clip.Channels.Add(positionChannel);
             clip.Channels.Add(orientationChannel);
         }
+    }
+
+    /// <summary>
+    /// Workaround for ModelDoc ignoring animation data on bone when bone doesn't have any motion
+    /// </summary>
+    private static void ApplyModelDocHack(DmeLogLayer<Vector3> logLayer)
+    {
+        if (DoesLayerHaveMotion(logLayer))
+        {
+            return;
+        }
+
+        var newLayerValues = new Vector3[logLayer.LayerValues.Length + 2];
+        var newTimes = new TimeSpanArray(newLayerValues.Length);
+
+        var baseValue = logLayer.LayerValues[0];
+
+        newLayerValues[0] = baseValue + new Vector3(0, 0, 0.0001f);
+        newLayerValues[1] = baseValue;
+        newTimes.Add(TimeSpan.FromSeconds(-0.1f));
+        newTimes.Add(TimeSpan.FromSeconds(-0.05f));
+        for (var i = 0; i < logLayer.LayerValues.Length; i++)
+        {
+            newLayerValues[i + 2] = logLayer.LayerValues[i];
+            newTimes.Add(logLayer.Times[i]);
+        }
+
+        logLayer.LayerValues = newLayerValues;
+        logLayer.Times = newTimes;
+    }
+
+    private static bool DoesLayerHaveMotion(DmeLogLayer<Vector3> logLayer)
+    {
+        if (logLayer.LayerValues.Length <= 1)
+        {
+            return false;
+        }
+
+        var lastVal = logLayer.LayerValues[0];
+        for (var i = 1; i < logLayer.LayerValues.Length; i++)
+        {
+            var currentVal = logLayer.LayerValues[i];
+
+            if ((lastVal - currentVal).Length() >= 0.01f)
+            {
+                return true;
+            }
+
+            lastVal = currentVal;
+        }
+
+        return false;
     }
 
     public static byte[] ToDmxAnim(Model model, Animation anim)

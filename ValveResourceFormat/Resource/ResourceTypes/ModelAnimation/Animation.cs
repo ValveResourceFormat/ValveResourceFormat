@@ -13,9 +13,15 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         public float Fps { get; }
         public int FrameCount { get; }
         public bool IsLooping { get; }
+        public bool Hidden { get; init; }
+        public bool Delta { get; init; }
+        public bool Worldspace { get; init; }
         private AnimationFrameBlock[] FrameBlocks { get; }
         private AnimationSegmentDecoder[] SegmentArray { get; }
-        private AnimationMovement[] MovementArray { get; }
+        public AnimationMovement[] Movements { get; }
+        public AnimationEvent[] Events { get; }
+        public AnimationActivity[] Activities { get; }
+        public AnimationSequenceParams SequenceParams { get; }
 
         private Animation(KVObject animDesc, AnimationSegmentDecoder[] segmentArray)
         {
@@ -26,6 +32,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
             var flags = animDesc.GetSubCollection("m_flags");
             IsLooping = flags.GetProperty<bool>("m_bLooping");
+            Hidden = flags.GetProperty<bool>("m_bHidden");
+            Delta = flags.GetProperty<bool>("m_bDelta");
+            Worldspace = flags.GetProperty<bool>("m_bLegacyWorldspace");
 
             var pDataObject = animDesc.GetProperty<object>("m_pData");
             var pData = pDataObject as KVObject;
@@ -39,11 +48,22 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             }
 
             var movementArray = animDesc.GetArray("m_movementArray");
-            MovementArray = new AnimationMovement[movementArray.Length];
+            Movements = new AnimationMovement[movementArray.Length];
             for (var i = 0; i < movementArray.Length; i++)
             {
-                MovementArray[i] = new AnimationMovement(movementArray[i]);
+                Movements[i] = new AnimationMovement(movementArray[i]);
             }
+
+            Events = animDesc.GetArray("m_eventArray")
+                                 .Select(x => new AnimationEvent(x))
+                                 .ToArray();
+
+            Activities = animDesc.GetArray("m_activityArray")
+                                    .Select(x => new AnimationActivity(x))
+                                    .ToArray();
+
+            var sequenceParams = animDesc.GetSubCollection("m_sequenceParams");
+            SequenceParams = new AnimationSequenceParams(sequenceParams);
         }
 
         public static IEnumerable<Animation> FromData(KVObject animationData, KVObject decodeKey,
@@ -172,20 +192,20 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
         private int GetMovementIndexForFrame(int frame)
         {
-            for (var i = 0; i < MovementArray.Length; i++)
+            for (var i = 0; i < Movements.Length; i++)
             {
-                var movement = MovementArray[i];
+                var movement = Movements[i];
                 if (movement.EndFrame > frame)
                 {
                     return i;
                 }
             }
-            return MovementArray.Length - 1;
+            return Movements.Length - 1;
         }
 
         public bool HasMovementData()
         {
-            return MovementArray.Length > 0;
+            return Movements.Length > 0;
         }
 
         /// <summary>
@@ -212,7 +232,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             var nextMovementIndex = GetMovementIndexForTime(time);
             var lastMovementIndex = nextMovementIndex - 1;
 
-            nextMovement = MovementArray[nextMovementIndex];
+            nextMovement = Movements[nextMovementIndex];
             if (nextMovementIndex == 0)
             {
                 lastMovement = null;
@@ -222,7 +242,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                 return;
             }
 
-            lastMovement = MovementArray[lastMovementIndex];
+            lastMovement = Movements[lastMovementIndex];
 
             var startTime = lastMovement.EndFrame / Fps;
             var endTime = nextMovement.EndFrame / Fps;
