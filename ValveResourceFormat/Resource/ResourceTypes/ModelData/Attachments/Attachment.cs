@@ -1,9 +1,10 @@
+using System.Collections;
 using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes.ModelData.Attachments
 {
-    public class Attachment
+    public class Attachment : IEnumerable<Attachment.Influence>
     {
         public struct Influence
         {
@@ -60,6 +61,19 @@ namespace ValveResourceFormat.ResourceTypes.ModelData.Attachments
                     Weight = influenceWeights[i]
                 };
             }
+        }
+
+        public IEnumerator<Influence> GetEnumerator()
+        {
+            for (var i = 0; i < influences.Length; i++)
+            {
+                yield return influences[i];
+            }
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return GetEnumerator();
         }
     }
 }

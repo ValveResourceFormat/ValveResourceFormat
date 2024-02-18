@@ -183,6 +183,7 @@ public class ModelExtract
                 bool => KVType.BOOLEAN,
                 int => KVType.INT32,
                 float => KVType.FLOAT,
+                double => KVType.DOUBLE,
                 KVObject kv => kv.IsArray ? KVType.ARRAY : KVType.OBJECT,
                 _ => throw new NotImplementedException()
             };
@@ -243,6 +244,7 @@ public class ModelExtract
         var renderMeshList = MakeLazyList("RenderMeshList");
         var animationList = MakeLazyList("AnimationList");
         var physicsShapeList = MakeLazyList("PhysicsShapeList");
+        var attachmentList = MakeLazyList("AttachmentList");
         var skeleton = MakeLazyList("Skeleton");
         var modelModifierList = MakeLazyList("ModelModifierList");
 
@@ -267,6 +269,42 @@ public class ModelExtract
                 }
 
                 AddItem(renderMeshList.Value, renderMeshFile);
+            }
+
+            var mesh = RenderMeshesToExtract.First();
+            var attachments = mesh.Mesh.Attachments;
+
+            foreach (var attachment in attachments)
+            {
+                var mainInfluence = attachment[attachment.Length - 1];
+
+                var node = MakeNode("Attachment",
+                    ("name", attachment.Name),
+                    ("ignore_rotation", attachment.IgnoreRotation),
+                    ("parent_bone", mainInfluence.Name ?? ""),
+                    ("relative_origin", mainInfluence.Offset),
+                    ("relative_angles", ToEulerAngles(mainInfluence.Rotation)),
+                    ("weight", mainInfluence.Weight)
+                );
+
+                if (attachment.Length > 1)
+                {
+                    var children = new KVObject(null, true, attachment.Length - 1);
+                    for (var i = 0; i < attachment.Length - 1; i++)
+                    {
+                        var influence = attachment[i];
+                        var childNode = MakeNode("AttachmentInfluence",
+                            ("parent_bone", influence.Name ?? ""),
+                            ("relative_origin", influence.Offset),
+                            ("relative_angles", ToEulerAngles(influence.Rotation)),
+                            ("weight", influence.Weight)
+                        );
+                        children.AddProperty(null, MakeValue(childNode));
+                    }
+                    node.AddProperty("children", MakeValue(children));
+                }
+
+                AddItem(attachmentList.Value, node);
             }
         }
 

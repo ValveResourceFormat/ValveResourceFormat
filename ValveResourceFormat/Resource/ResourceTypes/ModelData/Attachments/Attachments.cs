@@ -1,10 +1,11 @@
+using System.Collections;
 using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Serialization.KeyValues;
 using static ValveResourceFormat.ResourceTypes.ModelData.Attachments.Attachment;
 
 namespace ValveResourceFormat.ResourceTypes.ModelData.Attachments
 {
-    public class Attachments
+    public class Attachments : IEnumerable<Attachment>
     {
         private readonly Attachment[] attachments;
         private readonly Dictionary<string, int> attachmentNameToIndexRemap = new();
@@ -40,6 +41,19 @@ namespace ValveResourceFormat.ResourceTypes.ModelData.Attachments
                 attachments[i] = new Attachment(attachmentsData[i]);
                 attachmentNameToIndexRemap.Add(attachments[i].Name, i);
             }
+        }
+
+        public IEnumerator<Attachment> GetEnumerator()
+        {
+            for (var i = 0; i < attachments.Length; i++)
+            {
+                yield return attachments[i];
+            }
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return GetEnumerator();
         }
     }
 }
