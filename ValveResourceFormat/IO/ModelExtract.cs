@@ -536,27 +536,34 @@ public class ModelExtract
                 rootNode.AddProperty("anim_graph_name", MakeValue(keyvalues.GetProperty<string>("anim_graph_resource")));
             }
 
-            var genericDataClasses = new string[] { "prop_data", "character_arm_config", };
-            var genericDataClassesList = new string[] { "ao_proxy_capsule", "ao_proxy_box", };
+            var genericDataClasses = new (string Class, string DataKey)[] {
+                ("prop_data", null),
+                ("character_arm_config", null),
+                ("MovementSettings", "movementsettings"),
+            };
+            var genericDataClassesList = new (string Class, string DataKey)[] {
+                ("ao_proxy_capsule", null),
+                ("ao_proxy_box", null),
+            };
 
             foreach (var genericDataClass in genericDataClasses)
             {
-                if (keyvalues.ContainsKey(genericDataClass))
+                if (keyvalues.ContainsKey(genericDataClass.Class))
                 {
-                    var genericData = keyvalues.GetProperty<KVObject>(genericDataClass);
-                    AddGenericGameData(gameDataList.Value, genericDataClass, genericData);
+                    var genericData = keyvalues.GetProperty<KVObject>(genericDataClass.Class);
+                    AddGenericGameData(gameDataList.Value, genericDataClass.Class, genericData, genericDataClass.DataKey);
                 }
             }
 
             foreach (var genericDataClass in genericDataClassesList)
             {
-                var dataKey = genericDataClass + "_list";
+                var dataKey = genericDataClass.Class + "_list";
                 if (keyvalues.ContainsKey(dataKey))
                 {
                     var genericDataList = keyvalues.GetArray<KVObject>(dataKey);
                     foreach (var genericData in genericDataList)
                     {
-                        AddGenericGameData(gameDataList.Value, genericDataClass, genericData);
+                        AddGenericGameData(gameDataList.Value, genericDataClass.Class, genericData, genericDataClass.DataKey);
                     }
                 }
             }
@@ -581,7 +588,7 @@ public class ModelExtract
                 }
             }
 
-            static void AddGenericGameData(KVObject gameDataList, string genericDataClass, KVObject genericData)
+            static void AddGenericGameData(KVObject gameDataList, string genericDataClass, KVObject genericData, string dataKey = null)
             {
                 // Remove quotes from keys
                 genericData.Properties.Keys.ToList().ForEach(k =>
@@ -593,7 +600,30 @@ public class ModelExtract
                         genericData.Properties.Remove(k);
                     }
                 });
-                var genericGameData = MakeNode("GenericGameData", ("game_class", genericDataClass), ("game_keys", genericData));
+
+                var name = "";
+                if (genericData.ContainsKey("name"))
+                {
+                    name = genericData.GetStringProperty("name");
+                }
+
+                KVObject genericGameData;
+                if (dataKey == null)
+                {
+                    genericGameData = MakeNode("GenericGameData",
+                        ("name", name),
+                        ("game_class", genericDataClass),
+                        ("game_keys", genericData)
+                    );
+                }
+                else
+                {
+                    genericGameData = MakeNode(genericDataClass,
+                        ("name", name),
+                        (dataKey, genericData)
+                    );
+                }
+
                 AddItem(gameDataList, genericGameData);
             }
         }
