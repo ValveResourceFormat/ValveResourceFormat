@@ -50,6 +50,11 @@ public class Framebuffer
     public RenderTexture? Color { get; protected set; }
 
     /// <summary>
+    /// Second color attachment texture (e.g. OIT revealage), or <see langword="null"/> if none.
+    /// </summary>
+    public RenderTexture? Color2 { get; protected set; }
+
+    /// <summary>
     /// Depth attachment texture, or <see langword="null"/> if none.
     /// </summary>
     public RenderTexture? Depth { get; protected set; }
@@ -64,6 +69,11 @@ public class Framebuffer
     /// Pixel format specification for the color attachment.
     /// </summary>
     public AttachmentFormat? ColorFormat { get; protected set; }
+
+    /// <summary>
+    /// Pixel format specification for the second color attachment.
+    /// </summary>
+    public AttachmentFormat? Color2Format { get; set; }
 
     /// <summary>
     /// Pixel format specification for the depth attachment.
@@ -107,6 +117,14 @@ public class Framebuffer
     public void BindAndClear(FramebufferTarget targetState = FramebufferTarget.Framebuffer)
     {
         Bind(targetState);
+
+        if (Color2 != null)
+        {
+            GL.ClearBuffer(ClearBuffer.Color, 0, new float[] { 0, 0, 0, 0 });
+            GL.ClearBuffer(ClearBuffer.Color, 1, new float[] { 1, 0, 0, 0 });
+            return;
+        }
+
         GL.ClearColor(ClearColor);
         GL.Clear(ClearMask);
     }
@@ -291,6 +309,7 @@ public class Framebuffer
     private void CreateAttachments()
     {
         Color?.Delete();
+        Color2?.Delete();
         Depth?.Delete();
         Stencil?.Delete();
 
@@ -301,6 +320,15 @@ public class Framebuffer
             Color = CreateAttachment(ColorFormat, width, height, NumMips);
             Color.SetLabel("FramebufferColor");
             Color.AttachToFramebuffer(this, FramebufferAttachment.ColorAttachment0, 0);
+        }
+
+        if (Color2Format != null)
+        {
+            Color2 = CreateAttachment(Color2Format, width, height, NumMips);
+            Color2.SetLabel("FramebufferColor2");
+            Color2.AttachToFramebuffer(this, FramebufferAttachment.ColorAttachment1, 0);
+
+            GL.NamedFramebufferDrawBuffers(FboHandle, 2, [DrawBuffersEnum.ColorAttachment0, DrawBuffersEnum.ColorAttachment1]);
         }
 
         if (DepthFormat != null)
@@ -401,6 +429,11 @@ public class Framebuffer
         if (Color != null)
         {
             GL.DeleteTexture(Color.Handle);
+        }
+
+        if (Color2 != null)
+        {
+            GL.DeleteTexture(Color2.Handle);
         }
 
         if (Depth != null)

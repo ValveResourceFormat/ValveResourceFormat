@@ -19,7 +19,9 @@ in vec4 vColorBlendValues;
 #include "common/lighting.slang"
 
 
-out vec4 outputColor;
+layout (location = 0) out vec4 outputColor;
+
+#include "common/translucent.slang"
 
 #define F_REFLECTION_TYPE 0 // csgo_water_fancy; (0="Sky Color Only", 1="Environment Cube Map", 2="SSR over Environment Cube Map")
 #define F_REFRACTION 0 // csgo_water_fancy
@@ -894,6 +896,7 @@ void main()
     }
 
     outputColor.rgb = returnColor;
+    outputColor = WeightColorTranslucency(outputColor);
 
     if (g_iRenderMode != 0)
     {

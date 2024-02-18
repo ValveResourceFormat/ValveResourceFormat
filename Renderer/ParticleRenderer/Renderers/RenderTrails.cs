@@ -35,7 +35,19 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         public RenderTrails(ParticleDefinitionParser parse, RendererContext rendererContext) : base(parse)
         {
             RendererContext = rendererContext;
-            shader = RendererContext.ShaderLoader.LoadShader(ShaderName);
+            blendMode = parse.Enum("m_nOutputBlendMode", blendMode);
+
+            if (blendMode == ParticleBlendMode.PARTICLE_OUTPUT_BLEND_MODE_ADD)
+            {
+                shader = RendererContext.ShaderLoader.LoadShader(ShaderName, new Dictionary<string, byte>
+                {
+                    ["F_ADDITIVE_BLEND"] = 1,
+                });
+            }
+            else
+            {
+                shader = RendererContext.ShaderLoader.LoadShader(ShaderName);
+            }
 
             // The same quad is reused for all particles
             var (quadVao, quadBuffer) = SetupQuadBuffer();
@@ -73,7 +85,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             GL.ObjectLabel(ObjectLabelIdentifier.Buffer, quadBuffer, Math.Min(GLEnvironment.MaxLabelLength, vaoLabel.Length), vaoLabel);
 #endif
 
-            blendMode = parse.Enum<ParticleBlendMode>("m_nOutputBlendMode", blendMode);
             overbrightFactor = parse.NumberProvider("m_flOverbrightFactor", overbrightFactor);
             orientationType = parse.Enum("m_nOrientationType", orientationType);
             animationRate = parse.Float("m_flAnimationRate", animationRate);
@@ -117,6 +128,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         {
             var particles = particleBag.Current;
 
+#if false // TODO: messes with OIT
             if (blendMode == ParticleBlendMode.PARTICLE_OUTPUT_BLEND_MODE_ADD)
             {
                 GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.One);
@@ -125,6 +137,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             {
                 GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
             }
+#endif
 
             shader.Use();
 

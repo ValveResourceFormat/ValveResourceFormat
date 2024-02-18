@@ -98,7 +98,11 @@ in vec3 vBitangentOut;
 in vec2 vTexCoordOut;
 centroid in vec4 vVertexColorOut;
 
-out vec4 outputColor;
+layout (location = 0) out vec4 outputColor;
+
+#if (D_OIT_PASS == 1)
+#include "common/translucent.slang"
+#endif
 
 uniform sampler2D g_tBlueNoise;
 uniform sampler2D g_tColor; // SrgbRead(true) Sampler(UserConfig)
@@ -782,4 +786,8 @@ void main()
         outputColor.rgb = vColorBlendValues.rgb;
     }
 #endif
+
+    #if (D_OIT_PASS == 1)
+        outputColor = WeightColorTranslucency(outputColor);
+    #endif
 }

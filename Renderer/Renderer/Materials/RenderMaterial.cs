@@ -182,6 +182,11 @@ namespace ValveResourceFormat.Renderer.Materials
                 }
             }
 
+            if (IsTranslucent && !IsOverlay)
+            {
+                combinedShaderParameters.Add("D_OIT_PASS", 1);
+            }
+
             SetRenderState();
             Shader = rendererContext.ShaderLoader.LoadShader(material.ShaderName, combinedShaderParameters, blocking: false);
             ResetRenderState();
@@ -471,6 +476,7 @@ namespace ValveResourceFormat.Renderer.Materials
                     GL.Enable(EnableCap.Blend);
                 }
 
+                /*
                 if (blendMode >= BlendMode.Mod2x)
                 {
                     GL.BlendFunc(BlendingFactor.DstColor, BlendingFactor.SrcColor);
@@ -483,6 +489,7 @@ namespace ValveResourceFormat.Renderer.Materials
                 {
                     GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
                 }
+                */
             }
 
             if (hasDepthBias || IsOverlay)

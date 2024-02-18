@@ -33,6 +33,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// <summary>Gets the shader used to render this shape.</summary>
         protected Shader shader { get; init; }
 
+        /// <summary>Gets the shader used to render this shape with translucency.</summary>
+        protected Shader shaderTranslucent { get; init; }
+
         /// <summary>Gets the number of indices uploaded to the GPU index buffer.</summary>
         protected int indexCount { get; private set; }
 
@@ -48,6 +51,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         private ShapeSceneNode(Scene scene) : base(scene)
         {
             shader = Scene.RendererContext.ShaderLoader.LoadShader("vrf.basic_shape");
+            shaderTranslucent = Scene.RendererContext.ShaderLoader.LoadShader("vrf.basic_shape", ("F_TRANSLUCENT", 1));
         }
 
         internal ShapeSceneNode(Scene scene, List<SimpleVertexNormal> verts, List<int> inds) : this(scene)
@@ -325,7 +329,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 return;
             }
 
-            var renderShader = context.ReplacementShader ?? shader;
+            var renderShader = context.ReplacementShader ?? (isTranslucent ? shaderTranslucent : shader);
             renderShader.Use();
             renderShader.SetUniform3x4("transform", Transform);
             renderShader.SetBoneAnimationData(false);

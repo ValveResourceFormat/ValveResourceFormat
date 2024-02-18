@@ -39,6 +39,7 @@ namespace GUI.Types.GLViewers
         private ComboBox? renderModeComboBox;
         private InfiniteGrid? baseGrid;
         protected SelectedNodeRenderer? SelectedNodeRenderer;
+        protected Framebuffer? TransparentFramebuffer;
 
         static readonly TimeSpan FpsUpdateTimeSpan = TimeSpan.FromSeconds(0.1);
 
@@ -71,6 +72,7 @@ namespace GUI.Types.GLViewers
         {
             base.Dispose();
 
+            TransparentFramebuffer?.Delete();
             Renderer?.Dispose();
 
             if (renderModeComboBox != null)
@@ -219,6 +221,19 @@ namespace GUI.Types.GLViewers
         {
             base.OnResize(w, h);
 
+            TransparentFramebuffer?.Resize(w, h, NumSamples);
+
+            if (TransparentFramebuffer?.InitialStatus == FramebufferErrorCode.FramebufferUndefined)
+            {
+                TransparentFramebuffer.Initialize();
+            }
+
+            if (MainFramebuffer?.InitialStatus == FramebufferErrorCode.FramebufferComplete
+                && TransparentFramebuffer?.InitialStatus == FramebufferErrorCode.FramebufferComplete)
+            {
+                GL.NamedFramebufferTexture(TransparentFramebuffer.FboHandle, FramebufferAttachment.DepthAttachment, MainFramebuffer.Depth!.Handle, 0);
+            }
+
             Renderer.Camera.SetViewportSize(w, h);
             Picker?.Resize(w, h);
         }
@@ -300,6 +315,15 @@ namespace GUI.Types.GLViewers
             TextRenderer.Load();
             Renderer.Postprocess.Load(NumSamples);
 
+            TransparentFramebuffer = Framebuffer.Prepare("OIT", MainFramebuffer!.Width,
+                MainFramebuffer.Height,
+                NumSamples,
+                new(PixelInternalFormat.Rgba16f, PixelFormat.Rgba, PixelType.HalfFloat),
+                null
+            );
+            TransparentFramebuffer.Color2Format = new(PixelInternalFormat.R16f, PixelFormat.Red, PixelType.HalfFloat);
+            TransparentFramebuffer.Initialize();
+
             baseGrid = new InfiniteGrid(Scene);
             SelectedNodeRenderer = new(Scene.RendererContext);
             Picker = new(Scene.RendererContext, OnPicked);
@@ -308,6 +332,7 @@ namespace GUI.Types.GLViewers
             Renderer.Initialize();
 
             Renderer.MainFramebuffer = MainFramebuffer;
+            Renderer.TransparentFramebuffer = TransparentFramebuffer;
 
             MainFramebuffer!.Bind(FramebufferTarget.Framebuffer);
 

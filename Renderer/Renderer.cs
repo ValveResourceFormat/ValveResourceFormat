@@ -93,12 +93,20 @@ public class Renderer
 
     private readonly Shader[] histogramShaders = new Shader[2];
     private readonly StorageBuffer[] histogramBuffers = new StorageBuffer[2];
+    private Shader? wboitShader;
+    private int wboitVao;
 
     // Injected
     /// <summary>
     /// Target framebuffer for the main scene render; must be set before calling <see cref="Render(Scene.RenderContext)"/>.
     /// </summary>
     public Framebuffer? MainFramebuffer { get; set; }
+
+    /// <summary>
+    /// Optional OIT (order-independent transparency) framebuffer; when set, the translucent layer
+    /// is rendered with weighted blended OIT instead of depth-sorted alpha blending.
+    /// </summary>
+    public Framebuffer? TransparentFramebuffer { get; set; }
 
     /// <summary>
     /// Post-processing renderer handling tone mapping, bloom, and MSAA resolve.
@@ -216,6 +224,9 @@ public class Renderer
 
         histogramShaders[0] = Scene.RendererContext.ShaderLoader.LoadShader("vrf.histogram");
         histogramShaders[1] = Scene.RendererContext.ShaderLoader.LoadShader("vrf.histogram", ("D_HISTOGRAM_MODE", 1));
+
+        GL.CreateVertexArrays(1, out wboitVao);
+        wboitShader = Scene.RendererContext.ShaderLoader.LoadShader("vrf.wboit");
 
         histogramBuffers[0] = StorageBuffer.Allocate<uint>(ReservedBufferSlots.Histogram, 256, BufferUsageHint.DynamicDraw);
         histogramBuffers[1] = StorageBuffer.Allocate<uint>(ReservedBufferSlots.AverageLuminance, 4, BufferUsageHint.DynamicRead);
@@ -359,8 +370,45 @@ public class Renderer
         }
     }
 
-    private static void RenderTranslucentLayer(Scene scene, Scene.RenderContext renderContext)
+    private void RenderTranslucentLayer(Scene scene, Scene.RenderContext renderContext)
     {
+        if (TransparentFramebuffer != null
+            && renderContext.Framebuffer == MainFramebuffer
+            && wboitShader != null
+            && TransparentFramebuffer.Color != null
+            && TransparentFramebuffer.Color2 != null)
+        {
+            TransparentFramebuffer.BindAndClear();
+
+            GL.DepthMask(false);
+            GL.Enable(EnableCap.Blend);
+            GL.BlendEquation(BlendEquationMode.FuncAdd);
+            GL.BlendFunc(0, BlendingFactorSrc.One, BlendingFactorDest.One);
+            GL.BlendFunc(1, BlendingFactorSrc.Zero, BlendingFactorDest.OneMinusSrcColor);
+
+            scene.RenderTranslucentLayer(renderContext);
+
+            renderContext.Framebuffer.Bind(FramebufferTarget.Framebuffer);
+
+            wboitShader.Use();
+            wboitShader.SetTexture(0, "colorTexture", TransparentFramebuffer.Color);
+            wboitShader.SetTexture(1, "alphaTexture", TransparentFramebuffer.Color2);
+
+            GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
+            GL.Disable(EnableCap.DepthTest);
+
+            GL.BindVertexArray(wboitVao);
+            GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
+            GL.UseProgram(0);
+            GL.BindVertexArray(0);
+
+            GL.Enable(EnableCap.DepthTest);
+            GL.Disable(EnableCap.Blend);
+            GL.DepthMask(true);
+
+            return;
+        }
+
         scene.RenderWaterLayer(renderContext);
 
         GL.DepthMask(false);

@@ -92,7 +92,8 @@ namespace ValveResourceFormat.Renderer
             }
             else if (context.RenderPass == RenderPass.Translucent)
             {
-                requests.Sort(CompareCameraDistance);
+                //requests.Sort(ComparePipeline);
+                Random.Shared.Shuffle(System.Runtime.InteropServices.CollectionsMarshal.AsSpan(requests)); // TODO: test
             }
 
             DrawBatch(requests, context);

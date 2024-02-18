@@ -8,7 +8,8 @@ in vec2 vTexCoordOut;
 
 uniform sampler2D g_tColor; // SrgbRead(true)
 
-out vec4 outputColor;
+layout (location = 0) out vec4 outputColor;
+#include "common/translucent.slang"
 
 void main()
 {
@@ -19,4 +20,5 @@ void main()
 #endif
 
     outputColor = color;
+    outputColor = WeightColorTranslucency(outputColor);
 }
