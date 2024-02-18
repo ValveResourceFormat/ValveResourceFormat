@@ -1,5 +1,7 @@
+using System.IO;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO;
+using ValveResourceFormat.ResourceTypes.ModelData.Attachments;
 using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -28,8 +30,19 @@ namespace ValveResourceFormat.ResourceTypes
 
         private VBIB cachedVBIB { get; set; }
 
+        public Attachments Attachments { get; private set; }
+
         public Mesh(BlockType type) : base(type, "PermRenderMeshData_t")
         {
+        }
+
+        public override void Read(BinaryReader reader, Resource resource)
+        {
+            base.Read(reader, resource);
+            if (Data.ContainsKey("m_attachments"))
+            {
+                Attachments = Attachments.FromData(Data);
+            }
         }
 
         public void GetBounds()
