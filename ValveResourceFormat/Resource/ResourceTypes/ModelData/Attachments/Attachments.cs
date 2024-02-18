@@ -7,7 +7,6 @@ namespace ValveResourceFormat.ResourceTypes.ModelData.Attachments
     public class Attachments : IEnumerable<Attachment>
     {
         private readonly Attachment[] attachments;
-        private readonly Dictionary<string, int> attachmentNameToIndexRemap = new();
         public int Length => attachments.Length;
 
         public Attachment this[int i]
@@ -15,15 +14,6 @@ namespace ValveResourceFormat.ResourceTypes.ModelData.Attachments
             get
             {
                 return attachments[i];
-            }
-        }
-
-        public Attachment this[string name]
-        {
-            get
-            {
-                var index = attachmentNameToIndexRemap[name];
-                return attachments[index];
             }
         }
 
@@ -38,7 +28,6 @@ namespace ValveResourceFormat.ResourceTypes.ModelData.Attachments
             for (var i = 0; i < attachmentsData.Length; i++)
             {
                 attachments[i] = new Attachment(attachmentsData[i]);
-                attachmentNameToIndexRemap.Add(attachments[i].Name, i);
             }
         }
 
