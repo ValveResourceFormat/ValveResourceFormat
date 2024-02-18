@@ -628,7 +628,7 @@ namespace GUI
 
             if (entry != null)
             {
-                stream = vrfGuiContext.ParentGuiContext.CurrentPackage.GetMemoryMappedStreamIfPossible(entry);
+                stream = AdvancedGuiFileLoader.GetPackageEntryStream(vrfGuiContext.ParentGuiContext.CurrentPackage, entry);
                 stream.Read(magicData);
                 stream.Seek(-magicData.Length, SeekOrigin.Current);
             }
