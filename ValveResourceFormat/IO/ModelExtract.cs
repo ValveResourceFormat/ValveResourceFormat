@@ -568,6 +568,16 @@ public class ModelExtract
                 }
             }
 
+            if (keyvalues.ContainsKey("LookAtList"))
+            {
+                var lookAtList = keyvalues.GetSubCollection("LookAtList");
+                foreach (var item in lookAtList)
+                {
+                    var lookAtChain = item.Value as KVObject;
+                    AddGenericGameData(gameDataList.Value, "LookAtChain", lookAtChain, "lookat_chain");
+                }
+            }
+
 
             if (keyvalues.ContainsKey("break_list"))
             {
