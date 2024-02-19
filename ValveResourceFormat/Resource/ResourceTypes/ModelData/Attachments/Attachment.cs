@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Linq;
 using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -35,14 +36,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelData.Attachments
             IgnoreRotation = valueData.GetProperty<bool>("m_bIgnoreRotation");
 
             var influenceNames = valueData.GetArray<string>("m_influenceNames");
-            var influenceRotations = valueData.GetArray("m_vInfluenceRotations", v =>
-            {
-                var x = (float)v.GetDoubleProperty("0");
-                var y = (float)v.GetDoubleProperty("1");
-                var z = (float)v.GetDoubleProperty("2");
-                var w = (float)v.GetDoubleProperty("3");
-                return new Quaternion(x, y, z, w);
-            });
+            var influenceRotations = valueData.GetArray("m_vInfluenceRotations").Select(v => v.ToQuaternion()).ToArray();
             var influenceOffsets = valueData.GetArray("m_vInfluenceOffsets", v => v.ToVector3());
             var influenceWeights = valueData.GetArray<double>("m_influenceWeights");
 
