@@ -30,7 +30,7 @@ namespace ValveResourceFormat.ResourceTypes
 
         private VBIB cachedVBIB { get; set; }
 
-        public Attachments Attachments { get; private set; }
+        public Dictionary<string, Attachment> Attachments { get; init; } = [];
 
         public Mesh(BlockType type) : base(type, "PermRenderMeshData_t")
         {
@@ -41,7 +41,12 @@ namespace ValveResourceFormat.ResourceTypes
             base.Read(reader, resource);
             if (Data.ContainsKey("m_attachments"))
             {
-                Attachments = Attachments.FromData(Data);
+                var attachmentsData = Data.GetArray("m_attachments");
+                for (var i = 0; i < attachmentsData.Length; i++)
+                {
+                    var attachment = new Attachment(attachmentsData[i]);
+                    Attachments.Add(attachment.Name, attachment);
+                }
             }
         }
 

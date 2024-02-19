@@ -274,7 +274,7 @@ public class ModelExtract
             var mesh = RenderMeshesToExtract.First();
             var attachments = mesh.Mesh.Attachments;
 
-            foreach (var attachment in attachments)
+            foreach (var attachment in attachments.Values)
             {
                 var mainInfluence = attachment[attachment.Length - 1];
 
