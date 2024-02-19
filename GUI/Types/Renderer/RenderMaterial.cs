@@ -152,10 +152,18 @@ namespace GUI.Types.Renderer
             {
                 GL.DepthMask(false);
                 GL.Enable(EnableCap.Blend);
-                GL.BlendFunc(BlendingFactor.SrcAlpha, isAdditiveBlend ? BlendingFactor.One : BlendingFactor.OneMinusSrcAlpha);
+
                 if (isMod2x)
                 {
                     GL.BlendFunc(BlendingFactor.DstColor, BlendingFactor.SrcColor);
+                }
+                else if (isAdditiveBlend)
+                {
+                    GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.One);
+                }
+                else
+                {
+                    GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
                 }
             }
 

@@ -163,6 +163,7 @@ uniform sampler2D g_tTintMask;
 #define unlit (defined(vr_unlit_vfx) || defined(unlit_vfx) || defined(csgo_unlitgeneric_vfx) || (F_FULLBRIGHT == 1) || (F_UNLIT == 1) || (defined(static_overlay_vfx_common) && F_LIT == 0))
 #define alphatest (F_ALPHA_TEST == 1) || ((defined(csgo_unlitgeneric_vfx) || defined(static_overlay_vfx_common)) && (F_BLEND_MODE == 2))
 #define translucent (F_TRANSLUCENT == 1) || ((defined(csgo_unlitgeneric_vfx) || defined(static_overlay_vfx_common)) && (F_BLEND_MODE == 1)) // need to set this up on the cpu side
+#define blendMod2x (F_BLEND_MODE == 3)
 
 #if (alphatest == 1)
     uniform float g_flAlphaTestReference = 0.5;
@@ -600,6 +601,10 @@ void main()
 
 #if (F_DISABLE_TONE_MAPPING == 0)
     outputColor.rgb = SrgbLinearToGamma(outputColor.rgb);
+#endif
+
+#if blendMod2x == 1
+    outputColor = vec4(mix(vec3(0.5), outputColor.rgb, vec3(outputColor.a)), outputColor.a);
 #endif
 
 #if renderMode_FullBright == 1
