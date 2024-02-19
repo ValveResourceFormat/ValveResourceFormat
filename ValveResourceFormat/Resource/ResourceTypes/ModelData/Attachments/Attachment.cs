@@ -12,7 +12,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelData.Attachments
             public string Name { get; init; }
             public Vector3 Offset { get; init; }
             public Quaternion Rotation { get; init; }
-            public double Weight { get; init; }
+            public float Weight { get; init; }
         }
 
         public string Name { get; init; }
@@ -50,7 +50,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelData.Attachments
                     Name = influenceNames[i],
                     Rotation = influenceRotations[i],
                     Offset = influenceOffsets[i],
-                    Weight = influenceWeights[i]
+                    Weight = (float)influenceWeights[i]
                 };
             }
         }
