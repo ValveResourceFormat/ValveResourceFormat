@@ -7,7 +7,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelData.Attachments
 {
     public class Attachment : IEnumerable<Attachment.Influence>
     {
-        public struct Influence
+        public readonly struct Influence
         {
             public string Name { get; init; }
             public Vector3 Offset { get; init; }
