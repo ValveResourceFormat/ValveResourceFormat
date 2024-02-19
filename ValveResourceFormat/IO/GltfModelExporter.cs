@@ -957,21 +957,15 @@ namespace ValveResourceFormat.IO
                     var indexCount = drawCall.GetInt32Property("m_nIndexCount");
                     var indices = ReadIndices(indexBuffer, startIndex, indexCount, baseVertex);
 
-                    var primitiveType = drawCall.GetProperty<object>("m_nPrimitiveType") switch
-                    {
-                        string primitiveTypeString => primitiveTypeString,
-                        byte primitiveTypeByte =>
-                        (primitiveTypeByte == 5) ? "RENDER_PRIM_TRIANGLES" : ("UNKNOWN_" + primitiveTypeByte),
-                        _ => throw new NotImplementedException("Unknown PrimitiveType in drawCall!")
-                    };
+                    var primitiveType = drawCall.GetEnumValue<RenderPrimitiveType>("m_nPrimitiveType");
 
                     switch (primitiveType)
                     {
-                        case "RENDER_PRIM_TRIANGLES":
+                        case RenderPrimitiveType.RENDER_PRIM_TRIANGLES:
                             primitive.WithIndicesAccessor(PrimitiveType.TRIANGLES, indices);
                             break;
                         default:
-                            throw new NotImplementedException("Unknown PrimitiveType in drawCall! (" + primitiveType + ")");
+                            throw new NotImplementedException($"Unknown PrimitiveType in drawCall! {primitiveType}");
                     }
 
                     if (vmesh.MorphData != null)

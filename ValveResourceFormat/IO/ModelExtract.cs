@@ -844,7 +844,11 @@ public class ModelExtract
                 ReadOnlySpan<int> indexBuffer = indexBuffers[indexBufferIndex].Value;
 
                 var material = drawCall.GetProperty<string>("m_material");
-                materialInputSignature ??= materialInputSignatures?.GetValueOrDefault(material);
+
+                if (material != null)
+                {
+                    materialInputSignature ??= materialInputSignatures?.GetValueOrDefault(material);
+                }
 
                 var baseVertex = drawCall.GetInt32Property("m_nBaseVertex");
                 var startIndex = drawCall.GetInt32Property("m_nStartIndex");

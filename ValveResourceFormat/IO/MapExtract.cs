@@ -466,6 +466,8 @@ public sealed class MapExtract
                 }
 
                 MeshesToExtract.Add(meshName);
+
+                modelName = Path.ChangeExtension(meshName, ".vmdl");
             }
 
             AssetReferences.Add(modelName);
