@@ -809,8 +809,44 @@ public class ModelExtract
                 root.Children.AddProperty(null, MakeValue(boneConstraintList));
             }
 
-            var genericDataClasses = new string[] { "prop_data", "character_arm_config", };
-            var genericDataClassesList = new string[] { "ao_proxy_capsule", };
+            var genericDataClasses = new string[] {
+                "prop_data",
+                "character_arm_config",
+                "vr_carry_type",
+                "door_sounds",
+                "nav_data",
+                "npc_foot_sweep",
+                "ai_model_info",
+                "breakable_door_model",
+                "dynamic_interactions",
+                "explosion_behavior",
+                "eye_occlusion_renderer",
+                "fire_interactions",
+                "gastank_markup",
+                "hand_conform_data",
+                "handpose_data",
+                "physgun_interactions",
+                "weapon_metadata",
+                "glove_viewmodel_reference",
+                "composite_material_order",
+            };
+            var genericDataClassesList = new (string ListKey, string Class)[] {
+                ("ao_proxy_capsule_list", "ao_proxy_capsule"),
+                ("ao_proxy_box_list", "ao_proxy_box"),
+                ("particles_list", "particle"),
+                ("hand_pose_list", "hand_pose_pair"),
+                ("eye_data_list", "eye"),
+                ("bodygroup_driven_morph_list", "bodygroup_driven_morph"),
+                ("materialgroup_driven_morph_list", "materialgroup_driven_morph"),
+                ("animating_breakable_stage_list", "animating_breakable_stage"),
+                ("cables_list", "cable"),
+                ("high_quality_shadows_region_list", "high_quality_shadows_region"),
+                ("particle_cfg_list", "particle_cfg"),
+                ("snapshot_weights_upperbody_list", "snapshot_weights_upperbody"),
+                ("snapshot_weights_all_list", "snapshot_weights_all"),
+                ("patch_camera_preset_list", "patch_camera_preset"),
+                ("bodygroup_preset_list", "bodygroup_preset"),
+            };
 
             foreach (var genericDataClass in genericDataClasses)
             {
@@ -823,15 +859,31 @@ public class ModelExtract
 
             foreach (var genericDataClass in genericDataClassesList)
             {
-                var dataKey = genericDataClass + "_list";
+                var dataKey = genericDataClass.ListKey;
                 if (keyvalues.ContainsKey(dataKey))
                 {
                     var genericDataList = keyvalues.GetArray<KVObject>(dataKey);
                     foreach (var genericData in genericDataList)
                     {
-                        AddGenericGameData(gameDataList.Value, genericDataClass, genericData);
+                        AddGenericGameData(gameDataList.Value, genericDataClass.Class, genericData);
                     }
                 }
+            }
+
+            if (keyvalues.ContainsKey("LookAtList"))
+            {
+                var lookAtList = keyvalues.GetSubCollection("LookAtList");
+                foreach (var item in lookAtList)
+                {
+                    var lookAtChain = item.Value as KVObject;
+                    AddGenericGameData(gameDataList.Value, "LookAtChain", lookAtChain, "lookat_chain");
+                }
+            }
+
+            if (keyvalues.ContainsKey("MovementSettings"))
+            {
+                var movementSettings = keyvalues.GetProperty<KVObject>("MovementSettings");
+                AddGenericGameData(gameDataList.Value, "MovementSettings", movementSettings, "movementsettings");
             }
 
 
@@ -854,7 +906,7 @@ public class ModelExtract
                 }
             }
 
-            static void AddGenericGameData(KVObject gameDataList, string genericDataClass, KVObject genericData)
+            static void AddGenericGameData(KVObject gameDataList, string genericDataClass, KVObject genericData, string dataKey = null)
             {
                 // Remove quotes from keys
                 genericData.Properties.Keys.ToList().ForEach(k =>
@@ -866,7 +918,30 @@ public class ModelExtract
                         genericData.Properties.Remove(k);
                     }
                 });
-                var genericGameData = MakeNode("GenericGameData", ("game_class", genericDataClass), ("game_keys", genericData));
+
+                var name = "";
+                if (genericData.ContainsKey("name"))
+                {
+                    name = genericData.GetStringProperty("name");
+                }
+
+                KVObject genericGameData;
+                if (dataKey == null)
+                {
+                    genericGameData = MakeNode("GenericGameData",
+                        ("name", name),
+                        ("game_class", genericDataClass),
+                        ("game_keys", genericData)
+                    );
+                }
+                else
+                {
+                    genericGameData = MakeNode(genericDataClass,
+                        ("name", name),
+                        (dataKey, genericData)
+                    );
+                }
+
                 AddItem(gameDataList, genericGameData);
             }
         }
