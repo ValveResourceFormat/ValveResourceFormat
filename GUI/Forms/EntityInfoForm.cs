@@ -32,6 +32,17 @@ namespace GUI.Forms
             }
         }
 
+        protected override bool ProcessDialogKey(Keys keyData)
+        {
+            if (keyData == Keys.Escape && ModifierKeys == Keys.None)
+            {
+                Close();
+                return true;
+            }
+
+            return base.ProcessDialogKey(keyData);
+        }
+
         private void SetTabCount(int count)
         {
             if (tabControl.TabCount == count)

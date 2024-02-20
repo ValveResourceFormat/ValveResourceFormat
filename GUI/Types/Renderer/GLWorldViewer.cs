@@ -259,10 +259,7 @@ namespace GUI.Types.Renderer
             if (entityInfoForm == null)
             {
                 entityInfoForm = new EntityInfoForm(GuiContext.FileLoader);
-                entityInfoForm.Disposed += (_, _) =>
-                {
-                    entityInfoForm = null;
-                };
+                entityInfoForm.Disposed += OnEntityInfoFormDisposed;
             }
             entityInfoForm.Clear();
             entityInfoForm.SetEntityLayout(isEntity);
@@ -333,6 +330,12 @@ namespace GUI.Types.Renderer
             }
 
             entityInfoForm.Show();
+        }
+
+        private void OnEntityInfoFormDisposed(object sender, EventArgs e)
+        {
+            entityInfoForm.Disposed -= OnEntityInfoFormDisposed;
+            entityInfoForm = null;
         }
 
         protected override void OnPicked(object sender, PickingResponse pickingResponse)
