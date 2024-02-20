@@ -3,7 +3,7 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 {
-    public struct AnimationActivity
+    public readonly struct AnimationActivity
     {
         public string Name { get; init; }
         public int Activity { get; init; }

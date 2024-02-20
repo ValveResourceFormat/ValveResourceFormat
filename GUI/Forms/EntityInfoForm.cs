@@ -9,7 +9,8 @@ namespace GUI.Forms
 {
     partial class EntityInfoForm : Form
     {
-        private TabPage[] pages;
+        private readonly TabPage[] pages;
+
         public EntityInfoForm(AdvancedGuiFileLoader guiFileLoader)
         {
             InitializeComponent();

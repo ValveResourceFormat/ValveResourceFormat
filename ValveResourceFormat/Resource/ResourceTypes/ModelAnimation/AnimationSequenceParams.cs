@@ -3,7 +3,7 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 {
-    public struct AnimationSequenceParams
+    public readonly struct AnimationSequenceParams
     {
         public float FadeInTime { get; init; }
         public float FadeOutTime { get; init; }
