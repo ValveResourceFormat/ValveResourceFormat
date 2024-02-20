@@ -213,11 +213,6 @@ namespace GUI.Types.ParticleRenderer.Renderers
             GL.UseProgram(0);
             GL.BindVertexArray(0);
 
-            if (blendMode == ParticleBlendMode.PARTICLE_OUTPUT_BLEND_MODE_ADD)
-            {
-                GL.BlendEquation(BlendEquationMode.FuncAdd);
-            }
-
             GL.Disable(EnableCap.Blend);
         }
 

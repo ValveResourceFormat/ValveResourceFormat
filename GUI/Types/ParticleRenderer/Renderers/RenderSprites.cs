@@ -284,11 +284,6 @@ namespace GUI.Types.ParticleRenderer.Renderers
             GL.Enable(EnableCap.CullFace);
             GL.DepthMask(true);
 
-            if (blendMode == ParticleBlendMode.PARTICLE_OUTPUT_BLEND_MODE_ADD)
-            {
-                GL.BlendEquation(BlendEquationMode.FuncAdd);
-            }
-
             GL.Disable(EnableCap.Blend);
         }
 
