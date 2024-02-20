@@ -248,6 +248,9 @@ public class ModelExtract
         var attachmentList = MakeLazyList("AttachmentList");
         var skeleton = MakeLazyList("Skeleton");
         var modelModifierList = MakeLazyList("ModelModifierList");
+        var boneMarkupList = MakeListNode("BoneMarkupList");
+        AddItem(root.Children, boneMarkupList.Node);
+        boneMarkupList.Node.AddProperty("bone_cull_type", MakeValue("None"));
 
         if (RenderMeshesToExtract.Count != 0)
         {
