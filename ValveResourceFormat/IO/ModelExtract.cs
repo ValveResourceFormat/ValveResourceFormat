@@ -652,7 +652,7 @@ public class ModelExtract
                 AddBoneConstraintProperty<double>(constrainedBoneData, node, "m_flWeight", "weight");
                 AddBoneConstraintProperty<Vector3>(constrainedBoneData, node, "m_vBasePosition", "translation_offset");
 
-                //Order of angles is different for some reason (hlvr)
+                //Order of angles is different for some reason
                 var rotArray = constrainedBoneData.GetFloatArray("m_qBaseOrientation");
                 var rot = new Quaternion(rotArray[0], rotArray[1], rotArray[2], rotArray[3]);
                 var angles = ToEulerAngles(rot);
