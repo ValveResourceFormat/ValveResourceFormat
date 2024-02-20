@@ -182,6 +182,7 @@ public class ModelExtract
                 string => KVType.STRING,
                 bool => KVType.BOOLEAN,
                 int => KVType.INT32,
+                long => KVType.INT64,
                 float => KVType.FLOAT,
                 double => KVType.DOUBLE,
                 KVObject kv => kv.IsArray ? KVType.ARRAY : KVType.OBJECT,
@@ -534,6 +535,233 @@ public class ModelExtract
             }
         }
 
+        Dictionary<uint, string> GetHashDictionary(IEnumerable<string> names)
+        {
+            var hashDictionary = new Dictionary<uint, string>();
+            foreach (var name in names)
+            {
+                var hash = StringToken.Get(name.ToLowerInvariant());
+                hashDictionary.Add(hash, name);
+            }
+            return hashDictionary;
+        }
+
+        string RemapBoneConstraintClassname(string className)
+        {
+            return className switch
+            {
+                "CTiltTwistConstraint" => "AnimConstraintTiltTwist",
+                "CTwistConstraint" => "AnimConstraintTwist",
+                "CAimConstraint" => "AnimConstraintAim",
+                "COrientConstraint" => "AnimConstraintOrient",
+                "CPointConstraint" => "AnimConstraintPoint",
+                "CParentConstraint" => "AnimConstraintParent",
+                "CMorphConstraint" => "AnimConstraintMorph",
+                "CBoneConstraintPoseSpaceBone" => "AnimConstraintPoseSpaceBone",
+                "CBoneConstraintPoseSpaceMorph" => "AnimConstraintPoseSpaceMorph",
+                "CBoneConstraintDotToMorph" => "AnimConstraintDotToMorph",
+                _ => null
+            };
+        }
+
+        void AddBoneConstraintProperty<T>(KVObject sourceObject, KVObject targetObject, string sourceName, string targetName)
+        {
+            if (sourceObject.ContainsKey(sourceName))
+            {
+                if (typeof(T) == typeof(Quaternion))
+                {
+                    var value = sourceObject.GetFloatArray(sourceName);
+                    var rot = new Quaternion(value[0], value[1], value[2], value[3]);
+                    var angles = ToEulerAngles(rot);
+                    targetObject.AddProperty(targetName, MakeValue(angles));
+                }
+                else if (typeof(T) == typeof(Vector3))
+                {
+                    var value = sourceObject.GetFloatArray(sourceName);
+                    var pos = new Vector3(value[0], value[1], value[2]);
+                    targetObject.AddProperty(targetName, MakeValue(pos));
+                }
+                else
+                {
+                    var value = sourceObject.GetProperty<T>(sourceName);
+                    targetObject.AddProperty(targetName, MakeValue(value));
+                }
+            }
+        }
+
+        KVObject ProcessBoneConstraintTarget(KVObject target, Dictionary<uint, string> boneHashes, Dictionary<uint, string> attachmentHashes)
+        {
+            var isAttachment = target.GetProperty<bool>("m_bIsAttachment");
+            var targetHash = target.GetUInt32Property("m_nBoneHash");
+            var targetHashes = isAttachment ? attachmentHashes : boneHashes;
+            if (!targetHashes.TryGetValue(targetHash, out var targetName))
+            {
+#if DEBUG
+                Console.WriteLine($"Couldn't find name of {(isAttachment ? "attachment" : "bone")} for bone constraint: {targetHash}");
+#endif
+                return null;
+            }
+
+            KVObject node;
+            if (isAttachment)
+            {
+                node = MakeNode("AnimConstraintAttachmentInput", ("parent_attachment", targetName));
+            }
+            else
+            {
+                node = MakeNode("AnimConstraintBoneInput", ("parent_bone", targetName));
+            }
+
+            AddBoneConstraintProperty<double>(target, node, "m_flWeight", "weight");
+            AddBoneConstraintProperty<Vector3>(target, node, "m_vOffset", "relative_origin");
+            AddBoneConstraintProperty<Quaternion>(target, node, "m_qOffset", "relative_angles");
+            return node;
+        }
+
+        KVObject ProcessBoneConstraintSlave(KVObject slave, Dictionary<uint, string> boneHashes)
+        {
+            var boneHash = slave.GetUInt32Property("m_nBoneHash");
+            if (!boneHashes.TryGetValue(boneHash, out var boneName))
+            {
+#if DEBUG
+                Console.WriteLine($"Couldn't find name of bone for bone constraint: {boneHash}");
+#endif
+                return null;
+            }
+
+            var node = MakeNode("AnimConstraintSlave", ("parent_bone", boneName));
+            AddBoneConstraintProperty<double>(slave, node, "m_flWeight", "weight");
+            AddBoneConstraintProperty<Vector3>(slave, node, "m_vBasePosition", "relative_origin");
+            AddBoneConstraintProperty<Quaternion>(slave, node, "m_qBaseOrientation", "relative_angles");
+            return node;
+        }
+
+        void ProcessBoneConstraintChildren(KVObject boneConstraint, KVObject node, Dictionary<uint, string> boneHashes, Dictionary<uint, string> attachmentHashes)
+        {
+            var targets = boneConstraint.GetArray("m_targets")
+                                        .Select(p => ProcessBoneConstraintTarget(p, boneHashes, attachmentHashes))
+                                        .Where(p => p != null);
+
+            IEnumerable<KVObject> children;
+            if (node.GetStringProperty("_class") == "AnimConstraintParent")
+            {
+                //Parent constrants only have a single slave and it's not a child node in the .vmdl
+                children = targets;
+
+                var constrainedBoneData = boneConstraint.GetArray("m_slaves")[0];
+                AddBoneConstraintProperty<double>(constrainedBoneData, node, "m_flWeight", "weight");
+                AddBoneConstraintProperty<Vector3>(constrainedBoneData, node, "m_vBasePosition", "translation_offset");
+
+                //Order of angles is different for some reason (hlvr)
+                var rotArray = constrainedBoneData.GetFloatArray("m_qBaseOrientation");
+                var rot = new Quaternion(rotArray[0], rotArray[1], rotArray[2], rotArray[3]);
+                var angles = ToEulerAngles(rot);
+                angles = new Vector3(angles.Z, angles.X, angles.Y);
+                node.AddProperty("rotation_offset_xyz", MakeValue(angles));
+            }
+            else
+            {
+                var slaves = boneConstraint.GetArray("m_slaves")
+                                            .Select(p => ProcessBoneConstraintSlave(p, boneHashes))
+                                            .Where(p => p != null);
+
+                children = slaves.Concat(targets);
+            }
+
+            var childrenKV = new KVObject(null, true);
+            foreach (var child in children)
+            {
+                childrenKV.AddProperty(null, MakeValue(child));
+            }
+            node.AddProperty("children", MakeValue(childrenKV));
+        }
+
+        KVObject ProcessBoneConstraint(KVObject boneConstraint, Dictionary<uint, string> boneHashes, Dictionary<uint, string> attachmentHashes)
+        {
+            if (boneConstraint == null) //ModelDoc will compile constraints as null if it considers them invalid
+            {
+                return null;
+            }
+
+            var className = boneConstraint.GetStringProperty("_class");
+            var targetClassName = RemapBoneConstraintClassname(className);
+            if (targetClassName == null)
+            {
+#if DEBUG
+                Console.WriteLine($"Skipping unknown bone constraint type: {className}");
+#endif
+                return null;
+            }
+
+            var node = MakeNode(targetClassName);
+
+            //These constraints are stored the same way in the .vmdl and the compiled model
+            if (targetClassName == "AnimConstraintPoseSpaceBone" || targetClassName == "AnimConstraintPoseSpaceMorph" || targetClassName == "AnimConstraintDotToMorph")
+            {
+                foreach (var property in boneConstraint.Properties)
+                {
+                    if (property.Key == "_class")
+                    {
+                        continue;
+                    }
+                    node.AddProperty(property.Key, property.Value);
+                }
+                return node;
+            }
+
+            ProcessBoneConstraintChildren(boneConstraint, node, boneHashes, attachmentHashes);
+
+            AddBoneConstraintProperty<long>(boneConstraint, node, "m_nTargetAxis", "input_axis");
+            AddBoneConstraintProperty<long>(boneConstraint, node, "m_nSlaveAxis", "slave_axis");
+            AddBoneConstraintProperty<Quaternion>(boneConstraint, node, "m_qAimOffset", "aim_offset");
+            AddBoneConstraintProperty<Vector3>(boneConstraint, node, "m_vUpVector", "up_vector");
+            AddBoneConstraintProperty<long>(boneConstraint, node, "m_nUpType", "up_type");
+            AddBoneConstraintProperty<Quaternion>(boneConstraint, node, "m_qParentBindRotation", "parent_bind_rotation");
+            AddBoneConstraintProperty<Quaternion>(boneConstraint, node, "m_qChildBindRotation", "child_bind_rotation");
+            AddBoneConstraintProperty<bool>(boneConstraint, node, "m_bInverse", "inverse");
+            AddBoneConstraintProperty<string>(boneConstraint, node, "m_sTargetMorph", "target_morph_control");
+            AddBoneConstraintProperty<long>(boneConstraint, node, "m_nSlaveChannel", "slave_channel");
+            AddBoneConstraintProperty<double>(boneConstraint, node, "m_flMin", "min");
+            AddBoneConstraintProperty<double>(boneConstraint, node, "m_flMax", "max");
+
+            return node;
+        }
+
+        KVObject ExtractBoneConstraints(KVObject[] boneConstraintsList)
+        {
+            var boneNames = model.Skeleton.Bones.Select(b => b.Name);
+            var boneHashes = GetHashDictionary(boneNames);
+
+            Dictionary<uint, string> attachmentHashes;
+            if (RenderMeshesToExtract.Count > 0)
+            {
+                var mesh = RenderMeshesToExtract.First().Mesh;
+                var attachmentNames = mesh.Attachments.Keys;
+                attachmentHashes = GetHashDictionary(attachmentNames);
+            }
+            else
+            {
+                attachmentHashes = [];
+            }
+
+            var childrenKV = new KVObject(null, true, boneConstraintsList.Length);
+
+            foreach (var boneConstraint in boneConstraintsList)
+            {
+                var constraint = ProcessBoneConstraint(boneConstraint, boneHashes, attachmentHashes);
+                if (constraint != null)
+                {
+                    childrenKV.AddProperty(null, MakeValue(constraint));
+                }
+            }
+
+            var constraintListNode = MakeNode("AnimConstraintList",
+                ("children", MakeValue(childrenKV))
+            );
+
+            return constraintListNode;
+        }
+
         void ExtractModelKeyValues(KVObject rootNode)
         {
             if (model.Data.ContainsKey("m_refAnimIncludeModels"))
@@ -572,6 +800,13 @@ public class ModelExtract
             if (keyvalues.ContainsKey("anim_graph_resource"))
             {
                 rootNode.AddProperty("anim_graph_name", MakeValue(keyvalues.GetProperty<string>("anim_graph_resource")));
+            }
+
+            if (keyvalues.ContainsKey("BoneConstraintList"))
+            {
+                var boneConstraintListData = keyvalues.GetArray("BoneConstraintList");
+                var boneConstraintList = ExtractBoneConstraints(boneConstraintListData);
+                root.Children.AddProperty(null, MakeValue(boneConstraintList));
             }
 
             var genericDataClasses = new string[] { "prop_data", "character_arm_config", };
