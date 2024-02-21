@@ -17,9 +17,9 @@ void main(void) {
     vec4 color = texture(uTexture, vTexCoordOut);
 
     vec3 finalColor = vColor.rgb * color.rgb;
-    float blendingFactor = uOverbrightFactor * GetLuma(finalColor.rgb);
+    finalColor *= uOverbrightFactor;
 
-    fragColor = vec4(finalColor, vColor.a * color.a * blendingFactor);
+    fragColor = vec4(finalColor, vColor.a * color.a);
 
 #if renderMode_Color == 1
     fragColor = vec4(finalColor, 1.0);
