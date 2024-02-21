@@ -347,7 +347,7 @@ namespace GUI.Types.Renderer
                     renderContext.ReplacementShader?.SetUniform1("isSkybox", 1u);
 
                     SkyboxScene.RenderOpaqueLayer(renderContext);
-                    SkyboxScene.RenderTranslucentLayer(renderContext);
+                    RenderTranslucentLayer(SkyboxScene, renderContext);
 
                     lightingBuffer.Data = Scene.LightingInfo.LightingData;
                     renderContext.Scene = Scene;
@@ -372,13 +372,24 @@ namespace GUI.Types.Renderer
 
             using (new GLDebugGroup("Main Scene Translucent Render"))
             {
-                Scene.RenderTranslucentLayer(renderContext);
+                RenderTranslucentLayer(Scene, renderContext);
             }
 
             if (IsWireframe)
             {
                 GL.PolygonMode(MaterialFace.FrontAndBack, PolygonMode.Fill);
             }
+        }
+
+        private static void RenderTranslucentLayer(Scene scene, Scene.RenderContext renderContext)
+        {
+            GL.DepthMask(false);
+            GL.Enable(EnableCap.Blend);
+
+            scene.RenderTranslucentLayer(renderContext);
+
+            GL.Disable(EnableCap.Blend);
+            GL.DepthMask(true);
         }
 
         protected void AddBaseGridControl()

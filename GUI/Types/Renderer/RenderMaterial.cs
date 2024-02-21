@@ -150,8 +150,11 @@ namespace GUI.Types.Renderer
 
             if (IsTranslucent)
             {
-                GL.DepthMask(false);
-                GL.Enable(EnableCap.Blend);
+                if (IsOverlay)
+                {
+                    GL.DepthMask(false);
+                    GL.Enable(EnableCap.Blend);
+                }
 
                 if (isMod2x)
                 {
@@ -181,7 +184,7 @@ namespace GUI.Types.Renderer
 
         public void PostRender()
         {
-            if (IsTranslucent)
+            if (IsTranslucent && IsOverlay)
             {
                 GL.DepthMask(true);
                 GL.Disable(EnableCap.Blend);

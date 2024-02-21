@@ -404,8 +404,6 @@ namespace GUI.Types.Renderer
 
             var renderShader = context.ReplacementShader ?? shader;
 
-            GL.DepthMask(false);
-            GL.Enable(EnableCap.Blend);
             GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
 
             GL.UseProgram(renderShader.Program);
@@ -426,12 +424,10 @@ namespace GUI.Types.Renderer
             GL.Disable(EnableCap.CullFace);
             GL.DrawElements(PrimitiveType.TrianglesAdjacency, indexCount, DrawElementsType.UnsignedInt, 0);
 
-            GL.Disable(EnableCap.Blend);
             GL.Disable(EnableCap.PolygonOffsetLine);
             GL.Disable(EnableCap.PolygonOffsetFill);
             GL.PolygonOffsetClamp(0, 0, 0);
             GL.Enable(EnableCap.CullFace);
-            GL.DepthMask(true);
 
             GL.UseProgram(0);
             GL.BindVertexArray(0);

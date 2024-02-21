@@ -252,8 +252,6 @@ namespace GUI.Types.ParticleRenderer.Renderers
             UpdateVertices(particleBag, systemRenderState, modelViewMatrix);
 
             // Draw it
-            GL.Enable(EnableCap.Blend);
-
             if (blendMode == ParticleBlendMode.PARTICLE_OUTPUT_BLEND_MODE_ADD)
             {
                 GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.One);
@@ -264,7 +262,6 @@ namespace GUI.Types.ParticleRenderer.Renderers
             }
 
             GL.Disable(EnableCap.CullFace);
-            GL.DepthMask(false);
 
             GL.UseProgram(shader.Program);
             GL.BindVertexArray(vaoHandle);
@@ -282,9 +279,6 @@ namespace GUI.Types.ParticleRenderer.Renderers
             GL.BindVertexArray(0);
 
             GL.Enable(EnableCap.CullFace);
-            GL.DepthMask(true);
-
-            GL.Disable(EnableCap.Blend);
         }
 
         public override IEnumerable<string> GetSupportedRenderModes() => shader.RenderModes;
