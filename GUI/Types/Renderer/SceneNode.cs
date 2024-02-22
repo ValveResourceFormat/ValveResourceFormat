@@ -17,7 +17,7 @@ namespace GUI.Types.Renderer
         }
 
         public string LayerName { get; set; }
-        public bool LayerEnabled { get; set; } = true;
+        public virtual bool LayerEnabled { get; set; } = true;
         public AABB BoundingBox { get; private set; }
         public AABB LocalBoundingBox
         {

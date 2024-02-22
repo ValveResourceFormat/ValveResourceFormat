@@ -13,6 +13,7 @@ namespace GUI.Types.Renderer
         private const int Segments = 8;
         private const int Bands = 5;
 
+        public override bool LayerEnabled => Enabled && base.LayerEnabled;
         public bool Enabled { get; set; }
         public string PhysGroupName { get; set; }
 
@@ -398,7 +399,7 @@ namespace GUI.Types.Renderer
 
         public override void Render(Scene.RenderContext context)
         {
-            if (!Enabled || context.RenderPass != RenderPass.Translucent)
+            if (context.RenderPass != RenderPass.Translucent)
             {
                 return;
             }

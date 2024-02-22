@@ -571,6 +571,9 @@ namespace GUI.Types.Renderer
             {
                 physNode.Enabled = physicsGroups.Contains(physNode.PhysGroupName);
             }
+
+            Scene.UpdateOctrees();
+            SkyboxScene?.UpdateOctrees();
         }
     }
 }
