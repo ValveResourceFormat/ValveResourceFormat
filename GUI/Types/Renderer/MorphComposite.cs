@@ -111,11 +111,7 @@ namespace GUI.Types.Renderer
 
             GL.Disable(EnableCap.CullFace);
             GL.Enable(EnableCap.Blend);
-            GL.BlendFunc(BlendingFactor.SrcColor, BlendingFactor.One);
-            GL.BlendFunc(BlendingFactor.DstColor, BlendingFactor.One);
-            GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.One);
             GL.BlendFunc(BlendingFactor.DstAlpha, BlendingFactor.One);
-            GL.BlendEquation(BlendEquationMode.FuncAdd);
 
             GL.BindFramebuffer(FramebufferTarget.Framebuffer, frameBuffer);
             GL.UseProgram(shader.Program);

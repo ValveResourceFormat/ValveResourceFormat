@@ -110,8 +110,6 @@ namespace GUI.Types.ParticleRenderer.Renderers
         {
             var particles = particleBag.Current;
 
-            GL.Enable(EnableCap.Blend);
-
             if (blendMode == ParticleBlendMode.PARTICLE_OUTPUT_BLEND_MODE_ADD)
             {
                 GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.One);
@@ -212,13 +210,6 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
             GL.UseProgram(0);
             GL.BindVertexArray(0);
-
-            if (blendMode == ParticleBlendMode.PARTICLE_OUTPUT_BLEND_MODE_ADD)
-            {
-                GL.BlendEquation(BlendEquationMode.FuncAdd);
-            }
-
-            GL.Disable(EnableCap.Blend);
         }
 
         public override IEnumerable<string> GetSupportedRenderModes() => shader.RenderModes;

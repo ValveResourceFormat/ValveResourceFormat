@@ -150,12 +150,23 @@ namespace GUI.Types.Renderer
 
             if (IsTranslucent)
             {
-                GL.DepthMask(false);
-                GL.Enable(EnableCap.Blend);
-                GL.BlendFunc(BlendingFactor.SrcAlpha, isAdditiveBlend ? BlendingFactor.One : BlendingFactor.OneMinusSrcAlpha);
+                if (IsOverlay)
+                {
+                    GL.DepthMask(false);
+                    GL.Enable(EnableCap.Blend);
+                }
+
                 if (isMod2x)
                 {
                     GL.BlendFunc(BlendingFactor.DstColor, BlendingFactor.SrcColor);
+                }
+                else if (isAdditiveBlend)
+                {
+                    GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.One);
+                }
+                else
+                {
+                    GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
                 }
             }
 
@@ -173,7 +184,7 @@ namespace GUI.Types.Renderer
 
         public void PostRender()
         {
-            if (IsTranslucent)
+            if (IsTranslucent && IsOverlay)
             {
                 GL.DepthMask(true);
                 GL.Disable(EnableCap.Blend);
