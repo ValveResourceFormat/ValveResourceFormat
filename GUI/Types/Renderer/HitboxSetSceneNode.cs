@@ -9,7 +9,7 @@ namespace GUI.Types.Renderer
     class HitboxSetSceneNode : SceneNode
     {
         private static readonly Color32[] HitboxColors = [
-            new(1f, 0f, 1f, 0.14f),
+            new(1f, 1f, 1f, 0.14f),
             new(1f, 0.5f, 0.5f, 0.14f),
             new(0.5f, 1f, 0.5f, 0.14f),
             new(1f, 1f, 0.5f, 0.14f),
