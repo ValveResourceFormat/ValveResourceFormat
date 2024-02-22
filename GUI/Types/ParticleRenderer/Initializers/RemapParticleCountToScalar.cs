@@ -61,9 +61,14 @@ namespace GUI.Types.ParticleRenderer.Initializers
 
             var output = MathUtils.Lerp(remappedRange, outputMin, outputMax);
 
-            output = scaleInitialRange
-                    ? particle.GetScalar(FieldOutput) * output
-                    : output;
+            if (scaleInitialRange || setMethod == ParticleSetMethod.PARTICLE_SET_SCALE_INITIAL_VALUE)
+            {
+                output = particle.GetScalar(FieldOutput) * output;
+            }
+            else if (setMethod == ParticleSetMethod.PARTICLE_SET_ADD_TO_INITIAL_VALUE)
+            {
+                output = particle.GetScalar(FieldOutput) + output;
+            }
 
             particle.SetScalar(FieldOutput, output);
 
