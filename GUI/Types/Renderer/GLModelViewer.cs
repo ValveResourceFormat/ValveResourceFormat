@@ -16,6 +16,7 @@ namespace GUI.Types.Renderer
         public ComboBox animationComboBox { get; private set; }
         private CheckBox animationPlayPause;
         private CheckBox showSkeletonCheckbox;
+        private ComboBox hitboxComboBox;
         private GLViewerTrackBarControl animationTrackBar;
         private GLViewerTrackBarControl slowmodeTrackBar;
         public CheckedListBox meshGroupListBox { get; private set; }
@@ -52,6 +53,7 @@ namespace GUI.Types.Renderer
                 materialGroupListBox?.Dispose();
                 physicsGroupsComboBox?.Dispose();
                 showSkeletonCheckbox?.Dispose();
+                hitboxComboBox?.Dispose();
             }
 
             base.Dispose(disposing);
@@ -122,8 +124,6 @@ namespace GUI.Types.Renderer
 
                 skeletonSceneNode = new SkeletonSceneNode(Scene, modelSceneNode.AnimationController, model.Skeleton);
                 Scene.Add(skeletonSceneNode, true);
-                hitboxSetSceneNode = new HitboxSetSceneNode(Scene, modelSceneNode.AnimationController, model.Skeleton, model.GetEmbeddedMeshes().First().Mesh.HitboxSets.First().Value);
-                Scene.Add(hitboxSetSceneNode, true);
 
                 if (model.Skeleton.Bones.Length > 0)
                 {
@@ -134,6 +134,30 @@ namespace GUI.Types.Renderer
                             skeletonSceneNode.Enabled = isChecked;
                         }
                     });
+                }
+
+                var meshes = model.GetEmbeddedMeshes();
+                var firstMesh = meshes.Select(m => m.Mesh)
+                                      .FirstOrDefault((Mesh)null);
+                if (firstMesh != null && firstMesh.HitboxSets.Count > 0)
+                {
+                    var hitboxSets = firstMesh.HitboxSets;
+                    hitboxSetSceneNode = new HitboxSetSceneNode(Scene, modelSceneNode.AnimationController, model.Skeleton, hitboxSets);
+                    Scene.Add(hitboxSetSceneNode, true);
+
+                    hitboxComboBox = AddSelection("Hitbox Set", (hitboxSet, i) =>
+                    {
+                        if (i == 0)
+                        {
+                            hitboxSetSceneNode.SetHitboxSet(null);
+                        }
+                        else
+                        {
+                            hitboxSetSceneNode.SetHitboxSet(hitboxSet);
+                        }
+                    });
+                    hitboxComboBox.Items.Add("");
+                    hitboxComboBox.Items.AddRange([.. hitboxSets.Keys]);
                 }
 
                 phys = model.GetEmbeddedPhys();
