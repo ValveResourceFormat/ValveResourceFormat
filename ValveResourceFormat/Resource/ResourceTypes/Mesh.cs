@@ -1,6 +1,7 @@
 using System.IO;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO;
+using ValveResourceFormat.ResourceTypes.ModelData;
 using ValveResourceFormat.ResourceTypes.ModelData.Attachments;
 using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -31,6 +32,7 @@ namespace ValveResourceFormat.ResourceTypes
         private VBIB cachedVBIB { get; set; }
 
         public Dictionary<string, Attachment> Attachments { get; init; } = [];
+        public Dictionary<string, Hitbox[]> HitboxSets { get; init; } = [];
 
         public Mesh(BlockType type) : base(type, "PermRenderMeshData_t")
         {
@@ -46,6 +48,17 @@ namespace ValveResourceFormat.ResourceTypes
                 {
                     var attachment = new Attachment(attachmentsData[i]);
                     Attachments.Add(attachment.Name, attachment);
+                }
+            }
+            if (Data.ContainsKey("m_hitboxsets"))
+            {
+                var hitboxSetsData = Data.GetArray("m_hitboxsets");
+                for (var i = 0; i < hitboxSetsData.Length; i++)
+                {
+                    var hitboxSet = hitboxSetsData[i].GetSubCollection("value");
+                    var hitboxSetName = hitboxSet.GetStringProperty("m_name");
+                    var hitboxes = hitboxSet.GetArray("m_HitBoxes", d => new Hitbox(d));
+                    HitboxSets.Add(hitboxSetName, hitboxes);
                 }
             }
         }
