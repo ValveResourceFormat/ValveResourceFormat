@@ -22,6 +22,7 @@ namespace GUI.Types.Renderer
         public ComboBox materialGroupListBox { get; private set; }
         private ModelSceneNode modelSceneNode;
         private SkeletonSceneNode skeletonSceneNode;
+        private HitboxSetSceneNode hitboxSetSceneNode;
         private CheckedListBox physicsGroupsComboBox;
 
         public GLModelViewer(VrfGuiContext guiContext) : base(guiContext)
@@ -121,6 +122,8 @@ namespace GUI.Types.Renderer
 
                 skeletonSceneNode = new SkeletonSceneNode(Scene, modelSceneNode.AnimationController, model.Skeleton);
                 Scene.Add(skeletonSceneNode, true);
+                hitboxSetSceneNode = new HitboxSetSceneNode(Scene, modelSceneNode.AnimationController, model.Skeleton, model.GetEmbeddedMeshes().First().Mesh.HitboxSets.First().Value);
+                Scene.Add(hitboxSetSceneNode, true);
 
                 if (model.Skeleton.Bones.Length > 0)
                 {
