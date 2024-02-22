@@ -162,14 +162,14 @@ uniform sampler2D g_tTintMask;
 
 #define unlit (defined(vr_unlit_vfx) || defined(unlit_vfx) || defined(csgo_unlitgeneric_vfx) || (F_FULLBRIGHT == 1) || (F_UNLIT == 1) || (defined(static_overlay_vfx_common) && F_LIT == 0))
 #define alphatest (F_ALPHA_TEST == 1) || ((defined(csgo_unlitgeneric_vfx) || defined(static_overlay_vfx_common)) && (F_BLEND_MODE == 2))
-#define translucent (F_TRANSLUCENT == 1) || ((defined(csgo_unlitgeneric_vfx) || defined(static_overlay_vfx_common)) && (F_BLEND_MODE == 1)) // need to set this up on the cpu side
+#define translucent (F_TRANSLUCENT == 1) || (F_GLASS == 1) || defined(glass_vfx_common) || ((defined(csgo_unlitgeneric_vfx) || defined(static_overlay_vfx_common)) && (F_BLEND_MODE == 1)) // need to set this up on the cpu side
 #define blendMod2x (F_BLEND_MODE == 3)
 
 #if (alphatest == 1)
     uniform float g_flAlphaTestReference = 0.5;
 #endif
 
-#if (translucent == 1 || (F_GLASS == 1) || defined(glass_vfx_common))
+#if (translucent == 1)
     uniform float g_flOpacityScale = 1.0;
 #endif
 
