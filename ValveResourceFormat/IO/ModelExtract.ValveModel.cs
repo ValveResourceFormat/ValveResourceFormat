@@ -414,7 +414,7 @@ partial class ModelExtract
 
             foreach (var attachment in attachments.Values)
             {
-                var mainInfluence = attachment[attachment.Length - 1];
+                var mainInfluence = attachment[^1];
 
                 var node = MakeNode("Attachment",
                     ("name", attachment.Name),
