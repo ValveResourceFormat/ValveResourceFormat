@@ -33,7 +33,20 @@ namespace GUI.Types.ParticleRenderer.Renderers
         public RenderSprites(ParticleDefinitionParser parse, VrfGuiContext vrfGuiContext) : base(parse)
         {
             guiContext = vrfGuiContext;
-            shader = vrfGuiContext.ShaderLoader.LoadShader(ShaderName);
+
+            blendMode = parse.Enum<ParticleBlendMode>("m_nOutputBlendMode", blendMode);
+
+            var shaderParams = new Dictionary<string, byte>();
+            if (blendMode == ParticleBlendMode.PARTICLE_OUTPUT_BLEND_MODE_ADD)
+            {
+                shaderParams["F_ADDITIVE_BLEND"] = 1;
+            }
+            else if (blendMode == ParticleBlendMode.PARTICLE_OUTPUT_BLEND_MODE_MOD2X)
+            {
+                shaderParams["F_MOD2X"] = 1;
+            }
+
+            shader = vrfGuiContext.ShaderLoader.LoadShader(ShaderName, shaderParams);
 
             // The same quad is reused for all particles
             vaoHandle = SetupQuadBuffer();
@@ -69,7 +82,6 @@ namespace GUI.Types.ParticleRenderer.Renderers
 #endif
 
             animateInFps = parse.Boolean("m_bAnimateInFPS", animateInFps);
-            blendMode = parse.Enum<ParticleBlendMode>("m_nOutputBlendMode", blendMode);
             overbrightFactor = parse.NumberProvider("m_flOverbrightFactor", overbrightFactor);
             orientationType = parse.Enum("m_nOrientationType", orientationType);
             animationRate = parse.Float("m_flAnimationRate", animationRate);
@@ -255,6 +267,10 @@ namespace GUI.Types.ParticleRenderer.Renderers
             if (blendMode == ParticleBlendMode.PARTICLE_OUTPUT_BLEND_MODE_ADD)
             {
                 GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.One);
+            }
+            else if (blendMode == ParticleBlendMode.PARTICLE_OUTPUT_BLEND_MODE_MOD2X)
+            {
+                GL.BlendFunc(BlendingFactor.DstColor, BlendingFactor.SrcColor);
             }
             else /* if (blendMode == ParticleBlendMode.PARTICLE_OUTPUT_BLEND_MODE_ALPHA) */
             {
