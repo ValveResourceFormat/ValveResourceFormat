@@ -366,7 +366,10 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 #endif
 
     mat.Albedo = color.rgb;
+
+#if (F_TRANSLUCENT == 1)
     mat.Opacity = color.a;
+#endif
 
 #if defined(static_overlay_vfx_common) && (F_PAINT_VERTEX_COLORS == 1)
     mat.Albedo *= vVertexColorOut.rgb;
