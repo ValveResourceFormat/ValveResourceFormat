@@ -668,6 +668,7 @@ namespace GUI.Types.Renderer
                         {
                             var particleNode = new ParticleSceneNode(scene, particleSystem)
                             {
+                                Name = particle,
                                 Transform = Matrix4x4.CreateTranslation(origin),
                                 LayerName = "Particles",
                                 EntityData = entity,
@@ -740,6 +741,7 @@ namespace GUI.Types.Renderer
                     {
                         var errorModel = new ModelSceneNode(scene, (Model)errorModelResource.DataBlock, skin, optimizeForMapLoad: true)
                         {
+                            Name = "error",
                             Transform = transformationMatrix,
                             LayerName = layerName,
                             EntityData = entity,

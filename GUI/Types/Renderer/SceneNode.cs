@@ -33,7 +33,7 @@ namespace GUI.Types.Renderer
         public string Name { get; init; }
         public uint Id { get; set; }
 
-        public string DebugName => $"{Name} ({Id}) at {BoundingBox.Center.X:F2} {BoundingBox.Center.Y:F2} {BoundingBox.Center.Z:F2}";
+        public string DebugName => $"{Name ?? GetType().Name} ({Id}) at {BoundingBox.Center.X:F2} {BoundingBox.Center.Y:F2} {BoundingBox.Center.Z:F2}";
 
         public Scene Scene { get; }
 
