@@ -42,11 +42,11 @@ namespace GUI.Types.Renderer
 #endif
         }
 
-        public static PhysSceneNode CreateSphereNode(Scene scene, Vector3 center, float radius)
+        public static PhysSceneNode CreateSphereNode(Scene scene, Vector3 center, float radius, Color32 color)
         {
             var verts = new List<SimpleVertex>();
             var inds = new List<int>();
-            AddSphere(verts, inds, center, radius);
+            AddSphere(verts, inds, center, radius, color);
 
             var aabb = new AABB(new Vector3(radius), new Vector3(-radius));
             return new PhysSceneNode(scene, verts, inds)
@@ -55,11 +55,11 @@ namespace GUI.Types.Renderer
             };
         }
 
-        public static PhysSceneNode CreateCapsuleNode(Scene scene, Vector3 from, Vector3 to, float radius)
+        public static PhysSceneNode CreateCapsuleNode(Scene scene, Vector3 from, Vector3 to, float radius, Color32 color)
         {
             var verts = new List<SimpleVertex>();
             var inds = new List<int>();
-            AddCapsule(verts, inds, from, to, radius);
+            AddCapsule(verts, inds, from, to, radius, color);
 
             var min = Vector3.Min(from, to);
             var max = Vector3.Max(from, to);
@@ -76,10 +76,8 @@ namespace GUI.Types.Renderer
             AddTriangle(inds, 0, c, d, a);
         }
 
-        public static PhysSceneNode CreateBoxNode(Scene scene, Vector3 minBounds, Vector3 maxBounds)
+        public static PhysSceneNode CreateBoxNode(Scene scene, Vector3 minBounds, Vector3 maxBounds, Color32 color)
         {
-            var color = new Color32(0f, 1f, 1f, 0.3f);
-
             var inds = new List<int>();
             var verts = new List<SimpleVertex>
             {
@@ -144,7 +142,7 @@ namespace GUI.Types.Renderer
                         center = Vector3.Transform(center, bindPose[p]);
                     }
 
-                    AddSphere(verts[collisionAttributeIndex], inds[collisionAttributeIndex], center, radius);
+                    AddSphere(verts[collisionAttributeIndex], inds[collisionAttributeIndex], center, radius, new(1f, 1f, 0f, 0.3f));
 
                     var bbox = new AABB(center + new Vector3(radius),
                                         center - new Vector3(radius));
@@ -174,7 +172,7 @@ namespace GUI.Types.Renderer
                         center[1] = Vector3.Transform(center[1], bindPose[p]);
                     }
 
-                    AddCapsule(verts[collisionAttributeIndex], inds[collisionAttributeIndex], center[0], center[1], radius);
+                    AddCapsule(verts[collisionAttributeIndex], inds[collisionAttributeIndex], center[0], center[1], radius, new(1f, 1f, 0f, 0.3f));
                     foreach (var cn in center)
                     {
                         var bbox = new AABB(cn + new Vector3(radius),
@@ -351,15 +349,15 @@ namespace GUI.Types.Renderer
             return nodes;
         }
 
-        private static void AddCapsule(List<SimpleVertex> verts, List<int> inds, Vector3 c0, Vector3 c1, float radius)
+        private static void AddCapsule(List<SimpleVertex> verts, List<int> inds, Vector3 c0, Vector3 c1, float radius, Color32 color)
         {
             var up = Vector3.Normalize(c0 - c1);
 
             var baseVert0 = verts.Count;
-            AddHemisphere(verts, inds, c0, radius, up);
+            AddHemisphere(verts, inds, c0, radius, up, color);
 
             var baseVert1 = verts.Count;
-            AddHemisphere(verts, inds, c1, radius, -up);
+            AddHemisphere(verts, inds, c1, radius, -up, color);
 
             // connect hemispheres to create the cylinder
             for (var segment = 0; segment < Segments; segment++)
@@ -393,7 +391,7 @@ namespace GUI.Types.Renderer
             return Vector3.Normalize(sideVector);
         }
 
-        private static void AddHemisphere(List<SimpleVertex> verts, List<int> inds, Vector3 center, float radius, Vector3 up)
+        private static void AddHemisphere(List<SimpleVertex> verts, List<int> inds, Vector3 center, float radius, Vector3 up, Color32 color)
         {
             var baseVertex = verts.Count;
 
@@ -415,14 +413,14 @@ namespace GUI.Types.Renderer
                     var point = Vector3.Transform(v, Quaternion.Multiply(quatAround, quatUp));
                     var transformed = center + radius * Vector3.Normalize(point);
 
-                    verts.Add(new(transformed, new(1f, 1f, 0f, 0.3f)));
+                    verts.Add(new(transformed, color));
                 }
             }
 
             // midpoint
             var topVertexIndex = verts.Count - baseVertex;
             var transformedUp = center + radius * Vector3.Normalize(up);
-            verts.Add(new(transformedUp, new(1f, 1f, 0f, 0.3f)));
+            verts.Add(new(transformedUp, color));
 
             // generate triangles
             for (var band = 0; band < Bands; band++)
@@ -446,10 +444,10 @@ namespace GUI.Types.Renderer
             }
         }
 
-        private static void AddSphere(List<SimpleVertex> verts, List<int> inds, Vector3 center, float radius)
+        private static void AddSphere(List<SimpleVertex> verts, List<int> inds, Vector3 center, float radius, Color32 color)
         {
-            AddHemisphere(verts, inds, center, radius, Vector3.UnitZ);
-            AddHemisphere(verts, inds, center, radius, -Vector3.UnitZ);
+            AddHemisphere(verts, inds, center, radius, Vector3.UnitZ, color);
+            AddHemisphere(verts, inds, center, radius, -Vector3.UnitZ, color);
         }
 
         private static void AddTriangle(List<int> inds, int baseVertex, int a, int b, int c)

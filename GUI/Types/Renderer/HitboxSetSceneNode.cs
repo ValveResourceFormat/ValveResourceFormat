@@ -2,11 +2,24 @@ using System.Linq;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.ResourceTypes.ModelData;
 using OpenTK.Graphics.OpenGL;
+using GUI.Utils;
+using System.Windows.Forms;
 
 namespace GUI.Types.Renderer
 {
     class HitboxSetSceneNode : SceneNode
     {
+        private static readonly Color32[] HitboxColors = [
+            new(1f, 0f, 1f, 0.14f),
+            new(1f, 0.5f, 0.5f, 0.14f),
+            new(0.5f, 1f, 0.5f, 0.14f),
+            new(1f, 1f, 0.5f, 0.14f),
+            new(0.5f, 0.5f, 1f, 0.14f),
+            new(1f, 0.5f, 1f, 0.14f),
+            new(0.5f, 1f, 1f, 0.14f),
+            new(1f, 1f, 1f, 0.14f),
+            new(1f, 0.5f, 0.25f, 0.14f),
+        ];
         public bool Enabled { get; set; } = true;
 
         readonly AnimationController animationController;
@@ -38,13 +51,23 @@ namespace GUI.Types.Renderer
             }
         }
 
+        private static Color32 GetHitboxGroupColor(int group)
+        {
+            if (group < 0 || group >= HitboxColors.Length)
+            {
+                return HitboxColors[0];
+            }
+            return HitboxColors[group];
+        }
+
         private static PhysSceneNode CreatePhysNode(Scene scene, Hitbox hitbox)
         {
+            var color = GetHitboxGroupColor(hitbox.GroupId);
             return hitbox.ShapeType switch
             {
-                Hitbox.HitboxShape.Sphere => PhysSceneNode.CreateSphereNode(scene, hitbox.MinBounds, hitbox.ShapeRadius),
-                Hitbox.HitboxShape.Capsule => PhysSceneNode.CreateCapsuleNode(scene, hitbox.MinBounds, hitbox.MaxBounds, hitbox.ShapeRadius),
-                Hitbox.HitboxShape.Box => PhysSceneNode.CreateBoxNode(scene, hitbox.MinBounds, hitbox.MaxBounds),
+                Hitbox.HitboxShape.Sphere => PhysSceneNode.CreateSphereNode(scene, hitbox.MinBounds, hitbox.ShapeRadius, color),
+                Hitbox.HitboxShape.Capsule => PhysSceneNode.CreateCapsuleNode(scene, hitbox.MinBounds, hitbox.MaxBounds, hitbox.ShapeRadius, color),
+                Hitbox.HitboxShape.Box => PhysSceneNode.CreateBoxNode(scene, hitbox.MinBounds, hitbox.MaxBounds, color),
                 _ => throw new NotImplementedException($"Unknown hitbox shape type: {hitbox.ShapeType}")
             };
         }
