@@ -7,7 +7,7 @@ namespace GUI.Types.Renderer
 {
     static class MeshBatchRenderer
     {
-        [DebuggerDisplay("{Node.DebugName}")]
+        [DebuggerDisplay("{Node.DebugName,nq}")]
         public struct Request
         {
             public Matrix4x4 Transform;
