@@ -3,7 +3,6 @@ using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.ResourceTypes.ModelData;
 using OpenTK.Graphics.OpenGL;
 using GUI.Utils;
-using System.Windows.Forms;
 
 namespace GUI.Types.Renderer
 {
@@ -20,35 +19,57 @@ namespace GUI.Types.Renderer
             new(1f, 1f, 1f, 0.14f),
             new(1f, 0.5f, 0.25f, 0.14f),
         ];
-        public bool Enabled { get; set; } = true;
+
+        class HitboxSetData
+        {
+            public Hitbox[] HitboxSet { get; init; }
+            public PhysSceneNode[] PhysSceneNodes { get; init; }
+            public int[] HitboxBoneIndexes { get; init; }
+        }
 
         readonly AnimationController animationController;
         readonly Skeleton skeleton;
-        readonly Hitbox[] hitboxSet;
 
-        readonly PhysSceneNode[] physSceneNodes;
         readonly Matrix4x4[] boneMatrices;
-        readonly int[] hitboxBoneIndexes;
+        readonly Dictionary<string, HitboxSetData> hitboxSets = new();
+        HitboxSetData currentSet;
 
-        public HitboxSetSceneNode(Scene scene, AnimationController animationController, Skeleton skeleton, Hitbox[] hitboxSet)
+        public HitboxSetSceneNode(Scene scene, AnimationController animationController, Skeleton skeleton, Dictionary<string, Hitbox[]> hitboxSets)
             : base(scene)
         {
             this.skeleton = skeleton;
             this.animationController = animationController;
-            this.hitboxSet = hitboxSet;
-
             boneMatrices = new Matrix4x4[skeleton.Bones.Length];
-            physSceneNodes = new PhysSceneNode[hitboxSet.Length];
-            hitboxBoneIndexes = new int[hitboxSet.Length];
 
             var boneIndexes = skeleton.Bones.Select((b, i) => (b, i))
                                             .ToDictionary(p => p.b.Name, p => p.i);
+
+            foreach (var pair in hitboxSets)
+            {
+                AddHitboxSet(pair.Key, pair.Value, boneIndexes);
+            }
+        }
+
+        private void AddHitboxSet(string name, Hitbox[] hitboxSet, Dictionary<string, int> boneIndexes)
+        {
+            var physSceneNodes = new PhysSceneNode[hitboxSet.Length];
+            var hitboxBoneIndexes = new int[hitboxSet.Length];
+
             for (var i = 0; i < hitboxSet.Length; i++)
             {
                 var hitbox = hitboxSet[i];
-                physSceneNodes[i] = CreatePhysNode(scene, hitbox);
+                physSceneNodes[i] = CreatePhysNode(Scene, hitbox);
                 hitboxBoneIndexes[i] = boneIndexes[hitbox.BoneName];
             }
+
+            var data = new HitboxSetData
+            {
+                HitboxSet = hitboxSet,
+                HitboxBoneIndexes = hitboxBoneIndexes,
+                PhysSceneNodes = physSceneNodes
+            };
+
+            hitboxSets.Add(name, data);
         }
 
         private static Color32 GetHitboxGroupColor(int group)
@@ -72,9 +93,20 @@ namespace GUI.Types.Renderer
             };
         }
 
+        public void SetHitboxSet(string set)
+        {
+            if (set == null)
+            {
+                currentSet = null;
+                return;
+            }
+
+            currentSet = hitboxSets[set];
+        }
+
         public override void Update(Scene.UpdateContext context)
         {
-            if (!Enabled)
+            if (currentSet == null)
             {
                 return;
             }
@@ -124,14 +156,14 @@ namespace GUI.Types.Renderer
             }
         }
 
-        public override void Render(Scene.RenderContext context)
+        private void RenderHitboxSet(Scene.RenderContext context, HitboxSetData hitboxSetData)
         {
-            GL.DepthFunc(DepthFunction.Always);
+            var hitboxSet = hitboxSetData.HitboxSet;
             for (var i = 0; i < hitboxSet.Length; i++)
             {
-                var shape = physSceneNodes[i];
+                var shape = hitboxSetData.PhysSceneNodes[i];
                 var hitbox = hitboxSet[i];
-                var boneId = hitboxBoneIndexes[i];
+                var boneId = hitboxSetData.HitboxBoneIndexes[i];
 
                 if (hitbox.TranslationOnly)
                 {
@@ -145,6 +177,17 @@ namespace GUI.Types.Renderer
                 shape.Enabled = true;
                 shape.Render(context);
             }
+        }
+
+        public override void Render(Scene.RenderContext context)
+        {
+            if (currentSet == null)
+            {
+                return;
+            }
+
+            GL.DepthFunc(DepthFunction.Always);
+            RenderHitboxSet(context, currentSet);
             GL.DepthFunc(DepthFunction.Greater);
         }
     }
