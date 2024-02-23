@@ -23,7 +23,7 @@ namespace GUI.Types.Renderer
         class HitboxSetData
         {
             public Hitbox[] HitboxSet { get; init; }
-            public PhysSceneNode[] PhysSceneNodes { get; init; }
+            public HitboxSceneNode[] SceneNodes { get; init; }
             public int[] HitboxBoneIndexes { get; init; }
         }
 
@@ -52,13 +52,13 @@ namespace GUI.Types.Renderer
 
         private void AddHitboxSet(string name, Hitbox[] hitboxSet, Dictionary<string, int> boneIndexes)
         {
-            var physSceneNodes = new PhysSceneNode[hitboxSet.Length];
+            var sceneNodes = new HitboxSceneNode[hitboxSet.Length];
             var hitboxBoneIndexes = new int[hitboxSet.Length];
 
             for (var i = 0; i < hitboxSet.Length; i++)
             {
                 var hitbox = hitboxSet[i];
-                physSceneNodes[i] = CreatePhysNode(Scene, hitbox);
+                sceneNodes[i] = CreateSceneNode(Scene, hitbox);
 
                 if (string.IsNullOrEmpty(hitbox.BoneName))
                 {
@@ -74,7 +74,7 @@ namespace GUI.Types.Renderer
             {
                 HitboxSet = hitboxSet,
                 HitboxBoneIndexes = hitboxBoneIndexes,
-                PhysSceneNodes = physSceneNodes
+                SceneNodes = sceneNodes
             };
 
             hitboxSets.Add(name, data);
@@ -89,14 +89,14 @@ namespace GUI.Types.Renderer
             return HitboxColors[group];
         }
 
-        private static PhysSceneNode CreatePhysNode(Scene scene, Hitbox hitbox)
+        private static HitboxSceneNode CreateSceneNode(Scene scene, Hitbox hitbox)
         {
             var color = GetHitboxGroupColor(hitbox.GroupId);
             return hitbox.ShapeType switch
             {
-                Hitbox.HitboxShape.Sphere => PhysSceneNode.CreateSphereNode(scene, hitbox.MinBounds, hitbox.ShapeRadius, color),
-                Hitbox.HitboxShape.Capsule => PhysSceneNode.CreateCapsuleNode(scene, hitbox.MinBounds, hitbox.MaxBounds, hitbox.ShapeRadius, color),
-                Hitbox.HitboxShape.Box => PhysSceneNode.CreateBoxNode(scene, hitbox.MinBounds, hitbox.MaxBounds, color),
+                Hitbox.HitboxShape.Sphere => HitboxSceneNode.CreateSphereNode(scene, hitbox.MinBounds, hitbox.ShapeRadius, color),
+                Hitbox.HitboxShape.Capsule => HitboxSceneNode.CreateCapsuleNode(scene, hitbox.MinBounds, hitbox.MaxBounds, hitbox.ShapeRadius, color),
+                Hitbox.HitboxShape.Box => HitboxSceneNode.CreateBoxNode(scene, hitbox.MinBounds, hitbox.MaxBounds, color),
                 _ => throw new NotImplementedException($"Unknown hitbox shape type: {hitbox.ShapeType}")
             };
         }
@@ -169,7 +169,7 @@ namespace GUI.Types.Renderer
             var hitboxSet = hitboxSetData.HitboxSet;
             for (var i = 0; i < hitboxSet.Length; i++)
             {
-                var shape = hitboxSetData.PhysSceneNodes[i];
+                var shape = hitboxSetData.SceneNodes[i];
                 var hitbox = hitboxSet[i];
                 var boneId = hitboxSetData.HitboxBoneIndexes[i];
                 var targetTransform = boneId == -1 ? Matrix4x4.Identity : boneMatrices[boneId];
@@ -183,7 +183,6 @@ namespace GUI.Types.Renderer
                 {
                     shape.Transform = targetTransform;
                 }
-                shape.Enabled = true;
                 shape.Render(context);
             }
         }
