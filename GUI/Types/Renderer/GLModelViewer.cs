@@ -136,12 +136,9 @@ namespace GUI.Types.Renderer
                     });
                 }
 
-                var meshes = model.GetEmbeddedMeshes();
-                var firstMesh = meshes.Select(m => m.Mesh)
-                                      .FirstOrDefault((Mesh)null);
-                if (firstMesh != null && firstMesh.HitboxSets.Count > 0)
+                if (model.HitboxSets != null && model.HitboxSets.Count > 0)
                 {
-                    var hitboxSets = firstMesh.HitboxSets;
+                    var hitboxSets = model.HitboxSets;
                     hitboxSetSceneNode = new HitboxSetSceneNode(Scene, modelSceneNode.AnimationController, model.Skeleton, hitboxSets);
                     Scene.Add(hitboxSetSceneNode, true);
 
