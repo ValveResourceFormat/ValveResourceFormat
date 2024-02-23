@@ -460,7 +460,10 @@ namespace GUI.Types.Renderer
             Scene.SetEnabledLayers(layers);
             SkyboxScene?.SetEnabledLayers(layers);
 
-            staticOctreeRenderer = new OctreeDebugRenderer<SceneNode>(Scene.StaticOctree, Scene.GuiContext, false);
+            if (showStaticOctree)
+            {
+                staticOctreeRenderer.Rebuild();
+            }
         }
 
         private void SetRenderMode(string renderMode)

@@ -145,7 +145,7 @@ namespace GUI.Types.Renderer
             }
         }
 
-        private void Rebuild()
+        public void Rebuild()
         {
             var vertices = new List<SimpleVertex>();
             AddOctreeNode(vertices, octree.Root, 0);

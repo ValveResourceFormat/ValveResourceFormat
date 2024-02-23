@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
@@ -6,6 +7,7 @@ namespace GUI.Types.Renderer
 {
     static class MeshBatchRenderer
     {
+        [DebuggerDisplay("{Node.DebugName,nq}")]
         public struct Request
         {
             public Matrix4x4 Transform;

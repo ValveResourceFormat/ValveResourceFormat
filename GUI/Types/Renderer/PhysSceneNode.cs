@@ -7,6 +7,7 @@ namespace GUI.Types.Renderer
 {
     class PhysSceneNode : ShapeSceneNode
     {
+        public override bool LayerEnabled => Enabled && base.LayerEnabled;
         public bool Enabled { get; set; }
         public string PhysGroupName { get; set; }
 
@@ -255,15 +256,6 @@ namespace GUI.Types.Renderer
                 return physSceneNode;
             }).ToArray();
             return nodes;
-        }
-
-        public override void Render(Scene.RenderContext context)
-        {
-            if (!Enabled)
-            {
-                return;
-            }
-            base.Render(context);
         }
 
         public override void Update(Scene.UpdateContext context)
