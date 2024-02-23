@@ -59,7 +59,15 @@ namespace GUI.Types.Renderer
             {
                 var hitbox = hitboxSet[i];
                 physSceneNodes[i] = CreatePhysNode(Scene, hitbox);
-                hitboxBoneIndexes[i] = boneIndexes[hitbox.BoneName];
+
+                if (string.IsNullOrEmpty(hitbox.BoneName))
+                {
+                    hitboxBoneIndexes[i] = -1;
+                }
+                else
+                {
+                    hitboxBoneIndexes[i] = boneIndexes[hitbox.BoneName];
+                }
             }
 
             var data = new HitboxSetData
@@ -164,15 +172,16 @@ namespace GUI.Types.Renderer
                 var shape = hitboxSetData.PhysSceneNodes[i];
                 var hitbox = hitboxSet[i];
                 var boneId = hitboxSetData.HitboxBoneIndexes[i];
+                var targetTransform = boneId == -1 ? Matrix4x4.Identity : boneMatrices[boneId];
 
                 if (hitbox.TranslationOnly)
                 {
-                    Matrix4x4.Decompose(boneMatrices[boneId], out _, out _, out var translation);
+                    Matrix4x4.Decompose(targetTransform, out _, out _, out var translation);
                     shape.Transform = Matrix4x4.CreateTranslation(translation);
                 }
                 else
                 {
-                    shape.Transform = boneMatrices[boneId];
+                    shape.Transform = targetTransform;
                 }
                 shape.Enabled = true;
                 shape.Render(context);
