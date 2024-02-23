@@ -652,33 +652,23 @@ partial class ModelExtract
 
         KVObject GetHitboxNode(Hitbox hitbox)
         {
-            KVObject node;
-            if (hitbox.ShapeType == Hitbox.HitboxShape.Box)
+            var node = hitbox.ShapeType switch
             {
-                node = MakeNode("Hitbox",
+                Hitbox.HitboxShape.Box => MakeNode("Hitbox",
                     ("hitbox_mins", hitbox.MinBounds),
                     ("hitbox_maxs", hitbox.MaxBounds)
-                );
-            }
-            else if (hitbox.ShapeType == Hitbox.HitboxShape.Capsule)
-            {
-                node = MakeNode("HitboxCapsule",
+                ),
+                Hitbox.HitboxShape.Capsule => MakeNode("HitboxCapsule",
                     ("radius", hitbox.ShapeRadius),
                     ("point0", hitbox.MinBounds),
                     ("point1", hitbox.MaxBounds)
-                );
-            }
-            else if (hitbox.ShapeType == Hitbox.HitboxShape.Sphere)
-            {
-                node = MakeNode("HitboxSphere",
+                ),
+                Hitbox.HitboxShape.Sphere => MakeNode("HitboxSphere",
                     ("center", hitbox.MinBounds),
                     ("radius", hitbox.ShapeRadius)
-                );
-            }
-            else
-            {
-                throw new NotImplementedException();
-            }
+                ),
+                _ => throw new NotImplementedException($"Unknown hitbox shape type: {hitbox.ShapeType}")
+            };
 
             node.AddProperty("name", MakeValue(hitbox.Name));
             node.AddProperty("parent_bone", MakeValue(hitbox.BoneName));
