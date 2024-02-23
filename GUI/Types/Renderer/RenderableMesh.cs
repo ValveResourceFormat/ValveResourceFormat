@@ -20,7 +20,7 @@ namespace GUI.Types.Renderer
 
         private readonly VrfGuiContext guiContext;
         public List<DrawCall> DrawCallsOpaque { get; } = [];
-        public List<DrawCall> DrawCallsOverlay { get; } = new List<DrawCall>(1);
+        public List<DrawCall> DrawCallsOverlay { get; } = [];
         public List<DrawCall> DrawCallsBlended { get; } = [];
         private IEnumerable<DrawCall> DrawCalls => DrawCallsOpaque.Concat(DrawCallsOverlay).Concat(DrawCallsBlended);
 
