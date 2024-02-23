@@ -225,7 +225,7 @@ namespace ValveResourceFormat.ResourceTypes
             var allAnims = new List<Animation>();
             foreach (var modelName in refAnimModels)
             {
-                var resource = fileLoader.LoadFileCompiled(modelName);
+                using var resource = fileLoader.LoadFileCompiled(modelName);
                 var model = (Model)resource.DataBlock;
                 model.cachedSkeleton = Skeleton;
                 var anims = model.GetAllAnimations(fileLoader);
