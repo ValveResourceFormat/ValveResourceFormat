@@ -214,6 +214,27 @@ namespace ValveResourceFormat.ResourceTypes
             return Animation.FromData(animationDataBlock.Data, decodeKey, Skeleton, FlexControllers);
         }
 
+        public IEnumerable<Animation> GetReferencedAnimations(IFileLoader fileLoader)
+        {
+            var refAnimModels = Data.GetArray<string>("m_refAnimIncludeModels");
+            if (refAnimModels == null || refAnimModels.Length == 0)
+            {
+                return [];
+            }
+
+            var allAnims = new List<Animation>();
+            foreach (var modelName in refAnimModels)
+            {
+                var resource = fileLoader.LoadFileCompiled(modelName);
+                var model = (Model)resource.DataBlock;
+                model.cachedSkeleton = Skeleton;
+                var anims = model.GetAllAnimations(fileLoader);
+                allAnims.AddRange(anims);
+            }
+
+            return allAnims;
+        }
+
         public IEnumerable<Animation> GetAllAnimations(IFileLoader fileLoader)
         {
             if (CachedAnimations != null)
@@ -233,6 +254,9 @@ namespace ValveResourceFormat.ResourceTypes
                     animations.AddRange(AnimationGroupLoader.LoadAnimationGroup(animGroup, fileLoader, Skeleton, FlexControllers));
                 }
             }
+
+            var referencedAnims = GetReferencedAnimations(fileLoader);
+            animations.AddRange(referencedAnims);
 
             CachedAnimations = [.. animations];
 
