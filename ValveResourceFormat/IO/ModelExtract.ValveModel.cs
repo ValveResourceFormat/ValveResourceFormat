@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
+using ValveResourceFormat.ResourceTypes.ModelData;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics;
 using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -382,6 +383,8 @@ partial class ModelExtract
         var attachmentList = MakeLazyList("AttachmentList");
         var skeleton = MakeLazyList("Skeleton");
         var modelModifierList = MakeLazyList("ModelModifierList");
+        var hitboxSetList = MakeLazyList("HitboxSetList");
+
         var boneMarkupList = MakeListNode("BoneMarkupList");
         AddItem(root.Children, boneMarkupList.Node);
         boneMarkupList.Node.AddProperty("bone_cull_type", MakeValue("None"));
@@ -536,6 +539,7 @@ partial class ModelExtract
         if (model != null)
         {
             ExtractModelKeyValues(root.Node);
+            ExtractHitboxSets();
 
             if (model.Skeleton.Roots.Length > 0)
             {
@@ -643,6 +647,67 @@ partial class ModelExtract
                 remap.AddProperty("from", MakeValue(from));
                 remap.AddProperty("to", MakeValue(to));
                 AddItem(remaps, remap);
+            }
+        }
+
+        KVObject GetHitboxNode(Hitbox hitbox)
+        {
+            KVObject node;
+            if (hitbox.ShapeType == Hitbox.HitboxShape.Box)
+            {
+                node = MakeNode("Hitbox",
+                    ("hitbox_mins", hitbox.MinBounds),
+                    ("hitbox_maxs", hitbox.MaxBounds)
+                );
+            }
+            else if (hitbox.ShapeType == Hitbox.HitboxShape.Capsule)
+            {
+                node = MakeNode("HitboxCapsule",
+                    ("radius", hitbox.ShapeRadius),
+                    ("point0", hitbox.MinBounds),
+                    ("point1", hitbox.MaxBounds)
+                );
+            }
+            else if (hitbox.ShapeType == Hitbox.HitboxShape.Sphere)
+            {
+                node = MakeNode("HitboxSphere",
+                    ("center", hitbox.MinBounds),
+                    ("radius", hitbox.ShapeRadius)
+                );
+            }
+            else
+            {
+                throw new NotImplementedException();
+            }
+
+            node.AddProperty("name", MakeValue(hitbox.Name));
+            node.AddProperty("parent_bone", MakeValue(hitbox.BoneName));
+            node.AddProperty("surface_property", MakeValue(hitbox.SurfaceProperty));
+            node.AddProperty("translation_only", MakeValue(hitbox.TranslationOnly));
+            node.AddProperty("group_id", MakeValue(hitbox.GroupId));
+
+            return node;
+        }
+
+        void ExtractHitboxSets()
+        {
+            if (model.HitboxSets == null)
+            {
+                return;
+            }
+
+            foreach (var pair in model.HitboxSets)
+            {
+                var children = new KVObject(null, true, pair.Value.Length);
+                var hitboxSet = MakeNode("HitboxSet", ("name", pair.Key), ("children", children));
+
+                foreach (var hitbox in pair.Value)
+                {
+                    var hitboxNode = GetHitboxNode(hitbox);
+                    children.AddProperty(null, MakeValue(hitboxNode));
+                }
+
+                AddItem(hitboxSetList.Value, hitboxSet);
             }
         }
 
