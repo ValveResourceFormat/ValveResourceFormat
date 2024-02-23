@@ -120,48 +120,7 @@ namespace GUI.Types.Renderer
             }
 
             LocalBoundingBox = new AABB(new Vector3(float.MinValue), new Vector3(float.MaxValue));
-
-            Frame frame = null;
-
-            if (animationController.ActiveAnimation != null)
-            {
-                if (animationController.IsPaused)
-                {
-                    frame = animationController.FrameCache.GetFrame(animationController.ActiveAnimation, animationController.Frame);
-                }
-                else
-                {
-                    frame = animationController.FrameCache.GetInterpolatedFrame(animationController.ActiveAnimation, animationController.Time);
-                }
-            }
-
-            foreach (var root in skeleton.Roots)
-            {
-                GetAnimationMatrixRecursive(root, Matrix4x4.Identity, frame);
-            }
-        }
-
-        private void GetAnimationMatrixRecursive(Bone bone, Matrix4x4 bindPose, Frame frame)
-        {
-            if (frame != null)
-            {
-                var transform = frame.Bones[bone.Index];
-                bindPose = Matrix4x4.CreateScale(transform.Scale)
-                    * Matrix4x4.CreateFromQuaternion(transform.Angle)
-                    * Matrix4x4.CreateTranslation(transform.Position)
-                    * bindPose;
-            }
-            else
-            {
-                bindPose = bone.BindPose * bindPose;
-            }
-
-            boneMatrices[bone.Index] = bindPose;
-
-            foreach (var child in bone.Children)
-            {
-                GetAnimationMatrixRecursive(child, bindPose, frame);
-            }
+            animationController?.GetBoneMatrices(boneMatrices);
         }
 
         private void RenderHitboxSet(Scene.RenderContext context, HitboxSetData hitboxSetData)
