@@ -9,15 +9,15 @@ namespace GUI.Types.Renderer
     class HitboxSetSceneNode : SceneNode
     {
         private static readonly Color32[] HitboxColors = [
-            new(1f, 1f, 1f, 0.14f),
-            new(1f, 0.5f, 0.5f, 0.14f),
-            new(0.5f, 1f, 0.5f, 0.14f),
-            new(1f, 1f, 0.5f, 0.14f),
-            new(0.5f, 0.5f, 1f, 0.14f),
-            new(1f, 0.5f, 1f, 0.14f),
-            new(0.5f, 1f, 1f, 0.14f),
-            new(1f, 1f, 1f, 0.14f),
-            new(1f, 0.5f, 0.25f, 0.14f),
+            new(1f, 1f, 1f, 0.14f), //HITGROUP_GENERIC
+            new(1f, 0.5f, 0.5f, 0.14f), //HITGROUP_HEAD
+            new(0.5f, 1f, 0.5f, 0.14f), //HITGROUP_CHEST
+            new(1f, 1f, 0.5f, 0.14f), //HITGROUP_STOMACH
+            new(0.5f, 0.5f, 1f, 0.14f), //HITGROUP_LEFTARM
+            new(1f, 0.5f, 1f, 0.14f), //HITGROUP_RIGHTARM
+            new(0.5f, 1f, 1f, 0.14f), //HITGROUP_LEFTLEG
+            new(1f, 1f, 1f, 0.14f), //HITGROUP_RIGHTLEG
+            new(1f, 0.5f, 0.25f, 0.14f), //HITGROUP_NECK
         ];
 
         class HitboxSetData
