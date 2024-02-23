@@ -713,6 +713,7 @@ partial class ModelExtract
             "weapon_metadata",
             "glove_viewmodel_reference",
             "composite_material_order",
+            "patch_camera_preset_list",
         };
             var genericDataClassesList = new (string ListKey, string Class)[] {
             ("ao_proxy_capsule_list", "ao_proxy_capsule"),
@@ -728,7 +729,6 @@ partial class ModelExtract
             ("particle_cfg_list", "particle_cfg"),
             ("snapshot_weights_upperbody_list", "snapshot_weights_upperbody"),
             ("snapshot_weights_all_list", "snapshot_weights_all"),
-            ("patch_camera_preset_list", "patch_camera_preset"),
             ("bodygroup_preset_list", "bodygroup_preset"),
         };
 
