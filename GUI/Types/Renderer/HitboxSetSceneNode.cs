@@ -112,18 +112,7 @@ namespace GUI.Types.Renderer
             currentSet = hitboxSets[set];
         }
 
-        public override void Update(Scene.UpdateContext context)
-        {
-            if (currentSet == null)
-            {
-                return;
-            }
-
-            LocalBoundingBox = new AABB(new Vector3(float.MinValue), new Vector3(float.MaxValue));
-            animationController?.GetBoneMatrices(boneMatrices);
-        }
-
-        private void RenderHitboxSet(Scene.RenderContext context, HitboxSetData hitboxSetData)
+        private void UpdateHitboxSet(HitboxSetData hitboxSetData)
         {
             var hitboxSet = hitboxSetData.HitboxSet;
             for (var i = 0; i < hitboxSet.Length; i++)
@@ -142,8 +131,19 @@ namespace GUI.Types.Renderer
                 {
                     shape.Transform = targetTransform;
                 }
-                shape.Render(context);
             }
+        }
+
+        public override void Update(Scene.UpdateContext context)
+        {
+            if (currentSet == null)
+            {
+                return;
+            }
+
+            LocalBoundingBox = new AABB(new Vector3(float.MinValue), new Vector3(float.MaxValue));
+            animationController?.GetBoneMatrices(boneMatrices);
+            UpdateHitboxSet(currentSet);
         }
 
         public override void Render(Scene.RenderContext context)
@@ -154,7 +154,10 @@ namespace GUI.Types.Renderer
             }
 
             GL.DepthFunc(DepthFunction.Always);
-            RenderHitboxSet(context, currentSet);
+            foreach (var node in currentSet.SceneNodes)
+            {
+                node.Render(context);
+            }
             GL.DepthFunc(DepthFunction.Greater);
         }
     }
