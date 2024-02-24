@@ -1,75 +1,61 @@
 using GUI.Utils;
+using ValveResourceFormat.ResourceTypes.ModelData;
 
 namespace GUI.Types.Renderer
 {
     internal class HitboxSceneNode : ShapeSceneNode
     {
-        public HitboxSceneNode(Scene scene, List<SimpleVertex> verts, List<int> inds) : base(scene, verts, inds)
+        private static readonly Color32[] HitboxColors = [
+            new(1f, 1f, 1f, 0.14f), //HITGROUP_GENERIC
+            new(1f, 0.5f, 0.5f, 0.14f), //HITGROUP_HEAD
+            new(0.5f, 1f, 0.5f, 0.14f), //HITGROUP_CHEST
+            new(1f, 1f, 0.5f, 0.14f), //HITGROUP_STOMACH
+            new(0.5f, 0.5f, 1f, 0.14f), //HITGROUP_LEFTARM
+            new(1f, 0.5f, 1f, 0.14f), //HITGROUP_RIGHTARM
+            new(0.5f, 1f, 1f, 0.14f), //HITGROUP_LEFTLEG
+            new(1f, 1f, 1f, 0.14f), //HITGROUP_RIGHTLEG
+            new(1f, 0.5f, 0.25f, 0.14f), //HITGROUP_NECK
+        ];
+
+
+        /// <summary>
+        /// Constructs a node with a single box shape
+        /// </summary>
+        private HitboxSceneNode(Scene scene, Vector3 minBounds, Vector3 maxBounds, Color32 color) : base(scene, minBounds, maxBounds, color) { }
+
+        /// <summary>
+        /// Constructs a node with a single sphere shape
+        /// </summary>
+        private HitboxSceneNode(Scene scene, Vector3 center, float radius, Color32 color) : base(scene, center, radius, color) { }
+
+        /// <summary>
+        /// Constructs a node with a single capsule shape
+        /// </summary>
+        private HitboxSceneNode(Scene scene, Vector3 from, Vector3 to, float radius, Color32 color) : base(scene, from, to, radius, color) { }
+
+        private static Color32 GetHitboxGroupColor(int group)
         {
+            if (group < 0 || group >= HitboxColors.Length)
+            {
+                return HitboxColors[0];
+            }
+            return HitboxColors[group];
         }
 
-        public static HitboxSceneNode CreateSphereNode(Scene scene, Vector3 center, float radius, Color32 color)
+        public static HitboxSceneNode Create(Scene scene, Hitbox hitbox)
         {
-            var verts = new List<SimpleVertex>();
-            var inds = new List<int>();
-            AddSphere(verts, inds, center, radius, color);
-
-            var aabb = new AABB(new Vector3(radius), new Vector3(-radius));
-            return new HitboxSceneNode(scene, verts, inds)
+            var color = GetHitboxGroupColor(hitbox.GroupId);
+            return hitbox.ShapeType switch
             {
-                LocalBoundingBox = aabb
-            };
-        }
-
-        public static HitboxSceneNode CreateCapsuleNode(Scene scene, Vector3 from, Vector3 to, float radius, Color32 color)
-        {
-            var verts = new List<SimpleVertex>();
-            var inds = new List<int>();
-            AddCapsule(verts, inds, from, to, radius, color);
-
-            var min = Vector3.Min(from, to);
-            var max = Vector3.Max(from, to);
-            var aabb = new AABB(min - new Vector3(radius), max + new Vector3(radius));
-            return new HitboxSceneNode(scene, verts, inds)
-            {
-                LocalBoundingBox = aabb,
-            };
-        }
-
-        public static HitboxSceneNode CreateBoxNode(Scene scene, Vector3 minBounds, Vector3 maxBounds, Color32 color)
-        {
-            var inds = new List<int>();
-            var verts = new List<SimpleVertex>
-            {
-                new(new(minBounds.X, minBounds.Y, minBounds.Z), color),
-                new(new(minBounds.X, minBounds.Y, maxBounds.Z), color),
-                new(new(minBounds.X, maxBounds.Y, maxBounds.Z), color),
-                new(new(minBounds.X, maxBounds.Y, minBounds.Z), color),
-
-                new(new(maxBounds.X, minBounds.Y, minBounds.Z), color),
-                new(new(maxBounds.X, minBounds.Y, maxBounds.Z), color),
-                new(new(maxBounds.X, maxBounds.Y, maxBounds.Z), color),
-                new(new(maxBounds.X, maxBounds.Y, minBounds.Z), color),
-            };
-
-            AddFace(inds, 0, 1, 2, 3);
-            AddFace(inds, 1, 5, 6, 2);
-            AddFace(inds, 5, 4, 7, 6);
-            AddFace(inds, 0, 3, 7, 4);
-            AddFace(inds, 3, 2, 6, 7);
-            AddFace(inds, 1, 0, 4, 5);
-
-            var aabb = new AABB(minBounds, maxBounds);
-
-            return new HitboxSceneNode(scene, verts, inds)
-            {
-                LocalBoundingBox = aabb,
+                Hitbox.HitboxShape.Box => new HitboxSceneNode(scene, hitbox.MinBounds, hitbox.MaxBounds, color),
+                Hitbox.HitboxShape.Sphere => new HitboxSceneNode(scene, hitbox.MinBounds, hitbox.ShapeRadius, color),
+                Hitbox.HitboxShape.Capsule => new HitboxSceneNode(scene, hitbox.MinBounds, hitbox.MaxBounds, hitbox.ShapeRadius, color),
+                _ => throw new NotImplementedException($"Unknown hitbox shape type: {hitbox.ShapeType}")
             };
         }
 
         public override void Update(Scene.UpdateContext context)
         {
-
         }
     }
 }

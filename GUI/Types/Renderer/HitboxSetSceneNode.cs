@@ -8,18 +8,6 @@ namespace GUI.Types.Renderer
 {
     class HitboxSetSceneNode : SceneNode
     {
-        private static readonly Color32[] HitboxColors = [
-            new(1f, 1f, 1f, 0.14f), //HITGROUP_GENERIC
-            new(1f, 0.5f, 0.5f, 0.14f), //HITGROUP_HEAD
-            new(0.5f, 1f, 0.5f, 0.14f), //HITGROUP_CHEST
-            new(1f, 1f, 0.5f, 0.14f), //HITGROUP_STOMACH
-            new(0.5f, 0.5f, 1f, 0.14f), //HITGROUP_LEFTARM
-            new(1f, 0.5f, 1f, 0.14f), //HITGROUP_RIGHTARM
-            new(0.5f, 1f, 1f, 0.14f), //HITGROUP_LEFTLEG
-            new(1f, 1f, 1f, 0.14f), //HITGROUP_RIGHTLEG
-            new(1f, 0.5f, 0.25f, 0.14f), //HITGROUP_NECK
-        ];
-
         class HitboxSetData
         {
             public Hitbox[] HitboxSet { get; init; }
@@ -58,7 +46,7 @@ namespace GUI.Types.Renderer
             for (var i = 0; i < hitboxSet.Length; i++)
             {
                 var hitbox = hitboxSet[i];
-                sceneNodes[i] = CreateSceneNode(Scene, hitbox);
+                sceneNodes[i] = HitboxSceneNode.Create(Scene, hitbox);
 
                 if (string.IsNullOrEmpty(hitbox.BoneName))
                 {
@@ -78,27 +66,6 @@ namespace GUI.Types.Renderer
             };
 
             hitboxSets.Add(name, data);
-        }
-
-        private static Color32 GetHitboxGroupColor(int group)
-        {
-            if (group < 0 || group >= HitboxColors.Length)
-            {
-                return HitboxColors[0];
-            }
-            return HitboxColors[group];
-        }
-
-        private static HitboxSceneNode CreateSceneNode(Scene scene, Hitbox hitbox)
-        {
-            var color = GetHitboxGroupColor(hitbox.GroupId);
-            return hitbox.ShapeType switch
-            {
-                Hitbox.HitboxShape.Sphere => HitboxSceneNode.CreateSphereNode(scene, hitbox.MinBounds, hitbox.ShapeRadius, color),
-                Hitbox.HitboxShape.Capsule => HitboxSceneNode.CreateCapsuleNode(scene, hitbox.MinBounds, hitbox.MaxBounds, hitbox.ShapeRadius, color),
-                Hitbox.HitboxShape.Box => HitboxSceneNode.CreateBoxNode(scene, hitbox.MinBounds, hitbox.MaxBounds, color),
-                _ => throw new NotImplementedException($"Unknown hitbox shape type: {hitbox.ShapeType}")
-            };
         }
 
         public void SetHitboxSet(string set)
