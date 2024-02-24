@@ -9,12 +9,61 @@ namespace GUI.Types.Renderer
         private const int Segments = 8;
         private const int Bands = 5;
 
-        protected readonly Shader shader;
-        protected readonly int indexCount;
-        protected readonly int vaoHandle;
+        protected Shader shader;
+        protected int indexCount;
+        protected int vaoHandle;
 
         public ShapeSceneNode(Scene scene, List<SimpleVertex> verts, List<int> inds)
             : base(scene)
+        {
+            Init(verts, inds);
+        }
+
+        /// <summary>
+        /// Constructs a node with a single box shape
+        /// </summary>
+        public ShapeSceneNode(Scene scene, Vector3 minBounds, Vector3 maxBounds, Color32 color) : base(scene)
+        {
+            var inds = new List<int>();
+            var verts = new List<SimpleVertex>();
+            AddBox(verts, inds, minBounds, maxBounds, color);
+
+            LocalBoundingBox = new AABB(minBounds, maxBounds);
+
+            Init(verts, inds);
+        }
+
+        /// <summary>
+        /// Constructs a node with a single capsule shape
+        /// </summary>
+        public ShapeSceneNode(Scene scene, Vector3 from, Vector3 to, float radius, Color32 color) : base(scene)
+        {
+            var inds = new List<int>();
+            var verts = new List<SimpleVertex>();
+            AddCapsule(verts, inds, from, to, radius, color);
+
+            var min = Vector3.Min(from, to);
+            var max = Vector3.Max(from, to);
+            LocalBoundingBox = new AABB(min - new Vector3(radius), max + new Vector3(radius));
+
+            Init(verts, inds);
+        }
+
+        /// <summary>
+        /// Constructs a node with a single sphere shape
+        /// </summary>
+        public ShapeSceneNode(Scene scene, Vector3 center, float radius, Color32 color) : base(scene)
+        {
+            var inds = new List<int>();
+            var verts = new List<SimpleVertex>();
+            AddSphere(verts, inds, center, radius, color);
+
+            LocalBoundingBox = new AABB(new Vector3(radius), new Vector3(-radius));
+
+            Init(verts, inds);
+        }
+
+        private void Init(List<SimpleVertex> verts, List<int> inds)
         {
             indexCount = inds.Count;
             shader = Scene.GuiContext.ShaderLoader.LoadShader("vrf.default");
@@ -136,6 +185,30 @@ namespace GUI.Types.Renderer
                     }
                 }
             }
+        }
+
+        protected static void AddBox(List<SimpleVertex> verts, List<int> inds, Vector3 minBounds, Vector3 maxBounds, Color32 color)
+        {
+            verts.AddRange(
+                [
+                    new(new(minBounds.X, minBounds.Y, minBounds.Z), color),
+                    new(new(minBounds.X, minBounds.Y, maxBounds.Z), color),
+                    new(new(minBounds.X, maxBounds.Y, maxBounds.Z), color),
+                    new(new(minBounds.X, maxBounds.Y, minBounds.Z), color),
+
+                    new(new(maxBounds.X, minBounds.Y, minBounds.Z), color),
+                    new(new(maxBounds.X, minBounds.Y, maxBounds.Z), color),
+                    new(new(maxBounds.X, maxBounds.Y, maxBounds.Z), color),
+                    new(new(maxBounds.X, maxBounds.Y, minBounds.Z), color)
+                ]
+            );
+
+            AddFace(inds, 0, 1, 2, 3);
+            AddFace(inds, 1, 5, 6, 2);
+            AddFace(inds, 5, 4, 7, 6);
+            AddFace(inds, 0, 3, 7, 4);
+            AddFace(inds, 3, 2, 6, 7);
+            AddFace(inds, 1, 0, 4, 5);
         }
 
         protected static void AddSphere(List<SimpleVertex> verts, List<int> inds, Vector3 center, float radius, Color32 color)
