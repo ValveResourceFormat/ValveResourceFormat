@@ -115,7 +115,7 @@ namespace GUI.Types.Renderer
 
         public override void Render(Scene.RenderContext context)
         {
-            if (currentSet == null)
+            if (currentSet == null || context.RenderPass != RenderPass.Translucent)
             {
                 return;
             }
