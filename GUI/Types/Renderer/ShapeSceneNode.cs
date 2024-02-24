@@ -5,6 +5,7 @@ namespace GUI.Types.Renderer
 {
     abstract class ShapeSceneNode : SceneNode
     {
+        public virtual bool IsTranslucent { get; } = true;
         // sphere/capsule constants
         private const int Segments = 8;
         private const int Bands = 5;
@@ -229,14 +230,12 @@ namespace GUI.Types.Renderer
 
         public override void Render(Scene.RenderContext context)
         {
-            if (context.RenderPass != RenderPass.Translucent)
+            if (IsTranslucent && context.RenderPass != RenderPass.Translucent || !IsTranslucent && context.RenderPass != RenderPass.AfterOpaque)
             {
                 return;
             }
 
             var renderShader = context.ReplacementShader ?? shader;
-
-            GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
 
             GL.UseProgram(renderShader.Program);
 
@@ -246,20 +245,30 @@ namespace GUI.Types.Renderer
 
             GL.BindVertexArray(vaoHandle);
 
-            GL.Enable(EnableCap.PolygonOffsetLine);
-            GL.Enable(EnableCap.PolygonOffsetFill);
-            GL.PolygonOffsetClamp(0, 96, 0.0005f);
+            if (IsTranslucent)
+            {
+                GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
 
-            GL.DrawElements(PrimitiveType.Lines, indexCount, DrawElementsType.UnsignedInt, 0);
+                GL.Enable(EnableCap.PolygonOffsetLine);
+                GL.Enable(EnableCap.PolygonOffsetFill);
+                GL.PolygonOffsetClamp(0, 96, 0.0005f);
 
-            // triangles
-            GL.Disable(EnableCap.CullFace);
-            GL.DrawElements(PrimitiveType.TrianglesAdjacency, indexCount, DrawElementsType.UnsignedInt, 0);
+                GL.DrawElements(PrimitiveType.Lines, indexCount, DrawElementsType.UnsignedInt, 0);
 
-            GL.Disable(EnableCap.PolygonOffsetLine);
-            GL.Disable(EnableCap.PolygonOffsetFill);
-            GL.PolygonOffsetClamp(0, 0, 0);
-            GL.Enable(EnableCap.CullFace);
+                // triangles
+                GL.Disable(EnableCap.CullFace);
+
+                GL.DrawElements(PrimitiveType.TrianglesAdjacency, indexCount, DrawElementsType.UnsignedInt, 0);
+
+                GL.Disable(EnableCap.PolygonOffsetLine);
+                GL.Disable(EnableCap.PolygonOffsetFill);
+                GL.PolygonOffsetClamp(0, 0, 0);
+                GL.Enable(EnableCap.CullFace);
+            }
+            else
+            {
+                GL.DrawElements(PrimitiveType.TrianglesAdjacency, indexCount, DrawElementsType.UnsignedInt, 0);
+            }
 
             GL.UseProgram(0);
             GL.BindVertexArray(0);
