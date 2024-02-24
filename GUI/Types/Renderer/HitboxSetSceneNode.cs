@@ -76,7 +76,7 @@ namespace GUI.Types.Renderer
             currentSet = hitboxSets[set];
         }
 
-        private void UpdateHitboxSet(HitboxSetData hitboxSetData, Matrix4x4[] boneMatrices)
+        private static void UpdateHitboxSet(HitboxSetData hitboxSetData, Matrix4x4[] boneMatrices)
         {
             var hitboxSet = hitboxSetData.HitboxSet;
             for (var i = 0; i < hitboxSet.Length; i++)
