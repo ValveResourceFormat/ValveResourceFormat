@@ -16,17 +16,17 @@ namespace GUI.Types.Renderer
         }
 
         readonly AnimationController animationController;
-        readonly Skeleton skeleton;
 
         readonly Matrix4x4[] boneMatrices;
         readonly Dictionary<string, HitboxSetData> hitboxSets = new();
         HitboxSetData currentSet;
 
-        public HitboxSetSceneNode(Scene scene, AnimationController animationController, Skeleton skeleton, Dictionary<string, Hitbox[]> hitboxSets)
+        public HitboxSetSceneNode(Scene scene, AnimationController animationController, Dictionary<string, Hitbox[]> hitboxSets)
             : base(scene)
         {
-            this.skeleton = skeleton;
             this.animationController = animationController;
+
+            var skeleton = animationController.FrameCache.Skeleton;
             boneMatrices = new Matrix4x4[skeleton.Bones.Length];
 
             var boneIndexes = skeleton.Bones.Select((b, i) => (b, i))

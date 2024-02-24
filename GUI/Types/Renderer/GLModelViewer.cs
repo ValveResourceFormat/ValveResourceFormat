@@ -139,7 +139,7 @@ namespace GUI.Types.Renderer
                 if (model.HitboxSets != null && model.HitboxSets.Count > 0)
                 {
                     var hitboxSets = model.HitboxSets;
-                    hitboxSetSceneNode = new HitboxSetSceneNode(Scene, modelSceneNode.AnimationController, model.Skeleton, hitboxSets);
+                    hitboxSetSceneNode = new HitboxSetSceneNode(Scene, modelSceneNode.AnimationController, hitboxSets);
                     Scene.Add(hitboxSetSceneNode, true);
 
                     hitboxComboBox = AddSelection("Hitbox Set", (hitboxSet, i) =>
