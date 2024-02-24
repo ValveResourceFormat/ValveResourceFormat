@@ -126,12 +126,12 @@ namespace GUI.Types.Renderer
                 return;
             }
 
-            GL.DepthFunc(DepthFunction.Always);
+            GL.Disable(EnableCap.DepthTest);
             foreach (var node in currentSet.SceneNodes)
             {
                 node.Render(context);
             }
-            GL.DepthFunc(DepthFunction.Greater);
+            GL.Enable(EnableCap.DepthTest);
         }
     }
 }
