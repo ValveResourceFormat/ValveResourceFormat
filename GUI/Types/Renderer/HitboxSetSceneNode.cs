@@ -2,7 +2,7 @@ using System.Linq;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.ResourceTypes.ModelData;
 using OpenTK.Graphics.OpenGL;
-using GUI.Utils;
+using System.Buffers;
 
 namespace GUI.Types.Renderer
 {
@@ -17,17 +17,14 @@ namespace GUI.Types.Renderer
 
         readonly AnimationController animationController;
 
-        readonly Matrix4x4[] boneMatrices;
         readonly Dictionary<string, HitboxSetData> hitboxSets = new();
         HitboxSetData currentSet;
+        Skeleton skeleton => animationController.FrameCache.Skeleton;
 
         public HitboxSetSceneNode(Scene scene, AnimationController animationController, Dictionary<string, Hitbox[]> hitboxSets)
             : base(scene)
         {
             this.animationController = animationController;
-
-            var skeleton = animationController.FrameCache.Skeleton;
-            boneMatrices = new Matrix4x4[skeleton.Bones.Length];
 
             var boneIndexes = skeleton.Bones.Select((b, i) => (b, i))
                                             .ToDictionary(p => p.b.Name, p => p.i);
@@ -79,7 +76,7 @@ namespace GUI.Types.Renderer
             currentSet = hitboxSets[set];
         }
 
-        private void UpdateHitboxSet(HitboxSetData hitboxSetData)
+        private void UpdateHitboxSet(HitboxSetData hitboxSetData, Matrix4x4[] boneMatrices)
         {
             var hitboxSet = hitboxSetData.HitboxSet;
             for (var i = 0; i < hitboxSet.Length; i++)
@@ -109,8 +106,17 @@ namespace GUI.Types.Renderer
             }
 
             LocalBoundingBox = new AABB(new Vector3(float.MinValue), new Vector3(float.MaxValue));
-            animationController?.GetBoneMatrices(boneMatrices);
-            UpdateHitboxSet(currentSet);
+
+            var boneMatrices = ArrayPool<Matrix4x4>.Shared.Rent(skeleton.Bones.Length);
+            try
+            {
+                animationController?.GetBoneMatrices(boneMatrices);
+                UpdateHitboxSet(currentSet, boneMatrices);
+            }
+            finally
+            {
+                ArrayPool<Matrix4x4>.Shared.Return(boneMatrices);
+            }
         }
 
         public override void Render(Scene.RenderContext context)
