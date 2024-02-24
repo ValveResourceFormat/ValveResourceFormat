@@ -45,13 +45,13 @@ namespace GUI.Types.Renderer
                 var hitbox = hitboxSet[i];
                 sceneNodes[i] = HitboxSceneNode.Create(Scene, hitbox);
 
-                if (string.IsNullOrEmpty(hitbox.BoneName))
+                if (string.IsNullOrEmpty(hitbox.BoneName) || !boneIndexes.TryGetValue(hitbox.BoneName, out var boneIndex))
                 {
                     hitboxBoneIndexes[i] = -1;
                 }
                 else
                 {
-                    hitboxBoneIndexes[i] = boneIndexes[hitbox.BoneName];
+                    hitboxBoneIndexes[i] = boneIndex;
                 }
             }
 
