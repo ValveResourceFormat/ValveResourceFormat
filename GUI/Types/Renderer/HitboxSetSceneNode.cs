@@ -27,7 +27,7 @@ namespace GUI.Types.Renderer
             this.animationController = animationController;
 
             var boneIndexes = skeleton.Bones.Select((b, i) => (b, i))
-                                            .ToDictionary(p => p.b.Name, p => p.i);
+                                            .ToDictionary(p => p.b.Name.ToLowerInvariant(), p => p.i);
 
             foreach (var pair in hitboxSets)
             {
@@ -45,7 +45,7 @@ namespace GUI.Types.Renderer
                 var hitbox = hitboxSet[i];
                 sceneNodes[i] = HitboxSceneNode.Create(Scene, hitbox);
 
-                if (string.IsNullOrEmpty(hitbox.BoneName) || !boneIndexes.TryGetValue(hitbox.BoneName, out var boneIndex))
+                if (string.IsNullOrEmpty(hitbox.BoneName) || !boneIndexes.TryGetValue(hitbox.BoneName.ToLowerInvariant(), out var boneIndex))
                 {
                     hitboxBoneIndexes[i] = -1;
                 }
