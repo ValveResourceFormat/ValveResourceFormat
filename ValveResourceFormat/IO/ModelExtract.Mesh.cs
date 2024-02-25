@@ -90,7 +90,9 @@ partial class ModelExtract
             }
 
             GrabMaterialInputSignatures(resource);
-            RenderMeshesToExtract.Add(new((Mesh)resource.DataBlock, GetDmxFileName_ForReferenceMesh(reference.MeshName)));
+            var mesh = (Mesh)resource.DataBlock;
+            RenderMeshesToExtract.Add(new(mesh, GetDmxFileName_ForReferenceMesh(reference.MeshName)));
+            model.SetExternalMeshData(mesh);
         }
 
         void GrabMaterialInputSignatures(Resource resource)

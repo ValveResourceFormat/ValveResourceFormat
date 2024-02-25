@@ -79,7 +79,11 @@ namespace GUI.Types.Renderer
 
         public Frame GetFrame()
         {
-            if (IsPaused)
+            if (activeAnimation == null)
+            {
+                return null;
+            }
+            else if (IsPaused)
             {
                 return animationFrameCache.GetFrame(activeAnimation, Frame);
             }
@@ -92,6 +96,44 @@ namespace GUI.Types.Renderer
         public void RegisterUpdateHandler(Action<Animation, int> handler)
         {
             updateHandler = handler;
+        }
+
+        public void GetBoneMatrices(Span<Matrix4x4> boneMatrices)
+        {
+            if (boneMatrices.Length < animationFrameCache.Skeleton.Bones.Length)
+            {
+                throw new ArgumentException("Length of array is smaller than the number of bones");
+            }
+
+            var frame = GetFrame();
+
+            foreach (var root in animationFrameCache.Skeleton.Roots)
+            {
+                GetAnimationMatrixRecursive(root, Matrix4x4.Identity, frame, boneMatrices);
+            }
+        }
+
+        private static void GetAnimationMatrixRecursive(Bone bone, Matrix4x4 bindPose, Frame frame, Span<Matrix4x4> boneMatrices)
+        {
+            if (frame != null)
+            {
+                var transform = frame.Bones[bone.Index];
+                bindPose = Matrix4x4.CreateScale(transform.Scale)
+                    * Matrix4x4.CreateFromQuaternion(transform.Angle)
+                    * Matrix4x4.CreateTranslation(transform.Position)
+                    * bindPose;
+            }
+            else
+            {
+                bindPose = bone.BindPose * bindPose;
+            }
+
+            boneMatrices[bone.Index] = bindPose;
+
+            foreach (var child in bone.Children)
+            {
+                GetAnimationMatrixRecursive(child, bindPose, frame, boneMatrices);
+            }
         }
     }
 }

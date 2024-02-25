@@ -227,7 +227,11 @@ namespace GUI.Types.Renderer
                     continue;
                 }
 
-                meshRenderers.Add(new RenderableMesh((Mesh)newResource.DataBlock, refMesh.MeshIndex, Scene, model, materialTable, debugLabel: Path.GetFileName(refMesh.MeshName)));
+                var mesh = (Mesh)newResource.DataBlock;
+                mesh.LoadExternalMorphData(Scene.GuiContext.FileLoader);
+                model.SetExternalMeshData(mesh);
+
+                meshRenderers.Add(new RenderableMesh(mesh, refMesh.MeshIndex, Scene, model, materialTable, debugLabel: Path.GetFileName(refMesh.MeshName)));
             }
 
             // Set active meshes to default

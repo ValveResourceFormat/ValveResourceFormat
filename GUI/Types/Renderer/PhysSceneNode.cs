@@ -1,47 +1,20 @@
 using System.Linq;
-using GUI.Utils;
-using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.Renderer
 {
-    class PhysSceneNode : SceneNode
+    class PhysSceneNode : ShapeSceneNode
     {
-        // sphere/capsule constants
-        private const int Segments = 8;
-        private const int Bands = 5;
-
         public override bool LayerEnabled => Enabled && base.LayerEnabled;
         public bool Enabled { get; set; }
         public string PhysGroupName { get; set; }
 
-        readonly Shader shader;
-        readonly int indexCount;
-        readonly int vaoHandle;
-
-        public PhysSceneNode(Scene scene, List<SimpleVertex> verts, List<int> inds)
-            : base(scene)
+        public PhysSceneNode(Scene scene, List<SimpleVertex> verts, List<int> inds) : base(scene, verts, inds)
         {
-            indexCount = inds.Count;
-            shader = Scene.GuiContext.ShaderLoader.LoadShader("vrf.default");
-
-            GL.CreateVertexArrays(1, out vaoHandle);
-            GL.CreateBuffers(1, out int vboHandle);
-            GL.CreateBuffers(1, out int iboHandle);
-            GL.VertexArrayVertexBuffer(vaoHandle, 0, vboHandle, 0, SimpleVertex.SizeInBytes);
-            GL.VertexArrayElementBuffer(vaoHandle, iboHandle);
-            SimpleVertex.BindDefaultShaderLayout(vaoHandle, shader.Program);
-
-            GL.NamedBufferData(vboHandle, verts.Count * SimpleVertex.SizeInBytes, verts.ToArray(), BufferUsageHint.StaticDraw);
-            GL.NamedBufferData(iboHandle, inds.Count * sizeof(int), inds.ToArray(), BufferUsageHint.StaticDraw);
-
-#if DEBUG
-            var vaoLabel = nameof(PhysSceneNode);
-            GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, vaoHandle, vaoLabel.Length, vaoLabel);
-#endif
         }
+
 
         public static IEnumerable<PhysSceneNode> CreatePhysSceneNodes(Scene scene, PhysAggregateData phys, string fileName)
         {
@@ -78,7 +51,7 @@ namespace GUI.Types.Renderer
                         center = Vector3.Transform(center, bindPose[p]);
                     }
 
-                    AddSphere(verts[collisionAttributeIndex], inds[collisionAttributeIndex], center, radius);
+                    AddSphere(verts[collisionAttributeIndex], inds[collisionAttributeIndex], center, radius, new(1f, 1f, 0f, 0.3f));
 
                     var bbox = new AABB(center + new Vector3(radius),
                                         center - new Vector3(radius));
@@ -108,7 +81,7 @@ namespace GUI.Types.Renderer
                         center[1] = Vector3.Transform(center[1], bindPose[p]);
                     }
 
-                    AddCapsule(verts[collisionAttributeIndex], inds[collisionAttributeIndex], center[0], center[1], radius);
+                    AddCapsule(verts[collisionAttributeIndex], inds[collisionAttributeIndex], center[0], center[1], radius, new(1f, 1f, 0f, 0.3f));
                     foreach (var cn in center)
                     {
                         var bbox = new AABB(cn + new Vector3(radius),
@@ -283,156 +256,6 @@ namespace GUI.Types.Renderer
                 return physSceneNode;
             }).ToArray();
             return nodes;
-        }
-
-        private static void AddCapsule(List<SimpleVertex> verts, List<int> inds, Vector3 c0, Vector3 c1, float radius)
-        {
-            var up = Vector3.Normalize(c0 - c1);
-
-            var baseVert0 = verts.Count;
-            AddHemisphere(verts, inds, c0, radius, up);
-
-            var baseVert1 = verts.Count;
-            AddHemisphere(verts, inds, c1, radius, -up);
-
-            // connect hemispheres to create the cylinder
-            for (var segment = 0; segment < Segments; segment++)
-            {
-                var a = baseVert0 + segment;
-                var b = baseVert0 + (segment + 1) % Segments;
-
-                // second sphere has indices in reverse order (since its rotated the other way)
-                var c = baseVert1 + (Segments - segment) % Segments;
-                var d = baseVert1 + (Segments - (segment + 1)) % Segments;
-
-                AddTriangle(inds, 0, b, a, c);
-                AddTriangle(inds, 0, b, c, d);
-            }
-        }
-
-        static Vector3 GetOrtogonal(Vector3 a)
-        {
-            // Any vector not parallel to the given vector
-            var arbitraryVector = new Vector3(1, 0, 0);
-            var arbitraryDot = Vector3.Dot(arbitraryVector, a);
-            if (Math.Abs(arbitraryDot) == 1)
-            {
-                arbitraryVector = new Vector3(0, 1, 0);
-            }
-
-            return GetOrtogonal(a, arbitraryVector);
-        }
-        static Vector3 GetOrtogonal(Vector3 a, Vector3 b)
-        {
-            var sideVector = Vector3.Cross(a, b);
-            return Vector3.Normalize(sideVector);
-        }
-
-        private static void AddHemisphere(List<SimpleVertex> verts, List<int> inds, Vector3 center, float radius, Vector3 up)
-        {
-            var baseVertex = verts.Count;
-
-            var axisUp = Vector3.Normalize(up);
-            var axisAround = GetOrtogonal(up);
-            var v = GetOrtogonal(axisAround, axisUp);
-
-            // generate vertices
-            for (var band = 0; band < Bands; band++)
-            {
-                var angleUp = -MathUtils.ToRadians(band * (90.0f / Bands));
-                var quatUp = Quaternion.CreateFromAxisAngle(axisAround, angleUp);
-
-                for (var segment = 0; segment < Segments; segment++)
-                {
-                    var angleAround = MathUtils.ToRadians(segment * (360.0f / Segments));
-                    var quatAround = Quaternion.CreateFromAxisAngle(axisUp, angleAround);
-
-                    var point = Vector3.Transform(v, Quaternion.Multiply(quatAround, quatUp));
-                    var transformed = center + radius * Vector3.Normalize(point);
-
-                    verts.Add(new(transformed, new(1f, 1f, 0f, 0.3f)));
-                }
-            }
-
-            // midpoint
-            var topVertexIndex = verts.Count - baseVertex;
-            var transformedUp = center + radius * Vector3.Normalize(up);
-            verts.Add(new(transformedUp, new(1f, 1f, 0f, 0.3f)));
-
-            // generate triangles
-            for (var band = 0; band < Bands; band++)
-            {
-                for (var segment = 0; segment < Segments; segment++)
-                {
-                    var i = band * Segments + segment;
-                    var iNext = segment == Segments - 1 ? (band * Segments) : i + 1;
-
-                    if (band == Bands - 1)
-                    {
-                        // last band connects to midpoint only
-                        AddTriangle(inds, baseVertex, i, iNext, topVertexIndex);
-                    }
-                    else
-                    {
-                        AddTriangle(inds, baseVertex, i, iNext, i + Segments);
-                        AddTriangle(inds, baseVertex, iNext, iNext + Segments, i + Segments);
-                    }
-                }
-            }
-        }
-
-        private static void AddSphere(List<SimpleVertex> verts, List<int> inds, Vector3 center, float radius)
-        {
-            AddHemisphere(verts, inds, center, radius, Vector3.UnitZ);
-            AddHemisphere(verts, inds, center, radius, -Vector3.UnitZ);
-        }
-
-        private static void AddTriangle(List<int> inds, int baseVertex, int a, int b, int c)
-        {
-            inds.Add(baseVertex + a);
-            inds.Add(baseVertex + b);
-            inds.Add(baseVertex + b);
-            inds.Add(baseVertex + c);
-            inds.Add(baseVertex + c);
-            inds.Add(baseVertex + a);
-        }
-
-        public override void Render(Scene.RenderContext context)
-        {
-            if (context.RenderPass != RenderPass.Translucent)
-            {
-                return;
-            }
-
-            var renderShader = context.ReplacementShader ?? shader;
-
-            GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
-
-            GL.UseProgram(renderShader.Program);
-
-            renderShader.SetUniform4x4("transform", Transform);
-            renderShader.SetUniform1("bAnimated", 0.0f);
-            renderShader.SetUniform1("sceneObjectId", Id);
-
-            GL.BindVertexArray(vaoHandle);
-
-            GL.Enable(EnableCap.PolygonOffsetLine);
-            GL.Enable(EnableCap.PolygonOffsetFill);
-            GL.PolygonOffsetClamp(0, 96, 0.0005f);
-
-            GL.DrawElements(PrimitiveType.Lines, indexCount, DrawElementsType.UnsignedInt, 0);
-
-            // triangles
-            GL.Disable(EnableCap.CullFace);
-            GL.DrawElements(PrimitiveType.TrianglesAdjacency, indexCount, DrawElementsType.UnsignedInt, 0);
-
-            GL.Disable(EnableCap.PolygonOffsetLine);
-            GL.Disable(EnableCap.PolygonOffsetFill);
-            GL.PolygonOffsetClamp(0, 0, 0);
-            GL.Enable(EnableCap.CullFace);
-
-            GL.UseProgram(0);
-            GL.BindVertexArray(0);
         }
 
         public override void Update(Scene.UpdateContext context)
