@@ -83,7 +83,7 @@ float CalculateSunShadowMapVisibility(vec3 vPosition)
     projCoords.xyz /= projCoords.w;
 
     vec2 shadowCoords = clamp(projCoords.xy * 0.5 + 0.5, vec2(-1), vec2(2));
-    float currentDepth = saturate(projCoords.z - 0.00001);
+    float currentDepth = saturate(projCoords.z + 0.001);
 
     // To skip PCF
     // return 1 - textureLod(g_tShadowDepthBufferDepth, vec3(shadowCoords, currentDepth), 0).r;

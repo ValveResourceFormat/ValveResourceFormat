@@ -242,6 +242,7 @@ namespace GUI.Types.Renderer
         }
 
         private List<SceneNode> CulledShadowNodes { get; } = [];
+        List<RenderableMesh> listWithSingleMesh = [null];
         private Dictionary<DepthOnlyProgram, List<MeshBatchRenderer.Request>> CulledShadowDrawCalls { get; } = new()
         {
             [DepthOnlyProgram.Static] = [],
@@ -272,8 +273,6 @@ namespace GUI.Types.Renderer
             }
 
             DynamicOctree.Root.Query(LightingInfo.SunLightFrustum, CulledShadowNodes);
-
-            List<RenderableMesh> listWithSingleMesh = [null];
 
             foreach (var node in CulledShadowNodes)
             {

@@ -71,6 +71,7 @@ namespace GUI.Types.Renderer
             Scene.LightingInfo.UseSceneBoundsForSunLightFrustum = true;
 
             sunAngles = defaultSunAngles;
+            UpdateGpuSunAngles();
             Scene.LightingInfo.LightingData.SunLightColor = defaultSunColor;
         }
 
@@ -90,14 +91,18 @@ namespace GUI.Types.Renderer
 
                 Camera.CopyFrom(previousCamera);
                 sunAngles += delta;
-
-                Scene.LightingInfo.LightingData.SunLightPosition = Matrix4x4.CreateRotationY(sunAngles.X * MathF.PI / 180f)
-                                                                 * Matrix4x4.CreateRotationZ(sunAngles.Y * MathF.PI / 180f);
+                UpdateGpuSunAngles();
                 Scene.LightingInfo.LightingData.EnvMapWorldToLocal[0] *= Matrix4x4.CreateRotationZ(-delta.Y / 80f);
             }
 
             base.OnPaint(sender, e);
             previousCamera.CopyFrom(Camera);
+        }
+
+        private void UpdateGpuSunAngles()
+        {
+            Scene.LightingInfo.LightingData.SunLightPosition = Matrix4x4.CreateRotationY(sunAngles.X * MathF.PI / 180f)
+                                                             * Matrix4x4.CreateRotationZ(sunAngles.Y * MathF.PI / 180f);
         }
 
         protected override void OnPicked(object sender, PickingTexture.PickingResponse pickingResponse)

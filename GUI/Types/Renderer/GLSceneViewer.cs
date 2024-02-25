@@ -356,9 +356,7 @@ namespace GUI.Types.Renderer
         {
             GL.Viewport(0, 0, ShadowDepthBuffer.Width, ShadowDepthBuffer.Height);
             ShadowDepthBuffer.Bind(FramebufferTarget.Framebuffer);
-            GL.Disable(EnableCap.CullFace);
             GL.DepthRange(0, 1);
-            GL.PolygonOffsetClamp(1, 0.05f, 1);
             GL.Clear(ClearBufferMask.DepthBufferBit);
 
             renderContext.Framebuffer = ShadowDepthBuffer;
@@ -366,13 +364,14 @@ namespace GUI.Types.Renderer
 
             viewBuffer.Data.ViewToProjection = Scene.LightingInfo.SunViewProjection;
             var worldToShadow = Scene.LightingInfo.SunViewProjection;
-            worldToShadow.M33 *= 1.02f;
+            var biasFactor = 1 + Scene.LightingInfo.SunLightShadowBias;
+            worldToShadow.M13 *= biasFactor;
+            worldToShadow.M23 *= biasFactor;
+            worldToShadow.M33 *= biasFactor;
             viewBuffer.Data.WorldToShadow = worldToShadow;
             viewBuffer.Update();
 
             Scene.RenderOpaqueShadows(renderContext, depthOnlyShaders);
-            GL.PolygonOffsetClamp(0, 0, 0);
-            GL.Enable(EnableCap.CullFace);
         }
 
         private void RenderScenesWithView(Scene.RenderContext renderContext)

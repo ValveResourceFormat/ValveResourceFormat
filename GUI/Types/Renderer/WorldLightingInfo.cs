@@ -51,6 +51,7 @@ partial class Scene
         public bool EnableDynamicShadows { get; set; } = true;
 
         public Matrix4x4 SunViewProjection { get; internal set; }
+        public float SunLightShadowBias { get; set; } = 0.0001f;
         public Frustum SunLightFrustum = new();
         public bool UseSceneBoundsForSunLightFrustum { get; set; }
 
@@ -133,7 +134,8 @@ partial class Scene
 
             var bbox = orthoSize;
             var farPlane = 8096f;
-            var nearPlaneExtend = 2000f;
+            var nearPlaneExtend = 1000f;
+            var bias = 0.001f;
 
             // Move near plane away from camera, in light direction, to capture shadow casters.
             // This could be improved using scene bounds.
@@ -152,6 +154,7 @@ partial class Scene
                     eye = staticBounds.Center - sunDir * nearPlaneExtend;
                     bbox = max * 1.6f;
                     farPlane = bbox;
+                    bias = 0.01f;
                 }
             }
 
@@ -159,6 +162,7 @@ partial class Scene
             var sunCameraProjection = Matrix4x4.CreateOrthographicOffCenter(-bbox, bbox, -bbox, bbox, farPlane, -nearPlaneExtend);
 
             SunViewProjection = sunCameraView * sunCameraProjection;
+            SunLightShadowBias = bias;
             SunLightFrustum.Update(SunViewProjection);
         }
     }
