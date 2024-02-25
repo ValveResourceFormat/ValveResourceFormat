@@ -287,12 +287,5 @@ namespace GUI.Types.Renderer
         {
             Root.Clear();
         }
-
-        public List<T> Query(in AABB boundingBox)
-        {
-            var results = new List<T>();
-            Root.Query(boundingBox, results);
-            return results;
-        }
     }
 }
