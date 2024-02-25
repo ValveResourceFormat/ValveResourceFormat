@@ -98,7 +98,7 @@ namespace GUI.Types.Renderer
             updateHandler = handler;
         }
 
-        public void GetBoneMatrices(Matrix4x4[] boneMatrices)
+        public void GetBoneMatrices(Span<Matrix4x4> boneMatrices)
         {
             if (boneMatrices.Length < animationFrameCache.Skeleton.Bones.Length)
             {
@@ -113,7 +113,7 @@ namespace GUI.Types.Renderer
             }
         }
 
-        private static void GetAnimationMatrixRecursive(Bone bone, Matrix4x4 bindPose, Frame frame, Matrix4x4[] boneMatrices)
+        private static void GetAnimationMatrixRecursive(Bone bone, Matrix4x4 bindPose, Frame frame, Span<Matrix4x4> boneMatrices)
         {
             if (frame != null)
             {

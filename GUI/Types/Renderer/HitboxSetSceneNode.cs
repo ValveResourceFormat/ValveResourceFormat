@@ -3,6 +3,7 @@ using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.ResourceTypes.ModelData;
 using OpenTK.Graphics.OpenGL;
 using System.Buffers;
+using System.Runtime.InteropServices;
 
 namespace GUI.Types.Renderer
 {
@@ -76,7 +77,7 @@ namespace GUI.Types.Renderer
             currentSet = hitboxSets[set];
         }
 
-        private static void UpdateHitboxSet(HitboxSetData hitboxSetData, Matrix4x4[] boneMatrices)
+        private static void UpdateHitboxSet(HitboxSetData hitboxSetData, Span<Matrix4x4> boneMatrices)
         {
             var hitboxSet = hitboxSetData.HitboxSet;
             for (var i = 0; i < hitboxSet.Length; i++)
@@ -107,7 +108,8 @@ namespace GUI.Types.Renderer
 
             LocalBoundingBox = new AABB(new Vector3(float.MinValue), new Vector3(float.MaxValue));
 
-            var boneMatrices = ArrayPool<Matrix4x4>.Shared.Rent(skeleton.Bones.Length);
+            var floatBuffer = ArrayPool<float>.Shared.Rent(skeleton.Bones.Length * 16);
+            var boneMatrices = MemoryMarshal.Cast<float, Matrix4x4>(floatBuffer);
             try
             {
                 animationController?.GetBoneMatrices(boneMatrices);
@@ -115,7 +117,7 @@ namespace GUI.Types.Renderer
             }
             finally
             {
-                ArrayPool<Matrix4x4>.Shared.Return(boneMatrices);
+                ArrayPool<float>.Shared.Return(floatBuffer);
             }
         }
 
