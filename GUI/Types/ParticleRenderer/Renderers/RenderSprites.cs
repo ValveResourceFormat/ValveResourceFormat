@@ -185,11 +185,11 @@ namespace GUI.Types.ParticleRenderer.Renderers
                         {
                             if (animateInFps)
                             {
-                                frameId = (int)Math.Floor(animationRate * animationTime);
+                                frameId = (int)(animationRate * animationTime);
                             }
                             else
                             {
-                                frameId = (int)Math.Floor(sequence.Frames.Length * animationRate * animationTime);
+                                frameId = (int)(animationTime * animationRate * sequence.FramesPerSecond);
                             }
 
                             if (sequence.Clamp)

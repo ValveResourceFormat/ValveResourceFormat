@@ -34,7 +34,7 @@ namespace GUI.Types.ParticleRenderer.Operators
 
                 // Apply drag
                 // Is this right? this is a super important operator so it might be bad if this is wrong
-                particle.Velocity *= 1 - (drag.NextNumber() * 30f * frameTime);
+                particle.Velocity *= 1 - (drag.NextNumber() * 60f * frameTime);
 
                 // Velocity is only applied in MovementBasic. If you layer two MovementBasic's on top of one another it'll indeed apply velocity twice.
                 particle.Position += particle.Velocity * frameTime;
