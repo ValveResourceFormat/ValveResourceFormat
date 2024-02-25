@@ -265,6 +265,9 @@ namespace GUI.Types.Renderer
             {
                 physNode.Enabled = physicsGroups.Contains(physNode.PhysGroupName);
             }
+
+            Scene.UpdateOctrees();
+            SkyboxScene?.UpdateOctrees();
         }
 
         protected override void OnPicked(object sender, PickingTexture.PickingResponse pickingResponse)

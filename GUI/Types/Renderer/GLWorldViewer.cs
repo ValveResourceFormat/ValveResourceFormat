@@ -26,6 +26,7 @@ namespace GUI.Types.Renderer
         private ComboBox cameraComboBox;
         private SavedCameraPositionsControl savedCameraPositionsControl;
         private EntityInfoForm entityInfoForm;
+        private bool ignoreLayersChangeEvents = true;
 
         public GLWorldViewer(VrfGuiContext guiContext, World world)
             : base(guiContext)
@@ -59,10 +60,20 @@ namespace GUI.Types.Renderer
 
             worldLayersComboBox = AddMultiSelection("World Layers", null, (worldLayers) =>
             {
+                if (ignoreLayersChangeEvents)
+                {
+                    return;
+                }
+
                 SetEnabledLayers(new HashSet<string>(worldLayers));
             });
             physicsGroupsComboBox = AddMultiSelection("Physics Groups", null, (physicsGroups) =>
             {
+                if (ignoreLayersChangeEvents)
+                {
+                    return;
+                }
+
                 SetEnabledPhysicsGroups(new HashSet<string>(physicsGroups));
             });
 
@@ -185,6 +196,8 @@ namespace GUI.Types.Renderer
 
                 if (uniqueWorldLayers.Count > 0)
                 {
+                    worldLayersComboBox.BeginUpdate();
+
                     SetAvailableLayers(uniqueWorldLayers);
 
                     foreach (var worldLayer in result.DefaultEnabledLayers)
@@ -196,6 +209,11 @@ namespace GUI.Types.Renderer
                             worldLayersComboBox.SetItemCheckState(checkboxIndex, CheckState.Checked);
                         }
                     }
+
+                    worldLayersComboBox.EndUpdate();
+
+                    Scene.SetEnabledLayers(result.DefaultEnabledLayers, skipUpdate: true);
+                    SkyboxScene?.SetEnabledLayers(result.DefaultEnabledLayers, skipUpdate: true);
                 }
 
                 if (uniquePhysicsGroups.Count > 0)
@@ -251,6 +269,8 @@ namespace GUI.Types.Renderer
             }
 
             Invoke(savedCameraPositionsControl.RefreshSavedPositions);
+
+            ignoreLayersChangeEvents = false;
         }
 
         private void ShowSceneNodeDetails(SceneNode sceneNode, bool isInSkybox)

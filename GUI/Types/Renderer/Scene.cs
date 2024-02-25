@@ -286,14 +286,17 @@ namespace GUI.Types.Renderer
             }
         }
 
-        public void SetEnabledLayers(HashSet<string> layers)
+        public void SetEnabledLayers(HashSet<string> layers, bool skipUpdate = false)
         {
             foreach (var renderer in AllNodes)
             {
                 renderer.LayerEnabled = layers.Contains(renderer.LayerName);
             }
 
-            UpdateOctrees();
+            if (!skipUpdate)
+            {
+                UpdateOctrees();
+            }
         }
 
         public void UpdateOctrees()

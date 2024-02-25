@@ -167,11 +167,13 @@ namespace GUI.Types.Renderer
 
         public virtual void PostSceneLoad()
         {
+            Scene.UpdateOctrees();
             Scene.CalculateLightProbeBindings();
             Scene.CalculateEnvironmentMaps();
 
             if (SkyboxScene != null)
             {
+                SkyboxScene.UpdateOctrees();
                 SkyboxScene.CalculateLightProbeBindings();
                 SkyboxScene.CalculateEnvironmentMaps();
             }
