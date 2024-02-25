@@ -118,7 +118,7 @@ vec3 GetCorrectedSampleCoords(vec3 R, mat4x3 envMapWorldToLocal, vec3 envMapLoca
     vec3 localReflectionVector = envMapWorldToLocal * vec4(R, 0.0);
     return isBoxProjection
         ? CubemapParallaxCorrection(envMapLocalPos, localReflectionVector, envMapBoxMin, envMapBoxMax)
-        : R;
+        : localReflectionVector;
 }
 
 

@@ -42,7 +42,7 @@ namespace GUI.Controls
         Point MouseDelta;
         Point MousePreviousPosition;
         Point InitialMousePosition;
-        TrackedKeys CurrentlyPressedKeys;
+        protected TrackedKeys CurrentlyPressedKeys;
 
         private long lastUpdate;
         private long lastFpsUpdate;
@@ -621,6 +621,7 @@ namespace GUI.Controls
             Keys.D => TrackedKeys.Right,
             Keys.Q => TrackedKeys.Up,
             Keys.Z => TrackedKeys.Down,
+            Keys.ControlKey => TrackedKeys.Control,
             Keys.LShiftKey => TrackedKeys.Shift,
             Keys.LMenu => TrackedKeys.Alt,
             _ => TrackedKeys.None,
