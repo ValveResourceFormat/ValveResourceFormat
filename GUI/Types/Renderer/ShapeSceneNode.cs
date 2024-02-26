@@ -157,7 +157,7 @@ namespace GUI.Types.Renderer
                     var point = Vector3.Transform(v, Quaternion.Multiply(quatAround, quatUp));
                     var transformed = center + radius * Vector3.Normalize(point);
 
-                    verts.Add(new(transformed, color));
+                    verts.Add(new(transformed, point, color));
                 }
             }
 

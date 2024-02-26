@@ -1,4 +1,5 @@
 using System.Linq;
+using GUI.Utils;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization;
@@ -177,23 +178,38 @@ namespace GUI.Types.Renderer
 
                     // meshes can be large, so ensure capacity up front
                     verts[collisionAttributeIndex].EnsureCapacity(baseVertex + vertices.Length);
-                    inds[collisionAttributeIndex].EnsureCapacity(inds[collisionAttributeIndex].Count + triangles.Length * 6);
+                    inds[collisionAttributeIndex]
+                        .EnsureCapacity(inds[collisionAttributeIndex].Count + triangles.Length * 6);
 
-                    foreach (var vec in vertices)
+                    var pose = bindPose.Length == 0 ? Matrix4x4.Identity : bindPose[p];
+
+                    var shapeVerts = verts[collisionAttributeIndex];
+                    var shapeInds = inds[collisionAttributeIndex];
+
+                    // vertex positions
+                    var positions = new Vector3[vertices.Length];
+                    for (var i = 0; i < vertices.Length; i++)
                     {
-                        var v = vec;
-                        if (bindPose.Length != 0)
-                        {
-                            v = Vector3.Transform(vec, bindPose[p]);
-                        }
-
-                        //color blue
-                        verts[collisionAttributeIndex].Add(new(v, new(0f, 0f, 1f, 0.3f)));
+                        positions[i] = Vector3.Transform(vertices[i], pose);
                     }
+
+                    // color blue
+                    var color = new Color32(0f, 0f, 1f, 0.3f);
 
                     foreach (var tri in triangles)
                     {
-                        AddTriangle(inds[collisionAttributeIndex], baseVertex, tri.X, tri.Y, tri.Z);
+                        var a = positions[tri.X];
+                        var b = positions[tri.Y];
+                        var c = positions[tri.Z];
+
+                        var normal = ComputeNormal(a, b, c);
+
+                        var offset = shapeVerts.Count;
+                        shapeVerts.Add(new(a, normal, color));
+                        shapeVerts.Add(new(b, normal, color));
+                        shapeVerts.Add(new(c, normal, color));
+
+                        AddTriangle(shapeInds, offset, 0, 1, 2);
                     }
 
                     var bbox = new AABB(mesh.Shape.Min, mesh.Shape.Max);
@@ -258,9 +274,16 @@ namespace GUI.Types.Renderer
             return nodes;
         }
 
+        private static Vector3 ComputeNormal(Vector3 a, Vector3 b, Vector3 c)
+        {
+            var side1 = b - a;
+            var side2 = c - a;
+
+            return Vector3.Normalize(Vector3.Cross(side1, side2));
+        }
+
         public override void Update(Scene.UpdateContext context)
         {
-
         }
     }
 }

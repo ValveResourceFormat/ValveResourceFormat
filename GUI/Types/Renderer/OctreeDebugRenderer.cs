@@ -5,22 +5,28 @@ using OpenTK.Graphics.OpenGL;
 namespace GUI.Types.Renderer
 {
     [StructLayout(LayoutKind.Sequential)]
-    public record struct SimpleVertex(Vector3 Position, Color32 Color)
+    public record struct SimpleVertex(Vector3 Position, Vector3 Normal, Color32 Color)
     {
         public static readonly int SizeInBytes = Marshal.SizeOf<SimpleVertex>();
+
+        public SimpleVertex(Vector3 Position, Color32 Color) : this(Position, Vector3.Zero, Color) { }
 
         public static void BindDefaultShaderLayout(int vao, int shaderProgram)
         {
             var positionAttributeLocation = GL.GetAttribLocation(shaderProgram, "aVertexPosition");
+            var normalAttributeLocation = GL.GetAttribLocation(shaderProgram, "aVertexNormal");
             var colorAttributeLocation = GL.GetAttribLocation(shaderProgram, "aVertexColor");
 
             GL.EnableVertexArrayAttrib(vao, positionAttributeLocation);
+            GL.EnableVertexArrayAttrib(vao, normalAttributeLocation);
             GL.EnableVertexArrayAttrib(vao, colorAttributeLocation);
 
             GL.VertexArrayAttribFormat(vao, positionAttributeLocation, 3, VertexAttribType.Float, false, 0);
-            GL.VertexArrayAttribFormat(vao, colorAttributeLocation, 4, VertexAttribType.UnsignedByte, true, sizeof(float) * 3);
+            GL.VertexArrayAttribFormat(vao, normalAttributeLocation, 3, VertexAttribType.Float, false, sizeof(float) * 3);
+            GL.VertexArrayAttribFormat(vao, colorAttributeLocation, 4, VertexAttribType.UnsignedByte, true, sizeof(float) * 6);
 
             GL.VertexArrayAttribBinding(vao, positionAttributeLocation, 0);
+            GL.VertexArrayAttribBinding(vao, normalAttributeLocation, 0);
             GL.VertexArrayAttribBinding(vao, colorAttributeLocation, 0);
         }
     }
