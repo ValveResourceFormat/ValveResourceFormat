@@ -12,6 +12,9 @@ namespace ValveResourceFormat.ResourceTypes
         public IEnumerable<KVObject> GetOperators()
             => Data.GetArray("m_Operators") ?? Enumerable.Empty<KVObject>();
 
+        public IEnumerable<KVObject> GetForceGenerators()
+            => Data.GetArray("m_ForceGenerators") ?? Enumerable.Empty<KVObject>();
+
         public IEnumerable<KVObject> GetInitializers()
             => Data.GetArray("m_Initializers") ?? Enumerable.Empty<KVObject>();
 

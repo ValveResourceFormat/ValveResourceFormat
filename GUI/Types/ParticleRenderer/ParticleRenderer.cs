@@ -90,6 +90,7 @@ namespace GUI.Types.ParticleRenderer
             SetupEmitters(particleSystem.GetEmitters());
             SetupInitializers(particleSystem.GetInitializers());
             SetupOperators(particleSystem.GetOperators());
+            SetupForceGenerators(particleSystem.GetForceGenerators());
             SetupRenderers(particleSystem.GetRenderers());
             SetupPreEmissionOperators(particleSystem.GetPreEmissionOperators());
 
@@ -394,6 +395,27 @@ namespace GUI.Types.ParticleRenderer
                 else
                 {
                     Log.Warn(nameof(ParticleRenderer), $"Unsupported operator class '{operatorClass}'.");
+                }
+            }
+        }
+
+        private void SetupForceGenerators(IEnumerable<KVObject> forceGeneratorData)
+        {
+            foreach (var forceGenerator in forceGeneratorData)
+            {
+                if (IsOperatorDisabled(forceGenerator))
+                {
+                    continue;
+                }
+
+                var operatorClass = forceGenerator.GetProperty<string>("_class");
+                if (ParticleControllerFactory.TryCreateForceGenerator(operatorClass, forceGenerator, out var @operator))
+                {
+                    Operators.Add(@operator);
+                }
+                else
+                {
+                    Log.Warn(nameof(ParticleRenderer), $"Unsupported force generator class '{operatorClass}'.");
                 }
             }
         }
