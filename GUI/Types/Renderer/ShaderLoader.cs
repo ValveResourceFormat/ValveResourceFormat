@@ -216,6 +216,7 @@ namespace GUI.Types.Renderer
             "vrf.morph_composite" => "morph_composite",
             "vrf.texture_decode" => "texture_decode",
             "vrf.font_msdf" => "font_msdf",
+            "vrf.scene_node" => "scene_node",
 
             "sky.vfx" => "sky",
             "tools_sprite.vfx" => "sprite",
