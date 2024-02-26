@@ -349,7 +349,7 @@ namespace GUI.Types.Renderer
             lightingBuffer.Data = Scene.LightingInfo.LightingData;
 
             Scene.RenderOpaqueLayer(renderContext);
-            Scene.RenderTranslucentLayer(renderContext);
+            RenderTranslucentLayer(Scene, renderContext);
         }
 
         private void RenderSceneShadows(Scene.RenderContext renderContext)
