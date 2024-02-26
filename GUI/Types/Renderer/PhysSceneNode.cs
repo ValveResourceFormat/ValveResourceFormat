@@ -111,23 +111,27 @@ namespace GUI.Types.Renderer
 
                     verts[collisionAttributeIndex].EnsureCapacity(baseVertex + vertexPositions.Length);
 
-                    foreach (var v in vertexPositions)
-                    {
-                        var vec = v;
-                        if (bindPose.Length != 0)
-                        {
-                            vec = Vector3.Transform(vec, bindPose[p]);
-                        }
+                    var pose = bindPose.Length == 0 ? Matrix4x4.Identity : bindPose[p];
 
-                        //color red
-                        verts[collisionAttributeIndex].Add(new(vec, new(1f, 0f, 0f, 0.3f)));
+                    var shapeVerts = verts[collisionAttributeIndex];
+                    var shapeInds = inds[collisionAttributeIndex];
+
+                    // vertex positions
+                    var positions = new Vector3[vertexPositions.Length];
+                    for (var i = 0; i < vertexPositions.Length; i++)
+                    {
+                        positions[i] = Vector3.Transform(vertexPositions[i], pose);
                     }
+
 
                     var faces = hull.Shape.GetFaces();
                     var edges = hull.Shape.GetEdges();
 
                     inds[collisionAttributeIndex].EnsureCapacity(inds[collisionAttributeIndex].Count + faces.Length * 6); // TODO: This doesn't account for edges
 
+                    // color red
+                    var color = new Color32(1.0f, 0.0f, 0.0f, 0.3f);
+                    
                     foreach (var face in faces)
                     {
                         var startEdge = face.Edge;
@@ -141,12 +145,18 @@ namespace GUI.Types.Renderer
                                 break;
                             }
 
-                            AddTriangle(
-                                inds[collisionAttributeIndex],
-                                baseVertex,
-                                edges[startEdge].Origin,
-                                edges[edge].Origin,
-                                edges[nextEdge].Origin);
+                            var a = positions[edges[startEdge].Origin];
+                            var b = positions[edges[edge].Origin];
+                            var c = positions[edges[nextEdge].Origin];
+
+                            var normal = ComputeNormal(a, b, c);
+
+                            var offset = shapeVerts.Count;
+                            shapeVerts.Add(new(a, normal, color));
+                            shapeVerts.Add(new(b, normal, color));
+                            shapeVerts.Add(new(c, normal, color));
+
+                            AddTriangle(shapeInds, offset, 0, 1, 2);
 
                             edge = nextEdge;
                         }
@@ -178,8 +188,7 @@ namespace GUI.Types.Renderer
 
                     // meshes can be large, so ensure capacity up front
                     verts[collisionAttributeIndex].EnsureCapacity(baseVertex + vertices.Length);
-                    inds[collisionAttributeIndex]
-                        .EnsureCapacity(inds[collisionAttributeIndex].Count + triangles.Length * 6);
+                    inds[collisionAttributeIndex].EnsureCapacity(inds[collisionAttributeIndex].Count + triangles.Length * 6); // TODO account for duplication from normals
 
                     var pose = bindPose.Length == 0 ? Matrix4x4.Identity : bindPose[p];
 
