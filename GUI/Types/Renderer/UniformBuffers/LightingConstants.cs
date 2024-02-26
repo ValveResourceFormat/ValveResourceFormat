@@ -8,7 +8,7 @@ namespace GUI.Types.Renderer.UniformBuffers
         public const int MAX_ENVMAPS = 144;
 
         public Vector4 LightmapUvScale;
-        public Matrix4x4 SunLightPosition;
+        public Matrix4x4 SunLightPosition = Matrix4x4.Identity;
         public Vector4 SunLightColor;
         public Vector4 EnvMapSizeConstants;
 
