@@ -164,7 +164,7 @@ namespace GUI.Types.Renderer
             // midpoint
             var topVertexIndex = verts.Count - baseVertex;
             var transformedUp = center + radius * Vector3.Normalize(up);
-            verts.Add(new(transformedUp, color));
+            verts.Add(new(transformedUp, Vector3.Normalize(up), color));
 
             // generate triangles
             for (var band = 0; band < Bands; band++)
