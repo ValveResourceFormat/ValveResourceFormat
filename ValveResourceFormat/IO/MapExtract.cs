@@ -476,6 +476,16 @@ public sealed class MapExtract
                 .WithClassName("prop_static")
                 .WithProperty("model", modelName);
 
+            var objectTransform = sceneObject.GetArray("m_vTransform").ToMatrix4x4();
+            if (!objectTransform.IsIdentity)
+            {
+                Matrix4x4.Decompose(objectTransform, out var scales, out var rotation, out var translation);
+
+                propStatic.Origin = translation;
+                propStatic.Angles = ModelExtract.ToEulerAngles(rotation);
+                propStatic.Scales = scales;
+            }
+
             var fadeStartDistance = sceneObject.GetProperty<double>("m_flFadeStartDistance");
             var fadeEndDistance = sceneObject.GetProperty<double>("m_flFadeEndDistance");
             if (fadeStartDistance > 0)
