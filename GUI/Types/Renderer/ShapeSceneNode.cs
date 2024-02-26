@@ -67,7 +67,7 @@ namespace GUI.Types.Renderer
         private void Init(List<SimpleVertex> verts, List<int> inds)
         {
             indexCount = inds.Count;
-            shader = Scene.GuiContext.ShaderLoader.LoadShader("vrf.scene_node");
+            shader = Scene.GuiContext.ShaderLoader.LoadShader("vrf.basic_shape");
 
             GL.CreateVertexArrays(1, out vaoHandle);
             GL.CreateBuffers(1, out int vboHandle);
