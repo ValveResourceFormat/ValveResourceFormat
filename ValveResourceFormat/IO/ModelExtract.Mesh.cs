@@ -323,11 +323,16 @@ partial class ModelExtract
                 var indexBufferIndex = indexBufferInfo.GetInt32Property("m_hBuffer");
                 ReadOnlySpan<int> indexBuffer = indexBuffers[indexBufferIndex].Value;
 
-                var material = drawCall.GetProperty<string>("m_material");
+                var material = drawCall.GetProperty<string>("m_material") ?? drawCall.GetProperty<string>("m_pMaterial");
 
                 if (material != null)
                 {
                     materialInputSignature ??= materialInputSignatures?.GetValueOrDefault(material);
+                }
+
+                if (material == null && Mesh.IsOccluder(drawCall))
+                {
+                    material = "materials/tools/toolsoccluder.vmat";
                 }
 
                 var baseVertex = drawCall.GetInt32Property("m_nBaseVertex");
