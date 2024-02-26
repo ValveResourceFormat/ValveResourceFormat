@@ -14,7 +14,7 @@ namespace GUI.Types.Renderer
         protected int indexCount;
         protected int vaoHandle;
 
-        public ShapeSceneNode(Scene scene, List<SimpleVertex> verts, List<int> inds)
+        public ShapeSceneNode(Scene scene, List<SimpleVertexNormal> verts, List<int> inds)
             : base(scene)
         {
             Init(verts, inds);
@@ -26,7 +26,7 @@ namespace GUI.Types.Renderer
         public ShapeSceneNode(Scene scene, Vector3 minBounds, Vector3 maxBounds, Color32 color) : base(scene)
         {
             var inds = new List<int>();
-            var verts = new List<SimpleVertex>();
+            var verts = new List<SimpleVertexNormal>();
             AddBox(verts, inds, minBounds, maxBounds, color);
 
             LocalBoundingBox = new AABB(minBounds, maxBounds);
@@ -40,7 +40,7 @@ namespace GUI.Types.Renderer
         public ShapeSceneNode(Scene scene, Vector3 from, Vector3 to, float radius, Color32 color) : base(scene)
         {
             var inds = new List<int>();
-            var verts = new List<SimpleVertex>();
+            var verts = new List<SimpleVertexNormal>();
             AddCapsule(verts, inds, from, to, radius, color);
 
             var min = Vector3.Min(from, to);
@@ -56,7 +56,7 @@ namespace GUI.Types.Renderer
         public ShapeSceneNode(Scene scene, Vector3 center, float radius, Color32 color) : base(scene)
         {
             var inds = new List<int>();
-            var verts = new List<SimpleVertex>();
+            var verts = new List<SimpleVertexNormal>();
             AddSphere(verts, inds, center, radius, color);
 
             LocalBoundingBox = new AABB(new Vector3(radius), new Vector3(-radius));
@@ -64,7 +64,7 @@ namespace GUI.Types.Renderer
             Init(verts, inds);
         }
 
-        private void Init(List<SimpleVertex> verts, List<int> inds)
+        private void Init(List<SimpleVertexNormal> verts, List<int> inds)
         {
             indexCount = inds.Count;
             shader = Scene.GuiContext.ShaderLoader.LoadShader("vrf.basic_shape");
@@ -72,11 +72,11 @@ namespace GUI.Types.Renderer
             GL.CreateVertexArrays(1, out vaoHandle);
             GL.CreateBuffers(1, out int vboHandle);
             GL.CreateBuffers(1, out int iboHandle);
-            GL.VertexArrayVertexBuffer(vaoHandle, 0, vboHandle, 0, SimpleVertex.SizeInBytes);
+            GL.VertexArrayVertexBuffer(vaoHandle, 0, vboHandle, 0, SimpleVertexNormal.SizeInBytes);
             GL.VertexArrayElementBuffer(vaoHandle, iboHandle);
-            SimpleVertex.BindDefaultShaderLayout(vaoHandle, shader.Program);
+            SimpleVertexNormal.BindDefaultShaderLayout(vaoHandle, shader.Program);
 
-            GL.NamedBufferData(vboHandle, verts.Count * SimpleVertex.SizeInBytes, verts.ToArray(), BufferUsageHint.StaticDraw);
+            GL.NamedBufferData(vboHandle, verts.Count * SimpleVertexNormal.SizeInBytes, verts.ToArray(), BufferUsageHint.StaticDraw);
             GL.NamedBufferData(iboHandle, inds.Count * sizeof(int), inds.ToArray(), BufferUsageHint.StaticDraw);
 
 #if DEBUG
@@ -91,7 +91,7 @@ namespace GUI.Types.Renderer
             AddTriangle(inds, 0, c, d, a);
         }
 
-        protected static void AddCapsule(List<SimpleVertex> verts, List<int> inds, Vector3 c0, Vector3 c1, float radius, Color32 color)
+        protected static void AddCapsule(List<SimpleVertexNormal> verts, List<int> inds, Vector3 c0, Vector3 c1, float radius, Color32 color)
         {
             var up = Vector3.Normalize(c0 - c1);
 
@@ -135,7 +135,7 @@ namespace GUI.Types.Renderer
             return Vector3.Normalize(sideVector);
         }
 
-        protected static void AddHemisphere(List<SimpleVertex> verts, List<int> inds, Vector3 center, float radius, Vector3 up, Color32 color)
+        protected static void AddHemisphere(List<SimpleVertexNormal> verts, List<int> inds, Vector3 center, float radius, Vector3 up, Color32 color)
         {
             var baseVertex = verts.Count;
 
@@ -188,7 +188,7 @@ namespace GUI.Types.Renderer
             }
         }
 
-        protected static void AddBox(List<SimpleVertex> verts, List<int> inds, Vector3 minBounds, Vector3 maxBounds, Color32 color)
+        protected static void AddBox(List<SimpleVertexNormal> verts, List<int> inds, Vector3 minBounds, Vector3 maxBounds, Color32 color)
         {
             verts.AddRange(
                 [
@@ -212,7 +212,7 @@ namespace GUI.Types.Renderer
             AddFace(inds, 1, 0, 4, 5);
         }
 
-        protected static void AddSphere(List<SimpleVertex> verts, List<int> inds, Vector3 center, float radius, Color32 color)
+        protected static void AddSphere(List<SimpleVertexNormal> verts, List<int> inds, Vector3 center, float radius, Color32 color)
         {
             AddHemisphere(verts, inds, center, radius, Vector3.UnitZ, color);
             AddHemisphere(verts, inds, center, radius, -Vector3.UnitZ, color);

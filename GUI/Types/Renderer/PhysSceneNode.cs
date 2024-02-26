@@ -12,7 +12,7 @@ namespace GUI.Types.Renderer
         public bool Enabled { get; set; }
         public string PhysGroupName { get; set; }
 
-        public PhysSceneNode(Scene scene, List<SimpleVertex> verts, List<int> inds) : base(scene, verts, inds)
+        public PhysSceneNode(Scene scene, List<SimpleVertexNormal> verts, List<int> inds) : base(scene, verts, inds)
         {
         }
 
@@ -20,7 +20,7 @@ namespace GUI.Types.Renderer
         public static IEnumerable<PhysSceneNode> CreatePhysSceneNodes(Scene scene, PhysAggregateData phys, string fileName)
         {
             var groupCount = phys.CollisionAttributes.Count;
-            var verts = new List<SimpleVertex>[groupCount];
+            var verts = new List<SimpleVertexNormal>[groupCount];
             var inds = new List<int>[groupCount];
             var boundingBoxes = new AABB[groupCount];
             var boundingBoxInitted = new bool[groupCount];
@@ -131,7 +131,7 @@ namespace GUI.Types.Renderer
 
                     // color red
                     var color = new Color32(1.0f, 0.0f, 0.0f, 0.3f);
-                    
+
                     foreach (var face in faces)
                     {
                         var startEdge = face.Edge;
