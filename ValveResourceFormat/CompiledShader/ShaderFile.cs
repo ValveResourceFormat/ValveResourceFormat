@@ -16,7 +16,7 @@ namespace ValveResourceFormat.CompiledShader
         public const int ZSTD_COMPRESSION = 1;
         public const int LZMA_COMPRESSION = 2;
         public ShaderDataReader DataReader { get; set; }
-        private FileStream FileStream;
+        private Stream BaseStream;
 
         public string FilenamePath { get; private set; }
         public string ShaderName { get; private set; }
@@ -61,10 +61,10 @@ namespace ValveResourceFormat.CompiledShader
         {
             if (disposing)
             {
-                if (FileStream != null)
+                if (BaseStream != null)
                 {
-                    FileStream.Dispose();
-                    FileStream = null;
+                    BaseStream.Dispose();
+                    BaseStream = null;
                 }
 
                 if (DataReader != null)
@@ -84,8 +84,8 @@ namespace ValveResourceFormat.CompiledShader
         /// <param name="filenamepath">The file to open and read.</param>
         public void Read(string filenamepath)
         {
-            FileStream = new FileStream(filenamepath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-            Read(filenamepath, FileStream);
+            var stream = new FileStream(filenamepath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            Read(filenamepath, stream);
         }
 
         /// <summary>
@@ -95,6 +95,7 @@ namespace ValveResourceFormat.CompiledShader
         /// <param name="input">The input <see cref="Stream"/> to read from.</param>
         public void Read(string filenamepath, Stream input)
         {
+            BaseStream = input;
             DataReader = new ShaderDataReader(input) { IsSbox = IsSbox };
             FilenamePath = filenamepath;
             ParseFile();
