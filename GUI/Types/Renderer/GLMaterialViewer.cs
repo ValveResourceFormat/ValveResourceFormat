@@ -56,6 +56,7 @@ namespace GUI.Types.Renderer
                 renderable.SetMaterialForMaterialViewer(Resource);
             }
 
+            Scene.ShowToolsMaterials = true;
             Scene.Add(node, false);
 
 #if DEBUG
