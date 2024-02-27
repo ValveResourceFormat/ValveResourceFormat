@@ -17,4 +17,12 @@ void main(void) {
         vec3 viewDir = normalize(vtxPos - camPos);
         outputColor = vec4(CalculateFullbrightLighting(vtxColor.rgb, vtxNormal, viewDir) * 2, .8);
     }
+
+    #if renderMode_Normals == 1
+        outputColor = vec4(PackToColor(vtxNormal), 1.0);
+    #endif
+
+    #if renderMode_Color == 1
+        outputColor = vec4(vtxColor.rgb, 1.0);
+    #endif
 }

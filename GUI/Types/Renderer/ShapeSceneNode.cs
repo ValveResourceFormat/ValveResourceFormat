@@ -64,6 +64,15 @@ namespace GUI.Types.Renderer
             Init(verts, inds);
         }
 
+        public override void SetRenderMode(string mode)
+        {
+            shader = Scene.GuiContext.ShaderLoader.LoadShader("vrf.basic_shape", new Dictionary<string, byte>
+            {
+                { "F_DEBUG_PICKER", 1 },
+                { string.Concat(ShaderLoader.RenderModeDefinePrefix, mode), 1 },
+            });
+        }
+
         private void Init(List<SimpleVertexNormal> verts, List<int> inds)
         {
             indexCount = inds.Count;
