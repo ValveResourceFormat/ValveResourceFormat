@@ -68,7 +68,6 @@ namespace GUI.Types.Renderer
         {
             shader = Scene.GuiContext.ShaderLoader.LoadShader("vrf.basic_shape", new Dictionary<string, byte>
             {
-                { "F_DEBUG_PICKER", 1 },
                 { string.Concat(ShaderLoader.RenderModeDefinePrefix, mode), 1 },
             });
         }
