@@ -152,9 +152,9 @@ namespace GUI.Types.Renderer
                             var normal = ComputeNormal(a, b, c);
 
                             var offset = shapeVerts.Count;
-                            shapeVerts.Add(new(a, normal, color));
-                            shapeVerts.Add(new(b, normal, color));
-                            shapeVerts.Add(new(c, normal, color));
+                            shapeVerts.Add(new(a, color, normal));
+                            shapeVerts.Add(new(b, color, normal));
+                            shapeVerts.Add(new(c, color, normal));
 
                             AddTriangle(shapeInds, offset, 0, 1, 2);
 
@@ -214,9 +214,9 @@ namespace GUI.Types.Renderer
                         var normal = ComputeNormal(a, b, c);
 
                         var offset = shapeVerts.Count;
-                        shapeVerts.Add(new(a, normal, color));
-                        shapeVerts.Add(new(b, normal, color));
-                        shapeVerts.Add(new(c, normal, color));
+                        shapeVerts.Add(new(a, color, normal));
+                        shapeVerts.Add(new(b, color, normal));
+                        shapeVerts.Add(new(c, color, normal));
 
                         AddTriangle(shapeInds, offset, 0, 1, 2);
                     }

@@ -157,14 +157,14 @@ namespace GUI.Types.Renderer
                     var point = Vector3.Transform(v, Quaternion.Multiply(quatAround, quatUp));
                     var transformed = center + radius * Vector3.Normalize(point);
 
-                    verts.Add(new(transformed, point, color));
+                    verts.Add(new(transformed, color, point));
                 }
             }
 
             // midpoint
             var topVertexIndex = verts.Count - baseVertex;
             var transformedUp = center + radius * Vector3.Normalize(up);
-            verts.Add(new(transformedUp, Vector3.Normalize(up), color));
+            verts.Add(new(transformedUp, color, Vector3.Normalize(up)));
 
             // generate triangles
             for (var band = 0; band < Bands; band++)
