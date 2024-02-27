@@ -242,7 +242,7 @@ namespace GUI.Types.Renderer
         }
 
         private List<SceneNode> CulledShadowNodes { get; } = [];
-        List<RenderableMesh> listWithSingleMesh = [null];
+        private readonly List<RenderableMesh> listWithSingleMesh = [null];
         private Dictionary<DepthOnlyProgram, List<MeshBatchRenderer.Request>> CulledShadowDrawCalls { get; } = new()
         {
             [DepthOnlyProgram.Static] = [],
@@ -250,7 +250,7 @@ namespace GUI.Types.Renderer
             [DepthOnlyProgram.Animated] = [],
         };
 
-        public void SetupSceneShadows(Camera camera, Span<Shader> depthOnlyShaders)
+        public void SetupSceneShadows(Camera camera)
         {
             if (!LightingInfo.EnableDynamicShadows)
             {

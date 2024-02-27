@@ -18,7 +18,7 @@ namespace GUI.Types.Renderer
 
         readonly AnimationController animationController;
 
-        readonly Dictionary<string, HitboxSetData> hitboxSets = new();
+        readonly Dictionary<string, HitboxSetData> hitboxSets = [];
         HitboxSetData currentSet;
         Skeleton skeleton => animationController.FrameCache.Skeleton;
 
