@@ -12,7 +12,7 @@ namespace ValveResourceFormat.CompiledShader
         public delegate void HandleOutputWrite(string s);
 
         // pass an OutputWriter to direct output somewhere else, Console.Write is assigned by default
-        public ShaderDataReader(Stream input, HandleOutputWrite outputWriter = null) : base(input)
+        public ShaderDataReader(Stream input, HandleOutputWrite outputWriter = null) : base(input, Encoding.UTF8, leaveOpen: true)
         {
             OutputWriter = outputWriter ?? ((x) => { Console.Write(x); });
         }
