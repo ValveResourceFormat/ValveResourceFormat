@@ -128,7 +128,7 @@ namespace GUI.Utils
         {
             if (GuiContext.ParentGuiContext != null)
             {
-                return GuiContext.ParentGuiContext.FileLoader.LoadShader(shaderName);
+                return GuiContext.ParentGuiContext.FileLoader.LoadShaderFromDisk(shaderName);
             }
 
             return base.LoadShaderFromDisk(shaderName);
