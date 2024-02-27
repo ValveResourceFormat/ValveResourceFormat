@@ -145,7 +145,13 @@ namespace GUI.Types.Renderer
 
         public void SetMaterialForMaterialViewer(Resource resourceMaterial)
         {
-            foreach (var drawCall in DrawCalls)
+            var oldDrawCalls = DrawCalls.ToList();
+
+            DrawCallsOpaque.Clear();
+            DrawCallsOverlay.Clear();
+            DrawCallsBlended.Clear();
+
+            foreach (var drawCall in oldDrawCalls)
             {
                 var material = drawCall.Material;
                 var materialData = material.Material;
@@ -156,6 +162,16 @@ namespace GUI.Types.Renderer
 
                 drawCall.Material = guiContext.MaterialLoader.LoadMaterial(resourceMaterial, dynamicParams);
                 UpdateVertexArrayObject(drawCall);
+
+                // Ignore overlays in material viewer, since there is nothing to overlay.
+                if (drawCall.Material.IsTranslucent)
+                {
+                    DrawCallsBlended.Add(drawCall);
+                }
+                else
+                {
+                    DrawCallsOpaque.Add(drawCall);
+                }
             }
         }
 
@@ -247,18 +263,7 @@ namespace GUI.Types.Renderer
                         );
                     }
 
-                    if (drawCall.Material.IsOverlay)
-                    {
-                        DrawCallsOverlay.Add(drawCall);
-                    }
-                    else if (drawCall.Material.IsTranslucent)
-                    {
-                        DrawCallsBlended.Add(drawCall);
-                    }
-                    else
-                    {
-                        DrawCallsOpaque.Add(drawCall);
-                    }
+                    AddDrawCall(drawCall);
 
                     drawCall.VertexIdOffset = vertexOffset;
                     vertexOffset += objectDrawCall.GetInt32Property("m_nVertexCount");
@@ -266,10 +271,22 @@ namespace GUI.Types.Renderer
                     i++;
                 }
             }
+        }
 
-            DrawCallsOpaque.TrimExcess();
-            DrawCallsOverlay.TrimExcess();
-            DrawCallsBlended.TrimExcess();
+        private void AddDrawCall(DrawCall drawCall)
+        {
+            if (drawCall.Material.IsOverlay)
+            {
+                DrawCallsOverlay.Add(drawCall);
+            }
+            else if (drawCall.Material.IsTranslucent)
+            {
+                DrawCallsBlended.Add(drawCall);
+            }
+            else
+            {
+                DrawCallsOpaque.Add(drawCall);
+            }
         }
 
         private DrawCall CreateDrawCall(KVObject objectDrawCall, RenderMaterial material, VBIB vbib)
