@@ -609,6 +609,12 @@ namespace GUI.Types.Renderer
                             lightProbe.DirectLightIndices.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
                         }
 
+                        scene.LightingInfo.LightProbeType = entity.Properties.ContainsKey(StringToken.Get("light_probe_atlas_x")) switch
+                        {
+                            false => Scene.LightProbeType.IndividualProbes,
+                            true => Scene.LightProbeType.ProbeAtlas,
+                        };
+
                         if (dlsdName != null)
                         {
                             lightProbe.DirectLightShadows = guiContext.MaterialLoader.GetTexture(dlsdName);

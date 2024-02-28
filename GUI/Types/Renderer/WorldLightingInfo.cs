@@ -16,10 +16,9 @@ partial class Scene
 
     public enum LightProbeType : byte
     {
-        IndividualProbesIrradianceOnly,
+        None,
         IndividualProbes,
         ProbeAtlas,
-        Unknown,
     }
 
     public class WorldLightingInfo(Scene scene)
@@ -43,8 +42,8 @@ partial class Scene
 
         public LightProbeType LightProbeType
         {
-            get => (LightProbeType)scene.RenderAttributes.GetValueOrDefault("LightmapGameVersionNumber");
-            //set => scene.RenderAttributes["LightmapGameVersionNumber"] = (byte)value;
+            get => (LightProbeType)scene.RenderAttributes.GetValueOrDefault("SCENE_PROBE_TYPE");
+            set => scene.RenderAttributes["SCENE_PROBE_TYPE"] = (byte)value;
         }
 
         public bool HasBakedShadowsFromLightmap => scene.RenderAttributes.GetValueOrDefault("LightmapGameVersionNumber") > 0;
@@ -109,11 +108,11 @@ partial class Scene
 
         public void AddProbe(SceneLightProbe lightProbe)
         {
-            var validTextureSet = (scene.LightingInfo.LightProbeType, lightProbe) switch
+            var validTextureSet = (scene.LightingInfo.LightmapGameVersionNumber, lightProbe) switch
             {
                 (_, { Irradiance: null }) => false,
-                (LightProbeType.IndividualProbes, { DirectLightIndices: null } or { DirectLightScalars: null }) => false,
-                (LightProbeType.ProbeAtlas, { DirectLightShadows: null }) => false,
+                (1, { DirectLightIndices: null } or { DirectLightScalars: null }) => false,
+                (2, { DirectLightShadows: null }) => false,
                 _ => true,
             };
 

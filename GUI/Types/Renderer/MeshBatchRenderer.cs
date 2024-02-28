@@ -88,6 +88,7 @@ namespace GUI.Types.Renderer
         private ref struct Config
         {
             public bool NeedsCubemapBinding;
+            public int LightmapGameVersionNumber;
             public Scene.LightProbeType LightProbeType;
         }
 
@@ -117,6 +118,7 @@ namespace GUI.Types.Renderer
             Config config = new()
             {
                 NeedsCubemapBinding = context.Scene.LightingInfo.CubemapType == Scene.CubemapType.IndividualCubemaps,
+                LightmapGameVersionNumber = context.Scene.LightingInfo.LightmapGameVersionNumber,
                 LightProbeType = context.Scene.LightingInfo.LightProbeType,
             };
 
@@ -234,19 +236,22 @@ namespace GUI.Types.Renderer
                 }
             }
 
-            if (uniforms.LightProbeVolumeData != -1 && request.Node.LightProbeBinding != null)
+            if (uniforms.LightProbeVolumeData != -1 && request.Node.LightProbeBinding is { } lightProbe)
             {
-                var lightProbe = request.Node.LightProbeBinding;
                 lightProbe.SetGpuProbeData(config.LightProbeType == Scene.LightProbeType.ProbeAtlas);
 
-                if (config.LightProbeType < Scene.LightProbeType.ProbeAtlas)
+                if (config.LightProbeType == Scene.LightProbeType.IndividualProbes)
                 {
                     SetInstanceTexture(shader, ReservedTextureSlots.Probe1, uniforms.LPVIrradianceTexture, lightProbe.Irradiance);
 
-                    if (config.LightProbeType > Scene.LightProbeType.IndividualProbesIrradianceOnly)
+                    if (config.LightmapGameVersionNumber == 1)
                     {
                         SetInstanceTexture(shader, ReservedTextureSlots.Probe2, uniforms.LPVIndicesTexture, lightProbe.DirectLightIndices);
                         SetInstanceTexture(shader, ReservedTextureSlots.Probe3, uniforms.LPVScalarsTexture, lightProbe.DirectLightScalars);
+                    }
+                    else if (request.Node.Scene.LightingInfo.LightmapGameVersionNumber == 2)
+                    {
+                        SetInstanceTexture(shader, ReservedTextureSlots.Probe2, uniforms.LPVShadowsTexture, lightProbe.DirectLightShadows);
                     }
                 }
             }
