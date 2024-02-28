@@ -142,6 +142,11 @@ vec3 GetLightDirection(vec3 vPositionWs, uint nLightIndex)
     return lightVector;
 }
 
+float GetLightRangeInverse(uint nLightIndex)
+{
+    return g_vLightDirection_InvRange[nLightIndex].a;
+}
+
 vec3 GetLightColor(uint nLightIndex)
 {
     vec3 vColor = g_vLightColor_Brightness[nLightIndex].rgb;
@@ -150,11 +155,110 @@ vec3 GetLightColor(uint nLightIndex)
     return vColor * flBrightness;
 }
 
+/*
+vec3 CalcBaseLight(int layer, vec3 normals, BaseLight base, float attenuation, bool global)
+{
+    //return CalcLight(layer, normals, base.Position, base.Color.rgb * base.Intensity, attenuation, global);
+}
+
+vec3 CalcPointLight(int layer, vec3 normals, Light light)
+{
+    float distanceToLight = length(light.Base.Position - vPositionWs);
+    float attenuation = 1.0 / (1.0 + light.Linear * distanceToLight + light.Quadratic * pow(distanceToLight, 2));
+    return CalcBaseLight(layer, normals, light.Base, attenuation, true);
+}
+
+float CalcSpotLightAtten(vec3 vPositionWs, Light light)
+{
+    vec3 v = normalize(light.Position - vPositionWs);
+    float inner = cos(radians(light.InnerConeAngle));
+    float outer = cos(radians(light.OuterConeAngle));
+
+    float distanceToLight = length(light.Base.Position - vPositionWs);
+    float theta = dot(v, normalize(-vec3(0, -1, 0)));
+    float epsilon = inner - outer;
+    float attenuation = 1.0 / (1.0 + light.Attenuation * pow(distanceToLight, 2));
+    light.Base.Intensity *= smoothstep(0.0, 1.0, (theta - outer) / epsilon);
+
+    if(theta > outer)
+    {
+        return attenuation;
+    }
+    else
+    {
+        return 0.0;
+    }
+}
+*/
+
+float DistanceFalloff(float flDistToLightSq, float flLightInvRadius, vec2 vFalloffParams)
+{
+    flDistToLightSq = max(flDistToLightSq, 1.0); // Can't be inside the light source (assuming radius^2 == 1.0f)
+
+    vec2 vInvRadiusAndInvRadiusSq = vec2(flLightInvRadius, flLightInvRadius * flLightInvRadius);
+    vec2 vLightDistAndLightDistSq = vec2(sqrt(flDistToLightSq), flDistToLightSq);
+
+    float flTruncation = dot(vFalloffParams.xy, vInvRadiusAndInvRadiusSq.xy); // Constant amount to subtract to ensure that the light is zero past the light radius
+    float flFalloff = dot(vFalloffParams.xy, vLightDistAndLightDistSq.xy);
+
+    return saturate((1.0 / flFalloff) - flTruncation);
+}
+
+// https://lisyarus.github.io/blog/graphics/2022/07/30/point-light-attenuation.html
+float attenuate_cusp(float s, float falloff)
+{
+    if (s >= 1.0)
+        return 0.0;
+
+    float s2 = pow2(s);
+
+    //return 1.0;
+    return pow2(1 - s2) / (1 + falloff * s);
+}
+
 void CalculateDirectLighting(inout LightingTerms_t lighting, inout MaterialProperties_t mat)
 {
     const float MIN_ALPHA = 0.0001;
 
     #if (LightmapGameVersionNumber == 1)
+
+        for (uint uLightIndex = g_nNumLights.x; uLightIndex < g_nNumLights.y; uLightIndex++)
+        {
+            vec3 vPositionToLightRayWs = g_vLightPosition_Type[uLightIndex].xyz - mat.PositionWS.xyz;
+            float flDistToLightSq = dot(vPositionToLightRayWs.xyz, vPositionToLightRayWs.xyz);
+
+            if (flDistToLightSq > pow2(g_vLightFallOff[uLightIndex].y))
+            {
+                // Outside light range
+                continue;
+            }
+
+            if (dot(mat.Normal.xyz, vPositionToLightRayWs.xyz) <= 0.0)
+            {
+                // Backface cull pixel to this light
+                //continue;
+            }
+
+            vec3 lightVector = normalize(vPositionToLightRayWs);
+            float flOuterConeCos = g_vLightSpotInnerOuterConeCosines[uLightIndex].x;
+            float flTemp = dot(lightVector, -g_vLightDirection_InvRange[uLightIndex].xyz ) - flOuterConeCos;
+
+            if (flTemp <= 0.0)
+            {
+                // Outside spotlight cone
+                //continue;
+            }
+
+            float vSpotAtten = saturate(flTemp * g_vLightSpotInnerOuterConeCosines[uLightIndex].y);
+            float flLightFalloff = attenuate_cusp(sqrt(flDistToLightSq), max(g_vLightFallOff[uLightIndex].z, g_vLightFallOff[uLightIndex].w));//DistanceFalloff(flDistToLightSq, g_vLightDirection_InvRange[uLightIndex].w, g_vLightFallOff[uLightIndex].zw);
+            float visibility = flLightFalloff;
+
+            if (visibility > MIN_ALPHA)
+            {
+                CalculateShading(lighting, lightVector, visibility * GetLightColor(uLightIndex), mat);
+            }
+        }
+
         #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
             vec4 dls = texture(g_tDirectLightStrengths, vLightmapUVScaled);
             vec4 dli = texture(g_tDirectLightIndices, vLightmapUVScaled);
@@ -217,20 +321,48 @@ void CalculateDirectLighting(inout LightingTerms_t lighting, inout MaterialPrope
             dlsh = textureLod(g_tLPV_Shadows, vLightProbeShadowCoords, 0.0);
         #endif
 
-        const uint uLightIndex = 0;
-
-        float visibility = 1.0 - dlsh[uLightIndex];
-
-        if (visibility > MIN_ALPHA && uLightIndex == 0)
+        for(uint uShadowIndex = 0; uShadowIndex < 4; ++uShadowIndex)
         {
-            visibility *= CalculateSunShadowMapVisibility(mat.PositionWS);
-        }
+            float shadowFactor = 1.0 - dlsh[uShadowIndex];
+            if (shadowFactor <= MIN_ALPHA)
+            {
+                continue;
+            }
+            uint nLightIndexStart = uShadowIndex == 0 ? 0 : g_nNumLightsPerShadow[uShadowIndex - 1];
+            uint nLightCount = g_nNumLightsPerShadow[uShadowIndex];
 
-        if (visibility > MIN_ALPHA)
-        {
-            vec3 lightColor = GetLightColor(uLightIndex);
-            vec3 lightVector = GetLightDirection(mat.PositionWS, uLightIndex);
-            CalculateShading(lighting, lightVector, visibility * lightColor, mat);
+            for(uint uLightIndex = nLightIndexStart; uLightIndex < nLightCount; ++uLightIndex)
+            {
+                float visibility = shadowFactor;
+                vec3 lightVector = GetLightDirection(mat.PositionWS, uLightIndex);
+
+                //if (uLightIndex == 8 && length(GetLightPositionWs(uLightIndex) - mat.PositionWS) < g_vLightFallOff[uLightIndex].y)
+                //{
+                //    visibility = 1.0;
+                //}
+
+                if (IsDirectionalLight(uLightIndex))
+                {
+                    visibility *= CalculateSunShadowMapVisibility(mat.PositionWS);
+                }
+                else
+                {
+                    float flInvRange = GetLightRangeInverse(uLightIndex) / g_vLightPosition_Type[uLightIndex].a;
+                    vec3 vLightPosition = g_vLightPosition_Type[uLightIndex].xyz;
+                    float flDistance = length(vLightPosition - mat.PositionWS);
+                    float flFallOff = g_vLightFallOff[uLightIndex].x;
+                    float flRange = g_vLightFallOff[uLightIndex].y * 2;
+
+                    //float s = flDistance / flRange;
+
+                    visibility *= attenuate_cusp(flDistance * flInvRange, flFallOff);
+                }
+
+                if (visibility > MIN_ALPHA)
+                {
+                    CalculateShading(lighting, lightVector, visibility * GetLightColor(uLightIndex), mat);
+                }
+            }
         }
     #else
         // Non lightmapped scene
