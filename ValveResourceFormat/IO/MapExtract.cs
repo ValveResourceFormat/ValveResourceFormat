@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Runtime.Intrinsics;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO.ContentFormats.DmxModel;
 using ValveResourceFormat.IO.ContentFormats.ValveMap;
@@ -1302,9 +1303,9 @@ public sealed class MapExtract
         vExpSegment -= new Vector3(0.055f);
 
         var vGammaColor = new Vector3(
-            (vLinearColor.X <= 0.0031308) ? vLinearSegment.X : vExpSegment.X,
-            (vLinearColor.Y <= 0.0031308) ? vLinearSegment.Y : vExpSegment.Y,
-            (vLinearColor.Z <= 0.0031308) ? vLinearSegment.Z : vExpSegment.Z
+            (vLinearColor.X <= 0.0031308f) ? vLinearSegment.X : vExpSegment.X,
+            (vLinearColor.Y <= 0.0031308f) ? vLinearSegment.Y : vExpSegment.Y,
+            (vLinearColor.Z <= 0.0031308f) ? vLinearSegment.Z : vExpSegment.Z
         );
 
         return vGammaColor;
