@@ -86,6 +86,11 @@ class SceneLight(Scene scene) : SceneNode(scene)
 
         var isNewLightType = type is EntityType.Omni2 or EntityType.Barn or EntityType.Rect;
 
+        if (isNewLightType && light.Brightness > 6f)
+        {
+            light.Brightness = 1f; // todo: findout the correct brightness value
+        }
+
         if (!isNewLightType)
         {
             light.AttenuationLinear = entity.GetPropertyUnchecked("attenuation1", 0.0f);
