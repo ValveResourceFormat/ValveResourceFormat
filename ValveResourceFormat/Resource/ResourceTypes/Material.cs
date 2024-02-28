@@ -32,7 +32,7 @@ namespace ValveResourceFormat.ResourceTypes
                 if (!inputSignature.HasValue)
                 {
                     var inputSignatureObject = GetInputSignatureObject();
-                    inputSignature = inputSignatureObject != null ? new(inputSignatureObject) : default;
+                    inputSignature = inputSignatureObject != null ? new(inputSignatureObject) : default(VsInputSignature);
                 }
 
                 return inputSignature.Value;
