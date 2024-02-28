@@ -8,6 +8,11 @@ namespace GUI.Types.Renderer
 {
     class PhysSceneNode : ShapeSceneNode
     {
+        private static readonly Color32 ColorSphere = new(0f, 1f, 0f, 0.65f);
+        private static readonly Color32 ColorCapsule = new(0f, 1f, 0f, 0.65f);
+        private static readonly Color32 ColorMesh = new(0f, 0f, 1f, 0.65f);
+        private static readonly Color32 ColorHull = new(1.0f, 0.0f, 0.0f, 0.65f);
+
         public override bool LayerEnabled => Enabled && base.LayerEnabled;
         public bool Enabled { get; set; }
         public string PhysGroupName { get; set; }
@@ -52,7 +57,7 @@ namespace GUI.Types.Renderer
                         center = Vector3.Transform(center, bindPose[p]);
                     }
 
-                    AddSphere(verts[collisionAttributeIndex], inds[collisionAttributeIndex], center, radius, new(1f, 1f, 0f, 0.3f));
+                    AddSphere(verts[collisionAttributeIndex], inds[collisionAttributeIndex], center, radius, ColorSphere);
 
                     var bbox = new AABB(center + new Vector3(radius),
                                         center - new Vector3(radius));
@@ -82,7 +87,7 @@ namespace GUI.Types.Renderer
                         center[1] = Vector3.Transform(center[1], bindPose[p]);
                     }
 
-                    AddCapsule(verts[collisionAttributeIndex], inds[collisionAttributeIndex], center[0], center[1], radius, new(1f, 1f, 0f, 0.3f));
+                    AddCapsule(verts[collisionAttributeIndex], inds[collisionAttributeIndex], center[0], center[1], radius, ColorCapsule);
                     foreach (var cn in center)
                     {
                         var bbox = new AABB(cn + new Vector3(radius),
@@ -129,9 +134,6 @@ namespace GUI.Types.Renderer
 
                     inds[collisionAttributeIndex].EnsureCapacity(inds[collisionAttributeIndex].Count + faces.Length * 6); // TODO: This doesn't account for edges
 
-                    // color red
-                    var color = new Color32(1.0f, 0.0f, 0.0f, 0.3f);
-
                     foreach (var face in faces)
                     {
                         var startEdge = face.Edge;
@@ -152,9 +154,9 @@ namespace GUI.Types.Renderer
                             var normal = ComputeNormal(a, b, c);
 
                             var offset = shapeVerts.Count;
-                            shapeVerts.Add(new(a, color, normal));
-                            shapeVerts.Add(new(b, color, normal));
-                            shapeVerts.Add(new(c, color, normal));
+                            shapeVerts.Add(new(a, ColorHull, normal));
+                            shapeVerts.Add(new(b, ColorHull, normal));
+                            shapeVerts.Add(new(c, ColorHull, normal));
 
                             AddTriangle(shapeInds, offset, 0, 1, 2);
 
@@ -202,9 +204,6 @@ namespace GUI.Types.Renderer
                         positions[i] = Vector3.Transform(vertices[i], pose);
                     }
 
-                    // color blue
-                    var color = new Color32(0f, 0f, 1f, 0.3f);
-
                     foreach (var tri in triangles)
                     {
                         var a = positions[tri.X];
@@ -214,9 +213,9 @@ namespace GUI.Types.Renderer
                         var normal = ComputeNormal(a, b, c);
 
                         var offset = shapeVerts.Count;
-                        shapeVerts.Add(new(a, color, normal));
-                        shapeVerts.Add(new(b, color, normal));
-                        shapeVerts.Add(new(c, color, normal));
+                        shapeVerts.Add(new(a, ColorMesh, normal));
+                        shapeVerts.Add(new(b, ColorMesh, normal));
+                        shapeVerts.Add(new(c, ColorMesh, normal));
 
                         AddTriangle(shapeInds, offset, 0, 1, 2);
                     }

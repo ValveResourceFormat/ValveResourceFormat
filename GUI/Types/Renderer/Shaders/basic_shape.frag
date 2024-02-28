@@ -10,12 +10,16 @@ in vec3 camPos;
 
 out vec4 outputColor;
 
+float shadedStrength = 0.8;
+
 void main(void) {
     if (vtxNormal == vec3(0, 0, 0)) {
         outputColor = vtxColor;
     } else {
         vec3 viewDir = normalize(vtxPos - camPos);
-        outputColor = vec4(CalculateFullbrightLighting(vtxColor.rgb, vtxNormal, viewDir) * 2, .8);
+
+        vec3 shaded = CalculateFullbrightLighting(vtxColor.rgb, vtxNormal, viewDir);
+        outputColor = vec4(mix(vtxColor.rgb, shaded, 0.8), vtxColor.a);
     }
 
     #if renderMode_Normals == 1
