@@ -24,6 +24,21 @@ namespace ValveResourceFormat.ResourceTypes
         public Dictionary<string, string> StringAttributes { get; } = [];
         public Dictionary<string, string> DynamicExpressions { get; } = [];
 
+        private VsInputSignature? inputSignature;
+        public VsInputSignature InputSignature
+        {
+            get
+            {
+                if (!inputSignature.HasValue)
+                {
+                    var inputSignatureObject = GetInputSignatureObject();
+                    inputSignature = inputSignatureObject != null ? new(inputSignatureObject) : default;
+                }
+
+                return inputSignature.Value;
+            }
+        }
+
 
         public override void Read(BinaryReader reader, Resource resource)
         {
@@ -123,7 +138,7 @@ namespace ValveResourceFormat.ResourceTypes
             return arguments;
         }
 
-        public KVObject GetInputSignature()
+        private KVObject GetInputSignatureObject()
         {
             if (Resource.ContainsBlockType(BlockType.INSG))
             {
@@ -154,6 +169,16 @@ namespace ValveResourceFormat.ResourceTypes
             return KeyValues3.ParseKVFile(ms).Root;
         }
 
+        public readonly struct VsInputSignature
+        {
+            public InputSignatureElement[] Elements { get; } = [];
+
+            public VsInputSignature(KVObject data)
+            {
+                Elements = data.GetArray("m_elems").Select(x => new InputSignatureElement(x)).ToArray();
+            }
+        }
+
         public readonly struct InputSignatureElement
         {
             public string Name { get; }
@@ -170,14 +195,13 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
-        public static InputSignatureElement FindD3DInputSignatureElement(KVObject insg, string d3dName, int d3dIndex)
+        public static InputSignatureElement FindD3DInputSignatureElement(VsInputSignature insg, string d3dName, int d3dIndex)
         {
-            foreach (var elemData in insg.GetArray<KVObject>("m_elems"))
+            foreach (var element in insg.Elements)
             {
-                var elem = new InputSignatureElement(elemData);
-                if (elem.D3DSemanticName == d3dName && elem.D3DSemanticIndex == d3dIndex)
+                if (element.D3DSemanticName == d3dName && element.D3DSemanticIndex == d3dIndex)
                 {
-                    return elem;
+                    return element;
                 }
             }
 

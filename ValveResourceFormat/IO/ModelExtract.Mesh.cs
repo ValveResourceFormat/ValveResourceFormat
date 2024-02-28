@@ -21,7 +21,7 @@ partial class ModelExtract
     public List<(HullDescriptor Hull, string FileName)> PhysHullsToExtract { get; } = [];
     public List<(MeshDescriptor Mesh, string FileName)> PhysMeshesToExtract { get; } = [];
     public List<RenderMeshExtractConfiguration> RenderMeshesToExtract { get; } = [];
-    public Dictionary<string, KVObject> MaterialInputSignatures { get; } = [];
+    public Dictionary<string, Material.VsInputSignature> MaterialInputSignatures { get; } = [];
 
     public string[] PhysicsSurfaceNames { get; private set; }
     public HashSet<string>[] PhysicsCollisionTags { get; private set; }
@@ -101,7 +101,7 @@ partial class ModelExtract
             foreach (var material in materialReferences ?? [])
             {
                 using var materialResource = fileLoader.LoadFileCompiled(material.Name);
-                MaterialInputSignatures[material.Name] = (materialResource?.DataBlock as Material)?.GetInputSignature();
+                MaterialInputSignatures[material.Name] = (materialResource?.DataBlock as Material)?.InputSignature ?? default;
             }
         }
     }
@@ -218,7 +218,7 @@ partial class ModelExtract
         return aggModelName[..^vmdlExt.Length] + "_draw" + drawCallIndex + vmdlExt;
     }
 
-    private static void FillDatamodelVertexData(VBIB.OnDiskBufferData vertexBuffer, DmeVertexData vertexData, KVObject materialInputSignature)
+    private static void FillDatamodelVertexData(VBIB.OnDiskBufferData vertexBuffer, DmeVertexData vertexData, Material.VsInputSignature materialInputSignature)
     {
         var indices = Enumerable.Range(0, (int)vertexBuffer.ElementCount).ToArray(); // May break with non-unit strides, non-tri faces
 
@@ -256,7 +256,7 @@ partial class ModelExtract
                 continue;
             }
 
-            if (materialInputSignature is not null)
+            if (materialInputSignature.Elements.Length > 0)
             {
                 var insgElement = Material.FindD3DInputSignatureElement(materialInputSignature, attribute.SemanticName, attribute.SemanticIndex);
 
@@ -299,7 +299,7 @@ partial class ModelExtract
         }
     }
 
-    public static byte[] ToDmxMesh(Mesh mesh, string name, Dictionary<string, KVObject> materialInputSignatures = null,
+    public static byte[] ToDmxMesh(Mesh mesh, string name, Dictionary<string, Material.VsInputSignature> materialInputSignatures = null,
         bool splitDrawCallsIntoSeparateSubmeshes = false)
     {
         var mdat = mesh.Data;
@@ -309,7 +309,7 @@ partial class ModelExtract
         using var dmx = new Datamodel.Datamodel("model", 22);
         DmxModelMultiVertexBufferLayout(name, mbuf.VertexBuffers.Count, out var dmeModel, out var dags, out var dmeVertexBuffers);
 
-        KVObject materialInputSignature = null;
+        Material.VsInputSignature materialInputSignature = default;
         var drawCallIndex = 0;
 
         foreach (var sceneObject in mdat.GetArray("m_sceneObjects"))
@@ -325,9 +325,9 @@ partial class ModelExtract
 
                 var material = drawCall.GetProperty<string>("m_material") ?? drawCall.GetProperty<string>("m_pMaterial");
 
-                if (material != null)
+                if (material != null && materialInputSignature.Elements.Length == 0 && materialInputSignatures != null)
                 {
-                    materialInputSignature ??= materialInputSignatures?.GetValueOrDefault(material);
+                    materialInputSignature = materialInputSignatures.GetValueOrDefault(material);
                 }
 
                 if (material == null && Mesh.IsOccluder(drawCall))

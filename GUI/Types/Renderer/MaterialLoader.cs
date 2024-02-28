@@ -88,7 +88,6 @@ namespace GUI.Types.Renderer
             var vrfMaterial = (VrfMaterial)resource.DataBlock;
             var mat = new RenderMaterial(
                 vrfMaterial,
-                vrfMaterial.GetInputSignature(),
                 VrfGuiContext.ShaderLoader,
                 shaderArguments
             );
