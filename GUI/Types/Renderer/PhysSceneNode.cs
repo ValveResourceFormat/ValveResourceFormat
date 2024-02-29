@@ -190,7 +190,7 @@ namespace GUI.Types.Renderer
 
                     // meshes can be large, so ensure capacity up front
                     verts[collisionAttributeIndex].EnsureCapacity(baseVertex + vertices.Length);
-                    inds[collisionAttributeIndex].EnsureCapacity(inds[collisionAttributeIndex].Count + triangles.Length * 6); // TODO account for duplication from normals
+                    inds[collisionAttributeIndex].EnsureCapacity(inds[collisionAttributeIndex].Count + triangles.Length * 6);
 
                     var pose = bindPose.Length == 0 ? Matrix4x4.Identity : bindPose[p];
 
