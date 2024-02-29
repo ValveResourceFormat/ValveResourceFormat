@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Linq;
 using GUI.Utils;
 using ValveResourceFormat.IO;
@@ -30,14 +31,50 @@ namespace GUI.Types.Renderer
             var boundingBoxes = new AABB[groupCount];
             var boundingBoxInitted = new bool[groupCount];
 
+
+            // compute space needed for all verts and indices
+            var indsSizes = new int[groupCount];
+            var vertsSizes = new int[groupCount];
+
+            var hemisphereVerts = SphereBands * SphereSegments + 1;
+            var hemisphereTriangles = SphereSegments * (2 * SphereBands - 1);
+            var capsuleTriangles = 2 * hemisphereTriangles + 2 * SphereSegments;
+
+            for (var p = 0; p < phys.Parts.Length; p++)
+            {
+                var shape = phys.Parts[p].Shape;
+
+                foreach (var sphere in shape.Spheres)
+                {
+                    vertsSizes[sphere.CollisionAttributeIndex] += hemisphereVerts;
+                    indsSizes[sphere.CollisionAttributeIndex] += hemisphereTriangles * 6;
+                }
+                foreach (var capsule in shape.Capsules)
+                {
+                    indsSizes[capsule.CollisionAttributeIndex] += capsuleTriangles * 6;
+                    vertsSizes[capsule.CollisionAttributeIndex] += hemisphereVerts * 2;
+                }
+                foreach (var hull in shape.Hulls)
+                {
+                    var numTriangles = hull.Shape.GetEdges().Length - hull.Shape.GetFaces().Length * 2;
+                    indsSizes[hull.CollisionAttributeIndex] += numTriangles * 6;
+                    vertsSizes[hull.CollisionAttributeIndex] += numTriangles * 3;
+                }
+                foreach (var mesh in shape.Meshes)
+                {
+                    var numTriangles = mesh.Shape.GetTriangles().Length;
+                    indsSizes[mesh.CollisionAttributeIndex] += numTriangles * 6;
+                    vertsSizes[mesh.CollisionAttributeIndex] += numTriangles * 3;
+                }
+            }
+
             for (var i = 0; i < groupCount; i++)
             {
-                verts[i] = [];
-                inds[i] = [];
+                verts[i] = new List<SimpleVertexNormal>(vertsSizes[i]);
+                inds[i] = new List<int>(indsSizes[i]);
             }
 
             var bindPose = phys.BindPose;
-            //m_boneParents
 
             for (var p = 0; p < phys.Parts.Length; p++)
             {
@@ -110,11 +147,8 @@ namespace GUI.Types.Renderer
                 {
                     var collisionAttributeIndex = hull.CollisionAttributeIndex;
                     //var surfacePropertyIndex = capsule.SurfacePropertyIndex;
-                    var baseVertex = verts[collisionAttributeIndex].Count;
 
                     var vertexPositions = hull.Shape.GetVertexPositions();
-
-                    verts[collisionAttributeIndex].EnsureCapacity(baseVertex + vertexPositions.Length);
 
                     var pose = bindPose.Length == 0 ? Matrix4x4.Identity : bindPose[p];
 
@@ -131,8 +165,6 @@ namespace GUI.Types.Renderer
 
                     var faces = hull.Shape.GetFaces();
                     var edges = hull.Shape.GetEdges();
-
-                    inds[collisionAttributeIndex].EnsureCapacity(inds[collisionAttributeIndex].Count + faces.Length * 6); // TODO: This doesn't account for edges
 
                     foreach (var face in faces)
                     {
@@ -187,10 +219,6 @@ namespace GUI.Types.Renderer
 
                     var triangles = mesh.Shape.GetTriangles();
                     var vertices = mesh.Shape.GetVertices();
-
-                    // meshes can be large, so ensure capacity up front
-                    verts[collisionAttributeIndex].EnsureCapacity(baseVertex + vertices.Length);
-                    inds[collisionAttributeIndex].EnsureCapacity(inds[collisionAttributeIndex].Count + triangles.Length * 6);
 
                     var pose = bindPose.Length == 0 ? Matrix4x4.Identity : bindPose[p];
 

@@ -7,8 +7,8 @@ namespace GUI.Types.Renderer
     {
         public virtual bool IsTranslucent { get; } = true;
         // sphere/capsule constants
-        private const int Segments = 8;
-        private const int Bands = 5;
+        public const int SphereSegments = 8;
+        public const int SphereBands = 5;
 
         protected Shader shader;
         protected int indexCount;
@@ -110,14 +110,14 @@ namespace GUI.Types.Renderer
             AddHemisphere(verts, inds, c1, radius, -up, color);
 
             // connect hemispheres to create the cylinder
-            for (var segment = 0; segment < Segments; segment++)
+            for (var segment = 0; segment < SphereSegments; segment++)
             {
                 var a = baseVert0 + segment;
-                var b = baseVert0 + (segment + 1) % Segments;
+                var b = baseVert0 + (segment + 1) % SphereSegments;
 
                 // second sphere has indices in reverse order (since its rotated the other way)
-                var c = baseVert1 + (Segments - segment) % Segments;
-                var d = baseVert1 + (Segments - (segment + 1)) % Segments;
+                var c = baseVert1 + (SphereSegments - segment) % SphereSegments;
+                var d = baseVert1 + (SphereSegments - (segment + 1)) % SphereSegments;
 
                 AddTriangle(inds, 0, b, a, c);
                 AddTriangle(inds, 0, b, c, d);
@@ -152,14 +152,14 @@ namespace GUI.Types.Renderer
             var v = GetOrtogonal(axisAround, axisUp);
 
             // generate vertices
-            for (var band = 0; band < Bands; band++)
+            for (var band = 0; band < SphereBands; band++)
             {
-                var angleUp = -MathUtils.ToRadians(band * (90.0f / Bands));
+                var angleUp = -MathUtils.ToRadians(band * (90.0f / SphereBands));
                 var quatUp = Quaternion.CreateFromAxisAngle(axisAround, angleUp);
 
-                for (var segment = 0; segment < Segments; segment++)
+                for (var segment = 0; segment < SphereSegments; segment++)
                 {
-                    var angleAround = MathUtils.ToRadians(segment * (360.0f / Segments));
+                    var angleAround = MathUtils.ToRadians(segment * (360.0f / SphereSegments));
                     var quatAround = Quaternion.CreateFromAxisAngle(axisUp, angleAround);
 
                     var point = Vector3.Transform(v, Quaternion.Multiply(quatAround, quatUp));
@@ -175,22 +175,22 @@ namespace GUI.Types.Renderer
             verts.Add(new(transformedUp, color, Vector3.Normalize(up)));
 
             // generate triangles
-            for (var band = 0; band < Bands; band++)
+            for (var band = 0; band < SphereBands; band++)
             {
-                for (var segment = 0; segment < Segments; segment++)
+                for (var segment = 0; segment < SphereSegments; segment++)
                 {
-                    var i = band * Segments + segment;
-                    var iNext = segment == Segments - 1 ? (band * Segments) : i + 1;
+                    var i = band * SphereSegments + segment;
+                    var iNext = segment == SphereSegments - 1 ? (band * SphereSegments) : i + 1;
 
-                    if (band == Bands - 1)
+                    if (band == SphereBands - 1)
                     {
                         // last band connects to midpoint only
                         AddTriangle(inds, baseVertex, i, iNext, topVertexIndex);
                     }
                     else
                     {
-                        AddTriangle(inds, baseVertex, i, iNext, i + Segments);
-                        AddTriangle(inds, baseVertex, iNext, iNext + Segments, i + Segments);
+                        AddTriangle(inds, baseVertex, i, iNext, i + SphereSegments);
+                        AddTriangle(inds, baseVertex, iNext, iNext + SphereSegments, i + SphereSegments);
                     }
                 }
             }
