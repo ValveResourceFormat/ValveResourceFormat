@@ -1,4 +1,6 @@
+using System.Diagnostics;
 using System.Linq;
+using GUI.Utils;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization;
@@ -7,11 +9,16 @@ namespace GUI.Types.Renderer
 {
     class PhysSceneNode : ShapeSceneNode
     {
+        private static readonly Color32 ColorSphere = new(0f, 1f, 0f, 0.65f);
+        private static readonly Color32 ColorCapsule = new(0f, 1f, 0f, 0.65f);
+        private static readonly Color32 ColorMesh = new(0f, 0f, 1f, 0.65f);
+        private static readonly Color32 ColorHull = new(1.0f, 0.0f, 0.0f, 0.65f);
+
         public override bool LayerEnabled => Enabled && base.LayerEnabled;
         public bool Enabled { get; set; }
         public string PhysGroupName { get; set; }
 
-        public PhysSceneNode(Scene scene, List<SimpleVertex> verts, List<int> inds) : base(scene, verts, inds)
+        public PhysSceneNode(Scene scene, List<SimpleVertexNormal> verts, List<int> inds) : base(scene, verts, inds)
         {
         }
 
@@ -19,10 +26,15 @@ namespace GUI.Types.Renderer
         public static IEnumerable<PhysSceneNode> CreatePhysSceneNodes(Scene scene, PhysAggregateData phys, string fileName)
         {
             var groupCount = phys.CollisionAttributes.Count;
-            var verts = new List<SimpleVertex>[groupCount];
+            var verts = new List<SimpleVertexNormal>[groupCount];
             var inds = new List<int>[groupCount];
             var boundingBoxes = new AABB[groupCount];
             var boundingBoxInitted = new bool[groupCount];
+
+            // constants for sizes of spheres/capsules
+            var hemisphereVerts = SphereBands * SphereSegments + 1;
+            var hemisphereTriangles = SphereSegments * (2 * SphereBands - 1);
+            var capsuleTriangles = 2 * hemisphereTriangles + 2 * SphereSegments;
 
             for (var i = 0; i < groupCount; i++)
             {
@@ -31,7 +43,6 @@ namespace GUI.Types.Renderer
             }
 
             var bindPose = phys.BindPose;
-            //m_boneParents
 
             for (var p = 0; p < phys.Parts.Length; p++)
             {
@@ -51,7 +62,10 @@ namespace GUI.Types.Renderer
                         center = Vector3.Transform(center, bindPose[p]);
                     }
 
-                    AddSphere(verts[collisionAttributeIndex], inds[collisionAttributeIndex], center, radius, new(1f, 1f, 0f, 0.3f));
+                    verts[collisionAttributeIndex].EnsureCapacity(verts[collisionAttributeIndex].Count + hemisphereVerts);
+                    inds[collisionAttributeIndex].EnsureCapacity(inds[collisionAttributeIndex].Count + hemisphereTriangles * 6);
+
+                    AddSphere(verts[collisionAttributeIndex], inds[collisionAttributeIndex], center, radius, ColorSphere);
 
                     var bbox = new AABB(center + new Vector3(radius),
                                         center - new Vector3(radius));
@@ -81,7 +95,10 @@ namespace GUI.Types.Renderer
                         center[1] = Vector3.Transform(center[1], bindPose[p]);
                     }
 
-                    AddCapsule(verts[collisionAttributeIndex], inds[collisionAttributeIndex], center[0], center[1], radius, new(1f, 1f, 0f, 0.3f));
+                    verts[collisionAttributeIndex].EnsureCapacity(verts[collisionAttributeIndex].Count + hemisphereVerts * 2);
+                    inds[collisionAttributeIndex].EnsureCapacity(inds[collisionAttributeIndex].Count + capsuleTriangles * 6);
+
+                    AddCapsule(verts[collisionAttributeIndex], inds[collisionAttributeIndex], center[0], center[1], radius, ColorCapsule);
                     foreach (var cn in center)
                     {
                         var bbox = new AABB(cn + new Vector3(radius),
@@ -104,28 +121,28 @@ namespace GUI.Types.Renderer
                 {
                     var collisionAttributeIndex = hull.CollisionAttributeIndex;
                     //var surfacePropertyIndex = capsule.SurfacePropertyIndex;
-                    var baseVertex = verts[collisionAttributeIndex].Count;
 
                     var vertexPositions = hull.Shape.GetVertexPositions();
 
-                    verts[collisionAttributeIndex].EnsureCapacity(baseVertex + vertexPositions.Length);
+                    var pose = bindPose.Length == 0 ? Matrix4x4.Identity : bindPose[p];
 
-                    foreach (var v in vertexPositions)
+                    var shapeVerts = verts[collisionAttributeIndex];
+                    var shapeInds = inds[collisionAttributeIndex];
+
+                    // vertex positions
+                    var positions = new Vector3[vertexPositions.Length];
+                    for (var i = 0; i < vertexPositions.Length; i++)
                     {
-                        var vec = v;
-                        if (bindPose.Length != 0)
-                        {
-                            vec = Vector3.Transform(vec, bindPose[p]);
-                        }
-
-                        //color red
-                        verts[collisionAttributeIndex].Add(new(vec, new(1f, 0f, 0f, 0.3f)));
+                        positions[i] = Vector3.Transform(vertexPositions[i], pose);
                     }
+
 
                     var faces = hull.Shape.GetFaces();
                     var edges = hull.Shape.GetEdges();
 
-                    inds[collisionAttributeIndex].EnsureCapacity(inds[collisionAttributeIndex].Count + faces.Length * 6); // TODO: This doesn't account for edges
+                    var numTriangles = edges.Length - faces.Length * 2;
+                    shapeVerts.EnsureCapacity(shapeVerts.Count + numTriangles * 3);
+                    shapeInds.EnsureCapacity(shapeInds.Count + numTriangles * 6);
 
                     foreach (var face in faces)
                     {
@@ -140,12 +157,18 @@ namespace GUI.Types.Renderer
                                 break;
                             }
 
-                            AddTriangle(
-                                inds[collisionAttributeIndex],
-                                baseVertex,
-                                edges[startEdge].Origin,
-                                edges[edge].Origin,
-                                edges[nextEdge].Origin);
+                            var a = positions[edges[startEdge].Origin];
+                            var b = positions[edges[edge].Origin];
+                            var c = positions[edges[nextEdge].Origin];
+
+                            var normal = ComputeNormal(a, b, c);
+
+                            var offset = shapeVerts.Count;
+                            shapeVerts.Add(new(a, ColorHull, normal));
+                            shapeVerts.Add(new(b, ColorHull, normal));
+                            shapeVerts.Add(new(c, ColorHull, normal));
+
+                            AddTriangle(shapeInds, offset, 0, 1, 2);
 
                             edge = nextEdge;
                         }
@@ -170,30 +193,39 @@ namespace GUI.Types.Renderer
                     var collisionAttributeIndex = mesh.CollisionAttributeIndex;
                     //var surfacePropertyIndex = capsule.SurfacePropertyIndex;
 
-                    var baseVertex = verts[collisionAttributeIndex].Count;
-
                     var triangles = mesh.Shape.GetTriangles();
                     var vertices = mesh.Shape.GetVertices();
 
-                    // meshes can be large, so ensure capacity up front
-                    verts[collisionAttributeIndex].EnsureCapacity(baseVertex + vertices.Length);
-                    inds[collisionAttributeIndex].EnsureCapacity(inds[collisionAttributeIndex].Count + triangles.Length * 6);
+                    var pose = bindPose.Length == 0 ? Matrix4x4.Identity : bindPose[p];
 
-                    foreach (var vec in vertices)
+                    var shapeVerts = verts[collisionAttributeIndex];
+                    var shapeInds = inds[collisionAttributeIndex];
+
+                    var numTriangles = triangles.Length;
+                    shapeVerts.EnsureCapacity(shapeVerts.Count + numTriangles * 3);
+                    shapeInds.EnsureCapacity(shapeInds.Count + numTriangles * 6);
+
+                    // vertex positions
+                    var positions = new Vector3[vertices.Length];
+                    for (var i = 0; i < vertices.Length; i++)
                     {
-                        var v = vec;
-                        if (bindPose.Length != 0)
-                        {
-                            v = Vector3.Transform(vec, bindPose[p]);
-                        }
-
-                        //color blue
-                        verts[collisionAttributeIndex].Add(new(v, new(0f, 0f, 1f, 0.3f)));
+                        positions[i] = Vector3.Transform(vertices[i], pose);
                     }
 
                     foreach (var tri in triangles)
                     {
-                        AddTriangle(inds[collisionAttributeIndex], baseVertex, tri.X, tri.Y, tri.Z);
+                        var a = positions[tri.X];
+                        var b = positions[tri.Y];
+                        var c = positions[tri.Z];
+
+                        var normal = ComputeNormal(a, b, c);
+
+                        var offset = shapeVerts.Count;
+                        shapeVerts.Add(new(a, ColorMesh, normal));
+                        shapeVerts.Add(new(b, ColorMesh, normal));
+                        shapeVerts.Add(new(c, ColorMesh, normal));
+
+                        AddTriangle(shapeInds, offset, 0, 1, 2);
                     }
 
                     var bbox = new AABB(mesh.Shape.Min, mesh.Shape.Max);
@@ -258,9 +290,16 @@ namespace GUI.Types.Renderer
             return nodes;
         }
 
+        private static Vector3 ComputeNormal(Vector3 a, Vector3 b, Vector3 c)
+        {
+            var side1 = b - a;
+            var side2 = c - a;
+
+            return Vector3.Normalize(Vector3.Cross(side1, side2));
+        }
+
         public override void Update(Scene.UpdateContext context)
         {
-
         }
     }
 }

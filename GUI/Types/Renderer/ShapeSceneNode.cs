@@ -7,14 +7,14 @@ namespace GUI.Types.Renderer
     {
         public virtual bool IsTranslucent { get; } = true;
         // sphere/capsule constants
-        private const int Segments = 8;
-        private const int Bands = 5;
+        public const int SphereSegments = 8;
+        public const int SphereBands = 5;
 
         protected Shader shader;
         protected int indexCount;
         protected int vaoHandle;
 
-        public ShapeSceneNode(Scene scene, List<SimpleVertex> verts, List<int> inds)
+        public ShapeSceneNode(Scene scene, List<SimpleVertexNormal> verts, List<int> inds)
             : base(scene)
         {
             Init(verts, inds);
@@ -26,7 +26,7 @@ namespace GUI.Types.Renderer
         public ShapeSceneNode(Scene scene, Vector3 minBounds, Vector3 maxBounds, Color32 color) : base(scene)
         {
             var inds = new List<int>();
-            var verts = new List<SimpleVertex>();
+            var verts = new List<SimpleVertexNormal>();
             AddBox(verts, inds, minBounds, maxBounds, color);
 
             LocalBoundingBox = new AABB(minBounds, maxBounds);
@@ -40,7 +40,7 @@ namespace GUI.Types.Renderer
         public ShapeSceneNode(Scene scene, Vector3 from, Vector3 to, float radius, Color32 color) : base(scene)
         {
             var inds = new List<int>();
-            var verts = new List<SimpleVertex>();
+            var verts = new List<SimpleVertexNormal>();
             AddCapsule(verts, inds, from, to, radius, color);
 
             var min = Vector3.Min(from, to);
@@ -56,7 +56,7 @@ namespace GUI.Types.Renderer
         public ShapeSceneNode(Scene scene, Vector3 center, float radius, Color32 color) : base(scene)
         {
             var inds = new List<int>();
-            var verts = new List<SimpleVertex>();
+            var verts = new List<SimpleVertexNormal>();
             AddSphere(verts, inds, center, radius, color);
 
             LocalBoundingBox = new AABB(new Vector3(radius), new Vector3(-radius));
@@ -64,19 +64,27 @@ namespace GUI.Types.Renderer
             Init(verts, inds);
         }
 
-        private void Init(List<SimpleVertex> verts, List<int> inds)
+        public override void SetRenderMode(string mode)
+        {
+            shader = Scene.GuiContext.ShaderLoader.LoadShader("vrf.basic_shape", new Dictionary<string, byte>
+            {
+                { string.Concat(ShaderLoader.RenderModeDefinePrefix, mode), 1 },
+            });
+        }
+
+        private void Init(List<SimpleVertexNormal> verts, List<int> inds)
         {
             indexCount = inds.Count;
-            shader = Scene.GuiContext.ShaderLoader.LoadShader("vrf.default");
+            shader = Scene.GuiContext.ShaderLoader.LoadShader("vrf.basic_shape");
 
             GL.CreateVertexArrays(1, out vaoHandle);
             GL.CreateBuffers(1, out int vboHandle);
             GL.CreateBuffers(1, out int iboHandle);
-            GL.VertexArrayVertexBuffer(vaoHandle, 0, vboHandle, 0, SimpleVertex.SizeInBytes);
+            GL.VertexArrayVertexBuffer(vaoHandle, 0, vboHandle, 0, SimpleVertexNormal.SizeInBytes);
             GL.VertexArrayElementBuffer(vaoHandle, iboHandle);
-            SimpleVertex.BindDefaultShaderLayout(vaoHandle, shader.Program);
+            SimpleVertexNormal.BindDefaultShaderLayout(vaoHandle, shader.Program);
 
-            GL.NamedBufferData(vboHandle, verts.Count * SimpleVertex.SizeInBytes, verts.ToArray(), BufferUsageHint.StaticDraw);
+            GL.NamedBufferData(vboHandle, verts.Count * SimpleVertexNormal.SizeInBytes, verts.ToArray(), BufferUsageHint.StaticDraw);
             GL.NamedBufferData(iboHandle, inds.Count * sizeof(int), inds.ToArray(), BufferUsageHint.StaticDraw);
 
 #if DEBUG
@@ -91,7 +99,7 @@ namespace GUI.Types.Renderer
             AddTriangle(inds, 0, c, d, a);
         }
 
-        protected static void AddCapsule(List<SimpleVertex> verts, List<int> inds, Vector3 c0, Vector3 c1, float radius, Color32 color)
+        protected static void AddCapsule(List<SimpleVertexNormal> verts, List<int> inds, Vector3 c0, Vector3 c1, float radius, Color32 color)
         {
             var up = Vector3.Normalize(c0 - c1);
 
@@ -102,14 +110,14 @@ namespace GUI.Types.Renderer
             AddHemisphere(verts, inds, c1, radius, -up, color);
 
             // connect hemispheres to create the cylinder
-            for (var segment = 0; segment < Segments; segment++)
+            for (var segment = 0; segment < SphereSegments; segment++)
             {
                 var a = baseVert0 + segment;
-                var b = baseVert0 + (segment + 1) % Segments;
+                var b = baseVert0 + (segment + 1) % SphereSegments;
 
                 // second sphere has indices in reverse order (since its rotated the other way)
-                var c = baseVert1 + (Segments - segment) % Segments;
-                var d = baseVert1 + (Segments - (segment + 1)) % Segments;
+                var c = baseVert1 + (SphereSegments - segment) % SphereSegments;
+                var d = baseVert1 + (SphereSegments - (segment + 1)) % SphereSegments;
 
                 AddTriangle(inds, 0, b, a, c);
                 AddTriangle(inds, 0, b, c, d);
@@ -135,7 +143,7 @@ namespace GUI.Types.Renderer
             return Vector3.Normalize(sideVector);
         }
 
-        protected static void AddHemisphere(List<SimpleVertex> verts, List<int> inds, Vector3 center, float radius, Vector3 up, Color32 color)
+        protected static void AddHemisphere(List<SimpleVertexNormal> verts, List<int> inds, Vector3 center, float radius, Vector3 up, Color32 color)
         {
             var baseVertex = verts.Count;
 
@@ -144,51 +152,51 @@ namespace GUI.Types.Renderer
             var v = GetOrtogonal(axisAround, axisUp);
 
             // generate vertices
-            for (var band = 0; band < Bands; band++)
+            for (var band = 0; band < SphereBands; band++)
             {
-                var angleUp = -MathUtils.ToRadians(band * (90.0f / Bands));
+                var angleUp = -MathUtils.ToRadians(band * (90.0f / SphereBands));
                 var quatUp = Quaternion.CreateFromAxisAngle(axisAround, angleUp);
 
-                for (var segment = 0; segment < Segments; segment++)
+                for (var segment = 0; segment < SphereSegments; segment++)
                 {
-                    var angleAround = MathUtils.ToRadians(segment * (360.0f / Segments));
+                    var angleAround = MathUtils.ToRadians(segment * (360.0f / SphereSegments));
                     var quatAround = Quaternion.CreateFromAxisAngle(axisUp, angleAround);
 
                     var point = Vector3.Transform(v, Quaternion.Multiply(quatAround, quatUp));
                     var transformed = center + radius * Vector3.Normalize(point);
 
-                    verts.Add(new(transformed, color));
+                    verts.Add(new(transformed, color, point));
                 }
             }
 
             // midpoint
             var topVertexIndex = verts.Count - baseVertex;
             var transformedUp = center + radius * Vector3.Normalize(up);
-            verts.Add(new(transformedUp, color));
+            verts.Add(new(transformedUp, color, Vector3.Normalize(up)));
 
             // generate triangles
-            for (var band = 0; band < Bands; band++)
+            for (var band = 0; band < SphereBands; band++)
             {
-                for (var segment = 0; segment < Segments; segment++)
+                for (var segment = 0; segment < SphereSegments; segment++)
                 {
-                    var i = band * Segments + segment;
-                    var iNext = segment == Segments - 1 ? (band * Segments) : i + 1;
+                    var i = band * SphereSegments + segment;
+                    var iNext = segment == SphereSegments - 1 ? (band * SphereSegments) : i + 1;
 
-                    if (band == Bands - 1)
+                    if (band == SphereBands - 1)
                     {
                         // last band connects to midpoint only
                         AddTriangle(inds, baseVertex, i, iNext, topVertexIndex);
                     }
                     else
                     {
-                        AddTriangle(inds, baseVertex, i, iNext, i + Segments);
-                        AddTriangle(inds, baseVertex, iNext, iNext + Segments, i + Segments);
+                        AddTriangle(inds, baseVertex, i, iNext, i + SphereSegments);
+                        AddTriangle(inds, baseVertex, iNext, iNext + SphereSegments, i + SphereSegments);
                     }
                 }
             }
         }
 
-        protected static void AddBox(List<SimpleVertex> verts, List<int> inds, Vector3 minBounds, Vector3 maxBounds, Color32 color)
+        protected static void AddBox(List<SimpleVertexNormal> verts, List<int> inds, Vector3 minBounds, Vector3 maxBounds, Color32 color)
         {
             verts.AddRange(
                 [
@@ -212,7 +220,7 @@ namespace GUI.Types.Renderer
             AddFace(inds, 1, 0, 4, 5);
         }
 
-        protected static void AddSphere(List<SimpleVertex> verts, List<int> inds, Vector3 center, float radius, Color32 color)
+        protected static void AddSphere(List<SimpleVertexNormal> verts, List<int> inds, Vector3 center, float radius, Color32 color)
         {
             AddHemisphere(verts, inds, center, radius, Vector3.UnitZ, color);
             AddHemisphere(verts, inds, center, radius, -Vector3.UnitZ, color);
