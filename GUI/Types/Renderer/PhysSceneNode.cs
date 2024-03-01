@@ -31,47 +31,15 @@ namespace GUI.Types.Renderer
             var boundingBoxes = new AABB[groupCount];
             var boundingBoxInitted = new bool[groupCount];
 
-
-            // compute space needed for all verts and indices
-            var indsSizes = new int[groupCount];
-            var vertsSizes = new int[groupCount];
-
+            // constants for sizes of spheres/capsules
             var hemisphereVerts = SphereBands * SphereSegments + 1;
             var hemisphereTriangles = SphereSegments * (2 * SphereBands - 1);
             var capsuleTriangles = 2 * hemisphereTriangles + 2 * SphereSegments;
 
-            for (var p = 0; p < phys.Parts.Length; p++)
-            {
-                var shape = phys.Parts[p].Shape;
-
-                foreach (var sphere in shape.Spheres)
-                {
-                    vertsSizes[sphere.CollisionAttributeIndex] += hemisphereVerts;
-                    indsSizes[sphere.CollisionAttributeIndex] += hemisphereTriangles * 6;
-                }
-                foreach (var capsule in shape.Capsules)
-                {
-                    indsSizes[capsule.CollisionAttributeIndex] += capsuleTriangles * 6;
-                    vertsSizes[capsule.CollisionAttributeIndex] += hemisphereVerts * 2;
-                }
-                foreach (var hull in shape.Hulls)
-                {
-                    var numTriangles = hull.Shape.GetEdges().Length - hull.Shape.GetFaces().Length * 2;
-                    indsSizes[hull.CollisionAttributeIndex] += numTriangles * 6;
-                    vertsSizes[hull.CollisionAttributeIndex] += numTriangles * 3;
-                }
-                foreach (var mesh in shape.Meshes)
-                {
-                    var numTriangles = mesh.Shape.GetTriangles().Length;
-                    indsSizes[mesh.CollisionAttributeIndex] += numTriangles * 6;
-                    vertsSizes[mesh.CollisionAttributeIndex] += numTriangles * 3;
-                }
-            }
-
             for (var i = 0; i < groupCount; i++)
             {
-                verts[i] = new List<SimpleVertexNormal>(vertsSizes[i]);
-                inds[i] = new List<int>(indsSizes[i]);
+                verts[i] = [];
+                inds[i] = [];
             }
 
             var bindPose = phys.BindPose;
@@ -93,6 +61,9 @@ namespace GUI.Types.Renderer
                     {
                         center = Vector3.Transform(center, bindPose[p]);
                     }
+
+                    verts[collisionAttributeIndex].EnsureCapacity(verts[collisionAttributeIndex].Count + hemisphereVerts);
+                    inds[collisionAttributeIndex].EnsureCapacity(inds[collisionAttributeIndex].Count + hemisphereTriangles * 6);
 
                     AddSphere(verts[collisionAttributeIndex], inds[collisionAttributeIndex], center, radius, ColorSphere);
 
@@ -123,6 +94,9 @@ namespace GUI.Types.Renderer
                         center[0] = Vector3.Transform(center[0], bindPose[p]);
                         center[1] = Vector3.Transform(center[1], bindPose[p]);
                     }
+
+                    verts[collisionAttributeIndex].EnsureCapacity(verts[collisionAttributeIndex].Count + hemisphereVerts * 2);
+                    inds[collisionAttributeIndex].EnsureCapacity(inds[collisionAttributeIndex].Count + capsuleTriangles * 6);
 
                     AddCapsule(verts[collisionAttributeIndex], inds[collisionAttributeIndex], center[0], center[1], radius, ColorCapsule);
                     foreach (var cn in center)
@@ -165,6 +139,10 @@ namespace GUI.Types.Renderer
 
                     var faces = hull.Shape.GetFaces();
                     var edges = hull.Shape.GetEdges();
+
+                    var numTriangles = edges.Length - faces.Length * 2;
+                    shapeVerts.EnsureCapacity(shapeVerts.Count + numTriangles * 3);
+                    shapeInds.EnsureCapacity(shapeInds.Count + numTriangles * 6);
 
                     foreach (var face in faces)
                     {
@@ -215,8 +193,6 @@ namespace GUI.Types.Renderer
                     var collisionAttributeIndex = mesh.CollisionAttributeIndex;
                     //var surfacePropertyIndex = capsule.SurfacePropertyIndex;
 
-                    var baseVertex = verts[collisionAttributeIndex].Count;
-
                     var triangles = mesh.Shape.GetTriangles();
                     var vertices = mesh.Shape.GetVertices();
 
@@ -224,6 +200,10 @@ namespace GUI.Types.Renderer
 
                     var shapeVerts = verts[collisionAttributeIndex];
                     var shapeInds = inds[collisionAttributeIndex];
+
+                    var numTriangles = triangles.Length;
+                    shapeVerts.EnsureCapacity(shapeVerts.Count + numTriangles * 3);
+                    shapeInds.EnsureCapacity(shapeInds.Count + numTriangles * 6);
 
                     // vertex positions
                     var positions = new Vector3[vertices.Length];
