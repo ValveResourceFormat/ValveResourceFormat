@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using Sledge.Formats.GameData;
 using Sledge.Formats.GameData.Objects;
@@ -12,6 +13,7 @@ if (args?.Length < 1)
 var allEntities = new SortedDictionary<string, EntityInfo>();
 var allProperties = new HashSet<string>();
 var baseEntities = new Dictionary<string, EntityInfo>();
+var entityMaterials = new Dictionary<string, string>();
 
 foreach (var arg in args!)
 {
@@ -31,6 +33,7 @@ Console.WriteLine();
 
 WriteEntities();
 WriteProperties();
+WriteMaterials();
 
 return 0;
 
@@ -134,6 +137,19 @@ void ParseFile(string file)
                         {
                             value = (string)dictValue.Value.Value;
                         }
+                    }
+                }
+            }
+
+            foreach (var dict in _class.Dictionaries)
+            {
+                if (dict.Name == "metadata" && dict.TryGetValue("auto_apply_material", out var autoApplyMaterial))
+                {
+                    var material = (string)autoApplyMaterial.Value;
+
+                    if (material != "materials/tools/toolstrigger.vmat")
+                    {
+                        entityMaterials[_class.Name] = material;
                     }
                 }
             }
@@ -332,6 +348,20 @@ void WriteProperties()
     }
 
     File.WriteAllText("properties.txt", propertiesString.ToString());
+}
+
+void WriteMaterials()
+{
+    Console.WriteLine($"Found {entityMaterials.Count} entity materials");
+
+    var str = new StringBuilder();
+
+    foreach (var (name, material) in entityMaterials.OrderBy(x => x.Key))
+    {
+        str.AppendLine(CultureInfo.InvariantCulture, $"\"{name}\" => \"{material}\"");
+    }
+
+    File.WriteAllText("entity_materials.txt", str.ToString());
 }
 
 class EntityInfo
