@@ -215,7 +215,10 @@ public sealed class MapExtract
         return entityClassName switch
         {
             "env_cs_place" => "materials/tools/tools_cs_place.vmat",
+            "func_nav_blocker" => "materials/tools/toolsnavattribute.vmat",
+            "func_nav_markup" => "materials/tools/toolsnavattribute.vmat",
             "post_processing_volume" => "materials/tools_postprocess_volume.vmat",
+            "trigger_no_wards" => "materials/tools/tools_no_wards.vmat",
             _ => "materials/tools/toolstrigger.vmat",
         };
     }
