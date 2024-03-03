@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Linq;
 using GUI.Utils;
 using ValveResourceFormat.IO;
@@ -273,21 +272,29 @@ namespace GUI.Types.Renderer
                     name = $"[{string.Join(", ", tags)}]" + name;
                 }
 
-                if (tooltexture != "nodraw")
-                {
-                    name = $"- {tooltexture} {name}";
-                }
-
                 var physSceneNode = new PhysSceneNode(scene, verts[i], inds[i])
                 {
                     Name = fileName,
-                    PhysGroupName = name,
                     LocalBoundingBox = boundingBoxes[i],
                 };
+
+                if (tooltexture != "nodraw")
+                {
+                    name = $"- {tooltexture} {name}";
+                    physSceneNode.SetToolTexture(tooltexture);
+                }
+
+                physSceneNode.PhysGroupName = name;
 
                 return physSceneNode;
             }).ToArray();
             return nodes;
+        }
+
+        private void SetToolTexture(string tooltexture)
+        {
+            var fileName = $"materials/tools/tools{tooltexture}.vmat";
+            ToolTexture = Scene.GuiContext.MaterialLoader.GetMaterial(fileName, null).Textures.Values.FirstOrDefault();
         }
 
         private static Vector3 ComputeNormal(Vector3 a, Vector3 b, Vector3 c)

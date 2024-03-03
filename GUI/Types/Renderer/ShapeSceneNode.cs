@@ -11,6 +11,7 @@ namespace GUI.Types.Renderer
         public const int SphereBands = 5;
 
         protected Shader shader;
+        protected RenderTexture ToolTexture;
         protected int indexCount;
         protected int vaoHandle;
 
@@ -250,6 +251,13 @@ namespace GUI.Types.Renderer
             renderShader.SetUniform4x4("transform", Transform);
             renderShader.SetUniform1("bAnimated", 0.0f);
             renderShader.SetUniform1("sceneObjectId", Id);
+
+            renderShader.SetUniform1("g_bTriplanarMapping", ToolTexture != null ? 1u : 0u);
+
+            if (ToolTexture != null)
+            {
+                renderShader.SetTexture(0, "g_tColor", ToolTexture);
+            }
 
             GL.BindVertexArray(vaoHandle);
 

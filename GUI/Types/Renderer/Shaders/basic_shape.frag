@@ -2,6 +2,7 @@
 
 #include "common/utils.glsl"
 #include "common/rendermodes.glsl"
+#define renderMode_VertexColor 0
 
 in vec4 vtxColor;
 in vec3 vtxNormal;
@@ -10,23 +11,62 @@ in vec3 camPos;
 
 out vec4 outputColor;
 
-float shadedStrength = 0.8;
+float shadingStrength = 0.8;
 
-void main(void) {
-    if (vtxNormal == vec3(0, 0, 0)) {
-        outputColor = vtxColor;
-    } else {
+uniform bool g_bTriplanarMapping;
+uniform sampler2D g_tColor;
+
+// "p" point being textured
+// "n" surface normal at "p"
+// "k" controls the sharpness of the blending in the transitions areas
+// "s" texture sampler
+vec4 boxmap( in sampler2D s, in vec3 p, in vec3 n, in float k )
+{
+    // project+fetch
+    vec4 x = texture( s, p.zy );
+    vec4 y = texture( s, p.xz * vec2(1,-1) );
+    vec4 z = texture( s, p.yx );
+
+    // blend weights
+    vec3 w = pow( abs(n), vec3(k) );
+    // blend and return
+    return (x*w.x + y*w.y + z*w.z) / (w.x + w.y + w.z);
+}
+
+
+void main(void)
+{
+    outputColor = vtxColor;
+    vec3 toolTexture = vec3(1.0);
+
+    if(vtxNormal != vec3(0, 0, 0))
+    {
         vec3 viewDir = normalize(vtxPos - camPos);
 
-        vec3 shaded = CalculateFullbrightLighting(vtxColor.rgb, vtxNormal, viewDir);
-        outputColor = vec4(mix(vtxColor.rgb, shaded, 0.8), vtxColor.a);
+        if (g_bTriplanarMapping)
+        {
+            const float uvScale = 0.0625;
+            outputColor = boxmap(g_tColor, vtxPos * uvScale, vtxNormal, 1.0);
+            toolTexture = outputColor.rgb;
+        }
+
+        vec3 shading = CalculateFullbrightLighting(vec3(2.0), vtxNormal, viewDir);
+        outputColor = vec4(mix(outputColor.rgb, outputColor.rgb * shading, shadingStrength), vtxColor.a);
     }
+
+    if (!gl_FrontFacing) {
+        outputColor.rgba *= 0.75;
+    }
+
+    #if renderMode_Color == 1
+        outputColor = vec4(toolTexture, 1.0);
+    #endif
 
     #if renderMode_Normals == 1
         outputColor = vec4(PackToColor(vtxNormal), 1.0);
     #endif
 
-    #if renderMode_Color == 1
+    #if renderMode_VertexColor == 1
         outputColor = vec4(vtxColor.rgb, 1.0);
     #endif
 }
