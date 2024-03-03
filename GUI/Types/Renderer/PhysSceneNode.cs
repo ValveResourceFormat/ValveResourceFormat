@@ -22,7 +22,7 @@ namespace GUI.Types.Renderer
         }
 
 
-        public static IEnumerable<PhysSceneNode> CreatePhysSceneNodes(Scene scene, PhysAggregateData phys, string fileName)
+        public static IEnumerable<PhysSceneNode> CreatePhysSceneNodes(Scene scene, PhysAggregateData phys, string fileName, string classname = null)
         {
             var groupCount = phys.CollisionAttributes.Count;
             var verts = new List<SimpleVertexNormal>[groupCount];
@@ -281,7 +281,12 @@ namespace GUI.Types.Renderer
                 if (tooltexture != "nodraw")
                 {
                     name = $"- {tooltexture} {name}";
-                    physSceneNode.SetToolTexture(tooltexture);
+                    physSceneNode.SetToolTexture($"materials/tools/tools{tooltexture}.vmat");
+                }
+
+                if (classname != null)
+                {
+                    physSceneNode.SetToolTexture(MapExtract.GetToolTextureForEntity(classname));
                 }
 
                 physSceneNode.PhysGroupName = name;
@@ -291,10 +296,9 @@ namespace GUI.Types.Renderer
             return nodes;
         }
 
-        private void SetToolTexture(string tooltexture)
+        private void SetToolTexture(string toolMaterialName)
         {
-            var fileName = $"materials/tools/tools{tooltexture}.vmat";
-            ToolTexture = Scene.GuiContext.MaterialLoader.GetMaterial(fileName, null).Textures.Values.FirstOrDefault();
+            ToolTexture = Scene.GuiContext.MaterialLoader.GetMaterial(toolMaterialName, null).Textures.Values.FirstOrDefault();
         }
 
         private static Vector3 ComputeNormal(Vector3 a, Vector3 b, Vector3 c)

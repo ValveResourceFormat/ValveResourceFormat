@@ -210,7 +210,7 @@ public sealed class MapExtract
     }
 
     // These appear in FGD as "auto_apply_material"
-    private static string GetToolTextureForEntity(string entityClassName)
+    public static string GetToolTextureForEntity(string entityClassName)
     {
         return entityClassName switch
         {

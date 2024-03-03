@@ -5,6 +5,7 @@ using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using SteamDatabase.ValvePak;
 using ValveResourceFormat;
+using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Utils;
@@ -835,7 +836,7 @@ namespace GUI.Types.Renderer
 
                 if (phys != null)
                 {
-                    foreach (var physSceneNode in PhysSceneNode.CreatePhysSceneNodes(scene, phys, model))
+                    foreach (var physSceneNode in PhysSceneNode.CreatePhysSceneNodes(scene, phys, model, classname))
                     {
                         physSceneNode.Transform = transformationMatrix;
                         physSceneNode.PhysGroupName = classname;
