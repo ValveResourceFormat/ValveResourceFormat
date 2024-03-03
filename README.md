@@ -75,8 +75,7 @@ vmap     | Map                     | 👍
 vmat     | Material                | 👍
 vmdl     | Model                   | 👍
 vmesh    | Mesh                    | 👍
-vmks     | Sheet                   | No
-vmorf    | MorphSet                | No
+vmorf    | MorphSet                | 👍
 vpcf     | Particle System         | 👍
 vpdi     | Panorama Dynamic Images | No
 vphys    | Physics Collision Mesh  | 👍
@@ -111,7 +110,7 @@ vdpn     | Dota Patch Notes        | 👍
 vdacdefs | DAC Game Defs Data      | No
 vfe      | Face poser              | No
 vcd      | VCD                     | No
-vcdlist  | VCD list                | No
+vcdlist  | VCD list                | 👍
 
 ## List of supported magics
 Magic        | Description
