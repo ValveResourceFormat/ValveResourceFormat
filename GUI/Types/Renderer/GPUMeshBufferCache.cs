@@ -76,7 +76,11 @@ namespace GUI.Types.Renderer
                     if (!string.IsNullOrEmpty(matchingName))
                     {
                         insgElemName = matchingName;
-                        attributeLocation = GL.GetAttribLocation(material.Shader.Program, insgElemName);
+                        attributeLocation = GL.GetAttribLocation(material.Shader.Program, insgElemName switch
+                        {
+                            "vLightmapUVW" => "vLightmapUV",
+                            _ => insgElemName,
+                        });
                     }
                 }
 
