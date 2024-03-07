@@ -379,6 +379,23 @@ namespace GUI.Controls
             GLControl.MakeCurrent();
             GLControl.VSync = Settings.Config.Vsync != 0;
 
+            GL.Enable(EnableCap.DebugOutput);
+            GL.DebugMessageCallback(OpenGLDebugMessageDelegate, IntPtr.Zero);
+
+#if DEBUG
+            GL.Enable(EnableCap.DebugOutputSynchronous);
+
+            // Filter out performance warnings
+            GL.DebugMessageControl(DebugSourceControl.DebugSourceApi, DebugTypeControl.DebugTypeOther, DebugSeverityControl.DebugSeverityNotification, 0, Array.Empty<int>(), false);
+
+            // Filter out debug group push/pops
+            GL.DebugMessageControl(DebugSourceControl.DebugSourceApplication, DebugTypeControl.DontCare, DebugSeverityControl.DebugSeverityNotification, 0, Array.Empty<int>(), false);
+#else
+            // Only log high severity messages in release builds
+            GL.DebugMessageControl(DebugSourceControl.DontCare, DebugTypeControl.DontCare, DebugSeverityControl.DontCare, 0, Array.Empty<int>(), false);
+            GL.DebugMessageControl(DebugSourceControl.DontCare, DebugTypeControl.DontCare, DebugSeverityControl.DebugSeverityHigh, 0, Array.Empty<int>(), true);
+#endif
+
             CheckOpenGL();
             MaxSamples = GL.GetInteger(GetPName.MaxSamples);
             GLDefaultFramebuffer = Framebuffer.GetGLDefaultFramebuffer();
@@ -402,23 +419,6 @@ namespace GUI.Controls
             GL.ClipControl(ClipOrigin.LowerLeft, ClipDepthMode.ZeroToOne);
             GL.DepthFunc(DepthFunction.Greater);
             GL.ClearDepth(0.0f);
-
-            GL.Enable(EnableCap.DebugOutput);
-            GL.DebugMessageCallback(OpenGLDebugMessageDelegate, IntPtr.Zero);
-
-#if DEBUG
-            GL.Enable(EnableCap.DebugOutputSynchronous);
-
-            // Filter out performance warnings
-            GL.DebugMessageControl(DebugSourceControl.DebugSourceApi, DebugTypeControl.DebugTypeOther, DebugSeverityControl.DebugSeverityNotification, 0, Array.Empty<int>(), false);
-
-            // Filter out debug group push/pops
-            GL.DebugMessageControl(DebugSourceControl.DebugSourceApplication, DebugTypeControl.DontCare, DebugSeverityControl.DebugSeverityNotification, 0, Array.Empty<int>(), false);
-#else
-            // Only log high severity messages in release builds
-            GL.DebugMessageControl(DebugSourceControl.DontCare, DebugTypeControl.DontCare, DebugSeverityControl.DontCare, 0, Array.Empty<int>(), false);
-            GL.DebugMessageControl(DebugSourceControl.DontCare, DebugTypeControl.DontCare, DebugSeverityControl.DebugSeverityHigh, 0, Array.Empty<int>(), true);
-#endif
 
             try
             {
