@@ -397,8 +397,8 @@ namespace ValveResourceFormat.Serialization.VfxEval
             if (op == OPCODE.SWIZZLE)
             {
                 var exp = Expressions.Pop();
-                exp += $".{GetSwizzle(dataReader.ReadByte())}";
-                Expressions.Push($"{exp}");
+                var swizzle = GetSwizzle(dataReader.ReadByte());
+                Expressions.Push($"{exp}.{swizzle}");
                 return;
             }
 
@@ -470,16 +470,24 @@ namespace ValveResourceFormat.Serialization.VfxEval
             throw new InvalidDataException($"Error parsing dynamic expression, unexpected number of arguments ({nrArguments}) for function ${funcName}");
         }
 
-        private static string GetSwizzle(byte b)
+        private static string GetSwizzle(byte packedSwizzle, bool trimmed = true)
         {
-            string[] axes = ["x", "y", "z", "w"];
-            var swizzle = axes[b & 3] + axes[(b >> 2) & 3] + axes[(b >> 4) & 3] + axes[(b >> 6) & 3];
-            var i = 3;
-            while (i > 0 && swizzle[i - 1] == swizzle[i])
+            const int MaxLength = 4;
+            Span<char> chars = stackalloc char[MaxLength];
+            Span<char> axes = ['x', 'y', 'z', 'w'];
+
+            for (var i = 0; i < MaxLength; i++)
             {
-                i--;
+                chars[i] = axes[(packedSwizzle >> (i * 2)) & 3];
             }
-            return swizzle[0..(i + 1)];
+
+            var length = MaxLength;
+            while (trimmed && length > 1 && chars[length - 1] == chars[length - 2])
+            {
+                length--;
+            }
+
+            return chars[..length].ToString();
         }
 
         // The decompiler has a tendency to accumulate brackets so we trim them in places where
