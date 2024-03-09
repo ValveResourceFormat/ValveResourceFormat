@@ -958,6 +958,7 @@ public sealed class MapExtract
             string str => str,
             bool boolean => StringBool(boolean),
             Vector3 vector => $"{vector.X} {vector.Y} {vector.Z}",
+            Vector2 vector => $"{vector.X} {vector.Y}",
             byte[] color => $"{color[0]} {color[1]} {color[2]} {color[3]}",
             null => string.Empty,
             _ => data.ToString()
