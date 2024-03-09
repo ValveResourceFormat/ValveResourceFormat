@@ -325,7 +325,7 @@ partial class ModelExtract
 
                 var material = drawCall.GetProperty<string>("m_material") ?? drawCall.GetProperty<string>("m_pMaterial");
 
-                if (material != null && materialInputSignature.Elements.Length == 0 && materialInputSignatures != null)
+                if (material != null && materialInputSignatures != null && (materialInputSignature.Elements == null || materialInputSignature.Elements.Length == 0))
                 {
                     materialInputSignature = materialInputSignatures.GetValueOrDefault(material);
                 }
