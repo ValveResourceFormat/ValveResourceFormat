@@ -851,7 +851,7 @@ public sealed class MapExtract
             }
 
             var key = property.Name;
-            var value = PropertyToEditString(property);
+            var value = RemovePrefix(PropertyToEditString(property));
             mapEntity.EntityProperties.Add(key, value);
         }
 
@@ -863,7 +863,7 @@ public sealed class MapExtract
                 {
                     OutputName = connection.GetProperty<string>("m_outputName"),
                     TargetType = connection.GetInt32Property("m_targetType"),
-                    TargetName = connection.GetProperty<string>("m_targetName"),
+                    TargetName = RemovePrefix(connection.GetProperty<string>("m_targetName")),
                     InputName = connection.GetProperty<string>("m_inputName"),
                     OverrideParam = connection.GetProperty<string>("m_overrideParam"),
                     Delay = connection.GetFloatProperty("m_flDelay"),
@@ -943,6 +943,8 @@ public sealed class MapExtract
 
     static string StringBool(bool value)
         => value ? "1" : "0";
+
+    private static string RemovePrefix(string value) => value.Replace("[PR#]", "");
 
     private static string PropertyToEditString(EntityLump.EntityProperty property)
     {
