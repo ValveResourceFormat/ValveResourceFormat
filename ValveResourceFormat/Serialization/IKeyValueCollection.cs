@@ -75,9 +75,21 @@ namespace ValveResourceFormat.Serialization
                 .ToArray();
 
         public static ulong[] GetUnsignedIntegerArray(this KVObject collection, string name)
-            => collection.GetArray<object>(name)
-                .Select(x => Convert.ToUInt64(x, CultureInfo.InvariantCulture))
-                .ToArray();
+        {
+            var array = collection.GetArray<object>(name);
+
+            if (array.Length == 0)
+            {
+                return [];
+            }
+
+            if (array[0] is int)
+            {
+                return array.Select(x => unchecked((ulong)(int)x)).ToArray();
+            }
+
+            return array.Select(x => Convert.ToUInt64(x, CultureInfo.InvariantCulture)).ToArray();
+        }
 
         public static KVObject[] GetArray(this KVObject collection, string name)
             => collection.GetArray<KVObject>(name);
