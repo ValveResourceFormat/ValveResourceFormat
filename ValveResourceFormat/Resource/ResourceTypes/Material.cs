@@ -140,6 +140,11 @@ namespace ValveResourceFormat.ResourceTypes
 
         private KVObject GetInputSignatureObject()
         {
+            if (Resource is null)
+            {
+                return null;
+            }
+
             if (Resource.ContainsBlockType(BlockType.INSG))
             {
                 return ((BinaryKV3)Resource.GetBlockByType(BlockType.INSG)).Data;
