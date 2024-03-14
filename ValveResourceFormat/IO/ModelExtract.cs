@@ -61,7 +61,7 @@ public partial class ModelExtract
     /// <param name="fileName">File name of the mesh e.g "models/my_mesh.vmesh"</param>
     public ModelExtract(Mesh mesh, string fileName)
     {
-        RenderMeshesToExtract.Add(new(mesh, GetDmxFileName_ForReferenceMesh(fileName)));
+        RenderMeshesToExtract.Add(new(mesh, "unnamed", 0, GetDmxFileName_ForReferenceMesh(fileName)));
         this.fileName = Path.ChangeExtension(fileName, ".vmdl");
     }
 

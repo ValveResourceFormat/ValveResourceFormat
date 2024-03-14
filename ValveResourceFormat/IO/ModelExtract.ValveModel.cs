@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -378,6 +379,7 @@ partial class ModelExtract
 
         var materialGroupList = MakeLazyList("MaterialGroupList");
         var renderMeshList = MakeLazyList("RenderMeshList");
+        var bodyGroupList = MakeLazyList("BodyGroupList");
         var animationList = MakeLazyList("AnimationList");
         var physicsShapeList = MakeLazyList("PhysicsShapeList");
         var attachmentList = MakeLazyList("AttachmentList");
@@ -395,6 +397,7 @@ partial class ModelExtract
             {
                 var renderMeshFile = MakeNode(
                     "RenderMeshFile",
+                    ("name", renderMesh.Name),
                     ("filename", renderMesh.FileName)
                 );
 
@@ -410,6 +413,87 @@ partial class ModelExtract
                 }
 
                 AddItem(renderMeshList.Value, renderMeshFile);
+            }
+
+            {
+                // Mesh/Body Groups
+                var meshGroups = model.Data.GetArray<string>("m_meshGroups");
+                var meshGroupMasks = model.Data.GetUnsignedIntegerArray("m_refMeshGroupMasks");
+                var hideInTools = Array.Empty<string>();
+                if (model.Data.GetArray<string>("m_BodyGroupsHiddenInTools") is string[] hideBodyGroups)
+                {
+                    hideInTools = hideBodyGroups;
+                }
+
+                var groupedChoices = new Dictionary<string, List<(string FullName, string ChoiceName, ulong Mask)>>();
+
+                for (var i = 0; i < meshGroups.Length; i++)
+                {
+                    var fullName = meshGroups[i];
+                    var split = fullName.Split("_@");
+
+                    if (split.Length < 2)
+                    {
+                        continue;
+                    }
+
+                    // No mask will show up as 'Empty' in editor
+                    var mask = i < meshGroupMasks.Length ? meshGroupMasks[i] : 0UL;
+
+                    var groupName = split.First();
+                    var choiceName = fullName.Split("_@").Skip(1).First();
+
+                    groupedChoices.TryAdd(groupName, []);
+                    groupedChoices[groupName].Add((fullName, choiceName, mask));
+                }
+
+                foreach (var (groupName, choices) in groupedChoices)
+                {
+                    var choiceList = new KVObject(null, isArray: true, choices.Count);
+                    var bodyGroup = MakeNode("BodyGroup",
+                        ("name", groupName),
+                        ("children", choiceList)
+                    );
+
+                    if (hideInTools.Contains(groupName))
+                    {
+                        bodyGroup.AddProperty("hidden_in_tools", MakeValue(true));
+                    }
+
+                    var i = 0;
+                    foreach (var (key, name, mask) in choices)
+                    {
+                        var meshGroupChoice = MakeNode("BodyGroupChoice");
+
+                        if (name != i.ToString(CultureInfo.InvariantCulture))
+                        {
+                            meshGroupChoice.AddProperty("name", MakeValue(name));
+                        }
+
+                        if (hideInTools.Contains(key))
+                        {
+                            meshGroupChoice.AddProperty("hide_in_tools", MakeValue(true));
+                        }
+
+                        var meshes = new KVObject(null, isArray: true);
+                        meshGroupChoice.AddProperty("meshes", MakeValue(meshes));
+
+                        foreach (var renderMesh in RenderMeshesToExtract)
+                        {
+                            if ((mask >> renderMesh.Index & 1) == 0)
+                            {
+                                continue;
+                            }
+
+                            meshes.AddProperty(null, MakeValue(renderMesh.Name));
+                        }
+
+                        AddItem(choiceList, meshGroupChoice);
+                        i++;
+                    }
+
+                    AddItem(bodyGroupList.Value, bodyGroup);
+                }
             }
 
             var mesh = RenderMeshesToExtract.First();

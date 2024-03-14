@@ -30,7 +30,7 @@ partial class ModelExtract
     public Func<SurfaceTagCombo, string> PhysicsToRenderMaterialNameProvider { get; init; }
     public Vector3 Translation { get; set; }
 
-    public record struct RenderMeshExtractConfiguration(Mesh Mesh, string FileName, ImportFilter ImportFilter = default);
+    public record struct RenderMeshExtractConfiguration(Mesh Mesh, string Name, int Index, string FileName, ImportFilter ImportFilter = default);
 
     public sealed record SurfaceTagCombo(string SurfacePropName, HashSet<string> InteractAsStrings)
     {
@@ -78,7 +78,7 @@ partial class ModelExtract
         foreach (var embedded in model.GetEmbeddedMeshes())
         {
             embedded.Mesh.VBIB = model.RemapBoneIndices(embedded.Mesh.VBIB, embedded.MeshIndex);
-            RenderMeshesToExtract.Add(new(embedded.Mesh, GetDmxFileName_ForEmbeddedMesh(embedded.Name, i++)));
+            RenderMeshesToExtract.Add(new(embedded.Mesh, embedded.Name, embedded.MeshIndex, GetDmxFileName_ForEmbeddedMesh(embedded.Name, i++)));
         }
 
         foreach (var reference in model.GetReferenceMeshNamesAndLoD())
@@ -96,7 +96,7 @@ partial class ModelExtract
             mesh.VBIB = model.RemapBoneIndices(mesh.VBIB, reference.MeshIndex);
             model.SetExternalMeshData(mesh);
 
-            RenderMeshesToExtract.Add(new(mesh, GetDmxFileName_ForReferenceMesh(reference.MeshName)));
+            RenderMeshesToExtract.Add(new(mesh, reference.MeshName, reference.MeshIndex, GetDmxFileName_ForReferenceMesh(reference.MeshName)));
         }
 
         void GrabMaterialInputSignatures(Resource resource)
@@ -173,8 +173,7 @@ partial class ModelExtract
             yield break;
         }
 
-        var mesh = extract.RenderMeshesToExtract[0].Mesh;
-        var fileName = extract.RenderMeshesToExtract[0].FileName;
+        var (mesh, name, index, fileName, _) = extract.RenderMeshesToExtract[0];
 
         byte[] sharedDmxExtractMethod() => ToDmxMesh(
             mesh,
@@ -183,7 +182,7 @@ partial class ModelExtract
             splitDrawCallsIntoSeparateSubmeshes: true
         );
 
-        var sharedMeshExtractConfiguration = new RenderMeshExtractConfiguration(mesh, fileName, new(true, new(1)));
+        var sharedMeshExtractConfiguration = new RenderMeshExtractConfiguration(mesh, name, index, fileName, new(true, new(1)));
         extract.RenderMeshesToExtract.Clear();
         extract.RenderMeshesToExtract.Add(sharedMeshExtractConfiguration);
 
