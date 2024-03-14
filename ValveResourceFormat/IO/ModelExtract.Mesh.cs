@@ -77,6 +77,7 @@ partial class ModelExtract
         var i = 0;
         foreach (var embedded in model.GetEmbeddedMeshes())
         {
+            embedded.Mesh.VBIB = model.RemapBoneIndices(embedded.Mesh.VBIB, embedded.MeshIndex);
             RenderMeshesToExtract.Add(new(embedded.Mesh, GetDmxFileName_ForEmbeddedMesh(embedded.Name, i++)));
         }
 
@@ -90,9 +91,12 @@ partial class ModelExtract
             }
 
             GrabMaterialInputSignatures(resource);
+
             var mesh = (Mesh)resource.DataBlock;
-            RenderMeshesToExtract.Add(new(mesh, GetDmxFileName_ForReferenceMesh(reference.MeshName)));
+            mesh.VBIB = model.RemapBoneIndices(mesh.VBIB, reference.MeshIndex);
             model.SetExternalMeshData(mesh);
+
+            RenderMeshesToExtract.Add(new(mesh, GetDmxFileName_ForReferenceMesh(reference.MeshName)));
         }
 
         void GrabMaterialInputSignatures(Resource resource)
