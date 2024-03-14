@@ -11,8 +11,9 @@ in vec3 camPos;
 
 out vec4 outputColor;
 
-float shadingStrength = 0.8;
+const float shadingStrength = 0.8;
 
+uniform bool g_bNormalShaded;
 uniform bool g_bTriplanarMapping;
 uniform sampler2D g_tColor;
 
@@ -39,7 +40,7 @@ void main(void)
     outputColor = vtxColor;
     vec3 toolTexture = vec3(1.0);
 
-    if(vtxNormal != vec3(0, 0, 0))
+    if(g_bNormalShaded)
     {
         vec3 viewDir = normalize(vtxPos - camPos);
 

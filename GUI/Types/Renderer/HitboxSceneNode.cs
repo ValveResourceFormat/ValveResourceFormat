@@ -33,6 +33,8 @@ namespace GUI.Types.Renderer
         /// </summary>
         private HitboxSceneNode(Scene scene, Vector3 from, Vector3 to, float radius, Color32 color) : base(scene, from, to, radius, color) { }
 
+        protected override bool Shaded => false;
+
         private static Color32 GetHitboxGroupColor(int group)
         {
             if (group < 0 || group >= HitboxColors.Length)
