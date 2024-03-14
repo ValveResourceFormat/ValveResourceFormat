@@ -563,6 +563,7 @@ namespace GUI.Types.Renderer
                         };
 
                         var edgeFadeDists = entity.GetProperty<Vector3>("edge_fade_dists"); // TODO: Not available on all entities
+                        var isCustomTexture = entity.GetProperty("customcubemaptexture") != null;
 
                         var envMap = new SceneEnvMap(scene, bounds)
                         {
@@ -576,7 +577,10 @@ namespace GUI.Types.Renderer
                             EnvMapTexture = envMapTexture,
                         };
 
-                        scene.LightingInfo.AddEnvironmentMap(envMap);
+                        if (!isCustomTexture)
+                        {
+                            scene.LightingInfo.AddEnvironmentMap(envMap);
+                        }
                     }
 
                     if (classname == "env_combined_light_probe_volume" || classname == "env_light_probe_volume")
