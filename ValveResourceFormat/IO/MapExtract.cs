@@ -852,6 +852,12 @@ public sealed class MapExtract
 
             var key = property.Name;
             var value = PropertyToEditString(property);
+
+            if (key == "targetname")
+            {
+                value = RemoveTargetnamePrefix(value);
+            }
+
             mapEntity.EntityProperties.Add(key, value);
         }
 
@@ -863,7 +869,7 @@ public sealed class MapExtract
                 {
                     OutputName = connection.GetProperty<string>("m_outputName"),
                     TargetType = connection.GetInt32Property("m_targetType"),
-                    TargetName = connection.GetProperty<string>("m_targetName"),
+                    TargetName = RemoveTargetnamePrefix(connection.GetProperty<string>("m_targetName")),
                     InputName = connection.GetProperty<string>("m_inputName"),
                     OverrideParam = connection.GetProperty<string>("m_overrideParam"),
                     Delay = connection.GetFloatProperty("m_flDelay"),
@@ -963,6 +969,18 @@ public sealed class MapExtract
             null => string.Empty,
             _ => data.ToString()
         };
+    }
+
+    private static string RemoveTargetnamePrefix(string value)
+    {
+        const string Prefix = "[PR#]";
+
+        if (!value.StartsWith(Prefix, StringComparison.Ordinal))
+        {
+            return value;
+        }
+
+        return value[Prefix.Length..];
     }
     #endregion Entities
 
