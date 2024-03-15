@@ -2,15 +2,20 @@ using System.Buffers;
 using System.IO;
 using System.IO.Enumeration;
 using System.Linq;
+using System.Reflection.PortableExecutable;
 using System.Text;
 using System.Windows.Forms;
 using GUI.Controls;
+using GUI.Properties;
+using GUI.Types.Audio;
 using GUI.Utils;
+using SkiaSharp;
 using SteamDatabase.ValvePak;
 using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
 using ValveResourceFormat.IO;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 
 namespace GUI.Types.Viewers
 {
@@ -78,8 +83,11 @@ namespace GUI.Types.Viewers
             TreeView.TreeNodeRightClick += VPK_OnContextMenu;
             TreeView.ListViewItemDoubleClick += VPK_OpenFile;
             TreeView.ListViewItemRightClick += VPK_OnContextMenu;
+            TreeView.ListViewItemSelectionChange += VPK_PlayFile;
             TreeView.Disposed += VPK_Disposed;
         }
+
+
 
         public void AddFolder(string directory)
         {
@@ -465,9 +473,21 @@ namespace GUI.Types.Viewers
                 treeViewWithSearch.ListViewItemDoubleClick -= VPK_OpenFile;
                 treeViewWithSearch.ListViewItemRightClick -= VPK_OnContextMenu;
                 treeViewWithSearch.Disposed -= VPK_Disposed;
+                treeViewWithSearch.ListViewItemSelectionChange -= VPK_PlayFile;
                 TreeView = null;
                 LastContextTreeNode = null;
             }
+        }
+        private void VPK_PlayFile(object sender, ListViewItemClickEventArgs e)
+        {
+            if (e.Node is not BetterTreeNode node)
+            {
+                throw new ArgumentException("Unexpected tree node type", nameof(e));
+            }
+            if (node.IsFolder) return;
+            var file = node.PackageEntry;
+            if (file.TypeName != "vsnd_c") return;
+            Program.MainForm.PlayAudioFile(VrfGuiContext, file);
         }
 
         /// <summary>

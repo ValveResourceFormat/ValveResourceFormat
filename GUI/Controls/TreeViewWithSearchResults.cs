@@ -19,6 +19,7 @@ namespace GUI.Controls
 
         public event TreeNodeMouseClickEventHandler TreeNodeMouseDoubleClick; // when a TreeNode is double clicked
         public event TreeNodeMouseClickEventHandler TreeNodeRightClick; // when a TreeNode is single clicked
+        public event EventHandler<ListViewItemClickEventArgs> ListViewItemSelectionChange; // when a ListViewItem is double clicked
         public event EventHandler<ListViewItemClickEventArgs> ListViewItemDoubleClick; // when a ListViewItem is double clicked
         public event EventHandler<ListViewItemClickEventArgs> ListViewItemRightClick; // when a ListViewItem is single clicked
 
@@ -32,6 +33,7 @@ namespace GUI.Controls
 
             Dock = DockStyle.Fill;
 
+            mainListView.ItemSelectionChanged += MainListView_ItemSelectionChanged;
             mainListView.MouseDoubleClick += MainListView_MouseDoubleClick;
             mainListView.MouseDown += MainListView_MouseDown;
             mainListView.ColumnClick += MainListView_ColumnClick;
@@ -44,6 +46,12 @@ namespace GUI.Controls
             mainTreeView.NodeMouseClick += MainTreeView_NodeMouseClick;
             mainTreeView.AfterSelect += MainTreeView_AfterSelect;
             Viewer = viewer;
+        }
+
+        private void MainListView_ItemSelectionChanged(object sender, ListViewItemSelectionChangedEventArgs e)
+        {
+            if (!e.Item.Selected) return;
+            ListViewItemSelectionChange?.Invoke(sender, new ListViewItemClickEventArgs(e.Item.Tag));
         }
 
         private void MainListView_Disposed(object sender, EventArgs e)

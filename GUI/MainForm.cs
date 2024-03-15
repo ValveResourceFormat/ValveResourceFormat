@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Forms;
+using GUI.Types.Audio;
 using GUI.Types.Exporter;
 using GUI.Types.Renderer;
 using GUI.Utils;
@@ -27,6 +28,7 @@ namespace GUI
         public static Dictionary<string, int> ImageListLookup { get; }
 
         private SearchForm searchForm;
+        private AudioPlayer audioPlayer;
 
         static MainForm()
         {
@@ -496,7 +498,33 @@ namespace GUI
                 OpenFile(file);
             }
         }
+        public void StopAudioPlayer()
+        {
+            if (audioPlayer != null) audioPlayer.Close();
+        }
+        public void PlayAudioFile(VrfGuiContext vrfGuiContext, PackageEntry file)
+        {
+            var resource = new ValveResourceFormat.Resource
+            {
+                FileName = vrfGuiContext.FileName,
+            };
+            Stream stream = null;
+            Span<byte> magicData = stackalloc byte[6];
 
+            if (file != null)
+            {
+                stream = AdvancedGuiFileLoader.GetPackageEntryStream(vrfGuiContext.CurrentPackage, file);
+            }
+            if (stream == null) return;
+            resource.Read(stream);
+            var magic = BitConverter.ToUInt32(magicData[..4]);
+            if (!Types.Viewers.Audio.IsAccepted(magic, vrfGuiContext.FileName))
+            {
+                if (audioPlayer != null) audioPlayer.Close();
+                audioPlayer = new AudioPlayer(resource);
+                audioPlayer.Play();
+            }
+        }
         public void OpenFile(string fileName)
         {
             Log.Info(nameof(MainForm), $"Opening {fileName}");

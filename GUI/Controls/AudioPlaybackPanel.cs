@@ -1,6 +1,8 @@
 using System.Globalization;
 using System.Windows.Forms;
+using GUI.Types.Audio;
 using GUI.Utils;
+using NAudio.Gui;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
 
@@ -8,58 +10,29 @@ namespace GUI.Controls
 {
     internal partial class AudioPlaybackPanel : UserControl
     {
-        private WaveOutEvent waveOut;
-        private WaveStream waveStream;
-        private Action<float> setVolumeDelegate;
-
-        public AudioPlaybackPanel(WaveStream inputStream)
+        private AudioPlayer audioPlayer;
+        public AudioPlaybackPanel(AudioPlayer ap)
         {
             Dock = DockStyle.Fill;
-
+            
             InitializeComponent();
 
-            waveStream = inputStream;
-            labelTotalTime.Text = waveStream.TotalTime.ToString("mm\\:ss\\.ff", CultureInfo.InvariantCulture);
+            audioPlayer = ap;
+            audioPlayer.PlaybackStopped += OnPlaybackStopped;
+            audioPlayer.PreVolumeMeter += OnPreVolumeMeter;
+            audioPlayer.PostVolumeMeter += OnPostVolumeMeter;
+            labelTotalTime.Text = audioPlayer.WaveStream.TotalTime.ToString("mm\\:ss\\.ff", CultureInfo.InvariantCulture);
             volumeSlider1.Volume = Settings.Config.Volume;
+            Program.MainForm.StopAudioPlayer();
         }
 
         private void OnButtonPlayClick(object sender, EventArgs e)
         {
-            if (waveOut == null)
-            {
-                try
-                {
-                    waveOut = new WaveOutEvent();
-                    waveOut.PlaybackStopped += OnPlaybackStopped;
-                    waveOut.Init(CreateInputStream());
-                }
-                catch (Exception driverCreateException)
-                {
-                    MessageBox.Show(driverCreateException.Message, "Failed to play audio");
-                    return;
-                }
-            }
-
-            if (waveOut.PlaybackState == PlaybackState.Playing)
-            {
-                return;
-            }
-
-            setVolumeDelegate(volumeSlider1.Volume);
-            waveOut.Play();
+            Program.MainForm.StopAudioPlayer();
+            audioPlayer.Play();
+            audioPlayer.SetVolume(volumeSlider1.Volume);
             playbackTimer.Enabled = true;
             UpdateTime();
-        }
-
-        private MeteringSampleProvider CreateInputStream()
-        {
-            var sampleChannel = new SampleChannel(waveStream, true);
-            sampleChannel.PreVolumeMeter += OnPreVolumeMeter;
-            setVolumeDelegate = vol => sampleChannel.Volume = vol;
-            var postVolumeMeter = new MeteringSampleProvider(sampleChannel);
-            postVolumeMeter.StreamVolume += OnPostVolumeMeter;
-
-            return postVolumeMeter;
         }
 
         void OnPreVolumeMeter(object sender, StreamVolumeEventArgs e)
@@ -81,9 +54,9 @@ namespace GUI.Controls
                 MessageBox.Show(e.Exception.Message, "Playback Device Error");
             }
 
-            if (waveStream != null)
+            if (audioPlayer.WaveStream != null)
             {
-                waveStream.Position = 0;
+                audioPlayer.WaveStream.Position = 0;
             }
 
             if (playbackTimer != null)
@@ -102,42 +75,26 @@ namespace GUI.Controls
                 playbackTimer = null;
             }
 
-            if (waveOut != null)
-            {
-                waveOut.Stop();
-                waveOut.Dispose();
-                waveOut = null;
-            }
-
-            if (waveStream != null)
-            {
-                waveStream.Dispose();
-                setVolumeDelegate = null;
-                waveStream = null;
-            }
+            audioPlayer.Close();
         }
 
         private void OnButtonPauseClick(object sender, EventArgs e)
         {
-            if (waveOut?.PlaybackState == PlaybackState.Playing)
-            {
-                waveOut.Pause();
-            }
+            audioPlayer.Pause();
 
             playbackTimer.Enabled = false;
         }
 
         private void OnVolumeSliderChanged(object sender, EventArgs e)
         {
-            setVolumeDelegate?.Invoke(volumeSlider1.Volume);
+            audioPlayer.SetVolume(volumeSlider1.Volume);
 
             Settings.Config.Volume = volumeSlider1.Volume;
         }
 
         private void OnButtonStopClick(object sender, EventArgs e)
         {
-            waveOut?.Stop();
-            waveStream.Position = 0;
+            audioPlayer.Stop();
             playbackTimer.Enabled = false;
             UpdateTime();
         }
@@ -149,14 +106,14 @@ namespace GUI.Controls
 
         private void OnTrackBarPositionScroll(object sender, EventArgs e)
         {
-            waveStream.CurrentTime = TimeSpan.FromSeconds(waveStream.TotalTime.TotalSeconds * trackBarPosition.Value / 100.0);
+            audioPlayer.WaveStream.CurrentTime = TimeSpan.FromSeconds(audioPlayer.WaveStream.TotalTime.TotalSeconds * trackBarPosition.Value / 100.0);
             UpdateTime();
         }
 
         private void UpdateTime()
         {
-            var currentTime = waveStream.CurrentTime;
-            trackBarPosition.Value = Math.Min(trackBarPosition.Maximum, (int)(100 * currentTime.TotalSeconds / waveStream.TotalTime.TotalSeconds));
+            var currentTime = audioPlayer.WaveStream.CurrentTime;
+            trackBarPosition.Value = Math.Min(trackBarPosition.Maximum, (int)(100 * currentTime.TotalSeconds / audioPlayer.WaveStream.TotalTime.TotalSeconds));
             labelCurrentTime.Text = currentTime.ToString("mm\\:ss\\.ff", CultureInfo.InvariantCulture);
         }
     }

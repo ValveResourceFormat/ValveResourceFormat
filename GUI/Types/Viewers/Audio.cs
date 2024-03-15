@@ -1,9 +1,11 @@
 using System.IO;
 using System.Windows.Forms;
 using GUI.Controls;
+using GUI.Types.Audio;
 using GUI.Utils;
 using NAudio.Wave;
 using NLayer.NAudioSupport;
+using ValveResourceFormat;
 
 namespace GUI.Types.Viewers
 {
@@ -32,9 +34,15 @@ namespace GUI.Types.Viewers
                 waveStream = new WaveFileReader(stream);
             }
 
+            var resource = new ValveResourceFormat.Resource
+            {
+                FileName = vrfGuiContext.FileName,
+            };
+            resource.Read(waveStream);
             var tab = new TabPage();
-            var audio = new AudioPlaybackPanel(waveStream);
-            tab.Controls.Add(audio);
+            var audio = new AudioPlayer(resource);
+            var audioPanel = new AudioPlaybackPanel(audio);
+            tab.Controls.Add(audioPanel);
             return tab;
         }
     }
