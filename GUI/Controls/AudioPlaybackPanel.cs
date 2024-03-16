@@ -14,7 +14,6 @@ namespace GUI.Controls
         public AudioPlaybackPanel(AudioPlayer ap)
         {
             Dock = DockStyle.Fill;
-            
             InitializeComponent();
 
             audioPlayer = ap;
@@ -23,12 +22,13 @@ namespace GUI.Controls
             audioPlayer.PostVolumeMeter += OnPostVolumeMeter;
             labelTotalTime.Text = audioPlayer.WaveStream.TotalTime.ToString("mm\\:ss\\.ff", CultureInfo.InvariantCulture);
             volumeSlider1.Volume = Settings.Config.Volume;
-            Program.MainForm.StopAudioPlayer();
+            Program.MainForm.StopAudioPlayerSearch();
+            Program.MainForm.AudioPlayerCurrent?.Stop();
         }
 
         private void OnButtonPlayClick(object sender, EventArgs e)
         {
-            Program.MainForm.StopAudioPlayer();
+            Program.MainForm.StopAudioPlayerSearch();
             audioPlayer.Play();
             audioPlayer.SetVolume(volumeSlider1.Volume);
             playbackTimer.Enabled = true;

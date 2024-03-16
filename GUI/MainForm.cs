@@ -28,7 +28,10 @@ namespace GUI
         public static Dictionary<string, int> ImageListLookup { get; }
 
         private SearchForm searchForm;
-        private AudioPlayer audioPlayer;
+
+        private AudioPlayer audioPlayerSearch;
+        private PackageEntry audioPlayerSearchFile;
+        public AudioPlayer AudioPlayerCurrent { get; set; }
 
         static MainForm()
         {
@@ -498,12 +501,18 @@ namespace GUI
                 OpenFile(file);
             }
         }
-        public void StopAudioPlayer()
+        public void StopAudioPlayerSearch()
         {
-            if (audioPlayer != null) audioPlayer.Close();
+            if (audioPlayerSearch != null) audioPlayerSearch.Close();
         }
+
         public void PlayAudioFile(VrfGuiContext vrfGuiContext, PackageEntry file)
         {
+            if (audioPlayerSearchFile == file && audioPlayerSearch != null)
+            {
+                audioPlayerSearch.TogglePlay();
+                return;
+            }
             var resource = new ValveResourceFormat.Resource
             {
                 FileName = vrfGuiContext.FileName,
@@ -520,9 +529,11 @@ namespace GUI
             var magic = BitConverter.ToUInt32(magicData[..4]);
             if (!Types.Viewers.Audio.IsAccepted(magic, vrfGuiContext.FileName))
             {
-                if (audioPlayer != null) audioPlayer.Close();
-                audioPlayer = new AudioPlayer(resource);
-                audioPlayer.Play();
+                AudioPlayerCurrent?.Stop();
+                if (audioPlayerSearch != null) audioPlayerSearch.Close();
+                audioPlayerSearch = new AudioPlayer(resource);
+                audioPlayerSearch.Play();
+                audioPlayerSearchFile = file;
             }
         }
         public void OpenFile(string fileName)

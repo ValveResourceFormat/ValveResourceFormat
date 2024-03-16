@@ -132,8 +132,20 @@ namespace GUI.Types.Audio
 
         public void Stop()
         {
-            WaveOut?.Stop();
-            WaveStream.Position = 0;
+            if (WaveOut != null) WaveOut.Stop();
+            if (WaveStream != null) WaveStream.Position = 0;
+        }
+
+        public void TogglePlay()
+        {
+            if (WaveOut?.PlaybackState == PlaybackState.Playing)
+            {
+                Stop();
+            }
+            else
+            {
+                Play();
+            }
         }
     }
 }
