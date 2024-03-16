@@ -28,6 +28,14 @@ namespace GUI.Controls
 
         private void OnButtonPlayClick(object sender, EventArgs e)
         {
+            if (audioPlayer.WaveOut?.PlaybackState == PlaybackState.Playing) return;
+
+            if (Program.MainForm.AudioPlayerCurrent != audioPlayer)
+            {
+                Program.MainForm.AudioPlayerCurrent?.Stop();
+                Program.MainForm.AudioPlayerCurrent = audioPlayer;
+            }
+
             Program.MainForm.StopAudioPlayerSearch();
             audioPlayer.Play();
             audioPlayer.SetVolume(volumeSlider1.Volume);
