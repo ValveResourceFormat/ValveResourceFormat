@@ -852,11 +852,7 @@ public sealed class MapExtract
 
             var key = property.Name;
             var value = PropertyToEditString(property);
-
-            if (key == "targetname")
-            {
-                value = RemoveTargetnamePrefix(value);
-            }
+            value = RemoveTargetnamePrefix(value);
 
             mapEntity.EntityProperties.Add(key, value);
         }
