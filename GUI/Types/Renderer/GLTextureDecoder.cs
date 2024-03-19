@@ -210,7 +210,7 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
 
         Debug.Assert(request.Bitmap.ColorType == SKColorType.Bgra8888);
 
-        if (length != inputTexture.Width * inputTexture.Height * 4)
+        if (length > inputTexture.Width * inputTexture.Height * 4)
         {
             return false;
         }
