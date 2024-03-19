@@ -407,6 +407,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             var width = MipLevelSize(ActualWidth, mipLevel);
             var height = MipLevelSize(ActualHeight, mipLevel);
+            var isPowersOfTwo = NonPow2Width == 0 && NonPow2Height == 0;
 
             Reader.BaseStream.Position = DataOffset;
 
@@ -426,7 +427,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             var decodeFlags = RetrieveCodecFromResourceEditInfo();
 
-            if (HardwareAcceleratedTextureDecoder.Decoder != null)
+            if (HardwareAcceleratedTextureDecoder.Decoder != null && isPowersOfTwo)
             {
                 var skiaBitmap2 = new SKBitmap(width, height, SKColorType.Bgra8888, SKAlphaType.Unpremul);
 

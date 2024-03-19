@@ -205,7 +205,11 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
         var pixels = request.Bitmap.GetPixels(out var length);
 
         Debug.Assert(request.Bitmap.ColorType == SKColorType.Bgra8888);
-        Debug.Assert(length == inputTexture.Width * inputTexture.Height * 4);
+
+        if (length != inputTexture.Width * inputTexture.Height * 4)
+        {
+            return false;
+        }
 
         // extract pixels from framebuffer
         GL.Flush();
