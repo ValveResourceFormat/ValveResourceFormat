@@ -146,10 +146,7 @@ namespace ValveResourceFormat.ResourceTypes
                 return null;
             }
 
-            var extraStringData = (ExtraStringData)Resource.EditInfo.Structs[ResourceEditInfo.REDIStruct.ExtraStringData];
-            var inputSignatureString = extraStringData.List.Where(x => x.Name == "VSInputSignature").FirstOrDefault()?.Value;
-
-            if (inputSignatureString == null)
+            if (Resource.EditInfo.SearchableUserData.FirstOrDefault(x => x.Key == "VSInputSignature").Value is not string inputSignatureString)
             {
                 return null;
             }

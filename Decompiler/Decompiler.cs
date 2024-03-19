@@ -1282,11 +1282,11 @@ namespace Decompiler
 
             AddStat(info);
 
-            if (resource.EditInfo != null && resource.EditInfo.Structs.TryGetValue(ResourceEditInfo.REDIStruct.SpecialDependencies, out var specialDepsRedi))
+            if (resource.EditInfo != null)
             {
-                lock (uniqueSpecialDependancies)
+                lock (resource.EditInfo.SpecialDependencies)
                 {
-                    foreach (var dep in ((ValveResourceFormat.Blocks.ResourceEditInfoStructs.SpecialDependencies)specialDepsRedi).List)
+                    foreach (var dep in resource.EditInfo.SpecialDependencies)
                     {
                         uniqueSpecialDependancies[$"{dep.CompilerIdentifier} \"{dep.String}\""] = path;
                     }

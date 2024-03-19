@@ -1,7 +1,7 @@
+using System.Globalization;
 using System.IO;
 using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
 using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Blocks
@@ -15,8 +15,9 @@ namespace ValveResourceFormat.Blocks
 
         private BinaryKV3 BackingData;
 
-        //public ? WeakReferenceList { get; private set; }
-        public KVObject SearchableUserData { get; private set; }
+        public List<string> WeakReferenceList { get; } = [];
+        public Dictionary<string, Dictionary<string, int>> SubassetReferences { get; private set; }
+        public Dictionary<string, string[]> SubassetDefinitions { get; private set; }
 
         public ResourceEditInfo2()
         {
@@ -30,18 +31,79 @@ namespace ValveResourceFormat.Blocks
                 Offset = Offset,
                 Size = Size,
             };
+
             kv3.Read(reader, resource);
             BackingData = kv3;
 
-            ConstructSpecialDependencies();
-            ConstuctInputDependencies();
-            ConstuctAdditionalInputDependencies();
-
-            SearchableUserData = kv3.AsKeyValueCollection().GetSubCollection("m_SearchableUserData");
-            foreach (var kv in kv3.Data)
+            void ReadItems<T>(List<T> list, string key, Func<KVObject, T> constructor)
             {
-                // TODO: Structs?
-                //var structType = ConstructStruct(kv.Key);
+                var container = kv3.Data.Properties.GetValueOrDefault(key)?.Value as KVObject;
+                ArgumentNullException.ThrowIfNull(container, key);
+                ArgumentOutOfRangeException.ThrowIfEqual(container.IsArray, false, key);
+
+                list.EnsureCapacity(container.Count);
+
+                foreach (var item in container)
+                {
+                    var kvObject = item.Value as KVObject;
+                    var newItem = constructor.Invoke(kvObject);
+                    list.Add(newItem);
+                }
+            }
+
+            ReadItems(InputDependencies, "m_InputDependencies", (KVObject data) => new InputDependency(data));
+            ReadItems(AdditionalInputDependencies, "m_AdditionalInputDependencies", (KVObject data) => new InputDependency(data));
+            ReadItems(ArgumentDependencies, "m_ArgumentDependencies", (KVObject data) => new ArgumentDependency(data));
+            ReadItems(SpecialDependencies, "m_SpecialDependencies", (KVObject data) => new SpecialDependency(data));
+            ReadItems(AdditionalRelatedFiles, "m_AdditionalRelatedFiles", (KVObject data) => new AdditionalRelatedFile(data));
+
+            var childResources = kv3.Data.GetArray<string>("m_ChildResourceList");
+            ChildResourceList.AddRange(childResources);
+
+            var weakReferences = kv3.Data.GetArray<string>("m_WeakReferenceList");
+            WeakReferenceList.AddRange(weakReferences);
+
+            var searchableData = kv3.Data.GetProperty<KVObject>("m_SearchableUserData");
+            SearchableUserData.Properties.EnsureCapacity(searchableData.Properties.Count);
+
+            foreach (var property in searchableData.Properties)
+            {
+                SearchableUserData.Properties.Add(property.Key, property.Value);
+            }
+
+            var subassetReferences = kv3.Data.GetProperty<KVObject>("m_SubassetReferences");
+            if (subassetReferences != null)
+            {
+                SubassetReferences = new(capacity: subassetReferences.Count);
+
+                foreach (var property in subassetReferences)
+                {
+                    var subassetType = property.Key;
+                    var perTypeReferencesKv = property.Value as KVObject;
+
+                    var perTypeReferences = new Dictionary<string, int>(capacity: perTypeReferencesKv.Count);
+
+                    foreach (var (refName, refCount) in perTypeReferencesKv)
+                    {
+                        perTypeReferences.Add(refName, Convert.ToInt32(refCount, CultureInfo.InvariantCulture));
+                    }
+
+                    SubassetReferences.Add(subassetType, perTypeReferences);
+                }
+            }
+
+            var subassetDefinitions = kv3.Data.GetProperty<KVObject>("m_SubassetDefinitions");
+            if (subassetDefinitions != null)
+            {
+                SubassetDefinitions = new(capacity: subassetDefinitions.Count);
+
+                foreach (var property in subassetDefinitions)
+                {
+                    var subassetType = property.Key;
+                    var definitions = subassetDefinitions.GetArray<string>(subassetType);
+
+                    SubassetDefinitions.Add(subassetType, definitions);
+                }
             }
         }
 
@@ -49,87 +111,5 @@ namespace ValveResourceFormat.Blocks
         {
             BackingData.WriteText(writer);
         }
-
-        private void ConstructSpecialDependencies()
-        {
-            var specialDependenciesRedi = new SpecialDependencies();
-            var specialDependencies = BackingData.AsKeyValueCollection().GetArray("m_SpecialDependencies");
-
-            foreach (var specialDependency in specialDependencies)
-            {
-                var specialDependencyRedi = new SpecialDependencies.SpecialDependency
-                {
-                    String = specialDependency.GetProperty<string>("m_String"),
-                    CompilerIdentifier = specialDependency.GetProperty<string>("m_CompilerIdentifier"),
-                    Fingerprint = specialDependency.GetIntegerProperty("m_nFingerprint"),
-                    UserData = specialDependency.GetIntegerProperty("m_nUserData"),
-                };
-
-                specialDependenciesRedi.List.Add(specialDependencyRedi);
-            }
-
-            Structs.Add(REDIStruct.SpecialDependencies, specialDependenciesRedi);
-        }
-
-        private void ConstuctInputDependencies()
-        {
-            var dependenciesRedi = new InputDependencies();
-            var dependencies = BackingData.AsKeyValueCollection().GetArray("m_InputDependencies");
-
-            foreach (var dependency in dependencies)
-            {
-                var dependencyRedi = new InputDependencies.InputDependency
-                {
-                    ContentRelativeFilename = dependency.GetProperty<string>("m_RelativeFilename"),
-                    ContentSearchPath = dependency.GetProperty<string>("m_SearchPath"),
-                    FileCRC = (uint)dependency.GetUnsignedIntegerProperty("m_nFileCRC"),
-                };
-
-                dependenciesRedi.List.Add(dependencyRedi);
-            }
-
-            Structs.Add(REDIStruct.InputDependencies, dependenciesRedi);
-        }
-
-        private void ConstuctAdditionalInputDependencies()
-        {
-            var dependenciesRedi = new InputDependencies();
-            var dependencies = BackingData.AsKeyValueCollection().GetArray("m_AdditionalInputDependencies");
-
-            foreach (var dependency in dependencies)
-            {
-                var dependencyRedi = new InputDependencies.InputDependency
-                {
-                    ContentRelativeFilename = dependency.GetProperty<string>("m_RelativeFilename"),
-                    ContentSearchPath = dependency.GetProperty<string>("m_SearchPath"),
-                    FileCRC = (uint)dependency.GetUnsignedIntegerProperty("m_nFileCRC"),
-                };
-
-                dependenciesRedi.List.Add(dependencyRedi);
-            }
-
-            Structs.Add(REDIStruct.AdditionalInputDependencies, dependenciesRedi);
-        }
-
-        /*
-        private static REDIBlock ConstructStruct(string name)
-        {
-            return name switch
-            {
-                "m_InputDependencies" => new InputDependencies(),
-                "m_AdditionalInputDependencies" => new AdditionalInputDependencies(),
-                "m_ArgumentDependencies" => new ArgumentDependencies(),
-                "m_SpecialDependencies" => new SpecialDependencies(),
-                // CustomDependencies
-                "m_AdditionalRelatedFiles" => new AdditionalRelatedFiles(),
-                "m_ChildResourceList" => new ChildResourceList(),
-                // ExtraIntData
-                // ExtraFloatData
-                // ExtraStringData
-                "m_SearchableUserData" => null,
-                _ => throw new InvalidDataException($"Unknown struct in RED2 block: '{name}'"),
-            };
-        }
-        */
     }
 }

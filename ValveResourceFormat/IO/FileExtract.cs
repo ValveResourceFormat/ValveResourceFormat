@@ -259,15 +259,7 @@ namespace ValveResourceFormat.IO
         }
 
         public static bool IsChildResource(Resource resource)
-        {
-            if (resource.EditInfo is ResourceEditInfo2 redi2)
-            {
-                return redi2.SearchableUserData.GetProperty<long>("IsChildResource") == 1;
-            }
-
-            var extraIntData = (Blocks.ResourceEditInfoStructs.ExtraIntData)resource.EditInfo.Structs[ResourceEditInfo.REDIStruct.ExtraIntData];
-            return extraIntData.List.FirstOrDefault(x => x.Name == "IsChildResource")?.Value == 1;
-        }
+            => resource.EditInfo.SearchableUserData.GetProperty<long>("IsChildResource") == 1;
 
         public static string GetExtension(Resource resource)
         {

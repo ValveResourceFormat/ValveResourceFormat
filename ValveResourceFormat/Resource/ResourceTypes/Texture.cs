@@ -797,14 +797,13 @@ namespace ValveResourceFormat.ResourceTypes
                 return codec;
             }
 
-            if (Resource.EditInfo == null
-            || !Resource.EditInfo.Structs.TryGetValue(ResourceEditInfo.REDIStruct.SpecialDependencies, out var specialDepsRedi))
+            if (Resource.EditInfo == null)
             {
                 return codec;
             }
 
-            var specialDeps = (SpecialDependencies)specialDepsRedi;
-            var textureCompilerDependencies = specialDeps.List.Where(dependancy => dependancy.CompilerIdentifier == "CompileTexture");
+            var textureCompilerDependencies = Resource.EditInfo.SpecialDependencies
+                .Where(dependency => dependency.CompilerIdentifier == "CompileTexture");
 
             foreach (var processorAlgorithm in textureCompilerDependencies)
             {
