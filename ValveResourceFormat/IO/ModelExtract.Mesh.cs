@@ -115,11 +115,11 @@ partial class ModelExtract
 
     internal void GrabMaterialInputSignatures(Resource resource)
     {
-        var materialReferences = resource?.ExternalReferences?.ResourceRefInfoList.Where(r => r.Name[^4..] == "vmat");
-        foreach (var material in materialReferences ?? Enumerable.Empty<ResourceExtRefList.ResourceReferenceInfo>())
+        var materialReferences = resource?.ExternalReferences?.ResourceRefInfoList.Where(static r => r.Name[^4..] == "vmat");
+        foreach (var material in materialReferences ?? [])
         {
             using var materialResource = fileLoader.LoadFileCompiled(material.Name);
-            MaterialInputSignatures[material.Name] = (materialResource?.DataBlock as Material)?.GetInputSignature();
+            MaterialInputSignatures[material.Name] = (materialResource?.DataBlock as Material)?.InputSignature ?? default;
         }
     }
 
