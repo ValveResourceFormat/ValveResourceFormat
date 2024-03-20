@@ -3,7 +3,7 @@
     <TargetFramework>net8.0</TargetFramework>
     <Description>Library to decompile Valve Source 2 files</Description>
     <PackageReleaseNotes>View release notes at https://github.com/ValveResourceFormat/ValveResourceFormat/releases</PackageReleaseNotes>
-    <PackageIcon>vrf_library.png</PackageIcon>
+    <PackageIcon>source2viewer.png</PackageIcon>
     <PackageTags>source2 dota2 dota steam valve halflife artifact underlords</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <NoWarn>$(NoWarn);NU5104</NoWarn>
@@ -21,6 +21,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Misc\VRF_PACKAGE_README.md" Pack="true" PackagePath="\README.md" />
-    <None Include="..\Misc\Icons\vrf_library.png" Pack="true" PackagePath="\" />
+    <None Include="..\Misc\Icons\source2viewer.png" Pack="true" PackagePath="\" />
   </ItemGroup>
 </Project>
