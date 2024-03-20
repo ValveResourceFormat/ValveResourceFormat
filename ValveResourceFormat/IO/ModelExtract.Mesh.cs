@@ -200,11 +200,16 @@ partial class ModelExtract
 
         var (mesh, name, index, fileName, _) = extract.RenderMeshesToExtract[0];
 
+        var options = new DatamodelRenderMeshExtractOptions
+        {
+            MaterialInputSignatures = extract.MaterialInputSignatures,
+            SplitDrawCallsIntoSeparateSubmeshes = true
+        };
+
         byte[] sharedDmxExtractMethod() => ToDmxMesh(
             mesh,
             Path.GetFileNameWithoutExtension(fileName),
-            extract.MaterialInputSignatures,
-            splitDrawCallsIntoSeparateSubmeshes: true
+            options
         );
 
         var sharedMeshExtractConfiguration = new RenderMeshExtractConfiguration(mesh, name, index, fileName, new(true, new(1)));

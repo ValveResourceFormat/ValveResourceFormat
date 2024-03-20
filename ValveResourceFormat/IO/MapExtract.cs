@@ -379,12 +379,11 @@ public sealed class MapExtract
     internal IEnumerable<CDmePolygonMesh> RenderMeshToHammerMesh(Model model, Resource resource, Vector3 offset = new Vector3())
     {
         var modelExtract = new ModelExtract(resource, FileLoader);
-        Dictionary<string, IKeyValueCollection> MaterialInputSignatures = [];
-        modelExtract.GrabMaterialInputSignatures(resource, MaterialInputSignatures);
+        modelExtract.GrabMaterialInputSignatures(resource);
 
         var dmxOptions = new ModelExtract.DatamodelRenderMeshExtractOptions
         {
-            MaterialInputSignatures = MaterialInputSignatures,
+            MaterialInputSignatures = modelExtract.MaterialInputSignatures,
             SplitDrawCallsIntoSeparateSubmeshes = true,
         };
 

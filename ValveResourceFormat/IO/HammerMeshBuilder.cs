@@ -1,17 +1,14 @@
-using System;
-using System.Collections.Generic;
-using System.Numerics;
+using System.Linq;
+using System.Runtime.InteropServices;
+using ValveResourceFormat.IO.ContentFormats.DmxModel;
 using ValveResourceFormat.IO.ContentFormats.ValveMap;
-using static ValveResourceFormat.IO.HammerMeshBuilder;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization;
-using ValveResourceFormat.IO.ContentFormats.DmxModel;
-using System.Linq;
-using System.Runtime.InteropServices;
 
 #nullable enable
 using HalfEdgeSlim = (int SrcVertexId, int DstVertexId);
+using static ValveResourceFormat.IO.HammerMeshBuilder;
 
 namespace ValveResourceFormat.IO
 {
@@ -898,21 +895,25 @@ namespace ValveResourceFormat.IO
             Faces.Add(face);
         }
 
-        public void AddPhysHull(HullDescriptor hull, PhysAggregateData phys, Vector3 positionOffset = new Vector3(), string? materialOverride = null)
+        public void AddPhysHull(HullDescriptor desc, PhysAggregateData phys, Vector3 positionOffset = new Vector3(), string? materialOverride = null)
         {
-            var attributes = phys.CollisionAttributes[hull.CollisionAttributeIndex];
+            var attributes = phys.CollisionAttributes[desc.CollisionAttributeIndex];
             var tags = attributes.GetArray<string>("m_InteractAsStrings") ?? attributes.GetArray<string>("m_PhysicsTagStrings");
             var group = attributes.GetStringProperty("m_CollisionGroupString");
             var material = materialOverride ?? MapExtract.GetToolTextureNameForCollisionTags(new ModelExtract.SurfaceTagCombo(group, tags));
 
+            var hull = desc.Shape;
             VertexStreams streams = new();
-            streams.positions = hull.Shape.VertexPositions.ToList();
+            streams.positions = hull.GetVertexPositions().ToArray().ToList();
             DefinePointCloud(streams, positionOffset);
 
-            Faces.EnsureCapacity(hull.Shape.Faces.Length);
+            var hullFaces = hull.GetFaces();
+            var hullEdges = hull.GetEdges();
+
+            Faces.EnsureCapacity(hullFaces.Length);
             Span<int> inds = stackalloc int[byte.MaxValue];
 
-            foreach (var face in hull.Shape.Faces)
+            foreach (var face in hullFaces)
             {
                 var indexCount = 0;
 
@@ -927,8 +928,8 @@ namespace ValveResourceFormat.IO
                         break;
                     }
 
-                    inds[indexCount] = hull.Shape.Edges[he].Origin;
-                    he = hull.Shape.Edges[he].Next;
+                    inds[indexCount] = hullEdges[he].Origin;
+                    he = hullEdges[he].Next;
                     indexCount++;
                 }
                 while (he != startHe);
@@ -937,9 +938,9 @@ namespace ValveResourceFormat.IO
             }
         }
 
-        public void AddPhysMesh(MeshDescriptor mesh, PhysAggregateData phys, Vector3 positionOffset = new Vector3(), string? materialOverride = null)
+        public void AddPhysMesh(MeshDescriptor desc, PhysAggregateData phys, Vector3 positionOffset = new Vector3(), string? materialOverride = null)
         {
-            var attributes = phys.CollisionAttributes[mesh.CollisionAttributeIndex];
+            var attributes = phys.CollisionAttributes[desc.CollisionAttributeIndex];
             var tags = attributes.GetArray<string>("m_InteractAsStrings") ?? attributes.GetArray<string>("m_PhysicsTagStrings");
             var group = attributes.GetStringProperty("m_CollisionGroupString");
             var material = materialOverride ?? MapExtract.GetToolTextureNameForCollisionTags(new ModelExtract.SurfaceTagCombo(group, tags));
@@ -949,14 +950,17 @@ namespace ValveResourceFormat.IO
                 return;
             }
 
+            var mesh = desc.Shape;
             VertexStreams streams = new();
-            streams.positions = mesh.Shape.Vertices.ToList();
+            streams.positions = mesh.GetVertices().ToArray().ToList();
             DefinePointCloud(streams, positionOffset);
 
-            Faces.EnsureCapacity(mesh.Shape.Triangles.Length);
+            var meshTriangles = desc.Shape.GetTriangles();
+
+            Faces.EnsureCapacity(meshTriangles.Length);
             Span<int> inds = stackalloc int[3];
 
-            foreach (var triangle in mesh.Shape.Triangles)
+            foreach (var triangle in meshTriangles)
             {
                 inds[0] = triangle.X;
                 inds[1] = triangle.Y;
