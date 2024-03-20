@@ -944,6 +944,11 @@ namespace ValveResourceFormat.IO
             var group = attributes.GetStringProperty("m_CollisionGroupString");
             var material = materialOverride ?? MapExtract.GetToolTextureNameForCollisionTags(new ModelExtract.SurfaceTagCombo(group, tags));
 
+            if (group == "default")
+            {
+                return;
+            }
+
             VertexStreams streams = new();
             streams.positions = mesh.Shape.Vertices.ToList();
             DefinePointCloud(streams, positionOffset);
