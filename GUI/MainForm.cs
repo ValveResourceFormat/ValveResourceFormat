@@ -1,3 +1,5 @@
+//#define SCREENSHOT_MODE // Uncomment to hide version, keep title bar static, set an exact window size
+
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Drawing;
@@ -235,6 +237,12 @@ namespace GUI
                     WindowState = newState;
                 }
             }
+
+#if SCREENSHOT_MODE
+            checkForUpdatesToolStripMenuItem.Visible = false;
+            versionToolStripLabel.Visible = false;
+            SetBounds(x: 100, y: 100, width: 1800 + 22, height: 1200 + 11); // Tweak size as needed
+#endif
         }
 
         // checks if the Rectangle is within bounds of one of the user's screen
@@ -250,6 +258,7 @@ namespace GUI
 
         protected override void OnClosing(CancelEventArgs e)
         {
+#if !SCREENSHOT_MODE
             // save the application window size, position and state (if maximized)
             (Settings.Config.WindowLeft, Settings.Config.WindowTop, Settings.Config.WindowWidth, Settings.Config.WindowHeight, Settings.Config.WindowState) = WindowState switch
             {
@@ -261,6 +270,7 @@ namespace GUI
                 // the default switch should never happen (FormWindowState only takes the values Normal, Maximized, Minimized)
                 _ => (0, 0, 0, 0, (int)FormWindowState.Normal),
             };
+#endif
 
             Settings.Save();
             base.OnClosing(e);
@@ -303,6 +313,7 @@ namespace GUI
 
         private void OnMainSelectedTabChanged(object sender, EventArgs e)
         {
+#if !SCREENSHOT_MODE
             if (string.IsNullOrEmpty(mainTabs.SelectedTab?.ToolTipText))
             {
                 Text = "Source 2 Viewer";
@@ -311,6 +322,7 @@ namespace GUI
             {
                 Text = $"Source 2 Viewer - {mainTabs.SelectedTab.ToolTipText}";
             }
+#endif
 
             ShowHideSearch();
         }
