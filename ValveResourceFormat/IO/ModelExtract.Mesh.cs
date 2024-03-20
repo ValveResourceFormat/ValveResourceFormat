@@ -114,8 +114,8 @@ partial class ModelExtract
 
     internal void GrabMaterialInputSignatures(Resource resource)
     {
-        var materialReferences = resource?.ExternalReferences?.ResourceRefInfoList.Where(r => r.Name[^4..] == "vmat");
-        foreach (var material in materialReferences ?? Enumerable.Empty<ResourceExtRefList.ResourceReferenceInfo>())
+        var materialReferences = resource?.ExternalReferences?.ResourceRefInfoList.Where(static r => r.Name[^4..] == "vmat");
+        foreach (var material in materialReferences ?? [])
         {
 <<<<<<< HEAD
             var materialReferences = resource?.ExternalReferences?.ResourceRefInfoList.Where(static r => r.Name[^4..] == "vmat");
@@ -126,8 +126,12 @@ partial class ModelExtract
             }
 =======
             using var materialResource = fileLoader.LoadFileCompiled(material.Name);
+<<<<<<< HEAD
             MaterialInputSignatures[material.Name] = (materialResource?.DataBlock as Material)?.GetInputSignature();
 >>>>>>> f8c25204 (Half edge mesh exporter for map decompiler)
+=======
+            MaterialInputSignatures[material.Name] = (materialResource?.DataBlock as Material)?.InputSignature ?? default;
+>>>>>>> 53cfb9b4 (Update ModelExtract.Mesh.cs)
         }
     }
 
