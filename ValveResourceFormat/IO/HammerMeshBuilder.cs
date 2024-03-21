@@ -902,6 +902,11 @@ namespace ValveResourceFormat.IO
             var group = attributes.GetStringProperty("m_CollisionGroupString");
             var material = materialOverride ?? MapExtract.GetToolTextureNameForCollisionTags(new ModelExtract.SurfaceTagCombo(group, tags));
 
+            if (group == "Default")
+            {
+                return;
+            }
+
             var hull = desc.Shape;
             VertexStreams streams = new();
             streams.positions = hull.GetVertexPositions().ToArray().ToList();
@@ -945,7 +950,7 @@ namespace ValveResourceFormat.IO
             var group = attributes.GetStringProperty("m_CollisionGroupString");
             var material = materialOverride ?? MapExtract.GetToolTextureNameForCollisionTags(new ModelExtract.SurfaceTagCombo(group, tags));
 
-            if (group == "default")
+            if (group == "Default")
             {
                 return;
             }
