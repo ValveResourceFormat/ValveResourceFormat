@@ -7,7 +7,7 @@ class AttractToControlPoint : ParticleFunctionOperator
     private readonly Vector3 ComponentScale = Vector3.One;
     private readonly INumberProvider ForceAmount = new LiteralNumberProvider(100);
     private readonly float Falloff = 2;
-    private readonly int ControlPoint = 0;
+    private readonly int ControlPoint;
 
     public AttractToControlPoint(ParticleDefinitionParser parse) : base(parse)
     {
