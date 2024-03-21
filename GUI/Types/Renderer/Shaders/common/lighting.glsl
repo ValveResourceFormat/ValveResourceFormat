@@ -127,7 +127,7 @@ float CalculateSunShadowMapVisibility(vec3 vPosition, vec3 direction)
         shadow += textureLod(g_tShadowDepthBufferDepth, vec3(shadowCoords, currentDepth), 0).r * weights.z;
     }
 
-    return 1 - shadow;
+    return 1 - saturate(shadow);
 }
 
 struct Light
