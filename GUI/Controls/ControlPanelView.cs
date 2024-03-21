@@ -1,4 +1,3 @@
-using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
 
@@ -7,7 +6,6 @@ namespace GUI.Controls
     class ControlPanelView : UserControl
     {
         protected virtual Panel ControlsPanel { get; }
-        private int currentControlsHeight = 10;
 
         public ControlPanelView()
         {
@@ -90,10 +88,10 @@ namespace GUI.Controls
             return trackBar;
         }
 
-        public void SetControlLocation(Control control)
+        private static void SetControlLocation(Control control)
         {
-            control.Location = new Point(0, currentControlsHeight);
-            currentControlsHeight += control.Height;
+            control.Dock = DockStyle.Top;
+            control.BringToFront();
         }
     }
 }

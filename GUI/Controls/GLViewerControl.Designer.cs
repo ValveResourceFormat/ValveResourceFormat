@@ -43,26 +43,28 @@ namespace GUI.Controls
             glControlContainer.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
             glControlContainer.BackColor = System.Drawing.Color.Black;
             glControlContainer.Location = new System.Drawing.Point(220, 0);
-            glControlContainer.Margin = new Padding(4, 3, 4, 3);
+            glControlContainer.Margin = new Padding(4, 50, 4, 3);
             glControlContainer.Name = "glControlContainer";
-            glControlContainer.Size = new System.Drawing.Size(810, 412);
+            glControlContainer.Size = new System.Drawing.Size(1606, 967);
             glControlContainer.TabIndex = 0;
             // 
             // controlsPanel
             // 
+            controlsPanel.AutoScroll = true;
             controlsPanel.Controls.Add(moveSpeed);
             controlsPanel.Dock = DockStyle.Left;
             controlsPanel.Location = new System.Drawing.Point(0, 0);
             controlsPanel.Margin = new Padding(0);
             controlsPanel.Name = "controlsPanel";
-            controlsPanel.Size = new System.Drawing.Size(220, 412);
+            controlsPanel.Padding = new Padding(5, 5, 5, 0);
+            controlsPanel.Size = new System.Drawing.Size(220, 967);
             controlsPanel.TabIndex = 4;
             // 
             // moveSpeed
             // 
             moveSpeed.AutoSize = true;
             moveSpeed.Dock = DockStyle.Bottom;
-            moveSpeed.Location = new System.Drawing.Point(0, 397);
+            moveSpeed.Location = new System.Drawing.Point(5, 952);
             moveSpeed.Name = "moveSpeed";
             moveSpeed.Size = new System.Drawing.Size(193, 15);
             moveSpeed.TabIndex = 5;
@@ -76,7 +78,7 @@ namespace GUI.Controls
             Controls.Add(glControlContainer);
             Margin = new Padding(0);
             Name = "GLViewerControl";
-            Size = new System.Drawing.Size(1030, 412);
+            Size = new System.Drawing.Size(1826, 967);
             controlsPanel.ResumeLayout(false);
             controlsPanel.PerformLayout();
             ResumeLayout(false);

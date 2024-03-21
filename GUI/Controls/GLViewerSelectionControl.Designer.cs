@@ -35,25 +35,26 @@ namespace GUI.Controls
             // selectionNameLabel
             // 
             selectionNameLabel.AutoSize = true;
-            selectionNameLabel.Location = new System.Drawing.Point(3, 2);
+            selectionNameLabel.Dock = System.Windows.Forms.DockStyle.Top;
+            selectionNameLabel.Location = new System.Drawing.Point(0, 0);
             selectionNameLabel.Name = "selectionNameLabel";
-            selectionNameLabel.Size = new System.Drawing.Size(52, 20);
+            selectionNameLabel.Size = new System.Drawing.Size(41, 15);
             selectionNameLabel.TabIndex = 0;
             selectionNameLabel.Text = "Select:";
             // 
             // comboBox
             // 
-            comboBox.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
+            comboBox.Dock = System.Windows.Forms.DockStyle.Top;
             comboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             comboBox.FormattingEnabled = true;
-            comboBox.Location = new System.Drawing.Point(3, 18);
+            comboBox.Location = new System.Drawing.Point(0, 15);
             comboBox.Margin = new System.Windows.Forms.Padding(0);
             comboBox.Name = "comboBox";
-            comboBox.Size = new System.Drawing.Size(214, 28);
+            comboBox.Size = new System.Drawing.Size(220, 23);
             comboBox.TabIndex = 1;
             // 
             // GLViewerSelectionControl
-            //
+            // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             Controls.Add(comboBox);

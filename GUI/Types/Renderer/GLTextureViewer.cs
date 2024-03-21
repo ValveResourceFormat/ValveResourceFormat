@@ -135,19 +135,29 @@ namespace GUI.Types.Renderer
             {
                 Text = "Save to disk…",
                 AutoSize = true,
+                Dock = DockStyle.Fill
             };
-
-            saveButton.Click += OnSaveButtonClick;
-
             var copyLabel = new Label
             {
                 Text = "or Ctrl-C to copy",
+                Dock = DockStyle.Fill,
+                TextAlign = System.Drawing.ContentAlignment.MiddleLeft
             };
 
-            AddControl(saveButton);
-            AddControl(copyLabel);
-
-            copyLabel.Location = new System.Drawing.Point(saveButton.Width, saveButton.Location.Y + 5);
+            var saveTable = new TableLayoutPanel
+            {
+                ColumnCount = 2,
+                RowCount = 1,
+                Dock = DockStyle.Top,
+                Size = new System.Drawing.Size(100, 64),
+                Padding = new Padding(0, 15, 0, 15),
+            };
+            saveTable.RowStyles.Add(new RowStyle(SizeType.Percent, 50F));
+            saveTable.RowStyles.Add(new RowStyle(SizeType.Percent, 50F));
+            saveTable.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            saveTable.Controls.Add(saveButton, 0, 0);
+            saveTable.Controls.Add(copyLabel, 1, 0);
+            AddControl(saveTable);
 
             if (Resource.ResourceType == ResourceType.PanoramaVectorGraphic)
             {
