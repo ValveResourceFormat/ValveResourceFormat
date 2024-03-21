@@ -405,7 +405,7 @@ public sealed class MapExtract
     internal IEnumerable<CDmePolygonMesh> PhysToHammerMeshes(PhysAggregateData phys, Vector3 positionOffset = new Vector3(), string entityClassname = null)
     {
         var materialOverride = string.IsNullOrEmpty(entityClassname)
-            ? string.Empty
+            ? null
             : GetToolTextureForEntity(entityClassname);
 
         for (var i = 0; i < phys.Parts.Length; i++)
