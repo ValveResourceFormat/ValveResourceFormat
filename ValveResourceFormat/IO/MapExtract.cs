@@ -3,6 +3,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Numerics;
+using System.Reflection;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO.ContentFormats.DmxModel;
 using ValveResourceFormat.IO.ContentFormats.ValveMap;
@@ -10,7 +11,6 @@ using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Serialization.KeyValues;
 using ValveResourceFormat.Utils;
-
 namespace ValveResourceFormat.IO;
 
 public sealed class MapExtract
@@ -33,6 +33,7 @@ public sealed class MapExtract
 
     private List<string> AssetReferences { get; } = [];
     private List<string> ModelsToExtract { get; } = [];
+    private HashSet<string> ProceduralPhysMaterialsToExtract { get; } = [];
     private List<ContentFile> PreExportedFragments { get; } = [];
     private Dictionary<string, string> ModelEntityAssociations { get; } = [];
     private List<string> MeshesToExtract { get; } = [];
@@ -77,6 +78,11 @@ public sealed class MapExtract
             default:
                 throw new InvalidDataException($"Resource type {resource.ResourceType} is not supported in {nameof(MapExtract)}.");
         }
+
+        //Directory.CreateDirectory(Path.GetDirectoryName(path));
+        //File.WriteAllBytes(path, materialContentFile.Data.ToArray());
+
+        Console.WriteLine("--- BAHHHHHHHHHHHHHHH" + LumpFolder) ;
     }
 
     /// <summary>
@@ -302,6 +308,12 @@ public sealed class MapExtract
             }
         }
 
+        foreach (var proceduralPhysMaterial in ProceduralPhysMaterialsToExtract)
+        {
+            var material = GeneratePhysicsTagMaterial(proceduralPhysMaterial, FileLoader, AssetReferences);
+            vmap.AdditionalFiles.Add(material);
+        }
+
         vmap.AdditionalFiles.AddRange(PreExportedFragments);
 
         // Add these files so they can be filtered out in folder extract
@@ -415,7 +427,7 @@ public sealed class MapExtract
             foreach (var hull in shape.Hulls)
             {
                 var hammerMeshBuilder = new HammerMeshBuilder(FileLoader);
-                hammerMeshBuilder.AddPhysHull(hull, phys, positionOffset, materialOverride);
+                hammerMeshBuilder.AddPhysHull(hull, phys, ProceduralPhysMaterialsToExtract, positionOffset, materialOverride);
 
                 yield return hammerMeshBuilder.GenerateMesh();
             }
@@ -423,7 +435,7 @@ public sealed class MapExtract
             foreach (var mesh in shape.Meshes)
             {
                 var hammerMeshBuilder = new HammerMeshBuilder(FileLoader);
-                hammerMeshBuilder.AddPhysMesh(mesh, phys, positionOffset, materialOverride);
+                hammerMeshBuilder.AddPhysMesh(mesh, phys, ProceduralPhysMaterialsToExtract, positionOffset, materialOverride);
 
                 yield return hammerMeshBuilder.GenerateMesh();
             }
@@ -785,6 +797,32 @@ public sealed class MapExtract
         {
             // TODO: Clutter
         }
+    }
+
+    private static ContentFile GeneratePhysicsTagMaterial(string surfaceName, IFileLoader fileLoader, List<string> assetReferences)
+    {
+        var physicsTagMaterial = new Material()
+        {
+            ShaderName = "generic.vfx",
+        };
+
+        //modeleted after CLIP tool texture
+        physicsTagMaterial.VectorParams["TextureTranslucency"] = new Vector4(0.500000f, 0.500000f, 0.500000f, 0.000000f);
+        physicsTagMaterial.IntParams["F_TRANSLUCENT"] = 1;
+        physicsTagMaterial.TextureParams["TextureColor"] = "maps/" + HammerMeshBuilder.proceduralPhysMaterialsPath + "vrf.vtex";
+        physicsTagMaterial.IntAttributes["tools.toolsmaterial"] = 1;
+        physicsTagMaterial.IntAttributes["mapbuilder.nodraw"] = 1;
+        physicsTagMaterial.IntAttributes["mapbuilder.npcclip"] = 1;
+        physicsTagMaterial.IntAttributes["mapbuilder.playerclip"] = 1;
+        physicsTagMaterial.IntAttributes["physics.nodefaultsimplification"] = 1;
+
+        physicsTagMaterial.StringAttributes["PhysicsSurfaceProperties"] = surfaceName;
+
+        var materialContentFile = new MaterialExtract(physicsTagMaterial, null, fileLoader).ToContentFile();
+        materialContentFile.FileName = HammerMeshBuilder.proceduralPhysMaterialsPath + surfaceName + ".vmat";
+        assetReferences.Add(materialContentFile.FileName);
+
+        return materialContentFile;
     }
 
     #region Entities
