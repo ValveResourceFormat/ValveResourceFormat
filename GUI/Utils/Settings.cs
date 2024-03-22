@@ -34,7 +34,7 @@ namespace GUI.Utils
             public int _VERSION_DO_NOT_MODIFY { get; set; }
         }
 
-        private static string SettingsFolder;
+        public static string SettingsFolder { get; private set; }
         private static string SettingsFilePath;
 
         public static AppConfig Config { get; set; } = new AppConfig();
