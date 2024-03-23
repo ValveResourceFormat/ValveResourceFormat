@@ -171,6 +171,7 @@ namespace GUI.Types.Renderer
 
             ParamsTable = new TableLayoutPanel
             {
+                Dock = DockStyle.Top,
                 AutoScroll = true,
                 Width = 220,
                 Height = 300,
