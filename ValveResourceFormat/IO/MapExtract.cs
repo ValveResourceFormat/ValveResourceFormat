@@ -47,6 +47,7 @@ public sealed class MapExtract
     private readonly IFileLoader FileLoader;
 
     public IProgress<string> ProgressReporter { get; set; }
+    public PhysicsVertexMatcher PhysVertexMatcher { get; private set; }
 
     private readonly Dictionary<uint, string> HashTable = StringToken.InvertedTable;
 
@@ -342,6 +343,9 @@ public sealed class MapExtract
             );
         }
 
+        var phys = LoadWorldPhysics();
+        var worldPhysMesh = phys.Parts[0].Shape.Meshes.First(m => phys.CollisionAttributes[m.CollisionAttributeIndex].GetStringProperty("m_CollisionGroupString") == "Default");
+        PhysVertexMatcher = new PhysicsVertexMatcher(worldPhysMesh);
 
         foreach (var worldNodeName in WorldNodeNames)
         {
@@ -368,7 +372,6 @@ public sealed class MapExtract
         }
 
         //convert phys to hammer meshes
-        var phys = LoadWorldPhysics();
         if (phys != null)
         {
             foreach (var hammermesh in PhysToHammerMeshes(phys))
@@ -406,7 +409,7 @@ public sealed class MapExtract
             var mesh = (DmeModel)dmxMesh.Root["model"];
             foreach (var dag in mesh.JointList.Cast<DmeDag>())
             {
-                var builder = new HammerMeshBuilder(FileLoader);
+                var builder = new HammerMeshBuilder(FileLoader) { PhysicsVertexMatcher = PhysVertexMatcher };
                 var meshShape = dag.Shape;
                 builder.AddRenderMesh(mesh, meshShape, offset);
                 yield return builder.GenerateMesh();
@@ -435,7 +438,9 @@ public sealed class MapExtract
             foreach (var mesh in shape.Meshes)
             {
                 var hammerMeshBuilder = new HammerMeshBuilder(FileLoader);
-                hammerMeshBuilder.AddPhysMesh(mesh, phys, ProceduralPhysMaterialsToExtract, positionOffset, materialOverride);
+
+                var delete = mesh == PhysVertexMatcher.PhysicsMesh ? PhysVertexMatcher.MatchingVertices : [];
+                hammerMeshBuilder.AddPhysMesh(mesh, phys, ProceduralPhysMaterialsToExtract, delete, positionOffset, materialOverride);
 
                 yield return hammerMeshBuilder.GenerateMesh();
             }
