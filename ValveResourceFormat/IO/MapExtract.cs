@@ -79,11 +79,6 @@ public sealed class MapExtract
             default:
                 throw new InvalidDataException($"Resource type {resource.ResourceType} is not supported in {nameof(MapExtract)}.");
         }
-
-        //Directory.CreateDirectory(Path.GetDirectoryName(path));
-        //File.WriteAllBytes(path, materialContentFile.Data.ToArray());
-
-        Console.WriteLine("--- BAHHHHHHHHHHHHHHH" + LumpFolder) ;
     }
 
     /// <summary>
