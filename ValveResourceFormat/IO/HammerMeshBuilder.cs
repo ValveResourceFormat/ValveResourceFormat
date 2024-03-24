@@ -200,7 +200,7 @@ namespace ValveResourceFormat.IO
                 Builder.VertsToEdgeDict.Remove(VertsToEdgeDictModification);
             }
 
-            Console.WriteLine("HammerMeshBuilder error: " + error + " Extracting face...");
+            Console.WriteLine($"{nameof(HammerMeshBuilder)}: Extracting face due to complicated error: {error}");
 
             var baseVertex = Builder.Vertices.Count;
             var indexCount = CurrentFace.Indices.Count;
@@ -383,7 +383,7 @@ namespace ValveResourceFormat.IO
         public CDmePolygonMesh GenerateMesh()
         {
             if (FacesRemoved > 0)
-                Console.WriteLine($"HammerMeshBuilder: extracted '{FacesRemoved}' of '{OriginalFaceCount - FacesRemoved}' faces");
+                Console.WriteLine($"{nameof(HammerMeshBuilder)}: extracted '{FacesRemoved}' of '{OriginalFaceCount - FacesRemoved}' faces");
 
             var mesh = new CDmePolygonMesh();
 
@@ -507,7 +507,7 @@ namespace ValveResourceFormat.IO
                 mesh.FaceData.Size++;
 
                 var mat = face.MaterialName;
-                        var materialIndex = mesh.Materials.IndexOf(mat);
+                var materialIndex = mesh.Materials.IndexOf(mat);
                 if (materialIndex == -1 && mat != null)
                 {
                     materialIndex = mesh.Materials.Count;
@@ -578,7 +578,7 @@ namespace ValveResourceFormat.IO
 
             if (!VerifyIndicesWithinBounds(indices))
             {
-                Console.WriteLine($"HammerMeshBuilder error: failed to add face '{Faces.Count}', face has an index that is out of bounds.");
+                Console.WriteLine($"{nameof(HammerMeshBuilder)}: Error! Failed to add face '{Faces.Count}', face has an index that is out of bounds.");
                 FacesRemoved++;
                 return;
             }
@@ -586,7 +586,7 @@ namespace ValveResourceFormat.IO
             // don't allow degenerate faces
             if (indices.Length < 3)
             {
-                Console.WriteLine($"HammerMeshBuilder error: failed to add face '{Faces.Count}', face has less than 3 vertices.");
+                Console.WriteLine($"{nameof(HammerMeshBuilder)}: Error! Failed to add face '{Faces.Count}', face has less than 3 vertices.");
                 FacesRemoved++;
                 return;
             }
@@ -604,7 +604,7 @@ namespace ValveResourceFormat.IO
 
                 if (AreVerticesCollinear(vertexPositions[0], vertexPositions[1], vertexPositions[2]))
                 {
-                    Console.WriteLine($"HammerMeshBuilder error: failed to add face '{Faces.Count}', face had 0 area");
+                    Console.WriteLine($"{nameof(HammerMeshBuilder)}: Error! Failed to add face '{Faces.Count}', face had 0 area");
                     FacesRemoved++;
                     return;
                 }
@@ -654,7 +654,7 @@ namespace ValveResourceFormat.IO
 
                         if (!openEdge)
                         {
-                            halfEdgeModifier.RollBack($"Removed face `{OriginalFaceCount - FacesRemoved}`, Face specified a vertex which had edges attached, but none that were open.");
+                            halfEdgeModifier.RollBack("Face specified a vertex which had edges attached, but none that were open.");
                             return;
                         }
                     }
@@ -672,7 +672,7 @@ namespace ValveResourceFormat.IO
 
                     if (innerHe.Face != -1)
                     {
-                        halfEdgeModifier.RollBack($"Removed face `{OriginalFaceCount - FacesRemoved}`, Face specified an edge which already had two faces attached.");
+                        halfEdgeModifier.RollBack("Face specified an edge which already had two faces attached.");
                         return;
                     }
 
@@ -683,7 +683,7 @@ namespace ValveResourceFormat.IO
 
                         if (failsPrevious || failsFirst)
                         {
-                            halfEdgeModifier.RollBack($"Removed face `{OriginalFaceCount - FacesRemoved}`, Face specified two edges that are connected by a vertex but have or more existing edges separating them.");
+                            halfEdgeModifier.RollBack("Face specified two edges that are connected by a vertex but have or more existing edges separating them.");
                             return;
                         }
                     }
@@ -823,7 +823,7 @@ namespace ValveResourceFormat.IO
                 // more than two prev boundaries to choose here means we got more than 4 half edges on one vertex, invalid
                 if (totalPotentialPrevBoundary > 2)
                 {
-                    halfEdgeModifier.RollBack($"Removed face `{OriginalFaceCount - FacesRemoved}`, a vertex specified by the face has multiple boundary edges but shares no existing edge.");
+                    halfEdgeModifier.RollBack("A vertex specified by the face has multiple boundary edges but shares no existing edge.");
                     return;
                 }
 
@@ -925,7 +925,7 @@ namespace ValveResourceFormat.IO
                 // more than two prev boundaries to choose here means we got more than 4 half edges on one vertex, invalid
                 if (totalPotentialNextBoundary > 2)
                 {
-                    halfEdgeModifier.RollBack($"Removed face `{OriginalFaceCount - FacesRemoved}`, a vertex specified by the face has multiple boundary edges but shares no existing edge.");
+                    halfEdgeModifier.RollBack("A vertex specified by the face has multiple boundary edges but shares no existing edge.");
                     return;
                 }
 
@@ -1120,6 +1120,7 @@ namespace ValveResourceFormat.IO
             List<Vector4> newTangents = [];
             List<Vector4> newVertexPaintBlendParams = [];
 
+            // Only scan when the position buffer changes
             if (PhysicsVertexMatcher!.LastPositions != positions)
             {
                 PhysicsVertexMatcher.LastPositions = positions;
