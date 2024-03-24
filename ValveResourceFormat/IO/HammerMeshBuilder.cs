@@ -248,6 +248,8 @@ namespace ValveResourceFormat.IO
         private readonly Vector3[] vertexPositions;
         public MeshDescriptor PhysicsMesh { get; }
         public HashSet<int> MatchingVertices { get; } = [];
+        public Dictionary<int, int> RenderToPhys { get; } = [];
+        public HashSet<(int, int, int)> DeletedTriangles { get; } = [];
 
         public PhysicsVertexMatcher(MeshDescriptor mesh)
         {
@@ -256,18 +258,45 @@ namespace ValveResourceFormat.IO
             MatchingVertices.EnsureCapacity(vertexPositions.Length / 4);
         }
 
-        public void TryMatchTriangleVertices(ReadOnlySpan<Vector3> renderMeshPositions)
+        public void TryMatchRenderTriangleToPhysics(ReadOnlySpan<int> renderMeshTriangle)
         {
-            for (var i = 0; i < 3; ++i)
+            if (RenderToPhys.TryGetValue(renderMeshTriangle[0], out var i0)
+             && RenderToPhys.TryGetValue(renderMeshTriangle[1], out var i1)
+             && RenderToPhys.TryGetValue(renderMeshTriangle[2], out var i2))
             {
-                // TODO: Accelerated search
-                var match = Array.IndexOf(vertexPositions, renderMeshPositions[i]);
+                DeletedTriangles.Add((i0, i1, i2));
+            }
+        }
 
-                if (match > -1)
+        public object? LastPositions { get; set; }
+        public void ScanPhysicsPointCloudForMatches(ReadOnlySpan<Vector3> renderMeshPositions)
+        {
+            RenderToPhys.Clear();
+
+            for (var i = 0; i < vertexPositions.Length; ++i)
+            {
+                var physicsVertexPos = vertexPositions[i];
+
+                for (var j = 0; j < renderMeshPositions.Length; ++j)
                 {
-                    MatchingVertices.Add(match);
+                    if (RenderToPhys.ContainsKey(j))
+                    {
+                        continue;
+                    }
+
+                    var renderVertexPos = renderMeshPositions[j];
+                    const float epsilon = 0.01f;
+
+                    var difference = renderVertexPos - physicsVertexPos;
+                    if (difference.LengthSquared() < epsilon)
+                    {
+                        RenderToPhys[j] = i;
+                        MatchingVertices.Add(i);
+                    }
                 }
             }
+
+            Console.WriteLine($"HammerMeshBuilder: Render mesh point cloud matched {(float)RenderToPhys.Count / renderMeshPositions.Length * 100f}% with the physics vertices!");
         }
     }
 
@@ -569,8 +598,6 @@ namespace ValveResourceFormat.IO
                     FacesRemoved++;
                     return;
                 }
-
-                PhysicsVertexMatcher?.TryMatchTriangleVertices(vertexPositions);
             }
 
             var firstHalfEdgeId = -1;
@@ -991,7 +1018,7 @@ namespace ValveResourceFormat.IO
             }
         }
 
-        public void AddPhysMesh(MeshDescriptor desc, PhysAggregateData phys, HashSet<string> proceduralPhysMaterialsToExtract, HashSet<int> deletedVertices,
+        public void AddPhysMesh(MeshDescriptor desc, PhysAggregateData phys, HashSet<string> proceduralPhysMaterialsToExtract, HashSet<int> deletedTriangles,
             Vector3 positionOffset = new Vector3(), string? materialOverride = null)
         {
             var attributes = phys.CollisionAttributes[desc.CollisionAttributeIndex];
@@ -1009,13 +1036,20 @@ namespace ValveResourceFormat.IO
             Faces.EnsureCapacity(meshTriangles.Length);
             Span<int> inds = stackalloc int[3];
 
+            if (deletedTriangles.Count > 0)
+            {
+                Console.WriteLine($"HammerMeshBuilder: Removing {deletedTriangles.Count} triangles from the physics mesh.");
+            }
+
             foreach (var triangle in meshTriangles)
             {
                 inds[0] = triangle.X;
                 inds[1] = triangle.Y;
                 inds[2] = triangle.Z;
 
-                if (deletedVertices.Contains(inds[0]) || deletedVertices.Contains(inds[1]) || deletedVertices.Contains(inds[2]))
+                if (deletedTriangles.Contains(inds[0])
+                 || deletedTriangles.Contains(inds[1])
+                 || deletedTriangles.Contains(inds[2]))
                 {
                     continue;
                 }
@@ -1074,6 +1108,13 @@ namespace ValveResourceFormat.IO
             List<Vector4> newTangents = [];
             List<Vector4> newVertexPaintBlendParams = [];
 
+            // The vertex buffer may repeat, so dont scan again
+            if (PhysicsVertexMatcher!.LastPositions != positions)
+            {
+                PhysicsVertexMatcher.LastPositions = positions;
+                PhysicsVertexMatcher.ScanPhysicsPointCloudForMatches(positions.AsSpan());
+            }
+
             foreach (var faceset in facesets.Cast<DmeFaceSet>())
             {
                 var facesetIndices = faceset.Faces;
@@ -1096,6 +1137,8 @@ namespace ValveResourceFormat.IO
                         inds.Clear();
                         continue;
                     }
+
+                    PhysicsVertexMatcher?.TryMatchRenderTriangleToPhysics(CollectionsMarshal.AsSpan(inds));
 
                     List<int> newFaceInds = new(capacity: 3);
 
