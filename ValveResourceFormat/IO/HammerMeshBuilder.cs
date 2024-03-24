@@ -247,16 +247,20 @@ namespace ValveResourceFormat.IO
     {
         private readonly Vector3[] vertexPositions;
         public MeshDescriptor PhysicsMesh { get; }
-        public HashSet<int> MatchingVertices { get; } = [];
         public Dictionary<int, int> RenderToPhys { get; } = [];
-        public HashSet<(int, int, int)> DeletedTriangles { get; } = [];
+        public HashSet<int> DeletedVertexIndices { get; } = [];
+        //public HashSet<(int, int, int)> DeletedTriangles { get; } = [];
 
         public PhysicsVertexMatcher(MeshDescriptor mesh)
         {
             PhysicsMesh = mesh;
             vertexPositions = mesh.Shape.GetVertices().ToArray();
-            MatchingVertices.EnsureCapacity(vertexPositions.Length / 4);
+            DeletedVertexIndices.EnsureCapacity(vertexPositions.Length / 4);
         }
+
+        /*
+          Deleting vertices might inadvertently eat up good triangles, but I couldn't
+          get the triangle delete method to work as good as vertex delete.
 
         public void TryMatchRenderTriangleToPhysics(ReadOnlySpan<int> renderMeshTriangle)
         {
@@ -267,36 +271,42 @@ namespace ValveResourceFormat.IO
                 DeletedTriangles.Add((i0, i1, i2));
             }
         }
+        */
 
         public object? LastPositions { get; set; }
         public void ScanPhysicsPointCloudForMatches(ReadOnlySpan<Vector3> renderMeshPositions)
         {
             RenderToPhys.Clear();
 
-            for (var i = 0; i < vertexPositions.Length; ++i)
+            var localMatches = new HashSet<int>(capacity: renderMeshPositions.Length);
+            RenderToPhys.EnsureCapacity(renderMeshPositions.Length);
+
+            for (var j = 0; j < renderMeshPositions.Length; ++j)
             {
-                var physicsVertexPos = vertexPositions[i];
-
-                for (var j = 0; j < renderMeshPositions.Length; ++j)
+                if (j == 10 && localMatches.Count < 1
+                 || j == 100 && localMatches.Count < 10)
                 {
-                    if (RenderToPhys.ContainsKey(j))
-                    {
-                        continue;
-                    }
-
-                    var renderVertexPos = renderMeshPositions[j];
-                    const float epsilon = 0.01f;
-
-                    var difference = renderVertexPos - physicsVertexPos;
-                    if (difference.LengthSquared() < epsilon)
-                    {
-                        RenderToPhys[j] = i;
-                        MatchingVertices.Add(i);
-                    }
+                    Console.WriteLine($"{nameof(PhysicsVertexMatcher)}: Bailing out due to low rate!");
+                    return;
                 }
+
+                var pos = renderMeshPositions[j];
+                const float epsilon = 0.016f;
+
+                // Mirage: 22k faces with equality match, 5k with epsilon
+                var match = Array.FindIndex(vertexPositions, v => (v - pos).LengthSquared() < epsilon);
+
+                if (match == -1)
+                {
+                    continue;
+                }
+
+                localMatches.Add(match);
+                //RenderToPhys[j] = match;
             }
 
-            Console.WriteLine($"HammerMeshBuilder: Render mesh point cloud matched {(float)RenderToPhys.Count / renderMeshPositions.Length * 100f}% with the physics vertices!");
+            DeletedVertexIndices.UnionWith(localMatches);
+            Console.WriteLine($"{nameof(PhysicsVertexMatcher)}: Matched {(float)localMatches.Count / renderMeshPositions.Length * 100f}% of rendermesh to physics vertices!");
         }
     }
 
@@ -1018,7 +1028,7 @@ namespace ValveResourceFormat.IO
             }
         }
 
-        public void AddPhysMesh(MeshDescriptor desc, PhysAggregateData phys, HashSet<string> proceduralPhysMaterialsToExtract, HashSet<int> deletedTriangles,
+        public void AddPhysMesh(MeshDescriptor desc, PhysAggregateData phys, HashSet<string> proceduralPhysMaterialsToExtract, HashSet<int> deletedIndices,
             Vector3 positionOffset = new Vector3(), string? materialOverride = null)
         {
             var attributes = phys.CollisionAttributes[desc.CollisionAttributeIndex];
@@ -1036,10 +1046,7 @@ namespace ValveResourceFormat.IO
             Faces.EnsureCapacity(meshTriangles.Length);
             Span<int> inds = stackalloc int[3];
 
-            if (deletedTriangles.Count > 0)
-            {
-                Console.WriteLine($"HammerMeshBuilder: Removing {deletedTriangles.Count} triangles from the physics mesh.");
-            }
+            var removed = 0;
 
             foreach (var triangle in meshTriangles)
             {
@@ -1047,14 +1054,19 @@ namespace ValveResourceFormat.IO
                 inds[1] = triangle.Y;
                 inds[2] = triangle.Z;
 
-                if (deletedTriangles.Contains(inds[0])
-                 || deletedTriangles.Contains(inds[1])
-                 || deletedTriangles.Contains(inds[2]))
+                if (deletedIndices.Contains(inds[0])
+                 || deletedIndices.Contains(inds[1])
+                 || deletedIndices.Contains(inds[2]))
                 {
                     continue;
                 }
 
                 AddFace(inds, material);
+            }
+
+            if (removed > 0)
+            {
+                Console.WriteLine($"{nameof(HammerMeshBuilder)}: Total physics triangles removed: {removed}");
             }
         }
 
@@ -1108,7 +1120,6 @@ namespace ValveResourceFormat.IO
             List<Vector4> newTangents = [];
             List<Vector4> newVertexPaintBlendParams = [];
 
-            // The vertex buffer may repeat, so dont scan again
             if (PhysicsVertexMatcher!.LastPositions != positions)
             {
                 PhysicsVertexMatcher.LastPositions = positions;
@@ -1138,7 +1149,7 @@ namespace ValveResourceFormat.IO
                         continue;
                     }
 
-                    PhysicsVertexMatcher?.TryMatchRenderTriangleToPhysics(CollectionsMarshal.AsSpan(inds));
+                    //PhysicsVertexMatcher?.TryMatchRenderTriangleToPhysics(CollectionsMarshal.AsSpan(inds));
 
                     List<int> newFaceInds = new(capacity: 3);
 
