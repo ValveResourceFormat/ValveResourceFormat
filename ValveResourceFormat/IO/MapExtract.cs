@@ -439,7 +439,7 @@ public sealed class MapExtract
             {
                 var hammerMeshBuilder = new HammerMeshBuilder(FileLoader);
 
-                var delete = mesh == PhysVertexMatcher.PhysicsMesh ? PhysVertexMatcher.MatchingVertices : [];
+                var delete = mesh == PhysVertexMatcher.PhysicsMesh ? PhysVertexMatcher.DeletedVertexIndices : [];
                 hammerMeshBuilder.AddPhysMesh(mesh, phys, ProceduralPhysMaterialsToExtract, delete, positionOffset, materialOverride);
 
                 yield return hammerMeshBuilder.GenerateMesh();
