@@ -557,7 +557,7 @@ namespace ValveResourceFormat.IO
             // and I doubt we'll ever get n-gons that are this fucked up
             if (indices.Length == 3)
             {
-                if (AreVerticesCollinear(
+                Span<Vector3> vertexPositions = [
                     vertexStreams.positions[Vertices[indices[0]].MasterStreamIndex],
                     vertexStreams.positions[Vertices[indices[1]].MasterStreamIndex],
                     vertexStreams.positions[Vertices[indices[2]].MasterStreamIndex]
