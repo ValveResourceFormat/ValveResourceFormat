@@ -11,6 +11,7 @@ using HalfEdgeSlim = (int SrcVertexId, int DstVertexId);
 using static ValveResourceFormat.IO.HammerMeshBuilder;
 using ValveResourceFormat.Utils;
 using System.Globalization;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.IO
 {
@@ -511,9 +512,10 @@ namespace ValveResourceFormat.IO
                 if (materialIndex == -1 && mat != null)
                 {
                     materialIndex = mesh.Materials.Count;
-                    faceMaterialIndices.Data.Add(materialIndex);
                     mesh.Materials.Add(mat);
                 }
+                faceMaterialIndices.Data.Add(materialIndex);
+
 
                 faceFlags.Data.Add(0);
 
@@ -1035,21 +1037,30 @@ namespace ValveResourceFormat.IO
             var tags = attributes.GetArray<string>("m_InteractAsStrings") ?? attributes.GetArray<string>("m_PhysicsTagStrings");
             var group = attributes.GetStringProperty("m_CollisionGroupString");
             var material = materialOverride ?? MapExtract.GetToolTextureNameForCollisionTags(new ModelExtract.SurfaceTagCombo(group, tags));
+            var knownKeys = StringToken.InvertedTable;
+
+            var physicsSurfaceNames = phys.SurfacePropertyHashes.Select(hash =>
+            {
+                knownKeys.TryGetValue(hash, out var name);
+                return name ?? hash.ToString(CultureInfo.InvariantCulture);
+            }).ToArray();
 
             var mesh = desc.Shape;
             VertexStreams streams = new();
             streams.positions = mesh.GetVertices().ToArray().ToList();
             DefinePointCloud(streams, positionOffset);
 
-            var meshTriangles = desc.Shape.GetTriangles();
+            var meshTriangles = mesh.GetTriangles();
 
             Faces.EnsureCapacity(meshTriangles.Length);
             Span<int> inds = stackalloc int[3];
 
             var removed = 0;
 
-            foreach (var triangle in meshTriangles)
+            for (var i = 0; i < meshTriangles.Length; i++)
             {
+                var triangle = meshTriangles[i];
+
                 inds[0] = triangle.X;
                 inds[1] = triangle.Y;
                 inds[2] = triangle.Z;
@@ -1060,6 +1071,34 @@ namespace ValveResourceFormat.IO
                 {
                     continue;
                 }
+
+                if (group == "Default")
+                {
+                    var physicsSurfaces = mesh.Materials;
+                    var surfaceName = "";
+
+                    if (physicsSurfaces.Length != 0)
+                    {
+                        surfaceName = physicsSurfaceNames[physicsSurfaces[i]];
+                    }
+                    else
+                    {
+                        surfaceName = physicsSurfaceNames[desc.SurfacePropertyIndex];
+                    }
+
+                    //default is just nodraw, ignore it
+                    if (surfaceName != "default")
+                    {
+                        material = "maps/" + proceduralPhysMaterialsPath + surfaceName + ".vmat";
+                        proceduralPhysMaterialsToExtract.Add(surfaceName);
+                    }
+                    else
+                    {
+                        material = "materials/tools/toolsnodraw.vmat";
+                    }
+
+                }
+
 
                 AddFace(inds, material);
             }
