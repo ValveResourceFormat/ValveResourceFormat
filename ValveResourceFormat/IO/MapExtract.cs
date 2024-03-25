@@ -341,8 +341,11 @@ public sealed class MapExtract
         }
 
         var phys = LoadWorldPhysics();
-        var worldPhysMesh = phys.Parts[0].Shape.Meshes.First(m => phys.CollisionAttributes[m.CollisionAttributeIndex].GetStringProperty("m_CollisionGroupString") == "Default");
-        PhysVertexMatcher = new PhysicsVertexMatcher(worldPhysMesh);
+        if (phys != null)
+        {
+            var worldPhysMesh = phys.Parts[0].Shape.Meshes.First(m => phys.CollisionAttributes[m.CollisionAttributeIndex].GetStringProperty("m_CollisionGroupString") == "Default");
+            PhysVertexMatcher = new PhysicsVertexMatcher(worldPhysMesh);
+        }
 
         foreach (var worldNodeName in WorldNodeNames)
         {
@@ -534,7 +537,6 @@ public sealed class MapExtract
             var properties = prop.EntityProperties;
             properties["renderwithdynamic"] = StringBool(objectFlags.HasFlag(ObjectTypeFlags.RenderWithDynamic));
             properties["rendertocubemaps"] = StringBool(objectFlags.HasFlag(ObjectTypeFlags.RenderToCubemaps));
-            //properties["disableshadows"] = StringBool(objectFlags.HasFlag(ObjectTypeFlags.NoShadows));
             properties["disableinlowquality"] = StringBool(objectFlags.HasFlag(ObjectTypeFlags.DisabledInLowQuality));
         }
 
