@@ -811,6 +811,8 @@ public sealed class MapExtract
         physicsTagMaterial.VectorParams["TextureTranslucency"] = new Vector4(0.500000f, 0.500000f, 0.500000f, 0.000000f);
         physicsTagMaterial.IntParams["F_TRANSLUCENT"] = 1;
         physicsTagMaterial.TextureParams["TextureColor"] = "maps/" + HammerMeshBuilder.proceduralPhysMaterialsPath + "vrf.vtex";
+        physicsTagMaterial.IntAttributes["mapbuilder.nodraw"] = 1;
+        physicsTagMaterial.IntAttributes["tools.toolsmaterial"] = 1;
         physicsTagMaterial.IntAttributes["physics.nodefaultsimplification"] = 1;
 
         physicsTagMaterial.StringAttributes["PhysicsSurfaceProperties"] = surfaceName;
