@@ -206,6 +206,7 @@ namespace GUI.Types.Renderer
 
                 // If there is no bbox, LookAt will break camera, so +1 to location
                 var offset = Math.Max(bbox.Max.X, bbox.Max.Z) + 1f * 1.5f;
+                offset = Math.Clamp(offset, 0f, 2000f);
                 var location = new Vector3(offset, 0, offset);
 
                 Camera.SetLocation(location);
