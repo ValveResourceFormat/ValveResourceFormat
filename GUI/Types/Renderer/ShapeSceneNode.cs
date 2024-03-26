@@ -15,6 +15,7 @@ namespace GUI.Types.Renderer
         protected RenderTexture ToolTexture;
         protected int indexCount;
         protected int vaoHandle;
+        private bool IsTranslucentRenderMode;
 
         public ShapeSceneNode(Scene scene, List<SimpleVertexNormal> verts, List<int> inds)
             : base(scene)
@@ -72,6 +73,8 @@ namespace GUI.Types.Renderer
             {
                 { string.Concat(ShaderLoader.RenderModeDefinePrefix, mode), 1 },
             });
+
+            IsTranslucentRenderMode = mode is not "Color" and not "Normals" and not "VertexColor";
         }
 
         private void Init(List<SimpleVertexNormal> verts, List<int> inds)
@@ -240,7 +243,16 @@ namespace GUI.Types.Renderer
 
         public override void Render(Scene.RenderContext context)
         {
-            if (IsTranslucent && context.RenderPass != RenderPass.Translucent || !IsTranslucent && context.RenderPass != RenderPass.AfterOpaque)
+            var translucentPass = IsTranslucent && IsTranslucentRenderMode;
+
+            if (translucentPass)
+            {
+                if (context.RenderPass != RenderPass.Translucent)
+                {
+                    return;
+                }
+            }
+            else if (context.RenderPass != RenderPass.AfterOpaque)
             {
                 return;
             }
@@ -263,7 +275,7 @@ namespace GUI.Types.Renderer
 
             GL.BindVertexArray(vaoHandle);
 
-            if (IsTranslucent)
+            if (translucentPass)
             {
                 GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
 
