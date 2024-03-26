@@ -65,7 +65,11 @@ namespace GUI.Controls
             flags |= GraphicsContextFlags.Debug;
 #endif
 
-            GLControl = new GLControl(new GraphicsMode(32, 1, 0, 0, 0, 2), 4, 6, flags);
+            GLControl = new GLControl(new GraphicsMode(32, 1, 0, 0, 0, 2), 4, 6, flags)
+            {
+                Dock = DockStyle.Fill
+            };
+
             GLControl.Load += OnLoad;
             GLControl.Paint += OnPaint;
             GLControl.Resize += OnResize;
@@ -82,7 +86,6 @@ namespace GUI.Controls
             GLControl.VisibleChanged += OnVisibleChanged;
             Disposed += OnDisposed;
 
-            GLControl.Dock = DockStyle.Fill;
             glControlContainer.Controls.Add(GLControl);
 
             textRenderer = new(guiContext);

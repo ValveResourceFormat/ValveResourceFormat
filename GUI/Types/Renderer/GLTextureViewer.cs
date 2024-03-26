@@ -56,7 +56,6 @@ namespace GUI.Types.Renderer
         private TextureCodec decodeFlags;
         private Framebuffer SaveAsFbo;
 
-        private bool FirstPaint = true;
         private CheckedListBox decodeFlagsListBox;
 
         private Vector2 ActualTextureSize
@@ -846,45 +845,48 @@ namespace GUI.Types.Renderer
             GL.Disable(EnableCap.CullFace);
 
             GLLoad -= OnLoad;
+
+            // Bind paint event at the end of the processing loop so that first paint event has correctly sized gl control
+            BeginInvoke(FirstPaint);
+        }
+
+        private void FirstPaint()
+        {
+            if (GLControl.Width < ActualTextureSize.X || GLControl.Height < ActualTextureSize.Y || Svg != null)
+            {
+                // Initially scale image to fit if it's bigger than the viewport
+                TextureScale = Math.Min(
+                    GLControl.Width / ActualTextureSize.X,
+                    GLControl.Height / ActualTextureSize.Y
+                );
+
+                if (Svg != null)
+                {
+                    SetupTexture(false);
+                }
+            }
+            else
+            {
+                // Initially scale image to the minimum scale if it's very small
+                TextureScale = Math.Max(
+                    1f,
+                    0.1f * 256f / MathF.Max(ActualTextureSize.X, ActualTextureSize.Y)
+                );
+            }
+
+            SetZoomLabel();
+
+            Position = -new Vector2(
+                GLControl.Width / 2f - ActualTextureSizeScaled.X / 2f,
+                GLControl.Height / 2f - ActualTextureSizeScaled.Y / 2f
+            );
+
             GLPaint += OnPaint;
         }
 
         private void OnPaint(object sender, RenderEventArgs e)
         {
-            if (FirstPaint)
-            {
-                FirstPaint = false; // OnLoad has control size of 0 for some reason
-
-                if (GLControl.Width < ActualTextureSize.X || GLControl.Height < ActualTextureSize.Y || Svg != null)
-                {
-                    // Initially scale image to fit if it's bigger than the viewport
-                    TextureScale = Math.Min(
-                        GLControl.Width / ActualTextureSize.X,
-                        GLControl.Height / ActualTextureSize.Y
-                    );
-
-                    if (Svg != null)
-                    {
-                        SetupTexture(false);
-                    }
-                }
-                else
-                {
-                    // Initially scale image to the minimum scale if it's very small
-                    TextureScale = Math.Max(
-                        1f,
-                        0.1f * 256f / MathF.Max(ActualTextureSize.X, ActualTextureSize.Y)
-                    );
-                }
-
-                SetZoomLabel();
-
-                Position = -new Vector2(
-                    GLControl.Width / 2f - ActualTextureSizeScaled.X / 2f,
-                    GLControl.Height / 2f - ActualTextureSizeScaled.Y / 2f
-                );
-            }
-            else if (NextBitmapToSet != null)
+            if (NextBitmapToSet != null)
             {
                 texture?.Dispose();
 
