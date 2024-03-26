@@ -68,7 +68,7 @@ namespace GUI.Types.Renderer
 
         public override void SetRenderMode(string mode)
         {
-            shader = Scene.GuiContext.ShaderLoader.LoadShader("vrf.basic_shape", new Dictionary<string, byte>
+            shader = Scene.GuiContext.ShaderLoader.LoadShader(shader.Name, new Dictionary<string, byte>
             {
                 { string.Concat(ShaderLoader.RenderModeDefinePrefix, mode), 1 },
             });
@@ -291,5 +291,7 @@ namespace GUI.Types.Renderer
             GL.UseProgram(0);
             GL.BindVertexArray(0);
         }
+
+        public override IEnumerable<string> GetSupportedRenderModes() => shader.RenderModes;
     }
 }
