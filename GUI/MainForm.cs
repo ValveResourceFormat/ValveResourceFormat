@@ -582,8 +582,6 @@ namespace GUI
                 {
                     t.Exception?.Flatten().Handle(ex =>
                     {
-                        loadingFile.Dispose();
-
                         var control = new CodeTextBox(ex.ToString());
 
                         tab.Controls.Add(control);
@@ -604,8 +602,6 @@ namespace GUI
 
                     try
                     {
-                        loadingFile.Dispose();
-
                         foreach (Control c in t.Result.Controls)
                         {
                             if (tab.IsDisposed || tab.Disposing)
@@ -628,6 +624,17 @@ namespace GUI
                 },
                 CancellationToken.None,
                 TaskContinuationOptions.OnlyOnRanToCompletion,
+                TaskScheduler.FromCurrentSynchronizationContext());
+
+            task.ContinueWith(t =>
+                {
+                    tab.BeginInvoke(() =>
+                    {
+                        loadingFile.Dispose();
+                    });
+                },
+                CancellationToken.None,
+                TaskContinuationOptions.None,
                 TaskScheduler.FromCurrentSynchronizationContext());
 
             return task;
