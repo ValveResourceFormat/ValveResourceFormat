@@ -237,22 +237,22 @@ public sealed class MapExtract
             FileName = LumpFolder + "_d.vmap",
         };
 
-        var physData = LoadWorldPhysics();
-        if (physData != null)
-        {
-            FolderExtractFilter.Add(WorldPhysicsName + GameFileLoader.CompiledFileSuffix); // TODO: put vphys on vmdl.AdditionalFiles
-            var physModelNames = WorldPhysicsNamesToExtract(WorldPhysicsName);
-
-            //var original = new ModelExtract(physData, physModelNames.Original).ToContentFile();
-            var editable = new ModelExtract(physData, physModelNames.Editable)
-            {
-                Type = ModelExtract.ModelExtractType.Map_PhysicsToRenderMesh,
-                PhysicsToRenderMaterialNameProvider = GetToolTextureNameForCollisionTags,
-            }
-            .ToContentFile();
-            //vmap.AdditionalFiles.Add(original);
-            vmap.AdditionalFiles.Add(editable);
-        }
+        //var physData = LoadWorldPhysics();
+        //if (physData != null)
+        //{
+        //    FolderExtractFilter.Add(WorldPhysicsName + GameFileLoader.CompiledFileSuffix); // TODO: put vphys on vmdl.AdditionalFiles
+        //    var physModelNames = WorldPhysicsNamesToExtract(WorldPhysicsName);
+        //
+        //    //var original = new ModelExtract(physData, physModelNames.Original).ToContentFile();
+        //    var editable = new ModelExtract(physData, physModelNames.Editable)
+        //    {
+        //        Type = ModelExtract.ModelExtractType.Map_PhysicsToRenderMesh,
+        //        PhysicsToRenderMaterialNameProvider = GetToolTextureNameForCollisionTags,
+        //    }
+        //    .ToContentFile();
+        //    //vmap.AdditionalFiles.Add(original);
+        //    vmap.AdditionalFiles.Add(editable);
+        //}
 
         foreach (var meshName in MeshesToExtract)
         {
@@ -663,7 +663,8 @@ public sealed class MapExtract
                         .ToArray();
                 }
 
-                PreExportedFragments.AddRange(ModelExtract.GetContentFiles_DrawCallSplit(modelRes, FileLoader, drawCenters, drawCalls.Length));
+                if (hasModelFlag)
+                    PreExportedFragments.AddRange(ModelExtract.GetContentFiles_DrawCallSplit(modelRes, FileLoader, drawCenters, drawCalls.Length));
             }
 
             List<CMapMesh> mapMeshes = [];
@@ -716,7 +717,10 @@ public sealed class MapExtract
                 var fragmentModelName = ModelExtract.GetFragmentModelName(modelName, i);
 
                 var instance = NewPropStatic(fragmentModelName);
-                AssetReferences.Add(fragmentModelName);
+
+                if (hasModelFlag)
+                    AssetReferences.Add(fragmentModelName);
+
 
                 if (aggregateHasTransforms)
                 {
