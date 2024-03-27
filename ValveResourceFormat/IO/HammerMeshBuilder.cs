@@ -1160,7 +1160,7 @@ namespace ValveResourceFormat.IO
             List<Vector4> newVertexPaintBlendParams = [];
 
             // Only scan when the position buffer changes
-            if (PhysicsVertexMatcher!.LastPositions != positions)
+            if (PhysicsVertexMatcher != null && PhysicsVertexMatcher.LastPositions != positions)
             {
                 PhysicsVertexMatcher.LastPositions = positions;
                 PhysicsVertexMatcher.ScanPhysicsPointCloudForMatches(positions.AsSpan());
