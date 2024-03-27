@@ -610,6 +610,12 @@ public sealed class MapExtract
 
             using var modelRes = FileLoader.LoadFileCompiled(modelName);
             var model = (Model)modelRes.DataBlock;
+
+            // TODO: reference meshes
+            var mesh = ((Model)modelRes.DataBlock).GetEmbeddedMeshes().First();
+            var sceneObject = mesh.Mesh.Data.GetArray("m_sceneObjects").First();
+            drawCalls = sceneObject.GetArray("m_drawCalls");
+
             if (convertToHalfEdge)
             {
                 foreach (var hammermesh in RenderMeshToHammerMesh(model, modelRes))
@@ -620,11 +626,6 @@ public sealed class MapExtract
             }
             else
             {
-                // TODO: reference meshes
-                var mesh = ((Model)modelRes.DataBlock).GetEmbeddedMeshes().First();
-                var sceneObject = mesh.Mesh.Data.GetArray("m_sceneObjects").First();
-                drawCalls = sceneObject.GetArray("m_drawCalls");
-
                 if (!aggregateHasTransforms)
                 {
                     drawCenters = (sceneObject.ContainsKey("m_drawBounds") ? sceneObject.GetArray("m_drawBounds") : [])
