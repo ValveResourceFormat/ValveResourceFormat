@@ -102,7 +102,14 @@ public sealed class MapExtract
     }
 
     private static string NormalizePath(string path)
-        => path.Replace('\\', '/').TrimEnd('/');
+    {
+        if (path is null)
+        {
+            return path;
+        }
+
+        return path.Replace('\\', '/').TrimEnd('/');
+    }
 
     private static bool PathIsSubPath(string equalOrSubPath, string path)
         => equalOrSubPath.StartsWith(path, StringComparison.OrdinalIgnoreCase);
@@ -860,7 +867,7 @@ public sealed class MapExtract
             if (modelName != null && PathIsSubPath(modelName, LumpFolder))
             {
                 var firstReference = ModelEntityAssociations.TryAdd(modelName, className);
-                Debug.Assert(!firstReference, "Model living in lump folder referenced by more than one entity!");
+                Debug.Assert(firstReference, "Model living in lump folder referenced by more than one entity!");
 
                 ExtractEntityModel(mapEntity, compiledEntity, modelName);
 
