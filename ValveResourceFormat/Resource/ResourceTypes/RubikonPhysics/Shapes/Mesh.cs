@@ -20,17 +20,12 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
         public readonly struct Node
         {
             public readonly Vector3 Min;
-            private readonly uint PackedTypeChildOffset;
 
             /// <summary>
-            /// The node type/split axis.
+            /// The 2nd child offset and the node type/split axis.
+            /// Type is stored in the first 2 MSBs.
             /// </summary>
-            public NodeType Type => (NodeType)(PackedTypeChildOffset >> 30);
-
-            /// <summary>
-            /// The 2nd child offset.
-            /// </summary>
-            public uint ChildOffset => PackedTypeChildOffset & 0x3FFFFFFF;
+            public readonly uint Children;
 
             public readonly Vector3 Max;
 
@@ -43,7 +38,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
             {
                 Min = data.GetSubCollection("m_vMin").ToVector3();
                 Max = data.GetSubCollection("m_vMax").ToVector3();
-                PackedTypeChildOffset = data.GetUInt32Property("m_nChildren");
+                Children = data.GetUInt32Property("m_nChildren");
                 TriangleOffset = data.GetUInt32Property("m_nTriangleOffset");
             }
         }
