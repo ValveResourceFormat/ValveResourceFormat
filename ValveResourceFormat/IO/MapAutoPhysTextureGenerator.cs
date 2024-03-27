@@ -8,7 +8,7 @@ namespace ValveResourceFormat.IO;
 
 public static class MapAutoPhysTextureGenerator
 {
-    public static void GenerateTexture(string surfaceName, string outputPath, ContentFile vmap)
+    public static SKBitmap GenerateTexture(string surfaceName)
     {
         using var fontStream = Assembly.GetExecutingAssembly().GetManifestResourceStream("ValveResourceFormat.Utils.RobotoAscii.ttf");
         using var typeface = SKTypeface.FromStream(fontStream);
@@ -16,7 +16,7 @@ public static class MapAutoPhysTextureGenerator
         var backgroundColor = new SKColor(52, 58, 90);
         var textColor = new SKColor(69, 143, 255);
 
-        using var bitmap = new SKBitmap(128, 128);
+        var bitmap = new SKBitmap(128, 128);
         using var canvas = new SKCanvas(bitmap);
         canvas.Clear(backgroundColor);
 
@@ -50,9 +50,7 @@ public static class MapAutoPhysTextureGenerator
             textY += lineHeight;
         }
 
-        using var stream = new MemoryStream();
-        bitmap.Encode(SKEncodedImageFormat.Png, 100).SaveTo(stream);
-        vmap.AddSubFile(outputPath + surfaceName + ".png", stream.ToArray);
+        return bitmap;
     }
 
     private static List<string> BreakLines(ReadOnlySpan<char> text, SKPaint paint, float width)
