@@ -974,7 +974,7 @@ namespace ValveResourceFormat.IO
             Faces.Add(face);
         }
 
-        public void AddPhysHull(HullDescriptor desc, PhysAggregateData phys, HashSet<string> proceduralPhysMaterialsToExtract, Vector3 positionOffset = new Vector3(), string? materialOverride = null)
+        public void AddPhysHull(HullDescriptor desc, PhysAggregateData phys, Func<string, string> materialNameProvider, Vector3 positionOffset = new Vector3(), string? materialOverride = null)
         {
             var attributes = phys.CollisionAttributes[desc.CollisionAttributeIndex];
             var tags = attributes.GetArray<string>("m_InteractAsStrings") ?? attributes.GetArray<string>("m_PhysicsTagStrings");
@@ -991,9 +991,8 @@ namespace ValveResourceFormat.IO
                     return name ?? hash.ToString(CultureInfo.InvariantCulture);
                 }).ToArray();
 
-                var surfaceName = physicsSurfaceNames[desc.SurfacePropertyIndex];
-                material = "maps/" + proceduralPhysMaterialsPath + surfaceName + ".vmat";
-                proceduralPhysMaterialsToExtract.Add(surfaceName);
+                var surfaceProperty = physicsSurfaceNames[desc.SurfacePropertyIndex];
+                material = materialNameProvider.Invoke(surfaceProperty);
             }
 
             var hull = desc.Shape;
@@ -1032,7 +1031,7 @@ namespace ValveResourceFormat.IO
             }
         }
 
-        public void AddPhysMesh(MeshDescriptor desc, PhysAggregateData phys, HashSet<string> proceduralPhysMaterialsToExtract, HashSet<int> deletedIndices,
+        public void AddPhysMesh(MeshDescriptor desc, PhysAggregateData phys, Func<string, string> materialNameProvider, HashSet<int> deletedIndices,
             Vector3 positionOffset = new Vector3(), string? materialOverride = null)
         {
             var attributes = phys.CollisionAttributes[desc.CollisionAttributeIndex];
@@ -1048,8 +1047,11 @@ namespace ValveResourceFormat.IO
             }).ToArray();
 
             var mesh = desc.Shape;
-            VertexStreams streams = new();
-            streams.positions = mesh.GetVertices().ToArray().ToList();
+            VertexStreams streams = new()
+            {
+                positions = mesh.GetVertices().ToArray().ToList()
+            };
+
             DefinePointCloud(streams, positionOffset);
 
             var meshTriangles = mesh.GetTriangles();
@@ -1077,28 +1079,14 @@ namespace ValveResourceFormat.IO
                 if (group == "Default")
                 {
                     var physicsSurfaces = mesh.Materials;
-                    var surfaceName = "";
+                    var surfacePropertyIndex = physicsSurfaces.Length > 0 ? physicsSurfaces[i] : desc.SurfacePropertyIndex;
+                    var surfaceProperty = physicsSurfaceNames[surfacePropertyIndex];
 
-                    if (physicsSurfaces.Length != 0)
+                    material = surfaceProperty switch
                     {
-                        surfaceName = physicsSurfaceNames[physicsSurfaces[i]];
-                    }
-                    else
-                    {
-                        surfaceName = physicsSurfaceNames[desc.SurfacePropertyIndex];
-                    }
-
-                    //default is just nodraw, ignore it
-                    if (surfaceName != "default")
-                    {
-                        material = "maps/" + proceduralPhysMaterialsPath + surfaceName + ".vmat";
-                        proceduralPhysMaterialsToExtract.Add(surfaceName);
-                    }
-                    else
-                    {
-                        material = "materials/tools/toolsnodraw.vmat";
-                    }
-
+                        "default" => "materials/tools/toolsnodraw.vmat", // default is just nodraw, ignore it
+                        _ => materialNameProvider.Invoke(surfaceProperty)
+                    };
                 }
 
 

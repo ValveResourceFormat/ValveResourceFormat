@@ -32,7 +32,7 @@ public sealed class MapExtract
 
     private List<string> AssetReferences { get; } = [];
     private List<string> ModelsToExtract { get; } = [];
-    private HashSet<string> ProceduralPhysMaterialsToExtract { get; } = [];
+    private HashSet<(string Name, string SurfaceProperty)> ProceduralPhysMaterialsToExtract { get; } = [];
     private List<ContentFile> PreExportedFragments { get; } = [];
     private List<ContentFile> EntityModels { get; } = [];
     private Dictionary<string, string> ModelEntityAssociations { get; } = [];
@@ -282,9 +282,9 @@ public sealed class MapExtract
             }
         }
 
-        foreach (var proceduralPhysMaterial in ProceduralPhysMaterialsToExtract)
+        foreach (var generatedMaterial in ProceduralPhysMaterialsToExtract)
         {
-            var vmat = GeneratePhysicsTagMaterial(proceduralPhysMaterial);
+            var vmat = GeneratePhysicsTagMaterial(generatedMaterial.Name, generatedMaterial.SurfaceProperty);
             vmap.AdditionalFiles.Add(vmat);
         }
 
@@ -411,7 +411,7 @@ public sealed class MapExtract
             foreach (var hull in shape.Hulls)
             {
                 var hammerMeshBuilder = new HammerMeshBuilder(FileLoader);
-                hammerMeshBuilder.AddPhysHull(hull, phys, ProceduralPhysMaterialsToExtract, positionOffset, materialOverride);
+                hammerMeshBuilder.AddPhysHull(hull, phys, GetAndExportAutoPhysicsMaterialName, positionOffset, materialOverride);
 
                 yield return hammerMeshBuilder.GenerateMesh();
             }
@@ -420,8 +420,8 @@ public sealed class MapExtract
             {
                 var hammerMeshBuilder = new HammerMeshBuilder(FileLoader);
 
-                var delete = mesh == PhysVertexMatcher.PhysicsMesh ? PhysVertexMatcher.DeletedVertexIndices : [];
-                hammerMeshBuilder.AddPhysMesh(mesh, phys, ProceduralPhysMaterialsToExtract, delete, positionOffset, materialOverride);
+                var deletedList = mesh == PhysVertexMatcher.PhysicsMesh ? PhysVertexMatcher.DeletedVertexIndices : [];
+                hammerMeshBuilder.AddPhysMesh(mesh, phys, GetAndExportAutoPhysicsMaterialName, deletedList, positionOffset, materialOverride);
 
                 yield return hammerMeshBuilder.GenerateMesh();
             }
@@ -762,14 +762,27 @@ public sealed class MapExtract
         }
     }
 
-    private static ContentFile GeneratePhysicsTagMaterial(string surfaceProperty)
+
+    internal static string GetAutoPhysicsMaterialName(string rootFolder, string surfaceProperty)
+        => NormalizePath(Path.Combine(rootFolder, "_vrf", "physics_surfaces", surfaceProperty + ".vmat"));
+
+    private string GetAndExportAutoPhysicsMaterialName(string surfaceProperty)
     {
+        var materialName = GetAutoPhysicsMaterialName(LumpFolder, surfaceProperty);
+        ProceduralPhysMaterialsToExtract.Add((materialName, surfaceProperty));
+        return materialName;
+    }
+
+    private static ContentFile GeneratePhysicsTagMaterial(string materialName, string surfaceProperty)
+    {
+        var textureName = Path.ChangeExtension(materialName, ".png");
+
         var root = new ValveKeyValue.KVObject("Layer0",
         [
             new("shader", "generic.vfx"),
             new("F_TRANSLUCENT", 1),
             new("TextureTranslucency", $"[{0.700000f:N6} {0.700000f:N6} {0.700000f:N6} {0.000000f:N6}]"),
-            new("TextureColor", "maps/" + HammerMeshBuilder.proceduralPhysMaterialsPath + surfaceProperty + ".png"),
+            new("TextureColor", textureName),
             new("Attributes",
             [
                 new("mapbuilder.nodraw", 1),
@@ -782,19 +795,18 @@ public sealed class MapExtract
             ]),
         ]);
 
-
         using var ms = new MemoryStream();
         ValveKeyValue.KVSerializer.Create(ValveKeyValue.KVSerializationFormat.KeyValues1Text).Serialize(ms, root);
 
         var vmat = new ContentFile()
         {
             Data = ms.ToArray(),
-            FileName = HammerMeshBuilder.proceduralPhysMaterialsPath + surfaceProperty + ".vmat",
+            FileName = materialName,
         };
 
         vmat.SubFiles.Add(new SubFile()
         {
-            FileName = surfaceProperty + ".png",
+            FileName = Path.GetFileName(textureName),
             Extract = () =>
             {
                 using var bitmap = MapAutoPhysTextureGenerator.GenerateTexture(surfaceProperty);
