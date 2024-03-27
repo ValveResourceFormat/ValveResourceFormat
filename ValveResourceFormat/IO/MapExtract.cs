@@ -343,8 +343,12 @@ public sealed class MapExtract
         var phys = LoadWorldPhysics();
         if (phys != null)
         {
-            var worldPhysMesh = phys.Parts[0].Shape.Meshes.First(m => phys.CollisionAttributes[m.CollisionAttributeIndex].GetStringProperty("m_CollisionGroupString") == "Default");
-            PhysVertexMatcher = new PhysicsVertexMatcher(worldPhysMesh);
+            var worldPhysMesh = phys.Parts[0].Shape.Meshes.FirstOrDefault(m => phys.CollisionAttributes[m.CollisionAttributeIndex].GetStringProperty("m_CollisionGroupString") == "Default");
+
+            if (worldPhysMesh != null)
+            {
+                PhysVertexMatcher = new PhysicsVertexMatcher(worldPhysMesh);
+            }
         }
 
         foreach (var worldNodeName in WorldNodeNames)
