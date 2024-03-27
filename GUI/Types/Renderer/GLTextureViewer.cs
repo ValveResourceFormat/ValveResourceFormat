@@ -477,12 +477,14 @@ namespace GUI.Types.Renderer
 
         private void ResetZoom()
         {
+            MovedFromOrigin_Unzoomed = false;
+            ClickPosition = null;
             TextureScaleOld = TextureScale;
             TextureScale = 1f;
             TextureScaleChangeTime = 0f;
 
             PositionOld = Position;
-            CenterPosition();
+            ClampPosition();
 
             SetZoomLabel();
 
@@ -656,10 +658,8 @@ namespace GUI.Types.Renderer
                 }
 
                 MovedFromOrigin_Unzoomed = false;
-                return;
             }
-
-            if (MovedFromOrigin_Unzoomed)
+            else if (MovedFromOrigin_Unzoomed)
             {
                 Position.X = Math.Clamp(Position.X, Math.Min(0, -GLControl.Width + width), 0);
                 Position.Y = Math.Clamp(Position.Y, Math.Min(0, -GLControl.Height + height), 0);
@@ -668,6 +668,9 @@ namespace GUI.Types.Renderer
             {
                 CenterPosition();
             }
+
+            Position.X = MathF.Round(Position.X);
+            Position.Y = MathF.Round(Position.Y);
         }
 
         private void CenterPosition()
@@ -876,10 +879,8 @@ namespace GUI.Types.Renderer
 
             SetZoomLabel();
 
-            Position = -new Vector2(
-                GLControl.Width / 2f - ActualTextureSizeScaled.X / 2f,
-                GLControl.Height / 2f - ActualTextureSizeScaled.Y / 2f
-            );
+            /// This will call <see cref="CenterPosition"/> since it could not have been moved by user on first paint yet
+            ClampPosition();
 
             GLPaint += OnPaint;
         }
