@@ -73,6 +73,12 @@ public sealed class MapExtract
         public static readonly uint Model = StringToken.Get("model");
     }
 
+    //these all seem to be roughly hammer meshes in cs2
+    private static bool sceneObjectConvertToHammerMesh(string modelName)
+    {
+        return (modelName.Contains("_mesh_blocklight") || modelName.Contains("_mesh_overlay") || modelName.Contains("_c0_"));
+    }
+
     /// <summary>
     /// Extract a map from a resource. Accepted types include Map, World. TODO: WorldNode and EntityLump.
     /// </summary>
@@ -451,13 +457,16 @@ public sealed class MapExtract
         }
         else
         {
-            if(resource.FileName.Contains("overlay"))
+            if (resource.FileName.Contains("_mesh_overlay"))
             {
                 OverlaysSelectionSet.Children.Add(drawSelectionSet);
             }
             else
             {
-                HammerMeshesSelectionSet.Children.Add(drawSelectionSet);
+                if(sceneObjectConvertToHammerMesh(resource.FileName))
+                {
+                    HammerMeshesSelectionSet.Children.Add(drawSelectionSet);
+                }
             }
         }
     }
@@ -669,9 +678,9 @@ public sealed class MapExtract
                 modelName = Path.ChangeExtension(meshName, ".vmdl");
             }
 
-            bool convertToHammerMesh = modelName.Contains("blocklight") || modelName.Contains("overlay");
 
-            if (convertToHammerMesh)
+
+            if (sceneObjectConvertToHammerMesh(modelName))
             {
                 var meshNameCompiled = modelName + GameFileLoader.CompiledFileSuffix;
                 using var mesh = FileLoader.LoadFile(meshNameCompiled);
