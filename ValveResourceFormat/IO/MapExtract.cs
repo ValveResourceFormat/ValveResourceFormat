@@ -6,6 +6,7 @@ using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO.ContentFormats.DmxModel;
 using ValveResourceFormat.IO.ContentFormats.ValveMap;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.ResourceTypes.RubikonPhysics;
 using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Serialization.KeyValues;
 using ValveResourceFormat.Utils;
@@ -42,7 +43,12 @@ public sealed class MapExtract
 
     private CMapSelectionSet S2VSelectionSet { get; } = new CMapSelectionSet { SelectionSetName = "Source2 Viewer" };
     private CMapSelectionSet HammerMeshesSelectionSet { get; } = new CMapSelectionSet { SelectionSetName = "Hammer Meshes" };
+    private CMapSelectionSet HammerMeshesEntitiesSelectionSet { get; } = new CMapSelectionSet { SelectionSetName = "Reconstructed Hammer Mesh Entities" };
     private CMapSelectionSet StaticPropsSelectionSet { get; } = new CMapSelectionSet { SelectionSetName = "Static Props" };
+    private CMapSelectionSet PhysicsHullsSelectionSet { get; } = new CMapSelectionSet { SelectionSetName = "Physics Hulls" };
+    private CMapSelectionSet HullEntitiesHullsSelectionSet { get; } = new CMapSelectionSet { SelectionSetName = "Reconstructed Physics Hull Entities" };
+    private CMapSelectionSet PhysicsMeshesSelectionSet { get; } = new CMapSelectionSet { SelectionSetName = "Physics Meshes" };
+    private CMapSelectionSet MeshEntitiesHullsSelectionSet { get; } = new CMapSelectionSet { SelectionSetName = "Reconstructed Physics Mesh Entities" };
 
     private List<CMapWorldLayer> WorldLayers { get; set; }
     private Dictionary<int, MapNode> UniqueNodeIds { get; set; }
@@ -310,7 +316,14 @@ public sealed class MapExtract
         datamodel.Root = MapDocument = [];
 
         S2VSelectionSet.Children.Add(HammerMeshesSelectionSet);
+        HammerMeshesSelectionSet.Children.Add(HammerMeshesEntitiesSelectionSet);
         S2VSelectionSet.Children.Add(StaticPropsSelectionSet);
+        S2VSelectionSet.Children.Add(PhysicsHullsSelectionSet);
+        S2VSelectionSet.Children.Add(PhysicsMeshesSelectionSet);
+
+        PhysicsHullsSelectionSet.Children.Add(HullEntitiesHullsSelectionSet);
+        PhysicsMeshesSelectionSet.Children.Add(MeshEntitiesHullsSelectionSet);
+
         MapDocument.RootSelectionSet.Children.Add(S2VSelectionSet);
 
         WorldLayers = [];
@@ -365,7 +378,7 @@ public sealed class MapExtract
         {
             foreach (var hammermesh in PhysToHammerMeshes(phys))
             {
-                MapDocument.World.Children.Add(new CMapMesh() { MeshData = hammermesh });
+                MapDocument.World.Children.Add(hammermesh);
             }
         }
 
@@ -380,7 +393,7 @@ public sealed class MapExtract
         return stream.ToArray();
     }
 
-    internal IEnumerable<CDmePolygonMesh> RenderMeshToHammerMesh(Model model, Resource resource, Vector3 offset = new Vector3())
+    internal IEnumerable<CMapMesh> RenderMeshToHammerMesh(Model model, Resource resource, Vector3 offset = new Vector3(), string entityClassname = null)
     {
         var modelExtract = new ModelExtract(resource, FileLoader);
         modelExtract.GrabMaterialInputSignatures(resource);
@@ -392,22 +405,42 @@ public sealed class MapExtract
         };
 
         // TODO: reference meshes
+        var hammerMeshEntitySelectionSet = new CMapSelectionSet();
+        var componentMeshCount = 0;
+
         foreach (var embedded in model.GetEmbeddedMeshes())
         {
             using var dmxMesh = ModelExtract.ConvertMeshToDatamodelMesh(embedded.Mesh, Path.GetFileNameWithoutExtension(resource.FileName), dmxOptions);
 
             var mesh = (DmeModel)dmxMesh.Root["model"];
+
             foreach (var dag in mesh.JointList.Cast<DmeDag>())
             {
                 var builder = new HammerMeshBuilder(FileLoader) { PhysicsVertexMatcher = PhysVertexMatcher };
                 var meshShape = dag.Shape;
                 builder.AddRenderMesh(mesh, meshShape, offset);
-                yield return builder.GenerateMesh();
+                var hammerMesh = new CMapMesh() { MeshData = builder.GenerateMesh() };
+
+                if (!string.IsNullOrEmpty(entityClassname))
+                {
+                    hammerMeshEntitySelectionSet.SelectionSetData.selectedObjects.Add(hammerMesh);
+                }
+
+                componentMeshCount++;
+                yield return hammerMesh;
             }
+
+        }
+
+        hammerMeshEntitySelectionSet.SelectionSetName = "hammer mesh entity " + entityClassname + " ( reconstructed from " + componentMeshCount + (componentMeshCount > 1 ? " meshes )" : " mesh )");
+
+        if (!string.IsNullOrEmpty(entityClassname))
+        {
+            HammerMeshesEntitiesSelectionSet.Children.Add(hammerMeshEntitySelectionSet);
         }
     }
 
-    internal IEnumerable<CDmePolygonMesh> PhysToHammerMeshes(PhysAggregateData phys, Vector3 positionOffset = new Vector3(), string entityClassname = null)
+    internal IEnumerable<CMapMesh> PhysToHammerMeshes(PhysAggregateData phys, Vector3 positionOffset = new Vector3(), string entityClassname = null)
     {
         var materialOverride = string.IsNullOrEmpty(entityClassname)
             ? null
@@ -417,12 +450,34 @@ public sealed class MapExtract
         {
             var shape = phys.Parts[i].Shape;
 
+            var hullsSelectionSet = new CMapSelectionSet();
+            hullsSelectionSet.SelectionSetName = "physics shape (" + shape.Hulls.Length + " hulls)";
+
+            var hullsEntitySelectionSet = new CMapSelectionSet();
+            hullsEntitySelectionSet.SelectionSetName = "physics hull entity " + entityClassname + " ( reconstructed from " + shape.Hulls.Length + (shape.Hulls.Length > 1 ? " hulls )" : " hull )");
+
+            var meshesSelectionSet = new CMapSelectionSet();
+            meshesSelectionSet.SelectionSetName = "physics shape (" + shape.Meshes.Length + " meshes)";
+
+            var meshesEntitySelectionSet = new CMapSelectionSet();
+            meshesEntitySelectionSet.SelectionSetName = "physics mesh entity " + entityClassname + " ( reconstructed from " + shape.Meshes.Length + (shape.Meshes.Length > 1 ? " meshes )" : " mesh )");
+
             foreach (var hull in shape.Hulls)
             {
                 var hammerMeshBuilder = new HammerMeshBuilder(FileLoader);
                 hammerMeshBuilder.AddPhysHull(hull, phys, GetAndExportAutoPhysicsMaterialName, positionOffset, materialOverride);
+                var hammerMesh = new CMapMesh() { MeshData = hammerMeshBuilder.GenerateMesh() };
 
-                yield return hammerMeshBuilder.GenerateMesh();
+                if (string.IsNullOrEmpty(entityClassname))
+                {
+                    hullsSelectionSet.SelectionSetData.selectedObjects.Add(hammerMesh);
+                }
+                else
+                {
+                    hullsEntitySelectionSet.SelectionSetData.selectedObjects.Add(hammerMesh);
+                }
+
+                yield return hammerMesh;
             }
 
             foreach (var mesh in shape.Meshes)
@@ -435,8 +490,42 @@ public sealed class MapExtract
                     deletedList = mesh == PhysVertexMatcher.PhysicsMesh ? PhysVertexMatcher.DeletedVertexIndices : [];
                 }
                 hammerMeshBuilder.AddPhysMesh(mesh, phys, GetAndExportAutoPhysicsMaterialName, deletedList, positionOffset, materialOverride);
+                var hammerMesh = new CMapMesh() { MeshData = hammerMeshBuilder.GenerateMesh() };
 
-                yield return hammerMeshBuilder.GenerateMesh();
+                if (string.IsNullOrEmpty(entityClassname))
+                {
+                    meshesSelectionSet.SelectionSetData.selectedObjects.Add(hammerMesh);
+                }
+                else
+                {
+                    meshesEntitySelectionSet.SelectionSetData.selectedObjects.Add(hammerMesh);
+                }
+
+                yield return hammerMesh;
+            }
+
+            if (shape.Hulls.Length != 0)
+            {
+                if (string.IsNullOrEmpty(entityClassname))
+                {
+                    PhysicsHullsSelectionSet.Children.Add(hullsSelectionSet);
+                }
+                else
+                {
+                    HullEntitiesHullsSelectionSet.Children.Add(hullsEntitySelectionSet);
+                }
+            }
+
+            if (shape.Meshes.Length != 0)
+            {
+                if (string.IsNullOrEmpty(entityClassname))
+                {
+                    PhysicsMeshesSelectionSet.Children.Add(meshesSelectionSet);
+                }
+                else
+                {
+                    MeshEntitiesHullsSelectionSet.Children.Add(meshesEntitySelectionSet);
+                }
             }
         }
     }
@@ -650,8 +739,7 @@ public sealed class MapExtract
             {
                 foreach (var hammermesh in RenderMeshToHammerMesh(model, modelRes))
                 {
-                    var mapMesh = new CMapMesh() { MeshData = hammermesh };
-                    halfEdgeMeshes.Add(mapMesh);
+                    halfEdgeMeshes.Add(hammermesh);
                 }
             }
             else
@@ -964,16 +1052,16 @@ public sealed class MapExtract
                 {
                     foreach (var hammermesh in PhysToHammerMeshes(phys, offset, associatedEntityClass))
                     {
-                        mapEntity.Children.Add(new CMapMesh() { MeshData = hammermesh });
+                        mapEntity.Children.Add(hammermesh);
                     }
                 }
             }
             else
             {
 
-                foreach (var hammermesh in RenderMeshToHammerMesh(data, model, offset))
+                foreach (var hammermesh in RenderMeshToHammerMesh(data, model, offset, associatedEntityClass))
                 {
-                    mapEntity.Children.Add(new CMapMesh() { MeshData = hammermesh });
+                    mapEntity.Children.Add(hammermesh);
                 }
             }
 
