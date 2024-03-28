@@ -40,6 +40,10 @@ public sealed class MapExtract
     private List<string> FolderExtractFilter { get; } = [];
     private List<string> SnapshotsToExtract { get; } = [];
 
+    private CMapSelectionSet S2VSelectionSet { get; } = new CMapSelectionSet { SelectionSetName = "Source2 Viewer" };
+    private CMapSelectionSet HammerMeshesSelectionSet { get; } = new CMapSelectionSet { SelectionSetName = "Hammer Meshes" };
+    private CMapSelectionSet StaticPropsSelectionSet { get; } = new CMapSelectionSet { SelectionSetName = "Static Props" };
+
     private List<CMapWorldLayer> WorldLayers { get; set; }
     private Dictionary<int, MapNode> UniqueNodeIds { get; set; }
     private CMapRootElement MapDocument { get; set; }
@@ -99,6 +103,7 @@ public sealed class MapExtract
         var vmapPath = LumpFolder + ".vmap_c";
         var vmapResource = FileLoader.LoadFile(vmapPath) ?? throw new FileNotFoundException($"Failed to find vmap_c resource at {vmapPath}");
         InitMapExtract(vmapResource);
+
     }
 
     private static string NormalizePath(string path)
@@ -304,6 +309,10 @@ public sealed class MapExtract
         datamodel.PrefixAttributes.Add("map_asset_references", AssetReferences);
         datamodel.Root = MapDocument = [];
 
+        S2VSelectionSet.Children.Add(HammerMeshesSelectionSet);
+        S2VSelectionSet.Children.Add(StaticPropsSelectionSet);
+        MapDocument.RootSelectionSet.Children.Add(S2VSelectionSet);
+
         WorldLayers = [];
         UniqueNodeIds = [];
 
@@ -420,7 +429,11 @@ public sealed class MapExtract
             {
                 var hammerMeshBuilder = new HammerMeshBuilder(FileLoader);
 
-                var deletedList = mesh == PhysVertexMatcher.PhysicsMesh ? PhysVertexMatcher.DeletedVertexIndices : [];
+                HashSet<int> deletedList = [];
+                if (PhysVertexMatcher != null)
+                {
+                    deletedList = mesh == PhysVertexMatcher.PhysicsMesh ? PhysVertexMatcher.DeletedVertexIndices : [];
+                }
                 hammerMeshBuilder.AddPhysMesh(mesh, phys, GetAndExportAutoPhysicsMaterialName, deletedList, positionOffset, materialOverride);
 
                 yield return hammerMeshBuilder.GenerateMesh();
@@ -455,21 +468,31 @@ public sealed class MapExtract
             return MapDocument.World;
         }
 
-        static void AddChildMaybeGrouped(MapNode node, MapNode child, string groupName)
+        void AddChildMaybeGrouped(MapNode node, MapNode child, string groupName)
         {
             // Only group if there is a group name
             if (!string.IsNullOrEmpty(groupName))
             {
-                if (!node.TryGetValue(groupName, out var group))
+                CMapSelectionSet selectionSet = new CMapSelectionSet { SelectionSetName = groupName };
+                var selectionSetAlreadyExists = false;
+
+                foreach (CMapSelectionSet setChild in S2VSelectionSet.Children)
                 {
-                    group = new CMapGroup { Name = groupName };
-                    node.Children.Add((CMapGroup)group);
-                    // An easy way to keep track of these groups is adding them to the kv
-                    // for later retrieval. Hammer ignores these properties.
-                    // Otherwise we would have to search the node each time.
-                    node[groupName] = group;
+                    if (setChild.SelectionSetName == groupName)
+                    {
+                        selectionSet = (CMapSelectionSet)setChild;
+                        selectionSetAlreadyExists = true;
+                        break;
+                    }
                 }
-                node = (CMapGroup)group;
+
+                if (!selectionSetAlreadyExists)
+                {
+                    S2VSelectionSet.Children.Add(selectionSet);
+                }
+
+                MapDocument.World.Children.Add(child);
+                selectionSet.SelectionSetData.selectedObjects.Add(child);
             }
             node.Children.Add(child);
         }
@@ -640,6 +663,8 @@ public sealed class MapExtract
                         .ToArray();
                 }
 
+
+
                 var modelFiles = ModelExtract.GetContentFiles_DrawCallSplit(modelRes, FileLoader, drawCenters, drawCalls.Length);
                 PreExportedFragments.AddRange(modelFiles);
             }
@@ -652,13 +677,19 @@ public sealed class MapExtract
                 .WithProperty("visoccluder", StringBool(true));
 
             var UseHammerInstances = false;
-            var drawGroup = new CMapGroup
-            {
-                // TODO: Better (file) name
-                Name = (aggregateHasTransforms ? "[Instances] " : "[MultiDraw] ") + Path.GetFileNameWithoutExtension(modelName),
-            };
 
-            GetWorldLayerNode(layerIndex, layerNodes).Children.Add(drawGroup);
+            var drawSelectionSet = new CMapSelectionSet();
+            if (convertToHalfEdge)
+            {
+                drawSelectionSet.SelectionSetName = "hammer mesh " + (aggregateHasTransforms ? "(instanced) " : "(" + drawCalls.Length + " split draw meshes) ") + Path.GetFileNameWithoutExtension(modelName);
+                HammerMeshesSelectionSet.Children.Add(drawSelectionSet);
+            }
+            else
+            {
+                drawSelectionSet.SelectionSetName = "prop_static render mesh " + (aggregateHasTransforms ? "(instanced) " : "(" + drawCalls.Length + " split draw meshes) ") + Path.GetFileNameWithoutExtension(modelName);
+                StaticPropsSelectionSet.Children.Add(drawSelectionSet);
+            }
+
 
             foreach (var fragment in aggregateMeshes)
             {
@@ -689,7 +720,9 @@ public sealed class MapExtract
                     var mapMesh = halfEdgeMeshes[i];
                     mapMesh.Name = "draw_" + i;
                     mapMesh.TintColor = ConvertToColor32(new Vector4(tint, alpha));
-                    drawGroup.Children.Add(mapMesh);
+
+                    MapDocument.World.Children.Add(mapMesh);
+                    drawSelectionSet.SelectionSetData.selectedObjects.Add(mapMesh);
                     continue;
                 }
 
@@ -713,19 +746,22 @@ public sealed class MapExtract
 
                     if (UseHammerInstances)
                     {
-                        if (drawGroup.Children.Count == 0)
+                        //if (drawGroup.Children.Count == 0)
+                        if (drawSelectionSet.SelectionSetData.selectedObjects.Count == 0)
                         {
                             // The particular model instance that will repeat
-                            drawGroup.Children.Add(instance);
+                            MapDocument.World.Children.Add(instance);
+                            drawSelectionSet.SelectionSetData.selectedObjects.Add(instance);
                         }
 
-                        instance = new CMapInstance() { Target = drawGroup };
+                        //instance = new CMapInstance() { Target = drawGroup };
                         GetWorldLayerNode(layerIndex, layerNodes).Children.Add(instance);
                         continue;
                     }
 
                     // Keep adding the same prop
-                    drawGroup.Children.Add(instance);
+                    MapDocument.World.Children.Add(instance);
+                    drawSelectionSet.SelectionSetData.selectedObjects.Add(instance);
                     continue;
                 }
 
@@ -739,7 +775,8 @@ public sealed class MapExtract
                 SetPropertiesFromFlags(instance, fragmentFlags);
                 SetTintAlpha(instance, new Vector4(tint, alpha));
 
-                drawGroup.Children.Add(instance);
+                MapDocument.World.Children.Add(instance);
+                drawSelectionSet.SelectionSetData.selectedObjects.Add(instance);
             }
         }
 
@@ -822,18 +859,6 @@ public sealed class MapExtract
     {
         var lumpName = entityLump.Data.GetStringProperty("m_name");
 
-        MapNode destNode = (string.IsNullOrEmpty(lumpName) || lumpName == "default_ents")
-            ? MapDocument.World
-            : WorldLayers.Find(l => l.WorldLayerName == lumpName) is CMapWorldLayer worldLayer
-                ? worldLayer
-                : new CMapGroup { Name = lumpName };
-
-        // If destination is a group, add it to the document
-        if (destNode is CMapGroup)
-        {
-            MapDocument.World.Children.Add(destNode);
-        }
-
         foreach (var childLumpName in entityLump.GetChildEntityNames())
         {
             using var entityLumpResource = FileLoader.LoadFileCompiled(childLumpName);
@@ -864,14 +889,11 @@ public sealed class MapExtract
                 {
                     if (UniqueNodeIds.TryGetValue(parentId, out var existingNode))
                     {
-                        destNode = existingNode;
                         continue;
                     }
 
                     var newDestNode = new CMapGroup { NodeID = parentId, Name = parentId.ToString(CultureInfo.InvariantCulture) };
                     UniqueNodeIds.Add(parentId, newDestNode);
-                    destNode.Children.Add(newDestNode);
-                    destNode = newDestNode;
                 }
             }
 
@@ -910,7 +932,7 @@ public sealed class MapExtract
                 mapEntity.WithProperty("snapshot_mesh", "0");
             }
 
-            destNode.Children.Add(mapEntity);
+            MapDocument.World.Children.Add(mapEntity);
         }
     }
 
