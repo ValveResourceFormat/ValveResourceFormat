@@ -59,8 +59,8 @@ static partial class UpdateChecker
             var stableReleaseTask = GetLastStableRelease(httpClient);
 
 #if !CI_RELEASE_BUILD
-            // Fire the unstable request away, before awaiting the first request for stable release
-            var lastUnstableBuild = GetLastUnstableBuild(httpClient);
+            // Fire the dev request away, before awaiting the first request for stable release
+            var lastDevBuild = GetLastDevBuild(httpClient);
 #endif
 
             var stableReleaseData = await stableReleaseTask.ConfigureAwait(false);
@@ -79,11 +79,11 @@ static partial class UpdateChecker
             NewVersion = newVersion;
 
 #if !CI_RELEASE_BUILD
-            var unstableBuildData = await lastUnstableBuild.ConfigureAwait(false);
+            var devBuildData = await lastDevBuild.ConfigureAwait(false);
 
-            if (!IsNewVersionAvailable && unstableBuildData != null)
+            if (!IsNewVersionAvailable && devBuildData != null)
             {
-                var newBuild = unstableBuildData?.workflow_runs[0]?.run_number ?? 0;
+                var newBuild = devBuildData?.workflow_runs[0]?.run_number ?? 0;
                 IsNewVersionStableBuild = false;
                 IsNewVersionAvailable = newBuild > currentVersion.Build;
                 NewVersion = newBuild.ToString(CultureInfo.InvariantCulture);
@@ -109,7 +109,7 @@ static partial class UpdateChecker
     }
 
 #if !CI_RELEASE_BUILD
-    private static async Task<GithubActionRuns> GetLastUnstableBuild(HttpClient httpClient)
+    private static async Task<GithubActionRuns> GetLastDevBuild(HttpClient httpClient)
     {
         var response = await httpClient.GetAsync(new Uri("https://api.github.com/repositories/42366054/actions/runs?branch=master&status=success&per_page=1")).ConfigureAwait(false);
         response.EnsureSuccessStatusCode();

@@ -40,6 +40,6 @@ body:
 - type: input
   attributes:
     label: What version of VRF are you using? On what platform?
-    description: Before creating an issue, make sure it still exists on the latest unstable build. You can get version from Console tab.
+    description: Before creating an issue, make sure it still exists on the latest dev build. You can get version from Console tab.
   validations:
     required: true

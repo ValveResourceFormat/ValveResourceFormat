@@ -87,7 +87,7 @@ namespace GUI
                 versionToolStripLabel.Text = string.Concat("v", version);
 
 #if !CI_RELEASE_BUILD // Set in Directory.Build.props
-                versionToolStripLabel.Text += "-unstable";
+                versionToolStripLabel.Text += "-dev";
 #endif
             }
 
