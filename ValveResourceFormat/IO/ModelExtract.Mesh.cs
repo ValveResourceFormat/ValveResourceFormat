@@ -30,6 +30,19 @@ partial class ModelExtract
     public Func<SurfaceTagCombo, string> PhysicsToRenderMaterialNameProvider { get; init; }
     public Vector3 Translation { get; set; }
 
+    public readonly struct DatamodelRenderMeshExtractOptions
+    {
+        /// <summary>
+        /// Split draw calls into sub-meshes named draw0, draw1, draw2...
+        /// </summary>
+        public bool SplitDrawCallsIntoSeparateSubmeshes { get; init; }
+
+        /// <summary>
+        /// Pre-parsed input signatures used to map DirectX semantic names to engine semantic names.
+        /// </summary>
+        public Dictionary<string, Material.VsInputSignature> MaterialInputSignatures { get; init; }
+    }
+
     public record struct RenderMeshExtractConfiguration(Mesh Mesh, string Name, int Index, string FileName, ImportFilter ImportFilter = default);
 
     public sealed record SurfaceTagCombo(string SurfacePropName, HashSet<string> InteractAsStrings)
@@ -98,15 +111,15 @@ partial class ModelExtract
 
             RenderMeshesToExtract.Add(new(mesh, reference.MeshName, reference.MeshIndex, GetDmxFileName_ForReferenceMesh(reference.MeshName)));
         }
+    }
 
-        void GrabMaterialInputSignatures(Resource resource)
+    internal void GrabMaterialInputSignatures(Resource resource)
+    {
+        var materialReferences = resource?.ExternalReferences?.ResourceRefInfoList.Where(static r => r.Name[^4..] == "vmat");
+        foreach (var material in materialReferences ?? [])
         {
-            var materialReferences = resource?.ExternalReferences?.ResourceRefInfoList.Where(static r => r.Name[^4..] == "vmat");
-            foreach (var material in materialReferences ?? [])
-            {
-                using var materialResource = fileLoader.LoadFileCompiled(material.Name);
-                MaterialInputSignatures[material.Name] = (materialResource?.DataBlock as Material)?.InputSignature ?? default;
-            }
+            using var materialResource = fileLoader.LoadFileCompiled(material.Name);
+            MaterialInputSignatures[material.Name] = (materialResource?.DataBlock as Material)?.InputSignature ?? default;
         }
     }
 
@@ -175,11 +188,16 @@ partial class ModelExtract
 
         var (mesh, name, index, fileName, _) = extract.RenderMeshesToExtract[0];
 
+        var options = new DatamodelRenderMeshExtractOptions
+        {
+            MaterialInputSignatures = extract.MaterialInputSignatures,
+            SplitDrawCallsIntoSeparateSubmeshes = true
+        };
+
         byte[] sharedDmxExtractMethod() => ToDmxMesh(
             mesh,
             Path.GetFileNameWithoutExtension(fileName),
-            extract.MaterialInputSignatures,
-            splitDrawCallsIntoSeparateSubmeshes: true
+            options
         );
 
         var sharedMeshExtractConfiguration = new RenderMeshExtractConfiguration(mesh, name, index, fileName, new(true, new(1)));
@@ -208,11 +226,6 @@ partial class ModelExtract
 
             yield return vmdl;
         }
-    }
-
-    public static void ToDmxMesh_DrawCallSplit()
-    {
-        //
     }
 
     public static string GetFragmentModelName(string aggModelName, int drawCallIndex)
@@ -302,14 +315,22 @@ partial class ModelExtract
         }
     }
 
-    public static byte[] ToDmxMesh(Mesh mesh, string name, Dictionary<string, Material.VsInputSignature> materialInputSignatures = null,
-        bool splitDrawCallsIntoSeparateSubmeshes = false)
+    public static byte[] ToDmxMesh(Mesh mesh, string name, DatamodelRenderMeshExtractOptions options = default)
+    {
+        using var dmx = ConvertMeshToDatamodelMesh(mesh, name, options);
+        using var stream = new MemoryStream();
+        dmx.Save(stream, "keyvalues2", 4);
+
+        return stream.ToArray();
+    }
+
+    public static Datamodel.Datamodel ConvertMeshToDatamodelMesh(Mesh mesh, string name, DatamodelRenderMeshExtractOptions options)
     {
         var mdat = mesh.Data;
         var mbuf = mesh.VBIB;
         var indexBuffers = mbuf.IndexBuffers.Select(ib => new Lazy<int[]>(() => GltfModelExporter.ReadIndices(ib, 0, (int)ib.ElementCount, 0))).ToArray();
 
-        using var dmx = new Datamodel.Datamodel("model", 22);
+        var datamodel = new Datamodel.Datamodel("model", 22);
         DmxModelMultiVertexBufferLayout(name, mbuf.VertexBuffers.Count, out var dmeModel, out var dags, out var dmeVertexBuffers);
 
         Material.VsInputSignature materialInputSignature = default;
@@ -328,9 +349,9 @@ partial class ModelExtract
 
                 var material = drawCall.GetProperty<string>("m_material") ?? drawCall.GetProperty<string>("m_pMaterial");
 
-                if (material != null && materialInputSignatures != null && (materialInputSignature.Elements == null || materialInputSignature.Elements.Length == 0))
+                if (material != null && options.MaterialInputSignatures != null && (materialInputSignature.Elements == null || materialInputSignature.Elements.Length == 0))
                 {
-                    materialInputSignature = materialInputSignatures.GetValueOrDefault(material);
+                    materialInputSignature = options.MaterialInputSignatures.GetValueOrDefault(material);
                 }
 
                 if (material == null && Mesh.IsOccluder(drawCall))
@@ -344,7 +365,7 @@ partial class ModelExtract
 
                 var dag = dags[vertexBufferIndex];
 
-                if (splitDrawCallsIntoSeparateSubmeshes)
+                if (options.SplitDrawCallsIntoSeparateSubmeshes)
                 {
                     if (drawCallIndex > 0)
                     {
@@ -376,11 +397,8 @@ partial class ModelExtract
             FillDatamodelVertexData(mbuf.VertexBuffers[i], dmeVertexBuffers[i], materialInputSignature);
         }
 
-        TieElementRoot(dmx, dmeModel);
-        using var stream = new MemoryStream();
-        dmx.Save(stream, "keyvalues2", 4);
-
-        return stream.ToArray();
+        TieElementRoot(datamodel, dmeModel);
+        return datamodel;
     }
 
     public byte[] ToDmxMesh(HullDescriptor hull)

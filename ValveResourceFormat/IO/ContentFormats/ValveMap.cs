@@ -27,6 +27,8 @@ internal class CMapRootElement : DMElement
     public CMapVariableSet MapVariables { get; set; } = [];
     [DMProperty(name: "rootSelectionSet")]
     public CMapSelectionSet RootSelectionSet { get; set; } = [];
+    [DMProperty(name: "selectionSetData")]
+    public CObjectSelectionSetDataElement SelectionSetData { get; set; } = [];
     [DMProperty(name: "m_ReferencedMeshSnapshots")]
     public Datamodel.ElementArray ReferencedMeshSnapshots { get; } = [];
     [DMProperty(name: "m_bIsCordoning")]
@@ -167,7 +169,13 @@ internal class CMapSelectionSet : DMElement
 {
     public Datamodel.ElementArray Children { get; } = [];
     public string SelectionSetName { get; set; } = string.Empty;
-    public DMElement SelectionSetData { get; set; }
+    public CObjectSelectionSetDataElement SelectionSetData { get; set; } = [];
+}
+
+[CamelCaseProperties]
+internal class CObjectSelectionSetDataElement : DMElement
+{
+    public Datamodel.ElementArray selectedObjects { get; } = [];
 }
 
 [CamelCaseProperties]
@@ -246,7 +254,7 @@ internal class CDmePolygonMesh : MapNode
     public Datamodel.IntArray VertexDataIndices { get; } = [];
 
     /// <summary>
-    /// The origin (or destination, I'm not sure) vertex of this edge.
+    /// The destination vertex of this edge.
     /// </summary>
     public Datamodel.IntArray EdgeVertexIndices { get; } = [];
 
@@ -326,7 +334,7 @@ internal class CDmePolygonMeshDataArray : DMElement
 [CamelCaseProperties]
 internal class CDmePolygonMeshSubdivisionData : DMElement
 {
-    public Datamodel.IntArray SubdivisionLevels { get; set; } = [];
+    public Datamodel.IntArray SubdivisionLevels { get; } = [];
     /// <summary>
     /// Array of <see cref="CDmePolygonMeshDataStream"/>.
     /// </summary>
