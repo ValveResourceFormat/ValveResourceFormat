@@ -10,6 +10,7 @@ using ValveResourceFormat.ResourceTypes.RubikonPhysics;
 using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Serialization.KeyValues;
 using ValveResourceFormat.Utils;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace ValveResourceFormat.IO;
 
@@ -49,6 +50,7 @@ public sealed class MapExtract
     private CMapSelectionSet HullEntitiesHullsSelectionSet { get; } = new CMapSelectionSet { SelectionSetName = "Reconstructed Physics Hull Entities" };
     private CMapSelectionSet PhysicsMeshesSelectionSet { get; } = new CMapSelectionSet { SelectionSetName = "Physics Meshes" };
     private CMapSelectionSet MeshEntitiesHullsSelectionSet { get; } = new CMapSelectionSet { SelectionSetName = "Reconstructed Physics Mesh Entities" };
+    private CMapSelectionSet OverlaysSelectionSet { get; } = new CMapSelectionSet { SelectionSetName = "Overlays" };
 
     private List<CMapWorldLayer> WorldLayers { get; set; }
     private Dictionary<int, MapNode> UniqueNodeIds { get; set; }
@@ -87,7 +89,7 @@ public sealed class MapExtract
                 InitWorldExtract(resource);
                 break;
             default:
-                throw new InvalidDataException($"Resource type {resource.ResourceType} is not supported in {nameof(MapExtract)}.");
+                throw new InvalidDataException($"Resource type {resource.ResourceType} != supported in {nameof(MapExtract)}.");
         }
     }
 
@@ -268,11 +270,13 @@ public sealed class MapExtract
         //    vmap.AdditionalFiles.Add(editable);
         //}
 
+        //this is actually just scene objects
         foreach (var meshName in MeshesToExtract)
         {
             var meshNameCompiled = meshName + GameFileLoader.CompiledFileSuffix;
             using var mesh = FileLoader.LoadFile(meshNameCompiled);
-            if (mesh is not null)
+
+            if (mesh != null)
             {
                 var vmdl = new ModelExtract((Mesh)mesh.DataBlock, meshName).ToContentFile();
                 FolderExtractFilter.Add(meshNameCompiled); // TODO: put vmesh on vmdl.AdditionalFiles
@@ -284,7 +288,7 @@ public sealed class MapExtract
         foreach (var snapshotName in SnapshotsToExtract)
         {
             using var snapshot = FileLoader.LoadFileCompiled(snapshotName);
-            if (snapshot is not null)
+            if (snapshot != null)
             {
                 var snapshotExtract = new SnapshotExtract(snapshot);
                 var vsnap = snapshotExtract.ToContentFile();
@@ -320,6 +324,7 @@ public sealed class MapExtract
         S2VSelectionSet.Children.Add(StaticPropsSelectionSet);
         S2VSelectionSet.Children.Add(PhysicsHullsSelectionSet);
         S2VSelectionSet.Children.Add(PhysicsMeshesSelectionSet);
+        S2VSelectionSet.Children.Add(OverlaysSelectionSet);
 
         PhysicsHullsSelectionSet.Children.Add(HullEntitiesHullsSelectionSet);
         PhysicsMeshesSelectionSet.Children.Add(MeshEntitiesHullsSelectionSet);
@@ -355,7 +360,7 @@ public sealed class MapExtract
             FolderExtractFilter.Add(worldNodeCompiled);
 
             using var worldNode = FileLoader.LoadFile(worldNodeCompiled);
-            if (worldNode is not null)
+            if (worldNode != null)
             {
                 HandleWorldNode((WorldNode)worldNode.DataBlock);
             }
@@ -367,7 +372,7 @@ public sealed class MapExtract
             FolderExtractFilter.Add(entityLumpCompiled);
 
             using var entityLumpResource = FileLoader.LoadFile(entityLumpCompiled);
-            if (entityLumpResource is not null)
+            if (entityLumpResource != null)
             {
                 GatherEntitiesFromLump((EntityLump)entityLumpResource.DataBlock);
             }
@@ -406,6 +411,7 @@ public sealed class MapExtract
 
         // TODO: reference meshes
         var hammerMeshEntitySelectionSet = new CMapSelectionSet();
+        var drawSelectionSet = new CMapSelectionSet();
         var componentMeshCount = 0;
 
         foreach (var embedded in model.GetEmbeddedMeshes())
@@ -425,6 +431,10 @@ public sealed class MapExtract
                 {
                     hammerMeshEntitySelectionSet.SelectionSetData.selectedObjects.Add(hammerMesh);
                 }
+                else
+                {
+                    drawSelectionSet.SelectionSetData.selectedObjects.Add(hammerMesh);
+                }
 
                 componentMeshCount++;
                 yield return hammerMesh;
@@ -432,11 +442,23 @@ public sealed class MapExtract
 
         }
 
-        hammerMeshEntitySelectionSet.SelectionSetName = "hammer mesh entity " + entityClassname + " ( reconstructed from " + componentMeshCount + (componentMeshCount > 1 ? " meshes )" : " mesh )");
+        hammerMeshEntitySelectionSet.SelectionSetName = "hammer mesh entity " + entityClassname + " (reconstructed from " + componentMeshCount + (componentMeshCount > 1 ? " meshes )" : " mesh )");
+        drawSelectionSet.SelectionSetName = "hammer mesh (" + componentMeshCount + (componentMeshCount > 1 ? " scene objects) " : " scene object) ") + Path.GetFileNameWithoutExtension(resource.FileName);
 
         if (!string.IsNullOrEmpty(entityClassname))
         {
             HammerMeshesEntitiesSelectionSet.Children.Add(hammerMeshEntitySelectionSet);
+        }
+        else
+        {
+            if(resource.FileName.Contains("overlay"))
+            {
+                OverlaysSelectionSet.Children.Add(drawSelectionSet);
+            }
+            else
+            {
+                HammerMeshesSelectionSet.Children.Add(drawSelectionSet);
+            }
         }
     }
 
@@ -454,13 +476,13 @@ public sealed class MapExtract
             hullsSelectionSet.SelectionSetName = "physics shape (" + shape.Hulls.Length + " hulls)";
 
             var hullsEntitySelectionSet = new CMapSelectionSet();
-            hullsEntitySelectionSet.SelectionSetName = "physics hull entity " + entityClassname + " ( reconstructed from " + shape.Hulls.Length + (shape.Hulls.Length > 1 ? " hulls )" : " hull )");
+            hullsEntitySelectionSet.SelectionSetName = "physics hull entity " + entityClassname + " (reconstructed from " + shape.Hulls.Length + (shape.Hulls.Length > 1 ? " hulls)" : " hull)");
 
             var meshesSelectionSet = new CMapSelectionSet();
             meshesSelectionSet.SelectionSetName = "physics shape (" + shape.Meshes.Length + " meshes)";
 
             var meshesEntitySelectionSet = new CMapSelectionSet();
-            meshesEntitySelectionSet.SelectionSetName = "physics mesh entity " + entityClassname + " ( reconstructed from " + shape.Meshes.Length + (shape.Meshes.Length > 1 ? " meshes )" : " mesh )");
+            meshesEntitySelectionSet.SelectionSetName = "physics mesh entity " + entityClassname + " (reconstructed from " + shape.Meshes.Length + (shape.Meshes.Length > 1 ? " meshes)" : " mesh)");
 
             foreach (var hull in shape.Hulls)
             {
@@ -632,17 +654,33 @@ public sealed class MapExtract
 
             var objectFlags = sceneObject.GetEnumValue<ObjectTypeFlags>("m_nObjectTypeFlags", normalize: true);
 
-            if (modelName is null)
+            if (modelName == null)
             {
                 Debug.Assert(!objectFlags.HasFlag(ObjectTypeFlags.Model));
-                if (meshName is null)
+                if (meshName == null)
                 {
                     return;
                 }
 
+                //TODO: convert this to hammer mesh as well, not sure when this is null
+
                 MeshesToExtract.Add(meshName);
 
                 modelName = Path.ChangeExtension(meshName, ".vmdl");
+            }
+
+            bool convertToHammerMesh = modelName.Contains("blocklight") || modelName.Contains("overlay");
+
+            if (convertToHammerMesh)
+            {
+                var meshNameCompiled = modelName + GameFileLoader.CompiledFileSuffix;
+                using var mesh = FileLoader.LoadFile(meshNameCompiled);
+                var model = (Model)mesh.DataBlock;
+                foreach (var hammermesh in RenderMeshToHammerMesh(model, mesh))
+                {
+                    MapDocument.World.Children.Add(hammermesh);
+                }
+                return;
             }
 
             AssetReferences.Add(modelName);
@@ -950,7 +988,7 @@ public sealed class MapExtract
         foreach (var childLumpName in entityLump.GetChildEntityNames())
         {
             using var entityLumpResource = FileLoader.LoadFileCompiled(childLumpName);
-            if (entityLumpResource is not null)
+            if (entityLumpResource != null)
             {
                 GatherEntitiesFromLump((EntityLump)entityLumpResource.DataBlock);
             }
@@ -1038,7 +1076,7 @@ public sealed class MapExtract
         var data = (Model)model.DataBlock;
 
         var hasMeshes = data.GetEmbeddedMeshesAndLoD().Any() || data.GetReferenceMeshNamesAndLoD().Any();
-        var hasPhysics = data.GetEmbeddedPhys() is not null || data.GetReferencedPhysNames().Any();
+        var hasPhysics = data.GetEmbeddedPhys() != null || data.GetReferencedPhysNames().Any();
         var isJustPhysics = hasPhysics && !hasMeshes;
 
         if (EntitiesToHammerMesh)
