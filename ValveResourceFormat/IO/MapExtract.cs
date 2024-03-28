@@ -809,7 +809,7 @@ public sealed class MapExtract
                 }
             }
 
-            var snapshotFile = compiledEntity.GetProperty<string>(StringToken.Get("snapshot_file"));
+            var snapshotFile = compiledEntity.GetProperty<string>("snapshot_file");
             if (snapshotFile != null && PathIsSubPath(snapshotFile, LumpFolder))
             {
                 snapshotFile = snapshotFile.Replace('\\', '/');

@@ -47,6 +47,23 @@ namespace ValveResourceFormat.Utils
             return scaleMatrix * rotationMatrix * positionMatrix;
         }
 
+        public static Vector3 GetPitchYawRoll(EntityLump.Entity entity)
+        {
+            var anglesUntyped = entity.GetProperty("angles");
+
+            if (anglesUntyped == default)
+            {
+                return default;
+            }
+
+            return anglesUntyped.Type switch
+            {
+                EntityFieldType.CString => ParseVector((string)anglesUntyped.Data),
+                EntityFieldType.Vector => (Vector3)anglesUntyped.Data,
+                _ => throw new NotImplementedException($"Unsupported angles type {anglesUntyped.Type}"),
+            };
+        }
+
         public static Vector3 ParseVector(string input)
         {
             if (string.IsNullOrEmpty(input))

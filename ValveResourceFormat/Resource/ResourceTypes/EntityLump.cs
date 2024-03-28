@@ -16,33 +16,40 @@ namespace ValveResourceFormat.ResourceTypes
             public Dictionary<uint, EntityProperty> Properties { get; } = [];
             public List<KVObject> Connections { get; internal set; }
 
-            public T GetProperty<T>(string name)
-                => GetProperty<T>(StringToken.Get(name));
+            public T GetProperty<T>(string name, T defaultValue = default)
+                => GetProperty<T>(StringToken.Get(name), defaultValue);
 
-            public T GetPropertyUnchecked<T>(string name)
-                => GetPropertyUnchecked<T>(StringToken.Get(name));
+            public T GetPropertyUnchecked<T>(string name, T defaultValue = default)
+                => GetPropertyUnchecked<T>(StringToken.Get(name), defaultValue);
 
             public EntityProperty GetProperty(string name)
                 => GetProperty(StringToken.Get(name));
 
-            public T GetProperty<T>(uint hash)
+            public T GetProperty<T>(uint hash, T defaultValue = default)
             {
                 if (Properties.TryGetValue(hash, out var property))
                 {
                     return (T)property.Data;
                 }
 
-                return default;
+                return defaultValue;
             }
 
-            public T GetPropertyUnchecked<T>(uint hash)
+            public T GetPropertyUnchecked<T>(uint hash, T defaultValue = default)
             {
                 if (Properties.TryGetValue(hash, out var property))
                 {
-                    return (T)Convert.ChangeType(property.Data, typeof(T), CultureInfo.InvariantCulture);
+                    try
+                    {
+                        return (T)Convert.ChangeType(property.Data, typeof(T), CultureInfo.InvariantCulture);
+                    }
+                    catch (FormatException)
+                    {
+                        // String format
+                    }
                 }
 
-                return default;
+                return defaultValue;
             }
 
             public EntityProperty GetProperty(uint hash)

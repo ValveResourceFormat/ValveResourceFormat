@@ -72,7 +72,7 @@ namespace GUI.Types.Renderer
 
             sunAngles = defaultSunAngles;
             UpdateGpuSunAngles();
-            Scene.LightingInfo.LightingData.SunLightColor = defaultSunColor;
+            Scene.LightingInfo.LightingData.LightColor_Brightness[0] = defaultSunColor;
         }
 
         Vector2 defaultSunAngles = new(80f, 170f);
@@ -101,7 +101,7 @@ namespace GUI.Types.Renderer
 
         private void UpdateGpuSunAngles()
         {
-            Scene.LightingInfo.LightingData.SunLightPosition = Matrix4x4.CreateRotationY(sunAngles.X * MathF.PI / 180f)
+            Scene.LightingInfo.LightingData.LightToWorld[0] = Matrix4x4.CreateRotationY(sunAngles.X * MathF.PI / 180f)
                                                              * Matrix4x4.CreateRotationZ(sunAngles.Y * MathF.PI / 180f);
         }
 
