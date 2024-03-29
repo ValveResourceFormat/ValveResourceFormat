@@ -105,7 +105,7 @@ partial class ModelExtract
             foreach (var material in materialReferences ?? [])
             {
                 using var materialResource = fileLoader.LoadFileCompiled(material.Name);
-                MaterialInputSignatures[material.Name] = (materialResource?.DataBlock as Material)?.InputSignature ?? default;
+                MaterialInputSignatures[material.Name] = (materialResource?.DataBlock as Material)?.InputSignature ?? Material.VsInputSignature.Empty;
             }
         }
     }
@@ -312,7 +312,7 @@ partial class ModelExtract
         using var dmx = new Datamodel.Datamodel("model", 22);
         DmxModelMultiVertexBufferLayout(name, mbuf.VertexBuffers.Count, out var dmeModel, out var dags, out var dmeVertexBuffers);
 
-        Material.VsInputSignature materialInputSignature = default;
+        var materialInputSignature = Material.VsInputSignature.Empty;
         var drawCallIndex = 0;
 
         foreach (var sceneObject in mdat.GetArray("m_sceneObjects"))
@@ -328,9 +328,9 @@ partial class ModelExtract
 
                 var material = drawCall.GetProperty<string>("m_material") ?? drawCall.GetProperty<string>("m_pMaterial");
 
-                if (material != null && materialInputSignatures != null && (materialInputSignature.Elements == null || materialInputSignature.Elements.Length == 0))
+                if (material != null && materialInputSignatures != null && materialInputSignature.Elements.Length == 0)
                 {
-                    materialInputSignature = materialInputSignatures.GetValueOrDefault(material);
+                    materialInputSignature = materialInputSignatures.GetValueOrDefault(material, Material.VsInputSignature.Empty);
                 }
 
                 if (material == null && Mesh.IsOccluder(drawCall))
