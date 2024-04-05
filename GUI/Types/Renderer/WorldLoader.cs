@@ -1080,6 +1080,11 @@ namespace GUI.Types.Renderer
 
         private EntityLump.Entity FindEntityByKeyValue(string keyToFind, string valueToFind)
         {
+            if (valueToFind == null)
+            {
+                return null;
+            }
+
             var stringToken = StringToken.Get(keyToFind);
 
             foreach (var entity in Entities)
