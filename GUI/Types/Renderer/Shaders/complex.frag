@@ -79,6 +79,8 @@ uniform int F_DECAL_BLEND_MODE;
 #define F_HIGH_QUALITY_GLOSS 0
 #define F_BLEND_NORMALS 0
 
+#define F_EYEBALLS 0
+
 #define HemiOctIsoRoughness_RG_B 0
 //End of feature defines
 
@@ -246,6 +248,21 @@ uniform sampler2D g_tTintMask;
     #define VEC2_ROUGHNESS
     #define renderMode_AnisoGloss 0
     uniform sampler2D g_tAnisoGloss;
+#endif
+
+#if defined(csgo_character_vfx)
+    #if (F_EYEBALLS == 1)
+        uniform sampler2D g_tEyeAlbedo1;
+        uniform sampler2D g_tEyeMask1;
+
+        uniform float g_flEyeBallRadius1;
+        uniform float g_flEyeBallWalleyeL1;
+        uniform float g_flEyeBallWalleyeR1;
+        uniform float g_flEyeHueShift1;
+        uniform float g_flEyeIrisSize1;
+        uniform float g_flEyePupilSize1;
+        uniform float g_flEyeSaturation1;
+    #endif
 #endif
 
 #include "common/lighting_common.glsl"
@@ -496,6 +513,16 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 
 #if (F_DECAL_TEXTURE == 1)
     mat.Albedo = ApplyDecalTexture(mat.Albedo);
+#endif
+
+#if defined(csgo_character_vfx)
+    #if (F_EYEBALLS == 1)
+        vec4 vEyeTexel = texture(g_tEyeAlbedo1, texCoord * 5);
+        vec3 vEyeAlbedo = vEyeTexel.rgb;
+        float flIrisMask = vEyeTexel.a;
+        float flEyeMask = texture(g_tEyeMask1, texCoord).r;
+        mat.Albedo = mix(mat.Albedo, vEyeAlbedo, flEyeMask);
+    #endif
 #endif
 
     mat.DiffuseColor = mat.Albedo - mat.Albedo * mat.Metalness;
