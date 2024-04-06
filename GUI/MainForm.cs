@@ -80,19 +80,19 @@ namespace GUI
                     versionPlus += 8;
                 }
 
-                versionToolStripLabel.Text = string.Concat("v", version[..versionPlus]);
+                versionLabel.Text = string.Concat("v", version[..versionPlus]);
             }
             else
             {
-                versionToolStripLabel.Text = string.Concat("v", version);
+                versionLabel.Text = string.Concat("v", version);
 
 #if !CI_RELEASE_BUILD // Set in Directory.Build.props
-                versionToolStripLabel.Text += "-dev";
+                versionLabel.Text += "-dev";
 #endif
             }
 
 #if DEBUG
-            versionToolStripLabel.Text += " (DEBUG)";
+            versionLabel.Text += " (DEBUG)";
 #endif
 
             searchForm = new SearchForm();

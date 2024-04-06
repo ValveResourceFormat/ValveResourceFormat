@@ -49,7 +49,6 @@ namespace GUI
             findToolStripButton = new ToolStripMenuItem();
             settingsToolStripMenuItem = new ToolStripMenuItem();
             aboutToolStripMenuItem = new ToolStripMenuItem();
-            versionToolStripLabel = new ToolStripLabel();
             newVersionAvailableToolStripMenuItem = new ToolStripMenuItem();
             checkForUpdatesToolStripMenuItem = new ToolStripMenuItem();
             recoverDeletedToolStripMenuItem = new ToolStripMenuItem();
@@ -77,6 +76,7 @@ namespace GUI
             vpkEditRemoveThisFolderToolStripMenuItem = new ToolStripMenuItem();
             vpkEditRemoveThisFileToolStripMenuItem = new ToolStripMenuItem();
             vpkEditSaveToDiskToolStripMenuItem = new ToolStripMenuItem();
+            versionLabel = new ToolStripMenuItem();
             menuStrip.SuspendLayout();
             tabContextMenuStrip.SuspendLayout();
             vpkContextMenu.SuspendLayout();
@@ -87,7 +87,7 @@ namespace GUI
             // 
             menuStrip.BackColor = System.Drawing.SystemColors.Window;
             menuStrip.ImageScalingSize = new System.Drawing.Size(24, 24);
-            menuStrip.Items.AddRange(new ToolStripItem[] { fileToolStripMenuItem, explorerToolStripMenuItem, findToolStripButton, settingsToolStripMenuItem, aboutToolStripMenuItem, versionToolStripLabel, newVersionAvailableToolStripMenuItem, checkForUpdatesToolStripMenuItem });
+            menuStrip.Items.AddRange(new ToolStripItem[] { fileToolStripMenuItem, explorerToolStripMenuItem, findToolStripButton, settingsToolStripMenuItem, aboutToolStripMenuItem, versionLabel, newVersionAvailableToolStripMenuItem, checkForUpdatesToolStripMenuItem });
             menuStrip.Location = new System.Drawing.Point(0, 0);
             menuStrip.Name = "menuStrip";
             menuStrip.RenderMode = ToolStripRenderMode.System;
@@ -175,15 +175,6 @@ namespace GUI
             aboutToolStripMenuItem.Size = new System.Drawing.Size(68, 20);
             aboutToolStripMenuItem.Text = "About";
             aboutToolStripMenuItem.Click += OnAboutItemClick;
-            // 
-            // versionToolStripLabel
-            // 
-            versionToolStripLabel.Alignment = ToolStripItemAlignment.Right;
-            versionToolStripLabel.Margin = new Padding(0);
-            versionToolStripLabel.Name = "versionToolStripLabel";
-            versionToolStripLabel.Padding = new Padding(4, 0, 4, 0);
-            versionToolStripLabel.Size = new System.Drawing.Size(53, 20);
-            versionToolStripLabel.Text = "Version";
             // 
             // newVersionAvailableToolStripMenuItem
             // 
@@ -299,7 +290,7 @@ namespace GUI
             // 
             vpkContextMenu.Items.AddRange(new ToolStripItem[] { extractToolStripMenuItem, decompileToolStripMenuItem, toolStripSeparator1, copyFileNameToolStripMenuItem, openWithDefaultAppToolStripMenuItem, viewAssetInfoToolStripMenuItem, verifyPackageContentsToolStripMenuItem, recoverDeletedToolStripMenuItem });
             vpkContextMenu.Name = "vpkContextMenu";
-            vpkContextMenu.Size = new System.Drawing.Size(200, 186);
+            vpkContextMenu.Size = new System.Drawing.Size(200, 164);
             // 
             // extractToolStripMenuItem
             // 
@@ -408,6 +399,14 @@ namespace GUI
             vpkEditSaveToDiskToolStripMenuItem.Text = "&Save VPK to disk";
             vpkEditSaveToDiskToolStripMenuItem.Click += OnSaveVPKToDiskToolStripMenuItem_Click;
             // 
+            // versionLabel
+            // 
+            versionLabel.Alignment = ToolStripItemAlignment.Right;
+            versionLabel.Name = "versionLabel";
+            versionLabel.Size = new System.Drawing.Size(57, 20);
+            versionLabel.Text = "Version";
+            versionLabel.Click += OnAboutItemClick;
+            // 
             // MainForm
             // 
             AllowDrop = true;
@@ -459,7 +458,6 @@ namespace GUI
         private ToolStripMenuItem decompileExportToolStripMenuItem;
         private ToolStripMenuItem explorerToolStripMenuItem;
         private ToolStripMenuItem viewAssetInfoToolStripMenuItem;
-        private ToolStripLabel versionToolStripLabel;
         private ToolStripMenuItem fileToolStripMenuItem;
         private ToolStripMenuItem openToolStripMenuItem;
         private ToolStripSeparator toolStripSeparator2;
@@ -475,6 +473,7 @@ namespace GUI
         private ToolStripMenuItem vpkEditCreateFolderToolStripMenuItem;
         private ToolStripMenuItem vpkEditRemoveThisFolderToolStripMenuItem;
         private ToolStripMenuItem vpkEditRemoveThisFileToolStripMenuItem;
+        private ToolStripMenuItem versionLabel;
     }
 }
 
