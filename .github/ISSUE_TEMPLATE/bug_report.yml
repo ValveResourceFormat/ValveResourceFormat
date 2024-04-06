@@ -38,8 +38,10 @@ body:
     required: true
 
 - type: input
+  id: version
   attributes:
-    label: What version of VRF are you using? On what platform?
-    description: Before creating an issue, make sure it still exists on the latest dev build. You can get version from Console tab.
+    label: What version of VRF are you using?
+    description: Before creating an issue, make sure it still exists on the [latest dev build.](https://valveresourceformat.github.io/)
+    placeholder: Use copy version button in the about window.
   validations:
     required: true

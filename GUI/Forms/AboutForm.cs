@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Runtime.InteropServices;
 using System.Windows.Forms;
 
 namespace GUI.Forms
@@ -10,26 +9,25 @@ namespace GUI.Forms
         {
             InitializeComponent();
 
-            labelVersion.Text = $"Version: {Application.ProductVersion}";
-            labelRuntime.Text = $"Runtime: {RuntimeInformation.FrameworkDescription}";
+            labelVersion.Text = $"Version: {Application.ProductVersion[..16]}";
         }
 
-        private void OnWebsiteClick(object sender, System.EventArgs e)
+        private void OnWebsiteClick(object sender, EventArgs e)
         {
             OpenUrl("https://valveresourceformat.github.io/");
         }
 
-        private void OnGithubClick(object sender, System.EventArgs e)
+        private void OnGithubClick(object sender, EventArgs e)
         {
             OpenUrl("https://github.com/ValveResourceFormat/ValveResourceFormat");
         }
 
-        private void OnReleasesClick(object sender, System.EventArgs e)
+        private void OnReleasesClick(object sender, EventArgs e)
         {
             OpenUrl("https://github.com/ValveResourceFormat/ValveResourceFormat/releases");
         }
 
-        private void OnKeybindsClick(object sender, System.EventArgs e)
+        private void OnKeybindsClick(object sender, EventArgs e)
         {
             OpenUrl("https://github.com/ValveResourceFormat/ValveResourceFormat/wiki/Source-2-Viewer-Keybinds");
         }
@@ -40,6 +38,18 @@ namespace GUI.Forms
             {
                 CreateNoWindow = true,
             });
+        }
+
+        private void OnCopyVersionClick(object sender, EventArgs e)
+        {
+            var version = $"{Application.ProductVersion.Replace('+', ' ')} on {Environment.OSVersion}";
+
+            if (Utils.Settings.GpuRendererAndDriver != null)
+            {
+                version += $" ({Utils.Settings.GpuRendererAndDriver})";
+            }
+
+            Clipboard.SetText(version);
         }
     }
 }

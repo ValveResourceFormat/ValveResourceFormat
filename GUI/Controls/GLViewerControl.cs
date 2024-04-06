@@ -31,7 +31,6 @@ namespace GUI.Controls
         public event EventHandler<RenderEventArgs> GLPaint;
         public event EventHandler GLLoad;
         public Action<GLViewerControl> GLPostLoad { get; set; }
-        private static bool hasCheckedOpenGL;
 
         private readonly Types.Renderer.TextRenderer textRenderer;
 
@@ -649,14 +648,16 @@ namespace GUI.Controls
 
         private static void CheckOpenGL()
         {
-            if (hasCheckedOpenGL)
+            if (Settings.GpuRendererAndDriver != null)
             {
                 return;
             }
 
-            hasCheckedOpenGL = true;
+            var gpu = $"GPU: {GL.GetString(StringName.Renderer)}, Driver: {GL.GetString(StringName.Version)}";
 
-            Log.Debug("OpenGL", $"GPU: {GL.GetString(StringName.Renderer)}, Driver: {GL.GetString(StringName.Version)}, OS: {Environment.OSVersion}");
+            Settings.GpuRendererAndDriver = gpu;
+
+            Log.Debug("OpenGL", $"{gpu}, OS: {Environment.OSVersion}");
 
             MaterialLoader.MaxTextureMaxAnisotropy = GL.GetFloat((GetPName)ExtTextureFilterAnisotropic.MaxTextureMaxAnisotropyExt);
         }
