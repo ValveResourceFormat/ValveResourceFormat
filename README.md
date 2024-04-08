@@ -128,6 +128,7 @@ Magic        | Description
 `0x32736376` | vcs2 - compiled shader
 `0x31415926` | murmurhash2 seed used in various places (like entity keys)
 `VFONT1`     | "encrypted" font file
+`0x00564645` | VFE - expression data
 
 ## License
 
