@@ -440,8 +440,8 @@ partial class ModelExtract
                     // No mask will show up as 'Empty' in editor
                     var mask = i < meshGroupMasks.Length ? meshGroupMasks[i] : 0UL;
 
-                    var groupName = split.First();
-                    var choiceName = fullName.Split("_@").Skip(1).First();
+                    var groupName = split[0];
+                    var choiceName = split[1];
 
                     groupedChoices.TryAdd(groupName, []);
                     groupedChoices[groupName].Add((fullName, choiceName, mask));

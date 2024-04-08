@@ -36,10 +36,10 @@ namespace GUI.Forms
             website = new Button();
             github = new Button();
             releases = new Button();
-            labelRuntime = new Label();
             label3 = new Label();
             icon = new PictureBox();
             keybinds = new Button();
+            copyVersion = new Button();
             ((System.ComponentModel.ISupportInitialize)icon).BeginInit();
             SuspendLayout();
             // 
@@ -71,7 +71,7 @@ namespace GUI.Forms
             website.Name = "website";
             website.Size = new System.Drawing.Size(100, 23);
             website.TabIndex = 4;
-            website.Text = "Website";
+            website.Text = "&Website";
             website.UseVisualStyleBackColor = true;
             website.Click += OnWebsiteClick;
             // 
@@ -82,7 +82,7 @@ namespace GUI.Forms
             github.Name = "github";
             github.Size = new System.Drawing.Size(100, 23);
             github.TabIndex = 5;
-            github.Text = "GitHub";
+            github.Text = "&GitHub";
             github.UseVisualStyleBackColor = true;
             github.Click += OnGithubClick;
             // 
@@ -93,29 +93,19 @@ namespace GUI.Forms
             releases.Name = "releases";
             releases.Size = new System.Drawing.Size(100, 23);
             releases.TabIndex = 6;
-            releases.Text = "View releases";
+            releases.Text = "View &releases";
             releases.UseVisualStyleBackColor = true;
             releases.Click += OnReleasesClick;
-            // 
-            // labelRuntime
-            // 
-            labelRuntime.AutoSize = true;
-            labelRuntime.Location = new System.Drawing.Point(182, 70);
-            labelRuntime.Margin = new Padding(4, 0, 4, 0);
-            labelRuntime.Name = "labelRuntime";
-            labelRuntime.Size = new System.Drawing.Size(52, 15);
-            labelRuntime.TabIndex = 8;
-            labelRuntime.Text = "Runtime";
             // 
             // label3
             // 
             label3.AutoSize = true;
-            label3.Location = new System.Drawing.Point(182, 122);
+            label3.Location = new System.Drawing.Point(177, 125);
             label3.Margin = new Padding(4, 0, 4, 0);
             label3.Name = "label3";
-            label3.Size = new System.Drawing.Size(394, 60);
+            label3.Size = new System.Drawing.Size(394, 45);
             label3.TabIndex = 10;
-            label3.Text = "Available under the MIT license.\r\n\r\nThis project is not affiliated with Valve Software.\r\nSource 2 is a trademark and/or registered trademark of Valve Corporation.";
+            label3.Text = "Available under the MIT license.\r\nThis project is not affiliated with Valve Software.\r\nSource 2 is a trademark and/or registered trademark of Valve Corporation.";
             // 
             // icon
             // 
@@ -134,20 +124,31 @@ namespace GUI.Forms
             keybinds.Name = "keybinds";
             keybinds.Size = new System.Drawing.Size(100, 23);
             keybinds.TabIndex = 12;
-            keybinds.Text = "View keybinds";
+            keybinds.Text = "View &keybinds";
             keybinds.UseVisualStyleBackColor = true;
             keybinds.Click += OnKeybindsClick;
+            // 
+            // copyVersion
+            // 
+            copyVersion.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            copyVersion.Location = new System.Drawing.Point(182, 70);
+            copyVersion.Name = "copyVersion";
+            copyVersion.Size = new System.Drawing.Size(100, 23);
+            copyVersion.TabIndex = 13;
+            copyVersion.Text = "Copy &version";
+            copyVersion.UseVisualStyleBackColor = true;
+            copyVersion.Click += OnCopyVersionClick;
             // 
             // AboutForm
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             BackColor = System.Drawing.Color.White;
-            ClientSize = new System.Drawing.Size(662, 191);
+            ClientSize = new System.Drawing.Size(662, 193);
+            Controls.Add(copyVersion);
             Controls.Add(keybinds);
             Controls.Add(icon);
             Controls.Add(label3);
-            Controls.Add(labelRuntime);
             Controls.Add(releases);
             Controls.Add(github);
             Controls.Add(website);
@@ -175,9 +176,9 @@ namespace GUI.Forms
         private Button website;
         private Button github;
         private Button releases;
-        private Label labelRuntime;
         private Label label3;
         private PictureBox icon;
         private Button keybinds;
+        private Button copyVersion;
     }
 }

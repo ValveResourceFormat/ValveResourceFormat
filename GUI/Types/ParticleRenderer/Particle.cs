@@ -83,7 +83,7 @@ namespace GUI.Types.ParticleRenderer
 
         public readonly Matrix4x4 GetRotationMatrix()
         {
-            var rotationMatrix = Matrix4x4.Multiply(Matrix4x4.CreateRotationZ(MathUtils.ToRadians(Rotation.Z)), Matrix4x4.CreateRotationY(MathUtils.ToRadians(Rotation.Y)));
+            var rotationMatrix = Matrix4x4.CreateFromYawPitchRoll(Rotation.X, Rotation.Y, Rotation.Z);
             return rotationMatrix;
         }
 

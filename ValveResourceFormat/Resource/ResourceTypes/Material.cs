@@ -32,7 +32,7 @@ namespace ValveResourceFormat.ResourceTypes
                 if (!inputSignature.HasValue)
                 {
                     var inputSignatureObject = GetInputSignatureObject();
-                    inputSignature = inputSignatureObject != null ? new(inputSignatureObject) : default(VsInputSignature);
+                    inputSignature = inputSignatureObject != null ? new(inputSignatureObject) : VsInputSignature.Empty;
                 }
 
                 return inputSignature.Value;
@@ -176,7 +176,13 @@ namespace ValveResourceFormat.ResourceTypes
 
         public readonly struct VsInputSignature
         {
-            public InputSignatureElement[] Elements { get; } = [];
+            public static readonly VsInputSignature Empty = new();
+            public InputSignatureElement[] Elements { get; }
+
+            public VsInputSignature()
+            {
+                Elements = [];
+            }
 
             public VsInputSignature(KVObject data)
             {

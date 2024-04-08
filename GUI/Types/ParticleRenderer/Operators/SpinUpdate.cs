@@ -11,7 +11,8 @@ namespace GUI.Types.ParticleRenderer.Operators
         {
             foreach (ref var particle in particles.Current)
             {
-                particle.Rotation += particle.RotationSpeed * frameTime;
+                var rotationRadians = particle.RotationSpeed * MathF.PI / 180f;
+                particle.Rotation += rotationRadians * frameTime;
             }
         }
     }

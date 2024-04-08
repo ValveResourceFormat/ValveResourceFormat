@@ -24,7 +24,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
             }
             else
             {
-                particle.Sequence = sequenceMin + (sequenceMax > sequenceMin ? (counter++ % (sequenceMax - sequenceMin)) : 0);
+                particle.Sequence = sequenceMin + (sequenceMax > sequenceMin ? (counter++ % (sequenceMax - sequenceMin + 1)) : 0);
             }
 
             return particle;

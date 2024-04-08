@@ -28,32 +28,29 @@ namespace GUI.Controls
         /// </summary>
         private void InitializeComponent()
         {
-            this.checkBox = new System.Windows.Forms.CheckBox();
-            this.SuspendLayout();
+            checkBox = new System.Windows.Forms.CheckBox();
+            SuspendLayout();
             // 
             // checkBox
             // 
-            this.checkBox.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.checkBox.AutoSize = true;
-            this.checkBox.Location = new System.Drawing.Point(6, 4);
-            this.checkBox.Name = "checkBox";
-            this.checkBox.Size = new System.Drawing.Size(15, 14);
-            this.checkBox.TabIndex = 0;
-            this.checkBox.UseVisualStyleBackColor = true;
+            checkBox.AutoSize = true;
+            checkBox.Dock = System.Windows.Forms.DockStyle.Top;
+            checkBox.Location = new System.Drawing.Point(0, 0);
+            checkBox.Name = "checkBox";
+            checkBox.Size = new System.Drawing.Size(220, 14);
+            checkBox.TabIndex = 0;
+            checkBox.UseVisualStyleBackColor = true;
             // 
             // GLViewerCheckboxControl
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.Controls.Add(this.checkBox);
-            this.MinimumSize = new System.Drawing.Size(0, 23);
-            this.Name = "GLViewerCheckboxControl";
-            this.Size = new System.Drawing.Size(220, 25);
-            this.ResumeLayout(false);
-            this.PerformLayout();
-
+            Controls.Add(checkBox);
+            MinimumSize = new System.Drawing.Size(0, 23);
+            Name = "GLViewerCheckboxControl";
+            Size = new System.Drawing.Size(220, 25);
+            ResumeLayout(false);
+            PerformLayout();
         }
 
         #endregion

@@ -79,8 +79,8 @@ namespace GUI.Types.ParticleRenderer
         {
             return new Vector3(
                 RandomBetween(particleId, min.X, max.X),
-                RandomBetween(particleId, min.Y, max.Y),
-                RandomBetween(particleId, min.Z, max.Z));
+                RandomBetween(particleId + 1, min.Y, max.Y),
+                RandomBetween(particleId + 2, min.Z, max.Z));
         }
 
         public static float RandomWithExponentBetween(int particleId, float exponent, float min, float max)

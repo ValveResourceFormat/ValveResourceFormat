@@ -51,6 +51,7 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
     private readonly VrfGuiContext guiContext = new(null, null);
     private readonly AutoResetEvent queueUpdateEvent = new(false);
     private readonly ConcurrentQueue<DecodeRequest> decodeQueue = new();
+    private readonly object threadStartupLock = new();
 
     private Thread GLThread;
     private bool IsRunning;
@@ -62,18 +63,21 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
 
     public bool Decode(SKBitmap bitmap, Resource resource, uint depth, CubemapFace face, uint mipLevel, TextureCodec decodeFlags)
     {
-        if (GLThread == null)
+        lock (threadStartupLock)
         {
-            IsRunning = true;
-
-            // create a thread context for OpenGL
-            GLThread = new Thread(Initialize_NoExcept)
+            if (GLThread == null)
             {
-                IsBackground = true,
-                Name = nameof(GLTextureDecoder),
-                Priority = ThreadPriority.AboveNormal,
-            };
-            GLThread.Start();
+                IsRunning = true;
+
+                // create a thread context for OpenGL
+                GLThread = new Thread(Initialize_NoExcept)
+                {
+                    IsBackground = true,
+                    Name = nameof(GLTextureDecoder),
+                    Priority = ThreadPriority.AboveNormal,
+                };
+                GLThread.Start();
+            }
         }
 
         if (!IsRunning)
@@ -205,7 +209,11 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
         var pixels = request.Bitmap.GetPixels(out var length);
 
         Debug.Assert(request.Bitmap.ColorType == SKColorType.Bgra8888);
-        Debug.Assert(length == inputTexture.Width * inputTexture.Height * 4);
+
+        if (length > inputTexture.Width * inputTexture.Height * 4)
+        {
+            return false;
+        }
 
         // extract pixels from framebuffer
         GL.Flush();

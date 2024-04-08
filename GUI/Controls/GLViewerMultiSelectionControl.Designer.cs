@@ -35,7 +35,8 @@ namespace GUI.Controls
             // selectionNameLabel
             // 
             selectionNameLabel.AutoSize = true;
-            selectionNameLabel.Location = new System.Drawing.Point(2, 1);
+            selectionNameLabel.Dock = System.Windows.Forms.DockStyle.Top;
+            selectionNameLabel.Location = new System.Drawing.Point(0, 0);
             selectionNameLabel.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
             selectionNameLabel.Name = "selectionNameLabel";
             selectionNameLabel.Size = new System.Drawing.Size(41, 15);
@@ -44,13 +45,13 @@ namespace GUI.Controls
             // 
             // checkedListBox
             // 
-            checkedListBox.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
             checkedListBox.CheckOnClick = true;
+            checkedListBox.Dock = System.Windows.Forms.DockStyle.Top;
             checkedListBox.FormattingEnabled = true;
-            checkedListBox.Location = new System.Drawing.Point(3, 20);
+            checkedListBox.Location = new System.Drawing.Point(0, 15);
             checkedListBox.Margin = new System.Windows.Forms.Padding(0);
             checkedListBox.Name = "checkedListBox";
-            checkedListBox.Size = new System.Drawing.Size(214, 130);
+            checkedListBox.Size = new System.Drawing.Size(220, 130);
             checkedListBox.TabIndex = 1;
             // 
             // GLViewerMultiSelectionControl

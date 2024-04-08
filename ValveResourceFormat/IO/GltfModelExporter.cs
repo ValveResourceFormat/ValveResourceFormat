@@ -127,9 +127,9 @@ namespace ValveResourceFormat.IO
                         break;
                     case ResourceType.Map:
                         {
-                            var firstWorldFile = resource.ExternalReferences.ResourceRefInfoList.First(static r => Path.GetExtension(r.Name) == ".vwrld");
-                            var worldFile = string.Concat(firstWorldFile.Name, GameFileLoader.CompiledFileSuffix);
-                            var mapResource = FileLoader.LoadFile(worldFile) ?? throw new FileNotFoundException($"Failed to load \"{worldFile}\"");
+                            var lumpFolder = MapExtract.GetLumpFolderFromVmapRERL(resource.ExternalReferences);
+                            var worldFile = Path.Combine(lumpFolder, "world.vwrld");
+                            var mapResource = FileLoader.LoadFileCompiled(worldFile) ?? throw new FileNotFoundException($"Failed to load \"{worldFile}\"");
                             ExportToFile(resource.FileName, targetPath, (VWorld)mapResource.DataBlock);
                             break;
                         }

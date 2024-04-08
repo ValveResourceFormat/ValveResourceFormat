@@ -1,3 +1,5 @@
+//#define SCREENSHOT_MODE // Uncomment to hide version, keep title bar static, set an exact window size
+
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Drawing;
@@ -83,19 +85,19 @@ namespace GUI
                     versionPlus += 8;
                 }
 
-                versionToolStripLabel.Text = string.Concat("v", version[..versionPlus]);
+                versionLabel.Text = string.Concat("v", version[..versionPlus]);
             }
             else
             {
-                versionToolStripLabel.Text = string.Concat("v", version);
+                versionLabel.Text = string.Concat("v", version);
 
 #if !CI_RELEASE_BUILD // Set in Directory.Build.props
-                versionToolStripLabel.Text += "-unstable";
+                versionLabel.Text += "-dev";
 #endif
             }
 
 #if DEBUG
-            versionToolStripLabel.Text += " (DEBUG)";
+            versionLabel.Text += " (DEBUG)";
 #endif
 
             searchForm = new SearchForm();
@@ -240,6 +242,12 @@ namespace GUI
                     WindowState = newState;
                 }
             }
+
+#if SCREENSHOT_MODE
+            checkForUpdatesToolStripMenuItem.Visible = false;
+            versionToolStripLabel.Visible = false;
+            SetBounds(x: 100, y: 100, width: 1800 + 22, height: 1200 + 11); // Tweak size as needed
+#endif
         }
 
         // checks if the Rectangle is within bounds of one of the user's screen
@@ -255,6 +263,7 @@ namespace GUI
 
         protected override void OnClosing(CancelEventArgs e)
         {
+#if !SCREENSHOT_MODE
             // save the application window size, position and state (if maximized)
             (Settings.Config.WindowLeft, Settings.Config.WindowTop, Settings.Config.WindowWidth, Settings.Config.WindowHeight, Settings.Config.WindowState) = WindowState switch
             {
@@ -266,6 +275,7 @@ namespace GUI
                 // the default switch should never happen (FormWindowState only takes the values Normal, Maximized, Minimized)
                 _ => (0, 0, 0, 0, (int)FormWindowState.Normal),
             };
+#endif
 
             Settings.Save();
             base.OnClosing(e);
@@ -308,6 +318,7 @@ namespace GUI
 
         private void OnMainSelectedTabChanged(object sender, EventArgs e)
         {
+#if !SCREENSHOT_MODE
             if (string.IsNullOrEmpty(mainTabs.SelectedTab?.ToolTipText))
             {
                 Text = "Source 2 Viewer";
@@ -316,6 +327,7 @@ namespace GUI
             {
                 Text = $"Source 2 Viewer - {mainTabs.SelectedTab.ToolTipText}";
             }
+#endif
 
             ShowHideSearch();
         }
@@ -609,8 +621,6 @@ namespace GUI
                 {
                     t.Exception?.Flatten().Handle(ex =>
                     {
-                        loadingFile.Dispose();
-
                         var control = new CodeTextBox(ex.ToString());
 
                         tab.Controls.Add(control);
@@ -631,8 +641,6 @@ namespace GUI
 
                     try
                     {
-                        loadingFile.Dispose();
-
                         foreach (Control c in t.Result.Controls)
                         {
                             if (tab.IsDisposed || tab.Disposing)
@@ -655,6 +663,17 @@ namespace GUI
                 },
                 CancellationToken.None,
                 TaskContinuationOptions.OnlyOnRanToCompletion,
+                TaskScheduler.FromCurrentSynchronizationContext());
+
+            task.ContinueWith(t =>
+                {
+                    tab.BeginInvoke(() =>
+                    {
+                        loadingFile.Dispose();
+                    });
+                },
+                CancellationToken.None,
+                TaskContinuationOptions.None,
                 TaskScheduler.FromCurrentSynchronizationContext());
 
             return task;

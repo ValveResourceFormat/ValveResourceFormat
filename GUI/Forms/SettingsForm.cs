@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.IO;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using GUI.Utils;
@@ -157,10 +158,23 @@ namespace GUI.Forms
 
         public static void RegisterFileAssociation()
         {
-            var extension = ".vpk";
-            var progId = $"VRF.Source2Viewer{extension}";
+            const string extension = ".vpk";
+            const string progId = $"VRF.Source2Viewer{extension}";
+
             var applicationPath = Application.ExecutablePath;
 
+            // copy vpk icon to settings folder
+            var vpkIconPath = Path.Join(Settings.SettingsFolder, "vpk.ico");
+
+            if (!File.Exists(vpkIconPath))
+            {
+                var assembly = Assembly.GetExecutingAssembly();
+                using var iconStream = assembly.GetManifestResourceStream("GUI.Utils.vpk.ico");
+                using var iconDiskStream = File.OpenWrite(vpkIconPath);
+                iconStream.CopyTo(iconDiskStream);
+            }
+
+            // .vpk file extension
             using var reg = Registry.CurrentUser.CreateSubKey(@$"Software\Classes\{extension}\OpenWithProgids");
             reg.SetValue(progId, Array.Empty<byte>(), RegistryValueKind.None);
 
@@ -169,6 +183,9 @@ namespace GUI.Forms
 
             using var reg3 = reg2.CreateSubKey(@"shell\open\command");
             reg3.SetValue(null, $"\"{applicationPath}\" \"%1\"");
+
+            using var regIco = reg2.CreateSubKey("DefaultIcon");
+            regIco.SetValue(null, vpkIconPath);
 
             // Protocol
             using var regProtocol = Registry.CurrentUser.CreateSubKey(@"Software\Classes\vpk");

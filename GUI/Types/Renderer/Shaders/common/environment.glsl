@@ -185,9 +185,10 @@ vec3 GetEnvironment(MaterialProperties_t mat)
         vec3 envMapLocalPos = envMapWorldToLocal * vec4(vFragPosition, 1.0);
         float weight = 1.0f;
 
+        const bool bUseCubemapBlending = LightmapGameVersionNumber >= 2;
         vec3 dists = g_vEnvMapEdgeFadeDists[envMapArrayIndex].xyz;
 
-        if (isBoxProjection) {
+        if (bUseCubemapBlending && isBoxProjection) {
             vec3 envInvEdgeWidth = 1.0 / dists;
             vec3 envmapClampedFadeMax = clamp((envMapBoxMax - envMapLocalPos) * envInvEdgeWidth, vec3(0.0), vec3(1.0));
             vec3 envmapClampedFadeMin = clamp((envMapLocalPos - envMapBoxMin) * envInvEdgeWidth, vec3(0.0), vec3(1.0));

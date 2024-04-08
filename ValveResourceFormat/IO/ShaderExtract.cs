@@ -1297,7 +1297,14 @@ public sealed class ShaderExtract
 
         annotations.Add($"SrgbRead({(param.Id == 0 ? "false" : "true")});");
 
-        writer.WriteLine($"CreateTexture2DWithoutSampler({param.Name}){GetVfxAttributes(annotations)};");
+        const string Sampler = "Sampler";
+        var typeString = param.VfxType.ToString();
+
+        typeString = typeString.StartsWith(Sampler, StringComparison.Ordinal)
+            ? "Texture" + typeString.Remove(0, Sampler.Length)
+            : typeString; // not even a texture type?
+
+        writer.WriteLine($"{typeString} {param.Name}{GetVfxAttributes(annotations)};");
     }
 
     private static void HandleParameterAttribute(ParamBlock param, List<string> annotations)

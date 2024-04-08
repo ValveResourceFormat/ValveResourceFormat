@@ -99,6 +99,7 @@ namespace GUI.Types.Renderer
             if (blendMode > 0)
             {
                 IsTranslucent = blendMode > 0 && blendMode != 2;
+                IsAlphaTest = blendMode == 2;
                 isMod2x = blendMode == 3;
                 isAdditiveBlend = blendMode == 4;
                 // 5 = multiply
@@ -148,11 +149,15 @@ namespace GUI.Types.Renderer
                 shader.SetUniform4(param.Key, value);
             }
 
+            if (IsOverlay)
+            {
+                GL.DepthMask(false);
+            }
+
             if (IsTranslucent)
             {
                 if (IsOverlay)
                 {
-                    GL.DepthMask(false);
                     GL.Enable(EnableCap.Blend);
                 }
 
@@ -184,10 +189,14 @@ namespace GUI.Types.Renderer
 
         public void PostRender()
         {
-            if (IsTranslucent && IsOverlay)
+            if (IsOverlay)
             {
                 GL.DepthMask(true);
-                GL.Disable(EnableCap.Blend);
+
+                if (IsTranslucent)
+                {
+                    GL.Disable(EnableCap.Blend);
+                }
             }
 
             if (hasDepthBias || IsOverlay)

@@ -1,3 +1,4 @@
+#if false // TODO: Requires a rewrite
 using GUI.Utils;
 
 namespace GUI.Types.ParticleRenderer.Operators
@@ -74,3 +75,4 @@ namespace GUI.Types.ParticleRenderer.Operators
         }
     }
 }
+#endif

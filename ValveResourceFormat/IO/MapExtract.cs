@@ -110,13 +110,14 @@ public sealed class MapExtract
     {
         LumpFolder = GetLumpFolderFromVmapRERL(vmapResource.ExternalReferences);
 
-        var worldPath = Path.Combine(LumpFolder, "world.vwrld_c");
+        var worldPath = Path.Combine(LumpFolder, "world.vwrld");
         FolderExtractFilter.Add(worldPath);
-        using var worldResource = FileLoader.LoadFile(worldPath) ?? throw new FileNotFoundException($"Failed to find world resource, which is required for vmap_c extract, at {worldPath}");
+        using var worldResource = FileLoader.LoadFileCompiled(worldPath) ??
+            throw new FileNotFoundException($"Failed to find world resource, which is required for vmap_c extract, at {worldPath}");
         InitWorldExtract(worldResource);
     }
 
-    private static string GetLumpFolderFromVmapRERL(ResourceExtRefList rerl)
+    public static string GetLumpFolderFromVmapRERL(ResourceExtRefList rerl)
     {
         foreach (var info in rerl.ResourceRefInfoList)
         {
@@ -852,11 +853,7 @@ public sealed class MapExtract
 
             var key = property.Name;
             var value = PropertyToEditString(property);
-
-            if (key == "targetname")
-            {
-                value = RemoveTargetnamePrefix(value);
-            }
+            value = RemoveTargetnamePrefix(value);
 
             mapEntity.EntityProperties.Add(key, value);
         }

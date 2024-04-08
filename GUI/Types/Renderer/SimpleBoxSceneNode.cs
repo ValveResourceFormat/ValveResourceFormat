@@ -1,6 +1,4 @@
 using GUI.Utils;
-using OpenTK.Graphics.OpenGL;
-using PrimitiveType = OpenTK.Graphics.OpenGL.PrimitiveType;
 
 namespace GUI.Types.Renderer
 {

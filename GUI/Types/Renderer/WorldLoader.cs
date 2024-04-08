@@ -931,24 +931,32 @@ namespace GUI.Types.Renderer
 
             var skyboxResult = new WorldLoader((World)skyboxWorld.DataBlock, SkyboxScene);
 
-            var skyboxReferenceOffset = EntityTransformHelper.ParseVector(entity.GetProperty<string>("origin"));
-            skyboxResult.WorldOffset += skyboxReferenceOffset;
+            // Take origin and angles from skybox_reference
+            EntityTransformHelper.DecomposeTransformationMatrix(entity, out _, out var skyboxReferenceRotationMatrix, out var skyboxReferencePositionMatrix);
+            var skyboxReference = skyboxReferenceRotationMatrix * Matrix4x4.CreateTranslation(skyboxReferencePositionMatrix);
+
+            var offsetTransform = Matrix4x4.CreateTranslation(-skyboxResult.WorldOffset);
+            var offsetAndScaleTransform = offsetTransform;
+
+            // Apply skybox_reference transform after scaling
+            offsetAndScaleTransform *= Matrix4x4.CreateScale(skyboxResult.WorldScale) * skyboxReference;
+            offsetTransform *= skyboxReference;
 
             foreach (var node in SkyboxScene.AllNodes)
             {
                 if (node.LayerName == "Entities")
                 {
-                    node.Transform *= Matrix4x4.CreateTranslation(-skyboxResult.WorldOffset);
+                    node.Transform *= offsetTransform;
                 }
                 else
                 {
-                    node.Transform *= Matrix4x4.CreateTranslation(-skyboxResult.WorldOffset) * Matrix4x4.CreateScale(skyboxResult.WorldScale);
+                    node.Transform *= offsetAndScaleTransform;
                 }
             }
 
             foreach (var envmap in SkyboxScene.LightingInfo.EnvMaps)
             {
-                envmap.Transform *= Matrix4x4.CreateTranslation(-skyboxResult.WorldOffset) * Matrix4x4.CreateScale(skyboxResult.WorldScale);
+                envmap.Transform *= offsetAndScaleTransform;
             }
 
             guiContext.FileLoader.RemovePackageFromSearch(package);
@@ -979,9 +987,12 @@ namespace GUI.Types.Renderer
             {
                 var color = hammerEntity?.Color ?? new Color32(255, 0, 255, 255);
 
+                // Do not use transformationMatrix because scales need to be ignored
+                EntityTransformHelper.DecomposeTransformationMatrix(entity, out _, out var rotationMatrix, out var positionVector);
+
                 var boxNode = new SimpleBoxSceneNode(scene, color, new Vector3(16f))
                 {
-                    Transform = transformationMatrix,
+                    Transform = rotationMatrix * Matrix4x4.CreateTranslation(positionVector),
                     LayerName = "Entities",
                     Name = filename,
                     EntityData = entity,
@@ -1069,6 +1080,11 @@ namespace GUI.Types.Renderer
 
         private EntityLump.Entity FindEntityByKeyValue(string keyToFind, string valueToFind)
         {
+            if (valueToFind == null)
+            {
+                return null;
+            }
+
             var stringToken = StringToken.Get(keyToFind);
 
             foreach (var entity in Entities)
