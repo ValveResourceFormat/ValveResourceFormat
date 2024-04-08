@@ -6,6 +6,7 @@ using GUI.Controls;
 using GUI.Forms;
 using GUI.Utils;
 using SteamDatabase.ValvePak;
+using ValveResourceFormat.FaceExpressionData;
 using ValveResourceFormat.IO;
 using Resource = ValveResourceFormat.Resource;
 
@@ -116,6 +117,36 @@ namespace GUI.Types.Exporter
                     extractDialog?.Dispose();
                     exportData.VrfGuiContext.Dispose();
                 }
+            }
+            else if (decompile && fileName.EndsWith(".vfe", StringComparison.OrdinalIgnoreCase))
+            {
+                fileName = Path.ChangeExtension(fileName, ".txt");
+
+                using var dialog = new SaveFileDialog
+                {
+                    Title = "Choose where to save the file",
+                    InitialDirectory = Settings.Config.SaveDirectory,
+                    Filter = "All files (*.*)|*.*",
+                    FileName = fileName,
+                    AddToRecent = true,
+                };
+                var userOK = dialog.ShowDialog();
+
+                if (userOK == DialogResult.OK)
+                {
+                    Settings.Config.SaveDirectory = Path.GetDirectoryName(dialog.FileName);
+                    Log.Info(nameof(ExportFile), $"Saved \"{Path.GetFileName(dialog.FileName)}\"");
+
+                    using var streamOutput = dialog.OpenFile();
+
+                    var vfe = new FaceExpressionData();
+                    vfe.Read(stream);
+
+                    using var streamWriter = new StreamWriter(streamOutput);
+                    streamWriter.Write(vfe.ToString());
+                }
+
+                stream.Dispose();
             }
             else
             {
