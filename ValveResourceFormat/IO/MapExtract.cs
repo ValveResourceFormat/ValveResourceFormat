@@ -51,6 +51,7 @@ public sealed class MapExtract
     private CMapSelectionSet PhysicsMeshesSelectionSet { get; } = new CMapSelectionSet { SelectionSetName = "Physics Meshes" };
     private CMapSelectionSet MeshEntitiesHullsSelectionSet { get; } = new CMapSelectionSet { SelectionSetName = "Reconstructed Physics Mesh Entities" };
     private CMapSelectionSet OverlaysSelectionSet { get; } = new CMapSelectionSet { SelectionSetName = "Overlays" };
+    private CMapSelectionSet EntitiesSelectionSet { get; } = new CMapSelectionSet { SelectionSetName = "Entities" };
 
     private List<CMapWorldLayer> WorldLayers { get; set; }
     private Dictionary<int, MapNode> UniqueNodeIds { get; set; }
@@ -331,6 +332,7 @@ public sealed class MapExtract
         S2VSelectionSet.Children.Add(PhysicsHullsSelectionSet);
         S2VSelectionSet.Children.Add(PhysicsMeshesSelectionSet);
         S2VSelectionSet.Children.Add(OverlaysSelectionSet);
+        S2VSelectionSet.Children.Add(EntitiesSelectionSet);
 
         PhysicsHullsSelectionSet.Children.Add(HullEntitiesHullsSelectionSet);
         PhysicsMeshesSelectionSet.Children.Add(MeshEntitiesHullsSelectionSet);
@@ -339,16 +341,6 @@ public sealed class MapExtract
 
         WorldLayers = [];
         UniqueNodeIds = [];
-
-        if (!string.IsNullOrEmpty(WorldPhysicsName))
-        {
-            var physModelNames = WorldPhysicsNamesToExtract(WorldPhysicsName);
-
-            MapDocument.World.Children.Add(new CMapEntity() { Name = "Editable World Physics" }
-                .WithClassName("prop_static")
-                .WithProperty("model", physModelNames.Editable)
-            );
-        }
 
         var phys = LoadWorldPhysics();
         if (phys != null)
@@ -463,7 +455,7 @@ public sealed class MapExtract
             }
             else
             {
-                if(sceneObjectConvertToHammerMesh(resource.FileName))
+                if (sceneObjectConvertToHammerMesh(resource.FileName))
                 {
                     HammerMeshesSelectionSet.Children.Add(drawSelectionSet);
                 }
@@ -1003,9 +995,12 @@ public sealed class MapExtract
             }
         }
 
+        Dictionary<int, CMapSelectionSet> liniageSelectionSets = new();
+
         foreach (var compiledEntity in entityLump.GetEntities())
         {
             FixUpEntityKeyValues(compiledEntity);
+
 
             var className = compiledEntity.GetProperty<string>(CommonHashes.ClassName);
 
@@ -1020,16 +1015,39 @@ public sealed class MapExtract
             var entityLineage = AddProperties(className, compiledEntity, mapEntity);
             if (entityLineage.Length > 1)
             {
-                foreach (var parentId in entityLineage[..^1])
+                for (var i = 0; i < entityLineage.Length; i++)
                 {
-                    if (UniqueNodeIds.TryGetValue(parentId, out var existingNode))
+                    var liniage = entityLineage[i];
+
+                    CMapSelectionSet selectionSet;
+
+                    if (liniageSelectionSets.TryGetValue(liniage, out var value))
                     {
-                        continue;
+                        selectionSet = value;
+                    }
+                    else
+                    {
+                        selectionSet = new CMapSelectionSet();
+                        selectionSet.Name = liniage.ToString();
+                        selectionSet.SelectionSetName = liniage.ToString();
+                        liniageSelectionSets.Add(liniage, selectionSet);
+
+                        if (i == 0)
+                        {
+                            EntitiesSelectionSet.Children.Add(selectionSet);
+                        }
+                        else
+                        {
+                            var parentSelectionSet = liniageSelectionSets[entityLineage[i - 1]];
+                            parentSelectionSet.Children.Add(selectionSet);
+                        }
                     }
 
-                    var newDestNode = new CMapGroup { NodeID = parentId, Name = parentId.ToString(CultureInfo.InvariantCulture) };
-                    UniqueNodeIds.Add(parentId, newDestNode);
-                }
+                    if (i == entityLineage.Length - 1)
+                    {
+                        selectionSet.SelectionSetData.selectedObjects.Add(mapEntity);
+                    }
+                };
             }
 
             var modelName = NormalizePath(compiledEntity.GetProperty<string>(CommonHashes.Model));
