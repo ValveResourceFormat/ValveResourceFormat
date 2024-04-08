@@ -118,38 +118,24 @@ namespace GUI.Types.Exporter
                     exportData.VrfGuiContext.Dispose();
                 }
             }
-            else if (decompile && fileName.EndsWith(".vfe", StringComparison.OrdinalIgnoreCase))
+            else
             {
-                fileName = Path.ChangeExtension(fileName, ".txt");
-
-                using var dialog = new SaveFileDialog
+                if (decompile && fileName.EndsWith(".vfe", StringComparison.OrdinalIgnoreCase))
                 {
-                    Title = "Choose where to save the file",
-                    InitialDirectory = Settings.Config.SaveDirectory,
-                    Filter = "All files (*.*)|*.*",
-                    FileName = fileName,
-                    AddToRecent = true,
-                };
-                var userOK = dialog.ShowDialog();
-
-                if (userOK == DialogResult.OK)
-                {
-                    Settings.Config.SaveDirectory = Path.GetDirectoryName(dialog.FileName);
-                    Log.Info(nameof(ExportFile), $"Saved \"{Path.GetFileName(dialog.FileName)}\"");
-
-                    using var streamOutput = dialog.OpenFile();
+                    fileName = Path.ChangeExtension(fileName, ".txt");
 
                     var vfe = new FaceExpressionData();
                     vfe.Read(stream);
 
-                    using var streamWriter = new StreamWriter(streamOutput);
+                    stream.Dispose();
+
+                    stream = new MemoryStream();
+                    using var streamWriter = new StreamWriter(stream, leaveOpen: true);
                     streamWriter.Write(vfe.ToString());
+                    streamWriter.Flush();
+                    stream.Seek(0, SeekOrigin.Begin);
                 }
 
-                stream.Dispose();
-            }
-            else
-            {
                 using var dialog = new SaveFileDialog
                 {
                     Title = "Choose where to save the file",
