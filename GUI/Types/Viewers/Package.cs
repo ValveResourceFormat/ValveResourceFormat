@@ -84,6 +84,7 @@ namespace GUI.Types.Viewers
             TreeView.ListViewItemDoubleClick += VPK_OpenFile;
             TreeView.ListViewItemRightClick += VPK_OnContextMenu;
             TreeView.ListViewItemSelectionChange += VPK_PlayFile;
+            TreeView.TreeNodeAfterSelect += VPK_PlayFile;
             TreeView.Disposed += VPK_Disposed;
         }
 
@@ -472,8 +473,9 @@ namespace GUI.Types.Viewers
                 treeViewWithSearch.TreeNodeRightClick -= VPK_OnContextMenu;
                 treeViewWithSearch.ListViewItemDoubleClick -= VPK_OpenFile;
                 treeViewWithSearch.ListViewItemRightClick -= VPK_OnContextMenu;
-                treeViewWithSearch.Disposed -= VPK_Disposed;
                 treeViewWithSearch.ListViewItemSelectionChange -= VPK_PlayFile;
+                treeViewWithSearch.TreeNodeAfterSelect -= VPK_PlayFile;
+                treeViewWithSearch.Disposed -= VPK_Disposed;
                 TreeView = null;
                 LastContextTreeNode = null;
             }
@@ -484,9 +486,15 @@ namespace GUI.Types.Viewers
             {
                 throw new ArgumentException("Unexpected tree node type", nameof(e));
             }
-            if (node.IsFolder) return;
+            if (node.IsFolder)
+            {
+                return;
+            }
             var file = node.PackageEntry;
-            if (file.TypeName != "vsnd_c") return;
+            if (file.TypeName != "vsnd_c")
+            {
+                return;
+            }
             Program.MainForm.PlayAudioFile(VrfGuiContext, file);
         }
 
@@ -554,7 +562,7 @@ namespace GUI.Types.Viewers
                 return;
             }
 
-            Program.MainForm.ShowVpkContextMenu(e.Node.TreeView, e.Location, isRoot);
+            Program.MainForm.ShowVpkContextMenu(e.Node.TreeView, e.Location, isRoot, e.Node);
         }
 
         /// <summary>
@@ -578,7 +586,7 @@ namespace GUI.Types.Viewers
                     node.TreeView.SelectedNode = node;
                 }
 
-                Program.MainForm.ShowVpkContextMenu(listViewItem.ListView, e.Location, false);
+                Program.MainForm.ShowVpkContextMenu(listViewItem.ListView, e.Location, false, node);
             }
         }
     }

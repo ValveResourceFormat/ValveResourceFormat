@@ -19,7 +19,8 @@ namespace GUI.Controls
 
         public event TreeNodeMouseClickEventHandler TreeNodeMouseDoubleClick; // when a TreeNode is double clicked
         public event TreeNodeMouseClickEventHandler TreeNodeRightClick; // when a TreeNode is single clicked
-        public event EventHandler<ListViewItemClickEventArgs> ListViewItemSelectionChange; // when a ListViewItem is double clicked
+        public event EventHandler<ListViewItemClickEventArgs> TreeNodeAfterSelect;
+        public event EventHandler<ListViewItemClickEventArgs> ListViewItemSelectionChange;
         public event EventHandler<ListViewItemClickEventArgs> ListViewItemDoubleClick; // when a ListViewItem is double clicked
         public event EventHandler<ListViewItemClickEventArgs> ListViewItemRightClick; // when a ListViewItem is single clicked
 
@@ -50,8 +51,10 @@ namespace GUI.Controls
 
         private void MainListView_ItemSelectionChanged(object sender, ListViewItemSelectionChangedEventArgs e)
         {
-            if (!e.Item.Selected) return;
-            ListViewItemSelectionChange?.Invoke(sender, new ListViewItemClickEventArgs(e.Item.Tag));
+            if (e.Item.Selected)
+            {
+                ListViewItemSelectionChange?.Invoke(sender, new ListViewItemClickEventArgs(e.Item.Tag));
+            }
         }
 
         private void MainListView_Disposed(object sender, EventArgs e)
@@ -99,6 +102,8 @@ namespace GUI.Controls
 
                 mainListView.EndUpdate();
             }
+
+            TreeNodeAfterSelect?.Invoke(sender, new ListViewItemClickEventArgs(e.Node));
         }
 
         private void MainTreeView_NodeMouseClick(object sender, TreeNodeMouseClickEventArgs e)

@@ -9,7 +9,7 @@ namespace GUI
 {
     partial class MainForm
     {
-        public void ShowVpkContextMenu(Control control, Point position, bool isRootNode)
+        public void ShowVpkContextMenu(Control control, Point position, bool isRootNode, TreeNode node = null)
         {
             copyFileNameToolStripMenuItem.Visible = !isRootNode;
             openWithDefaultAppToolStripMenuItem.Visible = !isRootNode;
@@ -17,6 +17,10 @@ namespace GUI
 
             verifyPackageContentsToolStripMenuItem.Visible = isRootNode;
             recoverDeletedToolStripMenuItem.Visible = isRootNode;
+
+            var isSoundNode = node != null && node.TreeView.SelectedNode.Name.Contains(".vsnd_c");
+            playSoundWhenSelectedToolStripMenuItem.Visible = isSoundNode;
+            playSoundWhenSelectedToolStripMenuItem.Enabled = isSoundNode;
 
             vpkContextMenu.Show(control, position);
         }

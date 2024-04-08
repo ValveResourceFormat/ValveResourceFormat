@@ -515,17 +515,21 @@ namespace GUI
         }
         public void StopAudioPlayerSearch()
         {
-            if (audioPlayerSearch != null) audioPlayerSearch.Close();
+            audioPlayerSearch?.Close();
         }
 
         public void PlayAudioFile(VrfGuiContext vrfGuiContext, PackageEntry file)
         {
+            if (!playSoundWhenSelectedToolStripMenuItem.Checked)
+            {
+                return;
+            }
             if (audioPlayerSearchFile == file && audioPlayerSearch != null)
             {
                 audioPlayerSearch.TogglePlay();
                 return;
             }
-            var resource = new ValveResourceFormat.Resource
+            using var resource = new ValveResourceFormat.Resource
             {
                 FileName = vrfGuiContext.FileName,
             };
@@ -536,13 +540,16 @@ namespace GUI
             {
                 stream = AdvancedGuiFileLoader.GetPackageEntryStream(vrfGuiContext.CurrentPackage, file);
             }
-            if (stream == null) return;
+            if (stream == null)
+            {
+                return;
+            }
             resource.Read(stream);
             var magic = BitConverter.ToUInt32(magicData[..4]);
             if (!Types.Viewers.Audio.IsAccepted(magic, vrfGuiContext.FileName))
             {
                 AudioPlayerCurrent?.Stop();
-                if (audioPlayerSearch != null) audioPlayerSearch.Close();
+                audioPlayerSearch?.Close();
                 audioPlayerSearch = new AudioPlayer(resource);
                 audioPlayerSearch.Play();
                 audioPlayerSearchFile = file;
@@ -1190,6 +1197,11 @@ namespace GUI
                 using var form = new UpdateAvailableForm();
                 form.ShowDialog(this);
             });
+        }
+
+        private void playSoundWhenSelectedToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            playSoundWhenSelectedToolStripMenuItem.Checked = !playSoundWhenSelectedToolStripMenuItem.Checked;
         }
     }
 }

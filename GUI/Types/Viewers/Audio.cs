@@ -19,31 +19,38 @@ namespace GUI.Types.Viewers
 
         public TabPage Create(VrfGuiContext vrfGuiContext, Stream stream)
         {
-            WaveStream waveStream;
+            var tab = new TabPage();
 
+            using (var waveStream = CreateWaveStream(vrfGuiContext, stream))
+            {
+                using var resource = new ValveResourceFormat.Resource
+                {
+                    FileName = vrfGuiContext.FileName,
+                };
+                resource.Read(waveStream);
+
+                var audio = new AudioPlayer(resource);
+                var audioPanel = new AudioPlaybackPanel(audio);
+                tab.Controls.Add(audioPanel);
+            }
+
+            return tab;
+        }
+
+        private static WaveStream CreateWaveStream(VrfGuiContext vrfGuiContext, Stream stream)
+        {
             if (stream == null)
             {
-                waveStream = new AudioFileReader(vrfGuiContext.FileName);
+                return new AudioFileReader(vrfGuiContext.FileName);
             }
             else if (vrfGuiContext.FileName.EndsWith(".mp3", StringComparison.InvariantCultureIgnoreCase))
             {
-                waveStream = new Mp3FileReaderBase(stream, wf => new Mp3FrameDecompressor(wf));
+                return new Mp3FileReaderBase(stream, wf => new Mp3FrameDecompressor(wf));
             }
             else
             {
-                waveStream = new WaveFileReader(stream);
+                return new WaveFileReader(stream);
             }
-
-            var resource = new ValveResourceFormat.Resource
-            {
-                FileName = vrfGuiContext.FileName,
-            };
-            resource.Read(waveStream);
-            var tab = new TabPage();
-            var audio = new AudioPlayer(resource);
-            var audioPanel = new AudioPlaybackPanel(audio);
-            tab.Controls.Add(audioPanel);
-            return tab;
         }
     }
 }

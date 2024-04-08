@@ -28,7 +28,10 @@ namespace GUI.Controls
 
         private void OnButtonPlayClick(object sender, EventArgs e)
         {
-            if (audioPlayer.WaveOut?.PlaybackState == PlaybackState.Playing) return;
+            if (audioPlayer.WaveOut?.PlaybackState == PlaybackState.Playing)
+            {
+                return;
+            }
 
             if (Program.MainForm.AudioPlayerCurrent != audioPlayer)
             {

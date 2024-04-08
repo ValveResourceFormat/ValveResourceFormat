@@ -1,7 +1,6 @@
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Utils;
-using NAudio.Gui;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
 using NLayer.NAudioSupport;
@@ -20,10 +19,53 @@ namespace GUI.Types.Audio
         public EventHandler<StreamVolumeEventArgs> PostVolumeMeter { get; set; }
         public EventHandler<StoppedEventArgs> PlaybackStopped { get; set; }
 
+        private TabPage tabPage;
+        private Resource soundResource;
+
         public AudioPlayer(Resource resource, TabPage tab = null)
         {
-            var soundData = (Sound)resource.DataBlock;
+            tabPage = tab;
+            soundResource = resource;
+            try
+            {
+                CreateWaveStream();
+                if (tabPage != null)
+                {
+                    var audio = new AudioPlaybackPanel(this);
+                    tabPage.Controls.Add(audio);
+                }
+            }
+            catch (Exception e)
+            {
+                Log.Error(nameof(AudioPlayer), e.ToString());
 
+                using var msg = new Label
+                {
+                    Text = $"NAudio Exception: {e}",
+                    Dock = DockStyle.Fill,
+                };
+                tabPage?.Controls.Add(msg);
+            }
+        }
+
+        private MeteringSampleProvider CreateInputStream()
+        {
+            if (WaveStream == null)
+            {
+                CreateWaveStream();
+            }
+            var sampleChannel = new SampleChannel(WaveStream, true);
+            sampleChannel.PreVolumeMeter += PreVolumeMeter;
+            SetVolumeDelegate = vol => sampleChannel.Volume = vol;
+            var postVolumeMeter = new MeteringSampleProvider(sampleChannel);
+            postVolumeMeter.StreamVolume += PostVolumeMeter;
+
+            return postVolumeMeter;
+        }
+
+        private void CreateWaveStream()
+        {
+            var soundData = (Sound)soundResource.DataBlock;
             if (soundData == null)
             {
                 return;
@@ -40,41 +82,12 @@ namespace GUI.Types.Audio
                     Sound.AudioFileType.AAC => new StreamMediaFoundationReader(stream),
                     _ => throw new UnexpectedMagicException("Dont know how to play", (int)soundData.SoundType, nameof(soundData.SoundType)),
                 };
-                if (tab != null)
-                {
-                    var audio = new AudioPlaybackPanel(this);
-                    tab.Controls.Add(audio);
-                }
+
             }
-            catch (Exception e)
+            catch
             {
-                Log.Error(nameof(AudioPlayer), e.ToString());
 
-                var msg = new Label
-                {
-                    Text = $"NAudio Exception: {e}",
-                    Dock = DockStyle.Fill,
-                };
-                if (tab != null)
-                {
-                    tab.Controls.Add(msg);
-                }
             }
-            if (tab == null)
-            {
-                SetVolume(Settings.Config.Volume);
-            }
-        }
-
-        private MeteringSampleProvider CreateInputStream()
-        {
-            var sampleChannel = new SampleChannel(WaveStream, true);
-            sampleChannel.PreVolumeMeter += PreVolumeMeter;
-            SetVolumeDelegate = vol => sampleChannel.Volume = vol;
-            var postVolumeMeter = new MeteringSampleProvider(sampleChannel);
-            postVolumeMeter.StreamVolume += PostVolumeMeter;
-
-            return postVolumeMeter;
         }
         public void Play()
         {
@@ -97,8 +110,13 @@ namespace GUI.Types.Audio
             {
                 return;
             }
-            WaveOut.Play();
 
+            if (tabPage == null)
+            {
+                SetVolume(Settings.Config.Volume);
+            }
+
+            WaveOut.Play();
         }
         public void SetVolume(float volume)
         {
@@ -132,8 +150,11 @@ namespace GUI.Types.Audio
 
         public void Stop()
         {
-            if (WaveOut != null) WaveOut.Stop();
-            if (WaveStream != null) WaveStream.Position = 0;
+            WaveOut?.Stop();
+            if (WaveStream != null)
+            {
+                WaveStream.Position = 0;
+            }
         }
 
         public void TogglePlay()
