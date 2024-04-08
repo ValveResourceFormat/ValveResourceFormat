@@ -83,10 +83,14 @@ namespace ValveResourceFormat.FaceExpressionData
             var magic = reader.ReadInt32();
             if (magic != MAGIC)
             {
-                throw new UnexpectedMagicException("Magic is not EFV", magic, nameof(magic));
+                throw new UnexpectedMagicException("Stream is not VFE", magic, nameof(magic));
             }
 
             Version = reader.ReadInt32();
+            if (Version != 0)
+            {
+                throw new UnexpectedMagicException("Unexpected VFE version", Version, nameof(Version));
+            }
 
             var nameEndPosition = reader.BaseStream.Position + 64;
             Name = reader.ReadNullTermString(Encoding.ASCII);
