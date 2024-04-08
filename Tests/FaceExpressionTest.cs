@@ -22,7 +22,7 @@ namespace Tests
         public void TestFaceExpressionDecompile()
         {
             var vfeFilePath = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "phonemes.vfe");
-            var vfeOutputFilePath = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "ValidOutput", "phonemes.txt");
+            var vfeOutputFilePath = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "phonemes.txt");
 
             var expectedOutput = File.ReadAllText(vfeOutputFilePath);
 
