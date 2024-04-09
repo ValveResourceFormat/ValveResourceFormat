@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.IO;
 using System.Text;
 
 namespace ValveResourceFormat.FaceExpressionData
@@ -19,6 +20,17 @@ namespace ValveResourceFormat.FaceExpressionData
             }
 
             return sb.ToString();
+        }
+
+        public Stream ToTextStream()
+        {
+            var stream = new MemoryStream();
+            using var streamWriter = new StreamWriter(stream, leaveOpen: true);
+            streamWriter.Write(ToString());
+            streamWriter.Flush();
+            stream.Seek(0, SeekOrigin.Begin);
+
+            return stream;
         }
 
         private void PrintFlexWeights(StringBuilder sb, FlexSetting setting)

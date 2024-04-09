@@ -126,14 +126,8 @@ namespace GUI.Types.Exporter
 
                     var vfe = new FaceExpressionData();
                     vfe.Read(stream);
-
                     stream.Dispose();
-
-                    stream = new MemoryStream();
-                    using var streamWriter = new StreamWriter(stream, leaveOpen: true);
-                    streamWriter.Write(vfe.ToString());
-                    streamWriter.Flush();
-                    stream.Seek(0, SeekOrigin.Begin);
+                    stream = vfe.ToTextStream();
                 }
 
                 using var dialog = new SaveFileDialog
