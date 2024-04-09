@@ -248,7 +248,13 @@ namespace ValveResourceFormat.ResourceTypes
                 {
                     continue;
                 }
+
                 using var resource = fileLoader.LoadFileCompiled(modelName);
+                if (resource == null)
+                {
+                    continue;
+                }
+
                 var model = (Model)resource.DataBlock;
                 model.cachedSkeleton = Skeleton;
                 var anims = model.GetAllAnimations(fileLoader);
