@@ -248,9 +248,10 @@ namespace ValveResourceFormat.IO
             };
         }
 
-        public static bool IsNonResourceFile(string fileName)
+        public static bool TryExtractNonResource(Stream stream, out ContentFile contentFile)
         {
-            return Path.GetExtension(fileName) == ".vfe";
+            contentFile = ExtractNonResource(stream);
+            return contentFile != null;
         }
 
         public static bool IsChildResource(Resource resource)

@@ -420,18 +420,17 @@ namespace Decompiler
 
                 return;
             }
-            else if (FileExtract.IsNonResourceFile(path))
+            else if (FileExtract.TryExtractNonResource(stream, out var content))
             {
                 if (OutputFile != null)
                 {
-                    var content = FileExtract.ExtractNonResource(stream);
                     var extension = Path.GetExtension(content.FileName);
                     path = Path.ChangeExtension(path, extension);
 
                     var outFilePath = GetOutputPath(path);
                     DumpContentFile(outFilePath, content);
-                    content.Dispose();
                 }
+                content.Dispose();
 
                 return;
             }

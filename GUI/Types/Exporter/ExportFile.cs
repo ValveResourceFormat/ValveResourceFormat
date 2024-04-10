@@ -120,10 +120,8 @@ namespace GUI.Types.Exporter
             }
             else
             {
-                if (decompile && FileExtract.IsNonResourceFile(fileName))
+                if (decompile && FileExtract.TryExtractNonResource(stream, out var content))
                 {
-                    var content = FileExtract.ExtractNonResource(stream);
-
                     var extension = Path.GetExtension(content.FileName);
                     fileName = Path.ChangeExtension(fileName, extension);
                     stream.Dispose();
