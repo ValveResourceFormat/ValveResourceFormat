@@ -250,21 +250,6 @@ uniform sampler2D g_tTintMask;
     uniform sampler2D g_tAnisoGloss;
 #endif
 
-#if defined(csgo_character_vfx)
-    #if (F_EYEBALLS == 1)
-        uniform sampler2D g_tEyeAlbedo1;
-        uniform sampler2D g_tEyeMask1;
-
-        uniform float g_flEyeBallRadius1;
-        uniform float g_flEyeBallWalleyeL1;
-        uniform float g_flEyeBallWalleyeR1;
-        uniform float g_flEyeHueShift1;
-        uniform float g_flEyeIrisSize1;
-        uniform float g_flEyePupilSize1;
-        uniform float g_flEyeSaturation1;
-    #endif
-#endif
-
 #include "common/lighting_common.glsl"
 #include "common/texturing.glsl"
 #include "common/pbr.glsl"
@@ -276,6 +261,8 @@ uniform sampler2D g_tTintMask;
 
 // Must be last
 #include "common/lighting.glsl"
+
+#include "csgo_character_eyes.glsl"
 
 // Get material properties
 MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
@@ -517,11 +504,7 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 
 #if defined(csgo_character_vfx)
     #if (F_EYEBALLS == 1)
-        vec4 vEyeTexel = texture(g_tEyeAlbedo1, texCoord * 5);
-        vec3 vEyeAlbedo = vEyeTexel.rgb;
-        float flIrisMask = vEyeTexel.a;
-        float flEyeMask = texture(g_tEyeMask1, texCoord).r;
-        mat.Albedo = mix(mat.Albedo, vEyeAlbedo, flEyeMask);
+        ApplyEye(eyeInterpolator, texCoord, mat);
     #endif
 #endif
 

@@ -176,6 +176,7 @@ vec4 GetTintColor()
 
 #endif
 
+#include "csgo_character_eyes.glsl"
 
 void main()
 {
@@ -200,6 +201,10 @@ void main()
 #if defined(foliage_vfx_common)
     // Interpolating out for viewing with foliage rendermode
     vFoliageParamsOut = vFoliageParams;
+#endif
+
+#if defined(csgo_character_vfx) && (F_EYEBALLS == 1)
+    eyeInterpolator = GetCharacterEyeInterpolator(vPOSITION);
 #endif
 
     vTexCoordOut = GetAnimatedUVs(vTEXCOORD.xy);
