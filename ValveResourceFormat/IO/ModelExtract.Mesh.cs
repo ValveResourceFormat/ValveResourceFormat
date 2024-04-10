@@ -117,13 +117,8 @@ partial class ModelExtract
         var materialReferences = resource?.ExternalReferences?.ResourceRefInfoList.Where(static r => r.Name[^4..] == "vmat");
         foreach (var material in materialReferences ?? [])
         {
-            var materialReferences = resource?.ExternalReferences?.ResourceRefInfoList.Where(static r => r.Name[^4..] == "vmat");
-            foreach (var material in materialReferences ?? [])
-            {
-                using var materialResource = fileLoader.LoadFileCompiled(material.Name);
-                MaterialInputSignatures[material.Name] = (materialResource?.DataBlock as Material)?.InputSignature ?? Material.VsInputSignature.Empty;
-            }
             using var materialResource = fileLoader.LoadFileCompiled(material.Name);
+            MaterialInputSignatures[material.Name] = (materialResource?.DataBlock as Material)?.InputSignature ?? Material.VsInputSignature.Empty;
         }
     }
 
