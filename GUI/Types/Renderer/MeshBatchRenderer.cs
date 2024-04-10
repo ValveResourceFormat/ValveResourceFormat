@@ -225,8 +225,17 @@ namespace GUI.Types.Renderer
                             shader.SetUniform1("g_nEyeLBindIdx", eyeBone.Index);
                             shader.SetUniform3("g_vEyeLBindPos", model.EyeBones[0].Translation);
 
-                            shader.SetUniform3("g_vEyeLBindFwd", Vector3.UnitY);
+                            shader.SetUniform3("g_vEyeLBindFwd", Vector3.UnitX);
                             shader.SetUniform3("g_vEyeLBindUp", Vector3.UnitZ);
+                        }
+
+                        if (eyeBone.Name == "eyeball_r")
+                        {
+                            shader.SetUniform1("g_nEyeRBindIdx", eyeBone.Index);
+                            shader.SetUniform3("g_vEyeRBindPos", model.EyeBones[1].Translation);
+
+                            shader.SetUniform3("g_vEyeRBindFwd", Vector3.UnitX);
+                            shader.SetUniform3("g_vEyeRBindUp", Vector3.UnitZ);
                         }
 
                         if (eyeBone.Name == "eye_target")
