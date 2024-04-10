@@ -108,7 +108,7 @@ dat      | Closed Captions         | 👍 Handled by `ClosedCaptions`
 bin      | Tools Asset Info        | 👍 Handled by `ToolsAssetInfo`
 vdpn     | Dota Patch Notes        | 👍
 vdacdefs | DAC Game Defs Data      | No
-vfe      | Face poser              | No
+vfe      | Flex Scene File         | 👍
 vcd      | VCD                     | No
 vcdlist  | VCD list                | 👍
 
