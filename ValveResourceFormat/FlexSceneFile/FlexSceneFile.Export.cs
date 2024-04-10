@@ -2,9 +2,9 @@ using System.Globalization;
 using System.IO;
 using System.Text;
 
-namespace ValveResourceFormat.FaceExpressionData
+namespace ValveResourceFormat.FlexSceneFile
 {
-    partial class FaceExpressionData
+    partial class FlexSceneFile
     {
         public override string ToString()
         {

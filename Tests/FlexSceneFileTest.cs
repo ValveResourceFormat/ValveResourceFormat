@@ -1,16 +1,16 @@
 using NUnit.Framework;
 using System.IO;
-using ValveResourceFormat.FaceExpressionData;
+using ValveResourceFormat.FlexSceneFile;
 
 namespace Tests
 {
-    public class FaceExpressionTest
+    public class FlexSceneFileTest
     {
         [Test]
-        public void TestFaceExpression()
+        public void TestFlexSceneFile()
         {
             var vfeFilePath = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "phonemes.vfe");
-            var vfe = new FaceExpressionData();
+            var vfe = new FlexSceneFile();
             vfe.Read(vfeFilePath);
 
             Assert.That(vfe.Version, Is.EqualTo(0));
@@ -19,14 +19,14 @@ namespace Tests
         }
 
         [Test]
-        public void TestFaceExpressionDecompile()
+        public void TestFlexSceneFileDecompile()
         {
             var vfeFilePath = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "phonemes.vfe");
             var vfeOutputFilePath = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "phonemes.txt");
 
             var expectedOutput = File.ReadAllText(vfeOutputFilePath);
 
-            var vfe = new FaceExpressionData();
+            var vfe = new FlexSceneFile();
             vfe.Read(vfeFilePath);
 
             Assert.That(vfe.ToString(), Is.EqualTo(expectedOutput));

@@ -6,7 +6,7 @@ using GUI.Controls;
 using GUI.Forms;
 using GUI.Utils;
 using SteamDatabase.ValvePak;
-using ValveResourceFormat.FaceExpressionData;
+using ValveResourceFormat.FlexSceneFile;
 using ValveResourceFormat.IO;
 using Resource = ValveResourceFormat.Resource;
 
@@ -124,7 +124,7 @@ namespace GUI.Types.Exporter
                 {
                     fileName = Path.ChangeExtension(fileName, ".txt");
 
-                    var vfe = new FaceExpressionData();
+                    var vfe = new FlexSceneFile();
                     vfe.Read(stream);
                     stream.Dispose();
                     stream = vfe.ToTextStream();

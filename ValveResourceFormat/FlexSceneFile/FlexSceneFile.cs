@@ -2,9 +2,9 @@ using System.IO;
 using System.Text;
 using ValveResourceFormat.Utils;
 
-namespace ValveResourceFormat.FaceExpressionData
+namespace ValveResourceFormat.FlexSceneFile
 {
-    public partial class FaceExpressionData
+    public partial class FlexSceneFile
     {
         public struct FlexWeight
         {
@@ -23,7 +23,7 @@ namespace ValveResourceFormat.FaceExpressionData
             public string Name { get; init; }
             public int Phoneme { get; init; }
             /// <summary>
-            /// Maps flex controllers to expression settings. Use <see cref="FaceExpressionData.KeyNames"/> to find the flex controller's key.
+            /// Maps flex controllers to expression settings. Use <see cref="FlexSceneFile.KeyNames"/> to find the flex controller's key.
             /// </summary>
             public Dictionary<int, FlexWeight> Settings { get; } = [];
 
@@ -39,7 +39,7 @@ namespace ValveResourceFormat.FaceExpressionData
             }
 
             /// <summary>
-            /// Returns expression settings for a flex controller. Use <see cref="FaceExpressionData.KeyNames"/> to find the flex controller's key.
+            /// Returns expression settings for a flex controller. Use <see cref="FlexSceneFile.KeyNames"/> to find the flex controller's key.
             /// </summary>
             public FlexWeight GetWeight(int key)
             {

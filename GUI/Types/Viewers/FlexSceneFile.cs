@@ -5,11 +5,11 @@ using System.Windows.Forms;
 
 namespace GUI.Types.Viewers
 {
-    class FaceExpressionData : IViewer
+    class FlexSceneFile : IViewer
     {
         public static bool IsAccepted(uint magic)
         {
-            return magic == ValveResourceFormat.FaceExpressionData.FaceExpressionData.MAGIC;
+            return magic == ValveResourceFormat.FlexSceneFile.FlexSceneFile.MAGIC;
         }
 
         public TabPage Create(VrfGuiContext vrfGuiContext, Stream stream)
@@ -20,7 +20,7 @@ namespace GUI.Types.Viewers
                 Dock = DockStyle.Fill,
             };
             tabOuterPage.Controls.Add(tabControl);
-            var vfe = new ValveResourceFormat.FaceExpressionData.FaceExpressionData();
+            var vfe = new ValveResourceFormat.FlexSceneFile.FlexSceneFile();
 
             if (stream != null)
             {
