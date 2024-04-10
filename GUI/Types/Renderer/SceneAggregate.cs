@@ -37,7 +37,7 @@ namespace GUI.Types.Renderer
             /// TODO: Perhaps use <see cref="ModelSceneNode.LoadMeshes">
             if (embeddedMeshes.Count != 0)
             {
-                RenderMesh = new RenderableMesh(embeddedMeshes.First().Mesh, 0, Scene, model);
+                RenderMesh = new RenderableMesh(embeddedMeshes.First().Mesh, 0, Scene, model, isAggregate: true);
 
                 if (embeddedMeshes.Count > 1)
                 {
@@ -60,7 +60,7 @@ namespace GUI.Types.Renderer
                     return;
                 }
 
-                RenderMesh = new RenderableMesh((Mesh)newResource.DataBlock, refMesh.MeshIndex, Scene, model);
+                RenderMesh = new RenderableMesh((Mesh)newResource.DataBlock, refMesh.MeshIndex, Scene, model, isAggregate: true);
             }
 
             LocalBoundingBox = RenderMesh.BoundingBox;
