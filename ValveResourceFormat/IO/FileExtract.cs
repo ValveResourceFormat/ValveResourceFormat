@@ -231,8 +231,8 @@ namespace ValveResourceFormat.IO
         /// <param name="stream">Stream to be extracted or decompiled.</param>
         public static ContentFile ExtractNonResource(Stream stream)
         {
-            var buffer = new byte[4];
-            var read = stream.Read(buffer, 0, 4);
+            Span<byte> buffer = stackalloc byte[4];
+            var read = stream.Read(buffer);
             stream.Seek(-read, SeekOrigin.Current);
             if (read != 4)
             {
