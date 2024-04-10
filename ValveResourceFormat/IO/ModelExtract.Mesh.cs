@@ -117,21 +117,13 @@ partial class ModelExtract
         var materialReferences = resource?.ExternalReferences?.ResourceRefInfoList.Where(static r => r.Name[^4..] == "vmat");
         foreach (var material in materialReferences ?? [])
         {
-<<<<<<< HEAD
             var materialReferences = resource?.ExternalReferences?.ResourceRefInfoList.Where(static r => r.Name[^4..] == "vmat");
             foreach (var material in materialReferences ?? [])
             {
                 using var materialResource = fileLoader.LoadFileCompiled(material.Name);
                 MaterialInputSignatures[material.Name] = (materialResource?.DataBlock as Material)?.InputSignature ?? Material.VsInputSignature.Empty;
             }
-=======
             using var materialResource = fileLoader.LoadFileCompiled(material.Name);
-<<<<<<< HEAD
-            MaterialInputSignatures[material.Name] = (materialResource?.DataBlock as Material)?.GetInputSignature();
->>>>>>> f8c25204 (Half edge mesh exporter for map decompiler)
-=======
-            MaterialInputSignatures[material.Name] = (materialResource?.DataBlock as Material)?.InputSignature ?? default;
->>>>>>> 53cfb9b4 (Update ModelExtract.Mesh.cs)
         }
     }
 
@@ -361,15 +353,9 @@ partial class ModelExtract
 
                 var material = drawCall.GetProperty<string>("m_material") ?? drawCall.GetProperty<string>("m_pMaterial");
 
-<<<<<<< HEAD
-                if (material != null && materialInputSignatures != null && materialInputSignature.Elements.Length == 0)
-                {
-                    materialInputSignature = materialInputSignatures.GetValueOrDefault(material, Material.VsInputSignature.Empty);
-=======
                 if (material != null && options.MaterialInputSignatures != null && (materialInputSignature.Elements == null || materialInputSignature.Elements.Length == 0))
                 {
                     materialInputSignature = options.MaterialInputSignatures.GetValueOrDefault(material);
->>>>>>> f8c25204 (Half edge mesh exporter for map decompiler)
                 }
 
                 if (material == null && Mesh.IsOccluder(drawCall))
