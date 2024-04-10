@@ -83,6 +83,8 @@ namespace GUI.Types.Renderer
             LoadAnimations(model);
         }
 
+        public Matrix4x4[] EyeBones { get; set; } = new Matrix4x4[3];
+
         public override void Update(Scene.UpdateContext context)
         {
             if (!AnimationController.Update(context.Timestep))
@@ -104,6 +106,14 @@ namespace GUI.Types.Renderer
 
                 try
                 {
+                    AnimationController.GetBoneMatrices(matrices);
+                    if (matrices.Length > 36)
+                    {
+                        EyeBones[0] = matrices[33];
+                        EyeBones[1] = matrices[34];
+                        EyeBones[2] = matrices[35];
+                    }
+
                     Animation.GetAnimationMatrices(matrices, frame, AnimationController.FrameCache.Skeleton);
 
                     // Update animation texture

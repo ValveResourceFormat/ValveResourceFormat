@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
@@ -211,6 +212,31 @@ namespace GUI.Types.Renderer
         {
             var transformTk = request.Transform.ToOpenTK();
             GL.ProgramUniformMatrix4(shader.Program, uniforms.Transform, false, ref transformTk);
+
+            if (request.Node is ModelSceneNode model)
+            {
+                var eyeBones = model.AnimationController.FrameCache.Skeleton.Bones.Where(b => b.Name.StartsWith("eye", StringComparison.Ordinal)).ToArray();
+                if (eyeBones.Length == 3)
+                {
+                    foreach (var eyeBone in eyeBones)
+                    {
+                        if (eyeBone.Name == "eyeball_l")
+                        {
+                            shader.SetUniform1("g_nEyeLBindIdx", eyeBone.Index);
+                            shader.SetUniform3("g_vEyeLBindPos", model.EyeBones[0].Translation);
+
+                            shader.SetUniform3("g_vEyeLBindFwd", Vector3.UnitY);
+                            shader.SetUniform3("g_vEyeLBindUp", Vector3.UnitZ);
+                        }
+
+                        if (eyeBone.Name == "eye_target")
+                        {
+                            shader.SetUniform1("g_nEyeTargetBindIdx", eyeBone.Index);
+                            shader.SetUniform3("g_vEyeTargetBindPos", model.EyeBones[2].Translation);
+                        }
+                    }
+                }
+            }
 
             if (uniforms.ObjectId != -1)
             {
