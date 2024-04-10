@@ -120,14 +120,16 @@ namespace GUI.Types.Exporter
             }
             else
             {
-                if (decompile && fileName.EndsWith(".vfe", StringComparison.OrdinalIgnoreCase))
+                if (decompile && FileExtract.IsNonResourceFile(fileName))
                 {
-                    fileName = Path.ChangeExtension(fileName, ".txt");
+                    var content = FileExtract.ExtractNonResource(stream);
 
-                    var vfe = new FlexSceneFile();
-                    vfe.Read(stream);
+                    var extension = Path.GetExtension(content.FileName);
+                    fileName = Path.ChangeExtension(fileName, extension);
                     stream.Dispose();
-                    stream = vfe.ToTextStream();
+
+                    stream = new MemoryStream(content.Data);
+                    content.Dispose();
                 }
 
                 using var dialog = new SaveFileDialog

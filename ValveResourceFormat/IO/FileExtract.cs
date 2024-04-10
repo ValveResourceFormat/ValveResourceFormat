@@ -225,6 +225,34 @@ namespace ValveResourceFormat.IO
             return contentFile;
         }
 
+        /// <summary>
+        /// Extract content file from a non-resource stream.
+        /// </summary>
+        /// <param name="stream">Stream to be extracted or decompiled.</param>
+        public static ContentFile ExtractNonResource(Stream stream)
+        {
+            var buffer = new byte[4];
+            var read = stream.Read(buffer, 0, 4);
+            stream.Seek(-read, SeekOrigin.Current);
+            if (read != 4)
+            {
+                return null;
+            }
+
+            var magic = BitConverter.ToUInt32(buffer);
+
+            return magic switch
+            {
+                FlexSceneFile.FlexSceneFile.MAGIC => new FlexSceneExtract(stream).ToContentFile(),
+                _ => null,
+            };
+        }
+
+        public static bool IsNonResourceFile(string fileName)
+        {
+            return Path.GetExtension(fileName) == ".vfe";
+        }
+
         public static bool IsChildResource(Resource resource)
         {
             if (resource.EditInfo is ResourceEditInfo2 redi2)
