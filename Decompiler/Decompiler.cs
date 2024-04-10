@@ -384,18 +384,15 @@ namespace Decompiler
                 }
             }
 
-            var magicData = new byte[4];
+            Span<byte> magicData = stackalloc byte[4];
 
-            int bytesRead;
-            var totalRead = 0;
-            while ((bytesRead = stream.Read(magicData, totalRead, magicData.Length - totalRead)) != 0)
+            if (stream.Length >= magicData.Length)
             {
-                totalRead += bytesRead;
+                stream.Read(magicData);
+                stream.Seek(-magicData.Length, SeekOrigin.Current);
             }
 
-            stream.Seek(-totalRead, SeekOrigin.Current);
-
-            var magic = BitConverter.ToUInt32(magicData, 0);
+            var magic = BitConverter.ToUInt32(magicData);
 
             switch (magic)
             {
