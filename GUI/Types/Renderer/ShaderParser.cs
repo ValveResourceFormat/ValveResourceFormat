@@ -1,8 +1,10 @@
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using GUI.Utils;
+using OpenTK.Graphics.OpenGL;
 using static GUI.Types.Renderer.ShaderLoader;
 
 namespace GUI.Types.Renderer
@@ -39,7 +41,8 @@ namespace GUI.Types.Renderer
 #endif
         }
 
-        public string PreprocessShader(string shaderFile, string originalShaderName, IReadOnlyDictionary<string, byte> arguments, ParsedShaderData parsedData)
+        public string PreprocessShader(string shaderFile, string originalShaderName, OpenTK.Graphics.OpenGL.ShaderType shaderType,
+            IReadOnlyDictionary<string, byte> arguments, ParsedShaderData parsedData)
         {
             var isFirstLine = true;
             var resolvedIncludes = new HashSet<string>(4);
@@ -183,6 +186,16 @@ namespace GUI.Types.Renderer
                         builder.Append("#define ");
                         builder.Append(Path.GetFileNameWithoutExtension(originalShaderName));
                         builder.Append("_vfx 1 // :VrfPreprocessed\n");
+                        AppendLineNumber(lineNum, currentSourceFileNumber);
+
+                        var programType = shaderType switch
+                        {
+                            ShaderType.VertexShader => "PROGRAM_VS",
+                            ShaderType.FragmentShader => "PROGRAM_PS",
+                            _ => throw new NotImplementedException(),
+                        };
+
+                        builder.Append("#define " + programType + " 1 // :VrfPreprocessed\n");
                         AppendLineNumber(lineNum, currentSourceFileNumber);
                     }
                 }
