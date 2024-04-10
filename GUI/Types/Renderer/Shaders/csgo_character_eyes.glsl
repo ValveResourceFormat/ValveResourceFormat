@@ -78,7 +78,59 @@ struct EyeInput
             vec3(fma(_14840, _12989, -_16712), fma(_12705, _12989, _16077), fma(resultMatrix[2].z, resultMatrix[2].z, fma(-resultMatrix[2].z, resultMatrix[2].z, 1.0) * cosRot))
         );
 
-        vec3 targetPosition = ((viewDir * wallEyeInfluence) * distance(targetPosition, resultMatrix[3].xyz)) + resultMatrix[3].xyz;
+        targetPosition = ((viewDir * wallEyeInfluence) * distance(targetPosition, resultMatrix[3].xyz)) + resultMatrix[3].xyz;
         viewDir = normalize(targetPosition - resultMatrix[3].xyz);
     }
+
+    const float radians40 = radians(40.0);
+    const float sin40 = sin(radians40);
+    const float cos40 = cos(radians40);
+    const float oneMinusCos40 = 1.0 - cos40;
+
+    vec3 testVector = normalize(fwdVecTransformed.xyz + (upVecTransformed.xyz * 0.5));
+    if (acos(dot(viewDir, testVector)) > radians40)
+    {
+        vec3 _17148 = normalize(cross(testVector, viewDir));
+        float _25223 = _17148.x;
+        float _6863 = _17148.y;
+        float _13016 = _17148.z;
+        float _12706 = _25223 * _6863;
+        float _14954 = _13016 * _25223;
+        float _12707 = _6863 * _13016;
+
+        // todo: extract to helper method
+        mat3 rotation = mat3(
+            vec3(fma(_25223, _25223, fma(-_25223, _25223, 1.0) * cos40), fma(_12706, oneMinusCos40, _13016 * (-sin40)), fma(_14954, oneMinusCos40, _6863 * sin40)),
+            vec3(fma(_12706, oneMinusCos40, _13016 * sin40), fma(_6863, _6863, fma(-_6863, _6863, 1.0) * cos40), fma(_12707, oneMinusCos40, _25223 * (-sin40))),
+            vec3(fma(_14954, oneMinusCos40, _6863 * (-sin40)), fma(_12707, oneMinusCos40, _25223 * sin40), fma(_13016, _13016, fma(-_13016, _13016, 1.0) * cos40))
+        );
+
+        targetPosition = ((testVector * rotation) * distance(targetPosition, resultMatrix[3].xyz)) + resultMatrix[3].xyz;
+        viewDir = normalize(targetPosition - resultMatrix[3].xyz);
+    }
+
+    vec3 testVector2 = normalize(fwdVecTransformed.xyz + (upVecTransformed.xyz * (-0.5)));
+    if (acos(dot(viewDir, testVector2)) > radians40)
+    {
+        vec3 _17148 = normalize(cross(testVector2, viewDir));
+        float _25223 = _17148.x;
+        float _6863 = _17148.y;
+        float _13016 = _17148.z;
+        float _12706 = _25223 * _6863;
+        float _14954 = _13016 * _25223;
+        float _12707 = _6863 * _13016;
+
+        // todo: extract to helper method
+        mat3 rotation = mat3(
+            vec3(fma(_25223, _25223, fma(-_25223, _25223, 1.0) * cos40), fma(_12706, oneMinusCos40, _13016 * (-sin40)), fma(_14954, oneMinusCos40, _6863 * sin40)),
+            vec3(fma(_12706, oneMinusCos40, _13016 * sin40), fma(_6863, _6863, fma(-_6863, _6863, 1.0) * cos40), fma(_12707, oneMinusCos40, _25223 * (-sin40))),
+            vec3(fma(_14954, oneMinusCos40, _6863 * (-sin40)), fma(_12707, oneMinusCos40, _25223 * sin40), fma(_13016, _13016, fma(-_13016, _13016, 1.0) * cos40))
+        );
+
+        vec3 targetPosition2 = ((testVector2 * rotation) * distance(targetPosition, resultMatrix[3].xyz)) + resultMatrix[3].xyz;
+        viewDir = normalize(targetPosition2 - resultMatrix[3].xyz);
+    }
+
+    vec3 outVector1 = cross(resultMatrix[2].xyz, viewDir);
+    vec3 outVector2 = cross(viewDir, outVector1);
 }
