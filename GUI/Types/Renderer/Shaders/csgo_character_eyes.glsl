@@ -134,3 +134,53 @@ struct EyeInput
     vec3 outVector1 = cross(resultMatrix[2].xyz, viewDir);
     vec3 outVector2 = cross(viewDir, outVector1);
 }
+
+// Fragment
+{
+    const float lodBias = -0.5;
+    const float flEyeMask = texture(g_tEyeMask1, _5761.xy, lodBias).r
+
+    SPIRV_CROSS_BRANCH
+    if (flEyeMask > 0.0)
+    {
+        vec3 _8784 = normalize(_3986.xyz);
+        vec3 _13745 = vec3(_3986.w, _3987.w, _3988.w);
+        vec3 _7850 = normalize(_7635 - _4459._m0);
+        vec3 _8097 = _4459._m0 - _13745;
+        float _11278 = dot(_8097, _7850);
+        float _15588 = fma(_11278, _11278, -fma(-_3694._m16, _3694._m16, dot(_8097, _8097)));
+        float _24028 = (_15588 > 0.0) ? ((-_11278) - sqrt(_15588)) : 0.0;
+
+        SPIRV_CROSS_BRANCH
+        if (_24028 > 0.0)
+        {
+            vec3 _14552 = normalize((_4459._m0 + (_7850 * _24028)) - _13745);
+            vec2 _20286 = vec2(dot(_14552, normalize(_3987.xyz)), dot(_14552, normalize(-_3988.xyz)));
+            float _20490 = length(_20286);
+            vec2 _18020 = mix(_20286 * (2.0 - _3694._m17), _20286, vec2(_20490));
+            vec4 vEyeTexel = texture(sampler2D(_5859, _3819), (_18020 * 0.5) + vec2(0.5), lodBias);
+            vec3 vEyeAlbedo = vEyeTexel.rgb;
+            float _12442 = cos(_3694._m19);
+            vec3 vPupilLerp = vec3(vEyeTexel.a);
+
+            const vec3 tan30deg = vec3(tan(radians(30.0)));
+
+            vec3 _16529 = mix(vEyeAlbedo, ((vEyeAlbedo * _12442) + (cross(tan30deg, vEyeAlbedo) * sin(_3694._m19))) + ((tan30deg * dot(tan30deg, vEyeAlbedo)) * (1.0 - _12442)), vPupilLerp);
+            float _18919 = saturate(dot(_8784, _14552));
+
+            vec3 vEyeColor = (mix(_16529, mix(GetLuma(_16529).xxx, _16529, vec3(_3694._m20)), vPupilLerp) * smoothstep(_3694._m18, _3694._m18 + 0.03, _20490)) * _18919;
+
+            if (abs(dFdx(_18020.x)) > 0.15)
+            {
+                vEyeColor = mix(vEyeColor, (vEyeColor * 0.8) + smoothstep(0.1, 0.08, length(_18020 - vec2(_3694._m18, -_3694._m18))).xxx, saturate((distance(_4459._m0, _7635) - 100.0) * 0.05).xxx);
+            }
+
+            float flEyeLerp = flEyeMask * smoothstep(0.1, 0.3, _18919);
+
+            mat.Albedo =        mix(mat.Albedo, vEyeColor, vec3(flEyeLerp));
+            mat.RoughnessTex =  mix(mat.RoughnessTex, vec2(0.1), vec2(flEyeLerp));
+            mat.NormalMap =     mix(mat.NormalMap, normalize(mix(_14552, normalize(_14552 - (_8784 * 0.5)), vPupilLerp)), vec3(pow(flEyeLerp, 0.5)));
+            mat.NormalMap =     normalize(mat.NormalMap);
+        }
+    }
+}
