@@ -73,6 +73,8 @@ namespace GUI.Types.Renderer
             AnimationController = new(model.Skeleton, model.FlexControllers);
             bonesCount = model.Skeleton.Bones.Length;
 
+            CharacterEyes = new CharacterEyeParameters(AnimationController);
+
             if (skin != null)
             {
                 SetMaterialGroup(skin);
@@ -83,7 +85,51 @@ namespace GUI.Types.Renderer
             LoadAnimations(model);
         }
 
-        public Matrix4x4[] EyeBones { get; set; } = new Matrix4x4[3];
+        public readonly struct CharacterEyeParameters
+        {
+            public int LeftEyeBoneIndex { get; }
+            public Vector3 LeftEyePosition { get; }
+            public Vector3 LeftEyeForwardVector { get; } = Vector3.UnitX;
+            public Vector3 LeftEyeUpVector { get; } = Vector3.UnitZ;
+
+            public int RightEyeBoneIndex { get; }
+            public Vector3 RightEyePosition { get; }
+            public Vector3 RightEyeForwardVector { get; } = Vector3.UnitX;
+            public Vector3 RightEyeUpVector { get; } = Vector3.UnitZ;
+
+            public int TargetBoneIndex { get; }
+            public Vector3 TargetPosition { get; }
+
+            public bool AreValid => LeftEyeBoneIndex != -1 && RightEyeBoneIndex != -1 && TargetBoneIndex != -1;
+
+            public CharacterEyeParameters(AnimationController animationController)
+            {
+                if (animationController.ActiveAnimation != null)
+                {
+                    throw new InvalidOperationException("CharacterEyeParameters should be initialized with no animation active.");
+                }
+
+                var skeleton = animationController.FrameCache.Skeleton;
+
+                LeftEyeBoneIndex = skeleton.Bones.FirstOrDefault(b => b.Name == "eyeball_l")?.Index ?? -1;
+                RightEyeBoneIndex = skeleton.Bones.FirstOrDefault(b => b.Name == "eyeball_r")?.Index ?? -1;
+                TargetBoneIndex = skeleton.Bones.FirstOrDefault(b => b.Name == "eye_target")?.Index ?? -1;
+
+                if (!AreValid)
+                {
+                    return;
+                }
+
+                var bonesMatrices = new Matrix4x4[skeleton.Bones.Length];
+                animationController.GetBoneMatrices(bonesMatrices);
+
+                LeftEyePosition = bonesMatrices[LeftEyeBoneIndex].Translation;
+                RightEyePosition = bonesMatrices[RightEyeBoneIndex].Translation;
+                TargetPosition = bonesMatrices[TargetBoneIndex].Translation;
+            }
+        }
+
+        public CharacterEyeParameters CharacterEyes { get; private set; }
 
         public override void Update(Scene.UpdateContext context)
         {
@@ -106,14 +152,6 @@ namespace GUI.Types.Renderer
 
                 try
                 {
-                    AnimationController.GetBoneMatrices(matrices);
-                    if (matrices.Length > 36)
-                    {
-                        EyeBones[0] = matrices[33];
-                        EyeBones[1] = matrices[34];
-                        EyeBones[2] = matrices[35];
-                    }
-
                     Animation.GetAnimationMatrices(matrices, frame, AnimationController.FrameCache.Skeleton);
 
                     // Update animation texture

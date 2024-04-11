@@ -213,38 +213,20 @@ namespace GUI.Types.Renderer
             var transformTk = request.Transform.ToOpenTK();
             GL.ProgramUniformMatrix4(shader.Program, uniforms.Transform, false, ref transformTk);
 
-            if (request.Node is ModelSceneNode model)
+            if (request.Node is ModelSceneNode model && model.CharacterEyes.AreValid)
             {
-                var eyeBones = model.AnimationController.FrameCache.Skeleton.Bones.Where(b => b.Name.StartsWith("eye", StringComparison.Ordinal)).ToArray();
-                if (eyeBones.Length == 3)
-                {
-                    foreach (var eyeBone in eyeBones)
-                    {
-                        if (eyeBone.Name == "eyeball_l")
-                        {
-                            shader.SetUniform1("g_nEyeLBindIdx", eyeBone.Index);
-                            shader.SetUniform3("g_vEyeLBindPos", model.EyeBones[0].Translation);
+                shader.SetUniform1("g_nEyeLBindIdx", model.CharacterEyes.LeftEyeBoneIndex);
+                shader.SetUniform3("g_vEyeLBindPos", model.CharacterEyes.LeftEyePosition);
+                shader.SetUniform3("g_vEyeLBindFwd", model.CharacterEyes.LeftEyeForwardVector);
+                shader.SetUniform3("g_vEyeLBindUp", model.CharacterEyes.LeftEyeUpVector);
 
-                            shader.SetUniform3("g_vEyeLBindFwd", Vector3.UnitX);
-                            shader.SetUniform3("g_vEyeLBindUp", Vector3.UnitZ);
-                        }
+                shader.SetUniform1("g_nEyeRBindIdx", model.CharacterEyes.RightEyeBoneIndex);
+                shader.SetUniform3("g_vEyeRBindPos", model.CharacterEyes.RightEyePosition);
+                shader.SetUniform3("g_vEyeRBindFwd", model.CharacterEyes.RightEyeForwardVector);
+                shader.SetUniform3("g_vEyeRBindUp", model.CharacterEyes.RightEyeUpVector);
 
-                        if (eyeBone.Name == "eyeball_r")
-                        {
-                            shader.SetUniform1("g_nEyeRBindIdx", eyeBone.Index);
-                            shader.SetUniform3("g_vEyeRBindPos", model.EyeBones[1].Translation);
-
-                            shader.SetUniform3("g_vEyeRBindFwd", Vector3.UnitX);
-                            shader.SetUniform3("g_vEyeRBindUp", Vector3.UnitZ);
-                        }
-
-                        if (eyeBone.Name == "eye_target")
-                        {
-                            shader.SetUniform1("g_nEyeTargetBindIdx", eyeBone.Index);
-                            shader.SetUniform3("g_vEyeTargetBindPos", model.EyeBones[2].Translation);
-                        }
-                    }
-                }
+                shader.SetUniform1("g_nEyeTargetBindIdx", model.CharacterEyes.TargetBoneIndex);
+                shader.SetUniform3("g_vEyeTargetBindPos", model.CharacterEyes.TargetPosition);
             }
 
             if (uniforms.ObjectId != -1)
