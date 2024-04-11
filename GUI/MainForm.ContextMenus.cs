@@ -18,7 +18,7 @@ namespace GUI
             verifyPackageContentsToolStripMenuItem.Visible = isRootNode;
             recoverDeletedToolStripMenuItem.Visible = isRootNode;
 
-            var isSoundNode = node != null && node.TreeView.SelectedNode.Name.Contains(".vsnd_c");
+            var isSoundNode = node != null && node.TreeView.SelectedNode.Name.EndsWith(".vsnd_c", StringComparison.OrdinalIgnoreCase);
             playSoundWhenSelectedToolStripMenuItem.Visible = isSoundNode;
             playSoundWhenSelectedToolStripMenuItem.Enabled = isSoundNode;
 

@@ -553,6 +553,7 @@ namespace GUI
                 audioPlayerSearch = new AudioPlayer(resource);
                 audioPlayerSearch.Play();
                 audioPlayerSearchFile = file;
+                AudioPlayerCurrent = audioPlayerSearch;
             }
         }
         public void OpenFile(string fileName)
@@ -1202,6 +1203,10 @@ namespace GUI
         private void playSoundWhenSelectedToolStripMenuItem_Click(object sender, EventArgs e)
         {
             playSoundWhenSelectedToolStripMenuItem.Checked = !playSoundWhenSelectedToolStripMenuItem.Checked;
+            if (!playSoundWhenSelectedToolStripMenuItem.Checked)
+            {
+                AudioPlayerCurrent?.Close();
+            }
         }
     }
 }
