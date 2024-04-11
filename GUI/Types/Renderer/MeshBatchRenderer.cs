@@ -225,10 +225,8 @@ namespace GUI.Types.Renderer
                             shader.SetUniform1("g_nEyeLBindIdx", eyeBone.Index);
                             shader.SetUniform3("g_vEyeLBindPos", model.EyeBones[0].Translation);
 
-                            var rotOnly = model.EyeBones[0] with { Translation = Vector3.Zero };
-
-                            shader.SetUniform3("g_vEyeLBindFwd", Vector3.Normalize(Vector3.Transform(Vector3.UnitX, rotOnly)));
-                            shader.SetUniform3("g_vEyeLBindUp", Vector3.Normalize(Vector3.Transform(Vector3.UnitZ, rotOnly)));
+                            shader.SetUniform3("g_vEyeLBindFwd", Vector3.UnitX);
+                            shader.SetUniform3("g_vEyeLBindUp", Vector3.UnitZ);
                         }
 
                         if (eyeBone.Name == "eyeball_r")

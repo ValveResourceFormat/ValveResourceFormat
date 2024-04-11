@@ -59,7 +59,7 @@ struct EyePixelInput
         EyeData currentEye = bIsRightEye ? rightEyeOs : leftEyeOs;
         float flExotropia = bIsRightEye ? (g_flEyeBallWalleyeR1 * -1.0) : g_flEyeBallWalleyeL1;
 
-        mat4 eyeAnimationMatrix = transform * getMatrix(currentEye.BoneIndex);
+        mat4 eyeAnimationMatrix = getMatrix(currentEye.BoneIndex);
         mat3 eyeRotationMatrix = mat3(eyeAnimationMatrix);
 
         mat4 resultMatrix = mat4(1.0);
@@ -69,7 +69,7 @@ struct EyePixelInput
 
         // todo: animatedEye .Position .Rotation .Transform
 
-        vec3 targetPosition = (vec4(g_vEyeTargetBindPos, 1.0) * (transform * getMatrix(g_nEyeTargetBindIdx-1))).xyz;
+        vec3 targetPosition = (vec4(g_vEyeTargetBindPos, 1.0) * getMatrix(g_nEyeTargetBindIdx)).xyz;
         vec3 viewDir = normalize(targetPosition - resultMatrix[3].xyz);
 
         if (flExotropia != 0.0)
