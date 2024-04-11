@@ -110,8 +110,6 @@ namespace GUI.Types.Renderer
                     currentSourceLines.Add(line);
 #endif
 
-                    // TODO: Support leading whitespace?
-                    if (line.Length > 7 && line[0] == '#')
                     {
                         // Includes
                         var match = RegexInclude().Match(line);
@@ -157,10 +155,9 @@ namespace GUI.Types.Renderer
 
                             continue;
                         }
-                    }
 
-                    {
-                        var match = RegexSamplerWithSrgbRead().Match(line);
+                        // sRGB samplers
+                        match = RegexSamplerWithSrgbRead().Match(line);
                         if (match.Success)
                         {
                             var samplerName = match.Groups["SamplerName"].Value;

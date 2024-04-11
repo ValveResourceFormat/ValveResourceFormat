@@ -37,7 +37,7 @@ namespace GUI.Types.Renderer
 #endif
 
         public RenderableMesh(Mesh mesh, int meshIndex, Scene scene, Model model = null,
-            Dictionary<string, string> initialMaterialTable = null, Morph morph = null, string debugLabel = null)
+            Dictionary<string, string> initialMaterialTable = null, Morph morph = null, bool isAggregate = false, string debugLabel = null)
         {
 #if DEBUG
             if (debugLabel == null && model != null)
@@ -74,7 +74,7 @@ namespace GUI.Types.Renderer
             MeshIndex = meshIndex;
 
             var meshSceneObjects = mesh.Data.GetArray("m_sceneObjects");
-            ConfigureDrawCalls(scene, vbib, meshSceneObjects, initialMaterialTable);
+            ConfigureDrawCalls(scene, vbib, meshSceneObjects, initialMaterialTable, isAggregate);
 
             if (morph != null)
             {
@@ -191,7 +191,7 @@ namespace GUI.Types.Renderer
 #endif
         }
 
-        private void ConfigureDrawCalls(Scene scene, VBIB vbib, KVObject[] sceneObjects, Dictionary<string, string> materialReplacementTable)
+        private void ConfigureDrawCalls(Scene scene, VBIB vbib, KVObject[] sceneObjects, Dictionary<string, string> materialReplacementTable, bool isAggregate)
         {
             if (vbib.VertexBuffers.Count == 0)
             {
@@ -263,7 +263,7 @@ namespace GUI.Types.Renderer
                         );
                     }
 
-                    AddDrawCall(drawCall);
+                    AddDrawCall(drawCall, isAggregate);
 
                     drawCall.VertexIdOffset = vertexOffset;
                     vertexOffset += objectDrawCall.GetInt32Property("m_nVertexCount");
@@ -273,8 +273,14 @@ namespace GUI.Types.Renderer
             }
         }
 
-        private void AddDrawCall(DrawCall drawCall)
+        private void AddDrawCall(DrawCall drawCall, bool isAggregate)
         {
+            if (isAggregate)
+            {
+                DrawCallsOpaque.Add(drawCall);
+                return;
+            }
+
             if (drawCall.Material.IsOverlay)
             {
                 DrawCallsOverlay.Add(drawCall);
