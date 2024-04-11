@@ -118,7 +118,6 @@ namespace ValveResourceFormat.ClosedCaptions
             KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Serialize(ms, captionsToExport, FileName);
 
             var sb = new StringBuilder();
-            sb.AppendLine(CultureInfo.InvariantCulture, $"// {Utils.StringToken.VRF_GENERATOR}");
             sb.Append(Encoding.UTF8.GetString(ms.ToArray()));
 
             return sb.ToString();
