@@ -119,7 +119,7 @@ namespace GUI.Types.Exporter
             }
             else
             {
-                if (decompile && FileExtract.TryExtractNonResource(stream, out var content))
+                if (decompile && FileExtract.TryExtractNonResource(stream, fileName, out var content))
                 {
                     var extension = Path.GetExtension(content.FileName);
                     fileName = Path.ChangeExtension(fileName, extension);
