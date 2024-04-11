@@ -1208,5 +1208,10 @@ namespace GUI
                 AudioPlayerCurrent?.Close();
             }
         }
+
+        private void MainForm_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            AudioPlayerCurrent?.Close();
+        }
     }
 }

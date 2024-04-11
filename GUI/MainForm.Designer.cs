@@ -431,6 +431,7 @@ namespace GUI
             Name = "MainForm";
             SizeGripStyle = SizeGripStyle.Show;
             Text = "Source 2 Viewer";
+            FormClosing += MainForm_FormClosing;
             Load += MainForm_Load;
             DragDrop += MainForm_DragDrop;
             DragEnter += MainForm_DragEnter;
