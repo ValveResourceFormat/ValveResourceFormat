@@ -425,6 +425,11 @@ namespace Decompiler
                     var outFilePath = GetOutputPath(path);
                     DumpContentFile(outFilePath, content);
                 }
+                else
+                {
+                    var output = Encoding.UTF8.GetString(content.Data);
+                    Console.WriteLine(output);
+                }
                 content.Dispose();
 
                 return;
