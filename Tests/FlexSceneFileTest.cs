@@ -13,9 +13,12 @@ namespace Tests
             var vfe = new FlexSceneFile();
             vfe.Read(vfeFilePath);
 
-            Assert.That(vfe.Version, Is.EqualTo(0));
-            Assert.That(vfe.FlexSettings, Has.Length.EqualTo(48));
-            Assert.That(vfe.KeyNames, Has.Length.EqualTo(62));
+            Assert.Multiple(() =>
+            {
+                Assert.That(vfe.Version, Is.EqualTo(0));
+                Assert.That(vfe.FlexSettings, Has.Length.EqualTo(48));
+                Assert.That(vfe.KeyNames, Has.Length.EqualTo(62));
+            });
         }
 
         [Test]
