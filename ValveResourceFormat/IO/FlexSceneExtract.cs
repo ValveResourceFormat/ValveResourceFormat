@@ -14,7 +14,6 @@ namespace ValveResourceFormat.IO
 
         public ContentFile ToContentFile()
         {
-            using var indentedTextWriter = new IndentedTextWriter();
             var fileName = Path.ChangeExtension(flexSceneFile.Name, ".txt");
 
             return new ContentFile

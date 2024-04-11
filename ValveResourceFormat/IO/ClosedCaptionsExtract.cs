@@ -17,8 +17,6 @@ namespace ValveResourceFormat.IO
 
         public ContentFile ToContentFile()
         {
-            using var indentedTextWriter = new IndentedTextWriter();
-
             return new ContentFile
             {
                 Data = Encoding.UTF8.GetBytes(closedCaptions.ToString()),
