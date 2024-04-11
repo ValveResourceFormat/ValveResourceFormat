@@ -1313,7 +1313,7 @@ namespace ValveResourceFormat.IO
 
                 if (textureResource == null)
                 {
-                    bitmap = new SKBitmap(); // TODO: Test that this doesn't cause issues
+                    bitmap = new SKBitmap(1, 1, SKColorType.Bgra8888, SKAlphaType.Unpremul);
                     openBitmaps[texturePath] = bitmap;
                     return bitmap;
                 }
