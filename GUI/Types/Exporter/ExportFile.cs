@@ -119,6 +119,16 @@ namespace GUI.Types.Exporter
             }
             else
             {
+                if (decompile && FileExtract.TryExtractNonResource(stream, out var content))
+                {
+                    var extension = Path.GetExtension(content.FileName);
+                    fileName = Path.ChangeExtension(fileName, extension);
+                    stream.Dispose();
+
+                    stream = new MemoryStream(content.Data);
+                    content.Dispose();
+                }
+
                 using var dialog = new SaveFileDialog
                 {
                     Title = "Choose where to save the file",

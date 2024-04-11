@@ -108,7 +108,7 @@ dat      | Closed Captions         | 👍 Handled by `ClosedCaptions`
 bin      | Tools Asset Info        | 👍 Handled by `ToolsAssetInfo`
 vdpn     | Dota Patch Notes        | 👍
 vdacdefs | DAC Game Defs Data      | No
-vfe      | Face poser              | No
+vfe      | Flex Scene File         | 👍 Handled by `FlexSceneFile`
 vcd      | VCD                     | No
 vcdlist  | VCD list                | 👍
 
@@ -128,6 +128,7 @@ Magic        | Description
 `0x32736376` | vcs2 - compiled shader
 `0x31415926` | murmurhash2 seed used in various places (like entity keys)
 `VFONT1`     | "encrypted" font file
+`0x00564645` | VFE - flex scene file
 
 ## License
 

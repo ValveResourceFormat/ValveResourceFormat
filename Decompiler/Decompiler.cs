@@ -417,6 +417,20 @@ namespace Decompiler
 
                 return;
             }
+            else if (FileExtract.TryExtractNonResource(stream, out var content))
+            {
+                if (OutputFile != null)
+                {
+                    var extension = Path.GetExtension(content.FileName);
+                    path = Path.ChangeExtension(path, extension);
+
+                    var outFilePath = GetOutputPath(path);
+                    DumpContentFile(outFilePath, content);
+                }
+                content.Dispose();
+
+                return;
+            }
 
             using var resource = new Resource
             {

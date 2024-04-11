@@ -713,6 +713,10 @@ namespace GUI
             {
                 return new Types.Viewers.Audio().Create(vrfGuiContext, stream);
             }
+            else if (Types.Viewers.FlexSceneFile.IsAccepted(magic))
+            {
+                return new Types.Viewers.FlexSceneFile().Create(vrfGuiContext, stream);
+            }
 
             return new Types.Viewers.ByteViewer().Create(vrfGuiContext, stream);
         }
