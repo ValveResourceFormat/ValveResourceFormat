@@ -6,7 +6,6 @@ using GUI.Controls;
 using GUI.Forms;
 using GUI.Utils;
 using SteamDatabase.ValvePak;
-using ValveResourceFormat.FlexSceneFile;
 using ValveResourceFormat.IO;
 using Resource = ValveResourceFormat.Resource;
 
