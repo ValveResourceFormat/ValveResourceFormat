@@ -490,6 +490,12 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 
     mat.Roughness = AdjustRoughnessByGeometricNormal(mat.RoughnessTex, mat.GeometricNormal);
 
+#if defined(csgo_character_vfx)
+    #if (F_EYEBALLS == 1)
+        ApplyEye(eyeInterpolator, texCoord, mat);
+    #endif
+#endif
+
 #if (F_USE_BENT_NORMALS == 1)
     GetBentNormal(mat, texCoord);
 #else
@@ -500,12 +506,6 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 
 #if (F_DECAL_TEXTURE == 1)
     mat.Albedo = ApplyDecalTexture(mat.Albedo);
-#endif
-
-#if defined(csgo_character_vfx)
-    #if (F_EYEBALLS == 1)
-        ApplyEye(eyeInterpolator, texCoord, mat);
-    #endif
 #endif
 
     mat.DiffuseColor = mat.Albedo - mat.Albedo * mat.Metalness;
