@@ -235,7 +235,7 @@ namespace ValveResourceFormat.IO
         /// Extract content file from a non-resource stream.
         /// </summary>
         /// <param name="stream">Stream to be extracted or decompiled.</param>
-        public static ContentFile ExtractNonResource(Stream stream)
+        public static ContentFile ExtractNonResource(Stream stream, string fileName)
         {
             Span<byte> buffer = stackalloc byte[4];
             var read = stream.Read(buffer);
@@ -250,13 +250,14 @@ namespace ValveResourceFormat.IO
             return magic switch
             {
                 FlexSceneFile.FlexSceneFile.MAGIC => new FlexSceneExtract(stream).ToContentFile(),
+                ClosedCaptions.ClosedCaptions.MAGIC => new ClosedCaptionsExtract(stream, fileName).ToContentFile(),
                 _ => null,
             };
         }
 
-        public static bool TryExtractNonResource(Stream stream, out ContentFile contentFile)
+        public static bool TryExtractNonResource(Stream stream, string fileName, out ContentFile contentFile)
         {
-            contentFile = ExtractNonResource(stream);
+            contentFile = ExtractNonResource(stream, fileName);
             return contentFile != null;
         }
 
