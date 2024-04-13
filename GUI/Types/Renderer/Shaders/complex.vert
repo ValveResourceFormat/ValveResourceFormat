@@ -176,7 +176,7 @@ vec4 GetTintColor()
 
 #endif
 
-#include "csgo_character_eyes.glsl"
+#include "features/csgo_character_eyes_vs.glsl"
 
 void main()
 {

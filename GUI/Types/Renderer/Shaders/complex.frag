@@ -262,7 +262,7 @@ uniform sampler2D g_tTintMask;
 // Must be last
 #include "common/lighting.glsl"
 
-#include "csgo_character_eyes.glsl"
+#include "features/csgo_character_eyes_ps.glsl"
 
 // Get material properties
 MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
