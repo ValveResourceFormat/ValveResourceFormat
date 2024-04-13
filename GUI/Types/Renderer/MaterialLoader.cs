@@ -323,7 +323,7 @@ namespace GUI.Types.Renderer
 
             VTexFormat.RGBA8888        => new(SizedInternalFormat.Rgba8,      PixelFormat.Rgba,   PixelType.UnsignedByte,     SizedInternalFormat.Srgb8Alpha8),
             VTexFormat.BGRA8888        => new(SizedInternalFormat.Rgba8,      PixelFormat.Bgra,   PixelType.UnsignedByte,     SizedInternalFormat.Srgb8Alpha8),
-            //VTexFormat.I8              => new(SizedInternalFormat.Intensity8, PixelFormat.Red,  PixelType.UnsignedByte),
+            VTexFormat.I8              => new(SizedInternalFormat.R8,         PixelFormat.Red,    PixelType.UnsignedByte),
 
             //VTexFormat.IA88
             //VTexFormat.R11_EAC
