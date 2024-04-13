@@ -7,7 +7,7 @@
 #include "common/utils.glsl"
 
 #if defined(csgo_environment_vfx)
-#include "common/animation.glsl"
+    #include "common/animation.glsl"
 #endif
 
 #include "common/features.glsl"

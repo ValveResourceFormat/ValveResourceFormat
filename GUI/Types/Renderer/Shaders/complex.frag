@@ -254,7 +254,7 @@ uniform sampler2D g_tTintMask;
 #include "common/fog.glsl"
 
 #if (S_SPECULAR == 1 || renderMode_Cubemaps == 1)
-#include "common/environment.glsl"
+    #include "common/environment.glsl"
 #endif
 
 // Must be last
