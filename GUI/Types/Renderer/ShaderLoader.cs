@@ -85,12 +85,12 @@ namespace GUI.Types.Renderer
                 // Vertex shader
                 var vertexName = $"{shaderFileName}.vert";
                 var vertexShader = GL.CreateShader(ShaderType.VertexShader);
-                LoadShader(vertexShader, vertexName, shaderName, ShaderType.VertexShader, arguments, ref parsedData);
+                LoadShader(vertexShader, vertexName, shaderName, arguments, ref parsedData);
 
                 // Fragment shader
                 var fragmentName = $"{shaderFileName}.frag";
                 var fragmentShader = GL.CreateShader(ShaderType.FragmentShader);
-                LoadShader(fragmentShader, fragmentName, shaderName, ShaderType.FragmentShader, arguments, ref parsedData);
+                LoadShader(fragmentShader, fragmentName, shaderName, arguments, ref parsedData);
 
                 var renderModes = parsedData.Defines
                     .Where(k => k.StartsWith(RenderModeDefinePrefix, StringComparison.Ordinal))
@@ -160,10 +160,9 @@ namespace GUI.Types.Renderer
             }
         }
 
-        private void LoadShader(int shader, string shaderFile, string originalShaderName, ShaderType shaderType,
-            IReadOnlyDictionary<string, byte> arguments, ref ParsedShaderData parsedData)
+        private void LoadShader(int shader, string shaderFile, string originalShaderName, IReadOnlyDictionary<string, byte> arguments, ref ParsedShaderData parsedData)
         {
-            var preprocessedShaderSource = Parser.PreprocessShader(shaderFile, originalShaderName, shaderType, arguments, parsedData);
+            var preprocessedShaderSource = Parser.PreprocessShader(shaderFile, originalShaderName, arguments, parsedData);
 
             GL.ShaderSource(shader, preprocessedShaderSource);
             GL.CompileShader(shader);
@@ -367,7 +366,7 @@ namespace GUI.Types.Renderer
             {
                 var shaderFileName = Path.GetFileName(include);
                 var fragmentShader = GL.CreateShader(ShaderType.FragmentShader);
-                loader.LoadShader(fragmentShader, shaderFileName, shaderFileName, ShaderType.FragmentShader, EmptyArgs, ref parsedShaderData);
+                loader.LoadShader(fragmentShader, shaderFileName, shaderFileName, EmptyArgs, ref parsedShaderData);
                 GL.DeleteShader(fragmentShader);
             }
 
