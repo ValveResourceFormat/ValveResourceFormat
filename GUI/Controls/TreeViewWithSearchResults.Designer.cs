@@ -31,69 +31,72 @@ namespace GUI.Controls
         /// </summary>
         private void InitializeComponent()
         {
-            this.mainSplitContainer = new System.Windows.Forms.SplitContainer();
-            this.mainTreeView = new GUI.Controls.BetterTreeView();
-            this.mainListView = new BetterListView();
-            ((System.ComponentModel.ISupportInitialize)(this.mainSplitContainer)).BeginInit();
-            this.mainSplitContainer.Panel1.SuspendLayout();
-            this.mainSplitContainer.Panel2.SuspendLayout();
-            this.mainSplitContainer.SuspendLayout();
-            this.SuspendLayout();
+            mainSplitContainer = new System.Windows.Forms.SplitContainer();
+            mainTreeView = new BetterTreeView();
+            mainListView = new BetterListView();
+            ((System.ComponentModel.ISupportInitialize)mainSplitContainer).BeginInit();
+            mainSplitContainer.Panel1.SuspendLayout();
+            mainSplitContainer.Panel2.SuspendLayout();
+            mainSplitContainer.SuspendLayout();
+            SuspendLayout();
             // 
             // mainSplitContainer
             // 
-            this.mainSplitContainer.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.mainSplitContainer.Location = new System.Drawing.Point(0, 0);
-            this.mainSplitContainer.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
-            this.mainSplitContainer.Name = "mainSplitContainer";
+            mainSplitContainer.Dock = System.Windows.Forms.DockStyle.Fill;
+            mainSplitContainer.FixedPanel = System.Windows.Forms.FixedPanel.Panel1;
+            mainSplitContainer.Location = new System.Drawing.Point(0, 0);
+            mainSplitContainer.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            mainSplitContainer.Name = "mainSplitContainer";
             // 
             // mainSplitContainer.Panel1
             // 
-            this.mainSplitContainer.Panel1.Controls.Add(this.mainTreeView);
+            mainSplitContainer.Panel1.Controls.Add(mainTreeView);
             // 
             // mainSplitContainer.Panel2
             // 
-            this.mainSplitContainer.Panel2.Controls.Add(this.mainListView);
-            this.mainSplitContainer.Size = new System.Drawing.Size(510, 352);
-            this.mainSplitContainer.SplitterDistance = 169;
-            this.mainSplitContainer.SplitterWidth = 5;
-            this.mainSplitContainer.TabIndex = 0;
+            mainSplitContainer.Panel2.Controls.Add(mainListView);
+            mainSplitContainer.Size = new System.Drawing.Size(800, 400);
+            mainSplitContainer.SplitterDistance = 400;
+            mainSplitContainer.SplitterWidth = 5;
+            mainSplitContainer.TabIndex = 0;
+            mainSplitContainer.SplitterMoved += MainSplitContainerSplitterMoved;
             // 
             // mainTreeView
             // 
-            this.mainTreeView.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.mainTreeView.Location = new System.Drawing.Point(0, 0);
-            this.mainTreeView.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
-            this.mainTreeView.Name = "mainTreeView";
-            this.mainTreeView.Size = new System.Drawing.Size(169, 352);
-            this.mainTreeView.TabIndex = 0;
+            mainTreeView.Dock = System.Windows.Forms.DockStyle.Fill;
+            mainTreeView.Location = new System.Drawing.Point(0, 0);
+            mainTreeView.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            mainTreeView.Name = "mainTreeView";
+            mainTreeView.Size = new System.Drawing.Size(400, 400);
+            mainTreeView.TabIndex = 0;
+            mainTreeView.VrfGuiContext = null;
             // 
             // mainListView
             // 
-            this.mainListView.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.mainListView.Location = new System.Drawing.Point(0, 0);
-            this.mainListView.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
-            this.mainListView.Name = "mainListView";
-            this.mainListView.Size = new System.Drawing.Size(336, 352);
-            this.mainListView.TabIndex = 0;
-            this.mainListView.UseCompatibleStateImageBehavior = false;
-            this.mainListView.View = System.Windows.Forms.View.Details;
+            mainListView.Dock = System.Windows.Forms.DockStyle.Fill;
+            mainListView.Location = new System.Drawing.Point(0, 0);
+            mainListView.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            mainListView.Name = "mainListView";
+            mainListView.Size = new System.Drawing.Size(395, 400);
+            mainListView.TabIndex = 0;
+            mainListView.UseCompatibleStateImageBehavior = false;
+            mainListView.View = System.Windows.Forms.View.Details;
+            mainListView.VrfGuiContext = null;
             // 
             // TreeViewWithSearchResults
             // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
-            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.Controls.Add(this.mainSplitContainer);
-            this.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
-            this.Name = "TreeViewWithSearchResults";
-            this.Size = new System.Drawing.Size(510, 352);
-            this.Load += new System.EventHandler(this.TreeViewWithSearchResults_Load);
-            this.mainSplitContainer.Panel1.ResumeLayout(false);
-            this.mainSplitContainer.Panel2.ResumeLayout(false);
-            ((System.ComponentModel.ISupportInitialize)(this.mainSplitContainer)).EndInit();
-            this.mainSplitContainer.ResumeLayout(false);
-            this.ResumeLayout(false);
-
+            AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
+            AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            Controls.Add(mainSplitContainer);
+            Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            Name = "TreeViewWithSearchResults";
+            Size = new System.Drawing.Size(800, 400);
+            Load += TreeViewWithSearchResults_Load;
+            mainSplitContainer.Panel1.ResumeLayout(false);
+            mainSplitContainer.Panel2.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)mainSplitContainer).EndInit();
+            mainSplitContainer.ResumeLayout(false);
+            ResumeLayout(false);
         }
 
         #endregion

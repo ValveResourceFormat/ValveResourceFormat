@@ -14,6 +14,8 @@ namespace GUI.Controls
     /// </summary>
     partial class TreeViewWithSearchResults : UserControl
     {
+        private static int SplitterWidth;
+
         public bool DeletedFilesRecovered { get; private set; }
         public Types.Viewers.Package Viewer { get; }
 
@@ -29,6 +31,11 @@ namespace GUI.Controls
         public TreeViewWithSearchResults(Types.Viewers.Package viewer)
         {
             InitializeComponent();
+
+            if (SplitterWidth > 0)
+            {
+                mainSplitContainer.SplitterDistance = SplitterWidth;
+            }
 
             Dock = DockStyle.Fill;
 
@@ -64,6 +71,11 @@ namespace GUI.Controls
 
             mainTreeView = null;
             mainListView = null;
+        }
+
+        private void MainSplitContainerSplitterMoved(object sender, SplitterEventArgs e)
+        {
+            SplitterWidth = e.SplitX;
         }
 
         private void MainTreeView_NodeMouseDoubleClick(object sender, TreeNodeMouseClickEventArgs e)
