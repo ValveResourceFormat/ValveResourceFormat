@@ -17,8 +17,8 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
         private readonly float animationRate = 0.1f;
         private readonly ParticleAnimationType animationType = ParticleAnimationType.ANIMATION_TYPE_FIXED_RATE;
-        private readonly float minSize;
-        private readonly float maxSize = 5000f;
+        private readonly INumberProvider minSize = new LiteralNumberProvider(0f);
+        private readonly INumberProvider maxSize = new LiteralNumberProvider(5000f);
 
         private readonly INumberProvider radiusScale = new LiteralNumberProvider(1f);
         private readonly INumberProvider alphaScale = new LiteralNumberProvider(1f);
@@ -85,8 +85,8 @@ namespace GUI.Types.ParticleRenderer.Renderers
             overbrightFactor = parse.NumberProvider("m_flOverbrightFactor", overbrightFactor);
             orientationType = parse.Enum("m_nOrientationType", orientationType);
             animationRate = parse.Float("m_flAnimationRate", animationRate);
-            minSize = parse.Float("m_flMinSize", minSize);
-            maxSize = parse.Float("m_flMaxSize", maxSize);
+            minSize = parse.NumberProvider("m_flMinSize", minSize);
+            maxSize = parse.NumberProvider("m_flMaxSize", maxSize);
             animationType = parse.Enum<ParticleAnimationType>("m_nAnimationType", animationType);
             radiusScale = parse.NumberProvider("m_flRadiusScale", radiusScale);
             alphaScale = parse.NumberProvider("m_flAlphaScale", alphaScale);
