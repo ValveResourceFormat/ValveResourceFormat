@@ -17,6 +17,7 @@
 #elif (SCENE_CUBEMAP_TYPE == 2)
     uniform samplerCubeArray g_tEnvironmentMap;
     uniform int g_iEnvMapArrayIndices[MAX_ENVMAPS];
+    uniform int g_iEnvMapArrayLength;
 #endif
 
 vec3 CubemapParallaxCorrection(vec3 envMapLocalPos, vec3 localReflectionVector, vec3 envMapBoxMin, vec3 envMapBoxMax)
@@ -175,7 +176,8 @@ vec3 GetEnvironment(MaterialProperties_t mat)
 
     float totalWeight = 0.01;
 
-    for (int i = 0; i < g_vEnvMapSizeConstants.y; i++) {
+    for (int i = 0; i < g_iEnvMapArrayLength; i++)
+    {
         int envMapArrayIndex = g_iEnvMapArrayIndices[i];
         vec4 proxySphere = g_vEnvMapProxySphere[envMapArrayIndex];
         bool isBoxProjection = proxySphere.w == 1.0f;
@@ -188,7 +190,8 @@ vec3 GetEnvironment(MaterialProperties_t mat)
         const bool bUseCubemapBlending = LightmapGameVersionNumber >= 2;
         vec3 dists = g_vEnvMapEdgeFadeDists[envMapArrayIndex].xyz;
 
-        if (bUseCubemapBlending && isBoxProjection) {
+        if (bUseCubemapBlending && isBoxProjection)
+        {
             vec3 envInvEdgeWidth = 1.0 / dists;
             vec3 envmapClampedFadeMax = clamp((envMapBoxMax - envMapLocalPos) * envInvEdgeWidth, vec3(0.0), vec3(1.0));
             vec3 envmapClampedFadeMin = clamp((envMapLocalPos - envMapBoxMin) * envInvEdgeWidth, vec3(0.0), vec3(1.0));
