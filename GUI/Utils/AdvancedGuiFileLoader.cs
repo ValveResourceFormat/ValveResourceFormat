@@ -22,26 +22,34 @@ namespace GUI.Utils
 
             var paths = Settings.Config.GameSearchPaths.ToList();
 
-            // Find any gameinfo files specified by the user in settings
-            foreach (var searchPath in paths.Where(searchPath => searchPath.EndsWith("gameinfo.gi", StringComparison.InvariantCulture)).ToList())
+            try
             {
-                paths.Remove(searchPath);
+                // Find any gameinfo files specified by the user in settings
+                foreach (var searchPath in paths.Where(searchPath => searchPath.EndsWith("gameinfo.gi", StringComparison.InvariantCulture)).ToList())
+                {
+                    paths.Remove(searchPath);
 
-                FindAndLoadSearchPaths(searchPath);
+                    FindAndLoadSearchPaths(searchPath);
+                }
+
+                // Find any .vpk files specified by the user
+                foreach (var searchPath in paths.Where(searchPath => searchPath.EndsWith(".vpk", StringComparison.InvariantCulture)).ToList())
+                {
+                    paths.Remove(searchPath);
+
+                    AddPackageToSearch(searchPath);
+                }
+
+                // Add remaining paths specified by the user
+                foreach (var searchPath in paths)
+                {
+                    AddDiskPathToSearch(searchPath);
+                }
             }
-
-            // Find any .vpk files specified by the user
-            foreach (var searchPath in paths.Where(searchPath => searchPath.EndsWith(".vpk", StringComparison.InvariantCulture)).ToList())
+            catch (Exception e)
             {
-                paths.Remove(searchPath);
-
-                AddPackageToSearch(searchPath);
-            }
-
-            // Add remaining paths specified by the user
-            foreach (var searchPath in paths)
-            {
-                AddDiskPathToSearch(searchPath);
+                Log.Error(nameof(AdvancedGuiFileLoader), $"Failed to add search path: {e}");
+                return;
             }
         }
 
