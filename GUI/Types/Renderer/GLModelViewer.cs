@@ -310,8 +310,6 @@ namespace GUI.Types.Renderer
 
             if (pickingResponse.Intent == PickingTexture.PickingIntent.Select)
             {
-                Log.Info(nameof(GLModelViewer), $"Selected mesh {pickingResponse.PixelInfo.MeshId}, ({pickingResponse.PixelInfo.ObjectId}.");
-
                 var sceneNode = Scene.Find(pickingResponse.PixelInfo.ObjectId);
                 selectedNodeRenderer.SelectNode(sceneNode);
 
