@@ -88,6 +88,24 @@ namespace GUI.Utils
                 }
             }
 
+            var currentVersion = Config._VERSION_DO_NOT_MODIFY;
+
+            if (currentVersion > SettingsFileCurrentVersion)
+            {
+                var result = MessageBox.Show(
+                    $"Your current settings.vdf has a higher version ({currentVersion}) than currently supported ({SettingsFileCurrentVersion}). You likely ran an older version of Source 2 Viewer and your settings may get reset.\n\nDo you want to continue?",
+                    "Source 2 Viewer downgraded",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Question
+                );
+
+                if (result != DialogResult.Yes)
+                {
+                    Environment.Exit(1);
+                    return;
+                }
+            }
+
             Config.SavedCameras ??= [];
             Config.BookmarkedFiles ??= [];
             Config.RecentFiles ??= new(RecentFilesLimit);
@@ -118,24 +136,29 @@ namespace GUI.Utils
             Config.AntiAliasingSamples = Math.Clamp(Config.AntiAliasingSamples, 0, 64);
             Config.Volume = Math.Clamp(Config.Volume, 0f, 1f);
 
-            if (Config._VERSION_DO_NOT_MODIFY < 2) // version 2: added anti aliasing samples
+            if (currentVersion < 2) // version 2: added anti aliasing samples
             {
                 Config.AntiAliasingSamples = 8;
             }
 
-            if (Config._VERSION_DO_NOT_MODIFY < 3) // version 3: added volume
+            if (currentVersion < 3) // version 3: added volume
             {
                 Config.Volume = 0.5f;
             }
 
-            if (Config._VERSION_DO_NOT_MODIFY < 4)
+            if (currentVersion < 4) // version 4: added vsync
             {
                 Config.Vsync = 1;
             }
 
-            if (Config._VERSION_DO_NOT_MODIFY < 5)
+            if (currentVersion < 5) // version 5: added display fps
             {
                 Config.DisplayFps = 1;
+            }
+
+            if (currentVersion != SettingsFileCurrentVersion)
+            {
+                Log.Info(nameof(Settings), $"Settings version changed: {currentVersion} -> {SettingsFileCurrentVersion}");
             }
 
             Config._VERSION_DO_NOT_MODIFY = SettingsFileCurrentVersion;
