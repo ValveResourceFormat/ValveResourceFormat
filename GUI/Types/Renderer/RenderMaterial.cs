@@ -1,7 +1,6 @@
+using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.Serialization;
-using ValveResourceFormat.Serialization.KeyValues;
 
 namespace GUI.Types.Renderer
 {
@@ -42,7 +41,7 @@ namespace GUI.Types.Renderer
         private readonly bool hasDepthBias;
         private int textureUnit;
 
-        public RenderMaterial(Material material, ShaderLoader shaderLoader, Dictionary<string, byte> shaderArguments)
+        public RenderMaterial(Material material, VrfGuiContext guiContext, Dictionary<string, byte> shaderArguments)
             : this(material)
         {
             var materialArguments = material.GetShaderArguments();
@@ -56,7 +55,35 @@ namespace GUI.Types.Renderer
                 }
             }
 
-            Shader = shaderLoader.LoadShader(material.ShaderName, combinedShaderParameters);
+            if (material.ShaderName == "sky.vfx")
+            {
+                var shader = guiContext.FileLoader.LoadShader(material.ShaderName);
+
+                if (shader.Features != null)
+                {
+                    foreach (var block in shader.Features.SfBlocks)
+                    {
+                        if (block.Name.StartsWith("F_TEXTURE_FORMAT", StringComparison.Ordinal))
+                        {
+                            for (byte i = 0; i < block.CheckboxNames.Count; i++)
+                            {
+                                var checkbox = block.CheckboxNames[i];
+
+                                switch (checkbox)
+                                {
+                                    case "YCoCg (dxt compressed)": combinedShaderParameters.Add("VRF_TEXTURE_FORMAT_YCOCG", i); break;
+                                    case "RGBM (dxt compressed)": combinedShaderParameters.Add("VRF_TEXTURE_FORMAT_RGBM_DXT", i); break;
+                                    case "RGBM (8-bit uncompressed)": combinedShaderParameters.Add("VRF_TEXTURE_FORMAT_RGBM", i); break;
+                                }
+                            }
+
+                            break;
+                        }
+                    }
+                }
+            }
+
+            Shader = guiContext.ShaderLoader.LoadShader(material.ShaderName, combinedShaderParameters);
         }
 
         public RenderMaterial(Shader shader) : this(new Material { ShaderName = shader.Name })

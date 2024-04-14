@@ -5,16 +5,26 @@
 in vec3 vSkyLookupInterpolant;
 out vec4 vColor;
 
+#define VRF_TEXTURE_FORMAT_YCOCG 2
+#define VRF_TEXTURE_FORMAT_RGBM_DXT 4
+#define VRF_TEXTURE_FORMAT_RGBM 5
+
 // Core: 0="HDR (float16)", 1="RGB (8-bit uncompressed)", 2="YCoCg (dxt compressed)", 3="Dxt1 (LDR)", 4="RGBM (dxt compressed)", 5="RGBM (8-bit uncompressed)"
 #define F_TEXTURE_FORMAT 0
+
 // hlvr: 0="HDR (float16)", 1="RGB (8-bit uncompressed)", 2="YCoCg (dxt compressed)", 3="Dxt1 (LDR)", 4="RGBM (dxt compressed)", 5="RGBM (8-bit uncompressed)", 6="BC6H (HDR compressed - recommended)"
 // cs2: 0="BC6H (HDR compressed - recommended)", 1="Dxt1 (LDR)", 2="HDR (float16)", 3="RGB (8-bit uncompressed)", 4="YCoCg (dxt compressed)", 5="RGBM (dxt compressed)", 6="RGBM (8-bit uncompressed)"
-// TODO: differently ordered formats in cs2
 #define F_TEXTURE_FORMAT2 0
 
-#if (F_TEXTURE_FORMAT == 2 || F_TEXTURE_FORMAT2 == 2)
+#if (F_TEXTURE_FORMAT2 > 0)
+    #define TextureFormat F_TEXTURE_FORMAT2
+#else
+    #define TextureFormat F_TEXTURE_FORMAT
+#endif
+
+#if (TextureFormat == VRF_TEXTURE_FORMAT_YCOCG)
     #define ENCODING_YCOCG
-#elif (F_TEXTURE_FORMAT == 4 || F_TEXTURE_FORMAT2 == 4 || F_TEXTURE_FORMAT == 5 || F_TEXTURE_FORMAT2 == 5)
+#elif (TextureFormat == VRF_TEXTURE_FORMAT_RGBM_DXT || TextureFormat == VRF_TEXTURE_FORMAT_RGBM)
     #define ENCODING_RGBM
 #endif
 
