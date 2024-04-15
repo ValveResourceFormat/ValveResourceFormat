@@ -409,6 +409,12 @@ namespace Decompiler
 
             var pathExtension = Path.GetExtension(path);
 
+            const uint Source1Vcs = 0x06;
+            if (CollectStats && pathExtension == ".vcs" && magic == Source1Vcs)
+            {
+                return;
+            }
+
             if (pathExtension == ".vfont")
             {
                 ParseVFont(path);
@@ -1225,11 +1231,6 @@ namespace Decompiler
         private void LogException(Exception e, string path, string parentPath = null)
         {
             var exceptionsFileName = CollectStats ? $"exceptions{Path.GetExtension(path)}.txt" : "exceptions.txt";
-
-            if (Path.GetExtension(path) == ".vcs" && e.StackTrace.Contains("ValveResourceFormat.Resource.Read", StringComparison.InvariantCulture))
-            {
-                return;
-            }
 
             lock (ConsoleWriterLock)
             {
