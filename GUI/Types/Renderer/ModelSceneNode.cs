@@ -144,8 +144,8 @@ namespace GUI.Types.Renderer
                 return;
             }
 
-           foreach (var materialData in eyeEnablingMaterials)
-           {
+            foreach (var materialData in eyeEnablingMaterials)
+            {
                 materialData.IntParams["g_nEyeLBindIdx"] = eyes.LeftEyeBoneIndex;
                 materialData.IntParams["g_nEyeRBindIdx"] = eyes.RightEyeBoneIndex;
                 materialData.IntParams["g_nEyeTargetBindIdx"] = eyes.TargetBoneIndex;
@@ -159,7 +159,7 @@ namespace GUI.Types.Renderer
                 materialData.VectorParams["g_vEyeRBindUp"] = new Vector4(eyes.RightEyeUpVector, 0);
 
                 materialData.VectorParams["g_vEyeTargetBindPos"] = new Vector4(eyes.TargetPosition, 0);
-           }
+            }
         }
 
         public override void Update(Scene.UpdateContext context)
