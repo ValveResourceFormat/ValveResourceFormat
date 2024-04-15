@@ -98,14 +98,14 @@ namespace GUI.Types.Renderer
             updateHandler = handler;
         }
 
-        public void GetBoneMatrices(Span<Matrix4x4> boneMatrices)
+        public void GetBoneMatrices(Span<Matrix4x4> boneMatrices, bool bindPose = false)
         {
             if (boneMatrices.Length < animationFrameCache.Skeleton.Bones.Length)
             {
                 throw new ArgumentException("Length of array is smaller than the number of bones");
             }
 
-            var frame = GetFrame();
+            var frame = bindPose ? null : GetFrame();
 
             foreach (var root in animationFrameCache.Skeleton.Roots)
             {

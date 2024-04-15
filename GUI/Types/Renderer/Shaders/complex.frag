@@ -79,6 +79,8 @@ uniform int F_DECAL_BLEND_MODE;
 #define F_HIGH_QUALITY_GLOSS 0
 #define F_BLEND_NORMALS 0
 
+#define F_EYEBALLS 0
+
 #define HemiOctIsoRoughness_RG_B 0
 //End of feature defines
 
@@ -259,6 +261,8 @@ uniform sampler2D g_tTintMask;
 
 // Must be last
 #include "common/lighting.glsl"
+
+#include "features/csgo_character_eyes_ps.glsl"
 
 // Get material properties
 MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
@@ -485,6 +489,12 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 #endif
 
     mat.Roughness = AdjustRoughnessByGeometricNormal(mat.RoughnessTex, mat.GeometricNormal);
+
+#if defined(csgo_character_vfx)
+    #if (F_EYEBALLS == 1)
+        ApplyEye(eyeInterpolator, texCoord, mat);
+    #endif
+#endif
 
 #if (F_USE_BENT_NORMALS == 1)
     GetBentNormal(mat, texCoord);
