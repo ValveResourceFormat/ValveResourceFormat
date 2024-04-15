@@ -1226,6 +1226,11 @@ namespace Decompiler
         {
             var exceptionsFileName = CollectStats ? $"exceptions{Path.GetExtension(path)}.txt" : "exceptions.txt";
 
+            if (Path.GetExtension(path) == ".vcs" && e.StackTrace.Contains("ValveResourceFormat.Resource.Read", StringComparison.InvariantCulture))
+            {
+                return;
+            }
+
             lock (ConsoleWriterLock)
             {
                 Console.ForegroundColor = ConsoleColor.Cyan;
