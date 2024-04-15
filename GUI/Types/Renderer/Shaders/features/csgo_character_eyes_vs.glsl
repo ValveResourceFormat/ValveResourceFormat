@@ -5,16 +5,16 @@
 
 #if defined(csgo_character_vfx) && (F_EYEBALLS == 1)
 // Left eye
-uniform vec3 g_vEyeLBindFwd;
-uniform vec3 g_vEyeLBindUp;
-uniform vec3 g_vEyeLBindPos;
+uniform vec4 g_vEyeLBindFwd;
+uniform vec4 g_vEyeLBindUp;
+uniform vec4 g_vEyeLBindPos;
 uniform int g_nEyeLBindIdx;
 uniform float g_flEyeBallWalleyeL1;
 
 // Right eye
-uniform vec3 g_vEyeRBindFwd;
-uniform vec3 g_vEyeRBindUp;
-uniform vec3 g_vEyeRBindPos;
+uniform vec4 g_vEyeRBindFwd;
+uniform vec4 g_vEyeRBindUp;
+uniform vec4 g_vEyeRBindPos;
 uniform int g_nEyeRBindIdx;
 uniform float g_flEyeBallWalleyeR1;
 
@@ -27,7 +27,7 @@ struct EyeData
 };
 
 // View target
-uniform vec3 g_vEyeTargetBindPos;
+uniform vec4 g_vEyeTargetBindPos;
 uniform int g_nEyeTargetBindIdx;
 
 out EyePixelInput eyeInterpolator;
@@ -53,15 +53,15 @@ mat3 rotationMatrix(vec3 axis, float angle)
 EyePixelInput GetCharacterEyeInterpolator(vec3 vPositionOs)
 {
     EyeData leftEyeOs;
-    leftEyeOs.Forward = g_vEyeLBindFwd;
-    leftEyeOs.Up = g_vEyeLBindUp;
-    leftEyeOs.Position = g_vEyeLBindPos;
+    leftEyeOs.Forward = g_vEyeLBindFwd.xyz;
+    leftEyeOs.Up = g_vEyeLBindUp.xyz;
+    leftEyeOs.Position = g_vEyeLBindPos.xyz;
     leftEyeOs.BoneIndex = g_nEyeLBindIdx;
 
     EyeData rightEyeOs;
-    rightEyeOs.Forward = g_vEyeRBindFwd;
-    rightEyeOs.Up = g_vEyeRBindUp;
-    rightEyeOs.Position = g_vEyeRBindPos;
+    rightEyeOs.Forward = g_vEyeRBindFwd.xyz;
+    rightEyeOs.Up = g_vEyeRBindUp.xyz;
+    rightEyeOs.Position = g_vEyeRBindPos.xyz;
     rightEyeOs.BoneIndex = g_nEyeRBindIdx;
 
     bool bIsRightEye = distance(vPositionOs, rightEyeOs.Position) < distance(vPositionOs, leftEyeOs.Position);
@@ -76,7 +76,7 @@ EyePixelInput GetCharacterEyeInterpolator(vec3 vPositionOs)
     currentEye.Up =         eyeRotationMatrix * currentEye.Up;
     currentEye.Position =   (eyeAnimationMatrix * vec4(currentEye.Position, 1.0)).xyz;
 
-    vec3 targetPosition = (getMatrix(g_nEyeTargetBindIdx) * vec4(g_vEyeTargetBindPos, 1.0)).xyz;
+    vec3 targetPosition = (getMatrix(g_nEyeTargetBindIdx) * vec4(g_vEyeTargetBindPos.xyz, 1.0)).xyz;
     vec3 viewDir = normalize(targetPosition - currentEye.Position);
 
     if (flExotropia != 0.0)

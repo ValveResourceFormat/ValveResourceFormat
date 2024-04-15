@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Linq;
 using System.Runtime.CompilerServices;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
@@ -212,22 +211,6 @@ namespace GUI.Types.Renderer
         {
             var transformTk = request.Transform.ToOpenTK();
             GL.ProgramUniformMatrix4(shader.Program, uniforms.Transform, false, ref transformTk);
-
-            if (request.Node is ModelSceneNode model && model.CharacterEyes.AreValid)
-            {
-                shader.SetUniform1("g_nEyeLBindIdx", model.CharacterEyes.LeftEyeBoneIndex);
-                shader.SetUniform3("g_vEyeLBindPos", model.CharacterEyes.LeftEyePosition);
-                shader.SetUniform3("g_vEyeLBindFwd", model.CharacterEyes.LeftEyeForwardVector);
-                shader.SetUniform3("g_vEyeLBindUp", model.CharacterEyes.LeftEyeUpVector);
-
-                shader.SetUniform1("g_nEyeRBindIdx", model.CharacterEyes.RightEyeBoneIndex);
-                shader.SetUniform3("g_vEyeRBindPos", model.CharacterEyes.RightEyePosition);
-                shader.SetUniform3("g_vEyeRBindFwd", model.CharacterEyes.RightEyeForwardVector);
-                shader.SetUniform3("g_vEyeRBindUp", model.CharacterEyes.RightEyeUpVector);
-
-                shader.SetUniform1("g_nEyeTargetBindIdx", model.CharacterEyes.TargetBoneIndex);
-                shader.SetUniform3("g_vEyeTargetBindPos", model.CharacterEyes.TargetPosition);
-            }
 
             if (uniforms.ObjectId != -1)
             {
