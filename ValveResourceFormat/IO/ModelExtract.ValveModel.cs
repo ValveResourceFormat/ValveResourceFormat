@@ -833,27 +833,28 @@ partial class ModelExtract
             }
 
             var genericDataClasses = new string[] {
-            "prop_data",
-            "character_arm_config",
-            "vr_carry_type",
-            "door_sounds",
-            "nav_data",
-            "npc_foot_sweep",
-            "ai_model_info",
-            "breakable_door_model",
-            "dynamic_interactions",
-            "explosion_behavior",
-            "eye_occlusion_renderer",
-            "fire_interactions",
-            "gastank_markup",
-            "hand_conform_data",
-            "handpose_data",
-            "physgun_interactions",
-            "weapon_metadata",
-            "glove_viewmodel_reference",
-            "composite_material_order",
-            "patch_camera_preset_list",
-        };
+                "prop_data",
+                "character_arm_config",
+                "vr_carry_type",
+                "door_sounds",
+                "nav_data",
+                "npc_foot_sweep",
+                "ai_model_info",
+                "breakable_door_model",
+                "dynamic_interactions",
+                "explosion_behavior",
+                "eye_occlusion_renderer",
+                "fire_interactions",
+                "gastank_markup",
+                "hand_conform_data",
+                "handpose_data",
+                "physgun_interactions",
+                "weapon_metadata",
+                "glove_viewmodel_reference",
+                "composite_material_order",
+                "patch_camera_preset_list",
+            };
+
             var genericDataClassesList = new (string ListKey, string Class)[] {
             ("ao_proxy_capsule_list", "ao_proxy_capsule"),
             ("ao_proxy_box_list", "ao_proxy_box"),
@@ -876,7 +877,10 @@ partial class ModelExtract
                 if (keyvalues.ContainsKey(genericDataClass))
                 {
                     var genericData = keyvalues.GetProperty<KVObject>(genericDataClass);
-                    AddGenericGameData(gameDataList.Value, genericDataClass, genericData);
+                    if (genericData != null)
+                    {
+                        AddGenericGameData(gameDataList.Value, genericDataClass, genericData);
+                    }
                 }
             }
 
