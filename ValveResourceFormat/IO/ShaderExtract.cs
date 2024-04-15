@@ -82,7 +82,9 @@ public sealed class ShaderExtract
     private Dictionary<string, IndentedTextWriter> IncludeWriters { get; set; }
 
     public ShaderExtract(Resource resource)
-        : this((SboxShader)resource.GetBlockByType(BlockType.DXBC))
+        : this((SboxShader)(resource.GetBlockByType(BlockType.SPRV)
+                         ?? resource.GetBlockByType(BlockType.DXBC)
+                         ?? resource.GetBlockByType(BlockType.DATA)))
     { }
 
     public ShaderExtract(SboxShader sboxShaderCollection)
