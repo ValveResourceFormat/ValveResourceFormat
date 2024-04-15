@@ -27,8 +27,6 @@ internal class CMapRootElement : DMElement
     public CMapVariableSet MapVariables { get; set; } = [];
     [DMProperty(name: "rootSelectionSet")]
     public CMapSelectionSet RootSelectionSet { get; set; } = [];
-    [DMProperty(name: "selectionSetData")]
-    public CObjectSelectionSetDataElement SelectionSetData { get; set; } = [];
     [DMProperty(name: "m_ReferencedMeshSnapshots")]
     public Datamodel.ElementArray ReferencedMeshSnapshots { get; } = [];
     [DMProperty(name: "m_bIsCordoning")]
@@ -170,12 +168,18 @@ internal class CMapSelectionSet : DMElement
     public Datamodel.ElementArray Children { get; } = [];
     public string SelectionSetName { get; set; } = string.Empty;
     public CObjectSelectionSetDataElement SelectionSetData { get; set; } = [];
+
+    public CMapSelectionSet() { }
+    public CMapSelectionSet(string name)
+    {
+        SelectionSetName = name;
+    }
 }
 
 [CamelCaseProperties]
 internal class CObjectSelectionSetDataElement : DMElement
 {
-    public Datamodel.ElementArray selectedObjects { get; } = [];
+    public Datamodel.ElementArray SelectedObjects { get; } = [];
 }
 
 [CamelCaseProperties]

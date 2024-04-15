@@ -10,7 +10,6 @@ using ValveResourceFormat.ResourceTypes.RubikonPhysics;
 using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Serialization.KeyValues;
 using ValveResourceFormat.Utils;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace ValveResourceFormat.IO;
 
@@ -42,16 +41,17 @@ public sealed class MapExtract
     private List<string> FolderExtractFilter { get; } = [];
     private List<string> SnapshotsToExtract { get; } = [];
 
-    private CMapSelectionSet S2VSelectionSet { get; } = new CMapSelectionSet { SelectionSetName = "Source2 Viewer" };
-    private CMapSelectionSet HammerMeshesSelectionSet { get; } = new CMapSelectionSet { SelectionSetName = "Hammer Meshes" };
-    private CMapSelectionSet HammerMeshesEntitiesSelectionSet { get; } = new CMapSelectionSet { SelectionSetName = "Reconstructed Hammer Mesh Entities" };
-    private CMapSelectionSet StaticPropsSelectionSet { get; } = new CMapSelectionSet { SelectionSetName = "Static Props" };
-    private CMapSelectionSet PhysicsHullsSelectionSet { get; } = new CMapSelectionSet { SelectionSetName = "Physics Hulls" };
-    private CMapSelectionSet HullEntitiesHullsSelectionSet { get; } = new CMapSelectionSet { SelectionSetName = "Reconstructed Physics Hull Entities" };
-    private CMapSelectionSet PhysicsMeshesSelectionSet { get; } = new CMapSelectionSet { SelectionSetName = "Physics Meshes" };
-    private CMapSelectionSet MeshEntitiesHullsSelectionSet { get; } = new CMapSelectionSet { SelectionSetName = "Reconstructed Physics Mesh Entities" };
-    private CMapSelectionSet OverlaysSelectionSet { get; } = new CMapSelectionSet { SelectionSetName = "Overlays" };
-    private CMapSelectionSet EntitiesSelectionSet { get; } = new CMapSelectionSet { SelectionSetName = "Entities" };
+    // Selection sets (for easy access)
+    private CMapSelectionSet S2VSelectionSet;
+    private CMapSelectionSet HammerMeshesSelectionSet;
+    private CMapSelectionSet HammerMesheEntitiesSelectionSet;
+    private CMapSelectionSet StaticPropsSelectionSet;
+    private CMapSelectionSet PhysicsHullsSelectionSet;
+    private CMapSelectionSet HullEntitiesHullsSelectionSet;
+    private CMapSelectionSet PhysicsMeshesSelectionSet;
+    private CMapSelectionSet MeshEntitiesHullsSelectionSet;
+    private CMapSelectionSet OverlaysSelectionSet;
+    private CMapSelectionSet EntitiesSelectionSet;
 
     private List<CMapWorldLayer> WorldLayers { get; set; }
     private Dictionary<int, MapNode> UniqueNodeIds { get; set; }
@@ -326,18 +326,7 @@ public sealed class MapExtract
         datamodel.PrefixAttributes.Add("map_asset_references", AssetReferences);
         datamodel.Root = MapDocument = [];
 
-        S2VSelectionSet.Children.Add(HammerMeshesSelectionSet);
-        HammerMeshesSelectionSet.Children.Add(HammerMeshesEntitiesSelectionSet);
-        S2VSelectionSet.Children.Add(StaticPropsSelectionSet);
-        S2VSelectionSet.Children.Add(PhysicsHullsSelectionSet);
-        S2VSelectionSet.Children.Add(PhysicsMeshesSelectionSet);
-        S2VSelectionSet.Children.Add(OverlaysSelectionSet);
-        S2VSelectionSet.Children.Add(EntitiesSelectionSet);
-
-        PhysicsHullsSelectionSet.Children.Add(HullEntitiesHullsSelectionSet);
-        PhysicsMeshesSelectionSet.Children.Add(MeshEntitiesHullsSelectionSet);
-
-        MapDocument.RootSelectionSet.Children.Add(S2VSelectionSet);
+        CreateSelectionSets(MapDocument.RootSelectionSet);
 
         WorldLayers = [];
         UniqueNodeIds = [];
@@ -396,6 +385,31 @@ public sealed class MapExtract
         return stream.ToArray();
     }
 
+    private void CreateSelectionSets(CMapSelectionSet root)
+    {
+        S2VSelectionSet = root.Children.AddReturn(new CMapSelectionSet("Source2 Viewer"));
+
+        HammerMeshesSelectionSet = S2VSelectionSet.Children.AddReturn(new CMapSelectionSet("Hammer Meshes"));
+        {
+            HammerMesheEntitiesSelectionSet = HammerMeshesSelectionSet.Children.AddReturn(new CMapSelectionSet("Reconstructed Hammer Mesh Entities"));
+        }
+
+        StaticPropsSelectionSet = S2VSelectionSet.Children.AddReturn(new CMapSelectionSet("Static Props"));
+
+        PhysicsHullsSelectionSet = S2VSelectionSet.Children.AddReturn(new CMapSelectionSet("Physics Hulls"));
+        {
+            HullEntitiesHullsSelectionSet = PhysicsHullsSelectionSet.Children.AddReturn(new CMapSelectionSet("Reconstructed Physics Hull Entities"));
+        }
+
+        PhysicsMeshesSelectionSet = S2VSelectionSet.Children.AddReturn(new CMapSelectionSet("Physics Meshes"));
+        {
+            MeshEntitiesHullsSelectionSet = PhysicsMeshesSelectionSet.Children.AddReturn(new CMapSelectionSet("Reconstructed Physics Mesh Entities"));
+        }
+
+        OverlaysSelectionSet = S2VSelectionSet.Children.AddReturn(new CMapSelectionSet("Overlays"));
+        EntitiesSelectionSet = S2VSelectionSet.Children.AddReturn(new CMapSelectionSet("Entities"));
+    }
+
     internal IEnumerable<CMapMesh> RenderMeshToHammerMesh(Model model, Resource resource, Vector3 offset = new Vector3(), string entityClassname = null)
     {
         var modelExtract = new ModelExtract(resource, FileLoader);
@@ -427,11 +441,11 @@ public sealed class MapExtract
 
                 if (!string.IsNullOrEmpty(entityClassname))
                 {
-                    hammerMeshEntitySelectionSet.SelectionSetData.selectedObjects.Add(hammerMesh);
+                    hammerMeshEntitySelectionSet.SelectionSetData.SelectedObjects.Add(hammerMesh);
                 }
                 else
                 {
-                    drawSelectionSet.SelectionSetData.selectedObjects.Add(hammerMesh);
+                    drawSelectionSet.SelectionSetData.SelectedObjects.Add(hammerMesh);
                 }
 
                 componentMeshCount++;
@@ -445,7 +459,7 @@ public sealed class MapExtract
 
         if (!string.IsNullOrEmpty(entityClassname))
         {
-            HammerMeshesEntitiesSelectionSet.Children.Add(hammerMeshEntitySelectionSet);
+            HammerMesheEntitiesSelectionSet.Children.Add(hammerMeshEntitySelectionSet);
         }
         else
         {
@@ -493,11 +507,11 @@ public sealed class MapExtract
 
                 if (string.IsNullOrEmpty(entityClassname))
                 {
-                    hullsSelectionSet.SelectionSetData.selectedObjects.Add(hammerMesh);
+                    hullsSelectionSet.SelectionSetData.SelectedObjects.Add(hammerMesh);
                 }
                 else
                 {
-                    hullsEntitySelectionSet.SelectionSetData.selectedObjects.Add(hammerMesh);
+                    hullsEntitySelectionSet.SelectionSetData.SelectedObjects.Add(hammerMesh);
                 }
 
                 yield return hammerMesh;
@@ -517,11 +531,11 @@ public sealed class MapExtract
 
                 if (string.IsNullOrEmpty(entityClassname))
                 {
-                    meshesSelectionSet.SelectionSetData.selectedObjects.Add(hammerMesh);
+                    meshesSelectionSet.SelectionSetData.SelectedObjects.Add(hammerMesh);
                 }
                 else
                 {
-                    meshesEntitySelectionSet.SelectionSetData.selectedObjects.Add(hammerMesh);
+                    meshesEntitySelectionSet.SelectionSetData.SelectedObjects.Add(hammerMesh);
                 }
 
                 yield return hammerMesh;
@@ -580,33 +594,23 @@ public sealed class MapExtract
             return MapDocument.World;
         }
 
-        void AddChildMaybeGrouped(MapNode node, MapNode child, string groupName)
+        void AddChildMaybeGrouped(MapNode node, MapNode child, string selectionSetName)
         {
-            // Only group if there is a group name
-            if (!string.IsNullOrEmpty(groupName))
+            node.Children.Add(child);
+
+            if (!string.IsNullOrEmpty(selectionSetName))
             {
-                CMapSelectionSet selectionSet = new CMapSelectionSet { SelectionSetName = groupName };
-                var selectionSetAlreadyExists = false;
+                var selectionSet = (CMapSelectionSet)S2VSelectionSet.Children
+                    .FirstOrDefault(set => ((CMapSelectionSet)set).SelectionSetName == selectionSetName);
 
-                foreach (CMapSelectionSet setChild in S2VSelectionSet.Children)
+                if (selectionSet is null)
                 {
-                    if (setChild.SelectionSetName == groupName)
-                    {
-                        selectionSet = (CMapSelectionSet)setChild;
-                        selectionSetAlreadyExists = true;
-                        break;
-                    }
-                }
-
-                if (!selectionSetAlreadyExists)
-                {
+                    selectionSet = new CMapSelectionSet { SelectionSetName = selectionSetName };
                     S2VSelectionSet.Children.Add(selectionSet);
                 }
 
-                MapDocument.World.Children.Add(child);
-                selectionSet.SelectionSetData.selectedObjects.Add(child);
+                selectionSet.SelectionSetData.SelectedObjects.Add(child);
             }
-            node.Children.Add(child);
         }
 
         void StaticPropFinalize(MapNode node, int layerIndex, List<MapNode> layerNodes, bool isBakedToWorld)
@@ -849,7 +853,7 @@ public sealed class MapExtract
                     mapMesh.TintColor = ConvertToColor32(new Vector4(tint, alpha));
 
                     MapDocument.World.Children.Add(mapMesh);
-                    drawSelectionSet.SelectionSetData.selectedObjects.Add(mapMesh);
+                    drawSelectionSet.SelectionSetData.SelectedObjects.Add(mapMesh);
                     continue;
                 }
 
@@ -874,11 +878,11 @@ public sealed class MapExtract
                     if (UseHammerInstances)
                     {
                         //if (drawGroup.Children.Count == 0)
-                        if (drawSelectionSet.SelectionSetData.selectedObjects.Count == 0)
+                        if (drawSelectionSet.SelectionSetData.SelectedObjects.Count == 0)
                         {
                             // The particular model instance that will repeat
                             MapDocument.World.Children.Add(instance);
-                            drawSelectionSet.SelectionSetData.selectedObjects.Add(instance);
+                            drawSelectionSet.SelectionSetData.SelectedObjects.Add(instance);
                         }
 
                         //instance = new CMapInstance() { Target = drawGroup };
@@ -888,7 +892,7 @@ public sealed class MapExtract
 
                     // Keep adding the same prop
                     MapDocument.World.Children.Add(instance);
-                    drawSelectionSet.SelectionSetData.selectedObjects.Add(instance);
+                    drawSelectionSet.SelectionSetData.SelectedObjects.Add(instance);
                     continue;
                 }
 
@@ -903,7 +907,7 @@ public sealed class MapExtract
                 SetTintAlpha(instance, new Vector4(tint, alpha));
 
                 MapDocument.World.Children.Add(instance);
-                drawSelectionSet.SelectionSetData.selectedObjects.Add(instance);
+                drawSelectionSet.SelectionSetData.SelectedObjects.Add(instance);
             }
         }
 
@@ -1045,7 +1049,7 @@ public sealed class MapExtract
 
                     if (i == entityLineage.Length - 1)
                     {
-                        selectionSet.SelectionSetData.selectedObjects.Add(mapEntity);
+                        selectionSet.SelectionSetData.SelectedObjects.Add(mapEntity);
                     }
                 };
             }
@@ -1326,5 +1330,14 @@ public sealed class MapExtract
         );
 
         return vGammaColor;
+    }
+}
+
+public static class ElementArrayExtensions
+{
+    public static T AddReturn<T>(this Datamodel.ElementArray array, T element) where T : Datamodel.Element
+    {
+        array.Add(element);
+        return element;
     }
 }
