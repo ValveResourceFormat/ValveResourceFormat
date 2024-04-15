@@ -107,7 +107,38 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>
-        /// Get precise texture inputs by querying the shader files. 
+        /// Removes switches that would point to a inexistent static combo.
+        /// </summary>
+        /// <param name="shaderFile">The file that contains the combos, and combo rules</param>
+        /// <returns></returns>
+        public static bool TryReduceStaticConfiguration(ShaderFile shaderFile, int[] staticConfiguration, out int[] reducedConfiguration)
+        {
+            reducedConfiguration = [.. staticConfiguration];
+
+            foreach (var constraint in shaderFile.SfConstraintBlocks)
+            {
+                // Allow only one of the statics
+                if (constraint.Rule == ConditionalRule.Allow)
+                {
+                    // Allow0 (disable this toggle)
+                    if (constraint.Range2[0] == 0 && staticConfiguration[constraint.Indices[0]] != 0)
+                    {
+                        reducedConfiguration[constraint.Indices[0]] = 0;
+                    }
+
+                    // Allow1 (cannot both be active)
+                    if (constraint.Range2[0] == 1 && staticConfiguration[constraint.Indices[0]] != 0 && staticConfiguration[constraint.Indices[1]] != 0)
+                    {
+                        reducedConfiguration[constraint.Indices[1]] = 0;
+                    }
+                }
+            }
+
+            return !reducedConfiguration.Equals(staticConfiguration);
+        }
+
+        /// <summary>
+        /// Get precise texture inputs by querying the shader files.
         /// </summary>
         private List<(Channel Channel, string Name)> GetInputsForTexture_Internal(string textureType, Material material)
         {
@@ -172,20 +203,31 @@ namespace ValveResourceFormat.IO
                         staticState.Add(forcedStatic.Key, forcedStatic.Value);
                     }
 
-                    var configured = GetStaticConfiguration_ForFeatureState(shader.Features, shaderFile, featureState, staticState);
-                    var zframeId = configured.ZFrameId;
+                    var staticConfig = GetStaticConfiguration_ForFeatureState(shader.Features, shaderFile, featureState, staticState).StaticConfig;
+
+                    var configGen = new ConfigMappingSParams(shaderFile);
+                    var zframeId = configGen.GetZframeId(staticConfig);
 
                     // It can happen that the shader feature rules don't match static rules, producing
                     // materials with bad feature configuration. That or the material data is just bad/incompatible.
                     if (!shaderFile.ZframesLookup.ContainsKey(zframeId))
                     {
-                        // Game code probably goes through the sfRules and switches off only some of the features.
-                        // But here we just fall back to first zframe (effectively switches all off).
-                        // TODO: the determined param will most likely be incorrect, fix this
-                        zframeId = 0;
+                        var reduced = TryReduceStaticConfiguration(shaderFile, staticConfig, out var reducedConfig);
+                        if (!reduced)
+                        {
+                            throw new NotImplementedException("Feature state points to a missing static combo, likely because constraint solver is not implemented.");
+                        }
+
+                        zframeId = configGen.GetZframeId(reducedConfig);
+                        if (!shaderFile.ZframesLookup.ContainsKey(zframeId))
+                        {
+                            throw new InvalidOperationException("Constraint solver failed to produce a valid static combo.");
+                        }
+
+                        staticConfig = reducedConfig;
                     }
 
-                    shaderFile.ZFrameCache.EnsureCapacity(configured.StaticConfig.Length);
+                    shaderFile.ZFrameCache.EnsureCapacity(staticConfig.Length);
 
                     var staticVariant = shaderFile.ZFrameCache.Get(zframeId);
 
@@ -429,7 +471,7 @@ namespace ValveResourceFormat.IO
         };
 
         /// <summary>
-        /// Get hardcoded texture inputs. If no mappings are found it will be a single *guessed* RGBA input. 
+        /// Get hardcoded texture inputs. If no mappings are found it will be a single *guessed* RGBA input.
         /// </summary>
         public IEnumerable<(Channel Channel, string Name)> GetInputsForTexture(string textureType, Material material)
         {
