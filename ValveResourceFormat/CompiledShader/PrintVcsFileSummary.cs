@@ -394,7 +394,7 @@ namespace ValveResourceFormat.CompiledShader
                     var dynExpstring = string.Empty;
                     var uiVisibilityString = string.Empty;
 
-                    if (param.Lead0.HasFlag(LeadFlags.DynamicExpression))
+                    if (param.Lead0.HasFlag(LeadFlags.Dynamic))
                     {
                         dynExpstring = param.Lead0.HasFlag(LeadFlags.DynMaterial)
                             ? "< shader id >"
