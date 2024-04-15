@@ -102,6 +102,7 @@ namespace GUI.Types.Renderer
                 || material.ShaderName == "vr_glass_markable.vfx"
                 || material.ShaderName == "csgo_glass.vfx"
                 || material.ShaderName == "csgo_effects.vfx"
+                || material.ShaderName == "csgo_decalmodulate.vfx"
                 || material.ShaderName == "tools_sprite.vfx";
             IsAlphaTest = material.IntParams.GetValueOrDefault("F_ALPHA_TEST") == 1;
             isAdditiveBlend = material.IntParams.GetValueOrDefault("F_ADDITIVE_BLEND") == 1;
@@ -121,6 +122,10 @@ namespace GUI.Types.Renderer
             if (material.ShaderName == "csgo_unlitgeneric.vfx")
             {
                 blendMode = (int)material.IntParams.GetValueOrDefault("F_BLEND_MODE");
+            }
+            else if (material.ShaderName == "csgo_decalmodulate.vfx")
+            {
+                blendMode = 3; // mod2x
             }
 
             if (blendMode > 0)
