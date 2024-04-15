@@ -47,10 +47,10 @@ uniform sampler2D g_tNormal1;
     uniform sampler2D g_tNormalDetail1;
 #endif
 
-#if (F_SECONDARY_AO == 1)
-    uniform sampler2D g_tSecondaryAO;
-    uniform vec4 g_vSecondaryAmbientOcclusionLevels = vec4(0, 0.5, 1, 0);
-#endif
+//#if (F_SECONDARY_AO == 1)
+//    uniform sampler2D g_tSecondaryAO;
+//    uniform vec4 g_vSecondaryAmbientOcclusionLevels = vec4(0, 0.5, 1, 0);
+//#endif
 
 uniform bool g_bMetalness1;
 uniform bool g_bModelTint1 = true;
@@ -327,10 +327,10 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
 
     //mat.AmbientOcclusion = LevelsAdjust(mat.AmbientOcclusion, aoLevels);
 
-    #if (F_SECONDARY_AO == 1)
-        float flSecondAO = texture(g_tSecondaryAO, vTexCoord.zw).r;
-        mat.AmbientOcclusion *= LevelsAdjust(flSecondAO, g_vSecondaryAmbientOcclusionLevels.xyz);
-    #endif
+    //#if (F_SECONDARY_AO == 1)
+    //    float flSecondAO = texture(g_tSecondaryAO, vTexCoord.zw).r;
+    //    mat.AmbientOcclusion *= LevelsAdjust(flSecondAO, g_vSecondaryAmbientOcclusionLevels.xyz);
+    //#endif
 
     // Normals and Roughness
     mat.NormalMap = DecodeNormal(normal);
