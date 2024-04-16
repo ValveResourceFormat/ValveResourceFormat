@@ -1409,13 +1409,17 @@ namespace ValveResourceFormat.IO
 
                 if (gltfPackedName == "BaseColor")
                 {
-                    material.Extras = JsonContent.CreateFrom(new Dictionary<string, object>
+                    // TODO: Do we actually need this extras? sharpgltf writes pbrMetallicRoughness.baseColorTexture for us
+                    material.Extras = new System.Text.Json.Nodes.JsonObject
                     {
-                        ["baseColorTexture"] = new Dictionary<string, object>
+                        {
+                            "baseColorTexture",
+                            new System.Text.Json.Nodes.JsonObject
                             {
-                                { "index", tex.PrimaryImage.LogicalIndex },
-                            },
-                    });
+                                { "index", System.Text.Json.Nodes.JsonValue.Create(tex.PrimaryImage.LogicalIndex) }
+                            }
+                        }
+                    };
                 }
                 else if (gltfPackedName == "MetallicRoughness")
                 {
