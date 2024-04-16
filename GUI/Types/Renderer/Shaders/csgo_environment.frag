@@ -67,7 +67,7 @@ uniform float g_fTintMaskContrast1 = 1.0;
 uniform int g_nVertexColorMode1 = 0;
 uniform vec4 g_vAmbientOcclusionLevels1 = vec4(0, 0.5, 1, 0);
 
-uniform float g_flHeightMapScale1 = 0;
+uniform float g_flHeightMapScale1 = 1.0;
 uniform float g_flHeightMapZeroPoint1 = 0;
 
 // Material 2
@@ -149,7 +149,6 @@ uniform float g_flHeightMapZeroPoint1 = 0;
     uniform float g_flAlphaTestReference = 0.5;
 #endif
 
-#define tinting_code_new
 uniform float g_flModelTintAmount = 1.0;
 
 #include "common/ViewConstants.glsl"
@@ -215,7 +214,6 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
         overlayFactor = max(vec3(0.0), _15235);
     #endif
 
-#if defined(tinting_code_new)
     vec3 tintColorNorm = normalize(max(vTintColor_ModelAmount.xyz, vec3(0.001)));
     float tintColorNormLuma = GetLuma(tintColorNorm);
 
@@ -234,14 +232,6 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
 
     vec3 tintFactor1 = mix(vec3(1.0), (g_vTextureColorTint1.rgb), tintMask1);
     color.rgb = tintResult * tintFactor1;
-#else
-    vec3 vTint = mix(vec3(1.0), SrgbLinearToGamma(vTintColor_ModelAmount.rgb), g_flModelTintAmount);
-
-    vec3 layerTint1 = mix(vec3(1.0), vTint, vec3(g_bModelTint1)) * (g_vTextureColorTint1.rgb);
-    vec3 tintFactor1 = mix(vec3(1.0), layerTint1, tintMask1);
-    color.rgb = mix(color.rgb, AdjustBrightnessContrastSaturation(color.rgb, g_fTextureColorBrightness1, g_fTextureColorContrast1, g_fTextureColorSaturation1), bvec3(g_nColorCorrectionMode1 == 1));
-    color.rgb *= tintFactor1;
-#endif
 
     #if (F_SHARED_COLOR_OVERLAY == 1)
         // 0=Both, 1=Layer 1
@@ -267,7 +257,6 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
     normal2.rg = (normal2.rg - 0.5) * g_fTextureNormalContrast2 + 0.5;
     normal2.b = saturate(((normal2.b - 0.5) * g_fTextureRoughnessContrast2 + 0.5) * g_fTextureRoughnessBrightness2);
 
-#if defined(tinting_code_new)
     vec3 adjust2 = AdjustBrightnessContrastSaturation(color2.rgb, g_fTextureColorBrightness2, g_fTextureColorContrast2, g_fTextureColorSaturation2);
     vec3 color2MaybeAdjusted = mix(color2.rgb, adjust2, bvec3(g_nColorCorrectionMode2 == 1));
 
@@ -281,12 +270,6 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
 
     vec3 tintFactor2 = mix(vec3(1.0), (g_vTextureColorTint2.rgb), tintMask2);
     color2.rgb = tintResult2 * tintFactor2;
-#else
-    vec3 layerTint2 = mix(vec3(1.0), vTint, vec3(g_bModelTint2)) * (g_vTextureColorTint2.rgb);
-    vec3 tintFactor2 = mix(vec3(1.0), layerTint2, tintMask2);
-    color2.rgb = mix(color2.rgb, AdjustBrightnessContrastSaturation(color2.rgb, g_fTextureColorBrightness2, g_fTextureColorContrast2, g_fTextureColorSaturation2), bvec3(g_nColorCorrectionMode2 == 1));
-    color2.rgb *= tintFactor2;
-#endif
 
     #if (F_SHARED_COLOR_OVERLAY == 1)
         // 0=Both, 2=Layer 2
