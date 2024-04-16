@@ -167,11 +167,11 @@ uniform sampler2D g_tTintMask;
 #define translucent (F_TRANSLUCENT == 1) || (F_GLASS == 1) || (F_BLEND_MODE > 0 && F_BLEND_MODE != 2) || defined(glass_vfx_common) || defined(csgo_decalmodulate_vfx) || ((defined(csgo_unlitgeneric_vfx) || defined(static_overlay_vfx_common)) && (F_BLEND_MODE == 1)) // need to set this up on the cpu side
 #define blendMod2x (F_BLEND_MODE == 3) || defined(csgo_decalmodulate_vfx)
 
-#if (alphatest == 1)
+#if (alphatest)
     uniform float g_flAlphaTestReference = 0.5;
 #endif
 
-#if (translucent == 1)
+#if (translucent)
     uniform float g_flOpacityScale = 1.0;
 #endif
 
@@ -358,7 +358,7 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
         mat.SSSMask = combinedMasks.a;
     #endif
 
-    #if (translucent == 1) || (alphatest == 1)
+    #if (translucent) || (alphatest)
         mat.Opacity = combinedMasks.a;
     #endif
 #endif
@@ -371,7 +371,7 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 
     mat.Albedo = color.rgb;
 
-#if (translucent == 1) || (alphatest == 1)
+#if (translucent) || (alphatest)
     mat.Opacity = color.a;
 #endif
 
@@ -381,15 +381,18 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 #endif
 
 
-#if (translucent == 1)
+#if (translucent)
     mat.Opacity *= g_flOpacityScale;
 #endif
 
     // Alpha test
-#if (alphatest == 1)
+#if (alphatest)
     mat.Opacity = AlphaTestAntiAliasing(mat.Opacity, texCoord);
 
-    if (mat.Opacity - 0.001 < g_flAlphaTestReference)   discard;
+    if (mat.Opacity - 0.001 < g_flAlphaTestReference)
+    {
+        discard;
+    }
 #endif
 
     // Tinting
@@ -576,7 +579,7 @@ void main()
 
     LightingTerms_t lighting = InitLighting();
 
-#if (unlit == 1)
+#if (unlit)
     outputColor.rgb = mat.Albedo;
 #else
     CalculateDirectLighting(lighting, mat);
@@ -616,7 +619,7 @@ void main()
     outputColor.rgb = SrgbLinearToGamma(outputColor.rgb);
 #endif
 
-#if blendMod2x == 1
+#if (blendMod2x)
     outputColor = vec4(mix(vec3(0.5), outputColor.rgb, vec3(outputColor.a)), outputColor.a);
 #endif
 
@@ -645,11 +648,11 @@ void main()
     outputColor = vec4(PackToColor(mat.Normal), 1.0);
 #endif
 
-#if (renderMode_Diffuse == 1) && (unlit != 1)
+#if (renderMode_Diffuse == 1) && !(unlit)
     outputColor.rgb = SrgbLinearToGamma(diffuseLighting * 0.5);
 #endif
 
-#if (renderMode_Specular == 1) && (unlit != 1)
+#if (renderMode_Specular == 1) && !(unlit)
     outputColor.rgb = SrgbLinearToGamma(specularLighting);
 #endif
 
