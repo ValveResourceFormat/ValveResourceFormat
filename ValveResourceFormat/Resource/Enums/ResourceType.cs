@@ -146,7 +146,10 @@ namespace ValveResourceFormat
         DotaHeroList,
 
         [Extension("vdpn")]
-        DotaPatchnotes,
+        DotaPatchNotes,
+
+        [Extension("vdvn")]
+        DotaVisualNovels,
 
         [Extension("sbox")] // TODO: Managed resources can have any extension
         SboxManagedResource,

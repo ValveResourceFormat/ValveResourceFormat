@@ -594,6 +594,10 @@ namespace ValveResourceFormat
                     return ResourceType.SmartProp;
                 case "DotaHeroList":
                     return ResourceType.DotaHeroList;
+                case "DotaPatchNotes":
+                    return ResourceType.DotaPatchNotes;
+                case "DotaVisualNovels":
+                    return ResourceType.DotaVisualNovels;
                 case "SBData":
                 case "ManagedResourceCompiler": // This is without the "Compile" prefix
                     return ResourceType.SboxManagedResource;
