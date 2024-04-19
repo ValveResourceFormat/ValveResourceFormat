@@ -67,6 +67,7 @@ namespace GUI.Controls
             mainTreeView.Location = new System.Drawing.Point(0, 0);
             mainTreeView.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             mainTreeView.Name = "mainTreeView";
+            mainTreeView.ShowLines = false;
             mainTreeView.Size = new System.Drawing.Size(400, 400);
             mainTreeView.TabIndex = 0;
             mainTreeView.VrfGuiContext = null;

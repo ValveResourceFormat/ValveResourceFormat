@@ -12,5 +12,17 @@ namespace GUI.Utils
         {
             DoubleBuffered = true;
         }
+
+        protected override void OnHandleCreated(EventArgs e)
+        {
+            base.OnHandleCreated(e);
+
+            if (DesignMode || Environment.OSVersion.Platform != PlatformID.Win32NT)
+            {
+                return;
+            }
+
+            _ = NativeMethods.SetWindowTheme(Handle, "explorer", null);
+        }
     }
 }

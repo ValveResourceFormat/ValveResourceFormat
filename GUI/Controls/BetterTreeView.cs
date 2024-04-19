@@ -17,7 +17,7 @@ namespace GUI.Controls
     /// <summary>
     /// Represents a TreeView with the ability to have its contents searched.
     /// </summary>
-    partial class BetterTreeView : TreeView
+    partial class BetterTreeView : TreeViewDoubleBuffered
     {
         private Dictionary<string, int> ExtensionIconList;
         private int FolderImage;
