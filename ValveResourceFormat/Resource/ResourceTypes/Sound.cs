@@ -2,6 +2,8 @@ using System.Globalization;
 using System.IO;
 using System.Text;
 using ValveResourceFormat.Blocks;
+using ValveResourceFormat.Serialization;
+using ValveResourceFormat.Serialization.KeyValues;
 using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.ResourceTypes
@@ -116,36 +118,7 @@ namespace ValveResourceFormat.ResourceTypes
                 var soundFormat = (AudioFormatV4)reader.ReadByte();
                 Channels = reader.ReadByte();
 
-                switch (soundFormat)
-                {
-                    case AudioFormatV4.PCM8:
-                        SoundType = AudioFileType.WAV;
-                        Bits = 8;
-                        SampleSize = 1;
-                        AudioFormat = WaveAudioFormat.PCM;
-                        break;
-
-                    case AudioFormatV4.PCM16:
-                        SoundType = AudioFileType.WAV;
-                        Bits = 16;
-                        SampleSize = 2;
-                        AudioFormat = WaveAudioFormat.PCM;
-                        break;
-
-                    case AudioFormatV4.MP3:
-                        SoundType = AudioFileType.MP3;
-                        break;
-
-                    case AudioFormatV4.ADPCM:
-                        SoundType = AudioFileType.WAV;
-                        Bits = 4;
-                        SampleSize = 1;
-                        AudioFormat = WaveAudioFormat.ADPCM;
-                        throw new NotImplementedException("ADPCM is currently not implemented correctly.");
-
-                    default:
-                        throw new UnexpectedMagicException("Unexpected audio type", (int)soundFormat, nameof(soundFormat));
-                }
+                SetSoundFormatBits(soundFormat);
             }
             else
             {
@@ -213,6 +186,75 @@ namespace ValveResourceFormat.ResourceTypes
             }
 
             ReadPhonemeStream(reader, sentenceOffset);
+        }
+
+        public void ConstructFromCtrl(BinaryReader reader, Resource resource)
+        {
+            Reader = reader;
+            Offset = resource.FileSize;
+
+            var obj = (BinaryKV3)resource.GetBlockByType(BlockType.CTRL);
+            var soundClass = obj.Data.GetStringProperty("_class");
+
+            if (soundClass != "CVoiceContainerDefault")
+            {
+                throw new InvalidDataException($"Unsupported sound file: {soundClass}");
+            }
+
+            var sound = obj.Data.GetSubCollection("m_vSound");
+
+            switch (sound.GetStringProperty("m_nFormat"))
+            {
+                case "MP3": SetSoundFormatBits(AudioFormatV4.MP3); break;
+                case "PCM16": SetSoundFormatBits(AudioFormatV4.PCM16); break;
+
+                default:
+                    throw new UnexpectedMagicException("Unexpected audio format", sound.GetStringProperty("m_nFormat"), "m_nFormat");
+            }
+
+            SampleRate = sound.GetUInt32Property("m_nRate");
+            SampleCount = sound.GetUInt32Property("m_nSampleCount");
+            Channels = sound.GetByteProperty("m_nChannels");
+            LoopStart = sound.GetInt32Property("m_nLoopStart");
+            LoopEnd = sound.GetInt32Property("m_nLoopEnd");
+            Duration = sound.GetFloatProperty("m_flDuration");
+            StreamingDataSize = sound.GetUInt32Property("m_nStreamingSize");
+
+            // TODO: m_Sentences
+        }
+
+        private void SetSoundFormatBits(AudioFormatV4 soundFormat)
+        {
+            switch (soundFormat)
+            {
+                case AudioFormatV4.PCM8:
+                    SoundType = AudioFileType.WAV;
+                    Bits = 8;
+                    SampleSize = 1;
+                    AudioFormat = WaveAudioFormat.PCM;
+                    break;
+
+                case AudioFormatV4.PCM16:
+                    SoundType = AudioFileType.WAV;
+                    Bits = 16;
+                    SampleSize = 2;
+                    AudioFormat = WaveAudioFormat.PCM;
+                    break;
+
+                case AudioFormatV4.MP3:
+                    SoundType = AudioFileType.MP3;
+                    break;
+
+                case AudioFormatV4.ADPCM:
+                    SoundType = AudioFileType.WAV;
+                    Bits = 4;
+                    SampleSize = 1;
+                    AudioFormat = WaveAudioFormat.ADPCM;
+                    throw new NotImplementedException("ADPCM is currently not implemented correctly.");
+
+                default:
+                    throw new UnexpectedMagicException("Unexpected audio type", (int)soundFormat, nameof(soundFormat));
+            }
         }
 
         private void ReadPhonemeStream(BinaryReader reader, long sentenceOffset)

@@ -324,6 +324,13 @@ namespace ValveResourceFormat
                 }
             }
 
+            if (ResourceType == ResourceType.Sound && ContainsBlockType(BlockType.CTRL)) // Version >= 5, but other ctrl-type sounds have version 0
+            {
+                var block = new Sound();
+                block.ConstructFromCtrl(Reader, this);
+                Blocks.Add(block);
+            }
+
             var fullFileSize = FullFileSize;
 
             if (verifyFileSize && Reader.BaseStream.Length != fullFileSize)
