@@ -180,6 +180,7 @@ namespace GUI.Controls
                 SelectedImageIndex = vpkImage,
             };
             control.Nodes.Add(root);
+            root.Expand();
 
             control.TreeViewNodeSorter = new TreeViewFileSorter();
 
@@ -200,7 +201,6 @@ namespace GUI.Controls
                 node.Expand();
             }
 
-            root.Expand();
             control.EndUpdate();
         }
 
