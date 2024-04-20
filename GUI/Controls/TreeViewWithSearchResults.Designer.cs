@@ -33,11 +33,13 @@ namespace GUI.Controls
         {
             mainSplitContainer = new System.Windows.Forms.SplitContainer();
             mainTreeView = new BetterTreeView();
+            rightPanel = new System.Windows.Forms.Panel();
             mainListView = new BetterListView();
             ((System.ComponentModel.ISupportInitialize)mainSplitContainer).BeginInit();
             mainSplitContainer.Panel1.SuspendLayout();
             mainSplitContainer.Panel2.SuspendLayout();
             mainSplitContainer.SuspendLayout();
+            rightPanel.SuspendLayout();
             SuspendLayout();
             // 
             // mainSplitContainer
@@ -54,7 +56,7 @@ namespace GUI.Controls
             // 
             // mainSplitContainer.Panel2
             // 
-            mainSplitContainer.Panel2.Controls.Add(mainListView);
+            mainSplitContainer.Panel2.Controls.Add(rightPanel);
             mainSplitContainer.Size = new System.Drawing.Size(800, 400);
             mainSplitContainer.SplitterDistance = 400;
             mainSplitContainer.SplitterWidth = 5;
@@ -71,6 +73,15 @@ namespace GUI.Controls
             mainTreeView.Size = new System.Drawing.Size(400, 400);
             mainTreeView.TabIndex = 0;
             mainTreeView.VrfGuiContext = null;
+            // 
+            // rightPanel
+            // 
+            rightPanel.Controls.Add(mainListView);
+            rightPanel.Dock = System.Windows.Forms.DockStyle.Fill;
+            rightPanel.Location = new System.Drawing.Point(0, 0);
+            rightPanel.Name = "rightPanel";
+            rightPanel.Size = new System.Drawing.Size(395, 400);
+            rightPanel.TabIndex = 0;
             // 
             // mainListView
             // 
@@ -97,6 +108,7 @@ namespace GUI.Controls
             mainSplitContainer.Panel2.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)mainSplitContainer).EndInit();
             mainSplitContainer.ResumeLayout(false);
+            rightPanel.ResumeLayout(false);
             ResumeLayout(false);
         }
 
@@ -105,5 +117,6 @@ namespace GUI.Controls
         private System.Windows.Forms.SplitContainer mainSplitContainer;
         private BetterListView mainListView;
         public BetterTreeView mainTreeView;
+        private System.Windows.Forms.Panel rightPanel;
     }
 }

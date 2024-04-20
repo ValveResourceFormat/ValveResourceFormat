@@ -21,6 +21,7 @@ namespace GUI.Controls
 
         public event EventHandler<PackageEntry> OpenPackageEntry;
         public event EventHandler<PackageContextMenuEventArgs> OpenContextMenu;
+        public event EventHandler<PackageEntry> PreviewFile;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="TreeViewWithSearchResults"/> class.
@@ -89,12 +90,30 @@ namespace GUI.Controls
 
         private void MainTreeView_AfterSelect(object sender, TreeViewEventArgs e)
         {
+            if (e.Action == TreeViewAction.Unknown)
+            {
+                return;
+            }
+
             var realNode = (BetterTreeNode)e.Node;
 
             // if user selected a folder, show the contents of that folder in the list view
-            if (e.Action != TreeViewAction.Unknown && realNode.IsFolder)
+            if (realNode.IsFolder)
             {
+                foreach (Control old in rightPanel.Controls)
+                {
+                    if (old != mainListView)
+                    {
+                        old.Dispose();
+                    }
+                }
+
                 MainListView_DisplayNodes(realNode.PkgNode);
+                mainListView.Visible = true;
+            }
+            else
+            {
+                PreviewFile?.Invoke(sender, realNode.PackageEntry);
             }
         }
 
@@ -714,6 +733,30 @@ namespace GUI.Controls
             item.SubItems.Add(file.TypeName);
 
             mainListView.Items.Add(item);
+        }
+
+        public void ReplaceListViewWithControl(TabPage tab)
+        {
+            mainListView.Visible = false;
+
+            var tabs = new TabControl
+            {
+                ImageList = MainForm.ImageList,
+                Dock = DockStyle.Fill
+            };
+            tabs.Controls.Add(tab);
+
+            rightPanel.Controls.Add(tabs);
+
+            foreach (Control old in rightPanel.Controls)
+            {
+                if (old == tabs || old == mainListView) // TODO: dumb
+                {
+                    continue;
+                }
+
+                old.Dispose();
+            }
         }
     }
 }

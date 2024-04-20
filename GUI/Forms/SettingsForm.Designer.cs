@@ -48,6 +48,12 @@ namespace GUI.Forms
             groupBox2 = new System.Windows.Forms.GroupBox();
             tableLayoutPanel2 = new System.Windows.Forms.TableLayoutPanel();
             groupBox3 = new System.Windows.Forms.GroupBox();
+            groupBox4 = new System.Windows.Forms.GroupBox();
+            tableLayoutPanel3 = new System.Windows.Forms.TableLayoutPanel();
+            quickPreviewLabel = new System.Windows.Forms.Label();
+            quickPreviewSoundsLabel = new System.Windows.Forms.Label();
+            quickPreviewCheckbox = new System.Windows.Forms.CheckBox();
+            quickPreviewSoundsCheckbox = new System.Windows.Forms.CheckBox();
             ((System.ComponentModel.ISupportInitialize)maxTextureSizeInput).BeginInit();
             ((System.ComponentModel.ISupportInitialize)fovInput).BeginInit();
             groupBox1.SuspendLayout();
@@ -55,6 +61,8 @@ namespace GUI.Forms
             groupBox2.SuspendLayout();
             tableLayoutPanel2.SuspendLayout();
             groupBox3.SuspendLayout();
+            groupBox4.SuspendLayout();
+            tableLayoutPanel3.SuspendLayout();
             SuspendLayout();
             // 
             // gamePaths
@@ -300,7 +308,7 @@ namespace GUI.Forms
             // 
             groupBox3.Controls.Add(registerAssociationButton);
             groupBox3.Dock = System.Windows.Forms.DockStyle.Top;
-            groupBox3.Location = new System.Drawing.Point(16, 461);
+            groupBox3.Location = new System.Drawing.Point(16, 599);
             groupBox3.Margin = new System.Windows.Forms.Padding(0);
             groupBox3.Name = "groupBox3";
             groupBox3.Padding = new System.Windows.Forms.Padding(16);
@@ -309,13 +317,88 @@ namespace GUI.Forms
             groupBox3.TabStop = false;
             groupBox3.Text = "Windows explorer";
             // 
+            // groupBox4
+            // 
+            groupBox4.Controls.Add(tableLayoutPanel3);
+            groupBox4.Dock = System.Windows.Forms.DockStyle.Top;
+            groupBox4.Location = new System.Drawing.Point(16, 461);
+            groupBox4.Name = "groupBox4";
+            groupBox4.Padding = new System.Windows.Forms.Padding(16);
+            groupBox4.Size = new System.Drawing.Size(452, 138);
+            groupBox4.TabIndex = 4;
+            groupBox4.TabStop = false;
+            groupBox4.Text = "Quick file preview";
+            // 
+            // tableLayoutPanel3
+            // 
+            tableLayoutPanel3.ColumnCount = 2;
+            tableLayoutPanel3.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle());
+            tableLayoutPanel3.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle());
+            tableLayoutPanel3.Controls.Add(quickPreviewLabel, 0, 0);
+            tableLayoutPanel3.Controls.Add(quickPreviewSoundsLabel, 0, 1);
+            tableLayoutPanel3.Controls.Add(quickPreviewCheckbox, 1, 0);
+            tableLayoutPanel3.Controls.Add(quickPreviewSoundsCheckbox, 1, 1);
+            tableLayoutPanel3.Dock = System.Windows.Forms.DockStyle.Fill;
+            tableLayoutPanel3.Location = new System.Drawing.Point(16, 32);
+            tableLayoutPanel3.Name = "tableLayoutPanel3";
+            tableLayoutPanel3.RowCount = 4;
+            tableLayoutPanel3.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 40F));
+            tableLayoutPanel3.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 40F));
+            tableLayoutPanel3.RowStyles.Add(new System.Windows.Forms.RowStyle());
+            tableLayoutPanel3.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 20F));
+            tableLayoutPanel3.Size = new System.Drawing.Size(420, 90);
+            tableLayoutPanel3.TabIndex = 0;
+            // 
+            // quickPreviewLabel
+            // 
+            quickPreviewLabel.Anchor = System.Windows.Forms.AnchorStyles.Left;
+            quickPreviewLabel.AutoSize = true;
+            quickPreviewLabel.Location = new System.Drawing.Point(3, 12);
+            quickPreviewLabel.Name = "quickPreviewLabel";
+            quickPreviewLabel.Size = new System.Drawing.Size(152, 15);
+            quickPreviewLabel.TabIndex = 0;
+            quickPreviewLabel.Text = "Preview files after selecting:";
+            // 
+            // quickPreviewSoundsLabel
+            // 
+            quickPreviewSoundsLabel.Anchor = System.Windows.Forms.AnchorStyles.Left;
+            quickPreviewSoundsLabel.AutoSize = true;
+            quickPreviewSoundsLabel.Location = new System.Drawing.Point(3, 52);
+            quickPreviewSoundsLabel.Name = "quickPreviewSoundsLabel";
+            quickPreviewSoundsLabel.Size = new System.Drawing.Size(102, 15);
+            quickPreviewSoundsLabel.TabIndex = 1;
+            quickPreviewSoundsLabel.Text = "Auto play sounds:";
+            // 
+            // quickPreviewCheckbox
+            // 
+            quickPreviewCheckbox.AutoSize = true;
+            quickPreviewCheckbox.Dock = System.Windows.Forms.DockStyle.Fill;
+            quickPreviewCheckbox.Location = new System.Drawing.Point(161, 3);
+            quickPreviewCheckbox.Name = "quickPreviewCheckbox";
+            quickPreviewCheckbox.Size = new System.Drawing.Size(256, 34);
+            quickPreviewCheckbox.TabIndex = 2;
+            quickPreviewCheckbox.UseVisualStyleBackColor = true;
+            quickPreviewCheckbox.CheckedChanged += OnQuickPreviewCheckboxChanged;
+            // 
+            // quickPreviewSoundsCheckbox
+            // 
+            quickPreviewSoundsCheckbox.AutoSize = true;
+            quickPreviewSoundsCheckbox.Dock = System.Windows.Forms.DockStyle.Fill;
+            quickPreviewSoundsCheckbox.Location = new System.Drawing.Point(161, 43);
+            quickPreviewSoundsCheckbox.Name = "quickPreviewSoundsCheckbox";
+            quickPreviewSoundsCheckbox.Size = new System.Drawing.Size(256, 34);
+            quickPreviewSoundsCheckbox.TabIndex = 3;
+            quickPreviewSoundsCheckbox.UseVisualStyleBackColor = true;
+            quickPreviewSoundsCheckbox.CheckedChanged += OnQuickPreviewSoundsCheckboxChanged;
+            // 
             // SettingsForm
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             AutoScroll = true;
-            ClientSize = new System.Drawing.Size(484, 561);
+            ClientSize = new System.Drawing.Size(484, 698);
             Controls.Add(groupBox3);
+            Controls.Add(groupBox4);
             Controls.Add(groupBox2);
             Controls.Add(groupBox1);
             Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
@@ -335,6 +418,9 @@ namespace GUI.Forms
             tableLayoutPanel2.ResumeLayout(false);
             tableLayoutPanel2.PerformLayout();
             groupBox3.ResumeLayout(false);
+            groupBox4.ResumeLayout(false);
+            tableLayoutPanel3.ResumeLayout(false);
+            tableLayoutPanel3.PerformLayout();
             ResumeLayout(false);
         }
 
@@ -360,5 +446,11 @@ namespace GUI.Forms
         private System.Windows.Forms.GroupBox groupBox2;
         private System.Windows.Forms.TableLayoutPanel tableLayoutPanel2;
         private System.Windows.Forms.GroupBox groupBox3;
+        private System.Windows.Forms.GroupBox groupBox4;
+        private System.Windows.Forms.TableLayoutPanel tableLayoutPanel3;
+        private System.Windows.Forms.Label quickPreviewLabel;
+        private System.Windows.Forms.Label quickPreviewSoundsLabel;
+        private System.Windows.Forms.CheckBox quickPreviewCheckbox;
+        private System.Windows.Forms.CheckBox quickPreviewSoundsCheckbox;
     }
 }

@@ -23,7 +23,9 @@ namespace GUI.Controls
             volumeSlider1.Volume = Settings.Config.Volume;
         }
 
-        private void OnButtonPlayClick(object sender, EventArgs e)
+        private void OnButtonPlayClick(object sender, EventArgs e) => Play();
+
+        public void Play()
         {
             if (waveOut == null)
             {

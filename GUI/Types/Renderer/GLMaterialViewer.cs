@@ -153,6 +153,11 @@ namespace GUI.Types.Renderer
 
         private void AddShaderButton()
         {
+            if (Tabs == null)
+            {
+                return; // Will be null when previewing a file
+            }
+
             var button = new Button
             {
                 Text = "Open shader zframe",

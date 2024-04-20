@@ -34,6 +34,10 @@ namespace GUI.Forms
             vsyncCheckBox.Checked = Settings.Config.Vsync != 0;
             displayFpsCheckBox.Checked = Settings.Config.DisplayFps != 0;
 
+            var quickPreviewFlags = (Settings.QuickPreviewFlags)Settings.Config.QuickFilePreview;
+            quickPreviewCheckbox.Checked = (quickPreviewFlags & Settings.QuickPreviewFlags.Enabled) != 0;
+            quickPreviewSoundsCheckbox.Checked = (quickPreviewFlags & Settings.QuickPreviewFlags.AutoPlaySounds) != 0;
+
             var strings = new string[AntiAliasingSampleOptions.Length];
             var selectedSamples = -1;
 
@@ -142,6 +146,26 @@ namespace GUI.Forms
         private void OnDisplayFpsValueChanged(object sender, EventArgs e)
         {
             Settings.Config.DisplayFps = displayFpsCheckBox.Checked ? 1 : 0;
+        }
+
+        private void OnQuickPreviewCheckboxChanged(object sender, EventArgs e) => SetQuickPreviewSetting();
+        private void OnQuickPreviewSoundsCheckboxChanged(object sender, EventArgs e) => SetQuickPreviewSetting();
+
+        private void SetQuickPreviewSetting()
+        {
+            Settings.QuickPreviewFlags value = 0;
+
+            if (quickPreviewCheckbox.Checked)
+            {
+                value |= Settings.QuickPreviewFlags.Enabled;
+            }
+
+            if (quickPreviewSoundsCheckbox.Checked)
+            {
+                value |= Settings.QuickPreviewFlags.AutoPlaySounds;
+            }
+
+            Settings.Config.QuickFilePreview = (int)value;
         }
 
         private void OnRegisterAssociationButtonClick(object sender, EventArgs e) => RegisterFileAssociation();

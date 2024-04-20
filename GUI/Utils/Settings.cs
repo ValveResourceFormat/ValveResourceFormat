@@ -9,8 +9,15 @@ namespace GUI.Utils
 {
     static class Settings
     {
-        private const int SettingsFileCurrentVersion = 6;
+        private const int SettingsFileCurrentVersion = 7;
         private const int RecentFilesLimit = 20;
+
+        [Flags]
+        public enum QuickPreviewFlags : int
+        {
+            Enabled = 1 << 0,
+            AutoPlaySounds = 1 << 1,
+        }
 
         public class AppConfig
         {
@@ -31,6 +38,7 @@ namespace GUI.Utils
             public float Volume { get; set; }
             public int Vsync { get; set; }
             public int DisplayFps { get; set; }
+            public int QuickFilePreview { get; set; }
             public int _VERSION_DO_NOT_MODIFY { get; set; }
         }
 

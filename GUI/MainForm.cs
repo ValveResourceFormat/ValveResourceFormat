@@ -388,14 +388,7 @@ namespace GUI
             }
 
             mainTabs.TabPages.Remove(tab);
-            var oldTag = tab.Tag;
-            tab.Tag = null;
             tab.Dispose();
-
-            if (oldTag is ExportData exportData)
-            {
-                exportData.VrfGuiContext.Dispose();
-            }
         }
 
         private void CloseAllTabs()
@@ -529,8 +522,9 @@ namespace GUI
             Settings.TrackRecentFile(fileName);
         }
 
-        public Task<TabPage> OpenFile(VrfGuiContext vrfGuiContext, PackageEntry file)
+        public Task<TabPage> OpenFile(VrfGuiContext vrfGuiContext, PackageEntry file, TreeViewWithSearchResults packageTreeView = null)
         {
+            var isPreview = packageTreeView != null;
             var tabTemp = new TabPage(Path.GetFileName(vrfGuiContext.FileName))
             {
                 ToolTipText = vrfGuiContext.FileName,
@@ -541,6 +535,20 @@ namespace GUI
                 }
             };
             var tab = tabTemp;
+            tab.Disposed += OnTabDisposed;
+
+            void OnTabDisposed(object sender, EventArgs e)
+            {
+                tab.Disposed -= OnTabDisposed;
+
+                var oldTag = tab.Tag;
+                tab.Tag = null;
+
+                if (oldTag is ExportData exportData)
+                {
+                    exportData.VrfGuiContext.Dispose();
+                }
+            }
 
             try
             {
@@ -563,7 +571,12 @@ namespace GUI
                 tab.ImageIndex = GetImageIndexForExtension(extension);
 
                 mainTabs.TabPages.Insert(mainTabs.SelectedIndex + 1, tab);
-                mainTabs.SelectTab(tab);
+
+                if (!isPreview)
+                {
+                    mainTabs.SelectTab(tab);
+                }
+
                 tabTemp = null;
             }
             finally
@@ -574,7 +587,7 @@ namespace GUI
             var loadingFile = new LoadingFile();
             tab.Controls.Add(loadingFile);
 
-            var task = Task.Factory.StartNew(() => ProcessFile(vrfGuiContext, file));
+            var task = Task.Factory.StartNew(() => ProcessFile(vrfGuiContext, file, isPreview));
 
             task.ContinueWith(
                 t =>
@@ -630,6 +643,11 @@ namespace GUI
                     tab.BeginInvoke(() =>
                     {
                         loadingFile.Dispose();
+
+                        if (isPreview)
+                        {
+                            packageTreeView.ReplaceListViewWithControl(tab);
+                        }
                     });
                 },
                 CancellationToken.None,
@@ -639,7 +657,7 @@ namespace GUI
             return task;
         }
 
-        private static TabPage ProcessFile(VrfGuiContext vrfGuiContext, PackageEntry entry)
+        private static TabPage ProcessFile(VrfGuiContext vrfGuiContext, PackageEntry entry, bool isPreview)
         {
             Stream stream = null;
             Span<byte> magicData = stackalloc byte[6];
@@ -702,7 +720,7 @@ namespace GUI
             }
             else if (Types.Viewers.Resource.IsAccepted(magicResourceVersion))
             {
-                return new Types.Viewers.Resource().Create(vrfGuiContext, stream);
+                return new Types.Viewers.Resource().Create(vrfGuiContext, stream, isPreview);
             }
             else if (Types.Viewers.Image.IsAccepted(magic))
             {

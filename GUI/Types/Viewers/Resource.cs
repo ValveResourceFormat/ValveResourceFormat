@@ -22,7 +22,11 @@ namespace GUI.Types.Viewers
 
         public TabPage Create(VrfGuiContext vrfGuiContext, Stream stream)
         {
-            var tab = new TabPage();
+            throw new NotImplementedException();
+        }
+
+        public TabPage Create(VrfGuiContext vrfGuiContext, Stream stream, bool isPreview)
+        {
             var resourceTemp = new ValveResourceFormat.Resource
             {
                 FileName = vrfGuiContext.FileName,
@@ -99,7 +103,8 @@ namespace GUI.Types.Viewers
                     case ResourceType.Sound:
                         {
                             specialTabPage = new TabPage("SOUND");
-                            var ap = new AudioPlayer(resource, specialTabPage);
+                            var autoPlay = ((Settings.QuickPreviewFlags)Settings.Config.QuickFilePreview & Settings.QuickPreviewFlags.AutoPlaySounds) != 0;
+                            var ap = new AudioPlayer(resource, specialTabPage, isPreview && autoPlay);
                             break;
                         }
 
@@ -167,7 +172,7 @@ namespace GUI.Types.Viewers
                             }
 
                             specialTabPage = new TabPage("MATERIAL");
-                            specialTabPage.Controls.Add(new GLMaterialViewer(vrfGuiContext, resource, resTabs));
+                            specialTabPage.Controls.Add(new GLMaterialViewer(vrfGuiContext, resource, isPreview ? null : resTabs));
                             break;
                         }
 
@@ -190,7 +195,6 @@ namespace GUI.Types.Viewers
                         break;
                 }
 
-
                 if (specialTabPage != null)
                 {
                     resTabs.TabPages.Add(specialTabPage);
@@ -208,6 +212,15 @@ namespace GUI.Types.Viewers
             finally
             {
                 specialTabPage?.Dispose();
+            }
+
+            if (isPreview && !selectData)
+            {
+                var previewTab = resTabs.TabPages[0];
+                resTabs.TabPages.Clear();
+                resTabs.Dispose();
+
+                return previewTab;
             }
 
             foreach (var block in resource.Blocks)
@@ -314,6 +327,7 @@ namespace GUI.Types.Viewers
                 resTabs.TabPages.Add(tabEx);
             }
 
+            var tab = new TabPage();
             tab.Controls.Add(resTabs);
 
             return tab;

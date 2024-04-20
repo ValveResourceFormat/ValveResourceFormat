@@ -11,7 +11,7 @@ namespace GUI.Types.Audio
 {
     internal class AudioPlayer
     {
-        public AudioPlayer(Resource resource, TabPage tab)
+        public AudioPlayer(Resource resource, TabPage tab, bool autoPlay)
         {
             var soundData = (Sound)resource.DataBlock;
 
@@ -34,6 +34,11 @@ namespace GUI.Types.Audio
                 var audio = new AudioPlaybackPanel(waveStream);
 
                 tab.Controls.Add(audio);
+
+                if (autoPlay)
+                {
+                    audio.HandleCreated += OnHandleCreated;
+                }
             }
             catch (Exception e)
             {
@@ -47,6 +52,13 @@ namespace GUI.Types.Audio
 
                 tab.Controls.Add(msg);
             }
+        }
+
+        private void OnHandleCreated(object sender, EventArgs e)
+        {
+            var audio = (AudioPlaybackPanel)sender;
+            audio.HandleCreated -= OnHandleCreated;
+            audio.Invoke(audio.Play);
         }
     }
 }

@@ -211,7 +211,6 @@ namespace GUI.Controls
         {
             if (GLControl.Visible)
             {
-                GLControl.Focus();
                 HandleResize();
             }
         }

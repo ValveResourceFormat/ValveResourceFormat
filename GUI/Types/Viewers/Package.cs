@@ -76,6 +76,7 @@ namespace GUI.Types.Viewers
             TreeView.InitializeTreeViewFromPackage(VrfGuiContext);
             TreeView.OpenPackageEntry += VPK_OpenFile;
             TreeView.OpenContextMenu += VPK_OnContextMenu;
+            TreeView.PreviewFile += VPK_PreviewFile;
             TreeView.Disposed += VPK_Disposed;
         }
 
@@ -466,6 +467,7 @@ namespace GUI.Types.Viewers
             {
                 treeViewWithSearch.OpenPackageEntry -= VPK_OpenFile;
                 treeViewWithSearch.OpenContextMenu -= VPK_OnContextMenu;
+                treeViewWithSearch.PreviewFile -= VPK_PreviewFile;
                 treeViewWithSearch.Disposed -= VPK_Disposed;
                 TreeView = null;
                 LastContextTreeNode = null;
@@ -481,6 +483,25 @@ namespace GUI.Types.Viewers
         {
             var vrfGuiContext = new VrfGuiContext(entry.GetFullPath(), VrfGuiContext);
             Program.MainForm.OpenFile(vrfGuiContext, entry);
+        }
+
+        private void VPK_PreviewFile(object sender, PackageEntry entry)
+        {
+            if (Settings.Config.QuickFilePreview <= 0)
+            {
+                return;
+            }
+
+            var extension = entry.TypeName;
+
+            if (extension is "vpk" or "vmap_c")
+            {
+                // Not ideal to check by file extension, but do not nest vpk previewss
+                return;
+            }
+
+            var vrfGuiContext = new VrfGuiContext(entry.GetFullPath(), VrfGuiContext);
+            Program.MainForm.OpenFile(vrfGuiContext, entry, TreeView);
         }
 
         private string GetCurrentPrefix()
