@@ -73,12 +73,17 @@ namespace GUI.Types.Viewers
         {
             // create a TreeView with search capabilities, register its events, and add it to the tab
             TreeView = new TreeViewWithSearchResults(this);
-            TreeView.InitializeTreeViewFromPackage(VrfGuiContext);
+            TreeView.Load += VPK_OnLoad;
             TreeView.TreeNodeMouseDoubleClick += VPK_OpenFile;
             TreeView.TreeNodeRightClick += VPK_OnContextMenu;
             TreeView.ListViewItemDoubleClick += VPK_OpenFile;
             TreeView.ListViewItemRightClick += VPK_OnContextMenu;
             TreeView.Disposed += VPK_Disposed;
+        }
+
+        private void VPK_OnLoad(object sender, EventArgs e)
+        {
+            TreeView.InitializeTreeViewFromPackage(VrfGuiContext);
         }
 
         public void AddFolder(string directory)
@@ -460,6 +465,7 @@ namespace GUI.Types.Viewers
         {
             if (sender is TreeViewWithSearchResults treeViewWithSearch)
             {
+                treeViewWithSearch.Load -= VPK_OnLoad;
                 treeViewWithSearch.TreeNodeMouseDoubleClick -= VPK_OpenFile;
                 treeViewWithSearch.TreeNodeRightClick -= VPK_OnContextMenu;
                 treeViewWithSearch.ListViewItemDoubleClick -= VPK_OpenFile;
