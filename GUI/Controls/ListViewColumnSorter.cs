@@ -14,34 +14,31 @@ public class ListViewColumnSorter : IComparer
     /// <summary>
     /// Gets or sets the order of sorting to apply.
     /// </summary>
-    public SortOrder Order { set; get; }
+    public SortOrder Order { set; get; } = SortOrder.Ascending;
 
     public int Compare(object x, object y)
     {
         var compareResult = 0;
-        var listviewX = Unsafe.As<ListViewItem>(x);
-        var listviewY = Unsafe.As<ListViewItem>(y);
-
-        var tX = Unsafe.As<BetterTreeNode>(listviewX.Tag);
-        var tY = Unsafe.As<BetterTreeNode>(listviewY.Tag);
+        var tX = Unsafe.As<BetterListViewItem>(x);
+        var tY = Unsafe.As<BetterListViewItem>(y);
 
         var folderX = tX.IsFolder ? -1 : 1;
         var folderY = tY.IsFolder ? -1 : 1;
 
-        if (folderX != folderY)
-        {
-            return folderX - folderY;
-        }
-
         switch (SortColumn)
         {
             case 0:
+                if (folderX != folderY)
+                {
+                    return folderX - folderY;
+                }
+
                 compareResult = string.CompareOrdinal(tX.Text, tY.Text);
                 break;
             case 1:
                 {
-                    var sizeX = tX.IsFolder ? tX.TotalSize : tX.PackageEntry.TotalLength;
-                    var sizeY = tY.IsFolder ? tY.TotalSize : tY.PackageEntry.TotalLength;
+                    var sizeX = tX.IsFolder ? tX.PkgNode.TotalSize : tX.PackageEntry.TotalLength;
+                    var sizeY = tY.IsFolder ? tY.PkgNode.TotalSize : tY.PackageEntry.TotalLength;
 
                     if (sizeX != sizeY)
                     {
@@ -50,7 +47,7 @@ public class ListViewColumnSorter : IComparer
                     break;
                 }
             default:
-                compareResult = string.CompareOrdinal(listviewX.SubItems[SortColumn].Text, listviewY.SubItems[SortColumn].Text);
+                compareResult = string.CompareOrdinal(tX.SubItems[SortColumn].Text, tY.SubItems[SortColumn].Text);
                 break;
         }
 

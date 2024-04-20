@@ -1,8 +1,6 @@
 using System.Buffers;
-using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -19,8 +17,9 @@ namespace GUI.Controls
     /// </summary>
     partial class BetterTreeView : TreeViewDoubleBuffered
     {
-        private Dictionary<string, int> ExtensionIconList;
-        private int FolderImage;
+        public VirtualPackageNode Root;
+        public Dictionary<string, int> ExtensionIconList;
+        public int FolderImage;
 
         public VrfGuiContext VrfGuiContext { get; set; }
 
@@ -40,45 +39,46 @@ namespace GUI.Controls
         /// <param name="value">Value to search for in the TreeView. Matching on this value is based on the search type.</param>
         /// <param name="searchType">Determines the matching of the value. For example, full/partial text search or full path search.</param>
         /// <returns>A collection of nodes who match the conditions based on the search type.</returns>
-        public IList<BetterTreeNode> Search(string value, SearchType searchType)
+        public List<PackageEntry> Search(string value, SearchType searchType)
         {
-            IList<BetterTreeNode> results = [];
+            var results = new List<PackageEntry>();
 
             if (searchType == SearchType.FileNamePartialMatch || searchType == SearchType.FullPath)
             {
-                value = value.ToUpperInvariant().Replace('\\', Package.DirectorySeparatorChar);
+                value = value.Replace('\\', Package.DirectorySeparatorChar);
             }
 
             // If only file name search is selected, but entered text contains a slash, search full path
-            if (searchType == SearchType.FileNamePartialMatch && value.Contains(Package.DirectorySeparatorChar, StringComparison.InvariantCulture))
+            if (searchType == SearchType.FileNamePartialMatch && value.Contains(Package.DirectorySeparatorChar, StringComparison.Ordinal))
             {
                 searchType = SearchType.FullPath;
             }
 
             if (searchType == SearchType.FileNameExactMatch)
             {
-                results = Nodes.Find(value, true).Cast<BetterTreeNode>().ToList();
+                bool MatchFunction(PackageEntry entry) => entry.GetFileName().Equals(value, StringComparison.OrdinalIgnoreCase);
+                Search(Root, results, MatchFunction);
             }
             else if (searchType == SearchType.FileNamePartialMatch)
             {
-                bool MatchFunction(BetterTreeNode node) => node.Text.Contains(value, StringComparison.InvariantCultureIgnoreCase);
-                results = Search(MatchFunction);
+                bool MatchFunction(PackageEntry entry) => entry.GetFileName().Contains(value, StringComparison.OrdinalIgnoreCase);
+                Search(Root, results, MatchFunction);
             }
             else if (searchType == SearchType.FullPath)
             {
-                bool MatchFunction(BetterTreeNode node) => node.FullPath.Contains(value, StringComparison.InvariantCultureIgnoreCase);
-                results = Search(MatchFunction);
+                bool MatchFunction(PackageEntry entry) => entry.GetFullPath().Contains(value, StringComparison.OrdinalIgnoreCase);
+                Search(Root, results, MatchFunction);
             }
             else if (searchType == SearchType.Regex)
             {
                 var regex = new Regex(value, RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
 
-                bool MatchFunction(BetterTreeNode node) => regex.IsMatch(node.Text);
-                results = Search(MatchFunction);
+                bool MatchFunction(PackageEntry entry) => regex.IsMatch(entry.GetFileName());
+                Search(Root, results, MatchFunction);
             }
             else if (searchType == SearchType.FileContents)
             {
-                results = SearchFileContents(Encoding.UTF8.GetBytes(value));
+                SearchFileContents(results, Encoding.UTF8.GetBytes(value));
             }
             else if (searchType == SearchType.FileContentsHex)
             {
@@ -90,7 +90,7 @@ namespace GUI.Controls
                      .Select(x => Convert.ToByte(value.Substring(x, 2), 16))
                      .ToArray();
 
-                results = SearchFileContents(bytes);
+                SearchFileContents(results, bytes);
             }
 
             return results;
@@ -101,45 +101,23 @@ namespace GUI.Controls
         /// </summary>
         /// <param name="matchFunction">Function which performs matching on the TreeNode. Returns true if there's a match.</param>
         /// <returns>Returns matched nodes.</returns>
-        private ReadOnlyCollection<BetterTreeNode> Search(Func<BetterTreeNode, bool> matchFunction)
+        private static void Search(VirtualPackageNode node, List<PackageEntry> results, Func<PackageEntry, bool> matchFunction)
         {
-            var searchQueue = new Queue<BetterTreeNode>();
-
-            // queue up every child of the root to begin the search
-            foreach (BetterTreeNode childNode in Nodes)
+            foreach (var entry in node.Files)
             {
-                searchQueue.Enqueue(childNode);
-            }
-
-            var matchedNodes = new List<BetterTreeNode>();
-
-            // while there are items in the queue to search
-            while (searchQueue.Count > 0)
-            {
-                var currentNode = searchQueue.Dequeue();
-
-                // if our match function is true, add the node to our matches
-                if (matchFunction(currentNode))
+                if (matchFunction(entry))
                 {
-                    matchedNodes.Add(currentNode);
-                }
-
-                // if the node being inspected has children, queue them all up
-                if (currentNode.Nodes.Count < 1)
-                {
-                    continue;
-                }
-
-                foreach (BetterTreeNode childNode in currentNode.Nodes)
-                {
-                    searchQueue.Enqueue(childNode);
+                    results.Add(entry);
                 }
             }
 
-            return matchedNodes.AsReadOnly();
+            foreach (var folder in node.Folders)
+            {
+                Search(folder.Value, results, matchFunction);
+            }
         }
 
-        private List<BetterTreeNode> SearchFileContents(byte[] pattern)
+        private void SearchFileContents(List<PackageEntry> results, byte[] pattern)
         {
             if (pattern.Length < 3)
             {
@@ -150,8 +128,6 @@ namespace GUI.Controls
             {
                 throw new InvalidOperationException("Inner paks are not supported.");
             }
-
-            var results = new List<BetterTreeNode>();
 
             using var progressDialog = new GenericProgressForm
             {
@@ -242,25 +218,10 @@ namespace GUI.Controls
 
                 foreach (var file in matches)
                 {
-                    var fileName = file.GetFileName();
-
-                    if (!ExtensionIconList.TryGetValue(file.TypeName, out var image))
-                    {
-                        image = MainForm.ImageListLookup["_default"];
-                    }
-
-                    var newNode = new BetterTreeNode(fileName, file)
-                    {
-                        Name = fileName,
-                        ImageIndex = image,
-                        SelectedImageIndex = image,
-                    };
-                    results.Add(newNode);
+                    results.Add(file);
                 }
             };
             progressDialog.ShowDialog();
-
-            return results;
         }
 
         private static HashSet<PackageEntry> SearchForContentsInFile(string fileName, byte[] pattern, List<PackageEntry> archiveEntries)
@@ -333,22 +294,16 @@ namespace GUI.Controls
             FolderImage = MainForm.ImageListLookup["_folder"];
         }
 
-        public BetterTreeNode AddFolderNode(BetterTreeNode currentNode, string directory, uint size)
+        public static VirtualPackageNode AddFolderNode(VirtualPackageNode currentNode, string directory, uint size)
         {
             foreach (var subPathSpan in directory.AsSpan().Split([Package.DirectorySeparatorChar]))
             {
                 var subPath = subPathSpan.ToString();
-                var subNode = Unsafe.As<BetterTreeNode>(currentNode.Nodes[subPath]);
 
-                if (subNode == null)
+                if (!currentNode.Folders.TryGetValue(subPath, out var subNode))
                 {
-                    var toAdd = new BetterTreeNode(subPath, size)
-                    {
-                        Name = subPath,
-                        ImageIndex = FolderImage,
-                        SelectedImageIndex = FolderImage,
-                    };
-                    currentNode.Nodes.Add(toAdd);
+                    var toAdd = new VirtualPackageNode(subPath, size, currentNode);
+                    currentNode.Folders.Add(subPath, toAdd);
                     currentNode = toAdd;
                 }
                 else
@@ -361,40 +316,16 @@ namespace GUI.Controls
             return currentNode;
         }
 
-        /// <summary>
-        /// Adds a node to the tree based on the passed file information. This is useful when building a directory-based tree.
-        /// </summary>
-        /// <param name="currentNode">Root node.</param>
-        /// <param name="file">File entry.</param>
-        /// <param name="manualAdd">When a file is being added after initial render, lookup icon directly.</param>
-        public void AddFileNode(BetterTreeNode currentNode, PackageEntry file, bool manualAdd = false)
+        public static VirtualPackageNode AddFileNode(VirtualPackageNode currentNode, PackageEntry file)
         {
             if (!string.IsNullOrWhiteSpace(file.DirectoryName))
             {
                 currentNode = AddFolderNode(currentNode, file.DirectoryName, file.TotalLength);
             }
 
-            var fileName = file.GetFileName();
-            int image;
+            currentNode.Files.Add(file);
 
-            if (manualAdd)
-            {
-                image = MainForm.GetImageIndexForExtension(file.TypeName.ToLowerInvariant());
-            }
-            else if (!ExtensionIconList.TryGetValue(file.TypeName, out image))
-            {
-                image = MainForm.ImageListLookup["_default"];
-            }
-
-            var newNode = new BetterTreeNode(fileName, file)
-            {
-                Name = fileName,
-                ImageIndex = image,
-                SelectedImageIndex = image,
-            };
-
-            currentNode.Nodes.Add(newNode);
-            currentNode = newNode;
+            return currentNode;
         }
     }
 }

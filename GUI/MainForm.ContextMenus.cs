@@ -8,6 +8,7 @@ using GUI.Controls;
 using GUI.Forms;
 using GUI.Types.Exporter;
 using GUI.Utils;
+using SteamDatabase.ValvePak;
 
 namespace GUI
 {
@@ -70,25 +71,28 @@ namespace GUI
         {
             var control = ((ContextMenuStrip)((ToolStripMenuItem)sender).Owner).SourceControl;
             VrfGuiContext context;
-            List<TreeNode> selectedNodes;
+            List<IBetterBaseItem> selectedNodes;
 
             if (control is BetterTreeView treeView)
             {
                 context = treeView.VrfGuiContext;
+
                 selectedNodes =
                 [
-                    treeView.SelectedNode
+                    (IBetterBaseItem)treeView.SelectedNode,
                 ];
             }
             else if (control is BetterListView listView)
             {
                 context = listView.VrfGuiContext;
-                selectedNodes = new List<TreeNode>(listView.SelectedItems.Count);
+#pragma warning disable IDE0028 // Simplify collection initialization - it doesn't work
+                selectedNodes = new List<IBetterBaseItem>(listView.SelectedItems.Count);
 
-                foreach (ListViewItem selectedNode in listView.SelectedItems)
+                foreach (IBetterBaseItem selectedNode in listView.SelectedItems)
                 {
-                    selectedNodes.Add((BetterTreeNode)selectedNode.Tag);
+                    selectedNodes.Add(selectedNode);
                 }
+#pragma warning restore IDE0028
             }
             else
             {
@@ -98,7 +102,7 @@ namespace GUI
             var wantsFullPath = ModifierKeys.HasFlag(Keys.Shift);
             var sb = new StringBuilder();
 
-            foreach (var selectedNode in selectedNodes.Cast<BetterTreeNode>())
+            foreach (var selectedNode in selectedNodes)
             {
                 if (wantsFullPath)
                 {
@@ -114,7 +118,28 @@ namespace GUI
                 }
                 else
                 {
-                    sb.AppendLine(selectedNode.Name);
+                    var stack = new Stack<string>();
+                    var node = selectedNode.PkgNode;
+
+                    do
+                    {
+                        if (node.Parent == null)
+                        {
+                            break;
+                        }
+
+                        stack.Push(node.Name);
+                        node = node.Parent;
+                    }
+                    while (node != null);
+
+                    while (stack.TryPop(out var name))
+                    {
+                        sb.Append(name);
+                        sb.Append(Package.DirectorySeparatorChar);
+                    }
+
+                    sb.AppendLine();
                 }
             }
 
@@ -124,33 +149,34 @@ namespace GUI
         private void OpenWithDefaultAppToolStripMenuItem_Click(object sender, EventArgs e)
         {
             var control = ((ContextMenuStrip)((ToolStripMenuItem)sender).Owner).SourceControl;
-            List<BetterTreeNode> selectedNodes;
+            VrfGuiContext context;
+            List<PackageEntry> selectedFiles;
 
-            if (control is TreeView treeView)
+            if (control is BetterTreeView treeView)
             {
-                var treeNode = (BetterTreeNode)treeView.SelectedNode;
+                context = treeView.VrfGuiContext;
+                var treeNode = (IBetterBaseItem)treeView.SelectedNode;
 
                 if (treeNode.IsFolder)
                 {
                     return;
                 }
 
-                selectedNodes = [treeNode];
+                selectedFiles = [treeNode.PackageEntry];
             }
-            else if (control is ListView listView)
+            else if (control is BetterListView listView)
             {
-                selectedNodes = new List<BetterTreeNode>(listView.SelectedItems.Count);
+                context = listView.VrfGuiContext;
+                selectedFiles = new List<PackageEntry>(listView.SelectedItems.Count);
 
-                foreach (ListViewItem selectedNode in listView.SelectedItems)
+                foreach (IBetterBaseItem selectedNode in listView.SelectedItems)
                 {
-                    var treeNode = (BetterTreeNode)selectedNode.Tag;
-
-                    if (treeNode.IsFolder)
+                    if (selectedNode.IsFolder)
                     {
                         return;
                     }
 
-                    selectedNodes.Add(treeNode);
+                    selectedFiles.Add(selectedNode.PackageEntry);
                 }
             }
             else
@@ -158,8 +184,8 @@ namespace GUI
                 throw new InvalidDataException("Unknown state");
             }
 
-            if (selectedNodes.Count > 5 && MessageBox.Show(
-                $"You are trying to open {selectedNodes.Count} files in the default app for each of these files, are you sure you want to continue?",
+            if (selectedFiles.Count > 5 && MessageBox.Show(
+                $"You are trying to open {selectedFiles.Count} files in the default app for each of these files, are you sure you want to continue?",
                 "Trying to open many files in the default app",
                 MessageBoxButtons.YesNo,
                 MessageBoxIcon.Question
@@ -168,17 +194,11 @@ namespace GUI
                 return;
             }
 
-            foreach (var selectedNode in selectedNodes)
+            foreach (var file in selectedFiles)
             {
-                if (selectedNode.TreeView is not BetterTreeView nodeTreeView)
-                {
-                    throw new InvalidOperationException("Unexpected tree view");
-                }
+                context.CurrentPackage.ReadEntry(file, out var output, validateCrc: file.CRC32 > 0);
 
-                var file = selectedNode.PackageEntry;
-                nodeTreeView.VrfGuiContext.CurrentPackage.ReadEntry(file, out var output, validateCrc: file.CRC32 > 0);
-
-                var tempPath = $"{Path.GetTempPath()}Source 2 Viewer - {Path.GetFileName(nodeTreeView.VrfGuiContext.CurrentPackage.FileName)} - {file.GetFileName()}";
+                var tempPath = $"{Path.GetTempPath()}Source 2 Viewer - {Path.GetFileName(context.CurrentPackage.FileName)} - {file.GetFileName()}";
                 using (var stream = new FileStream(tempPath, FileMode.Create))
                 {
                     stream.Write(output, 0, output.Length);
@@ -198,18 +218,18 @@ namespace GUI
         private void OnViewAssetInfoToolStripMenuItemClick(object sender, EventArgs e)
         {
             var control = ((ContextMenuStrip)((ToolStripMenuItem)sender).Owner).SourceControl;
-            BetterTreeNode selectedNode;
+            IBetterBaseItem selectedNode;
             VrfGuiContext guiContext;
 
             if (control is BetterTreeView treeView)
             {
                 guiContext = treeView.VrfGuiContext;
-                selectedNode = (BetterTreeNode)treeView.SelectedNode;
+                selectedNode = (IBetterBaseItem)treeView.SelectedNode;
             }
             else if (control is BetterListView listView)
             {
                 guiContext = listView.VrfGuiContext;
-                selectedNode = (BetterTreeNode)listView.SelectedItems[0].Tag;
+                selectedNode = (IBetterBaseItem)listView.SelectedItems[0];
             }
             else
             {
@@ -242,15 +262,15 @@ namespace GUI
 
         private static void ExtractFiles(object sender, bool decompile)
         {
-            var owner = (ContextMenuStrip)((ToolStripMenuItem)sender).Owner;
+            var owner = ((ContextMenuStrip)((ToolStripMenuItem)sender).Owner).SourceControl;
 
             // Clicking context menu item in left side of the package view
-            if (owner.SourceControl is BetterTreeView tree)
+            if (owner is BetterTreeView tree)
             {
-                ExportFile.ExtractFilesFromTreeNode((BetterTreeNode)tree.SelectedNode, tree.VrfGuiContext, decompile);
+                ExportFile.ExtractFilesFromTreeNode((IBetterBaseItem)tree.SelectedNode, tree.VrfGuiContext, decompile);
             }
             // Clicking context menu item in right side of the package view
-            else if (owner.SourceControl is BetterListView listView)
+            else if (owner is BetterListView listView)
             {
                 if (listView.SelectedItems.Count > 1)
                 {
@@ -259,11 +279,11 @@ namespace GUI
                 }
                 else
                 {
-                    ExportFile.ExtractFilesFromTreeNode((BetterTreeNode)listView.SelectedItems[0].Tag, listView.VrfGuiContext, decompile);
+                    ExportFile.ExtractFilesFromTreeNode((IBetterBaseItem)listView.SelectedItems[0], listView.VrfGuiContext, decompile);
                 }
             }
             // Clicking context menu item when right clicking a tab
-            else if (owner.SourceControl is TabControl)
+            else if (owner is TabControl)
             {
                 var tabPage = FetchToolstripTabContext(sender);
 

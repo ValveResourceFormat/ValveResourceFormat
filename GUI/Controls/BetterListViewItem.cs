@@ -3,11 +3,8 @@ using SteamDatabase.ValvePak;
 
 namespace GUI.Controls
 {
-    /// <summary>
-    /// Wrapper class to store info about the contents of a <see cref="TreeNode"/> in a way that can be accessed rapidly
-    /// </summary>
 #pragma warning disable CA2237 // Mark ISerializable types with SerializableAttribute
-    public sealed class BetterTreeNode : TreeNode, IBetterBaseItem
+    public sealed class BetterListViewItem : ListViewItem, IBetterBaseItem
 #pragma warning restore CA2237
     {
         /// <summary>
@@ -18,24 +15,16 @@ namespace GUI.Controls
         /// <summary>
         /// If this is a file, the <see cref="PackageEntry"/> representing the file. Otherwise null.
         /// </summary>
-        public PackageEntry PackageEntry { get; }
+        public PackageEntry PackageEntry { get; init; }
 
         /// <summary>
         /// If this is a folder, the virtual node representing this folder. Otherwise null.
         /// </summary>
-        public VirtualPackageNode PkgNode { get; }
+        public VirtualPackageNode PkgNode { get; init; }
 
-        public BetterTreeNode(string text, PackageEntry entry)
-            : base(text)
+        public BetterListViewItem(string text) : base(text)
         {
-            PackageEntry = entry;
-        }
-
-        public BetterTreeNode(string text, VirtualPackageNode node)
-            : base(text)
-        {
-            Name = text; // Only set name for folders, it will be used for indexing
-            PkgNode = node;
+            //
         }
     }
 }

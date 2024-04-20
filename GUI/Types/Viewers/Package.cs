@@ -74,10 +74,8 @@ namespace GUI.Types.Viewers
             // create a TreeView with search capabilities, register its events, and add it to the tab
             TreeView = new TreeViewWithSearchResults(this);
             TreeView.InitializeTreeViewFromPackage(VrfGuiContext);
-            TreeView.TreeNodeMouseDoubleClick += VPK_OpenFile;
-            TreeView.TreeNodeRightClick += VPK_OnContextMenu;
-            TreeView.ListViewItemDoubleClick += VPK_OpenFile;
-            TreeView.ListViewItemRightClick += VPK_OnContextMenu;
+            TreeView.OpenPackageEntry += VPK_OpenFile;
+            TreeView.OpenContextMenu += VPK_OnContextMenu;
             TreeView.Disposed += VPK_Disposed;
         }
 
@@ -167,6 +165,11 @@ namespace GUI.Types.Viewers
 
         public void RemoveRecursiveFiles(BetterTreeNode node)
         {
+            if (node.PkgNode != null)
+            {
+                ((BetterTreeNode)node.Parent).PkgNode.Folders.Remove(node.PkgNode.Name);
+            }
+
             for (var i = node.Nodes.Count - 1; i >= 0; i--)
             {
                 RemoveRecursiveFiles((BetterTreeNode)node.Nodes[i]);
@@ -174,6 +177,7 @@ namespace GUI.Types.Viewers
 
             if (node.PackageEntry != null)
             {
+                ((BetterTreeNode)node.Parent).PkgNode.Files.Remove(node.PackageEntry);
                 VrfGuiContext.CurrentPackage.RemoveFile(node.PackageEntry);
             }
 
@@ -460,10 +464,8 @@ namespace GUI.Types.Viewers
         {
             if (sender is TreeViewWithSearchResults treeViewWithSearch)
             {
-                treeViewWithSearch.TreeNodeMouseDoubleClick -= VPK_OpenFile;
-                treeViewWithSearch.TreeNodeRightClick -= VPK_OnContextMenu;
-                treeViewWithSearch.ListViewItemDoubleClick -= VPK_OpenFile;
-                treeViewWithSearch.ListViewItemRightClick -= VPK_OnContextMenu;
+                treeViewWithSearch.OpenPackageEntry -= VPK_OpenFile;
+                treeViewWithSearch.OpenContextMenu -= VPK_OnContextMenu;
                 treeViewWithSearch.Disposed -= VPK_Disposed;
                 TreeView = null;
                 LastContextTreeNode = null;
@@ -475,35 +477,10 @@ namespace GUI.Types.Viewers
         /// </summary>
         /// <param name="sender">Object which raised event.</param>
         /// <param name="e">Event data.</param>
-        private void VPK_OpenFile(object sender, ListViewItemClickEventArgs e)
+        private void VPK_OpenFile(object sender, PackageEntry entry)
         {
-            if (e.Node is not BetterTreeNode node)
-            {
-                throw new ArgumentException("Unexpected tree node type", nameof(e));
-            }
-
-            OpenFileFromNode(node);
-        }
-
-        private void VPK_OpenFile(object sender, TreeNodeMouseClickEventArgs e)
-        {
-            if (e.Node is not BetterTreeNode node)
-            {
-                throw new ArgumentException("Unexpected tree node type", nameof(e));
-            }
-
-            OpenFileFromNode(node);
-        }
-
-        private void OpenFileFromNode(BetterTreeNode node)
-        {
-            //Make sure we aren't a directory!
-            if (!node.IsFolder)
-            {
-                var file = node.PackageEntry;
-                var vrfGuiContext = new VrfGuiContext(file.GetFullPath(), VrfGuiContext);
-                Program.MainForm.OpenFile(vrfGuiContext, file);
-            }
+            var vrfGuiContext = new VrfGuiContext(entry.GetFullPath(), VrfGuiContext);
+            Program.MainForm.OpenFile(vrfGuiContext, entry);
         }
 
         private string GetCurrentPrefix()
@@ -520,46 +497,28 @@ namespace GUI.Types.Viewers
             return prefix;
         }
 
-        private void VPK_OnContextMenu(object sender, TreeNodeMouseClickEventArgs e)
-        {
-            var isRoot = e.Node is BetterTreeNode node && node.Level == 0 && node.Name == "root";
-
-            if (IsEditingPackage)
-            {
-                var treeNode = e.Node as BetterTreeNode;
-
-                LastContextTreeNode = treeNode;
-
-                Program.MainForm.ShowVpkEditingContextMenu(e.Node.TreeView, e.Location, isRoot, treeNode.IsFolder);
-                return;
-            }
-
-            Program.MainForm.ShowVpkContextMenu(e.Node.TreeView, e.Location, isRoot);
-        }
-
         /// <summary>
         /// Opens a context menu where the user right-clicked in the ListView.
         /// </summary>
         /// <param name="sender">Object which raised event.</param>
         /// <param name="e">Event data.</param>
-        private void VPK_OnContextMenu(object sender, ListViewItemClickEventArgs e)
+        private void VPK_OnContextMenu(object sender, PackageContextMenuEventArgs e)
         {
+            var isRoot = e.PkgNode == TreeView.mainTreeView.Root;
+
             if (IsEditingPackage)
             {
+                if (e.TreeNode != null)
+                {
+                    LastContextTreeNode = e.TreeNode;
+
+                    Program.MainForm.ShowVpkEditingContextMenu((Control)sender, e.Location, isRoot, e.TreeNode.IsFolder);
+                }
+
                 return;
             }
 
-            if (e.Node is ListViewItem listViewItem && listViewItem.Tag is TreeNode node)
-            {
-                if (node.TreeView != null)
-                {
-                    // Select the node in tree view when right clicking.
-                    // It can be null when right clicking an item from file contents search
-                    node.TreeView.SelectedNode = node;
-                }
-
-                Program.MainForm.ShowVpkContextMenu(listViewItem.ListView, e.Location, false);
-            }
+            Program.MainForm.ShowVpkContextMenu((Control)sender, e.Location, isRoot);
         }
     }
 }
