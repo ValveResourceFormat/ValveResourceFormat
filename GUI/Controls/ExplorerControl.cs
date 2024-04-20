@@ -135,7 +135,12 @@ namespace GUI.Controls
 
                 foreach (var child in libraryFoldersKv.Children)
                 {
-                    steamPaths.Add(Path.GetFullPath(Path.Join(child["path"].ToString(CultureInfo.InvariantCulture), "steamapps")));
+                    var steamAppsPath = Path.GetFullPath(Path.Join(child["path"].ToString(CultureInfo.InvariantCulture), "steamapps"));
+
+                    if (Directory.Exists(steamAppsPath))
+                    {
+                        steamPaths.Add(steamAppsPath);
+                    }
                 }
 
                 foreach (var steamPath in steamPaths)
