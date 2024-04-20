@@ -1094,7 +1094,24 @@ namespace GUI
                     loadingFile.Dispose();
                     explorerTabRef.Controls.Add(explorer);
                 });
-            });
+            }).ContinueWith(t =>
+            {
+                Log.Error(nameof(ExplorerControl), t.Exception.ToString());
+
+                t.Exception?.Flatten().Handle(ex =>
+                {
+                    loadingFile.Dispose();
+
+                    var control = new CodeTextBox(ex.ToString());
+
+                    explorerTabRef.Controls.Add(control);
+
+                    return false;
+                });
+            },
+            CancellationToken.None,
+            TaskContinuationOptions.OnlyOnFaulted,
+            TaskScheduler.FromCurrentSynchronizationContext());
         }
 
         public static int GetImageIndexForExtension(string extension)
