@@ -122,8 +122,10 @@ namespace GUI.Controls
             var gamePathsToScan = new List<(int AppID, string AppName, string SteamPath, string GamePath)>();
 
             // Find game folders
+            var libraryfolders = Path.Join(steam, "steamapps", "libraryfolders.vdf");
+
+            if (!string.IsNullOrEmpty(steam) && File.Exists(libraryfolders))
             {
-                var libraryfolders = Path.Join(steam, "steamapps", "libraryfolders.vdf");
                 KVObject libraryFoldersKv;
 
                 using (var libraryFoldersStream = File.OpenRead(libraryfolders))
