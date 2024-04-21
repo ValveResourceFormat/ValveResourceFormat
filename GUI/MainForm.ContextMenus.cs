@@ -50,7 +50,7 @@ namespace GUI
                 return;
             }
 
-            var packageViewer = (mainTabs.SelectedTab.Controls["TreeViewWithSearchResults"] as TreeViewWithSearchResults).Viewer;
+            var packageViewer = (mainTabs.SelectedTab.Controls[nameof(TreeViewWithSearchResults)] as TreeViewWithSearchResults).Viewer;
             packageViewer.AddFolder(directory);
         }
 
@@ -72,7 +72,7 @@ namespace GUI
             var inputDirectory = openDialog.SelectedPath;
             Settings.Config.OpenDirectory = inputDirectory;
 
-            var packageViewer = (mainTabs.SelectedTab.Controls["TreeViewWithSearchResults"] as TreeViewWithSearchResults).Viewer;
+            var packageViewer = (mainTabs.SelectedTab.Controls[nameof(TreeViewWithSearchResults)] as TreeViewWithSearchResults).Viewer;
             packageViewer.AddFilesFromFolder(inputDirectory);
         }
 
@@ -94,13 +94,13 @@ namespace GUI
             var inputDirectory = openDialog.FileNames;
             Settings.Config.OpenDirectory = Path.GetDirectoryName(openDialog.FileName);
 
-            var packageViewer = (mainTabs.SelectedTab.Controls["TreeViewWithSearchResults"] as TreeViewWithSearchResults).Viewer;
+            var packageViewer = (mainTabs.SelectedTab.Controls[nameof(TreeViewWithSearchResults)] as TreeViewWithSearchResults).Viewer;
             packageViewer.AddFiles(openDialog.FileNames);
         }
 
         private void OnVpkEditingRemoveThisToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            var packageViewer = (mainTabs.SelectedTab.Controls["TreeViewWithSearchResults"] as TreeViewWithSearchResults).Viewer;
+            var packageViewer = (mainTabs.SelectedTab.Controls[nameof(TreeViewWithSearchResults)] as TreeViewWithSearchResults).Viewer;
             packageViewer.RemoveCurrentFiles();
         }
 
@@ -124,7 +124,7 @@ namespace GUI
 
             Log.Info(nameof(MainForm), $"Packing to '{saveDialog.FileName}'...");
 
-            var packageViewer = (mainTabs.SelectedTab.Controls["TreeViewWithSearchResults"] as TreeViewWithSearchResults).Viewer;
+            var packageViewer = (mainTabs.SelectedTab.Controls[nameof(TreeViewWithSearchResults)] as TreeViewWithSearchResults).Viewer;
             packageViewer.SaveToFile(saveDialog.FileName);
         }
     }

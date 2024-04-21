@@ -330,7 +330,7 @@ namespace GUI
         private void ShowHideSearch()
         {
             // enable/disable the search button as necessary
-            if (mainTabs.SelectedTab != null && mainTabs.SelectedTab.Controls["TreeViewWithSearchResults"] is TreeViewWithSearchResults package)
+            if (mainTabs.SelectedTab != null && mainTabs.SelectedTab.Controls[nameof(TreeViewWithSearchResults)] is TreeViewWithSearchResults package)
             {
                 findToolStripButton.Enabled = true;
                 recoverDeletedToolStripMenuItem.Enabled = !package.DeletedFilesRecovered;
@@ -1014,7 +1014,7 @@ namespace GUI
                 var searchText = searchForm.SearchText;
                 if (!string.IsNullOrEmpty(searchText) && mainTabs.TabCount > 0 && mainTabs.SelectedTab != null)
                 {
-                    var treeView = mainTabs.SelectedTab.Controls["TreeViewWithSearchResults"] as TreeViewWithSearchResults;
+                    var treeView = mainTabs.SelectedTab.Controls[nameof(TreeViewWithSearchResults)] as TreeViewWithSearchResults;
                     treeView.SearchAndFillResults(searchText, searchForm.SelectedSearchType);
                 }
             }
@@ -1024,13 +1024,13 @@ namespace GUI
         {
             recoverDeletedToolStripMenuItem.Enabled = false;
 
-            var treeView = mainTabs.SelectedTab.Controls["TreeViewWithSearchResults"] as TreeViewWithSearchResults;
+            var treeView = mainTabs.SelectedTab.Controls[nameof(TreeViewWithSearchResults)] as TreeViewWithSearchResults;
             treeView.RecoverDeletedFiles();
         }
 
         private void VerifyPackageContentsToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            var treeView = mainTabs.SelectedTab.Controls["TreeViewWithSearchResults"] as TreeViewWithSearchResults;
+            var treeView = mainTabs.SelectedTab.Controls[nameof(TreeViewWithSearchResults)] as TreeViewWithSearchResults;
             treeView.VerifyPackageContents();
         }
 
