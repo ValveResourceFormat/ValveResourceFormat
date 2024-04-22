@@ -85,7 +85,6 @@ vpulse   | Pulse Graph Definition  | No
 vrman    | ResourceManifest        | 👍
 vrmap    | Resource Remap Table    | No
 vrr      | Response rules          | 👍
-vrr      | Response Rules          | No
 vseq     | Sequence Group          | No
 vsmart   | Smart Prop              | Partially
 vsnap    | Particle Snapshot       | 👍
