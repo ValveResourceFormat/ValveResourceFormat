@@ -68,7 +68,7 @@ uniform int g_nVertexColorMode1 = 0;
 uniform vec4 g_vAmbientOcclusionLevels1 = vec4(0, 0.5, 1, 0);
 
 uniform float g_flHeightMapScale1 = 1.0;
-uniform float g_flHeightMapZeroPoint1 = 0;
+uniform float g_flHeightMapZeroPoint1 = 0.5;
 
 // Material 2
 #if defined(csgo_environment_blend_vfx)
@@ -111,7 +111,7 @@ uniform float g_flHeightMapZeroPoint1 = 0;
     uniform vec4 g_vAmbientOcclusionLevels2 = vec4(0, 0.5, 1, 0);
 
     uniform float g_flHeightMapScale2 = 1.0;
-    uniform float g_flHeightMapZeroPoint2 = 0.0;
+    uniform float g_flHeightMapZeroPoint2 = 0.5;
 
     vec2 GetBlendWeights(vec2 heightTex, vec2 heightScale, vec2 heightZero, vec4 vColorBlendValues)
     {

@@ -68,7 +68,7 @@ uniform vec4 g_vTexCoordScale1 = vec4(1.0);
     uniform vec4 g_vTexCoordOffset2 = vec4(0.0);
     uniform vec4 g_vTexCoordScale2 = vec4(1.0);
 
-    uniform float g_flBlendSoftness2 = 0.0;
+    uniform float g_flBlendSoftness2 = 0.01;
 
     #if (F_SHARED_COLOR_OVERLAY == 1)
         uniform float g_flOverlayTexCoordRotation = 0.0;
