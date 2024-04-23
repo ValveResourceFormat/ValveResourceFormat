@@ -55,9 +55,12 @@ namespace ValveResourceFormat.ResourceTypes
                 var hitboxSetsData = Data.GetArray("m_hitboxsets");
                 for (var i = 0; i < hitboxSetsData.Length; i++)
                 {
-                    var hitboxSet = hitboxSetsData[i].GetSubCollection("value");
+                    var hitboxSet = hitboxSetsData[i].GetSubCollection("value") ?? hitboxSetsData[i];
                     var hitboxSetName = hitboxSet.GetStringProperty("m_name");
-                    var hitboxes = hitboxSet.GetArray("m_HitBoxes", d => new Hitbox(d));
+
+                    var hitboxesKey = hitboxSet.ContainsKey("m_HitBoxes") ? "m_HitBoxes" : "m_hitboxes";
+                    var hitboxes = hitboxSet.GetArray(hitboxesKey, d => new Hitbox(d));
+
                     HitboxSets.Add(hitboxSetName, hitboxes);
                 }
             }

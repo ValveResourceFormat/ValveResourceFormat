@@ -30,7 +30,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelData.Attachments
 
         public Attachment(KVObject attachmentData)
         {
-            var valueData = attachmentData.GetSubCollection("value");
+            var valueData = attachmentData.GetSubCollection("value") ?? attachmentData;
 
             Name = valueData.GetStringProperty("m_name");
             IgnoreRotation = valueData.GetProperty<bool>("m_bIgnoreRotation");
