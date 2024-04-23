@@ -233,20 +233,25 @@ namespace GUI.Types.PackageViewer
                 SelectedImageIndex = vpkImage,
             };
             control.Nodes.Add(root);
-            CreateNodes(root);
-            root.Expand();
-
-            control.TreeViewNodeSorter = new TreeViewFileSorter();
 
             // Expand lone folders (common in maps vpks)
             var node = root;
 
-            while (node.Nodes.Count == 1)
+            do
             {
-                node = (BetterTreeNode)node.Nodes[0];
+                CreateNodes(node);
                 node.Expand();
-            }
 
+                if (node.Nodes.Count != 1)
+                {
+                    break;
+                }
+
+                node = (BetterTreeNode)node.FirstNode;
+            }
+            while (true);
+
+            control.TreeViewNodeSorter = new TreeViewFileSorter();
             control.EndUpdate();
         }
 
