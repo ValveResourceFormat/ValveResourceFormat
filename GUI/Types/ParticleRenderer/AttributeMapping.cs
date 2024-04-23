@@ -103,7 +103,7 @@ namespace GUI.Types.ParticleRenderer
                 case PfMapType.Remap:
                     var valueIn = InputMode switch
                     {
-                        PfInputMode.Clamped => Math.Clamp(value, input0, input1),
+                        PfInputMode.Clamped => MathUtils.Clamp(value, input0, input1),
                         PfInputMode.Looped => value % (input1 - input0),
                         _ => value
                     };

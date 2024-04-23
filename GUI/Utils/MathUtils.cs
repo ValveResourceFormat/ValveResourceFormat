@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+
 namespace GUI.Utils
 {
     static class MathUtils
@@ -9,6 +11,7 @@ namespace GUI.Utils
         /// <param name="inputMin"></param>
         /// <param name="inputMax"></param>
         /// <returns></returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float Remap(float x, float inputMin, float inputMax)
         {
             if (inputMin == inputMax) { return inputMax; }
@@ -16,26 +19,64 @@ namespace GUI.Utils
             return (x - inputMin) / (inputMax - inputMin);
         }
 
+        /// <summary>
+        /// Clamp, but ignores order of min and max values.
+        /// </summary>
+        /// <param name="value"></param>
+        /// <param name="one"></param>
+        /// <param name="two"></param>
+        /// <returns></returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static float Clamp(float value, float one, float two)
+        {
+            if (one > two)
+            {
+                (one, two) = (two, one);
+            }
+
+            if (value < one)
+            {
+                return one;
+            }
+            else if (value > two)
+            {
+                return two;
+            }
+
+            return value;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float Lerp(float x, float min, float max)
         {
             return min + x * (max - min);
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector2 Lerp(float x, Vector2 min, Vector2 max)
         {
             return min + new Vector2(x) * (max - min);
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector3 Lerp(Vector3 vector, Vector3 min, Vector3 max)
         {
             return min + vector * (max - min);
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector3 Lerp(Vector3 vector, float min, float max)
         {
             return new Vector3(min) + vector * (max - min);
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector3 Lerp(float x, Vector3 min, Vector3 max)
         {
             return min + x * (max - min);
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float RemapRange(float x, float inputMin, float inputMax, float outputMin, float outputMax)
         {
             return Lerp(Remap(x, inputMin, inputMax), outputMin, outputMax);
@@ -51,11 +92,14 @@ namespace GUI.Utils
         //   If you know a function f(x)'s value (f1) at position i1, and its value (f2) at position i2,
         //   the function can be linearly interpolated with FLerp(f1,f2,i1,i2,x)
         //    i2=i1 will cause a divide by zero.
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float FLerp(float f1, float f2, float i1, float i2, float x)
         {
             return f1 + (f2 - f1) * (x - i1) / (i2 - i1);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void MinMaxFixUp<T>(ref T min, ref T max) where T : INumber<T>
         {
             if (min > max)
@@ -64,23 +108,28 @@ namespace GUI.Utils
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float Saturate(float x)
         {
             return Math.Clamp(x, 0.0f, 1.0f);
         }
 
-        public static float Fract(float x)
-            => x % 1f;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static float Fract(float x) => x % 1f;
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float Wrap(float x, float lowBounds, float highBounds)
         {
             return ((x - lowBounds) % highBounds) + lowBounds;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float ToRadians(float deg)
         {
             return deg * (MathF.PI / 180.0f);
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float ToDegrees(float rad)
         {
             return rad * (180.0f / MathF.PI);
