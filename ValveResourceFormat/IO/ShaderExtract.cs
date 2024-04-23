@@ -1167,9 +1167,9 @@ public sealed class ShaderExtract
         static string GetFuncName(string func, int cutOff)
             => cutOff == 3 ? func : func + (4 - cutOff);
 
-        if (intDefsCutOff <= 3)
+        if (intDefsCutOff <= 3 || floatDefsCutOff <= 3)
         {
-            if (floatDefsCutOff <= 3)
+            if (floatDefsCutOff <= intDefsCutOff)
             {
                 var defaults = string.Join(", ", param.FloatDefs[..^floatDefsCutOff]);
                 annotations.Add($"{GetFuncName("Default", floatDefsCutOff)}({defaults});");
