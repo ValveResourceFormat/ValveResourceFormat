@@ -19,33 +19,6 @@ namespace GUI.Utils
             return (x - inputMin) / (inputMax - inputMin);
         }
 
-        /// <summary>
-        /// Clamp, but ignores order of min and max values.
-        /// </summary>
-        /// <param name="value"></param>
-        /// <param name="one"></param>
-        /// <param name="two"></param>
-        /// <returns></returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float Clamp(float value, float one, float two)
-        {
-            if (one > two)
-            {
-                (one, two) = (two, one);
-            }
-
-            if (value < one)
-            {
-                return one;
-            }
-            else if (value > two)
-            {
-                return two;
-            }
-
-            return value;
-        }
-
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float Lerp(float x, float min, float max)
         {
