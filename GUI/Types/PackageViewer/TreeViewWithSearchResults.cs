@@ -100,16 +100,8 @@ namespace GUI.Types.PackageViewer
             // if user selected a folder, show the contents of that folder in the list view
             if (realNode.IsFolder)
             {
-                foreach (Control old in rightPanel.Controls)
-                {
-                    if (old != mainListView)
-                    {
-                        old.Dispose();
-                    }
-                }
-
+                DisplayMainListView();
                 MainListView_DisplayNodes(realNode.PkgNode);
-                mainListView.Visible = true;
             }
             else
             {
@@ -427,6 +419,7 @@ namespace GUI.Types.PackageViewer
 
                     root.Expand();
                     mainTreeView.SelectedNode = root;
+                    DisplayMainListView();
                     MainListView_DisplayNodes(rootVirtual);
                     mainTreeView.EndUpdate();
                 }));
@@ -537,7 +530,7 @@ namespace GUI.Types.PackageViewer
 
             mainListView.Sort();
             ResizeListViewColumns();
-
+            DisplayMainListView();
             mainListView.EndUpdate();
         }
 
@@ -757,6 +750,19 @@ namespace GUI.Types.PackageViewer
 
                 old.Dispose();
             }
+        }
+
+        private void DisplayMainListView()
+        {
+            foreach (Control old in rightPanel.Controls)
+            {
+                if (old != mainListView)
+                {
+                    old.Dispose();
+                }
+            }
+
+            mainListView.Visible = true;
         }
     }
 }
