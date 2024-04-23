@@ -1,6 +1,6 @@
 using SteamDatabase.ValvePak;
 
-namespace GUI.Controls
+namespace GUI.Types.PackageViewer
 {
     public class VirtualPackageNode(string name, uint size, VirtualPackageNode parent)
     {

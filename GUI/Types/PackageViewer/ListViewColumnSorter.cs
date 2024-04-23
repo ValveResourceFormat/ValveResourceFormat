@@ -2,7 +2,7 @@ using System.Collections;
 using System.Runtime.CompilerServices;
 using System.Windows.Forms;
 
-namespace GUI.Controls;
+namespace GUI.Types.PackageViewer;
 
 public class ListViewColumnSorter : IComparer
 {

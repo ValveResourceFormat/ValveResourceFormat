@@ -1,7 +1,7 @@
 using System.Collections;
 using System.Runtime.CompilerServices;
 
-namespace GUI.Controls
+namespace GUI.Types.PackageViewer
 {
     internal class TreeViewFileSorter : IComparer
     {

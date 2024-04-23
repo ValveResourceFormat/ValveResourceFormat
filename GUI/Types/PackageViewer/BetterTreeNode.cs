@@ -1,7 +1,7 @@
 using System.Windows.Forms;
 using SteamDatabase.ValvePak;
 
-namespace GUI.Controls
+namespace GUI.Types.PackageViewer
 {
     /// <summary>
     /// Wrapper class to store info about the contents of a <see cref="TreeNode"/> in a way that can be accessed rapidly

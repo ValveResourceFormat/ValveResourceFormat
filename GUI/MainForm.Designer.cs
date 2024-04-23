@@ -49,6 +49,7 @@ namespace GUI
             findToolStripButton = new ToolStripMenuItem();
             settingsToolStripMenuItem = new ToolStripMenuItem();
             aboutToolStripMenuItem = new ToolStripMenuItem();
+            versionLabel = new ToolStripMenuItem();
             newVersionAvailableToolStripMenuItem = new ToolStripMenuItem();
             checkForUpdatesToolStripMenuItem = new ToolStripMenuItem();
             recoverDeletedToolStripMenuItem = new ToolStripMenuItem();
@@ -76,7 +77,6 @@ namespace GUI
             vpkEditRemoveThisFolderToolStripMenuItem = new ToolStripMenuItem();
             vpkEditRemoveThisFileToolStripMenuItem = new ToolStripMenuItem();
             vpkEditSaveToDiskToolStripMenuItem = new ToolStripMenuItem();
-            versionLabel = new ToolStripMenuItem();
             menuStrip.SuspendLayout();
             tabContextMenuStrip.SuspendLayout();
             vpkContextMenu.SuspendLayout();
@@ -175,6 +175,14 @@ namespace GUI
             aboutToolStripMenuItem.Size = new System.Drawing.Size(68, 20);
             aboutToolStripMenuItem.Text = "About";
             aboutToolStripMenuItem.Click += OnAboutItemClick;
+            // 
+            // versionLabel
+            // 
+            versionLabel.Alignment = ToolStripItemAlignment.Right;
+            versionLabel.Name = "versionLabel";
+            versionLabel.Size = new System.Drawing.Size(57, 20);
+            versionLabel.Text = "Version";
+            versionLabel.Click += OnAboutItemClick;
             // 
             // newVersionAvailableToolStripMenuItem
             // 
@@ -398,14 +406,6 @@ namespace GUI
             vpkEditSaveToDiskToolStripMenuItem.Size = new System.Drawing.Size(174, 22);
             vpkEditSaveToDiskToolStripMenuItem.Text = "&Save VPK to disk";
             vpkEditSaveToDiskToolStripMenuItem.Click += OnSaveVPKToDiskToolStripMenuItem_Click;
-            // 
-            // versionLabel
-            // 
-            versionLabel.Alignment = ToolStripItemAlignment.Right;
-            versionLabel.Name = "versionLabel";
-            versionLabel.Size = new System.Drawing.Size(57, 20);
-            versionLabel.Text = "Version";
-            versionLabel.Click += OnAboutItemClick;
             // 
             // MainForm
             // 

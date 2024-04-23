@@ -1,7 +1,7 @@
 using System.Windows.Forms;
 using GUI.Utils;
 
-namespace GUI.Controls
+namespace GUI.Types.PackageViewer
 {
     /// <inheritdoc/>
     sealed class BetterListView : ListView

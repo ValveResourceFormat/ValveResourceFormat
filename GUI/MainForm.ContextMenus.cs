@@ -4,9 +4,9 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Windows.Forms;
-using GUI.Controls;
 using GUI.Forms;
 using GUI.Types.Exporter;
+using GUI.Types.PackageViewer;
 using GUI.Utils;
 using SteamDatabase.ValvePak;
 
@@ -333,7 +333,7 @@ namespace GUI
 
         private void CreateVpkFromFolderToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            var contents = new Types.Viewers.Package().CreateEmpty(new VrfGuiContext("new.vpk", null));
+            var contents = new PackageViewer().CreateEmpty(new VrfGuiContext("new.vpk", null));
 
             var tab = new TabPage("New VPK")
             {

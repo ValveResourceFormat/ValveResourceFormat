@@ -1,7 +1,7 @@
 using System.Windows.Forms;
 using SteamDatabase.ValvePak;
 
-namespace GUI.Controls
+namespace GUI.Types.PackageViewer
 {
 #pragma warning disable CA2237 // Mark ISerializable types with SerializableAttribute
     public sealed class BetterListViewItem : ListViewItem, IBetterBaseItem

@@ -1,7 +1,7 @@
 using System;
 using GUI.Forms;
 
-namespace GUI.Controls
+namespace GUI.Types.PackageViewer
 {
     partial class TreeViewWithSearchResults
     {

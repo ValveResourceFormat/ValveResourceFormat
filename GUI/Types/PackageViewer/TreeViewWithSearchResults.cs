@@ -5,7 +5,7 @@ using GUI.Forms;
 using GUI.Utils;
 using SteamDatabase.ValvePak;
 
-namespace GUI.Controls
+namespace GUI.Types.PackageViewer
 {
     /// <summary>
     /// Represents a user control in which a TreeView and ListView are used to view a directory/file listing. In addition to a normal TreeView,
@@ -17,7 +17,7 @@ namespace GUI.Controls
         private static int SplitterWidth;
 
         public bool DeletedFilesRecovered { get; private set; }
-        public Types.Viewers.Package Viewer { get; }
+        public PackageViewer Viewer { get; }
 
         public event EventHandler<PackageEntry> OpenPackageEntry;
         public event EventHandler<PackageContextMenuEventArgs> OpenContextMenu;
@@ -27,7 +27,7 @@ namespace GUI.Controls
         /// Initializes a new instance of the <see cref="TreeViewWithSearchResults"/> class.
         /// Require a default constructor for the designer.
         /// </summary>
-        public TreeViewWithSearchResults(Types.Viewers.Package viewer)
+        public TreeViewWithSearchResults(PackageViewer viewer)
         {
             InitializeComponent();
 
@@ -388,7 +388,7 @@ namespace GUI.Controls
             {
                 progressDialog.SetProgress("Scanning for deleted files, this may take a while…");
 
-                var foundFiles = Types.Viewers.Package.RecoverDeletedFiles(mainTreeView.VrfGuiContext.CurrentPackage, progressDialog.SetProgress);
+                var foundFiles = Types.PackageViewer.PackageViewer.RecoverDeletedFiles(mainTreeView.VrfGuiContext.CurrentPackage, progressDialog.SetProgress);
 
                 Invoke((MethodInvoker)(() =>
                 {

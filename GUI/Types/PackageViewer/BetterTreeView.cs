@@ -10,7 +10,7 @@ using GUI.Forms;
 using GUI.Utils;
 using SteamDatabase.ValvePak;
 
-namespace GUI.Controls
+namespace GUI.Types.PackageViewer
 {
     /// <summary>
     /// Represents a TreeView with the ability to have its contents searched.
@@ -22,11 +22,6 @@ namespace GUI.Controls
         public int FolderImage;
 
         public VrfGuiContext VrfGuiContext { get; set; }
-
-        public BetterTreeView()
-        {
-            InitializeComponent();
-        }
 
         protected override void OnPaint(PaintEventArgs e)
         {

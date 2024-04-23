@@ -1,7 +1,7 @@
 using System.Drawing;
 using SteamDatabase.ValvePak;
 
-namespace GUI.Controls
+namespace GUI.Types.PackageViewer
 {
     class PackageContextMenuEventArgs : EventArgs
     {

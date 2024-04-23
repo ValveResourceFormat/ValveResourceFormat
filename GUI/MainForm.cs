@@ -12,6 +12,7 @@ using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Forms;
 using GUI.Types.Exporter;
+using GUI.Types.PackageViewer;
 using GUI.Types.Renderer;
 using GUI.Utils;
 using SteamDatabase.ValvePak;
@@ -681,9 +682,9 @@ namespace GUI
             var magic = BitConverter.ToUInt32(magicData[..4]);
             var magicResourceVersion = BitConverter.ToUInt16(magicData[4..]);
 
-            if (Types.Viewers.Package.IsAccepted(magic))
+            if (Types.PackageViewer.PackageViewer.IsAccepted(magic))
             {
-                var tab = new Types.Viewers.Package().Create(vrfGuiContext, stream);
+                var tab = new PackageViewer().Create(vrfGuiContext, stream);
 
                 return tab;
             }

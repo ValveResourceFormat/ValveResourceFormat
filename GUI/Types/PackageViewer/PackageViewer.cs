@@ -4,7 +4,7 @@ using System.IO.Enumeration;
 using System.Linq;
 using System.Text;
 using System.Windows.Forms;
-using GUI.Controls;
+using GUI.Types.Viewers;
 using GUI.Utils;
 using SteamDatabase.ValvePak;
 using ValveResourceFormat;
@@ -12,10 +12,10 @@ using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
 using ValveResourceFormat.IO;
 
-namespace GUI.Types.Viewers
+namespace GUI.Types.PackageViewer
 {
 #pragma warning disable CA1001 // TreeView is not owned by this class, set to null in VPK_Disposed
-    class Package : IViewer
+    class PackageViewer : IViewer
 #pragma warning restore CA1001
     {
         private VrfGuiContext VrfGuiContext;
@@ -33,7 +33,7 @@ namespace GUI.Types.Viewers
             VrfGuiContext = vrfGuiContext;
             IsEditingPackage = true;
 
-            var package = new SteamDatabase.ValvePak.Package();
+            var package = new Package();
             package.AddFile("README.txt", []); // TODO: Otherwise package.Entries is null
 
             vrfGuiContext.CurrentPackage = package;
@@ -48,7 +48,7 @@ namespace GUI.Types.Viewers
             VrfGuiContext = vrfGuiContext;
 
             var tab = new TabPage();
-            var package = new SteamDatabase.ValvePak.Package();
+            var package = new Package();
             package.OptimizeEntriesForBinarySearch(StringComparison.OrdinalIgnoreCase);
 
             if (stream != null)
@@ -141,7 +141,7 @@ namespace GUI.Types.Viewers
                 {
                     var magicResourceVersion = BitConverter.ToUInt16(data, 4);
 
-                    if (Resource.IsAccepted(magicResourceVersion) && name.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal))
+                    if (Viewers.Resource.IsAccepted(magicResourceVersion) && name.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal))
                     {
                         resourceEntries.Add(entry);
                     }
@@ -206,7 +206,7 @@ namespace GUI.Types.Viewers
 
             var result = $"Created {Path.GetFileName(fileName)} with {fileCount} files of size {HumanReadableByteSizeFormatter.Format(fileSize)}.";
 
-            Log.Info(nameof(Package), result);
+            Log.Info(nameof(PackageViewer), result);
 
             MessageBox.Show(
                 result,
@@ -216,7 +216,7 @@ namespace GUI.Types.Viewers
             );
         }
 
-        internal static List<PackageEntry> RecoverDeletedFiles(SteamDatabase.ValvePak.Package package, Action<string> setProgress)
+        internal static List<PackageEntry> RecoverDeletedFiles(Package package, Action<string> setProgress)
         {
             var allEntries = package.Entries
                 .SelectMany(file => file.Value)
@@ -235,7 +235,7 @@ namespace GUI.Types.Viewers
             {
                 if (archiveIndex - previousArchiveIndex > 1)
                 {
-                    Log.Warn(nameof(Package), $"There is probably an unused {previousArchiveIndex:D3}.vpk");
+                    Log.Warn(nameof(PackageViewer), $"There is probably an unused {previousArchiveIndex:D3}.vpk");
                 }
 
                 previousArchiveIndex = archiveIndex;
@@ -260,7 +260,7 @@ namespace GUI.Types.Viewers
                             break;
                         }
 
-                        offset = (offset + 16 - 1) & ~(16u - 1); // TODO: Validate this gap
+                        offset = offset + 16 - 1 & ~(16u - 1); // TODO: Validate this gap
 
                         var length = entryOffset - offset;
 
@@ -349,7 +349,7 @@ namespace GUI.Types.Viewers
                         }
                         catch (Exception ex)
                         {
-                            Log.Debug(nameof(Package), $"File {hiddenIndex} - {ex.Message}");
+                            Log.Debug(nameof(PackageViewer), $"File {hiddenIndex} - {ex.Message}");
 
                             newEntry.FileName += $" ({length} bytes)";
 
@@ -407,7 +407,7 @@ namespace GUI.Types.Viewers
                     }
                     catch (Exception e)
                     {
-                        Log.Debug(nameof(Package), e.Message);
+                        Log.Debug(nameof(PackageViewer), e.Message);
                     }
 
                     if (archiveFileSize != nextOffset)
@@ -417,7 +417,7 @@ namespace GUI.Types.Viewers
                 }
             }
 
-            Log.Info(nameof(Package), $"Found {hiddenIndex} deleted files totaling {HumanReadableByteSizeFormatter.Format(totalSlackSize)}");
+            Log.Info(nameof(PackageViewer), $"Found {hiddenIndex} deleted files totaling {HumanReadableByteSizeFormatter.Format(totalSlackSize)}");
 
             return hiddenFiles;
         }

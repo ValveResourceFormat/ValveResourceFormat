@@ -8,7 +8,7 @@ namespace GUI.Utils
     [ToolboxBitmap(typeof(TreeView))]
     class TreeViewDoubleBuffered : TreeView
     {
-        public TreeViewDoubleBuffered()
+        public TreeViewDoubleBuffered() : base()
         {
             DoubleBuffered = true;
         }
