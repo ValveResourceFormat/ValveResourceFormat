@@ -249,7 +249,7 @@ namespace GUI.Types.PackageViewer
 
                 node = (BetterTreeNode)node.FirstNode;
             }
-            while (true);
+            while (node.PkgNode != null);
 
             control.TreeViewNodeSorter = new TreeViewFileSorter();
             control.EndUpdate();
