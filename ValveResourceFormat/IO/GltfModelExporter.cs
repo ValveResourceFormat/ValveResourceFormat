@@ -43,7 +43,7 @@ namespace ValveResourceFormat.IO
         public bool ExportMaterials { get; set; } = true;
         public bool AdaptTextures { get; set; } = true;
         public bool SatelliteImages { get; set; } = true;
-        public bool ExportExtras { get; set; } = false;
+        public bool ExportExtras { get; set; }
 
         private string DstDir;
         private CancellationToken CancellationToken;
