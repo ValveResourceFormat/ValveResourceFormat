@@ -3,6 +3,7 @@
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 using SharpGLTF.IO;
@@ -25,7 +26,6 @@ using VMesh = ValveResourceFormat.ResourceTypes.Mesh;
 using VModel = ValveResourceFormat.ResourceTypes.Model;
 using VWorld = ValveResourceFormat.ResourceTypes.World;
 using VWorldNode = ValveResourceFormat.ResourceTypes.WorldNode;
-using System.Text.Json.Nodes;
 
 namespace ValveResourceFormat.IO
 {
@@ -43,6 +43,7 @@ namespace ValveResourceFormat.IO
         public bool ExportMaterials { get; set; } = true;
         public bool AdaptTextures { get; set; } = true;
         public bool SatelliteImages { get; set; } = true;
+        public bool ExportExtras { get; set; } = false;
 
         private string DstDir;
         private CancellationToken CancellationToken;
@@ -606,12 +607,13 @@ namespace ValveResourceFormat.IO
 
             var hasJoints = joints != null;
             var exportedMesh = CreateGltfMesh(name, mesh, exportedModel, hasJoints, skinMaterialPath, model, meshIndex);
-            if (entity != null
-                && !string.IsNullOrEmpty(entity.GetProperty<string>("targetname"))
-                && !string.IsNullOrEmpty(entity.GetProperty<string>("classname")))
+            if (entity != null && ExportExtras)
             {
-                exportedMesh.Extras["targetname"] = entity.GetProperty<string>("targetname");
-                exportedMesh.Extras["classname"] = entity.GetProperty<string>("classname");
+                foreach (var (hash, property) in entity.Properties)
+                {
+                    exportedMesh.Extras[property.Name] = property.Data as string;
+
+                }
             }
             loadedMeshDictionary.Add(name, exportedMesh);
             var hasVertexJoints = exportedMesh.Primitives.All(primitive => primitive.GetVertexAccessor("JOINTS_0") != null);

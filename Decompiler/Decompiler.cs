@@ -86,6 +86,9 @@ namespace Decompiler
         [Option("--gltf_textures_adapt", "Whether to perform any glTF spec adaptations on textures (e.g. split metallic map).", CommandOptionType.NoValue)]
         public bool GltfExportAdaptTextures { get; }
 
+        [Option("--gltf_export_extras", "Export additional Mesh properties into glTF extras", CommandOptionType.NoValue)]
+        public bool GltfExportExtras { get; }
+
         [Option("--tools_asset_info_short", "Whether to print only file paths for tools_asset_info files.", CommandOptionType.NoValue)]
         public bool ToolsAssetInfoShort { get; }
 
@@ -915,6 +918,7 @@ namespace Decompiler
             {
                 ExportMaterials = GltfExportMaterials,
                 AdaptTextures = GltfExportAdaptTextures,
+                ExportExtras = GltfExportExtras,
                 ProgressReporter = new Progress<string>(progress => Console.WriteLine($"--- {progress}")),
             };
 
@@ -1222,6 +1226,7 @@ namespace Decompiler
                 var gltfModelExporter = new GltfModelExporter(new NullFileLoader())
                 {
                     ExportMaterials = false,
+                    ExportExtras = GltfExportExtras,
                     ProgressReporter = new Progress<string>(progress => { }),
                 };
                 gltfModelExporter.Export(resource, null); // Filename passed as null which tells exporter to write gltf to a null stream
