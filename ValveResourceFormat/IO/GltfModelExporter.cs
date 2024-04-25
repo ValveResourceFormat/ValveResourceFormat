@@ -3,6 +3,7 @@
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 using SharpGLTF.IO;
@@ -42,6 +43,7 @@ namespace ValveResourceFormat.IO
         public bool ExportMaterials { get; set; } = true;
         public bool AdaptTextures { get; set; } = true;
         public bool SatelliteImages { get; set; } = true;
+        public bool ExportExtras { get; set; }
 
         private string DstDir;
         private CancellationToken CancellationToken;
@@ -232,7 +234,7 @@ namespace ValveResourceFormat.IO
                 var transform = EntityTransformHelper.CalculateTransformationMatrix(entity);
                 // Add meshes and their skeletons
                 LoadModel(exportedModel, scene, model, Path.GetFileNameWithoutExtension(modelName),
-                    transform, loadedMeshDictionary, skinName);
+                    transform, loadedMeshDictionary, skinName, entity);
             }
 
             foreach (var childEntityName in entityLump.GetChildEntityNames())
@@ -345,7 +347,7 @@ namespace ValveResourceFormat.IO
         }
 
         private void LoadModel(ModelRoot exportedModel, Scene scene, VModel model, string name,
-            Matrix4x4 transform, IDictionary<string, Mesh> loadedMeshDictionary, string skinName = null)
+            Matrix4x4 transform, IDictionary<string, Mesh> loadedMeshDictionary, string skinName = null, EntityLump.Entity entity = null)
         {
 #if DEBUG
             ProgressReporter?.Report($"Loading model {name}");
@@ -515,7 +517,7 @@ namespace ValveResourceFormat.IO
 
                 var node = AddMeshNode(exportedModel, scene, meshName,
                     m.Mesh, joints, loadedMeshDictionary, skinMaterialPath,
-                    model, m.MeshIndex);
+                    model, m.MeshIndex, entity);
                 if (node != null)
                 {
                     node.WorldMatrix = transform;
@@ -588,7 +590,7 @@ namespace ValveResourceFormat.IO
 
         private Node AddMeshNode(ModelRoot exportedModel, Scene scene, string name,
             VMesh mesh, Node[] joints, IDictionary<string, Mesh> loadedMeshDictionary,
-            string skinMaterialPath = null, VModel model = null, int meshIndex = 0)
+            string skinMaterialPath = null, VModel model = null, int meshIndex = 0, EntityLump.Entity entity = null)
         {
             if (mesh.Data.GetArray("m_sceneObjects").Length == 0)
             {
@@ -605,6 +607,14 @@ namespace ValveResourceFormat.IO
 
             var hasJoints = joints != null;
             var exportedMesh = CreateGltfMesh(name, mesh, exportedModel, hasJoints, skinMaterialPath, model, meshIndex);
+            if (entity != null && ExportExtras)
+            {
+                foreach (var (hash, property) in entity.Properties)
+                {
+                    exportedMesh.Extras[property.Name] = property.Data as string;
+
+                }
+            }
             loadedMeshDictionary.Add(name, exportedMesh);
             var hasVertexJoints = exportedMesh.Primitives.All(primitive => primitive.GetVertexAccessor("JOINTS_0") != null);
 
@@ -718,6 +728,8 @@ namespace ValveResourceFormat.IO
 
             var mesh = exportedModel.CreateMesh(meshName);
             mesh.Name = meshName;
+
+            mesh.Extras = new JsonObject();
 
             vmesh.LoadExternalMorphData(FileLoader);
 
