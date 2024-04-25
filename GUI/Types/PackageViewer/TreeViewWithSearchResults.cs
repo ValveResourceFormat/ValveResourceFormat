@@ -234,22 +234,8 @@ namespace GUI.Types.PackageViewer
             };
             control.Nodes.Add(root);
 
-            // Expand lone folders (common in maps vpks)
-            var node = root;
-
-            do
-            {
-                CreateNodes(node);
-                node.Expand();
-
-                if (node.Nodes.Count != 1)
-                {
-                    break;
-                }
-
-                node = (BetterTreeNode)node.FirstNode;
-            }
-            while (node.PkgNode != null);
+            CreateNodes(root);
+            root.Expand();
 
             control.TreeViewNodeSorter = new TreeViewFileSorter();
             control.EndUpdate();
@@ -257,7 +243,23 @@ namespace GUI.Types.PackageViewer
 
         private void Control_BeforeExpand(object sender, TreeViewCancelEventArgs e)
         {
-            CreateNodes((BetterTreeNode)e.Node);
+            mainTreeView.BeginUpdate();
+
+            var node = (BetterTreeNode)e.Node;
+            CreateNodes(node);
+
+            // If the folder we just expanded contains a single folder, expand it too.
+            if (node.Nodes.Count == 1)
+            {
+                node = (BetterTreeNode)node.FirstNode;
+
+                if (node.PkgNode != null && !node.IsExpanded)
+                {
+                    node.Expand();
+                }
+            }
+
+            mainTreeView.EndUpdate();
         }
 
         private void CreateNodes(BetterTreeNode realNode)
