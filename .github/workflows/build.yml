@@ -177,6 +177,7 @@ jobs:
 
     - name: Create release files
       run: |
+       set -eux
        mkdir release
        chmod +x artifacts/Decompiler-linux-x64/Decompiler
        chmod +x artifacts/Decompiler-linux-arm/Decompiler
@@ -205,5 +206,8 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Publish to NuGet Gallery
-      run: find -name '*.nupkg' | xargs -i dotnet nuget push {} --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json
-      working-directory: artifacts/nupkg
+      run: |
+       set -eux
+       mv ValveResourceFormat.*.nupkg ValveResourceFormat.nupkg
+       dotnet nuget push ValveResourceFormat.nupkg --api-key "${{ secrets.NUGET_API_KEY }}" --source "https://api.nuget.org/v3/index.json"
+      working-directory: release
