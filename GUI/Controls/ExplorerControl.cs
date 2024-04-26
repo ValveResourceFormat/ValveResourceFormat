@@ -629,6 +629,11 @@ namespace GUI.Controls
             RedrawList(APPID_BOOKMARKS, GetBookmarkedFileNodes());
         }
 
+        private void OnExplorerLoad(object sender, EventArgs e)
+        {
+            filterTextBox.Focus();
+        }
+
         private Bitmap GetAppResizedImage(string path)
         {
             var originalImage = Image.FromFile(path);

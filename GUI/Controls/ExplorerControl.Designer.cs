@@ -115,6 +115,7 @@ namespace GUI.Controls
             Controls.Add(filterTextBox);
             Name = "ExplorerControl";
             Size = new System.Drawing.Size(581, 354);
+            Load += OnExplorerLoad;
             VisibleChanged += OnVisibleChanged;
             fileContextMenuStrip.ResumeLayout(false);
             recentFilesContextMenuStrip.ResumeLayout(false);
