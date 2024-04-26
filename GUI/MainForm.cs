@@ -56,7 +56,7 @@ namespace GUI
             }
         }
 
-        public MainForm()
+        public MainForm(string[] args)
         {
             InitializeComponent();
 
@@ -101,17 +101,15 @@ namespace GUI
 
             HardwareAcceleratedTextureDecoder.Decoder = new GLTextureDecoder();
 
-            var args = Environment.GetCommandLineArgs();
-
 #if DEBUG
-            if (args.Length > 1 && args[1] == "validate_shaders")
+            if (args.Length > 0 && args[0] == "validate_shaders")
             {
                 GUI.Types.Renderer.ShaderLoader.ValidateShaders();
                 return;
             }
 #endif
 
-            for (var i = 1; i < args.Length; i++)
+            for (var i = 0; i < args.Length; i++)
             {
                 var file = args[i];
 
@@ -205,6 +203,11 @@ namespace GUI
                 }
 
                 OpenFile(file);
+            }
+
+            if (args.Length == 0 && Settings.Config.OpenExplorerOnStart != 0)
+            {
+                OpenExplorer();
             }
 
             // Force refresh title due to OpenFile calls above, SelectedIndexChanged is not called in the same tick
@@ -778,7 +781,9 @@ namespace GUI
             }
         }
 
-        private void OpenExplorer_Click(object sender, EventArgs e)
+        private void OpenExplorer_Click(object sender, EventArgs e) => OpenExplorer();
+
+        private void OpenExplorer()
         {
             foreach (TabPage tabPage in mainTabs.TabPages)
             {

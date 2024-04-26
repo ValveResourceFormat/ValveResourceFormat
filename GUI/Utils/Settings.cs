@@ -9,7 +9,7 @@ namespace GUI.Utils
 {
     static class Settings
     {
-        private const int SettingsFileCurrentVersion = 7;
+        private const int SettingsFileCurrentVersion = 8;
         private const int RecentFilesLimit = 20;
 
         [Flags]
@@ -39,6 +39,7 @@ namespace GUI.Utils
             public int Vsync { get; set; }
             public int DisplayFps { get; set; }
             public int QuickFilePreview { get; set; }
+            public int OpenExplorerOnStart { get; set; }
             public int _VERSION_DO_NOT_MODIFY { get; set; }
         }
 

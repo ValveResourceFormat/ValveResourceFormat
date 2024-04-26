@@ -48,12 +48,15 @@ namespace GUI.Forms
             groupBox2 = new System.Windows.Forms.GroupBox();
             tableLayoutPanel2 = new System.Windows.Forms.TableLayoutPanel();
             groupBox3 = new System.Windows.Forms.GroupBox();
+            tableLayoutPanel4 = new System.Windows.Forms.TableLayoutPanel();
             groupBox4 = new System.Windows.Forms.GroupBox();
             tableLayoutPanel3 = new System.Windows.Forms.TableLayoutPanel();
             quickPreviewLabel = new System.Windows.Forms.Label();
             quickPreviewSoundsLabel = new System.Windows.Forms.Label();
             quickPreviewCheckbox = new System.Windows.Forms.CheckBox();
             quickPreviewSoundsCheckbox = new System.Windows.Forms.CheckBox();
+            openExplorerOnStartLabel = new System.Windows.Forms.Label();
+            openExplorerOnStartCheckbox = new System.Windows.Forms.CheckBox();
             ((System.ComponentModel.ISupportInitialize)maxTextureSizeInput).BeginInit();
             ((System.ComponentModel.ISupportInitialize)fovInput).BeginInit();
             groupBox1.SuspendLayout();
@@ -61,6 +64,7 @@ namespace GUI.Forms
             groupBox2.SuspendLayout();
             tableLayoutPanel2.SuspendLayout();
             groupBox3.SuspendLayout();
+            tableLayoutPanel4.SuspendLayout();
             groupBox4.SuspendLayout();
             tableLayoutPanel3.SuspendLayout();
             SuspendLayout();
@@ -126,7 +130,7 @@ namespace GUI.Forms
             // 
             maxTextureSizeInput.Anchor = System.Windows.Forms.AnchorStyles.Left;
             maxTextureSizeInput.Increment = new decimal(new int[] { 64, 0, 0, 0 });
-            maxTextureSizeInput.Location = new System.Drawing.Point(104, 8);
+            maxTextureSizeInput.Location = new System.Drawing.Point(213, 8);
             maxTextureSizeInput.Maximum = new decimal(new int[] { 10240, 0, 0, 0 });
             maxTextureSizeInput.Minimum = new decimal(new int[] { 1, 0, 0, 0 });
             maxTextureSizeInput.Name = "maxTextureSizeInput";
@@ -138,7 +142,7 @@ namespace GUI.Forms
             // fovInput
             // 
             fovInput.Anchor = System.Windows.Forms.AnchorStyles.Left;
-            fovInput.Location = new System.Drawing.Point(104, 48);
+            fovInput.Location = new System.Drawing.Point(213, 48);
             fovInput.Maximum = new decimal(new int[] { 150, 0, 0, 0 });
             fovInput.Minimum = new decimal(new int[] { 1, 0, 0, 0 });
             fovInput.Name = "fovInput";
@@ -172,7 +176,7 @@ namespace GUI.Forms
             antiAliasingComboBox.Anchor = System.Windows.Forms.AnchorStyles.Left;
             antiAliasingComboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             antiAliasingComboBox.FormattingEnabled = true;
-            antiAliasingComboBox.Location = new System.Drawing.Point(104, 88);
+            antiAliasingComboBox.Location = new System.Drawing.Point(213, 88);
             antiAliasingComboBox.Name = "antiAliasingComboBox";
             antiAliasingComboBox.Size = new System.Drawing.Size(100, 23);
             antiAliasingComboBox.TabIndex = 7;
@@ -180,10 +184,11 @@ namespace GUI.Forms
             // 
             // registerAssociationButton
             // 
-            registerAssociationButton.Location = new System.Drawing.Point(16, 35);
+            registerAssociationButton.Dock = System.Windows.Forms.DockStyle.Fill;
+            registerAssociationButton.Location = new System.Drawing.Point(4, 43);
             registerAssociationButton.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             registerAssociationButton.Name = "registerAssociationButton";
-            registerAssociationButton.Size = new System.Drawing.Size(200, 27);
+            registerAssociationButton.Size = new System.Drawing.Size(202, 34);
             registerAssociationButton.TabIndex = 10;
             registerAssociationButton.Text = "Register .vpk file association";
             registerAssociationButton.UseVisualStyleBackColor = true;
@@ -203,9 +208,9 @@ namespace GUI.Forms
             // 
             vsyncCheckBox.AutoSize = true;
             vsyncCheckBox.Dock = System.Windows.Forms.DockStyle.Fill;
-            vsyncCheckBox.Location = new System.Drawing.Point(104, 123);
+            vsyncCheckBox.Location = new System.Drawing.Point(213, 123);
             vsyncCheckBox.Name = "vsyncCheckBox";
-            vsyncCheckBox.Size = new System.Drawing.Size(313, 34);
+            vsyncCheckBox.Size = new System.Drawing.Size(204, 34);
             vsyncCheckBox.TabIndex = 8;
             vsyncCheckBox.UseVisualStyleBackColor = true;
             vsyncCheckBox.CheckedChanged += OnVsyncValueChanged;
@@ -214,9 +219,9 @@ namespace GUI.Forms
             // 
             displayFpsCheckBox.AutoSize = true;
             displayFpsCheckBox.Dock = System.Windows.Forms.DockStyle.Fill;
-            displayFpsCheckBox.Location = new System.Drawing.Point(104, 163);
+            displayFpsCheckBox.Location = new System.Drawing.Point(213, 163);
             displayFpsCheckBox.Name = "displayFpsCheckBox";
-            displayFpsCheckBox.Size = new System.Drawing.Size(313, 34);
+            displayFpsCheckBox.Size = new System.Drawing.Size(204, 34);
             displayFpsCheckBox.TabIndex = 9;
             displayFpsCheckBox.UseVisualStyleBackColor = true;
             displayFpsCheckBox.CheckedChanged += OnDisplayFpsValueChanged;
@@ -279,8 +284,8 @@ namespace GUI.Forms
             // tableLayoutPanel2
             // 
             tableLayoutPanel2.ColumnCount = 2;
-            tableLayoutPanel2.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle());
-            tableLayoutPanel2.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle());
+            tableLayoutPanel2.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 50F));
+            tableLayoutPanel2.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 50F));
             tableLayoutPanel2.Controls.Add(maxTextureSizeLabel, 0, 0);
             tableLayoutPanel2.Controls.Add(displayFpsCheckBox, 1, 4);
             tableLayoutPanel2.Controls.Add(maxTextureSizeInput, 1, 0);
@@ -306,16 +311,34 @@ namespace GUI.Forms
             // 
             // groupBox3
             // 
-            groupBox3.Controls.Add(registerAssociationButton);
+            groupBox3.Controls.Add(tableLayoutPanel4);
             groupBox3.Dock = System.Windows.Forms.DockStyle.Top;
             groupBox3.Location = new System.Drawing.Point(16, 599);
             groupBox3.Margin = new System.Windows.Forms.Padding(0);
             groupBox3.Name = "groupBox3";
             groupBox3.Padding = new System.Windows.Forms.Padding(16);
-            groupBox3.Size = new System.Drawing.Size(452, 82);
+            groupBox3.Size = new System.Drawing.Size(452, 138);
             groupBox3.TabIndex = 3;
             groupBox3.TabStop = false;
-            groupBox3.Text = "Windows explorer";
+            groupBox3.Text = "Explorer";
+            // 
+            // tableLayoutPanel4
+            // 
+            tableLayoutPanel4.ColumnCount = 2;
+            tableLayoutPanel4.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 50F));
+            tableLayoutPanel4.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 50F));
+            tableLayoutPanel4.Controls.Add(openExplorerOnStartCheckbox, 1, 0);
+            tableLayoutPanel4.Controls.Add(openExplorerOnStartLabel, 0, 0);
+            tableLayoutPanel4.Controls.Add(registerAssociationButton, 0, 1);
+            tableLayoutPanel4.Dock = System.Windows.Forms.DockStyle.Fill;
+            tableLayoutPanel4.Location = new System.Drawing.Point(16, 32);
+            tableLayoutPanel4.Name = "tableLayoutPanel4";
+            tableLayoutPanel4.RowCount = 3;
+            tableLayoutPanel4.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 40F));
+            tableLayoutPanel4.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 40F));
+            tableLayoutPanel4.RowStyles.Add(new System.Windows.Forms.RowStyle());
+            tableLayoutPanel4.Size = new System.Drawing.Size(420, 90);
+            tableLayoutPanel4.TabIndex = 11;
             // 
             // groupBox4
             // 
@@ -332,8 +355,8 @@ namespace GUI.Forms
             // tableLayoutPanel3
             // 
             tableLayoutPanel3.ColumnCount = 2;
-            tableLayoutPanel3.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle());
-            tableLayoutPanel3.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle());
+            tableLayoutPanel3.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 50F));
+            tableLayoutPanel3.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 50F));
             tableLayoutPanel3.Controls.Add(quickPreviewLabel, 0, 0);
             tableLayoutPanel3.Controls.Add(quickPreviewSoundsLabel, 0, 1);
             tableLayoutPanel3.Controls.Add(quickPreviewCheckbox, 1, 0);
@@ -373,9 +396,9 @@ namespace GUI.Forms
             // 
             quickPreviewCheckbox.AutoSize = true;
             quickPreviewCheckbox.Dock = System.Windows.Forms.DockStyle.Fill;
-            quickPreviewCheckbox.Location = new System.Drawing.Point(161, 3);
+            quickPreviewCheckbox.Location = new System.Drawing.Point(213, 3);
             quickPreviewCheckbox.Name = "quickPreviewCheckbox";
-            quickPreviewCheckbox.Size = new System.Drawing.Size(256, 34);
+            quickPreviewCheckbox.Size = new System.Drawing.Size(204, 34);
             quickPreviewCheckbox.TabIndex = 2;
             quickPreviewCheckbox.UseVisualStyleBackColor = true;
             quickPreviewCheckbox.CheckedChanged += OnQuickPreviewCheckboxChanged;
@@ -384,19 +407,40 @@ namespace GUI.Forms
             // 
             quickPreviewSoundsCheckbox.AutoSize = true;
             quickPreviewSoundsCheckbox.Dock = System.Windows.Forms.DockStyle.Fill;
-            quickPreviewSoundsCheckbox.Location = new System.Drawing.Point(161, 43);
+            quickPreviewSoundsCheckbox.Location = new System.Drawing.Point(213, 43);
             quickPreviewSoundsCheckbox.Name = "quickPreviewSoundsCheckbox";
-            quickPreviewSoundsCheckbox.Size = new System.Drawing.Size(256, 34);
+            quickPreviewSoundsCheckbox.Size = new System.Drawing.Size(204, 34);
             quickPreviewSoundsCheckbox.TabIndex = 3;
             quickPreviewSoundsCheckbox.UseVisualStyleBackColor = true;
             quickPreviewSoundsCheckbox.CheckedChanged += OnQuickPreviewSoundsCheckboxChanged;
+            // 
+            // openExplorerOnStartLabel
+            // 
+            openExplorerOnStartLabel.Anchor = System.Windows.Forms.AnchorStyles.Left;
+            openExplorerOnStartLabel.AutoSize = true;
+            openExplorerOnStartLabel.Location = new System.Drawing.Point(3, 12);
+            openExplorerOnStartLabel.Name = "openExplorerOnStartLabel";
+            openExplorerOnStartLabel.Size = new System.Drawing.Size(128, 15);
+            openExplorerOnStartLabel.TabIndex = 11;
+            openExplorerOnStartLabel.Text = "Open explorer on start:";
+            // 
+            // openExplorerOnStartCheckbox
+            // 
+            openExplorerOnStartCheckbox.AutoSize = true;
+            openExplorerOnStartCheckbox.Dock = System.Windows.Forms.DockStyle.Fill;
+            openExplorerOnStartCheckbox.Location = new System.Drawing.Point(213, 3);
+            openExplorerOnStartCheckbox.Name = "openExplorerOnStartCheckbox";
+            openExplorerOnStartCheckbox.Size = new System.Drawing.Size(204, 34);
+            openExplorerOnStartCheckbox.TabIndex = 12;
+            openExplorerOnStartCheckbox.UseVisualStyleBackColor = true;
+            openExplorerOnStartCheckbox.CheckedChanged += OnOpenExplorerOnStartValueChanged;
             // 
             // SettingsForm
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             AutoScroll = true;
-            ClientSize = new System.Drawing.Size(484, 698);
+            ClientSize = new System.Drawing.Size(484, 751);
             Controls.Add(groupBox3);
             Controls.Add(groupBox4);
             Controls.Add(groupBox2);
@@ -418,6 +462,8 @@ namespace GUI.Forms
             tableLayoutPanel2.ResumeLayout(false);
             tableLayoutPanel2.PerformLayout();
             groupBox3.ResumeLayout(false);
+            tableLayoutPanel4.ResumeLayout(false);
+            tableLayoutPanel4.PerformLayout();
             groupBox4.ResumeLayout(false);
             tableLayoutPanel3.ResumeLayout(false);
             tableLayoutPanel3.PerformLayout();
@@ -452,5 +498,8 @@ namespace GUI.Forms
         private System.Windows.Forms.Label quickPreviewSoundsLabel;
         private System.Windows.Forms.CheckBox quickPreviewCheckbox;
         private System.Windows.Forms.CheckBox quickPreviewSoundsCheckbox;
+        private System.Windows.Forms.TableLayoutPanel tableLayoutPanel4;
+        private System.Windows.Forms.CheckBox openExplorerOnStartCheckbox;
+        private System.Windows.Forms.Label openExplorerOnStartLabel;
     }
 }

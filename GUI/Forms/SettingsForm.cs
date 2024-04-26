@@ -33,6 +33,7 @@ namespace GUI.Forms
             fovInput.Value = Settings.Config.FieldOfView;
             vsyncCheckBox.Checked = Settings.Config.Vsync != 0;
             displayFpsCheckBox.Checked = Settings.Config.DisplayFps != 0;
+            openExplorerOnStartCheckbox.Checked = Settings.Config.OpenExplorerOnStart != 0;
 
             var quickPreviewFlags = (Settings.QuickPreviewFlags)Settings.Config.QuickFilePreview;
             quickPreviewCheckbox.Checked = (quickPreviewFlags & Settings.QuickPreviewFlags.Enabled) != 0;
@@ -146,6 +147,11 @@ namespace GUI.Forms
         private void OnDisplayFpsValueChanged(object sender, EventArgs e)
         {
             Settings.Config.DisplayFps = displayFpsCheckBox.Checked ? 1 : 0;
+        }
+
+        private void OnOpenExplorerOnStartValueChanged(object sender, EventArgs e)
+        {
+            Settings.Config.OpenExplorerOnStart = openExplorerOnStartCheckbox.Checked ? 1 : 0;
         }
 
         private void OnQuickPreviewCheckboxChanged(object sender, EventArgs e) => SetQuickPreviewSetting();

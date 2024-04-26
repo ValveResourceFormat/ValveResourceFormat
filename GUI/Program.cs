@@ -13,7 +13,7 @@ namespace GUI
         /// The main entry point for the application.
         /// </summary>
         [STAThread]
-        internal static void Main()
+        internal static void Main(string[] args)
         {
             AppDomain.CurrentDomain.UnhandledException += UnhandledException;
             Application.ThreadException += ThreadException;
@@ -26,7 +26,7 @@ namespace GUI
             Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
             Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
 
-            MainForm = new MainForm();
+            MainForm = new MainForm(args);
             Application.Run(MainForm);
         }
 
