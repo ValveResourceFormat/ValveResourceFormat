@@ -458,7 +458,12 @@ namespace GUI.Types.PackageViewer
                     var processed = 0;
 
                     // This does not need to be perfect, ValvePak reports a string per file, and success strings.
-                    var maximum = package.Entries.Sum(x => x.Value.Count) + package.ArchiveMD5Entries.Count + 2;
+                    var maximum = package.ArchiveMD5Entries.Count + 2;
+
+                    if (package.ArchiveMD5Entries.Count == 0)
+                    {
+                        maximum += package.Entries.Sum(x => x.Value.Count);
+                    }
 
                     progressDialog.Invoke(() =>
                     {
@@ -499,7 +504,7 @@ namespace GUI.Types.PackageViewer
                         package.VerifyChunkHashes(progressReporter);
                     }
 
-                    if (!cancellationToken.IsCancellationRequested)
+                    if (!cancellationToken.IsCancellationRequested && package.ArchiveMD5Entries.Count == 0)
                     {
                         package.VerifyFileChecksums(progressReporter);
                     }
