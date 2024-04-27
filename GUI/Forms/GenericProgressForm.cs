@@ -9,7 +9,7 @@ namespace GUI.Forms
     partial class GenericProgressForm : Form
     {
         private CancellationTokenSource cancellationTokenSource;
-        public event EventHandler OnProcess;
+        public event EventHandler<CancellationToken> OnProcess;
 
         public GenericProgressForm()
         {
@@ -55,7 +55,7 @@ namespace GUI.Forms
         protected override void OnShown(EventArgs e)
         {
             Task.Run(
-                () => OnProcess?.Invoke(this, new EventArgs()),
+                () => OnProcess?.Invoke(this, cancellationTokenSource.Token),
                 cancellationTokenSource.Token)
                 .ContinueWith((t) =>
                 {
@@ -74,7 +74,7 @@ namespace GUI.Forms
                         throw t.Exception;
                     }
 
-                    if (!t.IsCanceled)
+                    if (!t.IsCanceled && IsHandleCreated)
                     {
                         Invoke((Action)Close);
                     }

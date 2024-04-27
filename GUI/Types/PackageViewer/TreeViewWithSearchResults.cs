@@ -440,7 +440,7 @@ namespace GUI.Types.PackageViewer
             {
                 Text = "Verifying package…"
             };
-            progressDialog.OnProcess += (_, __) =>
+            progressDialog.OnProcess += (_, cancellationToken) =>
             {
                 var package = mainTreeView.VrfGuiContext.CurrentPackage;
 
@@ -470,6 +470,11 @@ namespace GUI.Types.PackageViewer
 
                     var progressReporter = new Progress<string>(progress =>
                     {
+                        if (cancellationToken.IsCancellationRequested)
+                        {
+                            return;
+                        }
+
                         var value = Math.Min(++processed, maximum);
 
                         var currentTime = System.Diagnostics.Stopwatch.GetTimestamp();
@@ -489,23 +494,39 @@ namespace GUI.Types.PackageViewer
                         });
                     });
 
-                    package.VerifyChunkHashes(progressReporter);
-                    package.VerifyFileChecksums(progressReporter);
-
-                    progressDialog.Invoke(() =>
+                    if (!cancellationToken.IsCancellationRequested)
                     {
-                        progressDialog.SetBarValue(maximum);
-                    });
+                        package.VerifyChunkHashes(progressReporter);
+                    }
 
-                    MessageBox.Show(
-                        "Successfully verified package contents.",
-                        "Verified package contents",
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Information
-                    );
+                    if (!cancellationToken.IsCancellationRequested)
+                    {
+                        package.VerifyFileChecksums(progressReporter);
+                    }
+
+                    if (!cancellationToken.IsCancellationRequested)
+                    {
+                        progressDialog.Invoke(() =>
+                        {
+                            progressDialog.SetBarValue(maximum);
+                        });
+
+                        MessageBox.Show(
+                            "Successfully verified package contents.",
+                            "Verified package contents",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Information
+                        );
+                    }
                 }
                 catch (Exception e)
                 {
+                    if (cancellationToken.IsCancellationRequested)
+                    {
+                        Log.Error(nameof(Package), $"Failed to verify package contents: {e.Message}");
+                        return;
+                    }
+
                     MessageBox.Show(
                         e.Message,
                         "Failed to verify package contents",
