@@ -1063,7 +1063,7 @@ namespace Decompiler
 
                 return Path.Combine(OutputFile, inputPath);
             }
-            else if (useOutputAsDirectory)
+            else if (useOutputAsDirectory || Directory.Exists(OutputFile))
             {
                 return Path.Combine(OutputFile, inputPath);
             }
