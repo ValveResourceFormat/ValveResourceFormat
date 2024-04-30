@@ -11,6 +11,7 @@ using HalfEdgeSlim = (int SrcVertexId, int DstVertexId);
 using static ValveResourceFormat.IO.HammerMeshBuilder;
 using ValveResourceFormat.Utils;
 using System.Globalization;
+using ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes;
 
 namespace ValveResourceFormat.IO
 {
@@ -245,17 +246,21 @@ namespace ValveResourceFormat.IO
 
     public class PhysicsVertexMatcher
     {
-        private readonly Vector3[] vertexPositions;
+        private readonly Vector3[] VertexPositions;
+        private readonly ResourceTypes.RubikonPhysics.Shapes.Mesh.Triangle[] Triangles;
+        private readonly ResourceTypes.RubikonPhysics.Shapes.Mesh.Node[] PhysicsTree;
         public MeshDescriptor PhysicsMesh { get; }
-        public Dictionary<int, int> RenderToPhys { get; } = [];
+        //public Dictionary<int, int> RenderToPhys { get; } = [];
         public HashSet<int> DeletedVertexIndices { get; } = [];
         //public HashSet<(int, int, int)> DeletedTriangles { get; } = [];
 
         public PhysicsVertexMatcher(MeshDescriptor mesh)
         {
             PhysicsMesh = mesh;
-            vertexPositions = mesh.Shape.GetVertices().ToArray();
-            DeletedVertexIndices.EnsureCapacity(vertexPositions.Length / 4);
+            VertexPositions = mesh.Shape.GetVertices().ToArray();
+            Triangles = mesh.Shape.GetTriangles().ToArray();
+            PhysicsTree = mesh.Shape.ParseNodes().ToArray();
+            DeletedVertexIndices.EnsureCapacity(VertexPositions.Length / 4);
         }
 
         /*
@@ -273,43 +278,77 @@ namespace ValveResourceFormat.IO
         }
         */
 
+        record struct RnMeshNodeWithIndex(int Index, ResourceTypes.RubikonPhysics.Shapes.Mesh.Node Node);
         public object? LastPositions { get; set; }
         public void ScanPhysicsPointCloudForMatches(ReadOnlySpan<Vector3> renderMeshPositions)
         {
-            RenderToPhys.Clear();
+            //RenderToPhys.Clear();
 
             var localMatches = new HashSet<int>(capacity: renderMeshPositions.Length);
-            RenderToPhys.EnsureCapacity(renderMeshPositions.Length);
+            //RenderToPhys.EnsureCapacity(renderMeshPositions.Length);
+
+            Span<int> triangleIndices = [0, 0, 0];
+
+            var stack = new Stack<RnMeshNodeWithIndex>(64); // TODO: Make this a property for reuse?
 
             for (var j = 0; j < renderMeshPositions.Length; ++j)
             {
-                if (j == 10 && localMatches.Count < 1
-                 || j == 100 && localMatches.Count < 10)
-                {
-                    Console.WriteLine($"{nameof(PhysicsVertexMatcher)}: Bailing out due to low rate!");
-                    return;
-                }
-
-                var pos = renderMeshPositions[j];
+                var renderPosition = renderMeshPositions[j];
                 const float epsilon = 0.016f;
 
-                // Mirage: 22k faces with equality match, 5k with epsilon
-                var match = Array.FindIndex(vertexPositions, v => (v - pos).LengthSquared() < epsilon);
+                stack.Push(new(0, PhysicsTree[0])); // root
 
-                if (match == -1)
+                while (stack.TryPop(out var nodeWithIndex))
                 {
-                    continue;
-                }
+                    var node = nodeWithIndex.Node;
+                    var nodeContains =
+                        renderPosition.X >= node.Min.X && renderPosition.X <= node.Max.X &&
+                        renderPosition.Y >= node.Min.Y && renderPosition.Y <= node.Max.Y &&
+                        renderPosition.Z >= node.Min.Z && renderPosition.Z <= node.Max.Z;
 
-                localMatches.Add(match);
-                //RenderToPhys[j] = match;
+                    if (!nodeContains)
+                    {
+                        continue;
+                    }
+
+                    if (node.Type != ResourceTypes.RubikonPhysics.Shapes.Mesh.NodeType.Leaf)
+                    {
+                        var id = nodeWithIndex.Index + 1; // GetLeftChild
+                        stack.Push(new(id, PhysicsTree[id]));
+
+                        id = nodeWithIndex.Index + (int)node.ChildOffset; // GetRightChild
+                        stack.Push(new(id, PhysicsTree[id]));
+
+                        continue;
+                    }
+
+                    var triangleOffset = node.TriangleOffset;
+                    var triangleCount = node.ChildOffset; // Same packing
+
+                    for (var i = 0; i < triangleCount; i++)
+                    {
+                        var triangle = Triangles[triangleOffset + i];
+
+                        triangleIndices = [triangle.X, triangle.Y, triangle.Z];
+
+                        for (var t = 0; t < 3; t++)
+                        {
+                            var pos = VertexPositions[triangleIndices[t]];
+                            if (Vector3.DistanceSquared(pos, renderPosition) < epsilon)
+                            {
+                                localMatches.Add(triangleIndices[t]); // TODO: Add to DeletedVertexIndices
+                            }
+                        }
+                    }
+                }
             }
 
             DeletedVertexIndices.UnionWith(localMatches);
-            Console.WriteLine($"{nameof(PhysicsVertexMatcher)}: Matched {(float)localMatches.Count / renderMeshPositions.Length * 100f}% of rendermesh to physics vertices!");
+
+            var matched = (float)localMatches.Count / renderMeshPositions.Length * 100f;
+            Console.WriteLine($"{nameof(PhysicsVertexMatcher)}: Matched {matched:F2}% ({localMatches.Count} vertices) of rendermesh to physics vertices!");
         }
     }
-
     //the bulk of the work is done in the AddFace() function
     //GenerateMesh() just loops trough the vertex, halfedge and face lists and writes their data to the vmap in the correct format
     //we could technically get rid of this function and write data to the vmap as its generated
