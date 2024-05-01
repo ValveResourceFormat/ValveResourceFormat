@@ -53,10 +53,10 @@ namespace Decompiler
         [Option("-b|--block", "Print the content of a specific block, example: DATA, RERL, REDI, NTRO.", CommandOptionType.SingleValue)]
         public string BlockToPrint { get; }
 
-        [Option("--threads", "If more than 1, files will be processed concurrently.", CommandOptionType.SingleValue)]
+        [Option("--threads", "If higher than 1, files will be processed concurrently.", CommandOptionType.SingleValue)]
         public int MaxParallelismThreads { get; } = 1;
 
-        [Option("--vpk_dir", "Write a file with files in given VPK and their CRC.", CommandOptionType.NoValue)]
+        [Option("--vpk_dir", "Print a list of files in given VPK and information about them.", CommandOptionType.NoValue)]
         public bool OutputVPKDir { get; }
 
         [Option("--vpk_verify", "Verify checksums and signatures.", CommandOptionType.NoValue)]
