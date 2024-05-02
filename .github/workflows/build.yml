@@ -191,7 +191,7 @@ jobs:
        zip -9j release/Decompiler-macos-x64.zip artifacts/Decompiler-macos-x64/*
        zip -9j release/Decompiler-macos-arm64.zip artifacts/Decompiler-macos-arm64/*
        mv artifacts/Source2Viewer/Source2Viewer.exe release/
-       mv artifacts/nupkg/*.nupkg release/
+       mv artifacts/nupkg/ValveResourceFormat.*.nupkg release/ValveResourceFormat.nupkg
 
     - name: Display structure of archived files
       run: ls -Rl
@@ -206,8 +206,4 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Publish to NuGet Gallery
-      run: |
-       set -eux
-       mv ValveResourceFormat.*.nupkg ValveResourceFormat.nupkg
-       dotnet nuget push ValveResourceFormat.nupkg --api-key "${{ secrets.NUGET_API_KEY }}" --source "https://api.nuget.org/v3/index.json"
-      working-directory: release
+      run: dotnet nuget push release/ValveResourceFormat.nupkg --api-key "${{ secrets.NUGET_API_KEY }}" --source "https://api.nuget.org/v3/index.json"
