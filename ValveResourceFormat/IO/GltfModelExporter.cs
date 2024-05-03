@@ -6,7 +6,6 @@ using System.Runtime.InteropServices;
 using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
-using SharpGLTF.IO;
 using SharpGLTF.Memory;
 using SharpGLTF.Schema2;
 using SkiaSharp;
@@ -657,7 +656,7 @@ namespace ValveResourceFormat.IO
             {
                 ImageWriting = SatelliteImages ? ResourceWriteMode.SatelliteFile : ResourceWriteMode.BufferView,
                 ImageWriteCallback = ImageWriteCallback,
-                JsonIndented = true,
+                JsonIndented = false,
                 MergeBuffers = true,
                 BuffersMaxSize = 1_074_000_000,
             };
