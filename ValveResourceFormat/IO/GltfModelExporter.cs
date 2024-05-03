@@ -503,9 +503,9 @@ namespace ValveResourceFormat.IO
                     meshName = string.Concat(meshName, ".", skinName);
                 }
 
+                var vbib = model.RemapBoneIndices(m.Mesh.VBIB, m.MeshIndex);
                 var node = AddMeshNode(exportedModel, scene, meshName,
-                    m.Mesh, joints, skinMaterialPath,
-                    model, m.MeshIndex, entity);
+                    m.Mesh, vbib, joints, skinMaterialPath, entity);
                 if (node != null)
                 {
                     node.WorldMatrix = transform;
@@ -564,7 +564,7 @@ namespace ValveResourceFormat.IO
         {
             var exportedModel = CreateModelRoot(resourceName, out var scene);
             var name = Path.GetFileName(resourceName);
-            var node = AddMeshNode(exportedModel, scene, name, mesh, null);
+            var node = AddMeshNode(exportedModel, scene, name, mesh, mesh.VBIB, joints: null);
 
             if (node != null)
             {
@@ -576,8 +576,8 @@ namespace ValveResourceFormat.IO
         }
 
         private Node AddMeshNode(ModelRoot exportedModel, Scene scene, string name,
-            VMesh mesh, Node[] joints,
-            string skinMaterialPath = null, VModel model = null, int meshIndex = 0, EntityLump.Entity entity = null)
+            VMesh mesh, Blocks.VBIB vbib, Node[] joints,
+            string skinMaterialPath = null, EntityLump.Entity entity = null)
         {
             if (mesh.Data.GetArray("m_sceneObjects").Length == 0)
             {
@@ -593,7 +593,7 @@ namespace ValveResourceFormat.IO
             }
 
             var hasJoints = joints != null;
-            exportedMesh = CreateGltfMesh(name, mesh, exportedModel, hasJoints, skinMaterialPath, model, meshIndex);
+            exportedMesh = CreateGltfMesh(name, mesh, vbib, exportedModel, hasJoints, skinMaterialPath);
             ExportedMeshes.Add(name, exportedMesh);
 
             if (entity != null && ExportExtras)

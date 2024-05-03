@@ -18,17 +18,9 @@ public partial class GltfModelExporter
     // https://github.com/KhronosGroup/glTF-Validator/blob/master/lib/src/errors.dart
     private const float UnitLengthThresholdVec3 = 0.00674f;
 
-    private Mesh CreateGltfMesh(string meshName, VMesh vmesh, ModelRoot exportedModel, bool includeJoints,
-        string skinMaterialPath, VModel model, int meshIndex)
+    private Mesh CreateGltfMesh(string meshName, VMesh vmesh, VBIB vbib, ModelRoot exportedModel, bool includeJoints, string skinMaterialPath)
     {
         ProgressReporter?.Report($"Creating mesh: {meshName}");
-
-        var data = vmesh.Data;
-        var vbib = vmesh.VBIB;
-        if (model != null)
-        {
-            vbib = model.RemapBoneIndices(vbib, meshIndex);
-        }
 
         var mesh = exportedModel.CreateMesh(meshName);
         mesh.Name = meshName;
@@ -245,7 +237,7 @@ public partial class GltfModelExporter
 
         var vertexOffset = 0;
 
-        foreach (var sceneObject in data.GetArray("m_sceneObjects"))
+        foreach (var sceneObject in vmesh.Data.GetArray("m_sceneObjects"))
         {
             foreach (var drawCall in sceneObject.GetArray("m_drawCalls"))
             {
