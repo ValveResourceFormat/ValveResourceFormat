@@ -981,7 +981,8 @@ namespace Decompiler
 
                     extension = FileExtract.GetExtension(resource) ?? type[..^2];
 
-                    if (GltfModelExporter.CanExport(resource))
+                    // TODO: This is forcing gltf export - https://github.com/ValveResourceFormat/ValveResourceFormat/issues/782
+                    if (GltfModelExporter.CanExport(resource) && resource.ResourceType != ResourceType.EntityLump)
                     {
                         var outputExtension = GltfExportFormat;
                         var outputFile = Path.Combine(OutputFile, Path.ChangeExtension(filePath, outputExtension));

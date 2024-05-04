@@ -59,6 +59,7 @@ namespace ValveResourceFormat.IO
         public static bool CanExport(Resource resource) => resource.ResourceType
             is ResourceType.Mesh
             or ResourceType.Model
+            or ResourceType.EntityLump
             or ResourceType.WorldNode
             or ResourceType.World
             or ResourceType.Map;
@@ -126,6 +127,9 @@ namespace ValveResourceFormat.IO
                             ExportToFile(resource.FileName, targetPath, (VWorld)mapResource.DataBlock);
                             break;
                         }
+                    case ResourceType.EntityLump:
+                        ExportToFile(resource.FileName, targetPath, (VEntityLump)resource.DataBlock);
+                        break;
                     default:
                         throw new ArgumentException($"{resource.ResourceType} not supported for gltf export");
                 }
@@ -190,6 +194,21 @@ namespace ValveResourceFormat.IO
 
                 LoadEntityMeshes(exportedModel, scene, entityLump);
             }
+
+            WriteModelFile(exportedModel, fileName);
+        }
+
+        /// <summary>
+        /// Export a list of entities to GLTF.
+        /// </summary>
+        /// <param name="resourceName">The name of the resource being exported.</param>
+        /// <param name="fileName">Target file name.</param>
+        /// <param name="world">The entity lump resource to export.</param>
+        private void ExportToFile(string resourceName, string fileName, VEntityLump entityLump)
+        {
+            var exportedModel = CreateModelRoot(resourceName, out var scene);
+
+            LoadEntityMeshes(exportedModel, scene, entityLump);
 
             WriteModelFile(exportedModel, fileName);
         }
