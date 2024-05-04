@@ -448,6 +448,25 @@ public sealed class MapExtract
                     drawSelectionSet.SelectionSetData.SelectedObjects.Add(hammerMesh);
                 }
 
+                var modelmesh = ((Model)resource.DataBlock).GetEmbeddedMeshes().First();
+                var sceneObject = modelmesh.Mesh.Data.GetArray("m_sceneObjects").First();
+                var drawCalls = sceneObject.GetArray("m_drawCalls");
+
+                var tint = Vector3.One * 255f;
+                var alpha = 255f;
+
+                //this is fine because i think the scene objects we exports are never more than one draw
+                var fragment = drawCalls[0];
+
+                if (fragment.ContainsKey("m_vTintColor"))
+                {
+                    tint = SrgbLinearToGamma(fragment.GetSubCollection("m_vTintColor").ToVector3()) * 255f;
+                }
+
+                alpha *= fragment.GetFloatProperty("m_flAlpha");
+
+                hammerMesh.TintColor = ConvertToColor32(new Vector4(tint, alpha));
+
                 componentMeshCount++;
                 yield return hammerMesh;
             }
@@ -567,6 +586,12 @@ public sealed class MapExtract
         }
     }
 
+    Datamodel.Color ConvertToColor32(Vector4 tint)
+    {
+        var color32 = unchecked(stackalloc byte[] { (byte)tint.X, (byte)tint.Y, (byte)tint.Z, (byte)tint.W });
+        return Datamodel.Color.FromBytes(color32);
+    }
+
     private void HandleWorldNode(WorldNode node)
     {
         var layerNodes = new List<MapNode>(node.LayerNames.Count);
@@ -623,12 +648,6 @@ public sealed class MapExtract
                 : null;
 
             AddChildMaybeGrouped(destNode, node, bakedGroup);
-        }
-
-        Datamodel.Color ConvertToColor32(Vector4 tint)
-        {
-            var color32 = unchecked(stackalloc byte[] { (byte)tint.X, (byte)tint.Y, (byte)tint.Z, (byte)tint.W });
-            return Datamodel.Color.FromBytes(color32);
         }
 
         void SetTintAlpha(BaseEntity entity, Vector4 tint)
