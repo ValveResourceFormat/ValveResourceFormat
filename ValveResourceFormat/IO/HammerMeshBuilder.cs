@@ -233,6 +233,10 @@ namespace ValveResourceFormat.IO
                 {
                     vertexStreams.VertexPaintBlendParams.Add(vertexStreams.VertexPaintBlendParams[vertex]);
                 }
+                if (vertexStreams.VertexPaintTintColor.Count > 0)
+                {
+                    vertexStreams.VertexPaintTintColor.Add(vertexStreams.VertexPaintTintColor[vertex]);
+                }
             }
 
             for (var i = 0; i < newIndices.Length; i++)
@@ -396,6 +400,7 @@ namespace ValveResourceFormat.IO
             public List<Vector3> normals = new();
             public List<Vector4> tangents = new();
             public List<Vector4> VertexPaintBlendParams = new();
+            public List<Vector4> VertexPaintTintColor = new();
         }
 
         public int FacesRemoved;
@@ -436,10 +441,12 @@ namespace ValveResourceFormat.IO
 
             var texcoords = CreateStream<Datamodel.Vector2Array, Vector2>(1, "texcoord:0");
             var vertexpaintblendparams = CreateStream<Datamodel.Vector4Array, Vector4>(1, "VertexPaintBlendParams:0");
+            var vertexpainttintcolor = CreateStream<Datamodel.Vector4Array, Vector4>(1, "VertexPaintTintColor:0");
             var normals = CreateStream<Datamodel.Vector3Array, Vector3>(1, "normal:0");
             var tangents = CreateStream<Datamodel.Vector4Array, Vector4>(1, "tangent:0");
             mesh.FaceVertexData.Streams.Add(texcoords);
             mesh.FaceVertexData.Streams.Add(vertexpaintblendparams);
+            mesh.FaceVertexData.Streams.Add(vertexpainttintcolor);
             mesh.FaceVertexData.Streams.Add(normals);
             mesh.FaceVertexData.Streams.Add(tangents);
 
@@ -496,6 +503,7 @@ namespace ValveResourceFormat.IO
                 var tangent = Vector4.Zero;
                 var uv = Vector2.Zero;
                 var vertexPaintBlendParams = Vector4.Zero;
+                var vertexPaintTintColor = Vector4.Zero;
 
                 if (halfEdge.Face != -1)
                 {
@@ -534,12 +542,18 @@ namespace ValveResourceFormat.IO
                     {
                         vertexPaintBlendParams = vertexStreams.VertexPaintBlendParams[startVertex.MasterStreamIndex];
                     };
+
+                    if (vertexStreams.VertexPaintTintColor.Count != 0)
+                    {
+                        vertexPaintTintColor = vertexStreams.VertexPaintTintColor[startVertex.MasterStreamIndex];
+                    };
                 }
 
                 normals.Data.Add(normal);
                 tangents.Data.Add(tangent);
                 texcoords.Data.Add(uv);
                 vertexpaintblendparams.Data.Add(vertexPaintBlendParams);
+                vertexpainttintcolor.Data.Add(vertexPaintTintColor);
             }
 
             foreach (var face in Faces)
@@ -1151,6 +1165,7 @@ namespace ValveResourceFormat.IO
             Vector3[] normals = [];
             Vector4[] tangents = [];
             Vector4[] VertexPaintBlendParams = [];
+            Vector4[] VertexPaintTintColor = [];
 
             foreach (var stream in vertexdata)
             {
@@ -1178,6 +1193,11 @@ namespace ValveResourceFormat.IO
                 {
                     VertexPaintBlendParams = (Vector4[])stream.Value;
                 }
+
+                if (stream.Key == "VertexPaintTintColor$0")
+                {
+                    VertexPaintTintColor = (Vector4[])stream.Value;
+                }
             }
 
             List<Tuple<List<int>, DmeFaceSet>> faceList = [];
@@ -1187,6 +1207,7 @@ namespace ValveResourceFormat.IO
             List<Vector3> newNormals = [];
             List<Vector4> newTangents = [];
             List<Vector4> newVertexPaintBlendParams = [];
+            List<Vector4> newVertexPaintTintColor = [];
 
             // Only scan when the position buffer changes
             if (PhysicsVertexMatcher != null && PhysicsVertexMatcher.LastPositions != positions)
@@ -1248,6 +1269,10 @@ namespace ValveResourceFormat.IO
                 {
                     newVertexPaintBlendParams.Add(VertexPaintBlendParams[kv.Key]);
                 }
+                if (VertexPaintTintColor.Length != 0)
+                {
+                    newVertexPaintTintColor.Add(VertexPaintTintColor[kv.Key]);
+                }
             }
 
             VertexStreams streams = new()
@@ -1256,7 +1281,8 @@ namespace ValveResourceFormat.IO
                 texcoords = newTexcoords,
                 normals = newNormals,
                 tangents = newTangents,
-                VertexPaintBlendParams = newVertexPaintBlendParams
+                VertexPaintBlendParams = newVertexPaintBlendParams,
+                VertexPaintTintColor = newVertexPaintTintColor
             };
 
             DefinePointCloud(streams, positionOffset);
