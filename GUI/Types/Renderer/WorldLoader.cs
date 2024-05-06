@@ -529,7 +529,7 @@ namespace GUI.Types.Renderer
                     AABB bounds = default;
                     if (classname == "env_cubemap")
                     {
-                        var radius = entity.GetProperty<float>("influenceradius");
+                        var radius = entity.GetPropertyUnchecked<float>("influenceradius");
                         bounds = new AABB(-radius, -radius, -radius, radius, radius, radius);
                     }
                     else
