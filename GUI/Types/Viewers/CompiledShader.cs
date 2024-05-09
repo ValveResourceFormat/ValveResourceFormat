@@ -75,7 +75,7 @@ namespace GUI.Types.Viewers
         private ShaderCollection shaderCollection;
 
         public static string SpvToHlsl(VulkanSource v, ShaderCollection c, VcsProgramType s, long z, long d)
-            => AttemptSpirvReflection(v, c, s, z, d, spvc_backend.SPVC_BACKEND_HLSL);
+            => AttemptSpirvReflection(v, c, s, z, d, Backend.HLSL);
 
         public TabPage Create(VrfGuiContext vrfGuiContext, Stream stream)
         {
@@ -494,7 +494,7 @@ namespace GUI.Types.Viewers
 
                         // text
                         var reflectedSource = AttemptSpirvReflection(vulkanSource, shaderCollection, shaderFile.VcsProgramType,
-                            zframeFile.ZframeId, 0, spvc_backend.SPVC_BACKEND_GLSL);
+                            zframeFile.ZframeId, 0, Backend.GLSL);
 
                         var textTab = new TabPage("SPIR-V");
                         var textBox = new CodeTextBox(reflectedSource);
@@ -523,7 +523,7 @@ namespace GUI.Types.Viewers
 
 #pragma warning disable IDE0060 // Remove unused parameter - TODO: these parameters are used in the `spirvcross` branch
         public static string AttemptSpirvReflection(VulkanSource vulkanSource, ShaderCollection vcsFiles, VcsProgramType stage,
-            long zFrameId, long dynamicId, spvc_backend backend)
+            long zFrameId, long dynamicId, Backend backend)
 #pragma warning restore IDE0060 // Remove unused parameter
         {
             SpirvCrossApi.spvc_context_create(out var context).CheckResult();
@@ -533,20 +533,20 @@ namespace GUI.Types.Viewers
             try
             {
                 SpirvCrossApi.spvc_context_parse_spirv(context, vulkanSource.Bytecode, out var parsedIr).CheckResult();
-                SpirvCrossApi.spvc_context_create_compiler(context, backend, parsedIr, spvc_capture_mode.SPVC_CAPTURE_MODE_TAKE_OWNERSHIP, out var compiler).CheckResult();
+                SpirvCrossApi.spvc_context_create_compiler(context, backend, parsedIr, CaptureMode.TakeOwnership, out var compiler).CheckResult();
 
                 SpirvCrossApi.spvc_compiler_create_compiler_options(compiler, out var options).CheckResult();
 
-                if (backend == spvc_backend.SPVC_BACKEND_GLSL)
+                if (backend == Backend.GLSL)
                 {
-                    SpirvCrossApi.spvc_compiler_options_set_uint(options, spvc_compiler_option.SPVC_COMPILER_OPTION_GLSL_VERSION, 460);
-                    SpirvCrossApi.spvc_compiler_options_set_bool(options, spvc_compiler_option.SPVC_COMPILER_OPTION_GLSL_ES, SpirvCrossApi.SPVC_FALSE);
-                    SpirvCrossApi.spvc_compiler_options_set_bool(options, spvc_compiler_option.SPVC_COMPILER_OPTION_GLSL_VULKAN_SEMANTICS, SpirvCrossApi.SPVC_TRUE);
-                    SpirvCrossApi.spvc_compiler_options_set_bool(options, spvc_compiler_option.SPVC_COMPILER_OPTION_GLSL_EMIT_UNIFORM_BUFFER_AS_PLAIN_UNIFORMS, SpirvCrossApi.SPVC_TRUE);
+                    SpirvCrossApi.spvc_compiler_options_set_uint(options, CompilerOption.GLSLVersion, 460);
+                    SpirvCrossApi.spvc_compiler_options_set_bool(options, CompilerOption.GLSLES, SpirvCrossApi.SPVC_FALSE);
+                    SpirvCrossApi.spvc_compiler_options_set_bool(options, CompilerOption.GLSLVulkanSemantics, SpirvCrossApi.SPVC_TRUE);
+                    SpirvCrossApi.spvc_compiler_options_set_bool(options, CompilerOption.GLSLEmitUniformBufferAsPlainUniforms, SpirvCrossApi.SPVC_TRUE);
                 }
-                else if (backend == spvc_backend.SPVC_BACKEND_HLSL)
+                else if (backend == Backend.HLSL)
                 {
-                    SpirvCrossApi.spvc_compiler_options_set_uint(options, spvc_compiler_option.SPVC_COMPILER_OPTION_HLSL_SHADER_MODEL, 61);
+                    SpirvCrossApi.spvc_compiler_options_set_uint(options, CompilerOption.HLSLShaderModel, 61);
                 }
 
                 SpirvCrossApi.spvc_compiler_install_compiler_options(compiler, options);
