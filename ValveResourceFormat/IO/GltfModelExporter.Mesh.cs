@@ -3,7 +3,6 @@ using System.Linq;
 using SharpGLTF.Schema2;
 using ValveResourceFormat.Serialization;
 using VMesh = ValveResourceFormat.ResourceTypes.Mesh;
-using VModel = ValveResourceFormat.ResourceTypes.Model;
 using VMaterial = ValveResourceFormat.ResourceTypes.Material;
 using VMorph = ValveResourceFormat.ResourceTypes.Morph;
 using ValveResourceFormat.Blocks;
