@@ -27,12 +27,14 @@ namespace Tests
             var vfeFilePath = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "phonemes.vfe");
             var vfeOutputFilePath = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "phonemes.txt");
 
-            var expectedOutput = File.ReadAllText(vfeOutputFilePath);
+            var expectedOutput = File.ReadAllText(vfeOutputFilePath).ReplaceLineEndings();
 
             var vfe = new FlexSceneFile();
             vfe.Read(vfeFilePath);
 
-            Assert.That(vfe.ToString(), Is.EqualTo(expectedOutput));
+            var actualOutput = vfe.ToString().ReplaceLineEndings();
+
+            Assert.That(actualOutput, Is.EqualTo(expectedOutput));
         }
     }
 }
