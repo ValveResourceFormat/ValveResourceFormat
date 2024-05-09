@@ -154,7 +154,7 @@ jobs:
 
     - name: Upload test coverage
       uses: codecov/codecov-action@v4
-      if: github.ref == 'refs/heads/master'
+      if: github.ref == 'refs/heads/master' && matrix.os == 'ubuntu-latest'
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         files: ./Tests/lcov.info
