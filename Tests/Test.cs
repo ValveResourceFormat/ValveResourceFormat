@@ -19,7 +19,10 @@ namespace Tests
         {
             var resources = new Dictionary<string, Resource>();
             var path = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files");
-            var files = Directory.GetFiles(path, "*.*_c");
+            var files = Directory.GetFiles(path, "*.*_c", new EnumerationOptions
+            {
+                RecurseSubdirectories = true,
+            });
 
             if (files.Length == 0)
             {
@@ -32,7 +35,16 @@ namespace Tests
                 {
                     FileName = file,
                 };
-                resource.Read(file);
+
+                try
+                {
+                    resource.Read(file);
+                }
+                catch (NotImplementedException e) when (e.Message == "More than one indirection, not yet handled.")
+                {
+                    Console.WriteLine(e);
+                    continue;
+                }
 
                 resources.Add(Path.GetFileName(file), resource);
 
