@@ -1,5 +1,6 @@
 using System.Linq;
 using System.Reflection;
+using ValveResourceFormat.IO;
 
 namespace ValveResourceFormat;
 
@@ -23,5 +24,29 @@ public static class ResourceTypeExtensions
             .FirstOrDefault(f => (int)f.GetRawConstantValue() == intValue);
 
         return field?.GetCustomAttribute<ExtensionAttribute>(inherit: false)?.Extension;
+    }
+
+    internal static ResourceType DetermineByFileExtension(string extension)
+    {
+        if (string.IsNullOrEmpty(extension))
+        {
+            return ResourceType.Unknown;
+        }
+
+        extension = extension.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal) ? extension[1..^2] : extension[1..];
+
+        var fields = typeof(ResourceType).GetFields(BindingFlags.Public | BindingFlags.Static);
+
+        foreach (var field in fields)
+        {
+            var fieldExtension = field.GetCustomAttribute<ExtensionAttribute>(inherit: false)?.Extension;
+
+            if (fieldExtension == extension)
+            {
+                return (ResourceType)field.GetValue(null);
+            }
+        }
+
+        return ResourceType.Unknown;
     }
 }

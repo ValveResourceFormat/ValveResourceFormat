@@ -23,17 +23,17 @@ namespace Tests
         {
             Assert.Multiple(() =>
             {
-                Assert.That(Resource.DetermineResourceTypeByFileExtension(".vcss_c"), Is.EqualTo(ResourceType.PanoramaStyle));
-                Assert.That(Resource.DetermineResourceTypeByFileExtension(".vanim_c"), Is.EqualTo(ResourceType.Animation));
-                Assert.That(Resource.DetermineResourceTypeByFileExtension(".vanim"), Is.EqualTo(ResourceType.Animation));
-                Assert.That(Resource.DetermineResourceTypeByFileExtension(".vsmart_c"), Is.EqualTo(ResourceType.SmartProp));
-                Assert.That(Resource.DetermineResourceTypeByFileExtension(".vanim_C"), Is.EqualTo(ResourceType.Unknown));
-                Assert.That(Resource.DetermineResourceTypeByFileExtension(".anim"), Is.EqualTo(ResourceType.Unknown));
-                Assert.That(Resource.DetermineResourceTypeByFileExtension(".anim_c"), Is.EqualTo(ResourceType.Unknown));
-                Assert.That(Resource.DetermineResourceTypeByFileExtension("."), Is.EqualTo(ResourceType.Unknown));
-                Assert.That(Resource.DetermineResourceTypeByFileExtension("."), Is.EqualTo(ResourceType.Unknown));
-                Assert.That(Resource.DetermineResourceTypeByFileExtension(""), Is.EqualTo(ResourceType.Unknown));
-                Assert.That(Resource.DetermineResourceTypeByFileExtension(null), Is.EqualTo(ResourceType.Unknown));
+                Assert.That(ResourceTypeExtensions.DetermineByFileExtension(".vcss_c"), Is.EqualTo(ResourceType.PanoramaStyle));
+                Assert.That(ResourceTypeExtensions.DetermineByFileExtension(".vanim_c"), Is.EqualTo(ResourceType.Animation));
+                Assert.That(ResourceTypeExtensions.DetermineByFileExtension(".vanim"), Is.EqualTo(ResourceType.Animation));
+                Assert.That(ResourceTypeExtensions.DetermineByFileExtension(".vsmart_c"), Is.EqualTo(ResourceType.SmartProp));
+                Assert.That(ResourceTypeExtensions.DetermineByFileExtension(".vanim_C"), Is.EqualTo(ResourceType.Unknown));
+                Assert.That(ResourceTypeExtensions.DetermineByFileExtension(".anim"), Is.EqualTo(ResourceType.Unknown));
+                Assert.That(ResourceTypeExtensions.DetermineByFileExtension(".anim_c"), Is.EqualTo(ResourceType.Unknown));
+                Assert.That(ResourceTypeExtensions.DetermineByFileExtension("."), Is.EqualTo(ResourceType.Unknown));
+                Assert.That(ResourceTypeExtensions.DetermineByFileExtension("."), Is.EqualTo(ResourceType.Unknown));
+                Assert.That(ResourceTypeExtensions.DetermineByFileExtension(""), Is.EqualTo(ResourceType.Unknown));
+                Assert.That(ResourceTypeExtensions.DetermineByFileExtension(null), Is.EqualTo(ResourceType.Unknown));
             });
         }
     }

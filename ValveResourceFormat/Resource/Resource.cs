@@ -1,10 +1,8 @@
 using System.IO;
-using System.Reflection;
 using System.Text;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
 using ValveResourceFormat.CompiledShader;
-using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Utils;
 
@@ -217,7 +215,7 @@ namespace ValveResourceFormat
 
             if (FileName != null)
             {
-                ResourceType = DetermineResourceTypeByFileExtension(Path.GetExtension(FileName));
+                ResourceType = ResourceTypeExtensions.DetermineByFileExtension(Path.GetExtension(FileName));
             }
 
             Version = Reader.ReadUInt16();
@@ -302,7 +300,7 @@ namespace ValveResourceFormat
 
                             if (inputDeps.List.Count == 1)
                             {
-                                ResourceType = DetermineResourceTypeByFileExtension(Path.GetExtension(inputDeps.List[0].ContentRelativeFilename));
+                                ResourceType = ResourceTypeExtensions.DetermineByFileExtension(Path.GetExtension(inputDeps.List[0].ContentRelativeFilename));
                             }
                         }
 
@@ -497,30 +495,6 @@ namespace ValveResourceFormat
             }
 
             return new ResourceData();
-        }
-
-        internal static ResourceType DetermineResourceTypeByFileExtension(string extension)
-        {
-            if (string.IsNullOrEmpty(extension))
-            {
-                return ResourceType.Unknown;
-            }
-
-            extension = extension.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal) ? extension[1..^2] : extension[1..];
-
-            var fields = typeof(ResourceType).GetFields(BindingFlags.Public | BindingFlags.Static);
-
-            foreach (var field in fields)
-            {
-                var fieldExtension = field.GetCustomAttribute<ExtensionAttribute>(inherit: false)?.Extension;
-
-                if (fieldExtension == extension)
-                {
-                    return (ResourceType)field.GetValue(null);
-                }
-            }
-
-            return ResourceType.Unknown;
         }
 
         private static bool IsHandledResourceType(ResourceType type)
