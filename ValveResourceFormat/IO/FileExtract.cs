@@ -142,7 +142,7 @@ namespace ValveResourceFormat.IO
                 case ResourceType.PanoramaVectorGraphic:
                     if (resource.DataBlock == null)
                     {
-                        contentFile.Data = Array.Empty<byte>();
+                        contentFile.Data = [];
                         break;
                     }
 
