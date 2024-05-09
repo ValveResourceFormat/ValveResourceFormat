@@ -23,6 +23,8 @@ namespace GUI.Types.Renderer
             Resource = resource;
             Tabs = tabs;
 
+            AddShaderButton();
+
             Camera.ModifySpeed(0);
         }
 
@@ -172,7 +174,6 @@ namespace GUI.Types.Renderer
         protected override void InitializeControl()
         {
             AddRenderModeSelectionControl();
-            AddShaderButton();
 
             ParamsTable = new TableLayoutPanel
             {
