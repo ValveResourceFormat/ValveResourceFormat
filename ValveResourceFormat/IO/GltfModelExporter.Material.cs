@@ -69,14 +69,14 @@ public partial class GltfModelExporter
 
         if (renderMaterial.FloatParams.TryGetValue("g_flMetalness", out var flMetalness))
         {
-            metalValue = flMetalness;
+            metalValue = float.Clamp(flMetalness, 0, 1);
         }
 
         var baseColor = Vector4.One;
 
         if (renderMaterial.VectorParams.TryGetValue("g_vColorTint", out var vColorTint))
         {
-            baseColor = vColorTint;
+            baseColor = Vector4.Clamp(vColorTint, Vector4.Zero, Vector4.One);
             baseColor.W = 1; //Tint only affects color
         }
 
