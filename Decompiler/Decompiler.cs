@@ -914,12 +914,13 @@ namespace Decompiler
             }
 
             using var fileLoader = new GameFileLoader(package, package.FileName);
+            var progressReporter = new Progress<string>(progress => Console.WriteLine($"--- {progress}"));
             var gltfModelExporter = new GltfModelExporter(fileLoader)
             {
                 ExportMaterials = GltfExportMaterials,
                 AdaptTextures = GltfExportAdaptTextures,
                 ExportExtras = GltfExportExtras,
-                ProgressReporter = new Progress<string>(progress => Console.WriteLine($"--- {progress}")),
+                ProgressReporter = progressReporter,
             };
 
             foreach (var file in entries)
@@ -994,7 +995,7 @@ namespace Decompiler
                         continue;
                     }
 
-                    using var contentFile = FileExtract.Extract(resource, fileLoader);
+                    using var contentFile = FileExtract.Extract(resource, fileLoader, progressReporter);
 
                     if (OutputFile != null)
                     {

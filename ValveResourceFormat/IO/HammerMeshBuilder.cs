@@ -201,7 +201,7 @@ namespace ValveResourceFormat.IO
                 Builder.VertsToEdgeDict.Remove(VertsToEdgeDictModification);
             }
 
-            Console.WriteLine($"{nameof(HammerMeshBuilder)}: Extracting face due to complicated error: {error}");
+            Builder.ProgressReporter?.Report($"{nameof(HammerMeshBuilder)}: Extracting face due to complicated error: {error}");
 
             var baseVertex = Builder.Vertices.Count;
             var indexCount = CurrentFace.Indices.Count;
@@ -286,7 +286,7 @@ namespace ValveResourceFormat.IO
 
         record struct RnMeshNodeWithIndex(int Index, ResourceTypes.RubikonPhysics.Shapes.Mesh.Node Node);
         public object? LastPositions { get; set; }
-        public void ScanPhysicsPointCloudForMatches(ReadOnlySpan<Vector3> renderMeshPositions)
+        public void ScanPhysicsPointCloudForMatches(ReadOnlySpan<Vector3> renderMeshPositions, IProgress<string>? progressReporter)
         {
             //RenderToPhys.Clear();
 
@@ -352,7 +352,7 @@ namespace ValveResourceFormat.IO
             DeletedVertexIndices.UnionWith(localMatches);
 
             var matched = (float)localMatches.Count / renderMeshPositions.Length * 100f;
-            Console.WriteLine($"{nameof(PhysicsVertexMatcher)}: Matched {matched:F2}% ({localMatches.Count} vertices) of rendermesh to physics vertices!");
+            progressReporter?.Report($"{nameof(PhysicsVertexMatcher)}: Matched {matched:F2}% ({localMatches.Count} vertices) of rendermesh to physics vertices!");
         }
     }
     //the bulk of the work is done in the AddFace() function
@@ -418,6 +418,7 @@ namespace ValveResourceFormat.IO
         private readonly HalfEdgeMeshModifier halfEdgeModifier;
         private readonly IFileLoader FileLoader;
         public PhysicsVertexMatcher? PhysicsVertexMatcher { get; init; }
+        public IProgress<string>? ProgressReporter { get; init; }
 
 
         public HammerMeshBuilder(IFileLoader fileLoader)
@@ -429,7 +430,7 @@ namespace ValveResourceFormat.IO
         public CDmePolygonMesh GenerateMesh()
         {
             if (FacesRemoved > 0)
-                Console.WriteLine($"{nameof(HammerMeshBuilder)}: extracted '{FacesRemoved}' of '{OriginalFaceCount - FacesRemoved}' faces");
+                ProgressReporter?.Report($"{nameof(HammerMeshBuilder)}: extracted '{FacesRemoved}' of '{OriginalFaceCount - FacesRemoved}' faces");
 
             var mesh = new CDmePolygonMesh();
 
@@ -636,7 +637,7 @@ namespace ValveResourceFormat.IO
 
             if (!VerifyIndicesWithinBounds(indices))
             {
-                Console.WriteLine($"{nameof(HammerMeshBuilder)}: Error! Failed to add face '{Faces.Count}', face has an index that is out of bounds.");
+                ProgressReporter?.Report($"{nameof(HammerMeshBuilder)}: Error! Failed to add face '{Faces.Count}', face has an index that is out of bounds.");
                 FacesRemoved++;
                 return;
             }
@@ -644,7 +645,7 @@ namespace ValveResourceFormat.IO
             // don't allow degenerate faces
             if (indices.Length < 3)
             {
-                Console.WriteLine($"{nameof(HammerMeshBuilder)}: Error! Failed to add face '{Faces.Count}', face has less than 3 vertices.");
+                ProgressReporter?.Report($"{nameof(HammerMeshBuilder)}: Error! Failed to add face '{Faces.Count}', face has less than 3 vertices.");
                 FacesRemoved++;
                 return;
             }
@@ -662,7 +663,7 @@ namespace ValveResourceFormat.IO
 
                 if (AreVerticesCollinear(vertexPositions[0], vertexPositions[1], vertexPositions[2]))
                 {
-                    Console.WriteLine($"{nameof(HammerMeshBuilder)}: Error! Failed to add face '{Faces.Count}', face had 0 area");
+                    ProgressReporter?.Report($"{nameof(HammerMeshBuilder)}: Error! Failed to add face '{Faces.Count}', face had 0 area");
                     FacesRemoved++;
                     return;
                 }
@@ -1151,7 +1152,7 @@ namespace ValveResourceFormat.IO
 
             if (removed > 0)
             {
-                Console.WriteLine($"{nameof(HammerMeshBuilder)}: Total physics triangles removed: {removed}");
+                ProgressReporter?.Report($"{nameof(HammerMeshBuilder)}: Total physics triangles removed: {removed}");
             }
         }
 
@@ -1216,7 +1217,7 @@ namespace ValveResourceFormat.IO
             if (PhysicsVertexMatcher != null && PhysicsVertexMatcher.LastPositions != positions)
             {
                 PhysicsVertexMatcher.LastPositions = positions;
-                PhysicsVertexMatcher.ScanPhysicsPointCloudForMatches(positions.AsSpan());
+                PhysicsVertexMatcher.ScanPhysicsPointCloudForMatches(positions.AsSpan(), ProgressReporter);
             }
 
             foreach (var faceset in facesets.Cast<DmeFaceSet>())

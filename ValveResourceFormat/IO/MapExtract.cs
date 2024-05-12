@@ -409,7 +409,7 @@ public sealed class MapExtract
 
             foreach (var dag in mesh.JointList.Cast<DmeDag>())
             {
-                var builder = new HammerMeshBuilder(FileLoader) { PhysicsVertexMatcher = PhysVertexMatcher };
+                var builder = new HammerMeshBuilder(FileLoader) { PhysicsVertexMatcher = PhysVertexMatcher, ProgressReporter = ProgressReporter };
                 var meshShape = dag.Shape;
                 builder.AddRenderMesh(mesh, meshShape, offset);
                 var hammerMesh = new CMapMesh() { MeshData = builder.GenerateMesh() };
