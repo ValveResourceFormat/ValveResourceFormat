@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Diagnostics;
+using GUI.Types.Renderer;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -397,7 +398,7 @@ namespace GUI.Forms
                             var skyboxPath = ((VmapContentFile)contentFile).SkyboxPath;
                             if (!string.IsNullOrEmpty(skyboxPath))
                             {
-                                MapExtract.LoadSkybox(skyboxPath, exportData.VrfGuiContext.FileLoader);
+                                WorldLoader.LoadSkyboxVpk(skyboxPath, exportData.VrfGuiContext.FileLoader);
 
                                 // Clean up any trailing slashes, or vmap_c extension
                                 var skyboxName = Path.GetFileNameWithoutExtension(skyboxPath);

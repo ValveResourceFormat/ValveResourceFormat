@@ -5,6 +5,7 @@ using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using SteamDatabase.ValvePak;
 using ValveResourceFormat;
+using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Utils;
@@ -852,6 +853,51 @@ namespace GUI.Types.Renderer
             }
         }
 
+        public static Package LoadSkyboxVpk(string targetmapname, GameFileLoader fileLoader)
+        {
+            // Maps have to be packed in a vpk?
+            var vpkFile = Path.ChangeExtension(targetmapname, ".vpk");
+            var vpkFound = fileLoader.FindFile(vpkFile);
+            Package package;
+
+            // Load the skybox map vpk and make it searchable in the file loader
+            if (vpkFound.PathOnDisk != null)
+            {
+                // TODO: Due to the way gui contexts works, we're preloading the vpk into parent context
+                package = fileLoader.AddPackageToSearch(vpkFound.PathOnDisk);
+            }
+            else if (vpkFound.PackageEntry != null)
+            {
+                var innerVpkName = vpkFound.PackageEntry.GetFullPath();
+
+                // TODO: Should FileLoader have a method that opens stream for us?
+                var stream = GameFileLoader.GetPackageEntryStream(vpkFound.Package, vpkFound.PackageEntry);
+
+                package = new Package();
+
+                try
+                {
+                    package.SetFileName(innerVpkName);
+                    package.OptimizeEntriesForBinarySearch(StringComparison.OrdinalIgnoreCase);
+                    package.Read(stream);
+
+                    fileLoader.AddPackageToSearch(package);
+
+                    package = null;
+                }
+                finally
+                {
+                    package?.Dispose();
+                }
+            }
+            else
+            {
+                return null; // Not found logged by FindFile
+            }
+
+            return package;
+        }
+
         private void LoadSkybox(EntityLump.Entity entity)
         {
             var targetmapname = entity.GetProperty<string>("targetmapname");
@@ -867,47 +913,7 @@ namespace GUI.Types.Renderer
                 return;
             }
 
-            // Maps have to be packed in a vpk?
-            var vpkFile = Path.ChangeExtension(targetmapname, ".vpk");
-            var vpkFound = guiContext.FileLoader.FindFile(vpkFile);
-            Package package;
-
-            // Load the skybox map vpk and make it searchable in the file loader
-            if (vpkFound.PathOnDisk != null)
-            {
-                // TODO: Due to the way gui contexts works, we're preloading the vpk into parent context
-                package = guiContext.FileLoader.AddPackageToSearch(vpkFound.PathOnDisk);
-            }
-            else if (vpkFound.PackageEntry != null)
-            {
-                var innerVpkName = vpkFound.PackageEntry.GetFullPath();
-
-                Log.Info(nameof(WorldLoader), $"Preloading vpk \"{innerVpkName}\" from \"{vpkFound.Package.FileName}\"");
-
-                // TODO: Should FileLoader have a method that opens stream for us?
-                var stream = AdvancedGuiFileLoader.GetPackageEntryStream(vpkFound.Package, vpkFound.PackageEntry);
-
-                package = new Package();
-
-                try
-                {
-                    package.SetFileName(innerVpkName);
-                    package.OptimizeEntriesForBinarySearch(StringComparison.OrdinalIgnoreCase);
-                    package.Read(stream);
-
-                    guiContext.FileLoader.AddPackageToSearch(package);
-
-                    package = null;
-                }
-                finally
-                {
-                    package?.Dispose();
-                }
-            }
-            else
-            {
-                return; // Not found logged by FindFile
-            }
+            var package = LoadSkyboxVpk(targetmapname, guiContext.FileLoader);
 
             var worldName = Path.Join(
                 Path.GetDirectoryName(targetmapname),

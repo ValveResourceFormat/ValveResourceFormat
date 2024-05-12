@@ -357,8 +357,6 @@ public sealed class MapExtract
             }
         }
 
-        
-
         using var stream = new MemoryStream();
 
 #if DEBUG
@@ -1330,48 +1328,7 @@ public sealed class MapExtract
     }
 
 
-    public static void LoadSkybox(string targetmapname, GameFileLoader fileLoader)
-    {
-        // Maps have to be packed in a vpk?
-        var vpkFile = Path.ChangeExtension(targetmapname, ".vpk");
-        var vpkFound = fileLoader.FindFile(vpkFile);
-        Package package;
 
-        // Load the skybox map vpk and make it searchable in the file loader
-        if (vpkFound.PathOnDisk != null)
-        {
-            // TODO: Due to the way gui contexts works, we're preloading the vpk into parent context
-            package = fileLoader.AddPackageToSearch(vpkFound.PathOnDisk);
-        }
-        else if (vpkFound.PackageEntry != null)
-        {
-            var innerVpkName = vpkFound.PackageEntry.GetFullPath();
-
-            // TODO: Should FileLoader have a method that opens stream for us?
-            var stream = GameFileLoader.GetPackageEntryStream(vpkFound.Package, vpkFound.PackageEntry);
-
-            package = new Package();
-
-            try
-            {
-                package.SetFileName(innerVpkName);
-                package.OptimizeEntriesForBinarySearch(StringComparison.OrdinalIgnoreCase);
-                package.Read(stream);
-
-                fileLoader.AddPackageToSearch(package);
-
-                package = null;
-            }
-            finally
-            {
-                package?.Dispose();
-            }
-        }
-        else
-        {
-            return; // Not found logged by FindFile
-        }
-    }
 }
 
 public static class ElementArrayExtensions
