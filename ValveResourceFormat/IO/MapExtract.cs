@@ -854,7 +854,7 @@ public sealed class MapExtract
                     }
 
                     var mapMesh = halfEdgeMeshes[i];
-                    mapMesh.Name = "draw_" + i;
+                    mapMesh.Name = $"draw_{i} ({modelName})";
                     mapMesh.TintColor = ConvertToColor32(new Vector4(tint, alpha));
 
                     MapDocument.World.Children.Add(mapMesh);
