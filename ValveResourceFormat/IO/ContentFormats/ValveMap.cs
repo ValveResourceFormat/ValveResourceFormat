@@ -167,7 +167,19 @@ internal class CMapSelectionSet : DMElement
 {
     public Datamodel.ElementArray Children { get; } = [];
     public string SelectionSetName { get; set; } = string.Empty;
-    public DMElement SelectionSetData { get; set; }
+    public CObjectSelectionSetDataElement SelectionSetData { get; set; } = [];
+
+    public CMapSelectionSet() { }
+    public CMapSelectionSet(string name)
+    {
+        SelectionSetName = name;
+    }
+}
+
+[CamelCaseProperties]
+internal class CObjectSelectionSetDataElement : DMElement
+{
+    public Datamodel.ElementArray SelectedObjects { get; } = [];
 }
 
 [CamelCaseProperties]
@@ -246,7 +258,7 @@ internal class CDmePolygonMesh : MapNode
     public Datamodel.IntArray VertexDataIndices { get; } = [];
 
     /// <summary>
-    /// The origin (or destination, I'm not sure) vertex of this edge.
+    /// The destination vertex of this edge.
     /// </summary>
     public Datamodel.IntArray EdgeVertexIndices { get; } = [];
 
@@ -326,7 +338,7 @@ internal class CDmePolygonMeshDataArray : DMElement
 [CamelCaseProperties]
 internal class CDmePolygonMeshSubdivisionData : DMElement
 {
-    public Datamodel.IntArray SubdivisionLevels { get; set; } = [];
+    public Datamodel.IntArray SubdivisionLevels { get; } = [];
     /// <summary>
     /// Array of <see cref="CDmePolygonMeshDataStream"/>.
     /// </summary>

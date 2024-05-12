@@ -31,6 +31,7 @@ namespace GUI.Forms
         private readonly HashSet<string> extractedFiles = [];
         private CancellationTokenSource cancellationTokenSource = new();
         private readonly GltfModelExporter gltfExporter;
+        private readonly Progress<string> progressReporter;
         private Stopwatch exportStopwatch;
 
         private static readonly List<ResourceType> ExtractOrder =
@@ -64,6 +65,7 @@ namespace GUI.Forms
             this.path = path;
             this.decompile = decompile;
             this.exportData = exportData;
+            progressReporter = new Progress<string>(SetProgress);
 
             if (decompile)
             {
@@ -72,7 +74,7 @@ namespace GUI.Forms
 
                 gltfExporter = new GltfModelExporter(trackingFileLoader)
                 {
-                    ProgressReporter = new Progress<string>(SetProgress),
+                    ProgressReporter = progressReporter,
                 };
             }
         }
@@ -381,7 +383,7 @@ namespace GUI.Forms
 
             try
             {
-                contentFile = FileExtract.Extract(resource, exportData.VrfGuiContext.FileLoader);
+                contentFile = FileExtract.Extract(resource, exportData.VrfGuiContext.FileLoader, progressReporter);
 
                 if (contentFile.Data != null)
                 {
