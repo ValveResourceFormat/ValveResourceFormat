@@ -83,11 +83,34 @@ namespace GUI.Types.Renderer
             WindowSize = new Vector2(viewportWidth, viewportHeight);
         }
 
-        public void RenderText(float x, float y, float scale, Vector4 color, string text)
+        public void RenderTextBillboard(Camera camera, Vector3 position, float scale, Vector4 color, string text, bool center = false)
+        {
+            var screenPosition = Vector4.Transform(new Vector4(position, 1.0f), camera.ViewProjectionMatrix);
+            screenPosition /= screenPosition.W;
+
+            if (screenPosition.Z < 0f)
+            {
+                return;
+            }
+
+            var x = 0.5f * (screenPosition.X + 1.0f) * WindowSize.X;
+            var y = 0.5f * (1.0f - screenPosition.Y) * WindowSize.Y;
+
+            RenderText(x, y, scale * screenPosition.Z * 100f, color, text, center, writeDepth: true);
+        }
+
+        public void RenderText(float x, float y, float scale, Vector4 color, string text,
+            bool center = false, bool writeDepth = false)
         {
             var letters = 0;
             var verticesSize = text.Length * Vertex.Size * 4;
             var vertexBuffer = ArrayPool<float>.Shared.Rent(verticesSize);
+
+            if (center)
+            {
+                // For correctness it should use actual plane bounds for each letter (so use real width), but good enough for monospace.
+                x -= text.Length * DefaultAdvance * scale / 2f;
+            }
 
             try
             {
@@ -138,7 +161,7 @@ namespace GUI.Types.Renderer
                 ArrayPool<float>.Shared.Return(vertexBuffer);
             }
 
-            GL.DepthMask(false);
+            GL.DepthMask(writeDepth);
             GL.Enable(EnableCap.Blend);
             GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
 

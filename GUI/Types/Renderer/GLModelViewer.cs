@@ -122,7 +122,7 @@ namespace GUI.Types.Renderer
                     SetAvailableAnimations(animations);
                 }
 
-                skeletonSceneNode = new SkeletonSceneNode(Scene, modelSceneNode.AnimationController, model.Skeleton);
+                skeletonSceneNode = new SkeletonSceneNode(Scene, modelSceneNode.AnimationController, model.Skeleton, textRenderer);
                 Scene.Add(skeletonSceneNode, true);
 
                 if (model.Skeleton.Bones.Length > 0)

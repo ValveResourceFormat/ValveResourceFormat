@@ -32,7 +32,7 @@ namespace GUI.Controls
         public event EventHandler GLLoad;
         public Action<GLViewerControl> GLPostLoad { get; set; }
 
-        private readonly Types.Renderer.TextRenderer textRenderer;
+        protected readonly Types.Renderer.TextRenderer textRenderer;
 
         protected Form FullScreenForm { get; private set; }
         protected PickingTexture Picker { get; set; }

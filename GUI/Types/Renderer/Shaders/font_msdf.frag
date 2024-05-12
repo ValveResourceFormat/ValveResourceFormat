@@ -46,4 +46,9 @@ void main() {
 
     // opacity is a max, so unreasonable outlines don't destroy the rendering
     color.a = pow(smoothstep(0.025, WEIGHT - OUTLINE_OFFSET, distance), BIAS);
+
+    if (color.a < 0.01)
+    {
+        discard;
+    }
 }
