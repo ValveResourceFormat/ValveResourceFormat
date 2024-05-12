@@ -881,7 +881,7 @@ public sealed class MapExtract
                     SetTintAlpha(instance, new Vector4(tint, alpha));
 
                     // Keep adding the same prop
-                    MapDocument.World.Children.Add(instance);
+                    GetWorldLayerNode(layerIndex, layerNodes).Children.Add(instance);
                     drawSelectionSet.SelectionSetData.SelectedObjects.Add(instance);
                     continue;
                 }
@@ -896,7 +896,7 @@ public sealed class MapExtract
                 SetPropertiesFromFlags(instance, fragmentFlags);
                 SetTintAlpha(instance, new Vector4(tint, alpha));
 
-                MapDocument.World.Children.Add(instance);
+                GetWorldLayerNode(layerIndex, layerNodes).Children.Add(instance);
                 drawSelectionSet.SelectionSetData.SelectedObjects.Add(instance);
             }
         }
@@ -989,7 +989,7 @@ public sealed class MapExtract
             }
         }
 
-        Dictionary<int, CMapSelectionSet> liniageSelectionSets = new();
+        Dictionary<int, CMapSelectionSet> lineageSelectionSets = [];
 
         foreach (var compiledEntity in entityLump.GetEntities())
         {
@@ -1011,20 +1011,22 @@ public sealed class MapExtract
             {
                 for (var i = 0; i < entityLineage.Length; i++)
                 {
-                    var liniage = entityLineage[i];
+                    var lineage = entityLineage[i];
 
                     CMapSelectionSet selectionSet;
 
-                    if (liniageSelectionSets.TryGetValue(liniage, out var value))
+                    if (lineageSelectionSets.TryGetValue(lineage, out var value))
                     {
                         selectionSet = value;
                     }
                     else
                     {
-                        selectionSet = new CMapSelectionSet();
-                        selectionSet.Name = liniage.ToString();
-                        selectionSet.SelectionSetName = liniage.ToString();
-                        liniageSelectionSets.Add(liniage, selectionSet);
+                        selectionSet = new CMapSelectionSet
+                        {
+                            Name = lineage.ToString(),
+                            SelectionSetName = lineage.ToString()
+                        };
+                        lineageSelectionSets.Add(lineage, selectionSet);
 
                         if (i == 0)
                         {
@@ -1032,7 +1034,7 @@ public sealed class MapExtract
                         }
                         else
                         {
-                            var parentSelectionSet = liniageSelectionSets[entityLineage[i - 1]];
+                            var parentSelectionSet = lineageSelectionSets[entityLineage[i - 1]];
                             parentSelectionSet.Children.Add(selectionSet);
                         }
                     }
@@ -1235,7 +1237,7 @@ public sealed class MapExtract
         return false;
     }
 
-    // TODO: cubemaptexture may be set by artist, needs to be handled differently (check CS2 /ui/ maps)
+    // TODO: cubemaptexture may be set by artist, needs to be handled differently (reference: CS2 /ui/ maps)
     private static bool RemoveOrMutateCompilerGeneratedProperty(string className, EntityLump.EntityProperty property)
     {
         const string prefix = "vrf_";
