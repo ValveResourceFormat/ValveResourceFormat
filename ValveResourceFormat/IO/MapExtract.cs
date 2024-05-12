@@ -251,23 +251,6 @@ public sealed class MapExtract
             FileName = LumpFolder + "_d.vmap",
         };
 
-        //var physData = LoadWorldPhysics();
-        //if (physData != null)
-        //{
-        //    FolderExtractFilter.Add(WorldPhysicsName + GameFileLoader.CompiledFileSuffix); // TODO: put vphys on vmdl.AdditionalFiles
-        //    var physModelNames = WorldPhysicsNamesToExtract(WorldPhysicsName);
-        //
-        //    //var original = new ModelExtract(physData, physModelNames.Original).ToContentFile();
-        //    var editable = new ModelExtract(physData, physModelNames.Editable)
-        //    {
-        //        Type = ModelExtract.ModelExtractType.Map_PhysicsToRenderMesh,
-        //        PhysicsToRenderMaterialNameProvider = GetToolTextureNameForCollisionTags,
-        //    }
-        //    .ToContentFile();
-        //    //vmap.AdditionalFiles.Add(original);
-        //    vmap.AdditionalFiles.Add(editable);
-        //}
-
         //this is actually just scene objects
         foreach (var meshName in MeshesToExtract)
         {
@@ -277,7 +260,6 @@ public sealed class MapExtract
             if (mesh != null)
             {
                 var vmdl = new ModelExtract((Mesh)mesh.DataBlock, meshName).ToContentFile();
-                FolderExtractFilter.Add(meshNameCompiled); // TODO: put vmesh on vmdl.AdditionalFiles
                 vmap.AdditionalFiles.Add(vmdl);
             }
         }
@@ -330,6 +312,8 @@ public sealed class MapExtract
             {
                 PhysVertexMatcher = new PhysicsVertexMatcher(worldPhysMesh);
             }
+
+            // TODO: physics spheres and capsules are ignored
         }
 
         foreach (var worldNodeName in WorldNodeNames)
@@ -664,7 +648,7 @@ public sealed class MapExtract
             properties["disableinlowquality"] = StringBool(objectFlags.HasFlag(ObjectTypeFlags.DisabledInLowQuality));
         }
 
-        void SceneObjectToStaticProp(KVObject sceneObject, int layerIndex, List<MapNode> layerNodes)
+        void ProcessSceneObject(KVObject sceneObject, int layerIndex, List<MapNode> layerNodes)
         {
             var modelName = sceneObject.GetProperty<string>("m_renderableModel");
             var meshName = sceneObject.GetProperty<string>("m_renderable");
@@ -685,6 +669,8 @@ public sealed class MapExtract
 
                 modelName = Path.ChangeExtension(meshName, ".vmdl");
             }
+
+            FolderExtractFilter.Add(modelName ?? meshName);
 
             if (SceneObjectShouldConvertToHammerMesh(modelName))
             {
@@ -780,6 +766,7 @@ public sealed class MapExtract
 
             var aggregateHasTransforms = fragmentTransforms.Length > 0;
 
+            FolderExtractFilter.Add(modelName);
             using var modelRes = FileLoader.LoadFileCompiled(modelName);
             var model = (Model)modelRes.DataBlock;
 
@@ -905,7 +892,7 @@ public sealed class MapExtract
         {
             var sceneObject = node.SceneObjects[i];
             var layerIndex = (int)(node.SceneObjectLayerIndices?[i] ?? -1);
-            SceneObjectToStaticProp(sceneObject, layerIndex, layerNodes);
+            ProcessSceneObject(sceneObject, layerIndex, layerNodes);
         }
 
         foreach (var aggregateSceneObject in node.AggregateSceneObjects)
