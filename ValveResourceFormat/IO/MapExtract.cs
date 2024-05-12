@@ -75,9 +75,11 @@ public sealed class MapExtract
     }
 
     //these all seem to be roughly hammer meshes in cs2
-    private static bool sceneObjectConvertToHammerMesh(string modelName)
+    private static bool SceneObjectShouldConvertToHammerMesh(string modelName)
     {
-        return (modelName.Contains("_mesh_blocklight") || modelName.Contains("_mesh_overlay") || modelName.Contains("_c0_"));
+        return modelName.Contains("_mesh_blocklight", StringComparison.Ordinal)
+            || modelName.Contains("_mesh_overlay", StringComparison.Ordinal)
+            || modelName.Contains("_c0_", StringComparison.Ordinal);
     }
 
     /// <summary>
@@ -460,7 +462,7 @@ public sealed class MapExtract
 
                 if (fragment.ContainsKey("m_vTintColor"))
                 {
-                    tint = SrgbLinearToGamma(fragment.GetSubCollection("m_vTintColor").ToVector3()) * 255f;
+                    tint *= SrgbLinearToGamma(fragment.GetSubCollection("m_vTintColor").ToVector3());
                 }
 
                 alpha *= fragment.GetFloatProperty("m_flAlpha");
@@ -480,19 +482,13 @@ public sealed class MapExtract
         {
             HammerMesheEntitiesSelectionSet.Children.Add(hammerMeshEntitySelectionSet);
         }
-        else
+        else if (resource.FileName.Contains("_mesh_overlay", StringComparison.Ordinal))
         {
-            if (resource.FileName.Contains("_mesh_overlay"))
-            {
-                OverlaysSelectionSet.Children.Add(drawSelectionSet);
-            }
-            else
-            {
-                if (sceneObjectConvertToHammerMesh(resource.FileName))
-                {
-                    HammerMeshesSelectionSet.Children.Add(drawSelectionSet);
-                }
-            }
+            OverlaysSelectionSet.Children.Add(drawSelectionSet);
+        }
+        else if (SceneObjectShouldConvertToHammerMesh(resource.FileName))
+        {
+            HammerMeshesSelectionSet.Children.Add(drawSelectionSet);
         }
     }
 
@@ -506,17 +502,25 @@ public sealed class MapExtract
         {
             var shape = phys.Parts[i].Shape;
 
-            var hullsSelectionSet = new CMapSelectionSet();
-            hullsSelectionSet.SelectionSetName = "physics shape (" + shape.Hulls.Length + " hulls)";
+            var hullsSelectionSet = new CMapSelectionSet
+            {
+                SelectionSetName = "physics shape (" + shape.Hulls.Length + " hulls)"
+            };
 
-            var hullsEntitySelectionSet = new CMapSelectionSet();
-            hullsEntitySelectionSet.SelectionSetName = "physics hull entity " + entityClassname + " (reconstructed from " + shape.Hulls.Length + (shape.Hulls.Length > 1 ? " hulls)" : " hull)");
+            var hullsEntitySelectionSet = new CMapSelectionSet
+            {
+                SelectionSetName = "physics hull entity " + entityClassname + " (reconstructed from " + shape.Hulls.Length + (shape.Hulls.Length > 1 ? " hulls)" : " hull)")
+            };
 
-            var meshesSelectionSet = new CMapSelectionSet();
-            meshesSelectionSet.SelectionSetName = "physics shape (" + shape.Meshes.Length + " meshes)";
+            var meshesSelectionSet = new CMapSelectionSet
+            {
+                SelectionSetName = "physics shape (" + shape.Meshes.Length + " meshes)"
+            };
 
-            var meshesEntitySelectionSet = new CMapSelectionSet();
-            meshesEntitySelectionSet.SelectionSetName = "physics mesh entity " + entityClassname + " (reconstructed from " + shape.Meshes.Length + (shape.Meshes.Length > 1 ? " meshes)" : " mesh)");
+            var meshesEntitySelectionSet = new CMapSelectionSet
+            {
+                SelectionSetName = "physics mesh entity " + entityClassname + " (reconstructed from " + shape.Meshes.Length + (shape.Meshes.Length > 1 ? " meshes)" : " mesh)")
+            };
 
             foreach (var hull in shape.Hulls)
             {
@@ -693,9 +697,7 @@ public sealed class MapExtract
                 modelName = Path.ChangeExtension(meshName, ".vmdl");
             }
 
-
-
-            if (sceneObjectConvertToHammerMesh(modelName))
+            if (SceneObjectShouldConvertToHammerMesh(modelName))
             {
                 var meshNameCompiled = modelName + GameFileLoader.CompiledFileSuffix;
                 using var mesh = FileLoader.LoadFile(meshNameCompiled);
@@ -812,8 +814,6 @@ public sealed class MapExtract
                         .Select(aabb => (aabb.GetSubCollection("m_vMinBounds").ToVector3() + aabb.GetSubCollection("m_vMaxBounds").ToVector3()) / 2f)
                         .ToArray();
                 }
-
-
 
                 var modelFiles = ModelExtract.GetContentFiles_DrawCallSplit(modelRes, FileLoader, drawCenters, drawCalls.Length);
                 PreExportedFragments.AddRange(modelFiles);
@@ -1146,7 +1146,6 @@ public sealed class MapExtract
             }
             else
             {
-
                 foreach (var hammermesh in RenderMeshToHammerMesh(data, model, offset, associatedEntityClass))
                 {
                     mapEntity.Children.Add(hammermesh);
