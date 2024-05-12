@@ -430,7 +430,9 @@ namespace ValveResourceFormat.IO
         public CDmePolygonMesh GenerateMesh()
         {
             if (FacesRemoved > 0)
+            {
                 ProgressReporter?.Report($"{nameof(HammerMeshBuilder)}: extracted '{FacesRemoved}' of '{OriginalFaceCount - FacesRemoved}' faces");
+            }
 
             var mesh = new CDmePolygonMesh();
 
@@ -1156,7 +1158,7 @@ namespace ValveResourceFormat.IO
             }
         }
 
-        public void AddRenderMesh(DmeModel model, DmeMesh shape, Vector3 positionOffset = new Vector3())
+        public void AddRenderMesh(DmeMesh shape, Vector3 positionOffset)
         {
             var facesets = shape.FaceSets;
 

@@ -411,7 +411,7 @@ public sealed class MapExtract
             {
                 var builder = new HammerMeshBuilder(FileLoader) { PhysicsVertexMatcher = PhysVertexMatcher, ProgressReporter = ProgressReporter };
                 var meshShape = dag.Shape;
-                builder.AddRenderMesh(mesh, meshShape, offset);
+                builder.AddRenderMesh(meshShape, offset);
                 var hammerMesh = new CMapMesh() { MeshData = builder.GenerateMesh() };
 
                 if (!string.IsNullOrEmpty(entityClassname))
@@ -1010,8 +1010,8 @@ public sealed class MapExtract
                     {
                         selectionSet = new CMapSelectionSet
                         {
-                            Name = lineage.ToString(),
-                            SelectionSetName = lineage.ToString()
+                            Name = lineage.ToString(CultureInfo.InvariantCulture),
+                            SelectionSetName = lineage.ToString(CultureInfo.InvariantCulture)
                         };
                         lineageSelectionSets.Add(lineage, selectionSet);
 
