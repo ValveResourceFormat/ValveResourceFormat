@@ -12,6 +12,8 @@ using GUI.Utils;
 using SteamDatabase.ValvePak;
 using ValveResourceFormat;
 using ValveResourceFormat.IO;
+using SkiaSharp;
+using System.IO.Packaging;
 
 namespace GUI.Forms
 {
@@ -398,7 +400,7 @@ namespace GUI.Forms
                             var skyboxPath = ((VmapContentFile)contentFile).SkyboxPath;
                             if (!string.IsNullOrEmpty(skyboxPath))
                             {
-                                WorldLoader.LoadSkyboxVpk(skyboxPath, exportData.VrfGuiContext.FileLoader);
+                                var skyboxPackage = WorldLoader.LoadSkyboxVpk(skyboxPath, exportData.VrfGuiContext.FileLoader);
 
                                 // Clean up any trailing slashes, or vmap_c extension
                                 var skyboxName = Path.GetFileNameWithoutExtension(skyboxPath);
@@ -428,6 +430,8 @@ namespace GUI.Forms
                                 }
 
                                 await ExtractFile(skyboxVmapResource, skyboxName, skyboxMapSavePath, true).ConfigureAwait(true);
+
+                                exportData.VrfGuiContext.FileLoader.RemovePackageFromSearch(skyboxPackage);
                             }
                         }
                     }
