@@ -1,3 +1,4 @@
+using SteamDatabase.ValvePak;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -12,6 +13,11 @@ using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.IO;
 
+public class VmapContentFile : ContentFile
+{
+    public string SkyboxPath { get; init; }
+}
+
 public sealed class MapExtract
 {
     public string LumpFolder { get; private set; }
@@ -19,6 +25,7 @@ public sealed class MapExtract
     private IReadOnlyCollection<string> EntityLumpNames { get; set; }
     private IReadOnlyCollection<string> WorldNodeNames { get; set; }
     private string WorldPhysicsName { get; set; }
+    public string SkyboxToExtract { get; set; }
 
     private List<string> AssetReferences { get; } = [];
     private List<string> ModelsToExtract { get; } = [];
@@ -245,10 +252,11 @@ public sealed class MapExtract
 
     public ContentFile ToContentFile()
     {
-        var vmap = new ContentFile
+        var vmap = new VmapContentFile
         {
             Data = ToValveMap(),
             FileName = LumpFolder + "_d.vmap",
+            SkyboxPath = SkyboxToExtract
         };
 
         //this is actually just scene objects
@@ -348,6 +356,8 @@ public sealed class MapExtract
                 MapDocument.World.Children.Add(hammermesh);
             }
         }
+
+        
 
         using var stream = new MemoryStream();
 
@@ -1068,6 +1078,15 @@ public sealed class MapExtract
                 mapEntity.WithProperty("snapshot_mesh", "0");
             }
 
+            //if the map SOMEHOW has more than one of these, we're only using the first
+            if (compiledEntity.GetProperty<string>(StringToken.Get("classname")) == "skybox_reference")
+            {
+                if (string.IsNullOrEmpty(SkyboxToExtract))
+                {
+                    SkyboxToExtract = NormalizePath(compiledEntity.GetProperty<string>("targetmapname"));
+                }
+            }
+
             MapDocument.World.Children.Add(mapEntity);
         }
     }
@@ -1308,6 +1327,50 @@ public sealed class MapExtract
         );
 
         return vGammaColor;
+    }
+
+
+    public static void LoadSkybox(string targetmapname, GameFileLoader fileLoader)
+    {
+        // Maps have to be packed in a vpk?
+        var vpkFile = Path.ChangeExtension(targetmapname, ".vpk");
+        var vpkFound = fileLoader.FindFile(vpkFile);
+        Package package;
+
+        // Load the skybox map vpk and make it searchable in the file loader
+        if (vpkFound.PathOnDisk != null)
+        {
+            // TODO: Due to the way gui contexts works, we're preloading the vpk into parent context
+            package = fileLoader.AddPackageToSearch(vpkFound.PathOnDisk);
+        }
+        else if (vpkFound.PackageEntry != null)
+        {
+            var innerVpkName = vpkFound.PackageEntry.GetFullPath();
+
+            // TODO: Should FileLoader have a method that opens stream for us?
+            var stream = GameFileLoader.GetPackageEntryStream(vpkFound.Package, vpkFound.PackageEntry);
+
+            package = new Package();
+
+            try
+            {
+                package.SetFileName(innerVpkName);
+                package.OptimizeEntriesForBinarySearch(StringComparison.OrdinalIgnoreCase);
+                package.Read(stream);
+
+                fileLoader.AddPackageToSearch(package);
+
+                package = null;
+            }
+            finally
+            {
+                package?.Dispose();
+            }
+        }
+        else
+        {
+            return; // Not found logged by FindFile
+        }
     }
 }
 

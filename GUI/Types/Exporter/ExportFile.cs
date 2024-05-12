@@ -13,14 +13,14 @@ namespace GUI.Types.Exporter
 {
     static class ExportFile
     {
-        public static void ExtractFileFromPackageEntry(PackageEntry file, VrfGuiContext vrfGuiContext, bool decompile)
+        public static void ExtractFileFromPackageEntry(PackageEntry file, VrfGuiContext vrfGuiContext, bool decompile, object fileFlags = null)
         {
             var stream = AdvancedGuiFileLoader.GetPackageEntryStream(vrfGuiContext.CurrentPackage, file);
 
-            ExtractFileFromStream(file.GetFileName(), stream, vrfGuiContext, decompile);
+            ExtractFileFromStream(file.GetFileName(), stream, vrfGuiContext, decompile, fileFlags);
         }
 
-        public static void ExtractFileFromStream(string fileName, Stream stream, VrfGuiContext vrfGuiContext, bool decompile)
+        public static void ExtractFileFromStream(string fileName, Stream stream, VrfGuiContext vrfGuiContext, bool decompile, object fileFlags = null)
         {
             if (decompile && fileName.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal))
             {
@@ -95,7 +95,7 @@ namespace GUI.Types.Exporter
 
                         Task.Run(async () =>
                         {
-                            await form.ExtractFile(resource, fileName, filaNameToSave, true).ConfigureAwait(false);
+                            await form.ExtractFile(resource, fileName, filaNameToSave, true, fileFlags).ConfigureAwait(false);
                         }, cancellationToken).ContinueWith(t =>
                         {
                             stream.Dispose();
@@ -159,7 +159,32 @@ namespace GUI.Types.Exporter
             {
                 var file = selectedNode.PackageEntry;
                 // We are a file
-                ExtractFileFromPackageEntry(file, vrfGuiContext, decompile);
+                if (file.TypeName == "vmap_c")
+                {
+                    var extractDialog = new VmapExport();
+
+                    VmapOptions exportFlags = 0;
+
+                    try
+                    {
+                        if (extractDialog.ShowVmapExportDialog() == DialogResult.Continue)
+                        {
+                            exportFlags = extractDialog.VmapExportFlags();
+                        }
+                        else
+                        {
+                            return;
+                        }
+
+                        extractDialog?.Dispose();
+                    }
+                    finally
+                    {
+                        extractDialog?.Dispose();
+                    }
+
+                    ExtractFileFromPackageEntry(file, vrfGuiContext, decompile, exportFlags);
+                }
             }
             else
             {
