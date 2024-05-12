@@ -6,7 +6,6 @@ using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO.ContentFormats.DmxModel;
 using ValveResourceFormat.IO.ContentFormats.ValveMap;
 using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.ResourceTypes.RubikonPhysics;
 using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Serialization.KeyValues;
 using ValveResourceFormat.Utils;
@@ -20,16 +19,6 @@ public sealed class MapExtract
     private IReadOnlyCollection<string> EntityLumpNames { get; set; }
     private IReadOnlyCollection<string> WorldNodeNames { get; set; }
     private string WorldPhysicsName { get; set; }
-    private static (string Original, string Editable) WorldPhysicsNamesToExtract(string worldPhysicsName)
-    {
-        var original = Path.ChangeExtension(worldPhysicsName, ".vmdl");
-        var editable = Path.GetDirectoryName(worldPhysicsName)
-            + "/"
-            + Path.GetFileNameWithoutExtension(worldPhysicsName)
-            + "_edit.vmdl";
-
-        return (original, editable);
-    }
 
     private List<string> AssetReferences { get; } = [];
     private List<string> ModelsToExtract { get; } = [];
@@ -98,7 +87,7 @@ public sealed class MapExtract
                 InitWorldExtract(resource);
                 break;
             default:
-                throw new InvalidDataException($"Resource type {resource.ResourceType} != supported in {nameof(MapExtract)}.");
+                throw new InvalidDataException($"Resource type {resource.ResourceType} is not supported in {nameof(MapExtract)}.");
         }
     }
 
@@ -826,8 +815,6 @@ public sealed class MapExtract
                 .WithProperty("disablemerging", StringBool(true))
                 .WithProperty("visoccluder", StringBool(true));
 
-            var UseHammerInstances = false;
-
             var drawSelectionSet = new CMapSelectionSet();
             if (convertToHalfEdge)
             {
@@ -839,7 +826,6 @@ public sealed class MapExtract
                 drawSelectionSet.SelectionSetName = "prop_static render mesh " + (aggregateHasTransforms ? "(instanced) " : "(" + drawCalls.Length + " split draw meshes) ") + Path.GetFileNameWithoutExtension(modelName);
                 StaticPropsSelectionSet.Children.Add(drawSelectionSet);
             }
-
 
             foreach (var fragment in aggregateMeshes)
             {
@@ -893,21 +879,6 @@ public sealed class MapExtract
 
                     SetPropertiesFromFlags(instance, fragmentFlags);
                     SetTintAlpha(instance, new Vector4(tint, alpha));
-
-                    if (UseHammerInstances)
-                    {
-                        //if (drawGroup.Children.Count == 0)
-                        if (drawSelectionSet.SelectionSetData.SelectedObjects.Count == 0)
-                        {
-                            // The particular model instance that will repeat
-                            MapDocument.World.Children.Add(instance);
-                            drawSelectionSet.SelectionSetData.SelectedObjects.Add(instance);
-                        }
-
-                        //instance = new CMapInstance() { Target = drawGroup };
-                        GetWorldLayerNode(layerIndex, layerNodes).Children.Add(instance);
-                        continue;
-                    }
 
                     // Keep adding the same prop
                     MapDocument.World.Children.Add(instance);
