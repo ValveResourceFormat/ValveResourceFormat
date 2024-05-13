@@ -915,6 +915,11 @@ namespace GUI.Types.Renderer
 
             var package = LoadSkyboxVpk(targetmapname, guiContext.FileLoader);
 
+            if (package == null)
+            {
+                return;
+            }
+
             var worldName = Path.Join(
                 Path.GetDirectoryName(targetmapname),
                 Path.GetFileNameWithoutExtension(targetmapname),
