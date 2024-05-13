@@ -185,6 +185,10 @@ namespace GUI.Types.Exporter
 
                     ExtractFileFromPackageEntry(file, vrfGuiContext, decompile, exportFlags);
                 }
+                else
+                {
+                    ExtractFileFromPackageEntry(file, vrfGuiContext, decompile);
+                }
             }
             else
             {
