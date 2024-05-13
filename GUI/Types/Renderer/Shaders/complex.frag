@@ -203,6 +203,7 @@ uniform sampler2D g_tTintMask;
 
 #if defined(vr_standard_vfx)
     #if (F_HIGH_QUALITY_GLOSS == 1)
+        uniform sampler2D g_tNormal2;
         uniform sampler2D g_tGloss;
     #endif
 
@@ -412,6 +413,9 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
     mat.Albedo *= tintColor;
 #endif
 
+    #if defined(vr_standard_vfx) && (F_HIGH_QUALITY_GLOSS == 1)
+        normalTexture = texture(g_tNormal2, texCoord);
+    #endif
 
     // Normals and Roughness
     mat.NormalMap = DecodeNormal(normalTexture);
@@ -421,10 +425,9 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 #else
     mat.RoughnessTex = normalTexture.b;
 
-    #if defined(vr_standard_vfx)
-        #if (F_HIGH_QUALITY_GLOSS == 1)
-            mat.RoughnessTex = texture(g_tGloss, texCoord).g;
-        #endif
+    #if defined(vr_standard_vfx) && (F_HIGH_QUALITY_GLOSS == 1)
+        // todo - this might actually be alpha-green aniso-gloss
+        mat.RoughnessTex = texture(g_tGloss, texCoord).g;
     #endif
 
 #endif
