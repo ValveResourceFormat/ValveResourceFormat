@@ -65,9 +65,9 @@ namespace GUI.Types.Renderer
 
             Action<List<SceneLight>> lightEntityStore = scene.LightingInfo.LightmapGameVersionNumber switch
             {
-                1 => scene.LightingInfo.StoreLightMappedLights_V1,
+                0 or 1 => scene.LightingInfo.StoreLightMappedLights_V1,
                 2 => scene.LightingInfo.StoreLightMappedLights_V2,
-                _ => throw new NotImplementedException($"Lightmap version {scene.LightingInfo.LightmapGameVersionNumber} is not supported."),
+                _ => (List<SceneLight> x) => Log.Error(nameof(WorldLoader), $"Storing lights for lightmap version {scene.LightingInfo.LightmapGameVersionNumber} is not supported."),
             };
 
             lightEntityStore.Invoke(
