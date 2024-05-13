@@ -22,7 +22,7 @@ namespace GUI.Types.Exporter
 
         public static void ExtractFileFromStream(string fileName, Stream stream, VrfGuiContext vrfGuiContext, bool decompile, object fileFlags = null)
         {
-            if(Path.GetExtension(fileName) == ".vmap_c")
+            if (Path.GetExtension(fileName) == ".vmap_c")
             {
                 fileName = MapExtract.AddSuffixToVmapName(fileName);
             }

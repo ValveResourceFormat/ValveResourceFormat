@@ -34,7 +34,7 @@ public sealed class MapExtract
     private string WorldPhysicsName { get; set; }
     public string SkyboxToExtract { get; set; }
 
-    private bool ExtractSkybox = false;
+    private bool ExtractSkybox;
     private List<string> AssetReferences { get; } = [];
     private List<string> ModelsToExtract { get; } = [];
     private HashSet<(string Name, string SurfaceProperty)> ProceduralPhysMaterialsToExtract { get; } = [];

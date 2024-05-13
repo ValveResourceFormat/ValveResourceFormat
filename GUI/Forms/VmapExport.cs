@@ -44,7 +44,7 @@ namespace GUI.Forms
         {
             VmapOptions flags = 0;
 
-            if(Export3DSkybox)
+            if (Export3DSkybox)
             {
                 flags |= VmapOptions.Export3DSkybox;
             }
