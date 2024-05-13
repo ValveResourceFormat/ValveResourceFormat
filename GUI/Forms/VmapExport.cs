@@ -52,11 +52,4 @@ namespace GUI.Forms
             return flags;
         }
     }
-
-    [Flags]
-    public enum VmapOptions
-    {
-        None = 0,
-        Export3DSkybox = 1,
-    }
 }

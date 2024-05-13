@@ -386,7 +386,7 @@ namespace GUI.Forms
 
             try
             {
-                contentFile = FileExtract.Extract(resource, exportData.VrfGuiContext.FileLoader, progressReporter);
+                contentFile = FileExtract.Extract(resource, exportData.VrfGuiContext.FileLoader, progressReporter, fileFlags);
                 if (fileFlags != null)
                 {
                     //vmap options
@@ -429,7 +429,7 @@ namespace GUI.Forms
                                     Directory.CreateDirectory(Path.GetDirectoryName(skyboxMapSavePath));
                                 }
 
-                                await ExtractFile(skyboxVmapResource, skyboxName, skyboxMapSavePath, true).ConfigureAwait(true);
+                                await ExtractFile(skyboxVmapResource, skyboxName, MapExtract.AddSuffixToVmapName(skyboxMapSavePath), true).ConfigureAwait(true);
 
                                 exportData.VrfGuiContext.FileLoader.RemovePackageFromSearch(skyboxPackage);
                             }

@@ -18,6 +18,13 @@ public class VmapContentFile : ContentFile
     public string SkyboxPath { get; init; }
 }
 
+[Flags]
+public enum VmapOptions
+{
+    None = 0,
+    Export3DSkybox = 1,
+}
+
 public sealed class MapExtract
 {
     public string LumpFolder { get; private set; }
@@ -27,6 +34,7 @@ public sealed class MapExtract
     private string WorldPhysicsName { get; set; }
     public string SkyboxToExtract { get; set; }
 
+    private bool ExtractSkybox = false;
     private List<string> AssetReferences { get; } = [];
     private List<string> ModelsToExtract { get; } = [];
     private HashSet<(string Name, string SurfaceProperty)> ProceduralPhysMaterialsToExtract { get; } = [];
@@ -81,8 +89,13 @@ public sealed class MapExtract
     /// <summary>
     /// Extract a map from a resource. Accepted types include Map, World. TODO: WorldNode and EntityLump.
     /// </summary>
-    public MapExtract(Resource resource, IFileLoader fileLoader)
+    public MapExtract(Resource resource, IFileLoader fileLoader, object fileFlags = null)
     {
+        if (fileFlags != null)
+        {
+            HandleVmapFlags((VmapOptions)fileFlags);
+        }
+
         FileLoader = fileLoader ?? throw new ArgumentNullException(nameof(fileLoader), "A file loader must be provided to load the map's lumps");
 
         switch (resource.ResourceType)
@@ -102,8 +115,13 @@ public sealed class MapExtract
     /// Extract a map by name and a vpk-based file loader.
     /// </summary>
     /// <param name="mapNameFull"> Full name of map, including the 'maps' root. The lump folder. E.g. 'maps/prefabs/ui/ui_background'. </param>
-    public MapExtract(string mapNameFull, IFileLoader fileLoader)
+    public MapExtract(string mapNameFull, IFileLoader fileLoader, object fileFlags = null)
     {
+        if (fileFlags != null)
+        {
+            HandleVmapFlags((VmapOptions)fileFlags);
+        }
+
         ArgumentNullException.ThrowIfNull(fileLoader, nameof(fileLoader));
         FileLoader = fileLoader;
 
@@ -116,7 +134,11 @@ public sealed class MapExtract
         var vmapPath = LumpFolder + ".vmap_c";
         var vmapResource = FileLoader.LoadFile(vmapPath) ?? throw new FileNotFoundException($"Failed to find vmap_c resource at {vmapPath}");
         InitMapExtract(vmapResource);
+    }
 
+    public void HandleVmapFlags(VmapOptions flags)
+    {
+        ExtractSkybox = flags.HasFlag(VmapOptions.Export3DSkybox);
     }
 
     private static string NormalizePath(string path)
@@ -1066,11 +1088,12 @@ public sealed class MapExtract
             }
 
             //if the map SOMEHOW has more than one of these, we're only using the first
-            if (compiledEntity.GetProperty<string>(StringToken.Get("classname")) == "skybox_reference")
+            if (compiledEntity.GetProperty<string>(StringToken.Get("classname")) == "skybox_reference" && ExtractSkybox)
             {
                 if (string.IsNullOrEmpty(SkyboxToExtract))
                 {
                     SkyboxToExtract = NormalizePath(compiledEntity.GetProperty<string>("targetmapname"));
+                    mapEntity.WithProperty("targetMapName", AddSuffixToVmapName(SkyboxToExtract));
                 }
             }
 
@@ -1290,6 +1313,14 @@ public sealed class MapExtract
         }
 
         return value[Prefix.Length..];
+    }
+
+    public static string AddSuffixToVmapName(string path)
+    {
+        var newVmapName = Path.GetFileNameWithoutExtension(path) + "_d" + Path.GetExtension(path);
+        var newVmapPath = NormalizePath(Path.Combine(Path.GetDirectoryName(path), newVmapName));
+
+        return newVmapPath;
     }
 
     #endregion Entities
