@@ -37,8 +37,6 @@ namespace GUI.Forms
             // decompile_skybox
             // 
             decompile_skybox.AutoSize = true;
-            decompile_skybox.Checked = true;
-            decompile_skybox.CheckState = System.Windows.Forms.CheckState.Checked;
             decompile_skybox.Location = new System.Drawing.Point(12, 50);
             decompile_skybox.Name = "decompile_skybox";
             decompile_skybox.Size = new System.Drawing.Size(199, 19);

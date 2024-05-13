@@ -260,14 +260,14 @@ public sealed class MapExtract
         };
 
         //this is actually just scene objects
-        foreach (var meshName in MeshesToExtract)
+        foreach (var modelName in MeshesToExtract)
         {
-            var meshNameCompiled = meshName + GameFileLoader.CompiledFileSuffix;
-            using var mesh = FileLoader.LoadFile(meshNameCompiled);
+            var modelNameCompiled = modelName + GameFileLoader.CompiledFileSuffix;
+            using var model = FileLoader.LoadFile(modelNameCompiled);
 
-            if (mesh != null)
+            if (model != null)
             {
-                var vmdl = new ModelExtract((Mesh)mesh.DataBlock, meshName).ToContentFile();
+                var vmdl = new ModelExtract(model, FileLoader).ToContentFile();
                 vmap.AdditionalFiles.Add(vmdl);
             }
         }
@@ -663,21 +663,6 @@ public sealed class MapExtract
 
             var objectFlags = sceneObject.GetEnumValue<ObjectTypeFlags>("m_nObjectTypeFlags", normalize: true);
 
-            if (modelName == null)
-            {
-                Debug.Assert(!objectFlags.HasFlag(ObjectTypeFlags.Model));
-                if (meshName == null)
-                {
-                    return;
-                }
-
-                //TODO: convert this to hammer mesh as well, not sure when this is null
-
-                MeshesToExtract.Add(meshName);
-
-                modelName = Path.ChangeExtension(meshName, ".vmdl");
-            }
-
             FolderExtractFilter.Add(modelName ?? meshName);
 
             if (SceneObjectShouldConvertToHammerMesh(modelName))
@@ -690,6 +675,10 @@ public sealed class MapExtract
                     MapDocument.World.Children.Add(hammermesh);
                 }
                 return;
+            }
+            else
+            {
+                MeshesToExtract.Add(modelName);
             }
 
             AssetReferences.Add(modelName);
