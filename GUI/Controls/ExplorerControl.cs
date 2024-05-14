@@ -212,6 +212,37 @@ namespace GUI.Controls
 
                 gamePathsToScan.Sort(static (a, b) => a.AppID - b.AppID);
 
+                var checkedDirVpks = new Dictionary<string, bool>();
+
+                bool VpkPredicate(ref FileSystemEntry entry)
+                {
+                    if (entry.IsDirectory)
+                    {
+                        return false;
+                    }
+
+                    if (!entry.FileName.EndsWith(".vpk", StringComparison.Ordinal))
+                    {
+                        return false;
+                    }
+
+                    if (!Regexes.VpkNumberArchive().IsMatch(entry.FileName))
+                    {
+                        return true;
+                    }
+
+                    // If we matched dota_683.vpk, make sure dota_dir.vpk exists before excluding it from results
+                    var fixedPackage = $"{entry.ToFullPath()[..^8]}_dir.vpk";
+
+                    if (!checkedDirVpks.TryGetValue(fixedPackage, out var ret))
+                    {
+                        ret = !File.Exists(fixedPackage);
+                        checkedDirVpks.Add(fixedPackage, ret);
+                    }
+
+                    return ret;
+                }
+
                 foreach (var (appID, appName, steamPath, gamePath) in gamePathsToScan)
                 {
                     var foundFiles = new List<TreeNode>();
@@ -222,15 +253,7 @@ namespace GUI.Controls
                         (ref FileSystemEntry entry) => entry.ToSpecifiedFullPath(),
                         enumerationOptions)
                     {
-                        ShouldIncludePredicate = static (ref FileSystemEntry entry) =>
-                        {
-                            if (entry.IsDirectory)
-                            {
-                                return false;
-                            }
-
-                            return entry.FileName.EndsWith(".vpk", StringComparison.Ordinal) && !Regexes.VpkNumberArchive().IsMatch(entry.FileName);
-                        }
+                        ShouldIncludePredicate = VpkPredicate
                     };
 
                     foreach (var vpk in vpks)
