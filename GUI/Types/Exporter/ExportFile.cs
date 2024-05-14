@@ -162,8 +162,9 @@ namespace GUI.Types.Exporter
         {
             if (!selectedNode.IsFolder)
             {
-                var file = selectedNode.PackageEntry;
                 // We are a file
+                var file = selectedNode.PackageEntry;
+
                 if (file.TypeName == "vmap_c")
                 {
                     var extractDialog = new VmapExport();
@@ -172,14 +173,12 @@ namespace GUI.Types.Exporter
 
                     try
                     {
-                        if (extractDialog.ShowVmapExportDialog() == DialogResult.Continue)
-                        {
-                            exportFlags = extractDialog.VmapExportFlags();
-                        }
-                        else
+                        if (extractDialog.ShowVmapExportDialog() != DialogResult.Continue)
                         {
                             return;
                         }
+
+                        exportFlags = extractDialog.VmapExportFlags();
 
                         extractDialog?.Dispose();
                     }
@@ -189,11 +188,11 @@ namespace GUI.Types.Exporter
                     }
 
                     ExtractFileFromPackageEntry(file, vrfGuiContext, decompile, exportFlags);
+
+                    return;
                 }
-                else
-                {
-                    ExtractFileFromPackageEntry(file, vrfGuiContext, decompile);
-                }
+
+                ExtractFileFromPackageEntry(file, vrfGuiContext, decompile);
             }
             else
             {

@@ -423,12 +423,7 @@ namespace GUI.Forms
 
                                 var skyboxMapSavePath = Path.Combine(mainMapSavePath, skyboxPath);
 
-                                //make sure the path for the skybox exists
-                                if (!Directory.Exists(skyboxMapSavePath))
-                                {
-                                    Directory.CreateDirectory(Path.GetDirectoryName(skyboxMapSavePath));
-                                }
-
+                                Directory.CreateDirectory(Path.GetDirectoryName(skyboxMapSavePath));
                                 await ExtractFile(skyboxVmapResource, skyboxName, MapExtract.AddSuffixToVmapName(skyboxMapSavePath), true).ConfigureAwait(true);
 
                                 exportData.VrfGuiContext.FileLoader.RemovePackageFromSearch(skyboxPackage);

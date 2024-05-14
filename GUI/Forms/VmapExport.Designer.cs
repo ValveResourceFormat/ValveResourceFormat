@@ -43,7 +43,6 @@ namespace GUI.Forms
             decompile_skybox.TabIndex = 0;
             decompile_skybox.Text = "decompile 3D skybox (if present)";
             decompile_skybox.UseVisualStyleBackColor = true;
-            decompile_skybox.CheckedChanged += checkBox1_CheckedChanged;
             // 
             // button_continue
             // 
@@ -88,7 +87,6 @@ namespace GUI.Forms
             FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
             Name = "VmapExport";
             Text = "VmapExport";
-            Load += VmapExport_Load;
             ResumeLayout(false);
             PerformLayout();
         }
