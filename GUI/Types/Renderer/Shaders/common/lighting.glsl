@@ -90,6 +90,12 @@ float CalculateSunShadowMapVisibility(vec3 vPosition)
     vec4 projCoords = g_matWorldToShadow * vec4(vPosition, 1.0);
     projCoords.xyz /= projCoords.w;
 
+    // Comparison with negative depth values would produce shadows for us (likely due to reverse-z)
+    if (projCoords.z < 0)
+    {
+        return 1.0;
+    }
+
     vec2 shadowCoords = clamp(projCoords.xy * 0.5 + 0.5, vec2(-1), vec2(2));
     float currentDepth = saturate(projCoords.z + 0.001);
 
