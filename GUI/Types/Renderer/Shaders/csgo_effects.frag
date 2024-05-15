@@ -102,7 +102,7 @@ void main()
     outputColor = color * mask1;
 #elif renderMode_Tint == 1
     outputColor = vColorOut;
-#elif renderMode_SpriteEffects
+#elif renderMode_SpriteEffects == 1
     outputColor = vec4(mask1, mask2, mask3, 1);
 #endif
 }
