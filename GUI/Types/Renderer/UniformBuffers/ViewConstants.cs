@@ -13,6 +13,10 @@ namespace GUI.Types.Renderer.UniformBuffers
         public float Time;
         public Matrix4x4 WorldToShadow = Matrix4x4.Identity;
         public Color4 ClearColor = Color4.Black;
+        public int RenderMode;
+        public int _Padding1;
+        public int _Padding2;
+        public int _Padding3;
 
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
         public bool[] FogTypeEnabled;

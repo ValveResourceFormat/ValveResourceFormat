@@ -11,6 +11,7 @@ namespace GUI.Types.Renderer
     {
         private const string ShaderDirectory = "GUI.Types.Renderer.Shaders.";
         private const string ExpectedShaderVersion = "#version 460";
+        private const string RenderModeDefinePrefix = "renderMode_";
 
         [GeneratedRegex("^\\s*#include \"(?<IncludeName>[^\"]+)\"")]
         private static partial Regex RegexInclude();
@@ -21,6 +22,9 @@ namespace GUI.Types.Renderer
         // accept whitespace in front
         [GeneratedRegex("^\\s*uniform sampler(?<SamplerType>\\S+) (?<SamplerName>\\S+);\\s*// SrgbRead\\(true\\)")]
         private static partial Regex RegexSamplerWithSrgbRead();
+
+        private static byte NextRenderModeId = 10;
+        private readonly static Dictionary<string, byte> RenderModes = [];
 
         private int sourceFileNumber;
         public List<string> SourceFiles { get; } = [];
@@ -38,6 +42,8 @@ namespace GUI.Types.Renderer
             SourceFileLines.Clear();
 #endif
         }
+
+        public static int GetRenderModeId(string renderMode) => RenderModes.TryGetValue(renderMode, out var value) ? value : 0;
 
         public string PreprocessShader(string shaderFile, string originalShaderName, IReadOnlyDictionary<string, byte> arguments, ParsedShaderData parsedData)
         {
@@ -133,15 +139,31 @@ namespace GUI.Types.Renderer
                         if (match.Success)
                         {
                             var defineName = match.Groups["ParamName"].Value;
+                            byte value = 0;
 
-                            parsedData.Defines.Add(defineName);
-
-                            // Check if this parameter is in the arguments
-                            if (!arguments.TryGetValue(defineName, out var value))
+                            if (defineName.StartsWith(RenderModeDefinePrefix, StringComparison.Ordinal))
                             {
-                                builder.Append(line);
-                                builder.Append('\n');
-                                continue;
+                                var renderMode = defineName[RenderModeDefinePrefix.Length..];
+
+                                parsedData.RenderModes.Add(renderMode);
+
+                                if (!RenderModes.TryGetValue(renderMode, out value))
+                                {
+                                    value = NextRenderModeId++;
+                                    RenderModes.Add(renderMode, value);
+                                }
+                            }
+                            else
+                            {
+                                parsedData.Defines.Add(defineName);
+
+                                // Check if this parameter is in the arguments
+                                if (!arguments.TryGetValue(defineName, out value))
+                                {
+                                    builder.Append(line);
+                                    builder.Append('\n');
+                                    continue;
+                                }
                             }
 
                             // Overwrite default value

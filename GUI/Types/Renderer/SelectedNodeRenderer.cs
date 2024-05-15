@@ -5,7 +5,7 @@ namespace GUI.Types.Renderer
 {
     class SelectedNodeRenderer : SceneNode
     {
-        private Shader shader;
+        private readonly Shader shader;
         private readonly int vaoHandle;
         private readonly int vboHandle;
         private int vertexCount;
@@ -204,8 +204,6 @@ namespace GUI.Types.Renderer
 
         public override void SetRenderMode(string mode)
         {
-            shader = Scene.GuiContext.ShaderLoader.LoadShader("vrf.default");
-
             debugCubeMaps = mode == "Cubemaps";
             debugLightProbes = mode == "Irradiance" || mode == "Illumination";
 

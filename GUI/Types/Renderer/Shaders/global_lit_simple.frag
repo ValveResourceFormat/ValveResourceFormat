@@ -1,8 +1,13 @@
 #version 460
 
 // Render modes -- Switched on/off by code
-#include "common/utils.glsl"
-#include "common/rendermodes.glsl"
+#define renderMode_FullBright 0
+#define renderMode_Color 0
+#define renderMode_Normals 0
+#define renderMode_Tangents 0
+#define renderMode_BumpMap 0
+#define renderMode_BumpNormals 0
+#define renderMode_Illumination 0
 #define renderMode_Tint 0
 
 //Parameter defines - These are default values and can be overwritten based on material/model parameters
@@ -60,6 +65,7 @@ out vec4 outputColor;
     uniform vec4 g_vScrollUvDirection;
 #endif
 
+#include "common/utils.glsl"
 #include "common/ViewConstants.glsl"
 
 uniform vec4 g_vColorTint = vec4(1.0);
@@ -134,13 +140,18 @@ void main()
     vec3 lightDirection = normalize(g_vCameraPositionWs - vFragPosition);
     vec3 viewDirection = normalize(g_vCameraPositionWs - vFragPosition);
 
-#if renderMode_FullBright == 1 || F_FULLBRIGHT == 1 || (F_TRANSLUCENT == 1 && F_ALLOW_LIGHTING_ON_TRANSLUCENT == 0)
+#if F_FULLBRIGHT == 1 || (F_TRANSLUCENT == 1 && F_ALLOW_LIGHTING_ON_TRANSLUCENT == 0)
     float illumination = 1.0;
 #else
     //Calculate lambert lighting
     float illumination = max(0.0, dot(worldNormal, lightDirection));
     illumination = illumination * 0.7 + 0.4; //add ambient
 #endif
+
+    if (g_iRenderMode == renderMode_FullBright)
+    {
+        illumination = 1.0;
+    }
 
     //Apply tint
 #if (F_TINT_MASK == 1 || F_TINT_MASK == 2)
@@ -170,31 +181,36 @@ void main()
         outputColor.rgb += specularTexel.y;
     #endif
 
-#if renderMode_Color == 1
-    outputColor = vec4(color.rgb, 1.0);
+    if (g_iRenderMode == renderMode_Color)
+    {
+        outputColor = vec4(color.rgb, 1.0);
+    }
+    else if (g_iRenderMode == renderMode_Tangents)
+    {
+        outputColor = vec4(PackToColor(vTangentOut.xyz), 1.0);
+    }
+    else if (g_iRenderMode == renderMode_Normals)
+    {
+        outputColor = vec4(PackToColor(vNormalOut), 1.0);
+    }
+    else if (g_iRenderMode == renderMode_BumpNormals)
+    {
+        outputColor = vec4(PackToColor(worldNormal), 1.0);
+    }
+    else if (g_iRenderMode == renderMode_Illumination)
+    {
+        outputColor = vec4(vec3(illumination), 1.0);
+    }
+#if F_NORMAL_MAP == 1
+    else if (g_iRenderMode == renderMode_BumpMap)
+    {
+        outputColor = normal;
+    }
 #endif
-
-#if renderMode_BumpMap == 1 && F_NORMAL_MAP == 1
-    outputColor = normal;
-#endif
-
-#if renderMode_Tangents == 1
-    outputColor = vec4(PackToColor(vTangentOut.xyz), 1.0);
-#endif
-
-#if renderMode_Normals == 1
-    outputColor = vec4(PackToColor(vNormalOut), 1.0);
-#endif
-
-#if renderMode_BumpNormals == 1
-    outputColor = vec4(PackToColor(worldNormal), 1.0);
-#endif
-
-#if renderMode_Illumination == 1
-    outputColor = vec4(vec3(illumination), 1.0);
-#endif
-
-#if renderMode_Tint == 1 && F_PAINT_VERTEX_COLORS == 1
-    outputColor = vVertexColorOut;
+#if F_PAINT_VERTEX_COLORS == 1
+    else if (g_iRenderMode == renderMode_Tint)
+    {
+        outputColor = vVertexColorOut;
+    }
 #endif
 }

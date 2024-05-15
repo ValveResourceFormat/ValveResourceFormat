@@ -231,10 +231,6 @@ namespace GUI.Types.Renderer
 
         public override void SetRenderMode(string renderMode)
         {
-            foreach (var renderer in meshRenderers)
-            {
-                renderer.SetRenderMode(renderMode);
-            }
         }
 
         public void SetMaterialGroup(string name)

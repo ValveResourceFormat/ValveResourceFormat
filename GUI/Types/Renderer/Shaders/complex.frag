@@ -1,22 +1,20 @@
 #version 460
 
 #include "common/utils.glsl"
-#include "common/rendermodes.glsl"
 #include "common/features.glsl"
 #include "common/ViewConstants.glsl"
 #include "common/LightingConstants.glsl"
 #include "complex_features.glsl"
 
 // Render modes -- Switched on/off by code
+#define renderMode_Illumination 0
 #define renderMode_Diffuse 0
 #define renderMode_Specular 0
-#define renderMode_PBR 0
 #define renderMode_Cubemaps 0
 #define renderMode_Irradiance 0
 #define renderMode_Tint 0
 #define renderMode_Foliage_Params 0
 #define renderMode_Terrain_Blend 0
-#define renderMode_ExtraParams 0
 
 #if defined(vr_complex_vfx) || defined(csgo_complex_vfx)
     #define complex_vfx_common
@@ -247,18 +245,16 @@ uniform sampler2D g_tTintMask;
 
 #if (F_ANISOTROPIC_GLOSS == 1) // complex, csgo_character
     #define VEC2_ROUGHNESS
-    #define renderMode_AnisoGloss 0
     uniform sampler2D g_tAnisoGloss;
 #endif
 
 #include "common/lighting_common.glsl"
+#include "common/fullbright.glsl"
 #include "common/texturing.glsl"
 #include "common/pbr.glsl"
 #include "common/fog.glsl"
 
-#if (S_SPECULAR == 1 || renderMode_Cubemaps == 1)
-    #include "common/environment.glsl"
-#endif
+#include "common/environment.glsl" // (S_SPECULAR == 1 || renderMode_Cubemaps == 1)
 
 // Must be last
 #include "common/lighting.glsl"
@@ -626,73 +622,50 @@ void main()
     outputColor = vec4(mix(vec3(0.5), outputColor.rgb, vec3(outputColor.a)), outputColor.a);
 #endif
 
-#if renderMode_FullBright == 1
-    vec3 fullbrightLighting = CalculateFullbrightLighting(mat.Albedo, mat.Normal, mat.ViewDir);
-    outputColor.rgb = SrgbLinearToGamma(fullbrightLighting);
+    if (HandleMaterialRenderModes(mat, outputColor))
+    {
+        //
+    }
+    else if (g_iRenderMode == renderMode_Cubemaps)
+    {
+        // No bumpmaps, full reflectivity
+        vec3 viewmodeEnvMap = GetEnvironment(mat).rgb;
+        outputColor.rgb = SrgbLinearToGamma(viewmodeEnvMap);
+    }
+    else if (g_iRenderMode == renderMode_Illumination)
+    {
+        outputColor = vec4(SrgbLinearToGamma(lighting.DiffuseDirect + lighting.SpecularDirect), 1.0);
+    }
+    else if (g_iRenderMode == renderMode_Tint)
+    {
+        outputColor = vVertexColorOut;
+    }
+#if (F_GLASS == 0)
+    else if (g_iRenderMode == renderMode_Irradiance)
+    {
+        outputColor = vec4(SrgbLinearToGamma(lighting.DiffuseIndirect), 1.0);
+    }
 #endif
-
-#if renderMode_Color == 1
-    outputColor = vec4(SrgbLinearToGamma(mat.Albedo), 1.0);
+#if defined(foliage_vfx_common)
+    else if (g_iRenderMode == renderMode_Foliage_Params)
+    {
+        outputColor.rgb = vFoliageParamsOut.rgb;
+    }
 #endif
-
-#if renderMode_BumpMap == 1
-    outputColor = vec4(PackToColor(mat.NormalMap), 1.0);
+#if (defined(csgo_generic_blend) || defined(simple_blend_common) || defined(vr_standard_blend_vfx))
+    else if (g_iRenderMode == renderMode_Terrain_Blend)
+    {
+        outputColor.rgb = vColorBlendValues.rgb;
+    }
 #endif
-
-#if renderMode_Tangents == 1
-    outputColor = vec4(PackToColor(mat.Tangent), 1.0);
-#endif
-
-#if renderMode_Normals == 1
-    outputColor = vec4(PackToColor(mat.GeometricNormal), 1.0);
-#endif
-
-#if renderMode_BumpNormals == 1
-    outputColor = vec4(PackToColor(mat.Normal), 1.0);
-#endif
-
-#if (renderMode_Diffuse == 1) && !(unlit)
-    outputColor.rgb = SrgbLinearToGamma(diffuseLighting * 0.5);
-#endif
-
-#if (renderMode_Specular == 1) && !(unlit)
-    outputColor.rgb = SrgbLinearToGamma(specularLighting);
-#endif
-
-#if renderMode_PBR == 1
-    outputColor = vec4(mat.AmbientOcclusion, GetIsoRoughness(mat.Roughness), mat.Metalness, 1.0);
-#endif
-
-#if (renderMode_Cubemaps == 1)
-    // No bumpmaps, full reflectivity
-    vec3 viewmodeEnvMap = GetEnvironment(mat).rgb;
-    outputColor.rgb = SrgbLinearToGamma(viewmodeEnvMap);
-#endif
-
-#if renderMode_Illumination == 1
-    outputColor = vec4(SrgbLinearToGamma(lighting.DiffuseDirect + lighting.SpecularDirect), 1.0);
-#endif
-
-#if renderMode_Irradiance == 1 && (F_GLASS == 0)
-    outputColor = vec4(SrgbLinearToGamma(lighting.DiffuseIndirect), 1.0);
-#endif
-
-#if renderMode_Tint == 1
-    outputColor = vVertexColorOut;
-#endif
-
-#if renderMode_Foliage_Params == 1 && defined(foliage_vfx_common)
-    outputColor.rgb = vFoliageParamsOut.rgb;
-#endif
-
-#if renderMode_Terrain_Blend == 1 && (defined(csgo_generic_blend) || defined(simple_blend_common) || defined(vr_standard_blend_vfx))
-    outputColor.rgb = vColorBlendValues.rgb;
-#endif
-
-#if renderMode_ExtraParams == 1
-    outputColor.rgb = mat.ExtraParams.rgb;
-#endif
-#if renderMode_AnisoGloss == 1
-    outputColor.rgb = vec3(mat.RoughnessTex.xy, 0.0);
+#if !(unlit)
+    else if (g_iRenderMode == renderMode_Diffuse)
+    {
+        outputColor.rgb = SrgbLinearToGamma(diffuseLighting * 0.5);
+    }
+    else if (g_iRenderMode == renderMode_Specular)
+    {
+        outputColor.rgb = SrgbLinearToGamma(specularLighting);
+    }
 #endif
 }

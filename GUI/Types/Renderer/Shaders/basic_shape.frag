@@ -1,7 +1,11 @@
 #version 460
 
 #include "common/utils.glsl"
-#include "common/rendermodes.glsl"
+#include "common/fullbright.glsl"
+#include "common/ViewConstants.glsl"
+
+#define renderMode_Color 0
+#define renderMode_Normals 0
 #define renderMode_VertexColor 0
 
 in vec4 vtxColor;
@@ -34,7 +38,6 @@ vec4 boxmap( in sampler2D s, in vec3 p, in vec3 n, in float k )
     return (x*w.x + y*w.y + z*w.z) / (w.x + w.y + w.z);
 }
 
-
 void main(void)
 {
     outputColor = vtxColor;
@@ -59,15 +62,16 @@ void main(void)
         outputColor.rgba *= 0.75;
     }
 
-    #if renderMode_Color == 1
+    if (g_iRenderMode == renderMode_Color)
+    {
         outputColor = vec4(toolTexture, 1.0);
-    #endif
-
-    #if renderMode_Normals == 1
+    }
+    else if (g_iRenderMode == renderMode_Normals)
+    {
         outputColor = vec4(PackToColor(vtxNormal), 1.0);
-    #endif
-
-    #if renderMode_VertexColor == 1
+    }
+    else if (g_iRenderMode == renderMode_VertexColor)
+    {
         outputColor = vec4(vtxColor.rgb, 1.0);
-    #endif
+    }
 }

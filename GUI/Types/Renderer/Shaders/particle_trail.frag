@@ -1,6 +1,7 @@
 #version 460
 
 #include "common/utils.glsl"
+#include "common/ViewConstants.glsl"
 
 // Render modes -- Switched on/off by code
 #define renderMode_Color 0
@@ -26,7 +27,8 @@ void main(void) {
 
     fragColor = vec4(finalColor, uAlpha * color.a * blendingFactor);
 
-#if renderMode_Color == 1
-    fragColor = vec4(finalColor, 1.0);
-#endif
+    if (g_iRenderMode == renderMode_Color)
+    {
+        fragColor = vec4(finalColor, 1.0);
+    }
 }

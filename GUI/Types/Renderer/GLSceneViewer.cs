@@ -305,8 +305,7 @@ namespace GUI.Types.Renderer
                     RenderScenesWithView(renderContext);
                     Picker.Finish();
                 }
-
-                if (Picker.DebugShader is not null)
+                else if (Picker.DebugShader is not null)
                 {
                     renderContext.ReplacementShader = Picker.DebugShader;
                 }
@@ -488,6 +487,7 @@ namespace GUI.Types.Renderer
                     .SelectMany(r => r.GetSupportedRenderModes())
                     .Concat(Picker.Shader.RenderModes)
                     .Distinct()
+                    .Order()
                     .Prepend("Default Render Mode")
                     .ToArray();
 
@@ -524,30 +524,22 @@ namespace GUI.Types.Renderer
 
         private void SetRenderMode(string renderMode)
         {
-            var title = Program.MainForm.Text;
-            Program.MainForm.Text = "Source 2 Viewer - Reloading shaders…";
+            viewBuffer.Data.RenderMode = ShaderParser.GetRenderModeId(renderMode);
 
-            try
+            Picker.SetRenderMode(renderMode);
+            selectedNodeRenderer.SetRenderMode(renderMode);
+
+            foreach (var node in Scene.AllNodes)
             {
-                Picker.SetRenderMode(renderMode);
-                selectedNodeRenderer.SetRenderMode(renderMode);
+                node.SetRenderMode(renderMode);
+            }
 
-                foreach (var node in Scene.AllNodes)
+            if (SkyboxScene != null)
+            {
+                foreach (var node in SkyboxScene.AllNodes)
                 {
                     node.SetRenderMode(renderMode);
                 }
-
-                if (SkyboxScene != null)
-                {
-                    foreach (var node in SkyboxScene.AllNodes)
-                    {
-                        node.SetRenderMode(renderMode);
-                    }
-                }
-            }
-            finally
-            {
-                Program.MainForm.Text = title;
             }
         }
 

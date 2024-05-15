@@ -1,20 +1,17 @@
 #version 460
 
-// Includes
-#include "common/utils.glsl"
-#include "common/rendermodes.glsl"
-
 // Render modes -- Switched on/off by code
+#define renderMode_Cubemaps 0
+#define renderMode_Illumination 0
+#define renderMode_Tint 0
 #define renderMode_Diffuse 0
 #define renderMode_Specular 0
-#define renderMode_PBR 0
-#define renderMode_Cubemaps 0
-#define renderMode_Irradiance 0
-#define renderMode_Tint 0
-#define renderMode_Terrain_Blend 0
 #define renderMode_Height 0
 #define renderMode_VertexColor 0
+#define renderMode_Irradiance 0
+#define renderMode_Terrain_Blend 0
 
+#include "common/utils.glsl"
 #include "common/features.glsl"
 #include "csgo_environment_features.glsl"
 
@@ -155,12 +152,10 @@ uniform float g_flModelTintAmount = 1.0;
 #include "common/LightingConstants.glsl"
 
 #include "common/lighting_common.glsl"
+#include "common/fullbright.glsl"
 #include "common/texturing.glsl"
 #include "common/pbr.glsl"
-
-#if (S_SPECULAR == 1 || renderMode_Cubemaps == 1)
-    #include "common/environment.glsl"
-#endif
+#include "common/environment.glsl" // (S_SPECULAR == 1 || renderMode_Cubemaps == 1)
 
 #include "common/fog.glsl"
 
@@ -373,70 +368,50 @@ void main()
 
     outputColor.rgb = SrgbLinearToGamma(combinedLighting);
 
-#if renderMode_Height == 1
-    outputColor.rgb = mat.Height.xxx;
+    if (HandleMaterialRenderModes(mat, outputColor))
+    {
+        //
+    }
+    else if (g_iRenderMode == renderMode_Cubemaps)
+    {
+        // No bumpmaps, full reflectivity
+        vec3 viewmodeEnvMap = GetEnvironment(mat).rgb;
+        outputColor.rgb = SrgbLinearToGamma(viewmodeEnvMap);
+    }
+    else if (g_iRenderMode == renderMode_Illumination)
+    {
+        outputColor = vec4(SrgbLinearToGamma(lighting.DiffuseDirect + lighting.SpecularDirect), 1.0);
+    }
+    else if (g_iRenderMode == renderMode_Tint)
+    {
+        outputColor = vec4(vTintColor_ModelAmount.rgb, vVertexColor_Alpha.a);
+    }
+    else if (g_iRenderMode == renderMode_Diffuse)
+    {
+        outputColor.rgb = SrgbLinearToGamma(diffuseLighting * 0.5);
+    }
+    else if (g_iRenderMode == renderMode_Specular)
+    {
+        outputColor.rgb = SrgbLinearToGamma(specularLighting);
+    }
+    else if (g_iRenderMode == renderMode_Height)
+    {
+        outputColor.rgb = mat.Height.xxx;
+    }
+    else if (g_iRenderMode == renderMode_VertexColor)
+    {
+        outputColor.rgb = vVertexColor_Alpha.rgb;
+    }
+#if (F_GLASS == 0)
+    else if (g_iRenderMode == renderMode_Irradiance)
+    {
+        outputColor = vec4(SrgbLinearToGamma(lighting.DiffuseIndirect), 1.0);
+    }
 #endif
-
-#if renderMode_FullBright == 1
-    vec3 fullbrightLighting = CalculateFullbrightLighting(mat.Albedo, mat.Normal, mat.ViewDir);
-    outputColor = vec4(SrgbLinearToGamma(fullbrightLighting), mat.Opacity);
-#endif
-
-#if renderMode_Color == 1
-    outputColor = vec4(SrgbLinearToGamma(mat.Albedo), 1.0);
-#endif
-
-#if renderMode_BumpMap == 1
-    outputColor = vec4(PackToColor(mat.NormalMap), 1.0);
-#endif
-
-#if renderMode_Tangents == 1
-    outputColor = vec4(PackToColor(mat.Tangent), 1.0);
-#endif
-
-#if renderMode_Normals == 1
-    outputColor = vec4(PackToColor(mat.GeometricNormal), 1.0);
-#endif
-
-#if renderMode_BumpNormals == 1
-    outputColor = vec4(PackToColor(mat.Normal), 1.0);
-#endif
-
-#if (renderMode_Diffuse == 1)
-    outputColor.rgb = SrgbLinearToGamma(diffuseLighting * 0.5);
-#endif
-
-#if (renderMode_Specular == 1)
-    outputColor.rgb = SrgbLinearToGamma(specularLighting);
-#endif
-
-#if renderMode_PBR == 1
-    outputColor = vec4(mat.AmbientOcclusion, GetIsoRoughness(mat.Roughness), mat.Metalness, 1.0);
-#endif
-
-#if (renderMode_Cubemaps == 1)
-    // No bumpmaps, full reflectivity
-    vec3 viewmodeEnvMap = GetEnvironment(mat).rgb;
-    outputColor.rgb = SrgbLinearToGamma(viewmodeEnvMap);
-#endif
-
-#if renderMode_Illumination == 1
-    outputColor = vec4(SrgbLinearToGamma(lighting.DiffuseDirect + lighting.SpecularDirect), 1.0);
-#endif
-
-#if renderMode_Irradiance == 1 && (F_GLASS == 0)
-    outputColor = vec4(SrgbLinearToGamma(lighting.DiffuseIndirect), 1.0);
-#endif
-
-#if renderMode_Tint == 1
-    outputColor = vec4(vTintColor_ModelAmount.rgb, vVertexColor_Alpha.a);
-#endif
-
-#if renderMode_VertexColor == 1
-    outputColor.rgb = vVertexColor_Alpha.rgb;
-#endif
-
-#if renderMode_Terrain_Blend == 1 && defined(csgo_environment_blend_vfx)
-    outputColor.rgb = vColorBlendValues.rga;
+#if defined(csgo_environment_blend_vfx)
+    else if (g_iRenderMode == renderMode_Terrain_Blend)
+    {
+        outputColor.rgb = vColorBlendValues.rga;
+    }
 #endif
 }

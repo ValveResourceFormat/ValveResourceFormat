@@ -1,5 +1,7 @@
 #version 460
 
+#include "common/ViewConstants.glsl"
+
 #define F_DEBUG_PICKER 0
 
 #define renderMode_ObjectId 0
@@ -28,16 +30,23 @@ uniform uint isSkybox;
 
     void main()
     {
-        #if renderMode_ObjectId == 1
+        if (g_iRenderMode == renderMode_ObjectId)
+        {
             outputColor = ColorFromId(sceneObjectId, 0u);
-        #elif renderMode_MeshId == 1
+        }
+        else if (g_iRenderMode == renderMode_MeshId)
+        {
             outputColor = ColorFromId(meshId, 19u);
-        #elif renderMode_ShaderId == 1
+        }
+        else if (g_iRenderMode == renderMode_ShaderId)
+        {
             float idLowered = float(shaderId) / 7000.0;
             outputColor = vec4(fract(idLowered / 7.0), fract(idLowered / 11.0), fract(idLowered / 13.0), 1.0);
-        #elif renderMode_ShaderProgramId == 1
+        }
+        else if (g_iRenderMode == renderMode_ShaderProgramId)
+        {
             outputColor = ColorFromId(shaderProgramId, 29u);
-        #endif
+        }
     }
 #else
     out uvec4 outputColor;

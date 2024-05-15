@@ -40,9 +40,10 @@ vec3 CubemapParallaxCorrection(vec3 envMapLocalPos, vec3 localReflectionVector, 
 
 float GetEnvMapLOD(float roughness, vec3 R, float clothMask)
 {
-    #if (renderMode_Cubemaps == 1)
+    if (g_iRenderMode == renderMode_Cubemaps)
+    {
         return sin(g_flTime * 3);
-    #endif
+    }
 
     const float EnvMapMipCount = g_vEnvMapSizeConstants.x;
 
@@ -61,7 +62,12 @@ const vec2 CubemapNormalizationParams = vec2(34.44445, -2.44445); // Normalizati
 
 float GetEnvMapNormalization(float rough, vec3 N, vec3 irradiance)
 {
-    #if (bUseCubemapNormalization == 1 && renderMode_Cubemaps == 0)
+    if (g_iRenderMode == renderMode_Cubemaps)
+    {
+        return 1.0;
+    }
+
+    #if (bUseCubemapNormalization == 1)
         // Cancel out lighting
         // SH is currently fully 1.0, for temporary reasons.
         // We don't know how to get the greyscale SH that they use here, because the radiance coefficients in the cubemap texture are rgb.
@@ -125,16 +131,11 @@ vec3 GetCorrectedSampleCoords(vec3 R, mat4x3 envMapWorldToLocal, vec3 envMapLoca
 
 vec3 GetEnvironment(MaterialProperties_t mat)
 {
-    #if (renderMode_Cubemaps == 1)
-        vec3 reflectionNormal = mat.GeometricNormal;
-    #elif ((F_ANISOTROPIC_GLOSS == 1) && ((F_SPECULAR_CUBE_MAP_ANISOTROPIC_WARP == 1) || !defined(vr_complex_vfx)))
+    #if ((F_ANISOTROPIC_GLOSS == 1) && ((F_SPECULAR_CUBE_MAP_ANISOTROPIC_WARP == 1) || !defined(vr_complex_vfx)))
         vec3 reflectionNormal = CalculateAnisoCubemapWarpVector(mat);
     #else
         vec3 reflectionNormal = mat.AmbientNormal;
     #endif
-
-    // Reflection Vector
-    vec3 R = normalize(reflect(-mat.ViewDir, reflectionNormal));
 
     #if (F_ANISOTROPIC_GLOSS == 1)
         float roughness = sqrt(max(mat.Roughness.x, mat.Roughness.y));
@@ -142,15 +143,20 @@ vec3 GetEnvironment(MaterialProperties_t mat)
         float roughness = mat.Roughness;
     #endif
 
+    if (g_iRenderMode == renderMode_Cubemaps)
+    {
+        reflectionNormal = mat.GeometricNormal;
+        roughness = 0.0;
+    }
+
+    // Reflection Vector
+    vec3 R = normalize(reflect(-mat.ViewDir, reflectionNormal));
+
     #if (F_CLOTH_SHADING == 1)
         // changed, original was just true
         const bool bIsClothShading = mat.ClothMask > 0.0;
     #else
         const bool bIsClothShading = false;
-    #endif
-
-    #if renderMode_Cubemaps == 1
-        roughness = 0.0;
     #endif
 
     vec3 envMap = vec3(0.0);
@@ -221,9 +227,10 @@ vec3 GetEnvironment(MaterialProperties_t mat)
 
     #endif // SCENE_CUBEMAP_TYPE == 2
 
-    #if (renderMode_Cubemaps == 1)
+    if (g_iRenderMode == renderMode_Cubemaps)
+    {
         return envMap;
-    #endif
+    }
 
     vec3 brdf = EnvBRDF(mat.SpecularColor, GetIsoRoughness(mat.Roughness), mat.AmbientNormal, mat.ViewDir);
 

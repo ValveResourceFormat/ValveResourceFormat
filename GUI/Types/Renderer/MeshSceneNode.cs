@@ -24,7 +24,6 @@ namespace GUI.Types.Renderer
 
         public override void SetRenderMode(string renderMode)
         {
-            RenderableMeshes[0].SetRenderMode(renderMode);
         }
 
         public override void Update(Scene.UpdateContext context)
