@@ -365,10 +365,6 @@ namespace GUI.Types.Renderer
 
             viewBuffer.Data.ViewToProjection = Scene.LightingInfo.SunViewProjection;
             var worldToShadow = Scene.LightingInfo.SunViewProjection;
-            var biasFactor = 1 + Scene.LightingInfo.SunLightShadowBias;
-            worldToShadow.M13 *= biasFactor;
-            worldToShadow.M23 *= biasFactor;
-            worldToShadow.M33 *= biasFactor;
             viewBuffer.Data.WorldToShadow = worldToShadow;
             viewBuffer.Update();
 

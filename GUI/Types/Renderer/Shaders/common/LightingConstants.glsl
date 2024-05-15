@@ -4,7 +4,9 @@
 #define MAX_ENVMAPS 144
 
 layout(std140, binding = 1) uniform LightingConstants {
-    vec4 g_vLightmapUvScale;
+    vec2 g_vLightmapUvScale;
+    float g_flSunShadowBias;
+    float unused123;
     uvec4 g_nNumLights;
     uvec4 g_nNumLightsPerShadow;
     vec4[MAX_LIGHTS] g_vLightPosition_Type;
