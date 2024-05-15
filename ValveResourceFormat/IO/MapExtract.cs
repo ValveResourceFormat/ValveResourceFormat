@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Linq.Expressions;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO.ContentFormats.DmxModel;
 using ValveResourceFormat.IO.ContentFormats.ValveMap;
@@ -23,6 +24,12 @@ public enum VmapOptions
 {
     None = 0,
     Export3DSkybox = 1,
+}
+
+public enum VmapVersion
+{
+    V29 = 29,
+    V35 = 35,
 }
 
 public sealed class MapExtract
@@ -60,6 +67,7 @@ public sealed class MapExtract
     private List<CMapWorldLayer> WorldLayers { get; set; }
     private Dictionary<int, MapNode> UniqueNodeIds { get; set; }
     private CMapRootElement MapDocument { get; set; }
+    private VmapVersion VmapVersion { get; set; } = VmapVersion.V29;
 
     private readonly IFileLoader FileLoader;
 
@@ -188,6 +196,15 @@ public sealed class MapExtract
         LumpFolder ??= GetLumpFolderFromWorldPath(vworld.FileName);
 
         var world = (World)vworld.DataBlock;
+
+        //hack to get correct vmap version in cs2 for now, only cs2 has m_bBakedShadowsGamma20
+        var m_worldLightingInfo = world.Data.GetProperty<KVObject>("m_worldLightingInfo");
+        //set to object so we actually get null if its not present, instead of false
+        object m_bBakedShadowsGamma20 = m_worldLightingInfo.GetProperty<object>("m_bBakedShadowsGamma20");
+        if(m_bBakedShadowsGamma20 != null)
+        {
+            VmapVersion = VmapVersion.V35;
+        }
         EntityLumpNames = world.GetEntityLumpNames();
         WorldNodeNames = world.GetWorldNodeNames();
 
@@ -324,7 +341,7 @@ public sealed class MapExtract
 
     public byte[] ToValveMap()
     {
-        using var datamodel = new Datamodel.Datamodel("vmap", 29);
+        using var datamodel = new Datamodel.Datamodel("vmap", (int)VmapVersion);
 
         datamodel.PrefixAttributes.Add("map_asset_references", AssetReferences);
         datamodel.Root = MapDocument = [];
@@ -442,7 +459,8 @@ public sealed class MapExtract
                 var builder = new HammerMeshBuilder(FileLoader) { PhysicsVertexMatcher = PhysVertexMatcher, ProgressReporter = ProgressReporter };
                 var meshShape = dag.Shape;
                 builder.AddRenderMesh(meshShape, offset);
-                var hammerMesh = new CMapMesh() { MeshData = builder.GenerateMesh() };
+                var hammerMesh = CreateCorrectCMapMeshVersion();
+                hammerMesh.MeshData = builder.GenerateMesh();
 
                 if (!string.IsNullOrEmpty(entityClassname))
                 {
@@ -529,7 +547,8 @@ public sealed class MapExtract
             {
                 var hammerMeshBuilder = new HammerMeshBuilder(FileLoader);
                 hammerMeshBuilder.AddPhysHull(hull, phys, GetAndExportAutoPhysicsMaterialName, positionOffset, materialOverride);
-                var hammerMesh = new CMapMesh() { MeshData = hammerMeshBuilder.GenerateMesh() };
+                var hammerMesh = CreateCorrectCMapMeshVersion();
+                hammerMesh.MeshData = hammerMeshBuilder.GenerateMesh();
 
                 if (string.IsNullOrEmpty(entityClassname))
                 {
@@ -553,7 +572,8 @@ public sealed class MapExtract
                     deletedList = mesh == PhysVertexMatcher.PhysicsMesh ? PhysVertexMatcher.DeletedVertexIndices : [];
                 }
                 hammerMeshBuilder.AddPhysMesh(mesh, phys, GetAndExportAutoPhysicsMaterialName, deletedList, positionOffset, materialOverride);
-                var hammerMesh = new CMapMesh() { MeshData = hammerMeshBuilder.GenerateMesh() };
+                var hammerMesh = CreateCorrectCMapMeshVersion();
+                hammerMesh.MeshData = hammerMeshBuilder.GenerateMesh();
 
                 if (string.IsNullOrEmpty(entityClassname))
                 {
@@ -1326,6 +1346,15 @@ public sealed class MapExtract
         var newVmapPath = NormalizePath(Path.Combine(Path.GetDirectoryName(path), newVmapName));
 
         return newVmapPath;
+    }
+
+    private CMapMesh CreateCorrectCMapMeshVersion()
+    {
+        switch ((int)VmapVersion)
+        {
+            case 35: return new CMapMesh_v35 {ClassName = "CMapMesh"};
+            default: return new CMapMesh_v29 {ClassName = "CMapMesh"};
+        }
     }
 
     #endregion Entities

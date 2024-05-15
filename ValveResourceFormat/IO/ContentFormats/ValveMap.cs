@@ -228,7 +228,6 @@ internal class CMapMesh : MapNode
     [DMProperty(name: "precomputelightprobes")]
     public bool PrecomputeLightProbes { get; set; } = true;
     public bool RenderToCubemaps { get; set; } = true;
-    public bool DisableShadows { get; set; }
     public float SmoothingAngle { get; set; } = 40f;
     public Datamodel.Color TintColor { get; set; } = new Datamodel.Color(255, 255, 255, 255);
     [DMProperty(name: "renderAmt")]
@@ -236,12 +235,22 @@ internal class CMapMesh : MapNode
     public string PhysicsType { get; set; } = "default";
     public string PhysicsGroup { get; set; } = string.Empty;
     public string PhysicsInteractsAs { get; set; } = string.Empty;
-    public string PhysicsInteractWsith { get; set; } = string.Empty;
+    public string PhysicsInteractsWith { get; set; } = string.Empty;
     public string PhysicsInteractsExclude { get; set; } = string.Empty;
     public CDmePolygonMesh MeshData { get; set; } = [];
     public bool UseAsOccluder { get; set; }
     public bool PhysicsSimplificationOverride { get; set; }
     public float PhysicsSimplificationError { get; set; }
+}
+
+internal class CMapMesh_v29 : CMapMesh
+{
+    public bool DisableShadows { get; set; }
+}
+
+internal class CMapMesh_v35 : CMapMesh
+{
+    public int DisableShadows { get; set; }
 }
 
 [CamelCaseProperties]
