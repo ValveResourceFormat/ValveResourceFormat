@@ -6,7 +6,8 @@
 layout(std140, binding = 1) uniform LightingConstants {
     vec2 g_vLightmapUvScale;
     float g_flSunShadowBias;
-    float unused123;
+    float _LightingPadding1;
+
     uvec4 g_nNumLights;
     uvec4 g_nNumLightsPerShadow;
     vec4[MAX_LIGHTS] g_vLightPosition_Type;
@@ -15,6 +16,7 @@ layout(std140, binding = 1) uniform LightingConstants {
     vec4[MAX_LIGHTS] g_vLightColor_Brightness;
     vec4[MAX_LIGHTS] g_vLightSpotInnerOuterConeCosines;
     vec4[MAX_LIGHTS] g_vLightFallOff;
+
     vec4 g_vEnvMapSizeConstants;
     mat4 g_matEnvMapWorldToLocal[MAX_ENVMAPS];
     vec4[MAX_ENVMAPS] g_vEnvMapBoxMins;

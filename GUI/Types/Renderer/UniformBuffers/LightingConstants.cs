@@ -10,7 +10,8 @@ namespace GUI.Types.Renderer.UniformBuffers
 
         public Vector2 LightmapUvScale;
         public float SunLightShadowBias = 0.001f;
-        public float Unused;
+        public float _LightingPadding1;
+
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)] public uint[] NumLights;
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)] public uint[] NumLightsBakedShadowIndex;
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = MAX_LIGHTS)] public Vector4[] LightPosition_Type;
