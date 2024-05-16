@@ -671,6 +671,8 @@ public sealed class MapExtract
                 }
 
                 SceneObjectsToExtract.Add(meshName);
+
+                return;
             }
 
             var objectFlags = sceneObject.GetEnumValue<ObjectTypeFlags>("m_nObjectTypeFlags", normalize: true);
