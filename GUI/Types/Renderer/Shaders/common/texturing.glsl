@@ -395,9 +395,10 @@ void applyDetailTexture(inout vec3 Albedo, inout vec3 NormalMap, vec2 detailMask
 #define renderMode_Tangents 0
 #define renderMode_Normals 0
 #define renderMode_BumpNormals 0
-#define renderMode_PBR 0
+#define renderMode_Occlusion 0
+#define renderMode_Roughness 0
+#define renderMode_Metalness 0
 #define renderMode_ExtraParams 0
-#define renderMode_AnisoGloss 0
 
 bool HandleMaterialRenderModes(MaterialProperties_t mat, inout vec4 outputColor)
 {
@@ -432,24 +433,29 @@ bool HandleMaterialRenderModes(MaterialProperties_t mat, inout vec4 outputColor)
         outputColor = vec4(PackToColor(mat.Normal), 1.0);
         return true;
     }
-    else if (g_iRenderMode == renderMode_PBR)
+    else if (g_iRenderMode == renderMode_Occlusion)
     {
-        outputColor = vec4(mat.AmbientOcclusion, GetIsoRoughness(mat.Roughness), mat.Metalness, 1.0);
+        outputColor.rgb = mat.AmbientOcclusion.xxx;
+        return true;
+    }
+    else if (g_iRenderMode == renderMode_Roughness)
+    {
+        #if defined(VEC2_ROUGHNESS)
+            outputColor.rgb = vec3(mat.RoughnessTex.xy, 0.0);
+        #else
+            outputColor.rgb = mat.RoughnessTex.xxx;
+        #endif
+
+        return true;
+    }
+    else if (g_iRenderMode == renderMode_Metalness)
+    {
+        outputColor.rgb = mat.Metalness.xxx;
         return true;
     }
     else if (g_iRenderMode == renderMode_ExtraParams)
     {
         outputColor.rgb = mat.ExtraParams.rgb;
-        return true;
-    }
-    else if (g_iRenderMode == renderMode_AnisoGloss)
-    {
-        #if defined(VEC2_ROUGHNESS)
-            outputColor.rgb = vec3(mat.RoughnessTex.xy, 0.0);
-        #else
-            outputColor.rgb = vec3(mat.RoughnessTex, 0.0, 0.0);
-        #endif
-
         return true;
     }
 
