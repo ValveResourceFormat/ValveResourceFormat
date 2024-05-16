@@ -26,7 +26,7 @@ public sealed class MapExtract
     private List<ContentFile> PreExportedFragments { get; } = [];
     private List<ContentFile> EntityModels { get; } = [];
     private Dictionary<string, string> ModelEntityAssociations { get; } = [];
-    private List<string> MeshesToExtract { get; } = [];
+    private List<string> SceneObjectsToExtract { get; } = [];
     private List<string> FolderExtractFilter { get; } = [];
     private List<string> SnapshotsToExtract { get; } = [];
 
@@ -251,16 +251,26 @@ public sealed class MapExtract
             FileName = LumpFolder + "_d.vmap",
         };
 
-        //this is actually just scene objects
-        foreach (var modelName in MeshesToExtract)
+        foreach (var sceneObjectName in SceneObjectsToExtract)
         {
-            var modelNameCompiled = modelName + GameFileLoader.CompiledFileSuffix;
-            using var model = FileLoader.LoadFile(modelNameCompiled);
+            var sceneObjectNameCompiled = sceneObjectName + GameFileLoader.CompiledFileSuffix;
+            using var sceneObject = FileLoader.LoadFile(sceneObjectNameCompiled);
 
-            if (model != null)
+            if (sceneObject != null)
             {
-                var vmdl = new ModelExtract(model, FileLoader).ToContentFile();
-                vmap.AdditionalFiles.Add(vmdl);
+                var sceneObjectType = sceneObject.DataBlock.GetType();
+
+                if (sceneObjectType == typeof(Model))
+                {
+                    var vmdl = new ModelExtract(sceneObject, FileLoader).ToContentFile();
+                    vmap.AdditionalFiles.Add(vmdl);
+                }
+                else if (sceneObjectType == typeof(Mesh))
+                {
+                    var vmdl = new ModelExtract((Mesh)sceneObject.DataBlock, sceneObjectName).ToContentFile();
+                    FolderExtractFilter.Add(sceneObjectNameCompiled); // TODO: put vmesh on vmdl.AdditionalFiles
+                    vmap.AdditionalFiles.Add(vmdl);
+                }
             }
         }
 
@@ -653,6 +663,16 @@ public sealed class MapExtract
             var modelName = sceneObject.GetProperty<string>("m_renderableModel");
             var meshName = sceneObject.GetProperty<string>("m_renderable");
 
+            if (string.IsNullOrEmpty(modelName))
+            {
+                if (string.IsNullOrEmpty(meshName))
+                {
+                    return;
+                }
+
+                SceneObjectsToExtract.Add(meshName);
+            }
+
             var objectFlags = sceneObject.GetEnumValue<ObjectTypeFlags>("m_nObjectTypeFlags", normalize: true);
 
             FolderExtractFilter.Add(modelName ?? meshName);
@@ -670,7 +690,7 @@ public sealed class MapExtract
             }
             else
             {
-                MeshesToExtract.Add(modelName);
+                SceneObjectsToExtract.Add(modelName);
             }
 
             AssetReferences.Add(modelName);
