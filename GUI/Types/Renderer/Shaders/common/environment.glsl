@@ -106,7 +106,7 @@ vec3 EnvBRDF(vec3 specColor, float rough, vec3 N, vec3 V)
 
 
 // In CS2, anisotropic cubemaps are default enabled with aniso gloss
-#if ((F_ANISOTROPIC_GLOSS == 1) && ((F_SPECULAR_CUBE_MAP_ANISOTROPIC_WARP == 1) || !defined(vr_complex_vfx)))
+#if (defined(VEC2_ROUGHNESS) && ((F_SPECULAR_CUBE_MAP_ANISOTROPIC_WARP == 1) || !defined(vr_complex_vfx)))
     vec3 CalculateAnisoCubemapWarpVector(MaterialProperties_t mat)
     {
         // is this like part of the material struct in the og code? it's calculated at the start
@@ -131,13 +131,13 @@ vec3 GetCorrectedSampleCoords(vec3 R, mat4x3 envMapWorldToLocal, vec3 envMapLoca
 
 vec3 GetEnvironment(MaterialProperties_t mat)
 {
-    #if ((F_ANISOTROPIC_GLOSS == 1) && ((F_SPECULAR_CUBE_MAP_ANISOTROPIC_WARP == 1) || !defined(vr_complex_vfx)))
+    #if (defined(VEC2_ROUGHNESS) && ((F_SPECULAR_CUBE_MAP_ANISOTROPIC_WARP == 1) || !defined(vr_complex_vfx)))
         vec3 reflectionNormal = CalculateAnisoCubemapWarpVector(mat);
     #else
         vec3 reflectionNormal = mat.AmbientNormal;
     #endif
 
-    #if (F_ANISOTROPIC_GLOSS == 1)
+    #if defined(VEC2_ROUGHNESS)
         float roughness = sqrt(max(mat.Roughness.x, mat.Roughness.y));
     #else
         float roughness = mat.Roughness;

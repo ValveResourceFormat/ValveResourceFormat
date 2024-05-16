@@ -201,6 +201,7 @@ uniform sampler2D g_tTintMask;
 
 #if defined(vr_standard_vfx)
     #if (F_HIGH_QUALITY_GLOSS == 1)
+        #define VEC2_ROUGHNESS
         uniform sampler2D g_tNormal2;
         uniform sampler2D g_tGloss;
     #endif
@@ -416,16 +417,15 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
     // Normals and Roughness
     mat.NormalMap = DecodeNormal(normalTexture);
 
-#if (F_ANISOTROPIC_GLOSS == 1)
-    mat.RoughnessTex = texture(g_tAnisoGloss, texCoord).rg;
+#if defined(VEC2_ROUGHNESS)
+    #if (F_ANISOTROPIC_GLOSS == 1)
+        mat.RoughnessTex = texture(g_tAnisoGloss, texCoord).rg;
+    #endif
+    #if defined(vr_standard_vfx) && (F_HIGH_QUALITY_GLOSS == 1)
+        mat.RoughnessTex.xy = texture(g_tGloss, texCoord).ag;
+    #endif
 #else
     mat.RoughnessTex = normalTexture.b;
-
-    #if defined(vr_standard_vfx) && (F_HIGH_QUALITY_GLOSS == 1)
-        // todo - this might actually be alpha-green aniso-gloss
-        mat.RoughnessTex = texture(g_tGloss, texCoord).g;
-    #endif
-
 #endif
 
 
@@ -558,7 +558,7 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
     mat.DiffuseAO = vec3(mat.AmbientOcclusion);
     mat.SpecularAO = mat.AmbientOcclusion;
 
-#if (F_ANISOTROPIC_GLOSS == 1)
+#if defined(VEC2_ROUGHNESS)
     CalculateAnisotropicTangents(mat);
 #endif
 

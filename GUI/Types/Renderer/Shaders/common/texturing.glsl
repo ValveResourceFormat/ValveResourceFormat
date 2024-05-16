@@ -89,7 +89,7 @@ struct MaterialProperties_t
     float Curvature;
 #endif
 
-#if (F_ANISOTROPIC_GLOSS == 1)
+#if defined(VEC2_ROUGHNESS)
     vec3 AnisotropicTangent;
     vec3 AnisotropicBitangent;
 #endif
@@ -141,7 +141,7 @@ void InitProperties(out MaterialProperties_t mat, vec3 GeometricNormal)
     #endif
 #endif
 
-#if (F_ANISOTROPIC_GLOSS == 1)
+#if defined(VEC2_ROUGHNESS)
     mat.AnisotropicTangent = vec3(0.0);
     mat.AnisotropicBitangent = vec3(0.0);
 #endif

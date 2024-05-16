@@ -42,7 +42,7 @@ float D_GGX(float NoH, float roughness)
 	return pow2(alpha / denom);
 }
 
-#if (F_ANISOTROPIC_GLOSS == 1)
+#if defined(VEC2_ROUGHNESS)
 
 #if (F_SPHERICAL_PROJECTED_ANISOTROPIC_TANGENTS == 1)
 in vec3 vAnisoBitangentOut;
@@ -159,7 +159,7 @@ vec3 specularLighting(vec3 lightVector, vec3 normal, MaterialProperties_t mat)
     return SpecularCloth(mat.Roughness, NoL, NoH, NoV, VoH, mat.SpecularColor);
 #else
 
-#if (F_ANISOTROPIC_GLOSS == 1)
+#if defined(VEC2_ROUGHNESS)
     // Anisotropic shading
     float NDF = D_AnisoGGX(mat.Roughness, halfVector, normal, mat.AnisotropicTangent, mat.AnisotropicBitangent);
 	float Vis = G_SchlickSmithGGX(NoL, NoV, max(mat.Roughness.x, mat.Roughness.y));
