@@ -202,7 +202,7 @@ public sealed class MapExtract
         var m_worldLightingInfo = world.Data.GetProperty<KVObject>("m_worldLightingInfo");
         //set to object so we actually get null if its not present, instead of false
         object m_bBakedShadowsGamma20 = m_worldLightingInfo.GetProperty<object>("m_bBakedShadowsGamma20");
-        if(m_bBakedShadowsGamma20 != null)
+        if (m_bBakedShadowsGamma20 != null)
         {
             VmapVersion = VmapVersion.V35;
         }
@@ -1353,8 +1353,8 @@ public sealed class MapExtract
     {
         switch ((int)VmapVersion)
         {
-            case 35: return new CMapMesh_v35 {ClassName = "CMapMesh"};
-            default: return new CMapMesh_v29 {ClassName = "CMapMesh"};
+            case 35: return new CMapMesh_v35 { ClassName = "CMapMesh" };
+            default: return new CMapMesh_v29 { ClassName = "CMapMesh" };
         }
     }
 
