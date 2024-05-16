@@ -200,11 +200,14 @@ public sealed class MapExtract
 
         //hack to get correct vmap version in cs2 for now, only cs2 has m_bBakedShadowsGamma20
         var m_worldLightingInfo = world.Data.GetProperty<KVObject>("m_worldLightingInfo");
-        //set to object so we actually get null if its not present, instead of false
-        object m_bBakedShadowsGamma20 = m_worldLightingInfo.GetProperty<object>("m_bBakedShadowsGamma20");
-        if (m_bBakedShadowsGamma20 != null)
+        if (m_worldLightingInfo != null)
         {
-            VmapVersion = VmapVersion.V35;
+            //set to object so we actually get null if its not present, instead of false
+            object m_bBakedShadowsGamma20 = m_worldLightingInfo.GetProperty<object>("m_bBakedShadowsGamma20");
+            if (m_bBakedShadowsGamma20 != null)
+            {
+                VmapVersion = VmapVersion.V35;
+            }
         }
         EntityLumpNames = world.GetEntityLumpNames();
         WorldNodeNames = world.GetWorldNodeNames();
