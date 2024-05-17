@@ -54,6 +54,14 @@ namespace GUI.Types.Renderer
             LightingInfo = new(this);
         }
 
+        public void Initialize()
+        {
+            UpdateOctrees();
+            CalculateLightProbeBindings();
+            CalculateEnvironmentMaps();
+            CreateBuffers();
+        }
+
         public void Add(SceneNode node, bool dynamic)
         {
             if (dynamic)

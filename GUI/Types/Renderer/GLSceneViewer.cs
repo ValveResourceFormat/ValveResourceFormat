@@ -188,18 +188,8 @@ namespace GUI.Types.Renderer
 
         public virtual void PostSceneLoad()
         {
-            Scene.UpdateOctrees();
-            Scene.CalculateLightProbeBindings();
-            Scene.CalculateEnvironmentMaps();
-            Scene.CreateBuffers();
-
-            if (SkyboxScene != null)
-            {
-                SkyboxScene.UpdateOctrees();
-                SkyboxScene.CalculateLightProbeBindings();
-                SkyboxScene.CalculateEnvironmentMaps();
-                SkyboxScene.CreateBuffers();
-            }
+            Scene.Initialize();
+            SkyboxScene?.Initialize();
 
             if (Scene.FogInfo.CubeFogActive)
             {
