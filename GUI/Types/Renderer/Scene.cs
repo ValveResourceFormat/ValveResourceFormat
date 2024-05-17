@@ -6,7 +6,7 @@ using static GUI.Types.Renderer.GLSceneViewer;
 
 namespace GUI.Types.Renderer
 {
-    partial class Scene
+    partial class Scene : IDisposable
     {
         public readonly struct UpdateContext
         {
