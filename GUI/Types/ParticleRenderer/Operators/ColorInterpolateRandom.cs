@@ -26,7 +26,6 @@ namespace GUI.Types.ParticleRenderer.Operators
         {
             foreach (ref var particle in particles.Current)
             {
-                // TODO: Consistent rng
                 var newColor = easeInOut
                     ? ParticleCollection.RandomBetweenPerComponent(particle.ParticleID, colorFadeMin, colorFadeMax)
                     : ParticleCollection.RandomBetween(particle.ParticleID, colorFadeMin, colorFadeMax);
