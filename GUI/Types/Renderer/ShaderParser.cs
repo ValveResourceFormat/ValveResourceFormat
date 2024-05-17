@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Text;
@@ -11,6 +12,7 @@ namespace GUI.Types.Renderer
     {
         private const string ShaderDirectory = "GUI.Types.Renderer.Shaders.";
         private const string ExpectedShaderVersion = "#version 460";
+        private const string RenderModeDefinePrefix = "renderMode_";
 
         [GeneratedRegex("^\\s*#include \"(?<IncludeName>[^\"]+)\"")]
         private static partial Regex RegexInclude();
@@ -133,15 +135,44 @@ namespace GUI.Types.Renderer
                         if (match.Success)
                         {
                             var defineName = match.Groups["ParamName"].Value;
+                            byte value = 0;
 
-                            parsedData.Defines.Add(defineName);
-
-                            // Check if this parameter is in the arguments
-                            if (!arguments.TryGetValue(defineName, out var value))
+                            if (defineName.StartsWith(RenderModeDefinePrefix, StringComparison.Ordinal))
                             {
-                                builder.Append(line);
-                                builder.Append('\n');
-                                continue;
+                                var renderMode = defineName[RenderModeDefinePrefix.Length..];
+
+                                parsedData.RenderModes.Add(renderMode);
+
+                                value = RenderModes.GetShaderId(renderMode);
+
+                                if (value == 0)
+                                {
+                                    var renderModeObj = new RenderModes.RenderMode(false, renderMode);
+                                    var index = RenderModes.Items.IndexOf(renderModeObj);
+
+                                    if (index == -1)
+                                    {
+                                        Debug.Assert(false); /// Add to <see cref="RenderModes.Items"/> if this assert is hit
+
+                                        RenderModes.Items = RenderModes.Items.Add(renderModeObj);
+                                        index = RenderModes.Items.IndexOf(renderModeObj);
+                                    }
+
+                                    value = (byte)index;
+                                    RenderModes.AddShaderId(renderMode, value);
+                                }
+                            }
+                            else
+                            {
+                                parsedData.Defines.Add(defineName);
+
+                                // Check if this parameter is in the arguments
+                                if (!arguments.TryGetValue(defineName, out value))
+                                {
+                                    builder.Append(line);
+                                    builder.Append('\n');
+                                    continue;
+                                }
                             }
 
                             // Overwrite default value

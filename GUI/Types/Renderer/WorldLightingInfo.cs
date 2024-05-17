@@ -51,7 +51,6 @@ partial class Scene
         public bool EnableDynamicShadows { get; set; } = true;
 
         public Matrix4x4 SunViewProjection { get; internal set; }
-        public float SunLightShadowBias { get; set; } = 0.0001f;
         public Frustum SunLightFrustum = new();
         public bool UseSceneBoundsForSunLightFrustum { get; set; }
 
@@ -162,7 +161,7 @@ partial class Scene
             var sunCameraProjection = Matrix4x4.CreateOrthographicOffCenter(-bbox, bbox, -bbox, bbox, farPlane, -nearPlaneExtend);
 
             SunViewProjection = sunCameraView * sunCameraProjection;
-            SunLightShadowBias = bias;
+            LightingData.SunLightShadowBias = bias;
             SunLightFrustum.Update(SunViewProjection);
         }
 

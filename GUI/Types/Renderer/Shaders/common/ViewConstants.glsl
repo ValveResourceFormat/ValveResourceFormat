@@ -8,7 +8,9 @@ layout(std140, binding = 0) uniform ViewConstants {
     float g_flTime;
     mat4 g_matWorldToShadow;
     vec4 g_vClearColor;
-    bvec4 g_bFogTypeEnabled;
+
+    bvec3 g_bFogTypeEnabled;
+    int g_iRenderMode;
     vec4 g_vGradientFogBiasAndScale;
     vec4 g_vGradientFogColor_Opacity;
     vec2 m_vGradientFogExponents;
@@ -18,4 +20,3 @@ layout(std140, binding = 0) uniform ViewConstants {
     mat4 g_matvCubeFogSkyWsToOs;
     vec4 g_vCubeFogCullingParams_ExposureBias_MaxOpacity;
 };
-

@@ -191,7 +191,6 @@ namespace GUI.Types.Renderer
                         }
 
                         context.Scene.LightingInfo.SetLightmapTextures(shader);
-                        context.Scene.FogInfo.SetCubemapFogTexture(shader);
                     }
 
                     material = requestMaterial;

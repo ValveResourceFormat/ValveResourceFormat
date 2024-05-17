@@ -69,11 +69,6 @@ namespace GUI.Types.Renderer
 
         public override void SetRenderMode(string mode)
         {
-            shader = Scene.GuiContext.ShaderLoader.LoadShader(shader.Name, new Dictionary<string, byte>
-            {
-                { string.Concat(ShaderLoader.RenderModeDefinePrefix, mode), 1 },
-            });
-
             IsTranslucentRenderMode = mode is not "Color" and not "Normals" and not "VertexColor";
         }
 

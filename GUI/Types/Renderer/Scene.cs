@@ -6,7 +6,7 @@ using static GUI.Types.Renderer.GLSceneViewer;
 
 namespace GUI.Types.Renderer
 {
-    partial class Scene
+    partial class Scene : IDisposable
     {
         public readonly struct UpdateContext
         {
@@ -28,9 +28,11 @@ namespace GUI.Types.Renderer
             public Shader ReplacementShader { get; set; }
         }
 
+        public Dictionary<string, byte> RenderAttributes { get; } = [];
         public WorldLightingInfo LightingInfo { get; }
         public WorldFogInfo FogInfo { get; set; } = new();
-        public Dictionary<string, byte> RenderAttributes { get; } = [];
+        private UniformBuffer<LightingConstants> lightingBuffer;
+
         public VrfGuiContext GuiContext { get; }
         public Octree<SceneNode> StaticOctree { get; }
         public Octree<SceneNode> DynamicOctree { get; }
@@ -50,6 +52,14 @@ namespace GUI.Types.Renderer
             DynamicOctree = new Octree<SceneNode>(sizeHint);
 
             LightingInfo = new(this);
+        }
+
+        public void Initialize()
+        {
+            UpdateOctrees();
+            CalculateLightProbeBindings();
+            CalculateEnvironmentMaps();
+            CreateBuffers();
         }
 
         public void Add(SceneNode node, bool dynamic)
@@ -114,6 +124,19 @@ namespace GUI.Types.Renderer
                 node.Update(updateContext);
                 DynamicOctree.Update(node, oldBox, node.BoundingBox);
             }
+        }
+
+        public void CreateBuffers()
+        {
+            lightingBuffer = new(ReservedBufferSlots.Lighting)
+            {
+                Data = LightingInfo.LightingData
+            };
+        }
+
+        public void SetSceneBuffers()
+        {
+            lightingBuffer.BindBufferBase();
         }
 
         private readonly List<SceneNode> CullResults = [];
@@ -625,6 +648,11 @@ namespace GUI.Types.Renderer
 
             // TODO
             LightingInfo.LightingData.EnvMapNormalizationSH[index] = new Vector4(0, 0, 0, 1);
+        }
+
+        public void Dispose()
+        {
+            lightingBuffer?.Dispose();
         }
     }
 }

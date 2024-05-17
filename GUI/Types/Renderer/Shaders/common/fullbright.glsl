@@ -1,16 +1,6 @@
 #version 460
 //? #include "utils.glsl"
 
-#define renderMode_FullBright 0
-#define renderMode_Color 0
-#define renderMode_Normals 0
-#define renderMode_Tangents 0
-#define renderMode_BumpMap 0
-#define renderMode_BumpNormals 0
-#define renderMode_Illumination 0
-
-
-
 vec3 CalculateFullbrightLighting(vec3 albedo, vec3 normal, vec3 viewVector)
 {
     float flFakeDiffuseLighting = saturate(dot(normal, -viewVector)) * 0.7 + 0.3;

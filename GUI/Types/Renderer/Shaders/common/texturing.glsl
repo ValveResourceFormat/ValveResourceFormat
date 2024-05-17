@@ -2,6 +2,7 @@
 //? #include "LightingConstants.glsl"
 //? #include "features.glsl"
 //? #include "utils.glsl"
+//? #include "fullbright.glsl"
 
 #if defined(NEED_CURVATURE) && (F_USE_PER_VERTEX_CURVATURE == 0)
     // Expensive, only used in skin shaders
@@ -88,7 +89,7 @@ struct MaterialProperties_t
     float Curvature;
 #endif
 
-#if (F_ANISOTROPIC_GLOSS == 1)
+#if defined(VEC2_ROUGHNESS)
     vec3 AnisotropicTangent;
     vec3 AnisotropicBitangent;
 #endif
@@ -140,7 +141,7 @@ void InitProperties(out MaterialProperties_t mat, vec3 GeometricNormal)
     #endif
 #endif
 
-#if (F_ANISOTROPIC_GLOSS == 1)
+#if defined(VEC2_ROUGHNESS)
     mat.AnisotropicTangent = vec3(0.0);
     mat.AnisotropicBitangent = vec3(0.0);
 #endif
@@ -386,3 +387,77 @@ void applyDetailTexture(inout vec3 Albedo, inout vec3 NormalMap, vec2 detailMask
         }
     }
 #endif
+
+// Render modes
+#define renderMode_FullBright 0
+#define renderMode_Color 0
+#define renderMode_BumpMap 0
+#define renderMode_Tangents 0
+#define renderMode_Normals 0
+#define renderMode_BumpNormals 0
+#define renderMode_Occlusion 0
+#define renderMode_Roughness 0
+#define renderMode_Metalness 0
+#define renderMode_ExtraParams 0
+
+bool HandleMaterialRenderModes(MaterialProperties_t mat, inout vec4 outputColor)
+{
+    if (g_iRenderMode == renderMode_FullBright)
+    {
+        vec3 fullbrightLighting = CalculateFullbrightLighting(mat.Albedo, mat.Normal, mat.ViewDir);
+        outputColor.rgb = SrgbLinearToGamma(fullbrightLighting);
+        return true;
+    }
+    else if (g_iRenderMode == renderMode_Color)
+    {
+        outputColor = vec4(SrgbLinearToGamma(mat.Albedo), 1.0);
+        return true;
+    }
+    else if (g_iRenderMode == renderMode_BumpMap)
+    {
+        outputColor = vec4(PackToColor(mat.NormalMap), 1.0);
+        return true;
+    }
+    else if (g_iRenderMode == renderMode_Tangents)
+    {
+        outputColor = vec4(PackToColor(mat.Tangent), 1.0);
+        return true;
+    }
+    else if (g_iRenderMode == renderMode_Normals)
+    {
+        outputColor = vec4(PackToColor(mat.GeometricNormal), 1.0);
+        return true;
+    }
+    else if (g_iRenderMode == renderMode_BumpNormals)
+    {
+        outputColor = vec4(PackToColor(mat.Normal), 1.0);
+        return true;
+    }
+    else if (g_iRenderMode == renderMode_Occlusion)
+    {
+        outputColor.rgb = mat.AmbientOcclusion.xxx;
+        return true;
+    }
+    else if (g_iRenderMode == renderMode_Roughness)
+    {
+        #if defined(VEC2_ROUGHNESS)
+            outputColor.rgb = vec3(mat.RoughnessTex.xy, 0.0);
+        #else
+            outputColor.rgb = mat.RoughnessTex.xxx;
+        #endif
+
+        return true;
+    }
+    else if (g_iRenderMode == renderMode_Metalness)
+    {
+        outputColor.rgb = mat.Metalness.xxx;
+        return true;
+    }
+    else if (g_iRenderMode == renderMode_ExtraParams)
+    {
+        outputColor.rgb = mat.ExtraParams.rgb;
+        return true;
+    }
+
+    return false;
+}

@@ -336,7 +336,9 @@ namespace GUI.Types.Renderer
 
         static readonly string[] NonMaterialUniforms =
         [
+            "g_iRenderMode",
             "g_flTime",
+            "g_flSunShadowBias",
             "g_vCameraPositionWs",
             "g_vLightmapUvScale",
             "g_vEnvMapSizeConstants",

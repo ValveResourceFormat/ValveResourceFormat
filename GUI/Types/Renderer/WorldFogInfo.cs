@@ -70,51 +70,26 @@ namespace GUI.Types.Renderer
             }
         }*/
 
-
-
-
-        // Pass data to shader
-
         public void SetFogUniforms(UniformBuffers.ViewConstants viewConstants, bool viewerFogEnabled)
         {
+            viewConstants.GradientFogActive = viewerFogEnabled && GradientFogActive;
+            viewConstants.CubeFogActive = viewerFogEnabled && CubeFogActive;
+
             if (GradientFogActive)
             {
-                viewConstants.FogTypeEnabled[1] = viewerFogEnabled && GradientFogActive;
                 viewConstants.GradientFogBiasAndScale = GradientFog.GetBiasAndScale();
                 viewConstants.GradientFogColor_Opacity = GradientFog.Color_Opacity;
                 viewConstants.GradientFogExponents = GradientFog.Exponents;
                 viewConstants.GradientFogCullingParams = GradientFog.CullingParams;
             }
-            else // Defaults
-            {
-                viewConstants.FogTypeEnabled[1] = false;
-                viewConstants.GradientFogBiasAndScale = Vector4.Zero;
-                viewConstants.GradientFogColor_Opacity = Vector4.Zero;
-                viewConstants.GradientFogExponents = Vector2.Zero;
-                viewConstants.GradientFogCullingParams = new Vector2(float.PositiveInfinity, float.NegativeInfinity);
-            }
 
             if (CubeFogActive)
             {
-                viewConstants.FogTypeEnabled[2] = viewerFogEnabled && CubeFogActive;
                 viewConstants.CubeFog_Offset_Scale_Bias_Exponent = CubemapFog.OffsetScaleBiasExponent();
                 viewConstants.CubeFog_Height_Offset_Scale_Exponent_Log2Mip = CubemapFog.Height_OffsetScaleExponentLog2Mip();
                 viewConstants.CubeFogCullingParams_ExposureBias_MaxOpacity = CubemapFog.CullingParams_Opacity();
                 viewConstants.CubeFogSkyWsToOs = CubemapFog.Transform;
             }
-            else
-            {
-                viewConstants.FogTypeEnabled[2] = false;
-                viewConstants.CubeFog_Offset_Scale_Bias_Exponent = Vector4.Zero;
-                viewConstants.CubeFog_Height_Offset_Scale_Exponent_Log2Mip = Vector4.Zero;
-                viewConstants.CubeFogCullingParams_ExposureBias_MaxOpacity = new Vector4(float.PositiveInfinity, float.PositiveInfinity, 0.0f, 0.0f);
-                viewConstants.CubeFogSkyWsToOs = Matrix4x4.Identity;
-            }
-        }
-        public void SetCubemapFogTexture(Shader shader)
-        {
-            var fogCubeTexture = CubeFogActive ? CubemapFog.CubemapFogTexture : DefaultFogTexture;
-            shader.SetTexture((int)ReservedTextureSlots.FogCubeTexture, "g_tFogCubeTexture", fogCubeTexture);
         }
     }
 }

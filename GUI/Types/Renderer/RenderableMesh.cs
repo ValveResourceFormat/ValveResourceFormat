@@ -87,25 +87,6 @@ namespace GUI.Types.Renderer
                 .SelectMany(drawCall => drawCall.Material.Shader.RenderModes)
                 .Distinct();
 
-        public void SetRenderMode(string renderMode)
-        {
-            foreach (var call in DrawCalls)
-            {
-                // Recycle old shader parameters that are not render modes since we are scrapping those anyway
-                var parameters = call.Material.Shader.Parameters
-                    .Where(kvp => !kvp.Key.StartsWith(ShaderLoader.RenderModeDefinePrefix, StringComparison.Ordinal))
-                    .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
-
-                if (renderMode != null && call.Material.Shader.RenderModes.Contains(renderMode))
-                {
-                    parameters.Add(string.Concat(ShaderLoader.RenderModeDefinePrefix, renderMode), 1);
-                }
-
-                call.Material.Shader = guiContext.ShaderLoader.LoadShader(call.Material.Shader.Name, parameters);
-                UpdateVertexArrayObject(call);
-            }
-        }
-
 #if DEBUG
         public void UpdateVertexArrayObjects()
         {

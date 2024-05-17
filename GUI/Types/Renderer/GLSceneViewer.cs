@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -30,11 +31,11 @@ namespace GUI.Types.Renderer
         private Frustum lockedCullFrustum;
 
         protected UniformBuffer<ViewConstants> viewBuffer;
-        private UniformBuffer<LightingConstants> lightingBuffer;
-        public List<IBuffer> Buffers { get; private set; }
         public List<(ReservedTextureSlots Slot, string Name, RenderTexture Texture)> Textures { get; } = [];
 
-        private bool skipRenderModeChange;
+        private readonly List<RenderModes.RenderMode> renderModes = new(RenderModes.Items.Count);
+        private int renderModeCurrentIndex;
+        private Font renderModeBoldFont;
         private ComboBox renderModeComboBox;
         private InfiniteGrid baseGrid;
         private SceneBackground baseBackground;
@@ -109,10 +110,23 @@ namespace GUI.Types.Renderer
             if (disposing)
             {
                 viewBuffer?.Dispose();
-                lightingBuffer?.Dispose();
+                Scene?.Dispose();
+                SkyboxScene?.Dispose();
 
                 GLPaint -= OnPaint;
 
+                if (renderModeComboBox != null)
+                {
+                    renderModeComboBox.DrawItem -= OnRenderModeDrawItem;
+                    renderModeComboBox.Dispose();
+                    renderModeComboBox = null;
+                }
+
+                if (renderModeBoldFont != null)
+                {
+                    renderModeBoldFont.Dispose();
+                    renderModeBoldFont = null;
+                }
 #if DEBUG
                 GuiContext.ShaderLoader.ShaderHotReload.ReloadShader -= OnHotReload;
 #endif
@@ -126,12 +140,9 @@ namespace GUI.Types.Renderer
         private void CreateBuffers()
         {
             viewBuffer = new(ReservedBufferSlots.View);
-            lightingBuffer = new(ReservedBufferSlots.Lighting);
-
-            Buffers = [viewBuffer, lightingBuffer];
         }
 
-        void UpdateSceneBuffersGpu(Scene scene, Camera camera)
+        void UpdatePerViewGpuBuffers(Scene scene, Camera camera)
         {
             camera.SetViewConstants(viewBuffer.Data);
             scene.SetFogConstants(viewBuffer.Data);
@@ -171,20 +182,19 @@ namespace GUI.Types.Renderer
             using var cubeFogResource = new Resource() { FileName = "default_cube.vtex_c" };
             cubeFogResource.Read(cubeFogStream);
 
-            Scene.FogInfo.DefaultFogTexture = GuiContext.MaterialLoader.LoadTexture(cubeFogResource);
+            var defaultCubeTexture = GuiContext.MaterialLoader.LoadTexture(cubeFogResource);
+            Textures.Add(new(ReservedTextureSlots.FogCubeTexture, "g_tFogCubeTexture", defaultCubeTexture));
         }
 
         public virtual void PostSceneLoad()
         {
-            Scene.UpdateOctrees();
-            Scene.CalculateLightProbeBindings();
-            Scene.CalculateEnvironmentMaps();
+            Scene.Initialize();
+            SkyboxScene?.Initialize();
 
-            if (SkyboxScene != null)
+            if (Scene.FogInfo.CubeFogActive)
             {
-                SkyboxScene.UpdateOctrees();
-                SkyboxScene.CalculateLightProbeBindings();
-                SkyboxScene.CalculateEnvironmentMaps();
+                Textures.RemoveAll(t => t.Slot == ReservedTextureSlots.FogCubeTexture);
+                Textures.Add(new(ReservedTextureSlots.FogCubeTexture, "g_tFogCubeTexture", Scene.FogInfo.CubemapFog.CubemapFogTexture));
             }
 
             if (Scene.AllNodes.Any() && this is not GLWorldViewer)
@@ -226,7 +236,7 @@ namespace GUI.Types.Renderer
         protected virtual void OnLoad(object sender, EventArgs e)
         {
             baseGrid = new InfiniteGrid(Scene);
-            baseBackground = new SceneBackground(Scene);
+            Skybox2D = baseBackground = new SceneBackground(Scene);
             selectedNodeRenderer = new(Scene, textRenderer);
 
             Picker = new PickingTexture(Scene.GuiContext, OnPicked);
@@ -299,14 +309,14 @@ namespace GUI.Types.Renderer
             {
                 if (Picker.ActiveNextFrame)
                 {
+                    using var _ = new GLDebugGroup("Picker Object Id Render");
                     renderContext.ReplacementShader = Picker.Shader;
                     renderContext.Framebuffer = Picker;
 
                     RenderScenesWithView(renderContext);
                     Picker.Finish();
                 }
-
-                if (Picker.DebugShader is not null)
+                else if (Picker.DebugShader is not null)
                 {
                     renderContext.ReplacementShader = Picker.DebugShader;
                 }
@@ -346,8 +356,8 @@ namespace GUI.Types.Renderer
                 Scene = Scene,
             };
 
-            UpdateSceneBuffersGpu(Scene, Camera);
-            lightingBuffer.Data = Scene.LightingInfo.LightingData;
+            UpdatePerViewGpuBuffers(Scene, Camera);
+            Scene.SetSceneBuffers();
 
             Scene.RenderOpaqueLayer(renderContext);
             RenderTranslucentLayer(Scene, renderContext);
@@ -365,10 +375,6 @@ namespace GUI.Types.Renderer
 
             viewBuffer.Data.ViewToProjection = Scene.LightingInfo.SunViewProjection;
             var worldToShadow = Scene.LightingInfo.SunViewProjection;
-            var biasFactor = 1 + Scene.LightingInfo.SunLightShadowBias;
-            worldToShadow.M13 *= biasFactor;
-            worldToShadow.M23 *= biasFactor;
-            worldToShadow.M33 *= biasFactor;
             viewBuffer.Data.WorldToShadow = worldToShadow;
             viewBuffer.Update();
 
@@ -387,8 +393,9 @@ namespace GUI.Types.Renderer
             }
 
             GL.DepthRange(0.05, 1);
-            UpdateSceneBuffersGpu(Scene, Camera);
-            lightingBuffer.Data = Scene.LightingInfo.LightingData;
+
+            UpdatePerViewGpuBuffers(Scene, Camera);
+            Scene.SetSceneBuffers();
 
             using (new GLDebugGroup("Main Scene Opaque Render"))
             {
@@ -396,39 +403,42 @@ namespace GUI.Types.Renderer
                 Scene.RenderOpaqueLayer(renderContext);
             }
 
-            // 3D Sky
-            GL.DepthRange(0, 0.05);
-            if (ShowSkybox && SkyboxScene != null)
+            using (new GLDebugGroup("Sky Render"))
             {
-                using (new GLDebugGroup("3D Sky Scene Render"))
+                GL.DepthRange(0, 0.05);
+
+                renderContext.ReplacementShader?.SetUniform1("isSkybox", 1u);
+                var Render3DSkybox = ShowSkybox && SkyboxScene != null;
+
+                if (Render3DSkybox)
                 {
-                    lightingBuffer.Data = SkyboxScene.LightingInfo.LightingData;
+                    SkyboxScene.SetSceneBuffers();
                     renderContext.Scene = SkyboxScene;
-                    renderContext.ReplacementShader?.SetUniform1("isSkybox", 1u);
 
+                    using var _ = new GLDebugGroup("3D Sky Scene");
                     SkyboxScene.RenderOpaqueLayer(renderContext);
-                    RenderTranslucentLayer(SkyboxScene, renderContext);
-
-                    lightingBuffer.Data = Scene.LightingInfo.LightingData;
-                    renderContext.Scene = Scene;
-                    renderContext.ReplacementShader?.SetUniform1("isSkybox", 0u);
                 }
-            }
 
-            // 2D Sky
-            if (Skybox2D is not null)
-            {
                 using (new GLDebugGroup("2D Sky Render"))
                 {
                     Skybox2D.Render();
                 }
-            }
-            else
-            {
-                baseBackground.Render();
-            }
 
-            GL.DepthRange(0.05, 1);
+                if (Render3DSkybox)
+                {
+                    using (new GLDebugGroup("3D Sky Scene Translucent Render"))
+                    {
+                        RenderTranslucentLayer(SkyboxScene, renderContext);
+                    }
+
+                    // Back to main scene.
+                    Scene.SetSceneBuffers();
+                    renderContext.Scene = Scene;
+                }
+
+                renderContext.ReplacementShader?.SetUniform1("isSkybox", 0u);
+                GL.DepthRange(0.05, 1);
+            }
 
             using (new GLDebugGroup("Main Scene Translucent Render"))
             {
@@ -471,16 +481,74 @@ namespace GUI.Types.Renderer
 
         protected void AddRenderModeSelectionControl()
         {
-            renderModeComboBox ??= AddSelection("Render Mode", (renderMode, _) =>
+            if (renderModeComboBox != null)
             {
-                if (skipRenderModeChange)
+                return;
+            }
+
+            renderModeComboBox = AddSelection("Render Mode", (_, i) =>
+            {
+                if (renderModeCurrentIndex < -1)
                 {
-                    skipRenderModeChange = false;
+                    renderModeCurrentIndex = i;
                     return;
                 }
 
-                SetRenderMode(renderMode);
+                if (i < 0)
+                {
+                    return;
+                }
+
+                var renderMode = renderModes[i];
+
+                if (renderMode.IsHeader)
+                {
+                    renderModeComboBox.SelectedIndex = renderModeCurrentIndex > i ? (i - 1) : (i + 1);
+                    return;
+                }
+
+                renderModeCurrentIndex = i;
+                SetRenderMode(renderMode.Name);
             });
+
+            renderModeBoldFont = new Font(renderModeComboBox.Font, FontStyle.Bold);
+            renderModeComboBox.DrawMode = DrawMode.OwnerDrawFixed;
+            renderModeComboBox.DrawItem += OnRenderModeDrawItem;
+        }
+
+        private void OnRenderModeDrawItem(object sender, DrawItemEventArgs e)
+        {
+            var comboBox = (ComboBox)sender;
+
+            if (e.Index < 0)
+            {
+                return;
+            }
+
+            var mode = renderModes[e.Index];
+
+            if (mode.IsHeader)
+            {
+                e.Graphics.FillRectangle(SystemBrushes.Window, e.Bounds);
+                e.Graphics.DrawString(mode.Name, renderModeBoldFont, SystemBrushes.ControlText, e.Bounds);
+            }
+            else
+            {
+                e.DrawBackground();
+
+                var bounds = e.Bounds;
+
+                if (e.Index > 0 && (e.State & DrawItemState.ComboBoxEdit) == 0)
+                {
+                    bounds.X += 12;
+                }
+
+                var isSelected = (e.State & DrawItemState.Selected) > 0;
+                var brush = isSelected ? SystemBrushes.HighlightText : SystemBrushes.ControlText;
+                e.Graphics.DrawString(mode.Name, comboBox.Font, brush, bounds);
+
+                e.DrawFocusRectangle();
+            }
         }
 
         private void SetAvailableRenderModes(bool keepCurrentSelection = false)
@@ -488,28 +556,47 @@ namespace GUI.Types.Renderer
             if (renderModeComboBox != null)
             {
                 var selectedIndex = 0;
+                var currentlySelected = keepCurrentSelection ? renderModeComboBox.SelectedItem.ToString() : null;
                 var supportedRenderModes = Scene.AllNodes
                     .SelectMany(r => r.GetSupportedRenderModes())
                     .Concat(Picker.Shader.RenderModes)
                     .Distinct()
-                    .Prepend("Default Render Mode")
-                    .ToArray();
+                    .ToHashSet();
 
-                if (keepCurrentSelection)
+                renderModes.Clear();
+
+                for (var i = 0; i < RenderModes.Items.Count; i++)
                 {
-                    selectedIndex = Array.IndexOf(supportedRenderModes, renderModeComboBox.SelectedItem.ToString());
+                    var mode = RenderModes.Items[i];
 
-                    if (selectedIndex < 0)
+                    if (i > 0)
                     {
-                        selectedIndex = 0;
+                        if (mode.IsHeader)
+                        {
+                            if (renderModes[^1].IsHeader)
+                            {
+                                // If we hit a header and the last added item is also a header, remove it
+                                renderModes.RemoveAt(renderModes.Count - 1);
+                            }
+                        }
+                        else if (!supportedRenderModes.Remove(mode.Name))
+                        {
+                            continue;
+                        }
                     }
+
+                    if (mode.Name == currentlySelected)
+                    {
+                        selectedIndex = renderModes.Count;
+                    }
+
+                    renderModes.Add(mode);
                 }
 
                 renderModeComboBox.BeginUpdate();
                 renderModeComboBox.Items.Clear();
-                renderModeComboBox.Enabled = true;
-                renderModeComboBox.Items.AddRange(supportedRenderModes);
-                skipRenderModeChange = true;
+                renderModeComboBox.Items.AddRange(renderModes.Select(x => x.Name).ToArray());
+                renderModeCurrentIndex = -10;
                 renderModeComboBox.SelectedIndex = selectedIndex;
                 renderModeComboBox.EndUpdate();
             }
@@ -528,30 +615,22 @@ namespace GUI.Types.Renderer
 
         private void SetRenderMode(string renderMode)
         {
-            var title = Program.MainForm.Text;
-            Program.MainForm.Text = "Source 2 Viewer - Reloading shaders…";
+            viewBuffer.Data.RenderMode = RenderModes.GetShaderId(renderMode);
 
-            try
+            Picker.SetRenderMode(renderMode);
+            selectedNodeRenderer.SetRenderMode(renderMode);
+
+            foreach (var node in Scene.AllNodes)
             {
-                Picker.SetRenderMode(renderMode);
-                selectedNodeRenderer.SetRenderMode(renderMode);
+                node.SetRenderMode(renderMode);
+            }
 
-                foreach (var node in Scene.AllNodes)
+            if (SkyboxScene != null)
+            {
+                foreach (var node in SkyboxScene.AllNodes)
                 {
                     node.SetRenderMode(renderMode);
                 }
-
-                if (SkyboxScene != null)
-                {
-                    foreach (var node in SkyboxScene.AllNodes)
-                    {
-                        node.SetRenderMode(renderMode);
-                    }
-                }
-            }
-            finally
-            {
-                Program.MainForm.Text = title;
             }
         }
 

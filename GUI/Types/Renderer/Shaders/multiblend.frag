@@ -1,9 +1,14 @@
 #version 460
 
 // Render modes -- Switched on/off by code
-#include "common/utils.glsl"
-#include "common/rendermodes.glsl"
-#define renderMode_Terrain_Blend 0
+#define renderMode_FullBright 0
+#define renderMode_Color 0
+#define renderMode_Normals 0
+#define renderMode_Tangents 0
+#define renderMode_BumpMap 0
+#define renderMode_BumpNormals 0
+#define renderMode_Illumination 0
+#define renderMode_TerrainBlend 0
 #define renderMode_Tint 0
 
 //Parameter defines - These are default values and can be overwritten based on material/model parameters
@@ -59,6 +64,7 @@ uniform vec4 g_vColorTintB1;
 uniform vec4 g_vColorTintB2;
 uniform vec4 g_vColorTintB3;
 
+#include "common/utils.glsl"
 #include "common/ViewConstants.glsl"
 uniform float g_flBumpStrength = 1.0;
 
@@ -211,15 +217,16 @@ void main()
     //Get the direction from the fragment to the light - light position == camera position for now
     vec3 lightDirection = normalize(g_vCameraPositionWs - vFragPosition);
 
-#if renderMode_FullBright == 1
-    float illumination = 1.0;
-#else
     //Calculate half-lambert lighting
     float illumination = dot(finalNormal, lightDirection);
     illumination = illumination * 0.5 + 0.5;
     illumination = pow2(illumination);
     illumination = min(illumination + 0.3, 1.0);
-#endif
+
+    if (g_iRenderMode == renderMode_FullBright)
+    {
+        illumination = 1.0;
+    }
 
 #if F_TWO_LAYER_BLEND == 0
     //Calculate specular
@@ -234,35 +241,38 @@ void main()
 
     outputColor = vec4(illumination * finalColor.rgb + vec3(0.7) * specular, vVertexColor.a);
 
-#if renderMode_Color == 1
-    outputColor = vec4(finalColor, 1.0);
-#endif
-
-#if renderMode_Terrain_Blend == 1
-    outputColor = vec4(vBlendWeights.xyz, 1.0);
-#endif
-
-#if renderMode_Tint == 1
-    outputColor = vec4(vVertexColor.rgb, 1.0);
-#endif
-
-#if renderMode_Normals == 1
-    outputColor = vec4(PackToColor(vNormalOut), 1.0);
-#endif
-
-#if renderMode_Tangents == 1 && F_NORMAL_MAP == 1
-    outputColor = vec4(PackToColor(tangent), 1.0);
-#endif
-
-#if renderMode_BumpMap == 1 && F_NORMAL_MAP == 1
-    outputColor = vec4(bumpNormal.xyz, 1.0);
-#endif
-
-#if renderMode_BumpNormals == 1
-    outputColor = vec4(PackToColor(finalNormal), 1.0);
-#endif
-
-#if renderMode_Illumination == 1
-    outputColor = vec4(vec3(illumination), 1.0);
+    if (g_iRenderMode == renderMode_Color)
+    {
+        outputColor = vec4(finalColor, 1.0);
+    }
+    else if (g_iRenderMode == renderMode_TerrainBlend)
+    {
+        outputColor = vec4(vBlendWeights.xyz, 1.0);
+    }
+    else if (g_iRenderMode == renderMode_Tint)
+    {
+        outputColor = vec4(vVertexColor.rgb, 1.0);
+    }
+    else if (g_iRenderMode == renderMode_Normals)
+    {
+        outputColor = vec4(PackToColor(vNormalOut), 1.0);
+    }
+    else if (g_iRenderMode == renderMode_BumpNormals)
+    {
+        outputColor = vec4(PackToColor(finalNormal), 1.0);
+    }
+    else if (g_iRenderMode == renderMode_Illumination)
+    {
+        outputColor = vec4(vec3(illumination), 1.0);
+    }
+#if (F_NORMAL_MAP == 1)
+    else if (g_iRenderMode == renderMode_Tangents)
+    {
+        outputColor = vec4(PackToColor(tangent), 1.0);
+    }
+    else if (g_iRenderMode == renderMode_BumpMap)
+    {
+        outputColor = vec4(bumpNormal.xyz, 1.0);
+    }
 #endif
 }

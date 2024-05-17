@@ -9,7 +9,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
     {
         private const string ShaderName = "vrf.particle.trail";
 
-        private Shader shader;
+        private readonly Shader shader;
         private readonly VrfGuiContext guiContext;
         private readonly int vaoHandle;
         private readonly RenderTexture texture;
@@ -216,14 +216,6 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
         public override void SetRenderMode(string renderMode)
         {
-            var parameters = new Dictionary<string, byte>();
-
-            if (renderMode != null && shader.RenderModes.Contains(renderMode))
-            {
-                parameters.Add(string.Concat(ShaderLoader.RenderModeDefinePrefix, renderMode), 1);
-            }
-
-            shader = guiContext.ShaderLoader.LoadShader(ShaderName, parameters);
         }
     }
 }

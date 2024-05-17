@@ -12,8 +12,6 @@ namespace GUI.Types.Renderer
 {
     partial class ShaderLoader : IDisposable
     {
-        public const string RenderModeDefinePrefix = "renderMode_";
-
         [GeneratedRegex(@"(?<SourceFile>[0-9]+)\((?<Line>[0-9]+)\) : error C(?<ErrorNumber>[0-9]+):")]
         private static partial Regex NvidiaGlslError();
 
@@ -37,6 +35,7 @@ namespace GUI.Types.Renderer
         public class ParsedShaderData
         {
             public HashSet<string> Defines = [];
+            public HashSet<string> RenderModes = [];
             public HashSet<string> SrgbSamplers = [];
         }
 
@@ -92,11 +91,6 @@ namespace GUI.Types.Renderer
                 var fragmentShader = GL.CreateShader(ShaderType.FragmentShader);
                 LoadShader(fragmentShader, fragmentName, shaderName, arguments, ref parsedData);
 
-                var renderModes = parsedData.Defines
-                    .Where(k => k.StartsWith(RenderModeDefinePrefix, StringComparison.Ordinal))
-                    .Select(k => k[RenderModeDefinePrefix.Length..])
-                    .ToHashSet();
-
                 shaderProgram = GL.CreateProgram();
 
 #if DEBUG
@@ -114,7 +108,7 @@ namespace GUI.Types.Renderer
                     Name = shaderName,
                     Parameters = arguments,
                     Program = shaderProgram,
-                    RenderModes = renderModes,
+                    RenderModes = parsedData.RenderModes,
                     SrgbSamplers = parsedData.SrgbSamplers
                 };
 
@@ -250,9 +244,11 @@ namespace GUI.Types.Renderer
 
         private IEnumerable<KeyValuePair<string, byte>> SortAndFilterArguments(string shaderName, IReadOnlyDictionary<string, byte> arguments)
         {
+            var defines = ShaderDefines[shaderName];
+
             return arguments
-                .Where(p => ShaderDefines[shaderName].Contains(p.Key))
-                .OrderBy(p => p.Key);
+                .Where(p => defines.Contains(p.Key))
+                .OrderBy(static p => p.Key);
         }
 
         private string GetArgumentDescription(string shaderName, IReadOnlyDictionary<string, byte> arguments)

@@ -17,8 +17,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
 
         public override Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
-            // TODO: Consistent rng
-            var alpha = Random.Shared.Next(alphaMin, alphaMax) / 255f;
+            var alpha = ParticleCollection.RandomBetween(particle.ParticleID, alphaMin, alphaMax) / 255f;
 
             particle.Alpha = alpha;
 

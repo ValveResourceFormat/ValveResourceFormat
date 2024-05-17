@@ -98,11 +98,16 @@ void main()
 
     ApplyFog(outputColor.rgb, vFragPosition);
 
-#if renderMode_Color == 1
-    outputColor = color * mask1;
-#elif renderMode_Tint == 1
-    outputColor = vColorOut;
-#elif renderMode_SpriteEffects == 1
-    outputColor = vec4(mask1, mask2, mask3, 1);
-#endif
+    if (g_iRenderMode == renderMode_Color)
+    {
+        outputColor = color * mask1;
+    }
+    else if (g_iRenderMode == renderMode_Tint)
+    {
+        outputColor = vColorOut;
+    }
+    else if (g_iRenderMode == renderMode_SpriteEffects)
+    {
+        outputColor = vec4(mask1, mask2, mask3, 1);
+    }
 }

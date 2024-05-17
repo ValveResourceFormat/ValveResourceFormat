@@ -135,7 +135,6 @@ namespace GUI.Types.Renderer
 
         public override void SetRenderMode(string renderMode)
         {
-            RenderMesh.SetRenderMode(renderMode);
         }
 
 #if DEBUG
