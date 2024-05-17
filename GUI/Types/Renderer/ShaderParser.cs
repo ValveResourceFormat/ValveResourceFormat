@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Text;
@@ -23,9 +24,6 @@ namespace GUI.Types.Renderer
         [GeneratedRegex("^\\s*uniform sampler(?<SamplerType>\\S+) (?<SamplerName>\\S+);\\s*// SrgbRead\\(true\\)")]
         private static partial Regex RegexSamplerWithSrgbRead();
 
-        private static byte NextRenderModeId = 10;
-        private readonly static Dictionary<string, byte> RenderModes = [];
-
         private int sourceFileNumber;
         public List<string> SourceFiles { get; } = [];
 
@@ -42,8 +40,6 @@ namespace GUI.Types.Renderer
             SourceFileLines.Clear();
 #endif
         }
-
-        public static int GetRenderModeId(string renderMode) => RenderModes.TryGetValue(renderMode, out var value) ? value : 0;
 
         public string PreprocessShader(string shaderFile, string originalShaderName, IReadOnlyDictionary<string, byte> arguments, ParsedShaderData parsedData)
         {
@@ -147,10 +143,23 @@ namespace GUI.Types.Renderer
 
                                 parsedData.RenderModes.Add(renderMode);
 
-                                if (!RenderModes.TryGetValue(renderMode, out value))
+                                value = RenderModes.GetShaderId(renderMode);
+
+                                if (value == 0)
                                 {
-                                    value = NextRenderModeId++;
-                                    RenderModes.Add(renderMode, value);
+                                    var renderModeObj = new RenderModes.RenderMode(false, renderMode);
+                                    var index = RenderModes.Items.IndexOf(renderModeObj);
+
+                                    if (index == -1)
+                                    {
+                                        Debug.Assert(false); /// Add to <see cref="RenderModes.Items"/> if this assert is hit
+
+                                        RenderModes.Items = RenderModes.Items.Add(renderModeObj);
+                                        index = RenderModes.Items.IndexOf(renderModeObj);
+                                    }
+
+                                    value = (byte)index;
+                                    RenderModes.AddShaderId(renderMode, value);
                                 }
                             }
                             else

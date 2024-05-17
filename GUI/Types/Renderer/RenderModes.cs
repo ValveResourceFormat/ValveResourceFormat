@@ -48,5 +48,10 @@ namespace GUI.Types.Renderer
             new (false, "ShaderId"),
             new (false, "ShaderProgramId"),
         ];
+
+        private readonly static Dictionary<string, byte> ShaderIds = new(Items.Count);
+
+        public static void AddShaderId(string renderMode, byte value) => ShaderIds.Add(renderMode, value);
+        public static byte GetShaderId(string renderMode) => ShaderIds.TryGetValue(renderMode, out var value) ? value : (byte)0;
     }
 }
