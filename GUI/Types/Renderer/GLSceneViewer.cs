@@ -31,8 +31,6 @@ namespace GUI.Types.Renderer
         private Frustum lockedCullFrustum;
 
         protected UniformBuffer<ViewConstants> viewBuffer;
-        private UniformBuffer<LightingConstants> lightingBuffer;
-        public List<IBuffer> Buffers { get; private set; }
         public List<(ReservedTextureSlots Slot, string Name, RenderTexture Texture)> Textures { get; } = [];
 
         private readonly List<RenderModes.RenderMode> renderModes = new(RenderModes.Items.Count);
@@ -112,7 +110,8 @@ namespace GUI.Types.Renderer
             if (disposing)
             {
                 viewBuffer?.Dispose();
-                lightingBuffer?.Dispose();
+                Scene?.Dispose();
+                SkyboxScene?.Dispose();
 
                 GLPaint -= OnPaint;
 
@@ -141,12 +140,9 @@ namespace GUI.Types.Renderer
         private void CreateBuffers()
         {
             viewBuffer = new(ReservedBufferSlots.View);
-            lightingBuffer = new(ReservedBufferSlots.Lighting);
-
-            Buffers = [viewBuffer, lightingBuffer];
         }
 
-        void UpdateSceneBuffersGpu(Scene scene, Camera camera)
+        void UpdatePerViewGpuBuffers(Scene scene, Camera camera)
         {
             camera.SetViewConstants(viewBuffer.Data);
             scene.SetFogConstants(viewBuffer.Data);
@@ -195,12 +191,14 @@ namespace GUI.Types.Renderer
             Scene.UpdateOctrees();
             Scene.CalculateLightProbeBindings();
             Scene.CalculateEnvironmentMaps();
+            Scene.CreateBuffers();
 
             if (SkyboxScene != null)
             {
                 SkyboxScene.UpdateOctrees();
                 SkyboxScene.CalculateLightProbeBindings();
                 SkyboxScene.CalculateEnvironmentMaps();
+                SkyboxScene.CreateBuffers();
             }
 
             if (Scene.FogInfo.CubeFogActive)
@@ -368,8 +366,8 @@ namespace GUI.Types.Renderer
                 Scene = Scene,
             };
 
-            UpdateSceneBuffersGpu(Scene, Camera);
-            lightingBuffer.Data = Scene.LightingInfo.LightingData;
+            UpdatePerViewGpuBuffers(Scene, Camera);
+            Scene.SetSceneBuffers();
 
             Scene.RenderOpaqueLayer(renderContext);
             RenderTranslucentLayer(Scene, renderContext);
@@ -405,8 +403,9 @@ namespace GUI.Types.Renderer
             }
 
             GL.DepthRange(0.05, 1);
-            UpdateSceneBuffersGpu(Scene, Camera);
-            lightingBuffer.Data = Scene.LightingInfo.LightingData;
+
+            UpdatePerViewGpuBuffers(Scene, Camera);
+            Scene.SetSceneBuffers();
 
             using (new GLDebugGroup("Main Scene Opaque Render"))
             {
@@ -423,7 +422,7 @@ namespace GUI.Types.Renderer
 
                 if (Render3DSkybox)
                 {
-                    lightingBuffer.Data = SkyboxScene.LightingInfo.LightingData;
+                    SkyboxScene.SetSceneBuffers();
                     renderContext.Scene = SkyboxScene;
 
                     using var _ = new GLDebugGroup("3D Sky Scene");
@@ -443,7 +442,7 @@ namespace GUI.Types.Renderer
                     }
 
                     // Back to main scene.
-                    lightingBuffer.Data = Scene.LightingInfo.LightingData;
+                    Scene.SetSceneBuffers();
                     renderContext.Scene = Scene;
                 }
 

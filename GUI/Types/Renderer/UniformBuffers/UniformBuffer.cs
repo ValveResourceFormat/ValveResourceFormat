@@ -21,6 +21,7 @@ namespace GUI.Types.Renderer.UniformBuffers
         public int Handle { get; }
         public int Size { get; }
         public int BindingPoint { get; }
+        private const BufferRangeTarget Target = BufferRangeTarget.UniformBuffer;
 
         T data;
         public T Data { get => data; set { data = value; Update(); } }
@@ -62,13 +63,18 @@ namespace GUI.Types.Renderer.UniformBuffers
         {
             WriteToCpuBuffer();
             GL.NamedBufferData(Handle, Size, cpuBuffer, BufferUsageHint.StaticDraw);
-            GL.BindBufferBase(BufferRangeTarget.UniformBuffer, BindingPoint, Handle);
+            BindBufferBase();
         }
 
         public void Update()
         {
             WriteToCpuBuffer();
             GL.NamedBufferSubData(Handle, IntPtr.Zero, Size, cpuBuffer);
+        }
+
+        public void BindBufferBase()
+        {
+            GL.BindBufferBase(Target, BindingPoint, Handle);
         }
 
         public void Dispose()
