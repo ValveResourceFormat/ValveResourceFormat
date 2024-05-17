@@ -248,7 +248,7 @@ namespace GUI.Types.Renderer
         protected virtual void OnLoad(object sender, EventArgs e)
         {
             baseGrid = new InfiniteGrid(Scene);
-            baseBackground = new SceneBackground(Scene);
+            Skybox2D = baseBackground = new SceneBackground(Scene);
             selectedNodeRenderer = new(Scene, textRenderer);
 
             Picker = new PickingTexture(Scene.GuiContext, OnPicked);
@@ -321,6 +321,7 @@ namespace GUI.Types.Renderer
             {
                 if (Picker.ActiveNextFrame)
                 {
+                    using var _ = new GLDebugGroup("Picker Object Id Render");
                     renderContext.ReplacementShader = Picker.Shader;
                     renderContext.Framebuffer = Picker;
 
@@ -413,39 +414,42 @@ namespace GUI.Types.Renderer
                 Scene.RenderOpaqueLayer(renderContext);
             }
 
-            // 3D Sky
-            GL.DepthRange(0, 0.05);
-            if (ShowSkybox && SkyboxScene != null)
+            using (new GLDebugGroup("Sky Render"))
             {
-                using (new GLDebugGroup("3D Sky Scene Render"))
+                GL.DepthRange(0, 0.05);
+
+                renderContext.ReplacementShader?.SetUniform1("isSkybox", 1u);
+                var Render3DSkybox = ShowSkybox && SkyboxScene != null;
+
+                if (Render3DSkybox)
                 {
                     lightingBuffer.Data = SkyboxScene.LightingInfo.LightingData;
                     renderContext.Scene = SkyboxScene;
-                    renderContext.ReplacementShader?.SetUniform1("isSkybox", 1u);
 
+                    using var _ = new GLDebugGroup("3D Sky Scene");
                     SkyboxScene.RenderOpaqueLayer(renderContext);
-                    RenderTranslucentLayer(SkyboxScene, renderContext);
-
-                    lightingBuffer.Data = Scene.LightingInfo.LightingData;
-                    renderContext.Scene = Scene;
-                    renderContext.ReplacementShader?.SetUniform1("isSkybox", 0u);
                 }
-            }
 
-            // 2D Sky
-            if (Skybox2D is not null)
-            {
                 using (new GLDebugGroup("2D Sky Render"))
                 {
                     Skybox2D.Render();
                 }
-            }
-            else
-            {
-                baseBackground.Render();
-            }
 
-            GL.DepthRange(0.05, 1);
+                if (Render3DSkybox)
+                {
+                    using (new GLDebugGroup("3D Sky Scene Translucent Render"))
+                    {
+                        RenderTranslucentLayer(SkyboxScene, renderContext);
+                    }
+
+                    // Back to main scene.
+                    lightingBuffer.Data = Scene.LightingInfo.LightingData;
+                    renderContext.Scene = Scene;
+                }
+
+                renderContext.ReplacementShader?.SetUniform1("isSkybox", 0u);
+                GL.DepthRange(0.05, 1);
+            }
 
             using (new GLDebugGroup("Main Scene Translucent Render"))
             {
