@@ -1,5 +1,6 @@
 // Credit to https://github.com/mafaca/Etc
 
+using System.Runtime.InteropServices;
 using SkiaSharp;
 
 namespace ValveResourceFormat.TextureDecoders
@@ -18,7 +19,8 @@ namespace ValveResourceFormat.TextureDecoders
         public void Decode(SKBitmap res, Span<byte> input)
         {
             using var pixels = res.PeekPixels();
-            var output = pixels.GetPixelSpan<byte>();
+            var output = pixels.GetPixelSpan<uint>();
+            var m_bufSpan = m_buf.AsSpan();
 
             var bcw = (width + 3) / 4;
             var bch = (height + 3) / 4;
@@ -30,13 +32,10 @@ namespace ValveResourceFormat.TextureDecoders
                 for (var s = 0; s < bcw; s++, d += 8)
                 {
                     DecodeEtc2Block(input.Slice(d, 8));
-                    var clen = (s < bcw - 1 ? 4 : clen_last) * 4;
+                    var clen = s < bcw - 1 ? 4 : clen_last;
                     for (int i = 0, y = t * 4; i < 4 && y < height; i++, y++)
                     {
-                        // TODO: This is rather silly
-                        var bytes = new byte[clen];
-                        Buffer.BlockCopy(m_buf, i * 4 * 4, bytes, 0, clen);
-                        bytes.CopyTo(output.Slice(y * 4 * width + s * 4 * 4, clen));
+                        m_bufSpan.Slice(i * 4, clen).CopyTo(output.Slice(y * width + s * 4, clen));
                     }
                 }
             }
