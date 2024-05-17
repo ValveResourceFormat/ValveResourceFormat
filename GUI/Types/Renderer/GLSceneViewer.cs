@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -34,7 +35,9 @@ namespace GUI.Types.Renderer
         public List<IBuffer> Buffers { get; private set; }
         public List<(ReservedTextureSlots Slot, string Name, RenderTexture Texture)> Textures { get; } = [];
 
-        private bool skipRenderModeChange;
+        private readonly List<RenderModes.RenderMode> renderModes = new(RenderModes.Items.Count);
+        private int renderModeCurrentIndex;
+        private Font renderModeBoldFont;
         private ComboBox renderModeComboBox;
         private InfiniteGrid baseGrid;
         private SceneBackground baseBackground;
@@ -113,6 +116,18 @@ namespace GUI.Types.Renderer
 
                 GLPaint -= OnPaint;
 
+                if (renderModeComboBox != null)
+                {
+                    renderModeComboBox.DrawItem -= OnRenderModeDrawItem;
+                    renderModeComboBox.Dispose();
+                    renderModeComboBox = null;
+                }
+
+                if (renderModeBoldFont != null)
+                {
+                    renderModeBoldFont.Dispose();
+                    renderModeBoldFont = null;
+                }
 #if DEBUG
                 GuiContext.ShaderLoader.ShaderHotReload.ReloadShader -= OnHotReload;
 #endif
@@ -466,16 +481,74 @@ namespace GUI.Types.Renderer
 
         protected void AddRenderModeSelectionControl()
         {
-            renderModeComboBox ??= AddSelection("Render Mode", (renderMode, _) =>
+            if (renderModeComboBox != null)
             {
-                if (skipRenderModeChange)
+                return;
+            }
+
+            renderModeComboBox = AddSelection("Render Mode", (_, i) =>
+            {
+                if (renderModeCurrentIndex < -1)
                 {
-                    skipRenderModeChange = false;
+                    renderModeCurrentIndex = i;
                     return;
                 }
 
-                SetRenderMode(renderMode);
+                if (i < 0)
+                {
+                    return;
+                }
+
+                var renderMode = renderModes[i];
+
+                if (renderMode.IsHeader)
+                {
+                    renderModeComboBox.SelectedIndex = renderModeCurrentIndex > i ? (i - 1) : (i + 1);
+                    return;
+                }
+
+                renderModeCurrentIndex = i;
+                SetRenderMode(renderMode.Name);
             });
+
+            renderModeBoldFont = new Font(renderModeComboBox.Font, FontStyle.Bold);
+            renderModeComboBox.DrawMode = DrawMode.OwnerDrawFixed;
+            renderModeComboBox.DrawItem += OnRenderModeDrawItem;
+        }
+
+        private void OnRenderModeDrawItem(object sender, DrawItemEventArgs e)
+        {
+            var comboBox = (ComboBox)sender;
+
+            if (e.Index < 0)
+            {
+                return;
+            }
+
+            var mode = renderModes[e.Index];
+
+            if (mode.IsHeader)
+            {
+                e.Graphics.FillRectangle(SystemBrushes.Window, e.Bounds);
+                e.Graphics.DrawString(mode.Name, renderModeBoldFont, SystemBrushes.ControlText, e.Bounds);
+            }
+            else
+            {
+                e.DrawBackground();
+
+                var bounds = e.Bounds;
+
+                if (e.Index > 0 && (e.State & DrawItemState.ComboBoxEdit) == 0)
+                {
+                    bounds.X += 12;
+                }
+
+                var isSelected = (e.State & DrawItemState.Selected) > 0;
+                var brush = isSelected ? SystemBrushes.HighlightText : SystemBrushes.ControlText;
+                e.Graphics.DrawString(mode.Name, comboBox.Font, brush, bounds);
+
+                e.DrawFocusRectangle();
+            }
         }
 
         private void SetAvailableRenderModes(bool keepCurrentSelection = false)
@@ -483,29 +556,50 @@ namespace GUI.Types.Renderer
             if (renderModeComboBox != null)
             {
                 var selectedIndex = 0;
+                var currentlySelected = keepCurrentSelection ? renderModeComboBox.SelectedItem.ToString() : null;
                 var supportedRenderModes = Scene.AllNodes
                     .SelectMany(r => r.GetSupportedRenderModes())
                     .Concat(Picker.Shader.RenderModes)
                     .Distinct()
-                    .Order()
-                    .Prepend("Default Render Mode")
-                    .ToArray();
+                    .ToHashSet();
 
-                if (keepCurrentSelection)
+                renderModes.Clear();
+
+                for (var i = 0; i < RenderModes.Items.Count; i++)
                 {
-                    selectedIndex = Array.IndexOf(supportedRenderModes, renderModeComboBox.SelectedItem.ToString());
+                    var mode = RenderModes.Items[i];
 
-                    if (selectedIndex < 0)
+                    if (i > 0)
                     {
-                        selectedIndex = 0;
+                        if (mode.IsHeader)
+                        {
+                            if (renderModes[^1].IsHeader)
+                            {
+                                // If we hit a header and the last added item is also a header, remove it
+                                renderModes.RemoveAt(renderModes.Count - 1);
+                            }
+                        }
+                        else if (!supportedRenderModes.Remove(mode.Name))
+                        {
+                            continue;
+                        }
                     }
+
+                    if (mode.Name == currentlySelected)
+                    {
+                        selectedIndex = renderModes.Count;
+                    }
+
+                    renderModes.Add(mode);
                 }
+
+                /// If this assert is hit, render mode is missing from <see cref="RenderModes.Items"/>
+                Debug.Assert(supportedRenderModes.Count == 0);
 
                 renderModeComboBox.BeginUpdate();
                 renderModeComboBox.Items.Clear();
-                renderModeComboBox.Enabled = true;
-                renderModeComboBox.Items.AddRange(supportedRenderModes);
-                skipRenderModeChange = true;
+                renderModeComboBox.Items.AddRange(renderModes.Select(x => x.Name).ToArray());
+                renderModeCurrentIndex = -10;
                 renderModeComboBox.SelectedIndex = selectedIndex;
                 renderModeComboBox.EndUpdate();
             }

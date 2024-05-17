@@ -13,8 +13,8 @@
 #define renderMode_Cubemaps 0
 #define renderMode_Irradiance 0
 #define renderMode_Tint 0
-#define renderMode_Foliage_Params 0
-#define renderMode_Terrain_Blend 0
+#define renderMode_FoliageParams 0
+#define renderMode_TerrainBlend 0
 
 #if defined(vr_complex_vfx) || defined(csgo_complex_vfx)
     #define complex_vfx_common
@@ -647,13 +647,13 @@ void main()
     }
 #endif
 #if defined(foliage_vfx_common)
-    else if (g_iRenderMode == renderMode_Foliage_Params)
+    else if (g_iRenderMode == renderMode_FoliageParams)
     {
         outputColor.rgb = vFoliageParamsOut.rgb;
     }
 #endif
 #if (defined(csgo_generic_blend) || defined(simple_blend_common) || defined(vr_standard_blend_vfx))
-    else if (g_iRenderMode == renderMode_Terrain_Blend)
+    else if (g_iRenderMode == renderMode_TerrainBlend)
     {
         outputColor.rgb = vColorBlendValues.rgb;
     }

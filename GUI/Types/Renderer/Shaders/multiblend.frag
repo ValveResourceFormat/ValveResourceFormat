@@ -8,7 +8,7 @@
 #define renderMode_BumpMap 0
 #define renderMode_BumpNormals 0
 #define renderMode_Illumination 0
-#define renderMode_Terrain_Blend 0
+#define renderMode_TerrainBlend 0
 #define renderMode_Tint 0
 
 //Parameter defines - These are default values and can be overwritten based on material/model parameters
@@ -245,7 +245,7 @@ void main()
     {
         outputColor = vec4(finalColor, 1.0);
     }
-    else if (g_iRenderMode == renderMode_Terrain_Blend)
+    else if (g_iRenderMode == renderMode_TerrainBlend)
     {
         outputColor = vec4(vBlendWeights.xyz, 1.0);
     }

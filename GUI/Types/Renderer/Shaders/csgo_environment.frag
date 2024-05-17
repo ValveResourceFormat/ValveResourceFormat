@@ -9,7 +9,7 @@
 #define renderMode_Height 0
 #define renderMode_VertexColor 0
 #define renderMode_Irradiance 0
-#define renderMode_Terrain_Blend 0
+#define renderMode_TerrainBlend 0
 
 #include "common/utils.glsl"
 #include "common/features.glsl"
@@ -409,7 +409,7 @@ void main()
     }
 #endif
 #if defined(csgo_environment_blend_vfx)
-    else if (g_iRenderMode == renderMode_Terrain_Blend)
+    else if (g_iRenderMode == renderMode_TerrainBlend)
     {
         outputColor.rgb = vColorBlendValues.rga;
     }
