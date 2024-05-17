@@ -2,7 +2,6 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Runtime.Intrinsics;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO.ContentFormats.DmxModel;
 using ValveResourceFormat.IO.ContentFormats.ValveMap;
@@ -27,7 +26,7 @@ public sealed class MapExtract
     private List<ContentFile> PreExportedFragments { get; } = [];
     private List<ContentFile> EntityModels { get; } = [];
     private Dictionary<string, string> ModelEntityAssociations { get; } = [];
-    private List<string> MeshesToExtract { get; } = [];
+    private List<string> SceneObjectsToExtract { get; } = [];
     private List<string> FolderExtractFilter { get; } = [];
     private List<string> SnapshotsToExtract { get; } = [];
 
@@ -252,17 +251,26 @@ public sealed class MapExtract
             FileName = LumpFolder + "_d.vmap",
         };
 
-        //this is actually just scene objects
-        foreach (var meshName in MeshesToExtract)
+        foreach (var sceneObjectResourceName in SceneObjectsToExtract)
         {
-            var meshNameCompiled = meshName + GameFileLoader.CompiledFileSuffix;
-            using var mesh = FileLoader.LoadFile(meshNameCompiled);
+            var sceneObjectNameCompiled = sceneObjectResourceName + GameFileLoader.CompiledFileSuffix;
+            using var sceneObject = FileLoader.LoadFile(sceneObjectNameCompiled);
 
-            if (mesh != null)
+            if (sceneObject == null)
             {
-                var vmdl = new ModelExtract((Mesh)mesh.DataBlock, meshName).ToContentFile();
-                vmap.AdditionalFiles.Add(vmdl);
+                continue;
             }
+
+            var sceneObjectExtract = sceneObject.ResourceType switch
+            {
+                ResourceType.Model => new ModelExtract(sceneObject, FileLoader),
+                ResourceType.Mesh => new ModelExtract((Mesh)sceneObject.DataBlock, sceneObjectResourceName),
+                _ => throw new InvalidDataException($"Unhandled resource type: {sceneObject.ResourceType} as a scene object"),
+            };
+
+            var vmdl = sceneObjectExtract.ToContentFile();
+            vmap.AdditionalFiles.Add(vmdl);
+            FolderExtractFilter.Add(sceneObjectNameCompiled);
         }
 
         // Export all gathered vsnap files
@@ -654,22 +662,19 @@ public sealed class MapExtract
             var modelName = sceneObject.GetProperty<string>("m_renderableModel");
             var meshName = sceneObject.GetProperty<string>("m_renderable");
 
-            var objectFlags = sceneObject.GetEnumValue<ObjectTypeFlags>("m_nObjectTypeFlags", normalize: true);
-
-            if (modelName == null)
+            if (string.IsNullOrEmpty(modelName))
             {
-                Debug.Assert(!objectFlags.HasFlag(ObjectTypeFlags.Model));
-                if (meshName == null)
+                if (string.IsNullOrEmpty(meshName))
                 {
                     return;
                 }
 
-                //TODO: convert this to hammer mesh as well, not sure when this is null
+                SceneObjectsToExtract.Add(meshName);
 
-                MeshesToExtract.Add(meshName);
-
-                modelName = Path.ChangeExtension(meshName, ".vmdl");
+                return;
             }
+
+            var objectFlags = sceneObject.GetEnumValue<ObjectTypeFlags>("m_nObjectTypeFlags", normalize: true);
 
             FolderExtractFilter.Add(modelName ?? meshName);
 
@@ -683,6 +688,10 @@ public sealed class MapExtract
                     MapDocument.World.Children.Add(hammermesh);
                 }
                 return;
+            }
+            else
+            {
+                SceneObjectsToExtract.Add(modelName);
             }
 
             AssetReferences.Add(modelName);
