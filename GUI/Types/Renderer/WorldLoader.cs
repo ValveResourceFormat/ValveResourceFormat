@@ -929,9 +929,6 @@ namespace GUI.Types.Renderer
 
             SkyboxScene = new Scene(guiContext);
 
-            SkyboxScene.FogInfo.GradientFogActive = scene.FogInfo.GradientFogActive;
-            SkyboxScene.FogInfo.CubeFogActive = scene.FogInfo.CubeFogActive;
-
             var skyboxResult = new WorldLoader((World)skyboxWorld.DataBlock, SkyboxScene);
 
             // Take origin and angles from skybox_reference

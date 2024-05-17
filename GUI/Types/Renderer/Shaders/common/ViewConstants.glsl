@@ -8,12 +8,9 @@ layout(std140, binding = 0) uniform ViewConstants {
     float g_flTime;
     mat4 g_matWorldToShadow;
     vec4 g_vClearColor;
-    int g_iRenderMode;
-    int _Padding1;
-    int _Padding2;
-    int _Padding3;
 
-    bvec4 g_bFogTypeEnabled;
+    bvec3 g_bFogTypeEnabled;
+    int g_iRenderMode;
     vec4 g_vGradientFogBiasAndScale;
     vec4 g_vGradientFogColor_Opacity;
     vec2 m_vGradientFogExponents;

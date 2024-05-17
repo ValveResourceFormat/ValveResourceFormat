@@ -186,7 +186,8 @@ namespace GUI.Types.Renderer
             using var cubeFogResource = new Resource() { FileName = "default_cube.vtex_c" };
             cubeFogResource.Read(cubeFogStream);
 
-            Scene.FogInfo.DefaultFogTexture = GuiContext.MaterialLoader.LoadTexture(cubeFogResource);
+            var defaultCubeTexture = GuiContext.MaterialLoader.LoadTexture(cubeFogResource);
+            Textures.Add(new(ReservedTextureSlots.FogCubeTexture, "g_tFogCubeTexture", defaultCubeTexture));
         }
 
         public virtual void PostSceneLoad()
@@ -200,6 +201,12 @@ namespace GUI.Types.Renderer
                 SkyboxScene.UpdateOctrees();
                 SkyboxScene.CalculateLightProbeBindings();
                 SkyboxScene.CalculateEnvironmentMaps();
+            }
+
+            if (Scene.FogInfo.CubeFogActive)
+            {
+                Textures.RemoveAll(t => t.Slot == ReservedTextureSlots.FogCubeTexture);
+                Textures.Add(new(ReservedTextureSlots.FogCubeTexture, "g_tFogCubeTexture", Scene.FogInfo.CubemapFog.CubemapFogTexture));
             }
 
             if (Scene.AllNodes.Any() && this is not GLWorldViewer)
