@@ -231,7 +231,7 @@ void main()
         vec2 normalXy = (vColor.rg) * 2.0 - 1.0;
         float derivedZ = sqrt(1.0 - (normalXy.x * normalXy.x) - (normalXy.y * normalXy.y));
         derivedZ = mix(derivedZ, 1.0, isnan(derivedZ)); // todo: becomes NaN if we are out of bounds
-        vColor.rgb = PackToColor(vec3(normalXy.xy, isnan(derivedZ) ? 1.0 : derivedZ));
+        vColor.rgb = PackToColor(vec3(normalXy.xy, derivedZ));
     }
 
     if ((g_nDecodeFlags & YCoCg_Conversion) != 0)
