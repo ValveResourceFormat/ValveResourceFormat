@@ -3,8 +3,6 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Linq.Expressions;
-using System.Runtime.Intrinsics;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO.ContentFormats.DmxModel;
 using ValveResourceFormat.IO.ContentFormats.ValveMap;
@@ -49,7 +47,7 @@ public sealed class MapExtract
     private List<ContentFile> PreExportedFragments { get; } = [];
     private List<ContentFile> EntityModels { get; } = [];
     private Dictionary<string, string> ModelEntityAssociations { get; } = [];
-    private List<string> MeshesToExtract { get; } = [];
+    private List<string> SceneObjectsToExtract { get; } = [];
     private List<string> FolderExtractFilter { get; } = [];
     private List<string> SnapshotsToExtract { get; } = [];
 
@@ -302,17 +300,26 @@ public sealed class MapExtract
             SkyboxPath = SkyboxToExtract
         };
 
-        //this is actually just scene objects
-        foreach (var modelName in MeshesToExtract)
+        foreach (var sceneObjectResourceName in SceneObjectsToExtract)
         {
-            var modelNameCompiled = modelName + GameFileLoader.CompiledFileSuffix;
-            using var model = FileLoader.LoadFile(modelNameCompiled);
+            var sceneObjectNameCompiled = sceneObjectResourceName + GameFileLoader.CompiledFileSuffix;
+            using var sceneObject = FileLoader.LoadFile(sceneObjectNameCompiled);
 
-            if (model != null)
+            if (sceneObject == null)
             {
-                var vmdl = new ModelExtract(model, FileLoader).ToContentFile();
-                vmap.AdditionalFiles.Add(vmdl);
+                continue;
             }
+
+            var sceneObjectExtract = sceneObject.ResourceType switch
+            {
+                ResourceType.Model => new ModelExtract(sceneObject, FileLoader),
+                ResourceType.Mesh => new ModelExtract((Mesh)sceneObject.DataBlock, sceneObjectResourceName),
+                _ => throw new InvalidDataException($"Unhandled resource type: {sceneObject.ResourceType} as a scene object"),
+            };
+
+            var vmdl = sceneObjectExtract.ToContentFile();
+            vmap.AdditionalFiles.Add(vmdl);
+            FolderExtractFilter.Add(sceneObjectNameCompiled);
         }
 
         // Export all gathered vsnap files
@@ -707,6 +714,18 @@ public sealed class MapExtract
             var modelName = sceneObject.GetProperty<string>("m_renderableModel");
             var meshName = sceneObject.GetProperty<string>("m_renderable");
 
+            if (string.IsNullOrEmpty(modelName))
+            {
+                if (string.IsNullOrEmpty(meshName))
+                {
+                    return;
+                }
+
+                SceneObjectsToExtract.Add(meshName);
+
+                return;
+            }
+
             var objectFlags = sceneObject.GetEnumValue<ObjectTypeFlags>("m_nObjectTypeFlags", normalize: true);
 
             FolderExtractFilter.Add(modelName ?? meshName);
@@ -724,7 +743,7 @@ public sealed class MapExtract
             }
             else
             {
-                MeshesToExtract.Add(modelName);
+                SceneObjectsToExtract.Add(modelName);
             }
 
             AssetReferences.Add(modelName);
