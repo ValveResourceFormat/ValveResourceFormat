@@ -251,27 +251,26 @@ public sealed class MapExtract
             FileName = LumpFolder + "_d.vmap",
         };
 
-        foreach (var sceneObjectName in SceneObjectsToExtract)
+        foreach (var sceneObjectResourceName in SceneObjectsToExtract)
         {
-            var sceneObjectNameCompiled = sceneObjectName + GameFileLoader.CompiledFileSuffix;
+            var sceneObjectNameCompiled = sceneObjectResourceName + GameFileLoader.CompiledFileSuffix;
             using var sceneObject = FileLoader.LoadFile(sceneObjectNameCompiled);
 
-            if (sceneObject != null)
+            if (sceneObject == null)
             {
-                var sceneObjectType = sceneObject.DataBlock.GetType();
-
-                if (sceneObjectType == typeof(Model))
-                {
-                    var vmdl = new ModelExtract(sceneObject, FileLoader).ToContentFile();
-                    vmap.AdditionalFiles.Add(vmdl);
-                }
-                else if (sceneObjectType == typeof(Mesh))
-                {
-                    var vmdl = new ModelExtract((Mesh)sceneObject.DataBlock, sceneObjectName).ToContentFile();
-                    FolderExtractFilter.Add(sceneObjectNameCompiled); // TODO: put vmesh on vmdl.AdditionalFiles
-                    vmap.AdditionalFiles.Add(vmdl);
-                }
+                continue;
             }
+
+            var sceneObjectExtract = sceneObject.ResourceType switch
+            {
+                ResourceType.Model => new ModelExtract(sceneObject, FileLoader),
+                ResourceType.Mesh => new ModelExtract((Mesh)sceneObject.DataBlock, sceneObjectResourceName),
+                _ => throw new InvalidDataException($"Unhandled resource type: {sceneObject.ResourceType} as a scene object"),
+            };
+
+            var vmdl = sceneObjectExtract.ToContentFile();
+            vmap.AdditionalFiles.Add(vmdl);
+            FolderExtractFilter.Add(sceneObjectNameCompiled);
         }
 
         // Export all gathered vsnap files
