@@ -593,8 +593,18 @@ namespace GUI.Types.Renderer
                     renderModes.Add(mode);
                 }
 
+#if DEBUG
                 /// If this assert is hit, render mode is missing from <see cref="RenderModes.Items"/>
                 Debug.Assert(supportedRenderModes.Count == 0);
+
+                // Add the unknown mode to the list for simpler developer experience when adding new render mode with hot reload
+                foreach (var name in supportedRenderModes)
+                {
+                    var mode = new RenderModes.RenderMode(false, name);
+                    RenderModes.Items = RenderModes.Items.Add(mode);
+                    renderModes.Add(mode);
+                }
+#endif
 
                 renderModeComboBox.BeginUpdate();
                 renderModeComboBox.Items.Clear();
