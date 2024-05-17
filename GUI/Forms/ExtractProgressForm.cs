@@ -390,9 +390,8 @@ namespace GUI.Forms
                 if (fileFlags != null)
                 {
                     //vmap options
-                    if (fileFlags.GetType() == typeof(VmapOptions))
+                    if (fileFlags is VmapOptions vmapFlags)
                     {
-                        var vmapFlags = (VmapOptions)fileFlags;
 
                         //export 3d skybox
                         if (vmapFlags.HasFlag(VmapOptions.Export3DSkybox))
