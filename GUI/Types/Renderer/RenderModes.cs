@@ -29,7 +29,6 @@ namespace GUI.Types.Renderer
             new (false, "Mask1"),
             new (false, "Mask2"),
             new (false, "ExtraParams"),
-            new (false, "FoliageParams"),
             new (false, "SpriteEffects"),
 
             new (true, "Normals"),
@@ -40,6 +39,7 @@ namespace GUI.Types.Renderer
 
             new (true, "Vertex Attributes"),
             new (false, "TerrainBlend"),
+            new (false, "FoliageParams"),
             new (false, "VertexColor"),
 
             new (true, "Identification"),
