@@ -7,6 +7,11 @@ using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.IO
 {
+    public struct ResourceOptions
+    {
+        public VmapOptions VmapOptions { get; set; }
+    }
+
     public class ContentFile : IDisposable
     {
         /// <summary>
@@ -121,16 +126,16 @@ namespace ValveResourceFormat.IO
         /// Extract content file from a compiled resource.
         /// </summary>
         /// <param name="resource">The resource to be extracted or decompiled.</param>
-        public static ContentFile Extract(Resource resource, IFileLoader fileLoader, IProgress<string> progress = null, object fileFlags = null)
+        public static ContentFile Extract(Resource resource, IFileLoader fileLoader, IProgress<string> progress = null)
         {
             var contentFile = new ContentFile();
 
             switch (resource.ResourceType)
             {
-                case ResourceType.Map:
-                case ResourceType.World:
-                    contentFile = new MapExtract(resource, fileLoader, fileFlags) { ProgressReporter = progress }.ToContentFile();
-                    break;
+                //case ResourceType.Map:
+                //case ResourceType.World:
+                //    contentFile = new MapExtract(resource, fileLoader) { ProgressReporter = progress }.ToContentFile();
+                //    break;
 
                 case ResourceType.Model:
                     contentFile = new ModelExtract(resource, fileLoader).ToContentFile();

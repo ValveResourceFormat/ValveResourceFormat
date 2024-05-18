@@ -349,11 +349,11 @@ namespace GUI.Forms
                 };
                 resource.Read(stream);
 
-                await ExtractFile(resource, fileFullName, outFilePath).ConfigureAwait(false);
+                await ExtractFile(resource, fileFullName, outFilePath, new ResourceOptions()).ConfigureAwait(false);
             }
         }
 
-        public async Task ExtractFile(Resource resource, string inFilePath, string outFilePath, bool flatSubfiles = false, object fileFlags = null)
+        public async Task ExtractFile(Resource resource, string inFilePath, string outFilePath, ResourceOptions resourceOptions, bool flatSubfiles = false)
         {
             var outExtension = Path.GetExtension(outFilePath);
 
@@ -377,58 +377,58 @@ namespace GUI.Forms
                     outFilePath = Path.ChangeExtension(outFilePath, extension);
                 }
             }
-            else if (outExtension == ".vmap")
-            {
-                flatSubfiles = false;
-            }
 
             ContentFile contentFile = null;
 
             try
             {
-                contentFile = FileExtract.Extract(resource, exportData.VrfGuiContext.FileLoader, progressReporter, fileFlags);
-                if (fileFlags != null)
+                //vmap export
+                if (outExtension == ".vmap")
                 {
-                    //vmap options
-                    if (fileFlags is VmapOptions vmapFlags)
+                    flatSubfiles = false;
+
+                    contentFile = new MapExtract(resource, exportData.VrfGuiContext.FileLoader, resourceOptions).ToContentFile();
+
+                    var vmapOptions = resourceOptions.VmapOptions;
+                    //export 3d skybox
+                    if (vmapOptions.Export3DSkybox)
                     {
-
-                        //export 3d skybox
-                        if (vmapFlags.HasFlag(VmapOptions.Export3DSkybox))
+                        var skyboxPath = ((VmapContentFile)contentFile).SkyboxPath;
+                        if (!string.IsNullOrEmpty(skyboxPath))
                         {
-                            var skyboxPath = ((VmapContentFile)contentFile).SkyboxPath;
-                            if (!string.IsNullOrEmpty(skyboxPath))
+                            var skyboxPackage = WorldLoader.LoadSkyboxVpk(skyboxPath, exportData.VrfGuiContext.FileLoader);
+
+                            // Clean up any trailing slashes, or vmap_c extension
+                            var skyboxName = Path.GetFileNameWithoutExtension(skyboxPath);
+                            var skyboxRoot = Path.GetDirectoryName(skyboxPath);
+
+                            var skyboxLumpFolder = Path.Combine(skyboxRoot, skyboxName);
+
+                            var skyboxVmapPath = skyboxLumpFolder + ".vmap_c";
+                            var skyboxVmapResource = exportData.VrfGuiContext.FileLoader.LoadFile(skyboxVmapPath) ?? throw new FileNotFoundException($"Failed to find vmap_c resource at {skyboxVmapPath}");
+
+                            var mainMapSavePath = Path.GetDirectoryName(outFilePath);
+                            //then combining the paths straight away would result in 'maps/maps'
+                            //so we gotta remove one of em'
+                            var directories = skyboxPath.Split("/");
+                            if (directories[0].Equals("maps", StringComparison.OrdinalIgnoreCase))
                             {
-                                var skyboxPackage = WorldLoader.LoadSkyboxVpk(skyboxPath, exportData.VrfGuiContext.FileLoader);
-
-                                // Clean up any trailing slashes, or vmap_c extension
-                                var skyboxName = Path.GetFileNameWithoutExtension(skyboxPath);
-                                var skyboxRoot = Path.GetDirectoryName(skyboxPath);
-
-                                var skyboxLumpFolder = Path.Combine(skyboxRoot, skyboxName);
-
-                                var skyboxVmapPath = skyboxLumpFolder + ".vmap_c";
-                                var skyboxVmapResource = exportData.VrfGuiContext.FileLoader.LoadFile(skyboxVmapPath) ?? throw new FileNotFoundException($"Failed to find vmap_c resource at {skyboxVmapPath}");
-
-                                var mainMapSavePath = Path.GetDirectoryName(outFilePath);
-                                //then combining the paths straight away would result in 'maps/maps'
-                                //so we gotta remove one of em'
-                                var directories = skyboxPath.Split("/");
-                                if (directories[0].Equals("maps", StringComparison.OrdinalIgnoreCase))
-                                {
-                                    //skip the first directory and join the rest back together
-                                    skyboxPath = Path.Combine(directories.Skip(1).ToArray());
-                                }
-
-                                var skyboxMapSavePath = Path.Combine(mainMapSavePath, skyboxPath);
-
-                                Directory.CreateDirectory(Path.GetDirectoryName(skyboxMapSavePath));
-                                await ExtractFile(skyboxVmapResource, skyboxName, MapExtract.AddSuffixToVmapName(skyboxMapSavePath), true).ConfigureAwait(true);
-
-                                exportData.VrfGuiContext.FileLoader.RemovePackageFromSearch(skyboxPackage);
+                                //skip the first directory and join the rest back together
+                                skyboxPath = Path.Combine(directories.Skip(1).ToArray());
                             }
+
+                            var skyboxMapSavePath = Path.Combine(mainMapSavePath, skyboxPath);
+
+                            Directory.CreateDirectory(Path.GetDirectoryName(skyboxMapSavePath));
+                            await ExtractFile(skyboxVmapResource, skyboxName, MapExtract.AddSuffixToVmapName(skyboxMapSavePath), new ResourceOptions(), true).ConfigureAwait(true);
+
+                            exportData.VrfGuiContext.FileLoader.RemovePackageFromSearch(skyboxPackage);
                         }
                     }
+                }
+                else
+                {
+                    contentFile = FileExtract.Extract(resource, exportData.VrfGuiContext.FileLoader, progressReporter);
                 }
 
                 if (contentFile.Data != null)

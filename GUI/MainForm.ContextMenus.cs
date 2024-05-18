@@ -9,6 +9,7 @@ using GUI.Types.Exporter;
 using GUI.Types.PackageViewer;
 using GUI.Utils;
 using SteamDatabase.ValvePak;
+using ValveResourceFormat.IO;
 
 namespace GUI
 {
@@ -294,16 +295,32 @@ namespace GUI
 
                 if (exportData.PackageEntry != null)
                 {
-                    ExportFile.ExtractFileFromPackageEntry(exportData.PackageEntry, exportData.VrfGuiContext, decompile);
+                    if (ExportFile.TryOpenCustomFileExportDialogue(exportData.PackageEntry.TypeName, out ResourceOptions resourceOptions))
+                    {
+                        ExportFile.ExtractFileFromPackageEntry(exportData.PackageEntry, exportData.VrfGuiContext, decompile, resourceOptions);
+                    }
+                    else
+                    {
+                        return;
+                    }
                 }
                 else
                 {
                     var fileStream = File.OpenRead(exportData.VrfGuiContext.FileName);
-
                     try
                     {
-                        ExportFile.ExtractFileFromStream(Path.GetFileName(exportData.VrfGuiContext.FileName), fileStream, exportData.VrfGuiContext, decompile);
-                        fileStream = null; // ExtractFileFromStream should dispose it when done, not `using` here in case there's some threading
+                        //file extenstion is needed without the dot
+                        var fileExtension = Path.GetExtension(exportData.VrfGuiContext.FileName).Replace(".", "");
+
+                        if (ExportFile.TryOpenCustomFileExportDialogue(fileExtension, out ResourceOptions resourceOptions))
+                        {
+                            ExportFile.ExtractFileFromStream(Path.GetFileName(exportData.VrfGuiContext.FileName), fileStream, exportData.VrfGuiContext, decompile, resourceOptions);
+                            fileStream = null; // ExtractFileFromStream should dispose it when done, not `using` here in case there's some threading
+                        }
+                        else
+                        {
+                            return;
+                        }
                     }
                     finally
                     {

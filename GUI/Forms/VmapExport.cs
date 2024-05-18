@@ -30,14 +30,11 @@ namespace GUI.Forms
 
         public VmapOptions VmapExportFlags()
         {
-            VmapOptions flags = 0;
+            var vmapOptions = new VmapOptions();
 
-            if (Export3DSkyboxCheckbox.Checked)
-            {
-                flags |= VmapOptions.Export3DSkybox;
-            }
+            vmapOptions.Export3DSkybox = Export3DSkyboxCheckbox.Checked;
 
-            return flags;
+            return vmapOptions;
         }
     }
 }

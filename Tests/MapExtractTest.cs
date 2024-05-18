@@ -15,7 +15,7 @@ namespace Tests
             using var vmapResource = new Resource();
             vmapResource.Read(Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "dota.vmap_c"));
 
-            var exception = Assert.Throws<FileNotFoundException>(() => new MapExtract(vmapResource, new NullFileLoader()));
+            var exception = Assert.Throws<FileNotFoundException>(() => new MapExtract(vmapResource, new NullFileLoader(), new ResourceOptions()));
             Assert.That(exception.Message, Contains.Substring("Failed to find world resource"));
 
             //var extract = new MapExtract(vmapResource, null);
@@ -29,10 +29,10 @@ namespace Tests
             var worldPath = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "world.vwrld_c");
             worldResource.Read(worldPath);
 
-            var exception = Assert.Throws<ArgumentNullException>(() => new MapExtract(worldResource, null));
+            var exception = Assert.Throws<ArgumentNullException>(() => new MapExtract(worldResource, null, new ResourceOptions()));
             Assert.That(exception.Message, Contains.Substring("file loader must be provided to load the map's lumps"));
 
-            var extract = new MapExtract(worldResource, new NullFileLoader());
+            var extract = new MapExtract(worldResource, new NullFileLoader(), new ResourceOptions());
             Assert.That(Path.GetFullPath(Path.GetDirectoryName(worldPath)), Is.EqualTo(Path.GetFullPath(extract.LumpFolder)));
 
             extract.ToValveMap();
@@ -55,7 +55,7 @@ namespace Tests
 
             using var worldResource = loader.LoadFile("maps/ui/nametag.vmap_c");
 
-            var extract = new MapExtract(worldResource, loader);
+            var extract = new MapExtract(worldResource, loader, new ResourceOptions());
 
             extract.ToValveMap();
 
