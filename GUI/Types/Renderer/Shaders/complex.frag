@@ -42,14 +42,13 @@
 #define F_GLASS 0
 #define F_DISABLE_TONE_MAPPING 0
 #define F_MORPH_SUPPORTED 0
-#define F_WRINKLE 0
+//#define F_WRINKLE 0
 #define F_SCALE_NORMAL_MAP 0
 // TEXTURING
 #define F_TINT_MASK 0
 #define F_FANCY_BLENDING 0
 #define F_METALNESS_TEXTURE 0
 #define F_AMBIENT_OCCLUSION_TEXTURE 0
-#define F_FANCY_BLENDING 0
 #define F_SELF_ILLUM 0
 #define F_ENABLE_AMBIENT_OCCLUSION 0 // simple_2way_blend
 #define F_ENABLE_TINT_MASKS 0 // simple_2way_blend
@@ -65,13 +64,13 @@ uniform int F_DECAL_BLEND_MODE;
 #define F_CLOTH_SHADING 0
 #define F_USE_BENT_NORMALS 0
 #define F_DIFFUSE_WRAP 0
-#define F_TRANSMISSIVE_BACKFACE_NDOTL 0 // todo
+//#define F_TRANSMISSIVE_BACKFACE_NDOTL 0 // todo
 #define F_NO_SPECULAR_AT_FULL_ROUGHNESS 0
 // SKIN
-#define F_SUBSURFACE_SCATTERING 0 // todo, same preintegrated method as vr_skin in HLA
-#define F_USE_FACE_OCCLUSION_TEXTURE 0 // todo, weird
-#define F_USE_PER_VERTEX_CURVATURE 0 // todo
-#define F_SSS_MASK 0 // todo
+//#define F_SUBSURFACE_SCATTERING 0 // todo, same preintegrated method as vr_skin in HLA
+//#define F_USE_FACE_OCCLUSION_TEXTURE 0 // todo, weird
+//#define F_USE_PER_VERTEX_CURVATURE 0 // todo
+//#define F_SSS_MASK 0 // todo
 
 // vr_standard
 #define F_HIGH_QUALITY_GLOSS 0
