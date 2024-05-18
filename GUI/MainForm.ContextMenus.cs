@@ -310,7 +310,7 @@ namespace GUI
                     try
                     {
                         //file extenstion is needed without the dot
-                        var fileExtension = Path.GetExtension(exportData.VrfGuiContext.FileName).Replace(".", "");
+                        var fileExtension = Path.GetExtension(exportData.VrfGuiContext.FileName)[1..];
 
                         if (ExportFile.TryOpenCustomFileExportDialogue(fileExtension, out ResourceOptions resourceOptions))
                         {

@@ -132,10 +132,10 @@ namespace ValveResourceFormat.IO
 
             switch (resource.ResourceType)
             {
-                //case ResourceType.Map:
-                //case ResourceType.World:
-                //    contentFile = new MapExtract(resource, fileLoader) { ProgressReporter = progress }.ToContentFile();
-                //    break;
+                case ResourceType.Map:
+                case ResourceType.World:
+                    contentFile = new MapExtract(resource, fileLoader, new ResourceOptions()) { ProgressReporter = progress }.ToContentFile();
+                    break;
 
                 case ResourceType.Model:
                     contentFile = new ModelExtract(resource, fileLoader).ToContentFile();
