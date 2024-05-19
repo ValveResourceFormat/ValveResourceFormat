@@ -66,14 +66,14 @@ namespace ValveResourceFormat.CompiledShader
             output.BreakLine();
             output.WriteLine($"has additional file = {shaderFile.FeaturesHeader.AdditionalFiles}");
             var ftHeader = shaderFile.FeaturesHeader;
-            if (ftHeader.Arg8.Length > 0)
+            if (ftHeader.AdditionalFileFlags.Length > 0)
             {
-                output.WriteLine($"additional file bool flags ({string.Join(",", ftHeader.Arg8)})");
+                output.WriteLine($"additional file bool flags ({string.Join(",", ftHeader.AdditionalFileFlags)})");
             }
             output.WriteLine($"{nameof(shaderFile.FeaturesHeader.Version)} = {shaderFile.FeaturesHeader.Version}");
             output.WriteLine($"{nameof(ftHeader.DevShader)} = {ftHeader.DevShader}");
-            output.WriteLine($"bool flags = ({ftHeader.Arg1},{ftHeader.Arg2},{ftHeader.Arg3}," +
-                $"{ftHeader.Arg4},{ftHeader.Arg5},{ftHeader.Arg6},{ftHeader.Arg7}) (related to editor dependencies)");
+            output.WriteLine($"bool flags = ({ftHeader.FeaturesFileFlags},{ftHeader.VertexFileFlags},{ftHeader.PixelFileFlags}," +
+                $"{ftHeader.GeometryFileFlags},{ftHeader.ComputeFileFlags},{ftHeader.HullFileFlags},{ftHeader.HullFileFlags}) (related to editor dependencies)");
             output.WriteLine($"possible editor description = {shaderFile.PossibleEditorDescription}");
             output.BreakLine();
             output.WriteLine("Editor/Shader compiler stack");

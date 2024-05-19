@@ -11,14 +11,14 @@ namespace ValveResourceFormat.CompiledShader
         public int Version { get; }
         public string FileDescription { get; }
         public int DevShader { get; }
-        public int Arg1 { get; }
-        public int Arg2 { get; }
-        public int Arg3 { get; }
-        public int Arg4 { get; }
-        public int Arg5 { get; }
-        public int Arg6 { get; }
-        public int Arg7 { get; } = -1;
-        public int[] Arg8 { get; }
+        public int FeaturesFileFlags { get; }
+        public int VertexFileFlags { get; }
+        public int PixelFileFlags { get; }
+        public int GeometryFileFlags { get; }
+        public int HullFileFlags { get; }
+        public int DomainFileFlags { get; }
+        public int ComputeFileFlags { get; }
+        public int[] AdditionalFileFlags { get; }
         public List<(string Name, string Shader, string StaticConfig, int Value)> Modes { get; } = [];
         public List<(Guid, string)> EditorIDs { get; } = [];
         public FeaturesHeaderBlock(ShaderDataReader datareader) : base(datareader)
@@ -53,27 +53,27 @@ namespace ValveResourceFormat.CompiledShader
             datareader.BaseStream.Position += 4; // length of name, but not needed because it's always null-term
             FileDescription = datareader.ReadNullTermString(Encoding.UTF8);
             DevShader = datareader.ReadInt32();
-            Arg1 = datareader.ReadInt32();
-            Arg2 = datareader.ReadInt32();
-            Arg3 = datareader.ReadInt32();
-            Arg4 = datareader.ReadInt32();
-            Arg5 = datareader.ReadInt32();
 
-            // v68 removed two args. TODO: confirm which ones
+            FeaturesFileFlags = datareader.ReadInt32();
+            VertexFileFlags = datareader.ReadInt32();
+            PixelFileFlags = datareader.ReadInt32();
+            GeometryFileFlags = datareader.ReadInt32();
+
             if (VcsFileVersion < 68)
             {
-                Arg6 = datareader.ReadInt32();
-
-                if (VcsFileVersion >= 64)
-                {
-                    Arg7 = datareader.ReadInt32();
-                }
+                HullFileFlags = datareader.ReadInt32();
+                DomainFileFlags = datareader.ReadInt32();
             }
 
-            Arg8 = new int[(int)AdditionalFiles];
+            if (VcsFileVersion >= 64)
+            {
+                ComputeFileFlags = datareader.ReadInt32();
+            }
+
+            AdditionalFileFlags = new int[(int)AdditionalFiles];
             for (var i = VcsAdditionalFiles.None; i < AdditionalFiles; i++)
             {
-                Arg8[(int)i] = datareader.ReadInt32();
+                AdditionalFileFlags[(int)i] = datareader.ReadInt32();
             };
 
             var modeCount = datareader.ReadInt32();
@@ -96,20 +96,35 @@ namespace ValveResourceFormat.CompiledShader
                 Modes.Add((name, shader, static_config, value));
             }
 
-            var maxFileReference = (int)VcsProgramType.PixelShaderRenderState + (int)AdditionalFiles;
-            if (VcsFileVersion >= 68)
+            foreach (var programType in ProgramTypeIterator())
             {
-                maxFileReference -= 2;
+                EditorIDs.Add((new Guid(datareader.ReadBytes(16)), $"// {programType}"));
             }
 
-            for (var i = 0; i < maxFileReference; i++)
-            {
-                EditorIDs.Add((new Guid(datareader.ReadBytes(16)), $"// {(VcsProgramType)i}"));
-            }
+            EditorIDs.Add((new Guid(datareader.ReadBytes(16)), "// Common editor/compiler hash shared by multiple different vcs files."));
+        }
 
-            if (VcsFileVersion >= 64)
+        public IEnumerable<VcsProgramType> ProgramTypeIterator()
+        {
+            var programTypeLast = (int)VcsProgramType.ComputeShader + (int)AdditionalFiles;
+
+            for (var i = 0; i <= programTypeLast; i++)
             {
-                EditorIDs.Add((new Guid(datareader.ReadBytes(16)), "// Common editor/compiler hash shared by multiple different vcs files."));
+                var programType = (VcsProgramType)i;
+
+                // Version 64 adds compute shaders
+                if (VcsFileVersion < 64 && programType is VcsProgramType.ComputeShader)
+                {
+                    continue;
+                }
+
+                // Version 68 removes hull and domain shaders
+                if (VcsFileVersion >= 68 && programType is VcsProgramType.HullShader or VcsProgramType.DomainShader)
+                {
+                    continue;
+                }
+
+                yield return programType;
             }
         }
 
@@ -136,23 +151,23 @@ namespace ValveResourceFormat.CompiledShader
             DataReader.ShowByteCount();
             DataReader.ShowBytes(4, $"DevShader bool");
             DataReader.ShowBytes(12, 4, breakLine: false);
-            DataReader.TabComment($"({nameof(Arg1)}={Arg1},{nameof(Arg2)}={Arg2},{nameof(Arg3)}={Arg3})");
+            DataReader.TabComment($"({nameof(FeaturesFileFlags)}={FeaturesFileFlags},{nameof(VertexFileFlags)}={VertexFileFlags},{nameof(PixelFileFlags)}={PixelFileFlags})");
 
             var numArgs = VcsFileVersion < 64
                 ? 3
                 : VcsFileVersion < 68 ? 4 : 2;
             var dismissString = VcsFileVersion < 64
-                ? nameof(Arg7)
-                : VcsFileVersion < 68 ? "none" : "two args (v68)";
+                ? nameof(ComputeFileFlags)
+                : VcsFileVersion < 68 ? "none" : "hull & domain (v68)";
             DataReader.ShowBytes(numArgs * 4, 4, breakLine: false);
-            DataReader.TabComment($"{nameof(Arg4)}={Arg4},{nameof(Arg5)}={Arg5},{nameof(Arg6)}={Arg6},{nameof(Arg7)}={Arg7}) dismissing: {dismissString}");
+            DataReader.TabComment($"{nameof(GeometryFileFlags)}={GeometryFileFlags},{nameof(ComputeFileFlags)}={ComputeFileFlags},{nameof(HullFileFlags)}={HullFileFlags},{nameof(DomainFileFlags)}={DomainFileFlags}) dismissing: {dismissString}");
 
             DataReader.BreakLine();
             DataReader.ShowByteCount();
 
             for (var i = 0; i < (int)AdditionalFiles; i++)
             {
-                DataReader.ShowBytes(4, $"arg8[{i}] = {Arg8[i]} (additional file {i})");
+                DataReader.ShowBytes(4, $"arg8[{i}] = {AdditionalFileFlags[i]} (additional file {i})");
             }
 
             DataReader.ShowBytes(4, $"mode count = {Modes.Count}");
