@@ -28,9 +28,12 @@ namespace ValveResourceFormat.CompiledShader
 
         public const int MaxChannels = 4;
         private readonly byte[] _channels = new byte[MaxChannels];
+        private readonly byte[] _indices = new byte[MaxChannels];
 
         public IReadOnlyList<byte> Channels => _channels;
         public IReadOnlyList<byte> ValidChannels => _channels[..Count];
+
+        public IReadOnlyList<byte> Indices => _indices[..Count];
 
         public uint PackedValue { get; private init; }
         public int Count { get; private init; }
@@ -49,18 +52,11 @@ namespace ValveResourceFormat.CompiledShader
 
                 // Vcs version 67 adds an index for unknown reasons
                 var componentWithoutIndex = (byte)((component & 0xF0) >> 4);
-                var index = component & 0x0F;
+                var index = (byte)(component & 0x0F);
                 if (componentWithoutIndex > 0)
                 {
-                    if (index != i)
-                    {
-                        throw new ArgumentOutOfRangeException(
-                            nameof(packedValue),
-                            $"Index value mismatch 0x{component:X2} at position {i} (0x{packedValue:X8})."
-                        );
-                    }
-
                     component = componentWithoutIndex;
+                    _indices[i] = index;
                 }
 
                 if (component >= Channel.R && component <= Channel.A)

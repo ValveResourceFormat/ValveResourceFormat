@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using static ValveResourceFormat.CompiledShader.ShaderDataReader;
 using static ValveResourceFormat.CompiledShader.ShaderUtilHelpers;
 
@@ -477,9 +478,12 @@ namespace ValveResourceFormat.CompiledShader
             }
             foreach (var channelBlock in shaderFile.ChannelBlocks)
             {
+                var channelRemap = channelBlock.Channel.Indices.Select((ind, i) => ind != 0 && ind != i).Any(b => b)
+                    ? $" [{string.Join(", ", channelBlock.Channel.Indices)}]"
+                    : string.Empty;
                 output.AddTabulatedRow([$"[{channelBlock.BlockIndex,2}]",
                     $"{channelBlock.TexProcessorName}",
-                    channelBlock.Channel.ToString(),
+                    channelBlock.Channel.ToString() + channelRemap,
                     string.Join(" ", channelBlock.InputTextureIndices),
                     $"{channelBlock.ColorMode,2}"]);
             }
