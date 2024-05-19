@@ -136,6 +136,7 @@ namespace GUI.Types.Renderer
                 AutoSize = true,
                 Dock = DockStyle.Fill
             };
+            saveButton.Click += OnSaveButtonClick;
             var copyLabel = new Label
             {
                 Text = "or Ctrl-C to copy",
