@@ -24,5 +24,7 @@ namespace ValveResourceFormat
         STAT,
         DXBC,
         SPRV,
+        FLCI,
+        DSTF,
     }
 }

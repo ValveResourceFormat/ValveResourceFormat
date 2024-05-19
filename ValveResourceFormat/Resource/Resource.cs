@@ -393,6 +393,8 @@ namespace ValveResourceFormat
                 nameof(BlockType.SrMa) => new BinaryKV3(BlockType.SrMa), // SourceMap
                 nameof(BlockType.LaCo) => new BinaryKV3(BlockType.LaCo), // vxml ast
                 nameof(BlockType.STAT) => new BinaryKV3(BlockType.STAT),
+                nameof(BlockType.FLCI) => new BinaryKV3(BlockType.FLCI),
+                nameof(BlockType.DSTF) => new BinaryKV3(BlockType.DSTF),
                 nameof(BlockType.MRPH) => new Morph(BlockType.MRPH),
                 nameof(BlockType.ANIM) => new KeyValuesOrNTRO(BlockType.ANIM, "AnimationResourceData_t"),
                 nameof(BlockType.ASEQ) => new KeyValuesOrNTRO(BlockType.ASEQ, "SequenceGroupResourceData_t"),
