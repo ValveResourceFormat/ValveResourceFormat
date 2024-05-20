@@ -20,6 +20,7 @@ namespace GUI.Controls
             public TreeNode ParentNode { get; init; }
             public int AppID { get; init; }
             public TreeNode[] Children { get; set; }
+            public bool ExpandOnFirstSearch { get; set; } = true;
         }
 
         private const int APPID_RECENT_FILES = -1000;
@@ -472,8 +473,8 @@ namespace GUI.Controls
             treeView.BeginUpdate();
             treeView.Nodes.Clear();
 
-            var showAll = filterTextBox.Text.Length == 0;
-            treeView.ShowPlusMinus = showAll;
+            var text = filterTextBox.Text.Replace(Path.DirectorySeparatorChar, '/');
+            var showAll = text.Length == 0;
 
             var foundNodes = new List<TreeNode>(TreeData.Count);
 
@@ -489,16 +490,28 @@ namespace GUI.Controls
                     continue;
                 }
 
-                var foundChildren = Array.FindAll(node.Children, (child) =>
-                {
-                    return child.Text.Contains(filterTextBox.Text, StringComparison.OrdinalIgnoreCase);
-                });
+                var first = true;
 
-                if (foundChildren.Length > 0)
+                foreach (var child in node.Children)
                 {
-                    node.ParentNode.Nodes.AddRange(foundChildren);
-                    node.ParentNode.Expand();
-                    foundNodes.Add(node.ParentNode);
+                    if (!child.Text.Contains(text, StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+
+                    node.ParentNode.Nodes.Add(child);
+
+                    if (first)
+                    {
+                        first = false;
+                        foundNodes.Add(node.ParentNode);
+
+                        if (node.ExpandOnFirstSearch)
+                        {
+                            node.ExpandOnFirstSearch = false;
+                            node.ParentNode.Expand();
+                        }
+                    }
                 }
             }
 
