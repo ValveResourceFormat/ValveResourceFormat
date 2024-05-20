@@ -1,5 +1,6 @@
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Windows.Forms;
 using GUI.Forms;
 using GUI.Utils;
@@ -109,7 +110,7 @@ namespace GUI.Types.PackageViewer
             }
         }
 
-        private void MainListView_DisplayNodes(VirtualPackageNode pkgNode)
+        private void MainListView_DisplayNodes(VirtualPackageNode pkgNode, bool updatePath = true)
         {
             mainListView.BeginUpdate();
             mainListView.Items.Clear();
@@ -126,6 +127,11 @@ namespace GUI.Types.PackageViewer
 
             mainListView.Sort();
             mainListView.EndUpdate();
+
+            if (updatePath)
+            {
+                UpdateSearchTextBoxToCurrentPath(pkgNode);
+            }
         }
 
         private void MainTreeView_NodeMouseClick(object sender, TreeNodeMouseClickEventArgs e)
@@ -796,6 +802,100 @@ namespace GUI.Types.PackageViewer
             }
 
             mainListView.Visible = true;
+        }
+
+        private void UpdateSearchTextBoxToCurrentPath(VirtualPackageNode node)
+        {
+            var stack = new Stack<string>();
+
+            do
+            {
+                if (node.Parent == null)
+                {
+                    break;
+                }
+
+                stack.Push(node.Name);
+
+                node = node.Parent;
+            }
+            while (node != null);
+
+            var sb = new StringBuilder();
+
+            while (stack.TryPop(out var name))
+            {
+                sb.Append(name);
+                sb.Append(Package.DirectorySeparatorChar);
+            }
+
+            searchTextBox.Text = sb.ToString();
+        }
+
+        private void OnSearchTextBoxKeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode != Keys.Enter)
+            {
+                return;
+            }
+
+            var node = mainTreeView.Root;
+            PackageEntry fileToSelect = null;
+
+            var inputPath = searchTextBox.Text
+                .Replace(Path.DirectorySeparatorChar, Package.DirectorySeparatorChar)
+                .AsSpan()
+                .Trim(Package.DirectorySeparatorChar)
+                .Split([Package.DirectorySeparatorChar]);
+
+            foreach (var segment in inputPath)
+            {
+                var name = segment.ToString();
+
+                if (node.Folders.TryGetValue(name, out var nextNode))
+                {
+                    node = nextNode;
+                    continue;
+                }
+
+                foreach (var file in node.Files)
+                {
+                    if (file.GetFileName() == name)
+                    {
+                        fileToSelect = file;
+                        break;
+                    }
+                }
+
+                break;
+            }
+
+            mainTreeView.BeginUpdate();
+            var treeNode = CreateTreeNodes(node);
+            treeNode.EnsureVisible();
+            treeNode.Expand();
+
+            // If the path ended in a file name, select this file after the nodes are created
+            if (fileToSelect != null)
+            {
+                foreach (BetterTreeNode childTreeNode in treeNode.Nodes)
+                {
+                    if (!childTreeNode.IsFolder && childTreeNode.PackageEntry == fileToSelect)
+                    {
+                        mainTreeView.SelectedNode = childTreeNode;
+                        break;
+                    }
+                }
+            }
+            else
+            {
+                mainTreeView.SelectedNode = treeNode;
+            }
+
+            DisplayMainListView();
+            MainListView_DisplayNodes(node, updatePath: false);
+
+            mainTreeView.EndUpdate();
         }
     }
 }
