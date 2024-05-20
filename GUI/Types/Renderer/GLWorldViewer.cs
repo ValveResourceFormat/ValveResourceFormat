@@ -27,6 +27,7 @@ namespace GUI.Types.Renderer
         private SavedCameraPositionsControl savedCameraPositionsControl;
         private EntityInfoForm entityInfoForm;
         private bool ignoreLayersChangeEvents = true;
+        private List<Matrix4x4> CameraMatrices;
 
         public GLWorldViewer(VrfGuiContext guiContext, World world)
             : base(guiContext)
@@ -82,6 +83,16 @@ namespace GUI.Types.Renderer
             savedCameraPositionsControl.RestoreCameraRequest += OnRestoreCameraRequest;
             savedCameraPositionsControl.GetOrSetPositionFromClipboardRequest += OnGetOrSetPositionFromClipboardRequest;
             AddControl(savedCameraPositionsControl);
+
+            cameraComboBox = AddSelection("Map Camera", (cameraName, index) =>
+            {
+                if (index > 0)
+                {
+                    Camera.SetFromTransformMatrix(CameraMatrices[index - 1]);
+                }
+            });
+
+            AddDivider();
         }
 
         private void OnGetOrSetPositionFromClipboardRequest(object sender, bool isSetRequest)
@@ -214,23 +225,15 @@ namespace GUI.Types.Renderer
 
                 if (result.CameraMatrices.Count > 0)
                 {
-                    if (cameraComboBox == default)
-                    {
-                        cameraComboBox = AddSelection("Camera", (cameraName, index) =>
-                        {
-                            if (index > 0)
-                            {
-                                Camera.SetFromTransformMatrix(result.CameraMatrices[index - 1].Transform);
-                            }
-                        });
+                    CameraMatrices = result.CameraMatrices;
 
-                        cameraComboBox.Items.Add("Set view to camera…");
-                        cameraComboBox.SelectedIndex = 0;
-                    }
+                    cameraComboBox.BeginUpdate();
+                    cameraComboBox.Items.Add("Set view to camera…");
+                    cameraComboBox.Items.AddRange(result.CameraNames.ToArray());
+                    cameraComboBox.SelectedIndex = 0;
+                    cameraComboBox.EndUpdate();
 
-                    cameraComboBox.Items.AddRange([.. result.CameraMatrices.Select(static c => c.Name)]);
-
-                    Camera.SetFromTransformMatrix(result.CameraMatrices[0].Transform);
+                    Camera.SetFromTransformMatrix(result.CameraMatrices[0]);
                     Camera.SetLocation(Camera.Location + Camera.GetForwardVector() * 10f); // Escape the camera model
                     cameraSet = true;
                 }
@@ -238,6 +241,8 @@ namespace GUI.Types.Renderer
 
             if (!cameraSet)
             {
+                cameraComboBox.Parent.Dispose();
+
                 Camera.SetLocation(new Vector3(256));
                 Camera.LookAt(Vector3.Zero);
             }

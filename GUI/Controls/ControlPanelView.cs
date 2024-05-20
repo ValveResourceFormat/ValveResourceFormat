@@ -1,3 +1,4 @@
+using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
 
@@ -86,6 +87,27 @@ namespace GUI.Controls
             SetControlLocation(trackBar);
 
             return trackBar;
+        }
+
+        public void AddDivider()
+        {
+            var panel = new Panel
+            {
+                AutoSize = true,
+                Padding = new Padding(0, 10, 0, 10),
+            };
+
+            var label = new Label
+            {
+                AutoSize = false,
+                Dock = DockStyle.Top,
+                Height = 1,
+                BackColor = SystemColors.ActiveBorder,
+            };
+
+            panel.Controls.Add(label);
+            ControlsPanel.Controls.Add(panel);
+            SetControlLocation(panel);
         }
 
         private static void SetControlLocation(Control control)

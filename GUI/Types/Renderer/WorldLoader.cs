@@ -21,7 +21,8 @@ namespace GUI.Types.Renderer
 
         public HashSet<string> DefaultEnabledLayers { get; } = ["Entities", "Particles"];
 
-        public List<(string Name, Matrix4x4 Transform)> CameraMatrices { get; } = [];
+        public List<string> CameraNames { get; } = [];
+        public List<Matrix4x4> CameraMatrices { get; } = [];
 
         public Scene SkyboxScene { get; set; }
         public SceneSkybox2D Skybox2D { get; set; }
@@ -714,7 +715,8 @@ namespace GUI.Types.Renderer
                 if (IsCamera(classname))
                 {
                     var cameraName = entity.GetProperty<string>("cameraname") ?? entity.GetProperty<string>("targetname") ?? classname;
-                    CameraMatrices.Add((cameraName, transformationMatrix));
+                    CameraNames.Add(cameraName);
+                    CameraMatrices.Add(transformationMatrix);
                 }
                 else if (classname == "env_global_light")
                 {
