@@ -73,8 +73,8 @@ namespace ValveResourceFormat.CompiledShader
             }
             output.WriteLine($"{nameof(shaderFile.FeaturesHeader.Version)} = {shaderFile.FeaturesHeader.Version}");
             output.WriteLine($"{nameof(ftHeader.DevShader)} = {ftHeader.DevShader}");
-            output.WriteLine($"bool flags = ({ftHeader.FeaturesFileFlags},{ftHeader.VertexFileFlags},{ftHeader.PixelFileFlags}," +
-                $"{ftHeader.GeometryFileFlags},{ftHeader.ComputeFileFlags},{ftHeader.HullFileFlags},{ftHeader.HullFileFlags}) (related to editor dependencies)");
+            output.WriteLine($"present files features={ftHeader.FeaturesFileFlags}, vs={ftHeader.VertexFileFlags}, ps={ftHeader.PixelFileFlags}, " +
+                $"gs={ftHeader.GeometryFileFlags}, cs={ftHeader.ComputeFileFlags}, hs={ftHeader.HullFileFlags}, ds={ftHeader.DomainFileFlags}");
             output.WriteLine($"possible editor description = {shaderFile.PossibleEditorDescription}");
             output.BreakLine();
             output.WriteLine("Editor/Shader compiler stack");

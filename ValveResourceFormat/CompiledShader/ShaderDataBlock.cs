@@ -15,9 +15,12 @@ namespace ValveResourceFormat.CompiledShader
 
         protected static void ThrowIfNotSupported(int vcsFileVersion)
         {
-            if (vcsFileVersion != 62 && (vcsFileVersion < 64 || vcsFileVersion > 68))
+            const int earliest = 62;
+            const int latest = 68;
+
+            if (vcsFileVersion < earliest || vcsFileVersion > latest)
             {
-                throw new UnexpectedMagicException($"Unsupported shader version, versions 67, 66, 65, 64 and 62 are supported",
+                throw new UnexpectedMagicException($"Only VCS file versions {earliest} through {latest} are supported",
                     vcsFileVersion, nameof(vcsFileVersion));
             }
         }

@@ -65,7 +65,7 @@ namespace ValveResourceFormat.CompiledShader
                 DomainFileFlags = datareader.ReadInt32();
             }
 
-            if (VcsFileVersion >= 64)
+            if (VcsFileVersion >= 63)
             {
                 ComputeFileFlags = datareader.ReadInt32();
             }
@@ -112,8 +112,8 @@ namespace ValveResourceFormat.CompiledShader
             {
                 var programType = (VcsProgramType)i;
 
-                // Version 64 adds compute shaders
-                if (VcsFileVersion < 64 && programType is VcsProgramType.ComputeShader)
+                // Version 63 adds compute shaders
+                if (VcsFileVersion < 63 && programType is VcsProgramType.ComputeShader)
                 {
                     continue;
                 }
@@ -571,7 +571,7 @@ namespace ValveResourceFormat.CompiledShader
             VfxType = (Vfx.Type)datareader.ReadInt32();
             ParamType = (ParameterType)datareader.ReadInt32();
 
-            if (vcsVersion > 62)
+            if (vcsVersion > 63)
             {
                 Arg3 = datareader.ReadByte();
                 Arg4 = datareader.ReadByte();
