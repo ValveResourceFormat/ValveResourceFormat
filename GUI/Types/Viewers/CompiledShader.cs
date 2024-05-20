@@ -241,7 +241,11 @@ namespace GUI.Types.Viewers
                     tabControl = null;
                 }
 
-                shaderCollection.Dispose();
+                if (shaderCollection != null)
+                {
+                    shaderCollection.Dispose();
+                    shaderCollection = null;
+                }
             }
         }
         public class ShaderRichTextBox : RichTextBox
