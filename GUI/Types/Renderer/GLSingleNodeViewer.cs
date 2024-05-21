@@ -71,8 +71,8 @@ namespace GUI.Types.Renderer
             Scene.LightingInfo.UseSceneBoundsForSunLightFrustum = true;
 
             sunAngles = defaultSunAngles;
-            UpdateGpuSunAngles();
             Scene.LightingInfo.LightingData.LightColor_Brightness[0] = defaultSunColor;
+            UpdateSunAngles();
         }
 
         Vector2 defaultSunAngles = new(80f, 170f);
@@ -91,15 +91,16 @@ namespace GUI.Types.Renderer
 
                 Camera.CopyFrom(previousCamera);
                 sunAngles += delta;
-                UpdateGpuSunAngles();
                 Scene.LightingInfo.LightingData.EnvMapWorldToLocal[0] *= Matrix4x4.CreateRotationZ(-delta.Y / 80f);
+                UpdateSunAngles();
+                Scene.UpdateBuffers();
             }
 
             base.OnPaint(sender, e);
             previousCamera.CopyFrom(Camera);
         }
 
-        private void UpdateGpuSunAngles()
+        private void UpdateSunAngles()
         {
             Scene.LightingInfo.LightingData.LightToWorld[0] = Matrix4x4.CreateRotationY(sunAngles.X * MathF.PI / 180f)
                                                              * Matrix4x4.CreateRotationZ(sunAngles.Y * MathF.PI / 180f);

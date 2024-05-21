@@ -126,6 +126,7 @@ partial class Scene
             }
         }
 
+        private bool firstUpdate = true;
         public void UpdateSunLightFrustum(Camera camera, float orthoSize = 512f)
         {
             var sunMatrix = LightingData.LightToWorld[0];
@@ -163,6 +164,12 @@ partial class Scene
             SunViewProjection = sunCameraView * sunCameraProjection;
             LightingData.SunLightShadowBias = bias;
             SunLightFrustum.Update(SunViewProjection);
+
+            if (firstUpdate)
+            {
+                firstUpdate = false;
+                scene.UpdateBuffers();
+            }
         }
 
         public void StoreLightMappedLights_V1(List<SceneLight> lights)

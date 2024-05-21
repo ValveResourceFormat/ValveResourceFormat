@@ -134,6 +134,11 @@ namespace GUI.Types.Renderer
             };
         }
 
+        public void UpdateBuffers()
+        {
+            lightingBuffer.Update();
+        }
+
         public void SetSceneBuffers()
         {
             lightingBuffer.BindBufferBase();
