@@ -141,6 +141,8 @@ namespace ValveResourceFormat.IO
                 ExportedTextures.Clear();
                 TexturesExportedSoFar = 0;
                 IsExporting = false;
+
+                ProgressReporter.Report("Done.");
             }
         }
 
@@ -169,12 +171,7 @@ namespace ValveResourceFormat.IO
                 }
 
                 var worldNode = (VWorldNode)worldResource.DataBlock;
-                var worldNodeModels = LoadWorldNodeModels(worldNode);
-
-                foreach (var (model, name, transform) in worldNodeModels)
-                {
-                    LoadModel(exportedModel, scene, model, name, transform);
-                }
+                LoadWorldNodeModels(exportedModel, scene, worldNode);
             }
 
             // Then the Entities
@@ -283,19 +280,13 @@ namespace ValveResourceFormat.IO
         private void ExportToFile(string resourceName, string fileName, VWorldNode worldNode)
         {
             var exportedModel = CreateModelRoot(resourceName, out var scene);
-            var worldNodeModels = LoadWorldNodeModels(worldNode);
-
-            foreach (var (Model, Name, Transform) in worldNodeModels)
-            {
-                LoadModel(exportedModel, scene, Model, Name, Transform);
-            }
+            LoadWorldNodeModels(exportedModel, scene, worldNode);
 
             WriteModelFile(exportedModel, fileName);
         }
 
-        private List<(VModel Model, string ModelName, Matrix4x4 Transform)> LoadWorldNodeModels(VWorldNode worldNode)
+        private void LoadWorldNodeModels(ModelRoot exportedModel, Scene scene, VWorldNode worldNode)
         {
-            var models = new List<(VModel, string, Matrix4x4)>();
             foreach (var sceneObject in worldNode.SceneObjects)
             {
                 var renderableModel = sceneObject.GetProperty<string>("m_renderableModel");
@@ -310,10 +301,11 @@ namespace ValveResourceFormat.IO
                     continue;
                 }
 
+                var name = Path.GetFileNameWithoutExtension(renderableModel);
                 var model = (VModel)modelResource.DataBlock;
                 var matrix = sceneObject.GetArray("m_vTransform").ToMatrix4x4();
 
-                models.Add((model, Path.GetFileNameWithoutExtension(renderableModel), matrix));
+                LoadModel(exportedModel, scene, model, name, matrix);
             }
 
             foreach (var sceneObject in worldNode.AggregateSceneObjects)
@@ -329,12 +321,15 @@ namespace ValveResourceFormat.IO
                         continue;
                     }
 
+                    var name = Path.GetFileNameWithoutExtension(renderableModel);
                     var model = (VModel)modelResource.DataBlock;
-                    models.Add((model, Path.GetFileNameWithoutExtension(renderableModel), Matrix4x4.Identity));
+
+                    if (!AggregateCreateFragments(exportedModel, scene, model, sceneObject, name))
+                    {
+                        LoadModel(exportedModel, scene, model, name, Matrix4x4.Identity);
+                    }
                 }
             }
-
-            return models;
         }
 
         /// <summary>

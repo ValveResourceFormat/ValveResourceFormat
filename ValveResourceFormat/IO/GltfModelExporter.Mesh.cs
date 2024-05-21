@@ -2,6 +2,7 @@ using System.IO;
 using System.Linq;
 using SharpGLTF.Schema2;
 using ValveResourceFormat.Serialization;
+using VModel = ValveResourceFormat.ResourceTypes.Model;
 using VMesh = ValveResourceFormat.ResourceTypes.Mesh;
 using VMaterial = ValveResourceFormat.ResourceTypes.Material;
 using VMorph = ValveResourceFormat.ResourceTypes.Morph;
@@ -9,6 +10,7 @@ using ValveResourceFormat.Blocks;
 using System.Runtime.InteropServices;
 using System.Text.Json.Nodes;
 using SharpGLTF.Memory;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.IO;
 
@@ -22,13 +24,38 @@ public partial class GltfModelExporter
         ProgressReporter?.Report($"Creating mesh: {meshName}");
 
         var mesh = exportedModel.CreateMesh(meshName);
-        mesh.Name = meshName;
-
         mesh.Extras = new JsonObject();
 
         vmesh.LoadExternalMorphData(FileLoader);
 
-        var vertexBufferAccessors = vbib.VertexBuffers.Select((vertexBuffer, vertexBufferIndex) =>
+        var vertexBufferAccessors = CreateVertexBufferAccessors(exportedModel, vbib, includeJoints);
+        var vertexOffset = 0;
+
+        foreach (var sceneObject in vmesh.Data.GetArray("m_sceneObjects"))
+        {
+            foreach (var drawCall in sceneObject.GetArray("m_drawCalls"))
+            {
+                var primitive = CreateMeshFromDrawCall(drawCall, mesh, vbib, vertexBufferAccessors, exportedModel, skinMaterialPath);
+
+                if (vmesh.MorphData != null)
+                {
+                    var flexData = vmesh.MorphData.GetFlexVertexData();
+                    if (flexData != null)
+                    {
+                        var vertexCount = drawCall.GetInt32Property("m_nVertexCount");
+                        AddMorphTargetsToPrimitive(vmesh.MorphData, flexData, primitive, exportedModel, vertexOffset, vertexCount);
+                        vertexOffset += vertexCount;
+                    }
+                }
+            }
+        }
+
+        return mesh;
+    }
+
+    private static Dictionary<string, Accessor>[] CreateVertexBufferAccessors(ModelRoot exportedModel, VBIB vbib, bool includeJoints)
+    {
+        return vbib.VertexBuffers.Select((vertexBuffer, vertexBufferIndex) =>
         {
             var accessors = new Dictionary<string, Accessor>();
 
@@ -112,7 +139,7 @@ public partial class GltfModelExporter
 
                     var bufferView = exportedModel.CreateBufferView(2 * indices.Length, 0, BufferMode.ARRAY_BUFFER);
                     indices.CopyTo(MemoryMarshal.Cast<byte, ushort>(((Memory<byte>)bufferView.Content).Span));
-                    var accessor = mesh.LogicalParent.CreateAccessor();
+                    var accessor = exportedModel.CreateAccessor();
                     accessor.SetVertexData(bufferView, 0, indices.Length / 4, DimensionType.VEC4, EncodingType.UNSIGNED_SHORT);
                     accessors[accessorName] = accessor;
                 }
@@ -233,102 +260,175 @@ public partial class GltfModelExporter
 
             return accessors;
         }).ToArray();
+    }
 
-        var vertexOffset = 0;
+    private MeshPrimitive CreateMeshFromDrawCall(KVObject drawCall, Mesh mesh, VBIB vbib, Dictionary<string, Accessor>[] vertexBufferAccessors, ModelRoot exportedModel, string skinMaterialPath)
+    {
+        CancellationToken.ThrowIfCancellationRequested();
 
-        foreach (var sceneObject in vmesh.Data.GetArray("m_sceneObjects"))
+        var vertexBufferInfo = drawCall.GetArray("m_vertexBuffers")[0]; // In what situation can we have more than 1 vertex buffer per draw call?
+        var vertexBufferIndex = vertexBufferInfo.GetInt32Property("m_hBuffer");
+
+        var indexBufferInfo = drawCall.GetSubCollection("m_indexBuffer");
+        var indexBufferIndex = indexBufferInfo.GetInt32Property("m_hBuffer");
+        var indexBuffer = vbib.IndexBuffers[indexBufferIndex];
+
+        // Create one primitive per draw call
+        var primitive = mesh.CreatePrimitive();
+
+        foreach (var (attributeKey, accessor) in vertexBufferAccessors[vertexBufferIndex])
         {
-            foreach (var drawCall in sceneObject.GetArray("m_drawCalls"))
-            {
-                CancellationToken.ThrowIfCancellationRequested();
-                var vertexBufferInfo = drawCall.GetArray("m_vertexBuffers")[0]; // In what situation can we have more than 1 vertex buffer per draw call?
-                var vertexBufferIndex = vertexBufferInfo.GetInt32Property("m_hBuffer");
+            primitive.SetVertexAccessor(attributeKey, accessor);
 
-                var indexBufferInfo = drawCall.GetSubCollection("m_indexBuffer");
-                var indexBufferIndex = indexBufferInfo.GetInt32Property("m_hBuffer");
-                var indexBuffer = vbib.IndexBuffers[indexBufferIndex];
-
-                // Create one primitive per draw call
-                var primitive = mesh.CreatePrimitive();
-
-                foreach (var (attributeKey, accessor) in vertexBufferAccessors[vertexBufferIndex])
-                {
-                    primitive.SetVertexAccessor(attributeKey, accessor);
-
-                    DebugValidateGLTF();
-                }
-
-                // Set index buffer
-                var baseVertex = drawCall.GetInt32Property("m_nBaseVertex");
-                var startIndex = drawCall.GetInt32Property("m_nStartIndex");
-                var indexCount = drawCall.GetInt32Property("m_nIndexCount");
-                var indices = ReadIndices(indexBuffer, startIndex, indexCount, baseVertex);
-
-                var primitiveType = drawCall.GetEnumValue<RenderPrimitiveType>("m_nPrimitiveType");
-
-                switch (primitiveType)
-                {
-                    case RenderPrimitiveType.RENDER_PRIM_TRIANGLES:
-                        primitive.WithIndicesAccessor(PrimitiveType.TRIANGLES, indices);
-                        break;
-                    default:
-                        throw new NotImplementedException($"Unknown PrimitiveType in drawCall! {primitiveType}");
-                }
-
-                if (vmesh.MorphData != null)
-                {
-                    var flexData = vmesh.MorphData.GetFlexVertexData();
-                    if (flexData != null)
-                    {
-                        var vertexCount = drawCall.GetInt32Property("m_nVertexCount");
-                        AddMorphTargetsToPrimitive(vmesh.MorphData, flexData, primitive, exportedModel, vertexOffset, vertexCount);
-                        vertexOffset += vertexCount;
-                    }
-                }
-
-                DebugValidateGLTF();
-
-                // Add material
-                if (!ExportMaterials)
-                {
-                    continue;
-                }
-
-                var materialPath = skinMaterialPath ?? drawCall.GetProperty<string>("m_material") ?? drawCall.GetProperty<string>("m_pMaterial");
-
-                var materialNameTrimmed = Path.GetFileNameWithoutExtension(materialPath);
-
-                // Check if material already exists - makes an assumption that if material has the same name it is a duplicate
-                var existingMaterial = exportedModel.LogicalMaterials.SingleOrDefault(m => m.Name == materialNameTrimmed);
-                if (existingMaterial != null)
-                {
-                    ProgressReporter?.Report($"Found existing material: {materialNameTrimmed}");
-                    primitive.Material = existingMaterial;
-                    continue;
-                }
-
-                ProgressReporter?.Report($"Loading material: {materialPath}");
-
-                var materialResource = FileLoader.LoadFileCompiled(materialPath);
-
-                if (materialResource == null)
-                {
-                    continue;
-                }
-
-                var material = exportedModel
-                    .CreateMaterial(materialNameTrimmed)
-                    .WithDefault();
-                primitive.WithMaterial(material);
-
-                var renderMaterial = (VMaterial)materialResource.DataBlock;
-
-                var task = GenerateGLTFMaterialFromRenderMaterial(material, renderMaterial, exportedModel);
-                MaterialGenerationTasks.Add(task);
-            }
+            DebugValidateGLTF();
         }
 
-        return mesh;
+        // Set index buffer
+        var baseVertex = drawCall.GetInt32Property("m_nBaseVertex");
+        var startIndex = drawCall.GetInt32Property("m_nStartIndex");
+        var indexCount = drawCall.GetInt32Property("m_nIndexCount");
+        var indices = ReadIndices(indexBuffer, startIndex, indexCount, baseVertex);
+
+        var primitiveType = drawCall.GetEnumValue<RenderPrimitiveType>("m_nPrimitiveType");
+
+        switch (primitiveType)
+        {
+            case RenderPrimitiveType.RENDER_PRIM_TRIANGLES:
+                primitive.WithIndicesAccessor(PrimitiveType.TRIANGLES, indices);
+                break;
+            default:
+                throw new NotImplementedException($"Unknown PrimitiveType in drawCall! {primitiveType}");
+        }
+
+        DebugValidateGLTF();
+
+        // Add material
+        if (!ExportMaterials)
+        {
+            return primitive;
+        }
+
+        var materialPath = skinMaterialPath ?? drawCall.GetProperty<string>("m_material") ?? drawCall.GetProperty<string>("m_pMaterial");
+
+        var materialNameTrimmed = Path.GetFileNameWithoutExtension(materialPath);
+
+        // Check if material already exists - makes an assumption that if material has the same name it is a duplicate
+        var existingMaterial = exportedModel.LogicalMaterials.SingleOrDefault(m => m.Name == materialNameTrimmed);
+        if (existingMaterial != null)
+        {
+            ProgressReporter?.Report($"Found existing material: {materialNameTrimmed}");
+            primitive.Material = existingMaterial;
+            return primitive;
+        }
+
+        ProgressReporter?.Report($"Loading material: {materialPath}");
+
+        var materialResource = FileLoader.LoadFileCompiled(materialPath);
+
+        if (materialResource == null)
+        {
+            return primitive;
+        }
+
+        var material = exportedModel
+            .CreateMaterial(materialNameTrimmed)
+            .WithDefault();
+        primitive.WithMaterial(material);
+
+        var renderMaterial = (VMaterial)materialResource.DataBlock;
+
+        var task = GenerateGLTFMaterialFromRenderMaterial(material, renderMaterial, exportedModel);
+        MaterialGenerationTasks.Add(task);
+
+        return primitive;
+    }
+
+    // Copied from GUI.Types.Renderer.SceneAggregate.CreateFragments
+    private bool AggregateCreateFragments(ModelRoot exportedModel, Scene scene, VModel model, KVObject aggregateSceneObject, string name)
+    {
+        var embeddedMeshes = model.GetEmbeddedMeshesAndLoD().ToList();
+        VMesh vmesh;
+
+        /// TODO: Perhaps use <see cref="ModelSceneNode.LoadMeshes">
+        if (embeddedMeshes.Count > 0)
+        {
+            if (embeddedMeshes.Count > 1)
+            {
+                throw new NotImplementedException("More than one embedded mesh");
+            }
+
+            vmesh = embeddedMeshes.First().Mesh;
+        }
+        else
+        {
+            var refMeshes = model.GetReferenceMeshNamesAndLoD().Where(m => (m.LoDMask & 1) != 0).ToList();
+            var refMesh = refMeshes.First();
+
+            if (refMeshes.Count > 1)
+            {
+                throw new NotImplementedException("More than one referenced mesh");
+            }
+
+            var newResource = FileLoader.LoadFileCompiled(refMesh.MeshName);
+            if (newResource == null)
+            {
+                return false;
+            }
+
+            vmesh = (VMesh)newResource.DataBlock;
+        }
+
+        var aggregateMeshes = aggregateSceneObject.GetArray("m_aggregateMeshes");
+
+        // Aperture Desk Job goes from draw call -> aggregate mesh
+        if (aggregateMeshes.Length > 0 && !aggregateMeshes[0].ContainsKey("m_nDrawCallIndex"))
+        {
+            return false;
+        }
+
+        var vbib = vmesh.VBIB;
+        var vertexBufferAccessors = CreateVertexBufferAccessors(exportedModel, vbib, includeJoints: false);
+
+        var transformIndex = 0;
+        var fragmentTransforms = aggregateSceneObject.GetArray("m_fragmentTransforms");
+
+        var meshSceneObjects = vmesh.Data.GetArray("m_sceneObjects");
+        List<KVObject> drawCalls = [];
+
+        foreach (var meshSceneObject in meshSceneObjects)
+        {
+            var objectDrawCalls = meshSceneObject.GetArray("m_drawCalls");
+            drawCalls.AddRange(objectDrawCalls);
+        }
+
+        var id = 0;
+
+        foreach (var fragmentData in aggregateMeshes)
+        {
+            var drawCallIndex = fragmentData.GetInt32Property("m_nDrawCallIndex");
+            var drawCall = drawCalls[drawCallIndex];
+            var tintColor = fragmentData.GetSubCollection("m_vTintColor").ToVector3();
+            var transform = Matrix4x4.Identity;
+
+            if (fragmentData.GetProperty<bool>("m_bHasTransform") == true)
+            {
+                transform *= fragmentTransforms[transformIndex++].ToMatrix4x4();
+            }
+
+            var meshName = $"{name}_fragment{++id}";
+
+            ProgressReporter?.Report($"Creating mesh: {meshName}");
+
+            var mesh = exportedModel.CreateMesh(meshName);
+            mesh.Extras = new JsonObject();
+
+            CreateMeshFromDrawCall(drawCall, mesh, vbib, vertexBufferAccessors, exportedModel, skinMaterialPath: null);
+
+            var newNode = scene.CreateNode(name).WithMesh(mesh);
+            newNode.WorldMatrix = transform * TRANSFORMSOURCETOGLTF;
+        }
+
+        return true;
     }
 
     private static void AddMorphTargetsToPrimitive(VMorph morph, Dictionary<string, Vector3[]> flexData, MeshPrimitive primitive, ModelRoot model, int vertexOffset, int vertexCount)
