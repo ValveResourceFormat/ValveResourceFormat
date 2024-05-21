@@ -164,7 +164,7 @@ vec3 GetEnvironment(MaterialProperties_t mat)
     const float lod = GetEnvMapLOD(roughness, R, 0.0);
 
     #if (SCENE_CUBEMAP_TYPE == 0)
-        envMap = max(g_vClearColor.rgb, vec3(0.3, 0.1, 0.1));
+        envMap = vec3(0.3, 0.1, 0.1);
     #elif (SCENE_CUBEMAP_TYPE == 1)
         int envMapArrayIndex = g_iEnvMapArrayIndices;
         vec4 proxySphere = g_vEnvMapProxySphere[envMapArrayIndex];

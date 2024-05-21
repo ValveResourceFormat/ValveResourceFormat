@@ -376,6 +376,7 @@ namespace GUI.Types.Renderer
             viewBuffer.Data.ViewToProjection = Scene.LightingInfo.SunViewProjection;
             var worldToShadow = Scene.LightingInfo.SunViewProjection;
             viewBuffer.Data.WorldToShadow = worldToShadow;
+            viewBuffer.Data.SunLightShadowBias = Scene.LightingInfo.SunLightShadowBias;
             viewBuffer.Update();
 
             Scene.RenderOpaqueShadows(renderContext, depthOnlyShaders);

@@ -9,8 +9,7 @@ namespace GUI.Types.Renderer.UniformBuffers
         public const int MAX_ENVMAPS = 144;
 
         public Vector2 LightmapUvScale;
-        public float SunLightShadowBias = 0.001f;
-        public float _LightingPadding1;
+        public Vector2 _LightingPadding1;
 
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)] public uint[] NumLights;
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)] public uint[] NumLightsBakedShadowIndex;

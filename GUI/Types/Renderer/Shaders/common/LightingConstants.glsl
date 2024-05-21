@@ -5,8 +5,7 @@
 
 layout(std140, binding = 1) uniform LightingConstants {
     vec2 g_vLightmapUvScale;
-    float g_flSunShadowBias;
-    float _LightingPadding1;
+    vec2 _LightingPadding1;
 
     uvec4 g_nNumLights;
     uvec4 g_nNumLightsPerShadow;

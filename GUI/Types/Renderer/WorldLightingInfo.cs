@@ -52,6 +52,7 @@ partial class Scene
 
         public Matrix4x4 SunViewProjection { get; internal set; }
         public Frustum SunLightFrustum = new();
+        public float SunLightShadowBias { get; set; } = 0.001f;
         public bool UseSceneBoundsForSunLightFrustum { get; set; }
 
         public void SetLightmapTextures(Shader shader)
@@ -162,14 +163,8 @@ partial class Scene
             var sunCameraProjection = Matrix4x4.CreateOrthographicOffCenter(-bbox, bbox, -bbox, bbox, farPlane, -nearPlaneExtend);
 
             SunViewProjection = sunCameraView * sunCameraProjection;
-            LightingData.SunLightShadowBias = bias;
+            SunLightShadowBias = bias;
             SunLightFrustum.Update(SunViewProjection);
-
-            if (firstUpdate)
-            {
-                firstUpdate = false;
-                scene.UpdateBuffers();
-            }
         }
 
         public void StoreLightMappedLights_V1(List<SceneLight> lights)
