@@ -487,7 +487,7 @@ namespace GUI.Types.PackageViewer
 
         private void VPK_PreviewFile(object sender, PackageEntry entry)
         {
-            if (Settings.Config.QuickFilePreview <= 0)
+            if (((Settings.QuickPreviewFlags)Settings.Config.QuickFilePreview & Settings.QuickPreviewFlags.Enabled) == 0)
             {
                 return;
             }
