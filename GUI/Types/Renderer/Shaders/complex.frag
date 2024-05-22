@@ -521,11 +521,14 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 
     mat.DiffuseColor = mat.Albedo - mat.Albedo * mat.Metalness;
 
-#if (F_CLOTH_SHADING == 1) && defined(csgo_character_vfx)
-    vec3 F0 = ApplySheen(0.04, mat.Albedo, mat.ClothMask);
-#else
-    const vec3 F0 = vec3(0.04);
-#endif
+    vec3 F0 = vec3(0.04);
+
+    #if (F_CLOTH_SHADING == 1) && defined(csgo_character_vfx)
+        F0 = ApplySheen(0.04, mat.Albedo, mat.ClothMask);
+    #elif defined(csgo_weapon_vfx)
+        F0 = vec3(0.02);
+    #endif
+
     mat.SpecularColor = mix(F0, mat.Albedo, mat.Metalness);
 
     #if (selfillum)
