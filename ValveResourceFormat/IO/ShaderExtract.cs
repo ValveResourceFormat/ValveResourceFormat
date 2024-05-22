@@ -218,6 +218,7 @@ public sealed class ShaderExtract
         writer.WriteLine($"Description = \"{Features.FeaturesHeader.FileDescription}\";");
         writer.WriteLine($"DevShader = {(Features.FeaturesHeader.DevShader == 0 ? "false" : "true")};");
         writer.WriteLine($"Version = {Features.FeaturesHeader.Version};");
+        writer.WriteLine($"// VcsFileVersion = {Features.FeaturesHeader.VcsFileVersion};");
 
         writer.Indent--;
         writer.WriteLine("}");
