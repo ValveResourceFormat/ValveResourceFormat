@@ -189,7 +189,7 @@ namespace GUI.Types.Renderer
                     GL.TextureSubImage2D(animationTexture.Handle, 0, 0, 0, animationTexture.Width, animationTexture.Height, PixelFormat.Rgba, PixelType.Float, floatBuffer);
 
                     var first = true;
-                    foreach (var matrix in matrices)
+                    foreach (var matrix in matrices[..bonesCount])
                     {
                         var bbox = LocalBoundingBox.Transform(matrix);
                         newBoundingBox = first ? bbox : newBoundingBox.Union(bbox);

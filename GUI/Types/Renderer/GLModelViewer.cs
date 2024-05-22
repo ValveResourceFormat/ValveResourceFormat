@@ -305,6 +305,7 @@ namespace GUI.Types.Renderer
             if (pickingResponse.PixelInfo.ObjectId == 0)
             {
                 selectedNodeRenderer.SelectNode(null);
+                selectedNodeRenderer.UpdateEveryFrame = false;
                 return;
             }
 
@@ -312,6 +313,7 @@ namespace GUI.Types.Renderer
             {
                 var sceneNode = Scene.Find(pickingResponse.PixelInfo.ObjectId);
                 selectedNodeRenderer.SelectNode(sceneNode);
+                selectedNodeRenderer.UpdateEveryFrame = true;
 
                 return;
             }
