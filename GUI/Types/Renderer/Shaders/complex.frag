@@ -50,8 +50,8 @@
 #define F_METALNESS_TEXTURE 0
 #define F_AMBIENT_OCCLUSION_TEXTURE 0
 #define F_SELF_ILLUM 0
-#define F_ENABLE_AMBIENT_OCCLUSION 0 // simple_2way_blend
-#define F_ENABLE_TINT_MASKS 0 // simple_2way_blend
+#define F_ENABLE_AMBIENT_OCCLUSION 0
+#define F_ENABLE_TINT_MASKS 0
 #define F_DECAL_TEXTURE 0
 uniform int F_DECAL_BLEND_MODE;
 // SHADING
@@ -145,7 +145,7 @@ uniform sampler2D g_tTintMask;
 
 #define _uniformMetalness (defined(simple_vfx_common) || defined(complex_vfx_common)) && (F_METALNESS_TEXTURE == 0)
 #define _colorAlphaMetalness (defined(simple_vfx_common) || defined(complex_vfx_common)) && (F_METALNESS_TEXTURE == 1)
-#define _colorAlphaAO (defined(vr_simple_vfx) && (F_AMBIENT_OCCLUSION_TEXTURE == 1) && (F_METALNESS_TEXTURE == 0)) || (F_ENABLE_AMBIENT_OCCLUSION == 1) // only vr_simple_vfx
+#define _colorAlphaAO (defined(vr_simple_vfx) && (F_AMBIENT_OCCLUSION_TEXTURE == 1) && (F_METALNESS_TEXTURE == 0)) || (defined(simple_blend_common) && (F_ENABLE_AMBIENT_OCCLUSION == 1))
 #define _metalnessTexture (defined(complex_vfx_common) && (F_METALNESS_TEXTURE == 1) && ((F_RETRO_REFLECTIVE == 1) || (F_ALPHA_TEST == 1) || (F_TRANSLUCENT == 1))) || defined(csgo_weapon_vfx) || defined(csgo_character_vfx) || defined(csgo_vertexlitgeneric_vfx)
 #define _ambientOcclusionTexture ( (defined(vr_simple_vfx) && (F_AMBIENT_OCCLUSION_TEXTURE == 1) && (F_METALNESS_TEXTURE == 1)) || defined(complex_vfx_common) || defined(csgo_foliage_vfx) || defined(csgo_weapon_vfx) || defined(csgo_character_vfx) || defined(csgo_generic_vfx_common))
 
@@ -330,7 +330,7 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
         float blendFactor = vColorBlendValues.r;
     #endif
 
-    #if (F_ENABLE_TINT_MASKS == 1)
+    #if (defined(simple_blend_common) && F_ENABLE_TINT_MASKS == 1)
         vec2 tintMasks = texture(g_tTintMask, texCoord).xy;
 
         vec3 tintFactorA = 1.0 - tintMasks.x * (1.0 - vVertexColorOut.rgb);
@@ -400,23 +400,6 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
     {
         discard;
     }
-#endif
-
-    // Tinting
-#if (F_ENABLE_TINT_MASKS == 0)
-    vec3 tintColor = vVertexColorOut.rgb;
-
-    #if (F_TINT_MASK == 1)
-        #if (F_SECONDARY_UV == 1) || (F_FORCE_UV2 == 1)
-            vec2 tintMaskTexcoord = (g_bUseSecondaryUvForTintMask || (F_FORCE_UV2 == 1)) ? vTexCoord2 : texCoord;
-        #else
-            vec2 tintMaskTexcoord = texCoord;
-        #endif
-        float tintStrength = texture(g_tTintMask, tintMaskTexcoord).x;
-        tintColor = 1.0 - tintStrength * (1.0 - tintColor.rgb);
-    #endif
-
-    mat.Albedo *= tintColor;
 #endif
 
     #if defined(vr_standard_vfx) && (F_HIGH_QUALITY_GLOSS == 1)
