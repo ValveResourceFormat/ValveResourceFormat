@@ -127,7 +127,6 @@ partial class Scene
             }
         }
 
-        private bool firstUpdate = true;
         public void UpdateSunLightFrustum(Camera camera, float orthoSize = 512f)
         {
             var sunMatrix = LightingData.LightToWorld[0];
