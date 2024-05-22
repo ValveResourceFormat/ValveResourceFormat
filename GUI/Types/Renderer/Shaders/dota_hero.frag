@@ -3,6 +3,7 @@
 // Render modes -- Switched on/off by code
 #define renderMode_FullBright 0
 #define renderMode_Color 0
+#define renderMode_Roughness 0
 #define renderMode_Normals 0
 #define renderMode_Tangents 0
 #define renderMode_BumpMap 0
@@ -46,15 +47,8 @@ uniform vec4 vTint;
 uniform float g_flSpecularExponent = 100.0;
 
 //Calculate the normal of this fragment in world space
-vec3 calculateWorldNormal()
+vec3 calculateWorldNormal(vec3 vNormalTs)
 {
-    //Get the noral from the texture map -- Normal map seems broken
-    vec4 bumpNormal = texture(g_tNormal, vTexCoordOut);
-
-    //Reconstruct the tangent vector from the map
-    vec2 temp = vec2(bumpNormal.w, bumpNormal.y) * 2 - 1;
-    vec3 tangentNormal = vec3(temp, sqrt(1 - temp.x * temp.x - temp.y * temp.y));
-
     vec3 normal = normalize(vNormalOut);
     vec3 tangent = normalize(vTangentOut.xyz);
     vec3 bitangent = normalize(vBitangentOut);
@@ -63,7 +57,7 @@ vec3 calculateWorldNormal()
     mat3 tangentSpace = mat3(tangent, bitangent, normal);
 
     //Calculate the tangent normal in world space and return it
-    return normalize(tangentSpace * tangentNormal);
+    return normalize(tangentSpace * vNormalTs);
 }
 
 //Main entry point
@@ -94,7 +88,8 @@ void main()
 #endif
 
     //Get the world normal for this fragment
-    vec3 worldNormal = calculateWorldNormal();
+    vec3 vNormalTs = DecodeDxt5Normal(texture(g_tNormal, vTexCoordOut));
+    vec3 worldNormal = calculateWorldNormal(vNormalTs);
 
     //Get shadow and light color
     //vec3 shadowColor = texture(g_tDiffuseWarp, vec2(0, mask1.g)).rgb;
@@ -170,7 +165,7 @@ void main()
     }
     else if (g_iRenderMode == renderMode_BumpMap)
     {
-        outputColor = texture(g_tNormal, vTexCoordOut);
+        outputColor = vec4(PackToColor(vNormalTs), 1.0);
     }
     else if (g_iRenderMode == renderMode_Tangents)
     {

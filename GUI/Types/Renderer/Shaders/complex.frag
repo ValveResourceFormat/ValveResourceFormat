@@ -46,6 +46,7 @@
 #define F_SCALE_NORMAL_MAP 0
 // TEXTURING
 #define F_TINT_MASK 0
+#define F_NORMAL_MAP 0
 #define F_FANCY_BLENDING 0
 #define F_METALNESS_TEXTURE 0
 #define F_AMBIENT_OCCLUSION_TEXTURE 0
@@ -376,6 +377,10 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 
     mat.Albedo = color.rgb;
 
+    #if (unlit)
+        return mat;
+    #endif
+
 #if (translucent) || (alphatest)
     mat.Opacity = color.a;
 #endif
@@ -405,7 +410,11 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
     #endif
 
     // Normals and Roughness
-    mat.NormalMap = DecodeHemiOctahedronNormal(normalTexture.rg);
+    #if defined(generic_vfx) || defined(crystal_vfx)
+        mat.NormalMap = DecodeDxt5Normal(normalTexture);
+    #else
+        mat.NormalMap = DecodeHemiOctahedronNormal(normalTexture.rg);
+    #endif
 
 #if defined(VEC2_ROUGHNESS)
     #if (F_ANISOTROPIC_GLOSS == 1)

@@ -3,6 +3,7 @@
 // Render modes -- Switched on/off by code
 #define renderMode_FullBright 0
 #define renderMode_Color 0
+#define renderMode_Roughness 0
 #define renderMode_Normals 0
 #define renderMode_Tangents 0
 #define renderMode_BumpMap 0
@@ -72,11 +73,8 @@ uniform float g_flOpacityScale = 1.0;
 uniform float g_flAlphaTestReference = 0.5;
 
 //Calculate the normal of this fragment in world space
-vec3 calculateWorldNormal(vec4 bumpNormal)
+vec3 calculateWorldNormal(vec3 vNormalTs)
 {
-    // Reconstruct the tangent vector from the map
-    vec3 tangentNormal = DecodeDxt5Normal(bumpNormal);
-
     vec3 normal = vNormalOut;
     vec3 tangent = vTangentOut.xyz;
     vec3 bitangent = vBitangentOut;
@@ -85,7 +83,7 @@ vec3 calculateWorldNormal(vec4 bumpNormal)
     mat3 tangentSpace = mat3(tangent, bitangent, normal);
 
     //Calculate the tangent normal in world space and return it
-    return normalize(tangentSpace * tangentNormal);
+    return normalize(tangentSpace * vNormalTs);
 }
 
 void main()
@@ -111,8 +109,9 @@ void main()
     #endif
 
     #if (F_NORMAL_MAP == 1)
-        vec4 normal = texture(g_tNormal, coordsAll);
-        vec3 worldNormal = calculateWorldNormal(normal);
+        vec4 vNormalTexel = texture(g_tNormal, coordsAll);
+        vec3 vNormalTs = DecodeDxt5Normal(vNormalTexel);
+        vec3 worldNormal = calculateWorldNormal(vNormalTs);
     #else
         vec3 worldNormal = vNormalOut;
     #endif
@@ -173,6 +172,12 @@ void main()
     {
         outputColor = vec4(color.rgb, 1.0);
     }
+#if (F_SPECULAR == 1)
+    else if (g_iRenderMode == renderMode_Roughness)
+    {
+        outputColor.rgb = pow2(1 - specularTexel.xxx);
+    }
+#endif
     else if (g_iRenderMode == renderMode_Tangents)
     {
         outputColor = vec4(PackToColor(vTangentOut.xyz), 1.0);
@@ -192,7 +197,7 @@ void main()
 #if F_NORMAL_MAP == 1
     else if (g_iRenderMode == renderMode_BumpMap)
     {
-        outputColor = normal;
+        outputColor.rgb = PackToColor(vNormalTs);
     }
 #endif
 #if F_PAINT_VERTEX_COLORS == 1
