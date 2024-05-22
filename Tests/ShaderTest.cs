@@ -58,12 +58,15 @@ namespace Tests
             foreach (var testCase in testCases)
             {
                 var result = ComputeVCSFileName(testCase.FileName);
+                var opposite = ComputeVCSFileName(testCase.ShaderName, testCase.ProgramType, testCase.Platform, testCase.ShaderModel);
+
                 Assert.Multiple(() =>
                 {
                     Assert.That(result.ShaderName, Is.EqualTo(testCase.ShaderName));
                     Assert.That(result.PlatformType, Is.EqualTo(testCase.Platform));
                     Assert.That(result.ShaderModelType, Is.EqualTo(testCase.ShaderModel));
                     Assert.That(result.ProgramType, Is.EqualTo(testCase.ProgramType));
+                    Assert.That(opposite, Is.EqualTo(Path.GetFileName(testCase.FileName)));
                 });
             }
         }
