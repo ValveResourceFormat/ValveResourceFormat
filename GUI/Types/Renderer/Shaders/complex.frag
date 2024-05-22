@@ -22,7 +22,7 @@
     #define simple_vfx_common
 #elif defined(vr_simple_2way_blend_vfx) || defined (csgo_simple_2way_blend_vfx) || defined(steampal_2way_blend_mask_vfx)
     #define simple_blend_common
-#elif defined(vr_glass_vfx) || defined(csgo_glass_vfx)
+#elif defined(vr_glass_vfx) || defined(vr_glass_markable_vfx) || defined(csgo_glass_vfx)
     #define glass_vfx_common
 #elif defined(csgo_lightmappedgeneric_vfx) || defined(csgo_vertexlitgeneric_vfx)
     #define csgo_generic_vfx_common
@@ -383,11 +383,10 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
     mat.Opacity = color.a;
 #endif
 
-#if defined(static_overlay_vfx_common) && (F_PAINT_VERTEX_COLORS == 1)
+#if (defined(static_overlay_vfx_common) && (F_PAINT_VERTEX_COLORS == 1)) || defined(complex_vfx_common)
     mat.Albedo *= vVertexColorOut.rgb;
     mat.Opacity *= vVertexColorOut.a;
 #endif
-
 
 #if (translucent)
     mat.Opacity *= g_flOpacityScale;
@@ -402,6 +401,22 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
         discard;
     }
 #endif
+
+    #if (selfillum)
+        // Standard mask sampling
+        #if !defined(vr_skin_vfx)
+            vec2 vSelfIllumMaskCoords = texCoord;
+
+            #if (F_SECONDARY_UV == 1) || (F_FORCE_UV2 == 1)
+                vSelfIllumMaskCoords = (g_bUseSecondaryUvForSelfIllum || (F_FORCE_UV2 == 1)) ? vTexCoord2 : texCoord;
+            #endif
+
+            vSelfIllumMaskCoords += fract(g_vSelfIllumScrollSpeed.xy * g_flTime);
+            flSelfIllumMask = texture(g_tSelfIllumMask, vSelfIllumMaskCoords).r;
+        #endif
+
+        mat.IllumColor = GetStandardSelfIllumination(flSelfIllumMask, mat.Albedo);
+    #endif
 
     #if (unlit)
         return mat;
@@ -435,7 +450,6 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 #elif defined(csgo_generic_vfx_common)
     mat.NormalMap = normalize(mix(vec3(0, 0, 1), mat.NormalMap, g_flBumpStrength));
 #endif
-
 
     // Detail texture
 #if (F_DETAIL_TEXTURE > 0)
@@ -525,22 +539,6 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 
     mat.SpecularColor = mix(F0, mat.Albedo, mat.Metalness);
 
-    #if (selfillum)
-        // Standard mask sampling
-        #if !defined(vr_skin_vfx)
-            vec2 vSelfIllumMaskCoords = texCoord;
-
-            #if (F_SECONDARY_UV == 1) || (F_FORCE_UV2 == 1)
-                vSelfIllumMaskCoords = (g_bUseSecondaryUvForSelfIllum || (F_FORCE_UV2 == 1)) ? vTexCoord2 : texCoord;
-            #endif
-
-            vSelfIllumMaskCoords += fract(g_vSelfIllumScrollSpeed.xy * g_flTime);
-            flSelfIllumMask = texture(g_tSelfIllumMask, vSelfIllumMaskCoords).r;
-        #endif
-
-        mat.IllumColor = GetStandardSelfIllumination(flSelfIllumMask, mat.Albedo);
-    #endif
-
     #if defined(vr_skin_vfx)
         mat.TransmissiveColor = SrgbGammaToLinear(g_vTransmissionColor.rgb) * color.a;
 
@@ -583,7 +581,7 @@ void main()
     LightingTerms_t lighting = InitLighting();
 
 #if (unlit)
-    outputColor.rgb = mat.Albedo;
+    outputColor.rgb = mat.Albedo + mat.IllumColor;
 #else
     CalculateDirectLighting(lighting, mat);
     CalculateIndirectLighting(lighting, mat);
