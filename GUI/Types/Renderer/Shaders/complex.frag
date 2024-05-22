@@ -142,16 +142,6 @@ uniform sampler2D g_tTintMask;
     uniform float g_flMouthInteriorBrightnessScale = 1.0;
 #endif
 
-#if (F_SELF_ILLUM == 1)
-    #if !defined(vr_skin_vfx)
-        uniform sampler2D g_tSelfIllumMask;
-    #endif
-    uniform float g_flSelfIllumAlbedoFactor = 0.0;
-    uniform float g_flSelfIllumBrightness = 0.0;
-    uniform float g_flSelfIllumScale = 1.0;
-    uniform vec4 g_vSelfIllumScrollSpeed = vec4(0.0);
-    uniform vec4 g_vSelfIllumTint = vec4(1.0);
-#endif
 
 #define _uniformMetalness (defined(simple_vfx_common) || defined(complex_vfx_common)) && (F_METALNESS_TEXTURE == 0)
 #define _colorAlphaMetalness (defined(simple_vfx_common) || defined(complex_vfx_common)) && (F_METALNESS_TEXTURE == 1)
@@ -162,6 +152,7 @@ uniform sampler2D g_tTintMask;
 #define unlit (defined(vr_unlit_vfx) || defined(unlit_vfx) || defined(csgo_unlitgeneric_vfx) || (F_FULLBRIGHT == 1) || (F_UNLIT == 1) || (defined(static_overlay_vfx_common) && F_LIT == 0)) || defined(csgo_decalmodulate_vfx)
 #define alphatest (F_ALPHA_TEST == 1) || ((defined(csgo_unlitgeneric_vfx) || defined(static_overlay_vfx_common)) && (F_BLEND_MODE == 2)) || defined(csgo_decalmodulate_vfx)
 #define translucent (F_TRANSLUCENT == 1) || (F_GLASS == 1) || (F_BLEND_MODE > 0 && F_BLEND_MODE != 2) || defined(glass_vfx_common) || defined(csgo_decalmodulate_vfx) || ((defined(csgo_unlitgeneric_vfx) || defined(static_overlay_vfx_common)) && (F_BLEND_MODE == 1)) // need to set this up on the cpu side
+#define selfillum ((F_SELF_ILLUM == 1 && (defined(generic_vfx) || defined(complex_vfx_common) || defined(csgo_vertexlitgeneric_vfx) || defined(vr_skin_vfx))) || defined(csgo_unlitgeneric_vfx))
 #define blendMod2x (F_BLEND_MODE == 3) || defined(csgo_decalmodulate_vfx)
 
 #if (alphatest)
@@ -170,6 +161,23 @@ uniform sampler2D g_tTintMask;
 
 #if (translucent)
     uniform float g_flOpacityScale = 1.0;
+#endif
+
+#if (selfillum)
+    #if !defined(vr_skin_vfx) // Shaders that pack the mask into another texture
+        uniform sampler2D g_tSelfIllumMask;
+    #endif
+    uniform float g_flSelfIllumAlbedoFactor = 0.0;
+    uniform float g_flSelfIllumBrightness = 0.0;
+    uniform float g_flSelfIllumScale = 1.0;
+    uniform vec4 g_vSelfIllumScrollSpeed = vec4(0.0);
+    uniform vec4 g_vSelfIllumTint = vec4(1.0);
+
+    vec3 GetStandardSelfIllumination(float flSelfIllumMask, vec3 vAlbedo)
+    {
+        vec3 selfIllumScale = (exp2(g_flSelfIllumBrightness) * g_flSelfIllumScale) * SrgbGammaToLinear(g_vSelfIllumTint.rgb);
+        return selfIllumScale * flSelfIllumMask * mix(vec3(1.0), vAlbedo, g_flSelfIllumAlbedoFactor);
+    }
 #endif
 
 #if defined(csgo_glass_vfx)
@@ -337,28 +345,30 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
     normalTexture = mix(normalTexture, normalTexture2, blendFactor);
 #endif
 
+    float flSelfIllumMask = 0.0;
+
     // Vr_skin unique stuff
-#if defined(vr_skin_vfx)
-    // r=MouthMask, g=AO, b=selfillum/tint mask, a=SSS/opacity
-    vec4 combinedMasks = texture(g_tCombinedMasks, texCoord);
+    #if defined(vr_skin_vfx)
+        // r=MouthMask, g=AO, b=selfillum/tint mask, a=SSS/opacity
+        vec4 combinedMasks = texture(g_tCombinedMasks, texCoord);
 
-    mat.ExtraParams.a = combinedMasks.x; // Mouth Mask
-    mat.AmbientOcclusion = combinedMasks.y;
+        mat.ExtraParams.a = combinedMasks.x; // Mouth Mask
+        mat.AmbientOcclusion = combinedMasks.y;
 
-    #if (F_SELF_ILLUM)
-        float selfIllumMask = combinedMasks.z;
-    #elif (F_TINT_MASK)
-        float flTintMask = combinedMasks.z;
+        #if (F_SELF_ILLUM == 1)
+            flSelfIllumMask = combinedMasks.z;
+        #elif (F_TINT_MASK == 1)
+            //float flTintMask = combinedMasks.z;
+        #endif
+
+        #if (F_SSS_MASK == 1)
+            mat.SSSMask = combinedMasks.a;
+        #endif
+
+        #if (translucent) || (alphatest)
+            mat.Opacity = combinedMasks.a;
+        #endif
     #endif
-
-    #if (F_SSS_MASK == 1)
-        mat.SSSMask = combinedMasks.a;
-    #endif
-
-    #if (translucent) || (alphatest)
-        mat.Opacity = combinedMasks.a;
-    #endif
-#endif
 
 #if defined(csgo_character_vfx)
     #if (F_SUBSURFACE_SCATTERING == 1)
@@ -518,22 +528,20 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 #endif
     mat.SpecularColor = mix(F0, mat.Albedo, mat.Metalness);
 
-    // Self illum
-    #if (F_SELF_ILLUM == 1) && !defined(vr_xen_foliage_vfx) // xen foliage has really complicated selfillum and is wrong with this code
-        #if (F_SECONDARY_UV == 1) || (F_FORCE_UV2 == 1)
-            vec2 selfIllumCoords = (g_bUseSecondaryUvForSelfIllum || (F_FORCE_UV2 == 1)) ? vTexCoord2 : texCoord;
-        #else
-            vec2 selfIllumCoords = texCoord;
-        #endif
-
-        selfIllumCoords += fract(g_vSelfIllumScrollSpeed.xy * g_flTime);
-
+    #if (selfillum)
+        // Standard mask sampling
         #if !defined(vr_skin_vfx)
-            float selfIllumMask = texture(g_tSelfIllumMask, selfIllumCoords).r; // is this float or rgb?
+            vec2 vSelfIllumMaskCoords = texCoord;
+
+            #if (F_SECONDARY_UV == 1) || (F_FORCE_UV2 == 1)
+                vSelfIllumMaskCoords = (g_bUseSecondaryUvForSelfIllum || (F_FORCE_UV2 == 1)) ? vTexCoord2 : texCoord;
+            #endif
+
+            vSelfIllumMaskCoords += fract(g_vSelfIllumScrollSpeed.xy * g_flTime);
+            flSelfIllumMask = texture(g_tSelfIllumMask, vSelfIllumMaskCoords).r;
         #endif
 
-        vec3 selfIllumScale = (exp2(g_flSelfIllumBrightness) * g_flSelfIllumScale) * SrgbGammaToLinear(g_vSelfIllumTint.rgb);
-        mat.IllumColor = selfIllumScale * selfIllumMask * mix(vec3(1.0), mat.Albedo, g_flSelfIllumAlbedoFactor);
+        mat.IllumColor = GetStandardSelfIllumination(flSelfIllumMask, mat.Albedo);
     #endif
 
     #if defined(vr_skin_vfx)
