@@ -85,12 +85,6 @@ float ApplyBlendModulation(float blendFactor, float blendMask, float blendSoftne
 }
 
 #if (F_NORMAL_MAP == 1)
-    vec3 DecodeNormal(vec4 bumpNormal)
-    {
-        vec2 temp = vec2(bumpNormal.w, bumpNormal.y) * 2.0 - 1.0;
-        temp.y = -temp.y;
-        return vec3(temp, sqrt(saturate(1 - dot(temp,temp))));
-    }
 
     //Calculate the normal of this fragment in world space
     vec3 calculateWorldNormal(vec3 normalMap, vec3 normal, vec3 tangent, vec3 bitangent)
@@ -200,7 +194,7 @@ void main()
     #endif
 
     //Reconstruct the tangent vector from the map
-    vec3 finalBumpNormal = DecodeNormal(bumpNormal);
+    vec3 finalBumpNormal = DecodeDxt5Normal(bumpNormal);
 
     finalBumpNormal.xy *= g_flBumpStrength;
 

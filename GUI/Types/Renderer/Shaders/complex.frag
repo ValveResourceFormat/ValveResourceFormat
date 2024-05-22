@@ -77,8 +77,6 @@ uniform int F_DECAL_BLEND_MODE;
 #define F_BLEND_NORMALS 0
 
 #define F_EYEBALLS 0
-
-#define HemiOctIsoRoughness_RG_B 0
 //End of feature defines
 
 in vec3 vFragPosition;
@@ -407,7 +405,7 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
     #endif
 
     // Normals and Roughness
-    mat.NormalMap = DecodeNormal(normalTexture);
+    mat.NormalMap = DecodeHemiOctahedronNormal(normalTexture.rg);
 
 #if defined(VEC2_ROUGHNESS)
     #if (F_ANISOTROPIC_GLOSS == 1)

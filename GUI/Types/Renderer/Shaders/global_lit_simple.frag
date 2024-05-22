@@ -23,8 +23,6 @@
 #define F_TRANSLUCENT 0
 #define F_ALLOW_LIGHTING_ON_TRANSLUCENT 0
 #define F_SCROLL_UV 0
-
-#define HemiOctIsoRoughness_RG_B 0
 //End of parameter defines
 
 in vec3 vFragPosition;
@@ -76,18 +74,8 @@ uniform float g_flAlphaTestReference = 0.5;
 //Calculate the normal of this fragment in world space
 vec3 calculateWorldNormal(vec4 bumpNormal)
 {
-    //Reconstruct the tangent vector from the map
-#if HemiOctIsoRoughness_RG_B == 1
-    vec2 temp = vec2(bumpNormal.x + bumpNormal.y -1.003922, bumpNormal.x - bumpNormal.y);
-    vec3 tangentNormal = oct_to_float32x3(temp);
-#else
-    //vec2 temp = vec2(bumpNormal.w, bumpNormal.y) * 2 - 1;
-    //vec3 tangentNormal = vec3(temp, sqrt(1 - temp.x * temp.x - temp.y * temp.y));
-    vec2 temp = vec2(bumpNormal.w + bumpNormal.y -1.003922, bumpNormal.w - bumpNormal.y);
-    vec3 tangentNormal = oct_to_float32x3(temp);
-#endif
-
-    tangentNormal.y *= -1.0;
+    // Reconstruct the tangent vector from the map
+    vec3 tangentNormal = DecodeDxt5Normal(bumpNormal);
 
     vec3 normal = vNormalOut;
     vec3 tangent = vTangentOut.xyz;

@@ -17,8 +17,6 @@
 
 #define S_SPECULAR 1 // Indirect
 
-#define HemiOctIsoRoughness_RG_B 0
-
 in vec3 vFragPosition;
 
 centroid in vec3 vCentroidNormalOut;
@@ -311,8 +309,7 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
     //#endif
 
     // Normals and Roughness
-    mat.NormalMap = DecodeNormal(normal);
-
+    mat.NormalMap = DecodeHemiOctahedronNormal(normal.rg);
     mat.RoughnessTex = normal.b;
 
     // Detail texture

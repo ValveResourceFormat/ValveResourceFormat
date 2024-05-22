@@ -156,12 +156,6 @@ vec3 SrgbLinearToGamma( vec3 vLinearColor )
 	return vGammaColor.rgb;
 }
 
-vec3 oct_to_float32x3(vec2 e)
-{
-    vec3 v = vec3(e.xy, 1.0 - abs(e.x) - abs(e.y));
-    return normalize(v);
-}
-
 vec3 DecodeYCoCg(vec4 color)
 {
     float scale = (color.z * (255.0 / 8.0)) + 1.0;
@@ -310,4 +304,29 @@ vec2 UnpackFromColor( vec2 cColor )
 float UnpackFromColor( float flColor )
 {
 	return ( ( flColor * 2.0 ) - 1.0 );
+}
+
+vec3 DecodeDxt5Normal(vec4 bumpTexel)
+{
+    vec2 temp = UnpackFromColor(bumpTexel.ag);
+    temp.y = -temp.y;
+    return vec3(temp, sqrt(saturate(1 - dot(temp, temp))));
+}
+
+vec3 oct_to_float32x3(vec2 e)
+{
+    vec3 v = vec3(e.xy, 1.0 - abs(e.x) - abs(e.y));
+    return normalize(v);
+}
+
+// Unpack HemiOct normal map
+vec3 DecodeHemiOctahedronNormal(vec2 vHemiOct)
+{
+    //Reconstruct the tangent vector from the map
+    vec2 temp = vec2(vHemiOct.x + vHemiOct.y - 1.003922, vHemiOct.x - vHemiOct.y);
+    vec3 tangentNormal = oct_to_float32x3(temp);
+
+    // This is free, it gets compiled into the TS->WS matrix mul
+    tangentNormal.y = -tangentNormal.y;
+    return tangentNormal;
 }
