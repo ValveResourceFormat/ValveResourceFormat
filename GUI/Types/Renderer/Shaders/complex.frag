@@ -187,6 +187,8 @@ uniform sampler2D g_tTintMask;
     uniform float g_flMetalness = 0.0;
 #elif (_metalnessTexture)
     uniform sampler2D g_tMetalness;
+#elif defined(vr_standard_vfx) && (F_METALNESS_TEXTURE == 1)
+    uniform sampler2D g_tMetalnessReflectance;
 #endif
 
 #if (F_FANCY_BLENDING > 0)
@@ -377,10 +379,6 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 
     mat.Albedo = color.rgb;
 
-    #if (unlit)
-        return mat;
-    #endif
-
 #if (translucent) || (alphatest)
     mat.Opacity = color.a;
 #endif
@@ -405,12 +403,16 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
     }
 #endif
 
+    #if (unlit)
+        return mat;
+    #endif
+
     #if defined(vr_standard_vfx) && (F_HIGH_QUALITY_GLOSS == 1)
         normalTexture = texture(g_tNormal2, texCoord);
     #endif
 
     // Normals and Roughness
-    #if defined(generic_vfx) || defined(crystal_vfx)
+    #if defined(generic_vfx) || defined(crystal_vfx) || defined(vr_standard_vfx)
         mat.NormalMap = DecodeDxt5Normal(normalTexture);
     #else
         mat.NormalMap = DecodeHemiOctahedronNormal(normalTexture.rg);
@@ -469,6 +471,8 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
     mat.Metalness = color.a;
 #elif defined(simple_blend_common)
     mat.Metalness = mix(g_flMetalnessA, g_flMetalnessB, blendFactor);
+#elif defined(vr_standard_vfx) && (F_METALNESS_TEXTURE == 1)
+    mat.Metalness = texture(g_tMetalnessReflectance, texCoord).r;
 #endif
 
     // Ambient Occlusion
