@@ -36,6 +36,7 @@ namespace GUI.Controls
         public Action<GLViewerControl> GLPostLoad { get; set; }
 
         protected readonly Types.Renderer.TextRenderer textRenderer;
+        protected readonly PostProcessRenderer postProcessRenderer;
 
         protected Form FullScreenForm { get; private set; }
         protected PickingTexture Picker { get; set; }
@@ -91,6 +92,7 @@ namespace GUI.Controls
             glControlContainer.Controls.Add(GLControl);
 
             textRenderer = new(guiContext);
+            postProcessRenderer = new(guiContext);
 
 #if DEBUG
             guiContext.ShaderLoader.EnableHotReload(GLControl);
@@ -157,10 +159,10 @@ namespace GUI.Controls
             var bitmap = new SKBitmap(GLDefaultFramebuffer.Width, GLDefaultFramebuffer.Height, SKColorType.Bgra8888, SKAlphaType.Opaque);
             var pixels = bitmap.GetPixels(out var length);
 
-            if (MainFramebuffer != GLDefaultFramebuffer)
+            if (FinalFramebuffer != GLDefaultFramebuffer)
             {
                 var (w, h) = (GLControl.Width, GLControl.Height);
-                GL.BlitNamedFramebuffer(MainFramebuffer.FboHandle, GLDefaultFramebuffer.FboHandle, 0, 0, w, h, 0, 0, w, h, ClearBufferMask.ColorBufferBit, BlitFramebufferFilter.Nearest);
+                GL.BlitNamedFramebuffer(FinalFramebuffer.FboHandle, GLDefaultFramebuffer.FboHandle, 0, 0, w, h, 0, 0, w, h, ClearBufferMask.ColorBufferBit, BlitFramebufferFilter.Nearest);
             }
 
             GL.Flush();
@@ -375,7 +377,8 @@ namespace GUI.Controls
         private static readonly DebugProc OpenGLDebugMessageDelegate = OnDebugMessage;
 
         public Framebuffer GLDefaultFramebuffer;
-        public Framebuffer MainFramebuffer;
+        public Framebuffer BasePassFramebuffer;
+        public Framebuffer FinalFramebuffer;
         private int MaxSamples;
         private int NumSamples => Math.Max(1, Math.Min(Settings.Config.AntiAliasingSamples, MaxSamples));
 
@@ -414,6 +417,7 @@ namespace GUI.Controls
             GL.EndQuery(QueryTarget.TimeElapsed);
 
             textRenderer.Load();
+            postProcessRenderer.Load();
 
             // Application semantics / default state
             GL.Enable(EnableCap.TextureCubeMapSeamless);
@@ -428,11 +432,19 @@ namespace GUI.Controls
 
             try
             {
-                MainFramebuffer = Framebuffer.Prepare(GLControl.Width,
+                // Framebuffer used to draw geometry
+                BasePassFramebuffer = Framebuffer.Prepare(GLControl.Width,
+                    GLControl.Height,
+                    NumSamples,
+                    new(PixelInternalFormat.Rgba16f, PixelFormat.Rgb, PixelType.HalfFloat),
+                    Framebuffer.DepthAttachmentFormat.Depth32F
+                );
+                // Framebuffer output by post processing and presented to the user
+                FinalFramebuffer = Framebuffer.Prepare(GLControl.Width,
                     GLControl.Height,
                     NumSamples,
                     new(PixelInternalFormat.R11fG11fB10f, PixelFormat.Rgb, PixelType.UnsignedInt),
-                    Framebuffer.DepthAttachmentFormat.Depth32F
+                    null
                 );
 
                 GLLoad?.Invoke(this, e);
@@ -466,7 +478,7 @@ namespace GUI.Controls
                 return;
             }
 
-            if (MainFramebuffer.InitialStatus != FramebufferErrorCode.FramebufferComplete)
+            if (BasePassFramebuffer.InitialStatus != FramebufferErrorCode.FramebufferComplete || FinalFramebuffer.InitialStatus != FramebufferErrorCode.FramebufferComplete)
             {
                 return;
             }
@@ -529,12 +541,12 @@ namespace GUI.Controls
             }
 
             // blit to the default opengl framebuffer used by the control
-            if (MainFramebuffer != GLDefaultFramebuffer)
+            if (FinalFramebuffer != GLDefaultFramebuffer)
             {
                 using (new GLDebugGroup("Blit Framebuffer"))
                 {
                     var (w, h) = (GLControl.Width, GLControl.Height);
-                    GL.BlitNamedFramebuffer(MainFramebuffer.FboHandle, GLDefaultFramebuffer.FboHandle, 0, 0, w, h, 0, 0, w, h, ClearBufferMask.ColorBufferBit, BlitFramebufferFilter.Nearest);
+                    GL.BlitNamedFramebuffer(FinalFramebuffer.FboHandle, GLDefaultFramebuffer.FboHandle, 0, 0, w, h, 0, 0, w, h, ClearBufferMask.ColorBufferBit, BlitFramebufferFilter.Nearest);
 
                     GLDefaultFramebuffer.Bind(FramebufferTarget.Framebuffer);
                 }
@@ -544,7 +556,7 @@ namespace GUI.Controls
             {
                 using (new GLDebugGroup("Text Render"))
                 {
-                    textRenderer.RenderText(2f, MainFramebuffer.Height - 4f, 14f, new System.Numerics.Vector4(1, 1, 1, 1f), lastFps);
+                    textRenderer.RenderText(2f, FinalFramebuffer.Height - 4f, 14f, new System.Numerics.Vector4(1, 1, 1, 1f), lastFps);
                 }
             }
 
@@ -555,7 +567,7 @@ namespace GUI.Controls
 
         protected virtual void OnResize(object sender, EventArgs e)
         {
-            if (MainFramebuffer is null)
+            if (BasePassFramebuffer is null || FinalFramebuffer is null)
             {
                 return;
             }
@@ -574,11 +586,12 @@ namespace GUI.Controls
             }
 
             GLDefaultFramebuffer.Resize(w, h);
-            MainFramebuffer.Resize(w, h, NumSamples);
+            BasePassFramebuffer.Resize(w, h, NumSamples);
+            FinalFramebuffer.Resize(w, h, NumSamples);
 
-            if (MainFramebuffer.InitialStatus == FramebufferErrorCode.FramebufferUndefined)
+            if (BasePassFramebuffer.InitialStatus == FramebufferErrorCode.FramebufferUndefined)
             {
-                var status = MainFramebuffer.Initialize();
+                var status = BasePassFramebuffer.Initialize();
 
                 if (status != FramebufferErrorCode.FramebufferComplete)
                 {
@@ -586,7 +599,21 @@ namespace GUI.Controls
                     Log.Info(nameof(GLViewerControl), "Falling back to default framebuffer.");
 
                     DisposeFramebuffer();
-                    MainFramebuffer = GLDefaultFramebuffer;
+                    BasePassFramebuffer = GLDefaultFramebuffer;
+                }
+            }
+
+            if (FinalFramebuffer.InitialStatus == FramebufferErrorCode.FramebufferUndefined)
+            {
+                var status = FinalFramebuffer.Initialize();
+
+                if (status != FramebufferErrorCode.FramebufferComplete)
+                {
+                    Log.Error(nameof(GLViewerControl), $"PostProcess Framebuffer failed to bind with error: {status}");
+                    Log.Info(nameof(GLViewerControl), "Falling back to default framebuffer.");
+
+                    DisposeFramebuffer();
+                    FinalFramebuffer = GLDefaultFramebuffer;
                 }
             }
 
@@ -598,12 +625,13 @@ namespace GUI.Controls
         private void DisposeFramebuffer()
         {
             GLDefaultFramebuffer?.Dispose();
-            MainFramebuffer?.Dispose();
+            BasePassFramebuffer?.Dispose();
+            FinalFramebuffer?.Dispose();
         }
 
         private void OnGotFocus(object sender, EventArgs e)
         {
-            if (!MainFramebuffer.HasValidDimensions())
+            if (!BasePassFramebuffer.HasValidDimensions() || !FinalFramebuffer.HasValidDimensions())
             {
                 return;
             }

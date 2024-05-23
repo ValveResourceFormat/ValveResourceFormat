@@ -68,10 +68,10 @@ void main(void)
     }
     else if (g_iRenderMode == renderMode_Normals)
     {
-        outputColor = vec4(PackToColor(vtxNormal), 1.0);
+        outputColor = vec4(SrgbGammaToLinear(PackToColor(vtxNormal)), 1.0);
     }
     else if (g_iRenderMode == renderMode_VertexColor)
     {
-        outputColor = vec4(vtxColor.rgb, 1.0);
+        outputColor = vec4(SrgbGammaToLinear(vtxColor.rgb), 1.0);
     }
 }

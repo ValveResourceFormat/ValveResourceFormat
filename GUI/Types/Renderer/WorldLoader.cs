@@ -417,6 +417,7 @@ namespace GUI.Types.Renderer
                 else if (classname == "env_cubemap_fog")
                 {
                     // If it has "start_disabled", only take it if it's the first one in the map.
+                    // this might not be right, and the first env_cubemap_fog found might take priority, like with post processing
                     if (!entity.GetProperty<bool>("start_disabled") || scene.FogInfo.CubeFogActive)
                     {
                         scene.FogInfo.CubeFogActive = true;
@@ -511,6 +512,7 @@ namespace GUI.Types.Renderer
                                 if (mat != null && mat.Textures.TryGetValue("g_tSkyTexture", out fogTexture))
                                 {
                                     var brightnessExposureBias = mat.Material.FloatParams.GetValueOrDefault("g_flBrightnessExposureBias", 0f);
+                                    // todo: make sure this matches with scene post process
                                     var renderOnlyExposureBias = mat.Material.FloatParams.GetValueOrDefault("g_flRenderOnlyExposureBias", 0f);
 
                                     // These are both logarithms, so this is equivalent to a multiply of the raw value
@@ -721,6 +723,102 @@ namespace GUI.Types.Renderer
                         {
                             Log.Error(nameof(WorldLoader), $"Failed to setup particle '{particle}': {e}");
                         }
+                    }
+                }
+
+                if (classname == "post_processing_volume")
+                {
+                    var exposureSpeedUp = entity.GetPropertyUnchecked<float>("exposurespeedup");
+                    var exposureSpeedDown = entity.GetPropertyUnchecked<float>("exposurespeeddown");
+                    var minExposure = entity.GetPropertyUnchecked<float>("minexposure");
+                    var maxExposure = entity.GetPropertyUnchecked<float>("maxexposure");
+                    var exposureCompensation = entity.GetPropertyUnchecked<float>("exposurecompensation");
+                    var fadeTime = entity.GetPropertyUnchecked<float>("fadetime");
+                    var isMaster = entity.GetProperty<bool>("master");
+                    var useExposure = entity.GetProperty<bool>("enableexposure");
+
+                    ExposureSettings exposureParams = new();
+                    if (useExposure)
+                    {
+                        exposureParams.ExposureMin = minExposure;
+                        exposureParams.ExposureMax = maxExposure;
+                        exposureParams.ExposureCompensation = exposureCompensation;
+                        exposureParams.ExposureSpeedDown = exposureSpeedDown;
+                        exposureParams.ExposureSpeedUp = exposureSpeedUp;
+                        // todo: test where this is enabled/disabled
+                        exposureParams.AutoExposureEnabled = useExposure;
+                    }
+
+                    ScenePostProcessVolume postProcess = new ScenePostProcessVolume(scene)
+                    {
+                        ExposureSettings = exposureParams,
+                        FadeTime = fadeTime,
+                        UseExposure = useExposure,
+                        IsMaster = isMaster,
+                        Transform = transformationMatrix, // needed if model is used
+                    };
+
+                    var postProcessResourceFilename = entity.GetProperty<string>("postprocessing");
+
+                    if (postProcessResourceFilename != null)
+                    {
+                        var postProcessResource = guiContext.LoadFileCompiled(postProcessResourceFilename);
+
+                        if (postProcessResource != null)
+                        {
+                            var postProcessAsset = (PostProcessing)postProcessResource.DataBlock;
+
+                            postProcess.LoadPostProcessResource(postProcessAsset);
+                        }
+                    }
+
+                    if (model != null)
+                    {
+                        // really stupid bug that i have NO clue how to fix:
+                        // on workshop map de_inferno_night the model property gets read as simply "maps" and gets cut off at the first forward slash.
+                        // this doesn't happen anywhere else and only happens on these entities.
+                        var postProcessModel = guiContext.LoadFileCompiled(model);
+
+                        if (postProcessModel != null)
+                        {
+                            var ppModelResource = (Model)postProcessModel.DataBlock;
+
+                            postProcess.ModelVolume = ppModelResource;
+                        }
+                        else
+                        {
+                            Log.Warn(nameof(WorldLoader), $"Post Process model failed to load file \"{model}\".");
+                        }
+
+                    }
+
+                    scene.PostProcessInfo.AddPostProcessVolume(postProcess);
+                    continue;
+                }
+                else if (classname == "env_tonemap_controller")
+                {
+                    var minExposureTC = entity.GetPropertyUnchecked<float>("minexposure");
+                    var maxExposureTC = entity.GetPropertyUnchecked<float>("minexposure");
+                    var exposureRate = entity.GetPropertyUnchecked<float>("rate");
+                    var isMasterTC = entity.GetPropertyUnchecked<bool>("master"); // master actually doesn't do anything
+
+                    var exposureSettings = new ExposureSettings()
+                    {
+                        ExposureMin = minExposureTC,
+                        ExposureMax = maxExposureTC,
+                        ExposureSpeedDown = exposureRate,
+                        ExposureSpeedUp = exposureRate,
+                    };
+
+                    var tonemapController = new SceneTonemapController(scene)
+                    {
+                        ControllerExposureSettings = exposureSettings,
+                    };
+
+
+                    if (scene.PostProcessInfo.MasterTonemapController == null)
+                    {
+                        scene.PostProcessInfo.MasterTonemapController = tonemapController;
                     }
                 }
 
