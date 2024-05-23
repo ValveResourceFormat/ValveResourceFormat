@@ -31,6 +31,7 @@ namespace GUI.Types.Renderer
         public Dictionary<string, byte> RenderAttributes { get; } = [];
         public WorldLightingInfo LightingInfo { get; }
         public WorldFogInfo FogInfo { get; set; } = new();
+        public WorldPostProcessInfo PostProcessInfo { get; set; } = new();
         private UniformBuffer<LightingConstants> lightingBuffer;
 
         public VrfGuiContext GuiContext { get; }

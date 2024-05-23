@@ -175,7 +175,6 @@ void main()
 #endif
 
     finalColor *= vVertexColor.rgb * SrgbGammaToLinear(g_vGlobalTint.rgb);
-    finalColor = SrgbLinearToGamma(finalColor);
 
 #if (F_NORMAL_MAP == 1)
     // Get normal
@@ -242,23 +241,23 @@ void main()
     }
     else if (g_iRenderMode == renderMode_Roughness)
     {
-        outputColor.rgb = pow2(1 - blendSpecular.xxx);
+        outputColor.rgb = SrgbGammaToLinear(pow2(1 - blendSpecular.xxx));
     }
     else if (g_iRenderMode == renderMode_TerrainBlend)
     {
-        outputColor = vec4(vBlendWeights.xyz, 1.0);
+        outputColor = vec4(SrgbGammaToLinear(vBlendWeights.xyz), 1.0);
     }
     else if (g_iRenderMode == renderMode_Tint)
     {
-        outputColor = vec4(vVertexColor.rgb, 1.0);
+        outputColor = vec4(SrgbGammaToLinear(vVertexColor.rgb), 1.0);
     }
     else if (g_iRenderMode == renderMode_Normals)
     {
-        outputColor = vec4(PackToColor(vNormalOut), 1.0);
+        outputColor = vec4(SrgbGammaToLinear(PackToColor(vNormalOut)), 1.0);
     }
     else if (g_iRenderMode == renderMode_BumpNormals)
     {
-        outputColor = vec4(PackToColor(finalNormal), 1.0);
+        outputColor = vec4(SrgbGammaToLinear(PackToColor(finalNormal)), 1.0);
     }
     else if (g_iRenderMode == renderMode_Illumination)
     {
@@ -267,11 +266,11 @@ void main()
 #if (F_NORMAL_MAP == 1)
     else if (g_iRenderMode == renderMode_Tangents)
     {
-        outputColor = vec4(PackToColor(tangent), 1.0);
+        outputColor = vec4(SrgbGammaToLinear(PackToColor(tangent)), 1.0);
     }
     else if (g_iRenderMode == renderMode_BumpMap)
     {
-        outputColor = vec4(PackToColor(finalBumpNormal), 1.0);
+        outputColor = vec4(SrgbGammaToLinear(PackToColor(finalBumpNormal)), 1.0);
     }
 #endif
 }

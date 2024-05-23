@@ -43,7 +43,7 @@ namespace GUI.Types.Renderer
 
         protected override void LoadScene()
         {
-            MainFramebuffer.ChangeFormat(new(PixelInternalFormat.Rgba8, PixelFormat.Rgba, PixelType.UnsignedInt), MainFramebuffer.DepthFormat);
+            BasePassFramebuffer.ChangeFormat(new(PixelInternalFormat.Rgba8, PixelFormat.Rgba, PixelType.UnsignedInt), BasePassFramebuffer.DepthFormat);
         }
 
         private void LoadDefaultEnviromentMap()
@@ -114,17 +114,17 @@ namespace GUI.Types.Renderer
         // Render only the main scene nodes into a transparent framebuffer
         protected override SKBitmap ReadPixelsToBitmap()
         {
-            var (w, h) = (MainFramebuffer.Width, MainFramebuffer.Height);
+            var (w, h) = (BasePassFramebuffer.Width, BasePassFramebuffer.Height);
 
-            MainFramebuffer.Bind(FramebufferTarget.Framebuffer);
+            BasePassFramebuffer.Bind(FramebufferTarget.Framebuffer);
             GL.ClearColor(new OpenTK.Graphics.Color4(0, 0, 0, 0));
-            GL.Clear(MainFramebuffer.ClearMask);
+            GL.Clear(BasePassFramebuffer.ClearMask);
 
             DrawMainScene();
 
             if (SaveAsFbo == null)
             {
-                SaveAsFbo = Framebuffer.Prepare(w, h, 0, new(PixelInternalFormat.Rgba8, PixelFormat.Bgra, PixelType.UnsignedByte), MainFramebuffer.DepthFormat);
+                SaveAsFbo = Framebuffer.Prepare(w, h, 0, new(PixelInternalFormat.Rgba8, PixelFormat.Bgra, PixelType.UnsignedByte), BasePassFramebuffer.DepthFormat);
                 SaveAsFbo.ClearColor = new OpenTK.Graphics.Color4(0, 0, 0, 0);
                 SaveAsFbo.Initialize();
             }
@@ -134,7 +134,7 @@ namespace GUI.Types.Renderer
             }
 
             SaveAsFbo.Clear();
-            GL.BlitNamedFramebuffer(MainFramebuffer.FboHandle, SaveAsFbo.FboHandle, 0, h, w, 0, 0, 0, w, h, ClearBufferMask.ColorBufferBit, BlitFramebufferFilter.Nearest);
+            GL.BlitNamedFramebuffer(BasePassFramebuffer.FboHandle, SaveAsFbo.FboHandle, 0, h, w, 0, 0, 0, w, h, ClearBufferMask.ColorBufferBit, BlitFramebufferFilter.Nearest);
 
             GL.Flush();
             GL.Finish();

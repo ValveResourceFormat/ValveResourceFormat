@@ -212,6 +212,7 @@ namespace GUI.Types.Renderer
             "vrf.texture_decode" => "texture_decode",
             "vrf.font_msdf" => "font_msdf",
             "vrf.basic_shape" => "basic_shape",
+            "vrf.post_process" => "post_processing",
 
             "sky.vfx" => "sky",
             "tools_sprite.vfx" => "sprite",

@@ -52,16 +52,12 @@ void main()
 #else
     vColor.rgb = skyTexel.rgb;
 #endif
-    vColor.rgb *= (1.0 + g_flBrightnessExposureBias);
-    vColor.rgb *= (1.0 + g_flRenderOnlyExposureBias);
-
-    vColor.rgb = SrgbLinearToGamma(vColor.rgb);
+    // Because we precalculate neither of these, we can at least save one exp2 by substituting them into one factor
+    vColor.rgb *= exp2(g_flBrightnessExposureBias + g_flRenderOnlyExposureBias);
     vColor.rgb *= m_vTint;
+
     vColor.rgb = ClampToPositive(vColor.rgb);
-    vColor.rgb *= g_flToneMapScalarLinear;
 
-    // Why do we do this?
-    vColor.a = GetLuma(vColor.rgb);
-
-    //vColor.rgb += (vSkyLookupInterpolant*0.5);
+    //vColor.rgb += (vSkyLookupInterpolant * 0.5);
+    vColor.a = 1.0;
 }
