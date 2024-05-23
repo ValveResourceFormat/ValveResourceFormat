@@ -71,10 +71,12 @@ namespace GUI.Types.Renderer
             if (usesLut)
             {
                 // use to debug handle
-                //Log.Info(nameof(PostProcessRenderer), "COLORCORRECTIONHANDLE");
-                //Log.Info(nameof(PostProcessRenderer), $"{postProcessState.ColorCorrectionLUT.Handle}");
                 shader.SetTexture(2, "g_tColorCorrection", postProcessState.ColorCorrectionLUT);
                 shader.SetUniform1("g_flColorCorrectionDefaultWeight", postProcessState.ColorCorrectionWeight);
+
+                var invDimensions = (1.0f / postProcessState.ColorCorrectionLutDimensions);
+                var invRange = new Vector2(1.0f - invDimensions, 0.5f * invDimensions);
+                shader.SetUniform2("g_vColorCorrectionColorRange", invRange);
             }
 
             shader.SetUniform1("g_flToneMapScalarLinear", tonemapScalar);
