@@ -40,7 +40,7 @@ record struct ParticleDefinitionParser(KVObject Data)
     public readonly bool Boolean(string k) => Data.GetProperty<bool>(k);
     public readonly bool Boolean(string key, bool @default) => GetValueOrDefault(key, Boolean, @default);
 
-    public readonly Vector3 Vector3(string k) => Data.GetSubCollection(k).ToVector3();
+    public readonly Vector3 Vector3(string k) => Data.GetSubCollection(k)?.ToVector3() ?? System.Numerics.Vector3.Zero;
     public readonly Vector3 Vector3(string key, Vector3 @default) => GetValueOrDefault(key, Vector3, @default);
 
     public readonly T Enum<T>(string k) where T : Enum => Data.GetEnumValue<T>(k);
