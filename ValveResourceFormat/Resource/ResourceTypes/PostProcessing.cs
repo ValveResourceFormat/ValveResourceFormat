@@ -70,11 +70,11 @@ namespace ValveResourceFormat.ResourceTypes
             var j = 0;
             for (var i = 0; i < lut.Length; i++)
             {
-                // Skip each 4th byte (this doesn't change anything)
-                //if (((i + 1) % 4) == 0)
-                //{
-                //    continue;
-                //}
+                // Skip each 4th byte, for RAW format
+                if (((i + 1) % 4) == 0)
+                {
+                    continue;
+                }
 
                 lut[j++] = lut[i];
             }

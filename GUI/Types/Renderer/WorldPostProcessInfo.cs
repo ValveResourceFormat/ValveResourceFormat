@@ -47,7 +47,6 @@ partial class Scene
         // Because we only take the master volume currently, we don't need to do this yet.
         // The Camera variable is present but not referenced as we currently can't check collision detection.
         // Also, this needs to be guaranteed to run every frame, and before buffers
-        //#warning disable IDE0060
         public void UpdatePostProcessing(Camera camera)
         {
             // Recalculate post process state
@@ -65,6 +64,7 @@ partial class Scene
                 {
                     CurrentState.NumLutsActive += 1;
                     CurrentState.ColorCorrectionLUT = MasterPostProcessVolume.ColorCorrectionLUT;
+                    CurrentState.ColorCorrectionLutDimensions = MasterPostProcessVolume.ColorCorrectionLutDimensions;
                 }
             }
 

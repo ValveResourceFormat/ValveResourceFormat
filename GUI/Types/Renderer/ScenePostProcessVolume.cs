@@ -106,7 +106,7 @@ namespace GUI.Types.Renderer
             ExposureCompensation = 0.0f;
         }
     };
-    class PostProcessState()
+    struct PostProcessState()
     {
         public TonemapSettings TonemapSettings { get; set; } = new();
         public ExposureSettings ExposureSettings { get; set; } = new();
@@ -114,6 +114,7 @@ namespace GUI.Types.Renderer
         // for blending colorcorrectionluts this would be a List with weights, right?
         public RenderTexture ColorCorrectionLUT { get; set; }
         public float ColorCorrectionWeight { get; set; }
+        public int ColorCorrectionLutDimensions { get; set; } = 32;
         public int NumLutsActive { get; set; }
     };
     class SceneTonemapController : SceneNode
@@ -146,10 +147,11 @@ namespace GUI.Types.Renderer
         public bool IsPostHLA;
 
         public bool HasTonemap;
-        public TonemapSettings PostProcessTonemapSettings = new();
-        public ExposureSettings ExposureSettings = new();
+        public TonemapSettings PostProcessTonemapSettings { get; set; } = new();
+        public ExposureSettings ExposureSettings { get; set; } = new();
 
-        public RenderTexture ColorCorrectionLUT;
+        public RenderTexture ColorCorrectionLUT { get; set; }
+        public int ColorCorrectionLutDimensions { get; set; }
 
         // Bloom isn't implemented yet.
         // But the BlurWeight array corresponds to the 1/2, 1/4, 1/8, 1/16, and 1/32 resolution blur strengths respectively.
@@ -187,15 +189,17 @@ namespace GUI.Types.Renderer
             if (resource.HasColorCorrection())
             {
                 var dimensions = resource.GetColorCorrectionLUTDimension();
-                var data = resource.GetRAWData();
+                var data = resource.GetColorCorrectionLUT().Clone() as byte[];
                 var bytesPerPixel = 4; // currently a constant 4 byte per pixel, one per channel
+
+                ColorCorrectionLutDimensions = dimensions;
 
                 ColorCorrectionLUT = new RenderTexture(TextureTarget.Texture3D, dimensions, dimensions, dimensions, 1);
                 ColorCorrectionLUT.SetWrapMode(TextureWrapMode.ClampToEdge);
                 ColorCorrectionLUT.SetFiltering(TextureMinFilter.Linear, TextureMagFilter.Linear);
                 GL.TextureStorage3D(ColorCorrectionLUT.Handle, 1, SizedInternalFormat.Rgba8, dimensions, dimensions, dimensions);
                 // COLOR CORRECTION DEBUG
-#if true
+#if false
                 Log.Info(nameof(ScenePostProcessVolume), "CREATING COLOR CORRECTION TEXTURE");
                 Log.Info(nameof(ScenePostProcessVolume), $"Dimensions: {dimensions} x {dimensions} x {dimensions}");
                 Log.Info(nameof(ScenePostProcessVolume), $"Total Size in Bytes: {data.Length}");
@@ -221,23 +225,7 @@ namespace GUI.Types.Renderer
                 }
 #endif
 
-                var buffer = ArrayPool<byte>.Shared.Rent(dimensions * dimensions * dimensions * bytesPerPixel);
-
-                try
-                {
-                    GL.TextureSubImage3D(ColorCorrectionLUT.Handle, 0, 0, 0, 0, dimensions, dimensions, dimensions, PixelFormat.Rgba, PixelType.UnsignedByte, buffer);
-                    Log.Info(nameof(ScenePostProcessVolume), "LUT WRITE SUCCEEDED");
-                }
-                catch
-                {
-                    ColorCorrectionLUT = null;
-                    Log.Info(nameof(ScenePostProcessVolume), "LUT WRITE FAILED");
-                }
-                finally
-                {
-                    ArrayPool<byte>.Shared.Return(buffer);
-                }
-                // WIN !
+                GL.TextureSubImage3D(ColorCorrectionLUT.Handle, 0, 0, 0, 0, dimensions, dimensions, dimensions, PixelFormat.Rgba, PixelType.UnsignedByte, data);
             }
         }
 
