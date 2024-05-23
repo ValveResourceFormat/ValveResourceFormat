@@ -8,6 +8,8 @@ namespace GUI.Types.Renderer
         private VrfGuiContext guiContext;
         private int vao;
 
+        public RenderTexture BlueNoise;
+
         // To prevent shader compilation stutter, we must keep both shader combinations loaded [Richard Leadbetter voice]
         private Shader shaderNoLUT;
         private Shader shaderLUT;
@@ -51,7 +53,7 @@ namespace GUI.Types.Renderer
         // In CS2 Blue Noise is done optionally in msaa_resolve
 
         // we should have a shared FullscreenQuadRenderer class
-        public void Render(PostProcessState postProcessState, Framebuffer colorBuffer, RenderTexture blueNoise, float tonemapScalar)
+        public void Render(PostProcessState postProcessState, Framebuffer colorBuffer, float tonemapScalar)
         {
             GL.PolygonMode(MaterialFace.FrontAndBack, PolygonMode.Fill);
 
@@ -67,7 +69,7 @@ namespace GUI.Types.Renderer
 
             // Bind textures
             shader.SetTexture(0, "g_tColorBuffer", colorBuffer.Color);
-            shader.SetTexture(1, "g_tBlueNoise", blueNoise);
+            shader.SetTexture(1, "g_tBlueNoise", BlueNoise);
             if (usesLut)
             {
                 // use to debug handle
