@@ -774,9 +774,6 @@ namespace GUI.Types.Renderer
 
                     if (model != null)
                     {
-                        // really stupid bug that i have NO clue how to fix:
-                        // on workshop map de_inferno_night the model property gets read as simply "maps" and gets cut off at the first forward slash.
-                        // this doesn't happen anywhere else and only happens on these entities.
                         var postProcessModel = guiContext.LoadFileCompiled(model);
 
                         if (postProcessModel != null)

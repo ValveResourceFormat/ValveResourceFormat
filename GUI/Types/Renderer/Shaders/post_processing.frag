@@ -25,20 +25,6 @@ vec4 SampleColorBuffer(vec2 coords)
     vec4 singleSampleColor = texelFetch(g_tColorBuffer, ivec2(coords.xy), int(gl_SampleID));
     singleSampleColor.rgb = singleSampleColor.rgb / (max3(singleSampleColor.rgb) + 1.0);
     return singleSampleColor;// / 2.8;
-/*
-// This pretty much implements msaa_resolve_cs as a pixel shader, and without the 4x downsample
-    vec4 msaaResolveColor = vec4(0.0);
-    float INV_SAMPLES = 1.0 / F_MSAA_SAMPLES;
-
-    for (uint i = uint(F_MSAA_SAMPLES); i < F_MSAA_SAMPLES; i++)
-    {
-        vec4 singleSampleColor = texelFetch(g_tColorBuffer, ivec2(coords.xy), int(i));
-        singleSampleColor = clamp(singleSampleColor, vec4(0.0), vec4(65504.0));
-
-        msaaResolveColor += singleSampleColor;
-    }
-    return msaaResolveColor;
-*/
 }
 
 
@@ -66,10 +52,7 @@ vec3 TonemapColor(vec3 vColor)
     // Divide by tonemapped white point (pre-calculated on CPU)
     vTonemappedColor *= g_flWhitePointScale; // This is actually 1/TonemapColor(WhitePoint)
 
-    // Finally, convert from Linear to Gamma space
-    vec3 vTonemappedColorSRGB = SrgbLinearToGamma(vTonemappedColor);
-
-    return vTonemappedColorSRGB;
+    return vTonemappedColor;
 }
 
 
@@ -78,10 +61,11 @@ vec3 TonemapColor(vec3 vColor)
 
 layout(location=2) uniform sampler3D g_tColorCorrection;
 uniform float g_flColorCorrectionDefaultWeight;
-
+uniform vec2 g_vColorCorrectionColorRange = vec2(0.96875, 0.015625);
 vec3 ApplyColorCorrection(vec3 vColor)
 {
-    vec3 ColorCorrectedColor = texture(g_tColorCorrection, saturate(vColor) * 0.9688 + 0.0156).rgb;
+    vec3 scaledColor = saturate(vColor) * g_vColorCorrectionColorRange.x + g_vColorCorrectionColorRange.y;
+    vec3 ColorCorrectedColor = texture(g_tColorCorrection, scaledColor).rgb;
     return mix(ColorCorrectedColor, vColor, g_flColorCorrectionDefaultWeight); // Probably for blending
 }
 #endif
@@ -111,6 +95,9 @@ void main()
 {
     vec4 vColor = SampleColorBuffer(gl_FragCoord.xy);
     vColor.rgb = TonemapColor(vColor.rgb);
+
+    // Finally, convert from Linear to Gamma space
+    vColor.rgb = SrgbLinearToGamma(vColor.rgb);
 
 #if F_COLOR_CORRECTION_LUT
     vColor.rgb = ApplyColorCorrection(vColor.rgb);
