@@ -175,20 +175,20 @@ void main()
 #if (F_SPECULAR == 1)
     else if (g_iRenderMode == renderMode_Roughness)
     {
-        outputColor.rgb = pow2(1 - specularTexel.xxx);
+        outputColor.rgb = SrgbGammaToLinear(pow2(1 - specularTexel.xxx));
     }
 #endif
     else if (g_iRenderMode == renderMode_Tangents)
     {
-        outputColor = vec4(PackToColor(vTangentOut.xyz), 1.0);
+        outputColor = vec4(SrgbGammaToLinear(PackToColor(vTangentOut.xyz)), 1.0);
     }
     else if (g_iRenderMode == renderMode_Normals)
     {
-        outputColor = vec4(PackToColor(vNormalOut), 1.0);
+        outputColor = vec4(SrgbGammaToLinear(PackToColor(vNormalOut)), 1.0);
     }
     else if (g_iRenderMode == renderMode_BumpNormals)
     {
-        outputColor = vec4(PackToColor(worldNormal), 1.0);
+        outputColor = vec4(SrgbGammaToLinear(PackToColor(worldNormal)), 1.0);
     }
     else if (g_iRenderMode == renderMode_Illumination)
     {
@@ -197,13 +197,13 @@ void main()
 #if F_NORMAL_MAP == 1
     else if (g_iRenderMode == renderMode_BumpMap)
     {
-        outputColor.rgb = PackToColor(vNormalTs);
+        outputColor.rgb = SrgbGammaToLinear(PackToColor(vNormalTs));
     }
 #endif
 #if F_PAINT_VERTEX_COLORS == 1
     else if (g_iRenderMode == renderMode_Tint)
     {
-        outputColor = vVertexColorOut;
+        outputColor = SrgbGammaToLinear(vVertexColorOut);
     }
 #endif
 }

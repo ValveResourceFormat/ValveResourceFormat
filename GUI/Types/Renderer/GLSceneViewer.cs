@@ -35,6 +35,7 @@ namespace GUI.Types.Renderer
 
         private readonly List<RenderModes.RenderMode> renderModes = new(RenderModes.Items.Count);
         private int renderModeCurrentIndex;
+        private RenderTexture BlueNoiseTexture; // ideally we would store this in Textures but accessing it and only it from a list becomes terrible
         private Font renderModeBoldFont;
         private ComboBox renderModeComboBox;
         private InfiniteGrid baseGrid;
@@ -184,6 +185,16 @@ namespace GUI.Types.Renderer
 
             var defaultCubeTexture = GuiContext.MaterialLoader.LoadTexture(cubeFogResource);
             Textures.Add(new(ReservedTextureSlots.FogCubeTexture, "g_tFogCubeTexture", defaultCubeTexture));
+
+
+            // TODO: add backup for this
+            var blueNoiseResource = GuiContext.LoadFile("textures/dev/blue_noise_256.vtex_c");
+
+            if (blueNoiseResource != null)
+            {
+                BlueNoiseTexture = GuiContext.MaterialLoader.LoadTexture(blueNoiseResource);
+            }
+
         }
 
         public virtual void PostSceneLoad()
@@ -264,7 +275,7 @@ namespace GUI.Types.Renderer
             //depthOnlyShaders[(int)DepthOnlyProgram.StaticAlphaTest] = GuiContext.ShaderLoader.LoadShader("vrf.depth_only", new Dictionary<string, byte> { { "F_ALPHA_TEST", 1 } });
             depthOnlyShaders[(int)DepthOnlyProgram.Animated] = GuiContext.ShaderLoader.LoadShader("vrf.depth_only", new Dictionary<string, byte> { { "D_ANIMATED", 1 } });
 
-            MainFramebuffer.Bind(FramebufferTarget.Framebuffer);
+            BasePassFramebuffer.Bind(FramebufferTarget.Framebuffer);
             CreateBuffers();
 
             var timer = Stopwatch.StartNew();
@@ -290,9 +301,9 @@ namespace GUI.Types.Renderer
             {
                 View = this,
                 Camera = Camera,
-                Framebuffer = MainFramebuffer,
+                Framebuffer = BasePassFramebuffer,
             };
-
+            BasePassFramebuffer.Bind(FramebufferTarget.Framebuffer);
             using (new GLDebugGroup("Update Loop"))
             {
                 Scene.Update(e.FrameTime);
@@ -325,6 +336,17 @@ namespace GUI.Types.Renderer
                 RenderScenesWithView(renderContext);
             }
 
+            using (new GLDebugGroup("Post Processing Render"))
+            {
+                renderContext.Framebuffer = FinalFramebuffer;
+                FinalFramebuffer.Bind(FramebufferTarget.Framebuffer);
+
+                postProcessRenderer.Render(Scene.PostProcessInfo.CurrentState,
+                    BasePassFramebuffer,
+                    BlueNoiseTexture,
+                    Scene.PostProcessInfo.CalculateTonemapScalar());
+            }
+
             using (new GLDebugGroup("Lines Render"))
             {
                 selectedNodeRenderer.Render(renderContext);
@@ -352,15 +374,19 @@ namespace GUI.Types.Renderer
             {
                 View = this,
                 Camera = Camera,
-                Framebuffer = MainFramebuffer,
+                Framebuffer = BasePassFramebuffer,
                 Scene = Scene,
             };
+
+            Scene.PostProcessInfo.UpdatePostProcessing(Camera);
 
             UpdatePerViewGpuBuffers(Scene, Camera);
             Scene.SetSceneBuffers();
 
             Scene.RenderOpaqueLayer(renderContext);
             RenderTranslucentLayer(Scene, renderContext);
+
+            // do post process here?
         }
 
         private void RenderSceneShadows(Scene.RenderContext renderContext)
@@ -388,12 +414,15 @@ namespace GUI.Types.Renderer
             renderContext.Framebuffer.Clear();
 
             // TODO: check if renderpass allows wireframe mode
+            // TODO+: replace wireframe shaders with solid color
             if (IsWireframe)
             {
                 GL.PolygonMode(MaterialFace.FrontAndBack, PolygonMode.Line);
             }
 
             GL.DepthRange(0.05, 1);
+
+            Scene.PostProcessInfo.UpdatePostProcessing(Camera);
 
             UpdatePerViewGpuBuffers(Scene, Camera);
             Scene.SetSceneBuffers();

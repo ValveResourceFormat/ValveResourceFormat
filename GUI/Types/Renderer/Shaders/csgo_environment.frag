@@ -363,7 +363,7 @@ void main()
 
     ApplyFog(combinedLighting, mat.PositionWS);
 
-    outputColor.rgb = SrgbLinearToGamma(combinedLighting);
+    outputColor.rgb = combinedLighting;
 
     if (HandleMaterialRenderModes(mat, outputColor))
     {
@@ -373,42 +373,42 @@ void main()
     {
         // No bumpmaps, full reflectivity
         vec3 viewmodeEnvMap = GetEnvironment(mat).rgb;
-        outputColor.rgb = SrgbLinearToGamma(viewmodeEnvMap);
+        outputColor.rgb = viewmodeEnvMap;
     }
     else if (g_iRenderMode == renderMode_Illumination)
     {
-        outputColor = vec4(SrgbLinearToGamma(lighting.DiffuseDirect + lighting.SpecularDirect), 1.0);
+        outputColor = vec4(lighting.DiffuseDirect + lighting.SpecularDirect, 1.0);
     }
     else if (g_iRenderMode == renderMode_Tint)
     {
-        outputColor = vec4(vTintColor_ModelAmount.rgb, vVertexColor_Alpha.a);
+        outputColor = vec4(SrgbGammaToLinear(vTintColor_ModelAmount.rgb), vVertexColor_Alpha.a);
     }
     else if (g_iRenderMode == renderMode_Diffuse)
     {
-        outputColor.rgb = SrgbLinearToGamma(diffuseLighting * 0.5);
+        outputColor.rgb = diffuseLighting * 0.5;
     }
     else if (g_iRenderMode == renderMode_Specular)
     {
-        outputColor.rgb = SrgbLinearToGamma(specularLighting);
+        outputColor.rgb = specularLighting;
     }
     else if (g_iRenderMode == renderMode_Height)
     {
-        outputColor.rgb = mat.Height.xxx;
+        outputColor.rgb = SrgbGammaToLinear(mat.Height.xxx);
     }
     else if (g_iRenderMode == renderMode_VertexColor)
     {
-        outputColor.rgb = vVertexColor_Alpha.rgb;
+        outputColor.rgb = SrgbGammaToLinear(vVertexColor_Alpha.rgb);
     }
 #if (F_GLASS == 0)
     else if (g_iRenderMode == renderMode_Irradiance)
     {
-        outputColor = vec4(SrgbLinearToGamma(lighting.DiffuseIndirect), 1.0);
+        outputColor = vec4(lighting.DiffuseIndirect, 1.0);
     }
 #endif
 #if defined(csgo_environment_blend_vfx)
     else if (g_iRenderMode == renderMode_TerrainBlend)
     {
-        outputColor.rgb = vColorBlendValues.rga;
+        outputColor.rgb = SrgbGammaToLinear(vColorBlendValues.rga);
     }
 #endif
 }
