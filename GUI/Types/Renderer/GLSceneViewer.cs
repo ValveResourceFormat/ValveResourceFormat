@@ -187,12 +187,27 @@ namespace GUI.Types.Renderer
             Textures.Add(new(ReservedTextureSlots.FogCubeTexture, "g_tFogCubeTexture", defaultCubeTexture));
 
 
-            // TODO: add backup for this
-            var blueNoiseResource = GuiContext.LoadFile("textures/dev/blue_noise_256.vtex_c");
+            const string blueNoiseName = "blue_noise_256.vtex_c";
+            var blueNoiseResource = GuiContext.LoadFile("textures/dev/" + blueNoiseName);
 
-            if (blueNoiseResource != null)
+            try
             {
-                BlueNoiseTexture = GuiContext.MaterialLoader.LoadTexture(blueNoiseResource);
+                Stream blueNoiseStream; // Same method as brdf 
+
+                if (blueNoiseResource == null)
+                {
+                    blueNoiseStream = assembly.GetManifestResourceStream("GUI.Utils." + blueNoiseName);
+
+                    blueNoiseResource = new Resource() { FileName = blueNoiseName };
+                    blueNoiseResource.Read(blueNoiseStream);
+                }
+
+                // only needed here for now, move to GLSceneViewer
+                postProcessRenderer.BlueNoise = GuiContext.MaterialLoader.LoadTexture(blueNoiseResource);
+            }
+            finally
+            {
+                blueNoiseResource?.Dispose();
             }
 
         }
@@ -343,7 +358,6 @@ namespace GUI.Types.Renderer
 
                 postProcessRenderer.Render(Scene.PostProcessInfo.CurrentState,
                     BasePassFramebuffer,
-                    BlueNoiseTexture,
                     Scene.PostProcessInfo.CalculateTonemapScalar());
             }
 
