@@ -24,7 +24,7 @@ namespace GUI.Types.ParticleRenderer
     }
 
     // Literal Number
-    class LiteralNumberProvider : INumberProvider
+    readonly struct LiteralNumberProvider : INumberProvider
     {
         private readonly float value;
 
