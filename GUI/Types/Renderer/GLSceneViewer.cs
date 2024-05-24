@@ -35,7 +35,6 @@ namespace GUI.Types.Renderer
 
         private readonly List<RenderModes.RenderMode> renderModes = new(RenderModes.Items.Count);
         private int renderModeCurrentIndex;
-        private RenderTexture BlueNoiseTexture; // ideally we would store this in Textures but accessing it and only it from a list becomes terrible
         private Font renderModeBoldFont;
         private ComboBox renderModeComboBox;
         private InfiniteGrid baseGrid;
@@ -192,7 +191,7 @@ namespace GUI.Types.Renderer
 
             try
             {
-                Stream blueNoiseStream; // Same method as brdf 
+                Stream blueNoiseStream; // Same method as brdf
 
                 if (blueNoiseResource == null)
                 {
