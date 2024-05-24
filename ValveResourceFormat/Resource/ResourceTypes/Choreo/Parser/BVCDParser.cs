@@ -45,6 +45,10 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
                 throw new UnexpectedMagicException("The content of the given stream is not bvcd data", magic, "bvcd");
             }
             version = reader.ReadByte();
+            if (version > 19)
+            {
+                throw new UnexpectedMagicException("Unsupported bvcd version", version, nameof(version));
+            }
             var crc = reader.ReadInt32();
 
             var eventsCount = reader.ReadByte();
@@ -212,6 +216,12 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
             var eventType = RemapEventType(reader.ReadByte());
             var name = ReadString();
 
+            string preferredName = null;
+            if (version >= 19)
+            {
+                preferredName = ReadString();
+            }
+
             var eventStart = reader.ReadSingle();
             var eventEnd = reader.ReadSingle();
 
@@ -325,6 +335,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
                 SoundStartDelay = soundStartDelay,
                 ConstrainedEventId = constrainedEventId,
                 Id = eventId,
+                PreferredName = preferredName,
             };
         }
 

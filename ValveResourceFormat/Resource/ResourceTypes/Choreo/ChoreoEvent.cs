@@ -30,6 +30,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
         public float SoundStartDelay { get; init; }
         public int Id { get; init; }
         public int ConstrainedEventId { get; init; }
+        public string PreferredName { get; init; }
 
         public KVObject ToKeyValues()
         {
@@ -124,6 +125,11 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
                 //They're stored as real time in the vcd, so this has to be set to true
                 kv.AddProperty("samples_use_time", new KVValue(KVType.BOOLEAN, true));
                 kv.AddProperty("flexanimations", new KVValue(KVType.OBJECT, EventFlex.ToKeyValues()));
+            }
+
+            if (PreferredName != null)
+            {
+                kv.AddProperty("preferred_name", new KVValue(KVType.STRING, PreferredName));
             }
 
             return kv;
