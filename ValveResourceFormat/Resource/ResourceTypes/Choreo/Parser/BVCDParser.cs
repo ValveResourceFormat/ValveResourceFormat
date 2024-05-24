@@ -47,7 +47,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
             version = reader.ReadByte();
             if (version > 19)
             {
-                throw new UnexpectedMagicException("Unsupported bvcd version", version, "version");
+                throw new UnexpectedMagicException("Unsupported bvcd version", version, nameof(version));
             }
             var crc = reader.ReadInt32();
 
