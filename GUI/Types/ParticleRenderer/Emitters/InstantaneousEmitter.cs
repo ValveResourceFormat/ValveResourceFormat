@@ -6,15 +6,15 @@ namespace GUI.Types.ParticleRenderer.Emitters
 
         private Action particleEmitCallback;
 
-        private readonly INumberProvider emitCount;
-        private readonly INumberProvider startTime;
+        private readonly INumberProvider emitCount = new LiteralNumberProvider(1);
+        private readonly INumberProvider startTime = new LiteralNumberProvider(0);
 
         private float time;
 
         public InstantaneousEmitter(ParticleDefinitionParser parse) : base(parse)
         {
-            emitCount = parse.NumberProvider("m_nParticlesToEmit");
-            startTime = parse.NumberProvider("m_flStartTime");
+            emitCount = parse.NumberProvider("m_nParticlesToEmit", emitCount);
+            startTime = parse.NumberProvider("m_flStartTime", startTime);
         }
 
         public override void Start(Action particleEmitCallback)

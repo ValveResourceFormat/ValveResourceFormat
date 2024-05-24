@@ -12,7 +12,7 @@ class AttractToControlPoint : ParticleFunctionOperator
     public AttractToControlPoint(ParticleDefinitionParser parse) : base(parse)
     {
         ComponentScale = parse.Vector3("m_vecComponentScale", ComponentScale);
-        ForceAmount = parse.NumberProvider("m_fForceAmount");
+        ForceAmount = parse.NumberProvider("m_fForceAmount", ForceAmount);
         Falloff = parse.Float("m_fFalloffPower");
         ControlPoint = parse.Int32("m_nControlPointNumber");
     }

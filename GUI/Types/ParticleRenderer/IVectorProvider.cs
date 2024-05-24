@@ -127,15 +127,15 @@ namespace GUI.Types.ParticleRenderer
     // 3 Float Inputs
     readonly struct FloatComponentsVectorProvider : IVectorProvider
     {
-        private readonly INumberProvider X;
-        private readonly INumberProvider Y;
-        private readonly INumberProvider Z;
+        private readonly INumberProvider X = new LiteralNumberProvider(0);
+        private readonly INumberProvider Y = new LiteralNumberProvider(0);
+        private readonly INumberProvider Z = new LiteralNumberProvider(0);
 
         public FloatComponentsVectorProvider(ParticleDefinitionParser parse)
         {
-            X = parse.NumberProvider("m_FloatComponentX");
-            Y = parse.NumberProvider("m_FloatComponentY");
-            Z = parse.NumberProvider("m_FloatComponentZ");
+            X = parse.NumberProvider("m_FloatComponentX", X);
+            Y = parse.NumberProvider("m_FloatComponentY", Y);
+            Z = parse.NumberProvider("m_FloatComponentZ", Z);
         }
 
         public Vector3 NextVector(ref Particle particle, ParticleSystemRenderState renderState) => new(
@@ -147,7 +147,7 @@ namespace GUI.Types.ParticleRenderer
     // Float Interp (Clamped) & Float Interp (Open)
     readonly struct FloatInterpolationVectorProvider : IVectorProvider
     {
-        private readonly INumberProvider floatInterp;
+        private readonly INumberProvider floatInterp = new LiteralNumberProvider(0);
         private readonly float input0;
         private readonly float input1;
         private readonly Vector3 output0;
@@ -158,7 +158,7 @@ namespace GUI.Types.ParticleRenderer
         public FloatInterpolationVectorProvider(ParticleDefinitionParser parse, bool isClamped)
         {
             clamp = isClamped;
-            floatInterp = parse.NumberProvider("m_FloatInterp");
+            floatInterp = parse.NumberProvider("m_FloatInterp", floatInterp);
             input0 = parse.Float("m_flInterpInput0");
             input1 = parse.Float("m_flInterpInput1");
 
@@ -187,13 +187,13 @@ namespace GUI.Types.ParticleRenderer
             public Vector3 Color { get; set; }
         }
         private readonly GradientStop[] gradientStops;
-        private readonly INumberProvider floatInterp;
+        private readonly INumberProvider floatInterp = new LiteralNumberProvider(0);
         private readonly float input0;
         private readonly float input1;
 
         public ColorGradientVectorProvider(ParticleDefinitionParser parse)
         {
-            floatInterp = parse.NumberProvider("m_FloatInterp");
+            floatInterp = parse.NumberProvider("m_FloatInterp", floatInterp);
             input0 = parse.Float("m_flInterpInput0");
             input1 = parse.Float("m_flInterpInput1");
 
