@@ -45,6 +45,10 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
                 throw new UnexpectedMagicException("The content of the given stream is not bvcd data", magic, "bvcd");
             }
             version = reader.ReadByte();
+            if (version > 19)
+            {
+                throw new UnexpectedMagicException("Unsupported bvcd version", version, "version");
+            }
             var crc = reader.ReadInt32();
 
             var eventsCount = reader.ReadByte();
