@@ -212,6 +212,12 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
             var eventType = RemapEventType(reader.ReadByte());
             var name = ReadString();
 
+            string preferredName = null;
+            if (version >= 19)
+            {
+                preferredName = ReadString();
+            }
+
             var eventStart = reader.ReadSingle();
             var eventEnd = reader.ReadSingle();
 
@@ -325,6 +331,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
                 SoundStartDelay = soundStartDelay,
                 ConstrainedEventId = constrainedEventId,
                 Id = eventId,
+                PreferredName = preferredName,
             };
         }
 
