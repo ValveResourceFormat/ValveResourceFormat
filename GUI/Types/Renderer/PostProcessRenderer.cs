@@ -14,6 +14,7 @@ namespace GUI.Types.Renderer
 
         public PostProcessState State { get; set; }
         public float TonemapScalar { get; set; }
+        public bool ColorCorrectionEnabled { get; set; } = true;
 
         public PostProcessRenderer(VrfGuiContext guiContext)
         {
@@ -67,7 +68,7 @@ namespace GUI.Types.Renderer
             var invDimensions = 1.0f / State.ColorCorrectionLutDimensions;
             var invRange = new Vector2(1.0f - invDimensions, 0.5f * invDimensions);
             shader.SetUniform2("g_vColorCorrectionColorRange", invRange);
-            shader.SetUniform1("g_flColorCorrectionDefaultWeight", (State.NumLutsActive > 0) ? State.ColorCorrectionWeight : 0f);
+            shader.SetUniform1("g_flColorCorrectionDefaultWeight", (State.NumLutsActive > 0 && ColorCorrectionEnabled) ? State.ColorCorrectionWeight : 0f);
 
             GL.BindVertexArray(vao);
             GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
