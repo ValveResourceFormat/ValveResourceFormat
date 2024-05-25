@@ -59,6 +59,8 @@ namespace GUI.Types.Renderer
             shader.SetTexture(1, "g_tColorCorrection", State.ColorCorrectionLUT ?? guiContext.MaterialLoader.GetErrorTexture()); // todo: error postprocess texture
             shader.SetTexture(2, "g_tBlueNoise", BlueNoise);
 
+            shader.SetUniform1("g_nNumSamplesMSAA", colorBuffer.NumSamples);
+
             shader.SetUniform1("g_flToneMapScalarLinear", TonemapScalar);
             SetPostProcessUniforms(shader, State.TonemapSettings);
 
