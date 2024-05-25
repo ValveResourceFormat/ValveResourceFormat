@@ -7,14 +7,11 @@ namespace GUI.Types.Renderer
     {
         private VrfGuiContext guiContext;
         private int vao;
+        private Shader shader;
 
         public RenderTexture BlueNoise;
-
-        // To prevent shader compilation stutter, we must keep both shader combinations loaded [Richard Leadbetter voice]
-        private Shader shaderNoLUT;
-        private Shader shaderLUT;
-
         private readonly Random random = new();
+
         public PostProcessRenderer(VrfGuiContext guiContext)
         {
             this.guiContext = guiContext;
@@ -22,13 +19,7 @@ namespace GUI.Types.Renderer
 
         public void Load()
         {
-            // does number of samples ever change?
-            var NoLutArguments = new Dictionary<string, byte>();
-            var LUTArguments = new Dictionary<string, byte> { { "F_COLOR_CORRECTION_LUT", 1 } };
-            shaderNoLUT = guiContext.ShaderLoader.LoadShader("vrf.post_process", NoLutArguments);
-            shaderLUT = guiContext.ShaderLoader.LoadShader("vrf.post_process", LUTArguments);
-
-
+            shader = guiContext.ShaderLoader.LoadShader("vrf.post_process");
             GL.CreateVertexArrays(1, out vao);
         }
 
@@ -55,35 +46,24 @@ namespace GUI.Types.Renderer
         // we should have a shared FullscreenQuadRenderer class
         public void Render(PostProcessState postProcessState, Framebuffer colorBuffer, float tonemapScalar)
         {
-            GL.PolygonMode(MaterialFace.FrontAndBack, PolygonMode.Fill);
-
             GL.Disable(EnableCap.Blend);
             GL.Disable(EnableCap.CullFace);
             GL.Disable(EnableCap.DepthTest);
-
-            var usesLut = (postProcessState.NumLutsActive > 0);
-
-            var shader = usesLut ? shaderLUT : shaderNoLUT;
 
             GL.UseProgram(shader.Program);
 
             // Bind textures
             shader.SetTexture(0, "g_tColorBuffer", colorBuffer.Color);
-            shader.SetTexture(1, "g_tBlueNoise", BlueNoise);
-            if (usesLut)
-            {
-                // use to debug handle
-                shader.SetTexture(2, "g_tColorCorrection", postProcessState.ColorCorrectionLUT);
-                shader.SetUniform1("g_flColorCorrectionDefaultWeight", postProcessState.ColorCorrectionWeight);
-
-                var invDimensions = (1.0f / postProcessState.ColorCorrectionLutDimensions);
-                var invRange = new Vector2(1.0f - invDimensions, 0.5f * invDimensions);
-                shader.SetUniform2("g_vColorCorrectionColorRange", invRange);
-            }
+            shader.SetTexture(1, "g_tColorCorrection", postProcessState.ColorCorrectionLUT ?? guiContext.MaterialLoader.GetErrorTexture()); // todo: error postprocess texture
+            shader.SetTexture(2, "g_tBlueNoise", BlueNoise);
 
             shader.SetUniform1("g_flToneMapScalarLinear", tonemapScalar);
-
             SetPostProcessUniforms(shader, postProcessState.TonemapSettings);
+
+            var invDimensions = 1.0f / postProcessState.ColorCorrectionLutDimensions;
+            var invRange = new Vector2(1.0f - invDimensions, 0.5f * invDimensions);
+            shader.SetUniform2("g_vColorCorrectionColorRange", invRange);
+            shader.SetUniform1("g_flColorCorrectionDefaultWeight", (postProcessState.NumLutsActive > 0) ? postProcessState.ColorCorrectionWeight : 0f);
 
             GL.BindVertexArray(vao);
             GL.DrawArrays(PrimitiveType.Triangles, 0, 3);

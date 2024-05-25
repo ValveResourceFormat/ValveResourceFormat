@@ -117,6 +117,7 @@ namespace GUI.Types.Renderer
         public int ColorCorrectionLutDimensions { get; set; } = 32;
         public int NumLutsActive { get; set; }
     };
+
     class SceneTonemapController : SceneNode
     {
         public ExposureSettings ControllerExposureSettings { get; set; }
@@ -169,7 +170,7 @@ namespace GUI.Types.Renderer
         // Additionally, due to collision detection being An Absolute Pain, we can't
         // use local post process volumes, and can only use the master.
 
-        // 
+        //
         public void LoadPostProcessResource(PostProcessing resource)
         {
             PostProcessingResource = resource;
@@ -188,16 +189,15 @@ namespace GUI.Types.Renderer
             // Create color correction texture from raw data
             if (resource.HasColorCorrection())
             {
-                var dimensions = resource.GetColorCorrectionLUTDimension();
-                var data = resource.GetColorCorrectionLUT().Clone() as byte[];
-                var bytesPerPixel = 4; // currently a constant 4 byte per pixel, one per channel
+                var resolution = resource.GetColorCorrectionLUTDimension();
+                var data = resource.GetColorCorrectionLUT();
 
-                ColorCorrectionLutDimensions = dimensions;
+                ColorCorrectionLutDimensions = resolution;
 
-                ColorCorrectionLUT = new RenderTexture(TextureTarget.Texture3D, dimensions, dimensions, dimensions, 1);
+                ColorCorrectionLUT = new RenderTexture(TextureTarget.Texture3D, resolution, resolution, resolution, 1);
                 ColorCorrectionLUT.SetWrapMode(TextureWrapMode.ClampToEdge);
                 ColorCorrectionLUT.SetFiltering(TextureMinFilter.Linear, TextureMagFilter.Linear);
-                GL.TextureStorage3D(ColorCorrectionLUT.Handle, 1, SizedInternalFormat.Rgba8, dimensions, dimensions, dimensions);
+                GL.TextureStorage3D(ColorCorrectionLUT.Handle, 1, SizedInternalFormat.Rgba8, resolution, resolution, resolution);
                 // COLOR CORRECTION DEBUG
 #if false
                 Log.Info(nameof(ScenePostProcessVolume), "CREATING COLOR CORRECTION TEXTURE");
@@ -225,7 +225,7 @@ namespace GUI.Types.Renderer
                 }
 #endif
 
-                GL.TextureSubImage3D(ColorCorrectionLUT.Handle, 0, 0, 0, 0, dimensions, dimensions, dimensions, PixelFormat.Rgba, PixelType.UnsignedByte, data);
+                GL.TextureSubImage3D(ColorCorrectionLUT.Handle, 0, 0, 0, 0, resolution, resolution, resolution, PixelFormat.Rgba, PixelType.UnsignedByte, data);
             }
         }
 
