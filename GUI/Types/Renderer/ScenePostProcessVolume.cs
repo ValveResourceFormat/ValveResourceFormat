@@ -39,6 +39,20 @@ namespace GUI.Types.Renderer
             ToeDenom = 0.3f;
             WhitePoint = 4.0f;
         }
+        public static TonemapSettings Linear()
+        {
+            return new TonemapSettings()
+            {
+                ExposureBias = 0.0f,
+                ShoulderStrength = 0.0f,
+                LinearStrength = 0.0f,
+                LinearAngle = 0.0f,
+                ToeStrength = 1.0f,
+                ToeNum = 1.0f,
+                ToeDenom = 1.0f,
+                WhitePoint = 2.83f,
+            };
+        }
         public TonemapSettings(KVObject tonemapParams)
         {
             // no "Unchecked" equivalent for KVObject
@@ -127,15 +141,18 @@ namespace GUI.Types.Renderer
 
         public override void Render(Scene.RenderContext context)
         {
-            // what to do here? probably add to renderable mesh collection?
         }
 
         public override void Update(Scene.UpdateContext context)
         {
         }
     }
-    class ScenePostProcessVolume : SceneNode
+    // make a parent TriggerSceneNode class?
+    class ScenePostProcessVolume : SceneNode//, IRenderableMeshCollection
     {
+        //public List<RenderableMesh> RenderableMeshes { get; } = new(1);
+
+
         public float FadeTime;
         public bool UseExposure;
 
