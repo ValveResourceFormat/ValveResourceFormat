@@ -12,6 +12,8 @@
 //uniform vec3 g_vNormalizedBloomStrengths;
 //uniform vec3 g_vUnNormalizedBloomStrengths;
 
+uniform int g_nNumSamplesMSAA = 1;
+
 uniform float g_flToneMapScalarLinear;
 uniform float g_flExposureBiasScaleFactor;
 uniform float g_flShoulderStrength;
@@ -70,9 +72,16 @@ vec3 DitherColor(vec3 vColor)
 
 vec4 SampleColorBuffer(vec2 coords)
 {
-    vec4 singleSampleColor = texelFetch(g_tColorBuffer, ivec2(coords.xy), 0); // todo: resolved color instead of 0th sample
-    singleSampleColor.rgb = singleSampleColor.rgb / (max3(singleSampleColor.rgb) + 1.0);
-    return singleSampleColor;
+    const int NumSamples = g_nNumSamplesMSAA;
+    vec4 colorSum = vec4(0.0);
+
+    for (int i = 0; i < NumSamples; i++)
+    {
+        vec4 sampleColor = texelFetch(g_tColorBuffer, ivec2(coords.xy), i);
+        colorSum += sampleColor.rgba;
+    }
+
+    return colorSum / float(NumSamples);
 }
 
 void main()
@@ -86,11 +95,11 @@ void main()
     const bool bUseLUT = g_flColorCorrectionDefaultWeight > 0.0;
     if (bUseLUT)
     {
-        vColor.rgb = ApplyColorCorrection(vColor.rgb);
+       vColor.rgb = ApplyColorCorrection(vColor.rgb);
     }
 
     // Not present in CS2, replaced by a Film Grain setting
-    vColor.rgb = DitherColor(vColor.rgb);
+    //vColor.rgb = DitherColor(vColor.rgb);
 
     outputColor = vColor;
 }

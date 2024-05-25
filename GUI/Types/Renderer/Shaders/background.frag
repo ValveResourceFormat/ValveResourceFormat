@@ -87,5 +87,5 @@ void main() {
     // add a minute amount of noise to hide color banding
     vec3 color = skyToHighSky + (1.0/255.0) * gradientNoise(gl_FragCoord.xy) - (0.5/255.0);
 
-    outputColor = vec4(color, 1.0);
+    outputColor = vec4(SrgbGammaToLinear(color), 1.0);
 }

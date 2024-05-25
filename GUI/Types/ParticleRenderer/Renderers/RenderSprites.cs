@@ -73,7 +73,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
             }
             else
             {
-                texture = vrfGuiContext.MaterialLoader.GetTexture(textureName);
+                texture = vrfGuiContext.MaterialLoader.GetTexture(textureName, srgbRead: true);
             }
 
 #if DEBUG

@@ -6,8 +6,8 @@
 
 in vec2 vTexCoordOut;
 
+uniform sampler2D g_tColor; // SrgbRead(true)
 uniform float g_flAlphaTestReference;
-uniform sampler2D g_tColor;
 
 out vec4 outputColor;
 
