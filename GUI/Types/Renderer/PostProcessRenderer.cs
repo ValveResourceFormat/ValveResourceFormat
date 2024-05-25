@@ -12,6 +12,9 @@ namespace GUI.Types.Renderer
         public RenderTexture BlueNoise;
         private readonly Random random = new();
 
+        public PostProcessState State { get; set; }
+        public float TonemapScalar { get; set; }
+
         public PostProcessRenderer(VrfGuiContext guiContext)
         {
             this.guiContext = guiContext;
@@ -44,7 +47,7 @@ namespace GUI.Types.Renderer
         // In CS2 Blue Noise is done optionally in msaa_resolve
 
         // we should have a shared FullscreenQuadRenderer class
-        public void Render(PostProcessState postProcessState, Framebuffer colorBuffer, float tonemapScalar)
+        public void Render(Framebuffer colorBuffer)
         {
             GL.DepthMask(false);
             GL.Disable(EnableCap.DepthTest);
@@ -53,16 +56,16 @@ namespace GUI.Types.Renderer
 
             // Bind textures
             shader.SetTexture(0, "g_tColorBuffer", colorBuffer.Color);
-            shader.SetTexture(1, "g_tColorCorrection", postProcessState.ColorCorrectionLUT ?? guiContext.MaterialLoader.GetErrorTexture()); // todo: error postprocess texture
+            shader.SetTexture(1, "g_tColorCorrection", State.ColorCorrectionLUT ?? guiContext.MaterialLoader.GetErrorTexture()); // todo: error postprocess texture
             shader.SetTexture(2, "g_tBlueNoise", BlueNoise);
 
-            shader.SetUniform1("g_flToneMapScalarLinear", tonemapScalar);
-            SetPostProcessUniforms(shader, postProcessState.TonemapSettings);
+            shader.SetUniform1("g_flToneMapScalarLinear", TonemapScalar);
+            SetPostProcessUniforms(shader, State.TonemapSettings);
 
-            var invDimensions = 1.0f / postProcessState.ColorCorrectionLutDimensions;
+            var invDimensions = 1.0f / State.ColorCorrectionLutDimensions;
             var invRange = new Vector2(1.0f - invDimensions, 0.5f * invDimensions);
             shader.SetUniform2("g_vColorCorrectionColorRange", invRange);
-            shader.SetUniform1("g_flColorCorrectionDefaultWeight", (postProcessState.NumLutsActive > 0) ? postProcessState.ColorCorrectionWeight : 0f);
+            shader.SetUniform1("g_flColorCorrectionDefaultWeight", (State.NumLutsActive > 0) ? State.ColorCorrectionWeight : 0f);
 
             GL.BindVertexArray(vao);
             GL.DrawArrays(PrimitiveType.Triangles, 0, 3);

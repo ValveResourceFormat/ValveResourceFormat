@@ -147,6 +147,9 @@ namespace GUI.Types.Renderer
             camera.SetViewConstants(viewBuffer.Data);
             scene.SetFogConstants(viewBuffer.Data);
             viewBuffer.Update();
+
+            postProcessRenderer.State = scene.PostProcessInfo.CurrentState;
+            postProcessRenderer.TonemapScalar = scene.PostProcessInfo.CalculateTonemapScalar();
         }
 
         public virtual void PreSceneLoad()
@@ -350,11 +353,6 @@ namespace GUI.Types.Renderer
                 RenderScenesWithView(renderContext);
             }
 
-            renderContext.Framebuffer = GLDefaultFramebuffer;
-            GLDefaultFramebuffer.Bind(FramebufferTarget.DrawFramebuffer);
-
-            FramebufferBlit(MainFramebuffer, GLDefaultFramebuffer);
-
             using (new GLDebugGroup("Lines Render"))
             {
                 selectedNodeRenderer.Render(renderContext);
@@ -376,20 +374,6 @@ namespace GUI.Types.Renderer
             }
         }
 
-        /// <summary>
-        /// Multisampling resolve, postprocess the image & convert to gamma.
-        /// </summary>
-        protected void FramebufferBlit(Framebuffer inputFramebuffer, Framebuffer outputFramebuffer)
-        {
-            using var _ = new GLDebugGroup("Post Processing Render");
-
-            Debug.Assert(inputFramebuffer.NumSamples > 0);
-            Debug.Assert(outputFramebuffer.NumSamples == 0);
-
-            var tonemapScalar = Scene.PostProcessInfo.CalculateTonemapScalar();
-            postProcessRenderer.Render(Scene.PostProcessInfo.CurrentState, inputFramebuffer, tonemapScalar);
-        }
-
         protected void DrawMainScene(Framebuffer finalFramebuffer)
         {
             var renderContext = new Scene.RenderContext
@@ -408,6 +392,7 @@ namespace GUI.Types.Renderer
             Scene.RenderOpaqueLayer(renderContext);
             RenderTranslucentLayer(Scene, renderContext);
 
+            finalFramebuffer.Clear();
             FramebufferBlit(MainFramebuffer, finalFramebuffer);
         }
 

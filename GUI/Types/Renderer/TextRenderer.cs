@@ -162,6 +162,7 @@ namespace GUI.Types.Renderer
             }
 
             GL.DepthMask(writeDepth);
+            GL.Disable(EnableCap.DepthTest);
             GL.Enable(EnableCap.Blend);
             GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
 
@@ -178,6 +179,7 @@ namespace GUI.Types.Renderer
 
             GL.Disable(EnableCap.Blend);
             GL.DepthMask(true);
+            GL.Enable(EnableCap.DepthTest);
         }
 
         // Font metrics for JetBrainsMono-Regular.ttf generated using msdf-atlas-gen (use Misc/FontMsdfGen)
