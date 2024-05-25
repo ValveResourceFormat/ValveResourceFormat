@@ -375,7 +375,6 @@ namespace GUI.Controls
 
         public Framebuffer GLDefaultFramebuffer;
         public Framebuffer MainFramebuffer;
-        public Framebuffer FinalFramebuffer;
         private int MaxSamples;
         private int NumSamples => Math.Max(1, Math.Min(Settings.Config.AntiAliasingSamples, MaxSamples));
 
@@ -529,10 +528,13 @@ namespace GUI.Controls
                 }
             }
 
-            MainFramebuffer.Bind(FramebufferTarget.ReadFramebuffer);
-            GLDefaultFramebuffer.Bind(FramebufferTarget.DrawFramebuffer);
+            if (MainFramebuffer != GLDefaultFramebuffer)
+            {
+                MainFramebuffer.Bind(FramebufferTarget.ReadFramebuffer);
+                GLDefaultFramebuffer.Bind(FramebufferTarget.DrawFramebuffer);
 
-            FramebufferBlit(MainFramebuffer, GLDefaultFramebuffer);
+                FramebufferBlit(MainFramebuffer, GLDefaultFramebuffer);
+            }
 
             if (Settings.Config.DisplayFps != 0)
             {
