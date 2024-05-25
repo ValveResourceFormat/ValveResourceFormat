@@ -726,6 +726,31 @@ namespace GUI.Types.Renderer
                     }
                 }
 
+                if (IsCamera(classname))
+                {
+                    var cameraName = entity.GetProperty<string>("cameraname") ?? entity.GetProperty<string>("targetname") ?? classname;
+                    CameraNames.Add(cameraName);
+                    CameraMatrices.Add(transformationMatrix);
+                }
+
+                var rendercolor = entity.GetProperty(LocalHashes.RenderColor);
+                var renderamt = entity.GetProperty(LocalHashes.RenderAmt)?.Data switch
+                {
+                    float f => f,
+                    _ => 1.0f,
+                };
+
+                var tint = rendercolor?.Data switch
+                {
+                    byte[] col32 when rendercolor.Type == EntityFieldType.Color32 => new Vector4(col32[0], col32[1], col32[2], col32[3]) / 255.0f,
+                    Vector3 vec3 => new Vector4(vec3 / 255.0f, renderamt),
+                    _ => Vector4.One,
+                };
+
+                tint.X = MathF.Pow(tint.X, 2.2f);
+                tint.Y = MathF.Pow(tint.Y, 2.2f);
+                tint.Z = MathF.Pow(tint.Z, 2.2f);
+
                 if (classname == "post_processing_volume")
                 {
                     var exposureSpeedUp = entity.GetPropertyUnchecked<float>("exposurespeedup");
@@ -772,6 +797,8 @@ namespace GUI.Types.Renderer
                         }
                     }
 
+                    var postProcessHasModel = false;
+
                     if (model != null)
                     {
                         var postProcessModel = guiContext.LoadFileCompiled(model);
@@ -781,6 +808,19 @@ namespace GUI.Types.Renderer
                             var ppModelResource = (Model)postProcessModel.DataBlock;
 
                             postProcess.ModelVolume = ppModelResource;
+
+                            var ppModelNode = new ModelSceneNode(scene, ppModelResource, skin, optimizeForMapLoad: true)
+                            {
+                                Transform = transformationMatrix,
+                                Tint = tint,
+                                LayerName = layerName,
+                                Name = model,
+                                EntityData = entity,
+                            };
+
+                            postProcessHasModel = true; // for collision we'd need to collect phys data within the class
+
+                            scene.Add(ppModelNode, false);
                         }
                         else
                         {
@@ -790,14 +830,19 @@ namespace GUI.Types.Renderer
                     }
 
                     scene.PostProcessInfo.AddPostProcessVolume(postProcess);
-                    continue;
+
+                    // If the post process model exists, we hackily let it add the model to the scene nodes
+                    if (!postProcessHasModel)
+                    {
+                        continue;
+                    }
                 }
                 else if (classname == "env_tonemap_controller")
                 {
                     var minExposureTC = entity.GetPropertyUnchecked<float>("minexposure");
                     var maxExposureTC = entity.GetPropertyUnchecked<float>("minexposure");
                     var exposureRate = entity.GetPropertyUnchecked<float>("rate");
-                    var isMasterTC = entity.GetPropertyUnchecked<bool>("master"); // master actually doesn't do anything
+                    //var isMasterTC = entity.GetPropertyUnchecked<bool>("master"); // master actually doesn't do anything
 
                     var exposureSettings = new ExposureSettings()
                     {
@@ -818,31 +863,6 @@ namespace GUI.Types.Renderer
                         scene.PostProcessInfo.MasterTonemapController = tonemapController;
                     }
                 }
-
-                if (IsCamera(classname))
-                {
-                    var cameraName = entity.GetProperty<string>("cameraname") ?? entity.GetProperty<string>("targetname") ?? classname;
-                    CameraNames.Add(cameraName);
-                    CameraMatrices.Add(transformationMatrix);
-                }
-
-                var rendercolor = entity.GetProperty(LocalHashes.RenderColor);
-                var renderamt = entity.GetProperty(LocalHashes.RenderAmt)?.Data switch
-                {
-                    float f => f,
-                    _ => 1.0f,
-                };
-
-                var tint = rendercolor?.Data switch
-                {
-                    byte[] col32 when rendercolor.Type == EntityFieldType.Color32 => new Vector4(col32[0], col32[1], col32[2], col32[3]) / 255.0f,
-                    Vector3 vec3 => new Vector4(vec3 / 255.0f, renderamt),
-                    _ => Vector4.One,
-                };
-
-                tint.X = MathF.Pow(tint.X, 2.2f);
-                tint.Y = MathF.Pow(tint.Y, 2.2f);
-                tint.Z = MathF.Pow(tint.Z, 2.2f);
 
                 if (model == null)
                 {

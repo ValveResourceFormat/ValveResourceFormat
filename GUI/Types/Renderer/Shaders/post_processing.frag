@@ -98,7 +98,7 @@ void main()
        vColor.rgb = ApplyColorCorrection(vColor.rgb);
     }
 
-    // Not present in CS2, replaced by a Film Grain setting
+    // Not present in CS2, done in msaa_resolve_ps instead
     //vColor.rgb = DitherColor(vColor.rgb);
 
     outputColor = vColor;
