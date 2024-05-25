@@ -46,8 +46,7 @@ namespace GUI.Types.Renderer
         // we should have a shared FullscreenQuadRenderer class
         public void Render(PostProcessState postProcessState, Framebuffer colorBuffer, float tonemapScalar)
         {
-            GL.Disable(EnableCap.Blend);
-            GL.Disable(EnableCap.CullFace);
+            GL.DepthMask(false);
             GL.Disable(EnableCap.DepthTest);
 
             GL.UseProgram(shader.Program);
@@ -73,8 +72,6 @@ namespace GUI.Types.Renderer
             GL.UseProgram(0);
 
             GL.DepthMask(true);
-            GL.Disable(EnableCap.Blend);
-            GL.Enable(EnableCap.CullFace);
             GL.Enable(EnableCap.DepthTest);
         }
     }

@@ -289,7 +289,7 @@ namespace GUI.Types.Renderer
             //depthOnlyShaders[(int)DepthOnlyProgram.StaticAlphaTest] = GuiContext.ShaderLoader.LoadShader("vrf.depth_only", new Dictionary<string, byte> { { "F_ALPHA_TEST", 1 } });
             depthOnlyShaders[(int)DepthOnlyProgram.Animated] = GuiContext.ShaderLoader.LoadShader("vrf.depth_only", new Dictionary<string, byte> { { "D_ANIMATED", 1 } });
 
-            BasePassFramebuffer.Bind(FramebufferTarget.Framebuffer);
+            MainFramebuffer.Bind(FramebufferTarget.Framebuffer);
             CreateBuffers();
 
             var timer = Stopwatch.StartNew();
@@ -315,9 +315,9 @@ namespace GUI.Types.Renderer
             {
                 View = this,
                 Camera = Camera,
-                Framebuffer = BasePassFramebuffer,
+                Framebuffer = MainFramebuffer,
             };
-            BasePassFramebuffer.Bind(FramebufferTarget.Framebuffer);
+
             using (new GLDebugGroup("Update Loop"))
             {
                 Scene.Update(e.FrameTime);
@@ -350,15 +350,10 @@ namespace GUI.Types.Renderer
                 RenderScenesWithView(renderContext);
             }
 
-            using (new GLDebugGroup("Post Processing Render"))
-            {
-                renderContext.Framebuffer = FinalFramebuffer;
-                FinalFramebuffer.Bind(FramebufferTarget.Framebuffer);
+            renderContext.Framebuffer = GLDefaultFramebuffer;
+            GLDefaultFramebuffer.Bind(FramebufferTarget.DrawFramebuffer);
 
-                postProcessRenderer.Render(Scene.PostProcessInfo.CurrentState,
-                    BasePassFramebuffer,
-                    Scene.PostProcessInfo.CalculateTonemapScalar());
-            }
+            FramebufferBlit(MainFramebuffer, GLDefaultFramebuffer);
 
             using (new GLDebugGroup("Lines Render"))
             {
@@ -381,13 +376,27 @@ namespace GUI.Types.Renderer
             }
         }
 
-        protected void DrawMainScene()
+        /// <summary>
+        /// Multisampling resolve, postprocess the image & convert to gamma.
+        /// </summary>
+        protected void FramebufferBlit(Framebuffer inputFramebuffer, Framebuffer outputFramebuffer)
+        {
+            using var _ = new GLDebugGroup("Post Processing Render");
+
+            Debug.Assert(inputFramebuffer.NumSamples > 0);
+            Debug.Assert(outputFramebuffer.NumSamples == 0);
+
+            var tonemapScalar = Scene.PostProcessInfo.CalculateTonemapScalar();
+            postProcessRenderer.Render(Scene.PostProcessInfo.CurrentState, inputFramebuffer, tonemapScalar);
+        }
+
+        protected void DrawMainScene(Framebuffer finalFramebuffer)
         {
             var renderContext = new Scene.RenderContext
             {
                 View = this,
                 Camera = Camera,
-                Framebuffer = BasePassFramebuffer,
+                Framebuffer = MainFramebuffer,
                 Scene = Scene,
             };
 
@@ -399,7 +408,7 @@ namespace GUI.Types.Renderer
             Scene.RenderOpaqueLayer(renderContext);
             RenderTranslucentLayer(Scene, renderContext);
 
-            // do post process here?
+            FramebufferBlit(MainFramebuffer, finalFramebuffer);
         }
 
         private void RenderSceneShadows(Scene.RenderContext renderContext)
