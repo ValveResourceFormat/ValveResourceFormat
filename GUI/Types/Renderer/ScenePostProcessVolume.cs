@@ -113,7 +113,7 @@ namespace GUI.Types.Renderer
 
         // for blending colorcorrectionluts this would be a List with weights, right?
         public RenderTexture ColorCorrectionLUT { get; set; }
-        public float ColorCorrectionWeight { get; set; }
+        public float ColorCorrectionWeight { get; set; } = 1.0f;
         public int ColorCorrectionLutDimensions { get; set; } = 32;
         public int NumLutsActive { get; set; }
     };
