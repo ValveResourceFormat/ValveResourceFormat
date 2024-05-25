@@ -24,7 +24,7 @@ uniform float g_flToeNum;
 uniform float g_flToeDenom;
 uniform float g_flWhitePointScale;
 
-uniform float g_flColorCorrectionDefaultWeight;
+uniform float g_flColorCorrectionDefaultWeight = 1.0;
 uniform vec2 g_vColorCorrectionColorRange = vec2(0.96875, 0.015625);
 
 uniform vec4 g_vBlueNoiseDitherParams;
@@ -55,7 +55,7 @@ vec3 ApplyColorCorrection(vec3 vColor)
 {
     vec3 scaledColor = saturate(vColor) * g_vColorCorrectionColorRange.x + g_vColorCorrectionColorRange.y;
     vec3 ColorCorrectedColor = texture(g_tColorCorrection, scaledColor).rgb;
-    return mix(ColorCorrectedColor, vColor, g_flColorCorrectionDefaultWeight); // Probably for blending
+    return mix(vColor, ColorCorrectedColor, g_flColorCorrectionDefaultWeight); // Probably for blending
 }
 
 vec3 DitherColor(vec3 vColor)

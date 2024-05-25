@@ -173,6 +173,7 @@ namespace GUI.Types.Renderer
                 var result = new WorldLoader(world, Scene);
 
                 AddCheckBox("Show Fog", Scene.FogEnabled, v => Scene.FogEnabled = v);
+                AddCheckBox("Color Correction", postProcessRenderer.ColorCorrectionEnabled, v => postProcessRenderer.ColorCorrectionEnabled = v);
 
                 if (result.SkyboxScene != null)
                 {
