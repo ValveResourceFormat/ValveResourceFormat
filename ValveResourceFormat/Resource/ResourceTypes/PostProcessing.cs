@@ -49,7 +49,7 @@ namespace ValveResourceFormat.ResourceTypes
 
         public bool HasColorCorrection()
         {
-            if ((Data as KVObject).Properties.TryGetValue("m_bHasColorCorrection", out var value))
+            if (Data.Properties.TryGetValue("m_bHasColorCorrection", out var value))
             {
                 return (bool)value.Value;
             }

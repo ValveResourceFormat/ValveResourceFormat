@@ -2,10 +2,7 @@
 
 #include "common/utils.glsl"
 
-//#define F_OUTPUT_LINEAR 0
 #define F_COLOR_CORRECTION_LUT 0
-#define F_HAS_BLUE_NOISE 0
-#define F_IS_POST_HLA 0
 //#define F_BLOOM 0
 //#define F_OLD_TONEMAPPING_CURVE 0 // HLA, linear only. Used in linear viewmodes to disable the tonemapping curve
 
@@ -14,20 +11,6 @@
 //uniform vec4 g_vBloomUvScaleClamp;
 //uniform vec3 g_vNormalizedBloomStrengths;
 //uniform vec3 g_vUnNormalizedBloomStrengths;
-
-
-
-
-layout(location=0) uniform sampler2DMS g_tColorBuffer;
-
-vec4 SampleColorBuffer(vec2 coords)
-{
-    vec4 singleSampleColor = texelFetch(g_tColorBuffer, ivec2(coords.xy), int(gl_SampleID));
-    singleSampleColor.rgb = singleSampleColor.rgb / (max3(singleSampleColor.rgb) + 1.0);
-    return singleSampleColor;// / 2.8;
-}
-
-
 
 uniform float g_flToneMapScalarLinear;
 uniform float g_flExposureBiasScaleFactor;
@@ -38,6 +21,17 @@ uniform float g_flToeStrength;
 uniform float g_flToeNum;
 uniform float g_flToeDenom;
 uniform float g_flWhitePointScale;
+
+uniform float g_flColorCorrectionDefaultWeight;
+uniform vec2 g_vColorCorrectionColorRange = vec2(0.96875, 0.015625);
+
+uniform vec4 g_vBlueNoiseDitherParams;
+
+layout (location = 0) uniform sampler2DMS g_tColorBuffer;
+layout (location = 1) uniform sampler3D g_tColorCorrection;
+layout (location = 2) uniform sampler2D g_tBlueNoise;
+
+layout (location = 0) out vec4 outputColor;
 
 vec3 TonemapColor(vec3 vColor)
 {
@@ -55,25 +49,13 @@ vec3 TonemapColor(vec3 vColor)
     return vTonemappedColor;
 }
 
-
-
-#if F_COLOR_CORRECTION_LUT
-
-layout(location=2) uniform sampler3D g_tColorCorrection;
-uniform float g_flColorCorrectionDefaultWeight;
-uniform vec2 g_vColorCorrectionColorRange = vec2(0.96875, 0.015625);
 vec3 ApplyColorCorrection(vec3 vColor)
 {
     vec3 scaledColor = saturate(vColor) * g_vColorCorrectionColorRange.x + g_vColorCorrectionColorRange.y;
     vec3 ColorCorrectedColor = texture(g_tColorCorrection, scaledColor).rgb;
     return mix(ColorCorrectedColor, vColor, g_flColorCorrectionDefaultWeight); // Probably for blending
 }
-#endif
 
-layout(location=1) uniform sampler2D g_tBlueNoise;
-uniform vec4 g_vBlueNoiseDitherParams;
-
-//#if !F_OUTPUT_LINEAR
 vec3 DitherColor(vec3 vColor)
 {
     vec2 blueNoiseCoords = gl_FragCoord.xy * g_vBlueNoiseDitherParams.z + g_vBlueNoiseDitherParams.xy;
@@ -85,11 +67,13 @@ vec3 DitherColor(vec3 vColor)
     vec3 subPrecisionDither = (blueNoise - 0.5) * g_vBlueNoiseDitherParams.w;
     return vColor + subPrecisionDither;
 }
-//#endif
 
-
-
-layout(location=0) out vec4 outputColor;
+vec4 SampleColorBuffer(vec2 coords)
+{
+    vec4 singleSampleColor = texelFetch(g_tColorBuffer, ivec2(coords.xy), int(gl_SampleID));
+    singleSampleColor.rgb = singleSampleColor.rgb / (max3(singleSampleColor.rgb) + 1.0);
+    return singleSampleColor;
+}
 
 void main()
 {
@@ -99,14 +83,14 @@ void main()
     // Finally, convert from Linear to Gamma space
     vColor.rgb = SrgbLinearToGamma(vColor.rgb);
 
-#if F_COLOR_CORRECTION_LUT
-    vColor.rgb = ApplyColorCorrection(vColor.rgb);
-#endif
+    const bool bUseLUT = g_flColorCorrectionDefaultWeight > 0.0;
+    if (bUseLUT)
+    {
+        vColor.rgb = ApplyColorCorrection(vColor.rgb);
+    }
 
-//#if !F_OUTPUT_LINEAR
     // Not present in CS2, replaced by a Film Grain setting
     vColor.rgb = DitherColor(vColor.rgb);
-//#endif
 
     outputColor = vColor;
 }

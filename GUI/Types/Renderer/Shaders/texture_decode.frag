@@ -144,7 +144,7 @@ vec3 CheckerboardPattern(vec2 vScreenCoords)
     return vColor;
 }
 
-layout(location = 0) out vec4 vColorOutput;
+layout (location = 0) out vec4 vColorOutput;
 
 void main()
 {
