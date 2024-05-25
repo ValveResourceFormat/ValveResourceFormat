@@ -70,7 +70,7 @@ vec3 DitherColor(vec3 vColor)
 
 vec4 SampleColorBuffer(vec2 coords)
 {
-    vec4 singleSampleColor = texelFetch(g_tColorBuffer, ivec2(coords.xy), int(gl_SampleID));
+    vec4 singleSampleColor = texelFetch(g_tColorBuffer, ivec2(coords.xy), 0); // todo: resolved color instead of 0th sample
     singleSampleColor.rgb = singleSampleColor.rgb / (max3(singleSampleColor.rgb) + 1.0);
     return singleSampleColor;
 }

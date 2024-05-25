@@ -43,7 +43,7 @@ namespace GUI.Types.Renderer
 
         protected override void LoadScene()
         {
-            BasePassFramebuffer.ChangeFormat(new(PixelInternalFormat.Rgba8, PixelFormat.Rgba, PixelType.UnsignedInt), BasePassFramebuffer.DepthFormat);
+            MainFramebuffer.ChangeFormat(new(PixelInternalFormat.Rgba8, PixelFormat.Rgba, PixelType.UnsignedInt), MainFramebuffer.DepthFormat);
         }
 
         private void LoadDefaultEnviromentMap()
@@ -114,17 +114,15 @@ namespace GUI.Types.Renderer
         // Render only the main scene nodes into a transparent framebuffer
         protected override SKBitmap ReadPixelsToBitmap()
         {
-            var (w, h) = (BasePassFramebuffer.Width, BasePassFramebuffer.Height);
+            var (w, h) = (MainFramebuffer.Width, MainFramebuffer.Height);
 
-            BasePassFramebuffer.Bind(FramebufferTarget.Framebuffer);
+            MainFramebuffer.Bind(FramebufferTarget.Framebuffer);
             GL.ClearColor(new OpenTK.Graphics.Color4(0, 0, 0, 0));
-            GL.Clear(BasePassFramebuffer.ClearMask);
-
-            DrawMainScene();
+            GL.Clear(MainFramebuffer.ClearMask);
 
             if (SaveAsFbo == null)
             {
-                SaveAsFbo = Framebuffer.Prepare(w, h, 0, new(PixelInternalFormat.Rgba8, PixelFormat.Bgra, PixelType.UnsignedByte), BasePassFramebuffer.DepthFormat);
+                SaveAsFbo = Framebuffer.Prepare(w, h, 0, new(PixelInternalFormat.Rgba8, PixelFormat.Bgra, PixelType.UnsignedByte), MainFramebuffer.DepthFormat);
                 SaveAsFbo.ClearColor = new OpenTK.Graphics.Color4(0, 0, 0, 0);
                 SaveAsFbo.Initialize();
             }
@@ -134,7 +132,7 @@ namespace GUI.Types.Renderer
             }
 
             SaveAsFbo.Clear();
-            GL.BlitNamedFramebuffer(BasePassFramebuffer.FboHandle, SaveAsFbo.FboHandle, 0, h, w, 0, 0, 0, w, h, ClearBufferMask.ColorBufferBit, BlitFramebufferFilter.Nearest);
+            DrawMainScene(SaveAsFbo);
 
             GL.Flush();
             GL.Finish();
