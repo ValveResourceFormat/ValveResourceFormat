@@ -86,7 +86,7 @@ namespace GUI.Types.Renderer
             SetPostProcessUniforms(shader, postProcessState.TonemapSettings);
 
             GL.BindVertexArray(vao);
-            GL.DrawArrays(PrimitiveType.TriangleFan, 0, 4);
+            GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
 
             GL.EnableVertexAttribArray(0);
             GL.BindVertexArray(0);
