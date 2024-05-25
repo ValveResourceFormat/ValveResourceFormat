@@ -533,6 +533,11 @@ namespace GUI.Controls
                 }
             }
 
+            MainFramebuffer.Bind(FramebufferTarget.ReadFramebuffer);
+            GLDefaultFramebuffer.Bind(FramebufferTarget.DrawFramebuffer);
+
+            FramebufferBlit(MainFramebuffer, GLDefaultFramebuffer);
+
             if (Settings.Config.DisplayFps != 0)
             {
                 using (new GLDebugGroup("Text Render"))
@@ -544,6 +549,19 @@ namespace GUI.Controls
             GLControl.SwapBuffers();
             Picker?.TriggerEventIfAny();
             GLControl.Invalidate();
+        }
+
+        /// <summary>
+        /// Multisampling resolve, postprocess the image & convert to gamma.
+        /// </summary>
+        protected void FramebufferBlit(Framebuffer inputFramebuffer, Framebuffer outputFramebuffer)
+        {
+            using var _ = new GLDebugGroup("Post Processing");
+
+            Debug.Assert(inputFramebuffer.NumSamples > 0);
+            Debug.Assert(outputFramebuffer.NumSamples == 0);
+
+            postProcessRenderer.Render(colorBuffer: inputFramebuffer);
         }
 
         protected virtual void OnResize(object sender, EventArgs e)
