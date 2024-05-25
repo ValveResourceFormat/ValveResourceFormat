@@ -474,7 +474,7 @@ namespace GUI.Types.Renderer
             }
             finally
             {
-                FinalFramebuffer.Bind(FramebufferTarget.Framebuffer);
+                MainFramebuffer.Bind(FramebufferTarget.Framebuffer);
                 bitmap?.Dispose();
             }
         }
@@ -841,18 +841,17 @@ namespace GUI.Types.Renderer
             GL.CreateVertexArrays(1, out vao);
 
             // Use non-msaa framebuffer for texture viewer
-            if (FinalFramebuffer != GLDefaultFramebuffer)
+            if (MainFramebuffer != GLDefaultFramebuffer)
             {
-                FinalFramebuffer.Dispose();
-                FinalFramebuffer = GLDefaultFramebuffer;
+                MainFramebuffer.Dispose();
+                MainFramebuffer = GLDefaultFramebuffer;
             }
 
-            FinalFramebuffer.ClearColor = OpenTK.Graphics.Color4.Green;
-            FinalFramebuffer.ClearMask = ClearBufferMask.ColorBufferBit;
+            MainFramebuffer.ClearColor = OpenTK.Graphics.Color4.Green;
+            MainFramebuffer.ClearMask = ClearBufferMask.ColorBufferBit;
 
             GL.DepthMask(false);
             GL.Disable(EnableCap.DepthTest);
-            GL.Disable(EnableCap.CullFace);
 
             GLLoad -= OnLoad;
 
@@ -909,8 +908,8 @@ namespace GUI.Types.Renderer
             TextureScaleChangeTime += e.FrameTime;
 
             GL.Viewport(0, 0, GLControl.Width, GLControl.Height);
-            FinalFramebuffer.Clear();
-            Draw(FinalFramebuffer);
+            MainFramebuffer.Clear();
+            Draw(MainFramebuffer);
         }
 
         private void Draw(Framebuffer fbo, bool captureFullSizeImage = false)
