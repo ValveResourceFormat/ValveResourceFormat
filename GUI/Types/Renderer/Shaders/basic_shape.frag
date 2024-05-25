@@ -3,6 +3,7 @@
 #include "common/utils.glsl"
 #include "common/fullbright.glsl"
 #include "common/ViewConstants.glsl"
+#include "common/fog.glsl"
 
 #define renderMode_Color 0
 #define renderMode_Normals 0
@@ -19,7 +20,7 @@ const float shadingStrength = 0.8;
 
 uniform bool g_bNormalShaded;
 uniform bool g_bTriplanarMapping;
-uniform sampler2D g_tColor;
+uniform sampler2D g_tColor; // SrgbRead(true)
 
 // "p" point being textured
 // "n" surface normal at "p"
@@ -61,6 +62,8 @@ void main(void)
     if (!gl_FrontFacing) {
         outputColor.rgba *= 0.75;
     }
+
+    ApplyFog(outputColor.rgb, vtxPos);
 
     if (g_iRenderMode == renderMode_Color)
     {
