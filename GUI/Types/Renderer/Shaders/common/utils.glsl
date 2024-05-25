@@ -147,7 +147,7 @@ vec3 SrgbLinearToGamma( vec3 vLinearColor )
 {
 	// 15 asm instructions
 	vec3 vLinearSegment = vLinearColor.rgb * 12.92;
-	vec3 vExpSegment = ( 1.055 * pow( vLinearColor.rgb, vec3 ( 1.0 / 2.4, 1.0 / 2.4, 1.0 / 2.4 ) ) ) - 0.055;
+	vec3 vExpSegment = ( 1.055 * pow( vLinearColor.rgb, vec3 ( 1.0 / 2.4) )) - 0.055;
 
 	vec3 vGammaColor = vec3(( vLinearColor.r <= 0.0031308 ) ? vLinearSegment.r : vExpSegment.r,
                             ( vLinearColor.g <= 0.0031308 ) ? vLinearSegment.g : vExpSegment.g,

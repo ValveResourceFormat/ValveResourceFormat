@@ -72,16 +72,20 @@ vec3 DitherColor(vec3 vColor)
 
 vec4 SampleColorBuffer(vec2 coords)
 {
-    const int NumSamples = g_nNumSamplesMSAA;
-    vec4 colorSum = vec4(0.0);
+    const int NumSamples = int(g_nNumSamplesMSAA);
+    const float InvNumSamples = 1.0 / float(g_nNumSamplesMSAA);
+
+    vec4 vColorMSAA = vec4(0.0);
 
     for (int i = 0; i < NumSamples; i++)
     {
         vec4 sampleColor = texelFetch(g_tColorBuffer, ivec2(coords.xy), i);
-        colorSum += sampleColor.rgba;
+        sampleColor = clamp(sampleColor, vec4(0), vec4(65504));
+
+        vColorMSAA += sampleColor.rgba * InvNumSamples;
     }
 
-    return colorSum / float(NumSamples);
+    return vColorMSAA;
 }
 
 void main()
@@ -99,7 +103,7 @@ void main()
     }
 
     // Not present in CS2, done in msaa_resolve_ps instead
-    //vColor.rgb = DitherColor(vColor.rgb);
+    vColor.rgb = DitherColor(vColor.rgb);
 
     outputColor = vColor;
 }

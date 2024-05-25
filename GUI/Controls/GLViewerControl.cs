@@ -159,14 +159,9 @@ namespace GUI.Controls
             var bitmap = new SKBitmap(GLDefaultFramebuffer.Width, GLDefaultFramebuffer.Height, SKColorType.Bgra8888, SKAlphaType.Opaque);
             var pixels = bitmap.GetPixels(out var length);
 
-            if (MainFramebuffer != GLDefaultFramebuffer)
-            {
-                var (w, h) = (GLControl.Width, GLControl.Height);
-                GL.BlitNamedFramebuffer(MainFramebuffer.FboHandle, GLDefaultFramebuffer.FboHandle, 0, 0, w, h, 0, 0, w, h, ClearBufferMask.ColorBufferBit, BlitFramebufferFilter.Nearest);
-            }
+            BlitFramebufferMainToDefault();
 
-            GL.Flush();
-            GL.Finish();
+            GLDefaultFramebuffer.Bind(FramebufferTarget.ReadFramebuffer);
             GL.ReadPixels(0, 0, GLDefaultFramebuffer.Width, GLDefaultFramebuffer.Height, PixelFormat.Bgra, PixelType.UnsignedByte, pixels);
 
             // Flip y
@@ -532,13 +527,7 @@ namespace GUI.Controls
                 }
             }
 
-            if (MainFramebuffer != GLDefaultFramebuffer)
-            {
-                MainFramebuffer.Bind(FramebufferTarget.ReadFramebuffer);
-                GLDefaultFramebuffer.Bind(FramebufferTarget.DrawFramebuffer);
-
-                FramebufferBlit(MainFramebuffer, GLDefaultFramebuffer);
-            }
+            BlitFramebufferMainToDefault();
 
             if (Settings.Config.DisplayFps != 0)
             {
@@ -551,6 +540,19 @@ namespace GUI.Controls
             GLControl.SwapBuffers();
             Picker?.TriggerEventIfAny();
             GLControl.Invalidate();
+        }
+
+        private void BlitFramebufferMainToDefault()
+        {
+            if (MainFramebuffer == GLDefaultFramebuffer)
+            {
+                return; // not required
+            }
+
+            MainFramebuffer.Bind(FramebufferTarget.ReadFramebuffer);
+            GLDefaultFramebuffer.Bind(FramebufferTarget.DrawFramebuffer);
+
+            FramebufferBlit(MainFramebuffer, GLDefaultFramebuffer);
         }
 
         /// <summary>
@@ -587,7 +589,11 @@ namespace GUI.Controls
             }
 
             GLDefaultFramebuffer.Resize(w, h);
-            MainFramebuffer.Resize(w, h, NumSamples);
+
+            if (MainFramebuffer != GLDefaultFramebuffer)
+            {
+                MainFramebuffer.Resize(w, h, NumSamples);
+            }
 
             if (MainFramebuffer.InitialStatus == FramebufferErrorCode.FramebufferUndefined)
             {
@@ -600,6 +606,7 @@ namespace GUI.Controls
 
                     DisposeFramebuffer();
                     MainFramebuffer = GLDefaultFramebuffer;
+                    GL.Enable(EnableCap.FramebufferSrgb);
                 }
             }
 
