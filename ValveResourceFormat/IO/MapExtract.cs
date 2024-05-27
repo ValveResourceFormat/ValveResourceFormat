@@ -1,3 +1,4 @@
+using SteamDatabase.ValvePak;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -12,6 +13,22 @@ using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.IO;
 
+public class VmapContentFile : ContentFile
+{
+    public string SkyboxPath { get; init; }
+}
+
+public struct VmapOptions
+{
+    public bool Export3DSkybox { get; set; }
+}
+
+public enum VmapVersion
+{
+    V29 = 29,
+    V35 = 35,
+}
+
 public sealed class MapExtract
 {
     public string LumpFolder { get; private set; }
@@ -19,6 +36,7 @@ public sealed class MapExtract
     private IReadOnlyCollection<string> EntityLumpNames { get; set; }
     private IReadOnlyCollection<string> WorldNodeNames { get; set; }
     private string WorldPhysicsName { get; set; }
+    public string SkyboxToExtract { get; set; }
 
     private List<string> AssetReferences { get; } = [];
     private List<string> ModelsToExtract { get; } = [];
@@ -45,8 +63,11 @@ public sealed class MapExtract
     private List<CMapWorldLayer> WorldLayers { get; set; }
     private Dictionary<int, MapNode> UniqueNodeIds { get; set; }
     private CMapRootElement MapDocument { get; set; }
+    private VmapVersion VmapVersion { get; set; } = VmapVersion.V29;
 
     private readonly IFileLoader FileLoader;
+
+    private VmapOptions FileFlags;
 
     public IProgress<string> ProgressReporter { get; set; }
     public PhysicsVertexMatcher PhysVertexMatcher { get; private set; }
@@ -74,8 +95,9 @@ public sealed class MapExtract
     /// <summary>
     /// Extract a map from a resource. Accepted types include Map, World. TODO: WorldNode and EntityLump.
     /// </summary>
-    public MapExtract(Resource resource, IFileLoader fileLoader)
+    public MapExtract(Resource resource, IFileLoader fileLoader, ResourceOptions fileFlags)
     {
+        FileFlags = fileFlags.VmapOptions;
         FileLoader = fileLoader ?? throw new ArgumentNullException(nameof(fileLoader), "A file loader must be provided to load the map's lumps");
 
         switch (resource.ResourceType)
@@ -95,9 +117,9 @@ public sealed class MapExtract
     /// Extract a map by name and a vpk-based file loader.
     /// </summary>
     /// <param name="mapNameFull"> Full name of map, including the 'maps' root. The lump folder. E.g. 'maps/prefabs/ui/ui_background'. </param>
-    public MapExtract(string mapNameFull, IFileLoader fileLoader)
+    public MapExtract(string mapNameFull, IFileLoader fileLoader, ResourceOptions fileFlags)
     {
-        ArgumentNullException.ThrowIfNull(fileLoader, nameof(fileLoader));
+        FileFlags = fileFlags.VmapOptions;
         FileLoader = fileLoader;
 
         // Clean up any trailing slashes, or vmap_c extension
@@ -109,7 +131,6 @@ public sealed class MapExtract
         var vmapPath = LumpFolder + ".vmap_c";
         var vmapResource = FileLoader.LoadFile(vmapPath) ?? throw new FileNotFoundException($"Failed to find vmap_c resource at {vmapPath}");
         InitMapExtract(vmapResource);
-
     }
 
     private static string NormalizePath(string path)
@@ -159,6 +180,18 @@ public sealed class MapExtract
         LumpFolder ??= GetLumpFolderFromWorldPath(vworld.FileName);
 
         var world = (World)vworld.DataBlock;
+
+        //hack to get correct vmap version in cs2 for now, only cs2 has m_bBakedShadowsGamma20
+        var m_worldLightingInfo = world.Data.GetProperty<KVObject>("m_worldLightingInfo");
+        if (m_worldLightingInfo != null)
+        {
+            //set to object so we actually get null if its not present, instead of false
+            object m_bBakedShadowsGamma20 = m_worldLightingInfo.GetProperty<object>("m_bBakedShadowsGamma20");
+            if (m_bBakedShadowsGamma20 != null)
+            {
+                VmapVersion = VmapVersion.V35;
+            }
+        }
         EntityLumpNames = world.GetEntityLumpNames();
         WorldNodeNames = world.GetWorldNodeNames();
 
@@ -245,10 +278,11 @@ public sealed class MapExtract
 
     public ContentFile ToContentFile()
     {
-        var vmap = new ContentFile
+        var vmap = new VmapContentFile
         {
             Data = ToValveMap(),
             FileName = LumpFolder + "_d.vmap",
+            SkyboxPath = SkyboxToExtract
         };
 
         foreach (var sceneObjectResourceName in SceneObjectsToExtract)
@@ -303,7 +337,7 @@ public sealed class MapExtract
 
     public byte[] ToValveMap()
     {
-        using var datamodel = new Datamodel.Datamodel("vmap", 29);
+        using var datamodel = new Datamodel.Datamodel("vmap", (int)VmapVersion);
 
         datamodel.PrefixAttributes.Add("map_asset_references", AssetReferences);
         datamodel.Root = MapDocument = [];
@@ -421,7 +455,8 @@ public sealed class MapExtract
                 var builder = new HammerMeshBuilder(FileLoader) { PhysicsVertexMatcher = PhysVertexMatcher, ProgressReporter = ProgressReporter };
                 var meshShape = dag.Shape;
                 builder.AddRenderMesh(meshShape, offset);
-                var hammerMesh = new CMapMesh() { MeshData = builder.GenerateMesh() };
+                var hammerMesh = CreateCorrectCMapMeshVersion();
+                hammerMesh.MeshData = builder.GenerateMesh();
 
                 if (!string.IsNullOrEmpty(entityClassname))
                 {
@@ -508,7 +543,8 @@ public sealed class MapExtract
             {
                 var hammerMeshBuilder = new HammerMeshBuilder(FileLoader);
                 hammerMeshBuilder.AddPhysHull(hull, phys, GetAndExportAutoPhysicsMaterialName, positionOffset, materialOverride);
-                var hammerMesh = new CMapMesh() { MeshData = hammerMeshBuilder.GenerateMesh() };
+                var hammerMesh = CreateCorrectCMapMeshVersion();
+                hammerMesh.MeshData = hammerMeshBuilder.GenerateMesh();
 
                 if (string.IsNullOrEmpty(entityClassname))
                 {
@@ -532,7 +568,8 @@ public sealed class MapExtract
                     deletedList = mesh == PhysVertexMatcher.PhysicsMesh ? PhysVertexMatcher.DeletedVertexIndices : [];
                 }
                 hammerMeshBuilder.AddPhysMesh(mesh, phys, GetAndExportAutoPhysicsMaterialName, deletedList, positionOffset, materialOverride);
-                var hammerMesh = new CMapMesh() { MeshData = hammerMeshBuilder.GenerateMesh() };
+                var hammerMesh = CreateCorrectCMapMeshVersion();
+                hammerMesh.MeshData = hammerMeshBuilder.GenerateMesh();
 
                 if (string.IsNullOrEmpty(entityClassname))
                 {
@@ -999,6 +1036,11 @@ public sealed class MapExtract
             {
                 AddProperties(className, compiledEntity, MapDocument.World);
                 MapDocument.World.EntityProperties["description"] = $"Decompiled with {StringToken.VRF_GENERATOR}";
+                var mapType = compiledEntity.GetProperty<string>("mapusagetype");
+                if (mapType != null)
+                {
+                    MapDocument.World.MapUsageType = mapType;
+                }
                 continue;
             }
 
@@ -1076,6 +1118,16 @@ public sealed class MapExtract
 
                 // snapshot_mesh needs to be set to 0 in order for it to use the vsnap file
                 mapEntity.WithProperty("snapshot_mesh", "0");
+            }
+
+            //if the map SOMEHOW has more than one of these, we're only using the first
+            if (compiledEntity.GetProperty<string>(StringToken.Get("classname")) == "skybox_reference" && FileFlags.Export3DSkybox)
+            {
+                if (string.IsNullOrEmpty(SkyboxToExtract))
+                {
+                    SkyboxToExtract = NormalizePath(compiledEntity.GetProperty<string>("targetmapname"));
+                    mapEntity.WithProperty("targetMapName", AddSuffixToVmapName(SkyboxToExtract));
+                }
             }
 
             MapDocument.World.Children.Add(mapEntity);
@@ -1294,6 +1346,23 @@ public sealed class MapExtract
         }
 
         return value[Prefix.Length..];
+    }
+
+    public static string AddSuffixToVmapName(string path)
+    {
+        var newVmapName = Path.GetFileNameWithoutExtension(path) + "_d" + Path.GetExtension(path);
+        var newVmapPath = NormalizePath(Path.Combine(Path.GetDirectoryName(path), newVmapName));
+
+        return newVmapPath;
+    }
+
+    private CMapMesh CreateCorrectCMapMeshVersion()
+    {
+        switch ((int)VmapVersion)
+        {
+            case 35: return new CMapMesh_v35 { ClassName = "CMapMesh" };
+            default: return new CMapMesh_v29 { ClassName = "CMapMesh" };
+        }
     }
 
     #endregion Entities

@@ -7,6 +7,11 @@ using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.IO
 {
+    public struct ResourceOptions
+    {
+        public VmapOptions VmapOptions { get; set; }
+    }
+
     public class ContentFile : IDisposable
     {
         /// <summary>
@@ -129,7 +134,7 @@ namespace ValveResourceFormat.IO
             {
                 case ResourceType.Map:
                 case ResourceType.World:
-                    contentFile = new MapExtract(resource, fileLoader) { ProgressReporter = progress }.ToContentFile();
+                    contentFile = new MapExtract(resource, fileLoader, new ResourceOptions()) { ProgressReporter = progress }.ToContentFile();
                     break;
 
                 case ResourceType.Model:
