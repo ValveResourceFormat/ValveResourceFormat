@@ -11,29 +11,6 @@ body:
     required: true
 
 - type: textarea
-  id: logs
-  attributes:
-    label: Relevant log output or exception with stacktrace
-    description: Please copy and paste any relevant log output. This will be automatically formatted into code, so no need for backticks.
-    render: shell
-
-- type: input
-  id: game
-  attributes:
-    label: What game does this happen in
-    placeholder: "Dota 2"
-  validations:
-    required: true
-
-- type: textarea
-  id: file
-  attributes:
-    label: Reference file in a Source 2 game
-    description: Give a filename (and path to it) that causes this behavior.
-  validations:
-    required: true
-
-- type: textarea
   id: expected
   attributes:
     label: Expected behavior
@@ -41,11 +18,33 @@ body:
   validations:
     required: true
 
+- type: textarea
+  id: logs
+  attributes:
+    label: Relevant log output or exception with stacktrace
+    description: Copy and paste any relevant log output. *This will be automatically formatted into code, backticks are not needed.*
+    render: shell
+
+- type: input
+  id: game
+  attributes:
+    label: What game does this happen in
+  validations:
+    required: true
+
+- type: textarea
+  id: file
+  attributes:
+    label: Reference file in a Source 2 game
+    description: Provide path to the file that causes this behavior.
+  validations:
+    required: true
+
 - type: input
   id: version
   attributes:
-    label: What version of VRF are you using?
-    description: Before creating an issue, make sure it still exists on the [latest dev build.](https://valveresourceformat.github.io/)
+    label: What version of VRF are you using? Test latest dev build.
+    description: **Make sure your issue still exists on [the latest dev build.](https://valveresourceformat.github.io/)** *(copy version from the about window)*
     placeholder: Use copy version button in the about window.
   validations:
     required: true
