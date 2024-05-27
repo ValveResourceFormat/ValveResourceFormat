@@ -22,6 +22,11 @@ namespace GUI.Types.Exporter
 
         public static void ExtractFileFromStream(string fileName, Stream stream, VrfGuiContext vrfGuiContext, bool decompile)
         {
+            if (Path.GetExtension(fileName) == ".vmap_c")
+            {
+                fileName = MapExtract.AddSuffixToVmapName(fileName);
+            }
+
             if (decompile && fileName.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal))
             {
                 var exportData = new ExportData
