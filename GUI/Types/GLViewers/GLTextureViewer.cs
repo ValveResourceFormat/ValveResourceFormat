@@ -208,6 +208,33 @@ namespace GUI.Types.GLViewers
                 AddChannelsComboBox();
                 return;
             }
+            else if (Resource.ResourceType == ResourceType.PostProcessing)
+            {
+                var postProcessingData = (PostProcessing)Resource.DataBlock;
+                var resolution = postProcessingData.GetColorCorrectionLUTDimension();
+
+                UiControl.AddControl(new Label
+                {
+                    Text = $"Color correction: {(postProcessingData.HasColorCorrection() ? "Yes" : "No")}",
+                    Width = 200,
+                });
+                UiControl.AddControl(new Label
+                {
+                    Text = $"Resolution: {resolution}",
+                    Width = 200,
+                });
+
+                // TODO: Kind of crappy.
+                var depthComboBox2 = UiControl.AddSelection("Depth", (name, index) =>
+                {
+                    SelectedDepth = index;
+                });
+
+                depthComboBox2.Items.AddRange(Enumerable.Range(0, resolution).Select(x => $"#{x}").ToArray());
+                depthComboBox2.SelectedIndex = 0;
+
+                return;
+            }
 
             var textureData = (Texture)Resource.DataBlock;
 
@@ -951,6 +978,20 @@ namespace GUI.Types.GLViewers
                 }
 
                 NextBitmapToSet = null;
+
+                return;
+            }
+
+            if (Resource.ResourceType == ResourceType.PostProcessing)
+            {
+                var postProcessingData = (PostProcessing)Resource.DataBlock;
+                var resolution = postProcessingData.GetColorCorrectionLUTDimension();
+                var data = postProcessingData.GetColorCorrectionLUT();
+
+                texture = new RenderTexture(TextureTarget.Texture3D, resolution, resolution, resolution, 1);
+
+                GL.TextureStorage3D(texture.Handle, 1, SizedInternalFormat.Rgba8, resolution, resolution, resolution);
+                GL.TextureSubImage3D(texture.Handle, 0, 0, 0, 0, resolution, resolution, resolution, PixelFormat.Rgba, PixelType.UnsignedByte, data);
 
                 return;
             }

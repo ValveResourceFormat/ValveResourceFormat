@@ -187,6 +187,15 @@ namespace GUI.Types.Viewers
                             GLViewerTabName = "PHYSICS";
                         }
                         break;
+
+                    case ResourceType.PostProcessing:
+                        if (resource.DataBlock is PostProcessing postProcessing && postProcessing.Data.ContainsKey("m_colorCorrectionVolumeData"))
+                        {
+                            GLViewer = new GLTextureViewer(vrfGuiContext, resource);
+                            GLViewer.InitializeLoad();
+                            GLViewerTabName = "LUT";
+                        }
+                        break;
                 }
             }
         }
