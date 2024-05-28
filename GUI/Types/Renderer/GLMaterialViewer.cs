@@ -42,21 +42,7 @@ namespace GUI.Types.Renderer
         {
             base.LoadScene();
 
-            var assembly = Assembly.GetExecutingAssembly();
-            using var stream = assembly.GetManifestResourceStream($"GUI.Utils.env_cubemap.vmdl_c");
-
-            using var cubemapResource = new ValveResourceFormat.Resource()
-            {
-                FileName = "env_cubemap.vmdl_c"
-            };
-            cubemapResource.Read(stream);
-
-            var node = new ModelSceneNode(Scene, (Model)cubemapResource.DataBlock);
-
-            foreach (var renderable in node.RenderableMeshes)
-            {
-                renderable.SetMaterialForMaterialViewer(Resource);
-            }
+            var node = CreatePreviewModel();
 
             Scene.ShowToolsMaterials = true;
             Scene.Add(node, false);
@@ -113,6 +99,43 @@ namespace GUI.Types.Renderer
                 ParamsTable.Controls.Add(input, 0, row + 1);
             }
 #endif
+        }
+
+        private ModelSceneNode CreatePreviewModel()
+        {
+            var material = (Material)Resource.DataBlock;
+            ModelSceneNode node = null;
+
+            if (material.StringAttributes.TryGetValue("PreviewModel", out var previewModel))
+            {
+                var previewModelResource = GuiContext.FileLoader.LoadFileCompiled(previewModel);
+
+                if (previewModelResource != null)
+                {
+                    node = new ModelSceneNode(Scene, (Model)previewModelResource.DataBlock);
+                }
+            }
+
+            if (node == null)
+            {
+                var assembly = Assembly.GetExecutingAssembly();
+                using var stream = assembly.GetManifestResourceStream($"GUI.Utils.env_cubemap.vmdl_c");
+
+                using var cubemapResource = new ValveResourceFormat.Resource()
+                {
+                    FileName = "env_cubemap.vmdl_c"
+                };
+                cubemapResource.Read(stream);
+
+                node = new ModelSceneNode(Scene, (Model)cubemapResource.DataBlock);
+            }
+
+            foreach (var renderable in node.RenderableMeshes)
+            {
+                renderable.SetMaterialForMaterialViewer(Resource);
+            }
+
+            return node;
         }
 
         private void OnShadersButtonClick(object s, EventArgs e)
