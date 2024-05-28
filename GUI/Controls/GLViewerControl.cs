@@ -16,6 +16,9 @@ namespace GUI.Controls
 {
     partial class GLViewerControl : ControlPanelView
     {
+        public const int OpenGlVersionMajor = 4;
+        public const int OpenGlVersionMinor = 6;
+
         protected override Panel ControlsPanel => controlsPanel;
         static readonly TimeSpan FpsUpdateTimeSpan = TimeSpan.FromSeconds(0.1);
 
@@ -64,7 +67,7 @@ namespace GUI.Controls
             flags |= GraphicsContextFlags.Debug;
 #endif
 
-            GLControl = new GLControl(new GraphicsMode(32, 1, 0, 0, 0, 2), 4, 6, flags)
+            GLControl = new GLControl(new GraphicsMode(32, 1, 0, 0, 0, 2), OpenGlVersionMajor, OpenGlVersionMinor, flags)
             {
                 Dock = DockStyle.Fill
             };
@@ -646,12 +649,15 @@ namespace GUI.Controls
             Clipboard.SetDataObject(data, copy: true);
         }
 
-        private static void CheckOpenGL()
+        public static void CheckOpenGL()
         {
             if (Settings.GpuRendererAndDriver != null)
             {
                 return;
             }
+
+            var minor = GL.GetInteger(GetPName.MinorVersion);
+            var major = GL.GetInteger(GetPName.MajorVersion);
 
             var gpu = $"GPU: {GL.GetString(StringName.Renderer)}, Driver: {GL.GetString(StringName.Version)}";
 
@@ -660,6 +666,11 @@ namespace GUI.Controls
             Log.Debug("OpenGL", $"{gpu}, OS: {Environment.OSVersion}");
 
             MaterialLoader.MaxTextureMaxAnisotropy = GL.GetFloat((GetPName)ExtTextureFilterAnisotropic.MaxTextureMaxAnisotropyExt);
+
+            if (major < OpenGlVersionMajor || minor < OpenGlVersionMinor)
+            {
+                throw new NotSupportedException($"Source 2 Viewer requires OpenGL {OpenGlVersionMajor}.{OpenGlVersionMinor}, but you have {major}.{minor}.");
+            }
         }
     }
 }

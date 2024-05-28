@@ -4,6 +4,7 @@ using System.IO.Hashing;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using GUI.Controls;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Utils;
@@ -344,8 +345,10 @@ namespace GUI.Types.Renderer
 
             var shaders = Directory.GetFiles(folder, "*.frag");
 
-            using var control = new OpenTK.GLControl(OpenTK.Graphics.GraphicsMode.Default, 4, 6, OpenTK.Graphics.GraphicsContextFlags.Default);
+            using var control = new OpenTK.GLControl(OpenTK.Graphics.GraphicsMode.Default, GLViewerControl.OpenGlVersionMajor, GLViewerControl.OpenGlVersionMinor, OpenTK.Graphics.GraphicsContextFlags.Default);
             control.MakeCurrent();
+
+            GLViewerControl.CheckOpenGL();
 
             foreach (var shader in shaders)
             {
