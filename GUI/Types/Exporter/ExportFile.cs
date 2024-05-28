@@ -59,10 +59,19 @@ namespace GUI.Types.Exporter
                         filter = $"{filter}|{gltfFilter}|{glbFilter}";
                     }
 
+                    var fileNameForSave = Path.GetFileNameWithoutExtension(fileName);
+
+                    if (Path.GetExtension(fileName) == ".vmap_c")
+                    {
+                        // When exporting a vmap, suggest saving with a suffix like de_dust2_d,
+                        // to reduce conflicts when users end up recompiling the map with the same name as it exists in the game
+                        fileNameForSave += "_d";
+                    }
+
                     using var dialog = new SaveFileDialog
                     {
                         Title = "Choose where to save the file",
-                        FileName = Path.GetFileNameWithoutExtension(fileName),
+                        FileName = fileNameForSave,
                         InitialDirectory = Settings.Config.SaveDirectory,
                         DefaultExt = extension,
                         Filter = filter,
