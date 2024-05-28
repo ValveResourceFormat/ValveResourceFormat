@@ -201,7 +201,9 @@ namespace ValveResourceFormat.IO
                 Builder.VertsToEdgeDict.Remove(VertsToEdgeDictModification);
             }
 
+#if DEBUG
             Builder.ProgressReporter?.Report($"{nameof(HammerMeshBuilder)}: Extracting face due to complicated error: {error}");
+#endif
 
             var baseVertex = Builder.Vertices.Count;
             var indexCount = CurrentFace.Indices.Count;
@@ -351,8 +353,10 @@ namespace ValveResourceFormat.IO
 
             DeletedVertexIndices.UnionWith(localMatches);
 
+#if DEBUG
             var matched = (float)localMatches.Count / renderMeshPositions.Length * 100f;
             progressReporter?.Report($"{nameof(PhysicsVertexMatcher)}: Matched {matched:F2}% ({localMatches.Count} vertices) of rendermesh to physics vertices!");
+#endif
         }
     }
     //the bulk of the work is done in the AddFace() function
@@ -429,10 +433,12 @@ namespace ValveResourceFormat.IO
 
         public CDmePolygonMesh GenerateMesh()
         {
+#if DEBUG
             if (FacesRemoved > 0)
             {
-                ProgressReporter?.Report($"{nameof(HammerMeshBuilder)}: extracted '{FacesRemoved}' of '{OriginalFaceCount - FacesRemoved}' faces");
+                ProgressReporter?.Report($"{nameof(HammerMeshBuilder)}: Removed '{FacesRemoved}' of '{OriginalFaceCount - FacesRemoved}' faces");
             }
+#endif
 
             var mesh = new CDmePolygonMesh();
 
@@ -639,7 +645,7 @@ namespace ValveResourceFormat.IO
 
             if (!VerifyIndicesWithinBounds(indices))
             {
-                ProgressReporter?.Report($"{nameof(HammerMeshBuilder)}: Error! Failed to add face '{Faces.Count}', face has an index that is out of bounds.");
+                //ProgressReporter?.Report($"{nameof(HammerMeshBuilder)}: Error! Failed to add face '{Faces.Count}', face has an index that is out of bounds.");
                 FacesRemoved++;
                 return;
             }
@@ -647,7 +653,7 @@ namespace ValveResourceFormat.IO
             // don't allow degenerate faces
             if (indices.Length < 3)
             {
-                ProgressReporter?.Report($"{nameof(HammerMeshBuilder)}: Error! Failed to add face '{Faces.Count}', face has less than 3 vertices.");
+                //ProgressReporter?.Report($"{nameof(HammerMeshBuilder)}: Error! Failed to add face '{Faces.Count}', face has less than 3 vertices.");
                 FacesRemoved++;
                 return;
             }
@@ -665,7 +671,7 @@ namespace ValveResourceFormat.IO
 
                 if (AreVerticesCollinear(vertexPositions[0], vertexPositions[1], vertexPositions[2]))
                 {
-                    ProgressReporter?.Report($"{nameof(HammerMeshBuilder)}: Error! Failed to add face '{Faces.Count}', face had 0 area");
+                    //ProgressReporter?.Report($"{nameof(HammerMeshBuilder)}: Error! Failed to add face '{Faces.Count}', face had 0 area");
                     FacesRemoved++;
                     return;
                 }
