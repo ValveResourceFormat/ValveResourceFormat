@@ -316,7 +316,6 @@ public partial class GltfModelExporter
         var existingMaterial = exportedModel.LogicalMaterials.SingleOrDefault(m => m.Name == materialNameTrimmed);
         if (existingMaterial != null)
         {
-            ProgressReporter?.Report($"Found existing material: {materialNameTrimmed}");
             primitive.Material = existingMaterial;
             return primitive;
         }
