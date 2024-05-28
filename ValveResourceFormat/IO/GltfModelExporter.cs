@@ -141,8 +141,6 @@ namespace ValveResourceFormat.IO
                 ExportedTextures.Clear();
                 TexturesExportedSoFar = 0;
                 IsExporting = false;
-
-                ProgressReporter.Report("Done.");
             }
         }
 

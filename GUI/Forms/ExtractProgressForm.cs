@@ -16,6 +16,11 @@ namespace GUI.Forms
 {
     partial class ExtractProgressForm : Form
     {
+        private class ExtractProgress(Action<string> SetProgress) : IProgress<string>
+        {
+            public void Report(string value) => SetProgress(value);
+        }
+
         private class FileTypeToExtract
         {
             public string OutputFormat;
@@ -31,7 +36,7 @@ namespace GUI.Forms
         private readonly HashSet<string> extractedFiles = [];
         private CancellationTokenSource cancellationTokenSource = new();
         private readonly GltfModelExporter gltfExporter;
-        private readonly Progress<string> progressReporter;
+        private readonly IProgress<string> progressReporter;
         private Stopwatch exportStopwatch;
 
         private static readonly List<ResourceType> ExtractOrder =
@@ -65,7 +70,7 @@ namespace GUI.Forms
             this.path = path;
             this.decompile = decompile;
             this.exportData = exportData;
-            progressReporter = new Progress<string>(SetProgress);
+            progressReporter = new ExtractProgress(SetProgress);
 
             if (decompile)
             {
@@ -502,10 +507,16 @@ namespace GUI.Forms
                 return;
             }
 
-            Invoke(() =>
+            var str = $"[{DateTime.Now:HH:mm:ss.fff}] {text}{Environment.NewLine}";
+
+            if (progressLog.InvokeRequired)
             {
-                progressLog.AppendText($"[{DateTime.Now:HH:mm:ss.fff}] {text}{Environment.NewLine}");
-            });
+                progressLog.Invoke(progressLog.AppendText, str);
+            }
+            else
+            {
+                progressLog.AppendText(str);
+            }
         }
     }
 }
