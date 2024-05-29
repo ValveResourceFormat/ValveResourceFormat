@@ -430,8 +430,12 @@ namespace GUI.Types.Viewers
                     break;
 
                 case ResourceType.EntityLump:
-                    IViewer.AddContentTab(resTabs, "Entities", ((EntityLump)resource.DataBlock).ToEntityDumpString(), true);
-                    break;
+                    {
+                        var entityLump = (EntityLump)resource.DataBlock;
+                        IViewer.AddContentTab(resTabs, "FGD", entityLump.ToForgeGameData());
+                        IViewer.AddContentTab(resTabs, "Entities", entityLump.ToEntityDumpString(), true);
+                        break;
+                    }
 
                 case ResourceType.PostProcessing:
                     IViewer.AddContentTab(resTabs, "Reconstructed vpost", ((PostProcessing)resource.DataBlock).ToValvePostProcessing());
