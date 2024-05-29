@@ -122,6 +122,8 @@ uniform sampler2D g_tTintMask;
     #define S_SPECULAR 1 // Indirect
 #endif
 
+#define TINT_NOT_APPLIED
+
 #if (defined(csgo_generic_vfx_common) && F_LAYERS > 0)
     #define csgo_generic_blend
 #endif
@@ -332,6 +334,7 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
     #endif
 
     #if (defined(simple_blend_common) && F_ENABLE_TINT_MASKS == 1)
+        #undef TINT_NOT_APPLIED
         vec2 tintMasks = texture(g_tTintMask, texCoord).xy;
 
         vec3 tintFactorA = 1.0 - tintMasks.x * (1.0 - vVertexColorOut.rgb);
@@ -383,7 +386,8 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
     mat.Opacity = color.a;
 #endif
 
-#if (defined(static_overlay_vfx_common) && (F_PAINT_VERTEX_COLORS == 1)) || defined(complex_vfx_common)
+#if (defined(static_overlay_vfx_common) && (F_PAINT_VERTEX_COLORS == 1))
+    #undef TINT_NOT_APPLIED
     mat.Albedo *= vVertexColorOut.rgb;
     mat.Opacity *= vVertexColorOut.a;
 #endif
@@ -401,6 +405,24 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
         discard;
     }
 #endif
+
+    // Tinting
+    #if defined(TINT_NOT_APPLIED)
+        vec3 tintColor = vVertexColorOut.rgb;
+
+        #if defined(complex_vfx_common) && (F_TINT_MASK == 1)
+            vec2 tintMaskTexcoord = texCoord;
+            #if (F_SECONDARY_UV == 1) || (F_FORCE_UV2 == 1)
+                tintMaskTexcoord = (g_bUseSecondaryUvForTintMask || (F_FORCE_UV2 == 1)) ? vTexCoord2 : texCoord;
+            #else
+
+            #endif
+            float tintStrength = texture(g_tTintMask, tintMaskTexcoord).x;
+            tintColor = 1.0 - tintStrength * (1.0 - tintColor.rgb);
+        #endif
+
+        mat.Albedo *= tintColor;
+    #endif
 
     #if (selfillum)
         // Standard mask sampling
