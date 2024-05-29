@@ -23,12 +23,12 @@ namespace GUI.Types.Renderer
 
         protected override void Dispose(bool disposing)
         {
+            base.Dispose(disposing);
+
             if (disposing)
             {
                 slowmodeTrackBar?.Dispose();
             }
-
-            base.Dispose(disposing);
         }
 
         protected override void LoadScene()

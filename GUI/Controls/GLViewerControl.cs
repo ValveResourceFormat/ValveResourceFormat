@@ -381,6 +381,7 @@ namespace GUI.Controls
 
         private void OnLoad(object sender, EventArgs e)
         {
+            GLControl.Load -= OnLoad;
             GLControl.MakeCurrent();
             GLControl.VSync = Settings.Config.Vsync != 0;
 

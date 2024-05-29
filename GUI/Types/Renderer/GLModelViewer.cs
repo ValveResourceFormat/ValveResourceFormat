@@ -43,6 +43,8 @@ namespace GUI.Types.Renderer
 
         protected override void Dispose(bool disposing)
         {
+            base.Dispose(disposing);
+
             if (disposing)
             {
                 animationComboBox?.Dispose();
@@ -55,8 +57,6 @@ namespace GUI.Types.Renderer
                 showSkeletonCheckbox?.Dispose();
                 hitboxComboBox?.Dispose();
             }
-
-            base.Dispose(disposing);
         }
 
         private void AddAnimationControls()
