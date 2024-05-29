@@ -371,7 +371,7 @@ namespace ValveResourceFormat.ResourceTypes
                         continue;
                     }
 
-                    if (key == "hammeruniqueid")
+                    if (key is "hammeruniqueid" or "classname" or "angles" or "scales" or "origin")
                     {
                         continue;
                     }
@@ -412,16 +412,21 @@ namespace ValveResourceFormat.ResourceTypes
 
             foreach (var (classname, properties) in uniqueEntityProperties.OrderBy(x => x.Key))
             {
-                // TODO: base(Targetname)
-
-                var entityClass = "PointClass";
-
                 if (brushEntities.Contains(classname))
                 {
-                    entityClass = "SolidClass";
+                    builder.Append("@SolidClass ");
+                }
+                else
+                {
+                    builder.Append("@PointClass ");
                 }
 
-                builder.AppendLine(CultureInfo.InvariantCulture, $"@{entityClass} = {classname} : \"\"");
+                if (properties.RemoveWhere(x => x.Name == "targetname") > 0)
+                {
+                    builder.Append("base(Targetname) ");
+                }
+
+                builder.AppendLine(CultureInfo.InvariantCulture, $"{classname} : \"\"");
                 builder.AppendLine("[");
 
                 foreach (var property in properties.OrderBy(x => x.Name))
