@@ -410,7 +410,7 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
     #if defined(TINT_NOT_APPLIED)
         vec3 tintColor = vVertexColorOut.rgb;
 
-        #if defined(complex_vfx_common) && (F_TINT_MASK == 1)
+        #if (F_TINT_MASK == 1) // complex_vfx_common, csgo_generic_vfx_common, character, weapon, etc.
             vec2 tintMaskTexcoord = texCoord;
             #if (F_SECONDARY_UV == 1) || (F_FORCE_UV2 == 1)
                 tintMaskTexcoord = (g_bUseSecondaryUvForTintMask || (F_FORCE_UV2 == 1)) ? vTexCoord2 : texCoord;
