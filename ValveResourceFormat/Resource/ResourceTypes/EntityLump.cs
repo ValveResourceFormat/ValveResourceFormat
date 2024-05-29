@@ -371,6 +371,11 @@ namespace ValveResourceFormat.ResourceTypes
                         continue;
                     }
 
+                    if (key == "hammeruniqueid")
+                    {
+                        continue;
+                    }
+
                     if (property.Value.Type == EntityFieldType.CString && key == "model")
                     {
                         var model = (string)property.Value.Data;
@@ -437,6 +442,8 @@ namespace ValveResourceFormat.ResourceTypes
 
                 if (uniqueEntityConnections.TryGetValue(classname, out var entityConnections) && entityConnections.Count > 0)
                 {
+                    builder.AppendLine();
+
                     foreach (var connection in entityConnections.OrderBy(x => x))
                     {
                         // TODO: Inputs?
