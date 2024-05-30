@@ -38,6 +38,7 @@ namespace GUI.Forms
         private readonly GltfModelExporter gltfExporter;
         private readonly IProgress<string> progressReporter;
         private Stopwatch exportStopwatch;
+        private int filesFailedToExport;
 
         private static readonly List<ResourceType> ExtractOrder =
         [
@@ -236,6 +237,11 @@ namespace GUI.Forms
 
             Invoke(() =>
             {
+                if (filesFailedToExport > 0)
+                {
+                    SetProgress($"{filesFailedToExport} files failed to extract, check console for more information.");
+                }
+
                 Text = t.IsFaulted ? "Source 2 Viewer - Export failed, check console for details" : "Source 2 Viewer - Export completed";
                 cancelButton.Text = "Close";
                 extractProgressBar.Value = 100;
@@ -349,7 +355,20 @@ namespace GUI.Forms
                 {
                     FileName = fileFullName,
                 };
-                resource.Read(stream);
+
+                try
+                {
+                    resource.Read(stream);
+                }
+                catch (Exception e)
+                {
+                    filesFailedToExport++;
+
+                    Log.Error(nameof(ExtractProgressForm), $"Failed to extract '{fileFullName}': {e}");
+                    SetProgress($"Failed to extract '{fileFullName}': {e.Message}");
+
+                    continue;
+                }
 
                 await ExtractFile(resource, fileFullName, outFilePath).ConfigureAwait(false);
             }
@@ -428,6 +447,8 @@ namespace GUI.Forms
             }
             catch (Exception e)
             {
+                filesFailedToExport++;
+
                 Log.Error(nameof(ExtractProgressForm), $"Failed to extract '{inFilePath}': {e}");
                 SetProgress($"Failed to extract '{inFilePath}': {e.Message}");
             }
@@ -460,6 +481,8 @@ namespace GUI.Forms
                 }
                 catch (Exception e)
                 {
+                    filesFailedToExport++;
+
                     Log.Error(nameof(ExtractProgressForm), $"Failed to extract subfile '{contentSubFile.FileName}': {e}");
                     SetProgress($"Failed to extract subfile '{contentSubFile.FileName}': {e.Message}");
                     continue;
