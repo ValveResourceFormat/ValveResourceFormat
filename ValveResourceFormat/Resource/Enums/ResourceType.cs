@@ -142,6 +142,9 @@ namespace ValveResourceFormat
         [Extension("vsmart")]
         SmartProp,
 
+        [Extension("vpram")]
+        ProcessingGraphInstance,
+
         [Extension("herolist")]
         DotaHeroList,
 

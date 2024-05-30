@@ -568,6 +568,8 @@ namespace ValveResourceFormat
                     return ResourceType.PulseGraphDef;
                 case "SmartProp":
                     return ResourceType.SmartProp;
+                case "GraphInstance":
+                    return ResourceType.ProcessingGraphInstance;
                 case "DotaHeroList":
                     return ResourceType.DotaHeroList;
                 case "DotaPatchNotes":
