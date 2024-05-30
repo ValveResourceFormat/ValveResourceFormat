@@ -36,6 +36,7 @@ namespace GUI.Controls
             revealInFileExplorerToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             addToFavoritesToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             removeFromFavoritesToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            removeFromRecentToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             recentFilesContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(components);
             clearRecentFilesToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             fileContextMenuStrip.SuspendLayout();
@@ -65,9 +66,9 @@ namespace GUI.Controls
             // 
             // fileContextMenuStrip
             // 
-            fileContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] { revealInFileExplorerToolStripMenuItem, addToFavoritesToolStripMenuItem, removeFromFavoritesToolStripMenuItem });
+            fileContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] { revealInFileExplorerToolStripMenuItem, addToFavoritesToolStripMenuItem, removeFromFavoritesToolStripMenuItem, removeFromRecentToolStripMenuItem });
             fileContextMenuStrip.Name = "fileContextMenuStrip";
-            fileContextMenuStrip.Size = new System.Drawing.Size(209, 70);
+            fileContextMenuStrip.Size = new System.Drawing.Size(209, 92);
             // 
             // revealInFileExplorerToolStripMenuItem
             // 
@@ -92,6 +93,14 @@ namespace GUI.Controls
             removeFromFavoritesToolStripMenuItem.Size = new System.Drawing.Size(208, 22);
             removeFromFavoritesToolStripMenuItem.Text = "Remove from &Bookmarks";
             removeFromFavoritesToolStripMenuItem.Click += OnRemoveFromBookmarksClick;
+            // 
+            // removeFromRecentToolStripMenuItem
+            // 
+            removeFromRecentToolStripMenuItem.Image = (System.Drawing.Image)resources.GetObject("removeFromRecentToolStripMenuItem.Image");
+            removeFromRecentToolStripMenuItem.Name = "removeFromRecentToolStripMenuItem";
+            removeFromRecentToolStripMenuItem.Size = new System.Drawing.Size(208, 22);
+            removeFromRecentToolStripMenuItem.Text = "&Remove from Recent";
+            removeFromRecentToolStripMenuItem.Click += OnRemoveFromRecentClick;
             // 
             // recentFilesContextMenuStrip
             // 
@@ -132,5 +141,6 @@ namespace GUI.Controls
         private System.Windows.Forms.ToolStripMenuItem clearRecentFilesToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem addToFavoritesToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem removeFromFavoritesToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem removeFromRecentToolStripMenuItem;
     }
 }

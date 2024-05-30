@@ -460,9 +460,11 @@ namespace GUI.Controls
 
                 var path = (string)e.Node.Tag;
                 var isBookmarked = Settings.Config.BookmarkedFiles.Contains(path);
+                var isRecent = Settings.Config.RecentFiles.Contains(path);
 
                 addToFavoritesToolStripMenuItem.Visible = !isBookmarked;
                 removeFromFavoritesToolStripMenuItem.Visible = isBookmarked;
+                removeFromRecentToolStripMenuItem.Visible = isRecent;
 
                 fileContextMenuStrip.Show(e.Node.TreeView, e.Location);
             }
@@ -663,6 +665,22 @@ namespace GUI.Controls
             Settings.Config.BookmarkedFiles.Remove(path);
 
             RedrawList(APPID_BOOKMARKS, GetBookmarkedFileNodes());
+        }
+
+        private void OnRemoveFromRecentClick(object sender, EventArgs e)
+        {
+            var control = (TreeView)((ContextMenuStrip)((ToolStripMenuItem)sender).Owner).SourceControl;
+
+            if (control.SelectedNode.Tag == null)
+            {
+                return;
+            }
+
+            var path = (string)control.SelectedNode.Tag;
+
+            Settings.Config.RecentFiles.Remove(path);
+
+            RedrawList(APPID_RECENT_FILES, GetRecentFileNodes());
         }
 
         private void OnExplorerLoad(object sender, EventArgs e)
