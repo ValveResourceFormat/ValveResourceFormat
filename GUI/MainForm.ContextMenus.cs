@@ -117,18 +117,27 @@ namespace GUI
                 {
                     sb.Append("vpk:");
                     sb.Append(context.FileName);
-                    sb.Append(':');
                 }
 
                 if (!selectedNode.IsFolder)
                 {
+                    if (wantsFullPath)
+                    {
+                        sb.Append(':');
+                    }
+
                     var packageEntry = selectedNode.PackageEntry;
-                    sb.AppendLine(packageEntry.GetFullPath());
+                    sb.Append(packageEntry.GetFullPath());
                 }
                 else
                 {
                     var stack = new Stack<string>();
                     var node = selectedNode.PkgNode;
+
+                    if (wantsFullPath && node.Parent != null)
+                    {
+                        sb.Append(':');
+                    }
 
                     do
                     {
@@ -147,12 +156,10 @@ namespace GUI
                         sb.Append(name);
                         sb.Append(Package.DirectorySeparatorChar);
                     }
-
-                    sb.AppendLine();
                 }
             }
 
-            Clipboard.SetText(sb.ToString().TrimEnd());
+            Clipboard.SetText(sb.ToString());
         }
 
         private void OpenWithDefaultAppToolStripMenuItem_Click(object sender, EventArgs e)
