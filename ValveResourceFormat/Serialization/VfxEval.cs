@@ -72,6 +72,8 @@ namespace ValveResourceFormat.Serialization.VfxEval
             ("degrees",             1), // 36
             ("MatrixColorTint2",    2), // 37
             ("MatrixColorTint3",    3), // 38
+            ("RemapVal",            4), // 39
+            ("RemapValClamped",     4), // 3A
 #pragma warning restore format
         ];
 
