@@ -69,6 +69,16 @@ namespace GUI
 
         private void CopyFileNameToolStripMenuItem_Click(object sender, EventArgs e)
         {
+            CopyFileName(sender, wantsFullPath: false);
+        }
+
+        private void CopyFileNameOnDiskToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            CopyFileName(sender, wantsFullPath: true);
+        }
+
+        private static void CopyFileName(object sender, bool wantsFullPath)
+        {
             var control = ((ContextMenuStrip)((ToolStripMenuItem)sender).Owner).SourceControl;
             VrfGuiContext context;
             List<IBetterBaseItem> selectedNodes;
@@ -99,7 +109,6 @@ namespace GUI
                 throw new InvalidDataException("Unknown state");
             }
 
-            var wantsFullPath = ModifierKeys.HasFlag(Keys.Shift);
             var sb = new StringBuilder();
 
             foreach (var selectedNode in selectedNodes)
