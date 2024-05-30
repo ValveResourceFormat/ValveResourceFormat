@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.IO;
+using System.Text;
 using ValveResourceFormat.ThirdParty;
 using ValveResourceFormat.Utils;
 
@@ -437,39 +438,29 @@ namespace ValveResourceFormat.Serialization.VfxEval
 
         private void ApplyFunction(string funcName, int nrArguments)
         {
-            if (nrArguments == 0)
+            var arguments = new Stack<string>(nrArguments);
+            for (var i = 0; i < nrArguments; i++)
             {
-                Expressions.Push($"{funcName}()");
-                return;
-            }
-            var exp1 = Expressions.Pop();
-            if (nrArguments == 1)
-            {
-                Expressions.Push($"{funcName}({Trimbrackets(exp1)})");
-                return;
-            }
-            var exp2 = Expressions.Pop();
-            if (nrArguments == 2)
-            {
-                Expressions.Push($"{funcName}({Trimbrackets(exp2)},{Trimbrackets(exp1)})");
-                return;
-            }
-            var exp3 = Expressions.Pop();
-            if (nrArguments == 3)
-            {
-                // Trimming the brackets here because it's always safe to remove these from functions
-                // (as they always carry their own brackets)
-                Expressions.Push($"{funcName}({Trimbrackets(exp3)},{Trimbrackets(exp2)},{Trimbrackets(exp1)})");
-                return;
-            }
-            var exp4 = Expressions.Pop();
-            if (nrArguments == 4)
-            {
-                Expressions.Push($"{funcName}({Trimbrackets(exp4)},{Trimbrackets(exp3)},{Trimbrackets(exp2)},{Trimbrackets(exp1)})");
-                return;
+                arguments.Push(Expressions.Pop());
             }
 
-            throw new InvalidDataException($"Error parsing dynamic expression, unexpected number of arguments ({nrArguments}) for function ${funcName}");
+            var expression = new StringBuilder();
+            expression.Append(funcName);
+            expression.Append('(');
+
+            for (var i = 0; i < nrArguments; i++)
+            {
+                if (i > 0)
+                {
+                    expression.Append(',');
+                }
+
+                expression.Append(Trimbrackets(arguments.Pop()));
+            }
+
+            expression.Append(')');
+
+            Expressions.Push(expression.ToString());
         }
 
         private static string GetSwizzle(byte packedSwizzle, bool trimmed = true)
