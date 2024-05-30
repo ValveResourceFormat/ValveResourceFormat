@@ -60,18 +60,18 @@ namespace ValveResourceFormat.Serialization.VfxEval
             ("MatrixIdentity",      0), // 2A
             ("MatrixScale",         1), // 2B
             ("MatrixTranslate",     1), // 2C
-            ("MatrixAxisAngle",     1), // 2E
-            ("MatrixAxisToAxis",    2), // 2F
-            ("MatrixMultiply",      2), // 30
-            ("MatrixColorCorrect",  1), // 31
-            ("MatrixColorCorrect2", 2), // 32
-            ("MatrixColorTint",     1), // 33
-            ("normalize_safe",      1), // 34
-            ("Remap01ScaleOffset",  1), // 35
-            ("radians",             1), // 36
-            ("degrees",             1), // 37
-            ("MatrixColorTint2",    2), // 38
-            ("MatrixColorTint3",    3), // 39
+            ("MatrixAxisAngle",     1), // 2D
+            ("MatrixAxisToAxis",    2), // 2E
+            ("MatrixMultiply",      2), // 2F
+            ("MatrixColorCorrect",  1), // 30
+            ("MatrixColorCorrect2", 2), // 31
+            ("MatrixColorTint",     1), // 32
+            ("normalize_safe",      1), // 33
+            ("Remap01ScaleOffset",  1), // 34
+            ("radians",             1), // 35
+            ("degrees",             1), // 36
+            ("MatrixColorTint2",    2), // 37
+            ("MatrixColorTint3",    3), // 38
 #pragma warning restore format
         ];
 
@@ -288,7 +288,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
                 var funcCheckByte = dataReader.ReadByte();
                 if (funcId >= FUNCTION_REF.Length)
                 {
-                    throw new InvalidDataException($"Error parsing dynamic expression, invalid function Id = {funcId:x} (position: {dataReader.BaseStream.Position})");
+                    throw new InvalidDataException($"Error parsing dynamic expression, invalid function Id = 0x{funcId:x} (position: {dataReader.BaseStream.Position})");
                 }
                 if (funcCheckByte != 0)
                 {
