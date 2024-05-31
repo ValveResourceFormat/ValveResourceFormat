@@ -11,6 +11,16 @@ namespace ValveResourceFormat.ResourceTypes
 {
     public class EntityLump : KeyValuesOrNTRO
     {
+        public static class CommonHashes
+        {
+            public static readonly uint Classname = StringToken.Get("classname");
+            public static readonly uint Origin = StringToken.Get("origin");
+            public static readonly uint Angles = StringToken.Get("angles");
+            public static readonly uint Scales = StringToken.Get("scales");
+            public static readonly uint HammerUniqueId = StringToken.Get("hammeruniqueid");
+            public static readonly uint Model = StringToken.Get("model");
+        }
+
         public class Entity
         {
             public Dictionary<uint, EntityProperty> Properties { get; } = [];

@@ -9,6 +9,7 @@ using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Serialization.KeyValues;
 using ValveResourceFormat.Utils;
+using static ValveResourceFormat.ResourceTypes.EntityLump;
 
 namespace ValveResourceFormat.IO;
 
@@ -52,16 +53,6 @@ public sealed class MapExtract
     public PhysicsVertexMatcher PhysVertexMatcher { get; private set; }
 
     private readonly Dictionary<uint, string> HashTable = StringToken.InvertedTable;
-
-    internal static class CommonHashes
-    {
-        public static readonly uint ClassName = StringToken.Get("classname");
-        public static readonly uint Origin = StringToken.Get("origin");
-        public static readonly uint Angles = StringToken.Get("angles");
-        public static readonly uint Scales = StringToken.Get("scales");
-        public static readonly uint HammerUniqueId = StringToken.Get("hammeruniqueid");
-        public static readonly uint Model = StringToken.Get("model");
-    }
 
     //these all seem to be roughly hammer meshes in cs2
     private static bool SceneObjectShouldConvertToHammerMesh(string modelName)
@@ -993,7 +984,7 @@ public sealed class MapExtract
             FixUpEntityKeyValues(compiledEntity);
 
 
-            var className = compiledEntity.GetProperty<string>(CommonHashes.ClassName);
+            var className = compiledEntity.GetProperty<string>(CommonHashes.Classname);
 
             if (className == "worldspawn")
             {

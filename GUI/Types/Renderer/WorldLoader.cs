@@ -8,11 +8,23 @@ using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Utils;
+using static ValveResourceFormat.ResourceTypes.EntityLump;
 
 namespace GUI.Types.Renderer
 {
     class WorldLoader
     {
+        private static class LocalHashes
+        {
+            public static readonly uint EffectName = StringToken.Get("effect_name");
+            public static readonly uint DefaultAnim = StringToken.Get("defaultanim");
+            public static readonly uint IdleAnim = StringToken.Get("idleanim");
+            public static readonly uint RenderColor = StringToken.Get("rendercolor");
+            public static readonly uint RenderAmt = StringToken.Get("renderamt");
+            public static readonly uint Body = StringToken.Get("body");
+            public static readonly uint Skin = StringToken.Get("skin");
+        }
+
         private readonly Scene scene;
         private readonly World world;
         private readonly VrfGuiContext guiContext;
@@ -247,7 +259,7 @@ namespace GUI.Types.Renderer
 
             var entities = entityLump.GetEntities().ToList();
             var entitiesReordered = entities
-                .Select(e => (e, e.GetProperty<string>("classname")))
+                .Select(e => (e, e.GetProperty<string>(CommonHashes.Classname)))
                 .OrderByDescending(x => IsCubemapOrProbe(x.Item2) || IsFog(x.Item2));
 
             Entities.AddRange(entities);
@@ -665,12 +677,12 @@ namespace GUI.Types.Renderer
                     continue;
                 }
 
-                var model = entity.GetProperty<string>("model");
-                var particle = entity.GetProperty<string>("effect_name");
-                var animation = entity.GetProperty<string>("defaultanim") ?? entity.GetProperty<string>("idleanim");
+                var model = entity.GetProperty<string>(CommonHashes.Model);
+                var particle = entity.GetProperty<string>(LocalHashes.EffectName);
+                var animation = entity.GetProperty<string>(LocalHashes.DefaultAnim) ?? entity.GetProperty<string>(LocalHashes.IdleAnim);
 
                 string skin = default;
-                var skinRaw = entity.GetProperty("skin");
+                var skinRaw = entity.GetProperty(LocalHashes.Skin);
 
                 if (skinRaw?.Type == EntityFieldType.CString)
                 {
@@ -718,13 +730,9 @@ namespace GUI.Types.Renderer
                     CameraNames.Add(cameraName);
                     CameraMatrices.Add(transformationMatrix);
                 }
-                else if (classname == "env_global_light")
-                {
-                    //
-                }
 
-                var rendercolor = entity.GetProperty("rendercolor");
-                var renderamt = entity.GetProperty("renderamt")?.Data switch
+                var rendercolor = entity.GetProperty(LocalHashes.RenderColor);
+                var renderamt = entity.GetProperty(LocalHashes.RenderAmt)?.Data switch
                 {
                     float f => f,
                     _ => 1.0f,
@@ -805,8 +813,7 @@ namespace GUI.Types.Renderer
                     }
                 }
 
-                var bodyHash = StringToken.Get("body");
-                if (entity.Properties.TryGetValue(bodyHash, out var bodyProp))
+                if (entity.Properties.TryGetValue(LocalHashes.Body, out var bodyProp))
                 {
                     var groups = modelNode.GetMeshGroups();
                     var body = bodyProp.Data;
@@ -858,7 +865,7 @@ namespace GUI.Types.Renderer
             }
         }
 
-        private void LoadSkybox(EntityLump.Entity entity)
+        private void LoadSkybox(Entity entity)
         {
             var targetmapname = entity.GetProperty<string>("targetmapname");
 

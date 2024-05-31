@@ -1,15 +1,16 @@
 using System.Globalization;
 using ValveResourceFormat.ResourceTypes;
+using static ValveResourceFormat.ResourceTypes.EntityLump;
 
 namespace ValveResourceFormat.Utils
 {
     public static class EntityTransformHelper
     {
-        public static void DecomposeTransformationMatrix(EntityLump.Entity entity, out Vector3 scaleVector, out Matrix4x4 rotationMatrix, out Vector3 positionVector)
+        public static void DecomposeTransformationMatrix(Entity entity, out Vector3 scaleVector, out Matrix4x4 rotationMatrix, out Vector3 positionVector)
         {
-            var scale = entity.GetProperty<string>("scales");
-            var position = entity.GetProperty<string>("origin");
-            var anglesUntyped = entity.GetProperty("angles");
+            var scale = entity.GetProperty<string>(CommonHashes.Scales);
+            var position = entity.GetProperty<string>(CommonHashes.Origin);
+            var anglesUntyped = entity.GetProperty(CommonHashes.Angles);
 
             if (scale == null || position == null || anglesUntyped == default)
             {
