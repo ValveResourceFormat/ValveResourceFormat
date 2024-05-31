@@ -655,6 +655,13 @@ namespace ValveResourceFormat.ResourceTypes
         {
             var currentOffset = reader.BaseStream.Position;
 
+            // We don't support non-object roots properly, so this is a hack to handle "null" kv3
+            if (datatype != KVType.OBJECT && parent == null)
+            {
+                name ??= "root";
+                parent ??= new KVObject(name);
+            }
+
             switch (datatype)
             {
                 case KVType.NULL:
