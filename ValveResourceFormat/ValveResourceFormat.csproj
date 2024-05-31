@@ -19,7 +19,7 @@
     <PackageReference Include="System.IO.Hashing" Version="8.0.0" />
     <PackageReference Include="ValveKeyValue" Version="0.10.0.360" />
     <PackageReference Include="ValvePak" Version="2.0.1.107" />
-    <PackageReference Include="ZstdSharp.Port" Version="0.8.0" />
+    <PackageReference Include="ZstdSharp.Port" Version="0.8.1" />
     <PackageReference Include="KeyValues2" Version="0.5-beta" />
   </ItemGroup>
   <ItemGroup>
