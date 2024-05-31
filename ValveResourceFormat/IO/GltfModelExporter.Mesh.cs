@@ -1,16 +1,16 @@
 using System.IO;
 using System.Linq;
-using SharpGLTF.Schema2;
-using ValveResourceFormat.Serialization;
-using VModel = ValveResourceFormat.ResourceTypes.Model;
-using VMesh = ValveResourceFormat.ResourceTypes.Mesh;
-using VMaterial = ValveResourceFormat.ResourceTypes.Material;
-using VMorph = ValveResourceFormat.ResourceTypes.Morph;
-using ValveResourceFormat.Blocks;
 using System.Runtime.InteropServices;
 using System.Text.Json.Nodes;
 using SharpGLTF.Memory;
+using SharpGLTF.Schema2;
+using ValveResourceFormat.Blocks;
+using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Serialization.KeyValues;
+using VMaterial = ValveResourceFormat.ResourceTypes.Material;
+using VMesh = ValveResourceFormat.ResourceTypes.Mesh;
+using VModel = ValveResourceFormat.ResourceTypes.Model;
+using VMorph = ValveResourceFormat.ResourceTypes.Morph;
 
 namespace ValveResourceFormat.IO;
 

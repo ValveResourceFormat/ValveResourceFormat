@@ -1,7 +1,7 @@
-using GUI.Controls;
-using GUI.Utils;
 using System.IO;
 using System.Windows.Forms;
+using GUI.Controls;
+using GUI.Utils;
 
 namespace GUI.Types.Viewers
 {

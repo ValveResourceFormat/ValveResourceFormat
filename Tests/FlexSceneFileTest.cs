@@ -1,5 +1,5 @@
-using NUnit.Framework;
 using System.IO;
+using NUnit.Framework;
 using ValveResourceFormat.FlexSceneFile;
 
 namespace Tests

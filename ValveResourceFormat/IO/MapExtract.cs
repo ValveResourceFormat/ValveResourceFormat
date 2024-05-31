@@ -1000,7 +1000,7 @@ public sealed class MapExtract
                 AddProperties(className, compiledEntity, MapDocument.World);
                 MapDocument.World.EntityProperties["description"] = $"Decompiled with {StringToken.VRF_GENERATOR}";
                 var mapType = compiledEntity.GetProperty<string>("mapusagetype");
-                if(mapType != null)
+                if (mapType != null)
                 {
                     MapDocument.World.MapUsageType = mapType;
                 }

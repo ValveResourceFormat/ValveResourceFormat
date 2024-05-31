@@ -1,7 +1,7 @@
 using GUI.Types.ParticleRenderer.Emitters;
+using GUI.Types.ParticleRenderer.ForceGenerators;
 using GUI.Types.ParticleRenderer.Initializers;
 using GUI.Types.ParticleRenderer.Operators;
-using GUI.Types.ParticleRenderer.ForceGenerators;
 using GUI.Types.ParticleRenderer.PreEmissionOperators;
 using GUI.Types.ParticleRenderer.Renderers;
 using GUI.Utils;

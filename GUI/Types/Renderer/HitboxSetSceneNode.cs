@@ -1,9 +1,9 @@
+using System.Buffers;
 using System.Linq;
+using System.Runtime.InteropServices;
+using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.ResourceTypes.ModelData;
-using OpenTK.Graphics.OpenGL;
-using System.Buffers;
-using System.Runtime.InteropServices;
 
 namespace GUI.Types.Renderer
 {

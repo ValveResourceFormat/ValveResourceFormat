@@ -1,12 +1,12 @@
-using NUnit.Framework;
 using System.IO;
-using ValveResourceFormat.IO;
-using ValveResourceFormat;
-using ValveResourceFormat.ResourceTypes;
 using System.Linq;
+using NUnit.Framework;
+using ValveResourceFormat;
+using ValveResourceFormat.IO;
+using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.Choreo;
-using ValveResourceFormat.ResourceTypes.Choreo.Enums;
 using ValveResourceFormat.ResourceTypes.Choreo.Curves;
+using ValveResourceFormat.ResourceTypes.Choreo.Enums;
 
 namespace Tests
 {

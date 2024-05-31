@@ -1,5 +1,5 @@
-using ValveResourceFormat.Serialization.KeyValues;
 using ValveResourceFormat.ResourceTypes.Choreo.Curves;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes.Choreo
 {

@@ -1,13 +1,13 @@
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
+using SharpGLTF.Memory;
 using SharpGLTF.Schema2;
-using VMaterial = ValveResourceFormat.ResourceTypes.Material;
+using SkiaSharp;
 using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.ThirdParty;
-using System.Threading.Tasks;
-using SkiaSharp;
 using ValveResourceFormat.Utils;
-using SharpGLTF.Memory;
+using VMaterial = ValveResourceFormat.ResourceTypes.Material;
 
 namespace ValveResourceFormat.IO;
 
@@ -26,8 +26,8 @@ public partial class GltfModelExporter
         ["Normal"] = [(ChannelMapping.RGB, "TextureNormal")],
         ["MetallicRoughness"] = [
             (ChannelMapping.R, string.Empty),
-                (ChannelMapping.G, "TextureRoughness"),
-                (ChannelMapping.B, "TextureMetalness")
+            (ChannelMapping.G, "TextureRoughness"),
+            (ChannelMapping.B, "TextureMetalness")
         ],
         ["Occlusion"] = [(ChannelMapping.R, "TextureAmbientOcclusion")],
         ["Emissive"] = [(ChannelMapping.R, "TextureSelfIllumMask")],

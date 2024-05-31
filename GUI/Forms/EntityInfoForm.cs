@@ -1,9 +1,9 @@
+using System.Globalization;
 using System.Windows.Forms;
 using GUI.Types.Viewers;
 using GUI.Utils;
 using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Serialization.KeyValues;
-using System.Globalization;
 
 namespace GUI.Forms
 {
