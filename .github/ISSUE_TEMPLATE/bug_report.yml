@@ -43,8 +43,13 @@ body:
 - type: input
   id: version
   attributes:
-    label: What version of VRF are you using? Test latest dev build.
-    description: "**Make sure your issue still exists on [the latest dev build.](https://valveresourceformat.github.io/)** *(copy version from the about window)*"
+    label: What version of VRF are you using?
+    description: |
+      > [!IMPORTANT]
+      > **Make sure your issue still exists on [the latest dev build.](https://valveresourceformat.github.io/)**
+
+      > [!TIP]
+      > **Use copy version button in the about window.**
     placeholder: Use copy version button in the about window.
   validations:
     required: true
