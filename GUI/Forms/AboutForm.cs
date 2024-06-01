@@ -1,5 +1,8 @@
 using System.Diagnostics;
 using System.Windows.Forms;
+using GUI.Types.Renderer;
+using GUI.Utils;
+using ValveResourceFormat.Utils;
 
 namespace GUI.Forms
 {
@@ -8,6 +11,12 @@ namespace GUI.Forms
         public AboutForm()
         {
             InitializeComponent();
+
+            // Start the decoder thread so that it fetches the opengl version and is ready for the version copy
+            if (Settings.GpuRendererAndDriver == null && HardwareAcceleratedTextureDecoder.Decoder is GLTextureDecoder decoder)
+            {
+                decoder.StartThread();
+            }
 
             labelVersion.Text = $"Version: {Application.ProductVersion[..16]}";
         }

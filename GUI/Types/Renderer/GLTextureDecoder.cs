@@ -62,7 +62,7 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
     private Framebuffer Framebuffer;
 #pragma warning restore CA2213
 
-    public bool Decode(SKBitmap bitmap, Resource resource, uint depth, CubemapFace face, uint mipLevel, TextureCodec decodeFlags)
+    public void StartThread()
     {
         lock (threadStartupLock)
         {
@@ -80,6 +80,11 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
                 GLThread.Start();
             }
         }
+    }
+
+    public bool Decode(SKBitmap bitmap, Resource resource, uint depth, CubemapFace face, uint mipLevel, TextureCodec decodeFlags)
+    {
+        StartThread();
 
         if (!IsRunning)
         {
