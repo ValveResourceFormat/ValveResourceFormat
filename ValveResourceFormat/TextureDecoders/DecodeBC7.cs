@@ -130,6 +130,8 @@ namespace ValveResourceFormat.TextureDecoders
             var data = pixmap.GetPixelSpan<byte>();
             var pixels = MemoryMarshal.Cast<byte, Color>(data);
 
+            var imageWidth = bitmap.Width;
+            var rowBytes = bitmap.RowBytes;
             var blockCountX = (w + 3) / 4;
             var blockCountY = (h + 3) / 4;
             var offset = 0;
@@ -289,7 +291,7 @@ namespace ValveResourceFormat.TextureDecoders
                         for (var bx = 0; bx < 4; bx++)
                         {
                             var io = (by * 4) + bx;
-                            var dataIndex = (((j * 4) + by) * bitmap.RowBytes) + (((i * 4) + bx) * 4);
+                            var dataIndex = (((j * 4) + by) * rowBytes) + (((i * 4) + bx) * 4);
                             var pixelIndex = dataIndex / 4;
 
                             byte cweight = 0;
@@ -349,7 +351,7 @@ namespace ValveResourceFormat.TextureDecoders
                                 aweight = cweight;
                             }
 
-                            if ((i * 4) + bx >= bitmap.Width || data.Length <= dataIndex + 3)
+                            if ((i * 4) + bx >= imageWidth || data.Length <= dataIndex + 3)
                             {
                                 continue;
                             }
