@@ -20,12 +20,7 @@ namespace GUI.Types.Renderer
 
         public static int ComparePipeline(Request a, Request b)
         {
-            if (a.Call.Material.Shader.Program == b.Call.Material.Shader.Program)
-            {
-                return a.Call.Material.SortId - b.Call.Material.SortId;
-            }
-
-            return a.Call.Material.Shader.Program - b.Call.Material.Shader.Program;
+            return a.Call.Material.SortId - b.Call.Material.SortId;
         }
 
         public static int CompareRenderOrderThenPipeline(Request a, Request b)

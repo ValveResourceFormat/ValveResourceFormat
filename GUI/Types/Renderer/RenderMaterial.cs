@@ -84,12 +84,16 @@ namespace GUI.Types.Renderer
             }
 
             Shader = guiContext.ShaderLoader.LoadShader(material.ShaderName, combinedShaderParameters);
+            SortId = GetSortId();
         }
 
         public RenderMaterial(Shader shader) : this(new Material { ShaderName = shader.Name })
         {
             Shader = shader;
+            SortId = GetSortId();
         }
+
+        private int GetSortId() => Shader.Program * 10000 + Random.Shared.Next(1, 9999);
 
         RenderMaterial(Material material)
         {
@@ -137,8 +141,6 @@ namespace GUI.Types.Renderer
                 // 5 = multiply
                 // 6 = modthenadd
             }
-
-            SortId = GetHashCode(); // It doesn't really matter what we use, it could be a random value
         }
 
         public void Render(Shader shader = default)
