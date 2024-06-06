@@ -763,6 +763,22 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
+        public void ReadTextureMipLevel(Span<byte> output, uint mipLevel)
+        {
+            var bufferSize = CalculateBufferSizeForMipLevel(mipLevel);
+
+            if (output.Length != bufferSize)
+            {
+                throw new ArgumentException($"Buffer size ({output.Length}) should be equal to {bufferSize}, mip level {mipLevel}");
+            }
+
+            Reader.BaseStream.Position = Offset + Size;
+
+            SkipMipmaps(mipLevel);
+
+            ReadTexture(mipLevel, output);
+        }
+
         private int CalculateJpegSize()
         {
             return (int)(Reader.BaseStream.Length - DataOffset);
