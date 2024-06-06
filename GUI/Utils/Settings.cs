@@ -165,7 +165,12 @@ namespace GUI.Utils
                 Config.DisplayFps = 1;
             }
 
-            if (currentVersion != SettingsFileCurrentVersion)
+            if (currentVersion < 8) // version 8: added explorer on start
+            {
+                Config.OpenExplorerOnStart = 1;
+            }
+
+            if (currentVersion > 0 && currentVersion != SettingsFileCurrentVersion)
             {
                 Log.Info(nameof(Settings), $"Settings version changed: {currentVersion} -> {SettingsFileCurrentVersion}");
             }
