@@ -618,7 +618,12 @@ namespace ValveResourceFormat.ResourceTypes
             return bytes;
         }
 
-        private int CalculateBufferSizeForMipLevel(uint mipLevel)
+        /// <summary>
+        /// Calculate buffer size that is required to hold data of specified mip level.
+        /// </summary>
+        /// <param name="mipLevel">Mip level for which to calculate buffer size.</param>
+        /// <returns>Buffer size.</returns>
+        public int CalculateBufferSizeForMipLevel(uint mipLevel)
         {
             var bytesPerPixel = BlockSize;
             var width = MipLevelSize(Width, mipLevel);
@@ -761,6 +766,27 @@ namespace ValveResourceFormat.ResourceTypes
 
                 yield return (i, width, height, uncompressedSize);
             }
+        }
+
+        /// <summary>
+        /// Read single mip level of texture. Buffer size must be at least <see cref="CalculateBufferSizeForMipLevel"/>.
+        /// </summary>
+        /// <param name="output">Buffer that will receive texture data.</param>
+        /// <param name="mipLevel">Mip level for which to read texture data.</param>
+        public void ReadTextureMipLevel(Span<byte> output, uint mipLevel)
+        {
+            var bufferSize = CalculateBufferSizeForMipLevel(mipLevel);
+
+            if (bufferSize > output.Length)
+            {
+                throw new ArgumentException($"Buffer size ({output.Length}) must be at least {bufferSize}, mip level {mipLevel}");
+            }
+
+            Reader.BaseStream.Position = Offset + Size;
+
+            SkipMipmaps(mipLevel);
+
+            ReadTexture(mipLevel, output);
         }
 
         private int CalculateJpegSize()
