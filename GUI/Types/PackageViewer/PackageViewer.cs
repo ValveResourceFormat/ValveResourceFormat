@@ -539,7 +539,7 @@ namespace GUI.Types.PackageViewer
                 return;
             }
 
-            Program.MainForm.ShowVpkContextMenu((Control)sender, e.Location, isRoot);
+            Program.MainForm.ShowVpkContextMenu((Control)sender, e.Location, isRoot, e.TreeNode.IsFolder);
         }
     }
 }

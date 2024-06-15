@@ -14,11 +14,12 @@ namespace GUI
 {
     partial class MainForm
     {
-        public void ShowVpkContextMenu(Control control, Point position, bool isRootNode)
+        public void ShowVpkContextMenu(Control control, Point position, bool isRootNode, bool isFolderNode)
         {
             copyFileNameToolStripMenuItem.Visible = !isRootNode;
-            openWithDefaultAppToolStripMenuItem.Visible = !isRootNode;
-            viewAssetInfoToolStripMenuItem.Visible = !isRootNode;
+            openWithDefaultAppToolStripMenuItem.Visible = !isRootNode && !isFolderNode;
+            viewAssetInfoToolStripMenuItem.Visible = !isRootNode && !isFolderNode;
+            toolStripSeparator3.Visible = isRootNode || !isFolderNode;
 
             verifyPackageContentsToolStripMenuItem.Visible = isRootNode;
             recoverDeletedToolStripMenuItem.Visible = isRootNode;
