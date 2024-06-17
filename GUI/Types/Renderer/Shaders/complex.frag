@@ -676,7 +676,7 @@ void main()
         outputColor.rgb = vFoliageParamsOut.rgb;
     }
 #endif
-#if (defined(csgo_generic_blend) || defined(simple_blend_common) || defined(vr_standard_blend_vfx))
+#if !defined(steampal_2way_blend_mask_vfx) && (defined(csgo_generic_blend) || defined(simple_blend_common) || defined(vr_standard_blend_vfx))
     else if (g_iRenderMode == renderMode_TerrainBlend)
     {
         outputColor.rgb = vColorBlendValues.rgb;
