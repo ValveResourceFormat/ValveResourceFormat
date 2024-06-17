@@ -1,4 +1,5 @@
 using System.Linq;
+using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -8,6 +9,9 @@ namespace GUI.Types.Renderer
     class SceneAggregate : SceneNode
     {
         public RenderableMesh RenderMesh { get; }
+
+        public ObjectTypeFlags AllFlags { get; set; }
+        public ObjectTypeFlags AnyFlags { get; set; }
 
         internal sealed class Fragment : SceneNode
         {
@@ -78,6 +82,8 @@ namespace GUI.Types.Renderer
                     var fragmentData = aggregateMeshes[drawCall.MeshId];
                     var lightProbeVolumePrecomputedHandshake = fragmentData.GetInt32Property("m_nLightProbeVolumePrecomputedHandshake");
                     var worldBounds = fragmentData.GetArray("m_vWorldBounds");
+                    var flags = fragmentData.GetEnumValue<ObjectTypeFlags>("m_objectFlags", normalize: true);
+
                     drawCall.DrawBounds = new AABB(worldBounds[0].ToVector3(), worldBounds[1].ToVector3());
                     var fragment = new Fragment(Scene, this, drawCall.DrawBounds.Value)
                     {
@@ -85,6 +91,7 @@ namespace GUI.Types.Renderer
                         RenderMesh = RenderMesh,
                         Parent = this,
                         LightProbeVolumePrecomputedHandshake = lightProbeVolumePrecomputedHandshake,
+                        Flags = flags,
                     };
 
                     yield return fragment;
@@ -104,6 +111,7 @@ namespace GUI.Types.Renderer
                 var drawCall = RenderMesh.DrawCallsOpaque[drawCallIndex];
                 var drawBounds = drawCall.DrawBounds ?? RenderMesh.BoundingBox;
                 var tintColor = fragmentData.GetSubCollection("m_vTintColor").ToVector3();
+                var flags = fragmentData.GetEnumValue<ObjectTypeFlags>("m_objectFlags", normalize: true);
 
                 var fragment = new Fragment(Scene, this, drawBounds)
                 {
@@ -112,6 +120,7 @@ namespace GUI.Types.Renderer
                     Tint = new Vector4(tintColor / 255f, 1f),
                     Parent = this,
                     LightProbeVolumePrecomputedHandshake = lightProbeVolumePrecomputedHandshake,
+                    Flags = flags,
                 };
 
                 if (fragmentData.GetProperty<bool>("m_bHasTransform") == true)

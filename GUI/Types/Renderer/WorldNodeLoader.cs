@@ -1,4 +1,5 @@
 using GUI.Utils;
+using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization;
 
@@ -43,6 +44,7 @@ namespace GUI.Types.Renderer
                 // sceneObject is SceneObject_t
                 var renderableModel = sceneObject.GetProperty<string>("m_renderableModel");
                 var matrix = sceneObject.GetArray("m_vTransform").ToMatrix4x4();
+                var flags = sceneObject.GetEnumValue<ObjectTypeFlags>("m_nObjectTypeFlags", normalize: true);
 
                 var tintColor = sceneObject.GetSubCollection("m_vTintColor").ToVector4();
                 if (tintColor.W == 0)
@@ -70,6 +72,7 @@ namespace GUI.Types.Renderer
                         OverlayRenderOrder = overlayRenderOrder,
                         CubeMapPrecomputedHandshake = cubeMapPrecomputedHandshake,
                         LightProbeVolumePrecomputedHandshake = lightProbeVolumePrecomputedHandshake,
+                        Flags = flags,
                     };
 
                     scene.Add(modelNode, false);
@@ -94,6 +97,7 @@ namespace GUI.Types.Renderer
                         Name = renderable,
                         CubeMapPrecomputedHandshake = cubeMapPrecomputedHandshake,
                         LightProbeVolumePrecomputedHandshake = lightProbeVolumePrecomputedHandshake,
+                        Flags = flags,
                     };
 
                     scene.Add(meshNode, false);
@@ -117,6 +121,8 @@ namespace GUI.Types.Renderer
                     {
                         LayerName = node.LayerNames[(int)layerIndex],
                         Name = renderableModel,
+                        AllFlags = sceneObject.GetEnumValue<ObjectTypeFlags>("m_allFlags", normalize: true),
+                        AnyFlags = sceneObject.GetEnumValue<ObjectTypeFlags>("m_anyFlags", normalize: true),
                     };
 
                     scene.Add(aggregate, false);

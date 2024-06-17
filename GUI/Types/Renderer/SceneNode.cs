@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
 
 namespace GUI.Types.Renderer
@@ -31,6 +32,7 @@ namespace GUI.Types.Renderer
 
         public string Name { get; init; }
         public uint Id { get; set; }
+        public ObjectTypeFlags Flags { get; set; }
 
         public string DebugName => $"{GetType().Name.Replace("SceneNode", "", StringComparison.Ordinal)}{(string.IsNullOrEmpty(Name) ? "" : " ")}{Name} ({Id}) at {BoundingBox.Center.X:F2} {BoundingBox.Center.Y:F2} {BoundingBox.Center.Z:F2}";
 
