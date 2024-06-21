@@ -6,6 +6,7 @@ namespace GUI.Controls
 {
     internal class CodeTextBox : FastColoredTextBox
     {
+        public bool PreserveUndoHistory { get; set; }
         private string LazyText;
 
         public CodeTextBox(string text) : base()
@@ -73,7 +74,10 @@ namespace GUI.Controls
 
         private void OnTextChanged(object sender, TextChangedEventArgs e)
         {
-            ClearUndo();
+            if (!PreserveUndoHistory)
+            {
+                ClearUndo();
+            }
 
             e.ChangedRange.SetFoldingMarkers("{", "}");
             e.ChangedRange.SetFoldingMarkers("\\[", "\\]");
