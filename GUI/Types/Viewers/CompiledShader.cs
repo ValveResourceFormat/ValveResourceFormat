@@ -103,7 +103,7 @@ namespace GUI.Types.Viewers
                     SpirvCompiler = SpvToHlsl,
                 };
 
-                var vfxTab = IViewer.AddContentTab<Func<string>>(tabControl, extract.GetVfxFileName(), extract.ToVFX, preSelect: true);
+                IViewer.AddContentTab<Func<string>>(tabControl, extract.GetVfxFileName(), extract.ToVFX, preSelect: true);
             }
             catch (Exception e)
             {
@@ -513,11 +513,7 @@ namespace GUI.Types.Viewers
                             zframeFile.ZframeId, 0, Backend.GLSL);
 
                         var textTab = new TabPage("SPIR-V");
-                        var textBox = new CodeTextBox(reflectedSource)
-                        {
-                            ReadOnly = false,
-                            PreserveUndoHistory = true,
-                        };
+                        var textBox = new CodeTextBox(reflectedSource);
                         textTab.Controls.Add(textBox);
                         resTabs.TabPages.Add(textTab);
                         resTabs.SelectedTab = textTab;
