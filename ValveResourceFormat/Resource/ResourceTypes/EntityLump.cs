@@ -305,13 +305,17 @@ namespace ValveResourceFormat.ResourceTypes
 
                         var timesToFire = connection.GetInt32Property("m_nTimesToFire");
 
-                        if (timesToFire == 1)
+                        switch (timesToFire)
                         {
-                            builder.Append("OnlyOnce ");
-                        }
-                        else if (timesToFire != -1)
-                        {
-                            throw new UnexpectedMagicException("Unexpected times to fire", timesToFire, nameof(timesToFire));
+                            case 1:
+                                builder.Append("OnlyOnce ");
+                                break;
+                            case 2:
+                                builder.Append("OnlyTwice ");
+                                break;
+                            case >= 3:
+                                builder.Append($"Only{timesToFire}Times ");
+                                break;
                         }
 
                         builder.Append(connection.GetProperty<string>("m_inputName"));
