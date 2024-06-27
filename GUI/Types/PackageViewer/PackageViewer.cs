@@ -526,6 +526,12 @@ namespace GUI.Types.PackageViewer
         private void VPK_OnContextMenu(object sender, PackageContextMenuEventArgs e)
         {
             var isRoot = e.PkgNode == TreeView.mainTreeView.Root;
+            var isFolder = e.PackageEntry is null;
+
+            if (e.TreeNode is not null)
+            {
+                isFolder = e.TreeNode.IsFolder;
+            }
 
             if (IsEditingPackage)
             {
@@ -533,13 +539,13 @@ namespace GUI.Types.PackageViewer
                 {
                     LastContextTreeNode = e.TreeNode;
 
-                    Program.MainForm.ShowVpkEditingContextMenu((Control)sender, e.Location, isRoot, e.TreeNode.IsFolder);
+                    Program.MainForm.ShowVpkEditingContextMenu((Control)sender, e.Location, isRoot, isFolder);
                 }
 
                 return;
             }
 
-            Program.MainForm.ShowVpkContextMenu((Control)sender, e.Location, isRoot, e.TreeNode.IsFolder);
+            Program.MainForm.ShowVpkContextMenu((Control)sender, e.Location, isRoot, isFolder);
         }
     }
 }
