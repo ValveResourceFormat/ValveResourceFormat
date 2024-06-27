@@ -44,16 +44,16 @@ namespace GUI.Forms
             TargetInput = new DataGridViewTextBoxColumn();
             Parameter = new DataGridViewTextBoxColumn();
             Delay = new DataGridViewTextBoxColumn();
-            OnlyOnce = new DataGridViewTextBoxColumn();
+            timesToFire = new DataGridViewTextBoxColumn();
             tabControl.SuspendLayout();
             tabPageProperties.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)dataGridProperties).BeginInit();
             tabPageOutputs.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)dataGridOutputs).BeginInit();
             SuspendLayout();
-            // 
+            //
             // tabControl1
-            // 
+            //
             tabControl.Controls.Add(tabPageProperties);
             tabControl.Controls.Add(tabPageOutputs);
             tabControl.Dock = DockStyle.Fill;
@@ -62,9 +62,9 @@ namespace GUI.Forms
             tabControl.SelectedIndex = 0;
             tabControl.Size = new System.Drawing.Size(800, 450);
             tabControl.TabIndex = 0;
-            // 
+            //
             // tabPageProperties
-            // 
+            //
             tabPageProperties.Controls.Add(dataGridProperties);
             tabPageProperties.Location = new System.Drawing.Point(4, 24);
             tabPageProperties.Name = "tabPageProperties";
@@ -73,9 +73,9 @@ namespace GUI.Forms
             tabPageProperties.TabIndex = 0;
             tabPageProperties.Text = "Properties";
             tabPageProperties.UseVisualStyleBackColor = true;
-            // 
+            //
             // dataGrid
-            // 
+            //
             dataGridProperties.AllowUserToAddRows = false;
             dataGridProperties.AllowUserToDeleteRows = false;
             dataGridProperties.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
@@ -95,23 +95,23 @@ namespace GUI.Forms
             dataGridProperties.RowHeadersVisible = false;
             dataGridProperties.Size = new System.Drawing.Size(786, 416);
             dataGridProperties.TabIndex = 1;
-            // 
+            //
             // ColumnName
-            // 
+            //
             ColumnName.FillWeight = 30F;
             ColumnName.HeaderText = "Name";
             ColumnName.Name = "ColumnName";
             ColumnName.ReadOnly = true;
-            // 
+            //
             // ColumnValue
-            // 
+            //
             ColumnValue.FillWeight = 70F;
             ColumnValue.HeaderText = "Value";
             ColumnValue.Name = "ColumnValue";
             ColumnValue.ReadOnly = true;
-            // 
+            //
             // tabPageOutputs
-            // 
+            //
             tabPageOutputs.Controls.Add(dataGridOutputs);
             tabPageOutputs.Location = new System.Drawing.Point(4, 24);
             tabPageOutputs.Name = "tabPageOutputs";
@@ -120,13 +120,13 @@ namespace GUI.Forms
             tabPageOutputs.TabIndex = 1;
             tabPageOutputs.Text = "Outputs";
             tabPageOutputs.UseVisualStyleBackColor = true;
-            // 
+            //
             // dataGridOutputs
-            // 
+            //
             dataGridOutputs.AllowUserToAddRows = false;
             dataGridOutputs.AllowUserToDeleteRows = false;
             dataGridOutputs.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
-            dataGridOutputs.Columns.AddRange(new DataGridViewColumn[] { Output, TargetEntity, TargetInput, Parameter, Delay, OnlyOnce });
+            dataGridOutputs.Columns.AddRange(new DataGridViewColumn[] { Output, TargetEntity, TargetInput, Parameter, Delay, timesToFire });
             dataGridViewCellStyle2.Alignment = DataGridViewContentAlignment.MiddleLeft;
             dataGridViewCellStyle2.BackColor = System.Drawing.SystemColors.Window;
             dataGridViewCellStyle2.Font = new System.Drawing.Font("Cascadia Mono", 10F);
@@ -142,45 +142,45 @@ namespace GUI.Forms
             dataGridOutputs.RowHeadersVisible = false;
             dataGridOutputs.Size = new System.Drawing.Size(786, 416);
             dataGridOutputs.TabIndex = 0;
-            // 
+            //
             // Output
-            // 
+            //
             Output.HeaderText = "Output";
             Output.Name = "Output";
             Output.ReadOnly = true;
-            // 
+            //
             // TargetEntity
-            // 
+            //
             TargetEntity.HeaderText = "Target Entity";
             TargetEntity.Name = "TargetEntity";
             TargetEntity.ReadOnly = true;
-            // 
+            //
             // TargetInput
-            // 
+            //
             TargetInput.HeaderText = "Target Input";
             TargetInput.Name = "TargetInput";
             TargetInput.ReadOnly = true;
-            // 
+            //
             // Parameter
-            // 
+            //
             Parameter.HeaderText = "Parameter";
             Parameter.Name = "Parameter";
             Parameter.ReadOnly = true;
-            // 
+            //
             // Delay
-            // 
+            //
             Delay.HeaderText = "Delay";
             Delay.Name = "Delay";
             Delay.ReadOnly = true;
-            // 
-            // OnlyOnce
-            // 
-            OnlyOnce.HeaderText = "Only Once";
-            OnlyOnce.Name = "OnlyOnce";
-            OnlyOnce.ReadOnly = true;
-            // 
+            //
+            // timesToFire
+            //
+            timesToFire.HeaderText = "Times To Fire";
+            timesToFire.Name = "timesToFire";
+            timesToFire.ReadOnly = true;
+            //
             // EntityInfoForm
-            // 
+            //
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new System.Drawing.Size(800, 450);
@@ -211,6 +211,6 @@ namespace GUI.Forms
         private DataGridViewTextBoxColumn TargetInput;
         private DataGridViewTextBoxColumn Parameter;
         private DataGridViewTextBoxColumn Delay;
-        private DataGridViewTextBoxColumn OnlyOnce;
+        private DataGridViewTextBoxColumn timesToFire;
     }
 }

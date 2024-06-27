@@ -310,10 +310,7 @@ namespace ValveResourceFormat.ResourceTypes
                             case 1:
                                 builder.Append("OnlyOnce ");
                                 break;
-                            case 2:
-                                builder.Append("OnlyTwice ");
-                                break;
-                            case >= 3:
+                            case >= 2:
                                 builder.Append($"Only{timesToFire}Times ");
                                 break;
                         }
