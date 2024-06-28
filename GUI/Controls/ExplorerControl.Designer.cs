@@ -113,7 +113,7 @@ namespace GUI.Controls
             clearRecentFilesToolStripMenuItem.Image = (System.Drawing.Image)resources.GetObject("clearRecentFilesToolStripMenuItem.Image");
             clearRecentFilesToolStripMenuItem.Name = "clearRecentFilesToolStripMenuItem";
             clearRecentFilesToolStripMenuItem.Size = new System.Drawing.Size(161, 22);
-            clearRecentFilesToolStripMenuItem.Text = "Clear recent files";
+            clearRecentFilesToolStripMenuItem.Text = "&Clear recent files";
             clearRecentFilesToolStripMenuItem.Click += OnClearRecentFilesClick;
             // 
             // ExplorerControl
