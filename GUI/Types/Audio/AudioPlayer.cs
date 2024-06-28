@@ -35,10 +35,13 @@ namespace GUI.Types.Audio
 
                 tab.Controls.Add(audio);
 
+                MainForm.DarkModeCS.ThemeControl(audio);
+
                 if (autoPlay)
                 {
                     audio.HandleCreated += OnHandleCreated;
                 }
+
             }
             catch (Exception e)
             {

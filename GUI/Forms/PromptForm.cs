@@ -1,4 +1,5 @@
 using System.Windows.Forms;
+using DarkModeForms;
 
 namespace GUI.Forms
 {
@@ -9,6 +10,8 @@ namespace GUI.Forms
         public PromptForm(string title)
         {
             InitializeComponent();
+
+            MainForm.DarkModeCS.Style(this);
 
             Text = title;
             textLabel.Text = string.Concat(title, ":");

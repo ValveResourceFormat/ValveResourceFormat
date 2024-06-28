@@ -28,7 +28,7 @@ namespace GUI.Forms
         /// </summary>
         private void InitializeComponent()
         {
-            gamePaths = new System.Windows.Forms.ListBox();
+            gamePaths = new Controls.BetterListBox();
             gamePathsAdd = new System.Windows.Forms.Button();
             gamePathsRemove = new System.Windows.Forms.Button();
             gamePathsAddFolder = new System.Windows.Forms.Button();
@@ -43,20 +43,22 @@ namespace GUI.Forms
             vsyncCheckBox = new System.Windows.Forms.CheckBox();
             displayFpsCheckBox = new System.Windows.Forms.CheckBox();
             displayFpsLabel = new System.Windows.Forms.Label();
-            groupBox1 = new System.Windows.Forms.GroupBox();
+            groupBox1 = new Controls.BetterGroupBox();
             tableLayoutPanel1 = new System.Windows.Forms.TableLayoutPanel();
-            groupBox2 = new System.Windows.Forms.GroupBox();
+            groupBox2 = new Controls.BetterGroupBox();
             tableLayoutPanel2 = new System.Windows.Forms.TableLayoutPanel();
-            groupBox3 = new System.Windows.Forms.GroupBox();
+            groupBox3 = new Controls.BetterGroupBox();
             tableLayoutPanel4 = new System.Windows.Forms.TableLayoutPanel();
-            groupBox4 = new System.Windows.Forms.GroupBox();
+            openExplorerOnStartCheckbox = new System.Windows.Forms.CheckBox();
+            openExplorerOnStartLabel = new System.Windows.Forms.Label();
+            themeLabel = new System.Windows.Forms.Label();
+            themeComboBox = new System.Windows.Forms.ComboBox();
+            groupBox4 = new Controls.BetterGroupBox();
             tableLayoutPanel3 = new System.Windows.Forms.TableLayoutPanel();
             quickPreviewLabel = new System.Windows.Forms.Label();
             quickPreviewSoundsLabel = new System.Windows.Forms.Label();
             quickPreviewCheckbox = new System.Windows.Forms.CheckBox();
             quickPreviewSoundsCheckbox = new System.Windows.Forms.CheckBox();
-            openExplorerOnStartLabel = new System.Windows.Forms.Label();
-            openExplorerOnStartCheckbox = new System.Windows.Forms.CheckBox();
             ((System.ComponentModel.ISupportInitialize)maxTextureSizeInput).BeginInit();
             ((System.ComponentModel.ISupportInitialize)fovInput).BeginInit();
             groupBox1.SuspendLayout();
@@ -71,13 +73,14 @@ namespace GUI.Forms
             // 
             // gamePaths
             // 
+            gamePaths.BorderStyle = System.Windows.Forms.BorderStyle.None;
             gamePaths.Dock = System.Windows.Forms.DockStyle.Top;
             gamePaths.FormattingEnabled = true;
             gamePaths.ItemHeight = 15;
             gamePaths.Location = new System.Drawing.Point(16, 32);
             gamePaths.Margin = new System.Windows.Forms.Padding(0);
             gamePaths.Name = "gamePaths";
-            gamePaths.Size = new System.Drawing.Size(420, 109);
+            gamePaths.Size = new System.Drawing.Size(420, 105);
             gamePaths.TabIndex = 1;
             // 
             // gamePathsAdd
@@ -185,7 +188,7 @@ namespace GUI.Forms
             // registerAssociationButton
             // 
             registerAssociationButton.Dock = System.Windows.Forms.DockStyle.Fill;
-            registerAssociationButton.Location = new System.Drawing.Point(4, 43);
+            registerAssociationButton.Location = new System.Drawing.Point(4, 83);
             registerAssociationButton.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             registerAssociationButton.Name = "registerAssociationButton";
             registerAssociationButton.Size = new System.Drawing.Size(202, 34);
@@ -207,12 +210,13 @@ namespace GUI.Forms
             // vsyncCheckBox
             // 
             vsyncCheckBox.AutoSize = true;
+            vsyncCheckBox.BackColor = System.Drawing.SystemColors.Control;
             vsyncCheckBox.Dock = System.Windows.Forms.DockStyle.Fill;
             vsyncCheckBox.Location = new System.Drawing.Point(213, 123);
             vsyncCheckBox.Name = "vsyncCheckBox";
             vsyncCheckBox.Size = new System.Drawing.Size(204, 34);
             vsyncCheckBox.TabIndex = 8;
-            vsyncCheckBox.UseVisualStyleBackColor = true;
+            vsyncCheckBox.UseVisualStyleBackColor = false;
             vsyncCheckBox.CheckedChanged += OnVsyncValueChanged;
             // 
             // displayFpsCheckBox
@@ -241,6 +245,7 @@ namespace GUI.Forms
             groupBox1.Controls.Add(tableLayoutPanel1);
             groupBox1.Controls.Add(gamePaths);
             groupBox1.Dock = System.Windows.Forms.DockStyle.Top;
+            groupBox1.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             groupBox1.Location = new System.Drawing.Point(16, 16);
             groupBox1.Margin = new System.Windows.Forms.Padding(0, 0, 0, 16);
             groupBox1.Name = "groupBox1";
@@ -260,7 +265,7 @@ namespace GUI.Forms
             tableLayoutPanel1.Controls.Add(gamePathsAddFolder, 1, 0);
             tableLayoutPanel1.Controls.Add(gamePathsRemove, 2, 0);
             tableLayoutPanel1.Dock = System.Windows.Forms.DockStyle.Top;
-            tableLayoutPanel1.Location = new System.Drawing.Point(16, 141);
+            tableLayoutPanel1.Location = new System.Drawing.Point(16, 137);
             tableLayoutPanel1.Margin = new System.Windows.Forms.Padding(0);
             tableLayoutPanel1.Name = "tableLayoutPanel1";
             tableLayoutPanel1.RowCount = 1;
@@ -272,6 +277,7 @@ namespace GUI.Forms
             // 
             groupBox2.Controls.Add(tableLayoutPanel2);
             groupBox2.Dock = System.Windows.Forms.DockStyle.Top;
+            groupBox2.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             groupBox2.Location = new System.Drawing.Point(16, 209);
             groupBox2.Margin = new System.Windows.Forms.Padding(3, 16, 3, 3);
             groupBox2.Name = "groupBox2";
@@ -313,11 +319,12 @@ namespace GUI.Forms
             // 
             groupBox3.Controls.Add(tableLayoutPanel4);
             groupBox3.Dock = System.Windows.Forms.DockStyle.Top;
+            groupBox3.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             groupBox3.Location = new System.Drawing.Point(16, 599);
             groupBox3.Margin = new System.Windows.Forms.Padding(0);
             groupBox3.Name = "groupBox3";
             groupBox3.Padding = new System.Windows.Forms.Padding(16);
-            groupBox3.Size = new System.Drawing.Size(452, 138);
+            groupBox3.Size = new System.Drawing.Size(452, 177);
             groupBox3.TabIndex = 3;
             groupBox3.TabStop = false;
             groupBox3.Text = "Explorer";
@@ -327,23 +334,69 @@ namespace GUI.Forms
             tableLayoutPanel4.ColumnCount = 2;
             tableLayoutPanel4.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 50F));
             tableLayoutPanel4.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 50F));
-            tableLayoutPanel4.Controls.Add(openExplorerOnStartCheckbox, 1, 0);
-            tableLayoutPanel4.Controls.Add(openExplorerOnStartLabel, 0, 0);
-            tableLayoutPanel4.Controls.Add(registerAssociationButton, 0, 1);
+            tableLayoutPanel4.Controls.Add(openExplorerOnStartCheckbox, 1, 1);
+            tableLayoutPanel4.Controls.Add(openExplorerOnStartLabel, 0, 1);
+            tableLayoutPanel4.Controls.Add(registerAssociationButton, 0, 2);
+            tableLayoutPanel4.Controls.Add(themeLabel, 0, 0);
+            tableLayoutPanel4.Controls.Add(themeComboBox, 1, 0);
             tableLayoutPanel4.Dock = System.Windows.Forms.DockStyle.Fill;
             tableLayoutPanel4.Location = new System.Drawing.Point(16, 32);
             tableLayoutPanel4.Name = "tableLayoutPanel4";
-            tableLayoutPanel4.RowCount = 3;
+            tableLayoutPanel4.RowCount = 4;
+            tableLayoutPanel4.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 40F));
             tableLayoutPanel4.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 40F));
             tableLayoutPanel4.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 40F));
             tableLayoutPanel4.RowStyles.Add(new System.Windows.Forms.RowStyle());
-            tableLayoutPanel4.Size = new System.Drawing.Size(420, 90);
+            tableLayoutPanel4.Size = new System.Drawing.Size(420, 129);
             tableLayoutPanel4.TabIndex = 11;
+            // 
+            // openExplorerOnStartCheckbox
+            // 
+            openExplorerOnStartCheckbox.AutoSize = true;
+            openExplorerOnStartCheckbox.Dock = System.Windows.Forms.DockStyle.Fill;
+            openExplorerOnStartCheckbox.Location = new System.Drawing.Point(213, 43);
+            openExplorerOnStartCheckbox.Name = "openExplorerOnStartCheckbox";
+            openExplorerOnStartCheckbox.Size = new System.Drawing.Size(204, 34);
+            openExplorerOnStartCheckbox.TabIndex = 12;
+            openExplorerOnStartCheckbox.UseVisualStyleBackColor = true;
+            openExplorerOnStartCheckbox.CheckedChanged += OnOpenExplorerOnStartValueChanged;
+            // 
+            // openExplorerOnStartLabel
+            // 
+            openExplorerOnStartLabel.Anchor = System.Windows.Forms.AnchorStyles.Left;
+            openExplorerOnStartLabel.AutoSize = true;
+            openExplorerOnStartLabel.Location = new System.Drawing.Point(3, 52);
+            openExplorerOnStartLabel.Name = "openExplorerOnStartLabel";
+            openExplorerOnStartLabel.Size = new System.Drawing.Size(128, 15);
+            openExplorerOnStartLabel.TabIndex = 11;
+            openExplorerOnStartLabel.Text = "Open explorer on start:";
+            // 
+            // themeLabel
+            // 
+            themeLabel.Anchor = System.Windows.Forms.AnchorStyles.Left;
+            themeLabel.AutoSize = true;
+            themeLabel.Location = new System.Drawing.Point(3, 12);
+            themeLabel.Name = "themeLabel";
+            themeLabel.Size = new System.Drawing.Size(46, 15);
+            themeLabel.TabIndex = 13;
+            themeLabel.Text = "Theme:";
+            // 
+            // themeComboBox
+            // 
+            themeComboBox.Anchor = System.Windows.Forms.AnchorStyles.Left;
+            themeComboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            themeComboBox.FormattingEnabled = true;
+            themeComboBox.Location = new System.Drawing.Point(213, 8);
+            themeComboBox.Name = "themeComboBox";
+            themeComboBox.Size = new System.Drawing.Size(100, 23);
+            themeComboBox.TabIndex = 14;
+            themeComboBox.SelectedIndexChanged += OnThemeValueChanged;
             // 
             // groupBox4
             // 
             groupBox4.Controls.Add(tableLayoutPanel3);
             groupBox4.Dock = System.Windows.Forms.DockStyle.Top;
+            groupBox4.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             groupBox4.Location = new System.Drawing.Point(16, 461);
             groupBox4.Name = "groupBox4";
             groupBox4.Padding = new System.Windows.Forms.Padding(16);
@@ -414,33 +467,12 @@ namespace GUI.Forms
             quickPreviewSoundsCheckbox.UseVisualStyleBackColor = true;
             quickPreviewSoundsCheckbox.CheckedChanged += OnQuickPreviewSoundsCheckboxChanged;
             // 
-            // openExplorerOnStartLabel
-            // 
-            openExplorerOnStartLabel.Anchor = System.Windows.Forms.AnchorStyles.Left;
-            openExplorerOnStartLabel.AutoSize = true;
-            openExplorerOnStartLabel.Location = new System.Drawing.Point(3, 12);
-            openExplorerOnStartLabel.Name = "openExplorerOnStartLabel";
-            openExplorerOnStartLabel.Size = new System.Drawing.Size(128, 15);
-            openExplorerOnStartLabel.TabIndex = 11;
-            openExplorerOnStartLabel.Text = "Open explorer on start:";
-            // 
-            // openExplorerOnStartCheckbox
-            // 
-            openExplorerOnStartCheckbox.AutoSize = true;
-            openExplorerOnStartCheckbox.Dock = System.Windows.Forms.DockStyle.Fill;
-            openExplorerOnStartCheckbox.Location = new System.Drawing.Point(213, 3);
-            openExplorerOnStartCheckbox.Name = "openExplorerOnStartCheckbox";
-            openExplorerOnStartCheckbox.Size = new System.Drawing.Size(204, 34);
-            openExplorerOnStartCheckbox.TabIndex = 12;
-            openExplorerOnStartCheckbox.UseVisualStyleBackColor = true;
-            openExplorerOnStartCheckbox.CheckedChanged += OnOpenExplorerOnStartValueChanged;
-            // 
             // SettingsForm
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             AutoScroll = true;
-            ClientSize = new System.Drawing.Size(484, 751);
+            ClientSize = new System.Drawing.Size(484, 841);
             Controls.Add(groupBox3);
             Controls.Add(groupBox4);
             Controls.Add(groupBox2);
@@ -451,6 +483,7 @@ namespace GUI.Forms
             Padding = new System.Windows.Forms.Padding(16);
             ShowIcon = false;
             ShowInTaskbar = false;
+            SizeGripStyle = System.Windows.Forms.SizeGripStyle.Hide;
             StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
             Text = "Settings";
             Load += SettingsForm_Load;
@@ -472,7 +505,7 @@ namespace GUI.Forms
 
         #endregion
 
-        private System.Windows.Forms.ListBox gamePaths;
+        private Controls.BetterListBox gamePaths;
         private System.Windows.Forms.Button gamePathsAdd;
         private System.Windows.Forms.Button gamePathsRemove;
         private System.Windows.Forms.Button gamePathsAddFolder;
@@ -487,12 +520,12 @@ namespace GUI.Forms
         private System.Windows.Forms.Button registerAssociationButton;
         private System.Windows.Forms.CheckBox displayFpsCheckBox;
         private System.Windows.Forms.Label displayFpsLabel;
-        private System.Windows.Forms.GroupBox groupBox1;
+        private Controls.BetterGroupBox groupBox1;
         private System.Windows.Forms.TableLayoutPanel tableLayoutPanel1;
-        private System.Windows.Forms.GroupBox groupBox2;
+        private Controls.BetterGroupBox groupBox2;
         private System.Windows.Forms.TableLayoutPanel tableLayoutPanel2;
-        private System.Windows.Forms.GroupBox groupBox3;
-        private System.Windows.Forms.GroupBox groupBox4;
+        private Controls.BetterGroupBox groupBox3;
+        private Controls.BetterGroupBox groupBox4;
         private System.Windows.Forms.TableLayoutPanel tableLayoutPanel3;
         private System.Windows.Forms.Label quickPreviewLabel;
         private System.Windows.Forms.Label quickPreviewSoundsLabel;
@@ -501,5 +534,7 @@ namespace GUI.Forms
         private System.Windows.Forms.TableLayoutPanel tableLayoutPanel4;
         private System.Windows.Forms.CheckBox openExplorerOnStartCheckbox;
         private System.Windows.Forms.Label openExplorerOnStartLabel;
+        private System.Windows.Forms.Label themeLabel;
+        private System.Windows.Forms.ComboBox themeComboBox;
     }
 }

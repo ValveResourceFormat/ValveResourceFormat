@@ -29,7 +29,7 @@ namespace GUI.Controls
         private void InitializeComponent()
         {
             selectionNameLabel = new System.Windows.Forms.Label();
-            checkedListBox = new System.Windows.Forms.CheckedListBox();
+            checkedListBox = new BetterCheckedListBox();
             SuspendLayout();
             // 
             // selectionNameLabel
@@ -45,13 +45,14 @@ namespace GUI.Controls
             // 
             // checkedListBox
             // 
+            checkedListBox.BorderStyle = System.Windows.Forms.BorderStyle.None;
             checkedListBox.CheckOnClick = true;
             checkedListBox.Dock = System.Windows.Forms.DockStyle.Top;
             checkedListBox.FormattingEnabled = true;
             checkedListBox.Location = new System.Drawing.Point(0, 15);
             checkedListBox.Margin = new System.Windows.Forms.Padding(0);
             checkedListBox.Name = "checkedListBox";
-            checkedListBox.Size = new System.Drawing.Size(220, 130);
+            checkedListBox.Size = new System.Drawing.Size(220, 126);
             checkedListBox.TabIndex = 1;
             // 
             // GLViewerMultiSelectionControl
@@ -70,6 +71,6 @@ namespace GUI.Controls
         #endregion
 
         private System.Windows.Forms.Label selectionNameLabel;
-        private System.Windows.Forms.CheckedListBox checkedListBox;
+        private Controls.BetterCheckedListBox checkedListBox;
     }
 }

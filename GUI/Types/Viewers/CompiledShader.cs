@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Windows.Forms;
+using DarkModeForms;
 using GUI.Controls;
 using GUI.Utils;
 using ValveResourceFormat.CompiledShader;
@@ -21,7 +22,7 @@ namespace GUI.Types.Viewers
             return magic == ShaderFile.MAGIC;
         }
 
-        public class ShaderTabControl : TabControl
+        public class ShaderTabControl : FlatTabControl
         {
             public ShaderTabControl() : base() { }
             protected override void OnKeyDown(KeyEventArgs ke)
@@ -484,7 +485,7 @@ namespace GUI.Types.Viewers
                         {
                             Text = gpuSourceTabTitle
                         };
-                        var resTabs = new TabControl
+                        var resTabs = new FlatTabControl
                         {
                             Dock = DockStyle.Fill,
                         };

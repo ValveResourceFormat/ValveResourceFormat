@@ -1,5 +1,6 @@
 using System.IO;
 using System.Windows.Forms;
+using DarkModeForms;
 using GUI.Controls;
 using GUI.Utils;
 
@@ -15,7 +16,7 @@ namespace GUI.Types.Viewers
         public TabPage Create(VrfGuiContext vrfGuiContext, Stream stream)
         {
             var tabOuterPage = new TabPage();
-            var tabControl = new TabControl
+            var tabControl = new FlatTabControl
             {
                 Dock = DockStyle.Fill,
             };

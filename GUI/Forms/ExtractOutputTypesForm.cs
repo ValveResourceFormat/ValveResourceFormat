@@ -9,6 +9,7 @@ namespace GUI.Forms
         public ExtractOutputTypesForm()
         {
             InitializeComponent();
+            MainForm.DarkModeCS.Style(this);
         }
 
         public void AddTypeToTable(string type, int count, List<string> outputTypes, int defaultType)

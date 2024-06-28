@@ -85,6 +85,7 @@ namespace GUI.Forms
             MinimizeBox = false;
             Name = "UpdateAvailableForm";
             ShowIcon = false;
+            SizeGripStyle = System.Windows.Forms.SizeGripStyle.Hide;
             StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
             Text = "Update is available";
             ResumeLayout(false);

@@ -21,8 +21,8 @@ namespace GUI.Types.Renderer
     {
         private readonly World world;
         private readonly WorldNode worldNode;
-        private CheckedListBox worldLayersComboBox;
-        private CheckedListBox physicsGroupsComboBox;
+        private BetterCheckedListBox worldLayersComboBox;
+        private BetterCheckedListBox physicsGroupsComboBox;
         private ComboBox cameraComboBox;
         private SavedCameraPositionsControl savedCameraPositionsControl;
         private EntityInfoForm entityInfoForm;
@@ -68,6 +68,7 @@ namespace GUI.Types.Renderer
 
                 SetEnabledLayers(new HashSet<string>(worldLayers));
             });
+
             physicsGroupsComboBox = AddMultiSelection("Physics Groups", null, (physicsGroups) =>
             {
                 if (ignoreLayersChangeEvents)
@@ -465,7 +466,7 @@ namespace GUI.Types.Renderer
                                     {
                                         var item = glModelViewer.meshGroupListBox.FindStringExact(group);
 
-                                        if (item != ListBox.NoMatches)
+                                        if (item != BetterListBox.NoMatches)
                                         {
                                             glModelViewer.meshGroupListBox.SetItemChecked(item, true);
                                         }

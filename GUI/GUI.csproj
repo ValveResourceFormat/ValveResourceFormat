@@ -18,6 +18,10 @@
     <PackageReference Include="FCTB" Version="2.16.24">
         <NoWarn>NU1701</NoWarn>
     </PackageReference>
+    <PackageReference Include="Microsoft.Windows.CsWin32" Version="0.3.106">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
     <PackageReference Include="NAudio" Version="2.2.1" />
     <PackageReference Include="NLayer" Version="1.15.0" />
     <PackageReference Include="NLayer.NAudioSupport" Version="1.4.0" />
@@ -46,5 +50,8 @@
       <Project>{E685E563-5F49-4D8D-8342-A7354229E54F}</Project>
       <Name>ValveResourceFormat</Name>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Update="Controls\BetterCheckedListBox.cs" />
   </ItemGroup>
 </Project>

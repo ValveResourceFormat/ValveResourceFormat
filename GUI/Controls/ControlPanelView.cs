@@ -51,27 +51,29 @@ namespace GUI.Controls
             return selectionControl.ComboBox;
         }
 
-        public CheckedListBox AddMultiSelection(string name, Action<CheckedListBox> initializeCallback, Action<IEnumerable<string>> changeCallback)
+        public BetterCheckedListBox AddMultiSelection(string name, Action<BetterCheckedListBox> initializeCallback, Action<IEnumerable<string>> changeCallback)
         {
             var selectionControl = new GLViewerMultiSelectionControl(name);
 
-            initializeCallback?.Invoke(selectionControl.CheckedListBox);
+            initializeCallback?.Invoke(selectionControl.BetterCheckedListBox);
 
             ControlsPanel.Controls.Add(selectionControl);
 
             SetControlLocation(selectionControl);
 
-            selectionControl.CheckedListBox.ItemCheck += (_, __) =>
+            selectionControl.BetterCheckedListBox.ItemCheck += (_, __) =>
             {
                 // ItemCheck is called before CheckedItems is updated
                 BeginInvoke((MethodInvoker)(() =>
                 {
                     selectionControl.Refresh();
-                    changeCallback(selectionControl.CheckedListBox.CheckedItems.OfType<string>());
+                    changeCallback(selectionControl.BetterCheckedListBox.CheckedItems.OfType<string>());
                 }));
             };
 
-            return selectionControl.CheckedListBox;
+            selectionControl.BorderStyle = BorderStyle.FixedSingle;
+
+            return selectionControl.BetterCheckedListBox;
         }
 
         public GLViewerTrackBarControl AddTrackBar(Action<int> changeCallback)

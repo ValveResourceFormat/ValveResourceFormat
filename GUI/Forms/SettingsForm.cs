@@ -2,8 +2,10 @@ using System.ComponentModel;
 using System.IO;
 using System.Reflection;
 using System.Windows.Forms;
+using DarkModeForms;
 using GUI.Utils;
 using Microsoft.Win32;
+using Windows.Win32;
 
 namespace GUI.Forms
 {
@@ -14,6 +16,7 @@ namespace GUI.Forms
         public SettingsForm()
         {
             InitializeComponent();
+            MainForm.DarkModeCS.Style(this);
         }
 
         protected override void OnClosing(CancelEventArgs e)
@@ -34,6 +37,9 @@ namespace GUI.Forms
             vsyncCheckBox.Checked = Settings.Config.Vsync != 0;
             displayFpsCheckBox.Checked = Settings.Config.DisplayFps != 0;
             openExplorerOnStartCheckbox.Checked = Settings.Config.OpenExplorerOnStart != 0;
+
+            themeComboBox.Items.AddRange(Enum.GetNames<Settings.AppTheme>());
+            themeComboBox.SelectedIndex = Settings.Config.Theme;
 
             var quickPreviewFlags = (Settings.QuickPreviewFlags)Settings.Config.QuickFilePreview;
             quickPreviewCheckbox.Checked = (quickPreviewFlags & Settings.QuickPreviewFlags.Enabled) != 0;
@@ -139,6 +145,13 @@ namespace GUI.Forms
             Settings.Config.AntiAliasingSamples = newValue;
         }
 
+        private void OnThemeValueChanged(object sender, EventArgs e)
+        {
+            Settings.Config.Theme = themeComboBox.SelectedIndex;
+
+            MainForm.DarkModeCS.UpdateTheme();
+        }
+
         private void OnVsyncValueChanged(object sender, EventArgs e)
         {
             Settings.Config.Vsync = vsyncCheckBox.Checked ? 1 : 0;
@@ -215,7 +228,10 @@ namespace GUI.Forms
             using var regProtocolOpen = regProtocol.CreateSubKey(@"shell\open\command");
             regProtocolOpen.SetValue(null, $"\"{applicationPath}\" \"%1\"");
 
-            NativeMethods.SHChangeNotify(NativeMethods.SHCNE_ASSOCCHANGED, NativeMethods.SHCNF_FLUSH, IntPtr.Zero, IntPtr.Zero);
+            unsafe
+            {
+                PInvoke.SHChangeNotify(Windows.Win32.UI.Shell.SHCNE_ID.SHCNE_ASSOCCHANGED, Windows.Win32.UI.Shell.SHCNF_FLAGS.SHCNF_FLUSH);
+            }
 
             MessageBox.Show(
                 $"Registered .vpk file association as well as \"vpk:\" protocol link handling.{Environment.NewLine}{Environment.NewLine}If you move {Path.GetFileName(applicationPath)}, you will have to register it again.",

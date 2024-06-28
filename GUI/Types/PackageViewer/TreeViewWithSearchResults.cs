@@ -2,6 +2,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Windows.Forms;
+using DarkModeForms;
 using GUI.Forms;
 using GUI.Utils;
 using SteamDatabase.ValvePak;
@@ -771,12 +772,13 @@ namespace GUI.Types.PackageViewer
         {
             mainListView.Visible = false;
 
-            var tabs = new TabControl
+            var tabs = new FlatTabControl
             {
                 ImageList = MainForm.ImageList,
                 Dock = DockStyle.Fill
             };
             tabs.Controls.Add(tab);
+            MainForm.DarkModeCS.ThemeControl(tabs);
 
             rightPanel.Controls.Add(tabs);
 

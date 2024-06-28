@@ -9,7 +9,7 @@ namespace GUI.Utils
 {
     static class Settings
     {
-        private const int SettingsFileCurrentVersion = 8;
+        private const int SettingsFileCurrentVersion = 9;
         private const int RecentFilesLimit = 20;
 
         [Flags]
@@ -17,6 +17,13 @@ namespace GUI.Utils
         {
             Enabled = 1 << 0,
             AutoPlaySounds = 1 << 1,
+        }
+
+        public enum AppTheme : int
+        {
+            System = 0,
+            Light = 1,
+            Dark = 2,
         }
 
         public class AppConfig
@@ -27,6 +34,7 @@ namespace GUI.Utils
             public List<string> BookmarkedFiles { get; set; } = [];
             public List<string> RecentFiles { get; set; } = new(RecentFilesLimit);
             public Dictionary<string, float[]> SavedCameras { get; set; } = [];
+            public int Theme { get; set; }
             public int MaxTextureSize { get; set; }
             public int FieldOfView { get; set; }
             public int AntiAliasingSamples { get; set; }
