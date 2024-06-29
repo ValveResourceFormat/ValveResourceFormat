@@ -1,6 +1,5 @@
 using System.Buffers;
 using System.Collections.Concurrent;
-using System.ComponentModel.DataAnnotations;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -10,7 +9,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using McMaster.Extensions.CommandLineUtils;
+using ConsoleAppFramework;
 using SteamDatabase.ValvePak;
 using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
@@ -22,8 +21,6 @@ using ValveResourceFormat.Utils;
 
 namespace Decompiler
 {
-    [Command(Name = "vrf_decompiler", Description = "A test bed command line interface for the VRF library")]
-    [VersionOptionFromMember(MemberName = nameof(GetVersion))]
     public partial class Decompiler
     {
         private readonly Dictionary<string, ResourceStat> stats = [];
@@ -34,108 +31,139 @@ namespace Decompiler
         private int CurrentFile;
         private int TotalFiles;
 
-        [Required]
-        [Option("-i|--input", "Input file to be processed. With no additional arguments, a summary of the input(s) will be displayed.", CommandOptionType.SingleValue)]
-        public string InputFile { get; private set; }
-
-        [Option("-o|--output", "Output path to write to. If input is a folder (or a VPK), this should be a folder.", CommandOptionType.SingleValue)]
-        public string OutputFile { get; private set; }
-
-        [Option("--recursive", "If specified and given input is a folder, all sub directories will be scanned too.", CommandOptionType.NoValue)]
-        public bool RecursiveSearch { get; private set; }
-
-        [Option("--recursive_vpk", "If specified along with --recursive, will also recurse into VPK archives.", CommandOptionType.NoValue)]
-        public bool RecursiveSearchArchives { get; private set; }
-
-        [Option("-a|--all", "Print the content of each resource block in the file.", CommandOptionType.NoValue)]
-        public bool PrintAllBlocks { get; }
-
-        [Option("-b|--block", "Print the content of a specific block, example: DATA, RERL, REDI, NTRO.", CommandOptionType.SingleValue)]
-        public string BlockToPrint { get; }
-
-        [Option("--threads", "If higher than 1, files will be processed concurrently.", CommandOptionType.SingleValue)]
-        public int MaxParallelismThreads { get; } = 1;
-
-        [Option("--vpk_dir", "Print a list of files in given VPK and information about them.", CommandOptionType.NoValue)]
-        public bool OutputVPKDir { get; }
-
-        [Option("--vpk_verify", "Verify checksums and signatures.", CommandOptionType.NoValue)]
-        public bool VerifyVPKChecksums { get; }
-
-        [Option("--vpk_cache", "Use cached VPK manifest to keep track of updates. Only changed files will be written to disk.", CommandOptionType.NoValue)]
-        public bool CachedManifest { get; }
-
-        [Option("-d|--vpk_decompile", "Decompile supported resource files.", CommandOptionType.NoValue)]
-        public bool Decompile { get; }
-
-        [Option("-e|--vpk_extensions", "File extension(s) filter, example: \"vcss_c,vjs_c,vxml_c\".", CommandOptionType.SingleValue)]
-        public string ExtFilter { get; }
-
-        [Option("-f|--vpk_filepath", "File path filter, example: \"panorama\\\\\" or \"scripts/items/items_game.txt\".", CommandOptionType.SingleValue)]
-        public string FileFilter { get; private set; }
-
-        [Option("-l|--vpk_list", "Lists all resources in given VPK. File extension and path filters apply.", CommandOptionType.NoValue)]
-        public bool ListResources { get; }
-
-        [Option("--gltf_export_format", "Exports meshes/models in given glTF format. Must be either 'gltf' (default) or 'glb'.", CommandOptionType.SingleValue)]
-        public string GltfExportFormat { get; } = "gltf";
-
-        [Option("--gltf_export_materials", "Whether to export materials during glTF exports.", CommandOptionType.NoValue)]
-        public bool GltfExportMaterials { get; }
-
-        [Option("--gltf_textures_adapt", "Whether to perform any glTF spec adaptations on textures (e.g. split metallic map).", CommandOptionType.NoValue)]
-        public bool GltfExportAdaptTextures { get; }
-
-        [Option("--gltf_export_extras", "Export additional Mesh properties into glTF extras", CommandOptionType.NoValue)]
-        public bool GltfExportExtras { get; }
-
-        [Option("--tools_asset_info_short", "Whether to print only file paths for tools_asset_info files.", CommandOptionType.NoValue)]
-        public bool ToolsAssetInfoShort { get; }
-
-#if DEBUG
-        private const bool IsDebugBuild = true;
-#else
-        private const bool IsDebugBuild = false;
-#endif
+        // Options
+        private string InputFile;
+        private string OutputFile;
+        private bool RecursiveSearch;
+        private bool RecursiveSearchArchives;
+        private bool PrintAllBlocks;
+        private string BlockToPrint;
+        private int MaxParallelismThreads;
+        private bool OutputVPKDir;
+        private bool VerifyVPKChecksums;
+        private bool CachedManifest;
+        private bool Decompile;
+        private string FileFilter;
+        private bool ListResources;
+        private string GltfExportFormat;
+        private bool GltfExportMaterials;
+        private bool GltfExportAdaptTextures;
+        private bool GltfExportExtras;
+        private bool ToolsAssetInfoShort;
 
         // The options below are for collecting stats and testing exporting, this is mostly intended for VRF developers, not end users.
-        [Option("--stats", "Collect stats on all input files and then print them.", CommandOptionType.NoValue, ShowInHelpText = IsDebugBuild)]
-        public bool CollectStats { get; }
-
-        [Option("--stats_print_files", "When using --stats, print example file names for each stat.", CommandOptionType.NoValue, ShowInHelpText = IsDebugBuild)]
-        public bool StatsPrintFilePaths { get; }
-
-        [Option("--stats_unique_deps", "When using --stats, print all unique dependencies that were found.", CommandOptionType.NoValue, ShowInHelpText = IsDebugBuild)]
-        public bool StatsPrintUniqueDependencies { get; }
-
-        [Option("--stats_particles", "When using --stats, collect particle operators, renderers, emitters, initializers.", CommandOptionType.NoValue, ShowInHelpText = IsDebugBuild)]
-        public bool StatsCollectParticles { get; }
-
-        [Option("--stats_vbib", "When using --stats, collect vertex attributes.", CommandOptionType.NoValue, ShowInHelpText = IsDebugBuild)]
-        public bool StatsCollectVBIB { get; }
-
-        [Option("--gltf_test", "When using --stats, also test glTF export code path for every supported file.", CommandOptionType.NoValue, ShowInHelpText = IsDebugBuild)]
-        public bool GltfTest { get; }
-
-        [Option("--dump_unknown_entity_keys", "When using --stats, save all unknown entity key hashes to unknown_keys.txt.", CommandOptionType.NoValue, ShowInHelpText = IsDebugBuild)]
-        public bool DumpUnknownEntityKeys { get; }
+        private bool CollectStats;
+        private bool StatsPrintFilePaths;
+        private bool StatsPrintUniqueDependencies;
+        private bool StatsCollectParticles;
+        private bool StatsCollectVBIB;
+        private bool GltfTest;
+        private bool DumpUnknownEntityKeys;
 
         private string[] ExtFilterList;
         private bool IsInputFolder;
 
-        // This decompiler is a test bed for our library,
-        // don't expect to see any quality code in here
-        public static int Main(string[] args)
+        public static void Main(string[] args)
         {
             CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
             CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.InvariantCulture;
 
-            return CommandLineApplication.Execute<Decompiler>(args);
+            var decompiler = new Decompiler();
+
+            ConsoleApp.Version = GetVersion();
+
+            // https://github.com/Cysharp/ConsoleAppFramework
+            // Go to definition on this method to see the generated source code
+            ConsoleApp.Run(args, decompiler.HandleArguments);
         }
 
-        private int OnExecute()
+        /// <summary>
+        /// A test bed command line interface for the VRF library.
+        /// </summary>
+        /// <param name="input">-i, Input file to be processed. With no additional arguments, a summary of the input(s) will be displayed.</param>
+        /// <param name="output">-o, Output path to write to. If input is a folder (or a VPK), this should be a folder.</param>
+        /// <param name="recursive">If specified and given input is a folder, all sub directories will be scanned too.</param>
+        /// <param name="recursive_vpk">If specified along with --recursive, will also recurse into VPK archives.</param>
+        /// <param name="all">-a, Print the content of each resource block in the file.</param>
+        /// <param name="block">-b, Print the content of a specific block, example: DATA, RERL, REDI, NTRO.</param>
+        /// <param name="threads">If higher than 1, files will be processed concurrently.</param>
+        /// <param name="vpk_dir">Print a list of files in given VPK and information about them.</param>
+        /// <param name="vpk_verify">Verify checksums and signatures.</param>
+        /// <param name="vpk_cache">Use cached VPK manifest to keep track of updates. Only changed files will be written to disk.</param>
+        /// <param name="vpk_decompile">-d, Decompile supported resource files.</param>
+        /// <param name="vpk_extensions">-e, File extension(s) filter, example: "vcss_c,vjs_c,vxml_c".</param>
+        /// <param name="vpk_filepath">-f, File path filter, example: "panorama\\\\" or "scripts/items/items_game.txt".</param>
+        /// <param name="vpk_list">-l, Lists all resources in given VPK. File extension and path filters apply.</param>
+        /// <param name="gltf_export_format">Exports meshes/models in given glTF format. Must be either "gltf" or "glb".</param>
+        /// <param name="gltf_export_materials">Whether to export materials during glTF exports.</param>
+        /// <param name="gltf_textures_adapt">Whether to perform any glTF spec adaptations on textures (e.g. split metallic map).</param>
+        /// <param name="gltf_export_extras">Export additional Mesh properties into glTF extras</param>
+        /// <param name="tools_asset_info_short">Whether to print only file paths for tools_asset_info files.</param>
+        /// <param name="stats">Collect stats on all input files and then print them.</param>
+        /// <param name="stats_print_files">When using --stats, print example file names for each stat.</param>
+        /// <param name="stats_unique_deps">When using --stats, print all unique dependencies that were found.</param>
+        /// <param name="stats_particles">When using --stats, collect particle operators, renderers, emitters, initializers.</param>
+        /// <param name="stats_vbib">When using --stats, collect vertex attributes.</param>
+        /// <param name="gltf_test">When using --stats, also test glTF export code path for every supported file.</param>
+        /// <param name="dump_unknown_entity_keys">When using --stats, save all unknown entity key hashes to unknown_keys.txt.</param>
+        private int HandleArguments(
+            string input,
+            string output = default,
+            bool recursive = false,
+            bool recursive_vpk = false,
+            bool all = false,
+            string block = default,
+            int threads = 1,
+            bool vpk_dir = false,
+            bool vpk_verify = false,
+            bool vpk_cache = false,
+            bool vpk_decompile = false,
+            string vpk_extensions = default,
+            string vpk_filepath = default,
+            bool vpk_list = false,
+
+            string gltf_export_format = "gltf",
+            bool gltf_export_materials = false,
+            bool gltf_textures_adapt = false,
+            bool gltf_export_extras = false,
+            bool tools_asset_info_short = false,
+
+            bool stats = false,
+            bool stats_print_files = false,
+            bool stats_unique_deps = false,
+            bool stats_particles = false,
+            bool stats_vbib = false,
+            bool gltf_test = false,
+            bool dump_unknown_entity_keys = false
+        )
         {
-            InputFile = Path.GetFullPath(InputFile);
+            InputFile = Path.GetFullPath(input);
+            OutputFile = output;
+            RecursiveSearch = recursive;
+            RecursiveSearchArchives = recursive_vpk;
+            PrintAllBlocks = all;
+            BlockToPrint = block;
+            MaxParallelismThreads = threads;
+            OutputVPKDir = vpk_dir;
+            VerifyVPKChecksums = vpk_verify;
+            CachedManifest = vpk_cache;
+            Decompile = vpk_decompile;
+            FileFilter = vpk_filepath;
+            ListResources = vpk_list;
+
+            GltfExportFormat = gltf_export_format;
+            GltfExportMaterials = gltf_export_materials;
+            GltfExportAdaptTextures = gltf_textures_adapt;
+            GltfExportExtras = gltf_export_extras;
+            ToolsAssetInfoShort = tools_asset_info_short;
+
+            CollectStats = stats;
+            StatsPrintFilePaths = stats_print_files;
+            StatsPrintUniqueDependencies = stats_unique_deps;
+            StatsCollectParticles = stats_particles;
+            StatsCollectVBIB = stats_vbib;
+            GltfTest = gltf_test;
+            DumpUnknownEntityKeys = dump_unknown_entity_keys;
 
             if (OutputFile != null)
             {
@@ -148,9 +176,9 @@ namespace Decompiler
                 FileFilter = FixPathSlashes(FileFilter);
             }
 
-            if (ExtFilter != null)
+            if (vpk_extensions != null)
             {
-                ExtFilterList = ExtFilter.Split(',');
+                ExtFilterList = vpk_extensions.Split(',');
             }
 
             if (GltfExportFormat != "gltf" && GltfExportFormat != "glb")
@@ -167,6 +195,11 @@ namespace Decompiler
                 return 1;
             }
 
+            return Execute();
+        }
+
+        private int Execute()
+        {
             var paths = new List<string>();
 
             if (Directory.Exists(InputFile))
@@ -1277,8 +1310,6 @@ namespace Decompiler
             var info = new StringBuilder();
             info.Append("Version: ");
             info.AppendLine(typeof(Decompiler).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>().InformationalVersion);
-            info.Append("Runtime: ");
-            info.AppendLine(RuntimeInformation.FrameworkDescription);
             info.Append("OS: ");
             info.AppendLine(RuntimeInformation.OSDescription);
             info.AppendLine("Website: https://valveresourceformat.github.io");
