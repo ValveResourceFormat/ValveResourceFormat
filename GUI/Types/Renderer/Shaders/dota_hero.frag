@@ -165,23 +165,23 @@ void main()
     }
     else if (g_iRenderMode == renderMode_BumpMap)
     {
-        outputColor = vec4(PackToColor(vNormalTs), 1.0);
+        outputColor = vec4(SrgbGammaToLinear(PackToColor(vNormalTs)), 1.0);
     }
     else if (g_iRenderMode == renderMode_Tangents)
     {
-        outputColor = vec4(PackToColor(vTangentOut.xyz), 1.0);
+        outputColor = vec4(SrgbGammaToLinear(PackToColor(vTangentOut.xyz)), 1.0);
     }
     else if (g_iRenderMode == renderMode_Normals)
     {
-        outputColor = vec4(PackToColor(vNormalOut), 1.0);
+        outputColor = vec4(SrgbGammaToLinear(PackToColor(vNormalOut)), 1.0);
     }
     else if (g_iRenderMode == renderMode_BumpNormals)
     {
-        outputColor = vec4(PackToColor(worldNormal), 1.0);
+        outputColor = vec4(SrgbGammaToLinear(PackToColor(worldNormal)), 1.0);
     }
     else if (g_iRenderMode == renderMode_Metalness)
     {
-        outputColor = vec4(vec3(metalness), 1.0);
+        outputColor = vec4(SrgbGammaToLinear(vec3(metalness)), 1.0);
     }
     else if (g_iRenderMode == renderMode_Specular)
     {
@@ -194,13 +194,13 @@ void main()
 #if F_MASKS_1
     else if (g_iRenderMode == renderMode_Mask1)
     {
-        outputColor = vec4(mask1.rgb, 1.0);
+        outputColor = vec4(SrgbGammaToLinear(mask1.rgb), 1.0);
     }
 #endif
 #if F_MASKS_2
     else if (g_iRenderMode == renderMode_Mask2)
     {
-        outputColor = vec4(mask2.rgb, 1.0);
+        outputColor = vec4(SrgbGammaToLinear(mask2.rgb), 1.0);
     }
 #endif
 }

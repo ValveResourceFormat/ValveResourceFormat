@@ -36,6 +36,7 @@ namespace GUI.Controls
         public Action<GLViewerControl> GLPostLoad { get; set; }
 
         protected readonly Types.Renderer.TextRenderer textRenderer;
+        protected readonly PostProcessRenderer postProcessRenderer;
 
         protected Form FullScreenForm { get; private set; }
         protected PickingTexture Picker { get; set; }
@@ -91,6 +92,7 @@ namespace GUI.Controls
             glControlContainer.Controls.Add(GLControl);
 
             textRenderer = new(guiContext);
+            postProcessRenderer = new(guiContext);
 
 #if DEBUG
             guiContext.ShaderLoader.EnableHotReload(GLControl);
@@ -157,14 +159,9 @@ namespace GUI.Controls
             var bitmap = new SKBitmap(GLDefaultFramebuffer.Width, GLDefaultFramebuffer.Height, SKColorType.Bgra8888, SKAlphaType.Opaque);
             var pixels = bitmap.GetPixels(out var length);
 
-            if (MainFramebuffer != GLDefaultFramebuffer)
-            {
-                var (w, h) = (GLControl.Width, GLControl.Height);
-                GL.BlitNamedFramebuffer(MainFramebuffer.FboHandle, GLDefaultFramebuffer.FboHandle, 0, 0, w, h, 0, 0, w, h, ClearBufferMask.ColorBufferBit, BlitFramebufferFilter.Nearest);
-            }
+            BlitFramebufferMainToDefault();
 
-            GL.Flush();
-            GL.Finish();
+            GLDefaultFramebuffer.Bind(FramebufferTarget.ReadFramebuffer);
             GL.ReadPixels(0, 0, GLDefaultFramebuffer.Width, GLDefaultFramebuffer.Height, PixelFormat.Bgra, PixelType.UnsignedByte, pixels);
 
             // Flip y
@@ -414,6 +411,7 @@ namespace GUI.Controls
             GL.EndQuery(QueryTarget.TimeElapsed);
 
             textRenderer.Load();
+            postProcessRenderer.Load();
 
             // Application semantics / default state
             GL.Enable(EnableCap.TextureCubeMapSeamless);
@@ -428,10 +426,11 @@ namespace GUI.Controls
 
             try
             {
+                // Framebuffer used to draw geometry
                 MainFramebuffer = Framebuffer.Prepare(GLControl.Width,
                     GLControl.Height,
                     NumSamples,
-                    new(PixelInternalFormat.R11fG11fB10f, PixelFormat.Rgb, PixelType.UnsignedInt),
+                    new(PixelInternalFormat.Rgba16f, PixelFormat.Rgba, PixelType.HalfFloat),
                     Framebuffer.DepthAttachmentFormat.Depth32F
                 );
 
@@ -528,17 +527,7 @@ namespace GUI.Controls
                 }
             }
 
-            // blit to the default opengl framebuffer used by the control
-            if (MainFramebuffer != GLDefaultFramebuffer)
-            {
-                using (new GLDebugGroup("Blit Framebuffer"))
-                {
-                    var (w, h) = (GLControl.Width, GLControl.Height);
-                    GL.BlitNamedFramebuffer(MainFramebuffer.FboHandle, GLDefaultFramebuffer.FboHandle, 0, 0, w, h, 0, 0, w, h, ClearBufferMask.ColorBufferBit, BlitFramebufferFilter.Nearest);
-
-                    GLDefaultFramebuffer.Bind(FramebufferTarget.Framebuffer);
-                }
-            }
+            BlitFramebufferMainToDefault();
 
             if (Settings.Config.DisplayFps != 0)
             {
@@ -551,6 +540,32 @@ namespace GUI.Controls
             GLControl.SwapBuffers();
             Picker?.TriggerEventIfAny();
             GLControl.Invalidate();
+        }
+
+        private void BlitFramebufferMainToDefault()
+        {
+            if (MainFramebuffer == GLDefaultFramebuffer)
+            {
+                return; // not required
+            }
+
+            MainFramebuffer.Bind(FramebufferTarget.ReadFramebuffer);
+            GLDefaultFramebuffer.Bind(FramebufferTarget.DrawFramebuffer);
+
+            FramebufferBlit(MainFramebuffer, GLDefaultFramebuffer);
+        }
+
+        /// <summary>
+        /// Multisampling resolve, postprocess the image & convert to gamma.
+        /// </summary>
+        protected void FramebufferBlit(Framebuffer inputFramebuffer, Framebuffer outputFramebuffer)
+        {
+            using var _ = new GLDebugGroup("Post Processing");
+
+            Debug.Assert(inputFramebuffer.NumSamples > 0);
+            Debug.Assert(outputFramebuffer.NumSamples == 0);
+
+            postProcessRenderer.Render(colorBuffer: inputFramebuffer);
         }
 
         protected virtual void OnResize(object sender, EventArgs e)
@@ -574,7 +589,11 @@ namespace GUI.Controls
             }
 
             GLDefaultFramebuffer.Resize(w, h);
-            MainFramebuffer.Resize(w, h, NumSamples);
+
+            if (MainFramebuffer != GLDefaultFramebuffer)
+            {
+                MainFramebuffer.Resize(w, h, NumSamples);
+            }
 
             if (MainFramebuffer.InitialStatus == FramebufferErrorCode.FramebufferUndefined)
             {
@@ -582,11 +601,12 @@ namespace GUI.Controls
 
                 if (status != FramebufferErrorCode.FramebufferComplete)
                 {
-                    Log.Error(nameof(GLViewerControl), $"Framebuffer failed to bind with error: {status}");
+                    Log.Error(nameof(GLViewerControl), $"Framebuffer failed to initialize with error: {status}");
                     Log.Info(nameof(GLViewerControl), "Falling back to default framebuffer.");
 
                     DisposeFramebuffer();
                     MainFramebuffer = GLDefaultFramebuffer;
+                    GL.Enable(EnableCap.FramebufferSrgb);
                 }
             }
 

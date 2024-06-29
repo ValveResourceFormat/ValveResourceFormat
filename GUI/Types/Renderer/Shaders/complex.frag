@@ -638,8 +638,8 @@ void main()
 
     ApplyFog(outputColor.rgb, mat.PositionWS);
 
-#if (F_DISABLE_TONE_MAPPING == 0)
-    outputColor.rgb = SrgbLinearToGamma(outputColor.rgb);
+#if (F_DISABLE_TONE_MAPPING == 1)
+    outputColor.rgb = SrgbGammaToLinear(outputColor.rgb);
 #endif
 
 #if (blendMod2x)
@@ -654,42 +654,42 @@ void main()
     {
         // No bumpmaps, full reflectivity
         vec3 viewmodeEnvMap = GetEnvironment(mat).rgb;
-        outputColor.rgb = SrgbLinearToGamma(viewmodeEnvMap);
+        outputColor.rgb = viewmodeEnvMap;
     }
     else if (g_iRenderMode == renderMode_Illumination)
     {
-        outputColor = vec4(SrgbLinearToGamma(lighting.DiffuseDirect + lighting.SpecularDirect), 1.0);
+        outputColor = vec4(lighting.DiffuseDirect + lighting.SpecularDirect, 1.0);
     }
     else if (g_iRenderMode == renderMode_Tint)
     {
-        outputColor = vVertexColorOut;
+        outputColor = vec4(SrgbGammaToLinear(vVertexColorOut.rgb), vVertexColorOut.a);
     }
 #if (F_GLASS == 0)
     else if (g_iRenderMode == renderMode_Irradiance)
     {
-        outputColor = vec4(SrgbLinearToGamma(lighting.DiffuseIndirect), 1.0);
+        outputColor = vec4(lighting.DiffuseIndirect, 1.0);
     }
 #endif
 #if defined(foliage_vfx_common)
     else if (g_iRenderMode == renderMode_FoliageParams)
     {
-        outputColor.rgb = vFoliageParamsOut.rgb;
+        outputColor.rgb = SrgbGammaToLinear(vFoliageParamsOut.rgb);
     }
 #endif
 #if !defined(steampal_2way_blend_mask_vfx) && (defined(csgo_generic_blend) || defined(simple_blend_common) || defined(vr_standard_blend_vfx))
     else if (g_iRenderMode == renderMode_TerrainBlend)
     {
-        outputColor.rgb = vColorBlendValues.rgb;
+        outputColor.rgb = SrgbGammaToLinear(vColorBlendValues.rgb);
     }
 #endif
 #if !(unlit)
     else if (g_iRenderMode == renderMode_Diffuse)
     {
-        outputColor.rgb = SrgbLinearToGamma(diffuseLighting * 0.5);
+        outputColor.rgb = diffuseLighting * 0.5;
     }
     else if (g_iRenderMode == renderMode_Specular)
     {
-        outputColor.rgb = SrgbLinearToGamma(specularLighting);
+        outputColor.rgb = specularLighting;
     }
 #endif
 }

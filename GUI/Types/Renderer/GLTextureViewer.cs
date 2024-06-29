@@ -841,12 +841,8 @@ namespace GUI.Types.Renderer
                 MainFramebuffer = GLDefaultFramebuffer;
             }
 
-            MainFramebuffer.ClearColor = OpenTK.Graphics.Color4.Green;
+            MainFramebuffer.ClearColor = OpenTK.Graphics.Color4.White;
             MainFramebuffer.ClearMask = ClearBufferMask.ColorBufferBit;
-
-            GL.DepthMask(false);
-            GL.Disable(EnableCap.DepthTest);
-            GL.Disable(EnableCap.CullFace);
 
             GLLoad -= OnLoad;
 
@@ -909,6 +905,9 @@ namespace GUI.Types.Renderer
 
         private void Draw(Framebuffer fbo, bool captureFullSizeImage = false)
         {
+            GL.DepthMask(false);
+            GL.Disable(EnableCap.DepthTest);
+
             GL.UseProgram(shader.Program);
 
             shader.SetUniform1("g_bTextureViewer", 1u);

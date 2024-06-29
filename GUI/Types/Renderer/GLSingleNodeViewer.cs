@@ -116,12 +116,6 @@ namespace GUI.Types.Renderer
         {
             var (w, h) = (MainFramebuffer.Width, MainFramebuffer.Height);
 
-            MainFramebuffer.Bind(FramebufferTarget.Framebuffer);
-            GL.ClearColor(new OpenTK.Graphics.Color4(0, 0, 0, 0));
-            GL.Clear(MainFramebuffer.ClearMask);
-
-            DrawMainScene();
-
             if (SaveAsFbo == null)
             {
                 SaveAsFbo = Framebuffer.Prepare(w, h, 0, new(PixelInternalFormat.Rgba8, PixelFormat.Bgra, PixelType.UnsignedByte), MainFramebuffer.DepthFormat);
@@ -133,8 +127,12 @@ namespace GUI.Types.Renderer
                 SaveAsFbo.Resize(w, h);
             }
 
-            SaveAsFbo.Clear();
-            GL.BlitNamedFramebuffer(MainFramebuffer.FboHandle, SaveAsFbo.FboHandle, 0, h, w, 0, 0, 0, w, h, ClearBufferMask.ColorBufferBit, BlitFramebufferFilter.Nearest);
+
+            MainFramebuffer.Bind(FramebufferTarget.Framebuffer);
+            GL.ClearColor(new OpenTK.Graphics.Color4(0, 0, 0, 0));
+            GL.Clear(MainFramebuffer.ClearMask);
+
+            DrawMainScene(SaveAsFbo);
 
             GL.Flush();
             GL.Finish();

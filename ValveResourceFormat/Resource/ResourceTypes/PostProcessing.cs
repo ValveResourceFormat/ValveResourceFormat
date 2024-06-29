@@ -49,7 +49,7 @@ namespace ValveResourceFormat.ResourceTypes
 
         public bool HasColorCorrection()
         {
-            if ((Data as KVObject).Properties.TryGetValue("m_bHasColorCorrection", out var value))
+            if (Data.Properties.TryGetValue("m_bHasColorCorrection", out var value))
             {
                 return (bool)value.Value;
             }
@@ -70,7 +70,7 @@ namespace ValveResourceFormat.ResourceTypes
             var j = 0;
             for (var i = 0; i < lut.Length; i++)
             {
-                // Skip each 4th byte
+                // Skip each 4th byte, for RAW format
                 if (((i + 1) % 4) == 0)
                 {
                     continue;

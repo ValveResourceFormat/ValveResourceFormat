@@ -147,6 +147,9 @@ namespace GUI.Types.Renderer
             camera.SetViewConstants(viewBuffer.Data);
             scene.SetFogConstants(viewBuffer.Data);
             viewBuffer.Update();
+
+            postProcessRenderer.State = scene.PostProcessInfo.CurrentState;
+            postProcessRenderer.TonemapScalar = scene.PostProcessInfo.CalculateTonemapScalar();
         }
 
         public virtual void PreSceneLoad()
@@ -184,6 +187,31 @@ namespace GUI.Types.Renderer
 
             var defaultCubeTexture = GuiContext.MaterialLoader.LoadTexture(cubeFogResource);
             Textures.Add(new(ReservedTextureSlots.FogCubeTexture, "g_tFogCubeTexture", defaultCubeTexture));
+
+
+            const string blueNoiseName = "blue_noise_256.vtex_c";
+            var blueNoiseResource = GuiContext.LoadFile("textures/dev/" + blueNoiseName);
+
+            try
+            {
+                Stream blueNoiseStream; // Same method as brdf
+
+                if (blueNoiseResource == null)
+                {
+                    blueNoiseStream = assembly.GetManifestResourceStream("GUI.Utils." + blueNoiseName);
+
+                    blueNoiseResource = new Resource() { FileName = blueNoiseName };
+                    blueNoiseResource.Read(blueNoiseStream);
+                }
+
+                // only needed here for now, move to GLSceneViewer
+                postProcessRenderer.BlueNoise = GuiContext.MaterialLoader.LoadTexture(blueNoiseResource);
+            }
+            finally
+            {
+                blueNoiseResource?.Dispose();
+            }
+
         }
 
         public virtual void PostSceneLoad()
@@ -346,7 +374,7 @@ namespace GUI.Types.Renderer
             }
         }
 
-        protected void DrawMainScene()
+        protected void DrawMainScene(Framebuffer finalFramebuffer)
         {
             var renderContext = new Scene.RenderContext
             {
@@ -356,11 +384,16 @@ namespace GUI.Types.Renderer
                 Scene = Scene,
             };
 
+            Scene.PostProcessInfo.UpdatePostProcessing(Camera);
+
             UpdatePerViewGpuBuffers(Scene, Camera);
             Scene.SetSceneBuffers();
 
             Scene.RenderOpaqueLayer(renderContext);
             RenderTranslucentLayer(Scene, renderContext);
+
+            finalFramebuffer.Clear();
+            FramebufferBlit(MainFramebuffer, finalFramebuffer);
         }
 
         private void RenderSceneShadows(Scene.RenderContext renderContext)
@@ -388,12 +421,15 @@ namespace GUI.Types.Renderer
             renderContext.Framebuffer.Clear();
 
             // TODO: check if renderpass allows wireframe mode
+            // TODO+: replace wireframe shaders with solid color
             if (IsWireframe)
             {
                 GL.PolygonMode(MaterialFace.FrontAndBack, PolygonMode.Line);
             }
 
             GL.DepthRange(0.05, 1);
+
+            Scene.PostProcessInfo.UpdatePostProcessing(Camera);
 
             UpdatePerViewGpuBuffers(Scene, Camera);
             Scene.SetSceneBuffers();
