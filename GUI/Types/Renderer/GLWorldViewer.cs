@@ -199,6 +199,7 @@ namespace GUI.Types.Renderer
                 AddCheckBox("Show Fog", Scene.FogEnabled, v => Scene.FogEnabled = v);
                 AddCheckBox("Color Correction", postProcessRenderer.ColorCorrectionEnabled, v => postProcessRenderer.ColorCorrectionEnabled = v);
                 AddCheckBox("Experimental Lights", false, v => viewBuffer.Data.ExperimentalLightsEnabled = v);
+                AddCheckBox("Occlusion Culling", EnableOcclusionCulling, (v) => EnableOcclusionCulling = v);
 
                 if (result.SkyboxScene != null)
                 {
