@@ -3,7 +3,8 @@ namespace GUI.Types.Renderer
     class Octree<T>
         where T : class
     {
-        private const int MaximumElementsBeforeSubdivide = 4;
+        private const int OptimalElementCountLarge = 4;
+        private const int OptimalElementCountSmall = 32;
         private const float MinimumNodeSize = 64.0f;
 
         public struct Element
@@ -76,7 +77,7 @@ namespace GUI.Types.Renderer
 
             public void Insert(Element element)
             {
-                if (!HasChildren && HasElements && Region.Size.X > MinimumNodeSize && Elements.Count >= MaximumElementsBeforeSubdivide)
+                if (!HasChildren && HasElements && ShouldSubdivide(Region.Size.X, Elements.Count))
                 {
                     Subdivide();
                 }
@@ -104,6 +105,19 @@ namespace GUI.Types.Renderer
 
                     Elements.Add(element);
                 }
+            }
+
+            private static bool ShouldSubdivide(float size, int count)
+            {
+                if (size <= MinimumNodeSize)
+                {
+                    return false;
+                }
+
+                var sizeNormalized = MathF.Pow(MinimumNodeSize / size, 4.0f);
+                var optimalCount = (int)float.Lerp(OptimalElementCountLarge, OptimalElementCountSmall, sizeNormalized);
+
+                return count >= optimalCount;
             }
 
             public (Node Node, int Index) Find(T clientObject, in AABB bounds)
