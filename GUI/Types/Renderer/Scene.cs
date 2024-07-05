@@ -405,10 +405,14 @@ namespace GUI.Types.Renderer
             }
         }
 
-        public void RenderOcclusionProxies(RenderContext renderContext)
+        public void RenderOcclusionProxies(RenderContext renderContext, Shader depthOnlyShader)
         {
             GL.ColorMask(false, false, false, false);
             GL.DepthMask(false);
+            GL.Disable(EnableCap.CullFace);
+
+            GL.UseProgram(depthOnlyShader.Program);
+            GL.BindVertexArray(GuiContext.MeshBufferCache.EmptyVAO);
 
             foreach (var octreeNode in StaticOctree.Root.Children)
             {
@@ -433,10 +437,12 @@ namespace GUI.Types.Renderer
                         out visible
                     );
 
-                    if (visible != -1)
+                    octreeNode.OcclusionCulled = visible == 0;
+                    octreeNode.OcculsionQuerySubmitted = visible == -1;
+
+                    if (visible == 0)
                     {
-                        octreeNode.OcclusionCulled = visible == 0;
-                        octreeNode.OcculsionQuerySubmitted = false;
+                        Log.Debug(nameof(Scene), $"Occluded octree main node found!");
                     }
 
                     continue;
@@ -449,15 +455,28 @@ namespace GUI.Types.Renderer
                     octreeNode.OcclusionQueryHandle = GL.GenQuery();
                 }
 
+                octreeNode.OcculsionQuerySubmitted = true;
                 GL.BeginQuery(QueryTarget.AnySamplesPassedConservative, octreeNode.OcclusionQueryHandle);
 
-                // TODO: draw AABB
+                GL.VertexAttrib4(
+                    0,
+                    octreeNode.Region.Min.X,
+                    octreeNode.Region.Min.Y,
+                    octreeNode.Region.Min.Z,
+                    octreeNode.Region.Size.X
+                );
+
+                GL.DrawArrays(PrimitiveType.Triangles, 0, 36);
 
                 GL.EndQuery(QueryTarget.AnySamplesPassedConservative);
             }
 
+            GL.UseProgram(0);
+            GL.BindVertexArray(0);
+
             GL.ColorMask(true, true, true, true);
             GL.DepthMask(true);
+            GL.Enable(EnableCap.CullFace);
         }
 
         public void RenderTranslucentLayer(RenderContext renderContext)

@@ -48,6 +48,7 @@ namespace GUI.Types.Renderer
             Static,
             StaticAlphaTest,
             Animated,
+            OcclusionQueryAABBProxy,
         }
         private readonly Shader[] depthOnlyShaders = new Shader[Enum.GetValues<DepthOnlyProgram>().Length];
         public Framebuffer ShadowDepthBuffer { get; private set; }
@@ -288,6 +289,8 @@ namespace GUI.Types.Renderer
             //depthOnlyShaders[(int)DepthOnlyProgram.StaticAlphaTest] = GuiContext.ShaderLoader.LoadShader("vrf.depth_only", new Dictionary<string, byte> { { "F_ALPHA_TEST", 1 } });
             depthOnlyShaders[(int)DepthOnlyProgram.Animated] = GuiContext.ShaderLoader.LoadShader("vrf.depth_only", new Dictionary<string, byte> { { "D_ANIMATED", 1 } });
 
+            depthOnlyShaders[(int)DepthOnlyProgram.OcclusionQueryAABBProxy] = GuiContext.ShaderLoader.LoadShader("vrf.depth_only_aabb");
+
             MainFramebuffer.Bind(FramebufferTarget.Framebuffer);
             CreateBuffers();
 
@@ -433,7 +436,7 @@ namespace GUI.Types.Renderer
 
             using (new GLDebugGroup("Occlusion Tests"))
             {
-                Scene.RenderOcclusionProxies(renderContext);
+                Scene.RenderOcclusionProxies(renderContext, depthOnlyShaders[(int)DepthOnlyProgram.OcclusionQueryAABBProxy]);
             }
 
             using (new GLDebugGroup("Sky Render"))
