@@ -422,7 +422,7 @@ namespace GUI.Types.Renderer
             GL.UseProgram(depthOnlyShader.Program);
             GL.BindVertexArray(GuiContext.MeshBufferCache.EmptyVAO);
 
-            TestOctantsRecursive(StaticOctree.Root, 127, 0);
+            TestOctantsRecursive(StaticOctree.Root, renderContext.Camera.Location, 127, 0);
 
             GL.UseProgram(0);
             GL.BindVertexArray(0);
@@ -432,7 +432,7 @@ namespace GUI.Types.Renderer
             GL.Enable(EnableCap.CullFace);
         }
 
-        private static void TestOctantsRecursive(Octree<SceneNode>.Node octant, int numTests, int depth)
+        private static void TestOctantsRecursive(Octree<SceneNode>.Node octant, Vector3 cameraPosition, int numTests, int depth)
         {
             foreach (var octreeNode in octant.Children)
             {
@@ -448,7 +448,13 @@ namespace GUI.Types.Renderer
                     continue;
                 }
 
-                // todo: do not test nodes that contain the camera
+                if (octreeNode.Region.Contains(cameraPosition))
+                {
+                    // if the camera is inside the octant, we can skip the occlusion test, however we still need to test the children
+                    Log.Debug(nameof(Scene), $"Octree node contains camera at depth: {depth}! Testing children...");
+                    TestOctantsRecursive(octreeNode, cameraPosition, numTests, ++depth);
+                    continue;
+                }
 
                 if (octreeNode.OcculsionQuerySubmitted)
                 {
@@ -465,7 +471,7 @@ namespace GUI.Types.Renderer
                     if (visible == 1)
                     {
                         Log.Debug(nameof(Scene), $"Octree node is visible at depth: {depth}! Testing children...");
-                        TestOctantsRecursive(octreeNode, numTests, ++depth);
+                        TestOctantsRecursive(octreeNode, cameraPosition, numTests, ++depth);
                     }
 
                     if (visible == 0)
