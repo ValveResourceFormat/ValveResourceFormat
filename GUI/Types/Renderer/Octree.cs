@@ -1,3 +1,6 @@
+using GUI.Utils;
+using OpenTK.Graphics.OpenGL;
+
 namespace GUI.Types.Renderer
 {
     class Octree<T>
@@ -20,6 +23,11 @@ namespace GUI.Types.Renderer
 
             public List<Element> Elements { get; private set; }
             public Node[] Children { get; private set; }
+
+            public bool FrustumCulled { get; set; }
+            public int OcclusionQueryHandle { get; set; } = -1;
+            public bool OcculsionQuerySubmitted { get; set; }
+            public bool OcclusionCulled { get; set; }
 
             public void Subdivide()
             {
@@ -79,6 +87,7 @@ namespace GUI.Types.Renderer
             {
                 if (!HasChildren && HasElements && ShouldSubdivide(Region.Size.X, Elements.Count))
                 {
+                    Log.Debug("Octree", $"Subdividing node with {Elements.Count} elements");
                     Subdivide();
                 }
 
@@ -151,6 +160,16 @@ namespace GUI.Types.Renderer
             {
                 Elements = null;
                 Children = null;
+
+                if (OcclusionQueryHandle != -1)
+                {
+                    GL.DeleteQuery(OcclusionQueryHandle);
+                    OcclusionQueryHandle = -1;
+                }
+
+                FrustumCulled = false;
+                OcculsionQuerySubmitted = false;
+                OcclusionCulled = false;
             }
 
             public void Query(in AABB boundingBox, List<T> results)
@@ -195,10 +214,14 @@ namespace GUI.Types.Renderer
                 {
                     foreach (var child in Children)
                     {
-                        if (frustum.Intersects(child.Region))
+                        child.FrustumCulled = !frustum.Intersects(child.Region);
+
+                        if (child.FrustumCulled || child.OcclusionCulled)
                         {
-                            child.Query(frustum, results);
+                            continue;
                         }
+
+                        child.Query(frustum, results);
                     }
                 }
             }

@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Linq;
 using GUI.Types.Renderer.UniformBuffers;
 using GUI.Utils;
+using OpenTK.Graphics.OpenGL;
 using static GUI.Types.Renderer.GLSceneViewer;
 
 namespace GUI.Types.Renderer
@@ -161,6 +162,10 @@ namespace GUI.Types.Renderer
 
                 StaticOctree.Root.Query(frustum, CullResults);
                 StaticCount = CullResults.Count;
+
+                // count number of octree nodes
+                var octreeNodeCount = CountRecursive(StaticOctree.Root);
+                Log.Info(nameof(Scene), $"Static octree nodes with at least one element: {octreeNodeCount}");
             }
             else
             {
@@ -169,6 +174,18 @@ namespace GUI.Types.Renderer
 
             DynamicOctree.Root.Query(frustum, CullResults);
             return CullResults;
+        }
+
+        public int CountRecursive(Octree<SceneNode>.Node node)
+        {
+            var count = node.HasElements ? 1 : 0;
+
+            if (node.HasChildren)
+            {
+                count += node.Children.Sum(CountRecursive);
+            }
+
+            return count;
         }
 
         private readonly List<MeshBatchRenderer.Request> renderLooseNodes = [];
@@ -386,6 +403,61 @@ namespace GUI.Types.Renderer
                     request.Node.Render(renderContext);
                 }
             }
+        }
+
+        public void RenderOcclusionProxies(RenderContext renderContext)
+        {
+            GL.ColorMask(false, false, false, false);
+            GL.DepthMask(false);
+
+            foreach (var octreeNode in StaticOctree.Root.Children)
+            {
+                if (octreeNode.FrustumCulled)
+                {
+                    octreeNode.OcclusionCulled = false;
+                    octreeNode.OcculsionQuerySubmitted = false;
+                    continue;
+                }
+
+                if (!octreeNode.HasElements)
+                {
+                    continue;
+                }
+
+                if (octreeNode.OcculsionQuerySubmitted)
+                {
+                    var visible = -1;
+                    GL.GetQueryObject(
+                        octreeNode.OcclusionQueryHandle,
+                        GetQueryObjectParam.QueryResultNoWait,
+                        out visible
+                    );
+
+                    if (visible != -1)
+                    {
+                        octreeNode.OcclusionCulled = visible == 0;
+                        octreeNode.OcculsionQuerySubmitted = false;
+                    }
+
+                    continue;
+                }
+
+                // Octree node passed frustum test, contains elements, and was not waiting for a previous query
+
+                if (octreeNode.OcclusionQueryHandle == -1)
+                {
+                    octreeNode.OcclusionQueryHandle = GL.GenQuery();
+                }
+
+                GL.BeginQuery(QueryTarget.AnySamplesPassedConservative, octreeNode.OcclusionQueryHandle);
+
+                // TODO: draw AABB
+
+                GL.EndQuery(QueryTarget.AnySamplesPassedConservative);
+            }
+
+            GL.ColorMask(true, true, true, true);
+            GL.DepthMask(true);
         }
 
         public void RenderTranslucentLayer(RenderContext renderContext)

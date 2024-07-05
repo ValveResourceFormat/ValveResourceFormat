@@ -431,6 +431,11 @@ namespace GUI.Types.Renderer
                 Scene.RenderOpaqueLayer(renderContext);
             }
 
+            using (new GLDebugGroup("Occlusion Tests"))
+            {
+                Scene.RenderOcclusionProxies(renderContext);
+            }
+
             using (new GLDebugGroup("Sky Render"))
             {
                 GL.DepthRange(0, 0.05);
