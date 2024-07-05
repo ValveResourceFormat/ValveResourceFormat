@@ -453,6 +453,9 @@ namespace GUI.Types.Renderer
                     // if the camera is inside the octant, we can skip the occlusion test, however we still need to test the children
                     Log.Debug(nameof(Scene), $"Octree node contains camera at depth: {depth}! Testing children...");
                     TestOctantsRecursive(octreeNode, cameraPosition, numTests, ++depth);
+
+                    octreeNode.OcclusionCulled = false;
+                    octreeNode.OcculsionQuerySubmitted = false;
                     continue;
                 }
 
