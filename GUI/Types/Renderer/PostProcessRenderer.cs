@@ -23,7 +23,7 @@ namespace GUI.Types.Renderer
 
         public void Load()
         {
-            shader = guiContext.ShaderLoader.LoadShader("vrf.post_process");
+            shader = guiContext.ShaderLoader.LoadShader("vrf.post_processing");
             GL.CreateVertexArrays(1, out vao);
         }
 

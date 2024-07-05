@@ -198,22 +198,11 @@ namespace GUI.Types.Renderer
             throw new InvalidProgramException($"{errorType} {shaderFile} (original={originalShaderName}):\n{info}");
         }
 
+        const string VrfInternalShaderPrefix = "vrf.";
+
         // Map Valve's shader names to shader files VRF has
         private static string GetShaderFileByName(string shaderName) => shaderName switch
         {
-            "vrf.background" => "background",
-            "vrf.default" => "default",
-            "vrf.depth_only" => "depth_only",
-            "vrf.grid" => "grid",
-            "vrf.picking" => "picking",
-            "vrf.particle.sprite" => "particle_sprite",
-            "vrf.particle.trail" => "particle_trail",
-            "vrf.morph_composite" => "morph_composite",
-            "vrf.texture_decode" => "texture_decode",
-            "vrf.font_msdf" => "font_msdf",
-            "vrf.basic_shape" => "basic_shape",
-            "vrf.post_process" => "post_processing",
-
             "sky.vfx" => "sky",
             "tools_sprite.vfx" => "sprite",
             "global_lit_simple.vfx" => "global_lit_simple",
@@ -225,6 +214,7 @@ namespace GUI.Types.Renderer
             "csgo_effects.vfx" => "csgo_effects",
             "csgo_environment.vfx" or "csgo_environment_blend.vfx" => "csgo_environment",
 
+            _ when shaderName.StartsWith(VrfInternalShaderPrefix, StringComparison.Ordinal) => shaderName[VrfInternalShaderPrefix.Length..],
             _ => "complex",
         };
 
