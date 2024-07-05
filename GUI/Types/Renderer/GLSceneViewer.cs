@@ -23,6 +23,7 @@ namespace GUI.Types.Renderer
         private bool ShowLightBackground;
         public bool ShowSkybox { get; set; } = true;
         public bool IsWireframe { get; set; }
+        public bool EnableOcclusionCulling { get; set; } = true;
 
         public float Uptime { get; private set; }
 
@@ -77,6 +78,7 @@ namespace GUI.Types.Renderer
             {
                 lockedCullFrustum = v ? Camera.ViewFrustum.Clone() : null;
             });
+            AddCheckBox("Enable occlusion culling", EnableOcclusionCulling, (v) => EnableOcclusionCulling = v);
             AddCheckBox("Show Static Octree", showStaticOctree, (v) =>
             {
                 showStaticOctree = v;
@@ -252,10 +254,26 @@ namespace GUI.Types.Renderer
                 Camera.LookAt(bbox.Center);
             }
 
+            // count number of octree nodes
+            var octreeNodeCount = CountRecursive(Scene.StaticOctree.Root);
+            Log.Info(nameof(Scene), $"Static octree nodes with at least one element: {octreeNodeCount}");
+
             staticOctreeRenderer = new OctreeDebugRenderer<SceneNode>(Scene.StaticOctree, Scene.GuiContext, false);
             dynamicOctreeRenderer = new OctreeDebugRenderer<SceneNode>(Scene.DynamicOctree, Scene.GuiContext, true);
 
             SetAvailableRenderModes();
+        }
+
+        public int CountRecursive(Octree<SceneNode>.Node node)
+        {
+            var count = node.HasElements ? 1 : 0;
+
+            if (node.HasChildren)
+            {
+                count += node.Children.Sum(CountRecursive);
+            }
+
+            return count;
         }
 
         protected abstract void LoadScene();

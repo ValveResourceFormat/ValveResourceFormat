@@ -153,7 +153,7 @@ namespace GUI.Types.Renderer
         public List<SceneNode> GetFrustumCullResults(Frustum frustum)
         {
             var currentFrustum = frustum.GetHashCode();
-            if (LastFrustum != currentFrustum)
+            if (true)
             {
                 LastFrustum = currentFrustum;
 
@@ -162,30 +162,14 @@ namespace GUI.Types.Renderer
 
                 StaticOctree.Root.Query(frustum, CullResults);
                 StaticCount = CullResults.Count;
-
-                // count number of octree nodes
-                var octreeNodeCount = CountRecursive(StaticOctree.Root);
-                Log.Info(nameof(Scene), $"Static octree nodes with at least one element: {octreeNodeCount}");
             }
-            else
-            {
-                CullResults.RemoveRange(StaticCount, CullResults.Count - StaticCount);
-            }
+            //else
+            //{
+            //    CullResults.RemoveRange(StaticCount, CullResults.Count - StaticCount);
+            //}
 
             DynamicOctree.Root.Query(frustum, CullResults);
             return CullResults;
-        }
-
-        public int CountRecursive(Octree<SceneNode>.Node node)
-        {
-            var count = node.HasElements ? 1 : 0;
-
-            if (node.HasChildren)
-            {
-                count += node.Children.Sum(CountRecursive);
-            }
-
-            return count;
         }
 
         private readonly List<MeshBatchRenderer.Request> renderLooseNodes = [];
@@ -405,8 +389,32 @@ namespace GUI.Types.Renderer
             }
         }
 
+        private bool occlusionDirty;
         public void RenderOcclusionProxies(RenderContext renderContext, Shader depthOnlyShader)
         {
+            if (!renderContext.View.EnableOcclusionCulling)
+            {
+                if (occlusionDirty)
+                {
+                    static void ClearOccludedStateRecursive(Octree<SceneNode>.Node node)
+                    {
+                        foreach (var child in node.Children)
+                        {
+                            child.OcclusionCulled = false;
+                            child.OcculsionQuerySubmitted = false;
+                            ClearOccludedStateRecursive(child);
+                        }
+                    }
+
+                    ClearOccludedStateRecursive(StaticOctree.Root);
+                    occlusionDirty = false;
+                }
+
+                return;
+            }
+
+            occlusionDirty = true;
+
             GL.ColorMask(false, false, false, false);
             GL.DepthMask(false);
             GL.Disable(EnableCap.CullFace);
@@ -414,7 +422,19 @@ namespace GUI.Types.Renderer
             GL.UseProgram(depthOnlyShader.Program);
             GL.BindVertexArray(GuiContext.MeshBufferCache.EmptyVAO);
 
-            foreach (var octreeNode in StaticOctree.Root.Children)
+            TestOctantsRecursive(StaticOctree.Root, 127, 0);
+
+            GL.UseProgram(0);
+            GL.BindVertexArray(0);
+
+            GL.ColorMask(true, true, true, true);
+            GL.DepthMask(true);
+            GL.Enable(EnableCap.CullFace);
+        }
+
+        private static void TestOctantsRecursive(Octree<SceneNode>.Node octant, int numTests, int depth)
+        {
+            foreach (var octreeNode in octant.Children)
             {
                 if (octreeNode.FrustumCulled)
                 {
@@ -423,10 +443,12 @@ namespace GUI.Types.Renderer
                     continue;
                 }
 
-                if (!octreeNode.HasElements)
+                if (!octreeNode.HasChildren)
                 {
                     continue;
                 }
+
+                // todo: do not test nodes that contain the camera
 
                 if (octreeNode.OcculsionQuerySubmitted)
                 {
@@ -440,9 +462,15 @@ namespace GUI.Types.Renderer
                     octreeNode.OcclusionCulled = visible == 0;
                     octreeNode.OcculsionQuerySubmitted = visible == -1;
 
+                    if (visible == 1)
+                    {
+                        Log.Debug(nameof(Scene), $"Octree node is visible at depth: {depth}! Testing children...");
+                        TestOctantsRecursive(octreeNode, numTests, ++depth);
+                    }
+
                     if (visible == 0)
                     {
-                        Log.Debug(nameof(Scene), $"Occluded octree main node found!");
+                        Log.Debug(nameof(Scene), $"Occluded octree node found at depth: {depth}!");
                     }
 
                     continue;
@@ -456,7 +484,7 @@ namespace GUI.Types.Renderer
                 }
 
                 octreeNode.OcculsionQuerySubmitted = true;
-                GL.BeginQuery(QueryTarget.AnySamplesPassedConservative, octreeNode.OcclusionQueryHandle);
+                numTests--;
 
                 GL.VertexAttrib4(
                     0,
@@ -466,17 +494,18 @@ namespace GUI.Types.Renderer
                     octreeNode.Region.Size.X
                 );
 
-                GL.DrawArrays(PrimitiveType.Triangles, 0, 36);
+                GL.VertexAttribI2(1, depth, numTests);
 
+                GL.BeginQuery(QueryTarget.AnySamplesPassedConservative, octreeNode.OcclusionQueryHandle);
+                GL.DrawArrays(PrimitiveType.Triangles, 0, 36);
                 GL.EndQuery(QueryTarget.AnySamplesPassedConservative);
             }
 
-            GL.UseProgram(0);
-            GL.BindVertexArray(0);
-
-            GL.ColorMask(true, true, true, true);
-            GL.DepthMask(true);
-            GL.Enable(EnableCap.CullFace);
+            if (numTests < 0)
+            {
+                Log.Warn(nameof(Scene), "Max occlusion tests reached, skipping the rest!");
+                return;
+            }
         }
 
         public void RenderTranslucentLayer(RenderContext renderContext)

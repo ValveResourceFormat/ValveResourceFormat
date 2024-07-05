@@ -3,6 +3,55 @@
 #include "common/ViewConstants.glsl"
 
 layout(location = 0) in vec4 vAABBMin_Size;
+layout(location = 1) in ivec2 nIndices;
+
+flat out vec3 color;
+
+const vec3 BOX[36] =
+{
+    // positions
+    vec3(0.0, 1.0, 0.0),
+    vec3(0.0, 0.0, 0.0),
+    vec3(1.0, 0.0, 0.0),
+    vec3(1.0, 0.0, 0.0),
+    vec3(1.0, 1.0, 0.0),
+    vec3(0.0, 1.0, 0.0),
+
+    vec3(0.0, 0.0, 1.0),
+    vec3(0.0, 0.0, 0.0),
+    vec3(0.0, 1.0, 0.0),
+    vec3(0.0, 1.0, 0.0),
+    vec3(0.0, 1.0, 1.0),
+    vec3(0.0, 0.0, 1.0),
+
+    vec3(1.0, 0.0, 0.0),
+    vec3(1.0, 0.0, 1.0),
+    vec3(1.0, 1.0, 1.0),
+    vec3(1.0, 1.0, 1.0),
+    vec3(1.0, 1.0, 0.0),
+    vec3(1.0, 0.0, 0.0),
+
+    vec3(0.0, 0.0, 1.0),
+    vec3(0.0, 1.0, 1.0),
+    vec3(1.0, 1.0, 1.0),
+    vec3(1.0, 1.0, 1.0),
+    vec3(1.0, 0.0, 1.0),
+    vec3(0.0, 0.0, 1.0),
+
+    vec3(0.0, 1.0, 0.0),
+    vec3(1.0, 1.0, 0.0),
+    vec3(1.0, 1.0, 1.0),
+    vec3(1.0, 1.0, 1.0),
+    vec3(0.0, 1.0, 1.0),
+    vec3(0.0, 1.0, 0.0),
+
+    vec3(0.0, 0.0, 0.0),
+    vec3(0.0, 0.0, 1.0),
+    vec3(1.0, 0.0, 0.0),
+    vec3(1.0, 0.0, 0.0),
+    vec3(0.0, 0.0, 1.0),
+    vec3(1.0, 0.0, 1.0)
+};
 
 void main()
 {
@@ -12,17 +61,12 @@ void main()
     vec3 vMins = vAABBMin_Size.xyz;
     vec3 vMaxs = vAABBMin_Size.xyz + vAABBMin_Size.www;
 
-    vec3 v[8];
-    v[0] = vec3(vMins.x, vMins.y, vMins.z);
-    v[1] = vec3(vMaxs.x, vMins.y, vMins.z);
-    v[2] = vec3(vMaxs.x, vMaxs.y, vMins.z);
-    v[3] = vec3(vMins.x, vMaxs.y, vMins.z);
-    v[4] = vec3(vMins.x, vMins.y, vMaxs.z);
-    v[5] = vec3(vMaxs.x, vMins.y, vMaxs.z);
-    v[6] = vec3(vMaxs.x, vMaxs.y, vMaxs.z);
-    v[7] = vec3(vMins.x, vMaxs.y, vMaxs.z);
+    vec4 fragPosition = vec4(BOX[gl_VertexID] * vAABBMin_Size.www + vAABBMin_Size.xyz, 1.0);
 
-    vec4 fragPosition = vec4(v[gl_VertexID / 3], 1);
+    int depth = nIndices.x;
+    int index = nIndices.y;
+
+    color = vec3(float(index) / 255.0, float(depth) / 10.0, 0.0);
 
     gl_Position = g_matViewToProjection * fragPosition;
 }

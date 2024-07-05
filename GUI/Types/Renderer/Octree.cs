@@ -22,7 +22,7 @@ namespace GUI.Types.Renderer
             public AABB Region { get; }
 
             public List<Element> Elements { get; private set; }
-            public Node[] Children { get; private set; }
+            public Node[] Children { get; private set; } = [];
 
             public bool FrustumCulled { get; set; }
             public int OcclusionQueryHandle { get; set; } = -1;
@@ -31,7 +31,7 @@ namespace GUI.Types.Renderer
 
             public void Subdivide()
             {
-                if (Children != null)
+                if (HasChildren)
                 {
                     // Already subdivided
                     return;
@@ -80,7 +80,7 @@ namespace GUI.Types.Renderer
                 Region = new AABB(regionMin, regionMin + regionSize);
             }
 
-            public bool HasChildren => Children != null;
+            public bool HasChildren => Children.Length > 0;
             public bool HasElements => Elements != null && Elements.Count > 0;
 
             public void Insert(Element element)
@@ -159,7 +159,7 @@ namespace GUI.Types.Renderer
             public void Clear()
             {
                 Elements = null;
-                Children = null;
+                Children = [];
 
                 if (OcclusionQueryHandle != -1)
                 {
