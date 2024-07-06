@@ -390,22 +390,23 @@ namespace GUI.Types.Renderer
         }
 
         private bool occlusionDirty;
+
+        static void ClearOccludedStateRecursive(Octree<SceneNode>.Node node)
+        {
+            foreach (var child in node.Children)
+            {
+                child.OcclusionCulled = false;
+                child.OcculsionQuerySubmitted = false;
+                ClearOccludedStateRecursive(child);
+            }
+        }
+
         public void RenderOcclusionProxies(RenderContext renderContext, Shader depthOnlyShader)
         {
             if (!renderContext.View.EnableOcclusionCulling)
             {
                 if (occlusionDirty)
                 {
-                    static void ClearOccludedStateRecursive(Octree<SceneNode>.Node node)
-                    {
-                        foreach (var child in node.Children)
-                        {
-                            child.OcclusionCulled = false;
-                            child.OcculsionQuerySubmitted = false;
-                            ClearOccludedStateRecursive(child);
-                        }
-                    }
-
                     ClearOccludedStateRecursive(StaticOctree.Root);
                     occlusionDirty = false;
                 }
@@ -422,7 +423,9 @@ namespace GUI.Types.Renderer
             GL.UseProgram(depthOnlyShader.Program);
             GL.BindVertexArray(GuiContext.MeshBufferCache.EmptyVAO);
 
-            TestOctantsRecursive(StaticOctree.Root, renderContext.Camera.Location, 127, 0);
+            var maxTests = 127;
+            var maxDepth = 8;
+            TestOctantsRecursive(StaticOctree.Root, renderContext.Camera.Location, ref maxTests, maxDepth);
 
             GL.UseProgram(0);
             GL.BindVertexArray(0);
@@ -432,7 +435,7 @@ namespace GUI.Types.Renderer
             GL.Enable(EnableCap.CullFace);
         }
 
-        private static void TestOctantsRecursive(Octree<SceneNode>.Node octant, Vector3 cameraPosition, int numTests, int depth)
+        private static void TestOctantsRecursive(Octree<SceneNode>.Node octant, Vector3 cameraPosition, ref int maxTests, int maxDepth)
         {
             foreach (var octreeNode in octant.Children)
             {
@@ -451,8 +454,8 @@ namespace GUI.Types.Renderer
                 if (octreeNode.Region.Contains(cameraPosition))
                 {
                     // if the camera is inside the octant, we can skip the occlusion test, however we still need to test the children
-                    Log.Debug(nameof(Scene), $"Octree node contains camera at depth: {depth}! Testing children...");
-                    TestOctantsRecursive(octreeNode, cameraPosition, numTests, ++depth);
+                    //Log.Debug(nameof(Scene), $"Octree node contains camera at depth: {depth}! Testing children...");
+                    TestOctantsRecursive(octreeNode, cameraPosition, ref maxTests, --maxDepth);
 
                     octreeNode.OcclusionCulled = false;
                     octreeNode.OcculsionQuerySubmitted = false;
@@ -473,13 +476,13 @@ namespace GUI.Types.Renderer
 
                     if (visible == 1)
                     {
-                        Log.Debug(nameof(Scene), $"Octree node is visible at depth: {depth}! Testing children...");
-                        TestOctantsRecursive(octreeNode, cameraPosition, numTests, ++depth);
+                        //Log.Debug(nameof(Scene), $"Octree node is visible at depth: {depth}! Testing children...");
+                        TestOctantsRecursive(octreeNode, cameraPosition, ref maxTests, ++maxDepth);
                     }
 
                     if (visible == 0)
                     {
-                        Log.Debug(nameof(Scene), $"Occluded octree node found at depth: {depth}!");
+                        //Log.Debug(nameof(Scene), $"Occluded octree node found at depth: {depth}!");
                     }
 
                     continue;
@@ -493,7 +496,7 @@ namespace GUI.Types.Renderer
                 }
 
                 octreeNode.OcculsionQuerySubmitted = true;
-                numTests--;
+                maxTests--;
 
                 GL.VertexAttrib4(
                     0,
@@ -503,14 +506,14 @@ namespace GUI.Types.Renderer
                     octreeNode.Region.Size.X
                 );
 
-                GL.VertexAttribI2(1, depth, numTests);
+                GL.VertexAttribI2(1, maxDepth, maxTests);
 
                 GL.BeginQuery(QueryTarget.AnySamplesPassedConservative, octreeNode.OcclusionQueryHandle);
                 GL.DrawArrays(PrimitiveType.Triangles, 0, 36);
                 GL.EndQuery(QueryTarget.AnySamplesPassedConservative);
             }
 
-            if (numTests < 0)
+            if (maxTests < 0 || maxDepth < 0)
             {
                 Log.Warn(nameof(Scene), "Max occlusion tests reached, skipping the rest!");
                 return;
