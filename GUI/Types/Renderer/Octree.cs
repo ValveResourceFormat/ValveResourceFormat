@@ -97,6 +97,14 @@ namespace GUI.Types.Renderer
                 {
                     var elementBB = element.BoundingBox;
 
+                    // Setting a minimum size prevents inserting element on wrong region
+                    const float MinimumSize = 0.05f;
+                    var adjustedSize = Vector3.Max(elementBB.Size, new Vector3(MinimumSize)) - elementBB.Size;
+                    if (adjustedSize.LengthSquared() > 0.0f)
+                    {
+                        elementBB = new AABB(elementBB.Min - adjustedSize * 0.5f, elementBB.Max + adjustedSize * 0.5f);
+                    }
+
                     foreach (var child in Children)
                     {
                         if (child.Region.Contains(elementBB))
