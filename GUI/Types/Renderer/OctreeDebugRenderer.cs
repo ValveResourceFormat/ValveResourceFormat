@@ -91,14 +91,24 @@ namespace GUI.Types.Renderer
 
         private static void AddOctreeNode(List<SimpleVertex> vertices, Octree<T>.Node node, int depth)
         {
-            AddBox(vertices, node.Region, Color32.White with { A = node.HasElements ? (byte)255 : (byte)64 });
+            var isCulledMaybeFromParent = false;
+            var parent = node;
+            do
+            {
+                isCulledMaybeFromParent = parent.OcclusionCulled;
+                parent = parent.Parent;
+            }
+            while (!isCulledMaybeFromParent && parent != null);
+
+            var color = isCulledMaybeFromParent ? Color32.Red : (node.OcculsionQuerySubmitted ? Color32.Orange : Color32.White);
+            AddBox(vertices, node.Region, color with { A = node.HasElements ? (byte)255 : (byte)16 });
 
             if (node.HasElements)
             {
                 foreach (var element in node.Elements)
                 {
                     var shading = Math.Min(1.0f, depth * 0.1f);
-                    AddBox(vertices, element.BoundingBox, new(1.0f, shading, 0.0f, 1.0f));
+                    //AddBox(vertices, element.BoundingBox, new(1.0f, shading, 0.0f, 1.0f));
 
                     // AddLine(vertices, element.BoundingBox.Min, node.Region.Min, new Vector4(1.0f, shading, 0.0f, 0.5f));
                     // AddLine(vertices, element.BoundingBox.Max, node.Region.Max, new Vector4(1.0f, shading, 0.0f, 0.5f));
@@ -134,13 +144,14 @@ namespace GUI.Types.Renderer
 
         public void Render()
         {
-            if (dynamic)
+            if (true)
             {
                 Rebuild();
             }
 
             GL.Enable(EnableCap.Blend);
             GL.DepthMask(false);
+            GL.Disable(EnableCap.DepthTest);
             GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
             GL.UseProgram(shader.Program);
 
@@ -150,6 +161,7 @@ namespace GUI.Types.Renderer
             GL.DrawArrays(PrimitiveType.Lines, 0, vertexCount);
             GL.UseProgram(0);
             GL.BindVertexArray(0);
+            GL.Enable(EnableCap.DepthTest);
             GL.DepthMask(true);
             GL.Disable(EnableCap.Blend);
         }
