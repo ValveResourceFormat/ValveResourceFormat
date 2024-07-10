@@ -435,7 +435,16 @@ namespace GUI.Controls
 
         private void OnTreeViewNodeMouseDoubleClick(object sender, TreeNodeMouseClickEventArgs e)
         {
-            var path = (string)e.Node.Tag;
+            var node = e.Node;
+
+            // If selected node has children, that means we likely expanded it, and that can cause the event node to be wrong for some reason
+            // https://stackoverflow.com/q/473113
+            if (treeView.SelectedNode?.Nodes.Count > 0)
+            {
+                node = treeView.SelectedNode;
+            }
+
+            var path = (string)node.Tag;
 
             if (path == null)
             {
