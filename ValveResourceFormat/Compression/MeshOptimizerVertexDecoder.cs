@@ -224,9 +224,16 @@ namespace ValveResourceFormat.Compression
                 throw new ArgumentException("Vertex buffer is too short.");
             }
 
-            if (buffer[0] != VertexHeader)
+            if ((buffer[0] & 0xF0) != VertexHeader)
             {
                 throw new ArgumentException($"Invalid vertex buffer header, expected {VertexHeader} but got {buffer[0]}.");
+            }
+
+            var version = buffer[0] & 0x0F;
+
+            if (version > 0)
+            {
+                throw new ArgumentException("Incorrect vertex buffer encoding version.");
             }
 
             buffer = buffer[1..];
