@@ -3,6 +3,7 @@
  */
 using System.Buffers.Binary;
 using System.IO;
+using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.Compression
 {
@@ -95,9 +96,16 @@ namespace ValveResourceFormat.Compression
                 throw new ArgumentException("Index buffer is too short.");
             }
 
-            if (buffer[0] != IndexHeader)
+            if ((buffer[0] & 0xF0) != IndexHeader)
             {
-                throw new ArgumentException("Incorrect index buffer header.");
+                throw new ArgumentException($"Invalid index buffer header, expected {IndexHeader} but got {buffer[0]}.");
+            }
+
+            var version = buffer[0] & 0x0F;
+
+            if (version > 1)
+            {
+                throw new ArgumentException("Incorrect index buffer encoding version.");
             }
 
             var vertexFifo = new uint[16];
@@ -107,6 +115,8 @@ namespace ValveResourceFormat.Compression
 
             var next = 0u;
             var last = 0u;
+
+            var fecmax = version >= 1 ? 13 : 15;
 
             var bufferIndex = 1;
             var data = buffer[dataOffset..^16];
@@ -129,7 +139,7 @@ namespace ValveResourceFormat.Compression
 
                     var fec = codetri & 15;
 
-                    if (fec != 15)
+                    if (fec < fecmax)
                     {
                         var c = fec == 0 ? next : vertexFifo[(vertexFifoOffset - 1 - fec) & 15];
 
@@ -145,7 +155,7 @@ namespace ValveResourceFormat.Compression
                     }
                     else
                     {
-                        var c = last = DecodeIndex(data, last, ref position);
+                        var c = last = (fec != 15) ? last + (uint)(fec - (fec ^ 3)) : DecodeIndex(data, last, ref position);
 
                         WriteTriangle(destination, i, indexSize, a, b, c);
 
