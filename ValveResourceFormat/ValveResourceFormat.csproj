@@ -13,11 +13,11 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="K4os.Compression.LZ4" Version="1.3.8" />
-    <PackageReference Include="SharpGLTF.Toolkit" Version="1.0.0-alpha0031" />
+    <PackageReference Include="SharpGLTF.Toolkit" Version="1.0.1" />
     <PackageReference Include="SkiaSharp" Version="2.88.8" />
     <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="2.88.8" />
     <PackageReference Include="System.IO.Hashing" Version="8.0.0" />
-    <PackageReference Include="ValveKeyValue" Version="0.10.0.360" />
+    <PackageReference Include="ValveKeyValue" Version="0.11.0.378" />
     <PackageReference Include="ValvePak" Version="2.0.1.107" />
     <PackageReference Include="ZstdSharp.Port" Version="0.8.1" />
     <PackageReference Include="KeyValues2" Version="0.5-beta" />
