@@ -233,7 +233,7 @@ namespace ValveResourceFormat.Compression
 
             if (version > 0)
             {
-                throw new ArgumentException("Incorrect vertex buffer encoding version.");
+                throw new ArgumentException($"Incorrect vertex buffer encoding version, got {version}.");
             }
 
             buffer = buffer[1..];

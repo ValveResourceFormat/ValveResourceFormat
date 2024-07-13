@@ -105,7 +105,7 @@ namespace ValveResourceFormat.Compression
 
             if (version > 1)
             {
-                throw new ArgumentException("Incorrect index buffer encoding version.");
+                throw new ArgumentException($"Incorrect index buffer encoding version, got {version}.");
             }
 
             var vertexFifo = new uint[16];
