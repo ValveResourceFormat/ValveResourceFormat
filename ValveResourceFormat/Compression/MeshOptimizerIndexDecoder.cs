@@ -202,6 +202,11 @@ namespace ValveResourceFormat.Compression
                     var feb = codeaux >> 4;
                     var fec = codeaux & 15;
 
+                    if (codeaux == 0)
+                    {
+                        next = 0;
+                    }
+
                     var a = (fea == 0) ? next++ : 0;
                     var b = (feb == 0) ? next++ : vertexFifo[(vertexFifoOffset - feb) & 15];
                     var c = (fec == 0) ? next++ : vertexFifo[(vertexFifoOffset - fec) & 15];
