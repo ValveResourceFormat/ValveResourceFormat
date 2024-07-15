@@ -51,6 +51,7 @@ namespace GUI.Types.Renderer
         }
         private readonly Shader[] depthOnlyShaders = new Shader[Enum.GetValues<DepthOnlyProgram>().Length];
         public Framebuffer ShadowDepthBuffer { get; private set; }
+        public Framebuffer SsrFramebuffer { get; private set; }
 
         protected GLSceneViewer(VrfGuiContext guiContext, Frustum cullFrustum) : base(guiContext)
         {
@@ -264,6 +265,21 @@ namespace GUI.Types.Renderer
             //depthOnlyShaders[(int)DepthOnlyProgram.StaticAlphaTest] = GuiContext.ShaderLoader.LoadShader("vrf.depth_only", new Dictionary<string, byte> { { "F_ALPHA_TEST", 1 } });
             depthOnlyShaders[(int)DepthOnlyProgram.Animated] = GuiContext.ShaderLoader.LoadShader("vrf.depth_only", new Dictionary<string, byte> { { "D_ANIMATED", 1 } });
 
+            if (this is GLWorldViewer)
+            {
+                SsrFramebuffer = Framebuffer.Prepare(2048, 2048, 1, MainFramebuffer.ColorFormat, MainFramebuffer.DepthFormat);
+                SsrFramebuffer.Initialize();
+                //SsrFramebuffer.ClearColor = new(0, 255, 0, 255);
+
+                GL.TextureParameter(SsrFramebuffer.Color.Handle, TextureParameterName.TextureBaseLevel, 0);
+                GL.TextureParameter(SsrFramebuffer.Color.Handle, TextureParameterName.TextureMaxLevel, 0);
+                GL.TextureParameter(SsrFramebuffer.Depth.Handle, TextureParameterName.TextureBaseLevel, 0);
+                GL.TextureParameter(SsrFramebuffer.Depth.Handle, TextureParameterName.TextureMaxLevel, 0);
+
+                Textures.Add(new(ReservedTextureSlots.SsrColor, "g_tSsrColor", SsrFramebuffer.Color));
+                Textures.Add(new(ReservedTextureSlots.SsrDepth, "g_tSsrDepth", SsrFramebuffer.Depth));
+            }
+
             MainFramebuffer.Bind(FramebufferTarget.Framebuffer);
             CreateBuffers();
 
@@ -439,6 +455,17 @@ namespace GUI.Types.Renderer
 
                 renderContext.ReplacementShader?.SetUniform1("isSkybox", 0u);
                 GL.DepthRange(0.05, 1);
+            }
+
+            {
+                // copy current color to ssr framebuffer
+                GL.BlitNamedFramebuffer(renderContext.Framebuffer.FboHandle, SsrFramebuffer.FboHandle,
+                    0, 0, renderContext.Framebuffer.Width, renderContext.Framebuffer.Height,
+                    0, 0, SsrFramebuffer.Width, SsrFramebuffer.Height, ClearBufferMask.ColorBufferBit, BlitFramebufferFilter.Linear);
+
+                GL.BlitNamedFramebuffer(renderContext.Framebuffer.FboHandle, SsrFramebuffer.FboHandle,
+                    0, 0, renderContext.Framebuffer.Width, renderContext.Framebuffer.Height,
+                    0, 0, SsrFramebuffer.Width, SsrFramebuffer.Height, ClearBufferMask.DepthBufferBit, BlitFramebufferFilter.Nearest);
             }
 
             using (new GLDebugGroup("Main Scene Translucent Render"))

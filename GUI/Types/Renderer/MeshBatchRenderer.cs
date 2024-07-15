@@ -3,6 +3,9 @@ using System.Runtime.CompilerServices;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 
+
+
+
 namespace GUI.Types.Renderer
 {
     static class MeshBatchRenderer
@@ -118,6 +121,7 @@ namespace GUI.Types.Renderer
                 LightProbeType = context.Scene.LightingInfo.LightProbeType,
             };
 
+
             foreach (var request in requests)
             {
                 if (vao != request.Call.VertexArrayObject)
@@ -190,6 +194,15 @@ namespace GUI.Types.Renderer
 
                     material = requestMaterial;
                     material.Render(shader);
+                }
+
+                if (shader.FileName == "water_csgo")
+                {
+                    // set also the current color and depth for testing. todo: undefined behavior, remove
+                    shader.SetTexture(0, "depth_map", context.Framebuffer.Depth);
+                    shader.SetTexture(1, "color_map", context.Framebuffer.Color);       //Note: I will probably not retain the MS framebuffer, very little point to doing this, probably invisible difference
+
+                    shader.SetUniform2("resolution", new Vector2(context.Framebuffer.Width, context.Framebuffer.Height));
                 }
 
                 Draw(shader, ref uniforms, ref config, request);
