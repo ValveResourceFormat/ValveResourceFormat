@@ -116,13 +116,11 @@ public partial class GltfModelExporter
                 if (attribute.SemanticName == "NORMAL")
                 {
                     var (normals, tangents) = VBIB.GetNormalTangentArray(vertexBuffer, attribute);
-
-                    normals = FixZeroLengthVectors(normals);
+                    FixZeroLengthVectors(normals);
 
                     if (tangents.Length > 0)
                     {
-                        tangents = FixZeroLengthVectors(tangents);
-
+                        FixZeroLengthVectors(tangents);
                         accessors["NORMAL"] = CreateAccessor(exportedModel, normals);
                         accessors["TANGENT"] = CreateAccessor(exportedModel, tangents);
                     }
@@ -181,7 +179,7 @@ public partial class GltfModelExporter
 
                                 if (accessorName == "TANGENT")
                                 {
-                                    vectors = FixZeroLengthVectors(vectors);
+                                    FixZeroLengthVectors(vectors);
                                 }
 
                                 accessors[accessorName] = CreateAccessor(exportedModel, vectors);
@@ -518,7 +516,7 @@ public partial class GltfModelExporter
         return accessor;
     }
 
-    private static Vector4[] FixZeroLengthVectors(Vector4[] vectorArray)
+    private static void FixZeroLengthVectors(Span<Vector4> vectorArray)
     {
         for (var i = 0; i < vectorArray.Length; i++)
         {
@@ -530,11 +528,9 @@ public partial class GltfModelExporter
                 vectorArray[i].W = vec.W;
             }
         }
-
-        return vectorArray;
     }
 
-    private static Vector3[] FixZeroLengthVectors(Vector3[] vectorArray)
+    private static void FixZeroLengthVectors(Span<Vector3> vectorArray)
     {
         for (var i = 0; i < vectorArray.Length; i++)
         {
@@ -543,7 +539,5 @@ public partial class GltfModelExporter
                 vectorArray[i] = -Vector3.UnitZ;
             }
         }
-
-        return vectorArray;
     }
 }
