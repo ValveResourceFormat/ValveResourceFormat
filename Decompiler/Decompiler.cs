@@ -46,6 +46,8 @@ namespace Decompiler
         private string FileFilter;
         private bool ListResources;
         private string GltfExportFormat;
+        private bool GltfExportAnimations;
+        private string[] GltfAnimationFilter;
         private bool GltfExportMaterials;
         private bool GltfExportAdaptTextures;
         private bool GltfExportExtras;
@@ -95,6 +97,8 @@ namespace Decompiler
         /// <param name="vpk_filepath">-f, File path filter, example: "panorama\\\\" or "scripts/items/items_game.txt".</param>
         /// <param name="vpk_list">-l, Lists all resources in given VPK. File extension and path filters apply.</param>
         /// <param name="gltf_export_format">Exports meshes/models in given glTF format. Must be either "gltf" or "glb".</param>
+        /// <param name="gltf_export_animations">Whether to export model animations during glTF exports.</param>
+        /// <param name="gltf_animation_list">Animations to include in the glTF, example "idle,dropped". By default will include all animations.</param>
         /// <param name="gltf_export_materials">Whether to export materials during glTF exports.</param>
         /// <param name="gltf_textures_adapt">Whether to perform any glTF spec adaptations on textures (e.g. split metallic map).</param>
         /// <param name="gltf_export_extras">Export additional Mesh properties into glTF extras</param>
@@ -123,6 +127,8 @@ namespace Decompiler
             bool vpk_list = false,
 
             string gltf_export_format = "gltf",
+            bool gltf_export_animations = false,
+            string gltf_animation_list = default,
             bool gltf_export_materials = false,
             bool gltf_textures_adapt = false,
             bool gltf_export_extras = false,
@@ -153,6 +159,8 @@ namespace Decompiler
 
             GltfExportFormat = gltf_export_format;
             GltfExportMaterials = gltf_export_materials;
+            GltfExportAnimations = gltf_export_animations;
+            GltfAnimationFilter = gltf_animation_list?.Split(',') ?? [];
             GltfExportAdaptTextures = gltf_textures_adapt;
             GltfExportExtras = gltf_export_extras;
             ToolsAssetInfoShort = tools_asset_info_short;
@@ -184,14 +192,18 @@ namespace Decompiler
             if (GltfExportFormat != "gltf" && GltfExportFormat != "glb")
             {
                 Console.Error.WriteLine("glTF export format must be either 'gltf' or 'glb'.");
+                return 1;
+            }
 
+            if (!GltfExportAnimations && GltfAnimationFilter.Length > 0)
+            {
+                Console.Error.WriteLine("glTF animation filter is only valid when exporting animations.");
                 return 1;
             }
 
             if (CollectStats && OutputFile != null)
             {
                 Console.Error.WriteLine("Do not use --stats with --output.");
-
                 return 1;
             }
 
@@ -950,11 +962,14 @@ namespace Decompiler
             var progressReporter = new Progress<string>(progress => Console.WriteLine($"--- {progress}"));
             var gltfModelExporter = new GltfModelExporter(fileLoader)
             {
+                ExportAnimations = GltfExportAnimations,
                 ExportMaterials = GltfExportMaterials,
                 AdaptTextures = GltfExportAdaptTextures,
                 ExportExtras = GltfExportExtras,
                 ProgressReporter = progressReporter,
             };
+
+            gltfModelExporter.AnimationFilter.UnionWith(GltfAnimationFilter);
 
             foreach (var file in entries)
             {
