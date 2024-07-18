@@ -11,13 +11,13 @@ namespace ValveResourceFormat.Compression
     {
         private const byte IndexHeader = 0xe0;
 
-        private static void PushEdgeFifo(ValueTuple<uint, uint>[] fifo, ref int offset, uint a, uint b)
+        private static void PushEdgeFifo(Span<ValueTuple<uint, uint>> fifo, ref int offset, uint a, uint b)
         {
             fifo[offset] = (a, b);
             offset = (offset + 1) & 15;
         }
 
-        private static void PushVertexFifo(uint[] fifo, ref int offset, uint v, bool cond = true)
+        private static void PushVertexFifo(Span<uint> fifo, ref int offset, uint v, bool cond = true)
         {
             fifo[offset] = v;
             offset = (offset + (cond ? 1 : 0)) & 15;
@@ -108,8 +108,8 @@ namespace ValveResourceFormat.Compression
                 throw new ArgumentException($"Incorrect index buffer encoding version, got {version}.");
             }
 
-            var vertexFifo = new uint[16];
-            var edgeFifo = new ValueTuple<uint, uint>[16];
+            Span<uint> vertexFifo = stackalloc uint[16];
+            Span<ValueTuple<uint, uint>> edgeFifo = stackalloc ValueTuple<uint, uint>[16];
             var edgeFifoOffset = 0;
             var vertexFifoOffset = 0;
 
@@ -208,8 +208,8 @@ namespace ValveResourceFormat.Compression
                     }
 
                     var a = (fea == 0) ? next++ : 0;
-                    var b = (feb == 0) ? next++ : vertexFifo[(vertexFifoOffset - feb) & 15];
-                    var c = (fec == 0) ? next++ : vertexFifo[(vertexFifoOffset - fec) & 15];
+                    var b = (feb == 0) ? next++ : vertexFifo[(vertexFifoOffset - (int)feb) & 15];
+                    var c = (fec == 0) ? next++ : vertexFifo[(vertexFifoOffset - (int)fec) & 15];
 
                     if (fea == 15)
                     {
