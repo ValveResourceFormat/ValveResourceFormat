@@ -124,7 +124,7 @@ namespace ValveResourceFormat.CompiledShader
         private static void DecodeDictionary()
         {
             zstdDict = new byte[65536];
-            var b = new byte[3];
+            Span<byte> b = stackalloc byte[3];
 
             for (var i = 0; i < zstdDict.Length; i++)
             {
@@ -138,7 +138,7 @@ namespace ValveResourceFormat.CompiledShader
             }
         }
 
-        private static void Dec(byte[] b, int i)
+        private static void Dec(Span<byte> b, int i)
         {
             // a base 64 character is 6 bits long, shifted in increments of 6 occupy the last 24 bits in
             // the assigned `int val`. The 24 bits are then read as 3 bytes; retrieved in increments of 8
