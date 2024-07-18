@@ -262,6 +262,9 @@ namespace ValveResourceFormat.Blocks
         {
             var result = new Vector2[vertexBuffer.ElementCount];
 
+            var offset = (int)attribute.Offset;
+            var data = vertexBuffer.Data.AsSpan();
+
             switch (attribute.Format)
             {
                 case DXGI_FORMAT.R32G32_FLOAT:
@@ -270,11 +273,10 @@ namespace ValveResourceFormat.Blocks
 
                 case DXGI_FORMAT.R16G16_FLOAT:
                     {
-                        var offset = (int)attribute.Offset;
-
                         for (var i = 0; i < vertexBuffer.ElementCount; i++)
                         {
-                            result[i] = new Vector2((float)BitConverter.ToHalf(vertexBuffer.Data, offset), (float)BitConverter.ToHalf(vertexBuffer.Data, offset + 2));
+                            var halfs = MemoryMarshal.Cast<byte, Half>(data.Slice(offset, 4));
+                            result[i] = new Vector2((float)halfs[0], (float)halfs[1]);
 
                             offset += (int)vertexBuffer.ElementSizeInBytes;
                         }
@@ -284,17 +286,10 @@ namespace ValveResourceFormat.Blocks
 
                 case DXGI_FORMAT.R16G16_UNORM:
                     {
-                        var offset = (int)attribute.Offset;
-                        var ushorts = new ushort[2];
-
                         for (var i = 0; i < vertexBuffer.ElementCount; i++)
                         {
-                            Buffer.BlockCopy(vertexBuffer.Data, offset, ushorts, 0, 4);
-
-                            result[i] = new Vector2(
-                                ushorts[0] / 65535f,
-                                ushorts[1] / 65535f
-                            );
+                            var ushorts = MemoryMarshal.Cast<byte, ushort>(data.Slice(offset, 4));
+                            result[i] = new Vector2(ushorts[0], ushorts[1]) / 65535f;
 
                             offset += (int)vertexBuffer.ElementSizeInBytes;
                         }
@@ -304,17 +299,10 @@ namespace ValveResourceFormat.Blocks
 
                 case DXGI_FORMAT.R16G16_SNORM:
                     {
-                        var shorts = new short[2];
-                        var offset = (int)attribute.Offset;
-
                         for (var i = 0; i < vertexBuffer.ElementCount; i++)
                         {
-                            Buffer.BlockCopy(vertexBuffer.Data, offset, shorts, 0, 4);
-
-                            result[i] = new Vector2(
-                                shorts[0] / 32767f,
-                                shorts[1] / 32767f
-                            );
+                            var shorts = MemoryMarshal.Cast<byte, short>(data.Slice(offset, 4));
+                            result[i] = new Vector2(shorts[0], shorts[1]) / 32767f;
 
                             offset += (int)vertexBuffer.ElementSizeInBytes;
                         }
@@ -345,6 +333,9 @@ namespace ValveResourceFormat.Blocks
         {
             var result = new Vector4[vertexBuffer.ElementCount];
 
+            var offset = (int)attribute.Offset;
+            var data = vertexBuffer.Data.AsSpan();
+
             switch (attribute.Format)
             {
                 case DXGI_FORMAT.R32G32B32A32_FLOAT:
@@ -353,15 +344,14 @@ namespace ValveResourceFormat.Blocks
 
                 case DXGI_FORMAT.R16G16B16A16_FLOAT:
                     {
-                        var offset = (int)attribute.Offset;
-
                         for (var i = 0; i < vertexBuffer.ElementCount; i++)
                         {
+                            var halfs = MemoryMarshal.Cast<byte, Half>(data.Slice(offset, 8));
                             result[i] = new Vector4(
-                                (float)BitConverter.ToHalf(vertexBuffer.Data, offset),
-                                (float)BitConverter.ToHalf(vertexBuffer.Data, offset + 2),
-                                (float)BitConverter.ToHalf(vertexBuffer.Data, offset + 4),
-                                (float)BitConverter.ToHalf(vertexBuffer.Data, offset + 6)
+                                (float)halfs[0],
+                                (float)halfs[1],
+                                (float)halfs[2],
+                                (float)halfs[3]
                             );
 
                             offset += (int)vertexBuffer.ElementSizeInBytes;
@@ -372,17 +362,16 @@ namespace ValveResourceFormat.Blocks
 
                 case DXGI_FORMAT.R8G8B8A8_UNORM:
                     {
-                        var offset = (int)attribute.Offset;
-
                         for (var i = 0; i < vertexBuffer.ElementCount; i++)
                         {
                             result[i] = new Vector4(
-                                vertexBuffer.Data[offset] / 255f,
-                                vertexBuffer.Data[offset + 1] / 255f,
-                                vertexBuffer.Data[offset + 2] / 255f,
-                                vertexBuffer.Data[offset + 3] / 255f
+                                data[offset],
+                                data[offset + 1],
+                                data[offset + 2],
+                                data[offset + 3]
                             );
 
+                            result[i] /= 255f;
                             offset += (int)vertexBuffer.ElementSizeInBytes;
                         }
 
@@ -434,28 +423,30 @@ namespace ValveResourceFormat.Blocks
 
         public static ushort[] GetBlendIndicesArray(OnDiskBufferData vertexBuffer, RenderInputLayoutField attribute)
         {
-            var indices = new ushort[vertexBuffer.ElementCount * 4];
+            const int numJoints = 4;
+            var indices = new ushort[vertexBuffer.ElementCount * numJoints];
+
+            var offset = (int)attribute.Offset;
+            var data = vertexBuffer.Data.AsSpan();
 
             switch (attribute.Format)
             {
                 case DXGI_FORMAT.R16G16_SINT:
                     {
-                        var offset = (int)attribute.Offset;
-                        var shorts = new short[2];
-                        var inc = 0;
+                        const int numJointsVbib = 2;
 
                         for (var i = 0; i < vertexBuffer.ElementCount; i++)
                         {
-                            // TODO: Simplify this with Unsafe.ReadUnaligned
-                            Buffer.BlockCopy(vertexBuffer.Data, offset, shorts, 0, 4);
+                            var ushorts = MemoryMarshal.Cast<byte, ushort>(data.Slice(offset, numJointsVbib * sizeof(ushort)));
 
-                            System.Diagnostics.Debug.Assert(shorts[0] >= 0);
-                            System.Diagnostics.Debug.Assert(shorts[1] >= 0);
+                            System.Diagnostics.Debug.Assert(ushorts[0] <= short.MaxValue);
+                            System.Diagnostics.Debug.Assert(ushorts[1] <= short.MaxValue);
 
-                            indices[inc++] = (ushort)shorts[0];
-                            indices[inc++] = (ushort)shorts[1];
-                            indices[inc++] = (ushort)shorts[1];
-                            indices[inc++] = (ushort)shorts[1];
+                            var fourJoints = indices.AsSpan(i * numJoints, numJoints);
+                            fourJoints[0] = ushorts[0];
+                            fourJoints[1] = ushorts[1];
+                            fourJoints[2] = ushorts[1];
+                            fourJoints[3] = ushorts[1];
 
                             offset += (int)vertexBuffer.ElementSizeInBytes;
                         }
@@ -465,24 +456,15 @@ namespace ValveResourceFormat.Blocks
 
                 case DXGI_FORMAT.R16G16B16A16_SINT:
                     {
-                        var offset = (int)attribute.Offset;
-                        var shorts = new short[4];
-                        var inc = 0;
-
                         for (var i = 0; i < vertexBuffer.ElementCount; i++)
                         {
-                            // TODO: Simplify this with Unsafe.ReadUnaligned
-                            Buffer.BlockCopy(vertexBuffer.Data, offset, shorts, 0, 8);
+                            var ushorts = MemoryMarshal.Cast<byte, ushort>(data.Slice(offset, numJoints * sizeof(ushort)));
+                            System.Diagnostics.Debug.Assert(ushorts[0] <= short.MaxValue);
+                            System.Diagnostics.Debug.Assert(ushorts[1] <= short.MaxValue);
+                            System.Diagnostics.Debug.Assert(ushorts[2] <= short.MaxValue);
+                            System.Diagnostics.Debug.Assert(ushorts[3] <= short.MaxValue);
 
-                            System.Diagnostics.Debug.Assert(shorts[0] >= 0);
-                            System.Diagnostics.Debug.Assert(shorts[1] >= 0);
-                            System.Diagnostics.Debug.Assert(shorts[2] >= 0);
-                            System.Diagnostics.Debug.Assert(shorts[3] >= 0);
-
-                            indices[inc++] = (ushort)shorts[0];
-                            indices[inc++] = (ushort)shorts[1];
-                            indices[inc++] = (ushort)shorts[2];
-                            indices[inc++] = (ushort)shorts[3];
+                            ushorts.CopyTo(indices.AsSpan(i * numJoints, numJoints));
 
                             offset += (int)vertexBuffer.ElementSizeInBytes;
                         }
@@ -492,20 +474,17 @@ namespace ValveResourceFormat.Blocks
 
                 case DXGI_FORMAT.R8G8B8A8_UINT:
                     {
-                        var offset = (int)attribute.Offset;
-                        var bytes = new byte[4];
                         var inc = 0;
 
                         for (var i = 0; i < vertexBuffer.ElementCount; i++)
                         {
-                            // TODO: Simplify this with Unsafe.ReadUnaligned
-                            Buffer.BlockCopy(vertexBuffer.Data, offset, bytes, 0, 4);
-
+                            var bytes = data.Slice(offset, 4);
                             System.Diagnostics.Debug.Assert(bytes[0] >= 0);
                             System.Diagnostics.Debug.Assert(bytes[1] >= 0);
                             System.Diagnostics.Debug.Assert(bytes[2] >= 0);
                             System.Diagnostics.Debug.Assert(bytes[3] >= 0);
 
+                            // Note: implicit casting from byte to ushort
                             indices[inc++] = bytes[0];
                             indices[inc++] = bytes[1];
                             indices[inc++] = bytes[2];
@@ -525,21 +504,23 @@ namespace ValveResourceFormat.Blocks
         {
             var weights = new Vector4[vertexBuffer.ElementCount];
 
+            var offset = (int)attribute.Offset;
+            var data = vertexBuffer.Data.AsSpan();
+
             switch (attribute.Format)
             {
                 case DXGI_FORMAT.R8G8B8A8_UNORM:
                     {
-                        var offset = (int)attribute.Offset;
-
                         for (var i = 0; i < vertexBuffer.ElementCount; i++)
                         {
                             weights[i] = new Vector4(
-                                vertexBuffer.Data[offset] / 255f,
-                                vertexBuffer.Data[offset + 1] / 255f,
-                                vertexBuffer.Data[offset + 2] / 255f,
-                                vertexBuffer.Data[offset + 3] / 255f
+                                data[offset],
+                                data[offset + 1],
+                                data[offset + 2],
+                                data[offset + 3]
                             );
 
+                            weights[i] /= 255f;
                             offset += (int)vertexBuffer.ElementSizeInBytes;
                         }
 
@@ -548,20 +529,18 @@ namespace ValveResourceFormat.Blocks
 
                 case DXGI_FORMAT.R16G16_UNORM:
                     {
-                        var offset = (int)attribute.Offset;
-                        var span = vertexBuffer.Data.AsSpan();
-
                         for (var i = 0; i < vertexBuffer.ElementCount; i++)
                         {
-                            var packed = Unsafe.ReadUnaligned<uint>(ref MemoryMarshal.GetReference(span[offset..(offset + 4)]));
+                            var packed = Unsafe.ReadUnaligned<uint>(ref MemoryMarshal.GetReference(data[offset..(offset + 4)]));
 
                             weights[i] = new Vector4(
-                                (packed & 0x0000FFFF) / 65535f,
-                                (packed >> 16) / 65535f,
+                                packed & 0x0000FFFF,
+                                packed >> 16,
                                 0f,
                                 0f
                             );
 
+                            weights[i] /= 65535f;
                             offset += (int)vertexBuffer.ElementSizeInBytes;
                         }
 
@@ -575,11 +554,11 @@ namespace ValveResourceFormat.Blocks
         private static void MarshallAttributeArray<T>(T[] result, int size, OnDiskBufferData vertexBuffer, RenderInputLayoutField attribute)
         {
             var offset = (int)attribute.Offset;
-            var span = vertexBuffer.Data.AsSpan();
+            var data = vertexBuffer.Data.AsSpan();
 
             for (var i = 0; i < vertexBuffer.ElementCount; i++)
             {
-                result[i] = Unsafe.ReadUnaligned<T>(ref MemoryMarshal.GetReference(span[offset..(offset + size)]));
+                result[i] = Unsafe.ReadUnaligned<T>(ref MemoryMarshal.GetReference(data.Slice(offset, size)));
 
                 offset += (int)vertexBuffer.ElementSizeInBytes;
             }
