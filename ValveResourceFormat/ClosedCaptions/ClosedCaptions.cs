@@ -95,7 +95,7 @@ namespace ValveResourceFormat.ClosedCaptions
             foreach (var caption in Captions)
             {
                 reader.BaseStream.Position = dataoffset + (caption.Blocknum * blocksize) + caption.Offset;
-                caption.Text = reader.ReadNullTermString(Encoding.Unicode);
+                caption.Text = reader.ReadNullTermString(Encoding.Unicode, bufferLengthHint: caption.Length);
             }
         }
 
