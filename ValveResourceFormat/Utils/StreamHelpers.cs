@@ -12,7 +12,7 @@ namespace ValveResourceFormat
         /// <returns>String.</returns>
         /// <param name="stream">Stream.</param>
         /// <param name="encoding">Encoding.</param>
-        public static string ReadNullTermString(this BinaryReader stream, Encoding encoding)
+        public static string ReadNullTermString(this BinaryReader stream, Encoding encoding, int bufferLengthHint = 32)
         {
             if (encoding == Encoding.UTF8)
             {
@@ -20,26 +20,21 @@ namespace ValveResourceFormat
             }
 
             var characterSize = encoding.GetByteCount("e");
+            Span<byte> data = stackalloc byte[characterSize];
 
-            using var ms = new MemoryStream();
+            using var ms = new MemoryStream(capacity: bufferLengthHint);
 
             while (true)
             {
-                var data = new byte[characterSize];
+                data.Clear();
+                stream.Read(data);
 
-                int bytesRead;
-                var totalRead = 0;
-                while ((bytesRead = stream.Read(data, totalRead, characterSize - totalRead)) != 0)
-                {
-                    totalRead += bytesRead;
-                }
-
-                if (encoding.GetString(data, 0, characterSize) == "\0")
+                if (encoding.GetString(data) == "\0")
                 {
                     break;
                 }
 
-                ms.Write(data, 0, data.Length);
+                ms.Write(data);
             }
 
             ms.TryGetBuffer(out var buffer);
