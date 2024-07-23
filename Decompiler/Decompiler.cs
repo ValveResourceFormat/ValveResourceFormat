@@ -43,7 +43,7 @@ namespace Decompiler
         private bool VerifyVPKChecksums;
         private bool CachedManifest;
         private bool Decompile;
-        private string FileFilter;
+        private string[] FileFilter;
         private bool ListResources;
         private string GltfExportFormat;
         private bool GltfExportAnimations;
@@ -94,7 +94,7 @@ namespace Decompiler
         /// <param name="vpk_cache">Use cached VPK manifest to keep track of updates. Only changed files will be written to disk.</param>
         /// <param name="vpk_decompile">-d, Decompile supported resource files.</param>
         /// <param name="vpk_extensions">-e, File extension(s) filter, example: "vcss_c,vjs_c,vxml_c".</param>
-        /// <param name="vpk_filepath">-f, File path filter, example: "panorama\\\\" or "scripts/items/items_game.txt".</param>
+        /// <param name="vpk_filepath">-f, File path filter, example: "panorama/,sounds/" or "scripts/items/items_game.txt".</param>
         /// <param name="vpk_list">-l, Lists all resources in given VPK. File extension and path filters apply.</param>
         /// <param name="gltf_export_format">Exports meshes/models in given glTF format. Must be either "gltf" or "glb".</param>
         /// <param name="gltf_export_animations">Whether to export model animations during glTF exports.</param>
@@ -154,7 +154,7 @@ namespace Decompiler
             VerifyVPKChecksums = vpk_verify;
             CachedManifest = vpk_cache;
             Decompile = vpk_decompile;
-            FileFilter = vpk_filepath;
+            FileFilter = vpk_filepath?.Split(',') ?? [];
             ListResources = vpk_list;
 
             GltfExportFormat = gltf_export_format;
@@ -179,9 +179,9 @@ namespace Decompiler
                 OutputFile = FixPathSlashes(OutputFile);
             }
 
-            if (FileFilter != null)
+            for (var i = 0; i < FileFilter.Length; i++)
             {
-                FileFilter = FixPathSlashes(FileFilter);
+                FileFilter[i] = FixPathSlashes(FileFilter[i]);
             }
 
             if (vpk_extensions != null)
@@ -767,13 +767,8 @@ namespace Decompiler
                 if (ListResources)
                 {
                     var listEntries = orderedEntries.SelectMany(x => x.Value);
-                    foreach (var entry in listEntries)
+                    foreach (var (_, filePath) in FilteredEntries(listEntries))
                     {
-                        var filePath = FixPathSlashes(entry.GetFullPath());
-                        if (FileFilter != null && !filePath.StartsWith(FileFilter, StringComparison.Ordinal))
-                        {
-                            continue;
-                        }
                         Console.WriteLine("\t{0}", filePath);
                     }
                     return;
@@ -783,16 +778,11 @@ namespace Decompiler
                 {
                     var queue = new ConcurrentQueue<PackageEntry>();
 
-                    foreach (var entry in orderedEntries)
+                    foreach (var entryGroup in orderedEntries)
                     {
-                        foreach (var file in entry.Value)
+                        foreach (var (entry, _) in FilteredEntries(entryGroup.Value))
                         {
-                            if (FileFilter != null && !FixPathSlashes(file.GetFullPath()).StartsWith(FileFilter, StringComparison.Ordinal))
-                            {
-                                continue;
-                            }
-
-                            queue.Enqueue(file);
+                            queue.Enqueue(entry);
                         }
                     }
 
@@ -971,15 +961,9 @@ namespace Decompiler
 
             gltfModelExporter.AnimationFilter.UnionWith(GltfAnimationFilter);
 
-            foreach (var file in entries)
+            foreach (var (file, filePath) in FilteredEntries(entries))
             {
                 var extension = type;
-                var filePath = FixPathSlashes(file.GetFullPath());
-
-                if (FileFilter != null && !filePath.StartsWith(FileFilter, StringComparison.Ordinal))
-                {
-                    continue;
-                }
 
                 if (OutputFile != null && CachedManifest)
                 {
@@ -1098,6 +1082,26 @@ namespace Decompiler
             File.WriteAllBytes(path, data.ToArray());
 
             Console.WriteLine("--- Dump written to \"{0}\"", path);
+        }
+
+        private IEnumerable<(PackageEntry Entry, string FilePath)> FilteredEntries(IEnumerable<PackageEntry> entries)
+        {
+            foreach (var entry in entries)
+            {
+                var filePath = FixPathSlashes(entry.GetFullPath());
+
+                if (IsExcludedVpkFilePath(filePath))
+                {
+                    continue;
+                }
+
+                yield return (entry, filePath);
+            }
+        }
+
+        private bool IsExcludedVpkFilePath(string filePath)
+        {
+            return FileFilter.Length > 0 && FileFilter.All(filter => !filePath.StartsWith(filter, StringComparison.Ordinal));
         }
 
         private string GetOutputPath(string inputPath, bool useOutputAsDirectory = false)
