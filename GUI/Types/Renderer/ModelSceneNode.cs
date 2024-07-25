@@ -352,7 +352,7 @@ namespace GUI.Types.Renderer
 
             if (animationName != null)
             {
-                activeAnimation = animations.FirstOrDefault(a => a.Name == animationName || (a.Name[0] == '@' && a.Name[1..] == animationName));
+                activeAnimation = animations.FirstOrDefault(a => a.Name == animationName || (a.Name[0] == '@' && a.Name.AsSpan()[1..] == animationName));
             }
 
             // TODO: CS2 falls back to the first animation, but other games seemingly do not.
