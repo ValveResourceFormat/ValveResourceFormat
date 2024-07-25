@@ -38,6 +38,7 @@ namespace Decompiler
         private bool RecursiveSearchArchives;
         private bool PrintAllBlocks;
         private string BlockToPrint;
+        private bool ShouldPrintBlockContents => PrintAllBlocks || !string.IsNullOrEmpty(BlockToPrint);
         private int MaxParallelismThreads;
         private bool OutputVPKDir;
         private bool VerifyVPKChecksums;
@@ -590,7 +591,7 @@ namespace Decompiler
                 Console.WriteLine("\t-- Block: {0,-4}  Size: {1,-6} bytes [Offset: {2,6}]", block.Type, block.Size, block.Offset);
             }
 
-            if (PrintAllBlocks || !string.IsNullOrEmpty(BlockToPrint))
+            if (ShouldPrintBlockContents)
             {
                 Console.WriteLine(Environment.NewLine);
 
@@ -769,7 +770,9 @@ namespace Decompiler
                     return;
                 }
 
-                if (CollectStats)
+                var processVpkFiles = CollectStats || ShouldPrintBlockContents;
+
+                if (processVpkFiles)
                 {
                     var queue = new ConcurrentQueue<PackageEntry>();
 
