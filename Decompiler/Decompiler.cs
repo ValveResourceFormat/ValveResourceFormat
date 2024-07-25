@@ -583,11 +583,6 @@ namespace Decompiler
 
             Console.WriteLine(Environment.NewLine);
 
-            // TODO: Resource Deferred Refs:
-            Console.WriteLine("--- (No Deferred Resource References Found)");
-
-            Console.WriteLine(Environment.NewLine);
-
             Console.WriteLine("--- Resource Blocks: Count {0} ---", resource.Blocks.Count);
 
             foreach (var block in resource.Blocks)
