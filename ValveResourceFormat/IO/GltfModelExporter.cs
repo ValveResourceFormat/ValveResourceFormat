@@ -383,9 +383,21 @@ namespace ValveResourceFormat.IO
                 var lastScales = new Vector3?[boneCount];
                 var scaleOmitted = new bool[boneCount];
 
+                var animationFilter = AnimationFilter;
+
+                // When exporting map entities, only export the default animation
+                if (entity != null)
+                {
+                    var entityAnimation = entity.GetProperty<string>("defaultanim") ?? entity.GetProperty<string>("idleanim");
+                    animationFilter = [
+                        entityAnimation,
+                        $"@{entityAnimation}"
+                    ];
+                }
+
                 foreach (var animation in animations)
                 {
-                    if (AnimationFilter.Count > 0 && !AnimationFilter.Contains(animation.Name))
+                    if (animationFilter.Count > 0 && !animationFilter.Contains(animation.Name))
                     {
                         continue;
                     }
