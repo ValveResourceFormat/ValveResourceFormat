@@ -1,4 +1,6 @@
+using System.Runtime.InteropServices;
 using SkiaSharp;
+using RG1616F = (System.Half R, System.Half G);
 
 namespace ValveResourceFormat.TextureDecoders
 {
@@ -7,39 +9,41 @@ namespace ValveResourceFormat.TextureDecoders
         public void Decode(SKBitmap bitmap, Span<byte> input)
         {
             using var pixels = bitmap.PeekPixels();
-            var span = pixels.GetPixelSpan<SKColorF>();
-            var offset = 0;
-            var sizeOfHalf = 2;
+            var inputPixels = MemoryMarshal.Cast<byte, RG1616F>(input);
 
-            for (var i = 0; i < span.Length; i++)
+            if (bitmap.ColorType == SKColorType.RgbaF32)
             {
-                var r = (float)BitConverter.ToHalf(input.Slice(offset, sizeOfHalf));
-                offset += sizeOfHalf;
-                var g = (float)BitConverter.ToSingle(input.Slice(offset, sizeOfHalf));
-                offset += sizeOfHalf;
+                DecodeHdr(pixels, inputPixels);
+                return;
+            }
 
-                span[i] = new SKColorF(r, g, 0f);
+            DecodeLdr(pixels, inputPixels);
+        }
+
+        private static void DecodeHdr(SKPixmap pixels, Span<RG1616F> inputPixels)
+        {
+            var hdrColors = pixels.GetPixelSpan<SKColorF>();
+
+            for (var i = 0; i < hdrColors.Length; i++)
+            {
+                hdrColors[i] = new SKColorF(
+                    (float)inputPixels[i].R,
+                    (float)inputPixels[i].G,
+                    0f
+                );
             }
         }
 
-        public void DecodeLowDynamicRange(SKBitmap bitmap, Span<byte> input)
+        private static void DecodeLdr(SKPixmap pixels, Span<RG1616F> inputPixels)
         {
-            using var pixels = bitmap.PeekPixels();
-            var span = pixels.GetPixelSpan<SKColor>();
-            var offset = 0;
+            var ldrColors = pixels.GetPixelSpan<SKColor>();
 
-            for (var i = 0; i < span.Length; i++)
+            for (var i = 0; i < ldrColors.Length; i++)
             {
-                var r = (float)BitConverter.ToHalf(input.Slice(offset, 2));
-                offset += 2;
-                var g = (float)BitConverter.ToHalf(input.Slice(offset, 2));
-                offset += 2;
-
-                span[i] = new SKColor(
-                    (byte)(Common.ClampHighRangeColor(r) * 255),
-                    (byte)(Common.ClampHighRangeColor(g) * 255),
-                    0,
-                    255
+                ldrColors[i] = new SKColor(
+                    Common.ToClampedLdrColor((float)inputPixels[i].R),
+                    Common.ToClampedLdrColor((float)inputPixels[i].G),
+                    0
                 );
             }
         }

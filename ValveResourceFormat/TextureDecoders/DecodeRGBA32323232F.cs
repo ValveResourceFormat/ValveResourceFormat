@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using SkiaSharp;
+using RGBA32323232F = (float R, float G, float B, float A);
 
 namespace ValveResourceFormat.TextureDecoders
 {
@@ -8,34 +9,34 @@ namespace ValveResourceFormat.TextureDecoders
         public void Decode(SKBitmap bitmap, Span<byte> input)
         {
             using var pixels = bitmap.PeekPixels();
-            var span = pixels.GetPixelSpan<SKColorF>();
-            var offset = 0;
-            var stride = 4 * sizeof(float);
+            var inputPixels = MemoryMarshal.Cast<byte, RGBA32323232F>(input);
 
-            for (var i = 0; i < span.Length; i++)
+            if (bitmap.ColorType == SKColorType.RgbaF32)
             {
-                span[i] = MemoryMarshal.Cast<byte, SKColorF>(input.Slice(offset, stride))[0];
-                offset += stride;
+                DecodeHdr(pixels, inputPixels);
+                return;
             }
+
+            DecodeLdr(pixels, inputPixels);
         }
 
-        public void DecodeLowDynamicRange(SKBitmap bitmap, Span<byte> input)
+        private static void DecodeHdr(SKPixmap pixels, Span<RGBA32323232F> inputPixels)
         {
-            using var pixels = bitmap.PeekPixels();
-            var span = pixels.GetPixelSpan<SKColor>();
-            var offset = 0;
-            var stride = 4 * sizeof(float);
+            var hdrColors = pixels.GetPixelSpan<RGBA32323232F>();
+            inputPixels.CopyTo(hdrColors);
+        }
 
-            for (var i = 0; i < span.Length; i++)
+        private static void DecodeLdr(SKPixmap pixels, Span<RGBA32323232F> inputPixels)
+        {
+            var ldrColors = pixels.GetPixelSpan<SKColor>();
+
+            for (var i = 0; i < ldrColors.Length; i++)
             {
-                var skColorF = MemoryMarshal.Cast<byte, SKColorF>(input.Slice(offset, stride))[0];
-                offset += stride;
-
-                span[i] = new SKColor(
-                    (byte)(Common.ClampHighRangeColor(skColorF.Red) * 255),
-                    (byte)(Common.ClampHighRangeColor(skColorF.Green) * 255),
-                    (byte)(Common.ClampHighRangeColor(skColorF.Blue) * 255),
-                    (byte)(Common.ClampHighRangeColor(skColorF.Alpha) * 255)
+                ldrColors[i] = new SKColor(
+                    Common.ToClampedLdrColor(inputPixels[i].R),
+                    Common.ToClampedLdrColor(inputPixels[i].G),
+                    Common.ToClampedLdrColor(inputPixels[i].B),
+                    Common.ToClampedLdrColor(inputPixels[i].A)
                 );
             }
         }

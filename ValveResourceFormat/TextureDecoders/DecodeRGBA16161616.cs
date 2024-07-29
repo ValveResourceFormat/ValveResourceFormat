@@ -1,4 +1,6 @@
+using System.Runtime.InteropServices;
 using SkiaSharp;
+using RGBA16161616 = (ushort R, ushort G, ushort B, ushort A);
 
 namespace ValveResourceFormat.TextureDecoders
 {
@@ -7,42 +9,54 @@ namespace ValveResourceFormat.TextureDecoders
         public void Decode(SKBitmap bitmap, Span<byte> input)
         {
             using var pixels = bitmap.PeekPixels();
+            var inputPixels = MemoryMarshal.Cast<byte, RGBA16161616>(input);
             var data = pixels.GetPixelSpan<SKColorF>();
 
-            for (int i = 0, j = 0; j < data.Length; i += 8, j++)
+            if (bitmap.ColorType == SKColorType.RgbaF32)
             {
-                var hr = (float)BitConverter.ToUInt16(input.Slice(i, 2)) / uint.MaxValue;
-                var hg = (float)BitConverter.ToUInt16(input.Slice(i + 2, 2)) / uint.MaxValue;
-                var hb = (float)BitConverter.ToUInt16(input.Slice(i + 2, 4)) / uint.MaxValue;
-                var ha = (float)BitConverter.ToUInt16(input.Slice(i + 2, 6)) / uint.MaxValue;
+                DecodeHdr(pixels, inputPixels);
+                return;
+            }
 
-                data[j] = new SKColorF(hr, hg, hb, ha);
+            DecodeLdr(pixels, inputPixels);
+        }
+
+        private static void DecodeHdr(SKPixmap pixels, Span<RGBA16161616> inputPixels)
+        {
+            var hdrColors = pixels.GetPixelSpan<SKColorF>();
+            for (var i = 0; i < hdrColors.Length; i++)
+            {
+                hdrColors[i] = new SKColorF(
+                    ((float)inputPixels[i].R) / ushort.MaxValue,
+                    ((float)inputPixels[i].G) / ushort.MaxValue,
+                    ((float)inputPixels[i].B) / ushort.MaxValue,
+                    ((float)inputPixels[i].A) / ushort.MaxValue
+                );
             }
         }
 
-        public void DecodeLowDynamicRange(SKBitmap bitmap, Span<byte> input)
+        public static void DecodeLdr(SKPixmap pixels, Span<RGBA16161616> inputPixels)
         {
-            using var pixels = bitmap.PeekPixels();
-            var data = pixels.GetPixelSpan<SKColor>();
+            var ldrColors = pixels.GetPixelSpan<SKColor>();
             var log = 0f;
 
-            for (int i = 0, j = 0; j < data.Length; i += 8, j++)
+            for (var i = 0; i < ldrColors.Length; i++)
             {
-                var hr = BitConverter.ToUInt16(input.Slice(i, 2)) / 256f;
-                var hg = BitConverter.ToUInt16(input.Slice(i + 2, 2)) / 256f;
-                var hb = BitConverter.ToUInt16(input.Slice(i + 2, 4)) / 256f;
-                var lum = (hr * 0.299f) + (hg * 0.587f) + (hb * 0.114f);
+                var lum = inputPixels[i].R / 256f * 0.299f
+                        + inputPixels[i].G / 256f * 0.587f
+                        + inputPixels[i].B / 256f * 0.114f;
+
                 log += MathF.Log(MathF.Max(float.Epsilon, lum));
             }
 
-            log = MathF.Exp(log / (bitmap.Width * bitmap.Height));
+            log = MathF.Exp(log / (pixels.Width * pixels.Height));
 
-            for (int i = 0, j = 0; j < data.Length; i += 8, j++)
+            for (var i = 0; i < ldrColors.Length; i++)
             {
-                var hr = BitConverter.ToUInt16(input.Slice(i, 2)) / 256f;
-                var hg = BitConverter.ToUInt16(input.Slice(i + 2, 2)) / 256f;
-                var hb = BitConverter.ToUInt16(input.Slice(i + 4, 2)) / 256f;
-                var ha = BitConverter.ToUInt16(input.Slice(i + 6, 2)) / 256f;
+                var hr = inputPixels[i].R / 256f;
+                var hg = inputPixels[i].G / 256f;
+                var hb = inputPixels[i].B / 256f;
+                var ha = inputPixels[i].A / 256f;
 
                 var y = (hr * 0.299f) + (hg * 0.587f) + (hb * 0.114f);
                 var u = (hb - y) * 0.565f;
@@ -56,11 +70,11 @@ namespace ValveResourceFormat.TextureDecoders
                 hg = MathF.Pow((y - (0.344f * u) - (0.714f * v)) * mul, 2.25f);
                 hb = MathF.Pow((y + (1.770f * u)) * mul, 2.25f);
 
-                data[j] = new SKColor(
-                    (byte)(Common.ClampHighRangeColor(hr) * 255),
-                    (byte)(Common.ClampHighRangeColor(hg) * 255),
-                    (byte)(Common.ClampHighRangeColor(hb) * 255),
-                    (byte)(Common.ClampHighRangeColor(ha) * 255)
+                ldrColors[i] = new SKColor(
+                     Common.ToClampedLdrColor(hr),
+                     Common.ToClampedLdrColor(hg),
+                     Common.ToClampedLdrColor(hb),
+                     Common.ToClampedLdrColor(ha)
                 );
             }
         }

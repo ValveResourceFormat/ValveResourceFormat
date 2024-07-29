@@ -7,13 +7,12 @@ namespace ValveResourceFormat.TextureDecoders
         public void Decode(SKBitmap res, Span<byte> input)
         {
             using var pixels = res.PeekPixels();
-            var span = pixels.GetPixelSpan<SKColor>();
-            var offset = 0;
+            var outPixels = pixels.GetPixelSpan<SKColor>();
 
-            for (var i = 0; i < span.Length; i++)
+            for (var i = 0; i < outPixels.Length; i++)
             {
-                var color = input[offset++];
-                span[i] = new SKColor(color, color, color, 255);
+                var intensity = input[i];
+                outPixels[i] = new SKColor(intensity, intensity, intensity);
             }
         }
     }

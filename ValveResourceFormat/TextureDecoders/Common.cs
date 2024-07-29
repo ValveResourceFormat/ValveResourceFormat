@@ -113,5 +113,10 @@ namespace ValveResourceFormat.TextureDecoders
 
             return a < 0f ? 0f : a;
         }
+
+        public static byte ToClampedLdrColor(float a)
+        {
+            return (byte)(ClampHighRangeColor(a) * 255 + 0.5f);
+        }
     }
 }

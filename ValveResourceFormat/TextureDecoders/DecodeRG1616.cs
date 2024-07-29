@@ -1,4 +1,6 @@
+using System.Runtime.InteropServices;
 using SkiaSharp;
+using RG1616 = (ushort R, ushort G);
 
 namespace ValveResourceFormat.TextureDecoders
 {
@@ -7,38 +9,41 @@ namespace ValveResourceFormat.TextureDecoders
         public void Decode(SKBitmap bitmap, Span<byte> input)
         {
             using var pixels = bitmap.PeekPixels();
-            var span = pixels.GetPixelSpan<SKColorF>();
-            var offset = 0;
+            var inputPixels = MemoryMarshal.Cast<byte, RG1616>(input);
 
-            for (int i = 0, j = 0; j < span.Length; i += 4, j++)
+            if (bitmap.ColorType == SKColorType.RgbaF32)
             {
-                var r = (float)BitConverter.ToUInt16(input.Slice(offset, sizeof(ushort))) / ushort.MaxValue;
-                offset += sizeof(ushort);
-                var g = (float)BitConverter.ToUInt16(input.Slice(offset, sizeof(ushort))) / ushort.MaxValue;
-                offset += sizeof(ushort);
+                DecodeHdr(pixels, inputPixels);
+                return;
+            }
 
-                span[j] = new SKColorF(r, g, 0f);
+            DecodeLdr(pixels, inputPixels);
+        }
+
+        private static void DecodeHdr(SKPixmap pixels, Span<RG1616> inputPixels)
+        {
+            var hdrColors = pixels.GetPixelSpan<SKColorF>();
+
+            for (var i = 0; i < hdrColors.Length; i++)
+            {
+                hdrColors[i] = new SKColorF(
+                    ((float)inputPixels[i].R) / ushort.MaxValue,
+                    ((float)inputPixels[i].G) / ushort.MaxValue,
+                    0f
+                );
             }
         }
 
-        public void DecodeLowDynamicRange(SKBitmap bitmap, Span<byte> input)
+        private static void DecodeLdr(SKPixmap pixels, Span<RG1616> inputPixels)
         {
-            using var pixels = bitmap.PeekPixels();
-            var span = pixels.GetPixelSpan<SKColor>();
-            var offset = 0;
+            var ldrColors = pixels.GetPixelSpan<SKColor>();
 
-            for (var i = 0; i < span.Length; i++)
+            for (var i = 0; i < ldrColors.Length; i++)
             {
-                var r = BitConverter.ToUInt16(input.Slice(offset, sizeof(ushort)));
-                offset += sizeof(ushort);
-                var g = BitConverter.ToUInt16(input.Slice(offset, sizeof(ushort)));
-                offset += sizeof(ushort);
-
-                span[i] = new SKColor(
-                    Common.ClampColor(r / 256),
-                    Common.ClampColor(g / 256),
-                    0,
-                    255
+                ldrColors[i] = new SKColor(
+                    Common.ClampColor(inputPixels[i].R / 256),
+                    Common.ClampColor(inputPixels[i].G / 256),
+                    0
                 );
             }
         }
