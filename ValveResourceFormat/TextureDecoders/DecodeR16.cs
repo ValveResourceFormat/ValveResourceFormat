@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using System.Runtime.InteropServices;
 using SkiaSharp;
 
 namespace ValveResourceFormat.TextureDecoders
@@ -7,30 +9,17 @@ namespace ValveResourceFormat.TextureDecoders
         public void Decode(SKBitmap bitmap, Span<byte> input)
         {
             using var pixels = bitmap.PeekPixels();
-            var span = pixels.GetPixelSpan<SKColorF>();
-            var offset = 0;
+            var ushortInput = MemoryMarshal.Cast<byte, ushort>(input);
 
-            for (var i = 0; i < span.Length; i++)
+            if (bitmap.ColorType == SKColorType.RgbaF32)
             {
-                var r = (float)BitConverter.ToUInt16(input.Slice(offset, sizeof(ushort))) / ushort.MaxValue;
-                offset += 2;
+                var floatOutput = pixels.GetPixelSpan<SKColorF>();
+                Debug.Assert(floatOutput.Length == ushortInput.Length);
 
-                span[i] = new SKColorF(r, 0f, 0f);
-            }
-        }
-
-        public void DecodeLowDynamicRange(SKBitmap bitmap, Span<byte> input)
-        {
-            using var pixels = bitmap.PeekPixels();
-            var span = pixels.GetPixelSpan<SKColor>();
-            var offset = 0;
-
-            for (var i = 0; i < span.Length; i++)
-            {
-                var r = BitConverter.ToUInt16(input.Slice(offset, sizeof(ushort)));
-                offset += sizeof(ushort);
-
-                span[i] = new SKColor(Common.ClampColor(r / 256), 0, 0, 255);
+                for (var i = 0; i < floatOutput.Length; i++)
+                {
+                    floatOutput[i] = new SKColorF(((float)ushortInput[i]) / ushort.MaxValue, 0f, 0f);
+                }
             }
         }
     }
