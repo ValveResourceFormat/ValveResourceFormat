@@ -167,20 +167,6 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
         var sw = Stopwatch.StartNew();
         var inputTexture = guiContext.MaterialLoader.LoadTexture(request.Resource, isViewerRequest: true);
 
-        var textureData = (Texture)request.Resource.DataBlock;
-
-        switch (textureData.IsHighDynamicRange, Framebuffer.ColorFormat.PixelType)
-        {
-            case (true, PixelType.UnsignedByte):
-                Framebuffer.ChangeFormat(HDRFormat.Value, null);
-                break;
-            case (false, PixelType.Float):
-                Framebuffer.ChangeFormat(LDRFormat.Value, null);
-                break;
-            default:
-                break;
-        }
-
         inputTexture.SetFiltering(TextureMinFilter.NearestMipmapNearest, TextureMagFilter.Nearest);
 
         /*
@@ -192,6 +178,24 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
             return true;
         }
         */
+
+        var framebufferFormat = request.Bitmap.ColorType switch
+        {
+            SKColorType.RgbaF32 => HDRFormat.Value,
+            SKColorType.Bgra8888 => LDRFormat.Value,
+            _ => null,
+        };
+
+        if (framebufferFormat == null)
+        {
+            Log.Warn(nameof(GLTextureDecoder), $"Unsupported bitmap output type: {request.Bitmap.ColorType}");
+            return false;
+        }
+
+        if (Framebuffer.ColorFormat != framebufferFormat)
+        {
+            Framebuffer.ChangeFormat(framebufferFormat, null);
+        }
 
         if (Framebuffer.Width < inputTexture.Width || Framebuffer.Height < inputTexture.Height)
         {
@@ -228,15 +232,12 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
         inputTexture.Dispose();
         GL.UseProgram(0);
 
-        var pixels = request.Bitmap.GetPixels(out var length);
+        var pixels = request.Bitmap.GetPixels(out var outputLength);
+        var framebufferLength = Framebuffer.Width * Framebuffer.Height * request.Bitmap.BytesPerPixel;
 
-        var (bitmapFormat, bitmapSizeInBytes) = textureData.IsHighDynamicRange
-            ? (SKColorType.RgbaF32, 16)
-            : (SKColorType.Bgra8888, 4);
-
-        Debug.Assert(request.Bitmap.ColorType == bitmapFormat);
-        if (length < inputTexture.Width * inputTexture.Height * bitmapSizeInBytes)
+        if (framebufferLength < outputLength)
         {
+            Log.Warn(nameof(GLTextureDecoder), $"Bitmap is too small to copy framebuffer contents to.");
             return false;
         }
 
@@ -287,8 +288,8 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
         true => (SizedInternalFormat.Rgba32f, PixelFormat.Rgba, PixelType.Float),
     };
 
-    public Lazy<Framebuffer.AttachmentFormat> LDRFormat { get; } = new(() => GetPreferredFramebufferFormat(hdr: true));
-    public Lazy<Framebuffer.AttachmentFormat> HDRFormat { get; } = new(() => GetPreferredFramebufferFormat(hdr: false));
+    public Lazy<Framebuffer.AttachmentFormat> LDRFormat { get; } = new(() => GetPreferredFramebufferFormat(hdr: false));
+    public Lazy<Framebuffer.AttachmentFormat> HDRFormat { get; } = new(() => GetPreferredFramebufferFormat(hdr: true));
 
     public static Framebuffer.AttachmentFormat GetPreferredFramebufferFormat(bool hdr)
     {

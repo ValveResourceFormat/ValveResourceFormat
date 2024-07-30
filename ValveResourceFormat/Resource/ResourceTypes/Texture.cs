@@ -369,7 +369,6 @@ namespace ValveResourceFormat.ResourceTypes
         }
 
         public bool IsHighDynamicRange => Format
-            //is VTexFormat.BC6H
             is VTexFormat.R16
             or VTexFormat.RG1616
             or VTexFormat.RGBA16161616
