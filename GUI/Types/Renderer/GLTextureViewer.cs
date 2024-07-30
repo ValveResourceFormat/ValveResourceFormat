@@ -342,7 +342,7 @@ namespace GUI.Types.Renderer
         private void SetInitialDecodeFlagsState(CheckedListBox listBox)
         {
             listBox.Items.Clear();
-            var values = Enum.GetValues<TextureCodec>();
+            var values = Enum.GetValues<TextureCodec>()[1..^1]; // Skip None, Auto
 
             var i = 0;
             for (var flag = 0; flag < values.Length; flag++)
@@ -350,8 +350,8 @@ namespace GUI.Types.Renderer
                 var value = (TextureCodec)values.GetValue(flag);
                 var name = Enum.GetName(value);
 
-                // check for combined flag, or flag 0 (none)
-                if (value == 0 || (value & (value - 1)) != 0)
+                // check for combined flag
+                if ((value & (value - 1)) != 0)
                 {
                     continue;
                 }

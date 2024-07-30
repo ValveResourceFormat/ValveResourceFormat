@@ -53,6 +53,8 @@ namespace ValveResourceFormat.TextureDecoders
         /// Colors are in sRGB gamma space. Converts to linear space.
         /// </summary>
         ColorSpaceSrgb = 1 << 6,
+
+        Auto = 1 << 30,
     }
 
     internal class Common
