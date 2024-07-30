@@ -436,11 +436,13 @@ namespace ValveResourceFormat.ResourceTypes
                     return SKBitmap.Decode(Reader.ReadBytes(CalculatePngSize()));
             }
 
-            var colorType = IsHighDynamicRange ? SKColorType.RgbaF32 : SKColorType.Bgra8888;
             decodeFlags = decodeFlags == TextureCodec.Auto
                 ? RetrieveCodecFromResourceEditInfo()
                 : decodeFlags;
 
+            var colorType = IsHighDynamicRange && !decodeFlags.HasFlag(TextureCodec.ForceLDR)
+                ? SKColorType.RgbaF32
+                : SKColorType.Bgra8888;
 
             var skiaBitmap = new SKBitmap(width, height, colorType, SKAlphaType.Unpremul);
 

@@ -54,6 +54,7 @@ namespace GUI.Types.Renderer
         private bool WantsSeparateAlpha;
         private CubemapProjection CubemapProjectionType;
         private TextureCodec decodeFlags;
+        private const TextureCodec softwareDecodeOnlyOptions = TextureCodec.ForceLDR;
         private Framebuffer SaveAsFbo;
 
         private CheckedListBox decodeFlagsListBox;
@@ -754,6 +755,7 @@ namespace GUI.Types.Renderer
 
             var textureData = (Texture)Resource.DataBlock;
             var isCpuDecodedFormat = textureData.IsRawJpeg || textureData.IsRawPng;
+            var swDecodeFlags = decodeFlags & softwareDecodeOnlyOptions;
 
             if (isCpuDecodedFormat || forceSoftwareDecode)
             {
@@ -765,7 +767,7 @@ namespace GUI.Types.Renderer
 
                 try
                 {
-                    bitmap = textureData.GenerateBitmap((uint)SelectedDepth, (CubemapFace)SelectedCubeFace, (uint)SelectedMip);
+                    bitmap = textureData.GenerateBitmap((uint)SelectedDepth, (CubemapFace)SelectedCubeFace, (uint)SelectedMip, swDecodeFlags);
                 }
                 finally
                 {
@@ -781,7 +783,7 @@ namespace GUI.Types.Renderer
             }
 
             texture = GuiContext.MaterialLoader.LoadTexture(Resource, isViewerRequest: true);
-            decodeFlags = textureData.RetrieveCodecFromResourceEditInfo();
+            decodeFlags = textureData.RetrieveCodecFromResourceEditInfo() | swDecodeFlags;
         }
 
         private void UploadBitmap(SKBitmap bitmap)
@@ -789,7 +791,7 @@ namespace GUI.Types.Renderer
             Debug.Assert(bitmap != null);
 
             texture = new RenderTexture(TextureTarget.Texture2D, bitmap.Width, bitmap.Height, 1, 1);
-            decodeFlags = TextureCodec.None;
+            decodeFlags &= softwareDecodeOnlyOptions;
 
             var isHdr = bitmap.ColorType == SKColorType.RgbaF32;
             var store = GLTextureDecoder.GetImageExportFormat(isHdr);

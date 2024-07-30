@@ -54,6 +54,11 @@ namespace ValveResourceFormat.TextureDecoders
         /// </summary>
         ColorSpaceSrgb = 1 << 6,
 
+        /// <summary>
+        /// Force decode HDR content to LDR.
+        /// </summary>
+        ForceLDR = 1 << 7,
+
         Auto = 1 << 30,
     }
 
