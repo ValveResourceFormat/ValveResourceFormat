@@ -475,9 +475,11 @@ public partial class GltfModelExporter
         }
         else if (indexBuffer.ElementSizeInBytes == 2)
         {
-            var shortIndices = new ushort[count];
-            System.Buffer.BlockCopy(indexBuffer.Data, byteStart, shortIndices, 0, byteCount);
-            indices = Array.ConvertAll(shortIndices, i => baseVertex + i);
+            var shortIndices = MemoryMarshal.Cast<byte, ushort>(indexBuffer.Data).Slice(start, count);
+            for (var i = 0; i < count; i++)
+            {
+                indices[i] = baseVertex + shortIndices[i];
+            }
         }
 
         return indices;
