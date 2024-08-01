@@ -848,9 +848,11 @@ namespace Decompiler
                     file.Close();
                 }
 
+                using var fileLoader = new GameFileLoader(package, package.FileName);
+
                 foreach (var type in package.Entries)
                 {
-                    DumpVPK(path, package, type.Key, manifestData);
+                    ProcessVPKEntries(path, package, fileLoader, type.Key, manifestData);
                 }
 
                 if (CachedManifest)
@@ -923,7 +925,8 @@ namespace Decompiler
             Console.WriteLine("Success.");
         }
 
-        private void DumpVPK(string parentPath, Package package, string type, Dictionary<string, uint> manifestData)
+        private void ProcessVPKEntries(string parentPath, Package package,
+            IFileLoader fileLoader, string type, Dictionary<string, uint> manifestData)
         {
             var allowSubFilesFromExternalRefs = true;
             if (ExtFilterList != null)
@@ -946,7 +949,6 @@ namespace Decompiler
                 return;
             }
 
-            using var fileLoader = new GameFileLoader(package, package.FileName);
             var progressReporter = new Progress<string>(progress => Console.WriteLine($"--- {progress}"));
             var gltfModelExporter = new GltfModelExporter(fileLoader)
             {
