@@ -233,9 +233,10 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
         GL.UseProgram(0);
 
         var pixels = request.Bitmap.GetPixels(out var outputLength);
-        var framebufferLength = Framebuffer.Width * Framebuffer.Height * request.Bitmap.BytesPerPixel;
+        var fbBytesPerPixel = Framebuffer.ColorFormat.PixelType == PixelType.Float ? 16 : 4;
+        var fbRegionLength = request.Bitmap.Width * request.Bitmap.Height * fbBytesPerPixel;
 
-        if (framebufferLength < outputLength)
+        if (fbRegionLength > outputLength)
         {
             Log.Warn(nameof(GLTextureDecoder), $"Bitmap is too small to copy framebuffer contents to.");
             return false;

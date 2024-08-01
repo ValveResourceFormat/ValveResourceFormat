@@ -445,52 +445,10 @@ namespace ValveResourceFormat.ResourceTypes
 
             var skiaBitmap = new SKBitmap(width, height, colorType, SKAlphaType.Unpremul);
 
-            if (HardwareAcceleratedTextureDecoder.Decoder != null)
+            if (HardwareAcceleratedTextureDecoder.Decoder?.Decode(skiaBitmap, Resource, depth, face, mipLevel, decodeFlags) == true)
             {
-                try
-                {
-                    if (HardwareAcceleratedTextureDecoder.Decoder.Decode(skiaBitmap, Resource, depth, face, mipLevel, decodeFlags))
-                    {
-                        var bitmapToReturn = skiaBitmap;
-                        skiaBitmap = null;
-                        return bitmapToReturn;
-                    }
-                }
-                finally
-                {
-                    skiaBitmap?.Dispose();
-                }
+                return skiaBitmap;
             }
-
-            var blockWidth = MipLevelSize(Width, mipLevel);
-            var blockHeight = MipLevelSize(Height, mipLevel);
-
-            ITextureDecoder decoder = Format switch
-            {
-                VTexFormat.DXT1 => new DecodeDXT1(blockWidth, blockHeight),
-                VTexFormat.DXT5 => new DecodeDXT5(blockWidth, blockHeight, decodeFlags),
-                VTexFormat.I8 => new DecodeI8(),
-                VTexFormat.RGBA8888 => new DecodeRGBA8888(),
-                VTexFormat.R16 => new DecodeR16(),
-                VTexFormat.RG1616 => new DecodeRG1616(),
-                VTexFormat.RGBA16161616 => new DecodeRGBA16161616(),
-                VTexFormat.R16F => new DecodeR16F(),
-                VTexFormat.RG1616F => new DecodeRG1616F(),
-                VTexFormat.RGBA16161616F => new DecodeRGBA16161616F(),
-                VTexFormat.R32F => new DecodeR32F(),
-                VTexFormat.RG3232F => new DecodeRG3232F(),
-                VTexFormat.RGB323232F => new DecodeRGB323232F(),
-                VTexFormat.RGBA32323232F => new DecodeRGBA32323232F(),
-                VTexFormat.BC6H => new DecodeBC6H(blockWidth, blockHeight),
-                VTexFormat.BC7 => new DecodeBC7(blockWidth, blockHeight, decodeFlags),
-                VTexFormat.ATI2N => new DecodeATI2N(blockWidth, blockHeight, decodeFlags),
-                VTexFormat.IA88 => new DecodeIA88(),
-                VTexFormat.ETC2 => new DecodeETC2(blockWidth, blockHeight),
-                VTexFormat.ETC2_EAC => new DecodeETC2EAC(blockWidth, blockHeight),
-                VTexFormat.ATI1N => new DecodeATI1N(blockWidth, blockHeight),
-                VTexFormat.BGRA8888 => new DecodeBGRA8888(),
-                _ => throw new UnexpectedMagicException("Unhandled image type", (int)Format, nameof(Format))
-            };
 
             var uncompressedSize = CalculateBufferSizeForMipLevel(mipLevel);
             var buf = ArrayPool<byte>.Shared.Rent(uncompressedSize);
@@ -524,6 +482,7 @@ namespace ValveResourceFormat.ResourceTypes
                     span = span[faceOffset..(faceOffset + faceSize)];
                 }
 
+                var decoder = CreateDecoder(mipLevel, decodeFlags);
                 decoder.Decode(skiaBitmap, span);
 
                 var bitmapToReturn = skiaBitmap;
@@ -535,6 +494,39 @@ namespace ValveResourceFormat.ResourceTypes
                 ArrayPool<byte>.Shared.Return(buf);
                 skiaBitmap?.Dispose();
             }
+        }
+
+        private ITextureDecoder CreateDecoder(uint mipLevel, TextureCodec decodeFlags)
+        {
+            var blockWidth = MipLevelSize(Width, mipLevel);
+            var blockHeight = MipLevelSize(Height, mipLevel);
+
+            return Format switch
+            {
+                VTexFormat.DXT1 => new DecodeDXT1(blockWidth, blockHeight),
+                VTexFormat.DXT5 => new DecodeDXT5(blockWidth, blockHeight, decodeFlags),
+                VTexFormat.I8 => new DecodeI8(),
+                VTexFormat.RGBA8888 => new DecodeRGBA8888(),
+                VTexFormat.R16 => new DecodeR16(),
+                VTexFormat.RG1616 => new DecodeRG1616(),
+                VTexFormat.RGBA16161616 => new DecodeRGBA16161616(),
+                VTexFormat.R16F => new DecodeR16F(),
+                VTexFormat.RG1616F => new DecodeRG1616F(),
+                VTexFormat.RGBA16161616F => new DecodeRGBA16161616F(),
+                VTexFormat.R32F => new DecodeR32F(),
+                VTexFormat.RG3232F => new DecodeRG3232F(),
+                VTexFormat.RGB323232F => new DecodeRGB323232F(),
+                VTexFormat.RGBA32323232F => new DecodeRGBA32323232F(),
+                VTexFormat.BC6H => new DecodeBC6H(blockWidth, blockHeight),
+                VTexFormat.BC7 => new DecodeBC7(blockWidth, blockHeight, decodeFlags),
+                VTexFormat.ATI2N => new DecodeATI2N(blockWidth, blockHeight, decodeFlags),
+                VTexFormat.IA88 => new DecodeIA88(),
+                VTexFormat.ETC2 => new DecodeETC2(blockWidth, blockHeight),
+                VTexFormat.ETC2_EAC => new DecodeETC2EAC(blockWidth, blockHeight),
+                VTexFormat.ATI1N => new DecodeATI1N(blockWidth, blockHeight),
+                VTexFormat.BGRA8888 => new DecodeBGRA8888(),
+                _ => throw new UnexpectedMagicException("Unhandled image type", (int)Format, nameof(Format))
+            };
         }
 
         public int CalculateTextureDataSize()
