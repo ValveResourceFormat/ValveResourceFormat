@@ -1,21 +1,41 @@
+using System.Runtime.InteropServices;
 using SkiaSharp;
 
 namespace ValveResourceFormat.TextureDecoders
 {
     internal class DecodeR32F : ITextureDecoder
     {
-        public void Decode(SKBitmap res, Span<byte> input)
+        public void Decode(SKBitmap bitmap, Span<byte> input)
         {
-            using var pixels = res.PeekPixels();
-            var span = pixels.GetPixelSpan<SKColor>();
-            var offset = 0;
+            using var pixels = bitmap.PeekPixels();
+            var inputPixels = MemoryMarshal.Cast<byte, float>(input);
 
-            for (var i = 0; i < span.Length; i++)
+            if (bitmap.ColorType == SKColorType.RgbaF32)
             {
-                var r = BitConverter.ToSingle(input.Slice(offset, sizeof(float)));
-                offset += sizeof(float);
+                DecodeHdr(pixels, inputPixels);
+                return;
+            }
 
-                span[i] = new SKColor((byte)(Common.ClampHighRangeColor(r) * 255), 0, 0, 255);
+            DecodeLdr(pixels, inputPixels);
+        }
+
+        private static void DecodeHdr(SKPixmap pixels, Span<float> inputPixels)
+        {
+            var hdrColors = pixels.GetPixelSpan<SKColorF>();
+
+            for (var i = 0; i < hdrColors.Length; i++)
+            {
+                hdrColors[i] = new SKColorF(inputPixels[i], 0f, 0f);
+            }
+        }
+
+        private static void DecodeLdr(SKPixmap pixels, Span<float> inputPixels)
+        {
+            var ldrColors = pixels.GetPixelSpan<SKColor>();
+
+            for (var i = 0; i < ldrColors.Length; i++)
+            {
+                ldrColors[i] = new SKColor(Common.ToClampedLdrColor(inputPixels[i]), 0, 0);
             }
         }
     }

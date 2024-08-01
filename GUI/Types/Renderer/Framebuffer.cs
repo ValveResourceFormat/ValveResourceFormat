@@ -195,15 +195,7 @@ class Framebuffer : IDisposable
         ColorFormat = colorFormat;
         DepthFormat = depthFormat;
 
-        if (Color != null)
-        {
-            ResizeAttachment(Color, colorFormat!, Width, Height);
-        }
-
-        if (Depth != null)
-        {
-            ResizeAttachment(Depth, depthFormat!, Width, Height);
-        }
+        Resize(Width, Height);
     }
 
     public void CheckStatus_ThrowIfIncomplete(string name = "")

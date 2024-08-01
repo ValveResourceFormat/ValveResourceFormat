@@ -21,6 +21,7 @@
     <PackageReference Include="ValvePak" Version="2.0.1.107" />
     <PackageReference Include="ZstdSharp.Port" Version="0.8.1" />
     <PackageReference Include="KeyValues2" Version="0.5-beta" />
+    <PackageReference Include="TinyEXR.NET" Version="0.3.6" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Misc\VRF_PACKAGE_README.md" Pack="true" PackagePath="\README.md" />

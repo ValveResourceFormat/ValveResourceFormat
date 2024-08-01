@@ -1,27 +1,49 @@
+using System.Runtime.InteropServices;
 using SkiaSharp;
+using RG1616 = (ushort R, ushort G);
 
 namespace ValveResourceFormat.TextureDecoders
 {
     internal class DecodeRG1616 : ITextureDecoder
     {
-        public void Decode(SKBitmap res, Span<byte> input)
+        public void Decode(SKBitmap bitmap, Span<byte> input)
         {
-            using var pixels = res.PeekPixels();
-            var span = pixels.GetPixelSpan<SKColor>();
-            var offset = 0;
+            using var pixels = bitmap.PeekPixels();
+            var inputPixels = MemoryMarshal.Cast<byte, RG1616>(input);
 
-            for (var i = 0; i < span.Length; i++)
+            if (bitmap.ColorType == SKColorType.RgbaF32)
             {
-                var r = BitConverter.ToUInt16(input.Slice(offset, sizeof(ushort)));
-                offset += sizeof(ushort);
-                var b = BitConverter.ToUInt16(input.Slice(offset, sizeof(ushort)));
-                offset += sizeof(ushort);
+                DecodeHdr(pixels, inputPixels);
+                return;
+            }
 
-                span[i] = new SKColor(
-                    Common.ClampColor(r / 256),
-                    Common.ClampColor(b / 256),
-                    0,
-                    255
+            DecodeLdr(pixels, inputPixels);
+        }
+
+        private static void DecodeHdr(SKPixmap pixels, Span<RG1616> inputPixels)
+        {
+            var hdrColors = pixels.GetPixelSpan<SKColorF>();
+
+            for (var i = 0; i < hdrColors.Length; i++)
+            {
+                hdrColors[i] = new SKColorF(
+                    ((float)inputPixels[i].R) / ushort.MaxValue,
+                    ((float)inputPixels[i].G) / ushort.MaxValue,
+                    0f
+                );
+            }
+        }
+
+        private static void DecodeLdr(SKPixmap pixels, Span<RG1616> inputPixels)
+        {
+            var ldrColors = pixels.GetPixelSpan<SKColor>();
+
+            for (var i = 0; i < ldrColors.Length; i++)
+            {
+                ldrColors[i] = new SKColor(
+                    Common.ClampColor(inputPixels[i].R / 256),
+                    Common.ClampColor(inputPixels[i].G / 256),
+                    0
                 );
             }
         }

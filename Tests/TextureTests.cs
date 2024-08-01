@@ -1,7 +1,9 @@
 using System.IO;
+using System.Reflection;
 using NUnit.Framework;
 using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.TextureDecoders;
 
 namespace Tests
 {
@@ -19,8 +21,14 @@ namespace Tests
             using var resource = new Resource();
             resource.Read(file);
 
-            using var _ = ((Texture)resource.DataBlock).GenerateBitmap();
+            var texture = (Texture)resource.DataBlock;
 
+            using var _ = texture.GenerateBitmap();
+
+            if (texture.IsHighDynamicRange)
+            {
+                using var __ = texture.GenerateBitmap(decodeFlags: TextureCodec.ForceLDR);
+            }
         }
     }
 }

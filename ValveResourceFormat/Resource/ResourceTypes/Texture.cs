@@ -368,6 +368,18 @@ namespace ValveResourceFormat.ResourceTypes
             return null;
         }
 
+        public bool IsHighDynamicRange => Format
+            is VTexFormat.R16
+            or VTexFormat.RG1616
+            or VTexFormat.RGBA16161616
+            or VTexFormat.R16F
+            or VTexFormat.RG1616F
+            or VTexFormat.RGBA16161616F
+            or VTexFormat.R32F
+            or VTexFormat.RG3232F
+            or VTexFormat.RGB323232F
+            or VTexFormat.RGBA32323232F;
+
         public bool IsRawJpeg => Format is VTexFormat.JPEG_DXT5 or VTexFormat.JPEG_RGBA8888;
         public bool IsRawPng => Format is VTexFormat.PNG_DXT5 or VTexFormat.PNG_RGBA8888;
 
@@ -390,7 +402,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// <param name="face">The face to extract for cube textures.</param>
         /// <param name="mipLevel">The mip level to extract.</param>
         /// <returns>Skia bitmap.</returns>
-        public SKBitmap GenerateBitmap(uint depth = 0, CubemapFace face = 0, uint mipLevel = 0)
+        public SKBitmap GenerateBitmap(uint depth = 0, CubemapFace face = 0, uint mipLevel = 0, TextureCodec decodeFlags = TextureCodec.Auto)
         {
             ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(depth, Depth, nameof(depth));
             ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(mipLevel, NumMipLevels, nameof(mipLevel));
@@ -414,7 +426,6 @@ namespace ValveResourceFormat.ResourceTypes
 
             switch (Format)
             {
-                // TODO: Are we sure DXT5 and RGBA8888 are just raw buffers?
                 case VTexFormat.JPEG_DXT5:
                 case VTexFormat.JPEG_RGBA8888:
                     return SKBitmap.Decode(Reader.ReadBytes(CalculateJpegSize()));
@@ -424,127 +435,19 @@ namespace ValveResourceFormat.ResourceTypes
                     return SKBitmap.Decode(Reader.ReadBytes(CalculatePngSize()));
             }
 
-            var decodeFlags = RetrieveCodecFromResourceEditInfo();
+            decodeFlags = decodeFlags == TextureCodec.Auto
+                ? RetrieveCodecFromResourceEditInfo()
+                : decodeFlags;
 
-            if (HardwareAcceleratedTextureDecoder.Decoder != null)
+            var colorType = IsHighDynamicRange && !decodeFlags.HasFlag(TextureCodec.ForceLDR)
+                ? SKColorType.RgbaF32
+                : SKColorType.Bgra8888;
+
+            var skiaBitmap = new SKBitmap(width, height, colorType, SKAlphaType.Unpremul);
+
+            if (HardwareAcceleratedTextureDecoder.Decoder?.Decode(skiaBitmap, Resource, depth, face, mipLevel, decodeFlags) == true)
             {
-                var skiaBitmap2 = new SKBitmap(width, height, SKColorType.Bgra8888, SKAlphaType.Unpremul);
-
-                try
-                {
-                    if (HardwareAcceleratedTextureDecoder.Decoder.Decode(skiaBitmap2, Resource, depth, face, mipLevel, decodeFlags))
-                    {
-                        var bitmapToReturn = skiaBitmap2;
-                        skiaBitmap2 = null;
-                        return bitmapToReturn;
-                    }
-                }
-                finally
-                {
-                    skiaBitmap2?.Dispose();
-                }
-            }
-
-            var blockWidth = MipLevelSize(Width, mipLevel);
-            var blockHeight = MipLevelSize(Height, mipLevel);
-
-            var skiaBitmap = new SKBitmap(width, height, SKColorType.Bgra8888, SKAlphaType.Unpremul);
-            ITextureDecoder decoder = null;
-
-            switch (Format)
-            {
-                case VTexFormat.DXT1:
-                    decoder = new DecodeDXT1(blockWidth, blockHeight);
-                    break;
-
-                case VTexFormat.DXT5:
-                    decoder = new DecodeDXT5(blockWidth, blockHeight, decodeFlags);
-                    break;
-
-                case VTexFormat.I8:
-                    decoder = new DecodeI8();
-                    break;
-
-                case VTexFormat.RGBA8888:
-                    decoder = new DecodeRGBA8888();
-                    break;
-
-                case VTexFormat.R16:
-                    decoder = new DecodeR16();
-                    break;
-
-                case VTexFormat.RG1616:
-                    decoder = new DecodeRG1616();
-                    break;
-
-                case VTexFormat.RGBA16161616:
-                    decoder = new DecodeRGBA16161616();
-                    break;
-
-                case VTexFormat.R16F:
-                    decoder = new DecodeR16F();
-                    break;
-
-                case VTexFormat.RG1616F:
-                    decoder = new DecodeRG1616F();
-                    break;
-
-                case VTexFormat.RGBA16161616F:
-                    decoder = new DecodeRGBA16161616F();
-                    break;
-
-                case VTexFormat.R32F:
-                    decoder = new DecodeR32F();
-                    break;
-
-                case VTexFormat.RG3232F:
-                    decoder = new DecodeRG3232F();
-                    break;
-
-                case VTexFormat.RGB323232F:
-                    decoder = new DecodeRGB323232F();
-                    break;
-
-                case VTexFormat.RGBA32323232F:
-                    decoder = new DecodeRGBA32323232F();
-                    break;
-
-                case VTexFormat.BC6H:
-                    decoder = new DecodeBC6H(blockWidth, blockHeight);
-                    break;
-
-                case VTexFormat.BC7:
-                    decoder = new DecodeBC7(blockWidth, blockHeight, decodeFlags);
-                    break;
-
-                case VTexFormat.ATI2N:
-                    decoder = new DecodeATI2N(blockWidth, blockHeight, decodeFlags);
-                    break;
-
-                case VTexFormat.IA88:
-                    decoder = new DecodeIA88();
-                    break;
-
-                case VTexFormat.ATI1N:
-                    decoder = new DecodeATI1N(blockWidth, blockHeight);
-                    break;
-
-                case VTexFormat.ETC2:
-                    decoder = new DecodeETC2(blockWidth, blockHeight);
-                    break;
-
-                case VTexFormat.ETC2_EAC:
-                    decoder = new DecodeETC2EAC(blockWidth, blockHeight);
-                    break;
-
-                case VTexFormat.BGRA8888:
-                    decoder = new DecodeBGRA8888();
-                    break;
-            }
-
-            if (decoder == null)
-            {
-                throw new UnexpectedMagicException("Unhandled image type", (int)Format, nameof(Format));
+                return skiaBitmap;
             }
 
             var uncompressedSize = CalculateBufferSizeForMipLevel(mipLevel);
@@ -579,14 +482,51 @@ namespace ValveResourceFormat.ResourceTypes
                     span = span[faceOffset..(faceOffset + faceSize)];
                 }
 
+                var decoder = CreateDecoder(mipLevel, decodeFlags);
                 decoder.Decode(skiaBitmap, span);
+
+                var bitmapToReturn = skiaBitmap;
+                skiaBitmap = null;
+                return bitmapToReturn;
             }
             finally
             {
                 ArrayPool<byte>.Shared.Return(buf);
+                skiaBitmap?.Dispose();
             }
+        }
 
-            return skiaBitmap;
+        private ITextureDecoder CreateDecoder(uint mipLevel, TextureCodec decodeFlags)
+        {
+            var blockWidth = MipLevelSize(Width, mipLevel);
+            var blockHeight = MipLevelSize(Height, mipLevel);
+
+            return Format switch
+            {
+                VTexFormat.DXT1 => new DecodeDXT1(blockWidth, blockHeight),
+                VTexFormat.DXT5 => new DecodeDXT5(blockWidth, blockHeight, decodeFlags),
+                VTexFormat.I8 => new DecodeI8(),
+                VTexFormat.RGBA8888 => new DecodeRGBA8888(),
+                VTexFormat.R16 => new DecodeR16(),
+                VTexFormat.RG1616 => new DecodeRG1616(),
+                VTexFormat.RGBA16161616 => new DecodeRGBA16161616(),
+                VTexFormat.R16F => new DecodeR16F(),
+                VTexFormat.RG1616F => new DecodeRG1616F(),
+                VTexFormat.RGBA16161616F => new DecodeRGBA16161616F(),
+                VTexFormat.R32F => new DecodeR32F(),
+                VTexFormat.RG3232F => new DecodeRG3232F(),
+                VTexFormat.RGB323232F => new DecodeRGB323232F(),
+                VTexFormat.RGBA32323232F => new DecodeRGBA32323232F(),
+                VTexFormat.BC6H => new DecodeBC6H(blockWidth, blockHeight),
+                VTexFormat.BC7 => new DecodeBC7(blockWidth, blockHeight, decodeFlags),
+                VTexFormat.ATI2N => new DecodeATI2N(blockWidth, blockHeight, decodeFlags),
+                VTexFormat.IA88 => new DecodeIA88(),
+                VTexFormat.ETC2 => new DecodeETC2(blockWidth, blockHeight),
+                VTexFormat.ETC2_EAC => new DecodeETC2EAC(blockWidth, blockHeight),
+                VTexFormat.ATI1N => new DecodeATI1N(blockWidth, blockHeight),
+                VTexFormat.BGRA8888 => new DecodeBGRA8888(),
+                _ => throw new UnexpectedMagicException("Unhandled image type", (int)Format, nameof(Format))
+            };
         }
 
         public int CalculateTextureDataSize()

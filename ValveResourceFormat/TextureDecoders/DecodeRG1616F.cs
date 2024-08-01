@@ -1,27 +1,49 @@
+using System.Runtime.InteropServices;
 using SkiaSharp;
+using RG1616F = (System.Half R, System.Half G);
 
 namespace ValveResourceFormat.TextureDecoders
 {
     internal class DecodeRG1616F : ITextureDecoder
     {
-        public void Decode(SKBitmap res, Span<byte> input)
+        public void Decode(SKBitmap bitmap, Span<byte> input)
         {
-            using var pixels = res.PeekPixels();
-            var span = pixels.GetPixelSpan<SKColor>();
-            var offset = 0;
+            using var pixels = bitmap.PeekPixels();
+            var inputPixels = MemoryMarshal.Cast<byte, RG1616F>(input);
 
-            for (var i = 0; i < span.Length; i++)
+            if (bitmap.ColorType == SKColorType.RgbaF32)
             {
-                var r = (float)BitConverter.ToHalf(input.Slice(offset, 2));
-                offset += 2;
-                var g = (float)BitConverter.ToHalf(input.Slice(offset, 2));
-                offset += 2;
+                DecodeHdr(pixels, inputPixels);
+                return;
+            }
 
-                span[i] = new SKColor(
-                    (byte)(Common.ClampHighRangeColor(r) * 255),
-                    (byte)(Common.ClampHighRangeColor(g) * 255),
-                    0,
-                    255
+            DecodeLdr(pixels, inputPixels);
+        }
+
+        private static void DecodeHdr(SKPixmap pixels, Span<RG1616F> inputPixels)
+        {
+            var hdrColors = pixels.GetPixelSpan<SKColorF>();
+
+            for (var i = 0; i < hdrColors.Length; i++)
+            {
+                hdrColors[i] = new SKColorF(
+                    (float)inputPixels[i].R,
+                    (float)inputPixels[i].G,
+                    0f
+                );
+            }
+        }
+
+        private static void DecodeLdr(SKPixmap pixels, Span<RG1616F> inputPixels)
+        {
+            var ldrColors = pixels.GetPixelSpan<SKColor>();
+
+            for (var i = 0; i < ldrColors.Length; i++)
+            {
+                ldrColors[i] = new SKColor(
+                    Common.ToClampedLdrColor((float)inputPixels[i].R),
+                    Common.ToClampedLdrColor((float)inputPixels[i].G),
+                    0
                 );
             }
         }

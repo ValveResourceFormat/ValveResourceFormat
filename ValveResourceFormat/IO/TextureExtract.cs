@@ -1,11 +1,12 @@
 using System.Globalization;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Text;
 using SkiaSharp;
+using TinyEXR;
 using ValveResourceFormat.IO.ContentFormats.ValveTexture;
 using ValveResourceFormat.ResourceTypes;
 using ChannelMapping = ValveResourceFormat.CompiledShader.ChannelMapping;
-
 namespace ValveResourceFormat.IO;
 
 public class TextureContentFile : ContentFile
@@ -80,6 +81,8 @@ public sealed class TextureExtract
             return new ContentFile() { Data = rawImage };
         }
 
+        Func<SKBitmap, byte[]> ImageEncode = texture.IsHighDynamicRange ? ToExrImage : ToPngImage;
+
         //
         // Multiple images path
         //
@@ -103,8 +106,7 @@ public sealed class TextureExtract
 
                     contentFile.AddSubFile(outTextureName + extension, () =>
                     {
-                        // TODO: not png
-                        return EncodePng(texture.GenerateBitmap(depth: currentDepth));
+                        return ImageEncode(texture.GenerateBitmap(depth: currentDepth));
                     });
 
                     continue;
@@ -117,9 +119,8 @@ public sealed class TextureExtract
 
                     contentFile.AddSubFile($"{outTextureName}_{CubemapNames[face]}{extension}", () =>
                     {
-                        // TODO: not png
                         using var bitmap = texture.GenerateBitmap(depth: currentDepth, face: (Texture.CubemapFace)currentFace);
-                        return EncodePng(bitmap);
+                        return ImageEncode(bitmap);
                     });
                 }
             }
@@ -148,7 +149,7 @@ public sealed class TextureExtract
             return vtex;
         }
 
-        vtex.AddImageSubFile(Path.GetFileName(GetImageFileName()), ToPngImage);
+        vtex.AddImageSubFile(Path.GetFileName(GetImageFileName()), ImageEncode);
         return vtex;
     }
 
@@ -173,6 +174,11 @@ public sealed class TextureExtract
 
     public static string GetImageOutputExtension(Texture texture)
     {
+        if (texture.IsHighDynamicRange)
+        {
+            return "exr";
+        }
+
         if (texture.IsRawJpeg)
         {
             return "jpeg";
@@ -416,6 +422,25 @@ public sealed class TextureExtract
 
         using var png = pixels.Encode(options);
         return png.ToArray();
+    }
+
+    public static byte[] ToExrImage(SKBitmap bitmap)
+    {
+        using var pixels = bitmap.PeekPixels();
+        return ToExrImage(pixels);
+    }
+
+    public static byte[] ToExrImage(SKPixmap pixels)
+    {
+        var pixelSpan = pixels.GetPixelSpan<SKColorF>();
+        var floatSpan = MemoryMarshal.Cast<SKColorF, float>(pixelSpan);
+        var result = Exr.SaveEXRToMemory(floatSpan, pixels.Width, pixels.Height, components: 4, asFp16: false, out var exrData);
+        if (result != ResultCode.Success)
+        {
+            throw new InvalidOperationException($"Got result {result} while saving EXR image");
+        }
+
+        return exrData;
     }
 
     public bool TryGetMksData(out Dictionary<SKRectI, string> sprites, out string mks)

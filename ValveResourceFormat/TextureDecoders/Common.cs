@@ -53,6 +53,13 @@ namespace ValveResourceFormat.TextureDecoders
         /// Colors are in sRGB gamma space. Converts to linear space.
         /// </summary>
         ColorSpaceSrgb = 1 << 6,
+
+        /// <summary>
+        /// Force decode HDR content to LDR.
+        /// </summary>
+        ForceLDR = 1 << 7,
+
+        Auto = 1 << 30,
     }
 
     internal class Common
@@ -112,6 +119,11 @@ namespace ValveResourceFormat.TextureDecoders
             }
 
             return a < 0f ? 0f : a;
+        }
+
+        public static byte ToClampedLdrColor(float a)
+        {
+            return (byte)(ClampHighRangeColor(a) * 255 + 0.5f);
         }
     }
 }

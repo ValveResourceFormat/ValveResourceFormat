@@ -54,6 +54,7 @@ namespace GUI.Types.Renderer
         private bool WantsSeparateAlpha;
         private CubemapProjection CubemapProjectionType;
         private TextureCodec decodeFlags;
+        private const TextureCodec softwareDecodeOnlyOptions = TextureCodec.ForceLDR;
         private Framebuffer SaveAsFbo;
 
         private CheckedListBox decodeFlagsListBox;
@@ -350,8 +351,10 @@ namespace GUI.Types.Renderer
                 var value = (TextureCodec)values.GetValue(flag);
                 var name = Enum.GetName(value);
 
-                // check for combined flag, or flag 0 (none)
-                if (value == 0 || (value & (value - 1)) != 0)
+                var isCombinedFlag = (value & (value - 1)) != 0;
+                var skipFlags = TextureCodec.None | TextureCodec.Auto;
+
+                if (isCombinedFlag || skipFlags.HasFlag(value))
                 {
                     continue;
                 }
@@ -754,6 +757,7 @@ namespace GUI.Types.Renderer
 
             var textureData = (Texture)Resource.DataBlock;
             var isCpuDecodedFormat = textureData.IsRawJpeg || textureData.IsRawPng;
+            var swDecodeFlags = decodeFlags & softwareDecodeOnlyOptions;
 
             if (isCpuDecodedFormat || forceSoftwareDecode)
             {
@@ -765,7 +769,7 @@ namespace GUI.Types.Renderer
 
                 try
                 {
-                    bitmap = textureData.GenerateBitmap((uint)SelectedDepth, (CubemapFace)SelectedCubeFace, (uint)SelectedMip);
+                    bitmap = textureData.GenerateBitmap((uint)SelectedDepth, (CubemapFace)SelectedCubeFace, (uint)SelectedMip, swDecodeFlags);
                 }
                 finally
                 {
@@ -781,19 +785,21 @@ namespace GUI.Types.Renderer
             }
 
             texture = GuiContext.MaterialLoader.LoadTexture(Resource, isViewerRequest: true);
-            decodeFlags = textureData.RetrieveCodecFromResourceEditInfo();
+            decodeFlags = textureData.RetrieveCodecFromResourceEditInfo() | swDecodeFlags;
         }
 
         private void UploadBitmap(SKBitmap bitmap)
         {
             Debug.Assert(bitmap != null);
-            Debug.Assert(bitmap.ColorType == SKColorType.Bgra8888);
 
             texture = new RenderTexture(TextureTarget.Texture2D, bitmap.Width, bitmap.Height, 1, 1);
-            decodeFlags = TextureCodec.None;
+            decodeFlags &= softwareDecodeOnlyOptions;
 
-            GL.TextureStorage2D(texture.Handle, 1, SizedInternalFormat.Rgba8, texture.Width, texture.Height);
-            GL.TextureSubImage2D(texture.Handle, 0, 0, 0, texture.Width, texture.Height, PixelFormat.Bgra, PixelType.UnsignedByte, bitmap.GetPixels());
+            var isHdr = bitmap.ColorType == SKColorType.RgbaF32;
+            var store = GLTextureDecoder.GetImageExportFormat(isHdr);
+
+            GL.TextureStorage2D(texture.Handle, 1, store.SizedInternalFormat, texture.Width, texture.Height);
+            GL.TextureSubImage2D(texture.Handle, 0, 0, 0, texture.Width, texture.Height, store.PixelFormat, store.PixelType, bitmap.GetPixels());
         }
 
         private void GenerateNewSvgBitmap()

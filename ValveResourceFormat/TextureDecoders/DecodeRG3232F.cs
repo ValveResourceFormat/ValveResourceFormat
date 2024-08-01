@@ -1,28 +1,44 @@
+using System.Runtime.InteropServices;
 using SkiaSharp;
+using RG3232F = (float R, float G);
 
 namespace ValveResourceFormat.TextureDecoders
 {
     internal class DecodeRG3232F : ITextureDecoder
     {
-        public void Decode(SKBitmap res, Span<byte> input)
+        public void Decode(SKBitmap bitmap, Span<byte> input)
         {
-            using var pixels = res.PeekPixels();
-            var span = pixels.GetPixelSpan<SKColor>();
-            var offset = 0;
+            using var pixels = bitmap.PeekPixels();
+            var inputPixels = MemoryMarshal.Cast<byte, RG3232F>(input);
 
-            for (var i = 0; i < span.Length; i++)
+            if (bitmap.ColorType == SKColorType.RgbaF32)
             {
-                var r = BitConverter.ToSingle(input.Slice(offset, sizeof(float)));
-                offset += sizeof(float);
-                var g = BitConverter.ToSingle(input.Slice(offset, sizeof(float)));
-                offset += sizeof(float);
+                DecodeHdr(pixels, inputPixels);
+                return;
+            }
 
-                span[i] = new SKColor(
-                    (byte)(Common.ClampHighRangeColor(r) * 255),
-                    (byte)(Common.ClampHighRangeColor(g) * 255),
-                    0,
-                    255
-                );
+            DecodeLdr(pixels, inputPixels);
+        }
+
+        private static void DecodeHdr(SKPixmap pixels, Span<RG3232F> inputPixels)
+        {
+            var hdrColors = pixels.GetPixelSpan<SKColorF>();
+
+            for (var i = 0; i < hdrColors.Length; i++)
+            {
+                var color = inputPixels[i];
+                hdrColors[i] = new SKColorF(color.R, color.G, 0f);
+            }
+        }
+
+        private static void DecodeLdr(SKPixmap pixels, Span<RG3232F> inputPixels)
+        {
+            var ldrColors = pixels.GetPixelSpan<SKColor>();
+
+            for (var i = 0; i < ldrColors.Length; i++)
+            {
+                var color = inputPixels[i];
+                ldrColors[i] = new SKColor(Common.ToClampedLdrColor(color.R), Common.ToClampedLdrColor(color.G), 0);
             }
         }
     }
