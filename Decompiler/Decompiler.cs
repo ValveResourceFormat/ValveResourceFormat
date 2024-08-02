@@ -85,6 +85,7 @@ namespace Decompiler
         /// </summary>
         /// <param name="input">-i, Input file to be processed. With no additional arguments, a summary of the input(s) will be displayed.</param>
         /// <param name="output">-o, Output path to write to. If input is a folder (or a VPK), this should be a folder.</param>
+        /// <param name="decompile">-d, Decompile supported resource files.</param>
         /// <param name="recursive">If specified and given input is a folder, all sub directories will be scanned too.</param>
         /// <param name="recursive_vpk">If specified along with --recursive, will also recurse into VPK archives.</param>
         /// <param name="all">-a, Print the content of each resource block in the file.</param>
@@ -93,7 +94,6 @@ namespace Decompiler
         /// <param name="vpk_dir">Print a list of files in given VPK and information about them.</param>
         /// <param name="vpk_verify">Verify checksums and signatures.</param>
         /// <param name="vpk_cache">Use cached VPK manifest to keep track of updates. Only changed files will be written to disk.</param>
-        /// <param name="vpk_decompile">-d, Decompile supported resource files.</param>
         /// <param name="vpk_extensions">-e, File extension(s) filter, example: "vcss_c,vjs_c,vxml_c".</param>
         /// <param name="vpk_filepath">-f, File path filter, example: "panorama/,sounds/" or "scripts/items/items_game.txt".</param>
         /// <param name="vpk_list">-l, Lists all resources in given VPK. File extension and path filters apply.</param>
@@ -114,6 +114,7 @@ namespace Decompiler
         private int HandleArguments(
             string input,
             string output = default,
+            bool decompile = false,
             bool recursive = false,
             bool recursive_vpk = false,
             bool all = false,
@@ -122,7 +123,6 @@ namespace Decompiler
             bool vpk_dir = false,
             bool vpk_verify = false,
             bool vpk_cache = false,
-            bool vpk_decompile = false,
             string vpk_extensions = default,
             string vpk_filepath = default,
             bool vpk_list = false,
@@ -146,6 +146,7 @@ namespace Decompiler
         {
             InputFile = Path.GetFullPath(input);
             OutputFile = output;
+            Decompile = decompile;
             RecursiveSearch = recursive;
             RecursiveSearchArchives = recursive_vpk;
             PrintAllBlocks = all;
@@ -154,7 +155,6 @@ namespace Decompiler
             OutputVPKDir = vpk_dir;
             VerifyVPKChecksums = vpk_verify;
             CachedManifest = vpk_cache;
-            Decompile = vpk_decompile;
             FileFilter = vpk_filepath?.Split(',') ?? [];
             ListResources = vpk_list;
 
