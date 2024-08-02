@@ -61,10 +61,22 @@ public sealed class TextureExtract
     private readonly bool isCubeMap;
     private readonly bool isArray;
 
+    // Options
+    public TextureDecoders.TextureCodec DecodeFlags { get; set; } = TextureDecoders.TextureCodec.Auto;
+
+    /// <summary>
+    /// Should the vtex file be ignored. Defaults to true for files flagged as child resources.
+    /// </summary>
+    public bool IgnoreVtexFile { get; set; }
+
+    public bool ExportExr => texture.IsHighDynamicRange && !DecodeFlags.HasFlag(TextureDecoders.TextureCodec.ForceLDR);
+    public string ImageOutputExtension => ExportExr ? ".exr" : ".png";
+
     public TextureExtract(Resource resource)
     {
         texture = (Texture)resource.DataBlock;
         fileName = resource.FileName;
+        IgnoreVtexFile = FileExtract.IsChildResource(resource);
         isSpriteSheet = texture.ExtraData.ContainsKey(VTexExtraData.SHEET);
         isCubeMap = texture.Flags.HasFlag(VTexFlags.CUBE_TEXTURE);
         isArray = texture.Depth > 1;
@@ -73,7 +85,7 @@ public sealed class TextureExtract
     /// <summary>
     /// The vtex content file. Input image(s) come as subfiles.
     /// </summary>
-    public ContentFile ToContentFile(bool ignoreVtexFile = false)
+    public ContentFile ToContentFile()
     {
         var rawImage = texture.ReadRawImageData();
         if (rawImage != null)
@@ -81,7 +93,7 @@ public sealed class TextureExtract
             return new ContentFile() { Data = rawImage };
         }
 
-        Func<SKBitmap, byte[]> ImageEncode = texture.IsHighDynamicRange ? ToExrImage : ToPngImage;
+        Func<SKBitmap, byte[]> ImageEncode = ExportExr ? ToExrImage : ToPngImage;
 
         //
         // Multiple images path
@@ -89,7 +101,6 @@ public sealed class TextureExtract
         if (isArray || isCubeMap)
         {
             var contentFile = new ContentFile();
-            var extension = '.' + GetImageOutputExtension(texture);
 
             for (uint depth = 0; depth < texture.Depth; depth++)
             {
@@ -104,9 +115,9 @@ public sealed class TextureExtract
                 {
                     var currentDepth = depth;
 
-                    contentFile.AddSubFile(outTextureName + extension, () =>
+                    contentFile.AddSubFile(outTextureName + ImageOutputExtension, () =>
                     {
-                        return ImageEncode(texture.GenerateBitmap(depth: currentDepth));
+                        return ImageEncode(texture.GenerateBitmap(depth: currentDepth, decodeFlags: DecodeFlags));
                     });
 
                     continue;
@@ -117,9 +128,9 @@ public sealed class TextureExtract
                     var currentDepth = depth;
                     var currentFace = face;
 
-                    contentFile.AddSubFile($"{outTextureName}_{CubemapNames[face]}{extension}", () =>
+                    contentFile.AddSubFile($"{outTextureName}_{CubemapNames[face]}{ImageOutputExtension}", () =>
                     {
-                        using var bitmap = texture.GenerateBitmap(depth: currentDepth, face: (Texture.CubemapFace)currentFace);
+                        using var bitmap = texture.GenerateBitmap(depth: currentDepth, face: (Texture.CubemapFace)currentFace, decodeFlags: DecodeFlags);
                         return ImageEncode(bitmap);
                     });
                 }
@@ -128,11 +139,11 @@ public sealed class TextureExtract
             return contentFile;
         }
 
-        var bitmap = texture.GenerateBitmap();
+        var bitmap = texture.GenerateBitmap(decodeFlags: DecodeFlags);
 
         var vtex = new TextureContentFile()
         {
-            Data = ignoreVtexFile ? null : Encoding.UTF8.GetBytes(ToValveTexture()),
+            Data = IgnoreVtexFile ? null : Encoding.UTF8.GetBytes(ToValveTexture()),
             Bitmap = bitmap,
             FileName = fileName,
         };
@@ -155,7 +166,7 @@ public sealed class TextureExtract
 
     public TextureContentFile ToMaterialMaps(IEnumerable<MaterialExtract.UnpackInfo> mapsToUnpack)
     {
-        var bitmap = texture.GenerateBitmap();
+        var bitmap = texture.GenerateBitmap(decodeFlags: DecodeFlags);
         bitmap.SetImmutable();
 
         var vtex = new TextureContentFile()
@@ -174,7 +185,7 @@ public sealed class TextureExtract
 
     public static string GetImageOutputExtension(Texture texture)
     {
-        if (texture.IsHighDynamicRange)
+        if (texture.IsHighDynamicRange) // todo: also check DecodeFlags for ForceLDR
         {
             return "exr";
         }
@@ -188,7 +199,7 @@ public sealed class TextureExtract
     }
 
     private string GetImageFileName()
-        => Path.ChangeExtension(fileName, GetImageOutputExtension(texture));
+        => Path.ChangeExtension(fileName, ImageOutputExtension);
 
     private string GetMksFileName()
         => Path.ChangeExtension(fileName, "mks");

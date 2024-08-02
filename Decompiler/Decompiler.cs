@@ -16,6 +16,7 @@ using ValveResourceFormat.Blocks;
 using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.TextureDecoders;
 using ValveResourceFormat.ToolsAssetInfo;
 using ValveResourceFormat.Utils;
 
@@ -44,6 +45,7 @@ namespace Decompiler
         private bool VerifyVPKChecksums;
         private bool CachedManifest;
         private bool Decompile;
+        private TextureCodec TextureDecodeFlags;
         private string[] FileFilter;
         private bool ListResources;
         private string GltfExportFormat;
@@ -86,6 +88,7 @@ namespace Decompiler
         /// <param name="input">-i, Input file to be processed. With no additional arguments, a summary of the input(s) will be displayed.</param>
         /// <param name="output">-o, Output path to write to. If input is a folder (or a VPK), this should be a folder.</param>
         /// <param name="decompile">-d, Decompile supported resource files.</param>
+        /// <param name="texture_decode_flags">Decompile textures with the specified decode flags.</param>
         /// <param name="recursive">If specified and given input is a folder, all sub directories will be scanned too.</param>
         /// <param name="recursive_vpk">If specified along with --recursive, will also recurse into VPK archives.</param>
         /// <param name="all">-a, Print the content of each resource block in the file.</param>
@@ -115,6 +118,7 @@ namespace Decompiler
             string input,
             string output = default,
             bool decompile = false,
+            string texture_decode_flags = nameof(TextureCodec.Auto),
             bool recursive = false,
             bool recursive_vpk = false,
             bool all = false,
@@ -147,6 +151,7 @@ namespace Decompiler
             InputFile = Path.GetFullPath(input);
             OutputFile = output;
             Decompile = decompile;
+            TextureDecodeFlags = Enum.Parse<TextureCodec>(texture_decode_flags, true);
             RecursiveSearch = recursive;
             RecursiveSearchArchives = recursive_vpk;
             PrintAllBlocks = all;
@@ -519,7 +524,8 @@ namespace Decompiler
                 if (OutputFile != null)
                 {
                     using var fileLoader = new GameFileLoader(null, resource.FileName);
-                    using var contentFile = FileExtract.Extract(resource, fileLoader);
+
+                    using var contentFile = DecompileResource(resource, fileLoader);
 
                     path = Path.ChangeExtension(path, extension);
                     var outFilePath = GetOutputPath(path);
@@ -606,6 +612,18 @@ namespace Decompiler
                     Console.WriteLine(block.ToString());
                 }
             }
+        }
+
+        private ContentFile DecompileResource(Resource resource, IFileLoader fileLoader, IProgress<string> progressReporter = null)
+        {
+            return resource.ResourceType switch
+            {
+                ResourceType.Texture => new TextureExtract(resource)
+                {
+                    DecodeFlags = TextureDecodeFlags,
+                }.ToContentFile(),
+                _ => FileExtract.Extract(resource, fileLoader, progressReporter),
+            };
         }
 
         private void ParseVCS(string path, Stream stream, string originalPath)
@@ -1027,7 +1045,7 @@ namespace Decompiler
                         continue;
                     }
 
-                    using var contentFile = FileExtract.Extract(resource, fileLoader, progressReporter);
+                    using var contentFile = DecompileResource(resource, fileLoader, progressReporter);
 
                     if (OutputFile != null)
                     {

@@ -159,11 +159,8 @@ namespace ValveResourceFormat.IO
                     }
 
                 case ResourceType.Texture:
-                    {
-                        var textureExtract = new TextureExtract(resource);
-                        contentFile = textureExtract.ToContentFile(ignoreVtexFile: IsChildResource(resource));
-                        break;
-                    }
+                    contentFile = new TextureExtract(resource).ToContentFile();
+                    break;
 
                 case ResourceType.Particle:
                     contentFile.Data = Encoding.UTF8.GetBytes(((ParticleSystem)resource.DataBlock).ToString());
