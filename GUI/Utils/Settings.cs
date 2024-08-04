@@ -9,7 +9,7 @@ namespace GUI.Utils
 {
     static class Settings
     {
-        private const int SettingsFileCurrentVersion = 8;
+        private const int SettingsFileCurrentVersion = 9;
         private const int RecentFilesLimit = 20;
 
         [Flags]
@@ -19,14 +19,22 @@ namespace GUI.Utils
             AutoPlaySounds = 1 << 1,
         }
 
+        public class AppUpdateState
+        {
+            public bool CheckAutomatically { get; set; }
+            public bool UpdateAvailable { get; set; }
+            public string LastCheck { get; set; }
+            public string Version { get; set; }
+        }
+
         public class AppConfig
         {
-            public List<string> GameSearchPaths { get; set; } = [];
+            public List<string> GameSearchPaths { get; set; }
             public string OpenDirectory { get; set; } = string.Empty;
             public string SaveDirectory { get; set; } = string.Empty;
-            public List<string> BookmarkedFiles { get; set; } = [];
-            public List<string> RecentFiles { get; set; } = new(RecentFilesLimit);
-            public Dictionary<string, float[]> SavedCameras { get; set; } = [];
+            public List<string> BookmarkedFiles { get; set; }
+            public List<string> RecentFiles { get; set; }
+            public Dictionary<string, float[]> SavedCameras { get; set; }
             public int MaxTextureSize { get; set; }
             public int FieldOfView { get; set; }
             public int AntiAliasingSamples { get; set; }
@@ -34,13 +42,14 @@ namespace GUI.Utils
             public int WindowLeft { get; set; }
             public int WindowWidth { get; set; }
             public int WindowHeight { get; set; }
-            public int WindowState { get; set; } = (int)FormWindowState.Normal;
+            public int WindowState { get; set; }
             public float Volume { get; set; }
             public int Vsync { get; set; }
             public int DisplayFps { get; set; }
             public int QuickFilePreview { get; set; }
             public int OpenExplorerOnStart { get; set; }
             public int _VERSION_DO_NOT_MODIFY { get; set; }
+            public AppUpdateState Update { get; set; }
         }
 
         public static string SettingsFolder { get; private set; }
@@ -115,9 +124,11 @@ namespace GUI.Utils
                 }
             }
 
+            Config.GameSearchPaths ??= [];
             Config.SavedCameras ??= [];
             Config.BookmarkedFiles ??= [];
             Config.RecentFiles ??= new(RecentFilesLimit);
+            Config.Update ??= new();
 
             if (string.IsNullOrEmpty(Config.OpenDirectory) && RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
@@ -173,6 +184,14 @@ namespace GUI.Utils
             if (currentVersion > 0 && currentVersion != SettingsFileCurrentVersion)
             {
                 Log.Info(nameof(Settings), $"Settings version changed: {currentVersion} -> {SettingsFileCurrentVersion}");
+            }
+
+            // If the version changed, force an update check (if enabled)
+            if (Config.Update.Version != Application.ProductVersion)
+            {
+                Config.Update.Version = Application.ProductVersion;
+                Config.Update.UpdateAvailable = false;
+                Config.Update.LastCheck = string.Empty;
             }
 
             Config._VERSION_DO_NOT_MODIFY = SettingsFileCurrentVersion;

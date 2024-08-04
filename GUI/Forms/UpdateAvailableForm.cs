@@ -35,6 +35,8 @@ namespace GUI.Forms
             {
                 viewReleaseNotesButton.Text = $"View release notes for {UpdateChecker.ReleaseNotesVersion}";
             }
+
+            checkForUpdatesCheckbox.Checked = Settings.Config.Update.CheckAutomatically;
         }
 
         private void OnViewReleaseNotesButtonClick(object sender, EventArgs e)
@@ -51,6 +53,18 @@ namespace GUI.Forms
             {
                 CreateNoWindow = true,
             });
+        }
+
+        private void OnCheckForUpdatesCheckboxChanged(object sender, EventArgs e)
+        {
+            if (!IsHandleCreated)
+            {
+                return;
+            }
+
+            Settings.Config.Update.CheckAutomatically = checkForUpdatesCheckbox.Checked;
+            Settings.Config.Update.LastCheck = string.Empty;
+            Settings.Config.Update.UpdateAvailable = UpdateChecker.IsNewVersionAvailable && Settings.Config.Update.CheckAutomatically;
         }
     }
 }

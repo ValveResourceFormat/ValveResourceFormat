@@ -3,6 +3,7 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Drawing;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -872,20 +873,67 @@ namespace GUI
             Log.ClearConsole();
         }
 
-        private void CheckForUpdatesToolStripMenuItem_Click(object sender, EventArgs e)
+        private void MainForm_Shown(object sender, EventArgs e)
         {
-            Task.Run(CheckForUpdates);
+            if (!Settings.Config.Update.CheckAutomatically)
+            {
+                return;
+            }
 
+            if (Settings.Config.Update.UpdateAvailable)
+            {
+                checkForUpdatesToolStripMenuItem.Visible = false;
+                checkForUpdatesToolStripMenuItem.Enabled = false;
+                newVersionAvailableToolStripMenuItem.Text = "New update available";
+                newVersionAvailableToolStripMenuItem.Visible = true;
+                return;
+            }
+
+            var now = DateTime.UtcNow;
+
+            if (DateTime.TryParseExact(Settings.Config.Update.LastCheck, "s", CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var lastCheck))
+            {
+                var diff = now.Subtract(lastCheck);
+
+                // Perform auto update check once a day
+                if (diff.TotalDays < 1)
+                {
+                    return;
+                }
+            }
+
+            Settings.Config.Update.LastCheck = now.ToString("s");
+
+            CheckForUpdatesCore(false);
+        }
+
+        private void CheckForUpdatesToolStripMenuItem_Click(object sender, EventArgs e) => CheckForUpdatesCore(true);
+
+        private void CheckForUpdatesCore(bool showForm)
+        {
             checkForUpdatesToolStripMenuItem.Enabled = false;
+
+            Task.Run(() => CheckForUpdates(showForm));
         }
 
         private void NewVersionAvailableToolStripMenuItem_Click(object sender, EventArgs e)
         {
+            // This happens when the auto update checker displays the new update label, but there is no actual update data available
+            if (!UpdateChecker.IsNewVersionAvailable)
+            {
+                checkForUpdatesToolStripMenuItem.Visible = true;
+                newVersionAvailableToolStripMenuItem.Visible = false;
+
+                Task.Run(() => CheckForUpdates(true));
+
+                return;
+            }
+
             using var form = new UpdateAvailableForm();
             form.ShowDialog(this);
         }
 
-        private async Task CheckForUpdates()
+        private async Task CheckForUpdates(bool showForm)
         {
             await UpdateChecker.CheckForUpdates().ConfigureAwait(false);
 
@@ -900,10 +948,14 @@ namespace GUI
                 else
                 {
                     checkForUpdatesToolStripMenuItem.Text = "Up to date";
+                    checkForUpdatesToolStripMenuItem.Enabled = true;
                 }
 
-                using var form = new UpdateAvailableForm();
-                form.ShowDialog(this);
+                if (showForm)
+                {
+                    using var form = new UpdateAvailableForm();
+                    form.ShowDialog(this);
+                }
             });
         }
     }

@@ -125,32 +125,62 @@ namespace GUI.Forms
 
         private void OnMaxTextureSizeValueChanged(object sender, EventArgs e)
         {
+            if (!IsHandleCreated)
+            {
+                return;
+            }
+
             Settings.Config.MaxTextureSize = (int)maxTextureSizeInput.Value;
         }
 
         private void OnFovValueChanged(object sender, EventArgs e)
         {
+            if (!IsHandleCreated)
+            {
+                return;
+            }
+
             Settings.Config.FieldOfView = (int)fovInput.Value;
         }
 
         private void OnAntiAliasingValueChanged(object sender, EventArgs e)
         {
+            if (!IsHandleCreated)
+            {
+                return;
+            }
+
             var newValue = AntiAliasingSampleOptions[antiAliasingComboBox.SelectedIndex];
             Settings.Config.AntiAliasingSamples = newValue;
         }
 
         private void OnVsyncValueChanged(object sender, EventArgs e)
         {
+            if (!IsHandleCreated)
+            {
+                return;
+            }
+
             Settings.Config.Vsync = vsyncCheckBox.Checked ? 1 : 0;
         }
 
         private void OnDisplayFpsValueChanged(object sender, EventArgs e)
         {
+            if (!IsHandleCreated)
+            {
+                return;
+            }
+
             Settings.Config.DisplayFps = displayFpsCheckBox.Checked ? 1 : 0;
         }
 
         private void OnOpenExplorerOnStartValueChanged(object sender, EventArgs e)
         {
+            if (!IsHandleCreated)
+            {
+                return;
+            }
+
             Settings.Config.OpenExplorerOnStart = openExplorerOnStartCheckbox.Checked ? 1 : 0;
         }
 
@@ -159,6 +189,11 @@ namespace GUI.Forms
 
         private void SetQuickPreviewSetting()
         {
+            if (!IsHandleCreated)
+            {
+                return;
+            }
+
             Settings.QuickPreviewFlags value = 0;
 
             if (quickPreviewCheckbox.Checked)

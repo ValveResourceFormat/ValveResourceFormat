@@ -438,6 +438,7 @@ namespace GUI
             SizeGripStyle = SizeGripStyle.Show;
             Text = "Source 2 Viewer";
             Load += MainForm_Load;
+            Shown += MainForm_Shown;
             DragDrop += MainForm_DragDrop;
             DragEnter += MainForm_DragEnter;
             menuStrip.ResumeLayout(false);

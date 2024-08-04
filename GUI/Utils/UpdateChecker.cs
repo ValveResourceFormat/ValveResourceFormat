@@ -34,6 +34,8 @@ static partial class UpdateChecker
     {
     }
 
+
+    private static bool Checked;
     public static bool IsNewVersionAvailable { get; private set; }
     public static bool IsNewVersionStableBuild { get; private set; }
     public static string NewVersion { get; private set; }
@@ -42,6 +44,13 @@ static partial class UpdateChecker
 
     public static async Task CheckForUpdates()
     {
+        if (Checked)
+        {
+            return;
+        }
+
+        Checked = true;
+
         try
         {
             var version = Application.ProductVersion;
@@ -89,6 +98,11 @@ static partial class UpdateChecker
                 NewVersion = newBuild.ToString(CultureInfo.InvariantCulture);
             }
 #endif
+
+            if (Settings.Config.Update.CheckAutomatically)
+            {
+                Settings.Config.Update.UpdateAvailable = IsNewVersionAvailable;
+            }
         }
         catch (Exception e)
         {
