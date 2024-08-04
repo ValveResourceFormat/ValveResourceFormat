@@ -7,7 +7,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelFlex.FlexOps
         public override void Run(in FlexRuleContext context)
         {
             var tController = BitConverter.SingleToInt32Bits(context.Stack.Pop());
-            var valueController = (int)Math.Round(Data);
+            var valueController = (int)MathF.Round(Data);
 
             var tCurrent = context.ControllerValues[tController];
             var value = context.ControllerValues[valueController];

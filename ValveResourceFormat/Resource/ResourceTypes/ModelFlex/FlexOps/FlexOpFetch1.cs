@@ -7,7 +7,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelFlex.FlexOps
         {
             //This is the only flexop with a non-float data so far.
             //If there's more, it might make sense to change the type of Data from float to something else
-            ControllerId = (int)Math.Round(data);
+            ControllerId = (int)MathF.Round(data);
         }
 
         public override void Run(in FlexRuleContext context)

@@ -191,7 +191,7 @@ namespace GUI.Types.Renderer
         public float ModifySpeed(float subRange)
         {
             subRange = Math.Clamp(subRange, 0, 1.0f);
-            CurrentSpeedModifier = (int)Math.Round(subRange * (SpeedModifiers.Length - 1));
+            CurrentSpeedModifier = (int)MathF.Round(subRange * (SpeedModifiers.Length - 1));
             return SpeedModifiers[CurrentSpeedModifier];
         }
 

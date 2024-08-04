@@ -84,8 +84,8 @@ namespace ValveResourceFormat.ResourceTypes
                     var rect = morphRectData.Value as KVObject;
                     var xLeftDst = rect.GetInt32Property("m_nXLeftDst");
                     var yTopDst = rect.GetInt32Property("m_nYTopDst");
-                    var rectWidth = (int)Math.Round(rect.GetFloatProperty("m_flUWidthSrc") * texWidth, 0);
-                    var rectHeight = (int)Math.Round(rect.GetFloatProperty("m_flVHeightSrc") * texHeight, 0);
+                    var rectWidth = (int)MathF.Round(rect.GetFloatProperty("m_flUWidthSrc") * texWidth, 0);
+                    var rectHeight = (int)MathF.Round(rect.GetFloatProperty("m_flVHeightSrc") * texHeight, 0);
                     var bundleDatas = rect.GetSubCollection("m_bundleDatas");
 
                     foreach (var bundleData in bundleDatas)
@@ -100,8 +100,8 @@ namespace ValveResourceFormat.ResourceTypes
                         }
 
                         var bundle = bundleData.Value as KVObject;
-                        var rectU = (int)Math.Round(bundle.GetFloatProperty("m_flULeftSrc") * texWidth, 0);
-                        var rectV = (int)Math.Round(bundle.GetFloatProperty("m_flVTopSrc") * texHeight, 0);
+                        var rectU = (int)MathF.Round(bundle.GetFloatProperty("m_flULeftSrc") * texWidth, 0);
+                        var rectV = (int)MathF.Round(bundle.GetFloatProperty("m_flVTopSrc") * texHeight, 0);
                         var ranges = new Vector4(bundle.GetFloatArray("m_ranges"));
                         var offsets = new Vector4(bundle.GetFloatArray("m_offsets"));
 

@@ -26,7 +26,7 @@ class AttractToControlPoint : ParticleFunctionOperator
             var distance = diff.Length();
             var direction = Vector3.Normalize(diff);
 
-            var strength = distance == 0.0f ? 1f : ForceAmount.NextNumber() / Math.Pow(distance, Falloff);
+            var strength = distance == 0.0f ? 1f : ForceAmount.NextNumber() / MathF.Pow(distance, Falloff);
             var force = direction * (float)strength;
 
             particle.Velocity += force * ComponentScale * frameTime;

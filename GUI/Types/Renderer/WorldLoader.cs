@@ -745,9 +745,9 @@ namespace GUI.Types.Renderer
                     _ => Vector4.One,
                 };
 
-                tint.X = (float)Math.Pow(tint.X, 2.2);
-                tint.Y = (float)Math.Pow(tint.Y, 2.2);
-                tint.Z = (float)Math.Pow(tint.Z, 2.2);
+                tint.X = MathF.Pow(tint.X, 2.2f);
+                tint.Y = MathF.Pow(tint.Y, 2.2f);
+                tint.Z = MathF.Pow(tint.Z, 2.2f);
 
                 if (model == null)
                 {

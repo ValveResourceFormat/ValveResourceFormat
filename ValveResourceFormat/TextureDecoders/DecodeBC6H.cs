@@ -330,7 +330,7 @@ namespace ValveResourceFormat.TextureDecoders
                             {
                                 var factor = BPTCInterpolateFactor(cweight, endpoints[subset, e], endpoints[subset + 1, e]);
                                 //gamma correction and mul 4
-                                factor = (ushort)Math.Min(0xFFFF, Math.Pow(factor / (float)((1U << 16) - 1), 2.2f) * ((1U << 16) - 1) * 4);
+                                factor = (ushort)Math.Min(0xFFFF, MathF.Pow(factor / (float)((1U << 16) - 1), 2.2f) * ((1U << 16) - 1) * 4);
                                 data[pixelIndex + 2 - e] = (byte)(factor >> 8);
                             }
 

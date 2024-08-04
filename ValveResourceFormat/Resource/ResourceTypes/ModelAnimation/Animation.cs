@@ -186,7 +186,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
         private int GetMovementIndexForTime(float time)
         {
-            var frame = (int)Math.Floor(time * Fps);
+            var frame = (int)MathF.Floor(time * Fps);
             return GetMovementIndexForFrame(frame);
         }
 
