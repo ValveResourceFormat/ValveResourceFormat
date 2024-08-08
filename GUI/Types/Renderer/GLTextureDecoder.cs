@@ -203,7 +203,7 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
         }
 
         GL.Viewport(0, 0, inputTexture.Width, inputTexture.Height);
-        Framebuffer.Clear();
+        Framebuffer.BindAndClear();
         GL.DepthMask(false);
         GL.Disable(EnableCap.DepthTest);
 

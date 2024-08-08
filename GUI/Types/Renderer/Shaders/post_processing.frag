@@ -13,6 +13,7 @@
 //uniform vec3 g_vUnNormalizedBloomStrengths;
 
 uniform int g_nNumSamplesMSAA = 1;
+uniform bool g_bFlipY = false;
 
 uniform float g_flToneMapScalarLinear;
 uniform float g_flExposureBiasScaleFactor;
@@ -77,9 +78,12 @@ vec4 SampleColorBuffer(vec2 coords)
 
     vec4 vColorMSAA = vec4(0.0);
 
+    ivec2 pixelCoords = ivec2(coords.xy);
+    pixelCoords.y = g_bFlipY ? textureSize(g_tColorBuffer).y - pixelCoords.y - 1 : pixelCoords.y;
+
     for (int i = 0; i < NumSamples; i++)
     {
-        vec4 sampleColor = texelFetch(g_tColorBuffer, ivec2(coords.xy), i);
+        vec4 sampleColor = texelFetch(g_tColorBuffer, pixelCoords, i);
         sampleColor = clamp(sampleColor, vec4(0), vec4(65504));
 
         vColorMSAA += sampleColor.rgba * InvNumSamples;

@@ -84,9 +84,5 @@ void main() {
     vec3 horizonToSky = mix(groundToHorizon, skyColor, sky);
     vec3 skyToHighSky = mix(horizonToSky, SKY_C, highSky);
 
-    // add a minute amount of noise to hide color banding
-    float noise = gradientNoise(gl_FragCoord.xy);
-    vec3 color = skyToHighSky + noise - 0.5;
-
-    outputColor = vec4(SrgbGammaToLinear(color / 255f), 1.0);
+    outputColor = vec4(SrgbGammaToLinear(skyToHighSky / 255f), 1.0);
 }
