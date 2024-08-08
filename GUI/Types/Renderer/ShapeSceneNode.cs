@@ -260,8 +260,8 @@ namespace GUI.Types.Renderer
             renderShader.SetUniform1("bAnimated", 0.0f);
             renderShader.SetUniform1("sceneObjectId", Id);
 
-            renderShader.SetUniform1("g_bNormalShaded", Shaded ? 1u : 0u);
-            renderShader.SetUniform1("g_bTriplanarMapping", ToolTexture != null ? 1u : 0u);
+            renderShader.SetUniform1("g_bNormalShaded", Shaded);
+            renderShader.SetUniform1("g_bTriplanarMapping", ToolTexture != null);
 
             if (ToolTexture != null)
             {

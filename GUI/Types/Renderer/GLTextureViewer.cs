@@ -916,14 +916,14 @@ namespace GUI.Types.Renderer
 
             GL.UseProgram(shader.Program);
 
-            shader.SetUniform1("g_bTextureViewer", 1u);
+            shader.SetUniform1("g_bTextureViewer", true);
             shader.SetUniform2("g_vViewportSize", new Vector2(fbo.Width, fbo.Height));
 
             var (scale, position) = captureFullSizeImage
                 ? (1f, Vector2.Zero)
                 : GetCurrentPositionAndScale();
 
-            shader.SetUniform1("g_bCapturingScreenshot", captureFullSizeImage ? 1u : 0u);
+            shader.SetUniform1("g_bCapturingScreenshot", captureFullSizeImage);
             shader.SetUniform2("g_vViewportPosition", position);
             shader.SetUniform1("g_flScale", scale);
 
@@ -933,7 +933,7 @@ namespace GUI.Types.Renderer
             shader.SetUniform1("g_nSelectedDepth", SelectedDepth);
             shader.SetUniform1("g_nSelectedCubeFace", SelectedCubeFace);
             shader.SetUniform1("g_nSelectedChannels", SelectedChannels.PackedValue);
-            shader.SetUniform1("g_bWantsSeparateAlpha", WantsSeparateAlpha && CubemapProjectionType == CubemapProjection.None ? 1u : 0u);
+            shader.SetUniform1("g_bWantsSeparateAlpha", WantsSeparateAlpha && CubemapProjectionType == CubemapProjection.None);
             shader.SetUniform1("g_nCubemapProjectionType", (int)CubemapProjectionType);
             shader.SetUniform1("g_nDecodeFlags", (int)decodeFlags);
 
