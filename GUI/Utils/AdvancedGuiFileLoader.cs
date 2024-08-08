@@ -1,3 +1,4 @@
+using System.IO;
 using System.Linq;
 using SteamDatabase.ValvePak;
 using ValveResourceFormat;
@@ -75,7 +76,11 @@ namespace GUI.Utils
 
         public (VrfGuiContext Context, PackageEntry PackageEntry) FindFileWithContext(string file)
         {
-            var foundFile = FindFileWithContextRecursive(file);
+            var foundFile = Path.IsPathRooted(file) switch
+            {
+                true => File.Exists(file) ? (PathOnDisk: file, null, null, null) : default,
+                false => FindFileWithContextRecursive(file)
+            };
 
             if (foundFile.PackageEntry == null && foundFile.PathOnDisk == null)
             {
