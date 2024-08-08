@@ -457,7 +457,7 @@ namespace GUI.Types.Renderer
                     SaveAsFbo.Resize(bitmap.Width, bitmap.Height);
                 }
 
-                SaveAsFbo.Clear();
+                SaveAsFbo.BindAndClear(FramebufferTarget.DrawFramebuffer);
 
                 Draw(SaveAsFbo, captureFullSizeImage: true);
 
@@ -905,7 +905,7 @@ namespace GUI.Types.Renderer
             TextureScaleChangeTime += e.FrameTime;
 
             GL.Viewport(0, 0, GLControl.Width, GLControl.Height);
-            MainFramebuffer.Clear();
+            MainFramebuffer.BindAndClear();
             Draw(MainFramebuffer);
         }
 

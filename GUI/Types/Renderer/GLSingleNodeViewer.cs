@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Threading;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using SkiaSharp;
@@ -43,7 +44,6 @@ namespace GUI.Types.Renderer
 
         protected override void LoadScene()
         {
-            MainFramebuffer.ChangeFormat(new(PixelInternalFormat.Rgba8, PixelFormat.Rgba, PixelType.UnsignedInt), MainFramebuffer.DepthFormat);
         }
 
         private void LoadDefaultEnviromentMap()
@@ -116,9 +116,15 @@ namespace GUI.Types.Renderer
         {
             var (w, h) = (MainFramebuffer.Width, MainFramebuffer.Height);
 
+            MainFramebuffer.Bind(FramebufferTarget.Framebuffer);
+            GL.ClearColor(new OpenTK.Graphics.Color4(0, 0, 0, 0));
+            GL.Clear(MainFramebuffer.ClearMask);
+
+            DrawMainScene();
+
             if (SaveAsFbo == null)
             {
-                SaveAsFbo = Framebuffer.Prepare(w, h, 0, new(PixelInternalFormat.Rgba8, PixelFormat.Bgra, PixelType.UnsignedByte), MainFramebuffer.DepthFormat);
+                SaveAsFbo = Framebuffer.Prepare(w, h, 0, new(PixelInternalFormat.Rgba8, PixelFormat.Bgra, PixelType.UnsignedByte), null);
                 SaveAsFbo.ClearColor = new OpenTK.Graphics.Color4(0, 0, 0, 0);
                 SaveAsFbo.Initialize();
             }
@@ -127,12 +133,8 @@ namespace GUI.Types.Renderer
                 SaveAsFbo.Resize(w, h);
             }
 
-
-            MainFramebuffer.Bind(FramebufferTarget.Framebuffer);
-            GL.ClearColor(new OpenTK.Graphics.Color4(0, 0, 0, 0));
-            GL.Clear(MainFramebuffer.ClearMask);
-
-            DrawMainScene(SaveAsFbo);
+            SaveAsFbo.BindAndClear();
+            FramebufferBlit(MainFramebuffer, SaveAsFbo, flipY: true);
 
             GL.Flush();
             GL.Finish();

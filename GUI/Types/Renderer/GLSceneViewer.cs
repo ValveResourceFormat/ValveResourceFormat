@@ -374,7 +374,7 @@ namespace GUI.Types.Renderer
             }
         }
 
-        protected void DrawMainScene(Framebuffer finalFramebuffer)
+        protected void DrawMainScene()
         {
             var renderContext = new Scene.RenderContext
             {
@@ -391,9 +391,6 @@ namespace GUI.Types.Renderer
 
             Scene.RenderOpaqueLayer(renderContext);
             RenderTranslucentLayer(Scene, renderContext);
-
-            finalFramebuffer.Clear();
-            FramebufferBlit(MainFramebuffer, finalFramebuffer);
         }
 
         private void RenderSceneShadows(Scene.RenderContext renderContext)
@@ -418,7 +415,7 @@ namespace GUI.Types.Renderer
         private void RenderScenesWithView(Scene.RenderContext renderContext)
         {
             GL.Viewport(0, 0, renderContext.Framebuffer.Width, renderContext.Framebuffer.Height);
-            renderContext.Framebuffer.Clear();
+            renderContext.Framebuffer.BindAndClear();
 
             // TODO: check if renderpass allows wireframe mode
             // TODO+: replace wireframe shaders with solid color

@@ -558,14 +558,14 @@ namespace GUI.Controls
         /// <summary>
         /// Multisampling resolve, postprocess the image & convert to gamma.
         /// </summary>
-        protected void FramebufferBlit(Framebuffer inputFramebuffer, Framebuffer outputFramebuffer)
+        protected void FramebufferBlit(Framebuffer inputFramebuffer, Framebuffer outputFramebuffer, bool flipY = false)
         {
             using var _ = new GLDebugGroup("Post Processing");
 
             Debug.Assert(inputFramebuffer.NumSamples > 0);
             Debug.Assert(outputFramebuffer.NumSamples == 0);
 
-            postProcessRenderer.Render(colorBuffer: inputFramebuffer);
+            postProcessRenderer.Render(colorBuffer: inputFramebuffer, flipY);
         }
 
         protected virtual void OnResize(object sender, EventArgs e)

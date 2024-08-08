@@ -48,7 +48,7 @@ namespace GUI.Types.Renderer
         // In CS2 Blue Noise is done optionally in msaa_resolve
 
         // we should have a shared FullscreenQuadRenderer class
-        public void Render(Framebuffer colorBuffer)
+        public void Render(Framebuffer colorBuffer, bool flipY)
         {
             GL.DepthMask(false);
             GL.Disable(EnableCap.DepthTest);
@@ -61,6 +61,7 @@ namespace GUI.Types.Renderer
             shader.SetTexture(2, "g_tBlueNoise", BlueNoise);
 
             shader.SetUniform1("g_nNumSamplesMSAA", colorBuffer.NumSamples);
+            shader.SetUniform1("g_bFlipY", flipY);
 
             shader.SetUniform1("g_flToneMapScalarLinear", TonemapScalar);
             SetPostProcessUniforms(shader, State.TonemapSettings);
