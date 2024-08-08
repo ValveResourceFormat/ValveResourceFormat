@@ -92,6 +92,8 @@ namespace GUI.Types.Renderer
             }
         }
 
+        public void SetUniform1(string name, bool value) => SetUniform1(name, value ? 1u : 0u);
+
         public void SetUniform1(string name, uint value)
         {
             var uniformLocation = GetUniformLocation(name);
