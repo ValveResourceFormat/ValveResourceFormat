@@ -159,7 +159,7 @@ namespace GUI.Controls
             var bitmap = new SKBitmap(GLDefaultFramebuffer.Width, GLDefaultFramebuffer.Height, SKColorType.Bgra8888, SKAlphaType.Opaque);
             var pixels = bitmap.GetPixels(out var length);
 
-            BlitFramebufferMainToDefault();
+            BlitFramebufferToScreen();
 
             GLDefaultFramebuffer.Bind(FramebufferTarget.ReadFramebuffer);
             GL.ReadPixels(0, 0, GLDefaultFramebuffer.Width, GLDefaultFramebuffer.Height, PixelFormat.Bgra, PixelType.UnsignedByte, pixels);
@@ -364,7 +364,7 @@ namespace GUI.Controls
 #if DEBUG
             if (type == DebugType.DebugTypeError)
             {
-                Debugger.Break();
+                //Debugger.Break();
             }
 #endif
         }
@@ -527,7 +527,7 @@ namespace GUI.Controls
                 }
             }
 
-            BlitFramebufferMainToDefault();
+            BlitFramebufferToScreen();
 
             if (Settings.Config.DisplayFps != 0)
             {
@@ -542,7 +542,7 @@ namespace GUI.Controls
             GLControl.Invalidate();
         }
 
-        private void BlitFramebufferMainToDefault()
+        private void BlitFramebufferToScreen()
         {
             if (MainFramebuffer == GLDefaultFramebuffer)
             {
