@@ -30,7 +30,7 @@ namespace GUI.Forms
             }
 
             maxTextureSizeInput.Value = Settings.Config.MaxTextureSize;
-            fovInput.Value = Settings.Config.FieldOfView;
+            fovInput.Value = (decimal)Settings.Config.FieldOfView;
             vsyncCheckBox.Checked = Settings.Config.Vsync != 0;
             displayFpsCheckBox.Checked = Settings.Config.DisplayFps != 0;
             openExplorerOnStartCheckbox.Checked = Settings.Config.OpenExplorerOnStart != 0;
@@ -140,7 +140,13 @@ namespace GUI.Forms
                 return;
             }
 
-            Settings.Config.FieldOfView = (int)fovInput.Value;
+            Settings.Config.FieldOfView = (float)fovInput.Value;
+        }
+
+        private void OnSetFovTo4by3ButtonClick(object sender, EventArgs e)
+        {
+            Settings.Config.FieldOfView = 2f * MathF.Atan(3f / 4f) / MathF.PI * 180f;
+            fovInput.Value = (decimal)Settings.Config.FieldOfView;
         }
 
         private void OnAntiAliasingValueChanged(object sender, EventArgs e)

@@ -36,7 +36,7 @@ namespace GUI.Utils
             public List<string> RecentFiles { get; set; }
             public Dictionary<string, float[]> SavedCameras { get; set; }
             public int MaxTextureSize { get; set; }
-            public int FieldOfView { get; set; }
+            public float FieldOfView { get; set; }
             public int AntiAliasingSamples { get; set; }
             public int WindowTop { get; set; }
             public int WindowLeft { get; set; }

@@ -49,14 +49,16 @@ namespace GUI.Forms
             tableLayoutPanel2 = new System.Windows.Forms.TableLayoutPanel();
             groupBox3 = new System.Windows.Forms.GroupBox();
             tableLayoutPanel4 = new System.Windows.Forms.TableLayoutPanel();
+            openExplorerOnStartCheckbox = new System.Windows.Forms.CheckBox();
+            openExplorerOnStartLabel = new System.Windows.Forms.Label();
             groupBox4 = new System.Windows.Forms.GroupBox();
             tableLayoutPanel3 = new System.Windows.Forms.TableLayoutPanel();
             quickPreviewLabel = new System.Windows.Forms.Label();
             quickPreviewSoundsLabel = new System.Windows.Forms.Label();
             quickPreviewCheckbox = new System.Windows.Forms.CheckBox();
             quickPreviewSoundsCheckbox = new System.Windows.Forms.CheckBox();
-            openExplorerOnStartLabel = new System.Windows.Forms.Label();
-            openExplorerOnStartCheckbox = new System.Windows.Forms.CheckBox();
+            panel1 = new System.Windows.Forms.Panel();
+            setFovTo4by3Button = new System.Windows.Forms.Button();
             ((System.ComponentModel.ISupportInitialize)maxTextureSizeInput).BeginInit();
             ((System.ComponentModel.ISupportInitialize)fovInput).BeginInit();
             groupBox1.SuspendLayout();
@@ -67,6 +69,7 @@ namespace GUI.Forms
             tableLayoutPanel4.SuspendLayout();
             groupBox4.SuspendLayout();
             tableLayoutPanel3.SuspendLayout();
+            panel1.SuspendLayout();
             SuspendLayout();
             // 
             // gamePaths
@@ -142,8 +145,9 @@ namespace GUI.Forms
             // fovInput
             // 
             fovInput.Anchor = System.Windows.Forms.AnchorStyles.Left;
-            fovInput.Location = new System.Drawing.Point(213, 48);
-            fovInput.Maximum = new decimal(new int[] { 150, 0, 0, 0 });
+            fovInput.DecimalPlaces = 6;
+            fovInput.Location = new System.Drawing.Point(3, 10);
+            fovInput.Maximum = new decimal(new int[] { 120, 0, 0, 0 });
             fovInput.Minimum = new decimal(new int[] { 1, 0, 0, 0 });
             fovInput.Name = "fovInput";
             fovInput.Size = new System.Drawing.Size(100, 23);
@@ -295,7 +299,7 @@ namespace GUI.Forms
             tableLayoutPanel2.Controls.Add(antiAliasingLabel, 0, 2);
             tableLayoutPanel2.Controls.Add(vsyncLabel, 0, 3);
             tableLayoutPanel2.Controls.Add(antiAliasingComboBox, 1, 2);
-            tableLayoutPanel2.Controls.Add(fovInput, 1, 1);
+            tableLayoutPanel2.Controls.Add(panel1, 1, 1);
             tableLayoutPanel2.Dock = System.Windows.Forms.DockStyle.Fill;
             tableLayoutPanel2.Location = new System.Drawing.Point(16, 32);
             tableLayoutPanel2.Name = "tableLayoutPanel2";
@@ -339,6 +343,27 @@ namespace GUI.Forms
             tableLayoutPanel4.RowStyles.Add(new System.Windows.Forms.RowStyle());
             tableLayoutPanel4.Size = new System.Drawing.Size(420, 90);
             tableLayoutPanel4.TabIndex = 11;
+            // 
+            // openExplorerOnStartCheckbox
+            // 
+            openExplorerOnStartCheckbox.AutoSize = true;
+            openExplorerOnStartCheckbox.Dock = System.Windows.Forms.DockStyle.Fill;
+            openExplorerOnStartCheckbox.Location = new System.Drawing.Point(213, 3);
+            openExplorerOnStartCheckbox.Name = "openExplorerOnStartCheckbox";
+            openExplorerOnStartCheckbox.Size = new System.Drawing.Size(204, 34);
+            openExplorerOnStartCheckbox.TabIndex = 12;
+            openExplorerOnStartCheckbox.UseVisualStyleBackColor = true;
+            openExplorerOnStartCheckbox.CheckedChanged += OnOpenExplorerOnStartValueChanged;
+            // 
+            // openExplorerOnStartLabel
+            // 
+            openExplorerOnStartLabel.Anchor = System.Windows.Forms.AnchorStyles.Left;
+            openExplorerOnStartLabel.AutoSize = true;
+            openExplorerOnStartLabel.Location = new System.Drawing.Point(3, 12);
+            openExplorerOnStartLabel.Name = "openExplorerOnStartLabel";
+            openExplorerOnStartLabel.Size = new System.Drawing.Size(128, 15);
+            openExplorerOnStartLabel.TabIndex = 11;
+            openExplorerOnStartLabel.Text = "Open explorer on start:";
             // 
             // groupBox4
             // 
@@ -414,26 +439,27 @@ namespace GUI.Forms
             quickPreviewSoundsCheckbox.UseVisualStyleBackColor = true;
             quickPreviewSoundsCheckbox.CheckedChanged += OnQuickPreviewSoundsCheckboxChanged;
             // 
-            // openExplorerOnStartLabel
+            // panel1
             // 
-            openExplorerOnStartLabel.Anchor = System.Windows.Forms.AnchorStyles.Left;
-            openExplorerOnStartLabel.AutoSize = true;
-            openExplorerOnStartLabel.Location = new System.Drawing.Point(3, 12);
-            openExplorerOnStartLabel.Name = "openExplorerOnStartLabel";
-            openExplorerOnStartLabel.Size = new System.Drawing.Size(128, 15);
-            openExplorerOnStartLabel.TabIndex = 11;
-            openExplorerOnStartLabel.Text = "Open explorer on start:";
+            panel1.Controls.Add(setFovTo4by3Button);
+            panel1.Controls.Add(fovInput);
+            panel1.Dock = System.Windows.Forms.DockStyle.Fill;
+            panel1.Location = new System.Drawing.Point(210, 40);
+            panel1.Margin = new System.Windows.Forms.Padding(0);
+            panel1.Name = "panel1";
+            panel1.Size = new System.Drawing.Size(210, 40);
+            panel1.TabIndex = 10;
             // 
-            // openExplorerOnStartCheckbox
+            // setFovTo4by3Button
             // 
-            openExplorerOnStartCheckbox.AutoSize = true;
-            openExplorerOnStartCheckbox.Dock = System.Windows.Forms.DockStyle.Fill;
-            openExplorerOnStartCheckbox.Location = new System.Drawing.Point(213, 3);
-            openExplorerOnStartCheckbox.Name = "openExplorerOnStartCheckbox";
-            openExplorerOnStartCheckbox.Size = new System.Drawing.Size(204, 34);
-            openExplorerOnStartCheckbox.TabIndex = 12;
-            openExplorerOnStartCheckbox.UseVisualStyleBackColor = true;
-            openExplorerOnStartCheckbox.CheckedChanged += OnOpenExplorerOnStartValueChanged;
+            setFovTo4by3Button.Anchor = System.Windows.Forms.AnchorStyles.Left;
+            setFovTo4by3Button.Location = new System.Drawing.Point(109, 10);
+            setFovTo4by3Button.Name = "setFovTo4by3Button";
+            setFovTo4by3Button.Size = new System.Drawing.Size(39, 23);
+            setFovTo4by3Button.TabIndex = 7;
+            setFovTo4by3Button.Text = "4:3";
+            setFovTo4by3Button.UseVisualStyleBackColor = true;
+            setFovTo4by3Button.Click += OnSetFovTo4by3ButtonClick;
             // 
             // SettingsForm
             // 
@@ -467,6 +493,7 @@ namespace GUI.Forms
             groupBox4.ResumeLayout(false);
             tableLayoutPanel3.ResumeLayout(false);
             tableLayoutPanel3.PerformLayout();
+            panel1.ResumeLayout(false);
             ResumeLayout(false);
         }
 
@@ -501,5 +528,7 @@ namespace GUI.Forms
         private System.Windows.Forms.TableLayoutPanel tableLayoutPanel4;
         private System.Windows.Forms.CheckBox openExplorerOnStartCheckbox;
         private System.Windows.Forms.Label openExplorerOnStartLabel;
+        private System.Windows.Forms.Panel panel1;
+        private System.Windows.Forms.Button setFovTo4by3Button;
     }
 }
