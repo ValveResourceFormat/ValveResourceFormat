@@ -188,11 +188,19 @@ namespace GUI.Types.Renderer
 
             foreach (var node in selectedNodes)
             {
-                var name = node.DebugName;
+                string name;
 
                 if (node.EntityData != null)
                 {
                     name = node.EntityData.GetProperty<string>("classname");
+                }
+                else if (!string.IsNullOrEmpty(node.Name))
+                {
+                    name = node.Name;
+                }
+                else
+                {
+                    name = node.GetType().Name;
                 }
 
                 var position = node.BoundingBox.Center;
