@@ -38,7 +38,7 @@ layout (location = 0) out vec4 outputColor;
 
 vec3 TonemapColor(vec3 vColor)
 {
-    vColor *= (g_flToneMapScalarLinear * g_flExposureBiasScaleFactor) * 2.8;
+    vColor *= (g_flToneMapScalarLinear * g_flExposureBiasScaleFactor);
 
     // Uncharted tonemapper
     vec3 tonemapNumerator = vColor * (g_flShoulderStrength * vColor + g_flLinearStrength * g_flLinearAngle) + g_flToeNum * g_flToeStrength;
