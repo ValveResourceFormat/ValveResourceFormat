@@ -77,5 +77,5 @@ void main() {
     vec3 horizonToSky = mix(groundToHorizon, skyColor, sky);
     vec3 skyToHighSky = mix(horizonToSky, SKY_C, highSky);
 
-    outputColor = vec4(SrgbGammaToLinear(skyToHighSky / 255f), 1.0);
+    outputColor = vec4(SrgbGammaToLinear(skyToHighSky / 255.0), 1.0);
 }
