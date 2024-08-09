@@ -87,7 +87,7 @@ namespace Decompiler
         /// </summary>
         /// <param name="input">-i, Input file to be processed. With no additional arguments, a summary of the input(s) will be displayed.</param>
         /// <param name="output">-o, Output path to write to. If input is a folder (or a VPK), this should be a folder.</param>
-        /// <param name="decompile">-d|--decompile|--vpk_decompile, Decompile supported resource files.</param>
+        /// <param name="decompile">-d|--vpk_decompile, Decompile supported resource files.</param>
         /// <param name="texture_decode_flags">Decompile textures with the specified decode flags, example: "none", "auto", "foceldr".</param>
         /// <param name="recursive">If specified and given input is a folder, all sub directories will be scanned too.</param>
         /// <param name="recursive_vpk">If specified along with --recursive, will also recurse into VPK archives.</param>
