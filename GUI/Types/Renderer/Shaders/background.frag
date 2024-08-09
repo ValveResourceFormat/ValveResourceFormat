@@ -26,13 +26,6 @@ vec2 polarCoords(in vec3 xyz) {
     return vec2((theta + PIh) * 2.0, acos(xyz.z / rho));
 }
 
-// Gradient noise from Jorge Jimenez's presentation:
-// http://www.iryoku.com/next-generation-post-processing-in-call-of-duty-advanced-warfare
-float gradientNoise(in vec2 uv) {
-    const vec3 magic = vec3(0.06711056, 0.00583715, 52.9829189);
-    return fract(magic.z * fract(dot(uv, magic.xy)));
-}
-
 // goes from 0...1:
 // - is 1 when forward along x axes
 // - is 0 when forward along y axes
