@@ -30,6 +30,7 @@ namespace GUI.Forms
             }
 
             maxTextureSizeInput.Value = Settings.Config.MaxTextureSize;
+            shadowResolutionInput.Value = Settings.Config.ShadowResolution;
             fovInput.Value = (decimal)Settings.Config.FieldOfView;
             vsyncCheckBox.Checked = Settings.Config.Vsync != 0;
             displayFpsCheckBox.Checked = Settings.Config.DisplayFps != 0;

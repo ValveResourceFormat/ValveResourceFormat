@@ -269,11 +269,7 @@ namespace GUI.Types.Renderer
 
             Picker = new PickingTexture(Scene.GuiContext, OnPicked);
 
-            var shadowQuality = this switch
-            {
-                GLSingleNodeViewer => 1024,
-                _ => 2048,
-            };
+            var shadowQuality = Settings.Config.ShadowResolution;
 
             ShadowDepthBuffer = Framebuffer.Prepare(shadowQuality, shadowQuality, 0, null, Framebuffer.DepthAttachmentFormat.Depth32F);
             ShadowDepthBuffer.Initialize();

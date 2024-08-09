@@ -47,6 +47,10 @@ namespace GUI.Forms
             tableLayoutPanel1 = new System.Windows.Forms.TableLayoutPanel();
             groupBox2 = new System.Windows.Forms.GroupBox();
             tableLayoutPanel2 = new System.Windows.Forms.TableLayoutPanel();
+            fovPanel = new System.Windows.Forms.Panel();
+            setFovTo4by3Button = new System.Windows.Forms.Button();
+            shadowResolutionLabel = new System.Windows.Forms.Label();
+            shadowResolutionInput = new System.Windows.Forms.NumericUpDown();
             groupBox3 = new System.Windows.Forms.GroupBox();
             tableLayoutPanel4 = new System.Windows.Forms.TableLayoutPanel();
             openExplorerOnStartCheckbox = new System.Windows.Forms.CheckBox();
@@ -57,19 +61,18 @@ namespace GUI.Forms
             quickPreviewSoundsLabel = new System.Windows.Forms.Label();
             quickPreviewCheckbox = new System.Windows.Forms.CheckBox();
             quickPreviewSoundsCheckbox = new System.Windows.Forms.CheckBox();
-            panel1 = new System.Windows.Forms.Panel();
-            setFovTo4by3Button = new System.Windows.Forms.Button();
             ((System.ComponentModel.ISupportInitialize)maxTextureSizeInput).BeginInit();
             ((System.ComponentModel.ISupportInitialize)fovInput).BeginInit();
             groupBox1.SuspendLayout();
             tableLayoutPanel1.SuspendLayout();
             groupBox2.SuspendLayout();
             tableLayoutPanel2.SuspendLayout();
+            fovPanel.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)shadowResolutionInput).BeginInit();
             groupBox3.SuspendLayout();
             tableLayoutPanel4.SuspendLayout();
             groupBox4.SuspendLayout();
             tableLayoutPanel3.SuspendLayout();
-            panel1.SuspendLayout();
             SuspendLayout();
             // 
             // gamePaths
@@ -123,7 +126,7 @@ namespace GUI.Forms
             // 
             maxTextureSizeLabel.Anchor = System.Windows.Forms.AnchorStyles.Left;
             maxTextureSizeLabel.AutoSize = true;
-            maxTextureSizeLabel.Location = new System.Drawing.Point(3, 12);
+            maxTextureSizeLabel.Location = new System.Drawing.Point(3, 92);
             maxTextureSizeLabel.Name = "maxTextureSizeLabel";
             maxTextureSizeLabel.Size = new System.Drawing.Size(95, 15);
             maxTextureSizeLabel.TabIndex = 0;
@@ -133,7 +136,7 @@ namespace GUI.Forms
             // 
             maxTextureSizeInput.Anchor = System.Windows.Forms.AnchorStyles.Left;
             maxTextureSizeInput.Increment = new decimal(new int[] { 64, 0, 0, 0 });
-            maxTextureSizeInput.Location = new System.Drawing.Point(213, 8);
+            maxTextureSizeInput.Location = new System.Drawing.Point(213, 88);
             maxTextureSizeInput.Maximum = new decimal(new int[] { 10240, 0, 0, 0 });
             maxTextureSizeInput.Minimum = new decimal(new int[] { 1, 0, 0, 0 });
             maxTextureSizeInput.Name = "maxTextureSizeInput";
@@ -159,7 +162,7 @@ namespace GUI.Forms
             // 
             fovLabel.Anchor = System.Windows.Forms.AnchorStyles.Left;
             fovLabel.AutoSize = true;
-            fovLabel.Location = new System.Drawing.Point(3, 52);
+            fovLabel.Location = new System.Drawing.Point(3, 12);
             fovLabel.Name = "fovLabel";
             fovLabel.Size = new System.Drawing.Size(73, 15);
             fovLabel.TabIndex = 4;
@@ -169,7 +172,7 @@ namespace GUI.Forms
             // 
             antiAliasingLabel.Anchor = System.Windows.Forms.AnchorStyles.Left;
             antiAliasingLabel.AutoSize = true;
-            antiAliasingLabel.Location = new System.Drawing.Point(3, 92);
+            antiAliasingLabel.Location = new System.Drawing.Point(3, 52);
             antiAliasingLabel.Name = "antiAliasingLabel";
             antiAliasingLabel.Size = new System.Drawing.Size(77, 15);
             antiAliasingLabel.TabIndex = 6;
@@ -180,7 +183,7 @@ namespace GUI.Forms
             antiAliasingComboBox.Anchor = System.Windows.Forms.AnchorStyles.Left;
             antiAliasingComboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             antiAliasingComboBox.FormattingEnabled = true;
-            antiAliasingComboBox.Location = new System.Drawing.Point(213, 88);
+            antiAliasingComboBox.Location = new System.Drawing.Point(213, 48);
             antiAliasingComboBox.Name = "antiAliasingComboBox";
             antiAliasingComboBox.Size = new System.Drawing.Size(100, 23);
             antiAliasingComboBox.TabIndex = 7;
@@ -202,7 +205,7 @@ namespace GUI.Forms
             // 
             vsyncLabel.Anchor = System.Windows.Forms.AnchorStyles.Left;
             vsyncLabel.AutoSize = true;
-            vsyncLabel.Location = new System.Drawing.Point(3, 132);
+            vsyncLabel.Location = new System.Drawing.Point(3, 172);
             vsyncLabel.Name = "vsyncLabel";
             vsyncLabel.Size = new System.Drawing.Size(76, 15);
             vsyncLabel.TabIndex = 7;
@@ -212,7 +215,7 @@ namespace GUI.Forms
             // 
             vsyncCheckBox.AutoSize = true;
             vsyncCheckBox.Dock = System.Windows.Forms.DockStyle.Fill;
-            vsyncCheckBox.Location = new System.Drawing.Point(213, 123);
+            vsyncCheckBox.Location = new System.Drawing.Point(213, 163);
             vsyncCheckBox.Name = "vsyncCheckBox";
             vsyncCheckBox.Size = new System.Drawing.Size(204, 34);
             vsyncCheckBox.TabIndex = 8;
@@ -223,7 +226,7 @@ namespace GUI.Forms
             // 
             displayFpsCheckBox.AutoSize = true;
             displayFpsCheckBox.Dock = System.Windows.Forms.DockStyle.Fill;
-            displayFpsCheckBox.Location = new System.Drawing.Point(213, 163);
+            displayFpsCheckBox.Location = new System.Drawing.Point(213, 203);
             displayFpsCheckBox.Name = "displayFpsCheckBox";
             displayFpsCheckBox.Size = new System.Drawing.Size(204, 34);
             displayFpsCheckBox.TabIndex = 9;
@@ -234,7 +237,7 @@ namespace GUI.Forms
             // 
             displayFpsLabel.Anchor = System.Windows.Forms.AnchorStyles.Left;
             displayFpsLabel.AutoSize = true;
-            displayFpsLabel.Location = new System.Drawing.Point(3, 172);
+            displayFpsLabel.Location = new System.Drawing.Point(3, 212);
             displayFpsLabel.Name = "displayFpsLabel";
             displayFpsLabel.Size = new System.Drawing.Size(70, 15);
             displayFpsLabel.TabIndex = 3;
@@ -280,7 +283,7 @@ namespace GUI.Forms
             groupBox2.Margin = new System.Windows.Forms.Padding(3, 16, 3, 3);
             groupBox2.Name = "groupBox2";
             groupBox2.Padding = new System.Windows.Forms.Padding(16);
-            groupBox2.Size = new System.Drawing.Size(452, 252);
+            groupBox2.Size = new System.Drawing.Size(452, 293);
             groupBox2.TabIndex = 2;
             groupBox2.TabStop = false;
             groupBox2.Text = "Video settings";
@@ -290,34 +293,81 @@ namespace GUI.Forms
             tableLayoutPanel2.ColumnCount = 2;
             tableLayoutPanel2.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 50F));
             tableLayoutPanel2.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 50F));
-            tableLayoutPanel2.Controls.Add(maxTextureSizeLabel, 0, 0);
-            tableLayoutPanel2.Controls.Add(displayFpsCheckBox, 1, 4);
-            tableLayoutPanel2.Controls.Add(maxTextureSizeInput, 1, 0);
-            tableLayoutPanel2.Controls.Add(displayFpsLabel, 0, 4);
-            tableLayoutPanel2.Controls.Add(fovLabel, 0, 1);
-            tableLayoutPanel2.Controls.Add(vsyncCheckBox, 1, 3);
-            tableLayoutPanel2.Controls.Add(antiAliasingLabel, 0, 2);
-            tableLayoutPanel2.Controls.Add(vsyncLabel, 0, 3);
-            tableLayoutPanel2.Controls.Add(antiAliasingComboBox, 1, 2);
-            tableLayoutPanel2.Controls.Add(panel1, 1, 1);
+            tableLayoutPanel2.Controls.Add(displayFpsLabel, 0, 5);
+            tableLayoutPanel2.Controls.Add(vsyncLabel, 0, 4);
+            tableLayoutPanel2.Controls.Add(displayFpsCheckBox, 1, 5);
+            tableLayoutPanel2.Controls.Add(vsyncCheckBox, 1, 4);
+            tableLayoutPanel2.Controls.Add(shadowResolutionLabel, 0, 3);
+            tableLayoutPanel2.Controls.Add(shadowResolutionInput, 1, 3);
+            tableLayoutPanel2.Controls.Add(fovLabel, 0, 0);
+            tableLayoutPanel2.Controls.Add(maxTextureSizeLabel, 0, 2);
+            tableLayoutPanel2.Controls.Add(antiAliasingLabel, 0, 1);
+            tableLayoutPanel2.Controls.Add(fovPanel, 1, 0);
+            tableLayoutPanel2.Controls.Add(maxTextureSizeInput, 1, 2);
+            tableLayoutPanel2.Controls.Add(antiAliasingComboBox, 1, 1);
             tableLayoutPanel2.Dock = System.Windows.Forms.DockStyle.Fill;
             tableLayoutPanel2.Location = new System.Drawing.Point(16, 32);
             tableLayoutPanel2.Name = "tableLayoutPanel2";
-            tableLayoutPanel2.RowCount = 6;
+            tableLayoutPanel2.RowCount = 7;
+            tableLayoutPanel2.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 40F));
             tableLayoutPanel2.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 40F));
             tableLayoutPanel2.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 40F));
             tableLayoutPanel2.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 40F));
             tableLayoutPanel2.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 40F));
             tableLayoutPanel2.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 40F));
             tableLayoutPanel2.RowStyles.Add(new System.Windows.Forms.RowStyle());
-            tableLayoutPanel2.Size = new System.Drawing.Size(420, 204);
+            tableLayoutPanel2.Size = new System.Drawing.Size(420, 245);
             tableLayoutPanel2.TabIndex = 0;
+            // 
+            // fovPanel
+            // 
+            fovPanel.Controls.Add(setFovTo4by3Button);
+            fovPanel.Controls.Add(fovInput);
+            fovPanel.Dock = System.Windows.Forms.DockStyle.Fill;
+            fovPanel.Location = new System.Drawing.Point(210, 0);
+            fovPanel.Margin = new System.Windows.Forms.Padding(0);
+            fovPanel.Name = "fovPanel";
+            fovPanel.Size = new System.Drawing.Size(210, 40);
+            fovPanel.TabIndex = 10;
+            // 
+            // setFovTo4by3Button
+            // 
+            setFovTo4by3Button.Anchor = System.Windows.Forms.AnchorStyles.Left;
+            setFovTo4by3Button.Location = new System.Drawing.Point(109, 10);
+            setFovTo4by3Button.Name = "setFovTo4by3Button";
+            setFovTo4by3Button.Size = new System.Drawing.Size(39, 23);
+            setFovTo4by3Button.TabIndex = 7;
+            setFovTo4by3Button.Text = "4:3";
+            setFovTo4by3Button.UseVisualStyleBackColor = true;
+            setFovTo4by3Button.Click += OnSetFovTo4by3ButtonClick;
+            // 
+            // shadowResolutionLabel
+            // 
+            shadowResolutionLabel.Anchor = System.Windows.Forms.AnchorStyles.Left;
+            shadowResolutionLabel.AutoSize = true;
+            shadowResolutionLabel.Location = new System.Drawing.Point(3, 132);
+            shadowResolutionLabel.Name = "shadowResolutionLabel";
+            shadowResolutionLabel.Size = new System.Drawing.Size(108, 15);
+            shadowResolutionLabel.TabIndex = 11;
+            shadowResolutionLabel.Text = "Shadow resolution:";
+            // 
+            // shadowResolutionInput
+            // 
+            shadowResolutionInput.Anchor = System.Windows.Forms.AnchorStyles.Left;
+            shadowResolutionInput.Increment = new decimal(new int[] { 64, 0, 0, 0 });
+            shadowResolutionInput.Location = new System.Drawing.Point(213, 128);
+            shadowResolutionInput.Maximum = new decimal(new int[] { 4096, 0, 0, 0 });
+            shadowResolutionInput.Minimum = new decimal(new int[] { 1, 0, 0, 0 });
+            shadowResolutionInput.Name = "shadowResolutionInput";
+            shadowResolutionInput.Size = new System.Drawing.Size(100, 23);
+            shadowResolutionInput.TabIndex = 12;
+            shadowResolutionInput.Value = new decimal(new int[] { 1, 0, 0, 0 });
             // 
             // groupBox3
             // 
             groupBox3.Controls.Add(tableLayoutPanel4);
             groupBox3.Dock = System.Windows.Forms.DockStyle.Top;
-            groupBox3.Location = new System.Drawing.Point(16, 599);
+            groupBox3.Location = new System.Drawing.Point(16, 640);
             groupBox3.Margin = new System.Windows.Forms.Padding(0);
             groupBox3.Name = "groupBox3";
             groupBox3.Padding = new System.Windows.Forms.Padding(16);
@@ -369,7 +419,7 @@ namespace GUI.Forms
             // 
             groupBox4.Controls.Add(tableLayoutPanel3);
             groupBox4.Dock = System.Windows.Forms.DockStyle.Top;
-            groupBox4.Location = new System.Drawing.Point(16, 461);
+            groupBox4.Location = new System.Drawing.Point(16, 502);
             groupBox4.Name = "groupBox4";
             groupBox4.Padding = new System.Windows.Forms.Padding(16);
             groupBox4.Size = new System.Drawing.Size(452, 138);
@@ -439,34 +489,12 @@ namespace GUI.Forms
             quickPreviewSoundsCheckbox.UseVisualStyleBackColor = true;
             quickPreviewSoundsCheckbox.CheckedChanged += OnQuickPreviewSoundsCheckboxChanged;
             // 
-            // panel1
-            // 
-            panel1.Controls.Add(setFovTo4by3Button);
-            panel1.Controls.Add(fovInput);
-            panel1.Dock = System.Windows.Forms.DockStyle.Fill;
-            panel1.Location = new System.Drawing.Point(210, 40);
-            panel1.Margin = new System.Windows.Forms.Padding(0);
-            panel1.Name = "panel1";
-            panel1.Size = new System.Drawing.Size(210, 40);
-            panel1.TabIndex = 10;
-            // 
-            // setFovTo4by3Button
-            // 
-            setFovTo4by3Button.Anchor = System.Windows.Forms.AnchorStyles.Left;
-            setFovTo4by3Button.Location = new System.Drawing.Point(109, 10);
-            setFovTo4by3Button.Name = "setFovTo4by3Button";
-            setFovTo4by3Button.Size = new System.Drawing.Size(39, 23);
-            setFovTo4by3Button.TabIndex = 7;
-            setFovTo4by3Button.Text = "4:3";
-            setFovTo4by3Button.UseVisualStyleBackColor = true;
-            setFovTo4by3Button.Click += OnSetFovTo4by3ButtonClick;
-            // 
             // SettingsForm
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             AutoScroll = true;
-            ClientSize = new System.Drawing.Size(484, 751);
+            ClientSize = new System.Drawing.Size(484, 831);
             Controls.Add(groupBox3);
             Controls.Add(groupBox4);
             Controls.Add(groupBox2);
@@ -487,13 +515,14 @@ namespace GUI.Forms
             groupBox2.ResumeLayout(false);
             tableLayoutPanel2.ResumeLayout(false);
             tableLayoutPanel2.PerformLayout();
+            fovPanel.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)shadowResolutionInput).EndInit();
             groupBox3.ResumeLayout(false);
             tableLayoutPanel4.ResumeLayout(false);
             tableLayoutPanel4.PerformLayout();
             groupBox4.ResumeLayout(false);
             tableLayoutPanel3.ResumeLayout(false);
             tableLayoutPanel3.PerformLayout();
-            panel1.ResumeLayout(false);
             ResumeLayout(false);
         }
 
@@ -528,7 +557,9 @@ namespace GUI.Forms
         private System.Windows.Forms.TableLayoutPanel tableLayoutPanel4;
         private System.Windows.Forms.CheckBox openExplorerOnStartCheckbox;
         private System.Windows.Forms.Label openExplorerOnStartLabel;
-        private System.Windows.Forms.Panel panel1;
+        private System.Windows.Forms.Panel fovPanel;
         private System.Windows.Forms.Button setFovTo4by3Button;
+        private System.Windows.Forms.Label shadowResolutionLabel;
+        private System.Windows.Forms.NumericUpDown shadowResolutionInput;
     }
 }

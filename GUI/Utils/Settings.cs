@@ -36,6 +36,7 @@ namespace GUI.Utils
             public List<string> RecentFiles { get; set; }
             public Dictionary<string, float[]> SavedCameras { get; set; }
             public int MaxTextureSize { get; set; }
+            public int ShadowResolution { get; set; }
             public float FieldOfView { get; set; }
             public int AntiAliasingSamples { get; set; }
             public int WindowTop { get; set; }
@@ -142,6 +143,15 @@ namespace GUI.Utils
             else if (Config.MaxTextureSize > 10240)
             {
                 Config.MaxTextureSize = 10240;
+            }
+
+            if (Config.ShadowResolution <= 0)
+            {
+                Config.ShadowResolution = 2048;
+            }
+            else if (Config.ShadowResolution > 4096)
+            {
+                Config.ShadowResolution = 4096;
             }
 
             if (Config.FieldOfView <= 0)
