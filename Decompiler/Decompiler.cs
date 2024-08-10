@@ -406,7 +406,11 @@ namespace Decompiler
             {
                 CurrentFile++;
 
-                if (CollectStats && RecursiveSearch)
+                if (ListResources)
+                {
+                    // do not print a header
+                }
+                else if (CollectStats && RecursiveSearch)
                 {
                     if (CurrentFile % 1000 == 0)
                     {
@@ -754,11 +758,6 @@ namespace Decompiler
 
             if (OutputFile == null)
             {
-                if (!CollectStats)
-                {
-                    Console.WriteLine("--- Files in package:");
-                }
-
                 var orderedEntries = package.Entries.OrderByDescending(x => x.Value.Count).ThenBy(x => x.Key).ToList();
 
                 if (ExtFilterList != null)
@@ -780,12 +779,20 @@ namespace Decompiler
 
                 if (ListResources)
                 {
-                    var listEntries = orderedEntries.SelectMany(x => x.Value);
-                    foreach (var (_, filePath) in FilteredEntries(listEntries))
+                    var listEntries = orderedEntries.SelectMany(x => x.Value).ToList();
+                    listEntries.Sort((a, b) => string.CompareOrdinal(a.GetFullPath(), b.GetFullPath()));
+
+                    foreach (var (entry, _) in FilteredEntries(listEntries))
                     {
-                        Console.WriteLine("\t{0}", filePath);
+                        Console.WriteLine($"{entry.GetFullPath()} CRC:{entry.CRC32:x10} size:{entry.TotalLength}");
                     }
+
                     return;
+                }
+
+                if (!CollectStats)
+                {
+                    Console.WriteLine("--- Files in package:");
                 }
 
                 var processVpkFiles = CollectStats || ShouldPrintBlockContents;
