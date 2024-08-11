@@ -327,16 +327,15 @@ namespace ValveResourceFormat.ResourceTypes
         {
             Reader.BaseStream.Position = Offset + Size;
 
-            var stream = new MemoryStream();
+            var headerLength = SoundType == AudioFileType.WAV ? 44 : 0;
+            var totalSize = headerLength + (int)StreamingDataSize;
+
+            var stream = new MemoryStream(capacity: totalSize);
 
             if (SoundType == AudioFileType.WAV)
             {
                 // http://soundfile.sapp.org/doc/WaveFormat/
                 // http://www.codeproject.com/Articles/129173/Writing-a-Proper-Wave-File
-                var headerRiff = "RIFF"u8.ToArray();
-                var formatWave = "WAVE"u8.ToArray();
-                var formatTag = "fmt "u8.ToArray();
-                var subChunkId = "data"u8.ToArray();
 
                 var byteRate = SampleRate * Channels * (Bits / 8);
                 var blockAlign = Channels * (Bits / 8);
@@ -347,22 +346,22 @@ namespace ValveResourceFormat.ResourceTypes
                     blockAlign = 4;
                 }
 
-                stream.Write(headerRiff, 0, headerRiff.Length);
-                stream.Write(PackageInt(StreamingDataSize + 42, 4), 0, 4);
+                stream.Write("RIFF"u8);
+                stream.Write(BitConverter.GetBytes(StreamingDataSize + 42));
 
-                stream.Write(formatWave, 0, formatWave.Length);
-                stream.Write(formatTag, 0, formatTag.Length);
-                stream.Write(PackageInt(16, 4), 0, 4); // Subchunk1Size
+                stream.Write("WAVE"u8);
+                stream.Write("fmt "u8);
+                stream.Write(BitConverter.GetBytes(16)); // Subchunk1Size
 
-                stream.Write(PackageInt((uint)AudioFormat, 2), 0, 2);
-                stream.Write(PackageInt(Channels, 2), 0, 2);
-                stream.Write(PackageInt(SampleRate, 4), 0, 4);
-                stream.Write(PackageInt(byteRate, 4), 0, 4);
-                stream.Write(PackageInt(blockAlign, 2), 0, 2);
-                stream.Write(PackageInt(Bits, 2), 0, 2);
-                //stream.Write(PackageInt(0,2), 0, 2); // Extra param size
-                stream.Write(subChunkId, 0, subChunkId.Length);
-                stream.Write(PackageInt(StreamingDataSize, 4), 0, 4);
+                stream.Write(BitConverter.GetBytes((ushort)AudioFormat));
+                stream.Write(BitConverter.GetBytes((ushort)Channels));
+                stream.Write(BitConverter.GetBytes(SampleRate));
+                stream.Write(BitConverter.GetBytes(byteRate));
+                stream.Write(BitConverter.GetBytes((ushort)blockAlign));
+                stream.Write(BitConverter.GetBytes((ushort)Bits));
+                //stream.Write(BitConverter.GetBytes((ushort)0)); // Extra param size
+                stream.Write("data"u8);
+                stream.Write(BitConverter.GetBytes(StreamingDataSize));
             }
 
             Reader.BaseStream.CopyTo(stream, (int)StreamingDataSize);
@@ -372,21 +371,6 @@ namespace ValveResourceFormat.ResourceTypes
             stream.Seek(0, SeekOrigin.Begin);
 
             return stream;
-        }
-
-        private static byte[] PackageInt(uint source, int length)
-        {
-            var retVal = new byte[length];
-            retVal[0] = (byte)(source & 0xFF);
-            retVal[1] = (byte)((source >> 8) & 0xFF);
-
-            if (length == 4)
-            {
-                retVal[2] = (byte)((source >> 0x10) & 0xFF);
-                retVal[3] = (byte)((source >> 0x18) & 0xFF);
-            }
-
-            return retVal;
         }
 
         public override string ToString()
