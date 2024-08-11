@@ -1,7 +1,25 @@
+using System.Runtime.InteropServices;
+
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 {
+    [StructLayout(LayoutKind.Sequential, Size = 6)]
+    struct Half3(Half x, Half y, Half z)
+    {
+        public Half X { get; set; } = x;
+        public Half Y { get; set; } = y;
+        public Half Z { get; set; } = z;
+
+
+        public static implicit operator Half3(Vector3 v) => new((Half)v.X, (Half)v.Y, (Half)v.Z);
+        public static implicit operator Vector3(Half3 v) => new((float)v.X, (float)v.Y, (float)v.Z);
+
+        public readonly override string ToString() => $"<{X:0.000} {Y:0.000} {Z:0.000}>";
+    }
+
     internal class SegmentHelpers
     {
+        public const int CompressedQuaternionSize = 6;
+
         /// <summary>
         /// Read and decode encoded quaternion.
         /// </summary>
@@ -39,14 +57,6 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             }
 
             return s2 == 128 ? new Quaternion(w, x, y, z) : new Quaternion(x, y, z, w);
-        }
-
-        public static Vector3 ReadHalfVector3(ReadOnlySpan<byte> bytes)
-        {
-            var x = BitConverter.ToHalf(bytes);
-            var y = BitConverter.ToHalf(bytes[2..]);
-            var z = BitConverter.ToHalf(bytes[4..]);
-            return new Vector3((float)x, (float)y, (float)z);
         }
     }
 }

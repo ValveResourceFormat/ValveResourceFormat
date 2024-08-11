@@ -1,30 +1,17 @@
-using System.Linq;
+using System.Runtime.InteropServices;
 
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders
 {
     public class CCompressedFullFloat : AnimationSegmentDecoder
     {
-        private readonly float[] Data;
-
-        public CCompressedFullFloat(ArraySegment<byte> data, int[] wantedElements, int[] remapTable,
-            int elementCount, AnimationChannelAttribute channelAttribute) : base(remapTable, channelAttribute)
-        {
-            const int elementSize = 4;
-            var stride = elementCount * elementSize;
-            Data = Enumerable.Range(0, data.Count / stride)
-                .SelectMany(i => wantedElements.Select(j =>
-                {
-                    return BitConverter.ToSingle(data.Slice(i * stride + j * elementSize));
-                }).ToArray())
-                .ToArray();
-        }
-
         public override void Read(int frameIndex, Frame outFrame)
         {
-            var offset = frameIndex * RemapTable.Length;
+            var offset = frameIndex * ElementCount;
+            var floatData = MemoryMarshal.Cast<byte, float>(Data);
+
             for (var i = 0; i < RemapTable.Length; i++)
             {
-                outFrame.SetAttribute(RemapTable[i], ChannelAttribute, Data[offset + i]);
+                outFrame.SetAttribute(RemapTable[i], ChannelAttribute, floatData[offset + WantedElements[i]]);
             }
         }
     }

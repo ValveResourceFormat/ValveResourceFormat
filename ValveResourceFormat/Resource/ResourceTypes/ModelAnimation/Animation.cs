@@ -132,45 +132,31 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                 var containerSegment = new ArraySegment<byte>(container, end, container.Length - end);
 
                 // Look at the decoder to see what to read
-                switch (decoder)
+                segmentArray[i] = decoder switch
                 {
-                    case "CCompressedStaticFullVector3":
-                        segmentArray[i] = new CCompressedStaticFullVector3(containerSegment, wantedElements, remapTable, localChannel.Attribute);
-                        break;
-                    case "CCompressedStaticVector3":
-                        segmentArray[i] = new CCompressedStaticVector3(containerSegment, wantedElements, remapTable, localChannel.Attribute);
-                        break;
-                    case "CCompressedStaticQuaternion":
-                        segmentArray[i] = new CCompressedStaticQuaternion(containerSegment, wantedElements, remapTable, localChannel.Attribute);
-                        break;
-                    case "CCompressedStaticFloat":
-                        segmentArray[i] = new CCompressedStaticFloat(containerSegment, wantedElements, remapTable, localChannel.Attribute);
-                        break;
+                    nameof(CCompressedStaticFullVector3) => new CCompressedStaticFullVector3(),
+                    nameof(CCompressedStaticVector3) => new CCompressedStaticVector3(),
+                    nameof(CCompressedStaticQuaternion) => new CCompressedStaticQuaternion(),
+                    nameof(CCompressedStaticFloat) => new CCompressedStaticFloat(),
 
-                    case "CCompressedFullVector3":
-                        segmentArray[i] = new CCompressedFullVector3(containerSegment, wantedElements, remapTable, numElements, localChannel.Attribute);
-                        break;
-                    case "CCompressedDeltaVector3":
-                        segmentArray[i] = new CCompressedDeltaVector3(containerSegment, wantedElements, remapTable, numElements, localChannel.Attribute);
-                        break;
-                    case "CCompressedAnimVector3":
-                        segmentArray[i] = new CCompressedAnimVector3(containerSegment, wantedElements, remapTable, numElements, localChannel.Attribute);
-                        break;
-                    case "CCompressedAnimQuaternion":
-                        segmentArray[i] = new CCompressedAnimQuaternion(containerSegment, wantedElements, remapTable, numElements, localChannel.Attribute);
-                        break;
-                    case "CCompressedFullQuaternion":
-                        segmentArray[i] = new CCompressedFullQuaternion(containerSegment, wantedElements, remapTable, numElements, localChannel.Attribute);
-                        break;
-                    case "CCompressedFullFloat":
-                        segmentArray[i] = new CCompressedFullFloat(containerSegment, wantedElements, remapTable, numElements, localChannel.Attribute);
-                        break;
-#if DEBUG
-                    default:
-                        Console.WriteLine($"Unhandled animation bone decoder type '{decoder}' for attribute '{localChannel.Attribute}'");
-                        break;
-#endif
+                    nameof(CCompressedFullVector3) => new CCompressedFullVector3(),
+                    nameof(CCompressedDeltaVector3) => new CCompressedDeltaVector3(),
+                    nameof(CCompressedAnimVector3) => new CCompressedAnimVector3(),
+                    nameof(CCompressedAnimQuaternion) => new CCompressedAnimQuaternion(),
+                    nameof(CCompressedFullQuaternion) => new CCompressedFullQuaternion(),
+                    nameof(CCompressedFullFloat) => new CCompressedFullFloat(),
+                    _ => null,
+                };
+
+                if (segmentArray[i] != null)
+                {
+                    segmentArray[i].Initialize(containerSegment, wantedElements, remapTable, localChannel.Attribute, numElements);
+                    continue;
                 }
+
+#if DEBUG
+                Console.WriteLine($"Unhandled animation bone decoder type '{decoder}' for attribute '{localChannel.Attribute}'");
+#endif            
             }
 
             return animArray
