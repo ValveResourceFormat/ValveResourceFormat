@@ -1,5 +1,7 @@
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Text;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Serialization;
@@ -327,8 +329,8 @@ namespace ValveResourceFormat.ResourceTypes
         {
             Reader.BaseStream.Position = Offset + Size;
 
-            var headerLength = SoundType == AudioFileType.WAV ? 44 : 0;
-            var totalSize = headerLength + (int)StreamingDataSize;
+            const int WaveHeaderSize = 44;
+            var totalSize = (int)StreamingDataSize + (SoundType == AudioFileType.WAV ? WaveHeaderSize : 0);
 
             var stream = new MemoryStream(capacity: totalSize);
 
@@ -347,24 +349,21 @@ namespace ValveResourceFormat.ResourceTypes
                 }
 
                 stream.Write("RIFF"u8);
-                stream.Write(BitConverter.GetBytes(StreamingDataSize + 42));
-
+                stream.Write(MemoryMarshal.AsBytes([StreamingDataSize + 42]));
                 stream.Write("WAVE"u8);
                 stream.Write("fmt "u8);
-                stream.Write(BitConverter.GetBytes(16)); // Subchunk1Size
-
-                stream.Write(BitConverter.GetBytes((ushort)AudioFormat));
-                stream.Write(BitConverter.GetBytes((ushort)Channels));
-                stream.Write(BitConverter.GetBytes(SampleRate));
-                stream.Write(BitConverter.GetBytes(byteRate));
-                stream.Write(BitConverter.GetBytes((ushort)blockAlign));
-                stream.Write(BitConverter.GetBytes((ushort)Bits));
-                //stream.Write(BitConverter.GetBytes((ushort)0)); // Extra param size
+                stream.Write(MemoryMarshal.AsBytes([16]));
+                stream.Write(MemoryMarshal.AsBytes([(ushort)AudioFormat, (ushort)Channels]));
+                stream.Write(MemoryMarshal.AsBytes([SampleRate, byteRate]));
+                stream.Write(MemoryMarshal.AsBytes([(ushort)blockAlign, (ushort)Bits]));
                 stream.Write("data"u8);
-                stream.Write(BitConverter.GetBytes(StreamingDataSize));
+                stream.Write(MemoryMarshal.AsBytes([StreamingDataSize]));
+
+                Debug.Assert(stream.Length == WaveHeaderSize);
             }
 
             Reader.BaseStream.CopyTo(stream, (int)StreamingDataSize);
+            Debug.Assert(stream.Length == totalSize);
 
             // Flush and reset position so that consumers can read it
             stream.Flush();
