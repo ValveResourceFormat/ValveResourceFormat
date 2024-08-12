@@ -1,4 +1,3 @@
-using System.Linq;
 using ValveResourceFormat.ResourceTypes.ModelFlex;
 using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -34,7 +33,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             {
                 remapLength = skeleton.Bones.Length;
             }
-            RemapTable = Enumerable.Range(0, remapLength).Select(_ => -1).ToArray();
+
+            RemapTable = new int[remapLength];
+            Array.Fill(RemapTable, -1);
 
             for (var i = 0; i < elementIndexArray.Length; i++)
             {
