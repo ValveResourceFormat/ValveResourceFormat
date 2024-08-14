@@ -13,6 +13,7 @@ namespace ValveResourceFormat.Compression
         private const int VertexBlockSizeBytes = 8192;
         private const int VertexBlockMaxSize = 256;
         private const int ByteGroupSize = 16;
+        private const int ByteGroupDecodeLimit = 24;
         private const int TailMaxSize = 32;
 
         private static int GetVertexBlockSize(int vertexSize)
@@ -147,7 +148,7 @@ namespace ValveResourceFormat.Compression
 
             for (var i = 0; i < destination.Length; i += ByteGroupSize)
             {
-                if (data.Length < TailMaxSize)
+                if (data.Length < ByteGroupDecodeLimit)
                 {
                     throw new InvalidOperationException("Cannot decode");
                 }
@@ -169,6 +170,8 @@ namespace ValveResourceFormat.Compression
                 throw new ArgumentException("Expected vertexCount to be between 0 and VertexMaxBlockSize");
             }
 
+            var vertexCountAligned = (vertexCount + ByteGroupSize - 1) & ~(ByteGroupSize - 1);
+
             var bufferPool = ArrayPool<byte>.Shared.Rent(VertexBlockMaxSize);
             var buffer = bufferPool.AsSpan(0, VertexBlockMaxSize);
             var transposedPool = ArrayPool<byte>.Shared.Rent(VertexBlockSizeBytes);
@@ -176,8 +179,6 @@ namespace ValveResourceFormat.Compression
 
             try
             {
-                var vertexCountAligned = (vertexCount + ByteGroupSize - 1) & ~(ByteGroupSize - 1);
-
                 for (var k = 0; k < vertexSize; ++k)
                 {
                     data = DecodeBytes(data, buffer[..vertexCountAligned]);
@@ -260,6 +261,13 @@ namespace ValveResourceFormat.Compression
                 buffer = DecodeVertexBlock(buffer, result[(vertexOffset * vertexSize)..], blockSize, vertexSize, lastVertex);
 
                 vertexOffset += blockSize;
+            }
+
+            var tailSize = vertexSize < TailMaxSize ? TailMaxSize : vertexSize;
+
+            if (buffer.Length != tailSize)
+            {
+                throw new ArgumentException("Tail size incorrect");
             }
 
             return resultArray;
