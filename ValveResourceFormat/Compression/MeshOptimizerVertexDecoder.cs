@@ -2,6 +2,7 @@
  * C# Port of https://github.com/zeux/meshoptimizer/blob/master/src/vertexcodec.cpp
  */
 using System.Buffers;
+using System.Runtime.CompilerServices;
 
 namespace ValveResourceFormat.Compression
 {
@@ -22,6 +23,7 @@ namespace ValveResourceFormat.Compression
             return result < VertexBlockMaxSize ? result : VertexBlockMaxSize;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static byte Unzigzag8(byte v)
         {
             return (byte)(-(v & 1) ^ (v >> 1));
@@ -33,6 +35,7 @@ namespace ValveResourceFormat.Compression
             byte b;
             byte enc;
 
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             byte Next(byte bits, byte encv)
             {
                 enc = b;
