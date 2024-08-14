@@ -34,8 +34,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                 remapLength = skeleton.Bones.Length;
             }
 
-            RemapTable = new int[remapLength];
-            Array.Fill(RemapTable, -1);
+            var remapTable = new int[remapLength];
+            Array.Fill(remapTable, -1);
 
             for (var i = 0; i < elementIndexArray.Length; i++)
             {
@@ -54,9 +54,11 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
                 if (id != -1)
                 {
-                    RemapTable[id] = elementIndex;
+                    remapTable[id] = elementIndex;
                 }
             }
+
+            RemapTable = remapTable;
         }
     }
 }
