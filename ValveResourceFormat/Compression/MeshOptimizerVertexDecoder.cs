@@ -3,10 +3,11 @@
  */
 using System.Buffers;
 using System.Runtime.CompilerServices;
+using System.Runtime.Intrinsics;
 
 namespace ValveResourceFormat.Compression
 {
-    public static class MeshOptimizerVertexDecoder
+    public static partial class MeshOptimizerVertexDecoder
     {
         private const byte VertexHeader = 0xa0;
 
@@ -211,7 +212,7 @@ namespace ValveResourceFormat.Compression
             return data;
         }
 
-        public static byte[] DecodeVertexBuffer(int vertexCount, int vertexSize, Span<byte> buffer)
+        public static byte[] DecodeVertexBuffer(int vertexCount, int vertexSize, Span<byte> buffer, bool useSimd = true)
         {
             if (vertexSize <= 0 || vertexSize > 256)
             {
@@ -242,7 +243,7 @@ namespace ValveResourceFormat.Compression
 
             buffer = buffer[1..];
 
-            var lastVertex = new byte[vertexSize];
+            var lastVertex = new byte[vertexSize]; // TODO: Is this always supposed to be 256?
             buffer.Slice(buffer.Length - vertexSize, vertexSize).CopyTo(lastVertex);
 
             var vertexBlockSize = GetVertexBlockSize(vertexSize);
@@ -252,13 +253,24 @@ namespace ValveResourceFormat.Compression
             var resultArray = new byte[vertexCount * vertexSize];
             var result = resultArray.AsSpan();
 
+            useSimd &= Vector128.IsHardwareAccelerated;
+
             while (vertexOffset < vertexCount)
             {
                 var blockSize = vertexOffset + vertexBlockSize < vertexCount
                     ? vertexBlockSize
                     : vertexCount - vertexOffset;
 
-                buffer = DecodeVertexBlock(buffer, result[(vertexOffset * vertexSize)..], blockSize, vertexSize, lastVertex);
+                var vertexData = result[(vertexOffset * vertexSize)..];
+
+                if (useSimd)
+                {
+                    buffer = DecodeVertexBlockSimd(buffer, vertexData, blockSize, vertexSize, lastVertex);
+                }
+                else
+                {
+                    buffer = DecodeVertexBlock(buffer, vertexData, blockSize, vertexSize, lastVertex);
+                }
 
                 vertexOffset += blockSize;
             }

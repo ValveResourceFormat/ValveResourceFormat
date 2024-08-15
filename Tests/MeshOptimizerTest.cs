@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using System.Runtime.Intrinsics;
 using NUnit.Framework;
 using ValveResourceFormat.Compression;
 
@@ -67,7 +68,19 @@ namespace Tests
         [Test]
         public void DecodeVertexV0()
         {
-            var decoded = MeshOptimizerVertexDecoder.DecodeVertexBuffer(kVertexBuffer.Length, Marshal.SizeOf(typeof(PV)), kVertexDataV0);
+            var decoded = MeshOptimizerVertexDecoder.DecodeVertexBuffer(kVertexBuffer.Length, Marshal.SizeOf(typeof(PV)), kVertexDataV0, useSimd: false);
+            Assert.That(MemoryMarshal.Cast<byte, PV>(decoded).ToArray(), Is.EqualTo(kVertexBuffer));
+        }
+
+        [Test]
+        public void DecodeVertexV0Simd()
+        {
+            if (!Vector128.IsHardwareAccelerated)
+            {
+                Assert.Ignore("Vector128 is not hardware accelerated.");
+            }
+
+            var decoded = MeshOptimizerVertexDecoder.DecodeVertexBuffer(kVertexBuffer.Length, Marshal.SizeOf(typeof(PV)), kVertexDataV0, useSimd: true);
             Assert.That(MemoryMarshal.Cast<byte, PV>(decoded).ToArray(), Is.EqualTo(kVertexBuffer));
         }
     }
