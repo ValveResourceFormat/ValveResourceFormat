@@ -125,7 +125,8 @@ Magic        | Description
 `0xC4CCACE8` | tools asset info
 `0xC4CCACE9` | tools asset info (newer version)
 `0x32736376` | vcs2 - compiled shader
-`0x31415926` | murmurhash2 seed used in various places (like entity keys)
+`0x31415926` | murmurhash2 seed used by StringToken
+`0xEDABCDEF` | murmurhash64 seed used to encode resource IDs
 `VFONT1`     | "encrypted" font file
 `0x00564645` | VFE - flex scene file
 
