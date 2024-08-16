@@ -40,6 +40,7 @@ namespace ValveResourceFormat.ResourceTypes
         private int uncompressedBlockOffset;
         private long currentCompressedBlockIndex;
         private long currentTypeIndex;
+        private long currentTwoBytesOffset = -1;
         private long currentEightBytesOffset;
         private long currentBinaryBytesOffset = -1;
         private bool isUsingLinearFlagTypes; // Version KV3\x03 uses a different enum for mapping flags
@@ -293,12 +294,14 @@ namespace ValveResourceFormat.ResourceTypes
             var blockCount = reader.ReadUInt32();
             var blockTotalSize = reader.ReadUInt32();
 
+            var countofTwoByteValue = 0u;
+
             if (todoUnknownNewBytesInVersion4)
             {
-                var todo1 = reader.ReadUInt32();
+                countofTwoByteValue = reader.ReadUInt32();
                 var todo2 = reader.ReadUInt32();
 
-                if (todo1 != 0 || todo2 != 0)
+                if (todo2 != 0)
                 {
                     throw new NotImplementedException("Unknown bytes for new KV3 version found");
                 }
@@ -398,10 +401,24 @@ namespace ValveResourceFormat.ResourceTypes
                 currentBinaryBytesOffset = 0;
                 outRead.BaseStream.Position = countOfBinaryBytes;
 
-                if (outRead.BaseStream.Position % 4 != 0)
+                if (countofTwoByteValue > 0)
                 {
-                    // Align to % 4 after binary blobs
-                    outRead.BaseStream.Position += 4 - (outRead.BaseStream.Position % 4);
+                    if (outRead.BaseStream.Position % 2 != 0)
+                    {
+                        // Align to % 2 after binary blobs
+                        outRead.BaseStream.Position += 1;
+                    }
+
+                    currentTwoBytesOffset = outRead.BaseStream.Position;
+                    outRead.BaseStream.Position += countofTwoByteValue * sizeof(short);
+                }
+                else
+                {
+                    if (outRead.BaseStream.Position % 4 != 0)
+                    {
+                        // Align to % 4 after binary blobs
+                        outRead.BaseStream.Position += 4 - (outRead.BaseStream.Position % 4);
+                    }
                 }
 
                 var countOfStrings = outRead.ReadUInt32();
@@ -843,7 +860,20 @@ namespace ValveResourceFormat.ResourceTypes
                 case KVType.FLOAT:
                     parent.AddProperty(name, MakeValue(datatype, (double)reader.ReadSingle(), flagInfo));
                     break;
-                // TODO: 20, 21 - using unknown buffer, likely related to the new ints that were added
+                case KVType.INT16:
+                    reader.BaseStream.Position = currentTwoBytesOffset;
+                    parent.AddProperty(name, MakeValue(datatype, reader.ReadInt16(), flagInfo));
+                    currentTwoBytesOffset = reader.BaseStream.Position;
+                    reader.BaseStream.Position = currentOffset;
+
+                    break;
+                case KVType.UINT16:
+                    reader.BaseStream.Position = currentTwoBytesOffset;
+                    parent.AddProperty(name, MakeValue(datatype, reader.ReadUInt16(), flagInfo));
+                    currentTwoBytesOffset = reader.BaseStream.Position;
+                    reader.BaseStream.Position = currentOffset;
+
+                    break;
                 // TODO: 22, 23 - reading from currentBinaryBytesOffset
                 // 22 is related to 20, 23 is related to 21
                 case KVType.INT32_AS_BYTE:

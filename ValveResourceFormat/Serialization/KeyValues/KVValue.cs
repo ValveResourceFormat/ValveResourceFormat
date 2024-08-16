@@ -29,8 +29,8 @@ namespace ValveResourceFormat.Serialization.KeyValues
         DOUBLE_ZERO = 17,
         DOUBLE_ONE = 18,
         FLOAT = 19,
-        UNKNOWN_20 = 20,
-        UNKNOWN_21 = 21,
+        INT16 = 20,
+        UINT16 = 21,
         UNKNOWN_22 = 22,
         INT32_AS_BYTE = 23,
         ARRAY_TYPE_BYTE_LENGTH = 24,
@@ -113,6 +113,12 @@ namespace ValveResourceFormat.Serialization.KeyValues
                     break;
                 case KVType.UINT32:
                     writer.Write(Convert.ToUInt32(Value, CultureInfo.InvariantCulture));
+                    break;
+                case KVType.INT16:
+                    writer.Write(Convert.ToInt16(Value, CultureInfo.InvariantCulture));
+                    break;
+                case KVType.UINT16:
+                    writer.Write(Convert.ToUInt16(Value, CultureInfo.InvariantCulture));
                     break;
                 case KVType.NULL:
                     writer.Write("null");
