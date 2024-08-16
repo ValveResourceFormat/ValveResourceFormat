@@ -517,84 +517,58 @@ namespace ValveResourceFormat
 
         private static ResourceType DetermineResourceTypeByCompilerIdentifier(SpecialDependencies.SpecialDependency input)
         {
-            var identifier = input.CompilerIdentifier;
+            var identifier = input.CompilerIdentifier.AsSpan();
 
             if (identifier.StartsWith("Compile", StringComparison.Ordinal))
             {
-                identifier = identifier.Remove(0, "Compile".Length);
+                identifier = identifier["Compile".Length..];
             }
 
             // Special mappings and otherwise different identifiers
-            switch (identifier)
+            var resourceType = identifier switch
             {
-                case "Psf":
-                    return ResourceType.ParticleSnapshot;
-                case "AnimGroup":
-                    return ResourceType.AnimationGroup;
-                case "Animgraph":
-                    return ResourceType.AnimationGraph;
-                case "NmGraph":
-                    return ResourceType.NmGraph;
-                case "NmGraphVariation":
-                    return ResourceType.NmGraphVariation;
-                case "NmSkeleton":
-                    return ResourceType.NmSkeleton;
-                case "NmClip":
-                    return ResourceType.NmClip;
-                case "VPhysXData":
-                    return ResourceType.PhysicsCollisionMesh;
-                case "Font":
-                    return ResourceType.BitmapFont;
-                case "RenderMesh":
-                    return ResourceType.Mesh;
-                case "ChoreoSceneFileData":
-                    return ResourceType.ChoreoSceneFileData;
-                case "Panorama":
-                    return input.String switch
-                    {
-                        "Panorama Style Compiler Version" => ResourceType.PanoramaStyle,
-                        "Panorama Script Compiler Version" => ResourceType.PanoramaScript,
-                        "Panorama Layout Compiler Version" => ResourceType.PanoramaLayout,
-                        "Panorama Dynamic Images Compiler Version" => ResourceType.PanoramaDynamicImages,
-                        _ => ResourceType.Panorama,
-                    };
-                case "VectorGraphic":
-                    return ResourceType.PanoramaVectorGraphic;
-                case "VCompMat":
-                    return ResourceType.CompositeMaterial;
-                case "VData":
-                    return ResourceType.VData;
-                case "ResponseRules":
-                    return ResourceType.ResponseRules;
-                case "DotaItem":
-                    return ResourceType.ArtifactItem;
-                case "CSGOItem":
-                    return ResourceType.CSGOItem;
-                case "CSGOEconItem":
-                    return ResourceType.CSGOEconItem;
-                case "PulseGraphDef":
-                    return ResourceType.PulseGraphDef;
-                case "SmartProp":
-                    return ResourceType.SmartProp;
-                case "GraphInstance":
-                    return ResourceType.ProcessingGraphInstance;
-                case "DotaHeroList":
-                    return ResourceType.DotaHeroList;
-                case "DotaPatchNotes":
-                    return ResourceType.DotaPatchNotes;
-                case "DotaVisualNovels":
-                    return ResourceType.DotaVisualNovels;
-                case "SBData":
-                case "ManagedResourceCompiler": // This is without the "Compile" prefix
-                    return ResourceType.SboxManagedResource;
+                "Animgraph" => ResourceType.AnimationGraph,
+                "AnimGroup" => ResourceType.AnimationGroup,
+                "ChoreoSceneFileData" => ResourceType.ChoreoSceneFileData,
+                "CSGOEconItem" => ResourceType.CSGOEconItem,
+                "CSGOItem" => ResourceType.CSGOItem,
+                "DotaHeroList" => ResourceType.DotaHeroList,
+                "DotaItem" => ResourceType.ArtifactItem,
+                "DotaPatchNotes" => ResourceType.DotaPatchNotes,
+                "DotaVisualNovels" => ResourceType.DotaVisualNovels,
+                "Font" => ResourceType.BitmapFont,
+                "GraphInstance" => ResourceType.ProcessingGraphInstance,
+                "NmClip" => ResourceType.NmClip,
+                "NmGraph" => ResourceType.NmGraph,
+                "NmGraphVariation" => ResourceType.NmGraphVariation,
+                "NmSkeleton" => ResourceType.NmSkeleton,
+                "Panorama" => input.String switch
+                {
+                    "Panorama Style Compiler Version" => ResourceType.PanoramaStyle,
+                    "Panorama Script Compiler Version" => ResourceType.PanoramaScript,
+                    "Panorama Layout Compiler Version" => ResourceType.PanoramaLayout,
+                    "Panorama Dynamic Images Compiler Version" => ResourceType.PanoramaDynamicImages,
+                    _ => ResourceType.Panorama,
+                },
+                "Psf" => ResourceType.ParticleSnapshot,
+                "PulseGraphDef" => ResourceType.PulseGraphDef,
+                "RenderMesh" => ResourceType.Mesh,
+                "ResponseRules" => ResourceType.ResponseRules,
+                "SBData" or "ManagedResourceCompiler" => ResourceType.SboxManagedResource,
+                "SmartProp" => ResourceType.SmartProp,
+                "VCompMat" => ResourceType.CompositeMaterial,
+                "VData" => ResourceType.VData,
+                "VectorGraphic" => ResourceType.PanoramaVectorGraphic,
+                "VPhysXData" => ResourceType.PhysicsCollisionMesh,
+                _ => ResourceType.Unknown,
+            };
+
+            if (resourceType == ResourceType.Unknown && Enum.TryParse(identifier, false, out ResourceType resourceTypeParsed))
+            {
+                return resourceTypeParsed;
             }
 
-            if (Enum.TryParse(identifier, false, out ResourceType resourceType))
-            {
-                return resourceType;
-            }
-
-            return ResourceType.Unknown;
+            return resourceType;
         }
     }
 }
