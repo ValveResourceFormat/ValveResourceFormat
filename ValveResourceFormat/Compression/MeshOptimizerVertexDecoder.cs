@@ -243,36 +243,47 @@ namespace ValveResourceFormat.Compression
 
             buffer = buffer[1..];
 
-            var lastVertex = new byte[vertexSize]; // TODO: Is this always supposed to be 256?
-            buffer.Slice(buffer.Length - vertexSize, vertexSize).CopyTo(lastVertex);
-
-            var vertexBlockSize = GetVertexBlockSize(vertexSize);
-
-            var vertexOffset = 0;
-
             var resultArray = new byte[vertexCount * vertexSize];
-            var result = resultArray.AsSpan();
 
-            useSimd &= Vector128.IsHardwareAccelerated;
+            // C code always uses [256] here, but more than vertexSize can't be used
+            var lastVertexBuffer = ArrayPool<byte>.Shared.Rent(vertexSize);
+            var lastVertex = lastVertexBuffer.AsSpan(0, vertexSize);
 
-            while (vertexOffset < vertexCount)
+            try
             {
-                var blockSize = vertexOffset + vertexBlockSize < vertexCount
-                    ? vertexBlockSize
-                    : vertexCount - vertexOffset;
+                buffer.Slice(buffer.Length - vertexSize, vertexSize).CopyTo(lastVertex);
 
-                var vertexData = result[(vertexOffset * vertexSize)..];
+                var vertexBlockSize = GetVertexBlockSize(vertexSize);
 
-                if (useSimd)
+                var vertexOffset = 0;
+
+                var result = resultArray.AsSpan();
+
+                useSimd &= Vector128.IsHardwareAccelerated;
+
+                while (vertexOffset < vertexCount)
                 {
-                    buffer = DecodeVertexBlockSimd(buffer, vertexData, blockSize, vertexSize, lastVertex);
-                }
-                else
-                {
-                    buffer = DecodeVertexBlock(buffer, vertexData, blockSize, vertexSize, lastVertex);
-                }
+                    var blockSize = vertexOffset + vertexBlockSize < vertexCount
+                        ? vertexBlockSize
+                        : vertexCount - vertexOffset;
 
-                vertexOffset += blockSize;
+                    var vertexData = result[(vertexOffset * vertexSize)..];
+
+                    if (useSimd)
+                    {
+                        buffer = DecodeVertexBlockSimd(buffer, vertexData, blockSize, vertexSize, lastVertex);
+                    }
+                    else
+                    {
+                        buffer = DecodeVertexBlock(buffer, vertexData, blockSize, vertexSize, lastVertex);
+                    }
+
+                    vertexOffset += blockSize;
+                }
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(lastVertexBuffer);
             }
 
             var tailSize = vertexSize < TailMaxSize ? TailMaxSize : vertexSize;
