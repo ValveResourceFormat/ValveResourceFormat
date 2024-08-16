@@ -16,6 +16,7 @@ namespace GUI.Types.Renderer
             new("Specular"),
             new("Irradiance"),
             new("Illumination"),
+            new("LightmapShadows"),
             new("Cubemaps"),
             new("RimLight"),
 

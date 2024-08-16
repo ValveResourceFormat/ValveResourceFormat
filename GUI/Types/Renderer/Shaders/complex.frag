@@ -15,6 +15,7 @@
 #define renderMode_Tint 0
 #define renderMode_FoliageParams 0
 #define renderMode_TerrainBlend 0
+#define renderMode_LightmapShadows 0
 
 #if defined(vr_complex_vfx) || defined(csgo_complex_vfx)
     #define complex_vfx_common
@@ -660,6 +661,13 @@ void main()
     {
         outputColor = vec4(lighting.DiffuseDirect + lighting.SpecularDirect, 1.0);
     }
+#if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
+    else if (g_iRenderMode == renderMode_LightmapShadows)
+    {
+        vec4 dlsh = texture(g_tDirectLightShadows, vLightmapUVScaled);
+        outputColor = vec4(vec3(1.0 - dlsh.x) + vec3(1.0 - min3(dlsh.yzw)) * vec3(0.5, 0.5, 0), 1.0);
+    }
+#endif
     else if (g_iRenderMode == renderMode_Tint)
     {
         outputColor = vec4(SrgbGammaToLinear(vVertexColorOut.rgb), vVertexColorOut.a);
