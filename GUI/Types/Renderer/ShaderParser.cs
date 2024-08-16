@@ -147,7 +147,7 @@ namespace GUI.Types.Renderer
 
                                 if (value == 0)
                                 {
-                                    var renderModeObj = new RenderModes.RenderMode(false, renderMode);
+                                    var renderModeObj = new RenderModes.RenderMode(renderMode);
                                     var index = RenderModes.Items.IndexOf(renderModeObj);
 
                                     if (index == -1)
