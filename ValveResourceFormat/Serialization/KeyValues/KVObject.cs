@@ -1,3 +1,5 @@
+//#define DEBUG_ADD_KV_TYPE_COMMENTS
+
 using System.Collections;
 using System.Diagnostics;
 using System.Globalization;
@@ -77,6 +79,10 @@ namespace ValveResourceFormat.Serialization.KeyValues
 
                 pair.Value.PrintValue(writer);
 
+#if DEBUG_ADD_KV_TYPE_COMMENTS
+                writer.Write($" // {pair.Value.Type}");
+#endif
+
                 writer.WriteLine();
             }
 
@@ -93,9 +99,14 @@ namespace ValveResourceFormat.Serialization.KeyValues
             // Need to preserve the order
             for (var i = 0; i < Count; i++)
             {
-                Properties[i.ToString(CultureInfo.InvariantCulture)].PrintValue(writer);
+                var value = Properties[i.ToString(CultureInfo.InvariantCulture)];
+                value.PrintValue(writer);
 
+#if DEBUG_ADD_KV_TYPE_COMMENTS
+                writer.WriteLine($", // {value.Type}");
+#else
                 writer.WriteLine(",");
+#endif
             }
 
             writer.Indent--;
