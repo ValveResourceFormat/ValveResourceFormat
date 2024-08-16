@@ -533,6 +533,14 @@ namespace ValveResourceFormat
                     return ResourceType.AnimationGroup;
                 case "Animgraph":
                     return ResourceType.AnimationGraph;
+                case "NmGraph":
+                    return ResourceType.NmGraph;
+                case "NmGraphVariation":
+                    return ResourceType.NmGraphVariation;
+                case "NmSkeleton":
+                    return ResourceType.NmSkeleton;
+                case "NmClip":
+                    return ResourceType.NmClip;
                 case "VPhysXData":
                     return ResourceType.PhysicsCollisionMesh;
                 case "Font":

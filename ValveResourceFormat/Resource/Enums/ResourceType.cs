@@ -14,6 +14,18 @@ namespace ValveResourceFormat
         [Extension("vanmgrph")]
         AnimationGraph,
 
+        [Extension("vnmgrph")]
+        NmGraph,
+
+        [Extension("vnmvar")]
+        NmGraphVariation,
+
+        [Extension("vnmskel")]
+        NmSkeleton,
+
+        [Extension("vnmclip")]
+        NmClip,
+
         [Extension("valst")]
         ActionList,
 
