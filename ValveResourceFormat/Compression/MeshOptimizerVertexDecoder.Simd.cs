@@ -11,6 +11,8 @@ namespace ValveResourceFormat.Compression
 {
     public static partial class MeshOptimizerVertexDecoder
     {
+        public static bool IsHardwareAccelerated => Vector128.IsHardwareAccelerated && Sse2.IsSupported && Ssse3.IsSupported;
+
         private static readonly byte[] DecodeBytesGroupShuffle = new byte[256 * 8];
         private static readonly byte[] DecodeBytesGroupCount = new byte[256];
 

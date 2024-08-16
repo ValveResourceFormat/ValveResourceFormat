@@ -260,9 +260,7 @@ namespace ValveResourceFormat.Compression
 
                 var result = resultArray.AsSpan();
 
-                useSimd &= Vector128.IsHardwareAccelerated;
-                useSimd &= Sse2.IsSupported;
-                useSimd &= Ssse3.IsSupported;
+                useSimd &= IsHardwareAccelerated;
 
                 while (vertexOffset < vertexCount)
                 {

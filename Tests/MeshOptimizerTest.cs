@@ -75,7 +75,7 @@ namespace Tests
         [Test]
         public void DecodeVertexV0Simd()
         {
-            if (!Vector128.IsHardwareAccelerated)
+            if (!MeshOptimizerVertexDecoder.IsHardwareAccelerated)
             {
                 Assert.Ignore("Vector128 is not hardware accelerated.");
             }
