@@ -4,6 +4,7 @@
 using System.Buffers;
 using System.Runtime.CompilerServices;
 using System.Runtime.Intrinsics;
+using System.Runtime.Intrinsics.X86;
 
 namespace ValveResourceFormat.Compression
 {
@@ -260,6 +261,8 @@ namespace ValveResourceFormat.Compression
                 var result = resultArray.AsSpan();
 
                 useSimd &= Vector128.IsHardwareAccelerated;
+                useSimd &= Sse2.IsSupported;
+                useSimd &= Ssse3.IsSupported;
 
                 while (vertexOffset < vertexCount)
                 {
