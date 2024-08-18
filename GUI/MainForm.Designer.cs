@@ -436,6 +436,7 @@ namespace GUI
             MinimumSize = new System.Drawing.Size(347, 340);
             Name = "MainForm";
             SizeGripStyle = SizeGripStyle.Show;
+            StartPosition = FormStartPosition.CenterScreen;
             Text = "Source 2 Viewer";
             Load += MainForm_Load;
             Shown += MainForm_Shown;
