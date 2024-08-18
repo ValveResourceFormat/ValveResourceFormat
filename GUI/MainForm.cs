@@ -799,72 +799,50 @@ namespace GUI
                 }
             }
 
-            var loadingFile = new LoadingFile();
             var explorerTab = new TabPage("Explorer")
             {
-                ToolTipText = "Explorer"
+                ToolTipText = "Explorer",
+                ImageIndex = ImageListLookup["_folder_star"],
             };
-            TabPage explorerTabRef = null;
 
             try
             {
-                explorerTab.Controls.Add(loadingFile);
-                explorerTab.ImageIndex = ImageListLookup["_folder_star"];
+                explorerTab.Controls.Add(new ExplorerControl
+                {
+                    Dock = DockStyle.Fill,
+                });
                 mainTabs.TabPages.Insert(1, explorerTab);
                 mainTabs.SelectTab(explorerTab);
-                explorerTabRef = explorerTab;
                 explorerTab = null;
             }
             finally
             {
                 explorerTab?.Dispose();
             }
-
-            Task.Factory.StartNew(() =>
-            {
-                var explorer = new ExplorerControl
-                {
-                    Dock = DockStyle.Fill,
-                };
-
-                Invoke(() =>
-                {
-                    loadingFile.Dispose();
-                    explorerTabRef.Controls.Add(explorer);
-                });
-            }).ContinueWith(t =>
-            {
-                Log.Error(nameof(ExplorerControl), t.Exception.ToString());
-
-                t.Exception?.Flatten().Handle(ex =>
-                {
-                    loadingFile.Dispose();
-
-                    var control = new CodeTextBox(ex.ToString());
-
-                    explorerTabRef.Controls.Add(control);
-
-                    return false;
-                });
-            },
-            CancellationToken.None,
-            TaskContinuationOptions.OnlyOnFaulted,
-            TaskScheduler.FromCurrentSynchronizationContext());
         }
 
         private void OpenWelcome()
         {
-            var explorerTab = new TabPage("Welcome")
+            var welcomeTab = new TabPage("Welcome")
             {
                 ToolTipText = "Welcome",
                 ImageIndex = ImageListLookup["_folder_star"],
             };
-            explorerTab.Controls.Add(new WelcomeControl
+
+            try
             {
-                Dock = DockStyle.Fill
-            });
-            mainTabs.TabPages.Add(explorerTab);
-            mainTabs.SelectTab(explorerTab);
+                welcomeTab.Controls.Add(new WelcomeControl
+                {
+                    Dock = DockStyle.Fill
+                });
+                mainTabs.TabPages.Add(welcomeTab);
+                mainTabs.SelectTab(welcomeTab);
+                welcomeTab = null;
+            }
+            finally
+            {
+                welcomeTab?.Dispose();
+            }
         }
 
         public static int GetImageIndexForExtension(string extension)
