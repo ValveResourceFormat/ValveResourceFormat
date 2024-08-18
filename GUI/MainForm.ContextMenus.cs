@@ -458,5 +458,10 @@ namespace GUI
             var packageViewer = (mainTabs.SelectedTab.Controls[nameof(TreeViewWithSearchResults)] as TreeViewWithSearchResults).Viewer;
             packageViewer.SaveToFile(saveDialog.FileName);
         }
+
+        private void OnOpenWelcomeScreenToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            OpenWelcome();
+        }
     }
 }
