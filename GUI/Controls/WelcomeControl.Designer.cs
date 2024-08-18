@@ -92,7 +92,7 @@
             groupBox2.Size = new System.Drawing.Size(170, 280);
             groupBox2.TabIndex = 3;
             groupBox2.TabStop = false;
-            groupBox2.Text = "Welcome";
+            groupBox2.Text = "Welcome to Source 2 Viewer";
             // 
             // label3
             // 

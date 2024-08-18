@@ -118,9 +118,9 @@
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
   <data name="label3.Text" xml:space="preserve">
-    <value>Welcome to Source 2 Viewer!
+    <value>On the right, you'll find the Explorer panel. It automatically detects and displays all your installed and compatible Steam content.
 
-On the right, you'll find the Explorer panel. It automatically detects and displays all your installed and compatible Steam content.
+It will also list your recently opened files and bookmarks. Right click a file to add it to bookmarks.
 
 The Explorer opens by default when you launch Source 2 Viewer. For easy access anytime, simply click the "Explorer" button at the top of the screen.</value>
   </data>
