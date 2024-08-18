@@ -55,7 +55,7 @@
             groupBox1.Location = new System.Drawing.Point(15, 395);
             groupBox1.Name = "groupBox1";
             groupBox1.Padding = new System.Windows.Forms.Padding(20);
-            groupBox1.Size = new System.Drawing.Size(170, 110);
+            groupBox1.Size = new System.Drawing.Size(270, 110);
             groupBox1.TabIndex = 2;
             groupBox1.TabStop = false;
             groupBox1.Text = "Check for updates";
@@ -66,7 +66,7 @@
             label1.Location = new System.Drawing.Point(20, 74);
             label1.Margin = new System.Windows.Forms.Padding(3);
             label1.Name = "label1";
-            label1.Size = new System.Drawing.Size(130, 15);
+            label1.Size = new System.Drawing.Size(230, 15);
             label1.TabIndex = 1;
             label1.Text = "Updates are checked by connecting to github.com";
             label1.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
@@ -76,7 +76,7 @@
             updateCheckButton.Dock = System.Windows.Forms.DockStyle.Top;
             updateCheckButton.Location = new System.Drawing.Point(20, 36);
             updateCheckButton.Name = "updateCheckButton";
-            updateCheckButton.Size = new System.Drawing.Size(130, 38);
+            updateCheckButton.Size = new System.Drawing.Size(230, 38);
             updateCheckButton.TabIndex = 0;
             updateCheckButton.Text = "To enable automatic update checks, click here";
             updateCheckButton.UseVisualStyleBackColor = true;
@@ -89,7 +89,7 @@
             groupBox2.Location = new System.Drawing.Point(15, 15);
             groupBox2.Name = "groupBox2";
             groupBox2.Padding = new System.Windows.Forms.Padding(20);
-            groupBox2.Size = new System.Drawing.Size(170, 280);
+            groupBox2.Size = new System.Drawing.Size(270, 280);
             groupBox2.TabIndex = 3;
             groupBox2.TabStop = false;
             groupBox2.Text = "Welcome to Source 2 Viewer";
@@ -99,7 +99,7 @@
             label3.Dock = System.Windows.Forms.DockStyle.Fill;
             label3.Location = new System.Drawing.Point(20, 36);
             label3.Name = "label3";
-            label3.Size = new System.Drawing.Size(130, 224);
+            label3.Size = new System.Drawing.Size(230, 224);
             label3.TabIndex = 0;
             label3.Text = resources.GetString("label3.Text");
             // 
@@ -110,7 +110,7 @@
             groupBox3.Location = new System.Drawing.Point(15, 295);
             groupBox3.Name = "groupBox3";
             groupBox3.Padding = new System.Windows.Forms.Padding(20);
-            groupBox3.Size = new System.Drawing.Size(170, 100);
+            groupBox3.Size = new System.Drawing.Size(270, 100);
             groupBox3.TabIndex = 4;
             groupBox3.TabStop = false;
             groupBox3.Text = "File association";
@@ -120,7 +120,7 @@
             fileAssociationButton.Dock = System.Windows.Forms.DockStyle.Top;
             fileAssociationButton.Location = new System.Drawing.Point(20, 36);
             fileAssociationButton.Name = "fileAssociationButton";
-            fileAssociationButton.Size = new System.Drawing.Size(130, 41);
+            fileAssociationButton.Size = new System.Drawing.Size(230, 41);
             fileAssociationButton.TabIndex = 0;
             fileAssociationButton.Text = "To open .VPK files from the Windows file explorer, click here\r\n";
             fileAssociationButton.UseVisualStyleBackColor = true;
@@ -135,12 +135,14 @@
             // splitContainer.Panel1
             // 
             splitContainer.Panel1.Controls.Add(panel1);
+            splitContainer.Panel1MinSize = 300;
             splitContainer.Size = new System.Drawing.Size(600, 600);
-            splitContainer.SplitterDistance = 200;
+            splitContainer.SplitterDistance = 300;
             splitContainer.TabIndex = 5;
             // 
             // panel1
             // 
+            panel1.AutoScroll = true;
             panel1.Controls.Add(groupBox1);
             panel1.Controls.Add(groupBox3);
             panel1.Controls.Add(groupBox2);
@@ -148,7 +150,7 @@
             panel1.Location = new System.Drawing.Point(0, 0);
             panel1.Name = "panel1";
             panel1.Padding = new System.Windows.Forms.Padding(15);
-            panel1.Size = new System.Drawing.Size(200, 600);
+            panel1.Size = new System.Drawing.Size(300, 600);
             panel1.TabIndex = 0;
             // 
             // WelcomeControl
