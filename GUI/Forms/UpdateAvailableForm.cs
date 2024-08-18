@@ -62,7 +62,12 @@ namespace GUI.Forms
                 return;
             }
 
-            Settings.Config.Update.CheckAutomatically = checkForUpdatesCheckbox.Checked;
+            ToggleAutomaticUpdateCheck(checkForUpdatesCheckbox.Checked);
+        }
+
+        public static void ToggleAutomaticUpdateCheck(bool enabled = true)
+        {
+            Settings.Config.Update.CheckAutomatically = enabled;
             Settings.Config.Update.LastCheck = string.Empty;
             Settings.Config.Update.UpdateAvailable = UpdateChecker.IsNewVersionAvailable && Settings.Config.Update.CheckAutomatically;
         }

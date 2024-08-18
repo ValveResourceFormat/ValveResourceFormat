@@ -206,7 +206,11 @@ namespace GUI
                 OpenFile(file);
             }
 
-            if (args.Length == 0 && Settings.Config.OpenExplorerOnStart != 0)
+            if (Settings.IsFirstStartup)
+            {
+                OpenWelcome();
+            }
+            else if (args.Length == 0 && Settings.Config.OpenExplorerOnStart != 0)
             {
                 OpenExplorer();
             }
@@ -846,6 +850,21 @@ namespace GUI
             CancellationToken.None,
             TaskContinuationOptions.OnlyOnFaulted,
             TaskScheduler.FromCurrentSynchronizationContext());
+        }
+
+        private void OpenWelcome()
+        {
+            var explorerTab = new TabPage("Welcome")
+            {
+                ToolTipText = "Welcome",
+                ImageIndex = ImageListLookup["_folder_star"],
+            };
+            explorerTab.Controls.Add(new WelcomeControl
+            {
+                Dock = DockStyle.Fill
+            });
+            mainTabs.TabPages.Add(explorerTab);
+            mainTabs.SelectTab(explorerTab);
         }
 
         public static int GetImageIndexForExtension(string extension)

@@ -9,7 +9,7 @@ namespace GUI.Utils
 {
     static class Settings
     {
-        private const int SettingsFileCurrentVersion = 9;
+        private const int SettingsFileCurrentVersion = 10;
         private const int RecentFilesLimit = 20;
 
         [Flags]
@@ -53,6 +53,7 @@ namespace GUI.Utils
             public AppUpdateState Update { get; set; }
         }
 
+        public static bool IsFirstStartup { get; private set; }
         public static string SettingsFolder { get; private set; }
         private static string SettingsFilePath;
 
@@ -189,6 +190,11 @@ namespace GUI.Utils
             if (currentVersion < 8) // version 8: added explorer on start
             {
                 Config.OpenExplorerOnStart = 1;
+            }
+
+            if (currentVersion < 10) // version 10: added startup window
+            {
+                IsFirstStartup = true;
             }
 
             if (currentVersion > 0 && currentVersion != SettingsFileCurrentVersion)
