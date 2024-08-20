@@ -664,8 +664,10 @@ void main()
 #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
     else if (g_iRenderMode == renderMode_LightmapShadows)
     {
-        vec4 dlsh = texture(g_tDirectLightShadows, vLightmapUVScaled);
-        outputColor = vec4(vec3(1.0 - dlsh.x) + vec3(1.0 - min3(dlsh.yzw)) * vec3(0.5, 0.5, 0), 1.0);
+        #if (LightmapGameVersionNumber == 2)
+            vec4 dlsh = texture(g_tDirectLightShadows, vLightmapUVScaled);
+            outputColor = vec4(vec3(1.0 - dlsh.x) + vec3(1.0 - min3(dlsh.yzw)) * vec3(0.5, 0.5, 0), 1.0);
+        #endif
     }
 #endif
     else if (g_iRenderMode == renderMode_Tint)
