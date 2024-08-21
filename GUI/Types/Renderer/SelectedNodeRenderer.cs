@@ -1,5 +1,6 @@
 using System.Linq;
 using OpenTK.Graphics.OpenGL;
+using ValveResourceFormat.Utils;
 
 namespace GUI.Types.Renderer
 {
@@ -139,6 +140,23 @@ namespace GUI.Types.Renderer
                         }
 
                         OctreeDebugRenderer<SceneNode>.AddBox(vertices, node.Transform, bounds, new(0.0f, 1.0f, 0.0f, 1.0f));
+
+                        disableDepth = true;
+                    }
+                    else if (classname is "light_barn" or "light_omni2")
+                    {
+                        var bounds = new AABB(
+                            EntityTransformHelper.ParseVector(node.EntityData.GetProperty<string>("precomputedboundsmins")),
+                            EntityTransformHelper.ParseVector(node.EntityData.GetProperty<string>("precomputedboundsmaxs"))
+                        );
+
+                        var origin = EntityTransformHelper.ParseVector(node.EntityData.GetProperty<string>("precomputedobbextent"));
+                        var extent = EntityTransformHelper.ParseVector(node.EntityData.GetProperty<string>("precomputedobborigin"));
+
+                        OctreeDebugRenderer<SceneNode>.AddBox(vertices, Matrix4x4.Identity, bounds, new(0.0f, 1.0f, 0.0f, 1.0f));
+
+                        OctreeDebugRenderer<SceneNode>.AddLine(vertices, node.Transform.Translation, origin, new(0.0f, 0.0f, 1.0f, 1.0f));
+                        OctreeDebugRenderer<SceneNode>.AddLine(vertices, node.Transform.Translation, extent, new(1.0f, 1.0f, 0.0f, 1.0f));
 
                         disableDepth = true;
                     }
