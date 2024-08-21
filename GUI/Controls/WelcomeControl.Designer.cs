@@ -68,7 +68,7 @@
             label1.Name = "label1";
             label1.Size = new System.Drawing.Size(230, 15);
             label1.TabIndex = 1;
-            label1.Text = "Updates are checked by connecting to github.com";
+            label1.Text = "Updates are checked daily by connecting to github.com";
             label1.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
             // updateCheckButton
@@ -78,7 +78,7 @@
             updateCheckButton.Name = "updateCheckButton";
             updateCheckButton.Size = new System.Drawing.Size(230, 38);
             updateCheckButton.TabIndex = 0;
-            updateCheckButton.Text = "To enable automatic update checks, click here";
+            updateCheckButton.Text = "Enable automatic update checks";
             updateCheckButton.UseVisualStyleBackColor = true;
             updateCheckButton.Click += updateCheckButton_Click;
             // 
@@ -122,7 +122,7 @@
             fileAssociationButton.Name = "fileAssociationButton";
             fileAssociationButton.Size = new System.Drawing.Size(230, 41);
             fileAssociationButton.TabIndex = 0;
-            fileAssociationButton.Text = "To open .VPK files from the Windows file explorer, click here\r\n";
+            fileAssociationButton.Text = "Set Source 2 Viewer as the default program for .VPK files";
             fileAssociationButton.UseVisualStyleBackColor = true;
             fileAssociationButton.Click += fileAssociationButton_Click;
             // 
