@@ -146,10 +146,10 @@ uniform sampler2D g_tTintMask;
 
 
 #define _uniformMetalness (defined(simple_vfx_common) || defined(complex_vfx_common)) && (F_METALNESS_TEXTURE == 0)
-#define _colorAlphaMetalness (defined(simple_vfx_common) || defined(complex_vfx_common)) && (F_METALNESS_TEXTURE == 1)
+#define _colorAlphaMetalness ((defined(simple_vfx_common) || defined(complex_vfx_common)) && (F_METALNESS_TEXTURE == 1) || defined(pbr_vfx))
 #define _colorAlphaAO (defined(vr_simple_vfx) && (F_AMBIENT_OCCLUSION_TEXTURE == 1) && (F_METALNESS_TEXTURE == 0)) || (defined(simple_blend_common) && (F_ENABLE_AMBIENT_OCCLUSION == 1))
 #define _metalnessTexture (defined(complex_vfx_common) && (F_METALNESS_TEXTURE == 1) && ((F_RETRO_REFLECTIVE == 1) || (F_ALPHA_TEST == 1) || (F_TRANSLUCENT == 1))) || defined(csgo_weapon_vfx) || defined(csgo_character_vfx) || defined(csgo_vertexlitgeneric_vfx)
-#define _ambientOcclusionTexture ( (defined(vr_simple_vfx) && (F_AMBIENT_OCCLUSION_TEXTURE == 1) && (F_METALNESS_TEXTURE == 1)) || defined(complex_vfx_common) || defined(csgo_foliage_vfx) || defined(csgo_weapon_vfx) || defined(csgo_character_vfx) || defined(csgo_generic_vfx_common))
+#define _ambientOcclusionTexture ((defined(vr_simple_vfx) && (F_AMBIENT_OCCLUSION_TEXTURE == 1) && (F_METALNESS_TEXTURE == 1)) || defined(complex_vfx_common) || defined(csgo_foliage_vfx) || defined(csgo_weapon_vfx) || defined(csgo_character_vfx) || defined(csgo_generic_vfx_common) || defined(pbr_vfx))
 
 #define unlit (defined(vr_unlit_vfx) || defined(unlit_vfx) || defined(csgo_unlitgeneric_vfx) || (F_FULLBRIGHT == 1) || (F_UNLIT == 1) || (defined(static_overlay_vfx_common) && F_LIT == 0)) || defined(csgo_decalmodulate_vfx)
 #define alphatest (F_ALPHA_TEST == 1) || ((defined(csgo_unlitgeneric_vfx) || defined(static_overlay_vfx_common)) && (F_BLEND_MODE == 2)) || defined(csgo_decalmodulate_vfx)
