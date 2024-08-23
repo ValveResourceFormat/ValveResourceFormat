@@ -117,7 +117,8 @@ namespace GUI.Types.Renderer
 
             var blendMode = 0;
 
-            if (material.ShaderName.EndsWith("static_overlay.vfx", System.StringComparison.Ordinal))
+            if (material.ShaderName.EndsWith("static_overlay.vfx", StringComparison.Ordinal)
+                || material.ShaderName is "citadel_overlay.vfx")
             {
                 IsOverlay = true;
                 blendMode = (int)material.IntParams.GetValueOrDefault("F_BLEND_MODE");
