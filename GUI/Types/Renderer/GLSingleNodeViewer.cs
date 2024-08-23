@@ -76,7 +76,7 @@ namespace GUI.Types.Renderer
         }
 
         Vector2 defaultSunAngles = new(80f, 170f);
-        Vector4 defaultSunColor = new Vector4(255, 247, 235, 400) / 255.0f;
+        Vector4 defaultSunColor = new Vector4(255, 247, 235, 700) / 255.0f;
 
         readonly Camera previousCamera = new();
         Vector2 sunAngles;
