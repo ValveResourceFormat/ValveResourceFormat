@@ -42,8 +42,7 @@ uniform int F_TEXTURE_ANIMATION_MODE;
     out vec3 vPerVertexLightingOut;
 #endif
 
-#if (F_LAYERS > 0) || defined(simple_2way_blend_vfx) || defined(vr_blend_vfx_common) || defined(vr_standard_blend_vfx)
-
+#if (F_LAYERS > 0) || defined(simple_2way_blend_vfx) || defined(vr_blend_vfx_common) || defined(vr_standard_blend_vfx) || defined(environment_blend_vfx)
     #if defined(vr_standard_blend_vfx)
         #define vBLEND_COLOR vTEXCOORD2
     #else
@@ -242,7 +241,7 @@ void main()
     vDetailTexCoords = RotateVector2D(detailCoords, g_flDetailTexCoordRotation, g_vDetailTexCoordScale.xy, g_vDetailTexCoordOffset.xy);
 #endif
 
-#if (F_LAYERS > 0) || defined(simple_2way_blend_vfx) || defined(vr_blend_vfx_common) || defined(vr_standard_blend_vfx)
+#if defined(vBLEND_COLOR)
     vColorBlendValues = vBLEND_COLOR;
 
     #if defined(vr_blend_vfx_common)

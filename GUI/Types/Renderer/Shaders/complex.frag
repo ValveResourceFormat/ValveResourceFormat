@@ -129,13 +129,15 @@ uniform sampler2D g_tTintMask;
     #define csgo_generic_blend
 #endif
 
-#if (defined(simple_blend_common) || defined(csgo_generic_blend) || defined(vr_standard_blend_vfx))
-    #if !defined(steampal_2way_blend_mask_vfx)
+#if (defined(simple_blend_common) || defined(csgo_generic_blend) || defined(vr_standard_blend_vfx) || defined(environment_blend_vfx))
+    #if !defined(steampal_2way_blend_mask_vfx) // blending without vertex paint
         in vec4 vColorBlendValues;
     #endif
     uniform sampler2D g_tLayer2Color; // SrgbRead(true)
     uniform sampler2D g_tLayer2NormalRoughness;
     uniform vec4 g_vTexCoordScale2 = vec4(1.0);
+
+    #define terrain_blend_common
 #endif
 
 #if defined(vr_skin_vfx)
@@ -283,7 +285,7 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
     vec4 normalTexture = texture(g_tNormal, texCoord);
 
     // Blending
-#if defined(csgo_generic_blend) || defined(simple_blend_common)  || defined(vr_standard_blend_vfx)
+#if defined(terrain_blend_common)
     vec2 texCoordB = texCoord * g_vTexCoordScale2.xy;
 
     #if defined(vr_standard_blend_vfx)
@@ -686,7 +688,7 @@ void main()
         outputColor.rgb = SrgbGammaToLinear(vFoliageParamsOut.rgb);
     }
 #endif
-#if !defined(steampal_2way_blend_mask_vfx) && (defined(csgo_generic_blend) || defined(simple_blend_common) || defined(vr_standard_blend_vfx))
+#if defined(terrain_blend_common) && !defined(steampal_2way_blend_mask_vfx)
     else if (g_iRenderMode == renderMode_TerrainBlend)
     {
         outputColor.rgb = SrgbGammaToLinear(vColorBlendValues.rgb);
