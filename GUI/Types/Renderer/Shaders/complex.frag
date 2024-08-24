@@ -201,6 +201,26 @@ uniform sampler2D g_tTintMask;
     uniform float g_flBlendSoftness;
 #endif
 
+
+#if defined(environment_blend_vfx)
+    #define g_tColor1 g_tColor
+    #define g_tNormalRoughness1 g_tNormal
+    uniform sampler2D g_tPacked1;
+
+    #define g_tColor2 g_tLayer2Color
+    #define g_tNormalRoughness2 g_tLayer2NormalRoughness
+    uniform sampler2D g_tPacked2;
+    uniform sampler2D g_tRevealMask2;
+    uniform float g_flRevealSoftness2;
+
+    // todo: layer 3
+    // todo: overlay
+
+    //uniform sampler2D g_tColorOverlay;
+    //uniform sampler2D g_tNormalRoughnessOverlay;
+    //uniform sampler2D g_tRevealOverlay;
+#endif
+
 #if defined(simple_blend_common)
     uniform sampler2D g_tMask;
     uniform float g_flMetalnessA = 0.0;
@@ -332,6 +352,10 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
         vec4 blendModTexel = texture(g_tLayer1RevealMask, texCoordB);
 
         blendFactor = ApplyBlendModulation(blendFactor, blendModTexel.g, blendModTexel.r * g_flLayer1BlendSoftness);
+    #elif defined(environment_blend_vfx)
+        float blendFactor = vColorBlendValues.r;
+        float revealMask = texture(g_tRevealMask2, texCoordB).r;
+        blendFactor = ApplyBlendModulation(blendFactor, revealMask, g_flRevealSoftness2);
     #else
         float blendFactor = vColorBlendValues.r;
     #endif
@@ -350,6 +374,15 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
     color = mix(color, color2, blendFactor);
     // It's more correct to blend normals after decoding, but it's not actually how S2 does it
     normalTexture = mix(normalTexture, normalTexture2, blendFactor);
+
+    #if defined(environment_blend_vfx)
+        vec3 packed1 = texture(g_tPacked1, texCoord).rgb;
+        vec3 packed2 = texture(g_tPacked2, texCoord).rgb;
+        vec3 packedBlended = mix(packed1, packed2, blendFactor);
+        mat.AmbientOcclusion = packedBlended.r;
+        mat.Metalness = packedBlended.g;
+        mat.Height = packedBlended.b;
+    #endif
 #endif
 
     float flSelfIllumMask = 0.0;
