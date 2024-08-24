@@ -279,14 +279,14 @@ namespace GUI.Types.Renderer
             [DepthOnlyProgram.Animated] = [],
         };
 
-        public void SetupSceneShadows(Camera camera)
+        public void SetupSceneShadows(Camera camera, int shadowMapSize)
         {
             if (!LightingInfo.EnableDynamicShadows)
             {
                 return;
             }
 
-            LightingInfo.UpdateSunLightFrustum(camera);
+            LightingInfo.UpdateSunLightFrustum(camera, shadowMapSize);
 
             foreach (var bucket in CulledShadowDrawCalls.Values)
             {

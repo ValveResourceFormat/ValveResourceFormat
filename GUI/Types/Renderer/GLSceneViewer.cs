@@ -324,7 +324,7 @@ namespace GUI.Types.Renderer
 
                 selectedNodeRenderer.Update(new Scene.UpdateContext(e.FrameTime));
 
-                Scene.SetupSceneShadows(Camera);
+                Scene.SetupSceneShadows(Camera, ShadowDepthBuffer.Width);
                 Scene.CollectSceneDrawCalls(Camera, lockedCullFrustum);
                 SkyboxScene?.CollectSceneDrawCalls(Camera, lockedCullFrustum);
             }

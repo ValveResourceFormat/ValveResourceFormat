@@ -127,12 +127,12 @@ partial class Scene
             }
         }
 
-        public void UpdateSunLightFrustum(Camera camera, float orthoSize = 512f)
+        public void UpdateSunLightFrustum(Camera camera, float shadowMapSize = 512f)
         {
             var sunMatrix = LightingData.LightToWorld[0];
             var sunDir = Vector3.Normalize(Vector3.Transform(Vector3.UnitX, sunMatrix with { Translation = Vector3.Zero })); // why is sun dir calculated like so?.
 
-            var bbox = orthoSize;
+            var bbox = Math.Max(shadowMapSize / 2.5f, 512f);
             var farPlane = 8096f;
             var nearPlaneExtend = 1000f;
             var bias = 0.001f;
@@ -148,7 +148,7 @@ partial class Scene
                 var sceneBounds = staticBounds.Union(dynamicBounds);
                 var max = Math.Max(sceneBounds.Size.X, Math.Max(sceneBounds.Size.Y, sceneBounds.Size.Z));
 
-                if (max > 0 && max < orthoSize)
+                if (max > 0 && max < shadowMapSize)
                 {
                     nearPlaneExtend = max / 2f;
                     eye = staticBounds.Center - sunDir * nearPlaneExtend;
