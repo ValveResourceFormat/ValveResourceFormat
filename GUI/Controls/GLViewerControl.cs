@@ -297,7 +297,9 @@ namespace GUI.Controls
 
             if (FullScreenForm != null)
             {
-                // Windows has a 1px edge on bottom of the screen where cursor can't reach
+                // Windows has a 1px edge on bottom and right of the screen where cursor can't reach
+                // (assuming that there is no secondary screen past these edges)
+                bottomRight.X -= 1;
                 bottomRight.Y -= 1;
             }
 
