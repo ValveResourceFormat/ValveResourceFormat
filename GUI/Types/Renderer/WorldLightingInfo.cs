@@ -195,7 +195,7 @@ partial class Scene
                 AddLight(light, (uint)light.StationaryLightIndex);
             }
 
-            LightingData.NumLights[0] = ++currentLightIndex;
+            LightingData.NumLights[0] = currentLightIndex + 1;
 
             foreach (var light in lights.Where(l => l.StationaryLightIndex == -1))
             {

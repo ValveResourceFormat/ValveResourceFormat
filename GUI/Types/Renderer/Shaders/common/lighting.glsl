@@ -196,13 +196,14 @@ void CalculateDirectLighting(inout LightingTerms_t lighting, inout MaterialPrope
             {
                 vec3 lightVector = GetLightDirection(mat.PositionWS, uLightIndex);
                 vec3 lightColor = GetLightColor(uLightIndex);
+                vec3 lightColorModulated = lightColor * visibility;
 
                 vec3 previousDiffuse = lighting.DiffuseDirect;
-                CalculateShading(lighting, lightVector, visibility * lightColor, mat);
+                CalculateShading(lighting, lightVector, lightColorModulated, mat);
 
                 if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1 && bLightmapBakedDirectDiffuse)
                 {
-                    lighting.DiffuseDirect = previousDiffuse + (visibility * lightColor);
+                    lighting.DiffuseDirect = previousDiffuse + lightColorModulated;
                 }
             }
         }
