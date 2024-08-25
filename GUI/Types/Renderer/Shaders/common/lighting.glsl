@@ -324,6 +324,11 @@ void CalculateIndirectLighting(inout LightingTerms_t lighting, inout MaterialPro
         lighting.DiffuseIndirect += vAmbient[i] * vNormalSquared[i];
     }
 
+    // SteamVR Home lpv irradiance is RGBM Dxt5
+    #if (LightmapGameVersionNumber == 0)
+        lighting.DiffuseIndirect = pow2(lighting.DiffuseIndirect); // not bothering with RGBM
+    #endif
+
 #elif (D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1)
     lighting.DiffuseIndirect = vPerVertexLightingOut.rgb;
 #endif
