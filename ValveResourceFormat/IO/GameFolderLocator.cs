@@ -4,7 +4,7 @@ using System.IO;
 using System.Linq;
 using ValveKeyValue;
 
-namespace ValveResourceFormat.Utils
+namespace ValveResourceFormat.IO
 {
     public static class GameFolderLocator
     {

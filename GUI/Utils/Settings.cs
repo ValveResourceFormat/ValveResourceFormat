@@ -3,7 +3,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using ValveKeyValue;
-using ValveResourceFormat.Utils;
+using ValveResourceFormat.IO;
 
 namespace GUI.Utils
 {
