@@ -1,7 +1,7 @@
 using Microsoft.Win32;
 using System.Globalization;
 using System.IO;
-using System.Runtime.InteropServices;
+using System.Linq;
 using ValveKeyValue;
 
 namespace ValveResourceFormat.Utils
@@ -10,20 +10,31 @@ namespace ValveResourceFormat.Utils
     {
         public static string GetSteamPath()
         {
-            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            {
-                return string.Empty;
-            }
-
             try
             {
-                using var key =
-                    Registry.CurrentUser.OpenSubKey("SOFTWARE\\Valve\\Steam") ??
-                    Registry.LocalMachine.OpenSubKey("SOFTWARE\\Valve\\Steam");
-
-                if (key?.GetValue("SteamPath") is string steamPath)
+                if (OperatingSystem.IsWindows())
                 {
-                    return Path.GetFullPath(steamPath);
+                    using var key = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Valve\\Steam") ??
+                                    Registry.LocalMachine.OpenSubKey("SOFTWARE\\Valve\\Steam");
+
+                    if (key?.GetValue("SteamPath") is string steamPath)
+                    {
+                        return steamPath;
+                    }
+                }
+                else if (OperatingSystem.IsLinux())
+                {
+                    var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                    var paths = new[] { ".steam", ".steam/steam", ".steam/root", ".local/share/Steam" };
+
+                    return paths
+                        .Select(path => Path.Join(home, path))
+                        .FirstOrDefault(steamPath => Directory.Exists(Path.Join(steamPath, "appcache")));
+                }
+                else if (OperatingSystem.IsMacOS())
+                {
+                    var home = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+                    return Path.Join(home, "Steam");
                 }
             }
             catch
