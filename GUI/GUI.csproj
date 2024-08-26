@@ -27,7 +27,7 @@
     <PackageReference Include="OpenTK.GLControl" Version="3.3.3">
         <NoWarn>NU1701</NoWarn>
     </PackageReference>
-    <PackageReference Include="Svg.Skia" Version="1.0.0.18" />
+    <PackageReference Include="Svg.Skia" Version="2.0.0" />
     <PackageReference Include="System.IO.Hashing" Version="8.0.0" />
     <PackageReference Include="Vortice.SpirvCross" Version="1.5.0" />
   </ItemGroup>
