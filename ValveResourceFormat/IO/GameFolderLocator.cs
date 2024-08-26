@@ -8,51 +8,73 @@ namespace ValveResourceFormat.IO
 {
     public static class GameFolderLocator
     {
+        /// <summary>
+        /// Represents an installed Steam app (game, tool, application, etc.)
+        /// </summary>
+        /// <param name="AppID">AppID of the app.</param>
+        /// <param name="AppName">Name of the path.</param>
+        /// <param name="SteamPath">Path to the root of the Steam library where this app is installed. ("C:/Steam/steamapps")</param>
+        /// <param name="GamePath">Full path to the installation directory of the app. ("C:/Steam/steamapps/common/dota 2 beta")</param>
         public record struct SteamLibraryGameInfo(int AppID, string AppName, string SteamPath, string GamePath);
 
-        public static string GetSteamPath()
-        {
-            try
-            {
-                if (OperatingSystem.IsWindows())
-                {
-                    using var key = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Valve\\Steam") ??
-                                    Registry.LocalMachine.OpenSubKey("SOFTWARE\\Valve\\Steam");
+        private static string steamPath;
 
-                    if (key?.GetValue("SteamPath") is string steamPath)
+        /// <summary>
+        /// Path to the root of Steam installation. <c>null</c> if not found.
+        /// </summary>
+        public static string SteamPath
+        {
+            get
+            {
+                if (steamPath != null)
+                {
+                    return steamPath;
+                }
+
+                try
+                {
+                    if (OperatingSystem.IsWindows())
                     {
-                        return steamPath;
+                        using var key = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Valve\\Steam") ??
+                                        Registry.LocalMachine.OpenSubKey("SOFTWARE\\Valve\\Steam");
+
+                        if (key?.GetValue("SteamPath") is string steamPathTemp)
+                        {
+                            steamPath = steamPathTemp;
+                        }
+                    }
+                    else if (OperatingSystem.IsLinux())
+                    {
+                        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                        var paths = new[] { ".steam", ".steam/steam", ".steam/root", ".local/share/Steam" };
+
+                        steamPath = paths
+                            .Select(path => Path.Join(home, path))
+                            .FirstOrDefault(steamPath => Directory.Exists(Path.Join(steamPath, "appcache")));
+                    }
+                    else if (OperatingSystem.IsMacOS())
+                    {
+                        var home = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+                        steamPath = Path.Join(home, "Steam");
                     }
                 }
-                else if (OperatingSystem.IsLinux())
+                catch
                 {
-                    var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-                    var paths = new[] { ".steam", ".steam/steam", ".steam/root", ".local/share/Steam" };
-
-                    return paths
-                        .Select(path => Path.Join(home, path))
-                        .FirstOrDefault(steamPath => Directory.Exists(Path.Join(steamPath, "appcache")));
                 }
-                else if (OperatingSystem.IsMacOS())
-                {
-                    var home = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-                    return Path.Join(home, "Steam");
-                }
-            }
-            catch
-            {
-            }
 
-            return string.Empty;
+                return steamPath;
+            }
         }
 
-        public static string[] FindSteamLibraryFolderPaths()
+        /// <summary>
+        /// Find all the Steam installation library paths.
+        /// </summary>
+        /// <returns>A list of Steam library paths.</returns>
+        public static List<string> FindSteamLibraryFolderPaths()
         {
-            var steam = GetSteamPath();
+            var libraryfolders = Path.Join(SteamPath, "steamapps", "libraryfolders.vdf");
 
-            var libraryfolders = Path.Join(steam, "steamapps", "libraryfolders.vdf");
-
-            if (string.IsNullOrEmpty(steam) || !File.Exists(libraryfolders))
+            if (steamPath == null || !File.Exists(libraryfolders))
             {
                 return [];
             }
@@ -66,7 +88,7 @@ namespace ValveResourceFormat.IO
                 libraryFoldersKv = kvDeserializer.Deserialize(libraryFoldersStream, KVSerializerOptions.DefaultOptions);
             }
 
-            var steamPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { steam };
+            var steamPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { steamPath };
 
             foreach (var child in libraryFoldersKv.Children)
             {
@@ -81,7 +103,11 @@ namespace ValveResourceFormat.IO
             return [.. steamPaths];
         }
 
-        public static SteamLibraryGameInfo[] FindAllSteamGames()
+        /// <summary>
+        /// Find all installed games in in all Steam library folders.
+        /// </summary>
+        /// <returns>A list of all installed Steam games.</returns>
+        public static List<SteamLibraryGameInfo> FindAllSteamGames()
         {
             var gameInfos = new List<SteamLibraryGameInfo>();
 
@@ -101,7 +127,7 @@ namespace ValveResourceFormat.IO
                 }
             }
 
-            return [.. gameInfos];
+            return gameInfos;
         }
 
         /// <summary>

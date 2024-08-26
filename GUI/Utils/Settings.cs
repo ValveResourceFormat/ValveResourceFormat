@@ -132,9 +132,14 @@ namespace GUI.Utils
             Config.RecentFiles ??= new(RecentFilesLimit);
             Config.Update ??= new();
 
-            if (string.IsNullOrEmpty(Config.OpenDirectory) && RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            if (string.IsNullOrEmpty(Config.OpenDirectory))
             {
-                Config.OpenDirectory = Path.Join(GameFolderLocator.GetSteamPath(), "steamapps", "common");
+                var steamPath = Path.Join(GameFolderLocator.SteamPath, "steamapps", "common");
+
+                if (Directory.Exists(steamPath))
+                {
+                    Config.OpenDirectory = steamPath;
+                }
             }
 
             if (Config.MaxTextureSize <= 0)

@@ -150,12 +150,13 @@ namespace GUI.Controls
                 return string.Compare(a.Text, b.Text, StringComparison.OrdinalIgnoreCase);
             }
 
-            var steam = GameFolderLocator.GetSteamPath();
+            var steam = GameFolderLocator.SteamPath;
 
             var kvDeserializer = KVSerializer.Create(KVSerializationFormat.KeyValues1Text);
 
             var gamePathsToScan = GameFolderLocator.FindAllSteamGames()
-                .Where(gameInfo => !(gameInfo.AppID is 1237970 or 1454890 or 1172470)) // Ignore Apex Legends, Titanfall, Titanfall 2 because Respawn has customized VPK format and VRF can't open it
+                // Ignore Apex Legends, Titanfall, Titanfall 2 because Respawn has customized VPK format and VRF can't open it
+                .Where(static gameInfo => gameInfo.AppID is not (1237970 or 1454890 or 1172470))
                 .ToList();
 
             if (gamePathsToScan.Count == 0)
