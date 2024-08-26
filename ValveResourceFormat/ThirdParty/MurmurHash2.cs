@@ -1,5 +1,3 @@
-using System.Text;
-
 namespace ValveResourceFormat.ThirdParty
 {
     public static class MurmurHash2
@@ -7,9 +5,9 @@ namespace ValveResourceFormat.ThirdParty
         private const uint M = 0x5bd1e995;
         private const int R = 24;
 
-        public static uint Hash(string data, uint seed) => Hash(Encoding.ASCII.GetBytes(data), seed);
+        public static uint Hash(string data, uint seed) => Hash(data.AsSpan(), seed);
 
-        public static uint Hash(ReadOnlySpan<byte> data, uint seed)
+        public static uint Hash(ReadOnlySpan<char> data, uint seed)
         {
             var length = data.Length;
 
