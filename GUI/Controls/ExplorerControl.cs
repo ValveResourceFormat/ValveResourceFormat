@@ -10,7 +10,6 @@ using System.Windows.Forms;
 using GUI.Utils;
 using ValveKeyValue;
 using ValveResourceFormat.IO;
-using ValveResourceFormat.Utils;
 
 namespace GUI.Controls
 {
