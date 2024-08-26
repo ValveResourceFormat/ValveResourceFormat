@@ -73,13 +73,13 @@ public sealed class ShaderExtract
     public ShaderFile PixelShaderRenderState => Shaders.PixelShaderRenderState;
     public ShaderFile Raytracing => Shaders.Raytracing;
 
-    private IReadOnlyList<string> FeatureNames { get; set; }
-    private string[] Globals { get; set; }
-    private HashSet<string> VariantParameterNames { get; set; }
-    private HashSet<int> VariantParameterIndices { get; set; }
+    private readonly string[] FeatureNames;
+    private readonly string[] Globals;
+    private HashSet<string> VariantParameterNames;
+    private HashSet<int> VariantParameterIndices;
 
-    private ShaderExtractParams Options { get; set; }
-    private Dictionary<string, IndentedTextWriter> IncludeWriters { get; set; }
+    private ShaderExtractParams Options;
+    private Dictionary<string, IndentedTextWriter> IncludeWriters;
 
     public ShaderExtract(Resource resource)
         : this((SboxShader)(resource.GetBlockByType(BlockType.SPRV)
@@ -100,7 +100,7 @@ public sealed class ShaderExtract
             throw new InvalidOperationException("Shader extract cannot continue without at least a features file.");
         }
 
-        FeatureNames = Features.SfBlocks.Select(f => f.Name).ToList();
+        FeatureNames = Features.SfBlocks.Select(f => f.Name).ToArray();
         Globals = Features.ParamBlocks.Select(p => p.Name).ToArray();
     }
 
