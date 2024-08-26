@@ -10,6 +10,7 @@ using System.Windows.Forms;
 using GUI.Utils;
 using ValveKeyValue;
 using ValveResourceFormat.IO;
+using ValveResourceFormat.Utils;
 
 namespace GUI.Controls
 {
@@ -150,72 +151,13 @@ namespace GUI.Controls
                 return string.Compare(a.Text, b.Text, StringComparison.OrdinalIgnoreCase);
             }
 
-            var steam = Settings.GetSteamPath();
+            var steam = GameFolderLocator.GetSteamPath();
+
             var kvDeserializer = KVSerializer.Create(KVSerializationFormat.KeyValues1Text);
-            var gamePathsToScan = new List<(int AppID, string AppName, string SteamPath, string GamePath)>();
 
-            // Find game folders
-            var libraryfolders = Path.Join(steam, "steamapps", "libraryfolders.vdf");
-
-            if (!string.IsNullOrEmpty(steam) && File.Exists(libraryfolders))
-            {
-                KVObject libraryFoldersKv;
-
-                using (var libraryFoldersStream = File.OpenRead(libraryfolders))
-                {
-                    libraryFoldersKv = kvDeserializer.Deserialize(libraryFoldersStream, KVSerializerOptions.DefaultOptions);
-                }
-
-                var steamPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { steam };
-
-                foreach (var child in libraryFoldersKv.Children)
-                {
-                    var steamAppsPath = Path.GetFullPath(Path.Join(child["path"].ToString(CultureInfo.InvariantCulture), "steamapps"));
-
-                    if (Directory.Exists(steamAppsPath))
-                    {
-                        steamPaths.Add(steamAppsPath);
-                    }
-                }
-
-                foreach (var steamPath in steamPaths)
-                {
-                    var manifests = Directory.GetFiles(steamPath, "appmanifest_*.acf");
-
-                    foreach (var appManifestPath in manifests)
-                    {
-                        KVObject appManifestKv;
-
-                        try
-                        {
-                            using var appManifestStream = File.OpenRead(appManifestPath);
-                            appManifestKv = kvDeserializer.Deserialize(appManifestStream, KVSerializerOptions.DefaultOptions);
-
-                            var appID = appManifestKv["appid"].ToInt32(CultureInfo.InvariantCulture);
-                            var appName = appManifestKv["name"].ToString(CultureInfo.InvariantCulture);
-                            var installDir = appManifestKv["installdir"].ToString(CultureInfo.InvariantCulture);
-                            var gamePath = Path.Combine(steamPath, "common", installDir);
-
-                            if (appID is 1237970 or 1454890 or 1172470)
-                            {
-                                // Ignore Apex Legends, Titanfall, Titanfall 2 because Respawn has customized VPK format and VRF can't open it
-                                continue;
-                            }
-
-                            if (!Directory.Exists(gamePath))
-                            {
-                                continue;
-                            }
-
-                            gamePathsToScan.Add((appID, appName, steamPath, gamePath));
-                        }
-                        catch (Exception)
-                        {
-                            // Ignore games that failed to parse
-                        }
-                    }
-                }
-            }
+            var gamePathsToScan = GameFolderLocator.FindAllSteamGames()
+                .Where(gameInfo => !(gameInfo.AppID is 1237970 or 1454890 or 1172470)) // Ignore Apex Legends, Titanfall, Titanfall 2 because Respawn has customized VPK format and VRF can't open it
+                .ToList();
 
             if (gamePathsToScan.Count == 0)
             {
