@@ -8,6 +8,8 @@ namespace ValveResourceFormat.Utils
 {
     public static class GameFolderLocator
     {
+        public record struct SteamLibraryGameInfo(int AppID, string AppName, string SteamPath, string GamePath);
+
         public static string GetSteamPath()
         {
             try
