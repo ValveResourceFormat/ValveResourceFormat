@@ -1,6 +1,7 @@
 using System.IO;
 using System.Windows.Forms;
 using GUI.Controls;
+using GUI.Theme;
 using GUI.Utils;
 
 namespace GUI.Types.Viewers
@@ -12,14 +13,14 @@ namespace GUI.Types.Viewers
         public TabPage Create(VrfGuiContext vrfGuiContext, Stream stream)
         {
             var tab = new TabPage();
-            var resTabs = new TabControl
+            var resTabs = new CustomTabControl
             {
                 Dock = DockStyle.Fill,
             };
             tab.Controls.Add(resTabs);
 
             var bvTab = new TabPage("Hex");
-            var bv = new System.ComponentModel.Design.ByteViewer
+            var bv = new CustomByteViewer
             {
                 Dock = DockStyle.Fill,
             };

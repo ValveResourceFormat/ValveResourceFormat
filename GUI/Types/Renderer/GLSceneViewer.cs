@@ -5,6 +5,7 @@ using System.Linq;
 using System.Reflection;
 using System.Windows.Forms;
 using GUI.Controls;
+using GUI.Theme;
 using GUI.Types.Renderer.UniformBuffers;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
@@ -548,7 +549,11 @@ namespace GUI.Types.Renderer
 
         private void OnRenderModeDrawItem(object sender, DrawItemEventArgs e)
         {
-            var comboBox = (ComboBox)sender;
+            var comboBox = (CustomComboBox)sender;
+
+            using var headerBrush = new SolidBrush(comboBox.HeaderColor);
+            using var hoverBrush = new SolidBrush(comboBox.TextHoverColor);
+            using var textBrush = new SolidBrush(comboBox.ForeColor);
 
             if (e.Index < 0)
             {
@@ -559,8 +564,8 @@ namespace GUI.Types.Renderer
 
             if (mode.IsHeader)
             {
-                e.Graphics.FillRectangle(SystemBrushes.Window, e.Bounds);
-                e.Graphics.DrawString(mode.Name, renderModeBoldFont, SystemBrushes.ControlText, e.Bounds);
+                e.Graphics.FillRectangle(headerBrush, e.Bounds);
+                e.Graphics.DrawString(mode.Name, renderModeBoldFont, textBrush, e.Bounds);
             }
             else
             {
@@ -574,7 +579,7 @@ namespace GUI.Types.Renderer
                 }
 
                 var isSelected = (e.State & DrawItemState.Selected) > 0;
-                var brush = isSelected ? SystemBrushes.HighlightText : SystemBrushes.ControlText;
+                var brush = isSelected ? hoverBrush : textBrush;
                 e.Graphics.DrawString(mode.Name, comboBox.Font, brush, bounds);
 
                 e.DrawFocusRectangle();

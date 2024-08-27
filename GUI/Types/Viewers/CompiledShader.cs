@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Windows.Forms;
 using GUI.Controls;
+using GUI.Theme;
 using GUI.Utils;
 using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.IO;
@@ -21,7 +22,7 @@ namespace GUI.Types.Viewers
             return magic == ShaderFile.MAGIC;
         }
 
-        public class ShaderTabControl : TabControl
+        public class ShaderTabControl : CustomTabControl
         {
             public ShaderTabControl() : base() { }
             protected override void OnKeyDown(KeyEventArgs ke)

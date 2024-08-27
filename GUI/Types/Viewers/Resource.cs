@@ -3,6 +3,7 @@ using System.IO;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Controls;
+using GUI.Theme;
 using GUI.Types.Audio;
 using GUI.Types.Renderer;
 using GUI.Utils;
@@ -52,7 +53,7 @@ namespace GUI.Types.Viewers
                 resourceTemp?.Dispose();
             }
 
-            var resTabs = new TabControl
+            var resTabs = new CustomTabControl
             {
                 Dock = DockStyle.Fill,
             };

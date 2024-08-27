@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Forms;
+using GUI.Theme;
 using GUI.Utils;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
@@ -23,7 +24,7 @@ namespace GUI.Types.Renderer
         private readonly WorldNode worldNode;
         private CheckedListBox worldLayersComboBox;
         private CheckedListBox physicsGroupsComboBox;
-        private ComboBox cameraComboBox;
+        private CustomComboBox cameraComboBox;
         private SavedCameraPositionsControl savedCameraPositionsControl;
         private EntityInfoForm entityInfoForm;
         private bool ignoreLayersChangeEvents = true;

@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.IO;
 using System.Windows.Forms;
 using GUI.Controls;
+using GUI.Theme;
 using GUI.Utils;
 using ValveResourceFormat.ClosedCaptions;
 
@@ -17,7 +18,7 @@ namespace GUI.Types.Viewers
         public TabPage Create(VrfGuiContext vrfGuiContext, Stream stream)
         {
             var tabOuterPage = new TabPage();
-            var tabControl = new TabControl
+            var tabControl = new CustomTabControl
             {
                 Dock = DockStyle.Fill,
             };
