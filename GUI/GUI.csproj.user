@@ -1,0 +1,144 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="Current" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup />
+  <ItemGroup>
+    <Compile Update="Controls\AudioPlaybackPanel.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Controls\ChoreoViewer.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Controls\CodeTextBox.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Controls\ControlPanelView.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Controls\ExplorerControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Controls\GLViewerCheckboxControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Controls\GLViewerControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Controls\GLViewerMultiSelectionControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Controls\GLViewerSelectionControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Controls\GLViewerTrackBarControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Controls\SavedCameraPositionsControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Controls\TextControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Controls\WelcomeControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Forms\AboutForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Forms\EntityInfoForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Forms\ExtractOutputTypesForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Forms\ExtractProgressForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Forms\GenericProgressForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Forms\LoadingFile.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Forms\PromptForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Forms\SearchForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Forms\SettingsForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Forms\UpdateAvailableForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="MainForm.ContextMenus.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="MainForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Theme\CustomButton.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Theme\CustomByteViewer.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Theme\CustomComboBox.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Theme\CustomNumericUpDown.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Theme\CustomTabControl.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Theme\ThemeEditorDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Types\PackageViewer\BetterListView.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Types\PackageViewer\BetterTreeView.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Types\PackageViewer\TreeViewWithSearchResults.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Types\Renderer\GLAnimGraphViewer.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Types\Renderer\GLMaterialViewer.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Types\Renderer\GLMeshViewer.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Types\Renderer\GLModelViewer.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Types\Renderer\GLParticleViewer.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Types\Renderer\GLSceneViewer.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Types\Renderer\GLSingleNodeViewer.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Types\Renderer\GLSkyboxViewer.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Types\Renderer\GLSmartPropViewer.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Types\Renderer\GLTextureViewer.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Types\Renderer\GLWorldViewer.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Utils\TreeViewDoubleBuffered.cs">
+      <SubType>Component</SubType>
+    </Compile>
+  </ItemGroup>
+</Project>
