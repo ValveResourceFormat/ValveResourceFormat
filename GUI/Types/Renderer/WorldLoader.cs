@@ -264,11 +264,11 @@ namespace GUI.Types.Renderer
 
             Entities.AddRange(entities);
 
-            foreach (var (entity, classname) in entitiesReordered)
+            void LoadEntity(string classname, Entity entity)
             {
                 if (classname == "worldspawn")
                 {
-                    continue; // do not draw
+                    return; // do not draw
                 }
 
                 var transformationMatrix = parentTransform * EntityTransformHelper.CalculateTransformationMatrix(entity);
@@ -676,7 +676,7 @@ namespace GUI.Types.Renderer
 
                 if (transformationMatrix == default)
                 {
-                    continue;
+                    return;
                 }
 
                 var model = entity.GetProperty<string>(CommonHashes.Model);
@@ -774,7 +774,7 @@ namespace GUI.Types.Renderer
                         exposureParams.AutoExposureEnabled = useExposure;
                     }
 
-                    ScenePostProcessVolume postProcess = new ScenePostProcessVolume(scene)
+                    var postProcess = new ScenePostProcessVolume(scene)
                     {
                         ExposureSettings = exposureParams,
                         FadeTime = fadeTime,
@@ -834,7 +834,7 @@ namespace GUI.Types.Renderer
                     // If the post process model exists, we hackily let it add the model to the scene nodes
                     if (!postProcessHasModel)
                     {
-                        continue;
+                        return;
                     }
                 }
                 else if (classname == "env_tonemap_controller")
@@ -867,7 +867,7 @@ namespace GUI.Types.Renderer
                 if (model == null)
                 {
                     CreateDefaultEntity(entity, classname, transformationMatrix);
-                    continue;
+                    return;
                 }
 
                 var newEntity = guiContext.LoadFileCompiled(model);
@@ -888,7 +888,7 @@ namespace GUI.Types.Renderer
                         scene.Add(errorModel, false);
                     }
 
-                    continue;
+                    return;
                 }
 
                 var newModel = (Model)newEntity.DataBlock;
@@ -976,6 +976,20 @@ namespace GUI.Types.Renderer
 
                         scene.Add(physSceneNode, false);
                     }
+                }
+            }
+
+            foreach (var (entity, classname) in entitiesReordered)
+            {
+                try
+                {
+                    LoadEntity(classname, entity);
+                }
+                catch (Exception e)
+                {
+                    var id = entity.GetPropertyUnchecked(CommonHashes.HammerUniqueId, string.Empty);
+
+                    throw new InvalidDataException($"Failed to process entity '{classname}' (hammeruniqueid={id})", e);
                 }
             }
         }
