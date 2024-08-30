@@ -152,6 +152,12 @@ namespace ValveResourceFormat.ResourceTypes
                 {
                     var arrayKv = (KVObject)value.Value.Value;
 
+                    if (arrayKv.Count > 4)
+                    {
+                        // TODO: We should upconvert entitylump to keyvalues instead of the other way around
+                        continue;
+                    }
+
                     type = arrayKv.Count switch
                     {
                         2 => EntityFieldType.Vector2d, // Did binary entity lumps not store vec2?
