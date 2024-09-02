@@ -147,8 +147,8 @@ namespace ValveResourceFormat.ResourceTypes
 
         public IEnumerable<(Mesh Mesh, int MeshIndex, string Name)> GetEmbeddedMeshes()
         {
-            var ctrlBlock = Resource.GetBlockByType(BlockType.CTRL) as BinaryKV3;
-            var embeddedMeshes = ctrlBlock?.Data.GetArray("embedded_meshes");
+            var ctrl = Resource.GetBlockByType(BlockType.CTRL) as BinaryKV3;
+            var embeddedMeshes = ctrl?.Data.GetArray("embedded_meshes");
 
             if (embeddedMeshes == null)
             {
@@ -181,13 +181,8 @@ namespace ValveResourceFormat.ResourceTypes
 
         public PhysAggregateData GetEmbeddedPhys()
         {
-            if (!Resource.ContainsBlockType(BlockType.CTRL))
-            {
-                return null;
-            }
-
             var ctrl = Resource.GetBlockByType(BlockType.CTRL) as BinaryKV3;
-            var embeddedPhys = ctrl.Data.GetSubCollection("embedded_physics");
+            var embeddedPhys = ctrl?.Data.GetSubCollection("embedded_physics");
 
             if (embeddedPhys == null)
             {
@@ -206,13 +201,8 @@ namespace ValveResourceFormat.ResourceTypes
 
         public IEnumerable<Animation> GetEmbeddedAnimations()
         {
-            if (!Resource.ContainsBlockType(BlockType.CTRL))
-            {
-                return [];
-            }
-
             var ctrl = Resource.GetBlockByType(BlockType.CTRL) as BinaryKV3;
-            var embeddedAnimation = ctrl.Data.GetSubCollection("embedded_animation");
+            var embeddedAnimation = ctrl?.Data.GetSubCollection("embedded_animation");
 
             if (embeddedAnimation == null)
             {
