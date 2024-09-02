@@ -127,7 +127,7 @@ namespace ValveResourceFormat.ResourceTypes
         {
             var refLODGroupMasks = Data.GetIntegerArray("m_refLODGroupMasks");
             var refMeshes = Data.GetArray<string>("m_refMeshes");
-            var result = new List<(int MeshIndex, string MeshName, long LoDMask)>();
+            var result = new List<(int MeshIndex, string MeshName, long LoDMask)>(refMeshes.Length);
 
             for (var meshIndex = 0; meshIndex < refMeshes.Length; meshIndex++)
             {
@@ -147,36 +147,33 @@ namespace ValveResourceFormat.ResourceTypes
 
         public IEnumerable<(Mesh Mesh, int MeshIndex, string Name)> GetEmbeddedMeshes()
         {
-            var meshes = new List<(Mesh Mesh, int MeshIndex, string Name)>();
+            var ctrlBlock = Resource.GetBlockByType(BlockType.CTRL) as BinaryKV3;
+            var embeddedMeshes = ctrlBlock?.Data.GetArray("embedded_meshes");
 
-            if (Resource.ContainsBlockType(BlockType.CTRL))
+            if (embeddedMeshes == null)
             {
-                var ctrl = Resource.GetBlockByType(BlockType.CTRL) as BinaryKV3;
-                var embeddedMeshes = ctrl.Data.GetArray("embedded_meshes");
+                return [];
+            }
 
-                if (embeddedMeshes == null)
+            var meshes = new List<(Mesh Mesh, int MeshIndex, string Name)>(embeddedMeshes.Length);
+
+            foreach (var embeddedMesh in embeddedMeshes)
+            {
+                var name = embeddedMesh.GetStringProperty("name");
+                var meshIndex = (int)embeddedMesh.GetIntegerProperty("mesh_index");
+                var dataBlockIndex = (int)embeddedMesh.GetIntegerProperty("data_block");
+                var vbibBlockIndex = (int)embeddedMesh.GetIntegerProperty("vbib_block");
+
+                var mesh = Resource.GetBlockByIndex(dataBlockIndex) as Mesh;
+                mesh.VBIB = Resource.GetBlockByIndex(vbibBlockIndex) as VBIB;
+
+                var morphBlockIndex = (int)embeddedMesh.GetIntegerProperty("morph_block");
+                if (morphBlockIndex >= 0)
                 {
-                    return meshes;
+                    mesh.MorphData = Resource.GetBlockByIndex(morphBlockIndex) as Morph;
                 }
 
-                foreach (var embeddedMesh in embeddedMeshes)
-                {
-                    var name = embeddedMesh.GetStringProperty("name");
-                    var meshIndex = (int)embeddedMesh.GetIntegerProperty("mesh_index");
-                    var dataBlockIndex = (int)embeddedMesh.GetIntegerProperty("data_block");
-                    var vbibBlockIndex = (int)embeddedMesh.GetIntegerProperty("vbib_block");
-
-                    var mesh = Resource.GetBlockByIndex(dataBlockIndex) as Mesh;
-                    mesh.VBIB = Resource.GetBlockByIndex(vbibBlockIndex) as VBIB;
-
-                    var morphBlockIndex = (int)embeddedMesh.GetIntegerProperty("morph_block");
-                    if (morphBlockIndex >= 0)
-                    {
-                        mesh.MorphData = Resource.GetBlockByIndex(morphBlockIndex) as Morph;
-                    }
-
-                    meshes.Add((mesh, meshIndex, name));
-                }
+                meshes.Add((mesh, meshIndex, name));
             }
 
             return meshes;

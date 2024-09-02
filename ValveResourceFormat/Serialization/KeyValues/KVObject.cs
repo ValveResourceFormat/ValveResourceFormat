@@ -203,7 +203,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
             {
                 if (value.Type == KVType.OBJECT && value.Value is KVObject kvObject && kvObject.IsArray)
                 {
-                    var properties = new List<T>();
+                    var properties = new List<T>(capacity: kvObject.Count);
                     var index = 0;
                     var property = kvObject.GetProperty<T>(index.ToString(CultureInfo.InvariantCulture));
                     while (!property.Equals(default(T)))

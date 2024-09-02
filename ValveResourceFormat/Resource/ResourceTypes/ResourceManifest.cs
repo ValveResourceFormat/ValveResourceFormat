@@ -52,10 +52,10 @@ namespace ValveResourceFormat.ResourceTypes
 
             for (var block = 0; block < blockCount; block++)
             {
-                var strings = new List<string>();
                 var originalOffset = reader.BaseStream.Position;
                 var offset = reader.ReadInt32();
                 var count = reader.ReadInt32();
+                var strings = new List<string>(count);
 
                 reader.BaseStream.Position = originalOffset + offset;
 

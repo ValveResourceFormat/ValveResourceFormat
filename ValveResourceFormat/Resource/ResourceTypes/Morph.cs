@@ -60,6 +60,7 @@ namespace ValveResourceFormat.ResourceTypes
             }
 
             var bundleTypes = GetMorphKeyValueCollection(Data, "m_bundleTypes").Select(kv => ParseBundleType(kv.Value)).ToArray();
+            flexData.EnsureCapacity(morphDatas.Count);
 
             foreach (var pair in morphDatas)
             {
