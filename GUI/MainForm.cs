@@ -248,7 +248,7 @@ namespace GUI
 
 #if SCREENSHOT_MODE
             checkForUpdatesToolStripMenuItem.Visible = false;
-            versionToolStripLabel.Visible = false;
+            versionLabel.Visible = false;
             SetBounds(x: 100, y: 100, width: 1800 + 22, height: 1200 + 11); // Tweak size as needed
 #endif
         }
