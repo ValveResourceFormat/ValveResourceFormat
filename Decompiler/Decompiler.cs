@@ -1284,7 +1284,7 @@ namespace Decompiler
 
             if (resource.EditInfo != null)
             {
-                lock (resource.EditInfo.SpecialDependencies)
+                lock (uniqueSpecialDependancies)
                 {
                     foreach (var dep in resource.EditInfo.SpecialDependencies)
                     {
