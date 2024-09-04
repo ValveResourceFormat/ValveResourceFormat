@@ -83,17 +83,6 @@ namespace ValveResourceFormat
         }
 
         /// <summary>
-        /// Gets the Vertex and Index Buffer block.
-        /// </summary>
-        public VBIB VBIB
-        {
-            get
-            {
-                return (VBIB)GetBlockByType(BlockType.VBIB);
-            }
-        }
-
-        /// <summary>
         /// Gets the generic DATA block.
         /// </summary>
         public ResourceData DataBlock
