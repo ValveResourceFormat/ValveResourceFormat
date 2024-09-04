@@ -430,18 +430,19 @@ namespace ValveResourceFormat
 
         private static bool IsHandledResourceType(ResourceType type)
         {
-            return type == ResourceType.Model
-                   || type == ResourceType.Mesh
-                   || type == ResourceType.World
-                   || type == ResourceType.WorldNode
-                   || type == ResourceType.Particle
-                   || type == ResourceType.Material
-                   || type == ResourceType.EntityLump
-                   || type == ResourceType.PhysicsCollisionMesh
-                   || type == ResourceType.Morph
-                   || type == ResourceType.SmartProp
-                   || type == ResourceType.AnimationGraph
-                   || type == ResourceType.PostProcessing;
+            return type
+                is ResourceType.Model
+                or ResourceType.Mesh
+                or ResourceType.World
+                or ResourceType.WorldNode
+                or ResourceType.Particle
+                or ResourceType.Material
+                or ResourceType.EntityLump
+                or ResourceType.PhysicsCollisionMesh
+                or ResourceType.Morph
+                or ResourceType.SmartProp
+                or ResourceType.AnimationGraph
+                or ResourceType.PostProcessing;
         }
 
         private static ResourceType DetermineResourceTypeByCompilerIdentifier(SpecialDependencies.SpecialDependency input)
