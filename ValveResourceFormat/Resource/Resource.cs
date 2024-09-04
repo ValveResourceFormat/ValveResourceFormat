@@ -397,95 +397,35 @@ namespace ValveResourceFormat
 
         private ResourceData ConstructResourceType()
         {
-            switch (ResourceType)
+            return ResourceType switch
             {
-                case ResourceType.Panorama:
-                case ResourceType.PanoramaScript:
-                case ResourceType.PanoramaTypescript:
-                case ResourceType.PanoramaVectorGraphic:
-                    return new Panorama();
-
-                case ResourceType.PanoramaStyle:
-                    return new PanoramaStyle();
-
-                case ResourceType.PanoramaLayout:
-                    return new PanoramaLayout();
-
-                case ResourceType.PanoramaDynamicImages:
-                    return new PanoramaDynamicImages();
-
-                case ResourceType.Sound:
-                    return new Sound();
-
-                case ResourceType.Texture:
-                    return new Texture();
-
-                case ResourceType.Model:
-                    return new Model();
-
-                case ResourceType.Morph:
-                    return new Morph(BlockType.DATA);
-
-                case ResourceType.World:
-                    return new World();
-
-                case ResourceType.WorldNode:
-                    return new WorldNode();
-
-                case ResourceType.EntityLump:
-                    return new EntityLump();
-
-                case ResourceType.Map:
-                    return new Map();
-
-                case ResourceType.Material:
-                    return new Material();
-
-                case ResourceType.SoundStackScript:
-                    return new SoundStackScript();
-
-                case ResourceType.Particle:
-                    return new ParticleSystem();
-
-                case ResourceType.PostProcessing:
-                    return new PostProcessing();
-
-                case ResourceType.ResourceManifest:
-                    return new ResourceManifest();
-
-                case ResourceType.ResponseRules:
-                    return new ResponseRules();
-
-                case ResourceType.SboxManagedResource:
-                case ResourceType.ArtifactItem:
-                case ResourceType.DotaHeroList:
-                    return new Plaintext();
-
-                case ResourceType.Shader:
-                    return new SboxShader();
-
-                case ResourceType.PhysicsCollisionMesh:
-                    return new PhysAggregateData();
-
-                case ResourceType.SmartProp:
-                    return new SmartProp();
-
-                case ResourceType.AnimationGraph:
-                    return new AnimGraph();
-
-                case ResourceType.Mesh:
-                    return new Mesh(BlockType.DATA);
-
-                case ResourceType.ChoreoSceneFileData:
-                    return new ChoreoSceneFileData();
-            }
-
-            if (ContainsBlockType(BlockType.NTRO))
-            {
-                return new NTRO();
-            }
-
-            return new ResourceData();
+                ResourceType.AnimationGraph => new AnimGraph(),
+                ResourceType.ChoreoSceneFileData => new ChoreoSceneFileData(),
+                ResourceType.EntityLump => new EntityLump(),
+                ResourceType.Map => new Map(),
+                ResourceType.Material => new Material(),
+                ResourceType.Mesh => new Mesh(BlockType.DATA),
+                ResourceType.Model => new Model(),
+                ResourceType.Morph => new Morph(BlockType.DATA),
+                ResourceType.Panorama or ResourceType.PanoramaScript or ResourceType.PanoramaTypescript or ResourceType.PanoramaVectorGraphic => new Panorama(),
+                ResourceType.PanoramaDynamicImages => new PanoramaDynamicImages(),
+                ResourceType.PanoramaLayout => new PanoramaLayout(),
+                ResourceType.PanoramaStyle => new PanoramaStyle(),
+                ResourceType.Particle => new ParticleSystem(),
+                ResourceType.PhysicsCollisionMesh => new PhysAggregateData(),
+                ResourceType.PostProcessing => new PostProcessing(),
+                ResourceType.ResourceManifest => new ResourceManifest(),
+                ResourceType.ResponseRules => new ResponseRules(),
+                ResourceType.SboxManagedResource or ResourceType.ArtifactItem or ResourceType.DotaHeroList => new Plaintext(),
+                ResourceType.Shader => new SboxShader(),
+                ResourceType.SmartProp => new SmartProp(),
+                ResourceType.Sound => new Sound(),
+                ResourceType.SoundStackScript => new SoundStackScript(),
+                ResourceType.Texture => new Texture(),
+                ResourceType.World => new World(),
+                ResourceType.WorldNode => new WorldNode(),
+                _ => ContainsBlockType(BlockType.NTRO) ? new NTRO() : new ResourceData(),
+            };
         }
 
         private static bool IsHandledResourceType(ResourceType type)
