@@ -53,18 +53,7 @@ namespace ValveResourceFormat
         /// Gets or sets the type of the resource.
         /// </summary>
         /// <value>The type of the resource.</value>
-        public ResourceType ResourceType { get; set; }
-
-        /// <summary>
-        /// Gets the ResourceExtRefList block.
-        /// </summary>
-        public ResourceExtRefList ExternalReferences
-        {
-            get
-            {
-                return (ResourceExtRefList)GetBlockByType(BlockType.RERL);
-            }
-        }
+        public ResourceType ResourceType { get; private set; }
 
         /// <summary>
         /// Gets the ResourceEditInfo block.
@@ -72,15 +61,14 @@ namespace ValveResourceFormat
         public ResourceEditInfo EditInfo { get; private set; }
 
         /// <summary>
+        /// Gets the ResourceExtRefList block.
+        /// </summary>
+        public ResourceExtRefList ExternalReferences => (ResourceExtRefList)GetBlockByType(BlockType.RERL);
+
+        /// <summary>
         /// Gets the generic DATA block.
         /// </summary>
-        public ResourceData DataBlock
-        {
-            get
-            {
-                return (ResourceData)GetBlockByType(BlockType.DATA);
-            }
-        }
+        public ResourceData DataBlock => (ResourceData)GetBlockByType(BlockType.DATA);
 
         /// <summary>
         /// Resource files have a FileSize in the metadata, however
