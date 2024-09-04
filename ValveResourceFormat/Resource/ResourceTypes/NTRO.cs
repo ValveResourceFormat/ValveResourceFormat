@@ -10,30 +10,42 @@ namespace ValveResourceFormat.ResourceTypes
 {
     public class NTRO : ResourceData
     {
-        protected BinaryReader Reader { get; private set; }
-        protected Resource Resource { get; private set; }
         public KVObject Output { get; private set; }
-        public string StructName { get; set; }
+        public string StructName { get; init; }
+
+        private BinaryReader Reader;
+        private Resource Resource;
+        private ResourceIntrospectionManifest IntrospectionManifest;
 
         public override void Read(BinaryReader reader, Resource resource)
         {
             Reader = reader;
             Resource = resource;
+            IntrospectionManifest = (ResourceIntrospectionManifest)resource.GetBlockByType(BlockType.NTRO);
 
-            if (StructName != null)
+            try
             {
-                var refStruct = resource.IntrospectionManifest.ReferencedStructs.Find(s => s.Name == StructName);
+                if (StructName != null)
+                {
+                    var refStruct = IntrospectionManifest.ReferencedStructs.Find(s => s.Name == StructName);
 
-                Output = ReadStructure(refStruct, Offset);
+                    Output = ReadStructure(refStruct, Offset);
 
-                return;
+                    return;
+                }
+
+                foreach (var refStruct in IntrospectionManifest.ReferencedStructs)
+                {
+                    Output = ReadStructure(refStruct, Offset);
+
+                    break;
+                }
             }
-
-            foreach (var refStruct in resource.IntrospectionManifest.ReferencedStructs)
+            finally
             {
-                Output = ReadStructure(refStruct, Offset);
-
-                break;
+                Reader = null;
+                Resource = null;
+                IntrospectionManifest = null;
             }
         }
 
@@ -55,7 +67,7 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 var previousOffset = Reader.BaseStream.Position;
 
-                var newStruct = Resource.IntrospectionManifest.ReferencedStructs.First(x => x.Id == refStruct.BaseStructId);
+                var newStruct = IntrospectionManifest.ReferencedStructs.First(x => x.Id == refStruct.BaseStructId);
 
                 // Valve doesn't print this struct's type, so we can't just call ReadStructure *sigh*
                 foreach (var field in newStruct.FieldIntrospection)
@@ -179,7 +191,7 @@ namespace ValveResourceFormat.ResourceTypes
             switch (field.Type)
             {
                 case SchemaFieldType.Struct:
-                    var newStruct = Resource.IntrospectionManifest.ReferencedStructs.First(x => x.Id == field.TypeData);
+                    var newStruct = IntrospectionManifest.ReferencedStructs.First(x => x.Id == field.TypeData);
                     return BinaryKV3.MakeValue(KVType.OBJECT, ReadStructure(newStruct, Reader.BaseStream.Position));
 
                 case SchemaFieldType.Enum:

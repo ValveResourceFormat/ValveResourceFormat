@@ -72,17 +72,6 @@ namespace ValveResourceFormat
         public ResourceEditInfo EditInfo { get; private set; }
 
         /// <summary>
-        /// Gets the ResourceIntrospectionManifest block.
-        /// </summary>
-        public ResourceIntrospectionManifest IntrospectionManifest
-        {
-            get
-            {
-                return (ResourceIntrospectionManifest)GetBlockByType(BlockType.NTRO);
-            }
-        }
-
-        /// <summary>
         /// Gets the generic DATA block.
         /// </summary>
         public ResourceData DataBlock
