@@ -162,7 +162,7 @@ namespace ValveResourceFormat
 
             FileSize = Reader.ReadUInt32();
 
-            if (FileSize == 0x55AA1234)
+            if (FileSize == SteamDatabase.ValvePak.Package.MAGIC)
             {
                 throw new InvalidDataException("Use ValvePak library to parse VPK files.\nSee https://github.com/ValveResourceFormat/ValvePak");
             }
