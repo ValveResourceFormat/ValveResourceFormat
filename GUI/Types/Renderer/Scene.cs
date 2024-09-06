@@ -597,11 +597,13 @@ namespace GUI.Types.Renderer
                     ];
                 }
 
-                var max = 16;
+                /*
+                const int max = 16;
                 if (node.EnvMaps.Count > max)
                 {
                     Log.Warn("Renderer", $"Performance warning: more than {max} envmaps binned for node {node.DebugName}");
                 }
+                */
 
                 node.EnvMapIds = LightingInfo.CubemapType switch
                 {
