@@ -15,7 +15,7 @@ namespace GUI.Types.Renderer
         protected RenderTexture ToolTexture;
         protected int indexCount;
         protected int vaoHandle;
-        private bool IsTranslucentRenderMode = true;
+        public bool IsTranslucentRenderMode { get; set; } = true;
 
         public ShapeSceneNode(Scene scene, List<SimpleVertexNormal> verts, List<int> inds)
             : base(scene)

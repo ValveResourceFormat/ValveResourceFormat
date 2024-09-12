@@ -239,20 +239,23 @@ namespace GUI.Types.Renderer
 
             if (phys != null)
             {
-                var physSceneNodes = PhysSceneNode.CreatePhysSceneNodes(Scene, phys, null);
+                var physSceneNodes = PhysSceneNode.CreatePhysSceneNodes(Scene, phys, null).ToList();
 
                 foreach (var physSceneNode in physSceneNodes)
                 {
+                    physSceneNode.Enabled = true;
+                    physSceneNode.IsTranslucentRenderMode = false;
                     Scene.Add(physSceneNode, false);
                 }
 
                 // Physics are not shown by default unless the model has no meshes
                 var enabledAllPhysByDefault = modelSceneNode == null || modelSceneNode.RenderableMeshes.Count == 0;
 
-                var physicsGroups = Scene.AllNodes
-                    .OfType<PhysSceneNode>()
+                var physicsGroups = physSceneNodes
                     .Select(r => r.PhysGroupName)
                     .Distinct()
+                    .OrderByDescending(static s => s.StartsWith('-'))
+                    .ThenBy(static s => s)
                     .ToArray();
 
                 if (physicsGroups.Length > 0)
@@ -273,8 +276,6 @@ namespace GUI.Types.Renderer
                         }
 
                         listBox.EndUpdate();
-
-                        SetEnabledPhysicsGroups([.. physicsGroups]);
                     }, (enabledPhysicsGroups) =>
                     {
                         SetEnabledPhysicsGroups(enabledPhysicsGroups.ToHashSet());
