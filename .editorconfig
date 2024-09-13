@@ -107,6 +107,12 @@ dotnet_diagnostic.IDE0059.severity = none
 # IDE0079: Remove unnecessary suppression
 dotnet_diagnostic.IDE0079.severity = none
 
+# CA1515: Consider making public types internal
+dotnet_diagnostic.CA1515.severity = none
+
+# WFO1000: Properties of classes derived from `Control` should have `DesignerSerializationVisibilityAttribute`
+dotnet_diagnostic.WFO1000.severity = none
+
 #
 # Dotnet code style settings:
 #
