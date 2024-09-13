@@ -677,14 +677,18 @@ namespace GUI
 
                 if (stream.Length >= magicData.Length)
                 {
-                    stream.Read(magicData);
+                    stream.ReadExactly(magicData);
                     stream.Seek(-magicData.Length, SeekOrigin.Current);
                 }
             }
             else
             {
                 using var fs = new FileStream(vrfGuiContext.FileName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-                fs.Read(magicData);
+
+                if (fs.Length >= magicData.Length)
+                {
+                    fs.ReadExactly(magicData);
+                }
             }
 
             var magic = BitConverter.ToUInt32(magicData[..4]);

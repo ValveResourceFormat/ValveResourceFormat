@@ -272,7 +272,7 @@ namespace GUI.Types.Renderer
 
                     foreach (var itemName in checkedItemNames)
                     {
-                        decodeFlags |= (TextureCodec)Enum.Parse(typeof(TextureCodec), itemName);
+                        decodeFlags |= Enum.Parse<TextureCodec>(itemName);
                     }
                 }
             );
