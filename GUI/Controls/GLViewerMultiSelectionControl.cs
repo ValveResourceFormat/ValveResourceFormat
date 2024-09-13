@@ -4,7 +4,7 @@ namespace GUI.Controls
 {
     partial class GLViewerMultiSelectionControl : UserControl
     {
-        public CheckedListBox CheckedListBox => checkedListBox;
+        public BetterCheckedListBox BetterCheckedListBox => checkedListBox;
 
         private GLViewerMultiSelectionControl()
         {

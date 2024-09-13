@@ -1,3 +1,6 @@
+using DarkModeForms;
+using System.Windows.Forms;
+
 namespace GUI.Controls
 {
     partial class GLViewerSelectionControl
@@ -28,14 +31,14 @@ namespace GUI.Controls
         /// </summary>
         private void InitializeComponent()
         {
-            selectionNameLabel = new System.Windows.Forms.Label();
-            comboBox = new System.Windows.Forms.ComboBox();
+            selectionNameLabel = new Label();
+            comboBox = new ComboBox();
             SuspendLayout();
             // 
             // selectionNameLabel
             // 
             selectionNameLabel.AutoSize = true;
-            selectionNameLabel.Dock = System.Windows.Forms.DockStyle.Top;
+            selectionNameLabel.Dock = DockStyle.Top;
             selectionNameLabel.Location = new System.Drawing.Point(0, 0);
             selectionNameLabel.Name = "selectionNameLabel";
             selectionNameLabel.Size = new System.Drawing.Size(41, 15);
@@ -44,11 +47,11 @@ namespace GUI.Controls
             // 
             // comboBox
             // 
-            comboBox.Dock = System.Windows.Forms.DockStyle.Top;
-            comboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            comboBox.Dock = DockStyle.Top;
+            comboBox.DropDownStyle = ComboBoxStyle.DropDownList;
             comboBox.FormattingEnabled = true;
             comboBox.Location = new System.Drawing.Point(0, 15);
-            comboBox.Margin = new System.Windows.Forms.Padding(0);
+            comboBox.Margin = new Padding(0);
             comboBox.Name = "comboBox";
             comboBox.Size = new System.Drawing.Size(220, 23);
             comboBox.TabIndex = 1;
@@ -56,7 +59,7 @@ namespace GUI.Controls
             // GLViewerSelectionControl
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
-            AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            AutoScaleMode = AutoScaleMode.Font;
             Controls.Add(comboBox);
             Controls.Add(selectionNameLabel);
             MinimumSize = new System.Drawing.Size(0, 41);
@@ -69,6 +72,6 @@ namespace GUI.Controls
         #endregion
 
         private System.Windows.Forms.Label selectionNameLabel;
-        private System.Windows.Forms.ComboBox comboBox;
+        private ComboBox comboBox;
     }
 }

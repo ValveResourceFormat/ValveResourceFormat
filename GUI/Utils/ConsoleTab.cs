@@ -32,10 +32,10 @@ namespace GUI.Utils
             public TextStyle Style;
         }
 
-        private static readonly TextStyle TextStyleTime = new(Brushes.DarkGray, null, FontStyle.Regular);
+        private static readonly TextStyle TextStyleTime = new(new SolidBrush(MainForm.DarkModeCS.ThemeColors.Contrast), null, FontStyle.Regular);
         private static readonly TextStyle TextStyleError = new(Brushes.Orange, Brushes.DarkRed, FontStyle.Regular);
         private static readonly TextStyle TextStyleWarn = new(Brushes.Orange, null, FontStyle.Regular);
-        private static readonly TextStyle TextStyleDebug = new(Brushes.LightGreen, null, FontStyle.Regular);
+        private static readonly TextStyle TextStyleDebug = new(new SolidBrush(Color.DodgerBlue), null, FontStyle.Regular);
 
         private CodeTextBox control;
         private MyLogger loggerOut;
@@ -154,8 +154,6 @@ namespace GUI.Utils
             var bgColor = Color.FromArgb(37, 37, 37);
             control = new CodeTextBox(null)
             {
-                BackColor = bgColor,
-                ForeColor = Color.FromArgb(240, 240, 240),
                 Paddings = new Padding(0, 10, 0, 10),
             };
             control.VisibleChanged += VisibleChanged;
@@ -165,11 +163,9 @@ namespace GUI.Utils
 
             const string CONSOLE = "Console";
 
-            var tab = new TabPage(CONSOLE)
-            {
-                BackColor = bgColor,
-            };
+            var tab = new TabPage(CONSOLE);
             tab.Controls.Add(control);
+            MainForm.DarkModeCS.ThemeControl(control);
 
             loggerOut = new MyLogger((message) => WriteLine(Log.Category.INFO, CONSOLE, message));
             Console.SetOut(loggerOut);

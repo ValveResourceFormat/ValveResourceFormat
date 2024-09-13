@@ -57,7 +57,7 @@ namespace GUI.Types.Renderer
         private const TextureCodec softwareDecodeOnlyOptions = TextureCodec.ForceLDR;
         private Framebuffer SaveAsFbo;
 
-        private CheckedListBox decodeFlagsListBox;
+        private BetterCheckedListBox decodeFlagsListBox;
 
         private Vector2 ActualTextureSize
         {
@@ -188,7 +188,7 @@ namespace GUI.Types.Renderer
             });
 
             ComboBox cubemapProjectionComboBox = null;
-            CheckBox softwareDecodeCheckBox = null;
+            BetterCheckBox softwareDecodeCheckBox = null;
 
             if (textureData.NumMipLevels > 1)
             {
@@ -340,7 +340,7 @@ namespace GUI.Types.Renderer
             channelsComboBox.SelectedIndex = DefaultSelection;
         }
 
-        private void SetInitialDecodeFlagsState(CheckedListBox listBox)
+        private void SetInitialDecodeFlagsState(BetterCheckedListBox listBox)
         {
             listBox.Items.Clear();
             var values = Enum.GetValues<TextureCodec>();
@@ -918,6 +918,9 @@ namespace GUI.Types.Renderer
 
             shader.SetUniform1("g_bTextureViewer", true);
             shader.SetUniform2("g_vViewportSize", new Vector2(fbo.Width, fbo.Height));
+
+            var theme1 = MainForm.DarkModeCS.ThemeColors.Border;
+            shader.SetUniform3("g_vCheckerboardTheme", new Vector3(theme1.R, theme1.G, theme1.B) / 255f);
 
             var (scale, position) = captureFullSizeImage
                 ? (1f, Vector2.Zero)

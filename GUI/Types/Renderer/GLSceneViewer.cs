@@ -559,8 +559,11 @@ namespace GUI.Types.Renderer
 
             if (mode.IsHeader)
             {
-                e.Graphics.FillRectangle(SystemBrushes.Window, e.Bounds);
-                e.Graphics.DrawString(mode.Name, renderModeBoldFont, SystemBrushes.ControlText, e.Bounds);
+                using var headerBrush = new SolidBrush(MainForm.DarkModeCS.ThemeColors.AppFirm);
+                using var textBrush = new SolidBrush(MainForm.DarkModeCS.ThemeColors.Contrast);
+
+                e.Graphics.FillRectangle(headerBrush, e.Bounds);
+                e.Graphics.DrawString(mode.Name, renderModeBoldFont, textBrush, e.Bounds);
             }
             else
             {
@@ -574,9 +577,14 @@ namespace GUI.Types.Renderer
                 }
 
                 var isSelected = (e.State & DrawItemState.Selected) > 0;
-                var brush = isSelected ? SystemBrushes.HighlightText : SystemBrushes.ControlText;
-                e.Graphics.DrawString(mode.Name, comboBox.Font, brush, bounds);
-
+                using (var textActiveBrush = new SolidBrush(MainForm.DarkModeCS.ThemeColors.Contrast))
+                {
+                    using (var textInactiveBrush = new SolidBrush(MainForm.DarkModeCS.ThemeColors.ContrastSoft))
+                    {
+                        var brush = isSelected ? textInactiveBrush : textActiveBrush;
+                        e.Graphics.DrawString(mode.Name, comboBox.Font, brush, bounds);
+                    }
+                }
                 e.DrawFocusRectangle();
             }
         }

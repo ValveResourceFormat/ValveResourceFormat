@@ -14,17 +14,17 @@ namespace GUI.Types.Renderer
         protected Model model { get; init; }
         private PhysAggregateData phys;
         public ComboBox animationComboBox { get; private set; }
-        private CheckBox animationPlayPause;
-        private CheckBox showSkeletonCheckbox;
+        private BetterCheckBox animationPlayPause;
+        private BetterCheckBox showSkeletonCheckbox;
         private ComboBox hitboxComboBox;
         private GLViewerTrackBarControl animationTrackBar;
         private GLViewerTrackBarControl slowmodeTrackBar;
-        public CheckedListBox meshGroupListBox { get; private set; }
+        public BetterCheckedListBox meshGroupListBox { get; private set; }
         public ComboBox materialGroupListBox { get; private set; }
         private ModelSceneNode modelSceneNode;
         private SkeletonSceneNode skeletonSceneNode;
         private HitboxSetSceneNode hitboxSetSceneNode;
-        private CheckedListBox physicsGroupsComboBox;
+        private BetterCheckedListBox physicsGroupsComboBox;
 
         public GLModelViewer(VrfGuiContext guiContext) : base(guiContext)
         {

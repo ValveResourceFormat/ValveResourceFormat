@@ -1,4 +1,4 @@
-﻿namespace GUI.Forms
+namespace GUI.Forms
 {
     partial class PromptForm
     {
@@ -29,7 +29,7 @@
         private void InitializeComponent()
         {
             textLabel = new System.Windows.Forms.Label();
-            inputTextBox = new System.Windows.Forms.TextBox();
+            inputTextBox = new Controls.BetterTextBox();
             cancelButton = new System.Windows.Forms.Button();
             submitButton = new System.Windows.Forms.Button();
             SuspendLayout();
@@ -46,10 +46,11 @@
             // 
             // inputTextBox
             // 
+            inputTextBox.BorderStyle = System.Windows.Forms.BorderStyle.None;
             inputTextBox.Location = new System.Drawing.Point(13, 27);
             inputTextBox.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             inputTextBox.Name = "inputTextBox";
-            inputTextBox.Size = new System.Drawing.Size(380, 23);
+            inputTextBox.Size = new System.Drawing.Size(380, 16);
             inputTextBox.TabIndex = 6;
             // 
             // cancelButton
@@ -91,6 +92,7 @@
             Name = "PromptForm";
             ShowIcon = false;
             ShowInTaskbar = false;
+            SizeGripStyle = System.Windows.Forms.SizeGripStyle.Hide;
             StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
             Text = "PromptForm";
             TopMost = true;
@@ -102,7 +104,7 @@
         #endregion
 
         private System.Windows.Forms.Label textLabel;
-        private System.Windows.Forms.TextBox inputTextBox;
+        private Controls.BetterTextBox inputTextBox;
         private System.Windows.Forms.Button cancelButton;
         private System.Windows.Forms.Button submitButton;
     }

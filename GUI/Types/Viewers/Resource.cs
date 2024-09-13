@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.IO;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using DarkModeForms;
 using GUI.Controls;
 using GUI.Types.Audio;
 using GUI.Types.Renderer;
@@ -52,7 +53,7 @@ namespace GUI.Types.Viewers
                 resourceTemp?.Dispose();
             }
 
-            var resTabs = new TabControl
+            var resTabs = new FlatTabControl
             {
                 Dock = DockStyle.Fill,
             };

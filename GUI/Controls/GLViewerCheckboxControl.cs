@@ -4,7 +4,7 @@ namespace GUI.Controls
 {
     partial class GLViewerCheckboxControl : UserControl
     {
-        public CheckBox CheckBox => checkBox;
+        public BetterCheckBox BetterCheckBox => checkBox;
 
         private GLViewerCheckboxControl()
         {

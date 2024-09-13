@@ -1,4 +1,5 @@
 using System.Windows.Forms;
+using DarkModeForms;
 
 namespace GUI.Forms
 {
@@ -21,6 +22,8 @@ namespace GUI.Forms
         public SearchForm()
         {
             InitializeComponent();
+
+            MainForm.DarkModeCS.Style(this);
 
             searchTypeComboBox.ValueMember = "Id";
             searchTypeComboBox.DisplayMember = "Name";

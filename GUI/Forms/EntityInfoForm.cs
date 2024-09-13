@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Windows.Forms;
+using DarkModeForms;
 using GUI.Types.Viewers;
 using GUI.Utils;
 using ValveResourceFormat.Serialization;
@@ -14,6 +15,7 @@ namespace GUI.Forms
         public EntityInfoForm(AdvancedGuiFileLoader guiFileLoader)
         {
             InitializeComponent();
+            MainForm.DarkModeCS.Style(this);
 
             Icon = Program.MainForm.Icon;
 

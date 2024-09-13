@@ -61,6 +61,7 @@ namespace GUI.Forms
         public ExtractProgressForm(ExportData exportData, string path, bool decompile)
         {
             InitializeComponent();
+            MainForm.DarkModeCS.Style(this);
 
             foreach (var resourceType in ExtractOrder)
             {
@@ -100,7 +101,7 @@ namespace GUI.Forms
 
             using var dialog = new FolderBrowserDialog
             {
-                Description = "Choose which folder to extract files to",
+                Description = "Choose which folder to extract the files to",
                 UseDescriptionForTitle = true,
                 SelectedPath = Settings.Config.SaveDirectory,
                 AddToRecent = true,

@@ -40,7 +40,7 @@ namespace GUI.Forms
             tableLayoutPanel1 = new System.Windows.Forms.TableLayoutPanel();
             extractProgressBar = new System.Windows.Forms.ProgressBar();
             cancelButton = new System.Windows.Forms.Button();
-            progressLog = new System.Windows.Forms.TextBox();
+            progressLog = new BetterTextBox();
             tableLayoutPanel1.SuspendLayout();
             SuspendLayout();
             // 
@@ -87,7 +87,7 @@ namespace GUI.Forms
             // 
             progressLog.BorderStyle = System.Windows.Forms.BorderStyle.None;
             progressLog.Dock = System.Windows.Forms.DockStyle.Fill;
-            progressLog.Font = new System.Drawing.Font("Cascadia Mono", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            progressLog.Font = new System.Drawing.Font("Cascadia Mono", 9F);
             progressLog.Location = new System.Drawing.Point(23, 50);
             progressLog.Margin = new System.Windows.Forms.Padding(23, 0, 23, 0);
             progressLog.Multiline = true;
@@ -108,6 +108,7 @@ namespace GUI.Forms
             Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             MaximizeBox = false;
             Name = "ExtractProgressForm";
+            SizeGripStyle = System.Windows.Forms.SizeGripStyle.Hide;
             StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
             Text = "Source 2 Viewer - Extracting files…";
             tableLayoutPanel1.ResumeLayout(false);
@@ -120,6 +121,6 @@ namespace GUI.Forms
         private System.Windows.Forms.TableLayoutPanel tableLayoutPanel1;
         private System.Windows.Forms.ProgressBar extractProgressBar;
         private System.Windows.Forms.Button cancelButton;
-        private System.Windows.Forms.TextBox progressLog;
+        private Controls.BetterTextBox progressLog;
     }
 }

@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Windows.Forms;
+using DarkModeForms;
 using GUI.Types.Renderer;
 using GUI.Utils;
 using ValveResourceFormat.Utils;
@@ -11,6 +12,8 @@ namespace GUI.Forms
         public AboutForm()
         {
             InitializeComponent();
+
+            MainForm.DarkModeCS.Style(this);
 
             // Start the decoder thread so that it fetches the opengl version and is ready for the version copy
             if (Settings.GpuRendererAndDriver == null && HardwareAcceleratedTextureDecoder.Decoder is GLTextureDecoder decoder)

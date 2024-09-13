@@ -19,6 +19,13 @@ namespace GUI.Utils
             AutoPlaySounds = 1 << 1,
         }
 
+        public enum AppTheme : int
+        {
+            System = 0,
+            Light = 1,
+            Dark = 2,
+        }
+
         public class AppUpdateState
         {
             public bool CheckAutomatically { get; set; }
@@ -34,6 +41,7 @@ namespace GUI.Utils
             public string SaveDirectory { get; set; } = string.Empty;
             public List<string> BookmarkedFiles { get; set; }
             public List<string> RecentFiles { get; set; }
+            public int Theme { get; set; }
             public Dictionary<string, float[]> SavedCameras { get; set; }
             public int MaxTextureSize { get; set; }
             public int ShadowResolution { get; set; }

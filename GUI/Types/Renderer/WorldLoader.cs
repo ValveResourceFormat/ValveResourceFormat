@@ -73,6 +73,7 @@ namespace GUI.Types.Renderer
                 }
 
                 var entityLump = (EntityLump)newResource.DataBlock;
+
                 LoadEntitiesFromLump(entityLump, "world_layer_base", Matrix4x4.Identity); // TODO: Hardcoded layer name
             }
 

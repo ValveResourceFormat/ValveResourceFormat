@@ -39,7 +39,16 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 if (Properties.TryGetValue(hash, out var property))
                 {
-                    return (T)property.Data;
+                    //Doing this in case there is bogus data
+                    try
+                    {
+                        return (T)property.Data;
+                    }
+                    catch (Exception)
+                    {
+                        return defaultValue;
+                    }
+
                 }
 
                 return defaultValue;

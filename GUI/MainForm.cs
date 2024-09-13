@@ -7,9 +7,11 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using DarkModeForms;
 using GUI.Controls;
 using GUI.Forms;
 using GUI.Types.Exporter;
@@ -27,9 +29,12 @@ namespace GUI
         // Disposable fields should be disposed
         // for some reason disposing it makes closing GUI very slow
         public static ImageList ImageList { get; }
+        public static ImageList AppIconImageList { get; }
         public static Dictionary<string, int> ImageListLookup { get; }
 
         private SearchForm searchForm;
+
+        static public DarkModeCS DarkModeCS { get; private set; }
 
         static MainForm()
         {
@@ -37,6 +42,15 @@ namespace GUI
             {
                 ColorDepth = ColorDepth.Depth32Bit
             };
+
+            AppIconImageList = new ImageList
+            {
+                ColorDepth = ColorDepth.Depth32Bit,
+                ImageSize = new Size(20, 20)
+            };
+            var resources = new ComponentResourceManager(typeof(MainForm));
+            var icon = (Icon)resources.GetObject("$this.Icon", CultureInfo.InvariantCulture);
+            AppIconImageList.Images.Add(icon);
 
             var assembly = Assembly.GetExecutingAssembly();
             var names = assembly.GetManifestResourceNames().Where(n => n.StartsWith("GUI.AssetTypes.", StringComparison.Ordinal)).ToList();
@@ -59,10 +73,28 @@ namespace GUI
 
         public MainForm(string[] args)
         {
+            DarkModeCS = new DarkModeCS();
+            DarkModeCS.Style(this);
+
+            SetStyle(ControlStyles.ResizeRedraw, true);
+
             InitializeComponent();
 
+            DoubleBuffered = true;
+
+            DarkModeCS.ThemeControl(tabContextMenuStrip);
+            DarkModeCS.ThemeControl(vpkContextMenu);
+            DarkModeCS.ThemeControl(vpkEditingContextMenu);
+
+            bottomPanel.SeparatorWidth = AdjustForDPI(4);
+
             mainTabs.ImageList = ImageList;
-            mainTabs.SelectedIndexChanged += OnMainSelectedTabChanged;
+            var size = AdjustForDPI(16f);
+            ImageList.ImageSize = new Size(size, size);
+
+            logoButton.ImageList = AppIconImageList;
+            var appIconIsize = AdjustForDPI(25f);
+            AppIconImageList.ImageSize = new Size(appIconIsize, appIconIsize);
 
             var consoleTab = new ConsoleTab();
             Log.SetConsoleTab(consoleTab);
@@ -217,6 +249,13 @@ namespace GUI
 
             // Force refresh title due to OpenFile calls above, SelectedIndexChanged is not called in the same tick
             OnMainSelectedTabChanged(null, null);
+        }
+
+        protected override void OnTextChanged(EventArgs e)
+        {
+            base.OnTextChanged(e);
+
+            AppTitleTextLabel.Text = Text;
         }
 
         protected override void OnLoad(EventArgs e)
@@ -606,6 +645,7 @@ namespace GUI
                         var control = new CodeTextBox(ex.ToString());
 
                         tab.Controls.Add(control);
+                        DarkModeCS.ThemeControl(control);
 
                         return false;
                     });
@@ -620,6 +660,7 @@ namespace GUI
                     Cursor.Current = Cursors.WaitCursor;
 
                     tab.SuspendLayout();
+                    DarkModeCS.ThemeControl(tab);
 
                     try
                     {
@@ -631,6 +672,7 @@ namespace GUI
                                 continue;
                             }
 
+                            DarkModeCS.ThemeControl(c);
                             tab.Controls.Add(c);
                         }
                     }
@@ -881,6 +923,13 @@ namespace GUI
                 return;
             }
 
+            if ((Settings.AppTheme)Settings.Config.Theme != Settings.AppTheme.System)
+            {
+                // This is slightly stupid, but darkmode is initialized before settings load
+                // And can't move settings higher because it has log calls which require the console window to exist
+                DarkModeCS.UpdateTheme();
+            }
+
             if (Settings.Config.Update.UpdateAvailable)
             {
                 checkForUpdatesToolStripMenuItem.Visible = false;
@@ -934,6 +983,11 @@ namespace GUI
             form.ShowDialog(this);
         }
 
+        public int AdjustForDPI(float value)
+        {
+            return (int)(value * DeviceDpi / 96f);
+        }
+
         private async Task CheckForUpdates(bool showForm)
         {
             await UpdateChecker.CheckForUpdates().ConfigureAwait(false);
@@ -958,6 +1012,30 @@ namespace GUI
                     form.ShowDialog(this);
                 }
             });
+        }
+
+        private void ThemeMenu(object sender)
+        {
+            if (!DesignMode)
+            {
+                DarkModeCS.ThemeControl((Control) sender);
+                DarkModeCS.ApplySystemTheme((Control) sender);
+            }
+        }
+
+        private void tabContextMenuStrip_Opening(object sender, CancelEventArgs e)
+        {
+            ThemeMenu((Control)sender);
+        }
+
+        private void vpkContextMenu_Opening(object sender, CancelEventArgs e)
+        {
+            ThemeMenu((Control)sender);
+        }
+
+        private void vpkEditingContextMenu_Opening(object sender, CancelEventArgs e)
+        {
+            ThemeMenu((Control)sender);
         }
     }
 }

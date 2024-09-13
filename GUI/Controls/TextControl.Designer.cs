@@ -18,7 +18,7 @@ namespace GUI.Controls
             if (disposing)
             {
                 components?.Dispose();
-                TextBox?.Dispose();
+                BetterTextBox?.Dispose();
             }
             base.Dispose(disposing);
         }

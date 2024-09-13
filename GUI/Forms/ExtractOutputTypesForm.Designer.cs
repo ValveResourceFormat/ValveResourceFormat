@@ -132,6 +132,7 @@ namespace GUI.Forms
             MaximizeBox = false;
             Name = "ExtractOutputTypesForm";
             ShowIcon = false;
+            SizeGripStyle = System.Windows.Forms.SizeGripStyle.Hide;
             StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
             Text = "Select output file types…";
             tableLayoutPanel1.ResumeLayout(false);

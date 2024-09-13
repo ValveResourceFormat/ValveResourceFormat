@@ -28,7 +28,7 @@ namespace GUI.Controls
         /// </summary>
         private void InitializeComponent()
         {
-            checkBox = new System.Windows.Forms.CheckBox();
+            checkBox = new Controls.BetterCheckBox();
             SuspendLayout();
             // 
             // checkBox
@@ -55,6 +55,6 @@ namespace GUI.Controls
 
         #endregion
 
-        private System.Windows.Forms.CheckBox checkBox;
+        private Controls.BetterCheckBox checkBox;
     }
 }

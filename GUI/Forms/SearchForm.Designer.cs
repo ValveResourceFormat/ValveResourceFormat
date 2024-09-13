@@ -1,3 +1,6 @@
+using DarkModeForms;
+using System.Windows.Forms;
+
 namespace GUI.Forms
 {
     partial class SearchForm
@@ -28,18 +31,18 @@ namespace GUI.Forms
         /// </summary>
         private void InitializeComponent()
         {
-            findButton = new System.Windows.Forms.Button();
-            cancelButton = new System.Windows.Forms.Button();
-            findTextBox = new System.Windows.Forms.TextBox();
-            findLabel = new System.Windows.Forms.Label();
-            searchTypeComboBox = new System.Windows.Forms.ComboBox();
+            findButton = new Button();
+            cancelButton = new Button();
+            findTextBox = new Controls.BetterTextBox();
+            findLabel = new Label();
+            searchTypeComboBox = new ComboBox();
             SuspendLayout();
             // 
             // findButton
             // 
-            findButton.DialogResult = System.Windows.Forms.DialogResult.OK;
+            findButton.DialogResult = DialogResult.OK;
             findButton.Location = new System.Drawing.Point(304, 14);
-            findButton.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            findButton.Margin = new Padding(4, 3, 4, 3);
             findButton.Name = "findButton";
             findButton.Size = new System.Drawing.Size(88, 27);
             findButton.TabIndex = 0;
@@ -48,9 +51,9 @@ namespace GUI.Forms
             // 
             // cancelButton
             // 
-            cancelButton.DialogResult = System.Windows.Forms.DialogResult.Cancel;
+            cancelButton.DialogResult = DialogResult.Cancel;
             cancelButton.Location = new System.Drawing.Point(304, 47);
-            cancelButton.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            cancelButton.Margin = new Padding(4, 3, 4, 3);
             cancelButton.Name = "cancelButton";
             cancelButton.Size = new System.Drawing.Size(88, 27);
             cancelButton.TabIndex = 1;
@@ -59,17 +62,18 @@ namespace GUI.Forms
             // 
             // findTextBox
             // 
+            findTextBox.BorderStyle = BorderStyle.None;
             findTextBox.Location = new System.Drawing.Point(80, 16);
-            findTextBox.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            findTextBox.Margin = new Padding(4, 3, 4, 3);
             findTextBox.Name = "findTextBox";
-            findTextBox.Size = new System.Drawing.Size(216, 23);
+            findTextBox.Size = new System.Drawing.Size(216, 16);
             findTextBox.TabIndex = 2;
             // 
             // findLabel
             // 
             findLabel.AutoSize = true;
             findLabel.Location = new System.Drawing.Point(14, 20);
-            findLabel.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            findLabel.Margin = new Padding(4, 0, 4, 0);
             findLabel.Name = "findLabel";
             findLabel.Size = new System.Drawing.Size(62, 15);
             findLabel.TabIndex = 3;
@@ -77,10 +81,10 @@ namespace GUI.Forms
             // 
             // searchTypeComboBox
             // 
-            searchTypeComboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            searchTypeComboBox.DropDownStyle = ComboBoxStyle.DropDownList;
             searchTypeComboBox.FormattingEnabled = true;
             searchTypeComboBox.Location = new System.Drawing.Point(80, 47);
-            searchTypeComboBox.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            searchTypeComboBox.Margin = new Padding(4, 3, 4, 3);
             searchTypeComboBox.Name = "searchTypeComboBox";
             searchTypeComboBox.Size = new System.Drawing.Size(216, 23);
             searchTypeComboBox.TabIndex = 5;
@@ -89,7 +93,7 @@ namespace GUI.Forms
             // 
             AcceptButton = findButton;
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
-            AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            AutoScaleMode = AutoScaleMode.Font;
             CancelButton = cancelButton;
             ClientSize = new System.Drawing.Size(406, 102);
             Controls.Add(searchTypeComboBox);
@@ -97,14 +101,15 @@ namespace GUI.Forms
             Controls.Add(findTextBox);
             Controls.Add(cancelButton);
             Controls.Add(findButton);
-            FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
-            Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            FormBorderStyle = FormBorderStyle.FixedSingle;
+            Margin = new Padding(4, 3, 4, 3);
             MaximizeBox = false;
             MinimizeBox = false;
             Name = "SearchForm";
             ShowIcon = false;
             ShowInTaskbar = false;
-            StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
+            SizeGripStyle = SizeGripStyle.Hide;
+            StartPosition = FormStartPosition.CenterParent;
             Text = "Find";
             Load += SearchForm_Load;
             ResumeLayout(false);
@@ -115,8 +120,8 @@ namespace GUI.Forms
 
         private System.Windows.Forms.Button findButton;
         private System.Windows.Forms.Button cancelButton;
-        private System.Windows.Forms.TextBox findTextBox;
+        private Controls.BetterTextBox findTextBox;
         private System.Windows.Forms.Label findLabel;
-        private System.Windows.Forms.ComboBox searchTypeComboBox;
+        private ComboBox searchTypeComboBox;
     }
 }
