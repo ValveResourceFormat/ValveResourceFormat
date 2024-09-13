@@ -1,6 +1,8 @@
 using System.ComponentModel;
 using System.Drawing;
 using System.Windows.Forms;
+using Windows.Win32;
+using Windows.Win32.Foundation;
 
 namespace GUI.Utils
 {
@@ -22,7 +24,7 @@ namespace GUI.Utils
                 return;
             }
 
-            _ = NativeMethods.SetWindowTheme(Handle, "explorer", null);
+            PInvoke.SetWindowTheme((HWND)Handle, "Explorer", null);
         }
     }
 }

@@ -257,7 +257,10 @@ namespace GUI.Forms
             using var regProtocolOpen = regProtocol.CreateSubKey(@"shell\open\command");
             regProtocolOpen.SetValue(null, $"\"{applicationPath}\" \"%1\"");
 
-            NativeMethods.SHChangeNotify(NativeMethods.SHCNE_ASSOCCHANGED, NativeMethods.SHCNF_FLUSH, IntPtr.Zero, IntPtr.Zero);
+            unsafe
+            {
+                Windows.Win32.PInvoke.SHChangeNotify(Windows.Win32.UI.Shell.SHCNE_ID.SHCNE_ASSOCCHANGED, Windows.Win32.UI.Shell.SHCNF_FLAGS.SHCNF_FLUSH, null, null);
+            }
 
             MessageBox.Show(
                 $"Registered .vpk file association as well as \"vpk:\" protocol link handling.{Environment.NewLine}{Environment.NewLine}If you move {Path.GetFileName(applicationPath)}, you will have to register it again.",

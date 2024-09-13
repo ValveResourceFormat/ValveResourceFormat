@@ -1,0 +1,2 @@
+SHChangeNotify
+SetWindowTheme
