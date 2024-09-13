@@ -19,6 +19,8 @@ using GUI.Utils;
 using SteamDatabase.ValvePak;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.Utils;
+using Windows.Win32;
+using Windows.Win32.Foundation;
 
 namespace GUI
 {
@@ -63,6 +65,8 @@ namespace GUI
 
             mainTabs.ImageList = ImageList;
             mainTabs.SelectedIndexChanged += OnMainSelectedTabChanged;
+
+            PInvoke.SetWindowTheme((HWND)mainTabs.Handle, null, "DarkMode::FileExplorerBannerContainer");
 
             var consoleTab = new ConsoleTab();
             Log.SetConsoleTab(consoleTab);

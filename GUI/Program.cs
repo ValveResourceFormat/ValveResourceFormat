@@ -3,6 +3,7 @@ using System.Threading;
 using System.Windows.Forms;
 using GUI.Utils;
 
+#pragma warning disable WFO5001
 namespace GUI
 {
     static class Program
@@ -25,6 +26,8 @@ namespace GUI
             Application.EnableVisualStyles();
             Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
             Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
+
+            Application.SetColorMode(SystemColorMode.System);
 
             MainForm = new MainForm(args);
             Application.Run(MainForm);
