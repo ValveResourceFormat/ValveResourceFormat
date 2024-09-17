@@ -3,7 +3,7 @@ using System.Runtime.CompilerServices;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
 
-[assembly: InternalsVisibleTo("Decompiler")]
+[assembly: InternalsVisibleTo("Source2Viewer-CLI")]
 [assembly: InternalsVisibleTo("Tests")]
 
 namespace ValveResourceFormat.Utils

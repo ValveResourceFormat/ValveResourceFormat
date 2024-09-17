@@ -6,6 +6,7 @@
     <Description>Source 2 resource decompiler and extractor</Description>
     <ApplicationIcon>..\Misc\Icons\source2viewer.ico</ApplicationIcon>
     <RuntimeIdentifiers>win-x64;linux-x64</RuntimeIdentifiers>
+    <AssemblyName>Source2Viewer-CLI</AssemblyName>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="ConsoleAppFramework" Version="5.2.4">

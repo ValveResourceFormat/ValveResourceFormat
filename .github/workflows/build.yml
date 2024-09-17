@@ -72,27 +72,27 @@ jobs:
       if: matrix.os == 'windows-latest'
       run: dotnet publish --configuration Release --self-contained --runtime win-x64 GUI/GUI.csproj
 
-    - name: Publish Decompiler (Windows x64)
+    - name: Publish CLI (Windows x64)
       if: matrix.os == 'windows-latest'
       run: dotnet publish --configuration Release --self-contained --runtime win-x64 Decompiler/Decompiler.csproj
 
-    - name: Publish Decompiler (Linux x64)
+    - name: Publish CLI (Linux x64)
       if: matrix.os == 'ubuntu-latest'
       run: dotnet publish --configuration Release --self-contained --runtime linux-x64 Decompiler/Decompiler.csproj
 
-    - name: Publish Decompiler (Linux arm)
+    - name: Publish CLI (Linux arm)
       if: matrix.os == 'ubuntu-latest'
       run: dotnet publish --configuration Release --self-contained --runtime linux-arm Decompiler/Decompiler.csproj
 
-    - name: Publish Decompiler (Linux arm64)
+    - name: Publish CLI (Linux arm64)
       if: matrix.os == 'ubuntu-latest'
       run: dotnet publish --configuration Release --self-contained --runtime linux-arm64 Decompiler/Decompiler.csproj
 
-    - name: Publish Decompiler (macOS x64)
+    - name: Publish CLI (macOS x64)
       if: matrix.os == 'macos-latest'
       run: dotnet publish --configuration Release --self-contained --runtime osx-x64 Decompiler/Decompiler.csproj
 
-    - name: Publish Decompiler (macOS arm64)
+    - name: Publish CLI (macOS arm64)
       if: matrix.os == 'macos-latest'
       run: dotnet publish --configuration Release --self-contained --runtime osx-arm64 Decompiler/Decompiler.csproj
 
@@ -110,46 +110,46 @@ jobs:
         name: nupkg
         path: 'ValveResourceFormat/bin/Release/*.nupkg'
 
-    - name: Upload Decompiler (Windows x64)
+    - name: Upload CLI (Windows x64)
       uses: actions/upload-artifact@v4
       if: matrix.os == 'windows-latest'
       with:
-        name: Decompiler-windows-x64
+        name: cli-windows-x64
         path: Decompiler/bin/Release/win-x64/publish
 
-    - name: Upload Decompiler (Linux x64)
+    - name: Upload CLI (Linux x64)
       uses: actions/upload-artifact@v4
       if: matrix.os == 'ubuntu-latest'
       with:
-        name: Decompiler-linux-x64
+        name: cli-linux-x64
         path: Decompiler/bin/Release/linux-x64/publish
 
-    - name: Upload Decompiler (Linux arm)
+    - name: Upload CLI (Linux arm)
       uses: actions/upload-artifact@v4
       if: matrix.os == 'ubuntu-latest'
       with:
-        name: Decompiler-linux-arm
+        name: cli-linux-arm
         path: Decompiler/bin/Release/linux-arm/publish
 
-    - name: Upload Decompiler (Linux arm64)
+    - name: Upload CLI (Linux arm64)
       uses: actions/upload-artifact@v4
       if: matrix.os == 'ubuntu-latest'
       with:
-        name: Decompiler-linux-arm64
+        name: cli-linux-arm64
         path: Decompiler/bin/Release/linux-arm64/publish
 
-    - name: Upload Decompiler (macOS x64)
+    - name: Upload CLI (macOS x64)
       uses: actions/upload-artifact@v4
       if: matrix.os == 'macos-latest'
       with:
-        name: Decompiler-macos-x64
+        name: cli-macos-x64
         path: Decompiler/bin/Release/osx-x64/publish
 
-    - name: Upload Decompiler (macOS arm64)
+    - name: Upload CLI (macOS arm64)
       uses: actions/upload-artifact@v4
       if: matrix.os == 'macos-latest'
       with:
-        name: Decompiler-macos-arm64
+        name: cli-macos-arm64
         path: Decompiler/bin/Release/osx-arm64/publish
 
     - name: Upload test coverage
@@ -179,17 +179,17 @@ jobs:
       run: |
        set -eux
        mkdir release
-       chmod +x artifacts/Decompiler-linux-x64/Decompiler
-       chmod +x artifacts/Decompiler-linux-arm/Decompiler
-       chmod +x artifacts/Decompiler-linux-arm64/Decompiler
-       chmod +x artifacts/Decompiler-macos-x64/Decompiler
-       chmod +x artifacts/Decompiler-macos-arm64/Decompiler
-       zip -9j release/Decompiler-windows-x64.zip artifacts/Decompiler-windows-x64/*
-       zip -9j release/Decompiler-linux-x64.zip artifacts/Decompiler-linux-x64/*
-       zip -9j release/Decompiler-linux-arm.zip artifacts/Decompiler-linux-arm/*
-       zip -9j release/Decompiler-linux-arm64.zip artifacts/Decompiler-linux-arm64/*
-       zip -9j release/Decompiler-macos-x64.zip artifacts/Decompiler-macos-x64/*
-       zip -9j release/Decompiler-macos-arm64.zip artifacts/Decompiler-macos-arm64/*
+       chmod +x artifacts/cli-linux-x64/Source2Viewer-CLI
+       chmod +x artifacts/cli-linux-arm/Source2Viewer-CLI
+       chmod +x artifacts/cli-linux-arm64/Source2Viewer-CLI
+       chmod +x artifacts/cli-macos-x64/Source2Viewer-CLI
+       chmod +x artifacts/cli-macos-arm64/Source2Viewer-CLI
+       zip -9j release/cli-windows-x64.zip artifacts/Decompiler-windows-x64/*
+       zip -9j release/cli-linux-x64.zip artifacts/Decompiler-linux-x64/*
+       zip -9j release/cli-linux-arm.zip artifacts/Decompiler-linux-arm/*
+       zip -9j release/cli-linux-arm64.zip artifacts/Decompiler-linux-arm64/*
+       zip -9j release/cli-macos-x64.zip artifacts/Decompiler-macos-x64/*
+       zip -9j release/cli-macos-arm64.zip artifacts/Decompiler-macos-arm64/*
        mv artifacts/Source2Viewer/Source2Viewer.exe release/
        mv artifacts/nupkg/ValveResourceFormat.*.nupkg release/ValveResourceFormat.nupkg
 

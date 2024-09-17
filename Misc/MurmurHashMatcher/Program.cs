@@ -8,7 +8,7 @@ Console.Error.WriteLine("Alternatively, create strings.txt with one string per l
 Console.WriteLine();
 
 // Generate with Decompiler:
-// .\Decompiler.exe -i "Steam\steamapps\common" --threads 10 --stats --dump_unknown_entity_keys --vpk_extensions "vents_c" --recursive --recursive_vpk
+// .\Source2Viewer-CLI.exe -i "Steam\steamapps\common" --threads 10 --stats --dump_unknown_entity_keys --vpk_extensions "vents_c" --recursive --recursive_vpk
 var unknownKeys = File.ReadAllLines("unknown_keys.txt")
     .Select(x => uint.Parse(x, NumberStyles.None, CultureInfo.InvariantCulture))
     .Except(StringToken.InvertedTable.Keys)
