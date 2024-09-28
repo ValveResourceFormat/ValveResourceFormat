@@ -415,7 +415,22 @@ namespace GUI.Types.Viewers
                 return;
             }
 
-            var textBox = new CodeTextBox(block.ToString());
+            var language = CodeTextBox.HighlightLanguage.KeyValues;
+
+            if (resource.ResourceType == ResourceType.PanoramaLayout && block.Type == BlockType.DATA)
+            {
+                language = CodeTextBox.HighlightLanguage.XML;
+            }
+            else if (resource.ResourceType == ResourceType.PanoramaStyle && block.Type == BlockType.DATA)
+            {
+                language = CodeTextBox.HighlightLanguage.CSS;
+            }
+            else if (resource.ResourceType == ResourceType.PanoramaScript && block.Type == BlockType.DATA)
+            {
+                language = CodeTextBox.HighlightLanguage.JS;
+            }
+
+            var textBox = new CodeTextBox(block.ToString(), language);
             blockTab.Controls.Add(textBox);
         }
 

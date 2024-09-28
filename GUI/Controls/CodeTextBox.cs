@@ -1,14 +1,24 @@
 using System.Drawing;
+using System.Text.RegularExpressions;
 using System.Windows.Forms;
 using FastColoredTextBoxNS;
 
 namespace GUI.Controls
 {
-    internal class CodeTextBox : FastColoredTextBox
+    internal partial class CodeTextBox : FastColoredTextBox
     {
+        internal enum HighlightLanguage
+        {
+            None,
+            KeyValues,
+            XML,
+            JS,
+            CSS, // TODO
+        }
+
         private string LazyText;
 
-        public CodeTextBox(string text) : base()
+        public CodeTextBox(string text, HighlightLanguage highlightSyntax = HighlightLanguage.KeyValues) : base()
         {
             const int FontSize = 9;
 
@@ -30,6 +40,19 @@ namespace GUI.Controls
             AutoIndent = false;
             Disposed += OnDisposed;
             TextChanged += OnTextChanged;
+
+            if (highlightSyntax == HighlightLanguage.KeyValues)
+            {
+                SyntaxHighlighter = new KvSyntaxHighlighter(this);
+            }
+            else if (highlightSyntax == HighlightLanguage.XML)
+            {
+                Language = Language.XML;
+            }
+            else if (highlightSyntax == HighlightLanguage.JS)
+            {
+                Language = Language.JS;
+            }
 
             if (Visible && Parent != null)
             {
@@ -75,8 +98,45 @@ namespace GUI.Controls
         {
             ClearUndo();
 
-            e.ChangedRange.SetFoldingMarkers("{", "}");
-            e.ChangedRange.SetFoldingMarkers("\\[", "\\]");
+            //e.ChangedRange.SetFoldingMarkers("{", "}");
+            //e.ChangedRange.SetFoldingMarkers("\\[", "\\]");
+        }
+
+        private partial class KvSyntaxHighlighter : SyntaxHighlighter
+        {
+            public KvSyntaxHighlighter(FastColoredTextBox currentTb) : base(currentTb)
+            {
+                CommentStyle = GreenStyle;
+                StringStyle = BlueStyle;
+                NumberStyle = MagentaStyle;
+            }
+
+            public override void HighlightSyntax(Language language, FastColoredTextBoxNS.Range range)
+            {
+                range.tb.LeftBracket = '[';
+                range.tb.RightBracket = ']';
+                range.tb.LeftBracket2 = '{';
+                range.tb.RightBracket2 = '}';
+
+                range.ClearStyle(StringStyle, NumberStyle, KeywordStyle, CommentStyle);
+
+                range.SetStyle(StringStyle, StringRegex());
+                range.SetStyle(CommentStyle, CommentRegex());
+                range.SetStyle(NumberStyle, NumberRegex());
+
+                range.ClearFoldingMarkers();
+                range.SetFoldingMarkers("{", "}");
+                range.SetFoldingMarkers(@"\[", @"\]");
+            }
+
+            [GeneratedRegex(@"""""|"".*?[^\\]""")]
+            private static partial Regex StringRegex();
+
+            [GeneratedRegex(@"\b([0-9]+[\.]?[0-9]*|true|false|null)\b")]
+            private static partial Regex NumberRegex();
+
+            [GeneratedRegex(@"//.*|<!--.+-->$", RegexOptions.Multiline | RegexOptions.Compiled)]
+            private static partial Regex CommentRegex();
         }
     }
 }

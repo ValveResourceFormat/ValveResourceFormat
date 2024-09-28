@@ -152,7 +152,7 @@ namespace GUI.Utils
         public TabPage CreateTab()
         {
             var bgColor = Color.FromArgb(37, 37, 37);
-            control = new CodeTextBox(null)
+            control = new CodeTextBox(null, CodeTextBox.HighlightLanguage.None)
             {
                 BackColor = bgColor,
                 ForeColor = Color.FromArgb(240, 240, 240),
