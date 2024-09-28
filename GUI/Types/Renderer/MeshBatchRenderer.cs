@@ -259,6 +259,9 @@ namespace GUI.Types.Renderer
                 var bAnimated = request.Mesh.AnimationTexture != null;
                 GL.ProgramUniform1((uint)shader.Program, uniforms.Animated, bAnimated ? 1u : 0u);
 
+                // TODO: only set this when BLENDWEIGHTS is missing
+                GL.VertexAttrib2(2, 0.5f, 0.5f);
+
                 if (bAnimated && uniforms.AnimationTexture != -1)
                 {
                     SetInstanceTexture(shader, ReservedTextureSlots.AnimationTexture, uniforms.AnimationTexture, request.Mesh.AnimationTexture);
