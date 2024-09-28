@@ -135,7 +135,7 @@ namespace GUI.Controls
             [GeneratedRegex(@"\b([0-9]+[\.]?[0-9]*|true|false|null)\b")]
             private static partial Regex NumberRegex();
 
-            [GeneratedRegex(@"//.*|<!--.+-->$", RegexOptions.Multiline | RegexOptions.Compiled)]
+            [GeneratedRegex(@"//.*$", RegexOptions.Multiline)]
             private static partial Regex CommentRegex();
         }
     }
