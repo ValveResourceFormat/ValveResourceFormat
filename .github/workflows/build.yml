@@ -177,6 +177,9 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: signpath-to-be-signed
+        retention-days: 1
+        # If the folder or executable names change, login to signpath
+        # and modify the "Artifact Configurations" there, as it specifies the paths
         path: |
           artifacts/Source2Viewer/
           artifacts/cli-windows-x64/
