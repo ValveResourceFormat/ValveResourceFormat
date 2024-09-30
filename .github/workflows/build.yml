@@ -184,12 +184,12 @@ jobs:
        chmod +x artifacts/cli-linux-arm64/Source2Viewer-CLI
        chmod +x artifacts/cli-macos-x64/Source2Viewer-CLI
        chmod +x artifacts/cli-macos-arm64/Source2Viewer-CLI
-       zip -9j release/cli-windows-x64.zip artifacts/Decompiler-windows-x64/*
-       zip -9j release/cli-linux-x64.zip artifacts/Decompiler-linux-x64/*
-       zip -9j release/cli-linux-arm.zip artifacts/Decompiler-linux-arm/*
-       zip -9j release/cli-linux-arm64.zip artifacts/Decompiler-linux-arm64/*
-       zip -9j release/cli-macos-x64.zip artifacts/Decompiler-macos-x64/*
-       zip -9j release/cli-macos-arm64.zip artifacts/Decompiler-macos-arm64/*
+       zip -9j release/cli-windows-x64.zip artifacts/cli-windows-x64/*
+       zip -9j release/cli-linux-x64.zip artifacts/cli-linux-x64/*
+       zip -9j release/cli-linux-arm.zip artifacts/cli-linux-arm/*
+       zip -9j release/cli-linux-arm64.zip artifacts/cli-linux-arm64/*
+       zip -9j release/cli-macos-x64.zip artifacts/cli-macos-x64/*
+       zip -9j release/cli-macos-arm64.zip artifacts/cli-macos-arm64/*
        mv artifacts/Source2Viewer/Source2Viewer.exe release/
        mv artifacts/nupkg/ValveResourceFormat.*.nupkg release/ValveResourceFormat.nupkg
 
