@@ -1,4 +1,8 @@
+using System.Diagnostics;
 using System.IO;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.Serialization;
 
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
@@ -65,6 +69,90 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
 
             // Calculate fps
             Fps = NumFrames / Duration;
+        }
+
+        public void ReadFrame(int frameIndex, FrameBone[] bones)
+        {
+            var frameData = MemoryMarshal.Cast<byte, ushort>(CompressedPoseData);
+            frameData = frameData[(int)CompressedPoseOffsets[frameIndex]..];
+
+            for (var i = 0; i < bones.Length; i++)
+            {
+                var config = TrackCompressionSettings[i];
+
+                var translationRangeStart = new Vector3(
+                    config.TranslationRangeX.Start,
+                    config.TranslationRangeY.Start,
+                    config.TranslationRangeZ.Start
+                );
+
+                var rotation = config.ConstantRotation;
+                var translation = translationRangeStart;
+                var scale = config.ScaleRange.Start;
+
+                if (!config.IsRotationStatic)
+                {
+                    var compressedQuaternionBytes = frameData[..CompressedQuaternionSize];
+                    rotation = DecodeQuaternion(compressedQuaternionBytes);
+                    frameData = frameData[CompressedQuaternionSize..];
+                }
+
+                if (!config.IsTranslationStatic)
+                {
+                    var compressedVector3Bytes = frameData[..CompressedTranslationSize];
+                    var translationRangeLength = new Vector3(
+                        config.TranslationRangeX.Length,
+                        config.TranslationRangeY.Length,
+                        config.TranslationRangeZ.Length
+                    );
+
+                    translation = DecodeTranslation(compressedVector3Bytes, translationRangeStart, translationRangeLength);
+                    frameData = frameData[CompressedTranslationSize..];
+                }
+
+                if (!config.IsScaleStatic)
+                {
+                    scale = DecodeFloat(frameData[0], config.ScaleRange.Start, config.ScaleRange.Length);
+                    frameData = frameData[1..];
+                }
+            }
+        }
+
+        const int CompressedQuaternionSize = 3;
+        static Quaternion DecodeQuaternion(ReadOnlySpan<ushort> data)
+        {
+            Debug.Assert(data.Length >= CompressedQuaternionSize);
+
+            // TODO
+            return Quaternion.Identity;
+        }
+
+        const int CompressedTranslationSize = 3;
+        static Vector3 DecodeTranslation(ReadOnlySpan<ushort> data, Vector3 rangeStart, Vector3 rangeLength)
+        {
+            Debug.Assert(data.Length >= CompressedTranslationSize);
+
+            return new Vector3(
+                DecodeFloat(data[0], rangeStart.X, rangeLength.X),
+                DecodeFloat(data[1], rangeStart.Y, rangeLength.Y),
+                DecodeFloat(data[2], rangeStart.Z, rangeLength.Z)
+            );
+        }
+
+        static float DecodeFloat(ushort unorm, float rangeStart, float rangeLength)
+        {
+            Debug.Assert(rangeLength != 0);
+
+            var normalizedValue = DecodeUnsignedNormalizedFloat(unorm);
+            var decodedValue = (normalizedValue * rangeLength) + rangeStart;
+            return decodedValue;
+        }
+
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        static float DecodeUnsignedNormalizedFloat(ushort encodedValue)
+        {
+            return encodedValue / (float)((1 << (sizeof(ushort))) - 1);
         }
     }
 }
