@@ -69,6 +69,11 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
 
             // Calculate fps
             Fps = NumFrames / Duration;
+
+            var bones = new FrameBone[122];
+            ReadFrame(0, bones);
+            ReadFrame(1, bones);
+            ReadFrame(NumFrames - 1, bones);
         }
 
         public void ReadFrame(int frameIndex, FrameBone[] bones)
@@ -86,33 +91,31 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
                     config.TranslationRangeZ.Start
                 );
 
-                var rotation = config.ConstantRotation;
-                var translation = translationRangeStart;
-                var scale = config.ScaleRange.Start;
+                bones[i].Angle = config.ConstantRotation;
+                bones[i].Position = translationRangeStart;
+                bones[i].Scale = config.ScaleRange.Start;
 
                 if (!config.IsRotationStatic)
                 {
-                    var compressedQuaternionBytes = frameData[..CompressedQuaternionSize];
-                    rotation = DecodeQuaternion(compressedQuaternionBytes);
+                    bones[i].Angle = DecodeQuaternion(frameData);
                     frameData = frameData[CompressedQuaternionSize..];
                 }
 
                 if (!config.IsTranslationStatic)
                 {
-                    var compressedVector3Bytes = frameData[..CompressedTranslationSize];
                     var translationRangeLength = new Vector3(
                         config.TranslationRangeX.Length,
                         config.TranslationRangeY.Length,
                         config.TranslationRangeZ.Length
                     );
 
-                    translation = DecodeTranslation(compressedVector3Bytes, translationRangeStart, translationRangeLength);
+                    bones[i].Position = DecodeTranslation(frameData, translationRangeStart, translationRangeLength);
                     frameData = frameData[CompressedTranslationSize..];
                 }
 
                 if (!config.IsScaleStatic)
                 {
-                    scale = DecodeFloat(frameData[0], config.ScaleRange.Start, config.ScaleRange.Length);
+                    bones[i].Scale = DecodeFloat(frameData[0], config.ScaleRange.Start, config.ScaleRange.Length);
                     frameData = frameData[1..];
                 }
             }
