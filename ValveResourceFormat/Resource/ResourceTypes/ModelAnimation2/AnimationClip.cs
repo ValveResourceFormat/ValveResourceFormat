@@ -3,13 +3,13 @@ using ValveResourceFormat.Serialization;
 
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
 {
-    public record struct Range(float Start, float Length);
+    public record struct QuantizationRange(float Start, float Length);
     public record struct TrackCompressionSetting
     (
-        Range TranslationRangeX,
-        Range TranslationRangeY,
-        Range TranslationRangeZ,
-        Range ScaleRange,
+        QuantizationRange TranslationRangeX,
+        QuantizationRange TranslationRangeY,
+        QuantizationRange TranslationRangeZ,
+        QuantizationRange ScaleRange,
         Quaternion ConstantRotation,
         bool IsRotationStatic,
         bool IsTranslationStatic,
@@ -51,10 +51,10 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
 
                 TrackCompressionSettings[i++] = new TrackCompressionSetting
                 {
-                    TranslationRangeX = new Range(rangeX.GetFloatProperty("m_flRangeStart"), rangeX.GetFloatProperty("m_flRangeLength")),
-                    TranslationRangeY = new Range(rangeY.GetFloatProperty("m_flRangeStart"), rangeY.GetFloatProperty("m_flRangeLength")),
-                    TranslationRangeZ = new Range(rangeZ.GetFloatProperty("m_flRangeStart"), rangeZ.GetFloatProperty("m_flRangeLength")),
-                    ScaleRange = new Range(scaleRange.GetFloatProperty("m_flRangeStart"), scaleRange.GetFloatProperty("m_flRangeLength")),
+                    TranslationRangeX = new QuantizationRange(rangeX.GetFloatProperty("m_flRangeStart"), rangeX.GetFloatProperty("m_flRangeLength")),
+                    TranslationRangeY = new QuantizationRange(rangeY.GetFloatProperty("m_flRangeStart"), rangeY.GetFloatProperty("m_flRangeLength")),
+                    TranslationRangeZ = new QuantizationRange(rangeZ.GetFloatProperty("m_flRangeStart"), rangeZ.GetFloatProperty("m_flRangeLength")),
+                    ScaleRange = new QuantizationRange(scaleRange.GetFloatProperty("m_flRangeStart"), scaleRange.GetFloatProperty("m_flRangeLength")),
                     IsRotationStatic = setting.GetProperty<bool>("m_bIsRotationStatic"),
                     IsTranslationStatic = setting.GetProperty<bool>("m_bIsTranslationStatic"),
                     IsScaleStatic = setting.GetProperty<bool>("m_bIsScaleStatic"),
