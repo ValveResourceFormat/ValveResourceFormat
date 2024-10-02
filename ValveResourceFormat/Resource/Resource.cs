@@ -370,6 +370,7 @@ namespace ValveResourceFormat
             return ResourceType switch
             {
                 ResourceType.AnimationGraph => new AnimGraph(),
+                ResourceType.NmClip => new ResourceTypes.ModelAnimation2.AnimationClip(),
                 ResourceType.ChoreoSceneFileData => new ChoreoSceneFileData(),
                 ResourceType.EntityLump => new EntityLump(),
                 ResourceType.Map => new Map(),
@@ -412,6 +413,7 @@ namespace ValveResourceFormat
                 or ResourceType.Morph
                 or ResourceType.SmartProp
                 or ResourceType.AnimationGraph
+                or ResourceType.NmClip
                 or ResourceType.PostProcessing;
         }
 
