@@ -203,11 +203,11 @@ namespace GUI.Types.PackageViewer
                             Log.Warn(nameof(PackageViewer), $"Faield to find file: {file}");
                             continue;
                         }
-
-
                     }
-#endif
+
+
                 }
+#endif
             }
         }
 
