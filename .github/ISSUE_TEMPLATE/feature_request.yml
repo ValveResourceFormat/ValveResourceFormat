@@ -1,6 +1,7 @@
 name: Feature Request
 description: Suggest an idea for this project
 labels: [enhancement]
+type: 'Enhancement'
 body:
 - type: textarea
   attributes:
