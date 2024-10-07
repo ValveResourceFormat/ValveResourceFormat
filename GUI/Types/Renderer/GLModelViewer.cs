@@ -241,15 +241,15 @@ namespace GUI.Types.Renderer
             {
                 var physSceneNodes = PhysSceneNode.CreatePhysSceneNodes(Scene, phys, null).ToList();
 
+                // Physics are not shown by default unless the model has no meshes
+                var enabledAllPhysByDefault = modelSceneNode == null || modelSceneNode.RenderableMeshes.Count == 0;
+
                 foreach (var physSceneNode in physSceneNodes)
                 {
-                    physSceneNode.Enabled = true;
+                    physSceneNode.Enabled = enabledAllPhysByDefault;
                     physSceneNode.IsTranslucentRenderMode = false;
                     Scene.Add(physSceneNode, false);
                 }
-
-                // Physics are not shown by default unless the model has no meshes
-                var enabledAllPhysByDefault = modelSceneNode == null || modelSceneNode.RenderableMeshes.Count == 0;
 
                 var physicsGroups = physSceneNodes
                     .Select(r => r.PhysGroupName)
