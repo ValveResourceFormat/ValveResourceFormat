@@ -21,6 +21,8 @@ public class FeaturesHeaderBlock : ShaderDataBlock
     public List<(string Name, string Shader, string StaticConfig, int Value)> Modes { get; } = [];
     public List<(Guid, string)> EditorIDs { get; } = [];
 
+    public int AdditionalFileCount => AdditionalFiles == VcsAdditionalFiles.PsrsAndRtx ? 2 : (int)AdditionalFiles;
+
     public FeaturesHeaderBlock(ShaderDataReader datareader) : base(datareader)
     {
         var vcsMagicId = datareader.ReadInt32();
@@ -40,7 +42,7 @@ public class FeaturesHeaderBlock : ShaderDataBlock
 
         if (!Enum.IsDefined(AdditionalFiles))
         {
-            throw new UnexpectedMagicException("Unexpected v64 value", (int)AdditionalFiles, nameof(AdditionalFiles));
+            throw new UnexpectedMagicException("Unexpected additional files", (int)AdditionalFiles, nameof(AdditionalFiles));
         }
         else if (datareader.IsSbox && AdditionalFiles == VcsAdditionalFiles.Rtx)
         {
@@ -70,10 +72,10 @@ public class FeaturesHeaderBlock : ShaderDataBlock
             ComputeFileFlags = datareader.ReadInt32();
         }
 
-        AdditionalFileFlags = new int[(int)AdditionalFiles];
-        for (var i = VcsAdditionalFiles.None; i < AdditionalFiles; i++)
+        AdditionalFileFlags = new int[AdditionalFileCount];
+        for (var i = 0; i < AdditionalFileCount; i++)
         {
-            AdditionalFileFlags[(int)i] = datareader.ReadInt32();
+            AdditionalFileFlags[i] = datareader.ReadInt32();
         };
 
         var modeCount = datareader.ReadInt32();
@@ -106,7 +108,7 @@ public class FeaturesHeaderBlock : ShaderDataBlock
 
     public IEnumerable<VcsProgramType> ProgramTypeIterator()
     {
-        var programTypeLast = (int)VcsProgramType.ComputeShader + (int)AdditionalFiles;
+        var programTypeLast = (int)VcsProgramType.ComputeShader + AdditionalFileCount;
 
         for (var i = 0; i <= programTypeLast; i++)
         {

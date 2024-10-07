@@ -23,7 +23,7 @@ public class VsPsHeaderBlock : ShaderDataBlock
         if (VcsFileVersion >= 64)
         {
             extraFile = (VcsAdditionalFiles)datareader.ReadInt32();
-            if (extraFile < VcsAdditionalFiles.None || extraFile > VcsAdditionalFiles.Rtx)
+            if (extraFile < VcsAdditionalFiles.None || extraFile > VcsAdditionalFiles.PsrsAndRtx)
             {
                 throw new UnexpectedMagicException("unexpected v64 value", (int)extraFile, nameof(VcsAdditionalFiles));
             }
