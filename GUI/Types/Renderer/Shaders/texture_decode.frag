@@ -161,7 +161,7 @@ void main()
     #endif
 
     vec3 vBackgroundColor = vec3(0.0);
-    bool bWithinAlphaBounds = false;
+    int nColorSliceBoundsIndex = 0;
 
     if (g_bTextureViewer)
     {
@@ -176,11 +176,16 @@ void main()
         bool bIsWideImage = g_vInputTextureSize.x > g_vInputTextureSize.y;
         vec2 vAlphaRegionTexCoord = bIsWideImage ? vTexCoord.yx : vTexCoord.xy;
 
-        bWithinAlphaBounds = vAlphaRegionTexCoord.x >= 1.0 && vAlphaRegionTexCoord.x < 2.0 && vAlphaRegionTexCoord.x >= 0.0 && vAlphaRegionTexCoord.y < 1.0;
+        bool bInColorSliceBounds = vAlphaRegionTexCoord.x >= 1.0 && vAlphaRegionTexCoord.x < 4.0 && vAlphaRegionTexCoord.y < 1.0;
 
-        if (g_bWantsSeparateAlpha && bWithinAlphaBounds)
+        if (bInColorSliceBounds)
         {
-            vAlphaRegionTexCoord.x -= 1.0;
+            nColorSliceBoundsIndex = int(vAlphaRegionTexCoord.x);
+        }
+
+        if (g_bWantsSeparateAlpha && bInColorSliceBounds)
+        {
+            vAlphaRegionTexCoord.x = fract(vAlphaRegionTexCoord.x);
             vTexCoord.xy = bIsWideImage ? vAlphaRegionTexCoord.yx : vAlphaRegionTexCoord.xy;
         }
     }
@@ -277,13 +282,9 @@ void main()
         float flBackgroundMix = 1.0;
         bool bWithinImageBounds = vTexCoord.x < 1.0 && vTexCoord.y < 1.0 && vTexCoord.x >= 0.0 && vTexCoord.y >= 0.0;
 
-        if (g_bWantsSeparateAlpha && (bWithinImageBounds || bWithinAlphaBounds))
+        if (g_bWantsSeparateAlpha && (bWithinImageBounds || nColorSliceBoundsIndex > 0))
         {
-            if (bWithinAlphaBounds)
-            {
-                vColorOutput.rgb = vColorOutput.aaa;
-            }
-
+            vColorOutput.rgb = vColorOutput[nColorSliceBoundsIndex].xxx;
             vColorOutput.a = 1.0;
         }
 
