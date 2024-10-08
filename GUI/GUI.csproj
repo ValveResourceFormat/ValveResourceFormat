@@ -25,7 +25,7 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="NAudio" Version="2.2.1" />
-    <PackageReference Include="NLayer" Version="1.15.0" />
+    <PackageReference Include="NLayer" Version="1.16.0" />
     <PackageReference Include="NLayer.NAudioSupport" Version="1.4.0" />
     <PackageReference Include="OpenTK" Version="3.3.3">
         <NoWarn>NU1701</NoWarn>
@@ -35,7 +35,7 @@
     </PackageReference>
     <PackageReference Include="Svg.Skia" Version="2.0.0.1" />
     <PackageReference Include="System.IO.Hashing" Version="8.0.0" />
-    <PackageReference Include="Vortice.SpirvCross" Version="1.5.0" />
+    <PackageReference Include="Vortice.SpirvCross" Version="1.5.1" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="AssetTypes\*" />
