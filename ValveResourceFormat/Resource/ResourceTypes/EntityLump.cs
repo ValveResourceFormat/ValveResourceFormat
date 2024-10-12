@@ -152,7 +152,7 @@ namespace ValveResourceFormat.ResourceTypes
                 {
                     var arrayKv = (KVObject)value.Value.Value;
 
-                    if (arrayKv.Count > 4)
+                    if (arrayKv.Count < 2 || arrayKv.Count > 4)
                     {
                         // TODO: We should upconvert entitylump to keyvalues instead of the other way around
                         continue;
