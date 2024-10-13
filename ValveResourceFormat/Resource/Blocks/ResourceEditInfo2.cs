@@ -61,7 +61,10 @@ namespace ValveResourceFormat.Blocks
             ChildResourceList.AddRange(childResources);
 
             var weakReferences = kv3.Data.GetArray<string>("m_WeakReferenceList");
-            WeakReferenceList.AddRange(weakReferences);
+            if (weakReferences is not null)
+            {
+                WeakReferenceList.AddRange(weakReferences);
+            }
 
             var searchableData = kv3.Data.GetProperty<KVObject>("m_SearchableUserData");
             SearchableUserData.Properties.EnsureCapacity(searchableData.Properties.Count);
