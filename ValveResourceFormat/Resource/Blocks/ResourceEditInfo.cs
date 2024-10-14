@@ -93,7 +93,18 @@ namespace ValveResourceFormat.Blocks
         {
             using var ms = new MemoryStream();
             var serializer = ValveKeyValue.KVSerializer.Create(ValveKeyValue.KVSerializationFormat.KeyValues1Text);
-            serializer.Serialize(ms, this, "ResourceEditInfo");
+            var serializedProps = new
+            {
+                InputDependencies,
+                AdditionalInputDependencies,
+                ArgumentDependencies,
+                SpecialDependencies,
+                AdditionalRelatedFiles,
+                ChildResourceList,
+                SearchableUserData,
+            };
+
+            serializer.Serialize(ms, serializedProps, "ResourceEditInfo");
 
             writer.Write(Encoding.UTF8.GetString(ms.ToArray()));
         }
