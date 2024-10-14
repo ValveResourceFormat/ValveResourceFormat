@@ -803,7 +803,7 @@ namespace ValveResourceFormat.ResourceTypes
             }
 
             var textureCompilerDependencies = Resource.EditInfo.SpecialDependencies
-                .Where(dependency => dependency.CompilerIdentifier == "CompileTexture");
+                .Where(static dependency => dependency.CompilerIdentifier == "CompileTexture");
 
             foreach (var processorAlgorithm in textureCompilerDependencies)
             {
