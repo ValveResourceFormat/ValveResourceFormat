@@ -24,8 +24,8 @@ namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
         {
             ParameterName = data.GetProperty<string>("m_ParameterName");
             ParameterType = data.GetProperty<string>("m_ParameterType");
-            Fingerprint = (uint)data.GetIntegerProperty("m_nFingerprint");
-            FingerprintDefault = (uint)data.GetIntegerProperty("m_nFingerprintDefault");
+            Fingerprint = data.GetUInt32Property("m_nFingerprint");
+            FingerprintDefault = data.GetUInt32Property("m_nFingerprintDefault");
         }
     }
 }

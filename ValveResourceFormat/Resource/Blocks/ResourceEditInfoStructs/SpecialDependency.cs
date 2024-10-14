@@ -9,8 +9,8 @@ namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
     {
         public string String { get; set; }
         public string CompilerIdentifier { get; set; }
-        public long Fingerprint { get; set; } // why long?
-        public long UserData { get; set; }
+        public uint Fingerprint { get; set; }
+        public uint UserData { get; set; }
 
         public SpecialDependency(BinaryReader reader)
         {
@@ -24,8 +24,8 @@ namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
         {
             String = data.GetProperty<string>("m_String");
             CompilerIdentifier = data.GetProperty<string>("m_CompilerIdentifier");
-            Fingerprint = data.GetIntegerProperty("m_nFingerprint");
-            UserData = data.GetIntegerProperty("m_nUserData");
+            Fingerprint = data.GetUInt32Property("m_nFingerprint");
+            UserData = data.GetUInt32Property("m_nUserData");
         }
     }
 }

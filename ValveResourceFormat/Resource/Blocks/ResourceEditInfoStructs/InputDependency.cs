@@ -30,7 +30,7 @@ namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
         {
             ContentRelativeFilename = data.GetProperty<string>("m_RelativeFilename");
             ContentSearchPath = data.GetProperty<string>("m_SearchPath");
-            FileCRC = (uint)data.GetUnsignedIntegerProperty("m_nFileCRC");
+            FileCRC = data.GetUInt32Property("m_nFileCRC");
             Optional = data.GetProperty<bool>("m_bOptional");
             FileExists = data.GetProperty<bool>("m_bExists");
             IsGameFile = data.GetProperty<bool>("m_bIsGameFile");
