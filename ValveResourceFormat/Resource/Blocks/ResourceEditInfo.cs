@@ -57,8 +57,9 @@ namespace ValveResourceFormat.Blocks
                 {
                     var key = reader.ReadOffsetString(Encoding.UTF8);
                     var value = valueReader.Invoke();
-                    // Todo: handle properties that exist as both float and int
-                    kvObject.AddProperty(key, new KVValue(valueType, value));
+
+                    // Note: we may override existing keys
+                    kvObject.Properties[key] = new KVValue(valueType, value);
                 }
             }
 
