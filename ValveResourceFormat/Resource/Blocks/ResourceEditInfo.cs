@@ -36,19 +36,19 @@ namespace ValveResourceFormat.Blocks
                 return (int)count;
             }
 
-            void ReadItems<T>(List<T> list, Func<T> constructor)
+            void ReadItems<T>(List<T> list, Func<BinaryReader, T> constructor)
             {
                 var count = AdvanceGetCount();
                 list.EnsureCapacity(count);
 
                 for (var i = 0; i < count; i++)
                 {
-                    var item = constructor.Invoke();
+                    var item = constructor.Invoke(reader);
                     list.Add(item);
                 }
             }
 
-            void ReadKeyValues<T>(KVObject kvObject, KVType valueType, Func<T> valueReader)
+            void ReadKeyValues<T>(KVObject kvObject, KVType valueType, Func<BinaryReader, T> valueReader)
             {
                 var count = AdvanceGetCount();
                 kvObject.Properties.EnsureCapacity(kvObject.Properties.Count + count);
@@ -56,17 +56,17 @@ namespace ValveResourceFormat.Blocks
                 for (var i = 0; i < count; i++)
                 {
                     var key = reader.ReadOffsetString(Encoding.UTF8);
-                    var value = valueReader.Invoke();
+                    var value = valueReader.Invoke(reader);
 
                     // Note: we may override existing keys
                     kvObject.Properties[key] = new KVValue(valueType, value);
                 }
             }
 
-            ReadItems(InputDependencies, () => new InputDependency(reader));
-            ReadItems(AdditionalInputDependencies, () => new InputDependency(reader));
-            ReadItems(ArgumentDependencies, () => new ArgumentDependency(reader));
-            ReadItems(SpecialDependencies, () => new SpecialDependency(reader));
+            ReadItems(InputDependencies, static (reader) => new InputDependency(reader));
+            ReadItems(AdditionalInputDependencies, static (reader) => new InputDependency(reader));
+            ReadItems(ArgumentDependencies, static (reader) => new ArgumentDependency(reader));
+            ReadItems(SpecialDependencies, static (reader) => new SpecialDependency(reader));
 
             var customDependencies = AdvanceGetCount();
             if (customDependencies > 0)
@@ -75,8 +75,8 @@ namespace ValveResourceFormat.Blocks
                     "Please report this on https://github.com/ValveResourceFormat/ValveResourceFormat and provide the file that caused this exception.");
             }
 
-            ReadItems(AdditionalRelatedFiles, () => new AdditionalRelatedFile(reader));
-            ReadItems(ChildResourceList, () =>
+            ReadItems(AdditionalRelatedFiles, static (reader) => new AdditionalRelatedFile(reader));
+            ReadItems(ChildResourceList, static (reader) =>
             {
                 var id = reader.ReadUInt64();
                 var name = reader.ReadOffsetString(Encoding.UTF8);
@@ -84,9 +84,9 @@ namespace ValveResourceFormat.Blocks
                 return name; // Ignoring 'id' to match RED2
             });
 
-            ReadKeyValues(SearchableUserData, KVType.INT64, () => (long)reader.ReadInt32());
-            ReadKeyValues(SearchableUserData, KVType.FLOAT, () => (double)reader.ReadSingle());
-            ReadKeyValues(SearchableUserData, KVType.STRING, () => reader.ReadOffsetString(Encoding.UTF8));
+            ReadKeyValues(SearchableUserData, KVType.INT64, static (reader) => (long)reader.ReadInt32());
+            ReadKeyValues(SearchableUserData, KVType.FLOAT, static (reader) => (double)reader.ReadSingle());
+            ReadKeyValues(SearchableUserData, KVType.STRING, static (reader) => reader.ReadOffsetString(Encoding.UTF8));
         }
 
         public override void WriteText(IndentedTextWriter writer)
