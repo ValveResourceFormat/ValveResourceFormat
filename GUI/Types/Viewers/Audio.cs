@@ -17,6 +17,11 @@ namespace GUI.Types.Viewers
 
         public TabPage Create(VrfGuiContext vrfGuiContext, Stream stream)
         {
+            throw new NotImplementedException();
+        }
+
+        public TabPage Create(VrfGuiContext vrfGuiContext, Stream stream, bool isPreview)
+        {
             WaveStream waveStream;
 
             if (stream == null)
@@ -35,7 +40,21 @@ namespace GUI.Types.Viewers
             var tab = new TabPage();
             var audio = new AudioPlaybackPanel(waveStream);
             tab.Controls.Add(audio);
+
+            var autoPlay = ((Settings.QuickPreviewFlags)Settings.Config.QuickFilePreview & Settings.QuickPreviewFlags.AutoPlaySounds) != 0;
+            if (isPreview && autoPlay)
+            {
+                audio.HandleCreated += OnHandleCreated;
+            }
+
             return tab;
+        }
+
+        private void OnHandleCreated(object sender, EventArgs e)
+        {
+            var audio = (AudioPlaybackPanel)sender;
+            audio.HandleCreated -= OnHandleCreated;
+            audio.Invoke(audio.Play);
         }
     }
 }
