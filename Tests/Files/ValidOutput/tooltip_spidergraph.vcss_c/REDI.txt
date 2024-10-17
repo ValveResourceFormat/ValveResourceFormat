@@ -1,66 +1,61 @@
-ResourceEditInfoBlock_t
+"ResourceEditInfo"
 {
-	Struct m_InputDependencies[2] =
-	[
-		ResourceInputDependency_t
+	"AdditionalInputDependencies"
+	{
+	}
+	"AdditionalRelatedFiles"
+	{
+	}
+	"ArgumentDependencies"
+	{
+		"0"
 		{
-			CResourceString m_ContentRelativeFilename = "panorama/styles/tooltips/tooltip_spidergraph.vcss"
-			CResourceString m_ContentSearchPath = "dota"
-			uint32 m_nFileCRC = 0x00000000
-			uint32 m_nFlags = 0x00000001
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
+			"ParameterName"	"___OverrideInputData___"
+			"ParameterType"	"BinaryBlobArg"
 		}
-		ResourceInputDependency_t
+	}
+	"ChildResourceList"
+	{
+	}
+	"InputDependencies"
+	{
+		"0"
 		{
-			CResourceString m_ContentRelativeFilename = "panorama/styles/tooltips/tooltip_spidergraph.css"
-			CResourceString m_ContentSearchPath = "dota"
-			uint32 m_nFileCRC = 0xBE040AF0
-			uint32 m_nFlags = 0x00000002
+			"ContentRelativeFilename"	"panorama/styles/tooltips/tooltip_spidergraph.vcss"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"0"
+			"FileExists"	"0"
+			"IsGameFile"	"0"
+			"Optional"	"1"
 		}
-	]
-	Struct m_AdditionalInputDependencies[0] =
-	[
-	]
-	Struct m_ArgumentDependencies[1] =
-	[
-		ResourceArgumentDependency_t
+		"1"
 		{
-			CResourceString m_ParameterName = "___OverrideInputData___"
-			CResourceString m_ParameterType = "BinaryBlobArg"
-			uint32 m_nFingerprint = 0x00000000
-			uint32 m_nFingerprintDefault = 0x00000000
+			"ContentRelativeFilename"	"panorama/styles/tooltips/tooltip_spidergraph.css"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"3187935984"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+			"Optional"	"0"
 		}
-	]
-	Struct m_SpecialDependencies[1] =
-	[
-		ResourceSpecialDependency_t
+	}
+	"SearchableUserData"
+	{
+		"0"
 		{
-			CResourceString m_String = "Panorama Style Compiler Version"
-			CResourceString m_CompilerIdentifier = "CompilePanorama"
-			uint32 m_nFingerprint = 0x00000001
-			uint32 m_nUserData = 0x00000000
+			"Key"	"IsChildResource"
+			"Value"	"0"
 		}
-	]
-	Struct m_CustomDependencies[0] =
-	[
-	]
-	Struct m_AdditionalRelatedFiles[0] =
-	[
-	]
-	Struct m_ChildResourceList[0] =
-	[
-	]
-	Struct m_ExtraIntData[1] =
-	[
-		ResourceEditIntData_t
+	}
+	"SpecialDependencies"
+	{
+		"0"
 		{
-			CResourceString m_Name = "IsChildResource"
-			int32 m_nInt = 0
+			"CompilerIdentifier"	"CompilePanorama"
+			"Fingerprint"	"1"
+			"String"	"Panorama Style Compiler Version"
+			"UserData"	"0"
 		}
-	]
-	Struct m_ExtraFloatData[0] =
-	[
-	]
-	Struct m_ExtraStringData[0] =
-	[
-	]
+	}
 }

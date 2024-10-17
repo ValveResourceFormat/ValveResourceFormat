@@ -1,280 +1,275 @@
-ResourceEditInfoBlock_t
+"ResourceEditInfo"
+{
+	"AdditionalInputDependencies"
 	{
-		Struct m_InputDependencies[12] = 
-		[
-			ResourceInputDependency_t
-			{
-				CResourceString m_ContentRelativeFilename = "panorama/layout/leaf_pages/dashboard_page_halloween2015.vxml"
-				CResourceString m_ContentSearchPath = "dota"
-				uint32 m_nFileCRC = 0x00000000
-				uint32 m_nFlags = 0x00000001
-			}
-			ResourceInputDependency_t
-			{
-				CResourceString m_ContentRelativeFilename = "panorama/layout/leaf_pages/dashboard_page_halloween2015.xml"
-				CResourceString m_ContentSearchPath = "dota"
-				uint32 m_nFileCRC = 0x875CD1A9
-				uint32 m_nFlags = 0x00000002
-			}
-			ResourceInputDependency_t
-			{
-				CResourceString m_ContentRelativeFilename = "panorama/images/leaf_pages/halloween2015/candles.txt"
-				CResourceString m_ContentSearchPath = "dota"
-				uint32 m_nFileCRC = 0x00000000
-				uint32 m_nFlags = 0x00000001
-			}
-			ResourceInputDependency_t
-			{
-				CResourceString m_ContentRelativeFilename = "panorama/images/leaf_pages/halloween2015/candles.psd"
-				CResourceString m_ContentSearchPath = "dota"
-				uint32 m_nFileCRC = 0x3B3146DD
-				uint32 m_nFlags = 0x00000002
-			}
-			ResourceInputDependency_t
-			{
-				CResourceString m_ContentRelativeFilename = "panorama/images/leaf_pages/halloween2015/tip1.txt"
-				CResourceString m_ContentSearchPath = "dota"
-				uint32 m_nFileCRC = 0x00000000
-				uint32 m_nFlags = 0x00000001
-			}
-			ResourceInputDependency_t
-			{
-				CResourceString m_ContentRelativeFilename = "panorama/images/leaf_pages/halloween2015/tip1.psd"
-				CResourceString m_ContentSearchPath = "dota"
-				uint32 m_nFileCRC = 0xA030832D
-				uint32 m_nFlags = 0x00000002
-			}
-			ResourceInputDependency_t
-			{
-				CResourceString m_ContentRelativeFilename = "panorama/images/leaf_pages/halloween2015/tip2.txt"
-				CResourceString m_ContentSearchPath = "dota"
-				uint32 m_nFileCRC = 0x00000000
-				uint32 m_nFlags = 0x00000001
-			}
-			ResourceInputDependency_t
-			{
-				CResourceString m_ContentRelativeFilename = "panorama/images/leaf_pages/halloween2015/tip2.psd"
-				CResourceString m_ContentSearchPath = "dota"
-				uint32 m_nFileCRC = 0xCBA763B1
-				uint32 m_nFlags = 0x00000002
-			}
-			ResourceInputDependency_t
-			{
-				CResourceString m_ContentRelativeFilename = "panorama/images/leaf_pages/halloween2015/tip3.txt"
-				CResourceString m_ContentSearchPath = "dota"
-				uint32 m_nFileCRC = 0x00000000
-				uint32 m_nFlags = 0x00000001
-			}
-			ResourceInputDependency_t
-			{
-				CResourceString m_ContentRelativeFilename = "panorama/images/leaf_pages/halloween2015/tip3.psd"
-				CResourceString m_ContentSearchPath = "dota"
-				uint32 m_nFileCRC = 0x7553CE81
-				uint32 m_nFlags = 0x00000002
-			}
-			ResourceInputDependency_t
-			{
-				CResourceString m_ContentRelativeFilename = "panorama/images/leaf_pages/halloween2015/tip4.txt"
-				CResourceString m_ContentSearchPath = "dota"
-				uint32 m_nFileCRC = 0x00000000
-				uint32 m_nFlags = 0x00000001
-			}
-			ResourceInputDependency_t
-			{
-				CResourceString m_ContentRelativeFilename = "panorama/images/leaf_pages/halloween2015/tip4.psd"
-				CResourceString m_ContentSearchPath = "dota"
-				uint32 m_nFileCRC = 0xE8CAA2EE
-				uint32 m_nFlags = 0x00000002
-			}
-		]
-		Struct m_AdditionalInputDependencies[0] = 
-		[
-		]
-		Struct m_ArgumentDependencies[15] = 
-		[
-			ResourceArgumentDependency_t
-			{
-				CResourceString m_ParameterName = "___OverrideInputData___"
-				CResourceString m_ParameterType = "BinaryBlobArg"
-				uint32 m_nFingerprint = 0x00000000
-				uint32 m_nFingerprintDefault = 0x00000000
-			}
-			ResourceArgumentDependency_t
-			{
-				CResourceString m_ParameterName = "compress"
-				CResourceString m_ParameterType = "IntArg"
-				uint32 m_nFingerprint = 0x00000000
-				uint32 m_nFingerprintDefault = 0x00000000
-			}
-			ResourceArgumentDependency_t
-			{
-				CResourceString m_ParameterName = "fast"
-				CResourceString m_ParameterType = "IntArg"
-				uint32 m_nFingerprint = 0x00000000
-				uint32 m_nFingerprintDefault = 0x00000000
-			}
-			ResourceArgumentDependency_t
-			{
-				CResourceString m_ParameterName = "minmipsize"
-				CResourceString m_ParameterType = "IntArg"
-				uint32 m_nFingerprint = 0x00000000
-				uint32 m_nFingerprintDefault = 0x00000000
-			}
-			ResourceArgumentDependency_t
-			{
-				CResourceString m_ParameterName = "maxmipsize"
-				CResourceString m_ParameterType = "IntArg"
-				uint32 m_nFingerprint = 0x00100000
-				uint32 m_nFingerprintDefault = 0x00100000
-			}
-			ResourceArgumentDependency_t
-			{
-				CResourceString m_ParameterName = "panorama/images/leaf_pages/halloween2015/candles.psd"
-				CResourceString m_ParameterType = "ImageArg"
-				uint32 m_nFingerprint = 0x00000000
-				uint32 m_nFingerprintDefault = 0x00000000
-			}
-			ResourceArgumentDependency_t
-			{
-				CResourceString m_ParameterName = "panorama/images/leaf_pages/halloween2015/candles.psd"
-				CResourceString m_ParameterType = "BinaryBlobArg"
-				uint32 m_nFingerprint = 0x00000000
-				uint32 m_nFingerprintDefault = 0x00000000
-			}
-			ResourceArgumentDependency_t
-			{
-				CResourceString m_ParameterName = "panorama/images/leaf_pages/halloween2015/tip1.psd"
-				CResourceString m_ParameterType = "ImageArg"
-				uint32 m_nFingerprint = 0x00000000
-				uint32 m_nFingerprintDefault = 0x00000000
-			}
-			ResourceArgumentDependency_t
-			{
-				CResourceString m_ParameterName = "panorama/images/leaf_pages/halloween2015/tip1.psd"
-				CResourceString m_ParameterType = "BinaryBlobArg"
-				uint32 m_nFingerprint = 0x00000000
-				uint32 m_nFingerprintDefault = 0x00000000
-			}
-			ResourceArgumentDependency_t
-			{
-				CResourceString m_ParameterName = "panorama/images/leaf_pages/halloween2015/tip2.psd"
-				CResourceString m_ParameterType = "ImageArg"
-				uint32 m_nFingerprint = 0x00000000
-				uint32 m_nFingerprintDefault = 0x00000000
-			}
-			ResourceArgumentDependency_t
-			{
-				CResourceString m_ParameterName = "panorama/images/leaf_pages/halloween2015/tip2.psd"
-				CResourceString m_ParameterType = "BinaryBlobArg"
-				uint32 m_nFingerprint = 0x00000000
-				uint32 m_nFingerprintDefault = 0x00000000
-			}
-			ResourceArgumentDependency_t
-			{
-				CResourceString m_ParameterName = "panorama/images/leaf_pages/halloween2015/tip3.psd"
-				CResourceString m_ParameterType = "ImageArg"
-				uint32 m_nFingerprint = 0x00000000
-				uint32 m_nFingerprintDefault = 0x00000000
-			}
-			ResourceArgumentDependency_t
-			{
-				CResourceString m_ParameterName = "panorama/images/leaf_pages/halloween2015/tip3.psd"
-				CResourceString m_ParameterType = "BinaryBlobArg"
-				uint32 m_nFingerprint = 0x00000000
-				uint32 m_nFingerprintDefault = 0x00000000
-			}
-			ResourceArgumentDependency_t
-			{
-				CResourceString m_ParameterName = "panorama/images/leaf_pages/halloween2015/tip4.psd"
-				CResourceString m_ParameterType = "ImageArg"
-				uint32 m_nFingerprint = 0x00000000
-				uint32 m_nFingerprintDefault = 0x00000000
-			}
-			ResourceArgumentDependency_t
-			{
-				CResourceString m_ParameterName = "panorama/images/leaf_pages/halloween2015/tip4.psd"
-				CResourceString m_ParameterType = "BinaryBlobArg"
-				uint32 m_nFingerprint = 0x00000000
-				uint32 m_nFingerprintDefault = 0x00000000
-			}
-		]
-		Struct m_SpecialDependencies[4] = 
-		[
-			ResourceSpecialDependency_t
-			{
-				CResourceString m_String = "Panorama Layout Compiler Version"
-				CResourceString m_CompilerIdentifier = "CompilePanorama"
-				uint32 m_nFingerprint = 0x00000001
-				uint32 m_nUserData = 0x00000000
-			}
-			ResourceSpecialDependency_t
-			{
-				CResourceString m_String = "Texture Compiler Version"
-				CResourceString m_CompilerIdentifier = "CompileTexture"
-				uint32 m_nFingerprint = 0x0000000B
-				uint32 m_nUserData = 0x00000000
-			}
-			ResourceSpecialDependency_t
-			{
-				CResourceString m_String = "Texture Compiler Version Image Dilate Color"
-				CResourceString m_CompilerIdentifier = "CompileTexture"
-				uint32 m_nFingerprint = 0x00000001
-				uint32 m_nUserData = 0x00000000
-			}
-			ResourceSpecialDependency_t
-			{
-				CResourceString m_String = "Texture Compiler Version Mip None"
-				CResourceString m_CompilerIdentifier = "CompileTexture"
-				uint32 m_nFingerprint = 0x00000001
-				uint32 m_nUserData = 0x00000000
-			}
-		]
-		Struct m_CustomDependencies[0] = 
-		[
-		]
-		Struct m_AdditionalRelatedFiles[0] = 
-		[
-		]
-		Struct m_ChildResourceList[5] = 
-		[
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0x2D50975179486E31
-				CResourceString m_pResourceName = "panorama/images/leaf_pages/halloween2015/candles_psd.vtex"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0xD225F8EAF308472B
-				CResourceString m_pResourceName = "panorama/images/leaf_pages/halloween2015/tip1_psd.vtex"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0x954142EC49FC4717
-				CResourceString m_pResourceName = "panorama/images/leaf_pages/halloween2015/tip2_psd.vtex"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0x73C0FDC254EC45DA
-				CResourceString m_pResourceName = "panorama/images/leaf_pages/halloween2015/tip3_psd.vtex"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0xA5826E470B3364EF
-				CResourceString m_pResourceName = "panorama/images/leaf_pages/halloween2015/tip4_psd.vtex"
-			}
-		]
-		Struct m_ExtraIntData[1] = 
-		[
-			ResourceEditIntData_t
-			{
-				CResourceString m_Name = "IsChildResource"
-				int32 m_nInt = 0
-			}
-		]
-		Struct m_ExtraFloatData[0] = 
-		[
-		]
-		Struct m_ExtraStringData[0] = 
-		[
-		]
 	}
+	"AdditionalRelatedFiles"
+	{
+	}
+	"ArgumentDependencies"
+	{
+		"0"
+		{
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
+			"ParameterName"	"___OverrideInputData___"
+			"ParameterType"	"BinaryBlobArg"
+		}
+		"1"
+		{
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
+			"ParameterName"	"compress"
+			"ParameterType"	"IntArg"
+		}
+		"2"
+		{
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
+			"ParameterName"	"fast"
+			"ParameterType"	"IntArg"
+		}
+		"3"
+		{
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
+			"ParameterName"	"minmipsize"
+			"ParameterType"	"IntArg"
+		}
+		"4"
+		{
+			"Fingerprint"	"1048576"
+			"FingerprintDefault"	"1048576"
+			"ParameterName"	"maxmipsize"
+			"ParameterType"	"IntArg"
+		}
+		"5"
+		{
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
+			"ParameterName"	"panorama/images/leaf_pages/halloween2015/candles.psd"
+			"ParameterType"	"ImageArg"
+		}
+		"6"
+		{
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
+			"ParameterName"	"panorama/images/leaf_pages/halloween2015/candles.psd"
+			"ParameterType"	"BinaryBlobArg"
+		}
+		"7"
+		{
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
+			"ParameterName"	"panorama/images/leaf_pages/halloween2015/tip1.psd"
+			"ParameterType"	"ImageArg"
+		}
+		"8"
+		{
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
+			"ParameterName"	"panorama/images/leaf_pages/halloween2015/tip1.psd"
+			"ParameterType"	"BinaryBlobArg"
+		}
+		"9"
+		{
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
+			"ParameterName"	"panorama/images/leaf_pages/halloween2015/tip2.psd"
+			"ParameterType"	"ImageArg"
+		}
+		"10"
+		{
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
+			"ParameterName"	"panorama/images/leaf_pages/halloween2015/tip2.psd"
+			"ParameterType"	"BinaryBlobArg"
+		}
+		"11"
+		{
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
+			"ParameterName"	"panorama/images/leaf_pages/halloween2015/tip3.psd"
+			"ParameterType"	"ImageArg"
+		}
+		"12"
+		{
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
+			"ParameterName"	"panorama/images/leaf_pages/halloween2015/tip3.psd"
+			"ParameterType"	"BinaryBlobArg"
+		}
+		"13"
+		{
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
+			"ParameterName"	"panorama/images/leaf_pages/halloween2015/tip4.psd"
+			"ParameterType"	"ImageArg"
+		}
+		"14"
+		{
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
+			"ParameterName"	"panorama/images/leaf_pages/halloween2015/tip4.psd"
+			"ParameterType"	"BinaryBlobArg"
+		}
+	}
+	"ChildResourceList"
+	{
+		"0"	"panorama/images/leaf_pages/halloween2015/candles_psd.vtex"
+		"1"	"panorama/images/leaf_pages/halloween2015/tip1_psd.vtex"
+		"2"	"panorama/images/leaf_pages/halloween2015/tip2_psd.vtex"
+		"3"	"panorama/images/leaf_pages/halloween2015/tip3_psd.vtex"
+		"4"	"panorama/images/leaf_pages/halloween2015/tip4_psd.vtex"
+	}
+	"InputDependencies"
+	{
+		"0"
+		{
+			"ContentRelativeFilename"	"panorama/layout/leaf_pages/dashboard_page_halloween2015.vxml"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"0"
+			"FileExists"	"0"
+			"IsGameFile"	"0"
+			"Optional"	"1"
+		}
+		"1"
+		{
+			"ContentRelativeFilename"	"panorama/layout/leaf_pages/dashboard_page_halloween2015.xml"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"2271007145"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+			"Optional"	"0"
+		}
+		"2"
+		{
+			"ContentRelativeFilename"	"panorama/images/leaf_pages/halloween2015/candles.txt"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"0"
+			"FileExists"	"0"
+			"IsGameFile"	"0"
+			"Optional"	"1"
+		}
+		"3"
+		{
+			"ContentRelativeFilename"	"panorama/images/leaf_pages/halloween2015/candles.psd"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"993085149"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+			"Optional"	"0"
+		}
+		"4"
+		{
+			"ContentRelativeFilename"	"panorama/images/leaf_pages/halloween2015/tip1.txt"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"0"
+			"FileExists"	"0"
+			"IsGameFile"	"0"
+			"Optional"	"1"
+		}
+		"5"
+		{
+			"ContentRelativeFilename"	"panorama/images/leaf_pages/halloween2015/tip1.psd"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"2687533869"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+			"Optional"	"0"
+		}
+		"6"
+		{
+			"ContentRelativeFilename"	"panorama/images/leaf_pages/halloween2015/tip2.txt"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"0"
+			"FileExists"	"0"
+			"IsGameFile"	"0"
+			"Optional"	"1"
+		}
+		"7"
+		{
+			"ContentRelativeFilename"	"panorama/images/leaf_pages/halloween2015/tip2.psd"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"3416744881"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+			"Optional"	"0"
+		}
+		"8"
+		{
+			"ContentRelativeFilename"	"panorama/images/leaf_pages/halloween2015/tip3.txt"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"0"
+			"FileExists"	"0"
+			"IsGameFile"	"0"
+			"Optional"	"1"
+		}
+		"9"
+		{
+			"ContentRelativeFilename"	"panorama/images/leaf_pages/halloween2015/tip3.psd"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"1968426625"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+			"Optional"	"0"
+		}
+		"10"
+		{
+			"ContentRelativeFilename"	"panorama/images/leaf_pages/halloween2015/tip4.txt"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"0"
+			"FileExists"	"0"
+			"IsGameFile"	"0"
+			"Optional"	"1"
+		}
+		"11"
+		{
+			"ContentRelativeFilename"	"panorama/images/leaf_pages/halloween2015/tip4.psd"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"3905594094"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+			"Optional"	"0"
+		}
+	}
+	"SearchableUserData"
+	{
+		"0"
+		{
+			"Key"	"IsChildResource"
+			"Value"	"0"
+		}
+	}
+	"SpecialDependencies"
+	{
+		"0"
+		{
+			"CompilerIdentifier"	"CompilePanorama"
+			"Fingerprint"	"1"
+			"String"	"Panorama Layout Compiler Version"
+			"UserData"	"0"
+		}
+		"1"
+		{
+			"CompilerIdentifier"	"CompileTexture"
+			"Fingerprint"	"11"
+			"String"	"Texture Compiler Version"
+			"UserData"	"0"
+		}
+		"2"
+		{
+			"CompilerIdentifier"	"CompileTexture"
+			"Fingerprint"	"1"
+			"String"	"Texture Compiler Version Image Dilate Color"
+			"UserData"	"0"
+		}
+		"3"
+		{
+			"CompilerIdentifier"	"CompileTexture"
+			"Fingerprint"	"1"
+			"String"	"Texture Compiler Version Mip None"
+			"UserData"	"0"
+		}
+	}
+}
