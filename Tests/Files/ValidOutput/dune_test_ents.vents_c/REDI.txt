@@ -1,59 +1,52 @@
-ResourceEditInfoBlock_t
+"ResourceEditInfo"
 {
-	Struct m_InputDependencies[0] =
-	[
-	]
-	Struct m_AdditionalInputDependencies[1] =
-	[
-		ResourceInputDependency_t
+	"AdditionalInputDependencies"
+	{
+		"0"
 		{
-			CResourceString m_ContentRelativeFilename = "maps/dune_test/entities/default_ents.vents"
-			CResourceString m_ContentSearchPath = "dota_addons/dungeon"
-			uint32 m_nFileCRC = 0x6844CAC5
-			uint32 m_nFlags = 0x00000002
+			"ContentRelativeFilename"	"maps/dune_test/entities/default_ents.vents"
+			"ContentSearchPath"	"dota_addons/dungeon"
+			"FileCRC"	"1749338821"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+			"Optional"	"0"
 		}
-	]
-	Struct m_ArgumentDependencies[1] =
-	[
-		ResourceArgumentDependency_t
+	}
+	"AdditionalRelatedFiles"
+	{
+	}
+	"ArgumentDependencies"
+	{
+		"0"
 		{
-			CResourceString m_ParameterName = "___OverrideInputData___"
-			CResourceString m_ParameterType = "BinaryBlobArg"
-			uint32 m_nFingerprint = 0x00000000
-			uint32 m_nFingerprintDefault = 0x00000000
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
+			"ParameterName"	"___OverrideInputData___"
+			"ParameterType"	"BinaryBlobArg"
 		}
-	]
-	Struct m_SpecialDependencies[1] =
-	[
-		ResourceSpecialDependency_t
+	}
+	"ChildResourceList"
+	{
+	}
+	"InputDependencies"
+	{
+	}
+	"SearchableUserData"
+	{
+		"0"
 		{
-			CResourceString m_String = "Entity Lump Compiler Version"
-			CResourceString m_CompilerIdentifier = "CompileEntityLump"
-			uint32 m_nFingerprint = 0x00000003
-			uint32 m_nUserData = 0x00000000
+			"Key"	"IsChildResource"
+			"Value"	"1"
 		}
-	]
-	Struct m_CustomDependencies[0] =
-	[
-	]
-	Struct m_AdditionalRelatedFiles[0] =
-	[
-	]
-	Struct m_ChildResourceList[0] =
-	[
-	]
-	Struct m_ExtraIntData[1] =
-	[
-		ResourceEditIntData_t
+	}
+	"SpecialDependencies"
+	{
+		"0"
 		{
-			CResourceString m_Name = "IsChildResource"
-			int32 m_nInt = 1
+			"CompilerIdentifier"	"CompileEntityLump"
+			"Fingerprint"	"3"
+			"String"	"Entity Lump Compiler Version"
+			"UserData"	"0"
 		}
-	]
-	Struct m_ExtraFloatData[0] =
-	[
-	]
-	Struct m_ExtraStringData[0] =
-	[
-	]
+	}
 }

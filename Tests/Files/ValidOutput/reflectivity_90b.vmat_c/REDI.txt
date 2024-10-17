@@ -1,212 +1,205 @@
-ResourceEditInfoBlock_t
+"ResourceEditInfo"
+{
+	"AdditionalInputDependencies"
 	{
-		Struct m_InputDependencies[3] = 
-		[
-			ResourceInputDependency_t
-			{
-				CResourceString m_ContentRelativeFilename = "dev/helper/reflectivity_90b.vmat"
-				CResourceString m_ContentSearchPath = "dota"
-				uint32 m_nFileCRC = 0xC1500236
-				uint32 m_nFlags = 0x00000002
-			}
-			ResourceInputDependency_t
-			{
-				CResourceString m_ContentRelativeFilename = "dev/helper/reflectivity_90b_color.txt"
-				CResourceString m_ContentSearchPath = "dota"
-				uint32 m_nFileCRC = 0x00000000
-				uint32 m_nFlags = 0x00000001
-			}
-			ResourceInputDependency_t
-			{
-				CResourceString m_ContentRelativeFilename = "dev/helper/reflectivity_90b_color.tga"
-				CResourceString m_ContentSearchPath = "core"
-				uint32 m_nFileCRC = 0x94785EF5
-				uint32 m_nFlags = 0x00000002
-			}
-		]
-		Struct m_AdditionalInputDependencies[0] = 
-		[
-		]
-		Struct m_ArgumentDependencies[6] = 
-		[
-			ResourceArgumentDependency_t
-			{
-				CResourceString m_ParameterName = "___OverrideInputData___"
-				CResourceString m_ParameterType = "BinaryBlobArg"
-				uint32 m_nFingerprint = 0x00000000
-				uint32 m_nFingerprintDefault = 0x00000000
-			}
-			ResourceArgumentDependency_t
-			{
-				CResourceString m_ParameterName = "fast"
-				CResourceString m_ParameterType = "IntArg"
-				uint32 m_nFingerprint = 0x00000000
-				uint32 m_nFingerprintDefault = 0x00000000
-			}
-			ResourceArgumentDependency_t
-			{
-				CResourceString m_ParameterName = "minmipsize"
-				CResourceString m_ParameterType = "IntArg"
-				uint32 m_nFingerprint = 0x00000000
-				uint32 m_nFingerprintDefault = 0x00000000
-			}
-			ResourceArgumentDependency_t
-			{
-				CResourceString m_ParameterName = "maxmipsize"
-				CResourceString m_ParameterType = "IntArg"
-				uint32 m_nFingerprint = 0x00100000
-				uint32 m_nFingerprintDefault = 0x00100000
-			}
-			ResourceArgumentDependency_t
-			{
-				CResourceString m_ParameterName = "dev/helper/reflectivity_90b_color.tga"
-				CResourceString m_ParameterType = "ImageArg"
-				uint32 m_nFingerprint = 0x00000000
-				uint32 m_nFingerprintDefault = 0x00000000
-			}
-			ResourceArgumentDependency_t
-			{
-				CResourceString m_ParameterName = "dev/helper/reflectivity_90b_color.tga"
-				CResourceString m_ParameterType = "BinaryBlobArg"
-				uint32 m_nFingerprint = 0x00000000
-				uint32 m_nFingerprintDefault = 0x00000000
-			}
-		]
-		Struct m_SpecialDependencies[4] = 
-		[
-			ResourceSpecialDependency_t
-			{
-				CResourceString m_String = "Material Compiler Version"
-				CResourceString m_CompilerIdentifier = "CompileMaterial"
-				uint32 m_nFingerprint = 0x00000019
-				uint32 m_nUserData = 0x00000000
-			}
-			ResourceSpecialDependency_t
-			{
-				CResourceString m_String = "dota/global_lit_simple.vfx"
-				CResourceString m_CompilerIdentifier = "CompileMaterial"
-				uint32 m_nFingerprint = 0x00000000
-				uint32 m_nUserData = 0x00000000
-			}
-			ResourceSpecialDependency_t
-			{
-				CResourceString m_String = "Texture Compiler Version"
-				CResourceString m_CompilerIdentifier = "CompileTexture"
-				uint32 m_nFingerprint = 0x0000000B
-				uint32 m_nUserData = 0x00000000
-			}
-			ResourceSpecialDependency_t
-			{
-				CResourceString m_String = "Texture Compiler Version Mip Box"
-				CResourceString m_CompilerIdentifier = "CompileTexture"
-				uint32 m_nFingerprint = 0x00000001
-				uint32 m_nUserData = 0x00000000
-			}
-		]
-		Struct m_CustomDependencies[0] = 
-		[
-		]
-		Struct m_AdditionalRelatedFiles[0] = 
-		[
-		]
-		Struct m_ChildResourceList[1] = 
-		[
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0xEDF586E15E87A9F5
-				CResourceString m_pResourceName = "dev/helper/reflectivity_90b_color_tga_88186957.vtex"
-			}
-		]
-		Struct m_ExtraIntData[5] = 
-		[
-			ResourceEditIntData_t
-			{
-				CResourceString m_Name = "DepthPassBatchID"
-				int32 m_nInt = 1
-			}
-			ResourceEditIntData_t
-			{
-				CResourceString m_Name = "SupportsMappingDimensions"
-				int32 m_nInt = 1
-			}
-			ResourceEditIntData_t
-			{
-				CResourceString m_Name = "RepresentativeTextureWidth"
-				int32 m_nInt = 32
-			}
-			ResourceEditIntData_t
-			{
-				CResourceString m_Name = "RepresentativeTextureHeight"
-				int32 m_nInt = 32
-			}
-			ResourceEditIntData_t
-			{
-				CResourceString m_Name = "IsChildResource"
-				int32 m_nInt = 0
-			}
-		]
-		Struct m_ExtraFloatData[0] = 
-		[
-		]
-		Struct m_ExtraStringData[2] = 
-		[
-			ResourceEditStringData_t
-			{
-				CResourceString m_Name = "RepresentativeTexture"
-				CResourceString m_String = "dev/helper/reflectivity_90b_color_tga_88186957.vtex"
-			}
-			ResourceEditStringData_t
-			{
-				CResourceString m_Name = "VSInputSignature"
-				CResourceString m_String = 					"<!-- schema text {7e125a45-3d83-4043-b292-9e24f8ef27b4} generic {198980d8-3a93-4919-b4c6-dd1fb07a3a4b} -->
-					VsInputSignature_t VsInputSignature_t_0
-					{
-						VsInputSignatureElement_t[] m_elems = 
-						[
-							VsInputSignatureElement_t
-							{
-								string m_pName = "vBlendIndices"
-								string m_pSemantic = "BlendIndices"
-								string m_pD3DSemanticName = "BLENDINDICES"
-								int m_nD3DSemanticIndex = 0
-							},
-							VsInputSignatureElement_t
-							{
-								string m_pName = "vBlendWeight"
-								string m_pSemantic = "BlendWeight"
-								string m_pD3DSemanticName = "BLENDWEIGHT"
-								int m_nD3DSemanticIndex = 0
-							},
-							VsInputSignatureElement_t
-							{
-								string m_pName = "vNormalOs"
-								string m_pSemantic = "OptionallyCompressedTangentFrame"
-								string m_pD3DSemanticName = "NORMAL"
-								int m_nD3DSemanticIndex = 0
-							},
-							VsInputSignatureElement_t
-							{
-								string m_pName = "vPositionOs"
-								string m_pSemantic = "PosXyz"
-								string m_pD3DSemanticName = "POSITION"
-								int m_nD3DSemanticIndex = 0
-							},
-							VsInputSignatureElement_t
-							{
-								string m_pName = "vTexCoord"
-								string m_pSemantic = "LowPrecisionUv"
-								string m_pD3DSemanticName = "TEXCOORD"
-								int m_nD3DSemanticIndex = 0
-							},
-							VsInputSignatureElement_t
-							{
-								string m_pName = "vTransformTextureUV"
-								string m_pSemantic = "InstanceTransformUv"
-								string m_pD3DSemanticName = "TEXCOORD"
-								int m_nD3DSemanticIndex = 13
-							}
-						]
-					}"
-			}
-		]
 	}
+	"AdditionalRelatedFiles"
+	{
+	}
+	"ArgumentDependencies"
+	{
+		"0"
+		{
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
+			"ParameterName"	"___OverrideInputData___"
+			"ParameterType"	"BinaryBlobArg"
+		}
+		"1"
+		{
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
+			"ParameterName"	"fast"
+			"ParameterType"	"IntArg"
+		}
+		"2"
+		{
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
+			"ParameterName"	"minmipsize"
+			"ParameterType"	"IntArg"
+		}
+		"3"
+		{
+			"Fingerprint"	"1048576"
+			"FingerprintDefault"	"1048576"
+			"ParameterName"	"maxmipsize"
+			"ParameterType"	"IntArg"
+		}
+		"4"
+		{
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
+			"ParameterName"	"dev/helper/reflectivity_90b_color.tga"
+			"ParameterType"	"ImageArg"
+		}
+		"5"
+		{
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
+			"ParameterName"	"dev/helper/reflectivity_90b_color.tga"
+			"ParameterType"	"BinaryBlobArg"
+		}
+	}
+	"ChildResourceList"
+	{
+		"0"	"dev/helper/reflectivity_90b_color_tga_88186957.vtex"
+	}
+	"InputDependencies"
+	{
+		"0"
+		{
+			"ContentRelativeFilename"	"dev/helper/reflectivity_90b.vmat"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"3243246134"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+			"Optional"	"0"
+		}
+		"1"
+		{
+			"ContentRelativeFilename"	"dev/helper/reflectivity_90b_color.txt"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"0"
+			"FileExists"	"0"
+			"IsGameFile"	"0"
+			"Optional"	"1"
+		}
+		"2"
+		{
+			"ContentRelativeFilename"	"dev/helper/reflectivity_90b_color.tga"
+			"ContentSearchPath"	"core"
+			"FileCRC"	"2490916597"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+			"Optional"	"0"
+		}
+	}
+	"SearchableUserData"
+	{
+		"0"
+		{
+			"Key"	"DepthPassBatchID"
+			"Value"	"1"
+		}
+		"1"
+		{
+			"Key"	"SupportsMappingDimensions"
+			"Value"	"1"
+		}
+		"2"
+		{
+			"Key"	"RepresentativeTextureWidth"
+			"Value"	"32"
+		}
+		"3"
+		{
+			"Key"	"RepresentativeTextureHeight"
+			"Value"	"32"
+		}
+		"4"
+		{
+			"Key"	"IsChildResource"
+			"Value"	"0"
+		}
+		"5"
+		{
+			"Key"	"RepresentativeTexture"
+			"Value"	"dev/helper/reflectivity_90b_color_tga_88186957.vtex"
+		}
+		"6"
+		{
+			"Key"	"VSInputSignature"
+			"Value"	"<!-- schema text {7e125a45-3d83-4043-b292-9e24f8ef27b4} generic {198980d8-3a93-4919-b4c6-dd1fb07a3a4b} -->
+VsInputSignature_t VsInputSignature_t_0
+{
+	VsInputSignatureElement_t[] m_elems = 
+	[
+		VsInputSignatureElement_t
+		{
+			string m_pName = \"vBlendIndices\"
+			string m_pSemantic = \"BlendIndices\"
+			string m_pD3DSemanticName = \"BLENDINDICES\"
+			int m_nD3DSemanticIndex = 0
+		},
+		VsInputSignatureElement_t
+		{
+			string m_pName = \"vBlendWeight\"
+			string m_pSemantic = \"BlendWeight\"
+			string m_pD3DSemanticName = \"BLENDWEIGHT\"
+			int m_nD3DSemanticIndex = 0
+		},
+		VsInputSignatureElement_t
+		{
+			string m_pName = \"vNormalOs\"
+			string m_pSemantic = \"OptionallyCompressedTangentFrame\"
+			string m_pD3DSemanticName = \"NORMAL\"
+			int m_nD3DSemanticIndex = 0
+		},
+		VsInputSignatureElement_t
+		{
+			string m_pName = \"vPositionOs\"
+			string m_pSemantic = \"PosXyz\"
+			string m_pD3DSemanticName = \"POSITION\"
+			int m_nD3DSemanticIndex = 0
+		},
+		VsInputSignatureElement_t
+		{
+			string m_pName = \"vTexCoord\"
+			string m_pSemantic = \"LowPrecisionUv\"
+			string m_pD3DSemanticName = \"TEXCOORD\"
+			int m_nD3DSemanticIndex = 0
+		},
+		VsInputSignatureElement_t
+		{
+			string m_pName = \"vTransformTextureUV\"
+			string m_pSemantic = \"InstanceTransformUv\"
+			string m_pD3DSemanticName = \"TEXCOORD\"
+			int m_nD3DSemanticIndex = 13
+		}
+	]
+}"
+		}
+	}
+	"SpecialDependencies"
+	{
+		"0"
+		{
+			"CompilerIdentifier"	"CompileMaterial"
+			"Fingerprint"	"25"
+			"String"	"Material Compiler Version"
+			"UserData"	"0"
+		}
+		"1"
+		{
+			"CompilerIdentifier"	"CompileMaterial"
+			"Fingerprint"	"0"
+			"String"	"dota/global_lit_simple.vfx"
+			"UserData"	"0"
+		}
+		"2"
+		{
+			"CompilerIdentifier"	"CompileTexture"
+			"Fingerprint"	"11"
+			"String"	"Texture Compiler Version"
+			"UserData"	"0"
+		}
+		"3"
+		{
+			"CompilerIdentifier"	"CompileTexture"
+			"Fingerprint"	"1"
+			"String"	"Texture Compiler Version Mip Box"
+			"UserData"	"0"
+		}
+	}
+}

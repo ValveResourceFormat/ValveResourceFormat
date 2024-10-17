@@ -1,811 +1,586 @@
-ResourceEditInfoBlock_t
+"ResourceEditInfo"
+{
+	"AdditionalInputDependencies"
 	{
-		Struct m_InputDependencies[36] = 
-		[
-			ResourceInputDependency_t
-			{
-				CResourceString m_ContentRelativeFilename = "maps/dota.vmap"
-				CResourceString m_ContentSearchPath = "dota"
-				uint32 m_nFileCRC = 0x856F3220
-				uint32 m_nFlags = 0x00000002
-			}
-			ResourceInputDependency_t
-			{
-				CResourceString m_ContentRelativeFilename = "maps/dota/clips.vmap"
-				CResourceString m_ContentSearchPath = "dota"
-				uint32 m_nFileCRC = 0xF57E67BE
-				uint32 m_nFlags = 0x00000002
-			}
-			ResourceInputDependency_t
-			{
-				CResourceString m_ContentRelativeFilename = "maps/dota/dest_dire.vmap"
-				CResourceString m_ContentSearchPath = "dota"
-				uint32 m_nFileCRC = 0xBD169B90
-				uint32 m_nFlags = 0x00000002
-			}
-			ResourceInputDependency_t
-			{
-				CResourceString m_ContentRelativeFilename = "maps/dota/dest_radiant.vmap"
-				CResourceString m_ContentSearchPath = "dota"
-				uint32 m_nFileCRC = 0x2A22804A
-				uint32 m_nFlags = 0x00000002
-			}
-			ResourceInputDependency_t
-			{
-				CResourceString m_ContentRelativeFilename = "maps/dota/dire.vmap"
-				CResourceString m_ContentSearchPath = "dota"
-				uint32 m_nFileCRC = 0x3E4B88A1
-				uint32 m_nFlags = 0x00000002
-			}
-			ResourceInputDependency_t
-			{
-				CResourceString m_ContentRelativeFilename = "maps/dota/dota.vmap"
-				CResourceString m_ContentSearchPath = "dota"
-				uint32 m_nFileCRC = 0xCAD63A50
-				uint32 m_nFlags = 0x00000002
-			}
-			ResourceInputDependency_t
-			{
-				CResourceString m_ContentRelativeFilename = "maps/dota/lighting.vmap"
-				CResourceString m_ContentSearchPath = "dota"
-				uint32 m_nFileCRC = 0x67B42603
-				uint32 m_nFlags = 0x00000002
-			}
-			ResourceInputDependency_t
-			{
-				CResourceString m_ContentRelativeFilename = "maps/dota/particles.vmap"
-				CResourceString m_ContentSearchPath = "dota"
-				uint32 m_nFileCRC = 0x4DE7CA00
-				uint32 m_nFlags = 0x00000002
-			}
-			ResourceInputDependency_t
-			{
-				CResourceString m_ContentRelativeFilename = "maps/dota/plants.vmap"
-				CResourceString m_ContentSearchPath = "dota"
-				uint32 m_nFileCRC = 0x44FD0152
-				uint32 m_nFlags = 0x00000002
-			}
-			ResourceInputDependency_t
-			{
-				CResourceString m_ContentRelativeFilename = "maps/dota/soundscape.vmap"
-				CResourceString m_ContentSearchPath = "dota"
-				uint32 m_nFileCRC = 0xAD2E7098
-				uint32 m_nFlags = 0x00000002
-			}
-			ResourceInputDependency_t
-			{
-				CResourceString m_ContentRelativeFilename = "maps/dota/tools.vmap"
-				CResourceString m_ContentSearchPath = "dota"
-				uint32 m_nFileCRC = 0x55941082
-				uint32 m_nFlags = 0x00000002
-			}
-			ResourceInputDependency_t
-			{
-				CResourceString m_ContentRelativeFilename = "maps/dota/trees.vmap"
-				CResourceString m_ContentSearchPath = "dota"
-				uint32 m_nFileCRC = 0x355E4344
-				uint32 m_nFlags = 0x00000002
-			}
-			ResourceInputDependency_t
-			{
-				CResourceString m_ContentRelativeFilename = "maps/dota/triggers.vmap"
-				CResourceString m_ContentSearchPath = "dota"
-				uint32 m_nFileCRC = 0x8E0EFABA
-				uint32 m_nFlags = 0x00000002
-			}
-			ResourceInputDependency_t
-			{
-				CResourceString m_ContentRelativeFilename = "maps/dota/tutorial_mid.vmap"
-				CResourceString m_ContentSearchPath = "dota"
-				uint32 m_nFileCRC = 0x34F2B4B4
-				uint32 m_nFlags = 0x00000002
-			}
-			ResourceInputDependency_t
-			{
-				CResourceString m_ContentRelativeFilename = "maps/dota/water.vmap"
-				CResourceString m_ContentSearchPath = "dota"
-				uint32 m_nFileCRC = 0xE63056D2
-				uint32 m_nFlags = 0x00000002
-			}
-			ResourceInputDependency_t
-			{
-				CResourceString m_ContentRelativeFilename = "maps/prefabs/dota_custom_default_000.vmap"
-				CResourceString m_ContentSearchPath = "dota"
-				uint32 m_nFileCRC = 0xE98A13DE
-				uint32 m_nFlags = 0x00000002
-			}
-			ResourceInputDependency_t
-			{
-				CResourceString m_ContentRelativeFilename = "maps/prefabs/dota_pvp_prefab.vmap"
-				CResourceString m_ContentSearchPath = "dota"
-				uint32 m_nFileCRC = 0x636A0812
-				uint32 m_nFlags = 0x00000002
-			}
-			ResourceInputDependency_t
-			{
-				CResourceString m_ContentRelativeFilename = "maps/prefabs/rune_water.vmap"
-				CResourceString m_ContentSearchPath = "dota"
-				uint32 m_nFileCRC = 0x93DE57D7
-				uint32 m_nFlags = 0x00000002
-			}
-			ResourceInputDependency_t
-			{
-				CResourceString m_ContentRelativeFilename = "maps/prefabs/shop_keeper_dire.vmap"
-				CResourceString m_ContentSearchPath = "dota"
-				uint32 m_nFileCRC = 0x943EE777
-				uint32 m_nFlags = 0x00000002
-			}
-			ResourceInputDependency_t
-			{
-				CResourceString m_ContentRelativeFilename = "maps/prefabs/shop_keeper_radiant.vmap"
-				CResourceString m_ContentSearchPath = "dota"
-				uint32 m_nFileCRC = 0x7F3373F5
-				uint32 m_nFlags = 0x00000002
-			}
-			ResourceInputDependency_t
-			{
-				CResourceString m_ContentRelativeFilename = "maps/prefabs/shop_quirt_default.vmap"
-				CResourceString m_ContentSearchPath = "dota"
-				uint32 m_nFileCRC = 0x9C3AE605
-				uint32 m_nFlags = 0x00000002
-			}
-			ResourceInputDependency_t
-			{
-				CResourceString m_ContentRelativeFilename = "maps/prefabs/shop_sithil.vmap"
-				CResourceString m_ContentSearchPath = "dota"
-				uint32 m_nFileCRC = 0x22EA8089
-				uint32 m_nFlags = 0x00000002
-			}
-			ResourceInputDependency_t
-			{
-				CResourceString m_ContentRelativeFilename = "maps/prefabs/structure_ancient_dire.vmap"
-				CResourceString m_ContentSearchPath = "dota"
-				uint32 m_nFileCRC = 0xB421D56A
-				uint32 m_nFlags = 0x00000002
-			}
-			ResourceInputDependency_t
-			{
-				CResourceString m_ContentRelativeFilename = "maps/prefabs/structure_ancient_radiant.vmap"
-				CResourceString m_ContentSearchPath = "dota"
-				uint32 m_nFileCRC = 0x3234AA86
-				uint32 m_nFlags = 0x00000002
-			}
-			ResourceInputDependency_t
-			{
-				CResourceString m_ContentRelativeFilename = "maps/prefabs/structure_barracks_melee_dire.vmap"
-				CResourceString m_ContentSearchPath = "dota"
-				uint32 m_nFileCRC = 0x95404622
-				uint32 m_nFlags = 0x00000002
-			}
-			ResourceInputDependency_t
-			{
-				CResourceString m_ContentRelativeFilename = "maps/prefabs/structure_barracks_melee_radiant.vmap"
-				CResourceString m_ContentSearchPath = "dota"
-				uint32 m_nFileCRC = 0x2EE0D494
-				uint32 m_nFlags = 0x00000002
-			}
-			ResourceInputDependency_t
-			{
-				CResourceString m_ContentRelativeFilename = "maps/prefabs/structure_barracks_ranged_dire.vmap"
-				CResourceString m_ContentSearchPath = "dota"
-				uint32 m_nFileCRC = 0xEE6E4014
-				uint32 m_nFlags = 0x00000002
-			}
-			ResourceInputDependency_t
-			{
-				CResourceString m_ContentRelativeFilename = "maps/prefabs/structure_barracks_ranged_radiant.vmap"
-				CResourceString m_ContentSearchPath = "dota"
-				uint32 m_nFileCRC = 0x0BD82879
-				uint32 m_nFlags = 0x00000002
-			}
-			ResourceInputDependency_t
-			{
-				CResourceString m_ContentRelativeFilename = "maps/prefabs/structure_filler_dire.vmap"
-				CResourceString m_ContentSearchPath = "dota"
-				uint32 m_nFileCRC = 0xFE33162A
-				uint32 m_nFlags = 0x00000002
-			}
-			ResourceInputDependency_t
-			{
-				CResourceString m_ContentRelativeFilename = "maps/prefabs/structure_filler_radiant.vmap"
-				CResourceString m_ContentSearchPath = "dota"
-				uint32 m_nFileCRC = 0x1F1E1DB0
-				uint32 m_nFlags = 0x00000002
-			}
-			ResourceInputDependency_t
-			{
-				CResourceString m_ContentRelativeFilename = "maps/prefabs/structure_fountain_radiant.vmap"
-				CResourceString m_ContentSearchPath = "dota"
-				uint32 m_nFileCRC = 0xBACCD3AD
-				uint32 m_nFlags = 0x00000002
-			}
-			ResourceInputDependency_t
-			{
-				CResourceString m_ContentRelativeFilename = "maps/prefabs/structure_tower_dire.vmap"
-				CResourceString m_ContentSearchPath = "dota"
-				uint32 m_nFileCRC = 0x0DEA7D6D
-				uint32 m_nFlags = 0x00000002
-			}
-			ResourceInputDependency_t
-			{
-				CResourceString m_ContentRelativeFilename = "maps/prefabs/structure_tower_radiant.vmap"
-				CResourceString m_ContentSearchPath = "dota"
-				uint32 m_nFileCRC = 0xE2DDAE38
-				uint32 m_nFlags = 0x00000002
-			}
-			ResourceInputDependency_t
-			{
-				CResourceString m_ContentRelativeFilename = "maps/tilesets/dire_basic.vmap"
-				CResourceString m_ContentSearchPath = "dota"
-				uint32 m_nFileCRC = 0xB4911F7E
-				uint32 m_nFlags = 0x00000002
-			}
-			ResourceInputDependency_t
-			{
-				CResourceString m_ContentRelativeFilename = "maps/tilesets/map_edge_generic.vmap"
-				CResourceString m_ContentSearchPath = "dota"
-				uint32 m_nFileCRC = 0xB8201A35
-				uint32 m_nFlags = 0x00000002
-			}
-			ResourceInputDependency_t
-			{
-				CResourceString m_ContentRelativeFilename = "maps/tilesets/radiant_basic.vmap"
-				CResourceString m_ContentSearchPath = "dota"
-				uint32 m_nFileCRC = 0x77539F0E
-				uint32 m_nFlags = 0x00000002
-			}
-		]
-		Struct m_AdditionalInputDependencies[0] = 
-		[
-		]
-		Struct m_ArgumentDependencies[14] = 
-		[
-			ResourceArgumentDependency_t
-			{
-				CResourceString m_ParameterName = "___OverrideInputData___"
-				CResourceString m_ParameterType = "BinaryBlobArg"
-				uint32 m_nFingerprint = 0x00000000
-				uint32 m_nFingerprintDefault = 0x00000000
-			}
-			ResourceArgumentDependency_t
-			{
-				CResourceString m_ParameterName = "skipmapload"
-				CResourceString m_ParameterType = "IntArg"
-				uint32 m_nFingerprint = 0x00000000
-				uint32 m_nFingerprintDefault = 0x00000000
-			}
-			ResourceArgumentDependency_t
-			{
-				CResourceString m_ParameterName = "regdivlod"
-				CResourceString m_ParameterType = "IntArg"
-				uint32 m_nFingerprint = 0x00000000
-				uint32 m_nFingerprintDefault = 0x00000000
-			}
-			ResourceArgumentDependency_t
-			{
-				CResourceString m_ParameterName = "regdiv"
-				CResourceString m_ParameterType = "IntArg"
-				uint32 m_nFingerprint = 0x00000000
-				uint32 m_nFingerprintDefault = 0x00000000
-			}
-			ResourceArgumentDependency_t
-			{
-				CResourceString m_ParameterName = "nosky"
-				CResourceString m_ParameterType = "IntArg"
-				uint32 m_nFingerprint = 0x00000000
-				uint32 m_nFingerprintDefault = 0x00000000
-			}
-			ResourceArgumentDependency_t
-			{
-				CResourceString m_ParameterName = "norte"
-				CResourceString m_ParameterType = "IntArg"
-				uint32 m_nFingerprint = 0x00000000
-				uint32 m_nFingerprintDefault = 0x00000000
-			}
-			ResourceArgumentDependency_t
-			{
-				CResourceString m_ParameterName = "dumptris"
-				CResourceString m_ParameterType = "IntArg"
-				uint32 m_nFingerprint = 0x00000000
-				uint32 m_nFingerprintDefault = 0x00000000
-			}
-			ResourceArgumentDependency_t
-			{
-				CResourceString m_ParameterName = "nodesize"
-				CResourceString m_ParameterType = "IntArg"
-				uint32 m_nFingerprint = 0x00002000
-				uint32 m_nFingerprintDefault = 0x00002000
-			}
-			ResourceArgumentDependency_t
-			{
-				CResourceString m_ParameterName = "forcelod"
-				CResourceString m_ParameterType = "IntArg"
-				uint32 m_nFingerprint = 0x00000000
-				uint32 m_nFingerprintDefault = 0x00000000
-			}
-			ResourceArgumentDependency_t
-			{
-				CResourceString m_ParameterName = "gridtolod"
-				CResourceString m_ParameterType = "IntArg"
-				uint32 m_nFingerprint = 0x00000001
-				uint32 m_nFingerprintDefault = 0x00000001
-			}
-			ResourceArgumentDependency_t
-			{
-				CResourceString m_ParameterName = "force_up_to_date_materials"
-				CResourceString m_ParameterType = "IntArg"
-				uint32 m_nFingerprint = 0x00000000
-				uint32 m_nFingerprintDefault = 0x00000000
-			}
-			ResourceArgumentDependency_t
-			{
-				CResourceString m_ParameterName = "fulltangent"
-				CResourceString m_ParameterType = "IntArg"
-				uint32 m_nFingerprint = 0x00000000
-				uint32 m_nFingerprintDefault = 0x00000000
-			}
-			ResourceArgumentDependency_t
-			{
-				CResourceString m_ParameterName = "randomize_mesh"
-				CResourceString m_ParameterType = "IntArg"
-				uint32 m_nFingerprint = 0x00000000
-				uint32 m_nFingerprintDefault = 0x00000000
-			}
-			ResourceArgumentDependency_t
-			{
-				CResourceString m_ParameterName = "skip_mesh_optimization"
-				CResourceString m_ParameterType = "IntArg"
-				uint32 m_nFingerprint = 0x00000000
-				uint32 m_nFingerprintDefault = 0x00000000
-			}
-		]
-		Struct m_SpecialDependencies[9] = 
-		[
-			ResourceSpecialDependency_t
-			{
-				CResourceString m_String = "Map Compiler Version"
-				CResourceString m_CompilerIdentifier = "CompileMap"
-				uint32 m_nFingerprint = 0x00000002
-				uint32 m_nUserData = 0x00000000
-			}
-			ResourceSpecialDependency_t
-			{
-				CResourceString m_String = "Model Compiler Version"
-				CResourceString m_CompilerIdentifier = "CompileModel"
-				uint32 m_nFingerprint = 0x00000027
-				uint32 m_nUserData = 0x00000000
-			}
-			ResourceSpecialDependency_t
-			{
-				CResourceString m_String = "Collision Mesh Compiler Version"
-				CResourceString m_CompilerIdentifier = "CompileVPhysXData"
-				uint32 m_nFingerprint = 0x00000060
-				uint32 m_nUserData = 0x00000000
-			}
-			ResourceSpecialDependency_t
-			{
-				CResourceString m_String = "Mesh Compiler Version"
-				CResourceString m_CompilerIdentifier = "CompileRenderMesh"
-				uint32 m_nFingerprint = 0x0000001C
-				uint32 m_nUserData = 0x00000000
-			}
-			ResourceSpecialDependency_t
-			{
-				CResourceString m_String = "World Node Compiler Version"
-				CResourceString m_CompilerIdentifier = "CompileWorldNode"
-				uint32 m_nFingerprint = 0x00000001
-				uint32 m_nUserData = 0x00000000
-			}
-			ResourceSpecialDependency_t
-			{
-				CResourceString m_String = "Entity Lump Compiler Version"
-				CResourceString m_CompilerIdentifier = "CompileEntityLump"
-				uint32 m_nFingerprint = 0x00000003
-				uint32 m_nUserData = 0x00000000
-			}
-			ResourceSpecialDependency_t
-			{
-				CResourceString m_String = "World Compiler Version"
-				CResourceString m_CompilerIdentifier = "CompileWorld"
-				uint32 m_nFingerprint = 0x00000001
-				uint32 m_nUserData = 0x00000000
-			}
-			ResourceSpecialDependency_t
-			{
-				CResourceString m_String = "DynData Compiler Version"
-				CResourceString m_CompilerIdentifier = "CompileResourceManifest"
-				uint32 m_nFingerprint = 0x00000006
-				uint32 m_nUserData = 0x00000000
-			}
-			ResourceSpecialDependency_t
-			{
-				CResourceString m_String = "Manifest Compiler Version"
-				CResourceString m_CompilerIdentifier = "CompileResourceManifest"
-				uint32 m_nFingerprint = 0x00000002
-				uint32 m_nUserData = 0x00000000
-			}
-		]
-		Struct m_CustomDependencies[0] = 
-		[
-		]
-		Struct m_AdditionalRelatedFiles[0] = 
-		[
-		]
-		Struct m_ChildResourceList[72] = 
-		[
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0x4102AF2DEAB5A7EC
-				CResourceString m_pResourceName = "maps/dota/entities/bad_result_position_0.vmdl"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0x20073016894210C5
-				CResourceString m_pResourceName = "maps/dota/entities/bad_result_position_1.vmdl"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0xE8132EC41E6DBE11
-				CResourceString m_pResourceName = "maps/dota/entities/neutralcamp_good_6_2.vmdl"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0x7D01F4F7D562E715
-				CResourceString m_pResourceName = "maps/dota/entities/neutralcamp_good_4_3.vmdl"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0x3F8DC20B397337EA
-				CResourceString m_pResourceName = "maps/dota/entities/neutralcamp_good_3_4.vmdl"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0xB73915E8097FFEC9
-				CResourceString m_pResourceName = "maps/dota/entities/neutralcamp_good_2_5.vmdl"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0x4EB03317C898A029
-				CResourceString m_pResourceName = "maps/dota/entities/neutralcamp_good_1_6.vmdl"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0xE7B1FF790F81EE77
-				CResourceString m_pResourceName = "maps/dota/entities/neutralcamp_evil_5_7.vmdl"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0x759476AE3BAB8909
-				CResourceString m_pResourceName = "maps/dota/entities/neutralcamp_evil_4_8.vmdl"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0x66DEE24B7FB69B9B
-				CResourceString m_pResourceName = "maps/dota/entities/neutralcamp_evil_3_9.vmdl"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0x93E9CB4CA9472B54
-				CResourceString m_pResourceName = "maps/dota/entities/neutralcamp_evil_1_10.vmdl"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0xBB6638F4CCEA45B5
-				CResourceString m_pResourceName = "maps/dota/entities/neutralcamp_evil_2_11.vmdl"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0xD6BB947B752D0954
-				CResourceString m_pResourceName = "maps/dota/entities/unnamed_12.vmdl"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0xA3654CEA26003E60
-				CResourceString m_pResourceName = "maps/dota/entities/unnamed_13.vmdl"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0x6455D88F1C2E6487
-				CResourceString m_pResourceName = "maps/dota/entities/neutralcamp_good_5_14.vmdl"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0xA8CAC583E3798C51
-				CResourceString m_pResourceName = "maps/dota/entities/unnamed_15.vmdl"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0xE89E5AD24F0FA758
-				CResourceString m_pResourceName = "maps/dota/entities/bad_result_position_16.vmdl"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0xB214774395C55243
-				CResourceString m_pResourceName = "maps/dota/entities/bad_result_position_17.vmdl"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0xC0B22836C53DDB9A
-				CResourceString m_pResourceName = "maps/dota/entities/bad_result_position_18.vmdl"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0x0AD7FFD39F874102
-				CResourceString m_pResourceName = "maps/dota/entities/bad_result_position_19.vmdl"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0x824A19C1E13A2096
-				CResourceString m_pResourceName = "maps/dota/entities/bad_result_position_20.vmdl"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0x15A90DE296B29F0A
-				CResourceString m_pResourceName = "maps/dota/entities/bad_result_position_21.vmdl"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0x7930049B55E09E8B
-				CResourceString m_pResourceName = "maps/dota/entities/bad_result_position_22.vmdl"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0xF5890F50A49CE726
-				CResourceString m_pResourceName = "maps/dota/entities/unnamed_23.vmdl"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0x7C9B3682FE892C15
-				CResourceString m_pResourceName = "maps/dota/entities/unnamed_24.vmdl"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0x1E40A477E792AEDE
-				CResourceString m_pResourceName = "maps/dota/entities/unnamed_25.vmdl"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0xC1F916AE5C96BF7B
-				CResourceString m_pResourceName = "maps/dota/entities/unnamed_26.vmdl"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0x5734DC0EFF25A0B5
-				CResourceString m_pResourceName = "maps/dota/entities/unnamed_27.vmdl"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0x3BC5414DDA7DCBF1
-				CResourceString m_pResourceName = "maps/dota/entities/unnamed_28.vmdl"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0xC4FBDF9645132893
-				CResourceString m_pResourceName = "maps/dota/entities/unnamed_29.vmdl"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0xAB604DE5DC505BFC
-				CResourceString m_pResourceName = "maps/dota/entities/unnamed_30.vmdl"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0x8592B201EAEF8997
-				CResourceString m_pResourceName = "maps/dota/entities/neutralcamp_evil_6_31.vmdl"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0x94BFFC3F699CF923
-				CResourceString m_pResourceName = "maps/dota/entities/unnamed_32.vmdl"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0xB0CD9CE425545B5E
-				CResourceString m_pResourceName = "maps/dota/entities/unnamed_33.vmdl"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0x94A78B1841979DA7
-				CResourceString m_pResourceName = "maps/dota/entities/unnamed_34.vmdl"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0xB365E88238E91E73
-				CResourceString m_pResourceName = "maps/dota/entities/unnamed_35.vmdl"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0x83CA08592D1CD97F
-				CResourceString m_pResourceName = "maps/dota/entities/unnamed_36.vmdl"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0x0C7D0E385C18B295
-				CResourceString m_pResourceName = "maps/dota/entities/unnamed_37.vmdl"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0x9CE0D2C94059059A
-				CResourceString m_pResourceName = "maps/dota/entities/unnamed_38.vmdl"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0x8C616B43973E45BE
-				CResourceString m_pResourceName = "maps/dota/worldnodes/node000_layer0_mesh_base.vmdl"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0xEA32DD3486D939A3
-				CResourceString m_pResourceName = "maps/dota/worldnodes/node000_layer0_mesh_overlay0.vmdl"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0x7EEA8383F6A6E177
-				CResourceString m_pResourceName = "maps/dota/worldnodes/node000_layer0_mesh_overlay1.vmdl"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0x3DB8C311C3F294E2
-				CResourceString m_pResourceName = "maps/dota/worldnodes/node000_layer0_mesh_overlay3.vmdl"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0x512168C53F7B73FE
-				CResourceString m_pResourceName = "maps/dota/worldnodes/node000_layer0_mesh_worldspace_texture_blend.vmdl"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0x53954A9151356A18
-				CResourceString m_pResourceName = "maps/dota/worldnodes/node000_layer0_mesh_nocollapse0.vmdl"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0x594C6322F5DB6914
-				CResourceString m_pResourceName = "maps/dota/worldnodes/node000_layer0_mesh_nocollapse1.vmdl"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0x1BEED70CD3B9B490
-				CResourceString m_pResourceName = "maps/dota/worldnodes/node000_layer0_mesh_nocollapse2.vmdl"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0x297048A350932EC9
-				CResourceString m_pResourceName = "maps/dota/worldnodes/node000_layer1_mesh_base.vmdl"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0x14788F6D1C77F0EC
-				CResourceString m_pResourceName = "maps/dota/worldnodes/node000_layer1_mesh_overlay0.vmdl"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0xDB5DEA9711E1B450
-				CResourceString m_pResourceName = "maps/dota/worldnodes/node000_layer2_mesh_base.vmdl"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0xE247E3B840384B09
-				CResourceString m_pResourceName = "maps/dota/worldnodes/node000_layer2_mesh_overlay1.vmdl"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0x213A123D6AF71396
-				CResourceString m_pResourceName = "maps/dota/worldnodes/node000_layer2_mesh_overlay0.vmdl"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0x9E9F0FBC0DF8FA42
-				CResourceString m_pResourceName = "maps/dota/worldnodes/node000_layer2_mesh_worldspace_texture_blend.vmdl"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0x70CEE93DFBDE4CF1
-				CResourceString m_pResourceName = "maps/dota/worldnodes/node000_layer3_mesh_base.vmdl"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0x9B4BC49B5A3C5E69
-				CResourceString m_pResourceName = "maps/dota/worldnodes/node000_layer3_mesh_overlay0.vmdl"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0xF3136E56ED0FC715
-				CResourceString m_pResourceName = "maps/dota/worldnodes/node000_layer3_mesh_overlay1.vmdl"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0x408FD2A51A1FAE62
-				CResourceString m_pResourceName = "maps/dota/worldnodes/node000_layer4_mesh_base.vmdl"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0x3B7773E12E160183
-				CResourceString m_pResourceName = "maps/dota/worldnodes/node000_layer4_mesh_overlay0.vmdl"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0x88D83AA46D361C46
-				CResourceString m_pResourceName = "maps/dota/worldnodes/node000_layer4_mesh_overlay1.vmdl"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0x4631E86AA4A99762
-				CResourceString m_pResourceName = "maps/dota/worldnodes/node000_layer4_mesh_worldspace_texture_blend.vmdl"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0x57FE70E358599F6B
-				CResourceString m_pResourceName = "maps/dota/worldnodes/node000.vwnod"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0x318BF9277D246929
-				CResourceString m_pResourceName = "maps/dota/entities/world_layer_dire_base.vents"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0xBAAAB845C653A22D
-				CResourceString m_pResourceName = "maps/dota/entities/default_ents.vents"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0x31DEA36482962923
-				CResourceString m_pResourceName = "maps/dota/entities/world_layer_dire_destruction.vents"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0x610C6B62B954ADE1
-				CResourceString m_pResourceName = "maps/dota/entities/world_layer_radiant_base.vents"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0x948C1CF37521BB6F
-				CResourceString m_pResourceName = "maps/dota/entities/world_layer_radiant_destruction.vents"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0x57622848D506AB9E
-				CResourceString m_pResourceName = "maps/dota/world.vwrld"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0x01D63868FE48608E
-				CResourceString m_pResourceName = "maps/dota/worldnodes/node000.vrman"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0xF026B66D4D3A3281
-				CResourceString m_pResourceName = "maps/dota/world_physics.vphys"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0x4D65B6AD08CF30E7
-				CResourceString m_pResourceName = "maps/dota/world_physics.vrman"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0x2BA86E8E83B45132
-				CResourceString m_pResourceName = "maps/dota/world_visibility.vvis"
-			}
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0xD6FBAC6070D5E517
-				CResourceString m_pResourceName = "maps/dota/world.vrman"
-			}
-		]
-		Struct m_ExtraIntData[1] = 
-		[
-			ResourceEditIntData_t
-			{
-				CResourceString m_Name = "IsChildResource"
-				int32 m_nInt = 0
-			}
-		]
-		Struct m_ExtraFloatData[0] = 
-		[
-		]
-		Struct m_ExtraStringData[0] = 
-		[
-		]
 	}
+	"AdditionalRelatedFiles"
+	{
+	}
+	"ArgumentDependencies"
+	{
+		"0"
+		{
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
+			"ParameterName"	"___OverrideInputData___"
+			"ParameterType"	"BinaryBlobArg"
+		}
+		"1"
+		{
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
+			"ParameterName"	"skipmapload"
+			"ParameterType"	"IntArg"
+		}
+		"2"
+		{
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
+			"ParameterName"	"regdivlod"
+			"ParameterType"	"IntArg"
+		}
+		"3"
+		{
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
+			"ParameterName"	"regdiv"
+			"ParameterType"	"IntArg"
+		}
+		"4"
+		{
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
+			"ParameterName"	"nosky"
+			"ParameterType"	"IntArg"
+		}
+		"5"
+		{
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
+			"ParameterName"	"norte"
+			"ParameterType"	"IntArg"
+		}
+		"6"
+		{
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
+			"ParameterName"	"dumptris"
+			"ParameterType"	"IntArg"
+		}
+		"7"
+		{
+			"Fingerprint"	"8192"
+			"FingerprintDefault"	"8192"
+			"ParameterName"	"nodesize"
+			"ParameterType"	"IntArg"
+		}
+		"8"
+		{
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
+			"ParameterName"	"forcelod"
+			"ParameterType"	"IntArg"
+		}
+		"9"
+		{
+			"Fingerprint"	"1"
+			"FingerprintDefault"	"1"
+			"ParameterName"	"gridtolod"
+			"ParameterType"	"IntArg"
+		}
+		"10"
+		{
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
+			"ParameterName"	"force_up_to_date_materials"
+			"ParameterType"	"IntArg"
+		}
+		"11"
+		{
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
+			"ParameterName"	"fulltangent"
+			"ParameterType"	"IntArg"
+		}
+		"12"
+		{
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
+			"ParameterName"	"randomize_mesh"
+			"ParameterType"	"IntArg"
+		}
+		"13"
+		{
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
+			"ParameterName"	"skip_mesh_optimization"
+			"ParameterType"	"IntArg"
+		}
+	}
+	"ChildResourceList"
+	{
+		"0"	"maps/dota/entities/bad_result_position_0.vmdl"
+		"1"	"maps/dota/entities/bad_result_position_1.vmdl"
+		"2"	"maps/dota/entities/neutralcamp_good_6_2.vmdl"
+		"3"	"maps/dota/entities/neutralcamp_good_4_3.vmdl"
+		"4"	"maps/dota/entities/neutralcamp_good_3_4.vmdl"
+		"5"	"maps/dota/entities/neutralcamp_good_2_5.vmdl"
+		"6"	"maps/dota/entities/neutralcamp_good_1_6.vmdl"
+		"7"	"maps/dota/entities/neutralcamp_evil_5_7.vmdl"
+		"8"	"maps/dota/entities/neutralcamp_evil_4_8.vmdl"
+		"9"	"maps/dota/entities/neutralcamp_evil_3_9.vmdl"
+		"10"	"maps/dota/entities/neutralcamp_evil_1_10.vmdl"
+		"11"	"maps/dota/entities/neutralcamp_evil_2_11.vmdl"
+		"12"	"maps/dota/entities/unnamed_12.vmdl"
+		"13"	"maps/dota/entities/unnamed_13.vmdl"
+		"14"	"maps/dota/entities/neutralcamp_good_5_14.vmdl"
+		"15"	"maps/dota/entities/unnamed_15.vmdl"
+		"16"	"maps/dota/entities/bad_result_position_16.vmdl"
+		"17"	"maps/dota/entities/bad_result_position_17.vmdl"
+		"18"	"maps/dota/entities/bad_result_position_18.vmdl"
+		"19"	"maps/dota/entities/bad_result_position_19.vmdl"
+		"20"	"maps/dota/entities/bad_result_position_20.vmdl"
+		"21"	"maps/dota/entities/bad_result_position_21.vmdl"
+		"22"	"maps/dota/entities/bad_result_position_22.vmdl"
+		"23"	"maps/dota/entities/unnamed_23.vmdl"
+		"24"	"maps/dota/entities/unnamed_24.vmdl"
+		"25"	"maps/dota/entities/unnamed_25.vmdl"
+		"26"	"maps/dota/entities/unnamed_26.vmdl"
+		"27"	"maps/dota/entities/unnamed_27.vmdl"
+		"28"	"maps/dota/entities/unnamed_28.vmdl"
+		"29"	"maps/dota/entities/unnamed_29.vmdl"
+		"30"	"maps/dota/entities/unnamed_30.vmdl"
+		"31"	"maps/dota/entities/neutralcamp_evil_6_31.vmdl"
+		"32"	"maps/dota/entities/unnamed_32.vmdl"
+		"33"	"maps/dota/entities/unnamed_33.vmdl"
+		"34"	"maps/dota/entities/unnamed_34.vmdl"
+		"35"	"maps/dota/entities/unnamed_35.vmdl"
+		"36"	"maps/dota/entities/unnamed_36.vmdl"
+		"37"	"maps/dota/entities/unnamed_37.vmdl"
+		"38"	"maps/dota/entities/unnamed_38.vmdl"
+		"39"	"maps/dota/worldnodes/node000_layer0_mesh_base.vmdl"
+		"40"	"maps/dota/worldnodes/node000_layer0_mesh_overlay0.vmdl"
+		"41"	"maps/dota/worldnodes/node000_layer0_mesh_overlay1.vmdl"
+		"42"	"maps/dota/worldnodes/node000_layer0_mesh_overlay3.vmdl"
+		"43"	"maps/dota/worldnodes/node000_layer0_mesh_worldspace_texture_blend.vmdl"
+		"44"	"maps/dota/worldnodes/node000_layer0_mesh_nocollapse0.vmdl"
+		"45"	"maps/dota/worldnodes/node000_layer0_mesh_nocollapse1.vmdl"
+		"46"	"maps/dota/worldnodes/node000_layer0_mesh_nocollapse2.vmdl"
+		"47"	"maps/dota/worldnodes/node000_layer1_mesh_base.vmdl"
+		"48"	"maps/dota/worldnodes/node000_layer1_mesh_overlay0.vmdl"
+		"49"	"maps/dota/worldnodes/node000_layer2_mesh_base.vmdl"
+		"50"	"maps/dota/worldnodes/node000_layer2_mesh_overlay1.vmdl"
+		"51"	"maps/dota/worldnodes/node000_layer2_mesh_overlay0.vmdl"
+		"52"	"maps/dota/worldnodes/node000_layer2_mesh_worldspace_texture_blend.vmdl"
+		"53"	"maps/dota/worldnodes/node000_layer3_mesh_base.vmdl"
+		"54"	"maps/dota/worldnodes/node000_layer3_mesh_overlay0.vmdl"
+		"55"	"maps/dota/worldnodes/node000_layer3_mesh_overlay1.vmdl"
+		"56"	"maps/dota/worldnodes/node000_layer4_mesh_base.vmdl"
+		"57"	"maps/dota/worldnodes/node000_layer4_mesh_overlay0.vmdl"
+		"58"	"maps/dota/worldnodes/node000_layer4_mesh_overlay1.vmdl"
+		"59"	"maps/dota/worldnodes/node000_layer4_mesh_worldspace_texture_blend.vmdl"
+		"60"	"maps/dota/worldnodes/node000.vwnod"
+		"61"	"maps/dota/entities/world_layer_dire_base.vents"
+		"62"	"maps/dota/entities/default_ents.vents"
+		"63"	"maps/dota/entities/world_layer_dire_destruction.vents"
+		"64"	"maps/dota/entities/world_layer_radiant_base.vents"
+		"65"	"maps/dota/entities/world_layer_radiant_destruction.vents"
+		"66"	"maps/dota/world.vwrld"
+		"67"	"maps/dota/worldnodes/node000.vrman"
+		"68"	"maps/dota/world_physics.vphys"
+		"69"	"maps/dota/world_physics.vrman"
+		"70"	"maps/dota/world_visibility.vvis"
+		"71"	"maps/dota/world.vrman"
+	}
+	"InputDependencies"
+	{
+		"0"
+		{
+			"ContentRelativeFilename"	"maps/dota.vmap"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"2238657056"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+			"Optional"	"0"
+		}
+		"1"
+		{
+			"ContentRelativeFilename"	"maps/dota/clips.vmap"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"4118702014"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+			"Optional"	"0"
+		}
+		"2"
+		{
+			"ContentRelativeFilename"	"maps/dota/dest_dire.vmap"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"3172375440"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+			"Optional"	"0"
+		}
+		"3"
+		{
+			"ContentRelativeFilename"	"maps/dota/dest_radiant.vmap"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"706904138"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+			"Optional"	"0"
+		}
+		"4"
+		{
+			"ContentRelativeFilename"	"maps/dota/dire.vmap"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"1045137569"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+			"Optional"	"0"
+		}
+		"5"
+		{
+			"ContentRelativeFilename"	"maps/dota/dota.vmap"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"3403037264"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+			"Optional"	"0"
+		}
+		"6"
+		{
+			"ContentRelativeFilename"	"maps/dota/lighting.vmap"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"1739859459"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+			"Optional"	"0"
+		}
+		"7"
+		{
+			"ContentRelativeFilename"	"maps/dota/particles.vmap"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"1307036160"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+			"Optional"	"0"
+		}
+		"8"
+		{
+			"ContentRelativeFilename"	"maps/dota/plants.vmap"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"1157431634"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+			"Optional"	"0"
+		}
+		"9"
+		{
+			"ContentRelativeFilename"	"maps/dota/soundscape.vmap"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"2905501848"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+			"Optional"	"0"
+		}
+		"10"
+		{
+			"ContentRelativeFilename"	"maps/dota/tools.vmap"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"1435766914"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+			"Optional"	"0"
+		}
+		"11"
+		{
+			"ContentRelativeFilename"	"maps/dota/trees.vmap"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"895370052"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+			"Optional"	"0"
+		}
+		"12"
+		{
+			"ContentRelativeFilename"	"maps/dota/triggers.vmap"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"2383346362"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+			"Optional"	"0"
+		}
+		"13"
+		{
+			"ContentRelativeFilename"	"maps/dota/tutorial_mid.vmap"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"888321204"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+			"Optional"	"0"
+		}
+		"14"
+		{
+			"ContentRelativeFilename"	"maps/dota/water.vmap"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"3861927634"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+			"Optional"	"0"
+		}
+		"15"
+		{
+			"ContentRelativeFilename"	"maps/prefabs/dota_custom_default_000.vmap"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"3918140382"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+			"Optional"	"0"
+		}
+		"16"
+		{
+			"ContentRelativeFilename"	"maps/prefabs/dota_pvp_prefab.vmap"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"1667893266"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+			"Optional"	"0"
+		}
+		"17"
+		{
+			"ContentRelativeFilename"	"maps/prefabs/rune_water.vmap"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"2480822231"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+			"Optional"	"0"
+		}
+		"18"
+		{
+			"ContentRelativeFilename"	"maps/prefabs/shop_keeper_dire.vmap"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"2487150455"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+			"Optional"	"0"
+		}
+		"19"
+		{
+			"ContentRelativeFilename"	"maps/prefabs/shop_keeper_radiant.vmap"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"2134078453"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+			"Optional"	"0"
+		}
+		"20"
+		{
+			"ContentRelativeFilename"	"maps/prefabs/shop_quirt_default.vmap"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"2621105669"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+			"Optional"	"0"
+		}
+		"21"
+		{
+			"ContentRelativeFilename"	"maps/prefabs/shop_sithil.vmap"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"585793673"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+			"Optional"	"0"
+		}
+		"22"
+		{
+			"ContentRelativeFilename"	"maps/prefabs/structure_ancient_dire.vmap"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"3022116202"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+			"Optional"	"0"
+		}
+		"23"
+		{
+			"ContentRelativeFilename"	"maps/prefabs/structure_ancient_radiant.vmap"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"842312326"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+			"Optional"	"0"
+		}
+		"24"
+		{
+			"ContentRelativeFilename"	"maps/prefabs/structure_barracks_melee_dire.vmap"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"2504017442"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+			"Optional"	"0"
+		}
+		"25"
+		{
+			"ContentRelativeFilename"	"maps/prefabs/structure_barracks_melee_radiant.vmap"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"786486420"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+			"Optional"	"0"
+		}
+		"26"
+		{
+			"ContentRelativeFilename"	"maps/prefabs/structure_barracks_ranged_dire.vmap"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"4000202772"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+			"Optional"	"0"
+		}
+		"27"
+		{
+			"ContentRelativeFilename"	"maps/prefabs/structure_barracks_ranged_radiant.vmap"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"198715513"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+			"Optional"	"0"
+		}
+		"28"
+		{
+			"ContentRelativeFilename"	"maps/prefabs/structure_filler_dire.vmap"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"4264760874"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+			"Optional"	"0"
+		}
+		"29"
+		{
+			"ContentRelativeFilename"	"maps/prefabs/structure_filler_radiant.vmap"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"522067376"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+			"Optional"	"0"
+		}
+		"30"
+		{
+			"ContentRelativeFilename"	"maps/prefabs/structure_fountain_radiant.vmap"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"3133985709"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+			"Optional"	"0"
+		}
+		"31"
+		{
+			"ContentRelativeFilename"	"maps/prefabs/structure_tower_dire.vmap"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"233471341"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+			"Optional"	"0"
+		}
+		"32"
+		{
+			"ContentRelativeFilename"	"maps/prefabs/structure_tower_radiant.vmap"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"3806178872"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+			"Optional"	"0"
+		}
+		"33"
+		{
+			"ContentRelativeFilename"	"maps/tilesets/dire_basic.vmap"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"3029409662"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+			"Optional"	"0"
+		}
+		"34"
+		{
+			"ContentRelativeFilename"	"maps/tilesets/map_edge_generic.vmap"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"3089111605"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+			"Optional"	"0"
+		}
+		"35"
+		{
+			"ContentRelativeFilename"	"maps/tilesets/radiant_basic.vmap"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"2001968910"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+			"Optional"	"0"
+		}
+	}
+	"SearchableUserData"
+	{
+		"0"
+		{
+			"Key"	"IsChildResource"
+			"Value"	"0"
+		}
+	}
+	"SpecialDependencies"
+	{
+		"0"
+		{
+			"CompilerIdentifier"	"CompileMap"
+			"Fingerprint"	"2"
+			"String"	"Map Compiler Version"
+			"UserData"	"0"
+		}
+		"1"
+		{
+			"CompilerIdentifier"	"CompileModel"
+			"Fingerprint"	"39"
+			"String"	"Model Compiler Version"
+			"UserData"	"0"
+		}
+		"2"
+		{
+			"CompilerIdentifier"	"CompileVPhysXData"
+			"Fingerprint"	"96"
+			"String"	"Collision Mesh Compiler Version"
+			"UserData"	"0"
+		}
+		"3"
+		{
+			"CompilerIdentifier"	"CompileRenderMesh"
+			"Fingerprint"	"28"
+			"String"	"Mesh Compiler Version"
+			"UserData"	"0"
+		}
+		"4"
+		{
+			"CompilerIdentifier"	"CompileWorldNode"
+			"Fingerprint"	"1"
+			"String"	"World Node Compiler Version"
+			"UserData"	"0"
+		}
+		"5"
+		{
+			"CompilerIdentifier"	"CompileEntityLump"
+			"Fingerprint"	"3"
+			"String"	"Entity Lump Compiler Version"
+			"UserData"	"0"
+		}
+		"6"
+		{
+			"CompilerIdentifier"	"CompileWorld"
+			"Fingerprint"	"1"
+			"String"	"World Compiler Version"
+			"UserData"	"0"
+		}
+		"7"
+		{
+			"CompilerIdentifier"	"CompileResourceManifest"
+			"Fingerprint"	"6"
+			"String"	"DynData Compiler Version"
+			"UserData"	"0"
+		}
+		"8"
+		{
+			"CompilerIdentifier"	"CompileResourceManifest"
+			"Fingerprint"	"2"
+			"String"	"Manifest Compiler Version"
+			"UserData"	"0"
+		}
+	}
+}

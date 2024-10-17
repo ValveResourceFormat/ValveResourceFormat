@@ -275,23 +275,14 @@ public sealed class MaterialExtract
             }
         }
 
-        string subrectDefinition = null;
+        var subrectDefinition = editInfo.SearchableUserData
+            .Where(x => x.Key.Equals("subrectdefinition", StringComparison.OrdinalIgnoreCase)).FirstOrDefault().Value;
 
-        if (editInfo is ResourceEditInfo2 redi2)
-        {
-            subrectDefinition = redi2.SearchableUserData.Where(x => x.Key.Equals("subrectdefinition", StringComparison.OrdinalIgnoreCase)).FirstOrDefault().Value as string;
-        }
-        else if (editInfo is not null)
-        {
-            var extraStringData = (Blocks.ResourceEditInfoStructs.ExtraStringData)editInfo.Structs[ResourceEditInfo.REDIStruct.ExtraStringData];
-            subrectDefinition = extraStringData.List.Where(x => x.Name.Equals("subrectdefinition", StringComparison.OrdinalIgnoreCase)).FirstOrDefault()?.Value;
-        }
-
-        if (subrectDefinition != null)
+        if (subrectDefinition is string def)
         {
             var toolattributes = new List<KVObject>()
                 {
-                    new("SubrectDefinition", subrectDefinition)
+                    new("SubrectDefinition", def)
                 };
 
             root.Add(new KVObject("ToolAttributes", toolattributes));

@@ -1,115 +1,110 @@
-ResourceEditInfoBlock_t
+"ResourceEditInfo"
+{
+	"AdditionalInputDependencies"
 	{
-		Struct m_InputDependencies[0] = 
-		[
-		]
-		Struct m_AdditionalInputDependencies[2] = 
-		[
-			ResourceInputDependency_t
-			{
-				CResourceString m_ContentRelativeFilename = "panorama/images/econ/leagues/subscriptions_gamerpvp_inhouse.txt"
-				CResourceString m_ContentSearchPath = "dota"
-				uint32 m_nFileCRC = 0x00000000
-				uint32 m_nFlags = 0x00000001
-			}
-			ResourceInputDependency_t
-			{
-				CResourceString m_ContentRelativeFilename = "panorama/images/econ/leagues/subscriptions_gamerpvp_inhouse.png"
-				CResourceString m_ContentSearchPath = "dota"
-				uint32 m_nFileCRC = 0xFE13DDA1
-				uint32 m_nFlags = 0x00000002
-			}
-		]
-		Struct m_ArgumentDependencies[6] = 
-		[
-			ResourceArgumentDependency_t
-			{
-				CResourceString m_ParameterName = "___OverrideInputData___"
-				CResourceString m_ParameterType = "BinaryBlobArg"
-				uint32 m_nFingerprint = 0xC7B50AD9
-				uint32 m_nFingerprintDefault = 0x00000000
-			}
-			ResourceArgumentDependency_t
-			{
-				CResourceString m_ParameterName = "fast"
-				CResourceString m_ParameterType = "IntArg"
-				uint32 m_nFingerprint = 0x00000000
-				uint32 m_nFingerprintDefault = 0x00000000
-			}
-			ResourceArgumentDependency_t
-			{
-				CResourceString m_ParameterName = "minmipsize"
-				CResourceString m_ParameterType = "IntArg"
-				uint32 m_nFingerprint = 0x00000000
-				uint32 m_nFingerprintDefault = 0x00000000
-			}
-			ResourceArgumentDependency_t
-			{
-				CResourceString m_ParameterName = "maxmipsize"
-				CResourceString m_ParameterType = "IntArg"
-				uint32 m_nFingerprint = 0x00100000
-				uint32 m_nFingerprintDefault = 0x00100000
-			}
-			ResourceArgumentDependency_t
-			{
-				CResourceString m_ParameterName = "panorama/images/econ/leagues/subscriptions_gamerpvp_inhouse.png"
-				CResourceString m_ParameterType = "ImageArg"
-				uint32 m_nFingerprint = 0x00000000
-				uint32 m_nFingerprintDefault = 0x00000000
-			}
-			ResourceArgumentDependency_t
-			{
-				CResourceString m_ParameterName = "panorama/images/econ/leagues/subscriptions_gamerpvp_inhouse.png"
-				CResourceString m_ParameterType = "BinaryBlobArg"
-				uint32 m_nFingerprint = 0x00000000
-				uint32 m_nFingerprintDefault = 0x00000000
-			}
-		]
-		Struct m_SpecialDependencies[3] = 
-		[
-			ResourceSpecialDependency_t
-			{
-				CResourceString m_String = "Texture Compiler Version"
-				CResourceString m_CompilerIdentifier = "CompileTexture"
-				uint32 m_nFingerprint = 0x0000000B
-				uint32 m_nUserData = 0x00000000
-			}
-			ResourceSpecialDependency_t
-			{
-				CResourceString m_String = "Texture Compiler Version Image Dilate Color"
-				CResourceString m_CompilerIdentifier = "CompileTexture"
-				uint32 m_nFingerprint = 0x00000001
-				uint32 m_nUserData = 0x00000000
-			}
-			ResourceSpecialDependency_t
-			{
-				CResourceString m_String = "Texture Compiler Version Mip None"
-				CResourceString m_CompilerIdentifier = "CompileTexture"
-				uint32 m_nFingerprint = 0x00000001
-				uint32 m_nUserData = 0x00000000
-			}
-		]
-		Struct m_CustomDependencies[0] = 
-		[
-		]
-		Struct m_AdditionalRelatedFiles[0] = 
-		[
-		]
-		Struct m_ChildResourceList[0] = 
-		[
-		]
-		Struct m_ExtraIntData[1] = 
-		[
-			ResourceEditIntData_t
-			{
-				CResourceString m_Name = "IsChildResource"
-				int32 m_nInt = 1
-			}
-		]
-		Struct m_ExtraFloatData[0] = 
-		[
-		]
-		Struct m_ExtraStringData[0] = 
-		[
-		]
+		"0"
+		{
+			"ContentRelativeFilename"	"panorama/images/econ/leagues/subscriptions_gamerpvp_inhouse.txt"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"0"
+			"FileExists"	"0"
+			"IsGameFile"	"0"
+			"Optional"	"1"
+		}
+		"1"
+		{
+			"ContentRelativeFilename"	"panorama/images/econ/leagues/subscriptions_gamerpvp_inhouse.png"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"4262714785"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+			"Optional"	"0"
+		}
 	}
+	"AdditionalRelatedFiles"
+	{
+	}
+	"ArgumentDependencies"
+	{
+		"0"
+		{
+			"Fingerprint"	"3350530777"
+			"FingerprintDefault"	"0"
+			"ParameterName"	"___OverrideInputData___"
+			"ParameterType"	"BinaryBlobArg"
+		}
+		"1"
+		{
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
+			"ParameterName"	"fast"
+			"ParameterType"	"IntArg"
+		}
+		"2"
+		{
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
+			"ParameterName"	"minmipsize"
+			"ParameterType"	"IntArg"
+		}
+		"3"
+		{
+			"Fingerprint"	"1048576"
+			"FingerprintDefault"	"1048576"
+			"ParameterName"	"maxmipsize"
+			"ParameterType"	"IntArg"
+		}
+		"4"
+		{
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
+			"ParameterName"	"panorama/images/econ/leagues/subscriptions_gamerpvp_inhouse.png"
+			"ParameterType"	"ImageArg"
+		}
+		"5"
+		{
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
+			"ParameterName"	"panorama/images/econ/leagues/subscriptions_gamerpvp_inhouse.png"
+			"ParameterType"	"BinaryBlobArg"
+		}
+	}
+	"ChildResourceList"
+	{
+	}
+	"InputDependencies"
+	{
+	}
+	"SearchableUserData"
+	{
+		"0"
+		{
+			"Key"	"IsChildResource"
+			"Value"	"1"
+		}
+	}
+	"SpecialDependencies"
+	{
+		"0"
+		{
+			"CompilerIdentifier"	"CompileTexture"
+			"Fingerprint"	"11"
+			"String"	"Texture Compiler Version"
+			"UserData"	"0"
+		}
+		"1"
+		{
+			"CompilerIdentifier"	"CompileTexture"
+			"Fingerprint"	"1"
+			"String"	"Texture Compiler Version Image Dilate Color"
+			"UserData"	"0"
+		}
+		"2"
+		{
+			"CompilerIdentifier"	"CompileTexture"
+			"Fingerprint"	"1"
+			"String"	"Texture Compiler Version Mip None"
+			"UserData"	"0"
+		}
+	}
+}

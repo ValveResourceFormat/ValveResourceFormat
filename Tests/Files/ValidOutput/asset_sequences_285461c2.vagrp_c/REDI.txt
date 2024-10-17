@@ -1,71 +1,60 @@
-ResourceEditInfoBlock_t
+"ResourceEditInfo"
+{
+	"AdditionalInputDependencies"
 	{
-		Struct m_InputDependencies[0] = 
-		[
-		]
-		Struct m_AdditionalInputDependencies[1] = 
-		[
-			ResourceInputDependency_t
-			{
-				CResourceString m_ContentRelativeFilename = "models/props_structures/dmx/animation/bad_ancient_ambient_blast_anim.dmx"
-				CResourceString m_ContentSearchPath = "dota"
-				uint32 m_nFileCRC = 0x18551D27
-				uint32 m_nFlags = 0x00000002
-			}
-		]
-		Struct m_ArgumentDependencies[1] = 
-		[
-			ResourceArgumentDependency_t
-			{
-				CResourceString m_ParameterName = "___OverrideInputData___"
-				CResourceString m_ParameterType = "BinaryBlobArg"
-				uint32 m_nFingerprint = 0xD66CBDE4
-				uint32 m_nFingerprintDefault = 0x00000000
-			}
-		]
-		Struct m_SpecialDependencies[2] = 
-		[
-			ResourceSpecialDependency_t
-			{
-				CResourceString m_String = "Animation Group Compiler Version"
-				CResourceString m_CompilerIdentifier = "CompileAnimGroup"
-				uint32 m_nFingerprint = 0x00000021
-				uint32 m_nUserData = 0x00000000
-			}
-			ResourceSpecialDependency_t
-			{
-				CResourceString m_String = "Animation Compiler Version"
-				CResourceString m_CompilerIdentifier = "CompileAnimation"
-				uint32 m_nFingerprint = 0x0000002A
-				uint32 m_nUserData = 0x00000000
-			}
-		]
-		Struct m_CustomDependencies[0] = 
-		[
-		]
-		Struct m_AdditionalRelatedFiles[0] = 
-		[
-		]
-		Struct m_ChildResourceList[1] = 
-		[
-			ResourceReferenceInfo_t
-			{
-				uint64 m_nId = 0xB821D364DD94CDCC
-				CResourceString m_pResourceName = "models/285461c2/bad_ancient_ambient_blast_anim.vanim"
-			}
-		]
-		Struct m_ExtraIntData[1] = 
-		[
-			ResourceEditIntData_t
-			{
-				CResourceString m_Name = "IsChildResource"
-				int32 m_nInt = 1
-			}
-		]
-		Struct m_ExtraFloatData[0] = 
-		[
-		]
-		Struct m_ExtraStringData[0] = 
-		[
-		]
+		"0"
+		{
+			"ContentRelativeFilename"	"models/props_structures/dmx/animation/bad_ancient_ambient_blast_anim.dmx"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"408231207"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+			"Optional"	"0"
+		}
 	}
+	"AdditionalRelatedFiles"
+	{
+	}
+	"ArgumentDependencies"
+	{
+		"0"
+		{
+			"Fingerprint"	"3597450724"
+			"FingerprintDefault"	"0"
+			"ParameterName"	"___OverrideInputData___"
+			"ParameterType"	"BinaryBlobArg"
+		}
+	}
+	"ChildResourceList"
+	{
+		"0"	"models/285461c2/bad_ancient_ambient_blast_anim.vanim"
+	}
+	"InputDependencies"
+	{
+	}
+	"SearchableUserData"
+	{
+		"0"
+		{
+			"Key"	"IsChildResource"
+			"Value"	"1"
+		}
+	}
+	"SpecialDependencies"
+	{
+		"0"
+		{
+			"CompilerIdentifier"	"CompileAnimGroup"
+			"Fingerprint"	"33"
+			"String"	"Animation Group Compiler Version"
+			"UserData"	"0"
+		}
+		"1"
+		{
+			"CompilerIdentifier"	"CompileAnimation"
+			"Fingerprint"	"42"
+			"String"	"Animation Compiler Version"
+			"UserData"	"0"
+		}
+	}
+}
