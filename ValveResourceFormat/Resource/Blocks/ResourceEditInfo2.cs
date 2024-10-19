@@ -35,7 +35,7 @@ namespace ValveResourceFormat.Blocks
             kv3.Read(reader, resource);
             BackingData = kv3;
 
-            void ReadItems<T>(List<T> list, string key, Func<KVObject, T> constructor)
+            static void ReadItems<T>(BinaryKV3 kv3, List<T> list, string key, Func<KVObject, T> constructor)
             {
                 var container = kv3.Data.Properties.GetValueOrDefault(key)?.Value as KVObject;
                 ArgumentNullException.ThrowIfNull(container, key);
@@ -51,11 +51,11 @@ namespace ValveResourceFormat.Blocks
                 }
             }
 
-            ReadItems(InputDependencies, "m_InputDependencies", (KVObject data) => new InputDependency(data));
-            ReadItems(AdditionalInputDependencies, "m_AdditionalInputDependencies", (KVObject data) => new InputDependency(data));
-            ReadItems(ArgumentDependencies, "m_ArgumentDependencies", (KVObject data) => new ArgumentDependency(data));
-            ReadItems(SpecialDependencies, "m_SpecialDependencies", (KVObject data) => new SpecialDependency(data));
-            ReadItems(AdditionalRelatedFiles, "m_AdditionalRelatedFiles", (KVObject data) => new AdditionalRelatedFile(data));
+            ReadItems(kv3, InputDependencies, "m_InputDependencies", static (KVObject data) => new InputDependency(data));
+            ReadItems(kv3, AdditionalInputDependencies, "m_AdditionalInputDependencies", static (KVObject data) => new InputDependency(data));
+            ReadItems(kv3, ArgumentDependencies, "m_ArgumentDependencies", static (KVObject data) => new ArgumentDependency(data));
+            ReadItems(kv3, SpecialDependencies, "m_SpecialDependencies", static (KVObject data) => new SpecialDependency(data));
+            ReadItems(kv3, AdditionalRelatedFiles, "m_AdditionalRelatedFiles", static (KVObject data) => new AdditionalRelatedFile(data));
 
             var childResources = kv3.Data.GetArray<string>("m_ChildResourceList");
             ChildResourceList.AddRange(childResources);
