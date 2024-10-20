@@ -121,13 +121,23 @@ namespace ValveResourceFormat.IO
                 if (constraint.Rule == ConditionalRule.Allow)
                 {
                     // Allow0 (disable this toggle)
-                    if (constraint.Range2[0] == 0 && staticConfiguration[constraint.Indices[0]] != 0)
+                    var allow0 = constraint.Range2[0] == 0;
+                    if (allow0 && staticConfiguration[constraint.Indices[0]] != 0)
                     {
                         reducedConfiguration[constraint.Indices[0]] = 0;
                     }
 
                     // Allow1 (cannot both be active)
-                    if (constraint.Range2[0] == 1 && staticConfiguration[constraint.Indices[0]] != 0 && staticConfiguration[constraint.Indices[1]] != 0)
+                    var allow1 = constraint.Range2[0] == 1;
+                    if (allow1 && staticConfiguration[constraint.Indices[0]] != 0 && staticConfiguration[constraint.Indices[1]] != 0)
+                    {
+                        reducedConfiguration[constraint.Indices[1]] = 0;
+                    }
+                }
+                else if (constraint.Rule == ConditionalRule.Requires)
+                {
+                    var requires1 = constraint.Range2[0] == 1;
+                    if (requires1 && staticConfiguration[constraint.Indices[0]] == 0 && staticConfiguration[constraint.Indices[1]] == 1)
                     {
                         reducedConfiguration[constraint.Indices[1]] = 0;
                     }
