@@ -161,9 +161,9 @@ jobs:
         fail_ci_if_error: true
         verbose: true
 
-  # TODO: This will be moved into release job when a release cert exists
-  release-test-sign:
-    name: Sign exe
+  release:
+    name: Create release
+    if: startsWith(github.ref, 'refs/tags/')
     needs: build
     runs-on: ubuntu-latest
     steps:
@@ -171,6 +171,10 @@ jobs:
       uses: actions/download-artifact@v4
       with:
         path: artifacts
+
+    - name: Display artifacts folder structure
+      run: find .
+      working-directory: artifacts
 
     - name: Upload binaries to be signed
       id: signpath-artifact
@@ -191,28 +195,13 @@ jobs:
         organization-id: '4ff8c8f4-926e-4ee5-8886-7899212bb76e'
         github-artifact-id: '${{ steps.signpath-artifact.outputs.artifact-id }}'
         project-slug: 'ValveResourceFormat'
-        signing-policy-slug: 'test-signing'
+        signing-policy-slug: 'release-signing'
         output-artifact-directory: 'signed'
         wait-for-completion: true
 
-    - name: Display artifacts folder structure
+    - name: Display signed folder structure
       run: find .
       working-directory: signed
-
-  release:
-    name: Create release
-    if: startsWith(github.ref, 'refs/tags/')
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-    - name: Download artifacts
-      uses: actions/download-artifact@v4
-      with:
-        path: artifacts
-
-    - name: Display artifacts folder structure
-      run: ls -Rl
-      working-directory: artifacts
 
     - name: Create release files
       run: |
