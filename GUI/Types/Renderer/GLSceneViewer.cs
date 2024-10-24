@@ -322,6 +322,8 @@ namespace GUI.Types.Renderer
                 Scene.Update(e.FrameTime);
                 SkyboxScene?.Update(e.FrameTime);
 
+                Scene.PostProcessInfo.UpdatePostProcessing(Camera);
+
                 selectedNodeRenderer.Update(new Scene.UpdateContext(e.FrameTime));
 
                 Scene.SetupSceneShadows(Camera, ShadowDepthBuffer.Width);
@@ -380,8 +382,6 @@ namespace GUI.Types.Renderer
                 Scene = Scene,
             };
 
-            Scene.PostProcessInfo.UpdatePostProcessing(Camera);
-
             UpdatePerViewGpuBuffers(Scene, Camera);
             Scene.SetSceneBuffers();
 
@@ -421,8 +421,6 @@ namespace GUI.Types.Renderer
             }
 
             GL.DepthRange(0.05, 1);
-
-            Scene.PostProcessInfo.UpdatePostProcessing(Camera);
 
             UpdatePerViewGpuBuffers(Scene, Camera);
             Scene.SetSceneBuffers();
