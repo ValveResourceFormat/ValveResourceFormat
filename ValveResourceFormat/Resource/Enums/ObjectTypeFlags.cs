@@ -18,5 +18,6 @@ namespace ValveResourceFormat
         ModelHasLods = 0x800,
         PrecomputedVismembers = 0x4000,
         StaticCubeMap = 0x8000,
+        Overlay = 0x10000,
     }
 }
