@@ -753,16 +753,18 @@ namespace GUI.Types.Renderer
 
                 if (classname == "post_processing_volume")
                 {
+                    ExposureSettings exposureParams = new();
+
                     var exposureSpeedUp = entity.GetPropertyUnchecked<float>("exposurespeedup");
                     var exposureSpeedDown = entity.GetPropertyUnchecked<float>("exposurespeeddown");
-                    var minExposure = entity.GetPropertyUnchecked<float>("minexposure");
-                    var maxExposure = entity.GetPropertyUnchecked<float>("maxexposure");
+                    // todo: These changed to minlogexposure maxlogexposure
+                    var minExposure = entity.GetPropertyUnchecked("minexposure", exposureParams.ExposureMin);
+                    var maxExposure = entity.GetPropertyUnchecked("maxexposure", exposureParams.ExposureMax);
                     var exposureCompensation = entity.GetPropertyUnchecked<float>("exposurecompensation");
                     var fadeTime = entity.GetPropertyUnchecked<float>("fadetime");
                     var isMaster = entity.GetProperty<bool>("master");
                     var useExposure = entity.GetProperty<bool>("enableexposure");
 
-                    ExposureSettings exposureParams = new();
                     if (useExposure)
                     {
                         exposureParams.ExposureMin = minExposure;
