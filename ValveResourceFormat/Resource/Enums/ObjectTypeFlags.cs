@@ -16,8 +16,10 @@ namespace ValveResourceFormat
         RenderWithDynamic = 0x200,
         RenderToCubemaps = 0x400,
         ModelHasLods = 0x800,
+        Overlay = 0x2000,
         PrecomputedVismembers = 0x4000,
         StaticCubeMap = 0x8000,
-        Overlay = 0x10000,
+        DisableVisCulling = 0x10000,
+        BakedGeometry = 0x20000,
     }
 }
