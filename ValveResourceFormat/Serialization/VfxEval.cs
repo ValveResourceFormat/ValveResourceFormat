@@ -142,9 +142,6 @@ namespace ValveResourceFormat.Serialization.VfxEval
         private readonly Stack<uint> OffsetAtBranchExits = new();
         private readonly Dictionary<uint, string> LocalVariableNames = [];
 
-        // build a dictionary of the external variables seen, passed as 'renderAttributesUsed'
-        private static readonly ConcurrentDictionary<uint, string> ExternalVarsReference = new();
-
         // The 'return' keyword in the last line of a dynamic expression is optional (it is implied where absent)
         // OmitReturnStatement controls whether it is shown
         private readonly bool OmitReturnStatement;
@@ -163,11 +160,9 @@ namespace ValveResourceFormat.Serialization.VfxEval
             OmitReturnStatement = omitReturnStatement;
             Features = features;
 
-            foreach (var externalVarName in renderAttributesUsed)
+            foreach (var renderAttribute in renderAttributesUsed)
             {
-                var murmur32 = MurmurHash2.Hash(externalVarName.ToLowerInvariant(), StringToken.MURMUR2SEED);
-
-                ExternalVarsReference.AddOrUpdate(murmur32, externalVarName, (k, v) => externalVarName);
+                StringToken.Get(renderAttribute);
             }
 
             ParseExpression(binaryBlob);
@@ -386,7 +381,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
             {
                 var intval = dataReader.ReadUInt32();
                 // if this reference exists in the vars-reference, then show it
-                if (ExternalVarsReference.TryGetValue(intval, out var externalVar))
+                if (StringToken.InvertedTable.TryGetValue(intval, out var externalVar))
                 {
                     Expressions.Push(externalVar);
                 }
@@ -496,7 +491,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
         // if the variable reference is unknown return in the form UNKNOWN[e46d252d] (showing the murmur32)
         private static string GetExternalVarName(uint varId)
         {
-            ExternalVarsReference.TryGetValue(varId, out var varKnownName);
+            StringToken.InvertedTable.TryGetValue(varId, out var varKnownName);
             if (varKnownName != null)
             {
                 return varKnownName;
