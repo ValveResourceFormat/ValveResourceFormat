@@ -1046,13 +1046,7 @@ namespace ValveResourceFormat.IO
 
             if (group == "Default")
             {
-                var knownKeys = StringToken.InvertedTable;
-
-                var physicsSurfaceNames = phys.SurfacePropertyHashes.Select(hash =>
-                {
-                    knownKeys.TryGetValue(hash, out var name);
-                    return name ?? hash.ToString(CultureInfo.InvariantCulture);
-                }).ToArray();
+                var physicsSurfaceNames = phys.SurfacePropertyHashes.Select(StringToken.GetKnownString).ToArray();
 
                 var surfaceProperty = physicsSurfaceNames[desc.SurfacePropertyIndex];
                 material = materialNameProvider.Invoke(surfaceProperty);
@@ -1105,11 +1099,7 @@ namespace ValveResourceFormat.IO
             var material = materialOverride ?? MapExtract.GetToolTextureNameForCollisionTags(new ModelExtract.SurfaceTagCombo(group, tags));
             var knownKeys = StringToken.InvertedTable;
 
-            var physicsSurfaceNames = phys.SurfacePropertyHashes.Select(hash =>
-            {
-                knownKeys.TryGetValue(hash, out var name);
-                return name ?? hash.ToString(CultureInfo.InvariantCulture);
-            }).ToArray();
+            var physicsSurfaceNames = phys.SurfacePropertyHashes.Select(StringToken.GetKnownString).ToArray();
 
             var mesh = desc.Shape;
             VertexStreams streams = new()

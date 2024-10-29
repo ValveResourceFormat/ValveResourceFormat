@@ -123,12 +123,11 @@ partial class ModelExtract
         }
     }
 
-    static KVObject ProcessBoneConstraintTarget(KVObject target, Dictionary<uint, string> boneHashes, Dictionary<uint, string> attachmentHashes)
+    static KVObject ProcessBoneConstraintTarget(KVObject target)
     {
         var isAttachment = target.GetProperty<bool>("m_bIsAttachment");
         var targetHash = target.GetUInt32Property("m_nBoneHash");
-        var targetHashes = isAttachment ? attachmentHashes : boneHashes;
-        if (!targetHashes.TryGetValue(targetHash, out var targetName))
+        if (!StringToken.InvertedTable.TryGetValue(targetHash, out var targetName))
         {
 #if DEBUG
             Console.WriteLine($"Couldn't find name of {(isAttachment ? "attachment" : "bone")} for bone constraint: {targetHash}");
@@ -152,10 +151,10 @@ partial class ModelExtract
         return node;
     }
 
-    static KVObject ProcessBoneConstraintSlave(KVObject slave, Dictionary<uint, string> boneHashes)
+    static KVObject ProcessBoneConstraintSlave(KVObject slave)
     {
         var boneHash = slave.GetUInt32Property("m_nBoneHash");
-        if (!boneHashes.TryGetValue(boneHash, out var boneName))
+        if (!StringToken.InvertedTable.TryGetValue(boneHash, out var boneName))
         {
 #if DEBUG
             Console.WriteLine($"Couldn't find name of bone for bone constraint: {boneHash}");
@@ -170,10 +169,10 @@ partial class ModelExtract
         return node;
     }
 
-    static void ProcessBoneConstraintChildren(KVObject boneConstraint, KVObject node, Dictionary<uint, string> boneHashes, Dictionary<uint, string> attachmentHashes)
+    static void ProcessBoneConstraintChildren(KVObject boneConstraint, KVObject node)
     {
         var targets = boneConstraint.GetArray("m_targets")
-                                    .Select(p => ProcessBoneConstraintTarget(p, boneHashes, attachmentHashes))
+                                    .Select(p => ProcessBoneConstraintTarget(p))
                                     .Where(p => p != null);
 
         IEnumerable<KVObject> children;
@@ -196,7 +195,7 @@ partial class ModelExtract
         else
         {
             var slaves = boneConstraint.GetArray("m_slaves")
-                                        .Select(p => ProcessBoneConstraintSlave(p, boneHashes))
+                                        .Select(p => ProcessBoneConstraintSlave(p))
                                         .Where(p => p != null);
 
             children = slaves.Concat(targets);
@@ -210,7 +209,7 @@ partial class ModelExtract
         node.AddProperty("children", MakeValue(childrenKV));
     }
 
-    static KVObject ProcessBoneConstraint(KVObject boneConstraint, Dictionary<uint, string> boneHashes, Dictionary<uint, string> attachmentHashes)
+    static KVObject ProcessBoneConstraint(KVObject boneConstraint)
     {
         if (boneConstraint == null) //ModelDoc will compile constraints as null if it considers them invalid
         {
@@ -243,7 +242,7 @@ partial class ModelExtract
             return node;
         }
 
-        ProcessBoneConstraintChildren(boneConstraint, node, boneHashes, attachmentHashes);
+        ProcessBoneConstraintChildren(boneConstraint, node);
 
         AddBoneConstraintProperty<long>(boneConstraint, node, "m_nTargetAxis", "input_axis");
         AddBoneConstraintProperty<long>(boneConstraint, node, "m_nSlaveAxis", "slave_axis");
@@ -261,39 +260,22 @@ partial class ModelExtract
         return node;
     }
 
-    static Dictionary<uint, string> GetHashDictionary(IEnumerable<string> names)
-    {
-        var hashDictionary = new Dictionary<uint, string>();
-        foreach (var name in names)
-        {
-            var hash = StringToken.Get(name.ToLowerInvariant());
-            hashDictionary.Add(hash, name);
-        }
-        return hashDictionary;
-    }
-
     KVObject ExtractBoneConstraints(KVObject[] boneConstraintsList)
     {
-        var boneNames = model.Skeleton.Bones.Select(b => b.Name);
-        var boneHashes = GetHashDictionary(boneNames);
-
-        Dictionary<uint, string> attachmentHashes;
+        var stringTokenKeys = model.Skeleton.Bones.Select(b => b.Name);
         if (RenderMeshesToExtract.Count > 0)
         {
             var mesh = RenderMeshesToExtract.First().Mesh;
-            var attachmentNames = mesh.Attachments.Keys;
-            attachmentHashes = GetHashDictionary(attachmentNames);
+            stringTokenKeys = stringTokenKeys.Concat(mesh.Attachments.Keys);
         }
-        else
-        {
-            attachmentHashes = [];
-        }
+
+        StringToken.Store(stringTokenKeys);
 
         var childrenKV = new KVObject(null, true, boneConstraintsList.Length);
 
         foreach (var boneConstraint in boneConstraintsList)
         {
-            var constraint = ProcessBoneConstraint(boneConstraint, boneHashes, attachmentHashes);
+            var constraint = ProcessBoneConstraint(boneConstraint);
             if (constraint != null)
             {
                 childrenKV.AddProperty(null, MakeValue(constraint));

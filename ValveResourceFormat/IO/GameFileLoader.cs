@@ -1,10 +1,14 @@
 //#define DEBUG_FILE_LOAD
 
+using System.Diagnostics;
 using System.IO;
 using System.IO.Enumeration;
 using SteamDatabase.ValvePak;
 using ValveKeyValue;
 using ValveResourceFormat.CompiledShader;
+using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.Serialization;
+using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.IO
 {
@@ -29,6 +33,7 @@ namespace ValveResourceFormat.IO
         private string PreferredAddonFolderOnDisk;
         private bool ShaderPackagesScanned;
         private bool AttemptToLoadWorkshopDependencies;
+        private bool StoredSurfacePropertyStringTokens;
 
         public Package CurrentPackage { get; set; }
 
@@ -355,6 +360,29 @@ namespace ValveResourceFormat.IO
                 }
 
                 folders.Add(Path.Combine(gameRoot, searchPath.Value.ToString()));
+            }
+        }
+
+        public void EnsureStringTokenGameKeys()
+        {
+            if (!StoredSurfacePropertyStringTokens)
+            {
+                using var vsurf = LoadFileCompiled("surfaceproperties/surfaceproperties.vsurf");
+                if (vsurf is not null && vsurf.DataBlock is BinaryKV3 kv3)
+                {
+                    var surfacePropertiesList = kv3.Data.GetArray("SurfacePropertiesList");
+                    foreach (var surface in surfacePropertiesList)
+                    {
+                        var name = surface.GetProperty<string>("surfacePropertyName");
+                        var hash = StringToken.Store(name.ToLowerInvariant());
+                        Debug.Assert(
+                            hash == surface.GetUnsignedIntegerProperty("m_nameHash"),
+                            "Stored surface property hash should be the same as the calculated one."
+                        );
+                    }
+                }
+
+                StoredSurfacePropertyStringTokens = true;
             }
         }
 

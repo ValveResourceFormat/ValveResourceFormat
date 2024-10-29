@@ -10,45 +10,54 @@ namespace ValveResourceFormat.Utils
 
         public const uint MURMUR2SEED = 0x31415926; // It's pi!
 
-        internal static readonly ConcurrentDictionary<string, uint> Lookup = new(InitializeLookup());
+        public static readonly ConcurrentDictionary<uint, string> InvertedTable = new(InitializeInverseLookup());
 
-        public static Dictionary<uint, string> InvertedTable
+        public static uint Get(string key) => MurmurHash2.Hash(key, MURMUR2SEED);
+
+        public static string GetKnownString(uint hash)
         {
-            get
+            if (InvertedTable.TryGetValue(hash, out var knownString))
             {
-                var inverted = new Dictionary<uint, string>(Lookup.Count);
+                return knownString;
+            }
 
-                foreach (var (key, hash) in Lookup)
-                {
-                    inverted[hash] = key;
-                }
+            return $"vrf_unknown_key_{hash}";
+        }
 
-                return inverted;
+
+        /// <summary>
+        /// Store a string to the table of known string hashes, so it can later be retrieved using <see cref="GetKnownString"/>.
+        /// </summary>
+        public static uint Store(string key)
+        {
+            var token = Get(key);
+
+            InvertedTable.TryAdd(token, key);
+            return token;
+        }
+
+        /// <summary>
+        /// Store a number of strings to the table of known string hashes, so they can later be retrieved using <see cref="GetKnownString"/>.
+        /// </summary>
+        public static void Store(IEnumerable<string> keys)
+        {
+            foreach (var key in keys)
+            {
+                Store(key);
             }
         }
 
-        public static uint Get(string key)
+        internal static Dictionary<uint, string> InitializeInverseLookup()
         {
-            return Lookup.GetOrAdd(key, s =>
-            {
-#if DEBUG
-                Console.WriteLine($"New string: {s}");
-#endif
-
-                return MurmurHash2.Hash(s, MURMUR2SEED);
-            });
-        }
-
-        private static Dictionary<string, uint> InitializeLookup()
-        {
-            var dictionary = new Dictionary<string, uint>(EntityLumpKnownKeys.KnownKeys.Length);
+            var inverseLookup = new Dictionary<uint, string>(EntityLumpKnownKeys.KnownKeys.Length);
 
             foreach (var key in EntityLumpKnownKeys.KnownKeys)
             {
-                dictionary.Add(key, MurmurHash2.Hash(key, MURMUR2SEED));
+                var token = MurmurHash2.Hash(key, MURMUR2SEED);
+                inverseLookup.Add(token, key);
             }
 
-            return dictionary;
+            return inverseLookup;
         }
     }
 }

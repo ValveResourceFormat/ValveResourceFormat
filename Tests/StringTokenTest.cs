@@ -8,19 +8,33 @@ namespace Tests
         [Test]
         public void EnsureUniqueStringToken()
         {
-            var seen = new Dictionary<uint, string>();
+            var seen = new Dictionary<uint, string>(EntityLumpKnownKeys.KnownKeys.Length);
 
-            foreach (var key in StringToken.Lookup)
+            foreach (var key in EntityLumpKnownKeys.KnownKeys)
             {
-                Assert.That(key.Key, Is.EqualTo(key.Key.ToLowerInvariant()));
+                Assert.That(key, Is.EqualTo(key.ToLowerInvariant()), $"{nameof(EntityLumpKnownKeys)} keys must be in lowercase.");
 
-                if (seen.TryGetValue(key.Value, out var collision))
+                var token = StringToken.Get(key);
+
+                if (seen.TryGetValue(token, out var collision))
                 {
-                    Assert.Fail($"{key.Key} ({key.Value}) collides with {collision}");
+                    Assert.Fail($"{key} ({token}) collides with {collision}");
                 }
 
-                seen[key.Value] = key.Key;
+                seen[token] = key;
             }
+        }
+
+
+        [Test]
+        public void EnsureStoresCustomKnownKeys()
+        {
+            var key = "my custom stringtoken key";
+            Assert.That(EntityLumpKnownKeys.KnownKeys, Does.Not.Contain(key));
+
+            var addedHash = StringToken.Store(key);
+            var inverseLookupKey = StringToken.GetKnownString(addedHash);
+            Assert.That(inverseLookupKey, Is.EqualTo(key));
         }
     }
 }

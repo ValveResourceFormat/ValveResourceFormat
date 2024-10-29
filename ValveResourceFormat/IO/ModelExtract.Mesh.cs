@@ -73,6 +73,7 @@ partial class ModelExtract
 
     private void EnqueueMeshes()
     {
+        FileExtract.EnsurePopulatedStringToken(fileLoader);
         EnqueueRenderMeshes();
         EnqueuePhysMeshes();
     }
@@ -129,14 +130,7 @@ partial class ModelExtract
             return;
         }
 
-        var knownKeys = StringToken.InvertedTable;
-
-        PhysicsSurfaceNames = physAggregateData.SurfacePropertyHashes.Select(hash =>
-        {
-            knownKeys.TryGetValue(hash, out var name);
-            return name ?? hash.ToString(CultureInfo.InvariantCulture);
-        }).ToArray();
-
+        PhysicsSurfaceNames = physAggregateData.SurfacePropertyHashes.Select(StringToken.GetKnownString).ToArray();
 
         PhysicsCollisionTags = physAggregateData.CollisionAttributes.Select(attributes =>
             (attributes.GetArray<string>("m_InteractAsStrings") ?? attributes.GetArray<string>("m_PhysicsTagStrings")).ToHashSet()

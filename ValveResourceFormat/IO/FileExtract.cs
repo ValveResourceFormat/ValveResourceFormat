@@ -295,5 +295,13 @@ namespace ValveResourceFormat.IO
 
             return resource.ResourceType.GetExtension();
         }
+
+        internal static void EnsurePopulatedStringToken(IFileLoader fileLoader)
+        {
+            if (fileLoader is GameFileLoader gameFileLoader)
+            {
+                gameFileLoader.EnsureStringTokenGameKeys();
+            }
+        }
     }
 }
