@@ -9,8 +9,9 @@ namespace Tests
         public void EnsureUniqueStringToken()
         {
             var seen = new Dictionary<uint, string>();
+            var stringToMurmurHash = StringToken.InitializeLookup().StringToToken;
 
-            foreach (var key in StringToken.Lookup)
+            foreach (var key in stringToMurmurHash)
             {
                 Assert.That(key.Key, Is.EqualTo(key.Key.ToLowerInvariant()));
 

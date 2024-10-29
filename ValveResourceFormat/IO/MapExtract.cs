@@ -52,8 +52,6 @@ public sealed class MapExtract
     public IProgress<string> ProgressReporter { get; set; }
     public PhysicsVertexMatcher PhysVertexMatcher { get; private set; }
 
-    private readonly Dictionary<uint, string> HashTable = StringToken.InvertedTable;
-
     //these all seem to be roughly hammer meshes in cs2
     private static bool SceneObjectShouldConvertToHammerMesh(string modelName)
     {
@@ -1134,11 +1132,11 @@ public sealed class MapExtract
         EntityModels.Add(vmdl);
     }
 
-    private void FixUpEntityKeyValues(EntityLump.Entity entity)
+    private static void FixUpEntityKeyValues(EntityLump.Entity entity)
     {
         foreach (var (hash, property) in entity.Properties)
         {
-            property.Name ??= HashTable.GetValueOrDefault(hash, $"{hash}");
+            property.Name ??= StringToken.InvertedTable.GetValueOrDefault(hash, $"{hash}");
         }
     }
 

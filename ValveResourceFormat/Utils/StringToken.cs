@@ -10,45 +10,40 @@ namespace ValveResourceFormat.Utils
 
         public const uint MURMUR2SEED = 0x31415926; // It's pi!
 
-        internal static readonly ConcurrentDictionary<string, uint> Lookup = new(InitializeLookup());
+        public static readonly ConcurrentDictionary<uint, string> InvertedTable = new(InitializeLookup().TokenToString);
 
-        public static Dictionary<uint, string> InvertedTable
+        public static uint Get(string key) => MurmurHash2.Hash(key, MURMUR2SEED);
+
+        public static uint Store(string key)
         {
-            get
+            var token = Get(key);
+
+            InvertedTable.TryAdd(token, key);
+            return token;
+        }
+
+        public static void Store(IEnumerable<string> keys)
+        {
+            foreach (var key in keys)
             {
-                var inverted = new Dictionary<uint, string>(Lookup.Count);
-
-                foreach (var (key, hash) in Lookup)
-                {
-                    inverted[hash] = key;
-                }
-
-                return inverted;
+                Store(key);
             }
         }
 
-        public static uint Get(string key)
+        internal static (Dictionary<uint, string> TokenToString, Dictionary<string, uint> StringToToken) InitializeLookup()
         {
-            return Lookup.GetOrAdd(key, s =>
-            {
-#if DEBUG
-                Console.WriteLine($"New string: {s}");
-#endif
-
-                return MurmurHash2.Hash(s, MURMUR2SEED);
-            });
-        }
-
-        private static Dictionary<string, uint> InitializeLookup()
-        {
-            var dictionary = new Dictionary<string, uint>(EntityLumpKnownKeys.KnownKeys.Length);
+            var tokenToString = new Dictionary<uint, string>(EntityLumpKnownKeys.KnownKeys.Length);
+            var stringToToken = new Dictionary<string, uint>(EntityLumpKnownKeys.KnownKeys.Length);
 
             foreach (var key in EntityLumpKnownKeys.KnownKeys)
             {
-                dictionary.Add(key, MurmurHash2.Hash(key, MURMUR2SEED));
+                var token = MurmurHash2.Hash(key, MURMUR2SEED);
+
+                tokenToString.Add(token, key);
+                stringToToken.Add(key, token);
             }
 
-            return dictionary;
+            return (tokenToString, stringToToken);
         }
     }
 }

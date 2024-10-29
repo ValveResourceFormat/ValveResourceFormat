@@ -160,11 +160,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
             OmitReturnStatement = omitReturnStatement;
             Features = features;
 
-            foreach (var renderAttribute in renderAttributesUsed)
-            {
-                StringToken.Get(renderAttribute);
-            }
-
+            StringToken.Store(renderAttributesUsed);
             ParseExpression(binaryBlob);
         }
 

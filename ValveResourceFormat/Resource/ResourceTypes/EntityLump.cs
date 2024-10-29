@@ -226,6 +226,18 @@ namespace ValveResourceFormat.ResourceTypes
                     }
                 };
                 entity.Properties.Add(keyHash, entityProperty);
+
+                if (keyName is not null)
+                {
+                    var calculatedHash = StringToken.Store(keyName);
+                    if (calculatedHash != keyHash)
+                    {
+                        throw new InvalidDataException(
+                            $"Stored key hash for {keyName} ({keyHash}) is not the same as the calculated {calculatedHash}."
+                        );
+                    }
+
+                }
             }
 
             for (var i = 0; i < hashedFieldsCount; i++)

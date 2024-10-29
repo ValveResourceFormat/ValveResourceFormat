@@ -505,17 +505,13 @@ namespace GUI.Types.Renderer
 
         private void ShowEntityProperties(SceneNode sceneNode)
         {
-            Dictionary<uint, string> knownKeys = null;
-
             foreach (var property in sceneNode.EntityData.Properties)
             {
                 var name = property.Value.Name;
 
                 if (name == null)
                 {
-                    knownKeys ??= StringToken.InvertedTable;
-
-                    if (knownKeys.TryGetValue(property.Key, out var knownKey))
+                    if (StringToken.InvertedTable.TryGetValue(property.Key, out var knownKey))
                     {
                         name = knownKey;
                     }

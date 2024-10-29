@@ -129,11 +129,9 @@ partial class ModelExtract
             return;
         }
 
-        var knownKeys = StringToken.InvertedTable;
-
         PhysicsSurfaceNames = physAggregateData.SurfacePropertyHashes.Select(hash =>
         {
-            knownKeys.TryGetValue(hash, out var name);
+            StringToken.InvertedTable.TryGetValue(hash, out var name);
             return name ?? hash.ToString(CultureInfo.InvariantCulture);
         }).ToArray();
 

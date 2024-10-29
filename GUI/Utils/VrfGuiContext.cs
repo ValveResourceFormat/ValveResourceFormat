@@ -93,7 +93,7 @@ namespace GUI.Utils
                 foreach (var surface in surfacePropertiesList)
                 {
                     var name = surface.GetProperty<string>("surfacePropertyName");
-                    var hash = StringToken.Get(name.ToLowerInvariant());
+                    var hash = StringToken.Store(name.ToLowerInvariant());
                     Debug.Assert(hash == surface.GetUnsignedIntegerProperty("m_nameHash"));
                 }
             }
