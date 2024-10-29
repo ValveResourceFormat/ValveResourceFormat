@@ -508,18 +508,7 @@ namespace GUI.Types.Renderer
             foreach (var property in sceneNode.EntityData.Properties)
             {
                 var name = property.Value.Name;
-
-                if (name == null)
-                {
-                    if (StringToken.InvertedTable.TryGetValue(property.Key, out var knownKey))
-                    {
-                        name = knownKey;
-                    }
-                    else
-                    {
-                        name = $"key={property.Key}";
-                    }
-                }
+                name ??= StringToken.GetKnownString(property.Key);
 
                 var value = property.Value.Data;
 

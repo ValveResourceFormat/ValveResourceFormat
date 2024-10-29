@@ -1136,7 +1136,7 @@ public sealed class MapExtract
     {
         foreach (var (hash, property) in entity.Properties)
         {
-            property.Name ??= StringToken.InvertedTable.GetValueOrDefault(hash, $"{hash}");
+            property.Name ??= StringToken.GetKnownString(hash);
         }
     }
 

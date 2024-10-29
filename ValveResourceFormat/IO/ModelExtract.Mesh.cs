@@ -129,12 +129,7 @@ partial class ModelExtract
             return;
         }
 
-        PhysicsSurfaceNames = physAggregateData.SurfacePropertyHashes.Select(hash =>
-        {
-            StringToken.InvertedTable.TryGetValue(hash, out var name);
-            return name ?? hash.ToString(CultureInfo.InvariantCulture);
-        }).ToArray();
-
+        PhysicsSurfaceNames = physAggregateData.SurfacePropertyHashes.Select(StringToken.GetKnownString).ToArray();
 
         PhysicsCollisionTags = physAggregateData.CollisionAttributes.Select(attributes =>
             (attributes.GetArray<string>("m_InteractAsStrings") ?? attributes.GetArray<string>("m_PhysicsTagStrings")).ToHashSet()
