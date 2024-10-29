@@ -119,6 +119,16 @@ namespace GUI.Types.Renderer
             ExposureSpeedDown = 1.0f;
             ExposureCompensation = 0.0f;
         }
+
+        public void LoadFromEntity(KVObject entity)
+        {
+            // todo: These changed to minlogexposure maxlogexposure
+            ExposureMin = entity.GetProperty("minexposure", ExposureMin);
+            ExposureMax = entity.GetProperty("maxexposure", ExposureMax);
+            ExposureSpeedUp = entity.GetProperty("exposurespeedup", ExposureSpeedUp);
+            ExposureSpeedDown = entity.GetProperty("exposurespeeddown", ExposureSpeedDown);
+            ExposureCompensation = entity.GetProperty("exposurecompensation", ExposureCompensation);
+        }
     };
     struct PostProcessState()
     {

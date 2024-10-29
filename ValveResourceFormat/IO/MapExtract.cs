@@ -959,10 +959,7 @@ public sealed class MapExtract
 
         foreach (var compiledEntity in entityLump.GetEntities())
         {
-            FixUpEntityKeyValues(compiledEntity);
-
-
-            var className = compiledEntity.GetProperty<string>(CommonHashes.Classname);
+            var className = compiledEntity.GetProperty<string>("classname");
 
             if (className == "worldspawn")
             {
@@ -1017,7 +1014,7 @@ public sealed class MapExtract
                 };
             }
 
-            var modelName = NormalizePath(compiledEntity.GetProperty<string>(CommonHashes.Model));
+            var modelName = NormalizePath(compiledEntity.GetProperty<string>("model"));
             if (modelName != null && PathIsSubPath(modelName, LumpFolder))
             {
                 var firstReference = ModelEntityAssociations.TryAdd(modelName, className);
@@ -1043,7 +1040,7 @@ public sealed class MapExtract
                 }
             }
 
-            var snapshotFile = NormalizePath(compiledEntity.GetProperty<string>(StringToken.Get("snapshot_file")));
+            var snapshotFile = NormalizePath(compiledEntity.GetProperty<string>("snapshot_file"));
             if (snapshotFile != null && PathIsSubPath(snapshotFile, LumpFolder))
             {
                 SnapshotsToExtract.Add(snapshotFile);
@@ -1075,7 +1072,7 @@ public sealed class MapExtract
 
         if (EntitiesToHammerMesh)
         {
-            var offset = EntityTransformHelper.CalculateTransformationMatrix(compiledEntity).Translation;
+            var offset = EntityTransformHelper.CalculateTransformationMatrix(compiledEntity.Properties).Translation;
 
             if (isJustPhysics)
             {
@@ -1112,39 +1109,26 @@ public sealed class MapExtract
         EntityModels.Add(vmdl);
     }
 
-    private static void FixUpEntityKeyValues(EntityLump.Entity entity)
-    {
-        foreach (var (hash, property) in entity.Properties)
-        {
-            property.Name ??= StringToken.GetKnownString(hash);
-        }
-    }
-
     private static int[] AddProperties(string className, EntityLump.Entity compiledEntity, BaseEntity mapEntity)
     {
         var entityLineage = Array.Empty<int>();
-        foreach (var (hash, property) in compiledEntity.Properties.Reverse())
+        foreach (var (key, value) in compiledEntity.Properties)
         {
-            if (property.Name is null)
+            if (TryHandleSpecialProperty(key, compiledEntity.Properties, mapEntity, ref entityLineage))
             {
                 continue;
             }
 
-            if (TryHandleSpecialHash(hash, property, mapEntity, ref entityLineage))
+            var propertyKey = key;
+            if (RemoveOrMutateCompilerGeneratedProperty(className, ref propertyKey))
             {
                 continue;
             }
 
-            if (RemoveOrMutateCompilerGeneratedProperty(className, property))
-            {
-                continue;
-            }
+            var editString = ToEditString(value);
+            editString = RemoveTargetnamePrefix(editString);
 
-            var key = property.Name;
-            var value = PropertyToEditString(property);
-            value = RemoveTargetnamePrefix(value);
-
-            mapEntity.EntityProperties.Add(key, value);
+            mapEntity.EntityProperties.Add(propertyKey, editString);
         }
 
         if (compiledEntity.Connections != null)
@@ -1169,28 +1153,29 @@ public sealed class MapExtract
         return entityLineage;
     }
 
-    private static bool TryHandleSpecialHash(uint hash, EntityLump.EntityProperty property, BaseEntity mapEntity, ref int[] lineage)
+    private static bool TryHandleSpecialProperty(string key, KVObject compiledEntity, BaseEntity mapEntity, ref int[] lineage)
     {
-        if (hash == CommonHashes.Origin)
+        if (key == "origin")
         {
-            mapEntity.Origin = GetVector3Property(property);
+            mapEntity.Origin = compiledEntity.GetVector3Property(key);
             return true;
         }
-        else if (hash == CommonHashes.Angles)
+        else if (key == "angles")
         {
-            mapEntity.Angles = GetVector3Property(property);
+            mapEntity.Angles = compiledEntity.GetVector3Property(key);
             return true;
         }
-        else if (hash == CommonHashes.Scales)
+        else if (key == "scales")
         {
-            mapEntity.Scales = GetVector3Property(property);
+            mapEntity.Scales = compiledEntity.GetVector3Property(key);
             return true;
         }
-        else if (hash == CommonHashes.HammerUniqueId)
+        else if (key == "hammeruniqueid")
         {
             try
             {
-                lineage = Array.ConvertAll(PropertyToEditString(property).Split(':'), int.Parse);
+                var hammerUniqueIdString = ToEditString(compiledEntity.Properties[key].Value);
+                lineage = Array.ConvertAll(hammerUniqueIdString.Split(':'), int.Parse);
             }
             catch (FormatException)
             {
@@ -1209,39 +1194,27 @@ public sealed class MapExtract
     }
 
     // TODO: cubemaptexture may be set by artist, needs to be handled differently (reference: CS2 /ui/ maps)
-    private static bool RemoveOrMutateCompilerGeneratedProperty(string className, EntityLump.EntityProperty property)
+    private static bool RemoveOrMutateCompilerGeneratedProperty(string className, ref string propertyKey)
     {
-        const string prefix = "vrf_";
+        const string prefix = "vrf_stripped_";
         if (className is "env_combined_light_probe_volume" or "env_light_probe_volume" or "env_cubemap_box" or "env_cubemap")
         {
-            var key = property.Name;
-            if (key is "cubemaptexture" or "lightprobetexture")
+            if (propertyKey is "cubemaptexture" or "lightprobetexture")
             {
-                property.Name = prefix + key;
+                propertyKey = prefix + propertyKey;
             }
         }
 
         return false;
     }
 
-    private static Vector3 GetVector3Property(EntityLump.EntityProperty property)
-    {
-        return property.Type switch
-        {
-            EntityFieldType.CString or EntityFieldType.String => EntityTransformHelper.ParseVector((string)property.Data),
-            EntityFieldType.Vector or EntityFieldType.QAngle => (Vector3)property.Data,
-            _ => throw new InvalidDataException("Unhandled Entity Vector Data Type!"),
-        };
-    }
-
     static string StringBool(bool value)
         => value ? "1" : "0";
 
-    private static string PropertyToEditString(EntityLump.EntityProperty property)
+    private static string PropertyToEditString(KVValue value)
     {
-        //var type = property.Type;
-        var data = property.Data;
-        return ToEditString(data);
+        //var type = value.Type;
+        return ToEditString(value.Value);
     }
 
     private static string ToEditString(object data)

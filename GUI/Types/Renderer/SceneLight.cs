@@ -1,4 +1,6 @@
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.Serialization;
+using ValveResourceFormat.Serialization.KeyValues;
 using ValveResourceFormat.Utils;
 
 namespace GUI.Types.Renderer;
@@ -53,7 +55,7 @@ class SceneLight(Scene scene) : SceneNode(scene)
     public Vector3 Direction { get; set; }
     public float Range { get; set; } = 512.0f;
 
-    public static SceneLight FromEntityProperties(Scene scene, EntityType type, EntityLump.Entity entity)
+    public static SceneLight FromEntityProperties(Scene scene, EntityType type, KVObject entity)
     {
         var light = new SceneLight(scene)
         {
@@ -72,14 +74,7 @@ class SceneLight(Scene scene) : SceneNode(scene)
                 _ => throw new NotImplementedException()
             },
 
-            Color = entity.GetProperty("color").Data switch
-            {
-                byte[] bytes => new Vector3(bytes[0], bytes[1], bytes[2]),
-                Vector3 vec => vec,
-                Vector4 vec4 => new Vector3(vec4.X, vec4.Y, vec4.Z),
-                string str => EntityTransformHelper.ParseVector(str),
-                _ => throw new NotImplementedException("Unsupported color type" + entity.GetProperty("color").Data.GetType().Name),
-            } / 255.0f,
+            Color = entity.GetVector3Property("color") / 255.0f,
 
             Brightness = type switch
             {

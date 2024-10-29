@@ -11,76 +11,27 @@ namespace ValveResourceFormat.ResourceTypes
 {
     public class EntityLump : KeyValuesOrNTRO
     {
-        public static class CommonHashes
-        {
-            public static readonly uint Classname = StringToken.Get("classname");
-            public static readonly uint Origin = StringToken.Get("origin");
-            public static readonly uint Angles = StringToken.Get("angles");
-            public static readonly uint Scales = StringToken.Get("scales");
-            public static readonly uint HammerUniqueId = StringToken.Get("hammeruniqueid");
-            public static readonly uint Model = StringToken.Get("model");
-        }
-
         public class Entity
         {
-            public Dictionary<uint, EntityProperty> Properties { get; } = [];
+            public KVObject Properties { get; } = new(null);
             public List<KVObject> Connections { get; internal set; }
 
             public T GetProperty<T>(string name, T defaultValue = default)
-                => GetProperty<T>(StringToken.Get(name), defaultValue);
+            {
+                try
+                {
+                    return Properties.GetProperty(name, defaultValue);
+                }
+                catch (Exception)
+                {
+                    return defaultValue;
+                }
+            }
 
             public T GetPropertyUnchecked<T>(string name, T defaultValue = default)
-                => GetPropertyUnchecked<T>(StringToken.Get(name), defaultValue);
+                => Properties.GetPropertyUnchecked(name, defaultValue);
 
-            public EntityProperty GetProperty(string name)
-                => GetProperty(StringToken.Get(name));
-
-            public T GetProperty<T>(uint hash, T defaultValue = default)
-            {
-                if (Properties.TryGetValue(hash, out var property))
-                {
-                    return (T)property.Data;
-                }
-
-                return defaultValue;
-            }
-
-            public T GetPropertyUnchecked<T>(uint hash, T defaultValue = default)
-            {
-                if (Properties.TryGetValue(hash, out var property))
-                {
-                    try
-                    {
-                        return (T)Convert.ChangeType(property.Data, typeof(T), CultureInfo.InvariantCulture);
-                    }
-                    catch (FormatException)
-                    {
-                        // String format
-                    }
-                }
-
-                return defaultValue;
-            }
-
-            public EntityProperty GetProperty(uint hash)
-            {
-                if (Properties.TryGetValue(hash, out var property))
-                {
-                    return property;
-                }
-
-                return default;
-            }
-        }
-
-        [DebuggerDisplay("{Type} \"{Name}\" = \"{Data}\"")]
-        public class EntityProperty
-        {
-            public EntityFieldType Type { get; set; }
-
-            public string Name { get; set; }
-
-            public object Data { get; set; }
+            public KVValue GetProperty(string name) => Properties.Properties.GetValueOrDefault(name);
         }
 
         public string[] GetChildEntityNames()
@@ -126,8 +77,8 @@ namespace ValveResourceFormat.ResourceTypes
 
             var entity = new Entity();
 
-            ReadValues(entity, ((KVObject)entityKv).Properties["values"]);
-            ReadValues(entity, ((KVObject)entityKv).Properties["attributes"]);
+            ReadValues(entity, entityKv.Properties["values"]);
+            ReadValues(entity, entityKv.Properties["attributes"]);
 
             return entity;
         }
@@ -178,13 +129,7 @@ namespace ValveResourceFormat.ResourceTypes
                     type = ConvertKV3TypeToEntityFieldType(value.Value.Type);
                 }
 
-                var entityProperty = new EntityProperty
-                {
-                    Type = type,
-                    Name = value.Key,
-                    Data = data,
-                };
-                entity.Properties.Add(hash, entityProperty);
+                entity.Properties.AddProperty(value.Key, value.Value);
             }
         }
 
@@ -493,16 +438,16 @@ namespace ValveResourceFormat.ResourceTypes
         }
 
         // TODO: Invert this, and upconvert legacy entity fields into keyvalues
-        private static EntityFieldType ConvertKV3TypeToEntityFieldType(KVType type)
+        private static KVType ConvertKV3TypeToEntityFieldType(EntityFieldType type)
         {
             return type switch
             {
-                KVType.BOOLEAN => EntityFieldType.Boolean,
-                KVType.DOUBLE => EntityFieldType.Float64,
-                KVType.INT64 => EntityFieldType.Integer, // TODO: Incorrect type?
-                KVType.UINT64 => EntityFieldType.Integer64,
-                KVType.STRING => EntityFieldType.CString,
-                KVType.NULL => EntityFieldType.CString,
+                EntityFieldType.Boolean => KVType.BOOLEAN,
+                EntityFieldType.Float64 => KVType.DOUBLE,
+                EntityFieldType.Integer => KVType.INT64,
+                EntityFieldType.Integer64 => KVType.UINT64,
+                EntityFieldType.CString or EntityFieldType.String => KVType.STRING,
+                EntityFieldType.Vector or EntityFieldType.QAngle => KVType.OBJECT,
                 _ => throw new NotImplementedException($"Unsupported kv3 entity data type: {type}")
             };
         }

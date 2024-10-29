@@ -3,6 +3,7 @@
 using System.Collections;
 using System.Diagnostics;
 using System.Globalization;
+using System.IO.Pipes;
 using System.Linq;
 using System.Text;
 
@@ -185,16 +186,37 @@ namespace ValveResourceFormat.Serialization.KeyValues
 
         public bool ContainsKey(string name) => Properties.ContainsKey(name);
 
-        public T GetProperty<T>(string name)
+        public T GetProperty<T>(string name, T defaultValue = default)
         {
             if (Properties.TryGetValue(name, out var value))
             {
                 return (T)value.Value;
             }
-            else
+
+            return defaultValue;
+        }
+
+        public T GetPropertyUnchecked<T>(string name, T defaultValue = default)
+        {
+            if (Properties.TryGetValue(name, out var property))
             {
-                return default;
+                var valueObject = property.Value;
+
+                if (typeof(T) != typeof(string) && valueObject is string stringValue)
+                {
+                    // Will raise FormatException, so convert the string to number
+                    if (float.TryParse(stringValue, CultureInfo.InvariantCulture, out var floatVal))
+                    {
+                        valueObject = floatVal;
+                    }
+
+                    return defaultValue;
+                }
+
+                return (T)Convert.ChangeType(property.Value, typeof(T), CultureInfo.InvariantCulture);
             }
+
+            return defaultValue;
         }
 
         public T[] GetArray<T>(string name)

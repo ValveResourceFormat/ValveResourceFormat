@@ -5,8 +5,10 @@ using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using SteamDatabase.ValvePak;
 using ValveResourceFormat;
+using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization;
+using ValveResourceFormat.Serialization.KeyValues;
 using ValveResourceFormat.Utils;
 using static ValveResourceFormat.ResourceTypes.EntityLump;
 
@@ -14,17 +16,6 @@ namespace GUI.Types.Renderer
 {
     class WorldLoader
     {
-        private static class LocalHashes
-        {
-            public static readonly uint EffectName = StringToken.Get("effect_name");
-            public static readonly uint DefaultAnim = StringToken.Get("defaultanim");
-            public static readonly uint IdleAnim = StringToken.Get("idleanim");
-            public static readonly uint RenderColor = StringToken.Get("rendercolor");
-            public static readonly uint RenderAmt = StringToken.Get("renderamt");
-            public static readonly uint Body = StringToken.Get("body");
-            public static readonly uint Skin = StringToken.Get("skin");
-        }
-
         private readonly Scene scene;
         private readonly World world;
         private readonly VrfGuiContext guiContext;
@@ -259,17 +250,19 @@ namespace GUI.Types.Renderer
 
             var entities = entityLump.GetEntities().ToList();
             var entitiesReordered = entities
-                .Select(e => (e, e.GetProperty<string>(CommonHashes.Classname)))
+                .Select(e => (e, e.GetProperty<string>("classname")))
                 .OrderByDescending(x => IsCubemapOrProbe(x.Item2) || IsFog(x.Item2));
 
             Entities.AddRange(entities);
 
-            void LoadEntity(string classname, Entity entity)
+            void LoadEntity(string classname, Entity entityData)
             {
                 if (classname == "worldspawn")
                 {
                     return; // do not draw
                 }
+
+                var entity = entityData.Properties;
 
                 var transformationMatrix = parentTransform * EntityTransformHelper.CalculateTransformationMatrix(entity);
                 var light = SceneLight.IsAccepted(classname);
@@ -321,13 +314,7 @@ namespace GUI.Types.Renderer
                         disabled = entity.GetProperty<bool>("startdisabled");
                         disabled = disabled && Skybox2D != null;
 
-                        var skyTintColor = entity.GetProperty("tint_color");
-                        tintColor = skyTintColor?.Data switch
-                        {
-                            byte[] col32 when skyTintColor.Type == EntityFieldType.Color32 => new Vector3(col32[0], col32[1], col32[2]) / 255.0f,
-                            Vector3 vec3 => vec3 / 255.0f,
-                            _ => Vector3.One,
-                        };
+                        tintColor = entity.GetColor32Property("tint_color");
                     }
 
                     if (!disabled)
@@ -357,11 +344,9 @@ namespace GUI.Types.Renderer
                         var endDist = entity.GetPropertyUnchecked<float>("fogend");
 
                         // Some maps don't have these properties.
-                        var useHeightFog = entity.GetProperty("fogverticalexponent") != default; // the oldest versions have these values missing, so disable it there
-                        if (entity.GetProperty("heightfog") != default) // New in CS2
-                        {
-                            useHeightFog &= entity.GetProperty<bool>("heightfog");
-                        }
+                        var useHeightFog = entity.ContainsKey("fogverticalexponent"); // the oldest versions have these values missing, so disable it there
+                        useHeightFog = entity.GetProperty("heightfog", useHeightFog); // New in CS2
+
                         // TODO: find the correct behavior under this condition
                         var startHeight = float.NegativeInfinity;
                         var endHeight = float.NegativeInfinity;
@@ -375,29 +360,7 @@ namespace GUI.Types.Renderer
                         }
 
                         var strength = entity.GetPropertyUnchecked<float>("fogstrength");
-                        var colorData = entity.GetProperty("fogcolor");
-
-                        var color = new Vector3(1f);
-
-                        if (colorData != null)
-                        {
-                            switch (colorData.Type)
-                            {
-                                case EntityFieldType.Vector:
-                                    color = (Vector3)colorData.Data / 255.0f;
-                                    break;
-                                case EntityFieldType.Color32:
-                                    // todo make this a function
-                                    var colorBytes = (byte[])colorData.Data;
-                                    color.X = colorBytes[0] / 255.0f;
-                                    color.Y = colorBytes[1] / 255.0f;
-                                    color.Z = colorBytes[2] / 255.0f;
-                                    break;
-                                default:
-                                    throw new UnexpectedMagicException("unknown entity type", (int)colorData.Type, nameof(colorData.Type));
-                            }
-                        }
-
+                        var color = entity.GetColor32Property("fogcolor");
                         var maxOpacity = entity.GetPropertyUnchecked<float>("fogmaxopacity");
 
                         scene.FogInfo.GradientFog = new SceneGradientFog(scene)
@@ -428,13 +391,10 @@ namespace GUI.Types.Renderer
                         var startDist = entity.GetPropertyUnchecked<float>("cubemapfogstartdistance");
                         var endDist = entity.GetPropertyUnchecked<float>("cubemapfogenddistance");
 
-                        var hasHeightEnd = entity.GetProperty("cubemapfogheightend") != default;
+                        var hasHeightEnd = entity.ContainsKey("cubemapfogheightend");
 
-                        var useHeightFog = entity.GetProperty("cubemapfogheightexponent") != default; // the oldest versions have these values missing, so disable it there
-                        if (entity.GetProperty("cubemapheightfog") != default) // New in CS2
-                        {
-                            useHeightFog &= entity.GetProperty<bool>("cubemapheightfog");
-                        }
+                        var useHeightFog = entity.ContainsKey("cubemapfogheightexponent"); // the oldest versions have these values missing, so disable it there
+                        useHeightFog = entity.GetProperty("cubemapheightfog", useHeightFog); // New in CS2
 
                         var heightExponent = 1.0f;
                         var heightStart = float.PositiveInfinity; // is this right?
@@ -455,22 +415,13 @@ namespace GUI.Types.Renderer
                             }
                         }
 
-                        var opacity = 1f;
-                        if (entity.GetProperty("cubemapfogmaxopacity") != default)
-                        {
-                            opacity = entity.GetPropertyUnchecked<float>("cubemapfogmaxopacity");
-                        }
-
-                        var fogSource = "0";
-                        if (entity.GetProperty("cubemapfogsource") != default)
-                        {
-                            fogSource = entity.GetProperty<string>("cubemapfogsource");
-                        }
+                        var opacity = entity.GetPropertyUnchecked("cubemapfogmaxopacity", 1f);
+                        var fogSource = entity.GetPropertyUnchecked("cubemapfogsource", 0u);
 
                         RenderTexture fogTexture = null;
                         var exposureBias = 0.0f;
 
-                        if (fogSource == "0") // Cubemap From Texture, Disabled in CS2
+                        if (fogSource == 0) // Cubemap From Texture, Disabled in CS2
                         {
                             fogTexture = guiContext.MaterialLoader.GetTexture(entity.GetProperty<string>("cubemapfogtexture"));
                         }
@@ -478,7 +429,7 @@ namespace GUI.Types.Renderer
                         {
                             string material = null;
 
-                            if (fogSource == "1") // Cubemap From Env_Sky
+                            if (fogSource == 1) // Cubemap From Env_Sky
                             {
                                 var skyEntTargetName = entity.GetProperty<string>("cubemapfogskyentity");
                                 var skyEntity = FindEntityByKeyValue("targetname", skyEntTargetName);
@@ -487,7 +438,7 @@ namespace GUI.Types.Renderer
                                 if (skyEntity != null)
                                 {
                                     material = skyEntity.GetProperty<string>("skyname") ?? skyEntity.GetProperty<string>("skybox_material_day");
-                                    transformationMatrix = EntityTransformHelper.CalculateTransformationMatrix(skyEntity); // steal rotation from env_sky
+                                    transformationMatrix = EntityTransformHelper.CalculateTransformationMatrix(skyEntity.Properties); // steal rotation from env_sky
                                 }
                                 else
                                 {
@@ -495,7 +446,7 @@ namespace GUI.Types.Renderer
                                     scene.FogInfo.CubeFogActive = false;
                                 }
                             }
-                            else if (fogSource == "2") // Cubemap From Material
+                            else if (fogSource == 2) // Cubemap From Material
                             {
                                 material = entity.GetProperty<string>("cubemapfogskymaterial");
                             }
@@ -573,13 +524,7 @@ namespace GUI.Types.Renderer
                         );
                     }
 
-                    var indoorOutdoorLevelData = entity.GetProperty("indoor_outdoor_level")?.Data;
-                    var indoorOutdoorLevel = indoorOutdoorLevelData switch
-                    {
-                        int i => i,
-                        string s => int.Parse(s, CultureInfo.InvariantCulture),
-                        _ => 0,
-                    };
+                    var indoorOutdoorLevel = entity.GetPropertyUnchecked("indoor_outdoor_level", 0);
 
                     if (classname != "env_light_probe_volume")
                     {
@@ -587,16 +532,9 @@ namespace GUI.Types.Renderer
                             entity.GetProperty<string>("cubemaptexture")
                         );
 
-                        var arrayIndexData = entity.GetProperty("array_index")?.Data;
-                        var arrayIndex = arrayIndexData switch
-                        {
-                            int i => i,
-                            string s => int.Parse(s, CultureInfo.InvariantCulture),
-                            _ => 0,
-                        };
-
+                        var arrayIndex = entity.GetPropertyUnchecked("array_index", 0);
                         var edgeFadeDists = entity.GetProperty<Vector3>("edge_fade_dists"); // TODO: Not available on all entities
-                        var isCustomTexture = entity.GetProperty("customcubemaptexture") != null;
+                        var isCustomTexture = entity.GetProperty<string>("customcubemaptexture") != null;
 
                         var envMap = new SceneEnvMap(scene, bounds)
                         {
@@ -647,7 +585,7 @@ namespace GUI.Types.Renderer
                             lightProbe.DirectLightIndices.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
                         }
 
-                        scene.LightingInfo.LightProbeType = entity.Properties.ContainsKey(StringToken.Get("light_probe_atlas_x")) switch
+                        scene.LightingInfo.LightProbeType = entity.Properties.ContainsKey("light_probe_atlas_x") switch
                         {
                             false => Scene.LightProbeType.IndividualProbes,
                             true => Scene.LightProbeType.ProbeAtlas,
@@ -679,18 +617,11 @@ namespace GUI.Types.Renderer
                     return;
                 }
 
-                var model = entity.GetProperty<string>(CommonHashes.Model);
-                var particle = entity.GetProperty<string>(LocalHashes.EffectName);
-                var animation = entity.GetProperty<string>(LocalHashes.DefaultAnim) ?? entity.GetProperty<string>(LocalHashes.IdleAnim);
+                var model = entity.GetProperty<string>("model");
+                var particle = entity.GetProperty<string>("effect_name");
+                var animation = entity.GetProperty<string>("defaultanim") ?? entity.GetProperty<string>("idleanim");
 
-                string skin = default;
-                var skinRaw = entity.GetProperty(LocalHashes.Skin);
-
-                if (skinRaw?.Type == EntityFieldType.CString)
-                {
-                    skin = (string)skinRaw.Data;
-                }
-
+                var skin = entity.GetProperty<string>("skin");
                 var positionVector = transformationMatrix.Translation;
 
                 if (classname == "sky_camera")
@@ -715,7 +646,7 @@ namespace GUI.Types.Renderer
                                 Name = particle,
                                 Transform = Matrix4x4.CreateTranslation(origin),
                                 LayerName = "Particles",
-                                EntityData = entity,
+                                EntityData = entityData,
                             };
                             scene.Add(particleNode, true);
                         }
@@ -733,19 +664,11 @@ namespace GUI.Types.Renderer
                     CameraMatrices.Add(transformationMatrix);
                 }
 
-                var rendercolor = entity.GetProperty(LocalHashes.RenderColor);
-                var renderamt = entity.GetProperty(LocalHashes.RenderAmt)?.Data switch
-                {
-                    float f => f,
-                    _ => 1.0f,
-                };
+                // todo: rendercolor might sometimes be vec4, which holds renderamt
+                var rendercolor = entity.GetColor32Property("rendercolor");
+                var renderamt = entity.GetPropertyUnchecked("renderamt", 1.0f);
 
-                var tint = rendercolor?.Data switch
-                {
-                    byte[] col32 when rendercolor.Type == EntityFieldType.Color32 => new Vector4(col32[0], col32[1], col32[2], col32[3]) / 255.0f,
-                    Vector3 vec3 => new Vector4(vec3 / 255.0f, renderamt),
-                    _ => Vector4.One,
-                };
+                var tint = new Vector4(rendercolor, renderamt);
 
                 tint.X = MathF.Pow(tint.X, 2.2f);
                 tint.Y = MathF.Pow(tint.Y, 2.2f);
@@ -754,27 +677,14 @@ namespace GUI.Types.Renderer
                 if (classname == "post_processing_volume")
                 {
                     ExposureSettings exposureParams = new();
+                    exposureParams.LoadFromEntity(entity);
 
-                    var exposureSpeedUp = entity.GetPropertyUnchecked<float>("exposurespeedup");
-                    var exposureSpeedDown = entity.GetPropertyUnchecked<float>("exposurespeeddown");
-                    // todo: These changed to minlogexposure maxlogexposure
-                    var minExposure = entity.GetPropertyUnchecked("minexposure", exposureParams.ExposureMin);
-                    var maxExposure = entity.GetPropertyUnchecked("maxexposure", exposureParams.ExposureMax);
-                    var exposureCompensation = entity.GetPropertyUnchecked<float>("exposurecompensation");
-                    var fadeTime = entity.GetPropertyUnchecked<float>("fadetime");
                     var isMaster = entity.GetProperty<bool>("master");
                     var useExposure = entity.GetProperty<bool>("enableexposure");
+                    var fadeTime = entity.GetProperty<float>("fadetime");
 
-                    if (useExposure)
-                    {
-                        exposureParams.ExposureMin = minExposure;
-                        exposureParams.ExposureMax = maxExposure;
-                        exposureParams.ExposureCompensation = exposureCompensation;
-                        exposureParams.ExposureSpeedDown = exposureSpeedDown;
-                        exposureParams.ExposureSpeedUp = exposureSpeedUp;
-                        // todo: test where this is enabled/disabled
-                        exposureParams.AutoExposureEnabled = useExposure;
-                    }
+                    // todo: test where this is enabled/disabled
+                    exposureParams.AutoExposureEnabled = useExposure;
 
                     var postProcess = new ScenePostProcessVolume(scene)
                     {
@@ -817,7 +727,7 @@ namespace GUI.Types.Renderer
                                 Tint = tint,
                                 LayerName = layerName,
                                 Name = model,
-                                EntityData = entity,
+                                EntityData = entityData,
                             };
 
                             postProcessHasModel = true; // for collision we'd need to collect phys data within the class
@@ -868,7 +778,7 @@ namespace GUI.Types.Renderer
 
                 if (model == null)
                 {
-                    CreateDefaultEntity(entity, classname, transformationMatrix);
+                    CreateDefaultEntity(entityData, classname, transformationMatrix);
                     return;
                 }
 
@@ -885,8 +795,9 @@ namespace GUI.Types.Renderer
                             Name = "error",
                             Transform = transformationMatrix,
                             LayerName = layerName,
-                            EntityData = entity,
+                            EntityData = entityData,
                         };
+
                         scene.Add(errorModel, false);
                     }
 
@@ -901,54 +812,25 @@ namespace GUI.Types.Renderer
                     Tint = tint,
                     LayerName = layerName,
                     Name = model,
-                    EntityData = entity,
+                    EntityData = entityData,
                 };
 
                 // Animation
                 var isAnimated = modelNode.SetAnimationForWorldPreview(animation);
                 if (isAnimated)
                 {
-                    var holdAnimation = entity.GetProperty("holdanimation");
-                    if (holdAnimation != default)
+                    var holdAnimationOn = entity.GetPropertyUnchecked<bool>("holdanimation");
+                    if (holdAnimationOn)
                     {
-                        var holdAnimationOn = holdAnimation.Type switch
-                        {
-                            EntityFieldType.Boolean => (bool)holdAnimation.Data,
-                            EntityFieldType.CString => (string)holdAnimation.Data switch
-                            {
-                                "0" => false,
-                                "1" => true,
-                                _ => throw new NotImplementedException($"Unsupported holdanimation string value {holdAnimation.Data}"),
-                            },
-                            _ => throw new NotImplementedException($"Unsupported holdanimation type {holdAnimation.Type}"),
-                        };
-
-                        if (holdAnimationOn)
-                        {
-                            modelNode.AnimationController.PauseLastFrame();
-                        }
+                        modelNode.AnimationController.PauseLastFrame();
                     }
                 }
 
-                if (entity.Properties.TryGetValue(LocalHashes.Body, out var bodyProp))
+                var body = entity.GetPropertyUnchecked("body", -1L);
+                if (body != -1L)
                 {
                     var groups = modelNode.GetMeshGroups();
-                    var body = bodyProp.Data;
-                    var bodyGroup = -1;
-
-                    if (body is ulong bodyGroupLong)
-                    {
-                        bodyGroup = (int)bodyGroupLong;
-                    }
-                    else if (body is string bodyGroupString)
-                    {
-                        if (!int.TryParse(bodyGroupString, out bodyGroup))
-                        {
-                            bodyGroup = -1;
-                        }
-                    }
-
-                    modelNode.SetActiveMeshGroups(groups.Skip(bodyGroup).Take(1));
+                    modelNode.SetActiveMeshGroups(groups.Skip((int)body).Take(1));
                 }
 
                 scene.Add(modelNode, isAnimated);
@@ -974,7 +856,7 @@ namespace GUI.Types.Renderer
                         physSceneNode.Transform = transformationMatrix;
                         physSceneNode.PhysGroupName = classname;
                         physSceneNode.LayerName = layerName;
-                        physSceneNode.EntityData = entity;
+                        physSceneNode.EntityData = entityData;
 
                         scene.Add(physSceneNode, false);
                     }
@@ -989,14 +871,14 @@ namespace GUI.Types.Renderer
                 }
                 catch (Exception e)
                 {
-                    var id = entity.GetPropertyUnchecked(CommonHashes.HammerUniqueId, string.Empty);
+                    var id = entity.GetProperty("hammeruniqueid", string.Empty);
 
                     throw new InvalidDataException($"Failed to process entity '{classname}' (hammeruniqueid={id})", e);
                 }
             }
         }
 
-        private void LoadSkybox(Entity entity)
+        private void LoadSkybox(KVObject entity)
         {
             var targetmapname = entity.GetProperty<string>("targetmapname");
 
@@ -1029,7 +911,7 @@ namespace GUI.Types.Renderer
                 Log.Info(nameof(WorldLoader), $"Preloading vpk \"{innerVpkName}\" from \"{vpkFound.Package.FileName}\"");
 
                 // TODO: Should FileLoader have a method that opens stream for us?
-                var stream = AdvancedGuiFileLoader.GetPackageEntryStream(vpkFound.Package, vpkFound.PackageEntry);
+                var stream = GameFileLoader.GetPackageEntryStream(vpkFound.Package, vpkFound.PackageEntry);
 
                 package = new Package();
 
@@ -1102,9 +984,10 @@ namespace GUI.Types.Renderer
             guiContext.FileLoader.RemovePackageFromSearch(package);
         }
 
-        private void CreateDefaultEntity(EntityLump.Entity entity, string classname, Matrix4x4 transformationMatrix)
+        private void CreateDefaultEntity(EntityLump.Entity entityData, string classname, Matrix4x4 transformationMatrix)
         {
             var hammerEntity = HammerEntities.Get(classname);
+            var entity = entityData.Properties;
             string filename = null;
             Resource resource = null;
 
@@ -1135,7 +1018,7 @@ namespace GUI.Types.Renderer
                     Transform = rotationMatrix * Matrix4x4.CreateTranslation(positionVector),
                     LayerName = "Entities",
                     Name = filename,
-                    EntityData = entity,
+                    EntityData = entityData,
                 };
                 scene.Add(boxNode, false);
             }
@@ -1146,7 +1029,7 @@ namespace GUI.Types.Renderer
                     Transform = transformationMatrix,
                     LayerName = "Entities",
                     Name = filename,
-                    EntityData = entity,
+                    EntityData = entityData,
                 };
 
                 var isAnimated = modelNode.SetAnimationForWorldPreview("tools_preview");
@@ -1159,7 +1042,7 @@ namespace GUI.Types.Renderer
                 {
                     LayerName = "Entities",
                     Name = filename,
-                    EntityData = entity,
+                    EntityData = entityData,
                 };
                 scene.Add(spriteNode, false);
             }
@@ -1172,12 +1055,12 @@ namespace GUI.Types.Renderer
             {
                 foreach (var line in hammerEntity.Lines)
                 {
-                    if (!entity.Properties.TryGetValue(StringToken.Get(line.StartValueKey), out var value))
+                    if (!entity.Properties.TryGetValue(line.StartValueKey, out var value))
                     {
                         continue;
                     }
 
-                    var startEntity = FindEntityByKeyValue(line.StartKey, (string)value.Data);
+                    var startEntity = FindEntityByKeyValue(line.StartKey, (string)value.Value);
 
                     if (startEntity == null)
                     {
@@ -1185,23 +1068,23 @@ namespace GUI.Types.Renderer
                     }
 
                     var end = transformationMatrix.Translation;
-                    var start = EntityTransformHelper.CalculateTransformationMatrix(startEntity).Translation;
+                    var start = EntityTransformHelper.CalculateTransformationMatrix(startEntity.Properties).Translation;
 
                     if (line.EndKey != null)
                     {
-                        if (!entity.Properties.TryGetValue(StringToken.Get(line.EndValueKey), out value))
+                        if (!entity.Properties.TryGetValue(line.EndValueKey, out value))
                         {
                             continue;
                         }
 
-                        var endEntity = FindEntityByKeyValue(line.EndKey, (string)value.Data);
+                        var endEntity = FindEntityByKeyValue(line.EndKey, (string)value.Value);
 
                         if (endEntity == null)
                         {
                             continue;
                         }
 
-                        end = EntityTransformHelper.CalculateTransformationMatrix(endEntity).Translation;
+                        end = EntityTransformHelper.CalculateTransformationMatrix(endEntity.Properties).Translation;
                     }
 
                     var origin = (start + end) / 2f;
@@ -1218,19 +1101,17 @@ namespace GUI.Types.Renderer
             }
         }
 
-        private EntityLump.Entity FindEntityByKeyValue(string keyToFind, string valueToFind)
+        private Entity FindEntityByKeyValue(string keyToFind, string valueToFind)
         {
             if (valueToFind == null)
             {
                 return null;
             }
 
-            var stringToken = StringToken.Get(keyToFind);
-
             foreach (var entity in Entities)
             {
-                if (entity.Properties.TryGetValue(stringToken, out var value)
-                    && value.Data is string outString
+                if (entity.Properties.Properties.TryGetValue(keyToFind, out var value)
+                    && value.Value is string outString
                     && valueToFind.Equals(outString, StringComparison.OrdinalIgnoreCase))
                 {
                     return entity;
