@@ -73,6 +73,7 @@ partial class ModelExtract
 
     private void EnqueueMeshes()
     {
+        FileExtract.EnsurePopulatedStringToken(fileLoader);
         EnqueueRenderMeshes();
         EnqueuePhysMeshes();
     }

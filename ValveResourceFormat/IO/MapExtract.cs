@@ -66,6 +66,7 @@ public sealed class MapExtract
     public MapExtract(Resource resource, IFileLoader fileLoader)
     {
         FileLoader = fileLoader ?? throw new ArgumentNullException(nameof(fileLoader), "A file loader must be provided to load the map's lumps");
+        FileExtract.EnsurePopulatedStringToken(fileLoader);
 
         switch (resource.ResourceType)
         {
@@ -78,27 +79,6 @@ public sealed class MapExtract
             default:
                 throw new InvalidDataException($"Resource type {resource.ResourceType} is not supported in {nameof(MapExtract)}.");
         }
-    }
-
-    /// <summary>
-    /// Extract a map by name and a vpk-based file loader.
-    /// </summary>
-    /// <param name="mapNameFull"> Full name of map, including the 'maps' root. The lump folder. E.g. 'maps/prefabs/ui/ui_background'. </param>
-    public MapExtract(string mapNameFull, IFileLoader fileLoader)
-    {
-        ArgumentNullException.ThrowIfNull(fileLoader, nameof(fileLoader));
-        FileLoader = fileLoader;
-
-        // Clean up any trailing slashes, or vmap_c extension
-        var mapName = Path.GetFileNameWithoutExtension(mapNameFull);
-        var mapRoot = Path.GetDirectoryName(mapNameFull);
-
-        LumpFolder = mapRoot + "/" + mapName;
-
-        var vmapPath = LumpFolder + ".vmap_c";
-        var vmapResource = FileLoader.LoadFile(vmapPath) ?? throw new FileNotFoundException($"Failed to find vmap_c resource at {vmapPath}");
-        InitMapExtract(vmapResource);
-
     }
 
     private static string NormalizePath(string path)
