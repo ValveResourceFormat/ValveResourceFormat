@@ -10,7 +10,7 @@ namespace ValveResourceFormat.Utils
 
         public const uint MURMUR2SEED = 0x31415926; // It's pi!
 
-        public static readonly ConcurrentDictionary<uint, string> InvertedTable = new(InitializeLookup().TokenToString);
+        public static readonly ConcurrentDictionary<uint, string> InvertedTable = new(InitializeInverseLookup());
 
         public static uint Get(string key) => MurmurHash2.Hash(key, MURMUR2SEED);
 
@@ -47,20 +47,17 @@ namespace ValveResourceFormat.Utils
             }
         }
 
-        internal static (Dictionary<uint, string> TokenToString, Dictionary<string, uint> StringToToken) InitializeLookup()
+        internal static Dictionary<uint, string> InitializeInverseLookup()
         {
-            var tokenToString = new Dictionary<uint, string>(EntityLumpKnownKeys.KnownKeys.Length);
-            var stringToToken = new Dictionary<string, uint>(EntityLumpKnownKeys.KnownKeys.Length);
+            var inverseLookup = new Dictionary<uint, string>(EntityLumpKnownKeys.KnownKeys.Length);
 
             foreach (var key in EntityLumpKnownKeys.KnownKeys)
             {
                 var token = MurmurHash2.Hash(key, MURMUR2SEED);
-
-                tokenToString.Add(token, key);
-                stringToToken.Add(key, token);
+                inverseLookup.Add(token, key);
             }
 
-            return (tokenToString, stringToToken);
+            return inverseLookup;
         }
     }
 }
