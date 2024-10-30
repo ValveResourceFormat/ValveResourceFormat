@@ -122,11 +122,11 @@ namespace GUI.Types.Renderer
         public void LoadFromEntity(Entity entity)
         {
             // todo: These changed to minlogexposure maxlogexposure
-            ExposureMin = entity.GetProperty("minexposure", ExposureMin);
-            ExposureMax = entity.GetProperty("maxexposure", ExposureMax);
-            ExposureSpeedUp = entity.GetProperty("exposurespeedup", ExposureSpeedUp);
-            ExposureSpeedDown = entity.GetProperty("exposurespeeddown", ExposureSpeedDown);
-            ExposureCompensation = entity.GetProperty("exposurecompensation", ExposureCompensation);
+            ExposureMin = entity.GetPropertyUnchecked("minexposure", ExposureMin);
+            ExposureMax = entity.GetPropertyUnchecked("maxexposure", ExposureMax);
+            ExposureSpeedUp = entity.GetPropertyUnchecked("exposurespeedup", ExposureSpeedUp);
+            ExposureSpeedDown = entity.GetPropertyUnchecked("exposurespeeddown", ExposureSpeedDown);
+            ExposureCompensation = entity.GetPropertyUnchecked("exposurecompensation", ExposureCompensation);
         }
     };
     struct PostProcessState()

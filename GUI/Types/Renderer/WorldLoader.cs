@@ -423,7 +423,8 @@ namespace GUI.Types.Renderer
 
                         if (fogSource == 0) // Cubemap From Texture, Disabled in CS2
                         {
-                            fogTexture = guiContext.MaterialLoader.GetTexture(entity.GetProperty<string>("cubemapfogtexture"));
+                            var textureName = entity.GetProperty<string>("cubemapfogtexture");
+                            fogTexture = guiContext.MaterialLoader.GetTexture(textureName);
                         }
                         else
                         {
@@ -519,8 +520,8 @@ namespace GUI.Types.Renderer
                     else
                     {
                         bounds = new AABB(
-                            entity.GetProperty<Vector3>("box_mins"),
-                            entity.GetProperty<Vector3>("box_maxs")
+                            entity.GetVector3Property("box_mins"),
+                            entity.GetVector3Property("box_maxs")
                         );
                     }
 
@@ -533,7 +534,7 @@ namespace GUI.Types.Renderer
                         );
 
                         var arrayIndex = entity.GetPropertyUnchecked("array_index", 0);
-                        var edgeFadeDists = entity.GetProperty<Vector3>("edge_fade_dists"); // TODO: Not available on all entities
+                        var edgeFadeDists = entity.GetVector3Property("edge_fade_dists"); // TODO: Not available on all entities
                         var isCustomTexture = entity.GetProperty<string>("customcubemaptexture") != null;
 
                         var envMap = new SceneEnvMap(scene, bounds)
@@ -664,16 +665,6 @@ namespace GUI.Types.Renderer
                     CameraMatrices.Add(transformationMatrix);
                 }
 
-                // todo: rendercolor might sometimes be vec4, which holds renderamt
-                var rendercolor = entity.GetColor32Property("rendercolor");
-                var renderamt = entity.GetPropertyUnchecked("renderamt", 1.0f);
-
-                var tint = new Vector4(rendercolor, renderamt);
-
-                tint.X = MathF.Pow(tint.X, 2.2f);
-                tint.Y = MathF.Pow(tint.Y, 2.2f);
-                tint.Z = MathF.Pow(tint.Z, 2.2f);
-
                 if (classname == "post_processing_volume")
                 {
                     ExposureSettings exposureParams = new();
@@ -681,7 +672,7 @@ namespace GUI.Types.Renderer
 
                     var isMaster = entity.GetProperty<bool>("master");
                     var useExposure = entity.GetProperty<bool>("enableexposure");
-                    var fadeTime = entity.GetProperty<float>("fadetime");
+                    var fadeTime = entity.GetPropertyUnchecked<float>("fadetime");
 
                     // todo: test where this is enabled/disabled
                     exposureParams.AutoExposureEnabled = useExposure;
@@ -724,7 +715,6 @@ namespace GUI.Types.Renderer
                             var ppModelNode = new ModelSceneNode(scene, ppModelResource, skin, optimizeForMapLoad: true)
                             {
                                 Transform = transformationMatrix,
-                                Tint = tint,
                                 LayerName = layerName,
                                 Name = model,
                                 EntityData = entity,
@@ -804,12 +794,20 @@ namespace GUI.Types.Renderer
                     return;
                 }
 
+                // todo: rendercolor might sometimes be vec4, which holds renderamt
+                var rendercolor = entity.GetColor32Property("rendercolor");
+                var renderamt = entity.GetPropertyUnchecked("renderamt", 1.0f);
+
+                rendercolor.X = MathF.Pow(rendercolor.X, 2.2f);
+                rendercolor.Y = MathF.Pow(rendercolor.Y, 2.2f);
+                rendercolor.Z = MathF.Pow(rendercolor.Z, 2.2f);
+
                 var newModel = (Model)newEntity.DataBlock;
 
                 var modelNode = new ModelSceneNode(scene, newModel, skin, optimizeForMapLoad: true)
                 {
                     Transform = transformationMatrix,
-                    Tint = tint,
+                    Tint = new Vector4(rendercolor, renderamt),
                     LayerName = layerName,
                     Name = model,
                     EntityData = entity,

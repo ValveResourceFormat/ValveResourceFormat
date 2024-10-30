@@ -19,6 +19,11 @@ namespace ValveResourceFormat.ResourceTypes
 
             public T GetProperty<T>(string name, T defaultValue = default)
             {
+                if (typeof(T) == typeof(Vector3))
+                {
+                    throw new InvalidOperationException("Entity.GetProperty<Vector3> has been removed. Use Entity.GetVector3Property.");
+                }
+
                 try
                 {
                     return Properties.GetProperty(name, defaultValue);
@@ -124,8 +129,11 @@ namespace ValveResourceFormat.ResourceTypes
 
             foreach (var value in properties)
             {
-                var hash = StringToken.Store(value.Key.ToLowerInvariant());
-                entity.Properties.AddProperty(value.Key, value.Value);
+                // All entity property keys will be stored in lowercase
+                var lowercaseKey = value.Key.ToLowerInvariant();
+
+                var hash = StringToken.Store(lowercaseKey);
+                entity.Properties.AddProperty(lowercaseKey, value.Value);
             }
         }
 
@@ -171,6 +179,7 @@ namespace ValveResourceFormat.ResourceTypes
                 }
                 else
                 {
+                    keyName = keyName.ToLowerInvariant();
                     var calculatedHash = StringToken.Store(keyName);
                     if (calculatedHash != keyHash)
                     {

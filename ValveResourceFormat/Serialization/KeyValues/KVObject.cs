@@ -211,18 +211,18 @@ namespace ValveResourceFormat.Serialization.KeyValues
             {
                 var valueObject = property.Value;
 
+                // We typicallly want to get a bool, int, uint, or float property,
+                // however it might be stored as string, which will raise FormatException.
+                // So here we try to convert the string to floating point number.
                 if (typeof(T) != typeof(string) && valueObject is string stringValue)
                 {
-                    // Will raise FormatException, so convert the string to number
                     if (float.TryParse(stringValue, CultureInfo.InvariantCulture, out var floatVal))
                     {
                         valueObject = floatVal;
                     }
-
-                    return defaultValue;
                 }
 
-                return (T)Convert.ChangeType(property.Value, typeof(T), CultureInfo.InvariantCulture);
+                return (T)Convert.ChangeType(valueObject, typeof(T), CultureInfo.InvariantCulture);
             }
 
             return defaultValue;

@@ -72,7 +72,7 @@ class SceneLight(Scene scene) : SceneNode(scene)
                 _ => throw new NotImplementedException()
             },
 
-            Color = entity.GetColor32Property("color") / 255.0f,
+            Color = entity.GetColor32Property("color"),
 
             Brightness = type switch
             {
