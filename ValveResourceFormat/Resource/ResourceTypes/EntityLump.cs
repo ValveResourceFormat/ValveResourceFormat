@@ -14,6 +14,7 @@ namespace ValveResourceFormat.ResourceTypes
         public class Entity
         {
             public KVObject Properties { get; } = new(null);
+            // public KVObject Attributes { get; } = new(null);
             public List<KVObject> Connections { get; internal set; }
 
             public T GetProperty<T>(string name, T defaultValue = default)
@@ -28,10 +29,38 @@ namespace ValveResourceFormat.ResourceTypes
                 }
             }
 
+            //public bool TryGetProperty<T>(string name, out T property) => Properties.TryGetProperty(name, out property);
+
             public T GetPropertyUnchecked<T>(string name, T defaultValue = default)
                 => Properties.GetPropertyUnchecked(name, defaultValue);
 
             public KVValue GetProperty(string name) => Properties.Properties.GetValueOrDefault(name);
+
+            public bool ContainsKey(string name) => Properties.Properties.ContainsKey(name);
+
+            public Vector3 GetVector3Property(string name, Vector3 defaultValue = default)
+            {
+                if (Properties.Properties.TryGetValue(name, out var value))
+                {
+                    if (value.Value is KVObject kv)
+                    {
+                        return kv.ToVector3();
+                    }
+
+                    if (value.Value is string editString)
+                    {
+                        return EntityTransformHelper.ParseVector(editString);
+                    }
+                }
+
+                return defaultValue;
+            }
+
+            public Vector3 GetColor32Property(string key)
+            {
+                var defaultColor = new Vector3(255f);
+                return GetVector3Property(key, defaultColor) / 255f;
+            }
         }
 
         public string[] GetChildEntityNames()
@@ -91,44 +120,11 @@ namespace ValveResourceFormat.ResourceTypes
             }
 
             var properties = ((KVObject)values.Value).Properties;
-            entity.Properties.EnsureCapacity(entity.Properties.Count + properties.Count);
+            entity.Properties.Properties.EnsureCapacity(entity.Properties.Count + properties.Count);
 
             foreach (var value in properties)
             {
-                var hash = StringToken.Get(value.Key.ToLowerInvariant());
-                var data = value.Value.Value;
-                EntityFieldType type;
-
-                if (value.Value.Type == KVType.ARRAY)
-                {
-                    var arrayKv = (KVObject)value.Value.Value;
-
-                    if (arrayKv.Count < 2 || arrayKv.Count > 4)
-                    {
-                        // TODO: We should upconvert entitylump to keyvalues instead of the other way around
-                        continue;
-                    }
-
-                    type = arrayKv.Count switch
-                    {
-                        2 => EntityFieldType.Vector2d, // Did binary entity lumps not store vec2?
-                        3 => EntityFieldType.Vector,
-                        4 => EntityFieldType.Vector4D,
-                        _ => throw new NotImplementedException($"Unsupported array length of {arrayKv.Count}"),
-                    };
-                    data = type switch
-                    {
-                        EntityFieldType.Vector2d => new Vector2(arrayKv.GetFloatProperty("0"), arrayKv.GetFloatProperty("1")),
-                        EntityFieldType.Vector => arrayKv.ToVector3(),
-                        EntityFieldType.Vector4D => arrayKv.ToVector4(),
-                        _ => throw new NotImplementedException(),
-                    };
-                }
-                else
-                {
-                    type = ConvertKV3TypeToEntityFieldType(value.Value.Type);
-                }
-
+                var hash = StringToken.Store(value.Key.ToLowerInvariant());
                 entity.Properties.AddProperty(value.Key, value.Value);
             }
         }
@@ -152,37 +148,39 @@ namespace ValveResourceFormat.ResourceTypes
             void ReadTypedValue(uint keyHash, string keyName)
             {
                 var type = (EntityFieldType)dataReader.ReadUInt32();
-                var entityProperty = new EntityProperty
-                {
-                    Type = type,
-                    Name = keyName,
-                    Data = type switch
-                    {
-                        EntityFieldType.Boolean => dataReader.ReadBoolean(),
-                        EntityFieldType.Float => dataReader.ReadSingle(),
-                        EntityFieldType.Float64 => dataReader.ReadDouble(),
-                        EntityFieldType.Color32 => dataReader.ReadBytes(4),
-                        EntityFieldType.Integer => dataReader.ReadInt32(),
-                        EntityFieldType.UInt => dataReader.ReadUInt32(),
-                        EntityFieldType.Integer64 => dataReader.ReadUInt64(), // TODO: Is supposed to be ReadInt64?
-                        EntityFieldType.Vector or EntityFieldType.QAngle => new Vector3(dataReader.ReadSingle(), dataReader.ReadSingle(), dataReader.ReadSingle()),
-                        EntityFieldType.CString => dataReader.ReadNullTermString(Encoding.UTF8), // null term variable
-                        _ => throw new UnexpectedMagicException("Unknown type", (int)type, nameof(type)),
-                    }
-                };
-                entity.Properties.Add(keyHash, entityProperty);
 
-                if (keyName is not null)
+                var (kvType, valueObject) = type switch
+                {
+                    EntityFieldType.Boolean => (KVType.BOOLEAN, (object)dataReader.ReadBoolean()),
+                    EntityFieldType.Float => (KVType.DOUBLE, (double)dataReader.ReadSingle()),
+                    EntityFieldType.Float64 => (KVType.DOUBLE, dataReader.ReadDouble()),
+                    EntityFieldType.Color32 => (KVType.ARRAY, new KVObject("", dataReader.ReadBytes(4).Select(c => new KVValue(KVType.INT64, c)).ToArray())),
+                    EntityFieldType.Integer => (KVType.INT64, dataReader.ReadInt32()),
+                    EntityFieldType.UInt => (KVType.UINT64, dataReader.ReadUInt32()),
+                    EntityFieldType.Integer64 => (KVType.UINT64, dataReader.ReadUInt64()), // TODO: Is supposed to be ReadInt64?
+                    EntityFieldType.Vector or EntityFieldType.QAngle => (KVType.STRING, $"{dataReader.ReadSingle()} {dataReader.ReadSingle()} {dataReader.ReadSingle()}"),
+                    EntityFieldType.CString => (KVType.BOOLEAN, dataReader.ReadNullTermString(Encoding.UTF8)), // null term variable
+                    _ => throw new UnexpectedMagicException("Unknown type", (int)type, nameof(type)),
+                };
+
+                var entityProperty = new KVValue(kvType, valueObject);
+
+                if (keyName == null)
+                {
+                    keyName = StringToken.GetKnownString(keyHash);
+                }
+                else
                 {
                     var calculatedHash = StringToken.Store(keyName);
                     if (calculatedHash != keyHash)
                     {
                         throw new InvalidDataException(
-                            $"Stored key hash for {keyName} ({keyHash}) is not the same as the calculated {calculatedHash}."
+                            $"Key hash for {keyName} ({keyHash}) found in the resource is not the same as the calculated {calculatedHash}."
                         );
                     }
-
                 }
+
+                entity.Properties.Properties.Add(keyName, entityProperty);
             }
 
             for (var i = 0; i < hashedFieldsCount; i++)
@@ -218,7 +216,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                 foreach (var property in entity.Properties)
                 {
-                    var value = property.Value.Data;
+                    var value = property.Value;
 
                     if (value == null)
                     {
@@ -230,25 +228,7 @@ namespace ValveResourceFormat.ResourceTypes
                         value = $"Array [{string.Join(", ", tmp.Select(p => p.ToString(CultureInfo.InvariantCulture)).ToArray())}]";
                     }
 
-                    string key;
-
-                    if (knownKeys.TryGetValue(property.Key, out var knownKey))
-                    {
-                        key = knownKey;
-                    }
-                    else if (property.Value.Name != null)
-                    {
-                        key = property.Value.Name;
-                    }
-                    else
-                    {
-                        key = $"key={property.Key}";
-
-                        unknownKeys.TryGetValue(property.Key, out var currentCount);
-                        unknownKeys[property.Key] = currentCount + 1;
-                    }
-
-                    builder.AppendLine(CultureInfo.InvariantCulture, $"{key,-30} {property.Value.Type.ToString(),-10} {value}");
+                    builder.AppendLine(CultureInfo.InvariantCulture, $"{property.Key,-30} {value}");
                 }
 
                 if (entity.Connections != null)
@@ -330,37 +310,22 @@ namespace ValveResourceFormat.ResourceTypes
 
                 foreach (var property in entity.Properties)
                 {
-                    string key;
-
-                    if (knownKeys.TryGetValue(property.Key, out var knownKey))
-                    {
-                        key = knownKey;
-                    }
-                    else if (property.Value.Name != null)
-                    {
-                        key = property.Value.Name;
-                    }
-                    else
-                    {
-                        continue;
-                    }
+                    var key = property.Key;
 
                     if (key is "hammeruniqueid" or "classname" or "angles" or "scales" or "origin")
                     {
                         continue;
                     }
 
-                    if (property.Value.Type == EntityFieldType.CString && key == "model")
+                    if (property.Value is string model && key == "model")
                     {
-                        var model = (string)property.Value.Data;
-
                         if (model.Contains("/entities/", StringComparison.Ordinal) || model.Contains("\\entities\\", StringComparison.Ordinal))
                         {
                             brushEntities.Add(classname);
                         }
                     }
 
-                    entityProperties.Add((key, property.Value.Type));
+                    //entityProperties.Add((key, property.Value.Type));
                 }
 
                 if (entity.Connections != null)

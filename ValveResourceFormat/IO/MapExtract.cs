@@ -1053,7 +1053,7 @@ public sealed class MapExtract
         }
     }
 
-    private void ExtractEntityModel(CMapEntity mapEntity, EntityLump.Entity compiledEntity, string modelName)
+    private void ExtractEntityModel(CMapEntity mapEntity, Entity compiledEntity, string modelName)
     {
         using var model = FileLoader.LoadFileCompiled(modelName);
         if (model is null)
@@ -1072,7 +1072,7 @@ public sealed class MapExtract
 
         if (EntitiesToHammerMesh)
         {
-            var offset = EntityTransformHelper.CalculateTransformationMatrix(compiledEntity.Properties).Translation;
+            var offset = EntityTransformHelper.CalculateTransformationMatrix(compiledEntity).Translation;
 
             if (isJustPhysics)
             {
@@ -1109,17 +1109,18 @@ public sealed class MapExtract
         EntityModels.Add(vmdl);
     }
 
-    private static int[] AddProperties(string className, EntityLump.Entity compiledEntity, BaseEntity mapEntity)
+    private static int[] AddProperties(string className, Entity compiledEntity, BaseEntity mapEntity)
     {
         var entityLineage = Array.Empty<int>();
         foreach (var (key, value) in compiledEntity.Properties)
         {
-            if (TryHandleSpecialProperty(key, compiledEntity.Properties, mapEntity, ref entityLineage))
+            var propertyKey = key.ToLowerInvariant();
+
+            if (TryHandleSpecialProperty(propertyKey, compiledEntity, mapEntity, ref entityLineage))
             {
                 continue;
             }
 
-            var propertyKey = key;
             if (RemoveOrMutateCompilerGeneratedProperty(className, ref propertyKey))
             {
                 continue;
@@ -1153,7 +1154,7 @@ public sealed class MapExtract
         return entityLineage;
     }
 
-    private static bool TryHandleSpecialProperty(string key, KVObject compiledEntity, BaseEntity mapEntity, ref int[] lineage)
+    private static bool TryHandleSpecialProperty(string key, Entity compiledEntity, BaseEntity mapEntity, ref int[] lineage)
     {
         if (key == "origin")
         {
@@ -1174,7 +1175,7 @@ public sealed class MapExtract
         {
             try
             {
-                var hammerUniqueIdString = ToEditString(compiledEntity.Properties[key].Value);
+                var hammerUniqueIdString = ToEditString(compiledEntity.GetProperty(key).Value);
                 lineage = Array.ConvertAll(hammerUniqueIdString.Split(':'), int.Parse);
             }
             catch (FormatException)

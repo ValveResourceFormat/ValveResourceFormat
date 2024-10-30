@@ -507,10 +507,8 @@ namespace GUI.Types.Renderer
         {
             foreach (var property in sceneNode.EntityData.Properties)
             {
-                var name = property.Value.Name;
-                name ??= StringToken.GetKnownString(property.Key);
-
-                var value = property.Value.Data;
+                var name = property.Key;
+                var value = property.Value;
 
                 if (value == null)
                 {

@@ -3,7 +3,6 @@
 using System.Collections;
 using System.Diagnostics;
 using System.Globalization;
-using System.IO.Pipes;
 using System.Linq;
 using System.Text;
 
@@ -30,6 +29,16 @@ namespace ValveResourceFormat.Serialization.KeyValues
             : this(name, capacity)
         {
             IsArray = isArray;
+        }
+
+
+        public KVObject(string name, IList<KVValue> arrayItems)
+            : this(name, true, arrayItems.Count)
+        {
+            foreach (var arrayItem in arrayItems)
+            {
+                AddProperty(null, arrayItem);
+            }
         }
 
         //Add a property to the structure
@@ -217,6 +226,12 @@ namespace ValveResourceFormat.Serialization.KeyValues
             }
 
             return defaultValue;
+        }
+
+
+        public bool TryGetProperty<T>(string name, out T property)
+        {
+            throw new NotImplementedException();
         }
 
         public T[] GetArray<T>(string name)

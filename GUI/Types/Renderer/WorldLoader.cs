@@ -255,14 +255,14 @@ namespace GUI.Types.Renderer
 
             Entities.AddRange(entities);
 
-            void LoadEntity(string classname, Entity entityData)
+            void LoadEntity(string classname, Entity entity)
             {
                 if (classname == "worldspawn")
                 {
                     return; // do not draw
                 }
 
-                var entity = entityData.Properties;
+                //var entity = entityData.Properties;
 
                 var transformationMatrix = parentTransform * EntityTransformHelper.CalculateTransformationMatrix(entity);
                 var light = SceneLight.IsAccepted(classname);
@@ -438,7 +438,7 @@ namespace GUI.Types.Renderer
                                 if (skyEntity != null)
                                 {
                                     material = skyEntity.GetProperty<string>("skyname") ?? skyEntity.GetProperty<string>("skybox_material_day");
-                                    transformationMatrix = EntityTransformHelper.CalculateTransformationMatrix(skyEntity.Properties); // steal rotation from env_sky
+                                    transformationMatrix = EntityTransformHelper.CalculateTransformationMatrix(skyEntity); // steal rotation from env_sky
                                 }
                                 else
                                 {
@@ -585,7 +585,7 @@ namespace GUI.Types.Renderer
                             lightProbe.DirectLightIndices.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
                         }
 
-                        scene.LightingInfo.LightProbeType = entity.Properties.ContainsKey("light_probe_atlas_x") switch
+                        scene.LightingInfo.LightProbeType = entity.ContainsKey("light_probe_atlas_x") switch
                         {
                             false => Scene.LightProbeType.IndividualProbes,
                             true => Scene.LightProbeType.ProbeAtlas,
@@ -646,7 +646,7 @@ namespace GUI.Types.Renderer
                                 Name = particle,
                                 Transform = Matrix4x4.CreateTranslation(origin),
                                 LayerName = "Particles",
-                                EntityData = entityData,
+                                EntityData = entity,
                             };
                             scene.Add(particleNode, true);
                         }
@@ -727,7 +727,7 @@ namespace GUI.Types.Renderer
                                 Tint = tint,
                                 LayerName = layerName,
                                 Name = model,
-                                EntityData = entityData,
+                                EntityData = entity,
                             };
 
                             postProcessHasModel = true; // for collision we'd need to collect phys data within the class
@@ -778,7 +778,7 @@ namespace GUI.Types.Renderer
 
                 if (model == null)
                 {
-                    CreateDefaultEntity(entityData, classname, transformationMatrix);
+                    CreateDefaultEntity(entity, classname, transformationMatrix);
                     return;
                 }
 
@@ -795,7 +795,7 @@ namespace GUI.Types.Renderer
                             Name = "error",
                             Transform = transformationMatrix,
                             LayerName = layerName,
-                            EntityData = entityData,
+                            EntityData = entity,
                         };
 
                         scene.Add(errorModel, false);
@@ -812,7 +812,7 @@ namespace GUI.Types.Renderer
                     Tint = tint,
                     LayerName = layerName,
                     Name = model,
-                    EntityData = entityData,
+                    EntityData = entity,
                 };
 
                 // Animation
@@ -856,7 +856,7 @@ namespace GUI.Types.Renderer
                         physSceneNode.Transform = transformationMatrix;
                         physSceneNode.PhysGroupName = classname;
                         physSceneNode.LayerName = layerName;
-                        physSceneNode.EntityData = entityData;
+                        physSceneNode.EntityData = entity;
 
                         scene.Add(physSceneNode, false);
                     }
@@ -878,7 +878,7 @@ namespace GUI.Types.Renderer
             }
         }
 
-        private void LoadSkybox(KVObject entity)
+        private void LoadSkybox(Entity entity)
         {
             var targetmapname = entity.GetProperty<string>("targetmapname");
 
@@ -984,10 +984,9 @@ namespace GUI.Types.Renderer
             guiContext.FileLoader.RemovePackageFromSearch(package);
         }
 
-        private void CreateDefaultEntity(EntityLump.Entity entityData, string classname, Matrix4x4 transformationMatrix)
+        private void CreateDefaultEntity(Entity entity, string classname, Matrix4x4 transformationMatrix)
         {
             var hammerEntity = HammerEntities.Get(classname);
-            var entity = entityData.Properties;
             string filename = null;
             Resource resource = null;
 
@@ -1018,7 +1017,7 @@ namespace GUI.Types.Renderer
                     Transform = rotationMatrix * Matrix4x4.CreateTranslation(positionVector),
                     LayerName = "Entities",
                     Name = filename,
-                    EntityData = entityData,
+                    EntityData = entity,
                 };
                 scene.Add(boxNode, false);
             }
@@ -1029,7 +1028,7 @@ namespace GUI.Types.Renderer
                     Transform = transformationMatrix,
                     LayerName = "Entities",
                     Name = filename,
-                    EntityData = entityData,
+                    EntityData = entity,
                 };
 
                 var isAnimated = modelNode.SetAnimationForWorldPreview("tools_preview");
@@ -1042,7 +1041,7 @@ namespace GUI.Types.Renderer
                 {
                     LayerName = "Entities",
                     Name = filename,
-                    EntityData = entityData,
+                    EntityData = entity,
                 };
                 scene.Add(spriteNode, false);
             }
@@ -1055,7 +1054,7 @@ namespace GUI.Types.Renderer
             {
                 foreach (var line in hammerEntity.Lines)
                 {
-                    if (!entity.Properties.TryGetValue(line.StartValueKey, out var value))
+                    if (!entity.Properties.Properties.TryGetValue(line.StartValueKey, out var value))
                     {
                         continue;
                     }
@@ -1068,11 +1067,11 @@ namespace GUI.Types.Renderer
                     }
 
                     var end = transformationMatrix.Translation;
-                    var start = EntityTransformHelper.CalculateTransformationMatrix(startEntity.Properties).Translation;
+                    var start = EntityTransformHelper.CalculateTransformationMatrix(startEntity).Translation;
 
                     if (line.EndKey != null)
                     {
-                        if (!entity.Properties.TryGetValue(line.EndValueKey, out value))
+                        if (!entity.Properties.Properties.TryGetValue(line.EndValueKey, out value))
                         {
                             continue;
                         }
@@ -1084,7 +1083,7 @@ namespace GUI.Types.Renderer
                             continue;
                         }
 
-                        end = EntityTransformHelper.CalculateTransformationMatrix(endEntity.Properties).Translation;
+                        end = EntityTransformHelper.CalculateTransformationMatrix(endEntity).Translation;
                     }
 
                     var origin = (start + end) / 2f;

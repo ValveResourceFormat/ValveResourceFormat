@@ -1,9 +1,8 @@
 using GUI.Utils;
-using System.Buffers;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.Utils;
 using ValveResourceFormat.Serialization.KeyValues;
+using static ValveResourceFormat.ResourceTypes.EntityLump;
 
 namespace GUI.Types.Renderer
 {
@@ -120,7 +119,7 @@ namespace GUI.Types.Renderer
             ExposureCompensation = 0.0f;
         }
 
-        public void LoadFromEntity(KVObject entity)
+        public void LoadFromEntity(Entity entity)
         {
             // todo: These changed to minlogexposure maxlogexposure
             ExposureMin = entity.GetProperty("minexposure", ExposureMin);

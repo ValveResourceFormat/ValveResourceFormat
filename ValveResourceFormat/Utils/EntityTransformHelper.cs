@@ -1,12 +1,11 @@
 using System.Globalization;
-using ValveResourceFormat.Serialization;
-using ValveResourceFormat.Serialization.KeyValues;
+using static ValveResourceFormat.ResourceTypes.EntityLump;
 
 namespace ValveResourceFormat.Utils
 {
     public static class EntityTransformHelper
     {
-        public static void DecomposeTransformationMatrix(KVObject entity, out Vector3 scaleVector, out Matrix4x4 rotationMatrix, out Vector3 positionVector)
+        public static void DecomposeTransformationMatrix(Entity entity, out Vector3 scaleVector, out Matrix4x4 rotationMatrix, out Vector3 positionVector)
         {
             scaleVector = entity.GetVector3Property("scales");
             positionVector = entity.GetVector3Property("origin");
@@ -19,7 +18,7 @@ namespace ValveResourceFormat.Utils
             rotationMatrix = rollMatrix * pitchMatrix * yawMatrix;
         }
 
-        public static Matrix4x4 CalculateTransformationMatrix(KVObject entity)
+        public static Matrix4x4 CalculateTransformationMatrix(Entity entity)
         {
             DecomposeTransformationMatrix(entity, out var scaleVector, out var rotationMatrix, out var positionVector);
 
@@ -29,7 +28,7 @@ namespace ValveResourceFormat.Utils
             return scaleMatrix * rotationMatrix * positionMatrix;
         }
 
-        public static Vector3 GetPitchYawRoll(KVObject entity) => entity.GetVector3Property("angles");
+        public static Vector3 GetPitchYawRoll(Entity entity) => entity.GetVector3Property("angles");
 
         public static Vector3 ParseVector(string input)
         {

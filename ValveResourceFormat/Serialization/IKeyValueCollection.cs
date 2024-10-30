@@ -167,30 +167,6 @@ namespace ValveResourceFormat.Serialization
             }
         }
 
-        public static Vector3 GetVector3Property(this KVObject collection, string key, Vector3 defaultValue = default)
-        {
-            if (collection.Properties.TryGetValue(key, out var value))
-            {
-                if (value.Value is KVObject kv)
-                {
-                    return kv.ToVector3();
-                }
-
-                if (value.Value is string editString)
-                {
-                    return EntityTransformHelper.ParseVector(editString);
-                }
-            }
-
-            return defaultValue;
-        }
-
-        public static Vector3 GetColor32Property(this KVObject collection, string key)
-        {
-            var defaultColor = new Vector3(255f);
-            return collection.GetVector3Property(key, defaultColor) / 255f;
-        }
-
         public static bool IsNotBlobType(this KVObject collection, string key)
             => collection.Properties[key].Type == KVType.ARRAY;
 
