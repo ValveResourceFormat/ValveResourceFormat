@@ -302,7 +302,7 @@ namespace ValveResourceFormat.ResourceTypes
         public string ToForgeGameData()
         {
             var knownKeys = StringToken.InvertedTable;
-            var uniqueEntityProperties = new Dictionary<string, HashSet<(string Name, EntityFieldType Type)>>();
+            var uniqueEntityProperties = new Dictionary<string, HashSet<(string Name, KVType Type)>>();
             var uniqueEntityConnections = new Dictionary<string, HashSet<string>>();
             var brushEntities = new HashSet<string>();
 
@@ -316,7 +316,7 @@ namespace ValveResourceFormat.ResourceTypes
                     uniqueEntityProperties.Add(classname, entityProperties);
                 }
 
-                foreach (var property in entity.Properties)
+                foreach (var property in entity.Properties.Properties)
                 {
                     var key = property.Key;
 
@@ -325,7 +325,7 @@ namespace ValveResourceFormat.ResourceTypes
                         continue;
                     }
 
-                    if (property.Value is string model && key == "model")
+                    if (property.Value.Value is string model && key == "model")
                     {
                         if (model.Contains("/entities/", StringComparison.Ordinal) || model.Contains("\\entities\\", StringComparison.Ordinal))
                         {
@@ -333,7 +333,7 @@ namespace ValveResourceFormat.ResourceTypes
                         }
                     }
 
-                    //entityProperties.Add((key, property.Value.Type));
+                    entityProperties.Add((key, property.Value.Type));
                 }
 
                 if (entity.Connections != null)
@@ -380,12 +380,10 @@ namespace ValveResourceFormat.ResourceTypes
                 {
                     var type = property.Type switch
                     {
-                        EntityFieldType.Float64 => "float",
-                        EntityFieldType.Color32 => "color255",
-                        EntityFieldType.UInt => "integer",
-                        EntityFieldType.Integer64 => "integer",
-                        EntityFieldType.Vector or EntityFieldType.QAngle => "vector",
-                        EntityFieldType.CString => "string",
+                        KVType.DOUBLE => "float",
+                        KVType.INT64 or KVType.UINT64 => "integer",
+                        KVType.ARRAY => "vector", // sometimes also "color255", but with kv3 entities this information is lost
+                        KVType.STRING => "string",
                         _ => property.Type.ToString().ToLowerInvariant()
                     };
 
