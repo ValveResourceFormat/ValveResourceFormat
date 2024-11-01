@@ -163,11 +163,11 @@ namespace ValveResourceFormat.ResourceTypes
                     EntityFieldType.Float => (KVType.DOUBLE, (double)dataReader.ReadSingle()),
                     EntityFieldType.Float64 => (KVType.DOUBLE, dataReader.ReadDouble()),
                     EntityFieldType.Color32 => (KVType.ARRAY, new KVObject("", dataReader.ReadBytes(4).Select(c => new KVValue(KVType.INT64, c)).ToArray())),
-                    EntityFieldType.Integer => (KVType.INT64, dataReader.ReadInt32()),
-                    EntityFieldType.UInt => (KVType.UINT64, dataReader.ReadUInt32()),
-                    EntityFieldType.Integer64 => (KVType.UINT64, dataReader.ReadUInt64()), // TODO: Is supposed to be ReadInt64?
+                    EntityFieldType.Integer => (KVType.INT64, (long)dataReader.ReadInt32()),
+                    EntityFieldType.UInt => (KVType.UINT64, (ulong)dataReader.ReadUInt32()),
+                    EntityFieldType.Integer64 => (KVType.UINT64, dataReader.ReadUInt64()), // Is this supposed to be ReadInt64?
                     EntityFieldType.Vector or EntityFieldType.QAngle => (KVType.STRING, $"{dataReader.ReadSingle()} {dataReader.ReadSingle()} {dataReader.ReadSingle()}"),
-                    EntityFieldType.CString => (KVType.BOOLEAN, dataReader.ReadNullTermString(Encoding.UTF8)), // null term variable
+                    EntityFieldType.CString => (KVType.STRING, dataReader.ReadNullTermString(Encoding.UTF8)),
                     _ => throw new UnexpectedMagicException("Unknown type", (int)type, nameof(type)),
                 };
 
@@ -184,7 +184,7 @@ namespace ValveResourceFormat.ResourceTypes
                     if (calculatedHash != keyHash)
                     {
                         throw new InvalidDataException(
-                            $"Key hash for {keyName} ({keyHash}) found in the resource is not the same as the calculated {calculatedHash}."
+                            $"Key hash for {keyName} ({keyHash}) found in resource is not the same as the calculated {calculatedHash}."
                         );
                     }
                 }
@@ -231,10 +231,9 @@ namespace ValveResourceFormat.ResourceTypes
                     {
                         value = "null";
                     }
-                    else if (value.GetType() == typeof(byte[]))
+                    else if (value is KVObject kvArray)
                     {
-                        var tmp = value as byte[];
-                        value = $"Array [{string.Join(", ", tmp.Select(p => p.ToString(CultureInfo.InvariantCulture)).ToArray())}]";
+                        value = $"Array [{string.Join(", ", kvArray.Select(p => p.Value.ToString()).ToArray())}]";
                     }
 
                     builder.AppendLine(CultureInfo.InvariantCulture, $"{property.Key,-30} {value}");
@@ -409,21 +408,6 @@ namespace ValveResourceFormat.ResourceTypes
             }
 
             return builder.ToString();
-        }
-
-        // TODO: Invert this, and upconvert legacy entity fields into keyvalues
-        private static KVType ConvertKV3TypeToEntityFieldType(EntityFieldType type)
-        {
-            return type switch
-            {
-                EntityFieldType.Boolean => KVType.BOOLEAN,
-                EntityFieldType.Float64 => KVType.DOUBLE,
-                EntityFieldType.Integer => KVType.INT64,
-                EntityFieldType.Integer64 => KVType.UINT64,
-                EntityFieldType.CString or EntityFieldType.String => KVType.STRING,
-                EntityFieldType.Vector or EntityFieldType.QAngle => KVType.OBJECT,
-                _ => throw new NotImplementedException($"Unsupported kv3 entity data type: {type}")
-            };
         }
     }
 }
