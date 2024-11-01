@@ -632,9 +632,9 @@ namespace ValveResourceFormat.IO
 
             if (entity != null && ExportExtras)
             {
-                foreach (var (hash, property) in entity.Properties)
+                foreach (var (key, value) in entity.Properties)
                 {
-                    exportedMesh.Extras[property.Name] = property.Data as string;
+                    exportedMesh.Extras[key] = value as string;
                 }
             }
 

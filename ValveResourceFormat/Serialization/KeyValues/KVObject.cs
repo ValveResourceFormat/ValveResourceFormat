@@ -31,6 +31,16 @@ namespace ValveResourceFormat.Serialization.KeyValues
             IsArray = isArray;
         }
 
+
+        public KVObject(string name, IList<KVValue> arrayItems)
+            : this(name, true, arrayItems.Count)
+        {
+            foreach (var arrayItem in arrayItems)
+            {
+                AddProperty(null, arrayItem);
+            }
+        }
+
         //Add a property to the structure
         public virtual void AddProperty(string name, KVValue value)
         {
@@ -185,16 +195,37 @@ namespace ValveResourceFormat.Serialization.KeyValues
 
         public bool ContainsKey(string name) => Properties.ContainsKey(name);
 
-        public T GetProperty<T>(string name)
+        public T GetProperty<T>(string name, T defaultValue = default)
         {
             if (Properties.TryGetValue(name, out var value))
             {
                 return (T)value.Value;
             }
-            else
+
+            return defaultValue;
+        }
+
+        public T GetPropertyUnchecked<T>(string name, T defaultValue = default)
+        {
+            if (Properties.TryGetValue(name, out var property))
             {
-                return default;
+                var valueObject = property.Value;
+
+                // We typicallly want to get a bool, int, uint, or float property,
+                // however it might be stored as string, which will raise FormatException.
+                // So here we try to convert the string to floating point number.
+                if (typeof(T) != typeof(string) && valueObject is string stringValue)
+                {
+                    if (float.TryParse(stringValue, CultureInfo.InvariantCulture, out var floatVal))
+                    {
+                        valueObject = floatVal;
+                    }
+                }
+
+                return (T)Convert.ChangeType(valueObject, typeof(T), CultureInfo.InvariantCulture);
             }
+
+            return defaultValue;
         }
 
         public T[] GetArray<T>(string name)

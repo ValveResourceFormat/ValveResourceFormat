@@ -3,6 +3,7 @@ using System.Linq;
 using NUnit.Framework;
 using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace Tests
 {
@@ -26,16 +27,16 @@ namespace Tests
             Assert.That(entities, Has.Count.EqualTo(23));
             Assert.Multiple(() =>
             {
-                Assert.That(entities[0].Properties, Has.Count.EqualTo(26));
-                Assert.That(entities[22].Properties, Has.Count.EqualTo(56));
+                Assert.That(entities[0].Properties.Properties, Has.Count.EqualTo(26));
+                Assert.That(entities[22].Properties.Properties, Has.Count.EqualTo(56));
             });
 
             var classname = entities[0].GetProperty("classname");
             Assert.That(classname, Is.Not.Null);
             Assert.Multiple(() =>
             {
-                Assert.That(classname.Type, Is.EqualTo(EntityFieldType.CString));
-                Assert.That(classname.Data, Is.EqualTo("worldspawn"));
+                Assert.That(classname.Type, Is.EqualTo(KVType.STRING));
+                Assert.That(classname.Value, Is.EqualTo("worldspawn"));
             });
 
             var classnameString = entities[0].GetProperty<string>("classname");
@@ -43,7 +44,7 @@ namespace Tests
 
             var worldname = entities[0].GetProperty("worldname");
             Assert.That(worldname, Is.Not.Null);
-            Assert.That(worldname.Data, Is.EqualTo("blackmap"));
+            Assert.That(worldname.Value, Is.EqualTo("blackmap"));
 
             var entityString = entityLump.ToEntityDumpString();
 

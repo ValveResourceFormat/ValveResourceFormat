@@ -133,8 +133,8 @@ namespace GUI.Types.Renderer
                         else
                         {
                             bounds = new AABB(
-                                node.EntityData.GetProperty<Vector3>("box_mins"),
-                                node.EntityData.GetProperty<Vector3>("box_maxs")
+                                node.EntityData.GetVector3Property("box_mins"),
+                                node.EntityData.GetVector3Property("box_maxs")
                             );
                         }
 

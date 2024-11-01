@@ -1,9 +1,8 @@
 using GUI.Utils;
-using System.Buffers;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.Utils;
 using ValveResourceFormat.Serialization.KeyValues;
+using static ValveResourceFormat.ResourceTypes.EntityLump;
 
 namespace GUI.Types.Renderer
 {
@@ -118,6 +117,16 @@ namespace GUI.Types.Renderer
             ExposureSpeedUp = 1.0f;
             ExposureSpeedDown = 1.0f;
             ExposureCompensation = 0.0f;
+        }
+
+        public void LoadFromEntity(Entity entity)
+        {
+            // todo: These changed to minlogexposure maxlogexposure
+            ExposureMin = entity.GetPropertyUnchecked("minexposure", ExposureMin);
+            ExposureMax = entity.GetPropertyUnchecked("maxexposure", ExposureMax);
+            ExposureSpeedUp = entity.GetPropertyUnchecked("exposurespeedup", ExposureSpeedUp);
+            ExposureSpeedDown = entity.GetPropertyUnchecked("exposurespeeddown", ExposureSpeedDown);
+            ExposureCompensation = entity.GetPropertyUnchecked("exposurecompensation", ExposureCompensation);
         }
     };
     struct PostProcessState()
