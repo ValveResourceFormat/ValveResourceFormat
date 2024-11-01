@@ -27,8 +27,8 @@ namespace Tests
             Assert.That(entities, Has.Count.EqualTo(23));
             Assert.Multiple(() =>
             {
-                Assert.That(entities[0].Properties, Has.Count.EqualTo(26));
-                Assert.That(entities[22].Properties, Has.Count.EqualTo(56));
+                Assert.That(entities[0].Properties.Properties, Has.Count.EqualTo(26));
+                Assert.That(entities[22].Properties.Properties, Has.Count.EqualTo(56));
             });
 
             var classname = entities[0].GetProperty("classname");
