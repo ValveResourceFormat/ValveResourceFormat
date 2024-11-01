@@ -228,12 +228,6 @@ namespace ValveResourceFormat.Serialization.KeyValues
             return defaultValue;
         }
 
-
-        public bool TryGetProperty<T>(string name, out T property)
-        {
-            throw new NotImplementedException();
-        }
-
         public T[] GetArray<T>(string name)
         {
             if (Properties.TryGetValue(name, out var value))

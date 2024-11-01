@@ -1212,12 +1212,6 @@ public sealed class MapExtract
     static string StringBool(bool value)
         => value ? "1" : "0";
 
-    private static string PropertyToEditString(KVValue value)
-    {
-        //var type = value.Type;
-        return ToEditString(value.Value);
-    }
-
     private static string ToEditString(object data)
     {
         return data switch
