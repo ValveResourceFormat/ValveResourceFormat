@@ -12,7 +12,6 @@ using System.Threading.Tasks;
 using ConsoleAppFramework;
 using SteamDatabase.ValvePak;
 using ValveResourceFormat;
-using ValveResourceFormat.Blocks;
 using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
@@ -26,7 +25,8 @@ namespace Decompiler
     {
         private readonly Dictionary<string, ResourceStat> stats = [];
         private readonly Dictionary<string, string> uniqueSpecialDependancies = [];
-        private readonly HashSet<uint> unknownEntityKeys = [];
+        private readonly HashSet<string> unknownEntityKeys = [];
+        private HashSet<string> knownEntityKeys;
 
         private readonly object ConsoleWriterLock = new();
         private int CurrentFile;
@@ -1201,17 +1201,17 @@ namespace Decompiler
                     {
                         var entityLump = (EntityLump)resource.DataBlock;
                         var entities = entityLump.GetEntities();
-                        var knownKeys = StringToken.InvertedTable;
+                        knownEntityKeys ??= [.. EntityLumpKnownKeys.KnownKeys];
 
                         foreach (var entity in entities)
                         {
                             foreach (var property in entity.Properties)
                             {
-                                if (!knownKeys.ContainsKey(property.Key))
+                                if (!knownEntityKeys.Contains(property.Key))
                                 {
                                     lock (unknownEntityKeys)
                                     {
-                                        unknownEntityKeys.Add(property.Key);
+                                        unknownEntityKeys.Add(property.Key.Remove(0, "vrf_unknown_key_".Length));
                                     }
                                 }
                             }
