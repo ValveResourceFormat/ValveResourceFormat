@@ -11,11 +11,17 @@
 #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
     in vec3 vLightmapUVScaled;
     uniform sampler2DArray g_tIrradiance;
-    uniform sampler2DArray g_tDirectionalIrradiance;
+    #if (LightmapGameVersionNumber == 3)
+        uniform sampler2DArray g_tDirectionalIrradianceR;
+        uniform sampler2DArray g_tDirectionalIrradianceG;
+        uniform sampler2DArray g_tDirectionalIrradianceB;
+    #else
+        uniform sampler2DArray g_tDirectionalIrradiance;
+    #endif
     #if (LightmapGameVersionNumber == 1)
         uniform sampler2DArray g_tDirectLightIndices;
         uniform sampler2DArray g_tDirectLightStrengths;
-    #elif (LightmapGameVersionNumber == 2)
+    #elif (LightmapGameVersionNumber >= 2)
         uniform sampler2DArray g_tDirectLightShadows;
     #endif
 #elif (D_BAKED_LIGHTING_FROM_PROBE == 1)
@@ -25,7 +31,7 @@
     #if (LightmapGameVersionNumber == 1)
         uniform sampler3D g_tLPV_Indices;
         uniform sampler3D g_tLPV_Scalars;
-    #elif (LightmapGameVersionNumber == 2)
+    #elif (LightmapGameVersionNumber >= 2)
         uniform sampler3D g_tLPV_Shadows;
     #endif
 
@@ -208,7 +214,7 @@ void CalculateDirectLighting(inout LightingTerms_t lighting, inout MaterialPrope
             }
         }
 
-    #elif (LightmapGameVersionNumber == 2)
+    #elif (LightmapGameVersionNumber >= 2)
         vec4 dlsh = vec4(1, 1, 1, 1);
 
         #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
@@ -301,7 +307,11 @@ void CalculateIndirectLighting(inout LightingTerms_t lighting, inout MaterialPro
     // Indirect Lighting
 #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
     vec3 irradiance = texture(g_tIrradiance, vLightmapUVScaled).rgb;
-    vec4 vAHDData = texture(g_tDirectionalIrradiance, vLightmapUVScaled);
+    #if (LightmapGameVersionNumber == 3)
+        vec4 vAHDData = texture(g_tDirectionalIrradianceR, vLightmapUVScaled);
+    #else
+        vec4 vAHDData = texture(g_tDirectionalIrradiance, vLightmapUVScaled);
+    #endif
 
     lighting.DiffuseIndirect = ComputeLightmapShading(irradiance, vAHDData, mat.NormalMap);
 

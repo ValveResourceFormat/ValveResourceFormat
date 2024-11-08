@@ -12,6 +12,8 @@ namespace GUI.Types.Renderer
         Lightmap2,
         Lightmap3,
         Lightmap4,
+        Lightmap5,
+        Lightmap6,
         EnvironmentMap,
         Probe1,
         Probe2,

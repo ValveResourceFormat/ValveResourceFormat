@@ -70,7 +70,7 @@ namespace GUI.Types.Renderer
             Action<List<SceneLight>> lightEntityStore = scene.LightingInfo.LightmapGameVersionNumber switch
             {
                 0 or 1 => scene.LightingInfo.StoreLightMappedLights_V1,
-                2 => scene.LightingInfo.StoreLightMappedLights_V2,
+                2 or 3 => scene.LightingInfo.StoreLightMappedLights_V2,
                 _ => (List<SceneLight> x) => Log.Error(nameof(WorldLoader), $"Storing lights for lightmap version {scene.LightingInfo.LightmapGameVersionNumber} is not supported."),
             };
 
@@ -148,7 +148,11 @@ namespace GUI.Types.Renderer
         private readonly Dictionary<string, string> LightmapNameToUniformName = new()
         {
             {"irradiance", "g_tIrradiance"},
+            {"directional_irradiance_sh2_dc", "g_tIrradiance"},
             {"directional_irradiance", "g_tDirectionalIrradiance"},
+            {"directional_irradiance_sh2_r", "g_tDirectionalIrradianceR"},
+            {"directional_irradiance_sh2_g", "g_tDirectionalIrradianceG"},
+            {"directional_irradiance_sh2_b", "g_tDirectionalIrradianceB"},
             {"direct_light_shadows", "g_tDirectLightShadows"},
             {"direct_light_indices", "g_tDirectLightIndices"},
             {"direct_light_strengths", "g_tDirectLightStrengths"},
@@ -157,6 +161,7 @@ namespace GUI.Types.Renderer
         private readonly string[] LightmapSetV81_SteamVr = ["g_tIrradiance", "g_tDirectionalIrradiance"];
         private readonly string[] LightmapSetV81 = ["g_tIrradiance", "g_tDirectionalIrradiance", "g_tDirectLightIndices", "g_tDirectLightStrengths"];
         private readonly string[] LightmapSetV82 = ["g_tIrradiance", "g_tDirectionalIrradiance", "g_tDirectLightShadows"];
+        private readonly string[] LightmapSetV83 = ["g_tIrradiance", "g_tDirectionalIrradianceR", "g_tDirectionalIrradianceG", "g_tDirectionalIrradianceB", "g_tDirectLightShadows"];
 
         private void LoadWorldLightingInfo()
         {
@@ -199,6 +204,7 @@ namespace GUI.Types.Renderer
                 (6, 0) => false,
                 (8, 1) => LightmapSetV81.All(lightmapPresent),
                 (8, 2) => LightmapSetV82.All(lightmapPresent),
+                (8, 3) => LightmapSetV83.All(lightmapPresent),
                 _ => false,
             };
 
