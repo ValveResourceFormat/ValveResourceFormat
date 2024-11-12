@@ -104,8 +104,23 @@ dotnet_diagnostic.CA1308.severity = none
 # CA1852: Seal internal types
 dotnet_diagnostic.CA1852.severity = none
 
+# IDE0010: Add missing cases to switch statement
+dotnet_diagnostic.IDE0010.severity = none
+
+# IDE0045: Use conditional expression for assignment
+dotnet_diagnostic.IDE0045.severity = none
+
+# IDE0046: Use conditional expression for return
+dotnet_diagnostic.IDE0046.severity = none
+
+# IDE0058: Remove unnecessary expression value
+dotnet_diagnostic.IDE0058.severity = none
+
 # IDE0059: Remove unnecessary value assignment
 dotnet_diagnostic.IDE0059.severity = none
+
+# IDE0072: Add missing cases to switch statement
+dotnet_diagnostic.IDE0072.severity = none
 
 # IDE0079: Remove unnecessary suppression
 dotnet_diagnostic.IDE0079.severity = none
@@ -233,6 +248,7 @@ csharp_style_prefer_null_check_over_type_check = true:suggestion
 csharp_prefer_simple_default_expression = true:suggestion
 csharp_style_prefer_local_over_anonymous_function = true:suggestion
 csharp_style_prefer_tuple_swap = false:suggestion
+csharp_style_unused_value_expression_statement_preference = false:suggestion
 
 dotnet_naming_rule.interface_should_be_begins_with_i.severity = silent
 dotnet_naming_rule.types_should_be_pascal_case.severity = silent

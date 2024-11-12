@@ -3,6 +3,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.IO.Enumeration;
+using System.Threading;
 using SteamDatabase.ValvePak;
 using ValveKeyValue;
 using ValveResourceFormat.CompiledShader;
@@ -26,7 +27,7 @@ namespace ValveResourceFormat.IO
         ];
 
         private readonly Dictionary<string, ShaderCollection> CachedShaders = [];
-        private readonly object CachedShadersLock = new();
+        private readonly Lock CachedShadersLock = new();
         private readonly HashSet<string> CurrentGameSearchPaths = [];
         private readonly List<Package> CurrentGamePackages = [];
         private readonly string CurrentFileName;

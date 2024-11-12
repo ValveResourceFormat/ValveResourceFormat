@@ -317,10 +317,10 @@ namespace GUI.Forms
                     continue;
                 }
 
-                Invoke(() =>
+                await InvokeAsync(() =>
                 {
                     extractProgressBar.Value = 100 - (int)(filesToExtract.Count / (float)initialCount * 100.0f);
-                });
+                }).ConfigureAwait(false);
 
                 var stream = AdvancedGuiFileLoader.GetPackageEntryStream(exportData.VrfGuiContext.CurrentPackage, packageFile);
                 var outFilePath = Path.Combine(path, fileFullName);

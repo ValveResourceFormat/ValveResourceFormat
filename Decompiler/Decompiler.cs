@@ -28,7 +28,7 @@ namespace Decompiler
         private readonly HashSet<string> unknownEntityKeys = [];
         private HashSet<string> knownEntityKeys;
 
-        private readonly object ConsoleWriterLock = new();
+        private readonly Lock ConsoleWriterLock = new();
         private int CurrentFile;
         private int TotalFiles;
 
@@ -445,7 +445,7 @@ namespace Decompiler
 
             if (stream.Length >= magicData.Length)
             {
-                stream.Read(magicData);
+                stream.ReadExactly(magicData);
                 stream.Seek(-magicData.Length, SeekOrigin.Current);
             }
 

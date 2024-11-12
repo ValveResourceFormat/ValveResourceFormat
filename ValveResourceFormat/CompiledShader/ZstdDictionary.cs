@@ -101,12 +101,14 @@
  *
  */
 
+using System.Threading;
+
 namespace ValveResourceFormat.CompiledShader
 {
     public static class ZstdDictionary
     {
         private static byte[] zstdDict;
-        private static readonly object zstdDictLock = new();
+        private static readonly Lock zstdDictLock = new();
 
         public static byte[] GetDictionary()
         {

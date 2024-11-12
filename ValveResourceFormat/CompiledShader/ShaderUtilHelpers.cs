@@ -258,7 +258,7 @@ namespace ValveResourceFormat.CompiledShader
 
         public static string BytesToString(ReadOnlySpan<byte> databytes, int breakLen = 32)
         {
-            if (databytes == null || databytes.Length == 0)
+            if (databytes.Length == 0)
             {
                 return "";
             }

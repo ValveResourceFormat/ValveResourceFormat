@@ -938,7 +938,7 @@ namespace GUI
         {
             await UpdateChecker.CheckForUpdates().ConfigureAwait(false);
 
-            Invoke(() =>
+            await InvokeAsync(() =>
             {
                 if (UpdateChecker.IsNewVersionAvailable)
                 {
@@ -957,7 +957,7 @@ namespace GUI
                     using var form = new UpdateAvailableForm();
                     form.ShowDialog(this);
                 }
-            });
+            }).ConfigureAwait(false);
         }
     }
 }

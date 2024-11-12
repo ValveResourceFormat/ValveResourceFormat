@@ -68,7 +68,7 @@ namespace Tests
         [Test]
         public void DecodeVertexV0()
         {
-            var decoded = MeshOptimizerVertexDecoder.DecodeVertexBuffer(kVertexBuffer.Length, Marshal.SizeOf(typeof(PV)), kVertexDataV0, useSimd: false);
+            var decoded = MeshOptimizerVertexDecoder.DecodeVertexBuffer(kVertexBuffer.Length, Marshal.SizeOf<PV>(), kVertexDataV0, useSimd: false);
             Assert.That(MemoryMarshal.Cast<byte, PV>(decoded).ToArray(), Is.EqualTo(kVertexBuffer));
         }
 
@@ -80,7 +80,7 @@ namespace Tests
                 Assert.Ignore("Vector128 is not hardware accelerated.");
             }
 
-            var decoded = MeshOptimizerVertexDecoder.DecodeVertexBuffer(kVertexBuffer.Length, Marshal.SizeOf(typeof(PV)), kVertexDataV0, useSimd: true);
+            var decoded = MeshOptimizerVertexDecoder.DecodeVertexBuffer(kVertexBuffer.Length, Marshal.SizeOf<PV>(), kVertexDataV0, useSimd: true);
             Assert.That(MemoryMarshal.Cast<byte, PV>(decoded).ToArray(), Is.EqualTo(kVertexBuffer));
         }
     }

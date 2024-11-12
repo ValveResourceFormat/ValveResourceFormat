@@ -464,7 +464,7 @@ namespace GUI.Types.PackageViewer
             return hiddenFiles;
         }
 
-        private static string RecoverDeletedFilesGetPossiblePath(IReadOnlyList<InputDependency> inputDeps, string resourceTypeExtensionWithDot)
+        private static string RecoverDeletedFilesGetPossiblePath(List<InputDependency> inputDeps, string resourceTypeExtensionWithDot)
         {
             if (inputDeps.Count == 0)
             {

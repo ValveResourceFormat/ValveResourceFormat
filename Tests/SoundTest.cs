@@ -23,7 +23,7 @@ namespace Tests
 
             using var hash = SHA256.Create();
             using var sound = ((Sound)resource.DataBlock).GetSoundStream();
-            var actualHash = BitConverter.ToString(hash.ComputeHash(sound)).Replace("-", "", StringComparison.Ordinal);
+            var actualHash = Convert.ToHexString(hash.ComputeHash(sound));
 
             Assert.That(actualHash, Is.EqualTo("1F8BF83F3E827A3C02C6AE6B6BD23BBEBD4E18C4F877D092CF0C5B800DAAB2B7"));
         }
