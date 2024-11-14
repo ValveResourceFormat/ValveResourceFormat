@@ -6,7 +6,6 @@ layout (location = 0) in vec3 vPOSITION;
 layout (location = 3) in vec2 vTEXCOORD;
 
 out vec2 vTexCoordOut;
-out vec4 vTexCoordOut;
 
 #include "common/ViewConstants.glsl"
 uniform mat4 transform;
