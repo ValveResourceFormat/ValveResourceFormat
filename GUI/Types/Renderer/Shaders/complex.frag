@@ -679,7 +679,8 @@ void main()
 #endif
 
 #if (blendMod2x)
-    outputColor = vec4(mix(vec3(0.5), outputColor.rgb, vec3(outputColor.a)), outputColor.a);
+    vec3 gammaOutput = SrgbLinearToGamma(outputColor.rgb);
+    outputColor = vec4(mix(vec3(0.5), gammaOutput, vec3(outputColor.a)), outputColor.a);
 #endif
 
     if (HandleMaterialRenderModes(mat, outputColor))
