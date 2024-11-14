@@ -282,7 +282,6 @@ namespace GUI.Types.Renderer
                 entityInfoForm.Disposed += OnEntityInfoFormDisposed;
             }
             entityInfoForm.Clear();
-            entityInfoForm.SetEntityLayout(isEntity);
 
             if (isEntity)
             {
@@ -350,6 +349,7 @@ namespace GUI.Types.Renderer
                 entityInfoForm.Text += " (in 3D skybox)";
             }
 
+            entityInfoForm.ShowOutputsTabIfAnyData();
             entityInfoForm.Show();
         }
 
