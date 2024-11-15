@@ -7,13 +7,12 @@ layout(std140, binding = 0) uniform ViewConstants {
     vec3 g_vCameraPositionWs;
     float g_flTime;
     mat4 g_matWorldToShadow;
-    vec3 _viewPadding1;
+    vec2 _viewPadding1;
     float g_flSunShadowBias;
+    bool g_bExperimentalLightsEnabled;
 
     bvec3 g_bFogTypeEnabled;
     int g_iRenderMode;
-    bool g_bExperimentalLightsEnabled;
-    vec3 _viewPadding2;
     vec4 g_vGradientFogBiasAndScale;
     vec4 g_vGradientFogColor_Opacity;
     vec2 m_vGradientFogExponents;
