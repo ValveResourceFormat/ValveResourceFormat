@@ -12,6 +12,8 @@ layout(std140, binding = 0) uniform ViewConstants {
 
     bvec3 g_bFogTypeEnabled;
     int g_iRenderMode;
+    bool g_bExperimentalLightsEnabled;
+    vec3 _viewPadding2;
     vec4 g_vGradientFogBiasAndScale;
     vec4 g_vGradientFogColor_Opacity;
     vec2 m_vGradientFogExponents;

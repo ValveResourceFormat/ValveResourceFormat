@@ -250,6 +250,11 @@ void CalculateDirectLighting(inout LightingTerms_t lighting, inout MaterialPrope
                 }
                 else
                 {
+                    if (!g_bExperimentalLightsEnabled)
+                    {
+                        continue;
+                    }
+
                     float flInvRange = g_vLightDirection_InvRange[uLightIndex].a * 0.5;
                     vec3 vLightPosition = g_vLightPosition_Type[uLightIndex].xyz;
                     float flDistance = length(vLightPosition - mat.PositionWS);

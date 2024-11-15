@@ -19,6 +19,8 @@ namespace GUI.Types.Renderer.UniformBuffers
         public bool GradientFogActive;
         public bool CubeFogActive;
         public int RenderMode;
+        public bool ExperimentalLightsEnabled;
+        public Vector3 _ViewPadding2;
         public Vector4 GradientFogBiasAndScale;
         public Vector4 GradientFogColor_Opacity;
         public Vector2 GradientFogExponents;
