@@ -95,6 +95,30 @@ namespace GUI.Types.Renderer
             AddDivider();
         }
 
+        private void AddSceneExposureSlider()
+        {
+            var exposureLabel = new Label();
+            void UpdateExposureText(float exposure)
+            {
+                exposureLabel.Text = $"Exposure: {exposure:0.00}";
+            }
+
+            AddControl(exposureLabel);
+
+            var exposureSlider = AddTrackBar((exposureAmountInt) =>
+            {
+                var exposure = exposureAmountInt / 10f;
+                UpdateExposureText(exposure);
+                Scene.PostProcessInfo.CustomExposure = exposure;
+            });
+
+            exposureSlider.TrackBar.Minimum = 1;
+            exposureSlider.TrackBar.Maximum = 80;
+            var sceneExposure = Scene.PostProcessInfo.CalculateTonemapScalar();
+            exposureSlider.TrackBar.Value = (int)(sceneExposure * 10);
+            UpdateExposureText(sceneExposure);
+        }
+
         private void OnGetOrSetPositionFromClipboardRequest(object sender, bool isSetRequest)
         {
             var pitch = 0.0f;
@@ -241,6 +265,8 @@ namespace GUI.Types.Renderer
                     Camera.SetLocation(Camera.Location + Camera.GetForwardVector() * 10f); // Escape the camera model
                     cameraSet = true;
                 }
+
+                AddSceneExposureSlider();
             }
 
             if (!cameraSet)
