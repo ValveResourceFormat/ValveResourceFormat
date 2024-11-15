@@ -3,6 +3,9 @@ using System.Runtime.CompilerServices;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 
+
+
+
 namespace GUI.Types.Renderer
 {
     static class MeshBatchRenderer
@@ -118,6 +121,7 @@ namespace GUI.Types.Renderer
                 LightProbeType = context.Scene.LightingInfo.LightProbeType,
             };
 
+
             foreach (var request in requests)
             {
                 if (vao != request.Call.VertexArrayObject)
@@ -191,6 +195,7 @@ namespace GUI.Types.Renderer
                     material = requestMaterial;
                     material.Render(shader);
                 }
+
 
                 Draw(shader, ref uniforms, ref config, request);
             }
