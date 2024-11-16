@@ -140,7 +140,7 @@ namespace GUI.Types.Renderer
                 {
                     physSceneNode.LayerName = "world_layer_base";
 
-                    scene.Add(physSceneNode, false);
+                    scene.Add(physSceneNode, true);
                 }
             }
         }
@@ -291,7 +291,7 @@ namespace GUI.Types.Renderer
                     var lightNode = SceneLight.FromEntityProperties(scene, light.Type, entity);
                     lightNode.Transform = transformationMatrix;
                     lightNode.LayerName = layerName;
-                    scene.Add(lightNode, false);
+                    scene.Add(lightNode, true);
                 }
                 else if (classname == "point_template")
                 {
@@ -726,7 +726,7 @@ namespace GUI.Types.Renderer
 
                             postProcessHasModel = true; // for collision we'd need to collect phys data within the class
 
-                            scene.Add(ppModelNode, false);
+                            scene.Add(ppModelNode, true);
                         }
                         else
                         {
@@ -792,7 +792,7 @@ namespace GUI.Types.Renderer
                             EntityData = entity,
                         };
 
-                        scene.Add(errorModel, false);
+                        scene.Add(errorModel, true);
                     }
 
                     return;
@@ -835,7 +835,7 @@ namespace GUI.Types.Renderer
                     modelNode.SetActiveMeshGroups(groups.Skip((int)body).Take(1));
                 }
 
-                scene.Add(modelNode, isAnimated);
+                scene.Add(modelNode, true);
 
                 var phys = newModel.GetEmbeddedPhys();
                 if (phys == null)
@@ -860,7 +860,7 @@ namespace GUI.Types.Renderer
                         physSceneNode.LayerName = layerName;
                         physSceneNode.EntityData = entity;
 
-                        scene.Add(physSceneNode, false);
+                        scene.Add(physSceneNode, true);
                     }
                 }
             }
@@ -1021,7 +1021,7 @@ namespace GUI.Types.Renderer
                     Name = filename,
                     EntityData = entity,
                 };
-                scene.Add(boxNode, false);
+                scene.Add(boxNode, true);
             }
             else if (resource.ResourceType == ResourceType.Model)
             {
@@ -1035,7 +1035,7 @@ namespace GUI.Types.Renderer
 
                 var isAnimated = modelNode.SetAnimationForWorldPreview("tools_preview");
 
-                scene.Add(modelNode, isAnimated);
+                scene.Add(modelNode, true);
             }
             else if (resource.ResourceType == ResourceType.Material)
             {
@@ -1045,7 +1045,7 @@ namespace GUI.Types.Renderer
                     Name = filename,
                     EntityData = entity,
                 };
-                scene.Add(spriteNode, false);
+                scene.Add(spriteNode, true);
             }
             else
             {
@@ -1097,7 +1097,7 @@ namespace GUI.Types.Renderer
                         LayerName = "Entities",
                         Transform = Matrix4x4.CreateTranslation(origin)
                     };
-                    scene.Add(lineNode, false);
+                    scene.Add(lineNode, true);
                 }
             }
         }

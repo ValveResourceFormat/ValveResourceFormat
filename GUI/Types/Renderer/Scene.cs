@@ -299,14 +299,6 @@ namespace GUI.Types.Renderer
                 bucket.Clear();
             }
 
-            StaticOctree.Root.Query(LightingInfo.SunLightFrustum, CulledShadowNodes);
-
-            if (LightingInfo.HasBakedShadowsFromLightmap)
-            {
-                // Can also check for the NoShadows flag
-                CulledShadowNodes.RemoveAll(static node => node.LayerName != "Entities");
-            }
-
             DynamicOctree.Root.Query(LightingInfo.SunLightFrustum, CulledShadowNodes);
 
             foreach (var node in CulledShadowNodes)
