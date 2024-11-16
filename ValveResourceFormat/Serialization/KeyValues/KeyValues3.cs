@@ -28,6 +28,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
             HEADER,
             SEEK_VALUE,
             PROP_NAME,
+            PROP_NAME_QUOTED,
             VALUE_STRUCT,
             VALUE_ARRAY,
             VALUE_STRING,
@@ -108,6 +109,9 @@ namespace ValveResourceFormat.Serialization.KeyValues
                         break;
                     case State.PROP_NAME:
                         ReadPropName(c, parser);
+                        break;
+                    case State.PROP_NAME_QUOTED:
+                        ReadPropNameQuoted(c, parser);
                         break;
                     case State.SEEK_VALUE:
                         SeekValue(c, parser);
@@ -287,6 +291,20 @@ namespace ValveResourceFormat.Serialization.KeyValues
             parser.CurrentString.Append(c);
         }
 
+        //Reading a quoted property name
+        private static void ReadPropNameQuoted(char c, Parser parser)
+        {
+            if (c == '"' && parser.PreviousChar != '\\')
+            {
+                parser.StateStack.Pop();
+                parser.StateStack.Push(State.SEEK_VALUE);
+                parser.CurrentName = parser.CurrentString.ToString();
+                return;
+            }
+
+            parser.CurrentString.Append(c);
+        }
+
         //Read a structure
         private static void ReadValueStruct(char c, Parser parser)
         {
@@ -315,9 +333,18 @@ namespace ValveResourceFormat.Serialization.KeyValues
             }
 
             //Start looking for the next property name
-            parser.StateStack.Push(State.PROP_NAME);
+
             parser.CurrentString.Clear();
-            parser.CurrentString.Append(c);
+
+            if (c == '"')
+            {
+                parser.StateStack.Push(State.PROP_NAME_QUOTED);
+            }
+            else
+            {
+                parser.StateStack.Push(State.PROP_NAME);
+                parser.CurrentString.Append(c);
+            }
         }
 
         //Read a string value
