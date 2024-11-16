@@ -215,7 +215,6 @@ void main()
     float illumination = dot(finalNormal, lightDirection);
     illumination = illumination * 0.5 + 0.5;
     illumination = pow2(illumination);
-    illumination = min(illumination + 0.3, 1.0);
 
     if (g_iRenderMode == renderMode_FullBright)
     {
@@ -233,7 +232,7 @@ void main()
     float NoL = ClampToPositive(dot(lightDirection, finalNormal));
     float specular = blendSpecular.x * pow(NoL, 6.0);
 
-    outputColor = vec4(illumination * finalColor.rgb + vec3(0.7) * specular, vVertexColor.a);
+    outputColor = vec4(illumination * 2.0 * finalColor.rgb + specular, vVertexColor.a);
 
     if (g_iRenderMode == renderMode_Color)
     {

@@ -802,6 +802,11 @@ namespace GUI.Types.Renderer
                 var rendercolor = entity.GetColor32Property("rendercolor");
                 var renderamt = entity.GetPropertyUnchecked("renderamt", 1.0f);
 
+                if (renderamt > 1f)
+                {
+                    renderamt /= 255f;
+                }
+
                 rendercolor.X = MathF.Pow(rendercolor.X, 2.2f);
                 rendercolor.Y = MathF.Pow(rendercolor.Y, 2.2f);
                 rendercolor.Z = MathF.Pow(rendercolor.Z, 2.2f);
