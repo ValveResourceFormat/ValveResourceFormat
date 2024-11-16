@@ -782,7 +782,10 @@ partial class ModelExtract
 
             var keyvaluesString = model.Data.GetSubCollection("m_modelInfo").GetProperty<string>("m_keyValueText");
 
-            if (string.IsNullOrEmpty(keyvaluesString) || !keyvaluesString.StartsWith("<!-- kv3 ", StringComparison.Ordinal))
+            const int NullKeyValuesLengthLimit = 140;
+            if (string.IsNullOrEmpty(keyvaluesString)
+            || !keyvaluesString.StartsWith("<!-- kv3 ", StringComparison.Ordinal)
+            || keyvaluesString.Length < NullKeyValuesLengthLimit)
             {
                 return;
             }
