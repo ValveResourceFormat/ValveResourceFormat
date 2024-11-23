@@ -46,11 +46,7 @@ body:
   attributes:
     label: What version of VRF are you using?
     description: |
-      > [!IMPORTANT]
-      > **Make sure your issue still exists on [the latest dev build.](https://valveresourceformat.github.io/)**
-
-      > [!TIP]
-      > **Use copy version button in the about window.**
-    placeholder: Use copy version button in the about window.
+      # **Make sure your issue still exists on [the latest dev build.](https://valveresourceformat.github.io/)**
+    placeholder: Use copy version button in the about window. Test latest dev build first.
   validations:
     required: true
