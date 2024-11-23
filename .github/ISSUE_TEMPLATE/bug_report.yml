@@ -48,8 +48,8 @@ body:
     validations:
       required: true
     options:
-      - No
-      - Yes
+      - "No"
+      - "Yes"
 
 - type: input
   id: version
