@@ -143,7 +143,6 @@ namespace GUI.Forms
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            BackColor = System.Drawing.Color.White;
             ClientSize = new System.Drawing.Size(662, 193);
             Controls.Add(copyVersion);
             Controls.Add(keybinds);
