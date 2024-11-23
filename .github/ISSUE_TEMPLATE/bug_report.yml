@@ -45,11 +45,11 @@ body:
   attributes:
     label: Have you tried the latest dev build?
     description: "**Make sure your issue still exists on [the latest dev build.](https://valveresourceformat.github.io/)**"
-    validations:
-      required: true
     options:
       - "No"
       - "Yes"
+  validations:
+    required: true
 
 - type: input
   id: version
