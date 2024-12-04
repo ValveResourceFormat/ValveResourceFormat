@@ -1220,7 +1220,6 @@ public sealed class MapExtract
             bool boolean => StringBool(boolean),
             Vector3 vector => $"{vector.X} {vector.Y} {vector.Z}",
             Vector2 vector => $"{vector.X} {vector.Y}",
-            byte[] color => $"{color[0]} {color[1]} {color[2]} {color[3]}",
             KVObject { IsArray: true } kvArray => string.Join(' ', kvArray.Select(p => p.Value.ToString())),
             null => string.Empty,
             _ when data.GetType().IsPrimitive => data.ToString(),

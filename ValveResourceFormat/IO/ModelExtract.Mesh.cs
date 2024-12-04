@@ -136,37 +136,55 @@ partial class ModelExtract
             (attributes.GetArray<string>("m_InteractAsStrings") ?? attributes.GetArray<string>("m_PhysicsTagStrings")).ToHashSet()
         ).ToArray();
 
+        // Fix index error on some old vphys files
+        if (PhysicsSurfaceNames.Length == 0)
+        {
+            PhysicsSurfaceNames = [string.Empty];
+        }
+
+        if (PhysicsCollisionTags.Length == 0)
+        {
+            PhysicsCollisionTags = [[]];
+        }
+
         var i = 0;
         foreach (var physicsPart in physAggregateData.Parts)
         {
             foreach (var hull in physicsPart.Shape.Hulls)
             {
                 PhysHullsToExtract.Add((hull, GetDmxFileName_ForEmbeddedMesh("hull", i++)));
-
-                SurfaceTagCombos.Add(new SurfaceTagCombo(
-                    PhysicsSurfaceNames[hull.SurfacePropertyIndex],
-                    PhysicsCollisionTags[hull.CollisionAttributeIndex]
-                ));
+                StoreSurfaceTagCombo(hull);
             }
 
             foreach (var mesh in physicsPart.Shape.Meshes)
             {
                 PhysMeshesToExtract.Add((mesh, GetDmxFileName_ForEmbeddedMesh("phys", i++)));
 
-                SurfaceTagCombos.Add(new SurfaceTagCombo(
-                    PhysicsSurfaceNames[mesh.SurfacePropertyIndex],
-                    PhysicsCollisionTags[mesh.CollisionAttributeIndex]
-                ));
+                StoreSurfaceTagCombo(mesh);
 
                 foreach (var surfaceIndex in mesh.Shape.Materials)
                 {
-                    SurfaceTagCombos.Add(new SurfaceTagCombo(
-                        PhysicsSurfaceNames[surfaceIndex],
-                        PhysicsCollisionTags[mesh.CollisionAttributeIndex]
-                    ));
+                    StoreSurfaceTagCombo(mesh.CollisionAttributeIndex, surfaceIndex);
                 }
             }
         }
+    }
+
+    private void StoreSurfaceTagCombo<T>(ShapeDescriptor<T> shapeDesc) where T : struct
+        => StoreSurfaceTagCombo(shapeDesc.CollisionAttributeIndex, shapeDesc.SurfacePropertyIndex);
+
+    private void StoreSurfaceTagCombo(int collisionAttributeIndex, int surfacePropertyIndex)
+    {
+        if (PhysicsCollisionTags.Length <= collisionAttributeIndex
+        || PhysicsSurfaceNames.Length <= surfacePropertyIndex)
+        {
+            return;
+        }
+
+        SurfaceTagCombos.Add(new SurfaceTagCombo(
+            PhysicsSurfaceNames[surfacePropertyIndex],
+            PhysicsCollisionTags[collisionAttributeIndex]
+        ));
     }
 
     public static IEnumerable<ContentFile> GetContentFiles_DrawCallSplit(Resource aggregateModelResource, IFileLoader fileLoader, Vector3[] drawOrigins, int drawCallCount)

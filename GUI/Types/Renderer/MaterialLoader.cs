@@ -336,6 +336,7 @@ namespace GUI.Types.Renderer
 
         static readonly string[] NonMaterialUniforms =
         [
+            "g_bExperimentalLightsEnabled",
             "g_iRenderMode",
             "g_flTime",
             "g_flSunShadowBias",

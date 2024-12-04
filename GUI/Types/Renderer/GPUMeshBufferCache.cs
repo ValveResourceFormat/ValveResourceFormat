@@ -23,6 +23,20 @@ namespace GUI.Types.Renderer
             }
         }
 
+        private int emptyVAO = -1;
+        public int EmptyVAO
+        {
+            get
+            {
+                if (emptyVAO == -1)
+                {
+                    GL.CreateVertexArrays(1, out emptyVAO);
+                }
+
+                return emptyVAO;
+            }
+        }
+
         private struct VAOKey
         {
             public GPUMeshBuffers VBIB;

@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Linq;
 using GUI.Types.Renderer.UniformBuffers;
 using GUI.Utils;
+using OpenTK.Graphics.OpenGL;
 using static GUI.Types.Renderer.GLSceneViewer;
 
 namespace GUI.Types.Renderer
@@ -152,7 +153,12 @@ namespace GUI.Types.Renderer
         public List<SceneNode> GetFrustumCullResults(Frustum frustum)
         {
             var currentFrustum = frustum.GetHashCode();
-            if (LastFrustum != currentFrustum)
+
+            // Optimization: Do not clear static culled results from last frame if:
+            // 1. Frustum did not change
+            // 2. Did not run occlusion queries
+
+            if (LastFrustum != currentFrustum || occlusionDirty)
             {
                 LastFrustum = currentFrustum;
 
@@ -293,14 +299,6 @@ namespace GUI.Types.Renderer
                 bucket.Clear();
             }
 
-            StaticOctree.Root.Query(LightingInfo.SunLightFrustum, CulledShadowNodes);
-
-            if (LightingInfo.HasBakedShadowsFromLightmap)
-            {
-                // Can also check for the NoShadows flag
-                CulledShadowNodes.RemoveAll(static node => node.LayerName != "Entities");
-            }
-
             DynamicOctree.Root.Query(LightingInfo.SunLightFrustum, CulledShadowNodes);
 
             foreach (var node in CulledShadowNodes)
@@ -385,6 +383,130 @@ namespace GUI.Types.Renderer
                 {
                     request.Node.Render(renderContext);
                 }
+            }
+        }
+
+        private bool occlusionDirty;
+
+        static void ClearOccludedStateRecursive(Octree<SceneNode>.Node node)
+        {
+            foreach (var child in node.Children)
+            {
+                child.OcclusionCulled = false;
+                child.OcculsionQuerySubmitted = false;
+                ClearOccludedStateRecursive(child);
+            }
+        }
+
+        public void RenderOcclusionProxies(RenderContext renderContext, Shader depthOnlyShader)
+        {
+            if (!renderContext.View.EnableOcclusionCulling)
+            {
+                if (occlusionDirty)
+                {
+                    ClearOccludedStateRecursive(StaticOctree.Root);
+                    occlusionDirty = false;
+                    LastFrustum = -1;
+                }
+
+                return;
+            }
+
+            occlusionDirty = true;
+
+            GL.ColorMask(false, false, false, false);
+            GL.DepthMask(false);
+            GL.Disable(EnableCap.CullFace);
+
+            GL.UseProgram(depthOnlyShader.Program);
+            GL.BindVertexArray(GuiContext.MeshBufferCache.EmptyVAO);
+
+            var maxTests = 128;
+            var maxDepth = 8;
+            TestOctantsRecursive(StaticOctree.Root, renderContext.Camera.Location, ref maxTests, maxDepth);
+
+            GL.UseProgram(0);
+            GL.BindVertexArray(0);
+
+            GL.ColorMask(true, true, true, true);
+            GL.DepthMask(true);
+            GL.Enable(EnableCap.CullFace);
+        }
+
+        private static void TestOctantsRecursive(Octree<SceneNode>.Node octant, Vector3 cameraPosition, ref int maxTests, int maxDepth)
+        {
+            foreach (var octreeNode in octant.Children)
+            {
+                if (octreeNode.FrustumCulled)
+                {
+                    octreeNode.OcclusionCulled = false;
+                    octreeNode.OcculsionQuerySubmitted = false;
+                    continue;
+                }
+
+                if (!octreeNode.HasChildren)
+                {
+                    continue;
+                }
+
+                if (octreeNode.Region.Contains(cameraPosition))
+                {
+                    // if the camera is inside the octant, we can skip the occlusion test, however we still need to test the children
+                    TestOctantsRecursive(octreeNode, cameraPosition, ref maxTests, --maxDepth);
+
+                    octreeNode.OcclusionCulled = false;
+                    octreeNode.OcculsionQuerySubmitted = false;
+                    continue;
+                }
+
+                if (octreeNode.OcculsionQuerySubmitted)
+                {
+                    var visible = -1;
+                    GL.GetQueryObject(
+                        octreeNode.OcclusionQueryHandle,
+                        GetQueryObjectParam.QueryResultNoWait,
+                        out visible
+                    );
+
+                    octreeNode.OcclusionCulled = visible == 0;
+                    octreeNode.OcculsionQuerySubmitted = visible == -1;
+
+                    if (visible == 1)
+                    {
+                        TestOctantsRecursive(octreeNode, cameraPosition, ref maxTests, --maxDepth);
+                    }
+
+                    continue;
+                }
+
+                // Octree node passed frustum test, contains elements, and was not waiting for a previous query
+
+                if (octreeNode.OcclusionQueryHandle == -1)
+                {
+                    octreeNode.OcclusionQueryHandle = GL.GenQuery();
+                }
+
+                octreeNode.OcculsionQuerySubmitted = true;
+                maxTests--;
+
+                GL.VertexAttrib4(
+                    0,
+                    octreeNode.Region.Min.X,
+                    octreeNode.Region.Min.Y,
+                    octreeNode.Region.Min.Z,
+                    octreeNode.Region.Size.X
+                );
+
+                GL.VertexAttribI2(1, maxDepth, maxTests);
+
+                GL.BeginQuery(QueryTarget.AnySamplesPassedConservative, octreeNode.OcclusionQueryHandle);
+                GL.DrawArrays(PrimitiveType.Triangles, 0, 36);
+                GL.EndQuery(QueryTarget.AnySamplesPassedConservative);
+            }
+
+            if (maxTests < 0 || maxDepth < 0)
+            {
+                return;
             }
         }
 

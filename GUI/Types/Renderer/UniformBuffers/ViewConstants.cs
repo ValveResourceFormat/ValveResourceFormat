@@ -12,8 +12,9 @@ namespace GUI.Types.Renderer.UniformBuffers
         public Vector3 CameraPosition = Vector3.Zero;
         public float Time;
         public Matrix4x4 WorldToShadow = Matrix4x4.Identity;
-        public Vector3 _ViewPadding1;
+        public Vector2 _ViewPadding1;
         public float SunLightShadowBias = 0.001f;
+        public bool ExperimentalLightsEnabled;
 
         public bool VolumetricFogActive;
         public bool GradientFogActive;

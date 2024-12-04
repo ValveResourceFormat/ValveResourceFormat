@@ -40,7 +40,7 @@ in vec4 vTintColorFadeOut;
 out vec4 outputColor;
 
 #if (F_SOLID_COLOR == 0)
-    uniform sampler2D g_tColor;
+    uniform sampler2D g_tColor; // SrgbRead(true)
     #if (F_TINT_MASK == 1)
         uniform sampler2D g_tTintMask;
     #endif
@@ -132,7 +132,8 @@ void main()
 #else
     //Calculate lambert lighting
     float illumination = max(0.0, dot(worldNormal, lightDirection));
-    illumination = illumination * 0.7 + 0.4; //add ambient
+    illumination = illumination * 0.5 + 0.5;
+    illumination = pow2(illumination);
 #endif
 
     if (g_iRenderMode == renderMode_FullBright)
@@ -148,10 +149,10 @@ void main()
     vec3 tintFactor = vTintColorFadeOut.rgb;
 #endif
 
-    tintFactor = SrgbLinearToGamma(tintFactor * g_vColorTint.rgb);
+    tintFactor *= SrgbGammaToLinear(g_vColorTint.rgb);
 
     //Simply multiply the color from the color texture with the illumination
-    outputColor = vec4(illumination * color.rgb * tintFactor, color.a);
+    outputColor = vec4(illumination * 2.0 * color.rgb * tintFactor, color.a);
 
     #if (F_PAINT_VERTEX_COLORS == 1)
         outputColor.rgb *= vVertexColorOut.rgb;
@@ -162,9 +163,9 @@ void main()
         float NoL = max(dot(lightDirection, worldNormal), 0.0);
         float specular = pow(NoL, 6.0);
         #if (F_MODULATE_SPECULAR_BY_ALPHA == 1)
-            specular *= vTintColorFadeOut.a;
+            specular *= color.a * vTintColorFadeOut.a;
         #endif
-        outputColor.rgb *=  vec3(1.0) + specularTexel.x * specular * g_flSpecularIntensity * g_vColorTint2.xyz;
+        outputColor.rgb *= vec3(1.0) + specularTexel.x * specular * g_flSpecularIntensity * SrgbGammaToLinear(g_vColorTint2.xyz);
         outputColor.rgb += specularTexel.y;
     #endif
 

@@ -6,6 +6,7 @@
 	negativeIntValue = -1337
 	negativeDoubleValue = -0.1337
 	stringValue = "hello world"
+	"a quoted key with spaces" = "some cool value"
 	stringThatIsAResourceReference = resource:"particles/items3_fx/star_emblem.vpcf"
 	multiLineStringValue = """
 First line of a multi-line string literal.

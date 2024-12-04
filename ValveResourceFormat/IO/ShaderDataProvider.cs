@@ -162,7 +162,9 @@ namespace ValveResourceFormat.IO
 
             if (@params.Count == 0)
             {
-                throw new InvalidDataException($"Features file for '{shader.Features.ShaderName}' does not contain a parameter named '{textureType}'");
+                // Texture not defined in the shader file, export the texture anyway.
+                // Most likely, the texture was removed by a shader update, and the material was not recompiled.
+                return [(Channel.RGBA, BasicShaderDataProvider.ConvertTextureToInput(textureType))];
             }
 
             // vr_simple (hlvr): g_tAmbientOcclusion[1] ChannelIndices (-1,-1,-1,-1)
@@ -489,7 +491,7 @@ namespace ValveResourceFormat.IO
 
             if (!(TextureMappings.TryGetValue(shaderName, out var shaderSpecific) && shaderSpecific.TryGetValue(textureType, out var channelMappings)))
             {
-                yield return (Channel.RGBA, textureType.Replace("g_t", "Texture", StringComparison.Ordinal));
+                yield return (Channel.RGBA, ConvertTextureToInput(textureType));
                 yield break;
             }
 
@@ -503,6 +505,11 @@ namespace ValveResourceFormat.IO
 
                 yield return (channel, newTextureType);
             }
+        }
+
+        public static string ConvertTextureToInput(string textureType)
+        {
+            return textureType.Replace("g_t", "Texture", StringComparison.Ordinal);
         }
 
         public string GetSuffixForInputTexture(string inputName, Material material)

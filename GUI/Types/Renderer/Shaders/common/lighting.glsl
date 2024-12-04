@@ -156,6 +156,16 @@ vec3 GetLightColor(uint nLightIndex)
     return vColor * flBrightness;
 }
 
+// https://lisyarus.github.io/blog/graphics/2022/07/30/point-light-attenuation.html
+float attenuate_cusp(float s, float falloff)
+{
+    if (s >= 1.0)
+        return 0.0;
+
+    float s2 = pow2(s);
+    return pow2(1 - s2) / (1 + falloff * s);
+}
+
 void CalculateDirectLighting(inout LightingTerms_t lighting, inout MaterialProperties_t mat)
 {
     const float MIN_ALPHA = 0.0001;
@@ -175,11 +185,6 @@ void CalculateDirectLighting(inout LightingTerms_t lighting, inout MaterialPrope
 
         vec4 vLightStrengths = pow2(dls);
         uvec4 vLightIndices = uvec4(dli * 255.0);
-
-        //const uint testIndex = 35;
-        //lighting.DiffuseDirect = vec3(any(equal(vLightIndices.xyw, uvec3(testIndex)))) + ((vLightIndices.z == testIndex) ? vec3(1) : vec3(0));
-        //lighting.DiffuseDirect *= vLightStrengths.xyw;
-        //return;
 
         for (int i = 0; i < 4; i++)
         {
@@ -224,20 +229,48 @@ void CalculateDirectLighting(inout LightingTerms_t lighting, inout MaterialPrope
             dlsh = textureLod(g_tLPV_Shadows, vLightProbeShadowCoords, 0.0);
         #endif
 
-        const uint uLightIndex = 0;
-
-        float visibility = 1.0 - dlsh[uLightIndex];
-
-        if (visibility > MIN_ALPHA && uLightIndex == 0)
+        for(uint uShadowIndex = 0; uShadowIndex < 4; ++uShadowIndex)
         {
-            visibility *= CalculateSunShadowMapVisibility(mat.PositionWS);
-        }
+            float shadowFactor = 1.0 - dlsh[uShadowIndex];
+            if (shadowFactor <= MIN_ALPHA)
+            {
+                continue;
+            }
+            uint nLightIndexStart = uShadowIndex == 0 ? 0 : g_nNumLightsPerShadow[uShadowIndex - 1];
+            uint nLightCount = g_nNumLightsPerShadow[uShadowIndex];
 
-        if (visibility > MIN_ALPHA)
-        {
-            vec3 lightColor = GetLightColor(uLightIndex);
-            vec3 lightVector = GetLightDirection(mat.PositionWS, uLightIndex);
-            CalculateShading(lighting, lightVector, visibility * lightColor, mat);
+            for(uint uLightIndex = nLightIndexStart; uLightIndex < nLightCount; ++uLightIndex)
+            {
+                float visibility = shadowFactor;
+                vec3 lightVector = GetLightDirection(mat.PositionWS, uLightIndex);
+
+                if (IsDirectionalLight(uLightIndex))
+                {
+                    visibility *= CalculateSunShadowMapVisibility(mat.PositionWS);
+                }
+                else
+                {
+                    if (!g_bExperimentalLightsEnabled)
+                    {
+                        continue;
+                    }
+
+                    float flInvRange = g_vLightDirection_InvRange[uLightIndex].a * 0.5;
+                    vec3 vLightPosition = g_vLightPosition_Type[uLightIndex].xyz;
+                    float flDistance = length(vLightPosition - mat.PositionWS);
+                    float flFallOff = g_vLightFallOff[uLightIndex].x;
+
+                    // 0.0 near the light, 1.0 at the light maximum range
+                    float flDistanceOverRange = flDistance * flInvRange;
+                    visibility *= attenuate_cusp(flDistanceOverRange, flFallOff);
+                }
+
+                if (visibility > MIN_ALPHA)
+                {
+                    vec3 lightColor = GetLightColor(uLightIndex);
+                    CalculateShading(lighting, lightVector, visibility * lightColor, mat);
+                }
+            }
         }
     #else
         // Non lightmapped scene

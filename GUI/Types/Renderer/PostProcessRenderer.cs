@@ -74,9 +74,8 @@ namespace GUI.Types.Renderer
             GL.BindVertexArray(vao);
             GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
 
-            GL.EnableVertexAttribArray(0);
-            GL.BindVertexArray(0);
             GL.UseProgram(0);
+            GL.BindVertexArray(0);
 
             GL.DepthMask(true);
             GL.Enable(EnableCap.DepthTest);

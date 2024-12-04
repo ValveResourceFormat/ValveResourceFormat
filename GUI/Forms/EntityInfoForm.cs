@@ -9,8 +9,6 @@ namespace GUI.Forms
 {
     partial class EntityInfoForm : Form
     {
-        private readonly TabPage[] pages;
-
         public EntityInfoForm(AdvancedGuiFileLoader guiFileLoader)
         {
             InitializeComponent();
@@ -24,12 +22,6 @@ namespace GUI.Forms
                     Close();
                 }
             });
-
-            pages = new TabPage[tabControl.TabPages.Count];
-            for (var i = 0; i < pages.Length; i++)
-            {
-                pages[i] = tabControl.TabPages[i];
-            }
         }
 
         protected override bool ProcessDialogKey(Keys keyData)
@@ -43,38 +35,21 @@ namespace GUI.Forms
             return base.ProcessDialogKey(keyData);
         }
 
-        private void SetTabCount(int count)
+        public void ShowOutputsTabIfAnyData()
         {
-            if (tabControl.TabCount == count)
+            if (dataGridOutputs.RowCount > 0)
             {
-                return;
-            }
-            else if (tabControl.TabCount > count)
-            {
-                tabControl.TabIndex = count - 1;
-                for (var i = tabControl.TabCount - 1; i >= count; i--)
+                if (tabPageOutputs.Parent == null)
                 {
-                    tabControl.TabPages.RemoveAt(i);
+                    tabControl.TabPages.Add(tabPageOutputs);
                 }
             }
             else
             {
-                for (var i = tabControl.TabCount; i < count; i++)
+                if (tabPageOutputs.Parent != null)
                 {
-                    tabControl.TabPages.Add(pages[i]);
+                    tabControl.TabPages.Remove(tabPageOutputs);
                 }
-            }
-        }
-
-        public void SetEntityLayout(bool isEntity)
-        {
-            if (isEntity)
-            {
-                SetTabCount(pages.Length);
-            }
-            else
-            {
-                SetTabCount(1);
             }
         }
 
@@ -86,7 +61,7 @@ namespace GUI.Forms
 
         public void AddProperty(string name, string value)
         {
-            dataGridProperties.Rows.Add(new string[] { name, value });
+            dataGridProperties.Rows.Add([name, value]);
         }
 
         public void AddConnection(KVObject connectionData)
@@ -98,29 +73,21 @@ namespace GUI.Forms
             var delay = connectionData.GetFloatProperty("m_flDelay");
             var timesToFire = connectionData.GetInt32Property("m_nTimesToFire");
 
-            string stimesToFire = "";
-
-            switch (timesToFire)
+            var stimesToFire = timesToFire switch
             {
-                case 1:
-                    stimesToFire = "Only Once";
-                    break;
-                case >= 2:
-                    stimesToFire = $"Only {timesToFire} Times";
-                    break;
-                default:
-                    stimesToFire = "Infinite";
-                    break;
-            }
+                1 => "Only Once",
+                >= 2 => $"Only {timesToFire} Times",
+                _ => "Infinite",
+            };
 
-            dataGridOutputs.Rows.Add(new string[] {
+            dataGridOutputs.Rows.Add([
                 outputName,
                 targetName,
                 inputName,
                 parameter,
                 delay.ToString(NumberFormatInfo.InvariantInfo),
                 stimesToFire
-            });
+            ]);
         }
     }
 }
