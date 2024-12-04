@@ -299,12 +299,10 @@ namespace ValveResourceFormat.ResourceTypes
             if (todoUnknownNewBytesInVersion4)
             {
                 countofTwoByteValue = reader.ReadUInt32();
-                var todo2 = reader.ReadUInt32();
 
-                if (todo2 != 0)
-                {
-                    throw new NotImplementedException("Unknown bytes for new KV3 version found");
-                }
+                // TODO: Might be some preallocation number like above? The files seemingly parse if this isn't used for anything
+                // and there's seemingly no extra data in the decoded stream - 2024-12-04
+                reader.ReadUInt32();
             }
 
             if (compressedSize > int.MaxValue)
