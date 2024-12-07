@@ -1,6 +1,7 @@
 using System.Buffers;
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.InteropServices;
 using K4os.Compression.LZ4;
 using K4os.Compression.LZ4.Encoders;
 using ValveResourceFormat.Blocks;
@@ -26,8 +27,9 @@ namespace ValveResourceFormat.ResourceTypes
         public const int MAGIC3 = 0x4B563302; // KV3\x02
         public const int MAGIC4 = 0x4B563303; // KV3\x03
         public const int MAGIC5 = 0x4B563304; // KV3\x04
+        public const int MAGIC6 = 0x4B563305; // KV3\x05
 
-        public static bool IsBinaryKV3(uint magic) => magic is MAGIC or MAGIC2 or MAGIC3 or MAGIC4 or MAGIC5;
+        public static bool IsBinaryKV3(uint magic) => magic is MAGIC or MAGIC2 or MAGIC3 or MAGIC4 or MAGIC5 or MAGIC6;
 
         public KVObject Data { get; private set; }
         public Guid Encoding { get; private set; }
@@ -74,6 +76,9 @@ namespace ValveResourceFormat.ResourceTypes
                     isUsingLinearFlagTypes = true;
                     todoUnknownNewBytesInVersion4 = true;
                     ReadVersion3(reader);
+                    break;
+                case MAGIC6:
+                    ReadVersion5(reader);
                     break;
                 default: throw new UnexpectedMagicException("Invalid KV3 signature", magic, nameof(magic));
             }
@@ -312,7 +317,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             if (blockTotalSize > int.MaxValue)
             {
-                throw new NotImplementedException("KV3 compressedSize is higher than 32-bit integer, which we currently don't handle.");
+                throw new NotImplementedException("KV3 blockTotalSize is higher than 32-bit integer, which we currently don't handle.");
             }
 
             byte[] outputBuf = null;
@@ -576,6 +581,116 @@ namespace ValveResourceFormat.ResourceTypes
                     ArrayPool<int>.Shared.Return(uncompressedBlockLengthArray);
                     uncompressedBlockLengthArray = null;
                 }
+            }
+        }
+
+        private void ReadVersion5(BinaryReader reader)
+        {
+            Format = new Guid(reader.ReadBytes(16));
+
+            var compressionMethod = reader.ReadUInt32();
+            var compressionDictionaryId = reader.ReadUInt16();
+            var compressionFrameSize = reader.ReadUInt16();
+            var sizeUncompressedStringsData = reader.ReadUInt32(); // sizeUncompressedStrings - 4 bytes for the count of strings - padding to align to buffer to 4 bytes
+
+            var unk1 = reader.ReadUInt32(); // 1
+            var unk2 = reader.ReadUInt32(); // 0
+            var unk17 = reader.ReadUInt32();
+            var unk3 = reader.ReadUInt16();
+            var unk4 = reader.ReadUInt16();
+            var sizeCompressedTotal = reader.ReadUInt32();
+            var sizeUncompressedTotal = reader.ReadUInt32();
+            var unk5 = reader.ReadUInt32(); // 0
+            var unk6 = reader.ReadUInt32(); // 0
+            var unk7 = reader.ReadUInt32(); // 0
+            var unk8 = reader.ReadUInt32(); // 0
+            var sizeUncompressedStrings = reader.ReadInt32();
+            var sizeCompressedStrings = reader.ReadInt32();
+            var sizeUncompressed2 = reader.ReadUInt32();
+            var sizeCompressed2 = reader.ReadUInt32(); // 0 for uncompressed?
+            var unk9 = reader.ReadUInt32(); // count?
+            var unk10 = reader.ReadUInt32(); // 0
+            var unk11 = reader.ReadUInt32();
+            var unk12 = reader.ReadUInt32(); // 0
+            var unk13 = reader.ReadUInt32();
+            var unk14 = reader.ReadUInt32();
+            var unk15 = reader.ReadUInt32();
+            var unk16 = reader.ReadUInt32();
+
+            if (compressionMethod == 0) // uncompressed
+            {
+                if (compressionDictionaryId != 0)
+                {
+                    throw new UnexpectedMagicException("Unhandled", compressionDictionaryId, nameof(compressionDictionaryId));
+                }
+
+                if (compressionFrameSize != 0)
+                {
+                    throw new UnexpectedMagicException("Unhandled", compressionFrameSize, nameof(compressionFrameSize));
+                }
+            }
+            else if (compressionMethod == 1) // LZ4
+            {
+                if (compressionDictionaryId != 0)
+                {
+                    throw new UnexpectedMagicException("Unhandled", compressionDictionaryId, nameof(compressionDictionaryId));
+                }
+
+                if (compressionFrameSize != 16384)
+                {
+                    throw new UnexpectedMagicException("Unhandled", compressionFrameSize, nameof(compressionFrameSize));
+                }
+            }
+            else if (compressionMethod == 2) // ZSTD
+            {
+                if (compressionDictionaryId != 0)
+                {
+                    throw new UnexpectedMagicException("Unhandled", compressionDictionaryId, nameof(compressionDictionaryId));
+                }
+
+                if (compressionFrameSize != 0)
+                {
+                    throw new UnexpectedMagicException("Unhandled", compressionFrameSize, nameof(compressionFrameSize));
+                }
+            }
+            else
+            {
+                throw new UnexpectedMagicException("Unknown compression method", compressionMethod, nameof(compressionMethod));
+            }
+
+            var outputBuf = new byte[sizeUncompressedStrings]; // TODO: ArrayPool
+
+            if (compressionMethod == 0)
+            {
+                Debug.Assert(sizeCompressedStrings == 0);
+
+                reader.Read(outputBuf.AsSpan(0, sizeUncompressedStrings));
+            }
+            else if (compressionMethod == 1)
+            {
+                Debug.Assert(sizeCompressedStrings > 0);
+
+                DecompressLZ4(reader, outputBuf, sizeCompressedStrings);
+            }
+            else
+            {
+                Debug.Assert(sizeCompressedStrings > 0);
+
+                throw new NotImplementedException("zstd");
+            }
+
+            // Strings
+            {
+                var stringsBuffer = outputBuf.AsSpan();
+                var countOfStrings = MemoryMarshal.Read<uint>(stringsBuffer[^4..]);
+                stringArray = new string[countOfStrings];
+
+                for (var i = 0; i < countOfStrings; i++)
+                {
+                    stringArray[i] = ReadNullTermUtf8String(ref stringsBuffer);
+                }
+
+                var k2 = 2;
             }
         }
 
@@ -952,6 +1067,21 @@ namespace ValveResourceFormat.ResourceTypes
         public override void WriteText(IndentedTextWriter writer)
         {
             GetKV3File().WriteText(writer);
+        }
+
+        private static string ReadNullTermUtf8String(ref Span<byte> buffer)
+        {
+            var nullByte = buffer.IndexOf((byte)0);
+
+            if (nullByte == 0)
+            {
+                return string.Empty;
+            }
+
+            var str = buffer[..nullByte];
+            buffer = buffer[(nullByte + 1)..];
+
+            return System.Text.Encoding.UTF8.GetString(str);
         }
     }
 }
