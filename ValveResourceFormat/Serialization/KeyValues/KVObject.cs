@@ -261,7 +261,16 @@ namespace ValveResourceFormat.Serialization.KeyValues
                     throw new InvalidOperationException($"Tried to cast non-array property {name} to array. Actual type: {value.Type}");
                 }
 
-                return ((KVObject)value.Value).Properties.Values.Select(v => (T)v.Value).ToArray();
+                // TODO: Why are we trying to read floats as doubles
+                if (typeof(T) == typeof(double))
+                {
+                    return ((KVObject)value.Value).Properties.Values.Select(static (v) =>
+                    {
+                        return v.Type == KVType.FLOAT ? (double)(float)v.Value : (double)v.Value;
+                    }).Cast<T>().ToArray();
+                }
+
+                return ((KVObject)value.Value).Properties.Values.Select(static v => (T)v.Value).ToArray();
             }
             else
             {
