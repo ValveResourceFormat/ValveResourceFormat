@@ -159,6 +159,10 @@ namespace GUI.Types.Renderer
                     GL.VertexArrayAttribFormat(vao, attributeLocation, 4, VertexAttribType.Float, false, offset);
                     break;
 
+                case DXGI_FORMAT.R32G32B32A32_SINT:
+                    GL.VertexArrayAttribIFormat(vao, attributeLocation, 4, VertexAttribType.Int, offset);
+                    break;
+
                 case DXGI_FORMAT.R8G8B8A8_UINT:
                     GL.VertexArrayAttribIFormat(vao, attributeLocation, 4, VertexAttribType.UnsignedByte, offset);
                     break;
@@ -169,6 +173,14 @@ namespace GUI.Types.Renderer
 
                 case DXGI_FORMAT.R16G16B16A16_SINT:
                     GL.VertexArrayAttribIFormat(vao, attributeLocation, 4, VertexAttribType.Short, offset);
+                    break;
+
+                case DXGI_FORMAT.R16G16B16A16_UINT:
+                    GL.VertexArrayAttribIFormat(vao, attributeLocation, 4, VertexAttribType.UnsignedShort, offset);
+                    break;
+
+                case DXGI_FORMAT.R16G16B16A16_UNORM:
+                    GL.VertexArrayAttribFormat(vao, attributeLocation, 4, VertexAttribType.UnsignedShort, true, offset);
                     break;
 
                 case DXGI_FORMAT.R16G16_SNORM:
