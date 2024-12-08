@@ -13,55 +13,55 @@ namespace ValveResourceFormat.NavMesh
         public uint[] LaddersAbove { get; set; }
         public uint[] LaddersBelow { get; set; }
 
-        public static NavMeshConnection[] ReadConnections(BinaryReader binaryReader)
+        private static NavMeshConnection[] ReadConnections(BinaryReader binaryReader)
         {
             var connectionCount = binaryReader.ReadUInt32();
             var connections = new NavMeshConnection[connectionCount];
 
             for (var i = 0; i < connectionCount; i++)
             {
-                connections[i] = new NavMeshConnection(binaryReader);
+                var connection = new NavMeshConnection();
+                connection.Read(binaryReader);
+                connections[i] = connection;
             }
 
             return connections;
         }
 
-        public static NavMeshArea Read(BinaryReader binaryReader, NavMeshFile navMeshFile, Vector3[][] polygons)
+        public void Read(BinaryReader binaryReader, NavMeshFile navMeshFile, Vector3[][] polygons = null)
         {
-            var area = new NavMeshArea();
-
-            area.AreaId = binaryReader.ReadUInt32();
-            area.DynamicAttributeFlags = (DynamicAttributeFlags)binaryReader.ReadInt32(); //this might actually be the next 4 bytes
+            AreaId = binaryReader.ReadUInt32();
+            DynamicAttributeFlags = (DynamicAttributeFlags)binaryReader.ReadInt32(); //this might actually be the next 4 bytes
 
             var unkBytes = binaryReader.ReadBytes(4); //TODO
             Debug.Assert(unkBytes[0] == 0);
             Debug.Assert(unkBytes[1] == 0);
             Debug.Assert(unkBytes[2] == 0);
             Debug.Assert(unkBytes[3] == 0);
-            area.AgentLayer = binaryReader.ReadByte();
+            AgentLayer = binaryReader.ReadByte();
 
             if (navMeshFile.Version >= 35)
             {
                 var polygonIndex = binaryReader.ReadUInt32();
-                area.Corners = polygons[polygonIndex];
+                Corners = polygons[polygonIndex];
             }
             else
             {
                 var cornerCount = binaryReader.ReadUInt32();
 
-                area.Corners = new Vector3[cornerCount];
+                Corners = new Vector3[cornerCount];
                 for (var i = 0; i < cornerCount; i++)
                 {
-                    area.Corners[i] = new Vector3(binaryReader.ReadSingle(), binaryReader.ReadSingle(), binaryReader.ReadSingle());
+                    Corners[i] = new Vector3(binaryReader.ReadSingle(), binaryReader.ReadSingle(), binaryReader.ReadSingle());
                 }
             }
 
             var unk1 = binaryReader.ReadUInt32();
 
-            area.Connections = new NavMeshConnection[area.Corners.Length][];
-            for (var i = 0; i < area.Corners.Length; i++)
+            Connections = new NavMeshConnection[Corners.Length][];
+            for (var i = 0; i < Corners.Length; i++)
             {
-                area.Connections[i] = ReadConnections(binaryReader);
+                Connections[i] = ReadConnections(binaryReader);
             }
 
             var unk2 = binaryReader.ReadByte(); //TODO
@@ -70,22 +70,20 @@ namespace ValveResourceFormat.NavMesh
             Debug.Assert(unk3 == 0);
 
             var ladderAboveCount = binaryReader.ReadUInt32();
-            area.LaddersAbove = new uint[ladderAboveCount];
+            LaddersAbove = new uint[ladderAboveCount];
             for (var i = 0; i < ladderAboveCount; i++)
             {
                 var ladderId = binaryReader.ReadUInt32();
-                area.LaddersAbove[i] = ladderId;
+                LaddersAbove[i] = ladderId;
             }
 
             var ladderBelowCount = binaryReader.ReadUInt32();
-            area.LaddersBelow = new uint[ladderBelowCount];
+            LaddersBelow = new uint[ladderBelowCount];
             for (var i = 0; i < ladderBelowCount; i++)
             {
                 var ladderId = binaryReader.ReadUInt32();
-                area.LaddersBelow[i] = ladderId;
+                LaddersBelow[i] = ladderId;
             }
-
-            return area;
         }
     }
 }

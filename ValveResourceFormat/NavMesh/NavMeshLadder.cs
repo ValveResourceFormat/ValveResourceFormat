@@ -18,35 +18,35 @@ namespace ValveResourceFormat.NavMesh
         public NavMeshArea BottomLeftArea { get; set; }
         public NavMeshArea BottomRightArea { get; set; }
 
-        public static NavMeshLadder Load(BinaryReader binaryReader, NavMeshFile navMeshFile)
+        public void Read(BinaryReader binaryReader, NavMeshFile navMeshFile)
         {
-            var ladder = new NavMeshLadder()
-            {
-                Id = binaryReader.ReadUInt32(),
+            Id = binaryReader.ReadUInt32();
 
-                Width = binaryReader.ReadSingle(),
+            Width = binaryReader.ReadSingle();
 
-                Top = new Vector3(binaryReader.ReadSingle(), binaryReader.ReadSingle(), binaryReader.ReadSingle()),
-                Bottom = new Vector3(binaryReader.ReadSingle(), binaryReader.ReadSingle(), binaryReader.ReadSingle()),
+            Top = new Vector3(binaryReader.ReadSingle(), binaryReader.ReadSingle(), binaryReader.ReadSingle());
+            Bottom = new Vector3(binaryReader.ReadSingle(), binaryReader.ReadSingle(), binaryReader.ReadSingle());
 
-                Length = binaryReader.ReadSingle(),
+            Length = binaryReader.ReadSingle();
 
-                Direction = (NavDirectionType)binaryReader.ReadUInt32(),
+            Direction = (NavDirectionType)binaryReader.ReadUInt32();
 
-                TopForwardArea = navMeshFile.GetArea(binaryReader.ReadUInt32()),
-                TopLeftArea = navMeshFile.GetArea(binaryReader.ReadUInt32()),
-                TopRightArea = navMeshFile.GetArea(binaryReader.ReadUInt32()),
-                TopBehindArea = navMeshFile.GetArea(binaryReader.ReadUInt32()),
-                BottomArea = navMeshFile.GetArea(binaryReader.ReadUInt32())
-            };
+            TopForwardArea = navMeshFile.GetArea(binaryReader.ReadUInt32());
+            TopLeftArea = navMeshFile.GetArea(binaryReader.ReadUInt32());
+            TopRightArea = navMeshFile.GetArea(binaryReader.ReadUInt32());
+            TopBehindArea = navMeshFile.GetArea(binaryReader.ReadUInt32());
+            BottomArea = navMeshFile.GetArea(binaryReader.ReadUInt32());
 
             if (navMeshFile.Version >= 35)
             {
-                ladder.BottomLeftArea = navMeshFile.GetArea(binaryReader.ReadUInt32());
-                ladder.BottomRightArea = navMeshFile.GetArea(binaryReader.ReadUInt32());
+                BottomLeftArea = navMeshFile.GetArea(binaryReader.ReadUInt32());
+                BottomRightArea = navMeshFile.GetArea(binaryReader.ReadUInt32());
             }
-
-            return ladder;
+            else
+            {
+                BottomLeftArea = null;
+                BottomRightArea = null;
+            }
         }
     }
 }

@@ -15,12 +15,11 @@ namespace ValveResourceFormat.NavMesh
         public uint Version { get; set; }
         public uint SubVersion { get; set; }
 
-        private readonly Dictionary<uint, NavMeshArea> AreasDictionary = [];
+        public Dictionary<uint, NavMeshArea> Areas { get; private set; }
         private readonly Dictionary<byte, List<NavMeshArea>> LayerAreas = [];
         public NavMeshLadder[] Ladders { get; private set; }
         public int LayerCount { get; private set; }
         public bool IsAnalyzed { get; private set; }
-        public IEnumerable<NavMeshArea> Areas => AreasDictionary.Values;
 
         private static Vector3[][] ReadPolygons(BinaryReader binaryReader)
         {
@@ -40,7 +39,7 @@ namespace ValveResourceFormat.NavMesh
             return polygons;
         }
 
-        private static void ReadPostMetadata(BinaryReader binaryReader, NavMeshFile file)
+        private static void ReadPostMetadata(BinaryReader binaryReader)
         {
             var unkBytes = binaryReader.ReadBytes(8);
             var unk1 = binaryReader.ReadUInt32(); //count?
@@ -114,9 +113,16 @@ namespace ValveResourceFormat.NavMesh
             return polygon;
         }
 
-        public static NavMeshFile Read(BinaryReader binaryReader)
+        public void Read(Stream stream)
         {
-            var navMeshFile = new NavMeshFile();
+            using var binaryReader = new BinaryReader(stream, Encoding.UTF8, true);
+            Read(binaryReader);
+        }
+
+        public void Read(BinaryReader binaryReader)
+        {
+            Areas = [];
+            LayerAreas.Clear();
 
             var magic = binaryReader.ReadUInt32();
             if (magic != MAGIC)
@@ -124,12 +130,12 @@ namespace ValveResourceFormat.NavMesh
                 throw new UnexpectedMagicException($"Unexpected magic, expected {MAGIC:X}", magic, nameof(magic));
             }
 
-            navMeshFile.Version = binaryReader.ReadUInt32();
-            navMeshFile.SubVersion = binaryReader.ReadUInt32();
-            navMeshFile.IsAnalyzed = binaryReader.ReadUInt32() != 0;
+            Version = binaryReader.ReadUInt32();
+            SubVersion = binaryReader.ReadUInt32();
+            IsAnalyzed = binaryReader.ReadUInt32() != 0;
 
             Vector3[][] polygons = null;
-            if (navMeshFile.Version >= 35)
+            if (Version >= 35)
             {
                 polygons = ReadPolygons(binaryReader);
                 var unk1 = binaryReader.ReadUInt32();
@@ -139,20 +145,23 @@ namespace ValveResourceFormat.NavMesh
             var areaCount = binaryReader.ReadUInt32();
             for (var i = 0; i < areaCount; i++)
             {
-                var area = NavMeshArea.Read(binaryReader, navMeshFile, polygons);
-                navMeshFile.AddArea(area);
+                var area = new NavMeshArea();
+                area.Read(binaryReader, this, polygons);
+                AddArea(area);
             }
 
             var ladderCount = binaryReader.ReadUInt32();
-            navMeshFile.Ladders = new NavMeshLadder[ladderCount];
+            Ladders = new NavMeshLadder[ladderCount];
             for (var i = 0; i < ladderCount; i++)
             {
-                navMeshFile.Ladders[i] = NavMeshLadder.Load(binaryReader, navMeshFile);
+                var ladder = new NavMeshLadder();
+                ladder.Read(binaryReader, this);
+                Ladders[i] = ladder;
             }
 
-            if (navMeshFile.Version >= 35)
+            if (Version >= 35)
             {
-                ReadPostMetadata(binaryReader, navMeshFile);
+                ReadPostMetadata(binaryReader);
 
                 while (binaryReader.ReadByte() == 0)
                 {
@@ -169,13 +178,11 @@ namespace ValveResourceFormat.NavMesh
                 var unkBytes = binaryReader.ReadBytes(144); //TODO - similar to newer postmetadata
                 Debug.Assert(binaryReader.BaseStream.Position == binaryReader.BaseStream.Length);
             }
-
-            return navMeshFile;
         }
 
         private void AddArea(NavMeshArea area)
         {
-            AreasDictionary[area.AreaId] = area;
+            Areas[area.AreaId] = area;
             LayerCount = Math.Max(LayerCount, area.AgentLayer + 1);
 
             if (LayerAreas.TryGetValue(area.AgentLayer, out var areas))
@@ -195,7 +202,7 @@ namespace ValveResourceFormat.NavMesh
 
         public NavMeshArea GetArea(uint areaId)
         {
-            return AreasDictionary.GetValueOrDefault(areaId);
+            return Areas.GetValueOrDefault(areaId);
         }
     }
 }

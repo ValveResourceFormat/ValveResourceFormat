@@ -6,7 +6,7 @@ namespace ValveResourceFormat.NavMesh
     {
         public uint AreaId { get; set; }
 
-        public NavMeshConnection(BinaryReader binaryReader)
+        public void Read(BinaryReader binaryReader)
         {
             AreaId = binaryReader.ReadUInt32();
             binaryReader.ReadUInt32(); //TODO
