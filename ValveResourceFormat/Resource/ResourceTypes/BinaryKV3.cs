@@ -43,11 +43,30 @@ namespace ValveResourceFormat.ResourceTypes
         private long currentCompressedBlockIndex;
         private long currentTypeIndex;
         private long currentTwoBytesOffset = -1;
-        private long currentFourBytesOffset = -1;
         private long currentEightBytesOffset = -1;
         private long currentBinaryBytesOffset = -1;
         private bool isUsingLinearFlagTypes; // Version KV3\x03 uses a different enum for mapping flags
-        private bool todoUnknownNewBytesInVersion4;
+        private bool isUsingTwoBytesBuffer;
+
+        private class Buffers
+        {
+            public ArraySegment<byte> Bytes1;
+            public ArraySegment<byte> Bytes2;
+            public ArraySegment<byte> Bytes4;
+            public ArraySegment<byte> Bytes8;
+        }
+
+        private class Context
+        {
+            public ArraySegment<byte> Types;
+            public ArraySegment<byte> ObjectLengths;
+            public string[] Strings;
+            public bool IsSecondBuffer;
+            public Buffers Buffer1;
+            public Buffers Buffer2;
+
+            public Buffers CurrentBuffer => IsSecondBuffer ? Buffer2 : Buffer1;
+        }
 
         public BinaryKV3()
         {
@@ -75,7 +94,7 @@ namespace ValveResourceFormat.ResourceTypes
                     break;
                 case MAGIC4:
                     isUsingLinearFlagTypes = true;
-                    todoUnknownNewBytesInVersion4 = true;
+                    isUsingTwoBytesBuffer = true;
                     ReadVersion3(reader);
                     break;
                 case MAGIC5:
@@ -302,7 +321,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             var countofTwoByteValue = 0u;
 
-            if (todoUnknownNewBytesInVersion4)
+            if (isUsingTwoBytesBuffer)
             {
                 countofTwoByteValue = reader.ReadUInt32();
 
@@ -592,37 +611,37 @@ namespace ValveResourceFormat.ResourceTypes
             var compressionMethod = reader.ReadUInt32();
             var compressionDictionaryId = reader.ReadUInt16();
             var compressionFrameSize = reader.ReadUInt16();
-            var sizeUncompressedStringsData = reader.ReadUInt32(); // sizeUncompressedStrings - 4 bytes for the count of strings - padding to align to buffer to 4 bytes
 
-            var unk1 = reader.ReadUInt32(); Debug.Assert(unk1 == 1);
-            var unk2 = reader.ReadUInt32(); Debug.Assert(unk2 == 0);
-            var typesLength = reader.ReadInt32();
-            var unk3 = reader.ReadUInt16();
-            var unk4 = reader.ReadUInt16();
-            var sizeUncompressedTotal = reader.ReadUInt32();
-            var sizeCompressedTotal = reader.ReadUInt32();
-            var unk5 = reader.ReadUInt32(); Debug.Assert(unk5 == 0);
-            var unk6 = reader.ReadUInt32(); Debug.Assert(unk6 == 0);
-            var unk7 = reader.ReadUInt32(); Debug.Assert(unk7 == 0);
-            var unk8 = reader.ReadUInt32(); Debug.Assert(unk8 == 0);
-            var sizeUncompressedStrings = reader.ReadInt32();
-            var sizeCompressedStrings = reader.ReadInt32();
-            var sizeUncompressed2 = reader.ReadInt32();
-            var sizeCompressed2 = reader.ReadInt32();
-            var unk9 = reader.ReadUInt32(); // byte count?
-            var unk10 = reader.ReadUInt32(); Debug.Assert(unk10 == 0); // shorts count?
-            var unk11 = reader.ReadUInt32();
-            var unk12 = reader.ReadUInt32(); Debug.Assert(unk12 == 0);
-            var unk13 = reader.ReadUInt32();
-            var unk14 = reader.ReadUInt32();
-            var unk15 = reader.ReadUInt32();
+            var countBytes1 = reader.ReadInt32();
+            var countBytes4 = reader.ReadInt32();
+            var countBytes8 = reader.ReadInt32();
+            var countTypes = reader.ReadInt32();
+            var countObjects = reader.ReadUInt16();
+            var countArrays = reader.ReadUInt16();
+            var sizeUncompressedTotal = reader.ReadInt32();
+            var sizeCompressedTotal = reader.ReadInt32();
+            var countBlocks = reader.ReadInt32();
+            var sizeBlocks = reader.ReadInt32();
+            var countBytes2 = reader.ReadInt32();
+            var unk8 = reader.ReadUInt32();
+
+            var sizeUncompressedBuffer1 = reader.ReadInt32();
+            var sizeCompressedBuffer1 = reader.ReadInt32();
+            var sizeUncompressedBuffer2 = reader.ReadInt32();
+            var sizeCompressedBuffer2 = reader.ReadInt32();
+
+            var countBytes1_buffer2 = reader.ReadInt32();
+            var countBytes2_buffer2 = reader.ReadInt32();
+            var countBytes4_buffer2 = reader.ReadInt32();
+            var countBytes8_buffer2 = reader.ReadInt32();
+            var unk13 = reader.ReadInt32(); // similar to typesLength?
+            var countObjects_buffer2 = reader.ReadInt32();
+            var countArrays_buffer2 = reader.ReadInt32();
             var unk16 = reader.ReadUInt32();
 
-            Debug.Assert(sizeCompressedTotal == sizeCompressedStrings + sizeCompressed2);
-            Debug.Assert(sizeUncompressedTotal == sizeUncompressedStrings + sizeUncompressed2);
-
-            Debug.Assert(unk3 == unk14);
-            Debug.Assert(unk4 == unk15);
+            Debug.Assert(sizeCompressedTotal == sizeCompressedBuffer1 + sizeCompressedBuffer2);
+            Debug.Assert(sizeUncompressedTotal == sizeUncompressedBuffer1 + sizeUncompressedBuffer2);
+            Debug.Assert(countObjects == countObjects_buffer2);
 
             if (compressionMethod == 0) // uncompressed
             {
@@ -665,78 +684,498 @@ namespace ValveResourceFormat.ResourceTypes
                 throw new UnexpectedMagicException("Unknown compression method", compressionMethod, nameof(compressionMethod));
             }
 
-            var outputBuf = new byte[sizeUncompressedStrings]; // TODO: ArrayPool
-            var outputBuf2 = new byte[sizeUncompressed2]; // TODO: ArrayPool
+            var buffer1Raw = new byte[sizeUncompressedBuffer1]; // TODO: ArrayPool
+            var buffer2Raw = new byte[sizeUncompressedBuffer2]; // TODO: ArrayPool
 
             if (compressionMethod == 0)
             {
-                Debug.Assert(sizeCompressedStrings == 0);
-                Debug.Assert(sizeCompressed2 == 0);
+                Debug.Assert(sizeCompressedBuffer1 == 0);
+                Debug.Assert(sizeCompressedBuffer2 == 0);
 
-                reader.Read(outputBuf.AsSpan(0, sizeUncompressedStrings));
-                reader.Read(outputBuf2.AsSpan(0, sizeUncompressed2));
+                reader.Read(buffer1Raw.AsSpan(0, sizeUncompressedBuffer1));
+                reader.Read(buffer2Raw.AsSpan(0, sizeUncompressedBuffer2));
             }
             else if (compressionMethod == 1)
             {
-                Debug.Assert(sizeCompressedStrings > 0);
-                Debug.Assert(sizeCompressed2 > 0);
+                Debug.Assert(sizeCompressedBuffer1 > 0);
+                Debug.Assert(sizeCompressedBuffer2 > 0);
 
-                DecompressLZ4(reader, outputBuf, sizeCompressedStrings);
-                DecompressLZ4(reader, outputBuf2, sizeCompressed2);
+                DecompressLZ4(reader, buffer1Raw, sizeCompressedBuffer1);
+                DecompressLZ4(reader, buffer2Raw, sizeCompressedBuffer2);
             }
             else
             {
-                Debug.Assert(sizeCompressedStrings > 0);
-                Debug.Assert(sizeCompressed2 > 0);
+                Debug.Assert(sizeCompressedBuffer1 > 0);
+                Debug.Assert(sizeCompressedBuffer2 > 0);
 
-                throw new NotImplementedException("zstd");
-            }
+                using var zstd = new ZstdSharp.Decompressor();
 
-            var trailer = MemoryMarshal.Read<uint>(outputBuf2.AsSpan()[^4..]);
-            if (trailer != 0xFFEEDD00)
-            {
-                throw new UnexpectedMagicException("Invalid trailer", trailer, nameof(trailer));
-            }
+                var inputBuf = ArrayPool<byte>.Shared.Rent(Math.Max(sizeCompressedBuffer1, sizeCompressedBuffer2));
 
-            // Strings
-            {
-                var stringsBuffer = outputBuf.AsSpan();
-                var countOfStrings = MemoryMarshal.Read<int>(stringsBuffer[^4..]);
-                stringArray = new string[countOfStrings];
-
-                for (var i = 0; i < countOfStrings; i++)
+                try
                 {
-                    stringArray[i] = ReadNullTermUtf8String(ref stringsBuffer);
+                    // Buffer 1
+                    var output = buffer1Raw.AsSpan(0, sizeUncompressedBuffer1);
+                    var input = inputBuf.AsSpan(0, sizeCompressedBuffer1);
+                    reader.Read(input);
+
+                    if (!zstd.TryUnwrap(input, output, out var written) || sizeUncompressedBuffer1 != written)
+                    {
+                        throw new InvalidDataException($"Failed to decompress zstd correctly (written {written} bytes, expected {sizeUncompressedBuffer1} bytes)");
+                    }
+
+                    // Buffer 2
+                    output = buffer2Raw.AsSpan(0, sizeUncompressedBuffer2);
+                    input = inputBuf.AsSpan(0, sizeCompressedBuffer2);
+                    reader.Read(input);
+
+                    if (!zstd.TryUnwrap(input, output, out written) || sizeUncompressedBuffer2 != written)
+                    {
+                        throw new InvalidDataException($"Failed to decompress zstd correctly (written {written} bytes, expected {sizeUncompressedBuffer2} bytes)");
+                    }
+                }
+                finally
+                {
+                    ArrayPool<byte>.Shared.Return(inputBuf);
                 }
             }
 
-            using var outStream = new MemoryStream(outputBuf2, 0, sizeUncompressed2);
-            using var outRead = new BinaryReader(outStream, System.Text.Encoding.UTF8, true);
+            Debug.Assert(reader.BaseStream.Position == Offset + Size);
 
-            currentFourBytesOffset = outRead.BaseStream.Position; // just 0?
-            outRead.BaseStream.Position += unk3 * 4; // 4 byte ints?
-
-            currentBinaryBytesOffset = outRead.BaseStream.Position;
-            outRead.BaseStream.Position += unk9; // bytes?
-
-            if (outRead.BaseStream.Position % 4 != 0)
+            var context = new Context
             {
-                outRead.BaseStream.Position += 4 - (outRead.BaseStream.Position % 4);
+                IsSecondBuffer = true
+            };
+
+            Debug.Assert(countBlocks == 0);
+
+            // Buffer 1
+            {
+                var buffer1Span = new ArraySegment<byte>(buffer1Raw);
+                var buffer1 = new Buffers();
+
+                var offset = 0;
+
+                if (countBytes1 > 0)
+                {
+                    var end = offset + countBytes1;
+                    buffer1.Bytes1 = buffer1Span[offset..end];
+                    offset = end;
+                }
+
+                if (countBytes2 > 0)
+                {
+                    if (offset % 2 != 0)
+                    {
+                        offset += 2 - (offset % 2);
+                    }
+
+                    var end = offset + countBytes2 * 2;
+                    buffer1.Bytes2 = buffer1Span[offset..end];
+                    offset = end;
+                }
+
+                if (countBytes4 > 0)
+                {
+                    if (offset % 4 != 0)
+                    {
+                        offset += 4 - (offset % 4);
+                    }
+
+                    var end = offset + countBytes4 * 4;
+                    buffer1.Bytes4 = buffer1Span[offset..end];
+                    offset = end;
+                }
+
+                if (countBytes8 > 0)
+                {
+                    if (offset % 8 != 0)
+                    {
+                        offset += 8 - (offset % 8);
+                    }
+
+                    var end = offset + countBytes8 * 8;
+                    buffer1.Bytes8 = buffer1Span[offset..end];
+                    offset = end;
+                }
+
+                Debug.Assert(buffer1Span.Count == offset);
+                Debug.Assert(countBytes4 > 0); // should be guaranteed to be at least 1 for the strings count
+
+                var countStrings = MemoryMarshal.Read<int>(buffer1.Bytes4);
+                buffer1.Bytes4 = buffer1.Bytes4[sizeof(int)..];
+
+                context.Strings = new string[countStrings];
+
+                for (var i = 0; i < countStrings; i++)
+                {
+                    context.Strings[i] = ReadNullTermUtf8String(ref buffer1.Bytes1);
+                }
+
+                context.Buffer1 = buffer1;
             }
 
-            var dataOffset = outRead.BaseStream.Position;
-            outRead.BaseStream.Position += unk11 * 4; // the actual data string ids + int32s
+            // Buffer 2
+            {
+                var buffer2Span = new ArraySegment<byte>(buffer2Raw);
+                var buffer2 = new Buffers();
 
-            typesArray = new byte[typesLength]; // TODO: ArrayPool
-            outRead.Read(typesArray.AsSpan(0, typesLength));
+                var end = countObjects_buffer2 * sizeof(int);
+                var offset = end;
 
-            trailer = outRead.ReadUInt32();
-            Debug.Assert(trailer == 0xFFEEDD00);
+                context.ObjectLengths = buffer2Span[..end];
 
-            outRead.BaseStream.Position = dataOffset;
-            Data = ParseBinaryKV3(outRead, null, true);
+                if (countBytes1_buffer2 > 0)
+                {
+                    end = offset + countBytes1_buffer2;
+                    buffer2.Bytes1 = buffer2Span[offset..end];
+                    offset = end;
+                }
 
-            typesArray = null;
+                if (countBytes2_buffer2 > 0)
+                {
+                    if (offset % 2 != 0)
+                    {
+                        offset += 2 - (offset % 2);
+                    }
+
+                    end = offset + countBytes2_buffer2 * 2;
+                    buffer2.Bytes2 = buffer2Span[offset..end];
+                    offset = end;
+                }
+
+                if (countBytes4_buffer2 > 0)
+                {
+                    if (offset % 4 != 0)
+                    {
+                        offset += 4 - (offset % 4);
+                    }
+
+                    end = offset + countBytes4_buffer2 * 4;
+                    buffer2.Bytes4 = buffer2Span[offset..end];
+                    offset = end;
+                }
+
+                if (countBytes8_buffer2 > 0)
+                {
+                    if (offset % 8 != 0)
+                    {
+                        offset += 8 - (offset % 8);
+                    }
+
+                    end = offset + countBytes8_buffer2 * 8;
+                    buffer2.Bytes8 = buffer2Span[offset..end];
+                    offset = end;
+                }
+
+                context.Types = buffer2Span[offset..(offset + countTypes)];
+                offset += countTypes;
+
+                context.Buffer2 = buffer2;
+
+                var trailer = MemoryMarshal.Read<uint>(buffer2Span[offset..]);
+                Debug.Assert(trailer == 0xFFEEDD00);
+                Debug.Assert(buffer2Span.Count == offset + 4);
+            }
+
+            Data = ParseBinaryKV3(context, null, true);
+
+            var k = 1;
+        }
+
+        private static (KVType Type, KVFlag Flag) ReadType(Context context)
+        {
+            var databyte = context.Types[0];
+            context.Types = context.Types[1..];
+            var flagInfo = KVFlag.None;
+
+            if ((databyte & 0x80) > 0)
+            {
+                databyte &= 0x3F; // Remove the flag bit
+
+                flagInfo = (KVFlag)context.Types[0];
+                context.Types = context.Types[1..];
+
+                if (flagInfo > KVFlag.SubClass)
+                {
+                    throw new UnexpectedMagicException("Unexpected kv3 flag", (int)flagInfo, nameof(flagInfo));
+                }
+            }
+
+            return ((KVType)databyte, flagInfo);
+        }
+
+        private static KVObject ParseBinaryKV3(Context context, KVObject parent, bool inArray = false)
+        {
+            string name = null;
+            if (!inArray)
+            {
+                var buffer = context.CurrentBuffer;
+                var stringID = MemoryMarshal.Read<int>(buffer.Bytes4);
+                buffer.Bytes4 = buffer.Bytes4[sizeof(int)..];
+
+                name = (stringID == -1) ? string.Empty : context.Strings[stringID];
+            }
+
+            var (datatype, flagInfo) = ReadType(context);
+
+            return ReadBinaryValue(context, name, datatype, flagInfo, parent);
+        }
+
+        private static KVObject ReadBinaryValue(Context context, string name, KVType datatype, KVFlag flagInfo, KVObject parent)
+        {
+            // We don't support non-object roots properly, so this is a hack to handle "null" kv3
+            if (datatype != KVType.OBJECT && parent == null)
+            {
+                name ??= "root";
+                parent ??= new KVObject(name);
+            }
+
+            var buffer = context.CurrentBuffer;
+
+            switch (datatype)
+            {
+                // Hardcoded values
+                case KVType.NULL:
+                    parent.AddProperty(name, MakeValue(datatype, null, flagInfo));
+                    break;
+                case KVType.BOOLEAN_TRUE:
+                    parent.AddProperty(name, MakeValue(datatype, true, flagInfo));
+                    break;
+                case KVType.BOOLEAN_FALSE:
+                    parent.AddProperty(name, MakeValue(datatype, false, flagInfo));
+                    break;
+                case KVType.INT64_ZERO:
+                    parent.AddProperty(name, MakeValue(datatype, 0L, flagInfo));
+                    break;
+                case KVType.INT64_ONE:
+                    parent.AddProperty(name, MakeValue(datatype, 1L, flagInfo));
+                    break;
+                case KVType.DOUBLE_ZERO:
+                    parent.AddProperty(name, MakeValue(datatype, 0.0D, flagInfo));
+                    break;
+                case KVType.DOUBLE_ONE:
+                    parent.AddProperty(name, MakeValue(datatype, 1.0D, flagInfo));
+                    break;
+
+                // 1 byte values
+                case KVType.BOOLEAN:
+                    {
+                        var value = buffer.Bytes1[0] == 1;
+                        buffer.Bytes1 = buffer.Bytes1[1..];
+
+                        parent.AddProperty(name, MakeValue(datatype, value, flagInfo));
+                    }
+                    break;
+                // TODO: 22, 23 - reading from currentBinaryBytesOffset
+                // 22 is related to 20, 23 is related to 21
+                case KVType.INT32_AS_BYTE:
+                    {
+                        var value = (int)buffer.Bytes1[0];
+                        buffer.Bytes1 = buffer.Bytes1[1..];
+
+                        parent.AddProperty(name, MakeValue(datatype, value, flagInfo));
+                    }
+                    break;
+
+                // 2 byte values
+                case KVType.INT16:
+                    {
+                        var value = MemoryMarshal.Read<short>(buffer.Bytes2);
+                        buffer.Bytes2 = buffer.Bytes2[sizeof(short)..];
+
+                        parent.AddProperty(name, MakeValue(datatype, value, flagInfo));
+                    }
+                    break;
+                case KVType.UINT16:
+                    {
+                        var value = MemoryMarshal.Read<ushort>(buffer.Bytes2);
+                        buffer.Bytes2 = buffer.Bytes2[sizeof(ushort)..];
+
+                        parent.AddProperty(name, MakeValue(datatype, value, flagInfo));
+                    }
+                    break;
+
+                // 4 byte values
+                case KVType.INT32:
+                    {
+                        var value = MemoryMarshal.Read<int>(buffer.Bytes4);
+                        buffer.Bytes4 = buffer.Bytes4[sizeof(int)..];
+
+                        parent.AddProperty(name, MakeValue(datatype, value, flagInfo));
+                    }
+                    break;
+                case KVType.UINT32:
+                    {
+                        var value = MemoryMarshal.Read<uint>(buffer.Bytes4);
+                        buffer.Bytes4 = buffer.Bytes4[sizeof(uint)..];
+
+                        parent.AddProperty(name, MakeValue(datatype, value, flagInfo));
+                    }
+                    break;
+                case KVType.FLOAT:
+                    {
+                        var value = MemoryMarshal.Read<float>(buffer.Bytes4);
+                        buffer.Bytes4 = buffer.Bytes4[sizeof(float)..];
+
+                        parent.AddProperty(name, MakeValue(datatype, value, flagInfo));
+                    }
+                    break;
+
+                // 8 byte values
+                case KVType.INT64:
+                    {
+                        var value = MemoryMarshal.Read<long>(buffer.Bytes8);
+                        buffer.Bytes8 = buffer.Bytes8[sizeof(long)..];
+
+                        parent.AddProperty(name, MakeValue(datatype, value, flagInfo));
+                    }
+                    break;
+                case KVType.UINT64:
+                    {
+                        var value = MemoryMarshal.Read<ulong>(buffer.Bytes8);
+                        buffer.Bytes8 = buffer.Bytes8[sizeof(ulong)..];
+
+                        parent.AddProperty(name, MakeValue(datatype, value, flagInfo));
+                    }
+                    break;
+                case KVType.DOUBLE:
+                    {
+                        var value = MemoryMarshal.Read<double>(buffer.Bytes8);
+                        buffer.Bytes8 = buffer.Bytes8[sizeof(double)..];
+
+                        parent.AddProperty(name, MakeValue(datatype, value, flagInfo));
+                    }
+                    break;
+
+                // Custom types
+                case KVType.STRING:
+                case KVType.STRING_MULTI:
+                    {
+                        var id = MemoryMarshal.Read<int>(buffer.Bytes4);
+                        buffer.Bytes4 = buffer.Bytes4[sizeof(int)..];
+
+                        parent.AddProperty(name, MakeValue(datatype, id == -1 ? string.Empty : context.Strings[id], flagInfo));
+                    }
+                    break;
+                /*
+            case KVType.BINARY_BLOB:
+                if (uncompressedBlocks != null)
+                {
+                    var blockLength = uncompressedBlockLengthArray[currentCompressedBlockIndex++];
+                    var output = uncompressedBlocks[uncompressedBlockOffset..(uncompressedBlockOffset + blockLength)].ToArray();
+                    uncompressedBlockOffset += blockLength;
+                    parent.AddProperty(name, MakeValue(datatype, output, flagInfo));
+                    break;
+                }
+
+                var length = reader.ReadInt32();
+
+                if (currentBinaryBytesOffset > -1)
+                {
+                    reader.BaseStream.Position = currentBinaryBytesOffset;
+                }
+
+                parent.AddProperty(name, MakeValue(datatype, reader.ReadBytes(length), flagInfo));
+
+                if (currentBinaryBytesOffset > -1)
+                {
+                    currentBinaryBytesOffset = reader.BaseStream.Position;
+                    reader.BaseStream.Position = currentOffset + 4;
+                }
+
+                break;
+                */
+                case KVType.ARRAY:
+                    {
+                        var arrayLength = MemoryMarshal.Read<int>(buffer.Bytes4);
+                        buffer.Bytes4 = buffer.Bytes4[sizeof(int)..];
+
+                        var array = new KVObject(name, isArray: true, capacity: arrayLength);
+
+                        for (var i = 0; i < arrayLength; i++)
+                        {
+                            ParseBinaryKV3(context, array, true);
+                        }
+
+                        parent.AddProperty(name, MakeValue(datatype, array, flagInfo));
+                    }
+                    break;
+                case KVType.ARRAY_TYPED:
+                case KVType.ARRAY_TYPE_BYTE_LENGTH:
+                    {
+                        int arrayLength;
+
+                        if (datatype == KVType.ARRAY_TYPE_BYTE_LENGTH)
+                        {
+                            arrayLength = buffer.Bytes1[0];
+                            buffer.Bytes1 = buffer.Bytes1[1..];
+                        }
+                        else
+                        {
+                            arrayLength = MemoryMarshal.Read<int>(buffer.Bytes4);
+                            buffer.Bytes4 = buffer.Bytes4[sizeof(int)..];
+                        }
+
+                        var (subType, subFlagInfo) = ReadType(context);
+                        var typedArray = new KVObject(name, isArray: true, capacity: arrayLength);
+
+                        for (var i = 0; i < arrayLength; i++)
+                        {
+                            ReadBinaryValue(context, name, subType, subFlagInfo, typedArray);
+                        }
+
+                        parent.AddProperty(name, MakeValue(datatype, typedArray, flagInfo));
+                    }
+                    break;
+                case KVType.ARRAY_TYPE_ALTERNATE_BUFFER:
+                    {
+                        var arrayLength = buffer.Bytes1[0];
+                        buffer.Bytes1 = buffer.Bytes1[1..];
+
+                        var (subType, subFlagInfo) = ReadType(context);
+                        var typedArray = new KVObject(name, isArray: true, capacity: arrayLength);
+
+                        context.IsSecondBuffer = false;
+
+                        for (var i = 0; i < arrayLength; i++)
+                        {
+                            ReadBinaryValue(context, name, subType, subFlagInfo, typedArray);
+                        }
+
+                        context.IsSecondBuffer = true;
+
+                        parent.AddProperty(name, MakeValue(datatype, typedArray, flagInfo));
+                    }
+                    break;
+
+                case KVType.OBJECT:
+                    {
+                        var objectLength = MemoryMarshal.Read<int>(context.ObjectLengths);
+                        context.ObjectLengths = context.ObjectLengths[sizeof(int)..];
+
+                        var newObject = new KVObject(name, isArray: false, capacity: objectLength);
+
+                        for (var i = 0; i < objectLength; i++)
+                        {
+                            ParseBinaryKV3(context, newObject, false);
+                        }
+
+                        if (parent == null)
+                        {
+                            parent = newObject;
+                        }
+                        else
+                        {
+                            parent.AddProperty(name, MakeValue(datatype, newObject, flagInfo));
+                        }
+                    }
+                    break;
+                default:
+                    throw new UnexpectedMagicException($"Unknown KVType for field '{name}'", (int)datatype, nameof(datatype));
+            }
+
+            return parent;
         }
 
         private (KVType Type, KVFlag Flag) ReadType(BinaryReader reader)
@@ -970,7 +1409,7 @@ namespace ValveResourceFormat.ResourceTypes
                     break;
                 case KVType.ARRAY_TYPED:
                 case KVType.ARRAY_TYPE_BYTE_LENGTH:
-                    var typeArrayLength = 0;
+                    int typeArrayLength;
 
                     if (datatype == KVType.ARRAY_TYPE_BYTE_LENGTH)
                     {
@@ -997,22 +1436,7 @@ namespace ValveResourceFormat.ResourceTypes
                     parent.AddProperty(name, MakeValue(datatype, typedArray, flagInfo));
                     break;
                 case KVType.OBJECT:
-                    var objectLength = 0;
-
-                    if (currentFourBytesOffset > -1)
-                    {
-                        reader.BaseStream.Position = currentFourBytesOffset;
-
-                        objectLength = reader.ReadInt32();
-
-                        currentFourBytesOffset += 4;
-                        reader.BaseStream.Position = currentOffset;
-                    }
-                    else
-                    {
-                        objectLength = reader.ReadInt32();
-                    }
-
+                    var objectLength = reader.ReadInt32();
                     var newObject = new KVObject(name, isArray: false, capacity: objectLength);
 
                     for (var i = 0; i < objectLength; i++)
@@ -1089,6 +1513,7 @@ namespace ValveResourceFormat.ResourceTypes
                     return KVType.DOUBLE;
                 case KVType.ARRAY_TYPED:
                 case KVType.ARRAY_TYPE_BYTE_LENGTH:
+                case KVType.ARRAY_TYPE_ALTERNATE_BUFFER:
                     return KVType.ARRAY;
             }
 #pragma warning restore IDE0066 // Convert switch statement to expression
@@ -1128,14 +1553,11 @@ namespace ValveResourceFormat.ResourceTypes
             GetKV3File().WriteText(writer);
         }
 
-        private static string ReadNullTermUtf8String(ref Span<byte> buffer)
+        private static string ReadNullTermUtf8String(ref ArraySegment<byte> buffer)
         {
-            var nullByte = buffer.IndexOf((byte)0);
+            var nullByte = buffer.AsSpan().IndexOf((byte)0);
 
-            if (nullByte == 0)
-            {
-                return string.Empty;
-            }
+            Debug.Assert(nullByte > 0);
 
             var str = buffer[..nullByte];
             buffer = buffer[(nullByte + 1)..];
