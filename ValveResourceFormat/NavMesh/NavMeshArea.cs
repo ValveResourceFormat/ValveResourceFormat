@@ -10,9 +10,10 @@ namespace ValveResourceFormat.NavMesh
         public DynamicAttributeFlags DynamicAttributeFlags { get; set; }
         public Vector3[] Corners { get; set; }
         public NavMeshConnection[][] Connections { get; set; }
-        public uint[] Ladders { get; set; }
+        public uint[] LaddersAbove { get; set; }
+        public uint[] LaddersBelow { get; set; }
 
-        private static NavMeshConnection[] ReadConnections(BinaryReader binaryReader)
+        public static NavMeshConnection[] ReadConnections(BinaryReader binaryReader)
         {
             var connectionCount = binaryReader.ReadUInt32();
             var connections = new NavMeshConnection[connectionCount];
@@ -25,7 +26,7 @@ namespace ValveResourceFormat.NavMesh
             return connections;
         }
 
-        public static NavMeshArea Read(BinaryReader binaryReader, uint navFileVersion)
+        public static NavMeshArea Read(BinaryReader binaryReader, NavMeshFile navMeshFile, Vector3[][] polygons)
         {
             var area = new NavMeshArea();
 
@@ -38,38 +39,50 @@ namespace ValveResourceFormat.NavMesh
             Debug.Assert(unkBytes[2] == 0);
             Debug.Assert(unkBytes[3] == 0);
             area.AgentLayer = binaryReader.ReadByte();
-            var cornerCount = binaryReader.ReadUInt32(); //TODO (maybe corner count?)
 
-            area.Corners = new Vector3[cornerCount];
-            for (var i = 0; i < cornerCount; i++)
+            if (navMeshFile.Version >= 35)
             {
-                area.Corners[i] = new Vector3(binaryReader.ReadSingle(), binaryReader.ReadSingle(), binaryReader.ReadSingle());
+                var polygonIndex = binaryReader.ReadUInt32();
+                area.Corners = polygons[polygonIndex];
+            }
+            else
+            {
+                var cornerCount = binaryReader.ReadUInt32();
+
+                area.Corners = new Vector3[cornerCount];
+                for (var i = 0; i < cornerCount; i++)
+                {
+                    area.Corners[i] = new Vector3(binaryReader.ReadSingle(), binaryReader.ReadSingle(), binaryReader.ReadSingle());
+                }
             }
 
             var unk1 = binaryReader.ReadUInt32();
 
-            area.Connections = new NavMeshConnection[cornerCount][];
-            for (var i = 0; i < cornerCount; i++)
+            area.Connections = new NavMeshConnection[area.Corners.Length][];
+            for (var i = 0; i < area.Corners.Length; i++)
             {
                 area.Connections[i] = ReadConnections(binaryReader);
             }
 
-            var unk2 = binaryReader.ReadByte(); //TODO - probably hiding spot count?
-            var unk3 = binaryReader.ReadUInt32(); //TODO - probably encounter path count?
+            var unk2 = binaryReader.ReadByte(); //TODO
+            Debug.Assert(unk2 == 0);
+            var unk3 = binaryReader.ReadUInt32(); //TODO
+            Debug.Assert(unk3 == 0);
 
-            var ladderCount = binaryReader.ReadUInt32();
-            area.Ladders = new uint[ladderCount];
-            for (var i = 0; i < ladderCount; i++)
+            var ladderAboveCount = binaryReader.ReadUInt32();
+            area.LaddersAbove = new uint[ladderAboveCount];
+            for (var i = 0; i < ladderAboveCount; i++)
             {
                 var ladderId = binaryReader.ReadUInt32();
-                area.Ladders[i] = ladderId;
+                area.LaddersAbove[i] = ladderId;
             }
 
-            var unkBytes2 = binaryReader.ReadBytes(4); //TODO - probably hiding spots, approach areas, encounter paths, place data, ladder data, etc.
-
-            for (var i = 0; i < unkBytes2.Length; i++)
+            var ladderBelowCount = binaryReader.ReadUInt32();
+            area.LaddersBelow = new uint[ladderBelowCount];
+            for (var i = 0; i < ladderBelowCount; i++)
             {
-                Debug.Assert(unkBytes2[i] == 0);
+                var ladderId = binaryReader.ReadUInt32();
+                area.LaddersBelow[i] = ladderId;
             }
 
             return area;

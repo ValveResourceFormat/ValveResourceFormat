@@ -68,10 +68,10 @@ namespace GUI.Types.Renderer
 
             var firstVertexIndex = verts.Count;
 
-            verts.Add(new(bottom1, color, normal));
             verts.Add(new(bottom2, color, normal));
-            verts.Add(new(top2, color, normal));
+            verts.Add(new(bottom1, color, normal));
             verts.Add(new(top1, color, normal));
+            verts.Add(new(top2, color, normal));
 
             for (var i = 0; i < 4; i++)
             {

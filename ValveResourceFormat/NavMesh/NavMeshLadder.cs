@@ -15,10 +15,12 @@ namespace ValveResourceFormat.NavMesh
         public NavMeshArea TopRightArea { get; set; }
         public NavMeshArea TopBehindArea { get; set; }
         public NavMeshArea BottomArea { get; set; }
+        public NavMeshArea BottomLeftArea { get; set; }
+        public NavMeshArea BottomRightArea { get; set; }
 
         public static NavMeshLadder Load(BinaryReader binaryReader, NavMeshFile navMeshFile)
         {
-            return new()
+            var ladder = new NavMeshLadder()
             {
                 Id = binaryReader.ReadUInt32(),
 
@@ -37,6 +39,14 @@ namespace ValveResourceFormat.NavMesh
                 TopBehindArea = navMeshFile.GetArea(binaryReader.ReadUInt32()),
                 BottomArea = navMeshFile.GetArea(binaryReader.ReadUInt32())
             };
+
+            if (navMeshFile.Version >= 35)
+            {
+                ladder.BottomLeftArea = navMeshFile.GetArea(binaryReader.ReadUInt32());
+                ladder.BottomRightArea = navMeshFile.GetArea(binaryReader.ReadUInt32());
+            }
+
+            return ladder;
         }
     }
 }
