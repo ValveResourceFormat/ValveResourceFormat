@@ -7,6 +7,7 @@ using GUI.Controls;
 using GUI.Forms;
 using GUI.Utils;
 using ValveResourceFormat.IO;
+using ValveResourceFormat.NavMesh;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 using static GUI.Controls.SavedCameraPositionsControl;
@@ -28,6 +29,7 @@ namespace GUI.Types.Renderer
         private EntityInfoForm entityInfoForm;
         private bool ignoreLayersChangeEvents = true;
         private List<Matrix4x4> CameraMatrices;
+        private NavMeshAreasSceneNode[] navMeshSceneNodes;
 
         public GLWorldViewer(VrfGuiContext guiContext, World world)
             : base(guiContext)
@@ -188,6 +190,34 @@ namespace GUI.Types.Renderer
             Settings.InvokeRefreshCamerasOnSave();
         }
 
+        private void InitializeNavMesh(NavMeshFile navMesh)
+        {
+            if (navMesh == null)
+            {
+                return;
+            }
+
+            for (byte i = 0; i < navMesh.LayerCount; i++)
+            {
+                var layerAreas = navMesh.GetLayerAreas(i);
+                if (layerAreas == null)
+                {
+                    continue;
+                }
+
+                var sceneNode = new NavMeshAreasSceneNode(Scene, layerAreas);
+                sceneNode.LayerName = $"Navigation mesh (layer {i})";
+                Scene.Add(sceneNode, false);
+            }
+
+            if (navMesh.Ladders != null && navMesh.Ladders.Length > 0)
+            {
+                var laddersSceneNode = new NavMeshLaddersSceneNode(Scene, navMesh.Ladders);
+                laddersSceneNode.LayerName = "Navigation mesh (ladders)";
+                Scene.Add(laddersSceneNode, false);
+            }
+        }
+
         protected override void LoadScene()
         {
             var cameraSet = false;
@@ -215,6 +245,8 @@ namespace GUI.Types.Renderer
 
                 var uniqueWorldLayers = new HashSet<string>(4);
                 var uniquePhysicsGroups = new HashSet<string>();
+
+                InitializeNavMesh(result.NavMesh);
 
                 foreach (var node in Scene.AllNodes)
                 {

@@ -299,6 +299,24 @@ namespace ValveResourceFormat.IO
             }
         }
 
+        public Stream GetFileStream(string file)
+        {
+            var foundFile = FindFile(file);
+
+            if (foundFile.PathOnDisk != null)
+            {
+                return File.OpenRead(file);
+            }
+            else if (foundFile.PackageEntry != null)
+            {
+                return GetPackageEntryStream(foundFile.Package, foundFile.PackageEntry);
+            }
+            else
+            {
+                return null;
+            }
+        }
+
         public virtual Resource LoadFileCompiled(string file) => LoadFile(string.Concat(file, CompiledFileSuffix));
 
         public virtual Resource LoadFile(string file)
