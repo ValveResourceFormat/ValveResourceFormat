@@ -158,8 +158,8 @@ namespace ValveResourceFormat.NavMesh
             var unk4 = binaryReader.ReadSingle(); //related to agent/human size - values seen so far are 15 and 16
             Debug.Assert(Math.Abs(unk4 - 15.5) < 0.51);
 
-            var agentHeight = binaryReader.ReadSingle(); //=71
-            Debug.Assert(Math.Abs(agentHeight - 71) < 0.01);
+            var humanHeight = binaryReader.ReadSingle(); //=71
+            Debug.Assert(Math.Abs(humanHeight - 71) < 0.01);
 
             var unk5 = binaryReader.ReadByte();
 
