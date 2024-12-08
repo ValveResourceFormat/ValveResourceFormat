@@ -1002,8 +1002,8 @@ namespace GUI.Types.Renderer
                 using var navFileStream = guiContext.FileLoader.GetFileStream(navFilePath);
                 if (navFileStream != null)
                 {
-                    using var binaryReader = new BinaryReader(navFileStream);
-                    NavMesh = NavMeshFile.Read(binaryReader);
+                    NavMesh = new NavMeshFile();
+                    NavMesh.Read(navFileStream);
                     Log.Info(nameof(WorldLoader), $"Navigation mesh loaded from '{navFilePath}'");
                 }
             }
