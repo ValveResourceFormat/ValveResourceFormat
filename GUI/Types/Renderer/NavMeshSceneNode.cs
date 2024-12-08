@@ -4,14 +4,15 @@ using ValveResourceFormat.NavMesh;
 
 namespace GUI.Types.Renderer
 {
-    class NavMeshAreasSceneNode : SceneNode
+    class NavMeshSceneNode : SceneNode
     {
         public static readonly Color32 NavMeshColor = new Color32(64, 32, 255, 100);
+        public static readonly Color32 NavMeshLadderColor = new Color32(16, 255, 32, 100);
         protected Shader shader;
         protected int indexCount;
         protected int vaoHandle;
 
-        public NavMeshAreasSceneNode(Scene scene, IEnumerable<NavMeshArea> areas)
+        public NavMeshSceneNode(Scene scene, IEnumerable<NavMeshArea> areas)
             : base(scene)
         {
             List<SimpleVertexNormal> verts = new();
@@ -25,7 +26,28 @@ namespace GUI.Types.Renderer
             }
 
             LocalBoundingBox = new AABB(minBounds, maxBounds);
+            Init(verts, inds);
+        }
 
+        public NavMeshSceneNode(Scene scene, IEnumerable<NavMeshLadder> ladders)
+            : base(scene)
+        {
+            List<SimpleVertexNormal> verts = new();
+            List<int> inds = new();
+
+            var minBounds = new Vector3(float.MinValue);
+            var maxBounds = new Vector3(float.MaxValue);
+            foreach (var ladder in ladders)
+            {
+                AddLadder(ladder, verts, inds, NavMeshLadderColor, ref minBounds, ref maxBounds);
+            }
+
+            LocalBoundingBox = new AABB(minBounds, maxBounds);
+            Init(verts, inds);
+        }
+
+        private void Init(List<SimpleVertexNormal> verts, List<int> inds)
+        {
             indexCount = inds.Count;
             shader = Scene.GuiContext.ShaderLoader.LoadShader("vrf.basic_shape");
 
@@ -40,7 +62,7 @@ namespace GUI.Types.Renderer
             GL.NamedBufferData(iboHandle, inds.Count * sizeof(int), inds.ToArray(), BufferUsageHint.StaticDraw);
 
 #if DEBUG
-            var vaoLabel = nameof(NavMeshAreasSceneNode);
+            var vaoLabel = nameof(NavMeshSceneNode);
             GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, vaoHandle, vaoLabel.Length, vaoLabel);
 #endif
         }
@@ -68,10 +90,10 @@ namespace GUI.Types.Renderer
 
             var firstVertexIndex = verts.Count;
 
-            verts.Add(new(bottom1, color, normal));
             verts.Add(new(bottom2, color, normal));
-            verts.Add(new(top2, color, normal));
+            verts.Add(new(bottom1, color, normal));
             verts.Add(new(top1, color, normal));
+            verts.Add(new(top2, color, normal));
 
             for (var i = 0; i < 4; i++)
             {

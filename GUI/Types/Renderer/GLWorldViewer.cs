@@ -29,7 +29,6 @@ namespace GUI.Types.Renderer
         private EntityInfoForm entityInfoForm;
         private bool ignoreLayersChangeEvents = true;
         private List<Matrix4x4> CameraMatrices;
-        private NavMeshAreasSceneNode[] navMeshSceneNodes;
 
         public GLWorldViewer(VrfGuiContext guiContext, World world)
             : base(guiContext)
@@ -205,14 +204,14 @@ namespace GUI.Types.Renderer
                     continue;
                 }
 
-                var sceneNode = new NavMeshAreasSceneNode(Scene, layerAreas);
+                var sceneNode = new NavMeshSceneNode(Scene, layerAreas);
                 sceneNode.LayerName = $"Navigation mesh (layer {i})";
                 Scene.Add(sceneNode, false);
             }
 
             if (navMesh.Ladders != null && navMesh.Ladders.Length > 0)
             {
-                var laddersSceneNode = new NavMeshLaddersSceneNode(Scene, navMesh.Ladders);
+                var laddersSceneNode = new NavMeshSceneNode(Scene, navMesh.Ladders);
                 laddersSceneNode.LayerName = "Navigation mesh (ladders)";
                 Scene.Add(laddersSceneNode, false);
             }
