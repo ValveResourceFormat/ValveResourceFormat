@@ -720,9 +720,11 @@ namespace ValveResourceFormat.Blocks
             {
                 DXGI_FORMAT.R32G32B32_FLOAT => (4, 3),
                 DXGI_FORMAT.R32G32B32A32_FLOAT => (4, 4),
+                DXGI_FORMAT.R32G32B32A32_SINT => (4, 4),
                 DXGI_FORMAT.R16G16_UNORM => (2, 2),
                 DXGI_FORMAT.R16G16_SNORM => (2, 2),
                 DXGI_FORMAT.R16G16_FLOAT => (2, 2),
+                DXGI_FORMAT.R16G16B16A16_UINT => (2, 4),
                 DXGI_FORMAT.R32_FLOAT => (4, 1),
                 DXGI_FORMAT.R32_UINT => (4, 1),
                 DXGI_FORMAT.R32G32_FLOAT => (4, 2),
