@@ -266,7 +266,7 @@ namespace GUI.Types.Renderer
             GL.UseProgram(renderShader.Program);
 
             renderShader.SetUniform4x4("transform", Transform);
-            renderShader.SetUniform1("bAnimated", 0.0f);
+            renderShader.SetUniform1("bAnimated", false);
             renderShader.SetUniform1("sceneObjectId", Id);
 
             renderShader.SetUniform1("g_bNormalShaded", Shaded);
