@@ -719,9 +719,9 @@ namespace ValveResourceFormat.ResourceTypes
             currentBinaryBytesOffset = outRead.BaseStream.Position;
             outRead.BaseStream.Position += unk9; // bytes?
 
-            if (outRead.BaseStream.Position % 8 != 0)
+            if (outRead.BaseStream.Position % 4 != 0)
             {
-                outRead.BaseStream.Position += 8 - (outRead.BaseStream.Position % 8);
+                outRead.BaseStream.Position += 4 - (outRead.BaseStream.Position % 4);
             }
 
             var dataOffset = outRead.BaseStream.Position;
