@@ -18,18 +18,18 @@ namespace ValveResourceFormat.ResourceTypes
         private readonly BlockType KVBlockType;
         public override BlockType Type => KVBlockType;
 
-        private static readonly Guid KV3_ENCODING_BINARY_BLOCK_COMPRESSED = new(new byte[] { 0x46, 0x1A, 0x79, 0x95, 0xBC, 0x95, 0x6C, 0x4F, 0xA7, 0x0B, 0x05, 0xBC, 0xA1, 0xB7, 0xDF, 0xD2 });
-        private static readonly Guid KV3_ENCODING_BINARY_UNCOMPRESSED = new(new byte[] { 0x00, 0x05, 0x86, 0x1B, 0xD8, 0xF7, 0xC1, 0x40, 0xAD, 0x82, 0x75, 0xA4, 0x82, 0x67, 0xE7, 0x14 });
-        private static readonly Guid KV3_ENCODING_BINARY_BLOCK_LZ4 = new(new byte[] { 0x8A, 0x34, 0x47, 0x68, 0xA1, 0x63, 0x5C, 0x4F, 0xA1, 0x97, 0x53, 0x80, 0x6F, 0xD9, 0xB1, 0x19 });
-        private static readonly Guid KV3_FORMAT_GENERIC = new(new byte[] { 0x7C, 0x16, 0x12, 0x74, 0xE9, 0x06, 0x98, 0x46, 0xAF, 0xF2, 0xE6, 0x3E, 0xB5, 0x90, 0x37, 0xE7 });
-        public const int MAGIC = 0x03564B56; // VKV3 (3 isn't ascii, its 0x03)
-        public const int MAGIC2 = 0x4B563301; // KV3\x01
-        public const int MAGIC3 = 0x4B563302; // KV3\x02
-        public const int MAGIC4 = 0x4B563303; // KV3\x03
-        public const int MAGIC5 = 0x4B563304; // KV3\x04
-        public const int MAGIC6 = 0x4B563305; // KV3\x05
+        private static readonly Guid KV3_ENCODING_BINARY_BLOCK_COMPRESSED = new([0x46, 0x1A, 0x79, 0x95, 0xBC, 0x95, 0x6C, 0x4F, 0xA7, 0x0B, 0x05, 0xBC, 0xA1, 0xB7, 0xDF, 0xD2]);
+        private static readonly Guid KV3_ENCODING_BINARY_UNCOMPRESSED = new([0x00, 0x05, 0x86, 0x1B, 0xD8, 0xF7, 0xC1, 0x40, 0xAD, 0x82, 0x75, 0xA4, 0x82, 0x67, 0xE7, 0x14]);
+        private static readonly Guid KV3_ENCODING_BINARY_BLOCK_LZ4 = new([0x8A, 0x34, 0x47, 0x68, 0xA1, 0x63, 0x5C, 0x4F, 0xA1, 0x97, 0x53, 0x80, 0x6F, 0xD9, 0xB1, 0x19]);
+        private static readonly Guid KV3_FORMAT_GENERIC = new([0x7C, 0x16, 0x12, 0x74, 0xE9, 0x06, 0x98, 0x46, 0xAF, 0xF2, 0xE6, 0x3E, 0xB5, 0x90, 0x37, 0xE7]);
+        public const int MAGIC0 = 0x03564B56; // VKV3 (3 isn't ascii, its 0x03)
+        public const int MAGIC1 = 0x4B563301; // KV3\x01
+        public const int MAGIC2 = 0x4B563302; // KV3\x02
+        public const int MAGIC3 = 0x4B563303; // KV3\x03
+        public const int MAGIC4 = 0x4B563304; // KV3\x04
+        public const int MAGIC5 = 0x4B563305; // KV3\x05
 
-        public static bool IsBinaryKV3(uint magic) => magic is MAGIC or MAGIC2 or MAGIC3 or MAGIC4 or MAGIC5 or MAGIC6;
+        public static bool IsBinaryKV3(uint magic) => magic is MAGIC0 or MAGIC1 or MAGIC2 or MAGIC3 or MAGIC4 or MAGIC5;
 
         public KVObject Data { get; private set; }
         public Guid Encoding { get; private set; }
@@ -43,7 +43,8 @@ namespace ValveResourceFormat.ResourceTypes
         private long currentCompressedBlockIndex;
         private long currentTypeIndex;
         private long currentTwoBytesOffset = -1;
-        private long currentEightBytesOffset;
+        private long currentFourBytesOffset = -1;
+        private long currentEightBytesOffset = -1;
         private long currentBinaryBytesOffset = -1;
         private bool isUsingLinearFlagTypes; // Version KV3\x03 uses a different enum for mapping flags
         private bool todoUnknownNewBytesInVersion4;
@@ -66,18 +67,18 @@ namespace ValveResourceFormat.ResourceTypes
 
             switch (magic)
             {
-                case MAGIC: ReadVersion1(reader); break;
-                case MAGIC2: ReadVersion2(reader); break;
-                case MAGIC3: ReadVersion3(reader); break;
-                case MAGIC4:
+                case MAGIC0: ReadVersion1(reader); break;
+                case MAGIC1: ReadVersion2(reader); break;
+                case MAGIC2: ReadVersion3(reader); break;
+                case MAGIC3:
                     ReadVersion3(reader);
                     break;
-                case MAGIC5:
+                case MAGIC4:
                     isUsingLinearFlagTypes = true;
                     todoUnknownNewBytesInVersion4 = true;
                     ReadVersion3(reader);
                     break;
-                case MAGIC6:
+                case MAGIC5:
                     ReadVersion5(reader);
                     break;
                 default: throw new UnexpectedMagicException("Invalid KV3 signature", magic, nameof(magic));
@@ -593,29 +594,35 @@ namespace ValveResourceFormat.ResourceTypes
             var compressionFrameSize = reader.ReadUInt16();
             var sizeUncompressedStringsData = reader.ReadUInt32(); // sizeUncompressedStrings - 4 bytes for the count of strings - padding to align to buffer to 4 bytes
 
-            var unk1 = reader.ReadUInt32(); // 1
-            var unk2 = reader.ReadUInt32(); // 0
-            var unk17 = reader.ReadUInt32();
+            var unk1 = reader.ReadUInt32(); Debug.Assert(unk1 == 1);
+            var unk2 = reader.ReadUInt32(); Debug.Assert(unk2 == 0);
+            var typesLength = reader.ReadInt32();
             var unk3 = reader.ReadUInt16();
             var unk4 = reader.ReadUInt16();
-            var sizeCompressedTotal = reader.ReadUInt32();
             var sizeUncompressedTotal = reader.ReadUInt32();
-            var unk5 = reader.ReadUInt32(); // 0
-            var unk6 = reader.ReadUInt32(); // 0
-            var unk7 = reader.ReadUInt32(); // 0
-            var unk8 = reader.ReadUInt32(); // 0
+            var sizeCompressedTotal = reader.ReadUInt32();
+            var unk5 = reader.ReadUInt32(); Debug.Assert(unk5 == 0);
+            var unk6 = reader.ReadUInt32(); Debug.Assert(unk6 == 0);
+            var unk7 = reader.ReadUInt32(); Debug.Assert(unk7 == 0);
+            var unk8 = reader.ReadUInt32(); Debug.Assert(unk8 == 0);
             var sizeUncompressedStrings = reader.ReadInt32();
             var sizeCompressedStrings = reader.ReadInt32();
-            var sizeUncompressed2 = reader.ReadUInt32();
-            var sizeCompressed2 = reader.ReadUInt32(); // 0 for uncompressed?
-            var unk9 = reader.ReadUInt32(); // count?
-            var unk10 = reader.ReadUInt32(); // 0
+            var sizeUncompressed2 = reader.ReadInt32();
+            var sizeCompressed2 = reader.ReadInt32();
+            var unk9 = reader.ReadUInt32(); // byte count?
+            var unk10 = reader.ReadUInt32(); Debug.Assert(unk10 == 0); // shorts count?
             var unk11 = reader.ReadUInt32();
-            var unk12 = reader.ReadUInt32(); // 0
+            var unk12 = reader.ReadUInt32(); Debug.Assert(unk12 == 0);
             var unk13 = reader.ReadUInt32();
             var unk14 = reader.ReadUInt32();
             var unk15 = reader.ReadUInt32();
             var unk16 = reader.ReadUInt32();
+
+            Debug.Assert(sizeCompressedTotal == sizeCompressedStrings + sizeCompressed2);
+            Debug.Assert(sizeUncompressedTotal == sizeUncompressedStrings + sizeUncompressed2);
+
+            Debug.Assert(unk3 == unk14);
+            Debug.Assert(unk4 == unk15);
 
             if (compressionMethod == 0) // uncompressed
             {
@@ -659,39 +666,77 @@ namespace ValveResourceFormat.ResourceTypes
             }
 
             var outputBuf = new byte[sizeUncompressedStrings]; // TODO: ArrayPool
+            var outputBuf2 = new byte[sizeUncompressed2]; // TODO: ArrayPool
 
             if (compressionMethod == 0)
             {
                 Debug.Assert(sizeCompressedStrings == 0);
+                Debug.Assert(sizeCompressed2 == 0);
 
                 reader.Read(outputBuf.AsSpan(0, sizeUncompressedStrings));
+                reader.Read(outputBuf2.AsSpan(0, sizeUncompressed2));
             }
             else if (compressionMethod == 1)
             {
                 Debug.Assert(sizeCompressedStrings > 0);
+                Debug.Assert(sizeCompressed2 > 0);
 
                 DecompressLZ4(reader, outputBuf, sizeCompressedStrings);
+                DecompressLZ4(reader, outputBuf2, sizeCompressed2);
             }
             else
             {
                 Debug.Assert(sizeCompressedStrings > 0);
+                Debug.Assert(sizeCompressed2 > 0);
 
                 throw new NotImplementedException("zstd");
+            }
+
+            var trailer = MemoryMarshal.Read<uint>(outputBuf2.AsSpan()[^4..]);
+            if (trailer != 0xFFEEDD00)
+            {
+                throw new UnexpectedMagicException("Invalid trailer", trailer, nameof(trailer));
             }
 
             // Strings
             {
                 var stringsBuffer = outputBuf.AsSpan();
-                var countOfStrings = MemoryMarshal.Read<uint>(stringsBuffer[^4..]);
+                var countOfStrings = MemoryMarshal.Read<int>(stringsBuffer[^4..]);
                 stringArray = new string[countOfStrings];
 
                 for (var i = 0; i < countOfStrings; i++)
                 {
                     stringArray[i] = ReadNullTermUtf8String(ref stringsBuffer);
                 }
-
-                var k2 = 2;
             }
+
+            using var outStream = new MemoryStream(outputBuf2, 0, sizeUncompressed2);
+            using var outRead = new BinaryReader(outStream, System.Text.Encoding.UTF8, true);
+
+            currentFourBytesOffset = outRead.BaseStream.Position; // just 0?
+            outRead.BaseStream.Position += unk3 * 4; // 4 byte ints?
+
+            currentBinaryBytesOffset = outRead.BaseStream.Position;
+            outRead.BaseStream.Position += unk9; // bytes?
+
+            if (outRead.BaseStream.Position % 8 != 0)
+            {
+                outRead.BaseStream.Position += 8 - (outRead.BaseStream.Position % 8);
+            }
+
+            var dataOffset = outRead.BaseStream.Position;
+            outRead.BaseStream.Position += unk11 * 4; // the actual data string ids + int32s
+
+            typesArray = new byte[typesLength]; // TODO: ArrayPool
+            outRead.Read(typesArray.AsSpan(0, typesLength));
+
+            trailer = outRead.ReadUInt32();
+            Debug.Assert(trailer == 0xFFEEDD00);
+
+            outRead.BaseStream.Position = dataOffset;
+            Data = ParseBinaryKV3(outRead, null, true);
+
+            typesArray = null;
         }
 
         private (KVType Type, KVFlag Flag) ReadType(BinaryReader reader)
@@ -952,7 +997,22 @@ namespace ValveResourceFormat.ResourceTypes
                     parent.AddProperty(name, MakeValue(datatype, typedArray, flagInfo));
                     break;
                 case KVType.OBJECT:
-                    var objectLength = reader.ReadInt32();
+                    var objectLength = 0;
+
+                    if (currentFourBytesOffset > -1)
+                    {
+                        reader.BaseStream.Position = currentFourBytesOffset;
+
+                        objectLength = reader.ReadInt32();
+
+                        currentFourBytesOffset += 4;
+                        reader.BaseStream.Position = currentOffset;
+                    }
+                    else
+                    {
+                        objectLength = reader.ReadInt32();
+                    }
+
                     var newObject = new KVObject(name, isArray: false, capacity: objectLength);
 
                     for (var i = 0; i < objectLength; i++)
