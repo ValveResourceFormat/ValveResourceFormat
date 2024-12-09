@@ -20,6 +20,12 @@ namespace ValveResourceFormat.NavMesh
         public bool IsAnalyzed { get; private set; }
         public NavMeshMetadata Metadata { get; private set; }
 
+        public void Read(string filename)
+        {
+            var fs = new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            Read(fs);
+        }
+
         public void Read(Stream stream)
         {
             using var binaryReader = new BinaryReader(stream, Encoding.UTF8, true);
