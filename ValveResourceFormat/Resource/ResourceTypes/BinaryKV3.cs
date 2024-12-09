@@ -63,7 +63,7 @@ namespace ValveResourceFormat.ResourceTypes
             public ArraySegment<byte> Types;
             public ArraySegment<byte> ObjectLengths;
             public ArraySegment<byte> BinaryBlobs;
-            public ArraySegment<int> BinaryBlobLengths;
+            public ArraySegment<byte> BinaryBlobLengths;
             public string[] Strings;
             public Buffers Buffer;
             public Buffers AuxiliaryBuffer;
@@ -779,7 +779,7 @@ namespace ValveResourceFormat.ResourceTypes
                 throw new UnexpectedMagicException("Unknown compression method", compressionMethod, nameof(compressionMethod));
             }
 
-            Span<byte> bufferWithBinaryBlobSizes = null;
+            ArraySegment<byte> bufferWithBinaryBlobSizes = null;
 
             // Buffer 1
             {
@@ -833,13 +833,13 @@ namespace ValveResourceFormat.ResourceTypes
 
                 Debug.Assert(countBytes4 > 0); // should be guaranteed to be at least 1 for the strings count
 
+                var countStrings = MemoryMarshal.Read<int>(buffer1.Bytes4);
+                buffer1.Bytes4 = buffer1.Bytes4[sizeof(int)..];
+                context.Strings = new string[countStrings];
+
                 if (version >= 5)
                 {
-                    var countStrings = MemoryMarshal.Read<int>(buffer1.Bytes4);
-                    buffer1.Bytes4 = buffer1.Bytes4[sizeof(int)..];
-
                     context.AuxiliaryBuffer = buffer1;
-                    context.Strings = new string[countStrings];
 
                     var readStringBytes = 0;
 
@@ -852,11 +852,7 @@ namespace ValveResourceFormat.ResourceTypes
                 }
                 else
                 {
-                    var countStrings = MemoryMarshal.Read<int>(buffer1.Bytes4);
-                    buffer1.Bytes4 = buffer1.Bytes4[sizeof(int)..];
-
                     context.Buffer = buffer1;
-                    context.Strings = new string[countStrings];
 
                     var stringsBuffer = buffer1Span[offset..];
                     var stringsStartOffset = offset;
@@ -889,6 +885,7 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 var buffer2Span = new ArraySegment<byte>(buffer2Raw);
                 var buffer2 = new Buffers();
+                context.Buffer = buffer2;
 
                 var end = countObjects_buffer2 * sizeof(int);
                 var offset = end;
@@ -948,25 +945,19 @@ namespace ValveResourceFormat.ResourceTypes
                     offset += 4;
                     UnexpectedMagicException.Assert(trailer == 0xFFEEDD00, trailer);
                 }
-
-                context.Buffer = buffer2;
+                else
+                {
+                    bufferWithBinaryBlobSizes = buffer2Span[offset..];
+                }
             }
 
             if (countBlocks > 0)
             {
-                Debug.Assert(!bufferWithBinaryBlobSizes.IsEmpty);
+                Debug.Assert(bufferWithBinaryBlobSizes != null);
 
-                context.BinaryBlobLengths = new int[countBlocks]; // TODO: ArrayPool<byte>
-
-                for (var i = 0; i < countBlocks; i++)
-                {
-                    context.BinaryBlobLengths[i] = MemoryMarshal.Read<int>(bufferWithBinaryBlobSizes);
-                    bufferWithBinaryBlobSizes = bufferWithBinaryBlobSizes[sizeof(int)..];
-                }
-
-#if DEBUG
-                Debug.Assert(context.BinaryBlobLengths.Sum() == sizeBinaryBlobsBytes);
-#endif
+                var end = countBlocks * sizeof(int);
+                context.BinaryBlobLengths = bufferWithBinaryBlobSizes[..end];
+                bufferWithBinaryBlobSizes = bufferWithBinaryBlobSizes[end..];
 
                 var trailer = MemoryMarshal.Read<uint>(bufferWithBinaryBlobSizes);
                 bufferWithBinaryBlobSizes = bufferWithBinaryBlobSizes[sizeof(int)..];
@@ -984,11 +975,11 @@ namespace ValveResourceFormat.ResourceTypes
 
                             using var lz4decoder = new LZ4ChainDecoder(compressionFrameSize, 0);
 
-                            var end = sizeBlockCompressedSizesBytes;
+                            end = sizeBlockCompressedSizesBytes;
 
                             var decompressedOffset = 0;
 
-                            while (bufferWithBinaryBlobSizes.Length > 0)
+                            while (bufferWithBinaryBlobSizes.Count > 0)
                             {
                                 var compressedBlockLength = MemoryMarshal.Read<ushort>(bufferWithBinaryBlobSizes);
                                 bufferWithBinaryBlobSizes = bufferWithBinaryBlobSizes[sizeof(ushort)..];
@@ -1349,13 +1340,13 @@ namespace ValveResourceFormat.ResourceTypes
                     break;
                 case KVType.BINARY_BLOB:
                     {
-                        var blockLength = context.BinaryBlobLengths[0];
-                        context.BinaryBlobLengths = context.BinaryBlobLengths[1..];
+                        var blockLength = MemoryMarshal.Read<int>(context.BinaryBlobLengths);
+                        context.BinaryBlobLengths = context.BinaryBlobLengths[sizeof(int)..];
                         byte[] output;
 
                         if (blockLength > 0)
                         {
-                            output = context.BinaryBlobs[..blockLength].ToArray();
+                            output = [.. context.BinaryBlobs[..blockLength]]; // explicit copy
                             context.BinaryBlobs = context.BinaryBlobs[blockLength..];
                         }
                         else
