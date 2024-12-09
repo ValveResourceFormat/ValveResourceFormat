@@ -357,7 +357,7 @@ namespace ValveResourceFormat.ResourceTypes
                 sizeUncompressedBuffer1 = sizeUncompressedTotal;
             }
 
-            var buffer1Raw = ArrayPool<byte>.Shared.Rent(sizeUncompressedBuffer1);
+            var buffer1Raw = ArrayPool<byte>.Shared.Rent(version < 5 && compressionMethod == 2 ? sizeUncompressedBuffer1 + sizeBinaryBlobsBytes : sizeUncompressedBuffer1);
             byte[] buffer2Raw = null;
             byte[] binaryBlobsRaw = null;
 
@@ -420,16 +420,24 @@ namespace ValveResourceFormat.ResourceTypes
 
                     using var zstd = new ZstdSharp.Decompressor(); // TODO: Only one instance
 
-                    var inputBuf = ArrayPool<byte>.Shared.Rent(Math.Max(sizeCompressedBuffer1, sizeCompressedBuffer2));
+                    var inputBuf = ArrayPool<byte>.Shared.Rent(sizeCompressedBuffer1);
 
                     try
                     {
                         var input = inputBuf.AsSpan(0, sizeCompressedBuffer1);
                         reader.Read(input);
 
-                        if (!zstd.TryUnwrap(input, buffer1Span, out var written) || sizeUncompressedBuffer1 != written)
+                        var outBufferLength = sizeUncompressedBuffer1;
+
+                        // Before version 5, when using zstd, both the buffer and binary blobs were compressed together
+                        if (version < 5)
                         {
-                            throw new InvalidDataException($"Failed to decompress zstd correctly (written {written} bytes, expected {sizeUncompressedBuffer1} bytes)");
+                            outBufferLength += sizeBinaryBlobsBytes;
+                        }
+
+                        if (!zstd.TryUnwrap(input, buffer1Raw.AsSpan(0, outBufferLength), out var written) || outBufferLength != written)
+                        {
+                            throw new InvalidDataException($"Failed to decomprsess zstd correctly (written {written} bytes, expected {outBufferLength} bytes)");
                         }
                     }
                     finally
@@ -560,7 +568,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                         using var zstd = new ZstdSharp.Decompressor();
 
-                        var inputBuf = ArrayPool<byte>.Shared.Rent(Math.Max(sizeCompressedBuffer1, sizeCompressedBuffer2));
+                        var inputBuf = ArrayPool<byte>.Shared.Rent(sizeCompressedBuffer2);
 
                         try
                         {
@@ -781,11 +789,17 @@ namespace ValveResourceFormat.ResourceTypes
                         }
                         else if (compressionMethod == 2)
                         {
-                            // This is supposed to be a streaming decompress using ZSTD_decompressStream,
-                            // but as it turns out, zstd unwrap above already decompressed all of the blocks for us.
-                            // It's possible that Valve's code needs extra decompress because they set ZSTD_d_stableOutBuffer parameter.
-                            //context.BinaryBlobs = new ArraySegment<byte>(outputBuf, (int)outRead.BaseStream.Position, sizeBinaryBlobsBytes);
-                            Debug.Assert(false);
+                            if (version < 5)
+                            {
+                                // This is supposed to be a streaming decompress using ZSTD_decompressStream,
+                                // but as it turns out, zstd unwrap above already decompressed all of the blocks for us.
+                                // It's possible that Valve's code needs extra decompress because they set ZSTD_d_stableOutBuffer parameter.
+                                context.BinaryBlobs = new ArraySegment<byte>(buffer1Raw, sizeUncompressedBuffer1, sizeBinaryBlobsBytes);
+                            }
+                            else
+                            {
+                                Debug.Assert(false);
+                            }
                         }
                         else
                         {
