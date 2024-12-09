@@ -1,8 +1,6 @@
-using System;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
-using SkiaSharp;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Utils;
 
@@ -20,6 +18,7 @@ namespace ValveResourceFormat.NavMesh
         public NavMeshLadder[] Ladders { get; private set; }
         public int LayerCount { get; private set; }
         public bool IsAnalyzed { get; private set; }
+        public NavMeshMetadata Metadata { get; private set; }
 
         public void Read(Stream stream)
         {
@@ -47,7 +46,9 @@ namespace ValveResourceFormat.NavMesh
             {
                 polygons = ReadPolygons(binaryReader);
                 var unk1 = binaryReader.ReadUInt32();
+                Debug.Assert(unk1 == 0);
                 var unk2 = binaryReader.ReadUInt32();
+                Debug.Assert(unk2 == 0);
             }
 
             var areaCount = binaryReader.ReadUInt32();
@@ -69,7 +70,8 @@ namespace ValveResourceFormat.NavMesh
 
             if (Version >= 35)
             {
-                ReadPostMetadata(binaryReader);
+                Metadata = new NavMeshMetadata();
+                Metadata.Read(binaryReader);
 
                 while (binaryReader.ReadByte() == 0)
                 {
@@ -119,65 +121,6 @@ namespace ValveResourceFormat.NavMesh
             var unk = binaryReader.ReadInt32();
             Debug.Assert(unk == -1);
             return polygon;
-        }
-
-        private static void ReadPostMetadata(BinaryReader binaryReader)
-        {
-            var unkBytes = binaryReader.ReadBytes(8);
-            var unk1 = binaryReader.ReadUInt32(); //count?
-
-            //Tiles
-            var tileSize = binaryReader.ReadSingle();
-
-            //Rasterization
-            var cellSize = binaryReader.ReadSingle();
-            var cellHeight = binaryReader.ReadSingle();
-
-            //Region
-            var minRegionSize = binaryReader.ReadUInt32();
-            var mergedRegionSize = binaryReader.ReadUInt32();
-
-            //Detail Mesh
-            var meshSampleDistance = binaryReader.ReadSingle();
-            var maxSampleError = binaryReader.ReadSingle();
-
-            //Polygonization
-            var maxEdgeLength = binaryReader.ReadUInt32();
-            var maxEdgeError = binaryReader.ReadSingle();
-            var vertsPerPoly = binaryReader.ReadUInt32();
-
-            //Processing params
-            var smallAreaOnEdgeRemoval = binaryReader.ReadSingle();
-
-            var unkString = binaryReader.ReadNullTermString(Encoding.UTF8);
-            var unkString2 = binaryReader.ReadNullTermString(Encoding.UTF8); //this might be a byte instead - only seen as a 0x00 byte
-
-            var unk2 = binaryReader.ReadUInt32();
-            var unk3 = binaryReader.ReadByte();
-
-            var unk4 = binaryReader.ReadSingle(); //related to agent/human size - values seen so far are 15 and 16
-            Debug.Assert(Math.Abs(unk4 - 15.5) < 0.51);
-
-            var humanHeight = binaryReader.ReadSingle(); //=71
-            Debug.Assert(Math.Abs(humanHeight - 71) < 0.01);
-
-            var unk5 = binaryReader.ReadByte();
-
-            var halfHumanHeight = binaryReader.ReadSingle(); //=35.5
-            Debug.Assert(Math.Abs(halfHumanHeight - 35.5) < 0.01);
-
-            var halfHumanWidth = binaryReader.ReadSingle(); //=16
-            Debug.Assert(Math.Abs(halfHumanWidth - 16) < 0.01);
-
-            var unk6 = binaryReader.ReadUInt32(); //=50
-            var unk7 = binaryReader.ReadSingle(); //=157
-            var unk8 = binaryReader.ReadSingle(); //=64
-            var unk9 = binaryReader.ReadSingle(); //=68
-
-            var unk10 = binaryReader.ReadUInt32(); //=0
-            var unk11 = binaryReader.ReadUInt32(); //=1
-            Debug.Assert(unk10 == 0);
-            Debug.Assert(unk11 == 0 || unk11 == 1);
         }
 
         private void AddArea(NavMeshArea area)
