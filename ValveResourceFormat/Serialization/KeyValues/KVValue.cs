@@ -97,10 +97,10 @@ namespace ValveResourceFormat.Serialization.KeyValues
                     writer.Write((bool)Value ? "true" : "false");
                     break;
                 case KVType.FLOAT:
-                    writer.Write(((float)Value).ToString("#0.000000", CultureInfo.InvariantCulture));
+                    writer.Write(Convert.ToSingle(Value, CultureInfo.InvariantCulture).ToString("#0.000000", CultureInfo.InvariantCulture));
                     break;
                 case KVType.DOUBLE:
-                    writer.Write(((double)Value).ToString("#0.000000", CultureInfo.InvariantCulture));
+                    writer.Write(Convert.ToDouble(Value, CultureInfo.InvariantCulture).ToString("#0.000000", CultureInfo.InvariantCulture));
                     break;
                 case KVType.INT64:
                     writer.Write(Convert.ToInt64(Value, CultureInfo.InvariantCulture));

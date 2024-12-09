@@ -856,7 +856,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                     break;
                 case KVType.FLOAT:
-                    parent.AddProperty(name, MakeValue(datatype, (double)reader.ReadSingle(), flagInfo));
+                    parent.AddProperty(name, MakeValue(datatype, reader.ReadSingle(), flagInfo));
                     break;
                 case KVType.INT16:
                     reader.BaseStream.Position = currentTwoBytesOffset;
@@ -911,7 +911,6 @@ namespace ValveResourceFormat.ResourceTypes
                 case KVType.DOUBLE:
                 case KVType.DOUBLE_ZERO:
                 case KVType.DOUBLE_ONE:
-                case KVType.FLOAT:
                     return KVType.DOUBLE;
                 case KVType.ARRAY_TYPED:
                 case KVType.ARRAY_TYPE_BYTE_LENGTH:
