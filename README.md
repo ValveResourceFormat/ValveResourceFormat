@@ -119,6 +119,7 @@ Magic        | Description
 `0x4B563302` | KV3\x02 - Binary keyvalues 3 (version 2)
 `0x4B563303` | KV3\x03 - Binary keyvalues 3 (version 3)
 `0x4B563304` | KV3\x04 - Binary keyvalues 3 (version 4)
+`0x4B563305` | KV3\x05 - Binary keyvalues 3 (version 5)
 `0x564B4256` | VBKV - binary keyvalues 1 (handled by ValveKeyvalue)
 `0x55AA1234` | VPK - valve package (handled by ValvePak)
 `0x44434356` | VCCD - closed captions
