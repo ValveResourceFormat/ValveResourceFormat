@@ -891,7 +891,7 @@ namespace ValveResourceFormat.ResourceTypes
                         if (compressionMethod == 1)
                         {
                             context.BinaryBlobs = new byte[sizeBinaryBlobsBytes]; // TODO: ArrayPool
-                                                                            // uncompressedBlocks = new ArraySegment<byte>(uncompressedBlocksBuffer, 0, sizeBlockBytes);
+                                                                                  // uncompressedBlocks = new ArraySegment<byte>(uncompressedBlocksBuffer, 0, sizeBlockBytes);
 
                             using var lz4decoder = new LZ4ChainDecoder(compressionFrameSize, 0);
 
@@ -953,10 +953,10 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 if (sizeBlockCompressedSizesBytes == 0)
                 {
+                    var sizeCompressedBinaryBlobs = sizeCompressedTotal - sizeCompressedBuffer1 - sizeCompressedBuffer2;
+
                     if (compressionMethod == 2)
                     {
-                        var sizeCompressedBinaryBlobs = sizeCompressedTotal - sizeCompressedBuffer1 - sizeCompressedBuffer2;
-
                         context.BinaryBlobs = new byte[sizeBinaryBlobsBytes]; // TODO: ArrayPool
 
                         using var zstd = new ZstdSharp.Decompressor();
@@ -979,7 +979,7 @@ namespace ValveResourceFormat.ResourceTypes
                             ArrayPool<byte>.Shared.Return(inputBuf);
                         }
                     }
-                    else
+                    else if (sizeCompressedBinaryBlobs > 0)
                     {
                         Debug.Assert(false);
                     }
@@ -992,8 +992,6 @@ namespace ValveResourceFormat.ResourceTypes
             Debug.Assert(reader.BaseStream.Position == Offset + Size);
 
             Data = ParseBinaryKV3(context, null, true);
-
-            var k = 1;
 
             Debug.Assert(context.Types.Count == 0);
             Debug.Assert(context.ObjectLengths.Count == 0);
@@ -1188,8 +1186,17 @@ namespace ValveResourceFormat.ResourceTypes
                     {
                         var blockLength = context.BinaryBlobLengths[0];
                         context.BinaryBlobLengths = context.BinaryBlobLengths[1..];
-                        var output = context.BinaryBlobs[..blockLength].ToArray();
-                        context.BinaryBlobs = context.BinaryBlobs[blockLength..];
+                        byte[] output;
+
+                        if (blockLength > 0)
+                        {
+                            output = context.BinaryBlobs[..blockLength].ToArray();
+                            context.BinaryBlobs = context.BinaryBlobs[blockLength..];
+                        }
+                        else
+                        {
+                            output = [];
+                        }
 
                         parent.AddProperty(name, MakeValue(datatype, output, flagInfo));
                     }
