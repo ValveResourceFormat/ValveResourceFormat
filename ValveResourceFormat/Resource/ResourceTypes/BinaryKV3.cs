@@ -1,7 +1,7 @@
 using System.Buffers;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using K4os.Compression.LZ4;
 using K4os.Compression.LZ4.Encoders;
@@ -770,10 +770,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                     if (countBytes2 > 0)
                     {
-                        if (offset % 2 != 0)
-                        {
-                            offset += 2 - (offset % 2);
-                        }
+                        Align(ref offset, 2);
 
                         var end = offset + countBytes2 * 2;
                         buffer1.Bytes2 = buffer1Span[offset..end];
@@ -782,19 +779,16 @@ namespace ValveResourceFormat.ResourceTypes
 
                     if (countBytes4 > 0)
                     {
-                        if (offset % 4 != 0)
-                        {
-                            offset += 4 - (offset % 4);
-                        }
+                        Align(ref offset, 4);
 
                         var end = offset + countBytes4 * 4;
                         buffer1.Bytes4 = buffer1Span[offset..end];
                         offset = end;
                     }
 
-                    if ((version < 5 || countBytes8 > 0) && offset % 8 != 0)
+                    if (version < 5 || countBytes8 > 0)
                     {
-                        offset += 8 - (offset % 8);
+                        Align(ref offset, 8);
                     }
 
                     if (countBytes8 > 0)
@@ -918,10 +912,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                     if (countBytes2_buffer2 > 0)
                     {
-                        if (offset % 2 != 0)
-                        {
-                            offset += 2 - (offset % 2);
-                        }
+                        Align(ref offset, 2);
 
                         end = offset + countBytes2_buffer2 * 2;
                         buffer2.Bytes2 = buffer2Span[offset..end];
@@ -930,10 +921,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                     if (countBytes4_buffer2 > 0)
                     {
-                        if (offset % 4 != 0)
-                        {
-                            offset += 4 - (offset % 4);
-                        }
+                        Align(ref offset, 4);
 
                         end = offset + countBytes4_buffer2 * 4;
                         buffer2.Bytes4 = buffer2Span[offset..end];
@@ -942,10 +930,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                     if (countBytes8_buffer2 > 0)
                     {
-                        if (offset % 8 != 0)
-                        {
-                            offset += 8 - (offset % 8);
-                        }
+                        Align(ref offset, 8);
 
                         end = offset + countBytes8_buffer2 * 8;
                         buffer2.Bytes8 = buffer2Span[offset..end];
@@ -1881,6 +1866,14 @@ namespace ValveResourceFormat.ResourceTypes
             offset += nullByte + 1;
 
             return System.Text.Encoding.UTF8.GetString(str);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static void Align(ref int offset, int alignment)
+        {
+            alignment -= 1;
+            offset += alignment;
+            offset &= ~alignment;
         }
     }
 }
