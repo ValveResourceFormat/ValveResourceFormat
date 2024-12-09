@@ -6,7 +6,7 @@ namespace ValveResourceFormat.NavMesh
     public class NavMeshArea
     {
         public uint AreaId { get; set; }
-        public byte AgentLayer { get; set; }
+        public byte HullIndex { get; set; }
         public DynamicAttributeFlags DynamicAttributeFlags { get; set; }
         public Vector3[] Corners { get; set; }
         public NavMeshConnection[][] Connections { get; set; }
@@ -38,7 +38,7 @@ namespace ValveResourceFormat.NavMesh
             Debug.Assert(unkBytes[1] == 0);
             Debug.Assert(unkBytes[2] == 0);
             Debug.Assert(unkBytes[3] == 0);
-            AgentLayer = binaryReader.ReadByte();
+            HullIndex = binaryReader.ReadByte();
 
             if (navMeshFile.Version >= 35)
             {

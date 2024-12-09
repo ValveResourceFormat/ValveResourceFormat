@@ -196,16 +196,16 @@ namespace GUI.Types.Renderer
                 return;
             }
 
-            for (byte i = 0; i < navMesh.LayerCount; i++)
+            for (byte i = 0; i < navMesh.HullCount; i++)
             {
-                var layerAreas = navMesh.GetLayerAreas(i);
-                if (layerAreas == null)
+                var hullAreas = navMesh.GetHullAreas(i);
+                if (hullAreas == null)
                 {
                     continue;
                 }
 
-                var sceneNode = new NavMeshSceneNode(Scene, layerAreas);
-                sceneNode.LayerName = $"Navigation mesh (layer {i})";
+                var sceneNode = new NavMeshSceneNode(Scene, hullAreas);
+                sceneNode.LayerName = $"Navigation mesh (hull {i})";
                 Scene.Add(sceneNode, false);
             }
 

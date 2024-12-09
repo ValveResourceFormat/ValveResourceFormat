@@ -14,9 +14,9 @@ namespace ValveResourceFormat.NavMesh
         public uint SubVersion { get; set; }
 
         public Dictionary<uint, NavMeshArea> Areas { get; private set; }
-        private readonly Dictionary<byte, List<NavMeshArea>> LayerAreas = [];
+        private readonly Dictionary<byte, List<NavMeshArea>> HullAreas = [];
         public NavMeshLadder[] Ladders { get; private set; }
-        public int LayerCount { get; private set; }
+        public int HullCount { get; private set; }
         public bool IsAnalyzed { get; private set; }
         public NavMeshMetadata Metadata { get; private set; }
 
@@ -35,7 +35,7 @@ namespace ValveResourceFormat.NavMesh
         public void Read(BinaryReader binaryReader)
         {
             Areas = [];
-            LayerAreas.Clear();
+            HullAreas.Clear();
 
             var magic = binaryReader.ReadUInt32();
             if (magic != MAGIC)
@@ -132,21 +132,21 @@ namespace ValveResourceFormat.NavMesh
         private void AddArea(NavMeshArea area)
         {
             Areas[area.AreaId] = area;
-            LayerCount = Math.Max(LayerCount, area.AgentLayer + 1);
+            HullCount = Math.Max(HullCount, area.HullIndex + 1);
 
-            if (LayerAreas.TryGetValue(area.AgentLayer, out var areas))
+            if (HullAreas.TryGetValue(area.HullIndex, out var areas))
             {
                 areas.Add(area);
             }
             else
             {
-                LayerAreas[area.AgentLayer] = [area];
+                HullAreas[area.HullIndex] = [area];
             }
         }
 
-        public List<NavMeshArea> GetLayerAreas(byte layer)
+        public List<NavMeshArea> GetHullAreas(byte hullIndex)
         {
-            return LayerAreas.GetValueOrDefault(layer);
+            return HullAreas.GetValueOrDefault(hullIndex);
         }
 
         public NavMeshArea GetArea(uint areaId)
