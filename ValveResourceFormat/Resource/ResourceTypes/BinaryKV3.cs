@@ -37,10 +37,6 @@ namespace ValveResourceFormat.ResourceTypes
         public Guid Format { get; private set; }
 
         private string[] stringArray;
-        private byte[] typesArray;
-        private long currentTypeIndex;
-        private long currentEightBytesOffset = -1;
-        private long currentBinaryBytesOffset = -1;
 
         private class Buffers
         {
@@ -98,8 +94,6 @@ namespace ValveResourceFormat.ResourceTypes
             }
 
             stringArray = null;
-
-            Debug.Assert(typesArray == null);
         }
 
         private static void DecompressLZ4(BinaryReader reader, Span<byte> output, int compressedSize)
@@ -195,98 +189,96 @@ namespace ValveResourceFormat.ResourceTypes
 
         private void ReadVersion1(BinaryReader reader)
         {
+            var context = new Context
+            {
+                Version = 1,
+            };
+
             Format = new Guid(reader.ReadBytes(16));
 
             var compressionMethod = reader.ReadInt32();
-            var countOfBinaryBytes = reader.ReadInt32(); // how many bytes (binary blobs)
-            var countOfIntegers = reader.ReadInt32(); // how many 4 byte values (ints)
-            var countOfEightByteValues = reader.ReadInt32(); // how many 8 byte values (doubles)
+            var countBytes1 = reader.ReadInt32(); // how many bytes (binary blobs)
+            var countBytes4 = reader.ReadInt32(); // how many 4 byte values (ints)
+            var countBytes8 = reader.ReadInt32(); // how many 8 byte values (doubles)
+            var sizeUncompressedTotal = reader.ReadInt32();
 
-            byte[] outputBuf = null;
+            var buffer1Raw = ArrayPool<byte>.Shared.Rent(sizeUncompressedTotal);
 
             try
             {
-                int outBufferLength;
-
                 if (compressionMethod == 0)
                 {
-                    outBufferLength = reader.ReadInt32();
-                    outputBuf = ArrayPool<byte>.Shared.Rent(outBufferLength);
-                    reader.Read(outputBuf.AsSpan(0, outBufferLength));
+                    reader.Read(buffer1Raw.AsSpan(0, sizeUncompressedTotal));
                 }
                 else if (compressionMethod == 1)
                 {
-                    outBufferLength = reader.ReadInt32();
                     var compressedSize = (int)(Size - (reader.BaseStream.Position - Offset));
-                    outputBuf = ArrayPool<byte>.Shared.Rent(outBufferLength);
-                    DecompressLZ4(reader, outputBuf.AsSpan(0, outBufferLength), compressedSize);
+                    DecompressLZ4(reader, buffer1Raw.AsSpan(0, sizeUncompressedTotal), compressedSize);
                 }
                 else
                 {
                     throw new UnexpectedMagicException("Unknown compression method", compressionMethod, nameof(compressionMethod));
                 }
 
-                using var outStream = new MemoryStream(outputBuf, 0, outBufferLength);
-                using var outRead = new BinaryReader(outStream, System.Text.Encoding.UTF8, true);
+                var buffer1Span = new ArraySegment<byte>(buffer1Raw, 0, sizeUncompressedTotal);
 
-                currentBinaryBytesOffset = 0;
-                outRead.BaseStream.Position = countOfBinaryBytes;
+                var buffer1 = new Buffers();
 
-                if (outRead.BaseStream.Position % 4 != 0)
+                var offset = 0;
+
+                if (countBytes1 > 0)
                 {
-                    // Align to % 4 after binary blobs
-                    outRead.BaseStream.Position += 4 - (outRead.BaseStream.Position % 4);
+                    var end = offset + countBytes1;
+                    buffer1.Bytes1 = buffer1Span[offset..end];
+                    offset = end;
                 }
 
-                var countOfStrings = outRead.ReadInt32();
-                var kvDataOffset = outRead.BaseStream.Position;
+                Align(ref offset, 4);
 
-                // Subtract one integer since we already read it (countOfStrings)
-                outRead.BaseStream.Position += (countOfIntegers - 1) * 4;
-
-                if (outRead.BaseStream.Position % 8 != 0)
+                if (countBytes4 > 0)
                 {
-                    // Align to % 8 for the start of doubles
-                    outRead.BaseStream.Position += 8 - (outRead.BaseStream.Position % 8);
+                    var end = offset + countBytes4 * 4;
+                    buffer1.Bytes4 = buffer1Span[offset..end];
+                    offset = end;
                 }
 
-                currentEightBytesOffset = outRead.BaseStream.Position;
+                Align(ref offset, 8);
 
-                outRead.BaseStream.Position += countOfEightByteValues * 8;
-
-                stringArray = new string[countOfStrings];
-
-                for (var i = 0; i < countOfStrings; i++)
+                if (countBytes8 > 0)
                 {
-                    stringArray[i] = outRead.ReadNullTermString(System.Text.Encoding.UTF8);
+                    var end = offset + countBytes8 * 8;
+                    buffer1.Bytes8 = buffer1Span[offset..end];
+                    offset = end;
                 }
 
-                // bytes after the string table is kv types, minus 4 static bytes at the end
-                var typesLength = (int)(outRead.BaseStream.Length - 4 - outRead.BaseStream.Position);
+                Debug.Assert(countBytes4 > 0); // should be guaranteed to be at least 1 for the strings count
 
-                typesArray = ArrayPool<byte>.Shared.Rent(typesLength);
+                var countStrings = MemoryMarshal.Read<int>(buffer1.Bytes4);
+                buffer1.Bytes4 = buffer1.Bytes4[sizeof(int)..];
+                context.Strings = new string[countStrings];
 
-                try
+                context.Buffer = buffer1;
+
+                var stringsBuffer = buffer1Span[offset..];
+                var stringsStartOffset = offset;
+
+                for (var i = 0; i < countStrings; i++)
                 {
-                    outRead.Read(typesArray.AsSpan(0, typesLength));
-
-                    // Move back to the start of the KV data for reading.
-                    outRead.BaseStream.Position = kvDataOffset;
-
-                    Data = ParseBinaryKV3(outRead, null, true);
+                    context.Strings[i] = ReadNullTermUtf8String(ref stringsBuffer, ref offset);
                 }
-                finally
-                {
-                    ArrayPool<byte>.Shared.Return(typesArray);
-                    typesArray = null;
-                }
+
+                var typesLength = sizeUncompressedTotal - offset - 4;
+                context.Types = buffer1Span[offset..(offset + typesLength)];
+                offset += typesLength;
+
+                var trailer = MemoryMarshal.Read<uint>(buffer1Span[offset..]);
+                UnexpectedMagicException.Assert(trailer == 0xFFEEDD00, trailer);
+
+                Data = ParseBinaryKV3(context, null, true);
             }
             finally
             {
-                if (outputBuf != null)
-                {
-                    ArrayPool<byte>.Shared.Return(outputBuf);
-                }
+                ArrayPool<byte>.Shared.Return(buffer1Raw);
             }
         }
 
@@ -1174,33 +1166,16 @@ namespace ValveResourceFormat.ResourceTypes
             return parent;
         }
 
-        private (KVType Type, KVFlag Flag) ReadType(BinaryReader reader)
+        private static (KVType Type, KVFlag Flag) ReadType(BinaryReader reader)
         {
-            byte databyte;
-
-            if (typesArray != null)
-            {
-                databyte = typesArray[currentTypeIndex++];
-            }
-            else
-            {
-                databyte = reader.ReadByte();
-            }
-
+            var databyte = reader.ReadByte();
             var flagInfo = KVFlag.None;
 
             if ((databyte & 0x80) > 0) // TODO: Valve's new code also checks for 0x40 even for old kv3 version
             {
                 databyte &= 0x7F; // Remove the flag bit
 
-                if (typesArray != null)
-                {
-                    flagInfo = (KVFlag)typesArray[currentTypeIndex++];
-                }
-                else
-                {
-                    flagInfo = (KVFlag)reader.ReadByte();
-                }
+                flagInfo = (KVFlag)reader.ReadByte();
 
                 if (((int)flagInfo & 4) > 0) // Multiline string
                 {
@@ -1256,19 +1231,7 @@ namespace ValveResourceFormat.ResourceTypes
                     parent.AddProperty(name, MakeValue(datatype, null, flagInfo));
                     break;
                 case KVType.BOOLEAN:
-                    if (currentBinaryBytesOffset > -1)
-                    {
-                        reader.BaseStream.Position = currentBinaryBytesOffset;
-                    }
-
                     parent.AddProperty(name, MakeValue(datatype, reader.ReadBoolean(), flagInfo));
-
-                    if (currentBinaryBytesOffset > -1)
-                    {
-                        currentBinaryBytesOffset++;
-                        reader.BaseStream.Position = currentOffset;
-                    }
-
                     break;
                 case KVType.BOOLEAN_TRUE:
                     parent.AddProperty(name, MakeValue(datatype, true, flagInfo));
@@ -1283,34 +1246,10 @@ namespace ValveResourceFormat.ResourceTypes
                     parent.AddProperty(name, MakeValue(datatype, 1L, flagInfo));
                     break;
                 case KVType.INT64:
-                    if (currentEightBytesOffset > 0)
-                    {
-                        reader.BaseStream.Position = currentEightBytesOffset;
-                    }
-
                     parent.AddProperty(name, MakeValue(datatype, reader.ReadInt64(), flagInfo));
-
-                    if (currentEightBytesOffset > 0)
-                    {
-                        currentEightBytesOffset = reader.BaseStream.Position;
-                        reader.BaseStream.Position = currentOffset;
-                    }
-
                     break;
                 case KVType.UINT64:
-                    if (currentEightBytesOffset > 0)
-                    {
-                        reader.BaseStream.Position = currentEightBytesOffset;
-                    }
-
                     parent.AddProperty(name, MakeValue(datatype, reader.ReadUInt64(), flagInfo));
-
-                    if (currentEightBytesOffset > 0)
-                    {
-                        currentEightBytesOffset = reader.BaseStream.Position;
-                        reader.BaseStream.Position = currentOffset;
-                    }
-
                     break;
                 case KVType.INT32:
                     parent.AddProperty(name, MakeValue(datatype, reader.ReadInt32(), flagInfo));
@@ -1319,19 +1258,7 @@ namespace ValveResourceFormat.ResourceTypes
                     parent.AddProperty(name, MakeValue(datatype, reader.ReadUInt32(), flagInfo));
                     break;
                 case KVType.DOUBLE:
-                    if (currentEightBytesOffset > 0)
-                    {
-                        reader.BaseStream.Position = currentEightBytesOffset;
-                    }
-
                     parent.AddProperty(name, MakeValue(datatype, reader.ReadDouble(), flagInfo));
-
-                    if (currentEightBytesOffset > 0)
-                    {
-                        currentEightBytesOffset = reader.BaseStream.Position;
-                        reader.BaseStream.Position = currentOffset;
-                    }
-
                     break;
                 case KVType.DOUBLE_ZERO:
                     parent.AddProperty(name, MakeValue(datatype, 0.0D, flagInfo));
@@ -1346,20 +1273,7 @@ namespace ValveResourceFormat.ResourceTypes
                     break;
                 case KVType.BINARY_BLOB:
                     var length = reader.ReadInt32();
-
-                    if (currentBinaryBytesOffset > -1)
-                    {
-                        reader.BaseStream.Position = currentBinaryBytesOffset;
-                    }
-
                     parent.AddProperty(name, MakeValue(datatype, reader.ReadBytes(length), flagInfo));
-
-                    if (currentBinaryBytesOffset > -1)
-                    {
-                        currentBinaryBytesOffset = reader.BaseStream.Position;
-                        reader.BaseStream.Position = currentOffset + 4;
-                    }
-
                     break;
                 case KVType.ARRAY:
                     var arrayLength = reader.ReadInt32();
@@ -1415,7 +1329,7 @@ namespace ValveResourceFormat.ResourceTypes
                 // 22 is related to 20, 23 is related to 21
                 //case KVType.INT32_AS_BYTE:
                 default:
-                    throw new UnexpectedMagicException($"Unknown KVType for field '{name}' on byte {reader.BaseStream.Position} (currentTypeIndex={currentTypeIndex})", (int)datatype, nameof(datatype));
+                    throw new UnexpectedMagicException($"Unknown KVType for field '{name}' on byte {reader.BaseStream.Position}", (int)datatype, nameof(datatype));
             }
 
             return parent;
