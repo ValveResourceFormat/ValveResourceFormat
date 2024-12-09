@@ -1,6 +1,7 @@
 using System.Buffers;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using K4os.Compression.LZ4;
 using K4os.Compression.LZ4.Encoders;
@@ -60,6 +61,8 @@ namespace ValveResourceFormat.ResourceTypes
         {
             public ArraySegment<byte> Types;
             public ArraySegment<byte> ObjectLengths;
+            public ArraySegment<byte> BinaryBlobs;
+            public ArraySegment<int> BinaryBlobLengths;
             public string[] Strings;
             public bool IsSecondBuffer;
             public Buffers Buffer1;
@@ -324,10 +327,7 @@ namespace ValveResourceFormat.ResourceTypes
             if (isUsingTwoBytesBuffer)
             {
                 countofTwoByteValue = reader.ReadUInt32();
-
-                // TODO: Might be some preallocation number like above? The files seemingly parse if this isn't used for anything
-                // and there's seemingly no extra data in the decoded stream - 2024-12-04
-                reader.ReadUInt32();
+                var sizeBlockCompressedBytes = reader.ReadUInt32();
             }
 
             if (compressedSize > int.MaxValue)
@@ -489,6 +489,7 @@ namespace ValveResourceFormat.ResourceTypes
                     return;
                 }
 
+                // TODO: use byte arraypool
                 uncompressedBlockLengthArray = ArrayPool<int>.Shared.Rent((int)blockCount);
 
                 for (var i = 0; i < blockCount; i++)
@@ -621,9 +622,9 @@ namespace ValveResourceFormat.ResourceTypes
             var sizeUncompressedTotal = reader.ReadInt32();
             var sizeCompressedTotal = reader.ReadInt32();
             var countBlocks = reader.ReadInt32();
-            var sizeBlocks = reader.ReadInt32();
+            var sizeBlockBytes = reader.ReadInt32();
             var countBytes2 = reader.ReadInt32();
-            var unk8 = reader.ReadUInt32();
+            var sizeBlockCompressedSizesBytes = reader.ReadInt32();
 
             var sizeUncompressedBuffer1 = reader.ReadInt32();
             var sizeCompressedBuffer1 = reader.ReadInt32();
@@ -740,14 +741,10 @@ namespace ValveResourceFormat.ResourceTypes
                 }
             }
 
-            Debug.Assert(reader.BaseStream.Position == Offset + Size);
-
             var context = new Context
             {
                 IsSecondBuffer = true
             };
-
-            Debug.Assert(countBlocks == 0);
 
             // Buffer 1
             {
@@ -871,16 +868,105 @@ namespace ValveResourceFormat.ResourceTypes
                 context.Types = buffer2Span[offset..(offset + countTypes)];
                 offset += countTypes;
 
-                context.Buffer2 = buffer2;
+                if (countBlocks > 0)
+                {
+                    context.BinaryBlobLengths = new int[countBlocks]; // TODO: ArrayPool<byte>
 
-                var trailer = MemoryMarshal.Read<uint>(buffer2Span[offset..]);
-                Debug.Assert(trailer == 0xFFEEDD00);
-                Debug.Assert(buffer2Span.Count == offset + 4);
+                    for (var i = 0; i < countBlocks; i++)
+                    {
+                        context.BinaryBlobLengths[i] = MemoryMarshal.Read<int>(buffer2Span[offset..]);
+                        offset += sizeof(int);
+                    }
+
+#if DEBUG
+                    Debug.Assert(context.BinaryBlobLengths.Sum() == sizeBlockBytes);
+#endif
+
+                    var trailer = MemoryMarshal.Read<uint>(buffer2Span[offset..]);
+                    offset += 4;
+
+                    UnexpectedMagicException.Assert(trailer == 0xFFEEDD00, trailer);
+
+                    if (compressionMethod == 1)
+                    {
+                        context.BinaryBlobs = new byte[sizeBlockBytes]; // TODO: ArrayPool
+                        // uncompressedBlocks = new ArraySegment<byte>(uncompressedBlocksBuffer, 0, sizeBlockBytes);
+
+                        using var lz4decoder = new LZ4ChainDecoder(compressionFrameSize, 0);
+
+                        end = offset + sizeBlockCompressedSizesBytes;
+
+                        var decompressedOffset = 0;
+
+                        while (offset < end)
+                        {
+                            var compressedBlockLength = MemoryMarshal.Read<ushort>(buffer2Span[offset..]);
+                            offset += sizeof(ushort);
+
+                            var inputBuf = ArrayPool<byte>.Shared.Rent(compressedBlockLength);
+
+                            try
+                            {
+                                var decodedFrameSize = decompressedOffset + compressionFrameSize > sizeBlockBytes ? sizeBlockBytes - decompressedOffset : compressionFrameSize;
+                                var output = context.BinaryBlobs.AsSpan(decompressedOffset, decodedFrameSize);
+
+                                var input = inputBuf.AsSpan(0, compressedBlockLength);
+                                reader.Read(input);
+
+                                if (!lz4decoder.DecodeAndDrain(input, output, out var decoded) || decoded < 1)
+                                {
+                                    throw new InvalidOperationException("LZ4 decode drain failed, this is likely a bug.");
+                                }
+
+                                decompressedOffset += decoded;
+                            }
+                            finally
+                            {
+                                ArrayPool<byte>.Shared.Return(inputBuf);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        Debug.Assert(false);
+                    }
+                }
+                else
+                {
+                    var trailer = MemoryMarshal.Read<uint>(buffer2Span[offset..]);
+                    offset += 4;
+                    UnexpectedMagicException.Assert(trailer == 0xFFEEDD00, trailer);
+                }
+
+                Debug.Assert(buffer2Span.Count == offset);
+
+                context.Buffer2 = buffer2;
             }
+
+            if (countBlocks > 0)
+            {
+                var trailer = reader.ReadUInt32();
+                UnexpectedMagicException.Assert(trailer == 0xFFEEDD00, trailer);
+            }
+
+            Debug.Assert(reader.BaseStream.Position == Offset + Size);
 
             Data = ParseBinaryKV3(context, null, true);
 
             var k = 1;
+
+            Debug.Assert(context.Types.Count == 0);
+            Debug.Assert(context.ObjectLengths.Count == 0);
+            Debug.Assert(context.BinaryBlobs.Count == 0);
+            Debug.Assert(context.BinaryBlobLengths.Count == 0);
+            Debug.Assert(context.Buffer1.Bytes1.Count == 0);
+            Debug.Assert(context.Buffer1.Bytes2.Count == 0);
+            Debug.Assert(context.Buffer1.Bytes4.Count == 0);
+            Debug.Assert(context.Buffer1.Bytes8.Count == 0);
+            Debug.Assert(context.Buffer2.Bytes1.Count == 0);
+            Debug.Assert(context.Buffer2.Bytes2.Count == 0);
+            Debug.Assert(context.Buffer2.Bytes4.Count == 0);
+            Debug.Assert(context.Buffer2.Bytes8.Count == 0);
         }
 
         private static (KVType Type, KVFlag Flag) ReadType(Context context)
@@ -1058,34 +1144,16 @@ namespace ValveResourceFormat.ResourceTypes
                         parent.AddProperty(name, MakeValue(datatype, id == -1 ? string.Empty : context.Strings[id], flagInfo));
                     }
                     break;
-                /*
-            case KVType.BINARY_BLOB:
-                if (uncompressedBlocks != null)
-                {
-                    var blockLength = uncompressedBlockLengthArray[currentCompressedBlockIndex++];
-                    var output = uncompressedBlocks[uncompressedBlockOffset..(uncompressedBlockOffset + blockLength)].ToArray();
-                    uncompressedBlockOffset += blockLength;
-                    parent.AddProperty(name, MakeValue(datatype, output, flagInfo));
+                case KVType.BINARY_BLOB:
+                    {
+                        var blockLength = context.BinaryBlobLengths[0];
+                        context.BinaryBlobLengths = context.BinaryBlobLengths[1..];
+                        var output = context.BinaryBlobs[..blockLength].ToArray();
+                        context.BinaryBlobs = context.BinaryBlobs[blockLength..];
+
+                        parent.AddProperty(name, MakeValue(datatype, output, flagInfo));
+                    }
                     break;
-                }
-
-                var length = reader.ReadInt32();
-
-                if (currentBinaryBytesOffset > -1)
-                {
-                    reader.BaseStream.Position = currentBinaryBytesOffset;
-                }
-
-                parent.AddProperty(name, MakeValue(datatype, reader.ReadBytes(length), flagInfo));
-
-                if (currentBinaryBytesOffset > -1)
-                {
-                    currentBinaryBytesOffset = reader.BaseStream.Position;
-                    reader.BaseStream.Position = currentOffset + 4;
-                }
-
-                break;
-                */
                 case KVType.ARRAY:
                     {
                         var arrayLength = MemoryMarshal.Read<int>(buffer.Bytes4);
