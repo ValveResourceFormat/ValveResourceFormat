@@ -668,318 +668,424 @@ namespace ValveResourceFormat.ResourceTypes
                 sizeUncompressedBuffer1 = sizeUncompressedTotal;
             }
 
-            var buffer1Raw = new byte[sizeUncompressedBuffer1]; // TODO: ArrayPool
-            var buffer2Raw = version >= 5 ? new byte[sizeUncompressedBuffer2] : null; // TODO: ArrayPool - TODO: move into the version>=5 buffer reading below
+            var buffer1Raw = ArrayPool<byte>.Shared.Rent(sizeUncompressedBuffer1);
+            byte[] buffer2Raw = null;
+            byte[] binaryBlobsRaw = null;
 
-            if (compressionMethod == 0) // uncompressed
+            try
             {
-                if (compressionDictionaryId != 0)
-                {
-                    throw new UnexpectedMagicException("Unhandled", compressionDictionaryId, nameof(compressionDictionaryId));
-                }
+                var buffer1Span = new ArraySegment<byte>(buffer1Raw, 0, sizeUncompressedBuffer1);
 
-                if (compressionFrameSize != 0)
+                if (compressionMethod == 0) // uncompressed
                 {
-                    throw new UnexpectedMagicException("Unhandled", compressionFrameSize, nameof(compressionFrameSize));
-                }
+                    if (compressionDictionaryId != 0)
+                    {
+                        throw new UnexpectedMagicException("Unhandled", compressionDictionaryId, nameof(compressionDictionaryId));
+                    }
 
-                if (version >= 5)
+                    if (compressionFrameSize != 0)
+                    {
+                        throw new UnexpectedMagicException("Unhandled", compressionFrameSize, nameof(compressionFrameSize));
+                    }
+
+                    if (version >= 5)
+                    {
+                        Debug.Assert(sizeCompressedBuffer1 == 0);
+                    }
+                    else
+                    {
+                        Debug.Assert(sizeCompressedBuffer1 == sizeUncompressedBuffer1);
+                    }
+
+                    reader.Read(buffer1Span);
+                }
+                else if (compressionMethod == 1) // LZ4
                 {
-                    Debug.Assert(sizeCompressedBuffer1 == 0);
+                    if (compressionDictionaryId != 0)
+                    {
+                        throw new UnexpectedMagicException("Unhandled", compressionDictionaryId, nameof(compressionDictionaryId));
+                    }
+
+                    if (compressionFrameSize != 16384)
+                    {
+                        throw new UnexpectedMagicException("Unhandled", compressionFrameSize, nameof(compressionFrameSize));
+                    }
+
+                    Debug.Assert(sizeCompressedBuffer1 > 0);
+
+                    DecompressLZ4(reader, buffer1Span, sizeCompressedBuffer1);
+                }
+                else if (compressionMethod == 2) // ZSTD
+                {
+                    if (compressionDictionaryId != 0)
+                    {
+                        throw new UnexpectedMagicException("Unhandled", compressionDictionaryId, nameof(compressionDictionaryId));
+                    }
+
+                    if (compressionFrameSize != 0)
+                    {
+                        throw new UnexpectedMagicException("Unhandled", compressionFrameSize, nameof(compressionFrameSize));
+                    }
+
+                    Debug.Assert(sizeCompressedBuffer1 > 0);
+
+                    using var zstd = new ZstdSharp.Decompressor(); // TODO: Only one instance
+
+                    var inputBuf = ArrayPool<byte>.Shared.Rent(Math.Max(sizeCompressedBuffer1, sizeCompressedBuffer2));
+
+                    try
+                    {
+                        var input = inputBuf.AsSpan(0, sizeCompressedBuffer1);
+                        reader.Read(input);
+
+                        if (!zstd.TryUnwrap(input, buffer1Span, out var written) || sizeUncompressedBuffer1 != written)
+                        {
+                            throw new InvalidDataException($"Failed to decompress zstd correctly (written {written} bytes, expected {sizeUncompressedBuffer1} bytes)");
+                        }
+                    }
+                    finally
+                    {
+                        ArrayPool<byte>.Shared.Return(inputBuf);
+                    }
                 }
                 else
                 {
-                    Debug.Assert(sizeCompressedBuffer1 == sizeUncompressedBuffer1);
+                    throw new UnexpectedMagicException("Unknown compression method", compressionMethod, nameof(compressionMethod));
                 }
 
-                reader.Read(buffer1Raw.AsSpan(0, sizeUncompressedBuffer1));
+                ArraySegment<byte> bufferWithBinaryBlobSizes = null;
 
-                if (version >= 5)
+                // Buffer 1
                 {
-                    Debug.Assert(sizeCompressedBuffer2 == 0);
+                    var buffer1 = new Buffers();
 
-                    reader.Read(buffer2Raw.AsSpan(0, sizeUncompressedBuffer2));
-                }
-            }
-            else if (compressionMethod == 1) // LZ4
-            {
-                if (compressionDictionaryId != 0)
-                {
-                    throw new UnexpectedMagicException("Unhandled", compressionDictionaryId, nameof(compressionDictionaryId));
-                }
+                    var offset = 0;
 
-                if (compressionFrameSize != 16384)
-                {
-                    throw new UnexpectedMagicException("Unhandled", compressionFrameSize, nameof(compressionFrameSize));
-                }
-
-                Debug.Assert(sizeCompressedBuffer1 > 0);
-
-                DecompressLZ4(reader, buffer1Raw, sizeCompressedBuffer1);
-
-                if (version >= 5)
-                {
-                    Debug.Assert(sizeCompressedBuffer2 > 0);
-
-                    DecompressLZ4(reader, buffer2Raw, sizeCompressedBuffer2);
-                }
-            }
-            else if (compressionMethod == 2) // ZSTD
-            {
-                if (compressionDictionaryId != 0)
-                {
-                    throw new UnexpectedMagicException("Unhandled", compressionDictionaryId, nameof(compressionDictionaryId));
-                }
-
-                if (compressionFrameSize != 0)
-                {
-                    throw new UnexpectedMagicException("Unhandled", compressionFrameSize, nameof(compressionFrameSize));
-                }
-
-                Debug.Assert(sizeCompressedBuffer1 > 0);
-
-                using var zstd = new ZstdSharp.Decompressor();
-
-                var inputBuf = ArrayPool<byte>.Shared.Rent(Math.Max(sizeCompressedBuffer1, sizeCompressedBuffer2));
-
-                try
-                {
-                    // Buffer 1
-                    var output = buffer1Raw.AsSpan(0, sizeUncompressedBuffer1);
-                    var input = inputBuf.AsSpan(0, sizeCompressedBuffer1);
-                    reader.Read(input);
-
-                    if (!zstd.TryUnwrap(input, output, out var written) || sizeUncompressedBuffer1 != written)
+                    if (countBytes1 > 0)
                     {
-                        throw new InvalidDataException($"Failed to decompress zstd correctly (written {written} bytes, expected {sizeUncompressedBuffer1} bytes)");
+                        var end = offset + countBytes1;
+                        buffer1.Bytes1 = buffer1Span[offset..end];
+                        offset = end;
                     }
 
-                    // Buffer 2
+                    if (countBytes2 > 0)
+                    {
+                        if (offset % 2 != 0)
+                        {
+                            offset += 2 - (offset % 2);
+                        }
+
+                        var end = offset + countBytes2 * 2;
+                        buffer1.Bytes2 = buffer1Span[offset..end];
+                        offset = end;
+                    }
+
+                    if (countBytes4 > 0)
+                    {
+                        if (offset % 4 != 0)
+                        {
+                            offset += 4 - (offset % 4);
+                        }
+
+                        var end = offset + countBytes4 * 4;
+                        buffer1.Bytes4 = buffer1Span[offset..end];
+                        offset = end;
+                    }
+
+                    if ((version < 5 || countBytes8 > 0) && offset % 8 != 0)
+                    {
+                        offset += 8 - (offset % 8);
+                    }
+
+                    if (countBytes8 > 0)
+                    {
+                        var end = offset + countBytes8 * 8;
+                        buffer1.Bytes8 = buffer1Span[offset..end];
+                        offset = end;
+                    }
+
+                    Debug.Assert(countBytes4 > 0); // should be guaranteed to be at least 1 for the strings count
+
+                    var countStrings = MemoryMarshal.Read<int>(buffer1.Bytes4);
+                    buffer1.Bytes4 = buffer1.Bytes4[sizeof(int)..];
+                    context.Strings = new string[countStrings];
+
                     if (version >= 5)
                     {
-                        Debug.Assert(sizeCompressedBuffer2 > 0);
+                        context.AuxiliaryBuffer = buffer1;
 
-                        output = buffer2Raw.AsSpan(0, sizeUncompressedBuffer2);
-                        input = inputBuf.AsSpan(0, sizeCompressedBuffer2);
-                        reader.Read(input);
+                        var readStringBytes = 0;
 
-                        if (!zstd.TryUnwrap(input, output, out written) || sizeUncompressedBuffer2 != written)
+                        for (var i = 0; i < countStrings; i++)
                         {
-                            throw new InvalidDataException($"Failed to decompress zstd correctly (written {written} bytes, expected {sizeUncompressedBuffer2} bytes)");
+                            context.Strings[i] = ReadNullTermUtf8String(ref buffer1.Bytes1, ref readStringBytes);
+                        }
+
+                        Debug.Assert(buffer1Span.Count == offset);
+                    }
+                    else
+                    {
+                        context.Buffer = buffer1;
+
+                        var stringsBuffer = buffer1Span[offset..];
+                        var stringsStartOffset = offset;
+
+                        for (var i = 0; i < countStrings; i++)
+                        {
+                            context.Strings[i] = ReadNullTermUtf8String(ref stringsBuffer, ref offset);
+                        }
+
+                        // Types before v5
+                        var typesLength = countTypes - offset + stringsStartOffset;
+                        context.Types = buffer1Span[offset..(offset + typesLength)];
+                        offset += typesLength;
+
+                        if (countBlocks == 0)
+                        {
+                            var trailer = MemoryMarshal.Read<uint>(buffer1Span[offset..]);
+                            offset += 4;
+                            UnexpectedMagicException.Assert(trailer == 0xFFEEDD00, trailer);
+                        }
+                        else
+                        {
+                            bufferWithBinaryBlobSizes = buffer1Span[offset..];
                         }
                     }
                 }
-                finally
-                {
-                    ArrayPool<byte>.Shared.Return(inputBuf);
-                }
-            }
-            else
-            {
-                throw new UnexpectedMagicException("Unknown compression method", compressionMethod, nameof(compressionMethod));
-            }
 
-            ArraySegment<byte> bufferWithBinaryBlobSizes = null;
-
-            // Buffer 1
-            {
-                var buffer1Span = new ArraySegment<byte>(buffer1Raw);
-                var buffer1 = new Buffers();
-
-                var offset = 0;
-
-                if (countBytes1 > 0)
-                {
-                    var end = offset + countBytes1;
-                    buffer1.Bytes1 = buffer1Span[offset..end];
-                    offset = end;
-                }
-
-                if (countBytes2 > 0)
-                {
-                    if (offset % 2 != 0)
-                    {
-                        offset += 2 - (offset % 2);
-                    }
-
-                    var end = offset + countBytes2 * 2;
-                    buffer1.Bytes2 = buffer1Span[offset..end];
-                    offset = end;
-                }
-
-                if (countBytes4 > 0)
-                {
-                    if (offset % 4 != 0)
-                    {
-                        offset += 4 - (offset % 4);
-                    }
-
-                    var end = offset + countBytes4 * 4;
-                    buffer1.Bytes4 = buffer1Span[offset..end];
-                    offset = end;
-                }
-
-                if ((version < 5 || countBytes8 > 0) && offset % 8 != 0)
-                {
-                    offset += 8 - (offset % 8);
-                }
-
-                if (countBytes8 > 0)
-                {
-                    var end = offset + countBytes8 * 8;
-                    buffer1.Bytes8 = buffer1Span[offset..end];
-                    offset = end;
-                }
-
-                Debug.Assert(countBytes4 > 0); // should be guaranteed to be at least 1 for the strings count
-
-                var countStrings = MemoryMarshal.Read<int>(buffer1.Bytes4);
-                buffer1.Bytes4 = buffer1.Bytes4[sizeof(int)..];
-                context.Strings = new string[countStrings];
-
+                // Buffer 2
                 if (version >= 5)
                 {
-                    context.AuxiliaryBuffer = buffer1;
+                    buffer2Raw = ArrayPool<byte>.Shared.Rent(sizeUncompressedBuffer2);
+                    var buffer2Span = new ArraySegment<byte>(buffer2Raw, 0, sizeUncompressedBuffer2);
 
-                    var readStringBytes = 0;
-
-                    for (var i = 0; i < countStrings; i++)
+                    if (compressionMethod == 0) // uncompressed
                     {
-                        context.Strings[i] = ReadNullTermUtf8String(ref buffer1.Bytes1, ref readStringBytes);
+                        Debug.Assert(sizeCompressedBuffer2 == 0);
+
+                        reader.Read(buffer2Span);
+                    }
+                    else if (compressionMethod == 1) // LZ4
+                    {
+                        Debug.Assert(sizeCompressedBuffer2 > 0);
+
+                        DecompressLZ4(reader, buffer2Span, sizeCompressedBuffer2);
+                    }
+                    else if (compressionMethod == 2) // ZSTD
+                    {
+                        Debug.Assert(sizeCompressedBuffer1 > 0);
+
+                        using var zstd = new ZstdSharp.Decompressor();
+
+                        var inputBuf = ArrayPool<byte>.Shared.Rent(Math.Max(sizeCompressedBuffer1, sizeCompressedBuffer2));
+
+                        try
+                        {
+                            Debug.Assert(sizeCompressedBuffer2 > 0);
+
+                            var input = inputBuf.AsSpan(0, sizeCompressedBuffer2);
+                            reader.Read(input);
+
+                            if (!zstd.TryUnwrap(input, buffer2Span, out var written) || sizeUncompressedBuffer2 != written)
+                            {
+                                throw new InvalidDataException($"Failed to decompress zstd correctly (written {written} bytes, expected {sizeUncompressedBuffer2} bytes)");
+                            }
+                        }
+                        finally
+                        {
+                            ArrayPool<byte>.Shared.Return(inputBuf);
+                        }
+                    }
+                    else
+                    {
+                        throw new UnexpectedMagicException("Unknown compression method", compressionMethod, nameof(compressionMethod));
                     }
 
-                    Debug.Assert(buffer1Span.Count == offset);
-                }
-                else
-                {
-                    context.Buffer = buffer1;
+                    var buffer2 = new Buffers();
+                    context.Buffer = buffer2;
 
-                    var stringsBuffer = buffer1Span[offset..];
-                    var stringsStartOffset = offset;
+                    var end = countObjects_buffer2 * sizeof(int);
+                    var offset = end;
 
-                    for (var i = 0; i < countStrings; i++)
+                    context.ObjectLengths = buffer2Span[..end];
+
+                    if (countBytes1_buffer2 > 0)
                     {
-                        context.Strings[i] = ReadNullTermUtf8String(ref stringsBuffer, ref offset);
+                        end = offset + countBytes1_buffer2;
+                        buffer2.Bytes1 = buffer2Span[offset..end];
+                        offset = end;
                     }
 
-                    // Types before v5
-                    var typesLength = countTypes - offset + stringsStartOffset;
-                    context.Types = buffer1Span[offset..(offset + typesLength)];
-                    offset += typesLength;
+                    if (countBytes2_buffer2 > 0)
+                    {
+                        if (offset % 2 != 0)
+                        {
+                            offset += 2 - (offset % 2);
+                        }
+
+                        end = offset + countBytes2_buffer2 * 2;
+                        buffer2.Bytes2 = buffer2Span[offset..end];
+                        offset = end;
+                    }
+
+                    if (countBytes4_buffer2 > 0)
+                    {
+                        if (offset % 4 != 0)
+                        {
+                            offset += 4 - (offset % 4);
+                        }
+
+                        end = offset + countBytes4_buffer2 * 4;
+                        buffer2.Bytes4 = buffer2Span[offset..end];
+                        offset = end;
+                    }
+
+                    if (countBytes8_buffer2 > 0)
+                    {
+                        if (offset % 8 != 0)
+                        {
+                            offset += 8 - (offset % 8);
+                        }
+
+                        end = offset + countBytes8_buffer2 * 8;
+                        buffer2.Bytes8 = buffer2Span[offset..end];
+                        offset = end;
+                    }
+
+                    // Types in v5
+                    context.Types = buffer2Span[offset..(offset + countTypes)];
+                    offset += countTypes;
 
                     if (countBlocks == 0)
                     {
-                        var trailer = MemoryMarshal.Read<uint>(buffer1Span[offset..]);
+                        var trailer = MemoryMarshal.Read<uint>(buffer2Span[offset..]);
                         offset += 4;
                         UnexpectedMagicException.Assert(trailer == 0xFFEEDD00, trailer);
                     }
                     else
                     {
-                        bufferWithBinaryBlobSizes = buffer1Span[offset..];
+                        bufferWithBinaryBlobSizes = buffer2Span[offset..];
                     }
                 }
-            }
 
-            // Buffer 2
-            if (version >= 5)
-            {
-                var buffer2Span = new ArraySegment<byte>(buffer2Raw);
-                var buffer2 = new Buffers();
-                context.Buffer = buffer2;
-
-                var end = countObjects_buffer2 * sizeof(int);
-                var offset = end;
-
-                context.ObjectLengths = buffer2Span[..end];
-
-                if (countBytes1_buffer2 > 0)
+                if (countBlocks > 0)
                 {
-                    end = offset + countBytes1_buffer2;
-                    buffer2.Bytes1 = buffer2Span[offset..end];
-                    offset = end;
-                }
+                    Debug.Assert(bufferWithBinaryBlobSizes != null);
 
-                if (countBytes2_buffer2 > 0)
-                {
-                    if (offset % 2 != 0)
-                    {
-                        offset += 2 - (offset % 2);
-                    }
+                    var end = countBlocks * sizeof(int);
+                    context.BinaryBlobLengths = bufferWithBinaryBlobSizes[..end];
+                    bufferWithBinaryBlobSizes = bufferWithBinaryBlobSizes[end..];
 
-                    end = offset + countBytes2_buffer2 * 2;
-                    buffer2.Bytes2 = buffer2Span[offset..end];
-                    offset = end;
-                }
-
-                if (countBytes4_buffer2 > 0)
-                {
-                    if (offset % 4 != 0)
-                    {
-                        offset += 4 - (offset % 4);
-                    }
-
-                    end = offset + countBytes4_buffer2 * 4;
-                    buffer2.Bytes4 = buffer2Span[offset..end];
-                    offset = end;
-                }
-
-                if (countBytes8_buffer2 > 0)
-                {
-                    if (offset % 8 != 0)
-                    {
-                        offset += 8 - (offset % 8);
-                    }
-
-                    end = offset + countBytes8_buffer2 * 8;
-                    buffer2.Bytes8 = buffer2Span[offset..end];
-                    offset = end;
-                }
-
-                // Types in v5
-                context.Types = buffer2Span[offset..(offset + countTypes)];
-                offset += countTypes;
-
-                if (countBlocks == 0)
-                {
-                    var trailer = MemoryMarshal.Read<uint>(buffer2Span[offset..]);
-                    offset += 4;
+                    var trailer = MemoryMarshal.Read<uint>(bufferWithBinaryBlobSizes);
+                    bufferWithBinaryBlobSizes = bufferWithBinaryBlobSizes[sizeof(int)..];
                     UnexpectedMagicException.Assert(trailer == 0xFFEEDD00, trailer);
-                }
-                else
-                {
-                    bufferWithBinaryBlobSizes = buffer2Span[offset..];
-                }
-            }
 
-            if (countBlocks > 0)
-            {
-                Debug.Assert(bufferWithBinaryBlobSizes != null);
-
-                var end = countBlocks * sizeof(int);
-                context.BinaryBlobLengths = bufferWithBinaryBlobSizes[..end];
-                bufferWithBinaryBlobSizes = bufferWithBinaryBlobSizes[end..];
-
-                var trailer = MemoryMarshal.Read<uint>(bufferWithBinaryBlobSizes);
-                bufferWithBinaryBlobSizes = bufferWithBinaryBlobSizes[sizeof(int)..];
-                UnexpectedMagicException.Assert(trailer == 0xFFEEDD00, trailer);
-
-                // TODO: Cleanup this crap
-                if (version >= 5)
-                {
-                    if (sizeBlockCompressedSizesBytes > 0)
+                    // TODO: Cleanup this crap
+                    if (version >= 5)
                     {
-                        if (compressionMethod == 1)
+                        if (sizeBlockCompressedSizesBytes > 0)
                         {
-                            context.BinaryBlobs = new byte[sizeBinaryBlobsBytes]; // TODO: ArrayPool
-                                                                                  // uncompressedBlocks = new ArraySegment<byte>(uncompressedBlocksBuffer, 0, sizeBlockBytes);
+                            if (compressionMethod == 1)
+                            {
+                                binaryBlobsRaw = ArrayPool<byte>.Shared.Rent(sizeBinaryBlobsBytes);
+                                context.BinaryBlobs = new ArraySegment<byte>(binaryBlobsRaw, 0, sizeBinaryBlobsBytes);
+
+                                using var lz4decoder = new LZ4ChainDecoder(compressionFrameSize, 0);
+
+                                end = sizeBlockCompressedSizesBytes;
+
+                                var decompressedOffset = 0;
+
+                                while (bufferWithBinaryBlobSizes.Count > 0)
+                                {
+                                    var compressedBlockLength = MemoryMarshal.Read<ushort>(bufferWithBinaryBlobSizes);
+                                    bufferWithBinaryBlobSizes = bufferWithBinaryBlobSizes[sizeof(ushort)..];
+
+                                    var inputBuf = ArrayPool<byte>.Shared.Rent(compressedBlockLength);
+
+                                    try
+                                    {
+                                        var decodedFrameSize = decompressedOffset + compressionFrameSize > sizeBinaryBlobsBytes ? sizeBinaryBlobsBytes - decompressedOffset : compressionFrameSize;
+                                        var output = context.BinaryBlobs.AsSpan(decompressedOffset, decodedFrameSize);
+
+                                        var input = inputBuf.AsSpan(0, compressedBlockLength);
+                                        reader.Read(input);
+
+                                        if (!lz4decoder.DecodeAndDrain(input, output, out var decoded) || decoded < 1)
+                                        {
+                                            throw new InvalidOperationException("LZ4 decode drain failed, this is likely a bug.");
+                                        }
+
+                                        decompressedOffset += decoded;
+                                    }
+                                    finally
+                                    {
+                                        ArrayPool<byte>.Shared.Return(inputBuf);
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                throw new UnexpectedMagicException("Unsupported compression", compressionMethod, nameof(compressionMethod));
+                            }
+                        }
+                        else if (sizeBlockCompressedSizesBytes == 0)
+                        {
+                            var sizeCompressedBinaryBlobs = sizeCompressedTotal - sizeCompressedBuffer1 - sizeCompressedBuffer2;
+
+                            if (compressionMethod == 2)
+                            {
+                                context.BinaryBlobs = new byte[sizeBinaryBlobsBytes]; // TODO: ArrayPool
+
+                                using var zstd = new ZstdSharp.Decompressor();
+
+                                var inputBuf = ArrayPool<byte>.Shared.Rent(sizeCompressedBinaryBlobs);
+
+                                try
+                                {
+                                    var output = context.BinaryBlobs.AsSpan(0, sizeBinaryBlobsBytes);
+                                    var input = inputBuf.AsSpan(0, sizeCompressedBinaryBlobs);
+                                    reader.Read(input);
+
+                                    if (!zstd.TryUnwrap(input, output, out var written) || sizeBinaryBlobsBytes != written)
+                                    {
+                                        throw new InvalidDataException($"Failed to decompress zstd correctly (written {written} bytes, expected {sizeBinaryBlobsBytes} bytes)");
+                                    }
+                                }
+                                finally
+                                {
+                                    ArrayPool<byte>.Shared.Return(inputBuf);
+                                }
+                            }
+                            else if (sizeCompressedBinaryBlobs > 0)
+                            {
+                                throw new UnexpectedMagicException("Unsupported compression", compressionMethod, nameof(compressionMethod));
+                            }
+                        }
+                    }
+                    else if (version >= 3)
+                    {
+                        if (compressionMethod == 0)
+                        {
+                            context.BinaryBlobs = new byte[sizeBinaryBlobsBytes];
+
+                            var offset = 0;
+
+                            for (var i = 0; i < countBlocks; i++)
+                            {
+                                var length = uncompressedBlockLengthArray[i];
+                                reader.Read(context.BinaryBlobs.AsSpan(offset, length));
+                                offset += length;
+                            }
+                        }
+                        else if (compressionMethod == 1)
+                        {
+                            context.BinaryBlobs = new byte[sizeBinaryBlobsBytes];
 
                             using var lz4decoder = new LZ4ChainDecoder(compressionFrameSize, 0);
+                            var offset = 0;
 
-                            end = sizeBlockCompressedSizesBytes;
-
-                            var decompressedOffset = 0;
-
-                            while (bufferWithBinaryBlobSizes.Count > 0)
+                            while (offset < sizeBinaryBlobsBytes)
                             {
                                 var compressedBlockLength = MemoryMarshal.Read<ushort>(bufferWithBinaryBlobSizes);
                                 bufferWithBinaryBlobSizes = bufferWithBinaryBlobSizes[sizeof(ushort)..];
@@ -988,8 +1094,8 @@ namespace ValveResourceFormat.ResourceTypes
 
                                 try
                                 {
-                                    var decodedFrameSize = decompressedOffset + compressionFrameSize > sizeBinaryBlobsBytes ? sizeBinaryBlobsBytes - decompressedOffset : compressionFrameSize;
-                                    var output = context.BinaryBlobs.AsSpan(decompressedOffset, decodedFrameSize);
+                                    var decodedFrameSize = offset + compressionFrameSize > sizeBinaryBlobsBytes ? sizeBinaryBlobsBytes - offset : compressionFrameSize;
+                                    var output = context.BinaryBlobs.AsSpan(offset, decodedFrameSize);
 
                                     var input = inputBuf.AsSpan(0, compressedBlockLength);
                                     reader.Read(input);
@@ -999,7 +1105,7 @@ namespace ValveResourceFormat.ResourceTypes
                                         throw new InvalidOperationException("LZ4 decode drain failed, this is likely a bug.");
                                     }
 
-                                    decompressedOffset += decoded;
+                                    offset += decoded;
                                 }
                                 finally
                                 {
@@ -1007,132 +1113,58 @@ namespace ValveResourceFormat.ResourceTypes
                                 }
                             }
                         }
+                        else if (compressionMethod == 2)
+                        {
+                            // This is supposed to be a streaming decompress using ZSTD_decompressStream,
+                            // but as it turns out, zstd unwrap above already decompressed all of the blocks for us.
+                            // It's possible that Valve's code needs extra decompress because they set ZSTD_d_stableOutBuffer parameter.
+                            //context.BinaryBlobs = new ArraySegment<byte>(outputBuf, (int)outRead.BaseStream.Position, sizeBinaryBlobsBytes);
+                            Debug.Assert(false);
+                        }
                         else
                         {
-                            throw new UnexpectedMagicException("Unsupported compression", compressionMethod, nameof(compressionMethod));
+                            throw new UnexpectedMagicException("Unimplemented compression method in block decoder", compressionMethod, nameof(compressionMethod));
                         }
                     }
-                    else if (sizeBlockCompressedSizesBytes == 0)
-                    {
-                        var sizeCompressedBinaryBlobs = sizeCompressedTotal - sizeCompressedBuffer1 - sizeCompressedBuffer2;
 
-                        if (compressionMethod == 2)
-                        {
-                            context.BinaryBlobs = new byte[sizeBinaryBlobsBytes]; // TODO: ArrayPool
-
-                            using var zstd = new ZstdSharp.Decompressor();
-
-                            var inputBuf = ArrayPool<byte>.Shared.Rent(sizeCompressedBinaryBlobs);
-
-                            try
-                            {
-                                var output = context.BinaryBlobs.AsSpan(0, sizeBinaryBlobsBytes);
-                                var input = inputBuf.AsSpan(0, sizeCompressedBinaryBlobs);
-                                reader.Read(input);
-
-                                if (!zstd.TryUnwrap(input, output, out var written) || sizeBinaryBlobsBytes != written)
-                                {
-                                    throw new InvalidDataException($"Failed to decompress zstd correctly (written {written} bytes, expected {sizeBinaryBlobsBytes} bytes)");
-                                }
-                            }
-                            finally
-                            {
-                                ArrayPool<byte>.Shared.Return(inputBuf);
-                            }
-                        }
-                        else if (sizeCompressedBinaryBlobs > 0)
-                        {
-                            throw new UnexpectedMagicException("Unsupported compression", compressionMethod, nameof(compressionMethod));
-                        }
-                    }
+                    trailer = reader.ReadUInt32();
+                    UnexpectedMagicException.Assert(trailer == 0xFFEEDD00, trailer);
                 }
-                else if (version >= 3)
+
+                Debug.Assert(reader.BaseStream.Position == Offset + Size);
+
+                Data = ParseBinaryKV3(context, null, true);
+
+                Debug.Assert(context.Types.Count == 0);
+                Debug.Assert(context.ObjectLengths.Count == 0);
+                Debug.Assert(context.BinaryBlobs.Count == 0);
+                Debug.Assert(context.BinaryBlobLengths.Count == 0);
+                Debug.Assert(context.Buffer.Bytes1.Count == 0);
+                Debug.Assert(context.Buffer.Bytes2.Count == 0);
+                Debug.Assert(context.Buffer.Bytes4.Count == 0);
+                Debug.Assert(context.Buffer.Bytes8.Count == 0);
+
+                if (version >= 5)
                 {
-                    if (compressionMethod == 0)
-                    {
-                        context.BinaryBlobs = new byte[sizeBinaryBlobsBytes];
+                    Debug.Assert(context.AuxiliaryBuffer.Bytes1.Count == 0);
+                    Debug.Assert(context.AuxiliaryBuffer.Bytes2.Count == 0);
+                    Debug.Assert(context.AuxiliaryBuffer.Bytes4.Count == 0);
+                    Debug.Assert(context.AuxiliaryBuffer.Bytes8.Count == 0);
+                }
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(buffer1Raw);
 
-                        var offset = 0;
-
-                        for (var i = 0; i < countBlocks; i++)
-                        {
-                            var length = uncompressedBlockLengthArray[i];
-                            reader.Read(context.BinaryBlobs.AsSpan(offset, length));
-                            offset += length;
-                        }
-                    }
-                    else if (compressionMethod == 1)
-                    {
-                        context.BinaryBlobs = new byte[sizeBinaryBlobsBytes];
-
-                        using var lz4decoder = new LZ4ChainDecoder(compressionFrameSize, 0);
-                        var offset = 0;
-
-                        while (offset < sizeBinaryBlobsBytes)
-                        {
-                            var compressedBlockLength = MemoryMarshal.Read<ushort>(bufferWithBinaryBlobSizes);
-                            bufferWithBinaryBlobSizes = bufferWithBinaryBlobSizes[sizeof(ushort)..];
-
-                            var inputBuf = ArrayPool<byte>.Shared.Rent(compressedBlockLength);
-
-                            try
-                            {
-                                var decodedFrameSize = offset + compressionFrameSize > sizeBinaryBlobsBytes ? sizeBinaryBlobsBytes - offset : compressionFrameSize;
-                                var output = context.BinaryBlobs.AsSpan(offset, decodedFrameSize);
-
-                                var input = inputBuf.AsSpan(0, compressedBlockLength);
-                                reader.Read(input);
-
-                                if (!lz4decoder.DecodeAndDrain(input, output, out var decoded) || decoded < 1)
-                                {
-                                    throw new InvalidOperationException("LZ4 decode drain failed, this is likely a bug.");
-                                }
-
-                                offset += decoded;
-                            }
-                            finally
-                            {
-                                ArrayPool<byte>.Shared.Return(inputBuf);
-                            }
-                        }
-                    }
-                    else if (compressionMethod == 2)
-                    {
-                        // This is supposed to be a streaming decompress using ZSTD_decompressStream,
-                        // but as it turns out, zstd unwrap above already decompressed all of the blocks for us.
-                        // It's possible that Valve's code needs extra decompress because they set ZSTD_d_stableOutBuffer parameter.
-                        //context.BinaryBlobs = new ArraySegment<byte>(outputBuf, (int)outRead.BaseStream.Position, sizeBinaryBlobsBytes);
-                        Debug.Assert(false);
-                    }
-                    else
-                    {
-                        throw new UnexpectedMagicException("Unimplemented compression method in block decoder", compressionMethod, nameof(compressionMethod));
-                    }
+                if (buffer2Raw != null)
+                {
+                    ArrayPool<byte>.Shared.Return(buffer2Raw);
                 }
 
-                trailer = reader.ReadUInt32();
-                UnexpectedMagicException.Assert(trailer == 0xFFEEDD00, trailer);
-            }
-
-            Debug.Assert(reader.BaseStream.Position == Offset + Size);
-
-            Data = ParseBinaryKV3(context, null, true);
-
-            Debug.Assert(context.Types.Count == 0);
-            Debug.Assert(context.ObjectLengths.Count == 0);
-            Debug.Assert(context.BinaryBlobs.Count == 0);
-            Debug.Assert(context.BinaryBlobLengths.Count == 0);
-            Debug.Assert(context.Buffer.Bytes1.Count == 0);
-            Debug.Assert(context.Buffer.Bytes2.Count == 0);
-            Debug.Assert(context.Buffer.Bytes4.Count == 0);
-            Debug.Assert(context.Buffer.Bytes8.Count == 0);
-
-            if (version >= 5)
-            {
-                Debug.Assert(context.AuxiliaryBuffer.Bytes1.Count == 0);
-                Debug.Assert(context.AuxiliaryBuffer.Bytes2.Count == 0);
-                Debug.Assert(context.AuxiliaryBuffer.Bytes4.Count == 0);
-                Debug.Assert(context.AuxiliaryBuffer.Bytes8.Count == 0);
+                if (binaryBlobsRaw != null)
+                {
+                    ArrayPool<byte>.Shared.Return(binaryBlobsRaw);
+                }
             }
         }
 
