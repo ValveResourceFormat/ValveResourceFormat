@@ -316,6 +316,11 @@ namespace ValveResourceFormat.ResourceTypes
         /// <returns>Byte array containing sound data.</returns>
         public byte[] GetSound()
         {
+            if (StreamingDataSize == 0)
+            {
+                return [];
+            }
+
             using var sound = GetSoundStream();
             return sound.ToArray();
         }
@@ -327,6 +332,11 @@ namespace ValveResourceFormat.ResourceTypes
         /// <returns>Memory stream containing sound data.</returns>
         public MemoryStream GetSoundStream()
         {
+            if (StreamingDataSize == 0)
+            {
+                return new MemoryStream();
+            }
+
             Reader.BaseStream.Position = Offset + Size;
 
             const int WaveHeaderSize = 44;
