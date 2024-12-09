@@ -641,7 +641,6 @@ namespace ValveResourceFormat.ResourceTypes
             var unk16 = reader.ReadUInt32();
 
             Debug.Assert(sizeUncompressedTotal == sizeUncompressedBuffer1 + sizeUncompressedBuffer2);
-            Debug.Assert(countObjects == countObjects_buffer2);
 
             if (compressionMethod == 0) // uncompressed
             {
