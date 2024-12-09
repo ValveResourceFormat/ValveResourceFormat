@@ -46,8 +46,6 @@ namespace ValveResourceFormat.ResourceTypes
         private long currentTwoBytesOffset = -1;
         private long currentEightBytesOffset = -1;
         private long currentBinaryBytesOffset = -1;
-        private bool isUsingLinearFlagTypes; // Version KV3\x03 uses a different enum for mapping flags
-        private bool isUsingTwoBytesBuffer;
 
         private class Buffers
         {
@@ -87,17 +85,19 @@ namespace ValveResourceFormat.ResourceTypes
 
             switch (magic)
             {
-                case MAGIC0: ReadVersion1(reader); break;
-                case MAGIC1: ReadVersion2(reader); break;
-                case MAGIC2: ReadVersion3(reader); break;
+                case MAGIC0: ReadVersion0(reader); break;
+                case MAGIC1: ReadVersion1(reader); break;
+                case MAGIC2:
+                    ReadBuffer(2, reader);
+                    break;
                 case MAGIC3:
-                    ReadVersion3(reader);
+                    ReadBuffer(3, reader);
                     break;
                 case MAGIC4:
-                    ReadVersion5(4, reader);
+                    ReadBuffer(4, reader);
                     break;
                 case MAGIC5:
-                    ReadVersion5(5, reader);
+                    ReadBuffer(5, reader);
                     break;
                 default: throw new UnexpectedMagicException("Invalid KV3 signature", magic, nameof(magic));
             }
@@ -131,7 +131,7 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
-        private void ReadVersion1(BinaryReader reader)
+        private void ReadVersion0(BinaryReader reader)
         {
             Encoding = new Guid(reader.ReadBytes(16));
             Format = new Guid(reader.ReadBytes(16));
@@ -200,7 +200,7 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
-        private void ReadVersion2(BinaryReader reader)
+        private void ReadVersion1(BinaryReader reader)
         {
             Format = new Guid(reader.ReadBytes(16));
 
@@ -297,311 +297,7 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
-        private void ReadVersion3(BinaryReader reader)
-        {
-            Format = new Guid(reader.ReadBytes(16));
-
-            var compressionMethod = reader.ReadUInt32();
-            var compressionDictionaryId = reader.ReadUInt16();
-            var compressionFrameSize = reader.ReadUInt16();
-            var countOfBinaryBytes = reader.ReadUInt32(); // how many bytes (binary blobs)
-            var countOfIntegers = reader.ReadUInt32(); // how many 4 byte values (ints)
-            var countOfEightByteValues = reader.ReadUInt32(); // how many 8 byte values (doubles)
-
-            // 8 bytes that help valve preallocate, useless for us
-            var stringAndTypesBufferSize = reader.ReadUInt32();
-            var b = reader.ReadUInt16();
-            var c = reader.ReadUInt16();
-
-            var uncompressedSize = reader.ReadUInt32();
-            var compressedSize = reader.ReadUInt32();
-            var blockCount = reader.ReadUInt32();
-            var blockTotalSize = reader.ReadUInt32();
-
-            var countofTwoByteValue = 0u;
-
-            if (isUsingTwoBytesBuffer)
-            {
-                countofTwoByteValue = reader.ReadUInt32();
-                var sizeBlockCompressedBytes = reader.ReadUInt32();
-            }
-
-            if (compressedSize > int.MaxValue)
-            {
-                throw new NotImplementedException("KV3 compressedSize is higher than 32-bit integer, which we currently don't handle.");
-            }
-
-            if (blockTotalSize > int.MaxValue)
-            {
-                throw new NotImplementedException("KV3 blockTotalSize is higher than 32-bit integer, which we currently don't handle.");
-            }
-
-            byte[] outputBuf = null;
-
-            try
-            {
-                int outBufferLength;
-
-                if (compressionMethod == 0)
-                {
-                    if (compressionDictionaryId != 0)
-                    {
-                        throw new UnexpectedMagicException("Unhandled", compressionDictionaryId, nameof(compressionDictionaryId));
-                    }
-
-                    if (compressionFrameSize != 0)
-                    {
-                        throw new UnexpectedMagicException("Unhandled", compressionFrameSize, nameof(compressionFrameSize));
-                    }
-
-                    outBufferLength = (int)compressedSize;
-                    outputBuf = ArrayPool<byte>.Shared.Rent(outBufferLength);
-                    reader.Read(outputBuf.AsSpan(0, outBufferLength));
-                }
-                else if (compressionMethod == 1)
-                {
-                    if (compressionDictionaryId != 0)
-                    {
-                        throw new UnexpectedMagicException("Unhandled", compressionDictionaryId, nameof(compressionDictionaryId));
-                    }
-
-                    if (compressionFrameSize != 16384)
-                    {
-                        throw new UnexpectedMagicException("Unhandled", compressionFrameSize, nameof(compressionFrameSize));
-                    }
-
-                    outBufferLength = (int)uncompressedSize;
-                    outputBuf = ArrayPool<byte>.Shared.Rent(outBufferLength);
-
-                    DecompressLZ4(reader, outputBuf.AsSpan(0, outBufferLength), (int)compressedSize);
-                }
-                else if (compressionMethod == 2)
-                {
-                    if (compressionDictionaryId != 0)
-                    {
-                        throw new UnexpectedMagicException("Unhandled", compressionDictionaryId, nameof(compressionDictionaryId));
-                    }
-
-                    if (compressionFrameSize != 0)
-                    {
-                        throw new UnexpectedMagicException("Unhandled", compressionFrameSize, nameof(compressionFrameSize));
-                    }
-
-                    using var zstd = new ZstdSharp.Decompressor();
-
-                    outBufferLength = (int)(uncompressedSize + blockTotalSize);
-                    outputBuf = ArrayPool<byte>.Shared.Rent(outBufferLength);
-                    var inputBuf = ArrayPool<byte>.Shared.Rent((int)compressedSize);
-
-                    try
-                    {
-                        var output = outputBuf.AsSpan(0, outBufferLength);
-                        var input = inputBuf.AsSpan(0, (int)compressedSize);
-                        reader.Read(input);
-
-                        if (!zstd.TryUnwrap(input, output, out var written) || outBufferLength != written)
-                        {
-                            throw new InvalidDataException($"Failed to decompress zstd correctly (written {written} bytes, expected {outBufferLength} bytes)");
-                        }
-                    }
-                    finally
-                    {
-                        ArrayPool<byte>.Shared.Return(inputBuf);
-                    }
-                }
-                else
-                {
-                    throw new UnexpectedMagicException("Unknown compression method", compressionMethod, nameof(compressionMethod));
-                }
-
-                using var outStream = new MemoryStream(outputBuf, 0, outBufferLength);
-                using var outRead = new BinaryReader(outStream, System.Text.Encoding.UTF8, true);
-
-                currentBinaryBytesOffset = 0;
-                outRead.BaseStream.Position = countOfBinaryBytes;
-
-                if (countofTwoByteValue > 0)
-                {
-                    if (outRead.BaseStream.Position % 2 != 0)
-                    {
-                        // Align to % 2 after binary blobs
-                        outRead.BaseStream.Position += 1;
-                    }
-
-                    currentTwoBytesOffset = outRead.BaseStream.Position;
-                    outRead.BaseStream.Position += countofTwoByteValue * sizeof(short);
-                }
-                else
-                {
-                    if (outRead.BaseStream.Position % 4 != 0)
-                    {
-                        // Align to % 4 after binary blobs
-                        outRead.BaseStream.Position += 4 - (outRead.BaseStream.Position % 4);
-                    }
-                }
-
-                var countOfStrings = outRead.ReadUInt32();
-                var kvDataOffset = outRead.BaseStream.Position;
-
-                // Subtract one integer since we already read it (countOfStrings)
-                outRead.BaseStream.Position += (countOfIntegers - 1) * 4;
-
-                if (outRead.BaseStream.Position % 8 != 0)
-                {
-                    // Align to % 8 for the start of doubles
-                    outRead.BaseStream.Position += 8 - (outRead.BaseStream.Position % 8);
-                }
-
-                currentEightBytesOffset = outRead.BaseStream.Position;
-
-                outRead.BaseStream.Position += countOfEightByteValues * 8;
-                var stringArrayStartPosition = outRead.BaseStream.Position;
-
-                stringArray = new string[countOfStrings];
-
-                for (var i = 0; i < countOfStrings; i++)
-                {
-                    stringArray[i] = outRead.ReadNullTermString(System.Text.Encoding.UTF8);
-                }
-
-                var typesLength = (int)(stringAndTypesBufferSize - (outRead.BaseStream.Position - stringArrayStartPosition));
-
-                typesArray = ArrayPool<byte>.Shared.Rent(typesLength);
-                outRead.Read(typesArray.AsSpan(0, typesLength));
-
-                if (blockCount == 0)
-                {
-                    var noBlocksTrailer = outRead.ReadUInt32();
-                    if (noBlocksTrailer != 0xFFEEDD00)
-                    {
-                        throw new UnexpectedMagicException("Invalid trailer", noBlocksTrailer, nameof(noBlocksTrailer));
-                    }
-
-                    // Move back to the start of the KV data for reading.
-                    outRead.BaseStream.Position = kvDataOffset;
-
-                    Data = ParseBinaryKV3(outRead, null, true);
-
-                    return;
-                }
-
-                // TODO: use byte arraypool
-                uncompressedBlockLengthArray = ArrayPool<int>.Shared.Rent((int)blockCount);
-
-                for (var i = 0; i < blockCount; i++)
-                {
-                    uncompressedBlockLengthArray[i] = outRead.ReadInt32();
-                }
-
-                var trailer = outRead.ReadUInt32();
-                if (trailer != 0xFFEEDD00)
-                {
-                    throw new UnexpectedMagicException("Invalid trailer", trailer, nameof(trailer));
-                }
-
-                byte[] uncompressedBlocksBuffer = null;
-
-                try
-                {
-                    if (compressionMethod == 0)
-                    {
-                        uncompressedBlocksBuffer = ArrayPool<byte>.Shared.Rent((int)blockTotalSize);
-
-                        var offset = 0;
-
-                        for (var i = 0; i < blockCount; i++)
-                        {
-                            var length = uncompressedBlockLengthArray[i];
-                            reader.Read(uncompressedBlocksBuffer.AsSpan(offset, length));
-                            offset += length;
-                        }
-
-                        uncompressedBlocks = new ArraySegment<byte>(uncompressedBlocksBuffer, 0, (int)blockTotalSize);
-                    }
-                    else if (compressionMethod == 1)
-                    {
-                        uncompressedBlocksBuffer = ArrayPool<byte>.Shared.Rent((int)blockTotalSize);
-
-                        using var lz4decoder = new LZ4ChainDecoder(compressionFrameSize, 0);
-                        var offset = 0;
-
-                        while (offset < blockTotalSize)
-                        {
-                            var compressedBlockLength = outRead.ReadUInt16();
-                            var inputBuf = ArrayPool<byte>.Shared.Rent(compressedBlockLength);
-
-                            try
-                            {
-                                var decodedFrameSize = offset + compressionFrameSize > blockTotalSize ? (int)blockTotalSize - offset : compressionFrameSize;
-                                var output = uncompressedBlocksBuffer.AsSpan(offset, decodedFrameSize);
-
-                                var input = inputBuf.AsSpan(0, compressedBlockLength);
-                                reader.Read(input);
-
-                                if (!lz4decoder.DecodeAndDrain(input, output, out var decoded) || decoded < 1)
-                                {
-                                    throw new InvalidOperationException("LZ4 decode drain failed, this is likely a bug.");
-                                }
-
-                                offset += decoded;
-                            }
-                            finally
-                            {
-                                ArrayPool<byte>.Shared.Return(inputBuf);
-                            }
-                        }
-
-                        uncompressedBlocks = new ArraySegment<byte>(uncompressedBlocksBuffer, 0, (int)blockTotalSize);
-                    }
-                    else if (compressionMethod == 2)
-                    {
-                        // This is supposed to be a streaming decompress using ZSTD_decompressStream,
-                        // but as it turns out, zstd unwrap above already decompressed all of the blocks for us.
-                        // It's possible that Valve's code needs extra decompress because they set ZSTD_d_stableOutBuffer parameter.
-                        uncompressedBlocks = new ArraySegment<byte>(outputBuf, (int)outRead.BaseStream.Position, (int)blockTotalSize);
-                    }
-                    else
-                    {
-                        throw new UnexpectedMagicException("Unimplemented compression method in block decoder", compressionMethod, nameof(compressionMethod));
-                    }
-
-                    // Move back to the start of the KV data for reading.
-                    outRead.BaseStream.Position = kvDataOffset;
-
-                    Data = ParseBinaryKV3(outRead, null, true);
-                }
-                finally
-                {
-                    if (uncompressedBlocksBuffer != null)
-                    {
-                        ArrayPool<byte>.Shared.Return(uncompressedBlocksBuffer);
-                    }
-
-                    uncompressedBlocks = null;
-                }
-            }
-            finally
-            {
-                if (outputBuf != null)
-                {
-                    ArrayPool<byte>.Shared.Return(outputBuf);
-                }
-
-                if (typesArray != null)
-                {
-                    ArrayPool<byte>.Shared.Return(typesArray);
-                    typesArray = null;
-                }
-
-                if (uncompressedBlockLengthArray != null)
-                {
-                    ArrayPool<int>.Shared.Return(uncompressedBlockLengthArray);
-                    uncompressedBlockLengthArray = null;
-                }
-            }
-        }
-
-        private void ReadVersion5(int version, BinaryReader reader)
+        private void ReadBuffer(int version, BinaryReader reader)
         {
             var context = new Context
             {
@@ -1048,7 +744,7 @@ namespace ValveResourceFormat.ResourceTypes
                             }
                         }
                     }
-                    else if (version >= 3)
+                    else if (version >= 2)
                     {
                         if (compressionMethod == 0)
                         {
@@ -1159,7 +855,7 @@ namespace ValveResourceFormat.ResourceTypes
             context.Types = context.Types[1..];
             var flagInfo = KVFlag.None;
 
-            if (context.Version >= 4)
+            if (context.Version >= 3)
             {
                 if ((databyte & 0x80) > 0)
                 {
@@ -1494,29 +1190,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             var flagInfo = KVFlag.None;
 
-            if (isUsingLinearFlagTypes)
-            {
-                if ((databyte & 0x80) > 0)
-                {
-                    databyte &= 0x3F; // Remove the flag bit
-
-                    // TODO: Do new kv3 types always have typesArray?
-                    if (typesArray != null)
-                    {
-                        flagInfo = (KVFlag)typesArray[currentTypeIndex++];
-                    }
-                    else
-                    {
-                        flagInfo = (KVFlag)reader.ReadByte();
-                    }
-
-                    if (flagInfo > KVFlag.SubClass)
-                    {
-                        throw new UnexpectedMagicException("Unexpected kv3 flag", (int)flagInfo, nameof(flagInfo));
-                    }
-                }
-            }
-            else if ((databyte & 0x80) > 0) // TODO: Valve's new code also checks for 0x40 even for old kv3 version
+            if ((databyte & 0x80) > 0) // TODO: Valve's new code also checks for 0x40 even for old kv3 version
             {
                 databyte &= 0x7F; // Remove the flag bit
 
