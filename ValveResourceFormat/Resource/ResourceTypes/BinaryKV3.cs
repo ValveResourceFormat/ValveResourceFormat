@@ -38,12 +38,7 @@ namespace ValveResourceFormat.ResourceTypes
 
         private string[] stringArray;
         private byte[] typesArray;
-        private ArraySegment<byte> uncompressedBlocks;
-        private int[] uncompressedBlockLengthArray;
-        private int uncompressedBlockOffset;
-        private long currentCompressedBlockIndex;
         private long currentTypeIndex;
-        private long currentTwoBytesOffset = -1;
         private long currentEightBytesOffset = -1;
         private long currentBinaryBytesOffset = -1;
 
@@ -105,8 +100,6 @@ namespace ValveResourceFormat.ResourceTypes
             stringArray = null;
 
             Debug.Assert(typesArray == null);
-            Debug.Assert(uncompressedBlockLengthArray == null);
-            Debug.Assert(uncompressedBlocks == null);
         }
 
         private static void DecompressLZ4(BinaryReader reader, Span<byte> output, int compressedSize)
@@ -748,20 +741,12 @@ namespace ValveResourceFormat.ResourceTypes
                     {
                         if (compressionMethod == 0)
                         {
-                            context.BinaryBlobs = new byte[sizeBinaryBlobsBytes];
-
-                            var offset = 0;
-
-                            for (var i = 0; i < countBlocks; i++)
-                            {
-                                var length = uncompressedBlockLengthArray[i];
-                                reader.Read(context.BinaryBlobs.AsSpan(offset, length));
-                                offset += length;
-                            }
+                            context.BinaryBlobs = new byte[sizeBinaryBlobsBytes]; // TODO: ArrayPool
+                            reader.Read(context.BinaryBlobs.AsSpan(0, sizeBinaryBlobsBytes));
                         }
                         else if (compressionMethod == 1)
                         {
-                            context.BinaryBlobs = new byte[sizeBinaryBlobsBytes];
+                            context.BinaryBlobs = new byte[sizeBinaryBlobsBytes]; // TODO: ArrayPool
 
                             using var lz4decoder = new LZ4ChainDecoder(compressionFrameSize, 0);
                             var offset = 0;
@@ -1346,15 +1331,6 @@ namespace ValveResourceFormat.ResourceTypes
                     parent.AddProperty(name, MakeValue(datatype, id == -1 ? string.Empty : stringArray[id], flagInfo));
                     break;
                 case KVType.BINARY_BLOB:
-                    if (uncompressedBlocks != null)
-                    {
-                        var blockLength = uncompressedBlockLengthArray[currentCompressedBlockIndex++];
-                        var output = uncompressedBlocks[uncompressedBlockOffset..(uncompressedBlockOffset + blockLength)].ToArray();
-                        uncompressedBlockOffset += blockLength;
-                        parent.AddProperty(name, MakeValue(datatype, output, flagInfo));
-                        break;
-                    }
-
                     var length = reader.ReadInt32();
 
                     if (currentBinaryBytesOffset > -1)
@@ -1383,23 +1359,7 @@ namespace ValveResourceFormat.ResourceTypes
                     parent.AddProperty(name, MakeValue(datatype, array, flagInfo));
                     break;
                 case KVType.ARRAY_TYPED:
-                case KVType.ARRAY_TYPE_BYTE_LENGTH:
-                    int typeArrayLength;
-
-                    if (datatype == KVType.ARRAY_TYPE_BYTE_LENGTH)
-                    {
-                        reader.BaseStream.Position = currentBinaryBytesOffset;
-
-                        typeArrayLength = reader.ReadByte();
-
-                        currentBinaryBytesOffset++;
-                        reader.BaseStream.Position = currentOffset;
-                    }
-                    else
-                    {
-                        typeArrayLength = reader.ReadInt32();
-                    }
-
+                    var typeArrayLength = reader.ReadInt32();
                     var (subType, subFlagInfo) = ReadType(reader);
                     var typedArray = new KVObject(name, isArray: true, capacity: typeArrayLength);
 
@@ -1429,34 +1389,17 @@ namespace ValveResourceFormat.ResourceTypes
                     }
 
                     break;
-                case KVType.FLOAT:
-                    parent.AddProperty(name, MakeValue(datatype, reader.ReadSingle(), flagInfo));
-                    break;
-                case KVType.INT16:
-                    reader.BaseStream.Position = currentTwoBytesOffset;
-                    parent.AddProperty(name, MakeValue(datatype, reader.ReadInt16(), flagInfo));
-                    currentTwoBytesOffset = reader.BaseStream.Position;
-                    reader.BaseStream.Position = currentOffset;
 
-                    break;
-                case KVType.UINT16:
-                    reader.BaseStream.Position = currentTwoBytesOffset;
-                    parent.AddProperty(name, MakeValue(datatype, reader.ReadUInt16(), flagInfo));
-                    currentTwoBytesOffset = reader.BaseStream.Position;
-                    reader.BaseStream.Position = currentOffset;
 
-                    break;
+                // added in kv3 v4:
+
+                //case KVType.ARRAY_TYPE_BYTE_LENGTH:
+                //case KVType.FLOAT:
+                //case KVType.INT16:
+                //case KVType.UINT16:
                 // TODO: 22, 23 - reading from currentBinaryBytesOffset
                 // 22 is related to 20, 23 is related to 21
-                case KVType.INT32_AS_BYTE:
-                    reader.BaseStream.Position = currentBinaryBytesOffset;
-
-                    parent.AddProperty(name, MakeValue(datatype, (int)reader.ReadByte(), flagInfo));
-
-                    currentBinaryBytesOffset++;
-                    reader.BaseStream.Position = currentOffset;
-
-                    break;
+                //case KVType.INT32_AS_BYTE:
                 default:
                     throw new UnexpectedMagicException($"Unknown KVType for field '{name}' on byte {reader.BaseStream.Position} (currentTypeIndex={currentTypeIndex})", (int)datatype, nameof(datatype));
             }
