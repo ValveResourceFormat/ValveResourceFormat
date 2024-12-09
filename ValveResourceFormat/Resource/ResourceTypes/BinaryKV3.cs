@@ -59,16 +59,14 @@ namespace ValveResourceFormat.ResourceTypes
 
         private class Context
         {
+            public int Version;
             public ArraySegment<byte> Types;
             public ArraySegment<byte> ObjectLengths;
             public ArraySegment<byte> BinaryBlobs;
             public ArraySegment<int> BinaryBlobLengths;
             public string[] Strings;
-            public bool IsSecondBuffer;
-            public Buffers Buffer1;
-            public Buffers Buffer2;
-
-            public Buffers CurrentBuffer => IsSecondBuffer ? Buffer2 : Buffer1;
+            public Buffers Buffer;
+            public Buffers AuxiliaryBuffer;
         }
 
         public BinaryKV3()
@@ -101,7 +99,7 @@ namespace ValveResourceFormat.ResourceTypes
                     ReadVersion3(reader);
                     break;
                 case MAGIC5:
-                    ReadVersion5(reader);
+                    ReadVersion5(5, reader);
                     break;
                 default: throw new UnexpectedMagicException("Invalid KV3 signature", magic, nameof(magic));
             }
@@ -605,7 +603,7 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
-        private void ReadVersion5(BinaryReader reader)
+        private void ReadVersion5(int version, BinaryReader reader)
         {
             Format = new Guid(reader.ReadBytes(16));
 
@@ -741,7 +739,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             var context = new Context
             {
-                IsSecondBuffer = true
+                Version = version,
             };
 
             // Buffer 1
@@ -807,7 +805,7 @@ namespace ValveResourceFormat.ResourceTypes
                     context.Strings[i] = ReadNullTermUtf8String(ref buffer1.Bytes1);
                 }
 
-                context.Buffer1 = buffer1;
+                context.AuxiliaryBuffer = buffer1;
             }
 
             // Buffer 2
@@ -945,7 +943,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                 Debug.Assert(buffer2Span.Count == offset);
 
-                context.Buffer2 = buffer2;
+                context.Buffer = buffer2;
             }
 
             if (countBlocks > 0)
@@ -996,14 +994,18 @@ namespace ValveResourceFormat.ResourceTypes
             Debug.Assert(context.ObjectLengths.Count == 0);
             Debug.Assert(context.BinaryBlobs.Count == 0);
             Debug.Assert(context.BinaryBlobLengths.Count == 0);
-            Debug.Assert(context.Buffer1.Bytes1.Count == 0);
-            Debug.Assert(context.Buffer1.Bytes2.Count == 0);
-            Debug.Assert(context.Buffer1.Bytes4.Count == 0);
-            Debug.Assert(context.Buffer1.Bytes8.Count == 0);
-            Debug.Assert(context.Buffer2.Bytes1.Count == 0);
-            Debug.Assert(context.Buffer2.Bytes2.Count == 0);
-            Debug.Assert(context.Buffer2.Bytes4.Count == 0);
-            Debug.Assert(context.Buffer2.Bytes8.Count == 0);
+            Debug.Assert(context.Buffer.Bytes1.Count == 0);
+            Debug.Assert(context.Buffer.Bytes2.Count == 0);
+            Debug.Assert(context.Buffer.Bytes4.Count == 0);
+            Debug.Assert(context.Buffer.Bytes8.Count == 0);
+
+            if (version >= 5)
+            {
+                Debug.Assert(context.AuxiliaryBuffer.Bytes1.Count == 0);
+                Debug.Assert(context.AuxiliaryBuffer.Bytes2.Count == 0);
+                Debug.Assert(context.AuxiliaryBuffer.Bytes4.Count == 0);
+                Debug.Assert(context.AuxiliaryBuffer.Bytes8.Count == 0);
+            }
         }
 
         private static (KVType Type, KVFlag Flag) ReadType(Context context)
@@ -1033,9 +1035,8 @@ namespace ValveResourceFormat.ResourceTypes
             string name = null;
             if (!inArray)
             {
-                var buffer = context.CurrentBuffer;
-                var stringID = MemoryMarshal.Read<int>(buffer.Bytes4);
-                buffer.Bytes4 = buffer.Bytes4[sizeof(int)..];
+                var stringID = MemoryMarshal.Read<int>(context.Buffer.Bytes4);
+                context.Buffer.Bytes4 = context.Buffer.Bytes4[sizeof(int)..];
 
                 name = (stringID == -1) ? string.Empty : context.Strings[stringID];
             }
@@ -1054,7 +1055,7 @@ namespace ValveResourceFormat.ResourceTypes
                 parent ??= new KVObject(name);
             }
 
-            var buffer = context.CurrentBuffer;
+            var buffer = context.Buffer;
 
             switch (datatype)
             {
@@ -1090,8 +1091,7 @@ namespace ValveResourceFormat.ResourceTypes
                         parent.AddProperty(name, MakeValue(datatype, value, flagInfo));
                     }
                     break;
-                // TODO: 22, 23 - reading from currentBinaryBytesOffset
-                // 22 is related to 20, 23 is related to 21
+                // TODO: 22 might beINT32_AS_BYTE, and 23 UINT32_AS_BYTE
                 case KVType.INT32_AS_BYTE:
                     {
                         var value = (int)buffer.Bytes1[0];
@@ -1242,22 +1242,25 @@ namespace ValveResourceFormat.ResourceTypes
                         parent.AddProperty(name, MakeValue(datatype, typedArray, flagInfo));
                     }
                     break;
-                case KVType.ARRAY_TYPE_ALTERNATE_BUFFER:
+                case KVType.ARRAY_TYPE_AUXILIARY_BUFFER:
                     {
+                        Debug.Assert(context.Version >= 5);
+
                         var arrayLength = buffer.Bytes1[0];
                         buffer.Bytes1 = buffer.Bytes1[1..];
 
                         var (subType, subFlagInfo) = ReadType(context);
                         var typedArray = new KVObject(name, isArray: true, capacity: arrayLength);
 
-                        context.IsSecondBuffer = false;
+                        // Swap the buffers and simply call read again instead of reimplementing the switch here
+                        (context.AuxiliaryBuffer, context.Buffer) = (context.Buffer, context.AuxiliaryBuffer);
 
                         for (var i = 0; i < arrayLength; i++)
                         {
                             ReadBinaryValue(context, name, subType, subFlagInfo, typedArray);
                         }
 
-                        context.IsSecondBuffer = true;
+                        (context.AuxiliaryBuffer, context.Buffer) = (context.Buffer, context.AuxiliaryBuffer);
 
                         parent.AddProperty(name, MakeValue(datatype, typedArray, flagInfo));
                     }
@@ -1627,7 +1630,7 @@ namespace ValveResourceFormat.ResourceTypes
                     return KVType.DOUBLE;
                 case KVType.ARRAY_TYPED:
                 case KVType.ARRAY_TYPE_BYTE_LENGTH:
-                case KVType.ARRAY_TYPE_ALTERNATE_BUFFER:
+                case KVType.ARRAY_TYPE_AUXILIARY_BUFFER:
                     return KVType.ARRAY;
             }
 #pragma warning restore IDE0066 // Convert switch statement to expression
