@@ -51,10 +51,6 @@ namespace GUI.Types.Renderer
             guiContext = scene.GuiContext;
 
             var vbib = mesh.VBIB;
-            if (model != null)
-            {
-                vbib = model.RemapBoneIndices(vbib, meshIndex);
-            }
 
             foreach (var a in vbib.VertexBuffers)
             {
