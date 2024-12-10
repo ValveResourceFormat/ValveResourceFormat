@@ -129,9 +129,9 @@ namespace GUI.Types.Renderer
         public void SetCharacterEyeRenderParams()
         {
             var eyeEnablingMaterials = meshRenderers
-                .SelectMany(m => m.DrawCallsOpaque)
-                .Where(d => d.Material.Material.IntParams.GetValueOrDefault("F_EYEBALLS") == 1)
-                .Select(d => d.Material.Material)
+                .SelectMany(Mesh => Mesh.DrawCallsOpaque.Select(Draw => (Mesh, Draw)))
+                .Where(meshDraw => meshDraw.Draw.Material.Material.IntParams.GetValueOrDefault("F_EYEBALLS") == 1)
+                .Select(meshDraw => (meshDraw.Mesh, meshDraw.Draw.Material.Material))
                 .ToList();
 
             if (eyeEnablingMaterials.Count == 0)
@@ -146,11 +146,11 @@ namespace GUI.Types.Renderer
                 return;
             }
 
-            foreach (var materialData in eyeEnablingMaterials)
+            foreach (var (mesh, materialData) in eyeEnablingMaterials)
             {
-                materialData.IntParams["g_nEyeLBindIdx"] = eyes.LeftEyeBoneIndex;
-                materialData.IntParams["g_nEyeRBindIdx"] = eyes.RightEyeBoneIndex;
-                materialData.IntParams["g_nEyeTargetBindIdx"] = eyes.TargetBoneIndex;
+                materialData.IntParams["g_nEyeLBindIdx"] = remapTable[mesh.RemapTableStart..].AsSpan().IndexOf(eyes.LeftEyeBoneIndex);
+                materialData.IntParams["g_nEyeRBindIdx"] = remapTable[mesh.RemapTableStart..].AsSpan().IndexOf(eyes.RightEyeBoneIndex);
+                materialData.IntParams["g_nEyeTargetBindIdx"] = remapTable[mesh.RemapTableStart..].AsSpan().IndexOf(eyes.TargetBoneIndex);
 
                 materialData.VectorParams["g_vEyeLBindPos"] = new Vector4(eyes.LeftEyePosition, 0);
                 materialData.VectorParams["g_vEyeLBindFwd"] = new Vector4(eyes.LeftEyeForwardVector, 0);
