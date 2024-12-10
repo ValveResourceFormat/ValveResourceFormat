@@ -24,6 +24,7 @@ namespace GUI.Types.Renderer
         public List<DrawCall> DrawCallsBlended { get; } = [];
         private IEnumerable<DrawCall> DrawCalls => DrawCallsOpaque.Concat(DrawCallsOverlay).Concat(DrawCallsBlended);
 
+        public int[] MeshSkeletonBoneTable { get; private set; }
         public RenderTexture AnimationTexture { get; private set; }
 
         public int MeshIndex { get; }
@@ -51,6 +52,19 @@ namespace GUI.Types.Renderer
             guiContext = scene.GuiContext;
 
             var vbib = mesh.VBIB;
+
+            if (model != null)
+            {
+                Span<int> meshToModel = model.GetRemapTable(meshIndex);
+                MeshSkeletonBoneTable = new int[model.Skeleton.Bones.Length];
+
+                foreach (var bone in model.Skeleton.Bones)
+                {
+                    var meshBoneIndex = meshToModel.IndexOf(bone.Index);
+                    var modelBone = model.Skeleton.Bones[bone.Index];
+                    MeshSkeletonBoneTable[bone.Index] = meshBoneIndex;
+                }
+            }
 
             foreach (var a in vbib.VertexBuffers)
             {

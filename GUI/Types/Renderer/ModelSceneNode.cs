@@ -183,6 +183,7 @@ namespace GUI.Types.Renderer
 
                 try
                 {
+                    AnimationController.FrameCache.Skeleton.LocalRemapTable = meshRenderers[0].MeshSkeletonBoneTable;
                     Animation.GetAnimationMatrices(matrices, frame, AnimationController.FrameCache.Skeleton);
 
                     // Update animation texture

@@ -98,16 +98,23 @@ namespace ValveResourceFormat.ResourceTypes
                 return null;
             }
 
-            var remapTable = Data.GetIntegerArray("m_remappingTable").Select(i => (int)i);
+            var remapTable = Data.GetIntegerArray("m_remappingTable");
 
             var start = (int)remapTableStarts[meshIndex];
 
             var nextMeshIndex = meshIndex + 1;
             var stop = remapTableStarts.Length > nextMeshIndex
-                ? (int)remapTableStarts[nextMeshIndex]
-                : remapTableStarts.Length;
+                ? remapTableStarts[nextMeshIndex] + 1
+                : remapTable.Length;
+            var meshBoneCount = stop - start;
 
-            return remapTable.Skip(start).Take(start - stop).ToArray();
+            var meshRemapTable = new int[meshBoneCount];
+            for (var i = 0; i < meshBoneCount; i++)
+            {
+                meshRemapTable[i] = (int)remapTable[start + i];
+            }
+
+            return meshRemapTable;
         }
 
         public VBIB RemapBoneIndices(VBIB vbib, int meshIndex)

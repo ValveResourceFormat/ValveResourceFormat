@@ -8,7 +8,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
     {
         public Bone[] Roots { get; private set; }
         public Bone[] Bones { get; private set; }
-        public int[] LocalRemapTable { get; private set; }
+        public int[] LocalRemapTable { get; set; }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Skeleton"/> class.
@@ -60,6 +60,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             }
 
             Roots = roots.ToArray();
+            LocalRemapTable = Enumerable.Range(0, boneCount).ToArray();
         }
     }
 }
