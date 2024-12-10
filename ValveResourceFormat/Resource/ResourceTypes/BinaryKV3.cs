@@ -86,12 +86,6 @@ namespace ValveResourceFormat.ResourceTypes
                 throw new UnexpectedMagicException("Unsupported KV3 version", version, nameof(version));
             }
 
-            if (version == 1)
-            {
-                ReadVersion1(reader);
-                return;
-            }
-
             ReadBuffer((int)version, reader);
         }
 
@@ -137,101 +131,6 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
-        private void ReadVersion1(BinaryReader reader)
-        {
-            var context = new Context
-            {
-                Version = 1,
-            };
-
-            Format = new Guid(reader.ReadBytes(16));
-
-            var compressionMethod = reader.ReadInt32();
-            var countBytes1 = reader.ReadInt32(); // how many bytes (binary blobs)
-            var countBytes4 = reader.ReadInt32(); // how many 4 byte values (ints)
-            var countBytes8 = reader.ReadInt32(); // how many 8 byte values (doubles)
-            var sizeUncompressedTotal = reader.ReadInt32();
-
-            var buffer1Raw = ArrayPool<byte>.Shared.Rent(sizeUncompressedTotal);
-
-            try
-            {
-                if (compressionMethod == 0)
-                {
-                    reader.Read(buffer1Raw.AsSpan(0, sizeUncompressedTotal));
-                }
-                else if (compressionMethod == 1)
-                {
-                    var compressedSize = (int)(Size - (reader.BaseStream.Position - Offset));
-                    DecompressLZ4(reader, buffer1Raw.AsSpan(0, sizeUncompressedTotal), compressedSize);
-                }
-                else
-                {
-                    throw new UnexpectedMagicException("Unknown compression method", compressionMethod, nameof(compressionMethod));
-                }
-
-                var buffer1Span = new ArraySegment<byte>(buffer1Raw, 0, sizeUncompressedTotal);
-
-                var buffer1 = new Buffers();
-
-                var offset = 0;
-
-                if (countBytes1 > 0)
-                {
-                    var end = offset + countBytes1;
-                    buffer1.Bytes1 = buffer1Span[offset..end];
-                    offset = end;
-                }
-
-                Align(ref offset, 4);
-
-                if (countBytes4 > 0)
-                {
-                    var end = offset + countBytes4 * 4;
-                    buffer1.Bytes4 = buffer1Span[offset..end];
-                    offset = end;
-                }
-
-                Align(ref offset, 8);
-
-                if (countBytes8 > 0)
-                {
-                    var end = offset + countBytes8 * 8;
-                    buffer1.Bytes8 = buffer1Span[offset..end];
-                    offset = end;
-                }
-
-                Debug.Assert(countBytes4 > 0); // should be guaranteed to be at least 1 for the strings count
-
-                var countStrings = MemoryMarshal.Read<int>(buffer1.Bytes4);
-                buffer1.Bytes4 = buffer1.Bytes4[sizeof(int)..];
-                context.Strings = new string[countStrings];
-
-                context.Buffer = buffer1;
-
-                var stringsBuffer = buffer1Span[offset..];
-                var stringsStartOffset = offset;
-
-                for (var i = 0; i < countStrings; i++)
-                {
-                    context.Strings[i] = ReadNullTermUtf8String(ref stringsBuffer, ref offset);
-                }
-
-                var typesLength = sizeUncompressedTotal - offset - 4;
-                context.Types = buffer1Span[offset..(offset + typesLength)];
-                offset += typesLength;
-
-                var trailer = MemoryMarshal.Read<uint>(buffer1Span[offset..]);
-                UnexpectedMagicException.Assert(trailer == 0xFFEEDD00, trailer);
-
-                Data = ParseBinaryKV3(context, null, true);
-            }
-            finally
-            {
-                ArrayPool<byte>.Shared.Return(buffer1Raw);
-            }
-        }
-
         private void ReadBuffer(int version, BinaryReader reader)
         {
             var context = new Context
@@ -242,19 +141,44 @@ namespace ValveResourceFormat.ResourceTypes
             Format = new Guid(reader.ReadBytes(16));
 
             var compressionMethod = reader.ReadUInt32();
-            var compressionDictionaryId = reader.ReadUInt16();
-            var compressionFrameSize = reader.ReadUInt16();
+            ushort compressionDictionaryId = 0;
+            ushort compressionFrameSize = 0;
+            var countBytes1 = 0;
+            var countBytes4 = 0;
+            var countBytes8 = 0;
+            var countTypes = 0;
+            var countObjects = 0;
+            var countArrays = 0;
+            var sizeUncompressedTotal = 0;
+            var sizeCompressedTotal = 0;
+            var countBlocks = 0;
+            var sizeBinaryBlobsBytes = 0;
 
-            var countBytes1 = reader.ReadInt32();
-            var countBytes4 = reader.ReadInt32();
-            var countBytes8 = reader.ReadInt32();
-            var countTypes = reader.ReadInt32();
-            var countObjects = reader.ReadUInt16();
-            var countArrays = reader.ReadUInt16();
-            var sizeUncompressedTotal = reader.ReadInt32();
-            var sizeCompressedTotal = reader.ReadInt32();
-            var countBlocks = reader.ReadInt32();
-            var sizeBinaryBlobsBytes = reader.ReadInt32();
+            if (version == 1)
+            {
+                // Version 1 did not have extra compression data
+                countBytes1 = reader.ReadInt32();
+                countBytes4 = reader.ReadInt32();
+                countBytes8 = reader.ReadInt32();
+                sizeUncompressedTotal = reader.ReadInt32();
+
+                sizeCompressedTotal = (int)(Size - (reader.BaseStream.Position - Offset));
+            }
+            else
+            {
+                compressionDictionaryId = reader.ReadUInt16();
+                compressionFrameSize = reader.ReadUInt16();
+                countBytes1 = reader.ReadInt32();
+                countBytes4 = reader.ReadInt32();
+                countBytes8 = reader.ReadInt32();
+                countTypes = reader.ReadInt32();
+                countObjects = reader.ReadUInt16();
+                countArrays = reader.ReadUInt16();
+                sizeUncompressedTotal = reader.ReadInt32();
+                sizeCompressedTotal = reader.ReadInt32();
+                countBlocks = reader.ReadInt32();
+                sizeBinaryBlobsBytes = reader.ReadInt32();
+            }
 
             var countBytes2 = 0;
             var sizeBlockCompressedSizesBytes = 0;
@@ -338,7 +262,7 @@ namespace ValveResourceFormat.ResourceTypes
                         throw new UnexpectedMagicException("Unhandled", compressionDictionaryId, nameof(compressionDictionaryId));
                     }
 
-                    if (compressionFrameSize != 16384)
+                    if (compressionFrameSize != 16384 && version >= 2)
                     {
                         throw new UnexpectedMagicException("Unhandled", compressionFrameSize, nameof(compressionFrameSize));
                     }
@@ -413,7 +337,7 @@ namespace ValveResourceFormat.ResourceTypes
                         offset = end;
                     }
 
-                    if (version < 5 || countBytes8 > 0)
+                    if (version < 5 || countBytes8 > 0) // TODO: Verify if it could always be aligned?
                     {
                         Align(ref offset, 8);
                     }
@@ -457,7 +381,17 @@ namespace ValveResourceFormat.ResourceTypes
                         }
 
                         // Types before v5
-                        var typesLength = countTypes - offset + stringsStartOffset;
+                        int typesLength;
+
+                        if (version == 1)
+                        {
+                            typesLength = sizeUncompressedTotal - offset - 4;
+                        }
+                        else
+                        {
+                            typesLength = countTypes - offset + stringsStartOffset;
+                        }
+
                         context.Types = buffer1Span[offset..(offset + typesLength)];
                         offset += typesLength;
 
@@ -565,6 +499,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                 if (countBlocks > 0)
                 {
+                    Debug.Assert(version >= 2);
                     Debug.Assert(bufferWithBinaryBlobSizes != null);
 
                     {
