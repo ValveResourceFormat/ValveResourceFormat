@@ -767,19 +767,56 @@ namespace ValveResourceFormat.Blocks
                     {
                         for (var j = 0; j < formatSize; j += formatElementSize)
                         {
+                            var boneOffset = i + j;
+
                             switch (formatElementSize)
                             {
                                 case 4:
-                                    BitConverter.TryWriteBytes(bufSpan[(i + j)..],
-                                        remapTable[Math.Min(BitConverter.ToUInt32(buf.Data, i + j), maxRemapTableIdx)]);
-                                    break;
+                                    {
+                                        if (field.Format is DXGI_FORMAT.R32G32B32A32_SINT)
+                                        {
+                                            var bone1 = BitConverter.ToUInt16(buf.Data, boneOffset);
+                                            var remapped1 = (ushort)remapTable[Math.Min(bone1, maxRemapTableIdx)];
+                                            BitConverter.TryWriteBytes(bufSpan[boneOffset..], remapped1);
+
+                                            var bone2 = BitConverter.ToUInt16(buf.Data, boneOffset + 2);
+                                            var remapped2 = (ushort)remapTable[Math.Min(bone2, maxRemapTableIdx)];
+                                            BitConverter.TryWriteBytes(bufSpan[(boneOffset + 2)..], remapped2);
+                                            break;
+                                        }
+
+                                        var bone = BitConverter.ToUInt32(buf.Data, boneOffset);
+                                        var remapped = remapTable[Math.Min(bone, maxRemapTableIdx)];
+                                        BitConverter.TryWriteBytes(bufSpan[boneOffset..], remapped);
+                                        break;
+                                    }
                                 case 2:
-                                    BitConverter.TryWriteBytes(bufSpan[(i + j)..],
-                                        (short)remapTable[Math.Min(BitConverter.ToUInt16(buf.Data, i + j), maxRemapTableIdx)]);
-                                    break;
+                                    {
+                                        if (field.Format is DXGI_FORMAT.R16G16B16A16_UINT)
+                                        {
+                                            var bone1 = buf.Data[boneOffset];
+                                            var remapped1 = (byte)Math.Min(remapTable[Math.Min(bone1, maxRemapTableIdx)], byte.MaxValue);
+                                            buf.Data[boneOffset] = remapped1;
+
+                                            var bone2 = buf.Data[boneOffset + 1];
+                                            var remapped2 = (byte)Math.Min(remapTable[Math.Min(bone2, maxRemapTableIdx)], byte.MaxValue);
+                                            buf.Data[boneOffset + 1] = remapped2;
+                                            break;
+                                        }
+
+                                        var bone = BitConverter.ToUInt16(buf.Data, boneOffset);
+                                        var remapped = (short)remapTable[Math.Min(bone, maxRemapTableIdx)];
+                                        BitConverter.TryWriteBytes(bufSpan[boneOffset..], remapped);
+                                        break;
+                                    }
                                 case 1:
-                                    buf.Data[i + j] = (byte)remapTable[Math.Min(buf.Data[i + j], maxRemapTableIdx)];
-                                    break;
+                                    {
+                                        var bone = buf.Data[boneOffset];
+                                        // TODO: this is overflowing
+                                        var remapped = /*checked(*/(byte)remapTable[Math.Min(bone, maxRemapTableIdx)]/*)*/;
+                                        buf.Data[boneOffset] = remapped;
+                                        break;
+                                    }
                                 default:
                                     throw new NotImplementedException();
                             }

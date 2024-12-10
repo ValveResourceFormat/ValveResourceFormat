@@ -180,7 +180,7 @@ namespace GUI.Types.Renderer
                     break;
 
                 case DXGI_FORMAT.R16G16B16A16_UNORM:
-                    GL.VertexArrayAttribFormat(vao, attributeLocation, 4, VertexAttribType.UnsignedShort, true, offset);
+                    GL.VertexArrayAttribIFormat(vao, attributeLocation, 4, VertexAttribType.UnsignedShort, offset);
                     break;
 
                 case DXGI_FORMAT.R16G16_SNORM:

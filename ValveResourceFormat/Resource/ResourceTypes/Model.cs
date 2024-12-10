@@ -115,10 +115,10 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 return res;
             }
-            res = vbib.RemapBoneIndices(VBIB.CombineRemapTables([
-                GetRemapTable(meshIndex),
-                Skeleton.LocalRemapTable,
-            ]));
+            var meshTable = GetRemapTable(meshIndex);
+            var skeletonTable = Skeleton.LocalRemapTable;
+            var combined = VBIB.CombineRemapTables([meshTable, skeletonTable]);
+            res = vbib.RemapBoneIndices(combined);
             remappedVBIBCache.Add((vbib, meshIndex), res);
             return res;
         }
