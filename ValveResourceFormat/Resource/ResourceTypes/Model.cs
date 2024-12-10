@@ -17,7 +17,7 @@ namespace ValveResourceFormat.ResourceTypes
         {
             get
             {
-                cachedSkeleton ??= Skeleton.FromModelData(Data, filterBonesUsedByLod0: false);
+                cachedSkeleton ??= Skeleton.FromModelData(Data);
                 return cachedSkeleton;
             }
         }
@@ -82,7 +82,7 @@ namespace ValveResourceFormat.ResourceTypes
 
         public void SetSkeletonFilteredForLod0()
         {
-            cachedSkeleton ??= Skeleton.FromModelData(Data, filterBonesUsedByLod0: true);
+            //cachedSkeleton ??= Skeleton.FromModelData(Data, filterBonesUsedByLod0: true);
         }
 
         public int[] GetRemapTable(int meshIndex)
