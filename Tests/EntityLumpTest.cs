@@ -49,6 +49,10 @@ namespace Tests
             var entityString = entityLump.ToEntityDumpString();
 
             Assert.That(entityString, Is.Not.Empty);
+
+            var entityString = entityLump.ToForgeGameData();
+
+            Assert.That(entityString, Is.Not.Empty);
         }
     }
 }
