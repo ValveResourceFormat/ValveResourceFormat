@@ -337,16 +337,18 @@ namespace ValveResourceFormat.ResourceTypes
                         offset = end;
                     }
 
-                    if (version < 5 || countBytes8 > 0) // TODO: Verify if it could always be aligned?
-                    {
-                        Align(ref offset, 8);
-                    }
-
                     if (countBytes8 > 0)
                     {
+                        Align(ref offset, 8);
+
                         var end = offset + countBytes8 * 8;
                         buffer1.Bytes8 = buffer1Span[offset..end];
                         offset = end;
+                    }
+                    else if (version < 5)
+                    {
+                        // For some reason V5 does not align this when empty, but earlier versions did
+                        Align(ref offset, 8);
                     }
 
                     Debug.Assert(countBytes4 > 0); // should be guaranteed to be at least 1 for the strings count
