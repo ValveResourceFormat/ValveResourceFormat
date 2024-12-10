@@ -85,6 +85,10 @@ namespace ValveResourceFormat.ResourceTypes
             //cachedSkeleton ??= Skeleton.FromModelData(Data, filterBonesUsedByLod0: true);
         }
 
+        /// <summary>
+        /// Get the bone remap table of a specific mesh.
+        /// This is used to remap bone indices in the mesh VBIB to bone indices of the model skeleton.
+        /// </summary>
         public int[] GetRemapTable(int meshIndex)
         {
             var remapTableStarts = Data.GetIntegerArray("m_remappingTableStarts");
@@ -94,14 +98,16 @@ namespace ValveResourceFormat.ResourceTypes
                 return null;
             }
 
-            // Get the remap table and invert it for our construction method
             var remapTable = Data.GetIntegerArray("m_remappingTable").Select(i => (int)i);
 
             var start = (int)remapTableStarts[meshIndex];
-            return remapTable
-                .Skip(start)
-                .Take(Skeleton.LocalRemapTable.Length)
-                .ToArray();
+
+            var nextMeshIndex = meshIndex + 1;
+            var stop = remapTableStarts.Length > nextMeshIndex
+                ? (int)remapTableStarts[nextMeshIndex]
+                : remapTableStarts.Length;
+
+            return remapTable.Skip(start).Take(start - stop).ToArray();
         }
 
         public VBIB RemapBoneIndices(VBIB vbib, int meshIndex)
