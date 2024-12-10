@@ -100,7 +100,27 @@ namespace ValveResourceFormat.ResourceTypes
 
                 if (written != output.Length)
                 {
-                    throw new InvalidDataException($"Failed to decompress LZ4 (expected {output.Length} bytes, got {written}).");
+                    throw new InvalidDataException($"Failed to decompress LZ4 (expected {output.Length} bytes, got {written})");
+                }
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(inputBuf);
+            }
+        }
+
+        private static void DecompressZSTD(ZstdSharp.Decompressor zstdDecompressor, BinaryReader reader, Span<byte> output, int compressedSize)
+        {
+            var inputBuf = ArrayPool<byte>.Shared.Rent(compressedSize);
+
+            try
+            {
+                var input = inputBuf.AsSpan(0, compressedSize);
+                reader.Read(input);
+
+                if (!zstdDecompressor.TryUnwrap(input, output, out var written) || output.Length != written)
+                {
+                    throw new InvalidDataException($"Failed to decompress ZSTD (expected {output.Length} bytes, got{written})");
                 }
             }
             finally
@@ -335,32 +355,17 @@ namespace ValveResourceFormat.ResourceTypes
 
                     Debug.Assert(sizeCompressedBuffer1 > 0);
 
+                    var outBufferLength = sizeUncompressedBuffer1;
+
+                    // Before version 5, when using zstd, both the buffer and binary blobs were compressed together
+                    if (version < 5)
+                    {
+                        outBufferLength += sizeBinaryBlobsBytes;
+                    }
+
                     zstdDecompressor = new ZstdSharp.Decompressor();
 
-                    var inputBuf = ArrayPool<byte>.Shared.Rent(sizeCompressedBuffer1);
-
-                    try
-                    {
-                        var input = inputBuf.AsSpan(0, sizeCompressedBuffer1);
-                        reader.Read(input);
-
-                        var outBufferLength = sizeUncompressedBuffer1;
-
-                        // Before version 5, when using zstd, both the buffer and binary blobs were compressed together
-                        if (version < 5)
-                        {
-                            outBufferLength += sizeBinaryBlobsBytes;
-                        }
-
-                        if (!zstdDecompressor.TryUnwrap(input, buffer1Raw.AsSpan(0, outBufferLength), out var written) || outBufferLength != written)
-                        {
-                            throw new InvalidDataException($"Failed to decomprsess zstd correctly (written {written} bytes, expected {outBufferLength} bytes)");
-                        }
-                    }
-                    finally
-                    {
-                        ArrayPool<byte>.Shared.Return(inputBuf);
-                    }
+                    DecompressZSTD(zstdDecompressor, reader, buffer1Raw.AsSpan(0, outBufferLength), sizeCompressedBuffer1);
                 }
                 else
                 {
@@ -485,24 +490,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                         zstdDecompressor ??= new ZstdSharp.Decompressor();
 
-                        var inputBuf = ArrayPool<byte>.Shared.Rent(sizeCompressedBuffer2);
-
-                        try
-                        {
-                            Debug.Assert(sizeCompressedBuffer2 > 0);
-
-                            var input = inputBuf.AsSpan(0, sizeCompressedBuffer2);
-                            reader.Read(input);
-
-                            if (!zstdDecompressor.TryUnwrap(input, buffer2Span, out var written) || sizeUncompressedBuffer2 != written)
-                            {
-                                throw new InvalidDataException($"Failed to decompress zstd correctly (written {written} bytes, expected {sizeUncompressedBuffer2} bytes)");
-                            }
-                        }
-                        finally
-                        {
-                            ArrayPool<byte>.Shared.Return(inputBuf);
-                        }
+                        DecompressZSTD(zstdDecompressor, reader, buffer2Span, sizeCompressedBuffer2);
                     }
                     else
                     {
@@ -642,22 +630,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                             zstdDecompressor ??= new ZstdSharp.Decompressor();
 
-                            var inputBuf = ArrayPool<byte>.Shared.Rent(sizeCompressedBinaryBlobs);
-
-                            try
-                            {
-                                var input = inputBuf.AsSpan(0, sizeCompressedBinaryBlobs);
-                                reader.Read(input);
-
-                                if (!zstdDecompressor.TryUnwrap(input, context.BinaryBlobs, out var written) || sizeBinaryBlobsBytes != written)
-                                {
-                                    throw new InvalidDataException($"Failed to decompress zstd correctly (written {written} bytes, expected {sizeBinaryBlobsBytes} bytes)");
-                                }
-                            }
-                            finally
-                            {
-                                ArrayPool<byte>.Shared.Return(inputBuf);
-                            }
+                            DecompressZSTD(zstdDecompressor, reader, context.BinaryBlobs, sizeCompressedBinaryBlobs);
                         }
                         else
                         {
