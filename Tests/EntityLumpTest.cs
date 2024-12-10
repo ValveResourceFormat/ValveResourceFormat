@@ -50,9 +50,9 @@ namespace Tests
 
             Assert.That(entityString, Is.Not.Empty);
 
-            var entityString = entityLump.ToForgeGameData();
+            var fgdString = entityLump.ToForgeGameData();
 
-            Assert.That(entityString, Is.Not.Empty);
+            Assert.That(fgdString, Is.Not.Empty);
         }
     }
 }
