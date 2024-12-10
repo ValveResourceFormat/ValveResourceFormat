@@ -33,7 +33,6 @@ namespace ValveResourceFormat.ResourceTypes
         private List<Animation> CachedAnimations;
         private Skeleton cachedSkeleton { get; set; }
         private FlexController[] cachedFlexControllers { get; set; }
-        private readonly Dictionary<(VBIB VBIB, int MeshIndex), VBIB> remappedVBIBCache = [];
         public Dictionary<string, Hitbox[]> HitboxSets { get; private set; }
         public Dictionary<string, Attachment> Attachments { get; private set; }
 
@@ -111,16 +110,11 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 return vbib;
             }
-            if (remappedVBIBCache.TryGetValue((vbib, meshIndex), out var res))
-            {
-                return res;
-            }
-            res = vbib.RemapBoneIndices(VBIB.CombineRemapTables([
+
+            return vbib.RemapBoneIndices(VBIB.CombineRemapTables([
                 GetRemapTable(meshIndex),
                 Skeleton.LocalRemapTable,
             ]));
-            remappedVBIBCache.Add((vbib, meshIndex), res);
-            return res;
         }
 
         public IEnumerable<(int MeshIndex, string MeshName, long LoDMask)> GetReferenceMeshNamesAndLoD()
