@@ -156,7 +156,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
 #if DEBUG
                 Console.WriteLine($"Unhandled animation bone decoder type '{decoder}' for attribute '{localChannel.Attribute}'");
-#endif            
+#endif
             }
 
             return animArray
@@ -267,7 +267,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         {
             foreach (var root in skeleton.Roots)
             {
-                GetAnimationMatrixRecursive(root, Matrix4x4.Identity, Matrix4x4.Identity, frame, skeleton.LocalRemapTable, matrices);
+                GetAnimationMatrixRecursive(root, Matrix4x4.Identity, Matrix4x4.Identity, frame, matrices);
             }
         }
 
@@ -292,7 +292,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// <summary>
         /// Get animation matrix recursively.
         /// </summary>
-        private static void GetAnimationMatrixRecursive(Bone bone, Matrix4x4 bindPose, Matrix4x4 invBindPose, Frame frame, int[] meshSkeleton, Span<Matrix4x4> matrices)
+        private static void GetAnimationMatrixRecursive(Bone bone, Matrix4x4 bindPose, Matrix4x4 invBindPose, Frame frame, Span<Matrix4x4> matrices)
         {
             // Calculate world space inverse bind pose
             invBindPose *= bone.InverseBindPose;
@@ -313,17 +313,12 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
             // Store result
             var skinMatrix = invBindPose * bindPose;
-
-            var meshBoneIndex = meshSkeleton[bone.Index];
-            if (meshBoneIndex != -1)
-            {
-                matrices[meshBoneIndex] = skinMatrix;
-            }
+            matrices[bone.Index] = skinMatrix;
 
             // Propagate to childen
             foreach (var child in bone.Children)
             {
-                GetAnimationMatrixRecursive(child, bindPose, invBindPose, frame, meshSkeleton, matrices);
+                GetAnimationMatrixRecursive(child, bindPose, invBindPose, frame, matrices);
             }
         }
 

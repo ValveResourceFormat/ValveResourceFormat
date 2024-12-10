@@ -40,7 +40,8 @@ namespace GUI.Types.Renderer
 
         public bool IsAnimated => animationTexture != null;
         private RenderTexture animationTexture;
-        private readonly int bonesCount;
+        private readonly int boneCount;
+        private readonly int[] remapTable;
 
         private HashSet<string> activeMeshGroups = [];
         private List<RenderableMesh> activeMeshRenderers = [];
@@ -71,7 +72,8 @@ namespace GUI.Types.Renderer
             }
 
             AnimationController = new(model.Skeleton, model.FlexControllers);
-            bonesCount = model.Skeleton.Bones.Length;
+            boneCount = model.Skeleton.Bones.Length;
+            remapTable = model.Data.GetIntegerArray("m_remappingTable").Select(i => (int)i).ToArray();
 
             if (skin != null)
             {
@@ -174,8 +176,8 @@ namespace GUI.Types.Renderer
             if (IsAnimated)
             {
                 // Update animation matrices
-
-                var floatBuffer = ArrayPool<float>.Shared.Rent(animationTexture.Height * 16);
+                var meshBoneCount = remapTable.Length;
+                var floatBuffer = ArrayPool<float>.Shared.Rent((meshBoneCount + boneCount) * 16);
                 var matrices = MemoryMarshal.Cast<float, Matrix4x4>(floatBuffer);
 
                 UpdateBoundingBox(); // Reset back to the mesh bbox
@@ -183,14 +185,20 @@ namespace GUI.Types.Renderer
 
                 try
                 {
-                    AnimationController.FrameCache.Skeleton.LocalRemapTable = meshRenderers[0].MeshSkeletonBoneTable;
-                    Animation.GetAnimationMatrices(matrices, frame, AnimationController.FrameCache.Skeleton);
+                    var meshBones = matrices[..meshBoneCount];
+                    var modelBones = matrices[meshBoneCount..];
+                    Animation.GetAnimationMatrices(modelBones, frame, AnimationController.FrameCache.Skeleton);
+
+                    for (var i = 0; i < meshBoneCount; i++)
+                    {
+                        meshBones[i] = modelBones[remapTable[i]];
+                    }
 
                     // Update animation texture
                     GL.TextureSubImage2D(animationTexture.Handle, 0, 0, 0, animationTexture.Width, animationTexture.Height, PixelFormat.Rgba, PixelType.Float, floatBuffer);
 
                     var first = true;
-                    foreach (var matrix in matrices[..bonesCount])
+                    foreach (var matrix in matrices[..boneCount])
                     {
                         var bbox = LocalBoundingBox.Transform(matrix);
                         newBoundingBox = first ? bbox : newBoundingBox.Union(bbox);
@@ -317,13 +325,13 @@ namespace GUI.Types.Renderer
 
         private void SetupAnimationTextures()
         {
-            if (bonesCount == 0 || animationTexture != null)
+            if (boneCount == 0 || animationTexture != null)
             {
                 return;
             }
 
             // Create animation texture
-            animationTexture = new(TextureTarget.Texture2D, 4, bonesCount, 1, 1);
+            animationTexture = new(TextureTarget.Texture2D, 4, remapTable.Length, 1, 1);
 
 #if DEBUG
             var textureName = nameof(animationTexture);
