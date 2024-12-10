@@ -67,24 +67,32 @@ namespace ValveResourceFormat.ResourceTypes
 
             var magic = reader.ReadUInt32();
 
-            switch (magic)
+            if (magic == MAGIC0)
             {
-                case MAGIC0: ReadVersion0(reader); break;
-                case MAGIC1: ReadVersion1(reader); break;
-                case MAGIC2:
-                    ReadBuffer(2, reader);
-                    break;
-                case MAGIC3:
-                    ReadBuffer(3, reader);
-                    break;
-                case MAGIC4:
-                    ReadBuffer(4, reader);
-                    break;
-                case MAGIC5:
-                    ReadBuffer(5, reader);
-                    break;
-                default: throw new UnexpectedMagicException("Invalid KV3 signature", magic, nameof(magic));
+                ReadVersion0(reader);
+                return;
             }
+
+            var version = magic & 0xFF;
+            magic &= 0xFFFFFF00;
+
+            if (magic != 0x4B563300)
+            {
+                throw new UnexpectedMagicException("Unsupported KV3 signature", magic, nameof(magic));
+            }
+
+            if (version < 1 || version > 5)
+            {
+                throw new UnexpectedMagicException("Unsupported KV3 version", version, nameof(version));
+            }
+
+            if (version == 1)
+            {
+                ReadVersion1(reader);
+                return;
+            }
+
+            ReadBuffer((int)version, reader);
         }
 
         private static void DecompressLZ4(BinaryReader reader, Span<byte> output, int compressedSize)
