@@ -179,8 +179,10 @@ namespace GUI.Types.Renderer
                     GL.VertexArrayAttribIFormat(vao, attributeLocation, 4, VertexAttribType.UnsignedShort, offset);
                     break;
 
+                // Note: special format that packs 8 bone weights, kept as uvec4 and not normalized on purpose
+                // to support unpacking in shader
                 case DXGI_FORMAT.R16G16B16A16_UNORM:
-                    GL.VertexArrayAttribFormat(vao, attributeLocation, 4, VertexAttribType.UnsignedShort, true, offset);
+                    GL.VertexArrayAttribIFormat(vao, attributeLocation, 4, VertexAttribType.UnsignedShort, offset);
                     break;
 
                 case DXGI_FORMAT.R16G16_SNORM:

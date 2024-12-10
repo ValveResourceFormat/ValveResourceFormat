@@ -221,13 +221,28 @@ namespace GUI.Types.Renderer
 
                     var shaderArguments = new Dictionary<string, byte>(scene.RenderAttributes);
 
+                    var vertexBufferObject = objectDrawCall.GetArray("m_vertexBuffers")[0]; // TODO: Not just 0
+                    var vertexBufferId = vertexBufferObject.GetInt32Property("m_hBuffer");
+                    var vertexBuffer = vbib.VertexBuffers[vertexBufferId];
+
+                    var blendIndices = vertexBuffer.InputLayoutFields.FirstOrDefault(static i => i.SemanticName == "BLENDINDICES");
+                    var blendWeights = vertexBuffer.InputLayoutFields.FirstOrDefault(static i => i.SemanticName == "BLENDWEIGHT");
+                    var isEightBoneBlendWeights = blendWeights.Format is DXGI_FORMAT.R16G16B16A16_UNORM;
+                    if (isEightBoneBlendWeights)
+                    {
+                        shaderArguments.Add("D_EIGHT_BONE_BLENDING", blendIndices.Format switch
+                        {
+                            DXGI_FORMAT.R32G32B32A32_SINT => 2,
+                            DXGI_FORMAT.R16G16B16A16_UINT => 1,
+                            _ => 0,
+                        });
+                    }
+
+
                     if (Mesh.IsCompressedNormalTangent(objectDrawCall))
                     {
-                        var vertexBuffer = objectDrawCall.GetArray("m_vertexBuffers")[0]; // TODO: Not just 0
-                        var vertexBufferId = vertexBuffer.GetInt32Property("m_hBuffer");
-                        var inputLayout = vbib.VertexBuffers[vertexBufferId].InputLayoutFields.FirstOrDefault(static i => i.SemanticName == "NORMAL");
-
-                        var version = inputLayout.Format switch
+                        var vertexNormal = vertexBuffer.InputLayoutFields.FirstOrDefault(static i => i.SemanticName == "NORMAL");
+                        var version = vertexNormal.Format switch
                         {
                             DXGI_FORMAT.R32_UINT => (byte)2, // Added in CS2 on 2023-08-03
                             _ => (byte)1,
