@@ -140,7 +140,7 @@ namespace GUI.Types.Renderer
                         shader = requestShader;
                         uniforms = new Uniforms
                         {
-                            AnimationData = shader.GetUniformLocation("iAnimationData"),
+                            AnimationData = shader.GetUniformLocation("uAnimationData"),
                             AnimationTexture = shader.GetUniformLocation("animationTexture"),
                             Transform = shader.GetUniformLocation("transform"),
                             Tint = shader.GetUniformLocation("vTint"),
@@ -259,16 +259,16 @@ namespace GUI.Types.Renderer
                 var bAnimated = request.Mesh.AnimationTexture != null;
                 var numBones = 0u;
                 var numWeights = 0u;
-                var remapTableStart = 0u;
+                var boneStart = 0u;
 
                 if (bAnimated && uniforms.AnimationTexture != -1)
                 {
                     SetInstanceTexture(shader, ReservedTextureSlots.AnimationTexture, uniforms.AnimationTexture, request.Mesh.AnimationTexture);
-                    numBones = (uint)request.Mesh.SkeletonBoneCount;
-                    remapTableStart = (uint)request.Mesh.RemapTableStart;
+                    numBones = (uint)request.Mesh.MeshBoneCount;
+                    boneStart = (uint)request.Mesh.MeshBoneOffset;
                 }
 
-                GL.ProgramUniform4((uint)shader.Program, uniforms.AnimationData, bAnimated ? 1u : 0u, numBones, numWeights, remapTableStart);
+                GL.ProgramUniform4((uint)shader.Program, uniforms.AnimationData, bAnimated ? 1u : 0u, boneStart, numBones, numWeights);
             }
 
             if (uniforms.MorphVertexIdOffset != -1)

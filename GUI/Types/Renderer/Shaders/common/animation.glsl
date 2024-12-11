@@ -3,24 +3,24 @@
 layout (location = 1) in uvec4 vBLENDINDICES;
 layout (location = 2) in vec4 vBLENDWEIGHT;
 
-uniform uvec4 iAnimationData;
+uniform uvec4 uAnimationData;
 uniform sampler2D animationTexture;
 
-#define bAnimated iAnimationData.x != 0u
-#define numBones iAnimationData.y
-#define numWeights iAnimationData.z
-#define animationTextureOffset iAnimationData.w
+#define bAnimated uAnimationData.x != 0u
+#define meshBoneOffset uAnimationData.y
+#define meshBoneCount uAnimationData.z
+#define numWeights uAnimationData.w
 
 mat4 getMatrix(uint boneIndex)
 {
-    boneIndex += animationTextureOffset;
-
     // Issue #705 out of bounds bone index (model needs ApplyVBIBDefaults)
     // Model:  hlvr/models/props/xen/xen_villi_medium.vmdl
     // In map: hlvr/maps/a3_distillery.vmap
-    // if (boneIndex >= numBones) {
-    //     return mat4(1.0);
-    // }
+    if (boneIndex >= meshBoneCount) {
+        return mat4(1.0);
+    }
+
+    boneIndex += meshBoneOffset;
 
     return mat4(
         texelFetch(animationTexture, ivec2(0, boneIndex), 0),

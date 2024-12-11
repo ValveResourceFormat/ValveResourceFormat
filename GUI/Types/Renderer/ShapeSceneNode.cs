@@ -266,6 +266,8 @@ namespace GUI.Types.Renderer
             GL.UseProgram(renderShader.Program);
 
             renderShader.SetUniform4x4("transform", Transform);
+            renderShader.SetBoneAnimationData(false);
+            renderShader.SetUniform1("sceneObjectId", Id);
 
             renderShader.SetUniform1("g_bNormalShaded", Shaded);
             renderShader.SetUniform1("g_bTriplanarMapping", ToolTexture != null);

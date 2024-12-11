@@ -80,41 +80,37 @@ namespace ValveResourceFormat.ResourceTypes
             Attachments ??= mesh.Attachments;
         }
 
-        public void SetSkeletonFilteredForLod0()
-        {
-            //cachedSkeleton ??= Skeleton.FromModelData(Data, filterBonesUsedByLod0: true);
-        }
-
         /// <summary>
         /// Get the bone remap table of a specific mesh.
         /// This is used to remap bone indices in the mesh VBIB to bone indices of the model skeleton.
         /// </summary>
         public int[] GetRemapTable(int meshIndex)
         {
-            var remapTableStarts = Data.GetIntegerArray("m_remappingTableStarts");
+            var remappingTableStarts = Data.GetIntegerArray("m_remappingTableStarts");
 
-            if (remapTableStarts.Length <= meshIndex)
+            if (remappingTableStarts.Length <= meshIndex)
             {
                 return null;
             }
 
-            var remapTable = Data.GetIntegerArray("m_remappingTable");
+            var remappingTable = Data.GetIntegerArray("m_remappingTable");
 
-            var start = (int)remapTableStarts[meshIndex];
+            var remappingTableStart = (int)remappingTableStarts[meshIndex];
 
             var nextMeshIndex = meshIndex + 1;
-            var stop = remapTableStarts.Length > nextMeshIndex
-                ? remapTableStarts[nextMeshIndex] + 1
-                : remapTable.Length;
-            var meshBoneCount = stop - start;
+            var nextMeshStart = remappingTableStarts.Length > nextMeshIndex
+                ? remappingTableStarts[nextMeshIndex]
+                : remappingTable.Length;
 
-            var meshRemapTable = new int[meshBoneCount];
+            var meshBoneCount = nextMeshStart - remappingTableStart;
+
+            var meshRemappingTable = new int[meshBoneCount];
             for (var i = 0; i < meshBoneCount; i++)
             {
-                meshRemapTable[i] = (int)remapTable[start + i];
+                meshRemappingTable[i] = (int)remappingTable[remappingTableStart + i];
             }
 
-            return meshRemapTable;
+            return meshRemappingTable;
         }
 
         public VBIB RemapBoneIndices(VBIB vbib, int meshIndex)
@@ -126,7 +122,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             return vbib.RemapBoneIndices(VBIB.CombineRemapTables([
                 GetRemapTable(meshIndex),
-                Skeleton.LocalRemapTable,
+                Enumerable.Range(0, Skeleton.Bones.Length).ToArray(),
             ]));
         }
 
