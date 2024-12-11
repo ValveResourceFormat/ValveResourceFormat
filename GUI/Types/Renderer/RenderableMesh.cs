@@ -25,6 +25,8 @@ namespace GUI.Types.Renderer
         private IEnumerable<DrawCall> DrawCalls => DrawCallsOpaque.Concat(DrawCallsOverlay).Concat(DrawCallsBlended);
 
         public RenderTexture AnimationTexture { get; private set; }
+        public int SkeletonBoneCount { get; private set; }
+        public int RemapTableStart { get; private set; }
 
         public int MeshIndex { get; }
 
@@ -51,9 +53,16 @@ namespace GUI.Types.Renderer
             guiContext = scene.GuiContext;
 
             var vbib = mesh.VBIB;
+
             if (model != null)
             {
-                vbib = model.RemapBoneIndices(vbib, meshIndex);
+                Span<int> meshToModel = model.GetRemapTable(meshIndex);
+                SkeletonBoneCount = model.Skeleton.Bones.Length;
+                var remapTableStarts = model.Data.GetIntegerArray("m_remappingTableStarts");
+                if (remapTableStarts.Length > meshIndex)
+                {
+                    RemapTableStart = (int)remapTableStarts[meshIndex];
+                }
             }
 
             foreach (var a in vbib.VertexBuffers)

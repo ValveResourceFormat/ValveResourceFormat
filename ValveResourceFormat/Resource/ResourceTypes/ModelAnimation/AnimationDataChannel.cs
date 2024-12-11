@@ -45,7 +45,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                 int id;
                 if (Attribute == AnimationChannelAttribute.Data)
                 {
-                    id = Array.FindIndex(flexControllers, contr => contr.Name == elementName);
+                    id = Array.FindIndex(flexControllers, ctrl => ctrl.Name == elementName);
                 }
                 else
                 {

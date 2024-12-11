@@ -156,7 +156,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
 #if DEBUG
                 Console.WriteLine($"Unhandled animation bone decoder type '{decoder}' for attribute '{localChannel.Attribute}'");
-#endif            
+#endif
             }
 
             return animArray
