@@ -716,7 +716,7 @@ namespace GUI.Types.Renderer
 
                             postProcess.ModelVolume = ppModelResource;
 
-                            var ppModelNode = new ModelSceneNode(scene, ppModelResource, skin, optimizeForMapLoad: true)
+                            var ppModelNode = new ModelSceneNode(scene, ppModelResource, skin)
                             {
                                 Transform = transformationMatrix,
                                 LayerName = layerName,
@@ -784,7 +784,7 @@ namespace GUI.Types.Renderer
 
                     if (errorModelResource != null)
                     {
-                        var errorModel = new ModelSceneNode(scene, (Model)errorModelResource.DataBlock, skin, optimizeForMapLoad: true)
+                        var errorModel = new ModelSceneNode(scene, (Model)errorModelResource.DataBlock, skin)
                         {
                             Name = "error",
                             Transform = transformationMatrix,
@@ -813,7 +813,7 @@ namespace GUI.Types.Renderer
 
                 var newModel = (Model)newEntity.DataBlock;
 
-                var modelNode = new ModelSceneNode(scene, newModel, skin, optimizeForMapLoad: true)
+                var modelNode = new ModelSceneNode(scene, newModel, skin)
                 {
                     Transform = transformationMatrix,
                     Tint = new Vector4(rendercolor, renderamt),
@@ -1030,7 +1030,7 @@ namespace GUI.Types.Renderer
             }
             else if (resource.ResourceType == ResourceType.Model)
             {
-                var modelNode = new ModelSceneNode(scene, (Model)resource.DataBlock, null, optimizeForMapLoad: true)
+                var modelNode = new ModelSceneNode(scene, (Model)resource.DataBlock, null)
                 {
                     Transform = transformationMatrix,
                     LayerName = "Entities",

@@ -58,7 +58,7 @@ namespace GUI.Types.Renderer
 
         private ref struct Uniforms
         {
-            public int Animated = -1;
+            public int AnimationData = -1;
             public int AnimationTexture = -1;
             public int EnvmapTexture = -1;
             public int LightProbeVolumeData = -1;
@@ -140,7 +140,7 @@ namespace GUI.Types.Renderer
                         shader = requestShader;
                         uniforms = new Uniforms
                         {
-                            Animated = shader.GetUniformLocation("bAnimated"),
+                            AnimationData = shader.GetUniformLocation("uAnimationData"),
                             AnimationTexture = shader.GetUniformLocation("animationTexture"),
                             Transform = shader.GetUniformLocation("transform"),
                             Tint = shader.GetUniformLocation("vTint"),
@@ -254,15 +254,21 @@ namespace GUI.Types.Renderer
                 }
             }
 
-            if (uniforms.Animated != -1)
+            if (uniforms.AnimationData != -1)
             {
                 var bAnimated = request.Mesh.AnimationTexture != null;
-                GL.ProgramUniform1((uint)shader.Program, uniforms.Animated, bAnimated ? 1u : 0u);
+                var numBones = 0u;
+                var numWeights = 0u;
+                var boneStart = 0u;
 
                 if (bAnimated && uniforms.AnimationTexture != -1)
                 {
                     SetInstanceTexture(shader, ReservedTextureSlots.AnimationTexture, uniforms.AnimationTexture, request.Mesh.AnimationTexture);
+                    numBones = (uint)request.Mesh.MeshBoneCount;
+                    boneStart = (uint)request.Mesh.MeshBoneOffset;
                 }
+
+                GL.ProgramUniform4((uint)shader.Program, uniforms.AnimationData, bAnimated ? 1u : 0u, boneStart, numBones, numWeights);
             }
 
             if (uniforms.MorphVertexIdOffset != -1)

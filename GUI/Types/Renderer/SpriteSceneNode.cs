@@ -94,7 +94,7 @@ namespace GUI.Types.Renderer
             var transform = billboardMatrix * Transform;
             renderShader.SetUniform4x4("transform", transform);
 
-            renderShader.SetUniform1("bAnimated", false);
+            renderShader.SetBoneAnimationData(false);
             renderShader.SetUniform1("sceneObjectId", Id);
             renderShader.SetUniform1("shaderId", (uint)material.Shader.NameHash);
             renderShader.SetUniform1("shaderProgramId", (uint)material.Shader.Program);

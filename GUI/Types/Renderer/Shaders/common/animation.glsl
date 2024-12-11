@@ -1,19 +1,26 @@
 #version 460
 
-layout (location = 1) in ivec4 vBLENDINDICES;
+layout (location = 1) in uvec4 vBLENDINDICES;
 layout (location = 2) in vec4 vBLENDWEIGHT;
 
-uniform bool bAnimated;
+uniform uvec4 uAnimationData;
 uniform sampler2D animationTexture;
 
-mat4 getMatrix(int boneIndex) {
+#define bAnimated uAnimationData.x != 0u
+#define meshBoneOffset uAnimationData.y
+#define meshBoneCount uAnimationData.z
+#define numWeights uAnimationData.w
 
+mat4 getMatrix(uint boneIndex)
+{
     // Issue #705 out of bounds bone index (model needs ApplyVBIBDefaults)
     // Model:  hlvr/models/props/xen/xen_villi_medium.vmdl
     // In map: hlvr/maps/a3_distillery.vmap
-    if (boneIndex >= textureSize(animationTexture, 0).y) {
+    if (boneIndex >= meshBoneCount) {
         return mat4(1.0);
     }
+
+    boneIndex += meshBoneOffset;
 
     return mat4(
         texelFetch(animationTexture, ivec2(0, boneIndex), 0),
@@ -23,7 +30,8 @@ mat4 getMatrix(int boneIndex) {
     );
 }
 
-mat4 getSkinMatrix(){
+mat4 getSkinMatrix()
+{
     //[branch]
     if (bAnimated)
     {

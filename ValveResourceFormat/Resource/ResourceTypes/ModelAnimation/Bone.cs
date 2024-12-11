@@ -3,6 +3,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
     public class Bone
     {
         public int Index { get; }
+        public ModelSkeletonBoneFlags Flags { get; }
         public Bone Parent { get; private set; }
         public List<Bone> Children { get; } = [];
 
@@ -14,10 +15,11 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         public Matrix4x4 BindPose { get; }
         public Matrix4x4 InverseBindPose { get; }
 
-        public Bone(int index, string name, Vector3 position, Quaternion rotation)
+        public Bone(int index, string name, Vector3 position, Quaternion rotation, ModelSkeletonBoneFlags flags)
         {
             Index = index;
             Name = name;
+            Flags = flags;
 
             Position = position;
             Angle = rotation;
