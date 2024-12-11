@@ -27,6 +27,7 @@ namespace GUI.Types.Renderer
         public RenderTexture AnimationTexture { get; private set; }
         public int MeshBoneOffset { get; private set; }
         public int MeshBoneCount { get; private set; }
+        public int BoneWeightCount { get; private set; }
 
         public int MeshIndex { get; }
 
@@ -68,6 +69,8 @@ namespace GUI.Types.Renderer
                     MeshBoneCount = modelSpaceBoneIndices.Length;
                 }
             }
+
+            BoneWeightCount = mesh.Data.GetSubCollection("m_skeleton").GetInt32Property("m_nBoneWeightCount");
 
             foreach (var a in vbib.VertexBuffers)
             {

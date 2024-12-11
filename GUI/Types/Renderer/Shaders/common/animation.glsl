@@ -6,7 +6,7 @@ layout (location = 2) in vec4 vBLENDWEIGHT;
 uniform uvec4 uAnimationData;
 uniform sampler2D animationTexture;
 
-#define bAnimated uAnimationData.x != 0u
+#define bAnimated (uAnimationData.x != 0u)
 #define meshBoneOffset uAnimationData.y
 #define meshBoneCount uAnimationData.z
 #define numWeights uAnimationData.w
@@ -32,16 +32,20 @@ mat4 getMatrix(uint boneIndex)
 
 mat4 getSkinMatrix()
 {
-    //[branch]
-    if (bAnimated)
+    if (!bAnimated)
     {
-        mat4 skinMatrix = mat4(0.0);
-        skinMatrix += vBLENDWEIGHT.x * getMatrix(vBLENDINDICES.x);
-        skinMatrix += vBLENDWEIGHT.y * getMatrix(vBLENDINDICES.y);
-        skinMatrix += vBLENDWEIGHT.z * getMatrix(vBLENDINDICES.z);
-        skinMatrix += vBLENDWEIGHT.w * getMatrix(vBLENDINDICES.w);
-        return skinMatrix;
+        return mat4(1.0);
     }
 
-    return mat4(1.0);
+    if (numWeights == 1u)
+    {
+        return getMatrix(vBLENDINDICES.x);
+    }
+
+    mat4 skinMatrix = mat4(0.0);
+    skinMatrix += vBLENDWEIGHT.x * getMatrix(vBLENDINDICES.x);
+    skinMatrix += vBLENDWEIGHT.y * getMatrix(vBLENDINDICES.y);
+    skinMatrix += vBLENDWEIGHT.z * getMatrix(vBLENDINDICES.z);
+    skinMatrix += vBLENDWEIGHT.w * getMatrix(vBLENDINDICES.w);
+    return skinMatrix;
 }

@@ -266,6 +266,7 @@ namespace GUI.Types.Renderer
                     SetInstanceTexture(shader, ReservedTextureSlots.AnimationTexture, uniforms.AnimationTexture, request.Mesh.AnimationTexture);
                     numBones = (uint)request.Mesh.MeshBoneCount;
                     boneStart = (uint)request.Mesh.MeshBoneOffset;
+                    numWeights = (uint)request.Mesh.BoneWeightCount;
                 }
 
                 GL.ProgramUniform4((uint)shader.Program, uniforms.AnimationData, bAnimated ? 1u : 0u, boneStart, numBones, numWeights);
