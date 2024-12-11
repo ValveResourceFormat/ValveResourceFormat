@@ -70,6 +70,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
             // Calculate fps
             Fps = NumFrames / Duration;
 
+            // Reading test
+            // File: Project8Staging/game/citadel/pak01_dir.vpk:models/npc/boss_tier_02_sun_walker_v2/dmx/animation/turn_90_l.vnmclip_c
             var bones = new FrameBone[122];
             ReadFrame(0, bones);
             ReadFrame(1, bones);
