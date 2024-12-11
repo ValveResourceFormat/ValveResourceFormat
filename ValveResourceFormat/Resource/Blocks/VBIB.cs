@@ -737,18 +737,6 @@ namespace ValveResourceFormat.Blocks
             };
         }
 
-        public static int[] CombineRemapTables(int[][] remapTables)
-        {
-            remapTables = remapTables.Where(remapTable => remapTable.Length != 0).ToArray();
-            var newRemapTable = remapTables[0].AsEnumerable();
-            for (var i = 1; i < remapTables.Length; i++)
-            {
-                var remapTable = remapTables[i];
-                newRemapTable = newRemapTable.Select(j => j != -1 ? remapTable[j] : -1);
-            }
-            return newRemapTable.ToArray();
-        }
-
         public VBIB RemapBoneIndices(int[] remapTable)
         {
             var res = new VBIB();

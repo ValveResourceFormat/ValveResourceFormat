@@ -120,10 +120,8 @@ namespace ValveResourceFormat.ResourceTypes
                 return vbib;
             }
 
-            return vbib.RemapBoneIndices(VBIB.CombineRemapTables([
-                GetRemapTable(meshIndex),
-                Enumerable.Range(0, Skeleton.Bones.Length).ToArray(),
-            ]));
+            var meshBoneRemappingTable = GetRemapTable(meshIndex);
+            return vbib.RemapBoneIndices(meshBoneRemappingTable);
         }
 
         public IEnumerable<(int MeshIndex, string MeshName, long LoDMask)> GetReferenceMeshNamesAndLoD()
