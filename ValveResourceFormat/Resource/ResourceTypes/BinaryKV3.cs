@@ -122,7 +122,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                 if (!zstdDecompressor.TryUnwrap(input, output, out var written) || output.Length != written)
                 {
-                    throw new InvalidDataException($"Failed to decompress ZSTD (expected {output.Length} bytes, got{written})");
+                    throw new InvalidDataException($"Failed to decompress ZSTD (expected {output.Length} bytes, got {written})");
                 }
             }
             finally
@@ -230,84 +230,84 @@ namespace ValveResourceFormat.ResourceTypes
 
             try
             {
-                var buffer1Span = new ArraySegment<byte>(buffer1Raw, 0, sizeUncompressedBuffer1);
-
-                if (compressionMethod == 0) // uncompressed
-                {
-                    if (compressionDictionaryId != 0)
-                    {
-                        throw new UnexpectedMagicException("Unhandled", compressionDictionaryId, nameof(compressionDictionaryId));
-                    }
-
-                    if (compressionFrameSize != 0)
-                    {
-                        throw new UnexpectedMagicException("Unhandled", compressionFrameSize, nameof(compressionFrameSize));
-                    }
-
-                    if (version >= 5)
-                    {
-                        Debug.Assert(sizeCompressedBuffer1 == 0);
-                    }
-                    else
-                    {
-                        Debug.Assert(sizeCompressedBuffer1 == sizeUncompressedBuffer1);
-                    }
-
-                    reader.Read(buffer1Span);
-                }
-                else if (compressionMethod == 1) // LZ4
-                {
-                    if (compressionDictionaryId != 0)
-                    {
-                        throw new UnexpectedMagicException("Unhandled", compressionDictionaryId, nameof(compressionDictionaryId));
-                    }
-
-                    if (compressionFrameSize != 16384 && version >= 2)
-                    {
-                        throw new UnexpectedMagicException("Unhandled", compressionFrameSize, nameof(compressionFrameSize));
-                    }
-
-                    Debug.Assert(sizeCompressedBuffer1 > 0);
-
-                    DecompressLZ4(reader, buffer1Span, sizeCompressedBuffer1);
-                }
-                else if (compressionMethod == 2) // ZSTD
-                {
-                    Debug.Assert(version >= 2);
-
-                    if (compressionDictionaryId != 0)
-                    {
-                        throw new UnexpectedMagicException("Unhandled", compressionDictionaryId, nameof(compressionDictionaryId));
-                    }
-
-                    if (compressionFrameSize != 0)
-                    {
-                        throw new UnexpectedMagicException("Unhandled", compressionFrameSize, nameof(compressionFrameSize));
-                    }
-
-                    Debug.Assert(sizeCompressedBuffer1 > 0);
-
-                    var outBufferLength = sizeUncompressedBuffer1;
-
-                    // Before version 5, when using zstd, both the buffer and binary blobs were compressed together
-                    if (version < 5)
-                    {
-                        outBufferLength += sizeBinaryBlobsBytes;
-                    }
-
-                    zstdDecompressor = new ZstdSharp.Decompressor();
-
-                    DecompressZSTD(zstdDecompressor, reader, buffer1Raw.AsSpan(0, outBufferLength), sizeCompressedBuffer1);
-                }
-                else
-                {
-                    throw new UnexpectedMagicException("Unknown compression method", compressionMethod, nameof(compressionMethod));
-                }
-
                 ArraySegment<byte> bufferWithBinaryBlobSizes = null;
 
                 // Buffer 1
                 {
+                    var buffer1Span = new ArraySegment<byte>(buffer1Raw, 0, sizeUncompressedBuffer1);
+
+                    if (compressionMethod == 0) // uncompressed
+                    {
+                        if (compressionDictionaryId != 0)
+                        {
+                            throw new UnexpectedMagicException("Unhandled", compressionDictionaryId, nameof(compressionDictionaryId));
+                        }
+
+                        if (compressionFrameSize != 0)
+                        {
+                            throw new UnexpectedMagicException("Unhandled", compressionFrameSize, nameof(compressionFrameSize));
+                        }
+
+                        if (version >= 5)
+                        {
+                            Debug.Assert(sizeCompressedBuffer1 == 0);
+                        }
+                        else
+                        {
+                            Debug.Assert(sizeCompressedBuffer1 == sizeUncompressedBuffer1);
+                        }
+
+                        reader.Read(buffer1Span);
+                    }
+                    else if (compressionMethod == 1) // LZ4
+                    {
+                        if (compressionDictionaryId != 0)
+                        {
+                            throw new UnexpectedMagicException("Unhandled", compressionDictionaryId, nameof(compressionDictionaryId));
+                        }
+
+                        if (compressionFrameSize != 16384 && version >= 2)
+                        {
+                            throw new UnexpectedMagicException("Unhandled", compressionFrameSize, nameof(compressionFrameSize));
+                        }
+
+                        Debug.Assert(sizeCompressedBuffer1 > 0);
+
+                        DecompressLZ4(reader, buffer1Span, sizeCompressedBuffer1);
+                    }
+                    else if (compressionMethod == 2) // ZSTD
+                    {
+                        Debug.Assert(version >= 2);
+
+                        if (compressionDictionaryId != 0)
+                        {
+                            throw new UnexpectedMagicException("Unhandled", compressionDictionaryId, nameof(compressionDictionaryId));
+                        }
+
+                        if (compressionFrameSize != 0)
+                        {
+                            throw new UnexpectedMagicException("Unhandled", compressionFrameSize, nameof(compressionFrameSize));
+                        }
+
+                        Debug.Assert(sizeCompressedBuffer1 > 0);
+
+                        var outBufferLength = sizeUncompressedBuffer1;
+
+                        // Before version 5, when using zstd, both the buffer and binary blobs were compressed together
+                        if (version < 5)
+                        {
+                            outBufferLength += sizeBinaryBlobsBytes;
+                        }
+
+                        zstdDecompressor = new ZstdSharp.Decompressor();
+
+                        DecompressZSTD(zstdDecompressor, reader, buffer1Raw.AsSpan(0, outBufferLength), sizeCompressedBuffer1);
+                    }
+                    else
+                    {
+                        throw new UnexpectedMagicException("Unknown compression method", compressionMethod, nameof(compressionMethod));
+                    }
+
                     var buffer1 = new Buffers();
 
                     var offset = 0;
@@ -402,6 +402,8 @@ namespace ValveResourceFormat.ResourceTypes
                             var trailer = MemoryMarshal.Read<uint>(buffer1Span[offset..]);
                             offset += 4;
                             UnexpectedMagicException.Assert(trailer == 0xFFEEDD00, trailer);
+
+                            Debug.Assert(buffer1Span.Count == offset);
                         }
                         else
                         {
@@ -430,7 +432,7 @@ namespace ValveResourceFormat.ResourceTypes
                     }
                     else if (compressionMethod == 2) // ZSTD
                     {
-                        Debug.Assert(sizeCompressedBuffer1 > 0);
+                        Debug.Assert(sizeCompressedBuffer2 > 0);
 
                         zstdDecompressor ??= new ZstdSharp.Decompressor();
 
