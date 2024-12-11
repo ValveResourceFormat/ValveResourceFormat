@@ -189,7 +189,13 @@ namespace GUI.Types.Renderer
 
                     for (var i = 0; i < meshBoneCount; i++)
                     {
-                        meshBones[i] = modelBones[remappingTable[i]];
+                        var modelBoneIndex = remappingTable[i];
+                        var modelBoneExists = modelBoneIndex < boneCount;
+
+                        if (modelBoneExists)
+                        {
+                            meshBones[i] = modelBones[modelBoneIndex];
+                        }
                     }
 
                     // Update animation texture
