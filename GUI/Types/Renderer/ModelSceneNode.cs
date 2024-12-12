@@ -32,7 +32,7 @@ namespace GUI.Types.Renderer
         }
 
         public readonly AnimationController AnimationController;
-        public List<RenderableMesh> RenderableMeshes => activeMeshRenderers;
+        public List<RenderableMesh> RenderableMeshes { get; private set; } = [];
         public string ActiveMaterialGroup => activeMaterialGroup.Name;
 
         private readonly List<RenderableMesh> meshRenderers = [];
@@ -44,7 +44,6 @@ namespace GUI.Types.Renderer
         private readonly int[] remappingTable;
 
         private HashSet<string> activeMeshGroups = [];
-        private List<RenderableMesh> activeMeshRenderers = [];
         private (string Name, string[] Materials) activeMaterialGroup;
         private Dictionary<string, string> materialTable;
 
@@ -219,7 +218,7 @@ namespace GUI.Types.Renderer
 
             //Update morphs
             var datas = frame.Datas;
-            foreach (var renderableMesh in activeMeshRenderers)
+            foreach (var renderableMesh in RenderableMeshes)
             {
                 if (renderableMesh.FlexStateManager == null)
                 {
@@ -429,7 +428,7 @@ namespace GUI.Types.Renderer
 
             if (meshGroups.Length > 1)
             {
-                activeMeshRenderers.Clear();
+                RenderableMeshes.Clear();
                 foreach (var group in activeMeshGroups)
                 {
                     var meshMask = GetActiveMeshMaskForGroup(group).ToArray();
@@ -438,14 +437,14 @@ namespace GUI.Types.Renderer
                     {
                         if (meshMask[meshRenderer.MeshIndex])
                         {
-                            activeMeshRenderers.Add(meshRenderer);
+                            RenderableMeshes.Add(meshRenderer);
                         }
                     }
                 }
             }
             else
             {
-                activeMeshRenderers = new List<RenderableMesh>(meshRenderers);
+                RenderableMeshes = new List<RenderableMesh>(meshRenderers);
             }
         }
 

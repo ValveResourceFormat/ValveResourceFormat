@@ -5,32 +5,31 @@ namespace GUI.Types.Renderer
 {
     class AnimationController
     {
-        private readonly AnimationFrameCache animationFrameCache;
         private Action<Animation, int> updateHandler = (_, __) => { };
-        private Animation activeAnimation;
+
         public float FrametimeMultiplier { get; set; } = 1.0f;
         public float Time { get; private set; }
         private bool shouldUpdate;
 
-        public Animation ActiveAnimation => activeAnimation;
-        public AnimationFrameCache FrameCache => animationFrameCache;
+        public Animation ActiveAnimation { get; private set; }
+        public AnimationFrameCache FrameCache { get; }
         public bool IsPaused { get; set; }
         public int Frame
         {
             get
             {
-                if (activeAnimation != null && activeAnimation.FrameCount != 0)
+                if (ActiveAnimation != null && ActiveAnimation.FrameCount != 0)
                 {
-                    return (int)MathF.Round(Time * activeAnimation.Fps) % (activeAnimation.FrameCount - 1);
+                    return (int)MathF.Round(Time * ActiveAnimation.Fps) % (ActiveAnimation.FrameCount - 1);
                 }
                 return 0;
             }
             set
             {
-                if (activeAnimation != null)
+                if (ActiveAnimation != null)
                 {
-                    Time = activeAnimation.Fps != 0
-                        ? value / activeAnimation.Fps
+                    Time = ActiveAnimation.Fps != 0
+                        ? value / ActiveAnimation.Fps
                         : 0f;
                     shouldUpdate = true;
                 }
@@ -39,17 +38,17 @@ namespace GUI.Types.Renderer
 
         public AnimationController(Skeleton skeleton, FlexController[] flexControllers)
         {
-            animationFrameCache = new(skeleton, flexControllers);
+            FrameCache = new(skeleton, flexControllers);
         }
 
         public bool Update(float timeStep)
         {
-            if (activeAnimation == null)
+            if (ActiveAnimation == null)
             {
                 return false;
             }
 
-            if (IsPaused || activeAnimation.FrameCount == 1)
+            if (IsPaused || ActiveAnimation.FrameCount == 1)
             {
                 var res = shouldUpdate;
                 shouldUpdate = false;
@@ -57,39 +56,39 @@ namespace GUI.Types.Renderer
             }
 
             Time += timeStep * FrametimeMultiplier;
-            updateHandler(activeAnimation, Frame);
+            updateHandler(ActiveAnimation, Frame);
             shouldUpdate = false;
             return true;
         }
 
         public void SetAnimation(Animation animation)
         {
-            animationFrameCache.Clear();
-            activeAnimation = animation;
+            FrameCache.Clear();
+            ActiveAnimation = animation;
             Time = 0f;
             Frame = 0;
-            updateHandler(activeAnimation, -1);
+            updateHandler(ActiveAnimation, -1);
         }
 
         public void PauseLastFrame()
         {
             IsPaused = true;
-            Frame = activeAnimation == null ? 0 : activeAnimation.FrameCount - 1;
+            Frame = ActiveAnimation == null ? 0 : ActiveAnimation.FrameCount - 1;
         }
 
         public Frame GetFrame()
         {
-            if (activeAnimation == null)
+            if (ActiveAnimation == null)
             {
                 return null;
             }
             else if (IsPaused)
             {
-                return animationFrameCache.GetFrame(activeAnimation, Frame);
+                return FrameCache.GetFrame(ActiveAnimation, Frame);
             }
             else
             {
-                return animationFrameCache.GetInterpolatedFrame(activeAnimation, Time);
+                return FrameCache.GetInterpolatedFrame(ActiveAnimation, Time);
             }
         }
 
@@ -100,14 +99,14 @@ namespace GUI.Types.Renderer
 
         public void GetBoneMatrices(Span<Matrix4x4> boneMatrices, bool bindPose = false)
         {
-            if (boneMatrices.Length < animationFrameCache.Skeleton.Bones.Length)
+            if (boneMatrices.Length < FrameCache.Skeleton.Bones.Length)
             {
                 throw new ArgumentException("Length of array is smaller than the number of bones");
             }
 
             var frame = bindPose ? null : GetFrame();
 
-            foreach (var root in animationFrameCache.Skeleton.Roots)
+            foreach (var root in FrameCache.Skeleton.Roots)
             {
                 GetAnimationMatrixRecursive(root, Matrix4x4.Identity, frame, boneMatrices);
             }
