@@ -184,7 +184,20 @@ namespace GUI.Types.Renderer
                 {
                     var meshBones = matrices[..meshBoneCount];
                     var modelBones = matrices[meshBoneCount..];
-                    Animation.GetAnimationMatrices(modelBones, frame, AnimationController.FrameCache.Skeleton);
+                    var skeleton = AnimationController.FrameCache.Skeleton;
+                    Animation.GetAnimationMatrices(modelBones, frame, skeleton);
+
+                    // Copy procedural cloth node transforms from a animated root bone
+                    if (skeleton.ClothSimulationRoot is not null)
+                    {
+                        foreach (var clothNode in skeleton.Roots)
+                        {
+                            if (clothNode.IsProceduralCloth)
+                            {
+                                modelBones[clothNode.Index] = modelBones[skeleton.ClothSimulationRoot.Index];
+                            }
+                        }
+                    }
 
                     for (var i = 0; i < meshBoneCount; i++)
                     {

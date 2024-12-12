@@ -267,6 +267,11 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         {
             foreach (var root in skeleton.Roots)
             {
+                if (root.IsProceduralCloth)
+                {
+                    continue;
+                }
+
                 GetAnimationMatrixRecursive(root, Matrix4x4.Identity, Matrix4x4.Identity, frame, matrices);
             }
         }

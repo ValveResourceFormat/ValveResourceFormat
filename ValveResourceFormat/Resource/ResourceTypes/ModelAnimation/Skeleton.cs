@@ -9,6 +9,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         public Bone[] Roots { get; private set; }
         public Bone[] Bones { get; private set; }
 
+        public Bone ClothSimulationRoot { get; private set; }
+
         /// <summary>
         /// Initializes a new instance of the <see cref="Skeleton"/> class.
         /// </summary>
@@ -42,7 +44,15 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
             for (var i = 0; i < boneCount; i++)
             {
-                Bones[i] = new Bone(i, boneNames[i], bonePositions[i], boneRotations[i], boneFlags[i]);
+                var bone = new Bone(i, boneNames[i], bonePositions[i], boneRotations[i], boneFlags[i]);
+                Bones[i] = bone;
+
+                if (bone.Flags.HasFlag(ModelSkeletonBoneFlags.Cloth)
+                && !bone.Flags.HasFlag(ModelSkeletonBoneFlags.Procedural)
+                && ClothSimulationRoot == null)
+                {
+                    ClothSimulationRoot = bone;
+                }
             }
 
             var roots = new List<Bone>();
