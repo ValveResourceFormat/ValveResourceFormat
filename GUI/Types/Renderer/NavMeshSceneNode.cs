@@ -167,5 +167,33 @@ namespace GUI.Types.Renderer
         public override void Update(Scene.UpdateContext context)
         {
         }
+
+        public static void AddNavNodesToScene(NavMeshFile navMeshFile, Scene scene)
+        {
+            if (navMeshFile == null || scene == null)
+            {
+                return;
+            }
+
+            for (byte i = 0; i < navMeshFile.Metadata.HullCount; i++)
+            {
+                var hullAreas = navMeshFile.GetHullAreas(i);
+                if (hullAreas == null)
+                {
+                    continue;
+                }
+
+                var sceneNode = new NavMeshSceneNode(scene, hullAreas);
+                sceneNode.LayerName = $"Navigation mesh (hull {i})";
+                scene.Add(sceneNode, false);
+            }
+
+            if (navMeshFile.Ladders != null && navMeshFile.Ladders.Length > 0)
+            {
+                var laddersSceneNode = new NavMeshSceneNode(scene, navMeshFile.Ladders);
+                laddersSceneNode.LayerName = "Navigation mesh (ladders)";
+                scene.Add(laddersSceneNode, false);
+            }
+        }
     }
 }

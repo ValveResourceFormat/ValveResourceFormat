@@ -4,6 +4,7 @@ using GUI.Utils;
 using System.Windows.Forms;
 using ValveResourceFormat.NavMesh;
 using System.Text.Json;
+using GUI.Types.Renderer;
 
 namespace GUI.Types.Viewers
 {
@@ -33,11 +34,16 @@ namespace GUI.Types.Viewers
                 navMeshFile.Read(vrfGuiContext.FileName);
             }
 
-            var tabPage = new TabPage("NAV debug");
+            var navMeshPage = new TabPage("NAV MESH");
+            var worldViewer = new GLNavMeshViewer(vrfGuiContext, navMeshFile);
+            navMeshPage.Controls.Add(worldViewer);
+            tabControl.Controls.Add(navMeshPage);
+
+            var debugPage = new TabPage("NAV debug");
             var text = JsonSerializer.Serialize(navMeshFile, JsonOptions);
             var textControl = new CodeTextBox(text);
-            tabPage.Controls.Add(textControl);
-            tabControl.Controls.Add(tabPage);
+            debugPage.Controls.Add(textControl);
+            tabControl.Controls.Add(debugPage);
 
             return tabOuterPage;
         }

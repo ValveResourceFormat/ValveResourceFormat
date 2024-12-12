@@ -189,34 +189,6 @@ namespace GUI.Types.Renderer
             Settings.InvokeRefreshCamerasOnSave();
         }
 
-        private void InitializeNavMesh(NavMeshFile navMesh)
-        {
-            if (navMesh == null)
-            {
-                return;
-            }
-
-            for (byte i = 0; i < navMesh.Metadata.HullCount; i++)
-            {
-                var hullAreas = navMesh.GetHullAreas(i);
-                if (hullAreas == null)
-                {
-                    continue;
-                }
-
-                var sceneNode = new NavMeshSceneNode(Scene, hullAreas);
-                sceneNode.LayerName = $"Navigation mesh (hull {i})";
-                Scene.Add(sceneNode, false);
-            }
-
-            if (navMesh.Ladders != null && navMesh.Ladders.Length > 0)
-            {
-                var laddersSceneNode = new NavMeshSceneNode(Scene, navMesh.Ladders);
-                laddersSceneNode.LayerName = "Navigation mesh (ladders)";
-                Scene.Add(laddersSceneNode, false);
-            }
-        }
-
         protected override void LoadScene()
         {
             var cameraSet = false;
@@ -245,7 +217,7 @@ namespace GUI.Types.Renderer
                 var uniqueWorldLayers = new HashSet<string>(4);
                 var uniquePhysicsGroups = new HashSet<string>();
 
-                InitializeNavMesh(result.NavMesh);
+                NavMeshSceneNode.AddNavNodesToScene(result.NavMesh, Scene);
 
                 foreach (var node in Scene.AllNodes)
                 {
