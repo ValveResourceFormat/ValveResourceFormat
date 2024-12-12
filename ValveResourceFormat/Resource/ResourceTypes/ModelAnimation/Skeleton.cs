@@ -47,8 +47,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                 var bone = new Bone(i, boneNames[i], bonePositions[i], boneRotations[i], boneFlags[i]);
                 Bones[i] = bone;
 
-                if (bone.Flags.HasFlag(ModelSkeletonBoneFlags.Cloth)
-                && !bone.Flags.HasFlag(ModelSkeletonBoneFlags.Procedural)
+                if ((bone.Flags & ModelSkeletonBoneFlags.Cloth) != 0
+                && (bone.Flags & ModelSkeletonBoneFlags.Procedural) == 0
                 && ClothSimulationRoot == null)
                 {
                     ClothSimulationRoot = bone;

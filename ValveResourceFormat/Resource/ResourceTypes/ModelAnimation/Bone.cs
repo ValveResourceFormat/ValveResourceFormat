@@ -15,7 +15,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         public Matrix4x4 BindPose { get; }
         public Matrix4x4 InverseBindPose { get; }
 
-        public bool IsProceduralCloth => (Flags & (ModelSkeletonBoneFlags.Cloth | ModelSkeletonBoneFlags.Procedural)) != 0;
+        public bool IsProceduralCloth => (Flags & (ModelSkeletonBoneFlags.Cloth | ModelSkeletonBoneFlags.Procedural)) == (ModelSkeletonBoneFlags.Cloth | ModelSkeletonBoneFlags.Procedural);
 
         public Bone(int index, string name, Vector3 position, Quaternion rotation, ModelSkeletonBoneFlags flags)
         {
