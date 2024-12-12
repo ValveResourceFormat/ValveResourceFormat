@@ -11,9 +11,7 @@ using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.ResourceTypes
 {
-#pragma warning disable CA1001 // Types that own disposable fields should be disposable
     public partial class BinaryKV3 : ResourceData
-#pragma warning restore CA1001 // Types that own disposable fields should be disposable
     {
         private readonly BlockType KVBlockType;
         public override BlockType Type => KVBlockType;
