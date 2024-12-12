@@ -27,31 +27,17 @@ namespace ValveResourceFormat.NavMesh
 
         public float SmallAreaOnEdgeRemoval { get; set; }
 
-        public string UnkString1 { get; set; }
+        public string UnkString1 { get; set; } //agent hull preset name?
         public string UnkString2 { get; set; }
-        public int UnkInt4 { get; set; }
-        public byte UnkByte1 { get; set; }
-        public float UnkFloat1 { get; set; }
-
-        public float HumanHeight { get; set; }
-
-        public byte UnkByte2 { get; set; }
-
-        public float HalfHumanHeight { get; set; }
-        public float HalfHumanWidth { get; set; }
-
-        public int UnkInt5 { get; set; }
-        public float UnkFloat2 { get; set; }
-        public float UnkFloat3 { get; set; }
-        public float UnkFloat4 { get; set; }
-        public int UnkInt6 { get; set; }
+        public int HullCount { get; set; }
+        public NavMeshHullMetadata[] HullData { get; set; }
         public byte UnkByte3 { get; set; }
 
-        public void Read(BinaryReader binaryReader)
+        public void Read(BinaryReader binaryReader, NavMeshFile navMeshFile)
         {
             UnkInt1 = binaryReader.ReadInt32();
             UnkInt2 = binaryReader.ReadInt32();
-            UnkInt3 = binaryReader.ReadInt32(); //count?
+            UnkInt3 = binaryReader.ReadInt32();
 
             //Tiles
             TileSize = binaryReader.ReadSingle();
@@ -76,38 +62,26 @@ namespace ValveResourceFormat.NavMesh
             //Processing params
             SmallAreaOnEdgeRemoval = binaryReader.ReadSingle();
 
-            UnkString1 = binaryReader.ReadNullTermString(Encoding.UTF8);
-            UnkString2 = binaryReader.ReadNullTermString(Encoding.UTF8); //this might be a byte instead - only seen as a 0x00 byte
+            if (navMeshFile.Version >= 35)
+            {
+                UnkString1 = binaryReader.ReadNullTermString(Encoding.UTF8);
+                UnkString2 = binaryReader.ReadNullTermString(Encoding.UTF8);
+            }
 
-            UnkInt4 = binaryReader.ReadInt32();
-            Debug.Assert(UnkInt4 == 1);
-            UnkByte1 = binaryReader.ReadByte();
-            Debug.Assert(UnkByte1 == 1);
+            HullCount = binaryReader.ReadInt32();
+            HullData = new NavMeshHullMetadata[HullCount];
+            for (var i = 0; i < HullCount; i++)
+            {
+                var hullData = new NavMeshHullMetadata();
+                hullData.Read(binaryReader, navMeshFile);
+                HullData[i] = hullData;
+            }
 
-            UnkFloat1 = binaryReader.ReadSingle(); //related to agent/human size - values seen so far are 15 and 16
-
-            HumanHeight = binaryReader.ReadSingle(); //=71
-
-            UnkByte2 = binaryReader.ReadByte();
-            Debug.Assert(UnkByte2 == 0 || UnkByte2 == 1);
-
-            HalfHumanHeight = binaryReader.ReadSingle(); //=35.5
-
-            HalfHumanWidth = binaryReader.ReadSingle(); //=16-17.5
-
-            UnkInt5 = binaryReader.ReadInt32(); //=50
-            Debug.Assert(UnkInt5 == 50);
-            UnkFloat2 = binaryReader.ReadSingle(); //=157
-            //Debug.Assert(UnkFloat2 == 157f);
-            UnkFloat3 = binaryReader.ReadSingle(); //=64
-            //Debug.Assert(UnkFloat3 == 64f);
-            UnkFloat4 = binaryReader.ReadSingle(); //=68
-            //Debug.Assert(UnkFloat4 == 68f);
-
-            UnkInt6 = binaryReader.ReadInt32(); //=0
-            Debug.Assert(UnkInt6 == 0 || UnkInt6 == -1);
-            UnkByte3 = binaryReader.ReadByte(); //=1
-            Debug.Assert(UnkByte3 == 0 || UnkByte3 == 1);
+            if (navMeshFile.Version >= 35)
+            {
+                UnkByte3 = binaryReader.ReadByte();
+                Debug.Assert(UnkByte3 == 0 || UnkByte3 == 1);
+            }
         }
     }
 }

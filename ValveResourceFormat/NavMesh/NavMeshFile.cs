@@ -74,11 +74,11 @@ namespace ValveResourceFormat.NavMesh
                 Ladders[i] = ladder;
             }
 
-            if (Version >= 35)
-            {
-                Metadata = new NavMeshMetadata();
-                Metadata.Read(binaryReader);
+            Metadata = new NavMeshMetadata();
+            Metadata.Read(binaryReader, this);
 
+            if (SubVersion > 0)
+            {
                 while (binaryReader.ReadByte() == 0)
                 {
                     //Reading past 0x00 padding
@@ -89,11 +89,7 @@ namespace ValveResourceFormat.NavMesh
                 kv3.Size = (uint)(binaryReader.BaseStream.Length - kv3.Offset);
                 kv3.Read(binaryReader, null);
             }
-            else
-            {
-                var unkBytes = binaryReader.ReadBytes(144); //TODO - similar to newer postmetadata
-                Debug.Assert(binaryReader.BaseStream.Position == binaryReader.BaseStream.Length);
-            }
+            Debug.Assert(binaryReader.BaseStream.Position == binaryReader.BaseStream.Length);
         }
 
         private static Vector3[][] ReadPolygons(BinaryReader binaryReader)
