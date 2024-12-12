@@ -1,7 +1,10 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Text;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.Serialization.KeyValues;
 using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.NavMesh
@@ -18,6 +21,8 @@ namespace ValveResourceFormat.NavMesh
         public NavMeshLadder[] Ladders { get; private set; }
         public bool IsAnalyzed { get; private set; }
         public NavMeshMetadata Metadata { get; private set; }
+
+        public KVObject SubVersionData { get; set; }
 
         public void Read(string filename)
         {
@@ -87,6 +92,8 @@ namespace ValveResourceFormat.NavMesh
                 kv3.Offset = (uint)(binaryReader.BaseStream.Position - 1);
                 kv3.Size = (uint)(binaryReader.BaseStream.Length - kv3.Offset);
                 kv3.Read(binaryReader, null);
+
+                SubVersionData = kv3.Data;
             }
             Debug.Assert(binaryReader.BaseStream.Position == binaryReader.BaseStream.Length);
         }
@@ -146,6 +153,57 @@ namespace ValveResourceFormat.NavMesh
         public NavMeshArea GetArea(uint areaId)
         {
             return Areas.GetValueOrDefault(areaId);
+        }
+
+        public override string ToString()
+        {
+            const string indentation = "\t";
+            var stringBuilder = new StringBuilder();
+
+            stringBuilder.AppendLine(CultureInfo.InvariantCulture, $"Version: {Version}");
+            stringBuilder.AppendLine(CultureInfo.InvariantCulture, $"Sub version: {SubVersion}");
+            stringBuilder.AppendLine(CultureInfo.InvariantCulture, $"Analyzed: {IsAnalyzed}");
+            stringBuilder.AppendLine(CultureInfo.InvariantCulture, $"Number of areas: {Areas?.Count ?? 0}");
+            stringBuilder.AppendLine(CultureInfo.InvariantCulture, $"Number of ladders: {Ladders?.Length ?? 0}");
+
+            if (Metadata != null)
+            {
+                stringBuilder.AppendLine();
+                stringBuilder.AppendLine(CultureInfo.InvariantCulture, $"Tile Size: {Metadata.TileSize}");
+                stringBuilder.AppendLine(CultureInfo.InvariantCulture, $"Cell Size: {Metadata.CellSize}");
+                stringBuilder.AppendLine(CultureInfo.InvariantCulture, $"Cell Height: {Metadata.CellHeight}");
+                stringBuilder.AppendLine(CultureInfo.InvariantCulture, $"Min Region Size: {Metadata.MinRegionSize}");
+                stringBuilder.AppendLine(CultureInfo.InvariantCulture, $"Merged Region Size: {Metadata.MergedRegionSize}");
+                stringBuilder.AppendLine(CultureInfo.InvariantCulture, $"Mesh Sample Distance: {Metadata.MeshSampleDistance}");
+                stringBuilder.AppendLine(CultureInfo.InvariantCulture, $"Max Sample Error: {Metadata.MaxSampleError}");
+                stringBuilder.AppendLine(CultureInfo.InvariantCulture, $"Max Edge Length: {Metadata.MaxEdgeLength}");
+                stringBuilder.AppendLine(CultureInfo.InvariantCulture, $"Max Edge Error: {Metadata.MaxEdgeError}");
+                stringBuilder.AppendLine(CultureInfo.InvariantCulture, $"Verts Per Poly: {Metadata.VertsPerPoly}");
+                stringBuilder.AppendLine(CultureInfo.InvariantCulture, $"Small Area On Edge Removal: {Metadata.SmallAreaOnEdgeRemoval}");
+
+                for (var i = 0; i < Metadata.HullCount; i++)
+                {
+                    var hull = Metadata.HullData[i];
+                    stringBuilder.AppendLine();
+                    if (Version >= 35)
+                    {
+                        stringBuilder.AppendLine(CultureInfo.InvariantCulture, $"Hull {i} Enabled: {hull.AgentEnabled}");
+                        stringBuilder.AppendLine(CultureInfo.InvariantCulture, $"Hull {i} Short Height Enabled: {hull.AgentShortHeightEnabled}");
+                        stringBuilder.AppendLine(CultureInfo.InvariantCulture, $"Hull {i} Short Height: {hull.AgentShortHeight}");
+                        stringBuilder.AppendLine(CultureInfo.InvariantCulture, $"Hull {i} Border Erosion: {hull.AgentBorderErosion}");
+                    }
+
+                    stringBuilder.AppendLine(CultureInfo.InvariantCulture, $"Hull {i} Radius: {hull.AgentRadius}");
+                    stringBuilder.AppendLine(CultureInfo.InvariantCulture, $"Hull {i} Height: {hull.AgentHeight}");
+                    stringBuilder.AppendLine(CultureInfo.InvariantCulture, $"Hull {i} Max Climb: {hull.AgentMaxClimb}");
+                    stringBuilder.AppendLine(CultureInfo.InvariantCulture, $"Hull {i} Max Slope: {hull.AgentMaxSlope}");
+                    stringBuilder.AppendLine(CultureInfo.InvariantCulture, $"Hull {i} Max Jump Down Dist: {hull.AgentMaxJumpDownDist}");
+                    stringBuilder.AppendLine(CultureInfo.InvariantCulture, $"Hull {i} Max Jump Horiz Dist Base: {hull.AgentMaxJumpHorizDistBase}");
+                    stringBuilder.AppendLine(CultureInfo.InvariantCulture, $"Hull {i} Max Jump Up Dist: {hull.AgentMaxJumpUpDist}");
+                }
+            }
+
+            return stringBuilder.ToString();
         }
     }
 }

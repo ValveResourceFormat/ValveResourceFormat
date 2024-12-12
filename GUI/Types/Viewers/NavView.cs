@@ -3,14 +3,13 @@ using GUI.Controls;
 using GUI.Utils;
 using System.Windows.Forms;
 using ValveResourceFormat.NavMesh;
-using System.Text.Json;
 using GUI.Types.Renderer;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace GUI.Types.Viewers
 {
     class NavView : IViewer
     {
-        private static JsonSerializerOptions JsonOptions = new JsonSerializerOptions() { WriteIndented = true };
         public static bool IsAccepted(uint magic)
         {
             return magic == NavMeshFile.MAGIC;
@@ -39,11 +38,23 @@ namespace GUI.Types.Viewers
             navMeshPage.Controls.Add(worldViewer);
             tabControl.Controls.Add(navMeshPage);
 
-            var debugPage = new TabPage("NAV debug");
-            var text = JsonSerializer.Serialize(navMeshFile, JsonOptions);
-            var textControl = new CodeTextBox(text);
-            debugPage.Controls.Add(textControl);
-            tabControl.Controls.Add(debugPage);
+            var infoPage = new TabPage("NAV INFO");
+            var infoText = navMeshFile.ToString();
+            var infoTextControl = new CodeTextBox(infoText, CodeTextBox.HighlightLanguage.None);
+            infoPage.Controls.Add(infoTextControl);
+            tabControl.Controls.Add(infoPage);
+
+            if (navMeshFile.SubVersionData != null)
+            {
+                var subVersionPage = new TabPage("NAV SUBVERSION DATA");
+
+
+                var kv = new KV3File(navMeshFile.SubVersionData);
+                var subVersionDataText = kv.ToString();
+                var subVersionDataTextControl = new CodeTextBox(subVersionDataText, CodeTextBox.HighlightLanguage.None);
+                subVersionPage.Controls.Add(subVersionDataTextControl);
+                tabControl.Controls.Add(subVersionPage);
+            }
 
             return tabOuterPage;
         }
