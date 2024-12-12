@@ -18,7 +18,7 @@ namespace GUI.Types.Renderer
         {
             get
             {
-                if (ActiveAnimation != null && ActiveAnimation.FrameCount != 0)
+                if (ActiveAnimation != null && ActiveAnimation.FrameCount > 1)
                 {
                     return (int)MathF.Round(Time * ActiveAnimation.Fps) % (ActiveAnimation.FrameCount - 1);
                 }
