@@ -16,7 +16,6 @@ namespace ValveResourceFormat.NavMesh
         public Dictionary<uint, NavMeshArea> Areas { get; private set; }
         private readonly Dictionary<byte, List<NavMeshArea>> HullAreas = [];
         public NavMeshLadder[] Ladders { get; private set; }
-        public int HullCount { get; private set; }
         public bool IsAnalyzed { get; private set; }
         public NavMeshMetadata Metadata { get; private set; }
 
@@ -128,7 +127,6 @@ namespace ValveResourceFormat.NavMesh
         private void AddArea(NavMeshArea area)
         {
             Areas[area.AreaId] = area;
-            HullCount = Math.Max(HullCount, area.HullIndex + 1);
 
             if (HullAreas.TryGetValue(area.HullIndex, out var areas))
             {

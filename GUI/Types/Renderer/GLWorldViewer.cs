@@ -196,7 +196,7 @@ namespace GUI.Types.Renderer
                 return;
             }
 
-            for (byte i = 0; i < navMesh.HullCount; i++)
+            for (byte i = 0; i < navMesh.Metadata.HullCount; i++)
             {
                 var hullAreas = navMesh.GetHullAreas(i);
                 if (hullAreas == null)
