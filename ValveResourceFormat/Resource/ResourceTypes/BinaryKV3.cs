@@ -1057,9 +1057,6 @@ namespace ValveResourceFormat.ResourceTypes
         private static string ReadNullTermUtf8String(ref ArraySegment<byte> buffer, ref int offset)
         {
             var nullByte = buffer.AsSpan().IndexOf((byte)0);
-
-            Debug.Assert(nullByte > 0);
-
             var str = buffer[..nullByte];
             buffer = buffer[(nullByte + 1)..];
 
