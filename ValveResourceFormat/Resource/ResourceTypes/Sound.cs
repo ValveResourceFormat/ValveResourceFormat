@@ -207,6 +207,7 @@ namespace ValveResourceFormat.ResourceTypes
             switch (sound.GetStringProperty("m_nFormat"))
             {
                 case "MP3": SetSoundFormatBits(AudioFormatV4.MP3); break;
+                case "PCM8": SetSoundFormatBits(AudioFormatV4.PCM8); break;
                 case "PCM16": SetSoundFormatBits(AudioFormatV4.PCM16); break;
 
                 default:
