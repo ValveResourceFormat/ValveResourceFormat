@@ -124,12 +124,41 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
         }
 
         const int CompressedQuaternionSize = 3;
+        private static readonly float s_valueRangeMin = -1.0f / MathF.Sqrt(2.0f);
+        private static readonly float s_valueRangeMax = 1.0f / MathF.Sqrt(2.0f);
+        private static readonly float s_valueRangeLength = s_valueRangeMax - s_valueRangeMin;
+
         static Quaternion DecodeQuaternion(ReadOnlySpan<ushort> data)
         {
             Debug.Assert(data.Length >= CompressedQuaternionSize);
 
-            // TODO
-            return Quaternion.Identity;
+            var vValueRangeMin = new Vector4(s_valueRangeMin);
+            var vRangeMultiplier15Bit = new Vector4(s_valueRangeLength / (float)0x7FFF);
+
+            var vData = new Vector4(
+                data[0] & 0x7FFF,
+                data[1] & 0x7FFF,
+                data[2],
+                0
+            );
+
+            vData = Vector4.FusedMultiplyAdd(vData, vRangeMultiplier15Bit, vValueRangeMin);
+
+            var sum = Vector4.Dot(vData, vData);
+            var w = MathF.Sqrt(1.0f - sum);
+            vData.W = w;
+
+            // Vector128.Shuffle(vData.AsVector128(), Vector128.Create([3, 0, 1, 2]));
+
+            var largestValueIndex = (ushort)((data[0] >> 14 & 0x0002) | data[1] >> 15);
+            return largestValueIndex switch
+            {
+                0 => new Quaternion(vData[3], vData[0], vData[1], vData[2]),
+                1 => new Quaternion(vData[0], vData[3], vData[1], vData[2]),
+                2 => new Quaternion(vData[0], vData[1], vData[3], vData[2]),
+                3 => new Quaternion(vData[0], vData[1], vData[2], vData[3]),
+                _ => throw new InvalidOperationException("Invalid largest value index")
+            };
         }
 
         const int CompressedTranslationSize = 3;
