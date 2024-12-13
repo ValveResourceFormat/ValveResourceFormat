@@ -77,6 +77,16 @@ namespace ValveResourceFormat.NavMesh
                 HullData[i] = hullData;
             }
 
+            if (navMeshFile.Version <= 30)
+            {
+                //Version 30 seems to store 3 hulls even if less are used (citadel start.nav)
+                var tempHullData = new NavMeshHullMetadata();
+                for (var i = HullCount; i < 3; i++)
+                {
+                    tempHullData.Read(binaryReader, navMeshFile);
+                }
+            }
+
             if (navMeshFile.Version >= 35)
             {
                 UnkByte3 = binaryReader.ReadByte();
