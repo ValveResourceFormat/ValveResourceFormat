@@ -4,11 +4,10 @@ using System.Text;
 
 namespace ValveResourceFormat.NavMesh
 {
-    public class NavMeshMetadata
+    public class NavMeshGenerationParams
     {
-        public int UnkInt1 { get; set; }
-        public int UnkInt2 { get; set; }
-        public int UnkInt3 { get; set; }
+        public int NavGenVersion { get; set; }
+        public bool UseProjectDefaults { get; set; }
 
         public float TileSize { get; set; }
 
@@ -30,17 +29,13 @@ namespace ValveResourceFormat.NavMesh
         public string HullPresetName { get; set; }
         public string HullDefinitionsFile { get; set; }
         public int HullCount { get; set; }
-        public NavMeshHullMetadata[] HullData { get; set; }
-        public byte UnkByte3 { get; set; }
+        public NavMeshGenerationHullParams[] HullParams { get; set; }
 
         public void Read(BinaryReader binaryReader, NavMeshFile navMeshFile)
         {
-            UnkInt1 = binaryReader.ReadInt32();
-            Debug.Assert(UnkInt1 == 0);
-            UnkInt2 = binaryReader.ReadInt32();
-            Debug.Assert((navMeshFile.Version == 30 && UnkInt2 == 7) || (navMeshFile.Version == 31 && UnkInt2 == 9) || (navMeshFile.Version == 35 && UnkInt2 == 12));
-            UnkInt3 = binaryReader.ReadInt32();
-            Debug.Assert(UnkInt3 == 1);
+            NavGenVersion = binaryReader.ReadInt32();
+            Debug.Assert((navMeshFile.Version == 30 && NavGenVersion == 7) || (navMeshFile.Version == 31 && NavGenVersion == 9) || (navMeshFile.Version == 35 && NavGenVersion == 12));
+            UseProjectDefaults = binaryReader.ReadUInt32() != 0;
 
             //Tiles
             TileSize = binaryReader.ReadSingle();
@@ -65,35 +60,35 @@ namespace ValveResourceFormat.NavMesh
             //Processing params
             SmallAreaOnEdgeRemoval = binaryReader.ReadSingle();
 
-            if (navMeshFile.Version >= 35)
+            if (NavGenVersion >= 12)
             {
                 HullPresetName = binaryReader.ReadNullTermString(Encoding.UTF8);
                 HullDefinitionsFile = binaryReader.ReadNullTermString(Encoding.UTF8);
             }
 
             HullCount = binaryReader.ReadInt32();
-            HullData = new NavMeshHullMetadata[HullCount];
+            HullParams = new NavMeshGenerationHullParams[HullCount];
             for (var i = 0; i < HullCount; i++)
             {
-                var hullData = new NavMeshHullMetadata();
-                hullData.Read(binaryReader, navMeshFile);
-                HullData[i] = hullData;
+                var hullParamsEntry = new NavMeshGenerationHullParams();
+                hullParamsEntry.Read(binaryReader, navMeshFile);
+                HullParams[i] = hullParamsEntry;
             }
 
-            if (navMeshFile.Version <= 30)
+            if (NavGenVersion <= 7)
             {
                 //Version 30 seems to store 3 hulls even if less are used (citadel start.nav)
-                var tempHullData = new NavMeshHullMetadata();
+                var tempHullParams = new NavMeshGenerationHullParams();
                 for (var i = HullCount; i < 3; i++)
                 {
-                    tempHullData.Read(binaryReader, navMeshFile);
+                    tempHullParams.Read(binaryReader, navMeshFile);
                 }
             }
 
-            if (navMeshFile.Version >= 35)
+            if (NavGenVersion >= 12)
             {
-                UnkByte3 = binaryReader.ReadByte();
-                Debug.Assert(UnkByte3 == 0 || UnkByte3 == 1);
+                var unkByte = binaryReader.ReadByte();
+                Debug.Assert(unkByte == 0 || unkByte == 1);
             }
         }
     }

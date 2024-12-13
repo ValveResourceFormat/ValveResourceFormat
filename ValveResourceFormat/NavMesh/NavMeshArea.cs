@@ -31,13 +31,7 @@ namespace ValveResourceFormat.NavMesh
         public void Read(BinaryReader binaryReader, NavMeshFile navMeshFile, Vector3[][] polygons = null)
         {
             AreaId = binaryReader.ReadUInt32();
-            DynamicAttributeFlags = (DynamicAttributeFlags)binaryReader.ReadInt32(); //this might actually be the next 4 bytes
-
-            var unkBytes = binaryReader.ReadBytes(4); //TODO
-            Debug.Assert(unkBytes[0] == 0);
-            Debug.Assert(unkBytes[1] == 0);
-            Debug.Assert(unkBytes[2] == 0);
-            Debug.Assert(unkBytes[3] == 0);
+            DynamicAttributeFlags = (DynamicAttributeFlags)binaryReader.ReadInt64();
             HullIndex = binaryReader.ReadByte();
 
             if (navMeshFile.Version >= 31)
@@ -57,6 +51,7 @@ namespace ValveResourceFormat.NavMesh
             }
 
             var unk1 = binaryReader.ReadUInt32();
+            Debug.Assert(unk1 == 0);
 
             Connections = new NavMeshConnection[Corners.Length][];
             for (var i = 0; i < Corners.Length; i++)
@@ -64,9 +59,9 @@ namespace ValveResourceFormat.NavMesh
                 Connections[i] = ReadConnections(binaryReader);
             }
 
-            var unk2 = binaryReader.ReadByte(); //TODO
+            var unk2 = binaryReader.ReadByte(); //TODO: this is probably count for LegacyHidingSpotData, LegacyApproachAreaData or LegacySpotEncounterData
             Debug.Assert(unk2 == 0);
-            var unk3 = binaryReader.ReadUInt32(); //TODO
+            var unk3 = binaryReader.ReadUInt32(); //TODO: this is probably count for LegacyHidingSpotData, LegacyApproachAreaData or LegacySpotEncounterData
             Debug.Assert(unk3 == 0);
 
             var ladderAboveCount = binaryReader.ReadUInt32();

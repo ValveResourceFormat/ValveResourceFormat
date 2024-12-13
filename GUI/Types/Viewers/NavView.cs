@@ -44,11 +44,11 @@ namespace GUI.Types.Viewers
             infoPage.Controls.Add(infoTextControl);
             tabControl.Controls.Add(infoPage);
 
-            if (navMeshFile.SubVersionData != null)
+            if (navMeshFile.CustomData != null)
             {
-                var subVersionPage = new TabPage("NAV SUBVERSION DATA");
+                var subVersionPage = new TabPage("NAV CUSTOM DATA");
 
-                var kv = new KV3File(navMeshFile.SubVersionData);
+                var kv = new KV3File(navMeshFile.CustomData);
                 var subVersionDataText = kv.ToString();
                 var subVersionDataTextControl = new CodeTextBox(subVersionDataText, CodeTextBox.HighlightLanguage.None);
 

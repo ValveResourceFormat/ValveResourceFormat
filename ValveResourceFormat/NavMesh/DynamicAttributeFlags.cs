@@ -1,7 +1,7 @@
 namespace ValveResourceFormat.NavMesh
 {
     [Flags]
-    public enum DynamicAttributeFlags
+    public enum DynamicAttributeFlags : long
     {
         None = 0,
     }

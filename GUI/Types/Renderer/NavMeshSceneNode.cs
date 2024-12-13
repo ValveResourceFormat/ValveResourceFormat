@@ -175,9 +175,9 @@ namespace GUI.Types.Renderer
                 return;
             }
 
-            if (navMeshFile.Metadata != null)
+            if (navMeshFile.GenerationParams != null)
             {
-                for (byte i = 0; i < navMeshFile.Metadata.HullCount; i++)
+                for (byte i = 0; i < navMeshFile.GenerationParams.HullCount; i++)
                 {
                     var hullAreas = navMeshFile.GetHullAreas(i);
                     if (hullAreas == null)
