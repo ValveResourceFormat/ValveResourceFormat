@@ -175,17 +175,20 @@ namespace GUI.Types.Renderer
                 return;
             }
 
-            for (byte i = 0; i < navMeshFile.Metadata.HullCount; i++)
+            if (navMeshFile.Metadata != null)
             {
-                var hullAreas = navMeshFile.GetHullAreas(i);
-                if (hullAreas == null)
+                for (byte i = 0; i < navMeshFile.Metadata.HullCount; i++)
                 {
-                    continue;
-                }
+                    var hullAreas = navMeshFile.GetHullAreas(i);
+                    if (hullAreas == null)
+                    {
+                        continue;
+                    }
 
-                var sceneNode = new NavMeshSceneNode(scene, hullAreas);
-                sceneNode.LayerName = $"Navigation mesh (hull {i})";
-                scene.Add(sceneNode, false);
+                    var sceneNode = new NavMeshSceneNode(scene, hullAreas);
+                    sceneNode.LayerName = $"Navigation mesh (hull {i})";
+                    scene.Add(sceneNode, false);
+                }
             }
 
             if (navMeshFile.Ladders != null && navMeshFile.Ladders.Length > 0)
