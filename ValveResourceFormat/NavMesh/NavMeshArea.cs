@@ -40,7 +40,7 @@ namespace ValveResourceFormat.NavMesh
             Debug.Assert(unkBytes[3] == 0);
             HullIndex = binaryReader.ReadByte();
 
-            if (navMeshFile.Version >= 35)
+            if (navMeshFile.Version >= 31)
             {
                 var polygonIndex = binaryReader.ReadUInt32();
                 Corners = polygons[polygonIndex];

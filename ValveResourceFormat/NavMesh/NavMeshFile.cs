@@ -1,3 +1,4 @@
+using System;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -163,7 +164,6 @@ namespace ValveResourceFormat.NavMesh
 
         public override string ToString()
         {
-            const string indentation = "\t";
             var stringBuilder = new StringBuilder();
 
             stringBuilder.AppendLine(CultureInfo.InvariantCulture, $"Version: {Version}");
@@ -197,11 +197,14 @@ namespace ValveResourceFormat.NavMesh
                 {
                     var hull = Metadata.HullData[i];
                     stringBuilder.AppendLine();
-                    if (Version >= 35)
+                    if (Version >= 31)
                     {
                         stringBuilder.AppendLine(CultureInfo.InvariantCulture, $"Hull {i} Enabled: {hull.AgentEnabled}");
                         stringBuilder.AppendLine(CultureInfo.InvariantCulture, $"Hull {i} Short Height Enabled: {hull.AgentShortHeightEnabled}");
                         stringBuilder.AppendLine(CultureInfo.InvariantCulture, $"Hull {i} Short Height: {hull.AgentShortHeight}");
+                    }
+                    if (Version >= 35)
+                    {
                         stringBuilder.AppendLine(CultureInfo.InvariantCulture, $"Hull {i} Border Erosion: {hull.AgentBorderErosion}");
                     }
 

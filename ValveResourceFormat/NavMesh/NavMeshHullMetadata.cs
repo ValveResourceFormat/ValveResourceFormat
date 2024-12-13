@@ -22,36 +22,29 @@ namespace ValveResourceFormat.NavMesh
 
         public void Read(BinaryReader binaryReader, NavMeshFile navMeshFile)
         {
-            if (navMeshFile.Version >= 35)
+            if (navMeshFile.Version >= 31)
             {
                 AgentEnabled = binaryReader.ReadByte() > 0;
+            }
 
-                AgentRadius = binaryReader.ReadSingle();
-                AgentHeight = binaryReader.ReadSingle();
-
+            AgentRadius = binaryReader.ReadSingle();
+            AgentHeight = binaryReader.ReadSingle();
+            if (navMeshFile.Version >= 31)
+            {
                 AgentShortHeightEnabled = binaryReader.ReadByte() > 0;
                 AgentShortHeight = binaryReader.ReadSingle();
-
-                AgentMaxClimb = binaryReader.ReadSingle();
-                AgentMaxSlope = binaryReader.ReadInt32();
-
-                AgentMaxJumpDownDist = binaryReader.ReadSingle();
-                AgentMaxJumpHorizDistBase = binaryReader.ReadSingle();
-                AgentMaxJumpUpDist = binaryReader.ReadSingle();
-
-                AgentBorderErosion = binaryReader.ReadInt32();
             }
-            else
+
+            AgentMaxClimb = binaryReader.ReadSingle();
+            AgentMaxSlope = binaryReader.ReadInt32();
+
+            AgentMaxJumpDownDist = binaryReader.ReadSingle();
+            AgentMaxJumpHorizDistBase = binaryReader.ReadSingle();
+            AgentMaxJumpUpDist = binaryReader.ReadSingle();
+
+            if (navMeshFile.Version >= 35)
             {
-                AgentRadius = binaryReader.ReadSingle();
-                AgentHeight = binaryReader.ReadSingle();
-
-                AgentMaxClimb = binaryReader.ReadSingle();
-                AgentMaxSlope = binaryReader.ReadInt32();
-
-                AgentMaxJumpDownDist = binaryReader.ReadSingle(); 
-                AgentMaxJumpHorizDistBase = binaryReader.ReadSingle();
-                AgentMaxJumpUpDist = binaryReader.ReadSingle();
+                AgentBorderErosion = binaryReader.ReadInt32();
             }
         }
     }
