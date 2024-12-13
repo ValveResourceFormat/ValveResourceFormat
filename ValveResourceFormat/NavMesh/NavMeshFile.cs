@@ -38,16 +38,22 @@ namespace ValveResourceFormat.NavMesh
 
         public void Read(BinaryReader binaryReader)
         {
-            Areas = [];
-            HullAreas.Clear();
-
             var magic = binaryReader.ReadUInt32();
             if (magic != MAGIC)
             {
                 throw new UnexpectedMagicException($"Unexpected magic, expected {MAGIC:X}", magic, nameof(magic));
             }
 
-            Version = binaryReader.ReadUInt32();
+            var version = binaryReader.ReadUInt32();
+            if (version != 30 && version != 35)
+            {
+                throw new UnexpectedMagicException("Unsupported nav version", version, nameof(version));
+            }
+
+            Areas = [];
+            HullAreas.Clear();
+
+            Version = version;
             SubVersion = binaryReader.ReadUInt32();
             IsAnalyzed = binaryReader.ReadUInt32() != 0;
 
