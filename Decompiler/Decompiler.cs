@@ -107,7 +107,7 @@ namespace Decompiler
         /// <param name="gltf_textures_adapt">Whether to perform any glTF spec adaptations on textures (e.g. split metallic map).</param>
         /// <param name="gltf_export_extras">Export additional Mesh properties into glTF extras</param>
         /// <param name="tools_asset_info_short">Whether to print only file paths for tools_asset_info files.</param>
-        /// <param name="stats">Collect stats on all input files and then print them.</param>
+        /// <param name="stats">Collect stats on all input files and then print them. Use "-i steam" to scan all Steam libraries.</param>
         /// <param name="stats_print_files">When using --stats, print example file names for each stat.</param>
         /// <param name="stats_unique_deps">When using --stats, print all unique dependencies that were found.</param>
         /// <param name="stats_particles">When using --stats, collect particle operators, renderers, emitters, initializers.</param>
@@ -148,7 +148,7 @@ namespace Decompiler
             bool dump_unknown_entity_keys = false
         )
         {
-            InputFile = Path.GetFullPath(input);
+            InputFile = stats && input.Equals("steam", StringComparison.OrdinalIgnoreCase) ? "steam" : Path.GetFullPath(input);
             OutputFile = output;
             Decompile = decompile;
             TextureDecodeFlags = Enum.Parse<TextureCodec>(texture_decode_flags, true);
@@ -237,53 +237,10 @@ namespace Decompiler
 
                 IsInputFolder = true;
 
-                var dirs = Directory
-                    .EnumerateFiles(InputFile, "*.*", RecursiveSearch ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly)
-                    .Where(s =>
-                    {
-                        if (ExtFilterList != null)
-                        {
-                            foreach (var ext in ExtFilterList)
-                            {
-                                if (s.EndsWith(ext, StringComparison.Ordinal))
-                                {
-                                    return true;
-                                }
-                            }
+                var dirs = FindPathsToProcessInFolder(InputFile);
 
-                            return false;
-                        }
-
-                        return s.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal) || s.EndsWith(".vcs", StringComparison.Ordinal);
-                    })
-                    .ToList();
-
-                if (RecursiveSearchArchives)
+                if (dirs == null)
                 {
-                    if (!RecursiveSearch)
-                    {
-                        Console.Error.WriteLine("Option --recursive_vpk must be specified with --recursive.");
-
-                        return 1;
-                    }
-
-                    var vpkRegex = VpkArchiveIndexRegex();
-                    var vpks = Directory
-                        .EnumerateFiles(InputFile, "*.vpk", SearchOption.AllDirectories)
-                        .Where(s => !vpkRegex.IsMatch(s));
-
-                    dirs.AddRange(vpks);
-                }
-
-                if (dirs.Count == 0)
-                {
-                    Console.Error.WriteLine($"Unable to find any \"_c\" compiled files in \"{InputFile}\" folder.");
-
-                    if (!RecursiveSearch)
-                    {
-                        Console.Error.WriteLine("Perhaps you should specify --recursive option to scan the input folder recursively.");
-                    }
-
                     return 1;
                 }
 
@@ -307,6 +264,28 @@ namespace Decompiler
                 }
 
                 paths.Add(InputFile);
+            }
+            else if (InputFile == "steam")
+            {
+                IsInputFolder = true;
+
+                var steamPaths = GameFolderLocator.FindSteamLibraryFolderPaths();
+
+                foreach (var path in steamPaths)
+                {
+                    var dirs = FindPathsToProcessInFolder(path);
+
+                    if (dirs != null)
+                    {
+                        paths.AddRange(dirs);
+                    }
+                }
+
+                if (paths.Count == 0)
+                {
+                    Console.Error.WriteLine("Did not find any Steam libraries.");
+                    return 1;
+                }
             }
             else
             {
@@ -392,6 +371,61 @@ namespace Decompiler
             }
 
             return 0;
+        }
+
+        private List<string> FindPathsToProcessInFolder(string path)
+        {
+            var paths = Directory
+                .EnumerateFiles(path, "*.*", RecursiveSearch ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly)
+                .Where(s =>
+                {
+                    if (ExtFilterList != null)
+                    {
+                        foreach (var ext in ExtFilterList)
+                        {
+                            if (s.EndsWith(ext, StringComparison.Ordinal))
+                            {
+                                return true;
+                            }
+                        }
+
+                        return false;
+                    }
+
+                    return s.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal) || s.EndsWith(".vcs", StringComparison.Ordinal);
+                })
+                .ToList();
+
+            if (RecursiveSearchArchives)
+            {
+                if (!RecursiveSearch)
+                {
+                    Console.Error.WriteLine("Option --recursive_vpk must be specified with --recursive.");
+
+                    return null;
+                }
+
+                var vpkRegex = VpkArchiveIndexRegex();
+                var vpks = Directory
+                    .EnumerateFiles(path, "*.vpk", SearchOption.AllDirectories)
+                    .Where(s => !vpkRegex.IsMatch(s));
+
+                paths.AddRange(vpks);
+            }
+
+            if (paths.Count == 0)
+            {
+                Console.Error.WriteLine($"Unable to find any \"_c\" compiled files in \"{path}\" folder.");
+
+                if (!RecursiveSearch)
+                {
+                    Console.Error.WriteLine("Perhaps you should specify --recursive option to scan the input folder recursively.");
+                }
+
+                return null;
+            }
+
+            return paths;
         }
 
         private void ProcessFile(string path)
