@@ -27,8 +27,8 @@ namespace ValveResourceFormat.NavMesh
 
         public float SmallAreaOnEdgeRemoval { get; set; }
 
-        public string UnkString1 { get; set; } //agent hull preset name?
-        public string UnkString2 { get; set; }
+        public string HullPresetName { get; set; }
+        public string HullDefinitionsFile { get; set; }
         public int HullCount { get; set; }
         public NavMeshHullMetadata[] HullData { get; set; }
         public byte UnkByte3 { get; set; }
@@ -64,8 +64,8 @@ namespace ValveResourceFormat.NavMesh
 
             if (navMeshFile.Version >= 35)
             {
-                UnkString1 = binaryReader.ReadNullTermString(Encoding.UTF8);
-                UnkString2 = binaryReader.ReadNullTermString(Encoding.UTF8);
+                HullPresetName = binaryReader.ReadNullTermString(Encoding.UTF8);
+                HullDefinitionsFile = binaryReader.ReadNullTermString(Encoding.UTF8);
             }
 
             HullCount = binaryReader.ReadInt32();

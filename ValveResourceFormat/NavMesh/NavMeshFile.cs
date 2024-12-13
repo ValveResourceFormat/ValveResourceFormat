@@ -187,6 +187,12 @@ namespace ValveResourceFormat.NavMesh
                 stringBuilder.AppendLine(CultureInfo.InvariantCulture, $"Verts Per Poly: {Metadata.VertsPerPoly}");
                 stringBuilder.AppendLine(CultureInfo.InvariantCulture, $"Small Area On Edge Removal: {Metadata.SmallAreaOnEdgeRemoval}");
 
+                if (Version >= 35)
+                {
+                    stringBuilder.AppendLine(CultureInfo.InvariantCulture, $"Hull Preset Name: {Metadata.HullPresetName}");
+                    stringBuilder.AppendLine(CultureInfo.InvariantCulture, $"Hull Definitions File: {Metadata.HullDefinitionsFile}");
+                }
+
                 for (var i = 0; i < Metadata.HullCount; i++)
                 {
                     var hull = Metadata.HullData[i];
