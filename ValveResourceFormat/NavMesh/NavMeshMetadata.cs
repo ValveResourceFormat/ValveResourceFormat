@@ -36,8 +36,11 @@ namespace ValveResourceFormat.NavMesh
         public void Read(BinaryReader binaryReader, NavMeshFile navMeshFile)
         {
             UnkInt1 = binaryReader.ReadInt32();
+            Debug.Assert(UnkInt1 == 0);
             UnkInt2 = binaryReader.ReadInt32();
+            Debug.Assert((navMeshFile.Version == 30 && UnkInt2 == 7) || (navMeshFile.Version == 31 && UnkInt2 == 9) || (navMeshFile.Version == 35 && UnkInt2 == 12));
             UnkInt3 = binaryReader.ReadInt32();
+            Debug.Assert(UnkInt3 == 1);
 
             //Tiles
             TileSize = binaryReader.ReadSingle();

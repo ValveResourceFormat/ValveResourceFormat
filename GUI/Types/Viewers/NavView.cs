@@ -48,10 +48,10 @@ namespace GUI.Types.Viewers
             {
                 var subVersionPage = new TabPage("NAV SUBVERSION DATA");
 
-
                 var kv = new KV3File(navMeshFile.SubVersionData);
                 var subVersionDataText = kv.ToString();
                 var subVersionDataTextControl = new CodeTextBox(subVersionDataText, CodeTextBox.HighlightLanguage.None);
+
                 subVersionPage.Controls.Add(subVersionDataTextControl);
                 tabControl.Controls.Add(subVersionPage);
             }
