@@ -472,7 +472,9 @@ namespace ValveResourceFormat.Serialization.KeyValues
                     "subclass" => KVFlag.SubClass,
                     _ => throw new InvalidDataException("Unknown flag " + strings[0]),
                 };
-                parser.ObjStack.Peek().AddProperty(parser.CurrentName, new KVFlaggedValue(KVType.STRING, flag, strings[1][1..^1]));
+                //If flagged value is in the array, it needs to include a comma
+                var end = parser.StateStack.Peek() == State.VALUE_ARRAY ? 2 : 1;
+                parser.ObjStack.Peek().AddProperty(parser.CurrentName, new KVFlaggedValue(KVType.STRING, flag, strings[1][1..^end]));
                 return;
             }
 
