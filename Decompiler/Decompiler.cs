@@ -886,25 +886,53 @@ namespace Decompiler
             {
                 Console.WriteLine("--- Dumping decompiled files...");
 
+                const string CachedManifestVersionPrefix = "// s2v_version=";
                 var manifestPath = string.Concat(path, ".manifest.txt");
                 var manifestData = new Dictionary<string, uint>();
 
                 if (CachedManifest && File.Exists(manifestPath))
                 {
-                    var file = new StreamReader(manifestPath);
+                    using var file = new StreamReader(manifestPath);
                     string line;
+                    var firstLine = true;
+                    var goodCachedVersion = false;
 
+                    // add version
                     while ((line = file.ReadLine()) != null)
                     {
-                        var split = line.Split([' '], 2);
+                        var lineSpan = line.AsSpan();
 
-                        if (split.Length == 2)
+                        if (firstLine)
                         {
-                            manifestData.Add(split[1], uint.Parse(split[0], CultureInfo.InvariantCulture));
+                            firstLine = false;
+
+                            if (lineSpan.StartsWith(CachedManifestVersionPrefix))
+                            {
+                                var oldVersion = lineSpan[CachedManifestVersionPrefix.Length..];
+                                var newVersion = typeof(Decompiler).Assembly.GetName().Version.ToString();
+
+                                goodCachedVersion = oldVersion.SequenceEqual(newVersion);
+
+                                if (!goodCachedVersion)
+                                {
+                                    break;
+                                }
+                            }
+                        }
+
+                        var space = lineSpan.IndexOf(' ');
+
+                        if (space > 0 && uint.TryParse(lineSpan[..space], CultureInfo.InvariantCulture, out var hash))
+                        {
+                            manifestData.Add(lineSpan[(space + 1)..].ToString(), hash);
                         }
                     }
 
-                    file.Close();
+                    if (!goodCachedVersion)
+                    {
+                        Console.Error.WriteLine("Decompiler version changed, cached manifest will be ignored.");
+                        manifestData.Clear();
+                    }
                 }
 
                 using var fileLoader = new GameFileLoader(package, package.FileName);
@@ -918,6 +946,8 @@ namespace Decompiler
                 {
                     using var file = new StreamWriter(manifestPath);
 
+                    file.WriteLine($"{CachedManifestVersionPrefix}{typeof(Decompiler).Assembly.GetName().Version}");
+
                     foreach (var hash in manifestData)
                     {
                         if (package.FindEntry(hash.Key) == null)
@@ -925,7 +955,7 @@ namespace Decompiler
                             Console.WriteLine("\t{0} no longer exists in VPK", hash.Key);
                         }
 
-                        file.WriteLine("{0} {1}", hash.Value, hash.Key);
+                        file.WriteLine($"{hash.Value} {hash.Key}");
                     }
                 }
             }
