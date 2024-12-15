@@ -34,7 +34,6 @@ namespace ValveResourceFormat.NavMesh
         public void Read(BinaryReader binaryReader, NavMeshFile navMeshFile)
         {
             NavGenVersion = binaryReader.ReadInt32();
-            Debug.Assert((navMeshFile.Version == 30 && NavGenVersion == 7) || (navMeshFile.Version == 31 && NavGenVersion == 9) || (navMeshFile.Version == 35 && NavGenVersion == 12));
             UseProjectDefaults = binaryReader.ReadUInt32() != 0;
 
             //Tiles
@@ -57,8 +56,11 @@ namespace ValveResourceFormat.NavMesh
             MaxEdgeError = binaryReader.ReadSingle();
             VertsPerPoly = binaryReader.ReadInt32();
 
-            //Processing params
-            SmallAreaOnEdgeRemoval = binaryReader.ReadSingle();
+            if (NavGenVersion >= 7)
+            {
+                //Processing params
+                SmallAreaOnEdgeRemoval = binaryReader.ReadSingle();
+            }
 
             if (NavGenVersion >= 12)
             {
@@ -71,17 +73,17 @@ namespace ValveResourceFormat.NavMesh
             for (var i = 0; i < HullCount; i++)
             {
                 var hullParamsEntry = new NavMeshGenerationHullParams();
-                hullParamsEntry.Read(binaryReader, navMeshFile);
+                hullParamsEntry.Read(binaryReader, this);
                 HullParams[i] = hullParamsEntry;
             }
 
-            if (NavGenVersion <= 7)
+            if (NavGenVersion <= 11)
             {
-                //Version 30 seems to store 3 hulls even if less are used (citadel start.nav)
+                //Version <=11 stores 3 hulls even if less are used (citadel start.nav)
                 var tempHullParams = new NavMeshGenerationHullParams();
                 for (var i = HullCount; i < 3; i++)
                 {
-                    tempHullParams.Read(binaryReader, navMeshFile);
+                    tempHullParams.Read(binaryReader, this);
                 }
             }
 

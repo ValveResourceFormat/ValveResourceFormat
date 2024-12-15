@@ -20,16 +20,16 @@ namespace ValveResourceFormat.NavMesh
         public float MaxJumpUpDist { get; set; }
         public int BorderErosion { get; set; }
 
-        public void Read(BinaryReader binaryReader, NavMeshFile navMeshFile)
+        public void Read(BinaryReader binaryReader, NavMeshGenerationParams generationParams)
         {
-            if (navMeshFile.Version >= 31)
+            if (generationParams.NavGenVersion >= 9)
             {
                 Enabled = binaryReader.ReadByte() > 0;
             }
 
             Radius = binaryReader.ReadSingle();
             Height = binaryReader.ReadSingle();
-            if (navMeshFile.Version >= 31)
+            if (generationParams.NavGenVersion >= 9)
             {
                 ShortHeightEnabled = binaryReader.ReadByte() > 0;
                 ShortHeight = binaryReader.ReadSingle();
@@ -42,7 +42,7 @@ namespace ValveResourceFormat.NavMesh
             MaxJumpHorizDistBase = binaryReader.ReadSingle();
             MaxJumpUpDist = binaryReader.ReadSingle();
 
-            if (navMeshFile.Version >= 35)
+            if (generationParams.NavGenVersion >= 11)
             {
                 BorderErosion = binaryReader.ReadInt32();
             }

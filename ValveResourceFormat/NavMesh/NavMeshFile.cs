@@ -54,20 +54,26 @@ namespace ValveResourceFormat.NavMesh
 
             Version = version;
             SubVersion = binaryReader.ReadUInt32();
-            IsAnalyzed = binaryReader.ReadUInt32() != 0;
+
+            var unk1 = binaryReader.ReadUInt32();
+            IsAnalyzed = (unk1 & 0x00000001) > 0;
 
             Vector3[][] polygons = null;
-            if (Version >= 35)
+            if (Version >= 31)
             {
                 polygons = ReadPolygons(binaryReader);
             }
 
-            if (Version >= 31)
+            if (Version >= 32)
             {
-                var unk1 = binaryReader.ReadUInt32();
-                Debug.Assert(unk1 == 0);
                 var unk2 = binaryReader.ReadUInt32();
                 Debug.Assert(unk2 == 0);
+            }
+
+            if (Version >= 35)
+            {
+                var unk3 = binaryReader.ReadUInt32();
+                Debug.Assert(unk3 == 0);
             }
 
             var areaCount = binaryReader.ReadUInt32();
@@ -89,7 +95,6 @@ namespace ValveResourceFormat.NavMesh
 
             var unkCount = binaryReader.ReadInt32();
             var unkFloats = new float[unkCount * 6 * 3];
-            Debug.Assert(unkCount == 0);
             for (var i = 0; i < unkFloats.Length; i++)
             {
                 unkFloats[i] = binaryReader.ReadSingle();
@@ -115,7 +120,7 @@ namespace ValveResourceFormat.NavMesh
             Debug.Assert(binaryReader.BaseStream.Position == binaryReader.BaseStream.Length);
         }
 
-        private static Vector3[][] ReadPolygons(BinaryReader binaryReader)
+        private Vector3[][] ReadPolygons(BinaryReader binaryReader)
         {
             var cornerCount = binaryReader.ReadUInt32();
             var corners = new Vector3[cornerCount];
@@ -133,7 +138,7 @@ namespace ValveResourceFormat.NavMesh
             return polygons;
         }
 
-        private static Vector3[] ReadPolygon(BinaryReader binaryReader, Vector3[] corners)
+        private Vector3[] ReadPolygon(BinaryReader binaryReader, Vector3[] corners)
         {
             var cornerCount = binaryReader.ReadByte();
 
@@ -143,8 +148,11 @@ namespace ValveResourceFormat.NavMesh
                 var cornerIndex = binaryReader.ReadUInt32();
                 polygon[i] = corners[cornerIndex];
             }
-            var unk = binaryReader.ReadInt32();
-            Debug.Assert(unk == -1);
+            if (Version >= 35)
+            {
+                var unk = binaryReader.ReadInt32();
+                Debug.Assert(unk == -1);
+            }
             return polygon;
         }
 
@@ -197,9 +205,13 @@ namespace ValveResourceFormat.NavMesh
                 stringBuilder.AppendLine(CultureInfo.InvariantCulture, $"Max Edge Length: {GenerationParams.MaxEdgeLength}");
                 stringBuilder.AppendLine(CultureInfo.InvariantCulture, $"Max Edge Error: {GenerationParams.MaxEdgeError}");
                 stringBuilder.AppendLine(CultureInfo.InvariantCulture, $"Verts Per Poly: {GenerationParams.VertsPerPoly}");
-                stringBuilder.AppendLine(CultureInfo.InvariantCulture, $"Small Area On Edge Removal: {GenerationParams.SmallAreaOnEdgeRemoval}");
 
-                if (Version >= 35)
+                if (GenerationParams.NavGenVersion >= 7)
+                {
+                    stringBuilder.AppendLine(CultureInfo.InvariantCulture, $"Small Area On Edge Removal: {GenerationParams.SmallAreaOnEdgeRemoval}");
+                }
+
+                if (GenerationParams.NavGenVersion >= 12)
                 {
                     stringBuilder.AppendLine(CultureInfo.InvariantCulture, $"Hull Preset Name: {GenerationParams.HullPresetName}");
                     stringBuilder.AppendLine(CultureInfo.InvariantCulture, $"Hull Definitions File: {GenerationParams.HullDefinitionsFile}");
@@ -209,13 +221,13 @@ namespace ValveResourceFormat.NavMesh
                 {
                     var hull = GenerationParams.HullParams[i];
                     stringBuilder.AppendLine();
-                    if (Version >= 31)
+                    if (GenerationParams.NavGenVersion >= 9)
                     {
                         stringBuilder.AppendLine(CultureInfo.InvariantCulture, $"Hull {i} Enabled: {hull.Enabled}");
                         stringBuilder.AppendLine(CultureInfo.InvariantCulture, $"Hull {i} Short Height Enabled: {hull.ShortHeightEnabled}");
                         stringBuilder.AppendLine(CultureInfo.InvariantCulture, $"Hull {i} Short Height: {hull.ShortHeight}");
                     }
-                    if (Version >= 35)
+                    if (GenerationParams.NavGenVersion >= 11)
                     {
                         stringBuilder.AppendLine(CultureInfo.InvariantCulture, $"Hull {i} Border Erosion: {hull.BorderErosion}");
                     }
