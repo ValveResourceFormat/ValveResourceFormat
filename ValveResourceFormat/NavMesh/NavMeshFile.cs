@@ -81,11 +81,7 @@ namespace ValveResourceFormat.NavMesh
             ReadLadders(binaryReader);
 
             var unkCount = binaryReader.ReadInt32();
-            var unkFloats = new float[unkCount * 6 * 3];
-            for (var i = 0; i < unkFloats.Length; i++)
-            {
-                unkFloats[i] = binaryReader.ReadSingle();
-            }
+            binaryReader.BaseStream.Position += sizeof(float) * unkCount * 18; //seem to be vector3s
 
             GenerationParams = new NavMeshGenerationParams();
             GenerationParams.Read(binaryReader, this);
