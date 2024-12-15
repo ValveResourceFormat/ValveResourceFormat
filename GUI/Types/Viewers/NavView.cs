@@ -1,9 +1,9 @@
 using System.IO;
+using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Utils;
-using System.Windows.Forms;
-using ValveResourceFormat.NavMesh;
 using GUI.Types.Renderer;
+using ValveResourceFormat.NavMesh;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace GUI.Types.Viewers
