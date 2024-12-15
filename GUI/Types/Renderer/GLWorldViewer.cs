@@ -216,6 +216,8 @@ namespace GUI.Types.Renderer
                 var uniqueWorldLayers = new HashSet<string>(4);
                 var uniquePhysicsGroups = new HashSet<string>();
 
+                NavMeshSceneNode.AddNavNodesToScene(result.NavMesh, Scene);
+
                 foreach (var node in Scene.AllNodes)
                 {
                     uniqueWorldLayers.Add(node.LayerName);

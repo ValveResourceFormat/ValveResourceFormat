@@ -208,6 +208,7 @@ namespace GUI.Types.PackageViewer
             control.Dock = DockStyle.Fill;
             control.ImageList = MainForm.ImageList;
             control.BeforeExpand += Control_BeforeExpand;
+            control.AfterExpand += Control_AfterExpand;
             control.ShowRootLines = false;
 
             control.GenerateIconList([.. vrfGuiContext.CurrentPackage.Entries.Keys]);
@@ -254,6 +255,13 @@ namespace GUI.Types.PackageViewer
             var node = (BetterTreeNode)e.Node;
             CreateNodes(node);
 
+            mainTreeView.EndUpdate();
+        }
+
+        private void Control_AfterExpand(object sender, TreeViewEventArgs e)
+        {
+            var node = (BetterTreeNode)e.Node;
+
             // If the folder we just expanded contains a single folder, expand it too.
             if (node.Nodes.Count == 1)
             {
@@ -264,8 +272,6 @@ namespace GUI.Types.PackageViewer
                     node.Expand();
                 }
             }
-
-            mainTreeView.EndUpdate();
         }
 
         private void CreateNodes(BetterTreeNode realNode)

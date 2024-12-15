@@ -34,6 +34,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
         UNKNOWN_22 = 22,
         INT32_AS_BYTE = 23,
         ARRAY_TYPE_BYTE_LENGTH = 24,
+        ARRAY_TYPE_AUXILIARY_BUFFER = 25,
     }
 
     /// <summary>
@@ -97,10 +98,10 @@ namespace ValveResourceFormat.Serialization.KeyValues
                     writer.Write((bool)Value ? "true" : "false");
                     break;
                 case KVType.FLOAT:
-                    writer.Write(((float)Value).ToString("#0.000000", CultureInfo.InvariantCulture));
+                    writer.Write(Convert.ToSingle(Value, CultureInfo.InvariantCulture).ToString("#0.000000", CultureInfo.InvariantCulture));
                     break;
                 case KVType.DOUBLE:
-                    writer.Write(((double)Value).ToString("#0.000000", CultureInfo.InvariantCulture));
+                    writer.Write(Convert.ToDouble(Value, CultureInfo.InvariantCulture).ToString("#0.000000", CultureInfo.InvariantCulture));
                     break;
                 case KVType.INT64:
                     writer.Write(Convert.ToInt64(Value, CultureInfo.InvariantCulture));

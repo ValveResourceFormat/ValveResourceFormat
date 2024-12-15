@@ -720,9 +720,11 @@ namespace ValveResourceFormat.Blocks
             {
                 DXGI_FORMAT.R32G32B32_FLOAT => (4, 3),
                 DXGI_FORMAT.R32G32B32A32_FLOAT => (4, 4),
+                DXGI_FORMAT.R32G32B32A32_SINT => (4, 4),
                 DXGI_FORMAT.R16G16_UNORM => (2, 2),
                 DXGI_FORMAT.R16G16_SNORM => (2, 2),
                 DXGI_FORMAT.R16G16_FLOAT => (2, 2),
+                DXGI_FORMAT.R16G16B16A16_UINT => (2, 4),
                 DXGI_FORMAT.R32_FLOAT => (4, 1),
                 DXGI_FORMAT.R32_UINT => (4, 1),
                 DXGI_FORMAT.R32G32_FLOAT => (4, 2),
@@ -733,18 +735,6 @@ namespace ValveResourceFormat.Blocks
                 DXGI_FORMAT.R8G8B8A8_UNORM => (1, 4),
                 _ => throw new NotImplementedException($"Unsupported \"{attribute.SemanticName}\" DXGI_FORMAT.{attribute.Format}"),
             };
-        }
-
-        public static int[] CombineRemapTables(int[][] remapTables)
-        {
-            remapTables = remapTables.Where(remapTable => remapTable.Length != 0).ToArray();
-            var newRemapTable = remapTables[0].AsEnumerable();
-            for (var i = 1; i < remapTables.Length; i++)
-            {
-                var remapTable = remapTables[i];
-                newRemapTable = newRemapTable.Select(j => j != -1 ? remapTable[j] : -1);
-            }
-            return newRemapTable.ToArray();
         }
 
         public VBIB RemapBoneIndices(int[] remapTable)

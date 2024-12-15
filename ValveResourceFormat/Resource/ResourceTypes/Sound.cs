@@ -207,6 +207,7 @@ namespace ValveResourceFormat.ResourceTypes
             switch (sound.GetStringProperty("m_nFormat"))
             {
                 case "MP3": SetSoundFormatBits(AudioFormatV4.MP3); break;
+                case "PCM8": SetSoundFormatBits(AudioFormatV4.PCM8); break;
                 case "PCM16": SetSoundFormatBits(AudioFormatV4.PCM16); break;
 
                 default:
@@ -316,6 +317,11 @@ namespace ValveResourceFormat.ResourceTypes
         /// <returns>Byte array containing sound data.</returns>
         public byte[] GetSound()
         {
+            if (StreamingDataSize == 0)
+            {
+                return [];
+            }
+
             using var sound = GetSoundStream();
             return sound.ToArray();
         }
@@ -327,6 +333,11 @@ namespace ValveResourceFormat.ResourceTypes
         /// <returns>Memory stream containing sound data.</returns>
         public MemoryStream GetSoundStream()
         {
+            if (StreamingDataSize == 0)
+            {
+                return new MemoryStream();
+            }
+
             Reader.BaseStream.Position = Offset + Size;
 
             const int WaveHeaderSize = 44;

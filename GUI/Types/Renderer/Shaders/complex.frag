@@ -485,7 +485,7 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
     #endif
 
     // Normals and Roughness
-    #if defined(generic_vfx) || defined(crystal_vfx) || defined(vr_standard_vfx)
+    #if defined(generic_vfx) || defined(crystal_vfx) || defined(vr_standard_vfx) || defined(vr_eyeball_vfx)
         mat.NormalMap = DecodeDxt5Normal(normalTexture);
     #else
         mat.NormalMap = DecodeHemiOctahedronNormal(normalTexture.rg);

@@ -15,7 +15,7 @@ namespace GUI.Types.Audio
         {
             var soundData = (Sound)resource.DataBlock;
 
-            if (soundData == null)
+            if (soundData == null || soundData.StreamingDataSize == 0)
             {
                 return;
             }

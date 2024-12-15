@@ -1,6 +1,5 @@
 using System.Buffers;
 using System.Globalization;
-using System.IO;
 using System.Reflection;
 using SkiaSharp;
 
@@ -20,18 +19,16 @@ public static class MapAutoPhysTextureGenerator
         using var canvas = new SKCanvas(bitmap);
         canvas.Clear(backgroundColor);
 
+        using var font = new SKFont(typeface, size: 16);
         using var textPaint = new SKPaint
         {
             Color = textColor,
-            TextSize = 16,
-            TextAlign = SKTextAlign.Center,
             IsAntialias = true,
-            Typeface = typeface,
         };
 
-        var lines = BreakLines($"S2V\nAUTOPHYS\n{surfaceName.ToUpper(CultureInfo.InvariantCulture)}", textPaint, bitmap.Width);
+        var lines = BreakLines($"S2V\nAUTOPHYS\n{surfaceName.ToUpper(CultureInfo.InvariantCulture)}", font, textPaint, bitmap.Width);
 
-        var metrics = textPaint.FontMetrics;
+        var metrics = font.Metrics;
         var lineHeight = metrics.Bottom - metrics.Top;
         var textHeight = lines.Count * lineHeight - metrics.Leading;
 
@@ -46,14 +43,14 @@ public static class MapAutoPhysTextureGenerator
             }
 
             var line = lines[i];
-            canvas.DrawText(line, textX, textY, textPaint);
+            canvas.DrawText(line, textX, textY, SKTextAlign.Center, font, textPaint);
             textY += lineHeight;
         }
 
         return bitmap;
     }
 
-    private static List<string> BreakLines(ReadOnlySpan<char> text, SKPaint paint, float width)
+    private static List<string> BreakLines(ReadOnlySpan<char> text, SKFont font, SKPaint paint, float width)
     {
         var breaks = SearchValues.Create([' ', '_']);
         var lines = new List<string>(6);
@@ -73,7 +70,7 @@ public static class MapAutoPhysTextureGenerator
                 continue;
             }
 
-            var lengthBreak = (int)paint.BreakText(text, width);
+            var lengthBreak = font.BreakText(text, width, paint);
 
             if (lengthBreak < text.Length)
             {

@@ -174,6 +174,9 @@ namespace GUI.Controls
             gamePathsToScan.Sort(static (a, b) => a.AppID - b.AppID);
 
             var checkedDirVpks = new Dictionary<string, bool>();
+            var libraryCachePath = Path.Join(steam, "appcache", "librarycache");
+            var libraryAssetsParsed = false;
+            KVDocument libraryAssetsKv = null;
 
             bool VpkPredicate(ref FileSystemEntry entry)
             {
@@ -308,15 +311,56 @@ namespace GUI.Controls
 
                     try
                     {
-                        var appIconPath = Path.Join(steam, "appcache", "librarycache", $"{appID}_icon.jpg");
-                        using var appIcon = GetAppResizedImage(appIconPath);
+                        var appIconPath = Path.Join(libraryCachePath, $"{appID}_icon.jpg");
 
-                        InvokeWorkaround(() =>
+                        if (!File.Exists(appIconPath))
                         {
-                            treeView.ImageList.Images.Add(imageKey, appIcon);
-                        });
+                            appIconPath = null;
 
-                        treeNodeImage = treeView.ImageList.Images.IndexOfKey(imageKey);
+                            if (!libraryAssetsParsed)
+                            {
+                                libraryAssetsParsed = true;
+
+                                try
+                                {
+                                    using var stream = File.OpenRead(Path.Join(steam, "appcache", "librarycache", "assets.vdf"));
+                                    libraryAssetsKv = KVSerializer.Create(KVSerializationFormat.KeyValues1Binary).Deserialize(stream);
+                                }
+                                catch (FileNotFoundException)
+                                {
+                                    //
+                                }
+                            }
+
+                            if (libraryAssetsKv != null)
+                            {
+                                // Find the actual icon filename in the assets cache, there are keys like "0f" "1f" etc, which appears to be an enum.
+                                var appIDStr = appID.ToString(CultureInfo.InvariantCulture);
+                                var filename = libraryAssetsKv["0"]?[appIDStr]?["4f"];
+
+                                if (filename != null)
+                                {
+                                    appIconPath = Path.Join(libraryCachePath, appIDStr, filename.ToString());
+
+                                    if (!File.Exists(appIconPath))
+                                    {
+                                        appIconPath = null;
+                                    }
+                                }
+                            }
+                        }
+
+                        if (appIconPath != null)
+                        {
+                            using var appIcon = GetAppResizedImage(appIconPath);
+
+                            InvokeWorkaround(() =>
+                            {
+                                treeView.ImageList.Images.Add(imageKey, appIcon);
+                            });
+
+                            treeNodeImage = treeView.ImageList.Images.IndexOfKey(imageKey);
+                        }
                     }
                     catch (Exception)
                     {
