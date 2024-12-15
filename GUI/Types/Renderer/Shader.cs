@@ -130,6 +130,15 @@ namespace GUI.Types.Renderer
             }
         }
 
+        public void SetBoneAnimationData(bool animated, int boneOffset = 0, int boneCount = 0, int weightCount = 0)
+        {
+            var uniformLocation = GetUniformLocation("iAnimationData");
+            if (uniformLocation > -1)
+            {
+                GL.ProgramUniform4(Program, uniformLocation, animated ? 1u : 0u, (uint)boneOffset, (uint)boneCount, (uint)weightCount);
+            }
+        }
+
         public void SetUniform4Array(string name, int count, float[] value)
         {
             var uniformLocation = GetUniformLocation(name);

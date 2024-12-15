@@ -747,6 +747,10 @@ namespace GUI
             {
                 return new Types.Viewers.FlexSceneFile().Create(vrfGuiContext, stream);
             }
+            else if (Types.Viewers.NavView.IsAccepted(magic))
+            {
+                return new Types.Viewers.NavView().Create(vrfGuiContext, stream);
+            }
 
             return new Types.Viewers.ByteViewer().Create(vrfGuiContext, stream);
         }

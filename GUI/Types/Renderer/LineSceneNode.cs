@@ -43,7 +43,7 @@ namespace GUI.Types.Renderer
             GL.UseProgram(renderShader.Program);
 
             renderShader.SetUniform4x4("transform", Transform);
-            renderShader.SetUniform1("bAnimated", 0.0f);
+            renderShader.SetBoneAnimationData(false);
             renderShader.SetUniform1("sceneObjectId", Id);
 
             GL.BindVertexArray(vaoHandle);

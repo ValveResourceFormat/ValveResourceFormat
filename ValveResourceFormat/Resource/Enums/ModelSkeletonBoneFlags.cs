@@ -25,5 +25,7 @@ namespace ValveResourceFormat
         BlendPrealigned = 0x100000,
         RigidLength = 0x200000,
         Procedural = 0x400000,
+
+        ProceduralCloth = Cloth | Procedural, // Added by VRF
     }
 }

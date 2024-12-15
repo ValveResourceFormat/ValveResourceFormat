@@ -105,7 +105,22 @@ namespace GUI.Types.Renderer
 
         public override void Render(Scene.RenderContext context)
         {
-            if (!Enabled || context.RenderPass != RenderPass.AfterOpaque)
+            if (!Enabled)
+            {
+                return;
+            }
+
+            if (context.RenderPass == RenderPass.Translucent)
+            {
+                foreach (var text in TextCalls)
+                {
+                    textRenderer.RenderTextBillboard(context.View.Camera, text.Position, 3f, Vector4.One, text.String, center: false);
+                }
+
+                return;
+            }
+
+            if (context.RenderPass != RenderPass.AfterOpaque)
             {
                 return;
             }
@@ -116,7 +131,7 @@ namespace GUI.Types.Renderer
             GL.UseProgram(renderShader.Program);
 
             renderShader.SetUniform4x4("transform", Transform);
-            renderShader.SetUniform1("bAnimated", 0.0f);
+            renderShader.SetBoneAnimationData(false);
             renderShader.SetUniform1("sceneObjectId", Id);
 
             GL.BindVertexArray(vaoHandle);
@@ -125,11 +140,6 @@ namespace GUI.Types.Renderer
             GL.UseProgram(0);
             GL.BindVertexArray(0);
             GL.DepthFunc(DepthFunction.Greater);
-
-            foreach (var text in TextCalls)
-            {
-                textRenderer.RenderTextBillboard(context.View.Camera, text.Position, 3f, Vector4.One, text.String, center: false);
-            }
         }
     }
 }

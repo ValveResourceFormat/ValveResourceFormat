@@ -14,6 +14,7 @@ using SteamDatabase.ValvePak;
 using ValveResourceFormat;
 using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.IO;
+using ValveResourceFormat.NavMesh;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.TextureDecoders;
 using ValveResourceFormat.ToolsAssetInfo;
@@ -107,7 +108,7 @@ namespace Decompiler
         /// <param name="gltf_textures_adapt">Whether to perform any glTF spec adaptations on textures (e.g. split metallic map).</param>
         /// <param name="gltf_export_extras">Export additional Mesh properties into glTF extras</param>
         /// <param name="tools_asset_info_short">Whether to print only file paths for tools_asset_info files.</param>
-        /// <param name="stats">Collect stats on all input files and then print them.</param>
+        /// <param name="stats">Collect stats on all input files and then print them. Use "-i steam" to scan all Steam libraries.</param>
         /// <param name="stats_print_files">When using --stats, print example file names for each stat.</param>
         /// <param name="stats_unique_deps">When using --stats, print all unique dependencies that were found.</param>
         /// <param name="stats_particles">When using --stats, collect particle operators, renderers, emitters, initializers.</param>
@@ -148,7 +149,7 @@ namespace Decompiler
             bool dump_unknown_entity_keys = false
         )
         {
-            InputFile = Path.GetFullPath(input);
+            InputFile = stats && input.Equals("steam", StringComparison.OrdinalIgnoreCase) ? "steam" : Path.GetFullPath(input);
             OutputFile = output;
             Decompile = decompile;
             TextureDecodeFlags = Enum.Parse<TextureCodec>(texture_decode_flags, true);
@@ -237,53 +238,10 @@ namespace Decompiler
 
                 IsInputFolder = true;
 
-                var dirs = Directory
-                    .EnumerateFiles(InputFile, "*.*", RecursiveSearch ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly)
-                    .Where(s =>
-                    {
-                        if (ExtFilterList != null)
-                        {
-                            foreach (var ext in ExtFilterList)
-                            {
-                                if (s.EndsWith(ext, StringComparison.Ordinal))
-                                {
-                                    return true;
-                                }
-                            }
+                var dirs = FindPathsToProcessInFolder(InputFile);
 
-                            return false;
-                        }
-
-                        return s.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal) || s.EndsWith(".vcs", StringComparison.Ordinal);
-                    })
-                    .ToList();
-
-                if (RecursiveSearchArchives)
+                if (dirs == null)
                 {
-                    if (!RecursiveSearch)
-                    {
-                        Console.Error.WriteLine("Option --recursive_vpk must be specified with --recursive.");
-
-                        return 1;
-                    }
-
-                    var vpkRegex = VpkArchiveIndexRegex();
-                    var vpks = Directory
-                        .EnumerateFiles(InputFile, "*.vpk", SearchOption.AllDirectories)
-                        .Where(s => !vpkRegex.IsMatch(s));
-
-                    dirs.AddRange(vpks);
-                }
-
-                if (dirs.Count == 0)
-                {
-                    Console.Error.WriteLine($"Unable to find any \"_c\" compiled files in \"{InputFile}\" folder.");
-
-                    if (!RecursiveSearch)
-                    {
-                        Console.Error.WriteLine("Perhaps you should specify --recursive option to scan the input folder recursively.");
-                    }
-
                     return 1;
                 }
 
@@ -307,6 +265,28 @@ namespace Decompiler
                 }
 
                 paths.Add(InputFile);
+            }
+            else if (InputFile == "steam")
+            {
+                IsInputFolder = true;
+
+                var steamPaths = GameFolderLocator.FindSteamLibraryFolderPaths();
+
+                foreach (var path in steamPaths)
+                {
+                    var dirs = FindPathsToProcessInFolder(path);
+
+                    if (dirs != null)
+                    {
+                        paths.AddRange(dirs);
+                    }
+                }
+
+                if (paths.Count == 0)
+                {
+                    Console.Error.WriteLine("Did not find any Steam libraries.");
+                    return 1;
+                }
             }
             else
             {
@@ -394,6 +374,61 @@ namespace Decompiler
             return 0;
         }
 
+        private List<string> FindPathsToProcessInFolder(string path)
+        {
+            var paths = Directory
+                .EnumerateFiles(path, "*.*", RecursiveSearch ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly)
+                .Where(s =>
+                {
+                    if (ExtFilterList != null)
+                    {
+                        foreach (var ext in ExtFilterList)
+                        {
+                            if (s.EndsWith(ext, StringComparison.Ordinal))
+                            {
+                                return true;
+                            }
+                        }
+
+                        return false;
+                    }
+
+                    return s.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal) || s.EndsWith(".vcs", StringComparison.Ordinal);
+                })
+                .ToList();
+
+            if (RecursiveSearchArchives)
+            {
+                if (!RecursiveSearch)
+                {
+                    Console.Error.WriteLine("Option --recursive_vpk must be specified with --recursive.");
+
+                    return null;
+                }
+
+                var vpkRegex = VpkArchiveIndexRegex();
+                var vpks = Directory
+                    .EnumerateFiles(path, "*.vpk", SearchOption.AllDirectories)
+                    .Where(s => !vpkRegex.IsMatch(s));
+
+                paths.AddRange(vpks);
+            }
+
+            if (paths.Count == 0)
+            {
+                Console.Error.WriteLine($"Unable to find any \"_c\" compiled files in \"{path}\" folder.");
+
+                if (!RecursiveSearch)
+                {
+                    Console.Error.WriteLine("Perhaps you should specify --recursive option to scan the input folder recursively.");
+                }
+
+                return null;
+            }
+
+            return paths;
+        }
+
         private void ProcessFile(string path)
         {
             using var fs = new FileStream(path, FileMode.Open, FileAccess.Read);
@@ -455,6 +490,7 @@ namespace Decompiler
             {
                 case Package.MAGIC: ParseVPK(path, stream); return;
                 case ShaderFile.MAGIC: ParseVCS(path, stream, originalPath); return;
+                case NavMeshFile.MAGIC: ParseNAV(path, stream, originalPath); return;
                 case ToolsAssetInfo.MAGIC2:
                 case ToolsAssetInfo.MAGIC: ParseToolsAssetInfo(path, stream); return;
             }
@@ -651,25 +687,66 @@ namespace Decompiler
                         path = $"{originalPath} -> {path}";
                     }
 
-                    lock (stats)
-                    {
-                        if (stats.TryGetValue(id, out var existingStat))
-                        {
-                            if (existingStat.Count++ < 10)
-                            {
-                                existingStat.FilePaths.Add(path);
-                            }
-                        }
-                        else
-                        {
-                            stats.Add(id, new ResourceStat(id, path));
-                        }
-                    }
+                    AddStat(id, id, path);
                 }
             }
             catch (Exception e)
             {
                 LogException(e, path, originalPath);
+            }
+        }
+
+        private void ParseNAV(string path, Stream stream, string originalPath)
+        {
+            try
+            {
+                var navMeshFile = new NavMeshFile();
+                navMeshFile.Read(stream);
+
+                if (!CollectStats)
+                {
+                    Console.WriteLine(navMeshFile.ToString());
+                }
+                else
+                {
+                    var id = $"NavMesh version {navMeshFile.Version}, subversion {navMeshFile.SubVersion}";
+
+                    if (originalPath != null)
+                    {
+                        path = $"{originalPath} -> {path}";
+                    }
+
+                    AddStat(id, id, path);
+                }
+            }
+            catch (Exception e)
+            {
+                LogException(e, path, originalPath);
+            }
+        }
+
+        private void AddStat(string key, string info, string path, Resource resource = null)
+        {
+            lock (stats)
+            {
+                if (stats.TryGetValue(key, out var existingStat))
+                {
+                    if (existingStat.Count++ < 10)
+                    {
+                        existingStat.FilePaths.Add(path);
+                    }
+                }
+                else
+                {
+                    if (resource == null)
+                    {
+                        stats.Add(key, new ResourceStat(info, path));
+                    }
+                    else
+                    {
+                        stats.Add(key, new ResourceStat(resource, info, path));
+                    }
+                }
             }
         }
 
@@ -852,25 +929,53 @@ namespace Decompiler
             {
                 Console.WriteLine("--- Dumping decompiled files...");
 
+                const string CachedManifestVersionPrefix = "// s2v_version=";
                 var manifestPath = string.Concat(path, ".manifest.txt");
                 var manifestData = new Dictionary<string, uint>();
 
                 if (CachedManifest && File.Exists(manifestPath))
                 {
-                    var file = new StreamReader(manifestPath);
+                    using var file = new StreamReader(manifestPath);
                     string line;
+                    var firstLine = true;
+                    var goodCachedVersion = false;
 
+                    // add version
                     while ((line = file.ReadLine()) != null)
                     {
-                        var split = line.Split([' '], 2);
+                        var lineSpan = line.AsSpan();
 
-                        if (split.Length == 2)
+                        if (firstLine)
                         {
-                            manifestData.Add(split[1], uint.Parse(split[0], CultureInfo.InvariantCulture));
+                            firstLine = false;
+
+                            if (lineSpan.StartsWith(CachedManifestVersionPrefix))
+                            {
+                                var oldVersion = lineSpan[CachedManifestVersionPrefix.Length..];
+                                var newVersion = typeof(Decompiler).Assembly.GetName().Version.ToString();
+
+                                goodCachedVersion = oldVersion.SequenceEqual(newVersion);
+
+                                if (!goodCachedVersion)
+                                {
+                                    break;
+                                }
+                            }
+                        }
+
+                        var space = lineSpan.IndexOf(' ');
+
+                        if (space > 0 && uint.TryParse(lineSpan[..space], CultureInfo.InvariantCulture, out var hash))
+                        {
+                            manifestData.Add(lineSpan[(space + 1)..].ToString(), hash);
                         }
                     }
 
-                    file.Close();
+                    if (!goodCachedVersion)
+                    {
+                        Console.Error.WriteLine("Decompiler version changed, cached manifest will be ignored.");
+                        manifestData.Clear();
+                    }
                 }
 
                 using var fileLoader = new GameFileLoader(package, package.FileName);
@@ -884,6 +989,8 @@ namespace Decompiler
                 {
                     using var file = new StreamWriter(manifestPath);
 
+                    file.WriteLine($"{CachedManifestVersionPrefix}{typeof(Decompiler).Assembly.GetName().Version}");
+
                     foreach (var hash in manifestData)
                     {
                         if (package.FindEntry(hash.Key) == null)
@@ -891,7 +998,7 @@ namespace Decompiler
                             Console.WriteLine("\t{0} no longer exists in VPK", hash.Key);
                         }
 
-                        file.WriteLine("{0} {1}", hash.Value, hash.Key);
+                        file.WriteLine($"{hash.Value} {hash.Key}");
                     }
                 }
             }
@@ -1165,24 +1272,10 @@ namespace Decompiler
             var id = $"{resource.ResourceType}_{resource.Version}";
             var info = string.Empty;
 
-            void AddStat(string info)
+            void AddStatLocal(string info)
             {
                 var key = string.IsNullOrEmpty(info) ? id : string.Concat(id, "_", info);
-
-                lock (stats)
-                {
-                    if (stats.TryGetValue(key, out var existingStat))
-                    {
-                        if (existingStat.Count++ < 10)
-                        {
-                            existingStat.FilePaths.Add(path);
-                        }
-                    }
-                    else
-                    {
-                        stats.Add(key, new ResourceStat(resource, info, path));
-                    }
-                }
+                AddStat(key, info, path, resource);
             }
 
             switch (resource.ResourceType)
@@ -1226,22 +1319,22 @@ namespace Decompiler
 
                         foreach (var op in particleSystem.GetInitializers())
                         {
-                            AddStat($"Initializer: {op.GetProperty<string>("_class")}");
+                            AddStatLocal($"Initializer: {op.GetProperty<string>("_class")}");
                         }
 
                         foreach (var op in particleSystem.GetRenderers())
                         {
-                            AddStat($"Renderer: {op.GetProperty<string>("_class")}");
+                            AddStatLocal($"Renderer: {op.GetProperty<string>("_class")}");
                         }
 
                         foreach (var op in particleSystem.GetEmitters())
                         {
-                            AddStat($"Emitter: {op.GetProperty<string>("_class")}");
+                            AddStatLocal($"Emitter: {op.GetProperty<string>("_class")}");
                         }
 
                         foreach (var op in particleSystem.GetOperators())
                         {
-                            AddStat($"Operator: {op.GetProperty<string>("_class")}");
+                            AddStatLocal($"Operator: {op.GetProperty<string>("_class")}");
                         }
                     }
                     break;
@@ -1257,7 +1350,7 @@ namespace Decompiler
                             {
                                 foreach (var attribute in buffer.InputLayoutFields)
                                 {
-                                    AddStat($"Attribute {attribute.SemanticName} - Format {attribute.Format}");
+                                    AddStatLocal($"Attribute {attribute.SemanticName} - Format {attribute.Format}");
                                 }
                             }
                         }
@@ -1273,14 +1366,14 @@ namespace Decompiler
                         {
                             foreach (var attribute in buffer.InputLayoutFields)
                             {
-                                AddStat($"Attribute {attribute.SemanticName} - Format {attribute.Format}");
+                                AddStatLocal($"Attribute {attribute.SemanticName} - Format {attribute.Format}");
                             }
                         }
                     }
                     break;
             }
 
-            AddStat(info);
+            AddStatLocal(info);
 
             if (resource.EditInfo != null)
             {

@@ -198,19 +198,28 @@ namespace GUI.Types.Renderer
 
         protected static void AddBox(List<SimpleVertexNormal> verts, List<int> inds, Vector3 minBounds, Vector3 maxBounds, Color32 color)
         {
-            verts.AddRange(
-                [
-                    new(new(minBounds.X, minBounds.Y, minBounds.Z), color),
-                    new(new(minBounds.X, minBounds.Y, maxBounds.Z), color),
-                    new(new(minBounds.X, maxBounds.Y, maxBounds.Z), color),
-                    new(new(minBounds.X, maxBounds.Y, minBounds.Z), color),
+            Span<SimpleVertexNormal> boxVertices =
+            [
+                new(new(minBounds.X, minBounds.Y, minBounds.Z), color),
+                new(new(minBounds.X, minBounds.Y, maxBounds.Z), color),
+                new(new(minBounds.X, maxBounds.Y, maxBounds.Z), color),
+                new(new(minBounds.X, maxBounds.Y, minBounds.Z), color),
 
-                    new(new(maxBounds.X, minBounds.Y, minBounds.Z), color),
-                    new(new(maxBounds.X, minBounds.Y, maxBounds.Z), color),
-                    new(new(maxBounds.X, maxBounds.Y, maxBounds.Z), color),
-                    new(new(maxBounds.X, maxBounds.Y, minBounds.Z), color)
-                ]
-            );
+                new(new(maxBounds.X, minBounds.Y, minBounds.Z), color),
+                new(new(maxBounds.X, minBounds.Y, maxBounds.Z), color),
+                new(new(maxBounds.X, maxBounds.Y, maxBounds.Z), color),
+                new(new(maxBounds.X, maxBounds.Y, minBounds.Z), color)
+            ];
+
+            // calculate box normals
+            var center = (minBounds + maxBounds) / 2f;
+            for (var i = 0; i < boxVertices.Length; i++)
+            {
+                var normalFromBoxCenter = Vector3.Normalize(boxVertices[i].Position - center);
+                boxVertices[i].Normal = normalFromBoxCenter;
+            }
+
+            verts.AddRange(boxVertices);
 
             AddFace(inds, 0, 1, 2, 3);
             AddFace(inds, 1, 5, 6, 2);
@@ -257,7 +266,7 @@ namespace GUI.Types.Renderer
             GL.UseProgram(renderShader.Program);
 
             renderShader.SetUniform4x4("transform", Transform);
-            renderShader.SetUniform1("bAnimated", 0.0f);
+            renderShader.SetBoneAnimationData(false);
             renderShader.SetUniform1("sceneObjectId", Id);
 
             renderShader.SetUniform1("g_bNormalShaded", Shaded);

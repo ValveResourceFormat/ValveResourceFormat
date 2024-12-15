@@ -6,6 +6,7 @@ using OpenTK.Graphics.OpenGL;
 using SteamDatabase.ValvePak;
 using ValveResourceFormat;
 using ValveResourceFormat.IO;
+using ValveResourceFormat.NavMesh;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -29,6 +30,7 @@ namespace GUI.Types.Renderer
 
         public Scene SkyboxScene { get; set; }
         public SceneSkybox2D Skybox2D { get; set; }
+        public NavMeshFile NavMesh { get; set; }
 
         public Vector3 WorldOffset { get; set; } = Vector3.Zero;
         public float WorldScale { get; set; } = 1.0f;
@@ -101,6 +103,7 @@ namespace GUI.Types.Renderer
             }
 
             LoadWorldPhysics(scene);
+            LoadNavigationMesh();
         }
 
         public void LoadWorldPhysics(Scene scene)
@@ -716,7 +719,7 @@ namespace GUI.Types.Renderer
 
                             postProcess.ModelVolume = ppModelResource;
 
-                            var ppModelNode = new ModelSceneNode(scene, ppModelResource, skin, optimizeForMapLoad: true)
+                            var ppModelNode = new ModelSceneNode(scene, ppModelResource, skin)
                             {
                                 Transform = transformationMatrix,
                                 LayerName = layerName,
@@ -784,7 +787,7 @@ namespace GUI.Types.Renderer
 
                     if (errorModelResource != null)
                     {
-                        var errorModel = new ModelSceneNode(scene, (Model)errorModelResource.DataBlock, skin, optimizeForMapLoad: true)
+                        var errorModel = new ModelSceneNode(scene, (Model)errorModelResource.DataBlock, skin)
                         {
                             Name = "error",
                             Transform = transformationMatrix,
@@ -813,7 +816,7 @@ namespace GUI.Types.Renderer
 
                 var newModel = (Model)newEntity.DataBlock;
 
-                var modelNode = new ModelSceneNode(scene, newModel, skin, optimizeForMapLoad: true)
+                var modelNode = new ModelSceneNode(scene, newModel, skin)
                 {
                     Transform = transformationMatrix,
                     Tint = new Vector4(rendercolor, renderamt),
@@ -991,6 +994,25 @@ namespace GUI.Types.Renderer
             guiContext.FileLoader.RemovePackageFromSearch(package);
         }
 
+        public void LoadNavigationMesh()
+        {
+            var navFilePath = Path.ChangeExtension(guiContext.FileName, ".nav");
+            try
+            {
+                using var navFileStream = guiContext.FileLoader.GetFileStream(navFilePath);
+                if (navFileStream != null)
+                {
+                    NavMesh = new NavMeshFile();
+                    NavMesh.Read(navFileStream);
+                    Log.Info(nameof(WorldLoader), $"Navigation mesh loaded from '{navFilePath}'");
+                }
+            }
+            catch (Exception e)
+            {
+                Log.Error(nameof(WorldLoader), $"Couldn't load navigation mesh from '{navFilePath}': {e}");
+            }
+        }
+
         private void CreateDefaultEntity(Entity entity, string classname, Matrix4x4 transformationMatrix)
         {
             var hammerEntity = HammerEntities.Get(classname);
@@ -1030,7 +1052,7 @@ namespace GUI.Types.Renderer
             }
             else if (resource.ResourceType == ResourceType.Model)
             {
-                var modelNode = new ModelSceneNode(scene, (Model)resource.DataBlock, null, optimizeForMapLoad: true)
+                var modelNode = new ModelSceneNode(scene, (Model)resource.DataBlock, null)
                 {
                     Transform = transformationMatrix,
                     LayerName = "Entities",

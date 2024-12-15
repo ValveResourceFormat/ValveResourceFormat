@@ -15,6 +15,13 @@
     in uint vNORMAL; // CompressedTangentFrame
 #endif
 
+mat3 adjoint(in mat4 m)
+{
+    return mat3(cross(m[1].xyz, m[2].xyz), 
+                cross(m[2].xyz, m[0].xyz), 
+                cross(m[0].xyz, m[1].xyz));
+}
+
 //Decompress a byte4 normal in the 0..255 range to a float4 tangent
 vec4 DecompressTangent( vec4 inputNormal )
 {

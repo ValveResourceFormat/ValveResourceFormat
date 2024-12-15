@@ -156,7 +156,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
 #if DEBUG
                 Console.WriteLine($"Unhandled animation bone decoder type '{decoder}' for attribute '{localChannel.Attribute}'");
-#endif            
+#endif
             }
 
             return animArray
@@ -267,6 +267,11 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         {
             foreach (var root in skeleton.Roots)
             {
+                if (root.IsProceduralCloth)
+                {
+                    continue;
+                }
+
                 GetAnimationMatrixRecursive(root, Matrix4x4.Identity, Matrix4x4.Identity, frame, matrices);
             }
         }

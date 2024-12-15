@@ -5,8 +5,14 @@ namespace ValveResourceFormat.Utils
 {
     public static class StringToken
     {
+#if VRF_NO_GENERATOR_VERSION
+        // Use the following command to avoid putting version in the dumps for stable git tracking of dumped files
+        // dotnet build -p:DefineConstants=VRF_NO_GENERATOR_VERSION
+        public const string VRF_GENERATOR = $"Source 2 Viewer - https://valveresourceformat.github.io";
+#else
         private static readonly string ProductVersionString = typeof(StringToken).Assembly.GetName().Version.ToString();
         public static readonly string VRF_GENERATOR = $"Source 2 Viewer {ProductVersionString} - https://valveresourceformat.github.io";
+#endif
 
         public const uint MURMUR2SEED = 0x31415926; // It's pi!
 

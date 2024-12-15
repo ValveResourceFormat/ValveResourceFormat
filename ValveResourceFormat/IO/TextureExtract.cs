@@ -350,6 +350,8 @@ public sealed class TextureExtract
     /// </summary>
     public class TexturePacker : IDisposable
     {
+        private static readonly SKSamplingOptions SamplingOptions = new(SKFilterMode.Linear, SKMipmapMode.None);
+
         public SKColor DefaultColor { get; init; } = SKColors.Black;
         public SKBitmap Bitmap { get; private set; }
         private readonly HashSet<ChannelMapping> Packed = [];
@@ -380,7 +382,7 @@ public sealed class TextureExtract
                     // Scale Bitmap up to srcPixels size
                     using var oldPixels = Bitmap.PeekPixels();
                     using var newPixels = newBitmap.PeekPixels();
-                    if (!oldPixels.ScalePixels(newPixels, SKFilterQuality.Low))
+                    if (!oldPixels.ScalePixels(newPixels, SamplingOptions))
                     {
                         throw new InvalidOperationException($"Failed to scale up pixels of {fileName}");
                     }
@@ -392,7 +394,7 @@ public sealed class TextureExtract
                 // Scale srcPixels up to Bitmap size
                 using var newSrcBitmap = new SKBitmap(Bitmap.Width, Bitmap.Height, true);
                 using var newSrcPixels = newSrcBitmap.PeekPixels();
-                if (!srcPixels.ScalePixels(newSrcPixels, SKFilterQuality.Low))
+                if (!srcPixels.ScalePixels(newSrcPixels, SamplingOptions))
                 {
                     throw new InvalidOperationException($"Failed to scale up incoming pixels for {fileName}");
                 }
@@ -554,7 +556,7 @@ public sealed class TextureExtract
         var outputFormat = texture.Format.ToString();
 
         using var datamodel = new Datamodel.Datamodel("vtex", 1);
-        datamodel.Root = CDmeVtex.CreateTexture2D(new[] { (inputTextureFileName, "rgba", "Box") }, outputFormat);
+        datamodel.Root = CDmeVtex.CreateTexture2D([(inputTextureFileName, "rgba", "Box")], outputFormat);
 
         using var stream = new MemoryStream();
         datamodel.Save(stream, "keyvalues2_noids", 1);
