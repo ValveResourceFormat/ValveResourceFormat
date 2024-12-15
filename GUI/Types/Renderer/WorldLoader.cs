@@ -6,6 +6,7 @@ using OpenTK.Graphics.OpenGL;
 using SteamDatabase.ValvePak;
 using ValveResourceFormat;
 using ValveResourceFormat.IO;
+using ValveResourceFormat.NavMesh;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -29,6 +30,7 @@ namespace GUI.Types.Renderer
 
         public Scene SkyboxScene { get; set; }
         public SceneSkybox2D Skybox2D { get; set; }
+        public NavMeshFile NavMesh { get; set; }
 
         public Vector3 WorldOffset { get; set; } = Vector3.Zero;
         public float WorldScale { get; set; } = 1.0f;
@@ -101,6 +103,7 @@ namespace GUI.Types.Renderer
             }
 
             LoadWorldPhysics(scene);
+            LoadNavigationMesh();
         }
 
         public void LoadWorldPhysics(Scene scene)
@@ -989,6 +992,25 @@ namespace GUI.Types.Renderer
             }
 
             guiContext.FileLoader.RemovePackageFromSearch(package);
+        }
+
+        public void LoadNavigationMesh()
+        {
+            var navFilePath = Path.ChangeExtension(guiContext.FileName, ".nav");
+            try
+            {
+                using var navFileStream = guiContext.FileLoader.GetFileStream(navFilePath);
+                if (navFileStream != null)
+                {
+                    NavMesh = new NavMeshFile();
+                    NavMesh.Read(navFileStream);
+                    Log.Info(nameof(WorldLoader), $"Navigation mesh loaded from '{navFilePath}'");
+                }
+            }
+            catch (Exception e)
+            {
+                Log.Error(nameof(WorldLoader), $"Couldn't load navigation mesh from '{navFilePath}': {e}");
+            }
         }
 
         private void CreateDefaultEntity(Entity entity, string classname, Matrix4x4 transformationMatrix)
