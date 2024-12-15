@@ -76,22 +76,9 @@ namespace ValveResourceFormat.NavMesh
                 Debug.Assert(unk3 == 0);
             }
 
-            var areaCount = binaryReader.ReadUInt32();
-            for (var i = 0; i < areaCount; i++)
-            {
-                var area = new NavMeshArea();
-                area.Read(binaryReader, this, polygons);
-                AddArea(area);
-            }
+            ReadAreas(binaryReader, polygons);
 
-            var ladderCount = binaryReader.ReadUInt32();
-            Ladders = new NavMeshLadder[ladderCount];
-            for (var i = 0; i < ladderCount; i++)
-            {
-                var ladder = new NavMeshLadder();
-                ladder.Read(binaryReader, this);
-                Ladders[i] = ladder;
-            }
+            ReadLadders(binaryReader);
 
             var unkCount = binaryReader.ReadInt32();
             var unkFloats = new float[unkCount * 6 * 3];
@@ -103,6 +90,13 @@ namespace ValveResourceFormat.NavMesh
             GenerationParams = new NavMeshGenerationParams();
             GenerationParams.Read(binaryReader, this);
 
+            ReadCustomData(binaryReader);
+
+            Debug.Assert(binaryReader.BaseStream.Position == binaryReader.BaseStream.Length);
+        }
+
+        private void ReadCustomData(BinaryReader binaryReader)
+        {
             if (SubVersion > 0)
             {
                 while (binaryReader.ReadByte() == 0)
@@ -117,7 +111,29 @@ namespace ValveResourceFormat.NavMesh
 
                 CustomData = kv3.Data;
             }
-            Debug.Assert(binaryReader.BaseStream.Position == binaryReader.BaseStream.Length);
+        }
+
+        private void ReadLadders(BinaryReader binaryReader)
+        {
+            var ladderCount = binaryReader.ReadUInt32();
+            Ladders = new NavMeshLadder[ladderCount];
+            for (var i = 0; i < ladderCount; i++)
+            {
+                var ladder = new NavMeshLadder();
+                ladder.Read(binaryReader, this);
+                Ladders[i] = ladder;
+            }
+        }
+
+        private void ReadAreas(BinaryReader binaryReader, Vector3[][] polygons)
+        {
+            var areaCount = binaryReader.ReadUInt32();
+            for (var i = 0; i < areaCount; i++)
+            {
+                var area = new NavMeshArea();
+                area.Read(binaryReader, this, polygons);
+                AddArea(area);
+            }
         }
 
         private Vector3[][] ReadPolygons(BinaryReader binaryReader)
