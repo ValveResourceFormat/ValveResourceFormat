@@ -14,6 +14,7 @@ using SteamDatabase.ValvePak;
 using ValveResourceFormat;
 using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.IO;
+using ValveResourceFormat.NavMesh;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.TextureDecoders;
 using ValveResourceFormat.ToolsAssetInfo;
@@ -455,6 +456,7 @@ namespace Decompiler
             {
                 case Package.MAGIC: ParseVPK(path, stream); return;
                 case ShaderFile.MAGIC: ParseVCS(path, stream, originalPath); return;
+                case NavMeshFile.MAGIC: ParseNAV(path, stream, originalPath); return;
                 case ToolsAssetInfo.MAGIC2:
                 case ToolsAssetInfo.MAGIC: ParseToolsAssetInfo(path, stream); return;
             }
@@ -651,25 +653,66 @@ namespace Decompiler
                         path = $"{originalPath} -> {path}";
                     }
 
-                    lock (stats)
-                    {
-                        if (stats.TryGetValue(id, out var existingStat))
-                        {
-                            if (existingStat.Count++ < 10)
-                            {
-                                existingStat.FilePaths.Add(path);
-                            }
-                        }
-                        else
-                        {
-                            stats.Add(id, new ResourceStat(id, path));
-                        }
-                    }
+                    AddStat(id, id, path);
                 }
             }
             catch (Exception e)
             {
                 LogException(e, path, originalPath);
+            }
+        }
+
+        private void ParseNAV(string path, Stream stream, string originalPath)
+        {
+            try
+            {
+                var navMeshFile = new NavMeshFile();
+                navMeshFile.Read(stream);
+
+                if (!CollectStats)
+                {
+                    Console.WriteLine(navMeshFile.ToString());
+                }
+                else
+                {
+                    var id = $"NavMesh version {navMeshFile.Version}, subversion {navMeshFile.SubVersion}";
+
+                    if (originalPath != null)
+                    {
+                        path = $"{originalPath} -> {path}";
+                    }
+
+                    AddStat(id, id, path);
+                }
+            }
+            catch (Exception e)
+            {
+                LogException(e, path, originalPath);
+            }
+        }
+
+        private void AddStat(string key, string info, string path, Resource resource = null)
+        {
+            lock (stats)
+            {
+                if (stats.TryGetValue(key, out var existingStat))
+                {
+                    if (existingStat.Count++ < 10)
+                    {
+                        existingStat.FilePaths.Add(path);
+                    }
+                }
+                else
+                {
+                    if (resource == null)
+                    {
+                        stats.Add(key, new ResourceStat(info, path));
+                    }
+                    else
+                    {
+                        stats.Add(key, new ResourceStat(resource, info, path));
+                    }
+                }
             }
         }
 
@@ -1165,24 +1208,10 @@ namespace Decompiler
             var id = $"{resource.ResourceType}_{resource.Version}";
             var info = string.Empty;
 
-            void AddStat(string info)
+            void AddStatLocal(string info)
             {
                 var key = string.IsNullOrEmpty(info) ? id : string.Concat(id, "_", info);
-
-                lock (stats)
-                {
-                    if (stats.TryGetValue(key, out var existingStat))
-                    {
-                        if (existingStat.Count++ < 10)
-                        {
-                            existingStat.FilePaths.Add(path);
-                        }
-                    }
-                    else
-                    {
-                        stats.Add(key, new ResourceStat(resource, info, path));
-                    }
-                }
+                AddStat(key, info, path, resource);
             }
 
             switch (resource.ResourceType)
@@ -1226,22 +1255,22 @@ namespace Decompiler
 
                         foreach (var op in particleSystem.GetInitializers())
                         {
-                            AddStat($"Initializer: {op.GetProperty<string>("_class")}");
+                            AddStatLocal($"Initializer: {op.GetProperty<string>("_class")}");
                         }
 
                         foreach (var op in particleSystem.GetRenderers())
                         {
-                            AddStat($"Renderer: {op.GetProperty<string>("_class")}");
+                            AddStatLocal($"Renderer: {op.GetProperty<string>("_class")}");
                         }
 
                         foreach (var op in particleSystem.GetEmitters())
                         {
-                            AddStat($"Emitter: {op.GetProperty<string>("_class")}");
+                            AddStatLocal($"Emitter: {op.GetProperty<string>("_class")}");
                         }
 
                         foreach (var op in particleSystem.GetOperators())
                         {
-                            AddStat($"Operator: {op.GetProperty<string>("_class")}");
+                            AddStatLocal($"Operator: {op.GetProperty<string>("_class")}");
                         }
                     }
                     break;
@@ -1257,7 +1286,7 @@ namespace Decompiler
                             {
                                 foreach (var attribute in buffer.InputLayoutFields)
                                 {
-                                    AddStat($"Attribute {attribute.SemanticName} - Format {attribute.Format}");
+                                    AddStatLocal($"Attribute {attribute.SemanticName} - Format {attribute.Format}");
                                 }
                             }
                         }
@@ -1273,14 +1302,14 @@ namespace Decompiler
                         {
                             foreach (var attribute in buffer.InputLayoutFields)
                             {
-                                AddStat($"Attribute {attribute.SemanticName} - Format {attribute.Format}");
+                                AddStatLocal($"Attribute {attribute.SemanticName} - Format {attribute.Format}");
                             }
                         }
                     }
                     break;
             }
 
-            AddStat(info);
+            AddStatLocal(info);
 
             if (resource.EditInfo != null)
             {
