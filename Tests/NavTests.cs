@@ -32,12 +32,12 @@ namespace Tests
         [Test]
         public void TestNavVersion30_NavGenVersion7()
         {
-            var navMeshFile = GetNavMesh("a5_vault.nav");
+            var navMeshFile = GetNavMesh("workshop_example_tilemesh.nav");
             Assert.Multiple(() =>
             {
                 Assert.That(navMeshFile.Version, Is.EqualTo(30));
                 Assert.That(navMeshFile.SubVersion, Is.EqualTo(0));
-                Assert.That(navMeshFile.Areas.Count, Is.EqualTo(1245));
+                Assert.That(navMeshFile.Areas.Count, Is.EqualTo(414));
                 Assert.That(navMeshFile.GenerationParams.NavGenVersion, Is.EqualTo(7));
                 Assert.That(navMeshFile.GenerationParams.HullParams[2].MaxJumpUpDist, Is.EqualTo(240));
             });
