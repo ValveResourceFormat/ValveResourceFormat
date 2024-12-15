@@ -4,13 +4,13 @@ namespace ValveResourceFormat.NavMesh
 {
     public class NavMeshConnection
     {
-        public uint AreaIndex { get; set; }
-        public uint EdgeIndex { get; set; }
+        public uint AreaId { get; set; }
+        public uint EdgeId { get; set; }
 
         public void Read(BinaryReader binaryReader)
         {
-            AreaIndex = binaryReader.ReadUInt32();
-            EdgeIndex = binaryReader.ReadUInt32();
+            AreaId = binaryReader.ReadUInt32();
+            EdgeId = binaryReader.ReadUInt32();
         }
     }
 }
