@@ -283,8 +283,7 @@ namespace GUI.Types.Renderer
             [DepthOnlyProgram.Static] = [],
             [DepthOnlyProgram.StaticAlphaTest] = [],
             [DepthOnlyProgram.Animated] = [],
-            [DepthOnlyProgram.AnimatedEightBones1] = [],
-            [DepthOnlyProgram.AnimatedEightBones2] = [],
+            [DepthOnlyProgram.AnimatedEightBones] = [],
         };
 
         public void SetupSceneShadows(Camera camera, int shadowMapSize)
@@ -336,12 +335,7 @@ namespace GUI.Types.Renderer
 
                         if (mesh.BoneWeightCount > 4)
                         {
-                            bucket = opaqueCall.Material.Shader.Parameters.GetValueOrDefault("D_EIGHT_BONE_BLENDING") switch
-                            {
-                                1 => DepthOnlyProgram.AnimatedEightBones1,
-                                2 => DepthOnlyProgram.AnimatedEightBones2,
-                                _ => bucket,
-                            };
+                            bucket = DepthOnlyProgram.AnimatedEightBones;
                         }
 
                         CulledShadowDrawCalls[bucket].Add(new MeshBatchRenderer.Request
