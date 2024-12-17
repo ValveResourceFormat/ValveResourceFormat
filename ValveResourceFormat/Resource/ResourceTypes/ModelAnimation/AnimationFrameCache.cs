@@ -71,6 +71,14 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                 InterpolatedFrame.Datas[i] = float.Lerp(frame1Data, frame2Data, t);
             }
 
+            if (anim.HasMovementData())
+            {
+                InterpolatedFrame.Movement = new(
+                    Vector3.Lerp(frame1.Movement.Position, frame2.Movement.Position, t),
+                    float.Lerp(frame1.Movement.Angle, frame2.Movement.Angle, t)
+                );
+            }
+
             return InterpolatedFrame;
         }
 
@@ -100,6 +108,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             frame.FrameIndex = frameIndex;
             anim.DecodeFrame(frame);
 
+            frame.Movement = anim.GetMovementOffsetData(frameIndex);
             return frame;
         }
     }

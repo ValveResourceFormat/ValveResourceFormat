@@ -8,6 +8,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         public FrameBone[] Bones { get; }
         public float[] Datas { get; }
 
+        public AnimationMovement.MovementData Movement { get; set; }
+
         public Frame(Skeleton skeleton, FlexController[] flexControllers)
         {
             Bones = new FrameBone[skeleton.Bones.Length];
