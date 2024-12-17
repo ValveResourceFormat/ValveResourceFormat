@@ -300,6 +300,11 @@ namespace GUI.Types.Renderer
                 bucket.Clear();
             }
 
+            if (!LightingInfo.HasBakedShadowsFromLightmap)
+            {
+                StaticOctree.Root.Query(LightingInfo.SunLightFrustum, CulledShadowNodes);
+            }
+
             DynamicOctree.Root.Query(LightingInfo.SunLightFrustum, CulledShadowNodes);
 
             foreach (var node in CulledShadowNodes)
