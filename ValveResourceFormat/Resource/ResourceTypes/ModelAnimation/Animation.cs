@@ -205,7 +205,22 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             }
 
             GetMovementForTime(time, out var movement, out var nextMovement, out var t);
-            return AnimationMovement.Lerp(movement, nextMovement, t);
+            return AnimationMovement.Lerp(movement, nextMovement, time);
+        }
+
+        public AnimationMovement.MovementData GetMovementOffsetData(int frame)
+        {
+            if (!HasMovementData())
+            {
+                return new();
+            }
+
+            var movementIndex = GetMovementIndexForFrame(frame);
+            var lastMovement = movementIndex == 0 ? null : Movements[movementIndex - 1];
+            var movement = Movements[movementIndex];
+
+            var movementTime = frame / (float)movement.EndFrame;
+            return AnimationMovement.Lerp(lastMovement, movement, movementTime);
         }
 
         /// <summary>

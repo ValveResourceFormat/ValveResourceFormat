@@ -60,7 +60,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                 var frame2Bone = frame2.Bones[i];
                 InterpolatedFrame.Bones[i].Position = Vector3.Lerp(frame1Bone.Position, frame2Bone.Position, t);
                 InterpolatedFrame.Bones[i].Angle = Quaternion.Slerp(frame1Bone.Angle, frame2Bone.Angle, t);
-                InterpolatedFrame.Bones[i].Scale = frame1Bone.Scale + (frame2Bone.Scale - frame1Bone.Scale) * t;
+                InterpolatedFrame.Bones[i].Scale = float.Lerp(frame1Bone.Scale, frame2Bone.Scale, t);
             }
 
             for (var i = 0; i < frame1.Datas.Length; i++)
@@ -69,6 +69,14 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                 var frame2Data = frame2.Datas[i];
 
                 InterpolatedFrame.Datas[i] = float.Lerp(frame1Data, frame2Data, t);
+            }
+
+            if (anim.HasMovementData())
+            {
+                InterpolatedFrame.Movement = new(
+                    Vector3.Lerp(frame1.Movement.Position, frame2.Movement.Position, t),
+                    float.Lerp(frame1.Movement.Angle, frame2.Movement.Angle, t)
+                );
             }
 
             return InterpolatedFrame;
@@ -100,6 +108,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             frame.FrameIndex = frameIndex;
             anim.DecodeFrame(frame);
 
+            frame.Movement = anim.GetMovementOffsetData(frameIndex);
             return frame;
         }
     }

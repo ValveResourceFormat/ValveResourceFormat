@@ -6,6 +6,7 @@ using GUI.Controls;
 using GUI.Utils;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.ResourceTypes.ModelAnimation;
 
 namespace GUI.Types.Renderer
 {
@@ -293,6 +294,23 @@ namespace GUI.Types.Renderer
 
             Scene.UpdateOctrees();
             SkyboxScene?.UpdateOctrees();
+        }
+
+        Vector3 LastPosition;
+        protected override void OnPaint(object sender, RenderEventArgs e)
+        {
+            if (modelSceneNode.AnimationController.GetFrame() is Frame animationFrame)
+            {
+                var deltaPosition = animationFrame.Movement.Position - LastPosition;
+                modelSceneNode.Transform = modelSceneNode.Transform with
+                {
+                    Translation = modelSceneNode.Transform.Translation + deltaPosition,
+                };
+
+                Camera.SetLocation(Camera.Location + deltaPosition);
+                LastPosition = animationFrame.Movement.Position;
+            }
+            base.OnPaint(sender, e);
         }
 
         protected override void OnPicked(object sender, PickingTexture.PickingResponse pickingResponse)
