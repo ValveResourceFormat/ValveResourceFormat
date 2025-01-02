@@ -203,7 +203,7 @@ namespace GUI.Types.Viewers
             }
             catch (Exception ex)
             {
-                var control = new CodeTextBox(ex.ToString());
+                var control = CodeTextBox.CreateFromException(ex);
 
                 var tabEx = new TabPage("Error");
                 tabEx.Controls.Add(control);
@@ -320,7 +320,7 @@ namespace GUI.Types.Viewers
             }
             catch (Exception ex)
             {
-                var control = new CodeTextBox(ex.ToString());
+                var control = CodeTextBox.CreateFromException(ex);
 
                 var tabEx = new TabPage("Decompile Error");
                 tabEx.Controls.Add(control);
