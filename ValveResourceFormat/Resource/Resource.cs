@@ -232,6 +232,7 @@ namespace ValveResourceFormat
 
                 block.Offset = offset;
                 block.Size = size;
+                block.Resource = this;
 
                 Blocks.Add(block);
 
@@ -239,7 +240,7 @@ namespace ValveResourceFormat
                 {
                     case BlockType.REDI:
                     case BlockType.RED2:
-                        block.Read(Reader, this);
+                        block.Read(Reader);
 
                         EditInfo = (ResourceEditInfo)block;
 
@@ -266,7 +267,7 @@ namespace ValveResourceFormat
                         break;
 
                     case BlockType.NTRO:
-                        block.Read(Reader, this);
+                        block.Read(Reader);
                         break;
                 }
 
@@ -277,14 +278,14 @@ namespace ValveResourceFormat
             {
                 if (block.Type is not BlockType.REDI and not BlockType.RED2 and not BlockType.NTRO)
                 {
-                    block.Read(Reader, this);
+                    block.Read(Reader);
                 }
             }
 
             if (ResourceType == ResourceType.Sound && ContainsBlockType(BlockType.CTRL)) // Version >= 5, but other ctrl-type sounds have version 0
             {
                 var block = new Sound();
-                block.ConstructFromCtrl(Reader, this);
+                block.ConstructFromCtrl(Reader);
                 Blocks.Add(block);
             }
 

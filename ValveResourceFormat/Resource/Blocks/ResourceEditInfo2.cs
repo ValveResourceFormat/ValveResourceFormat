@@ -24,15 +24,16 @@ namespace ValveResourceFormat.Blocks
             //
         }
 
-        public override void Read(BinaryReader reader, Resource resource)
+        public override void Read(BinaryReader reader)
         {
             var kv3 = new BinaryKV3
             {
                 Offset = Offset,
                 Size = Size,
+                Resource = Resource,
             };
 
-            kv3.Read(reader, resource);
+            kv3.Read(reader);
             BackingData = kv3;
 
             static void ReadItems<T>(BinaryKV3 kv3, List<T> list, string key, Func<KVObject, T> constructor)

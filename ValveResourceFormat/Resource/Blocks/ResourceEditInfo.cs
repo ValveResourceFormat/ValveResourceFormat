@@ -20,7 +20,7 @@ namespace ValveResourceFormat.Blocks
         public List<string> ChildResourceList { get; } = [];
         public KVObject SearchableUserData { get; } = new("m_SearchableUserData"); // Maybe these should be split..
 
-        public override void Read(BinaryReader reader, Resource resource)
+        public override void Read(BinaryReader reader)
         {
             var subBlock = 0;
 

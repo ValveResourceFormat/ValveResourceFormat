@@ -22,7 +22,10 @@ namespace ValveResourceFormat
         /// </summary>
         public uint Size { get; set; }
 
-        public abstract void Read(BinaryReader reader, Resource resource);
+
+        public Resource Resource { get; set; }
+
+        public abstract void Read(BinaryReader reader);
 
         /// <summary>
         /// Returns a string that represents the current object.

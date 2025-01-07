@@ -103,17 +103,17 @@ namespace ValveResourceFormat.ResourceTypes
 
         private BinaryReader Reader;
 
-        public override void Read(BinaryReader reader, Resource resource)
+        public override void Read(BinaryReader reader)
         {
             Reader = reader;
             reader.BaseStream.Position = Offset;
 
-            if (resource.Version > 4)
+            if (Resource.Version > 4)
             {
-                throw new InvalidDataException($"Invalid vsnd version '{resource.Version}'");
+                throw new InvalidDataException($"Invalid vsnd version '{Resource.Version}'");
             }
 
-            if (resource.Version >= 4)
+            if (Resource.Version >= 4)
             {
                 SampleRate = reader.ReadUInt16();
                 var soundFormat = (AudioFormatV4)reader.ReadByte();
@@ -148,7 +148,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             if (sentenceOffset != 0)
             {
-                sentenceOffset = reader.BaseStream.Position + sentenceOffset;
+                sentenceOffset = (uint)(reader.BaseStream.Position + sentenceOffset);
             }
 
             // Skipping over m_pHeader
@@ -156,7 +156,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             StreamingDataSize = reader.ReadUInt32();
 
-            if (resource.Version >= 1)
+            if (Resource.Version >= 1)
             {
                 var d = reader.ReadUInt32();
                 if (d != 0)
@@ -172,7 +172,7 @@ namespace ValveResourceFormat.ResourceTypes
             }
 
             // v2 and v3 are the same?
-            if (resource.Version >= 2)
+            if (Resource.Version >= 2)
             {
                 var f = reader.ReadUInt32();
                 if (f != 0)
@@ -181,7 +181,7 @@ namespace ValveResourceFormat.ResourceTypes
                 }
             }
 
-            if (resource.Version >= 4)
+            if (Resource.Version >= 4)
             {
                 LoopEnd = reader.ReadInt32();
             }
@@ -189,12 +189,12 @@ namespace ValveResourceFormat.ResourceTypes
             ReadPhonemeStream(reader, sentenceOffset);
         }
 
-        public void ConstructFromCtrl(BinaryReader reader, Resource resource)
+        public void ConstructFromCtrl(BinaryReader reader)
         {
             Reader = reader;
-            Offset = resource.FileSize;
+            Offset = Resource.FileSize;
 
-            var obj = (BinaryKV3)resource.GetBlockByType(BlockType.CTRL);
+            var obj = (BinaryKV3)Resource.GetBlockByType(BlockType.CTRL);
             var soundClass = obj.Data.GetStringProperty("_class");
 
             if (soundClass != "CVoiceContainerDefault")

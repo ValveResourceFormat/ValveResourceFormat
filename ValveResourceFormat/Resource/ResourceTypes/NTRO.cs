@@ -14,14 +14,12 @@ namespace ValveResourceFormat.ResourceTypes
         public string StructName { get; init; }
 
         private BinaryReader Reader;
-        private Resource Resource;
         private ResourceIntrospectionManifest IntrospectionManifest;
 
-        public override void Read(BinaryReader reader, Resource resource)
+        public override void Read(BinaryReader reader)
         {
             Reader = reader;
-            Resource = resource;
-            IntrospectionManifest = (ResourceIntrospectionManifest)resource.GetBlockByType(BlockType.NTRO);
+            IntrospectionManifest = (ResourceIntrospectionManifest)Resource.GetBlockByType(BlockType.NTRO);
 
             try
             {

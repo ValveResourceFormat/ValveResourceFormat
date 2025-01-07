@@ -28,7 +28,7 @@ namespace GUI.Types.Viewers
             using (var binaryReader = new BinaryReader(kv3stream))
             {
                 kv3.Size = (uint)kv3stream.Length;
-                kv3.Read(binaryReader, null);
+                kv3.Read(binaryReader);
             }
 
             kv3stream.Close();
