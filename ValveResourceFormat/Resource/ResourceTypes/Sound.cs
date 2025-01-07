@@ -143,8 +143,8 @@ namespace ValveResourceFormat.ResourceTypes
             SampleCount = reader.ReadUInt32();
             Duration = reader.ReadSingle();
 
-            var sentenceOffset = (long)reader.ReadUInt32();
-            reader.BaseStream.Position += 4;
+            var sentenceOffset = reader.ReadUInt32();
+            var b = reader.ReadUInt32(); // size?
 
             if (sentenceOffset != 0)
             {
@@ -259,19 +259,19 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
-        private void ReadPhonemeStream(BinaryReader reader, long sentenceOffset)
+        private void ReadPhonemeStream(BinaryReader reader, uint sentenceOffset)
         {
             if (sentenceOffset == 0)
             {
                 return;
             }
 
-            Reader.BaseStream.Position = sentenceOffset;
+            reader.BaseStream.Position = sentenceOffset;
 
             var numPhonemeTags = reader.ReadInt32();
 
             var a = reader.ReadInt32(); // numEmphasisSamples ?
-            var b = Reader.ReadInt32(); // Sentence.ShouldVoiceDuck ?
+            var b = reader.ReadInt32(); // Sentence.ShouldVoiceDuck ?
 
             // Skip sounds that have these
             if (a != 0 || b != 0)
