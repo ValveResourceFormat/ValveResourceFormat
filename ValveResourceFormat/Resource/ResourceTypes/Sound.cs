@@ -193,6 +193,7 @@ namespace ValveResourceFormat.ResourceTypes
         {
             Reader = reader;
             Offset = Resource.FileSize;
+            // IsLoaded = true;
 
             var obj = (BinaryKV3)Resource.GetBlockByType(BlockType.CTRL);
             var soundClass = obj.Data.GetStringProperty("_class");

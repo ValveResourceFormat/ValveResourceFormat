@@ -340,7 +340,7 @@ namespace ValveResourceFormat.IO
                 else if (foundFile.PackageEntry != null)
                 {
                     var stream = GetPackageEntryStream(foundFile.Package, foundFile.PackageEntry);
-                    resource.Read(stream);
+                    resource.Read(stream, false, false);
                     resourceToReturn = resource;
                     resource = null;
                 }
