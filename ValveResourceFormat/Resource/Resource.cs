@@ -58,7 +58,7 @@ namespace ValveResourceFormat
         /// <summary>
         /// Gets the ResourceEditInfo block.
         /// </summary>
-        public ResourceEditInfo EditInfo { get; private set; }
+        public ResourceEditInfo EditInfo => (ResourceEditInfo)(GetBlockByType(BlockType.RED2) ?? GetBlockByType(BlockType.REDI));
 
         /// <summary>
         /// Gets the ResourceExtRefList block.
@@ -236,42 +236,32 @@ namespace ValveResourceFormat
 
                 Blocks.Add(block);
 
-                switch (block.Type)
+                if (block.Type is BlockType.NTRO)
                 {
-                    case BlockType.REDI:
-                    case BlockType.RED2:
-                        block.Read();
-
-                        EditInfo = (ResourceEditInfo)block;
-
-                        // Try to determine resource type by looking at the compiler indentifiers
-                        if (ResourceType == ResourceType.Unknown)
-                        {
-                            foreach (var specialDep in EditInfo.SpecialDependencies)
-                            {
-                                ResourceType = DetermineResourceTypeByCompilerIdentifier(specialDep);
-
-                                if (ResourceType != ResourceType.Unknown)
-                                {
-                                    break;
-                                }
-                            }
-                        }
-
-                        // Try to determine resource type by looking at the input dependency if there is only one
-                        if (ResourceType == ResourceType.Unknown && EditInfo.InputDependencies.Count == 1)
-                        {
-                            ResourceType = ResourceTypeExtensions.DetermineByFileExtension(Path.GetExtension(EditInfo.InputDependencies[0].ContentRelativeFilename));
-                        }
-
-                        break;
-
-                    case BlockType.NTRO:
-                        block.Read();
-                        break;
+                    block.Read();
                 }
 
                 Reader.BaseStream.Position = position + 8;
+            }
+
+            // Try to determine resource type by looking at the compiler indentifiers
+            if (ResourceType == ResourceType.Unknown)
+            {
+                foreach (var specialDep in EditInfo.SpecialDependencies)
+                {
+                    ResourceType = DetermineResourceTypeByCompilerIdentifier(specialDep);
+
+                    if (ResourceType != ResourceType.Unknown)
+                    {
+                        break;
+                    }
+                }
+            }
+
+            // Try to determine resource type by looking at the input dependency if there is only one
+            if (ResourceType == ResourceType.Unknown && EditInfo.InputDependencies.Count == 1)
+            {
+                ResourceType = ResourceTypeExtensions.DetermineByFileExtension(Path.GetExtension(EditInfo.InputDependencies[0].ContentRelativeFilename));
             }
 
             foreach (var block in Blocks)
