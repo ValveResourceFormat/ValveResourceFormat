@@ -516,11 +516,6 @@ namespace ValveResourceFormat.ResourceTypes
 
                     if (compressionMethod == 0) // Uncompressed
                     {
-                        if (version == 5)
-                        {
-                            throw new UnexpectedMagicException("Uncompressed v5, tell us which file triggers this", compressionMethod, nameof(compressionMethod));
-                        }
-
                         binaryBlobsRaw = ArrayPool<byte>.Shared.Rent(sizeBinaryBlobsBytes);
                         context.BinaryBlobs = new ArraySegment<byte>(binaryBlobsRaw, 0, sizeBinaryBlobsBytes);
                         reader.Read(context.BinaryBlobs);
