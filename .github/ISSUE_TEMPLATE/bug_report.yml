@@ -37,7 +37,7 @@ body:
   id: file
   attributes:
     label: Reference file in a Source 2 game
-    description: Provide path to the file that causes this behavior.
+    description: Provide path to the file that causes this behavior. If this happens in a workshop item, include a link to the workshop.
   validations:
     required: true
 
