@@ -239,11 +239,11 @@ namespace ValveResourceFormat
                 if (block.Type is BlockType.RED2 or BlockType.REDI or BlockType.NTRO)
                 {
                     block.Read(Reader);
+                }
 
-                    if (block.Type is BlockType.RED2 or BlockType.REDI)
-                    {
-                        EditInfo = (ResourceEditInfo)block;
-                    }
+                if (block.Type is BlockType.RED2 or BlockType.REDI)
+                {
+                    EditInfo = (ResourceEditInfo)block;
                 }
 
                 Reader.BaseStream.Position = position + 8;
