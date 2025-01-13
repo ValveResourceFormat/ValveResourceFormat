@@ -29,6 +29,13 @@ namespace ValveResourceFormat
 
         public abstract void Read(BinaryReader reader);
 
+        [Obsolete("Use Read(BinaryReader) and the Resource property.")]
+        public void Read(BinaryReader reader, Resource resource)
+        {
+            Resource = resource;
+            Read(reader);
+        }
+
         /// <summary>
         /// Returns a string that represents the current object.
         /// </summary>
