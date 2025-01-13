@@ -78,7 +78,7 @@ namespace ValveResourceFormat.Blocks
             }
         }
 
-        public override void Read(BinaryReader reader, Resource resource)
+        public override void Read(BinaryReader reader)
         {
             reader.BaseStream.Position = Offset;
 

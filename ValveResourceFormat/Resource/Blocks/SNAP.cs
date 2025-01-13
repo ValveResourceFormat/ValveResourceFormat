@@ -37,7 +37,7 @@ namespace ValveResourceFormat.Blocks
             }
         }
 
-        public override void Read(BinaryReader reader, Resource resource)
+        public override void Read(BinaryReader reader)
         {
             reader.BaseStream.Position = Offset;
 
@@ -52,7 +52,7 @@ namespace ValveResourceFormat.Blocks
                 using var innerReader = new BinaryReader(decompressedStream);
 
                 // Get DATA block to know how to read SNAP data
-                var data = resource.DataBlock.AsKeyValueCollection();
+                var data = Resource.DataBlock.AsKeyValueCollection();
 
                 var numParticles = data.GetIntegerProperty("num_particles");
                 var attributes = data.GetArray("attributes");

@@ -22,7 +22,7 @@ namespace ValveResourceFormat.ResourceTypes
             Type = platformBlockType;
         }
 
-        public override void Read(BinaryReader reader, Resource resource)
+        public override void Read(BinaryReader reader)
         {
             reader.BaseStream.Position = Offset;
 
@@ -36,7 +36,7 @@ namespace ValveResourceFormat.ResourceTypes
                 shaderFiles[i].Size = reader.ReadUInt32();
             }
 
-            var shaderName = Path.GetFileNameWithoutExtension(resource.FileName);
+            var shaderName = Path.GetFileNameWithoutExtension(Resource.FileName);
             var shaderModelType = VcsShaderModelType._50;
             var platformType = Type switch
             {

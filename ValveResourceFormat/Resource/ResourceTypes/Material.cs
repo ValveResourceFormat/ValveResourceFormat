@@ -40,9 +40,9 @@ namespace ValveResourceFormat.ResourceTypes
         }
 
 
-        public override void Read(BinaryReader reader, Resource resource)
+        public override void Read(BinaryReader reader)
         {
-            base.Read(reader, resource);
+            base.Read(reader);
 
             Name = Data.GetProperty<string>("m_materialName");
             ShaderName = Data.GetProperty<string>("m_shaderName");

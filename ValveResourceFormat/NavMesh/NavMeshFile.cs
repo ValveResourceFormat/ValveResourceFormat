@@ -103,7 +103,7 @@ namespace ValveResourceFormat.NavMesh
                 var kv3 = new BinaryKV3();
                 kv3.Offset = (uint)(binaryReader.BaseStream.Position - 1);
                 kv3.Size = (uint)(binaryReader.BaseStream.Length - kv3.Offset);
-                kv3.Read(binaryReader, null);
+                kv3.Read(binaryReader);
 
                 CustomData = kv3.Data;
             }

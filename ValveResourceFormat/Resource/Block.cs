@@ -22,7 +22,19 @@ namespace ValveResourceFormat
         /// </summary>
         public uint Size { get; set; }
 
-        public abstract void Read(BinaryReader reader, Resource resource);
+        /// <summary>
+        /// Gets the resource this block belongs to.
+        /// </summary>
+        public Resource Resource { get; set; }
+
+        public abstract void Read(BinaryReader reader);
+
+        [Obsolete("Use Read(BinaryReader) and the Resource property.")]
+        public void Read(BinaryReader reader, Resource resource)
+        {
+            Resource = resource;
+            Read(reader);
+        }
 
         /// <summary>
         /// Returns a string that represents the current object.

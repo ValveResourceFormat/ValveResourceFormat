@@ -9,7 +9,7 @@ namespace ValveResourceFormat.ResourceTypes
     {
         public Dictionary<string, string> SoundStackScriptValue { get; private set; } // TODO: be Dictionary<string, SomeKVObject>
 
-        public override void Read(BinaryReader reader, Resource resource)
+        public override void Read(BinaryReader reader)
         {
             reader.BaseStream.Position = Offset;
 

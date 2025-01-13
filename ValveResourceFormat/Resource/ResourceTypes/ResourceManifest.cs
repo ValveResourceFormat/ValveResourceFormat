@@ -9,19 +9,20 @@ namespace ValveResourceFormat.ResourceTypes
     {
         public List<List<string>> Resources { get; private set; } = [];
 
-        public override void Read(BinaryReader reader, Resource resource)
+        public override void Read(BinaryReader reader)
         {
             reader.BaseStream.Position = Offset;
 
-            if (resource.ContainsBlockType(BlockType.NTRO))
+            if (Resource.ContainsBlockType(BlockType.NTRO))
             {
                 var ntro = new NTRO
                 {
                     StructName = "ResourceManifest_t",
                     Offset = Offset,
                     Size = Size,
+                    Resource = Resource,
                 };
-                ntro.Read(reader, resource);
+                ntro.Read(reader);
 
                 Resources =
                 [
