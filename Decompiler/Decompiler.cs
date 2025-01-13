@@ -781,7 +781,7 @@ namespace Decompiler
                 using (var binaryReader = new BinaryReader(stream))
                 {
                     kv3.Size = (uint)stream.Length;
-                    kv3.Read(binaryReader, null);
+                    kv3.Read(binaryReader);
                 }
 
                 Console.WriteLine(kv3.ToString());
