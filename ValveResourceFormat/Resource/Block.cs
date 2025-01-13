@@ -25,7 +25,7 @@ namespace ValveResourceFormat
         /// <summary>
         /// Gets the resource this block belongs to.
         /// </summary>
-        public Resource Resource { get; init; }
+        public Resource Resource { get; set; }
 
         public abstract void Read(BinaryReader reader);
 

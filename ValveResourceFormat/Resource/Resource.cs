@@ -245,7 +245,7 @@ namespace ValveResourceFormat
             }
 
             // Try to determine resource type by looking at the compiler indentifiers
-            if (ResourceType == ResourceType.Unknown)
+            if (ResourceType == ResourceType.Unknown && EditInfo != null)
             {
                 foreach (var specialDep in EditInfo.SpecialDependencies)
                 {
@@ -256,12 +256,12 @@ namespace ValveResourceFormat
                         break;
                     }
                 }
-            }
 
-            // Try to determine resource type by looking at the input dependency if there is only one
-            if (ResourceType == ResourceType.Unknown && EditInfo.InputDependencies.Count == 1)
-            {
-                ResourceType = ResourceTypeExtensions.DetermineByFileExtension(Path.GetExtension(EditInfo.InputDependencies[0].ContentRelativeFilename));
+                // Try to determine resource type by looking at the input dependency if there is only one
+                if (ResourceType == ResourceType.Unknown && EditInfo.InputDependencies.Count == 1)
+                {
+                    ResourceType = ResourceTypeExtensions.DetermineByFileExtension(Path.GetExtension(EditInfo.InputDependencies[0].ContentRelativeFilename));
+                }
             }
 
             foreach (var block in Blocks)
