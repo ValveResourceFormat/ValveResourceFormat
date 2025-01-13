@@ -42,7 +42,6 @@ namespace ValveResourceFormat.ResourceTypes
             finally
             {
                 Reader = null;
-                Resource = null;
                 IntrospectionManifest = null;
             }
         }
