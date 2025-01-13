@@ -236,13 +236,14 @@ namespace ValveResourceFormat
 
                 Blocks.Add(block);
 
-                if (block.Type is BlockType.RED2 or BlockType.REDI or BlockType.NTRO)
+                if (block.Type is BlockType.NTRO)
                 {
                     block.Read(Reader);
                 }
 
                 if (block.Type is BlockType.RED2 or BlockType.REDI)
                 {
+                    block.Read(Reader);
                     EditInfo = (ResourceEditInfo)block;
                 }
 
