@@ -136,6 +136,10 @@ namespace ValveResourceFormat.IO
                     contentFile = new ModelExtract(resource, fileLoader).ToContentFile();
                     break;
 
+                case ResourceType.AnimationGraph:
+                    contentFile = new AnimationGraphExtract(resource).ToContentFile();
+                    break;
+
                 case ResourceType.Panorama:
                 case ResourceType.PanoramaScript:
                 case ResourceType.PanoramaTypescript:
