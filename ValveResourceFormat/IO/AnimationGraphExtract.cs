@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Text;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization;
@@ -36,6 +37,7 @@ public class AnimationGraphExtract
     static readonly Dictionary<string, string> ClassRemap = new()
     {
         { "CSequenceUpdateNode", "CSequenceAnimNode" },
+        { "CChoiceUpdateNode", "CChoiceAnimNode" },
     };
 
     KVObject ConvertToUncompiled(KVObject compiledNode)
@@ -58,6 +60,7 @@ public class AnimationGraphExtract
             }
 
             var newKey = key;
+            var isChildren = key is "m_children";
 
             if (className is "CSequenceUpdateNode")
             {
@@ -73,8 +76,32 @@ public class AnimationGraphExtract
                     newKey = "m_sequenceName";
                 }
             }
+            else if (className is "CChoiceUpdateNode")
+            {
+                // skip
+                if (key is "m_weights" or "m_blendTimes")
+                {
+                    continue;
+                }
+
+                // remap
+                if (key is "m_name")
+                {
+                    newKey = "m_sName";
+                }
+            }
 
             node.AddProperty(newKey, value);
+        }
+
+        if (className is "CChoiceUpdateNode")
+        {
+            var weights = compiledNode.GetArray("m_weights");
+            var blendTimes = compiledNode.GetArray("m_blendTimes");
+            var choiceNodeIds = compiledNode.GetArray("m_children")
+                .Select(child => child.GetIntegerProperty("m_nodeIndex"));
+
+            // node.AddProperty("m_children"
         }
 
         return node;
