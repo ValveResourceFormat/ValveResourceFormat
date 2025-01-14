@@ -34,6 +34,7 @@ partial class ModelExtract
             string => KVType.STRING,
             bool => KVType.BOOLEAN,
             int => KVType.INT32,
+            uint => KVType.UINT32,
             long => KVType.INT64,
             float => KVType.FLOAT,
             double => KVType.DOUBLE,

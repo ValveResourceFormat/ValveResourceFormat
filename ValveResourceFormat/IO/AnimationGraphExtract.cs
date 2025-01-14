@@ -34,96 +34,6 @@ public class AnimationGraphExtract
         return contentFile;
     }
 
-    KVObject ConvertToUncompiled(KVObject compiledNode)
-    {
-        var className = compiledNode.GetProperty<string>("_class");
-        className = className.Replace("UpdateNode", string.Empty, StringComparison.Ordinal);
-
-        var newClass = className + "AnimNode";
-        var node = ModelExtract.MakeNode(newClass);
-
-        foreach (var (key, value) in compiledNode.Properties)
-        {
-            if (key is "_class"
-                    or "m_nodePath"
-                    or "m_paramSpans" // todo
-                    or "m_tags"       // todo
-                    or "m_children"   // todo
-            )
-            {
-                continue;
-            }
-
-            var newKey = key;
-            var isChildren = key is "m_children";
-
-            if (className is "CSequence")
-            {
-                // skip
-                if (key is "m_hSequence" or "m_duration")
-                {
-                    continue;
-                }
-
-                // remap
-                if (key is "m_name")
-                {
-                    newKey = "m_sequenceName";
-                }
-            }
-            else if (className is "CChoice")
-            {
-                // skip
-                if (key is "m_weights" or "m_blendTimes")
-                {
-                    continue;
-                }
-
-                // remap
-                if (key is "m_name")
-                {
-                    newKey = "m_sName";
-                }
-            }
-
-            node.AddProperty(newKey, value);
-        }
-
-        if (className is "CChoice")
-        {
-            var weights = compiledNode.GetFloatArray("m_weights");
-            var blendTimes = compiledNode.GetFloatArray("m_blendTimes");
-
-            var choiceNodeIds = compiledNode.GetArray("m_children")
-                .Select(child => child.GetIntegerProperty("m_nodeIndex"));
-
-            var children = weights.Zip(blendTimes, choiceNodeIds).Select((choice) =>
-            {
-                var (weight, blendTime, nodeId) = choice;
-
-                var choiceNode = new KVObject(null, 3);
-                var nodeIdObject = new KVObject("fakeIndentKey", new Dictionary<string, KVValue>()
-                {
-                    { "m_id", ModelExtract.MakeValue(nodeId) },
-                });
-
-                var inputConnection = new KVObject("fakeIndentKey", 2);
-                inputConnection.AddProperty("m_nodeID", ModelExtract.MakeValue(nodeIdObject));
-                inputConnection.AddProperty("m_outputID", ModelExtract.MakeValue(nodeIdObject));
-
-                choiceNode.AddProperty("m_inputConnection", ModelExtract.MakeValue(inputConnection));
-                choiceNode.AddProperty("m_weight", ModelExtract.MakeValue(weight));
-                choiceNode.AddProperty("m_blendTime", ModelExtract.MakeValue(blendTime));
-
-                return choiceNode;
-            });
-
-            node.AddProperty("m_children", ModelExtract.MakeArrayValue(children));
-        }
-
-        return node;
-    }
-
     public string ToEditableAnimGraphVersion19()
     {
         var data = graph.GetSubCollection("m_pSharedData");
@@ -137,11 +47,9 @@ public class AnimationGraphExtract
         {
             var nodeId = i++; // compiledNodeIndexMap[i++];
             var nodeData = ConvertToUncompiled(compiledNode);
+            var nodeIdObject = MakeNodeIdObjectValue(nodeId);
 
-            var nodeIdObject = new KVObject("fakeIndentKey", 1);
-            nodeIdObject.AddProperty("m_id", ModelExtract.MakeValue(nodeId));
-
-            nodeData.AddProperty("m_nNodeID", ModelExtract.MakeValue(nodeIdObject));
+            nodeData.AddProperty("m_nNodeID", nodeIdObject);
 
             var nodeManagerItem = new KVObject(null, 2);
             nodeManagerItem.AddProperty("key", ModelExtract.MakeValue(nodeIdObject));
@@ -165,5 +73,154 @@ public class AnimationGraphExtract
         );
 
         return new KV3File(kv, format: "animgraph19:version{0adb35b7-2585-4302-8d05-e2825b4518ac}").ToString();
+    }
+
+    private static KVValue MakeNodeIdObjectValue(long nodeId)
+    {
+        var nodeIdObject = new KVObject("fakeIndentKey", 1);
+        nodeIdObject.AddProperty("m_id", ModelExtract.MakeValue(unchecked((uint)nodeId)));
+        return ModelExtract.MakeValue(nodeIdObject);
+    }
+
+    private static KVValue MakeInputConnection(long nodeId)
+    {
+        var nodeIdObject = MakeNodeIdObjectValue(nodeId);
+
+        var inputConnection = new KVObject("fakeIndentKey", 2);
+        inputConnection.AddProperty("m_nodeID", nodeIdObject);
+        inputConnection.AddProperty("m_outputID", nodeIdObject);
+        return ModelExtract.MakeValue(inputConnection);
+    }
+
+    private static void AddInputConnection(KVObject choiceNode, long nodeId)
+    {
+        var inputConnection = MakeInputConnection(nodeId);
+        choiceNode.AddProperty("m_inputConnection", ModelExtract.MakeValue(inputConnection));
+    }
+
+    KVObject ConvertToUncompiled(KVObject compiledNode)
+    {
+        var className = compiledNode.GetProperty<string>("_class");
+        className = className.Replace("UpdateNode", string.Empty, StringComparison.Ordinal);
+
+        var newClass = className + "AnimNode";
+        var node = ModelExtract.MakeNode(newClass);
+
+        var children = compiledNode.GetArray("m_children");
+        var inputNodeIds = children?.Select(child => child.GetIntegerProperty("m_nodeIndex")).ToArray();
+
+        foreach (var (key, value) in compiledNode.Properties)
+        {
+            if (key is "_class"
+                    or "m_nodePath"
+                    or "m_paramSpans" // todo
+            )
+            {
+                continue;
+            }
+
+            var newKey = key;
+            var subCollection = new Lazy<KVObject>(() => (KVObject)value.Value);
+
+            // common remapped key
+            if (key is "m_name" && className is "CSequence" or "CChoice" or "CSelector"
+                or "CStateMachine" or "CRoot")
+            {
+                newKey = "m_sName";
+            }
+
+            if (className is "CRoot")
+            {
+                // Get the input connection of the final pose (root node)
+                if (key is "m_pChildNode")
+                {
+                    var finalNodeInputIndex = subCollection.Value.GetIntegerProperty("m_nodeIndex");
+                    AddInputConnection(node, finalNodeInputIndex);
+                    continue;
+                }
+            }
+            else if (className is "CSelector")
+            {
+                if (key is "m_eTagBehavior")
+                {
+                    newKey = "m_tagBehavior";
+                }
+                else if (key is "m_hParameter")
+                {
+                    var type = subCollection.Value.GetProperty<string>("m_type");
+                    var paramIndex = subCollection.Value.GetIntegerProperty("m_index");
+
+                    var source = type["ANIMPARAM_".Length..];
+                    source = char.ToUpperInvariant(source[0]) + source[1..].ToLowerInvariant();
+
+                    node.AddProperty("m_selectionSource", ModelExtract.MakeValue(source));
+                    node.AddProperty($"m_{source.ToLowerInvariant()}ParamID", MakeNodeIdObjectValue(paramIndex));
+                    continue;
+                }
+            }
+            else if (className is "CSequence")
+            {
+                // skip
+                if (key is "m_hSequence" or "m_duration")
+                {
+                    continue;
+                }
+
+                // remap
+                if (key is "m_name")
+                {
+                    // Is this reliable? Using the node name as the sequence name.
+                    node.AddProperty("m_sequenceName", value);
+                }
+            }
+            else if (className is "CChoice")
+            {
+                // skip
+                if (key is "m_weights" or "m_blendTimes")
+                {
+                    continue;
+                }
+
+                if (key is "m_children")
+                {
+                    var weights = compiledNode.GetFloatArray("m_weights");
+                    var blendTimes = compiledNode.GetFloatArray("m_blendTimes");
+
+                    var newInputs = weights.Zip(blendTimes, inputNodeIds).Select((choice) =>
+                    {
+                        var (weight, blendTime, nodeId) = choice;
+
+                        var choiceNode = new KVObject(null, 3);
+                        AddInputConnection(choiceNode, nodeId);
+                        choiceNode.AddProperty("m_weight", ModelExtract.MakeValue(weight));
+                        choiceNode.AddProperty("m_blendTime", ModelExtract.MakeValue(blendTime));
+
+                        return choiceNode;
+                    });
+
+                    node.AddProperty("m_children", ModelExtract.MakeArrayValue(newInputs));
+                    continue;
+                }
+            }
+
+            if (key is "m_children")
+            {
+                node.AddProperty(key, ModelExtract.MakeArrayValue(inputNodeIds.Select(MakeInputConnection)));
+                continue;
+            }
+
+            if (key is "m_tags")
+            {
+                var tagIds = compiledNode.GetIntegerArray(key);
+                node.AddProperty(key, ModelExtract.MakeArrayValue(tagIds.Select(MakeNodeIdObjectValue)));
+                continue;
+            }
+
+            node.AddProperty(newKey, value);
+        }
+
+        // TODO: CSelector, CStateMachine
+
+        return node;
     }
 }
