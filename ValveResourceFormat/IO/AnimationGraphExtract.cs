@@ -34,17 +34,12 @@ public class AnimationGraphExtract
         return contentFile;
     }
 
-    static readonly Dictionary<string, string> ClassRemap = new()
-    {
-        { "CSequenceUpdateNode", "CSequenceAnimNode" },
-        { "CChoiceUpdateNode", "CChoiceAnimNode" },
-    };
-
     KVObject ConvertToUncompiled(KVObject compiledNode)
     {
         var className = compiledNode.GetProperty<string>("_class");
-        var newClass = ClassRemap.GetValueOrDefault(className, className);
+        className = className.Replace("UpdateNode", string.Empty, StringComparison.Ordinal);
 
+        var newClass = className + "AnimNode";
         var node = ModelExtract.MakeNode(newClass);
 
         foreach (var (key, value) in compiledNode.Properties)
@@ -62,7 +57,7 @@ public class AnimationGraphExtract
             var newKey = key;
             var isChildren = key is "m_children";
 
-            if (className is "CSequenceUpdateNode")
+            if (className is "CSequence")
             {
                 // skip
                 if (key is "m_hSequence" or "m_duration")
@@ -76,7 +71,7 @@ public class AnimationGraphExtract
                     newKey = "m_sequenceName";
                 }
             }
-            else if (className is "CChoiceUpdateNode")
+            else if (className is "CChoice")
             {
                 // skip
                 if (key is "m_weights" or "m_blendTimes")
@@ -94,14 +89,36 @@ public class AnimationGraphExtract
             node.AddProperty(newKey, value);
         }
 
-        if (className is "CChoiceUpdateNode")
+        if (className is "CChoice")
         {
-            var weights = compiledNode.GetArray("m_weights");
-            var blendTimes = compiledNode.GetArray("m_blendTimes");
+            var weights = compiledNode.GetFloatArray("m_weights");
+            var blendTimes = compiledNode.GetFloatArray("m_blendTimes");
+
             var choiceNodeIds = compiledNode.GetArray("m_children")
                 .Select(child => child.GetIntegerProperty("m_nodeIndex"));
 
-            // node.AddProperty("m_children"
+            var children = weights.Zip(blendTimes, choiceNodeIds).Select((choice) =>
+            {
+                var (weight, blendTime, nodeId) = choice;
+
+                var choiceNode = new KVObject(null, 3);
+                var nodeIdObject = new KVObject("fakeIndentKey", new Dictionary<string, KVValue>()
+                {
+                    { "m_id", ModelExtract.MakeValue(nodeId) },
+                });
+
+                var inputConnection = new KVObject("fakeIndentKey", 2);
+                inputConnection.AddProperty("m_nodeID", ModelExtract.MakeValue(nodeIdObject));
+                inputConnection.AddProperty("m_outputID", ModelExtract.MakeValue(nodeIdObject));
+
+                choiceNode.AddProperty("m_inputConnection", ModelExtract.MakeValue(inputConnection));
+                choiceNode.AddProperty("m_weight", ModelExtract.MakeValue(weight));
+                choiceNode.AddProperty("m_blendTime", ModelExtract.MakeValue(blendTime));
+
+                return choiceNode;
+            });
+
+            node.AddProperty("m_children", ModelExtract.MakeArrayValue(children));
         }
 
         return node;
@@ -110,16 +127,17 @@ public class AnimationGraphExtract
     public string ToEditableAnimGraphVersion19()
     {
         var data = graph.GetSubCollection("m_pSharedData");
+        var compiledNodes = data.GetArray("m_nodes");
+        var compiledNodeIndexMap = data.GetArray("m_nodeIndexMap").Select(kv => kv.GetIntegerProperty("value")).ToArray();
 
         var nodeManager = ModelExtract.MakeListNode("CAnimNodeManager", "m_nodes");
-        var compiledNodes = data.GetArray("m_nodes");
 
-        var i = 1337;
+        var i = 0;
         foreach (var compiledNode in compiledNodes)
         {
+            var nodeId = i++; // compiledNodeIndexMap[i++];
             var nodeData = ConvertToUncompiled(compiledNode);
 
-            var nodeId = i++;
             var nodeIdObject = new KVObject("fakeIndentKey", 1);
             nodeIdObject.AddProperty("m_id", ModelExtract.MakeValue(nodeId));
 

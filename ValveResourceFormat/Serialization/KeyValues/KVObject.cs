@@ -41,6 +41,15 @@ namespace ValveResourceFormat.Serialization.KeyValues
             }
         }
 
+        public KVObject(string name, IDictionary<string, KVValue> objectItems)
+            : this(name, false, objectItems.Count)
+        {
+            foreach (var objectItem in objectItems)
+            {
+                AddProperty(objectItem.Key, objectItem.Value);
+            }
+        }
+
         //Add a property to the structure
         public virtual void AddProperty(string name, KVValue value)
         {

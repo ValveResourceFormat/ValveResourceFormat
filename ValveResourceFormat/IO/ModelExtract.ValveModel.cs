@@ -20,7 +20,7 @@ partial class ModelExtract
         var specialType = value switch
         {
             KVValue v => v,
-            Vector3 vec3 => MakeArrayValue(new[] { vec3.X, vec3.Y, vec3.Z }),
+            Vector3 vec3 => MakeArrayValue([vec3.X, vec3.Y, vec3.Z]),
             _ => null
         };
 
@@ -44,7 +44,7 @@ partial class ModelExtract
         return new KVValue(basicType, value);
     }
 
-    static KVValue MakeArrayValue<T>(IEnumerable<T> values)
+    internal static KVValue MakeArrayValue<T>(IEnumerable<T> values)
     {
         var list = new KVObject(null, isArray: true);
         foreach (var value in values)
