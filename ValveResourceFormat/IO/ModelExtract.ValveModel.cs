@@ -15,7 +15,7 @@ namespace ValveResourceFormat.IO;
 partial class ModelExtract
 {
     #region KV Helpers
-    static KVValue MakeValue(object value)
+    internal static KVValue MakeValue(object value)
     {
         var specialType = value switch
         {
@@ -55,7 +55,7 @@ partial class ModelExtract
         return MakeValue(list);
     }
 
-    static void AddItem(KVObject node, KVObject item)
+    internal static void AddItem(KVObject node, KVObject item)
     {
         Debug.Assert(node.IsArray);
         node.AddProperty(null, MakeValue(item));
@@ -71,10 +71,10 @@ partial class ModelExtract
         }
         return node;
     }
-    static (KVObject Node, KVObject Children) MakeListNode(string className)
+    internal static (KVObject Node, KVObject Children) MakeListNode(string className, string containerName = "children")
     {
         var children = new KVObject(null, isArray: true);
-        var node = MakeNode(className, ("children", children));
+        var node = MakeNode(className, (containerName, children));
         return (node, children);
     }
     #endregion
