@@ -92,10 +92,10 @@ public class AnimationGraphExtract
         return ModelExtract.MakeValue(inputConnection);
     }
 
-    private static void AddInputConnection(KVObject choiceNode, long nodeId)
+    private static void AddInputConnection(KVObject node, long childNodeId)
     {
-        var inputConnection = MakeInputConnection(nodeId);
-        choiceNode.AddProperty("m_inputConnection", ModelExtract.MakeValue(inputConnection));
+        var inputConnection = MakeInputConnection(childNodeId);
+        node.AddProperty("m_inputConnection", ModelExtract.MakeValue(inputConnection));
     }
 
     KVObject ConvertToUncompiled(KVObject compiledNode)
@@ -153,8 +153,17 @@ public class AnimationGraphExtract
                     var source = type["ANIMPARAM_".Length..];
                     source = char.ToUpperInvariant(source[0]) + source[1..].ToLowerInvariant();
 
-                    node.AddProperty("m_selectionSource", ModelExtract.MakeValue(source));
+                    node.AddProperty("m_selectionSource", ModelExtract.MakeValue("SelectionSource_" + source));
                     node.AddProperty($"m_{source.ToLowerInvariant()}ParamID", MakeNodeIdObjectValue(paramIndex));
+                    continue;
+                }
+
+                // blendDuration
+            }
+            else if (className is "CStateMachine")
+            {
+                if (key is "m_stateMachine" or "m_stateData" or "m_transitionData")
+                {
                     continue;
                 }
             }
@@ -220,6 +229,71 @@ public class AnimationGraphExtract
         }
 
         // TODO: CSelector, CStateMachine
+
+        if (className is "CStateMachine")
+        {
+            var stateMachine = compiledNode.GetSubCollection("m_stateMachine");
+            var stateData = compiledNode.GetArray("m_stateData");
+            var transitionData = compiledNode.GetArray("m_transitionData");
+
+            var states = stateMachine.GetArray("m_states");
+            var transitions = stateMachine.GetArray("m_transitions");
+
+            HashSet<string> passThroughStateProperties =
+            [
+                "m_name",
+                "m_stateID",
+                "m_bIsStartState",
+                "m_bIsEndtState",
+                "m_bIsPassthrough",
+            ];
+
+            var uncompiledStates = states.Select((state, i) =>
+            {
+                var data = stateData[i];
+                var transitionIndices = state.GetIntegerArray("m_transitionIndices");
+
+                var stateNode = ModelExtract.MakeNode("CAnimNodeState");
+
+                var uncompiledTransitions = transitionIndices.Select((transitionId) =>
+                {
+                    var transition = transitions[i];
+                    var data = transitionData[i];
+
+                    // m_conditionList?
+
+                    var transitionNode = ModelExtract.MakeNode("CAnimNodeStateTransition",
+                        ("m_srcState", MakeNodeIdObjectValue(transition.GetIntegerProperty("m_srcStateIndex"))),
+                        ("m_destState", MakeNodeIdObjectValue(transition.GetIntegerProperty("m_destStateIndex"))),
+                        ("m_bDisabled", ModelExtract.MakeValue(transition.GetIntegerProperty("m_bDisabled") > 0)),
+                        ("m_bReset", ModelExtract.MakeValue(data.GetIntegerProperty("m_bReset") > 0))
+                    );
+
+                    // data m_resetCycleOption int -> string
+                    // cycle and blend duration
+
+                    AddInputConnection(transitionNode, transition.GetIntegerProperty("m_nodeIndex"));
+                    return transitionNode;
+                });
+
+                stateNode.AddProperty("m_transitions", ModelExtract.MakeArrayValue(uncompiledTransitions));
+
+                // Pasthrough properties
+                foreach (var (key, value) in state.Properties)
+                {
+                    if (passThroughStateProperties.Contains(key))
+                    {
+                        stateNode.AddProperty(key, value);
+                    }
+                }
+
+                AddInputConnection(stateNode, data.GetSubCollection("m_pChild").GetIntegerProperty("m_nodeIndex"));
+                stateNode.AddProperty("m_bIsRootMotionExclusive", ModelExtract.MakeValue(data.GetIntegerProperty("m_bExclusiveRootMotion") > 0));
+                return stateNode;
+            });
+
+            node.AddProperty("m_states", ModelExtract.MakeArrayValue(uncompiledStates));
+        }
 
         return node;
     }
