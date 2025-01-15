@@ -1,7 +1,7 @@
 using System.IO;
 using System.Text;
 
-namespace ValveResourceFormat
+namespace ValveResourceFormat.ValveFont
 {
 #pragma warning disable CA1822 // statics
     public class ValveFont
@@ -11,7 +11,6 @@ namespace ValveResourceFormat
 
         /// <summary>
         /// Opens and reads the given filename.
-        /// The file is held open until the object is disposed.
         /// </summary>
         /// <param name="filename">The file to open and read.</param>
         public byte[] Read(string filename)

@@ -19,6 +19,7 @@ using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.TextureDecoders;
 using ValveResourceFormat.ToolsAssetInfo;
 using ValveResourceFormat.Utils;
+using ValveResourceFormat.ValveFont;
 
 namespace Decompiler
 {
@@ -515,6 +516,12 @@ namespace Decompiler
 
                 return;
             }
+            else if (pathExtension == ".uifont")
+            {
+                ParseUIFont(path);
+
+                return;
+            }
             else if (FileExtract.TryExtractNonResource(stream, path, out var content))
             {
                 if (OutputFile != null)
@@ -764,6 +771,27 @@ namespace Decompiler
                     path = GetOutputPath(path);
 
                     DumpFile(path, output);
+                }
+            }
+            catch (Exception e)
+            {
+                LogException(e, path);
+            }
+        }
+
+        private void ParseUIFont(string path) // TODO: Accept Stream
+        {
+            var fontPackage = new UIFontFilePackage();
+
+            try
+            {
+                fontPackage.Read(path);
+                var outputDirectory = Path.GetDirectoryName(path);
+
+                foreach (var fontFile in fontPackage.FontFiles)
+                {
+                    var outputPath = Path.Combine(outputDirectory, fontFile.FileName);
+                    DumpFile(outputPath, fontFile.OpenTypeFontData);
                 }
             }
             catch (Exception e)
