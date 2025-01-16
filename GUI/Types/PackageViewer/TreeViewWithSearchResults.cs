@@ -115,6 +115,9 @@ namespace GUI.Types.PackageViewer
             mainListView.BeginUpdate();
             mainListView.Items.Clear();
 
+            var sorter = mainListView.ListViewItemSorter;
+            mainListView.ListViewItemSorter = null;
+
             foreach (var (name, node) in pkgNode.Folders)
             {
                 AddFolderToListView(name, node);
@@ -125,7 +128,7 @@ namespace GUI.Types.PackageViewer
                 AddFileToListView(file);
             }
 
-            mainListView.Sort();
+            mainListView.ListViewItemSorter = sorter;
             mainListView.EndUpdate();
 
             if (updatePath)
@@ -568,12 +571,16 @@ namespace GUI.Types.PackageViewer
             mainListView.BeginUpdate();
             mainListView.Items.Clear();
 
+            var sorter = mainListView.ListViewItemSorter;
+            mainListView.ListViewItemSorter = null;
+
             foreach (var entry in results)
             {
                 AddFileToListView(entry);
             }
 
-            mainListView.Sort();
+            mainListView.ListViewItemSorter = sorter;
+
             ResizeListViewColumns();
             DisplayMainListView();
             mainListView.EndUpdate();
