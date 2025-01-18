@@ -34,6 +34,9 @@ public class AnimationGraphExtract
         return contentFile;
     }
 
+    KVObject[] Tags => graph.GetSubCollection("m_pSharedData").GetSubCollection("m_pTagManagerUpdater").GetArray("m_tags");
+    KVObject[] Parameters => graph.GetSubCollection("m_pSharedData").GetSubCollection("m_pParamListUpdater").GetArray("m_parameters");
+
     public string ToEditableAnimGraphVersion19()
     {
         var data = graph.GetSubCollection("m_pSharedData");
@@ -58,10 +61,7 @@ public class AnimationGraphExtract
             ModelExtract.AddItem(nodeManager.Children, nodeManagerItem);
         }
 
-        var localTags = ModelExtract.MakeArrayValue(
-            data.GetSubCollection("m_pTagManagerUpdater")
-                .GetArray("m_tags")
-        );
+        var localTags = ModelExtract.MakeArrayValue(Tags);
 
         var kv = ModelExtract.MakeNode(
             "CAnimationGraph",
@@ -282,6 +282,55 @@ public class AnimationGraphExtract
                 });
 
                 stateNode.AddProperty("m_transitions", ModelExtract.MakeArrayValue(uncompiledTransitions));
+
+                if (state.ContainsKey("m_actions"))
+                {
+                    stateNode.AddProperty("m_actions", ModelExtract.MakeArrayValue(state.GetArray("m_actions").Select(compiledAction =>
+                    {
+                        var uncompiledAction = ModelExtract.MakeNode("CStateAction");
+                        foreach (var compiledProperty in compiledAction)
+                        {
+                            if (compiledProperty.Key is "m_pAction")
+                            {
+                                var action = (KVObject)compiledProperty.Value;
+                                var actionData = ModelExtract.MakeNode(action.GetProperty<string>("_class").Replace("Updater", string.Empty, StringComparison.Ordinal));
+                                if (action.ContainsKey("m_nTagIndex"))
+                                {
+                                    // convert from index to handle
+                                    var tagId = action.GetIntegerProperty("m_nTagIndex");
+                                    if (tagId != -1)
+                                    {
+                                        tagId = Tags[tagId].GetSubCollection("m_tagID").GetIntegerProperty("m_id");
+                                    }
+
+                                    actionData.AddProperty("m_tag", MakeNodeIdObjectValue(tagId));
+                                }
+
+                                if (action.ContainsKey("m_hParam"))
+                                {
+                                    // convert from index to handle
+                                    var parameterId = action.GetSubCollection("m_hParam").GetIntegerProperty("m_index");
+                                    if (parameterId != -1)
+                                    {
+                                        parameterId = Parameters[parameterId].GetSubCollection("m_id").GetIntegerProperty("m_id");
+                                    }
+
+                                    actionData.AddProperty("m_param", MakeNodeIdObjectValue(parameterId));
+                                }
+
+                                if (action.ContainsKey("m_value"))
+                                {
+                                    actionData.AddProperty("m_value", ModelExtract.MakeValue(action.GetSubCollection("m_value")));
+                                }
+
+                                uncompiledAction.AddProperty(compiledProperty.Key, ModelExtract.MakeValue(actionData));
+                                continue;
+                            }
+                            uncompiledAction.AddProperty(compiledProperty.Key, ModelExtract.MakeValue(compiledProperty.Value));
+                        }
+                        return uncompiledAction;
+                    })));
+                }
 
                 // Pasthrough properties
                 foreach (var (key, value) in state.Properties)
