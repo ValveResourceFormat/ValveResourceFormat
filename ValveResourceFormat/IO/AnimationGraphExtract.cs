@@ -61,13 +61,14 @@ public class AnimationGraphExtract
             ModelExtract.AddItem(nodeManager.Children, nodeManagerItem);
         }
 
+        var localParameters = ModelExtract.MakeArrayValue(Parameters);
         var localTags = ModelExtract.MakeArrayValue(Tags);
 
         var kv = ModelExtract.MakeNode(
             "CAnimationGraph",
             ("m_nodeManager", nodeManager.Node),
             // ("m_componentManager", componentManager.Node),
-            // ("m_localParameters", localParameters),
+            ("m_localParameters", localParameters),
             ("m_localTags", localTags),
             // ("m_referencedParamGroups", referencedParamGroups),
             // ("m_referencedTagGroups", referencedTagGroups),
