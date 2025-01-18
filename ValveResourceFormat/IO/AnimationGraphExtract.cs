@@ -160,7 +160,7 @@ public class AnimationGraphExtract
                     source = char.ToUpperInvariant(source[0]) + source[1..].ToLowerInvariant();
 
                     node.AddProperty("m_selectionSource", ModelExtract.MakeValue("SelectionSource_" + source));
-                    node.AddProperty($"m_{source.ToLowerInvariant()}ParamID", MakeNodeIdObjectValue(paramIndex));
+                    node.AddProperty($"m_{source.ToLowerInvariant()}ParamID", ParameterIDFromIndex(paramIndex));
                     continue;
                 }
 
@@ -226,8 +226,34 @@ public class AnimationGraphExtract
 
             if (key is "m_tags")
             {
-                var tagIds = compiledNode.GetIntegerArray(key);
-                node.AddProperty(key, ModelExtract.MakeArrayValue(tagIds.Select(MakeNodeIdObjectValue)));
+                if (className is "CSequence" or "CCycleControlClip")
+                {
+                    // this is tag spans like so:
+                    // {
+                    //     m_tagIndex = 0
+                    //     m_startCycle = 0.000000
+                    //     m_endCycle = 1.000000
+                    // },
+                    continue;
+                }
+
+                try
+                {
+                    var tagIds = compiledNode.GetIntegerArray(key);
+                    node.AddProperty(key, ModelExtract.MakeArrayValue(tagIds.Select(MakeNodeIdObjectValue)));
+                    continue;
+                }
+                catch (InvalidCastException)
+                {
+                    Console.WriteLine(className + " m_tags is a tag span");
+                    continue;
+                }
+            }
+
+            if (key is "m_paramIndex")
+            {
+                var paramIndex = subCollection.Value.GetIntegerProperty("m_index");
+                node.AddProperty("m_paramID", ParameterIDFromIndex(paramIndex));
                 continue;
             }
 
@@ -263,8 +289,8 @@ public class AnimationGraphExtract
 
                 var uncompiledTransitions = transitionIndices.Select((transitionId) =>
                 {
-                    var transition = transitions[i];
-                    var data = transitionData[i];
+                    var transition = transitions[transitionId];
+                    var data = transitionData[transitionId];
 
                     // m_conditionList?
 
@@ -309,14 +335,8 @@ public class AnimationGraphExtract
 
                                 if (action.ContainsKey("m_hParam"))
                                 {
-                                    // convert from index to handle
                                     var parameterId = action.GetSubCollection("m_hParam").GetIntegerProperty("m_index");
-                                    if (parameterId != -1)
-                                    {
-                                        parameterId = Parameters[parameterId].GetSubCollection("m_id").GetIntegerProperty("m_id");
-                                    }
-
-                                    actionData.AddProperty("m_param", MakeNodeIdObjectValue(parameterId));
+                                    actionData.AddProperty("m_param", ParameterIDFromIndex(parameterId));
                                 }
 
                                 if (action.ContainsKey("m_value"))
@@ -351,5 +371,19 @@ public class AnimationGraphExtract
         }
 
         return node;
+    }
+
+    private KVValue ParameterIDFromIndex(long paramIndex)
+    {
+        if (paramIndex == 255)
+        {
+            paramIndex = -1;
+        }
+        if (paramIndex != -1)
+        {
+            paramIndex = Parameters[paramIndex].GetSubCollection("m_id").GetIntegerProperty("m_id");
+        }
+
+        return MakeNodeIdObjectValue(paramIndex);
     }
 }
