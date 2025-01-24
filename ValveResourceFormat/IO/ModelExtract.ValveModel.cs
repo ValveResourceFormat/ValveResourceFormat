@@ -3,6 +3,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
+using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.ResourceTypes.ModelData;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics;
@@ -367,6 +368,7 @@ partial class ModelExtract
         var attachmentList = MakeLazyList("AttachmentList");
         var skeleton = MakeLazyList("Skeleton");
         var modelModifierList = MakeLazyList("ModelModifierList");
+        var weightLists = MakeLazyList("WeightListList");
         var hitboxSetList = MakeLazyList("HitboxSetList");
 
         var boneMarkupList = MakeListNode("BoneMarkupList");
@@ -607,6 +609,11 @@ partial class ModelExtract
             ExtractModelKeyValues(root.Node);
             ExtractHitboxSets();
 
+            if (model.Resource.GetBlockByType(BlockType.ASEQ) is KeyValuesOrNTRO sequenceData)
+            {
+                ExtractSequenceData(sequenceData);
+            }
+
             if (model.Skeleton.Roots.Length > 0)
             {
                 AddBonesRecursive(model.Skeleton.Roots, skeleton.Value);
@@ -764,6 +771,43 @@ partial class ModelExtract
                 }
 
                 AddItem(hitboxSetList.Value, hitboxSet);
+            }
+        }
+
+        void ExtractSequenceData(KeyValuesOrNTRO sequenceData)
+        {
+            var boneMasks = sequenceData.Data.GetArray<KVObject>("m_localBoneMaskArray");
+
+            foreach (var boneMask in boneMasks)
+            {
+                var name = boneMask.GetProperty<string>("m_sName");
+                var boneArray = boneMask.GetIntegerArray("m_nLocalBoneArray");
+                var boneWeights = boneMask.GetFloatArray("m_flBoneWeightArray");
+                // master_morph_weight = m_flDefaultMorphCtrlWeight
+
+                // skip default mask
+                if (name == "default" && boneArray.Length == 0)
+                {
+                    continue;
+                }
+
+                var weights = new KVObject(null, isArray: true, boneArray.Length);
+                var weightListNode = MakeNode("WeightList",
+                    ("name", name),
+                    ("weights", weights)
+                );
+
+                foreach (var (boneIndex, boneWeight) in boneArray.Zip(boneWeights))
+                {
+                    var weightDefinition = new KVObject(null, 2);
+                    var boneName = model.Skeleton.Bones[boneIndex].Name;
+
+                    weightDefinition.AddProperty("bone", MakeValue(boneName));
+                    weightDefinition.AddProperty("weight", MakeValue(boneWeight));
+                    AddItem(weights, weightDefinition);
+                }
+
+                AddItem(weightLists.Value, weightListNode);
             }
         }
 
