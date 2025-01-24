@@ -777,6 +777,7 @@ partial class ModelExtract
         void ExtractSequenceData(KeyValuesOrNTRO sequenceData)
         {
             var boneMasks = sequenceData.Data.GetArray<KVObject>("m_localBoneMaskArray");
+            var boneNames = sequenceData.Data.GetArray<string>("m_localBoneNameArray");
 
             foreach (var boneMask in boneMasks)
             {
@@ -800,7 +801,7 @@ partial class ModelExtract
                 foreach (var (boneIndex, boneWeight) in boneArray.Zip(boneWeights))
                 {
                     var weightDefinition = new KVObject(null, 2);
-                    var boneName = model.Skeleton.Bones[boneIndex].Name;
+                    var boneName = boneNames[boneIndex];
 
                     weightDefinition.AddProperty("bone", MakeValue(boneName));
                     weightDefinition.AddProperty("weight", MakeValue(boneWeight));
