@@ -517,8 +517,36 @@ partial class ModelExtract
             }
         }
 
+        var modelSequenceData = model?.Resource.GetBlockByType(BlockType.ASEQ) as KeyValuesOrNTRO;
+        if (modelSequenceData != null)
+        {
+            ExtractSequenceData(modelSequenceData);
+        }
+
         if (AnimationsToExtract.Count > 0)
         {
+            var animationToFolder = new Dictionary<string, KVObject>(AnimationsToExtract.Count);
+            if (modelSequenceData?.Data.GetSubCollection("m_keyValues") is KVObject sequenceKeyValues)
+            {
+                if (sequenceKeyValues.GetSubCollection("faceposer_folders") is KVObject faceposerFolders)
+                {
+                    foreach (var folder in faceposerFolders)
+                    {
+                        var folderName = folder.Key;
+                        var animationNames = faceposerFolders.GetArray<string>(folderName);
+
+                        var (folderNode, children) = MakeListNode("Folder");
+                        folderNode.AddProperty("name", MakeValue(folderName));
+                        AddItem(animationList.Value, folderNode);
+
+                        foreach (var animationName in animationNames)
+                        {
+                            animationToFolder.Add(animationName, children);
+                        }
+                    }
+                }
+            }
+
             foreach (var animation in AnimationsToExtract)
             {
                 var animationFile = MakeNode(
@@ -575,7 +603,8 @@ partial class ModelExtract
                     animationFile.AddProperty("children", MakeValue(childrenKV));
                 }
 
-                AddItem(animationList.Value, animationFile);
+                var folderOrRoot = animationToFolder.GetValueOrDefault(animation.Anim.Name, animationList.Value);
+                AddItem(folderOrRoot, animationFile);
             }
         }
 
@@ -608,11 +637,6 @@ partial class ModelExtract
         {
             ExtractModelKeyValues(root.Node);
             ExtractHitboxSets();
-
-            if (model.Resource.GetBlockByType(BlockType.ASEQ) is KeyValuesOrNTRO sequenceData)
-            {
-                ExtractSequenceData(sequenceData);
-            }
 
             if (model.Skeleton.Roots.Length > 0)
             {
