@@ -42,7 +42,7 @@ namespace GUI.Types.Viewers
                 }
             }
 
-            var resTabs = new TabControl
+            var resTabs = new ThemedTabControl
             {
                 Dock = DockStyle.Fill,
             };

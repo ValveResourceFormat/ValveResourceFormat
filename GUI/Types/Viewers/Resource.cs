@@ -52,7 +52,7 @@ namespace GUI.Types.Viewers
                 resourceTemp?.Dispose();
             }
 
-            var resTabs = new TabControl
+            var resTabs = new ThemedTabControl
             {
                 Dock = DockStyle.Fill,
             };

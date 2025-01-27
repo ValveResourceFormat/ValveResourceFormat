@@ -53,7 +53,7 @@ namespace GUI
             newVersionAvailableToolStripMenuItem = new ToolStripMenuItem();
             checkForUpdatesToolStripMenuItem = new ToolStripMenuItem();
             recoverDeletedToolStripMenuItem = new ToolStripMenuItem();
-            mainTabs = new TabControl();
+            mainTabs = new ThemedTabControl();
             tabContextMenuStrip = new ContextMenuStrip(components);
             closeToolStripMenuItem = new ToolStripMenuItem();
             closeToolStripMenuItems = new ToolStripMenuItem();
