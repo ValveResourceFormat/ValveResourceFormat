@@ -32,6 +32,24 @@ namespace GUI.Controls
                 Font = new Font(FontFamily.GenericMonospace, FontSize);
             }
 
+            BackColor = SystemColors.Window;
+            ForeColor = SystemColors.WindowText;
+            IndentBackColor = SystemColors.InactiveBorder;
+            SelectionColor = SystemColors.Highlight;
+            ServiceLinesColor = SystemColors.ActiveBorder;
+            CurrentLineColor = SystemColors.Highlight;
+            LineNumberColor = SystemColors.GrayText;
+            CaretColor = SystemColors.WindowText;
+            ServiceLinesColor = SystemColors.ScrollBar;
+            FoldingIndicatorColor = SystemColors.Highlight;
+
+            ServiceColors.CollapseMarkerForeColor = SystemColors.ControlText;
+            ServiceColors.CollapseMarkerBackColor = SystemColors.Control;
+            ServiceColors.CollapseMarkerBorderColor = SystemColors.ControlDark;
+            ServiceColors.ExpandMarkerForeColor = SystemColors.ControlText;
+            ServiceColors.ExpandMarkerBackColor = SystemColors.Control;
+            ServiceColors.ExpandMarkerBorderColor = SystemColors.ControlDark;
+
             Dock = DockStyle.Fill;
             BorderStyle = BorderStyle.None;
             ReadOnly = true;
