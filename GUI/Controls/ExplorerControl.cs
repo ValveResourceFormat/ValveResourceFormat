@@ -323,7 +323,7 @@ namespace GUI.Controls
 
                                 try
                                 {
-                                    using var stream = File.OpenRead(Path.Join(steam, "appcache", "librarycache", "assets.vdf"));
+                                    using var stream = File.OpenRead(Path.Join(steam, "appcache", "librarycache", "assetcache.vdf"));
                                     libraryAssetsKv = KVSerializer.Create(KVSerializationFormat.KeyValues1Binary).Deserialize(stream);
                                 }
                                 catch (FileNotFoundException)
