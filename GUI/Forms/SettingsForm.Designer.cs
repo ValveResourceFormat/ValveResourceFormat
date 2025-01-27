@@ -47,14 +47,16 @@ namespace GUI.Forms
             tableLayoutPanel1 = new System.Windows.Forms.TableLayoutPanel();
             groupBox2 = new System.Windows.Forms.GroupBox();
             tableLayoutPanel2 = new System.Windows.Forms.TableLayoutPanel();
-            fovPanel = new System.Windows.Forms.Panel();
-            setFovTo4by3Button = new System.Windows.Forms.Button();
             shadowResolutionLabel = new System.Windows.Forms.Label();
             shadowResolutionInput = new System.Windows.Forms.NumericUpDown();
+            fovPanel = new System.Windows.Forms.Panel();
+            setFovTo4by3Button = new System.Windows.Forms.Button();
             groupBox3 = new System.Windows.Forms.GroupBox();
             tableLayoutPanel4 = new System.Windows.Forms.TableLayoutPanel();
             openExplorerOnStartCheckbox = new System.Windows.Forms.CheckBox();
             openExplorerOnStartLabel = new System.Windows.Forms.Label();
+            themeLabel = new System.Windows.Forms.Label();
+            themeComboBox = new System.Windows.Forms.ComboBox();
             groupBox4 = new System.Windows.Forms.GroupBox();
             tableLayoutPanel3 = new System.Windows.Forms.TableLayoutPanel();
             quickPreviewLabel = new System.Windows.Forms.Label();
@@ -67,8 +69,8 @@ namespace GUI.Forms
             tableLayoutPanel1.SuspendLayout();
             groupBox2.SuspendLayout();
             tableLayoutPanel2.SuspendLayout();
-            fovPanel.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)shadowResolutionInput).BeginInit();
+            fovPanel.SuspendLayout();
             groupBox3.SuspendLayout();
             tableLayoutPanel4.SuspendLayout();
             groupBox4.SuspendLayout();
@@ -79,7 +81,6 @@ namespace GUI.Forms
             // 
             gamePaths.Dock = System.Windows.Forms.DockStyle.Top;
             gamePaths.FormattingEnabled = true;
-            gamePaths.ItemHeight = 15;
             gamePaths.Location = new System.Drawing.Point(16, 32);
             gamePaths.Margin = new System.Windows.Forms.Padding(0);
             gamePaths.Name = "gamePaths";
@@ -128,7 +129,7 @@ namespace GUI.Forms
             maxTextureSizeLabel.AutoSize = true;
             maxTextureSizeLabel.Location = new System.Drawing.Point(3, 92);
             maxTextureSizeLabel.Name = "maxTextureSizeLabel";
-            maxTextureSizeLabel.Size = new System.Drawing.Size(95, 15);
+            maxTextureSizeLabel.Size = new System.Drawing.Size(93, 15);
             maxTextureSizeLabel.TabIndex = 0;
             maxTextureSizeLabel.Text = "Max texture size:";
             // 
@@ -192,7 +193,7 @@ namespace GUI.Forms
             // registerAssociationButton
             // 
             registerAssociationButton.Dock = System.Windows.Forms.DockStyle.Fill;
-            registerAssociationButton.Location = new System.Drawing.Point(4, 43);
+            registerAssociationButton.Location = new System.Drawing.Point(4, 83);
             registerAssociationButton.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             registerAssociationButton.Name = "registerAssociationButton";
             registerAssociationButton.Size = new System.Drawing.Size(202, 34);
@@ -319,28 +320,6 @@ namespace GUI.Forms
             tableLayoutPanel2.Size = new System.Drawing.Size(420, 245);
             tableLayoutPanel2.TabIndex = 0;
             // 
-            // fovPanel
-            // 
-            fovPanel.Controls.Add(setFovTo4by3Button);
-            fovPanel.Controls.Add(fovInput);
-            fovPanel.Dock = System.Windows.Forms.DockStyle.Fill;
-            fovPanel.Location = new System.Drawing.Point(210, 0);
-            fovPanel.Margin = new System.Windows.Forms.Padding(0);
-            fovPanel.Name = "fovPanel";
-            fovPanel.Size = new System.Drawing.Size(210, 40);
-            fovPanel.TabIndex = 10;
-            // 
-            // setFovTo4by3Button
-            // 
-            setFovTo4by3Button.Anchor = System.Windows.Forms.AnchorStyles.Left;
-            setFovTo4by3Button.Location = new System.Drawing.Point(109, 10);
-            setFovTo4by3Button.Name = "setFovTo4by3Button";
-            setFovTo4by3Button.Size = new System.Drawing.Size(39, 23);
-            setFovTo4by3Button.TabIndex = 7;
-            setFovTo4by3Button.Text = "4:3";
-            setFovTo4by3Button.UseVisualStyleBackColor = true;
-            setFovTo4by3Button.Click += OnSetFovTo4by3ButtonClick;
-            // 
             // shadowResolutionLabel
             // 
             shadowResolutionLabel.Anchor = System.Windows.Forms.AnchorStyles.Left;
@@ -363,6 +342,28 @@ namespace GUI.Forms
             shadowResolutionInput.TabIndex = 12;
             shadowResolutionInput.Value = new decimal(new int[] { 1, 0, 0, 0 });
             // 
+            // fovPanel
+            // 
+            fovPanel.Controls.Add(setFovTo4by3Button);
+            fovPanel.Controls.Add(fovInput);
+            fovPanel.Dock = System.Windows.Forms.DockStyle.Fill;
+            fovPanel.Location = new System.Drawing.Point(210, 0);
+            fovPanel.Margin = new System.Windows.Forms.Padding(0);
+            fovPanel.Name = "fovPanel";
+            fovPanel.Size = new System.Drawing.Size(210, 40);
+            fovPanel.TabIndex = 10;
+            // 
+            // setFovTo4by3Button
+            // 
+            setFovTo4by3Button.Anchor = System.Windows.Forms.AnchorStyles.Left;
+            setFovTo4by3Button.Location = new System.Drawing.Point(109, 10);
+            setFovTo4by3Button.Name = "setFovTo4by3Button";
+            setFovTo4by3Button.Size = new System.Drawing.Size(39, 23);
+            setFovTo4by3Button.TabIndex = 7;
+            setFovTo4by3Button.Text = "4:3";
+            setFovTo4by3Button.UseVisualStyleBackColor = true;
+            setFovTo4by3Button.Click += OnSetFovTo4by3ButtonClick;
+            // 
             // groupBox3
             // 
             groupBox3.Controls.Add(tableLayoutPanel4);
@@ -371,7 +372,7 @@ namespace GUI.Forms
             groupBox3.Margin = new System.Windows.Forms.Padding(0);
             groupBox3.Name = "groupBox3";
             groupBox3.Padding = new System.Windows.Forms.Padding(16);
-            groupBox3.Size = new System.Drawing.Size(452, 138);
+            groupBox3.Size = new System.Drawing.Size(452, 175);
             groupBox3.TabIndex = 3;
             groupBox3.TabStop = false;
             groupBox3.Text = "Explorer";
@@ -383,15 +384,18 @@ namespace GUI.Forms
             tableLayoutPanel4.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 50F));
             tableLayoutPanel4.Controls.Add(openExplorerOnStartCheckbox, 1, 0);
             tableLayoutPanel4.Controls.Add(openExplorerOnStartLabel, 0, 0);
-            tableLayoutPanel4.Controls.Add(registerAssociationButton, 0, 1);
+            tableLayoutPanel4.Controls.Add(registerAssociationButton, 0, 2);
+            tableLayoutPanel4.Controls.Add(themeLabel, 0, 1);
+            tableLayoutPanel4.Controls.Add(themeComboBox, 1, 1);
             tableLayoutPanel4.Dock = System.Windows.Forms.DockStyle.Fill;
             tableLayoutPanel4.Location = new System.Drawing.Point(16, 32);
             tableLayoutPanel4.Name = "tableLayoutPanel4";
-            tableLayoutPanel4.RowCount = 3;
+            tableLayoutPanel4.RowCount = 4;
+            tableLayoutPanel4.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 40F));
             tableLayoutPanel4.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 40F));
             tableLayoutPanel4.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 40F));
             tableLayoutPanel4.RowStyles.Add(new System.Windows.Forms.RowStyle());
-            tableLayoutPanel4.Size = new System.Drawing.Size(420, 90);
+            tableLayoutPanel4.Size = new System.Drawing.Size(420, 127);
             tableLayoutPanel4.TabIndex = 11;
             // 
             // openExplorerOnStartCheckbox
@@ -411,9 +415,30 @@ namespace GUI.Forms
             openExplorerOnStartLabel.AutoSize = true;
             openExplorerOnStartLabel.Location = new System.Drawing.Point(3, 12);
             openExplorerOnStartLabel.Name = "openExplorerOnStartLabel";
-            openExplorerOnStartLabel.Size = new System.Drawing.Size(128, 15);
+            openExplorerOnStartLabel.Size = new System.Drawing.Size(127, 15);
             openExplorerOnStartLabel.TabIndex = 11;
             openExplorerOnStartLabel.Text = "Open explorer on start:";
+            // 
+            // themeLabel
+            // 
+            themeLabel.Anchor = System.Windows.Forms.AnchorStyles.Left;
+            themeLabel.AutoSize = true;
+            themeLabel.Location = new System.Drawing.Point(3, 52);
+            themeLabel.Name = "themeLabel";
+            themeLabel.Size = new System.Drawing.Size(136, 15);
+            themeLabel.TabIndex = 13;
+            themeLabel.Text = "Theme (requires restart):";
+            // 
+            // themeComboBox
+            // 
+            themeComboBox.Anchor = System.Windows.Forms.AnchorStyles.Left;
+            themeComboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            themeComboBox.FormattingEnabled = true;
+            themeComboBox.Location = new System.Drawing.Point(213, 48);
+            themeComboBox.Name = "themeComboBox";
+            themeComboBox.Size = new System.Drawing.Size(121, 23);
+            themeComboBox.TabIndex = 14;
+            themeComboBox.SelectedIndexChanged += themeComboBox_SelectedIndexChanged;
             // 
             // groupBox4
             // 
@@ -515,8 +540,8 @@ namespace GUI.Forms
             groupBox2.ResumeLayout(false);
             tableLayoutPanel2.ResumeLayout(false);
             tableLayoutPanel2.PerformLayout();
-            fovPanel.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)shadowResolutionInput).EndInit();
+            fovPanel.ResumeLayout(false);
             groupBox3.ResumeLayout(false);
             tableLayoutPanel4.ResumeLayout(false);
             tableLayoutPanel4.PerformLayout();
@@ -561,5 +586,7 @@ namespace GUI.Forms
         private System.Windows.Forms.Button setFovTo4by3Button;
         private System.Windows.Forms.Label shadowResolutionLabel;
         private System.Windows.Forms.NumericUpDown shadowResolutionInput;
+        private System.Windows.Forms.Label themeLabel;
+        private System.Windows.Forms.ComboBox themeComboBox;
     }
 }

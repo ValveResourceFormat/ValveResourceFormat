@@ -100,6 +100,9 @@ namespace GUI
 
             Settings.Load();
 
+#pragma warning disable WFO5001
+            Application.SetColorMode(Settings.GetSystemColor());
+
             HardwareAcceleratedTextureDecoder.Decoder = new GLTextureDecoder();
 
 #if DEBUG

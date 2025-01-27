@@ -36,6 +36,9 @@ namespace GUI.Forms
             displayFpsCheckBox.Checked = Settings.Config.DisplayFps != 0;
             openExplorerOnStartCheckbox.Checked = Settings.Config.OpenExplorerOnStart != 0;
 
+            themeComboBox.Items.AddRange(Enum.GetNames<Settings.AppTheme>());
+            themeComboBox.SelectedIndex = Settings.Config.Theme;
+
             var quickPreviewFlags = (Settings.QuickPreviewFlags)Settings.Config.QuickFilePreview;
             quickPreviewCheckbox.Checked = (quickPreviewFlags & Settings.QuickPreviewFlags.Enabled) != 0;
             quickPreviewSoundsCheckbox.Checked = (quickPreviewFlags & Settings.QuickPreviewFlags.AutoPlaySounds) != 0;
@@ -268,6 +271,15 @@ namespace GUI.Forms
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Information
             );
+        }
+
+        private void themeComboBox_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            Settings.Config.Theme = themeComboBox.SelectedIndex;
+
+#pragma warning disable WFO5001
+            // TODO: SetColorMode requires restart for it to work properly
+            //Application.SetColorMode(Settings.GetSystemColor());
         }
     }
 }

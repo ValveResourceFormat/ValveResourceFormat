@@ -1,16 +1,23 @@
 using System.Diagnostics;
 using System.IO;
-using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using ValveKeyValue;
 using ValveResourceFormat.IO;
 
+#pragma warning disable WFO5001
 namespace GUI.Utils
 {
     static class Settings
     {
         private const int SettingsFileCurrentVersion = 10;
         private const int RecentFilesLimit = 20;
+
+        public enum AppTheme : int
+        {
+            System = 0,
+            Light = 1,
+            Dark = 2,
+        }
 
         [Flags]
         public enum QuickPreviewFlags : int
@@ -35,6 +42,7 @@ namespace GUI.Utils
             public List<string> BookmarkedFiles { get; set; }
             public List<string> RecentFiles { get; set; }
             public Dictionary<string, float[]> SavedCameras { get; set; }
+            public int Theme { get; set; }
             public int MaxTextureSize { get; set; }
             public int ShadowResolution { get; set; }
             public float FieldOfView { get; set; }
@@ -248,5 +256,13 @@ namespace GUI.Utils
             Config.RecentFiles.Clear();
             Save();
         }
+
+        public static SystemColorMode GetSystemColor() =>
+            (AppTheme)Config.Theme switch
+            {
+                AppTheme.Light => SystemColorMode.Classic,
+                AppTheme.Dark => SystemColorMode.Dark,
+                _ => SystemColorMode.System,
+            };
     }
 }
