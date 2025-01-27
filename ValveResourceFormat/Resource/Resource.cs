@@ -280,7 +280,10 @@ namespace ValveResourceFormat
 
             if (ResourceType == ResourceType.Sound && ContainsBlockType(BlockType.CTRL)) // Version >= 5, but other ctrl-type sounds have version 0
             {
-                var block = new Sound();
+                var block = new Sound
+                {
+                    Resource = this,
+                };
                 block.ConstructFromCtrl(Reader);
                 Blocks.Add(block);
             }
