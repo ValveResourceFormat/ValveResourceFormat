@@ -76,6 +76,26 @@ namespace GUI.Controls
                 SyntaxHighlighter = new CssSyntaxHighlighter(this);
             }
 
+#pragma warning disable WFO5001
+            // Fix syntax highlighting colors for dark mode
+            if (Application.IsDarkModeEnabled)
+            {
+                SyntaxHighlighter.StringStyle = new TextStyle(Brushes.DeepSkyBlue, null, FontStyle.Regular);
+                SyntaxHighlighter.NumberStyle = new TextStyle(Brushes.MediumPurple, null, FontStyle.Regular);
+                SyntaxHighlighter.CommentStyle = new TextStyle(Brushes.YellowGreen, null, FontStyle.Italic);
+                SyntaxHighlighter.KeywordStyle = SyntaxHighlighter.StringStyle; // used by js
+
+                if (Language == Language.XML)
+                {
+                    SyntaxHighlighter.XmlAttributeStyle = new TextStyle(Brushes.Tomato, null, FontStyle.Regular);
+                    SyntaxHighlighter.XmlAttributeValueStyle = SyntaxHighlighter.StringStyle;
+                    SyntaxHighlighter.XmlTagBracketStyle = SyntaxHighlighter.StringStyle;
+                    SyntaxHighlighter.XmlTagNameStyle = SyntaxHighlighter.NumberStyle;
+                    SyntaxHighlighter.XmlEntityStyle = SyntaxHighlighter.XmlAttributeStyle;
+                    SyntaxHighlighter.XmlCDataStyle = new TextStyle(Brushes.Cyan, null, FontStyle.Regular);
+                }
+            }
+
             if (Visible && Parent != null)
             {
                 Text = text;
