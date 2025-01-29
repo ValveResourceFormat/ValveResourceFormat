@@ -58,6 +58,7 @@ namespace GUI.Types.Renderer
         private Framebuffer SaveAsFbo;
 
         private CheckedListBox decodeFlagsListBox;
+        private readonly bool ShowLightBackground;
 
         private Vector2 ActualTextureSize
         {
@@ -106,6 +107,9 @@ namespace GUI.Types.Renderer
 
             GLLoad += OnLoad;
             GLControl.PreviewKeyDown += OnPreviewKeyDown;
+
+#pragma warning disable WFO5001
+            ShowLightBackground = !Application.IsDarkModeEnabled;
 
             SetZoomLabel();
 
@@ -917,6 +921,7 @@ namespace GUI.Types.Renderer
             GL.UseProgram(shader.Program);
 
             shader.SetUniform1("g_bTextureViewer", true);
+            shader.SetUniform1("g_bShowLightBackground", ShowLightBackground);
             shader.SetUniform2("g_vViewportSize", new Vector2(fbo.Width, fbo.Height));
 
             var (scale, position) = captureFullSizeImage

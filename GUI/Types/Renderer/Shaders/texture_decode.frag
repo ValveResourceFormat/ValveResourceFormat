@@ -109,6 +109,7 @@ vec3 CubicProjection(vec2 vTexCoord)
 
 uniform bool g_bTextureViewer = false;
 uniform bool g_bCapturingScreenshot = false;
+uniform bool g_bShowLightBackground = false;
 uniform vec2 g_vViewportSize;
 uniform vec2 g_vViewportPosition;
 uniform float g_flScale = 1.0;
@@ -130,8 +131,8 @@ vec2 AdjustTextureViewerUvs(vec2 vTexCoord)
 
 vec3 CheckerboardPattern(vec2 vScreenCoords)
 {
-    const vec3 color1 = vec3(0.9, 0.9, 0.9);
-    const vec3 color2 = vec3(0.6, 0.6, 0.6);
+    const vec3 color1 = g_bShowLightBackground ? vec3(0.9, 0.9, 0.9) : vec3(0.05, 0.05, 0.05);
+    const vec3 color2 = g_bShowLightBackground ? vec3(0.7, 0.7, 0.7) : vec3(0.2, 0.2, 0.2);
 
     const vec2 vSizeInPixels = vec2(32);
 
