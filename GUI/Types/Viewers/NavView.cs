@@ -1,8 +1,8 @@
 using System.IO;
 using System.Windows.Forms;
 using GUI.Controls;
-using GUI.Utils;
 using GUI.Types.Renderer;
+using GUI.Utils;
 using ValveResourceFormat.NavMesh;
 using ValveResourceFormat.Serialization.KeyValues;
 
