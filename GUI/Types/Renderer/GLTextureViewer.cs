@@ -131,6 +131,13 @@ namespace GUI.Types.Renderer
             AddChannelsComboBox();
         }
 
+        public GLTextureViewer(VrfGuiContext guiContext, SKSvg svg) : this(guiContext)
+        {
+            AddChannelsComboBox();
+
+            SetSvg(svg);
+        }
+
         public GLTextureViewer(VrfGuiContext guiContext, Resource resource) : this(guiContext)
         {
             Resource = resource;
@@ -169,11 +176,10 @@ namespace GUI.Types.Renderer
                 AddChannelsComboBox();
 
                 using var ms = new MemoryStream(((Panorama)resource.DataBlock).Data);
-                Svg = new SKSvg();
-                Svg.Load(ms);
+                var svg = new SKSvg();
+                svg.Load(ms);
 
-                OriginalWidth = Svg.Picture.CullRect.Width;
-                OriginalHeight = Svg.Picture.CullRect.Height;
+                SetSvg(svg);
 
                 return;
             }
@@ -306,6 +312,13 @@ namespace GUI.Types.Renderer
             {
                 softwareDecodeCheckBox.Enabled = false;
             }
+        }
+
+        private void SetSvg(SKSvg svg)
+        {
+            Svg = svg;
+            OriginalWidth = Svg.Picture.CullRect.Width;
+            OriginalHeight = Svg.Picture.CullRect.Height;
         }
 
         private void AddChannelsComboBox()

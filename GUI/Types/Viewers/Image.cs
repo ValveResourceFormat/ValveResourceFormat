@@ -3,6 +3,7 @@ using System.Windows.Forms;
 using GUI.Types.Renderer;
 using GUI.Utils;
 using SkiaSharp;
+using Svg.Skia;
 
 namespace GUI.Types.Viewers
 {
@@ -13,6 +14,11 @@ namespace GUI.Types.Viewers
             return magic == 0x474E5089 || /* png */
                    magic << 8 == 0xFFD8FF00 || /* jpg */
                    magic << 8 == 0x46494700; /* gif */
+        }
+
+        public static bool IsAcceptedVector(string fileName)
+        {
+            return fileName.EndsWith(".svg", StringComparison.InvariantCultureIgnoreCase);
         }
 
         public TabPage Create(VrfGuiContext vrfGuiContext, Stream stream)
@@ -40,6 +46,34 @@ namespace GUI.Types.Viewers
             finally
             {
                 bitmap?.Dispose();
+            }
+        }
+
+        public TabPage CreateVector(VrfGuiContext vrfGuiContext, Stream stream)
+        {
+            var svg = new SKSvg();
+
+            if (stream != null)
+            {
+                svg.Load(stream);
+            }
+            else
+            {
+                svg.Load(vrfGuiContext.FileName);
+            }
+
+            try
+            {
+                var textureControl = new GLTextureViewer(vrfGuiContext, svg);
+                var tab = new TabPage("IMAGE");
+                tab.Controls.Add(textureControl);
+                svg = null;
+
+                return tab;
+            }
+            finally
+            {
+                svg?.Dispose();
             }
         }
     }
