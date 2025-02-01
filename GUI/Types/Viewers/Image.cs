@@ -49,7 +49,9 @@ namespace GUI.Types.Viewers
             }
         }
 
+#pragma warning disable CA1822 // Mark members as static
         public TabPage CreateVector(VrfGuiContext vrfGuiContext, Stream stream)
+#pragma warning restore CA1822 // Mark members as static
         {
             var svg = new SKSvg();
 
