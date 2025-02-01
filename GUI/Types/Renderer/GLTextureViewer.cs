@@ -362,7 +362,7 @@ namespace GUI.Types.Renderer
                 var splitMode = ChannelsComboBoxOrder[index].ChannelSplitMode;
 
                 // do not split channels under these conditions
-                if (CubemapProjectionType != CubemapProjection.None)
+                if (CubemapProjectionType != CubemapProjection.None || VisualizeTiling)
                 {
                     splitMode = 0;
                 }
