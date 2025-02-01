@@ -27,6 +27,13 @@ namespace GUI.Types.Renderer
             Cubic,
         }
 
+        enum ChannelSplitting
+        {
+            None,
+            Alpha,
+            FourChannels,
+        }
+
         private VrfGuiContext GuiContext;
         private Resource Resource;
         private SKBitmap Bitmap;
@@ -51,7 +58,8 @@ namespace GUI.Types.Renderer
         private int SelectedDepth;
         private int SelectedCubeFace;
         private ChannelMapping SelectedChannels = ChannelMapping.RGB;
-        private bool WantsSeparateAlpha;
+        private ChannelSplitting ChannelSplitMode;
+        private int ChannelSplitImageCount => 1 << (int)ChannelSplitMode;
         private CubemapProjection CubemapProjectionType;
         private TextureCodec decodeFlags;
         private const TextureCodec softwareDecodeOnlyOptions = TextureCodec.ForceLDR;
@@ -73,11 +81,11 @@ namespace GUI.Types.Renderer
                     _ => new Vector2(1, 1),
                 };
 
-                if (WantsSeparateAlpha && CubemapProjectionType == CubemapProjection.None)
+                if (ChannelSplitMode > 0)
                 {
                     var mult = OriginalWidth > OriginalHeight
-                        ? new Vector2(1, 2)
-                        : new Vector2(2, 1);
+                        ? new Vector2(1, ChannelSplitImageCount)
+                        : new Vector2(ChannelSplitImageCount, 1);
 
                     size *= mult;
                 }
@@ -91,14 +99,15 @@ namespace GUI.Types.Renderer
         private bool MovedFromOrigin_Unzoomed;
 
         const int DefaultSelection = 3;
-        static readonly (ChannelMapping Channels, bool SplitAlpha, string ChoiceString)[] ChannelsComboBoxOrder = [
-            (ChannelMapping.R, false, "Red"),
-            (ChannelMapping.G, false, "Green"),
-            (ChannelMapping.B, false, "Blue"),
-            (ChannelMapping.RGB, false, "Opaque"),
-            (ChannelMapping.RGBA, false, "Transparent"),
-            (ChannelMapping.A, false, "Alpha"),
-            (ChannelMapping.RGBA, true, "Opaque with split Alpha"),
+        static readonly (ChannelMapping Channels, ChannelSplitting ChannelSplitMode, string ChoiceString)[] ChannelsComboBoxOrder = [
+            (ChannelMapping.R, ChannelSplitting.None, "Red"),
+            (ChannelMapping.G, ChannelSplitting.None, "Green"),
+            (ChannelMapping.B, ChannelSplitting.None, "Blue"),
+            (ChannelMapping.RGB, ChannelSplitting.None, "Opaque"),
+            (ChannelMapping.RGBA, ChannelSplitting.None, "Transparent"),
+            (ChannelMapping.A, ChannelSplitting.None, "Alpha"),
+            (ChannelMapping.RGBA, ChannelSplitting.Alpha, "Opaque with split Alpha"),
+            (ChannelMapping.RGBA, ChannelSplitting.FourChannels, "Four channel split"),
         ];
 
         private GLTextureViewer(VrfGuiContext guiContext) : base(guiContext)
@@ -330,20 +339,28 @@ namespace GUI.Types.Renderer
                     return;
                 }
 
-                var wasSeparateAlpha = WantsSeparateAlpha;
                 var oldTextureSize = ActualTextureSizeScaled;
 
                 SelectedChannels = ChannelsComboBoxOrder[index].Channels;
-                WantsSeparateAlpha = ChannelsComboBoxOrder[index].SplitAlpha;
+                var splitMode = ChannelsComboBoxOrder[index].ChannelSplitMode;
 
-                if (wasSeparateAlpha || WantsSeparateAlpha)
+                // do not split channels under these conditions
+                if (CubemapProjectionType != CubemapProjection.None)
                 {
+                    splitMode = 0;
+                }
+
+                if (splitMode != ChannelSplitMode)
+                {
+                    ChannelSplitMode = splitMode;
                     TextureScaleChangeTime = 0f;
                     TextureScaleOld = TextureScale;
 
                     PositionOld = Position;
-                    Position -= oldTextureSize / 2f;
-                    Position += ActualTextureSizeScaled / 2f;
+
+                    var imageCount = (float)ChannelSplitImageCount;
+                    Position -= oldTextureSize / imageCount;
+                    Position += ActualTextureSizeScaled / imageCount;
 
                     ClampPosition();
                 }
@@ -951,7 +968,7 @@ namespace GUI.Types.Renderer
             shader.SetUniform1("g_nSelectedDepth", SelectedDepth);
             shader.SetUniform1("g_nSelectedCubeFace", SelectedCubeFace);
             shader.SetUniform1("g_nSelectedChannels", SelectedChannels.PackedValue);
-            shader.SetUniform1("g_bWantsSeparateAlpha", WantsSeparateAlpha && CubemapProjectionType == CubemapProjection.None);
+            shader.SetUniform1("g_nChannelSplitMode", (int)ChannelSplitMode);
             shader.SetUniform1("g_nCubemapProjectionType", (int)CubemapProjectionType);
             shader.SetUniform1("g_nDecodeFlags", (int)decodeFlags);
 

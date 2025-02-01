@@ -113,7 +113,7 @@ uniform bool g_bShowLightBackground = false;
 uniform vec2 g_vViewportSize;
 uniform vec2 g_vViewportPosition;
 uniform float g_flScale = 1.0;
-uniform bool g_bWantsSeparateAlpha = false;
+uniform int g_nChannelSplitMode;
 uniform int g_nCubemapProjectionType;
 
 #define g_bCubeEquiRectangularProjection (g_nCubemapProjectionType == 1)
@@ -162,7 +162,7 @@ void main()
     #endif
 
     vec3 vBackgroundColor = vec3(0.0);
-    bool bWithinAlphaBounds = false;
+    int nColorSliceBoundsIndex = 0;
 
     if (g_bTextureViewer)
     {
@@ -175,14 +175,20 @@ void main()
         vTexCoord.xy = AdjustTextureViewerUvs(vScreenCoords);
 
         bool bIsWideImage = g_vInputTextureSize.x > g_vInputTextureSize.y;
-        vec2 vAlphaRegionTexCoord = bIsWideImage ? vTexCoord.yx : vTexCoord.xy;
+        vec2 vChannelSliceTexCoord = bIsWideImage ? vTexCoord.yx : vTexCoord.xy;
 
-        bWithinAlphaBounds = vAlphaRegionTexCoord.x >= 1.0 && vAlphaRegionTexCoord.x < 2.0 && vAlphaRegionTexCoord.x >= 0.0 && vAlphaRegionTexCoord.y < 1.0;
+        const float nSliceCount = float(pow(2, g_nChannelSplitMode));
+        bool bInColorSliceBounds = vChannelSliceTexCoord.x >= 1.0 && vChannelSliceTexCoord.x < nSliceCount && vChannelSliceTexCoord.y < 1.0;
 
-        if (g_bWantsSeparateAlpha && bWithinAlphaBounds)
+        if (bInColorSliceBounds)
         {
-            vAlphaRegionTexCoord.x -= 1.0;
-            vTexCoord.xy = bIsWideImage ? vAlphaRegionTexCoord.yx : vAlphaRegionTexCoord.xy;
+            nColorSliceBoundsIndex = int(vChannelSliceTexCoord.x);
+        }
+
+        if (g_nChannelSplitMode > 0 && bInColorSliceBounds)
+        {
+            vChannelSliceTexCoord.x = fract(vChannelSliceTexCoord.x);
+            vTexCoord.xy = bIsWideImage ? vChannelSliceTexCoord.yx : vChannelSliceTexCoord.xy;
         }
     }
 
@@ -278,11 +284,15 @@ void main()
         float flBackgroundMix = 1.0;
         bool bWithinImageBounds = vTexCoord.x < 1.0 && vTexCoord.y < 1.0 && vTexCoord.x >= 0.0 && vTexCoord.y >= 0.0;
 
-        if (g_bWantsSeparateAlpha && (bWithinImageBounds || bWithinAlphaBounds))
+        if (g_nChannelSplitMode > 0 && (bWithinImageBounds || nColorSliceBoundsIndex > 0))
         {
-            if (bWithinAlphaBounds)
+            if (g_nChannelSplitMode == 1 && nColorSliceBoundsIndex > 0)
             {
                 vColorOutput.rgb = vColorOutput.aaa;
+            }
+            else if (g_nChannelSplitMode == 2)
+            {
+                vColorOutput.rgb = vColorOutput[nColorSliceBoundsIndex].xxx;
             }
 
             vColorOutput.a = 1.0;
