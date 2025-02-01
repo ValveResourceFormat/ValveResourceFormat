@@ -110,6 +110,9 @@ namespace GUI.Types.Renderer
         private bool IsZoomedIn;
         private bool MovedFromOrigin_Unzoomed;
 
+        private int LastRenderHash;
+        private int NumRendersLastHash;
+
         const int DefaultSelection = 3;
         static readonly (ChannelMapping Channels, ChannelSplitting ChannelSplitMode, string ChoiceString)[] ChannelsComboBoxOrder = [
             (ChannelMapping.R, ChannelSplitting.None, "Red"),
@@ -141,6 +144,10 @@ namespace GUI.Types.Renderer
             };
 
             resetButton.Click += (_, __) => ResetZoom();
+
+#if DEBUG
+            guiContext.ShaderLoader.ShaderHotReload.ReloadShader += (_, _) => InvalidateRender();
+#endif
 
             AddControl(resetButton);
         }
@@ -404,6 +411,7 @@ namespace GUI.Types.Renderer
                 };
 
                 texture.SetFiltering(min, mag);
+                InvalidateRender();
             }
         }
 
@@ -876,6 +884,7 @@ namespace GUI.Types.Renderer
 
             texture = GuiContext.MaterialLoader.LoadTexture(Resource, isViewerRequest: true);
             decodeFlags = textureData.RetrieveCodecFromResourceEditInfo() | swDecodeFlags;
+            InvalidateRender();
         }
 
         private void UploadBitmap(SKBitmap bitmap)
@@ -889,6 +898,8 @@ namespace GUI.Types.Renderer
 
             GL.TextureStorage2D(texture.Handle, 1, store.SizedInternalFormat, texture.Width, texture.Height);
             GL.TextureSubImage2D(texture.Handle, 0, 0, 0, texture.Width, texture.Height, store.PixelFormat, store.PixelType, bitmap.GetPixels());
+
+            InvalidateRender();
         }
 
         private void GenerateNewSvgBitmap()
@@ -993,10 +1004,40 @@ namespace GUI.Types.Renderer
 
             TextureScaleChangeTime += e.FrameTime;
 
-            GL.Viewport(0, 0, GLControl.Width, GLControl.Height);
-            MainFramebuffer.BindAndClear();
-            Draw(MainFramebuffer);
+            var renderHash = HashCode.Combine(
+                HashCode.Combine(
+                    GetCurrentPositionAndScale(),
+                    SelectedMip,
+                    SelectedDepth,
+                    SelectedCubeFace,
+                    SelectedChannels.PackedValue,
+                    ChannelSplitMode
+                ),
+                decodeFlags,
+                VisualizeTiling,
+                ShowLightBackground,
+                MainFramebuffer.Width,
+                MainFramebuffer.Height
+            );
+
+            if (renderHash != LastRenderHash)
+            {
+                InvalidateRender();
+            }
+
+            const int NumBackBuffers = 2;
+            if (NumRendersLastHash < NumBackBuffers)
+            {
+                GL.Viewport(0, 0, GLControl.Width, GLControl.Height);
+                MainFramebuffer.BindAndClear();
+                Draw(MainFramebuffer);
+
+                LastRenderHash = renderHash;
+                NumRendersLastHash++;
+            }
         }
+
+        private void InvalidateRender() => NumRendersLastHash = 0;
 
         private void Draw(Framebuffer fbo, bool captureFullSizeImage = false)
         {
