@@ -110,6 +110,7 @@ vec3 CubicProjection(vec2 vTexCoord)
 uniform bool g_bTextureViewer = false;
 uniform bool g_bCapturingScreenshot = false;
 uniform bool g_bShowLightBackground = false;
+uniform bool g_bVisualizeTiling = false;
 uniform vec2 g_vViewportSize;
 uniform vec2 g_vViewportPosition;
 uniform float g_flScale = 1.0;
@@ -282,7 +283,9 @@ void main()
     if (g_bTextureViewer)
     {
         float flBackgroundMix = 1.0;
-        bool bWithinImageBounds = vTexCoord.x < 1.0 && vTexCoord.y < 1.0 && vTexCoord.x >= 0.0 && vTexCoord.y >= 0.0;
+
+        const float flMaxUv = g_bVisualizeTiling ? 2.0 : 1.0;
+        bool bWithinImageBounds = vTexCoord.x < flMaxUv && vTexCoord.y < flMaxUv && vTexCoord.x >= 0.0 && vTexCoord.y >= 0.0;
 
         if (g_nChannelSplitMode > 0 && (bWithinImageBounds || nColorSliceBoundsIndex > 0))
         {

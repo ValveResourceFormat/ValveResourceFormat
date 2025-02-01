@@ -57,6 +57,7 @@ namespace GUI.Types.Renderer
         private int SelectedMip;
         private int SelectedDepth;
         private int SelectedCubeFace;
+        private bool VisualizeTiling;
         private ChannelMapping SelectedChannels = ChannelMapping.RGB;
         private ChannelSplitting ChannelSplitMode;
         private int ChannelSplitImageCount => 1 << (int)ChannelSplitMode;
@@ -67,6 +68,8 @@ namespace GUI.Types.Renderer
 
         private CheckedListBox decodeFlagsListBox;
         private readonly bool ShowLightBackground;
+
+        private int DisplayedImageCount => Math.Max(1 << (int)ChannelSplitMode, VisualizeTiling ? 2 : 1);
 
         private Vector2 ActualTextureSize
         {
@@ -81,11 +84,16 @@ namespace GUI.Types.Renderer
                     _ => new Vector2(1, 1),
                 };
 
+                if (VisualizeTiling)
+                {
+                    size *= 2;
+                }
+
                 if (ChannelSplitMode > 0)
                 {
                     var mult = OriginalWidth > OriginalHeight
-                        ? new Vector2(1, ChannelSplitImageCount)
-                        : new Vector2(ChannelSplitImageCount, 1);
+                        ? new Vector2(1, DisplayedImageCount)
+                        : new Vector2(DisplayedImageCount, 1);
 
                     size *= mult;
                 }
@@ -317,6 +325,16 @@ namespace GUI.Types.Renderer
                 SetupTexture(state);
             });
 
+            AddCheckBox("Show UV Tiling", false, (state) =>
+            {
+                var previousSize = ActualTextureSizeScaled;
+
+                VisualizeTiling = state;
+                texture?.SetWrapMode(state ? TextureWrapMode.Repeat : TextureWrapMode.ClampToEdge);
+
+                TextureDimensionsChanged(previousSize);
+            });
+
             if (forceSoftwareDecode)
             {
                 softwareDecodeCheckBox.Enabled = false;
@@ -339,7 +357,6 @@ namespace GUI.Types.Renderer
                     return;
                 }
 
-                var oldTextureSize = ActualTextureSizeScaled;
 
                 SelectedChannels = ChannelsComboBoxOrder[index].Channels;
                 var splitMode = ChannelsComboBoxOrder[index].ChannelSplitMode;
@@ -352,17 +369,10 @@ namespace GUI.Types.Renderer
 
                 if (splitMode != ChannelSplitMode)
                 {
+                    var previousSize = ActualTextureSizeScaled;
+
                     ChannelSplitMode = splitMode;
-                    TextureScaleChangeTime = 0f;
-                    TextureScaleOld = TextureScale;
-
-                    PositionOld = Position;
-
-                    var imageCount = (float)ChannelSplitImageCount;
-                    Position -= oldTextureSize / imageCount;
-                    Position += ActualTextureSizeScaled / imageCount;
-
-                    ClampPosition();
+                    TextureDimensionsChanged(previousSize);
                 }
             });
 
@@ -372,6 +382,21 @@ namespace GUI.Types.Renderer
             }
 
             channelsComboBox.SelectedIndex = DefaultSelection;
+        }
+
+        /// <param name="oldTextureSize">The texture size before changing viewer state.</param>
+        private void TextureDimensionsChanged(Vector2 oldTextureSize)
+        {
+            TextureScaleChangeTime = 0f;
+            TextureScaleOld = TextureScale;
+
+            PositionOld = Position;
+
+            var imageCount = (float)DisplayedImageCount;
+            Position -= oldTextureSize / imageCount;
+            Position += ActualTextureSizeScaled / imageCount;
+
+            ClampPosition();
         }
 
         private void SetInitialDecodeFlagsState(CheckedListBox listBox)
@@ -968,6 +993,7 @@ namespace GUI.Types.Renderer
             shader.SetUniform1("g_nSelectedDepth", SelectedDepth);
             shader.SetUniform1("g_nSelectedCubeFace", SelectedCubeFace);
             shader.SetUniform1("g_nSelectedChannels", SelectedChannels.PackedValue);
+            shader.SetUniform1("g_bVisualizeTiling", VisualizeTiling);
             shader.SetUniform1("g_nChannelSplitMode", (int)ChannelSplitMode);
             shader.SetUniform1("g_nCubemapProjectionType", (int)CubemapProjectionType);
             shader.SetUniform1("g_nDecodeFlags", (int)decodeFlags);
