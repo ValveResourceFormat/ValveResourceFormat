@@ -28,8 +28,6 @@ namespace ValveResourceFormat.Utils
             return scaleMatrix * rotationMatrix * positionMatrix;
         }
 
-        public static Vector3 GetPitchYawRoll(Entity entity) => entity.GetVector3Property("angles");
-
         public static Vector3 ParseVector(string input)
         {
             if (string.IsNullOrEmpty(input))
