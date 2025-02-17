@@ -36,5 +36,27 @@ namespace Tests
             var inverseLookupKey = StringToken.GetKnownString(addedHash);
             Assert.That(inverseLookupKey, Is.EqualTo(key));
         }
+
+        [Test]
+        public void EnsurePreservesStringCase()
+        {
+            var key = "MyUppercaseKey";
+
+            var addedHash = StringToken.Store(key);
+            var inverseLookupKey = StringToken.GetKnownString(addedHash);
+            Assert.That(inverseLookupKey, Is.EqualTo(key));
+        }
+
+        [Test]
+        public void EnsureStoresLowerCaseHash()
+        {
+            var key = "MyUppercaseKey";
+            var key2 = "myuppercasekey";
+
+            var upperCaseHash = StringToken.Store(key);
+            var lowerCaseHash = StringToken.Store(key2);
+
+            Assert.That(upperCaseHash, Is.EqualTo(lowerCaseHash));
+        }
     }
 }

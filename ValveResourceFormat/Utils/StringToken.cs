@@ -36,9 +36,9 @@ namespace ValveResourceFormat.Utils
         /// </summary>
         public static uint Store(string key)
         {
-            var token = Get(key);
+            var token = Get(key.ToLowerInvariant());
 
-            InvertedTable.TryAdd(token, key);
+            InvertedTable[token] = key;
             return token;
         }
 

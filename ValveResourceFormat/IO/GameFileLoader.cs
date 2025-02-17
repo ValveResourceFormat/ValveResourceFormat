@@ -393,7 +393,7 @@ namespace ValveResourceFormat.IO
                     foreach (var surface in surfacePropertiesList)
                     {
                         var name = surface.GetProperty<string>("surfacePropertyName");
-                        var hash = StringToken.Store(name.ToLowerInvariant());
+                        var hash = StringToken.Store(name);
                         Debug.Assert(
                             hash == surface.GetUnsignedIntegerProperty("m_nameHash"),
                             "Stored surface property hash should be the same as the calculated one."
