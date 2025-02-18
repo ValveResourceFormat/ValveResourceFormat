@@ -274,7 +274,12 @@ namespace GUI.Controls
 
                             if (!File.Exists(vpk))
                             {
-                                continue;
+                                vpk = Path.Join(addonPath, $"{item.Name}_dir.vpk");
+
+                                if (!File.Exists(vpk))
+                                {
+                                    continue;
+                                }
                             }
 
                             using var stream = File.OpenRead(publishDataPath);
