@@ -71,6 +71,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
             }
 
             CompressedPoseOffsets = Data.GetIntegerArray("m_compressedPoseOffsets");
+            Debug.Assert(CompressedPoseOffsets.Length == NumFrames);
 
             // Calculate fps
             Fps = NumFrames / Duration;
@@ -88,7 +89,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
             var frameData = MemoryMarshal.Cast<byte, ushort>(CompressedPoseData);
             frameData = frameData[(int)CompressedPoseOffsets[frameIndex]..];
 
-            for (var i = 0; i < bones.Length; i++)
+            for (var i = 0; i < TrackCompressionSettings.Length && i < bones.Length; i++)
             {
                 var config = TrackCompressionSettings[i];
 
