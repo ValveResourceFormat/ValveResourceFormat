@@ -32,11 +32,11 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
         public TrackCompressionSetting[] TrackCompressionSettings { get; private set; }
         public long[] CompressedPoseOffsets { get; private set; }
 
-        public override void Read(BinaryReader reader, Resource resource)
+        public override void Read(BinaryReader reader)
         {
-            base.Read(reader, resource);
+            base.Read(reader);
 
-            Name = resource.FileName;
+            Name = Resource.FileName;
             NumFrames = Data.GetInt32Property("m_nNumFrames");
             Duration = Data.GetFloatProperty("m_flDuration");
 
