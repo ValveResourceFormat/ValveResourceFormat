@@ -49,6 +49,11 @@ namespace GUI.Types.Renderer
             Frame frame = null;
             if (animationController.ActiveAnimation != null)
             {
+                if (animationController.ActiveAnimation.Animation2 != null)
+                {
+                    animationController.Update(context.Timestep);
+                }
+
                 if (animationController.IsPaused)
                 {
                     frame = animationController.FrameCache.GetFrame(animationController.ActiveAnimation, animationController.Frame);

@@ -1,6 +1,7 @@
 using System.Linq;
 using System.Runtime.InteropServices;
 using ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders;
+using ValveResourceFormat.ResourceTypes.ModelAnimation2;
 using ValveResourceFormat.ResourceTypes.ModelFlex;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -292,8 +293,25 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             }
         }
 
+        // todo: remove this
+        public AnimationClip Animation2;
+        public Animation(AnimationClip animation2)
+        {
+            Name = animation2.Name;
+            Fps = animation2.Fps;
+            FrameCount = animation2.NumFrames;
+
+            Animation2 = animation2;
+        }
+
         public void DecodeFrame(Frame outFrame)
         {
+            if (Animation2 != null)
+            {
+                Animation2.ReadFrame(outFrame.FrameIndex, outFrame.Bones);
+                return;
+            }
+
             // Read all frame blocks
             foreach (var frameBlock in FrameBlocks)
             {

@@ -10,6 +10,7 @@ using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.ResourceTypes.ModelAnimation2;
 
 #nullable disable
 
@@ -331,6 +332,13 @@ namespace GUI.Types.Viewers
                     {
                         specialTabPage = new TabPage("ANIMATION GRAPH");
                         specialTabPage.Controls.Add(new GLAnimGraphViewer(vrfGuiContext, (AnimGraph)resource.DataBlock));
+                        break;
+                    }
+
+                case ResourceType.NmClip:
+                    {
+                        specialTabPage = new TabPage("ANIMATION CLIP");
+                        specialTabPage.Controls.Add(new GLModelViewer(vrfGuiContext, (AnimationClip)resource.DataBlock));
                         break;
                     }
 

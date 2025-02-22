@@ -25,6 +25,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
         public string Name { get; private set; }
         public float Fps { get; private set; }
 
+        public string SkeletonName { get; private set; }
         public int NumFrames { get; private set; }
         public float Duration { get; private set; } = 1;
 
@@ -37,6 +38,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
             base.Read(reader);
 
             Name = Resource.FileName;
+
+            SkeletonName = Data.GetStringProperty("m_skeleton");
             NumFrames = Data.GetInt32Property("m_nNumFrames");
             Duration = Data.GetFloatProperty("m_flDuration");
 
@@ -52,6 +55,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
                 var rangeY = setting.GetSubCollection("m_translationRangeY");
                 var rangeZ = setting.GetSubCollection("m_translationRangeZ");
                 var scaleRange = setting.GetSubCollection("m_scaleRange");
+                var constantRotation = setting.GetFloatArray("m_constantRotation");
 
                 TrackCompressionSettings[i++] = new TrackCompressionSetting
                 {
@@ -59,6 +63,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
                     TranslationRangeY = new QuantizationRange(rangeY.GetFloatProperty("m_flRangeStart"), rangeY.GetFloatProperty("m_flRangeLength")),
                     TranslationRangeZ = new QuantizationRange(rangeZ.GetFloatProperty("m_flRangeStart"), rangeZ.GetFloatProperty("m_flRangeLength")),
                     ScaleRange = new QuantizationRange(scaleRange.GetFloatProperty("m_flRangeStart"), scaleRange.GetFloatProperty("m_flRangeLength")),
+                    ConstantRotation = new Quaternion(constantRotation[0], constantRotation[1], constantRotation[2], constantRotation[3]),
                     IsRotationStatic = setting.GetProperty<bool>("m_bIsRotationStatic"),
                     IsTranslationStatic = setting.GetProperty<bool>("m_bIsTranslationStatic"),
                     IsScaleStatic = setting.GetProperty<bool>("m_bIsScaleStatic"),
@@ -99,7 +104,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
 
                 if (!config.IsRotationStatic)
                 {
-                    bones[i].Angle = DecodeQuaternion(frameData);
+                    // todo: fix DecodeQuaternion
+                    // bones[i].Angle = DecodeQuaternion(frameData);
                     frameData = frameData[CompressedQuaternionSize..];
                 }
 

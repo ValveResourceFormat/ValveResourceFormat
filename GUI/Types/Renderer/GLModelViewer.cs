@@ -7,6 +7,8 @@ using GUI.Utils;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
+using ValveResourceFormat.ResourceTypes.ModelAnimation2;
+
 
 #nullable disable
 
@@ -16,6 +18,8 @@ namespace GUI.Types.Renderer
     {
         protected Model model { get; init; }
         private PhysAggregateData phys;
+        private readonly AnimationClip anim;
+
         public ComboBox animationComboBox { get; private set; }
         private CheckBox animationPlayPause;
         private CheckBox rootMotionCheckBox;
@@ -43,6 +47,11 @@ namespace GUI.Types.Renderer
         public GLModelViewer(VrfGuiContext guiContext, PhysAggregateData phys) : base(guiContext)
         {
             this.phys = phys;
+        }
+
+        public GLModelViewer(VrfGuiContext guiContext, AnimationClip anim) : base(guiContext)
+        {
+            this.anim = anim;
         }
 
         protected override void Dispose(bool disposing)
@@ -300,6 +309,21 @@ namespace GUI.Types.Renderer
                         SetEnabledPhysicsGroups(enabledPhysicsGroups.ToHashSet());
                     });
                 }
+            }
+
+            if (anim != null)
+            {
+                var skeleton = Skeleton.FromSkeletonData(((BinaryKV3)GuiContext.LoadFileCompiled(anim.SkeletonName).DataBlock).Data);
+                var animationController = new AnimationController(skeleton, []);
+
+                skeletonSceneNode = new SkeletonSceneNode(Scene, animationController, skeleton)
+                {
+                    Enabled = true,
+                };
+
+                animationController.SetAnimation(new Animation(anim));
+
+                Scene.Add(skeletonSceneNode, true);
             }
         }
 
