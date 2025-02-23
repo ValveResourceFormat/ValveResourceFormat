@@ -105,8 +105,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
 
                 if (!config.IsRotationStatic)
                 {
-                    // todo: fix DecodeQuaternion
-                    // bones[i].Angle = DecodeQuaternion(frameData);
+                    bones[i].Angle = DecodeQuaternion(frameData);
                     frameData = frameData[CompressedQuaternionSize..];
                 }
 
@@ -151,9 +150,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
 
             vData = Vector4.FusedMultiplyAdd(vData, vRangeMultiplier15Bit, vValueRangeMin);
 
-            var sum = Vector4.Dot(vData, vData);
-            var w = MathF.Sqrt(1.0f - sum);
-            vData.W = w;
+            var sum = Vector3.Dot(vData.AsVector3(), vData.AsVector3());
+            vData.W = MathF.Sqrt(1f - sum);
 
             // Vector128.Shuffle(vData.AsVector128(), Vector128.Create([3, 0, 1, 2]));
 
