@@ -294,7 +294,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         }
 
         // todo: remove this
-        public AnimationClip Animation2;
+        public AnimationClip Animation2 { get; }
         public Animation(AnimationClip animation2)
         {
             Name = animation2.Name;

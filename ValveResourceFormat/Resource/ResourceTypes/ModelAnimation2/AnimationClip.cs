@@ -3,7 +3,9 @@ using System.IO;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
-using ValveResourceFormat.Serialization;
+using ValveResourceFormat.Serialization.KeyValues;
+
+#nullable disable
 
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
 {
@@ -76,12 +78,11 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
             // Calculate fps
             Fps = NumFrames / Duration;
 
+#if DEBUG
             // Reading test
-            // File: Project8Staging/game/citadel/pak01_dir.vpk:models/npc/boss_tier_02_sun_walker_v2/dmx/animation/turn_90_l.vnmclip_c
-            var bones = new FrameBone[122];
+            var bones = new FrameBone[TrackCompressionSettings.Length];
             ReadFrame(0, bones);
-            ReadFrame(1, bones);
-            ReadFrame(NumFrames - 1, bones);
+#endif
         }
 
         public void ReadFrame(int frameIndex, FrameBone[] bones)
@@ -139,7 +140,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
             Debug.Assert(data.Length >= CompressedQuaternionSize);
 
             var vValueRangeMin = new Vector4(s_valueRangeMin);
-            var vRangeMultiplier15Bit = new Vector4(s_valueRangeLength / (float)0x7FFF);
+            var vRangeMultiplier15Bit = new Vector4(s_valueRangeLength / 0x7FFF);
 
             var vData = new Vector4(
                 data[0] & 0x7FFF,
@@ -183,7 +184,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
             Debug.Assert(rangeLength != 0);
 
             var normalizedValue = DecodeUnsignedNormalizedFloat(unorm);
-            var decodedValue = (normalizedValue * rangeLength) + rangeStart;
+            var decodedValue = normalizedValue * rangeLength + rangeStart;
             return decodedValue;
         }
 
