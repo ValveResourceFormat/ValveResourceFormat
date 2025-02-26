@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO.Hashing;
 using System.Linq;
 using GUI.Utils;
@@ -54,6 +55,42 @@ namespace GUI.Types.Renderer
             guiContext = scene.GuiContext;
 
             var vbib = mesh.VBIB;
+
+            if (mesh.ToolsVB != null)
+            {
+                var toolsBuffer = mesh.ToolsVB.VertexBuffers[0];
+                Debug.Assert(toolsBuffer.ElementCount == vbib.VertexBuffers[0].ElementCount);
+
+                var existingBuffer = vbib.VertexBuffers[0];
+
+                var toolsColor = new VBIB.RenderInputLayoutField
+                {
+                    SemanticName = "ToolsColorBuffer",
+                    SemanticIndex = 0,
+                    Format = toolsBuffer.InputLayoutFields[0].Format,
+                    Offset = existingBuffer.ElementSizeInBytes,
+                };
+
+                // Combine vertex buffers
+                var newBuffer = new byte[existingBuffer.Data.Length + toolsBuffer.Data.Length];
+
+                var existingElementSize = (int)existingBuffer.ElementSizeInBytes;
+                var toolsElementSize = (int)toolsBuffer.ElementSizeInBytes;
+
+                var newElementSize = (int)(existingElementSize + toolsBuffer.ElementSizeInBytes);
+
+                for (var i = 0; i < existingBuffer.ElementCount; i++)
+                {
+                    System.Buffer.BlockCopy(existingBuffer.Data, i * existingElementSize, newBuffer, i * newElementSize, existingElementSize);
+                    System.Buffer.BlockCopy(toolsBuffer.Data, i * toolsElementSize, newBuffer, i * newElementSize + existingElementSize, toolsElementSize);
+                }
+
+                existingBuffer.Data = newBuffer;
+                existingBuffer.ElementSizeInBytes = (uint)newElementSize;
+                existingBuffer.InputLayoutFields = [.. existingBuffer.InputLayoutFields, toolsColor];
+
+                vbib.VertexBuffers[0] = existingBuffer;
+            }
 
             if (model != null)
             {
@@ -228,6 +265,11 @@ namespace GUI.Types.Renderer
                     if (BoneWeightCount > 4)
                     {
                         shaderArguments.Add("D_EIGHT_BONE_BLENDING", 1);
+                    }
+
+                    if (vbib.VertexBuffers[0].InputLayoutFields[^1].SemanticName == "ToolsColorBuffer")
+                    {
+                        shaderArguments.Add("D_TOOLS_COLOR_BUFFER", 1);
                     }
 
                     if (Mesh.IsCompressedNormalTangent(objectDrawCall))

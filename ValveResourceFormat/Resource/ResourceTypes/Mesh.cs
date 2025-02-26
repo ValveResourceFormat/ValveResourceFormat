@@ -24,6 +24,8 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
+        public VBIB ToolsVB { get; set; }
+
         public Vector3 MinBounds { get; private set; }
         public Vector3 MaxBounds { get; private set; }
 

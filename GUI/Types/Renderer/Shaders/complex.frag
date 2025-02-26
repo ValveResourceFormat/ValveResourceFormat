@@ -89,6 +89,10 @@ in vec3 vBitangentOut;
 in vec2 vTexCoordOut;
 in vec4 vVertexColorOut;
 
+#if (D_TOOLS_COLOR_BUFFER == 1)
+    in vec4 vToolsColorOut;
+#endif
+
 out vec4 outputColor;
 
 uniform sampler2D g_tColor; // SrgbRead(true)
@@ -710,6 +714,12 @@ void main()
     {
         outputColor = vec4(SrgbGammaToLinear(vVertexColorOut.rgb), vVertexColorOut.a);
     }
+#if (D_TOOLS_COLOR_BUFFER == 1)
+    else if (g_iRenderMode == renderMode_ToolsVertexColor)
+    {
+        outputColor = vec4(SrgbGammaToLinear(vToolsColorOut.rgb), vToolsColorOut.a);
+    }
+#endif
 #if (F_GLASS == 0)
     else if (g_iRenderMode == renderMode_Irradiance)
     {

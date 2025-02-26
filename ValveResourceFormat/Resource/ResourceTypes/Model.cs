@@ -174,6 +174,15 @@ namespace ValveResourceFormat.ResourceTypes
                     mesh.MorphData = Resource.GetBlockByIndex(morphBlockIndex) as Morph;
                 }
 
+                if (embeddedMesh.ContainsKey("tools_vb_block"))
+                {
+                    var toolsVbBlockIndex = (int)embeddedMesh.GetIntegerProperty("tools_vb_block");
+                    if (toolsVbBlockIndex >= 0)
+                    {
+                        mesh.ToolsVB = Resource.GetBlockByIndex(toolsVbBlockIndex) as VBIB;
+                    }
+                }
+
                 meshes.Add((mesh, meshIndex, name));
             }
 

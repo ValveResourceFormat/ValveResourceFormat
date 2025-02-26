@@ -13,6 +13,11 @@ layout (location = 0) in vec3 vPOSITION;
 layout (location = 3) in vec2 vTEXCOORD;
 #include "common/compression.glsl"
 
+#if (D_TOOLS_COLOR_BUFFER == 1)
+    in vec4 vToolsColorBuffer;
+    out vec4 vToolsColorOut;
+#endif
+
 //Parameter defines - These are default values and can be overwritten based on material/model parameters
 #define F_NOTINT 0
 #define F_VERTEX_COLOR 0
@@ -247,6 +252,10 @@ void main()
     #if defined(vr_blend_vfx_common)
         vColorBlendValues.y = max(0.5 * vBLEND_ALPHA.x, 0.1);
     #endif
+#endif
+
+#if (D_TOOLS_COLOR_BUFFER == 1)
+    vToolsColorOut = vToolsColorBuffer;
 #endif
 
     vCentroidNormalOut = vNormalOut;

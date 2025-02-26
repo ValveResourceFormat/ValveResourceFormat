@@ -42,6 +42,7 @@ namespace GUI.Types.Renderer
             new("TerrainBlend"),
             new("FoliageParams"),
             new("VertexColor"),
+            new("ToolsVertexColor"),
 
             new("Identification", IsHeader: true),
             new("ObjectId"),
