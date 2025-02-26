@@ -346,6 +346,7 @@ namespace ValveResourceFormat
                 nameof(BlockType.VXVS) => new VXVS(),
                 nameof(BlockType.SNAP) => new SNAP(),
                 nameof(BlockType.MBUF) => new MBUF(),
+                nameof(BlockType.TBUF) => new TBUF(),
                 nameof(BlockType.CTRL) => new BinaryKV3(BlockType.CTRL),
                 nameof(BlockType.MDAT) => new Mesh(BlockType.MDAT),
                 nameof(BlockType.INSG) => new BinaryKV3(BlockType.INSG),

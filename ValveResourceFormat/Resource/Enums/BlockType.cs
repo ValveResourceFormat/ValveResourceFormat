@@ -26,5 +26,6 @@ namespace ValveResourceFormat
         SPRV,
         FLCI,
         DSTF,
+        TBUF,
     }
 }

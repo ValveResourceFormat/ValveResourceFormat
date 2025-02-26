@@ -108,56 +108,73 @@ namespace ValveResourceFormat.Blocks
         {
             var buffer = default(OnDiskBufferData);
 
-            buffer.ElementCount = reader.ReadUInt32();            //0
-            buffer.ElementSizeInBytes = reader.ReadUInt32();      //4
+            buffer.ElementCount = reader.ReadUInt32();
 
-            // TODO: CS2 hack, figure out what this means
-            if ((buffer.ElementSizeInBytes & 0x80000000) != 0)
-            {
-                buffer.ElementSizeInBytes &= ~0x80000000;
-            }
+            var size = reader.ReadInt32();
+            var isSizeNegative = size < 0; // TODO: what does this actually indicate?
+            var isZstdCompressed = (size & 0x8000000) != 0;
+            buffer.ElementSizeInBytes = (uint)(size & 0x7FFFFFF);
 
             var refA = reader.BaseStream.Position;
-            var attributeOffset = reader.ReadUInt32();  //8
-            var attributeCount = reader.ReadUInt32();   //12
+            var attributeOffset = reader.ReadUInt32();
+            var attributeCount = reader.ReadUInt32();
 
             var refB = reader.BaseStream.Position;
-            var dataOffset = reader.ReadUInt32();       //16
-            var totalSize = reader.ReadInt32();        //20
+            var dataOffset = reader.ReadUInt32();
+            var totalSize = reader.ReadInt32();
 
             reader.BaseStream.Position = refA + attributeOffset;
-            buffer.InputLayoutFields = Enumerable.Range(0, (int)attributeCount)
-                .Select(j =>
+            buffer.InputLayoutFields = new RenderInputLayoutField[(int)attributeCount];
+
+            for (var i = 0; i < buffer.InputLayoutFields.Length; i++)
+            {
+                var previousPosition = reader.BaseStream.Position;
+                var name = reader.ReadNullTermString(Encoding.UTF8).ToUpperInvariant();
+                reader.BaseStream.Position = previousPosition + 32; // 32 bytes long null-terminated string
+
+                var attribute = new RenderInputLayoutField
                 {
-                    var attribute = default(RenderInputLayoutField);
+                    SemanticName = name,
+                    SemanticIndex = reader.ReadInt32(),
+                    Format = (DXGI_FORMAT)reader.ReadUInt32(),
+                    Offset = reader.ReadUInt32(),
+                    Slot = reader.ReadInt32(),
+                    SlotType = (RenderSlotType)reader.ReadUInt32(),
+                    InstanceStepRate = reader.ReadInt32(),
+                };
 
-                    var previousPosition = reader.BaseStream.Position;
-                    attribute.SemanticName = reader.ReadNullTermString(Encoding.UTF8).ToUpperInvariant();
-                    reader.BaseStream.Position = previousPosition + 32; //32 bytes long null-terminated string
-
-                    attribute.SemanticIndex = reader.ReadInt32();
-                    attribute.Format = (DXGI_FORMAT)reader.ReadUInt32();
-                    attribute.Offset = reader.ReadUInt32();
-                    attribute.Slot = reader.ReadInt32();
-                    attribute.SlotType = (RenderSlotType)reader.ReadUInt32();
-                    attribute.InstanceStepRate = reader.ReadInt32();
-
-                    return attribute;
-                })
-                .ToArray();
+                buffer.InputLayoutFields[i] = attribute;
+            }
 
             reader.BaseStream.Position = refB + dataOffset;
 
             var decompressedSize = (int)(buffer.ElementCount * buffer.ElementSizeInBytes);
 
-            if (totalSize != decompressedSize)
+            if (decompressedSize > totalSize)
             {
                 var temp = ArrayPool<byte>.Shared.Rent(totalSize);
+                byte[] tempZstd = null;
 
                 try
                 {
                     var span = temp.AsSpan(0, totalSize);
                     reader.Read(span);
+
+                    if (isZstdCompressed)
+                    {
+                        using var zstdDecompressor = new ZstdSharp.Decompressor();
+
+                        // There is no expected decompressed size, so we just use buffer size for fully decoded vertex buffer
+                        // and then use the return value of zstd decompress to pass into the vertex decoder as the buffer size
+                        tempZstd = ArrayPool<byte>.Shared.Rent(decompressedSize);
+
+                        if (!zstdDecompressor.TryUnwrap(span, tempZstd, out var written))
+                        {
+                            throw new InvalidDataException("Failed to decompress ZSTD.");
+                        }
+
+                        span = tempZstd.AsSpan(0, written);
+                    }
 
                     if (isVertex)
                     {
@@ -171,6 +188,11 @@ namespace ValveResourceFormat.Blocks
                 finally
                 {
                     ArrayPool<byte>.Shared.Return(temp);
+
+                    if (tempZstd != null)
+                    {
+                        ArrayPool<byte>.Shared.Return(tempZstd);
+                    }
                 }
             }
             else
