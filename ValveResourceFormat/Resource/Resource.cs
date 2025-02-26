@@ -284,8 +284,11 @@ namespace ValveResourceFormat
                 {
                     Resource = this,
                 };
-                block.ConstructFromCtrl(Reader);
-                Blocks.Add(block);
+
+                if (block.ConstructFromCtrl(Reader))
+                {
+                    Blocks.Add(block);
+                }
             }
 
             var fullFileSize = FullFileSize;

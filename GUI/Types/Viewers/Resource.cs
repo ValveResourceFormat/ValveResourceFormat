@@ -101,12 +101,13 @@ namespace GUI.Types.Viewers
                         }
 
                     case ResourceType.Sound:
+                        if (resource.ContainsBlockType(BlockType.DATA))
                         {
                             specialTabPage = new TabPage("SOUND");
                             var autoPlay = ((Settings.QuickPreviewFlags)Settings.Config.QuickFilePreview & Settings.QuickPreviewFlags.AutoPlaySounds) != 0;
                             var ap = new AudioPlayer(resource, specialTabPage, isPreview && autoPlay);
-                            break;
                         }
+                        break;
 
                     case ResourceType.Map:
                         {

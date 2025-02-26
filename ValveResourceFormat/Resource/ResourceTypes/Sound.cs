@@ -189,7 +189,7 @@ namespace ValveResourceFormat.ResourceTypes
             ReadPhonemeStream(reader, sentenceOffset);
         }
 
-        public void ConstructFromCtrl(BinaryReader reader)
+        public bool ConstructFromCtrl(BinaryReader reader)
         {
             Reader = reader;
             Offset = Resource.FileSize;
@@ -199,7 +199,8 @@ namespace ValveResourceFormat.ResourceTypes
 
             if (soundClass != "CVoiceContainerDefault")
             {
-                throw new InvalidDataException($"Unsupported sound file: {soundClass}");
+                Console.Error.WriteLine($"Unsupported sound file: {soundClass}");
+                return false;
             }
 
             var sound = obj.Data.GetSubCollection("m_vSound");
@@ -223,6 +224,8 @@ namespace ValveResourceFormat.ResourceTypes
             StreamingDataSize = sound.GetUInt32Property("m_nStreamingSize");
 
             // TODO: m_Sentences
+
+            return true;
         }
 
         private void SetSoundFormatBits(AudioFormatV4 soundFormat)
