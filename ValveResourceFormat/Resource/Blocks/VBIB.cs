@@ -232,6 +232,9 @@ namespace ValveResourceFormat.Blocks
         }
 
         /*
+            :VertexAttributeFormat
+
+
             POSITION - R32G32B32_FLOAT          vec3
 
             NORMAL - R32_UINT                   compressed
@@ -245,6 +248,7 @@ namespace ValveResourceFormat.Blocks
 
             BLENDWEIGHT - R16G16_UNORM          vec2
             BLENDWEIGHT - R8G8B8A8_UNORM        vec4
+            BLENDWEIGHT - R16G16B16A16_UNORM    vec4
             BLENDWEIGHTS - R8G8B8A8_UNORM       vec4
 
             COLOR - R32G32B32A32_FLOAT          vec4
@@ -517,6 +521,9 @@ namespace ValveResourceFormat.Blocks
 
                         break;
                     }
+
+                default:
+                    throw new InvalidDataException($"Unexpected {attribute.SemanticName} attribute format {attribute.Format}");
             }
 
             return indices;
@@ -568,6 +575,9 @@ namespace ValveResourceFormat.Blocks
 
                         break;
                     }
+
+                default:
+                    throw new InvalidDataException($"Unexpected {attribute.SemanticName} attribute format {attribute.Format}");
             }
 
             return weights;
@@ -738,6 +748,7 @@ namespace ValveResourceFormat.Blocks
 
         public static (int ElementSize, int ElementCount) GetFormatInfo(RenderInputLayoutField attribute)
         {
+            // :VertexAttributeFormat - When adding new attribute here, also implement it in the renderer - GPUMeshBufferCache
             return attribute.Format switch
             {
                 DXGI_FORMAT.R32G32B32_FLOAT => (4, 3),

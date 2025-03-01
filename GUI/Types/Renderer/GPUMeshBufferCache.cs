@@ -199,6 +199,7 @@ namespace GUI.Types.Renderer
                     GL.VertexArrayAttribIFormat(vao, attributeLocation, 1, VertexAttribType.UnsignedInt, offset);
                     break;
 
+                // :VertexAttributeFormat - When adding new attribute here, also implement it in the VBIB code
                 default:
                     throw new NotImplementedException($"Unknown vertex attribute format {attribute.Format} ({attribute.SemanticName})");
             }
