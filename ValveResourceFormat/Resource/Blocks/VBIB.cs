@@ -751,21 +751,26 @@ namespace ValveResourceFormat.Blocks
             // :VertexAttributeFormat - When adding new attribute here, also implement it in the renderer - GPUMeshBufferCache
             return attribute.Format switch
             {
-                DXGI_FORMAT.R32G32B32_FLOAT => (4, 3),
-                DXGI_FORMAT.R32G32B32A32_FLOAT => (4, 4),
-                DXGI_FORMAT.R32G32B32A32_SINT => (4, 4),
-                DXGI_FORMAT.R16G16_UNORM => (2, 2),
-                DXGI_FORMAT.R16G16_SNORM => (2, 2),
+                DXGI_FORMAT.R8G8B8A8_UINT => (1, 4),
+                DXGI_FORMAT.R8G8B8A8_UNORM => (1, 4),
+
                 DXGI_FORMAT.R16G16_FLOAT => (2, 2),
+                DXGI_FORMAT.R16G16_SINT => (2, 2),
+                DXGI_FORMAT.R16G16_SNORM => (2, 2),
+                DXGI_FORMAT.R16G16_UNORM => (2, 2),
+
+                DXGI_FORMAT.R16G16B16A16_FLOAT => (2, 4),
+                DXGI_FORMAT.R16G16B16A16_SINT => (2, 4),
                 DXGI_FORMAT.R16G16B16A16_UINT => (2, 4),
+                DXGI_FORMAT.R16G16B16A16_UNORM => (2, 4),
+
                 DXGI_FORMAT.R32_FLOAT => (4, 1),
                 DXGI_FORMAT.R32_UINT => (4, 1),
                 DXGI_FORMAT.R32G32_FLOAT => (4, 2),
-                DXGI_FORMAT.R16G16_SINT => (2, 2),
-                DXGI_FORMAT.R16G16B16A16_SINT => (2, 4),
-                DXGI_FORMAT.R16G16B16A16_FLOAT => (2, 4),
-                DXGI_FORMAT.R8G8B8A8_UINT => (1, 4),
-                DXGI_FORMAT.R8G8B8A8_UNORM => (1, 4),
+                DXGI_FORMAT.R32G32B32_FLOAT => (4, 3),
+                DXGI_FORMAT.R32G32B32A32_FLOAT => (4, 4),
+                DXGI_FORMAT.R32G32B32A32_SINT => (4, 4),
+
                 _ => throw new NotImplementedException($"Unsupported \"{attribute.SemanticName}\" DXGI_FORMAT.{attribute.Format}"),
             };
         }
