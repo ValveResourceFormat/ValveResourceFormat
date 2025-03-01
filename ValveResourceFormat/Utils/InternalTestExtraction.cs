@@ -53,9 +53,12 @@ namespace ValveResourceFormat.Utils
 
             try
             {
-                using (FileExtract.Extract(resource, new NullFileLoader()))
+                // Test extraction code flow
+                using var contentFile = FileExtract.Extract(resource, new NullFileLoader());
+
+                foreach (var contentSubFile in contentFile.SubFiles)
                 {
-                    // Test extraction code flow
+                    contentSubFile.Extract();
                 }
             }
             catch (FileNotFoundException)
