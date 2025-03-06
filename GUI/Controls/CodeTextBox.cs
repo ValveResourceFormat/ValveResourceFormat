@@ -13,7 +13,7 @@ namespace GUI.Controls
             KeyValues,
             XML,
             JS,
-            CSS, // TODO
+            CSS,
         }
 
         private string LazyText;
@@ -53,6 +53,10 @@ namespace GUI.Controls
             {
                 Language = Language.JS;
             }
+            else if (highlightSyntax == HighlightLanguage.CSS)
+            {
+                SyntaxHighlighter = new CssSyntaxHighlighter(this);
+            }
 
             if (Visible && Parent != null)
             {
@@ -66,6 +70,17 @@ namespace GUI.Controls
             }
 
             // TODO: Handle OnZoomChanged and save zoom in settings
+        }
+
+        public static CodeTextBox CreateFromException(Exception exception)
+        {
+            var text = $"Unhandled exception occured while trying to open this file:\n{exception.Message}\n\nTry using latest dev build to see if the issue persists.\n\n{exception}\n\nSource 2 Viewer Version: {Application.ProductVersion}";
+
+            var control = new CodeTextBox(text, HighlightLanguage.None)
+            {
+                WordWrap = true,
+            };
+            return control;
         }
 
         private void OnDisposed(object sender, EventArgs e)
@@ -118,7 +133,7 @@ namespace GUI.Controls
                 range.tb.LeftBracket2 = '{';
                 range.tb.RightBracket2 = '}';
 
-                range.ClearStyle(StringStyle, NumberStyle, KeywordStyle, CommentStyle);
+                range.ClearStyle(StringStyle, NumberStyle, CommentStyle);
 
                 range.SetStyle(StringStyle, StringRegex());
                 range.SetStyle(CommentStyle, CommentRegex());
@@ -129,14 +144,47 @@ namespace GUI.Controls
                 range.SetFoldingMarkers(@"\[", @"\]");
             }
 
-            [GeneratedRegex(@"""""|"".*?[^\\]""")]
-            private static partial Regex StringRegex();
-
             [GeneratedRegex(@"\b([0-9]+[\.]?[0-9]*|0x[0-9A-F]+|true|false|null)\b")]
             private static partial Regex NumberRegex();
 
             [GeneratedRegex(@"//.*$", RegexOptions.Multiline)]
             private static partial Regex CommentRegex();
         }
+
+        private partial class CssSyntaxHighlighter : SyntaxHighlighter
+        {
+            public CssSyntaxHighlighter(FastColoredTextBox currentTb) : base(currentTb)
+            {
+                CommentStyle = GreenStyle;
+                StringStyle = BlueStyle;
+                NumberStyle = MagentaStyle;
+            }
+
+            public override void HighlightSyntax(Language language, FastColoredTextBoxNS.Range range)
+            {
+                range.tb.LeftBracket = '{';
+                range.tb.RightBracket = '}';
+                range.tb.LeftBracket2 = '(';
+                range.tb.RightBracket2 = ')';
+
+                range.ClearStyle(StringStyle, NumberStyle, KeywordStyle, CommentStyle);
+
+                range.SetStyle(StringStyle, StringRegex());
+                range.SetStyle(KeywordStyle, CssPropertyRegex());
+                range.SetStyle(CommentStyle, MultilineCommentRegex());
+
+                range.ClearFoldingMarkers();
+                range.SetFoldingMarkers("{", "}");
+            }
+
+            [GeneratedRegex(@"/\*.*?\*/", RegexOptions.Singleline)]
+            private static partial Regex MultilineCommentRegex();
+
+            [GeneratedRegex("([a-z-]+(?:[a-z0-9-]*[a-z0-9]+)?)\\s*:", RegexOptions.IgnoreCase)]
+            private static partial Regex CssPropertyRegex();
+        }
+
+        [GeneratedRegex(@"""""|"".*?[^\\]""")]
+        private static partial Regex StringRegex();
     }
 }

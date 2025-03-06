@@ -603,7 +603,7 @@ namespace GUI
                 {
                     t.Exception?.Flatten().Handle(ex =>
                     {
-                        var control = new CodeTextBox(ex.ToString());
+                        var control = CodeTextBox.CreateFromException(ex);
 
                         tab.Controls.Add(control);
 

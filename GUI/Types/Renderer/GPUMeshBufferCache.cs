@@ -102,7 +102,11 @@ namespace GUI.Types.Renderer
                 if (attributeLocation == -1)
                 {
                     var attributeName = "v" + attribute.SemanticName;
-                    if (attribute.SemanticName is "TEXCOORD" or "COLOR" && attribute.SemanticIndex > 0)
+                    if (attribute.SemanticIndex > 0 && attribute.SemanticName
+                        is "TEXCOORD"
+                        or "COLOR"
+                        or "BLENDINDICES"
+                        or "BLENDWEIGHT")
                     {
                         attributeName += attribute.SemanticIndex;
                     }
@@ -179,10 +183,8 @@ namespace GUI.Types.Renderer
                     GL.VertexArrayAttribIFormat(vao, attributeLocation, 4, VertexAttribType.UnsignedShort, offset);
                     break;
 
-                // Note: special format that packs 8 bone weights, kept as uvec4 and not normalized on purpose
-                // to support unpacking in shader
                 case DXGI_FORMAT.R16G16B16A16_UNORM:
-                    GL.VertexArrayAttribIFormat(vao, attributeLocation, 4, VertexAttribType.UnsignedShort, offset);
+                    GL.VertexArrayAttribFormat(vao, attributeLocation, 4, VertexAttribType.UnsignedShort, true, offset);
                     break;
 
                 case DXGI_FORMAT.R16G16_SNORM:

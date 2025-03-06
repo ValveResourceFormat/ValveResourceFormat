@@ -440,7 +440,7 @@ namespace GUI.Controls
             }
             catch (Exception exception)
             {
-                var control = new CodeTextBox(exception.ToString());
+                var control = CodeTextBox.CreateFromException(exception);
                 glControlContainer.Controls.Clear();
                 glControlContainer.Controls.Add(control);
 
