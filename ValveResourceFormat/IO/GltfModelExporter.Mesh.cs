@@ -402,6 +402,7 @@ public partial class GltfModelExporter
 
         foreach (var fragmentData in aggregateMeshes)
         {
+            var meshName = $"{name}_fragment{++id}";
             var drawCallIndex = fragmentData.GetInt32Property("m_nDrawCallIndex");
             var drawCall = drawCalls[drawCallIndex];
             var tintColor = fragmentData.GetSubCollection("m_vTintColor").ToVector3();
@@ -410,9 +411,13 @@ public partial class GltfModelExporter
             if (fragmentData.GetProperty<bool>("m_bHasTransform") == true)
             {
                 transform *= fragmentTransforms[transformIndex++].ToMatrix4x4();
-            }
 
-            var meshName = $"{name}_fragment{++id}";
+                if (transform.M11 == 0f && transform.M22 == 0f && transform.M33 == 0f)
+                {
+                    ProgressReporter?.Report($"Skipping mesh: {meshName} because it has a scale of zero.");
+                    continue;
+                }
+            }
 
             ProgressReporter?.Report($"Creating mesh: {meshName}");
 
