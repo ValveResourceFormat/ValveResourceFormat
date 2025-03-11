@@ -25,7 +25,7 @@ namespace GUI.Types.Viewers
             throw new NotImplementedException();
         }
 
-        public TabPage Create(VrfGuiContext vrfGuiContext, Stream stream, bool isPreview)
+        public TabPage Create(VrfGuiContext vrfGuiContext, Stream stream, bool isPreview, bool verifyFileSize)
         {
             var resourceTemp = new ValveResourceFormat.Resource
             {
@@ -37,7 +37,7 @@ namespace GUI.Types.Viewers
             {
                 if (stream != null)
                 {
-                    resource.Read(stream);
+                    resource.Read(stream, verifyFileSize);
                 }
                 else
                 {

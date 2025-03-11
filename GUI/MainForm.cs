@@ -749,7 +749,7 @@ namespace GUI
             }
             else if (Types.Viewers.Resource.IsAccepted(magicResourceVersion))
             {
-                return new Types.Viewers.Resource().Create(vrfGuiContext, stream, isPreview);
+                return new Types.Viewers.Resource().Create(vrfGuiContext, stream, isPreview, verifyFileSize: entry == null || entry.CRC32 > 0);
             }
             // Raw images and audio files do not really appear in Source 2 projects, but we support viewing them anyway.
             // As some detections rely on the file extension instead of magic bytes,
