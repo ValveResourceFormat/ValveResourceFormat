@@ -87,15 +87,13 @@ namespace ValveResourceFormat
                     return size;
                 }
 
-                if (ResourceType == ResourceType.Sound)
+                if (ResourceType == ResourceType.Sound && DataBlock is Sound dataSound)
                 {
-                    var data = (Sound)DataBlock;
-                    size += data.StreamingDataSize;
+                    size += dataSound.StreamingDataSize;
                 }
-                else if (ResourceType == ResourceType.Texture)
+                else if (ResourceType == ResourceType.Texture && DataBlock is Texture dataTexture)
                 {
-                    var data = (Texture)DataBlock;
-                    size += (uint)data.CalculateTextureDataSize();
+                    size += (uint)dataTexture.CalculateTextureDataSize();
                 }
 
                 return size;
