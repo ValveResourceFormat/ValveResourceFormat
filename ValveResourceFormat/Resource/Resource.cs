@@ -247,7 +247,7 @@ namespace ValveResourceFormat
                     // Try to determine resource type by looking at the compiler indentifiers
                     // This must be done right after reading EditInfo because future DATA block
                     // will depend on knowing the resource type to construct the correct block in ConstructResourceType()
-                    if (ResourceType == ResourceType.Unknown && EditInfo != null)
+                    if (ResourceType == ResourceType.Unknown)
                     {
                         foreach (var specialDep in EditInfo.SpecialDependencies)
                         {
