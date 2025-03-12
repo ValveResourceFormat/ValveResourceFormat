@@ -243,29 +243,31 @@ namespace ValveResourceFormat
                 {
                     block.Read(Reader);
                     EditInfo = (ResourceEditInfo)block;
-                }
 
-                Reader.BaseStream.Position = position + 8;
-            }
-
-            // Try to determine resource type by looking at the compiler indentifiers
-            if (ResourceType == ResourceType.Unknown && EditInfo != null)
-            {
-                foreach (var specialDep in EditInfo.SpecialDependencies)
-                {
-                    ResourceType = DetermineResourceTypeByCompilerIdentifier(specialDep);
-
-                    if (ResourceType != ResourceType.Unknown)
+                    // Try to determine resource type by looking at the compiler indentifiers
+                    // This must be done right after reading EditInfo because future DATA block
+                    // will depend on knowing the resource type to construct the correct block in ConstructResourceType()
+                    if (ResourceType == ResourceType.Unknown && EditInfo != null)
                     {
-                        break;
+                        foreach (var specialDep in EditInfo.SpecialDependencies)
+                        {
+                            ResourceType = DetermineResourceTypeByCompilerIdentifier(specialDep);
+
+                            if (ResourceType != ResourceType.Unknown)
+                            {
+                                break;
+                            }
+                        }
+
+                        // Try to determine resource type by looking at the input dependency if there is only one
+                        if (ResourceType == ResourceType.Unknown && EditInfo.InputDependencies.Count == 1)
+                        {
+                            ResourceType = ResourceTypeExtensions.DetermineByFileExtension(Path.GetExtension(EditInfo.InputDependencies[0].ContentRelativeFilename));
+                        }
                     }
                 }
 
-                // Try to determine resource type by looking at the input dependency if there is only one
-                if (ResourceType == ResourceType.Unknown && EditInfo.InputDependencies.Count == 1)
-                {
-                    ResourceType = ResourceTypeExtensions.DetermineByFileExtension(Path.GetExtension(EditInfo.InputDependencies[0].ContentRelativeFilename));
-                }
+                Reader.BaseStream.Position = position + 8;
             }
 
             foreach (var block in Blocks)

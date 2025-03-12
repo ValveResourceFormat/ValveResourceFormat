@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using NUnit.Framework;
 using ValveResourceFormat;
+using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.Utils;
 
@@ -95,6 +96,30 @@ namespace Tests
                 ms.Seek(0, SeekOrigin.Begin);
 
                 resource.Read(ms);
+
+                Assert.That(resource.DataBlock, Is.Not.TypeOf<ResourceData>());
+            }
+        }
+
+        [Test]
+        public void ReadBlocksNoFileName()
+        {
+            var resources = new Dictionary<string, Resource>();
+            var path = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files");
+            var files = Directory.GetFiles(path, "*.*_c");
+
+            if (files.Length == 0)
+            {
+                Assert.Fail("There are no files to test.");
+            }
+
+            foreach (var file in files)
+            {
+                using var resource = new Resource();
+                using var fs = new FileStream(file, FileMode.Open, FileAccess.Read);
+                resource.Read(fs);
+
+                Assert.That(resource.DataBlock, Is.Not.TypeOf<ResourceData>());
             }
         }
 
