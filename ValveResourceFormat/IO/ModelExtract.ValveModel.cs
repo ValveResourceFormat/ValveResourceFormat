@@ -20,6 +20,7 @@ partial class ModelExtract
     {
         var specialType = value switch
         {
+            KVFlaggedValue fv => new KVValue(fv.Type, fv.Value), // Remove flag
             KVValue v => v,
             Vector3 vec3 => MakeArrayValue(new[] { vec3.X, vec3.Y, vec3.Z }),
             _ => null
@@ -60,6 +61,24 @@ partial class ModelExtract
     {
         Debug.Assert(node.IsArray);
         node.AddProperty(null, MakeValue(item));
+    }
+
+    static KVObject MakeNode(string className, KVObject @object)
+    {
+        var node = new KVObject(className, @object.Properties.Count + 1);
+        node.AddProperty("_class", MakeValue(className));
+
+        foreach (var property in @object.Properties)
+        {
+            if (property.Key == "_class")
+            {
+                continue;
+            }
+
+            node.AddProperty(property.Key, MakeValue(property.Value));
+        }
+
+        return node;
     }
 
     static KVObject MakeNode(string className, params (string Name, object Value)[] properties)
@@ -229,18 +248,13 @@ partial class ModelExtract
 
         var node = MakeNode(targetClassName);
 
-        //These constraints are stored the same way in the .vmdl and the compiled model
-        if (targetClassName == "AnimConstraintPoseSpaceBone" || targetClassName == "AnimConstraintPoseSpaceMorph" || targetClassName == "AnimConstraintDotToMorph")
+        // These constraints are stored the same way in the .vmdl and the compiled model
+        if (targetClassName is "AnimConstraintPoseSpaceBone"
+                            or "AnimConstraintPoseSpaceMorph"
+                            or "AnimConstraintDotToMorph")
         {
-            foreach (var property in boneConstraint.Properties)
-            {
-                if (property.Key == "_class")
-                {
-                    continue;
-                }
-                node.AddProperty(property.Key, property.Value);
-            }
-            return node;
+
+            return MakeNode(targetClassName, boneConstraint);
         }
 
         ProcessBoneConstraintChildren(boneConstraint, node);
@@ -518,9 +532,16 @@ partial class ModelExtract
         }
 
         var modelSequenceData = model?.Resource.GetBlockByType(BlockType.ASEQ) as KeyValuesOrNTRO;
+        var additionalSequenceData = new Dictionary<string, KVObject>();
+
         if (modelSequenceData != null)
         {
             ExtractSequenceData(modelSequenceData);
+
+            foreach (var data in modelSequenceData.Data.GetArray("m_localS1SeqDescArray"))
+            {
+                additionalSequenceData.Add(data.GetStringProperty("m_sName"), data);
+            }
         }
 
         if (AnimationsToExtract.Count > 0)
@@ -596,6 +617,21 @@ partial class ModelExtract
                         animEventNode.AddProperty("event_keys", MakeValue(animEvent.EventData));
                     }
                     childrenKV.AddProperty(null, MakeValue(animEventNode));
+                }
+
+                if (additionalSequenceData.TryGetValue(animation.Anim.Name, out var sequenceData))
+                {
+                    var sequenceKeys = sequenceData.GetSubCollection("m_SequenceKeys");
+                    if (sequenceKeys != null)
+                    {
+                        // other keys seen:
+                        // bind_pose = true
+
+                        if (sequenceKeys.GetSubCollection("AnimGameplayTiming") is KVObject animGameplayTiming)
+                        {
+                            childrenKV.AddProperty(null, MakeValue(MakeNode("AnimGameplayTiming", animGameplayTiming)));
+                        }
+                    }
                 }
 
                 if (childrenKV.Count > 0)
@@ -972,17 +1008,7 @@ partial class ModelExtract
             {
                 foreach (var breakPiece in keyvalues.GetArray<KVObject>("break_list"))
                 {
-                    var breakPieceFile = MakeNode("BreakPieceExternal");
-                    foreach (var property in breakPiece.Properties)
-                    {
-                        var (key, value) = (property.Key, property.Value);
-                        // Remove resource flag from value
-                        if (value is KVFlaggedValue)
-                        {
-                            value = MakeValue(value.Value);
-                        }
-                        breakPieceFile.AddProperty(key, value);
-                    }
+                    var breakPieceFile = MakeNode("BreakPieceExternal", breakPiece);
                     AddItem(breakPieceList.Value, breakPieceFile);
                 }
             }
