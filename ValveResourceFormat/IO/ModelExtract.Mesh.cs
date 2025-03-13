@@ -245,9 +245,12 @@ partial class ModelExtract
         return aggModelName[..^vmdlExt.Length] + "_draw" + drawCallIndex + vmdlExt;
     }
 
-    private static void FillDatamodelVertexData(VBIB.OnDiskBufferData vertexBuffer, DmeVertexData vertexData, Material.VsInputSignature materialInputSignature)
+    private static void FillDatamodelVertexData(VBIB.OnDiskBufferData vertexBuffer, DmeVertexData vertexData, Material.VsInputSignature materialInputSignature,
+        int numJoints)
     {
         var indices = Enumerable.Range(0, (int)vertexBuffer.ElementCount).ToArray(); // May break with non-unit strides, non-tri faces
+
+        const int JointArrayComponents = 4; // VBIB helper methods always provide 4-component joint indices/weights
 
         foreach (var attribute in vertexBuffer.InputLayoutFields)
         {
@@ -268,10 +271,21 @@ partial class ModelExtract
             }
             else if (attribute.SemanticName is "BLENDINDICES")
             {
-                vertexData.JointCount = 4;
+                vertexData.JointCount = numJoints;
 
                 var blendIndices = VBIB.GetBlendIndicesArray(vertexBuffer, attribute);
-                vertexData.AddStream(semantic, Array.ConvertAll(blendIndices, i => (int)i));
+                var compactedLength = blendIndices.Length / JointArrayComponents * numJoints;
+
+                var compactIndices = new int[compactedLength];
+                for (var i = 0; i < blendIndices.Length; i += JointArrayComponents)
+                {
+                    for (var j = 0; j < numJoints; j++)
+                    {
+                        compactIndices[i / JointArrayComponents * numJoints + j] = blendIndices[i + j];
+                    }
+                }
+
+                vertexData.AddStream(semantic, compactIndices);
                 continue;
             }
             else if (attribute.SemanticName is "BLENDWEIGHT" or "BLENDWEIGHTS")
@@ -279,7 +293,16 @@ partial class ModelExtract
                 var vectorWeights = VBIB.GetBlendWeightsArray(vertexBuffer, attribute);
                 var flatWeights = MemoryMarshal.Cast<Vector4, float>(vectorWeights).ToArray();
 
-                vertexData.AddStream("blendweights$" + attribute.SemanticIndex, flatWeights);
+                var compactWeights = new float[flatWeights.Length / JointArrayComponents * numJoints];
+                for (var i = 0; i < flatWeights.Length; i += JointArrayComponents)
+                {
+                    for (var j = 0; j < numJoints; j++)
+                    {
+                        compactWeights[i / JointArrayComponents * numJoints + j] = flatWeights[i + j];
+                    }
+                }
+
+                vertexData.AddStream("blendweights$" + attribute.SemanticIndex, compactWeights);
                 continue;
             }
 
@@ -403,9 +426,11 @@ partial class ModelExtract
             }
         }
 
+        var numJoints = mesh.Data.GetSubCollection("m_skeleton").GetInt32Property("m_nBoneWeightCount");
+
         for (var i = 0; i < mbuf.VertexBuffers.Count; i++)
         {
-            FillDatamodelVertexData(mbuf.VertexBuffers[i], dmeVertexBuffers[i], materialInputSignature);
+            FillDatamodelVertexData(mbuf.VertexBuffers[i], dmeVertexBuffers[i], materialInputSignature, numJoints);
         }
 
         TieElementRoot(datamodel, dmeModel);
