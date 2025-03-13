@@ -224,7 +224,7 @@ partial class ModelExtract
         var childrenKV = new KVObject(null, true);
         foreach (var child in children)
         {
-            childrenKV.AddProperty(null, MakeValue(child));
+            AddItem(childrenKV, child);
         }
         node.AddProperty("children", MakeValue(childrenKV));
     }
@@ -293,7 +293,7 @@ partial class ModelExtract
             var constraint = ProcessBoneConstraint(boneConstraint);
             if (constraint != null)
             {
-                childrenKV.AddProperty(null, MakeValue(constraint));
+                AddItem(childrenKV, constraint);
             }
         }
 
@@ -522,7 +522,8 @@ partial class ModelExtract
                             ("relative_angles", ToEulerAngles(influence.Rotation)),
                             ("weight", influence.Weight)
                         );
-                        children.AddProperty(null, MakeValue(childNode));
+
+                        AddItem(children, childNode);
                     }
                     node.AddProperty("children", MakeValue(children));
                 }
@@ -603,7 +604,7 @@ partial class ModelExtract
                         ("motion_type", "uniform")
                     );
 
-                    childrenKV.AddProperty(null, MakeValue(extractMotion));
+                    AddItem(childrenKV, extractMotion);
                 }
                 foreach (var animEvent in animation.Anim.Events)
                 {
@@ -616,7 +617,7 @@ partial class ModelExtract
                     {
                         animEventNode.AddProperty("event_keys", MakeValue(animEvent.EventData));
                     }
-                    childrenKV.AddProperty(null, MakeValue(animEventNode));
+                    AddItem(childrenKV, animEventNode);
                 }
 
                 if (additionalSequenceData.TryGetValue(animation.Anim.Name, out var sequenceData))
@@ -629,7 +630,7 @@ partial class ModelExtract
 
                         if (sequenceKeys.GetSubCollection("AnimGameplayTiming") is KVObject animGameplayTiming)
                         {
-                            childrenKV.AddProperty(null, MakeValue(MakeNode("AnimGameplayTiming", animGameplayTiming)));
+                            AddItem(childrenKV, MakeNode("AnimGameplayTiming", animGameplayTiming));
                         }
                     }
                 }
@@ -827,7 +828,7 @@ partial class ModelExtract
                 foreach (var hitbox in pair.Value)
                 {
                     var hitboxNode = GetHitboxNode(hitbox);
-                    children.AddProperty(null, MakeValue(hitboxNode));
+                    AddItem(children, hitboxNode);
                 }
 
                 AddItem(hitboxSetList.Value, hitboxSet);
@@ -919,7 +920,7 @@ partial class ModelExtract
             {
                 var boneConstraintListData = keyvalues.GetArray("BoneConstraintList");
                 var boneConstraintList = ExtractBoneConstraints(boneConstraintListData);
-                root.Children.AddProperty(null, MakeValue(boneConstraintList));
+                AddItem(root.Children, boneConstraintList);
             }
 
             var genericDataClasses = new string[] {
