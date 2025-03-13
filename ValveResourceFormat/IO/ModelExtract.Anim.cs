@@ -84,11 +84,11 @@ partial class ModelExtract
         var children = new ElementArray();
 
         transforms = new DmeTransform[skeleton.Bones.Length];
-        var boneDags = new DmeDag[skeleton.Bones.Length];
+        var boneDags = new DmeJoint[skeleton.Bones.Length];
 
         foreach (var bone in skeleton.Bones)
         {
-            var dag = new DmeDag
+            var dag = new DmeJoint
             {
                 Name = bone.Name
             };
