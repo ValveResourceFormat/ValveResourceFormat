@@ -10,6 +10,7 @@ namespace ValveResourceFormat.Compression
     public static class MeshOptimizerIndexDecoder
     {
         private const byte IndexHeader = 0xe0;
+        private const int DecodeIndexVersion = 1;
 
         private static void PushEdgeFifo(Span<ValueTuple<uint, uint>> fifo, ref int offset, uint a, uint b)
         {
@@ -106,7 +107,7 @@ namespace ValveResourceFormat.Compression
 
             var version = buffer[0] & 0x0F;
 
-            if (version > 1)
+            if (version > DecodeIndexVersion)
             {
                 throw new ArgumentException($"Incorrect index buffer encoding version, got {version}.");
             }
@@ -139,34 +140,34 @@ namespace ValveResourceFormat.Compression
                     var fe = codetri >> 4;
 
                     var (a, b) = edgeFifo[(edgeFifoOffset - 1 - fe) & 15];
+                    uint c;
 
                     var fec = codetri & 15;
 
                     if (fec < fecmax)
                     {
-                        var c = fec == 0 ? next : vertexFifo[(vertexFifoOffset - 1 - fec) & 15];
+                        c = fec == 0 ? next : vertexFifo[(vertexFifoOffset - 1 - fec) & 15];
 
                         var fec0 = fec == 0;
                         next += fec0 ? 1u : 0u;
 
-                        WriteTriangle(destination, i, indexSize, a, b, c);
-
+                        // push vertex fifo must match the encoding step *exactly* otherwise the data will not be decoded correctly
                         PushVertexFifo(vertexFifo, ref vertexFifoOffset, c, fec0);
-
-                        PushEdgeFifo(edgeFifo, ref edgeFifoOffset, c, b);
-                        PushEdgeFifo(edgeFifo, ref edgeFifoOffset, a, c);
                     }
                     else
                     {
-                        var c = last = (fec != 15) ? last + (uint)(fec - (fec ^ 3)) : DecodeIndex(data, last, ref position);
-
-                        WriteTriangle(destination, i, indexSize, a, b, c);
+                        c = last = (fec != 15) ? last + (uint)(fec - (fec ^ 3)) : DecodeIndex(data, last, ref position);
 
                         PushVertexFifo(vertexFifo, ref vertexFifoOffset, c);
-
-                        PushEdgeFifo(edgeFifo, ref edgeFifoOffset, c, b);
-                        PushEdgeFifo(edgeFifo, ref edgeFifoOffset, a, c);
                     }
+
+                    // push edge fifo must match the encoding step *exactly* otherwise the data will not be decoded correctly
+                    PushEdgeFifo(edgeFifo, ref edgeFifoOffset, c, b);
+                    PushEdgeFifo(edgeFifo, ref edgeFifoOffset, a, c);
+
+                    // output triangle
+                    WriteTriangle(destination, i, indexSize, a, b, c);
+
                 }
                 else if (codetri < 0xfe)
                 {
