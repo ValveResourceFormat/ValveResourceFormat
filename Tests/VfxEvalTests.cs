@@ -46,12 +46,12 @@ namespace Tests
                 "19 38 AE 48 52 19 31 FB FD 02 0E 08 00 " +
                 "09 00 06 03 00 00";
             var expectedResult =
-                "v0 = UNKNOWN[5248ae38]>UNKNOWN[02fdfb31];\n" +
-                "v0 = UNKNOWN[5248ae38]<UNKNOWN[02fdfb31];\n" +
-                "v0 = UNKNOWN[5248ae38]==UNKNOWN[02fdfb31];\n" +
-                "v0 = UNKNOWN[5248ae38]>=UNKNOWN[02fdfb31];\n" +
-                "v0 = UNKNOWN[5248ae38]<=UNKNOWN[02fdfb31];\n" +
-                "v0 = UNKNOWN[5248ae38]!=UNKNOWN[02fdfb31];\n" +
+                "v0 = ATTRIBUTE[5248ae38]>ATTRIBUTE[02fdfb31];\n" +
+                "v0 = ATTRIBUTE[5248ae38]<ATTRIBUTE[02fdfb31];\n" +
+                "v0 = ATTRIBUTE[5248ae38]==ATTRIBUTE[02fdfb31];\n" +
+                "v0 = ATTRIBUTE[5248ae38]>=ATTRIBUTE[02fdfb31];\n" +
+                "v0 = ATTRIBUTE[5248ae38]<=ATTRIBUTE[02fdfb31];\n" +
+                "v0 = ATTRIBUTE[5248ae38]!=ATTRIBUTE[02fdfb31];\n" +
                 "return frac(v0);";
             Assert.That(new VfxEval(ParseString(exampleStr)).DynamicExpressionResult, Is.EqualTo(expectedResult));
         }
@@ -130,7 +130,7 @@ namespace Tests
         {
             var exampleStr = "19 38 AE 48 52 04 12 00 0A 00 07 00 00 00 00 02 17 00 19 31 FB FD 02 04 1C 00 27 00 07 00 00 20 " +
                "41 06 03 00 02 32 00 07 00 00 C8 42 07 00 00 C8 42 15 00";
-            var expectedResult = "return (UNKNOWN[5248ae38] && UNKNOWN[02fdfb31]) ? frac(10) : (100*100);";
+            var expectedResult = "return (ATTRIBUTE[5248ae38] && ATTRIBUTE[02fdfb31]) ? frac(10) : (100*100);";
             Assert.That(new VfxEval(ParseString(exampleStr)).DynamicExpressionResult, Is.EqualTo(expectedResult));
         }
 
@@ -146,7 +146,7 @@ namespace Tests
                 "31 FB FD 02 04 29 00 34 00 07 00 00 80 3F 06 00 00 02 39 00 07 00 00 E0 40 00";
             var expectedResult =
                 "v0 = 10+10;\n" +
-                "return (UNKNOWN[5248ae38] || UNKNOWN[02fdfb31]) ? sin(1) : 7;";
+                "return (ATTRIBUTE[5248ae38] || ATTRIBUTE[02fdfb31]) ? sin(1) : 7;";
             Assert.That(new VfxEval(ParseString(exampleStr)).DynamicExpressionResult, Is.EqualTo(expectedResult));
         }
 
@@ -192,10 +192,10 @@ namespace Tests
             "00 40 40 07 00 00 80 40 06 18 00 02 45 00 07 00 00 A0 40 07 00 00 C0 40 07 00 00 E0 40 07 00 00 " +
             "00 41 06 18 00 08 01 09 00 06 01 00 08 02 09 00 09 01 19 15 D1 7D 0F 1E A4 06 09 00 09 02 15 13 00";
             var expectedResult =
-                "v0 = sin(UNKNOWN[2ce4aad6]);\n" +
-                "v1 = exists(UNKNOWN[3928f139]) ? float4(1,2,3,4) : float4(5,6,7,8);\n" +
+                "v0 = sin(ATTRIBUTE[2ce4aad6]);\n" +
+                "v1 = exists(ATTRIBUTE[3928f139]) ? float4(1,2,3,4) : float4(5,6,7,8);\n" +
                 "v2 = cos(v0);\n" +
-                "return v0+(dot4(v1,UNKNOWN[0f7dd115].xyz)*v2);";
+                "return v0+(dot4(v1,ATTRIBUTE[0f7dd115].xyz)*v2);";
             Assert.That(new VfxEval(ParseString(exampleStr)).DynamicExpressionResult, Is.EqualTo(expectedResult));
         }
 
@@ -217,9 +217,9 @@ namespace Tests
         {
             var exampleStr = "07 00 00 20 41 19 51 A2 54 EA 15 08 00 07 00 00 30 41 08 01 1F 51 A2 54 EA 00";
             var expectedResult =
-                "v0 = 10*UNKNOWN[ea54a251];\n" +
+                "v0 = 10*ATTRIBUTE[ea54a251];\n" +
                 "v1 = 11;\n" +
-                "return exists(UNKNOWN[ea54a251]);";
+                "return exists(ATTRIBUTE[ea54a251]);";
             Assert.That(new VfxEval(ParseString(exampleStr)).DynamicExpressionResult, Is.EqualTo(expectedResult));
         }
 
@@ -237,8 +237,8 @@ namespace Tests
             "44 00 07 00 00 20 41 07 00 00 20 41 15 06 03 00 02 4C 00 07 00 00 80 3F 02 54 " +
             "00 07 00 00 80 3F 00";
             var expectedResult =
-                "v0 = 10*UNKNOWN[ea54a251];\n" +
-                "return sin(exists(UNKNOWN[ea54a251])) ? (1 ? (0 ? 10 : frac(10*10)) : 1) : 1;";
+                "v0 = 10*ATTRIBUTE[ea54a251];\n" +
+                "return sin(exists(ATTRIBUTE[ea54a251])) ? (1 ? (0 ? 10 : frac(10*10)) : 1) : 1;";
             Assert.That(new VfxEval(ParseString(exampleStr)).DynamicExpressionResult, Is.EqualTo(expectedResult));
         }
 
@@ -296,11 +296,11 @@ namespace Tests
         public void TestShaderDynamicExpression1()
         {
             var testInput1 = ParseString("1A 01 04 07 00 0F 00 07 00 00 80 3F 02 14 00 07 00 00 00 00 00");
-            var expectedResultWithNoFeatures = "COND[1] || 0";
+            var expectedResultWithNoFeatures = "FEAT[1] || 0";
             var expectedResultWithFeatures = "F_B || 0";
 
             var testInput2 = ParseString("1D 3C 13 92 A3 1E A4 06 1F 00 00");
-            var expectedResult2 = "SrgbGammaToLinear(EVAL[a392133c].xyz)";
+            var expectedResult2 = "SrgbGammaToLinear(MATERIAL_PARAM[a392133c].xyz)";
 
             Assert.Multiple(() =>
             {
@@ -320,7 +320,7 @@ namespace Tests
                 "1A 05 07 00 00 40 40 0D 04 4C 00 54 00 07 00 00 00 00 02 59 00 07 00 00 00 00 00");
 
             // (F_TEXTURE_FILTERING == 0 ? ANISOTROPIC : (F_TEXTURE_FILTERING == 1 ? BILINEAR : (F_TEXTURE_FILTERING == 2 ? TRILINEAR : (F_TEXTURE_FILTERING == 3 ? POINT : NEAREST))))
-            var expectedResult = "(COND[5]==0) ? 85 : ((COND[5]==1) ? 20 : ((COND[5]==2) ? 21 : ((COND[5]==3) ? 0 : 0)))";
+            var expectedResult = "(FEAT[5]==0) ? 85 : ((FEAT[5]==1) ? 20 : ((FEAT[5]==2) ? 21 : ((FEAT[5]==3) ? 0 : 0)))";
 
             Assert.That(new VfxEval(nestedTernaryBin, omitReturnStatement: true).DynamicExpressionResult, Is.EqualTo(expectedResult));
         }
@@ -378,7 +378,7 @@ namespace Tests
         {
             var testInput = ParseString(
                 "1A 13 04 0F 00 07 00 07 00 00 00 00 02 14 00 1F 28 A6 90 70 04 19 00 21 00 19 A1 D0 52 1E 02 26 00 1D 6F 89 29 B8 00");
-            var expectedResult = "(COND[19] && exists(UNKNOWN[7090a628])) ? UNKNOWN[1e52d0a1] : EVAL[b829896f]";
+            var expectedResult = "(FEAT[19] && exists(ATTRIBUTE[7090a628])) ? ATTRIBUTE[1e52d0a1] : MATERIAL_PARAM[b829896f]";
             var vfxEval = new VfxEval(testInput, omitReturnStatement: true);
             Assert.That(vfxEval.DynamicExpressionResult, Is.EqualTo(expectedResult));
         }
@@ -392,10 +392,10 @@ namespace Tests
                 "00 51 00 1D 16 82 0D 28 06 1B 00 15 02 56 00 07 00 00 00 00 1D CF 75 4A D4 13 07 00 00 00 3F 09 01 " +
                 "09 02 14 09 02 09 01 13 06 1A 00 15 14 07 00 00 00 3F 13 08 03 09 02 09 01 09 03 1E 55 06 19 00 00");
             var expectedResult =
-                "v0 = (EVAL[ab322b37]*3.1415927)/180;\n" +
-                "v1 = cos(v0)/EVAL[c79af6d2];\n" +
-                "v2 = sin(v0)/EVAL[c79af6d2];\n" +
-                "v3 = ((((dot2(EVAL[280d8216],EVAL[280d8216])>1e-05) ? (EVAL[280d8216]*time()) : 0)+EVAL[d44a75cf])-(.5*float2(v1-v2,v2+v1)))+.5;\n" +
+                "v0 = (MATERIAL_PARAM[ab322b37]*3.1415927)/180;\n" +
+                "v1 = cos(v0)/MATERIAL_PARAM[c79af6d2];\n" +
+                "v2 = sin(v0)/MATERIAL_PARAM[c79af6d2];\n" +
+                "v3 = ((((dot2(MATERIAL_PARAM[280d8216],MATERIAL_PARAM[280d8216])>1e-05) ? (MATERIAL_PARAM[280d8216]*time()) : 0)+MATERIAL_PARAM[d44a75cf])-(.5*float2(v1-v2,v2+v1)))+.5;\n" +
                 "float3(v2,v1,v3.y)";
             Assert.That(new VfxEval(testInput, omitReturnStatement: true).DynamicExpressionResult, Is.EqualTo(expectedResult));
         }
