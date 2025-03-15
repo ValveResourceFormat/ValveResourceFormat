@@ -16,13 +16,13 @@ namespace ValveResourceFormat.IO;
 partial class ModelExtract
 {
     #region KV Helpers
-    static KVValue MakeValue(object value)
+    internal static KVValue MakeValue(object value)
     {
         var specialType = value switch
         {
             KVFlaggedValue fv => new KVValue(fv.Type, fv.Value), // Remove flag
             KVValue v => v,
-            Vector3 vec3 => MakeArrayValue(new[] { vec3.X, vec3.Y, vec3.Z }),
+            Vector3 vec3 => MakeArrayValue([vec3.X, vec3.Y, vec3.Z]),
             _ => null
         };
 
@@ -36,6 +36,7 @@ partial class ModelExtract
             string => KVType.STRING,
             bool => KVType.BOOLEAN,
             int => KVType.INT32,
+            uint => KVType.UINT32,
             long => KVType.INT64,
             float => KVType.FLOAT,
             double => KVType.DOUBLE,
@@ -46,7 +47,7 @@ partial class ModelExtract
         return new KVValue(basicType, value);
     }
 
-    static KVValue MakeArrayValue<T>(IEnumerable<T> values)
+    internal static KVValue MakeArrayValue<T>(IEnumerable<T> values)
     {
         var list = new KVObject(null, isArray: true);
         foreach (var value in values)
@@ -57,7 +58,7 @@ partial class ModelExtract
         return MakeValue(list);
     }
 
-    static void AddItem(KVObject node, KVObject item)
+    internal static void AddItem(KVObject node, KVObject item)
     {
         Debug.Assert(node.IsArray);
         node.AddProperty(null, MakeValue(item));
@@ -81,9 +82,9 @@ partial class ModelExtract
         return node;
     }
 
-    static KVObject MakeNode(string className, params (string Name, object Value)[] properties)
+    internal static KVObject MakeNode(string className, params (string Name, object Value)[] properties)
     {
-        var node = new KVObject(className);
+        var node = new KVObject(className, capacity: properties.Length + 1);
         node.AddProperty("_class", MakeValue(className));
         foreach (var prop in properties)
         {
@@ -91,10 +92,10 @@ partial class ModelExtract
         }
         return node;
     }
-    static (KVObject Node, KVObject Children) MakeListNode(string className)
+    internal static (KVObject Node, KVObject Children) MakeListNode(string className, string containerName = "children")
     {
         var children = new KVObject(null, isArray: true);
-        var node = MakeNode(className, ("children", children));
+        var node = MakeNode(className, (containerName, children));
         return (node, children);
     }
     #endregion
