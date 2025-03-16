@@ -29,7 +29,7 @@ public partial class GltfModelExporter
 
         vmesh.LoadExternalMorphData(FileLoader);
 
-        var boneWeightCount = vmesh.Data.GetSubCollection("m_skeleton").GetInt32Property("m_nBoneWeightCount");
+        var boneWeightCount = vmesh.Data.GetSubCollection("m_skeleton")?.GetInt32Property("m_nBoneWeightCount") ?? 0;
 
         var vertexBufferAccessors = CreateVertexBufferAccessors(exportedModel, vbib, boneRemapTable != null ? boneWeightCount : 0, boneRemapTable);
         var vertexOffset = 0;

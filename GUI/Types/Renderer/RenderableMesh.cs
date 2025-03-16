@@ -70,7 +70,7 @@ namespace GUI.Types.Renderer
                 }
             }
 
-            BoneWeightCount = mesh.Data.GetSubCollection("m_skeleton").GetInt32Property("m_nBoneWeightCount");
+            BoneWeightCount = mesh.Data.GetSubCollection("m_skeleton")?.GetInt32Property("m_nBoneWeightCount") ?? 0;
 
             foreach (var a in vbib.VertexBuffers)
             {

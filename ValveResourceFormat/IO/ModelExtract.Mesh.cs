@@ -438,7 +438,7 @@ partial class ModelExtract
             }
         }
 
-        var boneWeightCount = mesh.Data.GetSubCollection("m_skeleton").GetInt32Property("m_nBoneWeightCount");
+        var boneWeightCount = mesh.Data.GetSubCollection("m_skeleton")?.GetInt32Property("m_nBoneWeightCount") ?? 0;
 
         for (var i = 0; i < mbuf.VertexBuffers.Count; i++)
         {
