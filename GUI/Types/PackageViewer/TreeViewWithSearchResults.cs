@@ -15,6 +15,8 @@ namespace GUI.Types.PackageViewer
     /// </summary>
     partial class TreeViewWithSearchResults : UserControl
     {
+        private static readonly string[] Columns = ["Name", "Size", "Type"];
+
         private static int SplitterWidth;
 
         public bool DeletedFilesRecovered { get; private set; }
@@ -175,8 +177,9 @@ namespace GUI.Types.PackageViewer
         {
             foreach (ColumnHeader col in mainListView.Columns)
             {
-                if (col.Text == "Name")
+                if (col.Index == 0)
                 {
+                    // Make name column fill in all the space
                     col.Width = mainListView.ClientSize.Width - (mainListView.Columns.Count - 1) * 100;
                 }
                 else
@@ -603,10 +606,22 @@ namespace GUI.Types.PackageViewer
             }
             else
             {
+                mainListView.Columns[sorter.SortColumn].Text = Columns[sorter.SortColumn];
+
                 sorter.SortColumn = e.Column;
-                sorter.Order = SortOrder.Ascending;
+
+                // For size column, prefer descending first
+                sorter.Order = e.Column == 1 ? SortOrder.Descending : SortOrder.Ascending;
             }
 
+            var sortArrow = sorter.Order switch
+            {
+                SortOrder.Ascending => "▲",
+                SortOrder.Descending => "▼",
+                _ => string.Empty
+            };
+
+            mainListView.Columns[sorter.SortColumn].Text = $"{Columns[sorter.SortColumn]} {sortArrow}";
             mainListView.Sort();
         }
 
@@ -757,9 +772,12 @@ namespace GUI.Types.PackageViewer
         /// <param name="e">Event data.</param>
         private void TreeViewWithSearchResults_Load(object sender, EventArgs e)
         {
-            mainListView.Columns.Add("Name");
-            mainListView.Columns.Add("Size");
-            mainListView.Columns.Add("Type");
+            for (var i = 0; i < Columns.Length; i++)
+            {
+                // If default column or sort order changes, this needs to be updated
+                mainListView.Columns.Add(i == 0 ? $"{Columns[i]} ▲" : Columns[i]);
+            }
+
             mainListView.SmallImageList = MainForm.ImageList;
         }
 
