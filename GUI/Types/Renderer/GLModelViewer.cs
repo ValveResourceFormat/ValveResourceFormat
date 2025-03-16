@@ -56,6 +56,7 @@ namespace GUI.Types.Renderer
                 meshGroupListBox?.Dispose();
                 materialGroupListBox?.Dispose();
                 physicsGroupsComboBox?.Dispose();
+                rootMotionCheckBox?.Dispose();
                 showSkeletonCheckbox?.Dispose();
                 hitboxComboBox?.Dispose();
             }
