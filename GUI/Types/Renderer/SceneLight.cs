@@ -1,4 +1,3 @@
-using ValveResourceFormat.Utils;
 using static ValveResourceFormat.ResourceTypes.EntityLump;
 
 namespace GUI.Types.Renderer;

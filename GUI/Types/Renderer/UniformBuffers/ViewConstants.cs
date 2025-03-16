@@ -1,5 +1,4 @@
 using System.Runtime.InteropServices;
-using OpenTK.Graphics;
 
 namespace GUI.Types.Renderer.UniformBuffers
 {

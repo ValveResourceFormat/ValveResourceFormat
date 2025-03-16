@@ -1,5 +1,3 @@
-using System.Runtime.CompilerServices;
-
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 {
     public abstract class AnimationSegmentDecoder

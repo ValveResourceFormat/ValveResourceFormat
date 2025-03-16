@@ -5,7 +5,6 @@ using System.Text;
 using K4os.Compression.LZ4;
 using SkiaSharp;
 using ValveResourceFormat.Blocks;
-using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
 using ValveResourceFormat.TextureDecoders;
 using ValveResourceFormat.Utils;
 

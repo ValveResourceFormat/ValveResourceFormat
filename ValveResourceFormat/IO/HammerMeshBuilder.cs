@@ -10,8 +10,6 @@ using ValveResourceFormat.Serialization;
 using HalfEdgeSlim = (int SrcVertexId, int DstVertexId);
 using static ValveResourceFormat.IO.HammerMeshBuilder;
 using ValveResourceFormat.Utils;
-using System.Globalization;
-using ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes;
 
 namespace ValveResourceFormat.IO
 {

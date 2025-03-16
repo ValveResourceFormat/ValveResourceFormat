@@ -1,5 +1,4 @@
 using System.IO;
-using System.Reflection;
 using NUnit.Framework;
 using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;

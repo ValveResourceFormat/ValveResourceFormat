@@ -1,6 +1,5 @@
 // Credit to https://github.com/mafaca/Etc
 
-using System.Runtime.InteropServices;
 using SkiaSharp;
 
 namespace ValveResourceFormat.TextureDecoders

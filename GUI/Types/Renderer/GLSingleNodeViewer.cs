@@ -1,5 +1,4 @@
 using System.Reflection;
-using System.Threading;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using SkiaSharp;
