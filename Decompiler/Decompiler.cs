@@ -1421,7 +1421,7 @@ namespace Decompiler
 
             ValveResourceFormat.Utils.InternalTestExtraction.Test(resource);
 
-            if (GltfTest && GltfModelExporter.CanExport(resource))
+            if (GltfTest && GltfModelExporter.CanExport(resource) && resource.ResourceType != ResourceType.Map)
             {
                 var gltfModelExporter = new GltfModelExporter(new NullFileLoader())
                 {
