@@ -39,9 +39,21 @@ partial class ModelExtract
         /// Pre-parsed input signatures used to map DirectX semantic names to engine semantic names.
         /// </summary>
         public Dictionary<string, Material.VsInputSignature> MaterialInputSignatures { get; init; }
+
+        /// <summary>
+        /// Remap table for the mesh bone indices.
+        /// </summary>
+        public int[] BoneRemapTable { get; init; }
     }
 
-    public record struct RenderMeshExtractConfiguration(Mesh Mesh, string Name, int Index, string FileName, ImportFilter ImportFilter = default);
+    public record struct RenderMeshExtractConfiguration(
+        Mesh Mesh,
+        string Name,
+        int Index,
+        string FileName,
+        int[] BoneRemapTable = null,
+        ImportFilter ImportFilter = default
+    );
 
     public sealed record SurfaceTagCombo(string SurfacePropName, HashSet<string> InteractAsStrings)
     {
@@ -89,8 +101,8 @@ partial class ModelExtract
         var i = 0;
         foreach (var embedded in model.GetEmbeddedMeshes())
         {
-            embedded.Mesh.VBIB = model.RemapBoneIndices(embedded.Mesh.VBIB, embedded.MeshIndex);
-            RenderMeshesToExtract.Add(new(embedded.Mesh, embedded.Name, embedded.MeshIndex, GetDmxFileName_ForEmbeddedMesh(embedded.Name, i++)));
+            var remapTable = model.GetRemapTable(embedded.MeshIndex);
+            RenderMeshesToExtract.Add(new(embedded.Mesh, embedded.Name, embedded.MeshIndex, GetDmxFileName_ForEmbeddedMesh(embedded.Name, i++), remapTable));
         }
 
         foreach (var reference in model.GetReferenceMeshNamesAndLoD())
@@ -105,10 +117,11 @@ partial class ModelExtract
             GrabMaterialInputSignatures(resource);
 
             var mesh = (Mesh)resource.DataBlock;
-            mesh.VBIB = model.RemapBoneIndices(mesh.VBIB, reference.MeshIndex);
             model.SetExternalMeshData(mesh);
 
-            RenderMeshesToExtract.Add(new(mesh, reference.MeshName, reference.MeshIndex, GetDmxFileName_ForReferenceMesh(reference.MeshName)));
+            var remapTable = model.GetRemapTable(reference.MeshIndex);
+
+            RenderMeshesToExtract.Add(new(mesh, reference.MeshName, reference.MeshIndex, GetDmxFileName_ForReferenceMesh(reference.MeshName), remapTable));
         }
     }
 
@@ -196,7 +209,7 @@ partial class ModelExtract
             yield break;
         }
 
-        var (mesh, name, index, fileName, _) = extract.RenderMeshesToExtract[0];
+        var (mesh, name, index, fileName, _, _) = extract.RenderMeshesToExtract[0];
 
         var options = new DatamodelRenderMeshExtractOptions
         {
@@ -210,7 +223,7 @@ partial class ModelExtract
             options
         );
 
-        var sharedMeshExtractConfiguration = new RenderMeshExtractConfiguration(mesh, name, index, fileName, new(true, new(1)));
+        var sharedMeshExtractConfiguration = new RenderMeshExtractConfiguration(mesh, name, index, fileName, ImportFilter: new(true, new(1)));
         extract.RenderMeshesToExtract.Clear();
         extract.RenderMeshesToExtract.Add(sharedMeshExtractConfiguration);
 
@@ -245,11 +258,11 @@ partial class ModelExtract
     }
 
     private static void FillDatamodelVertexData(VBIB.OnDiskBufferData vertexBuffer, DmeVertexData vertexData, Material.VsInputSignature materialInputSignature,
-        int numJoints)
+        int boneWeightCount, int[] boneRemapTable)
     {
         var indices = Enumerable.Range(0, (int)vertexBuffer.ElementCount).ToArray(); // May break with non-unit strides, non-tri faces
 
-        const int JointArrayComponents = 4; // VBIB helper methods always provide 4-component joint indices/weights
+        var boneArrayComponents = boneWeightCount > 4 ? 8 : 4;
 
         foreach (var attribute in vertexBuffer.InputLayoutFields)
         {
@@ -270,17 +283,17 @@ partial class ModelExtract
             }
             else if (attribute.SemanticName is "BLENDINDICES")
             {
-                vertexData.JointCount = numJoints;
+                vertexData.JointCount = boneWeightCount;
 
-                var blendIndices = VBIB.GetBlendIndicesArray(vertexBuffer, attribute);
-                var compactedLength = blendIndices.Length / JointArrayComponents * numJoints;
+                var boneIndices = VBIB.GetBlendIndicesArray(vertexBuffer, attribute, boneRemapTable);
+                var compactedLength = boneIndices.Length / boneArrayComponents * boneWeightCount;
 
                 var compactIndices = new int[compactedLength];
-                for (var i = 0; i < blendIndices.Length; i += JointArrayComponents)
+                for (var i = 0; i < boneIndices.Length; i += boneArrayComponents)
                 {
-                    for (var j = 0; j < numJoints; j++)
+                    for (var j = 0; j < boneWeightCount; j++)
                     {
-                        compactIndices[i / JointArrayComponents * numJoints + j] = blendIndices[i + j];
+                        compactIndices[i / boneArrayComponents * boneWeightCount + j] = boneIndices[i + j];
                     }
                 }
 
@@ -292,12 +305,12 @@ partial class ModelExtract
                 var vectorWeights = VBIB.GetBlendWeightsArray(vertexBuffer, attribute);
                 var flatWeights = MemoryMarshal.Cast<Vector4, float>(vectorWeights).ToArray();
 
-                var compactWeights = new float[flatWeights.Length / JointArrayComponents * numJoints];
-                for (var i = 0; i < flatWeights.Length; i += JointArrayComponents)
+                var compactWeights = new float[flatWeights.Length / boneArrayComponents * boneWeightCount];
+                for (var i = 0; i < flatWeights.Length; i += boneArrayComponents)
                 {
-                    for (var j = 0; j < numJoints; j++)
+                    for (var j = 0; j < boneWeightCount; j++)
                     {
-                        compactWeights[i / JointArrayComponents * numJoints + j] = flatWeights[i + j];
+                        compactWeights[i / boneArrayComponents * boneWeightCount + j] = flatWeights[i + j];
                     }
                 }
 
@@ -425,11 +438,11 @@ partial class ModelExtract
             }
         }
 
-        var numJoints = mesh.Data.GetSubCollection("m_skeleton").GetInt32Property("m_nBoneWeightCount");
+        var boneWeightCount = mesh.Data.GetSubCollection("m_skeleton").GetInt32Property("m_nBoneWeightCount");
 
         for (var i = 0; i < mbuf.VertexBuffers.Count; i++)
         {
-            FillDatamodelVertexData(mbuf.VertexBuffers[i], dmeVertexBuffers[i], materialInputSignature, numJoints);
+            FillDatamodelVertexData(mbuf.VertexBuffers[i], dmeVertexBuffers[i], materialInputSignature, boneWeightCount, options.BoneRemapTable);
         }
 
         TieElementRoot(datamodel, dmeModel);

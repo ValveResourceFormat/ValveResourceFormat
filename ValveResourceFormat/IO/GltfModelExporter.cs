@@ -537,9 +537,8 @@ namespace ValveResourceFormat.IO
                     meshName = string.Concat(meshName, ".", skinName);
                 }
 
-                var vbib = model.RemapBoneIndices(m.Mesh.VBIB, m.MeshIndex);
-                var node = AddMeshNode(exportedModel, scene, meshName,
-                    m.Mesh, vbib, joints, skinMaterialPath, entity);
+                var boneRemapTable = model.GetRemapTable(m.MeshIndex);
+                var node = AddMeshNode(exportedModel, scene, meshName, m.Mesh, m.Mesh.VBIB, joints, boneRemapTable, skinMaterialPath, entity);
                 if (node != null)
                 {
                     node.WorldMatrix = transform;
@@ -610,7 +609,7 @@ namespace ValveResourceFormat.IO
         }
 
         private Node AddMeshNode(ModelRoot exportedModel, Scene scene, string name,
-            VMesh mesh, Blocks.VBIB vbib, Node[] joints,
+            VMesh mesh, Blocks.VBIB vbib, Node[] joints, int[] boneRemapTable = null,
             string skinMaterialPath = null, EntityLump.Entity entity = null)
         {
             if (mesh.Data.GetArray("m_sceneObjects").Length == 0)
@@ -626,8 +625,7 @@ namespace ValveResourceFormat.IO
                 return newNode;
             }
 
-            var hasJoints = joints != null;
-            exportedMesh = CreateGltfMesh(name, mesh, vbib, exportedModel, hasJoints, skinMaterialPath);
+            exportedMesh = CreateGltfMesh(name, mesh, vbib, exportedModel, boneRemapTable, skinMaterialPath);
             ExportedMeshes.Add(name, exportedMesh);
 
             if (entity != null && ExportExtras)
@@ -640,7 +638,7 @@ namespace ValveResourceFormat.IO
 
             var hasVertexJoints = exportedMesh.Primitives.All(primitive => primitive.GetVertexAccessor("JOINTS_0") != null);
 
-            if (!hasJoints || !hasVertexJoints)
+            if (joints == null || !hasVertexJoints)
             {
                 return newNode.WithMesh(exportedMesh);
             }

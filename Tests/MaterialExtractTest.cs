@@ -22,7 +22,7 @@ namespace Tests
         }
 
         [Test]
-        public void TextureInputsForFeatureState([Values(false, true)] bool translucent)
+        public void TextureInputsForFeatureState([Values] bool translucent)
         {
             var vr_complex_expected_inputs = new[] {
                 (ChannelMapping.RGB, "TextureColor"),
@@ -34,7 +34,7 @@ namespace Tests
         }
 
         [Test]
-        public void TextureInputPaths([Values(false, true)] bool translucent)
+        public void TextureInputPaths([Values] bool translucent)
         {
             var vr_complex_expected_inputs = new[] {
                 new MaterialExtract.UnpackInfo()

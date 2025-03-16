@@ -113,16 +113,6 @@ namespace ValveResourceFormat.ResourceTypes
             return meshRemappingTable;
         }
 
-        public VBIB RemapBoneIndices(VBIB vbib, int meshIndex)
-        {
-            if (Skeleton.Bones.Length == 0)
-            {
-                return vbib;
-            }
-
-            var meshBoneRemappingTable = GetRemapTable(meshIndex);
-            return vbib.RemapBoneIndices(meshBoneRemappingTable);
-        }
 
         public IEnumerable<(int MeshIndex, string MeshName, long LoDMask)> GetReferenceMeshNamesAndLoD()
         {
