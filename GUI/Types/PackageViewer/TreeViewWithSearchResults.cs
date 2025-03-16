@@ -627,7 +627,7 @@ namespace GUI.Types.PackageViewer
                 return;
             }
 
-            // When left or right clicking a folder, expand it in the tree view
+            // When left or right clicking a folder, select it in the tree view and ensure it is visible
             if (item.PkgNode != null && mainListView.SelectedItems.Count == 1)
             {
                 mainTreeView.BeginUpdate();
@@ -644,11 +644,16 @@ namespace GUI.Types.PackageViewer
 
             if (item.PackageEntry != null)
             {
-                // When right clicking a file, expand it in the tree view
+                // When right clicking a file, select it in the tree view and ensure it is visible
                 if (mainListView.SelectedItems.Count == 1)
                 {
                     var pkgNode = mainTreeView.Root;
+                    var packageNodes = new List<VirtualPackageNode>(2)
+                    {
+                        mainTreeView.Root
+                    };
 
+                    // Walk up the directories in the file path to collect all the virtual nodes
                     if (!string.IsNullOrWhiteSpace(item.PackageEntry.DirectoryName))
                     {
                         foreach (var subPathSpan in item.PackageEntry.DirectoryName.AsSpan().Split([Package.DirectorySeparatorChar]))
@@ -661,19 +666,30 @@ namespace GUI.Types.PackageViewer
                             }
 
                             pkgNode = subNode;
+                            packageNodes.Add(subNode);
                         }
                     }
 
                     mainTreeView.BeginUpdate();
-                    var parentNode = CreateTreeNodes(pkgNode);
 
-                    foreach (BetterTreeNode node in parentNode.Nodes)
+                    // Walk all the virtual nodes down to create them if they don't exist yet
+                    for (var i = 0; i < packageNodes.Count; i++)
                     {
-                        if (node.PackageEntry == item.PackageEntry)
+                        pkgNode = packageNodes[i];
+                        var parentNode = CreateTreeNodes(pkgNode);
+
+                        // When deepest node is reached, select the actual file node
+                        if (i == packageNodes.Count - 1)
                         {
-                            node.EnsureVisible();
-                            mainTreeView.SelectedNode = node;
-                            break;
+                            foreach (BetterTreeNode node in parentNode.Nodes)
+                            {
+                                if (node.PackageEntry == item.PackageEntry)
+                                {
+                                    node.EnsureVisible();
+                                    mainTreeView.SelectedNode = node;
+                                    break;
+                                }
+                            }
                         }
                     }
 
