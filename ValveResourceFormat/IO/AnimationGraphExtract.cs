@@ -1,3 +1,4 @@
+using System.IO;
 using System.Linq;
 using System.Text;
 using ValveResourceFormat.ResourceTypes;
@@ -41,14 +42,31 @@ public class AnimationGraphExtract
         return contentFile;
     }
 
-    KVObject[] Tags => graph.GetSubCollection("m_pSharedData").GetSubCollection("m_pTagManagerUpdater").GetArray("m_tags");
-    KVObject[] Parameters => graph.GetSubCollection("m_pSharedData").GetSubCollection("m_pParamListUpdater").GetArray("m_parameters");
+    KVObject[] Tags { get; set; }
+    KVObject[] Parameters { get; set; }
 
     public string ToEditableAnimGraphVersion19()
     {
         var data = graph.GetSubCollection("m_pSharedData");
         var compiledNodes = data.GetArray("m_nodes");
         var compiledNodeIndexMap = data.GetArray("m_nodeIndexMap").Select(kv => kv.GetIntegerProperty("value")).ToArray();
+
+        var tagManager = data.GetSubCollection("m_pTagManagerUpdater");
+        var paramListUpdater = data.GetSubCollection("m_pParamListUpdater");
+
+        if (data.GetArray("m_managers") is KVObject[] managers)
+        {
+            tagManager = managers.FirstOrDefault(m => m.GetProperty<string>("_class") == "CAnimTagManagerUpdater");
+            paramListUpdater = managers.FirstOrDefault(m => m.GetProperty<string>("_class") == "CAnimParameterListUpdater");
+        }
+
+        if (tagManager == null || paramListUpdater == null)
+        {
+            throw new InvalidDataException("Missing tag manager or parameter list updater");
+        }
+
+        Tags = tagManager.GetArray("m_tags");
+        Parameters = paramListUpdater.GetArray("m_parameters");
 
         var nodeManager = ModelExtract.MakeListNode("CAnimNodeManager", "m_nodes");
 
