@@ -55,6 +55,11 @@ namespace ValveResourceFormat.ToolsAssetInfo
         public const uint GUARD = 0x049A48B2;
 
         /// <summary>
+        /// File version.
+        /// </summary>
+        public uint Version { get; private set; }
+
+        /// <summary>
         /// All the assets.
         /// </summary>
         public Dictionary<string, File> Files { get; } = [];
@@ -79,20 +84,20 @@ namespace ValveResourceFormat.ToolsAssetInfo
         {
             using var reader = new BinaryReader(input, Encoding.UTF8, true);
             var magic = reader.ReadUInt32();
-            var version = reader.ReadUInt32();
+            Version = reader.ReadUInt32();
 
             if (magic == MAGIC2)
             {
-                if (version < 11 || version > 13)
+                if (Version < 11 || Version > 13)
                 {
-                    throw new UnexpectedMagicException("Unexpected version", version, nameof(version));
+                    throw new UnexpectedMagicException("Unexpected version", Version, nameof(Version));
                 }
             }
             else if (magic == MAGIC)
             {
-                if (version != 9 && version != 10)
+                if (Version != 9 && Version != 10)
                 {
-                    throw new UnexpectedMagicException("Unexpected version (old magic)", version, nameof(version));
+                    throw new UnexpectedMagicException("Unexpected version (old magic)", Version, nameof(Version));
                 }
             }
             else
@@ -117,7 +122,7 @@ namespace ValveResourceFormat.ToolsAssetInfo
             List<string> subassetDefinitions;
             List<string> subassetValues;
 
-            if (version >= 12)
+            if (Version >= 12)
             {
                 subassetDefinitions = ReadStringsBlock(reader);
                 subassetValues = ReadStringsBlock(reader);
@@ -281,7 +286,7 @@ namespace ValveResourceFormat.ToolsAssetInfo
                     int compilerIdentifierId;
                     int stringId;
 
-                    if (version >= 11)
+                    if (Version >= 11)
                     {
                         compilerIdentifierId = reader.ReadInt32();
                         stringId = reader.ReadInt32();
@@ -318,7 +323,7 @@ namespace ValveResourceFormat.ToolsAssetInfo
                     {
                         int assetInfoValue;
 
-                        if (version >= 11)
+                        if (Version >= 11)
                         {
                             assetInfoValue = reader.ReadInt32();
                         }
@@ -371,7 +376,7 @@ namespace ValveResourceFormat.ToolsAssetInfo
                     });
                 }
 
-                if (version >= 12)
+                if (Version >= 12)
                 {
                     // m_SubassetDefinitions
                     count = reader.ReadInt32();
@@ -417,7 +422,7 @@ namespace ValveResourceFormat.ToolsAssetInfo
                     }
                 }
 
-                if (version >= 13)
+                if (Version >= 13)
                 {
                     // m_WeakReferenceList
                     count = reader.ReadInt32();
@@ -432,7 +437,7 @@ namespace ValveResourceFormat.ToolsAssetInfo
                 }
             }
 
-            if (version >= 10)
+            if (Version >= 10)
             {
                 var guard = reader.ReadUInt32();
                 UnexpectedMagicException.Assert(guard == GUARD, guard);

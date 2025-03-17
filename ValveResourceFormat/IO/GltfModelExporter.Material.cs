@@ -280,7 +280,7 @@ public partial class GltfModelExporter
             var pngBytes = TextureExtract.ToPngImageChannels(bitmap, channel);
 
             return await WriteTexture(key, pngBytes).ConfigureAwait(false);
-        };
+        }
 
         async Task<SharpGLTF.Schema2.Texture> AddTextureORM(string key)
         {

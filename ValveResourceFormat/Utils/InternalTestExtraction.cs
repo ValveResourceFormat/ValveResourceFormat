@@ -47,7 +47,50 @@ namespace ValveResourceFormat.Utils
                     {
                         var particle = (ParticleSystem)resource.DataBlock;
                         particle.GetChildParticleNames();
+                        particle.GetChildParticleNames(true);
                         break;
+                    }
+
+                case ResourceType.PhysicsCollisionMesh:
+                    {
+                        var phys = (PhysAggregateData)resource.DataBlock;
+                        var bindPose = phys.BindPose;
+                        break;
+                    }
+
+                case ResourceType.Morph:
+                    {
+                        var morph = (Morph)resource.DataBlock;
+                        morph.GetMorphDatas();
+                        morph.GetFlexDescriptors();
+                        morph.GetFlexVertexData();
+                        break;
+                    }
+
+                case ResourceType.Material:
+                    {
+                        var material = (Material)resource.DataBlock;
+                        material.GetShaderArguments();
+                        var inputSig = material.InputSignature;
+                        break;
+                    }
+
+                case ResourceType.EntityLump:
+                    {
+                        var entityLump = (EntityLump)resource.DataBlock;
+                        entityLump.ToForgeGameData();
+                        break;
+                    }
+
+                case ResourceType.Texture:
+                    {
+                        var texture = (Texture)resource.DataBlock;
+                        texture.GetSpriteSheetData();
+                        using var _ = texture.GenerateBitmap(mipLevel: (uint)Math.Max(texture.NumMipLevels - 2, 0));
+
+                        // Intentional return to avoid calling TextureExtract,
+                        // We only test extracting a smaller mip size, and avoid packing png
+                        return;
                     }
             }
 

@@ -43,6 +43,11 @@ namespace ValveResourceFormat.ResourceTypes
         {
             var flexData = new Dictionary<string, Vector3[]>();
 
+            if (Texture == null)
+            {
+                return flexData;
+            }
+
             var width = Data.GetInt32Property("m_nWidth");
             var height = Data.GetInt32Property("m_nHeight");
 
@@ -156,6 +161,7 @@ namespace ValveResourceFormat.ResourceTypes
                 .Select(kv => ParseFlexController(kv.Value))
                 .ToArray();
         }
+
         private static FlexController ParseFlexController(object obj)
         {
             if (obj is not KVObject kv)

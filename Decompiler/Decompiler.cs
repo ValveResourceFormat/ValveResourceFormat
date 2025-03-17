@@ -275,11 +275,11 @@ namespace Decompiler
 
                 foreach (var path in steamPaths)
                 {
-                    var dirs = FindPathsToProcessInFolder(path);
+                    var filesInPath = FindPathsToProcessInFolder(path);
 
-                    if (dirs != null)
+                    if (filesInPath != null)
                     {
-                        paths.AddRange(dirs);
+                        paths.AddRange(filesInPath);
                     }
                 }
 
@@ -287,6 +287,28 @@ namespace Decompiler
                 {
                     Console.Error.WriteLine("Did not find any Steam libraries.");
                     return 1;
+                }
+            }
+            else if (CollectStats && !string.IsNullOrEmpty(InputFile)) // TODO: Support multiple paths for non --stats too
+            {
+                var splitPaths = InputFile.Split(',');
+
+                IsInputFolder = true;
+
+                foreach (var path in splitPaths)
+                {
+                    if (!Directory.Exists(path))
+                    {
+                        Console.Error.WriteLine($"Folder \"{path}\" does not exist.");
+                        return 1;
+                    }
+
+                    var filesInPath = FindPathsToProcessInFolder(path);
+
+                    if (filesInPath != null)
+                    {
+                        paths.AddRange(filesInPath);
+                    }
                 }
             }
             else
@@ -394,7 +416,7 @@ namespace Decompiler
                         return false;
                     }
 
-                    return s.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal) || s.EndsWith(".vcs", StringComparison.Ordinal);
+                    return SupportedFileNamesRegex().IsMatch(s);
                 })
                 .ToList();
 
@@ -462,7 +484,7 @@ namespace Decompiler
                     {
                         if (IsInputFolder && originalPath.StartsWith(InputFile, StringComparison.Ordinal))
                         {
-                            Console.Write(originalPath.Remove(0, InputFile.Length));
+                            Console.Write(originalPath[InputFile.Length..]);
                             Console.Write(" -> ");
                         }
                         else if (originalPath != InputFile)
@@ -495,6 +517,9 @@ namespace Decompiler
                 case ToolsAssetInfo.MAGIC2:
                 case ToolsAssetInfo.MAGIC: ParseToolsAssetInfo(path, stream); return;
             }
+
+            // Other types may be handled by FileExtract.TryExtractNonResource
+            // TODO: Perhaps move nav into it too
 
             if (BinaryKV3.IsBinaryKV3(magic))
             {
@@ -535,7 +560,11 @@ namespace Decompiler
                 else
                 {
                     var output = Encoding.UTF8.GetString(content.Data);
-                    Console.WriteLine(output);
+
+                    if (!CollectStats)
+                    {
+                        Console.WriteLine(output);
+                    }
                 }
                 content.Dispose();
 
@@ -687,6 +716,13 @@ namespace Decompiler
                 }
                 else
                 {
+                    shader.PrintSummary(static (s) => { });
+
+                    if (shader.ZframesLookup.Count > 0)
+                    {
+                        var zframe = shader.GetZFrameFile(0);
+                    }
+
                     var id = $"Shader version {shader.VcsVersion}";
 
                     if (originalPath != null)
@@ -716,6 +752,8 @@ namespace Decompiler
                 }
                 else
                 {
+                    navMeshFile.ToString();
+
                     var id = $"NavMesh version {navMeshFile.Version}, subversion {navMeshFile.SubVersion}";
 
                     if (originalPath != null)
@@ -786,12 +824,16 @@ namespace Decompiler
             try
             {
                 fontPackage.Read(path);
-                var outputDirectory = Path.GetDirectoryName(path);
 
-                foreach (var fontFile in fontPackage.FontFiles)
+                if (OutputFile != null)
                 {
-                    var outputPath = Path.Combine(outputDirectory, fontFile.FileName);
-                    DumpFile(outputPath, fontFile.OpenTypeFontData);
+                    var outputDirectory = Path.GetDirectoryName(path);
+
+                    foreach (var fontFile in fontPackage.FontFiles)
+                    {
+                        var outputPath = Path.Combine(outputDirectory, fontFile.FileName);
+                        DumpFile(outputPath, fontFile.OpenTypeFontData);
+                    }
                 }
             }
             catch (Exception e)
@@ -878,7 +920,7 @@ namespace Decompiler
                             return RecursiveSearchArchives;
                         }
 
-                        return x.Key.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal);
+                        return SupportedFileNamesRegex().IsMatch(x.Key);
                     }).ToList();
                 }
 
@@ -1273,7 +1315,7 @@ namespace Decompiler
                     throw new ArgumentException($"Path '{inputPath}' does not start with '{InputFile}', is this a bug?", nameof(inputPath));
                 }
 
-                inputPath = inputPath.Remove(0, InputFile.Length);
+                inputPath = inputPath[InputFile.Length..];
 
                 return Path.Combine(OutputFile, inputPath);
             }
@@ -1332,7 +1374,7 @@ namespace Decompiler
                                 {
                                     lock (unknownEntityKeys)
                                     {
-                                        unknownEntityKeys.Add(property.Key.Remove(0, "vrf_unknown_key_".Length));
+                                        unknownEntityKeys.Add(property.Key["vrf_unknown_key_".Length..]);
                                     }
                                 }
                             }
@@ -1481,6 +1523,13 @@ namespace Decompiler
             info.Append("GitHub: https://github.com/ValveResourceFormat/ValveResourceFormat");
             return info.ToString();
         }
+
+        [GeneratedRegex(
+            @"(?:_c|\.vcs|\.nav|\.vfe|\.vfont|\.uifont)$|" +
+            @"^(?:readonly_)?tools_asset_info\.bin$|" +
+            @"^(?:subtitles|closecaption)_.*\.dat$"
+        )]
+        private static partial Regex SupportedFileNamesRegex();
 
         [GeneratedRegex(@"_[0-9]{3}\.vpk$")]
         private static partial Regex VpkArchiveIndexRegex();

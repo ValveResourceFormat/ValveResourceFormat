@@ -33,8 +33,8 @@ namespace Tests
 
                 if (shader.ZframesLookup.Count > 0)
                 {
-                    var zframe = shader.GetDecompressedZFrame(0);
-                    Assert.That(zframe, Is.Not.Empty);
+                    var zframe = shader.GetZFrameFile(0);
+                    Assert.That(zframe, Is.Not.Null);
                 }
             }
         }
