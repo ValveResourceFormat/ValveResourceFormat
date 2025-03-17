@@ -290,6 +290,11 @@ partial class ModelExtract
 
     private static bool DoesLayerHaveMotion(DmeLogLayer<Vector3> logLayer)
     {
+        if (logLayer.LayerValues.Length == 1)
+        {
+            return false;
+        }
+
         var lastVal = logLayer.LayerValues[0];
         for (var i = 1; i < logLayer.LayerValues.Length; i++)
         {
