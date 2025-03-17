@@ -42,6 +42,7 @@ namespace ValveResourceFormat.TextureDecoders
             using var pixels = res.PeekPixels();
             var output = pixels.GetPixelSpan<uint>();
             var m_bufSpan = m_buf.AsSpan();
+            var imageWidth = res.Width;
 
             var bcw = (width + 3) / 4;
             var bch = (height + 3) / 4;
@@ -57,7 +58,15 @@ namespace ValveResourceFormat.TextureDecoders
                     var clen = s < bcw - 1 ? 4 : clen_last;
                     for (int i = 0, y = t * 4; i < 4 && y < height; i++, y++)
                     {
-                        m_bufSpan.Slice(i * 4, clen).CopyTo(output.Slice(y * width + s * 4, clen));
+                        var dataIndex = y * imageWidth + s * 4;
+
+                        if (dataIndex > output.Length - clen)
+                        {
+                            // This is silly but required when decoding into a nonpow2 bitmap
+                            continue;
+                        }
+
+                        m_bufSpan.Slice(i * 4, clen).CopyTo(output.Slice(dataIndex, clen));
                     }
                 }
             }
