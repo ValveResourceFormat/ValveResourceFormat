@@ -365,6 +365,13 @@ public partial class GltfModelExporter
         var renderMaterial = (VMaterial)materialResource.DataBlock;
 
         var task = GenerateGLTFMaterialFromRenderMaterial(material, renderMaterial, exportedModel);
+
+        if (!ExportDeterministic)
+        {
+            // Waiting here ensures the textures are linked to the glTF in a deterministic order
+            task.Wait();
+        }
+
         MaterialGenerationTasks.Add(task);
 
         return primitive;
