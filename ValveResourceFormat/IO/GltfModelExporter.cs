@@ -32,7 +32,6 @@ namespace ValveResourceFormat.IO
         private readonly BasicShaderDataProvider shaderDataProviderFallback = new();
         public bool ExportAnimations { get; set; } = true;
         public bool ExportMaterials { get; set; } = true;
-        public bool ExportDeterministic { get; set; }
         public bool AdaptTextures { get; set; } = true;
         public bool SatelliteImages { get; set; } = true;
         public bool ExportExtras { get; set; }

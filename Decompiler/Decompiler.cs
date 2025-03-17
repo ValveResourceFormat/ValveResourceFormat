@@ -54,7 +54,6 @@ namespace Decompiler
         private bool GltfExportAnimations;
         private string[] GltfAnimationFilter;
         private bool GltfExportMaterials;
-        private bool GltfExportDeterministic;
         private bool GltfExportAdaptTextures;
         private bool GltfExportExtras;
         private bool ToolsAssetInfoShort;
@@ -108,7 +107,6 @@ namespace Decompiler
         /// <param name="gltf_animation_list">Animations to include in the glTF, example "idle,dropped". By default will include all animations.</param>
         /// <param name="gltf_export_materials">Whether to export materials during glTF exports.</param>
         /// <param name="gltf_textures_adapt">Whether to perform any glTF spec adaptations on textures (e.g. split metallic map).</param>
-        /// <param name="gltf_export_deterministic">Use less parallelism in glTF exporter in favor of having deterministic output.</param>
         /// <param name="gltf_export_extras">Export additional Mesh properties into glTF extras</param>
         /// <param name="tools_asset_info_short">Whether to print only file paths for tools_asset_info files.</param>
         /// <param name="stats">Collect stats on all input files and then print them. Use "-i steam" to scan all Steam libraries.</param>
@@ -140,7 +138,6 @@ namespace Decompiler
             string gltf_animation_list = default,
             bool gltf_export_materials = false,
             bool gltf_textures_adapt = false,
-            bool gltf_export_deterministic = false,
             bool gltf_export_extras = false,
             bool tools_asset_info_short = false,
 
@@ -173,7 +170,6 @@ namespace Decompiler
             GltfExportAnimations = gltf_export_animations;
             GltfAnimationFilter = gltf_animation_list?.Split(',') ?? [];
             GltfExportAdaptTextures = gltf_textures_adapt;
-            GltfExportDeterministic = gltf_export_deterministic;
             GltfExportExtras = gltf_export_extras;
             ToolsAssetInfoShort = tools_asset_info_short;
 
@@ -1161,7 +1157,6 @@ namespace Decompiler
                 ExportAnimations = GltfExportAnimations,
                 ExportMaterials = GltfExportMaterials,
                 AdaptTextures = GltfExportAdaptTextures,
-                ExportDeterministic = GltfExportDeterministic,
                 ExportExtras = GltfExportExtras,
                 ProgressReporter = progressReporter,
             };
