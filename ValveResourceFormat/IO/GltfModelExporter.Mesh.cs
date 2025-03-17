@@ -364,8 +364,7 @@ public partial class GltfModelExporter
 
         var renderMaterial = (VMaterial)materialResource.DataBlock;
 
-        var task = GenerateGLTFMaterialFromRenderMaterial(material, renderMaterial, exportedModel);
-        MaterialGenerationTasks.Add(task);
+        GenerateGLTFMaterialFromRenderMaterial(material, renderMaterial, exportedModel);
 
         return primitive;
     }

@@ -1,5 +1,6 @@
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using SharpGLTF.Memory;
 using SharpGLTF.Schema2;
@@ -13,7 +14,7 @@ namespace ValveResourceFormat.IO;
 
 public partial class GltfModelExporter
 {
-    internal record class RemapInstruction(
+    private record class RemapInstruction(
         string ChannelName,
         ChannelMapping ValveChannel,
         ChannelMapping GltfChannel,
@@ -33,12 +34,17 @@ public partial class GltfModelExporter
         ["Emissive"] = [(ChannelMapping.R, "TextureSelfIllumMask")],
     };
 
-    private async Task GenerateGLTFMaterialFromRenderMaterial(Material material, VMaterial renderMaterial, ModelRoot model)
+    // In SatelliteImages mode, SharpGLTF will still load and validate images.
+    // To save memory, we initiate MemoryImage with a a dummy image instead.
+    private static readonly byte[] DummyPng = [137, 80, 78, 71, 0, 0, 0, 0, 0, 0, 0, 0];
+
+    private int TexturesExportedSoFar;
+    private TextureSampler TextureSampler;
+    private readonly List<Task> TextureExportingTasks = [];
+    private readonly Dictionary<string, Texture> ExportedTextures = [];
+
+    private void GenerateGLTFMaterialFromRenderMaterial(Material material, VMaterial renderMaterial, ModelRoot model)
     {
-        await Task.Yield(); // Yield as the first step so it doesn't actually block
-
-        CancellationToken.ThrowIfCancellationRequested();
-
         renderMaterial.IntParams.TryGetValue("F_TRANSLUCENT", out var isTranslucent);
         renderMaterial.IntParams.TryGetValue("F_ALPHA_TEST", out var isAlphaTest);
 
@@ -99,7 +105,7 @@ public partial class GltfModelExporter
             {
                 // Shaders are complicated, so do not stop exporting if they throw
                 ProgressReporter?.Report($"Failed to get texture inputs for \"{textureKey}\": {e.Message}");
-                await Console.Error.WriteLineAsync(e.ToString()).ConfigureAwait(false);
+                Console.Error.WriteLine(e.ToString());
             }
 
             inputImages ??= shaderDataProviderFallback.GetInputsForTexture(textureKey, renderMaterial).ToList();
@@ -172,24 +178,19 @@ public partial class GltfModelExporter
                 }
 #endif
 
-                Task<SharpGLTF.Schema2.Texture> texTask;
-
-                lock (TextureWriteSynchronizationLock)
+                if (!ExportedTextures.TryGetValue(textureName, out var texture))
                 {
-                    if (!ExportedTextures.TryGetValue(textureName, out texTask))
-                    {
-                        texTask = AddTexture(textureName, texturePath, mainInstruction);
-                        ExportedTextures[textureName] = texTask;
-                    }
+                    var newImage = CreateNewGLTFImage(model, textureName);
+                    texture = model.UseTexture(newImage, TextureSampler);
+                    texture.Name = newImage.Name;
+
+                    ExportedTextures[textureName] = texture;
+
+                    var texTask = AddTexture(newImage, texturePath, mainInstruction);
+                    TextureExportingTasks.Add(texTask);
                 }
 
-#if DEBUG
-                ProgressReporter?.Report($"Task for texture {textureName} = {texTask.Status}");
-#endif
-
-                var tex = await texTask.ConfigureAwait(false);
-
-                TieTextureToMaterial(tex, mainInstruction.ChannelName);
+                TieTextureToMaterial(texture, mainInstruction.ChannelName);
             }
 
             // Now create ORM if there is one
@@ -201,24 +202,19 @@ public partial class GltfModelExporter
                 var ormHash = MurmurHash2.Hash(string.Join("|", ormTexturePaths), StringToken.MURMUR2SEED);
                 var ormFileName = Path.GetFileNameWithoutExtension(ormTexturePaths[0]) + $"_orm_{ormHash}.png";
 
-                Task<SharpGLTF.Schema2.Texture> texTask;
-
-                lock (TextureWriteSynchronizationLock)
+                if (!ExportedTextures.TryGetValue(ormFileName, out var texture))
                 {
-                    if (!ExportedTextures.TryGetValue(ormFileName, out texTask))
-                    {
-                        texTask = AddTextureORM(ormFileName);
-                        ExportedTextures[ormFileName] = texTask;
-                    }
+                    var newImage = CreateNewGLTFImage(model, ormFileName);
+                    texture = model.UseTexture(newImage, TextureSampler);
+                    texture.Name = newImage.Name;
+
+                    ExportedTextures[ormFileName] = texture;
+
+                    var texTask = AddTextureORM(newImage);
+                    TextureExportingTasks.Add(texTask);
                 }
 
-#if DEBUG
-                ProgressReporter?.Report($"Task for ORM texture {ormFileName} = {texTask.Status}");
-#endif
-
-                var tex = await texTask.ConfigureAwait(false);
-
-                TieTextureToMaterial(tex, "MetallicRoughness");
+                TieTextureToMaterial(texture, "MetallicRoughness");
             }
         }
         finally
@@ -259,13 +255,9 @@ public partial class GltfModelExporter
             return bitmap;
         }
 
-        async Task<SharpGLTF.Schema2.Texture> AddTexture(string key, string texturePath, RemapInstruction mainInstruction)
+        async Task AddTexture(Image image, string texturePath, RemapInstruction mainInstruction)
         {
             await Task.Yield();
-
-#if DEBUG
-            ProgressReporter?.Report($"Adding texture {key}");
-#endif
 
             // Maybe GltfChannel should be preferred instead.
             var channel = mainInstruction.ValveChannel;
@@ -279,16 +271,12 @@ public partial class GltfModelExporter
             var bitmap = GetBitmap(texturePath);
             var pngBytes = TextureExtract.ToPngImageChannels(bitmap, channel);
 
-            return await WriteTexture(key, pngBytes).ConfigureAwait(false);
+            await LinkAndSaveImage(image, pngBytes).ConfigureAwait(false);
         }
 
-        async Task<SharpGLTF.Schema2.Texture> AddTextureORM(string key)
+        async Task AddTextureORM(Image image)
         {
             await Task.Yield();
-
-#if DEBUG
-            ProgressReporter?.Report($"Adding ORM texture {key}");
-#endif
 
             // Collect channels for the ORM texture
             foreach (var (texturePath, instructions) in ormTextureInstructions)
@@ -307,30 +295,12 @@ public partial class GltfModelExporter
                 }
             }
 
-            return await WriteTexture(key, TextureExtract.ToPngImage(occlusionRoughnessMetal.Bitmap)).ConfigureAwait(false);
-        }
-
-        async Task<SharpGLTF.Schema2.Texture> WriteTexture(string textureName, byte[] pngBytes)
-        {
-            Image image;
-
-            lock (TextureWriteSynchronizationLock)
-            {
-                image = model.CreateImage(textureName);
-            }
+            var pngBytes = TextureExtract.ToPngImage(occlusionRoughnessMetal.Bitmap);
 
             await LinkAndSaveImage(image, pngBytes).ConfigureAwait(false);
-
-            lock (TextureWriteSynchronizationLock)
-            {
-                var tex = model.UseTexture(image, TextureSampler);
-                tex.Name = textureName;
-
-                return tex;
-            }
         }
 
-        void TieTextureToMaterial(SharpGLTF.Schema2.Texture tex, string gltfPackedName)
+        void TieTextureToMaterial(Texture tex, string gltfPackedName)
         {
             var materialChannel = material.FindChannel(gltfPackedName);
             materialChannel?.SetTexture(0, tex);
@@ -413,6 +383,19 @@ public partial class GltfModelExporter
         }
     }
 
+    private Image CreateNewGLTFImage(ModelRoot model, string textureName)
+    {
+        var newImage = model.CreateImage(textureName);
+        newImage.Content = new MemoryImage(DummyPng);
+
+        if (SatelliteImages)
+        {
+            newImage.AlternateWriteFileName = Path.ChangeExtension(newImage.Name, "png");
+        }
+
+        return newImage;
+    }
+
     /// <summary>
     /// Links the image to the model and saves it to disk if <see cref="SatelliteImages"/> is true.
     /// </summary>
@@ -420,21 +403,30 @@ public partial class GltfModelExporter
     {
         CancellationToken.ThrowIfCancellationRequested();
 
-        TexturesExportedSoFar++;
-        ProgressReporter?.Report($"[{TexturesExportedSoFar}/{ExportedTextures.Count}] Exporting texture: {image.Name}");
-
         if (!SatelliteImages)
         {
             image.Content = pngBytes;
             return;
         }
 
+        // Do not modify Image object here because the gltf will have been saved by now
+
         var fileName = Path.ChangeExtension(image.Name, "png");
-        image.Content = new MemoryImage(dummyPng);
-        image.AlternateWriteFileName = fileName;
 
         var exportedTexturePath = Path.Join(DstDir, fileName);
         using var fs = File.Open(exportedTexturePath, FileMode.Create);
         await fs.WriteAsync(pngBytes, CancellationToken).ConfigureAwait(false);
+
+        var count = Interlocked.Increment(ref TexturesExportedSoFar);
+        ProgressReporter?.Report($"[{count}/{ExportedTextures.Count}] Exported texture: {image.Name}");
+    }
+
+    private void WaitForTexturesToExport()
+    {
+        if (!TextureExportingTasks.Any(static t => t.IsCompleted))
+        {
+            ProgressReporter?.Report("Waiting for textures to finish exporting...");
+            Task.WaitAll(TextureExportingTasks, CancellationToken);
+        }
     }
 }

@@ -40,16 +40,7 @@ namespace ValveResourceFormat.IO
         private string DstDir;
         private CancellationToken CancellationToken;
         private readonly Dictionary<string, Mesh> ExportedMeshes = [];
-        private readonly List<Task> MaterialGenerationTasks = [];
-        private readonly Dictionary<string, Task<SharpGLTF.Schema2.Texture>> ExportedTextures = [];
-        private readonly Lock TextureWriteSynchronizationLock = new(); // TODO: Use SemaphoreSlim?
-        private TextureSampler TextureSampler;
-        private int TexturesExportedSoFar;
         private bool IsExporting;
-
-        // In SatelliteImages mode, SharpGLTF will still load and validate images.
-        // To save memory, we initiate MemoryImage with a a dummy image instead.
-        private readonly byte[] dummyPng = [137, 80, 78, 71, 0, 0, 0, 0, 0, 0, 0, 0];
 
         public GltfModelExporter(IFileLoader fileLoader)
         {
@@ -139,7 +130,7 @@ namespace ValveResourceFormat.IO
             finally
             {
                 ExportedMeshes.Clear();
-                MaterialGenerationTasks.Clear();
+                TextureExportingTasks.Clear();
                 ExportedTextures.Clear();
                 TexturesExportedSoFar = 0;
                 IsExporting = false;
@@ -665,10 +656,9 @@ namespace ValveResourceFormat.IO
 
         private void WriteModelFile(ModelRoot exportedModel, string filePath)
         {
-            if (MaterialGenerationTasks.Count > 0)
+            if (!SatelliteImages)
             {
-                ProgressReporter?.Report("Waiting for materials to finish exporting...");
-                Task.WaitAll([.. MaterialGenerationTasks], CancellationToken);
+                WaitForTexturesToExport();
             }
 
             ProgressReporter?.Report($"Writing model to file '{Path.GetFileName(filePath)}'...");
@@ -699,6 +689,11 @@ namespace ValveResourceFormat.IO
             }
 
             exportedModel.Save(filePath, settings);
+
+            if (SatelliteImages)
+            {
+                WaitForTexturesToExport();
+            }
         }
 
         private static (Node skeletonNode, Node[] joints) CreateGltfSkeleton(Scene scene, Skeleton skeleton, string modelName)
