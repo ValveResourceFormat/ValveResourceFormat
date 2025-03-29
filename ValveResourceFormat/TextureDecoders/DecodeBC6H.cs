@@ -99,7 +99,7 @@ namespace ValveResourceFormat.TextureDecoders
                         deltas[1, 1] = SignExtend(GetValue(41, 4) | (Bit(24) << 4) | (Bit(2) << 5), 6);
                         deltas[1, 2] = SignExtend(GetValue(61, 3) | (Bit(64) << 3) | (Bit(14) << 4) | (Bit(22) << 5), 6);
                         deltas[2, 0] = SignExtend(GetValue(71, 6), 6);
-                        deltas[2, 1] = SignExtend(GetValue(51, 4) | ((GetValue(3, 2)) << 4), 6);
+                        deltas[2, 1] = SignExtend(GetValue(51, 4) | (Bit(3) << 4) | (Bit(4) << 5), 6);
                         deltas[2, 2] = SignExtend(GetValue(12, 2) | (Bit(23) << 2) | (Bit(32) << 3) | (Bit(34) << 4) | (Bit(33) << 5), 6);
                     }
                     else if (m == 2)
@@ -148,7 +148,7 @@ namespace ValveResourceFormat.TextureDecoders
                         deltas[1, 2] = SignExtend(GetValue(61, 3) | (Bit(64) << 3) | (Bit(40) << 4), 5);
                         deltas[2, 0] = SignExtend(GetValue(71, 4), 4);
                         deltas[2, 1] = SignExtend(GetValue(51, 4), 4);
-                        deltas[2, 2] = SignExtend(Bit(50) | (Bit(69) << 1) | (Bit(70) << 2) | (Bit(76) << 3) | (Bit(75) << 3), 5);
+                        deltas[2, 2] = SignExtend(Bit(50) | (Bit(69) << 1) | (Bit(70) << 2) | (Bit(76) << 3) | (Bit(75) << 4), 5);
                     }
                     else if (m == 14)
                     {
@@ -238,7 +238,7 @@ namespace ValveResourceFormat.TextureDecoders
                         endpoints[0, 2] = GetValue(25, 10);
                         endpoints[1, 0] = GetValue(35, 10);
                         endpoints[1, 1] = GetValue(45, 10);
-                        endpoints[1, 2] = (ushort)(GetValue(55, 9) | (GetValue(64, 1) << 9));
+                        endpoints[1, 2] = (ushort)(GetValue(55, 9) | (Bit(64) << 9));
                     }
                     else if (m == 7)
                     {
