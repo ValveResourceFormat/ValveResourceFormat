@@ -374,7 +374,8 @@ namespace ValveResourceFormat.ResourceTypes
             or VTexFormat.R32F
             or VTexFormat.RG3232F
             or VTexFormat.RGB323232F
-            or VTexFormat.RGBA32323232F;
+            or VTexFormat.RGBA32323232F
+            or VTexFormat.BC6H;
 
         public bool IsRawJpeg => Format is VTexFormat.JPEG_DXT5 or VTexFormat.JPEG_RGBA8888;
         public bool IsRawPng => Format is VTexFormat.PNG_DXT5 or VTexFormat.PNG_RGBA8888;
@@ -826,7 +827,7 @@ namespace ValveResourceFormat.ResourceTypes
                 codec &= ~TextureCodec.NormalizeNormals;
             }
 
-            if (Format is VTexFormat.BC6H)
+            if (IsHighDynamicRange)
             {
                 codec |= TextureCodec.ColorSpaceLinear;
             }

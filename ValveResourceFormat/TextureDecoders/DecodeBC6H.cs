@@ -21,8 +21,12 @@ namespace ValveResourceFormat.TextureDecoders
         public void Decode(SKBitmap bitmap, Span<byte> input)
         {
             using var pixels = bitmap.PeekPixels();
-            var data = pixels.GetPixelSpan<byte>();
+            var output = pixels.GetPixelSpan<byte>();
             var rowBytes = bitmap.RowBytes;
+            var bytesPerPixel = bitmap.BytesPerPixel;
+
+            var isHdrBitmap = bytesPerPixel == 16;
+            var outputHdr = MemoryMarshal.Cast<byte, float>(output);
 
             var endpoints = new int[4, 3];
             var deltas = new short[3, 3];
@@ -307,7 +311,7 @@ namespace ValveResourceFormat.TextureDecoders
                     {
                         for (var bx = 0; bx < 4; bx++)
                         {
-                            var pixelIndex = (j * 4 + by) * rowBytes + (i * 4 + bx) * 4;
+                            var pixelOffset = (j * 4 + by) * rowBytes + (i * 4 + bx) * bytesPerPixel;
                             var io = by * 4 + bx;
 
                             var isAnchor = 0;
@@ -328,6 +332,7 @@ namespace ValveResourceFormat.TextureDecoders
                             }
 
                             var aWeight = 64 - bWeight;
+                            var color = Vector3.Zero;
 
                             for (var e = 0; e < 3; e++)
                             {
@@ -338,11 +343,25 @@ namespace ValveResourceFormat.TextureDecoders
                                 lerped = FinishUnquantize(lerped);
 
                                 var floatValue = (float)Unsafe.As<ushort, Half>(ref lerped);
-
-                                data[pixelIndex + 2 - e] = Common.ToClampedLdrColor(floatValue);
+                                color[e] = floatValue;
                             }
 
-                            data[pixelIndex + 3] = byte.MaxValue;
+
+                            if (!isHdrBitmap)
+                            {
+                                output[pixelOffset] = Common.ToClampedLdrColor(color.Z);
+                                output[pixelOffset + 1] = Common.ToClampedLdrColor(color.Y);
+                                output[pixelOffset + 2] = Common.ToClampedLdrColor(color.X);
+                                output[pixelOffset + 3] = byte.MaxValue;
+                                continue;
+                            }
+
+                            var pixelOffsetFloat = pixelOffset / sizeof(float);
+
+                            outputHdr[pixelOffsetFloat] = color.X;
+                            outputHdr[pixelOffsetFloat + 1] = color.Y;
+                            outputHdr[pixelOffsetFloat + 2] = color.Z;
+                            outputHdr[pixelOffsetFloat + 3] = 1f;
                         }
                     }
                 }
