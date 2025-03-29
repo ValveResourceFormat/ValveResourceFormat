@@ -852,7 +852,6 @@ namespace GUI.Types.Renderer
             Debug.Assert(bitmap != null);
 
             texture = new RenderTexture(TextureTarget.Texture2D, bitmap.Width, bitmap.Height, 1, 1);
-            decodeFlags &= softwareDecodeOnlyOptions;
 
             var isHdr = bitmap.ColorType == SKColorType.RgbaF32;
             var store = GLTextureDecoder.GetImageExportFormat(isHdr);
