@@ -82,7 +82,7 @@ namespace ValveResourceFormat.TextureDecoders
 
                             break;
                         case 3:
-                            if (color0 < color1)
+                            if (color0 <= color1)
                             {
                                 break;
                             }
