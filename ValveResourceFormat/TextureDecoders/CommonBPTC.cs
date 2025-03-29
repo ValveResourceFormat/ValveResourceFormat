@@ -90,7 +90,7 @@ namespace ValveResourceFormat.TextureDecoders
 #pragma warning restore format
         ];
         protected static readonly byte[] BPTCWeights2 = [0, 21, 43, 64];
-        protected static readonly byte[] BPTCWeights3 = [0, 9, 19, 27, 47, 46, 55, 64];
+        protected static readonly byte[] BPTCWeights3 = [0, 9, 18, 27, 37, 46, 55, 64];
         protected static readonly byte[] BPTCWeights4 = [0, 4, 9, 13, 17, 21, 26, 30, 34, 38, 43, 47, 51, 55, 60, 64];
 
         protected static ushort BPTCInterpolateFactor(int weight, int e0, int e1)
