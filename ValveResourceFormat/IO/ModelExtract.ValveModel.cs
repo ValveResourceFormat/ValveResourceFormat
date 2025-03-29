@@ -3,6 +3,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
+using ValveResourceFormat.ResourceTypes.SoftbodyPhysics;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.ResourceTypes.ModelData;
@@ -380,6 +381,7 @@ partial class ModelExtract
         var bodyGroupList = MakeLazyList("BodyGroupList");
         var animationList = MakeLazyList("AnimationList");
         var physicsShapeList = MakeLazyList("PhysicsShapeList");
+        var softbody = MakeLazyList("Softbody");
         var attachmentList = MakeLazyList("AttachmentList");
         var skeleton = MakeLazyList("Skeleton");
         var modelModifierList = MakeLazyList("ModelModifierList");
@@ -719,6 +721,40 @@ partial class ModelExtract
                     );
 
                     AddItem(physicsShapeList.Value, physicsShapeCapsule);
+                }
+            }
+
+            var pFeModel = physAggregateData.Data.GetSubCollection("m_pFeModel");
+
+            if (pFeModel is not null)
+            {
+                var controlNames = pFeModel.GetArray<string>("m_CtrlName");
+                controlNames ??= [];
+
+                var taperedCapsuleRigids = pFeModel.GetArray<KVObject>("m_TaperedCapsuleRigids")
+                    .Select(c => new TaperedCapsuleRigid(c));
+
+                foreach (var capsule in taperedCapsuleRigids)
+                {
+                    var taperedCapsuleRigid = MakeNode(
+                        "ClothShapeCapsule",
+                        ("parent_bone", controlNames.ElementAtOrDefault(capsule.Node) ?? ""),
+                        ("cloth_collision_priority", 0), // TODO nFlags (assumed)
+                        ("vertex_map", ""), // TODO read from nVertexMapIndex
+                        ("inverted_collision", false), // TODO nFlags (assumed)
+                        ("planarize", false), // TODO nFlags (assumed)
+                        ("radius0", capsule.Radius[0]),
+                        ("point0", capsule.Center[0]),
+                        ("radius1", capsule.Radius[1]),
+                        ("point1", capsule.Center[1])
+                    );
+
+                    for (var i = 0; i < 4; i++)
+                    {
+                        taperedCapsuleRigid.AddProperty("cloth_collision_layer" + i, MakeValue(capsule.CollissionMask[i]));
+                    }
+
+                    AddItem(softbody.Value, taperedCapsuleRigid);
                 }
             }
         }
