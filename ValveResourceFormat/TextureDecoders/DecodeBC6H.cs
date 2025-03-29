@@ -1,5 +1,7 @@
 // Copyright 2020 lewa_j [https://github.com/lewa-j]
 // Reference: https://registry.khronos.org/DataFormat/specs/1.3/dataformat.1.3.html#bptc_bc6h
+using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using SkiaSharp;
 
 namespace ValveResourceFormat.TextureDecoders
@@ -22,7 +24,7 @@ namespace ValveResourceFormat.TextureDecoders
             var rowBytes = bitmap.RowBytes;
             var offset = 0;
 
-            var endpoints = new ushort[4, 3];
+            var endpoints = new int[4, 3];
             var deltas = new short[3, 3];
 
             for (var j = 0; j < blockCountY; j++)
@@ -48,13 +50,13 @@ namespace ValveResourceFormat.TextureDecoders
                     Array.Clear(endpoints, 0, endpoints.Length);
                     Array.Clear(deltas, 0, deltas.Length);
 
-                    var epb = 0;
+                    var wBits = 0;
                     byte pb = 0;
                     ulong ib = 0;
 
                     if (m == 0)
                     {
-                        epb = 10;
+                        wBits = 10;
                         endpoints[0, 0] = (ushort)(block0 >> 5 & 0x3FF);
                         endpoints[0, 1] = (ushort)(block0 >> 15 & 0x3FF);
                         endpoints[0, 2] = (ushort)(block0 >> 25 & 0x3FF);
@@ -70,7 +72,7 @@ namespace ValveResourceFormat.TextureDecoders
                     }
                     else if (m == 1)
                     {
-                        epb = 7;
+                        wBits = 7;
                         endpoints[0, 0] = (ushort)(block0 >> 5 & 0x7F);
                         endpoints[0, 1] = (ushort)(block0 >> 15 & 0x7F);
                         endpoints[0, 2] = (ushort)(block0 >> 25 & 0x7F);
@@ -86,7 +88,7 @@ namespace ValveResourceFormat.TextureDecoders
                     }
                     else if (m == 2)
                     {
-                        epb = 11;
+                        wBits = 11;
                         endpoints[0, 0] = (ushort)((block0 >> 5 & 0x3FF) | (Bit(40) << 10));
                         endpoints[0, 1] = (ushort)((block0 >> 15 & 0x3FF) | (Bit(49) << 10));
                         endpoints[0, 2] = (ushort)((block0 >> 25 & 0x3FF) | (Bit(59) << 10));
@@ -102,7 +104,7 @@ namespace ValveResourceFormat.TextureDecoders
                     }
                     else if (m == 6)
                     {
-                        epb = 11;
+                        wBits = 11;
                         endpoints[0, 0] = (ushort)((block0 >> 5 & 0x3FF) | (Bit(39) << 10));
                         endpoints[0, 1] = (ushort)((block0 >> 15 & 0x3FF) | (Bit(50) << 10));
                         endpoints[0, 2] = (ushort)((block0 >> 25 & 0x3FF) | (Bit(59) << 10));
@@ -118,7 +120,7 @@ namespace ValveResourceFormat.TextureDecoders
                     }
                     else if (m == 10)
                     {
-                        epb = 11;
+                        wBits = 11;
                         endpoints[0, 0] = (ushort)((block0 >> 5 & 0x3FF) | (Bit(39) << 10));
                         endpoints[0, 1] = (ushort)((block0 >> 15 & 0x3FF) | (Bit(49) << 10));
                         endpoints[0, 2] = (ushort)((block0 >> 25 & 0x3FF) | (Bit(60) << 10));
@@ -134,7 +136,7 @@ namespace ValveResourceFormat.TextureDecoders
                     }
                     else if (m == 14)
                     {
-                        epb = 9;
+                        wBits = 9;
                         endpoints[0, 0] = (ushort)(block0 >> 5 & 0x1FF);
                         endpoints[0, 1] = (ushort)(block0 >> 15 & 0x1FF);
                         endpoints[0, 2] = (ushort)(block0 >> 25 & 0x1FF);
@@ -150,7 +152,7 @@ namespace ValveResourceFormat.TextureDecoders
                     }
                     else if (m == 18)
                     {
-                        epb = 8;
+                        wBits = 8;
                         endpoints[0, 0] = (ushort)(block0 >> 5 & 0xFF);
                         endpoints[0, 1] = (ushort)(block0 >> 15 & 0xFF);
                         endpoints[0, 2] = (ushort)(block0 >> 25 & 0xFF);
@@ -166,7 +168,7 @@ namespace ValveResourceFormat.TextureDecoders
                     }
                     else if (m == 22)
                     {
-                        epb = 8;
+                        wBits = 8;
                         endpoints[0, 0] = (ushort)(block0 >> 5 & 0xFF);
                         endpoints[0, 1] = (ushort)(block0 >> 15 & 0xFF);
                         endpoints[0, 2] = (ushort)(block0 >> 25 & 0xFF);
@@ -182,7 +184,7 @@ namespace ValveResourceFormat.TextureDecoders
                     }
                     else if (m == 26)
                     {
-                        epb = 8;
+                        wBits = 8;
                         endpoints[0, 0] = (ushort)(block0 >> 5 & 0xFF);
                         endpoints[0, 1] = (ushort)(block0 >> 15 & 0xFF);
                         endpoints[0, 2] = (ushort)(block0 >> 25 & 0xFF);
@@ -198,7 +200,7 @@ namespace ValveResourceFormat.TextureDecoders
                     }
                     else if (m == 30)
                     {
-                        epb = 6;
+                        wBits = 6;
                         endpoints[0, 0] = (ushort)(block0 >> 5 & 0x3F);
                         endpoints[0, 1] = (ushort)(block0 >> 15 & 0x3F);
                         endpoints[0, 2] = (ushort)(block0 >> 25 & 0x3F);
@@ -214,7 +216,7 @@ namespace ValveResourceFormat.TextureDecoders
                     }
                     else if (m == 3)
                     {
-                        epb = 10;
+                        wBits = 10;
                         endpoints[0, 0] = (ushort)(block0 >> 5 & 0x3FF);
                         endpoints[0, 1] = (ushort)(block0 >> 15 & 0x3FF);
                         endpoints[0, 2] = (ushort)(block0 >> 25 & 0x3FF);
@@ -224,7 +226,7 @@ namespace ValveResourceFormat.TextureDecoders
                     }
                     else if (m == 7)
                     {
-                        epb = 11;
+                        wBits = 11;
                         endpoints[0, 0] = (ushort)((block0 >> 5 & 0x3FF) | (Bit(44) << 10));
                         endpoints[0, 1] = (ushort)((block0 >> 15 & 0x3FF) | (Bit(54) << 10));
                         endpoints[0, 2] = (ushort)((block0 >> 25 & 0x3FF) | (Bit(64) << 10));
@@ -234,7 +236,7 @@ namespace ValveResourceFormat.TextureDecoders
                     }
                     else if (m == 11)
                     {
-                        epb = 12;
+                        wBits = 12;
                         endpoints[0, 0] = (ushort)((block0 >> 5 & 0x3FF) | (Bit(44) << 10) | (Bit(43) << 11));
                         endpoints[0, 1] = (ushort)((block0 >> 15 & 0x3FF) | (Bit(54) << 10) | (Bit(53) << 11));
                         endpoints[0, 2] = (ushort)((block0 >> 25 & 0x3FF) | (Bit(64) << 10) | (Bit(63) << 11));
@@ -244,7 +246,7 @@ namespace ValveResourceFormat.TextureDecoders
                     }
                     else if (m == 15)
                     {
-                        epb = 16;
+                        wBits = 16;
                         endpoints[0, 0] = (ushort)((block0 >> 5 & 0x3FF) | (Bit(44) << 10) | (Bit(43) << 11) | (Bit(42) << 12) | (Bit(41) << 13) | (Bit(40) << 14) | (Bit(39) << 15));
                         endpoints[0, 1] = (ushort)((block0 >> 15 & 0x3FF) | (Bit(54) << 10) | (Bit(53) << 11) | (Bit(52) << 12) | (Bit(51) << 13) | (Bit(50) << 14) | (Bit(49) << 15));
                         endpoints[0, 2] = (ushort)((block0 >> 25 & 0x3FF) | (Bit(64) << 10) | (Bit(63) << 11) | (Bit(62) << 12) | (Bit(61) << 13) | (Bit(60) << 14) | (Bit(59) << 15));
@@ -253,37 +255,50 @@ namespace ValveResourceFormat.TextureDecoders
                         deltas[0, 2] = SignExtend((block0 >> 55) & 0xFF, 4);
                     }
 
-                    var epm = (ushort)((1U << epb) - 1);
+                    var epm = (ushort)((1 << wBits) - 1);
 
-                    if (m != 3 && m != 7 && m != 11 && m != 15)
+                    var isTransformed = m is not 3 and not 30;
+                    var isRegionOne = m is 3 or 7 or 11 or 15;
+
+                    if (isRegionOne)
+                    {
+                        ib = block64 >> 1;
+                    }
+                    else
                     {
                         pb = (byte)(block64 >> 13 & 0x1F);
                         ib = block64 >> 18;
                     }
-                    else
-                    {
-                        ib = block64 >> 1;
-                    }
 
-                    ushort Unquantize(ushort e)
+                    static int Unquantize(int quantized, int precision)
                     {
-                        if (epb >= 15)
+                        if (precision >= 15)
                         {
-                            return e;
+                            return quantized;
                         }
-                        else if (e == 0)
+
+                        if (quantized == 0)
                         {
                             return 0;
                         }
-                        else if (e == epm)
+
+                        var precisionMax = (1 << precision) - 1;
+
+                        if (quantized == precisionMax)
                         {
-                            return 0xFFFF;
+                            return ushort.MaxValue;
                         }
 
-                        return (ushort)(((e << 15) + 0x4000) >> (epb - 1));
+                        var ushortRange = ushort.MaxValue + 1;
+                        return (quantized * ushortRange + ushortRange / 2) >> precision;
                     }
 
-                    if (m != 3 && m != 30)
+                    static ushort FinishUnquantize(int q)
+                    {
+                        return (ushort)((q * 31) >> 6);
+                    }
+
+                    if (isTransformed)
                     {
                         for (var d = 0; d < 3; d++)
                         {
@@ -298,7 +313,7 @@ namespace ValveResourceFormat.TextureDecoders
                     {
                         for (var e = 0; e < 3; e++)
                         {
-                            endpoints[s, e] = Unquantize(endpoints[s, e]);
+                            endpoints[s, e] = Unquantize(endpoints[s, e], wBits);
                         }
                     }
 
@@ -306,32 +321,39 @@ namespace ValveResourceFormat.TextureDecoders
                     {
                         for (var bx = 0; bx < 4; bx++)
                         {
-                            var pixelIndex = (((j * 4) + by) * rowBytes) + (((i * 4) + bx) * 4);
-                            var io = (by * 4) + bx;
+                            var pixelIndex = (j * 4 + by) * rowBytes + (i * 4 + bx) * 4;
+                            var io = by * 4 + bx;
 
                             var isAnchor = 0;
-                            byte cweight = 0;
+                            byte bWeight = 0;
                             byte subset = 0;
-                            if (m == 3 || m == 7 || m == 11 || m == 15)
+                            if (isRegionOne)
                             {
                                 isAnchor = (io == 0) ? 1 : 0;
-                                cweight = BPTCWeights4[ib & 0xFu >> isAnchor];
+                                bWeight = BPTCWeights4[ib & 0xFu >> isAnchor];
                                 ib >>= 4 - isAnchor;
                             }
                             else
                             {
                                 subset = (byte)(BPTCPartitionTable2[pb, io] * 2);
                                 isAnchor = (io == 0 || io == BPTCAnchorIndices2[pb]) ? 1 : 0;
-                                cweight = BPTCWeights3[ib & 0x7u >> isAnchor];
+                                bWeight = BPTCWeights3[ib & 0x7u >> isAnchor];
                                 ib >>= 3 - isAnchor;
                             }
 
+                            var aWeight = 64 - bWeight;
+
                             for (var e = 0; e < 3; e++)
                             {
-                                var factor = BPTCInterpolateFactor(cweight, endpoints[subset, e], endpoints[subset + 1, e]);
-                                //gamma correction and mul 4
-                                factor = (ushort)Math.Min(0xFFFF, MathF.Pow(factor / (float)((1U << 16) - 1), 2.2f) * ((1U << 16) - 1) * 4);
-                                data[pixelIndex + 2 - e] = (byte)(factor >> 8);
+                                var a = endpoints[subset, e];
+                                var b = endpoints[subset + 1, e];
+
+                                var lerped = (ushort)((a * aWeight + b * bWeight) / (float)(1 << 6));
+                                lerped = FinishUnquantize(lerped);
+
+                                var floatValue = (float)Unsafe.As<ushort, Half>(ref lerped);
+
+                                data[pixelIndex + 2 - e] = Common.ToClampedLdrColor(floatValue);
                             }
 
                             data[pixelIndex + 3] = byte.MaxValue;
@@ -343,12 +365,18 @@ namespace ValveResourceFormat.TextureDecoders
 
         private static short SignExtend(ulong v, int bits)
         {
-            if (((v >> (bits - 1)) & 1) == 1)
+            Debug.Assert(bits < 16);
+
+            var signed = checked((short)v);
+            var hasSetSignBit = ((v >> (bits - 1)) & 1) == 1;
+            var extendedSignBit = -1 << (bits);
+
+            if (hasSetSignBit)
             {
-                v |= (uint)(-1L << bits);
+                signed |= (short)extendedSignBit;
             }
 
-            return (short)v;
+            return signed;
         }
     }
 }
