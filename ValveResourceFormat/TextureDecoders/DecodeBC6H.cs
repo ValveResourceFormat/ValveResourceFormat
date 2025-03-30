@@ -315,37 +315,35 @@ namespace ValveResourceFormat.TextureDecoders
                             var io = by * 4 + bx;
 
                             var isAnchor = 0;
-                            byte bWeight = 0;
+                            byte weight = 0;
                             byte subset = 0;
                             if (isRegionOne)
                             {
                                 isAnchor = (io == 0) ? 1 : 0;
-                                bWeight = BPTCWeights4[packedIndices & 0xFu >> isAnchor];
+                                weight = BPTCWeights4[packedIndices & 0xFu >> isAnchor];
                                 packedIndices >>= 4 - isAnchor;
                             }
                             else
                             {
                                 subset = (byte)(BPTCPartitionTable2[shapeIndex, io] * 2);
                                 isAnchor = (io == 0 || io == BPTCAnchorIndices2[shapeIndex]) ? 1 : 0;
-                                bWeight = BPTCWeights3[packedIndices & 0x7u >> isAnchor];
+                                weight = BPTCWeights3[packedIndices & 0x7u >> isAnchor];
                                 packedIndices >>= 3 - isAnchor;
                             }
 
-                            var aWeight = 64 - bWeight;
                             var color = Vector3.Zero;
 
                             for (var e = 0; e < 3; e++)
                             {
-                                var a = endpoints[subset, e];
-                                var b = endpoints[subset + 1, e];
+                                var e0 = endpoints[subset, e];
+                                var e1 = endpoints[subset + 1, e];
 
-                                var lerped = (ushort)((a * aWeight + b * bWeight) / (float)(1 << 6));
+                                var lerped = BPTCInterpolateFactor(weight, e0, e1);
                                 lerped = FinishUnquantize(lerped);
 
                                 var floatValue = (float)Unsafe.As<ushort, Half>(ref lerped);
                                 color[e] = floatValue;
                             }
-
 
                             if (!isHdrBitmap)
                             {
