@@ -6,7 +6,6 @@ using K4os.Compression.LZ4;
 using SkiaSharp;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.TextureDecoders;
-using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.ResourceTypes
 {

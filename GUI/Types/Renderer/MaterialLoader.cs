@@ -8,7 +8,6 @@ using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.Utils;
 using VrfMaterial = ValveResourceFormat.ResourceTypes.Material;
 
 namespace GUI.Types.Renderer

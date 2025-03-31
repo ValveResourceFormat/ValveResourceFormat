@@ -9,7 +9,6 @@ using ValveKeyValue;
 using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization;
-using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.IO
 {

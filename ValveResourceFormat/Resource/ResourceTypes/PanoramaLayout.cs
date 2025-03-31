@@ -3,7 +3,6 @@ using System.Linq;
 using System.Security;
 using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Serialization.KeyValues;
-using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.ResourceTypes
 {
@@ -65,7 +64,8 @@ namespace ValveResourceFormat.ResourceTypes
                 case "SNIPPET": PrintSnippet(node, writer); break;
                 case "SNIPPETS": PrintPanelBase("snippets", node, writer); break;
                 default: throw new UnexpectedMagicException("Unknown node type", type, nameof(type));
-            };
+            }
+            ;
         }
 
         private static void PrintPanel(KVObject node, IndentedTextWriter writer)

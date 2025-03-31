@@ -74,7 +74,7 @@ partial class ModelExtract
             ["exportTags"] = new Element(dmx, "exportTags", null, "DmeExportTags")
             {
                 ["app"] = "sfm", //modeldoc won't import dmx animations without this
-                ["source"] = $"Generated with {ValveResourceFormat.Utils.StringToken.VRF_GENERATOR}",
+                ["source"] = $"Generated with {StringToken.VRF_GENERATOR}",
             }
         };
 

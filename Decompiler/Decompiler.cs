@@ -18,7 +18,6 @@ using ValveResourceFormat.NavMesh;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.TextureDecoders;
 using ValveResourceFormat.ToolsAssetInfo;
-using ValveResourceFormat.Utils;
 using ValveResourceFormat.ValveFont;
 
 namespace Decompiler
@@ -1461,7 +1460,7 @@ namespace Decompiler
                 block.ToString();
             }
 
-            ValveResourceFormat.Utils.InternalTestExtraction.Test(resource);
+            InternalTestExtraction.Test(resource);
 
             if (GltfTest && GltfModelExporter.CanExport(resource) && resource.ResourceType != ResourceType.Map)
             {

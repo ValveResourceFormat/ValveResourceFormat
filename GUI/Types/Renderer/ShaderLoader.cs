@@ -7,7 +7,6 @@ using System.Text.RegularExpressions;
 using GUI.Controls;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
-using ValveResourceFormat.Utils;
 
 namespace GUI.Types.Renderer
 {

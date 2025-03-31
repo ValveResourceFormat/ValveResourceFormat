@@ -570,7 +570,7 @@ namespace GUI.Types.Viewers
                 SpirvCrossApi.spvc_compiler_compile(compiler, out var code).CheckResult();
 
                 buffer.WriteLine($"// SPIR-V source ({vulkanSource.MetaDataSize}), {backend} reflection with SPIRV-Cross by KhronosGroup");
-                buffer.WriteLine($"// {ValveResourceFormat.Utils.StringToken.VRF_GENERATOR}");
+                buffer.WriteLine($"// {StringToken.VRF_GENERATOR}");
                 buffer.WriteLine();
                 buffer.WriteLine(code.ReplaceLineEndings());
             }

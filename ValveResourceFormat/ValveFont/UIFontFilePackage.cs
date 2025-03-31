@@ -1,6 +1,5 @@
 using System.IO;
 using System.Security.Cryptography;
-using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.ValveFont;
 

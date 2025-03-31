@@ -9,7 +9,6 @@ using ValveResourceFormat.IO.ContentFormats.DmxModel;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics;
 using ValveResourceFormat.Serialization;
-using ValveResourceFormat.Utils;
 using RnShapes = ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes;
 
 namespace ValveResourceFormat.IO;
@@ -658,7 +657,7 @@ partial class ModelExtract
             ["model"] = dmeModel,
             ["exportTags"] = new Element(dmx, "exportTags", null, "DmeExportTags")
             {
-                ["source"] = $"Generated with {ValveResourceFormat.Utils.StringToken.VRF_GENERATOR}",
+                ["source"] = $"Generated with {StringToken.VRF_GENERATOR}",
             }
         };
     }

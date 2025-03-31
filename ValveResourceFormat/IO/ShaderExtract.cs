@@ -4,7 +4,6 @@ using System.Text;
 using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.VfxEval;
-using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.IO;
 
@@ -151,7 +150,7 @@ public sealed class ShaderExtract
         PreprocessCommon();
 
         return "//=================================================================================================\n"
-            + $"// Reconstructed with {ValveResourceFormat.Utils.StringToken.VRF_GENERATOR}\n"
+            + $"// Reconstructed with {StringToken.VRF_GENERATOR}\n"
             + "//=================================================================================================\n"
             + HEADER()
             + MODES()

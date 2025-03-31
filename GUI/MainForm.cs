@@ -18,7 +18,6 @@ using GUI.Types.Renderer;
 using GUI.Utils;
 using SteamDatabase.ValvePak;
 using ValveResourceFormat.IO;
-using ValveResourceFormat.Utils;
 
 namespace GUI
 {
