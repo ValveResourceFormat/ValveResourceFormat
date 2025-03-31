@@ -105,7 +105,7 @@ namespace GUI.Types.Renderer
                         }
 
                         var fractionToTen = (float)i / 10;
-                        var color = new Utils.Color32(1.0f, fractionToTen, fractionToTen, 1.0f);
+                        var color = new Color32(1.0f, fractionToTen, fractionToTen, 1.0f);
                         OctreeDebugRenderer<SceneNode>.AddLine(vertices, tiedEnvMap.Transform.Translation, node.BoundingBox.Center, color);
                         i++;
                     }

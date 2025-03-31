@@ -1,6 +1,6 @@
 using System.Diagnostics;
 
-namespace GUI.Utils
+namespace ValveResourceFormat.Utils
 {
     [DebuggerDisplay("R={R}, G={G}, B={B}, A={A} (#{string.Format(\"{0:X8}\", PackedValue),nq})")]
     public record struct Color32(uint PackedValue)
