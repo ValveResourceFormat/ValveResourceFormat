@@ -8,7 +8,6 @@ using ValveResourceFormat.IO;
 using ValveResourceFormat.NavMesh;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization;
-using ValveResourceFormat.Utils;
 using static ValveResourceFormat.ResourceTypes.EntityLump;
 
 namespace GUI.Types.Renderer

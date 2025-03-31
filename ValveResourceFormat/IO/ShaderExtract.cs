@@ -4,7 +4,6 @@ using System.Text;
 using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.VfxEval;
-using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.IO;
 

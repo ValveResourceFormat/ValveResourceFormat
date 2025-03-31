@@ -9,7 +9,6 @@ using ValveResourceFormat.ResourceTypes.ModelData;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics;
 using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Serialization.KeyValues;
-using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.IO;
 

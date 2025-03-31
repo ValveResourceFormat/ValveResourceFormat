@@ -42,5 +42,6 @@
     <Using Include="System" />
     <Using Include="System.Numerics" />
     <Using Include="System.Collections.Generic" />
+    <Using Include="ValveResourceFormat.Utils" />
   </ItemGroup>
 </Project>

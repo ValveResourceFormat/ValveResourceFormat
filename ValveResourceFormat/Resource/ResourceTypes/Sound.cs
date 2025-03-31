@@ -5,7 +5,6 @@ using System.Runtime.InteropServices;
 using System.Text;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Serialization;
-using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.ResourceTypes
 {

@@ -4,7 +4,6 @@ using System.Linq;
 using System.Text;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Serialization.KeyValues;
-using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.ResourceTypes
 {

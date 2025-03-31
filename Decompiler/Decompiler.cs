@@ -18,7 +18,6 @@ using ValveResourceFormat.NavMesh;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.TextureDecoders;
 using ValveResourceFormat.ToolsAssetInfo;
-using ValveResourceFormat.Utils;
 using ValveResourceFormat.ValveFont;
 
 namespace Decompiler

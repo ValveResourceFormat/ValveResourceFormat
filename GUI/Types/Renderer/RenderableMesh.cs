@@ -7,7 +7,6 @@ using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Serialization.KeyValues;
-using ValveResourceFormat.Utils;
 
 namespace GUI.Types.Renderer
 {

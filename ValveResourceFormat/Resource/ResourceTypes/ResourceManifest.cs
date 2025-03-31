@@ -1,7 +1,6 @@
 using System.IO;
 using System.Text;
 using ValveResourceFormat.Blocks;
-using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.ResourceTypes
 {

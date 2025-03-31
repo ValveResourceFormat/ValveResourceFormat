@@ -1,6 +1,5 @@
 using System.Linq;
 using OpenTK.Graphics.OpenGL;
-using ValveResourceFormat.Utils;
 
 namespace GUI.Types.Renderer
 {

@@ -8,7 +8,6 @@ using ValveResourceFormat.IO.ContentFormats.ValveMap;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Serialization.KeyValues;
-using ValveResourceFormat.Utils;
 using static ValveResourceFormat.ResourceTypes.EntityLump;
 
 namespace ValveResourceFormat.IO;
@@ -1011,7 +1010,8 @@ public sealed class MapExtract
                     {
                         selectionSet.SelectionSetData.SelectedObjects.Add(mapEntity);
                     }
-                };
+                }
+                ;
             }
 
             var modelName = NormalizePath(compiledEntity.GetProperty<string>("model"));

@@ -9,7 +9,6 @@ using SharpGLTF.Schema2;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.Serialization;
-using ValveResourceFormat.Utils;
 using Mesh = SharpGLTF.Schema2.Mesh;
 using VEntityLump = ValveResourceFormat.ResourceTypes.EntityLump;
 using VMesh = ValveResourceFormat.ResourceTypes.Mesh;

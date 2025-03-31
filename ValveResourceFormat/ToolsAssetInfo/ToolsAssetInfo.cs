@@ -1,7 +1,6 @@
 using System.IO;
 using System.Text;
 using ValveKeyValue;
-using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.ToolsAssetInfo
 {

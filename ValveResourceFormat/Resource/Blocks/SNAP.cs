@@ -4,7 +4,6 @@ using System.IO;
 using System.Linq;
 using ValveResourceFormat.Compression;
 using ValveResourceFormat.Serialization;
-using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.Blocks
 {

@@ -9,7 +9,6 @@ using ValveResourceFormat.IO.ContentFormats.DmxModel;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics;
 using ValveResourceFormat.Serialization;
-using ValveResourceFormat.Utils;
 using RnShapes = ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes;
 
 namespace ValveResourceFormat.IO;

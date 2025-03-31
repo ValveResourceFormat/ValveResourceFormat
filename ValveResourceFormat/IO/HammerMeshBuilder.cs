@@ -9,7 +9,6 @@ using ValveResourceFormat.Serialization;
 #nullable enable
 using HalfEdgeSlim = (int SrcVertexId, int DstVertexId);
 using static ValveResourceFormat.IO.HammerMeshBuilder;
-using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.IO
 {
@@ -547,12 +546,14 @@ namespace ValveResourceFormat.IO
                     if (vertexStreams.VertexPaintBlendParams.Count != 0)
                     {
                         vertexPaintBlendParams = vertexStreams.VertexPaintBlendParams[startVertex.MasterStreamIndex];
-                    };
+                    }
+                    ;
 
                     if (vertexStreams.VertexPaintTintColor.Count != 0)
                     {
                         vertexPaintTintColor = vertexStreams.VertexPaintTintColor[startVertex.MasterStreamIndex];
-                    };
+                    }
+                    ;
                 }
 
                 normals.Data.Add(normal);

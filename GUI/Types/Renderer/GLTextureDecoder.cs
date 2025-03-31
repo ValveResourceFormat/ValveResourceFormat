@@ -10,7 +10,6 @@ using SkiaSharp;
 using ValveResourceFormat;
 using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.TextureDecoders;
-using ValveResourceFormat.Utils;
 using static ValveResourceFormat.ResourceTypes.Texture;
 
 namespace GUI.Types.Renderer;

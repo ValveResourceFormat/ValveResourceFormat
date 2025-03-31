@@ -3,7 +3,6 @@ using System.IO;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Compression;
 using ValveResourceFormat.Serialization.KeyValues;
-using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.ResourceTypes
 {
