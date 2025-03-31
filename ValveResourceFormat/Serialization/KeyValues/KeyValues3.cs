@@ -33,6 +33,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
             VALUE_ARRAY,
             VALUE_STRING,
             VALUE_STRING_MULTI,
+            VALUE_BINARY_BLOB,
             VALUE_NUMBER,
             VALUE_FLAGGED,
             COMMENT,
@@ -124,6 +125,9 @@ namespace ValveResourceFormat.Serialization.KeyValues
                         break;
                     case State.VALUE_STRING_MULTI:
                         ReadValueStringMulti(c, parser);
+                        break;
+                    case State.VALUE_BINARY_BLOB:
+                        ReadValueBinaryBlob(c, parser);
                         break;
                     case State.VALUE_NUMBER:
                         ReadValueNumber(c, parser);
@@ -219,6 +223,17 @@ namespace ValveResourceFormat.Serialization.KeyValues
                     parser.StateStack.Push(State.VALUE_STRING);
                     parser.CurrentString.Clear();
                 }
+            }
+
+            // Binary Blob
+            else if (ReadAheadMatches(parser, c, "#["))
+            {
+                parser.StateStack.Pop();
+                parser.StateStack.Push(State.VALUE_BINARY_BLOB);
+                parser.CurrentString.Clear();
+
+                //Skip next characters
+                SkipChars(parser, "#[".Length - 1);
             }
 
             //Boolean false
@@ -408,6 +423,21 @@ namespace ValveResourceFormat.Serialization.KeyValues
             }
 
             parser.CurrentString.Append(c);
+        }
+
+        // Read binary blob
+        private static void ReadValueBinaryBlob(char c, Parser parser)
+        {
+            if (c == ']')
+            {
+                // binary blod ending
+                parser.StateStack.Pop();
+                parser.ObjStack.Peek().AddProperty(parser.CurrentName, new KVValue(KVType.BINARY_BLOB, Convert.FromHexString(parser.CurrentString.ToString())));
+            }
+            else if (!char.IsWhiteSpace(c))
+            {
+                parser.CurrentString.Append(c);
+            }
         }
 
         //Read a numerical value
