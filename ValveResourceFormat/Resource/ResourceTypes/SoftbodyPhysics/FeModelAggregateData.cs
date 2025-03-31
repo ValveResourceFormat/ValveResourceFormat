@@ -6,8 +6,12 @@ using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes.SoftbodyPhysics;
-public class FeModelAggregateData : KVObject
+public class FeModelAggregateData
 {
+    public FeModelAggregateData(KVObject data)
+    {
+        Data = data;
+    }
     /* 
      * Names of all bones and procedural nodes involved in the softbody sim. 
      * Most `nNode` properties in other structures seem to be indices into this list. 
@@ -15,7 +19,7 @@ public class FeModelAggregateData : KVObject
      * the `Simulate` and `Allow Rotation` flags you can set in ClothChains for example, 
      * each describing the number of elements from the beginning of the list.
     */
-    public string[] CtrlName => GetArray<string>("m_CtrlName");
+    public string[] CtrlName => Data.GetArray<string>("m_CtrlName");
 
     /*
      * Seems to describe ClothChains. The first `m_nRopeCount` entries 
@@ -32,21 +36,21 @@ public class FeModelAggregateData : KVObject
      * radius. `nNode` is the index of the parent bone. 
     */
     public SphereCollectionRigid[] SphereRigids
-        => sphereRigids ??= GetArray<KVObject>("m_SphereRigids")
+        => sphereRigids ??= Data.GetArray<KVObject>("m_SphereRigids")
         .Select(c => new SphereCollectionRigid(c)).ToArray();
 
     public SphereCollectionRigid[] TaperedCapsuleRigids
-        => taperedCapsuleRigids ??= GetArray<KVObject>("m_TaperedCapsuleRigids")
+        => taperedCapsuleRigids ??= Data.GetArray<KVObject>("m_TaperedCapsuleRigids")
         .Select(c => new SphereCollectionRigid(c)).ToArray();
 
     public BoxRigid[] BoxRigids
-        => boxRigids ??= GetArray<KVObject>("m_BoxRigids")
+        => boxRigids ??= Data.GetArray<KVObject>("m_BoxRigids")
         .Select(b => new BoxRigid(b)).ToArray();
 
     private long[][] GetRopes()
     {
-        var nRopes = this.GetInt32Property("m_nRopes");
-        var rawRopes = this.GetIntegerArray("m_Ropes");
+        var nRopes = Data.GetInt32Property("m_nRopes");
+        var rawRopes = Data.GetIntegerArray("m_Ropes");
         var ropes = new long[nRopes][];
 
         if (nRopes > 0)
@@ -70,15 +74,5 @@ public class FeModelAggregateData : KVObject
 
     private BoxRigid[] boxRigids;
 
-    public FeModelAggregateData(string name, int capacity = 0) : base(name, capacity)
-    {
-    }
-
-    public FeModelAggregateData(string name, bool isArray, int capacity = 0) : base(name, isArray, capacity)
-    {
-    }
-
-    public FeModelAggregateData(string name, IList<KVValue> arrayItems) : base(name, arrayItems)
-    {
-    }
+    private KVObject Data;
 }

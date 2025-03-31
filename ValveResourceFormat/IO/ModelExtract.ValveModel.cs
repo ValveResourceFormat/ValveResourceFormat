@@ -759,7 +759,7 @@ partial class ModelExtract
                 foreach (var sphere in sphereRigids)
                 {
                     var sphereRigid = MakeNode(
-                        "ClothShapeCapsule",
+                        "ClothShapeSphere",
                         ("parent_bone", controlNames[sphere.Node]),
                         ("cloth_collision_priority", 0), // TODO nFlags (assumed)
                         ("vertex_map", ""), // TODO read from nVertexMapIndex
@@ -782,7 +782,7 @@ partial class ModelExtract
                 foreach (var box in boxRigids)
                 {
                     var boxRigid = MakeNode(
-                        "ClothShapeCapsule",
+                        "ClothShapeBox",
                         ("parent_bone", controlNames[box.Node]),
                         ("cloth_collision_priority", 0), // TODO nFlags (assumed)
                         ("vertex_map", ""), // TODO read from nVertexMapIndex

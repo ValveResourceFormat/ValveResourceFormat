@@ -28,7 +28,10 @@ namespace ValveResourceFormat.ResourceTypes
         public IReadOnlyList<KVObject> CollisionAttributes
             => Data.GetArray("m_collisionAttributes");
 
-        public FeModelAggregateData FeModel => feModel ??= (FeModelAggregateData)Data.GetSubCollection("m_pFeModel");
+        public FeModelAggregateData FeModel => feModel ??=
+            Data.GetSubCollection("m_pFeModel") is not null
+            ? new FeModelAggregateData(Data.GetSubCollection("m_pFeModel"))
+            : null;
 
         private Part[] parts;
 
