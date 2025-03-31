@@ -437,7 +437,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             var colorType = IsHighDynamicRange && !decodeFlags.HasFlag(TextureCodec.ForceLDR)
                 ? SKColorType.RgbaF32
-                : SKColorType.Bgra8888;
+                : SKColorType.Rgba8888;
 
             var skiaBitmap = new SKBitmap(width, height, colorType, SKAlphaType.Unpremul);
 

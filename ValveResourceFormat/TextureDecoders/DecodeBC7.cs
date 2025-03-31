@@ -370,6 +370,7 @@ namespace ValveResourceFormat.TextureDecoders
 
                                 if ((m == 4 || m == 5) && rb != 0)
                                 {
+                                    // todo: figure out what channels this is trying to swizzle
                                     var t = data[dataIndex + 3];
                                     data[dataIndex + 3] = data[dataIndex + 3 - rb];
                                     data[dataIndex + 3 - rb] = t;

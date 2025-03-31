@@ -283,7 +283,7 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
 
     public static (SizedInternalFormat SizedInternalFormat, PixelFormat PixelFormat, PixelType PixelType) GetImageExportFormat(bool hdr) => hdr switch
     {
-        false => (SizedInternalFormat.Rgba8, PixelFormat.Bgra, PixelType.UnsignedByte),
+        false => (SizedInternalFormat.Rgba8, PixelFormat.Rgba, PixelType.UnsignedByte),
         true => (SizedInternalFormat.Rgba32f, PixelFormat.Rgba, PixelType.Float),
     };
 

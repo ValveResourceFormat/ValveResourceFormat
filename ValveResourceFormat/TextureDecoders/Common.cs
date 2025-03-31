@@ -5,9 +5,9 @@ namespace ValveResourceFormat.TextureDecoders
     [StructLayout(LayoutKind.Sequential)]
     internal struct Color
     {
-        public byte b;
-        public byte g;
         public byte r;
+        public byte g;
+        public byte b;
         public byte a;
 
         /*public static implicit operator Color(Span<byte> data)

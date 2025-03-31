@@ -349,9 +349,9 @@ namespace ValveResourceFormat.TextureDecoders
 
                             if (!isHdrBitmap)
                             {
-                                output[pixelOffset] = Common.ToClampedLdrColor(color.Z);
+                                output[pixelOffset] = Common.ToClampedLdrColor(color.X);
                                 output[pixelOffset + 1] = Common.ToClampedLdrColor(color.Y);
-                                output[pixelOffset + 2] = Common.ToClampedLdrColor(color.X);
+                                output[pixelOffset + 2] = Common.ToClampedLdrColor(color.Z);
                                 output[pixelOffset + 3] = byte.MaxValue;
                                 continue;
                             }
