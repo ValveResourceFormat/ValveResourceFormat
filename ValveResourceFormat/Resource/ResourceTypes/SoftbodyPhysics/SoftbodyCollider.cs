@@ -1,13 +1,8 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes.SoftbodyPhysics;
-public class SoftbodyCollider
+public abstract class SoftbodyCollider
 {
     public Int32 Node { get; set; }
 
@@ -17,7 +12,7 @@ public class SoftbodyCollider
 
     public bool[] CollissionMask { get; set; }
 
-    public SoftbodyCollider(KVObject data)
+    protected SoftbodyCollider(KVObject data)
     {
         Node = data.GetInt32Property("nNode");
         Flags = data.GetUInt32Property("nFlags");

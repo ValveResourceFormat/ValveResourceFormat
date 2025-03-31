@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Linq;
+using ValveResourceFormat.ResourceTypes.SoftbodyPhysics;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics;
 using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -27,7 +28,11 @@ namespace ValveResourceFormat.ResourceTypes
         public IReadOnlyList<KVObject> CollisionAttributes
             => Data.GetArray("m_collisionAttributes");
 
+        public FeModelAggregateData FeModel => feModel ??= (FeModelAggregateData)Data.GetSubCollection("m_pFeModel");
+
         private Part[] parts;
+
+        private FeModelAggregateData feModel;
 
         public PhysAggregateData()
         {
