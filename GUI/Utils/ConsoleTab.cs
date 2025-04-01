@@ -78,6 +78,8 @@ namespace GUI.Utils
                 _ => null,
             };
 
+            var queueEmpty = LogQueue.Count == 0;
+
             // If we happen to spam console text somewhere, appending every line to console bogs down performance (yay winforms)
             // so accumulate it into a buffer and append it all at once when visibility changes
             LogQueue.Enqueue(new LogLine
@@ -88,7 +90,7 @@ namespace GUI.Utils
                 Style = style
             });
 
-            if (control.Visible)
+            if (queueEmpty && control.Visible)
             {
                 control.BeginInvoke(DrainQueue);
             }
@@ -115,7 +117,7 @@ namespace GUI.Utils
                 }
 
                 control.AppendText(sb.ToString());
-                control.GoEnd();
+                ScrollToBottom();
                 control.EndUpdate();
                 return;
             }
@@ -129,13 +131,7 @@ namespace GUI.Utils
 
                 // Add fold for multi line strings
                 // TODO: For multiline strings, indent them with the time/component size
-                var index = -1;
-                var newLines = 0;
-
-                while (-1 != (index = line.Message.IndexOf('\n', index + 1)))
-                {
-                    newLines++;
-                }
+                var newLines = line.Message.AsSpan().Count('\n');
 
                 if (newLines > 0)
                 {
@@ -145,8 +141,21 @@ namespace GUI.Utils
                 }
             }
 
-            control.GoEnd();
+            ScrollToBottom();
             control.EndUpdate();
+        }
+
+        private void ScrollToBottom()
+        {
+            var selection = control.Selection;
+
+            if (selection.Start != selection.End)
+            {
+                return;
+            }
+
+            var yea = new ScrollEventArgs(ScrollEventType.LargeIncrement, 0, int.MaxValue, ScrollOrientation.VerticalScroll);
+            control.OnScroll(yea, true);
         }
 
         public TabPage CreateTab()
