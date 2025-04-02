@@ -25,7 +25,8 @@ internal readonly struct DecodeBCn : ITextureDecoder
         var data = pixmap.GetPixelSpan<byte>();
 
         var decoder = BlockDecoder.Create(format);
-        decoder.Decode(w, h, input, data); // , bitmap.Width, bitmap.Height
+        decoder.Decode(bitmap.Width, bitmap.Height, input, data);
+        //decoder.Decode(w, h, input, data, bitmap.Width, bitmap.Height);
 
         var undoYCoCg = (decodeFlags & TextureCodec.YCoCg) != 0; // DXT5
         var undoNormalizeNormals = (decodeFlags & TextureCodec.NormalizeNormals) != 0; // DXT5, ATI2N

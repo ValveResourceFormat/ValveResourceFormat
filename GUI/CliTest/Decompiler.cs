@@ -1367,8 +1367,8 @@ namespace Decompiler
             var cube = CubemapFace.PositiveX;
             var depth = 0u;
 
-            using var gpuBitmap = textureData.GenerateBitmap(depth, cube, mipLevel, TextureCodec.None, gpuDecoder: HardwareAcceleratedTextureDecoder.Decoder);
-            using var cpuBitmap = textureData.GenerateBitmap(depth, cube, mipLevel, TextureCodec.None, gpuDecoder: null);
+            using var gpuBitmap = textureData.GenerateBitmap(depth, cube, mipLevel, TextureCodec.Auto, gpuDecoder: HardwareAcceleratedTextureDecoder.Decoder);
+            using var cpuBitmap = textureData.GenerateBitmap(depth, cube, mipLevel, TextureCodec.Auto, gpuDecoder: null);
 
             // COMPARE
             Debug.Assert(cpuBitmap.Width == gpuBitmap.Width && cpuBitmap.Height == gpuBitmap.Height, "GPU and CPU bitmaps have different sizes");
@@ -1423,7 +1423,6 @@ namespace Decompiler
                 if (errorCountPrecise == 0)
                 {
                     stats.Perfect++;
-                    Log.Info(key, result);
                 }
                 else if (errorCount == 0)
                 {
