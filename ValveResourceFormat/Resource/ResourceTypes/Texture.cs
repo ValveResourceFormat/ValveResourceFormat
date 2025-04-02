@@ -500,8 +500,19 @@ namespace ValveResourceFormat.ResourceTypes
 
             return Format switch
             {
-                VTexFormat.DXT1 => new DecodeDXT1(blockWidth, blockHeight),
-                VTexFormat.DXT5 => new DecodeDXT5(blockWidth, blockHeight, decodeFlags),
+                // BCn
+                VTexFormat.DXT1 => new DecodeBCn(blockWidth, blockHeight, decodeFlags, TinyBCSharp.BlockFormat.BC1NoAlpha),
+                VTexFormat.DXT5 => new DecodeBCn(blockWidth, blockHeight, decodeFlags, TinyBCSharp.BlockFormat.BC3),
+                VTexFormat.ATI1N => new DecodeBCn(blockWidth, blockHeight, decodeFlags, TinyBCSharp.BlockFormat.BC4U),
+                VTexFormat.ATI2N => new DecodeBCn(blockWidth, blockHeight, decodeFlags, TinyBCSharp.BlockFormat.BC5U),
+                VTexFormat.BC6H => new DecodeBCn(blockWidth, blockHeight, decodeFlags, TinyBCSharp.BlockFormat.BC6HUf32),
+                VTexFormat.BC7 => new DecodeBCn(blockWidth, blockHeight, decodeFlags, TinyBCSharp.BlockFormat.BC7),
+
+                // ETC
+                VTexFormat.ETC2 => new DecodeETC2(blockWidth, blockHeight),
+                VTexFormat.ETC2_EAC => new DecodeETC2EAC(blockWidth, blockHeight),
+
+                // Simple colors
                 VTexFormat.I8 => new DecodeI8(),
                 VTexFormat.RGBA8888 => new DecodeRGBA8888(),
                 VTexFormat.R16 => new DecodeR16(),
@@ -514,13 +525,7 @@ namespace ValveResourceFormat.ResourceTypes
                 VTexFormat.RG3232F => new DecodeRG3232F(),
                 VTexFormat.RGB323232F => new DecodeRGB323232F(),
                 VTexFormat.RGBA32323232F => new DecodeRGBA32323232F(),
-                VTexFormat.BC6H => new DecodeBC6H(blockWidth, blockHeight),
-                VTexFormat.BC7 => new DecodeBC7(blockWidth, blockHeight, decodeFlags),
-                VTexFormat.ATI2N => new DecodeATI2N(blockWidth, blockHeight, decodeFlags),
                 VTexFormat.IA88 => new DecodeIA88(),
-                VTexFormat.ETC2 => new DecodeETC2(blockWidth, blockHeight),
-                VTexFormat.ETC2_EAC => new DecodeETC2EAC(blockWidth, blockHeight),
-                VTexFormat.ATI1N => new DecodeATI1N(blockWidth, blockHeight),
                 VTexFormat.BGRA8888 => new DecodeBGRA8888(),
                 _ => throw new UnexpectedMagicException("Unhandled image type", (int)Format, nameof(Format))
             };
