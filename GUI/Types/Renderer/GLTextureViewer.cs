@@ -818,33 +818,111 @@ namespace GUI.Types.Renderer
             var isCpuDecodedFormat = textureData.IsRawJpeg || textureData.IsRawPng;
             var swDecodeFlags = decodeFlags & softwareDecodeOnlyOptions;
 
+
+            if (!isCpuDecodedFormat)
+            {
+                Task.Run(async () =>
+                {
+                    // wait for GLTextureDecoder.GLThread to start
+                    await Task.Delay(500).ConfigureAwait(false);
+                    // spinwait
+
+                    var d = (uint)SelectedDepth;
+                    var c = (CubemapFace)SelectedCubeFace;
+                    var m = (uint)SelectedMip;
+
+                    using var cpuBitmap = textureData.GenerateBitmap(d, c, m, TextureCodec.None, null);
+                    using var gpuBitmap = textureData.GenerateBitmap(d, c, m, TextureCodec.None, HardwareAcceleratedTextureDecoder.Decoder);
+
+                    // COMPARE
+                    Debug.Assert(cpuBitmap.Width == gpuBitmap.Width && cpuBitmap.Height == gpuBitmap.Height, "GPU and CPU bitmaps have different sizes");
+                    Debug.Assert(cpuBitmap.ColorType == gpuBitmap.ColorType, "GPU and CPU bitmaps have different color types");
+
+                    var errorCountRed = 0;
+                    var errorCountGreen = 0;
+                    var errorCountBlue = 0;
+                    var errorCountAlpha = 0;
+                    var errorCountPrecise = 0;
+
+                    for (var y = 0; y < cpuBitmap.Height; y++)
+                    {
+                        for (var x = 0; x < cpuBitmap.Width; x++)
+                        {
+                            var gpuPixel = GetFixedColor(textureData.Format, gpuBitmap, x, y);
+                            var cpuPixel = GetFixedColor(textureData.Format, cpuBitmap, x, y);
+
+                            if (gpuPixel != cpuPixel)
+                            {
+                                errorCountPrecise++;
+                            }
+                            if (Math.Abs(gpuPixel.Red - cpuPixel.Red) > 1)
+                            {
+                                errorCountRed++;
+                            }
+                            if (Math.Abs(gpuPixel.Green - cpuPixel.Green) > 1)
+                            {
+                                errorCountGreen++;
+                            }
+                            if (Math.Abs(gpuPixel.Blue - cpuPixel.Blue) > 1)
+                            {
+                                errorCountBlue++;
+                            }
+                            if (Math.Abs(gpuPixel.Alpha - cpuPixel.Alpha) > 1)
+                            {
+                                errorCountAlpha++;
+                            }
+                        }
+                    }
+                    var redPercentage = errorCountRed * 100f / cpuBitmap.Pixels.Length;
+                    var greenPercentage = errorCountGreen * 100f / cpuBitmap.Pixels.Length;
+                    var bluePercentage = errorCountBlue * 100f / cpuBitmap.Pixels.Length;
+                    var alphaPercentage = errorCountAlpha * 100f / cpuBitmap.Pixels.Length;
+                    var exactPercentage = errorCountPrecise * 100f / cpuBitmap.Pixels.Length;
+                    Log.Info(nameof(GLTextureViewer), $"[{textureData.Format}] GPU and CPU bitmaps differences: R:{redPercentage:F2}% G:{greenPercentage:F2}% B:{bluePercentage:F2}% A:{alphaPercentage:F2}% ({100 - exactPercentage:F2}% exact pixels) file: {textureData.Resource.FileName}");
+                });
+            }
+
             if (isCpuDecodedFormat || forceSoftwareDecode)
             {
-                SKBitmap bitmap;
-
-                // GUI provides hardware decoder for texture decoding, but here we do not want to use it
-                var decoder = HardwareAcceleratedTextureDecoder.Decoder;
-                HardwareAcceleratedTextureDecoder.Decoder = null;
-
-                try
-                {
-                    bitmap = textureData.GenerateBitmap((uint)SelectedDepth, (CubemapFace)SelectedCubeFace, (uint)SelectedMip, swDecodeFlags);
-                }
-                finally
-                {
-                    HardwareAcceleratedTextureDecoder.Decoder = decoder;
-                }
-
-                using (bitmap)
-                {
-                    UploadBitmap(bitmap);
-                }
-
+                using var bitmap = GenerateBitmapCpu(textureData, swDecodeFlags);
+                UploadBitmap(bitmap);
                 return;
             }
 
             texture = GuiContext.MaterialLoader.LoadTexture(Resource, isViewerRequest: true);
             decodeFlags = textureData.RetrieveCodecFromResourceEditInfo() | swDecodeFlags;
+        }
+
+        public static SKColor GetFixedColor(VTexFormat format, SKBitmap bitmap, int x, int y)
+        {
+            var c = bitmap.GetPixel(x, y);
+
+            if (format == VTexFormat.ATI1N || format == VTexFormat.I8)
+            {
+                c = new SKColor(c.Red, 0, 0, c.Alpha);
+            }
+            else if (format == VTexFormat.ATI2N)
+            {
+                c = new SKColor(c.Red, c.Green, 0, c.Alpha);
+            }
+
+            return c;
+        }
+
+        private SKBitmap GenerateBitmapCpu(Texture textureData, TextureCodec decodeFlags)
+        {
+            // GUI provides hardware decoder for texture decoding, but here we do not want to use it
+            var decoder = HardwareAcceleratedTextureDecoder.Decoder;
+            HardwareAcceleratedTextureDecoder.Decoder = null;
+
+            try
+            {
+                return textureData.GenerateBitmap((uint)SelectedDepth, (CubemapFace)SelectedCubeFace, (uint)SelectedMip, decodeFlags);
+            }
+            finally
+            {
+                HardwareAcceleratedTextureDecoder.Decoder = decoder;
+            }
         }
 
         private void UploadBitmap(SKBitmap bitmap)

@@ -108,15 +108,20 @@ namespace GUI
                 Log.Warn(nameof(Application), "Dark mode is EXPERIMENTAL. Some controls may have less than ideal colors which will be improved in a future .NET update.");
             }
 
-            HardwareAcceleratedTextureDecoder.Decoder = new GLTextureDecoder();
+            Task.Run(() =>
+            {
+                HardwareAcceleratedTextureDecoder.Decoder = new GLTextureDecoder();
 
-#if DEBUG
+                Decompiler.Decompiler.Main(args);
+            });
+            return;
+
+#if false
             if (args.Length > 0 && args[0] == "validate_shaders")
             {
                 GUI.Types.Renderer.ShaderLoader.ValidateShaders();
                 return;
             }
-#endif
 
             for (var i = 0; i < args.Length; i++)
             {
@@ -225,6 +230,7 @@ namespace GUI
 
             // Force refresh title due to OpenFile calls above, SelectedIndexChanged is not called in the same tick
             OnMainSelectedTabChanged(null, null);
+#endif
         }
 
         protected override void OnLoad(EventArgs e)

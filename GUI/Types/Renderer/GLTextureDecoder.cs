@@ -101,8 +101,8 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
         request.Wait();
         request.ResponseTime = sw.Elapsed - request.DecodeTime;
 
-        var status = request.Success ? "succeeded" : "failed";
-        Log.Debug(nameof(GLTextureDecoder), $"Decode {status} in {request.DecodeTime.Milliseconds}ms (response time: {request.ResponseTime.Milliseconds}ms)");
+        //var status = request.Success ? "succeeded" : "failed";
+        //Log.Debug(nameof(GLTextureDecoder), $"Decode {status} in {request.DecodeTime.Milliseconds}ms (response time: {request.ResponseTime.Milliseconds}ms)");
 
         return request.Success;
     }
