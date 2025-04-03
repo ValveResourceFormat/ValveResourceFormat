@@ -773,6 +773,14 @@ namespace GUI.Types.Renderer
             {
                 OriginalWidth = texture.Width;
                 OriginalHeight = texture.Height;
+
+                // Render software mips at full size
+                if (forceSoftwareDecode && SelectedMip > 0)
+                {
+                    var textureData = (Texture)Resource.DataBlock;
+                    OriginalWidth = textureData.Width;
+                    OriginalHeight = textureData.Height;
+                }
             }
 
             var textureType = GLTextureDecoder.GetTextureTypeDefine(texture.Target);
