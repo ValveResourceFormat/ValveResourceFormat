@@ -180,8 +180,8 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
 
         var framebufferFormat = request.Bitmap.ColorType switch
         {
-            SKColorType.RgbaF32 => HDRFormat.Value,
-            SKColorType.Bgra8888 => LDRFormat.Value,
+            HdrBitmapColorType => HDRFormat.Value,
+            DefaultBitmapColorType => LDRFormat.Value,
             _ => null,
         };
 

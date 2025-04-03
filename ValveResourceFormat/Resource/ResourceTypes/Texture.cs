@@ -392,6 +392,9 @@ namespace ValveResourceFormat.ResourceTypes
             return null;
         }
 
+        public const SKColorType DefaultBitmapColorType = SKColorType.Bgra8888;
+        public const SKColorType HdrBitmapColorType = SKColorType.RgbaF32;
+
         /// <summary>
         /// Generate a bitmap for given parameters.
         /// </summary>
@@ -437,8 +440,8 @@ namespace ValveResourceFormat.ResourceTypes
                 : decodeFlags;
 
             var colorType = IsHighDynamicRange && !decodeFlags.HasFlag(TextureCodec.ForceLDR)
-                ? SKColorType.RgbaF32
-                : SKColorType.Bgra8888;
+                ? HdrBitmapColorType
+                : DefaultBitmapColorType;
 
             var skiaBitmap = new SKBitmap(width, height, colorType, SKAlphaType.Unpremul);
 
