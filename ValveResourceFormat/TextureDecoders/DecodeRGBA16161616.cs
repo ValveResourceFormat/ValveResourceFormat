@@ -12,7 +12,7 @@ namespace ValveResourceFormat.TextureDecoders
             var inputPixels = MemoryMarshal.Cast<byte, RGBA16161616>(input);
             var data = pixels.GetPixelSpan<SKColorF>();
 
-            if (bitmap.ColorType == SKColorType.RgbaF32)
+            if (bitmap.ColorType == ResourceTypes.Texture.HdrBitmapColorType)
             {
                 DecodeHdr(pixels, inputPixels);
                 return;
