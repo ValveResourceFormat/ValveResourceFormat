@@ -41,6 +41,15 @@ namespace ValveResourceFormat.Serialization.KeyValues
             }
         }
 
+        public KVObject(string name, params (string Name, object Value)[] properties)
+            : this(name, properties.Length)
+        {
+            foreach (var prop in properties)
+            {
+                AddProperty(prop.Name, prop.Value);
+            }
+        }
+
         //Add a property to the structure
         public virtual void AddProperty(string name, KVValue value)
         {
@@ -55,6 +64,17 @@ namespace ValveResourceFormat.Serialization.KeyValues
             }
 
             Count++;
+        }
+
+        public void AddProperty(string name, object value)
+        {
+            AddProperty(name, new KVValue(value));
+        }
+
+        internal void AddItem(KVObject item)
+        {
+            Debug.Assert(IsArray);
+            AddProperty(null, item);
         }
 
         public void Serialize(IndentedTextWriter writer)

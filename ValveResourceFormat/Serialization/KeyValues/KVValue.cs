@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Globalization;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -49,6 +50,52 @@ namespace ValveResourceFormat.Serialization.KeyValues
         {
             Type = type;
             Value = value;
+        }
+
+        public KVValue(object value)
+        {
+            if (value is KVFlaggedValue fv)
+            {
+                Type = fv.Type;
+                Value = fv.Value;
+            }
+            else if (value is KVValue v)
+            {
+                Type = v.Type;
+                Value = v.Value;
+            }
+            else if (value is Vector3 vec3)
+            {
+                Type = KVType.ARRAY;
+                Value = MakeArray([vec3.X, vec3.Y, vec3.Z]).Value;
+            }
+            else
+            {
+                Type = value switch
+                {
+                    string => KVType.STRING,
+                    bool => KVType.BOOLEAN,
+                    int => KVType.INT32,
+                    uint => KVType.UINT32,
+                    long => KVType.INT64,
+                    float => KVType.FLOAT,
+                    double => KVType.DOUBLE,
+                    KVObject kv => kv.IsArray ? KVType.ARRAY : KVType.OBJECT,
+                    _ => throw new NotImplementedException()
+                };
+                Value = value;
+            }
+        }
+
+        internal static KVValue MakeArray<T>(IEnumerable<T> values)
+        {
+            var list = new KVObject(null, isArray: true);
+            foreach (var value in values)
+            {
+                list.AddProperty(null, new KVValue(value));
+            }
+
+            return new KVValue(KVType.ARRAY, list);
         }
 
         //Print a value in the correct representation
