@@ -33,6 +33,12 @@ namespace GUI.Types.Renderer
             FourChannels,
         }
 
+        enum Filtering
+        {
+            Point,
+            Linear,
+        }
+
         private VrfGuiContext GuiContext;
         private Resource Resource;
         private SKBitmap Bitmap;
@@ -59,7 +65,6 @@ namespace GUI.Types.Renderer
         private bool VisualizeTiling;
         private ChannelMapping SelectedChannels = ChannelMapping.RGB;
         private ChannelSplitting ChannelSplitMode;
-        private int ChannelSplitImageCount => 1 << (int)ChannelSplitMode;
         private CubemapProjection CubemapProjectionType;
         private TextureCodec decodeFlags;
         private const TextureCodec softwareDecodeOnlyOptions = TextureCodec.ForceLDR;
@@ -381,6 +386,25 @@ namespace GUI.Types.Renderer
             }
 
             channelsComboBox.SelectedIndex = DefaultSelection;
+
+            var samplingComboBox = AddSelection("Sampling", (name, index) => SetTextureFiltering((Filtering)index));
+            samplingComboBox.Items.AddRange(Enum.GetNames<Filtering>());
+            samplingComboBox.SelectedIndex = 0;
+        }
+
+        private void SetTextureFiltering(Filtering value)
+        {
+            if (texture != null)
+            {
+                var (min, mag) = value switch
+                {
+                    Filtering.Point => (TextureMinFilter.NearestMipmapNearest, TextureMagFilter.Nearest),
+                    Filtering.Linear => (TextureMinFilter.LinearMipmapNearest, TextureMagFilter.Linear),
+                    _ => throw new UnreachableException(),
+                };
+
+                texture.SetFiltering(min, mag);
+            }
         }
 
         /// <param name="oldTextureSize">The texture size before changing viewer state.</param>
@@ -767,7 +791,7 @@ namespace GUI.Types.Renderer
             }
 
             texture.SetWrapMode(TextureWrapMode.ClampToEdge);
-            texture.SetFiltering(TextureMinFilter.LinearMipmapLinear, TextureMagFilter.Nearest);
+            SetTextureFiltering(Filtering.Point);
 
             if (Svg == null)
             {
