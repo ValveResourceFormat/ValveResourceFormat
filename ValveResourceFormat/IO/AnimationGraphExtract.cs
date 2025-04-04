@@ -4,6 +4,7 @@ using System.Text;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Serialization.KeyValues;
+using static ValveResourceFormat.IO.KVHelpers;
 namespace ValveResourceFormat.IO;
 
 public class AnimationGraphExtract
@@ -68,7 +69,7 @@ public class AnimationGraphExtract
         Tags = tagManager.GetArray("m_tags");
         Parameters = paramListUpdater.GetArray("m_parameters");
 
-        var nodeManager = ModelExtract.MakeListNode("CAnimNodeManager", "m_nodes");
+        var nodeManager = MakeListNode("CAnimNodeManager", "m_nodes");
 
         var i = 0;
         foreach (var compiledNode in compiledNodes)
@@ -80,16 +81,16 @@ public class AnimationGraphExtract
             nodeData.AddProperty("m_nNodeID", nodeIdObject);
 
             var nodeManagerItem = new KVObject(null, 2);
-            nodeManagerItem.AddProperty("key", ModelExtract.MakeValue(nodeIdObject));
-            nodeManagerItem.AddProperty("value", ModelExtract.MakeValue(nodeData));
+            nodeManagerItem.AddProperty("key", nodeIdObject);
+            nodeManagerItem.AddProperty("value", nodeData);
 
-            ModelExtract.AddItem(nodeManager.Children, nodeManagerItem);
+            nodeManager.Children.AddItem(nodeManagerItem);
         }
 
-        var localParameters = ModelExtract.MakeArrayValue(Parameters);
-        var localTags = ModelExtract.MakeArrayValue(Tags);
+        var localParameters = KVValue.MakeArray(Parameters);
+        var localTags = KVValue.MakeArray(Tags);
 
-        var kv = ModelExtract.MakeNode(
+        var kv = MakeNode(
             "CAnimationGraph",
             [
                 ("m_nodeManager", nodeManager.Node),
@@ -111,8 +112,8 @@ public class AnimationGraphExtract
     private static KVValue MakeNodeIdObjectValue(long nodeId)
     {
         var nodeIdObject = new KVObject("fakeIndentKey", 1);
-        nodeIdObject.AddProperty("m_id", ModelExtract.MakeValue(unchecked((uint)nodeId)));
-        return ModelExtract.MakeValue(nodeIdObject);
+        nodeIdObject.AddProperty("m_id", unchecked((uint)nodeId));
+        return new KVValue(nodeIdObject);
     }
 
     private static KVValue MakeInputConnection(long nodeId)
@@ -122,13 +123,13 @@ public class AnimationGraphExtract
         var inputConnection = new KVObject("fakeIndentKey", 2);
         inputConnection.AddProperty("m_nodeID", nodeIdObject);
         inputConnection.AddProperty("m_outputID", nodeIdObject);
-        return ModelExtract.MakeValue(inputConnection);
+        return new KVValue(inputConnection);
     }
 
     private static void AddInputConnection(KVObject node, long childNodeId)
     {
         var inputConnection = MakeInputConnection(childNodeId);
-        node.AddProperty("m_inputConnection", ModelExtract.MakeValue(inputConnection));
+        node.AddProperty("m_inputConnection", inputConnection);
     }
 
     KVObject ConvertToUncompiled(KVObject compiledNode)
@@ -137,7 +138,7 @@ public class AnimationGraphExtract
         className = className.Replace("UpdateNode", string.Empty, StringComparison.Ordinal);
 
         var newClass = className + "AnimNode";
-        var node = ModelExtract.MakeNode(newClass);
+        var node = MakeNode(newClass);
 
         var children = compiledNode.GetArray("m_children");
         var inputNodeIds = children?.Select(child => child.GetIntegerProperty("m_nodeIndex")).ToArray();
@@ -186,7 +187,7 @@ public class AnimationGraphExtract
                     var source = type["ANIMPARAM_".Length..];
                     source = char.ToUpperInvariant(source[0]) + source[1..].ToLowerInvariant();
 
-                    node.AddProperty("m_selectionSource", ModelExtract.MakeValue("SelectionSource_" + source));
+                    node.AddProperty("m_selectionSource", "SelectionSource_" + source);
                     node.AddProperty($"m_{source.ToLowerInvariant()}ParamID", ParameterIDFromIndex(paramIndex));
                     continue;
                 }
@@ -234,20 +235,20 @@ public class AnimationGraphExtract
 
                         var choiceNode = new KVObject(null, 3);
                         AddInputConnection(choiceNode, nodeId);
-                        choiceNode.AddProperty("m_weight", ModelExtract.MakeValue(weight));
-                        choiceNode.AddProperty("m_blendTime", ModelExtract.MakeValue(blendTime));
+                        choiceNode.AddProperty("m_weight", weight);
+                        choiceNode.AddProperty("m_blendTime", blendTime);
 
                         return choiceNode;
                     });
 
-                    node.AddProperty("m_children", ModelExtract.MakeArrayValue(newInputs));
+                    node.AddProperty("m_children", KVValue.MakeArray(newInputs));
                     continue;
                 }
             }
 
             if (key is "m_children")
             {
-                node.AddProperty(key, ModelExtract.MakeArrayValue(inputNodeIds.Select(MakeInputConnection)));
+                node.AddProperty(key, KVValue.MakeArray(inputNodeIds.Select(MakeInputConnection)));
                 continue;
             }
 
@@ -267,7 +268,7 @@ public class AnimationGraphExtract
                 try
                 {
                     var tagIds = compiledNode.GetIntegerArray(key);
-                    node.AddProperty(key, ModelExtract.MakeArrayValue(tagIds.Select(MakeNodeIdObjectValue)));
+                    node.AddProperty(key, KVValue.MakeArray(tagIds.Select(MakeNodeIdObjectValue)));
                     continue;
                 }
                 catch (InvalidCastException)
@@ -312,7 +313,7 @@ public class AnimationGraphExtract
                 var data = stateData[i];
                 var transitionIndices = state.GetIntegerArray("m_transitionIndices");
 
-                var stateNode = ModelExtract.MakeNode("CAnimNodeState");
+                var stateNode = MakeNode("CAnimNodeState");
 
                 var uncompiledTransitions = transitionIndices.Select((transitionId) =>
                 {
@@ -321,11 +322,11 @@ public class AnimationGraphExtract
 
                     // m_conditionList?
 
-                    var transitionNode = ModelExtract.MakeNode("CAnimNodeStateTransition",
+                    var transitionNode = MakeNode("CAnimNodeStateTransition",
                         ("m_srcState", MakeNodeIdObjectValue(transition.GetIntegerProperty("m_srcStateIndex"))),
                         ("m_destState", MakeNodeIdObjectValue(transition.GetIntegerProperty("m_destStateIndex"))),
-                        ("m_bDisabled", ModelExtract.MakeValue(transition.GetIntegerProperty("m_bDisabled") > 0)),
-                        ("m_bReset", ModelExtract.MakeValue(data.GetIntegerProperty("m_bReset") > 0))
+                        ("m_bDisabled", transition.GetIntegerProperty("m_bDisabled") > 0),
+                        ("m_bReset", data.GetIntegerProperty("m_bReset") > 0)
                     );
 
                     // data m_resetCycleOption int -> string
@@ -335,19 +336,19 @@ public class AnimationGraphExtract
                     return transitionNode;
                 });
 
-                stateNode.AddProperty("m_transitions", ModelExtract.MakeArrayValue(uncompiledTransitions));
+                stateNode.AddProperty("m_transitions", KVValue.MakeArray(uncompiledTransitions));
 
                 if (state.ContainsKey("m_actions"))
                 {
-                    stateNode.AddProperty("m_actions", ModelExtract.MakeArrayValue(state.GetArray("m_actions").Select(compiledAction =>
+                    stateNode.AddProperty("m_actions", KVValue.MakeArray(state.GetArray("m_actions").Select(compiledAction =>
                     {
-                        var uncompiledAction = ModelExtract.MakeNode("CStateAction");
+                        var uncompiledAction = MakeNode("CStateAction");
                         foreach (var compiledProperty in compiledAction)
                         {
                             if (compiledProperty.Key is "m_pAction")
                             {
                                 var action = (KVObject)compiledProperty.Value;
-                                var actionData = ModelExtract.MakeNode(action.GetProperty<string>("_class").Replace("Updater", string.Empty, StringComparison.Ordinal));
+                                var actionData = MakeNode(action.GetProperty<string>("_class").Replace("Updater", string.Empty, StringComparison.Ordinal));
                                 if (action.ContainsKey("m_nTagIndex"))
                                 {
                                     // convert from index to handle
@@ -368,13 +369,13 @@ public class AnimationGraphExtract
 
                                 if (action.ContainsKey("m_value"))
                                 {
-                                    actionData.AddProperty("m_value", ModelExtract.MakeValue(action.GetSubCollection("m_value")));
+                                    actionData.AddProperty("m_value", action.GetSubCollection("m_value"));
                                 }
 
-                                uncompiledAction.AddProperty(compiledProperty.Key, ModelExtract.MakeValue(actionData));
+                                uncompiledAction.AddProperty(compiledProperty.Key, actionData);
                                 continue;
                             }
-                            uncompiledAction.AddProperty(compiledProperty.Key, ModelExtract.MakeValue(compiledProperty.Value));
+                            uncompiledAction.AddProperty(compiledProperty.Key, compiledProperty.Value);
                         }
                         return uncompiledAction;
                     })));
@@ -390,11 +391,11 @@ public class AnimationGraphExtract
                 }
 
                 AddInputConnection(stateNode, data.GetSubCollection("m_pChild").GetIntegerProperty("m_nodeIndex"));
-                stateNode.AddProperty("m_bIsRootMotionExclusive", ModelExtract.MakeValue(data.GetIntegerProperty("m_bExclusiveRootMotion") > 0));
+                stateNode.AddProperty("m_bIsRootMotionExclusive", data.GetIntegerProperty("m_bExclusiveRootMotion") > 0);
                 return stateNode;
             });
 
-            node.AddProperty("m_states", ModelExtract.MakeArrayValue(uncompiledStates));
+            node.AddProperty("m_states", KVValue.MakeArray(uncompiledStates));
         }
 
         return node;
