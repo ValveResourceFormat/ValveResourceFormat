@@ -76,7 +76,6 @@ public class FeaturesHeaderBlock : ShaderDataBlock
         {
             AdditionalFileFlags[i] = datareader.ReadInt32();
         }
-        ;
 
         var modeCount = datareader.ReadInt32();
 

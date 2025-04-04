@@ -1011,7 +1011,6 @@ public sealed class MapExtract
                         selectionSet.SelectionSetData.SelectedObjects.Add(mapEntity);
                     }
                 }
-                ;
             }
 
             var modelName = NormalizePath(compiledEntity.GetProperty<string>("model"));

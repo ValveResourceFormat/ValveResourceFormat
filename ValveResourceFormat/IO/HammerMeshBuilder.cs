@@ -547,13 +547,11 @@ namespace ValveResourceFormat.IO
                     {
                         vertexPaintBlendParams = vertexStreams.VertexPaintBlendParams[startVertex.MasterStreamIndex];
                     }
-                    ;
 
                     if (vertexStreams.VertexPaintTintColor.Count != 0)
                     {
                         vertexPaintTintColor = vertexStreams.VertexPaintTintColor[startVertex.MasterStreamIndex];
                     }
-                    ;
                 }
 
                 normals.Data.Add(normal);
