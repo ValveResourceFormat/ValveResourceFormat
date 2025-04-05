@@ -295,6 +295,7 @@ partial class ModelExtract
         var bodyGroupList = MakeLazyList("BodyGroupList");
         var animationList = MakeLazyList("AnimationList");
         var physicsShapeList = MakeLazyList("PhysicsShapeList");
+        var softbody = MakeLazyList("Softbody");
         var attachmentList = MakeLazyList("AttachmentList");
         var skeleton = MakeLazyList("Skeleton");
         var modelModifierList = MakeLazyList("ModelModifierList");
@@ -635,6 +636,104 @@ partial class ModelExtract
 
                     physicsShapeList.Value.AddItem(physicsShapeCapsule);
                 }
+            }
+
+            var feModel = physAggregateData.FeModel;
+
+            if (feModel is not null)
+            {
+                var controlNames = feModel.CtrlName;
+
+                var taperedCapsuleRigids = feModel.TaperedCapsuleRigids;
+
+                foreach (var capsule in taperedCapsuleRigids)
+                {
+                    var taperedCapsuleRigid = MakeNode(
+                        "ClothShapeCapsule",
+                        ("parent_bone", controlNames[capsule.Node]),
+                        ("cloth_collision_priority", 0), // TODO nFlags (assumed)
+                        ("vertex_map", ""), // TODO read from nVertexMapIndex
+                        ("inverted_collision", false), // TODO nFlags (assumed)
+                        ("planarize", false), // TODO nFlags (assumed)
+                        ("radius0", capsule.Radius[0]),
+                        ("point0", capsule.Center[0]),
+                        ("radius1", capsule.Radius[1]),
+                        ("point1", capsule.Center[1])
+                    );
+
+                    for (var i = 0; i < 4; i++)
+                    {
+                        taperedCapsuleRigid.AddProperty("cloth_collision_layer" + i, MakeValue(capsule.CollissionMask[i]));
+                    }
+
+                    AddItem(softbody.Value, taperedCapsuleRigid);
+                }
+
+                var sphereRigids = feModel.SphereRigids;
+
+                foreach (var sphere in sphereRigids)
+                {
+                    var sphereRigid = MakeNode(
+                        "ClothShapeSphere",
+                        ("parent_bone", controlNames[sphere.Node]),
+                        ("cloth_collision_priority", 0), // TODO nFlags (assumed)
+                        ("vertex_map", ""), // TODO read from nVertexMapIndex
+                        ("inverted_collision", false), // TODO nFlags (assumed)
+                        ("planarize", false), // TODO nFlags (assumed)
+                        ("radius0", sphere.Radius[0]),
+                        ("point0", sphere.Center[0])
+                    );
+
+                    for (var i = 0; i < 4; i++)
+                    {
+                        sphereRigid.AddProperty("cloth_collision_layer" + i, MakeValue(sphere.CollissionMask[i]));
+                    }
+
+                    AddItem(softbody.Value, sphereRigid);
+                }
+
+                var boxRigids = feModel.BoxRigids;
+
+                foreach (var box in boxRigids)
+                {
+                    var boxRigid = MakeNode(
+                        "ClothShapeBox",
+                        ("parent_bone", controlNames[box.Node]),
+                        ("cloth_collision_priority", 0), // TODO nFlags (assumed)
+                        ("vertex_map", ""), // TODO read from nVertexMapIndex
+                        ("inverted_collision", false), // TODO nFlags (assumed)
+                        ("planarize", false), // TODO nFlags (assumed)
+                        ("dimensions", box.Size * 2.0f),
+                        ("origin", box.Origin),
+                        ("angles", ToEulerAngles(box.Orientation))
+                    );
+
+                    for (var i = 0; i < 4; i++)
+                    {
+                        boxRigid.AddProperty("cloth_collision_layer" + i, MakeValue(box.CollissionMask[i]));
+                    }
+
+                    AddItem(softbody.Value, boxRigid);
+                }
+
+                /*
+                 * `m_NodeBases`: Data for individual and generated cloth nodes. Nodes for bones 
+                 * that are directly part of a ClothChain do not show up here, but `Extrude Sides` for 
+                 * example will generate nodes that do.
+                 * I haven't found a way to differentiate between true ClothNodes and generated
+                 * ones yet other than checking whether the associated name is prefixed with $.
+                 * 
+                 * `m_Rods`: Some basic data for springs, both manual and generated ones.
+                 * `nNode` contains the endpoints. I haven't found a way to tell apart generated
+                 * nodes here either.
+                 * 
+                 * `m_NodeIntegrator`: Each entry seems to belong to the bone at the same index
+                 * in `m_CtrlName`, but probably contain compiled simulation parameters. At least
+                 * there does not seem to be any value match to a physics property. 
+                 * 
+                 * `m_NodeCollisionRadii`: Based on the list's length I think these values should 
+                 * also map to the `m_CtrlName` list, albeit excluding the static nodes at the beginning.
+                */
             }
         }
 
