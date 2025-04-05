@@ -33,7 +33,6 @@ namespace Tests
             });
 
             var classname = entities[0].GetProperty("classname");
-            Assert.That(classname, Is.Not.Null);
             Assert.Multiple(() =>
             {
                 Assert.That(classname.Type, Is.EqualTo(KVValueType.String));
@@ -44,7 +43,6 @@ namespace Tests
             Assert.That(classnameString, Is.EqualTo("worldspawn"));
 
             var worldname = entities[0].GetProperty("worldname");
-            Assert.That(worldname, Is.Not.Null);
             Assert.That(worldname.Value, Is.EqualTo("blackmap"));
 
             var entityString = entityLump.ToEntityDumpString();

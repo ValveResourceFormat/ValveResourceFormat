@@ -23,9 +23,9 @@ namespace ValveResourceFormat.Serialization.KeyValues
     /// </summary>
     public readonly struct KVValue
     {
-        public readonly KVValueType Type { get; }
+        public readonly KVValueType Type { get; } = KVValueType.Null;
         public readonly KVFlag Flag { get; }
-        public readonly object Value { get; }
+        public readonly object Value { get; } = null;
 
         public KVValue(KVValueType type, object value)
         {
