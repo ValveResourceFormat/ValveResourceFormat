@@ -1017,13 +1017,7 @@ namespace ValveResourceFormat.ResourceTypes
         public static KVValue MakeValue(KVType type, object data, KVFlag flag = KVFlag.None)
         {
             var realType = ConvertBinaryOnlyKVType(type);
-
-            if (flag != KVFlag.None)
-            {
-                return new KVFlaggedValue(realType, flag, data);
-            }
-
-            return new KVValue(realType, data);
+            return new KVValue(realType, flag, data);
         }
 
 #pragma warning disable CA1024 // Use properties where appropriate

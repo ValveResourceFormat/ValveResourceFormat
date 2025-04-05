@@ -266,7 +266,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
                 parser.StateStack.Pop();
 
                 //Can directly be added
-                parser.ObjStack.Peek().AddProperty(parser.CurrentName, new KVValue(KVType.NULL, null));
+                parser.ObjStack.Peek().AddProperty(parser.CurrentName, null);
 
                 //Skip next characters
                 SkipChars(parser, "null".Length - 1);
@@ -504,7 +504,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
                 };
                 //If flagged value is in the array, it needs to include a comma
                 var end = parser.StateStack.Peek() == State.VALUE_ARRAY ? 2 : 1;
-                parser.ObjStack.Peek().AddProperty(parser.CurrentName, new KVFlaggedValue(KVType.STRING, flag, strings[1][1..^end]));
+                parser.ObjStack.Peek().AddProperty(parser.CurrentName, new KVValue(KVType.STRING, flag, strings[1][1..^end]));
                 return;
             }
 

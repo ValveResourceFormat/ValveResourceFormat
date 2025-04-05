@@ -113,7 +113,7 @@ namespace ValveResourceFormat.ResourceTypes
                 {
                     if (offset == 0)
                     {
-                        structEntry.AddProperty(field.FieldName, new KVValue(KVType.NULL, null)); // :shrug:
+                        structEntry.AddProperty(field.FieldName, null); // :shrug:
 
                         return;
                     }
@@ -139,7 +139,7 @@ namespace ValveResourceFormat.ResourceTypes
                 }
             }
 
-            KVValue fieldValue = null;
+            KVValue fieldValue;
 
             if (field.Count > 0 || indirection == SchemaIndirectionType.ResourceArray)
             {
@@ -229,7 +229,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                     if (value == null)
                     {
-                        return BinaryKV3.MakeValue(KVType.NULL, null);
+                        return new KVValue(KVType.NULL, null);
                     }
 
                     return BinaryKV3.MakeValue(KVType.STRING, value, KVFlag.ResourceName);

@@ -54,7 +54,7 @@ namespace Tests
                 Assert.That(properties["stringValue"].Value, Is.EqualTo("hello world"));
 
                 //Do special test for flagged value
-                var flagValue = properties["stringThatIsAResourceReference"] as KVFlaggedValue;
+                var flagValue = properties["stringThatIsAResourceReference"];
                 Assert.That(flagValue.Value, Is.EqualTo("particles/items3_fx/star_emblem.vpcf"));
                 Assert.That(flagValue.Flag, Is.EqualTo(KVFlag.Resource));
 

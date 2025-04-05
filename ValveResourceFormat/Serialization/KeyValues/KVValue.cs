@@ -1,4 +1,3 @@
-using System.Collections;
 using System.Globalization;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -38,12 +37,26 @@ namespace ValveResourceFormat.Serialization.KeyValues
         ARRAY_TYPE_AUXILIARY_BUFFER = 25,
     }
 
+#pragma warning disable CA1028 // Enum Storage should be Int32
+    public enum KVFlag : byte
+#pragma warning restore CA1028
+    {
+        None = 0,
+        Resource = 1,
+        ResourceName = 2,
+        Panorama = 3,
+        SoundEvent = 4,
+        SubClass = 5,
+        // March 2023: There are more types available in the S2 binaries, but they should not be persisted.
+    }
+
     /// <summary>
-    /// Class to hold type + value
+    /// Structure to hold type + flag + value
     /// </summary>
-    public class KVValue
+    public struct KVValue
     {
         public KVType Type { get; private set; }
+        public KVFlag Flag { get; private set; }
         public object Value { get; private set; }
 
         public KVValue(KVType type, object value)
@@ -52,17 +65,22 @@ namespace ValveResourceFormat.Serialization.KeyValues
             Value = value;
         }
 
+        public KVValue(KVType type, KVFlag flag, object value)
+        {
+            Type = type;
+            Flag = flag;
+            Value = value;
+        }
+
         public KVValue(object value)
         {
-            if (value is KVFlaggedValue fv)
-            {
-                Type = fv.Type;
-                Value = fv.Value;
-            }
-            else if (value is KVValue v)
+            if (value is KVValue v)
             {
                 Type = v.Type;
                 Value = v.Value;
+                // note: we remove the flag for decompilation purposes
+                // we should not be hitting this path when parsing from binary resources
+                Flag = KVFlag.None;
             }
             else if (value is Vector3 vec3)
             {
@@ -81,6 +99,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
                     float => KVType.FLOAT,
                     double => KVType.DOUBLE,
                     KVObject kv => kv.IsArray ? KVType.ARRAY : KVType.OBJECT,
+                    null => KVType.NULL,
                     _ => throw new NotImplementedException()
                 };
                 Value = value;
@@ -101,9 +120,9 @@ namespace ValveResourceFormat.Serialization.KeyValues
         //Print a value in the correct representation
         public void PrintValue(IndentedTextWriter writer)
         {
-            if (this is KVFlaggedValue flagValue)
+            if (Flag != KVFlag.None)
             {
-                switch (flagValue.Flag)
+                switch (Flag)
                 {
                     case KVFlag.Resource:
                         writer.Write("resource:");
@@ -121,7 +140,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
                         writer.Write("subclass:");
                         break;
                     default:
-                        throw new InvalidOperationException($"Trying to print unknown keyvalues flag ({flagValue.Flag})");
+                        throw new InvalidOperationException($"Trying to print unknown keyvalues flag ({Flag})");
                 }
             }
 
