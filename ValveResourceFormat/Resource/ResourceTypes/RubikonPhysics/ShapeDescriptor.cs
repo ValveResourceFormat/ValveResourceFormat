@@ -1,6 +1,5 @@
 using System.IO;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes;
-using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes.RubikonPhysics

@@ -1,6 +1,6 @@
 using GUI.Utils;
 using ValveResourceFormat;
-using ValveResourceFormat.Serialization;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace GUI.Types.ParticleRenderer
 {
@@ -250,7 +250,7 @@ namespace GUI.Types.ParticleRenderer
      * 		m_flNoiseOutputMin = 0.000000
 			m_flNoiseOutputMax = 1.000000
 			m_flNoiseScale = 0.100000
-			m_vecNoiseOffsetRate = 
+			m_vecNoiseOffsetRate =
 			[
 				0.000000,
 				0.000000,

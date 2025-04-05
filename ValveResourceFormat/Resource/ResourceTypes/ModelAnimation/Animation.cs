@@ -2,7 +2,6 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders;
 using ValveResourceFormat.ResourceTypes.ModelFlex;
-using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation

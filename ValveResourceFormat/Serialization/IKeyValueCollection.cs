@@ -3,9 +3,8 @@ using System.Linq;
 using System.Text;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.Serialization.KeyValues;
 
-namespace ValveResourceFormat.Serialization
+namespace ValveResourceFormat.Serialization.KeyValues
 {
     public static class ResourceDataExtensions
     {

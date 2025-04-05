@@ -3,7 +3,6 @@ using System.Linq;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes.ModelFlex;
 using ValveResourceFormat.ResourceTypes.ModelFlex.FlexOps;
-using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes

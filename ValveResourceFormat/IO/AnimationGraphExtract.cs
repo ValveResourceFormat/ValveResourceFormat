@@ -2,7 +2,6 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Serialization.KeyValues;
 using static ValveResourceFormat.IO.KVHelpers;
 namespace ValveResourceFormat.IO;
