@@ -85,7 +85,7 @@ namespace ValveResourceFormat.ResourceTypes
         public string ToValvePostProcessing(bool preloadLookupTable = false, string lutFileName = "")
         {
             var outKV3 = new KVObject(null);
-            outKV3.AddProperty("_class", new KVValue(KVType.STRING, "CPostProcessData"));
+            outKV3.AddProperty("_class", "CPostProcessData");
 
             var layers = new KVObject("m_layers", isArray: true);
 
@@ -98,44 +98,44 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 var tonemappingLayer = new KVObject(null);
                 {
-                    tonemappingLayer.AddProperty("_class", new KVValue(KVType.STRING, "CToneMappingLayer"));
-                    tonemappingLayer.AddProperty("m_name", new KVValue(KVType.STRING, "Tone Mapping"));
-                    tonemappingLayer.AddProperty("m_nOpacityPercent", new KVValue(KVType.INT64, 100));
-                    tonemappingLayer.AddProperty("m_bVisible", new KVValue(KVType.BOOLEAN, true));
+                    tonemappingLayer.AddProperty("_class", "CToneMappingLayer");
+                    tonemappingLayer.AddProperty("m_name", "Tone Mapping");
+                    tonemappingLayer.AddProperty("m_nOpacityPercent", 100);
+                    tonemappingLayer.AddProperty("m_bVisible", true);
                     tonemappingLayer.AddProperty("m_pLayerMask", new KVValue(KVType.NULL, null));
 
                     var tonemappingLayerParams = new KVObject("m_params");
-                    foreach (var kv in ((KVObject)tonemapParams).Properties)
+                    foreach (var kv in tonemapParams.Properties)
                     {
                         tonemappingLayerParams.AddProperty(kv.Key, kv.Value);
                     }
 
-                    tonemappingLayer.AddProperty(tonemappingLayerParams.Key, new KVValue(KVType.OBJECT, tonemappingLayerParams));
+                    tonemappingLayer.AddProperty(tonemappingLayerParams.Key, tonemappingLayerParams);
                 }
 
-                layers.AddProperty("", new KVValue(KVType.OBJECT, tonemappingLayer));
+                layers.AddItem(tonemappingLayer);
             }
 
             if (bloomParams != null)
             {
                 var bloomLayer = new KVObject(null);
                 {
-                    bloomLayer.AddProperty("_class", new KVValue(KVType.STRING, "CBloomLayer"));
-                    bloomLayer.AddProperty("m_name", new KVValue(KVType.STRING, "Bloom"));
-                    bloomLayer.AddProperty("m_nOpacityPercent", new KVValue(KVType.INT64, 100));
-                    bloomLayer.AddProperty("m_bVisible", new KVValue(KVType.BOOLEAN, true));
+                    bloomLayer.AddProperty("_class", "CBloomLayer");
+                    bloomLayer.AddProperty("m_name", "Bloom");
+                    bloomLayer.AddProperty("m_nOpacityPercent", 100);
+                    bloomLayer.AddProperty("m_bVisible", true);
                     bloomLayer.AddProperty("m_pLayerMask", new KVValue(KVType.NULL, null));
 
                     var bloomLayerParams = new KVObject("m_params");
-                    foreach (var kv in ((KVObject)bloomParams).Properties)
+                    foreach (var kv in bloomParams.Properties)
                     {
                         bloomLayerParams.AddProperty(kv.Key, kv.Value);
                     }
 
-                    bloomLayer.AddProperty(bloomLayerParams.Key, new KVValue(KVType.OBJECT, bloomLayerParams));
+                    bloomLayer.AddProperty(bloomLayerParams.Key, bloomLayerParams);
                 }
 
-                layers.AddProperty("", new KVValue(KVType.OBJECT, bloomLayer));
+                layers.AddItem(bloomLayer);
             }
 
             if (vignetteParams != null)
@@ -153,12 +153,12 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 var ccLayer = new KVObject(null);
                 {
-                    ccLayer.AddProperty("_class", new KVValue(KVType.STRING, "CColorLookupColorCorrectionLayer"));
-                    ccLayer.AddProperty("m_name", new KVValue(KVType.STRING, "VRF Extracted Lookup Table"));
-                    ccLayer.AddProperty("m_nOpacityPercent", new KVValue(KVType.INT64, 100));
-                    ccLayer.AddProperty("m_bVisible", new KVValue(KVType.BOOLEAN, true));
+                    ccLayer.AddProperty("_class", "CColorLookupColorCorrectionLayer");
+                    ccLayer.AddProperty("m_name", "VRF Extracted Lookup Table");
+                    ccLayer.AddProperty("m_nOpacityPercent", 100);
+                    ccLayer.AddProperty("m_bVisible", true);
                     ccLayer.AddProperty("m_pLayerMask", new KVValue(KVType.NULL, null));
-                    ccLayer.AddProperty("m_fileName", new KVValue(KVType.STRING, lutFileName));
+                    ccLayer.AddProperty("m_fileName", lutFileName);
 
                     var lut = new KVObject("m_lut", isArray: true);
 
@@ -166,18 +166,18 @@ namespace ValveResourceFormat.ResourceTypes
                     {
                         foreach (var b in GetRAWData())
                         {
-                            lut.AddProperty("", new KVValue(KVType.DOUBLE, b / 255d));
+                            lut.AddItem(b / 255d);
                         }
                     }
 
-                    ccLayer.AddProperty(lut.Key, new KVValue(KVType.ARRAY, lut));
-                    ccLayer.AddProperty("m_nDim", new KVValue(KVType.INT64, GetColorCorrectionLUTDimension()));
+                    ccLayer.AddProperty(lut.Key, lut);
+                    ccLayer.AddProperty("m_nDim", GetColorCorrectionLUTDimension());
                 }
 
-                layers.AddProperty("", new KVValue(KVType.OBJECT, ccLayer));
+                layers.AddItem(ccLayer);
             }
 
-            outKV3.AddProperty(layers.Key, new KVValue(KVType.ARRAY, layers));
+            outKV3.AddProperty(layers.Key, layers);
 
             return new KV3File(outKV3).ToString();
         }

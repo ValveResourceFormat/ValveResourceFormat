@@ -17,16 +17,16 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
         public KVObject ToKeyValues()
         {
             var kv = new KVObject(null);
-            kv.AddProperty("name", new KVValue(KVType.STRING, Name));
+            kv.AddProperty("name", Name);
 
             var channels = new KVObject(null, isArray: true);
             foreach (var channel in Channels)
             {
-                channels.AddProperty(null, new KVValue(KVType.OBJECT, channel.ToKeyValues()));
+                channels.AddItem(channel.ToKeyValues());
             }
-            kv.AddProperty("channels", new KVValue(KVType.ARRAY, channels));
 
-            kv.AddProperty("active", new KVValue(KVType.BOOLEAN, IsActive));
+            kv.AddProperty("channels", channels);
+            kv.AddProperty("active", IsActive);
 
             return kv;
         }

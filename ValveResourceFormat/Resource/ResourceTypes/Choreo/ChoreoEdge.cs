@@ -19,7 +19,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
             var kv = new KVObject(null);
 
             kv.AddProperty("type", CurveType.ToKeyValue());
-            kv.AddProperty("zero_value", new KVValue(KVType.FLOAT, ZeroValue));
+            kv.AddProperty("zero_value", ZeroValue);
 
             return kv;
         }

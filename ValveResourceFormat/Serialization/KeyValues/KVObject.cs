@@ -71,7 +71,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
             AddProperty(name, new KVValue(value));
         }
 
-        internal void AddItem(KVObject item)
+        internal void AddItem(object item)
         {
             Debug.Assert(IsArray);
             AddProperty(null, item);

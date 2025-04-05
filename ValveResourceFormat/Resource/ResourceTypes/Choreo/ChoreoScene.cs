@@ -34,9 +34,10 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
                 var events = new KVObject(null, isArray: true);
                 foreach (var choreoEvent in Events)
                 {
-                    events.AddProperty(null, new KVValue(KVType.OBJECT, choreoEvent.ToKeyValues()));
+                    events.AddProperty(null, choreoEvent.ToKeyValues());
                 }
-                kv.AddProperty("events", new KVValue(KVType.ARRAY, events));
+
+                kv.AddProperty("events", events);
             }
 
             if (Actors.Length > 0)
@@ -44,25 +45,26 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
                 var actors = new KVObject(null, isArray: true);
                 foreach (var actor in Actors)
                 {
-                    actors.AddProperty(null, new KVValue(KVType.OBJECT, actor.ToKeyValues()));
+                    actors.AddItem(actor.ToKeyValues());
                 }
-                kv.AddProperty("actors", new KVValue(KVType.ARRAY, actors));
+
+                kv.AddProperty("actors", actors);
             }
 
             if (Ramp?.LeftEdge != null)
             {
-                kv.AddProperty("left_edge", new KVValue(KVType.OBJECT, Ramp.LeftEdge.ToKeyValues()));
+                kv.AddProperty("left_edge", Ramp.LeftEdge.ToKeyValues());
             }
             if (Ramp?.RightEdge != null)
             {
-                kv.AddProperty("right_edge", new KVValue(KVType.OBJECT, Ramp.RightEdge.ToKeyValues()));
+                kv.AddProperty("right_edge", Ramp.RightEdge.ToKeyValues());
             }
             if (Ramp.Samples.Length > 0)
             {
-                kv.AddProperty("scene_ramp", new KVValue(KVType.OBJECT, Ramp.ToKeyValues()));
+                kv.AddProperty("scene_ramp", Ramp.ToKeyValues());
             }
 
-            kv.AddProperty("ignorePhonemes", new KVValue(KVType.BOOLEAN, IgnorePhonemes));
+            kv.AddProperty("ignorePhonemes", IgnorePhonemes);
 
             return kv;
         }
