@@ -64,6 +64,7 @@ namespace GUI.Types.Renderer
         private int SelectedCubeFace;
         private bool VisualizeTiling;
         private ChannelMapping SelectedChannels = ChannelMapping.RGB;
+        private Filtering SelectedFiltering = Filtering.Point;
         private ChannelSplitting ChannelSplitMode;
         private CubemapProjection CubemapProjectionType;
         private TextureCodec decodeFlags;
@@ -394,16 +395,21 @@ namespace GUI.Types.Renderer
 
             channelsComboBox.SelectedIndex = DefaultSelection;
 
-            var samplingComboBox = AddSelection("Sampling", (name, index) => SetTextureFiltering((Filtering)index));
+            var samplingComboBox = AddSelection("Sampling", (name, index) =>
+            {
+                SelectedFiltering = (Filtering)index;
+                SetTextureFiltering();
+            });
+
             samplingComboBox.Items.AddRange(Enum.GetNames<Filtering>());
             samplingComboBox.SelectedIndex = 0;
         }
 
-        private void SetTextureFiltering(Filtering value)
+        private void SetTextureFiltering()
         {
             if (texture != null)
             {
-                var (min, mag) = value switch
+                var (min, mag) = SelectedFiltering switch
                 {
                     Filtering.Point => (TextureMinFilter.NearestMipmapNearest, TextureMagFilter.Nearest),
                     Filtering.Linear => (TextureMinFilter.LinearMipmapNearest, TextureMagFilter.Linear),
@@ -411,7 +417,6 @@ namespace GUI.Types.Renderer
                 };
 
                 texture.SetFiltering(min, mag);
-                InvalidateRender();
             }
         }
 
@@ -799,7 +804,7 @@ namespace GUI.Types.Renderer
             }
 
             texture.SetWrapMode(TextureWrapMode.ClampToEdge);
-            SetTextureFiltering(Filtering.Point);
+            SetTextureFiltering();
 
             if (Svg == null)
             {
@@ -1014,6 +1019,7 @@ namespace GUI.Types.Renderer
                     ChannelSplitMode
                 ),
                 decodeFlags,
+                SelectedFiltering,
                 VisualizeTiling,
                 ShowLightBackground,
                 MainFramebuffer.Width,
