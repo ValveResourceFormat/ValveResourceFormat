@@ -21,11 +21,11 @@ namespace ValveResourceFormat.Serialization.KeyValues
     /// <summary>
     /// Structure to hold type + flag + value
     /// </summary>
-    public struct KVValue
+    public readonly struct KVValue
     {
-        public KVValueType Type { get; private set; }
-        public KVFlag Flag { get; private set; }
-        public object Value { get; private set; }
+        public readonly KVValueType Type { get; }
+        public readonly KVFlag Flag { get; }
+        public readonly object Value { get; }
 
         public KVValue(KVValueType type, object value)
         {
