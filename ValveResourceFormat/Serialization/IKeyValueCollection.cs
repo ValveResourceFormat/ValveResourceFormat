@@ -3,6 +3,7 @@ using System.Linq;
 using System.Text;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes;
+using KVValueType = ValveKeyValue.KVValueType;
 
 namespace ValveResourceFormat.Serialization.KeyValues
 {
@@ -166,7 +167,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
         }
 
         public static bool IsNotBlobType(this KVObject collection, string key)
-            => collection.Properties[key].Type == KVType.ARRAY;
+            => collection.Properties[key].Type == KVValueType.Array;
 
         public static Vector2 ToVector2(this KVObject collection) => new(
             collection.GetFloatProperty("0"),

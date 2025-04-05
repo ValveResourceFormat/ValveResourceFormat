@@ -1,6 +1,7 @@
 using System.IO;
 using System.Linq;
 using NUnit.Framework;
+using ValveKeyValue;
 using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -35,7 +36,7 @@ namespace Tests
             Assert.That(classname, Is.Not.Null);
             Assert.Multiple(() =>
             {
-                Assert.That(classname.Type, Is.EqualTo(KVType.STRING));
+                Assert.That(classname.Type, Is.EqualTo(KVValueType.String));
                 Assert.That(classname.Value, Is.EqualTo("worldspawn"));
             });
 

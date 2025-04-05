@@ -1,42 +1,10 @@
 using System.Globalization;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using KVValueType = ValveKeyValue.KVValueType;
 
 namespace ValveResourceFormat.Serialization.KeyValues
 {
-    //Different type of value blocks for KeyValues (All in use for KV3)
-#pragma warning disable CA1028 // Enum Storage should be Int32
-    public enum KVType : byte
-#pragma warning restore CA1028
-    {
-        STRING_MULTI = 0, // STRING_MULTI doesn't have an ID
-        NULL = 1,
-        BOOLEAN = 2,
-        INT64 = 3,
-        UINT64 = 4,
-        DOUBLE = 5,
-        STRING = 6,
-        BINARY_BLOB = 7,
-        ARRAY = 8,
-        OBJECT = 9,
-        ARRAY_TYPED = 10,
-        INT32 = 11,
-        UINT32 = 12,
-        BOOLEAN_TRUE = 13,
-        BOOLEAN_FALSE = 14,
-        INT64_ZERO = 15,
-        INT64_ONE = 16,
-        DOUBLE_ZERO = 17,
-        DOUBLE_ONE = 18,
-        FLOAT = 19,
-        INT16 = 20,
-        UINT16 = 21,
-        UNKNOWN_22 = 22,
-        INT32_AS_BYTE = 23,
-        ARRAY_TYPE_BYTE_LENGTH = 24,
-        ARRAY_TYPE_AUXILIARY_BUFFER = 25,
-    }
-
 #pragma warning disable CA1028 // Enum Storage should be Int32
     public enum KVFlag : byte
 #pragma warning restore CA1028
@@ -55,17 +23,17 @@ namespace ValveResourceFormat.Serialization.KeyValues
     /// </summary>
     public struct KVValue
     {
-        public KVType Type { get; private set; }
+        public KVValueType Type { get; private set; }
         public KVFlag Flag { get; private set; }
         public object Value { get; private set; }
 
-        public KVValue(KVType type, object value)
+        public KVValue(KVValueType type, object value)
         {
             Type = type;
             Value = value;
         }
 
-        public KVValue(KVType type, KVFlag flag, object value)
+        public KVValue(KVValueType type, KVFlag flag, object value)
         {
             Type = type;
             Flag = flag;
@@ -84,22 +52,22 @@ namespace ValveResourceFormat.Serialization.KeyValues
             }
             else if (value is Vector3 vec3)
             {
-                Type = KVType.ARRAY;
+                Type = KVValueType.Array;
                 Value = MakeArray([vec3.X, vec3.Y, vec3.Z]).Value;
             }
             else
             {
                 Type = value switch
                 {
-                    string => KVType.STRING,
-                    bool => KVType.BOOLEAN,
-                    int => KVType.INT32,
-                    uint => KVType.UINT32,
-                    long => KVType.INT64,
-                    float => KVType.FLOAT,
-                    double => KVType.DOUBLE,
-                    KVObject kv => kv.IsArray ? KVType.ARRAY : KVType.OBJECT,
-                    null => KVType.NULL,
+                    string => KVValueType.String,
+                    bool => KVValueType.Boolean,
+                    int => KVValueType.Int32,
+                    uint => KVValueType.UInt32,
+                    long => KVValueType.Int64,
+                    float => KVValueType.FloatingPoint,
+                    double => KVValueType.FloatingPoint64,
+                    KVObject kv => kv.IsArray ? KVValueType.Array : KVValueType.Collection,
+                    null => KVValueType.Null,
                     _ => throw new NotImplementedException()
                 };
                 Value = value;
@@ -114,7 +82,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
                 list.AddProperty(null, new KVValue(value));
             }
 
-            return new KVValue(KVType.ARRAY, list);
+            return new KVValue(KVValueType.Array, list);
         }
 
         //Print a value in the correct representation
@@ -146,51 +114,60 @@ namespace ValveResourceFormat.Serialization.KeyValues
 
             switch (Type)
             {
-                case KVType.OBJECT:
-                case KVType.ARRAY:
+                case KVValueType.Collection:
+                case KVValueType.Array:
                     ((KVObject)Value).Serialize(writer);
                     break;
-                case KVType.STRING:
-                    writer.Write("\"");
-                    writer.Write(EscapeUnescaped((string)Value, '"'));
-                    writer.Write("\"");
-                    break;
-                case KVType.STRING_MULTI:
-                    writer.Write("\"\"\"\n");
-                    writer.Write((string)Value);
-                    writer.Write("\n\"\"\"");
-                    break;
-                case KVType.BOOLEAN:
+                case KVValueType.String:
+                    {
+                        var text = (string)Value;
+                        var isMultiline = text.Contains('\n', StringComparison.Ordinal);
+
+                        if (isMultiline)
+                        {
+                            writer.Write("\"\"\"\n");
+                            writer.Write(text);
+                            writer.Write("\n\"\"\"");
+                        }
+                        else
+                        {
+                            writer.Write("\"");
+                            writer.Write(EscapeUnescaped(text, '"'));
+                            writer.Write("\"");
+                        }
+                        break;
+                    }
+                case KVValueType.Boolean:
                     writer.Write((bool)Value ? "true" : "false");
                     break;
-                case KVType.FLOAT:
+                case KVValueType.FloatingPoint:
                     writer.Write(Convert.ToSingle(Value, CultureInfo.InvariantCulture).ToString("#0.000000", CultureInfo.InvariantCulture));
                     break;
-                case KVType.DOUBLE:
+                case KVValueType.FloatingPoint64:
                     writer.Write(Convert.ToDouble(Value, CultureInfo.InvariantCulture).ToString("#0.000000", CultureInfo.InvariantCulture));
                     break;
-                case KVType.INT64:
+                case KVValueType.Int64:
                     writer.Write(Convert.ToInt64(Value, CultureInfo.InvariantCulture));
                     break;
-                case KVType.UINT64:
+                case KVValueType.UInt64:
                     writer.Write(Convert.ToUInt64(Value, CultureInfo.InvariantCulture));
                     break;
-                case KVType.INT32:
+                case KVValueType.Int32:
                     writer.Write(Convert.ToInt32(Value, CultureInfo.InvariantCulture));
                     break;
-                case KVType.UINT32:
+                case KVValueType.UInt32:
                     writer.Write(Convert.ToUInt32(Value, CultureInfo.InvariantCulture));
                     break;
-                case KVType.INT16:
+                case KVValueType.Int16:
                     writer.Write(Convert.ToInt16(Value, CultureInfo.InvariantCulture));
                     break;
-                case KVType.UINT16:
+                case KVValueType.UInt16:
                     writer.Write(Convert.ToUInt16(Value, CultureInfo.InvariantCulture));
                     break;
-                case KVType.NULL:
+                case KVValueType.Null:
                     writer.Write("null");
                     break;
-                case KVType.BINARY_BLOB:
+                case KVValueType.BinaryBlob:
                     var byteArray = (byte[])Value;
                     var count = 0;
 

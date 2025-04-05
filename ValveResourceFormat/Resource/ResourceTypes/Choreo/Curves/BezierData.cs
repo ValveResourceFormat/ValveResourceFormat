@@ -36,7 +36,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Curves
             outKV.AddProperty("weight", OutWeight);
             kv.AddProperty("out", outKV);
 
-            return new KVValue(KVType.OBJECT, kv);
+            return new KVValue(ValveKeyValue.KVValueType.Collection, kv);
         }
     }
 }
