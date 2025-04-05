@@ -3,7 +3,6 @@ using System.Linq;
 using GUI.Types.ParticleRenderer;
 using GUI.Utils;
 using ValveResourceFormat;
-using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Serialization.KeyValues;
 
 record struct ParticleDefinitionParser(KVObject Data)

@@ -4,7 +4,7 @@ using ValveResourceFormat.IO.ContentFormats.DmxModel;
 using ValveResourceFormat.IO.ContentFormats.ValveMap;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics;
 using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.Serialization;
+using ValveResourceFormat.Serialization.KeyValues;
 
 #nullable enable
 using HalfEdgeSlim = (int SrcVertexId, int DstVertexId);

@@ -1,7 +1,6 @@
 using System.IO;
 using System.Linq;
 using System.Security;
-using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes

@@ -2,8 +2,8 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
-using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Serialization.KeyValues;
+using KVValueType = ValveKeyValue.KVValueType;
 
 namespace ValveResourceFormat.ResourceTypes
 {
@@ -117,7 +117,7 @@ namespace ValveResourceFormat.ResourceTypes
 
         private static void ReadValues(Entity entity, KVValue values)
         {
-            if (values.Type != KVType.OBJECT)
+            if (values.Type != KVValueType.Collection)
             {
                 throw new UnexpectedMagicException("Unsupported entity data values type", (int)values.Type, nameof(values.Type));
             }
@@ -157,15 +157,15 @@ namespace ValveResourceFormat.ResourceTypes
 
                 var (kvType, valueObject) = type switch
                 {
-                    EntityFieldType.Boolean => (KVType.BOOLEAN, (object)dataReader.ReadBoolean()),
-                    EntityFieldType.Float => (KVType.DOUBLE, (double)dataReader.ReadSingle()),
-                    EntityFieldType.Float64 => (KVType.DOUBLE, dataReader.ReadDouble()),
-                    EntityFieldType.Color32 => (KVType.ARRAY, new KVObject("", dataReader.ReadBytes(4).Select(c => new KVValue(KVType.INT64, c)).ToArray())),
-                    EntityFieldType.Integer => (KVType.INT64, (long)dataReader.ReadInt32()),
-                    EntityFieldType.UInt => (KVType.UINT64, (ulong)dataReader.ReadUInt32()),
-                    EntityFieldType.Integer64 => (KVType.UINT64, dataReader.ReadUInt64()), // Is this supposed to be ReadInt64?
-                    EntityFieldType.Vector or EntityFieldType.QAngle => (KVType.STRING, $"{dataReader.ReadSingle()} {dataReader.ReadSingle()} {dataReader.ReadSingle()}"),
-                    EntityFieldType.CString => (KVType.STRING, dataReader.ReadNullTermString(Encoding.UTF8)),
+                    EntityFieldType.Boolean => (KVValueType.Boolean, (object)dataReader.ReadBoolean()),
+                    EntityFieldType.Float => (KVValueType.FloatingPoint64, (double)dataReader.ReadSingle()),
+                    EntityFieldType.Float64 => (KVValueType.FloatingPoint64, dataReader.ReadDouble()),
+                    EntityFieldType.Color32 => (KVValueType.Array, new KVObject("", dataReader.ReadBytes(4).Select(c => new KVValue(KVValueType.Int64, c)).ToArray())),
+                    EntityFieldType.Integer => (KVValueType.Int64, (long)dataReader.ReadInt32()),
+                    EntityFieldType.UInt => (KVValueType.UInt64, (ulong)dataReader.ReadUInt32()),
+                    EntityFieldType.Integer64 => (KVValueType.UInt64, dataReader.ReadUInt64()), // Is this supposed to be ReadInt64?
+                    EntityFieldType.Vector or EntityFieldType.QAngle => (KVValueType.String, $"{dataReader.ReadSingle()} {dataReader.ReadSingle()} {dataReader.ReadSingle()}"),
+                    EntityFieldType.CString => (KVValueType.String, dataReader.ReadNullTermString(Encoding.UTF8)),
                     _ => throw new UnexpectedMagicException("Unknown type", (int)type, nameof(type)),
                 };
 
@@ -299,7 +299,7 @@ namespace ValveResourceFormat.ResourceTypes
         public string ToForgeGameData()
         {
             var knownKeys = StringToken.InvertedTable;
-            var uniqueEntityProperties = new Dictionary<string, HashSet<(string Name, KVType Type)>>();
+            var uniqueEntityProperties = new Dictionary<string, HashSet<(string Name, KVValueType Type)>>();
             var uniqueEntityConnections = new Dictionary<string, HashSet<string>>();
             var brushEntities = new HashSet<string>();
 
@@ -377,10 +377,10 @@ namespace ValveResourceFormat.ResourceTypes
                 {
                     var type = property.Type switch
                     {
-                        KVType.DOUBLE => "float",
-                        KVType.INT64 or KVType.UINT64 => "integer",
-                        KVType.ARRAY => "vector", // sometimes also "color255", but with kv3 entities this information is lost
-                        KVType.STRING => "string",
+                        KVValueType.FloatingPoint64 => "float",
+                        KVValueType.Int64 or KVValueType.UInt64 => "integer",
+                        KVValueType.Array => "vector", // sometimes also "color255", but with kv3 entities this information is lost
+                        KVValueType.String => "string",
                         _ => property.Type.ToString().ToLowerInvariant()
                     };
 

@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using System.Text;
+using KVValueType = ValveKeyValue.KVValueType;
 
 namespace ValveResourceFormat.Serialization.KeyValues
 {
@@ -107,7 +108,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
             {
                 WriteKey(writer, pair.Key);
 
-                pair.Value.PrintValue(writer);
+                KV3TextSerializer.WriteValue(pair.Value, writer);
 
 #if DEBUG_ADD_KV_TYPE_COMMENTS
                 writer.Write($" // {pair.Value.Type}");
@@ -130,7 +131,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
             for (var i = 0; i < Count; i++)
             {
                 var value = Properties[i.ToString(CultureInfo.InvariantCulture)];
-                value.PrintValue(writer);
+                KV3TextSerializer.WriteValue(value, writer);
 
 #if DEBUG_ADD_KV_TYPE_COMMENTS
                 writer.WriteLine($", // {value.Type}");
@@ -252,7 +253,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
         {
             if (Properties.TryGetValue(name, out var value))
             {
-                if (value.Type == KVType.OBJECT && value.Value is KVObject kvObject && kvObject.IsArray)
+                if (value.Type == KVValueType.Collection && value.Value is KVObject kvObject && kvObject.IsArray)
                 {
                     var properties = new List<T>(capacity: kvObject.Count);
                     var index = 0;
@@ -266,7 +267,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
                     return [.. properties];
                 }
 
-                if (value.Type == KVType.BINARY_BLOB)
+                if (value.Type == KVValueType.BinaryBlob)
                 {
                     if (typeof(T) == typeof(byte))
                     {
@@ -276,7 +277,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
                     return ((byte[])value.Value).Cast<T>().ToArray();
                 }
 
-                if (value.Type != KVType.ARRAY && value.Type != KVType.ARRAY_TYPED)
+                if (value.Type != KVValueType.Array) // && value.Type != KV3BinaryNodeType.ARRAY_TYPED)
                 {
                     throw new InvalidOperationException($"Tried to cast non-array property {name} to array. Actual type: {value.Type}");
                 }
@@ -286,7 +287,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
                 {
                     return ((KVObject)value.Value).Properties.Values.Select(static (v) =>
                     {
-                        return v.Type == KVType.FLOAT ? (double)(float)v.Value : (double)v.Value;
+                        return v.Type == KVValueType.FloatingPoint ? (double)(float)v.Value : (double)v.Value;
                     }).Cast<T>().ToArray();
                 }
 
@@ -345,7 +346,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
             {
                 readonly string Key;
                 readonly object Value;
-                readonly KVType Type;
+                readonly KVValueType Type;
 
                 [DebuggerBrowsable(DebuggerBrowsableState.Never)]
                 readonly string ValueDebugRepresentation;

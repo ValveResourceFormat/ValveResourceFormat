@@ -1,6 +1,5 @@
 using System.IO;
 using System.Text;
-using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs

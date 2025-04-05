@@ -2,6 +2,7 @@ using System.IO;
 using System.Text;
 using NUnit.Framework;
 using ValveResourceFormat.Serialization.KeyValues;
+using KVValueType = ValveKeyValue.KVValueType;
 
 namespace Tests
 {
@@ -40,25 +41,25 @@ namespace Tests
 
                 var properties = file.Root.Properties;
 
-                Assert.That(properties["boolValue"].Type, Is.EqualTo(KVType.BOOLEAN));
+                Assert.That(properties["boolValue"].Type, Is.EqualTo(KVValueType.Boolean));
                 Assert.That(properties["boolValue"].Value, Is.EqualTo(false));
-                Assert.That(properties["intValue"].Type, Is.EqualTo(KVType.INT64));
+                Assert.That(properties["intValue"].Type, Is.EqualTo(KVValueType.Int64));
                 Assert.That(properties["intValue"].Value, Is.EqualTo((long)128));
-                Assert.That(properties["doubleValue"].Type, Is.EqualTo(KVType.DOUBLE));
+                Assert.That(properties["doubleValue"].Type, Is.EqualTo(KVValueType.FloatingPoint64));
                 Assert.That(properties["doubleValue"].Value, Is.EqualTo(64.000000));
-                Assert.That(properties["negativeIntValue"].Type, Is.EqualTo(KVType.INT64));
+                Assert.That(properties["negativeIntValue"].Type, Is.EqualTo(KVValueType.Int64));
                 Assert.That(properties["negativeIntValue"].Value, Is.EqualTo((long)-1337));
-                Assert.That(properties["negativeDoubleValue"].Type, Is.EqualTo(KVType.DOUBLE));
+                Assert.That(properties["negativeDoubleValue"].Type, Is.EqualTo(KVValueType.FloatingPoint64));
                 Assert.That(properties["negativeDoubleValue"].Value, Is.EqualTo(-0.133700));
-                Assert.That(properties["stringValue"].Type, Is.EqualTo(KVType.STRING));
+                Assert.That(properties["stringValue"].Type, Is.EqualTo(KVValueType.String));
                 Assert.That(properties["stringValue"].Value, Is.EqualTo("hello world"));
 
                 //Do special test for flagged value
-                var flagValue = properties["stringThatIsAResourceReference"] as KVFlaggedValue;
+                var flagValue = properties["stringThatIsAResourceReference"];
                 Assert.That(flagValue.Value, Is.EqualTo("particles/items3_fx/star_emblem.vpcf"));
                 Assert.That(flagValue.Flag, Is.EqualTo(KVFlag.Resource));
 
-                Assert.That(properties["arrayValue"].Type, Is.EqualTo(KVType.ARRAY));
+                Assert.That(properties["arrayValue"].Type, Is.EqualTo(KVValueType.Array));
                 var arrayValue = properties["arrayValue"].Value as KVObject;
                 Assert.That(arrayValue.Properties["0"].Value, Is.EqualTo((long)1));
                 Assert.That(arrayValue.Properties["1"].Value, Is.EqualTo((long)2));
@@ -66,7 +67,7 @@ namespace Tests
                 Assert.That(arrayValue.Properties["3"].Value, Is.EqualTo("hud/abilities/haze/haze_sleep_dagger.psd"));
                 Assert.That(arrayValue.Properties["4"].Value, Is.EqualTo("hello world"));
 
-                Assert.That(properties["objectValue"].Type, Is.EqualTo(KVType.OBJECT));
+                Assert.That(properties["objectValue"].Type, Is.EqualTo(KVValueType.Collection));
                 var objectValue = properties["objectValue"].Value as KVObject;
                 Assert.That(objectValue.Properties["n"].Value, Is.EqualTo((long)5));
                 Assert.That(objectValue.Properties["s"].Value, Is.EqualTo("foo"));
@@ -75,7 +76,7 @@ namespace Tests
                 Assert.That(binaryBlobValue, Has.Length.EqualTo(40));
                 Assert.That(Encoding.UTF8.GetString(binaryBlobValue), Is.EqualTo("Hello, this is a test binary blob value!"));
 
-                Assert.That(properties["arrayOnSingleLine"].Type, Is.EqualTo(KVType.ARRAY));
+                Assert.That(properties["arrayOnSingleLine"].Type, Is.EqualTo(KVValueType.Array));
 
                 Assert.That(properties["quoted.key"].Value, Is.EqualTo("hello"));
                 Assert.That(properties["a quoted key with spaces"].Value, Is.EqualTo("some cool value"));

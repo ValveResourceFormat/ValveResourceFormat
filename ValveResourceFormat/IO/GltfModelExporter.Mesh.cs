@@ -6,7 +6,6 @@ using System.Text.Json.Nodes;
 using SharpGLTF.Memory;
 using SharpGLTF.Schema2;
 using ValveResourceFormat.Blocks;
-using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Serialization.KeyValues;
 using VMaterial = ValveResourceFormat.ResourceTypes.Material;
 using VMesh = ValveResourceFormat.ResourceTypes.Mesh;
