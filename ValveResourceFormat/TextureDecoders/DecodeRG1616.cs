@@ -4,7 +4,7 @@ using RG1616 = (ushort R, ushort G);
 
 namespace ValveResourceFormat.TextureDecoders
 {
-    internal class DecodeRG1616 : ITextureDecoder
+    internal readonly struct DecodeRG1616 : ITextureDecoder
     {
         public void Decode(SKBitmap bitmap, Span<byte> input)
         {

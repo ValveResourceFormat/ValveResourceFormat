@@ -4,7 +4,7 @@ using RGBA32323232F = (float R, float G, float B, float A);
 
 namespace ValveResourceFormat.TextureDecoders
 {
-    internal class DecodeRGBA32323232F : ITextureDecoder
+    internal readonly struct DecodeRGBA32323232F : ITextureDecoder
     {
         public void Decode(SKBitmap bitmap, Span<byte> input)
         {

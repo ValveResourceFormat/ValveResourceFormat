@@ -3,7 +3,7 @@ using SkiaSharp;
 
 namespace ValveResourceFormat.TextureDecoders
 {
-    internal class DecodeR16 : ITextureDecoder
+    internal readonly struct DecodeR16 : ITextureDecoder
     {
         public void Decode(SKBitmap bitmap, Span<byte> input)
         {

@@ -2,7 +2,7 @@ using SkiaSharp;
 
 namespace ValveResourceFormat.TextureDecoders
 {
-    internal class DecodeI8 : ITextureDecoder
+    internal readonly struct DecodeI8 : ITextureDecoder
     {
         public void Decode(SKBitmap res, Span<byte> input)
         {
