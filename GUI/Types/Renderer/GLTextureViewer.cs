@@ -303,6 +303,8 @@ namespace GUI.Types.Renderer
                 cubemapProjectionComboBox.SelectedIndex = (int)CubemapProjection.Equirectangular;
             }
 
+            decodeFlags = textureData.RetrieveCodecFromResourceEditInfo();
+
             decodeFlagsListBox = AddMultiSelection("Texture Conversion",
                 SetInitialDecodeFlagsState,
                 checkedItemNames =>
@@ -798,11 +800,6 @@ namespace GUI.Types.Renderer
 
             Debug.Assert(texture != null);
 
-            if (decodeFlagsListBox != null)
-            {
-                SetInitialDecodeFlagsState(decodeFlagsListBox);
-            }
-
             texture.SetWrapMode(TextureWrapMode.ClampToEdge);
             SetTextureFiltering();
 
@@ -888,7 +885,6 @@ namespace GUI.Types.Renderer
             }
 
             texture = GuiContext.MaterialLoader.LoadTexture(Resource, isViewerRequest: true);
-            decodeFlags = textureData.RetrieveCodecFromResourceEditInfo() | swDecodeFlags;
             InvalidateRender();
         }
 
