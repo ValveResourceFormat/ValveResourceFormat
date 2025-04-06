@@ -236,7 +236,7 @@ public partial class GltfModelExporter
 
             if (textureResource == null)
             {
-                bitmap = new SKBitmap(1, 1, SKColorType.Bgra8888, SKAlphaType.Unpremul);
+                bitmap = new SKBitmap(1, 1, ResourceTypes.Texture.DefaultBitmapColorType, SKAlphaType.Unpremul);
                 openBitmaps[texturePath] = bitmap;
                 return bitmap;
             }

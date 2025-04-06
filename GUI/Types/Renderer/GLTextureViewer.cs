@@ -894,7 +894,7 @@ namespace GUI.Types.Renderer
 
             texture = new RenderTexture(TextureTarget.Texture2D, bitmap.Width, bitmap.Height, 1, 1);
 
-            var isHdr = bitmap.ColorType == SKColorType.RgbaF32;
+            var isHdr = bitmap.ColorType == HdrBitmapColorType;
             var store = GLTextureDecoder.GetImageExportFormat(isHdr);
 
             GL.TextureStorage2D(texture.Handle, 1, store.SizedInternalFormat, texture.Width, texture.Height);
