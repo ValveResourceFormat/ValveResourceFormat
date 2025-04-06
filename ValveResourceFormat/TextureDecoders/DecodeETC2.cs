@@ -20,30 +20,44 @@ namespace ValveResourceFormat.TextureDecoders
             using var pixels = res.PeekPixels();
             var output = pixels.GetPixelSpan<uint>();
             var m_bufSpan = m_buf.AsSpan();
-            var imageWidth = res.Width;
+
+            var dstWidth = res.Width;
+            var dstHeight = res.Height;
 
             var bcw = (width + 3) / 4;
             var bch = (height + 3) / 4;
-            var clen_last = (width + 3) % 4 + 1;
-            var d = 0;
+            var blockSize = 8; // ETC2 blocks are 8 bytes
 
-            for (var t = 0; t < bch; t++)
+            for (int t = 0, d = 0; t < bch; t++)
             {
-                for (var s = 0; s < bcw; s++, d += 8)
+                for (var s = 0; s < bcw; s++, d += blockSize)
                 {
-                    DecodeEtc2Block(input.Slice(d, 8));
-                    var clen = s < bcw - 1 ? 4 : clen_last;
-                    for (int i = 0, y = t * 4; i < 4 && y < height; i++, y++)
+                    if (s * 4 >= dstWidth)
                     {
-                        var dataIndex = y * imageWidth + s * 4;
+                        continue;
+                    }
 
-                        if (dataIndex > output.Length - clen)
+                    DecodeEtc2Block(input.Slice(d, blockSize));
+
+                    var blockWidth = Math.Min(4, width - s * 4);
+                    var copyWidth = Math.Min(blockWidth, dstWidth - s * 4);
+
+                    for (int i = 0, y = t * 4; i < 4 && y < dstHeight; i++, y++)
+                    {
+                        var dstIndex = y * dstWidth + s * 4;
+
+                        if (dstIndex >= output.Length)
                         {
-                            // This is silly but required when decoding into a nonpow2 bitmap
                             continue;
                         }
 
-                        m_bufSpan.Slice(i * 4, clen).CopyTo(output.Slice(y * width + s * 4, clen));
+                        var availableSpace = output.Length - dstIndex;
+                        var copySize = Math.Min(copyWidth, availableSpace);
+
+                        if (copySize > 0)
+                        {
+                            m_bufSpan.Slice(i * 4, copySize).CopyTo(output.Slice(dstIndex, copySize));
+                        }
                     }
                 }
             }
