@@ -234,7 +234,7 @@ namespace GUI.Types.Renderer
             {
                 foreach (var (level, width, height, bufferSize) in data.GetEveryMipLevelTexture(buffer, minMipLevelAllowed))
                 {
-                    var realLevel = level - minMipLevelAllowed;
+                    var realLevel = (int)level - minMipLevelAllowed;
 
                     if (format.PixelType is not null)
                     {

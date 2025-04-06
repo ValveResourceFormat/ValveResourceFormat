@@ -1,6 +1,7 @@
 using System.Buffers;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using K4os.Compression.LZ4;
 using SkiaSharp;
@@ -681,26 +682,27 @@ namespace ValveResourceFormat.ResourceTypes
         /// </summary>
         /// <param name="buffer">Buffer to use when yielding textures, it should be size of <see cref="GetBiggestBufferSize"/> or bigger. This buffer is reused for every mip level.</param>
         /// <param name="maxTextureSize">Max size of texture in pixels.</param>
-        public IEnumerable<(int Level, int Width, int Height, int BufferSize)> GetEveryMipLevelTexture(byte[] buffer, int minMipLevelAllowed = 0)
+        public IEnumerable<(uint Level, int Width, int Height, int BufferSize)> GetEveryMipLevelTexture(byte[] buffer, int minMipLevelAllowed = 0)
         {
             Reader.BaseStream.Position = Offset + Size;
 
             for (var i = NumMipLevels - 1; i >= 0; i--)
             {
-                var width = Width >> i;
-                var height = Height >> i;
+                var mipLevel = (uint)i;
+                var width = MipLevelSize(Width, mipLevel);
+                var height = MipLevelSize(Height, mipLevel);
 
-                if (i < minMipLevelAllowed)
+                if (mipLevel < minMipLevelAllowed)
                 {
                     break;
                 }
 
-                var uncompressedSize = CalculateBufferSizeForMipLevel((uint)i);
+                var uncompressedSize = CalculateBufferSizeForMipLevel(mipLevel);
                 var output = buffer.AsSpan(0, uncompressedSize);
 
-                ReadTexture((uint)i, output);
+                ReadTexture(mipLevel, output);
 
-                yield return (i, width, height, uncompressedSize);
+                yield return (mipLevel, width, height, uncompressedSize);
             }
         }
 
@@ -777,11 +779,10 @@ namespace ValveResourceFormat.ResourceTypes
             return size;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static int MipLevelSize(int size, uint level)
         {
-            size >>= (int)level;
-
-            return Math.Max(size, 1);
+            return Math.Max(size >> (int)level, 1);
         }
 
         public TextureCodec RetrieveCodecFromResourceEditInfo()
