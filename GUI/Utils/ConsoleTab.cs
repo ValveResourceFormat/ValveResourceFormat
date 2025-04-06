@@ -117,8 +117,8 @@ namespace GUI.Utils
                 }
 
                 control.AppendText(sb.ToString());
-                ScrollToBottom();
                 control.EndUpdate();
+                ScrollToBottom();
                 return;
             }
 
@@ -141,8 +141,8 @@ namespace GUI.Utils
                 }
             }
 
-            ScrollToBottom();
             control.EndUpdate();
+            ScrollToBottom();
         }
 
         private void ScrollToBottom()
@@ -154,8 +154,7 @@ namespace GUI.Utils
                 return;
             }
 
-            var yea = new ScrollEventArgs(ScrollEventType.LargeIncrement, 0, int.MaxValue, ScrollOrientation.VerticalScroll);
-            control.OnScroll(yea, true);
+            control.GoEnd();
         }
 
         public TabPage CreateTab()
