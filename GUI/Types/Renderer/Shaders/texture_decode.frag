@@ -155,7 +155,7 @@ void main()
     #if TYPE_TEXTURE2D == 1 || TYPE_TEXTURECUBEMAP == 1
         vec2 vTexCoord = vScreenCoords;
     #elif TYPE_TEXTURE3D == 1
-        vec3 vTexCoord = vec3(vScreenCoords, g_nSelectedDepth / float(textureSize(g_tInputTexture, g_nSelectedMip).z));
+        vec3 vTexCoord = vec3(vScreenCoords, (g_nSelectedDepth + 0.5) / float(textureSize(g_tInputTexture, g_nSelectedMip).z));
     #elif TYPE_TEXTURE2DARRAY == 1 || TYPE_TEXTURECUBEMAPARRAY == 1
         vec3 vTexCoord = vec3(vScreenCoords, g_nSelectedDepth);
     #else
