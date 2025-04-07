@@ -69,6 +69,11 @@ namespace ValveResourceFormat.Serialization
                 .Select(x => Convert.ToInt64(x, CultureInfo.InvariantCulture))
                 .ToArray();
 
+        public static int[] GetInt32Array(this KVObject collection, string name)
+            => collection.GetArray<object>(name)
+                .Select(x => Convert.ToInt32(x, CultureInfo.InvariantCulture))
+                .ToArray();
+
         public static float[] GetFloatArray(this KVObject collection, string name)
             => collection.GetArray<object>(name)
                 .Select(x => Convert.ToSingle(x, CultureInfo.InvariantCulture))

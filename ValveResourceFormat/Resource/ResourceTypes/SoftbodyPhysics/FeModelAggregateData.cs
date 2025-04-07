@@ -31,7 +31,7 @@ public class FeModelAggregateData
     */
     public int[][] Ropes => ropes ??= GetRopes();
 
-    public int[] FreeNodes => Data.GetArray<int>("m_FreeNodes");
+    public int[] FreeNodes => Data.GetInt32Array("m_FreeNodes");
 
     /* 
      * Basic Colliders. `vSphere` encodes the caps in the 
@@ -52,8 +52,8 @@ public class FeModelAggregateData
 
     private int[][] GetRopes()
     {
-        var nRopes = Data.GetInt32Property("m_nRopes");
-        var rawRopes = Data.GetArray<int>("m_Ropes");
+        var nRopes = Data.GetInt32Property("m_nRopeCount");
+        var rawRopes = Data.GetInt32Array("m_Ropes");
         var ropes = new int[nRopes][];
 
         var separators = new ArraySegment<int>(rawRopes, 0, nRopes).Prepend(nRopes).ToArray();
@@ -71,7 +71,7 @@ public class FeModelAggregateData
         var staticNodeCount = Data.GetInt32Property("m_nStaticNodes");
         var rotLockedNodeCount = Data.GetInt32Property("m_nRotLockStaticNodes");
         var ctrlNames = Data.GetArray<string>("m_CtrlName");
-        var ctrlParents = Data.GetArray<int>("m_SkelParents");
+        var ctrlParents = Data.GetInt32Array("m_SkelParents");
         var nodeIntegrator = Data.GetArray("m_NodeIntegrator");
 
         // these arrays skip static nodes and are completely empty if there
@@ -80,10 +80,10 @@ public class FeModelAggregateData
         var nodeFrictions = Data.GetFloatArray("m_DynNodeFriction");
 
         // (has_stray_radius, stray_radius, stray_relaxation)
-        var strayParameters = new (bool, float, float)[ctrlNames.Length - staticNodeCount];
+        var strayParameters = new (bool, float, float)[ctrlNames.Length];
         foreach (var strayParameter in Data.GetArray("m_AnimStrayRadii"))
         {
-            var nodeIndices = strayParameter.GetArray<int>("nNode");
+            var nodeIndices = strayParameter.GetInt32Array("nNode");
             // these are probably just redundant,
             // but in case they aren't or get changed not to be
             if (nodeIndices[0] != nodeIndices[1])
@@ -106,9 +106,9 @@ public class FeModelAggregateData
             Mass = 1f, // TODO
             CollissionRadius = collissionRadii.ElementAtOrDefault(i - staticNodeCount),
             Friction = nodeFrictions.ElementAtOrDefault(i - staticNodeCount),
-            HasStrayRadius = strayParameters[i - staticNodeCount].Item1,
-            StrayRadius = strayParameters[i - staticNodeCount].Item2,
-            StrayStretchiness = strayParameters[i - staticNodeCount].Item3,
+            HasStrayRadius = strayParameters[i].Item1,
+            StrayRadius = strayParameters[i].Item2,
+            StrayStretchiness = strayParameters[i].Item3,
             IsStatic = i < staticNodeCount,
             AllowRotation = i >= rotLockedNodeCount,
         }).ToArray();

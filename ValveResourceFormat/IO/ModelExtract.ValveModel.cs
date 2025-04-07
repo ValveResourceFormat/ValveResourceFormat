@@ -7,6 +7,7 @@ using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.ResourceTypes.ModelData;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics;
+using ValveResourceFormat.ResourceTypes.SoftbodyPhysics;
 using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Serialization.KeyValues;
 using static ValveResourceFormat.IO.KVHelpers;
@@ -729,6 +730,18 @@ partial class ModelExtract
                     }
 
                     softbody.Value.AddItem(clothNode);
+                }
+
+                foreach (var rope in feModel.Ropes)
+                {
+                    var clothChain = new ClothChainBuilder();
+
+                    foreach (var nodeIndex in rope)
+                    {
+                        clothChain.AddJoint(feModel.Nodes[nodeIndex]);
+                    }
+
+                    softbody.Value.AddItem(clothChain.Build());
                 }
 
 

@@ -1,14 +1,6 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using ValveResourceFormat.IO;
-using ValveResourceFormat.ResourceTypes.SoftbodyPhysics;
 using ValveResourceFormat.Serialization.KeyValues;
-using static ValveResourceFormat.IO.ModelExtract;
 
-namespace ValveResourceFormat.Resource.ResourceTypes.SoftbodyPhysics;
+namespace ValveResourceFormat.ResourceTypes.SoftbodyPhysics;
 public class ClothChainBuilder
 {
     public ClothChainBuilder()
