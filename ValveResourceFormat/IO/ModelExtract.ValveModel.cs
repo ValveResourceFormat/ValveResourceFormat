@@ -713,16 +713,16 @@ partial class ModelExtract
                 foreach (var nodeIndex in feModel.FreeNodes)
                 {
                     var node = feModel.Nodes[nodeIndex];
-                    var clothNode = MakeNode(
-                        "ClothNode",
-                        ("origin", Vector3.Zero), // TODO
-                        ("angles", Vector3.Zero), // TODO
-                        ("transform_alignment", 0), // TODO
-                        ("node_base_y1", ""), // TODO
-                        ("node_base_x1", ""), // TODO
-                        ("node_base_y0", ""), // TODO
-                        ("node_base_x0", "")
-                    );
+                    var clothNode = node.MakeClothNode();
+                    clothNode.AddProperty("_class", "ClothNode");
+                    clothNode.AddProperty("origin", Vector3.Zero);
+                    clothNode.AddProperty("angles", Vector3.Zero);
+                    clothNode.AddProperty("transform_alignment", 0);
+                    clothNode.AddProperty("node_base_y1", "");
+                    clothNode.AddProperty("node_base_x1", "");
+                    clothNode.AddProperty("node_base_y0", "");
+                    clothNode.AddProperty("node_base_x0", "");
+
                     for (var i = 0; i < 4; i++)
                     {
                         clothNode.AddProperty("cloth_collision_layer" + i, true); // TODO

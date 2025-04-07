@@ -71,6 +71,7 @@ public class FeModelAggregateData
         var staticNodeCount = Data.GetInt32Property("m_nStaticNodes");
         var rotLockedNodeCount = Data.GetInt32Property("m_nRotLockStaticNodes");
         var ctrlNames = Data.GetArray<string>("m_CtrlName");
+        var ctrlParents = Data.GetArray<int>("m_SkelParents");
         var nodeIntegrator = Data.GetArray("m_NodeIntegrator");
 
         // these arrays skip static nodes and are completely empty if there
@@ -98,6 +99,7 @@ public class FeModelAggregateData
         return Enumerable.Range(0, ctrlNames.Length).Select(i => new FeModelNode
         {
             ControlBone = ctrlNames[i],
+            ControlParent = ctrlParents[i] != -1 ? ctrlNames[ctrlParents[i]] : null,
             GoalStrength = MathF.Pow(nodeIntegrator[i].GetFloatProperty("flAnimationForceAttraction"), 1f / 3f),
             GoalDamping = 0f, // TODO reverse this from flAnimationVertexAttraction
             Gravity = nodeIntegrator[i].GetFloatProperty("flGravity") / 360f,
@@ -126,7 +128,7 @@ public class FeModelAggregateData
 
     public readonly struct FeModelNode
     {
-        public KVObject MakeVMDLNode()
+        public KVObject MakeClothNode()
         {
             return new KVObject(null,
                 ("cloth_node_root_bone", ControlBone),
@@ -146,7 +148,29 @@ public class FeModelAggregateData
                 ("super_damping", 0f) // TODO
             );
         }
+        public KVObject MakeClothChainJoint()
+        {
+            var node = new KVObject(null,
+                ("joint_name", ControlBone),
+                ("gravity_z", Gravity),
+                ("goal_strength", GoalStrength),
+                ("goal_damping", GoalDamping),
+                ("mass", Mass),
+                ("friction", Friction),
+                ("stray_radius", StrayRadius),
+                ("stray_radius_stretchiness", StrayStretchiness),
+                ("collision_radius", CollissionRadius),
+                ("simulate", !IsStatic),
+                ("allow_rotation", AllowRotation)
+            );
+            if (ControlParent is not null)
+            {
+                node.AddProperty("joint_parent", ControlParent);
+            }
+            return node;
+        }
         public string ControlBone { get; init; }
+        public string? ControlParent { get; init; }
         public float GoalStrength { get; init; }
         public float GoalDamping { get; init; }
         public float CollissionRadius { get; init; }
