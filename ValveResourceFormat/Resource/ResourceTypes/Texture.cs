@@ -574,21 +574,28 @@ namespace ValveResourceFormat.ResourceTypes
         /// <returns>Buffer size.</returns>
         public int CalculateBufferSizeForMipLevel(uint mipLevel)
         {
+            var (width, height, depth) = CalculateTextureSizesForMipLevel(mipLevel);
+
+            return CalculateBufferSizeForMipLevel(width, height, depth);
+        }
+
+        private (int Width, int Height, int Depth) CalculateTextureSizesForMipLevel(uint mipLevel)
+        {
             var width = MipLevelSize(Width, mipLevel);
             var height = MipLevelSize(Height, mipLevel);
             var depth = MipLevelSize(Depth, mipLevel);
 
-            return CalculateBufferSizeForMipLevel(width, height, depth);
+            if ((Flags & VTexFlags.CUBE_TEXTURE) != 0)
+            {
+                depth *= 6;
+            }
+
+            return (width, height, depth);
         }
 
         private int CalculateBufferSizeForMipLevel(int width, int height, int depth)
         {
             var bytesPerPixel = BlockSize;
-
-            if ((Flags & VTexFlags.CUBE_TEXTURE) != 0)
-            {
-                bytesPerPixel *= 6;
-            }
 
             if (Format == VTexFormat.DXT1
             || Format == VTexFormat.DXT5
@@ -719,9 +726,7 @@ namespace ValveResourceFormat.ResourceTypes
                     break;
                 }
 
-                var width = MipLevelSize(Width, mipLevel);
-                var height = MipLevelSize(Height, mipLevel);
-                var depth = MipLevelSize(Depth, mipLevel);
+                var (width, height, depth) = CalculateTextureSizesForMipLevel(mipLevel);
                 var uncompressedSize = CalculateBufferSizeForMipLevel(width, height, depth);
                 var output = buffer.AsSpan(0, uncompressedSize);
 
