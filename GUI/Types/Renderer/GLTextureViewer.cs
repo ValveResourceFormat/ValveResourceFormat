@@ -237,7 +237,7 @@ namespace GUI.Types.Renderer
                     SelectedMip = index;
 
                     // Depth levels are also mip mapped, so we have to remove incorrect levels
-                    if (depthComboBox != null)
+                    if (depthComboBox != null && (textureData.Flags & VTexFlags.VOLUME_TEXTURE) != 0)
                     {
                         var depthMip = textureData.Depth >> SelectedMip;
                         var newSelectedDepth = Math.Min(SelectedDepth, depthMip - 1);
