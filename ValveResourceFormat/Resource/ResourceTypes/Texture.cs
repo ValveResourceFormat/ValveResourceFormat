@@ -406,7 +406,7 @@ namespace ValveResourceFormat.ResourceTypes
         {
             ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(mipLevel, NumMipLevels, nameof(mipLevel));
 
-            var depthMip = MipLevelSize(Depth, mipLevel);
+            var depthMip = (Flags & VTexFlags.VOLUME_TEXTURE) == 0 ? Depth : MipLevelSize(Depth, mipLevel);
             ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(depth, (uint)depthMip, nameof(depth));
 
             if (face > 0)
@@ -583,7 +583,7 @@ namespace ValveResourceFormat.ResourceTypes
         {
             var width = MipLevelSize(Width, mipLevel);
             var height = MipLevelSize(Height, mipLevel);
-            var depth = MipLevelSize(Depth, mipLevel);
+            var depth = (Flags & VTexFlags.VOLUME_TEXTURE) == 0 ? Depth : MipLevelSize(Depth, mipLevel);
 
             if ((Flags & VTexFlags.CUBE_TEXTURE) != 0)
             {
