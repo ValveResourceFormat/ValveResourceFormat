@@ -404,8 +404,10 @@ namespace ValveResourceFormat.ResourceTypes
         /// <returns>Skia bitmap.</returns>
         public SKBitmap GenerateBitmap(uint depth = 0, CubemapFace face = 0, uint mipLevel = 0, TextureCodec decodeFlags = TextureCodec.Auto)
         {
-            ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(depth, Depth, nameof(depth));
             ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(mipLevel, NumMipLevels, nameof(mipLevel));
+
+            var depthMip = MipLevelSize(Depth, mipLevel);
+            ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(depth, (uint)depthMip, nameof(depth));
 
             if (face > 0)
             {
@@ -475,7 +477,7 @@ namespace ValveResourceFormat.ResourceTypes
                 }
                 else if (depth > 0)
                 {
-                    var faceSize = uncompressedSize / Depth;
+                    var faceSize = uncompressedSize / depthMip;
                     var faceOffset = faceSize * (int)depth;
                     faceOffset += faceSize * (int)face;
 
@@ -572,9 +574,16 @@ namespace ValveResourceFormat.ResourceTypes
         /// <returns>Buffer size.</returns>
         public int CalculateBufferSizeForMipLevel(uint mipLevel)
         {
-            var bytesPerPixel = BlockSize;
             var width = MipLevelSize(Width, mipLevel);
             var height = MipLevelSize(Height, mipLevel);
+            var depth = MipLevelSize(Depth, mipLevel);
+
+            return CalculateBufferSizeForMipLevel(width, height, depth);
+        }
+
+        private int CalculateBufferSizeForMipLevel(int width, int height, int depth)
+        {
+            var bytesPerPixel = BlockSize;
 
             if ((Flags & VTexFlags.CUBE_TEXTURE) != 0)
             {
@@ -613,12 +622,17 @@ namespace ValveResourceFormat.ResourceTypes
                     height = 4;
                 }
 
+                if (depth < 4 && depth > 1)
+                {
+                    depth = 4;
+                }
+
                 var numBlocks = (width * height) >> 4;
 
-                return numBlocks * Depth * bytesPerPixel;
+                return numBlocks * depth * bytesPerPixel;
             }
 
-            return width * height * Depth * bytesPerPixel;
+            return width * height * depth * bytesPerPixel;
         }
 
         private void SkipMipmaps(uint desiredMipLevel)
@@ -692,27 +706,28 @@ namespace ValveResourceFormat.ResourceTypes
         /// </summary>
         /// <param name="buffer">Buffer to use when yielding textures, it should be size of <see cref="GetBiggestBufferSize"/> or bigger. This buffer is reused for every mip level.</param>
         /// <param name="maxTextureSize">Max size of texture in pixels.</param>
-        public IEnumerable<(uint Level, int Width, int Height, int BufferSize)> GetEveryMipLevelTexture(byte[] buffer, int minMipLevelAllowed = 0)
+        public IEnumerable<(uint Level, int Width, int Height, int Depth, int BufferSize)> GetEveryMipLevelTexture(byte[] buffer, int minMipLevelAllowed = 0)
         {
             Reader.BaseStream.Position = Offset + Size;
 
             for (var i = NumMipLevels - 1; i >= 0; i--)
             {
                 var mipLevel = (uint)i;
-                var width = MipLevelSize(Width, mipLevel);
-                var height = MipLevelSize(Height, mipLevel);
 
                 if (mipLevel < minMipLevelAllowed)
                 {
                     break;
                 }
 
-                var uncompressedSize = CalculateBufferSizeForMipLevel(mipLevel);
+                var width = MipLevelSize(Width, mipLevel);
+                var height = MipLevelSize(Height, mipLevel);
+                var depth = MipLevelSize(Depth, mipLevel);
+                var uncompressedSize = CalculateBufferSizeForMipLevel(width, height, depth);
                 var output = buffer.AsSpan(0, uncompressedSize);
 
                 ReadTexture(mipLevel, output);
 
-                yield return (mipLevel, width, height, uncompressedSize);
+                yield return (mipLevel, width, height, depth, uncompressedSize);
             }
         }
 

@@ -228,12 +228,26 @@ namespace GUI.Types.Renderer
 
             ComboBox cubemapProjectionComboBox = null;
             CheckBox softwareDecodeCheckBox = null;
+            ComboBox depthComboBox = null;
 
             if (textureData.NumMipLevels > 1)
             {
                 var mipComboBox = AddSelection("Mip level", (name, index) =>
                 {
                     SelectedMip = index;
+
+                    // Depth levels are also mip mapped, so we have to remove incorrect levels
+                    if (depthComboBox != null)
+                    {
+                        var depthMip = textureData.Depth >> SelectedMip;
+                        var newSelectedDepth = Math.Min(SelectedDepth, depthMip - 1);
+
+                        depthComboBox.BeginUpdate();
+                        depthComboBox.Items.Clear();
+                        depthComboBox.Items.AddRange(Enumerable.Range(0, depthMip).Select(x => $"#{x}").ToArray());
+                        depthComboBox.SelectedIndex = newSelectedDepth;
+                        depthComboBox.EndUpdate();
+                    }
 
                     if (softwareDecodeCheckBox != null && softwareDecodeCheckBox.Checked)
                     {
@@ -247,7 +261,7 @@ namespace GUI.Types.Renderer
 
             if (textureData.Depth > 1)
             {
-                var depthComboBox = AddSelection("Depth", (name, index) =>
+                depthComboBox = AddSelection("Depth", (name, index) =>
                 {
                     SelectedDepth = index;
 
