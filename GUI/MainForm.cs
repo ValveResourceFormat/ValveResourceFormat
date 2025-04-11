@@ -577,14 +577,30 @@ namespace GUI
                     parentContext = parentContext.ParentGuiContext;
                 }
 
-                var extension = Path.GetExtension(tab.Text);
+                var extension = Path.GetExtension(vrfGuiContext.FileName.AsSpan());
 
-                if (extension.Length > 0)
+                if (MemoryExtensions.Equals(extension, ".vpk", StringComparison.OrdinalIgnoreCase))
                 {
-                    extension = extension[1..];
+                    foreach (var game in ExplorerControl.SteamGames)
+                    {
+                        if (vrfGuiContext.FileName.StartsWith(game.GamePath, StringComparison.OrdinalIgnoreCase))
+                        {
+                            tab.ImageIndex = ImageList.Images.IndexOfKey($"@app{game.AppID}");
+
+                            break;
+                        }
+                    }
                 }
 
-                tab.ImageIndex = GetImageIndexForExtension(extension);
+                if (tab.ImageIndex < 0)
+                {
+                    if (extension.Length > 0)
+                    {
+                        extension = extension[1..];
+                    }
+
+                    tab.ImageIndex = GetImageIndexForExtension(extension);
+                }
 
                 mainTabs.TabPages.Insert(mainTabs.SelectedIndex + 1, tab);
 
@@ -867,19 +883,21 @@ namespace GUI
             }
         }
 
-        public static int GetImageIndexForExtension(string extension)
+        public static int GetImageIndexForExtension(ReadOnlySpan<char> extension)
         {
             if (extension.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal))
             {
                 extension = extension[0..^2];
             }
 
-            if (ImageListLookup.TryGetValue(extension, out var image))
+            var lookup = ImageListLookup.GetAlternateLookup<ReadOnlySpan<char>>();
+
+            if (lookup.TryGetValue(extension, out var image))
             {
                 return image;
             }
 
-            if (extension.Length > 0 && extension[0] == 'v' && ImageListLookup.TryGetValue(extension[1..], out image))
+            if (extension.Length > 0 && extension[0] == 'v' && lookup.TryGetValue(extension[1..], out image))
             {
                 return image;
             }

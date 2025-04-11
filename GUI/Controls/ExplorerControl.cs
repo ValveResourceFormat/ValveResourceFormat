@@ -26,8 +26,8 @@ namespace GUI.Controls
         private const int APPID_RECENT_FILES = -1000;
         private const int APPID_BOOKMARKS = -1001;
         private readonly List<TreeDataNode> TreeData = [];
-        private List<GameFolderLocator.SteamLibraryGameInfo> SteamGames = [];
         private static readonly Dictionary<string, string> WorkshopAddons = [];
+        public static readonly List<GameFolderLocator.SteamLibraryGameInfo> SteamGames = [];
 
         public ExplorerControl()
         {
@@ -162,11 +162,16 @@ namespace GUI.Controls
                 //
             }
 
-            SteamGames = GameFolderLocator.FindAllSteamGames()
-                // Ignore Apex Legends, Titanfall, Titanfall 2 because Respawn has customized VPK format and VRF can't open it
-                .Where(static gameInfo => gameInfo.AppID is not (1237970 or 1454890 or 1172470))
-                .OrderBy(static gameInfo => gameInfo.AppID)
-                .ToList();
+            if (SteamGames.Count == 0)
+            {
+                var steamGames = GameFolderLocator.FindAllSteamGames()
+                    // Ignore Apex Legends, Titanfall, Titanfall 2 because Respawn has customized VPK format and VRF can't open it
+                    .Where(static gameInfo => gameInfo.AppID is not (1237970 or 1454890 or 1172470))
+                    .OrderBy(static gameInfo => gameInfo.AppID)
+                    .ToList();
+
+                SteamGames.AddRange(steamGames);
+            }
 
             // Find all games to be displayed in the recent and bookmarked files
             // to instantly load their icons before rendering the list
@@ -537,8 +542,8 @@ namespace GUI.Controls
                 }
                 else
                 {
-                    var extension = Path.GetExtension(path).ToLowerInvariant();
-                    isVpk = extension == ".vpk";
+                    var extension = Path.GetExtension(path).ToLowerInvariant().AsSpan();
+                    isVpk = MemoryExtensions.Equals(extension, ".vpk", StringComparison.Ordinal);
 
                     if (isVpk && pathDisplay.Contains("/maps/", StringComparison.Ordinal))
                     {
@@ -753,7 +758,7 @@ namespace GUI.Controls
 
             foreach (var embeddedResource in embeddedResources)
             {
-                var extension = Path.GetExtension(embeddedResource).ToLowerInvariant();
+                var extension = Path.GetExtension(embeddedResource.AsSpan());
                 imageIndex = MainForm.GetImageIndexForExtension(extension[1..]);
 
                 var debugTreeNode = new TreeNode(embeddedResource)
