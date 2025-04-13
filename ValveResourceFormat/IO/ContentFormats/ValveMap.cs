@@ -72,6 +72,15 @@ internal abstract class MapNode : DMElement
     public Datamodel.StringArray VariableNames { get; } = [];
 }
 
+internal class CMapPrefab : MapNode
+{
+    public bool FixupEntityNames { get; set; } = true;
+    public bool LoadAtRuntime { get; set; }
+    public bool LoadIfNested { get; set; } = true;
+    public string TargetMapPath { get; set; } = string.Empty;
+    public string TargetName { get; set; } = string.Empty;
+}
+
 [CamelCaseProperties]
 internal abstract class BaseEntity : MapNode
 {
