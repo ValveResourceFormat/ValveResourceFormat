@@ -1016,7 +1016,12 @@ public sealed class MapExtract
             if (modelName != null && PathIsSubPath(modelName, LumpFolder))
             {
                 var firstReference = ModelEntityAssociations.TryAdd(modelName, className);
-                Debug.Assert(firstReference, "Model living in lump folder referenced by more than one entity!");
+                if (!firstReference)
+                {
+                    var otherClass = ModelEntityAssociations[modelName];
+                    Debug.Assert(className == otherClass, "Model living in lump folder referenced by more than one entity type!\n" +
+                        $"model = {modelName} {className} != {otherClass}");
+                }
 
                 ExtractEntityModel(mapEntity, compiledEntity, modelName);
 
