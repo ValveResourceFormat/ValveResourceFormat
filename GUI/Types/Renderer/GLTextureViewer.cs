@@ -358,7 +358,7 @@ namespace GUI.Types.Renderer
                 var previousSize = ActualTextureSizeScaled;
 
                 VisualizeTiling = state;
-                texture?.SetWrapMode(state ? TextureWrapMode.Repeat : TextureWrapMode.ClampToEdge);
+                SetTextureFiltering();
 
                 TextureDimensionsChanged(previousSize);
             });
@@ -433,6 +433,7 @@ namespace GUI.Types.Renderer
                 };
 
                 texture.SetFiltering(min, mag);
+                texture.SetWrapMode(VisualizeTiling ? TextureWrapMode.Repeat : TextureWrapMode.ClampToEdge);
             }
         }
 
@@ -814,7 +815,6 @@ namespace GUI.Types.Renderer
 
             Debug.Assert(texture != null);
 
-            texture.SetWrapMode(TextureWrapMode.ClampToEdge);
             SetTextureFiltering();
 
             if (Svg == null)
