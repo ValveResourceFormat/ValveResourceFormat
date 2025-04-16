@@ -132,7 +132,7 @@ namespace Decompiler
             string vpk_filepath = default,
             bool vpk_list = false,
 
-            string gltf_export_format = "gltf",
+            string gltf_export_format = default,
             bool gltf_export_animations = false,
             string gltf_animation_list = default,
             bool gltf_export_materials = false,
@@ -196,7 +196,7 @@ namespace Decompiler
                 ExtFilterList = vpk_extensions.Split(',');
             }
 
-            if (GltfExportFormat != "gltf" && GltfExportFormat != "glb")
+            if (GltfExportFormat is not "gltf" and not "glb" and not null)
             {
                 Console.Error.WriteLine("glTF export format must be either 'gltf' or 'glb'.");
                 return 1;
@@ -1129,17 +1129,11 @@ namespace Decompiler
         private void ProcessVPKEntries(string parentPath, Package package,
             IFileLoader fileLoader, string type, Dictionary<string, uint> manifestData)
         {
-            var allowSubFilesFromExternalRefs = true;
             if (ExtFilterList != null)
             {
                 if (!ExtFilterList.Contains(type))
                 {
                     return;
-                }
-
-                if (type == "vmat_c" && ExtFilterList.Contains("vmat_c") && !ExtFilterList.Contains("vtex_c"))
-                {
-                    allowSubFilesFromExternalRefs = false;
                 }
             }
 
@@ -1213,10 +1207,8 @@ namespace Decompiler
 
                     resource.Read(memory);
 
-                    extension = FileExtract.GetExtension(resource) ?? type[..^2];
 
-                    // TODO: This is forcing gltf export - https://github.com/ValveResourceFormat/ValveResourceFormat/issues/782
-                    if (GltfModelExporter.CanExport(resource) && resource.ResourceType != ResourceType.EntityLump)
+                    if (GltfExportFormat != null && GltfModelExporter.CanExport(resource))
                     {
                         var outputExtension = GltfExportFormat;
                         var outputFile = Path.Combine(OutputFile, Path.ChangeExtension(filePath, outputExtension));
@@ -1239,6 +1231,8 @@ namespace Decompiler
                             outputFile = Path.Combine(parentPath, outputFile);
                         }
 
+                        extension = FileExtract.GetExtension(resource) ?? type[..^2];
+
                         if (type != extension)
                         {
                             outputFile = Path.ChangeExtension(outputFile, extension);
@@ -1246,7 +1240,7 @@ namespace Decompiler
 
                         outputFile = GetOutputPath(outputFile, useOutputAsDirectory: true);
 
-                        DumpContentFile(outputFile, contentFile, allowSubFilesFromExternalRefs);
+                        DumpContentFile(outputFile, contentFile);
                     }
                 }
                 catch (Exception e)
