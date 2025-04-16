@@ -68,6 +68,7 @@ namespace Decompiler
 
         private string[] ExtFilterList;
         private bool IsInputFolder;
+        private Progress<string> ProgressReporter;
 
         public static void Main(string[] args)
         {
@@ -319,6 +320,8 @@ namespace Decompiler
 
             CurrentFile = 0;
             TotalFiles = paths.Count;
+
+            ProgressReporter = new Progress<string>(progress => Console.WriteLine($"--- {progress}"));
 
             if (MaxParallelismThreads > 1)
             {
@@ -600,10 +603,19 @@ namespace Decompiler
                 {
                     using var fileLoader = new GameFileLoader(null, resource.FileName);
 
-                    using var contentFile = DecompileResource(resource, fileLoader);
-
                     path = Path.ChangeExtension(path, extension);
                     var outFilePath = GetOutputPath(path);
+
+                    if (GltfExportFormat != null && GltfModelExporter.CanExport(resource))
+                    {
+                        outFilePath = Path.ChangeExtension(outFilePath, GltfExportFormat);
+                        Directory.CreateDirectory(Path.GetDirectoryName(outFilePath));
+
+                        CreateGltfExporter(fileLoader).Export(resource, outFilePath);
+                        return;
+                    }
+
+                    using var contentFile = DecompileResource(resource, fileLoader);
 
                     var extensionNew = Path.GetExtension(outFilePath);
                     if (extensionNew.Length == 0 || extensionNew[1..] != extension)
@@ -617,6 +629,7 @@ namespace Decompiler
                     }
 
                     DumpContentFile(outFilePath, contentFile);
+                    return;
                 }
             }
             catch (Exception e)
@@ -689,7 +702,7 @@ namespace Decompiler
             }
         }
 
-        private ContentFile DecompileResource(Resource resource, IFileLoader fileLoader, IProgress<string> progressReporter = null)
+        private ContentFile DecompileResource(Resource resource, IFileLoader fileLoader)
         {
             return resource.ResourceType switch
             {
@@ -697,7 +710,7 @@ namespace Decompiler
                 {
                     DecodeFlags = TextureDecodeFlags,
                 }.ToContentFile(),
-                _ => FileExtract.Extract(resource, fileLoader, progressReporter),
+                _ => FileExtract.Extract(resource, fileLoader, ProgressReporter),
             };
         }
 
@@ -1144,17 +1157,7 @@ namespace Decompiler
                 return;
             }
 
-            var progressReporter = new Progress<string>(progress => Console.WriteLine($"--- {progress}"));
-            var gltfModelExporter = new GltfModelExporter(fileLoader)
-            {
-                ExportAnimations = GltfExportAnimations,
-                ExportMaterials = GltfExportMaterials,
-                AdaptTextures = GltfExportAdaptTextures,
-                ExportExtras = GltfExportExtras,
-                ProgressReporter = progressReporter,
-            };
-
-            gltfModelExporter.AnimationFilter.UnionWith(GltfAnimationFilter);
+            var gltfExporter = CreateGltfExporter(fileLoader);
 
             foreach (var (file, filePath) in FilteredEntries(entries))
             {
@@ -1207,7 +1210,6 @@ namespace Decompiler
 
                     resource.Read(memory);
 
-
                     if (GltfExportFormat != null && GltfModelExporter.CanExport(resource))
                     {
                         var outputExtension = GltfExportFormat;
@@ -1215,12 +1217,12 @@ namespace Decompiler
 
                         Directory.CreateDirectory(Path.GetDirectoryName(outputFile));
 
-                        gltfModelExporter.Export(resource, outputFile);
+                        gltfExporter.Export(resource, outputFile);
 
                         continue;
                     }
 
-                    using var contentFile = DecompileResource(resource, fileLoader, progressReporter);
+                    using var contentFile = DecompileResource(resource, fileLoader);
 
                     if (OutputFile != null)
                     {
@@ -1252,6 +1254,21 @@ namespace Decompiler
                     ArrayPool<byte>.Shared.Return(rawFileData);
                 }
             }
+        }
+
+        private GltfModelExporter CreateGltfExporter(IFileLoader fileLoader)
+        {
+            var gltfModelExporter = new GltfModelExporter(fileLoader)
+            {
+                ExportAnimations = GltfExportAnimations,
+                ExportMaterials = GltfExportMaterials,
+                AdaptTextures = GltfExportAdaptTextures,
+                ExportExtras = GltfExportExtras,
+                ProgressReporter = ProgressReporter,
+            };
+
+            gltfModelExporter.AnimationFilter.UnionWith(GltfAnimationFilter);
+            return gltfModelExporter;
         }
 
         private static void DumpContentFile(string path, ContentFile contentFile, bool dumpSubFiles = true)
