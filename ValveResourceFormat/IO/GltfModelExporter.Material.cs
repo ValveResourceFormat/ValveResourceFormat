@@ -227,9 +227,14 @@ public partial class GltfModelExporter
 
         SKBitmap GetBitmap(string texturePath)
         {
-            if (openBitmaps.TryGetValue(texturePath, out var bitmap))
+            SKBitmap bitmap;
+
+            lock (openBitmaps)
             {
-                return bitmap;
+                if (openBitmaps.TryGetValue(texturePath, out bitmap))
+                {
+                    return bitmap;
+                }
             }
 
             // Not being disposed because ORM may use same texture multiple times and there's issues with concurrency
@@ -246,7 +251,12 @@ public partial class GltfModelExporter
             if (textureResource == null)
             {
                 bitmap = new SKBitmap(1, 1, ResourceTypes.Texture.DefaultBitmapColorType, SKAlphaType.Unpremul);
-                openBitmaps[texturePath] = bitmap;
+
+                lock (openBitmaps)
+                {
+                    openBitmaps[texturePath] = bitmap;
+                }
+
                 return bitmap;
             }
 
@@ -258,7 +268,10 @@ public partial class GltfModelExporter
 
             bitmap.SetImmutable();
 
-            openBitmaps[texturePath] = bitmap;
+            lock (openBitmaps)
+            {
+                openBitmaps[texturePath] = bitmap;
+            }
 
             return bitmap;
         }
