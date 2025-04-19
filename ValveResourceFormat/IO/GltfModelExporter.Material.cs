@@ -43,7 +43,7 @@ public partial class GltfModelExporter
     private readonly List<Task> TextureExportingTasks = [];
     private readonly Dictionary<string, Texture> ExportedTextures = [];
 
-    private void GenerateGLTFMaterialFromRenderMaterial(Material material, VMaterial renderMaterial, ModelRoot model)
+    private void GenerateGLTFMaterialFromRenderMaterial(Material material, VMaterial renderMaterial, ModelRoot model, Vector4 modelTintColor)
     {
         renderMaterial.IntParams.TryGetValue("F_TRANSLUCENT", out var isTranslucent);
         renderMaterial.IntParams.TryGetValue("F_ALPHA_TEST", out var isAlphaTest);
@@ -78,13 +78,20 @@ public partial class GltfModelExporter
             metalValue = float.Clamp(flMetalness, 0, 1);
         }
 
-        var baseColor = Vector4.One;
+        var baseColor = modelTintColor;
+
+        if (renderMaterial.FloatParams.TryGetValue("g_flModelTintAmount", out var flModelTintAmount))
+        {
+            baseColor = Vector4.Lerp(Vector4.One, baseColor, flModelTintAmount);
+        }
 
         if (renderMaterial.VectorParams.TryGetValue("g_vColorTint", out var vColorTint))
         {
-            baseColor = Vector4.Clamp(vColorTint, Vector4.Zero, Vector4.One);
+            baseColor *= vColorTint;
             baseColor.W = 1; //Tint only affects color
         }
+
+        baseColor = Vector4.Clamp(baseColor, Vector4.Zero, Vector4.One);
 
         material.WithPBRMetallicRoughness(baseColor, null, metallicFactor: metalValue);
 

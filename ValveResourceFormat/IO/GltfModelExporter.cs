@@ -133,6 +133,7 @@ namespace ValveResourceFormat.IO
                 ExportedMeshes.Clear();
                 TextureExportingTasks.Clear();
                 ExportedTextures.Clear();
+                ExportedMaterials.Clear();
                 TexturesExportedSoFar = 0;
                 IsExporting = false;
             }
@@ -257,9 +258,23 @@ namespace ValveResourceFormat.IO
                     skinName = null;
                 }
 
+                // todo: rendercolor might sometimes be vec4, which holds renderamt
+                var rendercolor = entity.GetColor32Property("rendercolor");
+                var renderamt = entity.GetPropertyUnchecked("renderamt", 1.0f);
+
+                if (renderamt > 1f)
+                {
+                    renderamt /= 255f;
+                }
+
+                rendercolor.X = MathF.Pow(rendercolor.X, 2.2f);
+                rendercolor.Y = MathF.Pow(rendercolor.Y, 2.2f);
+                rendercolor.Z = MathF.Pow(rendercolor.Z, 2.2f);
+                var tintColor = new Vector4(rendercolor, renderamt);
+
                 // Add meshes and their skeletons
                 LoadModel(exportedModel, scene, model, Path.GetFileNameWithoutExtension(modelName),
-                    transform, skinName, entity);
+                    transform, tintColor, skinName, entity);
             }
 
             foreach (var childEntityName in entityLump.GetChildEntityNames())
@@ -323,8 +338,14 @@ namespace ValveResourceFormat.IO
                 var name = Path.GetFileNameWithoutExtension(renderableModel);
                 var model = (VModel)modelResource.DataBlock;
                 var matrix = sceneObject.GetArray("m_vTransform").ToMatrix4x4();
+                var tintColor = sceneObject.GetSubCollection("m_vTintColor").ToVector4();
 
-                LoadModel(exportedModel, scene, model, name, matrix);
+                if (tintColor == Vector4.Zero)
+                {
+                    tintColor = Vector4.One;
+                }
+
+                LoadModel(exportedModel, scene, model, name, matrix, tintColor);
             }
 
             foreach (var sceneObject in worldNode.AggregateSceneObjects)
@@ -345,7 +366,7 @@ namespace ValveResourceFormat.IO
 
                     if (!AggregateCreateFragments(exportedModel, scene, model, sceneObject, name))
                     {
-                        LoadModel(exportedModel, scene, model, name, Matrix4x4.Identity);
+                        LoadModel(exportedModel, scene, model, name, Matrix4x4.Identity, Vector4.One);
                     }
                 }
             }
@@ -362,13 +383,13 @@ namespace ValveResourceFormat.IO
             var exportedModel = CreateModelRoot(resourceName, out var scene);
 
             // Add meshes and their skeletons
-            LoadModel(exportedModel, scene, model, resourceName, Matrix4x4.Identity);
+            LoadModel(exportedModel, scene, model, resourceName, Matrix4x4.Identity, Vector4.One);
 
             WriteModelFile(exportedModel, fileName);
         }
 
         private void LoadModel(ModelRoot exportedModel, Scene scene, VModel model, string name,
-            Matrix4x4 transform, string skinName = null, EntityLump.Entity entity = null)
+            Matrix4x4 transform, Vector4 tintColor, string skinName = null, EntityLump.Entity entity = null)
         {
 #if DEBUG
             ProgressReporter?.Report($"Loading model {name}");
@@ -557,7 +578,7 @@ namespace ValveResourceFormat.IO
                 }
 
                 var boneRemapTable = model.GetRemapTable(m.MeshIndex);
-                var node = AddMeshNode(exportedModel, scene, meshName, m.Mesh, m.Mesh.VBIB, joints, boneRemapTable, skinMaterialPath, entity);
+                var node = AddMeshNode(exportedModel, scene, meshName, tintColor, m.Mesh, m.Mesh.VBIB, joints, boneRemapTable, skinMaterialPath, entity);
                 if (node != null)
                 {
                     node.WorldMatrix = transform;
@@ -616,7 +637,7 @@ namespace ValveResourceFormat.IO
         {
             var exportedModel = CreateModelRoot(resourceName, out var scene);
             var name = Path.GetFileName(resourceName);
-            var node = AddMeshNode(exportedModel, scene, name, mesh, mesh.VBIB, joints: null);
+            var node = AddMeshNode(exportedModel, scene, name, Vector4.One, mesh, mesh.VBIB, joints: null);
 
             if (node != null)
             {
@@ -627,7 +648,7 @@ namespace ValveResourceFormat.IO
             WriteModelFile(exportedModel, fileName);
         }
 
-        private Node AddMeshNode(ModelRoot exportedModel, Scene scene, string name,
+        private Node AddMeshNode(ModelRoot exportedModel, Scene scene, string name, Vector4 tintColor,
             VMesh mesh, Blocks.VBIB vbib, Node[] joints, int[] boneRemapTable = null,
             string skinMaterialPath = null, EntityLump.Entity entity = null)
         {
@@ -644,7 +665,7 @@ namespace ValveResourceFormat.IO
                 return newNode;
             }
 
-            exportedMesh = CreateGltfMesh(name, mesh, vbib, exportedModel, boneRemapTable, skinMaterialPath);
+            exportedMesh = CreateGltfMesh(name, mesh, vbib, exportedModel, boneRemapTable, skinMaterialPath, tintColor);
             ExportedMeshes.Add(name, exportedMesh);
 
             if (entity != null && ExportExtras)

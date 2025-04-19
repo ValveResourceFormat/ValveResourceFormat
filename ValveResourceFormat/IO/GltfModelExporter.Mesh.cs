@@ -19,7 +19,11 @@ public partial class GltfModelExporter
     // https://github.com/KhronosGroup/glTF-Validator/blob/master/lib/src/errors.dart
     private const float UnitLengthThresholdVec3 = 0.00674f;
 
-    private Mesh CreateGltfMesh(string meshName, VMesh vmesh, VBIB vbib, ModelRoot exportedModel, int[] boneRemapTable, string skinMaterialPath)
+    // TODO: Using floats as hash key is kind of unhinged
+    private readonly record struct ExportedMaterial(string Name, Vector4 Tint);
+    private readonly Dictionary<ExportedMaterial, Material> ExportedMaterials = [];
+
+    private Mesh CreateGltfMesh(string meshName, VMesh vmesh, VBIB vbib, ModelRoot exportedModel, int[] boneRemapTable, string skinMaterialPath, Vector4 tintColor)
     {
         ProgressReporter?.Report($"Creating mesh: {meshName}");
 
@@ -37,7 +41,7 @@ public partial class GltfModelExporter
         {
             foreach (var drawCall in sceneObject.GetArray("m_drawCalls"))
             {
-                var primitive = CreateMeshFromDrawCall(drawCall, mesh, vbib, vertexBufferAccessors, exportedModel, skinMaterialPath);
+                var primitive = CreateMeshFromDrawCall(drawCall, mesh, vbib, vertexBufferAccessors, exportedModel, skinMaterialPath, tintColor);
 
                 if (vmesh.MorphData != null)
                 {
@@ -289,7 +293,8 @@ public partial class GltfModelExporter
         }).ToArray();
     }
 
-    private MeshPrimitive CreateMeshFromDrawCall(KVObject drawCall, Mesh mesh, VBIB vbib, Dictionary<string, Accessor>[] vertexBufferAccessors, ModelRoot exportedModel, string skinMaterialPath)
+    private MeshPrimitive CreateMeshFromDrawCall(KVObject drawCall, Mesh mesh, VBIB vbib, Dictionary<string,
+        Accessor>[] vertexBufferAccessors, ModelRoot exportedModel, string skinMaterialPath, Vector4 parentTintColor)
     {
         CancellationToken.ThrowIfCancellationRequested();
 
@@ -335,15 +340,29 @@ public partial class GltfModelExporter
             return primitive;
         }
 
+        var modelTintColor = parentTintColor;
+
+        if (drawCall.ContainsKey("m_vTintColor"))
+        {
+            var drawCallTintColor = drawCall.GetSubCollection("m_vTintColor").ToVector3();
+            var dcTintColorWithAlpha = new Vector4(drawCallTintColor, 1.0f);
+
+            if (drawCall.ContainsKey("m_flAlpha"))
+            {
+                dcTintColorWithAlpha.W = drawCall.GetFloatProperty("m_flAlpha");
+            }
+
+            modelTintColor *= dcTintColorWithAlpha;
+        }
+
         var materialPath = skinMaterialPath ?? drawCall.GetProperty<string>("m_material") ?? drawCall.GetProperty<string>("m_pMaterial");
 
         var materialNameTrimmed = Path.GetFileNameWithoutExtension(materialPath);
+        var materialHashKey = new ExportedMaterial(materialPath, modelTintColor);
 
-        // Check if material already exists - makes an assumption that if material has the same name it is a duplicate
-        var existingMaterial = exportedModel.LogicalMaterials.SingleOrDefault(m => m.Name == materialNameTrimmed);
-        if (existingMaterial != null)
+        if (ExportedMaterials.TryGetValue(materialHashKey, out var existingMaterial))
         {
-            primitive.Material = existingMaterial;
+            primitive.WithMaterial(existingMaterial);
             return primitive;
         }
 
@@ -361,9 +380,13 @@ public partial class GltfModelExporter
             .WithDefault();
         primitive.WithMaterial(material);
 
+        ExportedMaterials.Add(materialHashKey, material);
+
         var renderMaterial = (VMaterial)materialResource.DataBlock;
 
-        GenerateGLTFMaterialFromRenderMaterial(material, renderMaterial, exportedModel);
+        // TODO: Realistically it should export a material without a tint, and then if it needs a model tint,
+        // copy the existing untinted material, and just change the pbr BaseColor to include the tint.
+        GenerateGLTFMaterialFromRenderMaterial(material, renderMaterial, exportedModel, modelTintColor);
 
         return primitive;
     }
@@ -433,7 +456,6 @@ public partial class GltfModelExporter
             var meshName = $"{name}_fragment{++id}";
             var drawCallIndex = fragmentData.GetInt32Property("m_nDrawCallIndex");
             var drawCall = drawCalls[drawCallIndex];
-            var tintColor = fragmentData.GetSubCollection("m_vTintColor").ToVector3();
             var transform = Matrix4x4.Identity;
 
             if (fragmentData.GetProperty<bool>("m_bHasTransform") == true)
@@ -447,12 +469,20 @@ public partial class GltfModelExporter
                 }
             }
 
+            var tintColor = Vector4.One;
+
+            if (fragmentData.ContainsKey("m_vTintColor"))
+            {
+                var fragmentTintColor = fragmentData.GetSubCollection("m_vTintColor").ToVector3();
+                tintColor = new Vector4(fragmentTintColor / 255f, 1.0f);
+            }
+
             ProgressReporter?.Report($"Creating mesh: {meshName}");
 
             var mesh = exportedModel.CreateMesh(meshName);
             mesh.Extras = new JsonObject();
 
-            CreateMeshFromDrawCall(drawCall, mesh, vbib, vertexBufferAccessors, exportedModel, skinMaterialPath: null);
+            CreateMeshFromDrawCall(drawCall, mesh, vbib, vertexBufferAccessors, exportedModel, skinMaterialPath: null, tintColor);
 
             var newNode = scene.CreateNode(name).WithMesh(mesh);
             newNode.WorldMatrix = transform * TRANSFORMSOURCETOGLTF;
