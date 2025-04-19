@@ -538,7 +538,7 @@ namespace GUI
             Settings.TrackRecentFile(fileName);
         }
 
-        public Task<TabPage> OpenFile(VrfGuiContext vrfGuiContext, PackageEntry file, TreeViewWithSearchResults packageTreeView = null)
+        public void OpenFile(VrfGuiContext vrfGuiContext, PackageEntry file, TreeViewWithSearchResults packageTreeView = null)
         {
             var isPreview = packageTreeView != null;
             var tabTemp = new TabPage(Path.GetFileName(vrfGuiContext.FileName))
@@ -624,6 +624,8 @@ namespace GUI
             task.ContinueWith(
                 t =>
                 {
+                    vrfGuiContext.GLPostLoadAction = null;
+
                     t.Exception?.Flatten().Handle(ex =>
                     {
                         var control = CodeTextBox.CreateFromException(ex);
@@ -685,8 +687,6 @@ namespace GUI
                 CancellationToken.None,
                 TaskContinuationOptions.None,
                 TaskScheduler.FromCurrentSynchronizationContext());
-
-            return task;
         }
 
         private static TabPage ProcessFile(VrfGuiContext vrfGuiContext, PackageEntry entry, bool isPreview)

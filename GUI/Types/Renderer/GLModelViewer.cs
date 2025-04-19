@@ -365,21 +365,12 @@ namespace GUI.Types.Renderer
                     var foundFile = GuiContext.FileLoader.FindFileWithContext(refMesh.MeshName + GameFileLoader.CompiledFileSuffix);
                     if (foundFile.Context != null)
                     {
-                        var task = Program.MainForm.OpenFile(foundFile.Context, foundFile.PackageEntry);
-                        task.ContinueWith(
-                            t =>
-                            {
-                                var glViewer = t.Result.Controls.OfType<TabControl>().FirstOrDefault()?
-                                    .Controls.OfType<TabPage>().First(tab => tab.Controls.OfType<GLViewerControl>() is not null)?
-                                    .Controls.OfType<GLViewerControl>().First();
-                                if (glViewer is not null)
-                                {
-                                    glViewer.GLPostLoad = (viewerControl) => viewerControl.Camera.CopyFrom(Camera);
-                                }
-                            },
-                        CancellationToken.None,
-                        TaskContinuationOptions.OnlyOnRanToCompletion,
-                        TaskScheduler.Default);
+                        foundFile.Context.GLPostLoadAction = (viewerControl) =>
+                        {
+                            viewerControl.Camera.CopyFrom(Camera);
+                        };
+
+                        Program.MainForm.OpenFile(foundFile.Context, foundFile.PackageEntry);
                     }
                 }
             }

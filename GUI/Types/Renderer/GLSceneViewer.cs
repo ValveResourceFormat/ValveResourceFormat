@@ -309,6 +309,12 @@ namespace GUI.Types.Renderer
             GLPaint += OnPaint;
 
             GuiContext.ClearCache();
+
+            if (GuiContext.GLPostLoadAction != null)
+            {
+                GuiContext.GLPostLoadAction.Invoke(this);
+                GuiContext.GLPostLoadAction = null;
+            }
         }
 
         protected virtual void OnPaint(object sender, RenderEventArgs e)
