@@ -420,18 +420,16 @@ namespace ValveResourceFormat.ResourceTypes
             var width = MipLevelSize(ActualWidth, mipLevel);
             var height = MipLevelSize(ActualHeight, mipLevel);
 
-            Reader.BaseStream.Position = DataOffset;
-
-            SkipMipmaps(mipLevel);
-
             switch (Format)
             {
                 case VTexFormat.JPEG_DXT5:
                 case VTexFormat.JPEG_RGBA8888:
+                    Reader.BaseStream.Position = DataOffset;
                     return SKBitmap.Decode(Reader.ReadBytes(CalculateJpegSize()));
 
                 case VTexFormat.PNG_DXT5:
                 case VTexFormat.PNG_RGBA8888:
+                    Reader.BaseStream.Position = DataOffset;
                     return SKBitmap.Decode(Reader.ReadBytes(CalculatePngSize()));
             }
 
@@ -445,6 +443,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             var skiaBitmap = new SKBitmap(width, height, colorType, SKAlphaType.Unpremul);
 
+            /// GPU decoder calls into <see cref="GetEveryMipLevelTexture"/> which sets the reader offset on its own
             if (HardwareAcceleratedTextureDecoder.Decoder?.Decode(skiaBitmap, Resource, depth, face, mipLevel, decodeFlags) == true)
             {
                 return skiaBitmap;
@@ -457,6 +456,8 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 var span = buf.AsSpan(0, uncompressedSize);
 
+                Reader.BaseStream.Position = DataOffset;
+                SkipMipmaps(mipLevel);
                 ReadTexture(mipLevel, span);
 
                 if ((Flags & VTexFlags.CUBE_TEXTURE) != 0)
