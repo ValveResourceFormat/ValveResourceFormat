@@ -431,7 +431,7 @@ public partial class GltfModelExporter
 
     private void WaitForTexturesToExport()
     {
-        if (!TextureExportingTasks.Any(static t => t.IsCompleted))
+        if (TextureExportingTasks.Any(static t => !t.IsCompleted))
         {
             ProgressReporter?.Report("Waiting for textures to finish exporting...");
             Task.WaitAll(TextureExportingTasks, CancellationToken);
