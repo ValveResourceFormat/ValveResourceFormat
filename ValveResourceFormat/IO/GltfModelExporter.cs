@@ -3,7 +3,6 @@
 using System.IO;
 using System.Linq;
 using System.Threading;
-using System.Threading.Tasks;
 using SharpGLTF.Memory;
 using SharpGLTF.Schema2;
 using ValveResourceFormat.ResourceTypes;
@@ -22,8 +21,11 @@ namespace ValveResourceFormat.IO
     {
         // NOTE: Swaps Y and Z axes - gltf up axis is Y (source engine up is Z)
         // Also divides by 100, gltf units are in meters, source engine units are in inches
-        // https://github.com/KhronosGroup/glTF/tree/master/specification/2.0#coordinate-system-and-units
+        // https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#coordinate-system-and-units
         private readonly Matrix4x4 TRANSFORMSOURCETOGLTF = Matrix4x4.CreateScale(0.0254f) * Matrix4x4.CreateFromYawPitchRoll(0, MathF.PI / -2f, MathF.PI / -2f);
+
+        // https://github.com/KhronosGroup/glTF-Blender-IO/blob/6b29ca135d5255dbfe1dd72424ce7243be73c0be/addons/io_scene_gltf2/blender/com/conversion.py#L20
+        private readonly float PbrWattsTolumens = 683;
 
         public IProgress<string> ProgressReporter { get; set; }
         public IFileLoader FileLoader { get; }
@@ -204,12 +206,25 @@ namespace ValveResourceFormat.IO
         {
             foreach (var entity in entityLump.GetEntities())
             {
+                var transform = EntityTransformHelper.CalculateTransformationMatrix(entity);
                 var modelName = entity.GetProperty<string>("model");
+
                 if (string.IsNullOrEmpty(modelName))
                 {
-                    // Only worrying about models for now
+                    var className = entity.GetProperty<string>("classname");
+
+                    // Add environment lights with KHR_lights_punctual
+                    // https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_lights_punctual/README.md
+                    // TODO: Add point and spot lights
+                    if (className == "light_environment")
+                    {
+                        var lightAdjustment = Matrix4x4.CreateRotationZ(MathF.PI);
+                        var node = scene.CreateNode(className);
+                        node.PunctualLight = CreateGltfLightEnvironment(exportedModel, entity);
+                        node.LocalMatrix = transform * lightAdjustment * TRANSFORMSOURCETOGLTF;
+                    }
+
                     continue;
-                    // TODO: Think about adding lights with KHR_lights_punctual
                 }
 
                 var modelResource = FileLoader.LoadFileCompiled(modelName);
@@ -227,7 +242,6 @@ namespace ValveResourceFormat.IO
                     skinName = null;
                 }
 
-                var transform = EntityTransformHelper.CalculateTransformationMatrix(entity);
                 // Add meshes and their skeletons
                 LoadModel(exportedModel, scene, model, Path.GetFileNameWithoutExtension(modelName),
                     transform, skinName, entity);
@@ -724,6 +738,18 @@ namespace ValveResourceFormat.IO
             {
                 CreateBonesRecursive(child, node, ref joints);
             }
+        }
+
+        private PunctualLight CreateGltfLightEnvironment(ModelRoot exportedModel, VEntityLump.Entity entity)
+        {
+            var intensity = (float)entity.GetProperty<double>("skyintensity");
+            var color = entity.GetColor32Property("color");
+
+            var envLight = exportedModel
+                .CreatePunctualLight(PunctualLightType.Directional)
+                .WithColor(color, intensity * PbrWattsTolumens);
+
+            return envLight;
         }
 
         private static string ImageWriteCallback(WriteContext ctx, string uri, MemoryImage memoryImage)
