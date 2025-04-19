@@ -284,7 +284,7 @@ namespace ValveResourceFormat
                     Resource = this,
                 };
 
-                if (block.ConstructFromCtrl(Reader))
+                if (block.ConstructFromCtrl())
                 {
                     Blocks.Add(block);
                 }

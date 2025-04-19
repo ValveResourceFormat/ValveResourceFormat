@@ -13,12 +13,11 @@ namespace ValveResourceFormat.ResourceTypes
         public KVObject Output { get; private set; }
         public string StructName { get; init; }
 
-        private BinaryReader Reader;
+        private BinaryReader Reader => Resource.Reader;
         private ResourceIntrospectionManifest IntrospectionManifest;
 
         public override void Read(BinaryReader reader)
         {
-            Reader = reader;
             IntrospectionManifest = (ResourceIntrospectionManifest)Resource.GetBlockByType(BlockType.NTRO);
 
             try
@@ -41,7 +40,6 @@ namespace ValveResourceFormat.ResourceTypes
             }
             finally
             {
-                Reader = null;
                 IntrospectionManifest = null;
             }
         }
