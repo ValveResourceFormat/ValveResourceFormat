@@ -12,7 +12,7 @@ namespace ValveResourceFormat.CompiledShader
         public delegate void HandleOutputWrite(string s);
 
         // pass an OutputWriter to direct output somewhere else, Console.Write is assigned by default
-        public ShaderDataReader(Stream input, HandleOutputWrite outputWriter = null) : base(input, Encoding.UTF8, leaveOpen: true)
+        public ShaderDataReader(Stream input, HandleOutputWrite? outputWriter = null) : base(input, Encoding.UTF8, leaveOpen: true)
         {
             OutputWriter = outputWriter ?? ((x) => { Console.Write(x); });
         }
@@ -112,17 +112,17 @@ namespace ValveResourceFormat.CompiledShader
             TabComment(intval.ToString(CultureInfo.InvariantCulture));
         }
 
-        public void ShowByteCount(string message = null)
+        public void ShowByteCount(string? message = null)
         {
             OutputWrite($"[{BaseStream.Position}]{(message != null ? " " + message : "")}\n");
         }
 
-        public void ShowBytes(int len, string message = null, int tabLen = 4, bool use_slashes = true, bool breakLine = true)
+        public void ShowBytes(int len, string? message = null, int tabLen = 4, bool use_slashes = true, bool breakLine = true)
         {
             ShowBytes(len, 32, message, tabLen, use_slashes, breakLine);
         }
 
-        public void ShowBytes(int len, int breakLen, string message = null, int tabLen = 4, bool use_slashes = true, bool breakLine = true)
+        public void ShowBytes(int len, int breakLen, string? message = null, int tabLen = 4, bool use_slashes = true, bool breakLine = true)
         {
             var bytes0 = ReadBytes(len);
             var byteString = ShaderUtilHelpers.BytesToString(bytes0, breakLen);

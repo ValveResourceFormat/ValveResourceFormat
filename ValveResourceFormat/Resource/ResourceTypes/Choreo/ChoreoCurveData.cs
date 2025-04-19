@@ -5,9 +5,9 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
     public class ChoreoCurveData
     {
         public ChoreoSample[] Samples { get; private set; }
-        public ChoreoEdge LeftEdge { get; private set; }
-        public ChoreoEdge RightEdge { get; private set; }
-        public ChoreoCurveData(ChoreoSample[] samples, ChoreoEdge leftEdge, ChoreoEdge rightEdge)
+        public ChoreoEdge? LeftEdge { get; private set; }
+        public ChoreoEdge? RightEdge { get; private set; }
+        public ChoreoCurveData(ChoreoSample[] samples, ChoreoEdge? leftEdge, ChoreoEdge? rightEdge)
         {
             Samples = samples;
             LeftEdge = leftEdge;

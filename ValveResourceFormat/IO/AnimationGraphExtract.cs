@@ -133,7 +133,7 @@ public class AnimationGraphExtract
 
     KVObject ConvertToUncompiled(KVObject compiledNode)
     {
-        var className = compiledNode.GetProperty<string>("_class");
+        var className = compiledNode.GetProperty<string>("_class")!;
         className = className.Replace("UpdateNode", string.Empty, StringComparison.Ordinal);
 
         var newClass = className + "AnimNode";

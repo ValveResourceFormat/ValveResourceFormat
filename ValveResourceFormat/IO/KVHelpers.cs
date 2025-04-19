@@ -25,7 +25,7 @@ internal class KVHelpers
 
         return node;
     }
-    internal static KVObject MakeNode(string className, params (string Name, object Value)[] properties)
+    internal static KVObject MakeNode(string className, params (string Name, object? Value)[] properties)
     {
         var node = new KVObject(className, capacity: properties.Length + 1);
         node.AddProperty("_class", className);

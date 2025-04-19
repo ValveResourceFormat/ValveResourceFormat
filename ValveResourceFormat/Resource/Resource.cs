@@ -14,14 +14,14 @@ namespace ValveResourceFormat
     {
         public const ushort KnownHeaderVersion = 12;
 
-        private FileStream FileStream;
+        private FileStream? FileStream;
 
         /// <summary>
         /// Gets the binary reader. USE AT YOUR OWN RISK!
         /// It is exposed publicly to ease of reading the same file.
         /// </summary>
         /// <value>The binary reader.</value>
-        public BinaryReader Reader { get; private set; }
+        public BinaryReader? Reader { get; private set; }
 
         /// <summary>
         /// Gets or sets the file name this resource was parsed from.
@@ -67,7 +67,7 @@ namespace ValveResourceFormat
         /// <summary>
         /// Gets the generic DATA block.
         /// </summary>
-        public ResourceData DataBlock => (ResourceData)GetBlockByType(BlockType.DATA);
+        public ResourceData? DataBlock => (ResourceData)GetBlockByType(BlockType.DATA);
 
         /// <summary>
         /// Resource files have a FileSize in the metadata, however
@@ -325,7 +325,7 @@ namespace ValveResourceFormat
             return Blocks[index];
         }
 
-        public Block GetBlockByType(BlockType type)
+        public Block? GetBlockByType(BlockType type)
         {
             return Blocks.Find(b => b.Type == type);
         }

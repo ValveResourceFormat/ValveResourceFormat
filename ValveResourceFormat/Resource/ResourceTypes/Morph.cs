@@ -198,7 +198,7 @@ namespace ValveResourceFormat.ResourceTypes
             return new FlexRule(flexId, flexOps);
         }
 
-        private static FlexOp ParseFlexOp(object obj)
+        private static FlexOp? ParseFlexOp(object obj)
         {
             if (obj is not KVObject kv)
             {
@@ -231,13 +231,13 @@ namespace ValveResourceFormat.ResourceTypes
             throw new NotImplementedException("Unhandled bundle type");
         }
 
-        private static KVObject GetMorphKeyValueCollection(KVObject data, string name)
+        private static KVObject? GetMorphKeyValueCollection(KVObject data, string name)
         {
             var kvObj = data.GetProperty<object>(name);
             return kvObj as KVObject;
         }
 
-        public KVObject GetMorphDatas()
+        public KVObject? GetMorphDatas()
         {
             return GetMorphKeyValueCollection(Data, "m_morphDatas");
         }

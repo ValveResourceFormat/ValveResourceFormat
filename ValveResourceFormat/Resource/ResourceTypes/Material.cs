@@ -95,8 +95,8 @@ namespace ValveResourceFormat.ResourceTypes
 
             foreach (var kvp in Data.GetArray("m_dynamicParams"))
             {
-                var dynamicParamName = kvp.GetProperty<string>("m_name");
-                var dynamicParamBytes = kvp.GetProperty<byte[]>("m_value");
+                var dynamicParamName = kvp.GetProperty<string>("m_name")!;
+                var dynamicParamBytes = kvp.GetProperty<byte[]>("m_value")!;
                 var vfxEval = new VfxEval(dynamicParamBytes, renderAttributesUsed);
                 DynamicExpressions.Add(dynamicParamName, vfxEval.DynamicExpressionResult.Replace("\n", "\\n", StringComparison.Ordinal));
             }
@@ -125,7 +125,7 @@ namespace ValveResourceFormat.ResourceTypes
             return arguments;
         }
 
-        private KVObject GetInputSignatureObject()
+        private KVObject? GetInputSignatureObject()
         {
             if (Resource is null)
             {
@@ -134,7 +134,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             if (Resource.ContainsBlockType(BlockType.INSG))
             {
-                return ((BinaryKV3)Resource.GetBlockByType(BlockType.INSG)).Data;
+                return ((BinaryKV3)Resource.GetBlockByType(BlockType.INSG)!).Data;
             }
 
             // Material might not have REDI, or it might have RED2 without INSG

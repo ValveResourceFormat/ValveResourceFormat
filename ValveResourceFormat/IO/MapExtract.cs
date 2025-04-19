@@ -13,7 +13,7 @@ namespace ValveResourceFormat.IO;
 
 public sealed class MapExtract
 {
-    public string LumpFolder { get; private set; }
+    public string? LumpFolder { get; private set; }
 
     private IReadOnlyCollection<string> EntityLumpNames { get; set; }
     private IReadOnlyCollection<string> WorldNodeNames { get; set; }
@@ -79,11 +79,11 @@ public sealed class MapExtract
         }
     }
 
-    private static string NormalizePath(string path)
+    private static string? NormalizePath(string path)
     {
         if (path is null)
         {
-            return path;
+            return null;
         }
 
         return path.Replace('\\', '/').TrimEnd('/');
@@ -118,21 +118,21 @@ public sealed class MapExtract
 
     private static string GetLumpFolderFromWorldPath(string worldPath)
     {
-        return NormalizePath(Path.GetDirectoryName(worldPath));
+        return NormalizePath(Path.GetDirectoryName(worldPath)!)!;
     }
 
     private void InitWorldExtract(Resource vworld)
     {
         LumpFolder ??= GetLumpFolderFromWorldPath(vworld.FileName);
 
-        var world = (World)vworld.DataBlock;
+        var world = (World)vworld.DataBlock!;
         EntityLumpNames = world.GetEntityLumpNames();
         WorldNodeNames = world.GetWorldNodeNames();
 
         WorldPhysicsName = GetWorldPhysicsName();
     }
 
-    private string GetWorldPhysicsName()
+    private string? GetWorldPhysicsName()
     {
         var manifestFileName = Path.Combine(LumpFolder, "world_physics.vrman_c");
         var manifestResource = FileLoader.LoadFile(manifestFileName);
@@ -146,7 +146,7 @@ public sealed class MapExtract
         return NormalizePath(manifest.Resources.First().FirstOrDefault());
     }
 
-    public PhysAggregateData LoadWorldPhysics()
+    public PhysAggregateData? LoadWorldPhysics()
     {
         if (WorldPhysicsName == null)
         {
@@ -161,8 +161,8 @@ public sealed class MapExtract
 
         return physicsResource.ResourceType switch
         {
-            ResourceType.Model => ((Model)physicsResource.DataBlock).GetEmbeddedPhys(),
-            ResourceType.PhysicsCollisionMesh => (PhysAggregateData)physicsResource.DataBlock,
+            ResourceType.Model => ((Model)physicsResource.DataBlock!).GetEmbeddedPhys(),
+            ResourceType.PhysicsCollisionMesh => (PhysAggregateData)physicsResource.DataBlock!,
             _ => throw new InvalidDataException($"Unexpected resource type {physicsResource.ResourceType} for world physics"),
         };
     }
@@ -885,7 +885,7 @@ public sealed class MapExtract
     }
 
 
-    internal static string GetAutoPhysicsMaterialName(string rootFolder, string surfaceProperty)
+    internal static string? GetAutoPhysicsMaterialName(string rootFolder, string surfaceProperty)
         => NormalizePath(Path.Combine(rootFolder, "_vrf", "physics_surfaces", surfaceProperty + ".vmat"));
 
     private string GetAndExportAutoPhysicsMaterialName(string surfaceProperty)
@@ -1220,7 +1220,7 @@ public sealed class MapExtract
             Vector2 vector => $"{vector.X} {vector.Y}",
             KVObject { IsArray: true } kvArray => string.Join(' ', kvArray.Select(p => p.Value.ToString())),
             null => string.Empty,
-            _ when data.GetType().IsPrimitive => data.ToString(),
+            _ when data.GetType().IsPrimitive => data.ToString() ?? string.Empty,
             _ => throw new NotImplementedException()
         };
     }

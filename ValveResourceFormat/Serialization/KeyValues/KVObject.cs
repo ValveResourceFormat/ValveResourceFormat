@@ -19,14 +19,14 @@ namespace ValveResourceFormat.Serialization.KeyValues
         public bool IsArray { get; }
         public int Count { get; private set; }
 
-        public KVObject(string name, int capacity = 0)
+        public KVObject(string? name, int capacity = 0)
         {
             Key = name;
             Properties = new Dictionary<string, KVValue>(capacity);
             Count = 0;
         }
 
-        public KVObject(string name, bool isArray, int capacity = 0)
+        public KVObject(string? name, bool isArray, int capacity = 0)
             : this(name, capacity)
         {
             IsArray = isArray;
@@ -52,7 +52,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
         }
 
         //Add a property to the structure
-        public virtual void AddProperty(string name, KVValue value)
+        public virtual void AddProperty(string? name, KVValue value)
         {
             if (IsArray)
             {
@@ -61,13 +61,14 @@ namespace ValveResourceFormat.Serialization.KeyValues
             }
             else
             {
+                ArgumentNullException.ThrowIfNull(name);
                 Properties.Add(name, value);
             }
 
             Count++;
         }
 
-        public void AddProperty(string name, object value)
+        public void AddProperty(string? name, object? value)
         {
             AddProperty(name, new KVValue(value));
         }
@@ -216,7 +217,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
 
         public bool ContainsKey(string name) => Properties.ContainsKey(name);
 
-        public T GetProperty<T>(string name, T defaultValue = default)
+        public T? GetProperty<T>(string name, T? defaultValue = default)
         {
             if (Properties.TryGetValue(name, out var value))
             {

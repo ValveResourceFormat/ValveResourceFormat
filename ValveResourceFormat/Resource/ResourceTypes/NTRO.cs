@@ -10,11 +10,11 @@ namespace ValveResourceFormat.ResourceTypes
 {
     public class NTRO : ResourceData
     {
-        public KVObject Output { get; private set; }
-        public string StructName { get; init; }
+        public KVObject? Output { get; private set; }
+        public required string StructName { get; init; }
 
-        private BinaryReader Reader;
-        private ResourceIntrospectionManifest IntrospectionManifest;
+        private BinaryReader? Reader;
+        private ResourceIntrospectionManifest? IntrospectionManifest;
 
         public override void Read(BinaryReader reader)
         {

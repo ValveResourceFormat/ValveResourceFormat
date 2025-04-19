@@ -4,23 +4,23 @@ namespace ValveResourceFormat.CompiledShader;
 
 public class ShaderCollection : IEnumerable<ShaderFile>, IDisposable
 {
-    public ShaderFile Features
+    public ShaderFile? Features
         => Get(VcsProgramType.Features);
-    public ShaderFile Vertex
+    public ShaderFile? Vertex
         => Get(VcsProgramType.VertexShader);
-    public ShaderFile Geometry
+    public ShaderFile? Geometry
         => Get(VcsProgramType.GeometryShader);
-    public ShaderFile Domain
+    public ShaderFile? Domain
         => Get(VcsProgramType.DomainShader);
-    public ShaderFile Hull
+    public ShaderFile? Hull
         => Get(VcsProgramType.HullShader);
-    public ShaderFile Pixel
+    public ShaderFile? Pixel
         => Get(VcsProgramType.PixelShader);
-    public ShaderFile Compute
+    public ShaderFile? Compute
         => Get(VcsProgramType.ComputeShader);
-    public ShaderFile PixelShaderRenderState
+    public ShaderFile? PixelShaderRenderState
         => Get(VcsProgramType.PixelShaderRenderState);
-    public ShaderFile Raytracing
+    public ShaderFile? Raytracing
         => Get(VcsProgramType.RaytracingShader);
 
     private readonly Dictionary<VcsProgramType, ShaderFile> shaders = new((int)VcsProgramType.Undetermined);
@@ -33,7 +33,7 @@ public class ShaderCollection : IEnumerable<ShaderFile>, IDisposable
         }
     }
 
-    public ShaderFile Get(VcsProgramType type)
+    public ShaderFile? Get(VcsProgramType type)
     {
         if (shaders.TryGetValue(type, out var shader))
         {

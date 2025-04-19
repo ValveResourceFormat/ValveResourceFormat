@@ -7,7 +7,7 @@ namespace ValveResourceFormat.ResourceTypes
         public PostProcessing() : base(BlockType.DATA, "PostProcessingResource_t")
         { }
 
-        public KVObject GetTonemapParams()
+        public KVObject? GetTonemapParams()
         {
             if (Data.GetProperty<bool>("m_bHasTonemapParams"))
             {
@@ -17,7 +17,7 @@ namespace ValveResourceFormat.ResourceTypes
             return null;
         }
 
-        public KVObject GetBloomParams()
+        public KVObject? GetBloomParams()
         {
             if (Data.GetProperty<bool>("m_bHasBloomParams"))
             {
@@ -27,7 +27,7 @@ namespace ValveResourceFormat.ResourceTypes
             return null;
         }
 
-        public KVObject GetVignetteParams()
+        public KVObject? GetVignetteParams()
         {
             if (Data.GetProperty<bool>("m_bHasVignetteParams"))
             {
@@ -37,7 +37,7 @@ namespace ValveResourceFormat.ResourceTypes
             return null;
         }
 
-        public KVObject GetLocalContrastParams()
+        public KVObject? GetLocalContrastParams()
         {
             if (Data.GetProperty<bool>("m_bHasLocalContrastParams"))
             {

@@ -102,7 +102,7 @@ namespace ValveResourceFormat.CompiledShader
             ZFrameCache = new StaticCache(this);
         }
 
-        public void PrintSummary(HandleOutputWrite OutputWriter = null, bool showRichTextBoxLinks = false, List<string> relatedfiles = null)
+        public void PrintSummary(HandleOutputWrite? OutputWriter = null, bool showRichTextBoxLinks = false, List<string>? relatedfiles = null)
         {
             var fileSummary = new PrintVcsFileSummary(this, OutputWriter, showRichTextBoxLinks, relatedfiles);
         }
@@ -286,19 +286,19 @@ namespace ValveResourceFormat.CompiledShader
             return ZframesLookup[zframeId].GetDecompressedZFrame(DataReader);
         }
 
-        public ZFrameFile GetZFrameFile(long zframeId, HandleOutputWrite outputWriter = null, bool omitParsing = false)
+        public ZFrameFile GetZFrameFile(long zframeId, HandleOutputWrite? outputWriter = null, bool omitParsing = false)
         {
             return new ZFrameFile(GetDecompressedZFrame(zframeId), FilenamePath, zframeId,
                 VcsProgramType, VcsPlatformType, VcsShaderModelType, VcsVersion, omitParsing, outputWriter);
         }
 
-        public ZFrameFile GetZFrameFileByIndex(int zframeIndex, HandleOutputWrite outputWriter = null, bool omitParsing = false)
+        public ZFrameFile GetZFrameFileByIndex(int zframeIndex, HandleOutputWrite? outputWriter = null, bool omitParsing = false)
         {
             return GetZFrameFile(ZframesLookup.ElementAt(zframeIndex).Key, outputWriter, omitParsing);
         }
 #pragma warning restore CA1024
 
-        public void PrintByteDetail(bool shortenOutput = true, HandleOutputWrite outputWriter = null)
+        public void PrintByteDetail(bool shortenOutput = true, HandleOutputWrite? outputWriter = null)
         {
             DataReader.OutputWriter = outputWriter ?? ((x) => { Console.Write(x); });
             DataReader.BaseStream.Position = 0;

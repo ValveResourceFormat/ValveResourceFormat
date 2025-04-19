@@ -17,8 +17,8 @@ public class UIFontFilePackage
 
     public class FontFile
     {
-        public string FileName { get; set; }
-        public byte[] OpenTypeFontData { get; set; }
+        public string? FileName { get; set; }
+        public byte[]? OpenTypeFontData { get; set; }
     }
 
     /// <summary>
@@ -123,7 +123,7 @@ public class UIFontFilePackage
     private static byte[] ParseEncryptedFontFile(ReadOnlySpan<byte> data)
     {
         var pos = 0;
-        byte[] encryptedContents = null;
+        byte[]? encryptedContents = null;
 
         while (pos < data.Length)
         {

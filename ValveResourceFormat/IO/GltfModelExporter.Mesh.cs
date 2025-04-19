@@ -289,7 +289,7 @@ public partial class GltfModelExporter
         }).ToArray();
     }
 
-    private MeshPrimitive CreateMeshFromDrawCall(KVObject drawCall, Mesh mesh, VBIB vbib, Dictionary<string, Accessor>[] vertexBufferAccessors, ModelRoot exportedModel, string skinMaterialPath)
+    private MeshPrimitive CreateMeshFromDrawCall(KVObject drawCall, Mesh mesh, VBIB vbib, Dictionary<string, Accessor>[] vertexBufferAccessors, ModelRoot exportedModel, string? skinMaterialPath)
     {
         CancellationToken.ThrowIfCancellationRequested();
 
@@ -361,7 +361,7 @@ public partial class GltfModelExporter
             .WithDefault();
         primitive.WithMaterial(material);
 
-        var renderMaterial = (VMaterial)materialResource.DataBlock;
+        var renderMaterial = (VMaterial)materialResource.DataBlock!;
 
         GenerateGLTFMaterialFromRenderMaterial(material, renderMaterial, exportedModel);
 

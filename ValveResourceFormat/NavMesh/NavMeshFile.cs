@@ -181,12 +181,12 @@ namespace ValveResourceFormat.NavMesh
             }
         }
 
-        public List<NavMeshArea> GetHullAreas(byte hullIndex)
+        public List<NavMeshArea>? GetHullAreas(byte hullIndex)
         {
             return HullAreas.GetValueOrDefault(hullIndex);
         }
 
-        public NavMeshArea GetArea(uint areaId)
+        public NavMeshArea? GetArea(uint areaId)
         {
             return Areas.GetValueOrDefault(areaId);
         }

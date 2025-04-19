@@ -100,16 +100,16 @@ namespace ValveResourceFormat.IO
                 switch (resource.ResourceType)
                 {
                     case ResourceType.Mesh:
-                        ExportToFile(resource.FileName, targetPath, (VMesh)resource.DataBlock);
+                        ExportToFile(resource.FileName, targetPath, (VMesh)resource.DataBlock!);
                         break;
                     case ResourceType.Model:
-                        ExportToFile(resource.FileName, targetPath, (VModel)resource.DataBlock);
+                        ExportToFile(resource.FileName, targetPath, (VModel)resource.DataBlock!);
                         break;
                     case ResourceType.WorldNode:
-                        ExportToFile(resource.FileName, targetPath, (VWorldNode)resource.DataBlock);
+                        ExportToFile(resource.FileName, targetPath, (VWorldNode)resource.DataBlock!);
                         break;
                     case ResourceType.World:
-                        ExportToFile(resource.FileName, targetPath, (VWorld)resource.DataBlock);
+                        ExportToFile(resource.FileName, targetPath, (VWorld)resource.DataBlock!);
                         break;
                     case ResourceType.Map:
                         {
@@ -250,7 +250,7 @@ namespace ValveResourceFormat.IO
             }
         }
 
-        private static string GetSkinPathFromModel(VModel model, string skinName)
+        private static string? GetSkinPathFromModel(VModel model, string skinName)
         {
             var materialGroupForSkin = model.GetMaterialGroups()
                 .SingleOrDefault(group => group.Name == skinName);
@@ -551,7 +551,7 @@ namespace ValveResourceFormat.IO
         /// </summary>
         /// <param name="model">The model to get the meshes from.</param>
         /// <returns>A tuple of meshes and their names.</returns>
-        private IEnumerable<(VMesh Mesh, int MeshIndex, string Name)> LoadModelMeshes(VModel model, string name)
+        private IEnumerable<(VMesh? Mesh, int MeshIndex, string Name)> LoadModelMeshes(VModel model, string name)
         {
             var embeddedMeshes = model.GetEmbeddedMeshesAndLoD()
                 .Where(m => (m.LoDMask & 1) != 0)
@@ -563,13 +563,13 @@ namespace ValveResourceFormat.IO
                 {
                     // Load mesh from file
                     var meshResource = FileLoader.LoadFileCompiled(m.MeshName);
-                    var nodeName = Path.GetFileNameWithoutExtension(m.MeshName);
+                    var nodeName = Path.GetFileNameWithoutExtension(m.MeshName)!;
                     if (meshResource == null)
                     {
-                        return (null, 0, nodeName);
+                        return (mesh: (VMesh?)null, 0, nodeName);
                     }
 
-                    var mesh = (VMesh)meshResource.DataBlock;
+                    var mesh = (VMesh)meshResource.DataBlock!;
                     return (mesh, m.MeshIndex, nodeName);
                 })
                 .Where(m => m.mesh != null);
@@ -598,9 +598,9 @@ namespace ValveResourceFormat.IO
             WriteModelFile(exportedModel, fileName);
         }
 
-        private Node AddMeshNode(ModelRoot exportedModel, Scene scene, string name,
-            VMesh mesh, Blocks.VBIB vbib, Node[] joints, int[] boneRemapTable = null,
-            string skinMaterialPath = null, EntityLump.Entity entity = null)
+        private Node? AddMeshNode(ModelRoot exportedModel, Scene scene, string name,
+            VMesh mesh, Blocks.VBIB vbib, Node[]? joints, int[]? boneRemapTable = null,
+            string? skinMaterialPath = null, EntityLump.Entity? entity = null)
         {
             if (mesh.Data.GetArray("m_sceneObjects").Length == 0)
             {

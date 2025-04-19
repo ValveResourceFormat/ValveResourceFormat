@@ -10,7 +10,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelFlex.FlexOps
             Data = data;
         }
 
-        public static FlexOp Build(string opCode, int data)
+        public static FlexOp? Build(string opCode, int data)
         {
             var floatData = BitConverter.Int32BitsToSingle(data);
             var flexOp = opCode switch
@@ -24,7 +24,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelFlex.FlexOps
                 "FLEX_OP_MUL" => new FlexOpMul(floatData),
                 "FLEX_OP_DIV" => new FlexOpDiv(floatData),
                 "FLEX_OP_NWAY" => new FlexOpNWay(data),
-                _ => (FlexOp)null,
+                _ => (FlexOp?)null,
             };
 
 #if DEBUG

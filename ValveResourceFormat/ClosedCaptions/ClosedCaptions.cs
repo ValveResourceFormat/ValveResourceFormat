@@ -12,14 +12,14 @@ namespace ValveResourceFormat.ClosedCaptions
 
         public List<ClosedCaption> Captions { get; private set; }
 
-        private string FileName;
+        private string? FileName;
 
         public IEnumerator<ClosedCaption> GetEnumerator()
         {
             return ((IEnumerable<ClosedCaption>)Captions).GetEnumerator();
         }
 
-        public ClosedCaption this[string key]
+        public ClosedCaption? this[string key]
         {
             get
             {

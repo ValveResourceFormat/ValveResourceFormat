@@ -83,7 +83,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// Get the bone remap table of a specific mesh.
         /// This is used to remap bone indices in the mesh VBIB to bone indices of the model skeleton.
         /// </summary>
-        public int[] GetRemapTable(int meshIndex)
+        public int[]? GetRemapTable(int meshIndex)
         {
             var remappingTableStarts = Data.GetIntegerArray("m_remappingTableStarts");
 
@@ -232,7 +232,7 @@ namespace ValveResourceFormat.ResourceTypes
                     continue;
                 }
 
-                var model = (Model)resource.DataBlock;
+                var model = (Model)resource.DataBlock!;
                 model.cachedSkeleton = Skeleton;
                 var anims = model.GetAllAnimations(fileLoader);
                 allAnims.AddRange(anims);

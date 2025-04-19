@@ -58,7 +58,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
 
         public class Region
         {
-            public object[] Nodes { get; }
+            public object[]? Nodes { get; }
             public KVObject Data { get; }
 
             public Region(KVObject data)

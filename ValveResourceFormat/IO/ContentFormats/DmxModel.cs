@@ -59,8 +59,8 @@ public class DmeDag : DMElement
 public class DmeMesh : DMElement
 {
     public bool Visible { get; set; } = true;
-    public DMElement BindState { get; set; }
-    public DMElement CurrentState { get; set; }
+    public DMElement? BindState { get; set; }
+    public DMElement? CurrentState { get; set; }
     public Datamodel.ElementArray BaseStates { get; } = [];
     public Datamodel.ElementArray DeltaStates { get; } = [];
     public Datamodel.ElementArray FaceSets { get; } = [];
@@ -230,7 +230,7 @@ public class DmeLogLayer<T> : DmeTypedLog<T>
     /// </summary>
     public bool IsLayerZero()
     {
-        object defaultValue;
+        object? defaultValue;
 
         //quaternions initialize to all 0s
         if (typeof(T) == typeof(Quaternion))

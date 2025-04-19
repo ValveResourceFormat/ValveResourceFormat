@@ -34,7 +34,7 @@ namespace ValveResourceFormat.CompiledShader
         private int VcsVersion { get; }
 
         public ZFrameFile(byte[] databytes, string filenamepath, long zframeId, VcsProgramType vcsProgramType,
-            VcsPlatformType vcsPlatformType, VcsShaderModelType vcsShaderModelType, int vcsVersion, bool omitParsing = false, HandleOutputWrite outputWriter = null)
+            VcsPlatformType vcsPlatformType, VcsShaderModelType vcsShaderModelType, int vcsVersion, bool omitParsing = false, HandleOutputWrite? outputWriter = null)
         {
             FilenamePath = filenamepath;
             VcsProgramType = vcsProgramType;
@@ -224,11 +224,11 @@ namespace ValveResourceFormat.CompiledShader
             public Vfx.Type VfxType { get; }
             public byte LinkedParameterIndex { get; }
             public byte HeaderArg { get; }
-            public byte[] HeaderCode { get; }
+            //public byte[] HeaderCode { get; }
             public int DynExpLen { get; } = -1;
-            public byte[] DynExpression { get; }
-            public string DynExpEvaluated { get; }
-            public object ConstValue { get; }
+            public byte[]? DynExpression { get; }
+            public string? DynExpEvaluated { get; }
+            public object? ConstValue { get; }
 
             public Attribute(ShaderDataReader datareader)
             {

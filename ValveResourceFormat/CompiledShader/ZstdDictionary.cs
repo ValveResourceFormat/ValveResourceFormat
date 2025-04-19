@@ -107,7 +107,7 @@ namespace ValveResourceFormat.CompiledShader
 {
     public static class ZstdDictionary
     {
-        private static byte[] zstdDict;
+        private static byte[]? zstdDict;
         private static readonly Lock zstdDictLock = new();
 
         public static byte[] GetDictionary()
@@ -116,14 +116,14 @@ namespace ValveResourceFormat.CompiledShader
             {
                 if (zstdDict == null)
                 {
-                    DecodeDictionary();
+                    return DecodeDictionary();
                 }
 
                 return zstdDict;
             }
         }
 
-        private static void DecodeDictionary()
+        private static byte[] DecodeDictionary()
         {
             zstdDict = new byte[65536];
             Span<byte> b = stackalloc byte[3];
@@ -138,6 +138,8 @@ namespace ValveResourceFormat.CompiledShader
                 }
                 zstdDict[i] = b[i % 3];
             }
+
+            return zstdDict;
         }
 
         private static void Dec(Span<byte> b, int i)

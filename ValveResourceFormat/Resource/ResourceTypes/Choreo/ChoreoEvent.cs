@@ -6,30 +6,30 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
     public class ChoreoEvent
     {
         public ChoreoEventType Type { get; init; }
-        public string Name { get; init; }
+        public required string Name { get; init; }
         public float StartTime { get; init; }
         public float EndTime { get; init; }
-        public string Param1 { get; init; }
-        public string Param2 { get; init; }
-        public string Param3 { get; init; }
-        public ChoreoCurveData Ramp { get; init; }
+        public required string Param1 { get; init; }
+        public required string Param2 { get; init; }
+        public required string Param3 { get; init; }
+        public required ChoreoCurveData Ramp { get; init; }
         public ChoreoFlags Flags { get; init; }
         public float DistanceToTarget { get; init; }
-        public ChoreoTag[] RelativeTags { get; init; }
-        public ChoreoTag[] FlexTimingTags { get; init; }
-        public ChoreoTag[] PlaybackTimeTags { get; init; }
-        public ChoreoTag[] ShiftedTimeTags { get; init; }
+        public required ChoreoTag[] RelativeTags { get; init; }
+        public required ChoreoTag[] FlexTimingTags { get; init; }
+        public required ChoreoTag[] PlaybackTimeTags { get; init; }
+        public required ChoreoTag[] ShiftedTimeTags { get; init; }
         public float SequenceDuration { get; init; }
-        public ChoreoEventRelativeTag RelativeTag { get; init; }
-        public ChoreoEventFlex EventFlex { get; init; }
+        public ChoreoEventRelativeTag? RelativeTag { get; init; }
+        public required ChoreoEventFlex EventFlex { get; init; }
         public byte LoopCount { get; init; }
         public ChoreoClosedCaptionsType ClosedCaptionsType { get; init; }
-        public string ClosedCaptionsToken { get; init; }
+        public string? ClosedCaptionsToken { get; init; }
         public ChoreoSpeakFlags SpeakFlags { get; init; }
         public float SoundStartDelay { get; init; }
         public int Id { get; init; }
         public int ConstrainedEventId { get; init; }
-        public string PreferredName { get; init; }
+        public string? PreferredName { get; init; }
 
         public KVObject ToKeyValues()
         {

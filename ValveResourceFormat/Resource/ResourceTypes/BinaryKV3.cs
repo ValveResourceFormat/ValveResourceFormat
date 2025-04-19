@@ -222,9 +222,9 @@ namespace ValveResourceFormat.ResourceTypes
             }
 
             var buffer1Raw = ArrayPool<byte>.Shared.Rent(version < 5 && compressionMethod == 2 ? sizeUncompressedBuffer1 + sizeBinaryBlobsBytes : sizeUncompressedBuffer1);
-            byte[] buffer2Raw = null;
-            byte[] binaryBlobsRaw = null;
-            ZstdSharp.Decompressor zstdDecompressor = null;
+            byte[]? buffer2Raw = null;
+            byte[]? binaryBlobsRaw = null;
+            ZstdSharp.Decompressor? zstdDecompressor = null;
 
             try
             {
@@ -1030,7 +1030,7 @@ namespace ValveResourceFormat.ResourceTypes
 #pragma warning restore IDE0066 // Convert switch statement to expression
         }
 
-        private static KVValue MakeValue(KV3BinaryNodeType type, object data, KVFlag flag = KVFlag.None)
+        private static KVValue MakeValue(KV3BinaryNodeType type, object? data, KVFlag flag = KVFlag.None)
         {
             var realType = ConvertBinaryOnlyKVType(type);
             return new KVValue(realType, flag, data);

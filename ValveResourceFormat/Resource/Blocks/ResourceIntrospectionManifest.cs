@@ -105,7 +105,7 @@ namespace ValveResourceFormat.Blocks
         {
             public class Value
             {
-                public string EnumValueName { get; set; }
+                public required string EnumValueName { get; set; }
                 public int EnumValue { get; set; }
 
                 public void WriteText(IndentedTextWriter writer)
@@ -122,7 +122,7 @@ namespace ValveResourceFormat.Blocks
 
             public uint IntrospectionVersion { get; set; }
             public uint Id { get; set; }
-            public string Name { get; set; }
+            public required string Name { get; set; }
             public uint DiskCrc { get; set; }
             public int UserVersion { get; set; }
             public List<Value> EnumValueIntrospection { get; private set; }

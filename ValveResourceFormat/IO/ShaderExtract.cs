@@ -62,15 +62,15 @@ public sealed class ShaderExtract
     /// </summary>
     public Func<VulkanSource, ShaderCollection, VcsProgramType, long, long, string> SpirvCompiler { get; set; }
 
-    public ShaderFile Features => Shaders.Features;
-    public ShaderFile Vertex => Shaders.Vertex;
-    public ShaderFile Geometry => Shaders.Geometry;
-    public ShaderFile Domain => Shaders.Domain;
-    public ShaderFile Hull => Shaders.Hull;
-    public ShaderFile Pixel => Shaders.Pixel;
-    public ShaderFile Compute => Shaders.Compute;
-    public ShaderFile PixelShaderRenderState => Shaders.PixelShaderRenderState;
-    public ShaderFile Raytracing => Shaders.Raytracing;
+    public ShaderFile? Features => Shaders.Features;
+    public ShaderFile? Vertex => Shaders.Vertex;
+    public ShaderFile? Geometry => Shaders.Geometry;
+    public ShaderFile? Domain => Shaders.Domain;
+    public ShaderFile? Hull => Shaders.Hull;
+    public ShaderFile? Pixel => Shaders.Pixel;
+    public ShaderFile? Compute => Shaders.Compute;
+    public ShaderFile? PixelShaderRenderState => Shaders.PixelShaderRenderState;
+    public ShaderFile? Raytracing => Shaders.Raytracing;
 
     private readonly string[] FeatureNames;
     private readonly string[] Globals;
@@ -534,7 +534,7 @@ public sealed class ShaderExtract
     private string RTX()
         => HandleStageShared(Raytracing, nameof(RTX));
 
-    private string HandleStageShared(ShaderFile shader, string stageName)
+    private string HandleStageShared(ShaderFile? shader, string stageName)
     {
         if (shader is null)
         {

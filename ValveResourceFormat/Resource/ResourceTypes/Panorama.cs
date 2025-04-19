@@ -9,14 +9,14 @@ namespace ValveResourceFormat.ResourceTypes
     {
         public class NameEntry
         {
-            public string Name { get; set; }
+            public required string Name { get; set; }
             public uint Unknown1 { get; set; } // TODO: unconfirmed
             public uint Unknown2 { get; set; } // TODO: unconfirmed
         }
 
         public List<NameEntry> Names { get; } = [];
 
-        public byte[] Data { get; private set; }
+        public byte[]? Data { get; private set; }
         public uint CRC32 { get; private set; }
 
         public override void Read(BinaryReader reader)

@@ -10,10 +10,10 @@ namespace ValveResourceFormat.CompiledShader
     {
         private readonly OutputFormatterTabulatedData output;
         private readonly bool showRichTextBoxLinks;
-        private readonly List<string> relatedFiles;
+        private readonly List<string>? relatedFiles;
 
-        public PrintVcsFileSummary(ShaderFile shaderFile, HandleOutputWrite OutputWriter = null,
-            bool showRichTextBoxLinks = false, List<string> relatedFiles = null)
+        public PrintVcsFileSummary(ShaderFile shaderFile, HandleOutputWrite? OutputWriter = null,
+            bool showRichTextBoxLinks = false, List<string>? relatedFiles = null)
         {
             this.showRichTextBoxLinks = showRichTextBoxLinks;
             this.relatedFiles = relatedFiles;

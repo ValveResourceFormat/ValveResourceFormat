@@ -225,7 +225,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// <summary>
         /// Returns root motion data at the specified animation time for interpolation.
         /// </summary>
-        private void GetMovementForTime(float time, out AnimationMovement lastMovement, out AnimationMovement nextMovement, out float t)
+        private void GetMovementForTime(float time, out AnimationMovement? lastMovement, out AnimationMovement nextMovement, out float t)
         {
             time %= FrameCount / Fps;
 

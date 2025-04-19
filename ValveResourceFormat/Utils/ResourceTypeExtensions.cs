@@ -11,7 +11,7 @@ public static class ResourceTypeExtensions
     /// </summary>
     /// <param name="value">Resource type.</param>
     /// <returns>Extension type string.</returns>
-    public static string GetExtension(this ResourceType value)
+    public static string? GetExtension(this ResourceType value)
     {
         if (value == ResourceType.Unknown)
         {
@@ -21,7 +21,7 @@ public static class ResourceTypeExtensions
         var intValue = (int)value;
         var field = typeof(ResourceType)
             .GetFields(BindingFlags.Public | BindingFlags.Static)
-            .FirstOrDefault(f => (int)f.GetRawConstantValue() == intValue);
+            .FirstOrDefault(f => (int)f.GetRawConstantValue()! == intValue);
 
         return field?.GetCustomAttribute<ExtensionAttribute>(inherit: false)?.Extension;
     }
@@ -43,7 +43,7 @@ public static class ResourceTypeExtensions
 
             if (fieldExtension == extension)
             {
-                return (ResourceType)field.GetValue(null);
+                return (ResourceType)field.GetValue(null)!;
             }
         }
 

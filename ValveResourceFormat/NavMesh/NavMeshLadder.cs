@@ -10,13 +10,13 @@ namespace ValveResourceFormat.NavMesh
         public Vector3 Top { get; set; }
         public Vector3 Bottom { get; set; }
         public NavDirectionType Direction { get; set; }
-        public NavMeshArea TopForwardArea { get; set; }
-        public NavMeshArea TopLeftArea { get; set; }
-        public NavMeshArea TopRightArea { get; set; }
-        public NavMeshArea TopBehindArea { get; set; }
-        public NavMeshArea BottomArea { get; set; }
-        public NavMeshArea BottomLeftArea { get; set; }
-        public NavMeshArea BottomRightArea { get; set; }
+        public NavMeshArea? TopForwardArea { get; set; }
+        public NavMeshArea? TopLeftArea { get; set; }
+        public NavMeshArea? TopRightArea { get; set; }
+        public NavMeshArea? TopBehindArea { get; set; }
+        public NavMeshArea? BottomArea { get; set; }
+        public NavMeshArea? BottomLeftArea { get; set; }
+        public NavMeshArea? BottomRightArea { get; set; }
 
         public void Read(BinaryReader binaryReader, NavMeshFile navMeshFile)
         {

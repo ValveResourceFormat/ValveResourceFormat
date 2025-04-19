@@ -63,7 +63,7 @@ namespace ValveResourceFormat.FlexSceneFile
         /// <summary>
         /// Returns the flex settings for the specified phoneme code, or null if no data is stored for the specified phoneme.
         /// </summary>
-        public FlexSetting GetSettingForPhonemeCode(int phoneme)
+        public FlexSetting? GetSettingForPhonemeCode(int phoneme)
         {
             if (phonemeToFlexSetting.TryGetValue(phoneme, out var i))
             {

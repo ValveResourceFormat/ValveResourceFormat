@@ -299,7 +299,7 @@ namespace ValveResourceFormat.IO
             }
         }
 
-        public Stream GetFileStream(string file)
+        public Stream? GetFileStream(string file)
         {
             var foundFile = FindFile(file);
 
@@ -317,9 +317,9 @@ namespace ValveResourceFormat.IO
             }
         }
 
-        public virtual Resource LoadFileCompiled(string file) => LoadFile(string.Concat(file, CompiledFileSuffix));
+        public virtual Resource? LoadFileCompiled(string file) => LoadFile(string.Concat(file, CompiledFileSuffix));
 
-        public virtual Resource LoadFile(string file)
+        public virtual Resource? LoadFile(string file)
         {
             var resource = new Resource
             {
@@ -528,7 +528,7 @@ namespace ValveResourceFormat.IO
             }
         }
 
-        private string GetModIdentifierFile()
+        private string? GetModIdentifierFile()
         {
             var directory = CurrentFileName;
             var i = 10;
@@ -669,7 +669,7 @@ namespace ValveResourceFormat.IO
             {
                 var directory = Path.GetDirectoryName(gameInfo);
                 var modName = Path.GetFileName(directory);
-                var assumedGameRoot = Path.GetDirectoryName(directory);
+                var assumedGameRoot = Path.GetDirectoryName(directory) ?? string.Empty;
 
                 if (modName == "core")
                 {
@@ -684,7 +684,7 @@ namespace ValveResourceFormat.IO
             return folders;
         }
 
-        private string FindFileOnDisk(string file)
+        private string? FindFileOnDisk(string file)
         {
             foreach (var folder in CurrentGameSearchPaths)
             {

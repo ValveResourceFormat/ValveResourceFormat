@@ -71,7 +71,7 @@ namespace ValveResourceFormat.FlexSceneFile
             sb.AppendLine();
         }
 
-        private static string PhonemeToDescription(int phoneme)
+        private static string? PhonemeToDescription(int phoneme)
         {
             return phoneme switch
             {

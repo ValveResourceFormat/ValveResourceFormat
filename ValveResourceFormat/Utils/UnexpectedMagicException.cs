@@ -35,11 +35,13 @@ namespace ValveResourceFormat.Utils
 
         private UnexpectedMagicException(string customAssertMessage) : base(customAssertMessage)
         {
+            Magic = string.Empty;
+            MagicNameof = string.Empty;
             IsAssertion = true;
         }
 
         public static void Assert<T>(bool condition, T actualMagic,
-            [CallerArgumentExpression(nameof(condition))] string conditionExpression = null)
+            [CallerArgumentExpression(nameof(condition))] string? conditionExpression = null)
         {
             if (!condition)
             {

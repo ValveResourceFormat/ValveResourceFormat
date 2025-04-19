@@ -15,7 +15,7 @@ namespace ValveResourceFormat.ResourceTypes
             // public KVObject Attributes { get; } = new(null);
             public List<KVObject> Connections { get; internal set; }
 
-            public T GetProperty<T>(string name, T defaultValue = default)
+            public T GetProperty<T>(string name, T? defaultValue = default)
             {
                 if (typeof(T) == typeof(Vector3))
                 {
@@ -151,7 +151,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             var entity = new Entity();
 
-            void ReadTypedValue(uint keyHash, string keyName)
+            void ReadTypedValue(uint keyHash, string? keyName)
             {
                 var type = (EntityFieldType)dataReader.ReadUInt32();
 

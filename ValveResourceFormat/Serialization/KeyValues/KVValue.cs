@@ -22,7 +22,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
     {
         public readonly KVValueType Type { get; } = KVValueType.Null;
         public readonly KVFlag Flag { get; }
-        public readonly object Value { get; } = null;
+        public readonly object? Value { get; } = null;
 
         public KVValue(KVValueType type, object value)
         {
@@ -30,14 +30,14 @@ namespace ValveResourceFormat.Serialization.KeyValues
             Value = value;
         }
 
-        public KVValue(KVValueType type, KVFlag flag, object value)
+        public KVValue(KVValueType type, KVFlag flag, object? value)
         {
             Type = type;
             Flag = flag;
             Value = value;
         }
 
-        public KVValue(object value)
+        public KVValue(object? value)
         {
             if (value is KVValue v)
             {

@@ -152,7 +152,7 @@ namespace ValveResourceFormat.Blocks
             if (decompressedSize > totalSize)
             {
                 var temp = ArrayPool<byte>.Shared.Rent(totalSize);
-                byte[] tempZstd = null;
+                byte[]? tempZstd = null;
 
                 try
                 {
@@ -446,7 +446,7 @@ namespace ValveResourceFormat.Blocks
             throw new InvalidDataException($"Unexpected {attribute.SemanticName} attribute format {attribute.Format}");
         }
 
-        public static ushort[] GetBlendIndicesArray(OnDiskBufferData vertexBuffer, RenderInputLayoutField attribute, int[] remapTable = null)
+        public static ushort[] GetBlendIndicesArray(OnDiskBufferData vertexBuffer, RenderInputLayoutField attribute, int[]? remapTable = null)
         {
             var numJoints = attribute.Format is DXGI_FORMAT.R32G32B32A32_SINT or DXGI_FORMAT.R16G16B16A16_UINT ? 8 : 4;
             var indices = new ushort[vertexBuffer.ElementCount * numJoints];

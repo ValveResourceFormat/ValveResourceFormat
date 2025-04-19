@@ -54,7 +54,7 @@ namespace ValveResourceFormat.IO
             ShaderFile features,
             ShaderFile shaderFile,
             IDictionary<string, byte> featureParams,
-            IDictionary<string, byte> staticParams = null)
+            IDictionary<string, byte>? staticParams = null)
         {
             ArgumentNullException.ThrowIfNull(features, nameof(features));
             ArgumentNullException.ThrowIfNull(shaderFile, nameof(shaderFile));

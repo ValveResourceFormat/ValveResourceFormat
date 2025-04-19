@@ -92,7 +92,7 @@ namespace ValveResourceFormat.IO
         public HashSet<string> LoadedFilePaths { get; } = [];
         private readonly IFileLoader fileLoader;
 
-        public Resource LoadFile(string file)
+        public Resource? LoadFile(string file)
         {
             var resource = fileLoader.LoadFile(file);
             if (resource is not null)
@@ -103,9 +103,9 @@ namespace ValveResourceFormat.IO
             return resource;
         }
 
-        public Resource LoadFileCompiled(string file) => LoadFile(string.Concat(file, GameFileLoader.CompiledFileSuffix));
+        public Resource? LoadFileCompiled(string file) => LoadFile(string.Concat(file, GameFileLoader.CompiledFileSuffix));
 
-        public ShaderCollection LoadShader(string shaderName) => fileLoader.LoadShader(shaderName);
+        public ShaderCollection? LoadShader(string shaderName) => fileLoader.LoadShader(shaderName);
 
         public TrackingFileLoader(IFileLoader fileLoader)
         {
@@ -234,7 +234,7 @@ namespace ValveResourceFormat.IO
         /// Extract content file from a non-resource stream.
         /// </summary>
         /// <param name="stream">Stream to be extracted or decompiled.</param>
-        public static ContentFile ExtractNonResource(Stream stream, string fileName)
+        public static ContentFile? ExtractNonResource(Stream stream, string fileName)
         {
             Span<byte> buffer = stackalloc byte[4];
             var read = stream.Read(buffer);
@@ -263,7 +263,7 @@ namespace ValveResourceFormat.IO
         public static bool IsChildResource(Resource resource)
             => resource.EditInfo.SearchableUserData.GetProperty<long>("IsChildResource") == 1;
 
-        public static string GetExtension(Resource resource)
+        public static string? GetExtension(Resource resource)
         {
             // When updating this, don't forget to update ExtractProgressForm
             switch (resource.ResourceType)

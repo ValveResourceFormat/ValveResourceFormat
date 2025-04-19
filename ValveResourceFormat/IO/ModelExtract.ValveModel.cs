@@ -15,7 +15,7 @@ namespace ValveResourceFormat.IO;
 partial class ModelExtract
 {
     #region Bone Constraints
-    static string RemapBoneConstraintClassname(string className)
+    static string? RemapBoneConstraintClassname(string className)
     {
         return className switch
         {
@@ -58,7 +58,7 @@ partial class ModelExtract
         }
     }
 
-    static KVObject ProcessBoneConstraintTarget(KVObject target)
+    static KVObject? ProcessBoneConstraintTarget(KVObject target)
     {
         var isAttachment = target.GetProperty<bool>("m_bIsAttachment");
         var targetHash = target.GetUInt32Property("m_nBoneHash");
@@ -86,7 +86,7 @@ partial class ModelExtract
         return node;
     }
 
-    static KVObject ProcessBoneConstraintSlave(KVObject slave)
+    static KVObject? ProcessBoneConstraintSlave(KVObject slave)
     {
         var boneHash = slave.GetUInt32Property("m_nBoneHash");
         if (!StringToken.InvertedTable.TryGetValue(boneHash, out var boneName))
@@ -144,7 +144,7 @@ partial class ModelExtract
         node.AddProperty("children", childrenKV);
     }
 
-    static KVObject ProcessBoneConstraint(KVObject boneConstraint)
+    static KVObject? ProcessBoneConstraint(KVObject boneConstraint)
     {
         if (boneConstraint == null) //ModelDoc will compile constraints as null if it considers them invalid
         {
@@ -917,14 +917,14 @@ partial class ModelExtract
                 foreach (var item in lookAtList)
                 {
                     var lookAtChain = item.Value as KVObject;
-                    AddGenericGameData(gameDataList.Value, "LookAtChain", lookAtChain, "lookat_chain");
+                    AddGenericGameData(gameDataList.Value, "LookAtChain", lookAtChain!, "lookat_chain");
                 }
             }
 
             if (keyvalues.ContainsKey("MovementSettings"))
             {
                 var movementSettings = keyvalues.GetProperty<KVObject>("MovementSettings");
-                AddGenericGameData(gameDataList.Value, "MovementSettings", movementSettings, "movementsettings");
+                AddGenericGameData(gameDataList.Value, "MovementSettings", movementSettings!, "movementsettings");
             }
 
 

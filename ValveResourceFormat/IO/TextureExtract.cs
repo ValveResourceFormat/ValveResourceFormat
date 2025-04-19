@@ -38,8 +38,8 @@ public class TextureContentFile : ContentFile
 
 public sealed class ImageSubFile : SubFile
 {
-    public SKBitmap Bitmap { get; init; }
-    public Func<SKBitmap, byte[]> ImageExtract { get; init; }
+    public required SKBitmap Bitmap { get; init; }
+    public required Func<SKBitmap, byte[]> ImageExtract { get; init; }
     public override Func<byte[]> Extract => () => ImageExtract(Bitmap);
 }
 
@@ -74,7 +74,7 @@ public sealed class TextureExtract
 
     public TextureExtract(Resource resource)
     {
-        texture = (Texture)resource.DataBlock;
+        texture = (Texture)resource.DataBlock!;
         fileName = resource.FileName;
         IgnoreVtexFile = FileExtract.IsChildResource(resource);
         isSpriteSheet = texture.ExtraData.ContainsKey(VTexExtraData.SHEET);

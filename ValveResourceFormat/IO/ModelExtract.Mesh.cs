@@ -42,7 +42,7 @@ partial class ModelExtract
         /// <summary>
         /// Remap table for the mesh bone indices.
         /// </summary>
-        public int[] BoneRemapTable { get; init; }
+        public int[]? BoneRemapTable { get; init; }
     }
 
     public record struct RenderMeshExtractConfiguration(
@@ -50,7 +50,7 @@ partial class ModelExtract
         string Name,
         int Index,
         string FileName,
-        int[] BoneRemapTable = null,
+        int[]? BoneRemapTable = null,
         ImportFilter ImportFilter = default
     );
 
@@ -115,7 +115,7 @@ partial class ModelExtract
 
             GrabMaterialInputSignatures(resource);
 
-            var mesh = (Mesh)resource.DataBlock;
+            var mesh = (Mesh)resource.DataBlock!;
             model.SetExternalMeshData(mesh);
 
             var remapTable = model.GetRemapTable(reference.MeshIndex);
@@ -257,7 +257,7 @@ partial class ModelExtract
     }
 
     private static void FillDatamodelVertexData(VBIB.OnDiskBufferData vertexBuffer, DmeVertexData vertexData, Material.VsInputSignature materialInputSignature,
-        int boneWeightCount, int[] boneRemapTable)
+        int boneWeightCount, int[]? boneRemapTable)
     {
         var indices = Enumerable.Range(0, (int)vertexBuffer.ElementCount).ToArray(); // May break with non-unit strides, non-tri faces
 

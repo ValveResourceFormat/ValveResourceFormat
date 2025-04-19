@@ -130,7 +130,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
             return new ChoreoTag(name, value);
         }
 
-        protected virtual ChoreoEdge ReadEdge()
+        protected virtual ChoreoEdge? ReadEdge()
         {
             var hasEdge = reader.ReadBoolean();
             if (!hasEdge)
@@ -215,7 +215,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
             var eventType = RemapEventType(reader.ReadByte());
             var name = ReadString();
 
-            string preferredName = null;
+            string? preferredName = null;
             if (version >= 19)
             {
                 preferredName = ReadString();
@@ -276,7 +276,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
             }
 
             var usingRelativeTag = reader.ReadBoolean();
-            ChoreoEventRelativeTag relativeTag = null;
+            ChoreoEventRelativeTag? relativeTag = null;
             if (usingRelativeTag)
             {
                 relativeTag = ReadRelativeTag();
@@ -288,7 +288,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
             var soundStartDelay = 0f;
 
             var ccType = ChoreoClosedCaptionsType.None;
-            string ccToken = null;
+            string? ccToken = null;
             var speakFlags = ChoreoSpeakFlags.None;
             if (eventType == ChoreoEventType.Loop)
             {
@@ -372,8 +372,8 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
                 type = reader.ReadByte();
             }
 
-            ChoreoEdge leftEdge = null;
-            ChoreoEdge rightEdge = null;
+            ChoreoEdge? leftEdge = null;
+            ChoreoEdge? rightEdge = null;
             if (version >= 16)
             {
                 leftEdge = ReadEdge();

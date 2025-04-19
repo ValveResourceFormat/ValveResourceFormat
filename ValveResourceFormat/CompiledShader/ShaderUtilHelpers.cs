@@ -279,7 +279,7 @@ namespace ValveResourceFormat.CompiledShader
             return bytestring.Trim();
         }
 
-        public static void ShowIntArray(int[] ints0, int padding = 5, string label = null, bool hex = false)
+        public static void ShowIntArray(int[] ints0, int padding = 5, string? label = null, bool hex = false)
         {
             var intsString = "";
             foreach (var v in ints0)
@@ -308,7 +308,7 @@ namespace ValveResourceFormat.CompiledShader
         {
             public HandleOutputWrite OutputWriter { get; set; }
 
-            public OutputFormatterTabulatedData(HandleOutputWrite OutputWriter = null)
+            public OutputFormatterTabulatedData(HandleOutputWrite? OutputWriter = null)
             {
                 this.OutputWriter = OutputWriter ?? ((x) => { Console.Write(x); });
             }

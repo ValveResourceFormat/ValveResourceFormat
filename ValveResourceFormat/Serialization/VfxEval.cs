@@ -6,8 +6,8 @@ namespace ValveResourceFormat.Serialization.VfxEval
     public class VfxEval
     {
         // parsed data assigned here
-        public string DynamicExpressionResult { get; private set; }
-        public byte[] DynamicExpressionBlob { get; private set; }
+        public string DynamicExpressionResult { get; private set; } = string.Empty;
+        public byte[]? DynamicExpressionBlob { get; private set; }
 
         // parse the input one line at a time
         private readonly List<string> DynamicExpressionList = [];
@@ -148,16 +148,16 @@ namespace ValveResourceFormat.Serialization.VfxEval
         // OmitReturnStatement controls whether it is shown
         private readonly bool OmitReturnStatement;
 
-        private readonly IReadOnlyList<string> Features;
+        private readonly IReadOnlyList<string>? Features;
 
-        public VfxEval(byte[] binaryBlob, bool omitReturnStatement = false, IReadOnlyList<string> features = null)
+        public VfxEval(byte[] binaryBlob, bool omitReturnStatement = false, IReadOnlyList<string>? features = null)
         {
             OmitReturnStatement = omitReturnStatement;
             Features = features;
             ParseExpression(binaryBlob);
         }
 
-        public VfxEval(byte[] binaryBlob, IReadOnlyList<string> renderAttributesUsed, bool omitReturnStatement = false, IReadOnlyList<string> features = null)
+        public VfxEval(byte[] binaryBlob, IReadOnlyList<string> renderAttributesUsed, bool omitReturnStatement = false, IReadOnlyList<string>? features = null)
         {
             OmitReturnStatement = omitReturnStatement;
             Features = features;
