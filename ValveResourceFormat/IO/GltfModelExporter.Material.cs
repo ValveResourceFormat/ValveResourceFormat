@@ -39,6 +39,7 @@ public partial class GltfModelExporter
 
     private int TexturesExportedSoFar;
     private TextureSampler TextureSampler;
+    private readonly Lock TextureReadLock = new();
     private readonly List<Task> TextureExportingTasks = [];
     private readonly Dictionary<string, Texture> ExportedTextures = [];
 
@@ -232,7 +233,15 @@ public partial class GltfModelExporter
             }
 
             // Not being disposed because ORM may use same texture multiple times and there's issues with concurrency
-            var textureResource = FileLoader.LoadFileCompiled(texturePath);
+            Resource textureResource;
+
+            // Our file loader is not specified to be safe for concurrency, even though it will work fine on most cases
+            // because we use memory mapped files or read new files from disk. But some cases may read into memory stream,
+            // and the tracking file loader has a hash set that is not concurrent.
+            lock (TextureReadLock)
+            {
+                textureResource = FileLoader.LoadFileCompiled(texturePath);
+            }
 
             if (textureResource == null)
             {
