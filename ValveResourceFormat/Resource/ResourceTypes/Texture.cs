@@ -101,7 +101,7 @@ namespace ValveResourceFormat.ResourceTypes
         };
 
         private BinaryReader Reader => Resource.Reader;
-        private long DataOffset;
+        private long DataOffset => Offset + Size;
 
         public ushort Version { get; private set; }
 
@@ -251,8 +251,6 @@ namespace ValveResourceFormat.ResourceTypes
                     reader.BaseStream.Position = prevOffset;
                 }
             }
-
-            DataOffset = Offset + Size;
         }
 
         public SpritesheetData GetSpriteSheetData()
@@ -715,7 +713,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// <param name="maxTextureSize">Max size of texture in pixels.</param>
         public IEnumerable<(uint Level, int Width, int Height, int Depth, int BufferSize)> GetEveryMipLevelTexture(byte[] buffer, int minMipLevelAllowed = 0)
         {
-            Reader.BaseStream.Position = Offset + Size;
+            Reader.BaseStream.Position = DataOffset;
 
             for (var i = NumMipLevels - 1; i >= 0; i--)
             {
@@ -750,7 +748,7 @@ namespace ValveResourceFormat.ResourceTypes
                 throw new ArgumentException($"Buffer size ({output.Length}) must be at least {bufferSize}, mip level {mipLevel}");
             }
 
-            Reader.BaseStream.Position = Offset + Size;
+            Reader.BaseStream.Position = DataOffset;
 
             SkipMipmaps(mipLevel);
 
