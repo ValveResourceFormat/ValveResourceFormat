@@ -313,21 +313,7 @@ public partial class GltfModelExporter
             var materialChannel = material.FindChannel(gltfPackedName);
             materialChannel?.SetTexture(0, tex);
 
-            if (gltfPackedName == "BaseColor")
-            {
-                // TODO: Do we actually need this extras? sharpgltf writes pbrMetallicRoughness.baseColorTexture for us
-                material.Extras = new System.Text.Json.Nodes.JsonObject
-                    {
-                        {
-                            "baseColorTexture",
-                            new System.Text.Json.Nodes.JsonObject
-                            {
-                                { "index", System.Text.Json.Nodes.JsonValue.Create(tex.PrimaryImage.LogicalIndex) }
-                            }
-                        }
-                    };
-            }
-            else if (gltfPackedName == "MetallicRoughness")
+            if (gltfPackedName == "MetallicRoughness")
             {
                 materialChannel?.SetFactor("MetallicFactor", 1.0f); // Ignore g_flMetalness
 
