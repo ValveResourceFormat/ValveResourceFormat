@@ -469,6 +469,9 @@ namespace GUI.Controls
                 return;
             }
 
+            var activeForm = Form.ActiveForm;
+            var isActiveForm = activeForm == Program.MainForm || (FullScreenForm != null && activeForm == FullScreenForm);
+
             var isTextureViewer = this is GLTextureViewer;
             var currentTime = Stopwatch.GetTimestamp();
             var elapsed = Stopwatch.GetElapsedTime(lastUpdate, currentTime);
@@ -529,7 +532,7 @@ namespace GUI.Controls
 
             BlitFramebufferToScreen();
 
-            if (Settings.Config.DisplayFps != 0 && !isTextureViewer)
+            if (Settings.Config.DisplayFps != 0 && isActiveForm && !isTextureViewer)
             {
                 using (new GLDebugGroup("Text Render"))
                 {
@@ -540,8 +543,7 @@ namespace GUI.Controls
             GLControl.SwapBuffers();
             Picker?.TriggerEventIfAny();
 
-            var activeForm = Form.ActiveForm;
-            if (activeForm == Program.MainForm || (FullScreenForm != null && activeForm == FullScreenForm))
+            if (isActiveForm)
             {
                 // Infinite loop of invalidates causes a bug with message box dialogs not actually appearing in front,
                 // requiring user to press Alt key for it to appear. Checking for active form also pauses rendering while
