@@ -217,10 +217,21 @@ namespace ValveResourceFormat.IO
                     // TODO: Add point and spot lights
                     if (className == "light_environment")
                     {
-                        var lightAdjustment = Matrix4x4.CreateRotationZ(MathF.PI);
+                        Matrix4x4.Decompose(transform, out var scale, out var _, out var positionVector);
+
+                        var pitchYawRoll = entity.GetVector3Property("angles");
+                        var rollMatrix = Matrix4x4.CreateRotationX(pitchYawRoll.Z * MathF.PI / 180f);
+                        var pitchMatrix = Matrix4x4.CreateRotationY((pitchYawRoll.X - 90) * MathF.PI / 180f); // copypasta because of this
+                        var yawMatrix = Matrix4x4.CreateRotationZ(pitchYawRoll.Y * MathF.PI / 180f);
+                        var rotationMatrix = rollMatrix * pitchMatrix * yawMatrix;
+
+                        var scaleMatrix = Matrix4x4.CreateScale(scale);
+                        var positionMatrix = Matrix4x4.CreateTranslation(positionVector);
+                        var lightMatrix = scaleMatrix * rotationMatrix * positionMatrix;
+
                         var node = scene.CreateNode(className);
                         node.PunctualLight = CreateGltfLightEnvironment(exportedModel, entity);
-                        node.LocalMatrix = transform * lightAdjustment * TRANSFORMSOURCETOGLTF;
+                        node.LocalMatrix = lightMatrix * TRANSFORMSOURCETOGLTF;
                     }
 
                     continue;
