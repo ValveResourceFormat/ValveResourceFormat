@@ -539,7 +539,18 @@ namespace GUI.Controls
 
             GLControl.SwapBuffers();
             Picker?.TriggerEventIfAny();
-            GLControl.Invalidate();
+
+            var activeForm = Form.ActiveForm;
+            if (activeForm == Program.MainForm || (FullScreenForm != null && activeForm == FullScreenForm))
+            {
+                // Infinite loop of invalidates causes a bug with message box dialogs not actually appearing in front,
+                // requiring user to press Alt key for it to appear. Checking for active form also pauses rendering while
+                // the app is not focused. We don't have a reference to the file save/open dialog, thus ActiveForm will be null.
+                //
+                // Repro: open a renderer tab, right click on tab to export, save with name that would cause "file already exists" popup.
+                //
+                GLControl.Invalidate();
+            }
         }
 
         private void BlitFramebufferToScreen()
