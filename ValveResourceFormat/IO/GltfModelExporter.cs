@@ -208,11 +208,10 @@ namespace ValveResourceFormat.IO
             {
                 var transform = EntityTransformHelper.CalculateTransformationMatrix(entity);
                 var modelName = entity.GetProperty<string>("model");
+                var className = entity.GetProperty<string>("classname");
 
                 if (string.IsNullOrEmpty(modelName))
                 {
-                    var className = entity.GetProperty<string>("classname");
-
                     // Add environment lights with KHR_lights_punctual
                     // https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_lights_punctual/README.md
                     // TODO: Add point and spot lights
@@ -224,6 +223,11 @@ namespace ValveResourceFormat.IO
                         node.LocalMatrix = transform * lightAdjustment * TRANSFORMSOURCETOGLTF;
                     }
 
+                    continue;
+                }
+
+                if (className == "csgo_player_previewmodel")
+                {
                     continue;
                 }
 
