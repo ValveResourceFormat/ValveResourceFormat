@@ -364,7 +364,7 @@ partial class ModelExtract
     {
         using var dmx = ConvertMeshToDatamodelMesh(mesh, name, options);
         using var stream = new MemoryStream();
-        dmx.Save(stream, "keyvalues2", 4);
+        dmx.Save(stream, "binary", 9);
 
         return stream.ToArray();
     }
@@ -509,7 +509,7 @@ partial class ModelExtract
 
         TieElementRoot(dmx, dmeModel);
         using var stream = new MemoryStream();
-        dmx.Save(stream, "keyvalues2", 4);
+        dmx.Save(stream, "binary", 9);
 
         return stream.ToArray();
     }
@@ -579,7 +579,7 @@ partial class ModelExtract
 
         TieElementRoot(dmx, dmeModel);
         using var stream = new MemoryStream();
-        dmx.Save(stream, "keyvalues2", 4);
+        dmx.Save(stream, "binary", 9);
 
         return stream.ToArray();
     }
