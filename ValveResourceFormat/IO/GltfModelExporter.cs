@@ -778,7 +778,7 @@ namespace ValveResourceFormat.IO
 
         private PunctualLight CreateGltfLightEnvironment(ModelRoot exportedModel, VEntityLump.Entity entity)
         {
-            var intensity = (float)entity.GetProperty<double>("skyintensity");
+            var intensity = entity.GetPropertyUnchecked("brightness", 1f);
             var color = entity.GetColor32Property("color");
 
             var envLight = exportedModel
