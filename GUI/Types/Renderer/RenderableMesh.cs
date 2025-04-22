@@ -219,10 +219,6 @@ namespace GUI.Types.Renderer
 
                     var shaderArguments = new Dictionary<string, byte>(scene.RenderAttributes);
 
-                    var vertexBufferObject = objectDrawCall.GetArray("m_vertexBuffers")[0]; // TODO: Not just 0
-                    var vertexBufferId = vertexBufferObject.GetInt32Property("m_hBuffer");
-                    var vertexBuffer = vbib.VertexBuffers[vertexBufferId];
-
                     if (BoneWeightCount > 4)
                     {
                         shaderArguments.Add("D_EIGHT_BONE_BLENDING", 1);
@@ -230,14 +226,29 @@ namespace GUI.Types.Renderer
 
                     if (Mesh.IsCompressedNormalTangent(objectDrawCall))
                     {
-                        var vertexNormal = vertexBuffer.InputLayoutFields.FirstOrDefault(static i => i.SemanticName == "NORMAL");
-                        var version = vertexNormal.Format switch
-                        {
-                            DXGI_FORMAT.R32_UINT => (byte)2, // Added in CS2 on 2023-08-03
-                            _ => (byte)1,
-                        };
+                        var compressedVersion = (byte)1;
+                        var vertexBuffers = objectDrawCall.GetArray("m_vertexBuffers");
 
-                        shaderArguments.Add("D_COMPRESSED_NORMALS_AND_TANGENTS", version);
+                        foreach (var vertexBufferObject in vertexBuffers)
+                        {
+                            var vertexBufferId = vertexBufferObject.GetInt32Property("m_hBuffer");
+                            var vertexBuffer = vbib.VertexBuffers[vertexBufferId];
+
+                            var vertexNormal = vertexBuffer.InputLayoutFields.FirstOrDefault(static i => i.SemanticName == "NORMAL");
+
+                            if (vertexNormal.Format != DXGI_FORMAT.UNKNOWN)
+                            {
+                                compressedVersion = vertexNormal.Format switch
+                                {
+                                    DXGI_FORMAT.R32_UINT => 2, // Added in CS2 on 2023-08-03
+                                    _ => 1,
+                                };
+
+                                break;
+                            }
+                        }
+
+                        shaderArguments.Add("D_COMPRESSED_NORMALS_AND_TANGENTS", compressedVersion);
                     }
 
                     if (Mesh.HasBakedLightingFromLightMap(objectDrawCall) && scene.LightingInfo.HasValidLightmaps)
