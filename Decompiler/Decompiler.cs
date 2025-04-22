@@ -215,6 +215,12 @@ namespace Decompiler
                 return 1;
             }
 
+            if (!Decompile && (GltfExportFormat != null || GltfExportAnimations || GltfExportMaterials || GltfExportAdaptTextures || GltfExportExtras))
+            {
+                Console.Error.WriteLine("Exporting to glTF requires specifying -d argument.");
+                return 1;
+            }
+
             return Execute();
         }
 
