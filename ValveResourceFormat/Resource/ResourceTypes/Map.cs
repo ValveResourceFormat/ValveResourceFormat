@@ -5,7 +5,7 @@ namespace ValveResourceFormat.ResourceTypes
 {
     public class Map : ResourceData
     {
-        public override void Read(BinaryReader reader, Resource resource)
+        public override void Read(BinaryReader reader)
         {
             // Maps have no data
         }

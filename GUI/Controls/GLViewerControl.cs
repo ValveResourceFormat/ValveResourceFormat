@@ -440,7 +440,7 @@ namespace GUI.Controls
             }
             catch (Exception exception)
             {
-                var control = new CodeTextBox(exception.ToString());
+                var control = CodeTextBox.CreateFromException(exception);
                 glControlContainer.Controls.Clear();
                 glControlContainer.Controls.Add(control);
 
@@ -472,6 +472,7 @@ namespace GUI.Controls
                 return;
             }
 
+            var isTextureViewer = this is GLTextureViewer;
             var currentTime = Stopwatch.GetTimestamp();
             var elapsed = Stopwatch.GetElapsedTime(lastUpdate, currentTime);
             lastUpdate = currentTime;
@@ -479,7 +480,7 @@ namespace GUI.Controls
             // Clamp frametime because it is possible to go past 1 second when gl control is paused which may cause issues in things like particle rendering
             var frameTime = MathF.Min(1f, (float)elapsed.TotalSeconds);
 
-            if (MouseOverRenderArea && this is not GLTextureViewer)
+            if (MouseOverRenderArea && !isTextureViewer)
             {
                 var pressedKeys = CurrentlyPressedKeys;
                 var modifierKeys = ModifierKeys;
@@ -531,7 +532,7 @@ namespace GUI.Controls
 
             BlitFramebufferToScreen();
 
-            if (Settings.Config.DisplayFps != 0)
+            if (Settings.Config.DisplayFps != 0 && !isTextureViewer)
             {
                 using (new GLDebugGroup("Text Render"))
                 {

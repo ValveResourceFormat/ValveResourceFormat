@@ -24,7 +24,10 @@ namespace GUI.Utils
                 return;
             }
 
-            PInvoke.SetWindowTheme((HWND)Handle, "Explorer", null);
+#pragma warning disable WFO5001
+            var theme = Application.IsDarkModeEnabled ? "DarkMode_Explorer" : "Explorer";
+
+            PInvoke.SetWindowTheme((HWND)Handle, theme, null);
         }
     }
 }

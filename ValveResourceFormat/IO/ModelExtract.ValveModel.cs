@@ -3,6 +3,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
+using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.ResourceTypes.ModelData;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics;
@@ -367,6 +368,7 @@ partial class ModelExtract
         var attachmentList = MakeLazyList("AttachmentList");
         var skeleton = MakeLazyList("Skeleton");
         var modelModifierList = MakeLazyList("ModelModifierList");
+        var weightLists = MakeLazyList("WeightListList");
         var hitboxSetList = MakeLazyList("HitboxSetList");
 
         var boneMarkupList = MakeListNode("BoneMarkupList");
@@ -515,8 +517,36 @@ partial class ModelExtract
             }
         }
 
+        var modelSequenceData = model?.Resource.GetBlockByType(BlockType.ASEQ) as KeyValuesOrNTRO;
+        if (modelSequenceData != null)
+        {
+            ExtractSequenceData(modelSequenceData);
+        }
+
         if (AnimationsToExtract.Count > 0)
         {
+            var animationToFolder = new Dictionary<string, KVObject>(AnimationsToExtract.Count);
+            if (modelSequenceData?.Data.GetSubCollection("m_keyValues") is KVObject sequenceKeyValues)
+            {
+                if (sequenceKeyValues.GetSubCollection("faceposer_folders") is KVObject faceposerFolders)
+                {
+                    foreach (var folder in faceposerFolders)
+                    {
+                        var folderName = folder.Key;
+                        var animationNames = faceposerFolders.GetArray<string>(folderName);
+
+                        var (folderNode, children) = MakeListNode("Folder");
+                        folderNode.AddProperty("name", MakeValue(folderName));
+                        AddItem(animationList.Value, folderNode);
+
+                        foreach (var animationName in animationNames)
+                        {
+                            animationToFolder.Add(animationName, children);
+                        }
+                    }
+                }
+            }
+
             foreach (var animation in AnimationsToExtract)
             {
                 var animationFile = MakeNode(
@@ -573,7 +603,8 @@ partial class ModelExtract
                     animationFile.AddProperty("children", MakeValue(childrenKV));
                 }
 
-                AddItem(animationList.Value, animationFile);
+                var folderOrRoot = animationToFolder.GetValueOrDefault(animation.Anim.Name, animationList.Value);
+                AddItem(folderOrRoot, animationFile);
             }
         }
 
@@ -764,6 +795,44 @@ partial class ModelExtract
                 }
 
                 AddItem(hitboxSetList.Value, hitboxSet);
+            }
+        }
+
+        void ExtractSequenceData(KeyValuesOrNTRO sequenceData)
+        {
+            var boneMasks = sequenceData.Data.GetArray<KVObject>("m_localBoneMaskArray");
+            var boneNames = sequenceData.Data.GetArray<string>("m_localBoneNameArray");
+
+            foreach (var boneMask in boneMasks)
+            {
+                var name = boneMask.GetProperty<string>("m_sName");
+                var boneArray = boneMask.GetIntegerArray("m_nLocalBoneArray");
+                var boneWeights = boneMask.GetFloatArray("m_flBoneWeightArray");
+                // master_morph_weight = m_flDefaultMorphCtrlWeight
+
+                // skip default mask
+                if (name == "default" && boneArray.Length == 0)
+                {
+                    continue;
+                }
+
+                var weights = new KVObject(null, isArray: true, boneArray.Length);
+                var weightListNode = MakeNode("WeightList",
+                    ("name", name),
+                    ("weights", weights)
+                );
+
+                foreach (var (boneIndex, boneWeight) in boneArray.Zip(boneWeights))
+                {
+                    var weightDefinition = new KVObject(null, 2);
+                    var boneName = boneNames[boneIndex];
+
+                    weightDefinition.AddProperty("bone", MakeValue(boneName));
+                    weightDefinition.AddProperty("weight", MakeValue(boneWeight));
+                    AddItem(weights, weightDefinition);
+                }
+
+                AddItem(weightLists.Value, weightListNode);
             }
         }
 

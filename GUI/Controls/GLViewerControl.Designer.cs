@@ -34,9 +34,12 @@ namespace GUI.Controls
         {
             glControlContainer = new Panel();
             controlsPanel = new Panel();
+            bottomPanel = new Panel();
+            copyLabel = new Label();
             moveSpeed = new Label();
             splitContainer = new SplitContainer();
             controlsPanel.SuspendLayout();
+            bottomPanel.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)splitContainer).BeginInit();
             splitContainer.Panel1.SuspendLayout();
             splitContainer.Panel2.SuspendLayout();
@@ -50,28 +53,48 @@ namespace GUI.Controls
             glControlContainer.Location = new System.Drawing.Point(0, 0);
             glControlContainer.Margin = new Padding(4, 50, 4, 3);
             glControlContainer.Name = "glControlContainer";
-            glControlContainer.Size = new System.Drawing.Size(1273, 967);
+            glControlContainer.Size = new System.Drawing.Size(1220, 937);
             glControlContainer.TabIndex = 0;
             // 
             // controlsPanel
             // 
             controlsPanel.AutoScroll = true;
-            controlsPanel.Controls.Add(moveSpeed);
+            controlsPanel.Controls.Add(bottomPanel);
             controlsPanel.Dock = DockStyle.Fill;
             controlsPanel.Location = new System.Drawing.Point(0, 0);
             controlsPanel.Margin = new Padding(0);
             controlsPanel.Name = "controlsPanel";
             controlsPanel.Padding = new Padding(5, 5, 5, 0);
-            controlsPanel.Size = new System.Drawing.Size(220, 967);
+            controlsPanel.Size = new System.Drawing.Size(220, 937);
             controlsPanel.TabIndex = 4;
+            // 
+            // bottomPanel
+            // 
+            bottomPanel.Controls.Add(copyLabel);
+            bottomPanel.Controls.Add(moveSpeed);
+            bottomPanel.Dock = DockStyle.Bottom;
+            bottomPanel.Location = new System.Drawing.Point(5, 897);
+            bottomPanel.Margin = new Padding(0);
+            bottomPanel.Name = "bottomPanel";
+            bottomPanel.Padding = new Padding(5);
+            bottomPanel.Size = new System.Drawing.Size(210, 40);
+            bottomPanel.TabIndex = 7;
+            // 
+            // copyLabel
+            // 
+            copyLabel.Dock = DockStyle.Bottom;
+            copyLabel.Location = new System.Drawing.Point(5, 5);
+            copyLabel.Name = "copyLabel";
+            copyLabel.Size = new System.Drawing.Size(200, 15);
+            copyLabel.TabIndex = 6;
+            copyLabel.Text = "Press Ctrl+C to screenshot";
             // 
             // moveSpeed
             // 
-            moveSpeed.AutoSize = true;
             moveSpeed.Dock = DockStyle.Bottom;
-            moveSpeed.Location = new System.Drawing.Point(5, 952);
+            moveSpeed.Location = new System.Drawing.Point(5, 20);
             moveSpeed.Name = "moveSpeed";
-            moveSpeed.Size = new System.Drawing.Size(193, 15);
+            moveSpeed.Size = new System.Drawing.Size(200, 15);
             moveSpeed.TabIndex = 5;
             moveSpeed.Text = "Move speed: 1.0x (scroll to change)";
             // 
@@ -90,7 +113,7 @@ namespace GUI.Controls
             // splitContainer.Panel2
             // 
             splitContainer.Panel2.Controls.Add(glControlContainer);
-            splitContainer.Size = new System.Drawing.Size(1497, 967);
+            splitContainer.Size = new System.Drawing.Size(1444, 937);
             splitContainer.SplitterDistance = 220;
             splitContainer.TabIndex = 5;
             // 
@@ -101,9 +124,9 @@ namespace GUI.Controls
             Controls.Add(splitContainer);
             Margin = new Padding(0);
             Name = "GLViewerControl";
-            Size = new System.Drawing.Size(1497, 967);
+            Size = new System.Drawing.Size(1444, 937);
             controlsPanel.ResumeLayout(false);
-            controlsPanel.PerformLayout();
+            bottomPanel.ResumeLayout(false);
             splitContainer.Panel1.ResumeLayout(false);
             splitContainer.Panel2.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)splitContainer).EndInit();
@@ -117,5 +140,7 @@ namespace GUI.Controls
         private Panel controlsPanel;
         private Label moveSpeed;
         private SplitContainer splitContainer;
+        private Label copyLabel;
+        private Panel bottomPanel;
     }
 }

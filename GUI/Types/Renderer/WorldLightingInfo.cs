@@ -113,7 +113,7 @@ partial class Scene
             {
                 (_, { Irradiance: null }) => false,
                 (1, { DirectLightIndices: null } or { DirectLightScalars: null }) => false,
-                (2 or 3, { DirectLightShadows: null }) => false,
+                (2 or 3 or 4, { DirectLightShadows: null }) => false,
                 _ => true,
             };
 

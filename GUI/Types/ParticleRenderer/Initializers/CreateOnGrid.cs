@@ -1,3 +1,5 @@
+using GUI.Utils;
+
 namespace GUI.Types.ParticleRenderer.Initializers
 {
     // this single initializer delayed this release by months
@@ -127,7 +129,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
                 if (found) { break; };
             }
 
-            if (!found) { throw new NotImplementedException("unable to find correct position on particle grid"); }
+            if (!found) { Log.Warn(nameof(CreateOnGrid), "unable to find correct position on particle grid"); }
 
 
             if (center)

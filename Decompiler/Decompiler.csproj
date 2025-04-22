@@ -9,7 +9,7 @@
     <AssemblyName>Source2Viewer-CLI</AssemblyName>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="ConsoleAppFramework" Version="5.2.4">
+    <PackageReference Include="ConsoleAppFramework" Version="5.3.4">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>

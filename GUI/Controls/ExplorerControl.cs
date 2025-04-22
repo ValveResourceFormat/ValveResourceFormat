@@ -274,7 +274,12 @@ namespace GUI.Controls
 
                             if (!File.Exists(vpk))
                             {
-                                continue;
+                                vpk = Path.Join(addonPath, $"{item.Name}_dir.vpk");
+
+                                if (!File.Exists(vpk))
+                                {
+                                    continue;
+                                }
                             }
 
                             using var stream = File.OpenRead(publishDataPath);
@@ -323,7 +328,7 @@ namespace GUI.Controls
 
                                 try
                                 {
-                                    using var stream = File.OpenRead(Path.Join(steam, "appcache", "librarycache", "assets.vdf"));
+                                    using var stream = File.OpenRead(Path.Join(steam, "appcache", "librarycache", "assetcache.vdf"));
                                     libraryAssetsKv = KVSerializer.Create(KVSerializationFormat.KeyValues1Binary).Deserialize(stream);
                                 }
                                 catch (FileNotFoundException)

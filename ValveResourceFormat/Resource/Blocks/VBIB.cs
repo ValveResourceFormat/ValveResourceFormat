@@ -78,7 +78,7 @@ namespace ValveResourceFormat.Blocks
             }
         }
 
-        public override void Read(BinaryReader reader, Resource resource)
+        public override void Read(BinaryReader reader)
         {
             reader.BaseStream.Position = Offset;
 
@@ -108,56 +108,73 @@ namespace ValveResourceFormat.Blocks
         {
             var buffer = default(OnDiskBufferData);
 
-            buffer.ElementCount = reader.ReadUInt32();            //0
-            buffer.ElementSizeInBytes = reader.ReadUInt32();      //4
+            buffer.ElementCount = reader.ReadUInt32();
 
-            // TODO: CS2 hack, figure out what this means
-            if ((buffer.ElementSizeInBytes & 0x80000000) != 0)
-            {
-                buffer.ElementSizeInBytes &= ~0x80000000;
-            }
+            var size = reader.ReadInt32();
+            var isSizeNegative = size < 0; // TODO: what does this actually indicate?
+            var isZstdCompressed = (size & 0x8000000) != 0;
+            buffer.ElementSizeInBytes = (uint)(size & 0x7FFFFFF);
 
             var refA = reader.BaseStream.Position;
-            var attributeOffset = reader.ReadUInt32();  //8
-            var attributeCount = reader.ReadUInt32();   //12
+            var attributeOffset = reader.ReadUInt32();
+            var attributeCount = reader.ReadUInt32();
 
             var refB = reader.BaseStream.Position;
-            var dataOffset = reader.ReadUInt32();       //16
-            var totalSize = reader.ReadInt32();        //20
+            var dataOffset = reader.ReadUInt32();
+            var totalSize = reader.ReadInt32();
 
             reader.BaseStream.Position = refA + attributeOffset;
-            buffer.InputLayoutFields = Enumerable.Range(0, (int)attributeCount)
-                .Select(j =>
+            buffer.InputLayoutFields = new RenderInputLayoutField[(int)attributeCount];
+
+            for (var i = 0; i < buffer.InputLayoutFields.Length; i++)
+            {
+                var previousPosition = reader.BaseStream.Position;
+                var name = reader.ReadNullTermString(Encoding.UTF8).ToUpperInvariant();
+                reader.BaseStream.Position = previousPosition + 32; // 32 bytes long null-terminated string
+
+                var attribute = new RenderInputLayoutField
                 {
-                    var attribute = default(RenderInputLayoutField);
+                    SemanticName = name,
+                    SemanticIndex = reader.ReadInt32(),
+                    Format = (DXGI_FORMAT)reader.ReadUInt32(),
+                    Offset = reader.ReadUInt32(),
+                    Slot = reader.ReadInt32(),
+                    SlotType = (RenderSlotType)reader.ReadUInt32(),
+                    InstanceStepRate = reader.ReadInt32(),
+                };
 
-                    var previousPosition = reader.BaseStream.Position;
-                    attribute.SemanticName = reader.ReadNullTermString(Encoding.UTF8).ToUpperInvariant();
-                    reader.BaseStream.Position = previousPosition + 32; //32 bytes long null-terminated string
-
-                    attribute.SemanticIndex = reader.ReadInt32();
-                    attribute.Format = (DXGI_FORMAT)reader.ReadUInt32();
-                    attribute.Offset = reader.ReadUInt32();
-                    attribute.Slot = reader.ReadInt32();
-                    attribute.SlotType = (RenderSlotType)reader.ReadUInt32();
-                    attribute.InstanceStepRate = reader.ReadInt32();
-
-                    return attribute;
-                })
-                .ToArray();
+                buffer.InputLayoutFields[i] = attribute;
+            }
 
             reader.BaseStream.Position = refB + dataOffset;
 
             var decompressedSize = (int)(buffer.ElementCount * buffer.ElementSizeInBytes);
 
-            if (totalSize != decompressedSize)
+            if (decompressedSize > totalSize)
             {
                 var temp = ArrayPool<byte>.Shared.Rent(totalSize);
+                byte[] tempZstd = null;
 
                 try
                 {
                     var span = temp.AsSpan(0, totalSize);
                     reader.Read(span);
+
+                    if (isZstdCompressed)
+                    {
+                        using var zstdDecompressor = new ZstdSharp.Decompressor();
+
+                        // There is no expected decompressed size, so we just use buffer size for fully decoded vertex buffer
+                        // and then use the return value of zstd decompress to pass into the vertex decoder as the buffer size
+                        tempZstd = ArrayPool<byte>.Shared.Rent(decompressedSize);
+
+                        if (!zstdDecompressor.TryUnwrap(span, tempZstd, out var written))
+                        {
+                            throw new InvalidDataException("Failed to decompress ZSTD.");
+                        }
+
+                        span = tempZstd.AsSpan(0, written);
+                    }
 
                     if (isVertex)
                     {
@@ -171,6 +188,11 @@ namespace ValveResourceFormat.Blocks
                 finally
                 {
                     ArrayPool<byte>.Shared.Return(temp);
+
+                    if (tempZstd != null)
+                    {
+                        ArrayPool<byte>.Shared.Return(tempZstd);
+                    }
                 }
             }
             else
@@ -210,6 +232,9 @@ namespace ValveResourceFormat.Blocks
         }
 
         /*
+            :VertexAttributeFormat
+
+
             POSITION - R32G32B32_FLOAT          vec3
 
             NORMAL - R32_UINT                   compressed
@@ -223,6 +248,7 @@ namespace ValveResourceFormat.Blocks
 
             BLENDWEIGHT - R16G16_UNORM          vec2
             BLENDWEIGHT - R8G8B8A8_UNORM        vec4
+            BLENDWEIGHT - R16G16B16A16_UNORM    vec4
             BLENDWEIGHTS - R8G8B8A8_UNORM       vec4
 
             COLOR - R32G32B32A32_FLOAT          vec4
@@ -495,6 +521,9 @@ namespace ValveResourceFormat.Blocks
 
                         break;
                     }
+
+                default:
+                    throw new InvalidDataException($"Unexpected {attribute.SemanticName} attribute format {attribute.Format}");
             }
 
             return indices;
@@ -546,6 +575,9 @@ namespace ValveResourceFormat.Blocks
 
                         break;
                     }
+
+                default:
+                    throw new InvalidDataException($"Unexpected {attribute.SemanticName} attribute format {attribute.Format}");
             }
 
             return weights;
@@ -716,23 +748,29 @@ namespace ValveResourceFormat.Blocks
 
         public static (int ElementSize, int ElementCount) GetFormatInfo(RenderInputLayoutField attribute)
         {
+            // :VertexAttributeFormat - When adding new attribute here, also implement it in the renderer - GPUMeshBufferCache
             return attribute.Format switch
             {
-                DXGI_FORMAT.R32G32B32_FLOAT => (4, 3),
-                DXGI_FORMAT.R32G32B32A32_FLOAT => (4, 4),
-                DXGI_FORMAT.R32G32B32A32_SINT => (4, 4),
-                DXGI_FORMAT.R16G16_UNORM => (2, 2),
-                DXGI_FORMAT.R16G16_SNORM => (2, 2),
+                DXGI_FORMAT.R8G8B8A8_UINT => (1, 4),
+                DXGI_FORMAT.R8G8B8A8_UNORM => (1, 4),
+
                 DXGI_FORMAT.R16G16_FLOAT => (2, 2),
+                DXGI_FORMAT.R16G16_SINT => (2, 2),
+                DXGI_FORMAT.R16G16_SNORM => (2, 2),
+                DXGI_FORMAT.R16G16_UNORM => (2, 2),
+
+                DXGI_FORMAT.R16G16B16A16_FLOAT => (2, 4),
+                DXGI_FORMAT.R16G16B16A16_SINT => (2, 4),
                 DXGI_FORMAT.R16G16B16A16_UINT => (2, 4),
+                DXGI_FORMAT.R16G16B16A16_UNORM => (2, 4),
+
                 DXGI_FORMAT.R32_FLOAT => (4, 1),
                 DXGI_FORMAT.R32_UINT => (4, 1),
                 DXGI_FORMAT.R32G32_FLOAT => (4, 2),
-                DXGI_FORMAT.R16G16_SINT => (2, 2),
-                DXGI_FORMAT.R16G16B16A16_SINT => (2, 4),
-                DXGI_FORMAT.R16G16B16A16_FLOAT => (2, 4),
-                DXGI_FORMAT.R8G8B8A8_UINT => (1, 4),
-                DXGI_FORMAT.R8G8B8A8_UNORM => (1, 4),
+                DXGI_FORMAT.R32G32B32_FLOAT => (4, 3),
+                DXGI_FORMAT.R32G32B32A32_FLOAT => (4, 4),
+                DXGI_FORMAT.R32G32B32A32_SINT => (4, 4),
+
                 _ => throw new NotImplementedException($"Unsupported \"{attribute.SemanticName}\" DXGI_FORMAT.{attribute.Format}"),
             };
         }

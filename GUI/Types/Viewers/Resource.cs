@@ -52,7 +52,7 @@ namespace GUI.Types.Viewers
                 resourceTemp?.Dispose();
             }
 
-            var resTabs = new TabControl
+            var resTabs = new ThemedTabControl
             {
                 Dock = DockStyle.Fill,
             };
@@ -101,12 +101,13 @@ namespace GUI.Types.Viewers
                         }
 
                     case ResourceType.Sound:
+                        if (resource.ContainsBlockType(BlockType.DATA))
                         {
                             specialTabPage = new TabPage("SOUND");
                             var autoPlay = ((Settings.QuickPreviewFlags)Settings.Config.QuickFilePreview & Settings.QuickPreviewFlags.AutoPlaySounds) != 0;
                             var ap = new AudioPlayer(resource, specialTabPage, isPreview && autoPlay);
-                            break;
                         }
+                        break;
 
                     case ResourceType.Map:
                         {
@@ -203,7 +204,7 @@ namespace GUI.Types.Viewers
             }
             catch (Exception ex)
             {
-                var control = new CodeTextBox(ex.ToString());
+                var control = CodeTextBox.CreateFromException(ex);
 
                 var tabEx = new TabPage("Error");
                 tabEx.Controls.Add(control);
@@ -320,7 +321,7 @@ namespace GUI.Types.Viewers
             }
             catch (Exception ex)
             {
-                var control = new CodeTextBox(ex.ToString());
+                var control = CodeTextBox.CreateFromException(ex);
 
                 var tabEx = new TabPage("Decompile Error");
                 tabEx.Controls.Add(control);

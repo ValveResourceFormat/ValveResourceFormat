@@ -1,7 +1,5 @@
-using System.Collections.Concurrent;
 using System.IO;
 using System.Text;
-using ValveResourceFormat.ThirdParty;
 using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.Serialization.VfxEval

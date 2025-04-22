@@ -56,9 +56,9 @@ namespace ValveResourceFormat.ResourceTypes
             return flexControllers.ToArray();
         }
 
-        public override void Read(BinaryReader reader, Resource resource)
+        public override void Read(BinaryReader reader)
         {
-            base.Read(reader, resource);
+            base.Read(reader);
 
             if (Resource.GetBlockByType(BlockType.MDAT) is Mesh mesh)
             {

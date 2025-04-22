@@ -484,7 +484,7 @@ namespace GUI.Types.Viewers
                         {
                             Text = gpuSourceTabTitle
                         };
-                        var resTabs = new TabControl
+                        var resTabs = new ThemedTabControl
                         {
                             Dock = DockStyle.Fill,
                         };

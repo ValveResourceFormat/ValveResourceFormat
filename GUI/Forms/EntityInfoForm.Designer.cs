@@ -32,7 +32,7 @@ namespace GUI.Forms
         {
             var dataGridViewCellStyle1 = new DataGridViewCellStyle();
             var dataGridViewCellStyle2 = new DataGridViewCellStyle();
-            tabControl = new TabControl();
+            tabControl = new ThemedTabControl();
             tabPageProperties = new TabPage();
             dataGridProperties = new DataGridView();
             ColumnName = new DataGridViewTextBoxColumn();

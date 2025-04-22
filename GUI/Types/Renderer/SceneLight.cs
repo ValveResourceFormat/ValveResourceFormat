@@ -103,9 +103,9 @@ class SceneLight(Scene scene) : SceneNode(scene)
             light.SpotOuterAngle = entity.GetPropertyUnchecked("outerconeangle", light.SpotOuterAngle);
         }
 
-        var angles = EntityTransformHelper.GetPitchYawRoll(entity);
+        light.Position = entity.GetVector3Property("origin");
 
-        light.Position = EntityTransformHelper.ParseVector(entity.GetProperty<string>("origin"));
+        var angles = entity.GetVector3Property("angles");
         light.Direction = new Vector3(
             MathF.Cos(angles.Y) * MathF.Cos(angles.X),
             MathF.Sin(angles.Y) * MathF.Cos(angles.X),

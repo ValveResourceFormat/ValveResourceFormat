@@ -11,11 +11,11 @@ namespace ValveResourceFormat.ResourceTypes
     {
         private BinaryKV3 _layoutContent;
 
-        public override void Read(BinaryReader reader, Resource resource)
+        public override void Read(BinaryReader reader)
         {
-            base.Read(reader, resource);
+            base.Read(reader);
 
-            _layoutContent = resource.GetBlockByType(BlockType.LaCo) as BinaryKV3;
+            _layoutContent = Resource.GetBlockByType(BlockType.LaCo) as BinaryKV3;
         }
 
         public override string ToString()

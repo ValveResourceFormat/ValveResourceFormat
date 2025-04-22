@@ -15,7 +15,7 @@ namespace GUI.Types.Viewers
         public TabPage Create(VrfGuiContext vrfGuiContext, Stream stream)
         {
             var tabOuterPage = new TabPage();
-            var tabControl = new TabControl
+            var tabControl = new ThemedTabControl
             {
                 Dock = DockStyle.Fill,
             };

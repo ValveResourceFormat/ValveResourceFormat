@@ -232,60 +232,63 @@ namespace ValveResourceFormat
 
                 block.Offset = offset;
                 block.Size = size;
+                block.Resource = this;
 
                 Blocks.Add(block);
 
-                switch (block.Type)
+                if (block.Type is BlockType.NTRO)
                 {
-                    case BlockType.REDI:
-                    case BlockType.RED2:
-                        block.Read(Reader, this);
+                    block.Read(Reader);
+                }
 
-                        EditInfo = (ResourceEditInfo)block;
-
-                        // Try to determine resource type by looking at the compiler indentifiers
-                        if (ResourceType == ResourceType.Unknown)
-                        {
-                            foreach (var specialDep in EditInfo.SpecialDependencies)
-                            {
-                                ResourceType = DetermineResourceTypeByCompilerIdentifier(specialDep);
-
-                                if (ResourceType != ResourceType.Unknown)
-                                {
-                                    break;
-                                }
-                            }
-                        }
-
-                        // Try to determine resource type by looking at the input dependency if there is only one
-                        if (ResourceType == ResourceType.Unknown && EditInfo.InputDependencies.Count == 1)
-                        {
-                            ResourceType = ResourceTypeExtensions.DetermineByFileExtension(Path.GetExtension(EditInfo.InputDependencies[0].ContentRelativeFilename));
-                        }
-
-                        break;
-
-                    case BlockType.NTRO:
-                        block.Read(Reader, this);
-                        break;
+                if (block.Type is BlockType.RED2 or BlockType.REDI)
+                {
+                    block.Read(Reader);
+                    EditInfo = (ResourceEditInfo)block;
                 }
 
                 Reader.BaseStream.Position = position + 8;
+            }
+
+            // Try to determine resource type by looking at the compiler indentifiers
+            if (ResourceType == ResourceType.Unknown && EditInfo != null)
+            {
+                foreach (var specialDep in EditInfo.SpecialDependencies)
+                {
+                    ResourceType = DetermineResourceTypeByCompilerIdentifier(specialDep);
+
+                    if (ResourceType != ResourceType.Unknown)
+                    {
+                        break;
+                    }
+                }
+
+                // Try to determine resource type by looking at the input dependency if there is only one
+                if (ResourceType == ResourceType.Unknown && EditInfo.InputDependencies.Count == 1)
+                {
+                    ResourceType = ResourceTypeExtensions.DetermineByFileExtension(Path.GetExtension(EditInfo.InputDependencies[0].ContentRelativeFilename));
+                }
             }
 
             foreach (var block in Blocks)
             {
                 if (block.Type is not BlockType.REDI and not BlockType.RED2 and not BlockType.NTRO)
                 {
-                    block.Read(Reader, this);
+                    block.Read(Reader);
                 }
             }
 
             if (ResourceType == ResourceType.Sound && ContainsBlockType(BlockType.CTRL)) // Version >= 5, but other ctrl-type sounds have version 0
             {
-                var block = new Sound();
-                block.ConstructFromCtrl(Reader, this);
-                Blocks.Add(block);
+                var block = new Sound
+                {
+                    Resource = this,
+                };
+
+                if (block.ConstructFromCtrl(Reader))
+                {
+                    Blocks.Add(block);
+                }
             }
 
             var fullFileSize = FullFileSize;
@@ -346,6 +349,7 @@ namespace ValveResourceFormat
                 nameof(BlockType.VXVS) => new VXVS(),
                 nameof(BlockType.SNAP) => new SNAP(),
                 nameof(BlockType.MBUF) => new MBUF(),
+                nameof(BlockType.TBUF) => new TBUF(),
                 nameof(BlockType.CTRL) => new BinaryKV3(BlockType.CTRL),
                 nameof(BlockType.MDAT) => new Mesh(BlockType.MDAT),
                 nameof(BlockType.INSG) => new BinaryKV3(BlockType.INSG),

@@ -1,8 +1,8 @@
 using System.IO;
 using System.Windows.Forms;
 using GUI.Controls;
-using GUI.Utils;
 using GUI.Types.Renderer;
+using GUI.Utils;
 using ValveResourceFormat.NavMesh;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -18,7 +18,7 @@ namespace GUI.Types.Viewers
         public TabPage Create(VrfGuiContext vrfGuiContext, Stream stream)
         {
             var tabOuterPage = new TabPage();
-            var tabControl = new TabControl
+            var tabControl = new ThemedTabControl
             {
                 Dock = DockStyle.Fill,
             };

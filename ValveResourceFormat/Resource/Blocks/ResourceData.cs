@@ -9,7 +9,7 @@ namespace ValveResourceFormat.Blocks
     {
         public override BlockType Type => BlockType.DATA;
 
-        public override void Read(BinaryReader reader, Resource resource)
+        public override void Read(BinaryReader reader)
         {
             // TODO
         }

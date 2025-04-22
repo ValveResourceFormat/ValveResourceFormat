@@ -207,7 +207,7 @@ namespace GUI.Types.Renderer
                 (6, 0) => false,
                 (8, 1) => LightmapSetV81.All(lightmapPresent),
                 (8, 2) => LightmapSetV82.All(lightmapPresent),
-                (8, 3) => LightmapSetV83.All(lightmapPresent),
+                (8, 3 or 4) => LightmapSetV83.All(lightmapPresent),
                 _ => false,
             };
 

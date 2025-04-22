@@ -179,7 +179,6 @@ namespace ValveResourceFormat.ResourceTypes
                 }
                 else
                 {
-                    keyName = keyName.ToLowerInvariant();
                     var calculatedHash = StringToken.Store(keyName);
                     if (calculatedHash != keyHash)
                     {

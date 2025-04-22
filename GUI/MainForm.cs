@@ -100,6 +100,14 @@ namespace GUI
 
             Settings.Load();
 
+#pragma warning disable WFO5001
+            Application.SetColorMode(Settings.GetSystemColor());
+
+            if (Application.IsDarkModeEnabled)
+            {
+                Log.Warn(nameof(Application), "Dark mode is EXPERIMENTAL. Some controls may have less than ideal colors which will be improved in a future .NET update.");
+            }
+
             HardwareAcceleratedTextureDecoder.Decoder = new GLTextureDecoder();
 
 #if DEBUG
@@ -603,7 +611,7 @@ namespace GUI
                 {
                     t.Exception?.Flatten().Handle(ex =>
                     {
-                        var control = new CodeTextBox(ex.ToString());
+                        var control = CodeTextBox.CreateFromException(ex);
 
                         tab.Controls.Add(control);
 
@@ -723,6 +731,14 @@ namespace GUI
             {
                 return new Types.Viewers.ToolsAssetInfo().Create(vrfGuiContext, stream);
             }
+            else if (Types.Viewers.FlexSceneFile.IsAccepted(magic))
+            {
+                return new Types.Viewers.FlexSceneFile().Create(vrfGuiContext, stream);
+            }
+            else if (Types.Viewers.NavView.IsAccepted(magic))
+            {
+                return new Types.Viewers.NavView().Create(vrfGuiContext, stream);
+            }
             else if (Types.Viewers.BinaryKeyValues.IsAccepted(magic))
             {
                 return new Types.Viewers.BinaryKeyValues().Create(vrfGuiContext, stream);
@@ -735,21 +751,20 @@ namespace GUI
             {
                 return new Types.Viewers.Resource().Create(vrfGuiContext, stream, isPreview);
             }
+            // Raw images and audio files do not really appear in Source 2 projects, but we support viewing them anyway.
+            // As some detections rely on the file extension instead of magic bytes,
+            // they should be detected at the bottom here, after failing to detect a proper resource file.
             else if (Types.Viewers.Image.IsAccepted(magic))
             {
                 return new Types.Viewers.Image().Create(vrfGuiContext, stream);
             }
+            else if (Types.Viewers.Image.IsAcceptedVector(vrfGuiContext.FileName))
+            {
+                return new Types.Viewers.Image().CreateVector(vrfGuiContext, stream);
+            }
             else if (Types.Viewers.Audio.IsAccepted(magic, vrfGuiContext.FileName))
             {
                 return new Types.Viewers.Audio().Create(vrfGuiContext, stream, isPreview);
-            }
-            else if (Types.Viewers.FlexSceneFile.IsAccepted(magic))
-            {
-                return new Types.Viewers.FlexSceneFile().Create(vrfGuiContext, stream);
-            }
-            else if (Types.Viewers.NavView.IsAccepted(magic))
-            {
-                return new Types.Viewers.NavView().Create(vrfGuiContext, stream);
             }
 
             return new Types.Viewers.ByteViewer().Create(vrfGuiContext, stream);

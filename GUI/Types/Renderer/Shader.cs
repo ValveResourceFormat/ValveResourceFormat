@@ -132,7 +132,7 @@ namespace GUI.Types.Renderer
 
         public void SetBoneAnimationData(bool animated, int boneOffset = 0, int boneCount = 0, int weightCount = 0)
         {
-            var uniformLocation = GetUniformLocation("iAnimationData");
+            var uniformLocation = GetUniformLocation("uAnimationData");
             if (uniformLocation > -1)
             {
                 GL.ProgramUniform4(Program, uniformLocation, animated ? 1u : 0u, (uint)boneOffset, (uint)boneCount, (uint)weightCount);

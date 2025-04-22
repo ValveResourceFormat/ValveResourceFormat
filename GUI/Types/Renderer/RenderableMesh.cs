@@ -225,19 +225,10 @@ namespace GUI.Types.Renderer
                     var vertexBufferId = vertexBufferObject.GetInt32Property("m_hBuffer");
                     var vertexBuffer = vbib.VertexBuffers[vertexBufferId];
 
-                    var blendIndices = vertexBuffer.InputLayoutFields.FirstOrDefault(static i => i.SemanticName == "BLENDINDICES");
-                    var blendWeights = vertexBuffer.InputLayoutFields.FirstOrDefault(static i => i.SemanticName == "BLENDWEIGHT");
-                    var isEightBoneBlendWeights = blendWeights.Format is DXGI_FORMAT.R16G16B16A16_UNORM;
-                    if (isEightBoneBlendWeights)
+                    if (BoneWeightCount > 4)
                     {
-                        shaderArguments.Add("D_EIGHT_BONE_BLENDING", blendIndices.Format switch
-                        {
-                            DXGI_FORMAT.R32G32B32A32_SINT => 2,
-                            DXGI_FORMAT.R16G16B16A16_UINT => 1,
-                            _ => 0,
-                        });
+                        shaderArguments.Add("D_EIGHT_BONE_BLENDING", 1);
                     }
-
 
                     if (Mesh.IsCompressedNormalTangent(objectDrawCall))
                     {
@@ -352,6 +343,49 @@ namespace GUI.Types.Renderer
                 var vertexBufferVbib = vbib.VertexBuffers[(int)vertexBuffer.Id];
                 vertexBuffer.ElementSizeInBytes = vertexBufferVbib.ElementSizeInBytes;
                 vertexBuffer.InputLayoutFields = vertexBufferVbib.InputLayoutFields;
+
+                if (BoneWeightCount > 4)
+                {
+                    var newInputLayout = new List<VBIB.RenderInputLayoutField>(vertexBuffer.InputLayoutFields.Length + 2);
+                    foreach (var inputField in vertexBuffer.InputLayoutFields)
+                    {
+                        if (inputField.SemanticName is "BLENDINDICES" or "BLENDWEIGHT")
+                        {
+                            var (newFormat, formatSize) = inputField.Format switch
+                            {
+                                // Blendindices
+                                DXGI_FORMAT.R32G32B32A32_SINT => (DXGI_FORMAT.R16G16B16A16_UINT, 8u),
+                                DXGI_FORMAT.R16G16B16A16_UINT => (DXGI_FORMAT.R8G8B8A8_UINT, 4u),
+
+                                // Blendweight
+                                DXGI_FORMAT.R16G16B16A16_UNORM => (DXGI_FORMAT.R8G8B8A8_UNORM, 4u),
+
+                                _ => (inputField.Format, 0u),
+                            };
+
+                            if (newFormat != inputField.Format)
+                            {
+                                newInputLayout.Add(inputField with
+                                {
+                                    Format = newFormat,
+                                });
+
+                                newInputLayout.Add(inputField with
+                                {
+                                    SemanticIndex = 2,
+                                    Format = newFormat,
+                                    Offset = inputField.Offset + formatSize,
+                                });
+
+                                continue;
+                            }
+                        }
+
+                        newInputLayout.Add(inputField);
+                    }
+
+                    vertexBuffer.InputLayoutFields = newInputLayout.ToArray();
+                }
 
                 drawCall.VertexBuffer = vertexBuffer;
 
