@@ -22,10 +22,10 @@ namespace ValveResourceFormat.IO
         // NOTE: Swaps Y and Z axes - gltf up axis is Y (source engine up is Z)
         // Also divides by 100, gltf units are in meters, source engine units are in inches
         // https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#coordinate-system-and-units
-        private readonly Matrix4x4 TRANSFORMSOURCETOGLTF = Matrix4x4.CreateScale(0.0254f) * Matrix4x4.CreateFromYawPitchRoll(0, MathF.PI / -2f, MathF.PI / -2f);
+        private readonly static Matrix4x4 TRANSFORMSOURCETOGLTF = Matrix4x4.CreateScale(0.0254f) * Matrix4x4.CreateFromYawPitchRoll(0, MathF.PI / -2f, MathF.PI / -2f);
 
         // https://github.com/KhronosGroup/glTF-Blender-IO/blob/6b29ca135d5255dbfe1dd72424ce7243be73c0be/addons/io_scene_gltf2/blender/com/conversion.py#L20
-        private readonly float PbrWattsTolumens = 683;
+        private const float PbrWattsTolumens = 683;
 
         public IProgress<string> ProgressReporter { get; set; }
         public IFileLoader FileLoader { get; }
@@ -776,7 +776,7 @@ namespace ValveResourceFormat.IO
             }
         }
 
-        private PunctualLight CreateGltfLightEnvironment(ModelRoot exportedModel, VEntityLump.Entity entity)
+        private static PunctualLight CreateGltfLightEnvironment(ModelRoot exportedModel, VEntityLump.Entity entity)
         {
             var intensity = entity.GetPropertyUnchecked("brightness", 1f);
             var color = entity.GetColor32Property("color");
