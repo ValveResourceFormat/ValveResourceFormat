@@ -174,7 +174,7 @@ namespace GUI.Types.Renderer
         {
             drawCall.VertexArrayObject = guiContext.MeshBufferCache.GetVertexArrayObject(
                    VBIBHashCode,
-                   drawCall.VertexBuffer,
+                   drawCall.VertexBuffers,
                    drawCall.Material,
                    drawCall.IndexBuffer.Id);
 
@@ -344,59 +344,65 @@ namespace GUI.Types.Renderer
 
             // Vertex buffer
             {
-                var vertexBufferObject = objectDrawCall.GetArray("m_vertexBuffers")[0]; // TODO: Not just 0
-                var vertexBuffer = default(VertexDrawBuffer);
-                vertexBuffer.Id = vertexBufferObject.GetUInt32Property("m_hBuffer");
-                vertexBuffer.Offset = vertexBufferObject.GetUInt32Property("m_nBindOffsetBytes");
+                var bindingIndex = 0;
+                var vertexBuffers = objectDrawCall.GetArray("m_vertexBuffers");
+                drawCall.VertexBuffers = new VertexDrawBuffer[vertexBuffers.Length];
 
-                var vertexBufferVbib = vbib.VertexBuffers[(int)vertexBuffer.Id];
-                vertexBuffer.ElementSizeInBytes = vertexBufferVbib.ElementSizeInBytes;
-                vertexBuffer.InputLayoutFields = vertexBufferVbib.InputLayoutFields;
-
-                if (BoneWeightCount > 4)
+                foreach (var vertexBufferObject in vertexBuffers)
                 {
-                    var newInputLayout = new List<VBIB.RenderInputLayoutField>(vertexBuffer.InputLayoutFields.Length + 2);
-                    foreach (var inputField in vertexBuffer.InputLayoutFields)
+                    var vertexBuffer = default(VertexDrawBuffer);
+                    vertexBuffer.Id = vertexBufferObject.GetUInt32Property("m_hBuffer");
+                    vertexBuffer.Offset = vertexBufferObject.GetUInt32Property("m_nBindOffsetBytes");
+
+                    var vertexBufferVbib = vbib.VertexBuffers[(int)vertexBuffer.Id];
+                    vertexBuffer.ElementSizeInBytes = vertexBufferVbib.ElementSizeInBytes;
+                    vertexBuffer.InputLayoutFields = vertexBufferVbib.InputLayoutFields;
+
+                    if (BoneWeightCount > 4)
                     {
-                        if (inputField.SemanticName is "BLENDINDICES" or "BLENDWEIGHT")
+                        var newInputLayout = new List<VBIB.RenderInputLayoutField>(vertexBuffer.InputLayoutFields.Length + 2);
+                        foreach (var inputField in vertexBuffer.InputLayoutFields)
                         {
-                            var (newFormat, formatSize) = inputField.Format switch
+                            if (inputField.SemanticName is "BLENDINDICES" or "BLENDWEIGHT")
                             {
-                                // Blendindices
-                                DXGI_FORMAT.R32G32B32A32_SINT => (DXGI_FORMAT.R16G16B16A16_UINT, 8u),
-                                DXGI_FORMAT.R16G16B16A16_UINT => (DXGI_FORMAT.R8G8B8A8_UINT, 4u),
-
-                                // Blendweight
-                                DXGI_FORMAT.R16G16B16A16_UNORM => (DXGI_FORMAT.R8G8B8A8_UNORM, 4u),
-
-                                _ => (inputField.Format, 0u),
-                            };
-
-                            if (newFormat != inputField.Format)
-                            {
-                                newInputLayout.Add(inputField with
+                                var (newFormat, formatSize) = inputField.Format switch
                                 {
-                                    Format = newFormat,
-                                });
+                                    // Blendindices
+                                    DXGI_FORMAT.R32G32B32A32_SINT => (DXGI_FORMAT.R16G16B16A16_UINT, 8u),
+                                    DXGI_FORMAT.R16G16B16A16_UINT => (DXGI_FORMAT.R8G8B8A8_UINT, 4u),
 
-                                newInputLayout.Add(inputField with
+                                    // Blendweight
+                                    DXGI_FORMAT.R16G16B16A16_UNORM => (DXGI_FORMAT.R8G8B8A8_UNORM, 4u),
+
+                                    _ => (inputField.Format, 0u),
+                                };
+
+                                if (newFormat != inputField.Format)
                                 {
-                                    SemanticIndex = 2,
-                                    Format = newFormat,
-                                    Offset = inputField.Offset + formatSize,
-                                });
+                                    newInputLayout.Add(inputField with
+                                    {
+                                        Format = newFormat,
+                                    });
 
-                                continue;
+                                    newInputLayout.Add(inputField with
+                                    {
+                                        SemanticIndex = 2,
+                                        Format = newFormat,
+                                        Offset = inputField.Offset + formatSize,
+                                    });
+
+                                    continue;
+                                }
                             }
+
+                            newInputLayout.Add(inputField);
                         }
 
-                        newInputLayout.Add(inputField);
+                        vertexBuffer.InputLayoutFields = newInputLayout.ToArray();
                     }
 
-                    vertexBuffer.InputLayoutFields = newInputLayout.ToArray();
+                    drawCall.VertexBuffers[bindingIndex++] = vertexBuffer;
                 }
-
-                drawCall.VertexBuffer = vertexBuffer;
 
                 drawCall.BaseVertex = objectDrawCall.GetInt32Property("m_nBaseVertex");
                 //drawCall.VertexCount = objectDrawCall.GetUInt32Property("m_nVertexCount");

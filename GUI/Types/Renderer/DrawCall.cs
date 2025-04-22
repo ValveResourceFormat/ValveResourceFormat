@@ -21,7 +21,7 @@ namespace GUI.Types.Renderer
         public int NumMeshlets { get; set; }
         public RenderMaterial Material { get; set; }
         public int VertexArrayObject { get; set; }
-        public VertexDrawBuffer VertexBuffer { get; set; }
+        public VertexDrawBuffer[] VertexBuffers { get; set; }
         public DrawElementsType IndexType { get; set; }
         public IndexDrawBuffer IndexBuffer { get; set; }
         public int VertexIdOffset { get; set; }

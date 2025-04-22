@@ -54,14 +54,16 @@ namespace GUI.Types.Renderer
             }
         }
 
-        public int GetVertexArrayObject(ulong key, VertexDrawBuffer curVertexBuffer, RenderMaterial material, uint idxIndex)
+        public int GetVertexArrayObject(ulong key, VertexDrawBuffer[] vertexBuffers, RenderMaterial material, uint idxIndex)
         {
+            Debug.Assert(vertexBuffers != null && vertexBuffers.Length > 0);
+
             var gpuVbib = gpuBuffers[key];
             var vaoKey = new VAOKey
             {
                 VBIB = gpuVbib,
                 Shader = material.Shader.Program,
-                VertexIndex = curVertexBuffer.Id,
+                VertexIndex = vertexBuffers[0].Id, // Probably good enough since every draw call will be creating new buffers
                 IndexIndex = idxIndex,
             };
 
@@ -71,7 +73,6 @@ namespace GUI.Types.Renderer
             }
 
             GL.CreateVertexArrays(1, out int newVaoHandle);
-            GL.VertexArrayVertexBuffer(newVaoHandle, 0, gpuVbib.VertexBuffers[curVertexBuffer.Id], 0, (int)curVertexBuffer.ElementSizeInBytes);
             GL.VertexArrayElementBuffer(newVaoHandle, gpuVbib.IndexBuffers[idxIndex]);
 
             // Workaround a bug in Intel drivers when mixing float and integer attributes
@@ -79,51 +80,60 @@ namespace GUI.Types.Renderer
             // We are using DSA apis, so we don't actually need to bind the VAO
             GL.BindVertexArray(newVaoHandle);
 
-            foreach (var attribute in curVertexBuffer.InputLayoutFields)
+            var bindingIndex = 0;
+
+            foreach (var curVertexBuffer in vertexBuffers)
             {
-                var attributeLocation = -1;
-                var insgElemName = string.Empty;
+                GL.VertexArrayVertexBuffer(newVaoHandle, bindingIndex, gpuVbib.VertexBuffers[curVertexBuffer.Id], 0, (int)curVertexBuffer.ElementSizeInBytes);
 
-                if (material.Material is { InputSignature.Elements.Length: > 0 })
+                foreach (var attribute in curVertexBuffer.InputLayoutFields)
                 {
-                    var matchingName = Material.FindD3DInputSignatureElement(material.Material.InputSignature, attribute.SemanticName, attribute.SemanticIndex).Name;
-                    if (!string.IsNullOrEmpty(matchingName))
+                    var attributeLocation = -1;
+                    var insgElemName = string.Empty;
+
+                    if (material.Material is { InputSignature.Elements.Length: > 0 })
                     {
-                        insgElemName = matchingName;
-                        attributeLocation = GL.GetAttribLocation(material.Shader.Program, insgElemName switch
+                        var matchingName = Material.FindD3DInputSignatureElement(material.Material.InputSignature, attribute.SemanticName, attribute.SemanticIndex).Name;
+                        if (!string.IsNullOrEmpty(matchingName))
                         {
-                            "vLightmapUVW" => "vLightmapUV",
-                            _ => insgElemName,
-                        });
+                            insgElemName = matchingName;
+                            attributeLocation = GL.GetAttribLocation(material.Shader.Program, insgElemName switch
+                            {
+                                "vLightmapUVW" => "vLightmapUV",
+                                _ => insgElemName,
+                            });
+                        }
                     }
-                }
 
-                // Fallback to guessing basic attribute name if INSG does not exist or attribute was not found
-                if (attributeLocation == -1)
-                {
-                    var attributeName = "v" + attribute.SemanticName;
-                    if (attribute.SemanticIndex > 0 && attribute.SemanticName
-                        is "TEXCOORD"
-                        or "COLOR"
-                        or "BLENDINDICES"
-                        or "BLENDWEIGHT")
+                    // Fallback to guessing basic attribute name if INSG does not exist or attribute was not found
+                    if (attributeLocation == -1)
                     {
-                        attributeName += attribute.SemanticIndex;
+                        var attributeName = "v" + attribute.SemanticName;
+                        if (attribute.SemanticIndex > 0 && attribute.SemanticName
+                            is "TEXCOORD"
+                            or "COLOR"
+                            or "BLENDINDICES"
+                            or "BLENDWEIGHT")
+                        {
+                            attributeName += attribute.SemanticIndex;
+                        }
+
+                        attributeLocation = GL.GetAttribLocation(material.Shader.Program, attributeName);
                     }
 
-                    attributeLocation = GL.GetAttribLocation(material.Shader.Program, attributeName);
-                }
-
-                // Ignore this attribute if it is not found in the shader
-                if (attributeLocation == -1)
-                {
+                    // Ignore this attribute if it is not found in the shader
+                    if (attributeLocation == -1)
+                    {
 #if DEBUG
-                    Utils.Log.Debug(nameof(GPUMeshBufferCache), $"Attribute {attribute.SemanticName} ({attribute.SemanticIndex}) could not be bound in shader {material.Shader.Name} (insg: {insgElemName})");
+                        Utils.Log.Debug(nameof(GPUMeshBufferCache), $"Attribute {attribute.SemanticName} ({attribute.SemanticIndex}) could not be bound in shader {material.Shader.Name} (insg: {insgElemName})");
 #endif
-                    continue;
+                        continue;
+                    }
+
+                    BindVertexAttrib(newVaoHandle, attribute, attributeLocation, (int)attribute.Offset, bindingIndex);
                 }
 
-                BindVertexAttrib(newVaoHandle, attribute, attributeLocation, (int)attribute.Offset);
+                bindingIndex++;
             }
 
             GL.BindVertexArray(0);
@@ -132,10 +142,10 @@ namespace GUI.Types.Renderer
             return newVaoHandle;
         }
 
-        private static void BindVertexAttrib(int vao, VBIB.RenderInputLayoutField attribute, int attributeLocation, int offset)
+        private static void BindVertexAttrib(int vao, VBIB.RenderInputLayoutField attribute, int attributeLocation, int offset, int bindingIndex)
         {
             GL.EnableVertexArrayAttrib(vao, attributeLocation);
-            GL.VertexArrayAttribBinding(vao, attributeLocation, 0);
+            GL.VertexArrayAttribBinding(vao, attributeLocation, bindingIndex);
 
             switch (attribute.Format)
             {
