@@ -298,9 +298,6 @@ public partial class GltfModelExporter
     {
         CancellationToken.ThrowIfCancellationRequested();
 
-        var vertexBufferInfo = drawCall.GetArray("m_vertexBuffers")[0]; // In what situation can we have more than 1 vertex buffer per draw call?
-        var vertexBufferIndex = vertexBufferInfo.GetInt32Property("m_hBuffer");
-
         var indexBufferInfo = drawCall.GetSubCollection("m_indexBuffer");
         var indexBufferIndex = indexBufferInfo.GetInt32Property("m_hBuffer");
         var indexBuffer = vbib.IndexBuffers[indexBufferIndex];
@@ -308,11 +305,18 @@ public partial class GltfModelExporter
         // Create one primitive per draw call
         var primitive = mesh.CreatePrimitive();
 
-        foreach (var (attributeKey, accessor) in vertexBufferAccessors[vertexBufferIndex])
-        {
-            primitive.SetVertexAccessor(attributeKey, accessor);
+        var vertexBuffers = drawCall.GetArray("m_vertexBuffers");
 
-            DebugValidateGLTF();
+        foreach (var vertexBufferInfo in vertexBuffers)
+        {
+            var vertexBufferIndex = vertexBufferInfo.GetInt32Property("m_hBuffer");
+
+            foreach (var (attributeKey, accessor) in vertexBufferAccessors[vertexBufferIndex])
+            {
+                primitive.SetVertexAccessor(attributeKey, accessor);
+
+                DebugValidateGLTF();
+            }
         }
 
         // Set index buffer
