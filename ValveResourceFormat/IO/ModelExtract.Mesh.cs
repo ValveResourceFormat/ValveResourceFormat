@@ -376,7 +376,8 @@ partial class ModelExtract
         var indexBuffers = mbuf.IndexBuffers.Select(ib => new Lazy<int[]>(() => GltfModelExporter.ReadIndices(ib, 0, (int)ib.ElementCount, 0))).ToArray();
 
         var datamodel = new Datamodel.Datamodel("model", 22);
-        DmxModelMultiVertexBufferLayout(name, mbuf.VertexBuffers.Count, out var dmeModel, out var dags, out var dmeVertexBuffers);
+        var dmeModel = new DmeModel() { Name = name };
+        var dmeVertexBuffers = new Dictionary<(int, int), (DmeDag Dag, DmeVertexData VertexData)>(mbuf.VertexBuffers.Count);
 
         var materialInputSignature = Material.VsInputSignature.Empty;
         var drawCallIndex = 0;
@@ -385,8 +386,14 @@ partial class ModelExtract
         {
             foreach (var drawCall in sceneObject.GetArray("m_drawCalls"))
             {
-                var vertexBufferInfo = drawCall.GetArray("m_vertexBuffers")[0]; // In what situation can we have more than 1 vertex buffer per draw call?
-                var vertexBufferIndex = vertexBufferInfo.GetInt32Property("m_hBuffer");
+                var vertexBufferIndicesIterator = drawCall.GetArray("m_vertexBuffers").Select(b => b.GetInt32Property("m_hBuffer"));
+                var dmeVertexBufferKey = (vertexBufferIndicesIterator.First(), vertexBufferIndicesIterator.Skip(1).FirstOrDefault(-1));
+
+                if (!dmeVertexBuffers.TryGetValue(dmeVertexBufferKey, out var dmeVertexBuffer))
+                {
+                    dmeVertexBuffer = CreateDmxDagVertexData(dmeModel, name);
+                    dmeVertexBuffers[dmeVertexBufferKey] = dmeVertexBuffer;
+                }
 
                 var indexBufferInfo = drawCall.GetSubCollection("m_indexBuffer");
                 var indexBufferIndex = indexBufferInfo.GetInt32Property("m_hBuffer");
@@ -408,21 +415,19 @@ partial class ModelExtract
                 var startIndex = drawCall.GetInt32Property("m_nStartIndex");
                 var indexCount = drawCall.GetInt32Property("m_nIndexCount");
 
-                var dag = dags[vertexBufferIndex];
+                var dag = dmeVertexBuffer.Dag;
 
                 if (options.SplitDrawCallsIntoSeparateSubmeshes)
                 {
+                    var subMeshName = "draw" + drawCallIndex;
+
                     if (drawCallIndex > 0)
                     {
                         // new submesh with same vertex buffer as first submesh
-                        dag = [];
-                        dmeModel.Children.Add(dag);
-                        dmeModel.JointList.Add(dag);
-                        dag.Shape.CurrentState = dmeVertexBuffers[vertexBufferIndex];
-                        dag.Shape.BaseStates.Add(dmeVertexBuffers[vertexBufferIndex]);
+                        dag = CreateDmxDag(dmeModel, dmeVertexBuffer.VertexData, subMeshName);
                     }
 
-                    dag.Shape.Name = "draw" + drawCallIndex;
+                    dag.Shape.Name = subMeshName;
                 }
 
                 GenerateTriangleFaceSetFromIndexBuffer(
@@ -439,9 +444,14 @@ partial class ModelExtract
 
         var boneWeightCount = mesh.Data.GetSubCollection("m_skeleton")?.GetInt32Property("m_nBoneWeightCount") ?? 0;
 
-        for (var i = 0; i < mbuf.VertexBuffers.Count; i++)
+        foreach (var (vertexBufferIndices, dmeObjects) in dmeVertexBuffers)
         {
-            FillDatamodelVertexData(mbuf.VertexBuffers[i], dmeVertexBuffers[i], materialInputSignature, boneWeightCount, options.BoneRemapTable);
+            FillDatamodelVertexData(mbuf.VertexBuffers[vertexBufferIndices.Item1], dmeObjects.VertexData, materialInputSignature, boneWeightCount, options.BoneRemapTable);
+
+            if (vertexBufferIndices.Item2 != -1)
+            {
+                FillDatamodelVertexData(mbuf.VertexBuffers[vertexBufferIndices.Item2], dmeObjects.VertexData, materialInputSignature, boneWeightCount, options.BoneRemapTable);
+            }
         }
 
         TieElementRoot(datamodel, dmeModel);
@@ -600,20 +610,34 @@ partial class ModelExtract
 
         for (var i = 0; i < vertexBufferCount; i++)
         {
-            // dmx requires one dag per vertex buffer
-            var dag = dags[i] = new DmeDag() { Name = name };
-            dmeModel.Children.Add(dag);
-            dmeModel.JointList.Add(dag);
-
-            var transformList = new DmeTransformsList();
-            transformList.Transforms.Add(new DmeTransform());
-            dmeModel.BaseStates.Add(transformList);
-
-            var vertexData = dmeVertexBuffers[i] = new DmeVertexData { Name = "bind" };
-            dag.Shape.Name = name;
-            dag.Shape.CurrentState = vertexData;
-            dag.Shape.BaseStates.Add(vertexData);
+            (dags[i], dmeVertexBuffers[i]) = CreateDmxDagVertexData(dmeModel, name);
         }
+    }
+
+    private static DmeDag CreateDmxDag(DmeModel dmeModel, DmeVertexData vertexData, string name)
+    {
+        var dag = new DmeDag() { Name = name };
+        dmeModel.Children.Add(dag);
+        dmeModel.JointList.Add(dag);
+
+        var transformList = new DmeTransformsList();
+        transformList.Transforms.Add(new DmeTransform());
+        dmeModel.BaseStates.Add(transformList);
+
+        dag.Shape.Name = name;
+        dag.Shape.CurrentState = vertexData;
+        dag.Shape.BaseStates.Add(vertexData);
+
+        return dag;
+    }
+
+    private static (DmeDag, DmeVertexData) CreateDmxDagVertexData(DmeModel dmeModel, string name)
+    {
+        // dmx requires one dag per vertex buffer
+        var vertexData = new DmeVertexData { Name = "bind" };
+        var dag = CreateDmxDag(dmeModel, vertexData, name);
+
+        return (dag, vertexData);
     }
 
     private static void GenerateTriangleFaceSet(DmeDag dag, int triangleStart, int triangleEnd, string material)
