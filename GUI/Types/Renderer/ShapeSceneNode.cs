@@ -1,6 +1,8 @@
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 
+#nullable disable
+
 namespace GUI.Types.Renderer
 {
     abstract class ShapeSceneNode : SceneNode

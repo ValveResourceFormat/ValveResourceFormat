@@ -12,6 +12,8 @@ using SteamDatabase.ValvePak;
 using ValveResourceFormat;
 using ValveResourceFormat.IO;
 
+#nullable disable
+
 namespace GUI.Forms
 {
     partial class ExtractProgressForm : Form
@@ -171,7 +173,7 @@ namespace GUI.Forms
         private void OnTypesDialogSelectedValueChanged(object sender, EventArgs e)
         {
             var control = (ComboBox)sender;
-            var type = (string)control.Tag;
+            var type = (string)control.Tag!;
 
             // TODO: Remember last selected value in settings?
             if (control.SelectedIndex == 0)

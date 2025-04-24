@@ -4,6 +4,8 @@ using SteamDatabase.ValvePak;
 using ValveResourceFormat;
 using ValveResourceFormat.ToolsAssetInfo;
 
+#nullable disable
+
 namespace GUI.Utils
 {
     class VrfGuiContext : IDisposable
@@ -59,10 +61,7 @@ namespace GUI.Utils
             FileLoader = new AdvancedGuiFileLoader(this);
             MeshBufferCache = new GPUMeshBufferCache();
 
-            if (ParentGuiContext != null)
-            {
-                ParentGuiContext.AddChildren();
-            }
+            ParentGuiContext?.AddChildren();
         }
 
         public void AddChildren()

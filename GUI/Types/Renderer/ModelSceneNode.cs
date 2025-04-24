@@ -7,6 +7,8 @@ using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.Serialization.KeyValues;
 
+#nullable disable
+
 namespace GUI.Types.Renderer
 {
     class ModelSceneNode : SceneNode, IRenderableMeshCollection

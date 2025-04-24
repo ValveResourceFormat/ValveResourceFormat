@@ -11,15 +11,15 @@ namespace GUI.Types.Renderer
     {
         class HitboxSetData
         {
-            public Hitbox[] HitboxSet { get; init; }
-            public HitboxSceneNode[] SceneNodes { get; init; }
-            public int[] HitboxBoneIndexes { get; init; }
+            public required Hitbox[] HitboxSet { get; init; }
+            public required HitboxSceneNode[] SceneNodes { get; init; }
+            public required int[] HitboxBoneIndexes { get; init; }
         }
 
         readonly AnimationController animationController;
 
         readonly Dictionary<string, HitboxSetData> hitboxSets = [];
-        HitboxSetData currentSet;
+        HitboxSetData? currentSet;
         Skeleton skeleton => animationController.FrameCache.Skeleton;
 
         public HitboxSetSceneNode(Scene scene, AnimationController animationController, Dictionary<string, Hitbox[]> hitboxSets)
@@ -66,7 +66,7 @@ namespace GUI.Types.Renderer
             hitboxSets.Add(name, data);
         }
 
-        public void SetHitboxSet(string set)
+        public void SetHitboxSet(string? set)
         {
             if (set == null)
             {

@@ -12,7 +12,7 @@ internal class ThemedTabControl : TabControl
         HandleCreated += ThemedTabControl_HandleCreated;
     }
 
-    private void ThemedTabControl_HandleCreated(object sender, EventArgs e)
+    private void ThemedTabControl_HandleCreated(object? sender, EventArgs e)
     {
         if (Application.IsDarkModeEnabled)
         {

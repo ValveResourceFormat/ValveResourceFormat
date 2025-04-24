@@ -25,7 +25,7 @@ namespace GUI.Types.Viewers
             }
             else
             {
-                stream = File.OpenRead(vrfGuiContext.FileName);
+                stream = File.OpenRead(vrfGuiContext.FileName!);
             }
 
             try

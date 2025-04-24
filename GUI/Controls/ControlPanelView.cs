@@ -2,6 +2,8 @@ using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
 
+#nullable disable
+
 namespace GUI.Controls
 {
     class ControlPanelView : UserControl

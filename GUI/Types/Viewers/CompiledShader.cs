@@ -12,6 +12,8 @@ using Vortice.SpirvCross;
 using static ValveResourceFormat.CompiledShader.ShaderUtilHelpers;
 using VrfPackage = SteamDatabase.ValvePak.Package;
 
+#nullable disable
+
 namespace GUI.Types.Viewers
 {
     class CompiledShader : IDisposable, IViewer

@@ -16,7 +16,7 @@ namespace GUI.Controls
             CSS,
         }
 
-        private string LazyText;
+        private string? LazyText;
 
         public CodeTextBox(string text, HighlightLanguage highlightSyntax = HighlightLanguage.KeyValues) : base()
         {
@@ -121,7 +121,7 @@ namespace GUI.Controls
             return control;
         }
 
-        private void OnDisposed(object sender, EventArgs e)
+        private void OnDisposed(object? sender, EventArgs e)
         {
             Disposed -= OnDisposed;
             ParentChanged -= OnVisibleChanged;
@@ -129,7 +129,7 @@ namespace GUI.Controls
             TextChanged -= OnTextChanged;
         }
 
-        private void OnVisibleChanged(object sender, EventArgs e)
+        private void OnVisibleChanged(object? sender, EventArgs e)
         {
             if (!Visible)
             {
@@ -147,7 +147,7 @@ namespace GUI.Controls
             Cursor.Current = Cursors.Default;
         }
 
-        private void OnTextChanged(object sender, TextChangedEventArgs e)
+        private void OnTextChanged(object? sender, TextChangedEventArgs e)
         {
             ClearUndo();
 

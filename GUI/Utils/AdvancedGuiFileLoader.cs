@@ -74,7 +74,7 @@ namespace GUI.Utils
             CachedResources.Clear();
         }
 
-        public (VrfGuiContext Context, PackageEntry PackageEntry) FindFileWithContext(string file)
+        public (VrfGuiContext? Context, PackageEntry? PackageEntry) FindFileWithContext(string file)
         {
             var foundFile = Path.IsPathRooted(file) switch
             {
@@ -87,7 +87,7 @@ namespace GUI.Utils
                 return (null, null);
             }
 
-            VrfGuiContext newContext = null;
+            VrfGuiContext? newContext = null;
 
             if (foundFile.PathOnDisk != null)
             {
@@ -101,14 +101,14 @@ namespace GUI.Utils
                     CurrentPackage = foundFile.Package
                 };
 
-                newContext = new VrfGuiContext(foundFile.PackageEntry.GetFullPath(), parentContext);
+                newContext = new VrfGuiContext(foundFile.PackageEntry!.GetFullPath(), parentContext);
             }
 
             return (newContext, foundFile.PackageEntry);
         }
 
         // Same as FindFile, but also returns the context and package that the file was found in
-        private (string PathOnDisk, VrfGuiContext Context, Package Package, PackageEntry PackageEntry) FindFileWithContextRecursive(string file)
+        private (string? PathOnDisk, VrfGuiContext? Context, Package? Package, PackageEntry? PackageEntry) FindFileWithContextRecursive(string file)
         {
             var (pathOnDisk, package, packageEntry) = base.FindFile(file);
 
@@ -121,19 +121,19 @@ namespace GUI.Utils
         }
 
         // Override to add support for parent file loaders
-        public override (string PathOnDisk, Package Package, PackageEntry PackageEntry) FindFile(string file, bool logNotFound = true)
+        public override (string? PathOnDisk, Package? Package, PackageEntry? PackageEntry) FindFile(string file, bool logNotFound = true)
         {
-            var hasParent = GuiContext.ParentGuiContext != null;
-            var shouldLogNotFound = logNotFound && !hasParent;
+            var parent = GuiContext.ParentGuiContext;
+            var shouldLogNotFound = logNotFound && parent == null;
 
             var entry = base.FindFile(file, shouldLogNotFound);
 
-            if (!hasParent || entry.PathOnDisk != null || entry.PackageEntry != null)
+            if (parent == null || entry.PathOnDisk != null || entry.PackageEntry != null)
             {
                 return entry;
             }
 
-            return GuiContext.ParentGuiContext.FileLoader.FindFile(file, logNotFound);
+            return parent.FileLoader.FindFile(file, logNotFound);
         }
 
         // Override to add support for parent file loaders
@@ -148,7 +148,7 @@ namespace GUI.Utils
         }
 
         // Override to add support for caching resources
-        public override Resource LoadFile(string file)
+        public override Resource? LoadFile(string file)
         {
             // TODO: Might conflict where same file name is available in different paths
             if (CachedResources.TryGetValue(file, out var resource) && resource.Reader != null)
@@ -166,6 +166,6 @@ namespace GUI.Utils
             return resource;
         }
 
-        public override Resource LoadFileCompiled(string file) => LoadFile(string.Concat(file, CompiledFileSuffix));
+        public override Resource? LoadFileCompiled(string file) => LoadFile(string.Concat(file, CompiledFileSuffix));
     }
 }

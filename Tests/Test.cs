@@ -132,7 +132,7 @@ namespace Tests
             {
                 var name = Path.GetFileName(Path.GetDirectoryName(file));
 
-                if (!resources.TryGetValue(name, out var resource))
+                if (name == null || !resources.TryGetValue(name, out var resource))
                 {
                     Assert.Fail($"{name}: no such resource");
 
@@ -191,6 +191,7 @@ namespace Tests
 
             var ex = Assert.Throws<InvalidDataException>(() => resource.Read(ms));
 
+            Assert.That(ex, Is.Not.Null);
             Assert.That(ex.Message, Does.Contain("Use ValvePak"));
         }
 

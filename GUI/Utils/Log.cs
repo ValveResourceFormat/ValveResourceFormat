@@ -1,5 +1,7 @@
 namespace GUI.Utils;
 
+#nullable disable
+
 internal static class Log
 {
     public enum Category

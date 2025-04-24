@@ -30,7 +30,7 @@ namespace GUI.Types.Viewers
 
             if (stream == null)
             {
-                input = File.ReadAllBytes(vrfGuiContext.FileName);
+                input = File.ReadAllBytes(vrfGuiContext.FileName!);
             }
             else
             {

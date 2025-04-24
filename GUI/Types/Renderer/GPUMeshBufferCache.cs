@@ -10,7 +10,7 @@ namespace GUI.Types.Renderer
     {
         private readonly Dictionary<ulong, GPUMeshBuffers> gpuBuffers = [];
         private readonly Dictionary<VAOKey, int> vertexArrayObjects = [];
-        private QuadIndexBuffer quadIndices;
+        private QuadIndexBuffer? quadIndices;
 
         [DebuggerBrowsable(DebuggerBrowsableState.Never)]
         public QuadIndexBuffer QuadIndices

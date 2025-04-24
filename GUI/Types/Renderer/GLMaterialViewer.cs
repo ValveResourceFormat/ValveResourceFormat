@@ -6,6 +6,8 @@ using GUI.Utils;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
 
+#nullable disable
+
 namespace GUI.Types.Renderer
 {
     /// <summary>

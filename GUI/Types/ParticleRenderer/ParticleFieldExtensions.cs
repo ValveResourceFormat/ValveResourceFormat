@@ -18,7 +18,7 @@ namespace GUI.Types.ParticleRenderer
         }
 
         // Extra utility for when one operator can set either scalars or vectors
-        public static string FieldType(this ParticleField field)
+        public static string? FieldType(this ParticleField field)
         {
 #pragma warning disable IDE0066 // Convert switch statement to expression
             switch (field)

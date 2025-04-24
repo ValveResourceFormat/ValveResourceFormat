@@ -1,4 +1,4 @@
-﻿// Run this with `dotnet run`. Place the exe and ttf in the same working directory.
+// Run this with `dotnet run`. Place the exe and ttf in the same working directory.
 
 using System.Diagnostics;
 
@@ -34,7 +34,7 @@ process.WaitForExit();
 
 var json = System.Text.Json.JsonSerializer.Deserialize<Metrics>(File.ReadAllText("./output.json"));
 
-if (json.atlas.width != json.atlas.height)
+if (json == null || json.atlas.width != json.atlas.height)
 {
     throw new InvalidDataException();
 }
@@ -97,8 +97,8 @@ class Glyph
 {
     public int unicode { get; set; }
     public float advance { get; set; }
-    public Bounds planeBounds { get; set; }
-    public Bounds atlasBounds { get; set; }
+    public required Bounds planeBounds { get; set; }
+    public required Bounds atlasBounds { get; set; }
 }
 
 class Atlas
@@ -110,6 +110,6 @@ class Atlas
 
 class Metrics
 {
-    public Atlas atlas { get; set; }
-    public Glyph[] glyphs { get; set; }
+    public required Atlas atlas { get; set; }
+    public required Glyph[] glyphs { get; set; }
 }

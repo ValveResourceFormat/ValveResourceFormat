@@ -10,6 +10,8 @@ using GUI.Types.PackageViewer;
 using GUI.Utils;
 using SteamDatabase.ValvePak;
 
+#nullable disable
+
 namespace GUI
 {
     partial class MainForm

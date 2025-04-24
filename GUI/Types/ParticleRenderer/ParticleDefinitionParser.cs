@@ -5,6 +5,8 @@ using GUI.Utils;
 using ValveResourceFormat;
 using ValveResourceFormat.Serialization.KeyValues;
 
+#nullable disable
+
 record struct ParticleDefinitionParser(KVObject Data)
 {
     private readonly T GetValueOrDefault<T>(string key, Func<string, T> parsingMethod, T @default)

@@ -18,9 +18,9 @@ namespace GUI.Types.Renderer
         private readonly Dictionary<string, RenderTexture> Textures = [];
         private readonly Dictionary<string, RenderTexture> TexturesSrgb = [];
         private readonly VrfGuiContext VrfGuiContext;
-        private RenderTexture ErrorTexture;
-        private RenderTexture DefaultNormal;
-        private RenderTexture DefaultMask;
+        private RenderTexture? ErrorTexture;
+        private RenderTexture? DefaultNormal;
+        private RenderTexture? DefaultMask;
         public static float MaxTextureMaxAnisotropy { get; set; }
         public int MaterialCount => Materials.Count;
 
@@ -77,7 +77,7 @@ namespace GUI.Types.Renderer
             return mat;
         }
 
-        public RenderMaterial LoadMaterial(Resource resource, Dictionary<string, byte> shaderArguments = null)
+        public RenderMaterial LoadMaterial(Resource resource, Dictionary<string, byte>? shaderArguments = null)
         {
             if (resource == null)
             {

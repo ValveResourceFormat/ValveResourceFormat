@@ -1,5 +1,7 @@
 namespace GUI.Types.Renderer;
 
+#nullable disable
+
 partial class Scene
 {
     public class WorldPostProcessInfo()

@@ -1,3 +1,5 @@
+#nullable disable
+
 namespace GUI.Types.ParticleRenderer
 {
     /// <summary>

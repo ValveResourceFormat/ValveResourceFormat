@@ -79,6 +79,7 @@ namespace Tests
 
             var ex = Assert.Throws<InvalidDataException>(() => resource.Read(path));
 
+            Assert.That(ex, Is.Not.Null);
             Assert.That(ex.Message, Does.Contain("Use ShaderFile"));
         }
 
@@ -171,6 +172,7 @@ namespace Tests
 
             var ex = Assert.Throws<InvalidOperationException>(() => new ShaderExtract(ShaderCollection.FromEnumerable([shader])));
 
+            Assert.That(ex, Is.Not.Null);
             Assert.That(ex.Message, Does.Contain("cannot continue without at least a features file"));
         }
 

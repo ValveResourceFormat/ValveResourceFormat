@@ -11,6 +11,8 @@ using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
 
+#nullable disable
+
 namespace GUI.Types.Viewers
 {
     class Resource : IViewer

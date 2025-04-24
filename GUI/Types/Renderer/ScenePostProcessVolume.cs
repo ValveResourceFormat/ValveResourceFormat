@@ -4,6 +4,8 @@ using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 using static ValveResourceFormat.ResourceTypes.EntityLump;
 
+#nullable disable
+
 namespace GUI.Types.Renderer
 {
     struct TonemapSettings

@@ -8,6 +8,8 @@ using GUI.Controls;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 
+#nullable disable
+
 namespace GUI.Types.Renderer
 {
     partial class ShaderLoader : IDisposable

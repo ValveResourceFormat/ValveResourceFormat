@@ -56,7 +56,7 @@ namespace GUI.Types.Renderer
                 builder.Append('\n');
             }
 
-            void LoadShaderString(string shaderFileToLoad, string parentFile, bool isInclude)
+            void LoadShaderString(string shaderFileToLoad, string? parentFile, bool isInclude)
             {
                 if (parentFile != null)
                 {
@@ -76,7 +76,7 @@ namespace GUI.Types.Renderer
 
                 using var stream = GetShaderStream(shaderFileToLoad);
                 using var reader = new StreamReader(stream);
-                string line;
+                string? line;
                 var lineNum = 1;
                 var currentSourceFileNumber = sourceFileNumber++;
                 SourceFiles.Add(shaderFileToLoad);
@@ -276,7 +276,7 @@ namespace GUI.Types.Renderer
             }
             while (fileName != "GUI");
 
-            return Path.GetDirectoryName(root);
+            return Path.GetDirectoryName(root)!;
         }
 #endif
     }

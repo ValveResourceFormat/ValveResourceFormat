@@ -1,6 +1,8 @@
 using System.Windows.Forms;
 using GUI.Utils;
 
+#nullable disable
+
 namespace GUI.Controls
 {
     partial class SavedCameraPositionsControl : UserControl

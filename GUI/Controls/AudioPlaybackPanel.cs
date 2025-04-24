@@ -4,6 +4,8 @@ using GUI.Utils;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
 
+#nullable disable
+
 namespace GUI.Controls
 {
     internal partial class AudioPlaybackPanel : UserControl

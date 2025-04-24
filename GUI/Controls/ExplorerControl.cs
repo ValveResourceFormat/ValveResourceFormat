@@ -11,6 +11,8 @@ using GUI.Utils;
 using ValveKeyValue;
 using ValveResourceFormat.IO;
 
+#nullable disable
+
 namespace GUI.Controls
 {
     partial class ExplorerControl : UserControl

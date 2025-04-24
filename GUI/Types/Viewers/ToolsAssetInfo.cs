@@ -24,7 +24,7 @@ namespace GUI.Types.Viewers
             }
             else
             {
-                toolsAssetInfo.Read(vrfGuiContext.FileName);
+                toolsAssetInfo.Read(vrfGuiContext.FileName!);
             }
 
             var text = new CodeTextBox(toolsAssetInfo.ToString());

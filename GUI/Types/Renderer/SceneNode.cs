@@ -2,6 +2,8 @@ using System.Diagnostics;
 using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
 
+#nullable disable
+
 namespace GUI.Types.Renderer
 {
     [DebuggerDisplay("{DebugName,nq}")]

@@ -5,6 +5,8 @@ using System.Windows.Forms;
 using GUI.Utils;
 using Microsoft.Win32;
 
+#nullable disable
+
 namespace GUI.Forms
 {
     partial class SettingsForm : Form

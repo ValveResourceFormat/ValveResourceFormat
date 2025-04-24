@@ -5,6 +5,8 @@ using GUI.Controls;
 using GUI.Utils;
 using ValveResourceFormat.ClosedCaptions;
 
+#nullable disable
+
 namespace GUI.Types.Viewers
 {
     class ClosedCaptions : IViewer

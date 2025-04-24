@@ -3,7 +3,6 @@ using OpenTK.Graphics.OpenGL;
 
 namespace GUI.Types.Renderer;
 
-#nullable enable
 class Framebuffer : IDisposable
 {
     public int FboHandle { get; }

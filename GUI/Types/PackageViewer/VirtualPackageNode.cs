@@ -9,7 +9,7 @@ namespace GUI.Types.PackageViewer
         /// <summary>
         /// Virtual node was converted to real nodes.
         /// </summary>
-        public BetterTreeNode CreatedNode { get; set; }
+        public BetterTreeNode? CreatedNode { get; set; }
 
         /// <summary>
         /// Folder name.

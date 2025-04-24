@@ -15,12 +15,12 @@ namespace GUI.Types.PackageViewer
         /// <summary>
         /// If this is a file, the <see cref="PackageEntry"/> representing the file. Otherwise null.
         /// </summary>
-        public PackageEntry PackageEntry { get; init; }
+        public PackageEntry? PackageEntry { get; init; }
 
         /// <summary>
         /// If this is a folder, the virtual node representing this folder. Otherwise null.
         /// </summary>
-        public VirtualPackageNode PkgNode { get; init; }
+        public VirtualPackageNode? PkgNode { get; init; }
 
         public BetterListViewItem(string text) : base(text)
         {

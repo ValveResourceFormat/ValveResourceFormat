@@ -9,6 +9,8 @@ using System.Windows.Forms;
 
 namespace GUI.Utils;
 
+#nullable disable
+
 static partial class UpdateChecker
 {
     public class GithubRelease

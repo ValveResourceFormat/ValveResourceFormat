@@ -1,5 +1,7 @@
 using OpenTK.Graphics.OpenGL;
 
+#nullable disable
+
 namespace GUI.Types.Renderer
 {
     class Octree<T>

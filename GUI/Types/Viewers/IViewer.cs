@@ -11,7 +11,7 @@ namespace GUI.Types.Viewers
 
         public static TabPage AddContentTab<T>(TabControl resTabs, string name, T content, bool preSelect = false)
         {
-            string extract = null;
+            string extract = string.Empty;
             if (content is Func<string> exceptionless)
             {
                 try
@@ -26,7 +26,7 @@ namespace GUI.Types.Viewers
             }
             else
             {
-                extract = content.ToString();
+                extract = content?.ToString() ?? string.Empty;
             }
 
             var control = new CodeTextBox(extract);

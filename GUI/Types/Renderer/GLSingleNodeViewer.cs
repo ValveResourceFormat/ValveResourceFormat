@@ -4,6 +4,8 @@ using OpenTK.Graphics.OpenGL;
 using SkiaSharp;
 using ValveResourceFormat;
 
+#nullable disable
+
 namespace GUI.Types.Renderer
 {
     /// <summary>

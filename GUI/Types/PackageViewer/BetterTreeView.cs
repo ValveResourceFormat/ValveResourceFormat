@@ -10,6 +10,8 @@ using GUI.Forms;
 using GUI.Utils;
 using SteamDatabase.ValvePak;
 
+#nullable disable
+
 namespace GUI.Types.PackageViewer
 {
     /// <summary>

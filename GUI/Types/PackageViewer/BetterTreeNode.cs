@@ -18,12 +18,12 @@ namespace GUI.Types.PackageViewer
         /// <summary>
         /// If this is a file, the <see cref="PackageEntry"/> representing the file. Otherwise null.
         /// </summary>
-        public PackageEntry PackageEntry { get; }
+        public PackageEntry? PackageEntry { get; }
 
         /// <summary>
         /// If this is a folder, the virtual node representing this folder. Otherwise null.
         /// </summary>
-        public VirtualPackageNode PkgNode { get; }
+        public VirtualPackageNode? PkgNode { get; }
 
         public BetterTreeNode(string text, PackageEntry entry)
             : base(text)

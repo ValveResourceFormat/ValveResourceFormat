@@ -4,6 +4,8 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Utils;
 
+#nullable disable
+
 namespace GUI.Forms
 {
     partial class GenericProgressForm : Form

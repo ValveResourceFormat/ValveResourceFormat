@@ -10,6 +10,8 @@ using ValveResourceFormat.Serialization.KeyValues;
 using static GUI.Controls.SavedCameraPositionsControl;
 using static GUI.Types.Renderer.PickingTexture;
 
+#nullable disable
+
 namespace GUI.Types.Renderer
 {
     /// <summary>

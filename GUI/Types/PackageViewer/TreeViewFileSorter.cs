@@ -1,6 +1,8 @@
 using System.Collections;
 using System.Runtime.CompilerServices;
 
+#nullable disable
+
 namespace GUI.Types.PackageViewer
 {
     internal class TreeViewFileSorter : IComparer

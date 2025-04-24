@@ -8,6 +8,8 @@ using GUI.Utils;
 using SteamDatabase.ValvePak;
 using ValveKeyValue;
 
+#nullable disable
+
 namespace GUI.Types.Viewers
 {
     class SingleAssetInfo

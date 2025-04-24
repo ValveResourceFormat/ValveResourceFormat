@@ -6,6 +6,8 @@ using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 
+#nullable disable
+
 namespace GUI.Types.Renderer
 {
     class GLModelViewer : GLSingleNodeViewer

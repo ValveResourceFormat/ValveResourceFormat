@@ -49,7 +49,7 @@ namespace GUI.Types.Renderer
             UpdateBuffer();
         }
 
-        public void SelectNode(SceneNode node)
+        public void SelectNode(SceneNode? node)
         {
             selectedNodes.Clear();
 

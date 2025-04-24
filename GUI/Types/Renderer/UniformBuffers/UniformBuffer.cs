@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using OpenTK.Graphics.OpenGL;
 
@@ -23,6 +24,7 @@ namespace GUI.Types.Renderer.UniformBuffers
         public int BindingPoint { get; }
         private const BufferRangeTarget Target = BufferRangeTarget.UniformBuffer;
 
+        [NotNull]
         T data;
         public T Data { get => data; set { data = value; Update(); } }
 

@@ -40,7 +40,7 @@ namespace GUI.Types.ParticleRenderer
         //private readonly ParticleFloatBiasType biasType;
         //private readonly float biasParameter;
 
-        private readonly PiecewiseCurve curve;
+        private readonly PiecewiseCurve? curve;
 
 
         public AttributeMapping(ParticleDefinitionParser parse)
@@ -125,7 +125,7 @@ namespace GUI.Types.ParticleRenderer
                     return MathUtils.Lerp(remappedTo0_1RangeBiased, output0, output1);
 
                 case PfMapType.Curve:
-                    return curve.Evaluate(value);
+                    return curve!.Evaluate(value);
 
                 default:
                     return value;

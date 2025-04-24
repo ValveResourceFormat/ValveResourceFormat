@@ -13,7 +13,7 @@ namespace GUI.Types.ParticleRenderer.Emitters
         private readonly INumberProvider emissionMin = new LiteralNumberProvider(0);
         private readonly INumberProvider emissionMax = new LiteralNumberProvider(100f);
 
-        private Action particleEmitCallback;
+        private Action? particleEmitCallback;
 
         private float time;
         private float particlesToEmit;
@@ -40,6 +40,7 @@ namespace GUI.Types.ParticleRenderer.Emitters
         public override void Stop()
         {
             IsFinished = true;
+            particleEmitCallback = null;
         }
 
         public override void Emit(float frameTime)
@@ -68,7 +69,7 @@ namespace GUI.Types.ParticleRenderer.Emitters
                 // If nr of particles to emit is > 0, emit it
                 while (particlesToEmit > 1.0f)
                 {
-                    particleEmitCallback();
+                    particleEmitCallback?.Invoke();
                     particlesToEmit -= 1.0f;
                 }
             }

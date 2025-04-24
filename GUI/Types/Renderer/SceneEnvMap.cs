@@ -3,7 +3,7 @@ namespace GUI.Types.Renderer;
 class SceneEnvMap : SceneNode
 {
     public int HandShake { get; init; }
-    public RenderTexture EnvMapTexture { get; init; }
+    public required RenderTexture EnvMapTexture { get; init; }
 
     public Vector3 Tint { get; init; } = Vector3.One;
 

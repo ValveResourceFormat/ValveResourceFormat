@@ -22,7 +22,7 @@ namespace GUI.Types.Viewers
             }
             else
             {
-                kv3stream = File.OpenRead(vrfGuiContext.FileName);
+                kv3stream = File.OpenRead(vrfGuiContext.FileName!);
             }
 
             using (var binaryReader = new BinaryReader(kv3stream))

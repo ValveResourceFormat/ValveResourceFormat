@@ -12,6 +12,8 @@ using SkiaSharp;
 using static GUI.Types.Renderer.PickingTexture;
 using WinFormsMouseEventArgs = System.Windows.Forms.MouseEventArgs;
 
+#nullable disable
+
 namespace GUI.Controls
 {
     partial class GLViewerControl : ControlPanelView

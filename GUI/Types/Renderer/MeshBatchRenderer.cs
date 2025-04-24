@@ -3,6 +3,8 @@ using System.Runtime.CompilerServices;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 
+#nullable disable
+
 namespace GUI.Types.Renderer
 {
     static class MeshBatchRenderer

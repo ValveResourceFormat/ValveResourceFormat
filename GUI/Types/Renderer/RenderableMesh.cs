@@ -7,6 +7,8 @@ using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 
+#nullable disable
+
 namespace GUI.Types.Renderer
 {
     class RenderableMesh

@@ -15,6 +15,8 @@ using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.TextureDecoders;
 using static ValveResourceFormat.ResourceTypes.Texture;
 
+#nullable disable
+
 namespace GUI.Types.Renderer
 {
     class GLTextureViewer : GLViewerControl

@@ -4,6 +4,8 @@ using GUI.Utils;
 using ValveResourceFormat.NavMesh;
 using static GUI.Types.Renderer.PickingTexture;
 
+#nullable disable
+
 namespace GUI.Types.Renderer
 {
     class GLNavMeshViewer : GLSceneViewer

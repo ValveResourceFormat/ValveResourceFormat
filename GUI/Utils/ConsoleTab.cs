@@ -6,6 +6,8 @@ using System.Windows.Forms;
 using FastColoredTextBoxNS;
 using GUI.Controls;
 
+#nullable disable
+
 namespace GUI.Utils
 {
     internal class ConsoleTab : IDisposable

@@ -5,7 +5,7 @@ namespace GUI.Types.Exporter
 {
     class ExportData
     {
-        public PackageEntry PackageEntry { get; set; }
-        public VrfGuiContext VrfGuiContext { get; set; }
+        public PackageEntry? PackageEntry { get; set; }
+        public required VrfGuiContext VrfGuiContext { get; set; }
     }
 }

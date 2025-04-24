@@ -9,6 +9,8 @@ using SteamDatabase.ValvePak;
 using ValveResourceFormat.IO;
 using Resource = ValveResourceFormat.Resource;
 
+#nullable disable
+
 namespace GUI.Types.Exporter
 {
     static class ExportFile

@@ -4,6 +4,8 @@ using OpenTK.Graphics.OpenGL;
 
 namespace GUI.Types.Renderer;
 
+#nullable disable
+
 class PickingTexture : Framebuffer
 {
     internal enum PickingIntent

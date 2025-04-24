@@ -4,6 +4,8 @@ using System.Windows.Forms;
 
 namespace GUI.Types.PackageViewer;
 
+#nullable disable
+
 public class ListViewColumnSorter : IComparer
 {
     /// <summary>

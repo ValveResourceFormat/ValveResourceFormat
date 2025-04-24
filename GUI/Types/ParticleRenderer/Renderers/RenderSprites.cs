@@ -51,7 +51,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
             // The same quad is reused for all particles
             vaoHandle = SetupQuadBuffer();
 
-            string textureName = null;
+            string? textureName = null;
 
             if (parse.Data.ContainsKey("m_hTexture"))
             {

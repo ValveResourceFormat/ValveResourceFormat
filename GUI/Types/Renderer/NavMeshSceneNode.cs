@@ -2,6 +2,8 @@ using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.NavMesh;
 
+#nullable disable
+
 namespace GUI.Types.Renderer
 {
     class NavMeshSceneNode : SceneNode

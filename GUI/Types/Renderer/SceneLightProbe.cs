@@ -5,6 +5,8 @@ using OpenTK.Graphics.OpenGL;
 
 namespace GUI.Types.Renderer;
 
+#nullable disable
+
 class SceneLightProbe : SceneNode
 {
     public int HandShake { get; set; }

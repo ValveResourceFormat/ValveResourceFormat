@@ -5,13 +5,13 @@ namespace GUI.Types.Renderer
 {
     class AnimationController
     {
-        private Action<Animation, int> updateHandler = (_, __) => { };
+        private Action<Animation?, int> updateHandler = (_, __) => { };
 
         public float FrametimeMultiplier { get; set; } = 1.0f;
         public float Time { get; private set; }
         private bool shouldUpdate;
 
-        public Animation ActiveAnimation { get; private set; }
+        public Animation? ActiveAnimation { get; private set; }
         public AnimationFrameCache FrameCache { get; }
         public bool IsPaused { get; set; }
         public int Frame
@@ -61,7 +61,7 @@ namespace GUI.Types.Renderer
             return true;
         }
 
-        public void SetAnimation(Animation animation)
+        public void SetAnimation(Animation? animation)
         {
             FrameCache.Clear();
             ActiveAnimation = animation;
@@ -76,7 +76,7 @@ namespace GUI.Types.Renderer
             Frame = ActiveAnimation == null ? 0 : ActiveAnimation.FrameCount - 1;
         }
 
-        public Frame GetFrame()
+        public Frame? GetFrame()
         {
             if (ActiveAnimation == null)
             {
@@ -92,7 +92,7 @@ namespace GUI.Types.Renderer
             }
         }
 
-        public void RegisterUpdateHandler(Action<Animation, int> handler)
+        public void RegisterUpdateHandler(Action<Animation?, int> handler)
         {
             updateHandler = handler;
         }
@@ -112,7 +112,7 @@ namespace GUI.Types.Renderer
             }
         }
 
-        private static void GetAnimationMatrixRecursive(Bone bone, Matrix4x4 bindPose, Frame frame, Span<Matrix4x4> boneMatrices)
+        private static void GetAnimationMatrixRecursive(Bone bone, Matrix4x4 bindPose, Frame? frame, Span<Matrix4x4> boneMatrices)
         {
             if (frame != null)
             {

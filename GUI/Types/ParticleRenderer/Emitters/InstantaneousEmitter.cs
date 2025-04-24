@@ -4,7 +4,7 @@ namespace GUI.Types.ParticleRenderer.Emitters
     {
         public override bool IsFinished { get; protected set; }
 
-        private Action particleEmitCallback;
+        private Action? particleEmitCallback;
 
         private readonly INumberProvider emitCount = new LiteralNumberProvider(1);
         private readonly INumberProvider startTime = new LiteralNumberProvider(0);
@@ -29,6 +29,7 @@ namespace GUI.Types.ParticleRenderer.Emitters
         public override void Stop()
         {
             IsFinished = true;
+            particleEmitCallback = null;
         }
 
         public override void Emit(float frameTime)
@@ -45,7 +46,7 @@ namespace GUI.Types.ParticleRenderer.Emitters
                 var numToEmit = (int)emitCount.NextNumber(); // Get value from number provider
                 for (var i = 0; i < numToEmit; i++)
                 {
-                    particleEmitCallback();
+                    particleEmitCallback?.Invoke();
                 }
 
                 IsFinished = true;

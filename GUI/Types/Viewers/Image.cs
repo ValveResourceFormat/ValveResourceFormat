@@ -23,7 +23,7 @@ namespace GUI.Types.Viewers
 
         public TabPage Create(VrfGuiContext vrfGuiContext, Stream stream)
         {
-            SKBitmap bitmap;
+            SKBitmap? bitmap;
 
             if (stream != null)
             {
@@ -61,7 +61,7 @@ namespace GUI.Types.Viewers
             }
             else
             {
-                svg.Load(vrfGuiContext.FileName);
+                svg.Load(vrfGuiContext.FileName!);
             }
 
             try

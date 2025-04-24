@@ -11,6 +11,8 @@ using ValveResourceFormat;
 using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
 using ValveResourceFormat.IO;
 
+#nullable disable
+
 namespace GUI.Types.PackageViewer
 {
 #pragma warning disable CA1001 // TreeView is not owned by this class, set to null in VPK_Disposed

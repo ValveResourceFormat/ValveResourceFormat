@@ -4,6 +4,8 @@ using NUnit.Framework;
 using ValveResourceFormat.Serialization.KeyValues;
 using KVValueType = ValveKeyValue.KVValueType;
 
+#nullable disable
+
 namespace Tests
 {
     [TestFixture]

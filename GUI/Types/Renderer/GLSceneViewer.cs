@@ -10,6 +10,8 @@ using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat;
 
+#nullable disable
+
 namespace GUI.Types.Renderer
 {
     internal abstract class GLSceneViewer : GLViewerControl, IDisposable

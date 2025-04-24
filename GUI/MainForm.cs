@@ -19,6 +19,8 @@ using GUI.Utils;
 using SteamDatabase.ValvePak;
 using ValveResourceFormat.IO;
 
+#nullable disable
+
 namespace GUI
 {
     partial class MainForm : Form

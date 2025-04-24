@@ -5,6 +5,8 @@ using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using SkiaSharp;
 
+#nullable disable
+
 namespace GUI.Types.Renderer
 {
     class TextRenderer

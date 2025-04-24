@@ -2,6 +2,8 @@ using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.ResourceTypes;
 
+#nullable disable
+
 namespace GUI.Types.Renderer
 {
     enum ReservedTextureSlots

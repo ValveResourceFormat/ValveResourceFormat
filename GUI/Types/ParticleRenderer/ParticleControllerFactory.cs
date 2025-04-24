@@ -7,6 +7,8 @@ using GUI.Types.ParticleRenderer.Renderers;
 using GUI.Utils;
 using ValveResourceFormat.Serialization.KeyValues;
 
+#nullable disable
+
 namespace GUI.Types.ParticleRenderer
 {
     static class ParticleControllerFactory

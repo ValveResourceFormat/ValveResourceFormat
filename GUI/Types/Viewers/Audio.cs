@@ -28,7 +28,7 @@ namespace GUI.Types.Viewers
             {
                 waveStream = new AudioFileReader(vrfGuiContext.FileName);
             }
-            else if (vrfGuiContext.FileName.EndsWith(".mp3", StringComparison.InvariantCultureIgnoreCase))
+            else if (vrfGuiContext.FileName!.EndsWith(".mp3", StringComparison.InvariantCultureIgnoreCase))
             {
                 waveStream = new Mp3FileReaderBase(stream, wf => new Mp3FrameDecompressor(wf));
             }
@@ -50,11 +50,13 @@ namespace GUI.Types.Viewers
             return tab;
         }
 
-        private void OnHandleCreated(object sender, EventArgs e)
+        private void OnHandleCreated(object? sender, EventArgs e)
         {
-            var audio = (AudioPlaybackPanel)sender;
-            audio.HandleCreated -= OnHandleCreated;
-            audio.Invoke(audio.Play);
+            if (sender is AudioPlaybackPanel audio)
+            {
+                audio.HandleCreated -= OnHandleCreated;
+                audio.Invoke(audio.Play);
+            }
         }
     }
 }

@@ -53,11 +53,13 @@ namespace GUI.Types.Audio
             }
         }
 
-        private void OnHandleCreated(object sender, EventArgs e)
+        private void OnHandleCreated(object? sender, EventArgs e)
         {
-            var audio = (AudioPlaybackPanel)sender;
-            audio.HandleCreated -= OnHandleCreated;
-            audio.Invoke(audio.Play);
+            if (sender is AudioPlaybackPanel audio)
+            {
+                audio.HandleCreated -= OnHandleCreated;
+                audio.Invoke(audio.Play);
+            }
         }
     }
 }

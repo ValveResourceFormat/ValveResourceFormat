@@ -5,6 +5,8 @@ using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using static GUI.Types.Renderer.GLSceneViewer;
 
+#nullable disable
+
 namespace GUI.Types.Renderer
 {
     partial class Scene : IDisposable

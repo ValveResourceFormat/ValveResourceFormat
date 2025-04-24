@@ -7,7 +7,9 @@ namespace GUI
 {
     static class Program
     {
+#nullable disable
         public static MainForm MainForm { get; private set; }
+#nullable enable
 
         /// <summary>
         /// The main entry point for the application.

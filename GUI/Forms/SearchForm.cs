@@ -1,5 +1,7 @@
 using System.Windows.Forms;
 
+#nullable disable
+
 namespace GUI.Forms
 {
     partial class SearchForm : Form

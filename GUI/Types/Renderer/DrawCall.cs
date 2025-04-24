@@ -1,6 +1,8 @@
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Blocks;
 
+#nullable disable
+
 namespace GUI.Types.Renderer
 {
     class DrawCall

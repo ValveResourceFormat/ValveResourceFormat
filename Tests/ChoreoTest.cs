@@ -20,7 +20,7 @@ namespace Tests
                 FileName = file,
             };
             resource.Read(file);
-            scene = resource.DataBlock as ChoreoSceneFileData;
+            scene = (ChoreoSceneFileData)resource.DataBlock;
             return resource;
         }
         private static void AssertEvents(ChoreoEvent[] events, params ChoreoEventType[] eventTypes)
@@ -259,12 +259,12 @@ namespace Tests
             Assert.Multiple(() =>
             {
                 Assert.That(bezierTrack.Curve, Is.Not.Null);
-                Assert.That(bezierTrack.Curve.Value.InTypeName, Is.EqualTo("bezier"));
-                Assert.That(bezierTrack.Curve.Value.OutTypeName, Is.EqualTo("bezier"));
+                Assert.That(bezierTrack.Bezier, Is.Not.Null);
             });
             Assert.Multiple(() =>
             {
-                Assert.That(bezierTrack.Bezier, Is.Not.Null);
+                Assert.That(bezierTrack.Curve.Value.InTypeName, Is.EqualTo("bezier"));
+                Assert.That(bezierTrack.Curve.Value.OutTypeName, Is.EqualTo("bezier"));
                 Assert.That(bezierTrack.Bezier.Value.Flags, Is.EqualTo(BezierFlags.Unified));
                 Assert.That(bezierTrack.Bezier.Value.InWeight, Is.EqualTo(0.1f));
                 Assert.That(bezierTrack.Bezier.Value.InDegrees, Is.EqualTo(180f));

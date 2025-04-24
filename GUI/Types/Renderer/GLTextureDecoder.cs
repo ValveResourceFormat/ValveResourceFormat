@@ -12,6 +12,8 @@ using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.TextureDecoders;
 using static ValveResourceFormat.ResourceTypes.Texture;
 
+#nullable disable
+
 namespace GUI.Types.Renderer;
 
 class GLTextureDecoder : IHardwareTextureDecoder, IDisposable

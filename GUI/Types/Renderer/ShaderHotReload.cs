@@ -8,6 +8,8 @@ using OpenTK;
 
 namespace GUI.Types.Renderer;
 
+#nullable disable
+
 class ShaderHotReload : IDisposable
 {
     private FileSystemWatcher ShaderWatcher = new()
