@@ -386,8 +386,14 @@ partial class ModelExtract
         {
             foreach (var drawCall in sceneObject.GetArray("m_drawCalls"))
             {
-                var vertexBufferIndicesIterator = drawCall.GetArray("m_vertexBuffers").Select(b => b.GetInt32Property("m_hBuffer"));
-                var dmeVertexBufferKey = (vertexBufferIndicesIterator.First(), vertexBufferIndicesIterator.Skip(1).FirstOrDefault(-1));
+                var vertexBuffers = drawCall.GetArray("m_vertexBuffers");
+
+                Debug.Assert(vertexBuffers.Length <= 2); // Hello traveler, if you are here to update this code to support more than 2 buffers!
+
+                var dmeVertexBufferKey = (
+                    vertexBuffers[0].GetInt32Property("m_hBuffer"),
+                    vertexBuffers.Length > 1 ? vertexBuffers[1].GetInt32Property("m_hBuffer") : -1
+                );
 
                 if (!dmeVertexBuffers.TryGetValue(dmeVertexBufferKey, out var dmeVertexBuffer))
                 {
