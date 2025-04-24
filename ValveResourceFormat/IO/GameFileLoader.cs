@@ -43,7 +43,7 @@ namespace ValveResourceFormat.IO
         /// </summary>
         /// <param name="currentPackage">The current package to search for files in.</param>
         /// <param name="currentFileName">The path on disk to the current file that is being opened.</param>
-        public GameFileLoader(Package currentPackage, string currentFileName)
+        public GameFileLoader(Package? currentPackage, string? currentFileName)
         {
             CurrentPackage = currentPackage;
             CurrentFileName = currentFileName;

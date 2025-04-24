@@ -7,6 +7,7 @@
     <ApplicationIcon>..\Misc\Icons\source2viewer.ico</ApplicationIcon>
     <RuntimeIdentifiers>win-x64;linux-x64</RuntimeIdentifiers>
     <AssemblyName>Source2Viewer-CLI</AssemblyName>
+    <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="ConsoleAppFramework" Version="5.4.1">

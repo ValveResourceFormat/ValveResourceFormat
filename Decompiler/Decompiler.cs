@@ -1,5 +1,6 @@
 using System.Buffers;
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -27,19 +28,19 @@ namespace Decompiler
         private readonly Dictionary<string, ResourceStat> stats = [];
         private readonly Dictionary<string, string> uniqueSpecialDependancies = [];
         private readonly HashSet<string> unknownEntityKeys = [];
-        private HashSet<string> knownEntityKeys;
+        private HashSet<string>? knownEntityKeys;
 
         private readonly Lock ConsoleWriterLock = new();
         private int CurrentFile;
         private int TotalFiles;
 
         // Options
-        private string InputFile;
-        private string OutputFile;
+        private string InputFile = string.Empty; // Should be non empty by the time input args are validated
+        private string? OutputFile;
         private bool RecursiveSearch;
         private bool RecursiveSearchArchives;
         private bool PrintAllBlocks;
-        private string BlockToPrint;
+        private string? BlockToPrint;
         private bool ShouldPrintBlockContents => PrintAllBlocks || !string.IsNullOrEmpty(BlockToPrint);
         private int MaxParallelismThreads;
         private bool OutputVPKDir;
@@ -47,11 +48,11 @@ namespace Decompiler
         private bool CachedManifest;
         private bool Decompile;
         private TextureCodec TextureDecodeFlags;
-        private string[] FileFilter;
+        private string[] FileFilter = [];
         private bool ListResources;
-        private string GltfExportFormat;
+        private string? GltfExportFormat;
         private bool GltfExportAnimations;
-        private string[] GltfAnimationFilter;
+        private string[] GltfAnimationFilter = [];
         private bool GltfExportMaterials;
         private bool GltfExportAdaptTextures;
         private bool GltfExportExtras;
@@ -66,9 +67,9 @@ namespace Decompiler
         private bool GltfTest;
         private bool DumpUnknownEntityKeys;
 
-        private string[] ExtFilterList;
+        private string[]? ExtFilterList;
         private bool IsInputFolder;
-        private Progress<string> ProgressReporter;
+        private Progress<string>? ProgressReporter;
 
         public static void Main(string[] args)
         {
@@ -118,24 +119,24 @@ namespace Decompiler
         /// <param name="dump_unknown_entity_keys">When using --stats, save all unknown entity key hashes to unknown_keys.txt.</param>
         private int HandleArguments(
             string input,
-            string output = default,
+            string? output = default,
             bool decompile = false,
             string texture_decode_flags = nameof(TextureCodec.Auto),
             bool recursive = false,
             bool recursive_vpk = false,
             bool all = false,
-            string block = default,
+            string? block = default,
             int threads = 1,
             bool vpk_dir = false,
             bool vpk_verify = false,
             bool vpk_cache = false,
-            string vpk_extensions = default,
-            string vpk_filepath = default,
+            string? vpk_extensions = default,
+            string? vpk_filepath = default,
             bool vpk_list = false,
 
-            string gltf_export_format = default,
+            string? gltf_export_format = default,
             bool gltf_export_animations = false,
-            string gltf_animation_list = default,
+            string? gltf_animation_list = default,
             bool gltf_export_materials = false,
             bool gltf_textures_adapt = false,
             bool gltf_export_extras = false,
@@ -405,7 +406,7 @@ namespace Decompiler
             return 0;
         }
 
-        private List<string> FindPathsToProcessInFolder(string path)
+        private List<string>? FindPathsToProcessInFolder(string path)
         {
             var paths = Directory
                 .EnumerateFiles(path, "*.*", RecursiveSearch ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly)
@@ -466,7 +467,7 @@ namespace Decompiler
             ProcessFile(path, fs);
         }
 
-        private void ProcessFile(string path, Stream stream, string originalPath = null)
+        private void ProcessFile(string path, Stream stream, string? originalPath = null)
         {
             lock (ConsoleWriterLock)
             {
@@ -615,7 +616,7 @@ namespace Decompiler
                     if (GltfExportFormat != null && GltfModelExporter.CanExport(resource))
                     {
                         outFilePath = Path.ChangeExtension(outFilePath, GltfExportFormat);
-                        Directory.CreateDirectory(Path.GetDirectoryName(outFilePath));
+                        Directory.CreateDirectory(Path.GetDirectoryName(outFilePath)!);
 
                         CreateGltfExporter(fileLoader).Export(resource, outFilePath);
                         return;
@@ -720,7 +721,7 @@ namespace Decompiler
             };
         }
 
-        private void ParseVCS(string path, Stream stream, string originalPath)
+        private void ParseVCS(string path, Stream stream, string? originalPath)
         {
             using var shader = new ShaderFile();
 
@@ -757,7 +758,7 @@ namespace Decompiler
             }
         }
 
-        private void ParseNAV(string path, Stream stream, string originalPath)
+        private void ParseNAV(string path, Stream stream, string? originalPath)
         {
             try
             {
@@ -788,7 +789,7 @@ namespace Decompiler
             }
         }
 
-        private void AddStat(string key, string info, string path, Resource resource = null)
+        private void AddStat(string key, string info, string path, Resource? resource = null)
         {
             lock (stats)
             {
@@ -845,7 +846,7 @@ namespace Decompiler
 
                 if (OutputFile != null)
                 {
-                    var outputDirectory = Path.GetDirectoryName(path);
+                    var outputDirectory = Path.GetDirectoryName(path)!;
 
                     foreach (var fontFile in fontPackage.FontFiles)
                     {
@@ -1024,7 +1025,7 @@ namespace Decompiler
                 if (CachedManifest && File.Exists(manifestPath))
                 {
                     using var file = new StreamReader(manifestPath);
-                    string line;
+                    string? line;
                     var firstLine = true;
                     var goodCachedVersion = false;
 
@@ -1040,7 +1041,7 @@ namespace Decompiler
                             if (lineSpan.StartsWith(CachedManifestVersionPrefix))
                             {
                                 var oldVersion = lineSpan[CachedManifestVersionPrefix.Length..];
-                                var newVersion = typeof(Decompiler).Assembly.GetName().Version.ToString();
+                                var newVersion = typeof(Decompiler).Assembly.GetName().Version!.ToString();
 
                                 goodCachedVersion = oldVersion.SequenceEqual(newVersion);
 
@@ -1216,23 +1217,25 @@ namespace Decompiler
 
                     resource.Read(memory);
 
-                    if (GltfExportFormat != null && GltfModelExporter.CanExport(resource))
-                    {
-                        var outputExtension = GltfExportFormat;
-                        var outputFile = Path.Combine(OutputFile, Path.ChangeExtension(filePath, outputExtension));
-
-                        Directory.CreateDirectory(Path.GetDirectoryName(outputFile));
-
-                        gltfExporter.Export(resource, outputFile);
-
-                        continue;
-                    }
-
-                    using var contentFile = DecompileResource(resource, fileLoader);
-
                     if (OutputFile != null)
                     {
-                        var outputFile = filePath;
+                        string outputFile;
+
+                        if (GltfExportFormat != null && GltfModelExporter.CanExport(resource))
+                        {
+                            var outputExtension = GltfExportFormat;
+                            outputFile = Path.Combine(OutputFile, Path.ChangeExtension(filePath, outputExtension));
+
+                            Directory.CreateDirectory(Path.GetDirectoryName(outputFile)!);
+
+                            gltfExporter.Export(resource, outputFile);
+
+                            continue;
+                        }
+
+                        using var contentFile = DecompileResource(resource, fileLoader);
+
+                        outputFile = filePath;
 
                         if (RecursiveSearchArchives)
                         {
@@ -1288,14 +1291,14 @@ namespace Decompiler
             {
                 foreach (var contentSubFile in contentFile.SubFiles)
                 {
-                    DumpFile(Path.Combine(Path.GetDirectoryName(path), contentSubFile.FileName), contentSubFile.Extract.Invoke());
+                    DumpFile(Path.Combine(Path.GetDirectoryName(path)!, contentSubFile.FileName), contentSubFile.Extract.Invoke());
                 }
             }
         }
 
         private static void DumpFile(string path, ReadOnlySpan<byte> data)
         {
-            Directory.CreateDirectory(Path.GetDirectoryName(path));
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
 
             File.WriteAllBytes(path, data.ToArray());
 
@@ -1324,6 +1327,8 @@ namespace Decompiler
 
         private string GetOutputPath(string inputPath, bool useOutputAsDirectory = false)
         {
+            Debug.Assert(OutputFile != null);
+
             if (IsInputFolder)
             {
                 if (!inputPath.StartsWith(InputFile, StringComparison.Ordinal))
@@ -1347,7 +1352,7 @@ namespace Decompiler
         /// This method tries to run through all the code paths for a particular resource,
         /// which allows us to quickly find exceptions when running --stats over an entire game folder.
         /// </summary>
-        private void TestAndCollectStats(Resource resource, string path, string originalPath)
+        private void TestAndCollectStats(Resource resource, string path, string? originalPath)
         {
             if (originalPath != null)
             {
@@ -1491,7 +1496,7 @@ namespace Decompiler
             }
         }
 
-        private void LogException(Exception e, string path, string parentPath = null)
+        private void LogException(Exception e, string path, string? parentPath = null)
         {
             var exceptionsFileName = CollectStats ? $"exceptions{Path.GetExtension(path)}.txt" : "exceptions.txt";
 
@@ -1532,7 +1537,7 @@ namespace Decompiler
         {
             var info = new StringBuilder();
             info.Append("Version: ");
-            info.AppendLine(typeof(Decompiler).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>().InformationalVersion);
+            info.AppendLine(typeof(Decompiler).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()!.InformationalVersion);
             info.Append("OS: ");
             info.AppendLine(RuntimeInformation.OSDescription);
             info.AppendLine("Website: https://valveresourceformat.github.io");
