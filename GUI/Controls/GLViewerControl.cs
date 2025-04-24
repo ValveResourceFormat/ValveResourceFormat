@@ -216,7 +216,12 @@ namespace GUI.Controls
             if (GLControl.Visible)
             {
                 HandleResize();
-                GLControl.Focus();
+
+                if (Form.ActiveForm != null)
+                {
+                    GLControl.Focus();
+                    GLControl.Invalidate();
+                }
             }
         }
 
@@ -474,8 +479,7 @@ namespace GUI.Controls
                 return;
             }
 
-            var activeForm = Form.ActiveForm;
-            var isActiveForm = activeForm == Program.MainForm || (FullScreenForm != null && activeForm == FullScreenForm);
+            var isActiveForm = Form.ActiveForm != null;
 
             var isTextureViewer = this is GLTextureViewer;
             var currentTime = Stopwatch.GetTimestamp();
@@ -594,7 +598,7 @@ namespace GUI.Controls
             }
 
             HandleResize();
-            Draw();
+            GLControl.Invalidate();
         }
 
         private void HandleResize()
@@ -648,7 +652,7 @@ namespace GUI.Controls
 
             GLControl.MakeCurrent();
             HandleResize();
-            Draw();
+            GLControl.Invalidate();
         }
 
         private void OnLostFocus(object sender, EventArgs e)
