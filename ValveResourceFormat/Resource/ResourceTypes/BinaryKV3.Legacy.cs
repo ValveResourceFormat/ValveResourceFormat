@@ -5,6 +5,8 @@ using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Compression;
 using ValveResourceFormat.Serialization.KeyValues;
 
+#nullable disable
+
 namespace ValveResourceFormat.ResourceTypes
 {
     public partial class BinaryKV3 : ResourceData

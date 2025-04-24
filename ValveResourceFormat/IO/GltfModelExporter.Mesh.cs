@@ -12,6 +12,8 @@ using VMesh = ValveResourceFormat.ResourceTypes.Mesh;
 using VModel = ValveResourceFormat.ResourceTypes.Model;
 using VMorph = ValveResourceFormat.ResourceTypes.Morph;
 
+#nullable disable
+
 namespace ValveResourceFormat.IO;
 
 public partial class GltfModelExporter

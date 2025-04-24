@@ -3,6 +3,7 @@ using System.Linq;
 using System.Text;
 using ValveResourceFormat.ResourceTypes;
 
+#nullable disable
 
 namespace ValveResourceFormat.IO;
 

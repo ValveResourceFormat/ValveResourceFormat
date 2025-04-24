@@ -7,8 +7,8 @@ namespace ValveResourceFormat.IO
     /// </summary>
     public class NullFileLoader : IFileLoader
     {
-        public Resource LoadFile(string file) => null;
-        public Resource LoadFileCompiled(string file) => null;
-        public ShaderCollection LoadShader(string shaderName) => null;
+        public Resource? LoadFile(string file) => null;
+        public Resource? LoadFileCompiled(string file) => null;
+        public ShaderCollection? LoadShader(string shaderName) => null;
     }
 }

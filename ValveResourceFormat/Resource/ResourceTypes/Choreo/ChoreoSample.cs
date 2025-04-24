@@ -1,6 +1,8 @@
 using ValveResourceFormat.ResourceTypes.Choreo.Curves;
 using ValveResourceFormat.Serialization.KeyValues;
 
+#nullable disable
+
 namespace ValveResourceFormat.ResourceTypes.Choreo
 {
     public class ChoreoSample

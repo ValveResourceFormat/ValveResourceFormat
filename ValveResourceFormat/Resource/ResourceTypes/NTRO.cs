@@ -6,6 +6,8 @@ using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Serialization.KeyValues;
 using KVValueType = ValveKeyValue.KVValueType;
 
+#nullable disable
+
 namespace ValveResourceFormat.ResourceTypes
 {
     public class NTRO : ResourceData

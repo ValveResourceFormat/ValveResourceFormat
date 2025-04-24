@@ -2,6 +2,8 @@ using System.Globalization;
 using System.IO;
 using System.Text;
 
+#nullable disable
+
 namespace ValveResourceFormat.CompiledShader
 {
     // TODO: All these methods should be removed in favor of direct BinaryReader.Read calls.

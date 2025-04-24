@@ -5,6 +5,8 @@ using System.Text;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 
+#nullable disable
+
 namespace ValveResourceFormat.NavMesh
 {
     public class NavMeshFile

@@ -2,6 +2,8 @@ using System.Linq;
 using System.Reflection;
 using ValveResourceFormat.IO;
 
+#nullable disable
+
 namespace ValveResourceFormat;
 
 public static class ResourceTypeExtensions

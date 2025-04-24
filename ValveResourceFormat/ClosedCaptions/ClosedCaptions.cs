@@ -4,6 +4,8 @@ using System.IO.Hashing;
 using System.Text;
 using ValveKeyValue;
 
+#nullable disable
+
 namespace ValveResourceFormat.ClosedCaptions
 {
     public class ClosedCaptions : IEnumerable<ClosedCaption>

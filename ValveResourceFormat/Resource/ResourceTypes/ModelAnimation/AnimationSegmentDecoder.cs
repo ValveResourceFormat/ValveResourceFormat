@@ -1,3 +1,5 @@
+#nullable disable
+
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 {
     public abstract class AnimationSegmentDecoder

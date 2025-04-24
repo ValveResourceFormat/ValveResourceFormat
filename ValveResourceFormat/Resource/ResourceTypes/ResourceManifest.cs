@@ -3,6 +3,8 @@ using System.Text;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Serialization.KeyValues;
 
+#nullable disable
+
 namespace ValveResourceFormat.ResourceTypes
 {
     public class ResourceManifest : ResourceData

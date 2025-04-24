@@ -5,6 +5,8 @@ using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.VfxEval;
 
+#nullable disable
+
 namespace ValveResourceFormat.IO;
 
 public sealed class ShaderExtract

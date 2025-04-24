@@ -3,6 +3,8 @@ using System.Linq;
 using System.Security;
 using ValveResourceFormat.Serialization.KeyValues;
 
+#nullable disable
+
 namespace ValveResourceFormat.ResourceTypes
 {
     public class PanoramaLayout : Panorama

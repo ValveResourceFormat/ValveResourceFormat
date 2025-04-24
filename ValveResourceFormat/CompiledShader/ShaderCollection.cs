@@ -1,5 +1,7 @@
 using System.Collections;
 
+#nullable disable
+
 namespace ValveResourceFormat.CompiledShader;
 
 public class ShaderCollection : IEnumerable<ShaderFile>, IDisposable

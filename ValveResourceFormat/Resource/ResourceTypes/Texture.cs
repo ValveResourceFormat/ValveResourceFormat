@@ -8,6 +8,8 @@ using SkiaSharp;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.TextureDecoders;
 
+#nullable disable
+
 namespace ValveResourceFormat.ResourceTypes
 {
     public class Texture : ResourceData

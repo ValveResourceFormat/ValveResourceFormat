@@ -1,6 +1,8 @@
 using System.IO;
 using System.Text;
 
+#nullable disable
+
 namespace ValveResourceFormat.Serialization.VfxEval
 {
     public class VfxEval

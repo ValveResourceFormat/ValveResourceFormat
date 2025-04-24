@@ -2,6 +2,8 @@ using System.IO;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes;
 using ValveResourceFormat.Serialization.KeyValues;
 
+#nullable disable
+
 namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
 {
     public class ShapeDescriptor<T> where T : struct

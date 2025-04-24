@@ -10,7 +10,7 @@ namespace ValveResourceFormat.Utils
         // dotnet build -p:DefineConstants=VRF_NO_GENERATOR_VERSION
         public const string VRF_GENERATOR = $"Source 2 Viewer - https://valveresourceformat.github.io";
 #else
-        private static readonly string ProductVersionString = typeof(StringToken).Assembly.GetName().Version.ToString();
+        private static readonly string ProductVersionString = typeof(StringToken).Assembly.GetName().Version!.ToString();
         public static readonly string VRF_GENERATOR = $"Source 2 Viewer {ProductVersionString} - https://valveresourceformat.github.io";
 #endif
 

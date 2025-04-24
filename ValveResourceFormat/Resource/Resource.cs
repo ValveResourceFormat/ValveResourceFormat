@@ -5,6 +5,8 @@ using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
 using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.ResourceTypes;
 
+#nullable disable
+
 namespace ValveResourceFormat
 {
     /// <summary>

@@ -1,5 +1,7 @@
 using KVValueType = ValveKeyValue.KVValueType;
 
+#nullable disable
+
 namespace ValveResourceFormat.Serialization.KeyValues
 {
 #pragma warning disable CA1028 // Enum Storage should be Int32

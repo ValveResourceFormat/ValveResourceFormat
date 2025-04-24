@@ -7,6 +7,8 @@ using System.Text;
 using ValveResourceFormat.Compression;
 using ValveResourceFormat.Serialization.KeyValues;
 
+#nullable disable
+
 namespace ValveResourceFormat.Blocks
 {
     /// <summary>

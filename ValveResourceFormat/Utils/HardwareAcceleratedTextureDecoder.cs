@@ -5,6 +5,8 @@ using static ValveResourceFormat.ResourceTypes.Texture;
 
 namespace ValveResourceFormat.Utils;
 
+#nullable disable
+
 public static class HardwareAcceleratedTextureDecoder
 {
     /// <summary>

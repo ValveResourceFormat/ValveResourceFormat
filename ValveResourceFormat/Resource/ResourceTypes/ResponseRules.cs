@@ -2,6 +2,8 @@ using System.IO;
 using System.Text;
 using ValveResourceFormat.Blocks;
 
+#nullable disable
+
 namespace ValveResourceFormat.ResourceTypes
 {
     public struct ResponseRuleInclude

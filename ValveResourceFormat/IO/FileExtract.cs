@@ -3,6 +3,8 @@ using System.Text;
 using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.ResourceTypes;
 
+#nullable disable
+
 namespace ValveResourceFormat.IO
 {
     public class ContentFile : IDisposable

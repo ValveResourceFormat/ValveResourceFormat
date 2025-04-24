@@ -9,6 +9,8 @@ using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.ThirdParty;
 using VMaterial = ValveResourceFormat.ResourceTypes.Material;
 
+#nullable disable
+
 namespace ValveResourceFormat.IO;
 
 public partial class GltfModelExporter

@@ -1,5 +1,7 @@
 using System.Linq;
 
+#nullable disable
+
 namespace ValveResourceFormat.CompiledShader
 {
     /// <summary>

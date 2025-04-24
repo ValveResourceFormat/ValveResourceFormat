@@ -5,6 +5,8 @@ using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.ResourceTypes;
 using Channel = ValveResourceFormat.CompiledShader.ChannelMapping;
 
+#nullable disable
+
 namespace ValveResourceFormat.IO
 {
     public interface IShaderDataProvider

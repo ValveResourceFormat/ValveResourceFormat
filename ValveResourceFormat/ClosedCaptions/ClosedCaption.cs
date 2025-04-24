@@ -1,3 +1,5 @@
+#nullable disable
+
 namespace ValveResourceFormat.ClosedCaptions
 {
     public class ClosedCaption

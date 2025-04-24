@@ -7,7 +7,10 @@ using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes;
 using Channel = ValveResourceFormat.CompiledShader.ChannelMapping;
 
+#nullable disable
+
 namespace ValveResourceFormat.IO;
+
 public sealed class MaterialExtract
 {
     public readonly struct UnpackInfo

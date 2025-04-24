@@ -1,6 +1,8 @@
 using System.IO;
 using System.Text;
 
+#nullable disable
+
 namespace ValveResourceFormat.ResourceTypes
 {
     public class PanoramaStyle : Panorama

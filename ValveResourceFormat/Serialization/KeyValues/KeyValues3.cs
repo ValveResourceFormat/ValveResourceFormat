@@ -20,6 +20,8 @@ using System.Linq;
 using System.Text;
 using KVValueType = ValveKeyValue.KVValueType;
 
+#nullable disable
+
 namespace ValveResourceFormat.Serialization.KeyValues
 {
     public static class KeyValues3

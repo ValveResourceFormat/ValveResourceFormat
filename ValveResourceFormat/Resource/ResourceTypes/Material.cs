@@ -4,6 +4,8 @@ using System.Text;
 using ValveResourceFormat.Serialization.KeyValues;
 using ValveResourceFormat.Serialization.VfxEval;
 
+#nullable disable
+
 namespace ValveResourceFormat.ResourceTypes
 {
     public class Material : KeyValuesOrNTRO

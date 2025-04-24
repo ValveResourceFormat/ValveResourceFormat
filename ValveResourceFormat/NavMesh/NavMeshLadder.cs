@@ -1,5 +1,7 @@
 using System.IO;
 
+#nullable disable
+
 namespace ValveResourceFormat.NavMesh
 {
     public class NavMeshLadder

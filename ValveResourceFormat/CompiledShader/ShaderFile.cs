@@ -5,6 +5,8 @@ using static ValveResourceFormat.CompiledShader.ShaderDataReader;
 using static ValveResourceFormat.CompiledShader.ShaderUtilHelpers;
 using LzmaDecoder = SevenZip.Compression.LZMA.Decoder;
 
+#nullable disable
+
 namespace ValveResourceFormat.CompiledShader
 {
     public class ShaderFile : IDisposable

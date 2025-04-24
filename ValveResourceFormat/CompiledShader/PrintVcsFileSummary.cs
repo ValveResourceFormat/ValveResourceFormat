@@ -4,6 +4,8 @@ using System.Linq;
 using static ValveResourceFormat.CompiledShader.ShaderDataReader;
 using static ValveResourceFormat.CompiledShader.ShaderUtilHelpers;
 
+#nullable disable
+
 namespace ValveResourceFormat.CompiledShader
 {
     public class PrintVcsFileSummary

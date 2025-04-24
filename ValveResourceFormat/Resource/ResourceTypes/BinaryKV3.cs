@@ -9,6 +9,8 @@ using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Serialization.KeyValues;
 using KVValueType = ValveKeyValue.KVValueType;
 
+#nullable disable
+
 namespace ValveResourceFormat.ResourceTypes
 {
     public partial class BinaryKV3 : ResourceData

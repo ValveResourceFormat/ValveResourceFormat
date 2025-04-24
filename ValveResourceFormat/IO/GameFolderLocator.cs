@@ -4,6 +4,8 @@ using System.Linq;
 using Microsoft.Win32;
 using ValveKeyValue;
 
+#nullable disable
+
 namespace ValveResourceFormat.IO
 {
     public static class GameFolderLocator

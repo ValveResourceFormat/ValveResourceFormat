@@ -316,7 +316,7 @@ namespace ValveResourceFormat.ToolsAssetInfo
                 {
                     var keyId = reader.ReadUInt16();
                     var type = reader.ReadByte();
-                    object value = null;
+                    object? value = null;
 
                     if (type == 2)
                     {

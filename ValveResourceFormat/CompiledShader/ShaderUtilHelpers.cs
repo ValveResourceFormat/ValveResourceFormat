@@ -2,6 +2,8 @@ using System.IO;
 using ValveResourceFormat.Serialization.VfxEval;
 using static ValveResourceFormat.CompiledShader.ShaderDataReader;
 
+#nullable disable
+
 namespace ValveResourceFormat.CompiledShader
 {
     public static class ShaderUtilHelpers

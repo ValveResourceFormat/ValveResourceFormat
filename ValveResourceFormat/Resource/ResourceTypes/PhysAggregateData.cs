@@ -3,6 +3,8 @@ using System.Linq;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics;
 using ValveResourceFormat.Serialization.KeyValues;
 
+#nullable disable
+
 namespace ValveResourceFormat.ResourceTypes
 {
     public class PhysAggregateData : KeyValuesOrNTRO

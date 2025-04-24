@@ -56,7 +56,7 @@ namespace ValveResourceFormat.CompiledShader
             var didTrim = false;
             while (lru.Count > maxCacheSize)
             {
-                var zFrameId = lru.First.Value;
+                var zFrameId = lru.First!.Value;
                 lru.RemoveFirst();
                 cache[zFrameId].Dispose();
                 didTrim = cache.Remove(zFrameId) || didTrim;

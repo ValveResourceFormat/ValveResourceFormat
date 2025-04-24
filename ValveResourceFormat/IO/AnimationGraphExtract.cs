@@ -4,6 +4,9 @@ using System.Text;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 using static ValveResourceFormat.IO.KVHelpers;
+
+#nullable disable
+
 namespace ValveResourceFormat.IO;
 
 public class AnimationGraphExtract

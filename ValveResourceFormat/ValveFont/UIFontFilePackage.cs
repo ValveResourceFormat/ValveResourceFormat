@@ -17,8 +17,8 @@ public class UIFontFilePackage
 
     public class FontFile
     {
-        public string FileName { get; set; }
-        public byte[] OpenTypeFontData { get; set; }
+        public required string FileName { get; init; }
+        public required byte[] OpenTypeFontData { get; init; }
     }
 
     /// <summary>
@@ -85,8 +85,9 @@ public class UIFontFilePackage
 
     private static FontFile ParseFontFile(ReadOnlySpan<byte> data)
     {
-        var result = new FontFile();
         var pos = 0;
+        string? filename = null;
+        byte[]? openTypeFontData = null;
 
         while (pos < data.Length)
         {
@@ -101,14 +102,14 @@ public class UIFontFilePackage
                 case 1: // font_file_name
                     var nameLength = (int)ReadVarint(data[pos..], out bytesRead);
                     pos += bytesRead;
-                    result.FileName = System.Text.Encoding.UTF8.GetString(data.Slice(pos, nameLength));
+                    filename = System.Text.Encoding.UTF8.GetString(data.Slice(pos, nameLength));
                     pos += nameLength;
                     break;
 
                 case 2: // opentype_font_data
                     var dataLength = (int)ReadVarint(data[pos..], out bytesRead);
                     pos += bytesRead;
-                    result.OpenTypeFontData = data.Slice(pos, dataLength).ToArray();
+                    openTypeFontData = data.Slice(pos, dataLength).ToArray();
                     pos += dataLength;
                     break;
 
@@ -117,13 +118,22 @@ public class UIFontFilePackage
             }
         }
 
+        ArgumentNullException.ThrowIfNull(filename);
+        ArgumentNullException.ThrowIfNull(openTypeFontData);
+
+        var result = new FontFile
+        {
+            FileName = filename,
+            OpenTypeFontData = openTypeFontData,
+        };
+
         return result;
     }
 
     private static byte[] ParseEncryptedFontFile(ReadOnlySpan<byte> data)
     {
         var pos = 0;
-        byte[] encryptedContents = null;
+        byte[]? encryptedContents = null;
 
         while (pos < data.Length)
         {
@@ -146,6 +156,8 @@ public class UIFontFilePackage
                 throw new UnexpectedMagicException("Unexpected protobuf field", (int)fieldNumber, nameof(fieldNumber));
             }
         }
+
+        ArgumentNullException.ThrowIfNull(encryptedContents);
 
         return encryptedContents;
     }

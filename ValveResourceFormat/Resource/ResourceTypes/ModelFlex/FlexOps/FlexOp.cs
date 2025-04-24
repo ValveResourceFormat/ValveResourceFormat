@@ -1,3 +1,5 @@
+#nullable disable
+
 namespace ValveResourceFormat.ResourceTypes.ModelFlex.FlexOps
 {
     public abstract class FlexOp

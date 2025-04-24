@@ -1,5 +1,7 @@
 using ValveResourceFormat.Serialization.KeyValues;
 
+#nullable disable
+
 namespace ValveResourceFormat.ResourceTypes.Choreo.Curves
 {
     [Flags]

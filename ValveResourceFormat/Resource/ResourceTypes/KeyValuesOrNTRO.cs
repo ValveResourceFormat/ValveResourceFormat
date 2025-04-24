@@ -2,6 +2,8 @@ using System.IO;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Serialization.KeyValues;
 
+#nullable disable
+
 namespace ValveResourceFormat.ResourceTypes
 {
     public class KeyValuesOrNTRO : ResourceData

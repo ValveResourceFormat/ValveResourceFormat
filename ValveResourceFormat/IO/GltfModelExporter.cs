@@ -15,6 +15,8 @@ using VModel = ValveResourceFormat.ResourceTypes.Model;
 using VWorld = ValveResourceFormat.ResourceTypes.World;
 using VWorldNode = ValveResourceFormat.ResourceTypes.WorldNode;
 
+#nullable disable
+
 namespace ValveResourceFormat.IO
 {
     public partial class GltfModelExporter

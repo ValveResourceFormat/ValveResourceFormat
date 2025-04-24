@@ -1,5 +1,7 @@
 using static ValveResourceFormat.CompiledShader.ShaderUtilHelpers;
 
+#nullable disable
+
 namespace ValveResourceFormat.CompiledShader
 {
     public class ConfigMappingDParams

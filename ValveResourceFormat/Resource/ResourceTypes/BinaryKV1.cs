@@ -2,6 +2,8 @@ using System.IO;
 using ValveKeyValue;
 using ValveResourceFormat.Blocks;
 
+#nullable disable
+
 namespace ValveResourceFormat.ResourceTypes
 {
     public class BinaryKV1 : ResourceData

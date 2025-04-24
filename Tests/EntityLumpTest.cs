@@ -4,7 +4,6 @@ using NUnit.Framework;
 using ValveKeyValue;
 using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.Serialization.KeyValues;
 
 namespace Tests
 {

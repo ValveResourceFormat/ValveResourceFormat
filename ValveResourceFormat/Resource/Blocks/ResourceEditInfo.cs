@@ -2,7 +2,6 @@ using System.IO;
 using System.Text;
 using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
 using ValveResourceFormat.Serialization.KeyValues;
-using KVValueType = ValveKeyValue.KVValueType;
 
 namespace ValveResourceFormat.Blocks
 {

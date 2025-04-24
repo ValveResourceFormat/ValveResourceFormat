@@ -3,6 +3,8 @@ using DMElement = Datamodel.Element;
 
 namespace ValveResourceFormat.IO.ContentFormats.ValveMap;
 
+#nullable disable
+
 /// <summary>
 ///  Valve Map (VMAP) format version 29.
 /// </summary>

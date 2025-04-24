@@ -1,6 +1,8 @@
 using System.Linq;
 using ValveResourceFormat.Serialization.KeyValues;
 
+#nullable disable
+
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 {
     public class Skeleton

@@ -3,6 +3,8 @@ using System.IO;
 using ValveResourceFormat.ResourceTypes.Choreo.Curves;
 using ValveResourceFormat.ResourceTypes.Choreo.Enums;
 
+#nullable disable
+
 namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
 {
     public class BVCDParser

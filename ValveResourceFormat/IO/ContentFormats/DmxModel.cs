@@ -3,6 +3,8 @@ using DMElement = Datamodel.Element;
 
 namespace ValveResourceFormat.IO.ContentFormats.DmxModel;
 
+#nullable disable
+
 #pragma warning disable CA2227 // Collection properties should be read only
 [CamelCaseProperties]
 internal class DmeModel : DMElement

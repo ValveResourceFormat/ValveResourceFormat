@@ -3,6 +3,8 @@ using DMElement = Datamodel.Element;
 
 namespace ValveResourceFormat.IO.ContentFormats.ValveTexture;
 
+#nullable disable
+
 [HungarianProperties]
 internal class CDmeVtex : DMElement
 {

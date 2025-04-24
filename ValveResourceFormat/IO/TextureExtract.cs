@@ -7,6 +7,9 @@ using TinyEXR;
 using ValveResourceFormat.IO.ContentFormats.ValveTexture;
 using ValveResourceFormat.ResourceTypes;
 using ChannelMapping = ValveResourceFormat.CompiledShader.ChannelMapping;
+
+#nullable disable
+
 namespace ValveResourceFormat.IO;
 
 public class TextureContentFile : ContentFile

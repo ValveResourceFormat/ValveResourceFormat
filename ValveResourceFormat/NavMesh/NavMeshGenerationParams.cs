@@ -2,6 +2,8 @@ using System.Diagnostics;
 using System.IO;
 using System.Text;
 
+#nullable disable
+
 namespace ValveResourceFormat.NavMesh
 {
     public class NavMeshGenerationParams

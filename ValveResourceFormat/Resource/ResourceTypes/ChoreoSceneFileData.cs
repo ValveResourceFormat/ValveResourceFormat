@@ -5,6 +5,8 @@ using ValveResourceFormat.ResourceTypes.Choreo;
 using ValveResourceFormat.ResourceTypes.Choreo.Parser;
 using LzmaDecoder = SevenZip.Compression.LZMA.Decoder;
 
+#nullable disable
+
 namespace ValveResourceFormat.ResourceTypes
 {
     public class ChoreoSceneFileData : ResourceData

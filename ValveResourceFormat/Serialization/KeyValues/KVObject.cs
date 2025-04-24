@@ -7,6 +7,8 @@ using System.Linq;
 using System.Text;
 using KVValueType = ValveKeyValue.KVValueType;
 
+#nullable disable
+
 namespace ValveResourceFormat.Serialization.KeyValues
 {
     //Datastructure for a KV Object

@@ -1,6 +1,8 @@
 using System.Diagnostics;
 using System.IO;
 
+#nullable disable
+
 namespace ValveResourceFormat.NavMesh
 {
     public class NavMeshArea

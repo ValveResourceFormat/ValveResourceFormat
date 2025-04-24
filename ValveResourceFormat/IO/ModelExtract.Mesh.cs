@@ -11,6 +11,8 @@ using ValveResourceFormat.ResourceTypes.RubikonPhysics;
 using ValveResourceFormat.Serialization.KeyValues;
 using RnShapes = ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes;
 
+#nullable disable
+
 namespace ValveResourceFormat.IO;
 
 partial class ModelExtract

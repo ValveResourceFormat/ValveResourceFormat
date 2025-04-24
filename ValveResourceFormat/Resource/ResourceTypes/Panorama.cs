@@ -3,6 +3,8 @@ using System.IO.Hashing;
 using System.Text;
 using ValveResourceFormat.Blocks;
 
+#nullable disable
+
 namespace ValveResourceFormat.ResourceTypes
 {
     public class Panorama : ResourceData
