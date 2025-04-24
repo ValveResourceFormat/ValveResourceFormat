@@ -30,6 +30,8 @@ public sealed class MapExtract
     private List<string> FolderExtractFilter { get; } = [];
     private List<string> SnapshotsToExtract { get; } = [];
 
+    private const int PhysMeshChunkSize = 100000;
+
     // Selection sets (for easy access)
     private CMapSelectionSet S2VSelectionSet;
     private CMapSelectionSet HammerMeshesSelectionSet;
@@ -586,8 +588,10 @@ public sealed class MapExtract
         }
     }
 
-    internal IEnumerable<CMapMesh> PhysToHammerMeshes(PhysAggregateData phys, Vector3 positionOffset = new Vector3(), string entityClassname = null)
+    internal List<CMapMesh> PhysToHammerMeshes(PhysAggregateData phys, Vector3 positionOffset = new Vector3(), string entityClassname = null)
     {
+        var cMapMeshesToReturn = new List<CMapMesh>();
+
         var materialOverride = string.IsNullOrEmpty(entityClassname)
             ? null
             : GetToolTextureForEntity(entityClassname);
@@ -608,7 +612,7 @@ public sealed class MapExtract
 
             var meshesSelectionSet = new CMapSelectionSet
             {
-                SelectionSetName = "physics shape (" + shape.Meshes.Length + " meshes)"
+                SelectionSetName = "physics shape (" + shape.Meshes.Length + " original meshes (no splits))"
             };
 
             var meshesEntitySelectionSet = new CMapSelectionSet
@@ -631,31 +635,42 @@ public sealed class MapExtract
                     hullsEntitySelectionSet.SelectionSetData.SelectedObjects.Add(hammerMesh);
                 }
 
-                yield return hammerMesh;
+                cMapMeshesToReturn.Add(hammerMesh);
             }
 
             foreach (var mesh in shape.Meshes)
             {
-                var hammerMeshBuilder = new HammerMeshBuilder(FileLoader);
 
                 HashSet<int> deletedList = [];
                 if (PhysVertexMatcher != null)
                 {
                     deletedList = mesh == PhysVertexMatcher.PhysicsMesh ? PhysVertexMatcher.DeletedVertexIndices : [];
                 }
-                hammerMeshBuilder.AddPhysMesh(mesh, phys, GetAndExportAutoPhysicsMaterialName, deletedList, positionOffset, materialOverride);
-                var hammerMesh = new CMapMesh() { MeshData = hammerMeshBuilder.GenerateMesh() };
 
-                if (string.IsNullOrEmpty(entityClassname))
-                {
-                    meshesSelectionSet.SelectionSetData.SelectedObjects.Add(hammerMesh);
-                }
-                else
-                {
-                    meshesEntitySelectionSet.SelectionSetData.SelectedObjects.Add(hammerMesh);
-                }
 
-                yield return hammerMesh;
+                int totalTriangles = mesh.Shape.GetTriangles().Length;
+
+                for (int j = 0; j < totalTriangles; j += PhysMeshChunkSize)
+                {
+                    int min = j;
+                    int max = Math.Min(j + PhysMeshChunkSize, totalTriangles);
+
+                    var hammerMeshBuilder = new HammerMeshBuilder(FileLoader);
+                    hammerMeshBuilder.AddPhysMesh(mesh, phys, GetAndExportAutoPhysicsMaterialName, deletedList, positionOffset, materialOverride, min, max, true);
+
+                    var hammerMesh = new CMapMesh() { MeshData = hammerMeshBuilder.GenerateMesh() };
+
+                    if (string.IsNullOrEmpty(entityClassname))
+                    {
+                        meshesSelectionSet.SelectionSetData.SelectedObjects.Add(hammerMesh);
+                    }
+                    else
+                    {
+                        meshesEntitySelectionSet.SelectionSetData.SelectedObjects.Add(hammerMesh);
+                    }
+
+                    cMapMeshesToReturn.Add(hammerMesh);
+                }
             }
 
             if (shape.Hulls.Length != 0)
@@ -682,6 +697,8 @@ public sealed class MapExtract
                 }
             }
         }
+
+        return cMapMeshesToReturn;
     }
 
     Datamodel.Color ConvertToColor32(Vector4 tint)

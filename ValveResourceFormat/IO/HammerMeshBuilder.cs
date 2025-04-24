@@ -1088,8 +1088,21 @@ namespace ValveResourceFormat.IO
         }
 
         public void AddPhysMesh(MeshDescriptor desc, PhysAggregateData phys, Func<string, string> materialNameProvider, HashSet<int> deletedIndices,
-            Vector3 positionOffset = new Vector3(), string? materialOverride = null)
+            Vector3 positionOffset = new Vector3(), string? materialOverride = null, int triangleRangeMin = 0, int triangleRangeMax = 0, bool useTriangleRange = false)
         {
+            if (useTriangleRange)
+            {
+                if (triangleRangeMin < 0)
+                {
+                    throw new ArgumentOutOfRangeException(nameof(triangleRangeMin), "Start index cannot be negative");
+                }
+
+                if (triangleRangeMax < triangleRangeMin)
+                {
+                    throw new ArgumentOutOfRangeException(nameof(triangleRangeMin), "End index must be greater than or equal to start index");
+                }
+            }
+
             var attributes = phys.CollisionAttributes[desc.CollisionAttributeIndex];
             var tags = attributes.GetArray<string>("m_InteractAsStrings") ?? attributes.GetArray<string>("m_PhysicsTagStrings");
             var group = attributes.GetStringProperty("m_CollisionGroupString");
@@ -1115,6 +1128,19 @@ namespace ValveResourceFormat.IO
 
             for (var i = 0; i < meshTriangles.Length; i++)
             {
+                if (useTriangleRange)
+                {
+                    if (i < triangleRangeMin)
+                    {
+                        continue;
+                    }
+
+                    if (i > triangleRangeMax)
+                    {
+                        break;
+                    }
+                }
+
                 var triangle = meshTriangles[i];
 
                 inds[0] = triangle.X;
