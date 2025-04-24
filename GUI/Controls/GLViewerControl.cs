@@ -138,12 +138,17 @@ namespace GUI.Controls
 
             if (e.KeyCode == Keys.F11)
             {
+                var currentScreen = Screen.FromControl(Program.MainForm);
+
                 FullScreenForm = new Form
                 {
                     Text = "Source 2 Viewer Fullscreen",
                     Icon = Program.MainForm.Icon,
                     ControlBox = false,
                     FormBorderStyle = FormBorderStyle.None,
+                    StartPosition = FormStartPosition.Manual,
+                    Location = currentScreen.Bounds.Location,
+                    Size = currentScreen.Bounds.Size,
                     WindowState = FormWindowState.Maximized
                 };
                 FullScreenForm.Controls.Add(GLControl);
