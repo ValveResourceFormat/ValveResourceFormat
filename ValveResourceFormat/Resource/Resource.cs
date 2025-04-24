@@ -4,7 +4,6 @@ using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
 using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat
 {
@@ -87,15 +86,13 @@ namespace ValveResourceFormat
                     return size;
                 }
 
-                if (ResourceType == ResourceType.Sound)
+                if (ResourceType == ResourceType.Sound && DataBlock is Sound dataSound)
                 {
-                    var data = (Sound)DataBlock;
-                    size += data.StreamingDataSize;
+                    size += dataSound.StreamingDataSize;
                 }
-                else if (ResourceType == ResourceType.Texture)
+                else if (ResourceType == ResourceType.Texture && DataBlock is Texture dataTexture)
                 {
-                    var data = (Texture)DataBlock;
-                    size += (uint)data.CalculateTextureDataSize();
+                    size += (uint)dataTexture.CalculateTextureDataSize();
                 }
 
                 return size;
@@ -245,29 +242,31 @@ namespace ValveResourceFormat
                 {
                     block.Read(Reader);
                     EditInfo = (ResourceEditInfo)block;
-                }
 
-                Reader.BaseStream.Position = position + 8;
-            }
-
-            // Try to determine resource type by looking at the compiler indentifiers
-            if (ResourceType == ResourceType.Unknown && EditInfo != null)
-            {
-                foreach (var specialDep in EditInfo.SpecialDependencies)
-                {
-                    ResourceType = DetermineResourceTypeByCompilerIdentifier(specialDep);
-
-                    if (ResourceType != ResourceType.Unknown)
+                    // Try to determine resource type by looking at the compiler indentifiers
+                    // This must be done right after reading EditInfo because future DATA block
+                    // will depend on knowing the resource type to construct the correct block in ConstructResourceType()
+                    if (ResourceType == ResourceType.Unknown)
                     {
-                        break;
+                        foreach (var specialDep in EditInfo.SpecialDependencies)
+                        {
+                            ResourceType = DetermineResourceTypeByCompilerIdentifier(specialDep);
+
+                            if (ResourceType != ResourceType.Unknown)
+                            {
+                                break;
+                            }
+                        }
+
+                        // Try to determine resource type by looking at the input dependency if there is only one
+                        if (ResourceType == ResourceType.Unknown && EditInfo.InputDependencies.Count == 1)
+                        {
+                            ResourceType = ResourceTypeExtensions.DetermineByFileExtension(Path.GetExtension(EditInfo.InputDependencies[0].ContentRelativeFilename));
+                        }
                     }
                 }
 
-                // Try to determine resource type by looking at the input dependency if there is only one
-                if (ResourceType == ResourceType.Unknown && EditInfo.InputDependencies.Count == 1)
-                {
-                    ResourceType = ResourceTypeExtensions.DetermineByFileExtension(Path.GetExtension(EditInfo.InputDependencies[0].ContentRelativeFilename));
-                }
+                Reader.BaseStream.Position = position + 8;
             }
 
             foreach (var block in Blocks)
@@ -285,7 +284,7 @@ namespace ValveResourceFormat
                     Resource = this,
                 };
 
-                if (block.ConstructFromCtrl(Reader))
+                if (block.ConstructFromCtrl())
                 {
                     Blocks.Add(block);
                 }

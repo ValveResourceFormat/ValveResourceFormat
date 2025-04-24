@@ -33,7 +33,6 @@ namespace GUI.Controls
 
         public event EventHandler<RenderEventArgs> GLPaint;
         public event EventHandler GLLoad;
-        public Action<GLViewerControl> GLPostLoad { get; set; }
 
         protected readonly Types.Renderer.TextRenderer textRenderer;
         protected readonly PostProcessRenderer postProcessRenderer;
@@ -448,8 +447,6 @@ namespace GUI.Controls
             }
 
             HandleResize();
-            GLPostLoad?.Invoke(this);
-            GLPostLoad = null;
 
             lastUpdate = Stopwatch.GetTimestamp();
         }
@@ -471,6 +468,9 @@ namespace GUI.Controls
             {
                 return;
             }
+
+            var activeForm = Form.ActiveForm;
+            var isActiveForm = activeForm == Program.MainForm || (FullScreenForm != null && activeForm == FullScreenForm);
 
             var isTextureViewer = this is GLTextureViewer;
             var currentTime = Stopwatch.GetTimestamp();
@@ -532,7 +532,7 @@ namespace GUI.Controls
 
             BlitFramebufferToScreen();
 
-            if (Settings.Config.DisplayFps != 0 && !isTextureViewer)
+            if (Settings.Config.DisplayFps != 0 && isActiveForm && !isTextureViewer)
             {
                 using (new GLDebugGroup("Text Render"))
                 {
@@ -542,7 +542,17 @@ namespace GUI.Controls
 
             GLControl.SwapBuffers();
             Picker?.TriggerEventIfAny();
-            GLControl.Invalidate();
+
+            if (isActiveForm)
+            {
+                // Infinite loop of invalidates causes a bug with message box dialogs not actually appearing in front,
+                // requiring user to press Alt key for it to appear. Checking for active form also pauses rendering while
+                // the app is not focused. We don't have a reference to the file save/open dialog, thus ActiveForm will be null.
+                //
+                // Repro: open a renderer tab, right click on tab to export, save with name that would cause "file already exists" popup.
+                //
+                GLControl.Invalidate();
+            }
         }
 
         private void BlitFramebufferToScreen()

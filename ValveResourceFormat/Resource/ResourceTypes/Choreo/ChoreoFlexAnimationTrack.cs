@@ -29,35 +29,35 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
             var isDisabled = !TrackFlags.HasFlag(ChoreoTrackFlags.Enabled);
             var isCombo = TrackFlags.HasFlag(ChoreoTrackFlags.Combo);
 
-            kv.AddProperty("name", new KVValue(KVType.STRING, Name));
+            kv.AddProperty("name", Name);
             if (isDisabled)
             {
-                kv.AddProperty("disabled", new KVValue(KVType.BOOLEAN, true));
+                kv.AddProperty("disabled", true);
             }
             if (isCombo)
             {
-                kv.AddProperty("combo", new KVValue(KVType.BOOLEAN, true));
+                kv.AddProperty("combo", true);
             }
-            kv.AddProperty("min", new KVValue(KVType.FLOAT, MinRange));
-            kv.AddProperty("max", new KVValue(KVType.FLOAT, MaxRange));
+            kv.AddProperty("min", MinRange);
+            kv.AddProperty("max", MaxRange);
 
             //Edges are the same for both curves
             if (Ramp?.LeftEdge != null)
             {
-                kv.AddProperty("left_edge", new KVValue(KVType.OBJECT, Ramp.LeftEdge.ToKeyValues()));
+                kv.AddProperty("left_edge", Ramp.LeftEdge.ToKeyValues());
             }
             if (Ramp?.RightEdge != null)
             {
-                kv.AddProperty("right_edge", new KVValue(KVType.OBJECT, Ramp.RightEdge.ToKeyValues()));
+                kv.AddProperty("right_edge", Ramp.RightEdge.ToKeyValues());
             }
 
             if (Ramp?.Samples.Length > 0)
             {
-                kv.AddProperty("samples", new KVValue(KVType.OBJECT, Ramp.ToKeyValues()));
+                kv.AddProperty("samples", Ramp.ToKeyValues());
             }
             if (isCombo && ComboRamp?.Samples.Length > 0)
             {
-                kv.AddProperty("stereo", new KVValue(KVType.OBJECT, ComboRamp.ToKeyValues()));
+                kv.AddProperty("stereo", ComboRamp.ToKeyValues());
             }
 
             return kv;

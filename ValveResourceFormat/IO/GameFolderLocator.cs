@@ -189,7 +189,10 @@ namespace ValveResourceFormat.IO
             var appID = appManifestKv["appid"].ToInt32(CultureInfo.InvariantCulture);
             var appName = appManifestKv["name"].ToString(CultureInfo.InvariantCulture);
             var installDir = appManifestKv["installdir"].ToString(CultureInfo.InvariantCulture);
-            var gamePath = Path.Combine(steamPath, "common", installDir);
+
+            // Intentionally append separator to the end to avoid issues when one game is a prefix of another game,
+            // e.g. "Artifact" and "Artifact 2.0"
+            var gamePath = Path.Combine(steamPath, "common", string.Concat(installDir, Path.DirectorySeparatorChar));
 
             return new SteamLibraryGameInfo(appID, appName, steamPath, gamePath);
         }

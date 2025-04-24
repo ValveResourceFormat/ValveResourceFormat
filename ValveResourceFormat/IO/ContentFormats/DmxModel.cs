@@ -53,6 +53,8 @@ public class DmeDag : DMElement
     public Datamodel.ElementArray Children { get; } = [];
 }
 
+[CamelCaseProperties] public class DmeJoint : DmeDag;
+
 [CamelCaseProperties]
 public class DmeMesh : DMElement
 {

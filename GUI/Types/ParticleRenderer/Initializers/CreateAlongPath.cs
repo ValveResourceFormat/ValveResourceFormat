@@ -1,6 +1,6 @@
 using GUI.Utils;
 using ValveResourceFormat;
-using ValveResourceFormat.Serialization;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace GUI.Types.ParticleRenderer.Initializers
 {

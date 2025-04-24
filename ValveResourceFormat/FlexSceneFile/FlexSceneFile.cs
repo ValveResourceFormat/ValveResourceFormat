@@ -1,6 +1,5 @@
 using System.IO;
 using System.Text;
-using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.FlexSceneFile
 {

@@ -1,7 +1,6 @@
 using System.IO;
 using System.Text;
 using ValveResourceFormat.ThirdParty;
-using ValveResourceFormat.Utils;
 using static ValveResourceFormat.CompiledShader.ShaderDataReader;
 using static ValveResourceFormat.CompiledShader.ShaderUtilHelpers;
 

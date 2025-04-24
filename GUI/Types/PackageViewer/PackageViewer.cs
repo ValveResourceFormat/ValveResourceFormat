@@ -8,7 +8,6 @@ using GUI.Types.Viewers;
 using GUI.Utils;
 using SteamDatabase.ValvePak;
 using ValveResourceFormat;
-using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
 using ValveResourceFormat.IO;
 
@@ -337,7 +336,7 @@ namespace GUI.Types.PackageViewer
                         try
                         {
                             package.ReadEntry(newEntry, bytes, validateCrc: false);
-                            using var stream = new MemoryStream(bytes);
+                            using var stream = new MemoryStream(bytes, 0, (int)newEntry.TotalLength);
                             using var resource = new ValveResourceFormat.Resource();
                             resource.Read(stream, verifyFileSize: false);
 
@@ -395,7 +394,7 @@ namespace GUI.Types.PackageViewer
 
                             newEntry.FileName += $" ({length} bytes)";
 
-                            var span = bytes.AsSpan();
+                            var span = bytes.AsSpan(0, (int)newEntry.TotalLength);
 
                             if (span.StartsWith(kv3header))
                             {

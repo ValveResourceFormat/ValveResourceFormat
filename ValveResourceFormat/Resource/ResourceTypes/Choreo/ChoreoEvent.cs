@@ -1,6 +1,5 @@
 using ValveResourceFormat.ResourceTypes.Choreo.Enums;
 using ValveResourceFormat.Serialization.KeyValues;
-using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.ResourceTypes.Choreo
 {
@@ -37,14 +36,14 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
             var kv = new KVObject(null);
 
             var type = TypeToKVString();
-            kv.AddProperty("type", new KVValue(KVType.STRING, type));
+            kv.AddProperty("type", type);
 
-            kv.AddProperty("name", new KVValue(KVType.STRING, Name));
-            kv.AddProperty("start_time", new KVValue(KVType.FLOAT, StartTime));
-            kv.AddProperty("end_time", new KVValue(KVType.FLOAT, EndTime));
-            kv.AddProperty("param", new KVValue(KVType.STRING, Param1));
-            kv.AddProperty("param2", new KVValue(KVType.STRING, Param2));
-            kv.AddProperty("param3", new KVValue(KVType.STRING, Param3));
+            kv.AddProperty("name", Name);
+            kv.AddProperty("start_time", StartTime);
+            kv.AddProperty("end_time", EndTime);
+            kv.AddProperty("param", Param1);
+            kv.AddProperty("param2", Param2);
+            kv.AddProperty("param3", Param3);
 
             if (ClosedCaptionsType != ChoreoClosedCaptionsType.None)
             {
@@ -55,8 +54,8 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
                     ChoreoClosedCaptionsType.Disabled => "cc_disabled",
                     _ => ""
                 };
-                kv.AddProperty("cctype", new KVValue(KVType.STRING, ccType));
-                kv.AddProperty("cctoken", new KVValue(KVType.STRING, ClosedCaptionsToken));
+                kv.AddProperty("cctype", ccType);
+                kv.AddProperty("cctoken", ClosedCaptionsToken);
             }
 
             AddKVFlag(kv, "cc_noattenuate", SpeakFlags, ChoreoSpeakFlags.SuppressingCaptionAttenuation, false);
@@ -64,7 +63,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
             AddKVFlag(kv, "cc_combinedusesgender", SpeakFlags, ChoreoSpeakFlags.CombinedUsingGenderToken, false);
             AddKVFlag(kv, "hardstopspeakevent", SpeakFlags, ChoreoSpeakFlags.HardStopSpeakEvent, false);
             AddKVFlag(kv, "volumematcheseventramp", SpeakFlags, ChoreoSpeakFlags.VolumeMatchesEventRamp, false);
-            kv.AddProperty("startdelay", new KVValue(KVType.FLOAT, SoundStartDelay));
+            kv.AddProperty("startdelay", SoundStartDelay);
 
             AddKVFlag(kv, "resumecondition", Flags, ChoreoFlags.ResumeCondition, false);
             AddKVFlag(kv, "active", Flags, ChoreoFlags.IsActive, true);
@@ -76,42 +75,42 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
             if (Type == ChoreoEventType.Loop)
             {
                 var loopCount = LoopCount == byte.MaxValue ? -1 : LoopCount;
-                kv.AddProperty("loopcount", new KVValue(KVType.INT64, loopCount));
+                kv.AddProperty("loopcount", loopCount);
             }
             else if (Type == ChoreoEventType.Gesture)
             {
-                kv.AddProperty("sequenceduration", new KVValue(KVType.FLOAT, SequenceDuration));
+                kv.AddProperty("sequenceduration", SequenceDuration);
             }
 
             if (RelativeTag != null)
             {
-                kv.AddProperty("relativetag_name", new KVValue(KVType.STRING, RelativeTag.Name));
-                kv.AddProperty("relativetag_sound", new KVValue(KVType.STRING, RelativeTag.SoundName));
+                kv.AddProperty("relativetag_name", RelativeTag.Name);
+                kv.AddProperty("relativetag_sound", RelativeTag.SoundName);
             }
 
             if (DistanceToTarget != 0.0f)
             {
-                kv.AddProperty("distancetotarget", new KVValue(KVType.FLOAT, DistanceToTarget));
+                kv.AddProperty("distancetotarget", DistanceToTarget);
             }
 
             if (ConstrainedEventId != 0)
             {
-                kv.AddProperty("constrainedEventID", new KVValue(KVType.INT64, ConstrainedEventId));
+                kv.AddProperty("constrainedEventID", ConstrainedEventId);
             }
 
-            kv.AddProperty("eventID", new KVValue(KVType.INT64, Id));
+            kv.AddProperty("eventID", Id);
 
             if (Ramp?.LeftEdge != null)
             {
-                kv.AddProperty("left_edge", new KVValue(KVType.OBJECT, Ramp.LeftEdge.ToKeyValues()));
+                kv.AddProperty("left_edge", Ramp.LeftEdge.ToKeyValues());
             }
             if (Ramp?.RightEdge != null)
             {
-                kv.AddProperty("right_edge", new KVValue(KVType.OBJECT, Ramp.RightEdge.ToKeyValues()));
+                kv.AddProperty("right_edge", Ramp.RightEdge.ToKeyValues());
             }
             if (Ramp.Samples.Length > 0)
             {
-                kv.AddProperty("event_ramp", new KVValue(KVType.OBJECT, Ramp.ToKeyValues()));
+                kv.AddProperty("event_ramp", Ramp.ToKeyValues());
             }
 
             AddTagArrayToKV(kv, "flextimingtags", FlexTimingTags);
@@ -123,13 +122,13 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
             {
                 //If samples_use_time is 1, samples in the flex animations are interpreted as real time (probably meaning values are not clamped to 0.0-1.0)
                 //They're stored as real time in the vcd, so this has to be set to true
-                kv.AddProperty("samples_use_time", new KVValue(KVType.BOOLEAN, true));
-                kv.AddProperty("flexanimations", new KVValue(KVType.OBJECT, EventFlex.ToKeyValues()));
+                kv.AddProperty("samples_use_time", true);
+                kv.AddProperty("flexanimations", EventFlex.ToKeyValues());
             }
 
             if (PreferredName != null)
             {
-                kv.AddProperty("preferred_name", new KVValue(KVType.STRING, PreferredName));
+                kv.AddProperty("preferred_name", PreferredName);
             }
 
             return kv;
@@ -142,18 +141,18 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
                 return;
             }
 
-            var kv = new KVObject(null, true, tags.Length);
+            var tagList = new KVObject(null, true, tags.Length);
 
             foreach (var tag in tags)
             {
                 var tagKV = new KVObject(null);
-                tagKV.AddProperty("name", new KVValue(KVType.STRING, tag.Name));
-                tagKV.AddProperty("fraction", new KVValue(KVType.FLOAT, tag.Fraction));
+                tagKV.AddProperty("name", tag.Name);
+                tagKV.AddProperty("fraction", tag.Fraction);
 
-                kv.AddProperty(null, new KVValue(KVType.OBJECT, tagKV));
+                tagList.AddItem(tagKV);
             }
 
-            parent.AddProperty(name, new KVValue(KVType.ARRAY, kv));
+            parent.AddProperty(name, tagList);
         }
 
         private static void AddKVFlag(KVObject kv, string name, Enum setFlags, Enum flag, bool defaultValue = false)
@@ -163,7 +162,8 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
             {
                 return;
             }
-            kv.AddProperty(name, new KVValue(KVType.BOOLEAN, set));
+
+            kv.AddProperty(name, set);
         }
 
         private string TypeToKVString()

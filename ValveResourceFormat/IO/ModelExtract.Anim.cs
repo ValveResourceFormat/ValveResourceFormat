@@ -38,25 +38,30 @@ partial class ModelExtract
         var skeleton = BuildDmeDagSkeleton(model.Skeleton, out var transforms);
 
         var animationList = new DmeAnimationList();
-        var clip = new DmeChannelsClip();
-
-        clip.TimeFrame.Duration = TimeSpan.FromSeconds((double)(anim.FrameCount - 1) / anim.Fps);
-        clip.FrameRate = anim.Fps;
-
-        var frames = new Frame[anim.FrameCount];
-        for (var i = 0; i < anim.FrameCount; i++)
+        var clip = new DmeChannelsClip
         {
-            var frame = new Frame(model.Skeleton, model.FlexControllers)
-            {
-                FrameIndex = i
-            };
-            anim.DecodeFrame(frame);
-            frames[i] = frame;
-        }
+            FrameRate = anim.Fps
+        };
 
-        ProcessRootMotionChannel(anim, skeleton, clip);
-        ProcessBoneChannels(model, anim, transforms, clip, frames);
-        ProcessFlexChannels(model, anim, clip, frames);
+        if (anim.FrameCount > 0)
+        {
+            clip.TimeFrame.Duration = TimeSpan.FromSeconds((double)(anim.FrameCount - 1) / MathF.Max(1f, anim.Fps));
+
+            var frames = new Frame[anim.FrameCount];
+            for (var i = 0; i < anim.FrameCount; i++)
+            {
+                var frame = new Frame(model.Skeleton, model.FlexControllers)
+                {
+                    FrameIndex = i
+                };
+                anim.DecodeFrame(frame);
+                frames[i] = frame;
+            }
+
+            ProcessRootMotionChannel(anim, skeleton, clip);
+            ProcessBoneChannels(model, anim, transforms, clip, frames);
+            ProcessFlexChannels(model, anim, clip, frames);
+        }
 
         animationList.Animations.Add(clip);
 
@@ -69,7 +74,7 @@ partial class ModelExtract
             ["exportTags"] = new Element(dmx, "exportTags", null, "DmeExportTags")
             {
                 ["app"] = "sfm", //modeldoc won't import dmx animations without this
-                ["source"] = $"Generated with {ValveResourceFormat.Utils.StringToken.VRF_GENERATOR}",
+                ["source"] = $"Generated with {StringToken.VRF_GENERATOR}",
             }
         };
 
@@ -84,11 +89,11 @@ partial class ModelExtract
         var children = new ElementArray();
 
         transforms = new DmeTransform[skeleton.Bones.Length];
-        var boneDags = new DmeDag[skeleton.Bones.Length];
+        var boneDags = new DmeJoint[skeleton.Bones.Length];
 
         foreach (var bone in skeleton.Bones)
         {
-            var dag = new DmeDag
+            var dag = new DmeJoint
             {
                 Name = bone.Name
             };
@@ -172,7 +177,7 @@ partial class ModelExtract
 
         for (var i = 0; i < anim.FrameCount; i++)
         {
-            var time = i / anim.Fps;
+            var time = i / MathF.Max(1f, anim.Fps);
             var timespan = TimeSpan.FromSeconds(time);
 
             var movement = anim.GetMovementOffsetData(time);
@@ -210,7 +215,7 @@ partial class ModelExtract
             for (var i = 0; i < anim.FrameCount; i++)
             {
                 var frame = frames[i];
-                var time = TimeSpan.FromSeconds((double)i / anim.Fps);
+                var time = TimeSpan.FromSeconds((double)i / MathF.Max(1f, anim.Fps));
                 ProcessFlexFrameForDmeChannel(flexId, frame, time, flexLogLayer);
             }
             clip.Channels.Add(flexChannel);
@@ -236,7 +241,7 @@ partial class ModelExtract
             {
                 var frame = frames[i];
 
-                var time = TimeSpan.FromSeconds((double)i / anim.Fps);
+                var time = TimeSpan.FromSeconds((double)i / MathF.Max(1f, anim.Fps));
 
                 ProcessBoneFrameForDmeChannel(bone, frame, time, positionLogLayer, orientationLogLayer);
             }
@@ -253,6 +258,12 @@ partial class ModelExtract
     /// </summary>
     private static void ApplyModelDocHack(DmeLogLayer<Vector3> logLayer)
     {
+        // I guess this means there is actually no animation data?
+        if (logLayer.LayerValues.Length == 0)
+        {
+            return;
+        }
+
         if (DoesLayerHaveMotion(logLayer))
         {
             return;
@@ -279,7 +290,7 @@ partial class ModelExtract
 
     private static bool DoesLayerHaveMotion(DmeLogLayer<Vector3> logLayer)
     {
-        if (logLayer.LayerValues.Length <= 1)
+        if (logLayer.LayerValues.Length == 1)
         {
             return false;
         }

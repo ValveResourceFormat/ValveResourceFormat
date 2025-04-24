@@ -4,14 +4,11 @@ using ValveResourceFormat.IO.ContentFormats.DmxModel;
 using ValveResourceFormat.IO.ContentFormats.ValveMap;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics;
 using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.Serialization;
+using ValveResourceFormat.Serialization.KeyValues;
 
 #nullable enable
 using HalfEdgeSlim = (int SrcVertexId, int DstVertexId);
 using static ValveResourceFormat.IO.HammerMeshBuilder;
-using ValveResourceFormat.Utils;
-using System.Globalization;
-using ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes;
 
 namespace ValveResourceFormat.IO
 {
@@ -549,12 +546,12 @@ namespace ValveResourceFormat.IO
                     if (vertexStreams.VertexPaintBlendParams.Count != 0)
                     {
                         vertexPaintBlendParams = vertexStreams.VertexPaintBlendParams[startVertex.MasterStreamIndex];
-                    };
+                    }
 
                     if (vertexStreams.VertexPaintTintColor.Count != 0)
                     {
                         vertexPaintTintColor = vertexStreams.VertexPaintTintColor[startVertex.MasterStreamIndex];
-                    };
+                    }
                 }
 
                 normals.Data.Add(normal);

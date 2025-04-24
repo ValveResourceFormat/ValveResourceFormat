@@ -3,7 +3,6 @@
  */
 using System.Buffers.Binary;
 using System.IO;
-using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.Compression
 {

@@ -1,7 +1,5 @@
 using System.IO;
-using System.Linq;
 using System.Text;
-using ValveResourceFormat.Blocks;
 using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.ResourceTypes;
 
@@ -134,6 +132,10 @@ namespace ValveResourceFormat.IO
 
                 case ResourceType.Model:
                     contentFile = new ModelExtract(resource, fileLoader).ToContentFile();
+                    break;
+
+                case ResourceType.AnimationGraph:
+                    contentFile = new AnimationGraphExtract(resource).ToContentFile();
                     break;
 
                 case ResourceType.Panorama:

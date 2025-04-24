@@ -8,7 +8,6 @@ using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.Utils;
 using VrfMaterial = ValveResourceFormat.ResourceTypes.Material;
 
 namespace GUI.Types.Renderer
@@ -196,11 +195,11 @@ namespace GUI.Types.Renderer
             GL.ObjectLabel(ObjectLabelIdentifier.Texture, tex.Handle, textureName.Length, textureName);
 #endif
 
-            var depth = data.Depth;
+            var texDepth = data.Depth;
 
             if (target == TextureTarget.TextureCubeMap || target == TextureTarget.TextureCubeMapArray)
             {
-                depth *= 6;
+                texDepth *= 6;
             }
 
             var minMipLevelAllowed = 0;
@@ -222,7 +221,7 @@ namespace GUI.Types.Renderer
 
             if (is3d && target != TextureTarget.TextureCubeMap)
             {
-                GL.TextureStorage3D(tex.Handle, data.NumMipLevels - minMipLevelAllowed, sizedInternalFormat, texWidth, texHeight, depth);
+                GL.TextureStorage3D(tex.Handle, data.NumMipLevels - minMipLevelAllowed, sizedInternalFormat, texWidth, texHeight, texDepth);
             }
             else
             {
@@ -233,9 +232,9 @@ namespace GUI.Types.Renderer
 
             try
             {
-                foreach (var (level, width, height, bufferSize) in data.GetEveryMipLevelTexture(buffer, minMipLevelAllowed))
+                foreach (var (level, width, height, depth, bufferSize) in data.GetEveryMipLevelTexture(buffer, minMipLevelAllowed))
                 {
-                    var realLevel = level - minMipLevelAllowed;
+                    var realLevel = (int)level - minMipLevelAllowed;
 
                     if (format.PixelType is not null)
                     {

@@ -31,7 +31,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Curves
         public readonly KVValue ToKeyValue()
         {
             var curveType = $"curve_{InTypeName}_to_curve_{OutTypeName}";
-            return new KVValue(KVType.STRING, curveType);
+            return new KVValue(curveType);
         }
     }
 }

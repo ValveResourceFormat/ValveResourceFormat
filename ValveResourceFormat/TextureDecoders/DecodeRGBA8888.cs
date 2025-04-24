@@ -4,7 +4,7 @@ using RGBA8888 = (byte R, byte G, byte B, byte A);
 
 namespace ValveResourceFormat.TextureDecoders
 {
-    internal class DecodeRGBA8888 : ITextureDecoder
+    internal readonly struct DecodeRGBA8888 : ITextureDecoder
     {
         public void Decode(SKBitmap res, Span<byte> input)
         {

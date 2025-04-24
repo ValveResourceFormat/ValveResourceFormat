@@ -15,6 +15,15 @@ public partial class Decompiler
         {
             assetsInfo.Read(stream);
 
+            if (CollectStats)
+            {
+                var id = $"ToolsAssetInfo version {assetsInfo.Version}";
+
+                AddStat(id, id, path);
+
+                return;
+            }
+
             string output;
 
             if (ToolsAssetInfoShort)

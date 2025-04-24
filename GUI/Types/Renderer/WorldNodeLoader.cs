@@ -1,7 +1,7 @@
 using GUI.Utils;
 using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.Serialization;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace GUI.Types.Renderer
 {

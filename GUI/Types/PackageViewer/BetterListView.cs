@@ -7,5 +7,10 @@ namespace GUI.Types.PackageViewer
     sealed class BetterListView : ListView
     {
         public VrfGuiContext VrfGuiContext { get; set; }
+
+        public BetterListView() : base()
+        {
+            DoubleBuffered = true;
+        }
     }
 }

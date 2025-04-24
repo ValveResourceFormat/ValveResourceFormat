@@ -38,7 +38,7 @@ namespace ValveResourceFormat.Blocks
 
             static void ReadItems<T>(BinaryKV3 kv3, List<T> list, string key, Func<KVObject, T> constructor)
             {
-                var container = kv3.Data.Properties.GetValueOrDefault(key)?.Value as KVObject;
+                var container = kv3.Data.Properties.GetValueOrDefault(key).Value as KVObject;
                 ArgumentNullException.ThrowIfNull(container, key);
                 ArgumentOutOfRangeException.ThrowIfEqual(container.IsArray, false, key);
 

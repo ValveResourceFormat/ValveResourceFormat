@@ -9,9 +9,7 @@ using OpenTK.Graphics.OpenGL;
 using SkiaSharp;
 using ValveResourceFormat;
 using ValveResourceFormat.CompiledShader;
-using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.TextureDecoders;
-using ValveResourceFormat.Utils;
 using static ValveResourceFormat.ResourceTypes.Texture;
 
 namespace GUI.Types.Renderer;
@@ -181,8 +179,8 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
 
         var framebufferFormat = request.Bitmap.ColorType switch
         {
-            SKColorType.RgbaF32 => HDRFormat.Value,
-            SKColorType.Bgra8888 => LDRFormat.Value,
+            HdrBitmapColorType => HDRFormat.Value,
+            DefaultBitmapColorType => LDRFormat.Value,
             _ => null,
         };
 
@@ -197,12 +195,17 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
             Framebuffer.ChangeFormat(framebufferFormat, null);
         }
 
-        if (Framebuffer.Width < inputTexture.Width || Framebuffer.Height < inputTexture.Height)
+        // Render the texture at requested mip level size,
+        // reading pixels back to the bitmap below will crop it
+        var blockWidth = Math.Max(inputTexture.Width >> request.Mip, 1);
+        var blockHeight = Math.Max(inputTexture.Height >> request.Mip, 1);
+
+        if (Framebuffer.Width < blockWidth || Framebuffer.Height < blockHeight)
         {
-            Framebuffer.Resize(inputTexture.Width, inputTexture.Height);
+            Framebuffer.Resize(blockWidth, blockHeight);
         }
 
-        GL.Viewport(0, 0, inputTexture.Width, inputTexture.Height);
+        GL.Viewport(0, 0, blockWidth, blockHeight);
         Framebuffer.BindAndClear();
         GL.DepthMask(false);
         GL.Disable(EnableCap.DepthTest);
@@ -216,9 +219,9 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
         GL.UseProgram(shader.Program);
 
         shader.SetTexture(0, "g_tInputTexture", inputTexture);
-        shader.SetUniform2("g_vViewportSize", new System.Numerics.Vector2(inputTexture.Width, inputTexture.Height));
+        shader.SetUniform2("g_vViewportSize", new System.Numerics.Vector2(blockWidth, blockHeight));
         shader.SetUniform4("g_vInputTextureSize", new System.Numerics.Vector4(
-            inputTexture.Width, inputTexture.Height, inputTexture.Depth, inputTexture.NumMipLevels
+            blockWidth, blockHeight, inputTexture.Depth, inputTexture.NumMipLevels
         ));
         shader.SetUniform1("g_nSelectedMip", request.Mip);
         shader.SetUniform1("g_nSelectedDepth", request.Depth);

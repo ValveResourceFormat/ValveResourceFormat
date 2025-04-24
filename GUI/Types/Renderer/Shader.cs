@@ -135,7 +135,7 @@ namespace GUI.Types.Renderer
             var uniformLocation = GetUniformLocation("uAnimationData");
             if (uniformLocation > -1)
             {
-                GL.ProgramUniform4(Program, uniformLocation, animated ? 1u : 0u, (uint)boneOffset, (uint)boneCount, (uint)weightCount);
+                GL.ProgramUniform4((uint)Program, uniformLocation, animated ? 1u : 0u, (uint)boneOffset, (uint)boneCount, (uint)weightCount);
             }
         }
 

@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -5,7 +6,6 @@ using System.Text.Json.Nodes;
 using SharpGLTF.Memory;
 using SharpGLTF.Schema2;
 using ValveResourceFormat.Blocks;
-using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Serialization.KeyValues;
 using VMaterial = ValveResourceFormat.ResourceTypes.Material;
 using VMesh = ValveResourceFormat.ResourceTypes.Mesh;
@@ -19,7 +19,11 @@ public partial class GltfModelExporter
     // https://github.com/KhronosGroup/glTF-Validator/blob/master/lib/src/errors.dart
     private const float UnitLengthThresholdVec3 = 0.00674f;
 
-    private Mesh CreateGltfMesh(string meshName, VMesh vmesh, VBIB vbib, ModelRoot exportedModel, bool includeJoints, string skinMaterialPath)
+    // TODO: Using floats as hash key is kind of unhinged
+    private readonly record struct ExportedMaterial(string Name, Vector4 Tint);
+    private readonly Dictionary<ExportedMaterial, Material> ExportedMaterials = [];
+
+    private Mesh CreateGltfMesh(string meshName, VMesh vmesh, VBIB vbib, ModelRoot exportedModel, int[] boneRemapTable, string skinMaterialPath, Vector4 tintColor)
     {
         ProgressReporter?.Report($"Creating mesh: {meshName}");
 
@@ -28,14 +32,16 @@ public partial class GltfModelExporter
 
         vmesh.LoadExternalMorphData(FileLoader);
 
-        var vertexBufferAccessors = CreateVertexBufferAccessors(exportedModel, vbib, includeJoints);
+        var boneWeightCount = vmesh.Data.GetSubCollection("m_skeleton")?.GetInt32Property("m_nBoneWeightCount") ?? 0;
+
+        var vertexBufferAccessors = CreateVertexBufferAccessors(exportedModel, vbib, boneRemapTable != null ? boneWeightCount : 0, boneRemapTable);
         var vertexOffset = 0;
 
         foreach (var sceneObject in vmesh.Data.GetArray("m_sceneObjects"))
         {
             foreach (var drawCall in sceneObject.GetArray("m_drawCalls"))
             {
-                var primitive = CreateMeshFromDrawCall(drawCall, mesh, vbib, vertexBufferAccessors, exportedModel, skinMaterialPath);
+                var primitive = CreateMeshFromDrawCall(drawCall, mesh, vbib, vertexBufferAccessors, exportedModel, skinMaterialPath, tintColor);
 
                 if (vmesh.MorphData != null)
                 {
@@ -53,7 +59,7 @@ public partial class GltfModelExporter
         return mesh;
     }
 
-    private static Dictionary<string, Accessor>[] CreateVertexBufferAccessors(ModelRoot exportedModel, VBIB vbib, bool includeJoints)
+    private static Dictionary<string, Accessor>[] CreateVertexBufferAccessors(ModelRoot exportedModel, VBIB vbib, int boneWeightCount, int[] boneRemapTable = null)
     {
         return vbib.VertexBuffers.Select((vertexBuffer, vertexBufferIndex) =>
         {
@@ -68,11 +74,29 @@ public partial class GltfModelExporter
             var attributeCounters = new Dictionary<string, int>();
 
             // Set vertex attributes
-            var actualJointsCount = 0;
+            ushort[] joints = null;
+            Vector4[] weights = null;
+
             foreach (var attribute in vertexBuffer.InputLayoutFields.OrderBy(i => i.SemanticIndex).ThenBy(i => i.Offset))
             {
-                if (!includeJoints && attribute.SemanticName == "BLENDINDICES")
+                if (attribute.SemanticName is "BLENDINDICES" or "BLENDWEIGHT" or "BLENDWEIGHTS")
                 {
+                    if (boneWeightCount > 0)
+                    {
+                        if (attribute.SemanticName is "BLENDINDICES")
+                        {
+                            Debug.Assert(joints == null);
+
+                            joints = VBIB.GetBlendIndicesArray(vertexBuffer, attribute, boneRemapTable);
+                        }
+                        else if (attribute.SemanticName is "BLENDWEIGHT" or "BLENDWEIGHTS")
+                        {
+                            Debug.Assert(weights == null);
+
+                            weights = VBIB.GetBlendWeightsArray(vertexBuffer, attribute);
+                        }
+                    }
+
                     continue;
                 }
 
@@ -84,8 +108,6 @@ public partial class GltfModelExporter
                     "POSITION" => "POSITION",
                     "NORMAL" => "NORMAL",
                     "TANGENT" => "TANGENT",
-                    "BLENDINDICES" => "JOINTS_0",
-                    "BLENDWEIGHT" or "BLENDWEIGHTS" => "WEIGHTS_0",
                     _ => $"_{attribute.SemanticName}",
                 };
 
@@ -128,23 +150,6 @@ public partial class GltfModelExporter
                     {
                         accessors[accessorName] = CreateAccessor(exportedModel, normals);
                     }
-                }
-                else if (attribute.SemanticName == "BLENDINDICES")
-                {
-                    actualJointsCount = attributeFormat.ElementCount;
-
-                    var indices = VBIB.GetBlendIndicesArray(vertexBuffer, attribute);
-
-                    var bufferView = exportedModel.CreateBufferView(2 * indices.Length, 0, BufferMode.ARRAY_BUFFER);
-                    indices.CopyTo(MemoryMarshal.Cast<byte, ushort>(((Memory<byte>)bufferView.Content).Span));
-                    var accessor = exportedModel.CreateAccessor();
-                    accessor.SetVertexData(bufferView, 0, indices.Length / 4, DimensionType.VEC4, EncodingType.UNSIGNED_SHORT);
-                    accessors[accessorName] = accessor;
-                }
-                else if (attribute.SemanticName is "BLENDWEIGHT" or "BLENDWEIGHTS")
-                {
-                    var weights = VBIB.GetBlendWeightsArray(vertexBuffer, attribute);
-                    accessors[accessorName] = CreateAccessor(exportedModel, weights);
                 }
                 else
                 {
@@ -192,80 +197,106 @@ public partial class GltfModelExporter
                 }
             }
 
-            if (accessors.TryGetValue("JOINTS_0", out var jointAccessor))
+            if (joints != null)
             {
+                var isEightBonePackedFormat = boneWeightCount > 4;
+                var actualJointCount = isEightBonePackedFormat ? 8 : 4;
+
+                if (isEightBonePackedFormat)
+                {
+                    Debug.Assert(joints.Length == 8 * vertexBuffer.ElementCount);
+                    Debug.Assert(weights.Length == 2 * vertexBuffer.ElementCount);
+                }
+
                 // For some reason models can have joints but no weights, check if that is the case
-                if (!accessors.TryGetValue("WEIGHTS_0", out var weightsAccessor))
+                if (weights == null)
                 {
                     // If this occurs, give default weights
-                    var baseWeight = 1f / actualJointsCount;
+                    var baseWeight = 1f / boneWeightCount;
                     var baseWeights = new Vector4(
-                        actualJointsCount > 0 ? baseWeight : 0,
-                        actualJointsCount > 1 ? baseWeight : 0,
-                        actualJointsCount > 2 ? baseWeight : 0,
-                        actualJointsCount > 3 ? baseWeight : 0
+                        boneWeightCount > 0 ? baseWeight : 0,
+                        boneWeightCount > 1 ? baseWeight : 0,
+                        boneWeightCount > 2 ? baseWeight : 0,
+                        boneWeightCount > 3 ? baseWeight : 0
                     );
-                    var defaultWeights = Enumerable.Repeat(baseWeights, jointAccessor.Count).ToList();
-
-                    var bufferView = exportedModel.CreateBufferView(16 * defaultWeights.Count, 0, BufferMode.ARRAY_BUFFER);
-                    new Vector4Array(bufferView.Content).Fill(defaultWeights);
-                    weightsAccessor = exportedModel.CreateAccessor();
-                    weightsAccessor.SetVertexData(bufferView, 0, defaultWeights.Count, DimensionType.VEC4);
-                    accessors["WEIGHTS_0"] = weightsAccessor;
+                    weights = [.. Enumerable.Repeat(baseWeights, (int)vertexBuffer.ElementCount)];
                 }
 
-                var joints = MemoryMarshal.Cast<byte, ushort>(((Memory<byte>)jointAccessor.SourceBufferView.Content).Span);
-                var weights = MemoryMarshal.Cast<byte, float>(((Memory<byte>)weightsAccessor.SourceBufferView.Content).Span);
+                var weightsFloats = MemoryMarshal.Cast<Vector4, float>(weights);
 
-                for (var i = 0; i < joints.Length; i += 4)
+                FixDuplicateJoints(joints, weightsFloats, actualJointCount);
+
+                // joints
+                var bufferView = exportedModel.CreateBufferView(2 * joints.Length, 8, BufferMode.ARRAY_BUFFER);
+                var bufferViewShorts = MemoryMarshal.Cast<byte, ushort>(((Memory<byte>)bufferView.Content).Span);
+
+                if (isEightBonePackedFormat)
                 {
-                    // remove joints without weights
-                    for (var j = 0; j < 4; j++)
+                    var joints0 = 0;
+                    var joints1 = joints.Length / 2;
+
+                    for (var i = 0; i < joints.Length - 8; i += 8)
                     {
-                        if (weights[i + j] == 0)
-                        {
-                            joints[i + j] = 0;
-                        }
+                        bufferViewShorts[joints0++] = joints[i];
+                        bufferViewShorts[joints0++] = joints[i + 1];
+                        bufferViewShorts[joints0++] = joints[i + 2];
+                        bufferViewShorts[joints0++] = joints[i + 3];
+
+                        bufferViewShorts[joints1++] = joints[i + 4];
+                        bufferViewShorts[joints1++] = joints[i + 5];
+                        bufferViewShorts[joints1++] = joints[i + 6];
+                        bufferViewShorts[joints1++] = joints[i + 7];
                     }
 
-                    // remove duplicate joints
-                    for (var j = 2; j >= 0; j--)
-                    {
-                        for (var k = 3; k > j; k--)
-                        {
-                            if (joints[i + j] == joints[i + k])
-                            {
-                                for (var l = k; l < 3; l++)
-                                {
-                                    joints[i + l] = joints[i + l + 1];
-                                }
-                                joints[i + 3] = 0;
+                    var accessor0 = exportedModel.CreateAccessor();
+                    var accessor1 = exportedModel.CreateAccessor();
 
-                                weights[i + j] += weights[i + k];
-                                for (var l = k; l < 3; l++)
-                                {
-                                    weights[i + l] = weights[i + l + 1];
-                                }
-                                weights[i + 3] = 0;
-                            }
-                        }
-                    }
+                    accessor0.SetVertexData(bufferView, 0, joints.Length / 8, DimensionType.VEC4, EncodingType.UNSIGNED_SHORT);
+                    accessor1.SetVertexData(bufferView, joints.Length, joints.Length / 8, DimensionType.VEC4, EncodingType.UNSIGNED_SHORT);
+
+                    accessors["JOINTS_0"] = accessor0;
+                    accessors["JOINTS_1"] = accessor1;
+                }
+                else
+                {
+                    joints.CopyTo(bufferViewShorts);
+
+                    var accessor = exportedModel.CreateAccessor();
+                    accessor.SetVertexData(bufferView, 0, joints.Length / 4, DimensionType.VEC4, EncodingType.UNSIGNED_SHORT);
+                    accessors["JOINTS_0"] = accessor;
                 }
 
-                jointAccessor.UpdateBounds();
-                weightsAccessor.UpdateBounds();
+                // weights
+                if (isEightBonePackedFormat)
+                {
+                    var weights0 = new Vector4[weights.Length / 2];
+                    var weights1 = new Vector4[weights.Length / 2];
+                    var w = 0;
+
+                    for (var i = 0; i < weights.Length - 1; i += 2)
+                    {
+                        weights0[w] = weights[i];
+                        weights1[w] = weights[i + 1];
+                        w++;
+                    }
+
+                    accessors["WEIGHTS_0"] = CreateAccessor(exportedModel, weights0);
+                    accessors["WEIGHTS_1"] = CreateAccessor(exportedModel, weights1);
+                }
+                else
+                {
+                    accessors["WEIGHTS_0"] = CreateAccessor(exportedModel, weights);
+                }
             }
 
             return accessors;
         }).ToArray();
     }
 
-    private MeshPrimitive CreateMeshFromDrawCall(KVObject drawCall, Mesh mesh, VBIB vbib, Dictionary<string, Accessor>[] vertexBufferAccessors, ModelRoot exportedModel, string skinMaterialPath)
+    private MeshPrimitive CreateMeshFromDrawCall(KVObject drawCall, Mesh mesh, VBIB vbib, Dictionary<string,
+        Accessor>[] vertexBufferAccessors, ModelRoot exportedModel, string skinMaterialPath, Vector4 parentTintColor)
     {
         CancellationToken.ThrowIfCancellationRequested();
-
-        var vertexBufferInfo = drawCall.GetArray("m_vertexBuffers")[0]; // In what situation can we have more than 1 vertex buffer per draw call?
-        var vertexBufferIndex = vertexBufferInfo.GetInt32Property("m_hBuffer");
 
         var indexBufferInfo = drawCall.GetSubCollection("m_indexBuffer");
         var indexBufferIndex = indexBufferInfo.GetInt32Property("m_hBuffer");
@@ -274,11 +305,18 @@ public partial class GltfModelExporter
         // Create one primitive per draw call
         var primitive = mesh.CreatePrimitive();
 
-        foreach (var (attributeKey, accessor) in vertexBufferAccessors[vertexBufferIndex])
-        {
-            primitive.SetVertexAccessor(attributeKey, accessor);
+        var vertexBuffers = drawCall.GetArray("m_vertexBuffers");
 
-            DebugValidateGLTF();
+        foreach (var vertexBufferInfo in vertexBuffers)
+        {
+            var vertexBufferIndex = vertexBufferInfo.GetInt32Property("m_hBuffer");
+
+            foreach (var (attributeKey, accessor) in vertexBufferAccessors[vertexBufferIndex])
+            {
+                primitive.SetVertexAccessor(attributeKey, accessor);
+
+                DebugValidateGLTF();
+            }
         }
 
         // Set index buffer
@@ -306,15 +344,29 @@ public partial class GltfModelExporter
             return primitive;
         }
 
+        var modelTintColor = parentTintColor;
+
+        if (drawCall.ContainsKey("m_vTintColor"))
+        {
+            var drawCallTintColor = drawCall.GetSubCollection("m_vTintColor").ToVector3();
+            var dcTintColorWithAlpha = new Vector4(drawCallTintColor, 1.0f);
+
+            if (drawCall.ContainsKey("m_flAlpha"))
+            {
+                dcTintColorWithAlpha.W = drawCall.GetFloatProperty("m_flAlpha");
+            }
+
+            modelTintColor *= dcTintColorWithAlpha;
+        }
+
         var materialPath = skinMaterialPath ?? drawCall.GetProperty<string>("m_material") ?? drawCall.GetProperty<string>("m_pMaterial");
 
         var materialNameTrimmed = Path.GetFileNameWithoutExtension(materialPath);
+        var materialHashKey = new ExportedMaterial(materialPath, modelTintColor);
 
-        // Check if material already exists - makes an assumption that if material has the same name it is a duplicate
-        var existingMaterial = exportedModel.LogicalMaterials.SingleOrDefault(m => m.Name == materialNameTrimmed);
-        if (existingMaterial != null)
+        if (ExportedMaterials.TryGetValue(materialHashKey, out var existingMaterial))
         {
-            primitive.Material = existingMaterial;
+            primitive.WithMaterial(existingMaterial);
             return primitive;
         }
 
@@ -332,10 +384,13 @@ public partial class GltfModelExporter
             .WithDefault();
         primitive.WithMaterial(material);
 
+        ExportedMaterials.Add(materialHashKey, material);
+
         var renderMaterial = (VMaterial)materialResource.DataBlock;
 
-        var task = GenerateGLTFMaterialFromRenderMaterial(material, renderMaterial, exportedModel);
-        MaterialGenerationTasks.Add(task);
+        // TODO: Realistically it should export a material without a tint, and then if it needs a model tint,
+        // copy the existing untinted material, and just change the pbr BaseColor to include the tint.
+        GenerateGLTFMaterialFromRenderMaterial(material, renderMaterial, exportedModel, modelTintColor);
 
         return primitive;
     }
@@ -384,7 +439,7 @@ public partial class GltfModelExporter
         }
 
         var vbib = vmesh.VBIB;
-        var vertexBufferAccessors = CreateVertexBufferAccessors(exportedModel, vbib, includeJoints: false);
+        var vertexBufferAccessors = CreateVertexBufferAccessors(exportedModel, vbib, boneWeightCount: 0);
 
         var transformIndex = 0;
         var fragmentTransforms = aggregateSceneObject.GetArray("m_fragmentTransforms");
@@ -402,24 +457,36 @@ public partial class GltfModelExporter
 
         foreach (var fragmentData in aggregateMeshes)
         {
+            var meshName = $"{name}_fragment{++id}";
             var drawCallIndex = fragmentData.GetInt32Property("m_nDrawCallIndex");
             var drawCall = drawCalls[drawCallIndex];
-            var tintColor = fragmentData.GetSubCollection("m_vTintColor").ToVector3();
             var transform = Matrix4x4.Identity;
 
             if (fragmentData.GetProperty<bool>("m_bHasTransform") == true)
             {
                 transform *= fragmentTransforms[transformIndex++].ToMatrix4x4();
+
+                if (transform.M11 == 0f && transform.M22 == 0f && transform.M33 == 0f)
+                {
+                    ProgressReporter?.Report($"Skipping mesh: {meshName} because it has a scale of zero.");
+                    continue;
+                }
             }
 
-            var meshName = $"{name}_fragment{++id}";
+            var tintColor = Vector4.One;
+
+            if (fragmentData.ContainsKey("m_vTintColor"))
+            {
+                var fragmentTintColor = fragmentData.GetSubCollection("m_vTintColor").ToVector3();
+                tintColor = new Vector4(fragmentTintColor / 255f, 1.0f);
+            }
 
             ProgressReporter?.Report($"Creating mesh: {meshName}");
 
             var mesh = exportedModel.CreateMesh(meshName);
             mesh.Extras = new JsonObject();
 
-            CreateMeshFromDrawCall(drawCall, mesh, vbib, vertexBufferAccessors, exportedModel, skinMaterialPath: null);
+            CreateMeshFromDrawCall(drawCall, mesh, vbib, vertexBufferAccessors, exportedModel, skinMaterialPath: null, tintColor);
 
             var newNode = scene.CreateNode(name).WithMesh(mesh);
             newNode.WorldMatrix = transform * TRANSFORMSOURCETOGLTF;
@@ -539,6 +606,69 @@ public partial class GltfModelExporter
             if (Math.Abs(vectorArray[i].Length() - 1.0f) > UnitLengthThresholdVec3)
             {
                 vectorArray[i] = -Vector3.UnitZ;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Processes joint and weight data to ensure consistency by:
+    /// 1. Setting joints with zero weights to zero (no influence)
+    /// 2. Merging weights of duplicate joint references
+    /// 3. Ensuring valid data is packed into consecutive positions
+    /// </summary>
+    /// <param name="joints">Array of joint indices (ushort), organized in groups of size jointCount</param>
+    /// <param name="weights">Array of weight values (float), corresponding to each joint</param>
+    /// <param name="jointCount">Number of joints per vertex (typically 4 or 8)</param>
+    internal static void FixDuplicateJoints(Span<ushort> joints, Span<float> weights, int jointCount)
+    {
+        // Process each group of joints (each group corresponds to one vertex)
+        for (var i = 0; i < joints.Length; i += jointCount)
+        {
+            // Step 1: Clean up joints with zero weights
+            // If a weight is zero, set its corresponding joint to zero (no influence)
+            for (var j = 0; j < jointCount; j++)
+            {
+                if (weights[i + j] == 0)
+                {
+                    joints[i + j] = 0;
+                }
+            }
+
+            // Step 2: Handle duplicate joint references within each group
+            // Start from second-to-last joint and work backwards (j decreases)
+            for (var j = jointCount - 2; j >= 0; j--)
+            {
+                // For each joint at position j, check all joints after it for duplicates
+                // Start from the last joint and work backwards (k decreases)
+                for (var k = jointCount - 1; k > j; k--)
+                {
+                    // If we found a duplicate joint reference
+                    if (joints[i + j] == joints[i + k])
+                    {
+                        // Step 3: Shift all joints after position k one position left
+                        // This effectively removes the duplicate at position k
+                        for (var l = k; l < jointCount - 1; l++)
+                        {
+                            joints[i + l] = joints[i + l + 1];
+                        }
+
+                        // Zero out the last position which is now unused
+                        joints[i + jointCount - 1] = 0;
+
+                        // Step 4: Combine the weights - add the duplicate's weight to the original
+                        weights[i + j] += weights[i + k];
+
+                        // Step 5: Shift all weights after position k one position left
+                        // Just like we did for the joints
+                        for (var l = k; l < jointCount - 1; l++)
+                        {
+                            weights[i + l] = weights[i + l + 1];
+                        }
+
+                        // Zero out the last weight position
+                        weights[i + jointCount - 1] = 0;
+                    }
+                }
             }
         }
     }

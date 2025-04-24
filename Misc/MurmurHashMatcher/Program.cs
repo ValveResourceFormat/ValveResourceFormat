@@ -1,7 +1,6 @@
 using System.Globalization;
 using System.Text;
 using ValveResourceFormat.ThirdParty;
-using ValveResourceFormat.Utils;
 
 Console.Error.WriteLine($"Usage: ./program <path to folder to find vmaps in>");
 Console.Error.WriteLine("Alternatively, create strings.txt with one string per line.");

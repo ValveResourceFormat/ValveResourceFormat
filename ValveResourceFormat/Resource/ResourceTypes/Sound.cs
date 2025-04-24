@@ -4,8 +4,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
 using ValveResourceFormat.Blocks;
-using ValveResourceFormat.Serialization;
-using ValveResourceFormat.Utils;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes
 {
@@ -101,11 +100,10 @@ namespace ValveResourceFormat.ResourceTypes
 
         public uint StreamingDataSize { get; private set; }
 
-        private BinaryReader Reader;
+        private BinaryReader Reader => Resource.Reader;
 
         public override void Read(BinaryReader reader)
         {
-            Reader = reader;
             reader.BaseStream.Position = Offset;
 
             if (Resource.Version > 4)
@@ -189,9 +187,8 @@ namespace ValveResourceFormat.ResourceTypes
             ReadPhonemeStream(reader, sentenceOffset);
         }
 
-        public bool ConstructFromCtrl(BinaryReader reader)
+        public bool ConstructFromCtrl()
         {
-            Reader = reader;
             Offset = Resource.FileSize;
 
             var obj = (BinaryKV3)Resource.GetBlockByType(BlockType.CTRL);

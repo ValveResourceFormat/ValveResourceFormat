@@ -1,5 +1,4 @@
 using System.Text;
-using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.CompiledShader;
 
@@ -76,7 +75,7 @@ public class FeaturesHeaderBlock : ShaderDataBlock
         for (var i = 0; i < AdditionalFileCount; i++)
         {
             AdditionalFileFlags[i] = datareader.ReadInt32();
-        };
+        }
 
         var modeCount = datareader.ReadInt32();
 

@@ -22,21 +22,21 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Curves
             var kv = new KVObject(null);
 
             var unified = Flags.HasFlag(BezierFlags.Unified);
-            kv.AddProperty("unified", new KVValue(KVType.BOOLEAN, unified));
+            kv.AddProperty("unified", unified);
             var unweighted = Flags.HasFlag(BezierFlags.Unweighted);
-            kv.AddProperty("unweighted", new KVValue(KVType.BOOLEAN, unweighted));
+            kv.AddProperty("unweighted", unweighted);
 
             var inKV = new KVObject(null);
-            inKV.AddProperty("deg", new KVValue(KVType.FLOAT, InDegrees));
-            inKV.AddProperty("weight", new KVValue(KVType.FLOAT, InWeight));
-            kv.AddProperty("in", new KVValue(KVType.OBJECT, inKV));
+            inKV.AddProperty("deg", InDegrees);
+            inKV.AddProperty("weight", InWeight);
+            kv.AddProperty("in", inKV);
 
             var outKV = new KVObject(null);
-            outKV.AddProperty("deg", new KVValue(KVType.FLOAT, OutDegrees));
-            outKV.AddProperty("weight", new KVValue(KVType.FLOAT, OutWeight));
-            kv.AddProperty("out", new KVValue(KVType.OBJECT, outKV));
+            outKV.AddProperty("deg", OutDegrees);
+            outKV.AddProperty("weight", OutWeight);
+            kv.AddProperty("out", outKV);
 
-            return new KVValue(KVType.OBJECT, kv);
+            return new KVValue(ValveKeyValue.KVValueType.Collection, kv);
         }
     }
 }

@@ -1,7 +1,9 @@
+using System.Diagnostics;
 using SteamDatabase.ValvePak;
 
 namespace GUI.Types.PackageViewer
 {
+    [DebuggerDisplay("{Name,nq} (created={CreatedNode is not null})")]
     public class VirtualPackageNode(string name, uint size, VirtualPackageNode parent)
     {
         /// <summary>

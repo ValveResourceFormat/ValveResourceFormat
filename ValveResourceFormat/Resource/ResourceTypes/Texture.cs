@@ -1,13 +1,12 @@
 using System.Buffers;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using K4os.Compression.LZ4;
 using SkiaSharp;
 using ValveResourceFormat.Blocks;
-using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
 using ValveResourceFormat.TextureDecoders;
-using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.ResourceTypes
 {
@@ -102,7 +101,7 @@ namespace ValveResourceFormat.ResourceTypes
         };
 
         private BinaryReader Reader => Resource.Reader;
-        private long DataOffset;
+        private long DataOffset => Offset + Size;
 
         public ushort Version { get; private set; }
 
@@ -252,8 +251,6 @@ namespace ValveResourceFormat.ResourceTypes
                     reader.BaseStream.Position = prevOffset;
                 }
             }
-
-            DataOffset = Offset + Size;
         }
 
         public SpritesheetData GetSpriteSheetData()
@@ -375,7 +372,8 @@ namespace ValveResourceFormat.ResourceTypes
             or VTexFormat.R32F
             or VTexFormat.RG3232F
             or VTexFormat.RGB323232F
-            or VTexFormat.RGBA32323232F;
+            or VTexFormat.RGBA32323232F
+            or VTexFormat.BC6H;
 
         public bool IsRawJpeg => Format is VTexFormat.JPEG_DXT5 or VTexFormat.JPEG_RGBA8888;
         public bool IsRawPng => Format is VTexFormat.PNG_DXT5 or VTexFormat.PNG_RGBA8888;
@@ -392,6 +390,9 @@ namespace ValveResourceFormat.ResourceTypes
             return null;
         }
 
+        public const SKColorType DefaultBitmapColorType = SKColorType.Bgra8888;
+        public const SKColorType HdrBitmapColorType = SKColorType.RgbaF32;
+
         /// <summary>
         /// Generate a bitmap for given parameters.
         /// </summary>
@@ -401,8 +402,10 @@ namespace ValveResourceFormat.ResourceTypes
         /// <returns>Skia bitmap.</returns>
         public SKBitmap GenerateBitmap(uint depth = 0, CubemapFace face = 0, uint mipLevel = 0, TextureCodec decodeFlags = TextureCodec.Auto)
         {
-            ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(depth, Depth, nameof(depth));
             ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(mipLevel, NumMipLevels, nameof(mipLevel));
+
+            var depthMip = (Flags & VTexFlags.VOLUME_TEXTURE) == 0 ? Depth : MipLevelSize(Depth, mipLevel);
+            ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(depth, (uint)depthMip, nameof(depth));
 
             if (face > 0)
             {
@@ -417,18 +420,16 @@ namespace ValveResourceFormat.ResourceTypes
             var width = MipLevelSize(ActualWidth, mipLevel);
             var height = MipLevelSize(ActualHeight, mipLevel);
 
-            Reader.BaseStream.Position = DataOffset;
-
-            SkipMipmaps(mipLevel);
-
             switch (Format)
             {
                 case VTexFormat.JPEG_DXT5:
                 case VTexFormat.JPEG_RGBA8888:
+                    Reader.BaseStream.Position = DataOffset;
                     return SKBitmap.Decode(Reader.ReadBytes(CalculateJpegSize()));
 
                 case VTexFormat.PNG_DXT5:
                 case VTexFormat.PNG_RGBA8888:
+                    Reader.BaseStream.Position = DataOffset;
                     return SKBitmap.Decode(Reader.ReadBytes(CalculatePngSize()));
             }
 
@@ -437,11 +438,12 @@ namespace ValveResourceFormat.ResourceTypes
                 : decodeFlags;
 
             var colorType = IsHighDynamicRange && !decodeFlags.HasFlag(TextureCodec.ForceLDR)
-                ? SKColorType.RgbaF32
-                : SKColorType.Bgra8888;
+                ? HdrBitmapColorType
+                : DefaultBitmapColorType;
 
             var skiaBitmap = new SKBitmap(width, height, colorType, SKAlphaType.Unpremul);
 
+            /// GPU decoder calls into <see cref="GetEveryMipLevelTexture"/> which sets the reader offset on its own
             if (HardwareAcceleratedTextureDecoder.Decoder?.Decode(skiaBitmap, Resource, depth, face, mipLevel, decodeFlags) == true)
             {
                 return skiaBitmap;
@@ -454,6 +456,8 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 var span = buf.AsSpan(0, uncompressedSize);
 
+                Reader.BaseStream.Position = DataOffset;
+                SkipMipmaps(mipLevel);
                 ReadTexture(mipLevel, span);
 
                 if ((Flags & VTexFlags.CUBE_TEXTURE) != 0)
@@ -472,15 +476,17 @@ namespace ValveResourceFormat.ResourceTypes
                 }
                 else if (depth > 0)
                 {
-                    var faceSize = uncompressedSize / Depth;
+                    var faceSize = uncompressedSize / depthMip;
                     var faceOffset = faceSize * (int)depth;
                     faceOffset += faceSize * (int)face;
 
                     span = span[faceOffset..(faceOffset + faceSize)];
                 }
 
-                var decoder = CreateDecoder(mipLevel, decodeFlags);
+                var decoder = CreateDecoder(mipLevel);
                 decoder.Decode(skiaBitmap, span);
+
+                Common.ApplyTextureConversions(skiaBitmap, decodeFlags);
 
                 var bitmapToReturn = skiaBitmap;
                 skiaBitmap = null;
@@ -493,15 +499,26 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
-        private ITextureDecoder CreateDecoder(uint mipLevel, TextureCodec decodeFlags)
+        private ITextureDecoder CreateDecoder(uint mipLevel)
         {
             var blockWidth = MipLevelSize(Width, mipLevel);
             var blockHeight = MipLevelSize(Height, mipLevel);
 
             return Format switch
             {
-                VTexFormat.DXT1 => new DecodeDXT1(blockWidth, blockHeight),
-                VTexFormat.DXT5 => new DecodeDXT5(blockWidth, blockHeight, decodeFlags),
+                // BCn
+                VTexFormat.DXT1 => new DecodeBCn(blockWidth, blockHeight, TinyBCSharp.BlockFormat.BC1NoAlpha),
+                VTexFormat.DXT5 => new DecodeBCn(blockWidth, blockHeight, TinyBCSharp.BlockFormat.BC3),
+                VTexFormat.ATI1N => new DecodeBCn(blockWidth, blockHeight, TinyBCSharp.BlockFormat.BC4U),
+                VTexFormat.ATI2N => new DecodeBCn(blockWidth, blockHeight, TinyBCSharp.BlockFormat.BC5U),
+                VTexFormat.BC6H => new DecodeBCn(blockWidth, blockHeight, TinyBCSharp.BlockFormat.BC6HUf32),
+                VTexFormat.BC7 => new DecodeBCn(blockWidth, blockHeight, TinyBCSharp.BlockFormat.BC7),
+
+                // ETC
+                VTexFormat.ETC2 => new DecodeETC2(blockWidth, blockHeight),
+                VTexFormat.ETC2_EAC => new DecodeETC2EAC(blockWidth, blockHeight),
+
+                // Simple colors
                 VTexFormat.I8 => new DecodeI8(),
                 VTexFormat.RGBA8888 => new DecodeRGBA8888(),
                 VTexFormat.R16 => new DecodeR16(),
@@ -514,13 +531,7 @@ namespace ValveResourceFormat.ResourceTypes
                 VTexFormat.RG3232F => new DecodeRG3232F(),
                 VTexFormat.RGB323232F => new DecodeRGB323232F(),
                 VTexFormat.RGBA32323232F => new DecodeRGBA32323232F(),
-                VTexFormat.BC6H => new DecodeBC6H(blockWidth, blockHeight),
-                VTexFormat.BC7 => new DecodeBC7(blockWidth, blockHeight, decodeFlags),
-                VTexFormat.ATI2N => new DecodeATI2N(blockWidth, blockHeight, decodeFlags),
                 VTexFormat.IA88 => new DecodeIA88(),
-                VTexFormat.ETC2 => new DecodeETC2(blockWidth, blockHeight),
-                VTexFormat.ETC2_EAC => new DecodeETC2EAC(blockWidth, blockHeight),
-                VTexFormat.ATI1N => new DecodeATI1N(blockWidth, blockHeight),
                 VTexFormat.BGRA8888 => new DecodeBGRA8888(),
                 _ => throw new UnexpectedMagicException("Unhandled image type", (int)Format, nameof(Format))
             };
@@ -562,14 +573,28 @@ namespace ValveResourceFormat.ResourceTypes
         /// <returns>Buffer size.</returns>
         public int CalculateBufferSizeForMipLevel(uint mipLevel)
         {
-            var bytesPerPixel = BlockSize;
+            var (width, height, depth) = CalculateTextureSizesForMipLevel(mipLevel);
+
+            return CalculateBufferSizeForMipLevel(width, height, depth);
+        }
+
+        private (int Width, int Height, int Depth) CalculateTextureSizesForMipLevel(uint mipLevel)
+        {
             var width = MipLevelSize(Width, mipLevel);
             var height = MipLevelSize(Height, mipLevel);
+            var depth = (Flags & VTexFlags.VOLUME_TEXTURE) == 0 ? Depth : MipLevelSize(Depth, mipLevel);
 
             if ((Flags & VTexFlags.CUBE_TEXTURE) != 0)
             {
-                bytesPerPixel *= 6;
+                depth *= 6;
             }
+
+            return (width, height, depth);
+        }
+
+        private int CalculateBufferSizeForMipLevel(int width, int height, int depth)
+        {
+            var bytesPerPixel = BlockSize;
 
             if (Format == VTexFormat.DXT1
             || Format == VTexFormat.DXT5
@@ -603,12 +628,17 @@ namespace ValveResourceFormat.ResourceTypes
                     height = 4;
                 }
 
+                if (depth < 4 && depth > 1)
+                {
+                    depth = 4;
+                }
+
                 var numBlocks = (width * height) >> 4;
 
-                return numBlocks * Depth * bytesPerPixel;
+                return numBlocks * depth * bytesPerPixel;
             }
 
-            return width * height * Depth * bytesPerPixel;
+            return width * height * depth * bytesPerPixel;
         }
 
         private void SkipMipmaps(uint desiredMipLevel)
@@ -682,26 +712,26 @@ namespace ValveResourceFormat.ResourceTypes
         /// </summary>
         /// <param name="buffer">Buffer to use when yielding textures, it should be size of <see cref="GetBiggestBufferSize"/> or bigger. This buffer is reused for every mip level.</param>
         /// <param name="maxTextureSize">Max size of texture in pixels.</param>
-        public IEnumerable<(int Level, int Width, int Height, int BufferSize)> GetEveryMipLevelTexture(byte[] buffer, int minMipLevelAllowed = 0)
+        public IEnumerable<(uint Level, int Width, int Height, int Depth, int BufferSize)> GetEveryMipLevelTexture(byte[] buffer, int minMipLevelAllowed = 0)
         {
-            Reader.BaseStream.Position = Offset + Size;
+            Reader.BaseStream.Position = DataOffset;
 
             for (var i = NumMipLevels - 1; i >= 0; i--)
             {
-                var width = Width >> i;
-                var height = Height >> i;
+                var mipLevel = (uint)i;
 
-                if (i < minMipLevelAllowed)
+                if (mipLevel < minMipLevelAllowed)
                 {
                     break;
                 }
 
-                var uncompressedSize = CalculateBufferSizeForMipLevel((uint)i);
+                var (width, height, depth) = CalculateTextureSizesForMipLevel(mipLevel);
+                var uncompressedSize = CalculateBufferSizeForMipLevel(width, height, depth);
                 var output = buffer.AsSpan(0, uncompressedSize);
 
-                ReadTexture((uint)i, output);
+                ReadTexture(mipLevel, output);
 
-                yield return (i, width, height, uncompressedSize);
+                yield return (mipLevel, width, height, depth, uncompressedSize);
             }
         }
 
@@ -719,7 +749,7 @@ namespace ValveResourceFormat.ResourceTypes
                 throw new ArgumentException($"Buffer size ({output.Length}) must be at least {bufferSize}, mip level {mipLevel}");
             }
 
-            Reader.BaseStream.Position = Offset + Size;
+            Reader.BaseStream.Position = DataOffset;
 
             SkipMipmaps(mipLevel);
 
@@ -778,11 +808,10 @@ namespace ValveResourceFormat.ResourceTypes
             return size;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static int MipLevelSize(int size, uint level)
         {
-            size >>= (int)level;
-
-            return Math.Max(size, 1);
+            return Math.Max(size >> (int)level, 1);
         }
 
         public TextureCodec RetrieveCodecFromResourceEditInfo()
@@ -827,7 +856,7 @@ namespace ValveResourceFormat.ResourceTypes
                 codec &= ~TextureCodec.NormalizeNormals;
             }
 
-            if (Format is VTexFormat.BC6H)
+            if (IsHighDynamicRange)
             {
                 codec |= TextureCodec.ColorSpaceLinear;
             }

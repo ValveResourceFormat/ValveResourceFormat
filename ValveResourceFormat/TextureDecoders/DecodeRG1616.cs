@@ -4,14 +4,14 @@ using RG1616 = (ushort R, ushort G);
 
 namespace ValveResourceFormat.TextureDecoders
 {
-    internal class DecodeRG1616 : ITextureDecoder
+    internal readonly struct DecodeRG1616 : ITextureDecoder
     {
         public void Decode(SKBitmap bitmap, Span<byte> input)
         {
             using var pixels = bitmap.PeekPixels();
             var inputPixels = MemoryMarshal.Cast<byte, RG1616>(input);
 
-            if (bitmap.ColorType == SKColorType.RgbaF32)
+            if (bitmap.ColorType == ResourceTypes.Texture.HdrBitmapColorType)
             {
                 DecodeHdr(pixels, inputPixels);
                 return;

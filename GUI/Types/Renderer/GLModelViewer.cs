@@ -6,6 +6,7 @@ using GUI.Controls;
 using GUI.Utils;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.ResourceTypes.ModelAnimation;
 
 namespace GUI.Types.Renderer
 {
@@ -15,6 +16,7 @@ namespace GUI.Types.Renderer
         private PhysAggregateData phys;
         public ComboBox animationComboBox { get; private set; }
         private CheckBox animationPlayPause;
+        private CheckBox rootMotionCheckBox;
         private CheckBox showSkeletonCheckbox;
         private ComboBox hitboxComboBox;
         private GLViewerTrackBarControl animationTrackBar;
@@ -54,6 +56,7 @@ namespace GUI.Types.Renderer
                 meshGroupListBox?.Dispose();
                 materialGroupListBox?.Dispose();
                 physicsGroupsComboBox?.Dispose();
+                rootMotionCheckBox?.Dispose();
                 showSkeletonCheckbox?.Dispose();
                 hitboxComboBox?.Dispose();
             }
@@ -63,7 +66,12 @@ namespace GUI.Types.Renderer
         {
             animationComboBox = AddSelection("Animation", (animation, _) =>
             {
-                modelSceneNode?.SetAnimation(animation);
+                if (modelSceneNode != null)
+                {
+                    modelSceneNode.SetAnimation(animation);
+                    rootMotionCheckBox.Enabled = modelSceneNode.AnimationController.ActiveAnimation?.HasMovementData() ?? false;
+                    enableRootMotion = rootMotionCheckBox.Enabled && rootMotionCheckBox.Checked;
+                }
             });
             animationPlayPause = AddCheckBox("Autoplay", true, isChecked =>
             {
@@ -103,6 +111,15 @@ namespace GUI.Types.Renderer
             {
                 modelSceneNode.AnimationController.IsPaused = previousPaused;
             };
+
+            rootMotionCheckBox = AddCheckBox("Show Root Motion", enableRootMotion, (isChecked) =>
+            {
+                enableRootMotion = isChecked;
+                LastRootMotionPosition = modelSceneNode.Transform.Translation;
+            });
+
+            rootMotionCheckBox.Checked = false;
+            rootMotionCheckBox.Enabled = false;
         }
 
         protected override void LoadScene()
@@ -295,6 +312,27 @@ namespace GUI.Types.Renderer
             SkyboxScene?.UpdateOctrees();
         }
 
+        private Vector3 LastRootMotionPosition;
+        private bool enableRootMotion;
+
+        protected override void OnPaint(object sender, RenderEventArgs e)
+        {
+            if (enableRootMotion && modelSceneNode.AnimationController.GetFrame() is Frame animationFrame)
+            {
+                var rootMotionDelta = animationFrame.Movement.Position - LastRootMotionPosition;
+
+                modelSceneNode.Transform = modelSceneNode.Transform with
+                {
+                    Translation = modelSceneNode.Transform.Translation + rootMotionDelta,
+                };
+
+                Camera.SetLocation(Camera.Location + rootMotionDelta);
+                LastRootMotionPosition = animationFrame.Movement.Position;
+            }
+
+            base.OnPaint(sender, e);
+        }
+
         protected override void OnPicked(object sender, PickingTexture.PickingResponse pickingResponse)
         {
             if (modelSceneNode == null)
@@ -327,21 +365,12 @@ namespace GUI.Types.Renderer
                     var foundFile = GuiContext.FileLoader.FindFileWithContext(refMesh.MeshName + GameFileLoader.CompiledFileSuffix);
                     if (foundFile.Context != null)
                     {
-                        var task = Program.MainForm.OpenFile(foundFile.Context, foundFile.PackageEntry);
-                        task.ContinueWith(
-                            t =>
-                            {
-                                var glViewer = t.Result.Controls.OfType<TabControl>().FirstOrDefault()?
-                                    .Controls.OfType<TabPage>().First(tab => tab.Controls.OfType<GLViewerControl>() is not null)?
-                                    .Controls.OfType<GLViewerControl>().First();
-                                if (glViewer is not null)
-                                {
-                                    glViewer.GLPostLoad = (viewerControl) => viewerControl.Camera.CopyFrom(Camera);
-                                }
-                            },
-                        CancellationToken.None,
-                        TaskContinuationOptions.OnlyOnRanToCompletion,
-                        TaskScheduler.Default);
+                        foundFile.Context.GLPostLoadAction = (viewerControl) =>
+                        {
+                            viewerControl.Camera.CopyFrom(Camera);
+                        };
+
+                        Program.MainForm.OpenFile(foundFile.Context, foundFile.PackageEntry);
                     }
                 }
             }

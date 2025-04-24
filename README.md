@@ -151,8 +151,9 @@ Option                        | Description
 `--vpk_list` (or `-l`)        | Lists all resources in given VPK. File extension and path filters apply.
 `--vpk_dir`                   | Print a list of files in given VPK and information about them.
 | **Type specific export**    | |
-`--gltf_export_format`        | Exports meshes/models in given glTF format. Must be either 'gltf' (default) or 'glb'.
+`--gltf_export_format`        | Exports meshes/models in given glTF format. Must be either 'gltf' or 'glb'.
 `--gltf_export_materials`     | Whether to export materials during glTF exports.
+`--gltf_export_animations`    | Whether to export animations during glTF exports.
 `--gltf_textures_adapt`       | Whether to perform any glTF spec adaptations on textures (e.g. split metallic map).
 `--gltf_export_extras`        | Export additional Mesh properties into glTF extras
 `--tools_asset_info_short`    | Whether to print only file paths for tools_asset_info files.

@@ -8,8 +8,8 @@ using SteamDatabase.ValvePak;
 using ValveKeyValue;
 using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.Serialization;
-using ValveResourceFormat.Utils;
+using ValveResourceFormat.Serialization.KeyValues;
+using KVObject = ValveKeyValue.KVObject;
 
 namespace ValveResourceFormat.IO
 {

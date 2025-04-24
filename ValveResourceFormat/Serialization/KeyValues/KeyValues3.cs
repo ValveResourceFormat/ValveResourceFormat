@@ -18,6 +18,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
+using KVValueType = ValveKeyValue.KVValueType;
 
 namespace ValveResourceFormat.Serialization.KeyValues
 {
@@ -33,6 +34,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
             VALUE_ARRAY,
             VALUE_STRING,
             VALUE_STRING_MULTI,
+            VALUE_BINARY_BLOB,
             VALUE_NUMBER,
             VALUE_FLAGGED,
             COMMENT,
@@ -125,6 +127,9 @@ namespace ValveResourceFormat.Serialization.KeyValues
                     case State.VALUE_STRING_MULTI:
                         ReadValueStringMulti(c, parser);
                         break;
+                    case State.VALUE_BINARY_BLOB:
+                        ReadValueBinaryBlob(c, parser);
+                        break;
                     case State.VALUE_NUMBER:
                         ReadValueNumber(c, parser);
                         break;
@@ -196,7 +201,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
                 parser.StateStack.Pop();
 
                 var value = parser.ObjStack.Pop();
-                parser.ObjStack.Peek().AddProperty(value.Key, new KVValue(KVType.ARRAY, value));
+                parser.ObjStack.Peek().AddProperty(value.Key, new KVValue(KVValueType.Array, value));
             }
 
             //String opening
@@ -221,13 +226,24 @@ namespace ValveResourceFormat.Serialization.KeyValues
                 }
             }
 
+            // Binary Blob
+            else if (ReadAheadMatches(parser, c, "#["))
+            {
+                parser.StateStack.Pop();
+                parser.StateStack.Push(State.VALUE_BINARY_BLOB);
+                parser.CurrentString.Clear();
+
+                //Skip next characters
+                SkipChars(parser, "#[".Length - 1);
+            }
+
             //Boolean false
             else if (ReadAheadMatches(parser, c, "false"))
             {
                 parser.StateStack.Pop();
 
                 //Can directly be added
-                parser.ObjStack.Peek().AddProperty(parser.CurrentName, new KVValue(KVType.BOOLEAN, false));
+                parser.ObjStack.Peek().AddProperty(parser.CurrentName, new KVValue(KVValueType.Boolean, false));
 
                 //Skip next characters
                 SkipChars(parser, "false".Length - 1);
@@ -239,7 +255,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
                 parser.StateStack.Pop();
 
                 //Can directly be added
-                parser.ObjStack.Peek().AddProperty(parser.CurrentName, new KVValue(KVType.BOOLEAN, true));
+                parser.ObjStack.Peek().AddProperty(parser.CurrentName, new KVValue(KVValueType.Boolean, true));
 
                 //Skip next characters
                 SkipChars(parser, "true".Length - 1);
@@ -251,7 +267,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
                 parser.StateStack.Pop();
 
                 //Can directly be added
-                parser.ObjStack.Peek().AddProperty(parser.CurrentName, new KVValue(KVType.NULL, null));
+                parser.ObjStack.Peek().AddProperty(parser.CurrentName, null);
 
                 //Skip next characters
                 SkipChars(parser, "null".Length - 1);
@@ -327,7 +343,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
             if (c == '}')
             {
                 var value = parser.ObjStack.Pop();
-                parser.ObjStack.Peek().AddProperty(value.Key, new KVValue(KVType.OBJECT, value));
+                parser.ObjStack.Peek().AddProperty(value.Key, new KVValue(KVValueType.Collection, value));
                 parser.StateStack.Pop();
                 return;
             }
@@ -354,7 +370,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
             {
                 //String ending found
                 parser.StateStack.Pop();
-                parser.ObjStack.Peek().AddProperty(parser.CurrentName, new KVValue(KVType.STRING, parser.CurrentString.ToString()));
+                parser.ObjStack.Peek().AddProperty(parser.CurrentName, new KVValue(KVValueType.String, parser.CurrentString.ToString()));
                 return;
             }
 
@@ -400,7 +416,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
 
                 //Set parser state
                 parser.StateStack.Pop();
-                parser.ObjStack.Peek().AddProperty(parser.CurrentName, new KVValue(KVType.STRING_MULTI, multilineStr));
+                parser.ObjStack.Peek().AddProperty(parser.CurrentName, new KVValue(KVValueType.String, multilineStr));
 
                 //Skip to end of the block
                 SkipChars(parser, 2);
@@ -408,6 +424,21 @@ namespace ValveResourceFormat.Serialization.KeyValues
             }
 
             parser.CurrentString.Append(c);
+        }
+
+        // Read binary blob
+        private static void ReadValueBinaryBlob(char c, Parser parser)
+        {
+            if (c == ']')
+            {
+                // binary blod ending
+                parser.StateStack.Pop();
+                parser.ObjStack.Peek().AddProperty(parser.CurrentName, new KVValue(KVValueType.BinaryBlob, Convert.FromHexString(parser.CurrentString.ToString())));
+            }
+            else if (!char.IsWhiteSpace(c))
+            {
+                parser.CurrentString.Append(c);
+            }
         }
 
         //Read a numerical value
@@ -420,11 +451,11 @@ namespace ValveResourceFormat.Serialization.KeyValues
                 parser.StateStack.Pop();
                 if (parser.CurrentString.ToString().Contains('.', StringComparison.Ordinal))
                 {
-                    parser.ObjStack.Peek().AddProperty(parser.CurrentName, new KVValue(KVType.DOUBLE, double.Parse(parser.CurrentString.ToString(), CultureInfo.InvariantCulture)));
+                    parser.ObjStack.Peek().AddProperty(parser.CurrentName, new KVValue(KVValueType.FloatingPoint64, double.Parse(parser.CurrentString.ToString(), CultureInfo.InvariantCulture)));
                 }
                 else
                 {
-                    parser.ObjStack.Peek().AddProperty(parser.CurrentName, new KVValue(KVType.INT64, long.Parse(parser.CurrentString.ToString(), CultureInfo.InvariantCulture)));
+                    parser.ObjStack.Peek().AddProperty(parser.CurrentName, new KVValue(KVValueType.Int64, long.Parse(parser.CurrentString.ToString(), CultureInfo.InvariantCulture)));
                 }
 
                 return;
@@ -440,7 +471,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
             if (c == ']')
             {
                 var value = parser.ObjStack.Pop();
-                parser.ObjStack.Peek().AddProperty(value.Key, new KVValue(KVType.ARRAY, value));
+                parser.ObjStack.Peek().AddProperty(value.Key, new KVValue(KVValueType.Array, value));
                 parser.StateStack.Pop();
                 return;
             }
@@ -474,7 +505,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
                 };
                 //If flagged value is in the array, it needs to include a comma
                 var end = parser.StateStack.Peek() == State.VALUE_ARRAY ? 2 : 1;
-                parser.ObjStack.Peek().AddProperty(parser.CurrentName, new KVFlaggedValue(KVType.STRING, flag, strings[1][1..^end]));
+                parser.ObjStack.Peek().AddProperty(parser.CurrentName, new KVValue(KVValueType.String, flag, strings[1][1..^end]));
                 return;
             }
 

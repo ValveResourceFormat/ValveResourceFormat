@@ -1,3 +1,4 @@
+using GUI.Controls;
 using GUI.Types.Renderer;
 using SteamDatabase.ValvePak;
 using ValveResourceFormat;
@@ -28,6 +29,9 @@ namespace GUI.Utils
         public AdvancedGuiFileLoader FileLoader { get; private set; }
         public VrfGuiContext ParentGuiContext { get; private set; }
         public ToolsAssetInfo ToolsAssetInfo { get; set; }
+
+        // This is a hack to set camera and properties when clicking a mesh from a model or map
+        public Action<GLViewerControl> GLPostLoadAction { get; set; }
 
         private int Children;
         private bool WantsToBeDisposed;

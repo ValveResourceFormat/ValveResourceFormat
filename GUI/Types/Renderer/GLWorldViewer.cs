@@ -460,77 +460,63 @@ namespace GUI.Types.Renderer
 
             FullScreenForm?.Close();
 
-            Program.MainForm.OpenFile(foundFile.Context, foundFile.PackageEntry).ContinueWith(
-                t =>
+            foundFile.Context.GLPostLoadAction = (viewerControl) =>
+            {
+                var yaw = MathF.Atan2(-transform.M32, -transform.M31);
+                var scaleZ = MathF.Sqrt(transform.M31 * transform.M31 + transform.M32 * transform.M32 + transform.M33 * transform.M33);
+                var unscaledZ = transform.M33 / scaleZ;
+                var pitch = MathF.Asin(-unscaledZ);
+
+                viewerControl.Camera.SetLocationPitchYaw(transform.Translation, pitch, yaw);
+
+                if (viewerControl is not GLModelViewer glModelViewer || sceneNode is not ModelSceneNode worldModel)
                 {
-                    var glViewer = t.Result.Controls.OfType<TabControl>().FirstOrDefault()?
-                        .Controls.OfType<TabPage>().First(tab => tab.Controls.OfType<GLViewerControl>() is not null)?
-                        .Controls.OfType<GLViewerControl>().First();
-                    if (glViewer is not null)
+                    return;
+                }
+
+                // Set same mesh groups
+                if (glModelViewer.meshGroupListBox != null)
+                {
+                    foreach (int checkedItemIndex in glModelViewer.meshGroupListBox.CheckedIndices)
                     {
-                        glViewer.GLPostLoad = (viewerControl) =>
-                        {
-                            var yaw = MathF.Atan2(-transform.M32, -transform.M31);
-                            var scaleZ = MathF.Sqrt(transform.M31 * transform.M31 + transform.M32 * transform.M32 + transform.M33 * transform.M33);
-                            var unscaledZ = transform.M33 / scaleZ;
-                            var pitch = MathF.Asin(-unscaledZ);
-
-                            viewerControl.Camera.SetLocationPitchYaw(transform.Translation, pitch, yaw);
-
-                            if (sceneNode is not ModelSceneNode worldModel)
-                            {
-                                return;
-                            }
-
-                            if (glViewer is GLModelViewer glModelViewer)
-                            {
-                                // Set same mesh groups
-                                if (glModelViewer.meshGroupListBox != null)
-                                {
-                                    foreach (int checkedItemIndex in glModelViewer.meshGroupListBox.CheckedIndices)
-                                    {
-                                        glModelViewer.meshGroupListBox.SetItemChecked(checkedItemIndex, false);
-                                    }
-
-                                    foreach (var group in worldModel.GetActiveMeshGroups())
-                                    {
-                                        var item = glModelViewer.meshGroupListBox.FindStringExact(group);
-
-                                        if (item != ListBox.NoMatches)
-                                        {
-                                            glModelViewer.meshGroupListBox.SetItemChecked(item, true);
-                                        }
-                                    }
-                                }
-
-                                // Set same material group
-                                if (glModelViewer.materialGroupListBox != null && worldModel.ActiveMaterialGroup != null)
-                                {
-                                    var skinId = glModelViewer.materialGroupListBox.FindStringExact(worldModel.ActiveMaterialGroup);
-
-                                    if (skinId != -1)
-                                    {
-                                        glModelViewer.materialGroupListBox.SelectedIndex = skinId;
-                                    }
-                                }
-
-                                // Set animation
-                                if (glModelViewer.animationComboBox != null && worldModel.AnimationController.ActiveAnimation != null)
-                                {
-                                    var animationId = glModelViewer.animationComboBox.FindStringExact(worldModel.AnimationController.ActiveAnimation.Name);
-
-                                    if (animationId != -1)
-                                    {
-                                        glModelViewer.animationComboBox.SelectedIndex = animationId;
-                                    }
-                                }
-                            }
-                        };
+                        glModelViewer.meshGroupListBox.SetItemChecked(checkedItemIndex, false);
                     }
-                },
-                CancellationToken.None,
-                TaskContinuationOptions.OnlyOnRanToCompletion,
-                TaskScheduler.Default);
+
+                    foreach (var group in worldModel.GetActiveMeshGroups())
+                    {
+                        var item = glModelViewer.meshGroupListBox.FindStringExact(group);
+
+                        if (item != ListBox.NoMatches)
+                        {
+                            glModelViewer.meshGroupListBox.SetItemChecked(item, true);
+                        }
+                    }
+                }
+
+                // Set same material group
+                if (glModelViewer.materialGroupListBox != null && worldModel.ActiveMaterialGroup != null)
+                {
+                    var skinId = glModelViewer.materialGroupListBox.FindStringExact(worldModel.ActiveMaterialGroup);
+
+                    if (skinId != -1)
+                    {
+                        glModelViewer.materialGroupListBox.SelectedIndex = skinId;
+                    }
+                }
+
+                // Set animation
+                if (glModelViewer.animationComboBox != null && worldModel.AnimationController.ActiveAnimation != null)
+                {
+                    var animationId = glModelViewer.animationComboBox.FindStringExact(worldModel.AnimationController.ActiveAnimation.Name);
+
+                    if (animationId != -1)
+                    {
+                        glModelViewer.animationComboBox.SelectedIndex = animationId;
+                    }
+                }
+            };
+
+            Program.MainForm.OpenFile(foundFile.Context, foundFile.PackageEntry);
         }
 
         private void ShowEntityProperties(SceneNode sceneNode)

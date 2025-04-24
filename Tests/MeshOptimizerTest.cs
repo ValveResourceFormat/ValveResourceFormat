@@ -1,5 +1,4 @@
 using System.Runtime.InteropServices;
-using System.Runtime.Intrinsics;
 using NUnit.Framework;
 using ValveResourceFormat.Compression;
 

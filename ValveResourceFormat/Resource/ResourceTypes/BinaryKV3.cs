@@ -7,7 +7,7 @@ using K4os.Compression.LZ4;
 using K4os.Compression.LZ4.Encoders;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Serialization.KeyValues;
-using ValveResourceFormat.Utils;
+using KVValueType = ValveKeyValue.KVValueType;
 
 namespace ValveResourceFormat.ResourceTypes
 {
@@ -630,7 +630,7 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
-        private static (KVType Type, KVFlag Flag) ReadType(Context context)
+        private static (KV3BinaryNodeType Type, KVFlag Flag) ReadType(Context context)
         {
             var databyte = context.Types[0];
             context.Types = context.Types[1..];
@@ -660,7 +660,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                 if (((int)flagInfo & 4) > 0) // Multiline string
                 {
-                    databyte = (int)KVType.STRING_MULTI;
+                    Debug.Assert(databyte == (int)KV3BinaryNodeType.STRING);
                     flagInfo ^= (KVFlag)4;
                 }
 
@@ -678,7 +678,7 @@ namespace ValveResourceFormat.ResourceTypes
                 };
             }
 
-            return ((KVType)databyte, flagInfo);
+            return ((KV3BinaryNodeType)databyte, flagInfo);
         }
 
         private static KVObject ParseBinaryKV3(Context context, KVObject parent, bool inArray = false)
@@ -697,10 +697,10 @@ namespace ValveResourceFormat.ResourceTypes
             return ReadBinaryValue(context, name, datatype, flagInfo, parent);
         }
 
-        private static KVObject ReadBinaryValue(Context context, string name, KVType datatype, KVFlag flagInfo, KVObject parent)
+        private static KVObject ReadBinaryValue(Context context, string name, KV3BinaryNodeType datatype, KVFlag flagInfo, KVObject parent)
         {
             // We don't support non-object roots properly, so this is a hack to handle "null" kv3
-            if (datatype != KVType.OBJECT && parent == null)
+            if (datatype != KV3BinaryNodeType.OBJECT && parent == null)
             {
                 name ??= "root";
                 parent ??= new KVObject(name);
@@ -711,30 +711,30 @@ namespace ValveResourceFormat.ResourceTypes
             switch (datatype)
             {
                 // Hardcoded values
-                case KVType.NULL:
+                case KV3BinaryNodeType.NULL:
                     parent.AddProperty(name, MakeValue(datatype, null, flagInfo));
                     break;
-                case KVType.BOOLEAN_TRUE:
+                case KV3BinaryNodeType.BOOLEAN_TRUE:
                     parent.AddProperty(name, MakeValue(datatype, true, flagInfo));
                     break;
-                case KVType.BOOLEAN_FALSE:
+                case KV3BinaryNodeType.BOOLEAN_FALSE:
                     parent.AddProperty(name, MakeValue(datatype, false, flagInfo));
                     break;
-                case KVType.INT64_ZERO:
+                case KV3BinaryNodeType.INT64_ZERO:
                     parent.AddProperty(name, MakeValue(datatype, 0L, flagInfo));
                     break;
-                case KVType.INT64_ONE:
+                case KV3BinaryNodeType.INT64_ONE:
                     parent.AddProperty(name, MakeValue(datatype, 1L, flagInfo));
                     break;
-                case KVType.DOUBLE_ZERO:
+                case KV3BinaryNodeType.DOUBLE_ZERO:
                     parent.AddProperty(name, MakeValue(datatype, 0.0D, flagInfo));
                     break;
-                case KVType.DOUBLE_ONE:
+                case KV3BinaryNodeType.DOUBLE_ONE:
                     parent.AddProperty(name, MakeValue(datatype, 1.0D, flagInfo));
                     break;
 
                 // 1 byte values
-                case KVType.BOOLEAN:
+                case KV3BinaryNodeType.BOOLEAN:
                     {
                         var value = buffer.Bytes1[0] == 1;
                         buffer.Bytes1 = buffer.Bytes1[1..];
@@ -743,7 +743,7 @@ namespace ValveResourceFormat.ResourceTypes
                     }
                     break;
                 // TODO: 22 might be INT32_AS_BYTE, and 23 is UINT32_AS_BYTE
-                case KVType.INT32_AS_BYTE:
+                case KV3BinaryNodeType.INT32_AS_BYTE:
                     {
                         Debug.Assert(context.Version >= 4);
 
@@ -755,7 +755,7 @@ namespace ValveResourceFormat.ResourceTypes
                     break;
 
                 // 2 byte values
-                case KVType.INT16:
+                case KV3BinaryNodeType.INT16:
                     {
                         Debug.Assert(context.Version >= 4);
 
@@ -765,7 +765,7 @@ namespace ValveResourceFormat.ResourceTypes
                         parent.AddProperty(name, MakeValue(datatype, value, flagInfo));
                     }
                     break;
-                case KVType.UINT16:
+                case KV3BinaryNodeType.UINT16:
                     {
                         Debug.Assert(context.Version >= 4);
 
@@ -777,7 +777,7 @@ namespace ValveResourceFormat.ResourceTypes
                     break;
 
                 // 4 byte values
-                case KVType.INT32:
+                case KV3BinaryNodeType.INT32:
                     {
                         var value = MemoryMarshal.Read<int>(buffer.Bytes4);
                         buffer.Bytes4 = buffer.Bytes4[sizeof(int)..];
@@ -785,7 +785,7 @@ namespace ValveResourceFormat.ResourceTypes
                         parent.AddProperty(name, MakeValue(datatype, value, flagInfo));
                     }
                     break;
-                case KVType.UINT32:
+                case KV3BinaryNodeType.UINT32:
                     {
                         var value = MemoryMarshal.Read<uint>(buffer.Bytes4);
                         buffer.Bytes4 = buffer.Bytes4[sizeof(uint)..];
@@ -793,7 +793,7 @@ namespace ValveResourceFormat.ResourceTypes
                         parent.AddProperty(name, MakeValue(datatype, value, flagInfo));
                     }
                     break;
-                case KVType.FLOAT:
+                case KV3BinaryNodeType.FLOAT:
                     {
                         Debug.Assert(context.Version >= 4);
 
@@ -805,7 +805,7 @@ namespace ValveResourceFormat.ResourceTypes
                     break;
 
                 // 8 byte values
-                case KVType.INT64:
+                case KV3BinaryNodeType.INT64:
                     {
                         var value = MemoryMarshal.Read<long>(buffer.Bytes8);
                         buffer.Bytes8 = buffer.Bytes8[sizeof(long)..];
@@ -813,7 +813,7 @@ namespace ValveResourceFormat.ResourceTypes
                         parent.AddProperty(name, MakeValue(datatype, value, flagInfo));
                     }
                     break;
-                case KVType.UINT64:
+                case KV3BinaryNodeType.UINT64:
                     {
                         var value = MemoryMarshal.Read<ulong>(buffer.Bytes8);
                         buffer.Bytes8 = buffer.Bytes8[sizeof(ulong)..];
@@ -821,7 +821,7 @@ namespace ValveResourceFormat.ResourceTypes
                         parent.AddProperty(name, MakeValue(datatype, value, flagInfo));
                     }
                     break;
-                case KVType.DOUBLE:
+                case KV3BinaryNodeType.DOUBLE:
                     {
                         var value = MemoryMarshal.Read<double>(buffer.Bytes8);
                         buffer.Bytes8 = buffer.Bytes8[sizeof(double)..];
@@ -831,8 +831,7 @@ namespace ValveResourceFormat.ResourceTypes
                     break;
 
                 // Custom types
-                case KVType.STRING:
-                case KVType.STRING_MULTI:
+                case KV3BinaryNodeType.STRING:
                     {
                         var id = MemoryMarshal.Read<int>(buffer.Bytes4);
                         buffer.Bytes4 = buffer.Bytes4[sizeof(int)..];
@@ -840,7 +839,7 @@ namespace ValveResourceFormat.ResourceTypes
                         parent.AddProperty(name, MakeValue(datatype, id == -1 ? string.Empty : context.Strings[id], flagInfo));
                     }
                     break;
-                case KVType.BINARY_BLOB when context.Version < 2:
+                case KV3BinaryNodeType.BINARY_BLOB when context.Version < 2:
                     {
                         var blockLength = MemoryMarshal.Read<int>(buffer.Bytes4);
                         buffer.Bytes4 = buffer.Bytes4[sizeof(int)..];
@@ -859,7 +858,7 @@ namespace ValveResourceFormat.ResourceTypes
                         parent.AddProperty(name, MakeValue(datatype, output, flagInfo));
                     }
                     break;
-                case KVType.BINARY_BLOB:
+                case KV3BinaryNodeType.BINARY_BLOB:
                     {
                         var blockLength = MemoryMarshal.Read<int>(context.BinaryBlobLengths);
                         context.BinaryBlobLengths = context.BinaryBlobLengths[sizeof(int)..];
@@ -878,7 +877,7 @@ namespace ValveResourceFormat.ResourceTypes
                         parent.AddProperty(name, MakeValue(datatype, output, flagInfo));
                     }
                     break;
-                case KVType.ARRAY:
+                case KV3BinaryNodeType.ARRAY:
                     {
                         var arrayLength = MemoryMarshal.Read<int>(buffer.Bytes4);
                         buffer.Bytes4 = buffer.Bytes4[sizeof(int)..];
@@ -893,12 +892,12 @@ namespace ValveResourceFormat.ResourceTypes
                         parent.AddProperty(name, MakeValue(datatype, array, flagInfo));
                     }
                     break;
-                case KVType.ARRAY_TYPED:
-                case KVType.ARRAY_TYPE_BYTE_LENGTH:
+                case KV3BinaryNodeType.ARRAY_TYPED:
+                case KV3BinaryNodeType.ARRAY_TYPE_BYTE_LENGTH:
                     {
                         int arrayLength;
 
-                        if (datatype == KVType.ARRAY_TYPE_BYTE_LENGTH)
+                        if (datatype == KV3BinaryNodeType.ARRAY_TYPE_BYTE_LENGTH)
                         {
                             arrayLength = buffer.Bytes1[0];
                             buffer.Bytes1 = buffer.Bytes1[1..];
@@ -920,7 +919,7 @@ namespace ValveResourceFormat.ResourceTypes
                         parent.AddProperty(name, MakeValue(datatype, typedArray, flagInfo));
                     }
                     break;
-                case KVType.ARRAY_TYPE_AUXILIARY_BUFFER:
+                case KV3BinaryNodeType.ARRAY_TYPE_AUXILIARY_BUFFER:
                     {
                         Debug.Assert(context.Version >= 5);
 
@@ -944,7 +943,7 @@ namespace ValveResourceFormat.ResourceTypes
                     }
                     break;
 
-                case KVType.OBJECT:
+                case KV3BinaryNodeType.OBJECT:
                     {
                         int objectLength;
 
@@ -983,48 +982,58 @@ namespace ValveResourceFormat.ResourceTypes
             return parent;
         }
 
-        private static KVType ConvertBinaryOnlyKVType(KVType type)
+        private static KVValueType ConvertBinaryOnlyKVType(KV3BinaryNodeType type)
         {
+            // TODO: Why we are upcasting (u)int32 to 64
 #pragma warning disable IDE0066 // Convert switch statement to expression
             switch (type)
             {
-                case KVType.BOOLEAN:
-                case KVType.BOOLEAN_TRUE:
-                case KVType.BOOLEAN_FALSE:
-                    return KVType.BOOLEAN;
-                case KVType.INT64:
-                case KVType.INT32:
-                case KVType.INT64_ZERO:
-                case KVType.INT64_ONE:
-                case KVType.INT32_AS_BYTE:
-                    return KVType.INT64;
-                case KVType.UINT64:
-                case KVType.UINT32:
-                    return KVType.UINT64;
-                case KVType.DOUBLE:
-                case KVType.DOUBLE_ZERO:
-                case KVType.DOUBLE_ONE:
-                    return KVType.DOUBLE;
-                case KVType.ARRAY_TYPED:
-                case KVType.ARRAY_TYPE_BYTE_LENGTH:
-                case KVType.ARRAY_TYPE_AUXILIARY_BUFFER:
-                    return KVType.ARRAY;
+                case KV3BinaryNodeType.BOOLEAN:
+                case KV3BinaryNodeType.BOOLEAN_TRUE:
+                case KV3BinaryNodeType.BOOLEAN_FALSE:
+                    return KVValueType.Boolean;
+                case KV3BinaryNodeType.INT16:
+                    return KVValueType.Int16;
+                case KV3BinaryNodeType.UINT16:
+                    return KVValueType.UInt16;
+                case KV3BinaryNodeType.INT64:
+                case KV3BinaryNodeType.INT32:
+                case KV3BinaryNodeType.INT64_ZERO:
+                case KV3BinaryNodeType.INT64_ONE:
+                case KV3BinaryNodeType.INT32_AS_BYTE:
+                    return KVValueType.Int64;
+                case KV3BinaryNodeType.UINT64:
+                case KV3BinaryNodeType.UINT32:
+                    return KVValueType.UInt64;
+                case KV3BinaryNodeType.FLOAT:
+                    return KVValueType.FloatingPoint;
+                case KV3BinaryNodeType.DOUBLE:
+                case KV3BinaryNodeType.DOUBLE_ZERO:
+                case KV3BinaryNodeType.DOUBLE_ONE:
+                    return KVValueType.FloatingPoint64;
+                case KV3BinaryNodeType.ARRAY:
+                case KV3BinaryNodeType.ARRAY_TYPED:
+                case KV3BinaryNodeType.ARRAY_TYPE_BYTE_LENGTH:
+                case KV3BinaryNodeType.ARRAY_TYPE_AUXILIARY_BUFFER:
+                    return KVValueType.Array;
+                case KV3BinaryNodeType.OBJECT:
+                    return KVValueType.Collection;
+                case KV3BinaryNodeType.STRING:
+                    return KVValueType.String;
+                case KV3BinaryNodeType.BINARY_BLOB:
+                    return KVValueType.BinaryBlob;
+                case KV3BinaryNodeType.NULL:
+                    return KVValueType.Null;
+                default:
+                    throw new NotImplementedException($"Unknown type {type}");
             }
 #pragma warning restore IDE0066 // Convert switch statement to expression
-
-            return type;
         }
 
-        public static KVValue MakeValue(KVType type, object data, KVFlag flag = KVFlag.None)
+        private static KVValue MakeValue(KV3BinaryNodeType type, object data, KVFlag flag = KVFlag.None)
         {
             var realType = ConvertBinaryOnlyKVType(type);
-
-            if (flag != KVFlag.None)
-            {
-                return new KVFlaggedValue(realType, flag, data);
-            }
-
-            return new KVValue(realType, data);
+            return new KVValue(realType, flag, data);
         }
 
 #pragma warning disable CA1024 // Use properties where appropriate

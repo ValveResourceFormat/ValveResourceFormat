@@ -1,5 +1,4 @@
 using System.Text;
-using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.CompiledShader;
 

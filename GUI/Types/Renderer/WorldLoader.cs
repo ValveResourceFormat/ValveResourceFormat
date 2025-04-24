@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.IO;
 using System.Linq;
 using GUI.Utils;
@@ -8,9 +7,7 @@ using ValveResourceFormat;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.NavMesh;
 using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Serialization.KeyValues;
-using ValveResourceFormat.Utils;
 using static ValveResourceFormat.ResourceTypes.EntityLump;
 
 namespace GUI.Types.Renderer
