@@ -383,16 +383,19 @@ public partial class GltfModelExporter
                             instructions.Add(new RemapInstruction(GltfType, renderInput.Channel, gltfInput.Channel));
                             continue;
                         }
-
-                        if (blendNameComparer.Equals(renderInput.Name, "TextureMetalnessMask"))
-                        {
-                            instructions.Add(new RemapInstruction("MetallicRoughness", renderInput.Channel, ChannelMapping.B));
-                        }
-                        else if (blendNameComparer.Equals(renderInput.Name, "TextureSpecularMask")) // Ideally we should use material.WithSpecular()
-                        {
-                            instructions.Add(new RemapInstruction("MetallicRoughness", renderInput.Channel, ChannelMapping.G, Invert: true));
-                        }
                     }
+                }
+            }
+
+            foreach (var renderInput in renderTextureInputs)
+            {
+                if (blendNameComparer.Equals(renderInput.Name, "TextureMetalnessMask"))
+                {
+                    instructions.Add(new RemapInstruction("MetallicRoughness", renderInput.Channel, ChannelMapping.B));
+                }
+                else if (blendNameComparer.Equals(renderInput.Name, "TextureSpecularMask")) // Ideally we should use material.WithSpecular()
+                {
+                    instructions.Add(new RemapInstruction("MetallicRoughness", renderInput.Channel, ChannelMapping.G, Invert: true));
                 }
             }
 
