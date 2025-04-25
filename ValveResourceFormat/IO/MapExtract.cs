@@ -532,7 +532,11 @@ public sealed class MapExtract
 
             foreach (var dag in mesh.JointList.Cast<DmeDag>())
             {
-                var builder = new HammerMeshBuilder(FileLoader) { PhysicsVertexMatcher = PhysVertexMatcher, ProgressReporter = ProgressReporter };
+                var builder = new HammerMeshBuilder()
+                {
+                    PhysicsVertexMatcher = PhysVertexMatcher,
+                    ProgressReporter = ProgressReporter,
+                };
                 var meshShape = dag.Shape;
                 builder.AddRenderMesh(meshShape, offset);
                 var hammerMesh = new CMapMesh() { MeshData = builder.GenerateMesh() };
@@ -620,7 +624,7 @@ public sealed class MapExtract
 
             foreach (var hull in shape.Hulls)
             {
-                var hammerMeshBuilder = new HammerMeshBuilder(FileLoader);
+                var hammerMeshBuilder = new HammerMeshBuilder();
                 hammerMeshBuilder.AddPhysHull(hull, phys, GetAndExportAutoPhysicsMaterialName, positionOffset, materialOverride);
                 var hammerMesh = new CMapMesh() { MeshData = hammerMeshBuilder.GenerateMesh() };
 
@@ -638,7 +642,7 @@ public sealed class MapExtract
 
             foreach (var mesh in shape.Meshes)
             {
-                var hammerMeshBuilder = new HammerMeshBuilder(FileLoader);
+                var hammerMeshBuilder = new HammerMeshBuilder();
 
                 HashSet<int> deletedList = [];
                 if (PhysVertexMatcher != null)

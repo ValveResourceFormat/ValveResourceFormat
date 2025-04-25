@@ -124,13 +124,23 @@ namespace GUI.Types.ParticleRenderer.Initializers
                         }
                         i++;
                     }
-                    if (found) { break; };
+
+                    if (found)
+                    {
+                        break;
+                    }
                 }
-                if (found) { break; };
+
+                if (found)
+                {
+                    break;
+                }
             }
 
-            if (!found) { Log.Warn(nameof(CreateOnGrid), "unable to find correct position on particle grid"); }
-
+            if (!found)
+            {
+                Log.Warn(nameof(CreateOnGrid), "unable to find correct position on particle grid");
+            }
 
             if (center)
             {

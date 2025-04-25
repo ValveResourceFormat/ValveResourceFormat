@@ -2,12 +2,11 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using ValveResourceFormat.IO.ContentFormats.DmxModel;
 using ValveResourceFormat.IO.ContentFormats.ValveMap;
-using ValveResourceFormat.ResourceTypes.RubikonPhysics;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.ResourceTypes.RubikonPhysics;
 using ValveResourceFormat.Serialization.KeyValues;
-
-using HalfEdgeSlim = (int SrcVertexId, int DstVertexId);
 using static ValveResourceFormat.IO.HammerMeshBuilder;
+using HalfEdgeSlim = (int SrcVertexId, int DstVertexId);
 
 namespace ValveResourceFormat.IO
 {
@@ -416,15 +415,12 @@ namespace ValveResourceFormat.IO
         public Dictionary<HalfEdgeSlim, int> VertsToEdgeDict = [];
 
         private readonly HalfEdgeMeshModifier halfEdgeModifier;
-        private readonly IFileLoader FileLoader;
         public PhysicsVertexMatcher? PhysicsVertexMatcher { get; init; }
         public IProgress<string>? ProgressReporter { get; init; }
 
-
-        public HammerMeshBuilder(IFileLoader fileLoader)
+        public HammerMeshBuilder()
         {
             halfEdgeModifier = new(this);
-            FileLoader = fileLoader;
         }
 
         public CDmePolygonMesh GenerateMesh()
