@@ -322,17 +322,35 @@ namespace ValveResourceFormat
 
         public Block GetBlockByIndex(int index)
         {
+            ArgumentOutOfRangeException.ThrowIfNegative(index);
+            ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(index, Blocks.Count);
+
             return Blocks[index];
         }
 
         public Block? GetBlockByType(BlockType type)
         {
-            return Blocks.Find(b => b.Type == type);
+            foreach (var block in Blocks)
+            {
+                if (block.Type == type)
+                {
+                    return block;
+                }
+            }
+
+            return null;
         }
 
         public bool ContainsBlockType(BlockType type)
         {
-            return Blocks.Exists(b => b.Type == type);
+            foreach (var block in Blocks)
+            {
+                if (block.Type == type)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         private Block ConstructFromType(string input)
