@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO;
 using NUnit.Framework;
 using ValveResourceFormat;
@@ -18,8 +19,9 @@ namespace Tests
             };
             resource.Read(file);
 
-            var postProcessing = (PostProcessing)resource.DataBlock;
+            var postProcessing = (PostProcessing?)resource.DataBlock;
 
+            Debug.Assert(postProcessing != null);
             Assert.That(postProcessing.ToValvePostProcessing(), Is.Not.Empty);
         }
     }

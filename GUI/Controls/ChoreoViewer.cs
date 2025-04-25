@@ -15,7 +15,9 @@ namespace GUI.Controls
 
         public ChoreoViewer(Resource resource)
         {
-            choreoDataList = (ChoreoSceneFileData)resource.DataBlock;
+            var dataBlock = (ChoreoSceneFileData?)resource.DataBlock;
+            ArgumentNullException.ThrowIfNull(dataBlock);
+            choreoDataList = dataBlock;
 
             var fileName = Path.GetFileNameWithoutExtension(resource.FileName) + ".vcdlist";
 

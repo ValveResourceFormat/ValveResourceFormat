@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using NUnit.Framework;
@@ -20,7 +21,9 @@ namespace Tests
             };
             resource.Read(file);
 
-            var entityLump = (EntityLump)resource.DataBlock;
+            var entityLump = (EntityLump?)resource.DataBlock;
+
+            Debug.Assert(entityLump != null);
 
             var entities = entityLump.GetEntities().ToList();
 

@@ -11,8 +11,12 @@ public class ChoreoExtract
     private readonly ChoreoSceneFileData choreoDataList;
     public ChoreoExtract(Resource vcdlistResource)
     {
+        var dataBlock = (ChoreoSceneFileData?)vcdlistResource.DataBlock;
+
+        ArgumentNullException.ThrowIfNull(dataBlock);
+
         this.vcdlistResource = vcdlistResource;
-        choreoDataList = (ChoreoSceneFileData)vcdlistResource.DataBlock;
+        choreoDataList = dataBlock;
     }
 
     public ContentFile ToContentFile()

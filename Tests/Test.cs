@@ -151,7 +151,16 @@ namespace Tests
                     continue;
                 }
 
-                var actualOutput = resource.GetBlockByType(blockType).ToString();
+                var blockData = resource.GetBlockByType(blockType);
+
+                if (blockData == null)
+                {
+                    Assert.Fail($"{name}: block is null: {blockType}");
+
+                    continue;
+                }
+
+                var actualOutput = blockData.ToString();
                 var expectedOutput = File.ReadAllText(file);
 
                 // We don't care about Valve's messy whitespace, so just strip it.

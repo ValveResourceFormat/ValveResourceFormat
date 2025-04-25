@@ -5,8 +5,6 @@ using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
 using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.ResourceTypes;
 
-#nullable disable
-
 namespace ValveResourceFormat
 {
     /// <summary>
@@ -16,19 +14,19 @@ namespace ValveResourceFormat
     {
         public const ushort KnownHeaderVersion = 12;
 
-        private FileStream FileStream;
+        private FileStream? FileStream;
 
         /// <summary>
         /// Gets the binary reader. USE AT YOUR OWN RISK!
         /// It is exposed publicly to ease of reading the same file.
         /// </summary>
         /// <value>The binary reader.</value>
-        public BinaryReader Reader { get; private set; }
+        public BinaryReader? Reader { get; private set; }
 
         /// <summary>
         /// Gets or sets the file name this resource was parsed from.
         /// </summary>
-        public string FileName { get; set; }
+        public string? FileName { get; set; }
 
         /// <summary>
         /// Gets the resource size.
@@ -59,17 +57,17 @@ namespace ValveResourceFormat
         /// <summary>
         /// Gets the ResourceEditInfo block.
         /// </summary>
-        public ResourceEditInfo EditInfo { get; private set; }
+        public ResourceEditInfo? EditInfo { get; private set; }
 
         /// <summary>
         /// Gets the ResourceExtRefList block.
         /// </summary>
-        public ResourceExtRefList ExternalReferences => (ResourceExtRefList)GetBlockByType(BlockType.RERL);
+        public ResourceExtRefList? ExternalReferences => (ResourceExtRefList?)GetBlockByType(BlockType.RERL);
 
         /// <summary>
         /// Gets the generic DATA block.
         /// </summary>
-        public ResourceData DataBlock => (ResourceData)GetBlockByType(BlockType.DATA);
+        public ResourceData? DataBlock => (ResourceData?)GetBlockByType(BlockType.DATA);
 
         /// <summary>
         /// Resource files have a FileSize in the metadata, however
@@ -199,7 +197,7 @@ namespace ValveResourceFormat
                 var position = Reader.BaseStream.Position;
                 var offset = (uint)position + Reader.ReadUInt32();
                 var size = Reader.ReadUInt32();
-                Block block = null;
+                Block? block = null;
 
                 if (size == 0)
                 {
@@ -298,11 +296,11 @@ namespace ValveResourceFormat
             {
                 if (ResourceType == ResourceType.Texture)
                 {
-                    var data = (Texture)DataBlock;
+                    var data = (Texture?)DataBlock;
 
                     // TODO: We do not currently have a way of calculating buffer size for these types
                     // Texture.GenerateBitmap also just reads until end of the buffer
-                    if (data.IsRawJpeg)
+                    if (data == null || data.IsRawJpeg)
                     {
                         return;
                     }
@@ -327,7 +325,7 @@ namespace ValveResourceFormat
             return Blocks[index];
         }
 
-        public Block GetBlockByType(BlockType type)
+        public Block? GetBlockByType(BlockType type)
         {
             return Blocks.Find(b => b.Type == type);
         }

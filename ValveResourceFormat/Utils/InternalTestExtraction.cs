@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
 using ValveResourceFormat.IO;
@@ -21,7 +22,8 @@ namespace ValveResourceFormat.Utils
             {
                 case ResourceType.Model:
                     {
-                        var model = (Model)resource.DataBlock;
+                        var model = (Model?)resource.DataBlock;
+                        Debug.Assert(model != null);
                         model.GetEmbeddedAnimations();
                         model.GetEmbeddedMeshes();
                         model.GetEmbeddedPhys();
@@ -38,14 +40,16 @@ namespace ValveResourceFormat.Utils
                     }
                 case ResourceType.Mesh:
                     {
-                        var mesh = (Mesh)resource.DataBlock;
+                        var mesh = (Mesh?)resource.DataBlock;
+                        Debug.Assert(mesh != null);
                         mesh.GetBounds();
                         break;
                     }
 
                 case ResourceType.Particle:
                     {
-                        var particle = (ParticleSystem)resource.DataBlock;
+                        var particle = (ParticleSystem?)resource.DataBlock;
+                        Debug.Assert(particle != null);
                         particle.GetChildParticleNames();
                         particle.GetChildParticleNames(true);
                         break;
@@ -53,14 +57,16 @@ namespace ValveResourceFormat.Utils
 
                 case ResourceType.PhysicsCollisionMesh:
                     {
-                        var phys = (PhysAggregateData)resource.DataBlock;
+                        var phys = (PhysAggregateData?)resource.DataBlock;
+                        Debug.Assert(phys != null);
                         var bindPose = phys.BindPose;
                         break;
                     }
 
                 case ResourceType.Morph:
                     {
-                        var morph = (Morph)resource.DataBlock;
+                        var morph = (Morph?)resource.DataBlock;
+                        Debug.Assert(morph != null);
                         morph.GetMorphDatas();
                         morph.GetFlexDescriptors();
                         morph.GetFlexVertexData();
@@ -69,7 +75,8 @@ namespace ValveResourceFormat.Utils
 
                 case ResourceType.Material:
                     {
-                        var material = (Material)resource.DataBlock;
+                        var material = (Material?)resource.DataBlock;
+                        Debug.Assert(material != null);
                         material.GetShaderArguments();
                         var inputSig = material.InputSignature;
                         break;
@@ -77,14 +84,16 @@ namespace ValveResourceFormat.Utils
 
                 case ResourceType.EntityLump:
                     {
-                        var entityLump = (EntityLump)resource.DataBlock;
+                        var entityLump = (EntityLump?)resource.DataBlock;
+                        Debug.Assert(entityLump != null);
                         entityLump.ToForgeGameData();
                         break;
                     }
 
                 case ResourceType.Texture:
                     {
-                        var texture = (Texture)resource.DataBlock;
+                        var texture = (Texture?)resource.DataBlock;
+                        Debug.Assert(texture != null);
                         texture.GetSpriteSheetData();
                         using var _ = texture.GenerateBitmap(mipLevel: (uint)Math.Max(texture.NumMipLevels - 2, 0));
 

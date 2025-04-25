@@ -84,7 +84,8 @@ namespace GUI.Types.Renderer
                 return GetErrorMaterial();
             }
 
-            var vrfMaterial = (VrfMaterial)resource.DataBlock;
+            var vrfMaterial = (VrfMaterial?)resource.DataBlock;
+            Debug.Assert(vrfMaterial != null);
             var mat = new RenderMaterial(
                 vrfMaterial,
                 VrfGuiContext,
@@ -162,7 +163,9 @@ namespace GUI.Types.Renderer
         public RenderTexture LoadTexture(Resource textureResource, bool srgbRead = false, bool isViewerRequest = false)
 #pragma warning restore CA1822 // Mark members as static
         {
-            var data = (Texture)textureResource.DataBlock;
+            var data = (Texture?)textureResource.DataBlock;
+            Debug.Assert(data != null);
+
             var target = TextureTarget.Texture2D;
             var is3d = false;
             var clampModeS = (data.Flags & VTexFlags.SUGGEST_CLAMPS) != 0 ? TextureWrapMode.ClampToBorder : TextureWrapMode.Repeat;
@@ -192,7 +195,11 @@ namespace GUI.Types.Renderer
 
 #if DEBUG
             var textureName = System.IO.Path.GetFileName(textureResource.FileName);
-            GL.ObjectLabel(ObjectLabelIdentifier.Texture, tex.Handle, textureName.Length, textureName);
+
+            if (textureName != null)
+            {
+                GL.ObjectLabel(ObjectLabelIdentifier.Texture, tex.Handle, textureName.Length, textureName);
+            }
 #endif
 
             var texDepth = data.Depth;

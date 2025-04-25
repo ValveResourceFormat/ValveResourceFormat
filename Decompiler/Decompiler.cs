@@ -668,12 +668,13 @@ namespace Decompiler
             Console.WriteLine("\tFile Size: {0} bytes", resource.FileSize);
             Console.WriteLine(Environment.NewLine);
 
-            if (resource.ContainsBlockType(BlockType.RERL))
+            var rerl = resource.ExternalReferences;
+            if (rerl != null)
             {
                 Console.WriteLine("--- Resource External Refs: ---");
                 Console.WriteLine("\t{0,-16}  {1,-48}", "Id:", "Resource Name:");
 
-                foreach (var res in resource.ExternalReferences.ResourceRefInfoList)
+                foreach (var res in rerl.ResourceRefInfoList)
                 {
                     Console.WriteLine("\t{0:X16}  {1,-48}", res.Id, res.Name);
                 }
@@ -1372,18 +1373,22 @@ namespace Decompiler
             switch (resource.ResourceType)
             {
                 case ResourceType.Texture:
-                    var texture = (Texture)resource.DataBlock;
+                    var texture = (Texture?)resource.DataBlock;
+                    Debug.Assert(texture != null);
                     info = texture.Format.ToString();
                     break;
 
                 case ResourceType.Sound:
-                    info = ((Sound)resource.DataBlock).SoundType.ToString();
+                    var sound = (Sound?)resource.DataBlock;
+                    Debug.Assert(sound != null);
+                    info = sound.SoundType.ToString();
                     break;
 
                 case ResourceType.EntityLump:
                     if (DumpUnknownEntityKeys)
                     {
-                        var entityLump = (EntityLump)resource.DataBlock;
+                        var entityLump = (EntityLump?)resource.DataBlock;
+                        Debug.Assert(entityLump != null);
                         var entities = entityLump.GetEntities();
                         knownEntityKeys ??= [.. EntityLumpKnownKeys.KnownKeys];
 
@@ -1406,7 +1411,8 @@ namespace Decompiler
                 case ResourceType.Particle:
                     if (StatsCollectParticles)
                     {
-                        var particleSystem = (ParticleSystem)resource.DataBlock;
+                        var particleSystem = (ParticleSystem?)resource.DataBlock;
+                        Debug.Assert(particleSystem != null);
 
                         foreach (var op in particleSystem.GetInitializers())
                         {
@@ -1433,7 +1439,8 @@ namespace Decompiler
                 case ResourceType.Model:
                     if (StatsCollectVBIB)
                     {
-                        var model = (Model)resource.DataBlock;
+                        var model = (Model?)resource.DataBlock;
+                        Debug.Assert(model != null);
 
                         foreach (var embedded in model.GetEmbeddedMeshes())
                         {
@@ -1451,7 +1458,8 @@ namespace Decompiler
                 case ResourceType.Mesh:
                     if (StatsCollectVBIB)
                     {
-                        var mesh = (Mesh)resource.DataBlock;
+                        var mesh = (Mesh?)resource.DataBlock;
+                        Debug.Assert(mesh != null);
 
                         foreach (var buffer in mesh.VBIB.VertexBuffers)
                         {

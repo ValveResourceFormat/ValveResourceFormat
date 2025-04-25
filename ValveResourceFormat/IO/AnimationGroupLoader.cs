@@ -10,16 +10,23 @@ namespace ValveResourceFormat.IO
     {
         public static IEnumerable<Animation> LoadAnimationGroup(Resource resource, IFileLoader fileLoader, Skeleton skeleton, FlexController[] flexControllers)
         {
-            var data = resource.DataBlock.AsKeyValueCollection();
+            var dataBlock = resource.DataBlock;
+
+            if (dataBlock == null)
+            {
+                return [];
+            }
+
+            var data = dataBlock.AsKeyValueCollection();
 
             // Get the key to decode the animations
             var decodeKey = data.GetSubCollection("m_decodeKey");
 
             var animationList = new List<Animation>();
+            var animBlock = (KeyValuesOrNTRO?)resource.GetBlockByType(BlockType.ANIM);
 
-            if (resource.ContainsBlockType(BlockType.ANIM))
+            if (animBlock != null)
             {
-                var animBlock = (KeyValuesOrNTRO)resource.GetBlockByType(BlockType.ANIM);
                 animationList.AddRange(Animation.FromData(animBlock.Data, decodeKey, skeleton, flexControllers));
                 return animationList;
             }

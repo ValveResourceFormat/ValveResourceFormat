@@ -21,7 +21,11 @@ namespace Tests
                 FileName = file,
             };
             resource.Read(file);
-            scene = (ChoreoSceneFileData)resource.DataBlock;
+
+            var dataBlock = (ChoreoSceneFileData?)resource.DataBlock;
+            ArgumentNullException.ThrowIfNull(dataBlock);
+
+            scene = dataBlock;
             return resource;
         }
         private static void AssertEvents(ChoreoEvent[] events, params ChoreoEventType[] eventTypes)

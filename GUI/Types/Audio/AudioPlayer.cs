@@ -12,7 +12,7 @@ namespace GUI.Types.Audio
     {
         public AudioPlayer(Resource resource, TabPage tab, bool autoPlay)
         {
-            var soundData = (Sound)resource.DataBlock;
+            var soundData = (Sound?)resource.DataBlock;
 
             if (soundData == null || soundData.StreamingDataSize == 0)
             {

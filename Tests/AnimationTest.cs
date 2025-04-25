@@ -19,7 +19,7 @@ namespace Tests
             };
             resource.Read(file);
 
-            var model = (Model)resource.DataBlock;
+            var model = (Model)resource.DataBlock!;
 
             var animGroupPaths = model.GetReferencedAnimationGroupNames();
             var animations = model.GetEmbeddedAnimations().ToList();

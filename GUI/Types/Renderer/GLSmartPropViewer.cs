@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using GUI.Utils;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -28,7 +29,8 @@ namespace GUI.Types.Renderer
                     case "CSmartPropElement_Model":
                         {
                             using var resource = GuiContext.LoadFileCompiled(child.GetStringProperty("m_sModelName"));
-                            var model = (Model)resource.DataBlock;
+                            var model = (Model?)resource.DataBlock;
+                            Debug.Assert(model != null);
 
                             var modelSceneNode = new ModelSceneNode(Scene, model);
                             Scene.Add(modelSceneNode, true);
@@ -57,7 +59,8 @@ namespace GUI.Types.Renderer
                                 }
 
                                 using var resource = GuiContext.LoadFileCompiled(pickOneChild.GetStringProperty("m_sModelName"));
-                                var model = (Model)resource.DataBlock;
+                                var model = (Model?)resource.DataBlock;
+                                Debug.Assert(model != null);
 
                                 var modelSceneNode = new ModelSceneNode(Scene, model);
                                 Scene.Add(modelSceneNode, true);

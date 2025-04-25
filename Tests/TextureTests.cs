@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO;
 using NUnit.Framework;
 using ValveResourceFormat;
@@ -20,7 +21,8 @@ namespace Tests
             using var resource = new Resource();
             resource.Read(file);
 
-            var texture = (Texture)resource.DataBlock;
+            var texture = (Texture?)resource.DataBlock;
+            Debug.Assert(texture != null);
 
             using var _ = texture.GenerateBitmap();
 

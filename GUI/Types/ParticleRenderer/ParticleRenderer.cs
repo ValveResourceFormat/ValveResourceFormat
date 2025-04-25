@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Linq;
 using GUI.Types.ParticleRenderer.Emitters;
 using GUI.Types.ParticleRenderer.Initializers;
@@ -471,7 +472,9 @@ namespace GUI.Types.ParticleRenderer
                     continue;
                 }
 
-                var childSystemDefinition = (ParticleSystem)childResource.DataBlock;
+                var childSystemDefinition = (ParticleSystem?)childResource.DataBlock;
+                Debug.Assert(childSystemDefinition != null);
+
                 var childSystem = new ParticleRenderer(childSystemDefinition, vrfGuiContext)
                 {
                     MainControlPoint = MainControlPoint
