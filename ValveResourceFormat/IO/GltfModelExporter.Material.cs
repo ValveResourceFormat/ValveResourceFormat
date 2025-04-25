@@ -27,10 +27,10 @@ public partial class GltfModelExporter
         ["BaseColor"] = [(ChannelMapping.RGB, "TextureColor"), (ChannelMapping.A, "TextureTranslucency")],
         ["Normal"] = [(ChannelMapping.RGB, "TextureNormal")],
         ["MetallicRoughness"] = [
-            (ChannelMapping.R, string.Empty),
             (ChannelMapping.G, "TextureRoughness"),
             (ChannelMapping.B, "TextureMetalness")
         ],
+        ["SpecularFactor"] = [(ChannelMapping.A, "TextureSpecularMask")],
         ["Occlusion"] = [(ChannelMapping.R, "TextureAmbientOcclusion")],
         ["Emissive"] = [(ChannelMapping.RGB, "TextureSelfIllumMask")],
     };
@@ -96,6 +96,11 @@ public partial class GltfModelExporter
         baseColor = Vector4.Clamp(baseColor, Vector4.Zero, Vector4.One);
 
         material.WithPBRMetallicRoughness(baseColor, null, metallicFactor: metalValue);
+
+        if (renderMaterial.VectorParams.TryGetValue("g_vSpecularColor", out var vSpecularColor))
+        {
+            // TODO - perhaps material.WithChannelColor?
+        }
 
         var allGltfInputs = GltfTextureMappings.Values.SelectMany(x => x);
         var blendNameComparer = new MaterialExtract.LayeredTextureNameComparer(new HashSet<string>(allGltfInputs.Select(x => x.Name)));
@@ -333,6 +338,12 @@ public partial class GltfModelExporter
 
         void TieTextureToMaterial(Texture tex, string gltfPackedName)
         {
+            if (gltfPackedName == "SpecularFactor")
+            {
+                // TODO: Is there a better way to do this in sharpgltf?
+                material.InitializePBRMetallicRoughness("Specular");
+            }
+
             var materialChannel = material.FindChannel(gltfPackedName);
             materialChannel?.SetTexture(0, tex);
 
@@ -392,10 +403,6 @@ public partial class GltfModelExporter
                 if (blendNameComparer.Equals(renderInput.Name, "TextureMetalnessMask"))
                 {
                     instructions.Add(new RemapInstruction("MetallicRoughness", renderInput.Channel, ChannelMapping.B));
-                }
-                else if (blendNameComparer.Equals(renderInput.Name, "TextureSpecularMask")) // Ideally we should use material.WithSpecular()
-                {
-                    instructions.Add(new RemapInstruction("MetallicRoughness", renderInput.Channel, ChannelMapping.G, Invert: true));
                 }
             }
 
