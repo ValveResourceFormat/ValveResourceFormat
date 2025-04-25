@@ -1100,16 +1100,14 @@ namespace ValveResourceFormat.IO
             var physicsSurfaceNames = phys.SurfacePropertyHashes.Select(StringToken.GetKnownString).ToArray();
 
             var mesh = desc.Shape;
-            VertexStreams streams = new()
-            {
-                positions = mesh.GetVertices().ToArray().ToList()
-            };
+            var meshVertices = mesh.GetVertices();
+            var meshTriangles = mesh.GetTriangles();
+
+            VertexStreams streams = new();
+            streams.positions.AddRange(meshVertices);
 
             DefinePointCloud(streams, positionOffset);
 
-            var meshTriangles = mesh.GetTriangles();
-
-            Faces.EnsureCapacity(meshTriangles.Length);
             Span<int> inds = stackalloc int[3];
 
             var removed = 0;
@@ -1117,6 +1115,8 @@ namespace ValveResourceFormat.IO
             var (triangleStart, triangleStop) = useTriangleRange
                 ? (triangleRangeMin, triangleRangeMax)
                 : (0, meshTriangles.Length);
+
+            Faces.EnsureCapacity(triangleStop - triangleStart);
 
             for (var i = triangleStart; i < triangleStop; i++)
             {
@@ -1336,8 +1336,7 @@ namespace ValveResourceFormat.IO
             var front = new Vector2(vertexPos.X, -vertexPos.Z) * weights.Y;
             var side = new Vector2(vertexPos.Y, -vertexPos.Z) * weights.X;
 
-            var UV = (top + front + side);
-
+            var UV = top + front + side;
             return UV * textureScale;
         }
 
