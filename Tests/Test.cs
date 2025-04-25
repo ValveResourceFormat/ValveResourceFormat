@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -191,6 +192,7 @@ namespace Tests
 
             var ex = Assert.Throws<InvalidDataException>(() => resource.Read(ms));
 
+            Debug.Assert(ex != null);
             Assert.That(ex, Is.Not.Null);
             Assert.That(ex.Message, Does.Contain("Use ValvePak"));
         }

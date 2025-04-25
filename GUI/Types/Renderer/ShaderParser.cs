@@ -228,7 +228,9 @@ namespace GUI.Types.Renderer
         private static Stream GetShaderStream(string name)
         {
             var assembly = System.Reflection.Assembly.GetExecutingAssembly();
-            return assembly.GetManifestResourceStream($"{ShaderDirectory}{name.Replace('/', '.')}");
+            var stream = assembly.GetManifestResourceStream($"{ShaderDirectory}{name.Replace('/', '.')}");
+            ArgumentNullException.ThrowIfNull(stream);
+            return stream;
         }
 #else
         public static readonly string ShadersFolderPathOnDisk = GetShadersFolder();

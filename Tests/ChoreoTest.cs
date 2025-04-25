@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using NUnit.Framework;
@@ -263,6 +264,8 @@ namespace Tests
             });
             Assert.Multiple(() =>
             {
+                Debug.Assert(bezierTrack.Curve != null);
+                Debug.Assert(bezierTrack.Bezier != null);
                 Assert.That(bezierTrack.Curve.Value.InTypeName, Is.EqualTo("bezier"));
                 Assert.That(bezierTrack.Curve.Value.OutTypeName, Is.EqualTo("bezier"));
                 Assert.That(bezierTrack.Bezier.Value.Flags, Is.EqualTo(BezierFlags.Unified));

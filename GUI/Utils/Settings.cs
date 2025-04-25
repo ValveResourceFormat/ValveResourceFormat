@@ -4,6 +4,8 @@ using System.Windows.Forms;
 using ValveKeyValue;
 using ValveResourceFormat.IO;
 
+#nullable disable
+
 #pragma warning disable WFO5001
 namespace GUI.Utils
 {

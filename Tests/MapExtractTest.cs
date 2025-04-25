@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO;
 using NUnit.Framework;
 using SteamDatabase.ValvePak;
@@ -16,6 +17,8 @@ namespace Tests
             vmapResource.Read(Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "dota.vmap_c"));
 
             var exception = Assert.Throws<FileNotFoundException>(() => new MapExtract(vmapResource, new NullFileLoader()));
+            Debug.Assert(exception != null);
+            Assert.That(exception, Is.Not.Null);
             Assert.That(exception.Message, Contains.Substring("Failed to find world resource"));
 
             //var extract = new MapExtract(vmapResource, null);
@@ -30,6 +33,8 @@ namespace Tests
             worldResource.Read(worldPath);
 
             var exception = Assert.Throws<ArgumentNullException>(() => new MapExtract(worldResource, null));
+            Debug.Assert(exception != null);
+            Assert.That(exception, Is.Not.Null);
             Assert.That(exception.Message, Contains.Substring("file loader must be provided to load the map's lumps"));
 
             var extract = new MapExtract(worldResource, new NullFileLoader());

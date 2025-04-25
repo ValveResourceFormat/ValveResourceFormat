@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using NUnit.Framework;
@@ -79,6 +80,7 @@ namespace Tests
 
             var ex = Assert.Throws<InvalidDataException>(() => resource.Read(path));
 
+            Debug.Assert(ex != null);
             Assert.That(ex, Is.Not.Null);
             Assert.That(ex.Message, Does.Contain("Use ShaderFile"));
         }
@@ -172,6 +174,7 @@ namespace Tests
 
             var ex = Assert.Throws<InvalidOperationException>(() => new ShaderExtract(ShaderCollection.FromEnumerable([shader])));
 
+            Debug.Assert(ex != null);
             Assert.That(ex, Is.Not.Null);
             Assert.That(ex.Message, Does.Contain("cannot continue without at least a features file"));
         }
