@@ -32,7 +32,7 @@ public partial class GltfModelExporter
             (ChannelMapping.B, "TextureMetalness")
         ],
         ["Occlusion"] = [(ChannelMapping.R, "TextureAmbientOcclusion")],
-        ["Emissive"] = [(ChannelMapping.R, "TextureSelfIllumMask")],
+        ["Emissive"] = [(ChannelMapping.RGB, "TextureSelfIllumMask")],
     };
 
     // In SatelliteImages mode, SharpGLTF will still load and validate images.
@@ -133,23 +133,24 @@ public partial class GltfModelExporter
         // ORM is a texture that may be compiled from multiple inputs
         using var occlusionRoughnessMetal = new TextureExtract.TexturePacker { DefaultColor = new SKColor(255, 255, 0, 255) };
         var ormTextureInstructions = new Dictionary<string, List<RemapInstruction>>();
-        string ormRedChannel = null; // Can be Occlusion or Emissive
+        var ormRedChannelForOcclusion = false;
 
         // Find and split ORM textures into separate instructions
         if (AdaptTextures)
         {
             // TODO: too many loops over instructions here
-            // If this texture contains a MetallicRoughness parameter, also pack Occlusion or Emissive into the ORM texture for optimization
+            // If this texture contains a MetallicRoughness parameter, also pack Occlusion into the ORM texture for optimization
+            // MetallicRoughness will use BG channels, and Occlusion only uses R channel
             var allRemapInstructions = remapDict.Values.SelectMany(i => i).ToList();
             if (allRemapInstructions.Any(static i => i.ChannelName == "MetallicRoughness"))
             {
-                ormRedChannel = allRemapInstructions.FirstOrDefault(i => i.ChannelName == "Occlusion" || i.ChannelName == "Emissive")?.ChannelName;
+                ormRedChannelForOcclusion = true;
             }
 
             foreach (var (texturePath, instructions) in remapDict)
             {
                 var ormInstructions = instructions
-                    .Where(i => i.ChannelName == ormRedChannel || i.ChannelName == "MetallicRoughness")
+                    .Where(static i => i.ChannelName == "Occlusion" || i.ChannelName == "MetallicRoughness")
                     .ToList();
 
                 if (ormInstructions.Count > 0)
@@ -339,9 +340,9 @@ public partial class GltfModelExporter
             {
                 materialChannel?.SetFactor("MetallicFactor", 1.0f); // Ignore g_flMetalness
 
-                if (ormRedChannel != null)
+                if (ormRedChannelForOcclusion)
                 {
-                    material.FindChannel(ormRedChannel)?.SetTexture(0, tex);
+                    material.FindChannel("Occlusion")?.SetTexture(0, tex);
                 }
             }
         }
