@@ -237,6 +237,7 @@ csharp_prefer_braces = true:suggestion
 csharp_preserve_single_line_blocks = true:suggestion
 csharp_preserve_single_line_statements = false:suggestion
 csharp_prefer_static_local_function = true:suggestion
+csharp_prefer_static_anonymous_function = true:suggestion
 csharp_prefer_simple_using_statement = true:suggestion
 csharp_style_prefer_switch_expression = true:suggestion
 csharp_style_namespace_declarations = file_scoped:silent
