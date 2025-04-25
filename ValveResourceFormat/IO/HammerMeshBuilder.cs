@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
 using ValveResourceFormat.IO.ContentFormats.DmxModel;
@@ -458,6 +459,14 @@ namespace ValveResourceFormat.IO
 
             foreach (var Vertex in Vertices)
             {
+                // Check if vertex is actually referenced
+                if (Vertex.OutGoingHalfEdge == -1)
+                {
+                    Debug.Assert(Vertex.RelatedEdges.Count == 0);
+                    Vertex.MasterStreamIndex = -1; // set this so we catch errors below if the vertex is actually referenced by an edge.
+                    continue;
+                }
+
                 var vertexDataIndex = mesh.VertexData.Size;
 
                 mesh.VertexEdgeIndices.Add(Vertex.OutGoingHalfEdge);
