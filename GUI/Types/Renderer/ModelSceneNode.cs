@@ -204,7 +204,7 @@ namespace GUI.Types.Renderer
                     for (var i = 0; i < meshBoneCount; i++)
                     {
                         var modelBoneIndex = remappingTable[i];
-                        var modelBoneExists = modelBoneIndex < boneCount;
+                        var modelBoneExists = modelBoneIndex < boneCount && modelBoneIndex != -1;
 
                         if (modelBoneExists)
                         {
