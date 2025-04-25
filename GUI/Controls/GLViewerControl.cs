@@ -88,6 +88,7 @@ namespace GUI.Controls
             GLControl.GotFocus += OnGotFocus;
             GLControl.LostFocus += OnLostFocus;
             GLControl.VisibleChanged += OnVisibleChanged;
+            Program.MainForm.Activated += OnAppActivated;
             Disposed += OnDisposed;
 
             glControlContainer.Controls.Add(GLControl);
@@ -210,6 +211,7 @@ namespace GUI.Controls
             GLControl.GotFocus -= OnGotFocus;
             GLControl.LostFocus -= OnLostFocus;
             GLControl.VisibleChanged -= OnVisibleChanged;
+            Program.MainForm.Activated -= OnAppActivated;
             Disposed -= OnDisposed;
         }
 
@@ -643,6 +645,11 @@ namespace GUI.Controls
         {
             GLDefaultFramebuffer?.Dispose();
             MainFramebuffer?.Dispose();
+        }
+
+        private void OnAppActivated(object sender, EventArgs e)
+        {
+            GLControl.Invalidate();
         }
 
         private void OnGotFocus(object sender, EventArgs e)

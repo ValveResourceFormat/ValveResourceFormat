@@ -1055,7 +1055,11 @@ namespace GUI.Types.Renderer
             }
         }
 
-        private void InvalidateRender() => NumRendersLastHash = 0;
+        private void InvalidateRender()
+        {
+            NumRendersLastHash = 0;
+            GLControl.Invalidate();
+        }
 
         private void Draw(Framebuffer fbo, bool captureFullSizeImage = false)
         {
