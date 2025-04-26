@@ -35,7 +35,7 @@ namespace GUI.Controls
             BackColor = SystemColors.Window;
             ForeColor = SystemColors.WindowText;
             IndentBackColor = SystemColors.InactiveBorder;
-            SelectionColor = SystemColors.Highlight;
+            SelectionStyle = new SelectionStyle(SystemBrushes.Highlight, SystemBrushes.HighlightText);
             ServiceLinesColor = SystemColors.ActiveBorder;
             CurrentLineColor = SystemColors.Highlight;
             LineNumberColor = SystemColors.GrayText;
