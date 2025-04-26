@@ -99,7 +99,10 @@ namespace ValveResourceFormat.IO
             var resource = fileLoader.LoadFile(file);
             if (resource is not null)
             {
-                LoadedFilePaths.Add(file.Replace('\\', '/'));
+                lock (LoadedFilePaths)
+                {
+                    LoadedFilePaths.Add(file.Replace('\\', '/'));
+                }
             }
 
             return resource;
