@@ -863,7 +863,6 @@ namespace GUI.Types.Renderer
                     foreach (var physSceneNode in PhysSceneNode.CreatePhysSceneNodes(scene, phys, model, classname))
                     {
                         physSceneNode.Transform = transformationMatrix;
-                        physSceneNode.PhysGroupName = classname;
                         physSceneNode.LayerName = layerName;
                         physSceneNode.EntityData = entity;
 

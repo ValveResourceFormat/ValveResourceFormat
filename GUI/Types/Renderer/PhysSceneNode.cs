@@ -4,8 +4,6 @@ using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 
-#nullable disable
-
 namespace GUI.Types.Renderer
 {
     class PhysSceneNode : ShapeSceneNode
@@ -17,280 +15,293 @@ namespace GUI.Types.Renderer
 
         public override bool LayerEnabled => Enabled && base.LayerEnabled;
         public bool Enabled { get; set; }
-        public string PhysGroupName { get; set; }
+        public required string PhysGroupName { get; init; }
 
         public PhysSceneNode(Scene scene, List<SimpleVertexNormal> verts, List<int> inds) : base(scene, verts, inds)
         {
         }
 
-
-        public static IEnumerable<PhysSceneNode> CreatePhysSceneNodes(Scene scene, PhysAggregateData phys, string fileName, string classname = null)
+        public static IEnumerable<PhysSceneNode> CreatePhysSceneNodes(Scene scene, PhysAggregateData phys, string? fileName, string? classname = null)
         {
             var groupCount = phys.CollisionAttributes.Count;
-            var verts = new List<SimpleVertexNormal>[groupCount];
-            var inds = new List<int>[groupCount];
-            var boundingBoxes = new AABB[groupCount];
-            var boundingBoxInitted = new bool[groupCount];
-
-            // constants for sizes of spheres/capsules
-            var hemisphereVerts = SphereBands * SphereSegments + 1;
-            var hemisphereTriangles = SphereSegments * (2 * SphereBands - 1);
-            var capsuleTriangles = 2 * hemisphereTriangles + 2 * SphereSegments;
-
-            for (var i = 0; i < groupCount; i++)
-            {
-                verts[i] = [];
-                inds[i] = [];
-            }
-
+            var physSceneNodes = new PhysSceneNode[groupCount];
+            var verts = new List<SimpleVertexNormal>(128);
+            var inds = new List<int>(128);
+            var boundingBox = new AABB();
+            var boundingBoxInitted = false;
             var bindPose = phys.BindPose;
 
-            for (var p = 0; p < phys.Parts.Length; p++)
+            for (var collisionAttributeIndex = 0; collisionAttributeIndex < phys.CollisionAttributes.Count; collisionAttributeIndex++)
             {
-                var shape = phys.Parts[p].Shape;
-                //var partCollisionAttributeIndex = phys.Parts[p].CollisionAttributeIndex;
-
-                // Spheres
-                foreach (var sphere in shape.Spheres)
+                for (var p = 0; p < phys.Parts.Length; p++)
                 {
-                    var collisionAttributeIndex = sphere.CollisionAttributeIndex;
-                    //var surfacePropertyIndex = capsule.SurfacePropertyIndex;
-                    var center = sphere.Shape.Center;
-                    var radius = sphere.Shape.Radius;
+                    var shape = phys.Parts[p].Shape;
+                    //var partCollisionAttributeIndex = phys.Parts[p].CollisionAttributeIndex;
 
-                    if (bindPose.Length != 0)
+                    // Spheres
+                    foreach (var sphere in shape.Spheres)
                     {
-                        center = Vector3.Transform(center, bindPose[p]);
-                    }
-
-                    verts[collisionAttributeIndex].EnsureCapacity(verts[collisionAttributeIndex].Count + hemisphereVerts);
-                    inds[collisionAttributeIndex].EnsureCapacity(inds[collisionAttributeIndex].Count + hemisphereTriangles * 6);
-
-                    AddSphere(verts[collisionAttributeIndex], inds[collisionAttributeIndex], center, radius, ColorSphere);
-
-                    var bbox = new AABB(center + new Vector3(radius),
-                                        center - new Vector3(radius));
-
-                    if (!boundingBoxInitted[collisionAttributeIndex])
-                    {
-                        boundingBoxInitted[collisionAttributeIndex] = true;
-                        boundingBoxes[collisionAttributeIndex] = bbox;
-                    }
-                    else
-                    {
-                        boundingBoxes[collisionAttributeIndex] = boundingBoxes[collisionAttributeIndex].Union(bbox);
-                    }
-                }
-
-                // Capsules
-                foreach (var capsule in shape.Capsules)
-                {
-                    var collisionAttributeIndex = capsule.CollisionAttributeIndex;
-                    //var surfacePropertyIndex = capsule.SurfacePropertyIndex;
-                    var center = capsule.Shape.Center;
-                    var radius = capsule.Shape.Radius;
-
-                    if (bindPose.Length != 0)
-                    {
-                        center[0] = Vector3.Transform(center[0], bindPose[p]);
-                        center[1] = Vector3.Transform(center[1], bindPose[p]);
-                    }
-
-                    verts[collisionAttributeIndex].EnsureCapacity(verts[collisionAttributeIndex].Count + hemisphereVerts * 2);
-                    inds[collisionAttributeIndex].EnsureCapacity(inds[collisionAttributeIndex].Count + capsuleTriangles * 6);
-
-                    AddCapsule(verts[collisionAttributeIndex], inds[collisionAttributeIndex], center[0], center[1], radius, ColorCapsule);
-                    foreach (var cn in center)
-                    {
-                        var bbox = new AABB(cn + new Vector3(radius),
-                                             cn - new Vector3(radius));
-
-                        if (!boundingBoxInitted[collisionAttributeIndex])
+                        if (collisionAttributeIndex != sphere.CollisionAttributeIndex)
                         {
-                            boundingBoxInitted[collisionAttributeIndex] = true;
-                            boundingBoxes[collisionAttributeIndex] = bbox;
+                            continue;
+                        }
+
+                        //var surfacePropertyIndex = capsule.SurfacePropertyIndex;
+                        var center = sphere.Shape.Center;
+                        var radius = sphere.Shape.Radius;
+
+                        if (bindPose.Length != 0)
+                        {
+                            center = Vector3.Transform(center, bindPose[p]);
+                        }
+
+                        verts.EnsureCapacity(verts.Count + HemisphereVerts * 2);
+                        inds.EnsureCapacity(inds.Count + HemisphereTriangles * 6 * 2);
+
+                        AddSphere(verts, inds, center, radius, ColorSphere);
+
+                        var bbox = new AABB(center + new Vector3(radius),
+                                            center - new Vector3(radius));
+
+                        if (!boundingBoxInitted)
+                        {
+                            boundingBoxInitted = true;
+                            boundingBox = bbox;
                         }
                         else
                         {
-                            boundingBoxes[collisionAttributeIndex] = boundingBoxes[collisionAttributeIndex].Union(bbox);
+                            boundingBox = boundingBox.Union(bbox);
                         }
                     }
-                }
 
-                // Hulls
-                foreach (var hull in shape.Hulls)
-                {
-                    var collisionAttributeIndex = hull.CollisionAttributeIndex;
-                    //var surfacePropertyIndex = capsule.SurfacePropertyIndex;
-
-                    var vertexPositions = hull.Shape.GetVertexPositions();
-
-                    var pose = bindPose.Length == 0 ? Matrix4x4.Identity : bindPose[p];
-
-                    var shapeVerts = verts[collisionAttributeIndex];
-                    var shapeInds = inds[collisionAttributeIndex];
-
-                    // vertex positions
-                    var positions = new Vector3[vertexPositions.Length];
-                    for (var i = 0; i < vertexPositions.Length; i++)
+                    // Capsules
+                    foreach (var capsule in shape.Capsules)
                     {
-                        positions[i] = Vector3.Transform(vertexPositions[i], pose);
+                        if (collisionAttributeIndex != capsule.CollisionAttributeIndex)
+                        {
+                            continue;
+                        }
+
+                        //var surfacePropertyIndex = capsule.SurfacePropertyIndex;
+                        var center = capsule.Shape.Center;
+                        var radius = capsule.Shape.Radius;
+
+                        if (bindPose.Length != 0)
+                        {
+                            center[0] = Vector3.Transform(center[0], bindPose[p]);
+                            center[1] = Vector3.Transform(center[1], bindPose[p]);
+                        }
+
+                        verts.EnsureCapacity(verts.Count + HemisphereVerts * 2);
+                        inds.EnsureCapacity(inds.Count + CapsuleTriangles * 6);
+
+                        AddCapsule(verts, inds, center[0], center[1], radius, ColorCapsule);
+
+                        foreach (var cn in center)
+                        {
+                            var bbox = new AABB(cn + new Vector3(radius),
+                                                 cn - new Vector3(radius));
+
+                            if (!boundingBoxInitted)
+                            {
+                                boundingBoxInitted = true;
+                                boundingBox = bbox;
+                            }
+                            else
+                            {
+                                boundingBox = boundingBox.Union(bbox);
+                            }
+                        }
                     }
 
-
-                    var faces = hull.Shape.GetFaces();
-                    var edges = hull.Shape.GetEdges();
-
-                    var numTriangles = edges.Length - faces.Length * 2;
-                    shapeVerts.EnsureCapacity(shapeVerts.Count + numTriangles * 3);
-                    shapeInds.EnsureCapacity(shapeInds.Count + numTriangles * 6);
-
-                    foreach (var face in faces)
+                    // Hulls
+                    foreach (var hull in shape.Hulls)
                     {
-                        var startEdge = face.Edge;
-
-                        for (var edge = edges[startEdge].Next; edge != startEdge;)
+                        if (collisionAttributeIndex != hull.CollisionAttributeIndex)
                         {
-                            var nextEdge = edges[edge].Next;
+                            continue;
+                        }
 
-                            if (nextEdge == startEdge)
+                        //var surfacePropertyIndex = capsule.SurfacePropertyIndex;
+
+                        var vertexPositions = hull.Shape.GetVertexPositions();
+
+                        var pose = bindPose.Length == 0 ? Matrix4x4.Identity : bindPose[p];
+
+                        // vertex positions
+                        var positions = new Vector3[vertexPositions.Length];
+                        for (var i = 0; i < vertexPositions.Length; i++)
+                        {
+                            positions[i] = Vector3.Transform(vertexPositions[i], pose);
+                        }
+
+                        var faces = hull.Shape.GetFaces();
+                        var edges = hull.Shape.GetEdges();
+
+                        var numTriangles = edges.Length - faces.Length * 2;
+                        verts.EnsureCapacity(verts.Count + numTriangles * 3);
+                        inds.EnsureCapacity(inds.Count + numTriangles * 6);
+
+                        foreach (var face in faces)
+                        {
+                            var startEdge = face.Edge;
+
+                            for (var edge = edges[startEdge].Next; edge != startEdge;)
                             {
-                                break;
-                            }
+                                var nextEdge = edges[edge].Next;
 
-                            var a = positions[edges[startEdge].Origin];
-                            var b = positions[edges[edge].Origin];
-                            var c = positions[edges[nextEdge].Origin];
+                                if (nextEdge == startEdge)
+                                {
+                                    break;
+                                }
+
+                                var a = positions[edges[startEdge].Origin];
+                                var b = positions[edges[edge].Origin];
+                                var c = positions[edges[nextEdge].Origin];
+
+                                var normal = ComputeNormal(a, b, c);
+
+                                var offset = verts.Count;
+                                verts.Add(new(a, ColorHull, normal));
+                                verts.Add(new(b, ColorHull, normal));
+                                verts.Add(new(c, ColorHull, normal));
+
+                                AddTriangle(inds, offset, 0, 1, 2);
+
+                                edge = nextEdge;
+                            }
+                        }
+
+                        var bbox = new AABB(hull.Shape.Min, hull.Shape.Max);
+
+                        if (!boundingBoxInitted)
+                        {
+                            boundingBoxInitted = true;
+                            boundingBox = bbox;
+                        }
+                        else
+                        {
+                            boundingBox = boundingBox.Union(bbox);
+                        }
+                    }
+
+                    // Meshes
+                    foreach (var mesh in shape.Meshes)
+                    {
+                        if (collisionAttributeIndex != mesh.CollisionAttributeIndex)
+                        {
+                            continue;
+                        }
+
+                        //var surfacePropertyIndex = capsule.SurfacePropertyIndex;
+
+                        var triangles = mesh.Shape.GetTriangles();
+                        var vertices = mesh.Shape.GetVertices();
+
+                        var pose = bindPose.Length == 0 ? Matrix4x4.Identity : bindPose[p];
+
+                        var numTriangles = triangles.Length;
+                        verts.EnsureCapacity(verts.Count + numTriangles * 3);
+                        inds.EnsureCapacity(inds.Count + numTriangles * 6);
+
+                        // vertex positions
+                        var positions = new Vector3[vertices.Length];
+                        for (var i = 0; i < vertices.Length; i++)
+                        {
+                            positions[i] = Vector3.Transform(vertices[i], pose);
+                        }
+
+                        foreach (var tri in triangles)
+                        {
+                            var a = positions[tri.X];
+                            var b = positions[tri.Y];
+                            var c = positions[tri.Z];
 
                             var normal = ComputeNormal(a, b, c);
 
-                            var offset = shapeVerts.Count;
-                            shapeVerts.Add(new(a, ColorHull, normal));
-                            shapeVerts.Add(new(b, ColorHull, normal));
-                            shapeVerts.Add(new(c, ColorHull, normal));
+                            var offset = verts.Count;
+                            verts.Add(new(a, ColorMesh, normal));
+                            verts.Add(new(b, ColorMesh, normal));
+                            verts.Add(new(c, ColorMesh, normal));
 
-                            AddTriangle(shapeInds, offset, 0, 1, 2);
+                            AddTriangle(inds, offset, 0, 1, 2);
+                        }
 
-                            edge = nextEdge;
+                        var bbox = new AABB(mesh.Shape.Min, mesh.Shape.Max);
+
+                        if (!boundingBoxInitted)
+                        {
+                            boundingBoxInitted = true;
+                            boundingBox = bbox;
+                        }
+                        else
+                        {
+                            boundingBox = boundingBox.Union(bbox);
                         }
                     }
-
-                    var bbox = new AABB(hull.Shape.Min, hull.Shape.Max);
-
-                    if (!boundingBoxInitted[collisionAttributeIndex])
-                    {
-                        boundingBoxInitted[collisionAttributeIndex] = true;
-                        boundingBoxes[collisionAttributeIndex] = bbox;
-                    }
-                    else
-                    {
-                        boundingBoxes[collisionAttributeIndex] = boundingBoxes[collisionAttributeIndex].Union(bbox);
-                    }
                 }
 
-                // Meshes
-                foreach (var mesh in shape.Meshes)
-                {
-                    var collisionAttributeIndex = mesh.CollisionAttributeIndex;
-                    //var surfacePropertyIndex = capsule.SurfacePropertyIndex;
-
-                    var triangles = mesh.Shape.GetTriangles();
-                    var vertices = mesh.Shape.GetVertices();
-
-                    var pose = bindPose.Length == 0 ? Matrix4x4.Identity : bindPose[p];
-
-                    var shapeVerts = verts[collisionAttributeIndex];
-                    var shapeInds = inds[collisionAttributeIndex];
-
-                    var numTriangles = triangles.Length;
-                    shapeVerts.EnsureCapacity(shapeVerts.Count + numTriangles * 3);
-                    shapeInds.EnsureCapacity(shapeInds.Count + numTriangles * 6);
-
-                    // vertex positions
-                    var positions = new Vector3[vertices.Length];
-                    for (var i = 0; i < vertices.Length; i++)
-                    {
-                        positions[i] = Vector3.Transform(vertices[i], pose);
-                    }
-
-                    foreach (var tri in triangles)
-                    {
-                        var a = positions[tri.X];
-                        var b = positions[tri.Y];
-                        var c = positions[tri.Z];
-
-                        var normal = ComputeNormal(a, b, c);
-
-                        var offset = shapeVerts.Count;
-                        shapeVerts.Add(new(a, ColorMesh, normal));
-                        shapeVerts.Add(new(b, ColorMesh, normal));
-                        shapeVerts.Add(new(c, ColorMesh, normal));
-
-                        AddTriangle(shapeInds, offset, 0, 1, 2);
-                    }
-
-                    var bbox = new AABB(mesh.Shape.Min, mesh.Shape.Max);
-
-                    if (!boundingBoxInitted[collisionAttributeIndex])
-                    {
-                        boundingBoxInitted[collisionAttributeIndex] = true;
-                        boundingBoxes[collisionAttributeIndex] = bbox;
-                    }
-                    else
-                    {
-                        boundingBoxes[collisionAttributeIndex] = boundingBoxes[collisionAttributeIndex].Union(bbox);
-                    }
-                }
-            }
-
-            var nodes = phys.CollisionAttributes.Select((attributes, i) =>
-            {
+                var attributes = phys.CollisionAttributes[collisionAttributeIndex];
                 var tags = attributes.GetArray<string>("m_InteractAsStrings") ?? attributes.GetArray<string>("m_PhysicsTagStrings");
                 var group = attributes.GetStringProperty("m_CollisionGroupString");
 
-                var tooltexture = MapExtract.GetToolTextureShortenedName_ForInteractStrings(new HashSet<string>(tags));
+                var tooltexture = MapExtract.GetToolTextureShortenedName_ForInteractStrings([.. tags]);
 
-                var name = string.Empty;
+                var physName = string.Empty;
 
-                if (group != null)
+                if (classname != null)
                 {
-                    if (group.Equals("default", StringComparison.OrdinalIgnoreCase))
+                    physName = classname;
+                }
+                else
+                {
+                    if (group != null)
                     {
-                        name = $"- default";
+                        if (group.Equals("default", StringComparison.OrdinalIgnoreCase))
+                        {
+                            physName = $"- default";
+                        }
+                        else if (!group.Equals("conditionallysolid", StringComparison.OrdinalIgnoreCase))
+                        {
+                            physName = group;
+                        }
                     }
-                    else if (!group.Equals("conditionallysolid", StringComparison.OrdinalIgnoreCase))
+
+                    if (tags.Length > 0)
                     {
-                        name = group;
+                        physName = $"[{string.Join(", ", tags)}]" + physName;
+                    }
+
+                    if (tooltexture != "nodraw")
+                    {
+                        physName = $"- {tooltexture} {physName}";
                     }
                 }
 
-                if (tags.Length > 0)
+                var physSceneNode = new PhysSceneNode(scene, verts, inds)
                 {
-                    name = $"[{string.Join(", ", tags)}]" + name;
-                }
-
-                var physSceneNode = new PhysSceneNode(scene, verts[i], inds[i])
-                {
+                    PhysGroupName = physName,
                     Name = fileName,
-                    LocalBoundingBox = boundingBoxes[i],
+                    LocalBoundingBox = boundingBox,
                 };
-
-                if (tooltexture != "nodraw")
-                {
-                    name = $"- {tooltexture} {name}";
-                    physSceneNode.SetToolTexture($"materials/tools/tools{tooltexture}.vmat");
-                }
 
                 if (classname != null)
                 {
                     physSceneNode.SetToolTexture(MapExtract.GetToolTextureForEntity(classname));
                 }
+                else if (tooltexture != "nodraw")
+                {
+                    physSceneNode.SetToolTexture($"materials/tools/tools{tooltexture}.vmat");
+                }
 
-                physSceneNode.PhysGroupName = name;
+                physSceneNodes[collisionAttributeIndex] = physSceneNode;
 
-                return physSceneNode;
-            }).ToArray();
-            return nodes;
+                // PhysSceneNode uploads verts to the gpu and does not keep them around
+                verts.Clear();
+                inds.Clear();
+            }
+
+            return physSceneNodes;
         }
 
         private void SetToolTexture(string toolMaterialName)
