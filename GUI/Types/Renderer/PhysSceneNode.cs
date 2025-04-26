@@ -245,11 +245,6 @@ namespace GUI.Types.Renderer
 
             var nodes = phys.CollisionAttributes.Select((attributes, i) =>
             {
-                if (verts.Length == 0) // TODO: Remove this
-                {
-                    return null;
-                }
-
                 var tags = attributes.GetArray<string>("m_InteractAsStrings") ?? attributes.GetArray<string>("m_PhysicsTagStrings");
                 var group = attributes.GetStringProperty("m_CollisionGroupString");
 
