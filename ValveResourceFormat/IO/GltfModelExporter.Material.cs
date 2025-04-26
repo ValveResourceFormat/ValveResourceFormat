@@ -171,72 +171,62 @@ public partial class GltfModelExporter
 
         var openBitmaps = new Dictionary<string, SKBitmap>();
 
-        try
+        // Actually go through the remapped textures and write them to disk
+        foreach (var (texturePath, instructions) in remapDict)
         {
-            // Actually go through the remapped textures and write them to disk
-            foreach (var (texturePath, instructions) in remapDict)
+            // There should be only one
+            var mainInstruction = instructions.FirstOrDefault();
+            if (mainInstruction == null)
             {
-                // There should be only one
-                var mainInstruction = instructions.FirstOrDefault();
-                if (mainInstruction == null)
-                {
-                    continue;
-                }
+                continue;
+            }
 
-                var textureName = Path.GetFileName(texturePath);
+            var textureName = Path.GetFileName(texturePath);
 
 #if DEBUG
-                if (instructions.Count != 1)
-                {
-                    ProgressReporter?.Report($"Texture {textureName} has {instructions.Count} instructions");
-                }
+            if (instructions.Count != 1)
+            {
+                ProgressReporter?.Report($"Texture {textureName} has {instructions.Count} instructions");
+            }
 #endif
 
-                if (!ExportedTextures.TryGetValue(textureName, out var texture))
-                {
-                    var newImage = CreateNewGLTFImage(model, textureName);
-                    texture = model.UseTexture(newImage, TextureSampler);
-                    texture.Name = newImage.Name;
-
-                    ExportedTextures[textureName] = texture;
-
-                    var texTask = AddTexture(newImage, texturePath, mainInstruction);
-                    TextureExportingTasks.Add(texTask);
-                }
-
-                TieTextureToMaterial(texture, mainInstruction.ChannelName);
-            }
-
-            // Now create ORM if there is one
-            if (ormTextureInstructions.Count > 0)
+            if (!ExportedTextures.TryGetValue(textureName, out var texture))
             {
-                // Generate consistent file name for the ORM
-                var ormTexturePaths = ormTextureInstructions.Keys.ToArray();
-                Array.Sort(ormTexturePaths);
-                var ormHash = MurmurHash2.Hash(string.Join("|", ormTexturePaths), StringToken.MURMUR2SEED);
-                var ormFileName = Path.GetFileNameWithoutExtension(ormTexturePaths[0]) + $"_orm_{ormHash}.png";
+                var newImage = CreateNewGLTFImage(model, textureName);
+                texture = model.UseTexture(newImage, TextureSampler);
+                texture.Name = newImage.Name;
 
-                if (!ExportedTextures.TryGetValue(ormFileName, out var texture))
-                {
-                    var newImage = CreateNewGLTFImage(model, ormFileName);
-                    texture = model.UseTexture(newImage, TextureSampler);
-                    texture.Name = newImage.Name;
+                ExportedTextures[textureName] = texture;
 
-                    ExportedTextures[ormFileName] = texture;
-
-                    var texTask = AddTextureORM(newImage);
-                    TextureExportingTasks.Add(texTask);
-                }
-
-                TieTextureToMaterial(texture, "MetallicRoughness");
+                var texTask = AddTexture(newImage, texturePath, mainInstruction);
+                TextureExportingTasks.Add(texTask);
             }
+
+            TieTextureToMaterial(texture, mainInstruction.ChannelName);
         }
-        finally
+
+        // Now create ORM if there is one
+        if (ormTextureInstructions.Count > 0)
         {
-            foreach (var bitmap in openBitmaps.Values)
+            // Generate consistent file name for the ORM
+            var ormTexturePaths = ormTextureInstructions.Keys.ToArray();
+            Array.Sort(ormTexturePaths);
+            var ormHash = MurmurHash2.Hash(string.Join("|", ormTexturePaths), StringToken.MURMUR2SEED);
+            var ormFileName = Path.GetFileNameWithoutExtension(ormTexturePaths[0]) + $"_orm_{ormHash}.png";
+
+            if (!ExportedTextures.TryGetValue(ormFileName, out var texture))
             {
-                bitmap.Dispose();
+                var newImage = CreateNewGLTFImage(model, ormFileName);
+                texture = model.UseTexture(newImage, TextureSampler);
+                texture.Name = newImage.Name;
+
+                ExportedTextures[ormFileName] = texture;
+
+                var texTask = AddTextureORM(newImage);
+                TextureExportingTasks.Add(texTask);
             }
+
+            TieTextureToMaterial(texture, "MetallicRoughness");
         }
 
         SKBitmap GetBitmap(string texturePath)
