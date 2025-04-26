@@ -18,8 +18,7 @@ public partial class GltfModelExporter
     private record class RemapInstruction(
         string ChannelName,
         ChannelMapping ValveChannel,
-        ChannelMapping GltfChannel,
-        bool Invert = false
+        ChannelMapping GltfChannel
     );
 
     public static readonly Dictionary<string, (ChannelMapping Channel, string Name)[]> GltfTextureMappings = new()
@@ -325,7 +324,6 @@ public partial class GltfModelExporter
                     occlusionRoughnessMetal.Collect(pixels,
                         instruction.ValveChannel.Count == 1 ? instruction.ValveChannel : ChannelMapping.R,
                         instruction.GltfChannel.Count == 1 ? instruction.GltfChannel : ChannelMapping.R,
-                        instruction.Invert,
                         texturePath // Used for logging
                     );
                 }
