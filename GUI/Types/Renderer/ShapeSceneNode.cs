@@ -16,9 +16,9 @@ namespace GUI.Types.Renderer
         public const int HemisphereTriangles = SphereSegments * (2 * SphereBands - 1);
         public const int CapsuleTriangles = 2 * HemisphereTriangles + 2 * SphereSegments;
 
-        private readonly Shader shader;
-        private int indexCount;
-        private int vaoHandle;
+        protected readonly Shader shader;
+        protected int indexCount;
+        protected int vaoHandle;
         protected virtual bool Shaded { get; } = true;
         protected RenderTexture? ToolTexture;
 

@@ -2,74 +2,18 @@ using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.NavMesh;
 
-#nullable disable
-
 namespace GUI.Types.Renderer
 {
-    class NavMeshSceneNode : SceneNode
+    class NavMeshSceneNode : ShapeSceneNode
     {
-        public static readonly Color32 NavMeshColor = new Color32(64, 32, 255, 100);
-        public static readonly Color32 NavMeshLadderColor = new Color32(16, 255, 32, 100);
-        protected Shader shader;
-        protected int indexCount;
-        protected int vaoHandle;
+        private static readonly Color32 NavMeshColor = new(64, 32, 255, 100);
+        private static readonly Color32 NavMeshLadderColor = new(16, 255, 32, 100);
 
-        public NavMeshSceneNode(Scene scene, IEnumerable<NavMeshArea> areas)
-            : base(scene)
+        public NavMeshSceneNode(Scene scene, List<SimpleVertexNormal> verts, List<int> inds) : base(scene, verts, inds)
         {
-            List<SimpleVertexNormal> verts = new();
-            List<int> inds = new();
-
-            var minBounds = new Vector3(float.MinValue);
-            var maxBounds = new Vector3(float.MaxValue);
-            foreach (var area in areas)
-            {
-                AddArea(area, verts, inds, NavMeshColor, ref minBounds, ref maxBounds);
-            }
-
-            LocalBoundingBox = new AABB(minBounds, maxBounds);
-            Init(verts, inds);
         }
 
-        public NavMeshSceneNode(Scene scene, IEnumerable<NavMeshLadder> ladders)
-            : base(scene)
-        {
-            List<SimpleVertexNormal> verts = new();
-            List<int> inds = new();
-
-            var minBounds = new Vector3(float.MinValue);
-            var maxBounds = new Vector3(float.MaxValue);
-            foreach (var ladder in ladders)
-            {
-                AddLadder(ladder, verts, inds, NavMeshLadderColor, ref minBounds, ref maxBounds);
-            }
-
-            LocalBoundingBox = new AABB(minBounds, maxBounds);
-            Init(verts, inds);
-        }
-
-        private void Init(List<SimpleVertexNormal> verts, List<int> inds)
-        {
-            indexCount = inds.Count;
-            shader = Scene.GuiContext.ShaderLoader.LoadShader("vrf.basic_shape");
-
-            GL.CreateVertexArrays(1, out vaoHandle);
-            GL.CreateBuffers(1, out int vboHandle);
-            GL.CreateBuffers(1, out int iboHandle);
-            GL.VertexArrayVertexBuffer(vaoHandle, 0, vboHandle, 0, SimpleVertexNormal.SizeInBytes);
-            GL.VertexArrayElementBuffer(vaoHandle, iboHandle);
-            SimpleVertexNormal.BindDefaultShaderLayout(vaoHandle, shader.Program);
-
-            GL.NamedBufferData(vboHandle, verts.Count * SimpleVertexNormal.SizeInBytes, ListAccessors<SimpleVertexNormal>.GetBackingArray(verts), BufferUsageHint.StaticDraw);
-            GL.NamedBufferData(iboHandle, inds.Count * sizeof(int), ListAccessors<int>.GetBackingArray(inds), BufferUsageHint.StaticDraw);
-
-#if DEBUG
-            var vaoLabel = nameof(NavMeshSceneNode);
-            GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, vaoHandle, vaoLabel.Length, vaoLabel);
-#endif
-        }
-
-        protected static void AddLadder(NavMeshLadder ladder, List<SimpleVertexNormal> verts, List<int> inds, Color32 color, ref Vector3 minBounds, ref Vector3 maxBounds)
+        private static void AddLadder(NavMeshLadder ladder, List<SimpleVertexNormal> verts, List<int> inds, Color32 color, ref Vector3 minBounds, ref Vector3 maxBounds)
         {
             var normal = ladder.Direction switch
             {
@@ -104,7 +48,7 @@ namespace GUI.Types.Renderer
             inds.Add(int.MaxValue);
         }
 
-        protected static void AddArea(NavMeshArea area, List<SimpleVertexNormal> verts, List<int> inds, Color32 color, ref Vector3 minBounds, ref Vector3 maxBounds)
+        private static void AddArea(NavMeshArea area, List<SimpleVertexNormal> verts, List<int> inds, Color32 color, ref Vector3 minBounds, ref Vector3 maxBounds)
         {
             var firstVertexIndex = verts.Count;
 
@@ -177,6 +121,9 @@ namespace GUI.Types.Renderer
                 return;
             }
 
+            var verts = new List<SimpleVertexNormal>();
+            var inds = new List<int>();
+
             if (navMeshFile.GenerationParams != null)
             {
                 for (byte i = 0; i < navMeshFile.GenerationParams.HullCount; i++)
@@ -187,16 +134,40 @@ namespace GUI.Types.Renderer
                         continue;
                     }
 
-                    var sceneNode = new NavMeshSceneNode(scene, hullAreas);
-                    sceneNode.LayerName = $"Navigation mesh (hull {i})";
+                    var minBounds = new Vector3(float.MinValue);
+                    var maxBounds = new Vector3(float.MaxValue);
+                    foreach (var area in hullAreas)
+                    {
+                        AddArea(area, verts, inds, NavMeshColor, ref minBounds, ref maxBounds);
+                    }
+
+                    var sceneNode = new NavMeshSceneNode(scene, verts, inds)
+                    {
+                        LayerName = $"Navigation mesh (hull {i})",
+                        LocalBoundingBox = new AABB(minBounds, maxBounds),
+                    };
                     scene.Add(sceneNode, false);
+
+                    verts.Clear();
+                    inds.Clear();
                 }
             }
 
             if (navMeshFile.Ladders != null && navMeshFile.Ladders.Length > 0)
             {
-                var laddersSceneNode = new NavMeshSceneNode(scene, navMeshFile.Ladders);
-                laddersSceneNode.LayerName = "Navigation mesh (ladders)";
+                var minBounds = new Vector3(float.MinValue);
+                var maxBounds = new Vector3(float.MaxValue);
+
+                foreach (var ladder in navMeshFile.Ladders)
+                {
+                    AddLadder(ladder, verts, inds, NavMeshLadderColor, ref minBounds, ref maxBounds);
+                }
+
+                var laddersSceneNode = new NavMeshSceneNode(scene, verts, inds)
+                {
+                    LayerName = "Navigation mesh (ladders)",
+                    LocalBoundingBox = new AABB(minBounds, maxBounds),
+                };
                 scene.Add(laddersSceneNode, false);
             }
         }
