@@ -1,3 +1,4 @@
+using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using PrimitiveType = OpenTK.Graphics.OpenGL.PrimitiveType;
@@ -71,7 +72,7 @@ namespace GUI.Types.Renderer
 
             vertexCount = vertices.Count;
 
-            GL.NamedBufferData(vboHandle, vertices.Count * SimpleVertex.SizeInBytes, vertices.ToArray(), BufferUsageHint.DynamicDraw);
+            GL.NamedBufferData(vboHandle, vertices.Count * SimpleVertex.SizeInBytes, ListAccessors<SimpleVertex>.GetBackingArray(vertices), BufferUsageHint.DynamicDraw);
         }
 
         private static void GetAnimationMatrixRecursive(List<SimpleVertex> vertices, List<(Vector3 Position, string String)> text, Bone bone, Matrix4x4 bindPose, Frame frame)

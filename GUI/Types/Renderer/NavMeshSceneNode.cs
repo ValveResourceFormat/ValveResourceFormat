@@ -60,8 +60,8 @@ namespace GUI.Types.Renderer
             GL.VertexArrayElementBuffer(vaoHandle, iboHandle);
             SimpleVertexNormal.BindDefaultShaderLayout(vaoHandle, shader.Program);
 
-            GL.NamedBufferData(vboHandle, verts.Count * SimpleVertexNormal.SizeInBytes, verts.ToArray(), BufferUsageHint.StaticDraw);
-            GL.NamedBufferData(iboHandle, inds.Count * sizeof(int), inds.ToArray(), BufferUsageHint.StaticDraw);
+            GL.NamedBufferData(vboHandle, verts.Count * SimpleVertexNormal.SizeInBytes, ListAccessors<SimpleVertexNormal>.GetBackingArray(verts), BufferUsageHint.StaticDraw);
+            GL.NamedBufferData(iboHandle, inds.Count * sizeof(int), ListAccessors<int>.GetBackingArray(inds), BufferUsageHint.StaticDraw);
 
 #if DEBUG
             var vaoLabel = nameof(NavMeshSceneNode);

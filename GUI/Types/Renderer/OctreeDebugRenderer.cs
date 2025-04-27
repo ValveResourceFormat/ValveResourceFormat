@@ -129,7 +129,7 @@ namespace GUI.Types.Renderer
             AddOctreeNode(vertices, octree.Root, 0);
             vertexCount = vertices.Count;
 
-            GL.NamedBufferData(vboHandle, vertexCount * SimpleVertex.SizeInBytes, vertices.ToArray(), dynamic ? BufferUsageHint.DynamicDraw : BufferUsageHint.StaticDraw);
+            GL.NamedBufferData(vboHandle, vertexCount * SimpleVertex.SizeInBytes, ListAccessors<SimpleVertex>.GetBackingArray(vertices), dynamic ? BufferUsageHint.DynamicDraw : BufferUsageHint.StaticDraw);
         }
 
         public void Render()

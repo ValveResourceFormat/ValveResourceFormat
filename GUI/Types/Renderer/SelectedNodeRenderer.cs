@@ -1,4 +1,5 @@
 using System.Linq;
+using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 
 namespace GUI.Types.Renderer
@@ -76,6 +77,13 @@ namespace GUI.Types.Renderer
         private void UpdateBuffer()
         {
             disableDepth = selectedNodes.Count > 1;
+
+            if (selectedNodes.Count == 0)
+            {
+                // We don't need to reupload an empty array
+                vertexCount = 0;
+                return;
+            }
 
             var vertices = new List<SimpleVertex>();
 
@@ -164,7 +172,7 @@ namespace GUI.Types.Renderer
 
             vertexCount = vertices.Count;
 
-            GL.NamedBufferData(vboHandle, vertices.Count * SimpleVertex.SizeInBytes, vertices.ToArray(), BufferUsageHint.StaticDraw);
+            GL.NamedBufferData(vboHandle, vertices.Count * SimpleVertex.SizeInBytes, ListAccessors<SimpleVertex>.GetBackingArray(vertices), BufferUsageHint.StaticDraw);
         }
 
         public override void Update(Scene.UpdateContext context)
