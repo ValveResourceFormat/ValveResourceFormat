@@ -52,6 +52,9 @@ namespace GUI.Types.Renderer
         {
             var firstVertexIndex = verts.Count;
 
+            verts.EnsureCapacity(verts.Count + area.Corners.Length);
+            inds.EnsureCapacity(inds.Count + area.Corners.Length + 1);
+
             foreach (var position in area.Corners)
             {
                 minBounds = Vector3.Min(minBounds, position);

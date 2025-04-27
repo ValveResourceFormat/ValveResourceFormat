@@ -1,4 +1,6 @@
+using System.Buffers;
 using System.Linq;
+using System.Runtime.InteropServices;
 using GUI.Utils;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
@@ -129,47 +131,56 @@ namespace GUI.Types.Renderer
                         var pose = bindPose.Length == 0 ? Matrix4x4.Identity : bindPose[p];
 
                         // vertex positions
-                        var positions = new Vector3[vertexPositions.Length];
-                        for (var i = 0; i < vertexPositions.Length; i++)
+                        var positionsBuffer = ArrayPool<float>.Shared.Rent(vertexPositions.Length * 3);
+
+                        try
                         {
-                            positions[i] = Vector3.Transform(vertexPositions[i], pose);
-                        }
-
-                        var faces = hull.Shape.GetFaces();
-                        var edges = hull.Shape.GetEdges();
-
-                        var numTriangles = edges.Length - faces.Length * 2;
-                        verts.EnsureCapacity(verts.Count + numTriangles * 3);
-                        inds.EnsureCapacity(inds.Count + numTriangles * 6);
-
-                        foreach (var face in faces)
-                        {
-                            var startEdge = face.Edge;
-
-                            for (var edge = edges[startEdge].Next; edge != startEdge;)
+                            var positions = MemoryMarshal.Cast<float, Vector3>(positionsBuffer);
+                            for (var i = 0; i < vertexPositions.Length; i++)
                             {
-                                var nextEdge = edges[edge].Next;
-
-                                if (nextEdge == startEdge)
-                                {
-                                    break;
-                                }
-
-                                var a = positions[edges[startEdge].Origin];
-                                var b = positions[edges[edge].Origin];
-                                var c = positions[edges[nextEdge].Origin];
-
-                                var normal = ComputeNormal(a, b, c);
-
-                                var offset = verts.Count;
-                                verts.Add(new(a, ColorHull, normal));
-                                verts.Add(new(b, ColorHull, normal));
-                                verts.Add(new(c, ColorHull, normal));
-
-                                AddTriangle(inds, offset, 0, 1, 2);
-
-                                edge = nextEdge;
+                                positions[i] = Vector3.Transform(vertexPositions[i], pose);
                             }
+
+                            var faces = hull.Shape.GetFaces();
+                            var edges = hull.Shape.GetEdges();
+
+                            var numTriangles = edges.Length - faces.Length * 2;
+                            verts.EnsureCapacity(verts.Count + numTriangles * 3);
+                            inds.EnsureCapacity(inds.Count + numTriangles * 6);
+
+                            foreach (var face in faces)
+                            {
+                                var startEdge = face.Edge;
+
+                                for (var edge = edges[startEdge].Next; edge != startEdge;)
+                                {
+                                    var nextEdge = edges[edge].Next;
+
+                                    if (nextEdge == startEdge)
+                                    {
+                                        break;
+                                    }
+
+                                    var a = positions[edges[startEdge].Origin];
+                                    var b = positions[edges[edge].Origin];
+                                    var c = positions[edges[nextEdge].Origin];
+
+                                    var normal = ComputeNormal(a, b, c);
+
+                                    var offset = verts.Count;
+                                    verts.Add(new(a, ColorHull, normal));
+                                    verts.Add(new(b, ColorHull, normal));
+                                    verts.Add(new(c, ColorHull, normal));
+
+                                    AddTriangle(inds, offset, 0, 1, 2);
+
+                                    edge = nextEdge;
+                                }
+                            }
+                        }
+                        finally
+                        {
+                            ArrayPool<float>.Shared.Return(positionsBuffer);
                         }
 
                         var bbox = new AABB(hull.Shape.Min, hull.Shape.Max);
