@@ -79,18 +79,15 @@ namespace GUI.Types.Renderer
         Vector2 defaultSunAngles = new(80f, 170f);
         Vector4 defaultSunColor = new Vector4(255, 247, 235, 700) / 255.0f;
 
-        readonly Camera previousCamera = new();
         Vector2 sunAngles;
 
         protected override void OnPaint(object sender, RenderEventArgs e)
         {
             if ((CurrentlyPressedKeys & TrackedKeys.Control) != 0)
             {
-                var delta = new Vector2(Camera.Pitch, Camera.Yaw) - new Vector2(previousCamera.Pitch, previousCamera.Yaw);
+                var delta = new Vector2(LastMouseDelta.X, LastMouseDelta.Y);
                 delta.Y *= -1f;
-                delta *= 150f;
 
-                Camera.CopyFrom(previousCamera);
                 sunAngles += delta;
                 Scene.LightingInfo.LightingData.EnvMapWorldToLocal[0] *= Matrix4x4.CreateRotationZ(-delta.Y / 80f);
                 UpdateSunAngles();
@@ -98,7 +95,6 @@ namespace GUI.Types.Renderer
             }
 
             base.OnPaint(sender, e);
-            previousCamera.CopyFrom(Camera);
         }
 
         private void UpdateSunAngles()

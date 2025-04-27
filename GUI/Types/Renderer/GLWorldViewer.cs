@@ -467,6 +467,7 @@ namespace GUI.Types.Renderer
                 var unscaledZ = transform.M33 / scaleZ;
                 var pitch = MathF.Asin(-unscaledZ);
 
+                viewerControl.Camera.CopyFrom(Camera);
                 viewerControl.Camera.SetLocationPitchYaw(transform.Translation, pitch, yaw);
 
                 if (viewerControl is not GLModelViewer glModelViewer || sceneNode is not ModelSceneNode worldModel)

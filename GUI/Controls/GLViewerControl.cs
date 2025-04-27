@@ -47,6 +47,7 @@ namespace GUI.Controls
         Point MousePreviousPosition;
         Point InitialMousePosition;
         protected TrackedKeys CurrentlyPressedKeys;
+        protected Point LastMouseDelta { get; private set; }
 
         private long lastUpdate;
         private long lastFpsUpdate;
@@ -509,6 +510,7 @@ namespace GUI.Controls
                 }
 
                 Camera.Tick(frameTime, pressedKeys, MouseDelta);
+                LastMouseDelta = MouseDelta;
                 MouseDelta = Point.Empty;
             }
 
