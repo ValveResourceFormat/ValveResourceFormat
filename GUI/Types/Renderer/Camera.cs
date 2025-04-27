@@ -34,6 +34,7 @@ namespace GUI.Types.Renderer
         public Camera()
         {
             Location = Vector3.One;
+            SetViewportSize(16, 9);
             LookAt(Vector3.Zero);
         }
 
