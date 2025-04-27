@@ -712,6 +712,8 @@ namespace GUI.Types.Renderer
                     node.UpdateVertexArrayObjects();
                 }
             }
+
+            GLControl.Invalidate();
         }
 #endif
     }
