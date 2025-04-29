@@ -21,9 +21,13 @@ public partial class GltfModelExporter
     // https://github.com/KhronosGroup/glTF-Validator/blob/master/lib/src/errors.dart
     private const float UnitLengthThresholdVec3 = 0.00674f;
 
+    private const float OverlayNormalOffsetDistance = 0.01f / 0.0254f;
+
+
     // TODO: Using floats as hash key is kind of unhinged
     private readonly record struct ExportedMaterial(string Name, Vector4 Tint);
-    private readonly Dictionary<ExportedMaterial, Material> ExportedMaterials = [];
+    private readonly record struct ExportedMaterialData(Material Material, bool IsOverlay);
+    private readonly Dictionary<ExportedMaterial, ExportedMaterialData> ExportedMaterials = [];
 
     private Mesh CreateGltfMesh(string meshName, VMesh vmesh, VBIB vbib, ModelRoot exportedModel, int[] boneRemapTable, string skinMaterialPath, Vector4 tintColor)
     {
@@ -368,7 +372,13 @@ public partial class GltfModelExporter
 
         if (ExportedMaterials.TryGetValue(materialHashKey, out var existingMaterial))
         {
-            primitive.WithMaterial(existingMaterial);
+            primitive.WithMaterial(existingMaterial.Material);
+
+            if (existingMaterial.IsOverlay)
+            {
+                OffsetMeshPositionsByNormals(primitive);
+            }
+
             return primitive;
         }
 
@@ -381,18 +391,23 @@ public partial class GltfModelExporter
             return primitive;
         }
 
+        var renderMaterial = (VMaterial)materialResource.DataBlock;
+        var isOverlay = IsMaterialOverlay(renderMaterial);
         var material = exportedModel
             .CreateMaterial(materialNameTrimmed)
             .WithDefault();
         primitive.WithMaterial(material);
 
-        ExportedMaterials.Add(materialHashKey, material);
-
-        var renderMaterial = (VMaterial)materialResource.DataBlock;
+        ExportedMaterials.Add(materialHashKey, new(material, isOverlay));
 
         // TODO: Realistically it should export a material without a tint, and then if it needs a model tint,
         // copy the existing untinted material, and just change the pbr BaseColor to include the tint.
         GenerateGLTFMaterialFromRenderMaterial(material, renderMaterial, exportedModel, modelTintColor);
+
+        if (isOverlay)
+        {
+            OffsetMeshPositionsByNormals(primitive);
+        }
 
         return primitive;
     }
@@ -673,5 +688,28 @@ public partial class GltfModelExporter
                 }
             }
         }
+    }
+
+    private static void OffsetMeshPositionsByNormals(MeshPrimitive primitive)
+    {
+        var positionAccessor = primitive.GetVertexAccessor("POSITION");
+        var normalAccessor = primitive.GetVertexAccessor("NORMAL");
+
+        if (positionAccessor == null || normalAccessor == null)
+        {
+            return;
+        }
+
+        var positions = positionAccessor.AsVector3Array();
+        var normals = normalAccessor.AsVector3Array();
+
+        var updatedPositions = new Vector3[positions.Count];
+
+        for (var i = 0; i < positions.Count; i++)
+        {
+            updatedPositions[i] = positions[i] + normals[i] * OverlayNormalOffsetDistance;
+        }
+
+        primitive.SetVertexAccessor("POSITION", CreateAccessor(primitive.LogicalParent.LogicalParent, updatedPositions));
     }
 }

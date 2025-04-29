@@ -444,4 +444,27 @@ public partial class GltfModelExporter
             Task.WaitAll(TextureExportingTasks, CancellationToken);
         }
     }
+
+    // :MaterialIsOverlay
+    private static bool IsMaterialOverlay(VMaterial material)
+    {
+        if (material.IntParams.GetValueOrDefault("F_OVERLAY") == 1)
+        {
+            return true;
+
+        }
+
+        // Renderer only assumes depth bias is overlay for transparent materials of specific shader - but for gltf it should be fine for all
+        if (material.IntParams.GetValueOrDefault("F_DEPTHBIAS") == 1 || material.IntParams.GetValueOrDefault("F_DEPTH_BIAS") == 1)
+        {
+            return true;
+        }
+
+        if (material.ShaderName.EndsWith("static_overlay.vfx", StringComparison.Ordinal) || material.ShaderName is "citadel_overlay.vfx")
+        {
+            return true;
+        }
+
+        return false;
+    }
 }

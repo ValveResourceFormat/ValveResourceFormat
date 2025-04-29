@@ -115,6 +115,8 @@ namespace GUI.Types.Renderer
             IsAlphaTest = material.IntParams.GetValueOrDefault("F_ALPHA_TEST") == 1;
             isAdditiveBlend = material.IntParams.GetValueOrDefault("F_ADDITIVE_BLEND") == 1;
             isRenderBackfaces = material.IntParams.GetValueOrDefault("F_RENDER_BACKFACES") == 1;
+
+            // :MaterialIsOverlay
             hasDepthBias = material.IntParams.GetValueOrDefault("F_DEPTHBIAS") == 1 || material.IntParams.GetValueOrDefault("F_DEPTH_BIAS") == 1;
             IsOverlay = (material.IntParams.GetValueOrDefault("F_OVERLAY") == 1)
                 || (IsTranslucent && hasDepthBias && material.ShaderName is "csgo_vertexlitgeneric.vfx" or "csgo_complex.vfx");
