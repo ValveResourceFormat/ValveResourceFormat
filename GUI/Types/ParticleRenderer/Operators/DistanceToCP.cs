@@ -50,7 +50,7 @@ namespace GUI.Types.ParticleRenderer.Operators
 
                 remappedDistance = MathUtils.Saturate(remappedDistance);
 
-                var finalValue = MathUtils.Lerp(remappedDistance, outputMin, outputMax);
+                var finalValue = float.Lerp(outputMin, outputMax, remappedDistance);
 
                 finalValue = particle.ModifyScalarBySetMethod(particles, OutputField, finalValue, setMethod);
 

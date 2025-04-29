@@ -25,7 +25,7 @@ namespace GUI.Types.ParticleRenderer.Operators
 
                 var lerpWeight = MathUtils.Saturate(MathUtils.Remap(particle.Age, startTime, endTime));
 
-                var scalarOutput = MathUtils.Lerp(lerpWeight, particle.GetInitialScalar(particles, FieldOutput), lerpTarget);
+                var scalarOutput = float.Lerp(particle.GetInitialScalar(particles, FieldOutput), lerpTarget, lerpWeight);
 
                 particle.SetScalar(FieldOutput, scalarOutput);
             }

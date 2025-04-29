@@ -11,7 +11,7 @@ namespace GUI.Types.Viewers
 
         public static TabPage AddContentTab<T>(TabControl resTabs, string name, T content, bool preSelect = false)
         {
-            string extract = string.Empty;
+            var extract = string.Empty;
             if (content is Func<string> exceptionless)
             {
                 try

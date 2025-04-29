@@ -174,7 +174,7 @@ namespace GUI.Types.ParticleRenderer
             {
                 remappedInput = MathUtils.Saturate(remappedInput);
             }
-            return MathUtils.Lerp(remappedInput, output0, output1);
+            return Vector3.Lerp(output0, output1, remappedInput);
         }
     }
 
@@ -237,7 +237,7 @@ namespace GUI.Types.ParticleRenderer
                     if (gradientInput >= stop1.Position && gradientInput <= stop2.Position)
                     {
                         var blend = MathUtils.Remap(gradientInput, stop1.Position, stop2.Position);
-                        return MathUtils.Lerp(blend, stop1.Color, stop2.Color);
+                        return Vector3.Lerp(stop1.Color, stop2.Color, blend);
                     }
                 }
 

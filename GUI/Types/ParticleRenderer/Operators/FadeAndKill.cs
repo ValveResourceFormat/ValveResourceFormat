@@ -35,7 +35,7 @@ namespace GUI.Types.ParticleRenderer.Operators
                     var blend = MathUtils.Remap(time, startFadeInTime, endFadeInTime);
 
                     // Interpolate from startAlpha to constantAlpha
-                    particle.Alpha = MathUtils.Lerp(blend, startAlpha, particle.GetInitialScalar(particles, ParticleField.Alpha));
+                    particle.Alpha = float.Lerp(startAlpha, particle.GetInitialScalar(particles, ParticleField.Alpha), blend);
                 }
 
                 // If fading out
@@ -44,7 +44,7 @@ namespace GUI.Types.ParticleRenderer.Operators
                     var blend = MathUtils.Remap(time, startFadeOutTime, endFadeOutTime);
 
                     // Interpolate from constantAlpha to end alpha
-                    particle.Alpha = MathUtils.Lerp(blend, particle.GetInitialScalar(particles, ParticleField.Alpha), endAlpha);
+                    particle.Alpha = float.Lerp(particle.GetInitialScalar(particles, ParticleField.Alpha), endAlpha, blend);
                 }
 
                 if (time >= endFadeOutTime)

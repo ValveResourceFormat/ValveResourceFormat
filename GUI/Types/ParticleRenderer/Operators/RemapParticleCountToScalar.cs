@@ -45,7 +45,7 @@ namespace GUI.Types.ParticleRenderer.Operators
                 var outputMin = this.outputMin.NextNumber(ref particle, particleSystemState);
                 var outputMax = this.outputMax.NextNumber(ref particle, particleSystemState);
 
-                var finalValue = MathUtils.Lerp(remappedDistance, outputMin, outputMax);
+                var finalValue = float.Lerp(outputMin, outputMax, remappedDistance);
 
                 finalValue = particle.ModifyScalarBySetMethod(particles, OutputField, finalValue, setMethod);
 

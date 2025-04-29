@@ -29,7 +29,7 @@ namespace GUI.Types.ParticleRenderer.Operators
                     var t = MathUtils.Remap(time, fadeStartTime, fadeEndTime);
 
                     // Interpolate from constant color to fade color
-                    particle.SetVector(FieldOutput, MathUtils.Lerp(t, particle.GetInitialVector(particles, ParticleField.Color), colorFade));
+                    particle.SetVector(FieldOutput, Vector3.Lerp(particle.GetInitialVector(particles, ParticleField.Color), colorFade, t));
                 }
             }
         }

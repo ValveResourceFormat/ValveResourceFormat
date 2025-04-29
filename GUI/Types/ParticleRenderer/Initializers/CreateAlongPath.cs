@@ -68,7 +68,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
         private Vector3 InterpolatePositions(float relativeProgression, Vector3 position0, Vector3 position1)
         {
             // todo: bulge and midpoint offset. Plus, curve!!
-            return MathUtils.Lerp(relativeProgression, position0 + StartPointOffset, position1 + EndOffset);
+            return Vector3.Lerp(position0 + StartPointOffset, position1 + EndOffset, relativeProgression);
         }
 
         public override Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)

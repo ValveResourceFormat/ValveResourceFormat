@@ -59,7 +59,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
                 ? MathUtils.Wrap(remappedRange, 0f, 1f)
                 : Math.Clamp(remappedRange, 0f, 1f);
 
-            var output = MathUtils.Lerp(remappedRange, outputMin, outputMax);
+            var output = float.Lerp(outputMin, outputMax, remappedRange);
 
             if (scaleInitialRange || setMethod == ParticleSetMethod.PARTICLE_SET_SCALE_INITIAL_VALUE)
             {

@@ -20,39 +20,9 @@ namespace GUI.Utils
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float Lerp(float x, float min, float max)
-        {
-            return min + x * (max - min);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Vector2 Lerp(float x, Vector2 min, Vector2 max)
-        {
-            return min + new Vector2(x) * (max - min);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Vector3 Lerp(Vector3 vector, Vector3 min, Vector3 max)
-        {
-            return min + vector * (max - min);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Vector3 Lerp(Vector3 vector, float min, float max)
-        {
-            return new Vector3(min) + vector * (max - min);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Vector3 Lerp(float x, Vector3 min, Vector3 max)
-        {
-            return min + x * (max - min);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float RemapRange(float x, float inputMin, float inputMax, float outputMin, float outputMax)
         {
-            return Lerp(Remap(x, inputMin, inputMax), outputMin, outputMax);
+            return float.Lerp(outputMin, outputMax, Remap(x, inputMin, inputMax));
         }
 
         // 5-argument floating point linear interpolation.

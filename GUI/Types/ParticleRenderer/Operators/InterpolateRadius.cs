@@ -34,7 +34,7 @@ namespace GUI.Types.ParticleRenderer.Operators
 
                     var timeScale = MathUtils.Remap(time, startTime, endTime);
                     timeScale = MathF.Pow(timeScale, 1.0f - bias.NextNumber(ref particle, particleSystemState)); // apply bias to timescale
-                    var radiusScale = MathUtils.Lerp(timeScale, startScale, endScale);
+                    var radiusScale = float.Lerp(startScale, endScale, timeScale);
 
                     particle.Radius = particle.GetInitialScalar(particles, ParticleField.Radius) * radiusScale;
                 }

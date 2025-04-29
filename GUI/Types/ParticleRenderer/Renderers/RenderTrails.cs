@@ -188,9 +188,9 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
                     // Lerp frame coords and size
                     var subFrameTime = frame % 1.0f;
-                    var offset = MathUtils.Lerp(subFrameTime, currentImage.CroppedMin, currentImage.UncroppedMin);
-                    var scale = MathUtils.Lerp(subFrameTime, currentImage.CroppedMax - currentImage.CroppedMin,
-                        currentImage.UncroppedMax - currentImage.UncroppedMin);
+                    var offset = Vector2.Lerp(currentImage.CroppedMin, currentImage.UncroppedMin, subFrameTime);
+                    var scale = Vector2.Lerp(currentImage.CroppedMax - currentImage.CroppedMin,
+                        currentImage.UncroppedMax - currentImage.UncroppedMin, subFrameTime);
 
                     shader.SetUniform2("uUvOffset", offset);
                     shader.SetUniform2("uUvScale", scale * new Vector2(finalTextureScaleU, finalTextureScaleV));

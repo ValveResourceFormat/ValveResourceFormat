@@ -67,12 +67,12 @@ namespace GUI.Types.ParticleRenderer
 
         public static float RandomBetween(int particleId, float min, float max)
         {
-            return MathUtils.Lerp(RandomSingle(particleId), min, max);
+            return float.Lerp(min, max, RandomSingle(particleId));
         }
 
         public static Vector3 RandomBetween(int particleId, Vector3 min, Vector3 max)
         {
-            return MathUtils.Lerp(RandomSingle(particleId), min, max);
+            return Vector3.Lerp(min, max, RandomSingle(particleId));
         }
 
         public static Vector3 RandomBetweenPerComponent(int particleId, Vector3 min, Vector3 max)
@@ -85,7 +85,7 @@ namespace GUI.Types.ParticleRenderer
 
         public static float RandomWithExponentBetween(int particleId, float exponent, float min, float max)
         {
-            return MathUtils.Lerp(MathF.Pow(RandomSingle(particleId), exponent), min, max);
+            return float.Lerp(min, max, MathF.Pow(RandomSingle(particleId), exponent));
         }
 
         private void MoveParticleIndex(int currentIndex, int newIndex)

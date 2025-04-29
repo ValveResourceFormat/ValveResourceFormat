@@ -90,7 +90,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
 
                 var relativeBlend = MathUtils.Remap(pathCompletion, point1Percent, point2Percent);
 
-                return MathUtils.Lerp(relativeBlend, pos1, pos2);
+                return Vector3.Lerp(pos1, pos2, relativeBlend);
             }
             else
             {

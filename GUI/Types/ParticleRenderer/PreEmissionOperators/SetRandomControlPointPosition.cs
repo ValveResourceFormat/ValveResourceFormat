@@ -69,7 +69,7 @@ namespace GUI.Types.ParticleRenderer.PreEmissionOperators
                 var lerpNew = currentPosition + controlPointOffset;
 
                 // exponential fade like all the other lerps
-                var positionBlended = MathUtils.Lerp(interpolation.NextNumber(), lerpOld, lerpNew);
+                var positionBlended = Vector3.Lerp(lerpOld, lerpNew, interpolation.NextNumber());
 
                 // orientation doesn't lerp in the same way that position does
 

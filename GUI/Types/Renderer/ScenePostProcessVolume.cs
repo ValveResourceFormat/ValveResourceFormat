@@ -77,14 +77,14 @@ namespace GUI.Types.Renderer
         {
             return new TonemapSettings()
             {
-                ExposureBias = MathUtils.Lerp(weight, TonemapSettings1.ExposureBias, TonemapSettings2.ExposureBias),
-                ShoulderStrength = MathUtils.Lerp(weight, TonemapSettings1.ShoulderStrength, TonemapSettings2.ShoulderStrength),
-                LinearStrength = MathUtils.Lerp(weight, TonemapSettings1.LinearStrength, TonemapSettings2.LinearStrength),
-                LinearAngle = MathUtils.Lerp(weight, TonemapSettings1.LinearAngle, TonemapSettings2.LinearAngle),
-                ToeStrength = MathUtils.Lerp(weight, TonemapSettings1.ToeStrength, TonemapSettings2.ToeStrength),
-                ToeNum = MathUtils.Lerp(weight, TonemapSettings1.ToeNum, TonemapSettings2.ToeNum),
-                ToeDenom = MathUtils.Lerp(weight, TonemapSettings1.ToeDenom, TonemapSettings2.ToeDenom),
-                WhitePoint = MathUtils.Lerp(weight, TonemapSettings1.WhitePoint, TonemapSettings2.WhitePoint),
+                ExposureBias = float.Lerp(TonemapSettings1.ExposureBias, TonemapSettings2.ExposureBias, weight),
+                ShoulderStrength = float.Lerp(TonemapSettings1.ShoulderStrength, TonemapSettings2.ShoulderStrength, weight),
+                LinearStrength = float.Lerp(TonemapSettings1.LinearStrength, TonemapSettings2.LinearStrength, weight),
+                LinearAngle = float.Lerp(TonemapSettings1.LinearAngle, TonemapSettings2.LinearAngle, weight),
+                ToeStrength = float.Lerp(TonemapSettings1.ToeStrength, TonemapSettings2.ToeStrength, weight),
+                ToeNum = float.Lerp(TonemapSettings1.ToeNum, TonemapSettings2.ToeNum, weight),
+                ToeDenom = float.Lerp(TonemapSettings1.ToeDenom, TonemapSettings2.ToeDenom, weight),
+                WhitePoint = float.Lerp(TonemapSettings1.WhitePoint, TonemapSettings2.WhitePoint, weight),
             };
         }
         /// <summary>
@@ -92,10 +92,10 @@ namespace GUI.Types.Renderer
         /// </summary>
         /// <param name="inputValue"></param>
         /// <returns></returns>
-        public float ApplyTonemapping(float inputValue) // apply exposure bias too?
+        public readonly float ApplyTonemapping(float inputValue) // apply exposure bias too?
         {
-            float num = inputValue * (inputValue * ShoulderStrength + (LinearAngle * LinearStrength)) + (ToeStrength * ToeNum);
-            float denom = inputValue * (inputValue * ShoulderStrength + LinearStrength) + (ToeStrength * ToeDenom);
+            var num = inputValue * (inputValue * ShoulderStrength + (LinearAngle * LinearStrength)) + (ToeStrength * ToeNum);
+            var denom = inputValue * (inputValue * ShoulderStrength + LinearStrength) + (ToeStrength * ToeDenom);
             return (num / denom) - (ToeNum / ToeDenom);
         }
     };

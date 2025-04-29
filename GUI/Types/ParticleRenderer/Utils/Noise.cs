@@ -22,7 +22,7 @@ namespace GUI.Types.ParticleRenderer.Utils
         private static float CosineInterpolate(float start, float end, float mu)
         {
             var mu2 = (1 - MathF.Cos(mu * MathF.PI)) / 2f;
-            return MathUtils.Lerp(start, end, mu2);
+            return float.Lerp(start, end, mu2);
         }
     }
     /* PFNoiseType_t:

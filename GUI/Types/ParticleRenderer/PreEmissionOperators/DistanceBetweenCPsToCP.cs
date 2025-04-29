@@ -40,7 +40,7 @@ namespace GUI.Types.ParticleRenderer.PreEmissionOperators
             // always clamped to output min/max
             remappedDistance = MathUtils.Saturate(remappedDistance);
 
-            var finalValue = MathUtils.Lerp(remappedDistance, outputMin, outputMax);
+            var finalValue = float.Lerp(outputMin, outputMax, remappedDistance);
 
             particleSystemState.SetControlPointValueComponent(outputCP, outputCPField, finalValue);
         }
