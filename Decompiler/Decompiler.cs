@@ -1268,6 +1268,8 @@ namespace Decompiler
 
         private GltfModelExporter CreateGltfExporter(IFileLoader fileLoader)
         {
+            Debug.Assert(ProgressReporter != null);
+
             var gltfModelExporter = new GltfModelExporter(fileLoader)
             {
                 ExportAnimations = GltfExportAnimations,

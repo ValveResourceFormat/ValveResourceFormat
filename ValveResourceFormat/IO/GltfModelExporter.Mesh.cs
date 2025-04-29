@@ -12,8 +12,6 @@ using VMesh = ValveResourceFormat.ResourceTypes.Mesh;
 using VModel = ValveResourceFormat.ResourceTypes.Model;
 using VMorph = ValveResourceFormat.ResourceTypes.Morph;
 
-#nullable disable
-
 namespace ValveResourceFormat.IO;
 
 public partial class GltfModelExporter
@@ -29,7 +27,7 @@ public partial class GltfModelExporter
     private readonly record struct ExportedMaterialData(Material Material, bool IsOverlay);
     private readonly Dictionary<ExportedMaterial, ExportedMaterialData> ExportedMaterials = [];
 
-    private Mesh CreateGltfMesh(string meshName, VMesh vmesh, VBIB vbib, ModelRoot exportedModel, int[] boneRemapTable, string skinMaterialPath, Vector4 tintColor)
+    private Mesh CreateGltfMesh(string meshName, VMesh vmesh, VBIB vbib, ModelRoot exportedModel, int[]? boneRemapTable, string? skinMaterialPath, Vector4 tintColor)
     {
         ProgressReporter?.Report($"Creating mesh: {meshName}");
 
@@ -65,7 +63,7 @@ public partial class GltfModelExporter
         return mesh;
     }
 
-    private static Dictionary<string, Accessor>[] CreateVertexBufferAccessors(ModelRoot exportedModel, VBIB vbib, int boneWeightCount, int[] boneRemapTable = null)
+    private static Dictionary<string, Accessor>[] CreateVertexBufferAccessors(ModelRoot exportedModel, VBIB vbib, int boneWeightCount, int[]? boneRemapTable = null)
     {
         return vbib.VertexBuffers.Select((vertexBuffer, vertexBufferIndex) =>
         {
@@ -80,8 +78,8 @@ public partial class GltfModelExporter
             var attributeCounters = new Dictionary<string, int>();
 
             // Set vertex attributes
-            ushort[] joints = null;
-            Vector4[] weights = null;
+            ushort[]? joints = null;
+            Vector4[]? weights = null;
 
             foreach (var attribute in vertexBuffer.InputLayoutFields.OrderBy(i => i.SemanticIndex).ThenBy(i => i.Offset))
             {
@@ -208,12 +206,6 @@ public partial class GltfModelExporter
                 var isEightBonePackedFormat = boneWeightCount > 4;
                 var actualJointCount = isEightBonePackedFormat ? 8 : 4;
 
-                if (isEightBonePackedFormat)
-                {
-                    Debug.Assert(joints.Length == 8 * vertexBuffer.ElementCount);
-                    Debug.Assert(weights.Length == 2 * vertexBuffer.ElementCount);
-                }
-
                 // For some reason models can have joints but no weights, check if that is the case
                 if (weights == null)
                 {
@@ -238,6 +230,9 @@ public partial class GltfModelExporter
 
                 if (isEightBonePackedFormat)
                 {
+                    Debug.Assert(joints.Length == 8 * vertexBuffer.ElementCount);
+                    Debug.Assert(weights.Length == 2 * vertexBuffer.ElementCount);
+
                     var joints0 = 0;
                     var joints1 = joints.Length / 2;
 
@@ -300,7 +295,7 @@ public partial class GltfModelExporter
     }
 
     private MeshPrimitive CreateMeshFromDrawCall(KVObject drawCall, Mesh mesh, VBIB vbib, Dictionary<string,
-        Accessor>[] vertexBufferAccessors, ModelRoot exportedModel, string skinMaterialPath, Vector4 parentTintColor)
+        Accessor>[] vertexBufferAccessors, ModelRoot exportedModel, string? skinMaterialPath, Vector4 parentTintColor)
     {
         CancellationToken.ThrowIfCancellationRequested();
 
@@ -391,7 +386,7 @@ public partial class GltfModelExporter
             return primitive;
         }
 
-        var renderMaterial = (VMaterial)materialResource.DataBlock;
+        var renderMaterial = (VMaterial)materialResource.DataBlock!;
         var isOverlay = IsMaterialOverlay(renderMaterial);
         var material = exportedModel
             .CreateMaterial(materialNameTrimmed)
@@ -444,7 +439,7 @@ public partial class GltfModelExporter
                 return false;
             }
 
-            vmesh = (VMesh)newResource.DataBlock;
+            vmesh = (VMesh)newResource.DataBlock!;
         }
 
         var aggregateMeshes = aggregateSceneObject.GetArray("m_aggregateMeshes");

@@ -9,8 +9,6 @@ using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.ThirdParty;
 using VMaterial = ValveResourceFormat.ResourceTypes.Material;
 
-#nullable disable
-
 namespace ValveResourceFormat.IO;
 
 public partial class GltfModelExporter
@@ -39,7 +37,7 @@ public partial class GltfModelExporter
     private static readonly byte[] DummyPng = [137, 80, 78, 71, 0, 0, 0, 0, 0, 0, 0, 0];
 
     private int TexturesExportedSoFar;
-    private TextureSampler TextureSampler;
+    private TextureSampler? TextureSampler;
     private readonly Lock TextureReadLock = new();
     private readonly List<Task> TextureExportingTasks = [];
     private readonly Dictionary<string, Texture> ExportedTextures = [];
@@ -109,7 +107,7 @@ public partial class GltfModelExporter
         var remapDict = new Dictionary<string, List<RemapInstruction>>();
         foreach (var (textureKey, texturePath) in renderMaterial.TextureParams)
         {
-            List<(ChannelMapping Channel, string Name)> inputImages = null;
+            List<(ChannelMapping Channel, string Name)>? inputImages = null;
             try
             {
                 inputImages = shaderDataProvider.GetInputsForTexture(textureKey, renderMaterial).ToList();
@@ -231,7 +229,7 @@ public partial class GltfModelExporter
 
         SKBitmap GetBitmap(string texturePath)
         {
-            SKBitmap bitmap;
+            SKBitmap? bitmap;
 
             lock (openBitmaps)
             {
@@ -242,7 +240,7 @@ public partial class GltfModelExporter
             }
 
             // Not being disposed because ORM may use same texture multiple times and there's issues with concurrency
-            Resource textureResource;
+            Resource? textureResource;
 
             // Our file loader is not specified to be safe for concurrency, even though it will work fine on most cases
             // because we use memory mapped files or read new files from disk. But some cases may read into memory stream,
@@ -266,7 +264,7 @@ public partial class GltfModelExporter
 
             lock (textureResource)
             {
-                var textureBlock = (ResourceTypes.Texture)textureResource.DataBlock;
+                var textureBlock = (ResourceTypes.Texture)textureResource.DataBlock!;
                 bitmap = textureBlock.GenerateBitmap();
             }
 
