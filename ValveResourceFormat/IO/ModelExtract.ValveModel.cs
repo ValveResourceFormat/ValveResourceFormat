@@ -339,7 +339,7 @@ partial class ModelExtract
                     hideInTools = hideBodyGroups;
                 }
 
-                var groupedChoices = new Dictionary<string, List<(string FullName, string ChoiceName, ulong Mask)>>();
+                var groupedChoices = new Dictionary<string, List<(int ChoiceIndex, string FullName, string ChoiceName)>>();
 
                 for (var i = 0; i < meshGroups.Length; i++)
                 {
@@ -351,14 +351,11 @@ partial class ModelExtract
                         continue;
                     }
 
-                    // No mask will show up as 'Empty' in editor
-                    var mask = i < meshGroupMasks.Length ? meshGroupMasks[i] : 0UL;
-
                     var groupName = split[0];
                     var choiceName = split[1];
 
                     groupedChoices.TryAdd(groupName, []);
-                    groupedChoices[groupName].Add((fullName, choiceName, mask));
+                    groupedChoices[groupName].Add((i, fullName, choiceName));
                 }
 
                 foreach (var (groupName, choices) in groupedChoices)
@@ -375,7 +372,7 @@ partial class ModelExtract
                     }
 
                     var i = 0;
-                    foreach (var (key, name, mask) in choices)
+                    foreach (var (index, key, name) in choices)
                     {
                         var meshGroupChoice = MakeNode("BodyGroupChoice");
 
@@ -394,7 +391,10 @@ partial class ModelExtract
 
                         foreach (var renderMesh in RenderMeshesToExtract)
                         {
-                            if ((mask >> renderMesh.Index & 1) == 0)
+                            // No mask will show up as 'Empty' in editor
+                            var mask = renderMesh.Index < meshGroupMasks.Length ? meshGroupMasks[renderMesh.Index] : 0UL;
+
+                            if ((mask & 1UL << index) == 0)
                             {
                                 continue;
                             }
