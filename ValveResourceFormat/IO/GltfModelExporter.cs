@@ -99,9 +99,12 @@ namespace ValveResourceFormat.IO
             IsExporting = true;
             CancellationToken = cancellationToken;
 
-            var targetDir = Path.GetDirectoryName(targetPath);
-            ArgumentNullException.ThrowIfNull(targetDir);
-            DstDir = targetDir;
+            if (targetPath != null)
+            {
+                var targetDir = Path.GetDirectoryName(targetPath);
+                ArgumentNullException.ThrowIfNull(targetDir);
+                DstDir = targetDir;
+            }
 
             try
             {
