@@ -41,11 +41,11 @@ internal static class KV3TextSerializer
         {
             case KVValueType.Collection:
             case KVValueType.Array:
-                ((KVObject)Value).Serialize(writer);
+                ((KVObject)Value!).Serialize(writer);
                 break;
             case KVValueType.String:
                 {
-                    var text = (string)Value;
+                    var text = (string)Value!;
                     var isMultiline = text.Contains('\n', StringComparison.Ordinal);
 
                     if (isMultiline)
@@ -63,7 +63,7 @@ internal static class KV3TextSerializer
                     break;
                 }
             case KVValueType.Boolean:
-                writer.Write((bool)Value ? "true" : "false");
+                writer.Write((bool)Value! ? "true" : "false");
                 break;
             case KVValueType.FloatingPoint:
                 writer.Write(Convert.ToSingle(Value, CultureInfo.InvariantCulture).ToString("#0.000000", CultureInfo.InvariantCulture));
@@ -93,7 +93,7 @@ internal static class KV3TextSerializer
                 writer.Write("null");
                 break;
             case KVValueType.BinaryBlob:
-                var byteArray = (byte[])Value;
+                var byteArray = (byte[])Value!;
                 var count = 0;
 
                 {

@@ -7,7 +7,7 @@ namespace GUI.Types.Renderer
 {
     internal class PostProcessRenderer
     {
-        private VrfGuiContext guiContext;
+        private readonly VrfGuiContext guiContext;
         private int vao;
         private Shader shader;
 

@@ -36,7 +36,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             //public bool TryGetProperty<T>(string name, out T property) => Properties.TryGetProperty(name, out property);
 
-            public T GetPropertyUnchecked<T>(string name, T defaultValue = default)
+            public T GetPropertyUnchecked<T>(string name, T defaultValue = default) where T : struct
                 => Properties.GetPropertyUnchecked(name, defaultValue);
 
             public KVValue GetProperty(string name) => Properties.Properties.GetValueOrDefault(name);

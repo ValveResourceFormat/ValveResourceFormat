@@ -95,7 +95,7 @@ namespace GUI.Types.Renderer
 
             if (node.HasElements)
             {
-                foreach (var element in node.Elements)
+                foreach (var element in node.Elements!)
                 {
                     var shading = Math.Min(1.0f, depth * 0.1f);
                     AddBox(vertices, element.BoundingBox, new(1.0f, shading, 0.0f, 1.0f));

@@ -1,8 +1,7 @@
+using System.Diagnostics.CodeAnalysis;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.ResourceTypes;
-
-#nullable disable
 
 namespace GUI.Types.Renderer
 {
@@ -31,7 +30,7 @@ namespace GUI.Types.Renderer
         private const int TextureUnitStart = (int)ReservedTextureSlots.Last + 1;
 
         public int SortId { get; }
-        public Shader Shader { get; set; }
+        public required Shader Shader { get; init; }
         public Material Material { get; }
         public Dictionary<string, RenderTexture> Textures { get; } = [];
         public bool IsTranslucent { get; }
@@ -45,7 +44,8 @@ namespace GUI.Types.Renderer
         private readonly bool hasDepthBias;
         private int textureUnit;
 
-        public RenderMaterial(Material material, VrfGuiContext guiContext, Dictionary<string, byte> shaderArguments)
+        [SetsRequiredMembers]
+        public RenderMaterial(Material material, VrfGuiContext guiContext, Dictionary<string, byte>? shaderArguments)
             : this(material)
         {
             var materialArguments = material.GetShaderArguments();
@@ -91,6 +91,7 @@ namespace GUI.Types.Renderer
             SortId = GetSortId();
         }
 
+        [SetsRequiredMembers]
         public RenderMaterial(Shader shader) : this(new Material { ShaderName = shader.Name })
         {
             Shader = shader;
@@ -150,7 +151,7 @@ namespace GUI.Types.Renderer
             }
         }
 
-        public void Render(Shader shader = default)
+        public void Render(Shader? shader = default)
         {
             textureUnit = TextureUnitStart;
 

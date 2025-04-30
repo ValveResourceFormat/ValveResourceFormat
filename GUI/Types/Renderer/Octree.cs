@@ -1,7 +1,5 @@
 using OpenTK.Graphics.OpenGL;
 
-#nullable disable
-
 namespace GUI.Types.Renderer
 {
     class Octree<T>
@@ -19,10 +17,10 @@ namespace GUI.Types.Renderer
 
         public class Node
         {
-            public Node Parent { get; }
+            public Node? Parent { get; }
             public AABB Region { get; }
 
-            public List<Element> Elements { get; private set; }
+            public List<Element>? Elements { get; private set; }
             public Node[] Children { get; private set; } = [];
 
             public bool FrustumCulled { get; set; }
@@ -52,7 +50,7 @@ namespace GUI.Types.Renderer
                 Children[7] = new Node(this, new Vector3(myCenter.X, myCenter.Y, myCenter.Z), subregionSize);
 
                 var remainingElements = new List<Element>();
-                foreach (var element in Elements)
+                foreach (var element in Elements!)
                 {
                     var movedDown = false;
 
@@ -75,7 +73,7 @@ namespace GUI.Types.Renderer
                 Elements = remainingElements;
             }
 
-            public Node(Node parent, Vector3 regionMin, Vector3 regionSize)
+            public Node(Node? parent, Vector3 regionMin, Vector3 regionSize)
             {
                 Parent = parent;
                 Region = new AABB(regionMin, regionMin + regionSize);
@@ -86,7 +84,7 @@ namespace GUI.Types.Renderer
 
             public void Insert(Element element)
             {
-                if (!HasChildren && HasElements && ShouldSubdivide(Region.Size.X, Elements.Count))
+                if (!HasChildren && HasElements && ShouldSubdivide(Region.Size.X, Elements!.Count))
                 {
                     Subdivide();
                 }
@@ -137,11 +135,11 @@ namespace GUI.Types.Renderer
                 return count >= optimalCount;
             }
 
-            public (Node Node, int Index) Find(T clientObject, in AABB bounds)
+            public (Node? Node, int Index) Find(T clientObject, in AABB bounds)
             {
                 if (HasElements)
                 {
-                    for (var i = 0; i < Elements.Count; ++i)
+                    for (var i = 0; i < Elements!.Count; ++i)
                     {
                         if (Elements[i].ClientObject == clientObject)
                         {
@@ -184,7 +182,7 @@ namespace GUI.Types.Renderer
             {
                 if (HasElements)
                 {
-                    foreach (var element in Elements)
+                    foreach (var element in Elements!)
                     {
                         if (element.BoundingBox.Intersects(boundingBox))
                         {
@@ -209,7 +207,7 @@ namespace GUI.Types.Renderer
             {
                 if (HasElements)
                 {
-                    foreach (var element in Elements)
+                    foreach (var element in Elements!)
                     {
                         if (frustum.Intersects(element.BoundingBox))
                         {
@@ -241,7 +239,7 @@ namespace GUI.Types.Renderer
 
                 if (HasElements)
                 {
-                    foreach (var element in Elements)
+                    foreach (var element in Elements!)
                     {
                         mins = Vector3.Min(mins, element.BoundingBox.Min);
                         maxs = Vector3.Max(maxs, element.BoundingBox.Max);
@@ -283,7 +281,7 @@ namespace GUI.Types.Renderer
             ArgumentNullException.ThrowIfNull(obj);
 
             var (node, index) = Root.Find(obj, bounds);
-            node?.Elements.RemoveAt(index);
+            node?.Elements?.RemoveAt(index);
         }
 
         public void Update(T obj, in AABB oldBounds, in AABB newBounds)
@@ -291,7 +289,7 @@ namespace GUI.Types.Renderer
             ArgumentNullException.ThrowIfNull(obj);
 
             var (node, index) = Root.Find(obj, oldBounds);
-            if (node != null)
+            if (node is { Elements: not null })
             {
                 // Locate the closest ancestor that the new bounds fit inside
                 var ancestor = node;
