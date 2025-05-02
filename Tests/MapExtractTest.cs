@@ -60,7 +60,7 @@ namespace Tests
 
             using var worldResource = loader.LoadFile("maps/ui/nametag.vmap_c");
 
-            var extract = new MapExtract(worldResource, loader);
+            var extract = new MapExtract(worldResource!, loader);
 
             extract.ToValveMap();
 

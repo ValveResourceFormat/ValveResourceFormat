@@ -70,7 +70,7 @@ public sealed class MapExtract
     /// <summary>
     /// Extract a map from a resource. Accepted types include Map, World. TODO: WorldNode and EntityLump.
     /// </summary>
-    public MapExtract(Resource resource, IFileLoader fileLoader)
+    public MapExtract(Resource resource, IFileLoader? fileLoader)
     {
         FileLoader = fileLoader ?? throw new ArgumentNullException(nameof(fileLoader), "A file loader must be provided to load the map's lumps");
         FileExtract.EnsurePopulatedStringToken(fileLoader);
@@ -88,18 +88,20 @@ public sealed class MapExtract
         }
     }
 
-    private static string? NormalizePath(string path)
+    private static string NormalizePath(string path)
     {
-        if (path is null)
-        {
-            return default;
-        }
-
         return path.Replace('\\', '/').TrimEnd('/');
     }
 
-    private static bool PathIsSubPath(string equalOrSubPath, string path)
-        => equalOrSubPath.StartsWith(path, StringComparison.OrdinalIgnoreCase);
+    private static bool PathIsSubPath(string? equalOrSubPath, string path)
+    {
+        if (string.IsNullOrEmpty(equalOrSubPath))
+        {
+            return false;
+        }
+
+        return equalOrSubPath.StartsWith(path, StringComparison.OrdinalIgnoreCase);
+    }
 
     private void InitMapExtract(Resource vmapResource)
     {
@@ -139,12 +141,21 @@ public sealed class MapExtract
             throw new InvalidDataException("Failed to get lump folder directory name");
         }
 
-        return NormalizePath(pathDirName)!;
+        return NormalizePath(pathDirName);
     }
 
     private void InitWorldExtract(Resource vworld)
     {
-        LumpFolder ??= GetLumpFolderFromWorldPath(vworld.FileName);
+        var lumpFolder = GetLumpFolderFromWorldPath(vworld.FileName);
+
+        if (lumpFolder == null && vworld.FileName != null)
+        {
+            LumpFolder = vworld.FileName;
+        }
+        else if (lumpFolder != null)
+        {
+            LumpFolder = lumpFolder;
+        }
 
         var world = (World?)vworld.DataBlock;
 
@@ -341,7 +352,7 @@ public sealed class MapExtract
         using var datamodel = new Datamodel.Datamodel("vmap", 29);
 
         datamodel.PrefixAttributes.Add("map_asset_references", AssetReferences);
-        datamodel.Root = MapDocument;
+        datamodel.Root = MapDocument = [];
 
         CreateSelectionSets(MapDocument.RootSelectionSet);
 
@@ -1237,7 +1248,13 @@ public sealed class MapExtract
                 }
             }
 
-            var modelName = NormalizePath(compiledEntity.GetProperty<string>("model"));
+            var rawModelName = compiledEntity.GetProperty<string>("model");
+            string? modelName = null;
+            if (!string.IsNullOrEmpty(rawModelName))
+            {
+                modelName = NormalizePath(rawModelName);
+            }
+
             if (modelName != null && PathIsSubPath(modelName, LumpFolder))
             {
                 var firstReference = ModelEntityAssociations.TryAdd(modelName, className);
@@ -1268,7 +1285,12 @@ public sealed class MapExtract
                 }
             }
 
-            var snapshotFile = NormalizePath(compiledEntity.GetProperty<string>("snapshot_file"));
+            var rawSnapshotFile = compiledEntity.GetProperty<string>("snapshot_file");
+            string? snapshotFile = null;
+            if (!string.IsNullOrEmpty(rawSnapshotFile))
+            {
+                snapshotFile = NormalizePath(rawSnapshotFile);
+            }
             if (snapshotFile != null && PathIsSubPath(snapshotFile, LumpFolder))
             {
                 SnapshotsToExtract.Add(snapshotFile);
