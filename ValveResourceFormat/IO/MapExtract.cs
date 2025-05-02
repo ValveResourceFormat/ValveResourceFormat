@@ -14,11 +14,11 @@ namespace ValveResourceFormat.IO;
 
 public sealed class MapExtract
 {
-    public string LumpFolder { get; private set; } = "";
+    public string LumpFolder { get; private set; } = string.Empty;
 
     private IReadOnlyCollection<string> EntityLumpNames { get; set; } = [];
     private IReadOnlyCollection<string> WorldNodeNames { get; set; } = [];
-    private string? WorldPhysicsName { get; set; } = "";
+    private string? WorldPhysicsName { get; set; } = string.Empty;
 
     private List<string> AssetReferences { get; } = [];
     private List<string> ModelsToExtract { get; } = [];
