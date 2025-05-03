@@ -465,13 +465,13 @@ namespace ValveResourceFormat.IO
                 mesh.VertexDataIndices.Add(vertexDataIndex);
                 mesh.VertexData.Size++;
 
-                vertexPositions.Data.Add(vertexStreams.positions[Vertex.MasterStreamIndex]);
+                vertexPositions.Data?.Add(vertexStreams.positions[Vertex.MasterStreamIndex]);
             }
 
             for (var i = 0; i < HalfEdges.Count / 2; i++)
             {
                 mesh.EdgeData.Size++;
-                edgeFlags.Data.Add((int)EdgeFlag.None);
+                edgeFlags.Data?.Add((int)EdgeFlag.None);
             }
 
             var prevHalfEdge = -1;
@@ -549,11 +549,11 @@ namespace ValveResourceFormat.IO
                     }
                 }
 
-                normals.Data.Add(normal);
-                tangents.Data.Add(tangent);
-                texcoords.Data.Add(uv);
-                vertexpaintblendparams.Data.Add(vertexPaintBlendParams);
-                vertexpainttintcolor.Data.Add(vertexPaintTintColor);
+                normals.Data?.Add(normal);
+                tangents.Data?.Add(tangent);
+                texcoords.Data?.Add(uv);
+                vertexpaintblendparams.Data?.Add(vertexPaintBlendParams);
+                vertexpainttintcolor.Data?.Add(vertexPaintTintColor);
             }
 
             foreach (var face in Faces)
@@ -569,10 +569,10 @@ namespace ValveResourceFormat.IO
                     materialIndex = mesh.Materials.Count;
                     mesh.Materials.Add(mat);
                 }
-                faceMaterialIndices.Data.Add(materialIndex);
+                faceMaterialIndices.Data?.Add(materialIndex);
 
 
-                faceFlags.Data.Add(0);
+                faceFlags.Data?.Add(0);
 
                 mesh.FaceEdgeIndices.Add(face.HalfEdge);
             }
