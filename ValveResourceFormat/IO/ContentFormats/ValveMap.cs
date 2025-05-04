@@ -366,5 +366,5 @@ internal class CDmePolygonMeshDataStream<T> : DMElement
     /// <summary>
     /// An int, vector2, vector3, or vector4 array.
     /// </summary>
-    public Datamodel.Array<T>? Data { get; set; }
+    public required Datamodel.Array<T> Data { get; set; }
 }
