@@ -5,11 +5,7 @@
 #endif
 
 #include "common/utils.glsl"
-
-#if defined(csgo_environment_vfx)
-    #include "common/animation.glsl"
-#endif
-
+#include "common/animation.glsl"
 #include "common/features.glsl"
 #include "csgo_environment_features.glsl"
 
@@ -91,12 +87,7 @@ uniform vec4 g_vTexCoordScale1 = vec4(1.0);
 
 void main()
 {
-    mat4 skinTransform = transform;
-
-    #if defined(csgo_environment_vfx)
-        skinTransform *= getSkinMatrix();
-    #endif
-
+    mat4 skinTransform = transform * getSkinMatrix();
     vec4 fragPosition = skinTransform * vec4(vPOSITION, 1.0);
     gl_Position = g_matViewToProjection * fragPosition;
     vFragPosition = fragPosition.xyz / fragPosition.w;
