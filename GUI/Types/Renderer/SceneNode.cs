@@ -2,8 +2,6 @@ using System.Diagnostics;
 using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
 
-#nullable disable
-
 namespace GUI.Types.Renderer
 {
     [DebuggerDisplay("{DebugName,nq}")]
@@ -19,7 +17,7 @@ namespace GUI.Types.Renderer
             }
         }
 
-        public string LayerName { get; set; }
+        public string? LayerName { get; set; }
         public virtual bool LayerEnabled { get; set; } = true;
         public AABB BoundingBox { get; private set; }
         public AABB LocalBoundingBox
@@ -32,7 +30,7 @@ namespace GUI.Types.Renderer
             }
         }
 
-        public string Name { get; init; }
+        public string? Name { get; init; }
         public uint Id { get; set; }
         public ObjectTypeFlags Flags { get; set; }
 
@@ -41,14 +39,14 @@ namespace GUI.Types.Renderer
         public Scene Scene { get; }
 
         public List<SceneEnvMap> EnvMaps { get; set; } = [];
-        public int[] EnvMapIds { get; set; }
+        public int[]? EnvMapIds { get; set; }
         public Vector3? LightingOrigin { get; set; }
         public int OverlayRenderOrder { get; set; }
         public int CubeMapPrecomputedHandshake { get; set; }
         public int LightProbeVolumePrecomputedHandshake { get; set; }
-        public SceneLightProbe LightProbeBinding { get; set; }
+        public SceneLightProbe? LightProbeBinding { get; set; }
 
-        public EntityLump.Entity EntityData { get; set; }
+        public EntityLump.Entity? EntityData { get; set; }
 
         private AABB localBoundingBox;
         private Matrix4x4 transform = Matrix4x4.Identity;

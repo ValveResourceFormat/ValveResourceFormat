@@ -9,7 +9,7 @@ in vec4 vCOLOR;
 out vec3 vFragPosition;
 out vec2 vTexCoordOut;
 out vec3 vNormalOut;
-out vec4 vTangentOut;
+out vec3 vTangentOut;
 out vec3 vBitangentOut;
 out vec4 vColorBlendValues;
 
@@ -22,7 +22,9 @@ void main()
     gl_Position = g_matViewToProjection * fragPosition;
     vFragPosition = fragPosition.xyz / fragPosition.w;
 
-    GetOptionallyCompressedNormalTangent(vNormalOut, vTangentOut);
+    vec4 tangent;
+    GetOptionallyCompressedNormalTangent(vNormalOut, tangent);
+    vTangentOut = tangent.xyz;
 
     vTexCoordOut = vTEXCOORD;
     vColorBlendValues = vCOLOR;

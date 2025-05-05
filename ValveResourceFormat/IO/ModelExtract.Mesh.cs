@@ -121,8 +121,9 @@ partial class ModelExtract
             model.SetExternalMeshData(mesh);
 
             var remapTable = model.GetRemapTable(reference.MeshIndex);
+            var meshKey = Path.GetFileNameWithoutExtension(reference.MeshName);
 
-            RenderMeshesToExtract.Add(new(mesh, reference.MeshName, reference.MeshIndex, GetDmxFileName_ForReferenceMesh(reference.MeshName), remapTable));
+            RenderMeshesToExtract.Add(new(mesh, meshKey, reference.MeshIndex, GetDmxFileName_ForReferenceMesh(reference.MeshName), remapTable));
         }
     }
 
