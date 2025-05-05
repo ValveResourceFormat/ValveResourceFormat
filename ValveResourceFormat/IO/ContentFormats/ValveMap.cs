@@ -3,8 +3,6 @@ using DMElement = Datamodel.Element;
 
 namespace ValveResourceFormat.IO.ContentFormats.ValveMap;
 
-#nullable disable
-
 /// <summary>
 ///  Valve Map (VMAP) format version 29.
 /// </summary>
@@ -206,7 +204,7 @@ internal class CMapInstance : BaseEntity
     /// <summary>
     /// A target <see cref="CMapGroup"/> to instance. With custom tint and transform.
     /// </summary>
-    public DMElement Target { get; set; }
+    public DMElement? Target { get; set; }
     public Datamodel.Color TintColor { get; set; } = new Datamodel.Color(255, 255, 255, 255);
 }
 
@@ -364,9 +362,9 @@ internal class CDmePolygonMeshDataStream<T> : DMElement
     public int SemanticIndex { get; set; }
     public int VertexBufferLocation { get; set; }
     public int DataStateFlags { get; set; }
-    public DMElement SubdivisionBinding { get; set; }
+    public DMElement? SubdivisionBinding { get; set; }
     /// <summary>
     /// An int, vector2, vector3, or vector4 array.
     /// </summary>
-    public Datamodel.Array<T> Data { get; set; }
+    public required Datamodel.Array<T> Data { get; set; }
 }

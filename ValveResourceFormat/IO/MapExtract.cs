@@ -895,7 +895,7 @@ public sealed class MapExtract
 
             var propStatic = new CMapEntity()
                 .WithClassName("prop_static")
-                .WithProperty("model", modelName);
+                .WithProperty("model", modelName!);
 
             var objectTransform = sceneObject.GetArray("m_vTransform").ToMatrix4x4();
             if (!objectTransform.IsIdentity)
@@ -1485,11 +1485,11 @@ public sealed class MapExtract
         };
     }
 
-    private static string? RemoveTargetnamePrefix(string? value)
+    private static string RemoveTargetnamePrefix(string? value)
     {
         if (string.IsNullOrEmpty(value))
         {
-            return default;
+            return string.Empty;
         }
 
         const string Prefix = "[PR#]";
