@@ -16,6 +16,8 @@ namespace GUI.Types.Renderer
         private readonly Dictionary<string, int> Uniforms = [];
         public RenderMaterial Default;
 
+        public readonly Dictionary<string, int> Attributes = [];
+
 #if DEBUG
         public string FileName { get; init; }
 #endif
@@ -45,6 +47,20 @@ namespace GUI.Types.Renderer
                 }
 
                 yield return (uniformName, i, uniformType, size);
+            }
+        }
+
+        public void StoreAttributeLocations()
+        {
+            GL.GetProgram(Program, GetProgramParameterName.ActiveAttributes, out var attributeCount);
+
+            Attributes.EnsureCapacity(attributeCount);
+
+            for (var i = 0; i < attributeCount; i++)
+            {
+                GL.GetActiveAttrib(Program, i, 64, out var length, out var size, out var type, out var name);
+                var attribLocation = GL.GetAttribLocation(Program, name);
+                Attributes[name] = attribLocation;
             }
         }
 

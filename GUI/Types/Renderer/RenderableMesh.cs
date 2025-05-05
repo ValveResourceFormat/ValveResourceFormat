@@ -178,7 +178,7 @@ namespace GUI.Types.Renderer
                    VBIBHashCode,
                    drawCall.VertexBuffers,
                    drawCall.Material,
-                   drawCall.IndexBuffer.Id);
+                   drawCall.IndexBuffer.Handle);
 
 #if DEBUG
             if (!string.IsNullOrEmpty(DebugLabel))
@@ -195,7 +195,7 @@ namespace GUI.Types.Renderer
                 return;
             }
 
-            guiContext.MeshBufferCache.CreateVertexIndexBuffers(VBIBHashCode, vbib);
+            var gpuVbib = guiContext.MeshBufferCache.CreateVertexIndexBuffers(VBIBHashCode, vbib);
 
             var vertexOffset = 0;
             foreach (var sceneObject in sceneObjects)
@@ -268,7 +268,7 @@ namespace GUI.Types.Renderer
 
                     var material = guiContext.MaterialLoader.GetMaterial(materialName, shaderArguments);
 
-                    var drawCall = CreateDrawCall(objectDrawCall, material, vbib);
+                    var drawCall = CreateDrawCall(objectDrawCall, material, vbib, gpuVbib);
                     if (i < objectDrawBounds.Length)
                     {
                         drawCall.DrawBounds = new AABB(
@@ -309,7 +309,7 @@ namespace GUI.Types.Renderer
             }
         }
 
-        private DrawCall CreateDrawCall(KVObject objectDrawCall, RenderMaterial material, VBIB vbib)
+        private DrawCall CreateDrawCall(KVObject objectDrawCall, RenderMaterial material, VBIB vbib, GPUMeshBuffers gpuVbib)
         {
             var drawCall = new DrawCall()
             {
@@ -328,11 +328,12 @@ namespace GUI.Types.Renderer
             {
                 var indexBufferObject = objectDrawCall.GetSubCollection("m_indexBuffer");
                 var indexBuffer = default(IndexDrawBuffer);
-                indexBuffer.Id = indexBufferObject.GetUInt32Property("m_hBuffer");
+                var bufferIndex = indexBufferObject.GetUInt32Property("m_hBuffer");
+                indexBuffer.Handle = gpuVbib.IndexBuffers[(int)bufferIndex];
                 indexBuffer.Offset = indexBufferObject.GetUInt32Property("m_nBindOffsetBytes");
                 drawCall.IndexBuffer = indexBuffer;
 
-                var indexElementSize = vbib.IndexBuffers[(int)drawCall.IndexBuffer.Id].ElementSizeInBytes;
+                var indexElementSize = vbib.IndexBuffers[(int)bufferIndex].ElementSizeInBytes;
                 drawCall.StartIndex = (nint)(objectDrawCall.GetUInt32Property("m_nStartIndex") * indexElementSize);
                 drawCall.IndexCount = objectDrawCall.GetInt32Property("m_nIndexCount");
 
@@ -353,10 +354,11 @@ namespace GUI.Types.Renderer
                 foreach (var vertexBufferObject in vertexBuffers)
                 {
                     var vertexBuffer = default(VertexDrawBuffer);
-                    vertexBuffer.Id = vertexBufferObject.GetUInt32Property("m_hBuffer");
+                    var bufferIndex = vertexBufferObject.GetUInt32Property("m_hBuffer");
+                    vertexBuffer.Handle = gpuVbib.VertexBuffers[(int)bufferIndex];
                     vertexBuffer.Offset = vertexBufferObject.GetUInt32Property("m_nBindOffsetBytes");
 
-                    var vertexBufferVbib = vbib.VertexBuffers[(int)vertexBuffer.Id];
+                    var vertexBufferVbib = vbib.VertexBuffers[(int)bufferIndex];
                     vertexBuffer.ElementSizeInBytes = vertexBufferVbib.ElementSizeInBytes;
                     vertexBuffer.InputLayoutFields = vertexBufferVbib.InputLayoutFields;
 
@@ -376,10 +378,10 @@ namespace GUI.Types.Renderer
                                     // Blendweight
                                     DXGI_FORMAT.R16G16B16A16_UNORM => (DXGI_FORMAT.R8G8B8A8_UNORM, 4u),
 
-                                    _ => (inputField.Format, 0u),
+                                    _ => (DXGI_FORMAT.UNKNOWN, 0u),
                                 };
 
-                                if (newFormat != inputField.Format)
+                                if (newFormat != DXGI_FORMAT.UNKNOWN)
                                 {
                                     newInputLayout.Add(inputField with
                                     {

@@ -133,6 +133,7 @@ namespace GUI.Types.Renderer
                 }
 
                 VrfGuiContext.MaterialLoader.SetDefaultMaterialParameters(shader.Default);
+                shader.StoreAttributeLocations();
 
                 ShaderDefines[shaderName] = parsedData.Defines;
 

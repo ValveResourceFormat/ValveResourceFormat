@@ -121,12 +121,7 @@ void main()
     vTintColor_ModelAmount.a = g_flModelTintAmount * (1.0 - flLowestPoint);
 
     vec3 vVertexPaint = vec3(1.0);
-
-    // TODO: ApplyVBIBDefaults
-    if (vCOLOR.rgba != vec4(0, 0, 0, 1))
-    {
-        vVertexPaint =  mix(vec3(1.0), vCOLOR.rgb, vec3(vCOLOR.a));
-    }
+    vVertexPaint =  mix(vec3(1.0), vCOLOR.rgb, vec3(vCOLOR.a));
 
     vVertexColor_Alpha = vec4(SrgbGammaToLinear(g_vColorTint.rgb) * vVertexPaint, vTint.a);
 

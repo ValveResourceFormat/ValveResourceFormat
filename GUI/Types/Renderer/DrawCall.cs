@@ -31,13 +31,13 @@ namespace GUI.Types.Renderer
 
     internal struct IndexDrawBuffer
     {
-        public uint Id;
+        public int Handle;
         public uint Offset;
     }
 
     internal struct VertexDrawBuffer
     {
-        public uint Id;
+        public int Handle;
         public uint Offset;
         public uint ElementSizeInBytes;
         public VBIB.RenderInputLayoutField[] InputLayoutFields;
