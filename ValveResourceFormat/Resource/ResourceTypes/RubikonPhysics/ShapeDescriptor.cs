@@ -2,15 +2,13 @@ using System.IO;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes;
 using ValveResourceFormat.Serialization.KeyValues;
 
-#nullable disable
-
 namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
 {
     public class ShapeDescriptor<T> where T : struct
     {
         public int CollisionAttributeIndex { get; set; }
         public int SurfacePropertyIndex { get; set; }
-        public string UserFriendlyName { get; set; }
+        public string? UserFriendlyName { get; set; }
 
         public T Shape { get; set; }
 

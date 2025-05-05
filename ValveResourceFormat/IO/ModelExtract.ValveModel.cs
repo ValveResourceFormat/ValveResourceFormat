@@ -615,7 +615,8 @@ partial class ModelExtract
                         ("surface_prop", PhysicsSurfaceNames[sphere.SurfacePropertyIndex]),
                         ("collision_tags", string.Join(" ", PhysicsCollisionTags[sphere.CollisionAttributeIndex])),
                         ("radius", sphere.Shape.Radius),
-                        ("center", sphere.Shape.Center)
+                        ("center", sphere.Shape.Center),
+                        ("name", sphere.UserFriendlyName ?? string.Empty)
                     );
 
                     physicsShapeList.Value.AddItem(physicsShapeSphere);
@@ -630,7 +631,8 @@ partial class ModelExtract
                         ("collision_tags", string.Join(" ", PhysicsCollisionTags[capsule.CollisionAttributeIndex])),
                         ("radius", capsule.Shape.Radius),
                         ("point0", capsule.Shape.Center[0]),
-                        ("point1", capsule.Shape.Center[1])
+                        ("point1", capsule.Shape.Center[1]),
+                        ("name", capsule.UserFriendlyName ?? string.Empty)
                     );
 
                     physicsShapeList.Value.AddItem(physicsShapeCapsule);
@@ -667,13 +669,15 @@ partial class ModelExtract
                 _ => throw new NotImplementedException()
             };
 
+            var shapeName = shapeDesc.UserFriendlyName ?? Path.GetFileNameWithoutExtension(fileName);
+
             // TODO: per faceSet surface_prop
             var physicsShapeFile = MakeNode(
                 className,
                 ("filename", fileName),
                 ("surface_prop", surfacePropName),
                 ("collision_tags", string.Join(" ", collisionTags)),
-                ("name", shapeDesc.UserFriendlyName ?? fileName)
+                ("name", shapeName)
             );
 
             physicsShapeList.Value.AddItem(physicsShapeFile);
