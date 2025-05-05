@@ -495,10 +495,7 @@ public sealed class MapExtract
             {
                 foreach (var dataStream in streams.OfType<CDmePolygonMeshDataStream<T>>())
                 {
-                    if (dataStream.Data is not null)
-                    {
-                        accumulatedMapMeshSize += GetArraySize(dataStream.Data);
-                    }
+                    accumulatedMapMeshSize += GetArraySize(dataStream.Data);
                 }
             }
         }
