@@ -81,13 +81,8 @@ void main()
     fresnel = mix(g_flFresnelMin, g_flFresnelMax, fresnel);
 
     // Calculate fade
-    float fade = distance(vFragPosition, g_vCameraPositionWs) * 0.05;
-    fade = fade - g_flFadeDistance;
-    //fade = fade * (g_flFadeFalloff * 0.05) + (1 - (g_flFadeFalloff * 0.05));
-    //fade = (1-fade) * (g_flFadeMax - g_flFadeMin) + g_flFadeMin;
-    fade = mix(1 - (g_flFadeFalloff * 0.05), 1.0, fade);
-    fade = mix(g_flFadeMin, g_flFadeMax, 1.0 - fade);
-    fade = saturate(fade);
+    float distanceToCamera = length((vFragPosition - g_vCameraPositionWs) / g_flFadeDistance);
+    float fade = pow(mix(g_flFadeMin, g_flFadeMax, clamp(distanceToCamera, 0.0, 1.0)), g_flFadeFalloff);
 
     opacity = opacity * fresnel * fade * vColorOut.a;
 
