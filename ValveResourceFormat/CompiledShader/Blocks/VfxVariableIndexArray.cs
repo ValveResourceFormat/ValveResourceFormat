@@ -27,14 +27,18 @@ public class VfxVariableIndexArray : ShaderDataBlock
         {
             if (readDest)
             {
-                Fields[i] = MemoryMarshal.AsRef<VfxVariableIndexData>(datareader.ReadBytes(4));
+                Fields[i] = new VfxVariableIndexData
+                {
+                    ParamId = datareader.ReadInt16(),
+                    Dest = datareader.ReadInt16(),
+                };
             }
             else
             {
                 Fields[i] = new VfxVariableIndexData
                 {
-                    paramId = datareader.ReadByte(),
-                    UnknFlags = (WriteSeqFieldFlags)datareader.ReadByte(),
+                    ParamId = datareader.ReadInt16(),
+                    Dest = 0,
                 };
             }
         }
