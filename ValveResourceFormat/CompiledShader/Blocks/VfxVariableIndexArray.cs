@@ -29,7 +29,7 @@ public class VfxVariableIndexArray : ShaderDataBlock
             {
                 Fields[i] = new VfxVariableIndexData
                 {
-                    ParamId = datareader.ReadInt16(),
+                    ParamId = (short)(datareader.ReadInt16() & 0xFF),
                     Dest = datareader.ReadInt16(),
                 };
             }
