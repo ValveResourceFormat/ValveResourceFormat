@@ -641,6 +641,7 @@ namespace GUI.Types.Viewers
                 var location = (int)SpirvCrossApi.spvc_compiler_get_decoration(compiler, resource.id, SpvDecoration.Location);
                 var index = SpirvCrossApi.spvc_compiler_get_decoration(compiler, resource.id, SpvDecoration.Index);
                 var binding = SpirvCrossApi.spvc_compiler_get_decoration(compiler, resource.id, SpvDecoration.Binding);
+                var set = SpirvCrossApi.spvc_compiler_get_decoration(compiler, resource.id, SpvDecoration.DescriptorSet);
 
                 var vfxType = resource.base_type_id switch
                 {
@@ -652,13 +653,16 @@ namespace GUI.Types.Viewers
                 };
 
                 var uniformBufferBindingOffset = stage is VcsProgramType.VertexShader ? 14u : 0;
+                var uniformBufferBinding = binding - uniformBufferBindingOffset;
+
+                var isGlobalsBuffer = uniformBufferBinding == 0 && set == 0;
 
                 var name = resourceType switch
                 {
                     ResourceType.SeparateImage => GetNameForTexture(shader, writeSequence, binding, vfxType),
                     ResourceType.SeparateSamplers => GetNameForSampler(shader, writeSequence, binding),
                     ResourceType.StorageBuffer or ResourceType.StorageImage => GetNameForStorageBuffer(shader, writeSequence, binding),
-                    ResourceType.UniformBuffer => GetNameForUniformBuffer(shader, writeSequence, binding - uniformBufferBindingOffset),
+                    ResourceType.UniformBuffer => isGlobalsBuffer ? "_Globals_" : GetNameForUniformBuffer(shader, writeSequence, uniformBufferBinding, set),
                     _ => string.Empty,
                 };
 
@@ -674,6 +678,37 @@ namespace GUI.Types.Viewers
                 }
 
                 SpirvCrossApi.spvc_compiler_set_name(compiler, resource.id, name);
+
+
+                if (isGlobalsBuffer && resourceType is ResourceType.UniformBuffer)
+                {
+                    //  get buffer members
+                    Span<spvc_buffer_range> bufferRanges = stackalloc spvc_buffer_range[256];
+                    nuint bufferRangeCount = 0;
+
+#pragma warning disable CS8500 // This takes the address of, gets the size of, or declares a pointer to a managed type
+
+                    SpirvCrossApi.spvc_compiler_get_active_buffer_ranges(compiler, resource.id, (spvc_buffer_range**)&bufferRanges, &bufferRangeCount).CheckResult();
+#pragma warning restore CS8500 // This takes the address of, gets the size of, or declares a pointer to a managed type
+
+
+                    for (var j = 0; j < (int)bufferRangeCount; j++)
+                    {
+                        var bufferRange = bufferRanges[j];
+
+                        var memberName = GetGlobalBufferMemberName(shader, writeSequence, offset: (int)bufferRange.offset / 4);
+
+                        if (string.IsNullOrEmpty(memberName))
+                        {
+                            continue;
+                        }
+
+                        fixed (byte* memberNameBytes = memberName.GetUtf8Span())
+                        {
+                            SpirvCrossApi.spvc_compiler_set_member_name(compiler, resource.base_type_id, bufferRange.index, memberNameBytes);
+                        }
+                    }
+                }
             }
         }
 
@@ -783,17 +818,21 @@ namespace GUI.Types.Viewers
             return "undetermined";
         }
 
-        private static string GetNameForUniformBuffer(ShaderFile shader, VfxVariableIndexArray writeSequence, uint binding)
+        private static string GetNameForUniformBuffer(ShaderFile shader, VfxVariableIndexArray writeSequence, uint binding, uint set)
         {
-            if (binding == 0)
-            {
-                return "_Globals_";
-            }
-
             return writeSequence.Segment1
                 .Select<VfxVariableIndexData, (VfxVariableIndexData Field, ParamBlock Param)>(f => (f, shader.ParamBlocks[f.ParamId]))
                 .Where(fp => fp.Param.VfxType is Vfx.Type.Cbuffer)
                 .FirstOrDefault(fp => fp.Field.Dest == binding).Param?.Name ?? "undetermined";
+        }
+
+        private static string GetGlobalBufferMemberName(ShaderFile shader, VfxVariableIndexArray writeSequence, int offset)
+        {
+            var globalBufferParameters = writeSequence.Globals
+                .Select<VfxVariableIndexData, (VfxVariableIndexData Field, ParamBlock Param)>(f => (f, shader.ParamBlocks[f.ParamId]))
+                .ToList();
+
+            return globalBufferParameters.FirstOrDefault(fp => fp.Field.Dest == offset).Param?.Name ?? string.Empty;
         }
     }
 }
