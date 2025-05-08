@@ -22,7 +22,7 @@ public class AnimationGraphExtract
         if (resource.FileName != null)
         {
             outputFileName = resource.FileName;
-            outputFileName = outputFileName.EndsWith("_c", StringComparison.Ordinal)
+            outputFileName = outputFileName.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal)
                 ? outputFileName[..^2]
                 : outputFileName;
         }

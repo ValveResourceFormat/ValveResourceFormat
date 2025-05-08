@@ -7,6 +7,7 @@ using GUI.Controls;
 using GUI.Utils;
 using SteamDatabase.ValvePak;
 using ValveKeyValue;
+using ValveResourceFormat.IO;
 
 namespace GUI.Types.Viewers
 {
@@ -22,6 +23,11 @@ namespace GUI.Types.Viewers
             if (guiContext.ToolsAssetInfo == null)
             {
                 var path = Path.Join(folder, "readonly_tools_asset_info.bin");
+
+                if (!File.Exists(path)) // Check parent folder if trying to load asset info in /maps/
+                {
+                    path = Path.Join(Path.GetDirectoryName(folder), "readonly_tools_asset_info.bin");
+                }
 
                 guiContext.ToolsAssetInfo = new ValveResourceFormat.ToolsAssetInfo.ToolsAssetInfo();
 
@@ -42,6 +48,27 @@ namespace GUI.Types.Viewers
                         filePath = filePathTemp;
                         assetInfo = assetInfoTemp;
                         break;
+                    }
+                }
+            }
+
+            // If we didn't find exact match in the tools info, try to find the same file without the "_c" suffix
+            if (assetInfo == null && filePath.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal))
+            {
+                var filePathUncompiled = filePath[..^2];
+
+                if (!guiContext.ToolsAssetInfo.Files.TryGetValue(filePathUncompiled, out assetInfo))
+                {
+                    var gameRootPath = string.Concat(Path.GetFileName(folder), "/", filePathUncompiled);
+
+                    foreach (var (filePathTemp, assetInfoTemp) in guiContext.ToolsAssetInfo.Files)
+                    {
+                        if (assetInfoTemp.SearchPathsGameRoot.Exists(f => f.Filename == gameRootPath))
+                        {
+                            filePath = filePathTemp;
+                            assetInfo = assetInfoTemp;
+                            break;
+                        }
                     }
                 }
             }
