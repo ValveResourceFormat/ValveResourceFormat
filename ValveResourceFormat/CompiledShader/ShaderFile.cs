@@ -288,13 +288,13 @@ namespace ValveResourceFormat.CompiledShader
             return ZframesLookup[zframeId].GetDecompressedZFrame(DataReader);
         }
 
-        public ZFrameFile GetZFrameFile(long zframeId, HandleOutputWrite outputWriter = null, bool omitParsing = false)
+        public VfxStaticComboData GetZFrameFile(long zframeId, HandleOutputWrite outputWriter = null, bool omitParsing = false)
         {
-            return new ZFrameFile(GetDecompressedZFrame(zframeId), FilenamePath, zframeId,
+            return new VfxStaticComboData(GetDecompressedZFrame(zframeId), FilenamePath, zframeId,
                 VcsProgramType, VcsPlatformType, VcsShaderModelType, VcsVersion, omitParsing, outputWriter);
         }
 
-        public ZFrameFile GetZFrameFileByIndex(int zframeIndex, HandleOutputWrite outputWriter = null, bool omitParsing = false)
+        public VfxStaticComboData GetZFrameFileByIndex(int zframeIndex, HandleOutputWrite outputWriter = null, bool omitParsing = false)
         {
             return GetZFrameFile(ZframesLookup.ElementAt(zframeIndex).Key, outputWriter, omitParsing);
         }

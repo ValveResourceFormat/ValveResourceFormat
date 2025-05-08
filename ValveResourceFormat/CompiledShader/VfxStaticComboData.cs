@@ -8,7 +8,7 @@ using static ValveResourceFormat.CompiledShader.ShaderUtilHelpers;
 
 namespace ValveResourceFormat.CompiledShader
 {
-    public class ZFrameFile : IDisposable
+    public class VfxStaticComboData : IDisposable
     {
         public ShaderDataReader DataReader { get; private set; }
         public string FilenamePath { get; }
@@ -16,11 +16,11 @@ namespace ValveResourceFormat.CompiledShader
         public VcsPlatformType VcsPlatformType { get; }
         public VcsShaderModelType VcsShaderModelType { get; }
         public long ZframeId { get; }
-        public ZDataBlock LeadingData { get; }
-        public List<Attribute> Attributes { get; } = [];
+        public VfxVariableIndexArray LeadingData { get; }
+        public List<VfxShaderAttribute> Attributes { get; } = [];
         internal List<short> attributeBlockLengths { get; } = [];
         public int[] VShaderInputs { get; } = [];
-        public List<ZDataBlock> DataBlocks { get; } = [];
+        public List<VfxVariableIndexArray> DataBlocks { get; } = [];
         public byte[] UnknownArg { get; }
         public byte[] UnknownArg2 { get; }
         public byte[] Flags0 { get; }
@@ -35,7 +35,7 @@ namespace ValveResourceFormat.CompiledShader
 
         private int VcsVersion { get; }
 
-        public ZFrameFile(byte[] databytes, string filenamepath, long zframeId, VcsProgramType vcsProgramType,
+        public VfxStaticComboData(byte[] databytes, string filenamepath, long zframeId, VcsProgramType vcsProgramType,
             VcsPlatformType vcsPlatformType, VcsShaderModelType vcsShaderModelType, int vcsVersion, bool omitParsing = false, HandleOutputWrite outputWriter = null)
         {
             FilenamePath = filenamepath;
@@ -53,12 +53,12 @@ namespace ValveResourceFormat.CompiledShader
                 return;
             }
 
-            LeadingData = new ZDataBlock(DataReader, -1);
+            LeadingData = new VfxVariableIndexArray(DataReader, -1);
             int attributeCount = DataReader.ReadInt16();
             for (var i = 0; i < attributeCount; i++)
             {
                 var savedOffset = DataReader.BaseStream.Position;
-                Attribute attribute = new(DataReader);
+                VfxShaderAttribute attribute = new(DataReader);
                 Attributes.Add(attribute);
                 attributeBlockLengths.Add((short)(DataReader.BaseStream.Position - savedOffset));
             }
@@ -75,7 +75,7 @@ namespace ValveResourceFormat.CompiledShader
             int dataBlockCount = DataReader.ReadInt16();
             for (var blockId = 0; blockId < dataBlockCount; blockId++)
             {
-                ZDataBlock dataBlock = new(DataReader, blockId);
+                VfxVariableIndexArray dataBlock = new(DataReader, blockId);
                 if (dataBlock.H0 > 0)
                 {
                     NonZeroDataBlockCount++;
@@ -189,7 +189,7 @@ namespace ValveResourceFormat.CompiledShader
             }
         }
 
-        public ZDataBlock GetDataBlock(int blockId)
+        public VfxVariableIndexArray GetDataBlock(int blockId)
         {
             return blockId == -1 ? LeadingData : DataBlocks[blockId];
         }
@@ -219,7 +219,7 @@ namespace ValveResourceFormat.CompiledShader
             }
         }
 
-        public class Attribute
+        public class VfxShaderAttribute
         {
             public string Name0 { get; }
             public uint Murmur32 { get; }
@@ -232,7 +232,7 @@ namespace ValveResourceFormat.CompiledShader
             public string DynExpEvaluated { get; }
             public object ConstValue { get; }
 
-            public Attribute(ShaderDataReader datareader)
+            public VfxShaderAttribute(ShaderDataReader datareader)
             {
                 Name0 = datareader.ReadNullTermString(Encoding.UTF8);
                 Murmur32 = datareader.ReadUInt32();
@@ -572,7 +572,7 @@ namespace ValveResourceFormat.CompiledShader
                 DataReader.ReadNullTermString(Encoding.UTF8);
                 DataReader.ShowBytes(4, "murmur32");
                 DataReader.Comment($"Type: {attribute.VfxType}");
-                DataReader.ShowBytes(3, $"{nameof(Attribute.VfxType)}, {nameof(Attribute.LinkedParameterIndex)}, {nameof(Attribute.HeaderArg)}");
+                DataReader.ShowBytes(3, $"{nameof(VfxShaderAttribute.VfxType)}, {nameof(VfxShaderAttribute.LinkedParameterIndex)}, {nameof(VfxShaderAttribute.HeaderArg)}");
                 if (attribute.VfxType == Vfx.Type.Sampler2D)
                 {
                     DataReader.BreakLine();

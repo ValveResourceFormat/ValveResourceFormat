@@ -880,7 +880,7 @@ public sealed class ShaderExtract
         return stateIsIrrelevant;
     }
 
-    private HashSet<string> GetZFrameAttributes(ZFrameFile zFrameFile, List<ParamBlock> paramBlocks)
+    private HashSet<string> GetZFrameAttributes(VfxStaticComboData zFrameFile, List<ParamBlock> paramBlocks)
     {
         var attributes = new HashSet<string>();
         foreach (var attribute in zFrameFile.Attributes)
@@ -937,7 +937,7 @@ public sealed class ShaderExtract
         return attributes;
     }
 
-    public HashSet<int> GetVariantZFrameParameters(ZFrameFile zFrameFile)
+    public HashSet<int> GetVariantZFrameParameters(VfxStaticComboData zFrameFile)
     {
         var parameters = new HashSet<int>(VariantParameterIndices.Count);
         foreach (var writeseq in Enumerable.Concat(Enumerable.Repeat(zFrameFile.LeadingData, 1), zFrameFile.DataBlocks))

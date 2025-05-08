@@ -3,7 +3,7 @@ namespace ValveResourceFormat.CompiledShader
     public sealed class StaticCache : IDisposable
     {
         private readonly ShaderFile shaderFile;
-        private readonly Dictionary<long, ZFrameFile> cache = [];
+        private readonly Dictionary<long, VfxStaticComboData> cache = [];
         private readonly LinkedList<long> lru = new();
         private int maxCacheSize = 1;
 
@@ -27,7 +27,7 @@ namespace ValveResourceFormat.CompiledShader
             shaderFile = shader;
         }
 
-        public ZFrameFile Get(long zFrameId)
+        public VfxStaticComboData Get(long zFrameId)
         {
             lock (shaderFile)
             {

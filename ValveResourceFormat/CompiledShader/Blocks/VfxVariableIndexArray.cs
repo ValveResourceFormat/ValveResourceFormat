@@ -2,7 +2,7 @@ using System.Runtime.InteropServices;
 
 namespace ValveResourceFormat.CompiledShader;
 
-public class ZDataBlock : ShaderDataBlock
+public class VfxVariableIndexArray : ShaderDataBlock
 {
     public int BlockId { get; }
     public int H0 { get; }
@@ -15,7 +15,7 @@ public class ZDataBlock : ShaderDataBlock
     public IReadOnlyList<WriteSeqField> Globals => Fields[H2..];
     public ReadOnlySpan<byte> Dataload => MemoryMarshal.AsBytes<WriteSeqField>(Fields);
 
-    public ZDataBlock(ShaderDataReader datareader, int blockId) : base(datareader)
+    public VfxVariableIndexArray(ShaderDataReader datareader, int blockId) : base(datareader)
     {
         BlockId = blockId;
         H0 = datareader.ReadInt32();

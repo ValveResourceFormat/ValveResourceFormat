@@ -354,7 +354,7 @@ namespace GUI.Types.Viewers
             private readonly TabControl tabControl;
             private readonly ShaderCollection shaderCollection;
             private readonly ShaderFile shaderFile;
-            private ZFrameFile zframeFile;
+            private VfxStaticComboData zframeFile;
 
             public ZFrameRichTextBox(TabControl tabControl, ShaderFile shaderFile, ShaderCollection shaderCollection,
                 long zframeId, bool byteVersion = false) : base()
@@ -445,7 +445,7 @@ namespace GUI.Types.Viewers
             }
         }
 
-        public static TabPage CreateDecompiledTabPage(ShaderCollection shaderCollection, ShaderFile shaderFile, ZFrameFile zframeFile, int gpuSourceId, string gpuSourceTabTitle)
+        public static TabPage CreateDecompiledTabPage(ShaderCollection shaderCollection, ShaderFile shaderFile, VfxStaticComboData zframeFile, int gpuSourceId, string gpuSourceTabTitle)
         {
             TabPage gpuSourceTab = null;
             var gpuSource = zframeFile.GpuSources[gpuSourceId];
@@ -671,7 +671,7 @@ namespace GUI.Types.Viewers
         static int TextureStartingPoint = 90;
         static int TextureIndexStartingPoint = 30;
 
-        private static unsafe string GetNameForSampler(ShaderFile shader, ZDataBlock writeSequence, uint image_binding, Vfx.Type vfxType)
+        private static unsafe string GetNameForSampler(ShaderFile shader, VfxVariableIndexArray writeSequence, uint image_binding, Vfx.Type vfxType)
         {
             var semgent1Params = writeSequence.Segment1
                 .Select<WriteSeqField, (WriteSeqField Field, ParamBlock Param)>(f => (f, shader.ParamBlocks[f.ParamId]));
