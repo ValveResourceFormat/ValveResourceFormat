@@ -35,6 +35,13 @@ namespace ValveResourceFormat.NavMesh
                 ShortHeight = binaryReader.ReadSingle();
             }
 
+            if (generationParams.NavGenVersion >= 13)
+            {
+                //TODO: Figure out the two values below
+                binaryReader.ReadByte();
+                binaryReader.ReadSingle();
+            }
+
             MaxClimb = binaryReader.ReadSingle();
             MaxSlope = binaryReader.ReadInt32();
 

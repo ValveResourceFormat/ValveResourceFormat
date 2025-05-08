@@ -73,16 +73,22 @@ namespace ValveResourceFormat.NavMesh
 
             if (Version >= 35)
             {
-                var unk3 = binaryReader.ReadUInt32();
-                Debug.Assert(unk3 == 0 || unk3 == 2);
+                var unkCount1 = binaryReader.ReadUInt32();
+
+                for (var i = 0; i < unkCount1; i++)
+                {
+                    //TODO: Figure out what's stored here (dl_midtown)
+                    binaryReader.ReadNullTermString(Encoding.ASCII);
+                    binaryReader.BaseStream.Position += 48;
+                }
             }
 
             ReadAreas(binaryReader, polygons);
 
             ReadLadders(binaryReader);
 
-            var unkCount = binaryReader.ReadInt32();
-            binaryReader.BaseStream.Position += sizeof(float) * unkCount * 18; //seem to be vector3s
+            var unkCount2 = binaryReader.ReadInt32();
+            binaryReader.BaseStream.Position += sizeof(float) * unkCount2 * 18; //seem to be vector3s
 
             GenerationParams = new NavMeshGenerationParams();
             GenerationParams.Read(binaryReader, this);
