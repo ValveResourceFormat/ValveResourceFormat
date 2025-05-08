@@ -574,6 +574,7 @@ namespace GUI.Types.Viewers
                     SpirvCrossApi.spvc_compiler_create_shader_resources(compiler, out var resources).CheckResult();
 
                     Rename(compiler, resources, ResourceType.SeparateImage, vcsFiles, stage, zFrameId, dynamicId);
+                    Rename(compiler, resources, ResourceType.SeparateSamplers, vcsFiles, stage, zFrameId, dynamicId);
                 }
 
                 SpirvCrossApi.spvc_compiler_compile(compiler, out var code).CheckResult();
@@ -624,7 +625,10 @@ namespace GUI.Types.Viewers
             ShaderCollection vcsFiles, VcsProgramType stage, long zFrameId, int dynamicId)
         {
             var shader = vcsFiles.Get(stage);
-            var writeSequence = shader.ZFrameCache.Get(zFrameId).DataBlocks[dynamicId];
+            // var leadingWriteSequence = shader.ZFrameCache.Get(zFrameId).DataBlocks[dynamicId];
+
+            var writeSeqBlockId = shader.ZFrameCache.Get(zFrameId).EndBlocks[dynamicId].BlockIdRef;
+            var writeSequence = shader.ZFrameCache.Get(zFrameId).DataBlocks[writeSeqBlockId];
 
             SpirvCrossApi.spvc_resources_get_resource_list_for_type(resources, resourceType, out var outResources, out var outResourceCount).CheckResult();
             for (nuint i = 0; i < outResourceCount; i++)
@@ -646,20 +650,18 @@ namespace GUI.Types.Viewers
 
                 var name = resourceType switch
                 {
-                    ResourceType.SeparateImage
-                    or ResourceType.SampledImage
-                    or ResourceType.StorageImage
-                        => GetNameForSampler(shader, writeSequence, binding, vfxType),
-
+                    ResourceType.SeparateImage => GetNameForTexture(shader, writeSequence, binding, vfxType),
+                    ResourceType.SeparateSamplers => GetNameForSampler(shader, writeSequence, binding),
                     _ => string.Empty,
                 };
 
                 if (string.IsNullOrEmpty(name))
                 {
+                    Console.WriteLine($"Unhandled resource type {resourceType}");
                     continue;
                 }
 
-                if (vfxType == Vfx.Type.Void)
+                if (resourceType is ResourceType.SeparateImage && vfxType is Vfx.Type.Void)
                 {
                     name = $"{name}_unexpectedTypeId{resource.base_type_id}_{resource.type_id}";
                 }
@@ -668,10 +670,10 @@ namespace GUI.Types.Viewers
             }
         }
 
-        static int TextureStartingPoint = 90;
-        static int TextureIndexStartingPoint = 30;
+        const int TextureStartingPoint = 90;
+        const int TextureIndexStartingPoint = 30;
 
-        private static unsafe string GetNameForSampler(ShaderFile shader, VfxVariableIndexArray writeSequence, uint image_binding, Vfx.Type vfxType)
+        private static string GetNameForTexture(ShaderFile shader, VfxVariableIndexArray writeSequence, uint image_binding, Vfx.Type vfxType)
         {
             var semgent1Params = writeSequence.Segment1
                 .Select<WriteSeqField, (WriteSeqField Field, ParamBlock Param)>(f => (f, shader.ParamBlocks[f.ParamId]));
@@ -721,6 +723,33 @@ namespace GUI.Types.Viewers
             }
 
             return "undetermined";
+        }
+
+        const int SamplerStartingPoint = 42;
+        public static string GetNameForSampler(ShaderFile shader, VfxVariableIndexArray writeSequence, uint sampler_binding)
+        {
+            var semgent1Params = writeSequence.Segment1
+                .Select<WriteSeqField, (WriteSeqField Field, ParamBlock Param)>(f => (f, shader.ParamBlocks[f.ParamId]));
+
+            var samplerSettings = string.Empty;
+
+            foreach (var field in writeSequence.Segment1)
+            {
+                var param = shader.ParamBlocks[field.ParamId];
+
+                if (param.ParamType is not ParameterType.SamplerState)
+                {
+                    continue;
+                }
+
+                if (field.Dest == sampler_binding - SamplerStartingPoint)
+                {
+                    var value = param.HasDynamicExpression ? /*param.DynExp*/ "dynamic" : param.IntDefs[0].ToString(CultureInfo.InvariantCulture);
+                    samplerSettings += $"{param.Name}_{value}__";
+                }
+            }
+
+            return samplerSettings.Length > 0 ? samplerSettings[..^2] : "undetermined";
         }
     }
 }
