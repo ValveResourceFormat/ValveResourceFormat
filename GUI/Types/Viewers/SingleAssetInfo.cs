@@ -8,8 +8,6 @@ using GUI.Utils;
 using SteamDatabase.ValvePak;
 using ValveKeyValue;
 
-#nullable disable
-
 namespace GUI.Types.Viewers
 {
     class SingleAssetInfo
@@ -26,7 +24,11 @@ namespace GUI.Types.Viewers
                 var path = Path.Join(folder, "readonly_tools_asset_info.bin");
 
                 guiContext.ToolsAssetInfo = new ValveResourceFormat.ToolsAssetInfo.ToolsAssetInfo();
-                guiContext.ToolsAssetInfo.Read(path);
+
+                if (File.Exists(path))
+                {
+                    guiContext.ToolsAssetInfo.Read(path);
+                }
             }
 
             if (!guiContext.ToolsAssetInfo.Files.TryGetValue(filePath, out var assetInfo))
@@ -131,7 +133,7 @@ namespace GUI.Types.Viewers
                 ReadOnly = true,
                 AllowUserToAddRows = false,
                 AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
-                DataSource = new BindingSource(new BindingList<FileReference>(referencedBy), null),
+                DataSource = new BindingSource(new BindingList<FileReference>(referencedBy), null!),
             };
 
             tab.Controls.Add(referencedContorl);
