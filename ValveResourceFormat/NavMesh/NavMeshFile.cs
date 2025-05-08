@@ -74,7 +74,7 @@ namespace ValveResourceFormat.NavMesh
             if (Version >= 35)
             {
                 var unk3 = binaryReader.ReadUInt32();
-                Debug.Assert(unk3 == 0);
+                Debug.Assert(unk3 == 0 || unk3 == 2);
             }
 
             ReadAreas(binaryReader, polygons);
@@ -163,8 +163,8 @@ namespace ValveResourceFormat.NavMesh
             }
             if (Version >= 35)
             {
-                var unk = binaryReader.ReadInt32();
-                Debug.Assert(unk == -1);
+                var unk = binaryReader.ReadUInt32();
+                //Debug.Assert(unk == -1); // TODO: Deadlock dl_mid map has these values
             }
             return polygon;
         }

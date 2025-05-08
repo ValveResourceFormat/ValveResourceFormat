@@ -3,7 +3,7 @@ using System.Runtime.InteropServices;
 namespace ValveResourceFormat.CompiledShader;
 
 [StructLayout(LayoutKind.Sequential, Pack = 1, Size = 4)]
-public readonly struct WriteSeqField
+public readonly struct VfxVariableIndexData
 {
     private readonly byte paramId;
     public WriteSeqFieldFlags UnknFlags { get; }

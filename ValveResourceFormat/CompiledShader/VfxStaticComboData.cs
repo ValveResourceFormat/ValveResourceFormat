@@ -36,7 +36,7 @@ namespace ValveResourceFormat.CompiledShader
         private int VcsVersion { get; }
 
         public VfxStaticComboData(byte[] databytes, string filenamepath, long zframeId, VcsProgramType vcsProgramType,
-            VcsPlatformType vcsPlatformType, VcsShaderModelType vcsShaderModelType, int vcsVersion, bool omitParsing = false, HandleOutputWrite outputWriter = null)
+            VcsPlatformType vcsPlatformType, VcsShaderModelType vcsShaderModelType, int vcsVersion, HandleOutputWrite outputWriter = null)
         {
             FilenamePath = filenamepath;
             VcsProgramType = vcsProgramType;
@@ -46,14 +46,7 @@ namespace ValveResourceFormat.CompiledShader
             DataReader = new ShaderDataReader(new MemoryStream(databytes), outputWriter);
             ZframeId = zframeId;
 
-            // in case of failure; enable omitParsing and use the datareader directly
-            // the zframe encoding for Features files has not been determined (only found in v62 files)
-            if (omitParsing || vcsProgramType == VcsProgramType.Features)
-            {
-                return;
-            }
-
-            LeadingData = new VfxVariableIndexArray(DataReader, -1);
+            LeadingData = new VfxVariableIndexArray(DataReader, -1); // todo: pass VcsProgramType != VcsProgramType.Features to only read 2 bytes instead of 4 (but stride is still 4)
             int attributeCount = DataReader.ReadInt16();
             for (var i = 0; i < attributeCount; i++)
             {
@@ -63,7 +56,7 @@ namespace ValveResourceFormat.CompiledShader
                 attributeBlockLengths.Add((short)(DataReader.BaseStream.Position - savedOffset));
             }
             // this data is applicable to vertex shaders
-            if (VcsProgramType == VcsProgramType.VertexShader)
+            if (VcsProgramType == VcsProgramType.Features || VcsProgramType == VcsProgramType.VertexShader)
             {
                 int vsInputBlockCount = DataReader.ReadInt16();
                 VShaderInputs = new int[vsInputBlockCount];
@@ -142,7 +135,7 @@ namespace ValveResourceFormat.CompiledShader
             {
                 var endBlock = vcsProgramType switch
                 {
-                    VcsProgramType.PixelShader or VcsProgramType.PixelShaderRenderState => new PsEndBlock(DataReader),
+                    VcsProgramType.PixelShader or VcsProgramType.PixelShaderRenderState => new VfxRenderStateInfo(DataReader),
                     VcsProgramType.HullShader => new HsEndBlock(DataReader),
                     _ => new EndBlock(DataReader),
                 };
@@ -309,15 +302,15 @@ namespace ValveResourceFormat.CompiledShader
             }
         }
 
-        public class PsEndBlock : EndBlock
+        public class VfxRenderStateInfo : EndBlock
         {
-            public bool HasData0 { get; }
-            public bool HasData1 { get; }
-            public bool HasData2 { get; }
-            public byte[] Data0 { get; }
-            public byte[] Data1 { get; }
-            public byte[] Data2 { get; }
-            public PsEndBlock(ShaderDataReader datareader) : base(datareader)
+            public bool HasRasterizerState { get; }
+            public bool HasStencilState { get; }
+            public bool HasBlendState { get; }
+            public byte[] RsRasterizerStateDesc { get; }
+            public byte[] RsDepthStencilStateDesc { get; }
+            public byte[] RsBlendStateDesc { get; }
+            public VfxRenderStateInfo(ShaderDataReader datareader) : base(datareader)
             {
                 int flag0 = datareader.ReadByte();
                 int flag1 = datareader.ReadByte();
@@ -327,21 +320,21 @@ namespace ValveResourceFormat.CompiledShader
                 {
                     throw new ShaderParserException("unexpected data");
                 }
-                HasData0 = flag0 == 0;
-                HasData1 = flag1 == 0;
-                HasData2 = flag2 == 0;
+                HasRasterizerState = flag0 == 0;
+                HasStencilState = flag1 == 0;
+                HasBlendState = flag2 == 0;
 
-                if (HasData0)
+                if (HasRasterizerState)
                 {
-                    Data0 = datareader.ReadBytes(16);
+                    RsRasterizerStateDesc = datareader.ReadBytes(16);
                 }
-                if (HasData1)
+                if (HasStencilState)
                 {
-                    Data1 = datareader.ReadBytes(20);
+                    RsDepthStencilStateDesc = datareader.ReadBytes(20);
                 }
-                if (HasData2)
+                if (HasBlendState)
                 {
-                    Data2 = datareader.ReadBytes(75);
+                    RsBlendStateDesc = datareader.ReadBytes(75);
                 }
             }
         }

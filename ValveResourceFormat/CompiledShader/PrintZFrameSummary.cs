@@ -149,7 +149,7 @@ namespace ValveResourceFormat.CompiledShader
             OutputFormatterTabulatedData tabulatedData = new(OutputWriter);
             var emptyRow = new string[] { "", "", "", "", "" };
             tabulatedData.DefineHeaders(zframeFile.LeadingData.H0 > 0 ?
-                ["segment", "", nameof(WriteSeqField.Dest), nameof(WriteSeqField.Control), nameof(WriteSeqField.UnknFlags)] :
+                ["segment", "", nameof(VfxVariableIndexData.Dest), nameof(VfxVariableIndexData.Control), nameof(VfxVariableIndexData.UnknFlags)] :
                 emptyRow);
             if (zframeFile.LeadingData.H0 > 0)
             {
@@ -183,7 +183,7 @@ namespace ValveResourceFormat.CompiledShader
             PrintParamWriteSequenceSegment(dataBlock.Globals, 2, tabulatedData);
         }
 
-        private void PrintParamWriteSequenceSegment(IReadOnlyList<WriteSeqField> segment, int segId, OutputFormatterTabulatedData tabulatedData)
+        private void PrintParamWriteSequenceSegment(IReadOnlyList<VfxVariableIndexData> segment, int segId, OutputFormatterTabulatedData tabulatedData)
         {
             var segmentDesc = segId switch
             {
@@ -361,23 +361,23 @@ namespace ValveResourceFormat.CompiledShader
                 {
                     OutputWriteLine($"hs-arg            {hsEndBlock.HullShaderArg}");
                 }
-                else if (endBlock is VfxStaticComboData.PsEndBlock psEndBlock)
+                else if (endBlock is VfxStaticComboData.VfxRenderStateInfo psEndBlock)
                 {
-                    OutputWriteLine($"has data ({psEndBlock.HasData0},{psEndBlock.HasData1},{psEndBlock.HasData2})");
-                    if (psEndBlock.HasData0)
+                    OutputWriteLine($"has data ({psEndBlock.HasRasterizerState},{psEndBlock.HasStencilState},{psEndBlock.HasBlendState})");
+                    if (psEndBlock.HasRasterizerState)
                     {
                         OutputWriteLine("// data-section 0");
-                        OutputWriteLine($"{BytesToString(psEndBlock.Data0)}");
+                        OutputWriteLine($"{BytesToString(psEndBlock.RsRasterizerStateDesc)}");
                     }
-                    if (psEndBlock.HasData1)
+                    if (psEndBlock.HasStencilState)
                     {
                         OutputWriteLine("// data-section 1");
-                        OutputWriteLine($"{BytesToString(psEndBlock.Data1)}");
+                        OutputWriteLine($"{BytesToString(psEndBlock.RsDepthStencilStateDesc)}");
                     }
-                    if (psEndBlock.HasData2)
+                    if (psEndBlock.HasBlendState)
                     {
                         OutputWriteLine("// data-section 2");
-                        var data2 = psEndBlock.Data2.AsSpan();
+                        var data2 = psEndBlock.RsBlendStateDesc.AsSpan();
                         OutputWriteLine($"{BytesToString(data2[0..3])}");
                         OutputWriteLine($"{BytesToString(data2[3..27])}");
                         OutputWriteLine($"{BytesToString(data2[27..51])}");

@@ -9,11 +9,11 @@ public class VfxVariableIndexArray : ShaderDataBlock
     public int H1 { get; }
     public int H2 { get; }
 
-    public WriteSeqField[] Fields { get; }
-    public IReadOnlyList<WriteSeqField> Evaluated => Fields[..H1];
-    public IReadOnlyList<WriteSeqField> Segment1 => Fields[H1..H2];
-    public IReadOnlyList<WriteSeqField> Globals => Fields[H2..];
-    public ReadOnlySpan<byte> Dataload => MemoryMarshal.AsBytes<WriteSeqField>(Fields);
+    public VfxVariableIndexData[] Fields { get; }
+    public IReadOnlyList<VfxVariableIndexData> Evaluated => Fields[..H1];
+    public IReadOnlyList<VfxVariableIndexData> Segment1 => Fields[H1..H2];
+    public IReadOnlyList<VfxVariableIndexData> Globals => Fields[H2..];
+    public ReadOnlySpan<byte> Dataload => MemoryMarshal.AsBytes<VfxVariableIndexData>(Fields);
 
     public VfxVariableIndexArray(ShaderDataReader datareader, int blockId) : base(datareader)
     {
@@ -22,10 +22,10 @@ public class VfxVariableIndexArray : ShaderDataBlock
         H1 = datareader.ReadInt32();
         H2 = datareader.ReadInt32();
 
-        Fields = new WriteSeqField[H0];
+        Fields = new VfxVariableIndexData[H0];
         for (var i = 0; i < H0; i++)
         {
-            Fields[i] = MemoryMarshal.AsRef<WriteSeqField>(datareader.ReadBytes(4));
+            Fields[i] = MemoryMarshal.AsRef<VfxVariableIndexData>(datareader.ReadBytes(4));
         }
     }
 }

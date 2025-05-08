@@ -268,35 +268,20 @@ namespace ValveResourceFormat.CompiledShader
             return ZframesLookup.Count;
         }
 
-        public long GetZFrameIdByIndex(int zframeIndex)
-        {
-            return ZframesLookup.ElementAt(zframeIndex).Key;
-        }
-
-        public byte[] GetCompressedZFrameData(long zframeId)
-        {
-            return ZframesLookup[zframeId].GetCompressedZFrameData(DataReader);
-        }
-
-        public byte[] GetDecompressedZFrameByIndex(int zframeIndex)
-        {
-            return ZframesLookup.ElementAt(zframeIndex).Value.GetDecompressedZFrame(DataReader);
-        }
-
         public byte[] GetDecompressedZFrame(long zframeId)
         {
             return ZframesLookup[zframeId].GetDecompressedZFrame(DataReader);
         }
 
-        public VfxStaticComboData GetZFrameFile(long zframeId, HandleOutputWrite outputWriter = null, bool omitParsing = false)
+        public VfxStaticComboData GetZFrameFile(long zframeId, HandleOutputWrite outputWriter = null)
         {
             return new VfxStaticComboData(GetDecompressedZFrame(zframeId), FilenamePath, zframeId,
-                VcsProgramType, VcsPlatformType, VcsShaderModelType, VcsVersion, omitParsing, outputWriter);
+                VcsProgramType, VcsPlatformType, VcsShaderModelType, VcsVersion, outputWriter);
         }
 
-        public VfxStaticComboData GetZFrameFileByIndex(int zframeIndex, HandleOutputWrite outputWriter = null, bool omitParsing = false)
+        public VfxStaticComboData GetZFrameFileByIndex(int zframeIndex, HandleOutputWrite outputWriter = null)
         {
-            return GetZFrameFile(ZframesLookup.ElementAt(zframeIndex).Key, outputWriter, omitParsing);
+            return GetZFrameFile(ZframesLookup.ElementAt(zframeIndex).Key, outputWriter);
         }
 #pragma warning restore CA1024
 

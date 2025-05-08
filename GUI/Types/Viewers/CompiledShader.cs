@@ -683,7 +683,7 @@ namespace GUI.Types.Viewers
         private static string GetNameForTexture(ShaderFile shader, VfxVariableIndexArray writeSequence, uint image_binding, Vfx.Type vfxType)
         {
             var semgent1Params = writeSequence.Segment1
-                .Select<WriteSeqField, (WriteSeqField Field, ParamBlock Param)>(f => (f, shader.ParamBlocks[f.ParamId]));
+                .Select<VfxVariableIndexData, (VfxVariableIndexData Field, ParamBlock Param)>(f => (f, shader.ParamBlocks[f.ParamId]));
 
             foreach (var field in writeSequence.Segment1)
             {
@@ -736,7 +736,7 @@ namespace GUI.Types.Viewers
         public static string GetNameForSampler(ShaderFile shader, VfxVariableIndexArray writeSequence, uint sampler_binding)
         {
             var semgent1Params = writeSequence.Segment1
-                .Select<WriteSeqField, (WriteSeqField Field, ParamBlock Param)>(f => (f, shader.ParamBlocks[f.ParamId]));
+                .Select<VfxVariableIndexData, (VfxVariableIndexData Field, ParamBlock Param)>(f => (f, shader.ParamBlocks[f.ParamId]));
 
             var samplerSettings = string.Empty;
 
@@ -763,7 +763,7 @@ namespace GUI.Types.Viewers
         public static string GetNameForStorageBuffer(ShaderFile shader, VfxVariableIndexArray writeSequence, uint buffer_binding)
         {
             var semgent1Params = writeSequence.Segment1
-                .Select<WriteSeqField, (WriteSeqField Field, ParamBlock Param)>(f => (f, shader.ParamBlocks[f.ParamId]));
+                .Select<VfxVariableIndexData, (VfxVariableIndexData Field, ParamBlock Param)>(f => (f, shader.ParamBlocks[f.ParamId]));
 
             foreach (var field in writeSequence.Segment1)
             {
@@ -791,7 +791,7 @@ namespace GUI.Types.Viewers
             }
 
             return writeSequence.Segment1
-                .Select<WriteSeqField, (WriteSeqField Field, ParamBlock Param)>(f => (f, shader.ParamBlocks[f.ParamId]))
+                .Select<VfxVariableIndexData, (VfxVariableIndexData Field, ParamBlock Param)>(f => (f, shader.ParamBlocks[f.ParamId]))
                 .Where(fp => fp.Param.VfxType is Vfx.Type.Cbuffer)
                 .FirstOrDefault(fp => fp.Field.Dest == binding).Param?.Name ?? "undetermined";
         }
