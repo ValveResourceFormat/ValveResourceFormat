@@ -111,10 +111,13 @@ namespace ValveResourceFormat.Blocks
 
             buffer.ElementCount = reader.ReadUInt32();
 
+            // meshsystem - look for "SceneSystem/ComputeShaderSkinning" string
             var size = reader.ReadInt32();
+            buffer.ElementSizeInBytes = (uint)(size & 0x3FFFFFF);
+
             var isSizeNegative = size < 0; // TODO: what does this actually indicate?
             var isZstdCompressed = (size & 0x8000000) != 0;
-            buffer.ElementSizeInBytes = (uint)(size & 0x7FFFFFF);
+            //var unknownThing = ~(size >> 26); // TODO: What is this for? It's stored as (unknownThing & 1)
 
             var refA = reader.BaseStream.Position;
             var attributeOffset = reader.ReadUInt32();
