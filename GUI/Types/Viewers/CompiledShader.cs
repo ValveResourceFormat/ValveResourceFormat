@@ -12,6 +12,7 @@ using Vortice.SpirvCross;
 using Vortice.SPIRV;
 using static ValveResourceFormat.CompiledShader.ShaderUtilHelpers;
 using VrfPackage = SteamDatabase.ValvePak.Package;
+using System.Diagnostics;
 
 #nullable disable
 
@@ -619,8 +620,6 @@ namespace GUI.Types.Viewers
             return buffer.ToString();
         }
 
-        static int TextureStartingPoint = 90;
-
         private static unsafe void Rename(spvc_compiler compiler, spvc_resources resources, ResourceType resourceType,
             ShaderCollection vcsFiles, VcsProgramType stage, long zFrameId, int dynamicId)
         {
@@ -636,12 +635,21 @@ namespace GUI.Types.Viewers
                 var index = SpirvCrossApi.spvc_compiler_get_decoration(compiler, resource.id, SpvDecoration.Index);
                 var binding = SpirvCrossApi.spvc_compiler_get_decoration(compiler, resource.id, SpvDecoration.Binding);
 
+                var vfxType = resource.base_type_id switch
+                {
+                    406 => Vfx.Type.Sampler2D,
+                    407 => Vfx.Type.Sampler3D,
+                    408 => Vfx.Type.SamplerCube,
+                    472 => Vfx.Type.SamplerCubeArray,
+                    _ => Vfx.Type.Void,
+                };
+
                 var name = resourceType switch
                 {
                     ResourceType.SeparateImage
                     or ResourceType.SampledImage
                     or ResourceType.StorageImage
-                        => GetNameForSampler(shader, writeSequence, binding),
+                        => GetNameForSampler(shader, writeSequence, binding, vfxType),
 
                     _ => string.Empty,
                 };
@@ -651,23 +659,68 @@ namespace GUI.Types.Viewers
                     continue;
                 }
 
+                if (vfxType == Vfx.Type.Void)
+                {
+                    name = $"{name}_unexpectedTypeId{resource.base_type_id}_{resource.type_id}";
+                }
+
                 SpirvCrossApi.spvc_compiler_set_name(compiler, resource.id, name);
             }
         }
 
-        private static unsafe string GetNameForSampler(ShaderFile shader, ZDataBlock writeSequence, uint image_binding)
+        static int TextureStartingPoint = 90;
+        static int TextureIndexStartingPoint = 30;
+
+        private static unsafe string GetNameForSampler(ShaderFile shader, ZDataBlock writeSequence, uint image_binding, Vfx.Type vfxType)
         {
-            return writeSequence.Segment1
-                .Select<WriteSeqField, (WriteSeqField Field, ParamBlock Param)>(f => (f, shader.ParamBlocks[f.ParamId]))
-                .Where(fp => fp.Param.VfxType is Vfx.Type.Sampler1D
-                                              or Vfx.Type.Sampler2D
-                                              or Vfx.Type.Sampler3D
-                                              or Vfx.Type.SamplerCube
-                                              or Vfx.Type.SamplerCubeArray
-                                              or Vfx.Type.Sampler2DArray
-                                              or Vfx.Type.Sampler1DArray
-                                              or Vfx.Type.Sampler3DArray)
-                .FirstOrDefault(fp => fp.Field.Dest == image_binding - TextureStartingPoint).Param?.Name ?? "undetermined";
+            var semgent1Params = writeSequence.Segment1
+                .Select<WriteSeqField, (WriteSeqField Field, ParamBlock Param)>(f => (f, shader.ParamBlocks[f.ParamId]));
+
+            foreach (var field in writeSequence.Segment1)
+            {
+                var param = shader.ParamBlocks[field.ParamId];
+
+                if (param.ParamType is ParameterType.SamplerState)
+                {
+                    // Arg4 = 16
+                    continue;
+                }
+
+                if (param.ParamType is not ParameterType.Texture)
+                {
+                    continue;
+                }
+
+                var isBindlessTextureArray = param.Arg4 == 152;
+                Debug.Assert(param.Arg4 == 152 || param.Arg4 == 24);
+
+                var startingPoint = isBindlessTextureArray ? TextureIndexStartingPoint : TextureStartingPoint;
+
+                if (param.VfxType is Vfx.Type.Sampler1D
+                    or Vfx.Type.Sampler2D
+                    or Vfx.Type.Sampler3D
+                    or Vfx.Type.SamplerCube
+                    or Vfx.Type.SamplerCubeArray
+                    or Vfx.Type.Sampler2DArray
+                    or Vfx.Type.Sampler1DArray
+                    or Vfx.Type.Sampler3DArray)
+                {
+
+                    if (isBindlessTextureArray && vfxType != param.VfxType)
+                    {
+                        continue;
+                    }
+
+                    if (field.Dest == image_binding - startingPoint)
+                    {
+                        return param.Name;
+                    }
+
+                    continue;
+                }
+            }
+
+            return "undetermined";
         }
     }
 }
