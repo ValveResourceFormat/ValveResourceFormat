@@ -265,6 +265,7 @@ namespace ValveResourceFormat.CompiledShader
                     Vfx.Type.String => datareader.ReadNullTermString(Encoding.UTF8),
                     Vfx.Type.Float2 => new Vector2(datareader.ReadSingle(), datareader.ReadSingle()),
                     Vfx.Type.Float3 => new Vector3(datareader.ReadSingle(), datareader.ReadSingle(), datareader.ReadSingle()),
+                    Vfx.Type.Float4 => new Vector4(datareader.ReadSingle(), datareader.ReadSingle(), datareader.ReadSingle(), datareader.ReadSingle()),
                     _ => throw new ShaderParserException($"Unexpected attribute type {VfxType} has a constant value."),
                 };
 
