@@ -46,7 +46,7 @@ namespace ValveResourceFormat.CompiledShader
             DataReader = new ShaderDataReader(new MemoryStream(databytes), outputWriter);
             ZframeId = zframeId;
 
-            LeadingData = new VfxVariableIndexArray(DataReader, -1); // todo: pass VcsProgramType != VcsProgramType.Features to only read 2 bytes instead of 4 (but stride is still 4)
+            LeadingData = new VfxVariableIndexArray(DataReader, -1, VcsProgramType != VcsProgramType.Features);
             int attributeCount = DataReader.ReadInt16();
             for (var i = 0; i < attributeCount; i++)
             {
@@ -64,11 +64,22 @@ namespace ValveResourceFormat.CompiledShader
                 {
                     VShaderInputs[i] = DataReader.ReadInt16();
                 }
+
+                if (VcsProgramType == VcsProgramType.Features)
+                {
+                    if (DataReader.BaseStream.Position != DataReader.BaseStream.Length)
+                    {
+                        throw new ShaderParserException("End of file expected");
+                    }
+
+                    return;
+                }
             }
+
             int dataBlockCount = DataReader.ReadInt16();
             for (var blockId = 0; blockId < dataBlockCount; blockId++)
             {
-                VfxVariableIndexArray dataBlock = new(DataReader, blockId);
+                VfxVariableIndexArray dataBlock = new(DataReader, blockId, true);
                 if (dataBlock.H0 > 0)
                 {
                     NonZeroDataBlockCount++;

@@ -15,7 +15,7 @@ public class VfxVariableIndexArray : ShaderDataBlock
     public IReadOnlyList<VfxVariableIndexData> Globals => Fields[H2..];
     public ReadOnlySpan<byte> Dataload => MemoryMarshal.AsBytes<VfxVariableIndexData>(Fields);
 
-    public VfxVariableIndexArray(ShaderDataReader datareader, int blockId) : base(datareader)
+    public VfxVariableIndexArray(ShaderDataReader datareader, int blockId, bool readDest) : base(datareader)
     {
         BlockId = blockId;
         H0 = datareader.ReadInt32();
@@ -25,7 +25,18 @@ public class VfxVariableIndexArray : ShaderDataBlock
         Fields = new VfxVariableIndexData[H0];
         for (var i = 0; i < H0; i++)
         {
-            Fields[i] = MemoryMarshal.AsRef<VfxVariableIndexData>(datareader.ReadBytes(4));
+            if (readDest)
+            {
+                Fields[i] = MemoryMarshal.AsRef<VfxVariableIndexData>(datareader.ReadBytes(4));
+            }
+            else
+            {
+                Fields[i] = new VfxVariableIndexData
+                {
+                    paramId = datareader.ReadByte(),
+                    UnknFlags = (WriteSeqFieldFlags)datareader.ReadByte(),
+                };
+            }
         }
     }
 }
