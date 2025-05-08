@@ -71,6 +71,10 @@ namespace GUI.Types.Viewers
                         }
                     }
                 }
+                else
+                {
+                    filePath = filePathUncompiled;
+                }
             }
 
             var resTabs = new ThemedTabControl
