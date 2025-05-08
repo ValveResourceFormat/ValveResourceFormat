@@ -255,8 +255,8 @@ namespace ValveResourceFormat.CompiledShader
             var gpuSourceName = zframeFile.GpuSources[0].BlockName.ToLowerInvariant();
             var sourceHeader = $"{gpuSourceName}-source";
             string[] dConfigHeaders = isVertexShader ?
-                    ["config-id", dNamesHeader, "write-seq.", sourceHeader, "gpu-inputs", nameof(VfxStaticComboData.UnknownArg), nameof(VfxStaticComboData.UnknownArg2), nameof(GpuSource.HashMD5)] :
-                    ["config-id", dNamesHeader, "write-seq.", sourceHeader, nameof(VfxStaticComboData.UnknownArg), nameof(VfxStaticComboData.UnknownArg2), nameof(GpuSource.HashMD5)];
+                    ["config-id", dNamesHeader, "write-seq.", sourceHeader, "gpu-inputs", nameof(VfxStaticComboData.ConstantBufferBindInfoSlots), nameof(VfxStaticComboData.ConstantBufferBindInfoFlags), nameof(GpuSource.HashMD5)] :
+                    ["config-id", dNamesHeader, "write-seq.", sourceHeader, nameof(VfxStaticComboData.ConstantBufferBindInfoSlots), nameof(VfxStaticComboData.ConstantBufferBindInfoFlags), nameof(GpuSource.HashMD5)];
             OutputFormatterTabulatedData tabulatedConfigFull = new(OutputWriter);
             tabulatedConfigFull.DefineHeaders(dConfigHeaders);
 
@@ -280,8 +280,8 @@ namespace ValveResourceFormat.CompiledShader
                 var vsInputs = isVertexShader ?
                     zframeFile.VShaderInputs[blockId] : -1;
                 var gpuInputText = vsInputs >= 0 ? $"VS-symbols[{zframeFile.VShaderInputs[blockId]}]" : "[none]";
-                var arg1Text = $"{zframeFile.UnknownArg[blockId]}";
-                var arg2Text = $"{zframeFile.UnknownArg2[blockId]}";
+                var arg1Text = $"{zframeFile.ConstantBufferBindInfoSlots[blockId]}";
+                var arg2Text = $"{zframeFile.ConstantBufferBindInfoFlags[blockId]}";
                 var hash = blockSource.HashMD5.ToString();
                 tabulatedConfigFull.AddTabulatedRow(
                     isVertexShader ?
@@ -322,18 +322,11 @@ namespace ValveResourceFormat.CompiledShader
             var headerText = "source bytes/flags";
             OutputWriteLine(headerText);
             OutputWriteLine(new string('-', headerText.Length));
-            int b0 = zframeFile.Flags0[0];
-            int b1 = zframeFile.Flags0[1];
-            int b2 = zframeFile.Flags0[2];
-            int b3 = zframeFile.Flags0[3];
-            OutputWriteLine($"{b0:X02}      // possible control byte ({b0}) or flags ({Convert.ToString(b0, 2).PadLeft(8, '0')})");
-            OutputWriteLine($"{b1:X02}      // values seen (0,1,2)");
-            OutputWriteLine($"{b2:X02}      // always 0");
-            OutputWriteLine($"{b3:X02}      // always 0");
-            OutputWriteLine($"{zframeFile.Flagbyte0}       // values seen 0,1");
+            OutputWriteLine($"{zframeFile.Flags0}      // size?");
+            OutputWriteLine($"{zframeFile.Flagbyte0}       //");
             OutputWriteLine($"{zframeFile.Flagbyte1}       // added with v66");
             OutputWriteLine($"{zframeFile.GpuSourceCount,-6}  // nr of source files");
-            OutputWriteLine($"{zframeFile.Flagbyte2}       // values seen 0,1");
+            OutputWriteLine($"{zframeFile.Flagbyte2}       //");
             OutputWriteLine("");
             OutputWriteLine("");
         }

@@ -21,17 +21,15 @@ namespace ValveResourceFormat.CompiledShader
         internal List<short> attributeBlockLengths { get; } = [];
         public int[] VShaderInputs { get; } = [];
         public List<VfxVariableIndexArray> DataBlocks { get; } = [];
-        public byte[] UnknownArg { get; }
-        public byte[] UnknownArg2 { get; }
-        public byte[] Flags0 { get; }
-        public byte Flagbyte0 { get; }
+        public byte[] ConstantBufferBindInfoSlots { get; }
+        public byte[] ConstantBufferBindInfoFlags { get; }
+        public int Flags0 { get; }
+        public bool Flagbyte0 { get; }
         public byte Flagbyte1 { get; }
         public int GpuSourceCount { get; }
-        public byte Flagbyte2 { get; }
+        public bool Flagbyte2 { get; }
         public List<GpuSource> GpuSources { get; } = [];
         public List<EndBlock> EndBlocks { get; } = [];
-        public int NrEndBlocks { get; }
-        public int NonZeroDataBlockCount { get; }
 
         private int VcsVersion { get; }
 
@@ -80,28 +78,27 @@ namespace ValveResourceFormat.CompiledShader
             for (var blockId = 0; blockId < dataBlockCount; blockId++)
             {
                 VfxVariableIndexArray dataBlock = new(DataReader, blockId, true);
-                if (dataBlock.H0 > 0)
-                {
-                    NonZeroDataBlockCount++;
-                }
                 DataBlocks.Add(dataBlock);
             }
-            int uknownArgCount = DataReader.ReadInt16();
-            UnknownArg = new byte[uknownArgCount];
-            UnknownArg2 = new byte[uknownArgCount];
-            for (var i = 0; i < uknownArgCount; i++)
+
+            int constantBufferBindInfoSize = DataReader.ReadInt16();
+            ConstantBufferBindInfoSlots = new byte[constantBufferBindInfoSize];
+            ConstantBufferBindInfoFlags = new byte[constantBufferBindInfoSize];
+            for (var i = 0; i < constantBufferBindInfoSize; i++)
             {
-                UnknownArg[i] = DataReader.ReadByte();
-                UnknownArg2[i] = DataReader.ReadByte();
+                ConstantBufferBindInfoSlots[i] = DataReader.ReadByte();
+                ConstantBufferBindInfoFlags[i] = DataReader.ReadByte();
             }
-            Flags0 = DataReader.ReadBytes(4);
-            Flagbyte0 = DataReader.ReadByte();
+
+            Flags0 = DataReader.ReadInt32(); // probably size of RenderShaderHandle_t__ or the shader data below
+            Flagbyte0 = DataReader.ReadBoolean();
             if (vcsVersion >= 66)
             {
                 Flagbyte1 = DataReader.ReadByte();
             }
+
             GpuSourceCount = DataReader.ReadInt32();
-            Flagbyte2 = DataReader.ReadByte();
+            Flagbyte2 = DataReader.ReadBoolean();
 
             if (vcsPlatformType == VcsPlatformType.PC)
             {
@@ -141,9 +138,11 @@ namespace ValveResourceFormat.CompiledShader
                 }
             }
 
-            NrEndBlocks = DataReader.ReadInt32();
-            for (var i = 0; i < NrEndBlocks; i++)
+            var countRenderStates = DataReader.ReadInt32();
+            for (var i = 0; i < countRenderStates; i++)
             {
+                // TODO: I think its supposed to read uint64, uint, uint here.
+
                 var endBlock = vcsProgramType switch
                 {
                     VcsProgramType.PixelShader or VcsProgramType.PixelShaderRenderState => new VfxRenderStateInfo(DataReader),
