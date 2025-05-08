@@ -24,6 +24,7 @@ body:
   attributes:
     label: Relevant log output or exception with stacktrace
     description: "Copy and paste any relevant log output. *This will be automatically formatted into code, backticks are not needed.*"
+    placeholder: "System.IndexOutOfRangeException: Index was outside the bounds of the array…"
     render: shell
 
 - type: input
