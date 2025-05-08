@@ -29,6 +29,7 @@ namespace ValveResourceFormat.IO
         private readonly Dictionary<string, ShaderCollection> CachedShaders = [];
         private readonly Lock CachedShadersLock = new();
         private readonly HashSet<string> CurrentGameSearchPaths = [];
+        private readonly HashSet<string> CurrentGameOfficialAddonsPaths = [];
         private readonly List<Package> CurrentGamePackages = [];
         private readonly string? CurrentFileName;
         private string? PreferredAddonFolderOnDisk;
@@ -52,6 +53,7 @@ namespace ValveResourceFormat.IO
             if (CurrentFileName != null)
             {
                 FindAndLoadSearchPaths();
+                FindAndLoadOfficialGameAddonPackage();
             }
 
 #if DEBUG_FILE_LOAD
@@ -353,7 +355,7 @@ namespace ValveResourceFormat.IO
             return resourceToReturn;
         }
 
-        private static void HandleGameInfo(HashSet<string> folders, string gameRoot, string gameinfoPath)
+        private void HandleGameInfo(HashSet<string> folders, string gameRoot, string gameinfoPath)
         {
             KVObject gameInfo;
             using (var stream = File.OpenRead(gameinfoPath))
@@ -373,12 +375,14 @@ namespace ValveResourceFormat.IO
 
             foreach (var searchPath in (IEnumerable<KVObject>)gameInfo["FileSystem"]["SearchPaths"])
             {
-                if (searchPath.Name != "Game")
+                if (searchPath.Name == "Game")
                 {
-                    continue;
+                    folders.Add(Path.Combine(gameRoot, searchPath.Value.ToString()!));
                 }
-
-                folders.Add(Path.Combine(gameRoot, searchPath.Value.ToString()!));
+                else if (searchPath.Name == "OfficialAddonRoot")
+                {
+                    CurrentGameOfficialAddonsPaths.Add(Path.Combine(gameRoot, searchPath.Value.ToString()!));
+                }
             }
         }
 
@@ -588,6 +592,43 @@ namespace ValveResourceFormat.IO
             }
 
             return null;
+        }
+
+        private void FindAndLoadOfficialGameAddonPackage()
+        {
+            if (CurrentFileName == null || CurrentGameOfficialAddonsPaths.Count == 0)
+            {
+                return;
+            }
+
+            // Check if vpk with same file name exists in addons folder
+            var fileName = Path.GetFileNameWithoutExtension(CurrentFileName);
+
+            foreach (var officialAddonPath in CurrentGameOfficialAddonsPaths)
+            {
+                var addonFolder = Path.Combine(officialAddonPath, fileName);
+
+                if (!Directory.Exists(addonFolder))
+                {
+                    continue;
+                }
+
+                var vpk = Path.Combine(addonFolder, $"{fileName}_dir.vpk");
+
+                if (File.Exists(vpk))
+                {
+                    AddPackageToSearch(vpk);
+                    break;
+                }
+
+                vpk = Path.Combine(addonFolder, $"{fileName}.vpk");
+
+                if (File.Exists(vpk))
+                {
+                    AddPackageToSearch(vpk);
+                    break;
+                }
+            }
         }
 
         private HashSet<string> FindGameFoldersForWorkshopFile()
