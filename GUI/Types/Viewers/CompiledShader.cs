@@ -575,6 +575,9 @@ namespace GUI.Types.Viewers
 
                     Rename(compiler, resources, ResourceType.SeparateImage, vcsFiles, stage, zFrameId, dynamicId);
                     Rename(compiler, resources, ResourceType.SeparateSamplers, vcsFiles, stage, zFrameId, dynamicId);
+
+                    Rename(compiler, resources, ResourceType.StorageBuffer, vcsFiles, stage, zFrameId, dynamicId);
+                    Rename(compiler, resources, ResourceType.UniformBuffer, vcsFiles, stage, zFrameId, dynamicId);
                 }
 
                 SpirvCrossApi.spvc_compiler_compile(compiler, out var code).CheckResult();
@@ -648,10 +651,14 @@ namespace GUI.Types.Viewers
                     _ => Vfx.Type.Void,
                 };
 
+                var uniformBufferBindingOffset = stage is VcsProgramType.VertexShader ? 14u : 0;
+
                 var name = resourceType switch
                 {
                     ResourceType.SeparateImage => GetNameForTexture(shader, writeSequence, binding, vfxType),
                     ResourceType.SeparateSamplers => GetNameForSampler(shader, writeSequence, binding),
+                    ResourceType.StorageBuffer or ResourceType.StorageImage => GetNameForStorageBuffer(shader, writeSequence, binding),
+                    ResourceType.UniformBuffer => GetNameForUniformBuffer(shader, writeSequence, binding - uniformBufferBindingOffset),
                     _ => string.Empty,
                 };
 
@@ -750,6 +757,43 @@ namespace GUI.Types.Viewers
             }
 
             return samplerSettings.Length > 0 ? samplerSettings[..^2] : "undetermined";
+        }
+
+        const int StorageBufferStartingPoint = 30;
+        public static string GetNameForStorageBuffer(ShaderFile shader, VfxVariableIndexArray writeSequence, uint buffer_binding)
+        {
+            var semgent1Params = writeSequence.Segment1
+                .Select<WriteSeqField, (WriteSeqField Field, ParamBlock Param)>(f => (f, shader.ParamBlocks[f.ParamId]));
+
+            foreach (var field in writeSequence.Segment1)
+            {
+                var param = shader.ParamBlocks[field.ParamId];
+
+                if (param.VfxType is < Vfx.Type.StructuredBuffer or > Vfx.Type.RWStructuredBufferWithCounter)
+                {
+                    continue;
+                }
+
+                if (field.Dest == buffer_binding - StorageBufferStartingPoint)
+                {
+                    return param.Name;
+                }
+            }
+
+            return "undetermined";
+        }
+
+        private static string GetNameForUniformBuffer(ShaderFile shader, VfxVariableIndexArray writeSequence, uint binding)
+        {
+            if (binding == 0)
+            {
+                return "_Globals_";
+            }
+
+            return writeSequence.Segment1
+                .Select<WriteSeqField, (WriteSeqField Field, ParamBlock Param)>(f => (f, shader.ParamBlocks[f.ParamId]))
+                .Where(fp => fp.Param.VfxType is Vfx.Type.Cbuffer)
+                .FirstOrDefault(fp => fp.Field.Dest == binding).Param?.Name ?? "undetermined";
         }
     }
 }
