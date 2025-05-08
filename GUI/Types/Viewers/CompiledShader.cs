@@ -540,10 +540,8 @@ namespace GUI.Types.Viewers
             return gpuSourceTab;
         }
 
-#pragma warning disable IDE0060 // Remove unused parameter - TODO: these parameters are used in the `spirvcross` branch
         public static string AttemptSpirvReflection(VulkanSource vulkanSource, ShaderCollection vcsFiles, VcsProgramType stage,
-            long zFrameId, int dynamicId, Backend backend)
-#pragma warning restore IDE0060 // Remove unused parameter
+            long zFrameId, int dynamicId, Backend backend, bool lastRetry = false)
         {
             SpirvCrossApi.spvc_context_create(out var context).CheckResult();
 
@@ -597,7 +595,20 @@ namespace GUI.Types.Viewers
                     buffer.WriteLine(lastError);
                 }
 
-                buffer.WriteLine("*/");
+                if (!lastRetry)
+                {
+                    var retryBackend = backend == Backend.GLSL ? Backend.HLSL : Backend.GLSL;
+                    buffer.WriteLine();
+                    buffer.WriteLine($"Re-attempting reflection with the {retryBackend} backend.");
+                    buffer.WriteLine("*/");
+                    buffer.WriteLine();
+
+                    buffer.Write(AttemptSpirvReflection(vulkanSource, vcsFiles, stage, zFrameId, dynamicId, retryBackend, lastRetry: true));
+                }
+                else
+                {
+                    buffer.WriteLine("*/");
+                }
             }
             finally
             {
