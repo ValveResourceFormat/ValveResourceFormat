@@ -227,8 +227,7 @@ namespace ValveResourceFormat.CompiledShader
             public string Name0 { get; }
             public uint Murmur32 { get; }
             public Vfx.Type VfxType { get; }
-            public byte LinkedParameterIndex { get; }
-            public byte HeaderArg { get; }
+            public short LinkedParameterIndex { get; }
             public byte[] HeaderCode { get; }
             public int DynExpLen { get; } = -1;
             public byte[] DynExpression { get; }
@@ -245,13 +244,13 @@ namespace ValveResourceFormat.CompiledShader
                     throw new ShaderParserException("Murmur check failed on header name");
                 }
                 VfxType = (Vfx.Type)datareader.ReadByte();
-                LinkedParameterIndex = datareader.ReadByte();
-                HeaderArg = datareader.ReadByte();
+                LinkedParameterIndex = datareader.ReadInt16();
 
-                if (VfxType == Vfx.Type.Sampler2D)
+                if (LinkedParameterIndex != -1)
                 {
                     return;
                 }
+
                 DynExpLen = datareader.ReadInt32();
                 if (DynExpLen > 0)
                 {
@@ -278,11 +277,11 @@ namespace ValveResourceFormat.CompiledShader
             {
                 if (DynExpLen > 0)
                 {
-                    return $"{Name0,-40} 0x{Murmur32:x08}  {VfxType,-15} {LinkedParameterIndex,-3} {HeaderArg,-3}  {DynExpEvaluated}";
+                    return $"{Name0,-40} 0x{Murmur32:x08}  {VfxType,-15} {LinkedParameterIndex,-3}  {DynExpEvaluated}";
                 }
                 else
                 {
-                    return $"{Name0,-40} 0x{Murmur32:x08}  {VfxType,-15} {LinkedParameterIndex,-3} {HeaderArg,-3}  {ConstValue}";
+                    return $"{Name0,-40} 0x{Murmur32:x08}  {VfxType,-15} {LinkedParameterIndex,-3}  {ConstValue}";
                 }
             }
         }
@@ -574,8 +573,8 @@ namespace ValveResourceFormat.CompiledShader
                 var attribute = Attributes[i];
                 DataReader.ReadNullTermString(Encoding.UTF8);
                 DataReader.ShowBytes(4, "murmur32");
-                DataReader.Comment($"Type: {attribute.VfxType}");
-                DataReader.ShowBytes(3, $"{nameof(VfxShaderAttribute.VfxType)}, {nameof(VfxShaderAttribute.LinkedParameterIndex)}, {nameof(VfxShaderAttribute.HeaderArg)}");
+                DataReader.ShowBytes(1, $"Type: {attribute.VfxType}");
+                DataReader.ShowBytes(2, $"{nameof(VfxShaderAttribute.LinkedParameterIndex)}");
                 if (attribute.VfxType == Vfx.Type.Sampler2D)
                 {
                     DataReader.BreakLine();
