@@ -30,7 +30,7 @@ public class VfxVariableIndexArray : ShaderDataBlock
                 Fields[i] = new VfxVariableIndexData
                 {
                     Field1 = datareader.ReadInt16(),
-                    Dest = datareader.ReadInt16(),
+                    Field2 = datareader.ReadInt16(),
                 };
             }
             else
@@ -38,7 +38,7 @@ public class VfxVariableIndexArray : ShaderDataBlock
                 Fields[i] = new VfxVariableIndexData
                 {
                     Field1 = datareader.ReadInt16(),
-                    Dest = 0,
+                    Field2 = 0,
                 };
             }
         }

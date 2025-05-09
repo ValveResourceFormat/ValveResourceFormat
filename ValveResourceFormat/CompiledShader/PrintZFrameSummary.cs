@@ -147,15 +147,15 @@ namespace ValveResourceFormat.CompiledShader
                 "each configuration points to exactly one sequence. WRITESEQ[0] is always defined.");
 
             OutputFormatterTabulatedData tabulatedData = new(OutputWriter);
-            var emptyRow = new string[] { "", "", "", ""};
+            var emptyRow = new string[] { "", "", "", "", "" };
             tabulatedData.DefineHeaders(zframeFile.LeadingData.H0 > 0 ?
-                ["segment", "", nameof(VfxVariableIndexData.ParamId), nameof(VfxVariableIndexData.Dest)] :
+                ["segment", "", nameof(VfxVariableIndexData.Dest), nameof(VfxVariableIndexData.Control), "flags"] :
                 emptyRow);
             if (zframeFile.LeadingData.H0 > 0)
             {
                 tabulatedData.AddTabulatedRow(emptyRow);
             }
-            tabulatedData.AddTabulatedRow(["WRITESEQ[0]", "", "", ""]);
+            tabulatedData.AddTabulatedRow(["WRITESEQ[0]", "", "", "", ""]);
             var dataBlock0 = zframeFile.LeadingData;
             PrintParamWriteSequence(dataBlock0, tabulatedData);
             tabulatedData.AddTabulatedRow(emptyRow);
@@ -167,7 +167,7 @@ namespace ValveResourceFormat.CompiledShader
                 {
                     lastSeq = item.Value;
                     var dataBlock = zframeFile.DataBlocks[item.Key];
-                    tabulatedData.AddTabulatedRow([$"WRITESEQ[{lastSeq}]", "", "", ""]);
+                    tabulatedData.AddTabulatedRow([$"WRITESEQ[{lastSeq}]", "", "", "", ""]);
                     PrintParamWriteSequence(dataBlock, tabulatedData);
                     tabulatedData.AddTabulatedRow(emptyRow);
                 }
@@ -197,15 +197,16 @@ namespace ValveResourceFormat.CompiledShader
                 for (var i = 0; i < segment.Count; i++)
                 {
                     var field = segment[i];
-                    var name = shaderFile.VariableDescriptions[field.ParamId].Name;
-                    var paramId = $"{field.ParamId,7}";
-                    var dest = $"{field.Dest,7}";
-                    tabulatedData.AddTabulatedRow([i == 0 ? segmentDesc : string.Empty, name, paramId, dest]);
+                    var paramDesc = $"[{field.ParamId}] {shaderFile.VariableDescriptions[field.ParamId].Name}";
+                    var paramFlags = field.Field1 >> 8 == 0x00 ? $"{"_",7}" : $"{field.Field1 >> 8,7}";
+                    var arg1Desc = field.Dest == 0xff ? $"{"_",7}" : $"{field.Dest,7}";
+                    var arg2Desc = field.Control == 0xff ? $"{"_",10}" : $"{field.Control,10}";
+                    tabulatedData.AddTabulatedRow([i == 0 ? segmentDesc : string.Empty, paramDesc, arg1Desc, arg2Desc, paramFlags]);
                 }
             }
             else
             {
-                tabulatedData.AddTabulatedRow([segmentDesc, "[empty]", "", ""]);
+                tabulatedData.AddTabulatedRow([segmentDesc, "[empty]", "", "", ""]);
             }
         }
 
