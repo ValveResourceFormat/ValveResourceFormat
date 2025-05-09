@@ -43,7 +43,7 @@ namespace ValveResourceFormat.CompiledShader
 
         private void PrintFeaturesHeader(ShaderFile shaderFile)
         {
-            output.WriteLine($"Valve Compiled Shader 2 (vcs2), version {shaderFile.FeaturesHeader.VcsFileVersion}");
+            output.WriteLine($"Valve Compiled Shader 2 (vcs2), version {shaderFile.VcsVersion}");
             output.BreakLine();
             output.Write($"Showing {shaderFile.VcsProgramType}: {Path.GetFileName(shaderFile.FilenamePath)}");
             if (showRichTextBoxLinks)
@@ -67,7 +67,7 @@ namespace ValveResourceFormat.CompiledShader
 
             output.WriteLine($"VFX File Desc: {shaderFile.FeaturesHeader.FileDescription}");
             output.BreakLine();
-            output.WriteLine($"has additional file = {shaderFile.FeaturesHeader.AdditionalFiles}");
+            output.WriteLine($"has additional file = {shaderFile.AdditionalFiles}");
             var ftHeader = shaderFile.FeaturesHeader;
             if (ftHeader.AdditionalFileFlags.Length > 0)
             {
@@ -112,7 +112,7 @@ namespace ValveResourceFormat.CompiledShader
 
         private void PrintPsVsHeader(ShaderFile shaderFile)
         {
-            output.WriteLine($"Valve Compiled Shader 2 (vcs2), version {shaderFile.VspsHeader.VcsFileVersion}");
+            output.WriteLine($"Valve Compiled Shader 2 (vcs2), version {shaderFile.VcsVersion}");
             output.BreakLine();
             output.Write($"Showing {shaderFile.VcsProgramType}: {Path.GetFileName(shaderFile.FilenamePath)}");
             if (showRichTextBoxLinks)

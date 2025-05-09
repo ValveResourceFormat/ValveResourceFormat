@@ -3,35 +3,10 @@ namespace ValveResourceFormat.CompiledShader;
 
 public class VsPsHeaderBlock : ShaderDataBlock
 {
-    public int VcsFileVersion { get; }
     public Guid FileID0 { get; }
     public Guid FileID1 { get; }
-    public VsPsHeaderBlock(ShaderDataReader datareader) : base(datareader)
+    public VsPsHeaderBlock(int version, ShaderDataReader datareader) : base(datareader)
     {
-        var vcsMagicId = datareader.ReadInt32();
-        if (vcsMagicId != ShaderFile.MAGIC)
-        {
-            throw new UnexpectedMagicException($"Wrong magic ID, VCS expects 0x{ShaderFile.MAGIC:x}",
-                vcsMagicId, nameof(vcsMagicId));
-        }
-
-        VcsFileVersion = datareader.ReadInt32();
-        ThrowIfNotSupported(VcsFileVersion);
-
-        var extraFile = VcsAdditionalFiles.None;
-        if (VcsFileVersion >= 64)
-        {
-            extraFile = (VcsAdditionalFiles)datareader.ReadInt32();
-            if (extraFile < VcsAdditionalFiles.None || extraFile > VcsAdditionalFiles.PsrsAndRtx)
-            {
-                throw new UnexpectedMagicException("unexpected v64 value", (int)extraFile, nameof(VcsAdditionalFiles));
-            }
-            if (datareader.IsSbox && extraFile == VcsAdditionalFiles.Rtx)
-            {
-                datareader.BaseStream.Position += 4;
-                VcsFileVersion--;
-            }
-        }
         FileID0 = new Guid(datareader.ReadBytes(16));
         FileID1 = new Guid(datareader.ReadBytes(16));
     }

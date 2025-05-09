@@ -1,11 +1,10 @@
+using System.Diagnostics;
 using System.Text;
 
 namespace ValveResourceFormat.CompiledShader;
 
 public class FeaturesHeaderBlock : ShaderDataBlock
 {
-    public int VcsFileVersion { get; }
-    public VcsAdditionalFiles AdditionalFiles { get; }
     public int Version { get; }
     public string FileDescription { get; }
     public int DevShader { get; }
@@ -20,36 +19,8 @@ public class FeaturesHeaderBlock : ShaderDataBlock
     public List<(string Name, string Shader, string StaticConfig, int Value)> Modes { get; } = [];
     public List<(Guid, string)> EditorIDs { get; } = [];
 
-    public int AdditionalFileCount => AdditionalFiles == VcsAdditionalFiles.PsrsAndRtx ? 2 : (int)AdditionalFiles;
-
-    public FeaturesHeaderBlock(ShaderDataReader datareader) : base(datareader)
+    public FeaturesHeaderBlock(int version, ShaderDataReader datareader, int additionalFileCount) : base(datareader)
     {
-        var vcsMagicId = datareader.ReadInt32();
-        if (vcsMagicId != ShaderFile.MAGIC)
-        {
-            throw new UnexpectedMagicException($"Wrong magic ID, VCS expects 0x{ShaderFile.MAGIC:x}",
-                vcsMagicId, nameof(vcsMagicId));
-        }
-
-        VcsFileVersion = datareader.ReadInt32();
-        ThrowIfNotSupported(VcsFileVersion);
-
-        if (VcsFileVersion >= 64)
-        {
-            AdditionalFiles = (VcsAdditionalFiles)datareader.ReadInt32();
-        }
-
-        if (!Enum.IsDefined(AdditionalFiles))
-        {
-            throw new UnexpectedMagicException("Unexpected additional files", (int)AdditionalFiles, nameof(AdditionalFiles));
-        }
-        else if (datareader.IsSbox && AdditionalFiles == VcsAdditionalFiles.Rtx)
-        {
-            datareader.BaseStream.Position += 4;
-            AdditionalFiles = VcsAdditionalFiles.None;
-            VcsFileVersion = 64;
-        }
-
         Version = datareader.ReadInt32();
         datareader.BaseStream.Position += 4; // length of name, but not needed because it's always null-term
         FileDescription = datareader.ReadNullTermString(Encoding.UTF8);
@@ -60,19 +31,19 @@ public class FeaturesHeaderBlock : ShaderDataBlock
         PixelFileFlags = datareader.ReadInt32();
         GeometryFileFlags = datareader.ReadInt32();
 
-        if (VcsFileVersion < 68)
+        if (version < 68)
         {
             HullFileFlags = datareader.ReadInt32();
             DomainFileFlags = datareader.ReadInt32();
         }
 
-        if (VcsFileVersion >= 63)
+        if (version >= 63)
         {
             ComputeFileFlags = datareader.ReadInt32();
         }
 
-        AdditionalFileFlags = new int[AdditionalFileCount];
-        for (var i = 0; i < AdditionalFileCount; i++)
+        AdditionalFileFlags = new int[additionalFileCount];
+        for (var i = 0; i < additionalFileCount; i++)
         {
             AdditionalFileFlags[i] = datareader.ReadInt32();
         }
@@ -81,23 +52,32 @@ public class FeaturesHeaderBlock : ShaderDataBlock
 
         for (var i = 0; i < modeCount; i++)
         {
+            // CVfxMode::Unserialize
             var name = datareader.ReadNullTermStringAtPosition();
             datareader.BaseStream.Position += 64;
             var shader = datareader.ReadNullTermStringAtPosition();
             datareader.BaseStream.Position += 64;
 
+            var modeSettingsCount = datareader.ReadInt32();
+
             var static_config = string.Empty;
             var value = -1;
-            if (datareader.ReadInt32() > 0)
+            if (modeSettingsCount > 0)
             {
-                static_config = datareader.ReadNullTermStringAtPosition();
-                datareader.BaseStream.Position += 64;
-                value = datareader.ReadInt32();
+                Debug.Assert(modeSettingsCount == 1); // we never supported more than 1 here
+
+                for (var j = 0; j < modeSettingsCount; j++)
+                {
+                    // CVfxModeSettings::Unserialize
+                    static_config = datareader.ReadNullTermStringAtPosition();
+                    datareader.BaseStream.Position += 64;
+                    value = datareader.ReadInt32();
+                }
             }
             Modes.Add((name, shader, static_config, value));
         }
 
-        foreach (var programType in ProgramTypeIterator())
+        foreach (var programType in ProgramTypeIterator(version, additionalFileCount))
         {
             EditorIDs.Add((new Guid(datareader.ReadBytes(16)), $"// {programType}"));
         }
@@ -105,22 +85,22 @@ public class FeaturesHeaderBlock : ShaderDataBlock
         EditorIDs.Add((new Guid(datareader.ReadBytes(16)), "// Common editor/compiler hash shared by multiple different vcs files."));
     }
 
-    public IEnumerable<VcsProgramType> ProgramTypeIterator()
+    public static IEnumerable<VcsProgramType> ProgramTypeIterator(int version, int additionalFileCount)
     {
-        var programTypeLast = (int)VcsProgramType.ComputeShader + AdditionalFileCount;
+        var programTypeLast = (int)VcsProgramType.ComputeShader + additionalFileCount;
 
         for (var i = 0; i <= programTypeLast; i++)
         {
             var programType = (VcsProgramType)i;
 
             // Version 63 adds compute shaders
-            if (VcsFileVersion < 63 && programType is VcsProgramType.ComputeShader)
+            if (version < 63 && programType is VcsProgramType.ComputeShader)
             {
                 continue;
             }
 
             // Version 68 removes hull and domain shaders
-            if (VcsFileVersion >= 68 && programType is VcsProgramType.HullShader or VcsProgramType.DomainShader)
+            if (version >= 68 && programType is VcsProgramType.HullShader or VcsProgramType.DomainShader)
             {
                 continue;
             }
@@ -129,17 +109,17 @@ public class FeaturesHeaderBlock : ShaderDataBlock
         }
     }
 
-    public void PrintByteDetail()
+    public void PrintByteDetail(int version, VcsAdditionalFiles additionalFiles)
     {
         DataReader.BaseStream.Position = Start;
         DataReader.ShowByteCount("vcs file");
         DataReader.ShowBytes(4, "\"vcs2\"");
-        DataReader.ShowBytes(4, $"{nameof(VcsFileVersion)} = {VcsFileVersion}");
+        DataReader.ShowBytes(4, $"version = {version}");
         DataReader.BreakLine();
         DataReader.ShowByteCount("features header");
-        if (VcsFileVersion >= 64)
+        if (version >= 64)
         {
-            DataReader.ShowBytes(4, $"{nameof(AdditionalFiles)} = {AdditionalFiles}");
+            DataReader.ShowBytes(4, $"{nameof(additionalFiles)} = {additionalFiles}");
         }
         DataReader.ShowBytes(4, $"{nameof(Version)} = {Version}");
         var len_name_description = DataReader.ReadInt32AtPosition();
@@ -154,19 +134,19 @@ public class FeaturesHeaderBlock : ShaderDataBlock
         DataReader.ShowBytes(12, 4, breakLine: false);
         DataReader.TabComment($"({nameof(FeaturesFileFlags)}={FeaturesFileFlags},{nameof(VertexFileFlags)}={VertexFileFlags},{nameof(PixelFileFlags)}={PixelFileFlags})");
 
-        var numArgs = VcsFileVersion < 64
+        var numArgs = version < 64
             ? 3
-            : VcsFileVersion < 68 ? 4 : 2;
-        var dismissString = VcsFileVersion < 64
+            : version < 68 ? 4 : 2;
+        var dismissString = version < 64
             ? nameof(ComputeFileFlags)
-            : VcsFileVersion < 68 ? "none" : "hull & domain (v68)";
+            : version < 68 ? "none" : "hull & domain (v68)";
         DataReader.ShowBytes(numArgs * 4, 4, breakLine: false);
         DataReader.TabComment($"{nameof(GeometryFileFlags)}={GeometryFileFlags},{nameof(ComputeFileFlags)}={ComputeFileFlags},{nameof(HullFileFlags)}={HullFileFlags},{nameof(DomainFileFlags)}={DomainFileFlags}) dismissing: {dismissString}");
 
         DataReader.BreakLine();
         DataReader.ShowByteCount();
 
-        for (var i = 0; i < (int)AdditionalFiles; i++)
+        for (var i = 0; i < (int)additionalFiles; i++)
         {
             DataReader.ShowBytes(4, $"arg8[{i}] = {AdditionalFileFlags[i]} (additional file {i})");
         }

@@ -219,7 +219,7 @@ public sealed class ShaderExtract
         writer.WriteLine($"Description = \"{Features.FeaturesHeader.FileDescription}\";");
         writer.WriteLine($"DevShader = {(Features.FeaturesHeader.DevShader == 0 ? "false" : "true")};");
         writer.WriteLine($"Version = {Features.FeaturesHeader.Version};");
-        writer.WriteLine($"// VcsFileVersion = {Features.FeaturesHeader.VcsFileVersion};");
+        writer.WriteLine($"// VcsVersion = {Features.VcsVersion};");
 
         writer.Indent--;
         writer.WriteLine("}");
@@ -1305,7 +1305,7 @@ public sealed class ShaderExtract
         var typeString = param.VfxType.ToString();
 
         typeString = typeString.StartsWith(Sampler, StringComparison.Ordinal)
-            ? "Texture" + typeString.Remove(0, Sampler.Length)
+            ? "Texture" + typeString[Sampler.Length..]
             : typeString; // not even a texture type?
 
         writer.WriteLine($"{typeString} {param.Name}{GetVfxAttributes(annotations)};");

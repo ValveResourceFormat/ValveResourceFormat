@@ -9,6 +9,7 @@ using LzmaDecoder = SevenZip.Compression.LZMA.Decoder;
 
 namespace ValveResourceFormat.CompiledShader
 {
+    // Valve name: CVfxProgramData
     public class ShaderFile : IDisposable
     {
         public const int MAGIC = 0x32736376; // "vcs2"
@@ -28,6 +29,7 @@ namespace ValveResourceFormat.CompiledShader
         public FeaturesHeaderBlock FeaturesHeader { get; private set; }
         public VsPsHeaderBlock VspsHeader { get; private set; }
         public int VcsVersion { get; private set; }
+        public VcsAdditionalFiles AdditionalFiles { get; private set; }
         public bool IsSbox { get; init; }
         public int PossibleEditorDescription { get; private set; } // 17 for all up to date files. 14 seen in old test files
         public List<SfBlock> SfBlocks { get; private set; } = [];
@@ -49,6 +51,8 @@ namespace ValveResourceFormat.CompiledShader
         public SortedDictionary<long, ZFrameDataDescription> ZframesLookup { get; } = [];
         public StaticCache ZFrameCache { get; private set; }
         private ConfigMappingDParams dBlockConfigGen;
+
+        public int AdditionalFileCount => AdditionalFiles == VcsAdditionalFiles.PsrsAndRtx ? 2 : (int)AdditionalFiles;
 
         /// <summary>
         /// Releases binary reader.
@@ -116,19 +120,40 @@ namespace ValveResourceFormat.CompiledShader
             VcsProgramType = vcsFileProperties.ProgramType;
             VcsPlatformType = vcsFileProperties.PlatformType;
             VcsShaderModelType = vcsFileProperties.ShaderModelType;
+
+            var vcsMagicId = DataReader.ReadInt32();
+            UnexpectedMagicException.Assert(vcsMagicId == MAGIC, vcsMagicId);
+
+            VcsVersion = DataReader.ReadInt32();
+            ThrowIfNotSupported(VcsVersion);
+
+            if (VcsVersion >= 64)
+            {
+                AdditionalFiles = (VcsAdditionalFiles)DataReader.ReadInt32();
+            }
+
+            if (!Enum.IsDefined(AdditionalFiles))
+            {
+                throw new UnexpectedMagicException("Unexpected additional files", (int)AdditionalFiles, nameof(AdditionalFiles));
+            }
+            else if (IsSbox && AdditionalFiles == VcsAdditionalFiles.Rtx)
+            {
+                DataReader.BaseStream.Position += 4;
+                AdditionalFiles = VcsAdditionalFiles.None;
+                VcsVersion--;
+            }
+
             // There's a chance HullShader, DomainShader and RaytracingShader work but they haven't been tested
             if (VcsProgramType == VcsProgramType.Features)
             {
-                FeaturesHeader = new FeaturesHeaderBlock(DataReader);
-                VcsVersion = FeaturesHeader.VcsFileVersion;
+                FeaturesHeader = new FeaturesHeaderBlock(VcsVersion, DataReader, AdditionalFileCount);
             }
             else if (VcsProgramType == VcsProgramType.VertexShader || VcsProgramType == VcsProgramType.PixelShader
                  || VcsProgramType == VcsProgramType.GeometryShader || VcsProgramType == VcsProgramType.PixelShaderRenderState
                  || VcsProgramType == VcsProgramType.ComputeShader || VcsProgramType == VcsProgramType.HullShader
                  || VcsProgramType == VcsProgramType.DomainShader || VcsProgramType == VcsProgramType.RaytracingShader)
             {
-                VspsHeader = new VsPsHeaderBlock(DataReader);
-                VcsVersion = VspsHeader.VcsFileVersion;
+                VspsHeader = new VsPsHeaderBlock(VcsVersion, DataReader);
             }
             else
             {
@@ -262,6 +287,18 @@ namespace ValveResourceFormat.CompiledShader
             }
         }
 
+        private static void ThrowIfNotSupported(int vcsFileVersion)
+        {
+            const int earliest = 62;
+            const int latest = 68;
+
+            if (vcsFileVersion < earliest || vcsFileVersion > latest)
+            {
+                throw new UnexpectedMagicException($"Only VCS file versions {earliest} through {latest} are supported",
+                    vcsFileVersion, nameof(vcsFileVersion));
+            }
+        }
+
 #pragma warning disable CA1024 // Use properties where appropriate
         public int GetZFrameCount()
         {
@@ -291,7 +328,7 @@ namespace ValveResourceFormat.CompiledShader
             DataReader.BaseStream.Position = 0;
             if (VcsProgramType == VcsProgramType.Features)
             {
-                FeaturesHeader.PrintByteDetail();
+                FeaturesHeader.PrintByteDetail(VcsVersion, AdditionalFiles);
             }
             else if (VcsProgramType == VcsProgramType.VertexShader || VcsProgramType == VcsProgramType.PixelShader
                  || VcsProgramType == VcsProgramType.GeometryShader || VcsProgramType == VcsProgramType.PixelShaderRenderState
