@@ -8,7 +8,7 @@ namespace ValveResourceFormat.CompiledShader;
 /// <remarks>
 /// These are usually 152 bytes long. Features may contain names describing each state
 /// </remarks>
-public class SfBlock : ShaderDataBlock, ICombo
+public class VfxCombo : ShaderDataBlock
 {
     public int BlockIndex { get; }
     public string Name { get; }
@@ -18,11 +18,11 @@ public class SfBlock : ShaderDataBlock, ICombo
     public int RangeMax { get; }
     public int Arg3 { get; } // S_TOOLS_ENABLED = 1, S_SHADER_QUALITY = 2
     public int FeatureIndex { get; }
-    public int Arg5 { get; }
     public List<string> CheckboxNames { get; } = [];
 
-    public SfBlock(ShaderDataReader datareader, int blockIndex) : base(datareader)
+    public VfxCombo(ShaderDataReader datareader, int blockIndex) : base(datareader)
     {
+        // CVfxCombo::Unserialize
         BlockIndex = blockIndex;
         Name = datareader.ReadNullTermStringAtPosition();
         datareader.BaseStream.Position += 64;
@@ -33,7 +33,6 @@ public class SfBlock : ShaderDataBlock, ICombo
         RangeMax = datareader.ReadInt32();
         Arg3 = datareader.ReadInt32();
         FeatureIndex = datareader.ReadInt32();
-        Arg5 = datareader.ReadInt32AtPosition();
         var checkboxNameCount = datareader.ReadInt32();
 
         if (checkboxNameCount > 0 && RangeMax != checkboxNameCount - 1)

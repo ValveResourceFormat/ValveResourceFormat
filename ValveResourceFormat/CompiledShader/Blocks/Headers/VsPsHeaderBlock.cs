@@ -4,11 +4,12 @@ namespace ValveResourceFormat.CompiledShader;
 public class VsPsHeaderBlock : ShaderDataBlock
 {
     public Guid FileID0 { get; }
-    public Guid FileID1 { get; }
-    public VsPsHeaderBlock(int version, ShaderDataReader datareader) : base(datareader)
+    public VsPsHeaderBlock(ShaderDataReader datareader) : base(datareader)
     {
+        // This is technically part of CVfxProgramData::Unserialize for non-features file
+        // this should be a md5 hash and likely read into the same array as EditorIDs (one hash vs all hashes per shader type for features) in FeaturesHeaderBlock
+        // so it probably should be moved out to the main ShaderFile
         FileID0 = new Guid(datareader.ReadBytes(16));
-        FileID1 = new Guid(datareader.ReadBytes(16));
     }
 
     public void PrintByteDetail()

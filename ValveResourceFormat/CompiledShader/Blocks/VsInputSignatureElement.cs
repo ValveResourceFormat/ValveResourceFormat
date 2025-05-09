@@ -2,14 +2,15 @@ using System.Text;
 
 namespace ValveResourceFormat.CompiledShader;
 
-public class VertexSymbolsBlock : ShaderDataBlock
+public class VsInputSignatureElement : ShaderDataBlock
 {
     public int BlockIndex { get; }
     public int SymbolsCount { get; }
     public List<(string Name, string Type, string Option, int SemanticIndex)> SymbolsDefinition { get; } = [];
 
-    public VertexSymbolsBlock(ShaderDataReader datareader, int blockIndex) : base(datareader)
+    public VsInputSignatureElement(ShaderDataReader datareader, int blockIndex) : base(datareader)
     {
+        // VfxUnserializeVsInputSignature
         BlockIndex = blockIndex;
         SymbolsCount = datareader.ReadInt32();
         for (var i = 0; i < SymbolsCount; i++)

@@ -2,7 +2,7 @@
 namespace ValveResourceFormat.CompiledShader;
 
 // ConstraintBlocks are always 472 bytes long
-public class ConstraintBlock : ShaderDataBlock
+public class VfxRule : ShaderDataBlock
 {
     public int BlockIndex { get; }
     public ConditionalRule Rule { get; }
@@ -13,8 +13,9 @@ public class ConstraintBlock : ShaderDataBlock
     public int[] Range2 { get; }
     public string Description { get; }
 
-    public ConstraintBlock(ShaderDataReader datareader, int blockIndex) : base(datareader)
+    public VfxRule(ShaderDataReader datareader, int blockIndex) : base(datareader)
     {
+        // CVfxRule::Unserialize
         BlockIndex = blockIndex;
         Rule = (ConditionalRule)datareader.ReadInt32();
         BlockType = (ConditionalType)datareader.ReadInt32();
@@ -31,7 +32,7 @@ public class ConstraintBlock : ShaderDataBlock
         datareader.BaseStream.Position += 256;
     }
 
-    public ConstraintBlock(ShaderDataReader datareader, int blockIndex, ConditionalType conditionalTypeVerify)
+    public VfxRule(ShaderDataReader datareader, int blockIndex, ConditionalType conditionalTypeVerify)
         : this(datareader, blockIndex)
     {
         if (BlockType != conditionalTypeVerify)

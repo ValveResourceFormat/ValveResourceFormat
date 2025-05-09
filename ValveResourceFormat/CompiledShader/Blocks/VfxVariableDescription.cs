@@ -2,7 +2,7 @@ using System.Diagnostics;
 
 namespace ValveResourceFormat.CompiledShader;
 
-public class ParamBlock : ShaderDataBlock
+public class VfxVariableDescription : ShaderDataBlock
 {
     public int BlockIndex { get; }
     public string Name { get; }
@@ -43,8 +43,9 @@ public class ParamBlock : ShaderDataBlock
     public string ImageProcessor { get; }
     public byte[] V65Data { get; } = [];
 
-    public ParamBlock(ShaderDataReader datareader, int blockIndex, int vcsVersion) : base(datareader)
+    public VfxVariableDescription(ShaderDataReader datareader, int blockIndex, int vcsVersion) : base(datareader)
     {
+        // CVfxVariableDescription::Unserialize
         BlockIndex = blockIndex;
         Name = datareader.ReadNullTermStringAtPosition();
         datareader.BaseStream.Position += 64;

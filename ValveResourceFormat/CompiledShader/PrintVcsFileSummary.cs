@@ -136,7 +136,7 @@ namespace ValveResourceFormat.CompiledShader
 
             output.WriteLine("Editor/Shader compiler stack");
             output.WriteLine($"MD5    {shaderFile.VspsHeader.FileID0}    // {shaderFile.VcsProgramType}");
-            output.WriteLine($"MD5    {shaderFile.VspsHeader.FileID1}    // Common editor/compiler hash shared by multiple different vcs files.");
+            output.WriteLine($"MD5    {shaderFile.FileHash}    // Common editor/compiler hash shared by multiple different vcs files.");
             output.WriteLine($"possible editor description = {shaderFile.PossibleEditorDescription}");
             output.BreakLine();
         }
@@ -187,7 +187,7 @@ namespace ValveResourceFormat.CompiledShader
                 output.BreakLine();
                 return;
             }
-            output.DefineHeaders([nameof(SfBlock.BlockIndex), nameof(SfBlock.Name), nameof(SfBlock.RangeMax), nameof(SfBlock.Arg3), nameof(SfBlock.FeatureIndex)]);
+            output.DefineHeaders([nameof(VfxCombo.BlockIndex), nameof(VfxCombo.Name), nameof(VfxCombo.RangeMax), nameof(VfxCombo.Arg3), nameof(VfxCombo.FeatureIndex)]);
             foreach (var item in shaderFile.SfBlocks)
             {
                 output.AddTabulatedRow([$"[{item.BlockIndex,2}]", $"{item.Name}", $"{item.RangeMax}", $"{item.Arg3}", $"{item.FeatureIndex,2}"]);
@@ -316,29 +316,29 @@ namespace ValveResourceFormat.CompiledShader
             // parameters
             output.WriteLine($"PARAMETERS({shaderFile.ParamBlocks.Count})    *dyn-expressions shown separately");
             output.DefineHeaders(["index",
-                nameof(ParamBlock.Name),
-                nameof(ParamBlock.VfxType),
-                nameof(ParamBlock.Res0),
-                nameof(ParamBlock.Tex),
-                nameof(ParamBlock.Arg3),
-                nameof(ParamBlock.Arg4),
-                nameof(ParamBlock.Arg12),
-                nameof(ParamBlock.Arg5),
-                nameof(ParamBlock.Arg6),
-                nameof(ParamBlock.VecSize),
-                nameof(ParamBlock.Id),
-                nameof(ParamBlock.Arg9),
-                nameof(ParamBlock.Arg10),
-                nameof(ParamBlock.Arg11),
+                nameof(VfxVariableDescription.Name),
+                nameof(VfxVariableDescription.VfxType),
+                nameof(VfxVariableDescription.Res0),
+                nameof(VfxVariableDescription.Tex),
+                nameof(VfxVariableDescription.Arg3),
+                nameof(VfxVariableDescription.Arg4),
+                nameof(VfxVariableDescription.Arg12),
+                nameof(VfxVariableDescription.Arg5),
+                nameof(VfxVariableDescription.Arg6),
+                nameof(VfxVariableDescription.VecSize),
+                nameof(VfxVariableDescription.Id),
+                nameof(VfxVariableDescription.Arg9),
+                nameof(VfxVariableDescription.Arg10),
+                nameof(VfxVariableDescription.Arg11),
                 "dyn-exp*",
-                nameof(ParamBlock.StringData),
-                nameof(ParamBlock.Lead0),
-                nameof(ParamBlock.ParamType),
-                nameof(ParamBlock.UiType),
-                nameof(ParamBlock.UiGroup),
+                nameof(VfxVariableDescription.StringData),
+                nameof(VfxVariableDescription.Lead0),
+                nameof(VfxVariableDescription.ParamType),
+                nameof(VfxVariableDescription.UiType),
+                nameof(VfxVariableDescription.UiGroup),
                 "command 0|1",
-                nameof(ParamBlock.FileRef),
-                nameof(ParamBlock.UiVisibilityExp)]);
+                nameof(VfxVariableDescription.FileRef),
+                nameof(VfxVariableDescription.UiVisibilityExp)]);
 
             foreach (var param in shaderFile.ParamBlocks)
             {
@@ -430,18 +430,18 @@ namespace ValveResourceFormat.CompiledShader
             output.DefineHeaders(["index",
                 "name0",
                 "t0,t1,a0,a1,a2,a4,a5  ",
-                nameof(ParamBlock.IntDefs),
-                nameof(ParamBlock.IntMins),
-                nameof(ParamBlock.IntMaxs),
-                nameof(ParamBlock.FloatDefs),
-                nameof(ParamBlock.FloatMins),
-                nameof(ParamBlock.FloatMaxs),
-                nameof(ParamBlock.ChannelIndices),
-                nameof(ParamBlock.ImageFormat),
-                nameof(ParamBlock.ImageSuffix),
-                nameof(ParamBlock.FileRef),
-                nameof(ParamBlock.DynExp),
-                nameof(ParamBlock.V65Data)]);
+                nameof(VfxVariableDescription.IntDefs),
+                nameof(VfxVariableDescription.IntMins),
+                nameof(VfxVariableDescription.IntMaxs),
+                nameof(VfxVariableDescription.FloatDefs),
+                nameof(VfxVariableDescription.FloatMins),
+                nameof(VfxVariableDescription.FloatMaxs),
+                nameof(VfxVariableDescription.ChannelIndices),
+                nameof(VfxVariableDescription.ImageFormat),
+                nameof(VfxVariableDescription.ImageSuffix),
+                nameof(VfxVariableDescription.FileRef),
+                nameof(VfxVariableDescription.DynExp),
+                nameof(VfxVariableDescription.V65Data)]);
             foreach (var param in shaderFile.ParamBlocks)
             {
                 var vfxType = Vfx.GetTypeName(param.VfxType);
@@ -471,7 +471,7 @@ namespace ValveResourceFormat.CompiledShader
             output.WriteLine($"CHANNEL BLOCKS({shaderFile.ChannelBlocks.Count})");
             if (shaderFile.ChannelBlocks.Count > 0)
             {
-                output.DefineHeaders(["index", "name", nameof(ChannelBlock.Channel), "inputs", nameof(ChannelBlock.ColorMode)]);
+                output.DefineHeaders(["index", "name", nameof(VfxTextureChannelProcessor.Channel), "inputs", nameof(VfxTextureChannelProcessor.ColorMode)]);
             }
             else
             {

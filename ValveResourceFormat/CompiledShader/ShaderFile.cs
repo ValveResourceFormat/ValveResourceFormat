@@ -29,17 +29,18 @@ namespace ValveResourceFormat.CompiledShader
         public FeaturesHeaderBlock FeaturesHeader { get; private set; }
         public VsPsHeaderBlock VspsHeader { get; private set; }
         public int VcsVersion { get; private set; }
+        public Guid FileHash { get; private set; }
         public VcsAdditionalFiles AdditionalFiles { get; private set; }
         public bool IsSbox { get; init; }
         public int PossibleEditorDescription { get; private set; } // 17 for all up to date files. 14 seen in old test files
-        public List<SfBlock> SfBlocks { get; private set; } = [];
-        public List<ConstraintBlock> SfConstraintBlocks { get; private set; } = [];
-        public List<DBlock> DBlocks { get; private set; } = [];
-        public List<ConstraintBlock> DConstraintBlocks { get; private set; } = [];
-        public List<ParamBlock> ParamBlocks { get; private set; } = [];
-        public List<ChannelBlock> ChannelBlocks { get; private set; } = [];
-        public List<BufferBlock> BufferBlocks { get; private set; } = [];
-        public List<VertexSymbolsBlock> SymbolBlocks { get; private set; } = [];
+        public List<VfxCombo> SfBlocks { get; private set; } = [];
+        public List<VfxRule> SfConstraintBlocks { get; private set; } = [];
+        public List<VfxCombo> DBlocks { get; private set; } = [];
+        public List<VfxRule> DConstraintBlocks { get; private set; } = [];
+        public List<VfxVariableDescription> ParamBlocks { get; private set; } = [];
+        public List<VfxTextureChannelProcessor> ChannelBlocks { get; private set; } = [];
+        public List<ConstantBufferVariable> BufferBlocks { get; private set; } = [];
+        public List<VsInputSignatureElement> SymbolBlocks { get; private set; } = [];
 
         // Zframe data assigned to the ZFrameDataDescription class are key pieces of
         // information needed to decompress and retrieve zframes (to save processing zframes are only
@@ -48,7 +49,7 @@ namespace ValveResourceFormat.CompiledShader
         // sorted dictionary enables retrieval based on the order they are seen; by calling
         // zframesLookup.ElementAt(zframeIndex). We also retrieve them based on their id using
         // zframesLookup[zframeId]. Both methods are useful in different contexts (be aware not to mix them up).
-        public SortedDictionary<long, ZFrameDataDescription> ZframesLookup { get; } = [];
+        public SortedDictionary<long, VfxStaticComboVcsEntry> ZframesLookup { get; } = [];
         public StaticCache ZFrameCache { get; private set; }
         private ConfigMappingDParams dBlockConfigGen;
 
@@ -104,7 +105,7 @@ namespace ValveResourceFormat.CompiledShader
             BaseStream = input;
             DataReader = new ShaderDataReader(input) { IsSbox = IsSbox };
             FilenamePath = filenamepath;
-            ParseFile();
+            VfxCreateFromVcs();
             ZFrameCache = new StaticCache(this);
         }
 
@@ -113,7 +114,7 @@ namespace ValveResourceFormat.CompiledShader
             var fileSummary = new PrintVcsFileSummary(this, OutputWriter, showRichTextBoxLinks, relatedfiles);
         }
 
-        private void ParseFile()
+        private void VfxCreateFromVcs()
         {
             var vcsFileProperties = ComputeVCSFileName(FilenamePath);
             ShaderName = vcsFileProperties.ShaderName;
@@ -143,6 +144,11 @@ namespace ValveResourceFormat.CompiledShader
                 VcsVersion--;
             }
 
+            UnserializeVfxProgramData();
+        }
+
+        private void UnserializeVfxProgramData()
+        {
             // There's a chance HullShader, DomainShader and RaytracingShader work but they haven't been tested
             if (VcsProgramType == VcsProgramType.Features)
             {
@@ -153,26 +159,29 @@ namespace ValveResourceFormat.CompiledShader
                  || VcsProgramType == VcsProgramType.ComputeShader || VcsProgramType == VcsProgramType.HullShader
                  || VcsProgramType == VcsProgramType.DomainShader || VcsProgramType == VcsProgramType.RaytracingShader)
             {
-                VspsHeader = new VsPsHeaderBlock(VcsVersion, DataReader);
+                VspsHeader = new VsPsHeaderBlock(DataReader);
             }
             else
             {
                 throw new ShaderParserException($"Can't parse this filetype: {VcsProgramType}");
             }
 
+            // TODO: Move EditorIDs here out of FeaturesHeader
+            FileHash = new Guid(DataReader.ReadBytes(16));
+
             PossibleEditorDescription = DataReader.ReadInt32();
 
             var sfBlockCount = DataReader.ReadInt32();
             for (var i = 0; i < sfBlockCount; i++)
             {
-                SfBlock nextSfBlock = new(DataReader, i);
+                VfxCombo nextSfBlock = new(DataReader, i);
                 SfBlocks.Add(nextSfBlock);
             }
 
             var sfConstraintBlockCount = DataReader.ReadInt32();
             for (var i = 0; i < sfConstraintBlockCount; i++)
             {
-                ConstraintBlock nextSfConstraintBlock = VcsProgramType == VcsProgramType.Features
+                VfxRule nextSfConstraintBlock = VcsProgramType == VcsProgramType.Features
                     ? new(DataReader, i, ConditionalType.Feature)
                     : new(DataReader, i, ConditionalType.Static);
 
@@ -182,14 +191,14 @@ namespace ValveResourceFormat.CompiledShader
             var dBlockCount = DataReader.ReadInt32();
             for (var i = 0; i < dBlockCount; i++)
             {
-                DBlock nextDBlock = new(DataReader, i);
+                VfxCombo nextDBlock = new(DataReader, i);
                 DBlocks.Add(nextDBlock);
             }
 
             var dConstraintsBlockCount = DataReader.ReadInt32();
             for (var i = 0; i < dConstraintsBlockCount; i++)
             {
-                ConstraintBlock nextDConstraintsBlock = new(DataReader, i, ConditionalType.Dynamic);
+                VfxRule nextDConstraintsBlock = new(DataReader, i, ConditionalType.Dynamic);
                 DConstraintBlocks.Add(nextDConstraintsBlock);
             }
 
@@ -200,21 +209,21 @@ namespace ValveResourceFormat.CompiledShader
             var paramBlockCount = DataReader.ReadInt32();
             for (var i = 0; i < paramBlockCount; i++)
             {
-                ParamBlock nextParamBlock = new(DataReader, i, VcsVersion);
+                VfxVariableDescription nextParamBlock = new(DataReader, i, VcsVersion);
                 ParamBlocks.Add(nextParamBlock);
             }
 
             var ChannelBlockCount = DataReader.ReadInt32();
             for (var i = 0; i < ChannelBlockCount; i++)
             {
-                ChannelBlock nextChannelBlock = new(DataReader, i);
+                VfxTextureChannelProcessor nextChannelBlock = new(DataReader, i);
                 ChannelBlocks.Add(nextChannelBlock);
             }
 
             var bufferBlockCount = DataReader.ReadInt32();
             for (var i = 0; i < bufferBlockCount; i++)
             {
-                BufferBlock nextBufferBlock = new(DataReader, i);
+                ConstantBufferVariable nextBufferBlock = new(DataReader, i);
                 BufferBlocks.Add(nextBufferBlock);
             }
 
@@ -223,7 +232,7 @@ namespace ValveResourceFormat.CompiledShader
                 var symbolsBlockCount = DataReader.ReadInt32();
                 for (var i = 0; i < symbolsBlockCount; i++)
                 {
-                    VertexSymbolsBlock nextSymbolsBlock = new(DataReader, i);
+                    VsInputSignatureElement nextSymbolsBlock = new(DataReader, i);
                     SymbolBlocks.Add(nextSymbolsBlock);
                 }
             }
@@ -248,6 +257,9 @@ namespace ValveResourceFormat.CompiledShader
 
             for (var i = 0; i < zframesCount; i++)
             {
+                // CVfxStaticComboVcsEntry::Unserialize
+                // This is a separate function because Valve has a flag to skip actually parsing the entries,
+                // so if it's not requested, it just creates empty VfxStaticComboVcsEntry with the offset.
                 zframeIdsAndOffsets[i].Offset = DataReader.ReadInt32();
             }
 
@@ -257,9 +269,12 @@ namespace ValveResourceFormat.CompiledShader
                 throw new ShaderParserException($"Pointer to end of file expected, value read = {offsetToEndOffile}");
             }
 
+            // CVfxProgramData::UnserializeStaticComboDataCache
             foreach (var zFrame in zframeIdsAndOffsets)
             {
                 DataReader.BaseStream.Position = zFrame.Offset;
+
+                /// This basically should be <see cref="GetDecompressedZFrame"/>
                 var chunkSizeOrZframeDelim = DataReader.ReadUInt32();
                 var compressionType = chunkSizeOrZframeDelim == ZSTD_DELIM ? ZSTD_COMPRESSION : LZMA_COMPRESSION;
 
@@ -281,7 +296,8 @@ namespace ValveResourceFormat.CompiledShader
                     compressedLength = DataReader.ReadInt32();
                 }
 
-                var zframeDataDesc = new ZFrameDataDescription(zFrame.Id, zFrame.Offset,
+                // I think VfxStaticComboVcsEntry is not stricly correct name for this, and in Valve's code this would be VfxStaticComboData
+                var zframeDataDesc = new VfxStaticComboVcsEntry(zFrame.Id, zFrame.Offset,
                     compressionType, uncompressedLength, compressedLength);
                 ZframesLookup.Add(zFrame.Id, zframeDataDesc);
             }
@@ -538,14 +554,14 @@ namespace ValveResourceFormat.CompiledShader
     }
 
     // Lzma also comes with a 'chunk-size' field, which is not needed
-    public class ZFrameDataDescription
+    public class VfxStaticComboVcsEntry
     {
         public long ZframeId { get; }
         public int OffsetToZFrameHeader { get; }
         public int CompressionType { get; }
         public int CompressedLength { get; }
         public int UncompressedLength { get; }
-        public ZFrameDataDescription(long zframeId, int offsetToZFrameHeader, int compressionType,
+        public VfxStaticComboVcsEntry(long zframeId, int offsetToZFrameHeader, int compressionType,
             int uncompressedLength, int compressedLength)
         {
             ZframeId = zframeId;

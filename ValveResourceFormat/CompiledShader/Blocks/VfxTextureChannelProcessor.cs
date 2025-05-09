@@ -1,7 +1,7 @@
 namespace ValveResourceFormat.CompiledShader;
 
 // ChannelBlocks are always 280 bytes long
-public class ChannelBlock : ShaderDataBlock
+public class VfxTextureChannelProcessor : ShaderDataBlock
 {
     public int BlockIndex { get; }
 
@@ -10,8 +10,9 @@ public class ChannelBlock : ShaderDataBlock
     public int ColorMode { get; }
     public string TexProcessorName { get; }
 
-    public ChannelBlock(ShaderDataReader datareader, int blockIndex) : base(datareader)
+    public VfxTextureChannelProcessor(ShaderDataReader datareader, int blockIndex) : base(datareader)
     {
+        // VfxTextureChannelProcessor::Unserialize
         BlockIndex = blockIndex;
         Channel = (ChannelMapping)datareader.ReadUInt32();
         InputTextureIndices[0] = datareader.ReadInt32();

@@ -77,12 +77,12 @@ public class FeaturesHeaderBlock : ShaderDataBlock
             Modes.Add((name, shader, static_config, value));
         }
 
+        // This is technically part of CVfxProgramData::Unserialize for features files
+        // All of these should be MD5 hashes
         foreach (var programType in ProgramTypeIterator(version, additionalFileCount))
         {
             EditorIDs.Add((new Guid(datareader.ReadBytes(16)), $"// {programType}"));
         }
-
-        EditorIDs.Add((new Guid(datareader.ReadBytes(16)), "// Common editor/compiler hash shared by multiple different vcs files."));
     }
 
     public static IEnumerable<VcsProgramType> ProgramTypeIterator(int version, int additionalFileCount)

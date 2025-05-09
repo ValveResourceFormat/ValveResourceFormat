@@ -190,7 +190,7 @@ namespace ValveResourceFormat.IO
             /// <summary>
             /// Determine which of the parameter variants is the one referenced by the material.
             /// </summary>
-            (ParamBlock, ShaderFile) DetermineParameterReferencedByMaterial(ShaderCollection shader, Material material, string paramName,
+            (VfxVariableDescription, ShaderFile) DetermineParameterReferencedByMaterial(ShaderCollection shader, Material material, string paramName,
                 KeyValuePair<string, byte> forcedStatic = default)
             {
                 var featureState = GetMaterialFeatureState(material);
@@ -270,7 +270,7 @@ namespace ValveResourceFormat.IO
                     + $"Features ({string.Join(", ", featureState.Select(p => $"{p.Key}={p.Value}"))})");
             }
 
-            IEnumerable<(Channel Channel, string Name)> GetParameterInputs(ParamBlock param, ShaderFile shaderFile)
+            IEnumerable<(Channel Channel, string Name)> GetParameterInputs(VfxVariableDescription param, ShaderFile shaderFile)
             {
                 for (var i = 0; i < param.ChannelCount; i++)
                 {
