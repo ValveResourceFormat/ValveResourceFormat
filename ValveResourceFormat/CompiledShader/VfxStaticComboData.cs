@@ -440,81 +440,110 @@ namespace ValveResourceFormat.CompiledShader
 
             public class RsBlendStateDesc
             {
-                public bool field1 { get; }
-                public bool field2 { get; }
-                public byte field3 { get; }
-                public byte field4 { get; }
-                public int field5 { get; }
-                public int field6 { get; }
-                public int field7 { get; }
-                public int field8 { get; }
-                public int field9 { get; }
-                public int field10 { get; }
-                public int field11 { get; }
-                public byte field12 { get; }
+                private const int MaxRenderTargets = 8;
+
+#pragma warning disable CA1028 // Enum Storage should be Int32
+                public enum RsBlendOp : byte
+                {
+                    Add = 0,
+                    Subtract = 1,
+                    RevSubtract = 2,
+                    Min = 3,
+                    Max = 4,
+                }
+
+                public enum RsBlendMode : byte
+                {
+                    Zero = 0,
+                    One = 1,
+                    SrcColor = 2,
+                    InvSrcColor = 3,
+                    SrcAlpha = 4,
+                    InvSrcAlpha = 5,
+                    DestAlpha = 6,
+                    InvDestAlpha = 7,
+                    DestColor = 8,
+                    InvDestColor = 9,
+                    SrcAlphaSat = 10,
+                    BlendFactor = 11,
+                    InvBlendFactor = 12,
+                }
+
+                [Flags]
+                public enum RsColorWriteEnableBits
+                {
+                    None = 0,
+                    R = 0x1,
+                    G = 0x2,
+                    B = 0x4,
+                    A = 0x8,
+                    All = R | G | B | A
+                }
+#pragma warning restore CA1028 // Enum Storage should be Int32
+
+                public bool AlphaToCoverageEnable { get; }
+                public bool IndependentBlendEnable { get; }
+                public byte HighPrecisionBlendEnable360 { get; }
+
+                public bool[] BlendEnable { get; } = new bool[MaxRenderTargets];
+                public RsBlendMode[] SrcBlend { get; } = new RsBlendMode[MaxRenderTargets];
+                public RsBlendMode[] DestBlend { get; } = new RsBlendMode[MaxRenderTargets];
+                public RsBlendOp[] BlendOp { get; } = new RsBlendOp[MaxRenderTargets];
+                public RsBlendMode[] SrcBlendAlpha { get; } = new RsBlendMode[MaxRenderTargets];
+                public RsBlendMode[] DestBlendAlpha { get; } = new RsBlendMode[MaxRenderTargets];
+                public RsBlendOp[] BlendOpAlpha { get; } = new RsBlendOp[MaxRenderTargets];
+                public RsColorWriteEnableBits[] RenderTargetWriteMask { get; } = new RsColorWriteEnableBits[MaxRenderTargets];
+                public bool[] SrgbWriteEnable { get; } = new bool[MaxRenderTargets];
 
                 public RsBlendStateDesc(ShaderDataReader datareader)
                 {
-                    field1 = datareader.ReadBoolean();
-                    field2 = datareader.ReadBoolean();
-                    field3 = datareader.ReadByte();
+                    AlphaToCoverageEnable = datareader.ReadBoolean();
+                    IndependentBlendEnable = datareader.ReadBoolean();
+                    HighPrecisionBlendEnable360 = datareader.ReadByte(); // might be wrong/unused
 
-                    for (var i = 0; i < 8; i++)
+                    for (var i = 0; i < MaxRenderTargets; i++)
                     {
-                        if (datareader.ReadBoolean())
-                        {
-                            field4 |= (byte)(1 << i);
-                        }
+                        BlendEnable[i] = datareader.ReadBoolean();
                     }
 
-                    for (var i = 0; i != 32; i += 4)
+                    for (var i = 0; i < MaxRenderTargets; i++)
                     {
-                        var value = datareader.ReadByte();
-                        field5 = field5 & ~(15 << i) | (value << i);
+                        SrcBlend[i] = (RsBlendMode)datareader.ReadByte();
                     }
 
-                    for (var i = 0; i != 32; i += 4)
+                    for (var i = 0; i < MaxRenderTargets; i++)
                     {
-                        var value = datareader.ReadByte();
-                        field6 = field6 & ~(15 << i) | (value << i);
+                        DestBlend[i] = (RsBlendMode)datareader.ReadByte();
                     }
 
-                    for (var i = 0; i != 24; i += 3)
+                    for (var i = 0; i < MaxRenderTargets; i++)
                     {
-                        var value = datareader.ReadByte();
-                        field7 = field7 & ~(7 << i) | (value << i);
+                        BlendOp[i] = (RsBlendOp)datareader.ReadByte();
                     }
 
-                    for (var i = 0; i != 32; i += 4)
+                    for (var i = 0; i < MaxRenderTargets; i++)
                     {
-                        var value = datareader.ReadByte();
-                        field8 = field8 & ~(15 << i) | (value << i);
+                        SrcBlendAlpha[i] = (RsBlendMode)datareader.ReadByte();
                     }
 
-                    for (var i = 0; i != 32; i += 4)
+                    for (var i = 0; i < MaxRenderTargets; i++)
                     {
-                        var value = datareader.ReadByte();
-                        field9 = field9 & ~(15 << i) | (value << i);
+                        DestBlendAlpha[i] = (RsBlendMode)datareader.ReadByte();
                     }
 
-                    for (var i = 0; i != 24; i += 3)
+                    for (var i = 0; i < MaxRenderTargets; i++)
                     {
-                        var value = datareader.ReadByte();
-                        field10 = field10 & ~(7 << i) | (value << i);
+                        BlendOpAlpha[i] = (RsBlendOp)datareader.ReadByte();
                     }
 
-                    for (var i = 0; i != 32; i += 4)
+                    for (var i = 0; i < MaxRenderTargets; i++)
                     {
-                        var value = datareader.ReadByte() & 0xF;
-                        field11 = field11 & ~(15 << i) | (value << i);
+                        RenderTargetWriteMask[i] = (RsColorWriteEnableBits)(datareader.ReadByte() & 0xF);
                     }
 
-                    for (var i = 0; i != 8; i++)
+                    for (var i = 0; i < MaxRenderTargets; i++)
                     {
-                        if (datareader.ReadBoolean())
-                        {
-                            field12 |= (byte)(1 << i);
-                        }
+                        SrgbWriteEnable[i] = datareader.ReadBoolean();
                     }
                 }
             }

@@ -373,10 +373,13 @@ namespace ValveResourceFormat.CompiledShader
                     {
                         OutputWriteLine("// Blend State");
                         var bs = psEndBlock.BlendStateDesc;
-                        OutputWriteLine($"{nameof(bs.field1)}: {bs.field1}, {nameof(bs.field2)}: {bs.field2}, {nameof(bs.field3)}: {bs.field3}");
-                        OutputWriteLine($"{nameof(bs.field4)}: {bs.field4:X2}, {nameof(bs.field5)}: {bs.field5:X8}, {nameof(bs.field6)}: {bs.field6:X8}");
-                        OutputWriteLine($"{nameof(bs.field7)}: {bs.field7:X8}, {nameof(bs.field8)}: {bs.field8:X8}, {nameof(bs.field9)}: {bs.field9:X8}");
-                        OutputWriteLine($"{nameof(bs.field10)}: {bs.field10:X8}, {nameof(bs.field11)}: {bs.field11:X8}, {nameof(bs.field12)}: {bs.field12:X2}");
+                        OutputWriteLine($"{nameof(bs.AlphaToCoverageEnable)}: {bs.AlphaToCoverageEnable}, {nameof(bs.IndependentBlendEnable)}: {bs.IndependentBlendEnable}, {nameof(bs.HighPrecisionBlendEnable360)}: {bs.HighPrecisionBlendEnable360}");
+                        for (var i = 0; i < 8; i++)
+                        {
+                            OutputWriteLine($"RT{i}: Enabled={bs.BlendEnable[i]}, SRGB={bs.SrgbWriteEnable[i]}, WriteMask={bs.RenderTargetWriteMask[i]}");
+                            OutputWriteLine($"  RGB: Src={bs.SrcBlend[i]}, Dst={bs.DestBlend[i]}, Op={bs.BlendOp[i]}");
+                            OutputWriteLine($"  Alpha: Src={bs.SrcBlendAlpha[i]}, Dst={bs.DestBlendAlpha[i]}, Op={bs.BlendOpAlpha[i]}");
+                        }
                     }
                 }
                 OutputWriteLine("");
