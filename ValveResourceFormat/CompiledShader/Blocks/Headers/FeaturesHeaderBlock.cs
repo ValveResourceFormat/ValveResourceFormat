@@ -17,7 +17,6 @@ public class FeaturesHeaderBlock : ShaderDataBlock
     public int ComputeFileFlags { get; }
     public int[] AdditionalFileFlags { get; }
     public List<(string Name, string Shader, string StaticConfig, int Value)> Modes { get; } = [];
-    public List<(Guid, string)> EditorIDs { get; } = [];
 
     public FeaturesHeaderBlock(int version, ShaderDataReader datareader, int additionalFileCount) : base(datareader)
     {
@@ -76,51 +75,11 @@ public class FeaturesHeaderBlock : ShaderDataBlock
             }
             Modes.Add((name, shader, static_config, value));
         }
-
-        // This is technically part of CVfxProgramData::Unserialize for features files
-        // All of these should be MD5 hashes
-        foreach (var programType in ProgramTypeIterator(version, additionalFileCount))
-        {
-            EditorIDs.Add((new Guid(datareader.ReadBytes(16)), $"// {programType}"));
-        }
     }
 
-    public static IEnumerable<VcsProgramType> ProgramTypeIterator(int version, int additionalFileCount)
-    {
-        var programTypeLast = (int)VcsProgramType.ComputeShader + additionalFileCount;
-
-        for (var i = 0; i <= programTypeLast; i++)
-        {
-            var programType = (VcsProgramType)i;
-
-            // Version 63 adds compute shaders
-            if (version < 63 && programType is VcsProgramType.ComputeShader)
-            {
-                continue;
-            }
-
-            // Version 68 removes hull and domain shaders
-            if (version >= 68 && programType is VcsProgramType.HullShader or VcsProgramType.DomainShader)
-            {
-                continue;
-            }
-
-            yield return programType;
-        }
-    }
-
-    public void PrintByteDetail(int version, VcsAdditionalFiles additionalFiles)
+    public void PrintByteDetail(ShaderFile shaderFile)
     {
         DataReader.BaseStream.Position = Start;
-        DataReader.ShowByteCount("vcs file");
-        DataReader.ShowBytes(4, "\"vcs2\"");
-        DataReader.ShowBytes(4, $"version = {version}");
-        DataReader.BreakLine();
-        DataReader.ShowByteCount("features header");
-        if (version >= 64)
-        {
-            DataReader.ShowBytes(4, $"{nameof(additionalFiles)} = {additionalFiles}");
-        }
         DataReader.ShowBytes(4, $"{nameof(Version)} = {Version}");
         var len_name_description = DataReader.ReadInt32AtPosition();
         DataReader.ShowBytes(4, $"{len_name_description} len of name");
@@ -134,19 +93,19 @@ public class FeaturesHeaderBlock : ShaderDataBlock
         DataReader.ShowBytes(12, 4, breakLine: false);
         DataReader.TabComment($"({nameof(FeaturesFileFlags)}={FeaturesFileFlags},{nameof(VertexFileFlags)}={VertexFileFlags},{nameof(PixelFileFlags)}={PixelFileFlags})");
 
-        var numArgs = version < 64
+        var numArgs = shaderFile.VcsVersion < 64
             ? 3
-            : version < 68 ? 4 : 2;
-        var dismissString = version < 64
+            : shaderFile.VcsVersion < 68 ? 4 : 2;
+        var dismissString = shaderFile.VcsVersion < 64
             ? nameof(ComputeFileFlags)
-            : version < 68 ? "none" : "hull & domain (v68)";
+            : shaderFile.VcsVersion < 68 ? "none" : "hull & domain (v68)";
         DataReader.ShowBytes(numArgs * 4, 4, breakLine: false);
         DataReader.TabComment($"{nameof(GeometryFileFlags)}={GeometryFileFlags},{nameof(ComputeFileFlags)}={ComputeFileFlags},{nameof(HullFileFlags)}={HullFileFlags},{nameof(DomainFileFlags)}={DomainFileFlags}) dismissing: {dismissString}");
 
         DataReader.BreakLine();
         DataReader.ShowByteCount();
 
-        for (var i = 0; i < (int)additionalFiles; i++)
+        for (var i = 0; i < (int)shaderFile.AdditionalFileCount; i++)
         {
             DataReader.ShowBytes(4, $"arg8[{i}] = {AdditionalFileFlags[i]} (additional file {i})");
         }
@@ -167,13 +126,6 @@ public class FeaturesHeaderBlock : ShaderDataBlock
                 DataReader.ShowBytes(68);
             }
         }
-        DataReader.BreakLine();
-        DataReader.ShowByteCount("Editor/Shader stack for generating the file");
-        foreach (var (guid, comment) in EditorIDs)
-        {
-            DataReader.ShowBytes(16, comment);
-        }
-
         DataReader.BreakLine();
     }
 }

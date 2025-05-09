@@ -80,7 +80,7 @@ namespace ValveResourceFormat.CompiledShader
             output.WriteLine($"possible editor description = {shaderFile.PossibleEditorDescription}");
             output.BreakLine();
             output.WriteLine("Editor/Shader compiler stack");
-            foreach (var v in ftHeader.EditorIDs)
+            foreach (var v in shaderFile.EditorIDs)
             {
                 output.WriteLine($"MD5    {v.Item1}    {v.Item2}");
             }
@@ -135,7 +135,7 @@ namespace ValveResourceFormat.CompiledShader
             output.BreakLine();
 
             output.WriteLine("Editor/Shader compiler stack");
-            output.WriteLine($"MD5    {shaderFile.VspsHeader.FileID0}    // {shaderFile.VcsProgramType}");
+            output.WriteLine($"MD5    {shaderFile.EditorIDs[0]}    // {shaderFile.VcsProgramType}");
             output.WriteLine($"MD5    {shaderFile.FileHash}    // Common editor/compiler hash shared by multiple different vcs files.");
             output.WriteLine($"possible editor description = {shaderFile.PossibleEditorDescription}");
             output.BreakLine();

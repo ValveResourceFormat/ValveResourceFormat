@@ -27,12 +27,12 @@ namespace ValveResourceFormat.CompiledShader
         public VcsPlatformType VcsPlatformType { get; private set; } = VcsPlatformType.Undetermined;
         public VcsShaderModelType VcsShaderModelType { get; private set; } = VcsShaderModelType.Undetermined;
         public FeaturesHeaderBlock FeaturesHeader { get; private set; }
-        public VsPsHeaderBlock VspsHeader { get; private set; }
         public int VcsVersion { get; private set; }
         public Guid FileHash { get; private set; }
         public VcsAdditionalFiles AdditionalFiles { get; private set; }
         public bool IsSbox { get; init; }
         public int PossibleEditorDescription { get; private set; } // 17 for all up to date files. 14 seen in old test files
+        public List<(Guid, string)> EditorIDs { get; } = [];
         public List<VfxCombo> SfBlocks { get; private set; } = [];
         public List<VfxRule> SfConstraintBlocks { get; private set; } = [];
         public List<VfxCombo> DBlocks { get; private set; } = [];
@@ -153,20 +153,18 @@ namespace ValveResourceFormat.CompiledShader
             if (VcsProgramType == VcsProgramType.Features)
             {
                 FeaturesHeader = new FeaturesHeaderBlock(VcsVersion, DataReader, AdditionalFileCount);
-            }
-            else if (VcsProgramType == VcsProgramType.VertexShader || VcsProgramType == VcsProgramType.PixelShader
-                 || VcsProgramType == VcsProgramType.GeometryShader || VcsProgramType == VcsProgramType.PixelShaderRenderState
-                 || VcsProgramType == VcsProgramType.ComputeShader || VcsProgramType == VcsProgramType.HullShader
-                 || VcsProgramType == VcsProgramType.DomainShader || VcsProgramType == VcsProgramType.RaytracingShader)
-            {
-                VspsHeader = new VsPsHeaderBlock(DataReader);
+
+                // EditorIDs is probably MD5 hashes
+                foreach (var programType in ProgramTypeIterator())
+                {
+                    EditorIDs.Add((new Guid(DataReader.ReadBytes(16)), $"// {programType}"));
+                }
             }
             else
             {
-                throw new ShaderParserException($"Can't parse this filetype: {VcsProgramType}");
+                EditorIDs.Add((new Guid(DataReader.ReadBytes(16)), string.Empty));
             }
 
-            // TODO: Move EditorIDs here out of FeaturesHeader
             FileHash = new Guid(DataReader.ReadBytes(16));
 
             PossibleEditorDescription = DataReader.ReadInt32();
@@ -315,6 +313,30 @@ namespace ValveResourceFormat.CompiledShader
             }
         }
 
+        public IEnumerable<VcsProgramType> ProgramTypeIterator()
+        {
+            var programTypeLast = (int)VcsProgramType.ComputeShader + AdditionalFileCount;
+
+            for (var i = 0; i <= programTypeLast; i++)
+            {
+                var programType = (VcsProgramType)i;
+
+                // Version 63 adds compute shaders
+                if (VcsVersion < 63 && programType is VcsProgramType.ComputeShader)
+                {
+                    continue;
+                }
+
+                // Version 68 removes hull and domain shaders
+                if (VcsVersion >= 68 && programType is VcsProgramType.HullShader or VcsProgramType.DomainShader)
+                {
+                    continue;
+                }
+
+                yield return programType;
+            }
+        }
+
 #pragma warning disable CA1024 // Use properties where appropriate
         public int GetZFrameCount()
         {
@@ -342,21 +364,26 @@ namespace ValveResourceFormat.CompiledShader
         {
             DataReader.OutputWriter = outputWriter ?? ((x) => { Console.Write(x); });
             DataReader.BaseStream.Position = 0;
+            DataReader.ShowByteCount("vcs file");
+            DataReader.ShowBytes(4, "\"vcs2\"");
+            DataReader.ShowBytes(4, $"version = {VcsVersion}");
+            DataReader.BreakLine();
+            if (VcsVersion >= 64)
+            {
+                DataReader.ShowBytes(4, $"{nameof(AdditionalFiles)} = {AdditionalFiles}");
+            }
             if (VcsProgramType == VcsProgramType.Features)
             {
-                FeaturesHeader.PrintByteDetail(VcsVersion, AdditionalFiles);
+                FeaturesHeader.PrintByteDetail(this);
             }
-            else if (VcsProgramType == VcsProgramType.VertexShader || VcsProgramType == VcsProgramType.PixelShader
-                 || VcsProgramType == VcsProgramType.GeometryShader || VcsProgramType == VcsProgramType.PixelShaderRenderState
-                 || VcsProgramType == VcsProgramType.ComputeShader || VcsProgramType == VcsProgramType.HullShader
-                 || VcsProgramType == VcsProgramType.DomainShader || VcsProgramType == VcsProgramType.RaytracingShader)
-            {
-                VspsHeader.PrintByteDetail();
-            }
+            DataReader.BreakLine();
+            DataReader.ShowByteCount("Editor/Shader stack for generating the file");
+            DataReader.ShowBytes(16, "Editor ref. ID0 (produces this file)");
+            DataReader.ShowBytes(16, "Common editor/compiler hash shared by multiple different vcs files.");
             DataReader.ShowByteCount();
             var possible_editor_desc = DataReader.ReadInt32AtPosition();
             DataReader.ShowBytes(4, $"({possible_editor_desc}) possible editor description");
-            var lastEditorRef = VcsProgramType == VcsProgramType.Features ? FeaturesHeader.EditorIDs.Count - 1 : 1;
+            var lastEditorRef = VcsProgramType == VcsProgramType.Features ? EditorIDs.Count - 1 : 1;
             DataReader.TabComment($"value appears to be linked to the last Editor reference (Editor ref. ID{lastEditorRef})", 15);
             DataReader.ShowByteCount();
             var sfBlockCount = DataReader.ReadUInt32AtPosition();
