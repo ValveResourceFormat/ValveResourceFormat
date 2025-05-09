@@ -900,7 +900,7 @@ public sealed class ShaderExtract
                     _ => attribute.ConstValue.ToString(),
                 };
             }
-            else if (attribute.LinkedParameterIndex != 255)
+            else if (attribute.LinkedParameterIndex != -1)
             {
                 value = paramBlocks[attribute.LinkedParameterIndex].Name;
             }
