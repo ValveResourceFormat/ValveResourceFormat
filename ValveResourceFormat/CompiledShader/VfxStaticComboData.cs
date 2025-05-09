@@ -311,18 +311,20 @@ namespace ValveResourceFormat.CompiledShader
         {
             public class RsRasterizerStateDesc
             {
-                public enum RsFillMode
+#pragma warning disable CA1028 // Enum Storage should be Int32
+                public enum RsFillMode : byte
                 {
                     Solid = 0,
-                    Wireframe = 1
+                    Wireframe = 1,
                 }
 
-                public enum RsCullMode
+                public enum RsCullMode : byte
                 {
                     None = 0,
                     Back = 1,
-                    Front = 2
+                    Front = 2,
                 }
+#pragma warning restore CA1028 // Enum Storage should be Int32
 
                 public RsFillMode FillMode { get; }
                 public RsCullMode CullMode { get; }
@@ -346,49 +348,93 @@ namespace ValveResourceFormat.CompiledShader
 
             public class RsDepthStencilStateDesc
             {
-                public bool field1 { get; }
-                public bool field2 { get; }
-                public byte field3 { get; }
-                public byte field4 { get; }
-                public byte field5 { get; }
-                public bool field6 { get; }
-                public byte field7 { get; }
-                public byte field8 { get; }
-                public byte field9 { get; }
-                public byte field10 { get; }
-                public byte field11 { get; }
-                public byte field12 { get; }
-                public byte field13 { get; }
-                public byte field14 { get; }
-                public byte field15 { get; }
-                public byte field16 { get; }
-                public bool field17 { get; }
-                public bool field18 { get; }
-                public byte field19 { get; }
-                public byte field20 { get; }
+#pragma warning disable CA1028 // Enum Storage should be Int32
+                public enum RsComparison : byte
+                {
+                    Never = 0,
+                    Less = 1,
+                    Equal = 2,
+                    LessEqual = 3,
+                    Greater = 4,
+                    NotEqual = 5,
+                    GreaterEqual = 6,
+                    Always = 7,
+                }
+
+                public enum RsStencilOp : byte
+                {
+                    Keep = 0,
+                    Zero = 1,
+                    Replace = 2,
+                    IncrSat = 3,
+                    DecrSat = 4,
+                    Invert = 5,
+                    Incr = 6,
+                    Decr = 7,
+                }
+
+                public enum RsHiZMode360 : byte
+                {
+                    HiZAutomatic = 0,
+                    HiZDisable = 1,
+                    HiZEnable = 2,
+                }
+
+                public enum RsHiStencilComparison360 : byte
+                {
+                    HiStencilCmpEqual = 0,
+                    HiStencilCmpNotEqual = 1,
+                }
+#pragma warning restore CA1028 // Enum Storage should be Int32
+
+                public bool DepthTestEnable { get; }
+                public bool DepthWriteEnable { get; }
+                public RsComparison DepthFunc { get; }
+                public RsHiZMode360 HiZEnable360 { get; }
+                public RsHiZMode360 HiZWriteEnable360 { get; }
+                public bool StencilEnable { get; }
+                public byte StencilReadMask { get; }
+                public byte StencilWriteMask { get; }
+                public RsStencilOp FrontStencilFailOp { get; }
+                public RsStencilOp FrontStencilDepthFailOp { get; }
+                public RsStencilOp FrontStencilPassOp { get; }
+                public RsComparison FrontStencilFunc { get; }
+                public RsStencilOp BackStencilFailOp { get; }
+                public RsStencilOp BackStencilDepthFailOp { get; }
+                public RsStencilOp BackStencilPassOp { get; }
+                public RsComparison BackStencilFunc { get; }
+                public bool HiStencilEnable360 { get; }
+                public bool HiStencilWriteEnable360 { get; }
+                public RsHiStencilComparison360 HiStencilFunc360 { get; }
+                public byte HiStencilRef360 { get; }
 
                 public RsDepthStencilStateDesc(ShaderDataReader datareader)
                 {
-                    field1 = datareader.ReadBoolean();
-                    field2 = datareader.ReadBoolean();
-                    field3 = datareader.ReadByte();
-                    field4 = datareader.ReadByte();
-                    field5 = datareader.ReadByte();
-                    field6 = datareader.ReadBoolean();
-                    field7 = datareader.ReadByte();
-                    field8 = datareader.ReadByte();
-                    field9 = datareader.ReadByte();
-                    field10 = datareader.ReadByte();
-                    field11 = datareader.ReadByte();
-                    field12 = datareader.ReadByte();
-                    field13 = datareader.ReadByte();
-                    field14 = datareader.ReadByte();
-                    field15 = datareader.ReadByte();
-                    field16 = datareader.ReadByte();
-                    field17 = datareader.ReadBoolean();
-                    field18 = datareader.ReadBoolean();
-                    field19 = datareader.ReadByte();
-                    field20 = datareader.ReadByte();
+                    DepthTestEnable = datareader.ReadBoolean();
+                    DepthWriteEnable = datareader.ReadBoolean();
+                    DepthFunc = (RsComparison)datareader.ReadByte();
+
+                    HiZEnable360 = (RsHiZMode360)datareader.ReadByte();
+                    HiZWriteEnable360 = (RsHiZMode360)datareader.ReadByte();
+
+                    StencilEnable = datareader.ReadBoolean();
+                    StencilReadMask = datareader.ReadByte();
+                    StencilWriteMask = datareader.ReadByte();
+
+                    FrontStencilFailOp = (RsStencilOp)datareader.ReadByte();
+                    FrontStencilDepthFailOp = (RsStencilOp)datareader.ReadByte();
+                    FrontStencilPassOp = (RsStencilOp)datareader.ReadByte();
+                    FrontStencilFunc = (RsComparison)datareader.ReadByte();
+
+                    BackStencilFailOp = (RsStencilOp)datareader.ReadByte();
+                    BackStencilDepthFailOp = (RsStencilOp)datareader.ReadByte();
+                    BackStencilPassOp = (RsStencilOp)datareader.ReadByte();
+                    BackStencilFunc = (RsComparison)datareader.ReadByte();
+
+                    HiStencilEnable360 = datareader.ReadBoolean();
+                    HiStencilWriteEnable360 = datareader.ReadBoolean();
+                    HiStencilFunc360 = (RsHiStencilComparison360)datareader.ReadByte();
+                    HiStencilRef360 = datareader.ReadByte();
                 }
             }
 

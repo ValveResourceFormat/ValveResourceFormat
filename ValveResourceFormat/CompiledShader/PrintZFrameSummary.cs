@@ -364,10 +364,10 @@ namespace ValveResourceFormat.CompiledShader
                     {
                         OutputWriteLine("// Depth Stencil State");
                         var ds = psEndBlock.DepthStencilStateDesc;
-                        OutputWriteLine($"{nameof(ds.field1)}: {ds.field1}, {nameof(ds.field2)}: {ds.field2}, {nameof(ds.field3)}: {ds.field3}, {nameof(ds.field4)}: {ds.field4}, {nameof(ds.field5)}: {ds.field5}");
-                        OutputWriteLine($"{nameof(ds.field6)}: {ds.field6}, {nameof(ds.field7)}: {ds.field7}, {nameof(ds.field8)}: {ds.field8}, {nameof(ds.field9)}: {ds.field9}, {nameof(ds.field10)}: {ds.field10}");
-                        OutputWriteLine($"{nameof(ds.field11)}: {ds.field11}, {nameof(ds.field12)}: {ds.field12}, {nameof(ds.field13)}: {ds.field13}, {nameof(ds.field14)}: {ds.field14}, {nameof(ds.field15)}: {ds.field15}");
-                        OutputWriteLine($"{nameof(ds.field16)}: {ds.field16}, {nameof(ds.field17)}: {ds.field17}, {nameof(ds.field18)}: {ds.field18}, {nameof(ds.field19)}: {ds.field19}, {nameof(ds.field20)}: {ds.field20}");
+                        OutputWriteLine($"{nameof(ds.DepthTestEnable)}: {ds.DepthTestEnable}, {nameof(ds.DepthWriteEnable)}: {ds.DepthWriteEnable}, {nameof(ds.DepthFunc)}: {ds.DepthFunc}, {nameof(ds.HiZEnable360)}: {ds.HiZEnable360}, {nameof(ds.HiZWriteEnable360)}: {ds.HiZWriteEnable360}");
+                        OutputWriteLine($"{nameof(ds.StencilEnable)}: {ds.StencilEnable}, {nameof(ds.StencilReadMask)}: {ds.StencilReadMask}, {nameof(ds.StencilWriteMask)}: {ds.StencilWriteMask}, {nameof(ds.FrontStencilFailOp)}: {ds.FrontStencilFailOp}, {nameof(ds.FrontStencilDepthFailOp)}: {ds.FrontStencilDepthFailOp}");
+                        OutputWriteLine($"{nameof(ds.FrontStencilPassOp)}: {ds.FrontStencilPassOp}, {nameof(ds.FrontStencilFunc)}: {ds.FrontStencilFunc}, {nameof(ds.BackStencilFailOp)}: {ds.BackStencilFailOp}, {nameof(ds.BackStencilDepthFailOp)}: {ds.BackStencilDepthFailOp}, {nameof(ds.BackStencilPassOp)}: {ds.BackStencilPassOp}");
+                        OutputWriteLine($"{nameof(ds.BackStencilFunc)}: {ds.BackStencilFunc}, {nameof(ds.HiStencilEnable360)}: {ds.HiStencilEnable360}, {nameof(ds.HiStencilWriteEnable360)}: {ds.HiStencilWriteEnable360}, {nameof(ds.HiStencilFunc360)}: {ds.HiStencilFunc360}, {nameof(ds.HiStencilRef360)}: {ds.HiStencilRef360}");
                     }
                     if (psEndBlock.BlendStateDesc != null)
                     {
