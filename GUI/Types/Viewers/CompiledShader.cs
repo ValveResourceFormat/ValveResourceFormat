@@ -578,6 +578,8 @@ namespace GUI.Types.Viewers
 
                     Rename(compiler, resources, ResourceType.StorageBuffer, vcsFiles, stage, zFrameId, dynamicId);
                     Rename(compiler, resources, ResourceType.UniformBuffer, vcsFiles, stage, zFrameId, dynamicId);
+
+                    Rename(compiler, resources, ResourceType.StageInput, vcsFiles, stage, zFrameId, dynamicId);
                 }
 
                 SpirvCrossApi.spvc_compiler_compile(compiler, out var code).CheckResult();
@@ -631,8 +633,10 @@ namespace GUI.Types.Viewers
             Span<spvc_buffer_range> bufferRanges = stackalloc spvc_buffer_range[256];
             // var leadingWriteSequence = shader.ZFrameCache.Get(zFrameId).DataBlocks[dynamicId];
 
-            var writeSeqBlockId = shader.ZFrameCache.Get(zFrameId).EndBlocks[dynamicId].BlockIdRef;
-            var writeSequence = shader.ZFrameCache.Get(zFrameId).DataBlocks[writeSeqBlockId];
+            var staticComboData = shader.ZFrameCache.Get(zFrameId);
+
+            var dynamicBlockIndex = staticComboData.EndBlocks[dynamicId].BlockIdRef;
+            var writeSequence = staticComboData.DataBlocks[dynamicBlockIndex];
 
             SpirvCrossApi.spvc_resources_get_resource_list_for_type(resources, resourceType, out var outResources, out var outResourceCount).CheckResult();
             for (nuint i = 0; i < outResourceCount; i++)
@@ -653,7 +657,8 @@ namespace GUI.Types.Viewers
                     _ => Vfx.Type.Void,
                 };
 
-                var uniformBufferBindingOffset = stage is VcsProgramType.VertexShader ? 14u : 0;
+                var isVertexShader = stage is VcsProgramType.VertexShader;
+                var uniformBufferBindingOffset = isVertexShader ? 14u : 0;
                 var uniformBufferBinding = binding - uniformBufferBindingOffset;
 
                 var isGlobalsBuffer = uniformBufferBinding == 0 && set == 0;
@@ -664,6 +669,9 @@ namespace GUI.Types.Viewers
                     ResourceType.SeparateSamplers => GetNameForSampler(shader, writeSequence, binding),
                     ResourceType.StorageBuffer or ResourceType.StorageImage => GetNameForStorageBuffer(shader, writeSequence, binding),
                     ResourceType.UniformBuffer => isGlobalsBuffer ? "_Globals_" : GetNameForUniformBuffer(shader, writeSequence, uniformBufferBinding, set),
+                    ResourceType.StageInput => isVertexShader
+                        ? GetVsAttributeName(shader, shader.VSInputSignatures[staticComboData.VShaderInputs[dynamicBlockIndex]], location)
+                        : string.Empty,
                     _ => string.Empty,
                 };
 
@@ -859,6 +867,11 @@ namespace GUI.Types.Viewers
             {
                 return "undetermined";
             }
+        }
+
+        public static string GetVsAttributeName(ShaderFile shader, VsInputSignatureElement inputSignatureElement, int attributeLocation)
+        {
+            return inputSignatureElement.SymbolsDefinition[attributeLocation].Name;
         }
     }
 }
