@@ -101,8 +101,8 @@ public sealed class ShaderExtract
             throw new InvalidOperationException("Shader extract cannot continue without at least a features file.");
         }
 
-        FeatureNames = Features.SfBlocks.Select(f => f.Name).ToArray();
-        Globals = Features.ParamBlocks.Select(p => p.Name).ToArray();
+        FeatureNames = Features.StaticCombos.Select(f => f.Name).ToArray();
+        Globals = Features.VariableDescriptions.Select(p => p.Name).ToArray();
     }
 
     public ContentFile ToContentFile()
@@ -196,11 +196,11 @@ public sealed class ShaderExtract
             if (firstPass)
             {
                 firstPass = false;
-                Common.BufferBlocks.UnionWith(stage.BufferBlocks);
+                Common.BufferBlocks.UnionWith(stage.ExtConstantBufferDescriptions);
                 continue;
             }
 
-            Common.BufferBlocks.IntersectWith(stage.BufferBlocks);
+            Common.BufferBlocks.IntersectWith(stage.ExtConstantBufferDescriptions);
 
             if (Common.BufferBlocks.Count == 0)
             {
@@ -259,7 +259,7 @@ public sealed class ShaderExtract
         writer.WriteLine("{");
         writer.Indent++;
 
-        HandleFeatures(Features.SfBlocks, Features.SfConstraintBlocks, writer);
+        HandleFeatures(Features.StaticCombos, Features.StaticComboRules, writer);
 
         writer.Indent--;
         writer.WriteLine("}");
@@ -299,17 +299,17 @@ public sealed class ShaderExtract
         var maxNameLength = 0;
         var maxSemanticLength = 0;
 
-        foreach (var i in Enumerable.Range(0, Vertex.SymbolBlocks.Count))
+        foreach (var i in Enumerable.Range(0, Vertex.VSInputSignatures.Count))
         {
-            for (var j = 0; j < Vertex.SymbolBlocks[i].SymbolsDefinition.Count; j++)
+            for (var j = 0; j < Vertex.VSInputSignatures[i].SymbolsDefinition.Count; j++)
             {
-                var symbol = Vertex.SymbolBlocks[i].SymbolsDefinition[j];
+                var symbol = Vertex.VSInputSignatures[i].SymbolsDefinition[j];
                 var val = (symbol.Name, symbol.Type, symbol.Option, symbol.SemanticIndex);
                 var existingIndex = symbols.IndexOf(val);
                 if (existingIndex == -1)
                 {
                     symbols.Insert(j, val);
-                    var mask = new bool[Vertex.SymbolBlocks.Count];
+                    var mask = new bool[Vertex.VSInputSignatures.Count];
                     mask[i] = true;
                     masks.Insert(j, mask);
                     maxNameLength = Math.Max(maxNameLength, symbol.Name.Length);
@@ -344,10 +344,10 @@ public sealed class ShaderExtract
 
                 for (var j = 0; j < staticConfigState.Length; j++)
                 {
-                    var staticCondition = (Vertex.SfBlocks[j].Name, staticConfigState[j]);
+                    var staticCondition = (Vertex.StaticCombos[j].Name, staticConfigState[j]);
                     if (!perConditionVsInputBlocks.TryGetValue(staticCondition, out var staticVsBlocks))
                     {
-                        staticVsBlocks = new HashSet<int>(Vertex.SymbolBlocks.Count);
+                        staticVsBlocks = new HashSet<int>(Vertex.VSInputSignatures.Count);
                         perConditionVsInputBlocks.Add(staticCondition, staticVsBlocks);
                     }
 
@@ -355,10 +355,10 @@ public sealed class ShaderExtract
 
                     for (var k = 0; k < dynamicConfigState.Length; k++)
                     {
-                        var dynamicCondition = (Vertex.DBlocks[k].Name, dynamicConfigState[k]);
+                        var dynamicCondition = (Vertex.DynamicCombos[k].Name, dynamicConfigState[k]);
                         if (!perConditionVsInputBlocks.TryGetValue(dynamicCondition, out var dynamicVsBlocks))
                         {
-                            dynamicVsBlocks = new HashSet<int>(Vertex.SymbolBlocks.Count);
+                            dynamicVsBlocks = new HashSet<int>(Vertex.VSInputSignatures.Count);
                             perConditionVsInputBlocks.Add(dynamicCondition, dynamicVsBlocks);
                         }
 
@@ -417,7 +417,7 @@ public sealed class ShaderExtract
                 var conditions = new List<string>();
                 foreach (var (condition, VsInputIds) in perConditionVsInputBlocks)
                 {
-                    if (VsInputIds.Count == Vertex.SymbolBlocks.Count)
+                    if (VsInputIds.Count == Vertex.VSInputSignatures.Count)
                     {
                         continue;
                     }
@@ -549,12 +549,12 @@ public sealed class ShaderExtract
         writer.WriteLine("{");
         writer.Indent++;
 
-        HandleStaticCombos(shader.SfBlocks, shader.SfConstraintBlocks, writer);
-        HandleDynamicCombos(shader.SfBlocks, shader.DBlocks, shader.DConstraintBlocks, writer);
+        HandleStaticCombos(shader.StaticCombos, shader.StaticComboRules, writer);
+        HandleDynamicCombos(shader.StaticCombos, shader.DynamicCombos, shader.DynamicComboRules, writer);
 
-        WriteCBuffers(shader.BufferBlocks.Where(b => !Common.BufferBlocks.Contains(b)), writer);
+        WriteCBuffers(shader.ExtConstantBufferDescriptions.Where(b => !Common.BufferBlocks.Contains(b)), writer);
 
-        HandleParameters(shader.ParamBlocks, shader.ChannelBlocks, writer);
+        HandleParameters(shader.VariableDescriptions, shader.TextureChannelProcessors, writer);
 
         HandleZFrames(shader, writer);
 
@@ -562,7 +562,7 @@ public sealed class ShaderExtract
         {
             writer.WriteLine();
             writer.WriteLine("// PSRS");
-            HandleParameters(PixelShaderRenderState.ParamBlocks, PixelShaderRenderState.ChannelBlocks, writer);
+            HandleParameters(PixelShaderRenderState.VariableDescriptions, PixelShaderRenderState.TextureChannelProcessors, writer);
             HandleZFrames(PixelShaderRenderState, writer);
         }
 
@@ -605,12 +605,12 @@ public sealed class ShaderExtract
         ConfigMappingSParams staticConfig = new(shader);
 
         // Attributes
-        var attributesDisect = new Dictionary<int[], HashSet<string>>(2 ^ Math.Max(0, shader.SfBlocks.Count - 1), new ConfigKeyComparer());
+        var attributesDisect = new Dictionary<int[], HashSet<string>>(2 ^ Math.Max(0, shader.StaticCombos.Count - 1), new ConfigKeyComparer());
         var perConditionAttributes = new Dictionary<(int Index, int State), HashSet<string>>(staticConfig.SumStates);
 
         // Parameters
         var perConditionParameters = new Dictionary<(int Index, int State), HashSet<int>>(staticConfig.SumStates);
-        var hasParameters = shader.ParamBlocks.Count > 0;
+        var hasParameters = shader.VariableDescriptions.Count > 0;
 
         // Raw glsl (old) or SPIR-V reflected source for variant 0
         var variant0Source = new StringBuilder();
@@ -623,7 +623,7 @@ public sealed class ShaderExtract
             }
 
             using var zFrame = shader.GetZFrameFileByIndex(i);
-            var zframeAttributes = GetZFrameAttributes(zFrame, shader.ParamBlocks);
+            var zframeAttributes = GetZFrameAttributes(zFrame, shader.VariableDescriptions);
 
             var staticConfigState = staticConfig.GetConfigState(zFrame.ZframeId);
             attributesDisect[staticConfigState] = zframeAttributes;
@@ -672,7 +672,7 @@ public sealed class ShaderExtract
         if (hasParameters && VariantParameterIndices?.Count > 0)
         {
             writer.WriteLine();
-            WriteVariantParameters(shader.SfBlocks, shader.ParamBlocks, shader.ChannelBlocks, writer, perConditionParameters);
+            WriteVariantParameters(shader.StaticCombos, shader.VariableDescriptions, shader.TextureChannelProcessors, writer, perConditionParameters);
         }
 
         if (variant0Source.Length > 0)
@@ -689,7 +689,7 @@ public sealed class ShaderExtract
             writer.WriteLine();
         }
 
-        WriteAttributes(shader.SfBlocks, writer, attributesDisect, perConditionAttributes);
+        WriteAttributes(shader.StaticCombos, writer, attributesDisect, perConditionAttributes);
 
     }
 

@@ -29,22 +29,22 @@ namespace ValveResourceFormat.CompiledShader
 
         private void GenerateOffsetAndStateLookups(ShaderFile shaderFile)
         {
-            if (shaderFile.DBlocks.Count == 0)
+            if (shaderFile.DynamicCombos.Count == 0)
             {
                 offsets = [];
                 nr_states = [];
                 return;
             }
 
-            offsets = new int[shaderFile.DBlocks.Count];
-            nr_states = new int[shaderFile.DBlocks.Count];
+            offsets = new int[shaderFile.DynamicCombos.Count];
+            nr_states = new int[shaderFile.DynamicCombos.Count];
 
             offsets[0] = 1;
-            nr_states[0] = shaderFile.DBlocks[0].RangeMax + 1;
+            nr_states[0] = shaderFile.DynamicCombos[0].RangeMax + 1;
 
-            for (var i = 1; i < shaderFile.DBlocks.Count; i++)
+            for (var i = 1; i < shaderFile.DynamicCombos.Count; i++)
             {
-                nr_states[i] = shaderFile.DBlocks[i].RangeMax + 1;
+                nr_states[i] = shaderFile.DynamicCombos[i].RangeMax + 1;
                 offsets[i] = offsets[i - 1] * nr_states[i - 1];
             }
         }

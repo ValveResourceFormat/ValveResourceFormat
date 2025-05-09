@@ -126,22 +126,22 @@ namespace ValveResourceFormat.CompiledShader
          */
         private void GenerateOffsetAndStateLookups(ShaderFile shaderFile)
         {
-            if (shaderFile.SfBlocks.Count == 0)
+            if (shaderFile.StaticCombos.Count == 0)
             {
                 offsets = [];
                 nr_states = [];
                 return;
             }
 
-            offsets = new int[shaderFile.SfBlocks.Count];
-            nr_states = new int[shaderFile.SfBlocks.Count];
+            offsets = new int[shaderFile.StaticCombos.Count];
+            nr_states = new int[shaderFile.StaticCombos.Count];
 
             offsets[0] = 1;
-            nr_states[0] = shaderFile.SfBlocks[0].RangeMax + 1;
+            nr_states[0] = shaderFile.StaticCombos[0].RangeMax + 1;
 
-            for (var i = 1; i < shaderFile.SfBlocks.Count; i++)
+            for (var i = 1; i < shaderFile.StaticCombos.Count; i++)
             {
-                nr_states[i] = shaderFile.SfBlocks[i].RangeMax + 1;
+                nr_states[i] = shaderFile.StaticCombos[i].RangeMax + 1;
                 offsets[i] = offsets[i - 1] * nr_states[i - 1];
             }
         }

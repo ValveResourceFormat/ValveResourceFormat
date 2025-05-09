@@ -58,7 +58,7 @@ namespace ValveResourceFormat.CompiledShader
             var configState = configGen.GetConfigState(zframeFile.ZframeId);
             for (var i = 0; i < configState.Length; i++)
             {
-                OutputWriteLine($"{shaderFile.SfBlocks[i].Name,-30} {configState[i]}");
+                OutputWriteLine($"{shaderFile.StaticCombos[i].Name,-30} {configState[i]}");
             }
             if (configState.Length == 0)
             {
@@ -197,7 +197,7 @@ namespace ValveResourceFormat.CompiledShader
                 for (var i = 0; i < segment.Count; i++)
                 {
                     var field = segment[i];
-                    var name = shaderFile.ParamBlocks[field.ParamId].Name;
+                    var name = shaderFile.VariableDescriptions[field.ParamId].Name;
                     var paramId = $"{field.ParamId,7}";
                     var dest = $"{field.Dest,7}";
                     tabulatedData.AddTabulatedRow([i == 0 ? segmentDesc : string.Empty, name, paramId, dest]);
@@ -299,7 +299,7 @@ namespace ValveResourceFormat.CompiledShader
         private List<(string, string)> DConfigsAbbreviations()
         {
             List<(string, string)> abbreviations = [];
-            foreach (var dBlock in shaderFile.DBlocks)
+            foreach (var dBlock in shaderFile.DynamicCombos)
             {
                 var abbreviation = ShortenShaderParam(dBlock.Name).ToLowerInvariant();
                 abbreviations.Add((dBlock.Name, abbreviation));

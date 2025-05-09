@@ -71,10 +71,10 @@ namespace ValveResourceFormat.IO
                 throw new ArgumentOutOfRangeException(nameof(shaderFile), $"Static config cannot be built for shader files of type: {VcsProgramType.Features}");
             }
 
-            var staticConfiguration = new int[shaderFile.SfBlocks.Count];
+            var staticConfiguration = new int[shaderFile.StaticCombos.Count];
             var configGen = new ConfigMappingSParams(shaderFile);
 
-            foreach (var condition in shaderFile.SfBlocks)
+            foreach (var condition in shaderFile.StaticCombos)
             {
                 if (condition.FeatureIndex == -1)
                 {
@@ -86,7 +86,7 @@ namespace ValveResourceFormat.IO
                     continue;
                 }
 
-                var feature = features.SfBlocks[condition.FeatureIndex];
+                var feature = features.StaticCombos[condition.FeatureIndex];
 
                 foreach (var (Name, Value) in featureParams)
                 {
@@ -117,7 +117,7 @@ namespace ValveResourceFormat.IO
         {
             reducedConfiguration = [.. staticConfiguration];
 
-            foreach (var constraint in shaderFile.SfConstraintBlocks)
+            foreach (var constraint in shaderFile.StaticComboRules)
             {
                 // Allow only one of the statics
                 if (constraint.Rule == ConditionalRule.Allow)
@@ -160,7 +160,7 @@ namespace ValveResourceFormat.IO
                 return null;
             }
 
-            var @params = shader.Features.ParamBlocks.FindAll(p => p.Name == textureType).ToList();
+            var @params = shader.Features.VariableDescriptions.FindAll(p => p.Name == textureType).ToList();
 
             if (@params.Count == 0)
             {
@@ -202,7 +202,7 @@ namespace ValveResourceFormat.IO
 
                 foreach (var shaderFile in collectionOrdered)
                 {
-                    var fileParams = shaderFile.ParamBlocks.FindAll(p => p.Name == paramName).ToList();
+                    var fileParams = shaderFile.VariableDescriptions.FindAll(p => p.Name == paramName).ToList();
                     if (fileParams.Count == 0)
                     {
                         continue;
@@ -275,10 +275,10 @@ namespace ValveResourceFormat.IO
                 for (var i = 0; i < param.ChannelCount; i++)
                 {
                     var channelIndex = param.ChannelIndices[i];
-                    var channel = shaderFile.ChannelBlocks[channelIndex];
+                    var channel = shaderFile.TextureChannelProcessors[channelIndex];
 
                     var cutoff = Array.IndexOf(channel.InputTextureIndices, -1);
-                    var textureProcessorInputs = channel.InputTextureIndices[..cutoff].Select(idx => shaderFile.ParamBlocks[idx].Name).ToArray();
+                    var textureProcessorInputs = channel.InputTextureIndices[..cutoff].Select(idx => shaderFile.VariableDescriptions[idx].Name).ToArray();
 
                     if (channel.TexProcessorName == "HemiOctIsoRoughness_RG_B" || channel.TexProcessorName == "AnisoNormal")
                     {
@@ -316,7 +316,7 @@ namespace ValveResourceFormat.IO
             var shader = fileLoader.LoadShader(material.ShaderName);
             if (shader?.Features != null)
             {
-                foreach (var param in shader.Features.ParamBlocks)
+                foreach (var param in shader.Features.VariableDescriptions)
                 {
                     if (param.Name == inputName && !string.IsNullOrEmpty(param.ImageSuffix))
                     {

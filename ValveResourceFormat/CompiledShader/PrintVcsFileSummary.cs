@@ -77,7 +77,7 @@ namespace ValveResourceFormat.CompiledShader
             output.WriteLine($"{nameof(ftHeader.DevShader)} = {ftHeader.DevShader}");
             output.WriteLine($"present files features={ftHeader.FeaturesFileFlags}, vs={ftHeader.VertexFileFlags}, ps={ftHeader.PixelFileFlags}, " +
                 $"gs={ftHeader.GeometryFileFlags}, cs={ftHeader.ComputeFileFlags}, hs={ftHeader.HullFileFlags}, ds={ftHeader.DomainFileFlags}");
-            output.WriteLine($"possible editor description = {shaderFile.PossibleEditorDescription}");
+            output.WriteLine($"possible editor description = {shaderFile.VariableSourceMax}");
             output.BreakLine();
             output.WriteLine("Editor/Shader compiler stack");
             foreach (var v in shaderFile.EditorIDs)
@@ -137,21 +137,21 @@ namespace ValveResourceFormat.CompiledShader
             output.WriteLine("Editor/Shader compiler stack");
             output.WriteLine($"MD5    {shaderFile.EditorIDs[0]}    // {shaderFile.VcsProgramType}");
             output.WriteLine($"MD5    {shaderFile.FileHash}    // Common editor/compiler hash shared by multiple different vcs files.");
-            output.WriteLine($"possible editor description = {shaderFile.PossibleEditorDescription}");
+            output.WriteLine($"possible editor description = {shaderFile.VariableSourceMax}");
             output.BreakLine();
         }
 
         private void PrintFBlocks(ShaderFile shaderFile)
         {
-            output.WriteLine($"FEATURES({shaderFile.SfBlocks.Count})");
-            if (shaderFile.SfBlocks.Count == 0)
+            output.WriteLine($"FEATURES({shaderFile.StaticCombos.Count})");
+            if (shaderFile.StaticCombos.Count == 0)
             {
                 output.WriteLine("[none defined]");
                 output.BreakLine();
                 return;
             }
             output.DefineHeaders(["index", "name", "nr-configs", "config-states", ""]);
-            foreach (var item in shaderFile.SfBlocks)
+            foreach (var item in shaderFile.StaticCombos)
             {
                 var configStates = "_";
                 if (item.RangeMax > 0)
@@ -180,15 +180,15 @@ namespace ValveResourceFormat.CompiledShader
 
         private void PrintSBlocks(ShaderFile shaderFile)
         {
-            output.WriteLine($"STATIC-CONFIGURATIONS({shaderFile.SfBlocks.Count})");
-            if (shaderFile.SfBlocks.Count == 0)
+            output.WriteLine($"STATIC-CONFIGURATIONS({shaderFile.StaticCombos.Count})");
+            if (shaderFile.StaticCombos.Count == 0)
             {
                 output.WriteLine("[none defined]");
                 output.BreakLine();
                 return;
             }
             output.DefineHeaders([nameof(VfxCombo.BlockIndex), nameof(VfxCombo.Name), nameof(VfxCombo.RangeMax), nameof(VfxCombo.Arg3), nameof(VfxCombo.FeatureIndex)]);
-            foreach (var item in shaderFile.SfBlocks)
+            foreach (var item in shaderFile.StaticCombos)
             {
                 output.AddTabulatedRow([$"[{item.BlockIndex,2}]", $"{item.Name}", $"{item.RangeMax}", $"{item.Arg3}", $"{item.FeatureIndex,2}"]);
             }
@@ -199,18 +199,18 @@ namespace ValveResourceFormat.CompiledShader
         private void PrintStaticConstraints(ShaderFile shaderFile)
         {
             output.WriteLine("STATIC-CONFIGS INCLUSION/EXCLUSION RULES");
-            if (shaderFile.SfConstraintBlocks.Count == 0)
+            if (shaderFile.StaticComboRules.Count == 0)
             {
                 output.WriteLine("[none defined]");
                 output.BreakLine();
                 return;
             }
-            foreach (var sfRuleBlock in shaderFile.SfConstraintBlocks)
+            foreach (var sfRuleBlock in shaderFile.StaticComboRules)
             {
                 var sfNames = new string[sfRuleBlock.Indices.Length];
                 for (var i = 0; i < sfNames.Length; i++)
                 {
-                    sfNames[i] = shaderFile.SfBlocks[sfRuleBlock.Indices[i]].Name;
+                    sfNames[i] = shaderFile.StaticCombos[sfRuleBlock.Indices[i]].Name;
                 }
                 const int BL = 70;
                 var breakNames = CombineValuesBreakString(sfNames, BL);
@@ -231,8 +231,8 @@ namespace ValveResourceFormat.CompiledShader
 
         private void PrintDynamicConfigurations(ShaderFile shaderFile)
         {
-            output.WriteLine($"DYNAMIC-CONFIGURATIONS({shaderFile.DBlocks.Count})");
-            if (shaderFile.DBlocks.Count == 0)
+            output.WriteLine($"DYNAMIC-CONFIGURATIONS({shaderFile.DynamicCombos.Count})");
+            if (shaderFile.DynamicCombos.Count == 0)
             {
                 output.WriteLine("[none defined]");
                 output.BreakLine();
@@ -246,7 +246,7 @@ namespace ValveResourceFormat.CompiledShader
             var h4 = "arg4";
             var blockHeader = $"{h0.PadRight(pad[0])} {h1.PadRight(pad[1])} {h2.PadRight(pad[2])} {h3.PadRight(pad[3])} {h4.PadRight(pad[4])}";
             output.WriteLine(blockHeader);
-            foreach (var dBlock in shaderFile.DBlocks)
+            foreach (var dBlock in shaderFile.DynamicCombos)
             {
                 var v0 = $"[{dBlock.BlockIndex,2}]";
                 var v1 = dBlock.Name;
@@ -256,7 +256,7 @@ namespace ValveResourceFormat.CompiledShader
                 var blockSummary = $"{v0.PadRight(pad[0])} {v1.PadRight(pad[1])} {v2.PadRight(pad[2])} {v3.PadRight(pad[3])} {v4.PadRight(pad[4])}";
                 output.WriteLine(blockSummary);
             }
-            if (shaderFile.DBlocks.Count == 0)
+            if (shaderFile.DynamicCombos.Count == 0)
             {
                 output.WriteLine("[empty list]");
             }
@@ -266,21 +266,21 @@ namespace ValveResourceFormat.CompiledShader
         private void PrintDynamicConstraints(ShaderFile shaderFile)
         {
             output.WriteLine("DYNAMIC-CONFIGS INCLUSION/EXCLUSION RULES");
-            if (shaderFile.DConstraintBlocks.Count == 0)
+            if (shaderFile.DynamicComboRules.Count == 0)
             {
                 output.WriteLine("[none defined]");
                 output.BreakLine();
                 return;
             }
-            foreach (var dRuleBlock in shaderFile.DConstraintBlocks)
+            foreach (var dRuleBlock in shaderFile.DynamicComboRules)
             {
                 var dRuleName = new string[dRuleBlock.ConditionalTypes.Length];
                 for (var i = 0; i < dRuleName.Length; i++)
                 {
                     dRuleName[i] = dRuleBlock.ConditionalTypes[i] switch
                     {
-                        ConditionalType.Dynamic => shaderFile.DBlocks[dRuleBlock.Indices[i]].Name,
-                        ConditionalType.Static => shaderFile.SfBlocks[dRuleBlock.Indices[i]].Name,
+                        ConditionalType.Dynamic => shaderFile.DynamicCombos[dRuleBlock.Indices[i]].Name,
+                        ConditionalType.Static => shaderFile.StaticCombos[dRuleBlock.Indices[i]].Name,
                         ConditionalType.Feature => throw new InvalidOperationException("Dynamic combos can't be constrained by features!"),
                         _ => throw new ShaderParserException($"Unknown {nameof(ConditionalType)} {dRuleBlock.ConditionalTypes[i]}")
                     };
@@ -304,7 +304,7 @@ namespace ValveResourceFormat.CompiledShader
 
         private void PrintParameters(ShaderFile shaderFile)
         {
-            if (shaderFile.ParamBlocks.Count == 0)
+            if (shaderFile.VariableDescriptions.Count == 0)
             {
                 output.WriteLine($"PARAMETERS(0)");
                 output.WriteLine("[none defined]");
@@ -312,9 +312,9 @@ namespace ValveResourceFormat.CompiledShader
                 return;
             }
             var dynExpCount = 0;
-            var indexPad = shaderFile.ParamBlocks.Count > 100 ? 3 : 2;
+            var indexPad = shaderFile.VariableDescriptions.Count > 100 ? 3 : 2;
             // parameters
-            output.WriteLine($"PARAMETERS({shaderFile.ParamBlocks.Count})    *dyn-expressions shown separately");
+            output.WriteLine($"PARAMETERS({shaderFile.VariableDescriptions.Count})    *dyn-expressions shown separately");
             output.DefineHeaders(["index",
                 nameof(VfxVariableDescription.Name),
                 nameof(VfxVariableDescription.VfxType),
@@ -340,7 +340,7 @@ namespace ValveResourceFormat.CompiledShader
                 nameof(VfxVariableDescription.FileRef),
                 nameof(VfxVariableDescription.UiVisibilityExp)]);
 
-            foreach (var param in shaderFile.ParamBlocks)
+            foreach (var param in shaderFile.VariableDescriptions)
             {
                 var dynExpExists = param.HasDynamicExpression ? "true" : string.Empty;
                 var uiVisibilityExists = param.UiVisibilityExp.Length > 0 ? "true" : string.Empty;
@@ -392,7 +392,7 @@ namespace ValveResourceFormat.CompiledShader
             {
                 output.WriteLine($"DYNAMIC EXPRESSIONS({dynExpCount})    (name0,type0,type1,arg0,arg1,arg2,arg4,arg5 reprinted)");
                 output.DefineHeaders(["param-index", "name0", "t0,t1,a0,a1,a2,a4,a5  ", "dyn-exp", "ui-visibility"]);
-                foreach (var param in shaderFile.ParamBlocks)
+                foreach (var param in shaderFile.VariableDescriptions)
                 {
                     var dynExpstring = string.Empty;
                     var uiVisibilityString = string.Empty;
@@ -442,7 +442,7 @@ namespace ValveResourceFormat.CompiledShader
                 nameof(VfxVariableDescription.FileRef),
                 nameof(VfxVariableDescription.DynExp),
                 nameof(VfxVariableDescription.V65Data)]);
-            foreach (var param in shaderFile.ParamBlocks)
+            foreach (var param in shaderFile.VariableDescriptions)
             {
                 var vfxType = Vfx.GetTypeName(param.VfxType);
                 var hasDynExp = param.HasDynamicExpression ? "true" : "";
@@ -468,8 +468,8 @@ namespace ValveResourceFormat.CompiledShader
 
         private void PrintChannelBlocks(ShaderFile shaderFile)
         {
-            output.WriteLine($"CHANNEL BLOCKS({shaderFile.ChannelBlocks.Count})");
-            if (shaderFile.ChannelBlocks.Count > 0)
+            output.WriteLine($"CHANNEL BLOCKS({shaderFile.TextureChannelProcessors.Count})");
+            if (shaderFile.TextureChannelProcessors.Count > 0)
             {
                 output.DefineHeaders(["index", "name", nameof(VfxTextureChannelProcessor.Channel), "inputs", nameof(VfxTextureChannelProcessor.ColorMode)]);
             }
@@ -478,7 +478,7 @@ namespace ValveResourceFormat.CompiledShader
                 output.DefineHeaders([]);
                 output.WriteLine("[none defined]");
             }
-            foreach (var channelBlock in shaderFile.ChannelBlocks)
+            foreach (var channelBlock in shaderFile.TextureChannelProcessors)
             {
                 var channelRemap = channelBlock.Channel.Indices.Select((ind, i) => ind != 0 && ind != i).Any(b => b)
                     ? $" [{string.Join(", ", channelBlock.Channel.Indices)}]"
@@ -495,14 +495,14 @@ namespace ValveResourceFormat.CompiledShader
 
         private void PrintBufferBlocks(ShaderFile shaderFile)
         {
-            if (shaderFile.BufferBlocks.Count == 0)
+            if (shaderFile.ExtConstantBufferDescriptions.Count == 0)
             {
                 output.WriteLine("BUFFER-BLOCKS(0)");
                 output.WriteLine("[none defined]");
                 output.BreakLine();
                 return;
             }
-            foreach (var bufferBlock in shaderFile.BufferBlocks)
+            foreach (var bufferBlock in shaderFile.ExtConstantBufferDescriptions)
             {
                 output.WriteLine($"BUFFER-BLOCK[{bufferBlock.BlockIndex}]");
                 output.WriteLine($"{bufferBlock.Name} size={bufferBlock.BufferSize} param-count={bufferBlock.ParamCount}" +
@@ -525,8 +525,8 @@ namespace ValveResourceFormat.CompiledShader
 
         private void PrintVertexSymbolBuffers(ShaderFile shaderFile)
         {
-            output.WriteLine($"VERTEX-BUFFER-SYMBOLS({shaderFile.SymbolBlocks.Count})");
-            if (shaderFile.SymbolBlocks.Count == 0)
+            output.WriteLine($"VERTEX-BUFFER-SYMBOLS({shaderFile.VSInputSignatures.Count})");
+            if (shaderFile.VSInputSignatures.Count == 0)
             {
                 output.WriteLine("[none defined]");
                 output.BreakLine();
@@ -536,7 +536,7 @@ namespace ValveResourceFormat.CompiledShader
             var namePad = 0;
             var typePad = 0;
             var optionPad = 0;
-            foreach (var symbolBlock in shaderFile.SymbolBlocks)
+            foreach (var symbolBlock in shaderFile.VSInputSignatures)
             {
                 foreach (var symbolsDef in symbolBlock.SymbolsDefinition)
                 {
@@ -545,7 +545,7 @@ namespace ValveResourceFormat.CompiledShader
                     optionPad = Math.Max(namePad, symbolsDef.Option.Length);
                 }
             }
-            foreach (var symbolBlock in shaderFile.SymbolBlocks)
+            foreach (var symbolBlock in shaderFile.VSInputSignatures)
             {
                 output.WriteLine($"VERTEX-SYMBOLS[{symbolBlock.BlockIndex}] definitions={symbolBlock.SymbolsCount}");
                 output.DefineHeaders(["       ",
@@ -590,7 +590,7 @@ namespace ValveResourceFormat.CompiledShader
             // collect names in the order they appear
             List<string> sfNames = [];
             List<string> abbreviations = [];
-            foreach (var sfBlock in shaderFile.SfBlocks)
+            foreach (var sfBlock in shaderFile.StaticCombos)
             {
                 var sfShortName = ShortenShaderParam(sfBlock.Name).ToLowerInvariant();
                 abbreviations.Add($"{sfBlock.Name}({sfShortName})");

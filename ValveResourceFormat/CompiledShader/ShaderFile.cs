@@ -31,16 +31,16 @@ namespace ValveResourceFormat.CompiledShader
         public Guid FileHash { get; private set; }
         public VcsAdditionalFiles AdditionalFiles { get; private set; }
         public bool IsSbox { get; init; }
-        public int PossibleEditorDescription { get; private set; } // 17 for all up to date files. 14 seen in old test files
+        public int VariableSourceMax { get; private set; } // 17 for all up to date files. 14 seen in old test files
         public List<(Guid, string)> EditorIDs { get; } = [];
-        public List<VfxCombo> SfBlocks { get; private set; } = [];
-        public List<VfxRule> SfConstraintBlocks { get; private set; } = [];
-        public List<VfxCombo> DBlocks { get; private set; } = [];
-        public List<VfxRule> DConstraintBlocks { get; private set; } = [];
-        public List<VfxVariableDescription> ParamBlocks { get; private set; } = [];
-        public List<VfxTextureChannelProcessor> ChannelBlocks { get; private set; } = [];
-        public List<ConstantBufferVariable> BufferBlocks { get; private set; } = [];
-        public List<VsInputSignatureElement> SymbolBlocks { get; private set; } = [];
+        public List<VfxCombo> StaticCombos { get; private set; } = [];
+        public List<VfxRule> StaticComboRules { get; private set; } = [];
+        public List<VfxCombo> DynamicCombos { get; private set; } = [];
+        public List<VfxRule> DynamicComboRules { get; private set; } = [];
+        public List<VfxVariableDescription> VariableDescriptions { get; private set; } = [];
+        public List<VfxTextureChannelProcessor> TextureChannelProcessors { get; private set; } = [];
+        public List<ConstantBufferVariable> ExtConstantBufferDescriptions { get; private set; } = [];
+        public List<VsInputSignatureElement> VSInputSignatures { get; private set; } = [];
 
         // Zframe data assigned to the ZFrameDataDescription class are key pieces of
         // information needed to decompress and retrieve zframes (to save processing zframes are only
@@ -167,76 +167,76 @@ namespace ValveResourceFormat.CompiledShader
 
             FileHash = new Guid(DataReader.ReadBytes(16));
 
-            PossibleEditorDescription = DataReader.ReadInt32();
+            VariableSourceMax = DataReader.ReadInt32();
 
-            var sfBlockCount = DataReader.ReadInt32();
-            for (var i = 0; i < sfBlockCount; i++)
+            var staticCombosCount = DataReader.ReadInt32();
+            for (var i = 0; i < staticCombosCount; i++)
             {
                 VfxCombo nextSfBlock = new(DataReader, i);
-                SfBlocks.Add(nextSfBlock);
+                StaticCombos.Add(nextSfBlock);
             }
 
-            var sfConstraintBlockCount = DataReader.ReadInt32();
-            for (var i = 0; i < sfConstraintBlockCount; i++)
+            var staticComboRulesCount = DataReader.ReadInt32();
+            for (var i = 0; i < staticComboRulesCount; i++)
             {
                 VfxRule nextSfConstraintBlock = VcsProgramType == VcsProgramType.Features
                     ? new(DataReader, i, ConditionalType.Feature)
                     : new(DataReader, i, ConditionalType.Static);
 
-                SfConstraintBlocks.Add(nextSfConstraintBlock);
+                StaticComboRules.Add(nextSfConstraintBlock);
             }
 
-            var dBlockCount = DataReader.ReadInt32();
-            for (var i = 0; i < dBlockCount; i++)
+            var dynamicCombosCount = DataReader.ReadInt32();
+            for (var i = 0; i < dynamicCombosCount; i++)
             {
                 VfxCombo nextDBlock = new(DataReader, i);
-                DBlocks.Add(nextDBlock);
+                DynamicCombos.Add(nextDBlock);
             }
 
-            var dConstraintsBlockCount = DataReader.ReadInt32();
-            for (var i = 0; i < dConstraintsBlockCount; i++)
+            var dynamicComboRulesCount = DataReader.ReadInt32();
+            for (var i = 0; i < dynamicComboRulesCount; i++)
             {
                 VfxRule nextDConstraintsBlock = new(DataReader, i, ConditionalType.Dynamic);
-                DConstraintBlocks.Add(nextDConstraintsBlock);
+                DynamicComboRules.Add(nextDConstraintsBlock);
             }
 
             // This is needed for the zframes to determine their source mapping
             // it must be instantiated after the D-blocks have been read
             dBlockConfigGen = new ConfigMappingDParams(this);
 
-            var paramBlockCount = DataReader.ReadInt32();
-            for (var i = 0; i < paramBlockCount; i++)
+            var variableDescriptionsCount = DataReader.ReadInt32();
+            for (var i = 0; i < variableDescriptionsCount; i++)
             {
                 VfxVariableDescription nextParamBlock = new(DataReader, i, VcsVersion);
-                ParamBlocks.Add(nextParamBlock);
+                VariableDescriptions.Add(nextParamBlock);
             }
 
-            var ChannelBlockCount = DataReader.ReadInt32();
-            for (var i = 0; i < ChannelBlockCount; i++)
+            var textureChannelProcessorsCount = DataReader.ReadInt32();
+            for (var i = 0; i < textureChannelProcessorsCount; i++)
             {
                 VfxTextureChannelProcessor nextChannelBlock = new(DataReader, i);
-                ChannelBlocks.Add(nextChannelBlock);
+                TextureChannelProcessors.Add(nextChannelBlock);
             }
 
-            var bufferBlockCount = DataReader.ReadInt32();
-            for (var i = 0; i < bufferBlockCount; i++)
+            var extConstantBufferDescriptionsCount = DataReader.ReadInt32();
+            for (var i = 0; i < extConstantBufferDescriptionsCount; i++)
             {
                 ConstantBufferVariable nextBufferBlock = new(DataReader, i);
-                BufferBlocks.Add(nextBufferBlock);
+                ExtConstantBufferDescriptions.Add(nextBufferBlock);
             }
 
             if (VcsProgramType == VcsProgramType.Features || VcsProgramType == VcsProgramType.VertexShader)
             {
-                var symbolsBlockCount = DataReader.ReadInt32();
-                for (var i = 0; i < symbolsBlockCount; i++)
+                var vsInputSignaturesCount = DataReader.ReadInt32();
+                for (var i = 0; i < vsInputSignaturesCount; i++)
                 {
                     VsInputSignatureElement nextSymbolsBlock = new(DataReader, i);
-                    SymbolBlocks.Add(nextSymbolsBlock);
+                    VSInputSignatures.Add(nextSymbolsBlock);
                 }
             }
 
-            var zframesCount = DataReader.ReadInt32();
-            if (zframesCount == 0)
+            var combosCount = DataReader.ReadInt32();
+            if (combosCount == 0)
             {
                 // if zframes = 0 there's nothing more to do
                 if (DataReader.BaseStream.Position != DataReader.BaseStream.Length)
@@ -246,14 +246,14 @@ namespace ValveResourceFormat.CompiledShader
                 return;
             }
 
-            var zframeIdsAndOffsets = new (long Id, int Offset)[zframesCount];
+            var zframeIdsAndOffsets = new (long Id, int Offset)[combosCount];
 
-            for (var i = 0; i < zframesCount; i++)
+            for (var i = 0; i < combosCount; i++)
             {
                 zframeIdsAndOffsets[i].Id = DataReader.ReadInt64();
             }
 
-            for (var i = 0; i < zframesCount; i++)
+            for (var i = 0; i < combosCount; i++)
             {
                 // CVfxStaticComboVcsEntry::Unserialize
                 // This is a separate function because Valve has a flag to skip actually parsing the entries,
@@ -389,7 +389,7 @@ namespace ValveResourceFormat.CompiledShader
             var sfBlockCount = DataReader.ReadUInt32AtPosition();
             DataReader.ShowBytes(4, $"{sfBlockCount} SF blocks (usually 152 bytes each)");
             DataReader.BreakLine();
-            foreach (var sfBlock in SfBlocks)
+            foreach (var sfBlock in StaticCombos)
             {
                 sfBlock.PrintByteDetail();
             }
@@ -397,7 +397,7 @@ namespace ValveResourceFormat.CompiledShader
             var sfConstraintsBlockCount = DataReader.ReadUInt32AtPosition();
             DataReader.ShowBytes(4, $"{sfConstraintsBlockCount} S-configuration constraint blocks (472 bytes each)");
             DataReader.BreakLine();
-            foreach (var sfConstraintsBlock in SfConstraintBlocks)
+            foreach (var sfConstraintsBlock in StaticComboRules)
             {
                 sfConstraintsBlock.PrintByteDetail();
             }
@@ -405,7 +405,7 @@ namespace ValveResourceFormat.CompiledShader
             var dBlockCount = DataReader.ReadUInt32AtPosition();
             DataReader.ShowBytes(4, $"{dBlockCount} D-blocks (152 bytes each)");
             DataReader.BreakLine();
-            foreach (var dBlock in DBlocks)
+            foreach (var dBlock in DynamicCombos)
             {
                 dBlock.PrintByteDetail();
             }
@@ -413,7 +413,7 @@ namespace ValveResourceFormat.CompiledShader
             var dConstraintsBlockCount = DataReader.ReadUInt32AtPosition();
             DataReader.ShowBytes(4, $"{dConstraintsBlockCount} D-configuration constraint blocks (472 bytes each)");
             DataReader.BreakLine();
-            foreach (var dConstraintBlock in DConstraintBlocks)
+            foreach (var dConstraintBlock in DynamicComboRules)
             {
                 dConstraintBlock.PrintByteDetail();
             }
@@ -421,7 +421,7 @@ namespace ValveResourceFormat.CompiledShader
             var paramBlockCount = DataReader.ReadUInt32AtPosition();
             DataReader.ShowBytes(4, $"{paramBlockCount} Param-Blocks");
             DataReader.BreakLine();
-            foreach (var paramBlock in ParamBlocks)
+            foreach (var paramBlock in VariableDescriptions)
             {
                 paramBlock.PrintByteDetail(VcsVersion);
             }
@@ -429,7 +429,7 @@ namespace ValveResourceFormat.CompiledShader
             var ChannelBlockCount = DataReader.ReadUInt32AtPosition();
             DataReader.ShowBytes(4, $"{ChannelBlockCount} Channel blocks (280 bytes each)");
             DataReader.BreakLine();
-            foreach (var ChannelBlock in ChannelBlocks)
+            foreach (var ChannelBlock in TextureChannelProcessors)
             {
                 ChannelBlock.PrintByteDetail();
             }
@@ -437,7 +437,7 @@ namespace ValveResourceFormat.CompiledShader
             var bufferBlockCount = DataReader.ReadUInt32AtPosition();
             DataReader.ShowBytes(4, $"{bufferBlockCount} Buffer blocks (variable length)");
             DataReader.BreakLine();
-            foreach (var bufferBlock in BufferBlocks)
+            foreach (var bufferBlock in ExtConstantBufferDescriptions)
             {
                 bufferBlock.PrintByteDetail();
             }
@@ -446,7 +446,7 @@ namespace ValveResourceFormat.CompiledShader
                 DataReader.ShowByteCount();
                 var symbolBlockCount = DataReader.ReadUInt32AtPosition();
                 DataReader.ShowBytes(4, $"{symbolBlockCount} symbol/names blocks");
-                foreach (var symbolBlock in SymbolBlocks)
+                foreach (var symbolBlock in VSInputSignatures)
                 {
                     DataReader.BreakLine();
                     symbolBlock.PrintByteDetail();
