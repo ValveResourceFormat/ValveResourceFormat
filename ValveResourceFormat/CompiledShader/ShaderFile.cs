@@ -1,9 +1,7 @@
 using System.IO;
 using System.Linq;
-using ZstdSharp;
 using static ValveResourceFormat.CompiledShader.ShaderDataReader;
 using static ValveResourceFormat.CompiledShader.ShaderUtilHelpers;
-using LzmaDecoder = SevenZip.Compression.LZMA.Decoder;
 
 #nullable disable
 
@@ -13,11 +11,7 @@ namespace ValveResourceFormat.CompiledShader
     public class ShaderFile : IDisposable
     {
         public const int MAGIC = 0x32736376; // "vcs2"
-        public const uint ZSTD_DELIM = 0xFFFFFFFD;
-        public const uint LZMA_DELIM = 0x414D5A4C;
-        public const int UNCOMPRESSED = 0;
-        public const int ZSTD_COMPRESSION = 1;
-        public const int LZMA_COMPRESSION = 2;
+
         public ShaderDataReader DataReader { get; set; }
         private Stream BaseStream;
 
@@ -270,34 +264,11 @@ namespace ValveResourceFormat.CompiledShader
             // CVfxProgramData::UnserializeStaticComboDataCache
             foreach (var zFrame in zframeIdsAndOffsets)
             {
-                DataReader.BaseStream.Position = zFrame.Offset;
-
-                /// This basically should be <see cref="GetDecompressedZFrame"/>
-                var chunkSizeOrZframeDelim = DataReader.ReadUInt32();
-                var compressionType = chunkSizeOrZframeDelim == ZSTD_DELIM ? ZSTD_COMPRESSION : LZMA_COMPRESSION;
-
-                var uncompressedLength = 0;
-                var compressedLength = 0;
-                if (chunkSizeOrZframeDelim != ZSTD_DELIM)
+                ZframesLookup.Add(zFrame.Id, new VfxStaticComboVcsEntry
                 {
-                    var lzmaDelimOrStartOfData = DataReader.ReadUInt32();
-                    if (lzmaDelimOrStartOfData != LZMA_DELIM)
-                    {
-                        uncompressedLength = (int)chunkSizeOrZframeDelim;
-                        compressionType = UNCOMPRESSED;
-                    }
-                }
-
-                if (compressionType == ZSTD_COMPRESSION || compressionType == LZMA_COMPRESSION)
-                {
-                    uncompressedLength = DataReader.ReadInt32();
-                    compressedLength = DataReader.ReadInt32();
-                }
-
-                // I think VfxStaticComboVcsEntry is not stricly correct name for this, and in Valve's code this would be VfxStaticComboData
-                var zframeDataDesc = new VfxStaticComboVcsEntry(zFrame.Id, zFrame.Offset,
-                    compressionType, uncompressedLength, compressedLength);
-                ZframesLookup.Add(zFrame.Id, zframeDataDesc);
+                    ZframeId = zFrame.Id,
+                    OffsetToZFrameHeader = zFrame.Offset,
+                });
             }
         }
 
@@ -345,7 +316,7 @@ namespace ValveResourceFormat.CompiledShader
 
         public byte[] GetDecompressedZFrame(long zframeId)
         {
-            return ZframesLookup[zframeId].GetDecompressedZFrame(DataReader);
+            return ZframesLookup[zframeId].GetDecompressedZFrame(DataReader, VcsVersion, VcsProgramType);
         }
 
         public VfxStaticComboData GetZFrameFile(long zframeId, HandleOutputWrite outputWriter = null)
@@ -470,7 +441,6 @@ namespace ValveResourceFormat.CompiledShader
         }
 
         private const int SKIP_ZFRAMES_IF_MORE_THAN = 10;
-        private const int MAX_ZFRAME_BYTES_TO_SHOW = 96;
 
         private void PrintZframes(bool shortenOutput, out uint zFrameCount)
         {
@@ -542,135 +512,12 @@ namespace ValveResourceFormat.CompiledShader
         public void PrintCompressedZFrame(uint zframeId)
         {
             DataReader.OutputWriteLine($"[{DataReader.BaseStream.Position}] zframe[0x{zframeId:x08}]");
-            var isLzma = false;
-            var zstdDelimOrChunkSize = DataReader.ReadUInt32AtPosition();
-            if (zstdDelimOrChunkSize == ZSTD_DELIM)
-            {
-                DataReader.ShowBytes(4, $"Zstd delim (0x{ZSTD_DELIM:x08})");
-            }
-            else
-            {
-                DataReader.ShowBytes(4, $"Chunk size {zstdDelimOrChunkSize}");
-                var lzmaDelim = DataReader.ReadUInt32AtPosition();
-                if (lzmaDelim != LZMA_DELIM)
-                {
-                    DataReader.Comment($"neither ZStd or Lzma found (frame appears to be uncompressed)");
-                    DataReader.ShowBytes((int)zstdDelimOrChunkSize);
-                    DataReader.BreakLine();
-                    return;
-                }
-                isLzma = true;
-                DataReader.ShowBytes(4, $"Lzma delim (0x{LZMA_DELIM:x08})");
-            }
-            var uncompressed_length = DataReader.ReadInt32AtPosition();
-            DataReader.ShowBytes(4, $"{uncompressed_length,-8} uncompressed length");
+            DataReader.ShowBytes(4, $"Compression type");
+            DataReader.ShowBytes(4, $"Uncompressed size");
             var compressed_length = DataReader.ReadInt32AtPosition();
-            DataReader.ShowBytes(4, $"{compressed_length,-8} compressed length");
-            if (isLzma)
-            {
-                DataReader.ShowBytes(5, "Decoder properties");
-            }
-            DataReader.ShowBytesAtPosition(0, compressed_length > MAX_ZFRAME_BYTES_TO_SHOW ? MAX_ZFRAME_BYTES_TO_SHOW : compressed_length);
-            if (compressed_length > MAX_ZFRAME_BYTES_TO_SHOW)
-            {
-                DataReader.Comment($"... ({compressed_length - MAX_ZFRAME_BYTES_TO_SHOW} bytes not shown)");
-            }
+            DataReader.ShowBytes(4, $"Compressed size");
             DataReader.BaseStream.Position += compressed_length;
             DataReader.BreakLine();
-        }
-    }
-
-    // Lzma also comes with a 'chunk-size' field, which is not needed
-    public class VfxStaticComboVcsEntry
-    {
-        public long ZframeId { get; }
-        public int OffsetToZFrameHeader { get; }
-        public int CompressionType { get; }
-        public int CompressedLength { get; }
-        public int UncompressedLength { get; }
-        public VfxStaticComboVcsEntry(long zframeId, int offsetToZFrameHeader, int compressionType,
-            int uncompressedLength, int compressedLength)
-        {
-            ZframeId = zframeId;
-            OffsetToZFrameHeader = offsetToZFrameHeader;
-            CompressionType = compressionType;
-            UncompressedLength = uncompressedLength;
-            CompressedLength = compressedLength;
-        }
-
-        public byte[] GetCompressedZFrameData(ShaderDataReader dataReader)
-        {
-            dataReader.BaseStream.Position = OffsetToZFrameHeader;
-            switch (CompressionType)
-            {
-                case ShaderFile.UNCOMPRESSED:
-                    dataReader.BaseStream.Position += 4;
-                    return dataReader.ReadBytes(UncompressedLength);
-
-                case ShaderFile.ZSTD_COMPRESSION:
-                    dataReader.BaseStream.Position += 12;
-                    return dataReader.ReadBytes(CompressedLength);
-
-                case ShaderFile.LZMA_COMPRESSION:
-                    dataReader.BaseStream.Position += 21;
-                    return dataReader.ReadBytes(CompressedLength);
-
-                default:
-                    throw new ShaderParserException($"Unknown compression type or compression type not determined {CompressionType}");
-            }
-        }
-
-        public byte[] GetDecompressedZFrame(ShaderDataReader dataReader)
-        {
-            dataReader.BaseStream.Position = OffsetToZFrameHeader;
-            switch (CompressionType)
-            {
-                case ShaderFile.UNCOMPRESSED:
-                    dataReader.BaseStream.Position += 4;
-                    return dataReader.ReadBytes(UncompressedLength);
-
-                case ShaderFile.ZSTD_COMPRESSION:
-                    using (var zstdDecoder = new Decompressor())
-                    {
-                        dataReader.BaseStream.Position += 12;
-                        var compressedZframe = dataReader.ReadBytes(CompressedLength);
-                        zstdDecoder.LoadDictionary(ZstdDictionary.GetDictionary());
-                        var zframeUncompressed = zstdDecoder.Unwrap(compressedZframe);
-                        if (zframeUncompressed.Length != UncompressedLength)
-                        {
-                            throw new ShaderParserException("Decompressed zframe doesn't match expected size");
-                        }
-                        return zframeUncompressed.ToArray();
-                    }
-
-                case ShaderFile.LZMA_COMPRESSION:
-                    var lzmaDecoder = new LzmaDecoder();
-                    dataReader.BaseStream.Position += 16;
-                    lzmaDecoder.SetDecoderProperties(dataReader.ReadBytes(5));
-                    var compressedBuffer = dataReader.ReadBytes(CompressedLength);
-                    using (var inputStream = new MemoryStream(compressedBuffer))
-                    using (var outStream = new MemoryStream((int)UncompressedLength))
-                    {
-                        lzmaDecoder.Code(inputStream, outStream, compressedBuffer.Length, UncompressedLength, null);
-                        return outStream.ToArray();
-                    }
-
-                default:
-                    throw new ShaderParserException($"Unknown compression type or compression type not determined {CompressionType}");
-            }
-        }
-
-        public override string ToString()
-        {
-            var comprDesc = CompressionType switch
-            {
-                ShaderFile.UNCOMPRESSED => "uncompressed",
-                ShaderFile.ZSTD_COMPRESSION => "ZSTD",
-                ShaderFile.LZMA_COMPRESSION => "LZMA",
-                _ => "undetermined"
-            };
-            return $"zframeId[0x{ZframeId:x08}] {comprDesc} offset={OffsetToZFrameHeader,8} " +
-                $"compressedLength={CompressedLength,7} uncompressedLength={UncompressedLength,9}";
         }
     }
 }
