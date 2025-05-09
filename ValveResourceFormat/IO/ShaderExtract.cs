@@ -337,7 +337,7 @@ public sealed class ShaderExtract
             using var zFrame = Vertex.GetZFrameFileByIndex(i);
             var staticConfigState = staticConfig.GetConfigState(zFrame.ZframeId);
 
-            foreach (var vsEnd in zFrame.EndBlocks)
+            foreach (var vsEnd in zFrame.RenderStateInfos)
             {
                 var dynamicConfigState = dynamicConfig.GetConfigState(vsEnd.BlockIdRef);
                 var vsInputId = zFrame.VShaderInputs[vsEnd.BlockIdRef];

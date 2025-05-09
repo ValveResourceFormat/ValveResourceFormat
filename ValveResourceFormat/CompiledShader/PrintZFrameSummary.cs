@@ -236,7 +236,7 @@ namespace ValveResourceFormat.CompiledShader
             OutputFormatterTabulatedData tabulatedConfigCombinations = new(OutputWriter);
             tabulatedConfigCombinations.DefineHeaders([.. shortenedNames]);
 
-            var activeBlockIds = zframeFile.EndBlocks.Select(endBlock => endBlock.BlockIdRef).ToList();
+            var activeBlockIds = zframeFile.RenderStateInfos.Select(endBlock => endBlock.BlockIdRef).ToList();
             foreach (var blockId in activeBlockIds)
             {
                 var dBlockConfig = shaderFile.GetDBlockConfig(blockId);
@@ -262,8 +262,9 @@ namespace ValveResourceFormat.CompiledShader
             tabulatedConfigFull.DefineHeaders(dConfigHeaders);
 
             var dBlockCount = 0;
-            foreach (var blockId in activeBlockIds)
+            foreach (var blockIdLong in activeBlockIds)
             {
+                var blockId = (int)blockIdLong;
                 dBlockCount++;
                 if (dBlockCount % 100 == 0)
                 {
@@ -308,10 +309,10 @@ namespace ValveResourceFormat.CompiledShader
             return abbreviations;
         }
 
-        static Dictionary<int, GpuSource> GetBlockIdToSource(VfxStaticComboData zframeFile)
+        static Dictionary<long, GpuSource> GetBlockIdToSource(VfxStaticComboData zframeFile)
         {
-            Dictionary<int, GpuSource> blockIdToSource = [];
-            foreach (var endBlock in zframeFile.EndBlocks)
+            Dictionary<long, GpuSource> blockIdToSource = [];
+            foreach (var endBlock in zframeFile.RenderStateInfos)
             {
                 blockIdToSource.Add(endBlock.BlockIdRef, zframeFile.GpuSources[endBlock.SourceRef]);
             }
@@ -340,21 +341,20 @@ namespace ValveResourceFormat.CompiledShader
 
             var vcsFiletype = shaderFile.VcsProgramType;
 
-            OutputWriteLine($"{zframeFile.EndBlocks.Count:X02} 00 00 00   // end blocks ({zframeFile.EndBlocks.Count})");
+            OutputWriteLine($"{zframeFile.RenderStateInfos.Count:X02} 00 00 00   // end blocks ({zframeFile.RenderStateInfos.Count})");
             OutputWriteLine("");
 
-            foreach (var endBlock in zframeFile.EndBlocks)
+            foreach (var endBlock in zframeFile.RenderStateInfos)
             {
                 OutputWriteLine($"block-ref         {endBlock.BlockIdRef}");
-                OutputWriteLine($"arg0              {endBlock.Arg0}");
                 OutputWriteLine($"source-ref        {endBlock.SourceRef}");
                 OutputWriteLine($"source-pointer    {endBlock.SourcePointer}");
 
-                if (endBlock is VfxStaticComboData.HsEndBlock hsEndBlock)
+                if (endBlock is VfxStaticComboData.VfxRenderStateInfoHullShader hsEndBlock)
                 {
                     OutputWriteLine($"hs-arg            {hsEndBlock.HullShaderArg}");
                 }
-                else if (endBlock is VfxStaticComboData.VfxRenderStateInfo psEndBlock)
+                else if (endBlock is VfxStaticComboData.VfxRenderStateInfoPixelShader psEndBlock)
                 {
                     OutputWriteLine($"has data ({psEndBlock.HasRasterizerState},{psEndBlock.HasStencilState},{psEndBlock.HasBlendState})");
                     if (psEndBlock.HasRasterizerState)

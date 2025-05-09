@@ -435,7 +435,7 @@ namespace ValveResourceFormat.CompiledShader
             DataReader.ShowEndOfFile();
         }
 
-        public int[] GetDBlockConfig(int blockId)
+        public int[] GetDBlockConfig(long blockId)
         {
             return dBlockConfigGen.GetConfigState(blockId);
         }

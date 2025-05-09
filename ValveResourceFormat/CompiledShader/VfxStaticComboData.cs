@@ -29,7 +29,7 @@ namespace ValveResourceFormat.CompiledShader
         public int GpuSourceCount { get; }
         public bool Flagbyte2 { get; }
         public List<GpuSource> GpuSources { get; } = [];
-        public List<EndBlock> EndBlocks { get; } = [];
+        public List<VfxRenderStateInfo> RenderStateInfos { get; } = [];
 
         private int VcsVersion { get; }
 
@@ -141,16 +141,14 @@ namespace ValveResourceFormat.CompiledShader
             var countRenderStates = DataReader.ReadInt32();
             for (var i = 0; i < countRenderStates; i++)
             {
-                // TODO: I think its supposed to read uint64, uint, uint here.
-
                 var endBlock = vcsProgramType switch
                 {
-                    VcsProgramType.PixelShader or VcsProgramType.PixelShaderRenderState => new VfxRenderStateInfo(DataReader),
-                    VcsProgramType.HullShader => new HsEndBlock(DataReader),
-                    _ => new EndBlock(DataReader),
+                    VcsProgramType.PixelShader or VcsProgramType.PixelShaderRenderState => new VfxRenderStateInfoPixelShader(DataReader),
+                    VcsProgramType.HullShader => new VfxRenderStateInfoHullShader(DataReader),
+                    _ => new VfxRenderStateInfo(DataReader),
                 };
 
-                EndBlocks.Add(endBlock);
+                RenderStateInfos.Add(endBlock);
             }
 
             if (DataReader.BaseStream.Position != DataReader.BaseStream.Length)
@@ -286,32 +284,30 @@ namespace ValveResourceFormat.CompiledShader
             }
         }
 
-        public class EndBlock
+        public class VfxRenderStateInfo
         {
-            public int BlockIdRef { get; }
-            public int Arg0 { get; }
+            public long BlockIdRef { get; }
             public int SourceRef { get; }
             public int SourcePointer { get; }
-            public EndBlock(ShaderDataReader datareader)
+            public VfxRenderStateInfo(ShaderDataReader datareader)
             {
-                BlockIdRef = datareader.ReadInt32();
-                Arg0 = datareader.ReadInt32();
+                BlockIdRef = datareader.ReadInt64();
                 SourceRef = datareader.ReadInt32();
                 SourcePointer = datareader.ReadInt32();
             }
         }
 
-        public class HsEndBlock : EndBlock
+        public class VfxRenderStateInfoHullShader : VfxRenderStateInfo
         {
             public byte HullShaderArg { get; }
 
-            public HsEndBlock(ShaderDataReader datareader) : base(datareader)
+            public VfxRenderStateInfoHullShader(ShaderDataReader datareader) : base(datareader)
             {
                 HullShaderArg = datareader.ReadByte();
             }
         }
 
-        public class VfxRenderStateInfo : EndBlock
+        public class VfxRenderStateInfoPixelShader : VfxRenderStateInfo
         {
             public bool HasRasterizerState { get; }
             public bool HasStencilState { get; }
@@ -319,7 +315,7 @@ namespace ValveResourceFormat.CompiledShader
             public byte[] RsRasterizerStateDesc { get; }
             public byte[] RsDepthStencilStateDesc { get; }
             public byte[] RsBlendStateDesc { get; }
-            public VfxRenderStateInfo(ShaderDataReader datareader) : base(datareader)
+            public VfxRenderStateInfoPixelShader(ShaderDataReader datareader) : base(datareader)
             {
                 int flag0 = datareader.ReadByte();
                 int flag1 = datareader.ReadByte();
