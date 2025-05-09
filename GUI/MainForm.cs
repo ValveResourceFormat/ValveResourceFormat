@@ -155,6 +155,7 @@ namespace GUI
                         file = dirFile;
                     }
 
+                    file = Path.GetFullPath(file);
                     Log.Info(nameof(MainForm), $"Opening {file}");
 
                     var package = new Package();
@@ -212,6 +213,7 @@ namespace GUI
                     continue;
                 }
 
+                file = Path.GetFullPath(file);
                 OpenFile(file);
             }
 
