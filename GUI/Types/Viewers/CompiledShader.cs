@@ -628,6 +628,7 @@ namespace GUI.Types.Viewers
             ShaderCollection vcsFiles, VcsProgramType stage, long zFrameId, int dynamicId)
         {
             var shader = vcsFiles.Get(stage);
+            Span<spvc_buffer_range> bufferRanges = stackalloc spvc_buffer_range[256];
             // var leadingWriteSequence = shader.ZFrameCache.Get(zFrameId).DataBlocks[dynamicId];
 
             var writeSeqBlockId = shader.ZFrameCache.Get(zFrameId).EndBlocks[dynamicId].BlockIdRef;
@@ -679,11 +680,9 @@ namespace GUI.Types.Viewers
 
                 SpirvCrossApi.spvc_compiler_set_name(compiler, resource.id, name);
 
-
-                if (isGlobalsBuffer && resourceType is ResourceType.UniformBuffer)
+                if (resourceType is ResourceType.UniformBuffer)
                 {
-                    //  get buffer members
-                    Span<spvc_buffer_range> bufferRanges = stackalloc spvc_buffer_range[256];
+                    // get buffer members
                     nuint bufferRangeCount = 0;
 
 #pragma warning disable CS8500 // This takes the address of, gets the size of, or declares a pointer to a managed type
@@ -696,7 +695,9 @@ namespace GUI.Types.Viewers
                     {
                         var bufferRange = bufferRanges[j];
 
-                        var memberName = GetGlobalBufferMemberName(shader, writeSequence, offset: (int)bufferRange.offset / 4);
+                        var memberName = isGlobalsBuffer
+                            ? GetGlobalBufferMemberName(shader, writeSequence, offset: (int)bufferRange.offset / 4)
+                            : GetBufferMemberName(shader, name, index: (int)bufferRange.index);
 
                         if (string.IsNullOrEmpty(memberName))
                         {
@@ -736,7 +737,7 @@ namespace GUI.Types.Viewers
                 }
 
                 var isBindlessTextureArray = param.Arg4 == 152;
-                Debug.Assert(param.Arg4 == 152 || param.Arg4 == 24);
+                Debug.Assert(param.Arg4 is 152 or 24);
 
                 var startingPoint = isBindlessTextureArray ? TextureIndexStartingPoint : TextureStartingPoint;
 
@@ -833,6 +834,31 @@ namespace GUI.Types.Viewers
                 .ToList();
 
             return globalBufferParameters.FirstOrDefault(fp => fp.Field.Dest == offset).Param?.Name ?? string.Empty;
+        }
+
+        // by offset
+        // https://github.com/KhronosGroup/SPIRV-Cross/blob/f349c91274b91c1a7c173f2df70ec53080076191/spirv_hlsl.cpp#L2616
+        private static string GetBufferMemberName(ShaderFile shader, string bufferName, int index = -1, int offset = -1)
+        {
+            var bufferParams = shader.ExtConstantBufferDescriptions.FirstOrDefault(buffer => buffer.Name == bufferName)?.BufferParams;
+
+            if (bufferParams is null)
+            {
+                return string.Empty;
+            }
+
+            if (index != -1)
+            {
+                return bufferParams[index].Name;
+            }
+            else if (offset != -1)
+            {
+                return bufferParams.First(p => p.Offset == offset).Name;
+            }
+            else
+            {
+                return "undetermined";
+            }
         }
     }
 }
