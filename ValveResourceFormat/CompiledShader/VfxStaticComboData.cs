@@ -309,37 +309,180 @@ namespace ValveResourceFormat.CompiledShader
 
         public class VfxRenderStateInfoPixelShader : VfxRenderStateInfo
         {
-            public bool HasRasterizerState { get; }
-            public bool HasStencilState { get; }
-            public bool HasBlendState { get; }
-            public byte[] RsRasterizerStateDesc { get; }
-            public byte[] RsDepthStencilStateDesc { get; }
-            public byte[] RsBlendStateDesc { get; }
+            public class RsRasterizerStateDesc
+            {
+                public byte field1 { get; }
+                public byte field2 { get; }
+                public bool field3 { get; }
+                public bool field4 { get; }
+                public int field5 { get; }
+                public float field6 { get; }
+                public float field7 { get; }
+
+                public RsRasterizerStateDesc(ShaderDataReader datareader)
+                {
+                    field1 = datareader.ReadByte();
+                    field2 = datareader.ReadByte();
+                    field3 = datareader.ReadBoolean();
+                    field4 = datareader.ReadBoolean();
+                    field5 = datareader.ReadInt32();
+                    field6 = datareader.ReadSingle();
+                    field7 = datareader.ReadSingle();
+                }
+            }
+
+            public class RsDepthStencilStateDesc
+            {
+                public bool field1 { get; }
+                public bool field2 { get; }
+                public byte field3 { get; }
+                public byte field4 { get; }
+                public byte field5 { get; }
+                public bool field6 { get; }
+                public byte field7 { get; }
+                public byte field8 { get; }
+                public byte field9 { get; }
+                public byte field10 { get; }
+                public byte field11 { get; }
+                public byte field12 { get; }
+                public byte field13 { get; }
+                public byte field14 { get; }
+                public byte field15 { get; }
+                public byte field16 { get; }
+                public bool field17 { get; }
+                public bool field18 { get; }
+                public byte field19 { get; }
+                public byte field20 { get; }
+
+                public RsDepthStencilStateDesc(ShaderDataReader datareader)
+                {
+                    field1 = datareader.ReadBoolean();
+                    field2 = datareader.ReadBoolean();
+                    field3 = datareader.ReadByte();
+                    field4 = datareader.ReadByte();
+                    field5 = datareader.ReadByte();
+                    field6 = datareader.ReadBoolean();
+                    field7 = datareader.ReadByte();
+                    field8 = datareader.ReadByte();
+                    field9 = datareader.ReadByte();
+                    field10 = datareader.ReadByte();
+                    field11 = datareader.ReadByte();
+                    field12 = datareader.ReadByte();
+                    field13 = datareader.ReadByte();
+                    field14 = datareader.ReadByte();
+                    field15 = datareader.ReadByte();
+                    field16 = datareader.ReadByte();
+                    field17 = datareader.ReadBoolean();
+                    field18 = datareader.ReadBoolean();
+                    field19 = datareader.ReadByte();
+                    field20 = datareader.ReadByte();
+                }
+            }
+
+            public class RsBlendStateDesc
+            {
+                public bool field1 { get; }
+                public bool field2 { get; }
+                public byte field3 { get; }
+                public byte field4 { get; }
+                public int field5 { get; }
+                public int field6 { get; }
+                public int field7 { get; }
+                public int field8 { get; }
+                public int field9 { get; }
+                public int field10 { get; }
+                public int field11 { get; }
+                public byte field12 { get; }
+
+                public RsBlendStateDesc(ShaderDataReader datareader)
+                {
+                    field1 = datareader.ReadBoolean();
+                    field2 = datareader.ReadBoolean();
+                    field3 = datareader.ReadByte();
+
+                    for (var i = 0; i < 8; i++)
+                    {
+                        if (datareader.ReadBoolean())
+                        {
+                            field4 |= (byte)(1 << i);
+                        }
+                    }
+
+                    for (var i = 0; i != 32; i += 4)
+                    {
+                        var value = datareader.ReadByte();
+                        field5 = field5 & ~(15 << i) | (value << i);
+                    }
+
+                    for (var i = 0; i != 32; i += 4)
+                    {
+                        var value = datareader.ReadByte();
+                        field6 = field6 & ~(15 << i) | (value << i);
+                    }
+
+                    for (var i = 0; i != 24; i += 3)
+                    {
+                        var value = datareader.ReadByte();
+                        field7 = field7 & ~(7 << i) | (value << i);
+                    }
+
+                    for (var i = 0; i != 32; i += 4)
+                    {
+                        var value = datareader.ReadByte();
+                        field8 = field8 & ~(15 << i) | (value << i);
+                    }
+
+                    for (var i = 0; i != 32; i += 4)
+                    {
+                        var value = datareader.ReadByte();
+                        field9 = field9 & ~(15 << i) | (value << i);
+                    }
+
+                    for (var i = 0; i != 24; i += 3)
+                    {
+                        var value = datareader.ReadByte();
+                        field10 = field10 & ~(7 << i) | (value << i);
+                    }
+
+                    for (var i = 0; i != 32; i += 4)
+                    {
+                        var value = datareader.ReadByte() & 0xF;
+                        field11 = field11 & ~(15 << i) | (value << i);
+                    }
+
+                    for (var i = 0; i != 8; i++)
+                    {
+                        if (datareader.ReadBoolean())
+                        {
+                            field12 |= (byte)(1 << i);
+                        }
+                    }
+                }
+            }
+
+            public RsRasterizerStateDesc RasterizerStateDesc { get; }
+            public RsDepthStencilStateDesc DepthStencilStateDesc { get; }
+            public RsBlendStateDesc BlendStateDesc { get; }
+
             public VfxRenderStateInfoPixelShader(ShaderDataReader datareader) : base(datareader)
             {
-                int flag0 = datareader.ReadByte();
-                int flag1 = datareader.ReadByte();
-                int flag2 = datareader.ReadByte();
+                var hasRasterizerState = !datareader.ReadBoolean();
+                var hasDepthStencilState = !datareader.ReadBoolean();
+                var hasBlendState = !datareader.ReadBoolean();
 
-                if ((flag0 != 0 && flag0 != 1) || (flag1 != 0 && flag1 != 1) || (flag2 != 0 && flag2 != 1))
+                if (hasRasterizerState)
                 {
-                    throw new ShaderParserException("unexpected data");
+                    RasterizerStateDesc = new RsRasterizerStateDesc(datareader);
                 }
-                HasRasterizerState = flag0 == 0;
-                HasStencilState = flag1 == 0;
-                HasBlendState = flag2 == 0;
 
-                if (HasRasterizerState)
+                if (hasDepthStencilState)
                 {
-                    RsRasterizerStateDesc = datareader.ReadBytes(16);
+                    DepthStencilStateDesc = new RsDepthStencilStateDesc(datareader);
                 }
-                if (HasStencilState)
+
+                if (hasBlendState)
                 {
-                    RsDepthStencilStateDesc = datareader.ReadBytes(20);
-                }
-                if (HasBlendState)
-                {
-                    RsBlendStateDesc = datareader.ReadBytes(75);
+                    BlendStateDesc = new RsBlendStateDesc(datareader);
                 }
             }
         }

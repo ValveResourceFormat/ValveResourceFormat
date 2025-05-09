@@ -335,49 +335,52 @@ namespace ValveResourceFormat.CompiledShader
 
         private void PrintEndBlocks()
         {
-            var headerText = $"End blocks";
+            var headerText = $"Render State Info";
             OutputWriteLine(headerText);
             OutputWriteLine(new string('-', headerText.Length));
-
             var vcsFiletype = shaderFile.VcsProgramType;
-
             OutputWriteLine($"{zframeFile.RenderStateInfos.Count:X02} 00 00 00   // end blocks ({zframeFile.RenderStateInfos.Count})");
             OutputWriteLine("");
-
             foreach (var endBlock in zframeFile.RenderStateInfos)
             {
                 OutputWriteLine($"block-ref         {endBlock.BlockIdRef}");
                 OutputWriteLine($"source-ref        {endBlock.SourceRef}");
                 OutputWriteLine($"source-pointer    {endBlock.SourcePointer}");
-
                 if (endBlock is VfxStaticComboData.VfxRenderStateInfoHullShader hsEndBlock)
                 {
                     OutputWriteLine($"hs-arg            {hsEndBlock.HullShaderArg}");
                 }
                 else if (endBlock is VfxStaticComboData.VfxRenderStateInfoPixelShader psEndBlock)
                 {
-                    OutputWriteLine($"has data ({psEndBlock.HasRasterizerState},{psEndBlock.HasStencilState},{psEndBlock.HasBlendState})");
-                    if (psEndBlock.HasRasterizerState)
+                    if (psEndBlock.RasterizerStateDesc != null)
                     {
-                        OutputWriteLine("// data-section 0");
-                        OutputWriteLine($"{BytesToString(psEndBlock.RsRasterizerStateDesc)}");
+                        OutputWriteLine("// Rasterizer State");
+                        var rs = psEndBlock.RasterizerStateDesc;
+                        OutputWriteLine($"field1: {rs.field1}, field2: {rs.field2}");
+                        OutputWriteLine($"field3: {rs.field3}, field4: {rs.field4}");
+                        OutputWriteLine($"field5: {rs.field5}, field6: {rs.field6}, field7: {rs.field7}");
                     }
-                    if (psEndBlock.HasStencilState)
+
+                    if (psEndBlock.DepthStencilStateDesc != null)
                     {
-                        OutputWriteLine("// data-section 1");
-                        OutputWriteLine($"{BytesToString(psEndBlock.RsDepthStencilStateDesc)}");
+                        OutputWriteLine("// Depth Stencil State");
+                        var ds = psEndBlock.DepthStencilStateDesc;
+                        OutputWriteLine($"field1: {ds.field1}, field2: {ds.field2}, field3: {ds.field3}, field4: {ds.field4}, field5: {ds.field5}");
+                        OutputWriteLine($"field6: {ds.field6}, field7: {ds.field7}, field8: {ds.field8}, field9: {ds.field9}, field10: {ds.field10}");
+                        OutputWriteLine($"field11: {ds.field11}, field12: {ds.field12}, field13: {ds.field13}, field14: {ds.field14}, field15: {ds.field15}");
+                        OutputWriteLine($"field16: {ds.field16}, field17: {ds.field17}, field18: {ds.field18}, field19: {ds.field19}, field20: {ds.field20}");
                     }
-                    if (psEndBlock.HasBlendState)
+
+                    if (psEndBlock.BlendStateDesc != null)
                     {
-                        OutputWriteLine("// data-section 2");
-                        var data2 = psEndBlock.RsBlendStateDesc.AsSpan();
-                        OutputWriteLine($"{BytesToString(data2[0..3])}");
-                        OutputWriteLine($"{BytesToString(data2[3..27])}");
-                        OutputWriteLine($"{BytesToString(data2[27..51])}");
-                        OutputWriteLine($"{BytesToString(data2[51..75])}");
+                        OutputWriteLine("// Blend State");
+                        var bs = psEndBlock.BlendStateDesc;
+                        OutputWriteLine($"field1: {bs.field1}, field2: {bs.field2}, field3: {bs.field3}");
+                        OutputWriteLine($"field4: {bs.field4:X2}, field5: {bs.field5:X8}, field6: {bs.field6:X8}");
+                        OutputWriteLine($"field7: {bs.field7:X8}, field8: {bs.field8:X8}, field9: {bs.field9:X8}");
+                        OutputWriteLine($"field10: {bs.field10:X8}, field11: {bs.field11:X8}, field12: {bs.field12:X2}");
                     }
                 }
-
                 OutputWriteLine("");
             }
         }
