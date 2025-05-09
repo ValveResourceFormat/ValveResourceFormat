@@ -311,23 +311,36 @@ namespace ValveResourceFormat.CompiledShader
         {
             public class RsRasterizerStateDesc
             {
-                public byte field1 { get; }
-                public byte field2 { get; }
-                public bool field3 { get; }
-                public bool field4 { get; }
-                public int field5 { get; }
-                public float field6 { get; }
-                public float field7 { get; }
+                public enum RsFillMode
+                {
+                    Solid = 0,
+                    Wireframe = 1
+                }
+
+                public enum RsCullMode
+                {
+                    None = 0,
+                    Back = 1,
+                    Front = 2
+                }
+
+                public RsFillMode FillMode { get; }
+                public RsCullMode CullMode { get; }
+                public bool DepthClipEnable { get; }
+                public bool MultisampleEnable { get; }
+                public int DepthBias { get; }
+                public float DepthBiasClamp { get; }
+                public float SlopeScaledDepthBias { get; }
 
                 public RsRasterizerStateDesc(ShaderDataReader datareader)
                 {
-                    field1 = datareader.ReadByte();
-                    field2 = datareader.ReadByte();
-                    field3 = datareader.ReadBoolean();
-                    field4 = datareader.ReadBoolean();
-                    field5 = datareader.ReadInt32();
-                    field6 = datareader.ReadSingle();
-                    field7 = datareader.ReadSingle();
+                    FillMode = (RsFillMode)datareader.ReadByte();
+                    CullMode = (RsCullMode)datareader.ReadByte();
+                    DepthClipEnable = datareader.ReadBoolean();
+                    MultisampleEnable = datareader.ReadBoolean();
+                    DepthBias = datareader.ReadInt32();
+                    DepthBiasClamp = datareader.ReadSingle();
+                    SlopeScaledDepthBias = datareader.ReadSingle();
                 }
             }
 

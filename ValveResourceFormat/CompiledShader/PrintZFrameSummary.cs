@@ -356,29 +356,27 @@ namespace ValveResourceFormat.CompiledShader
                     {
                         OutputWriteLine("// Rasterizer State");
                         var rs = psEndBlock.RasterizerStateDesc;
-                        OutputWriteLine($"field1: {rs.field1}, field2: {rs.field2}");
-                        OutputWriteLine($"field3: {rs.field3}, field4: {rs.field4}");
-                        OutputWriteLine($"field5: {rs.field5}, field6: {rs.field6}, field7: {rs.field7}");
+                        OutputWriteLine($"{nameof(rs.FillMode)}: {rs.FillMode}, {nameof(rs.CullMode)}: {rs.CullMode}");
+                        OutputWriteLine($"{nameof(rs.DepthClipEnable)}: {rs.DepthClipEnable}, {nameof(rs.MultisampleEnable)}: {rs.MultisampleEnable}");
+                        OutputWriteLine($"{nameof(rs.DepthBias)}: {rs.DepthBias}, {nameof(rs.DepthBiasClamp)}: {rs.DepthBiasClamp}, {nameof(rs.SlopeScaledDepthBias)}: {rs.SlopeScaledDepthBias}");
                     }
-
                     if (psEndBlock.DepthStencilStateDesc != null)
                     {
                         OutputWriteLine("// Depth Stencil State");
                         var ds = psEndBlock.DepthStencilStateDesc;
-                        OutputWriteLine($"field1: {ds.field1}, field2: {ds.field2}, field3: {ds.field3}, field4: {ds.field4}, field5: {ds.field5}");
-                        OutputWriteLine($"field6: {ds.field6}, field7: {ds.field7}, field8: {ds.field8}, field9: {ds.field9}, field10: {ds.field10}");
-                        OutputWriteLine($"field11: {ds.field11}, field12: {ds.field12}, field13: {ds.field13}, field14: {ds.field14}, field15: {ds.field15}");
-                        OutputWriteLine($"field16: {ds.field16}, field17: {ds.field17}, field18: {ds.field18}, field19: {ds.field19}, field20: {ds.field20}");
+                        OutputWriteLine($"{nameof(ds.field1)}: {ds.field1}, {nameof(ds.field2)}: {ds.field2}, {nameof(ds.field3)}: {ds.field3}, {nameof(ds.field4)}: {ds.field4}, {nameof(ds.field5)}: {ds.field5}");
+                        OutputWriteLine($"{nameof(ds.field6)}: {ds.field6}, {nameof(ds.field7)}: {ds.field7}, {nameof(ds.field8)}: {ds.field8}, {nameof(ds.field9)}: {ds.field9}, {nameof(ds.field10)}: {ds.field10}");
+                        OutputWriteLine($"{nameof(ds.field11)}: {ds.field11}, {nameof(ds.field12)}: {ds.field12}, {nameof(ds.field13)}: {ds.field13}, {nameof(ds.field14)}: {ds.field14}, {nameof(ds.field15)}: {ds.field15}");
+                        OutputWriteLine($"{nameof(ds.field16)}: {ds.field16}, {nameof(ds.field17)}: {ds.field17}, {nameof(ds.field18)}: {ds.field18}, {nameof(ds.field19)}: {ds.field19}, {nameof(ds.field20)}: {ds.field20}");
                     }
-
                     if (psEndBlock.BlendStateDesc != null)
                     {
                         OutputWriteLine("// Blend State");
                         var bs = psEndBlock.BlendStateDesc;
-                        OutputWriteLine($"field1: {bs.field1}, field2: {bs.field2}, field3: {bs.field3}");
-                        OutputWriteLine($"field4: {bs.field4:X2}, field5: {bs.field5:X8}, field6: {bs.field6:X8}");
-                        OutputWriteLine($"field7: {bs.field7:X8}, field8: {bs.field8:X8}, field9: {bs.field9:X8}");
-                        OutputWriteLine($"field10: {bs.field10:X8}, field11: {bs.field11:X8}, field12: {bs.field12:X2}");
+                        OutputWriteLine($"{nameof(bs.field1)}: {bs.field1}, {nameof(bs.field2)}: {bs.field2}, {nameof(bs.field3)}: {bs.field3}");
+                        OutputWriteLine($"{nameof(bs.field4)}: {bs.field4:X2}, {nameof(bs.field5)}: {bs.field5:X8}, {nameof(bs.field6)}: {bs.field6:X8}");
+                        OutputWriteLine($"{nameof(bs.field7)}: {bs.field7:X8}, {nameof(bs.field8)}: {bs.field8:X8}, {nameof(bs.field9)}: {bs.field9:X8}");
+                        OutputWriteLine($"{nameof(bs.field10)}: {bs.field10:X8}, {nameof(bs.field11)}: {bs.field11:X8}, {nameof(bs.field12)}: {bs.field12:X2}");
                     }
                 }
                 OutputWriteLine("");
