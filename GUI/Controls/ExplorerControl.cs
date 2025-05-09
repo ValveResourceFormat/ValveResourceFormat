@@ -19,9 +19,9 @@ namespace GUI.Controls
     {
         private class TreeDataNode
         {
-            public TreeNode ParentNode { get; init; }
-            public int AppID { get; init; }
-            public TreeNode[] Children { get; set; }
+            public required TreeNode ParentNode { get; init; }
+            public required int AppID { get; init; }
+            public required TreeNode[] Children { get; set; }
             public bool ExpandOnFirstSearch { get; set; } = true;
         }
 
@@ -113,6 +113,11 @@ namespace GUI.Controls
 
         private void ScanForSteamGames()
         {
+            if (GameFolderLocator.SteamPath == null)
+            {
+                return;
+            }
+
             var vpkImage = MainForm.ImageListLookup["vpk"];
             var vcsImage = MainForm.ImageListLookup["vcs"];
             var mapImage = MainForm.ImageListLookup["map"];
@@ -149,8 +154,7 @@ namespace GUI.Controls
                 return string.Compare(a.Text, b.Text, StringComparison.OrdinalIgnoreCase);
             }
 
-            var steam = GameFolderLocator.SteamPath;
-            var libraryCachePath = Path.Join(steam, "appcache", "librarycache");
+            var libraryCachePath = Path.Join(GameFolderLocator.SteamPath, "appcache", "librarycache");
             var kvDeserializer = KVSerializer.Create(KVSerializationFormat.KeyValues1Text);
             KVDocument libraryAssetsKv = null;
 

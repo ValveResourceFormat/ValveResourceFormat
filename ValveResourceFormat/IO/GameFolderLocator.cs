@@ -4,8 +4,6 @@ using System.Linq;
 using Microsoft.Win32;
 using ValveKeyValue;
 
-#nullable disable
-
 namespace ValveResourceFormat.IO
 {
     public static class GameFolderLocator
@@ -19,12 +17,12 @@ namespace ValveResourceFormat.IO
         /// <param name="GamePath">Full path to the installation directory of the app. ("C:/Steam/steamapps/common/dota 2 beta")</param>
         public record struct SteamLibraryGameInfo(int AppID, string AppName, string SteamPath, string GamePath);
 
-        private static string steamPath;
+        private static string? steamPath;
 
         /// <summary>
         /// Path to the root of Steam installation. <c>null</c> if not found.
         /// </summary>
-        public static string SteamPath
+        public static string? SteamPath
         {
             get
             {
