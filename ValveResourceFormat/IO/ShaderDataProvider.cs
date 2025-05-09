@@ -248,7 +248,7 @@ namespace ValveResourceFormat.IO
                     // Should non-leading write sequences be checked too?
                     foreach (var writeSequenceField in staticVariant.LeadingData.Fields)
                     {
-                        var referencedParam = fileParams.FirstOrDefault(p => p.BlockIndex == writeSequenceField.ParamId);
+                        var referencedParam = fileParams.FirstOrDefault(p => p.BlockIndex == writeSequenceField.VariableIndex);
                         if (referencedParam != null)
                         {
                             return (referencedParam, shaderFile);

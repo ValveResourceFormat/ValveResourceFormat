@@ -727,11 +727,11 @@ namespace GUI.Types.Viewers
         private static string GetNameForTexture(ShaderFile shader, VfxVariableIndexArray writeSequence, uint image_binding, Vfx.Type vfxType)
         {
             var semgent1Params = writeSequence.Segment1
-                .Select<VfxVariableIndexData, (VfxVariableIndexData Field, VfxVariableDescription Param)>(f => (f, shader.VariableDescriptions[f.ParamId]));
+                .Select<VfxVariableIndexData, (VfxVariableIndexData Field, VfxVariableDescription Param)>(f => (f, shader.VariableDescriptions[f.VariableIndex]));
 
             foreach (var field in writeSequence.Segment1)
             {
-                var param = shader.VariableDescriptions[field.ParamId];
+                var param = shader.VariableDescriptions[field.VariableIndex];
 
                 if (param.ParamType is ParameterType.SamplerState)
                 {
@@ -780,13 +780,13 @@ namespace GUI.Types.Viewers
         public static string GetNameForSampler(ShaderFile shader, VfxVariableIndexArray writeSequence, uint sampler_binding)
         {
             var semgent1Params = writeSequence.Segment1
-                .Select<VfxVariableIndexData, (VfxVariableIndexData Field, VfxVariableDescription Param)>(f => (f, shader.VariableDescriptions[f.ParamId]));
+                .Select<VfxVariableIndexData, (VfxVariableIndexData Field, VfxVariableDescription Param)>(f => (f, shader.VariableDescriptions[f.VariableIndex]));
 
             var samplerSettings = string.Empty;
 
             foreach (var field in writeSequence.Segment1)
             {
-                var param = shader.VariableDescriptions[field.ParamId];
+                var param = shader.VariableDescriptions[field.VariableIndex];
 
                 if (param.ParamType is not ParameterType.SamplerState)
                 {
@@ -807,11 +807,11 @@ namespace GUI.Types.Viewers
         public static string GetNameForStorageBuffer(ShaderFile shader, VfxVariableIndexArray writeSequence, uint buffer_binding)
         {
             var semgent1Params = writeSequence.Segment1
-                .Select<VfxVariableIndexData, (VfxVariableIndexData Field, VfxVariableDescription Param)>(f => (f, shader.VariableDescriptions[f.ParamId]));
+                .Select<VfxVariableIndexData, (VfxVariableIndexData Field, VfxVariableDescription Param)>(f => (f, shader.VariableDescriptions[f.VariableIndex]));
 
             foreach (var field in writeSequence.Segment1)
             {
-                var param = shader.VariableDescriptions[field.ParamId];
+                var param = shader.VariableDescriptions[field.VariableIndex];
 
                 if (param.VfxType is < Vfx.Type.StructuredBuffer or > Vfx.Type.RWStructuredBufferWithCounter)
                 {
@@ -830,7 +830,7 @@ namespace GUI.Types.Viewers
         private static string GetNameForUniformBuffer(ShaderFile shader, VfxVariableIndexArray writeSequence, uint binding, uint set)
         {
             return writeSequence.Segment1
-                .Select<VfxVariableIndexData, (VfxVariableIndexData Field, VfxVariableDescription Param)>(f => (f, shader.VariableDescriptions[f.ParamId]))
+                .Select<VfxVariableIndexData, (VfxVariableIndexData Field, VfxVariableDescription Param)>(f => (f, shader.VariableDescriptions[f.VariableIndex]))
                 .Where(fp => fp.Param.VfxType is Vfx.Type.Cbuffer)
                 .FirstOrDefault(fp => fp.Field.Dest == binding).Param?.Name ?? "undetermined";
         }
@@ -838,7 +838,7 @@ namespace GUI.Types.Viewers
         private static string GetGlobalBufferMemberName(ShaderFile shader, VfxVariableIndexArray writeSequence, int offset)
         {
             var globalBufferParameters = writeSequence.Globals
-                .Select<VfxVariableIndexData, (VfxVariableIndexData Field, VfxVariableDescription Param)>(f => (f, shader.VariableDescriptions[f.ParamId]))
+                .Select<VfxVariableIndexData, (VfxVariableIndexData Field, VfxVariableDescription Param)>(f => (f, shader.VariableDescriptions[f.VariableIndex]))
                 .ToList();
 
             return globalBufferParameters.FirstOrDefault(fp => fp.Field.Dest == offset).Param?.Name ?? string.Empty;

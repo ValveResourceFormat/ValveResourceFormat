@@ -5,25 +5,25 @@ namespace ValveResourceFormat.CompiledShader;
 public class VfxVariableIndexArray : ShaderDataBlock
 {
     public int BlockId { get; }
-    public int H0 { get; }
-    public int H1 { get; }
-    public int H2 { get; }
+    public int FieldsCount { get; }
+    public int Offset1 { get; }
+    public int Offset2 { get; }
 
     public VfxVariableIndexData[] Fields { get; }
-    public IReadOnlyList<VfxVariableIndexData> Evaluated => Fields[..H1];
-    public IReadOnlyList<VfxVariableIndexData> Segment1 => Fields[H1..H2];
-    public IReadOnlyList<VfxVariableIndexData> Globals => Fields[H2..];
+    public IReadOnlyList<VfxVariableIndexData> Evaluated => Fields[..Offset1];
+    public IReadOnlyList<VfxVariableIndexData> Segment1 => Fields[Offset1..Offset2];
+    public IReadOnlyList<VfxVariableIndexData> Globals => Fields[Offset2..];
     public ReadOnlySpan<byte> Dataload => MemoryMarshal.AsBytes<VfxVariableIndexData>(Fields);
 
     public VfxVariableIndexArray(ShaderDataReader datareader, int blockId, bool readDest) : base(datareader)
     {
         BlockId = blockId;
-        H0 = datareader.ReadInt32();
-        H1 = datareader.ReadInt32();
-        H2 = datareader.ReadInt32();
+        FieldsCount = datareader.ReadInt32();
+        Offset1 = datareader.ReadInt32();
+        Offset2 = datareader.ReadInt32();
 
-        Fields = new VfxVariableIndexData[H0];
-        for (var i = 0; i < H0; i++)
+        Fields = new VfxVariableIndexData[FieldsCount];
+        for (var i = 0; i < FieldsCount; i++)
         {
             if (readDest)
             {

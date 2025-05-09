@@ -944,7 +944,7 @@ public sealed class ShaderExtract
         {
             foreach (var field in writeseq.Fields)
             {
-                parameters.Add(field.ParamId);
+                parameters.Add(field.VariableIndex);
             }
         }
 
