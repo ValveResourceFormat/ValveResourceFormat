@@ -176,6 +176,7 @@ namespace ValveResourceFormat.IO
                 if (entry != null)
                 {
 #if DEBUG_FILE_LOAD
+                    Debug.Assert(package != null);
                     Console.WriteLine($"Loaded \"{file}\" from preloaded vpk \"{package.FileName}\"");
 #endif
 
