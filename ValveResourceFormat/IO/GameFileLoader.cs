@@ -539,8 +539,13 @@ namespace ValveResourceFormat.IO
             var i = 10;
             var isLastWorkshop = false;
 
-            if (!Path.IsPathFullyQualified(directory))
+            // Check for slash here to support paths on linux under wine
+            if (!Path.IsPathFullyQualified(directory) && !directory.StartsWith('/'))
             {
+#if DEBUG_FILE_LOAD
+                Console.WriteLine($"Not a fully qualified path \"{directory}\", not checking for mod");
+#endif
+
                 return null;
             }
 
