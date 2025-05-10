@@ -107,7 +107,7 @@ namespace GUI.Types.Viewers
                     SpirvCompiler = SpvToHlsl,
                 };
 
-                IViewer.AddContentTab<Func<string>>(tabControl, extract.GetVfxFileName(), extract.ToVFX, preSelect: true);
+                IViewer.AddContentTab<Func<string>>(tabControl, extract.GetVfxFileName(), extract.ToVFX, preSelect: true, CodeTextBox.HighlightLanguage.Shaders);
             }
             catch (Exception e)
             {
@@ -455,7 +455,7 @@ namespace GUI.Types.Viewers
                 case VfxShaderFileGL:
                     {
                         gpuSourceTab = new TabPage(gpuSourceTabTitle);
-                        var gpuSourceGlslText = new CodeTextBox(Encoding.UTF8.GetString(gpuSource.Bytecode));
+                        var gpuSourceGlslText = new CodeTextBox(Encoding.UTF8.GetString(gpuSource.Bytecode), CodeTextBox.HighlightLanguage.Shaders);
                         gpuSourceTab.Controls.Add(gpuSourceGlslText);
                         break;
                     }
@@ -517,7 +517,7 @@ namespace GUI.Types.Viewers
                             zframeFile.ZframeId, 0, Backend.GLSL);
 
                         var textTab = new TabPage("SPIR-V");
-                        var textBox = new CodeTextBox(reflectedSource);
+                        var textBox = new CodeTextBox(reflectedSource, CodeTextBox.HighlightLanguage.Shaders);
                         textTab.Controls.Add(textBox);
                         resTabs.TabPages.Add(textTab);
                         resTabs.SelectedTab = textTab;
