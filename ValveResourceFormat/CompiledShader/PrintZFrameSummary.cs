@@ -346,11 +346,11 @@ namespace ValveResourceFormat.CompiledShader
                 OutputWriteLine($"block-ref         {endBlock.BlockIdRef}");
                 OutputWriteLine($"source-ref        {endBlock.SourceRef}");
                 OutputWriteLine($"source-pointer    {endBlock.SourcePointer}");
-                if (endBlock is VfxStaticComboData.VfxRenderStateInfoHullShader hsEndBlock)
+                if (endBlock is VfxRenderStateInfoHullShader hsEndBlock)
                 {
                     OutputWriteLine($"hs-arg            {hsEndBlock.HullShaderArg}");
                 }
-                else if (endBlock is VfxStaticComboData.VfxRenderStateInfoPixelShader psEndBlock)
+                else if (endBlock is VfxRenderStateInfoPixelShader psEndBlock)
                 {
                     if (psEndBlock.RasterizerStateDesc != null)
                     {
