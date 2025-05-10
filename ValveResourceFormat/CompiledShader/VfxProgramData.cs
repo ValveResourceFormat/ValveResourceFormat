@@ -265,6 +265,7 @@ namespace ValveResourceFormat.CompiledShader
             {
                 ZframesLookup.Add(zFrame.Id, new VfxStaticComboVcsEntry
                 {
+                    ParentProgramData = this,
                     ZframeId = zFrame.Id,
                     OffsetToZFrameHeader = zFrame.Offset,
                 });
@@ -315,7 +316,7 @@ namespace ValveResourceFormat.CompiledShader
 
         public byte[] GetDecompressedZFrame(long zframeId)
         {
-            return ZframesLookup[zframeId].GetDecompressedZFrame(DataReader, VcsVersion, VcsProgramType);
+            return ZframesLookup[zframeId].GetDecompressedZFrame();
         }
 
         public VfxStaticComboData GetZFrameFile(long zframeId, HandleOutputWrite outputWriter = null)

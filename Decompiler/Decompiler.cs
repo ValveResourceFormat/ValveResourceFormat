@@ -738,9 +738,9 @@ namespace Decompiler
                 {
                     shader.PrintSummary(static (s) => { });
 
-                    if (shader.ZframesLookup.Count > 0)
+                    foreach (var zframe in shader.ZframesLookup)
                     {
-                        var zframe = shader.GetZFrameFile(0);
+                        zframe.Value.GetDecompressedZFrame();
                     }
 
                     var id = $"Shader version {shader.VcsVersion}";

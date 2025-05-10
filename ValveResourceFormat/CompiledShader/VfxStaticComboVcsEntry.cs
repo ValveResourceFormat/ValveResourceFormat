@@ -7,18 +7,20 @@ public class VfxStaticComboVcsEntry
 {
     private const int LZMA_MAGIC = 0x414D5A4C;
 
+    public required VfxProgramData ParentProgramData { get; init; }
     public long ZframeId { get; init; }
     public int OffsetToZFrameHeader { get; init; }
 
-    public byte[] GetDecompressedZFrame(ShaderDataReader dataReader, int version, VcsProgramType programType)
+    public byte[] GetDecompressedZFrame()
     {
+        var dataReader = ParentProgramData.DataReader;
         dataReader.BaseStream.Position = OffsetToZFrameHeader;
 
         var compressionTypeOrSize = dataReader.ReadInt32();
 
-        if (version <= 64)
+        if (ParentProgramData.VcsVersion <= 64)
         {
-            if (programType == VcsProgramType.Features)
+            if (ParentProgramData.VcsProgramType == VcsProgramType.Features)
             {
                 // features are uncompressed
                 return dataReader.ReadBytes(compressionTypeOrSize);
