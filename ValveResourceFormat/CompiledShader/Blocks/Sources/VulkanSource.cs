@@ -3,7 +3,7 @@ namespace ValveResourceFormat.CompiledShader;
 public class VulkanSource : GpuSource
 {
     public override string BlockName => "VULKAN";
-    public int Arg0 { get; } = -1;
+    public int Version { get; } = -1;
     public int BytecodeSize { get; } = -1;
     public Span<byte> Bytecode => Sourcebytes.AsSpan(0, BytecodeSize);
     public Span<byte> Metadata => Sourcebytes.AsSpan(BytecodeSize..);
@@ -12,7 +12,7 @@ public class VulkanSource : GpuSource
     {
         if (Size > 0)
         {
-            Arg0 = datareader.ReadInt32();
+            Version = datareader.ReadInt32();
             BytecodeSize = datareader.ReadInt32();
             Sourcebytes = datareader.ReadBytes(Size - 8);
         }
