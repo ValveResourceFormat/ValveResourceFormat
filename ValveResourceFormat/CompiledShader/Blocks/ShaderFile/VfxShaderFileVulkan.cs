@@ -7,8 +7,8 @@ namespace ValveResourceFormat.CompiledShader;
 public class VfxShaderFileVulkan : VfxShaderFile
 {
     public override string BlockName => "VULKAN";
-    public int Version { get; } = -1;
-    public int BytecodeSize { get; } = -1;
+    public int Version { get; }
+    public int BytecodeSize { get; }
 
     public int Unknown1 { get; }
     public byte[] Unknown2 { get; }
@@ -53,7 +53,7 @@ public class VfxShaderFileVulkan : VfxShaderFile
         {
             Version = datareader.ReadInt32();
 
-            UnexpectedMagicException.Assert(Version >= 3 && Version <= 5, Version);
+            UnexpectedMagicException.Assert(Version >= 2 && Version <= 5, Version);
 
             BytecodeSize = datareader.ReadInt32();
             if (BytecodeSize > 0)
@@ -62,7 +62,7 @@ public class VfxShaderFileVulkan : VfxShaderFile
             }
         }
 
-        if (Size > 0 && !isMobile)
+        if (Size > 0 && !isMobile && false)
         {
             Unknown1 = datareader.ReadInt32();
             if (Unknown1 > 0)
@@ -106,7 +106,14 @@ public class VfxShaderFileVulkan : VfxShaderFile
                 Unknown17 = new int[Unknown16];
                 for (var i = 0; i < Unknown16; i++)
                 {
-                    Unknown17[i] = datareader.ReadInt32();
+                    if (Version >= 4)
+                    {
+                        Unknown17[i] = datareader.ReadInt32();
+                    }
+                    else
+                    {
+                        Unknown17[i] = datareader.ReadInt16();
+                    }
                 }
             }
 
@@ -127,27 +134,28 @@ public class VfxShaderFileVulkan : VfxShaderFile
             Unknown23 = datareader.ReadInt16();
             if (Unknown23 > 0)
             {
-                Unknown24 = datareader.ReadBytes(Unknown23 * 72);
+                var bytesToRead = Version >= 4 ? 72 : 64;
+                Unknown24 = datareader.ReadBytes(Unknown23 * bytesToRead);
             }
 
             Unknown25 = datareader.ReadInt16();
             var a = Unknown25 & 0xFFF;
             var b = Unknown25 >> 12;
 
-            Unknown27 = datareader.ReadInt16();
-
-            Unknown28 = datareader.ReadInt16(); // * 4
-            if (Unknown28 > 0)
-            {
-                Unknown29 = new int[Unknown28];
-                for (var i = 0; i < Unknown28; i++)
-                {
-                    Unknown29[i] = datareader.ReadInt32();
-                }
-            }
-
             if (Version >= 4)
             {
+                Unknown27 = datareader.ReadInt16();
+
+                Unknown28 = datareader.ReadInt16(); // * 4
+                if (Unknown28 > 0)
+                {
+                    Unknown29 = new int[Unknown28];
+                    for (var i = 0; i < Unknown28; i++)
+                    {
+                        Unknown29[i] = datareader.ReadInt32();
+                    }
+                }
+
                 Unknown30 = datareader.ReadUInt32(); // * 4
                 if (Unknown30 > 0)
                 {
@@ -158,7 +166,6 @@ public class VfxShaderFileVulkan : VfxShaderFile
                     }
                 }
 
-                // v3 doesnt seem to have this code below, but v4 didnt put it in the if check?
                 Unknown32 = datareader.ReadInt16();
                 Unknown33 = datareader.ReadByte();
 
@@ -168,7 +175,7 @@ public class VfxShaderFileVulkan : VfxShaderFile
                 }
             }
         }
-        else
+        else if (Size > 0)
         {
             // There's still some alignment or something on mobile, despite having no metadata
             datareader.BaseStream.Position += Size - BytecodeSize - 8;
