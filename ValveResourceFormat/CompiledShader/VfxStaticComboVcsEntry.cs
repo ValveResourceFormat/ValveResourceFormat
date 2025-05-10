@@ -1,4 +1,5 @@
 using System.Buffers;
+using System.Diagnostics;
 using System.IO;
 
 namespace ValveResourceFormat.CompiledShader;
@@ -18,31 +19,30 @@ public class VfxStaticComboVcsEntry
 
         var compressionTypeOrSize = dataReader.ReadInt32();
 
-        if (ParentProgramData.VcsVersion <= 64)
+        if (ParentProgramData.VcsVersion < 64 && ParentProgramData.VcsProgramType == VcsProgramType.Features)
         {
-            if (ParentProgramData.VcsProgramType == VcsProgramType.Features)
-            {
-                // features are uncompressed
-                return dataReader.ReadBytes(compressionTypeOrSize);
-            }
+            return dataReader.ReadBytes(compressionTypeOrSize);
+        }
 
-            var shouldBeLzmaMagic = dataReader.ReadInt32();
+        var uncompressedSize = dataReader.ReadInt32();
 
-            UnexpectedMagicException.Assert(shouldBeLzmaMagic == LZMA_MAGIC, shouldBeLzmaMagic);
+        if (uncompressedSize == LZMA_MAGIC)
+        {
+            // On PC v64 switched to using zstd, but on mobile builds they still kept the LZMA decompression.
+            Debug.Assert(ParentProgramData.VcsVersion <= 64);
 
-            var uncompressedSize2 = dataReader.ReadInt32();
+            uncompressedSize = dataReader.ReadInt32();
             var compressedSize2 = dataReader.ReadInt32();
 
             var lzmaDecoder = new SevenZip.Compression.LZMA.Decoder();
             lzmaDecoder.SetDecoderProperties(dataReader.ReadBytes(5));
-            using var outStream = new MemoryStream(uncompressedSize2);
-            lzmaDecoder.Code(dataReader.BaseStream, outStream, compressedSize2, uncompressedSize2, null);
+            using var outStream = new MemoryStream(uncompressedSize);
+            lzmaDecoder.Code(dataReader.BaseStream, outStream, compressedSize2, uncompressedSize, null);
             return outStream.ToArray();
         }
 
         var compressionType = -compressionTypeOrSize; // it's negative
 
-        var uncompressedSize = dataReader.ReadInt32();
         var compressedSize = dataReader.ReadInt32();
 
         switch (compressionType)
