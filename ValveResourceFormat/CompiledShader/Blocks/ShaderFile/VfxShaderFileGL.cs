@@ -1,6 +1,6 @@
 namespace ValveResourceFormat.CompiledShader;
 
-public class GlslSource : GpuSource
+public class VfxShaderFileGL : VfxShaderFile
 {
     public override string BlockName => "GLSL";
     public int Arg0 { get; } // always 3
@@ -8,7 +8,7 @@ public class GlslSource : GpuSource
     // offset2 can also be interpreted as the source-size
     public int SizeText { get; } = -1;
 
-    public GlslSource(ShaderDataReader datareader, int sourceId)
+    public VfxShaderFileGL(ShaderDataReader datareader, int sourceId)
         : base(datareader, sourceId)
     {
         if (Size > 0)

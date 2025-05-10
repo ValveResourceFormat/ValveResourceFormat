@@ -62,7 +62,7 @@ namespace ValveResourceFormat.ResourceTypes
                 var name = GetVcsCompatibleFileName(onDiskShaderFile.Type);
                 var stream = new MemoryStream(reader.ReadBytes((int)onDiskShaderFile.Size));
 
-                var shaderFile = new ShaderFile { IsSbox = true };
+                var shaderFile = new VfxProgramData { IsSbox = true };
                 shaderFile.Read(name, stream);
                 Shaders.Add(shaderFile);
             }

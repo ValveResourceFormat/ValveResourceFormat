@@ -2,7 +2,7 @@ namespace ValveResourceFormat.CompiledShader
 {
     public sealed class StaticCache : IDisposable
     {
-        private readonly ShaderFile shaderFile;
+        private readonly VfxProgramData shaderFile;
         private readonly Dictionary<long, VfxStaticComboData> cache = [];
         private readonly LinkedList<long> lru = new();
         private int maxCacheSize = 1;
@@ -22,7 +22,7 @@ namespace ValveResourceFormat.CompiledShader
         ///  A ZFrame file cache with a set maximum size, trimmed on a LRU basis.
         /// </summary>
         /// <param name="shader">Shader file to read zframes from. This reference will be used as a reading lock.</param>
-        public StaticCache(ShaderFile shader)
+        public StaticCache(VfxProgramData shader)
         {
             shaderFile = shader;
         }

@@ -1,13 +1,13 @@
 namespace ValveResourceFormat.CompiledShader;
 
-public class DxilSource : GpuSource
+public class VfxShaderFileDXIL : VfxShaderFile
 {
     public override string BlockName => "DXIL";
     public int Arg0 { get; } // always 3
     public int Arg1 { get; } // always 0xFFFF or 0xFFFE
     public int HeaderBytes { get; }
 
-    public DxilSource(ShaderDataReader datareader, int sourceId) : base(datareader, sourceId)
+    public VfxShaderFileDXIL(ShaderDataReader datareader, int sourceId) : base(datareader, sourceId)
     {
         if (Size > 0)
         {

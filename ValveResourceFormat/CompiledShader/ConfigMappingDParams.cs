@@ -6,7 +6,7 @@ namespace ValveResourceFormat.CompiledShader
 {
     public class ConfigMappingDParams
     {
-        public ConfigMappingDParams(ShaderFile shaderfile)
+        public ConfigMappingDParams(VfxProgramData shaderfile)
         {
             GenerateOffsetAndStateLookups(shaderfile);
         }
@@ -27,7 +27,7 @@ namespace ValveResourceFormat.CompiledShader
             }
         }
 
-        private void GenerateOffsetAndStateLookups(ShaderFile shaderFile)
+        private void GenerateOffsetAndStateLookups(VfxProgramData shaderFile)
         {
             if (shaderFile.DynamicCombos.Count == 0)
             {

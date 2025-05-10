@@ -22,7 +22,7 @@ namespace GUI.Types.Viewers
     {
         public static bool IsAccepted(uint magic)
         {
-            return magic == ShaderFile.MAGIC;
+            return magic == VfxProgramData.MAGIC;
         }
 
         public class ShaderTabControl : TabControl
@@ -78,7 +78,7 @@ namespace GUI.Types.Viewers
         private ShaderTabControl tabControl;
         private ShaderCollection shaderCollection;
 
-        public static string SpvToHlsl(VulkanSource v, ShaderCollection c, VcsProgramType s, long z, long d)
+        public static string SpvToHlsl(VfxShaderFileVulkan v, ShaderCollection c, VcsProgramType s, long z, long d)
             => AttemptSpirvReflection(v, c, s, z, (int)d, Backend.HLSL);
 
         public TabPage Create(VrfGuiContext vrfGuiContext, Stream stream)
@@ -155,7 +155,7 @@ namespace GUI.Types.Viewers
 
                         vrfPackage.ReadEntry(vcsEntry, out var shaderDatabytes);
 
-                        var relatedShaderFile = new ShaderFile();
+                        var relatedShaderFile = new VfxProgramData();
 
                         try
                         {
@@ -181,7 +181,7 @@ namespace GUI.Types.Viewers
                     if (Path.GetFileName(vcsFile).StartsWith(vcsCollectionName, StringComparison.InvariantCulture))
                     {
                         var programType = ComputeVCSFileName(vcsFile).ProgramType;
-                        var relatedShaderFile = new ShaderFile();
+                        var relatedShaderFile = new VfxProgramData();
 
                         try
                         {
@@ -267,7 +267,7 @@ namespace GUI.Types.Viewers
         public class ShaderRichTextBox : RichTextBox
         {
 #pragma warning disable CA2213
-            private readonly ShaderFile shaderFile;
+            private readonly VfxProgramData shaderFile;
 #pragma warning restore CA2213
             private readonly ShaderCollection shaderCollection;
             private readonly ShaderTabControl tabControl;
@@ -353,10 +353,10 @@ namespace GUI.Types.Viewers
         {
             private readonly TabControl tabControl;
             private readonly ShaderCollection shaderCollection;
-            private readonly ShaderFile shaderFile;
+            private readonly VfxProgramData shaderFile;
             private VfxStaticComboData zframeFile;
 
-            public ZFrameRichTextBox(TabControl tabControl, ShaderFile shaderFile, ShaderCollection shaderCollection,
+            public ZFrameRichTextBox(TabControl tabControl, VfxProgramData shaderFile, ShaderCollection shaderCollection,
                 long zframeId, bool byteVersion = false) : base()
             {
                 this.tabControl = tabControl;
@@ -445,14 +445,14 @@ namespace GUI.Types.Viewers
             }
         }
 
-        public static TabPage CreateDecompiledTabPage(ShaderCollection shaderCollection, ShaderFile shaderFile, VfxStaticComboData zframeFile, int gpuSourceId, string gpuSourceTabTitle)
+        public static TabPage CreateDecompiledTabPage(ShaderCollection shaderCollection, VfxProgramData shaderFile, VfxStaticComboData zframeFile, int gpuSourceId, string gpuSourceTabTitle)
         {
             TabPage gpuSourceTab = null;
             var gpuSource = zframeFile.GpuSources[gpuSourceId];
 
             switch (gpuSource)
             {
-                case GlslSource:
+                case VfxShaderFileGL:
                     {
                         gpuSourceTab = new TabPage(gpuSourceTabTitle);
                         var gpuSourceGlslText = new CodeTextBox(Encoding.UTF8.GetString(gpuSource.Sourcebytes));
@@ -460,8 +460,8 @@ namespace GUI.Types.Viewers
                         break;
                     }
 
-                case DxbcSource:
-                case DxilSource:
+                case VfxShaderFileDXBC:
+                case VfxShaderFileDXIL:
                     {
                         gpuSourceTab = new TabPage
                         {
@@ -482,7 +482,7 @@ namespace GUI.Types.Viewers
                         break;
                     }
 
-                case VulkanSource vulkanSource:
+                case VfxShaderFileVulkan vulkanSource:
                     {
                         gpuSourceTab = new TabPage
                         {
@@ -541,7 +541,7 @@ namespace GUI.Types.Viewers
             return gpuSourceTab;
         }
 
-        public static string AttemptSpirvReflection(VulkanSource vulkanSource, ShaderCollection vcsFiles, VcsProgramType stage,
+        public static string AttemptSpirvReflection(VfxShaderFileVulkan vulkanSource, ShaderCollection vcsFiles, VcsProgramType stage,
             long zFrameId, int dynamicId, Backend backend, bool lastRetry = false)
         {
             SpirvCrossApi.spvc_context_create(out var context).CheckResult();
@@ -724,7 +724,7 @@ namespace GUI.Types.Viewers
         const int TextureStartingPoint = 90;
         const int TextureIndexStartingPoint = 30;
 
-        private static string GetNameForTexture(ShaderFile shader, VfxVariableIndexArray writeSequence, uint image_binding, Vfx.Type vfxType)
+        private static string GetNameForTexture(VfxProgramData shader, VfxVariableIndexArray writeSequence, uint image_binding, Vfx.Type vfxType)
         {
             var semgent1Params = writeSequence.Segment1
                 .Select<VfxVariableIndexData, (VfxVariableIndexData Field, VfxVariableDescription Param)>(f => (f, shader.VariableDescriptions[f.VariableIndex]));
@@ -777,7 +777,7 @@ namespace GUI.Types.Viewers
         }
 
         const int SamplerStartingPoint = 42;
-        public static string GetNameForSampler(ShaderFile shader, VfxVariableIndexArray writeSequence, uint sampler_binding)
+        public static string GetNameForSampler(VfxProgramData shader, VfxVariableIndexArray writeSequence, uint sampler_binding)
         {
             var semgent1Params = writeSequence.Segment1
                 .Select<VfxVariableIndexData, (VfxVariableIndexData Field, VfxVariableDescription Param)>(f => (f, shader.VariableDescriptions[f.VariableIndex]));
@@ -804,7 +804,7 @@ namespace GUI.Types.Viewers
         }
 
         const int StorageBufferStartingPoint = 30;
-        public static string GetNameForStorageBuffer(ShaderFile shader, VfxVariableIndexArray writeSequence, uint buffer_binding)
+        public static string GetNameForStorageBuffer(VfxProgramData shader, VfxVariableIndexArray writeSequence, uint buffer_binding)
         {
             var semgent1Params = writeSequence.Segment1
                 .Select<VfxVariableIndexData, (VfxVariableIndexData Field, VfxVariableDescription Param)>(f => (f, shader.VariableDescriptions[f.VariableIndex]));
@@ -827,7 +827,7 @@ namespace GUI.Types.Viewers
             return "undetermined";
         }
 
-        private static string GetNameForUniformBuffer(ShaderFile shader, VfxVariableIndexArray writeSequence, uint binding, uint set)
+        private static string GetNameForUniformBuffer(VfxProgramData shader, VfxVariableIndexArray writeSequence, uint binding, uint set)
         {
             return writeSequence.Segment1
                 .Select<VfxVariableIndexData, (VfxVariableIndexData Field, VfxVariableDescription Param)>(f => (f, shader.VariableDescriptions[f.VariableIndex]))
@@ -835,7 +835,7 @@ namespace GUI.Types.Viewers
                 .FirstOrDefault(fp => fp.Field.Dest == binding).Param?.Name ?? "undetermined";
         }
 
-        private static string GetGlobalBufferMemberName(ShaderFile shader, VfxVariableIndexArray writeSequence, int offset)
+        private static string GetGlobalBufferMemberName(VfxProgramData shader, VfxVariableIndexArray writeSequence, int offset)
         {
             var globalBufferParameters = writeSequence.Globals
                 .Select<VfxVariableIndexData, (VfxVariableIndexData Field, VfxVariableDescription Param)>(f => (f, shader.VariableDescriptions[f.VariableIndex]))
@@ -846,7 +846,7 @@ namespace GUI.Types.Viewers
 
         // by offset
         // https://github.com/KhronosGroup/SPIRV-Cross/blob/f349c91274b91c1a7c173f2df70ec53080076191/spirv_hlsl.cpp#L2616
-        private static string GetBufferMemberName(ShaderFile shader, string bufferName, int index = -1, int offset = -1)
+        private static string GetBufferMemberName(VfxProgramData shader, string bufferName, int index = -1, int offset = -1)
         {
             var bufferParams = shader.ExtConstantBufferDescriptions.FirstOrDefault(buffer => buffer.Name == bufferName)?.BufferParams;
 
@@ -869,7 +869,7 @@ namespace GUI.Types.Viewers
             }
         }
 
-        public static string GetVsAttributeName(ShaderFile shader, VsInputSignatureElement inputSignatureElement, int attributeLocation)
+        public static string GetVsAttributeName(VfxProgramData shader, VsInputSignatureElement inputSignatureElement, int attributeLocation)
         {
             return inputSignatureElement.SymbolsDefinition[attributeLocation].Name;
         }

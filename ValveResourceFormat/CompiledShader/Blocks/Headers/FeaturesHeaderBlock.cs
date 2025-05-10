@@ -77,7 +77,7 @@ public class FeaturesHeaderBlock : ShaderDataBlock
         }
     }
 
-    public void PrintByteDetail(ShaderFile shaderFile)
+    public void PrintByteDetail(VfxProgramData shaderFile)
     {
         DataReader.BaseStream.Position = Start;
         DataReader.ShowBytes(4, $"{nameof(Version)} = {Version}");

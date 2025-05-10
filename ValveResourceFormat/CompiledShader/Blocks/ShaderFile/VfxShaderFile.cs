@@ -1,6 +1,6 @@
 namespace ValveResourceFormat.CompiledShader;
 
-public abstract class GpuSource : ShaderDataBlock
+public abstract class VfxShaderFile : ShaderDataBlock
 {
     public abstract string BlockName { get; }
     public int SourceId { get; }
@@ -8,7 +8,7 @@ public abstract class GpuSource : ShaderDataBlock
     public byte[] Sourcebytes { get; protected set; } = [];
     public Guid HashMD5 { get; protected set; }
 
-    protected GpuSource(ShaderDataReader datareader, int sourceId) : base(datareader)
+    protected VfxShaderFile(ShaderDataReader datareader, int sourceId) : base(datareader)
     {
         SourceId = sourceId;
         Size = datareader.ReadInt32();

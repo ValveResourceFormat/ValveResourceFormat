@@ -10,13 +10,13 @@ namespace ValveResourceFormat.CompiledShader
     public class PrintZFrameSummary
     {
         public HandleOutputWrite OutputWriter { get; set; }
-        private readonly ShaderFile shaderFile;
+        private readonly VfxProgramData shaderFile;
         private readonly VfxStaticComboData zframeFile;
         private readonly bool showRichTextBoxLinks;
 
         // If OutputWriter is left as null; output will be written to Console.
         // Otherwise output is directed to the passed HandleOutputWrite object (defined by the calling application, for example GUI element or file)
-        public PrintZFrameSummary(ShaderFile shaderFile, VfxStaticComboData zframeFile,
+        public PrintZFrameSummary(VfxProgramData shaderFile, VfxStaticComboData zframeFile,
             HandleOutputWrite outputWriter = null, bool showRichTextBoxLinks = false)
         {
             this.shaderFile = shaderFile;
@@ -256,8 +256,8 @@ namespace ValveResourceFormat.CompiledShader
             var gpuSourceName = zframeFile.GpuSources[0].BlockName.ToLowerInvariant();
             var sourceHeader = $"{gpuSourceName}-source";
             string[] dConfigHeaders = isVertexShader ?
-                    ["config-id", dNamesHeader, "write-seq.", sourceHeader, "gpu-inputs", nameof(VfxStaticComboData.ConstantBufferBindInfoSlots), nameof(VfxStaticComboData.ConstantBufferBindInfoFlags), nameof(GpuSource.HashMD5)] :
-                    ["config-id", dNamesHeader, "write-seq.", sourceHeader, nameof(VfxStaticComboData.ConstantBufferBindInfoSlots), nameof(VfxStaticComboData.ConstantBufferBindInfoFlags), nameof(GpuSource.HashMD5)];
+                    ["config-id", dNamesHeader, "write-seq.", sourceHeader, "gpu-inputs", nameof(VfxStaticComboData.ConstantBufferBindInfoSlots), nameof(VfxStaticComboData.ConstantBufferBindInfoFlags), nameof(VfxShaderFile.HashMD5)] :
+                    ["config-id", dNamesHeader, "write-seq.", sourceHeader, nameof(VfxStaticComboData.ConstantBufferBindInfoSlots), nameof(VfxStaticComboData.ConstantBufferBindInfoFlags), nameof(VfxShaderFile.HashMD5)];
             OutputFormatterTabulatedData tabulatedConfigFull = new(OutputWriter);
             tabulatedConfigFull.DefineHeaders(dConfigHeaders);
 
@@ -309,9 +309,9 @@ namespace ValveResourceFormat.CompiledShader
             return abbreviations;
         }
 
-        static Dictionary<long, GpuSource> GetBlockIdToSource(VfxStaticComboData zframeFile)
+        static Dictionary<long, VfxShaderFile> GetBlockIdToSource(VfxStaticComboData zframeFile)
         {
-            Dictionary<long, GpuSource> blockIdToSource = [];
+            Dictionary<long, VfxShaderFile> blockIdToSource = [];
             foreach (var endBlock in zframeFile.RenderStateInfos)
             {
                 blockIdToSource.Add(endBlock.BlockIdRef, zframeFile.GpuSources[endBlock.SourceRef]);

@@ -27,7 +27,7 @@ namespace ValveResourceFormat.CompiledShader
         public byte Flagbyte1 { get; }
         public int GpuSourceCount { get; }
         public bool Flagbyte2 { get; }
-        public List<GpuSource> GpuSources { get; } = [];
+        public List<VfxShaderFile> GpuSources { get; } = [];
         public List<VfxRenderStateInfo> RenderStateInfos { get; } = [];
 
         private int VcsVersion { get; }
@@ -160,7 +160,7 @@ namespace ValveResourceFormat.CompiledShader
         {
             for (var sourceId = 0; sourceId < glslSourceCount; sourceId++)
             {
-                GlslSource glslSource = new(DataReader, sourceId);
+                VfxShaderFileGL glslSource = new(DataReader, sourceId);
                 GpuSources.Add(glslSource);
             }
         }
@@ -168,7 +168,7 @@ namespace ValveResourceFormat.CompiledShader
         {
             for (var sourceId = 0; sourceId < dxilSourceCount; sourceId++)
             {
-                DxilSource dxilSource = new(DataReader, sourceId);
+                VfxShaderFileDXIL dxilSource = new(DataReader, sourceId);
                 GpuSources.Add(dxilSource);
             }
         }
@@ -176,7 +176,7 @@ namespace ValveResourceFormat.CompiledShader
         {
             for (var sourceId = 0; sourceId < dxbcSourceCount; sourceId++)
             {
-                DxbcSource dxbcSource = new(DataReader, sourceId);
+                VfxShaderFileDXBC dxbcSource = new(DataReader, sourceId);
                 GpuSources.Add(dxbcSource);
             }
         }
@@ -184,7 +184,7 @@ namespace ValveResourceFormat.CompiledShader
         {
             for (var sourceId = 0; sourceId < vulkanSourceCount; sourceId++)
             {
-                VulkanSource vulkanSource = new(DataReader, sourceId);
+                VfxShaderFileVulkan vulkanSource = new(DataReader, sourceId);
                 GpuSources.Add(vulkanSource);
             }
         }

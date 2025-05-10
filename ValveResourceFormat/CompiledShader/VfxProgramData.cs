@@ -7,8 +7,7 @@ using static ValveResourceFormat.CompiledShader.ShaderUtilHelpers;
 
 namespace ValveResourceFormat.CompiledShader
 {
-    // Valve name: CVfxProgramData
-    public class ShaderFile : IDisposable
+    public class VfxProgramData : IDisposable
     {
         public const int MAGIC = 0x32736376; // "vcs2"
 

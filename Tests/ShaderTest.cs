@@ -21,7 +21,7 @@ namespace Tests
 
             foreach (var file in files)
             {
-                using var shader = new ShaderFile();
+                using var shader = new VfxProgramData();
 
                 using var sw = new StringWriter(CultureInfo.InvariantCulture);
                 var originalOutput = Console.Out;
@@ -89,7 +89,7 @@ namespace Tests
         public void TestZFrameWriteSequences()
         {
             var path = Path.Combine(ShadersDir, "vcs64_error_pcgl_40_ps.vcs");
-            using var shader = new ShaderFile();
+            using var shader = new VfxProgramData();
             shader.Read(path);
 
             using var zFrameFile = shader.GetZFrameFile(0);
@@ -169,7 +169,7 @@ namespace Tests
         public void VfxShaderExtract_Invalid()
         {
             var path = Path.Combine(ShadersDir, "vcs64_error_pcgl_40_ps.vcs");
-            using var shader = new ShaderFile();
+            using var shader = new VfxProgramData();
             shader.Read(path);
 
             var ex = Assert.Throws<InvalidOperationException>(() => new ShaderExtract(ShaderCollection.FromEnumerable([shader])));
@@ -183,7 +183,7 @@ namespace Tests
         public void VfxShaderExtract_Minimal()
         {
             var path = Path.Combine(ShadersDir, "vcs64_error_pc_40_features.vcs");
-            using var shader = new ShaderFile();
+            using var shader = new VfxProgramData();
             shader.Read(path);
 
             var extract = new ShaderExtract(ShaderCollection.FromEnumerable([shader]));
@@ -201,7 +201,7 @@ namespace Tests
             using var collection = new ShaderCollection();
             foreach (var file in Directory.GetFiles(ShadersDir, "vcs64_error_pc_40_*.vcs"))
             {
-                var shader = new ShaderFile();
+                var shader = new VfxProgramData();
 
                 try
                 {

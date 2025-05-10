@@ -151,7 +151,7 @@ namespace GUI.Types.Renderer
             AddZframeTab(shaders.Vertex);
             AddZframeTab(shaders.Pixel);
 
-            void AddZframeTab(ValveResourceFormat.CompiledShader.ShaderFile stage)
+            void AddZframeTab(ValveResourceFormat.CompiledShader.VfxProgramData stage)
             {
                 var result = ShaderDataProvider.GetStaticConfiguration_ForFeatureState(shaders.Features, stage, featureState);
 

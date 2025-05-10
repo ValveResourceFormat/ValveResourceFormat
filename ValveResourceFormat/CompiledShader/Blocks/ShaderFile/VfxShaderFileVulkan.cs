@@ -1,6 +1,6 @@
 namespace ValveResourceFormat.CompiledShader;
 
-public class VulkanSource : GpuSource
+public class VfxShaderFileVulkan : VfxShaderFile
 {
     public override string BlockName => "VULKAN";
     public int Version { get; } = -1;
@@ -8,7 +8,7 @@ public class VulkanSource : GpuSource
     public Span<byte> Bytecode => Sourcebytes.AsSpan(0, BytecodeSize);
     public Span<byte> Metadata => Sourcebytes.AsSpan(BytecodeSize..);
 
-    public VulkanSource(ShaderDataReader datareader, int sourceId) : base(datareader, sourceId)
+    public VfxShaderFileVulkan(ShaderDataReader datareader, int sourceId) : base(datareader, sourceId)
     {
         if (Size > 0)
         {

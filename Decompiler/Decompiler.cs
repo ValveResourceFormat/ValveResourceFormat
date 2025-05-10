@@ -521,7 +521,7 @@ namespace Decompiler
             switch (magic)
             {
                 case Package.MAGIC: ParseVPK(path, stream); return;
-                case ShaderFile.MAGIC: ParseVCS(path, stream, originalPath); return;
+                case VfxProgramData.MAGIC: ParseVCS(path, stream, originalPath); return;
                 case NavMeshFile.MAGIC: ParseNAV(path, stream, originalPath); return;
                 case ToolsAssetInfo.MAGIC2:
                 case ToolsAssetInfo.MAGIC: ParseToolsAssetInfo(path, stream); return;
@@ -724,7 +724,7 @@ namespace Decompiler
 
         private void ParseVCS(string path, Stream stream, string? originalPath)
         {
-            using var shader = new ShaderFile();
+            using var shader = new VfxProgramData();
 
             try
             {

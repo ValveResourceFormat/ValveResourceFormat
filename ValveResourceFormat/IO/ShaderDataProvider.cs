@@ -53,8 +53,8 @@ namespace ValveResourceFormat.IO
         /// <param name="staticParams">Statics (not tied to a feature) that you want to override. Static parameters have the 'S_' prefix.</param>
         /// <returns>Static configuration and a generator that can be used to retreive the zframe id.</returns>
         public static (int[] StaticConfig, long ZFrameId) GetStaticConfiguration_ForFeatureState(
-            ShaderFile features,
-            ShaderFile shaderFile,
+            VfxProgramData features,
+            VfxProgramData shaderFile,
             IDictionary<string, byte> featureParams,
             IDictionary<string, byte> staticParams = null)
         {
@@ -113,7 +113,7 @@ namespace ValveResourceFormat.IO
         /// </summary>
         /// <param name="shaderFile">The file that contains the combos, and combo rules</param>
         /// <returns></returns>
-        public static bool TryReduceStaticConfiguration(ShaderFile shaderFile, int[] staticConfiguration, out int[] reducedConfiguration)
+        public static bool TryReduceStaticConfiguration(VfxProgramData shaderFile, int[] staticConfiguration, out int[] reducedConfiguration)
         {
             reducedConfiguration = [.. staticConfiguration];
 
@@ -190,7 +190,7 @@ namespace ValveResourceFormat.IO
             /// <summary>
             /// Determine which of the parameter variants is the one referenced by the material.
             /// </summary>
-            (VfxVariableDescription, ShaderFile) DetermineParameterReferencedByMaterial(ShaderCollection shader, Material material, string paramName,
+            (VfxVariableDescription, VfxProgramData) DetermineParameterReferencedByMaterial(ShaderCollection shader, Material material, string paramName,
                 KeyValuePair<string, byte> forcedStatic = default)
             {
                 var featureState = GetMaterialFeatureState(material);
@@ -270,7 +270,7 @@ namespace ValveResourceFormat.IO
                     + $"Features ({string.Join(", ", featureState.Select(p => $"{p.Key}={p.Value}"))})");
             }
 
-            IEnumerable<(Channel Channel, string Name)> GetParameterInputs(VfxVariableDescription param, ShaderFile shaderFile)
+            IEnumerable<(Channel Channel, string Name)> GetParameterInputs(VfxVariableDescription param, VfxProgramData shaderFile)
             {
                 for (var i = 0; i < param.ChannelCount; i++)
                 {

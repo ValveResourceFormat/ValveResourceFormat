@@ -14,7 +14,7 @@ namespace ValveResourceFormat.CompiledShader
         private readonly bool showRichTextBoxLinks;
         private readonly List<string> relatedFiles;
 
-        public PrintVcsFileSummary(ShaderFile shaderFile, HandleOutputWrite OutputWriter = null,
+        public PrintVcsFileSummary(VfxProgramData shaderFile, HandleOutputWrite OutputWriter = null,
             bool showRichTextBoxLinks = false, List<string> relatedFiles = null)
         {
             this.showRichTextBoxLinks = showRichTextBoxLinks;
@@ -41,7 +41,7 @@ namespace ValveResourceFormat.CompiledShader
             PrintZFrames(shaderFile);
         }
 
-        private void PrintFeaturesHeader(ShaderFile shaderFile)
+        private void PrintFeaturesHeader(VfxProgramData shaderFile)
         {
             output.WriteLine($"Valve Compiled Shader 2 (vcs2), version {shaderFile.VcsVersion}");
             output.BreakLine();
@@ -110,7 +110,7 @@ namespace ValveResourceFormat.CompiledShader
             output.BreakLine();
         }
 
-        private void PrintPsVsHeader(ShaderFile shaderFile)
+        private void PrintPsVsHeader(VfxProgramData shaderFile)
         {
             output.WriteLine($"Valve Compiled Shader 2 (vcs2), version {shaderFile.VcsVersion}");
             output.BreakLine();
@@ -141,7 +141,7 @@ namespace ValveResourceFormat.CompiledShader
             output.BreakLine();
         }
 
-        private void PrintFBlocks(ShaderFile shaderFile)
+        private void PrintFBlocks(VfxProgramData shaderFile)
         {
             output.WriteLine($"FEATURES({shaderFile.StaticCombos.Count})");
             if (shaderFile.StaticCombos.Count == 0)
@@ -178,7 +178,7 @@ namespace ValveResourceFormat.CompiledShader
             output.BreakLine();
         }
 
-        private void PrintSBlocks(ShaderFile shaderFile)
+        private void PrintSBlocks(VfxProgramData shaderFile)
         {
             output.WriteLine($"STATIC-CONFIGURATIONS({shaderFile.StaticCombos.Count})");
             if (shaderFile.StaticCombos.Count == 0)
@@ -196,7 +196,7 @@ namespace ValveResourceFormat.CompiledShader
             output.BreakLine();
         }
 
-        private void PrintStaticConstraints(ShaderFile shaderFile)
+        private void PrintStaticConstraints(VfxProgramData shaderFile)
         {
             output.WriteLine("STATIC-CONFIGS INCLUSION/EXCLUSION RULES");
             if (shaderFile.StaticComboRules.Count == 0)
@@ -229,7 +229,7 @@ namespace ValveResourceFormat.CompiledShader
             output.BreakLine();
         }
 
-        private void PrintDynamicConfigurations(ShaderFile shaderFile)
+        private void PrintDynamicConfigurations(VfxProgramData shaderFile)
         {
             output.WriteLine($"DYNAMIC-CONFIGURATIONS({shaderFile.DynamicCombos.Count})");
             if (shaderFile.DynamicCombos.Count == 0)
@@ -263,7 +263,7 @@ namespace ValveResourceFormat.CompiledShader
             output.BreakLine();
         }
 
-        private void PrintDynamicConstraints(ShaderFile shaderFile)
+        private void PrintDynamicConstraints(VfxProgramData shaderFile)
         {
             output.WriteLine("DYNAMIC-CONFIGS INCLUSION/EXCLUSION RULES");
             if (shaderFile.DynamicComboRules.Count == 0)
@@ -302,7 +302,7 @@ namespace ValveResourceFormat.CompiledShader
             output.BreakLine();
         }
 
-        private void PrintParameters(ShaderFile shaderFile)
+        private void PrintParameters(VfxProgramData shaderFile)
         {
             if (shaderFile.VariableDescriptions.Count == 0)
             {
@@ -466,7 +466,7 @@ namespace ValveResourceFormat.CompiledShader
             output.BreakLine();
         }
 
-        private void PrintChannelBlocks(ShaderFile shaderFile)
+        private void PrintChannelBlocks(VfxProgramData shaderFile)
         {
             output.WriteLine($"CHANNEL BLOCKS({shaderFile.TextureChannelProcessors.Count})");
             if (shaderFile.TextureChannelProcessors.Count > 0)
@@ -493,7 +493,7 @@ namespace ValveResourceFormat.CompiledShader
             output.BreakLine();
         }
 
-        private void PrintBufferBlocks(ShaderFile shaderFile)
+        private void PrintBufferBlocks(VfxProgramData shaderFile)
         {
             if (shaderFile.ExtConstantBufferDescriptions.Count == 0)
             {
@@ -523,7 +523,7 @@ namespace ValveResourceFormat.CompiledShader
             }
         }
 
-        private void PrintVertexSymbolBuffers(ShaderFile shaderFile)
+        private void PrintVertexSymbolBuffers(VfxProgramData shaderFile)
         {
             output.WriteLine($"VERTEX-BUFFER-SYMBOLS({shaderFile.VSInputSignatures.Count})");
             if (shaderFile.VSInputSignatures.Count == 0)
@@ -567,7 +567,7 @@ namespace ValveResourceFormat.CompiledShader
             output.BreakLine();
         }
 
-        private void PrintZFrames(ShaderFile shaderFile)
+        private void PrintZFrames(VfxProgramData shaderFile)
         {
             var zframesHeader = $"ZFRAMES({shaderFile.GetZFrameCount()})";
             output.WriteLine(zframesHeader);

@@ -224,7 +224,7 @@ namespace ValveResourceFormat.IO
 
             bool TryLoadShader(VcsProgramType programType, VcsPlatformType platformType, VcsShaderModelType modelType)
             {
-                var shaderFile = new ShaderFile();
+                var shaderFile = new VfxProgramData();
 
                 try
                 {

@@ -102,7 +102,7 @@ namespace ValveResourceFormat.CompiledShader
      */
     public class ConfigMappingSParams
     {
-        public ConfigMappingSParams(ShaderFile shaderfile)
+        public ConfigMappingSParams(VfxProgramData shaderfile)
         {
             GenerateOffsetAndStateLookups(shaderfile);
         }
@@ -124,7 +124,7 @@ namespace ValveResourceFormat.CompiledShader
          * nr_states = [5    2]
          *
          */
-        private void GenerateOffsetAndStateLookups(ShaderFile shaderFile)
+        private void GenerateOffsetAndStateLookups(VfxProgramData shaderFile)
         {
             if (shaderFile.StaticCombos.Count == 0)
             {

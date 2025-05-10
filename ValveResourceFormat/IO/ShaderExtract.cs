@@ -62,17 +62,17 @@ public sealed class ShaderExtract
     /// <summary>
     /// A delegate that takes in SPIR-V bytecode and returns HLSL.
     /// </summary>
-    public Func<VulkanSource, ShaderCollection, VcsProgramType, long, long, string> SpirvCompiler { get; set; }
+    public Func<VfxShaderFileVulkan, ShaderCollection, VcsProgramType, long, long, string> SpirvCompiler { get; set; }
 
-    public ShaderFile Features => Shaders.Features;
-    public ShaderFile Vertex => Shaders.Vertex;
-    public ShaderFile Geometry => Shaders.Geometry;
-    public ShaderFile Domain => Shaders.Domain;
-    public ShaderFile Hull => Shaders.Hull;
-    public ShaderFile Pixel => Shaders.Pixel;
-    public ShaderFile Compute => Shaders.Compute;
-    public ShaderFile PixelShaderRenderState => Shaders.PixelShaderRenderState;
-    public ShaderFile Raytracing => Shaders.Raytracing;
+    public VfxProgramData Features => Shaders.Features;
+    public VfxProgramData Vertex => Shaders.Vertex;
+    public VfxProgramData Geometry => Shaders.Geometry;
+    public VfxProgramData Domain => Shaders.Domain;
+    public VfxProgramData Hull => Shaders.Hull;
+    public VfxProgramData Pixel => Shaders.Pixel;
+    public VfxProgramData Compute => Shaders.Compute;
+    public VfxProgramData PixelShaderRenderState => Shaders.PixelShaderRenderState;
+    public VfxProgramData Raytracing => Shaders.Raytracing;
 
     private readonly string[] FeatureNames;
     private readonly string[] Globals;
@@ -125,7 +125,7 @@ public sealed class ShaderExtract
     public string GetVfxFileName()
         => GetVfxNameFromShaderFile(Features);
 
-    private static string GetVfxNameFromShaderFile(ShaderFile shaderFile)
+    private static string GetVfxNameFromShaderFile(VfxProgramData shaderFile)
     {
         return shaderFile.ShaderName + ".vfx";
     }
@@ -536,7 +536,7 @@ public sealed class ShaderExtract
     private string RTX()
         => HandleStageShared(Raytracing, nameof(RTX));
 
-    private string HandleStageShared(ShaderFile shader, string stageName)
+    private string HandleStageShared(VfxProgramData shader, string stageName)
     {
         if (shader is null)
         {
@@ -595,7 +595,7 @@ public sealed class ShaderExtract
         }
     }
 
-    private void HandleZFrames(ShaderFile shader, IndentedTextWriter writer)
+    private void HandleZFrames(VfxProgramData shader, IndentedTextWriter writer)
     {
         if (shader.GetZFrameCount() == 0 || !Options.CanReadZFrames)
         {
@@ -632,13 +632,13 @@ public sealed class ShaderExtract
             {
                 var dynamicId = 0;
                 var gpuSource = zFrame.GpuSources[dynamicId];
-                if (gpuSource is GlslSource glsl)
+                if (gpuSource is VfxShaderFileGL glsl)
                 {
                     variant0Source.AppendLine("// --------- GLSL source begin --------- ");
                     variant0Source.Append(Encoding.UTF8.GetString(glsl.Sourcebytes));
                     variant0Source.AppendLine("// ---------  GLSL source end  --------- ");
                 }
-                else if (gpuSource is VulkanSource spirv && !spirv.IsEmpty() && SpirvCompiler is not null)
+                else if (gpuSource is VfxShaderFileVulkan spirv && !spirv.IsEmpty() && SpirvCompiler is not null)
                 {
                     variant0Source.Append(SpirvCompiler.Invoke(spirv, Shaders, shader.VcsProgramType, zFrame.ZframeId, dynamicId));
                     variant0Source.AppendLine("// ---------  SPIRV -> HLSL end  --------- ");
