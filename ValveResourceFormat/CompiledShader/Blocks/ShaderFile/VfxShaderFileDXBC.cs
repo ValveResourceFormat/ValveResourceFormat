@@ -11,7 +11,7 @@ public class VfxShaderFileDXBC : VfxShaderFile
     {
         if (Size > 0)
         {
-            Sourcebytes = datareader.ReadBytes(Size);
+            Bytecode = datareader.ReadBytes(Size);
         }
 
         HashMD5 = new Guid(datareader.ReadBytes(16));

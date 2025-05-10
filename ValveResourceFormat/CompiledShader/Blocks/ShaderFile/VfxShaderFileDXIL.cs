@@ -20,7 +20,7 @@ public class VfxShaderFileDXIL : VfxShaderFile
             }
 
             HeaderBytes = (int)datareader.ReadUInt16() * 4; // size is given as a 4-byte count
-            Sourcebytes = datareader.ReadBytes(Size - 8);
+            Bytecode = datareader.ReadBytes(Size - 8);
         }
 
         HashMD5 = new Guid(datareader.ReadBytes(16));

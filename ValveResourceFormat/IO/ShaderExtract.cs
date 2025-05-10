@@ -635,7 +635,7 @@ public sealed class ShaderExtract
                 if (gpuSource is VfxShaderFileGL glsl)
                 {
                     variant0Source.AppendLine("// --------- GLSL source begin --------- ");
-                    variant0Source.Append(Encoding.UTF8.GetString(glsl.Sourcebytes));
+                    variant0Source.Append(Encoding.UTF8.GetString(glsl.Bytecode));
                     variant0Source.AppendLine("// ---------  GLSL source end  --------- ");
                 }
                 else if (gpuSource is VfxShaderFileVulkan spirv && !spirv.IsEmpty() && SpirvCompiler is not null)

@@ -455,7 +455,7 @@ namespace GUI.Types.Viewers
                 case VfxShaderFileGL:
                     {
                         gpuSourceTab = new TabPage(gpuSourceTabTitle);
-                        var gpuSourceGlslText = new CodeTextBox(Encoding.UTF8.GetString(gpuSource.Sourcebytes));
+                        var gpuSourceGlslText = new CodeTextBox(Encoding.UTF8.GetString(gpuSource.Bytecode));
                         gpuSourceTab.Controls.Add(gpuSourceGlslText);
                         break;
                     }
@@ -476,7 +476,7 @@ namespace GUI.Types.Viewers
 
                         Program.MainForm.Invoke((MethodInvoker)(() =>
                         {
-                            sourceBv.SetBytes(gpuSource.Sourcebytes);
+                            sourceBv.SetBytes(gpuSource.Bytecode);
                         }));
 
                         break;
@@ -526,8 +526,8 @@ namespace GUI.Types.Viewers
                         {
                             Program.MainForm.Invoke((MethodInvoker)(() =>
                             {
-                                sourceBv.SetBytes(vulkanSource.Bytecode.ToArray());
-                                metadataBv.SetBytes(vulkanSource.Metadata.ToArray());
+                                sourceBv.SetBytes(vulkanSource.Bytecode);
+                                //metadataBv.SetBytes(vulkanSource.Metadata.ToArray());
                             }));
                         }
 
