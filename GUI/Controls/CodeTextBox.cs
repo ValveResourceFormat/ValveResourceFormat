@@ -155,6 +155,24 @@ namespace GUI.Controls
             //e.ChangedRange.SetFoldingMarkers("\\[", "\\]");
         }
 
+        public static TextBox CreateBasicTextBox(string text)
+        {
+            var textBox = new TextBox
+            {
+                Font = new Font(FontFamily.GenericMonospace, 9),
+                ReadOnly = true,
+                Multiline = true,
+                WordWrap = false,
+                Text = text,
+                Dock = DockStyle.Fill,
+                ScrollBars = ScrollBars.Both,
+                BorderStyle = BorderStyle.None,
+                BackColor = SystemColors.Window,
+                ForeColor = SystemColors.WindowText,
+            };
+            return textBox;
+        }
+
         private partial class KvSyntaxHighlighter : SyntaxHighlighter
         {
             public KvSyntaxHighlighter(FastColoredTextBox currentTb) : base(currentTb)

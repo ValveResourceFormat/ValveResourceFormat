@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Drawing;
 using System.IO;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -418,6 +419,16 @@ namespace GUI.Types.Viewers
                 return;
             }
 
+            var text = block.ToString();
+            const int MaxLengthForCodeBox = 512 * 1024 * 1024;
+
+            // https://github.com/ValveResourceFormat/ValveResourceFormat/issues/840
+            if (text.Length > MaxLengthForCodeBox)
+            {
+                blockTab.Controls.Add(CodeTextBox.CreateBasicTextBox(text));
+                return;
+            }
+
             var language = CodeTextBox.HighlightLanguage.KeyValues;
 
             if (resource.ResourceType == ResourceType.PanoramaLayout && block.Type == BlockType.DATA)
@@ -433,7 +444,7 @@ namespace GUI.Types.Viewers
                 language = CodeTextBox.HighlightLanguage.JS;
             }
 
-            var textBox = new CodeTextBox(block.ToString(), language);
+            var textBox = new CodeTextBox(text, language);
             blockTab.Controls.Add(textBox);
         }
 
