@@ -128,14 +128,8 @@ public class VfxShaderFileVulkan : VfxShaderFile
             }
 
             Unknown25 = datareader.ReadInt16();
-
-            /*
-                Unknown25 = readint16((__int64)a2);
-                v34 = a1->wordA8 ^ Unknown25;
-                LOBYTE(Unknown25) = a1->byteAA ^ (Unknown25 >> 12);
-                a1->wordA8 ^= v34 & 0xFFF;
-                a1->byteAA ^= Unknown25 & 1;
-            */
+            var a = Unknown25 & 0xFFF;
+            var b = Unknown25 >> 12;
 
             Unknown27 = datareader.ReadInt16();
 
@@ -160,14 +154,15 @@ public class VfxShaderFileVulkan : VfxShaderFile
                         Unknown31[i] = datareader.ReadInt32();
                     }
                 }
-            }
 
-            Unknown32 = datareader.ReadInt16();
-            Unknown33 = datareader.ReadByte();
+                // v3 doesnt seem to have this code below, but v4 didnt put it in the if check?
+                Unknown32 = datareader.ReadInt16();
+                Unknown33 = datareader.ReadByte();
 
-            if (Unknown33 > 0)
-            {
-                Unknown34 = datareader.ReadBytes(Unknown33);
+                if (Unknown33 > 0)
+                {
+                    Unknown34 = datareader.ReadBytes(Unknown33);
+                }
             }
         }
 
