@@ -182,9 +182,11 @@ namespace ValveResourceFormat.CompiledShader
         }
         private void ReadVulkanSources(int vulkanSourceCount)
         {
+            var isMobile = VcsPlatformType is VcsPlatformType.ANDROID_VULKAN or VcsPlatformType.IOS_VULKAN;
+
             for (var sourceId = 0; sourceId < vulkanSourceCount; sourceId++)
             {
-                VfxShaderFileVulkan vulkanSource = new(DataReader, sourceId);
+                VfxShaderFileVulkan vulkanSource = new(DataReader, sourceId, isMobile);
                 GpuSources.Add(vulkanSource);
             }
         }

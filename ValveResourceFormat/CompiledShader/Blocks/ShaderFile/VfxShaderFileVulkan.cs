@@ -46,7 +46,7 @@ public class VfxShaderFileVulkan : VfxShaderFile
     public byte Unknown33 { get; }
     public byte[] Unknown34 { get; }
 
-    public VfxShaderFileVulkan(ShaderDataReader datareader, int sourceId) : base(datareader, sourceId)
+    public VfxShaderFileVulkan(ShaderDataReader datareader, int sourceId, bool isMobile) : base(datareader, sourceId)
     {
         // CVfxShaderFile::Unserialize
         if (Size > 0)
@@ -60,7 +60,10 @@ public class VfxShaderFileVulkan : VfxShaderFile
             {
                 Bytecode = datareader.ReadBytes(BytecodeSize);
             }
+        }
 
+        if (Size > 0 && !isMobile)
+        {
             Unknown1 = datareader.ReadInt32();
             if (Unknown1 > 0)
             {
@@ -164,6 +167,11 @@ public class VfxShaderFileVulkan : VfxShaderFile
                     Unknown34 = datareader.ReadBytes(Unknown33);
                 }
             }
+        }
+        else
+        {
+            // There's still some alignment or something on mobile, despite having no metadata
+            datareader.BaseStream.Position += Size - BytecodeSize - 8;
         }
 
         var actuallyRead = datareader.BaseStream.Position - Start - 4;
