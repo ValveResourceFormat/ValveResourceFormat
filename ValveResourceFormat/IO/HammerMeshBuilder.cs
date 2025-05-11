@@ -1,3 +1,4 @@
+using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using ValveResourceFormat.IO.ContentFormats.DmxModel;
@@ -6,6 +7,7 @@ using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics;
 using ValveResourceFormat.Serialization.KeyValues;
 using static ValveResourceFormat.IO.HammerMeshBuilder;
+using static ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes.Mesh;
 using HalfEdgeSlim = (int SrcVertexId, int DstVertexId);
 
 namespace ValveResourceFormat.IO
@@ -582,7 +584,7 @@ namespace ValveResourceFormat.IO
             return mesh;
         }
 
-        public void DefinePointCloud(VertexStreams streams, Vector3 positionOffset)
+        public void AddVertices(VertexStreams streams, Vector3 positionOffset)
         {
             vertexStreams = streams;
 
@@ -672,7 +674,7 @@ namespace ValveResourceFormat.IO
             var firstHalfEdgeId = -1;
             var previousHalfEdgeId = -1;
 
-            Span<Vertex> v = new Vertex[2];
+            Span<Vertex> currentVertices = new Vertex[2];
 
             for (var i = 0; i < indices.Length; i++)
             {
@@ -681,8 +683,8 @@ namespace ValveResourceFormat.IO
                 var v1idx = indices[i];
                 var v2idx = indices[(i + 1) % indices.Length]; // will cause v2idx to wrap around
 
-                v[0] = Vertices[v1idx];
-                v[1] = Vertices[v2idx];
+                currentVertices[0] = Vertices[v1idx];
+                currentVertices[1] = Vertices[v2idx];
 
                 var innerHeIndex = HalfEdges.Count; // since we haven't yet added this edge, its index is just the count of the list + newHalfEdges list
                 var outerHeIndex = HalfEdges.Count + 1;
@@ -698,11 +700,11 @@ namespace ValveResourceFormat.IO
 
                 for (var j = 0; j < 2; j++)
                 {
-                    var openEdge = v[j].OutGoingHalfEdge == -1;
+                    var openEdge = currentVertices[j].OutGoingHalfEdge == -1;
 
                     if (!openEdge)
                     {
-                        foreach (var he in v[j].RelatedEdges)
+                        foreach (var he in currentVertices[j].RelatedEdges)
                         {
                             if (HalfEdges[he].Face == -1)
                             {
@@ -776,12 +778,12 @@ namespace ValveResourceFormat.IO
                     halfEdgeModifier.AddHalfEdgeToHalfEdgesList(innerHe);
                     halfEdgeModifier.AddHalfEdgeToHalfEdgesList(outerHe);
 
-                    halfEdgeModifier.AddVertexRelatedEdge(v[0], innerHeIndex);
-                    halfEdgeModifier.AddVertexRelatedEdge(v[0], outerHeIndex);
-                    halfEdgeModifier.AddVertexRelatedEdge(v[1], innerHeIndex);
-                    halfEdgeModifier.AddVertexRelatedEdge(v[1], outerHeIndex);
+                    halfEdgeModifier.AddVertexRelatedEdge(currentVertices[0], innerHeIndex);
+                    halfEdgeModifier.AddVertexRelatedEdge(currentVertices[0], outerHeIndex);
+                    halfEdgeModifier.AddVertexRelatedEdge(currentVertices[1], innerHeIndex);
+                    halfEdgeModifier.AddVertexRelatedEdge(currentVertices[1], outerHeIndex);
 
-                    halfEdgeModifier.ChangeVertexOutGoing(v[1], outerHeIndex);
+                    halfEdgeModifier.ChangeVertexOutGoing(currentVertices[1], outerHeIndex);
 
                     newBoundaryHalfEdges.Add(outerHe);
                 }
@@ -940,8 +942,7 @@ namespace ValveResourceFormat.IO
                 // link next boundary
                 //
 
-                // same awful logic as obove just flipped in order to connects nexts, but with the joy of code duplication
-
+                // same awful logic as obove just flipped in order to connect nexts, but with the joy of code duplication
                 var totalPotentialNextBoundary = 0;
                 var potentialBoundaryWithAnInnerAsPrevIdx = -1;
                 var oppositeNextBoundary = -1;
@@ -1049,7 +1050,7 @@ namespace ValveResourceFormat.IO
             {
                 positions = hull.GetVertexPositions().ToArray().ToList()
             };
-            DefinePointCloud(streams, positionOffset);
+            AddVertices(streams, positionOffset);
 
             var hullFaces = hull.GetFaces();
             var hullEdges = hull.GetEdges();
@@ -1100,31 +1101,32 @@ namespace ValveResourceFormat.IO
             var physicsSurfaceNames = phys.SurfacePropertyHashes.Select(StringToken.GetKnownString).ToArray();
 
             var mesh = desc.Shape;
+            var meshTriangles = mesh.GetTriangles();
+
+            var (triangleStart, triangleStop) = useTriangleRange
+                ? (triangleRangeMin, triangleRangeMax)
+                : (0, meshTriangles.Length);
+
+            var newMesh = ReindexTriangleMesh(mesh.GetVertices().ToArray().ToList(), meshTriangles.ToArray().ToList(), triangleStart, triangleStop);
+
             VertexStreams streams = new()
             {
-                positions = mesh.GetVertices().ToArray().ToList()
+                positions = newMesh.NewVertices
             };
-
-            DefinePointCloud(streams, positionOffset);
-
-            var meshTriangles = mesh.GetTriangles();
+            AddVertices(streams, positionOffset);
 
             Faces.EnsureCapacity(meshTriangles.Length);
             Span<int> inds = stackalloc int[3];
 
             var removed = 0;
 
-            var (triangleStart, triangleStop) = useTriangleRange
-                ? (triangleRangeMin, triangleRangeMax)
-                : (0, meshTriangles.Length);
-
-            for (var i = triangleStart; i < triangleStop; i++)
+            for (var i = 0; i < newMesh.NewTriangles.Count; i++)
             {
-                var triangle = meshTriangles[i];
+                var triangle = newMesh.NewTriangles[i];
 
-                inds[0] = triangle.X;
-                inds[1] = triangle.Y;
-                inds[2] = triangle.Z;
+                inds[0] = (int)triangle.X;
+                inds[1] = (int)triangle.Y;
+                inds[2] = (int)triangle.Z;
 
                 if (deletedIndices.Contains(inds[0])
                  || deletedIndices.Contains(inds[1])
@@ -1136,7 +1138,8 @@ namespace ValveResourceFormat.IO
                 if (group == "Default")
                 {
                     var physicsSurfaces = mesh.Materials;
-                    var surfacePropertyIndex = physicsSurfaces.Length > 0 ? physicsSurfaces[i] : desc.SurfacePropertyIndex;
+                    // + triangleStart because physicsSurfaces didnt also get reindexed
+                    var surfacePropertyIndex = physicsSurfaces.Length > 0 ? physicsSurfaces[i + triangleStart] : desc.SurfacePropertyIndex;
                     var surfaceProperty = physicsSurfaceNames[surfacePropertyIndex];
 
                     material = surfaceProperty switch
@@ -1145,7 +1148,6 @@ namespace ValveResourceFormat.IO
                         _ => materialNameProvider.Invoke(surfaceProperty)
                     };
                 }
-
 
                 AddFace(inds, material);
             }
@@ -1289,7 +1291,7 @@ namespace ValveResourceFormat.IO
                 VertexPaintTintColor = newVertexPaintTintColor,
             };
 
-            DefinePointCloud(streams, positionOffset);
+            AddVertices(streams, positionOffset);
 
             foreach (var face in faceList)
             {
@@ -1352,6 +1354,60 @@ namespace ValveResourceFormat.IO
             // Check if the magnitude of the cross product is close to zero
             const float epsilon = 1e-10f;
             return crossProduct.Length() < epsilon;
+        }
+
+        public static (List<Vector3> NewTriangles, List<Vector3> NewVertices) ReindexTriangleMesh(List<Vector3> vertices, List<Triangle> triangles, int trianglesRangeStart, int trianglesRangeEnd)
+        {
+            if (vertices.Count < 1)
+            {
+                throw new InvalidDataException("ReindexMesh vertices can't be empty");
+            }
+
+            if (triangles.Count < 1)
+            {
+                throw new InvalidDataException("ReindexMesh triangles can't be empty");
+            }
+
+            ArgumentOutOfRangeException.ThrowIfLessThan(trianglesRangeStart, 0, "ReindexMesh indexRangeStart can't be less than zero");
+            ArgumentOutOfRangeException.ThrowIfGreaterThan(trianglesRangeEnd, triangles.Count, "ReindexMesh indexRangeEnd can't be more than index count");
+            ArgumentOutOfRangeException.ThrowIfGreaterThan(trianglesRangeStart, trianglesRangeEnd, "ReindexMesh trianglesRangeStart can't be bigger than indexRangeEnd");
+
+            var trianglesCount = trianglesRangeEnd - trianglesRangeStart;
+
+            List<Vector3> NewTriangles = new(trianglesCount);
+            // possible over allocation but might be better for speed than underallocation?
+            List<Vector3> newVertices = new(trianglesCount * 3);
+
+            Dictionary<int, int> oldToNewIndex = new();
+            int nextNewIndex = 0;
+
+            Span<int> currentTriangleIndices = stackalloc int[3];
+            Span<int> newIndices = stackalloc int[3];
+
+            for (var i = trianglesRangeStart; i < trianglesRangeEnd; i++)
+            {
+                var originalTriangle = triangles[i];
+                currentTriangleIndices[0] = (int)originalTriangle.X;
+                currentTriangleIndices[1] = (int)originalTriangle.Y;
+                currentTriangleIndices[2] = (int)originalTriangle.Z;
+
+                for (var j = 0; j < currentTriangleIndices.Length; j++)
+                {
+                    var index = currentTriangleIndices[j];
+                    if (!oldToNewIndex.TryGetValue(index, out int mappedIndex))
+                    {
+                        mappedIndex = nextNewIndex++;
+                        oldToNewIndex[index] = mappedIndex;
+                        newVertices.Add(vertices[index]);
+                    }
+
+                    newIndices[j] = mappedIndex;
+                }
+
+                NewTriangles.Add(new Vector3(newIndices[0], newIndices[1], newIndices[2]));
+            }
+
+            return (NewTriangles, newVertices);
         }
 
         public static CDmePolygonMeshDataStream<T> CreateStream<TArray, T>(int dataStateFlags, string name, params T[] data)
