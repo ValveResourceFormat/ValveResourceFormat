@@ -18,7 +18,7 @@ namespace GUI.Types.ParticleRenderer.Operators
 
         public DistanceToCP(ParticleDefinitionParser parse) : base(parse)
         {
-            OutputField = parse.ParticleField("m_nOutputField", OutputField);
+            OutputField = parse.ParticleField("m_nFieldOutput", OutputField);
             distanceMin = parse.Float("m_flInputMin", distanceMin);
             distanceMax = parse.Float("m_flInputMax", distanceMax);
             outputMin = parse.Float("m_flOutputMin", outputMin);

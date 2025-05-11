@@ -11,7 +11,7 @@ namespace GUI.Types.ParticleRenderer.Operators
 
         public ClampScalar(ParticleDefinitionParser parse) : base(parse)
         {
-            OutputField = parse.ParticleField("m_nOutputField", OutputField);
+            OutputField = parse.ParticleField("m_nFieldOutput", OutputField);
             outputMin = parse.NumberProvider("m_flOutputMin", outputMin);
             outputMax = parse.NumberProvider("m_flOutputMax", outputMax);
         }

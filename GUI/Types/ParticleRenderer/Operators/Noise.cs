@@ -13,7 +13,7 @@ namespace GUI.Types.ParticleRenderer.Operators
 
         public Noise(ParticleDefinitionParser parse) : base(parse)
         {
-            OutputField = parse.ParticleField("m_nOutputField", OutputField);
+            OutputField = parse.ParticleField("m_nFieldOutput", OutputField);
             outputMin = parse.NumberProvider("m_flOutputMin", outputMin);
             outputMax = parse.NumberProvider("m_flOutputMax", outputMax);
             //noiseScale = parse.Float("m_fl4NoiseScale", 1.0f);

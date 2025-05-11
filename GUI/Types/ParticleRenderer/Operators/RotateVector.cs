@@ -17,7 +17,7 @@ namespace GUI.Types.ParticleRenderer.Operators
 
         public RotateVector(ParticleDefinitionParser parse) : base(parse)
         {
-            OutputField = parse.ParticleField("m_nOutputField", OutputField);
+            OutputField = parse.ParticleField("m_nFieldOutput", OutputField);
             RotAxisMin = parse.Vector3("m_vecRotAxisMin", RotAxisMin);
             RotAxisMax = parse.Vector3("m_vecRotAxisMax", RotAxisMax);
             RotRateMin = parse.Float("m_flRotRateMin", RotRateMin);
