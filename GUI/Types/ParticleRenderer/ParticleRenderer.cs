@@ -135,15 +135,16 @@ namespace GUI.Types.ParticleRenderer
             systemRenderState.ParticleCount += 1;
 
             // TODO: Make particle positions and control points local space
-            particleCollection.Initial[index].Position = MainControlPoint.Position;
+            particleCollection.Current[index] = particleCollection.Initial[index];
+
+            // Particle id must be set before initializing because the deterministic randomness uses particle ids
+            particleCollection.Current[index].ParticleID = particlesEmitted++;
+            particleCollection.Current[index].Position = MainControlPoint.Position;
 
             foreach (var initializer in Initializers)
             {
-                initializer.Initialize(ref particleCollection.Initial[index], systemRenderState);
+                initializer.Initialize(ref particleCollection.Current[index], systemRenderState);
             }
-
-            particleCollection.Current[index] = particleCollection.Initial[index];
-            particleCollection.Current[index].ParticleID = particlesEmitted++;
         }
 
         public void Stop()
