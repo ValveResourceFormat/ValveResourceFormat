@@ -92,7 +92,7 @@ namespace Tests
             using var shader = new VfxProgramData();
             shader.Read(path);
 
-            using var zFrameFile = shader.GetZFrameFile(0);
+            var zFrameFile = shader.GetZFrameFile(0);
             using var sw = new StringWriter();
             var zframeSummary = new PrintZFrameSummary(shader, zFrameFile, sw.Write, true);
 

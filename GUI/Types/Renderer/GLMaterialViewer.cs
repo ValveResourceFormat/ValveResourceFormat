@@ -162,7 +162,7 @@ namespace GUI.Types.Renderer
                     var zframeRichTextBox = new CompiledShader.ZFrameRichTextBox(Tabs, stage, shaders, result.ZFrameId);
                     zframeTab.Controls.Add(zframeRichTextBox);
 
-                    using var zFrame = stage.GetZFrameFile(result.ZFrameId);
+                    var zFrame = stage.GetZFrameFile(result.ZFrameId);
                     var gpuSourceTab = CompiledShader.CreateDecompiledTabPage(shaders, stage, zFrame, 0, $"{stage.VcsProgramType} Source[0]");
 
                     Tabs.Controls.Add(zframeTab);

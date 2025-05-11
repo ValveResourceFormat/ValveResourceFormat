@@ -24,12 +24,6 @@ namespace ValveResourceFormat.CompiledShader
             return int0;
         }
 
-        public string ReadBytesAsString(int len)
-        {
-            var bytes0 = ReadBytes(len);
-            return ShaderUtilHelpers.BytesToString(bytes0);
-        }
-
         public string ReadNullTermStringAtPosition()
         {
             var savedPosition = BaseStream.Position;

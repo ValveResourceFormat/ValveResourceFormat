@@ -314,14 +314,14 @@ namespace ValveResourceFormat.CompiledShader
             return ZframesLookup.Count;
         }
 
-        public byte[] GetDecompressedZFrame(long zframeId)
-        {
-            return ZframesLookup[zframeId].GetDecompressedZFrame();
-        }
-
         public VfxStaticComboData GetZFrameFile(long zframeId)
         {
-            return new VfxStaticComboData(GetDecompressedZFrame(zframeId), zframeId, this);
+            var entry = ZframesLookup[zframeId];
+
+            var decompressed = entry.GetDecompressedZFrame();
+            using var stream = new MemoryStream(decompressed);
+
+            return new VfxStaticComboData(stream, zframeId, this);
         }
 
         public VfxStaticComboData GetZFrameFileByIndex(int zframeIndex)

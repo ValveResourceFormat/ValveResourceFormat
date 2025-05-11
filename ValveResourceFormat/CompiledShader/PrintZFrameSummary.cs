@@ -24,10 +24,6 @@ namespace ValveResourceFormat.CompiledShader
 
             if (zframeFile.ParentProgramData.VcsProgramType == VcsProgramType.Features)
             {
-                OutputWriteLine("Zframe byte data (encoding for features files has not been determined)");
-                zframeFile.DataReader.BaseStream.Position = 0;
-                var zframeBytes = zframeFile.DataReader.ReadBytesAsString((int)zframeFile.DataReader.BaseStream.Length);
-                OutputWriteLine(zframeBytes);
                 return;
             }
 

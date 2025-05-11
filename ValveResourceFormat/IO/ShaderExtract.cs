@@ -336,7 +336,7 @@ public sealed class ShaderExtract
                 break;
             }
 
-            using var zFrame = Vertex.GetZFrameFileByIndex(i);
+            var zFrame = Vertex.GetZFrameFileByIndex(i);
             var staticConfigState = staticConfig.GetConfigState(zFrame.ZframeId);
 
             foreach (var vsEnd in zFrame.RenderStateInfos)
@@ -627,7 +627,7 @@ public sealed class ShaderExtract
                 break;
             }
 
-            using var zFrame = shader.GetZFrameFileByIndex(i);
+            var zFrame = shader.GetZFrameFileByIndex(i);
             var zframeAttributes = GetZFrameAttributes(zFrame, shader.VariableDescriptions);
 
             var staticConfigState = staticConfig.GetConfigState(zFrame.ZframeId);
