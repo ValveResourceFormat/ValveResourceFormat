@@ -104,6 +104,7 @@ namespace ValveResourceFormat.CompiledShader
                 "hs" => VcsProgramType.HullShader,
                 "ds" => VcsProgramType.DomainShader,
                 "rtx" => VcsProgramType.RaytracingShader,
+                "ms" => VcsProgramType.MeshShader,
                 _ => VcsProgramType.Undetermined
             };
         }
@@ -121,6 +122,7 @@ namespace ValveResourceFormat.CompiledShader
                 VcsProgramType.HullShader => "hs",
                 VcsProgramType.DomainShader => "ds",
                 VcsProgramType.RaytracingShader => "rtx",
+                VcsProgramType.MeshShader => "ms",
                 _ => throw new ShaderParserException($"Unknown VCS program type {type}")
             };
         }

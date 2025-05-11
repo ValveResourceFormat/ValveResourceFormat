@@ -46,7 +46,7 @@ namespace ValveResourceFormat.CompiledShader
         public StaticCache ZFrameCache { get; private set; }
         private ConfigMappingDParams dBlockConfigGen;
 
-        public int AdditionalFileCount => AdditionalFiles == VcsAdditionalFiles.PsrsAndRtx ? 2 : (int)AdditionalFiles;
+        public int AdditionalFileCount => AdditionalFiles == VcsAdditionalFiles.Ms ? 3 : AdditionalFiles == VcsAdditionalFiles.PsrsAndRtx ? 2 : (int)AdditionalFiles;
 
         /// <summary>
         /// Releases binary reader.

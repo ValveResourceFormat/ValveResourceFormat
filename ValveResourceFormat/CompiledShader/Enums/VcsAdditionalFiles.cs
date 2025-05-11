@@ -6,4 +6,5 @@ public enum VcsAdditionalFiles
     Psrs,
     Rtx,
     PsrsAndRtx,
+    Ms,
 }

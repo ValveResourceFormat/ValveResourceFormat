@@ -11,6 +11,7 @@ namespace ValveResourceFormat.CompiledShader
         ComputeShader,              // cs.vcs
         PixelShaderRenderState,     // psrs.vcs
         RaytracingShader,           // rtx.vcs
+        MeshShader,                 // ms.vcs
         Undetermined,
     };
 }

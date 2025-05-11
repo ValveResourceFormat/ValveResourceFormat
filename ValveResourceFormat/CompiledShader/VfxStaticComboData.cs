@@ -320,10 +320,14 @@ namespace ValveResourceFormat.CompiledShader
                 }
             }
 
-            //  End blocks for vs, gs, rtx, cs, ds and hs files
-            if (VcsProgramType == VcsProgramType.VertexShader || VcsProgramType == VcsProgramType.GeometryShader ||
-                VcsProgramType == VcsProgramType.ComputeShader || VcsProgramType == VcsProgramType.DomainShader ||
-                VcsProgramType == VcsProgramType.HullShader || VcsProgramType == VcsProgramType.RaytracingShader)
+            //  End blocks for vs, gs, rtx, ms, cs, ds and hs files
+            if (VcsProgramType is VcsProgramType.VertexShader
+                or VcsProgramType.GeometryShader
+                or VcsProgramType.ComputeShader
+                or VcsProgramType.DomainShader
+                or VcsProgramType.HullShader
+                or VcsProgramType.RaytracingShader
+                or VcsProgramType.MeshShader)
             {
                 ShowZAllEndBlocksTypeVs(hullShader: VcsProgramType == VcsProgramType.HullShader);
                 DataReader.BreakLine();

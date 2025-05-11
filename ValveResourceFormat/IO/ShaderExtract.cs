@@ -65,8 +65,9 @@ public sealed class ShaderExtract
     public Func<VfxShaderFileVulkan, ShaderCollection, VcsProgramType, long, long, string> SpirvCompiler { get; set; }
 
     public VfxProgramData Features => Shaders.Features;
-    public VfxProgramData Vertex => Shaders.Vertex;
+    public VfxProgramData Mesh => Shaders.Mesh;
     public VfxProgramData Geometry => Shaders.Geometry;
+    public VfxProgramData Vertex => Shaders.Vertex;
     public VfxProgramData Domain => Shaders.Domain;
     public VfxProgramData Hull => Shaders.Hull;
     public VfxProgramData Pixel => Shaders.Pixel;
@@ -158,6 +159,7 @@ public sealed class ShaderExtract
             + MODES()
             + FEATURES()
             + COMMON()
+            + MS()
             + VS()
             + GS()
             + HS()
@@ -514,6 +516,9 @@ public sealed class ShaderExtract
         writer.Indent--;
         writer.WriteLine("};");
     }
+
+    private string MS()
+        => HandleStageShared(Mesh, nameof(MS));
 
     private string VS()
         => HandleStageShared(Vertex, nameof(VS));

@@ -24,6 +24,8 @@ public class ShaderCollection : IEnumerable<VfxProgramData>, IDisposable
         => Get(VcsProgramType.PixelShaderRenderState);
     public VfxProgramData Raytracing
         => Get(VcsProgramType.RaytracingShader);
+    public VfxProgramData Mesh
+        => Get(VcsProgramType.MeshShader);
 
     private readonly Dictionary<VcsProgramType, VfxProgramData> shaders = new((int)VcsProgramType.Undetermined);
 
