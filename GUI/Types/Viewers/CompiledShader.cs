@@ -283,7 +283,7 @@ namespace GUI.Types.Viewers
                 }
                 using var buffer = new StringWriter(CultureInfo.InvariantCulture);
                 shaderFile.PrintSummary(buffer.Write, showRichTextBoxLinks: true, relatedfiles: relatedFiles);
-                Font = CodeTextBox.MonospaceFont;
+                Font = CodeTextBox.GetMonospaceFont();
                 DetectUrls = true;
                 Dock = DockStyle.Fill;
                 Multiline = true;
@@ -345,7 +345,7 @@ namespace GUI.Types.Viewers
                 using var buffer = new StringWriter(CultureInfo.InvariantCulture);
                 zframeFile = shaderFile.GetZFrameFile(zframeId);
                 var zframeSummary = new PrintZFrameSummary(shaderFile, zframeFile, buffer.Write, true);
-                Font = CodeTextBox.MonospaceFont;
+                Font = CodeTextBox.GetMonospaceFont();
                 DetectUrls = true;
                 Dock = DockStyle.Fill;
                 Multiline = true;

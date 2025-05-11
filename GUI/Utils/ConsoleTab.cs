@@ -192,7 +192,7 @@ namespace GUI.Utils
 
         public void InitializeFont()
         {
-            control.Font = CodeTextBox.MonospaceFont;
+            control.Font = CodeTextBox.GetMonospaceFont();
         }
 
         private void VisibleChanged(object sender, EventArgs e)

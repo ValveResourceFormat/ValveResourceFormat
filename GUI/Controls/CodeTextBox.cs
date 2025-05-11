@@ -21,19 +21,16 @@ namespace GUI.Controls
 
         private string? LazyText;
 
-        private static FontFamily? MonospaceFontFamily;
-        public static Font? MonospaceFont { get; private set; }
-
-        public static void InitializeFont()
+        public static Font GetMonospaceFont()
         {
             try
             {
-                MonospaceFontFamily = new FontFamily("Cascadia Mono");
-                MonospaceFont = new Font(MonospaceFontFamily, Settings.Config.TextViewerFontSize);
+                using var fontFamily = new FontFamily("Cascadia Mono");
+                return new Font(fontFamily, Settings.Config.TextViewerFontSize);
             }
             catch
             {
-                MonospaceFont = new Font(FontFamily.GenericMonospace, Settings.Config.TextViewerFontSize);
+                return new Font(FontFamily.GenericMonospace, Settings.Config.TextViewerFontSize);
             }
         }
 
@@ -58,9 +55,9 @@ namespace GUI.Controls
             ServiceColors.ExpandMarkerBorderColor = SystemColors.ControlDark;
 
             // Console tab is created before the settings are loaded (because the settings loader can print logs)
-            if (MonospaceFont != null)
+            if (Settings.Config.TextViewerFontSize > 0)
             {
-                Font = MonospaceFont;
+                Font = GetMonospaceFont();
             }
 
             Dock = DockStyle.Fill;
@@ -182,7 +179,7 @@ namespace GUI.Controls
         {
             var textBox = new TextBox
             {
-                Font = MonospaceFont,
+                Font = GetMonospaceFont(),
                 ReadOnly = true,
                 Multiline = true,
                 WordWrap = false,
