@@ -896,7 +896,10 @@ public sealed class ShaderExtract
                     Vfx.Type.Int => ((int)attribute.ConstValue).ToString(CultureInfo.InvariantCulture),
                     Vfx.Type.Float => ((float)attribute.ConstValue).ToString(CultureInfo.InvariantCulture),
                     Vfx.Type.String => (string)attribute.ConstValue,
-                    Vfx.Type.Float2 or Vfx.Type.Float3 => ((Vector3)attribute.ConstValue).ToString().Trim('<', '>'),
+                    Vfx.Type.Float2 => ((Vector2)attribute.ConstValue).ToString().Trim('<', '>'),
+                    Vfx.Type.Float3 => ((Vector3)attribute.ConstValue).ToString().Trim('<', '>'),
+                    Vfx.Type.Float4 => ((Vector4)attribute.ConstValue).ToString().Trim('<', '>'),
+
                     _ => attribute.ConstValue.ToString(),
                 };
             }
@@ -920,6 +923,7 @@ public sealed class ShaderExtract
                 Vfx.Type.Float => "FloatAttribute",
                 Vfx.Type.Float2 => "Float2Attribute",
                 Vfx.Type.Float3 => "Float3Attribute",
+                Vfx.Type.Float4 => "Float4Attribute",
                 Vfx.Type.String => "StringAttribute",
                 Vfx.Type.Sampler2D => "TextureAttribute",
                 _ => null

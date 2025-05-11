@@ -149,7 +149,7 @@ namespace ValveResourceFormat.CompiledShader
             OutputFormatterTabulatedData tabulatedData = new(OutputWriter);
             var emptyRow = new string[] { "", "", "", "", "" };
             tabulatedData.DefineHeaders(zframeFile.LeadingData.FieldsCount > 0 ?
-                ["segment", "", nameof(VfxVariableIndexData.Dest), nameof(VfxVariableIndexData.Control), "flags"] :
+                ["segment", "", nameof(VfxVariableIndexData.Dest), nameof(VfxVariableIndexData.Control), nameof(VfxVariableIndexData.LayoutSet)] :
                 emptyRow);
             if (zframeFile.LeadingData.FieldsCount > 0)
             {
@@ -198,10 +198,9 @@ namespace ValveResourceFormat.CompiledShader
                 {
                     var field = segment[i];
                     var paramDesc = $"[{field.VariableIndex}] {shaderFile.VariableDescriptions[field.VariableIndex].Name}";
-                    var paramFlags = field.LayoutSet == 0 ? $"{"_",7}" : $"{field.LayoutSet,7}";
-                    var arg1Desc = field.Dest == 0xff ? $"{"_",7}" : $"{field.Dest,7}";
-                    var arg2Desc = field.Control == 0xff ? $"{"_",10}" : $"{field.Control,10}";
-                    tabulatedData.AddTabulatedRow([i == 0 ? segmentDesc : string.Empty, paramDesc, arg1Desc, $"{arg2Desc} ({field.Field2})", paramFlags]);
+                    var destDesc = field.Dest == 0xff ? $"{"_",7}" : $"{field.Dest,7}";
+                    var controlDesc = field.Control == 0xff ? $"{"_",10}" : $"{field.Control,10}";
+                    tabulatedData.AddTabulatedRow([i == 0 ? segmentDesc : string.Empty, paramDesc, destDesc, $"{controlDesc} ({field.Field2})", $"{field.LayoutSet,7}"]);
                 }
             }
             else

@@ -705,7 +705,7 @@ namespace GUI.Types.Viewers
 
                         var memberName = isGlobalsBuffer
                             ? GetGlobalBufferMemberName(shader, writeSequence, offset: (int)bufferRange.offset / 4)
-                            : GetBufferMemberName(shader, name, index: (int)bufferRange.index);
+                            : GetBufferMemberName(shader, name, offset: (int)bufferRange.offset / 4);
 
                         if (string.IsNullOrEmpty(memberName))
                         {
