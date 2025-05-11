@@ -359,11 +359,9 @@ public sealed class MapExtract
         var phys = LoadWorldPhysics();
         if (phys != null)
         {
-            var worldPhysMesh = phys.Parts[0].Shape.Meshes.FirstOrDefault(m => phys.CollisionAttributes[m.CollisionAttributeIndex].GetStringProperty("m_CollisionGroupString") == "Default");
-            if (worldPhysMesh != null)
-            {
-                PhysVertexMatcher = new PhysicsVertexMatcher(worldPhysMesh);
-            }
+            var worldPhysMeshes = phys.Parts[0].Shape.Meshes.Where(m => phys.CollisionAttributes[m.CollisionAttributeIndex].GetStringProperty("m_CollisionGroupString") == "Default");
+
+            PhysVertexMatcher = new PhysicsVertexMatcher(worldPhysMeshes);
 
             // TODO: physics spheres and capsules are ignored
         }
@@ -710,7 +708,14 @@ public sealed class MapExtract
                 HashSet<int> deletedList = [];
                 if (PhysVertexMatcher != null)
                 {
-                    deletedList = mesh == PhysVertexMatcher.PhysicsMesh ? PhysVertexMatcher.DeletedVertexIndices : [];
+                    foreach (var physicsMesh in PhysVertexMatcher.PhysicsMeshes)
+                    {
+                        if (mesh == physicsMesh.Mesh)
+                        {
+                            deletedList = physicsMesh.DeletedVertexIndices;
+                            continue;
+                        }
+                    }
                 }
 
                 var totalTriangles = mesh.Shape.GetTriangles().Length;

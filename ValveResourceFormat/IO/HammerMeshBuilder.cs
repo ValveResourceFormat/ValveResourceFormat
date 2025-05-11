@@ -1,4 +1,3 @@
-using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using ValveResourceFormat.IO.ContentFormats.DmxModel;
@@ -251,21 +250,37 @@ namespace ValveResourceFormat.IO
 
     public class PhysicsVertexMatcher
     {
-        private readonly Vector3[] VertexPositions;
-        private readonly ResourceTypes.RubikonPhysics.Shapes.Mesh.Triangle[] Triangles;
-        private readonly ResourceTypes.RubikonPhysics.Shapes.Mesh.Node[] PhysicsTree;
-        public MeshDescriptor PhysicsMesh { get; }
-        //public Dictionary<int, int> RenderToPhys { get; } = [];
-        public HashSet<int> DeletedVertexIndices { get; } = [];
-        //public HashSet<(int, int, int)> DeletedTriangles { get; } = [];
-
-        public PhysicsVertexMatcher(MeshDescriptor mesh)
+        public class PhysMeshData
         {
-            PhysicsMesh = mesh;
-            VertexPositions = mesh.Shape.GetVertices().ToArray();
-            Triangles = mesh.Shape.GetTriangles().ToArray();
-            PhysicsTree = mesh.Shape.ParseNodes().ToArray();
-            DeletedVertexIndices.EnsureCapacity(VertexPositions.Length / 4);
+            public MeshDescriptor Mesh { get; }
+            public Vector3[] VertexPositions { get; }
+            public Triangle[] Triangles { get; }
+            public Node[] PhysicsTree { get; }
+            public HashSet<int> DeletedVertexIndices { get; }
+
+            public PhysMeshData(MeshDescriptor mesh)
+            {
+                Mesh = mesh;
+
+                VertexPositions = mesh.Shape.GetVertices().ToArray();
+                Triangles = mesh.Shape.GetTriangles().ToArray();
+                PhysicsTree = mesh.Shape.ParseNodes().ToArray();
+
+                DeletedVertexIndices = new HashSet<int>();
+                DeletedVertexIndices.EnsureCapacity(VertexPositions.Length / 4);
+            }
+        }
+
+        public List<PhysMeshData> PhysicsMeshes { get; } = new();
+
+        public PhysicsVertexMatcher(IEnumerable<MeshDescriptor> meshes)
+        {
+#pragma warning disable CA1851 // Possible multiple enumerations of 'IEnumerable' collection
+            for (int i = 0; i < meshes.Count(); i++)
+            {
+                PhysicsMeshes.Add(new PhysMeshData(meshes.ElementAt(i)));
+            }
+#pragma warning restore CA1851 // Possible multiple enumerations of 'IEnumerable' collection
         }
 
         /*
@@ -283,77 +298,80 @@ namespace ValveResourceFormat.IO
         }
         */
 
-        record struct RnMeshNodeWithIndex(int Index, ResourceTypes.RubikonPhysics.Shapes.Mesh.Node Node);
+        record struct RnMeshNodeWithIndex(int Index, Node Node);
         public object? LastPositions { get; set; }
         public void ScanPhysicsPointCloudForMatches(ReadOnlySpan<Vector3> renderMeshPositions, IProgress<string>? progressReporter)
         {
-            //RenderToPhys.Clear();
-
-            var localMatches = new HashSet<int>(capacity: renderMeshPositions.Length);
-            //RenderToPhys.EnsureCapacity(renderMeshPositions.Length);
-
-            Span<int> triangleIndices = [0, 0, 0];
-
-            var stack = new Stack<RnMeshNodeWithIndex>(64); // TODO: Make this a property for reuse?
-
-            for (var j = 0; j < renderMeshPositions.Length; ++j)
+            for (var i = 0; i < PhysicsMeshes.Count; i++)
             {
-                var renderPosition = renderMeshPositions[j];
-                const float epsilon = 0.016f;
+                var meshData = PhysicsMeshes[i];
 
-                stack.Push(new(0, PhysicsTree[0])); // root
+                var localMatches = new HashSet<int>(capacity: renderMeshPositions.Length);
 
-                while (stack.TryPop(out var nodeWithIndex))
+                Span<int> triangleIndices = [0, 0, 0];
+
+                var stack = new Stack<RnMeshNodeWithIndex>(64); // TODO: Make this a property for reuse?
+
+                for (var j = 0; j < renderMeshPositions.Length; ++j)
                 {
-                    var node = nodeWithIndex.Node;
-                    var nodeContains =
-                        renderPosition.X >= node.Min.X && renderPosition.X <= node.Max.X &&
-                        renderPosition.Y >= node.Min.Y && renderPosition.Y <= node.Max.Y &&
-                        renderPosition.Z >= node.Min.Z && renderPosition.Z <= node.Max.Z;
+                    var renderPosition = renderMeshPositions[j];
+                    const float epsilon = 0.016f;
 
-                    if (!nodeContains)
+                    stack.Push(new(0, meshData.PhysicsTree[0])); // root
+
+                    while (stack.TryPop(out var nodeWithIndex))
                     {
-                        continue;
-                    }
+                        var node = nodeWithIndex.Node;
+                        var nodeContains =
+                            renderPosition.X >= node.Min.X && renderPosition.X <= node.Max.X &&
+                            renderPosition.Y >= node.Min.Y && renderPosition.Y <= node.Max.Y &&
+                            renderPosition.Z >= node.Min.Z && renderPosition.Z <= node.Max.Z;
 
-                    if (node.Type != ResourceTypes.RubikonPhysics.Shapes.Mesh.NodeType.Leaf)
-                    {
-                        var id = nodeWithIndex.Index + 1; // GetLeftChild
-                        stack.Push(new(id, PhysicsTree[id]));
-
-                        id = nodeWithIndex.Index + (int)node.ChildOffset; // GetRightChild
-                        stack.Push(new(id, PhysicsTree[id]));
-
-                        continue;
-                    }
-
-                    var triangleOffset = node.TriangleOffset;
-                    var triangleCount = node.ChildOffset; // Same packing
-
-                    for (var i = 0; i < triangleCount; i++)
-                    {
-                        var triangle = Triangles[triangleOffset + i];
-
-                        triangleIndices = [triangle.X, triangle.Y, triangle.Z];
-
-                        for (var t = 0; t < 3; t++)
+                        if (!nodeContains)
                         {
-                            var pos = VertexPositions[triangleIndices[t]];
-                            if (Vector3.DistanceSquared(pos, renderPosition) < epsilon)
+                            continue;
+                        }
+
+                        if (node.Type != NodeType.Leaf)
+                        {
+                            var id = nodeWithIndex.Index + 1; // GetLeftChild
+                            stack.Push(new(id, meshData.PhysicsTree[id]));
+
+                            id = nodeWithIndex.Index + (int)node.ChildOffset; // GetRightChild
+                            stack.Push(new(id, meshData.PhysicsTree[id]));
+
+                            continue;
+                        }
+
+                        var triangleOffset = node.TriangleOffset;
+                        var triangleCount = node.ChildOffset; // Same packing
+
+                        for (var k = 0; k < triangleCount; k++)
+                        {
+                            var triangle = meshData.Triangles[triangleOffset + k];
+
+                            triangleIndices = [triangle.X, triangle.Y, triangle.Z];
+
+                            for (var t = 0; t < 3; t++)
                             {
-                                localMatches.Add(triangleIndices[t]); // TODO: Add to DeletedVertexIndices
+                                var pos = meshData.VertexPositions[triangleIndices[t]];
+                                if (Vector3.DistanceSquared(pos, renderPosition) < epsilon)
+                                {
+                                    localMatches.Add(triangleIndices[t]); // TODO: Add to DeletedVertexIndices
+                                }
                             }
                         }
                     }
                 }
-            }
 
-            DeletedVertexIndices.UnionWith(localMatches);
+                meshData.DeletedVertexIndices.UnionWith(localMatches);
 
 #if DEBUG
-            var matched = (float)localMatches.Count / renderMeshPositions.Length * 100f;
-            progressReporter?.Report($"{nameof(PhysicsVertexMatcher)}: Matched {matched:F2}% ({localMatches.Count} vertices) of rendermesh to physics vertices!");
+                var matched = (float)localMatches.Count / renderMeshPositions.Length * 100f;
+                progressReporter?.Report($"{nameof(PhysicsVertexMatcher)}: Matched {matched:F2}% ({localMatches.Count} vertices) of rendermesh to physics vertices!");
 #endif
+
+            }
         }
     }
     //the bulk of the work is done in the AddFace() function
@@ -1122,11 +1140,11 @@ namespace ValveResourceFormat.IO
 
             for (var i = 0; i < newMesh.NewTriangles.Count; i++)
             {
-                var triangle = newMesh.NewTriangles[i];
+                var triangle = meshTriangles[i + triangleStart];
 
-                inds[0] = (int)triangle.X;
-                inds[1] = (int)triangle.Y;
-                inds[2] = (int)triangle.Z;
+                inds[0] = triangle.X;
+                inds[1] = triangle.Y;
+                inds[2] = triangle.Z;
 
                 if (deletedIndices.Contains(inds[0])
                  || deletedIndices.Contains(inds[1])
@@ -1134,6 +1152,13 @@ namespace ValveResourceFormat.IO
                 {
                     continue;
                 }
+
+                var newTriangle = newMesh.NewTriangles[i];
+
+                inds[0] = (int)newTriangle.X;
+                inds[1] = (int)newTriangle.Y;
+                inds[2] = (int)newTriangle.Z;
+
 
                 if (group == "Default")
                 {
