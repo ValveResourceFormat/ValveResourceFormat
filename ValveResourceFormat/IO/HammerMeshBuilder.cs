@@ -1358,15 +1358,8 @@ namespace ValveResourceFormat.IO
 
         public static (List<Vector3> NewTriangles, List<Vector3> NewVertices) ReindexTriangleMesh(List<Vector3> vertices, List<Triangle> triangles, int trianglesRangeStart, int trianglesRangeEnd)
         {
-            if (vertices.Count < 1)
-            {
-                throw new InvalidDataException("ReindexMesh vertices can't be empty");
-            }
-
-            if (triangles.Count < 1)
-            {
-                throw new InvalidDataException("ReindexMesh triangles can't be empty");
-            }
+            ArgumentOutOfRangeException.ThrowIfLessThan(vertices.Count, 1, "ReindexMesh vertices can't be empty");
+            ArgumentOutOfRangeException.ThrowIfLessThan(triangles.Count, 1, "ReindexMesh triangles can't be empty");
 
             ArgumentOutOfRangeException.ThrowIfLessThan(trianglesRangeStart, 0, "ReindexMesh indexRangeStart can't be less than zero");
             ArgumentOutOfRangeException.ThrowIfGreaterThan(trianglesRangeEnd, triangles.Count, "ReindexMesh indexRangeEnd can't be more than index count");
@@ -1374,7 +1367,7 @@ namespace ValveResourceFormat.IO
 
             var trianglesCount = trianglesRangeEnd - trianglesRangeStart;
 
-            List<Vector3> NewTriangles = new(trianglesCount);
+            List<Vector3> newTriangles = new(trianglesCount);
             // possible over allocation but might be better for speed than underallocation?
             List<Vector3> newVertices = new(trianglesCount * 3);
 
@@ -1404,10 +1397,10 @@ namespace ValveResourceFormat.IO
                     newIndices[j] = mappedIndex;
                 }
 
-                NewTriangles.Add(new Vector3(newIndices[0], newIndices[1], newIndices[2]));
+                newTriangles.Add(new Vector3(newIndices[0], newIndices[1], newIndices[2]));
             }
 
-            return (NewTriangles, newVertices);
+            return (newTriangles, newVertices);
         }
 
         public static CDmePolygonMeshDataStream<T> CreateStream<TArray, T>(int dataStateFlags, string name, params T[] data)
