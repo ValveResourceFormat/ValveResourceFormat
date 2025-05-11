@@ -46,14 +46,7 @@ namespace ValveResourceFormat.CompiledShader
             output.WriteLine($"Valve Compiled Shader 2 (vcs2), version {shaderFile.VcsVersion}");
             output.BreakLine();
             output.Write($"Showing {shaderFile.VcsProgramType}: {Path.GetFileName(shaderFile.FilenamePath)}");
-            if (showRichTextBoxLinks)
-            {
-                output.WriteLine($" (view byte detail \\\\{Path.GetFileName(shaderFile.FilenamePath)}\\bytes)");
-            }
-            else
-            {
-                output.BreakLine();
-            }
+            output.BreakLine();
             if (showRichTextBoxLinks && relatedFiles != null && relatedFiles.Count > 1)
             {
                 output.Write("Related files:");
@@ -115,14 +108,7 @@ namespace ValveResourceFormat.CompiledShader
             output.WriteLine($"Valve Compiled Shader 2 (vcs2), version {shaderFile.VcsVersion}");
             output.BreakLine();
             output.Write($"Showing {shaderFile.VcsProgramType}: {Path.GetFileName(shaderFile.FilenamePath)}");
-            if (showRichTextBoxLinks)
-            {
-                output.WriteLine($" (view byte detail \\\\{Path.GetFileName(shaderFile.FilenamePath)}\\bytes)");
-            }
-            else
-            {
-                output.BreakLine();
-            }
+            output.BreakLine();
             if (showRichTextBoxLinks && relatedFiles != null && relatedFiles.Count > 1)
             {
                 output.Write("Related files:");

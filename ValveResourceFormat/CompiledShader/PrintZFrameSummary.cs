@@ -33,11 +33,6 @@ namespace ValveResourceFormat.CompiledShader
             }
 
             this.showRichTextBoxLinks = showRichTextBoxLinks;
-            if (showRichTextBoxLinks)
-            {
-                OutputWriteLine($"View byte detail \\\\{Path.GetFileName(shaderFile.FilenamePath)}-ZFRAME{zframeFile.ZframeId:x08}-databytes");
-                OutputWriteLine("");
-            }
             PrintConfigurationState();
             PrintAttributes();
             var writeSequences = GetBlockToUniqueSequenceMap();

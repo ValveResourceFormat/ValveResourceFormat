@@ -23,15 +23,4 @@ public class VfxTextureChannelProcessor : ShaderDataBlock
         TexProcessorName = datareader.ReadNullTermStringAtPosition();
         datareader.BaseStream.Position += 256;
     }
-
-    public void PrintByteDetail()
-    {
-        DataReader.BaseStream.Position = Start;
-        DataReader.ShowByteCount($"CHANNEL-BLOCK[{BlockIndex}]");
-        DataReader.ShowBytes(24, 4);
-        var name1 = DataReader.ReadNullTermStringAtPosition();
-        DataReader.Comment($"{name1}");
-        DataReader.ShowBytes(256);
-        DataReader.BreakLine();
-    }
 }

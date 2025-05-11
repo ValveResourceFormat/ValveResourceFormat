@@ -22,26 +22,4 @@ public class VsInputSignatureElement : ShaderDataBlock
             SymbolsDefinition.Add((name, type, option, semanticIndex));
         }
     }
-    public void PrintByteDetail()
-    {
-        DataReader.BaseStream.Position = Start;
-        DataReader.ShowByteCount($"SYMBOL-NAMES-BLOCK[{BlockIndex}]");
-        var symbolGroupCount = DataReader.ReadUInt32AtPosition();
-        DataReader.ShowBytes(4, $"{symbolGroupCount} string groups in this block");
-        for (var i = 0; i < symbolGroupCount; i++)
-        {
-            for (var j = 0; j < 3; j++)
-            {
-                var symbolname = DataReader.ReadNullTermStringAtPosition();
-                DataReader.OutputWriteLine($"// {symbolname}");
-                DataReader.ShowBytes(symbolname.Length + 1);
-            }
-            DataReader.ShowBytes(4);
-            DataReader.BreakLine();
-        }
-        if (symbolGroupCount == 0)
-        {
-            DataReader.BreakLine();
-        }
-    }
 }

@@ -68,15 +68,4 @@ public class VfxRule : ShaderDataBlock
         DataReader.BaseStream.Position = savedPosition + 16;
         return byteFlags;
     }
-
-    public void PrintByteDetail()
-    {
-        DataReader.BaseStream.Position = Start;
-        DataReader.ShowByteCount($"{BlockType}-CONTRAINTS-BLOCK[{BlockIndex}]");
-        DataReader.ShowBytes(216);
-        var name1 = DataReader.ReadNullTermStringAtPosition();
-        DataReader.OutputWriteLine($"[{DataReader.BaseStream.Position}] {name1}");
-        DataReader.ShowBytes(256);
-        DataReader.BreakLine();
-    }
 }

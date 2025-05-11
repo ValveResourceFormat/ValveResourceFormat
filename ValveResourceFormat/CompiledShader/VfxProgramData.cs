@@ -96,7 +96,7 @@ namespace ValveResourceFormat.CompiledShader
         public void Read(string filenamepath, Stream input)
         {
             BaseStream = input;
-            DataReader = new ShaderDataReader(input) { IsSbox = IsSbox };
+            DataReader = new ShaderDataReader(input);
             FilenamePath = filenamepath;
             VfxCreateFromVcs();
             ZFrameCache = new StaticCache(this);
@@ -319,205 +319,20 @@ namespace ValveResourceFormat.CompiledShader
             return ZframesLookup[zframeId].GetDecompressedZFrame();
         }
 
-        public VfxStaticComboData GetZFrameFile(long zframeId, HandleOutputWrite outputWriter = null)
+        public VfxStaticComboData GetZFrameFile(long zframeId)
         {
             return new VfxStaticComboData(GetDecompressedZFrame(zframeId), FilenamePath, zframeId,
-                VcsProgramType, VcsPlatformType, VcsShaderModelType, VcsVersion, outputWriter);
+                VcsProgramType, VcsPlatformType, VcsShaderModelType, VcsVersion);
         }
 
-        public VfxStaticComboData GetZFrameFileByIndex(int zframeIndex, HandleOutputWrite outputWriter = null)
+        public VfxStaticComboData GetZFrameFileByIndex(int zframeIndex)
         {
-            return GetZFrameFile(ZframesLookup.ElementAt(zframeIndex).Key, outputWriter);
-        }
-#pragma warning restore CA1024
-
-        public void PrintByteDetail(bool shortenOutput = true, HandleOutputWrite outputWriter = null)
-        {
-            DataReader.OutputWriter = outputWriter ?? ((x) => { Console.Write(x); });
-            DataReader.BaseStream.Position = 0;
-            DataReader.ShowByteCount("vcs file");
-            DataReader.ShowBytes(4, "\"vcs2\"");
-            DataReader.ShowBytes(4, $"version = {VcsVersion}");
-            DataReader.BreakLine();
-            if (VcsVersion >= 64)
-            {
-                DataReader.ShowBytes(4, $"{nameof(AdditionalFiles)} = {AdditionalFiles}");
-            }
-            if (VcsProgramType == VcsProgramType.Features)
-            {
-                FeaturesHeader.PrintByteDetail(this);
-            }
-            DataReader.BreakLine();
-            DataReader.ShowByteCount("Editor/Shader stack for generating the file");
-            DataReader.ShowBytes(16, "Editor ref. ID0 (produces this file)");
-            DataReader.ShowBytes(16, "Common editor/compiler hash shared by multiple different vcs files.");
-            DataReader.ShowByteCount();
-            var possible_editor_desc = DataReader.ReadInt32AtPosition();
-            DataReader.ShowBytes(4, $"({possible_editor_desc}) possible editor description");
-            var lastEditorRef = VcsProgramType == VcsProgramType.Features ? EditorIDs.Count - 1 : 1;
-            DataReader.TabComment($"value appears to be linked to the last Editor reference (Editor ref. ID{lastEditorRef})", 15);
-            DataReader.ShowByteCount();
-            var sfBlockCount = DataReader.ReadUInt32AtPosition();
-            DataReader.ShowBytes(4, $"{sfBlockCount} SF blocks (usually 152 bytes each)");
-            DataReader.BreakLine();
-            foreach (var sfBlock in StaticCombos)
-            {
-                sfBlock.PrintByteDetail();
-            }
-            DataReader.ShowByteCount();
-            var sfConstraintsBlockCount = DataReader.ReadUInt32AtPosition();
-            DataReader.ShowBytes(4, $"{sfConstraintsBlockCount} S-configuration constraint blocks (472 bytes each)");
-            DataReader.BreakLine();
-            foreach (var sfConstraintsBlock in StaticComboRules)
-            {
-                sfConstraintsBlock.PrintByteDetail();
-            }
-            DataReader.ShowByteCount();
-            var dBlockCount = DataReader.ReadUInt32AtPosition();
-            DataReader.ShowBytes(4, $"{dBlockCount} D-blocks (152 bytes each)");
-            DataReader.BreakLine();
-            foreach (var dBlock in DynamicCombos)
-            {
-                dBlock.PrintByteDetail();
-            }
-            DataReader.ShowByteCount();
-            var dConstraintsBlockCount = DataReader.ReadUInt32AtPosition();
-            DataReader.ShowBytes(4, $"{dConstraintsBlockCount} D-configuration constraint blocks (472 bytes each)");
-            DataReader.BreakLine();
-            foreach (var dConstraintBlock in DynamicComboRules)
-            {
-                dConstraintBlock.PrintByteDetail();
-            }
-            DataReader.ShowByteCount();
-            var paramBlockCount = DataReader.ReadUInt32AtPosition();
-            DataReader.ShowBytes(4, $"{paramBlockCount} Param-Blocks");
-            DataReader.BreakLine();
-            foreach (var paramBlock in VariableDescriptions)
-            {
-                paramBlock.PrintByteDetail(VcsVersion);
-            }
-            DataReader.ShowByteCount();
-            var ChannelBlockCount = DataReader.ReadUInt32AtPosition();
-            DataReader.ShowBytes(4, $"{ChannelBlockCount} Channel blocks (280 bytes each)");
-            DataReader.BreakLine();
-            foreach (var ChannelBlock in TextureChannelProcessors)
-            {
-                ChannelBlock.PrintByteDetail();
-            }
-            DataReader.ShowByteCount();
-            var bufferBlockCount = DataReader.ReadUInt32AtPosition();
-            DataReader.ShowBytes(4, $"{bufferBlockCount} Buffer blocks (variable length)");
-            DataReader.BreakLine();
-            foreach (var bufferBlock in ExtConstantBufferDescriptions)
-            {
-                bufferBlock.PrintByteDetail();
-            }
-            if (VcsProgramType == VcsProgramType.Features || VcsProgramType == VcsProgramType.VertexShader)
-            {
-                DataReader.ShowByteCount();
-                var symbolBlockCount = DataReader.ReadUInt32AtPosition();
-                DataReader.ShowBytes(4, $"{symbolBlockCount} symbol/names blocks");
-                foreach (var symbolBlock in VSInputSignatures)
-                {
-                    DataReader.BreakLine();
-                    symbolBlock.PrintByteDetail();
-                }
-                DataReader.BreakLine();
-            }
-
-            PrintZframes(shortenOutput, out var zFrameCount);
-            if (shortenOutput && zFrameCount > SKIP_ZFRAMES_IF_MORE_THAN)
-            {
-                DataReader.Comment("rest of data contains compressed zframes");
-                DataReader.BreakLine();
-            }
-
-            DataReader.ShowEndOfFile();
+            return GetZFrameFile(ZframesLookup.ElementAt(zframeIndex).Key);
         }
 
         public int[] GetDBlockConfig(long blockId)
         {
             return dBlockConfigGen.GetConfigState(blockId);
-        }
-
-        private const int SKIP_ZFRAMES_IF_MORE_THAN = 10;
-
-        private void PrintZframes(bool shortenOutput, out uint zFrameCount)
-        {
-            //
-            // The zFrameIds and zFrameDataOffsets are read as two separate lists before the data section starts
-            // (Normally parsing is expected to stop when the ids and offsets are collected - sufficient to
-            // retrieve any future data as-needed; the data section is always at the end of the file for this reason)
-            //
-            // For testing:
-            // if `shortenOutput = false` all zframes and their data are shown.
-            // if `shortenOutput = true` the parser returns after, or shortly after, showing the listings only
-            //
-            // Parsing correctness is always verified because an end-of-file pointer is provided right after the zframe
-            // listing, the datareader must either reach or be assigned to the end of file to complete parsing; checked in
-            // the call to datareader.ShowEndOfFile()
-            //
-            //
-            List<uint> zFrameIds = [];
-            List<long> zFrameDataOffsets = [];
-
-            DataReader.ShowByteCount();
-            zFrameCount = DataReader.ReadUInt32AtPosition();
-            DataReader.ShowBytes(4, $"{zFrameCount} zframes");
-            DataReader.BreakLine();
-            if (zFrameCount == 0)
-            {
-                return;
-            }
-            DataReader.ShowByteCount("zFrame IDs");
-            for (var i = 0; i < zFrameCount; i++)
-            {
-                var zframeId = DataReader.ReadUInt32AtPosition();
-                DataReader.ShowBytes(8, breakLine: false);
-                DataReader.TabComment($"zframe[0x{zframeId:x08}]    {Convert.ToString(zframeId, 2).PadLeft(20, '0')} (bin.)");
-                zFrameIds.Add(zframeId);
-            }
-
-            DataReader.BreakLine();
-            DataReader.ShowByteCount("zFrame file offsets");
-            foreach (var zframeId in zFrameIds)
-            {
-                var zframe_offset = DataReader.ReadUInt32AtPosition();
-                zFrameDataOffsets.Add(zframe_offset);
-                DataReader.ShowBytes(4, $"{zframe_offset} offset of zframe[0x{zframeId:x08}]");
-            }
-            var endOfFilePointer = DataReader.ReadUInt32AtPosition();
-            DataReader.ShowBytes(4, $"{endOfFilePointer} - end of file");
-            DataReader.BreakLine();
-
-            if (shortenOutput && zFrameCount > SKIP_ZFRAMES_IF_MORE_THAN)
-            {
-                DataReader.BaseStream.Position = endOfFilePointer;
-                return;
-            }
-            for (var i = 0; i < zFrameCount; i++)
-            {
-                DataReader.BaseStream.Position = zFrameDataOffsets[i];
-                PrintCompressedZFrame(zFrameIds[i]);
-            }
-            // in v62 the last zframe doesn't always finish at the end of file; it's necessary to assign
-            // the end-pointer here (read above at the end of zframe listings) to confirm correct parsing.
-            if (VcsVersion == 62)
-            {
-                DataReader.BaseStream.Position = endOfFilePointer;
-            }
-        }
-
-
-        public void PrintCompressedZFrame(uint zframeId)
-        {
-            DataReader.OutputWriteLine($"[{DataReader.BaseStream.Position}] zframe[0x{zframeId:x08}]");
-            DataReader.ShowBytes(4, $"Compression type");
-            DataReader.ShowBytes(4, $"Uncompressed size");
-            var compressed_length = DataReader.ReadInt32AtPosition();
-            DataReader.ShowBytes(4, $"Compressed size");
-            DataReader.BaseStream.Position += compressed_length;
-            DataReader.BreakLine();
         }
     }
 }

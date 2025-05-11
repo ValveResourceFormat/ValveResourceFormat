@@ -272,8 +272,7 @@ namespace GUI.Types.Viewers
             private readonly ShaderCollection shaderCollection;
             private readonly ShaderTabControl tabControl;
             private readonly List<string> relatedFiles = [];
-            public ShaderRichTextBox(VcsProgramType leadProgramType, ShaderTabControl tabControl,
-                ShaderCollection shaderCollection, bool byteVersion = false) : base()
+            public ShaderRichTextBox(VcsProgramType leadProgramType, ShaderTabControl tabControl, ShaderCollection shaderCollection) : base()
             {
                 this.shaderCollection = shaderCollection;
                 this.tabControl = tabControl;
@@ -283,14 +282,7 @@ namespace GUI.Types.Viewers
                     relatedFiles.Add(Path.GetFileName(shader.FilenamePath));
                 }
                 using var buffer = new StringWriter(CultureInfo.InvariantCulture);
-                if (!byteVersion)
-                {
-                    shaderFile.PrintSummary(buffer.Write, showRichTextBoxLinks: true, relatedfiles: relatedFiles);
-                }
-                else
-                {
-                    shaderFile.PrintByteDetail(outputWriter: buffer.Write);
-                }
+                shaderFile.PrintSummary(buffer.Write, showRichTextBoxLinks: true, relatedfiles: relatedFiles);
                 Font = new Font(FontFamily.GenericMonospace, Font.Size);
                 DetectUrls = true;
                 Dock = DockStyle.Fill;
@@ -311,22 +303,11 @@ namespace GUI.Types.Viewers
                 {
                     var programType = ComputeVCSFileName(linkTokens[0]).ProgramType;
                     var shaderFile = shaderCollection.Get(programType);
-                    TabPage newShaderTab = null;
-                    if (linkTokens.Length > 1 && linkTokens[1].Equals("bytes", StringComparison.Ordinal))
+
+                    if (!tabControl.TryAddUniqueTab(shaderCollection, programType, out var newShaderTab))
                     {
-                        newShaderTab = new TabPage($"{programType} bytes");
-                        var shaderRichTextBox = new ShaderRichTextBox(programType, tabControl, shaderCollection, byteVersion: true);
-                        shaderRichTextBox.MouseEnter += new EventHandler(MouseEnterHandler);
-                        newShaderTab.Controls.Add(shaderRichTextBox);
-                        tabControl.Controls.Add(newShaderTab);
-                    }
-                    else
-                    {
-                        if (!tabControl.TryAddUniqueTab(shaderCollection, programType, out newShaderTab))
-                        {
-                            tabControl.SelectedTab = newShaderTab;
-                            return;
-                        }
+                        tabControl.SelectedTab = newShaderTab;
+                        return;
                     }
 
                     if (!ModifierKeys.HasFlag(Keys.Control))
@@ -356,29 +337,14 @@ namespace GUI.Types.Viewers
             private readonly VfxProgramData shaderFile;
             private VfxStaticComboData zframeFile;
 
-            public ZFrameRichTextBox(TabControl tabControl, VfxProgramData shaderFile, ShaderCollection shaderCollection,
-                long zframeId, bool byteVersion = false) : base()
+            public ZFrameRichTextBox(TabControl tabControl, VfxProgramData shaderFile, ShaderCollection shaderCollection, long zframeId) : base()
             {
                 this.tabControl = tabControl;
                 this.shaderFile = shaderFile;
                 this.shaderCollection = shaderCollection;
                 using var buffer = new StringWriter(CultureInfo.InvariantCulture);
-                zframeFile = shaderFile.GetZFrameFile(zframeId, outputWriter: buffer.Write);
-                if (byteVersion)
-                {
-                    try
-                    {
-                        zframeFile.PrintByteDetail();
-                    }
-                    catch (Exception e)
-                    {
-                        zframeFile.DataReader.OutputWrite(e.ToString());
-                    }
-                }
-                else
-                {
-                    PrintZFrameSummary zframeSummary = new(shaderFile, zframeFile, buffer.Write, true);
-                }
+                zframeFile = shaderFile.GetZFrameFile(zframeId);
+                var zframeSummary = new PrintZFrameSummary(shaderFile, zframeFile, buffer.Write, true);
                 Font = new Font(FontFamily.GenericMonospace, Font.Size);
                 DetectUrls = true;
                 Dock = DockStyle.Fill;
@@ -410,24 +376,7 @@ namespace GUI.Types.Viewers
             private void ZFrameRichTextBoxLinkClicked(object sender, LinkClickedEventArgs evt)
             {
                 var linkTokens = evt.LinkText[2..].Split("\\");
-                // if the link contains only one token it is the name of the zframe in the form
-                // blur_pcgl_40_vs.vcs-ZFRAME00000000-databytes
-                if (linkTokens.Length == 1)
-                {
-                    // the target id is extracted from the text link, parsing here strictly depends on the chosen format
-                    // linkTokens[0].Split('-')[^2] evaluates as ZFRAME00000000, number is read as base 16
-                    var zframeId = Convert.ToInt64(linkTokens[0].Split('-')[^2][6..], 16);
-                    var zframeTab = new TabPage($"{shaderFile.FilenamePath.Split('_')[^1][..^4]}[{zframeId:x}] bytes");
-                    var zframeRichTextBox = new ZFrameRichTextBox(tabControl, shaderFile, shaderCollection, zframeId, byteVersion: true);
-                    zframeRichTextBox.MouseEnter += new EventHandler(MouseEnterHandler);
-                    zframeTab.Controls.Add(zframeRichTextBox);
-                    tabControl.Controls.Add(zframeTab);
-                    if ((ModifierKeys & Keys.Control) == Keys.Control)
-                    {
-                        tabControl.SelectedTab = zframeTab;
-                    }
-                    return;
-                }
+                Debug.Assert(linkTokens.Length > 1);
                 // if (linkTokens.Length != 1) the link text will always be in the form '\\source\0'
                 // the sourceId is given in decimals, extracted here from linkTokens[1]
                 // (the sourceId is not the same as the zframeId - a single zframe may contain more than 1 source,
