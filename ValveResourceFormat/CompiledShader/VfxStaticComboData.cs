@@ -12,7 +12,6 @@ namespace ValveResourceFormat.CompiledShader
         public long ZframeId { get; }
         public VfxVariableIndexArray LeadingData { get; }
         public List<VfxShaderAttribute> Attributes { get; } = [];
-        internal List<short> attributeBlockLengths { get; } = [];
         public int[] VShaderInputs { get; } = [];
         public List<VfxVariableIndexArray> DataBlocks { get; } = [];
         public byte[] ConstantBufferBindInfoSlots { get; }
@@ -35,10 +34,8 @@ namespace ValveResourceFormat.CompiledShader
             int attributeCount = DataReader.ReadInt16();
             for (var i = 0; i < attributeCount; i++)
             {
-                var savedOffset = DataReader.BaseStream.Position;
                 VfxShaderAttribute attribute = new(DataReader);
                 Attributes.Add(attribute);
-                attributeBlockLengths.Add((short)(DataReader.BaseStream.Position - savedOffset));
             }
             // this data is applicable to vertex shaders
             if (ParentProgramData.VcsProgramType is VcsProgramType.Features or VcsProgramType.VertexShader)
