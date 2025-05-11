@@ -32,10 +32,10 @@ namespace Tests
 
                 Console.SetOut(originalOutput);
 
-                if (shader.ZframesLookup.Count > 0)
+                foreach (var zframe in shader.ZframesLookup)
                 {
-                    var zframe = shader.GetZFrameFile(0);
-                    Assert.That(zframe, Is.Not.Null);
+                    var value = zframe.Value.GetDecompressedZFrame();
+                    Assert.That(value, Is.Not.Null);
                 }
             }
         }
