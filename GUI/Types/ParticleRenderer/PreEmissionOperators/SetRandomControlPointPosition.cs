@@ -1,5 +1,3 @@
-using GUI.Utils;
-
 namespace GUI.Types.ParticleRenderer.PreEmissionOperators
 {
     class SetRandomControlPointPosition : ParticleFunctionPreEmissionOperator

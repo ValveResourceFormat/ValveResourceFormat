@@ -1,5 +1,4 @@
 using GUI.Types.ParticleRenderer.Utils;
-using GUI.Utils;
 
 namespace GUI.Types.ParticleRenderer.Initializers
 {

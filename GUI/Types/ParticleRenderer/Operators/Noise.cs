@@ -1,6 +1,4 @@
-using GUI.Utils;
 using ValveResourceFormat;
-using System;
 
 namespace GUI.Types.ParticleRenderer.Operators
 {

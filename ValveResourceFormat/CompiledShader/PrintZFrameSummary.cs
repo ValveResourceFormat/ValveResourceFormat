@@ -1,4 +1,3 @@
-using System.IO;
 using System.Linq;
 using static ValveResourceFormat.CompiledShader.ShaderDataReader;
 using static ValveResourceFormat.CompiledShader.ShaderUtilHelpers;

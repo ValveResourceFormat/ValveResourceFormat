@@ -1,5 +1,4 @@
 using GUI.Types.ParticleRenderer.Utils;
-using GUI.Utils;
 using ValveResourceFormat;
 
 namespace GUI.Types.ParticleRenderer

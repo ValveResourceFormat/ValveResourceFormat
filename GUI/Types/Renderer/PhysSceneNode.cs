@@ -1,5 +1,4 @@
 using System.Buffers;
-using System.Linq;
 using System.Runtime.InteropServices;
 using GUI.Utils;
 using ValveResourceFormat.IO;

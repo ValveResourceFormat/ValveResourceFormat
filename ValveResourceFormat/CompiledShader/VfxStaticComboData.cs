@@ -1,7 +1,5 @@
 using System.IO;
 using System.Text;
-using static ValveResourceFormat.CompiledShader.ShaderDataReader;
-using static ValveResourceFormat.CompiledShader.ShaderUtilHelpers;
 
 #nullable disable
 

@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Drawing;
 using System.Globalization;
 using System.IO;
@@ -8,11 +9,10 @@ using GUI.Controls;
 using GUI.Utils;
 using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.IO;
-using Vortice.SpirvCross;
 using Vortice.SPIRV;
+using Vortice.SpirvCross;
 using static ValveResourceFormat.CompiledShader.ShaderUtilHelpers;
 using VrfPackage = SteamDatabase.ValvePak.Package;
-using System.Diagnostics;
 
 #nullable disable
 
