@@ -54,8 +54,7 @@ namespace GUI.Types.ParticleRenderer.Emitters
             if (time >= nextStartTime && (nextEmissionDuration == 0f || time <= nextStartTime + nextEmissionDuration))
             {
                 var numToEmit = (int)MathF.Floor((time - lastEmissionTime) / emitInterval);
-                var emitCount = Math.Min(5 * (int)emitRate.NextNumber(), numToEmit); // Limit the amount of particles to emit at once in case of refocus
-                for (var i = 0; i < emitCount; i++)
+                for (var i = 0; i < numToEmit; i++)
                 {
                     particleEmitCallback?.Invoke();
                 }
