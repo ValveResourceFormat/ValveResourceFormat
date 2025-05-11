@@ -84,6 +84,7 @@ namespace GUI.Types.ParticleRenderer
                 ["C_OP_LerpToOtherAttribute"] = operatorInfo => new LerpToOtherAttribute(operatorInfo),
                 ["C_OP_LerpVector"] = operatorInfo => new LerpVector(operatorInfo),
                 ["C_OP_MaxVelocity"] = operatorInfo => new MaxVelocity(operatorInfo),
+                ["C_OP_Noise"] = operatorInfo => new Noise(operatorInfo),
                 ["C_OP_NormalizeVector"] = operatorInfo => new NormalizeVector(operatorInfo),
                 ["C_OP_OscillateScalar"] = operatorInfo => new OscillateScalar(operatorInfo),
                 ["C_OP_OscillateScalarSimple"] = operatorInfo => new OscillateScalarSimple(operatorInfo),

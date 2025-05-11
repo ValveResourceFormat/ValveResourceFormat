@@ -286,5 +286,7 @@ namespace GUI.Types.ParticleRenderer
             }
             return value;
         }
+
+        public static bool IsAngleField(this ParticleField field) => field is ParticleField.Roll or ParticleField.Yaw or ParticleField.Pitch;
     }
 }
