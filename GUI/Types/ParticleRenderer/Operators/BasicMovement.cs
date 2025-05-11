@@ -11,33 +11,17 @@ namespace GUI.Types.ParticleRenderer.Operators
             drag = parse.NumberProvider("m_fDrag", drag);
         }
 
-        private static Vector3 GetVelocityFromPreviousPosition(Vector3 currPosition, Vector3 prevPosition)
-        {
-            var velocity = currPosition - prevPosition;
-            return Vector3.Zero; // temp due to weird ordering
-        }
-
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
-            var gravityMovement = gravity.NextVector(particleSystemState) * frameTime;
+            var gravityMovement = gravity.NextVector(particleSystemState) * (frameTime * frameTime);
+            var dragValue = Math.Max(0.0f, drag.NextNumber(particleSystemState));
+            var dragFactor = MathF.Exp(MathF.Log(1.0f - dragValue) / (1.0f / 30.0f) * frameTime);
 
             foreach (ref var particle in particles.Current)
             {
-                // SO. Velocity is partially computed using the previous frame's position.
-                // Which means that anything with basicmovement will have additional effects that we
-                // aren't accounting for if we don't apply whatever this is.
-
-                // Apply acceleration
-                particle.Velocity += gravityMovement;
-
-                particle.Velocity += GetVelocityFromPreviousPosition(particle.Position, particle.PositionPrevious);
-
-                // Apply drag
-                // Is this right? this is a super important operator so it might be bad if this is wrong
-                particle.Velocity *= 1 - (drag.NextNumber() * 60f * frameTime);
-
-                // Velocity is only applied in MovementBasic. If you layer two MovementBasic's on top of one another it'll indeed apply velocity twice.
-                particle.Position += particle.Velocity * frameTime;
+                particle.Velocity = gravityMovement + dragFactor * (particle.Position - particle.PositionPrevious);
+                particle.PositionPrevious = particle.Position;
+                particle.Position += particle.Velocity;
             }
         }
     }
