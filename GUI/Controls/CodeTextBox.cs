@@ -94,7 +94,7 @@ namespace GUI.Controls
                 if (SyntaxHighlighter is ShaderSyntaxHighlighter ssh)
                 {
                     ssh.WordStyle = SyntaxHighlighter.StringStyle;
-                    ssh.DirectiveStyle = SyntaxHighlighter.CommentStyle;
+                    ssh.DirectiveStyle = new TextStyle(Brushes.Gold, null, FontStyle.Bold);
                 }
 
                 if (Language == Language.XML)
@@ -258,7 +258,7 @@ namespace GUI.Controls
                 StringStyle = BrownStyle;
                 NumberStyle = MagentaStyle;
                 KeywordStyle = BlueStyle;
-                DirectiveStyle = GreenStyle;
+                DirectiveStyle = new TextStyle(Brushes.Goldenrod, null, FontStyle.Bold);
                 WordStyle = BlueStyle;
                 UnknownVarStyle = GrayStyle;
             }
@@ -273,13 +273,13 @@ namespace GUI.Controls
 
                 range.ClearStyle(StringStyle, CommentStyle, NumberStyle, KeywordStyle, DirectiveStyle, WordStyle, UnknownVarStyle);
 
+                range.SetStyle(CommentStyle, CommentRegex());
                 range.SetStyle(StringStyle, StringRegex());
                 range.SetStyle(WordStyle, WordRegex());
                 range.SetStyle(UnknownVarStyle, UnknownVarRegex());
                 range.SetStyle(NumberStyle, NumberRegex());
                 range.SetStyle(KeywordStyle, KeywordRegex());
                 range.SetStyle(DirectiveStyle, DirectiveRegex());
-                range.SetStyle(CommentStyle, CommentRegex());
 
                 range.ClearFoldingMarkers();
                 range.SetFoldingMarkers("{", "}");
