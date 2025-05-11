@@ -321,8 +321,7 @@ namespace ValveResourceFormat.CompiledShader
 
         public VfxStaticComboData GetZFrameFile(long zframeId)
         {
-            return new VfxStaticComboData(GetDecompressedZFrame(zframeId), FilenamePath, zframeId,
-                VcsProgramType, VcsPlatformType, VcsShaderModelType, VcsVersion);
+            return new VfxStaticComboData(GetDecompressedZFrame(zframeId), zframeId, this);
         }
 
         public VfxStaticComboData GetZFrameFileByIndex(int zframeIndex)

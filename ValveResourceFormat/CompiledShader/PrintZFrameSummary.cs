@@ -22,7 +22,7 @@ namespace ValveResourceFormat.CompiledShader
             this.zframeFile = zframeFile;
             OutputWriter = outputWriter ?? ((x) => { Console.Write(x); });
 
-            if (zframeFile.VcsProgramType == VcsProgramType.Features)
+            if (zframeFile.ParentProgramData.VcsProgramType == VcsProgramType.Features)
             {
                 OutputWriteLine("Zframe byte data (encoding for features files has not been determined)");
                 zframeFile.DataReader.BaseStream.Position = 0;
@@ -209,7 +209,7 @@ namespace ValveResourceFormat.CompiledShader
             var abbreviations = DConfigsAbbreviations();
             var hasOnlyDefaultConfiguration = blockIdToSource.Count == 1;
             var hasNoDConfigsDefined = abbreviations.Count == 0;
-            var isVertexShader = zframeFile.VcsProgramType == VcsProgramType.VertexShader;
+            var isVertexShader = zframeFile.ParentProgramData.VcsProgramType == VcsProgramType.VertexShader;
 
             var configsDefined = hasOnlyDefaultConfiguration ? "" : $" ({blockIdToSource.Count} defined)";
             var configHeader = $"Dynamic (D-Param) configurations{configsDefined}";
