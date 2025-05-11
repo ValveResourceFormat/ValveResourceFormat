@@ -16,6 +16,11 @@ namespace GUI.Types.Renderer
 
         public override void Update(Scene.UpdateContext context)
         {
+            if (!LayerEnabled)
+            {
+                return;
+            }
+
             particleRenderer.MainControlPoint.Position = Transform.Translation;
             particleRenderer.Update(context.Timestep * FrametimeMultiplier);
             LocalBoundingBox = particleRenderer.LocalBoundingBox;
