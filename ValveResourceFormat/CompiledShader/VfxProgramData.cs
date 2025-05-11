@@ -316,12 +316,7 @@ namespace ValveResourceFormat.CompiledShader
 
         public VfxStaticComboData GetZFrameFile(long zframeId)
         {
-            var entry = ZframesLookup[zframeId];
-
-            var decompressed = entry.GetDecompressedZFrame();
-            using var stream = new MemoryStream(decompressed);
-
-            return new VfxStaticComboData(stream, zframeId, this);
+            return ZframesLookup[zframeId].Unserialize();
         }
 
         public VfxStaticComboData GetZFrameFileByIndex(int zframeIndex)

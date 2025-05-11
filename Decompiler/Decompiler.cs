@@ -740,7 +740,7 @@ namespace Decompiler
 
                     foreach (var zframe in shader.ZframesLookup)
                     {
-                        zframe.Value.GetDecompressedZFrame();
+                        zframe.Value.Unserialize();
                     }
 
                     var id = $"Shader version {shader.VcsVersion}";

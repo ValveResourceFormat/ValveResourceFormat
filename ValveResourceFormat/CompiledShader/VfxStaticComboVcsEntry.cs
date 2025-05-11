@@ -12,79 +12,93 @@ public class VfxStaticComboVcsEntry
     public long ZframeId { get; init; }
     public int OffsetToZFrameHeader { get; init; }
 
-    public byte[] GetDecompressedZFrame()
+    public VfxStaticComboData Unserialize()
     {
         var dataReader = ParentProgramData.DataReader;
         dataReader.BaseStream.Position = OffsetToZFrameHeader;
 
         var compressionTypeOrSize = dataReader.ReadInt32();
+        var uncompressedSize = 0;
 
         if (ParentProgramData.VcsVersion < 64 && ParentProgramData.VcsProgramType == VcsProgramType.Features)
         {
-            return dataReader.ReadBytes(compressionTypeOrSize);
+            var data = dataReader.ReadBytes(compressionTypeOrSize); // not bothering to rent buffer for old versions
+            using var outStream = new MemoryStream(data);
+            return new VfxStaticComboData(outStream, ZframeId, ParentProgramData);
         }
 
-        var uncompressedSize = dataReader.ReadInt32();
+        uncompressedSize = dataReader.ReadInt32();
 
-        if (uncompressedSize == LZMA_MAGIC)
+        var uncompressedBuffer = ArrayPool<byte>.Shared.Rent(uncompressedSize);
+
+        try
         {
-            // On PC v64 switched to using zstd, but on mobile builds they still kept the LZMA decompression.
-            Debug.Assert(ParentProgramData.VcsVersion <= 64);
+            if (uncompressedSize == LZMA_MAGIC)
+            {
+                // On PC v64 switched to using zstd, but on mobile builds they still kept the LZMA decompression.
+                Debug.Assert(ParentProgramData.VcsVersion <= 64);
 
-            uncompressedSize = dataReader.ReadInt32();
-            var compressedSize2 = dataReader.ReadInt32();
+                uncompressedSize = dataReader.ReadInt32();
+                var compressedSize2 = dataReader.ReadInt32();
 
-            var lzmaDecoder = new SevenZip.Compression.LZMA.Decoder();
-            lzmaDecoder.SetDecoderProperties(dataReader.ReadBytes(5));
-            using var outStream = new MemoryStream(uncompressedSize);
-            lzmaDecoder.Code(dataReader.BaseStream, outStream, compressedSize2, uncompressedSize, null);
-            return outStream.ToArray();
-        }
+                var lzmaDecoder = new SevenZip.Compression.LZMA.Decoder();
+                lzmaDecoder.SetDecoderProperties(dataReader.ReadBytes(5));
 
-        var compressionType = -compressionTypeOrSize; // it's negative
+                using var outStream = new MemoryStream(uncompressedBuffer, 0, uncompressedSize);
+                lzmaDecoder.Code(dataReader.BaseStream, outStream, compressedSize2, uncompressedSize, null);
+                outStream.Position = 0;
+                return new VfxStaticComboData(outStream, ZframeId, ParentProgramData);
+            }
 
-        var compressedSize = dataReader.ReadInt32();
+            var compressionType = -compressionTypeOrSize; // it's negative
 
-        switch (compressionType)
-        {
-            case 1:
-                throw new NotImplementedException("Uncompressed block");
+            var compressedSize = dataReader.ReadInt32();
 
-            case 2:
-                throw new NotImplementedException("ZSTD compresed without dict");
+            switch (compressionType)
+            {
+                case 1:
+                    throw new NotImplementedException("Uncompressed block");
 
-            case 3:
-                using (var zstdDecompressor = new ZstdSharp.Decompressor())
-                {
-                    zstdDecompressor.LoadDictionary(ZstdDictionary.GetDictionary());
+                case 2:
+                    throw new NotImplementedException("ZSTD compresed without dict");
 
-                    var inputBuf = ArrayPool<byte>.Shared.Rent(compressedSize);
-
-                    try
+                case 3:
+                    using (var zstdDecompressor = new ZstdSharp.Decompressor())
                     {
-                        var input = inputBuf.AsSpan(0, compressedSize);
-                        dataReader.Read(input);
+                        zstdDecompressor.LoadDictionary(ZstdDictionary.GetDictionary());
 
-                        var output = new byte[uncompressedSize];
+                        var inputBuf = ArrayPool<byte>.Shared.Rent(compressedSize);
 
-                        if (!zstdDecompressor.TryUnwrap(input, output, out var written) || output.Length != written)
+                        try
                         {
-                            throw new InvalidDataException($"Failed to decompress ZSTD (expected {output.Length} bytes, got {written})");
+                            var input = inputBuf.AsSpan(0, compressedSize);
+                            dataReader.Read(input);
+
+                            if (!zstdDecompressor.TryUnwrap(input, uncompressedBuffer, out var written) || uncompressedSize != written)
+                            {
+                                throw new InvalidDataException($"Failed to decompress ZSTD (expected {uncompressedSize} bytes, got {written})");
+                            }
                         }
-
-                        return output;
+                        finally
+                        {
+                            ArrayPool<byte>.Shared.Return(inputBuf);
+                        }
                     }
-                    finally
-                    {
-                        ArrayPool<byte>.Shared.Return(inputBuf);
-                    }
-                }
+                    break;
 
-            case 4:
-                throw new NotImplementedException("LZ4 compressed");
+                case 4:
+                    throw new NotImplementedException("LZ4 compressed");
 
-            default:
-                throw new UnexpectedMagicException("Unknown compression", compressionType);
+                default:
+                    throw new UnexpectedMagicException("Unknown compression", compressionType);
+            }
+
+            using var stream = new MemoryStream(uncompressedBuffer, 0, uncompressedSize);
+            return new VfxStaticComboData(stream, ZframeId, ParentProgramData);
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(uncompressedBuffer);
         }
     }
 

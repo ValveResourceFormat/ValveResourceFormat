@@ -34,7 +34,7 @@ namespace Tests
 
                 foreach (var zframe in shader.ZframesLookup)
                 {
-                    var value = zframe.Value.GetDecompressedZFrame();
+                    var value = zframe.Value.Unserialize();
                     Assert.That(value, Is.Not.Null);
                 }
             }
