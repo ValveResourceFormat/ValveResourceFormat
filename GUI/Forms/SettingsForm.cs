@@ -37,6 +37,7 @@ namespace GUI.Forms
             vsyncCheckBox.Checked = Settings.Config.Vsync != 0;
             displayFpsCheckBox.Checked = Settings.Config.DisplayFps != 0;
             openExplorerOnStartCheckbox.Checked = Settings.Config.OpenExplorerOnStart != 0;
+            textViewerFontSize.Value = Settings.Config.TextViewerFontSize;
 
             themeComboBox.Items.AddRange(Enum.GetNames<Settings.AppTheme>());
             themeComboBox.SelectedIndex = Settings.Config.Theme;
@@ -155,6 +156,16 @@ namespace GUI.Forms
             fovInput.Value = (decimal)Settings.Config.FieldOfView;
         }
 
+        private void OnOpenExplorerOnStartValueChanged(object sender, EventArgs e)
+        {
+            if (!IsHandleCreated)
+            {
+                return;
+            }
+
+            Settings.Config.OpenExplorerOnStart = openExplorerOnStartCheckbox.Checked ? 1 : 0;
+        }
+
         private void OnAntiAliasingValueChanged(object sender, EventArgs e)
         {
             if (!IsHandleCreated)
@@ -186,14 +197,14 @@ namespace GUI.Forms
             Settings.Config.DisplayFps = displayFpsCheckBox.Checked ? 1 : 0;
         }
 
-        private void OnOpenExplorerOnStartValueChanged(object sender, EventArgs e)
+        private void OnTextViewerFontSizeValueChanged(object sender, EventArgs e)
         {
             if (!IsHandleCreated)
             {
                 return;
             }
 
-            Settings.Config.OpenExplorerOnStart = openExplorerOnStartCheckbox.Checked ? 1 : 0;
+            Settings.Config.TextViewerFontSize = (int)textViewerFontSize.Value;
         }
 
         private void OnQuickPreviewCheckboxChanged(object sender, EventArgs e) => SetQuickPreviewSetting();
@@ -219,6 +230,20 @@ namespace GUI.Forms
             }
 
             Settings.Config.QuickFilePreview = (int)value;
+        }
+
+        private void OnThemeSelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (!IsHandleCreated)
+            {
+                return;
+            }
+
+            Settings.Config.Theme = themeComboBox.SelectedIndex;
+
+#pragma warning disable WFO5001
+            // TODO: SetColorMode requires restart for it to work properly
+            //Application.SetColorMode(Settings.GetSystemColor());
         }
 
         private void OnRegisterAssociationButtonClick(object sender, EventArgs e) => RegisterFileAssociation();
@@ -273,15 +298,6 @@ namespace GUI.Forms
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Information
             );
-        }
-
-        private void themeComboBox_SelectedIndexChanged(object sender, EventArgs e)
-        {
-            Settings.Config.Theme = themeComboBox.SelectedIndex;
-
-#pragma warning disable WFO5001
-            // TODO: SetColorMode requires restart for it to work properly
-            //Application.SetColorMode(Settings.GetSystemColor());
         }
     }
 }

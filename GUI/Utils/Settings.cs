@@ -11,7 +11,7 @@ namespace GUI.Utils
 {
     static class Settings
     {
-        private const int SettingsFileCurrentVersion = 10;
+        private const int SettingsFileCurrentVersion = 11;
         private const int RecentFilesLimit = 20;
 
         public enum AppTheme : int
@@ -59,6 +59,7 @@ namespace GUI.Utils
             public int DisplayFps { get; set; }
             public int QuickFilePreview { get; set; }
             public int OpenExplorerOnStart { get; set; }
+            public int TextViewerFontSize { get; set; }
             public int _VERSION_DO_NOT_MODIFY { get; set; }
             public AppUpdateState Update { get; set; }
         }
@@ -179,8 +180,18 @@ namespace GUI.Utils
                 Config.FieldOfView = 120;
             }
 
+            if (Config.FieldOfView <= 0)
+            {
+                Config.FieldOfView = 60;
+            }
+            else if (Config.FieldOfView >= 120)
+            {
+                Config.FieldOfView = 120;
+            }
+
             Config.AntiAliasingSamples = Math.Clamp(Config.AntiAliasingSamples, 0, 64);
             Config.Volume = Math.Clamp(Config.Volume, 0f, 1f);
+            Config.TextViewerFontSize = Math.Clamp(Config.TextViewerFontSize, 8, 24);
 
             if (currentVersion < 2) // version 2: added anti aliasing samples
             {
@@ -210,6 +221,11 @@ namespace GUI.Utils
             if (currentVersion < 10) // version 10: added startup window
             {
                 IsFirstStartup = true;
+            }
+
+            if (currentVersion < 11) // version 11: added text viewer font size
+            {
+                Config.TextViewerFontSize = 10;
             }
 
             if (currentVersion > 0 && currentVersion != SettingsFileCurrentVersion)

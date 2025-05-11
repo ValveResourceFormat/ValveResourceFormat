@@ -100,6 +100,8 @@ namespace GUI
             searchForm = new SearchForm();
 
             Settings.Load();
+            CodeTextBox.InitializeFont();
+            consoleTab.InitializeFont();
 
 #pragma warning disable WFO5001
             Application.SetColorMode(Settings.GetSystemColor());

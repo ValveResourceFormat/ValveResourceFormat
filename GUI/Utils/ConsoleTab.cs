@@ -190,6 +190,11 @@ namespace GUI.Utils
             return tab;
         }
 
+        public void InitializeFont()
+        {
+            control.Font = CodeTextBox.MonospaceFont;
+        }
+
         private void VisibleChanged(object sender, EventArgs e)
         {
             DrainQueue();

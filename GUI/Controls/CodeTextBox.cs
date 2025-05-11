@@ -2,6 +2,7 @@ using System.Drawing;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
 using FastColoredTextBoxNS;
+using GUI.Utils;
 
 namespace GUI.Controls
 {
@@ -20,20 +21,24 @@ namespace GUI.Controls
 
         private string? LazyText;
 
-        public CodeTextBox(string text, HighlightLanguage highlightSyntax = HighlightLanguage.KeyValues) : base()
-        {
-            const int FontSize = 9;
+        private static FontFamily? MonospaceFontFamily;
+        public static Font? MonospaceFont { get; private set; }
 
+        public static void InitializeFont()
+        {
             try
             {
-                using var font = new FontFamily("Cascadia Mono");
-                Font = new Font(font, FontSize);
+                MonospaceFontFamily = new FontFamily("Cascadia Mono");
+                MonospaceFont = new Font(MonospaceFontFamily, Settings.Config.TextViewerFontSize);
             }
             catch
             {
-                Font = new Font(FontFamily.GenericMonospace, FontSize);
+                MonospaceFont = new Font(FontFamily.GenericMonospace, Settings.Config.TextViewerFontSize);
             }
+        }
 
+        public CodeTextBox(string text, HighlightLanguage highlightSyntax = HighlightLanguage.KeyValues) : base()
+        {
             BackColor = SystemColors.Window;
             ForeColor = SystemColors.WindowText;
             IndentBackColor = SystemColors.InactiveBorder;
@@ -51,6 +56,12 @@ namespace GUI.Controls
             ServiceColors.ExpandMarkerForeColor = SystemColors.ControlText;
             ServiceColors.ExpandMarkerBackColor = SystemColors.Control;
             ServiceColors.ExpandMarkerBorderColor = SystemColors.ControlDark;
+
+            // Console tab is created before the settings are loaded (because the settings loader can print logs)
+            if (MonospaceFont != null)
+            {
+                Font = MonospaceFont;
+            }
 
             Dock = DockStyle.Fill;
             BorderStyle = BorderStyle.None;
@@ -171,7 +182,7 @@ namespace GUI.Controls
         {
             var textBox = new TextBox
             {
-                Font = new Font(FontFamily.GenericMonospace, 9),
+                Font = MonospaceFont,
                 ReadOnly = true,
                 Multiline = true,
                 WordWrap = false,
