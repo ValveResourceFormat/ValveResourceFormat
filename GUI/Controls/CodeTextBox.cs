@@ -203,14 +203,18 @@ namespace GUI.Controls
 
                 range.ClearStyle(StringStyle, NumberStyle, CommentStyle);
 
-                range.SetStyle(StringStyle, StringRegex());
                 range.SetStyle(CommentStyle, CommentRegex());
+                range.SetStyle(CommentStyle, XmlCommentRegex());
+                range.SetStyle(StringStyle, StringRegex());
                 range.SetStyle(NumberStyle, NumberRegex());
 
                 range.ClearFoldingMarkers();
                 range.SetFoldingMarkers("{", "}");
                 range.SetFoldingMarkers(@"\[", @"\]");
             }
+
+            [GeneratedRegex(@"^<!--.*-->\s*$", RegexOptions.Multiline)]
+            private static partial Regex XmlCommentRegex();
         }
 
         private partial class CssSyntaxHighlighter : SyntaxHighlighter
