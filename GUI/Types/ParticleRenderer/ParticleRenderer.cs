@@ -29,6 +29,7 @@ namespace GUI.Types.ParticleRenderer
 
         private readonly int InitialParticles;
         private readonly int MaxParticles;
+        private readonly float MaximumTimeStep;
 
         /// <summary>
         /// The particle bounds to use when calculating the bounding box of the particle system.
@@ -71,6 +72,7 @@ namespace GUI.Types.ParticleRenderer
             BehaviorVersion = parse.Int32("m_nBehaviorVersion", 13);
             InitialParticles = parse.Int32("m_nInitialParticles", 0);
             MaxParticles = parse.Int32("m_nMaxParticles", 1000);
+            MaximumTimeStep = parse.Float("m_flMaximumTimeStep", 0.1f);
 
             InfiniteBounds = parse.Boolean("m_bInfiniteBounds", false);
             ParticleBoundingBox = new AABB(
@@ -176,6 +178,11 @@ namespace GUI.Types.ParticleRenderer
             {
                 Start();
                 hasStarted = true;
+            }
+
+            if (frameTime > MaximumTimeStep)
+            {
+                frameTime = MaximumTimeStep;
             }
 
             systemRenderState.Age += frameTime;
