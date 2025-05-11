@@ -29,16 +29,10 @@ namespace GUI.Types.ParticleRenderer.Operators
             {
                 var inputMin = this.inputMin.NextNumber(ref particle, particleSystemState);
                 var inputMax = this.inputMax.NextNumber(ref particle, particleSystemState);
-
-                var remappedDistance = MathUtils.Remap(particle.Speed, inputMin, inputMax);
-
-                remappedDistance = MathUtils.Saturate(remappedDistance);
-
                 var outputMin = this.outputMin.NextNumber(ref particle, particleSystemState);
                 var outputMax = this.outputMax.NextNumber(ref particle, particleSystemState);
 
-                var finalValue = float.Lerp(outputMin, outputMax, remappedDistance);
-
+                var finalValue = MathUtils.RemapRange(particle.Speed, inputMin, inputMax, outputMin, outputMax);
                 finalValue = particle.ModifyScalarBySetMethod(particles, OutputField, finalValue, setMethod);
 
                 particle.SetScalar(OutputField, finalValue);
