@@ -93,6 +93,7 @@ namespace ValveResourceFormat.CompiledShader
 
         public static VcsProgramType ComputeVcsProgramType(string abbrev)
         {
+            // When adding new types make sure to add a small shader file to the tests folder
             return abbrev switch
             {
                 "features" => VcsProgramType.Features,
@@ -111,6 +112,7 @@ namespace ValveResourceFormat.CompiledShader
 
         public static string ComputeVcsProgramType(VcsProgramType type)
         {
+            // When adding new types make sure to add a small shader file to the tests folder
             return type switch
             {
                 VcsProgramType.Features => "features",
