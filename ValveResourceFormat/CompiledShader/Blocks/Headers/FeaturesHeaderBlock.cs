@@ -11,7 +11,7 @@ public class FeaturesHeaderBlock : ShaderDataBlock
     public bool[] AvailablePrograms { get; }
     public List<(string Name, string Shader, string StaticConfig, int Value)> Modes { get; } = [];
 
-    public FeaturesHeaderBlock(ShaderDataReader datareader, int totalShaderVariants) : base(datareader)
+    public FeaturesHeaderBlock(ShaderDataReader datareader, int programTypesCount) : base(datareader)
     {
         Version = datareader.ReadInt32(); // this is probably not a version
 
@@ -22,9 +22,9 @@ public class FeaturesHeaderBlock : ShaderDataBlock
         // For some reason valve is storing booleans as ints
         DevShader = datareader.ReadInt32() != 0;
 
-        AvailablePrograms = new bool[totalShaderVariants];
+        AvailablePrograms = new bool[programTypesCount];
 
-        for (var i = 0; i < totalShaderVariants; i++)
+        for (var i = 0; i < programTypesCount; i++)
         {
             AvailablePrograms[i] = datareader.ReadInt32() != 0;
         }

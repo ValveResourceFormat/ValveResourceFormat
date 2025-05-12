@@ -1,3 +1,4 @@
+using System.IO;
 using System.Linq;
 using static ValveResourceFormat.CompiledShader.ShaderDataReader;
 using static ValveResourceFormat.CompiledShader.ShaderUtilHelpers;
@@ -178,8 +179,9 @@ namespace ValveResourceFormat.CompiledShader
             var segmentDesc = segId switch
             {
                 0 => "Evaluated",
-                2 => "_Globals_",
-                _ => "seg_" + segId
+                1 => "RenderState",
+                2 => "Constants",
+                _ => throw new InvalidDataException(),
             };
 
             if (segment.Count > 0)

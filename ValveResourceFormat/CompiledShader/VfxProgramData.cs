@@ -119,33 +119,35 @@ namespace ValveResourceFormat.CompiledShader
             VcsVersion = DataReader.ReadInt32();
             ThrowIfNotSupported(VcsVersion);
 
-            var totalShaderVariants = 1 + (int)VcsProgramType.ComputeShader;
+            var programTypesCount = 1 + (int)VcsProgramType.ComputeShader;
 
             if (VcsVersion >= 68) // Version 68 removed hull and domain shaders
             {
-                totalShaderVariants -= 2;
+                programTypesCount -= 2;
             }
 
             if (VcsVersion < 63) // Version 63 added compute shaders
             {
-                totalShaderVariants -= 1;
+                programTypesCount -= 1;
             }
 
+            // I guess the idea with this change is that they only store a flag for each shader type that is present
+            // but they should have just changed all program types to be flags, instead of only the new ones
             if (VcsVersion >= 64)
             {
                 AdditionalFiles = (VcsAdditionalFileFlags)DataReader.ReadUInt32();
 
                 if ((AdditionalFiles & VcsAdditionalFileFlags.HasMeshShader) != 0)
                 {
-                    totalShaderVariants += 3;
+                    programTypesCount += 3;
                 }
                 else if ((AdditionalFiles & VcsAdditionalFileFlags.HasRaytracing) != 0)
                 {
-                    totalShaderVariants += 2;
+                    programTypesCount += 2;
                 }
                 else if ((AdditionalFiles & VcsAdditionalFileFlags.HasPixelShaderRenderState) != 0)
                 {
-                    totalShaderVariants += 1;
+                    programTypesCount += 1;
                 }
             }
 
@@ -160,17 +162,17 @@ namespace ValveResourceFormat.CompiledShader
                 VcsVersion--;
             }
 
-            UnserializeVfxProgramData(totalShaderVariants);
+            UnserializeVfxProgramData(programTypesCount);
         }
 
-        private void UnserializeVfxProgramData(int totalShaderVariants)
+        private void UnserializeVfxProgramData(int programTypesCount)
         {
             if (VcsProgramType == VcsProgramType.Features)
             {
-                FeaturesHeader = new FeaturesHeaderBlock(DataReader, totalShaderVariants);
+                FeaturesHeader = new FeaturesHeaderBlock(DataReader, programTypesCount);
 
                 // EditorIDs is probably MD5 hashes
-                for (var i = 0; i < totalShaderVariants; i++)
+                for (var i = 0; i < programTypesCount; i++)
                 {
                     EditorIDs.Add((new Guid(DataReader.ReadBytes(16)), $"// {i}"));
                 }
