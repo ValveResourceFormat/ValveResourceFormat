@@ -540,30 +540,27 @@ namespace GUI.Types.Viewers
             }
             catch (Exception e)
             {
-                buffer.WriteLine("/*");
-                buffer.WriteLine($"SPIR-V reflection failed: {e.Message}");
+                buffer.WriteLine($"// SPIR-V reflection failed: {e.Message}");
 
                 var lastError = SpirvCrossApi.spvc_context_get_last_error_string(context);
 
                 if (!string.IsNullOrEmpty(lastError))
                 {
-                    buffer.WriteLine();
-                    buffer.WriteLine(lastError);
+                    foreach (var errorLine in lastError.AsSpan().EnumerateLines())
+                    {
+                        buffer.Write("// ");
+                        buffer.WriteLine(errorLine);
+                    }
                 }
 
                 if (!lastRetry)
                 {
                     var retryBackend = backend == Backend.GLSL ? Backend.HLSL : Backend.GLSL;
-                    buffer.WriteLine();
-                    buffer.WriteLine($"Re-attempting reflection with the {retryBackend} backend.");
-                    buffer.WriteLine("*/");
+                    buffer.WriteLine("// ");
+                    buffer.WriteLine($"// Re-attempting reflection with the {retryBackend} backend.");
                     buffer.WriteLine();
 
                     buffer.Write(AttemptSpirvReflection(vulkanSource, vcsFiles, stage, zFrameId, dynamicId, retryBackend, lastRetry: true));
-                }
-                else
-                {
-                    buffer.WriteLine("*/");
                 }
             }
             finally
