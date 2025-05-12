@@ -314,7 +314,7 @@ namespace GUI.Controls
         [GeneratedRegex(@"""""|"".*?[^\\]""")]
         private static partial Regex StringRegex();
 
-        [GeneratedRegex(@"\b(?:[0-9]+[\.]?[0-9]*f?|0x[0-9A-F]+|true|false|null)\b")]
+        [GeneratedRegex(@"\b(?:[0-9]+[\.]?[0-9]*f?|0x[0-9A-Fa-f]+|true|false|null)\b")]
         private static partial Regex NumberRegex();
 
         [GeneratedRegex(@"//.*$", RegexOptions.Multiline)]

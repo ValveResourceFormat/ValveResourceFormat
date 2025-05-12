@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -25,7 +26,7 @@ namespace GUI.Types.Viewers
             return magic == VfxProgramData.MAGIC;
         }
 
-        public class ShaderTabControl : TabControl
+        public class ShaderTabControl : ThemedTabControl
         {
             public ShaderTabControl() : base() { }
             protected override void OnKeyDown(KeyEventArgs ke)
@@ -42,20 +43,11 @@ namespace GUI.Types.Viewers
                 }
             }
 
-            public TabPage CreateShaderFileTab(ShaderCollection collection, VcsProgramType shaderFileType,
-                bool showHelpText = false, string tabName = null)
+            public TabPage CreateShaderFileTab(ShaderCollection collection, VcsProgramType shaderFileType)
             {
-                var tab = new TabPage(tabName ?? shaderFileType.ToString());
+                var tab = new TabPage(shaderFileType.ToString());
                 var shaderRichTextBox = new ShaderRichTextBox(shaderFileType, this, collection);
                 tab.Controls.Add(shaderRichTextBox);
-
-                shaderRichTextBox.MouseEnter += new EventHandler(MouseEnterHandler);
-
-                if (showHelpText)
-                {
-                    var helpText = "[ctrl+click to open links in a new tab, ESC or right-click on tabs to close]\n\n";
-                    shaderRichTextBox.Text = $"{helpText}{shaderRichTextBox.Text}";
-                }
 
                 Controls.Add(tab);
                 return tab;
@@ -78,8 +70,7 @@ namespace GUI.Types.Viewers
         private ShaderTabControl tabControl;
         private ShaderCollection shaderCollection;
 
-        public static string SpvToHlsl(VfxShaderFileVulkan v, ShaderCollection c, VcsProgramType s, long z, long d)
-            => AttemptSpirvReflection(v, c, s, z, (int)d, Backend.HLSL);
+        public static string SpvToHlsl(VfxShaderFileVulkan v, VfxStaticComboData c) => AttemptSpirvReflection(c, v, Backend.HLSL);
 
         public TabPage Create(VrfGuiContext vrfGuiContext, Stream stream)
         {
@@ -200,12 +191,6 @@ namespace GUI.Types.Viewers
             return shaderCollection;
         }
 
-        private static void MouseEnterHandler(object sender, EventArgs e)
-        {
-            var shaderRTB = sender as RichTextBox;
-            shaderRTB.Focus();
-        }
-
         // Find the tab being clicked
         private void OnTabClick(object sender, MouseEventArgs e)
         {
@@ -264,47 +249,76 @@ namespace GUI.Types.Viewers
                 }
             }
         }
-        public class ShaderRichTextBox : RichTextBox
+
+        private class ShaderRichTextBox : TextControl // TODO: Make this disposable
         {
 #pragma warning disable CA2213
-            private readonly VfxProgramData shaderFile;
+            private readonly TreeView fileListView;
 #pragma warning restore CA2213
             private readonly ShaderCollection shaderCollection;
             private readonly ShaderTabControl tabControl;
-            private readonly List<string> relatedFiles = [];
-            public ShaderRichTextBox(VcsProgramType leadProgramType, ShaderTabControl tabControl, ShaderCollection shaderCollection) : base()
+
+            public ShaderRichTextBox(VcsProgramType leadProgramType, ShaderTabControl tabControl, ShaderCollection shaderCollection)
             {
-                this.shaderCollection = shaderCollection;
                 this.tabControl = tabControl;
-                shaderFile = shaderCollection.Get(leadProgramType);
+
+                using var buffer = new StringWriter(CultureInfo.InvariantCulture);
+                var shaderFile = shaderCollection.Get(leadProgramType);
+                shaderFile.PrintSummary(buffer.Write);
+                TextBox.Text = buffer.ToString();
+
+                fileListView = new TreeView
+                {
+                    FullRowSelect = true,
+                };
+                fileListView.NodeMouseClick += OnNodeMouseClick;
+
+                var relatedFiles = new TreeNode("Related files");
+                fileListView.Nodes.Add(relatedFiles);
+
                 foreach (var shader in shaderCollection)
                 {
-                    relatedFiles.Add(Path.GetFileName(shader.FilenamePath));
+                    var node = new TreeNode(shader.FilenamePath)
+                    {
+                        Tag = shader,
+                    };
+                    relatedFiles.Nodes.Add(node);
+
+                    if (shader.VcsProgramType == leadProgramType)
+                    {
+                        fileListView.SelectedNode = node;
+                    }
                 }
-                using var buffer = new StringWriter(CultureInfo.InvariantCulture);
-                shaderFile.PrintSummary(buffer.Write, showRichTextBoxLinks: true, relatedfiles: relatedFiles);
-                Font = CodeTextBox.GetMonospaceFont();
-                DetectUrls = true;
-                Dock = DockStyle.Fill;
-                Multiline = true;
-                ReadOnly = true;
-                WordWrap = false;
-                Text = buffer.ToString().ReplaceLineEndings();
-                ScrollBars = RichTextBoxScrollBars.Both;
-                LinkClicked += new LinkClickedEventHandler(ShaderRichTextBoxLinkClicked);
+
+                relatedFiles.Expand();
+
+                if (shaderFile.ZframesLookup.Count > 0)
+                {
+                    var staticCombos = new TreeNode("Static combos");
+                    fileListView.Nodes.Add(staticCombos);
+
+                    foreach (var zframe in shaderFile.ZframesLookup)
+                    {
+                        var node = new TreeNode($"{zframe.Key:x08}")
+                        {
+                            Tag = zframe.Value,
+                        };
+                        staticCombos.Nodes.Add(node);
+                    }
+
+                    staticCombos.Expand();
+                }
+
+                AddControl(fileListView);
+                fileListView.Dock = DockStyle.Fill;
             }
 
-            private void ShaderRichTextBoxLinkClicked(object sender, LinkClickedEventArgs evt)
+            private void OnNodeMouseClick(object sender, TreeNodeMouseClickEventArgs e)
             {
-                var linkText = evt.LinkText[2..]; // remove two starting backslahses
-                var linkTokens = linkText.Split("\\");
-                // linkTokens[0] is sometimes a zframe id, otherwise a VcsProgramType should be defined
-                if (linkTokens[0].Split("_").Length >= 4)
+                if (e.Node.Tag is VfxProgramData shaderFile)
                 {
-                    var programType = ComputeVCSFileName(linkTokens[0]).ProgramType;
-                    var shaderFile = shaderCollection.Get(programType);
-
-                    if (!tabControl.TryAddUniqueTab(shaderCollection, programType, out var newShaderTab))
+                    // TODO: We might not even need tabs with this anymore
+                    if (!tabControl.TryAddUniqueTab(shaderCollection, shaderFile.VcsProgramType, out var newShaderTab))
                     {
                         tabControl.SelectedTab = newShaderTab;
                         return;
@@ -314,46 +328,77 @@ namespace GUI.Types.Viewers
                     {
                         tabControl.SelectedTab = newShaderTab;
                     }
-                    return;
                 }
-                var zframeId = Convert.ToInt64(linkText, 16);
-                var zframeTab = new TabPage($"{shaderFile.FilenamePath.Split('_')[^1][..^4]}[{zframeId:x}]");
-                var zframeRichTextBox = new ZFrameRichTextBox(tabControl, shaderFile, shaderCollection, zframeId);
-                zframeRichTextBox.MouseEnter += new EventHandler(MouseEnterHandler);
-                zframeTab.Controls.Add(zframeRichTextBox);
-                tabControl.Controls.Add(zframeTab);
-
-                if (!ModifierKeys.HasFlag(Keys.Control))
+                else if (e.Node.Tag is VfxStaticComboVcsEntry staticComboEntry)
                 {
-                    tabControl.SelectedTab = zframeTab;
+                    // TODO: Just replace the code contents, and then expand the current tree view node to add the shader sources
+                    var zframeTab = new TabPage($"{staticComboEntry.ParentProgramData.VcsProgramType}[{staticComboEntry.ZframeId:X2}]");
+                    var zframeRichTextBox = new ZFrameRichTextBox(tabControl, staticComboEntry);
+                    zframeTab.Controls.Add(zframeRichTextBox);
+                    tabControl.Controls.Add(zframeTab);
+
+                    if (!ModifierKeys.HasFlag(Keys.Control))
+                    {
+                        tabControl.SelectedTab = zframeTab;
+                    }
                 }
             }
         }
 
-        public class ZFrameRichTextBox : RichTextBox, IDisposable
+        public class ZFrameRichTextBox : TextControl, IDisposable
         {
-            private readonly TabControl tabControl;
-            private readonly ShaderCollection shaderCollection;
-            private readonly VfxProgramData shaderFile;
+            private TabControl tabControl;
+            private TreeView fileListView;
             private VfxStaticComboData zframeFile;
 
-            public ZFrameRichTextBox(TabControl tabControl, VfxProgramData shaderFile, ShaderCollection shaderCollection, long zframeId) : base()
+            public ZFrameRichTextBox(TabControl tabControl, VfxStaticComboVcsEntry comboEntry)
             {
                 this.tabControl = tabControl;
-                this.shaderFile = shaderFile;
-                this.shaderCollection = shaderCollection;
+                zframeFile = comboEntry.Unserialize();
+
                 using var buffer = new StringWriter(CultureInfo.InvariantCulture);
-                zframeFile = shaderFile.GetZFrameFile(zframeId);
-                var zframeSummary = new PrintZFrameSummary(shaderFile, zframeFile, buffer.Write, true);
-                Font = CodeTextBox.GetMonospaceFont();
-                DetectUrls = true;
-                Dock = DockStyle.Fill;
-                Multiline = true;
-                ReadOnly = true;
-                WordWrap = false;
-                Text = buffer.ToString().ReplaceLineEndings();
-                ScrollBars = RichTextBoxScrollBars.Both;
-                LinkClicked += new LinkClickedEventHandler(ZFrameRichTextBoxLinkClicked);
+                var zframeSummary = new PrintZFrameSummary(zframeFile, buffer.Write);
+                TextBox.Text = buffer.ToString();
+
+                fileListView = new TreeView
+                {
+                    FullRowSelect = true,
+                };
+                fileListView.NodeMouseClick += OnNodeMouseClick;
+
+                var sources = new TreeNode("Shader sources");
+                fileListView.Nodes.Add(sources);
+
+                foreach (var source in zframeFile.GpuSources)
+                {
+                    var node = new TreeNode($"{source.SourceId:X2}")
+                    {
+                        Tag = source,
+                    };
+                    sources.Nodes.Add(node);
+                }
+
+                sources.Expand();
+                AddControl(fileListView);
+                fileListView.Dock = DockStyle.Fill;
+            }
+
+            private void OnNodeMouseClick(object sender, TreeNodeMouseClickEventArgs e)
+            {
+                if (e.Node.Tag is VfxShaderFile shaderFile)
+                {
+                    // TODO: Just switch the TextBox.Text instead of creating tab
+                    var gpuSourceTabTitle = $"{zframeFile.ParentProgramData.VcsProgramType}[{zframeFile.ZframeId:X2}]({shaderFile.SourceId:X2})";
+
+                    var gpuSourceTab = CreateDecompiledTabPage(zframeFile, shaderFile, gpuSourceTabTitle);
+
+                    tabControl.Controls.Add(gpuSourceTab);
+
+                    if (!ModifierKeys.HasFlag(Keys.Control))
+                    {
+                        tabControl.SelectedTab = gpuSourceTab;
+                    }
+                }
             }
 
             public new void Dispose()
@@ -364,47 +409,37 @@ namespace GUI.Types.Viewers
 
             protected new virtual void Dispose(bool disposing)
             {
-                if (disposing && zframeFile != null)
+                if (disposing)
                 {
-                    zframeFile.Dispose();
-                    zframeFile = null;
+                    if (zframeFile != null)
+                    {
+                        zframeFile.Dispose();
+                        zframeFile = null;
+                    }
+
+                    if (fileListView != null)
+                    {
+                        fileListView.Dispose();
+                        fileListView = null;
+                    }
+
+                    tabControl = null;
                 }
 
                 base.Dispose(disposing);
             }
-
-            private void ZFrameRichTextBoxLinkClicked(object sender, LinkClickedEventArgs evt)
-            {
-                var linkTokens = evt.LinkText[2..].Split("\\");
-                Debug.Assert(linkTokens.Length > 1);
-                // if (linkTokens.Length != 1) the link text will always be in the form '\\source\0'
-                // the sourceId is given in decimals, extracted here from linkTokens[1]
-                // (the sourceId is not the same as the zframeId - a single zframe may contain more than 1 source,
-                // they are enumerated in each zframe file starting from 0)
-                var gpuSourceId = Convert.ToInt32(linkTokens[1], CultureInfo.InvariantCulture);
-                var gpuSourceTabTitle = $"{shaderFile.FilenamePath.Split('_')[^1][..^4]}[{zframeFile.ZframeId:x}]({gpuSourceId})";
-
-                var gpuSourceTab = CreateDecompiledTabPage(shaderCollection, shaderFile, zframeFile, gpuSourceId, gpuSourceTabTitle);
-
-                tabControl.Controls.Add(gpuSourceTab);
-                if ((ModifierKeys & Keys.Control) == Keys.Control)
-                {
-                    tabControl.SelectedTab = gpuSourceTab;
-                }
-            }
         }
 
-        public static TabPage CreateDecompiledTabPage(ShaderCollection shaderCollection, VfxProgramData shaderFile, VfxStaticComboData zframeFile, int gpuSourceId, string gpuSourceTabTitle)
+        public static TabPage CreateDecompiledTabPage(VfxStaticComboData staticComboData, VfxShaderFile shaderFile, string gpuSourceTabTitle)
         {
             TabPage gpuSourceTab = null;
-            var gpuSource = zframeFile.GpuSources[gpuSourceId];
 
-            switch (gpuSource)
+            switch (shaderFile)
             {
                 case VfxShaderFileGL:
                     {
                         gpuSourceTab = new TabPage(gpuSourceTabTitle);
-                        var gpuSourceGlslText = new CodeTextBox(Encoding.UTF8.GetString(gpuSource.Bytecode), CodeTextBox.HighlightLanguage.Shaders);
+                        var gpuSourceGlslText = new CodeTextBox(Encoding.UTF8.GetString(shaderFile.Bytecode), CodeTextBox.HighlightLanguage.Shaders);
                         gpuSourceTab.Controls.Add(gpuSourceGlslText);
                         break;
                     }
@@ -412,11 +447,7 @@ namespace GUI.Types.Viewers
                 case VfxShaderFileDXBC:
                 case VfxShaderFileDXIL:
                     {
-                        gpuSourceTab = new TabPage
-                        {
-                            Text = gpuSourceTabTitle
-                        };
-
+                        gpuSourceTab = new TabPage(gpuSourceTabTitle);
                         var sourceBv = new System.ComponentModel.Design.ByteViewer
                         {
                             Dock = DockStyle.Fill,
@@ -425,7 +456,7 @@ namespace GUI.Types.Viewers
 
                         Program.MainForm.Invoke((MethodInvoker)(() =>
                         {
-                            sourceBv.SetBytes(gpuSource.Bytecode);
+                            sourceBv.SetBytes(shaderFile.Bytecode);
                         }));
 
                         break;
@@ -433,10 +464,7 @@ namespace GUI.Types.Viewers
 
                 case VfxShaderFileVulkan vulkanSource:
                     {
-                        gpuSourceTab = new TabPage
-                        {
-                            Text = gpuSourceTabTitle
-                        };
+                        gpuSourceTab = new TabPage(gpuSourceTabTitle);
                         var resTabs = new ThemedTabControl
                         {
                             Dock = DockStyle.Fill,
@@ -462,8 +490,7 @@ namespace GUI.Types.Viewers
                         resTabs.TabPages.Add(metadataBvTab);
 
                         // text
-                        var reflectedSource = AttemptSpirvReflection(vulkanSource, shaderCollection, shaderFile.VcsProgramType,
-                            zframeFile.ZframeId, gpuSourceId, Backend.GLSL);
+                        var reflectedSource = AttemptSpirvReflection(staticComboData, vulkanSource, Backend.GLSL);
 
                         var textTab = new TabPage("SPIR-V");
                         var textBox = new CodeTextBox(reflectedSource, CodeTextBox.HighlightLanguage.Shaders);
@@ -484,14 +511,14 @@ namespace GUI.Types.Viewers
                     }
 
                 default:
-                    throw new InvalidDataException($"Unimplemented GPU source type {gpuSource.GetType()}");
+                    throw new InvalidDataException($"Unimplemented GPU source type {shaderFile.GetType()}");
             }
 
             return gpuSourceTab;
         }
 
-        public static string AttemptSpirvReflection(VfxShaderFileVulkan vulkanSource, ShaderCollection vcsFiles, VcsProgramType stage,
-            long zFrameId, int dynamicId, Backend backend, bool lastRetry = false)
+        // TODO: pass in shader directly
+        private static string AttemptSpirvReflection(VfxStaticComboData staticComboData, VfxShaderFileVulkan vulkanSource, Backend backend, bool lastRetry = false)
         {
             SpirvCrossApi.spvc_context_create(out var context).CheckResult();
 
@@ -522,13 +549,13 @@ namespace GUI.Types.Viewers
                 {
                     SpirvCrossApi.spvc_compiler_create_shader_resources(compiler, out var resources).CheckResult();
 
-                    Rename(compiler, resources, ResourceType.SeparateImage, vcsFiles, stage, zFrameId, dynamicId);
-                    Rename(compiler, resources, ResourceType.SeparateSamplers, vcsFiles, stage, zFrameId, dynamicId);
+                    Rename(compiler, resources, ResourceType.SeparateImage, staticComboData, vulkanSource);
+                    Rename(compiler, resources, ResourceType.SeparateSamplers, staticComboData, vulkanSource);
 
-                    Rename(compiler, resources, ResourceType.StorageBuffer, vcsFiles, stage, zFrameId, dynamicId);
-                    Rename(compiler, resources, ResourceType.UniformBuffer, vcsFiles, stage, zFrameId, dynamicId);
+                    Rename(compiler, resources, ResourceType.StorageBuffer, staticComboData, vulkanSource);
+                    Rename(compiler, resources, ResourceType.UniformBuffer, staticComboData, vulkanSource);
 
-                    Rename(compiler, resources, ResourceType.StageInput, vcsFiles, stage, zFrameId, dynamicId);
+                    Rename(compiler, resources, ResourceType.StageInput, staticComboData, vulkanSource);
                 }
 
                 SpirvCrossApi.spvc_compiler_compile(compiler, out var code).CheckResult();
@@ -536,7 +563,7 @@ namespace GUI.Types.Viewers
                 buffer.WriteLine($"// SPIR-V source ({vulkanSource.BytecodeSize}), {backend} reflection with SPIRV-Cross by KhronosGroup");
                 buffer.WriteLine($"// {StringToken.VRF_GENERATOR}");
                 buffer.WriteLine();
-                buffer.WriteLine(code.ReplaceLineEndings());
+                buffer.WriteLine(code);
             }
             catch (Exception e)
             {
@@ -560,7 +587,7 @@ namespace GUI.Types.Viewers
                     buffer.WriteLine($"// Re-attempting reflection with the {retryBackend} backend.");
                     buffer.WriteLine();
 
-                    buffer.Write(AttemptSpirvReflection(vulkanSource, vcsFiles, stage, zFrameId, dynamicId, retryBackend, lastRetry: true));
+                    buffer.Write(AttemptSpirvReflection(staticComboData, vulkanSource, retryBackend, lastRetry: true));
                 }
             }
             finally
@@ -573,15 +600,13 @@ namespace GUI.Types.Viewers
         }
 
         private static unsafe void Rename(spvc_compiler compiler, spvc_resources resources, ResourceType resourceType,
-            ShaderCollection vcsFiles, VcsProgramType stage, long zFrameId, int dynamicId)
+            VfxStaticComboData staticComboData, VfxShaderFile shaderFile)
         {
-            var shader = vcsFiles.Get(stage);
+            var program = staticComboData.ParentProgramData;
             Span<spvc_buffer_range> bufferRanges = stackalloc spvc_buffer_range[256];
             // var leadingWriteSequence = shader.ZFrameCache.Get(zFrameId).DataBlocks[dynamicId];
 
-            var staticComboData = shader.ZFrameCache.Get(zFrameId);
-
-            var dynamicBlockIndex = staticComboData.RenderStateInfos[dynamicId].BlockIdRef;
+            var dynamicBlockIndex = staticComboData.RenderStateInfos[shaderFile.SourceId].BlockIdRef;
             var writeSequence = staticComboData.DataBlocks[(int)dynamicBlockIndex];
 
             SpirvCrossApi.spvc_resources_get_resource_list_for_type(resources, resourceType, out var outResources, out var outResourceCount).CheckResult();
@@ -603,7 +628,7 @@ namespace GUI.Types.Viewers
                     _ => Vfx.Type.Void,
                 };
 
-                var isVertexShader = stage is VcsProgramType.VertexShader;
+                var isVertexShader = program.VcsProgramType is VcsProgramType.VertexShader;
                 var uniformBufferBindingOffset = isVertexShader ? 14u : 0;
                 var uniformBufferBinding = binding - uniformBufferBindingOffset;
 
@@ -611,12 +636,12 @@ namespace GUI.Types.Viewers
 
                 var name = resourceType switch
                 {
-                    ResourceType.SeparateImage => GetNameForTexture(shader, writeSequence, binding, vfxType),
-                    ResourceType.SeparateSamplers => GetNameForSampler(shader, writeSequence, binding),
-                    ResourceType.StorageBuffer or ResourceType.StorageImage => GetNameForStorageBuffer(shader, writeSequence, binding),
-                    ResourceType.UniformBuffer => isGlobalsBuffer ? "_Globals_" : GetNameForUniformBuffer(shader, writeSequence, uniformBufferBinding, set),
+                    ResourceType.SeparateImage => GetNameForTexture(program, writeSequence, binding, vfxType),
+                    ResourceType.SeparateSamplers => GetNameForSampler(program, writeSequence, binding),
+                    ResourceType.StorageBuffer or ResourceType.StorageImage => GetNameForStorageBuffer(program, writeSequence, binding),
+                    ResourceType.UniformBuffer => isGlobalsBuffer ? "_Globals_" : GetNameForUniformBuffer(program, writeSequence, uniformBufferBinding, set),
                     ResourceType.StageInput => isVertexShader
-                        ? GetVsAttributeName(shader, shader.VSInputSignatures[staticComboData.VShaderInputs[dynamicBlockIndex]], location)
+                        ? GetVsAttributeName(program, program.VSInputSignatures[staticComboData.VShaderInputs[dynamicBlockIndex]], location)
                         : string.Empty,
                     _ => string.Empty,
                 };
@@ -650,8 +675,8 @@ namespace GUI.Types.Viewers
                         var bufferRange = bufferRanges[j];
 
                         var memberName = isGlobalsBuffer
-                            ? GetGlobalBufferMemberName(shader, writeSequence, offset: (int)bufferRange.offset / 4)
-                            : GetBufferMemberName(shader, name, offset: (int)bufferRange.offset / 4);
+                            ? GetGlobalBufferMemberName(program, writeSequence, offset: (int)bufferRange.offset / 4)
+                            : GetBufferMemberName(program, name, offset: (int)bufferRange.offset / 4);
 
                         if (string.IsNullOrEmpty(memberName))
                         {
@@ -741,7 +766,8 @@ namespace GUI.Types.Viewers
 
                 if (field.Dest == sampler_binding - SamplerStartingPoint)
                 {
-                    var value = param.HasDynamicExpression ? /*param.DynExp*/ "dynamic" : param.IntDefs[0].ToString(CultureInfo.InvariantCulture);
+                    var value = param.HasDynamicExpression ? /*param.DynExp*/
+                "dynamic" : param.IntDefs[0].ToString(CultureInfo.InvariantCulture);
                     samplerSettings += $"{param.Name}_{value}__";
                 }
             }

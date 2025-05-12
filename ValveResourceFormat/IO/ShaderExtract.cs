@@ -62,7 +62,7 @@ public sealed class ShaderExtract
     /// <summary>
     /// A delegate that takes in SPIR-V bytecode and returns HLSL.
     /// </summary>
-    public Func<VfxShaderFileVulkan, ShaderCollection, VcsProgramType, long, long, string> SpirvCompiler { get; set; }
+    public Func<VfxShaderFileVulkan, VfxStaticComboData, string> SpirvCompiler { get; set; }
 
     public VfxProgramData Features => Shaders.Features;
     public VfxProgramData Mesh => Shaders.Mesh;
@@ -646,7 +646,7 @@ public sealed class ShaderExtract
                 }
                 else if (gpuSource is VfxShaderFileVulkan spirv && !spirv.IsEmpty() && SpirvCompiler is not null)
                 {
-                    variant0Source.Append(SpirvCompiler.Invoke(spirv, Shaders, shader.VcsProgramType, zFrame.ZframeId, dynamicId));
+                    variant0Source.Append(SpirvCompiler.Invoke(spirv, zFrame));
                     variant0Source.AppendLine("// ---------  SPIRV -> HLSL end  --------- ");
                 }
             }

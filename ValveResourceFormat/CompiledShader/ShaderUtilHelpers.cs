@@ -316,7 +316,7 @@ namespace ValveResourceFormat.CompiledShader
 
             public OutputFormatterTabulatedData(HandleOutputWrite OutputWriter = null)
             {
-                this.OutputWriter = OutputWriter ?? ((x) => { Console.Write(x); });
+                this.OutputWriter = OutputWriter ?? (static (x) => { Console.Write(x); });
             }
 
             public void Write(string text)

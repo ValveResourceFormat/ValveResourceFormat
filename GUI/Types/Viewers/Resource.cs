@@ -454,7 +454,7 @@ namespace GUI.Types.Viewers
                 case ResourceType.Material:
                     var vmatTab = IViewer.AddContentTab(resTabs, "Reconstructed vmat", new MaterialExtract(resource).ToValveMaterial());
                     var textBox = (CodeTextBox)vmatTab.Controls[0];
-                    Task.Run(() => textBox.Text = new MaterialExtract(resource, vrfGuiContext.FileLoader).ToValveMaterial().ReplaceLineEndings());
+                    Task.Run(() => textBox.Text = new MaterialExtract(resource, vrfGuiContext.FileLoader).ToValveMaterial());
                     break;
 
                 case ResourceType.EntityLump:

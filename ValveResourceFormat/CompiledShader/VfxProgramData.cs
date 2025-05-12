@@ -101,9 +101,9 @@ namespace ValveResourceFormat.CompiledShader
             ZFrameCache = new StaticCache(this);
         }
 
-        public void PrintSummary(HandleOutputWrite OutputWriter = null, bool showRichTextBoxLinks = false, List<string> relatedfiles = null)
+        public void PrintSummary(HandleOutputWrite OutputWriter = null)
         {
-            var fileSummary = new PrintVcsFileSummary(this, OutputWriter, showRichTextBoxLinks, relatedfiles);
+            var fileSummary = new PrintVcsFileSummary(this, OutputWriter);
         }
 
         private void VfxCreateFromVcs()
@@ -314,6 +314,11 @@ namespace ValveResourceFormat.CompiledShader
         public int GetZFrameCount()
         {
             return ZframesLookup.Count;
+        }
+
+        public VfxStaticComboVcsEntry GetZFrameEntry(long zframeId)
+        {
+            return ZframesLookup[zframeId];
         }
 
         public VfxStaticComboData GetZFrameFile(long zframeId)

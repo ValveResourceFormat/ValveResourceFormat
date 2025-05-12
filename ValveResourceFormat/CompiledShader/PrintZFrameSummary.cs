@@ -10,25 +10,20 @@ namespace ValveResourceFormat.CompiledShader
     public class PrintZFrameSummary
     {
         public HandleOutputWrite OutputWriter { get; set; }
-        private readonly VfxProgramData shaderFile;
         private readonly VfxStaticComboData zframeFile;
-        private readonly bool showRichTextBoxLinks;
 
         // If OutputWriter is left as null; output will be written to Console.
         // Otherwise output is directed to the passed HandleOutputWrite object (defined by the calling application, for example GUI element or file)
-        public PrintZFrameSummary(VfxProgramData shaderFile, VfxStaticComboData zframeFile,
-            HandleOutputWrite outputWriter = null, bool showRichTextBoxLinks = false)
+        public PrintZFrameSummary(VfxStaticComboData zframeFile, HandleOutputWrite outputWriter = null)
         {
-            this.shaderFile = shaderFile;
             this.zframeFile = zframeFile;
-            OutputWriter = outputWriter ?? ((x) => { Console.Write(x); });
+            OutputWriter = outputWriter ?? (static (x) => { Console.Write(x); });
 
             if (zframeFile.ParentProgramData.VcsProgramType == VcsProgramType.Features)
             {
                 return;
             }
 
-            this.showRichTextBoxLinks = showRichTextBoxLinks;
             PrintConfigurationState();
             PrintAttributes();
             var writeSequences = GetBlockToUniqueSequenceMap();
@@ -45,11 +40,11 @@ namespace ValveResourceFormat.CompiledShader
             OutputWriteLine(configHeader);
             OutputWriteLine(new string('-', configHeader.Length));
             OutputWriteLine("The static configuration this zframe belongs to (zero or more static parameters)\n");
-            ConfigMappingSParams configGen = new(shaderFile);
+            ConfigMappingSParams configGen = new(zframeFile.ParentProgramData);
             var configState = configGen.GetConfigState(zframeFile.ZframeId);
             for (var i = 0; i < configState.Length; i++)
             {
-                OutputWriteLine($"{shaderFile.StaticCombos[i].Name,-30} {configState[i]}");
+                OutputWriteLine($"{zframeFile.ParentProgramData.StaticCombos[i].Name,-30} {configState[i]}");
             }
             if (configState.Length == 0)
             {
@@ -189,7 +184,7 @@ namespace ValveResourceFormat.CompiledShader
                 for (var i = 0; i < segment.Count; i++)
                 {
                     var field = segment[i];
-                    var paramDesc = $"[{field.VariableIndex}] {shaderFile.VariableDescriptions[field.VariableIndex].Name}";
+                    var paramDesc = $"[{field.VariableIndex}] {zframeFile.ParentProgramData.VariableDescriptions[field.VariableIndex].Name}";
                     var destDesc = field.Dest == 0xff ? $"{"_",7}" : $"{field.Dest,7}";
                     var controlDesc = field.Control == 0xff ? $"{"_",10}" : $"{field.Control,10}";
                     tabulatedData.AddTabulatedRow([i == 0 ? segmentDesc : string.Empty, paramDesc, destDesc, $"{controlDesc} ({field.Field2})", $"{field.LayoutSet,7}"]);
@@ -227,10 +222,9 @@ namespace ValveResourceFormat.CompiledShader
             OutputFormatterTabulatedData tabulatedConfigCombinations = new(OutputWriter);
             tabulatedConfigCombinations.DefineHeaders([.. shortenedNames]);
 
-            var activeBlockIds = zframeFile.RenderStateInfos.Select(endBlock => endBlock.BlockIdRef).ToList();
-            foreach (var blockId in activeBlockIds)
+            foreach (var block in zframeFile.RenderStateInfos)
             {
-                var dBlockConfig = shaderFile.GetDBlockConfig(blockId);
+                var dBlockConfig = zframeFile.ParentProgramData.GetDBlockConfig(block.BlockIdRef);
                 tabulatedConfigCombinations.AddTabulatedRow(IntArrayToStrings(dBlockConfig, nulledValue: 0));
             }
             var tabbedConfigs = new Stack<string>(tabulatedConfigCombinations.BuildTabulatedRows(reverse: true));
@@ -253,9 +247,9 @@ namespace ValveResourceFormat.CompiledShader
             tabulatedConfigFull.DefineHeaders(dConfigHeaders);
 
             var dBlockCount = 0;
-            foreach (var blockIdLong in activeBlockIds)
+            foreach (var block in zframeFile.RenderStateInfos)
             {
-                var blockId = (int)blockIdLong;
+                var blockId = (int)block.BlockIdRef;
                 dBlockCount++;
                 if (dBlockCount % 100 == 0)
                 {
@@ -263,13 +257,11 @@ namespace ValveResourceFormat.CompiledShader
                         ["", dNamesHeader, "", "", "", "", "", ""] :
                         ["", dNamesHeader, "", "", "", "", ""]);
                 }
-                var configIdText = $"0x{blockId:x}";
+                var configIdText = $"0x{blockId:X2}";
                 var configCombText = hasNoDConfigsDefined ? $"{"(default)",-14}" : tabbedConfigs.Pop();
                 var writeSeqText = writeSequences[blockId] == -1 ? "[empty]" : $"seq[{writeSequences[blockId]}]";
                 var blockSource = blockIdToSource[blockId];
-                var sourceLink = showRichTextBoxLinks ?
-                    @$"\\source\{blockSource.SourceId}" :
-                    $"{gpuSourceName}[{blockSource.HashMD5}]";
+                var sourceLink = $"{blockSource.SourceId:X2}";
                 var vsInputs = isVertexShader ?
                     zframeFile.VShaderInputs[blockId] : -1;
                 var gpuInputText = vsInputs >= 0 ? $"VS-symbols[{zframeFile.VShaderInputs[blockId]}]" : "[none]";
@@ -292,7 +284,7 @@ namespace ValveResourceFormat.CompiledShader
         private List<(string, string)> DConfigsAbbreviations()
         {
             List<(string, string)> abbreviations = [];
-            foreach (var dBlock in shaderFile.DynamicCombos)
+            foreach (var dBlock in zframeFile.ParentProgramData.DynamicCombos)
             {
                 var abbreviation = ShortenShaderParam(dBlock.Name).ToLowerInvariant();
                 abbreviations.Add((dBlock.Name, abbreviation));
@@ -329,7 +321,7 @@ namespace ValveResourceFormat.CompiledShader
             var headerText = $"Render State Info";
             OutputWriteLine(headerText);
             OutputWriteLine(new string('-', headerText.Length));
-            var vcsFiletype = shaderFile.VcsProgramType;
+            var vcsFiletype = zframeFile.ParentProgramData.VcsProgramType;
             OutputWriteLine($"{zframeFile.RenderStateInfos.Count:X02} 00 00 00   // end blocks ({zframeFile.RenderStateInfos.Count})");
             OutputWriteLine("");
             foreach (var endBlock in zframeFile.RenderStateInfos)

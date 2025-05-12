@@ -36,7 +36,7 @@ namespace Tests
                 {
                     var value = zframe.Value.Unserialize();
                     Assert.That(value, Is.Not.Null);
-                    var zframeSummary = new PrintZFrameSummary(shader, value, sw.Write);
+                    var zframeSummary = new PrintZFrameSummary(value, sw.Write);
                 }
             }
         }
@@ -95,7 +95,7 @@ namespace Tests
 
             var zFrameFile = shader.GetZFrameFile(0);
             using var sw = new StringWriter();
-            var zframeSummary = new PrintZFrameSummary(shader, zFrameFile, sw.Write, true);
+            var zframeSummary = new PrintZFrameSummary(zFrameFile, sw.Write);
 
             var wsCount = zframeSummary.GetUniqueWriteSequences().Count;
             Assert.That(wsCount, Is.EqualTo(1));

@@ -60,11 +60,6 @@ namespace GUI.Controls
             item.Tag = index;
         }
 
-        protected override void InitLayout()
-        {
-            base.InitLayout();
-        }
-
         private void FileListView_ItemSelectionChanged(object? sender, EventArgs e)
         {
             if (fileListView.SelectedItems.Count == 0)

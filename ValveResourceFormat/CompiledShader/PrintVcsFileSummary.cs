@@ -11,15 +11,9 @@ namespace ValveResourceFormat.CompiledShader
     public class PrintVcsFileSummary
     {
         private readonly OutputFormatterTabulatedData output;
-        private readonly bool showRichTextBoxLinks;
-        private readonly List<string> relatedFiles;
 
-        public PrintVcsFileSummary(VfxProgramData shaderFile, HandleOutputWrite OutputWriter = null,
-            bool showRichTextBoxLinks = false, List<string> relatedFiles = null)
+        public PrintVcsFileSummary(VfxProgramData shaderFile, HandleOutputWrite OutputWriter = null)
         {
-            this.showRichTextBoxLinks = showRichTextBoxLinks;
-            this.relatedFiles = relatedFiles;
-
             output = new OutputFormatterTabulatedData(OutputWriter);
             if (shaderFile.VcsProgramType == VcsProgramType.Features)
             {
@@ -46,16 +40,6 @@ namespace ValveResourceFormat.CompiledShader
             output.WriteLine($"Valve Compiled Shader 2 (vcs2), version {shaderFile.VcsVersion}");
             output.BreakLine();
             output.Write($"Showing {shaderFile.VcsProgramType}: {Path.GetFileName(shaderFile.FilenamePath)}");
-            output.BreakLine();
-            if (showRichTextBoxLinks && relatedFiles != null && relatedFiles.Count > 1)
-            {
-                output.Write("Related files:");
-                foreach (var relatedFile in relatedFiles)
-                {
-                    output.Write($" \\\\{relatedFile.Replace("/", "\\", StringComparison.Ordinal)}");
-                }
-                output.BreakLine();
-            }
             output.BreakLine();
 
             output.WriteLine($"VFX File Desc: {shaderFile.FeaturesHeader.FileDescription}");
@@ -109,17 +93,6 @@ namespace ValveResourceFormat.CompiledShader
             output.BreakLine();
             output.Write($"Showing {shaderFile.VcsProgramType}: {Path.GetFileName(shaderFile.FilenamePath)}");
             output.BreakLine();
-            if (showRichTextBoxLinks && relatedFiles != null && relatedFiles.Count > 1)
-            {
-                output.Write("Related files:");
-                foreach (var relatedFile in relatedFiles)
-                {
-                    output.Write($" \\\\{relatedFile.Replace("/", "\\", StringComparison.Ordinal)}");
-                }
-                output.BreakLine();
-            }
-            output.BreakLine();
-
             output.WriteLine("Editor/Shader compiler stack");
             output.WriteLine($"MD5    {shaderFile.EditorIDs[0]}    // {shaderFile.VcsProgramType}");
             output.WriteLine($"MD5    {shaderFile.FileHash}    // Common editor/compiler hash shared by multiple different vcs files.");
@@ -601,15 +574,7 @@ namespace ValveResourceFormat.CompiledShader
                     output.WriteLine($"{configHeader}");
                 }
                 var configState = configGen.GetConfigState(zframeDesc.Key);
-                if (showRichTextBoxLinks)
-                {
-                    // the two backslashes registers the text as a link when viewed in a RichTextBox
-                    output.WriteLine($"  Z[\\\\{zframeDesc.Key:x08}] {CombineIntsSpaceSep(configState, 6)}");
-                }
-                else
-                {
-                    output.WriteLine($"  Z[{zframeDesc.Key:x08}] {CombineIntsSpaceSep(configState, 6)}");
-                }
+                output.WriteLine($"  Z[{zframeDesc.Key:x08}] {CombineIntsSpaceSep(configState, 6)}");
                 zframeCount++;
             }
         }
