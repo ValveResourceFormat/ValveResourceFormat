@@ -290,8 +290,8 @@ namespace GUI.Controls
                 range.SetStyle(WordStyle, WordRegex());
                 range.SetStyle(UnknownVarStyle, UnknownVarRegex());
                 range.SetStyle(NumberStyle, NumberRegex());
-                range.SetStyle(KeywordStyle, KeywordRegex());
                 range.SetStyle(DirectiveStyle, DirectiveRegex());
+                range.SetStyle(KeywordStyle, KeywordRegex());
 
                 range.ClearFoldingMarkers();
                 range.SetFoldingMarkers("{", "}");
