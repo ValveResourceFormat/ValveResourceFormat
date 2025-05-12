@@ -508,7 +508,7 @@ namespace GUI.Types.Viewers
                             SpirvCompiler = CompiledShader.SpvToHlsl
                         };
 
-                        IViewer.AddContentTab<Func<string>>(resTabs, extract.GetVfxFileName(), extract.ToVFX, true);
+                        IViewer.AddContentTab<Func<string>>(resTabs, extract.GetVfxFileName(), extract.ToVFX, true, CodeTextBox.HighlightLanguage.Shaders);
                         break;
                     }
             }

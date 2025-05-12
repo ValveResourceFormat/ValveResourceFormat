@@ -232,6 +232,7 @@ public sealed class ShaderExtract
     private string MODES()
     {
         using var writer = new IndentedTextWriter();
+        writer.WriteLine();
         writer.WriteLine(nameof(MODES));
         writer.WriteLine("{");
         writer.Indent++;
