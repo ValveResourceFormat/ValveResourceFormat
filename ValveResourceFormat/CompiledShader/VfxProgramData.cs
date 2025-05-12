@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using static ValveResourceFormat.CompiledShader.ShaderDataReader;
@@ -133,7 +134,7 @@ namespace ValveResourceFormat.CompiledShader
 
             // I guess the idea with this change is that they only store a flag for each shader type that is present
             // but they should have just changed all program types to be flags, instead of only the new ones
-            if (VcsVersion >= 64)
+            if (VcsVersion >= 64 && !IsSbox)
             {
                 AdditionalFiles = (VcsAdditionalFileFlags)DataReader.ReadUInt32();
 
@@ -149,17 +150,18 @@ namespace ValveResourceFormat.CompiledShader
                 {
                     programTypesCount += 1;
                 }
+
+                if (AdditionalFiles > VcsAdditionalFileFlags.HasMeshShader)
+                {
+                    throw new UnexpectedMagicException("Unexpected additional files", (int)AdditionalFiles, nameof(AdditionalFiles));
+                }
             }
 
-            if (AdditionalFiles > VcsAdditionalFileFlags.HasMeshShader)
+            if (IsSbox)
             {
-                throw new UnexpectedMagicException("Unexpected additional files", (int)AdditionalFiles, nameof(AdditionalFiles));
-            }
-            else if (IsSbox && AdditionalFiles == VcsAdditionalFileFlags.HasRaytracing)
-            {
-                DataReader.BaseStream.Position += 4;
-                AdditionalFiles = VcsAdditionalFileFlags.None;
-                VcsVersion--;
+                DataReader.BaseStream.Position += 8;
+                Debug.Assert(VcsVersion == 65);
+                VcsVersion = 64;
             }
 
             UnserializeVfxProgramData(programTypesCount);

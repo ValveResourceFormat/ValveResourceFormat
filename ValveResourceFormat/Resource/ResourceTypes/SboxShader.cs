@@ -26,10 +26,10 @@ namespace ValveResourceFormat.ResourceTypes
         {
             reader.BaseStream.Position = Offset;
 
-            const int ShaderFileCount = (int)VcsProgramType.ComputeShader;
-            Span<OnDiskShaderFile> shaderFiles = stackalloc OnDiskShaderFile[ShaderFileCount + 1];
+            const int ShaderFileCount = 9;
+            Span<OnDiskShaderFile> shaderFiles = stackalloc OnDiskShaderFile[ShaderFileCount];
 
-            for (var i = 0; i <= ShaderFileCount; i++)
+            for (var i = 0; i < ShaderFileCount; i++)
             {
                 shaderFiles[i].Type = (VcsProgramType)i;
                 shaderFiles[i].Offset = reader.ReadUInt32();
