@@ -463,7 +463,7 @@ namespace GUI.Types.Viewers
 
                         // text
                         var reflectedSource = AttemptSpirvReflection(vulkanSource, shaderCollection, shaderFile.VcsProgramType,
-                            zframeFile.ZframeId, 0, Backend.GLSL);
+                            zframeFile.ZframeId, gpuSourceId, Backend.GLSL);
 
                         var textTab = new TabPage("SPIR-V");
                         var textBox = new CodeTextBox(reflectedSource, CodeTextBox.HighlightLanguage.Shaders);
@@ -817,7 +817,12 @@ namespace GUI.Types.Viewers
 
         public static string GetVsAttributeName(VfxProgramData shader, VsInputSignatureElement inputSignatureElement, int attributeLocation)
         {
-            return inputSignatureElement.SymbolsDefinition[attributeLocation].Name;
+            if (attributeLocation < inputSignatureElement.SymbolsDefinition.Count)
+            {
+                return inputSignatureElement.SymbolsDefinition[attributeLocation].Name;
+            }
+
+            return "undetermined";
         }
     }
 }
