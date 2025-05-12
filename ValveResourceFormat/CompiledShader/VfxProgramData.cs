@@ -135,23 +135,21 @@ namespace ValveResourceFormat.CompiledShader
             {
                 AdditionalFiles = (VcsAdditionalFileFlags)DataReader.ReadUInt32();
 
-                if ((AdditionalFiles & VcsAdditionalFileFlags.HasPixelShaderRenderState) != 0)
-                {
-                    totalShaderVariants += 1;
-                }
-
-                if ((AdditionalFiles & VcsAdditionalFileFlags.HasRaytracing) != 0)
-                {
-                    totalShaderVariants += 2;
-                }
-
                 if ((AdditionalFiles & VcsAdditionalFileFlags.HasMeshShader) != 0)
                 {
                     totalShaderVariants += 3;
                 }
+                else if ((AdditionalFiles & VcsAdditionalFileFlags.HasRaytracing) != 0)
+                {
+                    totalShaderVariants += 2;
+                }
+                else if ((AdditionalFiles & VcsAdditionalFileFlags.HasPixelShaderRenderState) != 0)
+                {
+                    totalShaderVariants += 1;
+                }
             }
 
-            if (!Enum.IsDefined(AdditionalFiles))
+            if (AdditionalFiles > VcsAdditionalFileFlags.HasMeshShader)
             {
                 throw new UnexpectedMagicException("Unexpected additional files", (int)AdditionalFiles, nameof(AdditionalFiles));
             }
@@ -169,7 +167,7 @@ namespace ValveResourceFormat.CompiledShader
         {
             if (VcsProgramType == VcsProgramType.Features)
             {
-                FeaturesHeader = new FeaturesHeaderBlock(VcsVersion, DataReader, totalShaderVariants);
+                FeaturesHeader = new FeaturesHeaderBlock(DataReader, totalShaderVariants);
 
                 // EditorIDs is probably MD5 hashes
                 for (var i = 0; i < totalShaderVariants; i++)

@@ -11,9 +11,9 @@ public class FeaturesHeaderBlock : ShaderDataBlock
     public bool[] AvailablePrograms { get; }
     public List<(string Name, string Shader, string StaticConfig, int Value)> Modes { get; } = [];
 
-    public FeaturesHeaderBlock(int version, ShaderDataReader datareader, int totalShaderVariants) : base(datareader)
+    public FeaturesHeaderBlock(ShaderDataReader datareader, int totalShaderVariants) : base(datareader)
     {
-        Version = datareader.ReadInt32();
+        Version = datareader.ReadInt32(); // this is probably not a version
 
         var nameLength = datareader.ReadInt32();
         FileDescription = datareader.ReadNullTermString(Encoding.UTF8);
