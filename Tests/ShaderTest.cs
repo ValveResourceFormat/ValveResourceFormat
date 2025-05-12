@@ -36,6 +36,7 @@ namespace Tests
                 {
                     var value = zframe.Value.Unserialize();
                     Assert.That(value, Is.Not.Null);
+                    var zframeSummary = new PrintZFrameSummary(shader, value, sw.Write);
                 }
             }
         }
@@ -192,7 +193,7 @@ namespace Tests
             vfx = extract.ToVFX(ShaderExtract.ShaderExtractParams.Export);
 
             Assert.That(vfx.VfxContent, Does.Contain("Description = \"Error shader\""));
-            Assert.That(vfx.VfxContent, Does.Contain("DevShader = true"));
+            Assert.That(vfx.VfxContent, Does.Contain("DevShader = True"));
         }
 
         [Test]
@@ -234,7 +235,7 @@ namespace Tests
             {
                 var vfx = extract.ToVFX(options);
                 Assert.That(vfx.VfxContent, Does.Contain("Description = \"Error shader\""));
-                Assert.That(vfx.VfxContent, Does.Contain("DevShader = true"));
+                Assert.That(vfx.VfxContent, Does.Contain("DevShader = True"));
             }
         }
 

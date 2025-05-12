@@ -7,18 +7,11 @@ public class FeaturesHeaderBlock : ShaderDataBlock
 {
     public int Version { get; }
     public string FileDescription { get; }
-    public int DevShader { get; }
-    public int FeaturesFileFlags { get; }
-    public int VertexFileFlags { get; }
-    public int PixelFileFlags { get; }
-    public int GeometryFileFlags { get; }
-    public int HullFileFlags { get; }
-    public int DomainFileFlags { get; }
-    public int ComputeFileFlags { get; }
-    public int[] AdditionalFileFlags { get; }
+    public bool DevShader { get; }
+    public bool[] AvailablePrograms { get; }
     public List<(string Name, string Shader, string StaticConfig, int Value)> Modes { get; } = [];
 
-    public FeaturesHeaderBlock(int version, ShaderDataReader datareader, int additionalFileCount) : base(datareader)
+    public FeaturesHeaderBlock(int version, ShaderDataReader datareader, int totalShaderVariants) : base(datareader)
     {
         Version = datareader.ReadInt32();
 
@@ -26,32 +19,14 @@ public class FeaturesHeaderBlock : ShaderDataBlock
         FileDescription = datareader.ReadNullTermString(Encoding.UTF8);
         UnexpectedMagicException.Assert(FileDescription.Length == nameLength, nameLength);
 
-        // This is read as simply not being zero -- so a boolean
-        DevShader = datareader.ReadInt32();
+        // For some reason valve is storing booleans as ints
+        DevShader = datareader.ReadInt32() != 0;
 
-        // Valve reads all of these directly into an array based on total count of (shader types + additional files count)
-        // They also appear to be just directly checking if the int is not zero, so a boolean and not flags
-        // indicating which shader variants are present
-        FeaturesFileFlags = datareader.ReadInt32();
-        VertexFileFlags = datareader.ReadInt32();
-        PixelFileFlags = datareader.ReadInt32();
-        GeometryFileFlags = datareader.ReadInt32();
+        AvailablePrograms = new bool[totalShaderVariants];
 
-        if (version < 68)
+        for (var i = 0; i < totalShaderVariants; i++)
         {
-            HullFileFlags = datareader.ReadInt32();
-            DomainFileFlags = datareader.ReadInt32();
-        }
-
-        if (version >= 63)
-        {
-            ComputeFileFlags = datareader.ReadInt32();
-        }
-
-        AdditionalFileFlags = new int[additionalFileCount];
-        for (var i = 0; i < additionalFileCount; i++)
-        {
-            AdditionalFileFlags[i] = datareader.ReadInt32();
+            AvailablePrograms[i] = datareader.ReadInt32() != 0;
         }
 
         var modeCount = datareader.ReadInt32();

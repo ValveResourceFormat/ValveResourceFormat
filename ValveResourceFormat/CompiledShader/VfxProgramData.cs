@@ -46,8 +46,6 @@ namespace ValveResourceFormat.CompiledShader
         public StaticCache ZFrameCache { get; private set; }
         private ConfigMappingDParams dBlockConfigGen;
 
-        public int AdditionalFileCount { get; private set; }
-
         /// <summary>
         /// Releases binary reader.
         /// </summary>
@@ -121,23 +119,35 @@ namespace ValveResourceFormat.CompiledShader
             VcsVersion = DataReader.ReadInt32();
             ThrowIfNotSupported(VcsVersion);
 
+            var totalShaderVariants = 1 + (int)VcsProgramType.ComputeShader;
+
+            if (VcsVersion >= 68) // Version 68 removed hull and domain shaders
+            {
+                totalShaderVariants -= 2;
+            }
+
+            if (VcsVersion < 63) // Version 63 added compute shaders
+            {
+                totalShaderVariants -= 1;
+            }
+
             if (VcsVersion >= 64)
             {
                 AdditionalFiles = (VcsAdditionalFileFlags)DataReader.ReadUInt32();
 
                 if ((AdditionalFiles & VcsAdditionalFileFlags.HasPixelShaderRenderState) != 0)
                 {
-                    AdditionalFileCount = 1;
+                    totalShaderVariants += 1;
                 }
 
                 if ((AdditionalFiles & VcsAdditionalFileFlags.HasRaytracing) != 0)
                 {
-                    AdditionalFileCount = 2;
+                    totalShaderVariants += 2;
                 }
 
                 if ((AdditionalFiles & VcsAdditionalFileFlags.HasMeshShader) != 0)
                 {
-                    AdditionalFileCount = 3;
+                    totalShaderVariants += 3;
                 }
             }
 
@@ -152,20 +162,19 @@ namespace ValveResourceFormat.CompiledShader
                 VcsVersion--;
             }
 
-            UnserializeVfxProgramData();
+            UnserializeVfxProgramData(totalShaderVariants);
         }
 
-        private void UnserializeVfxProgramData()
+        private void UnserializeVfxProgramData(int totalShaderVariants)
         {
-            // There's a chance HullShader, DomainShader and RaytracingShader work but they haven't been tested
             if (VcsProgramType == VcsProgramType.Features)
             {
-                FeaturesHeader = new FeaturesHeaderBlock(VcsVersion, DataReader, AdditionalFileCount);
+                FeaturesHeader = new FeaturesHeaderBlock(VcsVersion, DataReader, totalShaderVariants);
 
                 // EditorIDs is probably MD5 hashes
-                foreach (var programType in ProgramTypeIterator())
+                for (var i = 0; i < totalShaderVariants; i++)
                 {
-                    EditorIDs.Add((new Guid(DataReader.ReadBytes(16)), $"// {programType}"));
+                    EditorIDs.Add((new Guid(DataReader.ReadBytes(16)), $"// {i}"));
                 }
             }
             else
@@ -296,30 +305,6 @@ namespace ValveResourceFormat.CompiledShader
             {
                 throw new UnexpectedMagicException($"Only VCS file versions {earliest} through {latest} are supported",
                     vcsFileVersion, nameof(vcsFileVersion));
-            }
-        }
-
-        public IEnumerable<VcsProgramType> ProgramTypeIterator()
-        {
-            var programTypeLast = (int)VcsProgramType.ComputeShader + AdditionalFileCount;
-
-            for (var i = 0; i <= programTypeLast; i++)
-            {
-                var programType = (VcsProgramType)i;
-
-                // Version 63 adds compute shaders
-                if (VcsVersion < 63 && programType is VcsProgramType.ComputeShader)
-                {
-                    continue;
-                }
-
-                // Version 68 removes hull and domain shaders
-                if (VcsVersion >= 68 && programType is VcsProgramType.HullShader or VcsProgramType.DomainShader)
-                {
-                    continue;
-                }
-
-                yield return programType;
             }
         }
 

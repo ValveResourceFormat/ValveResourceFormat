@@ -60,17 +60,17 @@ namespace ValveResourceFormat.CompiledShader
 
             output.WriteLine($"VFX File Desc: {shaderFile.FeaturesHeader.FileDescription}");
             output.BreakLine();
-            output.WriteLine($"has additional file = {shaderFile.AdditionalFiles}");
             var ftHeader = shaderFile.FeaturesHeader;
-            if (ftHeader.AdditionalFileFlags.Length > 0)
-            {
-                output.WriteLine($"additional file bool flags ({string.Join(",", ftHeader.AdditionalFileFlags)})");
-            }
-            output.WriteLine($"{nameof(shaderFile.FeaturesHeader.Version)} = {shaderFile.FeaturesHeader.Version}");
             output.WriteLine($"{nameof(ftHeader.DevShader)} = {ftHeader.DevShader}");
-            output.WriteLine($"present files features={ftHeader.FeaturesFileFlags}, vs={ftHeader.VertexFileFlags}, ps={ftHeader.PixelFileFlags}, " +
-                $"gs={ftHeader.GeometryFileFlags}, cs={ftHeader.ComputeFileFlags}, hs={ftHeader.HullFileFlags}, ds={ftHeader.DomainFileFlags}");
-            output.WriteLine($"possible editor description = {shaderFile.VariableSourceMax}");
+            output.WriteLine($"{nameof(ftHeader.AvailablePrograms)} = ");
+            for (var i = 0; i < ftHeader.AvailablePrograms.Length; i++)
+            {
+                if (ftHeader.AvailablePrograms[i])
+                {
+                    output.Write($"{i}, ");
+                }
+            }
+            output.WriteLine($"{nameof(shaderFile.VariableSourceMax)} = {shaderFile.VariableSourceMax}");
             output.BreakLine();
             output.WriteLine("Editor/Shader compiler stack");
             foreach (var v in shaderFile.EditorIDs)
