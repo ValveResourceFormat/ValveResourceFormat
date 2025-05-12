@@ -22,7 +22,7 @@ namespace ValveResourceFormat.CompiledShader
         public FeaturesHeaderBlock FeaturesHeader { get; private set; }
         public int VcsVersion { get; private set; }
         public Guid FileHash { get; private set; }
-        public VcsAdditionalFiles AdditionalFiles { get; private set; }
+        public VcsAdditionalFileFlags AdditionalFiles { get; private set; }
         public bool IsSbox { get; init; }
         public int VariableSourceMax { get; private set; } // 17 for all up to date files. 14 seen in old test files
         public List<(Guid, string)> EditorIDs { get; } = [];
@@ -46,7 +46,7 @@ namespace ValveResourceFormat.CompiledShader
         public StaticCache ZFrameCache { get; private set; }
         private ConfigMappingDParams dBlockConfigGen;
 
-        public int AdditionalFileCount => AdditionalFiles == VcsAdditionalFiles.Ms ? 3 : AdditionalFiles == VcsAdditionalFiles.PsrsAndRtx ? 2 : (int)AdditionalFiles;
+        public int AdditionalFileCount { get; private set; }
 
         /// <summary>
         /// Releases binary reader.
@@ -123,17 +123,32 @@ namespace ValveResourceFormat.CompiledShader
 
             if (VcsVersion >= 64)
             {
-                AdditionalFiles = (VcsAdditionalFiles)DataReader.ReadInt32();
+                AdditionalFiles = (VcsAdditionalFileFlags)DataReader.ReadUInt32();
+
+                if ((AdditionalFiles & VcsAdditionalFileFlags.HasPixelShaderRenderState) != 0)
+                {
+                    AdditionalFileCount = 1;
+                }
+
+                if ((AdditionalFiles & VcsAdditionalFileFlags.HasRaytracing) != 0)
+                {
+                    AdditionalFileCount = 2;
+                }
+
+                if ((AdditionalFiles & VcsAdditionalFileFlags.HasMeshShader) != 0)
+                {
+                    AdditionalFileCount = 3;
+                }
             }
 
             if (!Enum.IsDefined(AdditionalFiles))
             {
                 throw new UnexpectedMagicException("Unexpected additional files", (int)AdditionalFiles, nameof(AdditionalFiles));
             }
-            else if (IsSbox && AdditionalFiles == VcsAdditionalFiles.Rtx)
+            else if (IsSbox && AdditionalFiles == VcsAdditionalFileFlags.HasRaytracing)
             {
                 DataReader.BaseStream.Position += 4;
-                AdditionalFiles = VcsAdditionalFiles.None;
+                AdditionalFiles = VcsAdditionalFileFlags.None;
                 VcsVersion--;
             }
 

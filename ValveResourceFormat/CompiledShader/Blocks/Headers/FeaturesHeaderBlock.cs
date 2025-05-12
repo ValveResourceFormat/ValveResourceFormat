@@ -21,10 +21,17 @@ public class FeaturesHeaderBlock : ShaderDataBlock
     public FeaturesHeaderBlock(int version, ShaderDataReader datareader, int additionalFileCount) : base(datareader)
     {
         Version = datareader.ReadInt32();
-        datareader.BaseStream.Position += 4; // length of name, but not needed because it's always null-term
+
+        var nameLength = datareader.ReadInt32();
         FileDescription = datareader.ReadNullTermString(Encoding.UTF8);
+        UnexpectedMagicException.Assert(FileDescription.Length == nameLength, nameLength);
+
+        // This is read as simply not being zero -- so a boolean
         DevShader = datareader.ReadInt32();
 
+        // Valve reads all of these directly into an array based on total count of (shader types + additional files count)
+        // They also appear to be just directly checking if the int is not zero, so a boolean and not flags
+        // indicating which shader variants are present
         FeaturesFileFlags = datareader.ReadInt32();
         VertexFileFlags = datareader.ReadInt32();
         PixelFileFlags = datareader.ReadInt32();
