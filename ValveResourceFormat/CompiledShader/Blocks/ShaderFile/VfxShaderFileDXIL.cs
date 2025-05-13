@@ -7,7 +7,7 @@ public class VfxShaderFileDXIL : VfxShaderFile
     public int Arg1 { get; } // always 0xFFFF or 0xFFFE
     public int HeaderBytes { get; }
 
-    public VfxShaderFileDXIL(ShaderDataReader datareader, int sourceId) : base(datareader, sourceId)
+    public VfxShaderFileDXIL(ShaderDataReader datareader, int sourceId, VfxStaticComboData parent) : base(datareader, sourceId, parent)
     {
         if (Size > 0)
         {

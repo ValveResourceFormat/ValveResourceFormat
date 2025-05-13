@@ -7,7 +7,7 @@ public class VfxShaderFileDXBC : VfxShaderFile
 {
     public override string BlockName => "DXBC";
 
-    public VfxShaderFileDXBC(ShaderDataReader datareader, int sourceId) : base(datareader, sourceId)
+    public VfxShaderFileDXBC(ShaderDataReader datareader, int sourceId, VfxStaticComboData parent) : base(datareader, sourceId, parent)
     {
         if (Size > 0)
         {

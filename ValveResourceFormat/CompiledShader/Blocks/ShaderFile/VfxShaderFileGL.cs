@@ -8,8 +8,7 @@ public class VfxShaderFileGL : VfxShaderFile
     // offset2 can also be interpreted as the source-size
     public int BytecodeSize { get; } = -1;
 
-    public VfxShaderFileGL(ShaderDataReader datareader, int sourceId)
-        : base(datareader, sourceId)
+    public VfxShaderFileGL(ShaderDataReader datareader, int sourceId, VfxStaticComboData parent) : base(datareader, sourceId, parent)
     {
         if (Size > 0)
         {
