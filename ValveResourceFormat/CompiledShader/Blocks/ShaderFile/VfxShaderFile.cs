@@ -1,3 +1,5 @@
+using System.IO;
+
 namespace ValveResourceFormat.CompiledShader;
 
 public abstract class VfxShaderFile : ShaderDataBlock
@@ -9,7 +11,7 @@ public abstract class VfxShaderFile : ShaderDataBlock
     public byte[] Bytecode { get; protected set; } = [];
     public Guid HashMD5 { get; protected set; }
 
-    protected VfxShaderFile(ShaderDataReader datareader, int sourceId, VfxStaticComboData parent) : base(datareader)
+    protected VfxShaderFile(BinaryReader datareader, int sourceId, VfxStaticComboData parent) : base(datareader)
     {
         ParentCombo = parent;
         SourceId = sourceId;

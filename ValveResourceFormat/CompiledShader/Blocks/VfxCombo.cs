@@ -1,3 +1,4 @@
+using System.IO;
 using System.Text;
 
 namespace ValveResourceFormat.CompiledShader;
@@ -20,14 +21,12 @@ public class VfxCombo : ShaderDataBlock
     public int FeatureIndex { get; }
     public List<string> CheckboxNames { get; } = [];
 
-    public VfxCombo(ShaderDataReader datareader, int blockIndex) : base(datareader)
+    public VfxCombo(BinaryReader datareader, int blockIndex) : base(datareader)
     {
         // CVfxCombo::Unserialize
         BlockIndex = blockIndex;
-        Name = datareader.ReadNullTermStringAtPosition();
-        datareader.BaseStream.Position += 64;
-        Category = datareader.ReadNullTermStringAtPosition();
-        datareader.BaseStream.Position += 64;
+        Name = ReadStringWithMaxLength(datareader, 64);
+        Category = ReadStringWithMaxLength(datareader, 64);
         Arg0 = datareader.ReadInt32();
         RangeMin = datareader.ReadInt32();
         RangeMax = datareader.ReadInt32();

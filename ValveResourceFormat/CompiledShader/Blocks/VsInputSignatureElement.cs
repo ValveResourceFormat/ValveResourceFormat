@@ -1,3 +1,4 @@
+using System.IO;
 using System.Text;
 
 namespace ValveResourceFormat.CompiledShader;
@@ -8,7 +9,7 @@ public class VsInputSignatureElement : ShaderDataBlock
     public int SymbolsCount { get; }
     public List<(string Name, string Type, string Option, int SemanticIndex)> SymbolsDefinition { get; } = [];
 
-    public VsInputSignatureElement(ShaderDataReader datareader, int blockIndex) : base(datareader)
+    public VsInputSignatureElement(BinaryReader datareader, int blockIndex) : base(datareader)
     {
         // VfxUnserializeVsInputSignature
         BlockIndex = blockIndex;

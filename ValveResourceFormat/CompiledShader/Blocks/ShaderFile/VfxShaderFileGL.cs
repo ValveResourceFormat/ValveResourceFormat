@@ -1,3 +1,5 @@
+using System.IO;
+
 namespace ValveResourceFormat.CompiledShader;
 
 public class VfxShaderFileGL : VfxShaderFile
@@ -8,14 +10,14 @@ public class VfxShaderFileGL : VfxShaderFile
     // offset2 can also be interpreted as the source-size
     public int BytecodeSize { get; } = -1;
 
-    public VfxShaderFileGL(ShaderDataReader datareader, int sourceId, VfxStaticComboData parent) : base(datareader, sourceId, parent)
+    public VfxShaderFileGL(BinaryReader datareader, int sourceId, VfxStaticComboData parent) : base(datareader, sourceId, parent)
     {
         if (Size > 0)
         {
-            Arg0 = DataReader.ReadInt32();
-            BytecodeSize = DataReader.ReadInt32();
-            Bytecode = DataReader.ReadBytes(BytecodeSize - 1); // -1 because the sourcebytes are null-term
-            DataReader.BaseStream.Position += 1;
+            Arg0 = datareader.ReadInt32();
+            BytecodeSize = datareader.ReadInt32();
+            Bytecode = datareader.ReadBytes(BytecodeSize - 1); // -1 because the sourcebytes are null-term
+            datareader.BaseStream.Position += 1;
         }
 
         HashMD5 = new Guid(datareader.ReadBytes(16));

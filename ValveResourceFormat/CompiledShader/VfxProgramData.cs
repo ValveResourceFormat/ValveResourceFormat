@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using static ValveResourceFormat.CompiledShader.ShaderDataReader;
+using System.Text;
 using static ValveResourceFormat.CompiledShader.ShaderUtilHelpers;
 
 #nullable disable
@@ -12,7 +12,7 @@ namespace ValveResourceFormat.CompiledShader
     {
         public const int MAGIC = 0x32736376; // "vcs2"
 
-        public ShaderDataReader DataReader { get; set; }
+        public BinaryReader DataReader { get; set; }
         private Stream BaseStream;
 
         public string FilenamePath { get; private set; }
@@ -84,7 +84,16 @@ namespace ValveResourceFormat.CompiledShader
         public void Read(string filenamepath)
         {
             var stream = new FileStream(filenamepath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-            Read(filenamepath, stream);
+
+            try
+            {
+                Read(filenamepath, stream);
+                stream = null;
+            }
+            finally
+            {
+                stream?.Dispose();
+            }
         }
 
         /// <summary>
@@ -95,13 +104,13 @@ namespace ValveResourceFormat.CompiledShader
         public void Read(string filenamepath, Stream input)
         {
             BaseStream = input;
-            DataReader = new ShaderDataReader(input);
+            DataReader = new BinaryReader(input, Encoding.UTF8, leaveOpen: true);
             FilenamePath = filenamepath;
             VfxCreateFromVcs();
             ZFrameCache = new StaticCache(this);
         }
 
-        public void PrintSummary(HandleOutputWrite OutputWriter = null)
+        public void PrintSummary(PrintVcsFileSummary.HandleOutputWrite OutputWriter = null)
         {
             var fileSummary = new PrintVcsFileSummary(this, OutputWriter);
         }

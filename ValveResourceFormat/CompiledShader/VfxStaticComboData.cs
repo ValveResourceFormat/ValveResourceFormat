@@ -27,7 +27,7 @@ namespace ValveResourceFormat.CompiledShader
         {
             ParentProgramData = programData;
             ZframeId = zframeId;
-            var dataReader = new ShaderDataReader(stream);
+            using var dataReader = new BinaryReader(stream, Encoding.UTF8, leaveOpen: true);
 
             LeadingData = new VfxVariableIndexArray(dataReader, -1, ParentProgramData.VcsProgramType != VcsProgramType.Features);
             int attributeCount = dataReader.ReadInt16();
@@ -140,7 +140,7 @@ namespace ValveResourceFormat.CompiledShader
             }
         }
 
-        private void ReadGlslSources(ShaderDataReader dataReader)
+        private void ReadGlslSources(BinaryReader dataReader)
         {
             for (var sourceId = 0; sourceId < GpuSourceCount; sourceId++)
             {
@@ -148,7 +148,7 @@ namespace ValveResourceFormat.CompiledShader
                 GpuSources.Add(glslSource);
             }
         }
-        private void ReadDxilSources(ShaderDataReader dataReader)
+        private void ReadDxilSources(BinaryReader dataReader)
         {
             for (var sourceId = 0; sourceId < GpuSourceCount; sourceId++)
             {
@@ -156,7 +156,7 @@ namespace ValveResourceFormat.CompiledShader
                 GpuSources.Add(dxilSource);
             }
         }
-        private void ReadDxbcSources(ShaderDataReader dataReader)
+        private void ReadDxbcSources(BinaryReader dataReader)
         {
             for (var sourceId = 0; sourceId < GpuSourceCount; sourceId++)
             {
@@ -164,7 +164,7 @@ namespace ValveResourceFormat.CompiledShader
                 GpuSources.Add(dxbcSource);
             }
         }
-        private void ReadVulkanSources(ShaderDataReader dataReader)
+        private void ReadVulkanSources(BinaryReader dataReader)
         {
             var isMobile = ParentProgramData.VcsPlatformType is VcsPlatformType.ANDROID_VULKAN or VcsPlatformType.IOS_VULKAN;
 

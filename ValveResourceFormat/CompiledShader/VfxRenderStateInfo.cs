@@ -1,3 +1,5 @@
+using System.IO;
+
 #nullable disable
 
 namespace ValveResourceFormat.CompiledShader;
@@ -7,7 +9,7 @@ public class VfxRenderStateInfo
     public long BlockIdRef { get; }
     public int SourceRef { get; }
     public int SourcePointer { get; }
-    public VfxRenderStateInfo(ShaderDataReader datareader)
+    public VfxRenderStateInfo(BinaryReader datareader)
     {
         BlockIdRef = datareader.ReadInt64();
         SourceRef = datareader.ReadInt32();
@@ -19,7 +21,7 @@ public class VfxRenderStateInfoHullShader : VfxRenderStateInfo
 {
     public byte HullShaderArg { get; }
 
-    public VfxRenderStateInfoHullShader(ShaderDataReader datareader) : base(datareader)
+    public VfxRenderStateInfoHullShader(BinaryReader datareader) : base(datareader)
     {
         HullShaderArg = datareader.ReadByte();
     }
@@ -52,7 +54,7 @@ public class VfxRenderStateInfoPixelShader : VfxRenderStateInfo
         public float DepthBiasClamp { get; }
         public float SlopeScaledDepthBias { get; }
 
-        public RsRasterizerStateDesc(ShaderDataReader datareader)
+        public RsRasterizerStateDesc(BinaryReader datareader)
         {
             FillMode = (RsFillMode)datareader.ReadByte();
             CullMode = (RsCullMode)datareader.ReadByte();
@@ -126,7 +128,7 @@ public class VfxRenderStateInfoPixelShader : VfxRenderStateInfo
         public RsHiStencilComparison360 HiStencilFunc360 { get; }
         public byte HiStencilRef360 { get; }
 
-        public RsDepthStencilStateDesc(ShaderDataReader datareader)
+        public RsDepthStencilStateDesc(BinaryReader datareader)
         {
             DepthTestEnable = datareader.ReadBoolean();
             DepthWriteEnable = datareader.ReadBoolean();
@@ -213,7 +215,7 @@ public class VfxRenderStateInfoPixelShader : VfxRenderStateInfo
         public RsColorWriteEnableBits[] RenderTargetWriteMask { get; } = new RsColorWriteEnableBits[MaxRenderTargets];
         public bool[] SrgbWriteEnable { get; } = new bool[MaxRenderTargets];
 
-        public RsBlendStateDesc(ShaderDataReader datareader)
+        public RsBlendStateDesc(BinaryReader datareader)
         {
             AlphaToCoverageEnable = datareader.ReadBoolean();
             IndependentBlendEnable = datareader.ReadBoolean();
@@ -270,7 +272,7 @@ public class VfxRenderStateInfoPixelShader : VfxRenderStateInfo
     public RsDepthStencilStateDesc DepthStencilStateDesc { get; }
     public RsBlendStateDesc BlendStateDesc { get; }
 
-    public VfxRenderStateInfoPixelShader(ShaderDataReader datareader) : base(datareader)
+    public VfxRenderStateInfoPixelShader(BinaryReader datareader) : base(datareader)
     {
         var hasRasterizerState = !datareader.ReadBoolean();
         var hasDepthStencilState = !datareader.ReadBoolean();

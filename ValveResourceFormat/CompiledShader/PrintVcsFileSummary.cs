@@ -1,7 +1,6 @@
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using static ValveResourceFormat.CompiledShader.ShaderDataReader;
 using static ValveResourceFormat.CompiledShader.ShaderUtilHelpers;
 
 #nullable disable
@@ -10,6 +9,7 @@ namespace ValveResourceFormat.CompiledShader
 {
     public class PrintVcsFileSummary
     {
+        public delegate void HandleOutputWrite(string s);
         private readonly OutputFormatterTabulatedData output;
 
         public PrintVcsFileSummary(VfxProgramData shaderFile, HandleOutputWrite OutputWriter = null)

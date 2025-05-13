@@ -1,3 +1,4 @@
+using System.IO;
 using System.Text;
 using ValveResourceFormat.ThirdParty;
 using static ValveResourceFormat.CompiledShader.ShaderUtilHelpers;
@@ -18,7 +19,7 @@ public class VfxShaderAttribute
     public string DynExpEvaluated { get; }
     public object ConstValue { get; }
 
-    public VfxShaderAttribute(ShaderDataReader datareader)
+    public VfxShaderAttribute(BinaryReader datareader)
     {
         Name0 = datareader.ReadNullTermString(Encoding.UTF8);
         Murmur32 = datareader.ReadUInt32();

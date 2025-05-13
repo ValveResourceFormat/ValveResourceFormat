@@ -1,14 +1,29 @@
 
+using System.IO;
+using System.Text;
+
 namespace ValveResourceFormat.CompiledShader;
 
 public abstract class ShaderDataBlock
 {
-    public ShaderDataReader DataReader { get; }
     protected long Start { get; }
 
-    protected ShaderDataBlock(ShaderDataReader datareader)
+    protected ShaderDataBlock(BinaryReader datareader)
     {
         Start = datareader.BaseStream.Position;
-        DataReader = datareader;
+    }
+
+    public static string ReadStringWithMaxLength(BinaryReader datareader, int length)
+    {
+        var str = datareader.ReadNullTermString(Encoding.UTF8);
+        var remainder = length - str.Length - 1;
+
+        if (remainder < 0)
+        {
+            throw new InvalidDataException("Read string was longer than expected");
+        }
+
+        datareader.BaseStream.Position += remainder;
+        return str;
     }
 }

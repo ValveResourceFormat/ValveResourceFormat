@@ -1,3 +1,4 @@
+using System.IO;
 using System.Runtime.InteropServices;
 
 namespace ValveResourceFormat.CompiledShader;
@@ -13,9 +14,11 @@ public class VfxVariableIndexArray : ShaderDataBlock
     public IReadOnlyList<VfxVariableIndexData> Evaluated => Fields[..Offset1];
     public IReadOnlyList<VfxVariableIndexData> Segment1 => Fields[Offset1..Offset2];
     public IReadOnlyList<VfxVariableIndexData> Globals => Fields[Offset2..];
+
+    // TODO: remove this
     public ReadOnlySpan<byte> Dataload => MemoryMarshal.AsBytes<VfxVariableIndexData>(Fields);
 
-    public VfxVariableIndexArray(ShaderDataReader datareader, int blockId, bool readDest) : base(datareader)
+    public VfxVariableIndexArray(BinaryReader datareader, int blockId, bool readDest) : base(datareader)
     {
         BlockId = blockId;
         FieldsCount = datareader.ReadInt32();

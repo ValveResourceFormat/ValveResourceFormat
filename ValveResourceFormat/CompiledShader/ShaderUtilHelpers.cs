@@ -1,6 +1,5 @@
 using System.IO;
 using ValveResourceFormat.Serialization.VfxEval;
-using static ValveResourceFormat.CompiledShader.ShaderDataReader;
 
 #nullable disable
 
@@ -312,9 +311,9 @@ namespace ValveResourceFormat.CompiledShader
 
         public class OutputFormatterTabulatedData
         {
-            public HandleOutputWrite OutputWriter { get; set; }
+            public PrintVcsFileSummary.HandleOutputWrite OutputWriter { get; set; }
 
-            public OutputFormatterTabulatedData(HandleOutputWrite OutputWriter = null)
+            public OutputFormatterTabulatedData(PrintVcsFileSummary.HandleOutputWrite OutputWriter = null)
             {
                 this.OutputWriter = OutputWriter ?? (static (x) => { Console.Write(x); });
             }

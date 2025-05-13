@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.IO;
 
 namespace ValveResourceFormat.CompiledShader;
 
@@ -46,7 +47,7 @@ public class VfxShaderFileVulkan : VfxShaderFile
     public byte Unknown33 { get; }
     public byte[] Unknown34 { get; }
 
-    public VfxShaderFileVulkan(ShaderDataReader datareader, int sourceId, VfxStaticComboData parent, bool isMobile) : base(datareader, sourceId, parent)
+    public VfxShaderFileVulkan(BinaryReader datareader, int sourceId, VfxStaticComboData parent, bool isMobile) : base(datareader, sourceId, parent)
     {
         // CVfxShaderFile::Unserialize
         if (Size > 0)

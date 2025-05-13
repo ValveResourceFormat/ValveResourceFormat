@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.IO;
 
 namespace ValveResourceFormat.CompiledShader;
 
@@ -39,18 +40,15 @@ public class VfxVariableDescription : ShaderDataBlock
     public bool Field4 { get; }
     public int Field5 { get; }
 
-    public VfxVariableDescription(ShaderDataReader datareader, int blockIndex, int vcsVersion) : base(datareader)
+    public VfxVariableDescription(BinaryReader datareader, int blockIndex, int vcsVersion) : base(datareader)
     {
         // CVfxVariableDescription::Unserialize
         BlockIndex = blockIndex;
-        Name = datareader.ReadNullTermStringAtPosition();
-        datareader.BaseStream.Position += 64;
-        UiGroup = UiGroup.FromCompactString(datareader.ReadNullTermStringAtPosition());
-        datareader.BaseStream.Position += 64;
+        Name = ReadStringWithMaxLength(datareader, 64);
+        UiGroup = UiGroup.FromCompactString(ReadStringWithMaxLength(datareader, 64));
         UiType = (UiType)datareader.ReadInt32();
         Res0 = datareader.ReadSingle();
-        StringData = datareader.ReadNullTermStringAtPosition();
-        datareader.BaseStream.Position += 64;
+        StringData = ReadStringWithMaxLength(datareader, 64);
         Lead0 = (LeadFlags)datareader.ReadInt32();
 
         if (HasDynamicExpression)
@@ -81,8 +79,7 @@ public class VfxVariableDescription : ShaderDataBlock
         VecSize = datareader.ReadInt32();
         Id = datareader.ReadInt32();
 
-        FileRef = datareader.ReadNullTermStringAtPosition();
-        datareader.BaseStream.Position += 64;
+        FileRef = ReadStringWithMaxLength(datareader, 64);
 
         for (var i = 0; i < 4; i++)
         {
@@ -121,10 +118,8 @@ public class VfxVariableDescription : ShaderDataBlock
         ColorMode = datareader.ReadInt32();
         Field2 = datareader.ReadInt32();
 
-        ImageSuffix = datareader.ReadNullTermStringAtPosition();
-        datareader.BaseStream.Position += 32;
-        ImageProcessor = datareader.ReadNullTermStringAtPosition();
-        datareader.BaseStream.Position += 32;
+        ImageSuffix = ReadStringWithMaxLength(datareader, 32);
+        ImageProcessor = ReadStringWithMaxLength(datareader, 32);
 
         if (vcsVersion >= 65)
         {

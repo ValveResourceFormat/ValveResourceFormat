@@ -1,6 +1,4 @@
 using System.IO;
-using System.Linq;
-using static ValveResourceFormat.CompiledShader.ShaderDataReader;
 using static ValveResourceFormat.CompiledShader.ShaderUtilHelpers;
 
 #nullable disable
@@ -9,12 +7,12 @@ namespace ValveResourceFormat.CompiledShader
 {
     public class PrintZFrameSummary
     {
-        public HandleOutputWrite OutputWriter { get; set; }
+        public PrintVcsFileSummary.HandleOutputWrite OutputWriter { get; set; }
         private readonly VfxStaticComboData zframeFile;
 
         // If OutputWriter is left as null; output will be written to Console.
         // Otherwise output is directed to the passed HandleOutputWrite object (defined by the calling application, for example GUI element or file)
-        public PrintZFrameSummary(VfxStaticComboData zframeFile, HandleOutputWrite outputWriter = null)
+        public PrintZFrameSummary(VfxStaticComboData zframeFile, PrintVcsFileSummary.HandleOutputWrite outputWriter = null)
         {
             this.zframeFile = zframeFile;
             OutputWriter = outputWriter ?? (static (x) => { Console.Write(x); });

@@ -1,3 +1,5 @@
+using System.IO;
+
 namespace ValveResourceFormat.CompiledShader;
 
 /*
@@ -7,7 +9,7 @@ public class VfxShaderFileDXBC : VfxShaderFile
 {
     public override string BlockName => "DXBC";
 
-    public VfxShaderFileDXBC(ShaderDataReader datareader, int sourceId, VfxStaticComboData parent) : base(datareader, sourceId, parent)
+    public VfxShaderFileDXBC(BinaryReader datareader, int sourceId, VfxStaticComboData parent) : base(datareader, sourceId, parent)
     {
         if (Size > 0)
         {

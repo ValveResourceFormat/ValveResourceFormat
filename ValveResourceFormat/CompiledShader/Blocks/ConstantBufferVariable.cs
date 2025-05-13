@@ -1,3 +1,5 @@
+using System.IO;
+
 namespace ValveResourceFormat.CompiledShader;
 
 public class ConstantBufferVariable : ShaderDataBlock
@@ -10,20 +12,18 @@ public class ConstantBufferVariable : ShaderDataBlock
     public List<(string Name, int Offset, int VectorSize, int Depth, int Length)> BufferParams { get; } = [];
     public uint BlockCrc { get; }
 
-    public ConstantBufferVariable(ShaderDataReader datareader, int blockIndex) : base(datareader)
+    public ConstantBufferVariable(BinaryReader datareader, int blockIndex) : base(datareader)
     {
         // VfxUnserializeExternalConstantBufferDescription
         BlockIndex = blockIndex;
-        Name = datareader.ReadNullTermStringAtPosition();
-        datareader.BaseStream.Position += 64;
+        Name = ReadStringWithMaxLength(datareader, 64);
 
         BufferSize = datareader.ReadInt32();
         Arg0 = datareader.ReadInt32();
         ParamCount = datareader.ReadInt32();
         for (var i = 0; i < ParamCount; i++)
         {
-            var paramName = datareader.ReadNullTermStringAtPosition();
-            datareader.BaseStream.Position += 64;
+            var paramName = ReadStringWithMaxLength(datareader, 64);
             var bufferIndex = datareader.ReadInt32();
             var arg0 = datareader.ReadInt32();
             var arg1 = datareader.ReadInt32();

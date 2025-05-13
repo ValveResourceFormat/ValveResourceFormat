@@ -1,3 +1,5 @@
+using System.IO;
+
 namespace ValveResourceFormat.CompiledShader;
 
 public class VfxShaderFileDXIL : VfxShaderFile
@@ -7,7 +9,7 @@ public class VfxShaderFileDXIL : VfxShaderFile
     public int Arg1 { get; } // always 0xFFFF or 0xFFFE
     public int HeaderBytes { get; }
 
-    public VfxShaderFileDXIL(ShaderDataReader datareader, int sourceId, VfxStaticComboData parent) : base(datareader, sourceId, parent)
+    public VfxShaderFileDXIL(BinaryReader datareader, int sourceId, VfxStaticComboData parent) : base(datareader, sourceId, parent)
     {
         if (Size > 0)
         {

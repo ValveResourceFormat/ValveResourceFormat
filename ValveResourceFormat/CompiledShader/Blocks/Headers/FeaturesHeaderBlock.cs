@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.IO;
 using System.Text;
 
 namespace ValveResourceFormat.CompiledShader;
@@ -11,7 +12,7 @@ public class FeaturesHeaderBlock : ShaderDataBlock
     public bool[] AvailablePrograms { get; }
     public List<(string Name, string Shader, string StaticConfig, int Value)> Modes { get; } = [];
 
-    public FeaturesHeaderBlock(ShaderDataReader datareader, int programTypesCount) : base(datareader)
+    public FeaturesHeaderBlock(BinaryReader datareader, int programTypesCount) : base(datareader)
     {
         Version = datareader.ReadInt32(); // this is probably not a version
 
@@ -34,10 +35,8 @@ public class FeaturesHeaderBlock : ShaderDataBlock
         for (var i = 0; i < modeCount; i++)
         {
             // CVfxMode::Unserialize
-            var name = datareader.ReadNullTermStringAtPosition();
-            datareader.BaseStream.Position += 64;
-            var shader = datareader.ReadNullTermStringAtPosition();
-            datareader.BaseStream.Position += 64;
+            var name = ReadStringWithMaxLength(datareader, 64);
+            var shader = ReadStringWithMaxLength(datareader, 64);
 
             var modeSettingsCount = datareader.ReadInt32();
 
@@ -50,8 +49,7 @@ public class FeaturesHeaderBlock : ShaderDataBlock
                 for (var j = 0; j < modeSettingsCount; j++)
                 {
                     // CVfxModeSettings::Unserialize
-                    static_config = datareader.ReadNullTermStringAtPosition();
-                    datareader.BaseStream.Position += 64;
+                    static_config = ReadStringWithMaxLength(datareader, 64);
                     value = datareader.ReadInt32();
                 }
             }
