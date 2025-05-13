@@ -25,7 +25,7 @@ public class VfxRule : ShaderDataBlock
         Values = ReadIntRange(datareader);
         Range2 = ReadIntRange(datareader);
 
-        Description = ReadStringWithMaxLength(datareader, 64);
+        Description = ReadStringWithMaxLength(datareader, 256);
     }
 
     private static int[] ReadIntRange(BinaryReader datareader)
