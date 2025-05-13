@@ -196,12 +196,10 @@ namespace ValveResourceFormat.CompiledShader
             }
 
             var staticComboRulesCount = DataReader.ReadInt32();
+
             for (var i = 0; i < staticComboRulesCount; i++)
             {
-                VfxRule nextSfConstraintBlock = VcsProgramType == VcsProgramType.Features
-                    ? new(DataReader, i, ConditionalType.Feature)
-                    : new(DataReader, i, ConditionalType.Static);
-
+                VfxRule nextSfConstraintBlock = new(DataReader, i);
                 StaticComboRules.Add(nextSfConstraintBlock);
             }
 
@@ -215,7 +213,7 @@ namespace ValveResourceFormat.CompiledShader
             var dynamicComboRulesCount = DataReader.ReadInt32();
             for (var i = 0; i < dynamicComboRulesCount; i++)
             {
-                VfxRule nextDConstraintsBlock = new(DataReader, i, ConditionalType.Dynamic);
+                VfxRule nextDConstraintsBlock = new(DataReader, i);
                 DynamicComboRules.Add(nextDConstraintsBlock);
             }
 

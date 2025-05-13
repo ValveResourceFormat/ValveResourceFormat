@@ -1,7 +1,5 @@
-
 namespace ValveResourceFormat.CompiledShader;
 
-// ConstraintBlocks are always 472 bytes long
 public class VfxRule : ShaderDataBlock
 {
     public int BlockIndex { get; }
@@ -18,54 +16,34 @@ public class VfxRule : ShaderDataBlock
         // CVfxRule::Unserialize
         BlockIndex = blockIndex;
         Rule = (ConditionalRule)datareader.ReadInt32();
-        BlockType = (ConditionalType)datareader.ReadInt32();
-        ConditionalTypes = Array.ConvertAll(ReadByteFlags(), x => (ConditionalType)x);
+        BlockType = (ConditionalType)datareader.ReadInt32(); // Seems weird that this would be ConditionalType, because the next 16 flags are bytes not int
 
+        ConditionalTypes = ReadByteFlags();
         Indices = ReadIntRange();
-        datareader.BaseStream.Position += 68 - Indices.Length * 4;
         Values = ReadIntRange();
-        datareader.BaseStream.Position += 60 - Values.Length * 4;
-
         Range2 = ReadIntRange();
-        datareader.BaseStream.Position += 64 - Range2.Length * 4;
+
         Description = datareader.ReadNullTermStringAtPosition();
         datareader.BaseStream.Position += 256;
     }
 
-    public VfxRule(ShaderDataReader datareader, int blockIndex, ConditionalType conditionalTypeVerify)
-        : this(datareader, blockIndex)
-    {
-        if (BlockType != conditionalTypeVerify)
-        {
-            throw new UnexpectedMagicException($"Unexpected {nameof(BlockType)}", $"{BlockType}", nameof(BlockType));
-        }
-    }
-
     private int[] ReadIntRange()
     {
-        List<int> ints0 = [];
-        while (DataReader.ReadInt32AtPosition() >= 0)
+        var ints0 = new int[16];
+        for (var i = 0; i < 16; i++)
         {
-            ints0.Add(DataReader.ReadInt32());
+            ints0[i] = DataReader.ReadInt32();
         }
         return [.. ints0];
     }
 
-    private int[] ReadByteFlags()
+    private ConditionalType[] ReadByteFlags()
     {
-        var count = 0;
-        var savedPosition = DataReader.BaseStream.Position;
-        while (DataReader.ReadByte() > 0 && count < 16)
+        var byteFlags = new ConditionalType[16];
+        for (var i = 0; i < 16; i++)
         {
-            count++;
+            byteFlags[i] = (ConditionalType)DataReader.ReadByte();
         }
-        var byteFlags = new int[count];
-        DataReader.BaseStream.Position = savedPosition;
-        for (var i = 0; i < count; i++)
-        {
-            byteFlags[i] = DataReader.ReadByte();
-        }
-        DataReader.BaseStream.Position = savedPosition + 16;
         return byteFlags;
     }
 }

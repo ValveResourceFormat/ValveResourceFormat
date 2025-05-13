@@ -15,15 +15,6 @@ namespace ValveResourceFormat.CompiledShader
             //
         }
 
-        public int ReadInt32AtPosition(long ind = 0)
-        {
-            var savedPosition = BaseStream.Position;
-            BaseStream.Position += ind;
-            var int0 = ReadInt32();
-            BaseStream.Position = savedPosition;
-            return int0;
-        }
-
         public string ReadNullTermStringAtPosition()
         {
             var savedPosition = BaseStream.Position;

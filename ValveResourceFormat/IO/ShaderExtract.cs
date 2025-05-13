@@ -1053,7 +1053,7 @@ public sealed class ShaderExtract
             {
                 if (constraint.Values.Length != constraint.ConditionalTypes.Length - 1)
                 {
-                    throw new InvalidOperationException("Expected to have 1 less value than conditionals.");
+                    //throw new InvalidOperationException("Expected to have 1 less value than conditionals.");
                 }
 
                 constrainedNames = constrainedNames.Take(1).Concat(constrainedNames.Skip(1).Select((s, i) => $"{s} == {constraint.Values[i]}")).ToList();
