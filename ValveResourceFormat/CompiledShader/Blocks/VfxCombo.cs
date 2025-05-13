@@ -45,7 +45,7 @@ public class VfxCombo : ShaderDataBlock
             CheckboxNames.Add(datareader.ReadNullTermString(Encoding.UTF8));
         }
 
-        if (Arg3 == 11)
+        if (Arg3 == 10 || Arg3 == 11)
         {
             var foliage = datareader.ReadInt32();
             if (foliage != 0)
