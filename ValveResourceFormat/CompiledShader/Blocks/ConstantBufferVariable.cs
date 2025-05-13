@@ -16,8 +16,8 @@ public class ConstantBufferVariable : ShaderDataBlock
         BlockIndex = blockIndex;
         Name = datareader.ReadNullTermStringAtPosition();
         datareader.BaseStream.Position += 64;
+
         BufferSize = datareader.ReadInt32();
-        // datareader.MoveOffset(4); // these 4 bytes are always 0
         Arg0 = datareader.ReadInt32();
         ParamCount = datareader.ReadInt32();
         for (var i = 0; i < ParamCount; i++)

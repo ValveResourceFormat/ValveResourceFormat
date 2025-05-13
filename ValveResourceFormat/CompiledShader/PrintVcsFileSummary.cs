@@ -170,7 +170,7 @@ namespace ValveResourceFormat.CompiledShader
                 var sfNames = new string[sfRuleBlock.Indices.Length];
                 for (var i = 0; i < sfNames.Length; i++)
                 {
-                    sfNames[i] = shaderFile.StaticCombos[sfRuleBlock.Indices[i]].Name;
+                    sfNames[i] = sfRuleBlock.Indices[i] > -1 ? shaderFile.StaticCombos[sfRuleBlock.Indices[i]].Name : string.Empty;
                 }
                 const int BL = 70;
                 var breakNames = CombineValuesBreakString(sfNames, BL);
@@ -239,6 +239,7 @@ namespace ValveResourceFormat.CompiledShader
                 {
                     dRuleName[i] = dRuleBlock.ConditionalTypes[i] switch
                     {
+                        ConditionalType.None => string.Empty,
                         ConditionalType.Dynamic => shaderFile.DynamicCombos[dRuleBlock.Indices[i]].Name,
                         ConditionalType.Static => shaderFile.StaticCombos[dRuleBlock.Indices[i]].Name,
                         ConditionalType.Feature => throw new InvalidOperationException("Dynamic combos can't be constrained by features!"),
@@ -459,7 +460,8 @@ namespace ValveResourceFormat.CompiledShader
             foreach (var bufferBlock in shaderFile.ExtConstantBufferDescriptions)
             {
                 output.WriteLine($"BUFFER-BLOCK[{bufferBlock.BlockIndex}]");
-                output.WriteLine($"{bufferBlock.Name} size={bufferBlock.BufferSize} param-count={bufferBlock.ParamCount}" +
+                // valve splits bufferBlock.BufferSize into 0x7FFF and checks whether its negative
+                output.WriteLine($"{bufferBlock.Name} size={bufferBlock.BufferSize} ({bufferBlock.BufferSize & 0x7FFF}) param-count={bufferBlock.ParamCount}" +
                     $" arg0={bufferBlock.Arg0} crc32={bufferBlock.BlockCrc:x08}");
                 output.DefineHeaders(["       ", "name", "offset", "vertex-size", "attrib-count", "data-count"]);
                 foreach (var bufferParams in bufferBlock.BufferParams)
