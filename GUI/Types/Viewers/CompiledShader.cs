@@ -36,6 +36,7 @@ namespace GUI.Types.Viewers
                 FullRowSelect = true,
                 HideSelection = false,
                 ShowRootLines = false,
+                ShowNodeToolTips = true,
                 Dock = DockStyle.Fill,
                 ImageList = MainForm.ImageList,
             };
@@ -74,6 +75,9 @@ namespace GUI.Types.Viewers
             };
             fileListView.Nodes.Add(collectionNode);
 
+            List<string> sfNamesAbbrev = [];
+            List<string> sfNames = [];
+
             foreach (var program in shaderCollection.OrderBy(static x => x.VcsProgramType))
             {
                 var truncatedProgramName = program.FilenamePath.AsSpan();
@@ -93,10 +97,40 @@ namespace GUI.Types.Viewers
 
                 if (program.ZframesLookup.Count > 0)
                 {
+                    var configGen = new ConfigMappingSParams(program);
+
                     foreach (var zframe in program.ZframesLookup)
                     {
-                        var comboNode = new TreeNode($"{zframe.Key:x08}")
+                        var config = configGen.GetConfigState(zframe.Key);
+
+                        sfNames.Clear();
+                        sfNamesAbbrev.Clear();
+
+                        for (var i = 0; i < program.StaticCombos.Count; i++)
                         {
+                            if (config[i] == 0)
+                            {
+                                continue;
+                            }
+
+                            var sfBlock = program.StaticCombos[i];
+                            var sfShortName = ShortenShaderParam(sfBlock.Name).ToLowerInvariant();
+
+                            if (config[i] > 1)
+                            {
+                                sfNames.Add($"{sfBlock.Name}={config[i]}");
+                                sfNamesAbbrev.Add($"{sfShortName}={config[i]}");
+                            }
+                            else
+                            {
+                                sfNames.Add(sfBlock.Name);
+                                sfNamesAbbrev.Add(sfShortName);
+                            }
+                        }
+
+                        var comboNode = new TreeNode($"{zframe.Key:x08}{(sfNamesAbbrev.Count > 0 ? $" ({string.Join(", ", sfNamesAbbrev)})" : string.Empty)}")
+                        {
+                            ToolTipText = string.Join(Environment.NewLine, sfNames),
                             Tag = zframe.Value,
                             ImageIndex = comboImage,
                             SelectedImageIndex = comboImage,
@@ -239,10 +273,48 @@ namespace GUI.Types.Viewers
 
                 var sourceFileImage = MainForm.GetImageIndexForExtension("ini");
 
+                List<string> dfNamesAbbrev = [];
+                List<string> dfNames = [];
+                var sourceIdToRenderStateInfo = new Dictionary<int, VfxRenderStateInfo>(combo.GpuSources.Count);
+
+                // We are only taking the first render state info currently
+                foreach (var renderStateInfo in combo.RenderStateInfos)
+                {
+                    sourceIdToRenderStateInfo.TryAdd(renderStateInfo.SourceRef, renderStateInfo);
+                }
+
                 foreach (var source in combo.GpuSources)
                 {
-                    var node = new TreeNode($"{source.SourceId:X2}")
+                    var config = combo.ParentProgramData.GetDBlockConfig(sourceIdToRenderStateInfo[source.SourceId].BlockIdRef);
+
+                    dfNames.Clear();
+                    dfNamesAbbrev.Clear();
+
+                    for (var i = 0; i < combo.ParentProgramData.DynamicCombos.Count; i++)
                     {
+                        if (config[i] == 0)
+                        {
+                            continue;
+                        }
+
+                        var dfBlock = combo.ParentProgramData.DynamicCombos[i];
+                        var dfShortName = ShortenShaderParam(dfBlock.Name).ToLowerInvariant();
+
+                        if (config[i] > 1)
+                        {
+                            dfNames.Add($"{dfBlock.Name}={config[i]}");
+                            dfNamesAbbrev.Add($"{dfShortName}={config[i]}");
+                        }
+                        else
+                        {
+                            dfNames.Add(dfBlock.Name);
+                            dfNamesAbbrev.Add(dfShortName);
+                        }
+                    }
+
+                    var node = new TreeNode($"{source.SourceId:X2}{(dfNamesAbbrev.Count > 0 ? $" ({string.Join(", ", dfNamesAbbrev)})" : string.Empty)}")
+                    {
+                        ToolTipText = string.Join(Environment.NewLine, dfNames),
                         Tag = source,
                         ImageIndex = sourceFileImage,
                         SelectedImageIndex = sourceFileImage,
