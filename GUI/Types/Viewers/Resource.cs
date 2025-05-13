@@ -401,7 +401,11 @@ namespace GUI.Types.Viewers
 
                 try
                 {
-                    var tabPage = viewer.Create(shaderBlock.Shaders, Path.GetFileName(resource.FileName), ValveResourceFormat.CompiledShader.VcsProgramType.Features);
+                    var tabPage = viewer.Create(
+                        shaderBlock.Shaders,
+                        Path.GetFileNameWithoutExtension(resource.FileName.AsSpan()),
+                        ValveResourceFormat.CompiledShader.VcsProgramType.Features
+                    );
 
                     foreach (Control control in tabPage.Controls)
                     {

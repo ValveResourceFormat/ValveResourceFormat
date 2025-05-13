@@ -47,7 +47,7 @@ namespace GUI.Types.Viewers
 
         public TabPage Create(VrfGuiContext vrfGuiContext, Stream stream)
         {
-            stream.Dispose(); // Creating shader collection doesn't actually use the provided stream which is kind of a waste
+            stream?.Dispose(); // Creating shader collection doesn't actually use the provided stream which is kind of a waste
 
             var filename = Path.GetFileName(vrfGuiContext.FileName);
             var leadProgramType = ComputeVCSFileName(filename).ProgramType;
@@ -145,8 +145,6 @@ namespace GUI.Types.Viewers
                     // vcsEntry.FileName is in the form bloom_dota_pcgl_30_ps (without vcs extension)
                     if (vcsEntry.FileName.AsSpan().StartsWith(vcsCollectionName, StringComparison.InvariantCulture))
                     {
-                        var programType = ComputeVCSFileName($"{vcsEntry.FileName}.vcs").ProgramType;
-
                         vrfPackage.ReadEntry(vcsEntry, out var shaderDatabytes);
 
                         var relatedShaderFile = new VfxProgramData();
@@ -171,18 +169,21 @@ namespace GUI.Types.Viewers
                 {
                     if (Path.GetFileName(vcsFile.AsSpan()).StartsWith(vcsCollectionName, StringComparison.InvariantCulture))
                     {
-                        var programType = ComputeVCSFileName(vcsFile).ProgramType;
-                        var relatedShaderFile = new VfxProgramData();
+                        var program = new VfxProgramData();
+                        Stream stream = null;
 
                         try
                         {
-                            relatedShaderFile.Read(vcsFile);
-                            shaderCollection.Add(relatedShaderFile);
-                            relatedShaderFile = null;
+                            stream = new FileStream(vcsFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                            program.Read(Path.GetFileName(vcsFile), stream);
+                            shaderCollection.Add(program);
+                            program = null;
+                            stream = null;
                         }
                         finally
                         {
-                            relatedShaderFile?.Dispose();
+                            stream?.Dispose();
+                            program?.Dispose();
                         }
                     }
                 }
@@ -331,18 +332,6 @@ namespace GUI.Types.Viewers
                 case VfxShaderFileDXBC:
                 case VfxShaderFileDXIL:
                     {
-                        /*
-                        var sourceBv = new System.ComponentModel.Design.ByteViewer
-                        {
-                            Dock = DockStyle.Fill,
-                        };
-
-                        Program.MainForm.Invoke((MethodInvoker)(() =>
-                        {
-                            sourceBv.SetBytes(shaderFile.Bytecode);
-                        }));
-                        return sourceBv;
-                        */
                         return (null, shaderFile.Bytecode);
                     }
 
@@ -358,7 +347,6 @@ namespace GUI.Types.Viewers
             }
         }
 
-        // TODO: pass in shader directly
         private static string AttemptSpirvReflection(VfxShaderFileVulkan vulkanSource, Backend backend, bool lastRetry = false)
         {
             SpirvCrossApi.spvc_context_create(out var context).CheckResult();
