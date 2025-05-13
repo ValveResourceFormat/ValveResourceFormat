@@ -325,8 +325,8 @@ public sealed class ShaderExtract
             }
         }
 
-        ConfigMappingSParams staticConfig = new(Vertex);
-        ConfigMappingDParams dynamicConfig = new(Vertex);
+        ConfigMappingParams staticConfig = new(Vertex, isDynamic: false);
+        ConfigMappingParams dynamicConfig = new(Vertex, isDynamic: true);
 
         var perConditionVsInputBlocks = new Dictionary<(string Name, int State), HashSet<int>>(staticConfig.SumStates + dynamicConfig.SumStates);
 
@@ -608,7 +608,7 @@ public sealed class ShaderExtract
             return;
         }
 
-        ConfigMappingSParams staticConfig = new(shader);
+        ConfigMappingParams staticConfig = new(shader);
 
         // Attributes
         var attributesDisect = new Dictionary<int[], HashSet<string>>(2 ^ Math.Max(0, shader.StaticCombos.Count - 1), new ConfigKeyComparer());

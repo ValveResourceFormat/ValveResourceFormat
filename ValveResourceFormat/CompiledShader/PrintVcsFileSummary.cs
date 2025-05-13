@@ -545,7 +545,7 @@ namespace ValveResourceFormat.CompiledShader
             // print the config headers every 100 frames
             var zframeCount = 0;
             // prepare the lookup to determine configuration state
-            ConfigMappingSParams configGen = new(shaderFile);
+            ConfigMappingParams configGen = new(shaderFile);
             output.WriteLine(new string('-', zframesHeader.Length));
             // collect names in the order they appear
             List<string> sfNames = [];

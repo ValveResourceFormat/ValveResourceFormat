@@ -45,7 +45,7 @@ namespace ValveResourceFormat.CompiledShader
         // zframesLookup[zframeId]. Both methods are useful in different contexts (be aware not to mix them up).
         public SortedDictionary<long, VfxStaticComboVcsEntry> ZframesLookup { get; } = [];
         public StaticCache ZFrameCache { get; private set; }
-        private ConfigMappingDParams dBlockConfigGen;
+        private ConfigMappingParams dBlockConfigGen;
 
         /// <summary>
         /// Releases binary reader.
@@ -221,7 +221,7 @@ namespace ValveResourceFormat.CompiledShader
 
             // This is needed for the zframes to determine their source mapping
             // it must be instantiated after the D-blocks have been read
-            dBlockConfigGen = new ConfigMappingDParams(this);
+            dBlockConfigGen = new ConfigMappingParams(this, isDynamic: true);
 
             var variableDescriptionsCount = DataReader.ReadInt32();
             for (var i = 0; i < variableDescriptionsCount; i++)

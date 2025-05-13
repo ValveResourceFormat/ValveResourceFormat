@@ -97,7 +97,7 @@ namespace GUI.Types.Viewers
 
                 if (program.ZframesLookup.Count > 0)
                 {
-                    var configGen = new ConfigMappingSParams(program);
+                    var configGen = new ConfigMappingParams(program);
 
                     foreach (var zframe in program.ZframesLookup)
                     {

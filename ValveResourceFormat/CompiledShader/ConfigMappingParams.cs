@@ -1,7 +1,5 @@
 using static ValveResourceFormat.CompiledShader.ShaderUtilHelpers;
 
-#nullable disable
-
 namespace ValveResourceFormat.CompiledShader
 {
     /*
@@ -100,11 +98,16 @@ namespace ValveResourceFormat.CompiledShader
      *
      *
      */
-    public class ConfigMappingSParams
+    public class ConfigMappingParams
     {
-        public ConfigMappingSParams(VfxProgramData shaderfile)
+        public ConfigMappingParams(VfxProgramData program) : this(program, isDynamic: false)
         {
-            GenerateOffsetAndStateLookups(shaderfile);
+            //
+        }
+
+        public ConfigMappingParams(VfxProgramData program, bool isDynamic)
+        {
+            GenerateOffsetAndStateLookups(isDynamic ? program.DynamicCombos : program.StaticCombos);
         }
 
         /*
@@ -124,24 +127,22 @@ namespace ValveResourceFormat.CompiledShader
          * nr_states = [5    2]
          *
          */
-        private void GenerateOffsetAndStateLookups(VfxProgramData shaderFile)
+        private void GenerateOffsetAndStateLookups(List<VfxCombo> combos)
         {
-            if (shaderFile.StaticCombos.Count == 0)
+            if (combos.Count == 0)
             {
-                offsets = [];
-                nr_states = [];
                 return;
             }
 
-            offsets = new int[shaderFile.StaticCombos.Count];
-            nr_states = new int[shaderFile.StaticCombos.Count];
+            offsets = new int[combos.Count];
+            nr_states = new int[combos.Count];
 
             offsets[0] = 1;
-            nr_states[0] = shaderFile.StaticCombos[0].RangeMax + 1;
+            nr_states[0] = combos[0].RangeMax + 1;
 
-            for (var i = 1; i < shaderFile.StaticCombos.Count; i++)
+            for (var i = 1; i < combos.Count; i++)
             {
-                nr_states[i] = shaderFile.StaticCombos[i].RangeMax + 1;
+                nr_states[i] = combos[i].RangeMax + 1;
                 offsets[i] = offsets[i - 1] * nr_states[i - 1];
             }
         }
@@ -160,7 +161,7 @@ namespace ValveResourceFormat.CompiledShader
             return state;
         }
 
-        public long GetZframeId(int[] configState)
+        public long CalcStaticComboIdFromValues(int[] configState)
         {
             var zframeId = 0L;
             for (var i = 0; i < nr_states.Length; i++)
@@ -170,8 +171,8 @@ namespace ValveResourceFormat.CompiledShader
             return zframeId;
         }
 
-        int[] offsets;
-        int[] nr_states;
+        int[] offsets = [];
+        int[] nr_states = [];
         /*
         readonly bool[,] exclusions = new bool[100, 100];
         readonly bool[,] inclusions = new bool[100, 100];
@@ -265,7 +266,6 @@ namespace ValveResourceFormat.CompiledShader
         {
             ShowIntArray(offsets, 8, "offsets", hex: true);
             ShowIntArray(nr_states, 8, "nr_states");
-
         }
     }
 }

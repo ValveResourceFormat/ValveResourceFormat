@@ -72,7 +72,7 @@ namespace ValveResourceFormat.IO
             }
 
             var staticConfiguration = new int[shaderFile.StaticCombos.Count];
-            var configGen = new ConfigMappingSParams(shaderFile);
+            var configGen = new ConfigMappingParams(shaderFile);
 
             foreach (var condition in shaderFile.StaticCombos)
             {
@@ -105,7 +105,7 @@ namespace ValveResourceFormat.IO
                 }
             }
 
-            return (staticConfiguration, configGen.GetZframeId(staticConfiguration));
+            return (staticConfiguration, configGen.CalcStaticComboIdFromValues(staticConfiguration));
         }
 
         /// <summary>
@@ -219,8 +219,8 @@ namespace ValveResourceFormat.IO
 
                     var staticConfig = GetStaticConfiguration_ForFeatureState(shader.Features, shaderFile, featureState, staticState).StaticConfig;
 
-                    var configGen = new ConfigMappingSParams(shaderFile);
-                    var zframeId = configGen.GetZframeId(staticConfig);
+                    var configGen = new ConfigMappingParams(shaderFile);
+                    var zframeId = configGen.CalcStaticComboIdFromValues(staticConfig);
 
                     // It can happen that the shader feature rules don't match static rules, producing
                     // materials with bad feature configuration. That or the material data is just bad/incompatible.
@@ -232,7 +232,7 @@ namespace ValveResourceFormat.IO
                             throw new NotImplementedException("Feature state points to a missing static combo, likely because constraint solver is not implemented.");
                         }
 
-                        zframeId = configGen.GetZframeId(reducedConfig);
+                        zframeId = configGen.CalcStaticComboIdFromValues(reducedConfig);
                         if (!shaderFile.ZframesLookup.ContainsKey(zframeId))
                         {
                             throw new InvalidOperationException("Constraint solver failed to produce a valid static combo.");

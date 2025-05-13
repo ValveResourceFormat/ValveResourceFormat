@@ -40,7 +40,7 @@ namespace ValveResourceFormat.CompiledShader
             OutputWriteLine(configHeader);
             OutputWriteLine(new string('-', configHeader.Length));
             OutputWriteLine("The static configuration this zframe belongs to (zero or more static parameters)\n");
-            ConfigMappingSParams configGen = new(zframeFile.ParentProgramData);
+            ConfigMappingParams configGen = new(zframeFile.ParentProgramData);
             var configState = configGen.GetConfigState(zframeFile.ZframeId);
             for (var i = 0; i < configState.Length; i++)
             {
