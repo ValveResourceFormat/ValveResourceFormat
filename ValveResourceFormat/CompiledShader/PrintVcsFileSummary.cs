@@ -46,7 +46,7 @@ namespace ValveResourceFormat.CompiledShader
             output.BreakLine();
             var ftHeader = shaderFile.FeaturesHeader;
             output.WriteLine($"{nameof(ftHeader.DevShader)} = {ftHeader.DevShader}");
-            output.WriteLine($"{nameof(ftHeader.AvailablePrograms)} = ");
+            output.Write($"{nameof(ftHeader.AvailablePrograms)} = ");
             for (var i = 0; i < ftHeader.AvailablePrograms.Length; i++)
             {
                 if (ftHeader.AvailablePrograms[i])
@@ -54,6 +54,7 @@ namespace ValveResourceFormat.CompiledShader
                     output.Write($"{i}, ");
                 }
             }
+            output.BreakLine();
             output.WriteLine($"{nameof(shaderFile.VariableSourceMax)} = {shaderFile.VariableSourceMax}");
             output.BreakLine();
             output.WriteLine("Editor/Shader compiler stack");

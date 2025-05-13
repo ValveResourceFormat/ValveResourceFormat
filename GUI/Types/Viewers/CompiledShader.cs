@@ -19,126 +19,131 @@ namespace GUI.Types.Viewers
 {
     class CompiledShader : IDisposable, IViewer
     {
+        private TextControl control;
+        private TreeView fileListView;
+
+        public static string SpvToHlsl(VfxShaderFileVulkan file) => AttemptSpirvReflection(file, Backend.HLSL);
+
         public static bool IsAccepted(uint magic)
         {
             return magic == VfxProgramData.MAGIC;
         }
 
-        public class ShaderTabControl : ThemedTabControl
+        public CompiledShader()
         {
-            public ShaderTabControl() : base() { }
-            protected override void OnKeyDown(KeyEventArgs ke)
+            fileListView = new TreeView
             {
-                base.OnKeyDown(ke);
-                if (ke.KeyData == Keys.Escape)
+                FullRowSelect = true,
+                HideSelection = false,
+                ShowRootLines = false,
+                Dock = DockStyle.Fill,
+                ImageList = MainForm.ImageList,
+            };
+            fileListView.NodeMouseClick += OnNodeMouseClick;
+
+            control = new TextControl(CodeTextBox.HighlightLanguage.Shaders);
+            control.AddControl(fileListView);
+        }
+
+        public TabPage Create(VrfGuiContext vrfGuiContext, Stream stream)
+        {
+            stream.Dispose(); // Creating shader collection doesn't actually use the provided stream which is kind of a waste
+
+            var filename = Path.GetFileName(vrfGuiContext.FileName);
+            var leadProgramType = ComputeVCSFileName(filename).ProgramType;
+            var vcsCollectionName = filename.AsSpan(0, filename.LastIndexOf('_')); // in the form water_dota_pcgl_40
+
+            var shaderCollection = GetShaderCollection(vrfGuiContext.FileName, vrfGuiContext.CurrentPackage);
+
+            return Create(shaderCollection, vcsCollectionName, leadProgramType);
+        }
+
+        public TabPage Create(ShaderCollection shaderCollection, ReadOnlySpan<char> vcsCollectionName, VcsProgramType leadProgramType)
+        {
+            var tab = new TabPage();
+            tab.Controls.Add(control);
+
+            var vfxImage = MainForm.GetImageIndexForExtension("_folder");
+            var programImage = MainForm.GetImageIndexForExtension("vcs");
+            var comboImage = MainForm.GetImageIndexForExtension("rman");
+
+            var collectionNode = new TreeNode($"{vcsCollectionName}.vfx")
+            {
+                ImageIndex = vfxImage,
+                SelectedImageIndex = vfxImage,
+            };
+            fileListView.Nodes.Add(collectionNode);
+
+            foreach (var program in shaderCollection.OrderBy(static x => x.VcsProgramType))
+            {
+                var truncatedProgramName = program.FilenamePath.AsSpan();
+
+                if (truncatedProgramName.StartsWith(vcsCollectionName))
                 {
-                    var tabIndex = SelectedIndex;
-                    if (tabIndex > 0)
+                    truncatedProgramName = truncatedProgramName[(vcsCollectionName.Length + 1)..];
+                }
+
+                var programNode = new TreeNode(truncatedProgramName.ToString())
+                {
+                    Tag = program,
+                    ImageIndex = programImage,
+                    SelectedImageIndex = programImage,
+                };
+                collectionNode.Nodes.Add(programNode);
+
+                if (program.ZframesLookup.Count > 0)
+                {
+                    foreach (var zframe in program.ZframesLookup)
                     {
-                        TabPages.RemoveAt(tabIndex);
-                        SelectedIndex = tabIndex - 1;
+                        var comboNode = new TreeNode($"{zframe.Key:x08}")
+                        {
+                            Tag = zframe.Value,
+                            ImageIndex = comboImage,
+                            SelectedImageIndex = comboImage,
+                        };
+                        programNode.Nodes.Add(comboNode);
+                    }
+
+                    if (program.VcsProgramType == leadProgramType)
+                    {
+                        programNode.Expand();
                     }
                 }
             }
 
-            public TabPage CreateShaderFileTab(ShaderCollection collection, VcsProgramType shaderFileType)
+            collectionNode.Expand();
+
+            // ShaderExtract cannot continue without the features file present
+            if (shaderCollection.Features is not null)
             {
-                var tab = new TabPage(shaderFileType.ToString());
-                var shaderRichTextBox = new ShaderRichTextBox(shaderFileType, this, collection);
-                tab.Controls.Add(shaderRichTextBox);
-
-                Controls.Add(tab);
-                return tab;
-            }
-
-            public bool TryAddUniqueTab(ShaderCollection collection, VcsProgramType shaderFileType, out TabPage newShaderTab)
-            {
-                var tabName = shaderFileType.ToString();
-                if (TabPages.Cast<TabPage>().FirstOrDefault(t => t.Text == tabName) is TabPage existing)
-                {
-                    newShaderTab = existing;
-                    return false;
-                }
-
-                newShaderTab = CreateShaderFileTab(collection, shaderFileType);
-                return true;
-            }
-        }
-
-        private ShaderTabControl tabControl;
-        private ShaderCollection shaderCollection;
-
-        public static string SpvToHlsl(VfxShaderFileVulkan file) => AttemptSpirvReflection(file, Backend.HLSL);
-
-        public TabPage Create(VrfGuiContext vrfGuiContext, Stream stream)
-        {
-            shaderCollection = GetShaderCollection(vrfGuiContext.FileName, vrfGuiContext.CurrentPackage);
-
-            SetShaderTabControl();
-
-            var tab = new TabPage();
-            tab.Controls.Add(tabControl);
-
-            var filename = Path.GetFileName(vrfGuiContext.FileName);
-            var leadFileType = ComputeVCSFileName(filename).ProgramType;
-
-            tabControl.CreateShaderFileTab(shaderCollection, leadFileType);
-
-            if (shaderCollection.Features is null)
-            {
-                return tab; // ShaderExtract cannot continue without the features file present
-            }
-
-            try
-            {
-                var extract = new ShaderExtract(shaderCollection)
+                var shaderExtract = new ShaderExtract(shaderCollection)
                 {
                     SpirvCompiler = SpvToHlsl,
                 };
 
-                IViewer.AddContentTab<Func<string>>(tabControl, extract.GetVfxFileName(), extract.ToVFX, preSelect: true, CodeTextBox.HighlightLanguage.Shaders);
-            }
-            catch (Exception e)
-            {
-                IViewer.AddContentTab(tabControl, $"{nameof(ShaderExtract)} Error", e.ToString(), preSelect: false);
+                collectionNode.Tag = shaderExtract;
+                DisplayExtractedVfx(shaderExtract);
             }
 
             return tab;
         }
 
-        public ShaderTabControl SetResourceBlockTabControl(TabPage blockTab, ShaderCollection shaders)
-        {
-            shaderCollection = shaders;
-            SetShaderTabControl();
-            blockTab.Controls.Add(tabControl);
-
-            return tabControl;
-        }
-
-        void SetShaderTabControl()
-        {
-            tabControl = new ShaderTabControl
-            {
-                Dock = DockStyle.Fill,
-            };
-
-            tabControl.MouseClick += new MouseEventHandler(OnTabClick);
-        }
-
         private static ShaderCollection GetShaderCollection(string targetFilename, VrfPackage vrfPackage)
         {
             ShaderCollection shaderCollection = [];
+
+            var filename = Path.GetFileName(targetFilename);
+            var vcsCollectionName = filename.AsSpan(0, filename.LastIndexOf('_')); // in the form water_dota_pcgl_40
+
             if (vrfPackage != null)
             {
                 // search the package
-                var filename = Path.GetFileName(targetFilename);
-                var vcsCollectionName = filename[..filename.LastIndexOf('_')]; // in the form water_dota_pcgl_40
                 var vcsEntries = vrfPackage.Entries["vcs"];
 
                 foreach (var vcsEntry in vcsEntries)
                 {
                     // vcsEntry.FileName is in the form bloom_dota_pcgl_30_ps (without vcs extension)
-                    if (vcsEntry.FileName.StartsWith(vcsCollectionName, StringComparison.InvariantCulture))
+                    if (vcsEntry.FileName.AsSpan().StartsWith(vcsCollectionName, StringComparison.InvariantCulture))
                     {
                         var programType = ComputeVCSFileName($"{vcsEntry.FileName}.vcs").ProgramType;
 
@@ -148,7 +153,7 @@ namespace GUI.Types.Viewers
 
                         try
                         {
-                            relatedShaderFile.Read($"{vcsEntry.FileName}.vcs", new MemoryStream(shaderDatabytes));
+                            relatedShaderFile.Read(vcsEntry.GetFileName(), new MemoryStream(shaderDatabytes));
                             shaderCollection.Add(relatedShaderFile);
                             relatedShaderFile = null;
                         }
@@ -162,12 +167,9 @@ namespace GUI.Types.Viewers
             else
             {
                 // search file-system
-                var filename = Path.GetFileName(targetFilename);
-                var vcsCollectionName = filename[..filename.LastIndexOf('_')];
-
                 foreach (var vcsFile in Directory.GetFiles(Path.GetDirectoryName(targetFilename)))
                 {
-                    if (Path.GetFileName(vcsFile).StartsWith(vcsCollectionName, StringComparison.InvariantCulture))
+                    if (Path.GetFileName(vcsFile.AsSpan()).StartsWith(vcsCollectionName, StringComparison.InvariantCulture))
                     {
                         var programType = ComputeVCSFileName(vcsFile).ProgramType;
                         var relatedShaderFile = new VfxProgramData();
@@ -189,41 +191,6 @@ namespace GUI.Types.Viewers
             return shaderCollection;
         }
 
-        // Find the tab being clicked
-        private void OnTabClick(object sender, MouseEventArgs e)
-        {
-            var tabControl = sender as TabControl;
-            var tabs = tabControl.TabPages;
-            var thisTab = tabs.Cast<TabPage>().Where((t, i) => tabControl.GetTabRect(i).Contains(e.Location)).First();
-            if (e.Button == MouseButtons.Right || e.Button == MouseButtons.Middle)
-            {
-                var tabIndex = GetTabIndex(thisTab);
-                // don't close the main tab
-                if (tabIndex == 0)
-                {
-                    return;
-                }
-                if (tabIndex == tabControl.SelectedIndex && tabIndex > 0)
-                {
-                    tabControl.SelectedIndex = tabIndex - 1;
-                }
-                tabControl.TabPages.Remove(thisTab);
-                thisTab.Dispose();
-            }
-        }
-
-        private int GetTabIndex(TabPage tab)
-        {
-            for (var i = 0; i < tabControl.TabPages.Count; i++)
-            {
-                if (tabControl.TabPages[i] == tab)
-                {
-                    return i;
-                }
-            }
-            return -1;
-        }
-
         public void Dispose()
         {
             Dispose(true);
@@ -234,259 +201,161 @@ namespace GUI.Types.Viewers
         {
             if (disposing)
             {
-                if (tabControl != null)
+                if (fileListView != null)
                 {
-                    tabControl.Dispose();
-                    tabControl = null;
+                    fileListView.Dispose();
+                    fileListView = null;
                 }
 
-                if (shaderCollection != null)
+                if (control != null)
                 {
-                    shaderCollection.Dispose();
-                    shaderCollection = null;
+                    control.Dispose();
+                    control = null;
                 }
             }
         }
 
-        public class ShaderRichTextBox : TextControl // TODO: Make this disposable
+        private void OnNodeMouseClick(object sender, TreeNodeMouseClickEventArgs e)
         {
-#pragma warning disable CA2213
-            private readonly TreeView fileListView;
-#pragma warning restore CA2213
-            private readonly ShaderCollection shaderCollection;
-            private readonly TabControl tabControl;
-
-            private ShaderRichTextBox()
+            if (e.Node.Tag is ShaderExtract shaderExtract)
             {
-                fileListView = new TreeView
-                {
-                    FullRowSelect = true,
-                };
-                fileListView.NodeMouseClick += OnNodeMouseClick;
-
-                AddControl(fileListView);
-                fileListView.Dock = DockStyle.Fill;
+                DisplayExtractedVfx(shaderExtract);
             }
-
-            // Created from material viewer
-            public ShaderRichTextBox(TabControl tabControl, VfxStaticComboVcsEntry comboEntry) : this()
+            else if (e.Node.Tag is VfxProgramData program)
             {
-                this.tabControl = tabControl;
-
+                using var buffer = new StringWriter(CultureInfo.InvariantCulture);
+                program.PrintSummary(buffer.Write);
+                control.TextBox.Text = buffer.ToString();
+            }
+            else if (e.Node.Tag is VfxStaticComboVcsEntry comboEntry)
+            {
                 var combo = comboEntry.Unserialize();
+                e.Node.Tag = combo; // Replace the entry with unserialized combo data
+
                 DisplayStaticCombo(combo);
 
-                var sources = new TreeNode("Sources");
+                fileListView.BeginUpdate();
+
+                var sourceFileImage = MainForm.GetImageIndexForExtension("ini");
 
                 foreach (var source in combo.GpuSources)
                 {
                     var node = new TreeNode($"{source.SourceId:X2}")
                     {
                         Tag = source,
+                        ImageIndex = sourceFileImage,
+                        SelectedImageIndex = sourceFileImage,
                     };
-                    sources.Nodes.Add(node);
+                    e.Node.Nodes.Add(node);
                 }
 
-                sources.Expand();
-                fileListView.Nodes.Add(sources);
+                e.Node.Expand();
+                fileListView.EndUpdate();
             }
-
-            public ShaderRichTextBox(VcsProgramType leadProgramType, ShaderTabControl tabControl, ShaderCollection shaderCollection) : this()
+            else if (e.Node.Tag is VfxStaticComboData combo)
             {
-                this.tabControl = tabControl;
-
-                using var buffer = new StringWriter(CultureInfo.InvariantCulture);
-                var shaderFile = shaderCollection.Get(leadProgramType);
-                shaderFile.PrintSummary(buffer.Write);
-                TextBox.Text = buffer.ToString();
-
-                var relatedFiles = new TreeNode("Related files");
-                fileListView.Nodes.Add(relatedFiles);
-
-                foreach (var shader in shaderCollection)
-                {
-                    var node = new TreeNode(shader.FilenamePath)
-                    {
-                        Tag = shader,
-                    };
-                    relatedFiles.Nodes.Add(node);
-
-                    if (shader.VcsProgramType == leadProgramType)
-                    {
-                        fileListView.SelectedNode = node;
-                    }
-                }
-
-                relatedFiles.Expand();
-
-                if (shaderFile.ZframesLookup.Count > 0)
-                {
-                    var staticCombos = new TreeNode("Static combos");
-                    fileListView.Nodes.Add(staticCombos);
-
-                    foreach (var zframe in shaderFile.ZframesLookup)
-                    {
-                        var node = new TreeNode($"{zframe.Key:x08}")
-                        {
-                            Tag = zframe.Value,
-                        };
-                        staticCombos.Nodes.Add(node);
-                    }
-
-                    staticCombos.Expand();
-                }
+                DisplayStaticCombo(combo);
             }
-
-            private void OnNodeMouseClick(object sender, TreeNodeMouseClickEventArgs e)
+            else if (e.Node.Tag is VfxShaderFile shaderFile)
             {
-                if (e.Node.Tag is VfxProgramData program && tabControl is ShaderTabControl shaderTabControl)
+                // TODO: Perhaps these tabs can also be removed, but currently required for the byte viewer
+                var shaderSource = GetDecompiledFile(shaderFile);
+
+                control.TextBox.Text = shaderSource.Source ?? string.Empty;
+
+                /*
+                TODO: We need to display the bytecode somehow
+
+                tabs = new ThemedTabControl
                 {
-                    // TODO: We might not even need tabs with this anymore
-                    if (!shaderTabControl.TryAddUniqueTab(shaderCollection, program.VcsProgramType, out var newShaderTab))
-                    {
-                        tabControl.SelectedTab = newShaderTab;
-                        return;
-                    }
+                    Dock = DockStyle.Fill,
+                };
 
-                    if (!ModifierKeys.HasFlag(Keys.Control))
-                    {
-                        tabControl.SelectedTab = newShaderTab;
-                    }
-                }
-                else if (e.Node.Tag is VfxStaticComboVcsEntry comboEntry)
+                // source
+                var sourceBvTab = new TabPage("Source");
+                var sourceBv = new System.ComponentModel.Design.ByteViewer
                 {
-                    var combo = comboEntry.Unserialize();
-                    e.Node.Tag = combo; // Replace the entry with unserialized combo data
+                    Dock = DockStyle.Fill,
+                };
+                sourceBvTab.Controls.Add(sourceBv);
+                resTabs.TabPages.Add(sourceBvTab);
 
-                    DisplayStaticCombo(combo);
+                // text
+                var reflectedSource = AttemptSpirvReflection(vulkanSource, Backend.GLSL);
 
-                    fileListView.BeginUpdate();
+                var textTab = new TabPage("SPIR-V");
+                var textBox = new CodeTextBox(reflectedSource, CodeTextBox.HighlightLanguage.Shaders);
+                textTab.Controls.Add(textBox);
+                resTabs.TabPages.Add(textTab);
+                resTabs.SelectedTab = textTab;
 
-                    foreach (var source in combo.GpuSources)
-                    {
-                        var node = new TreeNode($"{source.SourceId:X2}")
-                        {
-                            Tag = source,
-                        };
-                        e.Node.Nodes.Add(node);
-                    }
-
-                    e.Node.Expand();
-                    fileListView.EndUpdate();
-                }
-                else if (e.Node.Tag is VfxStaticComboData combo)
+                if (!vulkanSource.IsEmpty())
                 {
-                    DisplayStaticCombo(combo);
-                }
-                else if (e.Node.Tag is VfxShaderFile shaderFile)
-                {
-                    // TODO: Just switch the TextBox.Text instead of creating tab
-                    var gpuSourceTabTitle = $"{shaderFile.ParentCombo.ParentProgramData.VcsProgramType}[{shaderFile.ParentCombo.ZframeId:X2}]({shaderFile.SourceId:X2})";
-
-                    var gpuSourceTab = CreateDecompiledTabPage(shaderFile, gpuSourceTabTitle);
-
-                    tabControl.Controls.Add(gpuSourceTab);
-
-                    if (!ModifierKeys.HasFlag(Keys.Control))
+                    Program.MainForm.Invoke((MethodInvoker)(() =>
                     {
-                        tabControl.SelectedTab = gpuSourceTab;
-                    }
+                        sourceBv.SetBytes(vulkanSource.Bytecode);
+                    }));
                 }
-            }
-
-            private void DisplayStaticCombo(VfxStaticComboData combo)
-            {
-                using var buffer = new StringWriter(CultureInfo.InvariantCulture);
-                var zframeSummary = new PrintZFrameSummary(combo, buffer.Write);
-                TextBox.Text = buffer.ToString();
+                */
             }
         }
 
-        public static TabPage CreateDecompiledTabPage(VfxShaderFile shaderFile, string gpuSourceTabTitle)
+        private void DisplayExtractedVfx(ShaderExtract shaderExtract)
         {
-            TabPage gpuSourceTab = null;
+            try
+            {
+                control.TextBox.Text = shaderExtract.ToVFX();
+            }
+            catch (Exception ex)
+            {
+                control.TextBox.Text = ex.ToString();
+            }
+        }
 
+        private void DisplayStaticCombo(VfxStaticComboData combo)
+        {
+            using var buffer = new StringWriter(CultureInfo.InvariantCulture);
+            var zframeSummary = new PrintZFrameSummary(combo, buffer.Write);
+            control.TextBox.Text = buffer.ToString();
+        }
+
+        public static (string Source, byte[] Bytecode) GetDecompiledFile(VfxShaderFile shaderFile)
+        {
             switch (shaderFile)
             {
                 case VfxShaderFileGL:
                     {
-                        gpuSourceTab = new TabPage(gpuSourceTabTitle);
-                        var gpuSourceGlslText = new CodeTextBox(Encoding.UTF8.GetString(shaderFile.Bytecode), CodeTextBox.HighlightLanguage.Shaders);
-                        gpuSourceTab.Controls.Add(gpuSourceGlslText);
-                        break;
+                        return (Encoding.UTF8.GetString(shaderFile.Bytecode), null);
                     }
 
                 case VfxShaderFileDXBC:
                 case VfxShaderFileDXIL:
                     {
-                        gpuSourceTab = new TabPage(gpuSourceTabTitle);
+                        /*
                         var sourceBv = new System.ComponentModel.Design.ByteViewer
                         {
                             Dock = DockStyle.Fill,
                         };
-                        gpuSourceTab.Controls.Add(sourceBv);
 
                         Program.MainForm.Invoke((MethodInvoker)(() =>
                         {
                             sourceBv.SetBytes(shaderFile.Bytecode);
                         }));
-
-                        break;
+                        return sourceBv;
+                        */
+                        return (null, shaderFile.Bytecode);
                     }
 
                 case VfxShaderFileVulkan vulkanSource:
                     {
-                        gpuSourceTab = new TabPage(gpuSourceTabTitle);
-                        var resTabs = new ThemedTabControl
-                        {
-                            Dock = DockStyle.Fill,
-                        };
-                        gpuSourceTab.Controls.Add(resTabs);
-
-                        // source
-                        var sourceBvTab = new TabPage("Source");
-                        var sourceBv = new System.ComponentModel.Design.ByteViewer
-                        {
-                            Dock = DockStyle.Fill,
-                        };
-                        sourceBvTab.Controls.Add(sourceBv);
-                        resTabs.TabPages.Add(sourceBvTab);
-
-                        // metadata
-                        var metadataBvTab = new TabPage("Metadata");
-                        var metadataBv = new System.ComponentModel.Design.ByteViewer
-                        {
-                            Dock = DockStyle.Fill,
-                        };
-                        metadataBvTab.Controls.Add(metadataBv);
-                        resTabs.TabPages.Add(metadataBvTab);
-
-                        // text
                         var reflectedSource = AttemptSpirvReflection(vulkanSource, Backend.GLSL);
 
-                        var textTab = new TabPage("SPIR-V");
-                        var textBox = new CodeTextBox(reflectedSource, CodeTextBox.HighlightLanguage.Shaders);
-                        textTab.Controls.Add(textBox);
-                        resTabs.TabPages.Add(textTab);
-                        resTabs.SelectedTab = textTab;
-
-                        if (!vulkanSource.IsEmpty())
-                        {
-                            Program.MainForm.Invoke((MethodInvoker)(() =>
-                            {
-                                sourceBv.SetBytes(vulkanSource.Bytecode);
-                                //metadataBv.SetBytes(vulkanSource.Metadata.ToArray());
-                            }));
-                        }
-
-                        break;
+                        return (reflectedSource, shaderFile.Bytecode);
                     }
 
                 default:
                     throw new InvalidDataException($"Unimplemented GPU source type {shaderFile.GetType()}");
             }
-
-            return gpuSourceTab;
         }
 
         // TODO: pass in shader directly

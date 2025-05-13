@@ -401,14 +401,15 @@ namespace GUI.Types.Viewers
 
                 try
                 {
-                    var shaderTabs = viewer.SetResourceBlockTabControl(blockTab, shaderBlock.Shaders);
+                    var tabPage = viewer.Create(shaderBlock.Shaders, Path.GetFileName(resource.FileName), ValveResourceFormat.CompiledShader.VcsProgramType.Features);
 
-                    foreach (var shaderFile in shaderBlock.Shaders)
+                    foreach (Control control in tabPage.Controls)
                     {
-                        shaderTabs.CreateShaderFileTab(shaderBlock.Shaders, shaderFile.VcsProgramType);
+                        blockTab.Controls.Add(control);
                     }
 
                     viewer = null;
+                    tabPage.Dispose();
                 }
                 finally
                 {
@@ -494,21 +495,6 @@ namespace GUI.Types.Viewers
                             IViewer.AddContentTab(resTabs, "Reconstructed vsnap", new SnapshotExtract(resource).ToValveSnap());
                         }
 
-                        break;
-                    }
-
-                case ResourceType.Shader:
-                    {
-                        var collectionBlock = resource.GetBlockByType(BlockType.SPRV)
-                            ?? resource.GetBlockByType(BlockType.DXBC)
-                            ?? resource.GetBlockByType(BlockType.DATA);
-
-                        var extract = new ShaderExtract((SboxShader)collectionBlock)
-                        {
-                            SpirvCompiler = CompiledShader.SpvToHlsl
-                        };
-
-                        IViewer.AddContentTab<Func<string>>(resTabs, extract.GetVfxFileName(), extract.ToVFX, true, CodeTextBox.HighlightLanguage.Shaders);
                         break;
                     }
             }

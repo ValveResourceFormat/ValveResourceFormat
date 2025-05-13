@@ -1,6 +1,7 @@
 using System.Linq;
 using System.Reflection;
 using System.Windows.Forms;
+using GUI.Controls;
 using GUI.Types.Viewers;
 using GUI.Utils;
 using ValveResourceFormat.IO;
@@ -151,30 +152,23 @@ namespace GUI.Types.Renderer
             AddZframeTab(shaders.Vertex);
             AddZframeTab(shaders.Pixel);
 
-            void AddZframeTab(ValveResourceFormat.CompiledShader.VfxProgramData stage)
+            void AddZframeTab(ValveResourceFormat.CompiledShader.VfxProgramData program)
             {
-                var result = ShaderDataProvider.GetStaticConfiguration_ForFeatureState(shaders.Features, stage, featureState);
+                var result = ShaderDataProvider.GetStaticConfiguration_ForFeatureState(shaders.Features, program, featureState);
+                var combo = program.GetZFrameFile(result.ZFrameId);
 
-                var zframeTab = new TabPage($"{stage.VcsProgramType} Static[{result.ZFrameId}]");
+                // TODO: We are displaying source 0 here
+                var output = CompiledShader.GetDecompiledFile(combo.GpuSources[0]);
 
-                try
+                if (output.Source != null)
                 {
-                    var zframeRichTextBox = new CompiledShader.ShaderRichTextBox(Tabs, stage.GetZFrameEntry(result.ZFrameId));
-                    zframeTab.Controls.Add(zframeRichTextBox);
+                    var code = new CodeTextBox(output.Source, CodeTextBox.HighlightLanguage.Shaders);
 
-                    // TODO: We are displaying source 0 here
-                    var zFrame = stage.GetZFrameFile(result.ZFrameId);
-                    var gpuSourceTab = CompiledShader.CreateDecompiledTabPage(zFrame.GpuSources[0], $"{stage.VcsProgramType} Source[0]");
+                    var tabPage = new TabPage($"{program.VcsProgramType} Static[{result.ZFrameId}]");
+                    tabPage.Controls.Add(code);
 
-                    Tabs.Controls.Add(zframeTab);
-                    Tabs.TabPages.Add(gpuSourceTab);
-                    Tabs.SelectTab(gpuSourceTab);
-
-                    zframeTab = null;
-                }
-                finally
-                {
-                    zframeTab?.Dispose();
+                    Tabs.TabPages.Add(tabPage);
+                    Tabs.SelectTab(tabPage);
                 }
             }
         }
