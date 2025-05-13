@@ -132,9 +132,16 @@ namespace ValveResourceFormat.CompiledShader
                 programTypesCount -= 1;
             }
 
+            if (IsSbox)
+            {
+                var abiCurrentVersion = DataReader.ReadInt32();
+                Debug.Assert(VcsVersion == 65);
+                VcsVersion = 64;
+            }
+
             // I guess the idea with this change is that they only store a flag for each shader type that is present
             // but they should have just changed all program types to be flags, instead of only the new ones
-            if (VcsVersion >= 64 && !IsSbox)
+            if (VcsVersion >= 64)
             {
                 AdditionalFiles = (VcsAdditionalFileFlags)DataReader.ReadUInt32();
 
@@ -155,13 +162,6 @@ namespace ValveResourceFormat.CompiledShader
                 {
                     throw new UnexpectedMagicException("Unexpected additional files", (int)AdditionalFiles, nameof(AdditionalFiles));
                 }
-            }
-
-            if (IsSbox)
-            {
-                DataReader.BaseStream.Position += 8;
-                Debug.Assert(VcsVersion == 65);
-                VcsVersion = 64;
             }
 
             UnserializeVfxProgramData(programTypesCount);
