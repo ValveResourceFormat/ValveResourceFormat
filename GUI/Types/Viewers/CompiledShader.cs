@@ -616,8 +616,8 @@ namespace GUI.Types.Viewers
                     continue;
                 }
 
-                var isBindlessTextureArray = param.Arg4 == 152;
-                Debug.Assert(param.Arg4 is 152 or 24);
+                var isBindlessTextureArray = param.Field1 == 152;
+                Debug.Assert(param.Field1 is 152 or 24);
 
                 var startingPoint = isBindlessTextureArray ? TextureIndexStartingPoint : TextureStartingPoint;
 

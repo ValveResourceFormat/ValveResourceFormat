@@ -16,15 +16,9 @@ public class VfxVariableDescription : ShaderDataBlock
     public int Tex { get; }
     public Vfx.Type VfxType { get; }
     public ParameterType ParamType { get; }
-    public byte Arg3 { get; }
-    public byte Arg4 { get; }
-    public byte Arg5 { get; }
-    public byte Arg6 { get; }
+    public int Field1 { get; }
     public int VecSize { get; }
-    public byte Id { get; }
-    public byte Arg9 { get; }
-    public byte Arg10 { get; }
-    public byte Arg11 { get; }
+    public int Id { get; }
     public string FileRef { get; }
     public static readonly float FloatInf = 1e9F;
     public static readonly int IntInf = 999999999;
@@ -38,10 +32,12 @@ public class VfxVariableDescription : ShaderDataBlock
     public int ChannelCount { get; }
     public int[] ChannelIndices { get; } = new int[4];
     public int ColorMode { get; }
-    public int Arg12 { get; }
+    public int Field2 { get; }
     public string ImageSuffix { get; }
     public string ImageProcessor { get; }
-    public byte[] V65Data { get; } = [];
+    public byte Field3 { get; }
+    public bool Field4 { get; }
+    public int Field5 { get; }
 
     public VfxVariableDescription(ShaderDataReader datareader, int blockIndex, int vcsVersion) : base(datareader)
     {
@@ -77,23 +73,17 @@ public class VfxVariableDescription : ShaderDataBlock
         VfxType = (Vfx.Type)datareader.ReadInt32();
         ParamType = (ParameterType)datareader.ReadInt32();
 
-        if (vcsVersion > 63)
+        if (vcsVersion >= 64)
         {
-            Arg3 = datareader.ReadByte();
-            Arg4 = datareader.ReadByte();
-            Arg5 = datareader.ReadByte();
-            Arg6 = datareader.ReadByte();
+            Field1 = datareader.ReadInt32();
         }
 
         VecSize = datareader.ReadInt32();
-
-        Id = datareader.ReadByte();
-        Arg9 = datareader.ReadByte();
-        Arg10 = datareader.ReadByte();
-        Arg11 = datareader.ReadByte();
+        Id = datareader.ReadInt32();
 
         FileRef = datareader.ReadNullTermStringAtPosition();
         datareader.BaseStream.Position += 64;
+
         for (var i = 0; i < 4; i++)
         {
             IntDefs[i] = datareader.ReadInt32();
@@ -127,8 +117,10 @@ public class VfxVariableDescription : ShaderDataBlock
         {
             ChannelIndices[i] = datareader.ReadInt32();
         }
+
         ColorMode = datareader.ReadInt32();
-        Arg12 = datareader.ReadInt32();
+        Field2 = datareader.ReadInt32();
+
         ImageSuffix = datareader.ReadNullTermStringAtPosition();
         datareader.BaseStream.Position += 32;
         ImageProcessor = datareader.ReadNullTermStringAtPosition();
@@ -136,7 +128,9 @@ public class VfxVariableDescription : ShaderDataBlock
 
         if (vcsVersion >= 65)
         {
-            V65Data = datareader.ReadBytes(6);
+            Field3 = datareader.ReadByte();
+            Field4 = datareader.ReadBoolean();
+            Field5 = datareader.ReadInt32();
         }
     }
 

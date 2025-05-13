@@ -1133,7 +1133,7 @@ public sealed class ShaderExtract
         {
             WriteInputTexture(writer, param);
         }
-        else if (param.Id == 255)
+        else if (param.Id == -1)
         {
             WriteVariable(param, paramBlocks, writer, annotations);
         }
@@ -1263,7 +1263,7 @@ public sealed class ShaderExtract
         }
 
         UnexpectedMagicException.Assert(param.UiType == UiType.Texture, param.UiType);
-        UnexpectedMagicException.Assert(param.Id == 255, param.Id);
+        UnexpectedMagicException.Assert(param.Id == -1, param.Id);
         UnexpectedMagicException.Assert(param.VecSize == -1, param.VecSize);
 
         var mode = param.ColorMode == 0
@@ -1278,7 +1278,7 @@ public sealed class ShaderExtract
             ? $"Default4({string.Join(", ", param.FloatDefs)})"
             : $"\"{param.FileRef}\"";
 
-        writer.WriteLine($"CreateInputTexture2D({param.Name}, {mode}, {param.Arg12}, \"{param.ImageProcessor}\", \"{imageSuffix}\", \"{param.UiGroup}\", {defaultValue});");
+        writer.WriteLine($"CreateInputTexture2D({param.Name}, {mode}, {param.Field2}, \"{param.ImageProcessor}\", \"{imageSuffix}\", \"{param.UiGroup}\", {defaultValue});");
     }
 
     private void WriteTexture(VfxVariableDescription param, List<VfxVariableDescription> paramBlocks, List<VfxTextureChannelProcessor> channelBlocks, IndentedTextWriter writer, List<string> annotations)

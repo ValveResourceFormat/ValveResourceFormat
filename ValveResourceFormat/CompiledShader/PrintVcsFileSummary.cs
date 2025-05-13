@@ -280,16 +280,10 @@ namespace ValveResourceFormat.CompiledShader
                 nameof(VfxVariableDescription.VfxType),
                 nameof(VfxVariableDescription.Res0),
                 nameof(VfxVariableDescription.Tex),
-                nameof(VfxVariableDescription.Arg3),
-                nameof(VfxVariableDescription.Arg4),
-                nameof(VfxVariableDescription.Arg12),
-                nameof(VfxVariableDescription.Arg5),
-                nameof(VfxVariableDescription.Arg6),
+                nameof(VfxVariableDescription.Field1),
+                nameof(VfxVariableDescription.Field2),
                 nameof(VfxVariableDescription.VecSize),
                 nameof(VfxVariableDescription.Id),
-                nameof(VfxVariableDescription.Arg9),
-                nameof(VfxVariableDescription.Arg10),
-                nameof(VfxVariableDescription.Arg11),
                 "dyn-exp*",
                 nameof(VfxVariableDescription.StringData),
                 nameof(VfxVariableDescription.Lead0),
@@ -321,16 +315,10 @@ namespace ValveResourceFormat.CompiledShader
                     $"{param.VfxType}",
                     $"{param.Res0}",
                     $"{BlankNegOne(param.Tex),2}",
-                    param.Arg3.ToString(CultureInfo.InvariantCulture),
-                    param.Arg4.ToString(CultureInfo.InvariantCulture),
-                    $"{BlankNegOne(param.Arg12),2}",
-                    param.Arg5.ToString(CultureInfo.InvariantCulture),
-                    param.Arg6.ToString(CultureInfo.InvariantCulture),
+                    param.Field1.ToString(CultureInfo.InvariantCulture),
+                    $"{BlankNegOne(param.Field2),2}",
                     $"{param.VecSize,2}",
                     param.Id.ToString(CultureInfo.InvariantCulture),
-                    param.Arg9.ToString(CultureInfo.InvariantCulture),
-                    param.Arg10.ToString(CultureInfo.InvariantCulture),
-                    param.Arg11.ToString(CultureInfo.InvariantCulture),
                     dynExpExists,
                     param.StringData,
                     $"{param.Lead0}",
@@ -401,7 +389,10 @@ namespace ValveResourceFormat.CompiledShader
                 nameof(VfxVariableDescription.ImageSuffix),
                 nameof(VfxVariableDescription.FileRef),
                 nameof(VfxVariableDescription.DynExp),
-                nameof(VfxVariableDescription.V65Data)]);
+                nameof(VfxVariableDescription.Field3),
+                nameof(VfxVariableDescription.Field4),
+                nameof(VfxVariableDescription.Field5),
+            ]);
             foreach (var param in shaderFile.VariableDescriptions)
             {
                 var vfxType = Vfx.GetTypeName(param.VfxType);
@@ -420,7 +411,10 @@ namespace ValveResourceFormat.CompiledShader
                     param.ImageSuffix,
                     param.FileRef,
                     $"{hasDynExp}",
-                    BitConverter.ToString(param.V65Data)]);
+                    $"{param.Field3}",
+                    $"{param.Field4}",
+                    $"{param.Field5}",
+                ]);
             }
             output.PrintTabulatedValues(spacing: 1);
             output.BreakLine();
