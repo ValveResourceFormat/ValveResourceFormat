@@ -711,7 +711,7 @@ public sealed class ShaderExtract
             }
 
             if (parameters.Count == 0 || parameters.All(p =>
-                paramBlocks[p].ParamType == ParameterType.SamplerState || paramBlocks[p].ParamType == ParameterType.Buffer))
+                paramBlocks[p].Type == VariableType.SamplerState || paramBlocks[p].Type == VariableType.Buffer))
             {
                 continue;
             }
@@ -1121,15 +1121,15 @@ public sealed class ShaderExtract
     {
         var annotations = new List<string>();
 
-        if (param.ParamType is ParameterType.RenderState)
+        if (param.Type is VariableType.RenderState)
         {
             WriteState(writer, param);
         }
-        else if (param.ParamType is ParameterType.SamplerState)
+        else if (param.Type is VariableType.SamplerState)
         {
             //WriteState(writer, param);
         }
-        else if (param.ParamType is ParameterType.InputTexture)
+        else if (param.Type is VariableType.InputTexture)
         {
             WriteInputTexture(writer, param);
         }
@@ -1137,7 +1137,7 @@ public sealed class ShaderExtract
         {
             WriteVariable(param, paramBlocks, writer, annotations);
         }
-        else if (param.ParamType == ParameterType.Texture)
+        else if (param.Type == VariableType.Texture)
         {
             WriteTexture(param, paramBlocks, channelBlocks, writer, annotations);
         }
@@ -1149,9 +1149,9 @@ public sealed class ShaderExtract
             ? new VfxEval(param.DynExp, Globals, omitReturnStatement: true, FeatureNames).DynamicExpressionResult
             : param.IntDefs[0].ToString(CultureInfo.InvariantCulture);
 
-        if (param.ParamType == ParameterType.RenderState)
+        if (param.Type == VariableType.RenderState)
         {
-            writer.WriteLine("{0}({1}, {2});", param.ParamType, param.Name, stateValue);
+            writer.WriteLine("{0}({1}, {2});", param.Type, param.Name, stateValue);
         }
         else
         {
@@ -1257,9 +1257,9 @@ public sealed class ShaderExtract
 
     private static void WriteInputTexture(IndentedTextWriter writer, VfxVariableDescription param)
     {
-        if (param.ParamType != ParameterType.InputTexture)
+        if (param.Type != VariableType.InputTexture)
         {
-            throw new ArgumentException($"Expected parameter of type {ParameterType.InputTexture}, got {param.ParamType}", nameof(param));
+            throw new ArgumentException($"Expected parameter of type {VariableType.InputTexture}, got {param.Type}", nameof(param));
         }
 
         UnexpectedMagicException.Assert(param.UiType == UiType.Texture, param.UiType);

@@ -288,7 +288,7 @@ namespace ValveResourceFormat.CompiledShader
                 "dyn-exp*",
                 nameof(VfxVariableDescription.StringData),
                 nameof(VfxVariableDescription.Lead0),
-                nameof(VfxVariableDescription.ParamType),
+                nameof(VfxVariableDescription.Type),
                 nameof(VfxVariableDescription.UiType),
                 nameof(VfxVariableDescription.UiGroup),
                 "command 0|1",
@@ -323,7 +323,7 @@ namespace ValveResourceFormat.CompiledShader
                     dynExpExists,
                     param.StringData,
                     $"{param.Lead0}",
-                    $"{param.ParamType}",
+                    $"{param.Type}",
                     param.UiType.ToString(),
                     param.UiGroup.CompactString,
                     $"{c0}",
@@ -367,7 +367,7 @@ namespace ValveResourceFormat.CompiledShader
 
                     output.AddTabulatedRow([$"[{("" + param.BlockIndex).PadLeft(indexPad)}]",
                         $"{param.Name}",
-                        $"{param.UiType,2},{param.Lead0,2},{BlankNegOne(param.Tex),2},{Vfx.GetTypeName(param.VfxType)},{param.ParamType,2},{param.VecSize,2},{param.Id}",
+                        $"{param.UiType,2},{param.Lead0,2},{BlankNegOne(param.Tex),2},{Vfx.GetTypeName(param.VfxType)},{param.Type,2},{param.VecSize,2},{param.Id}",
                         dynExpstring,
                         uiVisibilityString]);
                 }
@@ -400,7 +400,7 @@ namespace ValveResourceFormat.CompiledShader
                 var hasDynExp = param.HasDynamicExpression ? "true" : "";
                 output.AddTabulatedRow([$"[{("" + param.BlockIndex).PadLeft(indexPad)}]",
                     $"{param.Name}",
-                    $"{param.UiType,2},{param.Lead0,2},{BlankNegOne(param.Tex),2},{vfxType},{param.ParamType,2},{param.VecSize,2},{param.Id}",
+                    $"{param.UiType,2},{param.Lead0,2},{BlankNegOne(param.Tex),2},{vfxType},{param.Type,2},{param.VecSize,2},{param.Id}",
                     $"{Comb(param.IntDefs)}",
                     $"{Comb(param.IntMins)}",
                     $"{Comb(param.IntMaxs)}",

@@ -16,7 +16,7 @@ public class VfxVariableDescription : ShaderDataBlock
     public byte[] UiVisibilityExp { get; } = [];
     public int Tex { get; }
     public Vfx.Type VfxType { get; }
-    public ParameterType ParamType { get; }
+    public VariableType Type { get; }
     public int Field1 { get; }
     public int VecSize { get; }
     public int Id { get; }
@@ -69,7 +69,7 @@ public class VfxVariableDescription : ShaderDataBlock
         }
 
         VfxType = (Vfx.Type)datareader.ReadInt32();
-        ParamType = (ParameterType)datareader.ReadInt32();
+        Type = (VariableType)datareader.ReadInt32();
 
         if (vcsVersion >= 64)
         {

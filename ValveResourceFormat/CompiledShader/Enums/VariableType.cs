@@ -1,9 +1,6 @@
 namespace ValveResourceFormat.CompiledShader;
 
-/// <remarks>
-/// These are just guesses.
-/// </remarks>
-public enum ParameterType
+public enum VariableType
 {
     Bool = 1,
     Int,

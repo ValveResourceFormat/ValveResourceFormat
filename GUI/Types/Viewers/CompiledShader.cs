@@ -605,13 +605,13 @@ namespace GUI.Types.Viewers
             {
                 var param = shader.VariableDescriptions[field.VariableIndex];
 
-                if (param.ParamType is ParameterType.SamplerState)
+                if (param.Type is VariableType.SamplerState)
                 {
                     // Arg4 = 16
                     continue;
                 }
 
-                if (param.ParamType is not ParameterType.Texture)
+                if (param.Type is not VariableType.Texture)
                 {
                     continue;
                 }
@@ -660,7 +660,7 @@ namespace GUI.Types.Viewers
             {
                 var param = shader.VariableDescriptions[field.VariableIndex];
 
-                if (param.ParamType is not ParameterType.SamplerState)
+                if (param.Type is not VariableType.SamplerState)
                 {
                     continue;
                 }
