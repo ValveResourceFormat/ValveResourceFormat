@@ -18,6 +18,7 @@ public class VfxVariableDescription : ShaderDataBlock
     public Vfx.Type VfxType { get; }
     public VariableType Type { get; }
     public int Field1 { get; }
+    public VariableFlags Flags => (VariableFlags)((Field1 >> 8) & 0xFF);
     public int VecSize { get; }
     public int Id { get; }
     public string FileRef { get; }

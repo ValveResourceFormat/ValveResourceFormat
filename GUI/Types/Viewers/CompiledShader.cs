@@ -603,25 +603,25 @@ namespace GUI.Types.Viewers
 
             foreach (var field in writeSequence.Segment1)
             {
-                var param = shader.VariableDescriptions[field.VariableIndex];
+                var variable = shader.VariableDescriptions[field.VariableIndex];
 
-                if (param.Type is VariableType.SamplerState)
+                if (variable.Type is VariableType.SamplerState)
                 {
-                    // Arg4 = 16
+                    Debug.Assert(variable.Flags == VariableFlags.SamplerFlag4);
                     continue;
                 }
 
-                if (param.Type is not VariableType.Texture)
+                if (variable.Type is not VariableType.Texture)
                 {
                     continue;
                 }
 
-                var isBindlessTextureArray = param.Field1 == 152;
-                Debug.Assert(param.Field1 is 152 or 24);
+                var isBindlessTextureArray = variable.Flags.HasFlag(VariableFlags.Bindless);
+                Debug.Assert(variable.Flags.HasFlag(VariableFlags.TextureFlag3 | VariableFlags.SamplerFlag4));
 
                 var startingPoint = isBindlessTextureArray ? TextureIndexStartingPoint : TextureStartingPoint;
 
-                if (param.VfxType is Vfx.Type.Sampler1D
+                if (variable.VfxType is Vfx.Type.Sampler1D
                     or Vfx.Type.Sampler2D
                     or Vfx.Type.Sampler3D
                     or Vfx.Type.SamplerCube
@@ -631,14 +631,14 @@ namespace GUI.Types.Viewers
                     or Vfx.Type.Sampler3DArray)
                 {
 
-                    if (isBindlessTextureArray && vfxType != param.VfxType)
+                    if (isBindlessTextureArray && vfxType != variable.VfxType)
                     {
                         continue;
                     }
 
                     if (field.Dest == image_binding - startingPoint)
                     {
-                        return param.Name;
+                        return variable.Name;
                     }
 
                     continue;
