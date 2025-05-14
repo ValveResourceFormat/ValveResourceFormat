@@ -31,7 +31,6 @@ public class VfxRenderStateInfoPixelShader : VfxRenderStateInfo
 {
     public class RsRasterizerStateDesc
     {
-#pragma warning disable CA1028 // Enum Storage should be Int32
         public enum RsFillMode : byte
         {
             Solid = 0,
@@ -44,7 +43,6 @@ public class VfxRenderStateInfoPixelShader : VfxRenderStateInfo
             Back = 1,
             Front = 2,
         }
-#pragma warning restore CA1028 // Enum Storage should be Int32
 
         public RsFillMode FillMode { get; }
         public RsCullMode CullMode { get; }
@@ -68,7 +66,6 @@ public class VfxRenderStateInfoPixelShader : VfxRenderStateInfo
 
     public class RsDepthStencilStateDesc
     {
-#pragma warning disable CA1028 // Enum Storage should be Int32
         public enum RsComparison : byte
         {
             Never = 0,
@@ -105,7 +102,6 @@ public class VfxRenderStateInfoPixelShader : VfxRenderStateInfo
             HiStencilCmpEqual = 0,
             HiStencilCmpNotEqual = 1,
         }
-#pragma warning restore CA1028 // Enum Storage should be Int32
 
         public bool DepthTestEnable { get; }
         public bool DepthWriteEnable { get; }
@@ -162,7 +158,6 @@ public class VfxRenderStateInfoPixelShader : VfxRenderStateInfo
     {
         private const int MaxRenderTargets = 8;
 
-#pragma warning disable CA1028 // Enum Storage should be Int32
         public enum RsBlendOp : byte
         {
             Add = 0,
@@ -199,7 +194,6 @@ public class VfxRenderStateInfoPixelShader : VfxRenderStateInfo
             A = 0x8,
             All = R | G | B | A
         }
-#pragma warning restore CA1028 // Enum Storage should be Int32
 
         public bool AlphaToCoverageEnable { get; }
         public bool IndependentBlendEnable { get; }

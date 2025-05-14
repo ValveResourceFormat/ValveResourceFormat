@@ -2,9 +2,7 @@ namespace ValveResourceFormat.ResourceTypes
 {
     public partial class BinaryKV3
     {
-#pragma warning disable CA1028 // Enum Storage should be Int32
         private enum KV3BinaryNodeType : byte
-#pragma warning restore CA1028
         {
             NULL = 1,
             BOOLEAN = 2,

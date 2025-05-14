@@ -23,6 +23,9 @@ dotnet_diagnostic.CA1003.severity = suggestion
 # CA1008: Enums should have zero value
 dotnet_diagnostic.CA1008.severity = none
 
+# CA1028: Enum Storage should be Int32
+dotnet_diagnostic.CA1028.severity = none
+
 # CA1010: Type directly or indirectly inherits 'ICollection' without implementing 'ICollection<T>'
 dotnet_diagnostic.CA1010.severity = none
 

@@ -2,9 +2,7 @@ using KVValueType = ValveKeyValue.KVValueType;
 
 namespace ValveResourceFormat.Serialization.KeyValues
 {
-#pragma warning disable CA1028 // Enum Storage should be Int32
     public enum KVFlag : byte
-#pragma warning restore CA1028
     {
         None = 0,
         Resource = 1,
