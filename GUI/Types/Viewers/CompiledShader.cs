@@ -705,7 +705,7 @@ namespace GUI.Types.Viewers
             return writeSequence.Segment1
                 .Select<VfxVariableIndexData, (VfxVariableIndexData Field, VfxVariableDescription Param)>(f => (f, shader.VariableDescriptions[f.VariableIndex]))
                 .Where(fp => fp.Param.VfxType is Vfx.Type.Cbuffer)
-                .FirstOrDefault(fp => fp.Field.Dest == binding).Param?.Name ?? "undetermined";
+                .FirstOrDefault(fp => fp.Field.Dest == binding && fp.Field.LayoutSet == set).Param?.Name ?? "undetermined";
         }
 
         private static string GetGlobalBufferMemberName(VfxProgramData shader, VfxVariableIndexArray writeSequence, int offset)
@@ -734,7 +734,7 @@ namespace GUI.Types.Viewers
             }
             else if (offset != -1)
             {
-                return bufferParams.First(p => p.Offset == offset).Name;
+                return bufferParams.FirstOrDefault(p => p.Offset == offset).Name;
             }
             else
             {
