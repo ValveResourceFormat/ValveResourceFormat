@@ -14,7 +14,4 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
   </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\ValveResourceFormat\ValveResourceFormat.csproj" />
-  </ItemGroup>
 </Project>

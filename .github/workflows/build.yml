@@ -52,7 +52,7 @@ jobs:
       run: dotnet build -c Release ./ValveResourceFormat/ValveResourceFormat.csproj
 
     - name: Build CLI
-      run: dotnet build -c Release ./Decompiler/Decompiler.csproj
+      run: dotnet build -c Release ./CLI/CLI.csproj
 
     - name: Build GUI
       if: matrix.os == 'windows-latest'
@@ -74,27 +74,27 @@ jobs:
 
     - name: Publish CLI (Windows x64)
       if: matrix.os == 'windows-latest'
-      run: dotnet publish --configuration Release --self-contained --runtime win-x64 Decompiler/Decompiler.csproj
+      run: dotnet publish --configuration Release --self-contained --runtime win-x64 CLI/CLI.csproj
 
     - name: Publish CLI (Linux x64)
       if: matrix.os == 'ubuntu-latest'
-      run: dotnet publish --configuration Release --self-contained --runtime linux-x64 Decompiler/Decompiler.csproj
+      run: dotnet publish --configuration Release --self-contained --runtime linux-x64 CLI/CLI.csproj
 
     - name: Publish CLI (Linux arm)
       if: matrix.os == 'ubuntu-latest'
-      run: dotnet publish --configuration Release --self-contained --runtime linux-arm Decompiler/Decompiler.csproj
+      run: dotnet publish --configuration Release --self-contained --runtime linux-arm CLI/CLI.csproj
 
     - name: Publish CLI (Linux arm64)
       if: matrix.os == 'ubuntu-latest'
-      run: dotnet publish --configuration Release --self-contained --runtime linux-arm64 Decompiler/Decompiler.csproj
+      run: dotnet publish --configuration Release --self-contained --runtime linux-arm64 CLI/CLI.csproj
 
     - name: Publish CLI (macOS x64)
       if: matrix.os == 'macos-latest'
-      run: dotnet publish --configuration Release --self-contained --runtime osx-x64 Decompiler/Decompiler.csproj
+      run: dotnet publish --configuration Release --self-contained --runtime osx-x64 CLI/CLI.csproj
 
     - name: Publish CLI (macOS arm64)
       if: matrix.os == 'macos-latest'
-      run: dotnet publish --configuration Release --self-contained --runtime osx-arm64 Decompiler/Decompiler.csproj
+      run: dotnet publish --configuration Release --self-contained --runtime osx-arm64 CLI/CLI.csproj
 
     - name: Upload GUI
       uses: actions/upload-artifact@v4
@@ -115,42 +115,42 @@ jobs:
       if: matrix.os == 'windows-latest'
       with:
         name: cli-windows-x64
-        path: Decompiler/bin/Release/win-x64/publish
+        path: CLI/bin/Release/win-x64/publish
 
     - name: Upload CLI (Linux x64)
       uses: actions/upload-artifact@v4
       if: matrix.os == 'ubuntu-latest'
       with:
         name: cli-linux-x64
-        path: Decompiler/bin/Release/linux-x64/publish
+        path: CLI/bin/Release/linux-x64/publish
 
     - name: Upload CLI (Linux arm)
       uses: actions/upload-artifact@v4
       if: matrix.os == 'ubuntu-latest'
       with:
         name: cli-linux-arm
-        path: Decompiler/bin/Release/linux-arm/publish
+        path: CLI/bin/Release/linux-arm/publish
 
     - name: Upload CLI (Linux arm64)
       uses: actions/upload-artifact@v4
       if: matrix.os == 'ubuntu-latest'
       with:
         name: cli-linux-arm64
-        path: Decompiler/bin/Release/linux-arm64/publish
+        path: CLI/bin/Release/linux-arm64/publish
 
     - name: Upload CLI (macOS x64)
       uses: actions/upload-artifact@v4
       if: matrix.os == 'macos-latest'
       with:
         name: cli-macos-x64
-        path: Decompiler/bin/Release/osx-x64/publish
+        path: CLI/bin/Release/osx-x64/publish
 
     - name: Upload CLI (macOS arm64)
       uses: actions/upload-artifact@v4
       if: matrix.os == 'macos-latest'
       with:
         name: cli-macos-arm64
-        path: Decompiler/bin/Release/osx-arm64/publish
+        path: CLI/bin/Release/osx-arm64/publish
 
     - name: Upload test coverage
       uses: codecov/codecov-action@v5
