@@ -520,11 +520,11 @@ namespace GUI.Types.Viewers
 
                 var vfxType = resource.base_type_id switch
                 {
-                    406 => Vfx.Type.Sampler2D,
-                    407 => Vfx.Type.Sampler3D,
-                    408 => Vfx.Type.SamplerCube,
-                    472 => Vfx.Type.SamplerCubeArray,
-                    _ => Vfx.Type.Void,
+                    406 => VfxVariableType.Sampler2D,
+                    407 => VfxVariableType.Sampler3D,
+                    408 => VfxVariableType.SamplerCube,
+                    472 => VfxVariableType.SamplerCubeArray,
+                    _ => VfxVariableType.Void,
                 };
 
                 var isVertexShader = program.VcsProgramType is VcsProgramType.VertexShader;
@@ -551,7 +551,7 @@ namespace GUI.Types.Viewers
                     continue;
                 }
 
-                if (resourceType is ResourceType.SeparateImage && vfxType is Vfx.Type.Void)
+                if (resourceType is ResourceType.SeparateImage && vfxType is VfxVariableType.Void)
                 {
                     name = $"{name}_unexpectedTypeId{resource.base_type_id}_{resource.type_id}";
                 }
@@ -585,7 +585,7 @@ namespace GUI.Types.Viewers
         const int TextureStartingPoint = 90;
         const int TextureIndexStartingPoint = 30;
 
-        private static string GetNameForTexture(VfxProgramData shader, VfxVariableIndexArray writeSequence, uint image_binding, Vfx.Type vfxType)
+        private static string GetNameForTexture(VfxProgramData shader, VfxVariableIndexArray writeSequence, uint image_binding, VfxVariableType vfxType)
         {
             var semgent1Params = writeSequence.Segment1
                 .Select<VfxVariableIndexData, (VfxVariableIndexData Field, VfxVariableDescription Param)>(f => (f, shader.VariableDescriptions[f.VariableIndex]));
@@ -610,14 +610,14 @@ namespace GUI.Types.Viewers
 
                 var startingPoint = isBindlessTextureArray ? TextureIndexStartingPoint : TextureStartingPoint;
 
-                if (variable.VfxType is Vfx.Type.Sampler1D
-                    or Vfx.Type.Sampler2D
-                    or Vfx.Type.Sampler3D
-                    or Vfx.Type.SamplerCube
-                    or Vfx.Type.SamplerCubeArray
-                    or Vfx.Type.Sampler2DArray
-                    or Vfx.Type.Sampler1DArray
-                    or Vfx.Type.Sampler3DArray)
+                if (variable.VfxType is VfxVariableType.Sampler1D
+                    or VfxVariableType.Sampler2D
+                    or VfxVariableType.Sampler3D
+                    or VfxVariableType.SamplerCube
+                    or VfxVariableType.SamplerCubeArray
+                    or VfxVariableType.Sampler2DArray
+                    or VfxVariableType.Sampler1DArray
+                    or VfxVariableType.Sampler3DArray)
                 {
 
                     if (isBindlessTextureArray && vfxType != variable.VfxType)
@@ -675,7 +675,7 @@ namespace GUI.Types.Viewers
             {
                 var param = shader.VariableDescriptions[field.VariableIndex];
 
-                if (param.VfxType is < Vfx.Type.StructuredBuffer or > Vfx.Type.RWStructuredBufferWithCounter)
+                if (param.VfxType is < VfxVariableType.StructuredBuffer or > VfxVariableType.RWStructuredBufferWithCounter)
                 {
                     continue;
                 }
@@ -693,7 +693,7 @@ namespace GUI.Types.Viewers
         {
             return writeSequence.Segment1
                 .Select<VfxVariableIndexData, (VfxVariableIndexData Field, VfxVariableDescription Param)>(f => (f, shader.VariableDescriptions[f.VariableIndex]))
-                .Where(fp => fp.Param.VfxType is Vfx.Type.Cbuffer)
+                .Where(fp => fp.Param.VfxType is VfxVariableType.Cbuffer)
                 .FirstOrDefault(fp => fp.Field.Dest == binding && fp.Field.LayoutSet == set).Param?.Name ?? "undetermined";
         }
 

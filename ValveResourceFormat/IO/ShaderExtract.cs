@@ -891,20 +891,20 @@ public sealed class ShaderExtract
         var attributes = new HashSet<string>();
         foreach (var attribute in zFrameFile.Attributes)
         {
-            var type = Vfx.GetTypeName(attribute.VfxType);
+            var type = ShaderUtilHelpers.GetVfxVariableTypeString(attribute.VfxType);
             string value = null;
 
             if (attribute.ConstValue is not null)
             {
                 value = attribute.VfxType switch
                 {
-                    Vfx.Type.Bool => (bool)attribute.ConstValue ? "true" : "false",
-                    Vfx.Type.Int => ((int)attribute.ConstValue).ToString(CultureInfo.InvariantCulture),
-                    Vfx.Type.Float => ((float)attribute.ConstValue).ToString(CultureInfo.InvariantCulture),
-                    Vfx.Type.String => (string)attribute.ConstValue,
-                    Vfx.Type.Float2 => ((Vector2)attribute.ConstValue).ToString().Trim('<', '>'),
-                    Vfx.Type.Float3 => ((Vector3)attribute.ConstValue).ToString().Trim('<', '>'),
-                    Vfx.Type.Float4 => ((Vector4)attribute.ConstValue).ToString().Trim('<', '>'),
+                    VfxVariableType.Bool => (bool)attribute.ConstValue ? "true" : "false",
+                    VfxVariableType.Int => ((int)attribute.ConstValue).ToString(CultureInfo.InvariantCulture),
+                    VfxVariableType.Float => ((float)attribute.ConstValue).ToString(CultureInfo.InvariantCulture),
+                    VfxVariableType.String => (string)attribute.ConstValue,
+                    VfxVariableType.Float2 => ((Vector2)attribute.ConstValue).ToString().Trim('<', '>'),
+                    VfxVariableType.Float3 => ((Vector3)attribute.ConstValue).ToString().Trim('<', '>'),
+                    VfxVariableType.Float4 => ((Vector4)attribute.ConstValue).ToString().Trim('<', '>'),
 
                     _ => attribute.ConstValue.ToString(),
                 };
@@ -924,14 +924,14 @@ public sealed class ShaderExtract
 
             var attributeType = attribute.VfxType switch
             {
-                Vfx.Type.Bool => "BoolAttribute",
-                Vfx.Type.Int => "IntAttribute",
-                Vfx.Type.Float => "FloatAttribute",
-                Vfx.Type.Float2 => "Float2Attribute",
-                Vfx.Type.Float3 => "Float3Attribute",
-                Vfx.Type.Float4 => "Float4Attribute",
-                Vfx.Type.String => "StringAttribute",
-                Vfx.Type.Sampler2D => "TextureAttribute",
+                VfxVariableType.Bool => "BoolAttribute",
+                VfxVariableType.Int => "IntAttribute",
+                VfxVariableType.Float => "FloatAttribute",
+                VfxVariableType.Float2 => "Float2Attribute",
+                VfxVariableType.Float3 => "Float3Attribute",
+                VfxVariableType.Float4 => "Float4Attribute",
+                VfxVariableType.String => "StringAttribute",
+                VfxVariableType.Sampler2D => "TextureAttribute",
                 _ => null
             };
 
@@ -1252,7 +1252,7 @@ public sealed class ShaderExtract
             annotations.Add($"UiVisibility({dynEx});");
         }
 
-        writer.WriteLine($"{Vfx.GetTypeName(param.VfxType)} {param.Name}{GetVfxAttributes(annotations)};");
+        writer.WriteLine($"{ShaderUtilHelpers.GetVfxVariableTypeString(param.VfxType)} {param.Name}{GetVfxAttributes(annotations)};");
     }
 
     private static void WriteInputTexture(IndentedTextWriter writer, VfxVariableDescription param)

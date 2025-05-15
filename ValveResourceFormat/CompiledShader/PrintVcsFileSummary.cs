@@ -367,7 +367,7 @@ namespace ValveResourceFormat.CompiledShader
 
                     output.AddTabulatedRow([$"[{("" + param.BlockIndex).PadLeft(indexPad)}]",
                         $"{param.Name}",
-                        $"{param.UiType,2},{param.Lead0,2},{BlankNegOne(param.Tex),2},{Vfx.GetTypeName(param.VfxType)},{param.Type,2},{param.VecSize,2},{param.Id}",
+                        $"{param.UiType,2},{param.Lead0,2},{BlankNegOne(param.Tex),2},{ShaderUtilHelpers.GetVfxVariableTypeString(param.VfxType)},{param.Type,2},{param.VecSize,2},{param.Id}",
                         dynExpstring,
                         uiVisibilityString]);
                 }
@@ -396,7 +396,7 @@ namespace ValveResourceFormat.CompiledShader
             ]);
             foreach (var param in shaderFile.VariableDescriptions)
             {
-                var vfxType = Vfx.GetTypeName(param.VfxType);
+                var vfxType = ShaderUtilHelpers.GetVfxVariableTypeString(param.VfxType);
                 var hasDynExp = param.HasDynamicExpression ? "true" : "";
                 output.AddTabulatedRow([$"[{("" + param.BlockIndex).PadLeft(indexPad)}]",
                     $"{param.Name}",

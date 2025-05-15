@@ -15,7 +15,7 @@ public class VfxVariableDescription : ShaderDataBlock
     public byte[] DynExp { get; } = [];
     public byte[] UiVisibilityExp { get; } = [];
     public int Tex { get; }
-    public Vfx.Type VfxType { get; }
+    public VfxVariableType VfxType { get; }
     public VariableType Type { get; }
     public int Field1 { get; }
     public VariableFlags Flags => (VariableFlags)((Field1 >> 8) & 0xFF);
@@ -69,7 +69,7 @@ public class VfxVariableDescription : ShaderDataBlock
             Tex = datareader.ReadInt32();
         }
 
-        VfxType = (Vfx.Type)datareader.ReadInt32();
+        VfxType = (VfxVariableType)datareader.ReadInt32();
         Type = (VariableType)datareader.ReadInt32();
 
         if (vcsVersion >= 64)

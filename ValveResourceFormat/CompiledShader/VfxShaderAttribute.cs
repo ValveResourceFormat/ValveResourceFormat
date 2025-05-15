@@ -11,7 +11,7 @@ public class VfxShaderAttribute
 {
     public string Name0 { get; }
     public uint Murmur32 { get; }
-    public Vfx.Type VfxType { get; }
+    public VfxVariableType VfxType { get; }
     public short LinkedParameterIndex { get; }
     public byte[] HeaderCode { get; }
     public int DynExpLen { get; } = -1;
@@ -28,7 +28,7 @@ public class VfxShaderAttribute
         {
             throw new ShaderParserException("Murmur check failed on header name");
         }
-        VfxType = (Vfx.Type)datareader.ReadByte();
+        VfxType = (VfxVariableType)datareader.ReadByte();
         LinkedParameterIndex = datareader.ReadInt16();
 
         if (LinkedParameterIndex != -1)
@@ -46,13 +46,13 @@ public class VfxShaderAttribute
 
         ConstValue = VfxType switch
         {
-            Vfx.Type.Float => datareader.ReadSingle(),
-            Vfx.Type.Int => datareader.ReadInt32(),
-            Vfx.Type.Bool => datareader.ReadByte() != 0,
-            Vfx.Type.String => datareader.ReadNullTermString(Encoding.UTF8),
-            Vfx.Type.Float2 => new Vector2(datareader.ReadSingle(), datareader.ReadSingle()),
-            Vfx.Type.Float3 => new Vector3(datareader.ReadSingle(), datareader.ReadSingle(), datareader.ReadSingle()),
-            Vfx.Type.Float4 => new Vector4(datareader.ReadSingle(), datareader.ReadSingle(), datareader.ReadSingle(), datareader.ReadSingle()),
+            VfxVariableType.Float => datareader.ReadSingle(),
+            VfxVariableType.Int => datareader.ReadInt32(),
+            VfxVariableType.Bool => datareader.ReadByte() != 0,
+            VfxVariableType.String => datareader.ReadNullTermString(Encoding.UTF8),
+            VfxVariableType.Float2 => new Vector2(datareader.ReadSingle(), datareader.ReadSingle()),
+            VfxVariableType.Float3 => new Vector3(datareader.ReadSingle(), datareader.ReadSingle(), datareader.ReadSingle()),
+            VfxVariableType.Float4 => new Vector4(datareader.ReadSingle(), datareader.ReadSingle(), datareader.ReadSingle(), datareader.ReadSingle()),
             _ => throw new ShaderParserException($"Unexpected attribute type {VfxType} has a constant value."),
         };
 
