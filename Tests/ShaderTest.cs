@@ -193,7 +193,7 @@ namespace Tests
             vfx = extract.ToVFX(ShaderExtract.ShaderExtractParams.Export);
 
             Assert.That(vfx.VfxContent, Does.Contain("Description = \"Error shader\""));
-            Assert.That(vfx.VfxContent, Does.Contain("DevShader = True"));
+            Assert.That(vfx.VfxContent, Does.Contain("DevShader = true"));
         }
 
         [Test]
@@ -235,7 +235,7 @@ namespace Tests
             {
                 var vfx = extract.ToVFX(options);
                 Assert.That(vfx.VfxContent, Does.Contain("Description = \"Error shader\""));
-                Assert.That(vfx.VfxContent, Does.Contain("DevShader = True"));
+                Assert.That(vfx.VfxContent, Does.Contain("DevShader = true"));
             }
         }
 
