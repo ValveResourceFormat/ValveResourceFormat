@@ -504,17 +504,15 @@ namespace GUI.Types.Viewers
         {
             var staticComboData = shaderFile.ParentCombo;
             var program = staticComboData.ParentProgramData;
-            Span<spvc_buffer_range> bufferRanges = stackalloc spvc_buffer_range[256];
             // var leadingWriteSequence = shader.ZFrameCache.Get(zFrameId).DataBlocks[dynamicId];
 
             var dynamicBlockIndex = staticComboData.RenderStateInfos[shaderFile.SourceId].BlockIdRef;
             var writeSequence = staticComboData.DataBlocks[(int)dynamicBlockIndex];
 
-            SpirvCrossApi.spvc_resources_get_resource_list_for_type(resources, resourceType, out var outResources, out var outResourceCount).CheckResult();
-            for (nuint i = 0; i < outResourceCount; i++)
-            {
-                var resource = outResources[i];
+            var reflectedResources = SpirvCrossApi.spvc_resources_get_resource_list_for_type(resources, resourceType);
 
+            foreach (var resource in reflectedResources)
+            {
                 var location = (int)SpirvCrossApi.spvc_compiler_get_decoration(compiler, resource.id, SpvDecoration.Location);
                 var index = SpirvCrossApi.spvc_compiler_get_decoration(compiler, resource.id, SpvDecoration.Index);
                 var binding = SpirvCrossApi.spvc_compiler_get_decoration(compiler, resource.id, SpvDecoration.Binding);
@@ -562,19 +560,10 @@ namespace GUI.Types.Viewers
 
                 if (resourceType is ResourceType.UniformBuffer)
                 {
-                    // get buffer members
-                    nuint bufferRangeCount = 0;
+                    var bufferRanges = SpirvCrossApi.spvc_compiler_get_active_buffer_ranges(compiler, resource.id);
 
-#pragma warning disable CS8500 // This takes the address of, gets the size of, or declares a pointer to a managed type
-
-                    SpirvCrossApi.spvc_compiler_get_active_buffer_ranges(compiler, resource.id, (spvc_buffer_range**)&bufferRanges, &bufferRangeCount).CheckResult();
-#pragma warning restore CS8500 // This takes the address of, gets the size of, or declares a pointer to a managed type
-
-
-                    for (var j = 0; j < (int)bufferRangeCount; j++)
+                    foreach (var bufferRange in bufferRanges)
                     {
-                        var bufferRange = bufferRanges[j];
-
                         var memberName = isGlobalsBuffer
                             ? GetGlobalBufferMemberName(program, writeSequence, offset: (int)bufferRange.offset / 4)
                             : GetBufferMemberName(program, name, offset: (int)bufferRange.offset / 4);
