@@ -16,7 +16,6 @@ public class VfxShaderAttribute
     public byte[] HeaderCode { get; }
     public int DynExpLen { get; } = -1;
     public byte[] DynExpression { get; }
-    public string DynExpEvaluated { get; }
     public object ConstValue { get; }
 
     public VfxShaderAttribute(BinaryReader datareader)
@@ -40,7 +39,6 @@ public class VfxShaderAttribute
         if (DynExpLen > 0)
         {
             DynExpression = datareader.ReadBytes(DynExpLen);
-            DynExpEvaluated = ParseDynamicExpression(DynExpression);
             return;
         }
 
@@ -62,7 +60,7 @@ public class VfxShaderAttribute
     {
         if (DynExpLen > 0)
         {
-            return $"{Name0,-40} 0x{Murmur32:x08}  {VfxType,-15} {LinkedParameterIndex,-3}  {DynExpEvaluated}";
+            return $"{Name0,-40} 0x{Murmur32:x08}  {VfxType,-15} {LinkedParameterIndex,-3}  {ParseDynamicExpression(DynExpression)}";
         }
         else
         {

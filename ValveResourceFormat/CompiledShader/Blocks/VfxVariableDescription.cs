@@ -11,7 +11,7 @@ public class VfxVariableDescription : ShaderDataBlock
     public string StringData { get; }
     public UiType UiType { get; }
     public float Res0 { get; }
-    public LeadFlags Lead0 { get; }
+    public VfxVariableSource VariableSource { get; }
     public byte[] DynExp { get; } = [];
     public byte[] UiVisibilityExp { get; } = [];
     public int Tex { get; }
@@ -50,7 +50,7 @@ public class VfxVariableDescription : ShaderDataBlock
         UiType = (UiType)datareader.ReadInt32();
         Res0 = datareader.ReadSingle();
         StringData = ReadStringWithMaxLength(datareader, 64);
-        Lead0 = (LeadFlags)datareader.ReadInt32();
+        VariableSource = (VfxVariableSource)datareader.ReadInt32();
 
         if (HasDynamicExpression)
         {
@@ -130,8 +130,5 @@ public class VfxVariableDescription : ShaderDataBlock
         }
     }
 
-    public bool HasDynamicExpression
-        => Lead0.HasFlag(LeadFlags.Dynamic)
-        && Lead0.HasFlag(LeadFlags.Expression)
-        && !Lead0.HasFlag(LeadFlags.DynMaterial);
+    public bool HasDynamicExpression => VariableSource is VfxVariableSource.__Expression__ or VfxVariableSource.__SetByArtistAndExpression__;
 }

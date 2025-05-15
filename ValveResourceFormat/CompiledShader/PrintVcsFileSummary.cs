@@ -287,7 +287,7 @@ namespace ValveResourceFormat.CompiledShader
                 nameof(VfxVariableDescription.Id),
                 "dyn-exp*",
                 nameof(VfxVariableDescription.StringData),
-                nameof(VfxVariableDescription.Lead0),
+                nameof(VfxVariableDescription.VariableSource),
                 nameof(VfxVariableDescription.Type),
                 nameof(VfxVariableDescription.UiType),
                 nameof(VfxVariableDescription.UiGroup),
@@ -322,7 +322,7 @@ namespace ValveResourceFormat.CompiledShader
                     param.Id.ToString(CultureInfo.InvariantCulture),
                     dynExpExists,
                     param.StringData,
-                    $"{param.Lead0}",
+                    $"{param.VariableSource}",
                     $"{param.Type}",
                     param.UiType.ToString(),
                     param.UiGroup.CompactString,
@@ -346,13 +346,14 @@ namespace ValveResourceFormat.CompiledShader
                     var dynExpstring = string.Empty;
                     var uiVisibilityString = string.Empty;
 
-                    if (param.Lead0.HasFlag(LeadFlags.Dynamic))
+                    // dynExpstring = param.Lead0.HasFlag(RenderAttribute.DynMaterial) ? "< shader id >"
+                    if (param.DynExp.Length > 0)
                     {
-                        dynExpstring = param.Lead0.HasFlag(LeadFlags.DynMaterial)
-                            ? "< shader id >"
-                            : param.HasDynamicExpression
-                                ? ParseDynamicExpression(param.DynExp)
-                                : "< empty >";
+                        dynExpstring = ParseDynamicExpression(param.DynExp);
+                    }
+                    else
+                    {
+                        dynExpstring = "< empty >";
                     }
 
                     if (param.UiVisibilityExp.Length > 0)
@@ -367,7 +368,7 @@ namespace ValveResourceFormat.CompiledShader
 
                     output.AddTabulatedRow([$"[{("" + param.BlockIndex).PadLeft(indexPad)}]",
                         $"{param.Name}",
-                        $"{param.UiType,2},{param.Lead0,2},{BlankNegOne(param.Tex),2},{ShaderUtilHelpers.GetVfxVariableTypeString(param.VfxType)},{param.Type,2},{param.VecSize,2},{param.Id}",
+                        $"{param.UiType,2},{param.VariableSource,2},{BlankNegOne(param.Tex),2},{ShaderUtilHelpers.GetVfxVariableTypeString(param.VfxType)},{param.Type,2},{param.VecSize,2},{param.Id}",
                         dynExpstring,
                         uiVisibilityString]);
                 }
@@ -400,7 +401,7 @@ namespace ValveResourceFormat.CompiledShader
                 var hasDynExp = param.HasDynamicExpression ? "true" : "";
                 output.AddTabulatedRow([$"[{("" + param.BlockIndex).PadLeft(indexPad)}]",
                     $"{param.Name}",
-                    $"{param.UiType,2},{param.Lead0,2},{BlankNegOne(param.Tex),2},{vfxType},{param.Type,2},{param.VecSize,2},{param.Id}",
+                    $"{param.UiType,2},{param.VariableSource,2},{BlankNegOne(param.Tex),2},{vfxType},{param.Type,2},{param.VecSize,2},{param.Id}",
                     $"{Comb(param.IntDefs)}",
                     $"{Comb(param.IntMins)}",
                     $"{Comb(param.IntMaxs)}",
