@@ -792,11 +792,25 @@ namespace GUI
 
         private void MainForm_DragDrop(object sender, DragEventArgs e)
         {
-            var files = (string[])e.Data.GetData(DataFormats.FileDrop);
-
-            foreach (var fileName in files)
+            // Despite us setting drag effect only on FileDrop this can still be null on drop
+            if (e.Data.GetData(DataFormats.FileDrop) is string[] files)
             {
-                OpenFile(fileName);
+                foreach (var fileName in files)
+                {
+                    OpenFile(fileName);
+                }
+            }
+            else if (e.Data.GetData(DataFormats.UnicodeText) is string text) // Dropping files from web based apps such as VS code
+            {
+                foreach (var line in text.AsSpan().EnumerateLines())
+                {
+                    var fileName = line.ToString();
+
+                    if (File.Exists(fileName))
+                    {
+                        OpenFile(fileName);
+                    }
+                }
             }
         }
 
