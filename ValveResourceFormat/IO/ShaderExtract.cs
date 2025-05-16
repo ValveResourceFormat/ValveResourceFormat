@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using System.Text;
@@ -1029,33 +1030,33 @@ public sealed class ShaderExtract
         foreach (var constraint in constraints)
         {
             var constrainedNames = new List<string>(constraint.ConditionalTypes.Length);
-            foreach ((var Type, var Index) in Enumerable.Zip(constraint.ConditionalTypes, constraint.Indices))
+            foreach ((var Type, var Index, var Value) in Enumerable.Zip(constraint.ConditionalTypes, constraint.Indices, constraint.Values))
             {
-                if (Type == VfxRuleType.Feature)
+                if (Type == VfxRuleType.None)
                 {
-                    constrainedNames.Add(FeatureNames[Index]);
+                    break;
                 }
-                else if (Type == VfxRuleType.Static)
+
+                var name = Type switch
                 {
-                    constrainedNames.Add(staticCombos[Index].Name);
+                    VfxRuleType.Feature => FeatureNames[Index],
+                    VfxRuleType.Static => staticCombos[Index].Name,
+                    VfxRuleType.Dynamic => dynamicCombos[Index].Name,
+                    _ => throw new UnreachableException(),
+                };
+
+                if (Value != -1)
+                {
+                    constrainedNames.Add($"{name}={Value}");
                 }
-                else if (Type == VfxRuleType.Dynamic)
+                else
                 {
-                    constrainedNames.Add(dynamicCombos[Index].Name);
+                    constrainedNames.Add(name);
                 }
             }
 
             // By value constraint
             // e.g. FeatureRule( Requires1( F_REFRACT, F_TEXTURE_LAYERS=0, F_TEXTURE_LAYERS=1 ), "Refract requires Less than 2 Layers due to DX9" );
-            if (constraint.Values.Length > 0)
-            {
-                if (constraint.Values.Length != constraint.ConditionalTypes.Length - 1)
-                {
-                    //throw new InvalidOperationException("Expected to have 1 less value than conditionals.");
-                }
-
-                constrainedNames = [.. constrainedNames.Take(1), .. constrainedNames.Skip(1).Select((s, i) => $"{s} == {constraint.Values[i]}")];
-            }
 
             var rule = $"{constraint.Rule}{constraint.Range2[0]}( {string.Join(", ", constrainedNames)} )";
 
