@@ -30,27 +30,35 @@ public class VfxStaticComboVcsEntry
 
         uncompressedSize = dataReader.ReadInt32();
 
-        var uncompressedBuffer = ArrayPool<byte>.Shared.Rent(uncompressedSize);
-
-        try
+        if (uncompressedSize == LZMA_MAGIC)
         {
-            if (uncompressedSize == LZMA_MAGIC)
+            // On PC v64 switched to using zstd, but on mobile builds they still kept the LZMA decompression.
+            Debug.Assert(ParentProgramData.VcsVersion <= 64);
+
+            uncompressedSize = dataReader.ReadInt32();
+            var compressedSize2 = dataReader.ReadInt32();
+
+            var lzmaDecoder = new SevenZip.Compression.LZMA.Decoder();
+            lzmaDecoder.SetDecoderProperties(dataReader.ReadBytes(5));
+
+            var uncompressedBufferv64 = ArrayPool<byte>.Shared.Rent(uncompressedSize);
+            try
             {
-                // On PC v64 switched to using zstd, but on mobile builds they still kept the LZMA decompression.
-                Debug.Assert(ParentProgramData.VcsVersion <= 64);
-
-                uncompressedSize = dataReader.ReadInt32();
-                var compressedSize2 = dataReader.ReadInt32();
-
-                var lzmaDecoder = new SevenZip.Compression.LZMA.Decoder();
-                lzmaDecoder.SetDecoderProperties(dataReader.ReadBytes(5));
-
-                using var outStream = new MemoryStream(uncompressedBuffer, 0, uncompressedSize);
+                using var outStream = new MemoryStream(uncompressedBufferv64, 0, uncompressedSize);
                 lzmaDecoder.Code(dataReader.BaseStream, outStream, compressedSize2, uncompressedSize, null);
                 outStream.Position = 0;
                 return new VfxStaticComboData(outStream, StaticComboId, ParentProgramData);
             }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(uncompressedBufferv64);
+            }
+        }
 
+        var uncompressedBuffer = ArrayPool<byte>.Shared.Rent(uncompressedSize);
+
+        try
+        {
             var compressionType = -compressionTypeOrSize; // it's negative
 
             var compressedSize = dataReader.ReadInt32();
