@@ -426,7 +426,7 @@ public sealed class ShaderExtract
                         continue;
                     }
 
-                    if (VsInputIds.All(x => masks[i][x]))
+                    if (VsInputIds.Where(x => x >= 0).All(x => masks[i][x]))
                     {
                         conditions.Add($"{condition.Name}={condition.State}");
                     }
