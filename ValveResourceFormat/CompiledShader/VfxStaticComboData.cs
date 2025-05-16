@@ -28,6 +28,11 @@ namespace ValveResourceFormat.CompiledShader
             StaticComboId = staticComboId;
             using var dataReader = new BinaryReader(stream, Encoding.UTF8, leaveOpen: true);
 
+            if (programData.VcsVersion < 62) // not precise
+            {
+                var unk1 = dataReader.ReadUInt64(); // probably StaticComboId
+            }
+
             VariablesFromStaticCombo = new VfxVariableIndexArray(dataReader, -1, ParentProgramData.VcsProgramType != VcsProgramType.Features);
 
             int attributeCount = dataReader.ReadInt16();
@@ -84,7 +89,11 @@ namespace ValveResourceFormat.CompiledShader
 
             var gpuSourceCount = dataReader.ReadInt32();
             ShaderFiles = new VfxShaderFile[gpuSourceCount];
-            Flagbyte2 = dataReader.ReadBoolean();
+
+            if (programData.VcsVersion >= 60) // not precise
+            {
+                Flagbyte2 = dataReader.ReadBoolean();
+            }
 
             if (ParentProgramData.VcsPlatformType == VcsPlatformType.PC)
             {
