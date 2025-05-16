@@ -506,7 +506,7 @@ namespace GUI.Types.Viewers
             var program = staticComboData.ParentProgramData;
             // var leadingWriteSequence = shader.ZFrameCache.Get(zFrameId).DataBlocks[dynamicId];
 
-            var dynamicBlockIndex = staticComboData.RenderStateInfos[shaderFile.ShaderFileId].DynamicComboId;
+            var dynamicBlockIndex = Array.Find(staticComboData.RenderStateInfos, r => r.ShaderFileId == shaderFile.ShaderFileId).DynamicComboId;
             var writeSequence = staticComboData.DynamicComboVariables[(int)dynamicBlockIndex];
 
             var reflectedResources = SpirvCrossApi.spvc_resources_get_resource_list_for_type(resources, resourceType);
