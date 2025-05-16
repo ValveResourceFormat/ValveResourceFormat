@@ -343,8 +343,8 @@ public sealed class ShaderExtract
 
             foreach (var vsEnd in staticCombo.RenderStateInfos)
             {
-                var dynamicConfigState = dynamicConfig.GetConfigState(vsEnd.BlockIdRef);
-                var vsInputId = staticCombo.VShaderInputs[vsEnd.BlockIdRef];
+                var dynamicConfigState = dynamicConfig.GetConfigState(vsEnd.DynamicComboId);
+                var vsInputId = staticCombo.VShaderInputs[vsEnd.ShaderFileId];
 
                 for (var j = 0; j < staticConfigState.Length; j++)
                 {

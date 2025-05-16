@@ -6,7 +6,7 @@ public abstract class VfxShaderFile : ShaderDataBlock
 {
     public VfxStaticComboData ParentCombo { get; }
     public abstract string BlockName { get; }
-    public int SourceId { get; }
+    public int ShaderFileId { get; }
     public int Size { get; protected set; }
     public byte[] Bytecode { get; protected set; } = [];
     public Guid HashMD5 { get; protected set; }
@@ -14,7 +14,7 @@ public abstract class VfxShaderFile : ShaderDataBlock
     protected VfxShaderFile(BinaryReader datareader, int sourceId, VfxStaticComboData parent) : base(datareader)
     {
         ParentCombo = parent;
-        SourceId = sourceId;
+        ShaderFileId = sourceId;
         Size = datareader.ReadInt32();
     }
 

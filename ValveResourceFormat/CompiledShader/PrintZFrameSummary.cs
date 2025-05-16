@@ -220,7 +220,7 @@ namespace ValveResourceFormat.CompiledShader
 
             foreach (var block in StaticCombo.RenderStateInfos)
             {
-                var dBlockConfig = StaticCombo.ParentProgramData.GetDBlockConfig(block.BlockIdRef);
+                var dBlockConfig = StaticCombo.ParentProgramData.GetDBlockConfig(block.DynamicComboId);
                 tabulatedConfigCombinations.AddTabulatedRow(IntArrayToStrings(dBlockConfig, nulledValue: 0));
             }
             var tabbedConfigs = new Stack<string>(tabulatedConfigCombinations.BuildTabulatedRows(reverse: true));
@@ -245,7 +245,7 @@ namespace ValveResourceFormat.CompiledShader
             var dBlockCount = 0;
             foreach (var block in StaticCombo.RenderStateInfos)
             {
-                var blockId = (int)block.BlockIdRef;
+                var blockId = (int)block.DynamicComboId;
                 dBlockCount++;
                 if (dBlockCount % 100 == 0)
                 {
@@ -257,10 +257,9 @@ namespace ValveResourceFormat.CompiledShader
                 var configCombText = hasNoDConfigsDefined ? $"{"(default)",-14}" : tabbedConfigs.Pop();
                 var writeSeqText = writeSequences[blockId] == -1 ? "[empty]" : $"seq[{writeSequences[blockId]}]";
                 var blockSource = blockIdToSource[blockId];
-                var sourceLink = $"{blockSource.SourceId:X2}";
-                var vsInputs = isVertexShader ?
-                    StaticCombo.VShaderInputs[blockId] : -1;
-                var gpuInputText = vsInputs >= 0 ? $"VS-symbols[{StaticCombo.VShaderInputs[blockId]}]" : "[none]";
+                var sourceLink = $"{blockSource.ShaderFileId:X2}";
+                var vsInputs = isVertexShader ? StaticCombo.VShaderInputs[block.ShaderFileId] : -1;
+                var gpuInputText = vsInputs >= 0 ? $"VS-symbols[{vsInputs}]" : "[none]";
                 var arg1Text = $"{StaticCombo.ConstantBufferBindInfoSlots[blockId]}";
                 var arg2Text = $"{StaticCombo.ConstantBufferBindInfoFlags[blockId]}";
                 var hash = blockSource.HashMD5.ToString();
@@ -293,7 +292,7 @@ namespace ValveResourceFormat.CompiledShader
             Dictionary<long, VfxShaderFile> blockIdToSource = [];
             foreach (var endBlock in zframeFile.RenderStateInfos)
             {
-                blockIdToSource.Add(endBlock.BlockIdRef, zframeFile.GpuSources[endBlock.SourceRef]);
+                blockIdToSource.Add(endBlock.DynamicComboId, zframeFile.GpuSources[endBlock.ShaderFileId]);
             }
             return blockIdToSource;
         }
@@ -320,8 +319,8 @@ namespace ValveResourceFormat.CompiledShader
             OutputWriteLine("");
             foreach (var endBlock in StaticCombo.RenderStateInfos)
             {
-                OutputWriteLine($"block-ref         {endBlock.BlockIdRef}");
-                OutputWriteLine($"source-ref        {endBlock.SourceRef}");
+                OutputWriteLine($"block-ref         {endBlock.DynamicComboId}");
+                OutputWriteLine($"source-ref        {endBlock.ShaderFileId}");
                 OutputWriteLine($"source-pointer    {endBlock.SourcePointer}");
                 if (endBlock is VfxRenderStateInfoHullShader hsEndBlock)
                 {

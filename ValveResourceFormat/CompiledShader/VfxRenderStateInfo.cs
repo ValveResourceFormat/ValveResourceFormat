@@ -6,13 +6,13 @@ namespace ValveResourceFormat.CompiledShader;
 
 public class VfxRenderStateInfo
 {
-    public long BlockIdRef { get; }
-    public int SourceRef { get; }
+    public long DynamicComboId { get; }
+    public int ShaderFileId { get; }
     public int SourcePointer { get; }
     public VfxRenderStateInfo(BinaryReader datareader)
     {
-        BlockIdRef = datareader.ReadInt64();
-        SourceRef = datareader.ReadInt32();
+        DynamicComboId = datareader.ReadInt64();
+        ShaderFileId = datareader.ReadInt32();
         SourcePointer = datareader.ReadInt32();
     }
 }

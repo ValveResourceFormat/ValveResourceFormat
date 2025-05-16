@@ -280,12 +280,12 @@ namespace GUI.Types.Viewers
                 // We are only taking the first render state info currently
                 foreach (var renderStateInfo in combo.RenderStateInfos)
                 {
-                    sourceIdToRenderStateInfo.TryAdd(renderStateInfo.SourceRef, renderStateInfo);
+                    sourceIdToRenderStateInfo.TryAdd(renderStateInfo.ShaderFileId, renderStateInfo);
                 }
 
                 foreach (var source in combo.GpuSources)
                 {
-                    var config = combo.ParentProgramData.GetDBlockConfig(sourceIdToRenderStateInfo[source.SourceId].BlockIdRef);
+                    var config = combo.ParentProgramData.GetDBlockConfig(sourceIdToRenderStateInfo[source.ShaderFileId].DynamicComboId);
 
                     dfNames.Clear();
                     dfNamesAbbrev.Clear();
@@ -312,7 +312,7 @@ namespace GUI.Types.Viewers
                         }
                     }
 
-                    var node = new TreeNode($"{source.SourceId:X2}{(dfNamesAbbrev.Count > 0 ? $" ({string.Join(", ", dfNamesAbbrev)})" : string.Empty)}")
+                    var node = new TreeNode($"{source.ShaderFileId:X2}{(dfNamesAbbrev.Count > 0 ? $" ({string.Join(", ", dfNamesAbbrev)})" : string.Empty)}")
                     {
                         ToolTipText = string.Join(Environment.NewLine, dfNames),
                         Tag = source,
@@ -506,7 +506,7 @@ namespace GUI.Types.Viewers
             var program = staticComboData.ParentProgramData;
             // var leadingWriteSequence = shader.ZFrameCache.Get(zFrameId).DataBlocks[dynamicId];
 
-            var dynamicBlockIndex = staticComboData.RenderStateInfos[shaderFile.SourceId].BlockIdRef;
+            var dynamicBlockIndex = staticComboData.RenderStateInfos[shaderFile.ShaderFileId].DynamicComboId;
             var writeSequence = staticComboData.DynamicComboVariables[(int)dynamicBlockIndex];
 
             var reflectedResources = SpirvCrossApi.spvc_resources_get_resource_list_for_type(resources, resourceType);
@@ -540,7 +540,7 @@ namespace GUI.Types.Viewers
                     ResourceType.StorageBuffer or ResourceType.StorageImage => GetNameForStorageBuffer(program, writeSequence, binding),
                     ResourceType.UniformBuffer => isGlobalsBuffer ? "_Globals_" : GetNameForUniformBuffer(program, writeSequence, uniformBufferBinding, set),
                     ResourceType.StageInput => isVertexShader
-                        ? GetVsAttributeName(program, program.VSInputSignatures[staticComboData.VShaderInputs[dynamicBlockIndex]], location)
+                        ? GetVsAttributeName(program, program.VSInputSignatures[staticComboData.VShaderInputs[shaderFile.ShaderFileId]], location)
                         : string.Empty,
                     _ => string.Empty,
                 };
