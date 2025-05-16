@@ -25,9 +25,9 @@ namespace ValveResourceFormat.CompiledShader
                 PrintPsVsHeader(program);
                 PrintSBlocks(program);
             }
-            PrintStaticConstraints(program);
+            PrintConstraints(program, program.StaticComboRules, "STATIC-CONFIGURATION");
             PrintDynamicConfigurations(program);
-            PrintDynamicConstraints(program);
+            PrintConstraints(program, program.DynamicComboRules, "DYNAMIC-CONFIGURATION");
             PrintParameters(program);
             PrintChannelBlocks(program);
             PrintBufferBlocks(program);
@@ -156,39 +156,6 @@ namespace ValveResourceFormat.CompiledShader
             output.BreakLine();
         }
 
-        private void PrintStaticConstraints(VfxProgramData program)
-        {
-            output.WriteLine("STATIC-CONFIGS INCLUSION/EXCLUSION RULES");
-            if (program.StaticComboRules.Length == 0)
-            {
-                output.WriteLine("[none defined]");
-                output.BreakLine();
-                return;
-            }
-            foreach (var sfRuleBlock in program.StaticComboRules)
-            {
-                var sfNames = new string[sfRuleBlock.Indices.Length];
-                for (var i = 0; i < sfNames.Length; i++)
-                {
-                    sfNames[i] = sfRuleBlock.Indices[i] > -1 ? program.StaticComboArray[sfRuleBlock.Indices[i]].Name : string.Empty;
-                }
-                const int BL = 70;
-                var breakNames = CombineValuesBreakString(sfNames, BL);
-                var s0 = $"[{sfRuleBlock.BlockIndex,2}]";
-                var s4 = $"{breakNames[0]}";
-                var s5 = $"{sfRuleBlock.Rule}{sfRuleBlock.Range2[0]}";
-                var s6 = $"{CombineIntArray(sfRuleBlock.Values)}";
-                var s7 = $"{CombineIntArray(sfRuleBlock.Range2)}";
-                output.Write($"{s0}  {s5,-10}  {s4,-BL}{s6,-10}{s7,-8}");
-                for (var i = 1; i < breakNames.Length; i++)
-                {
-                    output.Write($"\n{"",7}{"",10}{"",16}{breakNames[i],-BL}{sfRuleBlock.Description,-BL}");
-                }
-                output.BreakLine();
-            }
-            output.BreakLine();
-        }
-
         private void PrintDynamicConfigurations(VfxProgramData program)
         {
             output.WriteLine($"DYNAMIC-CONFIGURATIONS({program.DynamicComboArray.Length})");
@@ -223,36 +190,42 @@ namespace ValveResourceFormat.CompiledShader
             output.BreakLine();
         }
 
-        private void PrintDynamicConstraints(VfxProgramData program)
+        private void PrintConstraints(VfxProgramData program, VfxRule[] vfxRules, string comboDesc)
         {
-            output.WriteLine("DYNAMIC-CONFIGS INCLUSION/EXCLUSION RULES");
+            output.WriteLine($"{comboDesc} INCLUSION/EXCLUSION RULES");
+
             if (program.DynamicComboRules.Length == 0)
             {
                 output.WriteLine("[none defined]");
                 output.BreakLine();
                 return;
             }
-            foreach (var dRuleBlock in program.DynamicComboRules)
+
+            foreach (var vfxRule in vfxRules)
             {
-                var dRuleName = new string[dRuleBlock.ConditionalTypes.Length];
-                for (var i = 0; i < dRuleName.Length; i++)
+                var maxConstrains = Array.IndexOf(vfxRule.Indices, -1);
+
+                var ruleName = new string[maxConstrains];
+                for (var i = 0; i < ruleName.Length; i++)
                 {
-                    dRuleName[i] = dRuleBlock.ConditionalTypes[i] switch
+                    ruleName[i] = vfxRule.ConditionalTypes[i] switch
                     {
                         VfxRuleType.None => string.Empty,
-                        VfxRuleType.Dynamic => program.DynamicComboArray[dRuleBlock.Indices[i]].Name,
-                        VfxRuleType.Static => program.StaticComboArray[dRuleBlock.Indices[i]].Name,
-                        VfxRuleType.Feature => throw new InvalidOperationException("Dynamic combos can't be constrained by features!"),
-                        _ => throw new ShaderParserException($"Unknown {nameof(VfxRuleType)} {dRuleBlock.ConditionalTypes[i]}")
+                        VfxRuleType.Dynamic => program.DynamicComboArray[vfxRule.Indices[i]].Name,
+                        VfxRuleType.Static => program.StaticComboArray[vfxRule.Indices[i]].Name,
+                        VfxRuleType.Feature => program.VcsProgramType == VcsProgramType.Features
+                            ? program.StaticComboArray[vfxRule.Indices[i]].Name
+                            : $"FEAT[{vfxRule.Indices[i]}]",
+                        _ => throw new ShaderParserException($"Unknown {nameof(VfxRuleType)} {vfxRule.ConditionalTypes[i]}")
                     };
                 }
                 const int BL = 70;
-                var breakNames = CombineValuesBreakString(dRuleName, BL);
-                var s0 = $"[{dRuleBlock.BlockIndex,2}]";
+                var breakNames = CombineValuesBreakString(ruleName, BL);
+                var s0 = $"[{vfxRule.BlockIndex,2}]";
                 var s4 = $"{breakNames[0]}";
-                var s5 = $"{dRuleBlock.Rule}{dRuleBlock.Range2[0]}";
-                var s6 = $"{CombineIntArray(dRuleBlock.Values)}";
-                var s7 = $"{CombineIntArray(dRuleBlock.Range2)}";
+                var s5 = $"{vfxRule.Rule}{vfxRule.Range2[0]}";
+                var s6 = $"{CombineIntArray(vfxRule.Values[..maxConstrains])}";
+                var s7 = $"{CombineIntArray(vfxRule.Range2[..maxConstrains])}";
                 output.Write($"{s0}  {s5,-10}  {s4,-BL}{s6,-10}{s7,-8}");
                 for (var i = 1; i < breakNames.Length; i++)
                 {
@@ -279,15 +252,13 @@ namespace ValveResourceFormat.CompiledShader
             output.DefineHeaders(["index",
                 nameof(VfxVariableDescription.Name),
                 nameof(VfxVariableDescription.VfxType),
-                nameof(VfxVariableDescription.UiStep),
                 nameof(VfxVariableDescription.Tex),
                 nameof(VfxVariableDescription.Field1),
                 nameof(VfxVariableDescription.Field2),
                 nameof(VfxVariableDescription.VecSize),
                 nameof(VfxVariableDescription.ExtConstantBufferId),
-                "dyn-exp*",
-                nameof(VfxVariableDescription.StringData),
                 nameof(VfxVariableDescription.VariableSource),
+                nameof(VfxVariableDescription.StringData),
                 nameof(VfxVariableDescription.RegisterType),
                 nameof(VfxVariableDescription.UiType),
                 nameof(VfxVariableDescription.UiGroup),
@@ -297,10 +268,9 @@ namespace ValveResourceFormat.CompiledShader
 
             foreach (var param in program.VariableDescriptions)
             {
-                var dynExpExists = param.HasDynamicExpression ? "true" : string.Empty;
                 var uiVisibilityExists = param.UiVisibilityExp.Length > 0 ? "true" : string.Empty;
 
-                if (dynExpExists.Length > 0 || uiVisibilityExists.Length > 0)
+                if (param.HasDynamicExpression || uiVisibilityExists.Length > 0)
                 {
                     dynExpCount++;
                 }
@@ -314,15 +284,13 @@ namespace ValveResourceFormat.CompiledShader
                 output.AddTabulatedRow([$"[{("" + param.BlockIndex).PadLeft(indexPad)}]",
                     param.Name,
                     $"{param.VfxType}",
-                    $"{param.UiStep}",
                     $"{BlankNegOne(param.Tex),2}",
                     param.Field1.ToString(CultureInfo.InvariantCulture),
                     $"{BlankNegOne(param.Field2),2}",
                     $"{param.VecSize,2}",
                     param.ExtConstantBufferId.ToString(CultureInfo.InvariantCulture),
-                    dynExpExists,
-                    param.StringData,
                     $"{param.VariableSource}",
+                    param.StringData,
                     $"{param.RegisterType}",
                     param.UiType.ToString(),
                     param.UiGroup.CompactString,
@@ -332,28 +300,23 @@ namespace ValveResourceFormat.CompiledShader
             }
             output.PrintTabulatedValues(spacing: 1);
             output.BreakLine();
+
+            output.WriteLine($"DYNAMIC EXPRESSIONS({dynExpCount})");
             if (dynExpCount == 0)
             {
-                output.WriteLine($"DYNAMIC EXPRESSIONS({dynExpCount})");
                 output.WriteLine("[none defined]");
             }
             else
             {
-                output.WriteLine($"DYNAMIC EXPRESSIONS({dynExpCount})    (name0,type0,type1,arg0,arg1,arg2,arg4,arg5 reprinted)");
-                output.DefineHeaders(["param-index", "name0", "t0,t1,a0,a1,a2,a4,a5  ", "dyn-exp", "ui-visibility"]);
+                output.DefineHeaders(["param-index", "name", "vfxtype,registertype,vecsize,tex,", nameof(VfxVariableDescription.VariableSource), "dyn-exp", "ui-visibility"]);
                 foreach (var param in program.VariableDescriptions)
                 {
                     var dynExpstring = string.Empty;
                     var uiVisibilityString = string.Empty;
 
-                    // dynExpstring = param.Lead0.HasFlag(RenderAttribute.DynMaterial) ? "< shader id >"
-                    if (param.DynExp.Length > 0)
+                    if (param.HasDynamicExpression)
                     {
                         dynExpstring = ParseDynamicExpression(param.DynExp);
-                    }
-                    else
-                    {
-                        dynExpstring = "< empty >";
                     }
 
                     if (param.UiVisibilityExp.Length > 0)
@@ -361,14 +324,15 @@ namespace ValveResourceFormat.CompiledShader
                         uiVisibilityString = ParseDynamicExpression(param.UiVisibilityExp);
                     }
 
-                    if (dynExpstring.Length == 0 && uiVisibilityString.Length == 0)
+                    if (dynExpstring.Length == 0 && uiVisibilityString.Length == 0 && param.VariableSource < VfxVariableSourceType.Viewport)
                     {
                         continue;
                     }
 
                     output.AddTabulatedRow([$"[{("" + param.BlockIndex).PadLeft(indexPad)}]",
                         $"{param.Name}",
-                        $"{param.UiType,2},{param.VariableSource,2},{BlankNegOne(param.Tex),2},{ShaderUtilHelpers.GetVfxVariableTypeString(param.VfxType)},{param.RegisterType,2},{param.VecSize,2},{param.ExtConstantBufferId}",
+                        $"{GetVfxVariableTypeString(param.VfxType)},{param.RegisterType,2},{param.VecSize,2},{BlankNegOne(param.Tex),2}",
+                        $"{param.VariableSource,2}",
                         dynExpstring,
                         uiVisibilityString]);
                 }
@@ -397,7 +361,7 @@ namespace ValveResourceFormat.CompiledShader
             ]);
             foreach (var param in program.VariableDescriptions)
             {
-                var vfxType = ShaderUtilHelpers.GetVfxVariableTypeString(param.VfxType);
+                var vfxType = GetVfxVariableTypeString(param.VfxType);
                 var hasDynExp = param.HasDynamicExpression ? "true" : "";
                 output.AddTabulatedRow([$"[{("" + param.BlockIndex).PadLeft(indexPad)}]",
                     $"{param.Name}",

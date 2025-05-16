@@ -656,8 +656,10 @@ namespace GUI.Types.Viewers
 
                 if (field.Dest == sampler_binding - SamplerStartingPoint)
                 {
-                    var value = param.HasDynamicExpression ? /*param.DynExp*/
-                "dynamic" : param.IntDefs[0].ToString(CultureInfo.InvariantCulture);
+                    var value = param.HasDynamicExpression
+                        ? "dynamic"
+                        : param.IntDefs[0].ToString(CultureInfo.InvariantCulture);
+
                     samplerSettings += $"{param.Name}_{value}__";
                 }
             }
