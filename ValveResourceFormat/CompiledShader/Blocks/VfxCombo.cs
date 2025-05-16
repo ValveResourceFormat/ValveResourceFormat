@@ -12,9 +12,10 @@ namespace ValveResourceFormat.CompiledShader;
 public class VfxCombo : ShaderDataBlock
 {
     public int BlockIndex { get; }
+    public long CalculatedComboId { get; set; } // set after loading all combos
     public string Name { get; }
     public string Category { get; }
-    public int Arg0 { get; }
+    public int ComboType { get; }
     public int RangeMin { get; }
     public int RangeMax { get; }
     public int Arg3 { get; } // S_TOOLS_ENABLED = 1, S_SHADER_QUALITY = 2
@@ -27,7 +28,7 @@ public class VfxCombo : ShaderDataBlock
         BlockIndex = blockIndex;
         Name = ReadStringWithMaxLength(datareader, 64);
         Category = ReadStringWithMaxLength(datareader, 64);
-        Arg0 = datareader.ReadInt32();
+        ComboType = datareader.ReadInt32(); // 1 - static, 2 - dynamic
         RangeMin = datareader.ReadInt32();
         RangeMax = datareader.ReadInt32();
         Arg3 = datareader.ReadInt32();

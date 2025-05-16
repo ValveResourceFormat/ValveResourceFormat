@@ -1,6 +1,6 @@
 namespace ValveResourceFormat.CompiledShader;
 
-public enum VfxVariableSource // this is not a confirmed name for this enum
+public enum VfxVariableSourceType
 {
     __SetByArtist__,
     __Attribute__,

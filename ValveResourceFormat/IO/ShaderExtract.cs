@@ -26,16 +26,16 @@ public sealed class ShaderExtract
         public bool ForceWrite_UncertainEnumsAsInts { get; init; }
         public bool NoHungarianTypeGuessing { get; init; }
         public bool WriteParametersRaw { get; init; }
-        public bool CanReadZFrames
+        public bool CanReadStaticCombos
         {
-            get => ZFrameReadingCap != 0;
+            get => StaticComboReadingCap != 0;
             init
             {
-                var cap = ZFrameReadingCap == 0 ? -1 : ZFrameReadingCap;
-                ZFrameReadingCap = value ? cap : 0;
+                var cap = StaticComboReadingCap == 0 ? -1 : StaticComboReadingCap;
+                StaticComboReadingCap = value ? cap : 0;
             }
         }
-        public int ZFrameReadingCap { get; init; }
+        public int StaticComboReadingCap { get; init; }
         public bool StaticComboAttributes_NoSeparateGlobals { get; init; }
         public bool StaticComboAttributes_NoConditionalReduce { get; init; }
 
@@ -47,13 +47,13 @@ public sealed class ShaderExtract
         public static readonly ShaderExtractParams Inspect = Shared with
         {
             CollapseBuffers_InPlace = true,
-            ZFrameReadingCap = 512,
+            StaticComboReadingCap = 512,
         };
 
         public static readonly ShaderExtractParams Export = Shared with
         {
             CollapseBuffers_InInclude = true,
-            ZFrameReadingCap = -1,
+            StaticComboReadingCap = -1,
         };
     }
 
@@ -102,8 +102,8 @@ public sealed class ShaderExtract
             throw new InvalidOperationException("Shader extract cannot continue without at least a features file.");
         }
 
-        FeatureNames = Features.StaticCombos.Select(f => f.Name).ToArray();
-        Globals = Features.VariableDescriptions.Select(p => p.Name).ToArray();
+        FeatureNames = [.. Features.StaticComboArray.Select(f => f.Name)];
+        Globals = [.. Features.VariableDescriptions.Select(p => p.Name)];
     }
 
     public ContentFile ToContentFile()
@@ -126,9 +126,9 @@ public sealed class ShaderExtract
     public string GetVfxFileName()
         => GetVfxNameFromShaderFile(Features);
 
-    private static string GetVfxNameFromShaderFile(VfxProgramData shaderFile)
+    private static string GetVfxNameFromShaderFile(VfxProgramData program)
     {
-        return shaderFile.ShaderName + ".vfx";
+        return program.ShaderName + ".vfx";
     }
 
     private static string GetIncludeName(string bufferName)
@@ -172,12 +172,12 @@ public sealed class ShaderExtract
 
     class CommonBlocks
     {
-        public readonly HashSet<ConstantBufferVariable> BufferBlocks = new(new BufferBlockComparer());
+        public readonly HashSet<ConstantBufferDescription> BufferBlocks = new(new BufferBlockComparer());
 
-        public class BufferBlockComparer : IEqualityComparer<ConstantBufferVariable>
+        public class BufferBlockComparer : IEqualityComparer<ConstantBufferDescription>
         {
-            public bool Equals(ConstantBufferVariable x, ConstantBufferVariable y) => x.Name == y.Name;
-            public int GetHashCode(ConstantBufferVariable obj) => (int)obj.BlockCrc;
+            public bool Equals(ConstantBufferDescription x, ConstantBufferDescription y) => x.Name == y.Name;
+            public int GetHashCode(ConstantBufferDescription obj) => (int)obj.BlockCrc;
         }
     }
 
@@ -262,7 +262,7 @@ public sealed class ShaderExtract
         writer.WriteLine("{");
         writer.Indent++;
 
-        HandleFeatures(Features.StaticCombos, Features.StaticComboRules, writer);
+        HandleFeatures(Features.StaticComboArray, Features.StaticComboRules, writer);
 
         writer.Indent--;
         writer.WriteLine("}");
@@ -297,26 +297,25 @@ public sealed class ShaderExtract
             return;
         }
 
-        var symbols = new List<(string Name, string Type, string Option, int SemanticIndex)>();
+        var symbols = new List<Material.InputSignatureElement>();
         var masks = new List<bool[]>();
         var maxNameLength = 0;
         var maxSemanticLength = 0;
 
-        foreach (var i in Enumerable.Range(0, Vertex.VSInputSignatures.Count))
+        for (var i = 0; i < Vertex.VSInputSignatures.Length; i++)
         {
-            for (var j = 0; j < Vertex.VSInputSignatures[i].SymbolsDefinition.Count; j++)
+            for (var j = 0; j < Vertex.VSInputSignatures[i].SymbolsDefinition.Length; j++)
             {
                 var symbol = Vertex.VSInputSignatures[i].SymbolsDefinition[j];
-                var val = (symbol.Name, symbol.Type, symbol.Option, symbol.SemanticIndex);
-                var existingIndex = symbols.IndexOf(val);
+                var existingIndex = symbols.IndexOf(symbol);
                 if (existingIndex == -1)
                 {
-                    symbols.Insert(j, val);
-                    var mask = new bool[Vertex.VSInputSignatures.Count];
+                    symbols.Insert(j, symbol);
+                    var mask = new bool[Vertex.VSInputSignatures.Length];
                     mask[i] = true;
                     masks.Insert(j, mask);
                     maxNameLength = Math.Max(maxNameLength, symbol.Name.Length);
-                    maxSemanticLength = Math.Max(maxSemanticLength, symbol.Type.Length);
+                    maxSemanticLength = Math.Max(maxSemanticLength, symbol.Semantic.Length);
                 }
                 else
                 {
@@ -330,27 +329,28 @@ public sealed class ShaderExtract
 
         var perConditionVsInputBlocks = new Dictionary<(string Name, int State), HashSet<int>>(staticConfig.SumStates + dynamicConfig.SumStates);
 
-        foreach (var i in Enumerable.Range(0, Vertex.GetZFrameCount()))
+        var programIndex = 0;
+        foreach (var staticComboEntry in Vertex.StaticComboEntries)
         {
-            if (Options.ZFrameReadingCap >= 0 && i >= Options.ZFrameReadingCap)
+            if (Options.StaticComboReadingCap >= 0 && ++programIndex >= Options.StaticComboReadingCap)
             {
                 break;
             }
 
-            var zFrame = Vertex.GetZFrameFileByIndex(i);
-            var staticConfigState = staticConfig.GetConfigState(zFrame.ZframeId);
+            var staticCombo = staticComboEntry.Value.Unserialize();
+            var staticConfigState = staticConfig.GetConfigState(staticCombo.StaticComboId);
 
-            foreach (var vsEnd in zFrame.RenderStateInfos)
+            foreach (var vsEnd in staticCombo.RenderStateInfos)
             {
                 var dynamicConfigState = dynamicConfig.GetConfigState(vsEnd.BlockIdRef);
-                var vsInputId = zFrame.VShaderInputs[vsEnd.BlockIdRef];
+                var vsInputId = staticCombo.VShaderInputs[vsEnd.BlockIdRef];
 
                 for (var j = 0; j < staticConfigState.Length; j++)
                 {
-                    var staticCondition = (Vertex.StaticCombos[j].Name, staticConfigState[j]);
+                    var staticCondition = (Vertex.StaticComboArray[j].Name, staticConfigState[j]);
                     if (!perConditionVsInputBlocks.TryGetValue(staticCondition, out var staticVsBlocks))
                     {
-                        staticVsBlocks = new HashSet<int>(Vertex.VSInputSignatures.Count);
+                        staticVsBlocks = new HashSet<int>(Vertex.VSInputSignatures.Length);
                         perConditionVsInputBlocks.Add(staticCondition, staticVsBlocks);
                     }
 
@@ -358,10 +358,10 @@ public sealed class ShaderExtract
 
                     for (var k = 0; k < dynamicConfigState.Length; k++)
                     {
-                        var dynamicCondition = (Vertex.DynamicCombos[k].Name, dynamicConfigState[k]);
+                        var dynamicCondition = (Vertex.DynamicComboArray[k].Name, dynamicConfigState[k]);
                         if (!perConditionVsInputBlocks.TryGetValue(dynamicCondition, out var dynamicVsBlocks))
                         {
-                            dynamicVsBlocks = new HashSet<int>(Vertex.VSInputSignatures.Count);
+                            dynamicVsBlocks = new HashSet<int>(Vertex.VSInputSignatures.Length);
                             perConditionVsInputBlocks.Add(dynamicCondition, dynamicVsBlocks);
                         }
 
@@ -392,11 +392,11 @@ public sealed class ShaderExtract
                         _ => string.Empty
                     };
 
-                    if (symbol.Option.Contains("UV", StringComparison.OrdinalIgnoreCase))
+                    if (symbol.D3DSemanticName.Contains("UV", StringComparison.OrdinalIgnoreCase))
                     {
                         type = "float2";
                     }
-                    else if (symbol.Option == "PosXyz")
+                    else if (symbol.D3DSemanticName == "PosXyz")
                     {
                         type = "float3";
                     }
@@ -404,14 +404,14 @@ public sealed class ShaderExtract
                     type = $"{type,-7}";
                 }
 
-                var attributeVfx = symbol.Option.Length > 0 ? $" < Semantic( {symbol.Option} ); >" : string.Empty;
+                var attributeVfx = symbol.D3DSemanticName.Length > 0 ? $" < Semantic( {symbol.D3DSemanticName} ); >" : string.Empty;
                 var nameAlignSpaces = new string(' ', maxNameLength - symbol.Name.Length);
-                var semanticAlignSpaces = new string(' ', maxSemanticLength - symbol.Type.Length);
+                var semanticAlignSpaces = new string(' ', maxSemanticLength - symbol.Semantic.Length);
 
-                var field = $"{type}{symbol.Name}{nameAlignSpaces} : {symbol.Type}{symbol.SemanticIndex,-2}{semanticAlignSpaces}{attributeVfx};";
+                var field = $"{type}{symbol.Name}{nameAlignSpaces} : {symbol.Semantic}{symbol.D3DSemanticIndex,-2}{semanticAlignSpaces}{attributeVfx};";
                 writer.Write($"{field,-94}");
 
-                if (masks[i].All(x => x) || !Options.CanReadZFrames)
+                if (masks[i].All(x => x) || !Options.CanReadStaticCombos)
                 {
                     writer.WriteLine();
                     continue;
@@ -420,7 +420,7 @@ public sealed class ShaderExtract
                 var conditions = new List<string>();
                 foreach (var (condition, VsInputIds) in perConditionVsInputBlocks)
                 {
-                    if (VsInputIds.Count == Vertex.VSInputSignatures.Count)
+                    if (VsInputIds.Count == Vertex.VSInputSignatures.Length)
                     {
                         continue;
                     }
@@ -446,7 +446,7 @@ public sealed class ShaderExtract
         }
     }
 
-    private void WriteCBuffers(IEnumerable<ConstantBufferVariable> bufferBlocks, IndentedTextWriter writer)
+    private void WriteCBuffers(IEnumerable<ConstantBufferDescription> bufferBlocks, IndentedTextWriter writer)
     {
         foreach (var buffer in bufferBlocks)
         {
@@ -479,13 +479,13 @@ public sealed class ShaderExtract
         }
     }
 
-    private void WriteCBuffer(IndentedTextWriter writer, ConstantBufferVariable buffer)
+    private void WriteCBuffer(IndentedTextWriter writer, ConstantBufferDescription buffer)
     {
         writer.WriteLine("cbuffer " + buffer.Name);
         writer.WriteLine("{");
         writer.Indent++;
 
-        foreach (var member in buffer.BufferParams)
+        foreach (var member in buffer.Variables)
         {
             var type = "DWORD";
             if (!Options.NoHungarianTypeGuessing && member.Name.Length > 3)
@@ -542,9 +542,9 @@ public sealed class ShaderExtract
     private string RTX()
         => HandleStageShared(Raytracing, nameof(RTX));
 
-    private string HandleStageShared(VfxProgramData shader, string stageName)
+    private string HandleStageShared(VfxProgramData program, string stageName)
     {
-        if (shader is null)
+        if (program is null)
         {
             return string.Empty;
         }
@@ -555,16 +555,16 @@ public sealed class ShaderExtract
         writer.WriteLine("{");
         writer.Indent++;
 
-        HandleStaticCombos(shader.StaticCombos, shader.StaticComboRules, writer);
-        HandleDynamicCombos(shader.StaticCombos, shader.DynamicCombos, shader.DynamicComboRules, writer);
+        HandleStaticCombos(program.StaticComboArray, program.StaticComboRules, writer);
+        HandleDynamicCombos(program.StaticComboArray, program.DynamicComboArray, program.DynamicComboRules, writer);
 
-        WriteCBuffers(shader.ExtConstantBufferDescriptions.Where(b => !Common.BufferBlocks.Contains(b)), writer);
+        WriteCBuffers(program.ExtConstantBufferDescriptions.Where(b => !Common.BufferBlocks.Contains(b)), writer);
 
-        HandleParameters(shader.VariableDescriptions, shader.TextureChannelProcessors, writer);
+        HandleParameters(program.VariableDescriptions, program.TextureChannelProcessors, writer);
 
-        HandleZFrames(shader, writer);
+        HandleZFrames(program, writer);
 
-        if (shader.VcsProgramType == VcsProgramType.PixelShader && PixelShaderRenderState is not null)
+        if (program.VcsProgramType == VcsProgramType.PixelShader && PixelShaderRenderState is not null)
         {
             writer.WriteLine();
             writer.WriteLine("// PSRS");
@@ -601,43 +601,44 @@ public sealed class ShaderExtract
         }
     }
 
-    private void HandleZFrames(VfxProgramData shader, IndentedTextWriter writer)
+    private void HandleZFrames(VfxProgramData program, IndentedTextWriter writer)
     {
-        if (shader.GetZFrameCount() == 0 || !Options.CanReadZFrames)
+        if (program.StaticComboEntries.Count == 0 || !Options.CanReadStaticCombos)
         {
             return;
         }
 
-        ConfigMappingParams staticConfig = new(shader);
+        ConfigMappingParams staticConfig = new(program);
 
         // Attributes
-        var attributesDisect = new Dictionary<int[], HashSet<string>>(2 ^ Math.Max(0, shader.StaticCombos.Count - 1), new ConfigKeyComparer());
+        var attributesDisect = new Dictionary<int[], HashSet<string>>(2 ^ Math.Max(0, program.StaticComboArray.Length - 1), new ConfigKeyComparer());
         var perConditionAttributes = new Dictionary<(int Index, int State), HashSet<string>>(staticConfig.SumStates);
 
         // Parameters
         var perConditionParameters = new Dictionary<(int Index, int State), HashSet<int>>(staticConfig.SumStates);
-        var hasParameters = shader.VariableDescriptions.Count > 0;
+        var hasParameters = program.VariableDescriptions.Length > 0;
 
         // Raw glsl (old) or SPIR-V reflected source for variant 0
         var variant0Source = new StringBuilder();
 
-        foreach (var i in Enumerable.Range(0, shader.GetZFrameCount()))
+        var programIndex = 0;
+        foreach (var staticComboEntry in program.StaticComboEntries)
         {
-            if (Options.ZFrameReadingCap >= 0 && i >= Options.ZFrameReadingCap)
+            if (Options.StaticComboReadingCap >= 0 && programIndex++ >= Options.StaticComboReadingCap)
             {
                 break;
             }
 
-            var zFrame = shader.GetZFrameFileByIndex(i);
-            var zframeAttributes = GetZFrameAttributes(zFrame, shader.VariableDescriptions);
+            var staticCombo = staticComboEntry.Value.Unserialize();
+            var zframeAttributes = GetZFrameAttributes(staticCombo, program.VariableDescriptions);
 
-            var staticConfigState = staticConfig.GetConfigState(zFrame.ZframeId);
+            var staticConfigState = staticConfig.GetConfigState(staticCombo.StaticComboId);
             attributesDisect[staticConfigState] = zframeAttributes;
 
-            if (zFrame.GpuSourceCount > 0 && variant0Source.Length == 0)
+            if (staticCombo.GpuSources.Length > 0 && variant0Source.Length == 0)
             {
                 var dynamicId = 0;
-                var gpuSource = zFrame.GpuSources[dynamicId];
+                var gpuSource = staticCombo.GpuSources[dynamicId];
                 if (gpuSource is VfxShaderFileGL glsl)
                 {
                     variant0Source.AppendLine("// --------- GLSL source begin --------- ");
@@ -656,7 +657,7 @@ public sealed class ShaderExtract
                 continue;
             }
 
-            var variantParameters = GetVariantZFrameParameters(zFrame);
+            var variantParameters = GetVariantZFrameParameters(staticCombo);
             for (var j = 0; j < staticConfigState.Length; j++)
             {
                 var key = (j, staticConfigState[j]);
@@ -678,28 +679,25 @@ public sealed class ShaderExtract
         if (hasParameters && VariantParameterIndices?.Count > 0)
         {
             writer.WriteLine();
-            WriteVariantParameters(shader.StaticCombos, shader.VariableDescriptions, shader.TextureChannelProcessors, writer, perConditionParameters);
+            WriteVariantParameters(program.StaticComboArray, program.VariableDescriptions, program.TextureChannelProcessors, writer, perConditionParameters);
         }
 
         if (variant0Source.Length > 0)
         {
             writer.WriteLine();
 
-#pragma warning disable CA1861 // Avoid constant arrays as arguments
-            foreach (var line in variant0Source.ToString().Split(new string[] { "\n", "\r\n" }, StringSplitOptions.None))
+            foreach (var line in variant0Source.ToString().AsSpan().EnumerateLines())
             {
                 writer.WriteLine(line);
             }
-#pragma warning restore CA1861
 
             writer.WriteLine();
         }
 
-        WriteAttributes(shader.StaticCombos, writer, attributesDisect, perConditionAttributes);
-
+        WriteAttributes(program.StaticComboArray, writer, attributesDisect, perConditionAttributes);
     }
 
-    private void WriteVariantParameters(List<VfxCombo> sfBlocks, List<VfxVariableDescription> paramBlocks, List<VfxTextureChannelProcessor> channelBlocks,
+    private void WriteVariantParameters(VfxCombo[] sfBlocks, VfxVariableDescription[] paramBlocks, VfxTextureChannelProcessor[] channelBlocks,
         IndentedTextWriter writer, Dictionary<(int Index, int State), HashSet<int>> perConditionParameters)
     {
         var written = new HashSet<int>();
@@ -711,7 +709,7 @@ public sealed class ShaderExtract
             }
 
             if (parameters.Count == 0 || parameters.All(p =>
-                paramBlocks[p].Type == VariableType.SamplerState || paramBlocks[p].Type == VariableType.Buffer))
+                paramBlocks[p].RegisterType == VfxRegisterType.SamplerState || paramBlocks[p].RegisterType == VfxRegisterType.Buffer))
             {
                 continue;
             }
@@ -743,7 +741,7 @@ public sealed class ShaderExtract
         }
     }
 
-    private void WriteAttributes(List<VfxCombo> sfBlocks, IndentedTextWriter writer,
+    private void WriteAttributes(VfxCombo[] sfBlocks, IndentedTextWriter writer,
         Dictionary<int[], HashSet<string>> attributesDisect, Dictionary<(int Index, int State), HashSet<string>> perConditionAttributes)
     {
         var written = new HashSet<string>();
@@ -826,7 +824,7 @@ public sealed class ShaderExtract
                 }
                 else
                 {
-                    perConditionAttributes[key] = new HashSet<string>(attributes);
+                    perConditionAttributes[key] = [.. attributes];
                 }
             }
         }
@@ -864,7 +862,7 @@ public sealed class ShaderExtract
         }
     }
 
-    private static bool IsIrrelevantCondition<T>(List<VfxCombo> sfBlocks, Dictionary<(int Index, int State),
+    private static bool IsIrrelevantCondition<T>(VfxCombo[] sfBlocks, Dictionary<(int Index, int State),
         HashSet<T>> perConditionStuff, (int Index, int State) condition, HashSet<T> stuff)
     {
         var rangeMin = sfBlocks[condition.Index].RangeMin;
@@ -886,9 +884,9 @@ public sealed class ShaderExtract
         return stateIsIrrelevant;
     }
 
-    private HashSet<string> GetZFrameAttributes(VfxStaticComboData zFrameFile, List<VfxVariableDescription> paramBlocks)
+    private HashSet<string> GetZFrameAttributes(VfxStaticComboData zFrameFile, VfxVariableDescription[] paramBlocks)
     {
-        var attributes = new HashSet<string>();
+        var attributes = new HashSet<string>(zFrameFile.Attributes.Length);
         foreach (var attribute in zFrameFile.Attributes)
         {
             var type = ShaderUtilHelpers.GetVfxVariableTypeString(attribute.VfxType);
@@ -950,7 +948,7 @@ public sealed class ShaderExtract
     public HashSet<int> GetVariantZFrameParameters(VfxStaticComboData zFrameFile)
     {
         var parameters = new HashSet<int>(VariantParameterIndices.Count);
-        foreach (var writeseq in Enumerable.Concat(Enumerable.Repeat(zFrameFile.LeadingData, 1), zFrameFile.DataBlocks))
+        foreach (var writeseq in Enumerable.Concat(Enumerable.Repeat(zFrameFile.VariablesFromStaticCombo, 1), zFrameFile.DynamicComboVariables))
         {
             foreach (var field in writeseq.Fields)
             {
@@ -962,7 +960,7 @@ public sealed class ShaderExtract
         return parameters;
     }
 
-    private void HandleFeatures(List<VfxCombo> features, List<VfxRule> constraints, IndentedTextWriter writer)
+    private void HandleFeatures(VfxCombo[] features, VfxRule[] constraints, IndentedTextWriter writer)
     {
         foreach (var feature in features)
         {
@@ -973,44 +971,44 @@ public sealed class ShaderExtract
             writer.WriteLine($"Feature( {feature.Name}, {feature.RangeMin}..{feature.RangeMax}{checkboxNames}, \"{feature.Category}\" );");
         }
 
-        HandleRules(ConditionalType.Feature,
-                    Enumerable.Empty<VfxCombo>().ToList(),
-                    Enumerable.Empty<VfxCombo>().ToList(),
+        HandleRules(VfxRuleType.Feature,
+                    [],
+                    [],
                     constraints,
                     writer);
     }
 
-    private void HandleStaticCombos(List<VfxCombo> staticCombos, List<VfxRule> constraints, IndentedTextWriter writer)
+    private void HandleStaticCombos(VfxCombo[] staticCombos, VfxRule[] constraints, IndentedTextWriter writer)
     {
-        HandleCombos(ConditionalType.Static, staticCombos.Cast<VfxCombo>().ToList(), writer);
-        HandleRules(ConditionalType.Static,
-                    staticCombos.Cast<VfxCombo>().ToList(),
-                    Enumerable.Empty<VfxCombo>().ToList(),
+        HandleCombos(VfxRuleType.Static, staticCombos, writer);
+        HandleRules(VfxRuleType.Static,
+                    staticCombos,
+                    [],
                     constraints,
                     writer);
     }
 
     private void HandleDynamicCombos(
-        List<VfxCombo> staticCombos,
-        List<VfxCombo> dynamicCombos,
-        List<VfxRule> constraints,
+        VfxCombo[] staticCombos,
+        VfxCombo[] dynamicCombos,
+        VfxRule[] constraints,
         IndentedTextWriter writer)
     {
-        HandleCombos(ConditionalType.Dynamic, dynamicCombos.Cast<VfxCombo>().ToList(), writer);
-        HandleRules(ConditionalType.Dynamic,
-                    staticCombos.Cast<VfxCombo>().ToList(),
-                    dynamicCombos.Cast<VfxCombo>().ToList(),
+        HandleCombos(VfxRuleType.Dynamic, dynamicCombos, writer);
+        HandleRules(VfxRuleType.Dynamic,
+                    staticCombos,
+                    dynamicCombos,
                     constraints,
                     writer);
     }
 
-    private void HandleCombos(ConditionalType comboType, List<VfxCombo> combos, IndentedTextWriter writer)
+    private void HandleCombos(VfxRuleType comboType, VfxCombo[] combos, IndentedTextWriter writer)
     {
         foreach (var combo in combos)
         {
             if (combo.FeatureIndex != -1)
             {
-                var fromFeature = comboType == ConditionalType.Dynamic ? "FromFeature" : string.Empty;
+                var fromFeature = comboType == VfxRuleType.Dynamic ? "FromFeature" : string.Empty;
                 writer.WriteLine($"{comboType}Combo{fromFeature}( {combo.Name}, {FeatureNames[combo.FeatureIndex]} );");
             }
             else if (combo.RangeMax != 0)
@@ -1025,7 +1023,7 @@ public sealed class ShaderExtract
         }
     }
 
-    private void HandleRules(ConditionalType conditionalType, List<VfxCombo> staticCombos, List<VfxCombo> dynamicCombos, List<VfxRule> constraints,
+    private void HandleRules(VfxRuleType conditionalType, VfxCombo[] staticCombos, VfxCombo[] dynamicCombos, VfxRule[] constraints,
         IndentedTextWriter writer)
     {
         foreach (var constraint in constraints)
@@ -1033,15 +1031,15 @@ public sealed class ShaderExtract
             var constrainedNames = new List<string>(constraint.ConditionalTypes.Length);
             foreach ((var Type, var Index) in Enumerable.Zip(constraint.ConditionalTypes, constraint.Indices))
             {
-                if (Type == ConditionalType.Feature)
+                if (Type == VfxRuleType.Feature)
                 {
                     constrainedNames.Add(FeatureNames[Index]);
                 }
-                else if (Type == ConditionalType.Static)
+                else if (Type == VfxRuleType.Static)
                 {
                     constrainedNames.Add(staticCombos[Index].Name);
                 }
-                else if (Type == ConditionalType.Dynamic)
+                else if (Type == VfxRuleType.Dynamic)
                 {
                     constrainedNames.Add(dynamicCombos[Index].Name);
                 }
@@ -1056,27 +1054,27 @@ public sealed class ShaderExtract
                     //throw new InvalidOperationException("Expected to have 1 less value than conditionals.");
                 }
 
-                constrainedNames = constrainedNames.Take(1).Concat(constrainedNames.Skip(1).Select((s, i) => $"{s} == {constraint.Values[i]}")).ToList();
+                constrainedNames = [.. constrainedNames.Take(1), .. constrainedNames.Skip(1).Select((s, i) => $"{s} == {constraint.Values[i]}")];
             }
 
             var rule = $"{constraint.Rule}{constraint.Range2[0]}( {string.Join(", ", constrainedNames)} )";
 
-            writer.WriteLine(conditionalType == ConditionalType.Feature
+            writer.WriteLine(conditionalType == VfxRuleType.Feature
                 ? $"FeatureRule( {rule}, \"{constraint.Description}\" );"
                 : $"{conditionalType}ComboRule( {rule} );"
             );
         }
     }
 
-    private void HandleParameters(List<VfxVariableDescription> paramBlocks, List<VfxTextureChannelProcessor> channelBlocks, IndentedTextWriter writer)
+    private void HandleParameters(VfxVariableDescription[] paramBlocks, VfxTextureChannelProcessor[] channelBlocks, IndentedTextWriter writer)
     {
-        if (paramBlocks.Count == 0)
+        if (paramBlocks.Length == 0)
         {
             return;
         }
 
         VariantParameterNames = [];
-        var encountered = new HashSet<string>(paramBlocks.Count);
+        var encountered = new HashSet<string>(paramBlocks.Length);
         foreach (var paramBlock in paramBlocks)
         {
             if (encountered.Contains(paramBlock.Name))
@@ -1107,7 +1105,7 @@ public sealed class ShaderExtract
 
             foreach (var param in byHeader.OrderBy(p => p.UiGroup.VariableOrder))
             {
-                if (Options.CanReadZFrames && !Options.WriteParametersRaw && VariantParameterNames.Contains(param.Name))
+                if (Options.CanReadStaticCombos && !Options.WriteParametersRaw && VariantParameterNames.Contains(param.Name))
                 {
                     continue;
                 }
@@ -1117,27 +1115,27 @@ public sealed class ShaderExtract
         }
     }
 
-    private void WriteParam(VfxVariableDescription param, List<VfxVariableDescription> paramBlocks, List<VfxTextureChannelProcessor> channelBlocks, IndentedTextWriter writer)
+    private void WriteParam(VfxVariableDescription param, VfxVariableDescription[] paramBlocks, VfxTextureChannelProcessor[] channelBlocks, IndentedTextWriter writer)
     {
         var annotations = new List<string>();
 
-        if (param.Type is VariableType.RenderState)
+        if (param.RegisterType is VfxRegisterType.RenderState)
         {
             WriteState(writer, param);
         }
-        else if (param.Type is VariableType.SamplerState)
+        else if (param.RegisterType is VfxRegisterType.SamplerState)
         {
             //WriteState(writer, param);
         }
-        else if (param.Type is VariableType.InputTexture)
+        else if (param.RegisterType is VfxRegisterType.InputTexture)
         {
             WriteInputTexture(writer, param);
         }
-        else if (param.Id == -1)
+        else if (param.ExtConstantBufferId == -1)
         {
             WriteVariable(param, paramBlocks, writer, annotations);
         }
-        else if (param.Type == VariableType.Texture)
+        else if (param.RegisterType == VfxRegisterType.Texture)
         {
             WriteTexture(param, paramBlocks, channelBlocks, writer, annotations);
         }
@@ -1149,9 +1147,9 @@ public sealed class ShaderExtract
             ? new VfxEval(param.DynExp, Globals, omitReturnStatement: true, FeatureNames).DynamicExpressionResult
             : param.IntDefs[0].ToString(CultureInfo.InvariantCulture);
 
-        if (param.Type == VariableType.RenderState)
+        if (param.RegisterType == VfxRegisterType.RenderState)
         {
-            writer.WriteLine("{0}({1}, {2});", param.Type, param.Name, stateValue);
+            writer.WriteLine("{0}({1}, {2});", param.RegisterType, param.Name, stateValue);
         }
         else
         {
@@ -1159,7 +1157,7 @@ public sealed class ShaderExtract
         }
     }
 
-    private void WriteVariable(VfxVariableDescription param, List<VfxVariableDescription> paramBlocks, IndentedTextWriter writer, List<string> annotations)
+    private void WriteVariable(VfxVariableDescription param, VfxVariableDescription[] paramBlocks, IndentedTextWriter writer, List<string> annotations)
     {
         var intDefsCutOff = 0;
         var floatDefsCutOff = 0;
@@ -1238,7 +1236,7 @@ public sealed class ShaderExtract
             annotations.Add($"UiGroup(\"{param.UiGroup.CompactString}\");");
         }
 
-        var stageSpecificGlobals = new Lazy<string[]>(() => paramBlocks.Select(p => p.Name).ToArray());
+        var stageSpecificGlobals = new Lazy<string[]>(() => [.. paramBlocks.Select(p => p.Name)]);
 
         if (param.DynExp.Length > 0)
         {
@@ -1257,13 +1255,13 @@ public sealed class ShaderExtract
 
     private static void WriteInputTexture(IndentedTextWriter writer, VfxVariableDescription param)
     {
-        if (param.Type != VariableType.InputTexture)
+        if (param.RegisterType != VfxRegisterType.InputTexture)
         {
-            throw new ArgumentException($"Expected parameter of type {VariableType.InputTexture}, got {param.Type}", nameof(param));
+            throw new ArgumentException($"Expected parameter of type {VfxRegisterType.InputTexture}, got {param.RegisterType}", nameof(param));
         }
 
         UnexpectedMagicException.Assert(param.UiType == UiType.Texture, param.UiType);
-        UnexpectedMagicException.Assert(param.Id == -1, param.Id);
+        UnexpectedMagicException.Assert(param.ExtConstantBufferId == -1, param.ExtConstantBufferId);
         UnexpectedMagicException.Assert(param.VecSize == -1, param.VecSize);
 
         var mode = param.ColorMode == 0
@@ -1281,12 +1279,12 @@ public sealed class ShaderExtract
         writer.WriteLine($"CreateInputTexture2D({param.Name}, {mode}, {param.Field2}, \"{param.ImageProcessor}\", \"{imageSuffix}\", \"{param.UiGroup}\", {defaultValue});");
     }
 
-    private void WriteTexture(VfxVariableDescription param, List<VfxVariableDescription> paramBlocks, List<VfxTextureChannelProcessor> channelBlocks, IndentedTextWriter writer, List<string> annotations)
+    private void WriteTexture(VfxVariableDescription param, VfxVariableDescription[] paramBlocks, VfxTextureChannelProcessor[] channelBlocks, IndentedTextWriter writer, List<string> annotations)
     {
         for (var i = 0; i < param.ChannelCount; i++)
         {
             var index = param.ChannelIndices[i];
-            if (index == -1 || index >= channelBlocks.Count)
+            if (index == -1 || index >= channelBlocks.Length)
             {
                 throw new InvalidOperationException("Invalid channel block index");
             }
@@ -1309,7 +1307,7 @@ public sealed class ShaderExtract
             annotations.Add($"OutputFormat({format});");
         }
 
-        annotations.Add($"SrgbRead({(param.Id == 0 ? "false" : "true")});");
+        annotations.Add($"SrgbRead({(param.ExtConstantBufferId == 0 ? "false" : "true")});");
 
         const string Sampler = "Sampler";
         var typeString = param.VfxType.ToString();
@@ -1356,7 +1354,7 @@ public sealed class ShaderExtract
         return dynEx;
     }
 
-    private static string GetChannelFromChannelBlock(VfxTextureChannelProcessor channelBlock, List<VfxVariableDescription> paramBlocks)
+    private static string GetChannelFromChannelBlock(VfxTextureChannelProcessor channelBlock, VfxVariableDescription[] paramBlocks)
     {
         var mode = channelBlock.ColorMode == 0
             ? "Linear"

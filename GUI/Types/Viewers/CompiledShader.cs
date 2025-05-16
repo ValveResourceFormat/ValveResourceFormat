@@ -95,25 +95,25 @@ namespace GUI.Types.Viewers
                 };
                 collectionNode.Nodes.Add(programNode);
 
-                if (program.ZframesLookup.Count > 0)
+                if (program.StaticComboEntries.Count > 0)
                 {
                     var configGen = new ConfigMappingParams(program);
 
-                    foreach (var zframe in program.ZframesLookup)
+                    foreach (var zframe in program.StaticComboEntries)
                     {
                         var config = configGen.GetConfigState(zframe.Key);
 
                         sfNames.Clear();
                         sfNamesAbbrev.Clear();
 
-                        for (var i = 0; i < program.StaticCombos.Count; i++)
+                        for (var i = 0; i < program.StaticComboArray.Length; i++)
                         {
                             if (config[i] == 0)
                             {
                                 continue;
                             }
 
-                            var sfBlock = program.StaticCombos[i];
+                            var sfBlock = program.StaticComboArray[i];
                             var sfShortName = ShortenShaderParam(sfBlock.Name).ToLowerInvariant();
 
                             if (config[i] > 1)
@@ -275,7 +275,7 @@ namespace GUI.Types.Viewers
 
                 List<string> dfNamesAbbrev = [];
                 List<string> dfNames = [];
-                var sourceIdToRenderStateInfo = new Dictionary<int, VfxRenderStateInfo>(combo.GpuSources.Count);
+                var sourceIdToRenderStateInfo = new Dictionary<int, VfxRenderStateInfo>(combo.GpuSources.Length);
 
                 // We are only taking the first render state info currently
                 foreach (var renderStateInfo in combo.RenderStateInfos)
@@ -290,14 +290,14 @@ namespace GUI.Types.Viewers
                     dfNames.Clear();
                     dfNamesAbbrev.Clear();
 
-                    for (var i = 0; i < combo.ParentProgramData.DynamicCombos.Count; i++)
+                    for (var i = 0; i < combo.ParentProgramData.DynamicComboArray.Length; i++)
                     {
                         if (config[i] == 0)
                         {
                             continue;
                         }
 
-                        var dfBlock = combo.ParentProgramData.DynamicCombos[i];
+                        var dfBlock = combo.ParentProgramData.DynamicComboArray[i];
                         var dfShortName = ShortenShaderParam(dfBlock.Name).ToLowerInvariant();
 
                         if (config[i] > 1)
@@ -507,7 +507,7 @@ namespace GUI.Types.Viewers
             // var leadingWriteSequence = shader.ZFrameCache.Get(zFrameId).DataBlocks[dynamicId];
 
             var dynamicBlockIndex = staticComboData.RenderStateInfos[shaderFile.SourceId].BlockIdRef;
-            var writeSequence = staticComboData.DataBlocks[(int)dynamicBlockIndex];
+            var writeSequence = staticComboData.DynamicComboVariables[(int)dynamicBlockIndex];
 
             var reflectedResources = SpirvCrossApi.spvc_resources_get_resource_list_for_type(resources, resourceType);
 
@@ -585,22 +585,22 @@ namespace GUI.Types.Viewers
         const int TextureStartingPoint = 90;
         const int TextureIndexStartingPoint = 30;
 
-        private static string GetNameForTexture(VfxProgramData shader, VfxVariableIndexArray writeSequence, uint image_binding, VfxVariableType vfxType)
+        private static string GetNameForTexture(VfxProgramData program, VfxVariableIndexArray writeSequence, uint image_binding, VfxVariableType vfxType)
         {
             var semgent1Params = writeSequence.Segment1
-                .Select<VfxVariableIndexData, (VfxVariableIndexData Field, VfxVariableDescription Param)>(f => (f, shader.VariableDescriptions[f.VariableIndex]));
+                .Select<VfxVariableIndexData, (VfxVariableIndexData Field, VfxVariableDescription Param)>(f => (f, program.VariableDescriptions[f.VariableIndex]));
 
             foreach (var field in writeSequence.Segment1)
             {
-                var variable = shader.VariableDescriptions[field.VariableIndex];
+                var variable = program.VariableDescriptions[field.VariableIndex];
 
-                if (variable.Type is VariableType.SamplerState)
+                if (variable.RegisterType is VfxRegisterType.SamplerState)
                 {
                     Debug.Assert(variable.Flags == VariableFlags.SamplerFlag4);
                     continue;
                 }
 
-                if (variable.Type is not VariableType.Texture)
+                if (variable.RegisterType is not VfxRegisterType.Texture)
                 {
                     continue;
                 }
@@ -638,18 +638,18 @@ namespace GUI.Types.Viewers
         }
 
         const int SamplerStartingPoint = 42;
-        public static string GetNameForSampler(VfxProgramData shader, VfxVariableIndexArray writeSequence, uint sampler_binding)
+        public static string GetNameForSampler(VfxProgramData program, VfxVariableIndexArray writeSequence, uint sampler_binding)
         {
             var semgent1Params = writeSequence.Segment1
-                .Select<VfxVariableIndexData, (VfxVariableIndexData Field, VfxVariableDescription Param)>(f => (f, shader.VariableDescriptions[f.VariableIndex]));
+                .Select<VfxVariableIndexData, (VfxVariableIndexData Field, VfxVariableDescription Param)>(f => (f, program.VariableDescriptions[f.VariableIndex]));
 
             var samplerSettings = string.Empty;
 
             foreach (var field in writeSequence.Segment1)
             {
-                var param = shader.VariableDescriptions[field.VariableIndex];
+                var param = program.VariableDescriptions[field.VariableIndex];
 
-                if (param.Type is not VariableType.SamplerState)
+                if (param.RegisterType is not VfxRegisterType.SamplerState)
                 {
                     continue;
                 }
@@ -666,14 +666,14 @@ namespace GUI.Types.Viewers
         }
 
         const int StorageBufferStartingPoint = 30;
-        public static string GetNameForStorageBuffer(VfxProgramData shader, VfxVariableIndexArray writeSequence, uint buffer_binding)
+        public static string GetNameForStorageBuffer(VfxProgramData program, VfxVariableIndexArray writeSequence, uint buffer_binding)
         {
             var semgent1Params = writeSequence.Segment1
-                .Select<VfxVariableIndexData, (VfxVariableIndexData Field, VfxVariableDescription Param)>(f => (f, shader.VariableDescriptions[f.VariableIndex]));
+                .Select<VfxVariableIndexData, (VfxVariableIndexData Field, VfxVariableDescription Param)>(f => (f, program.VariableDescriptions[f.VariableIndex]));
 
             foreach (var field in writeSequence.Segment1)
             {
-                var param = shader.VariableDescriptions[field.VariableIndex];
+                var param = program.VariableDescriptions[field.VariableIndex];
 
                 if (param.VfxType is < VfxVariableType.StructuredBuffer or > VfxVariableType.RWStructuredBufferWithCounter)
                 {
@@ -689,18 +689,18 @@ namespace GUI.Types.Viewers
             return "undetermined";
         }
 
-        private static string GetNameForUniformBuffer(VfxProgramData shader, VfxVariableIndexArray writeSequence, uint binding, uint set)
+        private static string GetNameForUniformBuffer(VfxProgramData program, VfxVariableIndexArray writeSequence, uint binding, uint set)
         {
             return writeSequence.Segment1
-                .Select<VfxVariableIndexData, (VfxVariableIndexData Field, VfxVariableDescription Param)>(f => (f, shader.VariableDescriptions[f.VariableIndex]))
+                .Select<VfxVariableIndexData, (VfxVariableIndexData Field, VfxVariableDescription Param)>(f => (f, program.VariableDescriptions[f.VariableIndex]))
                 .Where(fp => fp.Param.VfxType is VfxVariableType.Cbuffer)
                 .FirstOrDefault(fp => fp.Field.Dest == binding && fp.Field.LayoutSet == set).Param?.Name ?? "undetermined";
         }
 
-        private static string GetGlobalBufferMemberName(VfxProgramData shader, VfxVariableIndexArray writeSequence, int offset)
+        private static string GetGlobalBufferMemberName(VfxProgramData program, VfxVariableIndexArray writeSequence, int offset)
         {
             var globalBufferParameters = writeSequence.Globals
-                .Select<VfxVariableIndexData, (VfxVariableIndexData Field, VfxVariableDescription Param)>(f => (f, shader.VariableDescriptions[f.VariableIndex]))
+                .Select<VfxVariableIndexData, (VfxVariableIndexData Field, VfxVariableDescription Param)>(f => (f, program.VariableDescriptions[f.VariableIndex]))
                 .ToList();
 
             return globalBufferParameters.FirstOrDefault(fp => fp.Field.Dest == offset).Param?.Name ?? string.Empty;
@@ -708,9 +708,9 @@ namespace GUI.Types.Viewers
 
         // by offset
         // https://github.com/KhronosGroup/SPIRV-Cross/blob/f349c91274b91c1a7c173f2df70ec53080076191/spirv_hlsl.cpp#L2616
-        private static string GetBufferMemberName(VfxProgramData shader, string bufferName, int index = -1, int offset = -1)
+        private static string GetBufferMemberName(VfxProgramData program, string bufferName, int index = -1, int offset = -1)
         {
-            var bufferParams = shader.ExtConstantBufferDescriptions.FirstOrDefault(buffer => buffer.Name == bufferName)?.BufferParams;
+            var bufferParams = program.ExtConstantBufferDescriptions.FirstOrDefault(buffer => buffer.Name == bufferName)?.Variables;
 
             if (bufferParams is null)
             {
@@ -731,9 +731,9 @@ namespace GUI.Types.Viewers
             }
         }
 
-        public static string GetVsAttributeName(VfxProgramData shader, VsInputSignatureElement inputSignatureElement, int attributeLocation)
+        public static string GetVsAttributeName(VfxProgramData program, VsInputSignatureElement inputSignatureElement, int attributeLocation)
         {
-            if (attributeLocation < inputSignatureElement.SymbolsDefinition.Count)
+            if (attributeLocation < inputSignatureElement.SymbolsDefinition.Length)
             {
                 return inputSignatureElement.SymbolsDefinition[attributeLocation].Name;
             }

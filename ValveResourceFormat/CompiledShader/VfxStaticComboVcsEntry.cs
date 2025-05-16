@@ -9,13 +9,14 @@ public class VfxStaticComboVcsEntry
     private const int LZMA_MAGIC = 0x414D5A4C;
 
     public required VfxProgramData ParentProgramData { get; init; }
-    public long ZframeId { get; init; }
-    public int OffsetToZFrameHeader { get; init; }
+    public long StaticComboId { get; init; }
+    public int FileOffset { get; init; }
 
     public VfxStaticComboData Unserialize()
     {
+        // CVfxStaticComboData::Unserialize
         var dataReader = ParentProgramData.DataReader;
-        dataReader.BaseStream.Position = OffsetToZFrameHeader;
+        dataReader.BaseStream.Position = FileOffset;
 
         var compressionTypeOrSize = dataReader.ReadInt32();
         var uncompressedSize = 0;
@@ -24,7 +25,7 @@ public class VfxStaticComboVcsEntry
         {
             var data = dataReader.ReadBytes(compressionTypeOrSize); // not bothering to rent buffer for old versions
             using var outStream = new MemoryStream(data);
-            return new VfxStaticComboData(outStream, ZframeId, ParentProgramData);
+            return new VfxStaticComboData(outStream, StaticComboId, ParentProgramData);
         }
 
         uncompressedSize = dataReader.ReadInt32();
@@ -47,7 +48,7 @@ public class VfxStaticComboVcsEntry
                 using var outStream = new MemoryStream(uncompressedBuffer, 0, uncompressedSize);
                 lzmaDecoder.Code(dataReader.BaseStream, outStream, compressedSize2, uncompressedSize, null);
                 outStream.Position = 0;
-                return new VfxStaticComboData(outStream, ZframeId, ParentProgramData);
+                return new VfxStaticComboData(outStream, StaticComboId, ParentProgramData);
             }
 
             var compressionType = -compressionTypeOrSize; // it's negative
@@ -94,7 +95,7 @@ public class VfxStaticComboVcsEntry
             }
 
             using var stream = new MemoryStream(uncompressedBuffer, 0, uncompressedSize);
-            return new VfxStaticComboData(stream, ZframeId, ParentProgramData);
+            return new VfxStaticComboData(stream, StaticComboId, ParentProgramData);
         }
         finally
         {

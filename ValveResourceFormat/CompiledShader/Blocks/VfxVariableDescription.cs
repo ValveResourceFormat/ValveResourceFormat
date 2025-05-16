@@ -10,17 +10,17 @@ public class VfxVariableDescription : ShaderDataBlock
     public UiGroup UiGroup { get; }
     public string StringData { get; }
     public UiType UiType { get; }
-    public float Res0 { get; }
-    public VfxVariableSource VariableSource { get; }
+    public float UiStep { get; }
+    public VfxVariableSourceType VariableSource { get; }
     public byte[] DynExp { get; } = [];
     public byte[] UiVisibilityExp { get; } = [];
     public int Tex { get; }
     public VfxVariableType VfxType { get; }
-    public VariableType Type { get; }
+    public VfxRegisterType RegisterType { get; }
     public int Field1 { get; }
     public VariableFlags Flags => (VariableFlags)((Field1 >> 8) & 0xFF);
     public int VecSize { get; }
-    public int Id { get; }
+    public int ExtConstantBufferId { get; }
     public string FileRef { get; }
     public static readonly float FloatInf = 1e9F;
     public static readonly int IntInf = 999999999;
@@ -48,9 +48,9 @@ public class VfxVariableDescription : ShaderDataBlock
         Name = ReadStringWithMaxLength(datareader, 64);
         UiGroup = UiGroup.FromCompactString(ReadStringWithMaxLength(datareader, 64));
         UiType = (UiType)datareader.ReadInt32();
-        Res0 = datareader.ReadSingle();
+        UiStep = datareader.ReadSingle();
         StringData = ReadStringWithMaxLength(datareader, 64);
-        VariableSource = (VfxVariableSource)datareader.ReadInt32();
+        VariableSource = (VfxVariableSourceType)datareader.ReadInt32();
 
         if (HasDynamicExpression)
         {
@@ -70,7 +70,7 @@ public class VfxVariableDescription : ShaderDataBlock
         }
 
         VfxType = (VfxVariableType)datareader.ReadInt32();
-        Type = (VariableType)datareader.ReadInt32();
+        RegisterType = (VfxRegisterType)datareader.ReadInt32();
 
         if (vcsVersion >= 64)
         {
@@ -78,7 +78,7 @@ public class VfxVariableDescription : ShaderDataBlock
         }
 
         VecSize = datareader.ReadInt32();
-        Id = datareader.ReadInt32();
+        ExtConstantBufferId = datareader.ReadInt32();
 
         FileRef = ReadStringWithMaxLength(datareader, 64);
 
@@ -130,5 +130,5 @@ public class VfxVariableDescription : ShaderDataBlock
         }
     }
 
-    public bool HasDynamicExpression => VariableSource is VfxVariableSource.__Expression__ or VfxVariableSource.__SetByArtistAndExpression__;
+    public bool HasDynamicExpression => VariableSource is VfxVariableSourceType.__Expression__ or VfxVariableSourceType.__SetByArtistAndExpression__;
 }

@@ -172,7 +172,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             public VsInputSignature(KVObject data)
             {
-                Elements = data.GetArray("m_elems").Select(x => new InputSignatureElement(x)).ToArray();
+                Elements = [.. data.GetArray("m_elems").Select(x => new InputSignatureElement(x))];
             }
         }
 
@@ -189,6 +189,14 @@ namespace ValveResourceFormat.ResourceTypes
                 Semantic = data.GetProperty<string>("m_pSemantic");
                 D3DSemanticName = data.GetProperty<string>("m_pD3DSemanticName");
                 D3DSemanticIndex = (int)data.GetIntegerProperty("m_nD3DSemanticIndex");
+            }
+
+            public InputSignatureElement(string name, string semantic, string semanticName, int index)
+            {
+                Name = name;
+                Semantic = semantic;
+                D3DSemanticName = semanticName;
+                D3DSemanticIndex = index;
             }
         }
 

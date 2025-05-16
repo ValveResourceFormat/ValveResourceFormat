@@ -65,7 +65,7 @@ namespace GUI.Types.Renderer
 
                 if (shader.Features != null)
                 {
-                    foreach (var block in shader.Features.StaticCombos)
+                    foreach (var block in shader.Features.StaticComboArray)
                     {
                         if (block.Name.StartsWith("F_TEXTURE_FORMAT", StringComparison.Ordinal))
                         {

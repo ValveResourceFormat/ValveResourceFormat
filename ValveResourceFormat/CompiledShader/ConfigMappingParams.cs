@@ -1,4 +1,4 @@
-using static ValveResourceFormat.CompiledShader.ShaderUtilHelpers;
+using System.Diagnostics;
 
 namespace ValveResourceFormat.CompiledShader
 {
@@ -107,7 +107,7 @@ namespace ValveResourceFormat.CompiledShader
 
         public ConfigMappingParams(VfxProgramData program, bool isDynamic)
         {
-            GenerateOffsetAndStateLookups(isDynamic ? program.DynamicCombos : program.StaticCombos);
+            GenerateOffsetAndStateLookups(isDynamic ? program.DynamicComboArray : program.StaticComboArray);
         }
 
         /*
@@ -127,23 +127,28 @@ namespace ValveResourceFormat.CompiledShader
          * nr_states = [5    2]
          *
          */
-        private void GenerateOffsetAndStateLookups(List<VfxCombo> combos)
+        private void GenerateOffsetAndStateLookups(VfxCombo[] combos)
         {
-            if (combos.Count == 0)
+            if (combos.Length == 0)
             {
                 return;
             }
 
-            offsets = new int[combos.Count];
-            nr_states = new int[combos.Count];
+            offsets = new int[combos.Length];
+            nr_states = new int[combos.Length];
 
             offsets[0] = 1;
             nr_states[0] = combos[0].RangeMax + 1;
 
-            for (var i = 1; i < combos.Count; i++)
+            for (var i = 1; i < combos.Length; i++)
             {
                 nr_states[i] = combos[i].RangeMax + 1;
                 offsets[i] = offsets[i - 1] * nr_states[i - 1];
+            }
+
+            for (var i = 0; i < combos.Length; i++)
+            {
+                Debug.Assert(combos[i].CalculatedComboId == offsets[i]);
             }
         }
 
@@ -158,17 +163,21 @@ namespace ValveResourceFormat.CompiledShader
             {
                 state[i] = (int)(zframeId / offsets[i] % nr_states[i]);
             }
+
             return state;
         }
 
         public long CalcStaticComboIdFromValues(int[] configState)
         {
-            var zframeId = 0L;
+            Debug.Assert(configState.Length == nr_states.Length);
+
+            var staticComboId = 0L;
             for (var i = 0; i < nr_states.Length; i++)
             {
-                zframeId += configState[i] * offsets[i];
+                staticComboId += configState[i] * offsets[i];
             }
-            return zframeId;
+
+            return staticComboId;
         }
 
         int[] offsets = [];
@@ -260,12 +269,6 @@ namespace ValveResourceFormat.CompiledShader
                 }
                 return sum;
             }
-        }
-
-        public void ShowOffsetAndNrStatesArrays()
-        {
-            ShowIntArray(offsets, 8, "offsets", hex: true);
-            ShowIntArray(nr_states, 8, "nr_states");
         }
     }
 }

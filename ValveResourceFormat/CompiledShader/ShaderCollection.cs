@@ -29,11 +29,11 @@ public class ShaderCollection : IEnumerable<VfxProgramData>, IDisposable
 
     private readonly Dictionary<VcsProgramType, VfxProgramData> shaders = new((int)VcsProgramType.Undetermined);
 
-    public void Add(VfxProgramData shaderFile)
+    public void Add(VfxProgramData program)
     {
-        if (!shaders.TryAdd(shaderFile.VcsProgramType, shaderFile))
+        if (!shaders.TryAdd(program.VcsProgramType, program))
         {
-            throw new ArgumentException($"Shader of type {shaderFile.VcsProgramType} already exists in this collection.");
+            throw new ArgumentException($"Shader of type {program.VcsProgramType} already exists in this collection.");
         }
     }
 

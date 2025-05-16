@@ -1,6 +1,6 @@
 namespace ValveResourceFormat.CompiledShader;
 
-public enum VariableType
+public enum VfxRegisterType
 {
     Bool = 1,
     Int,

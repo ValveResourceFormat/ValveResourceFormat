@@ -32,7 +32,7 @@ namespace Tests
 
                 Console.SetOut(originalOutput);
 
-                foreach (var zframe in shader.ZframesLookup)
+                foreach (var zframe in shader.StaticComboEntries)
                 {
                     var value = zframe.Value.Unserialize();
                     Assert.That(value, Is.Not.Null);
@@ -93,7 +93,7 @@ namespace Tests
             using var shader = new VfxProgramData();
             shader.Read(path);
 
-            var zFrameFile = shader.GetZFrameFile(0);
+            var zFrameFile = shader.GetStaticCombo(0);
             using var sw = new StringWriter();
             var zframeSummary = new PrintZFrameSummary(zFrameFile, sw.Write);
 
@@ -224,9 +224,9 @@ namespace Tests
                 ShaderExtract.ShaderExtractParams.Export,
                 new ShaderExtract.ShaderExtractParams { },
                 new ShaderExtract.ShaderExtractParams { CollapseBuffers_InInclude = true },
-                new ShaderExtract.ShaderExtractParams { ZFrameReadingCap = -1 },
-                new ShaderExtract.ShaderExtractParams { ZFrameReadingCap = 0 },
-                new ShaderExtract.ShaderExtractParams { ZFrameReadingCap = 1 },
+                new ShaderExtract.ShaderExtractParams { StaticComboReadingCap = -1 },
+                new ShaderExtract.ShaderExtractParams { StaticComboReadingCap = 0 },
+                new ShaderExtract.ShaderExtractParams { StaticComboReadingCap = 1 },
                 new ShaderExtract.ShaderExtractParams { StaticComboAttributes_NoSeparateGlobals = true },
                 new ShaderExtract.ShaderExtractParams { StaticComboAttributes_NoConditionalReduce = true },
             };

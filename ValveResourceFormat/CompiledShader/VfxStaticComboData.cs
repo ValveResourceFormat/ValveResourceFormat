@@ -8,35 +8,36 @@ namespace ValveResourceFormat.CompiledShader
     public class VfxStaticComboData
     {
         public VfxProgramData ParentProgramData { get; private set; }
-        public long ZframeId { get; }
-        public VfxVariableIndexArray LeadingData { get; }
-        public List<VfxShaderAttribute> Attributes { get; } = [];
+        public long StaticComboId { get; }
+        public VfxVariableIndexArray VariablesFromStaticCombo { get; }
+        public VfxShaderAttribute[] Attributes { get; } = [];
         public int[] VShaderInputs { get; } = [];
-        public List<VfxVariableIndexArray> DataBlocks { get; } = [];
+        public VfxVariableIndexArray[] DynamicComboVariables { get; } = [];
         public byte[] ConstantBufferBindInfoSlots { get; }
         public byte[] ConstantBufferBindInfoFlags { get; }
         public int Flags0 { get; }
         public bool Flagbyte0 { get; }
         public byte Flagbyte1 { get; }
-        public int GpuSourceCount { get; }
         public bool Flagbyte2 { get; }
-        public List<VfxShaderFile> GpuSources { get; } = [];
-        public List<VfxRenderStateInfo> RenderStateInfos { get; } = [];
+        public VfxShaderFile[] GpuSources { get; } = [];
+        public VfxRenderStateInfo[] RenderStateInfos { get; } = [];
 
-        public VfxStaticComboData(Stream stream, long zframeId, VfxProgramData programData)
+        public VfxStaticComboData(Stream stream, long staticComboId, VfxProgramData programData)
         {
             ParentProgramData = programData;
-            ZframeId = zframeId;
+            StaticComboId = staticComboId;
             using var dataReader = new BinaryReader(stream, Encoding.UTF8, leaveOpen: true);
 
-            LeadingData = new VfxVariableIndexArray(dataReader, -1, ParentProgramData.VcsProgramType != VcsProgramType.Features);
+            VariablesFromStaticCombo = new VfxVariableIndexArray(dataReader, -1, ParentProgramData.VcsProgramType != VcsProgramType.Features);
+
             int attributeCount = dataReader.ReadInt16();
+            Attributes = new VfxShaderAttribute[attributeCount];
             for (var i = 0; i < attributeCount; i++)
             {
                 VfxShaderAttribute attribute = new(dataReader);
-                Attributes.Add(attribute);
+                Attributes[i] = attribute;
             }
-            // this data is applicable to vertex shaders
+
             if (ParentProgramData.VcsProgramType is VcsProgramType.Features or VcsProgramType.VertexShader)
             {
                 int vsInputBlockCount = dataReader.ReadInt16();
@@ -58,10 +59,11 @@ namespace ValveResourceFormat.CompiledShader
             }
 
             int dataBlockCount = dataReader.ReadInt16();
-            for (var blockId = 0; blockId < dataBlockCount; blockId++)
+            DynamicComboVariables = new VfxVariableIndexArray[dataBlockCount];
+            for (var i = 0; i < dataBlockCount; i++)
             {
-                VfxVariableIndexArray dataBlock = new(dataReader, blockId, true);
-                DataBlocks.Add(dataBlock);
+                VfxVariableIndexArray dataBlock = new(dataReader, i, true);
+                DynamicComboVariables[i] = dataBlock;
             }
 
             int constantBufferBindInfoSize = dataReader.ReadInt16();
@@ -80,7 +82,8 @@ namespace ValveResourceFormat.CompiledShader
                 Flagbyte1 = dataReader.ReadByte();
             }
 
-            GpuSourceCount = dataReader.ReadInt32();
+            var gpuSourceCount = dataReader.ReadInt32();
+            GpuSources = new VfxShaderFile[gpuSourceCount];
             Flagbyte2 = dataReader.ReadBoolean();
 
             if (ParentProgramData.VcsPlatformType == VcsPlatformType.PC)
@@ -122,6 +125,7 @@ namespace ValveResourceFormat.CompiledShader
             }
 
             var countRenderStates = dataReader.ReadInt32();
+            RenderStateInfos = new VfxRenderStateInfo[countRenderStates];
             for (var i = 0; i < countRenderStates; i++)
             {
                 var endBlock = ParentProgramData.VcsProgramType switch
@@ -131,7 +135,7 @@ namespace ValveResourceFormat.CompiledShader
                     _ => new VfxRenderStateInfo(dataReader),
                 };
 
-                RenderStateInfos.Add(endBlock);
+                RenderStateInfos[i] = endBlock;
             }
 
             if (dataReader.BaseStream.Position != dataReader.BaseStream.Length)
@@ -142,36 +146,36 @@ namespace ValveResourceFormat.CompiledShader
 
         private void ReadGlslSources(BinaryReader dataReader)
         {
-            for (var sourceId = 0; sourceId < GpuSourceCount; sourceId++)
+            for (var sourceId = 0; sourceId < GpuSources.Length; sourceId++)
             {
                 VfxShaderFileGL glslSource = new(dataReader, sourceId, this);
-                GpuSources.Add(glslSource);
+                GpuSources[sourceId] = glslSource;
             }
         }
         private void ReadDxilSources(BinaryReader dataReader)
         {
-            for (var sourceId = 0; sourceId < GpuSourceCount; sourceId++)
+            for (var sourceId = 0; sourceId < GpuSources.Length; sourceId++)
             {
                 VfxShaderFileDXIL dxilSource = new(dataReader, sourceId, this);
-                GpuSources.Add(dxilSource);
+                GpuSources[sourceId] = dxilSource;
             }
         }
         private void ReadDxbcSources(BinaryReader dataReader)
         {
-            for (var sourceId = 0; sourceId < GpuSourceCount; sourceId++)
+            for (var sourceId = 0; sourceId < GpuSources.Length; sourceId++)
             {
                 VfxShaderFileDXBC dxbcSource = new(dataReader, sourceId, this);
-                GpuSources.Add(dxbcSource);
+                GpuSources[sourceId] = dxbcSource;
             }
         }
         private void ReadVulkanSources(BinaryReader dataReader)
         {
             var isMobile = ParentProgramData.VcsPlatformType is VcsPlatformType.ANDROID_VULKAN or VcsPlatformType.IOS_VULKAN;
 
-            for (var sourceId = 0; sourceId < GpuSourceCount; sourceId++)
+            for (var sourceId = 0; sourceId < GpuSources.Length; sourceId++)
             {
                 VfxShaderFileVulkan vulkanSource = new(dataReader, sourceId, this, isMobile);
-                GpuSources.Add(vulkanSource);
+                GpuSources[sourceId] = vulkanSource;
             }
         }
 

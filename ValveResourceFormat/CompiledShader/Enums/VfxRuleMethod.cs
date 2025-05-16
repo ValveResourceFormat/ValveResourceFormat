@@ -1,6 +1,6 @@
 namespace ValveResourceFormat.CompiledShader;
 
-public enum ConditionalRule
+public enum VfxRuleMethod
 {
     UnknRule0 = 0,
     ChildOf,

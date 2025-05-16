@@ -285,19 +285,6 @@ namespace ValveResourceFormat.CompiledShader
             return bytestring.Trim();
         }
 
-        public static void ShowIntArray(int[] ints0, int padding = 5, string label = null, bool hex = false)
-        {
-            var intsString = "";
-            foreach (var v in ints0)
-            {
-                var val = hex ? $"{v:x}" : $"{v}";
-                intsString += $"{(v != 0 ? val : "_")}".PadLeft(padding);
-            }
-            var labelstr = (label != null && hex) ? $"{label}(0x)" : $"{label}";
-            labelstr = label != null ? $"{labelstr,12} = " : "";
-            Console.WriteLine($"{labelstr}{intsString.Trim()}");
-        }
-
         public static string ParseDynamicExpression(byte[] dynExpDatabytes)
         {
             try

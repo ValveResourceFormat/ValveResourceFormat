@@ -5,9 +5,9 @@ namespace ValveResourceFormat.CompiledShader;
 public class VfxRule : ShaderDataBlock
 {
     public int BlockIndex { get; }
-    public ConditionalRule Rule { get; }
-    public ConditionalType BlockType { get; }
-    public ConditionalType[] ConditionalTypes { get; }
+    public VfxRuleMethod Rule { get; }
+    public VfxRuleType RuleType { get; }
+    public VfxRuleType[] ConditionalTypes { get; }
     public int[] Indices { get; }
     public int[] Values { get; }
     public int[] Range2 { get; }
@@ -17,8 +17,8 @@ public class VfxRule : ShaderDataBlock
     {
         // CVfxRule::Unserialize
         BlockIndex = blockIndex;
-        Rule = (ConditionalRule)datareader.ReadInt32();
-        BlockType = (ConditionalType)datareader.ReadInt32(); // Seems weird that this would be ConditionalType, because the next 16 flags are bytes not int
+        Rule = (VfxRuleMethod)datareader.ReadInt32();
+        RuleType = (VfxRuleType)datareader.ReadInt32();
 
         ConditionalTypes = ReadByteFlags(datareader);
         Indices = ReadIntRange(datareader);
@@ -38,12 +38,12 @@ public class VfxRule : ShaderDataBlock
         return [.. ints0];
     }
 
-    private static ConditionalType[] ReadByteFlags(BinaryReader datareader)
+    private static VfxRuleType[] ReadByteFlags(BinaryReader datareader)
     {
-        var byteFlags = new ConditionalType[16];
+        var byteFlags = new VfxRuleType[16];
         for (var i = 0; i < 16; i++)
         {
-            byteFlags[i] = (ConditionalType)datareader.ReadByte();
+            byteFlags[i] = (VfxRuleType)datareader.ReadByte();
         }
         return byteFlags;
     }

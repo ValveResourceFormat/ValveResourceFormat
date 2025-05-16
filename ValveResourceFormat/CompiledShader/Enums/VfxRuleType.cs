@@ -1,6 +1,6 @@
 namespace ValveResourceFormat.CompiledShader;
 
-public enum ConditionalType : byte
+public enum VfxRuleType : byte
 {
     None = 0,
     Feature = 1,

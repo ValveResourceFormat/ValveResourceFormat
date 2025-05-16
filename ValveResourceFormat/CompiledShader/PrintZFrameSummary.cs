@@ -8,16 +8,16 @@ namespace ValveResourceFormat.CompiledShader
     public class PrintZFrameSummary
     {
         public PrintVcsFileSummary.HandleOutputWrite OutputWriter { get; set; }
-        private readonly VfxStaticComboData zframeFile;
+        private readonly VfxStaticComboData StaticCombo;
 
         // If OutputWriter is left as null; output will be written to Console.
         // Otherwise output is directed to the passed HandleOutputWrite object (defined by the calling application, for example GUI element or file)
-        public PrintZFrameSummary(VfxStaticComboData zframeFile, PrintVcsFileSummary.HandleOutputWrite outputWriter = null)
+        public PrintZFrameSummary(VfxStaticComboData staticCombo, PrintVcsFileSummary.HandleOutputWrite outputWriter = null)
         {
-            this.zframeFile = zframeFile;
+            StaticCombo = staticCombo;
             OutputWriter = outputWriter ?? (static (x) => { Console.Write(x); });
 
-            if (zframeFile.ParentProgramData.VcsProgramType == VcsProgramType.Features)
+            if (staticCombo.ParentProgramData.VcsProgramType == VcsProgramType.Features)
             {
                 return;
             }
@@ -38,11 +38,11 @@ namespace ValveResourceFormat.CompiledShader
             OutputWriteLine(configHeader);
             OutputWriteLine(new string('-', configHeader.Length));
             OutputWriteLine("The static configuration this zframe belongs to (zero or more static parameters)\n");
-            ConfigMappingParams configGen = new(zframeFile.ParentProgramData);
-            var configState = configGen.GetConfigState(zframeFile.ZframeId);
+            ConfigMappingParams configGen = new(StaticCombo.ParentProgramData);
+            var configState = configGen.GetConfigState(StaticCombo.StaticComboId);
             for (var i = 0; i < configState.Length; i++)
             {
-                OutputWriteLine($"{zframeFile.ParentProgramData.StaticCombos[i].Name,-30} {configState[i]}");
+                OutputWriteLine($"{StaticCombo.ParentProgramData.StaticComboArray[i].Name,-30} {configState[i]}");
             }
             if (configState.Length == 0)
             {
@@ -57,8 +57,8 @@ namespace ValveResourceFormat.CompiledShader
             var headerText = "Attributes";
             OutputWriteLine(headerText);
             OutputWriteLine(new string('-', headerText.Length));
-            OutputWrite(zframeFile.AttributesStringDescription());
-            if (zframeFile.Attributes.Count == 0)
+            OutputWrite(StaticCombo.AttributesStringDescription());
+            if (StaticCombo.Attributes.Length == 0)
             {
                 OutputWriteLine("[no attributes]");
             }
@@ -73,8 +73,8 @@ namespace ValveResourceFormat.CompiledShader
         {
             Dictionary<string, int> writeSequences = [];
             var seqCount = 0;
-            writeSequences.Add(BytesToString(zframeFile.LeadingData.Dataload, -1), seqCount++);
-            foreach (var zBlock in zframeFile.DataBlocks)
+            writeSequences.Add(BytesToString(StaticCombo.VariablesFromStaticCombo.Dataload, -1), seqCount++);
+            foreach (var zBlock in StaticCombo.DynamicComboVariables)
             {
                 if (zBlock.Fields.Length == 0)
                 {
@@ -101,12 +101,12 @@ namespace ValveResourceFormat.CompiledShader
             SortedDictionary<int, int> sequencesMap = new()
             {
                 // IMP the first entry is always set 0 regardless of whether the leading datablock carries any data
-                { zframeFile.LeadingData.BlockId, 0 }
+                { StaticCombo.VariablesFromStaticCombo.BlockId, 0 }
             };
 
             var uniqueSequences = GetUniqueWriteSequences();
 
-            foreach (var zBlock in zframeFile.DataBlocks)
+            foreach (var zBlock in StaticCombo.DynamicComboVariables)
             {
                 if (zBlock.Fields.Length == 0)
                 {
@@ -128,19 +128,19 @@ namespace ValveResourceFormat.CompiledShader
             OutputWriteLine(new string('-', headerText.Length));
             OutputWriteLine(
                 "This data (thought to be buffer write sequences) appear to be linked to the dynamic (D-param) configurations;\n" +
-                "each configuration points to exactly one sequence. WRITESEQ[0] is always defined.");
+                "each configuration points to exactly one sequence.");
 
             OutputFormatterTabulatedData tabulatedData = new(OutputWriter);
             var emptyRow = new string[] { "", "", "", "", "" };
-            tabulatedData.DefineHeaders(zframeFile.LeadingData.FieldsCount > 0 ?
+            tabulatedData.DefineHeaders(StaticCombo.VariablesFromStaticCombo.FieldsCount > 0 ?
                 ["segment", "", nameof(VfxVariableIndexData.Dest), nameof(VfxVariableIndexData.Control), nameof(VfxVariableIndexData.LayoutSet)] :
                 emptyRow);
-            if (zframeFile.LeadingData.FieldsCount > 0)
+            if (StaticCombo.VariablesFromStaticCombo.FieldsCount > 0)
             {
                 tabulatedData.AddTabulatedRow(emptyRow);
             }
-            tabulatedData.AddTabulatedRow(["WRITESEQ[0]", "", "", "", ""]);
-            var dataBlock0 = zframeFile.LeadingData;
+            tabulatedData.AddTabulatedRow(["STATIC-SEQ", "", "", "", ""]);
+            var dataBlock0 = StaticCombo.VariablesFromStaticCombo;
             PrintParamWriteSequence(dataBlock0, tabulatedData);
             tabulatedData.AddTabulatedRow(emptyRow);
 
@@ -150,7 +150,7 @@ namespace ValveResourceFormat.CompiledShader
                 if (item.Value > lastSeq)
                 {
                     lastSeq = item.Value;
-                    var dataBlock = zframeFile.DataBlocks[item.Key];
+                    var dataBlock = StaticCombo.DynamicComboVariables[item.Key];
                     tabulatedData.AddTabulatedRow([$"WRITESEQ[{lastSeq}]", "", "", "", ""]);
                     PrintParamWriteSequence(dataBlock, tabulatedData);
                     tabulatedData.AddTabulatedRow(emptyRow);
@@ -169,6 +169,11 @@ namespace ValveResourceFormat.CompiledShader
 
         private void PrintParamWriteSequenceSegment(IReadOnlyList<VfxVariableIndexData> segment, int segId, OutputFormatterTabulatedData tabulatedData)
         {
+            if (segment.Count == 0)
+            {
+                return;
+            }
+
             var segmentDesc = segId switch
             {
                 0 => "Evaluated",
@@ -177,30 +182,23 @@ namespace ValveResourceFormat.CompiledShader
                 _ => throw new InvalidDataException(),
             };
 
-            if (segment.Count > 0)
+            for (var i = 0; i < segment.Count; i++)
             {
-                for (var i = 0; i < segment.Count; i++)
-                {
-                    var field = segment[i];
-                    var paramDesc = $"[{field.VariableIndex}] {zframeFile.ParentProgramData.VariableDescriptions[field.VariableIndex].Name}";
-                    var destDesc = field.Dest == 0xff ? $"{"_",7}" : $"{field.Dest,7}";
-                    var controlDesc = field.Control == 0xff ? $"{"_",10}" : $"{field.Control,10}";
-                    tabulatedData.AddTabulatedRow([i == 0 ? segmentDesc : string.Empty, paramDesc, destDesc, $"{controlDesc} ({field.Field2})", $"{field.LayoutSet,7}"]);
-                }
-            }
-            else
-            {
-                tabulatedData.AddTabulatedRow([segmentDesc, "[empty]", "", "", ""]);
+                var field = segment[i];
+                var paramDesc = $"[{field.VariableIndex}] {StaticCombo.ParentProgramData.VariableDescriptions[field.VariableIndex].Name}";
+                var destDesc = field.Dest == 0xff ? $"{"_",7}" : $"{field.Dest,7}";
+                var controlDesc = field.Control == 0xff ? $"{"_",10}" : $"{field.Control,10}";
+                tabulatedData.AddTabulatedRow([i == 0 ? segmentDesc : string.Empty, paramDesc, destDesc, $"{controlDesc} ({field.Field2})", $"{field.LayoutSet,7}"]);
             }
         }
 
         private void PrintDynamicConfigurations(SortedDictionary<int, int> writeSequences)
         {
-            var blockIdToSource = GetBlockIdToSource(zframeFile);
+            var blockIdToSource = GetBlockIdToSource(StaticCombo);
             var abbreviations = DConfigsAbbreviations();
             var hasOnlyDefaultConfiguration = blockIdToSource.Count == 1;
             var hasNoDConfigsDefined = abbreviations.Count == 0;
-            var isVertexShader = zframeFile.ParentProgramData.VcsProgramType == VcsProgramType.VertexShader;
+            var isVertexShader = StaticCombo.ParentProgramData.VcsProgramType == VcsProgramType.VertexShader;
 
             var configsDefined = hasOnlyDefaultConfiguration ? "" : $" ({blockIdToSource.Count} defined)";
             var configHeader = $"Dynamic (D-Param) configurations{configsDefined}";
@@ -220,9 +218,9 @@ namespace ValveResourceFormat.CompiledShader
             OutputFormatterTabulatedData tabulatedConfigCombinations = new(OutputWriter);
             tabulatedConfigCombinations.DefineHeaders([.. shortenedNames]);
 
-            foreach (var block in zframeFile.RenderStateInfos)
+            foreach (var block in StaticCombo.RenderStateInfos)
             {
-                var dBlockConfig = zframeFile.ParentProgramData.GetDBlockConfig(block.BlockIdRef);
+                var dBlockConfig = StaticCombo.ParentProgramData.GetDBlockConfig(block.BlockIdRef);
                 tabulatedConfigCombinations.AddTabulatedRow(IntArrayToStrings(dBlockConfig, nulledValue: 0));
             }
             var tabbedConfigs = new Stack<string>(tabulatedConfigCombinations.BuildTabulatedRows(reverse: true));
@@ -236,7 +234,7 @@ namespace ValveResourceFormat.CompiledShader
             }
             OutputWriteLine("");
             var dNamesHeader = hasNoDConfigsDefined ? "" : tabbedConfigs.Pop();
-            var gpuSourceName = zframeFile.GpuSources[0].BlockName.ToLowerInvariant();
+            var gpuSourceName = StaticCombo.GpuSources[0].BlockName.ToLowerInvariant();
             var sourceHeader = $"{gpuSourceName}-source";
             string[] dConfigHeaders = isVertexShader ?
                     ["config-id", dNamesHeader, "write-seq.", sourceHeader, "gpu-inputs", nameof(VfxStaticComboData.ConstantBufferBindInfoSlots), nameof(VfxStaticComboData.ConstantBufferBindInfoFlags), nameof(VfxShaderFile.HashMD5)] :
@@ -245,7 +243,7 @@ namespace ValveResourceFormat.CompiledShader
             tabulatedConfigFull.DefineHeaders(dConfigHeaders);
 
             var dBlockCount = 0;
-            foreach (var block in zframeFile.RenderStateInfos)
+            foreach (var block in StaticCombo.RenderStateInfos)
             {
                 var blockId = (int)block.BlockIdRef;
                 dBlockCount++;
@@ -261,10 +259,10 @@ namespace ValveResourceFormat.CompiledShader
                 var blockSource = blockIdToSource[blockId];
                 var sourceLink = $"{blockSource.SourceId:X2}";
                 var vsInputs = isVertexShader ?
-                    zframeFile.VShaderInputs[blockId] : -1;
-                var gpuInputText = vsInputs >= 0 ? $"VS-symbols[{zframeFile.VShaderInputs[blockId]}]" : "[none]";
-                var arg1Text = $"{zframeFile.ConstantBufferBindInfoSlots[blockId]}";
-                var arg2Text = $"{zframeFile.ConstantBufferBindInfoFlags[blockId]}";
+                    StaticCombo.VShaderInputs[blockId] : -1;
+                var gpuInputText = vsInputs >= 0 ? $"VS-symbols[{StaticCombo.VShaderInputs[blockId]}]" : "[none]";
+                var arg1Text = $"{StaticCombo.ConstantBufferBindInfoSlots[blockId]}";
+                var arg2Text = $"{StaticCombo.ConstantBufferBindInfoFlags[blockId]}";
                 var hash = blockSource.HashMD5.ToString();
                 tabulatedConfigFull.AddTabulatedRow(
                     isVertexShader ?
@@ -282,7 +280,7 @@ namespace ValveResourceFormat.CompiledShader
         private List<(string, string)> DConfigsAbbreviations()
         {
             List<(string, string)> abbreviations = [];
-            foreach (var dBlock in zframeFile.ParentProgramData.DynamicCombos)
+            foreach (var dBlock in StaticCombo.ParentProgramData.DynamicComboArray)
             {
                 var abbreviation = ShortenShaderParam(dBlock.Name).ToLowerInvariant();
                 abbreviations.Add((dBlock.Name, abbreviation));
@@ -305,11 +303,10 @@ namespace ValveResourceFormat.CompiledShader
             var headerText = "source bytes/flags";
             OutputWriteLine(headerText);
             OutputWriteLine(new string('-', headerText.Length));
-            OutputWriteLine($"{zframeFile.Flags0}      // size?");
-            OutputWriteLine($"{zframeFile.Flagbyte0}       //");
-            OutputWriteLine($"{zframeFile.Flagbyte1}       // added with v66");
-            OutputWriteLine($"{zframeFile.GpuSourceCount,-6}  // nr of source files");
-            OutputWriteLine($"{zframeFile.Flagbyte2}       //");
+            OutputWriteLine($"{StaticCombo.Flags0}      // size?");
+            OutputWriteLine($"{StaticCombo.Flagbyte0}       //");
+            OutputWriteLine($"{StaticCombo.Flagbyte1}       // added with v66");
+            OutputWriteLine($"{StaticCombo.Flagbyte2}       //");
             OutputWriteLine("");
             OutputWriteLine("");
         }
@@ -319,10 +316,9 @@ namespace ValveResourceFormat.CompiledShader
             var headerText = $"Render State Info";
             OutputWriteLine(headerText);
             OutputWriteLine(new string('-', headerText.Length));
-            var vcsFiletype = zframeFile.ParentProgramData.VcsProgramType;
-            OutputWriteLine($"{zframeFile.RenderStateInfos.Count:X02} 00 00 00   // end blocks ({zframeFile.RenderStateInfos.Count})");
+            var vcsFiletype = StaticCombo.ParentProgramData.VcsProgramType;
             OutputWriteLine("");
-            foreach (var endBlock in zframeFile.RenderStateInfos)
+            foreach (var endBlock in StaticCombo.RenderStateInfos)
             {
                 OutputWriteLine($"block-ref         {endBlock.BlockIdRef}");
                 OutputWriteLine($"source-ref        {endBlock.SourceRef}");

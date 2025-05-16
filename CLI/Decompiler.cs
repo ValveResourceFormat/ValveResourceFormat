@@ -738,7 +738,7 @@ namespace Decompiler
                 {
                     shader.PrintSummary(static (s) => { });
 
-                    foreach (var zframe in shader.ZframesLookup)
+                    foreach (var zframe in shader.StaticComboEntries)
                     {
                         zframe.Value.Unserialize();
                     }

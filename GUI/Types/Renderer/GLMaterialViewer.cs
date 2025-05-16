@@ -155,7 +155,7 @@ namespace GUI.Types.Renderer
             void AddZframeTab(ValveResourceFormat.CompiledShader.VfxProgramData program)
             {
                 var result = ShaderDataProvider.GetStaticConfiguration_ForFeatureState(shaders.Features, program, featureState);
-                var combo = program.GetZFrameFile(result.ZFrameId);
+                var combo = program.GetStaticCombo(result.StaticComboId);
 
                 // TODO: We are displaying source 0 here
                 var output = CompiledShader.GetDecompiledFile(combo.GpuSources[0]);
@@ -164,7 +164,7 @@ namespace GUI.Types.Renderer
                 {
                     var code = new CodeTextBox(output.Source, CodeTextBox.HighlightLanguage.Shaders);
 
-                    var tabPage = new TabPage($"{program.VcsProgramType} Static[{result.ZFrameId}]");
+                    var tabPage = new TabPage($"{program.VcsProgramType} Static[{result.StaticComboId}]");
                     tabPage.Controls.Add(code);
 
                     Tabs.TabPages.Add(tabPage);

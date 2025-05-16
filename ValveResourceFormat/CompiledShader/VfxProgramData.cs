@@ -26,15 +26,15 @@ namespace ValveResourceFormat.CompiledShader
         public VcsAdditionalFileFlags AdditionalFiles { get; private set; }
         public bool IsSbox { get; init; }
         public int VariableSourceMax { get; private set; } // 17 for all up to date files. 14 seen in old test files
-        public List<(Guid, string)> EditorIDs { get; } = [];
-        public List<VfxCombo> StaticCombos { get; private set; } = [];
-        public List<VfxRule> StaticComboRules { get; private set; } = [];
-        public List<VfxCombo> DynamicCombos { get; private set; } = [];
-        public List<VfxRule> DynamicComboRules { get; private set; } = [];
-        public List<VfxVariableDescription> VariableDescriptions { get; private set; } = [];
-        public List<VfxTextureChannelProcessor> TextureChannelProcessors { get; private set; } = [];
-        public List<ConstantBufferVariable> ExtConstantBufferDescriptions { get; private set; } = [];
-        public List<VsInputSignatureElement> VSInputSignatures { get; private set; } = [];
+        public List<(Guid, string)> HashesMD5 { get; } = [];
+        public VfxCombo[] StaticComboArray { get; private set; } = [];
+        public VfxRule[] StaticComboRules { get; private set; } = [];
+        public VfxCombo[] DynamicComboArray { get; private set; } = [];
+        public VfxRule[] DynamicComboRules { get; private set; } = [];
+        public VfxVariableDescription[] VariableDescriptions { get; private set; } = [];
+        public VfxTextureChannelProcessor[] TextureChannelProcessors { get; private set; } = [];
+        public ConstantBufferDescription[] ExtConstantBufferDescriptions { get; private set; } = [];
+        public VsInputSignatureElement[] VSInputSignatures { get; private set; } = [];
 
         // Zframe data assigned to the ZFrameDataDescription class are key pieces of
         // information needed to decompress and retrieve zframes (to save processing zframes are only
@@ -43,8 +43,8 @@ namespace ValveResourceFormat.CompiledShader
         // sorted dictionary enables retrieval based on the order they are seen; by calling
         // zframesLookup.ElementAt(zframeIndex). We also retrieve them based on their id using
         // zframesLookup[zframeId]. Both methods are useful in different contexts (be aware not to mix them up).
-        public SortedDictionary<long, VfxStaticComboVcsEntry> ZframesLookup { get; } = [];
-        public StaticCache ZFrameCache { get; private set; }
+        public SortedDictionary<long, VfxStaticComboVcsEntry> StaticComboEntries { get; } = [];
+        public StaticCache StaticComboCache { get; private set; }
         private ConfigMappingParams dBlockConfigGen;
 
         /// <summary>
@@ -72,7 +72,7 @@ namespace ValveResourceFormat.CompiledShader
                     DataReader = null;
                 }
 
-                ZFrameCache?.Dispose();
+                StaticComboCache?.Dispose();
             }
         }
 
@@ -107,7 +107,7 @@ namespace ValveResourceFormat.CompiledShader
             DataReader = new BinaryReader(input, Encoding.UTF8, leaveOpen: true);
             FilenamePath = filenamepath;
             VfxCreateFromVcs();
-            ZFrameCache = new StaticCache(this);
+            StaticComboCache = new StaticCache(this);
         }
 
         public void PrintSummary(PrintVcsFileSummary.HandleOutputWrite OutputWriter = null)
@@ -182,15 +182,14 @@ namespace ValveResourceFormat.CompiledShader
             {
                 FeaturesHeader = new FeaturesHeaderBlock(DataReader, programTypesCount);
 
-                // EditorIDs is probably MD5 hashes
                 for (var i = 0; i < programTypesCount; i++)
                 {
-                    EditorIDs.Add((new Guid(DataReader.ReadBytes(16)), $"// {i}"));
+                    HashesMD5.Add((new Guid(DataReader.ReadBytes(16)), $"// {i}"));
                 }
             }
             else
             {
-                EditorIDs.Add((new Guid(DataReader.ReadBytes(16)), string.Empty));
+                HashesMD5.Add((new Guid(DataReader.ReadBytes(16)), string.Empty));
             }
 
             FileHash = new Guid(DataReader.ReadBytes(16));
@@ -198,32 +197,39 @@ namespace ValveResourceFormat.CompiledShader
             VariableSourceMax = DataReader.ReadInt32();
 
             var staticCombosCount = DataReader.ReadInt32();
+            StaticComboArray = new VfxCombo[staticCombosCount];
             for (var i = 0; i < staticCombosCount; i++)
             {
                 VfxCombo nextSfBlock = new(DataReader, i);
-                StaticCombos.Add(nextSfBlock);
+                StaticComboArray[i] = nextSfBlock;
             }
 
-            var staticComboRulesCount = DataReader.ReadInt32();
+            CalculateComboIds(StaticComboArray);
 
+            var staticComboRulesCount = DataReader.ReadInt32();
+            StaticComboRules = new VfxRule[staticComboRulesCount];
             for (var i = 0; i < staticComboRulesCount; i++)
             {
                 VfxRule nextSfConstraintBlock = new(DataReader, i);
-                StaticComboRules.Add(nextSfConstraintBlock);
+                StaticComboRules[i] = nextSfConstraintBlock;
             }
 
             var dynamicCombosCount = DataReader.ReadInt32();
+            DynamicComboArray = new VfxCombo[dynamicCombosCount];
             for (var i = 0; i < dynamicCombosCount; i++)
             {
                 VfxCombo nextDBlock = new(DataReader, i);
-                DynamicCombos.Add(nextDBlock);
+                DynamicComboArray[i] = nextDBlock;
             }
 
+            CalculateComboIds(DynamicComboArray);
+
             var dynamicComboRulesCount = DataReader.ReadInt32();
+            DynamicComboRules = new VfxRule[dynamicComboRulesCount];
             for (var i = 0; i < dynamicComboRulesCount; i++)
             {
                 VfxRule nextDConstraintsBlock = new(DataReader, i);
-                DynamicComboRules.Add(nextDConstraintsBlock);
+                DynamicComboRules[i] = nextDConstraintsBlock;
             }
 
             // This is needed for the zframes to determine their source mapping
@@ -231,33 +237,37 @@ namespace ValveResourceFormat.CompiledShader
             dBlockConfigGen = new ConfigMappingParams(this, isDynamic: true);
 
             var variableDescriptionsCount = DataReader.ReadInt32();
+            VariableDescriptions = new VfxVariableDescription[variableDescriptionsCount];
             for (var i = 0; i < variableDescriptionsCount; i++)
             {
                 VfxVariableDescription nextParamBlock = new(DataReader, i, VcsVersion);
-                VariableDescriptions.Add(nextParamBlock);
+                VariableDescriptions[i] = nextParamBlock;
             }
 
             var textureChannelProcessorsCount = DataReader.ReadInt32();
+            TextureChannelProcessors = new VfxTextureChannelProcessor[textureChannelProcessorsCount];
             for (var i = 0; i < textureChannelProcessorsCount; i++)
             {
                 VfxTextureChannelProcessor nextChannelBlock = new(DataReader, i);
-                TextureChannelProcessors.Add(nextChannelBlock);
+                TextureChannelProcessors[i] = nextChannelBlock;
             }
 
             var extConstantBufferDescriptionsCount = DataReader.ReadInt32();
+            ExtConstantBufferDescriptions = new ConstantBufferDescription[extConstantBufferDescriptionsCount];
             for (var i = 0; i < extConstantBufferDescriptionsCount; i++)
             {
-                ConstantBufferVariable nextBufferBlock = new(DataReader, i);
-                ExtConstantBufferDescriptions.Add(nextBufferBlock);
+                ConstantBufferDescription nextBufferBlock = new(DataReader, i);
+                ExtConstantBufferDescriptions[i] = nextBufferBlock;
             }
 
             if (VcsProgramType == VcsProgramType.Features || VcsProgramType == VcsProgramType.VertexShader)
             {
                 var vsInputSignaturesCount = DataReader.ReadInt32();
+                VSInputSignatures = new VsInputSignatureElement[vsInputSignaturesCount];
                 for (var i = 0; i < vsInputSignaturesCount; i++)
                 {
                     VsInputSignatureElement nextSymbolsBlock = new(DataReader, i);
-                    VSInputSignatures.Add(nextSymbolsBlock);
+                    VSInputSignatures[i] = nextSymbolsBlock;
                 }
             }
 
@@ -272,11 +282,11 @@ namespace ValveResourceFormat.CompiledShader
                 return;
             }
 
-            var zframeIdsAndOffsets = new (long Id, int Offset)[combosCount];
+            var staticComboIds = new long[combosCount];
 
             for (var i = 0; i < combosCount; i++)
             {
-                zframeIdsAndOffsets[i].Id = DataReader.ReadInt64();
+                staticComboIds[i] = DataReader.ReadInt64();
             }
 
             for (var i = 0; i < combosCount; i++)
@@ -284,24 +294,21 @@ namespace ValveResourceFormat.CompiledShader
                 // CVfxStaticComboVcsEntry::Unserialize
                 // This is a separate function because Valve has a flag to skip actually parsing the entries,
                 // so if it's not requested, it just creates empty VfxStaticComboVcsEntry with the offset.
-                zframeIdsAndOffsets[i].Offset = DataReader.ReadInt32();
+                var offset = DataReader.ReadInt32();
+
+                var staticComboId = staticComboIds[i];
+                StaticComboEntries.Add(staticComboId, new VfxStaticComboVcsEntry
+                {
+                    ParentProgramData = this,
+                    StaticComboId = staticComboId,
+                    FileOffset = offset,
+                });
             }
 
             var offsetToEndOffile = DataReader.ReadInt32();
             if (offsetToEndOffile != (int)DataReader.BaseStream.Length)
             {
                 throw new ShaderParserException($"Pointer to end of file expected, value read = {offsetToEndOffile}");
-            }
-
-            // CVfxProgramData::UnserializeStaticComboDataCache
-            foreach (var zFrame in zframeIdsAndOffsets)
-            {
-                ZframesLookup.Add(zFrame.Id, new VfxStaticComboVcsEntry
-                {
-                    ParentProgramData = this,
-                    ZframeId = zFrame.Id,
-                    OffsetToZFrameHeader = zFrame.Offset,
-                });
             }
         }
 
@@ -317,30 +324,61 @@ namespace ValveResourceFormat.CompiledShader
             }
         }
 
-#pragma warning disable CA1024 // Use properties where appropriate
-        public int GetZFrameCount()
+        public VfxStaticComboData GetStaticCombo(long id)
         {
-            return ZframesLookup.Count;
-        }
-
-        public VfxStaticComboVcsEntry GetZFrameEntry(long zframeId)
-        {
-            return ZframesLookup[zframeId];
-        }
-
-        public VfxStaticComboData GetZFrameFile(long zframeId)
-        {
-            return ZframesLookup[zframeId].Unserialize();
-        }
-
-        public VfxStaticComboData GetZFrameFileByIndex(int zframeIndex)
-        {
-            return GetZFrameFile(ZframesLookup.ElementAt(zframeIndex).Key);
+            return StaticComboEntries[id].Unserialize();
         }
 
         public int[] GetDBlockConfig(long blockId)
         {
             return dBlockConfigGen.GetConfigState(blockId);
+        }
+
+        /*
+        public long CalcStaticComboIdFromValues(int[] configState)
+        {
+            Debug.Assert(configState.Length == StaticComboArray.Length);
+
+            var comboId = 0L;
+            var combos = StaticComboArray;
+            var i = 0;
+
+            for (; i < combos.Length - (combos.Length % 2); i += 2)
+            {
+                var v1 = configState[i] - combos[i].RangeMin;
+                comboId += combos[i].CalculatedComboId * v1;
+
+                var v2 = configState[i + 1] - combos[i + 1].RangeMin;
+                comboId += combos[i + 1].CalculatedComboId * v2;
+            }
+
+            if (i < combos.Length)
+            {
+                var v = configState[i] - combos[i].RangeMin;
+                comboId += combos[i].CalculatedComboId * v;
+            }
+
+            return comboId;
+        }
+        */
+
+        private static void CalculateComboIds(VfxCombo[] combos)
+        {
+            if (combos.Length == 0)
+            {
+                return;
+            }
+
+            var comboPrev = combos[0];
+            comboPrev.CalculatedComboId = 1;
+
+            for (var i = 1; i < combos.Length; i++)
+            {
+                var combo = combos[i];
+                combo.CalculatedComboId = comboPrev.CalculatedComboId;
+                combo.CalculatedComboId *= comboPrev.RangeMax - comboPrev.RangeMin + 1;
+                comboPrev = combo;
+            }
         }
     }
 }
