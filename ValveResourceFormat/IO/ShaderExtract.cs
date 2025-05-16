@@ -161,6 +161,7 @@ public sealed class ShaderExtract
             + FEATURES()
             + COMMON()
             + MS()
+            + VS_INPUT()
             + VS()
             + GS()
             + HS()
@@ -283,20 +284,20 @@ public sealed class ShaderExtract
 
         WriteCBuffers(Common.BufferBlocks, writer);
 
-        WriteVsInput(writer);
-
         writer.Indent--;
         writer.WriteLine("}");
 
         return writer.ToString();
     }
 
-    private void WriteVsInput(IndentedTextWriter writer)
+    private string VS_INPUT()
     {
         if (Vertex is null)
         {
-            return;
+            return string.Empty;
         }
+
+        using var writer = new IndentedTextWriter();
 
         var symbols = new List<Material.InputSignatureElement>();
         var masks = new List<bool[]>();
@@ -445,6 +446,8 @@ public sealed class ShaderExtract
             writer.Indent--;
             writer.WriteLine("};");
         }
+
+        return writer.ToString();
     }
 
     private void WriteCBuffers(IEnumerable<ConstantBufferDescription> bufferBlocks, IndentedTextWriter writer)
