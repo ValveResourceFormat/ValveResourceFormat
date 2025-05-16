@@ -218,7 +218,7 @@ namespace ValveResourceFormat.CompiledShader
             OutputFormatterTabulatedData tabulatedConfigCombinations = new(OutputWriter);
             tabulatedConfigCombinations.DefineHeaders([.. shortenedNames]);
 
-            foreach (var block in StaticCombo.RenderStateInfos)
+            foreach (var block in StaticCombo.DynamicCombos)
             {
                 var dBlockConfig = StaticCombo.ParentProgramData.GetDBlockConfig(block.DynamicComboId);
                 tabulatedConfigCombinations.AddTabulatedRow(IntArrayToStrings(dBlockConfig, nulledValue: 0));
@@ -234,7 +234,7 @@ namespace ValveResourceFormat.CompiledShader
             }
             OutputWriteLine("");
             var dNamesHeader = hasNoDConfigsDefined ? "" : tabbedConfigs.Pop();
-            var gpuSourceName = StaticCombo.GpuSources[0].BlockName.ToLowerInvariant();
+            var gpuSourceName = StaticCombo.ShaderFiles[0].BlockName.ToLowerInvariant();
             var sourceHeader = $"{gpuSourceName}-source";
             string[] dConfigHeaders = isVertexShader ?
                     ["config-id", dNamesHeader, "write-seq.", sourceHeader, "gpu-inputs", nameof(VfxStaticComboData.ConstantBufferBindInfoSlots), nameof(VfxStaticComboData.ConstantBufferBindInfoFlags), nameof(VfxShaderFile.HashMD5)] :
@@ -243,7 +243,7 @@ namespace ValveResourceFormat.CompiledShader
             tabulatedConfigFull.DefineHeaders(dConfigHeaders);
 
             var dBlockCount = 0;
-            foreach (var block in StaticCombo.RenderStateInfos)
+            foreach (var block in StaticCombo.DynamicCombos)
             {
                 var blockId = (int)block.DynamicComboId;
                 dBlockCount++;
@@ -290,9 +290,9 @@ namespace ValveResourceFormat.CompiledShader
         static Dictionary<long, VfxShaderFile> GetBlockIdToSource(VfxStaticComboData zframeFile)
         {
             Dictionary<long, VfxShaderFile> blockIdToSource = [];
-            foreach (var endBlock in zframeFile.RenderStateInfos)
+            foreach (var endBlock in zframeFile.DynamicCombos)
             {
-                blockIdToSource.Add(endBlock.DynamicComboId, zframeFile.GpuSources[endBlock.ShaderFileId]);
+                blockIdToSource.Add(endBlock.DynamicComboId, zframeFile.ShaderFiles[endBlock.ShaderFileId]);
             }
             return blockIdToSource;
         }
@@ -317,7 +317,7 @@ namespace ValveResourceFormat.CompiledShader
             OutputWriteLine(new string('-', headerText.Length));
             var vcsFiletype = StaticCombo.ParentProgramData.VcsProgramType;
             OutputWriteLine("");
-            foreach (var endBlock in StaticCombo.RenderStateInfos)
+            foreach (var endBlock in StaticCombo.DynamicCombos)
             {
                 OutputWriteLine($"block-ref         {endBlock.DynamicComboId}");
                 OutputWriteLine($"source-ref        {endBlock.ShaderFileId}");

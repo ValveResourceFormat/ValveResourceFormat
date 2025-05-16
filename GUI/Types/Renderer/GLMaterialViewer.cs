@@ -158,7 +158,7 @@ namespace GUI.Types.Renderer
                 var combo = program.GetStaticCombo(result.StaticComboId);
 
                 // TODO: We are displaying source 0 here
-                var output = CompiledShader.GetDecompiledFile(combo.GpuSources[0]);
+                var output = CompiledShader.GetDecompiledFile(combo.ShaderFiles[0]);
 
                 if (output.Source != null)
                 {

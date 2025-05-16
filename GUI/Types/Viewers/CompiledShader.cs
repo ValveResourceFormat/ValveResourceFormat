@@ -275,15 +275,15 @@ namespace GUI.Types.Viewers
 
                 List<string> dfNamesAbbrev = [];
                 List<string> dfNames = [];
-                var sourceIdToRenderStateInfo = new Dictionary<int, VfxRenderStateInfo>(combo.GpuSources.Length);
+                var sourceIdToRenderStateInfo = new Dictionary<int, VfxRenderStateInfo>(combo.ShaderFiles.Length);
 
                 // We are only taking the first render state info currently
-                foreach (var renderStateInfo in combo.RenderStateInfos)
+                foreach (var renderStateInfo in combo.DynamicCombos)
                 {
                     sourceIdToRenderStateInfo.TryAdd(renderStateInfo.ShaderFileId, renderStateInfo);
                 }
 
-                foreach (var source in combo.GpuSources)
+                foreach (var source in combo.ShaderFiles)
                 {
                     var config = combo.ParentProgramData.GetDBlockConfig(sourceIdToRenderStateInfo[source.ShaderFileId].DynamicComboId);
 
@@ -506,7 +506,7 @@ namespace GUI.Types.Viewers
             var program = staticComboData.ParentProgramData;
             // var leadingWriteSequence = shader.ZFrameCache.Get(zFrameId).DataBlocks[dynamicId];
 
-            var dynamicBlockIndex = Array.Find(staticComboData.RenderStateInfos, r => r.ShaderFileId == shaderFile.ShaderFileId).DynamicComboId;
+            var dynamicBlockIndex = Array.Find(staticComboData.DynamicCombos, r => r.ShaderFileId == shaderFile.ShaderFileId).DynamicComboId;
             var writeSequence = staticComboData.DynamicComboVariables[(int)dynamicBlockIndex];
 
             var reflectedResources = SpirvCrossApi.spvc_resources_get_resource_list_for_type(resources, resourceType);

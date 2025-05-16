@@ -341,7 +341,7 @@ public sealed class ShaderExtract
             var staticCombo = staticComboEntry.Value.Unserialize();
             var staticConfigState = staticConfig.GetConfigState(staticCombo.StaticComboId);
 
-            foreach (var vsEnd in staticCombo.RenderStateInfos)
+            foreach (var vsEnd in staticCombo.DynamicCombos)
             {
                 var dynamicConfigState = dynamicConfig.GetConfigState(vsEnd.DynamicComboId);
                 var vsInputId = staticCombo.VShaderInputs[vsEnd.ShaderFileId];
@@ -636,10 +636,10 @@ public sealed class ShaderExtract
             var staticConfigState = staticConfig.GetConfigState(staticCombo.StaticComboId);
             attributesDisect[staticConfigState] = zframeAttributes;
 
-            if (staticCombo.GpuSources.Length > 0 && variant0Source.Length == 0)
+            if (staticCombo.ShaderFiles.Length > 0 && variant0Source.Length == 0)
             {
                 var dynamicId = 0;
-                var gpuSource = staticCombo.GpuSources[dynamicId];
+                var gpuSource = staticCombo.ShaderFiles[dynamicId];
                 if (gpuSource is VfxShaderFileGL glsl)
                 {
                     variant0Source.AppendLine("// --------- GLSL source begin --------- ");
