@@ -19,10 +19,10 @@ public class VsInputSignatureElement : ShaderDataBlock
         for (var i = 0; i < symbolsCount; i++)
         {
             var name = datareader.ReadNullTermString(Encoding.UTF8);
-            var type = datareader.ReadNullTermString(Encoding.UTF8);
-            var option = datareader.ReadNullTermString(Encoding.UTF8);
-            var semanticIndex = datareader.ReadInt32();
-            SymbolsDefinition[i] = new(name, type, option, semanticIndex);
+            var d3dSemantic = datareader.ReadNullTermString(Encoding.UTF8);
+            var semantic = datareader.ReadNullTermString(Encoding.UTF8);
+            var d3dSemanticIndex = datareader.ReadInt32();
+            SymbolsDefinition[i] = new(name, semantic, d3dSemantic, d3dSemanticIndex);
         }
     }
 }

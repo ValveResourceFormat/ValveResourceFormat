@@ -317,7 +317,7 @@ public sealed class ShaderExtract
                     mask[i] = true;
                     masks.Insert(j, mask);
                     maxNameLength = Math.Max(maxNameLength, symbol.Name.Length);
-                    maxSemanticLength = Math.Max(maxSemanticLength, symbol.Semantic.Length);
+                    maxSemanticLength = Math.Max(maxSemanticLength, symbol.D3DSemanticName.Length);
                 }
                 else
                 {
@@ -394,11 +394,11 @@ public sealed class ShaderExtract
                         _ => string.Empty
                     };
 
-                    if (symbol.D3DSemanticName.Contains("UV", StringComparison.OrdinalIgnoreCase))
+                    if (symbol.Semantic.Contains("UV", StringComparison.OrdinalIgnoreCase))
                     {
                         type = "float2";
                     }
-                    else if (symbol.D3DSemanticName == "PosXyz")
+                    else if (symbol.Semantic == "PosXyz")
                     {
                         type = "float3";
                     }
@@ -406,11 +406,11 @@ public sealed class ShaderExtract
                     type = $"{type,-7}";
                 }
 
-                var attributeVfx = symbol.D3DSemanticName.Length > 0 ? $" < Semantic( {symbol.D3DSemanticName} ); >" : string.Empty;
+                var attributeVfx = symbol.Semantic.Length > 0 ? $" < Semantic( {symbol.Semantic} ); >" : string.Empty;
                 var nameAlignSpaces = new string(' ', maxNameLength - symbol.Name.Length);
-                var semanticAlignSpaces = new string(' ', maxSemanticLength - symbol.Semantic.Length);
+                var semanticAlignSpaces = new string(' ', maxSemanticLength - symbol.D3DSemanticName.Length);
 
-                var field = $"{type}{symbol.Name}{nameAlignSpaces} : {symbol.Semantic}{symbol.D3DSemanticIndex,-2}{semanticAlignSpaces}{attributeVfx};";
+                var field = $"{type}{symbol.Name}{nameAlignSpaces} : {symbol.D3DSemanticName}{symbol.D3DSemanticIndex,-2}{semanticAlignSpaces}{attributeVfx};";
                 writer.Write($"{field,-94}");
 
                 if (masks[i].All(x => x) || !Options.CanReadStaticCombos)

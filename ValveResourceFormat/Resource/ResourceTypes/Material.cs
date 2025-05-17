@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -176,6 +177,7 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
+        [DebuggerDisplay("{Name,nq} ({Semantic,nq})")]
         public readonly struct InputSignatureElement
         {
             public string Name { get; }
@@ -191,12 +193,12 @@ namespace ValveResourceFormat.ResourceTypes
                 D3DSemanticIndex = (int)data.GetIntegerProperty("m_nD3DSemanticIndex");
             }
 
-            public InputSignatureElement(string name, string semantic, string semanticName, int index)
+            public InputSignatureElement(string name, string semantic, string d3dSemanticName, int d3dSemanticIndex)
             {
                 Name = name;
                 Semantic = semantic;
-                D3DSemanticName = semanticName;
-                D3DSemanticIndex = index;
+                D3DSemanticName = d3dSemanticName;
+                D3DSemanticIndex = d3dSemanticIndex;
             }
         }
 

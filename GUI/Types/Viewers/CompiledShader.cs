@@ -461,6 +461,20 @@ namespace GUI.Types.Viewers
 
                 SpirvCrossApi.spvc_compiler_compile(compiler, out var code).CheckResult();
 
+                if (backend == Backend.HLSL)
+                {
+                    if (vulkanSource.ParentCombo.ParentProgramData.VcsProgramType is VcsProgramType.VertexShader)
+                    {
+                        code = code.Replace("SPIRV_Cross_Input", "VS_INPUT", StringComparison.Ordinal);
+                        code = code.Replace("SPIRV_Cross_Output", "PS_INPUT", StringComparison.Ordinal);
+                    }
+                    else if (vulkanSource.ParentCombo.ParentProgramData.VcsProgramType is VcsProgramType.PixelShader)
+                    {
+                        code = code.Replace("SPIRV_Cross_Input", "PS_INPUT", StringComparison.Ordinal);
+                        code = code.Replace("SPIRV_Cross_Output", "PS_OUTPUT", StringComparison.Ordinal);
+                    }
+                }
+
                 buffer.WriteLine($"// SPIR-V source ({vulkanSource.BytecodeSize} bytes), {backend} reflection with SPIRV-Cross by KhronosGroup");
                 buffer.WriteLine($"// {StringToken.VRF_GENERATOR}");
                 buffer.WriteLine();
@@ -511,6 +525,64 @@ namespace GUI.Types.Viewers
 
             var reflectedResources = SpirvCrossApi.spvc_resources_get_resource_list_for_type(resources, resourceType);
 
+            var currentStageInputIndex = 0;
+            var isVertexShader = program.VcsProgramType is VcsProgramType.VertexShader;
+            ValveResourceFormat.ResourceTypes.Material.InputSignatureElement[] vsInputElements = null;
+
+            if (isVertexShader)
+            {
+                var inputSignature = program.VSInputSignatures[staticComboData.VShaderInputs[shaderFile.ShaderFileId]];
+
+                var unorderedElements = inputSignature.SymbolsDefinition.ToList();
+                List<ValveResourceFormat.ResourceTypes.Material.InputSignatureElement> vsInputReorderedElements = new(unorderedElements.Count);
+
+                Span<string> priority =
+                [
+                    "Pos",
+                    "PosXyz",
+
+                    "Color",
+
+                    "TexCoord",
+                    "LowPrecisionUv",
+                    "LowPrecisionUv1", // there may be more
+                    "LightmapUV",
+
+                    "Normal",
+                    "TangentU_SignV",
+                    "OptionallyCompressedTangentFrame",
+                    "CompressedTangentFrame",
+
+                    "BlendIndices",
+                    "BlendWeight",
+
+                    "InstanceTransformUv",
+
+                    "VertexPaintBlendParams", // there may be more
+                    "VertexPaintTintColor",
+                    "PerVertexLighting", // todo: confirm this
+                ];
+
+                foreach (var semantic in priority)
+                {
+                    var elementIndex = unorderedElements.FindIndex(el => el.Semantic == semantic);
+                    if (elementIndex != -1)
+                    {
+                        var element = unorderedElements[elementIndex];
+                        vsInputReorderedElements.Add(element);
+                        unorderedElements.Remove(element);
+                    }
+                }
+
+                foreach (var element in unorderedElements)
+                {
+                    vsInputReorderedElements.Add(element);
+                    Log.Warn(nameof(CompiledShader), $"VS Input element semantic missing from the priority list ({element.Semantic})");
+                }
+
+                vsInputElements = vsInputReorderedElements.ToArray();
+            }
+
             foreach (var resource in reflectedResources)
             {
                 var location = (int)SpirvCrossApi.spvc_compiler_get_decoration(compiler, resource.id, SpvDecoration.Location);
@@ -527,7 +599,6 @@ namespace GUI.Types.Viewers
                     _ => VfxVariableType.Void,
                 };
 
-                var isVertexShader = program.VcsProgramType is VcsProgramType.VertexShader;
                 var uniformBufferBindingOffset = isVertexShader ? 14u : 0;
                 var uniformBufferBinding = binding - uniformBufferBindingOffset;
 
@@ -539,9 +610,7 @@ namespace GUI.Types.Viewers
                     ResourceType.SeparateSamplers => GetNameForSampler(program, writeSequence, binding),
                     ResourceType.StorageBuffer or ResourceType.StorageImage => GetNameForStorageBuffer(program, writeSequence, binding),
                     ResourceType.UniformBuffer => isGlobalsBuffer ? "_Globals_" : GetNameForUniformBuffer(program, writeSequence, uniformBufferBinding, set),
-                    ResourceType.StageInput => isVertexShader
-                        ? GetVsAttributeName(program, program.VSInputSignatures[staticComboData.VShaderInputs[shaderFile.ShaderFileId]], location)
-                        : string.Empty,
+                    ResourceType.StageInput => isVertexShader ? GetVsAttributeName(vsInputElements, currentStageInputIndex++) : string.Empty,
                     _ => string.Empty,
                 };
 
@@ -733,11 +802,11 @@ namespace GUI.Types.Viewers
             }
         }
 
-        public static string GetVsAttributeName(VfxProgramData program, VsInputSignatureElement inputSignatureElement, int attributeLocation)
+        public static string GetVsAttributeName(ValveResourceFormat.ResourceTypes.Material.InputSignatureElement[] vsInputElements, int attributeIndex)
         {
-            if (attributeLocation < inputSignatureElement.SymbolsDefinition.Length)
+            if (attributeIndex < vsInputElements.Length)
             {
-                return inputSignatureElement.SymbolsDefinition[attributeLocation].Name;
+                return vsInputElements[attributeIndex].Name;
             }
 
             return "undetermined";
