@@ -8,17 +8,11 @@ struct LightingTerms_t
     vec3 DiffuseIndirect;
     vec3 SpecularDirect;
     vec3 SpecularIndirect;
-#if defined(S_TRANSMISSIVE_BACKFACE_NDOTL)
     vec3 TransmissiveDirect;
-#endif
     float SpecularOcclusion; // Lightmap AO
 };
 
 LightingTerms_t InitLighting()
 {
-#if defined(S_TRANSMISSIVE_BACKFACE_NDOTL) // temp
     return LightingTerms_t(vec3(0), vec3(0), vec3(0), vec3(0), vec3(0), 1.0);
-#else
-    return LightingTerms_t(vec3(0), vec3(0), vec3(0), vec3(0), 1.0);
-#endif
 }

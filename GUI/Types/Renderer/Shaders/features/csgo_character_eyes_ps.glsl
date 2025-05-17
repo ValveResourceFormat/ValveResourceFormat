@@ -77,12 +77,7 @@ void ApplyEye(EyePixelInput i, vec2 texCoord, inout MaterialProperties_t mat)
             float flEyeLerp = flEyeMask * smoothstep(0.1, 0.3, _18919);
 
             mat.Albedo =     mix(mat.Albedo, vEyeColor, vec3(flEyeLerp));
-// todo: always use vec2 for roughness
-#if defined(VEC2_ROUGHNESS)
             mat.Roughness =  mix(mat.Roughness, vec2(0.1), vec2(flEyeLerp));
-#else
-            mat.Roughness =  mix(mat.Roughness, 0.1, flEyeLerp);
-#endif
             mat.Normal =     mix(mat.Normal, normalize(mix(_14552, normalize(_14552 - (vEyeBallViewDir * 0.5)), vIrisMask)), vec3(pow(flEyeLerp, 0.5)));
             mat.Normal =     normalize(mat.Normal);
         }

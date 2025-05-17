@@ -234,7 +234,7 @@ uniform sampler2D g_tTintMask;
 
 #if defined(vr_standard_vfx)
     #if (F_HIGH_QUALITY_GLOSS == 1)
-        #define VEC2_ROUGHNESS
+        #define ANISO_ROUGHNESS
         uniform sampler2D g_tNormal2;
         uniform sampler2D g_tGloss;
     #endif
@@ -278,7 +278,7 @@ uniform sampler2D g_tTintMask;
 #endif
 
 #if (F_ANISOTROPIC_GLOSS == 1) // complex, csgo_character
-    #define VEC2_ROUGHNESS
+    #define ANISO_ROUGHNESS
     uniform sampler2D g_tAnisoGloss;
 #endif
 
@@ -491,15 +491,15 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
         mat.NormalMap = DecodeHemiOctahedronNormal(normalTexture.rg);
     #endif
 
-#if defined(VEC2_ROUGHNESS)
+#if defined(ANISO_ROUGHNESS)
     #if (F_ANISOTROPIC_GLOSS == 1)
-        mat.RoughnessTex = texture(g_tAnisoGloss, texCoord).rg;
+        mat.RoughnessTex.xy = texture(g_tAnisoGloss, texCoord).rg;
     #endif
     #if defined(vr_standard_vfx) && (F_HIGH_QUALITY_GLOSS == 1)
         mat.RoughnessTex.xy = texture(g_tGloss, texCoord).ag;
     #endif
 #else
-    mat.RoughnessTex = normalTexture.b;
+    mat.RoughnessTex.xy = normalTexture.bb;
 #endif
 
 
@@ -535,7 +535,7 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
     #if defined(csgo_character_vfx)
         mat.ClothMask = metalnessTexture.b * (1.0 - metalnessTexture.g);
     #elif defined(csgo_weapon_vfx)
-        mat.RoughnessTex = metalnessTexture.r;
+        mat.RoughnessTex.xy = metalnessTexture.rr;
     #endif
 #elif (_uniformMetalness)
     mat.Metalness = g_flMetalness;
@@ -565,7 +565,7 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
     mat.ClothMask = 1.0;
 #endif
 
-    mat.Roughness = AdjustRoughnessByGeometricNormal(mat.RoughnessTex, mat.GeometricNormal);
+    AdjustRoughnessByGeometricNormal(mat);
 
 #if defined(csgo_character_vfx)
     #if (F_EYEBALLS == 1)
@@ -618,7 +618,7 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
     mat.DiffuseAO = vec3(mat.AmbientOcclusion);
     mat.SpecularAO = mat.AmbientOcclusion;
 
-#if defined(VEC2_ROUGHNESS)
+#if defined(ANISO_ROUGHNESS)
     CalculateAnisotropicTangents(mat);
 #endif
 
@@ -636,13 +636,13 @@ void main()
     MaterialProperties_t mat = GetMaterial(texCoord, vertexNormal);
     outputColor.a = mat.Opacity;
 
-    LightingTerms_t lighting = InitLighting();
+    LightingTerms_t lighting;
 
 #if (unlit)
     outputColor.rgb = mat.Albedo + mat.IllumColor;
 #else
-    CalculateDirectLighting(lighting, mat);
-    CalculateIndirectLighting(lighting, mat);
+
+    lighting = CalculateLighting(mat);
 
     // Combining pass
 

@@ -310,7 +310,7 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
 
     // Normals and Roughness
     mat.NormalMap = DecodeHemiOctahedronNormal(normal.rg);
-    mat.RoughnessTex = normal.b;
+    mat.RoughnessTex = normal.bb;
 
     // Detail texture
     #if (F_DETAIL_NORMAL == 1)
@@ -323,7 +323,7 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
     mat.Height = height.r;
     mat.Metalness = height.a;
 
-    mat.Roughness = AdjustRoughnessByGeometricNormal(mat.RoughnessTex, mat.GeometricNormal);
+    AdjustRoughnessByGeometricNormal(mat);
 
     mat.AmbientNormal = mat.Normal;
     mat.AmbientGeometricNormal = mat.GeometricNormal;
@@ -348,10 +348,7 @@ void main()
     // Get material
     MaterialProperties_t mat = GetMaterial(vertexNormal);
 
-    LightingTerms_t lighting = InitLighting();
-
-    CalculateDirectLighting(lighting, mat);
-    CalculateIndirectLighting(lighting, mat);
+    LightingTerms_t lighting = CalculateLighting(mat);
 
     // Combining pass
     ApplyAmbientOcclusion(lighting, mat);

@@ -42,7 +42,7 @@ float D_GGX(float NoH, float roughness)
 	return pow2(alpha / denom);
 }
 
-#if defined(VEC2_ROUGHNESS)
+#if defined(ANISO_ROUGHNESS)
 
 #if (F_SPHERICAL_PROJECTED_ANISOTROPIC_TANGENTS == 1)
 in vec3 vAnisoBitangentOut;
@@ -159,19 +159,19 @@ vec3 specularLighting(vec3 lightVector, vec3 normal, MaterialProperties_t mat)
     return SpecularCloth(mat.Roughness, NoL, NoH, NoV, VoH, mat.SpecularColor);
 #else
 
-#if defined(VEC2_ROUGHNESS)
+#if defined(ANISO_ROUGHNESS)
     // Anisotropic shading
     float NDF = D_AnisoGGX(mat.Roughness, halfVector, normal, mat.AnisotropicTangent, mat.AnisotropicBitangent);
 	float Vis = G_SchlickSmithGGX(NoL, NoV, max(mat.Roughness.x, mat.Roughness.y));
 #else
-    float NDF = D_GGX(NoH, mat.Roughness);
-	float Vis = G_SchlickSmithGGX(NoL, NoV, mat.Roughness);
+    float NDF = D_GGX(NoH, mat.IsometricRoughness);
+	float Vis = G_SchlickSmithGGX(NoL, NoV, mat.IsometricRoughness);
 #endif
 	vec3 F = F_Schlick(VoH, mat.SpecularColor);
 
 #if (F_CLOTH_SHADING == 1)
 
-    float ClothNDF = D_Cloth(GetIsoRoughness(mat.Roughness), NoH);
+    float ClothNDF = D_Cloth(mat.IsometricRoughness, NoH);
     float ClothVis = Vis_Cloth(NoL, NoV);
 
     float blendedClothShading = mix(NDF * Vis, ClothNDF * ClothVis, mat.ClothMask);
@@ -192,7 +192,7 @@ void CalculateShading(inout LightingTerms_t lighting, vec3 lightVector, vec3 lig
 #if defined(S_DIFFUSE_WRAP)
     vec3 diffuseLight = diffuseWrapped(mat.Normal, lightVector);
 #else
-    float diffuseLight = diffuseLobe(ClampToPositive(dot(mat.Normal, lightVector)), GetIsoRoughness(mat.Roughness));
+    float diffuseLight = diffuseLobe(ClampToPositive(dot(mat.Normal, lightVector)), mat.IsometricRoughness);
 #endif
     vec3 specularLight = specularLighting(lightVector, mat.Normal, mat);
 

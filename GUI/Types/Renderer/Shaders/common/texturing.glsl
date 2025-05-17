@@ -21,20 +21,6 @@ float CalculateGeometricRoughnessFactor(vec3 geometricNormal)
     return geometricRoughnessFactor;
 }
 
-float AdjustRoughnessByGeometricNormal( float roughness, vec3 geometricNormal )
-{
-    float geometricRoughnessFactor = CalculateGeometricRoughnessFactor(geometricNormal);
-
-    return max(roughness, geometricRoughnessFactor);
-}
-
-vec2 AdjustRoughnessByGeometricNormal( vec2 roughness, vec3 geometricNormal )
-{
-    float geometricRoughnessFactor = CalculateGeometricRoughnessFactor(geometricNormal);
-
-    return max(roughness, vec2(geometricRoughnessFactor));
-}
-
 float ApplyBlendModulation(float blendFactor, float blendMask, float blendSoftness)
 {
     float minb = max(0.0, blendMask - blendSoftness);
@@ -59,15 +45,9 @@ struct MaterialProperties_t
     float Metalness;
     vec3 Normal;
     vec3 NormalMap;
-
-#if defined(VEC2_ROUGHNESS)
     vec2 Roughness;
+    float IsometricRoughness;
     vec2 RoughnessTex;
-#else
-    float Roughness;
-    float RoughnessTex;
-#endif
-
     float AmbientOcclusion;
     float Height;
     vec3 DiffuseAO; // vec3 because Diffuse AO can be tinted
@@ -89,7 +69,7 @@ struct MaterialProperties_t
     float Curvature;
 #endif
 
-#if defined(VEC2_ROUGHNESS)
+#if defined(ANISO_ROUGHNESS)
     vec3 AnisotropicTangent;
     vec3 AnisotropicBitangent;
 #endif
@@ -110,13 +90,9 @@ void InitProperties(out MaterialProperties_t mat, vec3 GeometricNormal)
     mat.Normal = vec3(0.0);
     mat.NormalMap = vec3(0, 0, 1);
 
-#if defined(VEC2_ROUGHNESS)
     mat.Roughness = vec2(0.0);
+    mat.IsometricRoughness = 0.0;
     mat.RoughnessTex = vec2(0.0);
-#else
-    mat.Roughness = 0.0;
-    mat.RoughnessTex = 0.0;
-#endif
     mat.AmbientOcclusion = 1.0;
     mat.Height = 0.5;
     mat.DiffuseAO = vec3(1.0);
@@ -141,7 +117,7 @@ void InitProperties(out MaterialProperties_t mat, vec3 GeometricNormal)
     #endif
 #endif
 
-#if defined(VEC2_ROUGHNESS)
+#if defined(ANISO_ROUGHNESS)
     mat.AnisotropicTangent = vec3(0.0);
     mat.AnisotropicBitangent = vec3(0.0);
 #endif
@@ -152,6 +128,19 @@ void InitProperties(out MaterialProperties_t mat, vec3 GeometricNormal)
         // when rendering backfaces, they invert normal so it appears front-facing
         mat.GeometricNormal *= gl_FrontFacing ? 1.0 : -1.0;
     }
+}
+
+
+void AdjustRoughnessByGeometricNormal(inout MaterialProperties_t mat)
+{
+    const float MIN_ROUGHNESS = 0.0525;
+
+    float geometricRoughnessFactor = CalculateGeometricRoughnessFactor(mat.GeometricNormal);
+    geometricRoughnessFactor = max(geometricRoughnessFactor, MIN_ROUGHNESS);
+
+    vec2 geometricAdjusted = max(mat.RoughnessTex, vec2(geometricRoughnessFactor));
+
+    mat.Roughness = geometricAdjusted;
 }
 
 
@@ -173,17 +162,6 @@ void SetDiffuseColorBleed(inout MaterialProperties_t mat)
 }
 
 #endif
-
-float GetIsoRoughness(float Roughness)
-{
-    return Roughness;
-}
-
-float GetIsoRoughness(vec2 Roughness)
-{
-    return dot(Roughness, vec2(0.5));
-}
-
 
 //-------------------------------------------------------------------------
 //                              NORMALS
@@ -419,12 +397,11 @@ bool HandleMaterialRenderModes(MaterialProperties_t mat, inout vec4 outputColor)
     }
     else if (g_iRenderMode == renderMode_Roughness)
     {
-        #if defined(VEC2_ROUGHNESS)
-            outputColor.rgb = SrgbGammaToLinear(vec3(mat.RoughnessTex.xy, 0.0));
+        #if defined(ANISO_ROUGHNESS)
+            outputColor.rgb = SrgbGammaToLinear(vec3(mat.Roughness.xy, 0.0));
         #else
-            outputColor.rgb = SrgbGammaToLinear(mat.RoughnessTex.xxx);
+            outputColor.rgb = SrgbGammaToLinear(mat.IsometricRoughness.xxx);
         #endif
-
         return true;
     }
     else if (g_iRenderMode == renderMode_Metalness)

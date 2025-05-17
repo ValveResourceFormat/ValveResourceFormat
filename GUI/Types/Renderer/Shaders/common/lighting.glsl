@@ -379,7 +379,7 @@ void CalculateIndirectLighting(inout LightingTerms_t lighting, inout MaterialPro
     // Environment Maps
 #if defined(S_SPECULAR) && (S_SPECULAR == 1)
     vec3 ambientDiffuse;
-    float normalizationTerm = GetEnvMapNormalization(GetIsoRoughness(mat.Roughness), mat.AmbientNormal, lighting.DiffuseIndirect);
+    float normalizationTerm = GetEnvMapNormalization(mat.IsometricRoughness, mat.AmbientNormal, lighting.DiffuseIndirect);
 
     lighting.SpecularIndirect = GetEnvironment(mat) * normalizationTerm;
 #endif
@@ -407,4 +407,21 @@ void ApplyAmbientOcclusion(inout LightingTerms_t o, MaterialProperties_t mat)
     o.DiffuseIndirect *= mat.DiffuseAO;
     o.SpecularDirect *= DirectAOSpecular;
     o.SpecularIndirect *= mat.SpecularAO;
+}
+
+
+LightingTerms_t CalculateLighting(inout MaterialProperties_t mat)
+{
+    LightingTerms_t lighting = InitLighting();
+
+    #if defined(ANISO_ROUGHNESS)
+        mat.IsometricRoughness = dot(mat.Roughness, vec2(0.5));
+    #else
+        mat.IsometricRoughness = mat.Roughness.x;
+    #endif
+
+    CalculateDirectLighting(lighting, mat);
+    CalculateIndirectLighting(lighting, mat);
+
+    return lighting;
 }
