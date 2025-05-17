@@ -442,6 +442,7 @@ namespace GUI.Types.Viewers
                 else if (backend == Backend.HLSL)
                 {
                     SpirvCrossApi.spvc_compiler_options_set_uint(options, CompilerOption.HLSLShaderModel, 61);
+                    SpirvCrossApi.spvc_compiler_options_set_uint(options, CompilerOption.HLSLUseEntryPointName, 1);
                 }
 
                 SpirvCrossApi.spvc_compiler_install_compiler_options(compiler, options);
@@ -615,6 +616,9 @@ namespace GUI.Types.Viewers
                     ResourceType.StageOutput => GetStageAttributeName(null, currentStageOutputIndex++, false),
                     _ => string.Empty,
                 };
+
+                // todo: add d3d semantic to hlsl vs input
+                // spvc_compiler_hlsl_add_vertex_attribute_remap(location, semantic)
 
                 if (string.IsNullOrEmpty(name))
                 {
