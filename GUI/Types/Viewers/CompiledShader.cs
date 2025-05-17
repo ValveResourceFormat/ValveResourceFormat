@@ -457,6 +457,7 @@ namespace GUI.Types.Viewers
                     Rename(compiler, resources, ResourceType.UniformBuffer, vulkanSource);
 
                     Rename(compiler, resources, ResourceType.StageInput, vulkanSource);
+                    Rename(compiler, resources, ResourceType.StageOutput, vulkanSource);
                 }
 
                 SpirvCrossApi.spvc_compiler_compile(compiler, out var code).CheckResult();
@@ -525,7 +526,7 @@ namespace GUI.Types.Viewers
 
             var reflectedResources = SpirvCrossApi.spvc_resources_get_resource_list_for_type(resources, resourceType);
 
-            var currentStageInputIndex = 0;
+            var (currentStageInputIndex, currentStageOutputIndex) = (0, 0);
             var isVertexShader = program.VcsProgramType is VcsProgramType.VertexShader;
             ValveResourceFormat.ResourceTypes.Material.InputSignatureElement[] vsInputElements = null;
 
@@ -610,7 +611,8 @@ namespace GUI.Types.Viewers
                     ResourceType.SeparateSamplers => GetNameForSampler(program, writeSequence, binding),
                     ResourceType.StorageBuffer or ResourceType.StorageImage => GetNameForStorageBuffer(program, writeSequence, binding),
                     ResourceType.UniformBuffer => isGlobalsBuffer ? "_Globals_" : GetNameForUniformBuffer(program, writeSequence, uniformBufferBinding, set),
-                    ResourceType.StageInput => isVertexShader ? GetVsAttributeName(vsInputElements, currentStageInputIndex++) : string.Empty,
+                    ResourceType.StageInput => GetStageAttributeName(vsInputElements, currentStageInputIndex++, true),
+                    ResourceType.StageOutput => GetStageAttributeName(null, currentStageOutputIndex++, false),
                     _ => string.Empty,
                 };
 
@@ -802,14 +804,14 @@ namespace GUI.Types.Viewers
             }
         }
 
-        public static string GetVsAttributeName(ValveResourceFormat.ResourceTypes.Material.InputSignatureElement[] vsInputElements, int attributeIndex)
+        public static string GetStageAttributeName(ValveResourceFormat.ResourceTypes.Material.InputSignatureElement[] vsInputElements, int attributeIndex, bool input)
         {
-            if (attributeIndex < vsInputElements.Length)
+            if (attributeIndex < vsInputElements?.Length)
             {
                 return vsInputElements[attributeIndex].Name;
             }
 
-            return "undetermined";
+            return $"{(input ? "input" : "output")}_{attributeIndex}";
         }
     }
 }
