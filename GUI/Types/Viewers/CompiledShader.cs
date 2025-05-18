@@ -154,15 +154,20 @@ namespace GUI.Types.Viewers
                             comboNode.Tag = combo;
                             CreateStaticComboNodes(combo, comboNode);
 
-                            var matImage = MainForm.GetImageIndexForExtension("vmat");
-                            var matNode = new TreeNode($"Material {program.VcsProgramType}{variantsAbbrev}")
+                            var shaderFile = combo.ShaderFiles[0];
+
+                            if (shaderFile.Bytecode.Length > 0)
                             {
-                                ToolTipText = variantsTooltip,
-                                Tag = combo.ShaderFiles[0],
-                                ImageIndex = matImage,
-                                SelectedImageIndex = matImage,
-                            };
-                            collectionNode.Nodes.Insert(materialCollectionIndex++, matNode);
+                                var matImage = MainForm.GetImageIndexForExtension("vmat");
+                                var matNode = new TreeNode($"Material {program.VcsProgramType}{variantsAbbrev}")
+                                {
+                                    ToolTipText = variantsTooltip,
+                                    Tag = combo.ShaderFiles[0],
+                                    ImageIndex = matImage,
+                                    SelectedImageIndex = matImage,
+                                };
+                                collectionNode.Nodes.Insert(materialCollectionIndex++, matNode);
+                            }
                         }
                     }
 
