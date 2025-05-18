@@ -683,7 +683,11 @@ void main()
     outputColor = vec4(mix(vec3(0.5), gammaOutput, vec3(outputColor.a)), outputColor.a);
 #endif
 
-    if (HandleMaterialRenderModes(mat, outputColor))
+    if (HandleMaterialRenderModes(outputColor, mat))
+    {
+        //
+    }
+    else if (HandleUVRenderModes(outputColor, mat, g_tColor, vTexCoordOut))// , vLightmapUVScaled.xy))
     {
         //
     }

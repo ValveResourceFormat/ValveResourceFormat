@@ -43,6 +43,11 @@ namespace GUI.Types.Renderer
             new("FoliageParams"),
             new("VertexColor"),
 
+            new ("Texture Coordinates", IsHeader: true),
+            new ("UvDensity"),
+            new ("LightmapUvDensity"),
+            new ("MipmapUsage"),
+
             new("Identification", IsHeader: true),
             new("ObjectId"),
             new("MeshId"),

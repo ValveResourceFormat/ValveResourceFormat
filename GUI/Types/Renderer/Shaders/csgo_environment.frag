@@ -362,7 +362,7 @@ void main()
 
     outputColor.rgb = combinedLighting;
 
-    if (HandleMaterialRenderModes(mat, outputColor))
+    if (HandleMaterialRenderModes(outputColor, mat))
     {
         //
     }

@@ -75,5 +75,5 @@ void main()
     outputColor = vec4(color, alpha);
 
     ApplyFog(outputColor.rgb, vFragPosition);
-    HandleMaterialRenderModes(material, outputColor);
+    HandleMaterialRenderModes(outputColor, material);
 }
