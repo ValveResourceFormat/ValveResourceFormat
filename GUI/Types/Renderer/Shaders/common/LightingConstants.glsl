@@ -5,7 +5,8 @@
 
 layout(std140, binding = 1) uniform LightingConstants {
     vec2 g_vLightmapUvScale;
-    vec2 _LightingPadding1;
+    bool g_bIsSkybox;
+    float _LightingPadding1;
 
     uvec4 g_nNumLights;
     uvec4 g_nNumLightsPerShadow;

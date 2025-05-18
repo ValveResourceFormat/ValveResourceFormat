@@ -958,6 +958,7 @@ namespace GUI.Types.Renderer
             }
 
             SkyboxScene = new Scene(guiContext);
+            SkyboxScene.LightingInfo.LightingData.IsSkybox = true;
 
             var skyboxResult = new WorldLoader((World)skyboxWorld.DataBlock, SkyboxScene);
 

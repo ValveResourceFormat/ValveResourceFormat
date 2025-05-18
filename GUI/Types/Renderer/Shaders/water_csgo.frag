@@ -20,6 +20,11 @@ uniform sampler2D g_tWavesNormalHeight;
 uniform vec4 g_vWaveScale = vec4(1.0);
 uniform float g_flWavesSpeed = 1.0;
 
+uniform float g_flSkyBoxScale = 1.0;
+uniform float g_flSkyBoxFadeRange;
+uniform vec4 g_vMapUVMin = vec4(-1000.0);
+uniform vec4 g_vMapUVMax = vec4(1000.0);
+
 uniform vec4 g_vWaterFogColor;
 uniform vec4 g_vWaterDecayColor;
 
@@ -38,9 +43,29 @@ uniform vec4 g_vWaterDecayColor;
 //Main entry point
 void main()
 {
-    vec3 viewDirection = normalize(g_vCameraPositionWs - vFragPosition);
+    vec4 noise = vec4(1.0); // todo: add blue noise
 
-    float fresnel = clamp(1.0 - pow(viewDirection.z, 0.5), 0.2, 1.0);
+    float renderScale = g_bIsSkybox ? g_flSkyBoxScale : 1.0;
+
+    vec3 cameraPosition = vFragPosition - g_vCameraPositionWs;
+
+    vec3 viewDirection = normalize(cameraPosition);
+    vec3 viewDirectionInv = -viewDirection;
+    float viewDistance = length(cameraPosition) * renderScale;
+
+    if (!g_bIsSkybox)
+    {
+        vec2 vMapUv = (vFragPosition.xy - g_vMapUVMin.xy) / (g_vMapUVMax.xy - g_vMapUVMin.xy);
+        vMapUv.y = 1.0 - vMapUv.y;
+
+        vec2 vMapCenteredUv = abs(vec2(0.5) - vMapUv) * 2.0;
+        if ((saturate(1.0 - saturate((max(vMapCenteredUv.x, vMapCenteredUv.y) - (1.0 - g_flSkyBoxFadeRange)) / g_flSkyBoxFadeRange)) - noise.x) < 0.0)
+        {
+           discard;
+        }
+    }
+
+    float fresnel = clamp(1.0 - pow(viewDirectionInv.z, 0.5), 0.2, 1.0);
 
     float fog_factor = max(pow(fresnel, 0.8), 0.5);
     float decay_factor = min(pow(fresnel, 0.6), 0.85);
