@@ -228,7 +228,8 @@ namespace ValveResourceFormat.IO
 
                 try
                 {
-                    var path = Path.Join("shaders", "vfx", ShaderUtilHelpers.ComputeVCSFileName(shaderName, programType, platformType, modelType));
+                    var fileName = ShaderUtilHelpers.ComputeVCSFileName(shaderName, programType, platformType, modelType);
+                    var path = Path.Join("shaders", "vfx", fileName);
                     var foundFile = FindFile(path, logNotFound: false);
 
                     if (foundFile.PathOnDisk != null)
@@ -238,7 +239,7 @@ namespace ValveResourceFormat.IO
                     else if (foundFile.PackageEntry != null)
                     {
                         var stream = GetPackageEntryStream(foundFile.Package!, foundFile.PackageEntry);
-                        shaderFile.Read(path, stream);
+                        shaderFile.Read(fileName, stream);
                     }
 
                     if (shaderFile.VcsPlatformType == platformType)

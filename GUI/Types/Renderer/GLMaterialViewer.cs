@@ -1,3 +1,4 @@
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Windows.Forms;
@@ -147,6 +148,24 @@ namespace GUI.Types.Renderer
 
             var shaders = GuiContext.FileLoader.LoadShader(material.ShaderName);
 
+            var viewer = new CompiledShader();
+
+            try
+            {
+                var tabPage = viewer.Create(
+                    shaders,
+                    Path.GetFileNameWithoutExtension(material.ShaderName.AsSpan()),
+                    ValveResourceFormat.CompiledShader.VcsProgramType.Features
+                );
+                tabPage.Text = material.ShaderName;
+                Tabs.TabPages.Add(tabPage);
+                viewer = null;
+            }
+            finally
+            {
+                viewer?.Dispose();
+            }
+
             var featureState = ShaderDataProvider.GetMaterialFeatureState(material);
 
             AddZframeTab(shaders.Vertex);
@@ -182,7 +201,7 @@ namespace GUI.Types.Renderer
 
             var button = new Button
             {
-                Text = "Open shader zframe",
+                Text = "Decompile shader",
                 AutoSize = true,
             };
 
