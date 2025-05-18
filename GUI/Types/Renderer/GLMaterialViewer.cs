@@ -3,6 +3,7 @@ using System.Linq;
 using System.Reflection;
 using System.Windows.Forms;
 using GUI.Controls;
+using GUI.Forms;
 using GUI.Types.Viewers;
 using GUI.Utils;
 using ValveResourceFormat.IO;
@@ -145,50 +146,38 @@ namespace GUI.Types.Renderer
         private void OnShadersButtonClick(object s, EventArgs e)
         {
             var material = (Material)Resource.DataBlock;
+            var featureState = ShaderDataProvider.GetMaterialFeatureState(material);
 
-            var shaders = GuiContext.FileLoader.LoadShader(material.ShaderName);
+            var loadingTabPage = new TabPage(material.ShaderName);
+            var loadingFile = new LoadingFile();
+            loadingTabPage.Controls.Add(loadingFile);
+            Tabs.TabPages.Add(loadingTabPage);
+            Tabs.SelectTab(loadingTabPage);
 
             var viewer = new CompiledShader();
 
             try
             {
+                var shaders = GuiContext.FileLoader.LoadShader(material.ShaderName);
+
                 var tabPage = viewer.Create(
                     shaders,
                     Path.GetFileNameWithoutExtension(material.ShaderName.AsSpan()),
-                    ValveResourceFormat.CompiledShader.VcsProgramType.Features
+                    ValveResourceFormat.CompiledShader.VcsProgramType.Features,
+                    featureState
                 );
                 tabPage.Text = material.ShaderName;
                 Tabs.TabPages.Add(tabPage);
                 viewer = null;
+
+                Tabs.SelectTab(tabPage);
             }
             finally
             {
                 viewer?.Dispose();
-            }
 
-            var featureState = ShaderDataProvider.GetMaterialFeatureState(material);
-
-            AddZframeTab(shaders.Vertex);
-            AddZframeTab(shaders.Pixel);
-
-            void AddZframeTab(ValveResourceFormat.CompiledShader.VfxProgramData program)
-            {
-                var result = ShaderDataProvider.GetStaticConfiguration_ForFeatureState(shaders.Features, program, featureState);
-                var combo = program.GetStaticCombo(result.StaticComboId);
-
-                // TODO: We are displaying source 0 here
-                var output = CompiledShader.GetDecompiledFile(combo.ShaderFiles[0]);
-
-                if (output.Source != null)
-                {
-                    var code = new CodeTextBox(output.Source, CodeTextBox.HighlightLanguage.Shaders);
-
-                    var tabPage = new TabPage($"{program.VcsProgramType} Static[{result.StaticComboId}]");
-                    tabPage.Controls.Add(code);
-
-                    Tabs.TabPages.Add(tabPage);
-                    Tabs.SelectTab(tabPage);
-                }
+                Tabs.TabPages.Remove(loadingTabPage);
+                loadingTabPage.Dispose();
             }
         }
 

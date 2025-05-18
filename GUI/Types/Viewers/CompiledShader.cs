@@ -59,7 +59,7 @@ namespace GUI.Types.Viewers
             return Create(shaderCollection, vcsCollectionName, leadProgramType);
         }
 
-        public TabPage Create(ShaderCollection shaderCollection, ReadOnlySpan<char> vcsCollectionName, VcsProgramType leadProgramType)
+        public TabPage Create(ShaderCollection shaderCollection, ReadOnlySpan<char> vcsCollectionName, VcsProgramType leadProgramType, IDictionary<string, byte> leadFeatureParams = null)
         {
             var tab = new TabPage();
             tab.Controls.Add(control);
@@ -68,6 +68,7 @@ namespace GUI.Types.Viewers
             var programImage = MainForm.GetImageIndexForExtension("vcs");
             var comboImage = MainForm.GetImageIndexForExtension("rman");
 
+            var materialCollectionIndex = 0;
             var collectionNode = new TreeNode($"{vcsCollectionName}.vfx")
             {
                 ImageIndex = vfxImage,
@@ -98,10 +99,16 @@ namespace GUI.Types.Viewers
                 if (program.StaticComboEntries.Count > 0)
                 {
                     var configGen = new ConfigMappingParams(program);
+                    var leadStaticComboId = -1L; // Shader file to be displayed for a particular material
 
-                    foreach (var zframe in program.StaticComboEntries)
+                    if (leadFeatureParams != null)
                     {
-                        var config = configGen.GetConfigState(zframe.Key);
+                        leadStaticComboId = ShaderDataProvider.GetStaticConfiguration_ForFeatureState(shaderCollection.Features, program, leadFeatureParams).StaticComboId;
+                    }
+
+                    foreach (var staticComboEntry in program.StaticComboEntries)
+                    {
+                        var config = configGen.GetConfigState(staticComboEntry.Key);
 
                         sfNames.Clear();
                         sfNamesAbbrev.Clear();
@@ -128,14 +135,35 @@ namespace GUI.Types.Viewers
                             }
                         }
 
-                        var comboNode = new TreeNode($"{zframe.Key:x08}{(sfNamesAbbrev.Count > 0 ? $" ({string.Join(", ", sfNamesAbbrev)})" : string.Empty)}")
+                        var variantsAbbrev = sfNamesAbbrev.Count > 0 ? $" ({string.Join(", ", sfNamesAbbrev)})" : string.Empty;
+                        var variantsTooltip = string.Join(Environment.NewLine, sfNames);
+
+                        var comboNode = new TreeNode($"{staticComboEntry.Key:x08}{variantsAbbrev}")
                         {
-                            ToolTipText = string.Join(Environment.NewLine, sfNames),
-                            Tag = zframe.Value,
+                            ToolTipText = variantsTooltip,
+                            Tag = staticComboEntry.Value,
                             ImageIndex = comboImage,
                             SelectedImageIndex = comboImage,
                         };
                         programNode.Nodes.Add(comboNode);
+
+                        if (staticComboEntry.Key == leadStaticComboId)
+                        {
+                            // When viewing from a material, unserialize the correct static combo straight away
+                            var combo = staticComboEntry.Value.Unserialize();
+                            comboNode.Tag = combo;
+                            CreateStaticComboNodes(combo, comboNode);
+
+                            var matImage = MainForm.GetImageIndexForExtension("vmat");
+                            var matNode = new TreeNode($"Material {program.VcsProgramType}{variantsAbbrev}")
+                            {
+                                ToolTipText = variantsTooltip,
+                                Tag = combo.ShaderFiles[0],
+                                ImageIndex = matImage,
+                                SelectedImageIndex = matImage,
+                            };
+                            collectionNode.Nodes.Insert(materialCollectionIndex++, matNode);
+                        }
                     }
 
                     if (program.VcsProgramType == leadProgramType)
@@ -270,59 +298,7 @@ namespace GUI.Types.Viewers
                 DisplayStaticCombo(combo);
 
                 fileListView.BeginUpdate();
-
-                var sourceFileImage = MainForm.GetImageIndexForExtension("ini");
-
-                List<string> dfNamesAbbrev = [];
-                List<string> dfNames = [];
-                var sourceIdToRenderStateInfo = new Dictionary<int, VfxRenderStateInfo>(combo.ShaderFiles.Length);
-
-                // We are only taking the first render state info currently
-                foreach (var renderStateInfo in combo.DynamicCombos)
-                {
-                    sourceIdToRenderStateInfo.TryAdd(renderStateInfo.ShaderFileId, renderStateInfo);
-                }
-
-                foreach (var source in combo.ShaderFiles)
-                {
-                    var config = combo.ParentProgramData.GetDBlockConfig(sourceIdToRenderStateInfo[source.ShaderFileId].DynamicComboId);
-
-                    dfNames.Clear();
-                    dfNamesAbbrev.Clear();
-
-                    for (var i = 0; i < combo.ParentProgramData.DynamicComboArray.Length; i++)
-                    {
-                        if (config[i] == 0)
-                        {
-                            continue;
-                        }
-
-                        var dfBlock = combo.ParentProgramData.DynamicComboArray[i];
-                        var dfShortName = ShortenShaderParam(dfBlock.Name).ToLowerInvariant();
-
-                        if (config[i] > 1)
-                        {
-                            dfNames.Add($"{dfBlock.Name}={config[i]}");
-                            dfNamesAbbrev.Add($"{dfShortName}={config[i]}");
-                        }
-                        else
-                        {
-                            dfNames.Add(dfBlock.Name);
-                            dfNamesAbbrev.Add(dfShortName);
-                        }
-                    }
-
-                    var node = new TreeNode($"{source.ShaderFileId:X2}{(dfNamesAbbrev.Count > 0 ? $" ({string.Join(", ", dfNamesAbbrev)})" : string.Empty)}")
-                    {
-                        ToolTipText = string.Join(Environment.NewLine, dfNames),
-                        Tag = source,
-                        ImageIndex = sourceFileImage,
-                        SelectedImageIndex = sourceFileImage,
-                    };
-                    e.Node.Nodes.Add(node);
-                }
-
-                e.Node.Expand();
+                CreateStaticComboNodes(combo, e.Node);
                 fileListView.EndUpdate();
             }
             else if (e.Node.Tag is VfxStaticComboData combo)
@@ -373,6 +349,62 @@ namespace GUI.Types.Viewers
             }
         }
 
+        private static void CreateStaticComboNodes(VfxStaticComboData combo, TreeNode treeNode)
+        {
+            var sourceFileImage = MainForm.GetImageIndexForExtension("ini");
+
+            List<string> dfNamesAbbrev = [];
+            List<string> dfNames = [];
+            var sourceIdToRenderStateInfo = new Dictionary<int, VfxRenderStateInfo>(combo.ShaderFiles.Length);
+
+            // We are only taking the first render state info currently
+            foreach (var renderStateInfo in combo.DynamicCombos)
+            {
+                sourceIdToRenderStateInfo.TryAdd(renderStateInfo.ShaderFileId, renderStateInfo);
+            }
+
+            foreach (var source in combo.ShaderFiles)
+            {
+                var config = combo.ParentProgramData.GetDBlockConfig(sourceIdToRenderStateInfo[source.ShaderFileId].DynamicComboId);
+
+                dfNames.Clear();
+                dfNamesAbbrev.Clear();
+
+                for (var i = 0; i < combo.ParentProgramData.DynamicComboArray.Length; i++)
+                {
+                    if (config[i] == 0)
+                    {
+                        continue;
+                    }
+
+                    var dfBlock = combo.ParentProgramData.DynamicComboArray[i];
+                    var dfShortName = ShortenShaderParam(dfBlock.Name).ToLowerInvariant();
+
+                    if (config[i] > 1)
+                    {
+                        dfNames.Add($"{dfBlock.Name}={config[i]}");
+                        dfNamesAbbrev.Add($"{dfShortName}={config[i]}");
+                    }
+                    else
+                    {
+                        dfNames.Add(dfBlock.Name);
+                        dfNamesAbbrev.Add(dfShortName);
+                    }
+                }
+
+                var node = new TreeNode($"{source.ShaderFileId:X2}{(dfNamesAbbrev.Count > 0 ? $" ({string.Join(", ", dfNamesAbbrev)})" : string.Empty)}")
+                {
+                    ToolTipText = string.Join(Environment.NewLine, dfNames),
+                    Tag = source,
+                    ImageIndex = sourceFileImage,
+                    SelectedImageIndex = sourceFileImage,
+                };
+                treeNode.Nodes.Add(node);
+            }
+
+            treeNode.Expand();
+        }
+
         private void DisplayExtractedVfx(ShaderExtract shaderExtract)
         {
             try
@@ -392,7 +424,7 @@ namespace GUI.Types.Viewers
             control.TextBox.Text = buffer.ToString();
         }
 
-        public static (string Source, byte[] Bytecode) GetDecompiledFile(VfxShaderFile shaderFile)
+        private static (string Source, byte[] Bytecode) GetDecompiledFile(VfxShaderFile shaderFile)
         {
             switch (shaderFile)
             {
