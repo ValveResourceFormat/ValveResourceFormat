@@ -16,6 +16,10 @@ out vec4 outputColor;
 //uniform sampler2D g_tDebrisNormal;
 //uniform sampler2D g_tSceneDepth;
 
+uniform sampler2D g_tWavesNormalHeight;
+uniform vec4 g_vWaveScale = vec4(1.0);
+uniform float g_flWavesSpeed = 1.0;
+
 uniform vec4 g_vWaterFogColor;
 uniform vec4 g_vWaterDecayColor;
 
@@ -43,11 +47,15 @@ void main()
 
     vec3 normal = vNormalOut;
 
+    vec3 wavesNormalHeight = texture(g_tWavesNormalHeight, vTexCoordOut + (g_flWavesSpeed * g_flTime) / g_vWaveScale.xy).xyz;
+
     MaterialProperties_t material;
     InitProperties(material, normal);
     material.Roughness = vec2(0.01);
-    material.Normal = normal;
-    material.AmbientNormal = normal;
+    material.NormalMap = DecodeHemiOctahedronNormal(wavesNormalHeight.xy);
+    material.Normal = calculateWorldNormal(material.NormalMap, material.GeometricNormal, material.Tangent, material.Bitangent);
+    material.Height = wavesNormalHeight.z;
+    material.AmbientNormal = material.Normal;
     material.SpecularColor = vec3(1.0);
     vec3 reflectionColor = GetEnvironment(material);
 
@@ -65,5 +73,7 @@ void main()
     float alpha = max(decay_factor, fog_factor);
 
     outputColor = vec4(color, alpha);
+
     ApplyFog(outputColor.rgb, vFragPosition);
+    HandleMaterialRenderModes(material, outputColor);
 }

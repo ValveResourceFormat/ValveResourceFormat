@@ -4,6 +4,7 @@ layout (location = 0) in vec3 vPOSITION;
 layout (location = 3) in vec2 vTEXCOORD;
 #include "common/compression.glsl"
 in vec4 vCOLOR;
+in vec4 vTEXCOORD4;
 
 out vec3 vFragPosition;
 out vec2 vTexCoordOut;
@@ -33,11 +34,12 @@ void main()
     vec4 tangent;
     GetOptionallyCompressedNormalTangent(vNormalOut, tangent);
     vTangentOut = tangent.xyz;
+    vBitangentOut = tangent.w * cross(vNormalOut, vTangentOut);
 
     #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
         vLightmapUVScaled = vec3(vLightmapUV * g_vLightmapUvScale.xy, 0);
     #endif
 
     vTexCoordOut = vTEXCOORD;
-    vColorBlendValues = vCOLOR;
+    vColorBlendValues = vTEXCOORD4;
 }
