@@ -1228,7 +1228,7 @@ public sealed class ShaderExtract
 
         // Other annotations: MaxRes(<=8192), UiStep(?), Source(?)
 
-        HandleParameterAttribute(param, annotations);
+        HandleParameterAttribute(param, paramBlocks, annotations);
 
         if (param.UiType != UiType.None)
         {
@@ -1296,7 +1296,7 @@ public sealed class ShaderExtract
             annotations.Add(GetChannelFromChannelBlock(channelBlocks[index], paramBlocks));
         }
 
-        HandleParameterAttribute(param, annotations);
+        HandleParameterAttribute(param, paramBlocks, annotations);
 
         if (param.ImageFormat != -1)
         {
@@ -1323,23 +1323,31 @@ public sealed class ShaderExtract
         writer.WriteLine($"{typeString} {param.Name}{GetVfxAttributes(annotations)};");
     }
 
-    private static void HandleParameterAttribute(VfxVariableDescription param, List<string> annotations)
+    private static void HandleParameterAttribute(VfxVariableDescription param, VfxVariableDescription[] paramBlocks, List<string> annotations)
     {
-        if (param.StringData.Length == 0)
+        if (param.VariableSource > VfxVariableSourceType.__SetByArtistAndExpression__)
         {
-            return;
+            annotations.Add($"Source({param.VariableSource});");
+
+            if (param.Tex != -1)
+            {
+                annotations.Add($"SourceArg({paramBlocks[param.Tex].Name})");
+            }
         }
 
-        if (param.UiType == UiType.Enum)
+        if (param.StringData.Length > 0)
         {
-            var optionOrOptions = param.StringData.Contains(',', StringComparison.Ordinal)
-                ? "UiOptions"
-                : "UiOption";
-            annotations.Add($"{optionOrOptions}(\"{param.StringData}\");");
-        }
-        else
-        {
-            annotations.Add($"Attribute(\"{param.StringData}\");");
+            if (param.UiType == UiType.Enum)
+            {
+                var optionOrOptions = param.StringData.Contains(',', StringComparison.Ordinal)
+                    ? "UiOptions"
+                    : "UiOption";
+                annotations.Add($"{optionOrOptions}(\"{param.StringData}\");");
+            }
+            else
+            {
+                annotations.Add($"Attribute(\"{param.StringData}\");");
+            }
         }
     }
 
