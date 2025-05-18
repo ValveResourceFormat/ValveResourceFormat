@@ -780,7 +780,7 @@ namespace GUI.Types.Viewers
                 .Select<VfxVariableIndexData, (VfxVariableIndexData Field, VfxVariableDescription Param)>(f => (f, program.VariableDescriptions[f.VariableIndex]))
                 .ToList();
 
-            return globalBufferParameters.FirstOrDefault(fp => fp.Field.Dest == offset).Param?.Name ?? string.Empty;
+            return globalBufferParameters.FirstOrDefault(fp => fp.Field.Field2 == offset).Param?.Name ?? string.Empty;
         }
 
         // by offset
