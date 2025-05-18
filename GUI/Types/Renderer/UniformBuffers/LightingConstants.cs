@@ -9,7 +9,7 @@ namespace GUI.Types.Renderer.UniformBuffers
         public const int MAX_ENVMAPS = 144;
 
         public Vector2 LightmapUvScale;
-        public bool IsSkybox;
+        public uint IsSkybox;
         public float _LightingPadding1;
 
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)] public uint[] NumLights;
