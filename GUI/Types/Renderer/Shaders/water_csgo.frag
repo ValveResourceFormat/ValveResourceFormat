@@ -45,14 +45,25 @@ void main()
 
     MaterialProperties_t material;
     InitProperties(material, normal);
-    material.Roughness = 0.0001;
+    material.Roughness = vec2(0.01);
+    material.Normal = normal;
     material.AmbientNormal = normal;
     material.SpecularColor = vec3(1.0);
     vec3 reflectionColor = GetEnvironment(material);
 
-    vec3 color = mix(g_vWaterFogColor.rgb, g_vWaterDecayColor.rgb, decay_factor);
-    outputColor = vec4(SrgbGammaToLinear(color), max(decay_factor, fog_factor));
-    ApplyFog(outputColor.rgb, vFragPosition);
+    vec3 color = SrgbGammaToLinear(mix(g_vWaterFogColor.rgb, g_vWaterDecayColor.rgb, decay_factor));
 
-    outputColor.rgb =  mix(outputColor.rgb, reflectionColor,  fresnel);
+    LightingTerms_t lighting = CalculateLighting(material);
+
+    const float shadowFactor = 0.6;
+    color *= mix(lighting.DiffuseDirect, vec3(1.0), shadowFactor);
+
+    color = mix(color, reflectionColor, fresnel);
+
+    color *= lighting.DiffuseIndirect;
+
+    float alpha = max(decay_factor, fog_factor);
+
+    outputColor = vec4(color, alpha);
+    ApplyFog(outputColor.rgb, vFragPosition);
 }
