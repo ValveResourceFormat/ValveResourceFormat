@@ -89,6 +89,10 @@
     in vec3 vPerVertexLightingOut;
 #endif
 
+#if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 0)
+    const vec3 vLightmapUVScaled = vec3(0.0);
+#endif
+
 uniform sampler2DShadow g_tShadowDepthBufferDepth;
 
 float CalculateSunShadowMapVisibility(vec3 vPosition)

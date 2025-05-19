@@ -366,6 +366,10 @@ void main()
     {
         //
     }
+    else if (HandleUVRenderModes(outputColor, mat, g_tColor1, vTexCoord.xy, vLightmapUVScaled))
+    {
+        //
+    }
     else if (g_iRenderMode == renderMode_Cubemaps)
     {
         // No bumpmaps, full reflectivity

@@ -687,7 +687,7 @@ void main()
     {
         //
     }
-    else if (HandleUVRenderModes(outputColor, mat, g_tColor, vTexCoordOut))// , vLightmapUVScaled.xy))
+    else if (HandleUVRenderModes(outputColor, mat, g_tColor, vTexCoordOut, vLightmapUVScaled))
     {
         //
     }

@@ -422,16 +422,17 @@ bool HandleMaterialRenderModes(inout vec4 outputColor, MaterialProperties_t mat)
     return false;
 }
 
-bool HandleUVRenderModes(inout vec4 outputColor, MaterialProperties_t mat, sampler2D representativeTexture, vec2 flUVs)
+bool HandleUVRenderModes(inout vec4 outputColor, MaterialProperties_t mat, sampler2D representativeTexture, vec2 flUVs, vec3 vLightmapUVs)
 {
-    if (g_iRenderMode == renderMode_UvDensity)
+    if (g_iRenderMode == renderMode_UvDensity || g_iRenderMode == renderMode_LightmapUvDensity)
     {
         outputColor.rgb = mat.Albedo;
+        vec2 uv = g_iRenderMode == renderMode_UvDensity ? flUVs : vLightmapUVs.xy;
 
         ivec2 vDims = textureSize(representativeTexture, 0);
 
-        uint testVal = ((flUVs.x < 0) != (flUVs.y < 0)) ? 0 : 1;
-        uvec2 vUVInPixels = uvec2(abs(flUVs) * vDims.xy);
+        uint testVal = ((uv.x < 0) != (uv.y < 0)) ? 0 : 1;
+        uvec2 vUVInPixels = uvec2(abs(uv) * vDims.xy);
         if (((vUVInPixels.x + vUVInPixels.y) & 1) == testVal)
         {
             outputColor.rgb *= 0.8;
@@ -443,10 +444,6 @@ bool HandleUVRenderModes(inout vec4 outputColor, MaterialProperties_t mat, sampl
             outputColor.rgb *= 0.5;
         }
 
-        return true;
-    }
-    else if (g_iRenderMode == renderMode_LightmapUvDensity)
-    {
         return true;
     }
     else if (g_iRenderMode == renderMode_MipmapUsage)
