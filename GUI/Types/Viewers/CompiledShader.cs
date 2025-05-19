@@ -6,6 +6,7 @@ using System.Text;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Utils;
+using SteamDatabase.ValvePak;
 using ValveResourceFormat;
 using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.IO;
@@ -13,7 +14,6 @@ using Vortice.SPIRV;
 using Vortice.SpirvCross;
 using static ValveResourceFormat.CompiledShader.ShaderUtilHelpers;
 using SpirvResourceType = Vortice.SpirvCross.ResourceType;
-using VrfPackage = SteamDatabase.ValvePak.Package;
 
 #nullable disable
 
@@ -197,7 +197,7 @@ namespace GUI.Types.Viewers
             return tab;
         }
 
-        private static ShaderCollection GetShaderCollection(string targetFilename, VrfPackage vrfPackage)
+        private static ShaderCollection GetShaderCollection(string targetFilename, Package vrfPackage)
         {
             ShaderCollection shaderCollection = [];
 
@@ -575,7 +575,8 @@ namespace GUI.Types.Viewers
                 var inputSignature = program.VSInputSignatures[staticComboData.VShaderInputs[shaderFile.ShaderFileId]];
 
                 var unorderedElements = inputSignature.SymbolsDefinition.ToList();
-                List<ValveResourceFormat.ResourceTypes.Material.InputSignatureElement> vsInputReorderedElements = new(unorderedElements.Count);
+                vsInputElements = new ValveResourceFormat.ResourceTypes.Material.InputSignatureElement[unorderedElements.Count];
+                var vsInputIndex = 0;
 
                 Span<string> priority =
                 [
@@ -610,18 +611,16 @@ namespace GUI.Types.Viewers
                     if (elementIndex != -1)
                     {
                         var element = unorderedElements[elementIndex];
-                        vsInputReorderedElements.Add(element);
+                        vsInputElements[vsInputIndex++] = element;
                         unorderedElements.Remove(element);
                     }
                 }
 
                 foreach (var element in unorderedElements)
                 {
-                    vsInputReorderedElements.Add(element);
+                    vsInputElements[vsInputIndex++] = element;
                     Log.Warn(nameof(CompiledShader), $"VS Input element semantic missing from the priority list ({element.Semantic})");
                 }
-
-                vsInputElements = vsInputReorderedElements.ToArray();
             }
 
             foreach (var resource in reflectedResources)
