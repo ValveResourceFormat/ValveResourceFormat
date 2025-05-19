@@ -223,12 +223,11 @@ namespace ValveResourceFormat.CompiledShader
                 var s5 = $"{vfxRule.Rule}{vfxRule.Range2[0]}";
                 var s6 = $"{CombineIntArray(vfxRule.Values[..maxConstrains])}";
                 var s7 = $"{CombineIntArray(vfxRule.Range2[..maxConstrains])}";
-                output.Write($"{s0}  {s5,-10}  {s4,-BL}{s6,-10}{s7,-8}");
+                output.WriteLine($"{s0}  {s5,-10}  {s4,-BL}{s6,-10}{s7,-8}");
                 for (var i = 1; i < breakNames.Length; i++)
                 {
-                    output.Write($"\n{"",-7}{"",-10}{"",-15}{"",-16}{breakNames[i],-BL}");
+                    output.WriteLine($"{"",-7}{"",-10}{"",-15}{"",-16}{breakNames[i],-BL}");
                 }
-                output.BreakLine();
             }
             output.BreakLine();
         }

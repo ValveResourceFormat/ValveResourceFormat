@@ -46,8 +46,8 @@ namespace ValveResourceFormat.CompiledShader
             {
                 OutputWriter.WriteLine("[no static params]");
             }
-            OutputWriter.WriteLine("");
-            OutputWriter.WriteLine("");
+            OutputWriter.WriteLine();
+            OutputWriter.WriteLine();
         }
 
         private void PrintAttributes()
@@ -58,8 +58,8 @@ namespace ValveResourceFormat.CompiledShader
             {
                 OutputWriter.WriteLine("[no attributes]");
             }
-            OutputWriter.WriteLine("");
-            OutputWriter.WriteLine("");
+            OutputWriter.WriteLine();
+            OutputWriter.WriteLine();
         }
 
         /*
@@ -148,7 +148,7 @@ namespace ValveResourceFormat.CompiledShader
                 }
             }
             tabulatedData.PrintTabulatedValues(spacing: 2);
-            OutputWriter.WriteLine("");
+            OutputWriter.WriteLine();
         }
 
         private void PrintParamWriteSequence(VfxVariableIndexArray dataBlock, OutputFormatterTabulatedData tabulatedData)
@@ -222,7 +222,7 @@ namespace ValveResourceFormat.CompiledShader
             {
                 tabulatedConfigNames.PrintTabulatedValues();
             }
-            OutputWriter.WriteLine("");
+            OutputWriter.WriteLine();
             var dNamesHeader = hasNoDConfigsDefined ? "" : tabbedConfigs.Pop();
             var gpuSourceName = StaticCombo.ShaderFiles[0].BlockName.ToLowerInvariant();
             var sourceHeader = $"{gpuSourceName}-source";
@@ -262,7 +262,7 @@ namespace ValveResourceFormat.CompiledShader
             tabulatedConfigFull.PrintTabulatedValues();
             if (!hasNoDConfigsDefined)
             {
-                OutputWriter.WriteLine("");
+                OutputWriter.WriteLine();
             }
         }
 
@@ -294,15 +294,15 @@ namespace ValveResourceFormat.CompiledShader
             OutputWriter.WriteLine($"{StaticCombo.Flagbyte0}       //");
             OutputWriter.WriteLine($"{StaticCombo.Flagbyte1}       // added with v66");
             OutputWriter.WriteLine($"{StaticCombo.Flagbyte2}       //");
-            OutputWriter.WriteLine("");
-            OutputWriter.WriteLine("");
+            OutputWriter.WriteLine();
+            OutputWriter.WriteLine();
         }
 
         private void PrintEndBlocks()
         {
             OutputWriter.WriteLine("RENDER STATE INFO");
             var vcsFiletype = StaticCombo.ParentProgramData.VcsProgramType;
-            OutputWriter.WriteLine("");
+            OutputWriter.WriteLine();
             foreach (var endBlock in StaticCombo.DynamicCombos)
             {
                 OutputWriter.WriteLine($"block-ref         {endBlock.DynamicComboId}");
@@ -344,7 +344,7 @@ namespace ValveResourceFormat.CompiledShader
                         }
                     }
                 }
-                OutputWriter.WriteLine("");
+                OutputWriter.WriteLine();
             }
         }
     }
