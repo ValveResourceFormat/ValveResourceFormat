@@ -34,10 +34,8 @@ namespace ValveResourceFormat.CompiledShader
 
         private void PrintConfigurationState()
         {
-            var configHeader = "Configuration";
+            var configHeader = "PARENT STATIC COMBO CONFIGURATION";
             OutputWriteLine(configHeader);
-            OutputWriteLine(new string('-', configHeader.Length));
-            OutputWriteLine("The static configuration this zframe belongs to (zero or more static parameters)\n");
             ConfigMappingParams configGen = new(StaticCombo.ParentProgramData);
             var configState = configGen.GetConfigState(StaticCombo.StaticComboId);
             for (var i = 0; i < configState.Length; i++)
@@ -54,9 +52,7 @@ namespace ValveResourceFormat.CompiledShader
 
         private void PrintAttributes()
         {
-            var headerText = "Attributes";
-            OutputWriteLine(headerText);
-            OutputWriteLine(new string('-', headerText.Length));
+            OutputWriteLine("ATTRIBUTES");
             OutputWrite(StaticCombo.AttributesStringDescription());
             if (StaticCombo.Attributes.Length == 0)
             {
@@ -123,12 +119,7 @@ namespace ValveResourceFormat.CompiledShader
 
         private void PrintWriteSequences(SortedDictionary<int, int> writeSequences)
         {
-            var headerText = "Parameter write sequences";
-            OutputWriteLine(headerText);
-            OutputWriteLine(new string('-', headerText.Length));
-            OutputWriteLine(
-                "This data (thought to be buffer write sequences) appear to be linked to the dynamic (D-param) configurations;\n" +
-                "each configuration points to exactly one sequence.");
+            OutputWriteLine("DYNAMIC COMBO VARIABLES");
 
             OutputFormatterTabulatedData tabulatedData = new(OutputWriter);
             var emptyRow = new string[] { "", "", "", "", "" };
@@ -201,9 +192,8 @@ namespace ValveResourceFormat.CompiledShader
             var isVertexShader = StaticCombo.ParentProgramData.VcsProgramType == VcsProgramType.VertexShader;
 
             var configsDefined = hasOnlyDefaultConfiguration ? "" : $" ({blockIdToSource.Count} defined)";
-            var configHeader = $"Dynamic (D-Param) configurations{configsDefined}";
+            var configHeader = $"DYNAMIC COMBOS{configsDefined}";
             OutputWriteLine(configHeader);
-            OutputWriteLine(new string('-', configHeader.Length));
 
             OutputFormatterTabulatedData tabulatedConfigNames = new(OutputWriter);
             tabulatedConfigNames.DefineHeaders(["", "abbrev."]);
@@ -226,7 +216,7 @@ namespace ValveResourceFormat.CompiledShader
             var tabbedConfigs = new Stack<string>(tabulatedConfigCombinations.BuildTabulatedRows(reverse: true));
             if (tabbedConfigs.Count == 0)
             {
-                OutputWriteLine("No dynamic parameters defined");
+                OutputWriteLine("[none defined]");
             }
             else
             {
@@ -255,11 +245,11 @@ namespace ValveResourceFormat.CompiledShader
                 }
                 var configIdText = $"0x{blockId:X2}";
                 var configCombText = hasNoDConfigsDefined ? $"{"(default)",-14}" : tabbedConfigs.Pop();
-                var writeSeqText = writeSequences[blockId] == -1 ? "[empty]" : $"seq[{writeSequences[blockId]}]";
+                var writeSeqText = writeSequences[blockId] == -1 ? "[empty]" : $"SEQ[{writeSequences[blockId]}]";
                 var blockSource = blockIdToSource[blockId];
                 var sourceLink = $"{blockSource.ShaderFileId:X2}";
                 var vsInputs = isVertexShader ? StaticCombo.VShaderInputs[block.ShaderFileId] : -1;
-                var gpuInputText = vsInputs >= 0 ? $"VS-symbols[{vsInputs}]" : "[none]";
+                var gpuInputText = vsInputs >= 0 ? $"VS[{vsInputs}]" : "[none]";
                 var arg1Text = $"{StaticCombo.ConstantBufferBindInfoSlots[blockId]}";
                 var arg2Text = $"{StaticCombo.ConstantBufferBindInfoFlags[blockId]}";
                 var hash = blockSource.HashMD5.ToString();
@@ -299,9 +289,7 @@ namespace ValveResourceFormat.CompiledShader
 
         private void PrintSourceSummary()
         {
-            var headerText = "source bytes/flags";
-            OutputWriteLine(headerText);
-            OutputWriteLine(new string('-', headerText.Length));
+            OutputWriteLine("source bytes/flags");
             OutputWriteLine($"{StaticCombo.Flags0}      // size?");
             OutputWriteLine($"{StaticCombo.Flagbyte0}       //");
             OutputWriteLine($"{StaticCombo.Flagbyte1}       // added with v66");
@@ -312,9 +300,7 @@ namespace ValveResourceFormat.CompiledShader
 
         private void PrintEndBlocks()
         {
-            var headerText = $"Render State Info";
-            OutputWriteLine(headerText);
-            OutputWriteLine(new string('-', headerText.Length));
+            OutputWriteLine("RENDER STATE INFO");
             var vcsFiletype = StaticCombo.ParentProgramData.VcsProgramType;
             OutputWriteLine("");
             foreach (var endBlock in StaticCombo.DynamicCombos)

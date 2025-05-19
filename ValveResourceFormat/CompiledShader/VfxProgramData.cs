@@ -26,7 +26,7 @@ namespace ValveResourceFormat.CompiledShader
         public VcsAdditionalFileFlags AdditionalFiles { get; private set; }
         public bool IsSbox { get; init; }
         public int VariableSourceMax { get; private set; } // 17 for all up to date files. 14 seen in old test files
-        public List<(Guid, string)> HashesMD5 { get; } = [];
+        public List<Guid> HashesMD5 { get; } = [];
         public VfxCombo[] StaticComboArray { get; private set; } = [];
         public VfxRule[] StaticComboRules { get; private set; } = [];
         public VfxCombo[] DynamicComboArray { get; private set; } = [];
@@ -184,12 +184,12 @@ namespace ValveResourceFormat.CompiledShader
 
                 for (var i = 0; i < programTypesCount; i++)
                 {
-                    HashesMD5.Add((new Guid(DataReader.ReadBytes(16)), $"// {i}"));
+                    HashesMD5.Add(new Guid(DataReader.ReadBytes(16)));
                 }
             }
             else
             {
-                HashesMD5.Add((new Guid(DataReader.ReadBytes(16)), string.Empty));
+                HashesMD5.Add(new Guid(DataReader.ReadBytes(16)));
             }
 
             FileHash = new Guid(DataReader.ReadBytes(16));
