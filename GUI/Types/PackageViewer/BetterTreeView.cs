@@ -184,7 +184,7 @@ namespace GUI.Types.PackageViewer
 
                     Parallel.For(
                         0,
-                        maxArchiveIndex,
+                        maxArchiveIndex + 1,
                         new ParallelOptions
                         {
                             MaxDegreeOfParallelism = 3
