@@ -110,9 +110,17 @@ namespace ValveResourceFormat.CompiledShader
             StaticComboCache = new StaticCache(this);
         }
 
-        public void PrintSummary(PrintVcsFileSummary.HandleOutputWrite OutputWriter = null)
+        public void PrintSummary(IndentedTextWriter outputWriter = null)
         {
-            var fileSummary = new PrintVcsFileSummary(this, OutputWriter);
+            if (outputWriter == null)
+            {
+                using var output = new IndentedTextWriter();
+                var consoleOutput = new PrintVcsFileSummary(this, output);
+                Console.Write(output.ToString());
+                return;
+            }
+
+            var fileSummary = new PrintVcsFileSummary(this, outputWriter);
         }
 
         private void VfxCreateFromVcs()

@@ -730,13 +730,16 @@ namespace Decompiler
             {
                 shader.Read(path, stream);
 
+                using var output = new IndentedTextWriter();
+
                 if (!CollectStats)
                 {
-                    shader.PrintSummary();
+                    shader.PrintSummary(output);
+                    Console.Write(output.ToString());
                 }
                 else
                 {
-                    shader.PrintSummary(static (s) => { });
+                    shader.PrintSummary(output);
 
                     foreach (var zframe in shader.StaticComboEntries)
                     {

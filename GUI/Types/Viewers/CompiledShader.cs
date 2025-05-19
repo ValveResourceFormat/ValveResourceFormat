@@ -6,11 +6,13 @@ using System.Text;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Utils;
+using ValveResourceFormat;
 using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.IO;
 using Vortice.SPIRV;
 using Vortice.SpirvCross;
 using static ValveResourceFormat.CompiledShader.ShaderUtilHelpers;
+using SpirvResourceType = Vortice.SpirvCross.ResourceType;
 using VrfPackage = SteamDatabase.ValvePak.Package;
 
 #nullable disable
@@ -291,9 +293,9 @@ namespace GUI.Types.Viewers
             }
             else if (e.Node.Tag is VfxProgramData program)
             {
-                using var buffer = new StringWriter(CultureInfo.InvariantCulture);
-                program.PrintSummary(buffer.Write);
-                control.TextBox.Text = buffer.ToString();
+                using var output = new IndentedTextWriter();
+                program.PrintSummary(output);
+                control.TextBox.Text = output.ToString();
             }
             else if (e.Node.Tag is VfxStaticComboVcsEntry comboEntry)
             {
@@ -424,9 +426,9 @@ namespace GUI.Types.Viewers
 
         private void DisplayStaticCombo(VfxStaticComboData combo)
         {
-            using var buffer = new StringWriter(CultureInfo.InvariantCulture);
-            var zframeSummary = new PrintZFrameSummary(combo, buffer.Write);
-            control.TextBox.Text = buffer.ToString();
+            using var output = new IndentedTextWriter();
+            var zframeSummary = new PrintZFrameSummary(combo, output);
+            control.TextBox.Text = output.ToString();
         }
 
         private static (string Source, byte[] Bytecode) GetDecompiledFile(VfxShaderFile shaderFile)
@@ -488,14 +490,14 @@ namespace GUI.Types.Viewers
                 {
                     SpirvCrossApi.spvc_compiler_create_shader_resources(compiler, out var resources).CheckResult();
 
-                    Rename(compiler, resources, ResourceType.SeparateImage, vulkanSource);
-                    Rename(compiler, resources, ResourceType.SeparateSamplers, vulkanSource);
+                    Rename(compiler, resources, SpirvResourceType.SeparateImage, vulkanSource);
+                    Rename(compiler, resources, SpirvResourceType.SeparateSamplers, vulkanSource);
 
-                    Rename(compiler, resources, ResourceType.StorageBuffer, vulkanSource);
-                    Rename(compiler, resources, ResourceType.UniformBuffer, vulkanSource);
+                    Rename(compiler, resources, SpirvResourceType.StorageBuffer, vulkanSource);
+                    Rename(compiler, resources, SpirvResourceType.UniformBuffer, vulkanSource);
 
-                    Rename(compiler, resources, ResourceType.StageInput, vulkanSource);
-                    Rename(compiler, resources, ResourceType.StageOutput, vulkanSource);
+                    Rename(compiler, resources, SpirvResourceType.StageInput, vulkanSource);
+                    Rename(compiler, resources, SpirvResourceType.StageOutput, vulkanSource);
                 }
 
                 SpirvCrossApi.spvc_compiler_compile(compiler, out var code).CheckResult();
@@ -553,7 +555,7 @@ namespace GUI.Types.Viewers
             return buffer.ToString();
         }
 
-        private static unsafe void Rename(spvc_compiler compiler, spvc_resources resources, ResourceType resourceType, VfxShaderFile shaderFile)
+        private static unsafe void Rename(spvc_compiler compiler, spvc_resources resources, SpirvResourceType resourceType, VfxShaderFile shaderFile)
         {
             var staticComboData = shaderFile.ParentCombo;
             var program = staticComboData.ParentProgramData;
@@ -645,12 +647,12 @@ namespace GUI.Types.Viewers
 
                 var name = resourceType switch
                 {
-                    ResourceType.SeparateImage => GetNameForTexture(program, writeSequence, binding, vfxType),
-                    ResourceType.SeparateSamplers => GetNameForSampler(program, writeSequence, binding),
-                    ResourceType.StorageBuffer or ResourceType.StorageImage => GetNameForStorageBuffer(program, writeSequence, binding),
-                    ResourceType.UniformBuffer => isGlobalsBuffer ? "_Globals_" : GetNameForUniformBuffer(program, writeSequence, uniformBufferBinding, set),
-                    ResourceType.StageInput => GetStageAttributeName(vsInputElements, currentStageInputIndex++, true),
-                    ResourceType.StageOutput => GetStageAttributeName(null, currentStageOutputIndex++, false),
+                    SpirvResourceType.SeparateImage => GetNameForTexture(program, writeSequence, binding, vfxType),
+                    SpirvResourceType.SeparateSamplers => GetNameForSampler(program, writeSequence, binding),
+                    SpirvResourceType.StorageBuffer or SpirvResourceType.StorageImage => GetNameForStorageBuffer(program, writeSequence, binding),
+                    SpirvResourceType.UniformBuffer => isGlobalsBuffer ? "_Globals_" : GetNameForUniformBuffer(program, writeSequence, uniformBufferBinding, set),
+                    SpirvResourceType.StageInput => GetStageAttributeName(vsInputElements, currentStageInputIndex++, true),
+                    SpirvResourceType.StageOutput => GetStageAttributeName(null, currentStageOutputIndex++, false),
                     _ => string.Empty,
                 };
 
@@ -663,14 +665,14 @@ namespace GUI.Types.Viewers
                     continue;
                 }
 
-                if (resourceType is ResourceType.SeparateImage && vfxType is VfxVariableType.Void)
+                if (resourceType is SpirvResourceType.SeparateImage && vfxType is VfxVariableType.Void)
                 {
                     name = $"{name}_unexpectedTypeId{resource.base_type_id}_{resource.type_id}";
                 }
 
                 SpirvCrossApi.spvc_compiler_set_name(compiler, resource.id, name);
 
-                if (resourceType is ResourceType.UniformBuffer)
+                if (resourceType is SpirvResourceType.UniformBuffer)
                 {
                     var bufferRanges = SpirvCrossApi.spvc_compiler_get_active_buffer_ranges(compiler, resource.id);
 

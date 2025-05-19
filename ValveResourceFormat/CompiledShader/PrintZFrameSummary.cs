@@ -7,15 +7,15 @@ namespace ValveResourceFormat.CompiledShader
 {
     public class PrintZFrameSummary
     {
-        public PrintVcsFileSummary.HandleOutputWrite OutputWriter { get; set; }
+        public IndentedTextWriter OutputWriter { get; set; }
         private readonly VfxStaticComboData StaticCombo;
 
         // If OutputWriter is left as null; output will be written to Console.
         // Otherwise output is directed to the passed HandleOutputWrite object (defined by the calling application, for example GUI element or file)
-        public PrintZFrameSummary(VfxStaticComboData staticCombo, PrintVcsFileSummary.HandleOutputWrite outputWriter = null)
+        public PrintZFrameSummary(VfxStaticComboData staticCombo, IndentedTextWriter outputWriter)
         {
             StaticCombo = staticCombo;
-            OutputWriter = outputWriter ?? (static (x) => { Console.Write(x); });
+            OutputWriter = outputWriter;
 
             if (staticCombo.ParentProgramData.VcsProgramType == VcsProgramType.Features)
             {
@@ -27,7 +27,7 @@ namespace ValveResourceFormat.CompiledShader
             var writeSequences = GetBlockToUniqueSequenceMap();
             PrintWriteSequences(writeSequences);
             PrintDynamicConfigurations(writeSequences);
-            OutputWrite("\n");
+            OutputWriter.WriteLine();
             PrintSourceSummary();
             PrintEndBlocks();
         }
@@ -35,31 +35,31 @@ namespace ValveResourceFormat.CompiledShader
         private void PrintConfigurationState()
         {
             var configHeader = "PARENT STATIC COMBO CONFIGURATION";
-            OutputWriteLine(configHeader);
+            OutputWriter.WriteLine(configHeader);
             ConfigMappingParams configGen = new(StaticCombo.ParentProgramData);
             var configState = configGen.GetConfigState(StaticCombo.StaticComboId);
             for (var i = 0; i < configState.Length; i++)
             {
-                OutputWriteLine($"{StaticCombo.ParentProgramData.StaticComboArray[i].Name,-30} {configState[i]}");
+                OutputWriter.WriteLine($"{StaticCombo.ParentProgramData.StaticComboArray[i].Name,-30} {configState[i]}");
             }
             if (configState.Length == 0)
             {
-                OutputWriteLine("[no static params]");
+                OutputWriter.WriteLine("[no static params]");
             }
-            OutputWriteLine("");
-            OutputWriteLine("");
+            OutputWriter.WriteLine("");
+            OutputWriter.WriteLine("");
         }
 
         private void PrintAttributes()
         {
-            OutputWriteLine("ATTRIBUTES");
-            OutputWrite(StaticCombo.AttributesStringDescription());
+            OutputWriter.WriteLine("ATTRIBUTES");
+            OutputWriter.Write(StaticCombo.AttributesStringDescription());
             if (StaticCombo.Attributes.Length == 0)
             {
-                OutputWriteLine("[no attributes]");
+                OutputWriter.WriteLine("[no attributes]");
             }
-            OutputWriteLine("");
-            OutputWriteLine("");
+            OutputWriter.WriteLine("");
+            OutputWriter.WriteLine("");
         }
 
         /*
@@ -119,7 +119,7 @@ namespace ValveResourceFormat.CompiledShader
 
         private void PrintWriteSequences(SortedDictionary<int, int> writeSequences)
         {
-            OutputWriteLine("DYNAMIC COMBO VARIABLES");
+            OutputWriter.WriteLine("DYNAMIC COMBO VARIABLES");
 
             OutputFormatterTabulatedData tabulatedData = new(OutputWriter);
             var emptyRow = new string[] { "", "", "", "", "" };
@@ -148,7 +148,7 @@ namespace ValveResourceFormat.CompiledShader
                 }
             }
             tabulatedData.PrintTabulatedValues(spacing: 2);
-            OutputWriteLine("");
+            OutputWriter.WriteLine("");
         }
 
         private void PrintParamWriteSequence(VfxVariableIndexArray dataBlock, OutputFormatterTabulatedData tabulatedData)
@@ -193,7 +193,7 @@ namespace ValveResourceFormat.CompiledShader
 
             var configsDefined = hasOnlyDefaultConfiguration ? "" : $" ({blockIdToSource.Count} defined)";
             var configHeader = $"DYNAMIC COMBOS{configsDefined}";
-            OutputWriteLine(configHeader);
+            OutputWriter.WriteLine(configHeader);
 
             OutputFormatterTabulatedData tabulatedConfigNames = new(OutputWriter);
             tabulatedConfigNames.DefineHeaders(["", "abbrev."]);
@@ -216,13 +216,13 @@ namespace ValveResourceFormat.CompiledShader
             var tabbedConfigs = new Stack<string>(tabulatedConfigCombinations.BuildTabulatedRows(reverse: true));
             if (tabbedConfigs.Count == 0)
             {
-                OutputWriteLine("[none defined]");
+                OutputWriter.WriteLine("[none defined]");
             }
             else
             {
                 tabulatedConfigNames.PrintTabulatedValues();
             }
-            OutputWriteLine("");
+            OutputWriter.WriteLine("");
             var dNamesHeader = hasNoDConfigsDefined ? "" : tabbedConfigs.Pop();
             var gpuSourceName = StaticCombo.ShaderFiles[0].BlockName.ToLowerInvariant();
             var sourceHeader = $"{gpuSourceName}-source";
@@ -262,7 +262,7 @@ namespace ValveResourceFormat.CompiledShader
             tabulatedConfigFull.PrintTabulatedValues();
             if (!hasNoDConfigsDefined)
             {
-                OutputWriteLine("");
+                OutputWriter.WriteLine("");
             }
         }
 
@@ -289,73 +289,63 @@ namespace ValveResourceFormat.CompiledShader
 
         private void PrintSourceSummary()
         {
-            OutputWriteLine("source bytes/flags");
-            OutputWriteLine($"{StaticCombo.Flags0}      // size?");
-            OutputWriteLine($"{StaticCombo.Flagbyte0}       //");
-            OutputWriteLine($"{StaticCombo.Flagbyte1}       // added with v66");
-            OutputWriteLine($"{StaticCombo.Flagbyte2}       //");
-            OutputWriteLine("");
-            OutputWriteLine("");
+            OutputWriter.WriteLine("source bytes/flags");
+            OutputWriter.WriteLine($"{StaticCombo.Flags0}      // size?");
+            OutputWriter.WriteLine($"{StaticCombo.Flagbyte0}       //");
+            OutputWriter.WriteLine($"{StaticCombo.Flagbyte1}       // added with v66");
+            OutputWriter.WriteLine($"{StaticCombo.Flagbyte2}       //");
+            OutputWriter.WriteLine("");
+            OutputWriter.WriteLine("");
         }
 
         private void PrintEndBlocks()
         {
-            OutputWriteLine("RENDER STATE INFO");
+            OutputWriter.WriteLine("RENDER STATE INFO");
             var vcsFiletype = StaticCombo.ParentProgramData.VcsProgramType;
-            OutputWriteLine("");
+            OutputWriter.WriteLine("");
             foreach (var endBlock in StaticCombo.DynamicCombos)
             {
-                OutputWriteLine($"block-ref         {endBlock.DynamicComboId}");
-                OutputWriteLine($"source-ref        {endBlock.ShaderFileId}");
-                OutputWriteLine($"source-pointer    {endBlock.SourcePointer}");
+                OutputWriter.WriteLine($"block-ref         {endBlock.DynamicComboId}");
+                OutputWriter.WriteLine($"source-ref        {endBlock.ShaderFileId}");
+                OutputWriter.WriteLine($"source-pointer    {endBlock.SourcePointer}");
                 if (endBlock is VfxRenderStateInfoHullShader hsEndBlock)
                 {
-                    OutputWriteLine($"hs-arg            {hsEndBlock.HullShaderArg}");
+                    OutputWriter.WriteLine($"hs-arg            {hsEndBlock.HullShaderArg}");
                 }
                 else if (endBlock is VfxRenderStateInfoPixelShader psEndBlock)
                 {
                     if (psEndBlock.RasterizerStateDesc != null)
                     {
-                        OutputWriteLine("// Rasterizer State");
+                        OutputWriter.WriteLine("// Rasterizer State");
                         var rs = psEndBlock.RasterizerStateDesc;
-                        OutputWriteLine($"{nameof(rs.FillMode)}: {rs.FillMode}, {nameof(rs.CullMode)}: {rs.CullMode}");
-                        OutputWriteLine($"{nameof(rs.DepthClipEnable)}: {rs.DepthClipEnable}, {nameof(rs.MultisampleEnable)}: {rs.MultisampleEnable}");
-                        OutputWriteLine($"{nameof(rs.DepthBias)}: {rs.DepthBias}, {nameof(rs.DepthBiasClamp)}: {rs.DepthBiasClamp}, {nameof(rs.SlopeScaledDepthBias)}: {rs.SlopeScaledDepthBias}");
+                        OutputWriter.WriteLine($"{nameof(rs.FillMode)}: {rs.FillMode}, {nameof(rs.CullMode)}: {rs.CullMode}");
+                        OutputWriter.WriteLine($"{nameof(rs.DepthClipEnable)}: {rs.DepthClipEnable}, {nameof(rs.MultisampleEnable)}: {rs.MultisampleEnable}");
+                        OutputWriter.WriteLine($"{nameof(rs.DepthBias)}: {rs.DepthBias}, {nameof(rs.DepthBiasClamp)}: {rs.DepthBiasClamp}, {nameof(rs.SlopeScaledDepthBias)}: {rs.SlopeScaledDepthBias}");
                     }
                     if (psEndBlock.DepthStencilStateDesc != null)
                     {
-                        OutputWriteLine("// Depth Stencil State");
+                        OutputWriter.WriteLine("// Depth Stencil State");
                         var ds = psEndBlock.DepthStencilStateDesc;
-                        OutputWriteLine($"{nameof(ds.DepthTestEnable)}: {ds.DepthTestEnable}, {nameof(ds.DepthWriteEnable)}: {ds.DepthWriteEnable}, {nameof(ds.DepthFunc)}: {ds.DepthFunc}, {nameof(ds.HiZEnable360)}: {ds.HiZEnable360}, {nameof(ds.HiZWriteEnable360)}: {ds.HiZWriteEnable360}");
-                        OutputWriteLine($"{nameof(ds.StencilEnable)}: {ds.StencilEnable}, {nameof(ds.StencilReadMask)}: {ds.StencilReadMask}, {nameof(ds.StencilWriteMask)}: {ds.StencilWriteMask}, {nameof(ds.FrontStencilFailOp)}: {ds.FrontStencilFailOp}, {nameof(ds.FrontStencilDepthFailOp)}: {ds.FrontStencilDepthFailOp}");
-                        OutputWriteLine($"{nameof(ds.FrontStencilPassOp)}: {ds.FrontStencilPassOp}, {nameof(ds.FrontStencilFunc)}: {ds.FrontStencilFunc}, {nameof(ds.BackStencilFailOp)}: {ds.BackStencilFailOp}, {nameof(ds.BackStencilDepthFailOp)}: {ds.BackStencilDepthFailOp}, {nameof(ds.BackStencilPassOp)}: {ds.BackStencilPassOp}");
-                        OutputWriteLine($"{nameof(ds.BackStencilFunc)}: {ds.BackStencilFunc}, {nameof(ds.HiStencilEnable360)}: {ds.HiStencilEnable360}, {nameof(ds.HiStencilWriteEnable360)}: {ds.HiStencilWriteEnable360}, {nameof(ds.HiStencilFunc360)}: {ds.HiStencilFunc360}, {nameof(ds.HiStencilRef360)}: {ds.HiStencilRef360}");
+                        OutputWriter.WriteLine($"{nameof(ds.DepthTestEnable)}: {ds.DepthTestEnable}, {nameof(ds.DepthWriteEnable)}: {ds.DepthWriteEnable}, {nameof(ds.DepthFunc)}: {ds.DepthFunc}, {nameof(ds.HiZEnable360)}: {ds.HiZEnable360}, {nameof(ds.HiZWriteEnable360)}: {ds.HiZWriteEnable360}");
+                        OutputWriter.WriteLine($"{nameof(ds.StencilEnable)}: {ds.StencilEnable}, {nameof(ds.StencilReadMask)}: {ds.StencilReadMask}, {nameof(ds.StencilWriteMask)}: {ds.StencilWriteMask}, {nameof(ds.FrontStencilFailOp)}: {ds.FrontStencilFailOp}, {nameof(ds.FrontStencilDepthFailOp)}: {ds.FrontStencilDepthFailOp}");
+                        OutputWriter.WriteLine($"{nameof(ds.FrontStencilPassOp)}: {ds.FrontStencilPassOp}, {nameof(ds.FrontStencilFunc)}: {ds.FrontStencilFunc}, {nameof(ds.BackStencilFailOp)}: {ds.BackStencilFailOp}, {nameof(ds.BackStencilDepthFailOp)}: {ds.BackStencilDepthFailOp}, {nameof(ds.BackStencilPassOp)}: {ds.BackStencilPassOp}");
+                        OutputWriter.WriteLine($"{nameof(ds.BackStencilFunc)}: {ds.BackStencilFunc}, {nameof(ds.HiStencilEnable360)}: {ds.HiStencilEnable360}, {nameof(ds.HiStencilWriteEnable360)}: {ds.HiStencilWriteEnable360}, {nameof(ds.HiStencilFunc360)}: {ds.HiStencilFunc360}, {nameof(ds.HiStencilRef360)}: {ds.HiStencilRef360}");
                     }
                     if (psEndBlock.BlendStateDesc != null)
                     {
-                        OutputWriteLine("// Blend State");
+                        OutputWriter.WriteLine("// Blend State");
                         var bs = psEndBlock.BlendStateDesc;
-                        OutputWriteLine($"{nameof(bs.AlphaToCoverageEnable)}: {bs.AlphaToCoverageEnable}, {nameof(bs.IndependentBlendEnable)}: {bs.IndependentBlendEnable}, {nameof(bs.HighPrecisionBlendEnable360)}: {bs.HighPrecisionBlendEnable360}");
+                        OutputWriter.WriteLine($"{nameof(bs.AlphaToCoverageEnable)}: {bs.AlphaToCoverageEnable}, {nameof(bs.IndependentBlendEnable)}: {bs.IndependentBlendEnable}, {nameof(bs.HighPrecisionBlendEnable360)}: {bs.HighPrecisionBlendEnable360}");
                         for (var i = 0; i < 8; i++)
                         {
-                            OutputWriteLine($"RT{i}: Enabled={bs.BlendEnable[i]}, SRGB={bs.SrgbWriteEnable[i]}, WriteMask={bs.RenderTargetWriteMask[i]}");
-                            OutputWriteLine($"  RGB: Src={bs.SrcBlend[i]}, Dst={bs.DestBlend[i]}, Op={bs.BlendOp[i]}");
-                            OutputWriteLine($"  Alpha: Src={bs.SrcBlendAlpha[i]}, Dst={bs.DestBlendAlpha[i]}, Op={bs.BlendOpAlpha[i]}");
+                            OutputWriter.WriteLine($"RT{i}: Enabled={bs.BlendEnable[i]}, SRGB={bs.SrgbWriteEnable[i]}, WriteMask={bs.RenderTargetWriteMask[i]}");
+                            OutputWriter.WriteLine($"  RGB: Src={bs.SrcBlend[i]}, Dst={bs.DestBlend[i]}, Op={bs.BlendOp[i]}");
+                            OutputWriter.WriteLine($"  Alpha: Src={bs.SrcBlendAlpha[i]}, Dst={bs.DestBlendAlpha[i]}, Op={bs.BlendOpAlpha[i]}");
                         }
                     }
                 }
-                OutputWriteLine("");
+                OutputWriter.WriteLine("");
             }
-        }
-
-        public void OutputWrite(string text)
-        {
-            OutputWriter(text);
-        }
-
-        public void OutputWriteLine(string text)
-        {
-            OutputWrite(text + "\n");
         }
     }
 }

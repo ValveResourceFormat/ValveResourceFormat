@@ -23,20 +23,16 @@ namespace Tests
             {
                 using var shader = new VfxProgramData();
 
-                using var sw = new StringWriter(CultureInfo.InvariantCulture);
-                var originalOutput = Console.Out;
-                Console.SetOut(sw);
+                using var sw = new IndentedTextWriter();
 
                 shader.Read(file);
                 shader.PrintSummary();
-
-                Console.SetOut(originalOutput);
 
                 foreach (var zframe in shader.StaticComboEntries)
                 {
                     var value = zframe.Value.Unserialize();
                     Assert.That(value, Is.Not.Null);
-                    var zframeSummary = new PrintZFrameSummary(value, sw.Write);
+                    var zframeSummary = new PrintZFrameSummary(value, sw);
                 }
             }
         }
@@ -94,8 +90,8 @@ namespace Tests
             shader.Read(path);
 
             var zFrameFile = shader.GetStaticCombo(0);
-            using var sw = new StringWriter();
-            var zframeSummary = new PrintZFrameSummary(zFrameFile, sw.Write);
+            using var sw = new IndentedTextWriter();
+            var zframeSummary = new PrintZFrameSummary(zFrameFile, sw);
 
             var wsCount = zframeSummary.GetUniqueWriteSequences().Count;
             Assert.That(wsCount, Is.EqualTo(1));

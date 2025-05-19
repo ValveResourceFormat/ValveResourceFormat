@@ -357,29 +357,23 @@ namespace ValveResourceFormat.CompiledShader
             return VfxVariableTypeToString[t];
         }
 
-        public class OutputFormatterTabulatedData
+        internal class OutputFormatterTabulatedData(IndentedTextWriter OutputWriter)
         {
-            public PrintVcsFileSummary.HandleOutputWrite OutputWriter { get; set; }
-
-            public OutputFormatterTabulatedData(PrintVcsFileSummary.HandleOutputWrite OutputWriter = null)
-            {
-                this.OutputWriter = OutputWriter ?? (static (x) => { Console.Write(x); });
-            }
-
             public void Write(string text)
             {
-                OutputWriter(text);
+                OutputWriter.Write(text);
             }
 
             public void WriteLine(string text)
             {
-                Write(text + "\n");
+                OutputWriter.WriteLine(text);
             }
 
             public void BreakLine()
             {
-                Write("\n");
+                OutputWriter.WriteLine();
             }
+
             private List<string> headerValues;
             private List<List<string>> tabulatedValues;
             private List<int> columnWidths;

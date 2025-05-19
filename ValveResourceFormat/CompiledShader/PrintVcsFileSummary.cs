@@ -9,12 +9,11 @@ namespace ValveResourceFormat.CompiledShader
 {
     public class PrintVcsFileSummary
     {
-        public delegate void HandleOutputWrite(string s);
         private readonly OutputFormatterTabulatedData output;
 
-        public PrintVcsFileSummary(VfxProgramData program, HandleOutputWrite OutputWriter = null)
+        public PrintVcsFileSummary(VfxProgramData program, IndentedTextWriter outputWriter)
         {
-            output = new OutputFormatterTabulatedData(OutputWriter);
+            output = new OutputFormatterTabulatedData(outputWriter);
             if (program.VcsProgramType == VcsProgramType.Features)
             {
                 PrintFeaturesHeader(program);

@@ -153,23 +153,26 @@ public sealed class ShaderExtract
         IncludeWriters = [];
         PreprocessCommon();
 
-        return "//=================================================================================================\n"
-            + $"// Reconstructed with {StringToken.VRF_GENERATOR}\n"
-            + "//=================================================================================================\n"
-            + HEADER()
-            + MODES()
-            + FEATURES()
-            + COMMON()
-            + MS()
-            + VS_INPUT()
-            + VS()
-            + GS()
-            + HS()
-            + DS()
-            + PS()
-            + CS()
-            + RTX()
-            ;
+        using var output = new IndentedTextWriter();
+        output.WriteLine("//=================================================================================================");
+        output.WriteLine($"// Reconstructed with {StringToken.VRF_GENERATOR}");
+        output.WriteLine("//=================================================================================================");
+
+        HEADER(output);
+        MODES(output);
+        FEATURES(output);
+        COMMON(output);
+        MS(output);
+        VS_INPUT(output);
+        VS(output);
+        GS(output);
+        HS(output);
+        DS(output);
+        PS(output);
+        CS(output);
+        RTX(output);
+
+        return output.ToString();
     }
 
     class CommonBlocks
@@ -213,9 +216,8 @@ public sealed class ShaderExtract
         }
     }
 
-    private string HEADER()
+    private void HEADER(IndentedTextWriter writer)
     {
-        using var writer = new IndentedTextWriter();
         writer.WriteLine(nameof(HEADER));
         writer.WriteLine("{");
         writer.Indent++;
@@ -227,13 +229,10 @@ public sealed class ShaderExtract
 
         writer.Indent--;
         writer.WriteLine("}");
-
-        return writer.ToString();
     }
 
-    private string MODES()
+    private void MODES(IndentedTextWriter writer)
     {
-        using var writer = new IndentedTextWriter();
         writer.WriteLine();
         writer.WriteLine(nameof(MODES));
         writer.WriteLine("{");
@@ -253,12 +252,10 @@ public sealed class ShaderExtract
 
         writer.Indent--;
         writer.WriteLine("}");
-        return writer.ToString();
     }
 
-    private string FEATURES()
+    private void FEATURES(IndentedTextWriter writer)
     {
-        using var writer = new IndentedTextWriter();
         writer.WriteLine();
         writer.WriteLine(nameof(FEATURES));
         writer.WriteLine("{");
@@ -268,13 +265,10 @@ public sealed class ShaderExtract
 
         writer.Indent--;
         writer.WriteLine("}");
-
-        return writer.ToString();
     }
 
-    private string COMMON()
+    private void COMMON(IndentedTextWriter writer)
     {
-        using var writer = new IndentedTextWriter();
         writer.WriteLine();
         writer.WriteLine(nameof(COMMON));
         writer.WriteLine("{");
@@ -286,18 +280,14 @@ public sealed class ShaderExtract
 
         writer.Indent--;
         writer.WriteLine("}");
-
-        return writer.ToString();
     }
 
-    private string VS_INPUT()
+    private void VS_INPUT(IndentedTextWriter writer)
     {
         if (Vertex is null)
         {
-            return string.Empty;
+            return;
         }
-
-        using var writer = new IndentedTextWriter();
 
         var symbols = new List<Material.InputSignatureElement>();
         var masks = new List<bool[]>();
@@ -446,8 +436,6 @@ public sealed class ShaderExtract
             writer.Indent--;
             writer.WriteLine("};");
         }
-
-        return writer.ToString();
     }
 
     private void WriteCBuffers(IEnumerable<ConstantBufferDescription> bufferBlocks, IndentedTextWriter writer)
@@ -522,38 +510,37 @@ public sealed class ShaderExtract
         writer.WriteLine("};");
     }
 
-    private string MS()
-        => HandleStageShared(Mesh, nameof(MS));
+    private void MS(IndentedTextWriter writer)
+        => HandleStageShared(writer, Mesh, nameof(MS));
 
-    private string VS()
-        => HandleStageShared(Vertex, nameof(VS));
+    private void VS(IndentedTextWriter writer)
+        => HandleStageShared(writer, Vertex, nameof(VS));
 
-    private string GS()
-        => HandleStageShared(Geometry, nameof(GS));
+    private void GS(IndentedTextWriter writer)
+        => HandleStageShared(writer, Geometry, nameof(GS));
 
-    private string HS()
-        => HandleStageShared(Hull, nameof(HS));
+    private void HS(IndentedTextWriter writer)
+        => HandleStageShared(writer, Hull, nameof(HS));
 
-    private string DS()
-        => HandleStageShared(Domain, nameof(DS));
+    private void DS(IndentedTextWriter writer)
+        => HandleStageShared(writer, Domain, nameof(DS));
 
-    private string PS()
-        => HandleStageShared(Pixel, nameof(PS));
+    private void PS(IndentedTextWriter writer)
+        => HandleStageShared(writer, Pixel, nameof(PS));
 
-    private string CS()
-        => HandleStageShared(Compute, nameof(CS));
+    private void CS(IndentedTextWriter writer)
+        => HandleStageShared(writer, Compute, nameof(CS));
 
-    private string RTX()
-        => HandleStageShared(Raytracing, nameof(RTX));
+    private void RTX(IndentedTextWriter writer)
+        => HandleStageShared(writer, Raytracing, nameof(RTX));
 
-    private string HandleStageShared(VfxProgramData program, string stageName)
+    private void HandleStageShared(IndentedTextWriter writer, VfxProgramData program, string stageName)
     {
         if (program is null)
         {
-            return string.Empty;
+            return;
         }
 
-        using var writer = new IndentedTextWriter();
         writer.WriteLine();
         writer.WriteLine(stageName);
         writer.WriteLine("{");
@@ -578,7 +565,6 @@ public sealed class ShaderExtract
 
         writer.Indent--;
         writer.WriteLine("}");
-        return writer.ToString();
     }
 
     public class ConfigKeyComparer : IEqualityComparer<int[]>
