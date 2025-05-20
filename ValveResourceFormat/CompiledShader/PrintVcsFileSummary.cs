@@ -22,10 +22,10 @@ namespace ValveResourceFormat.CompiledShader
             {
                 PrintPsVsHeader(program);
             }
-            PrintStaticCombos(program);
-            PrintConstraints(program, program.StaticComboRules, "STATIC COMBOS");
-            PrintDynamicCombos(program);
-            PrintConstraints(program, program.DynamicComboRules, "DYNAMIC COMBOS");
+            PrintCombos(program.StaticComboArray, "STATIC COMBOS");
+            PrintComboRules(program, program.StaticComboRules, "STATIC COMBOS");
+            PrintCombos(program.DynamicComboArray, "DYNAMIC COMBOS");
+            PrintComboRules(program, program.DynamicComboRules, "DYNAMIC COMBOS");
             PrintParameters(program);
             PrintChannelBlocks(program);
             PrintBufferBlocks(program);
@@ -99,17 +99,15 @@ namespace ValveResourceFormat.CompiledShader
             output.BreakLine();
         }
 
-        private void PrintStaticCombos(VfxProgramData program)
+        private void PrintCombos(VfxCombo[] combos, string comboDesc)
         {
-            output.WriteLine($"STATIC COMBOS({program.StaticComboArray.Length})");
-            if (program.StaticComboArray.Length == 0)
+            if (combos.Length == 0)
             {
-                output.WriteLine("[none defined]");
-                output.BreakLine();
                 return;
             }
+            output.WriteLine($"{comboDesc}({combos.Length})");
             output.DefineHeaders([nameof(VfxCombo.BlockIndex), nameof(VfxCombo.Name), nameof(VfxCombo.RangeMin), nameof(VfxCombo.RangeMax), nameof(VfxCombo.Arg3), nameof(VfxCombo.FeatureIndex), nameof(VfxCombo.ComboType)]);
-            foreach (var item in program.StaticComboArray)
+            foreach (var item in combos)
             {
                 output.AddTabulatedRow([$"[{item.BlockIndex,2}]", $"{item.Name}", $"{item.RangeMin}", $"{item.RangeMax}", $"{item.Arg3}", $"{item.FeatureIndex,2}", $"{item.ComboType}"]);
             }
@@ -117,41 +115,7 @@ namespace ValveResourceFormat.CompiledShader
             output.BreakLine();
         }
 
-        private void PrintDynamicCombos(VfxProgramData program)
-        {
-            output.WriteLine($"DYNAMIC COMBOS({program.DynamicComboArray.Length})");
-            if (program.DynamicComboArray.Length == 0)
-            {
-                output.WriteLine("[none defined]");
-                output.BreakLine();
-                return;
-            }
-            int[] pad = [7, 40, 7, 7, 7];
-            var h0 = "index";
-            var h1 = "name";
-            var h2 = "arg2";
-            var h3 = "arg3";
-            var h4 = "arg4";
-            var blockHeader = $"{h0.PadRight(pad[0])} {h1.PadRight(pad[1])} {h2.PadRight(pad[2])} {h3.PadRight(pad[3])} {h4.PadRight(pad[4])}";
-            output.WriteLine(blockHeader);
-            foreach (var dBlock in program.DynamicComboArray)
-            {
-                var v0 = $"[{dBlock.BlockIndex,2}]";
-                var v1 = dBlock.Name;
-                var v2 = "" + dBlock.RangeMax;
-                var v3 = "" + dBlock.Arg3;
-                var v4 = $"{dBlock.FeatureIndex,2}";
-                var blockSummary = $"{v0.PadRight(pad[0])} {v1.PadRight(pad[1])} {v2.PadRight(pad[2])} {v3.PadRight(pad[3])} {v4.PadRight(pad[4])}";
-                output.WriteLine(blockSummary);
-            }
-            if (program.DynamicComboArray.Length == 0)
-            {
-                output.WriteLine("[empty list]");
-            }
-            output.BreakLine();
-        }
-
-        private void PrintConstraints(VfxProgramData program, VfxRule[] vfxRules, string comboDesc)
+        private void PrintComboRules(VfxProgramData program, VfxRule[] vfxRules, string comboDesc)
         {
             if (vfxRules.Length == 0)
             {
