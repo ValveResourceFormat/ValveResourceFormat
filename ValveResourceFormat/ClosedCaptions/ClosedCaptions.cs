@@ -117,11 +117,7 @@ namespace ValveResourceFormat.ClosedCaptions
 
             using var ms = new MemoryStream();
             KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Serialize(ms, captionsToExport, FileName);
-
-            var sb = new StringBuilder();
-            sb.Append(Encoding.UTF8.GetString(ms.ToArray()));
-
-            return sb.ToString();
+            return Encoding.UTF8.GetString(ms.ToArray());
         }
     }
 }
