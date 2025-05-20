@@ -361,7 +361,7 @@ public sealed class MapExtract
         {
             var worldPhysMeshes = phys.Parts[0].Shape.Meshes.Where(m => phys.CollisionAttributes[m.CollisionAttributeIndex].GetStringProperty("m_CollisionGroupString") == "Default");
 
-            PhysVertexMatcher = new PhysicsVertexMatcher(worldPhysMeshes);
+            PhysVertexMatcher = new PhysicsVertexMatcher(worldPhysMeshes.ToArray());
 
             // TODO: physics spheres and capsules are ignored
         }

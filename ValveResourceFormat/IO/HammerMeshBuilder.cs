@@ -273,14 +273,12 @@ namespace ValveResourceFormat.IO
 
         public List<PhysMeshData> PhysicsMeshes { get; } = new();
 
-        public PhysicsVertexMatcher(IEnumerable<MeshDescriptor> meshes)
+        public PhysicsVertexMatcher(MeshDescriptor[] meshes)
         {
-#pragma warning disable CA1851 // Possible multiple enumerations of 'IEnumerable' collection
-            for (int i = 0; i < meshes.Count(); i++)
+            for (int i = 0; i < meshes.Length; i++)
             {
                 PhysicsMeshes.Add(new PhysMeshData(meshes.ElementAt(i)));
             }
-#pragma warning restore CA1851 // Possible multiple enumerations of 'IEnumerable' collection
         }
 
         /*
@@ -762,7 +760,7 @@ namespace ValveResourceFormat.IO
 
                         if (failsPrevious || failsFirst)
                         {
-                            halfEdgeModifier.RollBack("Face specified two edges that are connected by a vertex but have or more existing edges separating them.");
+                            halfEdgeModifier.RollBack("Face specified two edges that are connected by a vertex but have one or more existing edges separating them.");
                             return;
                         }
                     }
@@ -1125,7 +1123,7 @@ namespace ValveResourceFormat.IO
                 ? (triangleRangeMin, triangleRangeMax)
                 : (0, meshTriangles.Length);
 
-            var newMesh = ReindexTriangleMesh(mesh.GetVertices().ToArray().ToList(), meshTriangles.ToArray().ToList(), triangleStart, triangleStop);
+            var newMesh = ReindexTriangleMesh(mesh.GetVertices(), meshTriangles, triangleStart, triangleStop);
 
             VertexStreams streams = new()
             {
@@ -1381,13 +1379,13 @@ namespace ValveResourceFormat.IO
             return crossProduct.Length() < epsilon;
         }
 
-        public static (List<Vector3> NewTriangles, List<Vector3> NewVertices) ReindexTriangleMesh(List<Vector3> vertices, List<Triangle> triangles, int trianglesRangeStart, int trianglesRangeEnd)
+        public static (List<Vector3> NewTriangles, List<Vector3> NewVertices) ReindexTriangleMesh(ReadOnlySpan<Vector3> vertices, ReadOnlySpan<Triangle> triangles, int trianglesRangeStart, int trianglesRangeEnd)
         {
-            ArgumentOutOfRangeException.ThrowIfLessThan(vertices.Count, 1, "ReindexMesh vertices can't be empty");
-            ArgumentOutOfRangeException.ThrowIfLessThan(triangles.Count, 1, "ReindexMesh triangles can't be empty");
+            ArgumentOutOfRangeException.ThrowIfLessThan(vertices.Length, 1, "ReindexMesh vertices can't be empty");
+            ArgumentOutOfRangeException.ThrowIfLessThan(triangles.Length, 1, "ReindexMesh triangles can't be empty");
 
             ArgumentOutOfRangeException.ThrowIfLessThan(trianglesRangeStart, 0, "ReindexMesh indexRangeStart can't be less than zero");
-            ArgumentOutOfRangeException.ThrowIfGreaterThan(trianglesRangeEnd, triangles.Count, "ReindexMesh indexRangeEnd can't be more than index count");
+            ArgumentOutOfRangeException.ThrowIfGreaterThan(trianglesRangeEnd, triangles.Length, "ReindexMesh indexRangeEnd can't be more than index count");
             ArgumentOutOfRangeException.ThrowIfGreaterThan(trianglesRangeStart, trianglesRangeEnd, "ReindexMesh trianglesRangeStart can't be bigger than indexRangeEnd");
 
             var trianglesCount = trianglesRangeEnd - trianglesRangeStart;
@@ -1395,8 +1393,8 @@ namespace ValveResourceFormat.IO
             List<Vector3> newTriangles = new(trianglesCount);
             // possible over allocation but might be better for speed than underallocation?
             List<Vector3> newVertices = new(trianglesCount * 3);
+            Dictionary<int, int> oldToNewIndex = new(trianglesCount * 3);
 
-            Dictionary<int, int> oldToNewIndex = new();
             int nextNewIndex = 0;
 
             Span<int> currentTriangleIndices = stackalloc int[3];
