@@ -15,10 +15,10 @@ public class VfxCombo : ShaderDataBlock
     public long CalculatedComboId { get; set; } // set after loading all combos
     public string Name { get; }
     public string Category { get; }
-    public int ComboType { get; }
+    public int ComboType { get; } // 1 - static, 2 - dynamic
     public int RangeMin { get; }
     public int RangeMax { get; }
-    public int Arg3 { get; } // S_TOOLS_ENABLED = 1, S_SHADER_QUALITY = 2
+    public int ComboSourceType { get; } // S_TOOLS_ENABLED = 1, S_SHADER_QUALITY = 2
     public int FeatureIndex { get; }
     public List<string> CheckboxNames { get; } = [];
 
@@ -28,10 +28,10 @@ public class VfxCombo : ShaderDataBlock
         BlockIndex = blockIndex;
         Name = ReadStringWithMaxLength(datareader, 64);
         Category = ReadStringWithMaxLength(datareader, 64);
-        ComboType = datareader.ReadInt32(); // 1 - static, 2 - dynamic
+        ComboType = datareader.ReadInt32();
         RangeMin = datareader.ReadInt32();
         RangeMax = datareader.ReadInt32();
-        Arg3 = datareader.ReadInt32();
+        ComboSourceType = datareader.ReadInt32();
         FeatureIndex = datareader.ReadInt32();
         var checkboxNameCount = datareader.ReadInt32();
 
@@ -45,7 +45,7 @@ public class VfxCombo : ShaderDataBlock
             CheckboxNames.Add(datareader.ReadNullTermString(Encoding.UTF8));
         }
 
-        if (Arg3 == 10 || Arg3 == 11)
+        if (ComboSourceType == 10 || ComboSourceType == 11)
         {
             var foliage = datareader.ReadInt32();
             if (foliage != 0)

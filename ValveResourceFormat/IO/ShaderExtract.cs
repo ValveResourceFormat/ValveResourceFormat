@@ -1008,7 +1008,7 @@ public sealed class ShaderExtract
             else
             {
                 // Not sure about this one
-                writer.WriteLine($"{comboType}Combo( {combo.Name}, {combo.RangeMax}, Sys( {combo.Arg3} ) );");
+                writer.WriteLine($"{comboType}Combo( {combo.Name}, {combo.RangeMax}, Sys( {combo.ComboSourceType} ) );");
             }
         }
     }
