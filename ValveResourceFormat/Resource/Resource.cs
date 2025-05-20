@@ -192,7 +192,7 @@ namespace ValveResourceFormat
 
             for (var i = 0; i < blockCount; i++)
             {
-                var blockType = Encoding.UTF8.GetString(Reader.ReadBytes(4));
+                var blockType = (BlockType)Reader.ReadUInt32();
 
                 var position = Reader.BaseStream.Position;
                 var offset = (uint)position + Reader.ReadUInt32();
@@ -207,7 +207,7 @@ namespace ValveResourceFormat
                 // Peek data to detect VKV3
                 // Valve has deprecated NTRO as reported by resourceinfo.exe
                 // TODO: Find a better way without checking against resource type
-                if (size >= 4 && blockType == nameof(BlockType.DATA) && !IsHandledResourceType(ResourceType))
+                if (size >= 4 && blockType == BlockType.DATA && !IsHandledResourceType(ResourceType))
                 {
                     Reader.BaseStream.Position = offset;
 
@@ -353,36 +353,36 @@ namespace ValveResourceFormat
             return false;
         }
 
-        private Block ConstructFromType(string input)
+        private Block ConstructFromType(BlockType blockType)
         {
-            return input switch
+            return blockType switch
             {
-                nameof(BlockType.DATA) => ConstructResourceType(),
-                nameof(BlockType.REDI) => new ResourceEditInfo(),
-                nameof(BlockType.RED2) => new ResourceEditInfo2(),
-                nameof(BlockType.RERL) => new ResourceExtRefList(),
-                nameof(BlockType.NTRO) => new ResourceIntrospectionManifest(),
-                nameof(BlockType.VBIB) => new VBIB(),
-                nameof(BlockType.VXVS) => new VXVS(),
-                nameof(BlockType.SNAP) => new SNAP(),
-                nameof(BlockType.MBUF) => new MBUF(),
-                nameof(BlockType.TBUF) => new TBUF(),
-                nameof(BlockType.CTRL) => new BinaryKV3(BlockType.CTRL),
-                nameof(BlockType.MDAT) => new Mesh(BlockType.MDAT),
-                nameof(BlockType.INSG) => new BinaryKV3(BlockType.INSG),
-                nameof(BlockType.SrMa) => new BinaryKV3(BlockType.SrMa), // SourceMap
-                nameof(BlockType.LaCo) => new BinaryKV3(BlockType.LaCo), // vxml ast
-                nameof(BlockType.STAT) => new BinaryKV3(BlockType.STAT),
-                nameof(BlockType.FLCI) => new BinaryKV3(BlockType.FLCI),
-                nameof(BlockType.DSTF) => new BinaryKV3(BlockType.DSTF),
-                nameof(BlockType.MRPH) => new Morph(BlockType.MRPH),
-                nameof(BlockType.ANIM) => new KeyValuesOrNTRO(BlockType.ANIM, "AnimationResourceData_t"),
-                nameof(BlockType.ASEQ) => new KeyValuesOrNTRO(BlockType.ASEQ, "SequenceGroupResourceData_t"),
-                nameof(BlockType.AGRP) => new KeyValuesOrNTRO(BlockType.AGRP, "AnimationGroupResourceData_t"),
-                nameof(BlockType.PHYS) => new PhysAggregateData(BlockType.PHYS),
-                nameof(BlockType.DXBC) => new SboxShader(BlockType.DXBC),
-                nameof(BlockType.SPRV) => new SboxShader(BlockType.SPRV),
-                _ => throw new ArgumentException($"Unrecognized block type '{input}'"),
+                BlockType.DATA => ConstructResourceType(),
+                BlockType.REDI => new ResourceEditInfo(),
+                BlockType.RED2 => new ResourceEditInfo2(),
+                BlockType.RERL => new ResourceExtRefList(),
+                BlockType.NTRO => new ResourceIntrospectionManifest(),
+                BlockType.VBIB => new VBIB(),
+                BlockType.VXVS => new VXVS(),
+                BlockType.SNAP => new SNAP(),
+                BlockType.MBUF => new MBUF(),
+                BlockType.TBUF => new TBUF(),
+                BlockType.CTRL => new BinaryKV3(BlockType.CTRL),
+                BlockType.MDAT => new Mesh(BlockType.MDAT),
+                BlockType.INSG => new BinaryKV3(BlockType.INSG),
+                BlockType.SrMa => new BinaryKV3(BlockType.SrMa), // SourceMap
+                BlockType.LaCo => new BinaryKV3(BlockType.LaCo), // vxml ast
+                BlockType.STAT => new BinaryKV3(BlockType.STAT),
+                BlockType.FLCI => new BinaryKV3(BlockType.FLCI),
+                BlockType.DSTF => new BinaryKV3(BlockType.DSTF),
+                BlockType.MRPH => new Morph(BlockType.MRPH),
+                BlockType.ANIM => new KeyValuesOrNTRO(BlockType.ANIM, "AnimationResourceData_t"),
+                BlockType.ASEQ => new KeyValuesOrNTRO(BlockType.ASEQ, "SequenceGroupResourceData_t"),
+                BlockType.AGRP => new KeyValuesOrNTRO(BlockType.AGRP, "AnimationGroupResourceData_t"),
+                BlockType.PHYS => new PhysAggregateData(BlockType.PHYS),
+                BlockType.DXBC => new SboxShader(BlockType.DXBC),
+                BlockType.SPRV => new SboxShader(BlockType.SPRV),
+                _ => throw new ArgumentException($"Unrecognized block type '{Encoding.ASCII.GetString(BitConverter.GetBytes((uint)blockType))}'"),
             };
         }
 

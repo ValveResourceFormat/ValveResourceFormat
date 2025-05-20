@@ -1,3 +1,4 @@
+using System.Text;
 using NUnit.Framework;
 using ValveResourceFormat;
 
@@ -35,6 +36,31 @@ namespace Tests
                 Assert.That(ResourceTypeExtensions.DetermineByFileExtension(""), Is.EqualTo(ResourceType.Unknown));
                 Assert.That(ResourceTypeExtensions.DetermineByFileExtension(null), Is.EqualTo(ResourceType.Unknown));
             });
+        }
+
+        [Test]
+        public void BlockTypesHaveCorrectFourCcValues()
+        {
+            var blockTypes = Enum.GetValues<BlockType>();
+
+            foreach (var blockType in blockTypes)
+            {
+                var enumName = Enum.GetName(blockType)!;
+
+                var value = (uint)blockType;
+                var bytes = BitConverter.GetBytes(value);
+                var actualFourCc = Encoding.ASCII.GetString(bytes);
+
+                Assert.That(enumName, Is.EqualTo(actualFourCc));
+
+                var calculatedValue = 0u;
+                for (var i = 0; i < enumName.Length && i < 4; i++)
+                {
+                    calculatedValue |= (uint)(byte)enumName[i] << (i * 8);
+                }
+
+                Assert.That(calculatedValue, Is.EqualTo(value));
+            }
         }
     }
 }
