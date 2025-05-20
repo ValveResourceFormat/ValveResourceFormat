@@ -31,5 +31,7 @@ namespace ValveResourceFormat
         RG11_EAC = 26,
         ATI1N = 27,
         BGRA8888 = 28,
+        WEBP_RGBA8888 = 29,
+        WEBP_DXT5 = 30,
     }
 }
