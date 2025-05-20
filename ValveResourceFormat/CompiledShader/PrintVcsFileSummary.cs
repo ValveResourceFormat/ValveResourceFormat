@@ -17,15 +17,14 @@ namespace ValveResourceFormat.CompiledShader
             if (program.VcsProgramType == VcsProgramType.Features)
             {
                 PrintFeaturesHeader(program);
-                PrintFBlocks(program);
             }
             else
             {
                 PrintPsVsHeader(program);
-                PrintSBlocks(program);
             }
+            PrintStaticCombos(program);
             PrintConstraints(program, program.StaticComboRules, "STATIC COMBOS");
-            PrintDynamicConfigurations(program);
+            PrintDynamicCombos(program);
             PrintConstraints(program, program.DynamicComboRules, "DYNAMIC COMBOS");
             PrintParameters(program);
             PrintChannelBlocks(program);
@@ -100,44 +99,7 @@ namespace ValveResourceFormat.CompiledShader
             output.BreakLine();
         }
 
-        private void PrintFBlocks(VfxProgramData program)
-        {
-            output.WriteLine($"FEATURES({program.StaticComboArray.Length})");
-            if (program.StaticComboArray.Length == 0)
-            {
-                output.WriteLine("[none defined]");
-                output.BreakLine();
-                return;
-            }
-            output.DefineHeaders(["index", "name", "nr-configs", "config-states", ""]);
-            foreach (var item in program.StaticComboArray)
-            {
-                var configStates = "_";
-                if (item.RangeMax > 0)
-                {
-                    configStates = "0";
-                }
-                for (var i = 1; i <= item.RangeMax; i++)
-                {
-                    configStates += $",{i}";
-                }
-                var configStates2 = "";
-                if (item.RangeMax > 1)
-                {
-                    configStates2 = $"{CombineStringArray([.. item.CheckboxNames])}";
-                }
-
-                output.AddTabulatedRow([$"[{item.BlockIndex,2}]",
-                    $"{item.Name}",
-                    $"{item.RangeMax + 1}",
-                    $"{configStates}",
-                    $"{configStates2}"]);
-            }
-            output.PrintTabulatedValues();
-            output.BreakLine();
-        }
-
-        private void PrintSBlocks(VfxProgramData program)
+        private void PrintStaticCombos(VfxProgramData program)
         {
             output.WriteLine($"STATIC COMBOS({program.StaticComboArray.Length})");
             if (program.StaticComboArray.Length == 0)
@@ -146,16 +108,16 @@ namespace ValveResourceFormat.CompiledShader
                 output.BreakLine();
                 return;
             }
-            output.DefineHeaders([nameof(VfxCombo.BlockIndex), nameof(VfxCombo.Name), nameof(VfxCombo.RangeMax), nameof(VfxCombo.Arg3), nameof(VfxCombo.FeatureIndex)]);
+            output.DefineHeaders([nameof(VfxCombo.BlockIndex), nameof(VfxCombo.Name), nameof(VfxCombo.RangeMin), nameof(VfxCombo.RangeMax), nameof(VfxCombo.Arg3), nameof(VfxCombo.FeatureIndex), nameof(VfxCombo.ComboType)]);
             foreach (var item in program.StaticComboArray)
             {
-                output.AddTabulatedRow([$"[{item.BlockIndex,2}]", $"{item.Name}", $"{item.RangeMax}", $"{item.Arg3}", $"{item.FeatureIndex,2}"]);
+                output.AddTabulatedRow([$"[{item.BlockIndex,2}]", $"{item.Name}", $"{item.RangeMin}", $"{item.RangeMax}", $"{item.Arg3}", $"{item.FeatureIndex,2}", $"{item.ComboType}"]);
             }
             output.PrintTabulatedValues();
             output.BreakLine();
         }
 
-        private void PrintDynamicConfigurations(VfxProgramData program)
+        private void PrintDynamicCombos(VfxProgramData program)
         {
             output.WriteLine($"DYNAMIC COMBOS({program.DynamicComboArray.Length})");
             if (program.DynamicComboArray.Length == 0)
