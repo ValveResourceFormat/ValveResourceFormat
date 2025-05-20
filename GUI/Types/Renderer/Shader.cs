@@ -32,12 +32,30 @@ namespace GUI.Types.Renderer
 
         public IEnumerable<(string Name, int Index, ActiveUniformType Type, int Size)> GetAllUniformNames()
         {
+            var uniformBlockMemberIndices = new List<int>();
+
+            GL.GetProgram(Program, GetProgramParameterName.ActiveUniformBlocks, out var uniformBlockCount);
+
+            for (var i = 0; i < uniformBlockCount; i++)
+            {
+                GL.GetActiveUniformBlock(Program, i, ActiveUniformBlockParameter.UniformBlockActiveUniforms, out var activeUniformsCount);
+
+                var uniformIndices = new int[activeUniformsCount];
+                GL.GetActiveUniformBlock(Program, i, ActiveUniformBlockParameter.UniformBlockActiveUniformIndices, uniformIndices);
+                uniformBlockMemberIndices.AddRange(uniformIndices);
+            }
+
             GL.GetProgram(Program, GetProgramParameterName.ActiveUniforms, out var count);
 
-            Uniforms.EnsureCapacity(count);
+            Uniforms.EnsureCapacity(count - uniformBlockMemberIndices.Count);
 
             for (var i = 0; i < count; i++)
             {
+                if (uniformBlockMemberIndices.Contains(i))
+                {
+                    continue;
+                }
+
                 var uniformName = GL.GetActiveUniform(Program, i, out var size, out var uniformType);
                 var uniformLocation = GL.GetUniformLocation(Program, uniformName);
 

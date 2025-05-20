@@ -340,23 +340,6 @@ namespace GUI.Types.Renderer
             _ => throw new NotImplementedException($"Unsupported texture format {vformat}")
         };
 
-        static readonly string[] NonMaterialUniforms =
-        [
-            "g_bExperimentalLightsEnabled",
-            "g_iRenderMode",
-            "g_flTime",
-            "g_flSunShadowBias",
-            "g_vCameraPositionWs",
-            "g_vLightmapUvScale",
-            "g_vEnvMapSizeConstants",
-            "g_vClearColor",
-            "g_vGradientFogBiasAndScale",
-            "g_vGradientFogColor_Opacity",
-            "g_vCubeFog_Offset_Scale_Bias_Exponent",
-            "g_vCubeFog_Height_Offset_Scale_Exponent_Log2Mip",
-            "g_vCubeFogCullingParams_ExposureBias_MaxOpacity",
-        ];
-
         static readonly string[] ReservedTextures = Enum.GetNames<ReservedTextureSlots>();
 
         public void SetDefaultMaterialParameters(RenderMaterial mat)
@@ -370,12 +353,6 @@ namespace GUI.Types.Renderer
                 var type = uniform.Type;
                 var index = uniform.Index;
                 var size = uniform.Size;
-
-                if (NonMaterialUniforms.Contains(name)
-                    || name.Contains("LightProbeVolume", StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
 
                 if (!name.StartsWith("g_", StringComparison.Ordinal) && !name.StartsWith("F_", StringComparison.Ordinal))
                 {
