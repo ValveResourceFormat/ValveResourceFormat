@@ -16,7 +16,7 @@ namespace ValveResourceFormat
         {
             if (encoding == Encoding.UTF8)
             {
-                return ReadNullTermUtf8String(stream);
+                return ReadNullTermUtf8String(stream, bufferLengthHint);
             }
 
             var characterSize = encoding.GetByteCount("e");
@@ -67,9 +67,9 @@ namespace ValveResourceFormat
             return str;
         }
 
-        private static string ReadNullTermUtf8String(BinaryReader stream)
+        private static string ReadNullTermUtf8String(BinaryReader stream, int bufferLengthHint)
         {
-            var buffer = ArrayPool<byte>.Shared.Rent(32);
+            var buffer = ArrayPool<byte>.Shared.Rent(bufferLengthHint);
 
             try
             {
