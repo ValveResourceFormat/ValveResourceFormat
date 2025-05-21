@@ -8,6 +8,7 @@ namespace GUI.Types.Renderer
     enum ReservedTextureSlots
     {
         BRDFLookup = 0,
+        BlueNoise,
         FogCubeTexture,
         Lightmap1,
         Lightmap2,

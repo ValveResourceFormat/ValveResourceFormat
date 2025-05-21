@@ -209,8 +209,9 @@ namespace GUI.Types.Renderer
                     blueNoiseResource.Read(blueNoiseStream);
                 }
 
-                // only needed here for now, move to GLSceneViewer
-                postProcessRenderer.BlueNoise = GuiContext.MaterialLoader.LoadTexture(blueNoiseResource);
+                var blueNoise = GuiContext.MaterialLoader.LoadTexture(blueNoiseResource);
+                postProcessRenderer.BlueNoise = blueNoise;
+                Textures.Add(new(ReservedTextureSlots.BlueNoise, "g_tBlueNoise", blueNoise));
             }
             finally
             {
