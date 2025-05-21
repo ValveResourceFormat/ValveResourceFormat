@@ -999,7 +999,14 @@ public sealed class ShaderExtract
             if (combo.FeatureIndex != -1)
             {
                 var fromFeature = comboType == VfxRuleType.Dynamic ? "FromFeature" : string.Empty;
-                writer.WriteLine($"{comboType}Combo{fromFeature}( {combo.Name}, {FeatureNames[combo.FeatureIndex]} );");
+                var equalsNotEqualsValue = (VfxStaticComboSourceType)combo.ComboSourceType switch
+                {
+                    VfxStaticComboSourceType.__SET_BY_FEATURE_EQ__ => $"=={combo.FeatureComparisonValue}",
+                    VfxStaticComboSourceType.__SET_BY_FEATURE_NE__ => $"!={combo.FeatureComparisonValue}",
+                    _ => string.Empty
+                };
+
+                writer.WriteLine($"{comboType}Combo{fromFeature}( {combo.Name}, {FeatureNames[combo.FeatureIndex]}{equalsNotEqualsValue} );");
             }
             else if (combo.RangeMax != 0)
             {

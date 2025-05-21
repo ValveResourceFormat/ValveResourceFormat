@@ -19,6 +19,7 @@ public class VfxCombo : ShaderDataBlock
     public int RangeMin { get; }
     public int RangeMax { get; }
     public int ComboSourceType { get; } // VfxStaticComboSourceType or VfxDynamicComboSourceType
+    public int FeatureComparisonValue { get; }
     public int FeatureIndex { get; }
     public string[] Strings { get; } = [];
 
@@ -46,13 +47,9 @@ public class VfxCombo : ShaderDataBlock
             }
         }
 
-        if (ComboSourceType == (int)VfxStaticComboSourceType.__SET_BY_FEATURE_EQ__ || ComboSourceType == (int)VfxStaticComboSourceType.__SET_BY_FEATURE_NE__)
+        if (ComboSourceType is ((int)VfxStaticComboSourceType.__SET_BY_FEATURE_EQ__) or ((int)VfxStaticComboSourceType.__SET_BY_FEATURE_NE__))
         {
-            var value = datareader.ReadInt32();
-            if (value != 0)
-            {
-                throw new UnexpectedMagicException($"Unexpected additional arg", value, nameof(value));
-            }
+            FeatureComparisonValue = datareader.ReadInt32();
         }
     }
 }
