@@ -20,7 +20,7 @@ public class VfxCombo : ShaderDataBlock
     public int RangeMax { get; }
     public int ComboSourceType { get; } // VfxStaticComboSourceType or VfxDynamicComboSourceType
     public int FeatureIndex { get; }
-    public List<string> CheckboxNames { get; } = [];
+    public string[] Strings { get; } = [];
 
     public VfxCombo(BinaryReader datareader, int blockIndex) : base(datareader)
     {
@@ -33,16 +33,17 @@ public class VfxCombo : ShaderDataBlock
         RangeMax = datareader.ReadInt32();
         ComboSourceType = datareader.ReadInt32();
         FeatureIndex = datareader.ReadInt32();
-        var checkboxNameCount = datareader.ReadInt32();
 
-        if (checkboxNameCount > 0 && RangeMax != checkboxNameCount - 1)
-        {
-            throw new InvalidOperationException("invalid");
-        }
+        var stringsCount = datareader.ReadInt32();
 
-        for (var i = 0; i < checkboxNameCount; i++)
+        if (stringsCount > 0)
         {
-            CheckboxNames.Add(datareader.ReadNullTermString(Encoding.UTF8));
+            Strings = new string[stringsCount];
+
+            for (var i = 0; i < stringsCount; i++)
+            {
+                Strings[i] = datareader.ReadNullTermString(Encoding.UTF8);
+            }
         }
 
         // TODO: This seems wrong

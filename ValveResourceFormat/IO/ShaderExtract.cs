@@ -954,8 +954,8 @@ public sealed class ShaderExtract
     {
         foreach (var feature in features)
         {
-            var checkboxNames = feature.CheckboxNames.Count > 0
-                ? " (" + string.Join(", ", feature.CheckboxNames.Select((x, i) => $"{i}=\"{x}\"")) + ")"
+            var checkboxNames = feature.Strings.Length > 0
+                ? " (" + string.Join(", ", feature.Strings.Select((x, i) => $"{i}=\"{x}\"")) + ")"
                 : string.Empty;
 
             writer.WriteLine($"Feature( {feature.Name}, {feature.RangeMin}..{feature.RangeMax}{checkboxNames}, \"{feature.Category}\" );");

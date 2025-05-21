@@ -69,9 +69,9 @@ namespace GUI.Types.Renderer
                     {
                         if (block.Name.StartsWith("F_TEXTURE_FORMAT", StringComparison.Ordinal))
                         {
-                            for (byte i = 0; i < block.CheckboxNames.Count; i++)
+                            for (byte i = 0; i < block.Strings.Length; i++)
                             {
-                                var checkbox = block.CheckboxNames[i];
+                                var checkbox = block.Strings[i];
 
                                 switch (checkbox)
                                 {
