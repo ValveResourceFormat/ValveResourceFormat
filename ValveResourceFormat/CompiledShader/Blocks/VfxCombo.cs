@@ -18,7 +18,7 @@ public class VfxCombo : ShaderDataBlock
     public int ComboType { get; } // 1 - static, 2 - dynamic
     public int RangeMin { get; }
     public int RangeMax { get; }
-    public int ComboSourceType { get; } // S_TOOLS_ENABLED = 1, S_SHADER_QUALITY = 2
+    public int ComboSourceType { get; } // VfxStaticComboSourceType or VfxDynamicComboSourceType
     public int FeatureIndex { get; }
     public List<string> CheckboxNames { get; } = [];
 
@@ -45,12 +45,13 @@ public class VfxCombo : ShaderDataBlock
             CheckboxNames.Add(datareader.ReadNullTermString(Encoding.UTF8));
         }
 
-        if (ComboSourceType == 10 || ComboSourceType == 11)
+        // TODO: This seems wrong
+        if (ComboSourceType == (int)VfxStaticComboSourceType.S_EXECUTION_REORDERING || ComboSourceType == (int)VfxStaticComboSourceType.__SET_BY_FEATURE_NE__)
         {
-            var foliage = datareader.ReadInt32();
-            if (foliage != 0)
+            var value = datareader.ReadInt32();
+            if (value != 0)
             {
-                throw new UnexpectedMagicException($"Unexpected additional arg", foliage, nameof(foliage));
+                throw new UnexpectedMagicException($"Unexpected additional arg", value, nameof(value));
             }
         }
     }

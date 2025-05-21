@@ -109,7 +109,8 @@ namespace ValveResourceFormat.CompiledShader
             output.DefineHeaders([nameof(VfxCombo.BlockIndex), nameof(VfxCombo.Name), nameof(VfxCombo.RangeMin), nameof(VfxCombo.RangeMax), nameof(VfxCombo.ComboSourceType), nameof(VfxCombo.FeatureIndex), nameof(VfxCombo.ComboType)]);
             foreach (var item in combos)
             {
-                output.AddTabulatedRow([$"[{item.BlockIndex,2}]", $"{item.Name}", $"{item.RangeMin}", $"{item.RangeMax}", $"{item.ComboSourceType}", $"{item.FeatureIndex,2}", $"{item.ComboType}"]);
+                var comboSourceType = item.ComboType == 2 ? ((VfxDynamicComboSourceType)item.ComboSourceType).ToString() : ((VfxStaticComboSourceType)item.ComboSourceType).ToString();
+                output.AddTabulatedRow([$"[{item.BlockIndex,2}]", $"{item.Name}", $"{item.RangeMin}", $"{item.RangeMax}", $"{comboSourceType}", $"{item.FeatureIndex,2}", $"{item.ComboType}"]);
             }
             output.PrintTabulatedValues();
             output.BreakLine();
