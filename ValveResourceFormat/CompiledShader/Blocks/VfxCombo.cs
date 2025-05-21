@@ -46,8 +46,7 @@ public class VfxCombo : ShaderDataBlock
             }
         }
 
-        // TODO: This seems wrong
-        if (ComboSourceType == (int)VfxStaticComboSourceType.S_EXECUTION_REORDERING || ComboSourceType == (int)VfxStaticComboSourceType.__SET_BY_FEATURE_NE__)
+        if (ComboSourceType == (int)VfxStaticComboSourceType.__SET_BY_FEATURE_EQ__ || ComboSourceType == (int)VfxStaticComboSourceType.__SET_BY_FEATURE_NE__)
         {
             var value = datareader.ReadInt32();
             if (value != 0)

@@ -7,6 +7,7 @@ public enum VfxStaticComboSourceType
     S_SHADER_QUALITY,
     S_VR,
     S_MOLTEN_VK,
+    S_BINDLESS_RUNTIME,
     S_MOBILE,
     S_REVERSE_DEPTH_BUFFER,
     S_SUPPORTS_CLIP_DISTANCE,
