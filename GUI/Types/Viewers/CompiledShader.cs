@@ -486,7 +486,7 @@ namespace GUI.Types.Viewers
 
                 SpirvCrossApi.spvc_compiler_install_compiler_options(compiler, options);
 
-                // name variables based on reflection data from VCS
+                if (vulkanSource.ParentCombo.ParentProgramData.VcsProgramType is not VcsProgramType.RaytracingShader)
                 {
                     SpirvCrossApi.spvc_compiler_create_shader_resources(compiler, out var resources).CheckResult();
 
