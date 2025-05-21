@@ -106,11 +106,14 @@ namespace ValveResourceFormat.CompiledShader
                 return;
             }
             output.WriteLine($"{comboDesc}({combos.Length})");
-            output.DefineHeaders([nameof(VfxCombo.BlockIndex), nameof(VfxCombo.Name), nameof(VfxCombo.RangeMin), nameof(VfxCombo.RangeMax), nameof(VfxCombo.ComboSourceType), nameof(VfxCombo.FeatureIndex), nameof(VfxCombo.ComboType)]);
+            output.DefineHeaders([nameof(VfxCombo.BlockIndex), nameof(VfxCombo.Name), nameof(VfxCombo.RangeMin), nameof(VfxCombo.RangeMax), nameof(VfxCombo.ComboSourceType), nameof(VfxCombo.FeatureIndex), nameof(VfxCombo.ComboType), nameof(VfxCombo.Strings)]);
             foreach (var item in combos)
             {
+                var checkboxNames = item.Strings.Length > 0
+                    ? string.Join(", ", item.Strings.Select(static (x, i) => $"{i}=\"{x}\""))
+                    : string.Empty;
                 var comboSourceType = item.ComboType == 2 ? ((VfxDynamicComboSourceType)item.ComboSourceType).ToString() : ((VfxStaticComboSourceType)item.ComboSourceType).ToString();
-                output.AddTabulatedRow([$"[{item.BlockIndex,2}]", $"{item.Name}", $"{item.RangeMin}", $"{item.RangeMax}", $"{comboSourceType}", $"{item.FeatureIndex,2}", $"{item.ComboType}"]);
+                output.AddTabulatedRow([$"[{item.BlockIndex,2}]", $"{item.Name}", $"{item.RangeMin}", $"{item.RangeMax}", $"{comboSourceType}", $"{item.FeatureIndex,2}", $"{item.ComboType}", checkboxNames]);
             }
             output.PrintTabulatedValues();
             output.BreakLine();
