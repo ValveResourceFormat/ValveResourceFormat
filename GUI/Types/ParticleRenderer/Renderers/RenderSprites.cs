@@ -144,9 +144,13 @@ namespace GUI.Types.ParticleRenderer.Renderers
                     var radiusScale = this.radiusScale.NextNumber(ref particle, systemRenderState);
 
                     // Positions
-                    var modelMatrix = orientationType == ParticleOrientation.PARTICLE_ORIENTATION_SCREEN_ALIGNED
-                        ? particle.GetRotationMatrix() * billboardMatrix * particle.GetTransformationMatrix(radiusScale)
-                        : particle.GetRotationMatrix() * particle.GetTransformationMatrix(radiusScale);
+                    var modelMatrix = orientationType switch
+                    {
+                        ParticleOrientation.PARTICLE_ORIENTATION_ALIGN_TO_PARTICLE_NORMAL or
+                        ParticleOrientation.PARTICLE_ORIENTATION_SCREENALIGN_TO_PARTICLE_NORMAL or
+                        ParticleOrientation.PARTICLE_ORIENTATION_SCREEN_ALIGNED => particle.GetRotationMatrix() * billboardMatrix * particle.GetTransformationMatrix(radiusScale),
+                        _ => particle.GetRotationMatrix() * particle.GetTransformationMatrix(radiusScale),
+                    };
 
                     var tl = Vector4.Transform(new Vector4(-1, -1, 0, 1), modelMatrix);
                     var bl = Vector4.Transform(new Vector4(-1, 1, 0, 1), modelMatrix);
