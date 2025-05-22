@@ -68,18 +68,14 @@ namespace GUI.Types.Renderer
 
         public void Add(SceneNode node, bool dynamic)
         {
-            if (dynamic)
-            {
-                dynamicNodes.Add(node);
-                DynamicOctree.Insert(node, node.BoundingBox);
-                node.Id = (uint)dynamicNodes.Count * 2 - 1;
-            }
-            else
-            {
-                staticNodes.Add(node);
-                StaticOctree.Insert(node, node.BoundingBox);
-                node.Id = (uint)staticNodes.Count * 2;
-            }
+            var (nodeList, octree, indexOffset) = dynamic
+                ? (dynamicNodes, DynamicOctree, 1u)
+                : (staticNodes, StaticOctree, 0u);
+
+            nodeList.Add(node);
+            node.Id = (uint)nodeList.Count * 2 - indexOffset;
+
+            octree.Insert(node, node.BoundingBox);
         }
 
         public SceneNode Find(uint id)
@@ -122,11 +118,21 @@ namespace GUI.Types.Renderer
                 node.Update(updateContext);
             }
 
+            if (OctreeDirty)
+            {
+                UpdateOctrees();
+                OctreeDirty = false;
+            }
+
             foreach (var node in dynamicNodes)
             {
                 var oldBox = node.BoundingBox;
                 node.Update(updateContext);
-                DynamicOctree.Update(node, oldBox, node.BoundingBox);
+
+                if (!oldBox.Equals(node.BoundingBox))
+                {
+                    DynamicOctree.Update(node, oldBox, node.BoundingBox);
+                }
             }
         }
 
@@ -552,11 +558,13 @@ namespace GUI.Types.Renderer
                 renderer.LayerEnabled = layers.Contains(renderer.LayerName);
             }
 
-            if (!skipUpdate)
+            if (skipUpdate)
             {
-                UpdateOctrees();
+                OctreeDirty = false;
             }
         }
+
+        public bool OctreeDirty { get; set; }
 
         public void UpdateOctrees()
         {

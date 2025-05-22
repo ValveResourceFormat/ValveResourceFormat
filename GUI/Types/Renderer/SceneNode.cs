@@ -18,7 +18,14 @@ namespace GUI.Types.Renderer
         }
 
         public string? LayerName { get; set; }
-        public virtual bool LayerEnabled { get; set; } = true;
+
+        private bool layerEnabledField = true;
+        public virtual bool LayerEnabled
+        {
+            get => layerEnabledField;
+            set { layerEnabledField = value; Scene.OctreeDirty = true; }
+        }
+
         public AABB BoundingBox { get; private set; }
         public AABB LocalBoundingBox
         {

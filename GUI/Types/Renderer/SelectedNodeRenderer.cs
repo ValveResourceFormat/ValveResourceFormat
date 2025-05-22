@@ -56,6 +56,7 @@ namespace GUI.Types.Renderer
 
             if (node == null)
             {
+                RemoveLightProbeDebugGrid();
                 vertexCount = 0;
                 return;
             }
@@ -70,7 +71,6 @@ namespace GUI.Types.Renderer
             foreach (var node in selectedNodes)
             {
                 node.LayerEnabled = !node.LayerEnabled;
-                node.Scene.UpdateOctrees();
             }
         }
 
@@ -119,14 +119,20 @@ namespace GUI.Types.Renderer
                     }
                 }
 
-                RemoveLightProbeDebugGrid();
-
                 if (debugLightProbes && node.LightProbeBinding is not null)
                 {
                     OctreeDebugRenderer<SceneNode>.AddBox(vertices, node.LightProbeBinding.Transform, node.LightProbeBinding.LocalBoundingBox, new(1.0f, 0.0f, 1.0f, 1.0f));
                     OctreeDebugRenderer<SceneNode>.AddLine(vertices, node.LightProbeBinding.Transform.Translation, node.BoundingBox.Center, new(1.0f, 0.0f, 1.0f, 1.0f));
-                    node.LightProbeBinding.DebugGridSpheres.ForEach(sphere => sphere.LayerEnabled = true);
-                    node.LightProbeBinding.Scene.UpdateOctrees();
+
+                    if (Scene.LightingInfo.LightingData.IsSkybox == 0u)
+                    {
+                        if (node.LightProbeBinding.DebugGridSpheres.Count == 0)
+                        {
+                            node.LightProbeBinding.CreateDebugGridSpheres();
+                        }
+
+                        node.LightProbeBinding.DebugGridSpheres.ForEach(sphere => sphere.LayerEnabled = true);
+                    }
                 }
 
                 if (node.EntityData != null)
@@ -249,6 +255,7 @@ namespace GUI.Types.Renderer
             debugCubeMaps = mode == "Cubemaps";
             debugLightProbes = mode == "Irradiance" || mode == "Illumination";
 
+            RemoveLightProbeDebugGrid();
             UpdateBuffer();
         }
     }

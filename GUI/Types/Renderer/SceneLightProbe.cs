@@ -59,7 +59,7 @@ class SceneLightProbe : SceneNode
 
     public void CreateDebugGridSpheres()
     {
-        var grid = LocalBoundingBox.Size / Math.Max(VoxelSize, 1f);
+        var grid = LocalBoundingBox.Size / Math.Max(VoxelSize + 0.5f, 6f);
         var model = GLMaterialViewer.CreateEnvCubemapSphere(Scene);
 
         for (var x = 0; x < grid.X; x++)
@@ -70,8 +70,8 @@ class SceneLightProbe : SceneNode
                 {
                     var sphere = new SceneNodeInstance(model);
 
-                    var transform = Matrix4x4.CreateTranslation(new Vector3(x, y, z) * VoxelSize + BoundingBox.Min);
-                    var scale = 0.2f;
+                    var transform = Matrix4x4.CreateTranslation(BoundingBox.Min + new Vector3(x, y, z) * VoxelSize + new Vector3(VoxelSize / 2f));
+                    var scale = 0.2f * (VoxelSize / 24f);
                     // todo: rotation
 
                     sphere.Transform = Matrix4x4.CreateScale(scale) * transform;
@@ -79,6 +79,7 @@ class SceneLightProbe : SceneNode
                     sphere.LayerEnabled = false;
 
                     sphere.LightProbeBinding = this;
+                    sphere.EnvMapIds = EnvMapIds;
                     DebugGridSpheres.Add(sphere);
 
                     Scene.Add(sphere, true);
