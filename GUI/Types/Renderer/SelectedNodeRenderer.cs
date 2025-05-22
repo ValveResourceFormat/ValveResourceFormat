@@ -119,10 +119,14 @@ namespace GUI.Types.Renderer
                     }
                 }
 
+                RemoveLightProbeDebugGrid();
+
                 if (debugLightProbes && node.LightProbeBinding is not null)
                 {
                     OctreeDebugRenderer<SceneNode>.AddBox(vertices, node.LightProbeBinding.Transform, node.LightProbeBinding.LocalBoundingBox, new(1.0f, 0.0f, 1.0f, 1.0f));
                     OctreeDebugRenderer<SceneNode>.AddLine(vertices, node.LightProbeBinding.Transform.Translation, node.BoundingBox.Center, new(1.0f, 0.0f, 1.0f, 1.0f));
+                    node.LightProbeBinding.DebugGridSpheres.ForEach(sphere => sphere.LayerEnabled = true);
+                    node.LightProbeBinding.Scene.UpdateOctrees();
                 }
 
                 if (node.EntityData != null)
@@ -173,6 +177,11 @@ namespace GUI.Types.Renderer
             vertexCount = vertices.Count;
 
             GL.NamedBufferData(vboHandle, vertices.Count * SimpleVertex.SizeInBytes, ListAccessors<SimpleVertex>.GetBackingArray(vertices), BufferUsageHint.StaticDraw);
+        }
+
+        private void RemoveLightProbeDebugGrid()
+        {
+            Scene.LightingInfo.LightProbes.ForEach(probe => probe.DebugGridSpheres.ForEach(sphere => sphere.LayerEnabled = false));
         }
 
         public override void Update(Scene.UpdateContext context)

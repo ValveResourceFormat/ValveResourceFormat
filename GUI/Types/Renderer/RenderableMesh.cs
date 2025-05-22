@@ -446,6 +446,7 @@ namespace GUI.Types.Renderer
 
     internal interface IRenderableMeshCollection
     {
+        static List<RenderableMesh> Empty = [];
         List<RenderableMesh> RenderableMeshes { get; }
     }
 }

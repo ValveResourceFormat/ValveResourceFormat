@@ -46,11 +46,45 @@ class SceneLightProbe : SceneNode
     /// </summary>
     public int IndoorOutdoorLevel { get; init; }
 
+    public float VoxelSize { get; set; }
+    public List<SceneNode> DebugGridSpheres { get; } = [];
+
     private int bufferHandle = -1;
+
 
     public SceneLightProbe(Scene scene, AABB bounds) : base(scene)
     {
         LocalBoundingBox = bounds;
+    }
+
+    public void CreateDebugGridSpheres()
+    {
+        var grid = LocalBoundingBox.Size / Math.Max(VoxelSize, 1f);
+        var model = GLMaterialViewer.CreateEnvCubemapSphere(Scene);
+
+        for (var x = 0; x < grid.X; x++)
+        {
+            for (var y = 0; y < grid.Y; y++)
+            {
+                for (var z = 0; z < grid.Z; z++)
+                {
+                    var sphere = new SceneNodeInstance(model);
+
+                    var transform = Matrix4x4.CreateTranslation(new Vector3(x, y, z) * VoxelSize + BoundingBox.Min);
+                    var scale = 0.2f;
+                    // todo: rotation
+
+                    sphere.Transform = Matrix4x4.CreateScale(scale) * transform;
+                    sphere.LayerName = "LightProbeGrid" + Id;
+                    sphere.LayerEnabled = false;
+
+                    sphere.LightProbeBinding = this;
+                    DebugGridSpheres.Add(sphere);
+
+                    Scene.Add(sphere, false);
+                }
+            }
+        }
     }
 
     public override void Render(Scene.RenderContext context)

@@ -544,6 +544,11 @@ namespace GUI.Types.Renderer
         {
             foreach (var renderer in AllNodes)
             {
+                if (renderer.LayerName.StartsWith("LightProbeGrid", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
                 renderer.LayerEnabled = layers.Contains(renderer.LayerName);
             }
 

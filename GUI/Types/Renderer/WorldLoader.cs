@@ -577,6 +577,9 @@ namespace GUI.Types.Renderer
                             IndoorOutdoorLevel = indoorOutdoorLevel,
                         };
 
+                        lightProbe.VoxelSize = entity.GetPropertyUnchecked<float>("voxel_size");
+                        lightProbe.CreateDebugGridSpheres();
+
                         var dliName = entity.GetProperty<string>("lightprobetexture_dli");
                         var dlsName = entity.GetProperty<string>("lightprobetexture_dls");
                         var dlsdName = entity.GetProperty<string>("lightprobetexture_dlshd");

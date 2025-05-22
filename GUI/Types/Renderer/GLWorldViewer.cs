@@ -220,6 +220,11 @@ namespace GUI.Types.Renderer
 
                 foreach (var node in Scene.AllNodes)
                 {
+                    if (node.LayerName.StartsWith("LightProbeGrid", StringComparison.Ordinal))
+                    {
+                        continue;
+                    }
+
                     uniqueWorldLayers.Add(node.LayerName);
 
                     if (node is PhysSceneNode physSceneNode)

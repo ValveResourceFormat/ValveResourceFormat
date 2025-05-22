@@ -10,13 +10,13 @@ namespace GUI.Types.Renderer
             set => RenderableMeshes[0].Tint = value;
         }
 
-        public List<RenderableMesh> RenderableMeshes { get; } = new(1);
+        public List<RenderableMesh> RenderableMeshes { get; init; }
 
         public MeshSceneNode(Scene scene, Mesh mesh, int meshIndex)
             : base(scene)
         {
             var meshRenderer = new RenderableMesh(mesh, meshIndex, Scene);
-            RenderableMeshes.Add(meshRenderer);
+            RenderableMeshes = [meshRenderer];
             LocalBoundingBox = meshRenderer.BoundingBox;
         }
 
