@@ -55,9 +55,5 @@ namespace GUI.Types.Renderer
                 _ => throw new NotImplementedException($"Unknown hitbox shape type: {hitbox.ShapeType}")
             };
         }
-
-        public override void Update(Scene.UpdateContext context)
-        {
-        }
     }
 }

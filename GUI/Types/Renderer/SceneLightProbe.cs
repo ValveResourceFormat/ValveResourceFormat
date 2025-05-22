@@ -81,7 +81,7 @@ class SceneLightProbe : SceneNode
                     sphere.LightProbeBinding = this;
                     DebugGridSpheres.Add(sphere);
 
-                    Scene.Add(sphere, false);
+                    Scene.Add(sphere, true);
                 }
             }
         }

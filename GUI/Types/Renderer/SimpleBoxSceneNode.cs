@@ -10,10 +10,5 @@ namespace GUI.Types.Renderer
             : base(scene, scale / -2, scale / 2, color)
         {
         }
-
-        public override void Update(Scene.UpdateContext context)
-        {
-            //
-        }
     }
 }

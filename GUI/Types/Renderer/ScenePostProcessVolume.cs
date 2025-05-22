@@ -142,27 +142,14 @@ namespace GUI.Types.Renderer
         public int NumLutsActive { get; set; }
     };
 
-    class SceneTonemapController : SceneNode
+    class SceneTonemapController(Scene scene) : SceneNode(scene)
     {
         public ExposureSettings ControllerExposureSettings { get; set; }
-        public SceneTonemapController(Scene scene) : base(scene)
-        {
-        }
-
-        public override void Render(Scene.RenderContext context)
-        {
-        }
-
-        public override void Update(Scene.UpdateContext context)
-        {
-        }
     }
+
     // make a parent TriggerSceneNode class?
-    class ScenePostProcessVolume : SceneNode//, IRenderableMeshCollection
+    class ScenePostProcessVolume(Scene scene) : SceneNode(scene)
     {
-        //public List<RenderableMesh> RenderableMeshes { get; } = new(1);
-
-
         public float FadeTime;
         public bool UseExposure;
 
@@ -254,19 +241,6 @@ namespace GUI.Types.Renderer
 
                 GL.TextureSubImage3D(ColorCorrectionLUT.Handle, 0, 0, 0, 0, resolution, resolution, resolution, PixelFormat.Rgba, PixelType.UnsignedByte, data);
             }
-        }
-
-        public ScenePostProcessVolume(Scene scene) : base(scene)
-        {
-        }
-
-        public override void Render(Scene.RenderContext context)
-        {
-            // what to do here? probably add to renderable mesh collection? override tools material? merge with MeshSceneNode
-        }
-
-        public override void Update(Scene.UpdateContext context)
-        {
         }
     }
 }

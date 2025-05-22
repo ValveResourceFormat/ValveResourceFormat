@@ -22,19 +22,6 @@ namespace GUI.Types.Renderer
 
         public override IEnumerable<string> GetSupportedRenderModes() => RenderableMeshes[0].GetSupportedRenderModes();
 
-        public override void SetRenderMode(string renderMode)
-        {
-        }
-
-        public override void Update(Scene.UpdateContext context)
-        {
-        }
-
-        public override void Render(Scene.RenderContext context)
-        {
-            // This node does not render itself; it uses the batching system via IRenderableMeshCollection
-        }
-
 #if DEBUG
         public override void UpdateVertexArrayObjects() => RenderableMeshes[0].UpdateVertexArrayObjects();
 #endif

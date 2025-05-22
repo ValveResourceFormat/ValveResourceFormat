@@ -56,10 +56,16 @@ namespace GUI.Types.Renderer
             Scene = scene;
         }
 
-        public abstract void Update(Scene.UpdateContext context);
-        public abstract void Render(Scene.RenderContext context);
+        public virtual void Update(Scene.UpdateContext context)
+        {
+        }
+
+        public virtual void Render(Scene.RenderContext context)
+        {
+        }
 
         public virtual IEnumerable<string> GetSupportedRenderModes() => [];
+
         public virtual void SetRenderMode(string mode)
         {
         }

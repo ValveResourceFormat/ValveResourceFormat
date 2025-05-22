@@ -248,17 +248,8 @@ namespace GUI.Types.Renderer
             }
         }
 
-        public override void Render(Scene.RenderContext context)
-        {
-            // This node does not render itself; it uses the batching system via IRenderableMeshCollection
-        }
-
         public override IEnumerable<string> GetSupportedRenderModes()
             => meshRenderers.SelectMany(renderer => renderer.GetSupportedRenderModes()).Distinct();
-
-        public override void SetRenderMode(string renderMode)
-        {
-        }
 
         public void SetMaterialGroup(string name)
         {
