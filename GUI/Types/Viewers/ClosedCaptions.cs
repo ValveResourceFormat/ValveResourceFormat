@@ -50,7 +50,7 @@ namespace GUI.Types.Viewers
             tabControl.Controls.Add(tabPage);
 
             tabPage = new TabPage("Text");
-            var textControl = new CodeTextBox(captions.ToString());
+            var textControl = CodeTextBox.Create(captions.ToString());
             tabPage.Controls.Add(textControl);
             tabControl.Controls.Add(tabPage);
 

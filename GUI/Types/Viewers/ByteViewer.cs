@@ -65,7 +65,7 @@ namespace GUI.Types.Viewers
             if (!hasNullBytes)
             {
                 var textTab = new TabPage("Text");
-                var text = new CodeTextBox(System.Text.Encoding.UTF8.GetString(span));
+                var text = CodeTextBox.Create(System.Text.Encoding.UTF8.GetString(span));
                 textTab.Controls.Add(text);
                 resTabs.TabPages.Add(textTab);
                 resTabs.SelectedTab = textTab;

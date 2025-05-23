@@ -30,7 +30,7 @@ namespace GUI.Types.Viewers
                 extract = content?.ToString() ?? string.Empty;
             }
 
-            var control = new CodeTextBox(extract, highlightSyntax);
+            var control = CodeTextBox.Create(extract, highlightSyntax);
             var tab = new TabPage(name);
             tab.Controls.Add(control);
             resTabs.TabPages.Add(tab);

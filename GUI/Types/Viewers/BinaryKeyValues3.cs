@@ -6,7 +6,7 @@ using ValveResourceFormat.ResourceTypes;
 
 namespace GUI.Types.Viewers
 {
-    class BinaryKeyValues : IViewer
+    class BinaryKeyValues3 : IViewer
     {
         public static bool IsAccepted(uint magic) => BinaryKV3.IsBinaryKV3(magic);
 
@@ -33,7 +33,7 @@ namespace GUI.Types.Viewers
 
             kv3stream.Close();
 
-            var control = new CodeTextBox(kv3.ToString());
+            var control = CodeTextBox.Create(kv3.ToString());
             tab.Controls.Add(control);
 
             return tab;

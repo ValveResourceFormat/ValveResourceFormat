@@ -46,7 +46,7 @@ namespace GUI.Types.Viewers
 
             var text = reader.ReadToEnd();
 
-            var control = new CodeTextBox(text);
+            var control = CodeTextBox.Create(text);
             var tab = new TabPage();
             tab.Controls.Add(control);
 

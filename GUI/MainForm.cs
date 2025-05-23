@@ -759,9 +759,9 @@ namespace GUI
             {
                 return new Types.Viewers.NavView().Create(vrfGuiContext, stream);
             }
-            else if (Types.Viewers.BinaryKeyValues.IsAccepted(magic))
+            else if (Types.Viewers.BinaryKeyValues3.IsAccepted(magic))
             {
-                return new Types.Viewers.BinaryKeyValues().Create(vrfGuiContext, stream);
+                return new Types.Viewers.BinaryKeyValues3().Create(vrfGuiContext, stream);
             }
             else if (Types.Viewers.BinaryKeyValues2.IsAccepted(magic, vrfGuiContext.FileName))
             {

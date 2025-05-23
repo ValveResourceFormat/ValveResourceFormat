@@ -40,7 +40,7 @@ namespace GUI.Types.Viewers
 
             var infoPage = new TabPage("NAV INFO");
             var infoText = navMeshFile.ToString();
-            var infoTextControl = new CodeTextBox(infoText, CodeTextBox.HighlightLanguage.None);
+            var infoTextControl = CodeTextBox.Create(infoText, CodeTextBox.HighlightLanguage.None);
             infoPage.Controls.Add(infoTextControl);
             tabControl.Controls.Add(infoPage);
 
@@ -50,7 +50,7 @@ namespace GUI.Types.Viewers
 
                 var kv = new KV3File(navMeshFile.CustomData);
                 var subVersionDataText = kv.ToString();
-                var subVersionDataTextControl = new CodeTextBox(subVersionDataText, CodeTextBox.HighlightLanguage.None);
+                var subVersionDataTextControl = CodeTextBox.Create(subVersionDataText, CodeTextBox.HighlightLanguage.None);
 
                 subVersionPage.Controls.Add(subVersionDataTextControl);
                 tabControl.Controls.Add(subVersionPage);
