@@ -116,7 +116,10 @@ class SceneLightProbe : SceneNode
 
             try
             {
-                Matrix4x4.Invert(Transform, out var worldToLocal);
+                if (!Matrix4x4.Invert(Transform, out var worldToLocal))
+                {
+                    throw new InvalidOperationException("Matrix invert failed");
+                }
 
                 var normalizedMatrix = worldToLocal *
                     Matrix4x4.CreateTranslation(-LocalBoundingBox.Min) *

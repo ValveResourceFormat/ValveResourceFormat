@@ -228,7 +228,10 @@ namespace ValveResourceFormat.IO
                     // TODO: Add point and spot lights
                     if (className == "light_environment")
                     {
-                        Matrix4x4.Decompose(transform, out var scale, out var _, out var positionVector);
+                        if (!Matrix4x4.Decompose(transform, out var scale, out var _, out var positionVector))
+                        {
+                            throw new InvalidOperationException("Matrix decompose failed");
+                        }
 
                         var pitchYawRoll = entity.GetVector3Property("angles");
                         var rollMatrix = Matrix4x4.CreateRotationX(pitchYawRoll.Z * MathF.PI / 180f);

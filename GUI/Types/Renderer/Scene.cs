@@ -793,7 +793,10 @@ namespace GUI.Types.Renderer
 
         private void UpdateGpuEnvmapData(SceneEnvMap envMap, int index)
         {
-            Matrix4x4.Invert(envMap.Transform, out var invertedTransform);
+            if (!Matrix4x4.Invert(envMap.Transform, out var invertedTransform))
+            {
+                throw new InvalidOperationException("Matrix invert failed");
+            }
 
             LightingInfo.LightingData.EnvMapWorldToLocal[index] = invertedTransform;
             LightingInfo.LightingData.EnvMapBoxMins[index] = new Vector4(envMap.LocalBoundingBox.Min, 0);

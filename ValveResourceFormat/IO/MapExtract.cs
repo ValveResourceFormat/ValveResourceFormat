@@ -905,7 +905,10 @@ public sealed class MapExtract
             var objectTransform = sceneObject.GetArray("m_vTransform").ToMatrix4x4();
             if (!objectTransform.IsIdentity)
             {
-                Matrix4x4.Decompose(objectTransform, out var scales, out var rotation, out var translation);
+                if (!Matrix4x4.Decompose(objectTransform, out var scales, out var rotation, out var translation))
+                {
+                    throw new InvalidOperationException("Matrix decompose failed");
+                }
 
                 propStatic.Origin = translation;
                 propStatic.Angles = ModelExtract.ToEulerAngles(rotation);
@@ -1075,7 +1078,10 @@ public sealed class MapExtract
                 if (aggregateHasTransforms)
                 {
                     var transform = fragmentTransforms[transformIndex++].ToMatrix4x4();
-                    Matrix4x4.Decompose(transform, out var scales, out var rotation, out var translation);
+                    if (!Matrix4x4.Decompose(transform, out var scales, out var rotation, out var translation))
+                    {
+                        throw new InvalidOperationException("Matrix decompose failed");
+                    }
 
                     instance.Origin = translation;
                     var angles = ModelExtract.ToEulerAngles(rotation);

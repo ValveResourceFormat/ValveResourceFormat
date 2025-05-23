@@ -129,7 +129,11 @@ namespace GUI.Types.ParticleRenderer.Renderers
         private void UpdateVertices(ParticleCollection particles, ParticleSystemRenderState systemRenderState, Matrix4x4 modelViewMatrix)
         {
             // Create billboarding rotation (always facing camera)
-            Matrix4x4.Decompose(modelViewMatrix, out _, out var modelViewRotation, out _);
+            if (!Matrix4x4.Decompose(modelViewMatrix, out _, out var modelViewRotation, out _))
+            {
+                throw new InvalidOperationException("Matrix decompose failed");
+            }
+
             modelViewRotation = Quaternion.Inverse(modelViewRotation);
             var billboardMatrix = Matrix4x4.CreateFromQuaternion(modelViewRotation);
 

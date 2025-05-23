@@ -131,7 +131,11 @@ namespace GUI.Types.ParticleRenderer.Renderers
             shader.SetUniform1("uOverbrightFactor", (float)overbrightFactor.NextNumber());
 
             // Create billboarding rotation (always facing camera)
-            Matrix4x4.Decompose(modelViewMatrix, out _, out var modelViewRotation, out _);
+            if (!Matrix4x4.Decompose(modelViewMatrix, out _, out var modelViewRotation, out _))
+            {
+                throw new InvalidOperationException("Matrix decompose failed");
+            }
+
             modelViewRotation = Quaternion.Inverse(modelViewRotation);
             var billboardMatrix = Matrix4x4.CreateFromQuaternion(modelViewRotation);
 

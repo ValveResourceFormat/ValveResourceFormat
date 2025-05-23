@@ -89,7 +89,11 @@ namespace GUI.Types.Renderer
 
                 if (hitbox.TranslationOnly)
                 {
-                    Matrix4x4.Decompose(targetTransform, out _, out _, out var translation);
+                    if (!Matrix4x4.Decompose(targetTransform, out _, out _, out var translation))
+                    {
+                        throw new InvalidOperationException("Matrix decompose failed");
+                    }
+
                     shape.Transform = Matrix4x4.CreateTranslation(translation);
                 }
                 else
