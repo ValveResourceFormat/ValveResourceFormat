@@ -375,7 +375,7 @@ namespace ValveResourceFormat.ResourceTypes
                 Debug.Assert(stream.Length == WaveHeaderSize);
             }
 
-            Reader.BaseStream.CopyTo(stream, (int)StreamingDataSize);
+            Reader.BaseStream.CopyTo(stream);
             Debug.Assert(stream.Length == totalSize);
 
             // Flush and reset position so that consumers can read it
