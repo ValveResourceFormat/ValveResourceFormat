@@ -57,13 +57,33 @@ namespace GUI.Controls
 
         private MeteringSampleProvider CreateInputStream()
         {
-            var sampleChannel = new SampleChannel(waveStream, true);
-            sampleChannel.PreVolumeMeter += OnPreVolumeMeter;
-            setVolumeDelegate = vol => sampleChannel.Volume = vol;
-            var postVolumeMeter = new MeteringSampleProvider(sampleChannel);
-            postVolumeMeter.StreamVolume += OnPostVolumeMeter;
+            WaveStream stream = null;
 
-            return postVolumeMeter;
+            try
+            {
+                SampleChannel sampleChannel;
+
+                if (waveStream.WaveFormat.Encoding == WaveFormatEncoding.Adpcm)
+                {
+                    stream = WaveFormatConversionStream.CreatePcmStream(waveStream);
+                    sampleChannel = new SampleChannel(stream, true);
+                }
+                else
+                {
+                    sampleChannel = new SampleChannel(waveStream, true);
+                }
+
+                stream = null;
+                sampleChannel.PreVolumeMeter += OnPreVolumeMeter;
+                setVolumeDelegate = vol => sampleChannel.Volume = vol;
+                var postVolumeMeter = new MeteringSampleProvider(sampleChannel);
+                postVolumeMeter.StreamVolume += OnPostVolumeMeter;
+                return postVolumeMeter;
+            }
+            finally
+            {
+                stream?.Dispose();
+            }
         }
 
         void OnPreVolumeMeter(object sender, StreamVolumeEventArgs e)
