@@ -155,6 +155,7 @@ namespace ValveResourceFormat.ResourceTypes
             var headerSize = reader.ReadInt32();
             StreamingDataSize = reader.ReadUInt32();
 
+            // this is likely to be m_nSeekTable
             if (Resource.Version >= 1)
             {
                 var d = reader.ReadUInt32();
@@ -171,6 +172,7 @@ namespace ValveResourceFormat.ResourceTypes
             }
 
             // v2 and v3 are the same?
+            // this is likely to be CAudioMorphData
             if (Resource.Version >= 2)
             {
                 var f = reader.ReadUInt32();
@@ -191,8 +193,6 @@ namespace ValveResourceFormat.ResourceTypes
 
                 Header = Reader.ReadBytes(headerSize);
             }
-
-            Debug.Assert(Reader.BaseStream.Position == Offset + Size);
 
             ReadPhonemeStream(reader, sentenceOffset);
         }
@@ -349,8 +349,6 @@ namespace ValveResourceFormat.ResourceTypes
                 return new MemoryStream();
             }
 
-            Reader.BaseStream.Position = Offset + Size;
-
             const int WaveHeaderSizeWithoutFmt = 28;
             var waveHeaderSize = WaveHeaderSizeWithoutFmt + (AudioFormat == WaveAudioFormat.ADPCM ? Header.Length : 16);
             var totalSize = (int)StreamingDataSize + (SoundType == AudioFileType.WAV ? waveHeaderSize : 0);
@@ -364,7 +362,7 @@ namespace ValveResourceFormat.ResourceTypes
                 // https://github.com/microsoft/DirectXTK/wiki/Wave-Formats
 
                 stream.Write("RIFF"u8);
-                stream.Write(MemoryMarshal.AsBytes([StreamingDataSize + 42]));
+                stream.Write(MemoryMarshal.AsBytes([totalSize - 8]));
                 stream.Write("WAVE"u8);
                 stream.Write("fmt "u8);
 
@@ -392,6 +390,7 @@ namespace ValveResourceFormat.ResourceTypes
                 Debug.Assert(stream.Length == waveHeaderSize);
             }
 
+            Reader.BaseStream.Position = Offset + Size;
             Reader.BaseStream.CopyTo(stream);
             Debug.Assert(stream.Length == totalSize);
 
