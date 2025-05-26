@@ -790,6 +790,10 @@ namespace GUI
             {
                 return new Types.Viewers.Audio().Create(vrfGuiContext, stream, isPreview);
             }
+            else if (Types.Viewers.GridNavFile.IsAccepted(magic))
+            {
+                return new Types.Viewers.GridNavFile().Create(vrfGuiContext, stream);
+            }
 
             return new Types.Viewers.ByteViewer().Create(vrfGuiContext, stream);
         }
