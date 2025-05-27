@@ -200,6 +200,10 @@ namespace GUI.Types.Renderer
                     GL.VertexArrayAttribFormat(vao, attributeLocation, 4, VertexAttribType.UnsignedShort, true, offset);
                     break;
 
+                case DXGI_FORMAT.R16G16B16A16_FLOAT:
+                    GL.VertexArrayAttribFormat(vao, attributeLocation, 4, VertexAttribType.Float, false, offset);
+                    break;
+
                 case DXGI_FORMAT.R16G16_SNORM:
                     GL.VertexArrayAttribFormat(vao, attributeLocation, 2, VertexAttribType.Short, true, offset);
                     break;
