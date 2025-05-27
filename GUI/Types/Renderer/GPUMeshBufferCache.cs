@@ -201,7 +201,7 @@ namespace GUI.Types.Renderer
                     break;
 
                 case DXGI_FORMAT.R16G16B16A16_FLOAT:
-                    GL.VertexArrayAttribFormat(vao, attributeLocation, 4, VertexAttribType.Float, false, offset);
+                    GL.VertexArrayAttribFormat(vao, attributeLocation, 4, VertexAttribType.HalfFloat, false, offset);
                     break;
 
                 case DXGI_FORMAT.R16G16_SNORM:
