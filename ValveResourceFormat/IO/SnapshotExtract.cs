@@ -8,15 +8,15 @@ namespace ValveResourceFormat.IO;
 
 public sealed class SnapshotExtract
 {
-    private readonly SNAP snap;
+    private readonly ParticleSnapshot snap;
 
-    public SnapshotExtract(SNAP snap)
+    public SnapshotExtract(ParticleSnapshot snap)
     {
         this.snap = snap;
     }
 
     public SnapshotExtract(Resource resource)
-        : this((SNAP)resource.GetBlockByType(BlockType.SNAP))
+        : this((ParticleSnapshot)resource.GetBlockByType(BlockType.SNAP))
     {
     }
 
@@ -86,7 +86,7 @@ public sealed class SnapshotExtract
                     {
                         values.AddItem(s);
                     }
-                    else if (datum is SNAP.SkinningData skinning)
+                    else if (datum is ParticleSnapshot.SkinningData skinning)
                     {
                     }
                     else

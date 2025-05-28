@@ -364,7 +364,7 @@ namespace ValveResourceFormat
                 BlockType.NTRO => new ResourceIntrospectionManifest(),
                 BlockType.VBIB => new VBIB(),
                 BlockType.VXVS => new VoxelVisibility(),
-                BlockType.SNAP => new SNAP(),
+                BlockType.SNAP => new ParticleSnapshot(),
                 BlockType.MBUF => new MBUF(),
                 BlockType.TBUF => new TBUF(),
                 BlockType.CTRL => new BinaryKV3(BlockType.CTRL),

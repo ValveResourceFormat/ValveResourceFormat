@@ -12,7 +12,7 @@ namespace ValveResourceFormat.Blocks
     /// <summary>
     /// "SNAP" block.
     /// </summary>
-    public class SNAP : Block
+    public class ParticleSnapshot : Block
     {
         public override BlockType Type => BlockType.SNAP;
 
