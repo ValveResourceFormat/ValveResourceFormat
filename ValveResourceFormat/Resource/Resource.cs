@@ -363,7 +363,7 @@ namespace ValveResourceFormat
                 BlockType.RERL => new ResourceExtRefList(),
                 BlockType.NTRO => new ResourceIntrospectionManifest(),
                 BlockType.VBIB => new VBIB(),
-                BlockType.VXVS => new VXVS(),
+                BlockType.VXVS => new VoxelVisibility(),
                 BlockType.SNAP => new SNAP(),
                 BlockType.MBUF => new MBUF(),
                 BlockType.TBUF => new TBUF(),
