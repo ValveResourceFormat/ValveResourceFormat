@@ -120,6 +120,7 @@ namespace GUI.Types.Renderer
                 LightProbeType = context.Scene.LightingInfo.LightProbeType,
             };
 
+
             foreach (var request in requests)
             {
                 if (vao != request.Call.VertexArrayObject)
@@ -192,7 +193,14 @@ namespace GUI.Types.Renderer
 
                     material = requestMaterial;
                     material.Render(shader);
+
+                    // material.render has bug where it resets viewcontext textures to default texture
+                    foreach (var (slot, name, texture) in context.View.Textures)
+                    {
+                        shader.SetTexture((int)slot, name, texture);
+                    }
                 }
+
 
                 Draw(shader, ref uniforms, ref config, request);
             }

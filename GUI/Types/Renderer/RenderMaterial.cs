@@ -20,7 +20,11 @@ namespace GUI.Types.Renderer
         Probe1,
         Probe2,
         Probe3,
+        FramebufferColorTexture,
+        FramebufferDepthTexture,
         ShadowDepthBufferDepth,
+        SsrColor,
+        SsrDepth,
         AnimationTexture,
         MorphCompositeTexture,
         Last = MorphCompositeTexture,
@@ -38,6 +42,7 @@ namespace GUI.Types.Renderer
         public bool IsOverlay { get; }
         public bool IsAlphaTest { get; }
         public bool IsToolsMaterial { get; }
+        public bool WantsFrameBufferCopy { get; }
 
         private readonly bool isAdditiveBlend;
         private readonly bool isMod2x;
@@ -117,6 +122,13 @@ namespace GUI.Types.Renderer
             IsAlphaTest = material.IntParams.GetValueOrDefault("F_ALPHA_TEST") == 1;
             isAdditiveBlend = material.IntParams.GetValueOrDefault("F_ADDITIVE_BLEND") == 1;
             isRenderBackfaces = material.IntParams.GetValueOrDefault("F_RENDER_BACKFACES") == 1;
+
+            if (material.ShaderName == "csgo_water_fancy.vfx")
+            {
+                IsTranslucent = false;
+                IsAlphaTest = true;
+                WantsFrameBufferCopy = true;
+            }
 
             // :MaterialIsOverlay
             hasDepthBias = material.IntParams.GetValueOrDefault("F_DEPTHBIAS") == 1 || material.IntParams.GetValueOrDefault("F_DEPTH_BIAS") == 1;

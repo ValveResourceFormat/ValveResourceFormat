@@ -7,5 +7,6 @@ namespace GUI.Types.Renderer
         StaticOverlay,
         AfterOpaque,
         Translucent,
+        FramebufferCopy,
     }
 }
