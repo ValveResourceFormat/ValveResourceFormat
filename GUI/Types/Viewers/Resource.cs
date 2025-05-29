@@ -380,6 +380,18 @@ namespace GUI.Types.Viewers
 
         private static void AddByteViewControl(ValveResourceFormat.Resource resource, Block block, TabPage blockTab)
         {
+            resource.Reader.BaseStream.Position = block.Offset;
+            var input = resource.Reader.ReadBytes((int)block.Size);
+
+            var textSpan = ByteViewer.GetTextFromBytes(input.AsSpan());
+
+            if (!textSpan.IsEmpty)
+            {
+                var textBox = CodeTextBox.Create(System.Text.Encoding.UTF8.GetString(textSpan));
+                blockTab.Controls.Add(textBox);
+                return;
+            }
+
             var bv = new System.ComponentModel.Design.ByteViewer
             {
                 Dock = DockStyle.Fill
@@ -388,8 +400,7 @@ namespace GUI.Types.Viewers
 
             Program.MainForm.Invoke((MethodInvoker)(() =>
             {
-                resource.Reader.BaseStream.Position = block.Offset;
-                bv.SetBytes(resource.Reader.ReadBytes((int)block.Size));
+                bv.SetBytes(input);
             }));
         }
 

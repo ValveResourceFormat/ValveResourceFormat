@@ -38,34 +38,12 @@ namespace GUI.Types.Viewers
                 stream.ReadExactly(input);
             }
 
-            var span = input.AsSpan();
-            var firstNullByte = span.IndexOf((byte)0);
-            var hasNullBytes = firstNullByte >= 0;
+            var textSpan = GetTextFromBytes(input.AsSpan());
 
-            if (hasNullBytes && firstNullByte > 0)
-            {
-                var isTrailingNulls = true;
-
-                for (var i = span.Length - 1; i > firstNullByte; i--)
-                {
-                    if (span[i] != 0x00)
-                    {
-                        isTrailingNulls = false;
-                        break;
-                    }
-                }
-
-                if (isTrailingNulls)
-                {
-                    span = span[..firstNullByte];
-                    hasNullBytes = false;
-                }
-            }
-
-            if (!hasNullBytes)
+            if (!textSpan.IsEmpty)
             {
                 var textTab = new TabPage("Text");
-                var text = CodeTextBox.Create(System.Text.Encoding.UTF8.GetString(span));
+                var text = CodeTextBox.Create(System.Text.Encoding.UTF8.GetString(textSpan));
                 textTab.Controls.Add(text);
                 resTabs.TabPages.Add(textTab);
                 resTabs.SelectedTab = textTab;
@@ -77,6 +55,33 @@ namespace GUI.Types.Viewers
             }));
 
             return tab;
+        }
+
+        public static ReadOnlySpan<byte> GetTextFromBytes(ReadOnlySpan<byte> span)
+        {
+            var firstNullByte = span.IndexOf((byte)0);
+            if (firstNullByte < 0)
+            {
+                return span; // No null bytes found
+            }
+
+            if (firstNullByte == 0)
+            {
+                return null; // Starts with null byte
+            }
+
+            // Check if everything after first null byte is also null
+            var remainingBytes = span[(firstNullByte + 1)..];
+            foreach (var b in remainingBytes)
+            {
+                if (b != 0)
+                {
+                    return null; // Has embedded null bytes
+                }
+            }
+
+            // Only trailing nulls, trim them
+            return span[..firstNullByte];
         }
     }
 }
