@@ -16,7 +16,7 @@ namespace GUI.Types.Renderer
 
         [GeneratedRegex("^\\s*#include \"(?<IncludeName>[^\"]+)\"")]
         private static partial Regex RegexInclude();
-        [GeneratedRegex("^\\s*#define (?<ParamName>(?:renderMode|F|S)_\\S+) (?<DefaultValue>\\S+)")]
+        [GeneratedRegex("^\\s*#define (?<ParamName>(?:renderMode|F|S|D)_\\S+) (?<DefaultValue>\\S+)")]
         private static partial Regex RegexDefine();
 
         // regex that detects "uniform samplerx sampler; // SrgbRead(true)"
