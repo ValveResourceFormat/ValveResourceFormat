@@ -8,11 +8,9 @@ using OpenTK;
 
 namespace GUI.Types.Renderer;
 
-#nullable disable
-
 class ShaderHotReload : IDisposable
 {
-    private FileSystemWatcher ShaderWatcher = new()
+    private FileSystemWatcher? ShaderWatcher = new()
     {
         Path = ShaderParser.GetShaderDiskPath(string.Empty),
         NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite,
@@ -32,11 +30,11 @@ class ShaderHotReload : IDisposable
     private static readonly TimeSpan reloadCoolDown = TimeSpan.FromSeconds(0.5); // There is a change that happens right after reload
 
     private readonly SemaphoreSlim reloadSemaphore = new(1, 1);
-    private GLControl glControl;
+    private GLControl? glControl;
     private DateTime lastChanged;
     private DateTime lastReload;
 
-    public event EventHandler<string> ReloadShader;
+    public event EventHandler<string?>? ReloadShader;
 
     public ShaderHotReload(GLControl glControl)
     {
@@ -111,7 +109,7 @@ class ShaderHotReload : IDisposable
             errorReloadingPage.Caption = "Reloading shaders…";
         }
 
-        string error = null;
+        string? error = null;
         var title = Program.MainForm.Text;
         Program.MainForm.Text = "Source 2 Viewer - Reloading shaders…";
 

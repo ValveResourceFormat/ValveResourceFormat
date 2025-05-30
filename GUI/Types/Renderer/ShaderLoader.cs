@@ -8,8 +8,6 @@ using GUI.Controls;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 
-#nullable disable
-
 namespace GUI.Types.Renderer
 {
     partial class ShaderLoader : IDisposable
@@ -31,7 +29,7 @@ namespace GUI.Types.Renderer
         private readonly VrfGuiContext VrfGuiContext;
 
 #if DEBUG
-        public ShaderHotReload ShaderHotReload { get; private set; }
+        public ShaderHotReload? ShaderHotReload { get; private set; }
 #endif
 
         public class ParsedShaderData
@@ -54,7 +52,7 @@ namespace GUI.Types.Renderer
         }
 #endif
 
-        public Shader LoadShader(string shaderName, IReadOnlyDictionary<string, byte> arguments = null)
+        public Shader LoadShader(string shaderName, IReadOnlyDictionary<string, byte>? arguments = null)
         {
             arguments ??= EmptyArgs;
 
@@ -292,7 +290,7 @@ namespace GUI.Types.Renderer
         }
 
 #if DEBUG
-        private void OnHotReload(object sender, string name)
+        private void OnHotReload(object? sender, string? name)
         {
             var ext = Path.GetExtension(name);
 
@@ -310,7 +308,7 @@ namespace GUI.Types.Renderer
             ReloadAllShaders(name);
         }
 
-        public void ReloadAllShaders(string name = null)
+        public void ReloadAllShaders(string? name = null)
         {
             foreach (var shader in CachedShaders.Values)
             {
