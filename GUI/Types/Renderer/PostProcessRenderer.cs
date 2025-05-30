@@ -8,7 +8,6 @@ namespace GUI.Types.Renderer
     internal class PostProcessRenderer
     {
         private readonly VrfGuiContext guiContext;
-        private int vao;
         private Shader shader;
 
         public RenderTexture BlueNoise;
@@ -26,7 +25,6 @@ namespace GUI.Types.Renderer
         public void Load()
         {
             shader = guiContext.ShaderLoader.LoadShader("vrf.post_processing");
-            GL.CreateVertexArrays(1, out vao);
         }
 
         private void SetPostProcessUniforms(Shader shader, TonemapSettings TonemapSettings)
@@ -73,7 +71,7 @@ namespace GUI.Types.Renderer
             shader.SetUniform2("g_vColorCorrectionColorRange", invRange);
             shader.SetUniform1("g_flColorCorrectionDefaultWeight", (State.NumLutsActive > 0 && ColorCorrectionEnabled) ? State.ColorCorrectionWeight : 0f);
 
-            GL.BindVertexArray(vao);
+            GL.BindVertexArray(guiContext.MeshBufferCache.EmptyVAO);
             GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
 
             GL.UseProgram(0);
