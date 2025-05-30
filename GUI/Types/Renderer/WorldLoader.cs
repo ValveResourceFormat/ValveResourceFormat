@@ -48,7 +48,7 @@ namespace GUI.Types.Renderer
         {
             LoadWorldLightingInfo();
 
-            scene.RenderAttributes.TryAdd("LightmapGameVersionNumber", (byte)scene.LightingInfo.LightmapGameVersionNumber);
+            scene.RenderAttributes.TryAdd("S_LIGHTMAP_VERSION_MINOR", (byte)scene.LightingInfo.LightmapGameVersionNumber);
 
             foreach (var lumpName in world.GetEntityLumpNames())
             {

@@ -148,7 +148,7 @@ namespace GUI.Types.Renderer
                             Tint = shader.GetUniformLocation("vTint"),
                         };
 
-                        if (shader.Parameters.ContainsKey("SCENE_CUBEMAP_TYPE"))
+                        if (shader.Parameters.ContainsKey("S_SCENE_CUBEMAP_TYPE"))
                         {
                             uniforms.EnvmapTexture = shader.GetUniformLocation("g_tEnvironmentMap");
                             uniforms.CubeMapArrayIndices = shader.GetUniformLocation("g_iEnvMapArrayIndices");

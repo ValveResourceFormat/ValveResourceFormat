@@ -4,8 +4,9 @@
 #define D_BAKED_LIGHTING_FROM_LIGHTMAP 0
 #define D_BAKED_LIGHTING_FROM_VERTEX_STREAM 0
 #define D_BAKED_LIGHTING_FROM_PROBE 0
-#define LightmapVersionNumber 0
-#define LightmapGameVersionNumber 0
+
+#define S_LIGHTMAP_VERSION_MAJOR 0
+#define S_LIGHTMAP_VERSION_MINOR 0
 
 //#define F_DO_NOT_CAST_SHADOWS 0
 uniform int F_RENDER_BACKFACES;

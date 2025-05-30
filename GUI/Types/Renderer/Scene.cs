@@ -734,7 +734,7 @@ namespace GUI.Types.Renderer
                 var lightingOrigin = node.LightingOrigin ?? Vector3.Zero;
                 if (node.LightingOrigin.HasValue)
                 {
-                    // in source2 this is a dynamic combo D_SPECULAR_CUBEMAP_STATIC=1, and i guess without a loop (similar to SCENE_CUBEMAP_TYPE=1)
+                    // in source2 this is a dynamic combo D_SPECULAR_CUBEMAP_STATIC=1, and i guess without a loop (similar to S_SCENE_CUBEMAP_TYPE=1)
                     node.EnvMaps = [.. node.EnvMaps.OrderBy((envMap) => Vector3.Distance(lightingOrigin, envMap.BoundingBox.Center))];
                 }
                 else

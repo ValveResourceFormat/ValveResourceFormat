@@ -37,17 +37,17 @@ partial class Scene
 
         public CubemapType CubemapType
         {
-            get => (CubemapType)scene.RenderAttributes.GetValueOrDefault("SCENE_CUBEMAP_TYPE");
-            set => scene.RenderAttributes["SCENE_CUBEMAP_TYPE"] = (byte)value;
+            get => (CubemapType)scene.RenderAttributes.GetValueOrDefault("S_SCENE_CUBEMAP_TYPE");
+            set => scene.RenderAttributes["S_SCENE_CUBEMAP_TYPE"] = (byte)value;
         }
 
         public LightProbeType LightProbeType
         {
-            get => (LightProbeType)scene.RenderAttributes.GetValueOrDefault("SCENE_PROBE_TYPE");
-            set => scene.RenderAttributes["SCENE_PROBE_TYPE"] = (byte)value;
+            get => (LightProbeType)scene.RenderAttributes.GetValueOrDefault("S_SCENE_PROBE_TYPE");
+            set => scene.RenderAttributes["S_SCENE_PROBE_TYPE"] = (byte)value;
         }
 
-        public bool HasBakedShadowsFromLightmap => scene.RenderAttributes.GetValueOrDefault("LightmapGameVersionNumber") > 0;
+        public bool HasBakedShadowsFromLightmap => scene.RenderAttributes.GetValueOrDefault("S_LIGHTMAP_VERSION_MINOR") > 0;
         public bool EnableDynamicShadows { get; set; } = true;
 
         public Matrix4x4 SunViewProjection { get; internal set; }

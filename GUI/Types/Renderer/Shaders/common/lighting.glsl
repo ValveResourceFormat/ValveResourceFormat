@@ -6,42 +6,42 @@
 //? #include "texturing.glsl"
 //? #include "pbr.glsl"
 
-#define SCENE_PROBE_TYPE 0 // 1 = Individual, 2 = Atlas
+#define S_SCENE_PROBE_TYPE 0 // 1 = Individual, 2 = Atlas
 
 #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
     in vec3 vLightmapUVScaled;
     uniform sampler2DArray g_tIrradiance;
-    #if (LightmapGameVersionNumber == 3)
+    #if (S_LIGHTMAP_VERSION_MINOR == 3)
         uniform sampler2DArray g_tDirectionalIrradianceR;
         uniform sampler2DArray g_tDirectionalIrradianceG;
         uniform sampler2DArray g_tDirectionalIrradianceB;
     #else
         uniform sampler2DArray g_tDirectionalIrradiance;
     #endif
-    #if (LightmapGameVersionNumber == 1)
+    #if (S_LIGHTMAP_VERSION_MINOR == 1)
         uniform sampler2DArray g_tDirectLightIndices;
         uniform sampler2DArray g_tDirectLightStrengths;
-    #elif (LightmapGameVersionNumber >= 2)
+    #elif (S_LIGHTMAP_VERSION_MINOR >= 2)
         uniform sampler2DArray g_tDirectLightShadows;
     #endif
 #elif (D_BAKED_LIGHTING_FROM_PROBE == 1)
 
     uniform sampler3D g_tLPV_Irradiance;
 
-    #if (LightmapGameVersionNumber == 1)
+    #if (S_LIGHTMAP_VERSION_MINOR == 1)
         uniform sampler3D g_tLPV_Indices;
         uniform sampler3D g_tLPV_Scalars;
-    #elif (LightmapGameVersionNumber >= 2)
+    #elif (S_LIGHTMAP_VERSION_MINOR >= 2)
         uniform sampler3D g_tLPV_Shadows;
     #endif
 
     layout(std140, binding = 2) uniform LightProbeVolume
     {
         uniform mat4 g_matLightProbeVolumeWorldToLocal;
-        #if (SCENE_PROBE_TYPE == 1)
+        #if (S_SCENE_PROBE_TYPE == 1)
             vec4 g_vLightProbeVolumeLayer0TextureMin;
             vec4 g_vLightProbeVolumeLayer0TextureMax;
-        #elif (SCENE_PROBE_TYPE == 2)
+        #elif (S_SCENE_PROBE_TYPE == 2)
             vec4 g_vLightProbeVolumeBorderMin;
             vec4 g_vLightProbeVolumeBorderMax;
             vec4 g_vLightProbeVolumeAtlasScale;
@@ -59,7 +59,7 @@
     {
         vec3 vLightProbeLocalPos = CalculateProbeSampleCoords(fragPosition);
 
-        #if (SCENE_PROBE_TYPE == 2)
+        #if (S_SCENE_PROBE_TYPE == 2)
             vLightProbeLocalPos = fma(saturate(vLightProbeLocalPos), g_vLightProbeVolumeAtlasScale.xyz, g_vLightProbeVolumeAtlasOffset.xyz);
         #endif
 
@@ -70,10 +70,10 @@
     {
         vec3 indirectCoords = CalculateProbeSampleCoords(fragPosition);
 
-        #if (SCENE_PROBE_TYPE == 1)
+        #if (S_SCENE_PROBE_TYPE == 1)
             indirectCoords.z /= 6;
             // clamp(indirectCoords, g_vLightProbeVolumeLayer0TextureMin.xyz, g_vLightProbeVolumeLayer0TextureMax.xyz);
-        #elif (SCENE_PROBE_TYPE == 2)
+        #elif (S_SCENE_PROBE_TYPE == 2)
             indirectCoords.z /= 6;
             indirectCoords = clamp(indirectCoords, g_vLightProbeVolumeBorderMin.xyz, g_vLightProbeVolumeBorderMax.xyz);
 
@@ -174,7 +174,7 @@ void CalculateDirectLighting(inout LightingTerms_t lighting, inout MaterialPrope
 {
     const float MIN_ALPHA = 0.0001;
 
-    #if (LightmapGameVersionNumber == 1)
+    #if (S_LIGHTMAP_VERSION_MINOR == 1)
         #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
             vec4 dls = texture(g_tDirectLightStrengths, vLightmapUVScaled);
             vec4 dli = texture(g_tDirectLightIndices, vLightmapUVScaled);
@@ -223,7 +223,7 @@ void CalculateDirectLighting(inout LightingTerms_t lighting, inout MaterialPrope
             }
         }
 
-    #elif (LightmapGameVersionNumber >= 2)
+    #elif (S_LIGHTMAP_VERSION_MINOR >= 2)
         vec4 dlsh = vec4(1, 1, 1, 1);
 
         #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
@@ -311,7 +311,7 @@ vec3 ComputeLightmapShading(vec3 irradianceColor, vec4 irradianceDirection, vec3
 
     float sinTheta = dot(vTangentSpaceLightVector.xy, vTangentSpaceLightVector.xy);
 
-#if LightmapGameVersionNumber == 1
+#if S_LIGHTMAP_VERSION_MINOR == 1
     // Error in HLA code, fixed in DeskJob
     float cosTheta = 1.0 - sqrt(sinTheta);
 #else
@@ -344,7 +344,7 @@ void CalculateIndirectLighting(inout LightingTerms_t lighting, inout MaterialPro
     // Indirect Lighting
 #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
     vec3 irradiance = texture(g_tIrradiance, vLightmapUVScaled).rgb;
-    #if (LightmapGameVersionNumber == 3)
+    #if (S_LIGHTMAP_VERSION_MINOR == 3)
         vec4 vAHDData = texture(g_tDirectionalIrradianceR, vLightmapUVScaled);
     #else
         vec4 vAHDData = texture(g_tDirectionalIrradiance, vLightmapUVScaled);
@@ -372,7 +372,7 @@ void CalculateIndirectLighting(inout LightingTerms_t lighting, inout MaterialPro
     }
 
     // SteamVR Home lpv irradiance is RGBM Dxt5
-    #if (LightmapGameVersionNumber == 0)
+    #if (S_LIGHTMAP_VERSION_MINOR == 0)
         lighting.DiffuseIndirect = pow2(lighting.DiffuseIndirect); // not bothering with RGBM
     #endif
 

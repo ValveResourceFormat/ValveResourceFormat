@@ -7,14 +7,14 @@
 //? #include "pbr.glsl"
 //? #include "lighting.glsl"
 
-#define SCENE_CUBEMAP_TYPE 0 // 0 = None, 1 = Per-batch cube map, 2 = Per-scene cube map array
+#define S_SCENE_CUBEMAP_TYPE 0 // 0 = None, 1 = Per-batch cube map, 2 = Per-scene cube map array
 
-#if (SCENE_CUBEMAP_TYPE == 0)
+#if (S_SCENE_CUBEMAP_TYPE == 0)
     // ...
-#elif (SCENE_CUBEMAP_TYPE == 1)
+#elif (S_SCENE_CUBEMAP_TYPE == 1)
     uniform samplerCube g_tEnvironmentMap;
     uniform int g_iEnvMapArrayIndices;
-#elif (SCENE_CUBEMAP_TYPE == 2)
+#elif (S_SCENE_CUBEMAP_TYPE == 2)
     uniform samplerCubeArray g_tEnvironmentMap;
     uniform int g_iEnvMapArrayIndices[MAX_ENVMAPS];
     uniform int g_iEnvMapArrayLength;
@@ -163,9 +163,9 @@ vec3 GetEnvironment(MaterialProperties_t mat)
 
     const float lod = GetEnvMapLOD(roughness, R, 0.0);
 
-    #if (SCENE_CUBEMAP_TYPE == 0)
+    #if (S_SCENE_CUBEMAP_TYPE == 0)
         envMap = vec3(0.3, 0.1, 0.1);
-    #elif (SCENE_CUBEMAP_TYPE == 1)
+    #elif (S_SCENE_CUBEMAP_TYPE == 1)
         int envMapArrayIndex = g_iEnvMapArrayIndices;
         vec4 proxySphere = g_vEnvMapProxySphere[envMapArrayIndex];
         bool isBoxProjection = proxySphere.w == 1.0f;
@@ -178,7 +178,7 @@ vec3 GetEnvironment(MaterialProperties_t mat)
         coords = mix(coords, mat.AmbientNormal, (bIsClothShading) ? sqrt(roughness) : roughness); // blend to fully corrected
 
         envMap = textureLod(g_tEnvironmentMap, coords, lod).rgb;
-    #elif (SCENE_CUBEMAP_TYPE == 2)
+    #elif (S_SCENE_CUBEMAP_TYPE == 2)
 
     float totalWeight = 0.01;
 
@@ -193,7 +193,7 @@ vec3 GetEnvironment(MaterialProperties_t mat)
         vec3 envMapLocalPos = envMapWorldToLocal * vec4(vFragPosition, 1.0);
         float weight = 1.0f;
 
-        const bool bUseCubemapBlending = LightmapGameVersionNumber >= 2;
+        const bool bUseCubemapBlending = S_LIGHTMAP_VERSION_MINOR >= 2;
         vec3 dists = g_vEnvMapEdgeFadeDists[envMapArrayIndex].xyz;
 
         if (bUseCubemapBlending && isBoxProjection)
@@ -225,7 +225,7 @@ vec3 GetEnvironment(MaterialProperties_t mat)
         }
     }
 
-    #endif // SCENE_CUBEMAP_TYPE == 2
+    #endif // S_SCENE_CUBEMAP_TYPE == 2
 
     if (g_iRenderMode == renderMode_Cubemaps)
     {
