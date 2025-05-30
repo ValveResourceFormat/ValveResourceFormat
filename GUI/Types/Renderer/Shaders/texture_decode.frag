@@ -1,20 +1,20 @@
 #version 460
 
-#define TYPE_TEXTURE2D 0
-#define TYPE_TEXTURE3D 0
-#define TYPE_TEXTURE2DARRAY 0
-#define TYPE_TEXTURECUBEMAP 0
-#define TYPE_TEXTURECUBEMAPARRAY 0
+#define S_TYPE_TEXTURE2D 0
+#define S_TYPE_TEXTURE3D 0
+#define S_TYPE_TEXTURE2DARRAY 0
+#define S_TYPE_TEXTURECUBEMAP 0
+#define S_TYPE_TEXTURECUBEMAPARRAY 0
 
-#if TYPE_TEXTURE2D == 1
+#if S_TYPE_TEXTURE2D == 1
     #define TEXTURE_TYPE sampler2D
-#elif TYPE_TEXTURE3D == 1
+#elif S_TYPE_TEXTURE3D == 1
     #define TEXTURE_TYPE sampler3D
-#elif TYPE_TEXTURE2DARRAY == 1
+#elif S_TYPE_TEXTURE2DARRAY == 1
     #define TEXTURE_TYPE sampler2DArray
-#elif TYPE_TEXTURECUBEMAP == 1
+#elif S_TYPE_TEXTURECUBEMAP == 1
     #define TEXTURE_TYPE samplerCube
-#elif TYPE_TEXTURECUBEMAPARRAY == 1
+#elif S_TYPE_TEXTURECUBEMAPARRAY == 1
     #define TEXTURE_TYPE samplerCubeArray
 #else
     #error "Missing TEXTURE_TYPE"
@@ -152,14 +152,14 @@ void main()
 {
     vec2 vScreenCoords = gl_FragCoord.xy / g_vViewportSize.xy;
 
-    #if TYPE_TEXTURE2D == 1 || TYPE_TEXTURECUBEMAP == 1
+    #if S_TYPE_TEXTURE2D == 1 || S_TYPE_TEXTURECUBEMAP == 1
         vec2 vTexCoord = vScreenCoords;
-    #elif TYPE_TEXTURE3D == 1
+    #elif S_TYPE_TEXTURE3D == 1
         vec3 vTexCoord = vec3(vScreenCoords, (g_nSelectedDepth + 0.5) / float(textureSize(g_tInputTexture, g_nSelectedMip).z));
-    #elif TYPE_TEXTURE2DARRAY == 1 || TYPE_TEXTURECUBEMAPARRAY == 1
+    #elif S_TYPE_TEXTURE2DARRAY == 1 || S_TYPE_TEXTURECUBEMAPARRAY == 1
         vec3 vTexCoord = vec3(vScreenCoords, g_nSelectedDepth);
     #else
-        #error "Missing vTexCoord for TYPE_xxxx"
+        #error "Missing vTexCoord for S_TYPE_xxxx"
     #endif
 
     vec3 vBackgroundColor = vec3(0.0);
@@ -194,10 +194,10 @@ void main()
     }
 
     // cubemaps take a direction vector as sample coords
-    #if (TYPE_TEXTURECUBEMAP == 1) || (TYPE_TEXTURECUBEMAPARRAY == 1)
-        #if TYPE_TEXTURECUBEMAP == 1
+    #if (S_TYPE_TEXTURECUBEMAP == 1) || (S_TYPE_TEXTURECUBEMAPARRAY == 1)
+        #if S_TYPE_TEXTURECUBEMAP == 1
             vec3 vSampleCoords;
-        #elif TYPE_TEXTURECUBEMAPARRAY == 1
+        #elif S_TYPE_TEXTURECUBEMAPARRAY == 1
             vec4 vSampleCoords = vec4(0, 0, 0, vTexCoord.z);
         #endif
 
