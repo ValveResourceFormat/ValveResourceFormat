@@ -47,7 +47,6 @@ namespace GUI.Types.Renderer
         private SKSvg Svg;
         private RenderTexture texture;
         private Shader shader;
-        private int vao;
 
         private SKBitmap NextBitmapToSet;
         private int NextBitmapVersion;
@@ -954,9 +953,6 @@ namespace GUI.Types.Renderer
                 SetupTexture(false);
             }
 
-            // An empty VAO is required for some GPUs to not crash
-            GL.CreateVertexArrays(1, out vao);
-
             // Use non-msaa framebuffer for texture viewer
             if (MainFramebuffer != GLDefaultFramebuffer)
             {
@@ -1091,7 +1087,7 @@ namespace GUI.Types.Renderer
             shader.SetUniform1("g_nCubemapProjectionType", (int)CubemapProjectionType);
             shader.SetUniform1("g_nDecodeFlags", (int)decodeFlags);
 
-            GL.BindVertexArray(vao);
+            GL.BindVertexArray(GuiContext.MeshBufferCache.EmptyVAO);
             GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
         }
 
