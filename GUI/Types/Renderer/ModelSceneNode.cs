@@ -325,7 +325,7 @@ namespace GUI.Types.Renderer
                 mesh.LoadExternalMorphData(Scene.GuiContext.FileLoader);
                 model.SetExternalMeshData(mesh);
 
-                meshRenderers.Add(new RenderableMesh(mesh, refMesh.MeshIndex, Scene, model, materialTable, debugLabel: Path.GetFileName(refMesh.MeshName)));
+                meshRenderers.Add(new RenderableMesh(mesh, refMesh.MeshIndex, Scene, model, materialTable));
             }
 
             // Set active meshes to default

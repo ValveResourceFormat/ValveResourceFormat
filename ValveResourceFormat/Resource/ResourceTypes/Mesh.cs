@@ -25,6 +25,8 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
+        public string Name { get; set; }
+
         public Vector3 MinBounds { get; private set; }
         public Vector3 MaxBounds { get; private set; }
 
@@ -42,6 +44,9 @@ namespace ValveResourceFormat.ResourceTypes
         public override void Read(BinaryReader reader)
         {
             base.Read(reader);
+
+            Name = Resource.FileName;
+
             if (Data.ContainsKey("m_attachments"))
             {
                 var attachmentsData = Data.GetArray("m_attachments");

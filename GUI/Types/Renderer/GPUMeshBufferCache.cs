@@ -9,7 +9,7 @@ namespace GUI.Types.Renderer
 {
     partial class GPUMeshBufferCache
     {
-        private readonly Dictionary<ulong, GPUMeshBuffers> gpuBuffers = [];
+        private readonly Dictionary<string, GPUMeshBuffers> gpuBuffers = [];
         private readonly Dictionary<VAOKey, int> vertexArrayObjects = [];
 
         private struct VAOKey
@@ -20,22 +20,22 @@ namespace GUI.Types.Renderer
             public int IndexIndex;
         }
 
-        public GPUMeshBuffers CreateVertexIndexBuffers(ulong key, VBIB vbib)
+        public GPUMeshBuffers CreateVertexIndexBuffers(string vbibName, VBIB vbib)
         {
-            if (!gpuBuffers.TryGetValue(key, out var gpuVbib))
+            if (!gpuBuffers.TryGetValue(vbibName, out var gpuVbib))
             {
                 gpuVbib = new GPUMeshBuffers(vbib);
-                gpuBuffers.Add(key, gpuVbib);
+                gpuBuffers.Add(vbibName, gpuVbib);
             }
 
             return gpuVbib;
         }
 
-        public int GetVertexArrayObject(ulong key, VertexDrawBuffer[] vertexBuffers, RenderMaterial material, int idxIndex)
+        public int GetVertexArrayObject(string vbibName, VertexDrawBuffer[] vertexBuffers, RenderMaterial material, int idxIndex)
         {
             Debug.Assert(vertexBuffers != null && vertexBuffers.Length > 0);
 
-            var gpuVbib = gpuBuffers[key];
+            var gpuVbib = gpuBuffers[vbibName];
             var vaoKey = new VAOKey
             {
                 VBIB = gpuVbib,

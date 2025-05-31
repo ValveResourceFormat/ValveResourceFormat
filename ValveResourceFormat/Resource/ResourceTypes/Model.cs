@@ -158,6 +158,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                 var mesh = Resource.GetBlockByIndex(dataBlockIndex) as Mesh;
                 mesh.VBIB = Resource.GetBlockByIndex(vbibBlockIndex) as VBIB;
+                mesh.Name = $"{Resource.FileName}:{name}";
 
                 var morphBlockIndex = (int)embeddedMesh.GetIntegerProperty("morph_block");
                 if (morphBlockIndex >= 0)

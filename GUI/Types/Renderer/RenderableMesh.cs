@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO.Hashing;
 using System.Linq;
 using GUI.Utils;
@@ -11,10 +12,9 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace GUI.Types.Renderer
 {
+    [DebuggerDisplay("{Name}")]
     class RenderableMesh
     {
-        private static readonly XxHash3 Hasher = new(StringToken.MURMUR2SEED);
-
         public AABB BoundingBox { get; }
         public Vector4 Tint { get; set; } = Vector4.One;
 
@@ -29,29 +29,17 @@ namespace GUI.Types.Renderer
         public int MeshBoneCount { get; private set; }
         public int BoneWeightCount { get; private set; }
 
+        public string Name { get; }
         public int MeshIndex { get; }
 
         public FlexStateManager FlexStateManager { get; }
 
-        private readonly ulong VBIBHashCode;
-
-#if DEBUG
-        private readonly string DebugLabel;
-#endif
-
         public RenderableMesh(Mesh mesh, int meshIndex, Scene scene, Model model = null,
-            Dictionary<string, string> initialMaterialTable = null, Morph morph = null, bool isAggregate = false, string debugLabel = null)
+            Dictionary<string, string> initialMaterialTable = null, Morph morph = null, bool isAggregate = false)
         {
-#if DEBUG
-            if (debugLabel == null && model != null)
-            {
-                debugLabel = System.IO.Path.GetFileName(model.Data.GetStringProperty("m_name"));
-            }
-
-            DebugLabel = debugLabel;
-#endif
-
             guiContext = scene.GuiContext;
+
+            Name = mesh.Name;
 
             var vbib = mesh.VBIB;
 
@@ -71,19 +59,6 @@ namespace GUI.Types.Renderer
             }
 
             BoneWeightCount = mesh.Data.GetSubCollection("m_skeleton")?.GetInt32Property("m_nBoneWeightCount") ?? 0;
-
-            foreach (var a in vbib.VertexBuffers)
-            {
-                Hasher.Append(a.Data);
-            }
-
-            foreach (var a in vbib.IndexBuffers)
-            {
-                Hasher.Append(a.Data);
-            }
-
-            VBIBHashCode = Hasher.GetCurrentHashAsUInt64();
-            Hasher.Reset();
 
             mesh.GetBounds();
             BoundingBox = new AABB(mesh.MinBounds, mesh.MaxBounds);
@@ -175,15 +150,15 @@ namespace GUI.Types.Renderer
         private void UpdateVertexArrayObject(DrawCall drawCall)
         {
             drawCall.VertexArrayObject = guiContext.MeshBufferCache.GetVertexArrayObject(
-                   VBIBHashCode,
+                   Name,
                    drawCall.VertexBuffers,
                    drawCall.Material,
                    drawCall.IndexBuffer.Handle);
 
 #if DEBUG
-            if (!string.IsNullOrEmpty(DebugLabel))
+            if (!string.IsNullOrEmpty(Name))
             {
-                GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, drawCall.VertexArrayObject, DebugLabel.Length, DebugLabel);
+                GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, drawCall.VertexArrayObject, Name.Length, Name);
             }
 #endif
         }
@@ -195,7 +170,7 @@ namespace GUI.Types.Renderer
                 return;
             }
 
-            var gpuVbib = guiContext.MeshBufferCache.CreateVertexIndexBuffers(VBIBHashCode, vbib);
+            var gpuVbib = guiContext.MeshBufferCache.CreateVertexIndexBuffers(Name, vbib);
 
             var vertexOffset = 0;
             foreach (var sceneObject in sceneObjects)
