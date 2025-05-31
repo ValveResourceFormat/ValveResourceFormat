@@ -240,6 +240,7 @@ namespace GUI.Types.Renderer
 
             return arguments
                 .Where(p => defines.Contains(p.Key))
+                .Where(static p => p.Value != 0) // Shader defines should already default to zero
                 .OrderBy(static p => p.Key);
         }
 
