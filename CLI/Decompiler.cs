@@ -1293,6 +1293,11 @@ namespace Decompiler
                 DumpFile(path, contentFile.Data);
             }
 
+            foreach (var additionalFile in contentFile.AdditionalFiles)
+            {
+                DumpContentFile(Path.Combine(Path.GetDirectoryName(path)!, Path.GetFileName(additionalFile.FileName)), additionalFile);
+            }
+
             if (dumpSubFiles)
             {
                 foreach (var contentSubFile in contentFile.SubFiles)
