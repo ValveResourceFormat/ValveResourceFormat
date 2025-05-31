@@ -24,6 +24,7 @@ namespace GUI.Types.Renderer
         [GeneratedRegex("^\\s*uniform sampler(?<SamplerType>\\S+) (?<SamplerName>\\S+);\\s*// SrgbRead\\(true\\)")]
         private static partial Regex RegexSamplerWithSrgbRead();
 
+        private readonly StringBuilder builder = new(1024);
         private int sourceFileNumber;
         public List<string> SourceFiles { get; } = [];
 
@@ -33,6 +34,7 @@ namespace GUI.Types.Renderer
 
         public void Reset()
         {
+            builder.Clear();
             sourceFileNumber = 0;
             SourceFiles.Clear();
 
@@ -45,7 +47,6 @@ namespace GUI.Types.Renderer
         {
             var isFirstLine = true;
             var resolvedIncludes = new HashSet<string>(4);
-            var builder = new StringBuilder();
 
             void AppendLineNumber(int a, int b)
             {
@@ -85,6 +86,8 @@ namespace GUI.Types.Renderer
                 var currentSourceLines = new List<string>();
                 SourceFileLines.Add(currentSourceLines);
 #endif
+
+                builder.EnsureCapacity(builder.Length + (int)stream.Length);
 
                 while ((line = reader.ReadLine()) != null)
                 {

@@ -85,6 +85,7 @@ namespace GUI.Types.Renderer
                 var vertexName = $"{shaderFileName}.vert";
                 var vertexShader = GL.CreateShader(ShaderType.VertexShader);
                 LoadShader(vertexShader, vertexName, shaderName, arguments, ref parsedData);
+                Parser.Reset();
 
                 // Fragment shader
                 var fragmentName = $"{shaderFileName}.frag";
