@@ -71,7 +71,7 @@ public sealed class MaterialExtract
                 continue;
             }
 
-            var images = GetTextureUnpackInfos(type, filePath, omitDefaults: true, omitUniforms: true);
+            var images = GetTextureUnpackInfos(type, filePath, (Texture)texture.DataBlock, omitDefaults: true, omitUniforms: true);
             var vtex = new TextureExtract(texture).ToMaterialMaps(images);
 
             if (vtex.SubFiles.Count > 0)
@@ -87,7 +87,7 @@ public sealed class MaterialExtract
         return vmat;
     }
 
-    public static string OutTextureName(string texturePath, bool keepOriginalExtension, string desiredSuffix = null)
+    public static string OutTextureName(string texturePath, bool keepOriginalExtension, bool hdr, string desiredSuffix = null)
     {
         if (!texturePath.EndsWith(".vtex", StringComparison.OrdinalIgnoreCase))
         {
@@ -132,10 +132,11 @@ public sealed class MaterialExtract
             texturePath += "_" + textureParts[^1] + desiredSuffix;
         }
 
-        return Path.ChangeExtension(texturePath, keepOriginalExtension ? textureParts[^2] : "png");
+        var extension = hdr ? "exr" : "png";
+        return Path.ChangeExtension(texturePath, keepOriginalExtension ? textureParts[^2] : extension);
     }
 
-    public IEnumerable<UnpackInfo> GetTextureUnpackInfos(string textureType, string texturePath, bool omitDefaults, bool omitUniforms)
+    public IEnumerable<UnpackInfo> GetTextureUnpackInfos(string textureType, string texturePath, Texture texture, bool omitDefaults, bool omitUniforms)
     {
         var isInput0 = true;
         var shaderProvidedInputs = shaderDataProvider.GetInputsForTexture(textureType, material).ToList();
@@ -164,11 +165,13 @@ public sealed class MaterialExtract
                 keepOriginalExtension = true;
             }
 
+            var isHdr = texture?.IsHighDynamicRange ?? false;
+
             yield return new UnpackInfo
             {
                 TextureType = newTextureType,
-                FileName = OutTextureName(texturePath, keepOriginalExtension, desiredSuffix),
-                Channel = channel
+                FileName = OutTextureName(texturePath, keepOriginalExtension, isHdr, desiredSuffix),
+                Channel = channel,
             };
 
             isInput0 = false;
@@ -200,7 +203,7 @@ public sealed class MaterialExtract
         var originalTextures = new KVObject("Compiled Textures", []);
         foreach (var (key, value) in material.TextureParams)
         {
-            foreach (var unpackInfo in GetTextureUnpackInfos(key, value, false, true))
+            foreach (var unpackInfo in GetTextureUnpackInfos(key, value, null, false, true))
             {
                 root.Add(new KVObject(unpackInfo.TextureType, unpackInfo.FileName));
             }

@@ -103,7 +103,10 @@ public sealed class TextureExtract
         //
         if (isArray || isCubeMap)
         {
-            var contentFile = new ContentFile();
+            var contentFile = new ContentFile()
+            {
+                FileName = fileName,
+            };
 
             for (uint depth = 0; depth < texture.Depth; depth++)
             {
@@ -167,8 +170,15 @@ public sealed class TextureExtract
         return vtex;
     }
 
-    public TextureContentFile ToMaterialMaps(IEnumerable<MaterialExtract.UnpackInfo> mapsToUnpack)
+    public ContentFile ToMaterialMaps(IEnumerable<MaterialExtract.UnpackInfo> mapsToUnpack)
     {
+        // unpacking not supported in these scenarios
+        if (isCubeMap || isArray || ExportExr)
+        {
+            // TODO: for cubemaps we should export one image with 'equirecangular' or 'cube' projection
+            return ToContentFile();
+        }
+
         var bitmap = texture.GenerateBitmap(decodeFlags: DecodeFlags);
         bitmap.SetImmutable();
 

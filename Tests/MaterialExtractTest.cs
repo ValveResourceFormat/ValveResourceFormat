@@ -52,7 +52,7 @@ namespace Tests
             };
 
             var result = new MaterialExtract(GetMockMaterial(translucent), null, null, new BasicShaderDataProvider())
-                .GetTextureUnpackInfos("g_tColor", "test_color_jpg_65b7aff5.vtex", false, false);
+                .GetTextureUnpackInfos("g_tColor", "test_color_jpg_65b7aff5.vtex", null, false, false);
             Assert.That(result, Is.EquivalentTo(vr_complex_expected_inputs));
         }
 
