@@ -48,6 +48,7 @@ namespace GUI.Types.Renderer
                 return GetErrorMaterial();
             }
 
+            Span<byte> valueSpan = stackalloc byte[1];
             var hash = new XxHash3(StringToken.MURMUR2SEED);
             hash.Append(Encoding.ASCII.GetBytes(name));
 
@@ -58,7 +59,9 @@ namespace GUI.Types.Renderer
                     hash.Append(NewLineArray);
                     hash.Append(Encoding.ASCII.GetBytes(key));
                     hash.Append(NewLineArray);
-                    hash.Append(Encoding.ASCII.GetBytes(value.ToString(CultureInfo.InvariantCulture)));
+
+                    valueSpan[0] = value;
+                    hash.Append(valueSpan);
                 }
             }
 

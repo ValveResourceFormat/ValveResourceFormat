@@ -279,13 +279,16 @@ namespace GUI.Types.Renderer
             hash.Append(Encoding.ASCII.GetBytes(shaderName));
 
             var argsOrdered = SortAndFilterArguments(shaderName, arguments);
+            Span<byte> valueSpan = stackalloc byte[1];
 
             foreach (var (key, value) in argsOrdered)
             {
                 hash.Append(NewLineArray);
                 hash.Append(Encoding.ASCII.GetBytes(key));
                 hash.Append(NewLineArray);
-                hash.Append(Encoding.ASCII.GetBytes(value.ToString(CultureInfo.InvariantCulture)));
+
+                valueSpan[0] = value;
+                hash.Append(valueSpan);
             }
 
             return hash.GetCurrentHashAsUInt64();
