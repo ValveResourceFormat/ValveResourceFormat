@@ -2,6 +2,7 @@ using System.Globalization;
 using System.IO;
 using System.IO.Hashing;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
 using GUI.Controls;
@@ -276,7 +277,7 @@ namespace GUI.Types.Renderer
         private ulong CalculateShaderCacheHash(string shaderName, IReadOnlyDictionary<string, byte> arguments)
         {
             var hash = new XxHash3(StringToken.MURMUR2SEED);
-            hash.Append(Encoding.ASCII.GetBytes(shaderName));
+            hash.Append(MemoryMarshal.AsBytes(shaderName.AsSpan()));
 
             var argsOrdered = SortAndFilterArguments(shaderName, arguments);
             Span<byte> valueSpan = stackalloc byte[1];
@@ -284,7 +285,7 @@ namespace GUI.Types.Renderer
             foreach (var (key, value) in argsOrdered)
             {
                 hash.Append(NewLineArray);
-                hash.Append(Encoding.ASCII.GetBytes(key));
+                hash.Append(MemoryMarshal.AsBytes(key.AsSpan()));
                 hash.Append(NewLineArray);
 
                 valueSpan[0] = value;

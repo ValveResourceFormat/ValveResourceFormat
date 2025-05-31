@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO.Hashing;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
@@ -50,14 +51,14 @@ namespace GUI.Types.Renderer
 
             Span<byte> valueSpan = stackalloc byte[1];
             var hash = new XxHash3(StringToken.MURMUR2SEED);
-            hash.Append(Encoding.ASCII.GetBytes(name));
+            hash.Append(MemoryMarshal.AsBytes(name.AsSpan()));
 
             if (shaderArguments != null)
             {
                 foreach (var (key, value) in shaderArguments)
                 {
                     hash.Append(NewLineArray);
-                    hash.Append(Encoding.ASCII.GetBytes(key));
+                    hash.Append(MemoryMarshal.AsBytes(key.AsSpan()));
                     hash.Append(NewLineArray);
 
                     valueSpan[0] = value;
