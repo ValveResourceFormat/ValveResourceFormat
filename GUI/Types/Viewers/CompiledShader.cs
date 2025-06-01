@@ -372,6 +372,11 @@ namespace GUI.Types.Viewers
 
             foreach (var source in combo.ShaderFiles)
             {
+                if (source.Size == 0)
+                {
+                    continue;
+                }
+
                 var config = combo.ParentProgramData.GetDBlockConfig(sourceIdToRenderStateInfo[source.ShaderFileId].DynamicComboId);
 
                 dfNames.Clear();
