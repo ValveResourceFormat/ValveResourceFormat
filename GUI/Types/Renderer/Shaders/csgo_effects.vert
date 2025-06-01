@@ -9,13 +9,14 @@ in vec4 vCOLOR;
 
 out vec3 vFragPosition;
 out vec3 vNormalOut;
-out vec3 vTangentOut;
-out vec3 vBitangentOut;
 out vec2 vTexCoordOut;
-out vec4 vColorOut;
+centroid out vec4 vColorOut;
 
 #include "common/ViewConstants.glsl"
 uniform mat4 transform;
+uniform vec4 vTint;
+
+uniform vec4 g_vColorTint = vec4(1.0);
 
 void main()
 {
@@ -30,9 +31,14 @@ void main()
 
     mat3 normalTransform = adjoint(skinTransform);
     vNormalOut = normalize(normalTransform * normal);
-    vTangentOut = normalize(normalTransform * tangent.xyz);
-    vBitangentOut = tangent.w * cross(vNormalOut, vTangentOut);
 
     vTexCoordOut = vTEXCOORD;
-    vColorOut = vCOLOR;
+
+    vColorOut = vTint;
+    vColorOut.rgb *= SrgbGammaToLinear(g_vColorTint.rgb);
+
+    if (vCOLOR != vec4(0.0)) // Is this necessary?
+    {
+        vColorOut *= vCOLOR;
+    }
 }

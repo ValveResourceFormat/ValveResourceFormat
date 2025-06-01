@@ -9,16 +9,14 @@
 
 in vec3 vFragPosition;
 in vec3 vNormalOut;
-in vec3 vTangentOut;
-in vec3 vBitangentOut;
 in vec2 vTexCoordOut;
-in vec4 vColorOut;
+centroid in vec4 vColorOut;
 
 out vec4 outputColor;
 
 #define F_TINT_MASK 0
 
-uniform sampler2D g_tColor;
+uniform sampler2D g_tColor; // SrgbRead(true)
 uniform sampler2D g_tMask1;
 uniform sampler2D g_tMask2;
 uniform sampler2D g_tMask3;
@@ -35,59 +33,58 @@ uniform vec4 g_vMask2Scale;
 uniform vec4 g_vMask3Scale;
 
 uniform float g_flColorBoost = 1.0;
-uniform float g_flFadeDistance = 5000;
+uniform float g_flFadeDistance = 1.0;
 uniform float g_flFadeFalloff = 1.0;
 uniform float g_flFadeMax = 1.0;
 uniform float g_flFadeMin;
-uniform float g_flFeatherDistance = 2000;
+uniform float g_flFeatherDistance;
 uniform float g_flFeatherFalloff = 1.0;
-uniform float g_flFresnelExponent = 1.0;
+uniform float g_flFresnelExponent = 0.001;
 uniform float g_flFresnelFalloff = 1.0;
 uniform float g_flFresnelMax = 1.0;
 uniform float g_flFresnelMin;
 uniform float g_flOpacityScale = 1.0;
 
-uniform vec4 vTint;
-
+#include "common/features.glsl"
 #include "common/fog.glsl"
 
-//Main entry point
 void main()
 {
-    //Get the ambient color from the color texture
     vec4 color = texture(g_tColor, vTexCoordOut);
     float mask1 = texture(g_tMask1, vTexCoordOut * g_vMask1Scale.xy + (g_vMask1PanSpeed.xy * g_flTime)).x;
     float mask2 = texture(g_tMask2, vTexCoordOut * g_vMask2Scale.xy + (g_vMask2PanSpeed.xy * g_flTime)).x;
     float mask3 = texture(g_tMask3, vTexCoordOut * g_vMask3Scale.xy + (g_vMask3PanSpeed.xy * g_flTime)).x;
 
-    //Calculate tint color
-    vec3 tintColor = vTint.rgb;
+    float tintFactor = 1.0;
 
-    #if F_TINT_MASK == 1
-        // does texcoord scale really only apply to the tint mask?
-        float tintFactor = texture(g_tTintMask, vTexCoordOut * g_vTexCoordScale.xy + g_vTexCoordScale.xy).x;
-        tintColor = mix(vec3(1.0), tintColor, tintFactor);
+    #if (F_TINT_MASK == 1)
+        tintFactor = texture(g_tTintMask, vTexCoordOut).x;
     #endif
 
-    float opacity = color.a * mask1 * mask2 * mask3 * g_flOpacityScale;
+    float opacity = color.a * vColorOut.a * g_flOpacityScale * mask1 * mask2 * mask3 ;
 
-    // Calculate fresnel
-    vec3 viewDirection = normalize(g_vCameraPositionWs - vFragPosition);
-    float fresnel = abs(dot(viewDirection, vNormalOut));
-    fresnel = pow(fresnel, g_flFresnelExponent);
-    //fresnel = fresnel * g_flFresnelFalloff + (1 - g_flFresnelFalloff);
-    //fresnel = fresnel * (g_flFresnelMax - g_flFresnelMin) + g_flFresnelMin;
-    fresnel = mix(1 - g_flFresnelFalloff, 1.0, fresnel);
+    vec3 vCameraRay = vFragPosition - g_vCameraPositionWs;
+    vec3 vGeometricNormal = vNormalOut;
+
+    if (F_RENDER_BACKFACES == 1 && F_DONT_FLIP_BACKFACE_NORMALS == 0)
+    {
+        vGeometricNormal *= gl_FrontFacing ? 1.0 : -1.0;
+    }
+
+    float fresnel = saturate(dot(-normalize(vCameraRay), normalize(vGeometricNormal).xyz));
+    fresnel = pow(fresnel, g_flFresnelExponent) * g_flFresnelFalloff;
+    fresnel = saturate(fresnel);
     fresnel = mix(g_flFresnelMin, g_flFresnelMax, fresnel);
 
-    // Calculate fade
-    float distanceToCamera = length((vFragPosition - g_vCameraPositionWs) / g_flFadeDistance);
-    float fade = pow(mix(g_flFadeMin, g_flFadeMax, clamp(distanceToCamera, 0.0, 1.0)), g_flFadeFalloff);
+    float fade = saturate(length(vCameraRay / vec3(g_flFadeDistance)));
+    fade = mix(g_flFadeMin, g_flFadeMax, fade);
+    fade = pow(fade, g_flFadeFalloff);
 
-    opacity = opacity * fresnel * fade * vColorOut.a;
+    opacity *= fresnel;
+    opacity *= fade;
 
     outputColor = vec4(
-        color.rgb * tintColor * g_flColorBoost * vColorOut.rgb,
+        mix(color.rgb, color.rgb * vColorOut.rgb, tintFactor) * g_flColorBoost,
         opacity
     );
 
