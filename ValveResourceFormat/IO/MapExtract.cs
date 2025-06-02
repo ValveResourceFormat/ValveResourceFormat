@@ -582,7 +582,7 @@ public sealed class MapExtract
         {
             using var dmxMesh = ModelExtract.ConvertMeshToDatamodelMesh(embedded.Mesh, Path.GetFileNameWithoutExtension(resource.FileName), dmxOptions);
 
-            var mesh = (DmeModel)dmxMesh.Root["model"];
+            var mesh = (DmeModel)dmxMesh.Root!["model"]!;
 
             foreach (var dag in mesh.JointList.Cast<DmeDag>())
             {

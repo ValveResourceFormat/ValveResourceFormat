@@ -1200,32 +1200,32 @@ namespace ValveResourceFormat.IO
             {
                 if (stream.Key == "position$0")
                 {
-                    positions = (Vector3[])stream.Value;
+                    positions = (Vector3[])stream.Value!;
                 }
 
                 if (stream.Key == "texcoord$0")
                 {
-                    texcoords = (Vector2[])stream.Value;
+                    texcoords = (Vector2[])stream.Value!;
                 }
 
                 if (stream.Key == "normal$0")
                 {
-                    normals = (Vector3[])stream.Value;
+                    normals = (Vector3[])stream.Value!;
                 }
 
                 if (stream.Key == "tangent$0")
                 {
-                    tangents = (Vector4[])stream.Value;
+                    tangents = (Vector4[])stream.Value!;
                 }
 
                 if (stream.Key == "VertexPaintBlendParams$0")
                 {
-                    VertexPaintBlendParams = (Vector4[])stream.Value;
+                    VertexPaintBlendParams = (Vector4[])stream.Value!;
                 }
 
                 if (stream.Key == "VertexPaintTintColor$0")
                 {
-                    VertexPaintTintColor = (Vector4[])stream.Value;
+                    VertexPaintTintColor = (Vector4[])stream.Value!;
                 }
             }
 
@@ -1428,6 +1428,7 @@ namespace ValveResourceFormat.IO
 
         public static CDmePolygonMeshDataStream<T> CreateStream<TArray, T>(int dataStateFlags, string name, params T[] data)
             where TArray : Datamodel.Array<T>, new()
+            where T : notnull
         {
 
             var dmArray = new TArray();
