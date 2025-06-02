@@ -7,6 +7,8 @@ namespace GUI.Types.Renderer
     {
         public string Name { get; init; }
         public int Program { get; set; }
+        public bool Loaded { get; private set; }
+        public required int[] ShaderObjects { get; init; }
         public required IReadOnlyDictionary<string, byte> Parameters { get; init; }
         public required HashSet<string> RenderModes { get; init; }
         public required HashSet<string> SrgbSamplers { get; init; }
@@ -28,8 +30,35 @@ namespace GUI.Types.Renderer
 
         public int NameHash => Name.GetHashCode(StringComparison.OrdinalIgnoreCase);
 
+        public bool EnsureLoaded()
+        {
+            Loaded = true;
+
+            GL.GetProgram(Program, GetProgramParameterName.LinkStatus, out var linkStatus);
+
+            foreach (var obj in ShaderObjects)
+            {
+                GL.DetachShader(Program, obj);
+                GL.DeleteShader(obj);
+            }
+
+            if (linkStatus != 1)
+            {
+                return false;
+            }
+
+            StoreAttributeLocations();
+
+            return true;
+        }
+
         public void Use()
         {
+            if (!Loaded)
+            {
+                EnsureLoaded();
+            }
+
             GL.UseProgram(Program);
         }
 
@@ -248,7 +277,23 @@ namespace GUI.Types.Renderer
         }
 
 #if DEBUG
-        public void ClearUniformsCache() => Uniforms.Clear();
+        public void ReplaceWith(Shader shader)
+        {
+            GL.DeleteProgram(Program);
+
+            Loaded = false;
+            Program = shader.Program;
+
+            for (var i = 0; i < shader.ShaderObjects.Length; i++)
+            {
+                ShaderObjects[i] = shader.ShaderObjects[i];
+            }
+
+            RenderModes.Clear();
+            RenderModes.UnionWith(shader.RenderModes);
+
+            Uniforms.Clear();
+        }
 #endif
     }
 }

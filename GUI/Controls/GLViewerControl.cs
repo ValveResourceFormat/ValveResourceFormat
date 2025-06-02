@@ -440,6 +440,9 @@ namespace GUI.Controls
             GL.DepthFunc(DepthFunction.Greater);
             GL.ClearDepth(0.0f);
 
+            // Parallel shader compilation, 0xFFFFFFFF requests an implementation-specific maximum
+            GL.Arb.MaxShaderCompilerThreads(uint.MaxValue);
+
             try
             {
                 // Framebuffer used to draw geometry

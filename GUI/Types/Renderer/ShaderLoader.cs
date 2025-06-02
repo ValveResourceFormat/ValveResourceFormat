@@ -78,7 +78,7 @@ namespace GUI.Types.Renderer
             return shader;
         }
 
-        private Shader CompileAndLinkShader(string shaderName, IReadOnlyDictionary<string, byte> arguments)
+        private Shader CompileAndLinkShader(string shaderName, IReadOnlyDictionary<string, byte> arguments, bool blocking = true)
         {
             var shaderProgram = -1;
 
@@ -115,6 +115,7 @@ namespace GUI.Types.Renderer
                     Name = shaderName,
                     Parameters = arguments,
                     Program = shaderProgram,
+                    ShaderObjects = [vertexShader, fragmentShader],
                     RenderModes = parsedData.RenderModes,
                     SrgbSamplers = parsedData.SrgbSamplers
                 };
@@ -123,22 +124,19 @@ namespace GUI.Types.Renderer
                 GL.AttachShader(shader.Program, fragmentShader);
 
                 GL.LinkProgram(shader.Program);
-                GL.GetProgram(shader.Program, GetProgramParameterName.LinkStatus, out var linkStatus);
 
-                GL.DetachShader(shader.Program, vertexShader);
-                GL.DeleteShader(vertexShader);
-
-                GL.DetachShader(shader.Program, fragmentShader);
-                GL.DeleteShader(fragmentShader);
-
-                if (linkStatus != 1)
+                // Not getting link status straight away allows the driver to perform parallelized shader compilation
+                // TODO: Ideally we want this to work for initial load too.
+                if (blocking)
                 {
-                    GL.GetProgramInfoLog(shader.Program, out var log);
-                    ThrowShaderError(log, $"{shaderFileName} ({string.Join(", ", arguments.Keys)})", shaderName, "Failed to link shader");
-                }
+                    if (!shader.EnsureLoaded())
+                    {
+                        GL.GetProgramInfoLog(shader.Program, out var log);
+                        ThrowShaderError(log, $"{shaderFileName} ({string.Join(", ", arguments.Keys)})", shaderName, "Failed to link shader");
+                    }
 
-                VrfGuiContext.MaterialLoader.SetDefaultMaterialParameters(shader.Default);
-                shader.StoreAttributeLocations();
+                    VrfGuiContext.MaterialLoader.SetDefaultMaterialParameters(shader.Default);
+                }
 
                 ShaderDefines[shaderName] = parsedData.Defines;
 
@@ -332,14 +330,8 @@ namespace GUI.Types.Renderer
                     continue;
                 }
 
-                var newShader = CompileAndLinkShader(shader.Name, shader.Parameters);
-
-                GL.DeleteProgram(shader.Program);
-
-                shader.Program = newShader.Program;
-                shader.RenderModes.Clear();
-                shader.RenderModes.UnionWith(newShader.RenderModes);
-                shader.ClearUniformsCache();
+                var newShader = CompileAndLinkShader(shader.Name, shader.Parameters, blocking: false);
+                shader.ReplaceWith(newShader);
             }
         }
 
