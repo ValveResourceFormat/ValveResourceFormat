@@ -156,7 +156,7 @@ vec3 specularLighting(vec3 lightVector, vec3 normal, MaterialProperties_t mat)
 	float VoH = ClampToPositive(dot(lightVector, halfVector));
 
 #if defined(vr_complex_vfx) && (F_CLOTH_SHADING == 1)
-    return SpecularCloth(mat.Roughness, NoL, NoH, NoV, VoH, mat.SpecularColor);
+    return SpecularCloth(mat.Roughness.x, NoL, NoH, NoV, VoH, mat.SpecularColor);
 #else
 
 #if defined(ANISO_ROUGHNESS)
