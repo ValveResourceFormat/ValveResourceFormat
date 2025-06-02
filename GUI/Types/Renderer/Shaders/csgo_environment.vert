@@ -1,9 +1,5 @@
 #version 460
 
-#if !(defined(csgo_environment_vfx) || defined(csgo_environment_blend_vfx))
-    #error "This shader is not supported!"
-#endif
-
 #include "common/utils.glsl"
 #include "common/animation.glsl"
 #include "common/features.glsl"

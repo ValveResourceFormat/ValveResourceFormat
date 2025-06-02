@@ -42,8 +42,8 @@ uniform int F_TEXTURE_ANIMATION_MODE;
     out vec3 vPerVertexLightingOut;
 #endif
 
-#if (F_LAYERS > 0) || defined(simple_2way_blend_vfx) || defined(vr_blend_vfx_common) || defined(vr_standard_blend_vfx) || defined(environment_blend_vfx)
-    #if defined(vr_standard_blend_vfx)
+#if (F_LAYERS > 0) || defined(simple_2way_blend_vfx) || defined(vr_blend_vfx_common) || defined(vr_standard_vfx_blend) || defined(environment_blend_vfx)
+    #if defined(vr_standard_vfx_blend)
         #define vBLEND_COLOR vTEXCOORD2
     #else
         #define vBLEND_COLOR vTEXCOORD4
@@ -73,7 +73,7 @@ uniform int F_TEXTURE_ANIMATION_MODE;
     out vec2 vTexCoord2;
 #endif
 
-#if (F_VERTEX_COLOR == 1) || (F_PAINT_VERTEX_COLORS == 1)
+#if !defined(vFoliageParams) && ((F_VERTEX_COLOR == 1) || (F_PAINT_VERTEX_COLORS == 1))
     in vec4 vCOLOR;
 #endif
 
@@ -220,7 +220,7 @@ void main()
 
     vVertexColorOut = GetTintColor();
 
-#if (F_PAINT_VERTEX_COLORS == 1)
+#if !defined(vFoliageParams) && (F_PAINT_VERTEX_COLORS == 1)
     vVertexColorOut *= vCOLOR;
 #endif
 

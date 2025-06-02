@@ -14,5 +14,5 @@
 #endif 
 
 #if defined(vr_standard_vfx) && (F_BLEND > 0)
-    #define vr_standard_blend_vfx
+    #define vr_standard_vfx_blend
 #endif

@@ -7,10 +7,10 @@
 
 layout (location = 0) in vec3 vPOSITION;
 #include "common/compression.glsl"
-layout (location = 3) in vec2 vTEXCOORD;
-layout (location = 4) in vec4 vTEXCOORD1;
-layout (location = 5) in vec4 vTEXCOORD2;
-layout (location = 6) in vec4 vTEXCOORD3;
+layout (location = 6) in vec2 vTEXCOORD;
+layout (location = 7) in vec4 vTEXCOORD1;
+layout (location = 8) in vec4 vTEXCOORD2;
+layout (location = 9) in vec4 vTEXCOORD3;
 
 out vec3 vFragPosition;
 

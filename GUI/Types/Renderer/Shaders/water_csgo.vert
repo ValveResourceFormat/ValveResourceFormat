@@ -20,6 +20,9 @@ out vec4 vColorBlendValues;
     out vec3 vLightmapUVScaled;
 
     #include "common/LightingConstants.glsl"
+#elif D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1
+    in vec4 vPerVertexLighting;
+    out vec3 vPerVertexLightingOut;
 #endif
 
 #include "common/ViewConstants.glsl"
@@ -38,6 +41,9 @@ void main()
 
     #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
         vLightmapUVScaled = vec3(vLightmapUV * g_vLightmapUvScale.xy, 0);
+    #elif (D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1)
+        vec3 Light = vPerVertexLighting.rgb * 6.0 * vPerVertexLighting.a;
+        vPerVertexLightingOut = pow2(Light);
     #endif
 
     vTexCoordOut = vTEXCOORD;
