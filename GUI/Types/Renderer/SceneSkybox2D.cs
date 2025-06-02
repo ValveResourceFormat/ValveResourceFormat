@@ -18,8 +18,8 @@ namespace GUI.Types.Renderer
         public void Render()
         {
             GL.DepthFunc(DepthFunction.Equal);
-            GL.UseProgram(Material.Shader.Program);
 
+            Material.Shader.Use();
             Material.Render();
             Material.Shader.SetUniform3("m_vTint", Tint);
             Material.Shader.SetUniform4x4("g_matSkyRotation", Transform);

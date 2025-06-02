@@ -43,7 +43,7 @@ namespace GUI.Types.Renderer
             GL.Enable(EnableCap.Blend);
             GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
 
-            GL.UseProgram(shader.Program);
+            shader.Use();
             GL.BindVertexArray(vao);
 
             GL.DrawArrays(PrimitiveType.Triangles, 0, 6);

@@ -1,17 +1,15 @@
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 
-#nullable disable
-
 namespace GUI.Types.Renderer
 {
     class Shader
     {
         public string Name { get; init; }
         public int Program { get; set; }
-        public IReadOnlyDictionary<string, byte> Parameters { get; init; }
-        public HashSet<string> RenderModes { get; init; }
-        public HashSet<string> SrgbSamplers { get; init; }
+        public required IReadOnlyDictionary<string, byte> Parameters { get; init; }
+        public required HashSet<string> RenderModes { get; init; }
+        public required HashSet<string> SrgbSamplers { get; init; }
 
         private readonly Dictionary<string, (ActiveUniformType Type, int Location)> Uniforms = [];
         public RenderMaterial Default;
@@ -19,7 +17,7 @@ namespace GUI.Types.Renderer
         public readonly Dictionary<string, int> Attributes = [];
 
 #if DEBUG
-        public string FileName { get; init; }
+        public required string FileName { get; init; }
 #endif
 
         public Shader()
@@ -29,6 +27,11 @@ namespace GUI.Types.Renderer
         }
 
         public int NameHash => Name.GetHashCode(StringComparison.OrdinalIgnoreCase);
+
+        public void Use()
+        {
+            GL.UseProgram(Program);
+        }
 
         public IEnumerable<(string Name, int Index, ActiveUniformType Type, int Size)> GetAllUniformNames()
         {

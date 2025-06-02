@@ -287,7 +287,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
             GL.Disable(EnableCap.CullFace);
 
-            GL.UseProgram(shader.Program);
+            shader.Use();
             GL.BindVertexArray(vaoHandle);
 
             // set texture unit 0 as uTexture uniform

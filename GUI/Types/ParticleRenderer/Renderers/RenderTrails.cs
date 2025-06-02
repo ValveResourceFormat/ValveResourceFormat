@@ -119,7 +119,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
                 GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
             }
 
-            GL.UseProgram(shader.Program);
+            shader.Use();
 
             GL.BindVertexArray(vaoHandle);
 

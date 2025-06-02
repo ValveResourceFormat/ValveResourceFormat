@@ -53,7 +53,7 @@ namespace GUI.Types.Renderer
             GL.DepthMask(false);
             GL.Disable(EnableCap.DepthTest);
 
-            GL.UseProgram(shader.Program);
+            shader.Use();
 
             // Bind textures
             shader.SetTexture(0, "g_tColorBuffer", colorBuffer.Color);

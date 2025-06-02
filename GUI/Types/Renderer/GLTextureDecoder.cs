@@ -218,7 +218,7 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
             [textureType] = 1,
         });
 
-        GL.UseProgram(shader.Program);
+        shader.Use();
 
         shader.SetTexture(0, "g_tInputTexture", inputTexture);
         shader.SetUniform2("g_vViewportSize", new System.Numerics.Vector2(blockWidth, blockHeight));

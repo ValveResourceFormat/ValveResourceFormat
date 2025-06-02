@@ -437,7 +437,7 @@ namespace GUI.Types.Renderer
             GL.DepthMask(false);
             GL.Disable(EnableCap.CullFace);
 
-            GL.UseProgram(depthOnlyShader.Program);
+            depthOnlyShader.Use();
             GL.BindVertexArray(GuiContext.MeshBufferCache.EmptyVAO);
 
             var maxTests = 128;

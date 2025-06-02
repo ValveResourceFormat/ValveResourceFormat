@@ -270,9 +270,7 @@ namespace GUI.Types.Renderer
             }
 
             var renderShader = context.ReplacementShader ?? shader;
-
-            GL.UseProgram(renderShader.Program);
-
+            renderShader.Use();
             renderShader.SetUniform4x4("transform", Transform);
             renderShader.SetBoneAnimationData(false);
             renderShader.SetUniform1("sceneObjectId", Id);

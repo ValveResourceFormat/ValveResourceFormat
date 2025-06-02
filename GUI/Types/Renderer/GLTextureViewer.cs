@@ -1062,7 +1062,7 @@ namespace GUI.Types.Renderer
             GL.DepthMask(false);
             GL.Disable(EnableCap.DepthTest);
 
-            GL.UseProgram(shader.Program);
+            shader.Use();
 
             shader.SetUniform1("g_bTextureViewer", true);
             shader.SetUniform1("g_bShowLightBackground", ShowLightBackground);

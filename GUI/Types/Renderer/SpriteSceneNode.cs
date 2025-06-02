@@ -82,8 +82,8 @@ namespace GUI.Types.Renderer
             }
 
             var renderShader = context.ReplacementShader ?? material.Shader;
+            renderShader.Use();
 
-            GL.UseProgram(renderShader.Program);
             GL.BindVertexArray(vaoHandle);
 
             // Create billboarding rotation (always facing camera)

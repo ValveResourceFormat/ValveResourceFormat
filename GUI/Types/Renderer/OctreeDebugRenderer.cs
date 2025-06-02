@@ -142,8 +142,8 @@ namespace GUI.Types.Renderer
             GL.Enable(EnableCap.Blend);
             GL.DepthMask(false);
             GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
-            GL.UseProgram(shader.Program);
 
+            shader.Use();
             shader.SetUniform4x4("transform", Matrix4x4.Identity);
 
             GL.BindVertexArray(vaoHandle);

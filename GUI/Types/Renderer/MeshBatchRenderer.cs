@@ -180,7 +180,7 @@ namespace GUI.Types.Renderer
                             uniforms.ShaderProgramId = shader.GetUniformLocation("shaderProgramId");
                         }
 
-                        GL.UseProgram(shader.Program);
+                        shader.Use();
 
                         foreach (var (slot, name, texture) in context.View.Textures)
                         {
