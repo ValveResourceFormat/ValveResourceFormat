@@ -12,6 +12,7 @@
     #define F_BORDER_BLEND_MODE 0 // 0="Multiply", 1="Add", 2="Overlay", 3="Colorize"
 
     #define F_SHARED_COLOR_OVERLAY 0
+    #define F_ENABLE_LAYER_3 0
     #define F_DEPTH_BIAS 0
 #endif
 

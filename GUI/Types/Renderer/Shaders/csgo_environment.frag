@@ -73,6 +73,12 @@ uniform float g_flHeightMapZeroPoint1 = 0.5;
     uniform sampler2D g_tHeight2;
     uniform sampler2D g_tNormal2;
 
+    #if (F_ENABLE_LAYER_3 == 1)
+        in vec4 vTexCoord3;
+
+        //
+    #endif
+
     #if (F_DETAIL_NORMAL == 1)
         uniform sampler2D g_tNormalDetail2;
     #endif
