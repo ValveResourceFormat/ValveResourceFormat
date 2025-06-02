@@ -189,6 +189,7 @@ namespace GUI.Types.Renderer
         private readonly List<MeshBatchRenderer.Request> renderOpaqueDrawCalls = [];
         private readonly List<MeshBatchRenderer.Request> renderStaticOverlays = [];
         private readonly List<MeshBatchRenderer.Request> renderTranslucentDrawCalls = [];
+        private readonly List<MeshBatchRenderer.Request> renderWithFramebufferCopyInput = [];
 
         private void Add(MeshBatchRenderer.Request request, RenderPass renderPass)
         {
@@ -197,11 +198,17 @@ namespace GUI.Types.Renderer
                 return;
             }
 
+            if (renderPass is RenderPass.Opaque or RenderPass.Translucent && request.Call.Material.WantsFrameBufferCopy)
+            {
+                renderPass = RenderPass.FramebufferCopy;
+            }
+
             var queueList = renderPass switch
             {
                 RenderPass.Opaque => renderOpaqueDrawCalls,
                 RenderPass.StaticOverlay => renderStaticOverlays,
                 RenderPass.Translucent => renderTranslucentDrawCalls,
+                RenderPass.FramebufferCopy => renderWithFramebufferCopyInput,
                 _ => renderLooseNodes,
             };
 
@@ -214,6 +221,7 @@ namespace GUI.Types.Renderer
             renderStaticOverlays.Clear();
             renderTranslucentDrawCalls.Clear();
             renderLooseNodes.Clear();
+            renderWithFramebufferCopyInput.Clear();
 
             cullFrustum ??= camera.ViewFrustum;
             var cullResults = GetFrustumCullResults(cullFrustum);
@@ -345,6 +353,11 @@ namespace GUI.Types.Renderer
                             (true, _) => DepthOnlyProgram.StaticAlphaTest,
                             (false, true) => DepthOnlyProgram.Animated,
                         };
+
+                        if (opaqueCall.Material.WantsFrameBufferCopy)
+                        {
+                            continue; // todo, water shouldn't contribute shadows
+                        }
 
                         if (mesh.BoneWeightCount > 4)
                         {
@@ -544,6 +557,12 @@ namespace GUI.Types.Renderer
             {
                 MeshBatchRenderer.Render(renderTranslucentDrawCalls, renderContext);
             }
+        }
+
+        public void RenderRefractionEffects(RenderContext renderContext)
+        {
+            renderContext.RenderPass = RenderPass.FramebufferCopy;
+            MeshBatchRenderer.Render(renderWithFramebufferCopyInput, renderContext);
         }
 
         public void SetEnabledLayers(HashSet<string> layers, bool skipUpdate = false)
