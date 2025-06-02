@@ -352,6 +352,7 @@ namespace GUI.Types.Renderer
                 var shaderFileName = Path.GetFileNameWithoutExtension(shader);
 
                 loader.LoadShader(shaderFileName);
+                loader.Parser.Reset();
             }
 
             var parsedShaderData = new ParsedShaderData();
@@ -363,6 +364,7 @@ namespace GUI.Types.Renderer
                 var shaderFileName = Path.GetFileName(include);
                 var fragmentShader = GL.CreateShader(ShaderType.FragmentShader);
                 loader.LoadShader(fragmentShader, shaderFileName, shaderFileName, EmptyArgs, ref parsedShaderData);
+                loader.Parser.Reset();
                 GL.DeleteShader(fragmentShader);
             }
 
