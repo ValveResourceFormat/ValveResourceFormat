@@ -189,7 +189,7 @@ namespace GUI.Types.Renderer
             foreach (var param in shader.Default.Material.VectorParams)
             {
                 var value = Material.VectorParams.GetValueOrDefault(param.Key, param.Value);
-                shader.SetUniform4(param.Key, value);
+                shader.SetMaterialVector4Uniform(param.Key, value);
             }
 
             if (IsOverlay)

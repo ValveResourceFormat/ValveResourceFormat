@@ -150,7 +150,7 @@ void AdjustRoughnessByGeometricNormal(inout MaterialProperties_t mat)
 
 #if defined(DIFFUSE_AO_COLOR_BLEED)
 
-uniform vec4 g_vAmbientOcclusionColorBleed = vec4(0.4, 0.14902, 0.129412, 0.0);
+uniform vec3 g_vAmbientOcclusionColorBleed = vec3(0.4, 0.14902, 0.129412);
 
 void SetDiffuseColorBleed(inout MaterialProperties_t mat)
 {
@@ -290,7 +290,7 @@ void applyDetailTexture(inout vec3 Albedo, inout vec3 NormalMap, vec2 detailMask
     uniform float g_flEdgeColorFalloff = 3.0;
     uniform float g_flEdgeColorMaxOpacity = 0.5;
     uniform float g_flEdgeColorThickness = 0.1;
-    uniform vec4 g_vEdgeColor;
+    uniform vec3 g_vEdgeColor;
     uniform float g_flRefractScale = 0.1;
 
     // todo: is this right?
@@ -309,7 +309,7 @@ void applyDetailTexture(inout vec3 Albedo, inout vec3 NormalMap, vec2 detailMask
 #if (F_CLOTH_SHADING == 1) && defined(csgo_character_vfx)
 
     uniform float g_flSheenScale = 0.667;
-    uniform vec4 g_flSheenTintColor = vec4(1.0);
+    uniform vec3 g_flSheenTintColor = vec3(1.0);
 
     vec3 ApplySheen(float reflectance, vec3 albedo, float clothMask)
     {

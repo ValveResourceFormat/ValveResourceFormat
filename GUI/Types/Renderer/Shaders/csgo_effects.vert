@@ -16,7 +16,7 @@ centroid out vec4 vColorOut;
 uniform mat4 transform;
 uniform vec4 vTint;
 
-uniform vec4 g_vColorTint = vec4(1.0);
+uniform vec3 g_vColorTint = vec3(1.0);
 
 void main()
 {

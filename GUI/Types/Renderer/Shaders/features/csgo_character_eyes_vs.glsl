@@ -5,16 +5,16 @@
 
 #if defined(csgo_character_vfx) && (F_EYEBALLS == 1)
 // Left eye
-uniform vec4 g_vEyeLBindFwd;
-uniform vec4 g_vEyeLBindUp;
-uniform vec4 g_vEyeLBindPos;
+uniform vec3 g_vEyeLBindFwd;
+uniform vec3 g_vEyeLBindUp;
+uniform vec3 g_vEyeLBindPos;
 uniform int g_nEyeLBindIdx;
 uniform float g_flEyeBallWalleyeL1;
 
 // Right eye
-uniform vec4 g_vEyeRBindFwd;
-uniform vec4 g_vEyeRBindUp;
-uniform vec4 g_vEyeRBindPos;
+uniform vec3 g_vEyeRBindFwd;
+uniform vec3 g_vEyeRBindUp;
+uniform vec3 g_vEyeRBindPos;
 uniform int g_nEyeRBindIdx;
 uniform float g_flEyeBallWalleyeR1;
 
@@ -27,7 +27,7 @@ struct EyeData
 };
 
 // View target
-uniform vec4 g_vEyeTargetBindPos;
+uniform vec3 g_vEyeTargetBindPos;
 uniform int g_nEyeTargetBindIdx;
 
 out EyePixelInput eyeInterpolator;

@@ -43,7 +43,7 @@ out vec4 vTexCoord2;
 out vec4 vTintColor_ModelAmount;
 centroid out vec4 vVertexColor_Alpha;
 
-uniform vec4 g_vColorTint = vec4(1.0);
+uniform vec3 g_vColorTint = vec3(1.0);
 uniform float g_flModelTintAmount = 1.0;
 
 #include "common/ViewConstants.glsl"
@@ -53,33 +53,33 @@ uniform vec4 vTint;
 
 // Material 1
 uniform float g_flTexCoordRotation1 = 0.0;
-uniform vec4 g_vTexCoordCenter1 = vec4(0.5);
-uniform vec4 g_vTexCoordOffset1 = vec4(0.0);
-uniform vec4 g_vTexCoordScale1 = vec4(1.0);
+uniform vec2 g_vTexCoordCenter1 = vec2(0.5);
+uniform vec2 g_vTexCoordOffset1 = vec2(0.0);
+uniform vec2 g_vTexCoordScale1 = vec2(1.0);
 
 // Material 2
 #if defined(csgo_environment_blend_vfx)
     uniform float g_flTexCoordRotation2 = 0.0;
-    uniform vec4 g_vTexCoordCenter2 = vec4(0.5);
-    uniform vec4 g_vTexCoordOffset2 = vec4(0.0);
-    uniform vec4 g_vTexCoordScale2 = vec4(1.0);
+    uniform vec2 g_vTexCoordCenter2 = vec2(0.5);
+    uniform vec2 g_vTexCoordOffset2 = vec2(0.0);
+    uniform vec2 g_vTexCoordScale2 = vec2(1.0);
 
     uniform float g_flBlendSoftness2 = 0.01;
 
     #if (F_SHARED_COLOR_OVERLAY == 1)
         uniform float g_flOverlayTexCoordRotation = 0.0;
-        uniform vec4 g_vOverlayTexCoordCenter = vec4(0.5);
-        uniform vec4 g_vOverlayTexCoordOffset = vec4(0.0);
-        uniform vec4 g_vOverlayTexCoordScale = vec4(1.0);
+        uniform vec2 g_vOverlayTexCoordCenter = vec2(0.5);
+        uniform vec2 g_vOverlayTexCoordOffset = vec2(0.0);
+        uniform vec2 g_vOverlayTexCoordScale = vec2(1.0);
     #endif
 
 #endif
 
 #if (F_DETAIL_NORMAL == 1)
     uniform float g_flDetailTexCoordRotation1 = 0.0;
-    uniform vec4 g_vDetailTexCoordCenter1 = vec4(0.5);
-    uniform vec4 g_vDetailTexCoordOffset1 = vec4(0.0);
-    uniform vec4 g_vDetailTexCoordScale1 = vec4(1.0);
+    uniform vec2 g_vDetailTexCoordCenter1 = vec2(0.5);
+    uniform vec2 g_vDetailTexCoordOffset1 = vec2(0.0);
+    uniform vec2 g_vDetailTexCoordScale1 = vec2(1.0);
 
     out vec2 vDetailTexCoords;
 #endif

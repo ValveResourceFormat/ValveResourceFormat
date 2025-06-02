@@ -369,7 +369,7 @@ namespace GUI.Types.Renderer
                 }
 
                 var isTexture = type is ActiveUniformType.Sampler2D or ActiveUniformType.SamplerCube;
-                var isVector = type == ActiveUniformType.FloatVec4;
+                var isVector = type is ActiveUniformType.FloatVec4 or ActiveUniformType.FloatVec3 or ActiveUniformType.FloatVec2;
                 var isScalar = type == ActiveUniformType.Float;
                 var isBoolean = type == ActiveUniformType.Bool;
                 var isInteger = type is ActiveUniformType.Int or ActiveUniformType.UnsignedInt;

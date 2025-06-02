@@ -43,18 +43,18 @@ uniform float g_flTexCoordRotate1;
 uniform float g_flTexCoordRotate2;
 uniform float g_flTexCoordRotate3;
 
-uniform vec4 g_vTexCoordOffset0 = vec4(0.0);
-uniform vec4 g_vTexCoordOffset1 = vec4(0.0);
-uniform vec4 g_vTexCoordOffset2 = vec4(0.0);
-uniform vec4 g_vTexCoordOffset3 = vec4(0.0);
+uniform vec2 g_vTexCoordOffset0;
+uniform vec2 g_vTexCoordOffset1;
+uniform vec2 g_vTexCoordOffset2;
+uniform vec2 g_vTexCoordOffset3;
 
-uniform vec4 g_vTexCoordScroll0 = vec4(0.0);
-uniform vec4 g_vTexCoordScroll1 = vec4(0.0);
-uniform vec4 g_vTexCoordScroll2 = vec4(0.0);
-uniform vec4 g_vTexCoordScroll3 = vec4(0.0);
+uniform vec2 g_vTexCoordScroll0;
+uniform vec2 g_vTexCoordScroll1;
+uniform vec2 g_vTexCoordScroll2;
+uniform vec2 g_vTexCoordScroll3;
 
 
-vec2 getTexCoord(float scale, float rotation, vec4 offset, vec4 scroll) {
+vec2 getTexCoord(float scale, float rotation, vec2 offset, vec2 scroll) {
 
     //Transform degrees to radians
     float r = radians(rotation);

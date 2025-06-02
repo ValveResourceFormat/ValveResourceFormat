@@ -64,15 +64,15 @@ uniform sampler2D g_tSpecular3;
     }
 #endif
 
-uniform vec4 g_vGlobalTint = vec4(1.0);
-uniform vec4 g_vColorTint0 = vec4(1.0);
-uniform vec4 g_vColorTint1 = vec4(1.0);
-uniform vec4 g_vColorTint2 = vec4(1.0);
-uniform vec4 g_vColorTint3 = vec4(1.0);
-uniform vec4 g_vColorTintB0 = vec4(1.0);
-uniform vec4 g_vColorTintB1 = vec4(1.0);
-uniform vec4 g_vColorTintB2 = vec4(1.0);
-uniform vec4 g_vColorTintB3 = vec4(1.0);
+uniform vec3 g_vGlobalTint = vec3(1.0);
+uniform vec3 g_vColorTint0 = vec3(1.0);
+uniform vec3 g_vColorTint1 = vec3(1.0);
+uniform vec3 g_vColorTint2 = vec3(1.0);
+uniform vec3 g_vColorTint3 = vec3(1.0);
+uniform vec3 g_vColorTintB0 = vec3(1.0);
+uniform vec3 g_vColorTintB1 = vec3(1.0);
+uniform vec3 g_vColorTintB2 = vec3(1.0);
+uniform vec3 g_vColorTintB3 = vec3(1.0);
 
 #include "common/utils.glsl"
 #include "common/ViewConstants.glsl"

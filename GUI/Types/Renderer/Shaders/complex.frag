@@ -135,14 +135,14 @@ uniform sampler2D g_tTintMask;
     #endif
     uniform sampler2D g_tLayer2Color; // SrgbRead(true)
     uniform sampler2D g_tLayer2NormalRoughness;
-    uniform vec4 g_vTexCoordScale2 = vec4(1.0);
+    uniform vec2 g_vTexCoordScale2 = vec2(1.0);
 
     #define terrain_blend_common
 #endif
 
 #if defined(vr_skin_vfx)
     uniform sampler2D g_tCombinedMasks;
-    uniform vec4 g_vTransmissionColor = vec4(0.74902, 0.231373, 0.011765, 0.0);
+    uniform vec3 g_vTransmissionColor = vec3(0.74902, 0.231373, 0.011765);
     uniform float g_flMouthInteriorBrightnessScale = 1.0;
 #endif
 
@@ -174,8 +174,8 @@ uniform sampler2D g_tTintMask;
     uniform float g_flSelfIllumAlbedoFactor = 0.0;
     uniform float g_flSelfIllumBrightness = 0.0;
     uniform float g_flSelfIllumScale = 1.0;
-    uniform vec4 g_vSelfIllumScrollSpeed = vec4(0.0);
-    uniform vec4 g_vSelfIllumTint = vec4(1.0);
+    uniform vec2 g_vSelfIllumScrollSpeed = vec2(0.0);
+    uniform vec3 g_vSelfIllumTint = vec3(1.0);
 
     vec3 GetStandardSelfIllumination(float flSelfIllumMask, vec3 vAlbedo)
     {
@@ -185,7 +185,7 @@ uniform sampler2D g_tTintMask;
 #endif
 
 #if defined(csgo_glass_vfx)
-    uniform vec4 g_flTranslucencyRemap = vec4(0.0, 1.0, 0.0, 0.0);
+    uniform vec2 g_flTranslucencyRemap = vec2(0.0, 1.0);
 #endif
 
 #if (_uniformMetalness)

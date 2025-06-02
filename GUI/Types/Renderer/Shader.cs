@@ -13,7 +13,7 @@ namespace GUI.Types.Renderer
         public HashSet<string> RenderModes { get; init; }
         public HashSet<string> SrgbSamplers { get; init; }
 
-        private readonly Dictionary<string, int> Uniforms = [];
+        private readonly Dictionary<string, (ActiveUniformType Type, int Location)> Uniforms = [];
         public RenderMaterial Default;
 
         public readonly Dictionary<string, int> Attributes = [];
@@ -61,7 +61,7 @@ namespace GUI.Types.Renderer
 
                 if (uniformLocation > -1)
                 {
-                    Uniforms[uniformName] = uniformLocation;
+                    Uniforms[uniformName] = (uniformType, uniformLocation);
                 }
 
                 yield return (uniformName, i, uniformType, size);
@@ -84,30 +84,30 @@ namespace GUI.Types.Renderer
 
         public int GetUniformLocation(string name)
         {
-            if (Uniforms.TryGetValue(name, out var value))
+            if (Uniforms.TryGetValue(name, out var locationType))
             {
-                return value;
+                return locationType.Location;
             }
 
-            value = GL.GetUniformLocation(Program, name);
+            var location = GL.GetUniformLocation(Program, name);
 
-            Uniforms[name] = value;
+            Uniforms[name] = (ActiveUniformType.FloatVec4, location);
 
-            return value;
+            return location;
         }
 
         public int GetUniformBlockIndex(string name)
         {
-            if (Uniforms.TryGetValue(name, out var value))
+            if (Uniforms.TryGetValue(name, out var locationType))
             {
-                return value;
+                return locationType.Location;
             }
 
-            value = GL.GetUniformBlockIndex(Program, name);
+            var location = GL.GetUniformBlockIndex(Program, name);
 
-            Uniforms[name] = value;
+            Uniforms[name] = (ActiveUniformType.FloatVec4, location);
 
-            return value;
+            return location;
         }
 
         public void SetUniform1(string name, float value)
@@ -163,6 +163,29 @@ namespace GUI.Types.Renderer
             if (uniformLocation > -1)
             {
                 GL.ProgramUniform4(Program, uniformLocation, value.X, value.Y, value.Z, value.W);
+            }
+        }
+
+        public void SetMaterialVector4Uniform(string name, Vector4 value)
+        {
+            if (Uniforms.TryGetValue(name, out var uniform) && uniform.Location > -1)
+            {
+                if (uniform.Type == ActiveUniformType.FloatVec3)
+                {
+                    GL.ProgramUniform3(Program, uniform.Location, value.X, value.Y, value.Z);
+                }
+                else if (uniform.Type is ActiveUniformType.FloatVec2)
+                {
+                    GL.ProgramUniform2(Program, uniform.Location, value.X, value.Y);
+                }
+                else if (uniform.Type == ActiveUniformType.FloatVec4)
+                {
+                    GL.ProgramUniform4(Program, uniform.Location, value.X, value.Y, value.Z, value.W);
+                }
+                else if (uniform.Type is ActiveUniformType.IntVec4 or ActiveUniformType.UnsignedIntVec4 or ActiveUniformType.BoolVec4)
+                {
+                    GL.ProgramUniform4(Program, uniform.Location, (uint)value.X, (uint)value.Y, (uint)value.Z, (uint)value.W);
+                }
             }
         }
 

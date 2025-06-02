@@ -18,13 +18,13 @@ uniform sampler2D g_tNoise;
 
 #include "common/ViewConstants.glsl"
 
-uniform vec4 g_vWaterFogColor;
-uniform vec4 g_vLowEndSurfaceColor;
-uniform vec4 g_vLowEndReflectionColor;
+uniform vec3 g_vWaterFogColor;
+uniform vec3 g_vLowEndSurfaceColor;
+uniform vec3 g_vLowEndReflectionColor;
 
 uniform float g_flFlowTimeScale;
 
-uniform vec4 TextureFlow;
+uniform vec2 TextureFlow;
 
 uniform float g_flNormalUvScale = 1.0;
 uniform float g_flNormalFlowUvScrollDistance = 1.0;

@@ -18,16 +18,16 @@ out vec4 outputColor;
 uniform sampler2D g_tBlueNoise;
 
 uniform sampler2D g_tWavesNormalHeight;
-uniform vec4 g_vWaveScale = vec4(1.0);
+uniform vec2 g_vWaveScale = vec2(1.0);
 uniform float g_flWavesSpeed = 1.0;
 
 uniform float g_flSkyBoxScale = 1.0;
 uniform float g_flSkyBoxFadeRange;
-uniform vec4 g_vMapUVMin = vec4(-1000.0);
-uniform vec4 g_vMapUVMax = vec4(1000.0);
+uniform vec2 g_vMapUVMin = vec2(-1000.0);
+uniform vec2 g_vMapUVMax = vec2(1000.0);
 
-uniform vec4 g_vWaterFogColor;
-uniform vec4 g_vWaterDecayColor;
+uniform vec3 g_vWaterFogColor;
+uniform vec3 g_vWaterDecayColor;
 
 #include "common/features.glsl"
 #include "common/ViewConstants.glsl"

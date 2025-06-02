@@ -46,7 +46,7 @@ out vec4 outputColor;
     #endif
     #if (F_SPECULAR == 1)
         uniform sampler2D g_tSpecular; // Reflectance, SelfIllum, Bloom
-        uniform vec4 g_vColorTint2 = vec4(1.0);
+        uniform vec3 g_vColorTint2 = vec3(1.0);
         uniform float g_flSpecularIntensity;
     #endif
     #if (F_SCROLL_UV == 1 || F_SCROLL_UV == 2)
@@ -61,13 +61,13 @@ out vec4 outputColor;
 
 #if (F_SCROLL_UV == 1 || F_SCROLL_UV == 2)
     uniform float g_flScrollUvSpeed;
-    uniform vec4 g_vScrollUvDirection;
+    uniform vec2 g_vScrollUvDirection;
 #endif
 
 #include "common/utils.glsl"
 #include "common/ViewConstants.glsl"
 
-uniform vec4 g_vColorTint = vec4(1.0);
+uniform vec3 g_vColorTint = vec3(1.0);
 uniform float g_flOpacityScale = 1.0;
 
 uniform float g_flAlphaTestReference = 0.5;

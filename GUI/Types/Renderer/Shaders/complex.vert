@@ -85,21 +85,21 @@ out vec3 vBitangentOut;
 centroid out vec3 vCentroidNormalOut;
 out vec2 vTexCoordOut;
 
-uniform vec4 g_vColorTint = vec4(1.0);
+uniform vec3 g_vColorTint = vec3(1.0);
 uniform float g_flModelTintAmount = 1.0;
 uniform float g_flFadeExponent = 1.0;
 
 uniform mat4 transform;
 uniform vec4 vTint;
 
-uniform vec4 g_vTexCoordOffset;
-uniform vec4 g_vTexCoordScale = vec4(1.0);
-uniform vec4 g_vTexCoordScrollSpeed;
-uniform vec4 g_vTexCoordCenter = vec4(0.5);
+uniform vec2 g_vTexCoordOffset;
+uniform vec2 g_vTexCoordScale = vec2(1.0);
+uniform vec2 g_vTexCoordScrollSpeed;
+uniform vec2 g_vTexCoordCenter = vec2(0.5);
 uniform float g_flTexCoordRotation = 0.0;
 
 #if (F_TEXTURE_ANIMATION == 1)
-    uniform vec4 g_vAnimationGrid = vec4(1, 1, 0, 0);
+    uniform vec2 g_vAnimationGrid = vec2(1, 1);
     uniform int g_nNumAnimationCells = 1;
     uniform float g_flAnimationTimePerFrame;
     uniform float g_flAnimationTimeOffset;
@@ -108,7 +108,7 @@ uniform float g_flTexCoordRotation = 0.0;
 
 #if (F_SPHERICAL_PROJECTED_ANISOTROPIC_TANGENTS == 1)
     uniform float g_vSphericalAnisotropyAngle = 180.0;
-    uniform vec4 g_vSphericalAnisotropyPole = vec4(0, 0, 1, 0);
+    uniform vec3 g_vSphericalAnisotropyPole = vec3(0, 0, 1);
 
     out vec3 vAnisoBitangentOut;
 
@@ -165,8 +165,8 @@ vec4 GetTintColor()
 #if (F_DETAIL_TEXTURE > 0)
 
     uniform float g_flDetailTexCoordRotation = 0.0;
-    uniform vec4 g_vDetailTexCoordOffset = vec4(0.0);
-    uniform vec4 g_vDetailTexCoordScale = vec4(1.0);
+    uniform vec2 g_vDetailTexCoordOffset = vec2(0.0);
+    uniform vec2 g_vDetailTexCoordScale = vec2(1.0);
     out vec2 vDetailTexCoords;
 
     #if (F_SECONDARY_UV == 1) || (F_FORCE_UV2 == 1)

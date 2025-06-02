@@ -24,13 +24,13 @@ uniform sampler2D g_tMask3;
     uniform sampler2D g_tTintMask;
 #endif
 
-uniform vec4 g_vTexCoordScrollSpeed;
-uniform vec4 g_vMask1PanSpeed;
-uniform vec4 g_vMask2PanSpeed;
-uniform vec4 g_vMask3PanSpeed;
-uniform vec4 g_vMask1Scale;
-uniform vec4 g_vMask2Scale;
-uniform vec4 g_vMask3Scale;
+uniform vec2 g_vTexCoordScrollSpeed;
+uniform vec2 g_vMask1PanSpeed;
+uniform vec2 g_vMask2PanSpeed;
+uniform vec2 g_vMask3PanSpeed;
+uniform vec2 g_vMask1Scale = vec2(1.0, 1.0);
+uniform vec2 g_vMask2Scale = vec2(1.0, 1.0);
+uniform vec2 g_vMask3Scale = vec2(1.0, 1.0);
 
 uniform float g_flColorBoost = 1.0;
 uniform float g_flFadeDistance = 1.0;
