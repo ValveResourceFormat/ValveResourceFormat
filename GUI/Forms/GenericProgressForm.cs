@@ -61,19 +61,25 @@ namespace GUI.Forms
                 cancellationTokenSource.Token)
                 .ContinueWith((t) =>
                 {
+                    if (extractProgressBar.Style != ProgressBarStyle.Blocks && IsHandleCreated)
+                    {
+                        Invoke(() =>
+                        {
+                            extractProgressBar.Style = ProgressBarStyle.Blocks;
+                            extractProgressBar.Value = extractProgressBar.Maximum;
+                        });
+                    }
+
                     if (t.Exception != null)
                     {
-                        foreach (var exception in t.Exception.Flatten().InnerExceptions)
+                        var exceptions = t.Exception.Flatten().InnerExceptions;
+
+                        SetProgress($"An exception occured, view console tab for more information. ({(exceptions.Count > 0 ? exceptions[0].Message : t.Exception.InnerException.Message)})");
+
+                        foreach (var exception in exceptions)
                         {
-                            Log.Error(nameof(GenericProgressForm), exception.ToString());
+                            Program.ShowError(exception);
                         }
-
-                        Log.Error(nameof(GenericProgressForm), "Search existing issues or create a new one here: https://github.com/ValveResourceFormat/ValveResourceFormat/issues");
-
-                        SetProgress($"An exception occured, view console tab for more information. ({t.Exception.InnerException.Message})");
-
-                        // TODO: Throwing doesn't actually display the exception ui
-                        throw t.Exception;
                     }
 
                     if (!t.IsCanceled && IsHandleCreated)

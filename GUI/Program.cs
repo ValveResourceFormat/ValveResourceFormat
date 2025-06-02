@@ -42,7 +42,7 @@ namespace GUI
             ShowError((Exception)ex.ExceptionObject);
         }
 
-        private static void ShowError(Exception exception)
+        public static void ShowError(Exception exception)
         {
             Log.Error(nameof(Program), exception.ToString());
 
