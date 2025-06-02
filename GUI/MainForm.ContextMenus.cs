@@ -465,5 +465,12 @@ namespace GUI
         {
             OpenWelcome();
         }
+
+#if DEBUG
+        private void OnValidateShadersToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            GUI.Types.Renderer.ShaderLoader.ValidateShaders();
+        }
+#endif
     }
 }

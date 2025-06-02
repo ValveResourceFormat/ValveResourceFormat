@@ -113,9 +113,14 @@ namespace GUI
             HardwareAcceleratedTextureDecoder.Decoder = new GLTextureDecoder();
 
 #if DEBUG
+            var shadersMenuItem = new ToolStripMenuItem("Validate shaders");
+            shadersMenuItem.Click += OnValidateShadersToolStripMenuItem_Click;
+            fileToolStripMenuItem.DropDownItems.Add(shadersMenuItem);
+
             if (args.Length > 0 && args[0] == "validate_shaders")
             {
                 GUI.Types.Renderer.ShaderLoader.ValidateShaders();
+                Environment.Exit(0);
                 return;
             }
 #endif

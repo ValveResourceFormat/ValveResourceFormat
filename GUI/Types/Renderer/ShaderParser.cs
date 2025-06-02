@@ -19,6 +19,11 @@ namespace GUI.Types.Renderer
         [GeneratedRegex("^\\s*#define (?<ParamName>(?:renderMode|F|S|D)_\\S+) (?<DefaultValue>\\S+)")]
         private static partial Regex RegexDefine();
 
+#if DEBUG
+        [GeneratedRegex(@"defined\((?<Name>\w+)_vfx\)")]
+        private static partial Regex RegexIsVfxDefined();
+#endif
+
         // regex that detects "uniform samplerx sampler; // SrgbRead(true)"
         // accept whitespace in front
         [GeneratedRegex("^\\s*uniform sampler(?<SamplerType>\\S+) (?<SamplerName>\\S+);\\s*// SrgbRead\\(true\\)")]
@@ -97,7 +102,7 @@ namespace GUI.Types.Renderer
                     {
                         if (line != ExpectedShaderVersion)
                         {
-                            throw new InvalidProgramException($"First line must be '{ExpectedShaderVersion}' in '{shaderFileToLoad}'");
+                            throw new ShaderCompilerException($"First line must be '{ExpectedShaderVersion}' in '{shaderFileToLoad}'");
                         }
 
                         if (isInclude)
@@ -199,6 +204,16 @@ namespace GUI.Types.Renderer
 
                             parsedData.SrgbSamplers.Add(samplerName);
                         }
+
+#if DEBUG
+                        // defined(shader_vfx)
+                        match = RegexIsVfxDefined().Match(line);
+                        if (match.Success)
+                        {
+                            var shaderName = match.Groups["Name"].Value;
+                            parsedData.ShaderVariants.Add(shaderName);
+                        }
+#endif
                     }
 
                     builder.Append(line);
