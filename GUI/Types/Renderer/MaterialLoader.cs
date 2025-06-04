@@ -125,7 +125,7 @@ namespace GUI.Types.Renderer
                 if (mat.Shader.GetUniformLocation(name) != -1)
                 {
                     var srgbRead = mat.Shader.SrgbSamplers.Contains(name);
-                    mat.Textures[name] = GetTexture(path, srgbRead);
+                    mat.Textures[name] = GetTexture(path, srgbRead, anisotropicFiltering: true);
                     return true;
                 }
 
@@ -136,7 +136,7 @@ namespace GUI.Types.Renderer
         }
 
 
-        public RenderTexture GetTexture(string name, bool srgbRead = false)
+        public RenderTexture GetTexture(string name, bool srgbRead = false, bool anisotropicFiltering = false)
         {
             // TODO: Create texture view for srgb textures
             var cache = srgbRead ? TexturesSrgb : Textures;
@@ -148,6 +148,12 @@ namespace GUI.Types.Renderer
 
             tex = LoadTexture(name, srgbRead);
             cache.Add(name, tex);
+
+            if (anisotropicFiltering && MaxTextureMaxAnisotropy >= 4)
+            {
+                GL.TextureParameter(tex.Handle, (TextureParameterName)ExtTextureFilterAnisotropic.TextureMaxAnisotropyExt, MaxTextureMaxAnisotropy);
+            }
+
             return tex;
         }
 
@@ -283,11 +289,6 @@ namespace GUI.Types.Renderer
                 // Dispose texture otherwise we run out of memory
                 // TODO: This might conflict when opening multiple files due to shit caching
                 textureResource.Dispose();
-
-                if (MaxTextureMaxAnisotropy >= 4)
-                {
-                    GL.TextureParameter(tex.Handle, (TextureParameterName)ExtTextureFilterAnisotropic.TextureMaxAnisotropyExt, MaxTextureMaxAnisotropy);
-                }
             }
 
             tex.SetFiltering(TextureMinFilter.LinearMipmapLinear, TextureMagFilter.Linear);
