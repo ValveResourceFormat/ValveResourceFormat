@@ -1,3 +1,4 @@
+using System.Linq;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 
@@ -15,6 +16,7 @@ namespace GUI.Types.Renderer
 
         private readonly Dictionary<string, (ActiveUniformType Type, int Location)> Uniforms = [];
         public RenderMaterial Default;
+        protected MaterialLoader MaterialLoader { get; init; }
 
         public readonly Dictionary<string, int> Attributes = [];
 
@@ -22,10 +24,11 @@ namespace GUI.Types.Renderer
         public required string FileName { get; init; }
 #endif
 
-        public Shader()
+        public Shader(VrfGuiContext guiContext)
         {
             Name = "unnamed";
             Default = new RenderMaterial(this);
+            MaterialLoader = guiContext.MaterialLoader;
         }
 
         public int NameHash => Name.GetHashCode(StringComparison.OrdinalIgnoreCase);
@@ -48,8 +51,70 @@ namespace GUI.Types.Renderer
             }
 
             StoreAttributeLocations();
+            StoreUniformLocations();
 
             return true;
+        }
+
+        private void StoreUniformLocations()
+        {
+            var vec4Val = new float[4];
+
+            // Stores uniform types and locations
+            var uniforms = GetAllUniformNames();
+
+            // Stores uniform values
+            foreach (var uniform in uniforms)
+            {
+                var name = uniform.Name;
+                var type = uniform.Type;
+                var index = uniform.Index;
+                var size = uniform.Size;
+
+                if (!name.StartsWith("g_", StringComparison.Ordinal) && !name.StartsWith("F_", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                if (size != 1) // arrays
+                {
+                    continue;
+                }
+
+                var isTexture = type is ActiveUniformType.Sampler2D or ActiveUniformType.SamplerCube;
+                var isVector = type is ActiveUniformType.FloatVec4 or ActiveUniformType.FloatVec3 or ActiveUniformType.FloatVec2;
+                var isScalar = type == ActiveUniformType.Float;
+                var isBoolean = type == ActiveUniformType.Bool;
+                var isInteger = type is ActiveUniformType.Int or ActiveUniformType.UnsignedInt;
+
+                if (isTexture && !Default.Textures.ContainsKey(name)
+                    && !MaterialLoader.ReservedTextures.Any(x => name.Contains(x, StringComparison.OrdinalIgnoreCase)))
+                {
+                    Default.Textures[name] = name switch
+                    {
+                        _ when name.Contains("color", StringComparison.OrdinalIgnoreCase) => MaterialLoader.GetErrorTexture(),
+                        _ when name.Contains("normal", StringComparison.OrdinalIgnoreCase) => MaterialLoader.GetDefaultNormal(),
+                        _ when name.Contains("mask", StringComparison.OrdinalIgnoreCase) => MaterialLoader.GetDefaultMask(),
+                        _ => MaterialLoader.GetErrorTexture(),
+                    };
+                }
+                else if (isVector && !Default.Material.VectorParams.ContainsKey(name))
+                {
+                    vec4Val[0] = vec4Val[1] = vec4Val[2] = vec4Val[3] = 0f;
+                    GL.GetUniform(Program, GetUniformLocation(name), vec4Val);
+                    Default.Material.VectorParams[name] = new Vector4(vec4Val[0], vec4Val[1], vec4Val[2], vec4Val[3]);
+                }
+                else if (isScalar && !Default.Material.FloatParams.ContainsKey(name))
+                {
+                    GL.GetUniform(Program, GetUniformLocation(name), out float flVal);
+                    Default.Material.FloatParams[name] = flVal;
+                }
+                else if ((isBoolean || isInteger) && !Default.Material.IntParams.ContainsKey(name))
+                {
+                    GL.GetUniform(Program, GetUniformLocation(name), out int intVal);
+                    Default.Material.IntParams[name] = intVal;
+                }
+            }
         }
 
         public void Use()

@@ -23,7 +23,7 @@ namespace GUI.Types.Renderer
         public int ShaderCount => CachedShaders.Count;
         private readonly Dictionary<string, HashSet<string>> ShaderDefines = [];
 
-        private readonly static Dictionary<string, byte> EmptyArgs = [];
+        private static readonly Dictionary<string, byte> EmptyArgs = [];
 
         private readonly ShaderParser Parser = new();
 
@@ -106,7 +106,7 @@ namespace GUI.Types.Renderer
                 GL.ObjectLabel(ObjectLabelIdentifier.Shader, fragmentShader, fragmentName.Length, fragmentName);
 #endif
 
-                var shader = new Shader
+                var shader = new Shader(VrfGuiContext)
                 {
 #if DEBUG
                     FileName = shaderFileName,
@@ -134,8 +134,6 @@ namespace GUI.Types.Renderer
                         GL.GetProgramInfoLog(shader.Program, out var log);
                         ThrowShaderError(log, $"{shaderFileName} ({string.Join(", ", arguments.Keys)})", shaderName, "Failed to link shader");
                     }
-
-                    VrfGuiContext.MaterialLoader.SetDefaultMaterialParameters(shader.Default);
                 }
 
                 ShaderDefines[shaderName] = parsedData.Defines;

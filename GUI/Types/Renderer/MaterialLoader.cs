@@ -345,65 +345,7 @@ namespace GUI.Types.Renderer
             _ => throw new NotImplementedException($"Unsupported texture format {vformat}")
         };
 
-        static readonly string[] ReservedTextures = Enum.GetNames<ReservedTextureSlots>();
-
-        public void SetDefaultMaterialParameters(RenderMaterial mat)
-        {
-            var vec4Val = new float[4];
-            var uniforms = mat.Shader.GetAllUniformNames();
-
-            foreach (var uniform in uniforms)
-            {
-                var name = uniform.Name;
-                var type = uniform.Type;
-                var index = uniform.Index;
-                var size = uniform.Size;
-
-                if (!name.StartsWith("g_", StringComparison.Ordinal) && !name.StartsWith("F_", StringComparison.Ordinal))
-                {
-                    continue;
-                }
-
-                if (size != 1) // arrays
-                {
-                    continue;
-                }
-
-                var isTexture = type is ActiveUniformType.Sampler2D or ActiveUniformType.SamplerCube;
-                var isVector = type is ActiveUniformType.FloatVec4 or ActiveUniformType.FloatVec3 or ActiveUniformType.FloatVec2;
-                var isScalar = type == ActiveUniformType.Float;
-                var isBoolean = type == ActiveUniformType.Bool;
-                var isInteger = type is ActiveUniformType.Int or ActiveUniformType.UnsignedInt;
-
-                if (isTexture && !mat.Textures.ContainsKey(name)
-                    && !ReservedTextures.Any(x => name.Contains(x, StringComparison.OrdinalIgnoreCase)))
-                {
-                    mat.Textures[name] = name switch
-                    {
-                        _ when name.Contains("color", StringComparison.OrdinalIgnoreCase) => GetErrorTexture(),
-                        _ when name.Contains("normal", StringComparison.OrdinalIgnoreCase) => GetDefaultNormal(),
-                        _ when name.Contains("mask", StringComparison.OrdinalIgnoreCase) => GetDefaultMask(),
-                        _ => GetErrorTexture(),
-                    };
-                }
-                else if (isVector && !mat.Material.VectorParams.ContainsKey(name))
-                {
-                    vec4Val[0] = vec4Val[1] = vec4Val[2] = vec4Val[3] = 0f;
-                    GL.GetUniform(mat.Shader.Program, mat.Shader.GetUniformLocation(name), vec4Val);
-                    mat.Material.VectorParams[name] = new Vector4(vec4Val[0], vec4Val[1], vec4Val[2], vec4Val[3]);
-                }
-                else if (isScalar && !mat.Material.FloatParams.ContainsKey(name))
-                {
-                    GL.GetUniform(mat.Shader.Program, mat.Shader.GetUniformLocation(name), out float flVal);
-                    mat.Material.FloatParams[name] = flVal;
-                }
-                else if ((isBoolean || isInteger) && !mat.Material.IntParams.ContainsKey(name))
-                {
-                    GL.GetUniform(mat.Shader.Program, mat.Shader.GetUniformLocation(name), out int intVal);
-                    mat.Material.IntParams[name] = intVal;
-                }
-            }
-        }
+        public static readonly string[] ReservedTextures = Enum.GetNames<ReservedTextureSlots>();
 
         private RenderMaterial GetErrorMaterial()
         {
@@ -435,8 +377,8 @@ namespace GUI.Types.Renderer
         }
 
         private static RenderTexture CreateSolidTexture(byte r, byte g, byte b) => GenerateColorTexture(1, 1, [r, g, b]);
-        private RenderTexture GetDefaultNormal() => DefaultNormal ??= CreateSolidTexture(127, 127, 255);
-        private RenderTexture GetDefaultMask() => DefaultMask ??= CreateSolidTexture(255, 255, 255);
+        public RenderTexture GetDefaultNormal() => DefaultNormal ??= CreateSolidTexture(127, 127, 255);
+        public RenderTexture GetDefaultMask() => DefaultMask ??= CreateSolidTexture(255, 255, 255);
 
         private static RenderTexture GenerateColorTexture(int width, int height, byte[] color)
         {
