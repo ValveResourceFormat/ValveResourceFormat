@@ -12,6 +12,6 @@ uniform mat4 transform;
 void main()
 {
     vec4 fragPosition = transform * getSkinMatrix() * vec4(vPOSITION, 1.0);
-    gl_Position = g_matViewToProjection * fragPosition;
+    gl_Position = g_matWorldToProjection * fragPosition;
     vFragPosition = fragPosition.xyz / fragPosition.w;
 }

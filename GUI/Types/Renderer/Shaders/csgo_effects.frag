@@ -37,8 +37,7 @@ uniform sampler2D g_tMask3;
         float flSceneDepth = texelFetch(g_tSceneDepth, vScreenPosition, 0).x;
         float flSceneDepthNormalized = RemapValClamped(flSceneDepth, g_flViewportMinZ, g_flViewportMaxZ, 0.0, 1.0);
 
-        mat4 invProj = inverse(g_matWorldToProjection);
-        float invProjTerm = fma(flSceneDepthNormalized, invProj[2][3], invProj[3][3]);
+        float invProjTerm = fma(flSceneDepthNormalized, g_matProjectionToWorld[2][3], g_matProjectionToWorld[3][3]);
 
         vec3 cameraDir = -normalize(inverse(mat3(g_matWorldToView))[2]);
         float flPerspectiveCorrection = dot(cameraDir, vCameraRay);

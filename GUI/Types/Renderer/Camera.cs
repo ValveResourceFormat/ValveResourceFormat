@@ -72,9 +72,10 @@ namespace GUI.Types.Renderer
 
         public void SetViewConstants(UniformBuffers.ViewConstants viewConstants)
         {
-            viewConstants.WorldToProjection = ProjectionMatrix;
+            viewConstants.WorldToProjection = ViewProjectionMatrix;
+            Matrix4x4.Invert(ProjectionMatrix, out viewConstants.ProjectionToWorld);
             viewConstants.WorldToView = CameraViewMatrix;
-            viewConstants.ViewToProjection = ViewProjectionMatrix;
+            viewConstants.ViewToProjection = ProjectionMatrix;
             viewConstants.CameraPosition = Location;
         }
 

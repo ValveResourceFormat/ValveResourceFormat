@@ -12,5 +12,5 @@ out vec4 vColor;
 void main(void) {
     vColor = aVertexColor;
     vTexCoordOut = aTexCoords;
-    gl_Position = g_matViewToProjection * vec4(aVertexPosition, 1.0);
+    gl_Position = g_matWorldToProjection * vec4(aVertexPosition, 1.0);
 }

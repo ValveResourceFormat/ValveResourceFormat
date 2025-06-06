@@ -11,5 +11,5 @@ uniform mat4 transform;
 void main()
 {
     vTexCoordOut = vTEXCOORD;
-    gl_Position = g_matViewToProjection * transform * vec4(vPOSITION, 1.0);
+    gl_Position = g_matWorldToProjection * transform * vec4(vPOSITION, 1.0);
 }

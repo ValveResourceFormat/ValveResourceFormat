@@ -68,5 +68,5 @@ void main()
 
     color = vec3(float(index) / 255.0, float(depth) / 10.0, 0.0);
 
-    gl_Position = g_matViewToProjection * fragPosition;
+    gl_Position = g_matWorldToProjection * fragPosition;
 }

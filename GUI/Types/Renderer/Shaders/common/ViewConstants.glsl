@@ -1,9 +1,11 @@
 #version 460
 
 layout(std140, binding = 0) uniform ViewConstants {
-    mat4 g_matViewToProjection;
     mat4 g_matWorldToProjection;
+    mat4 g_matProjectionToWorld;
     mat4 g_matWorldToView;
+    mat4 g_matViewToProjection;
+    vec4 g_vInvProjRow3;
     vec3 g_vCameraPositionWs;
     float g_flTime;
     mat4 g_matWorldToShadow;

@@ -425,7 +425,7 @@ namespace GUI.Types.Renderer
             renderContext.Framebuffer = ShadowDepthBuffer;
             renderContext.Scene = Scene;
 
-            viewBuffer.Data.ViewToProjection = Scene.LightingInfo.SunViewProjection;
+            viewBuffer.Data.WorldToProjection = Scene.LightingInfo.SunViewProjection;
             var worldToShadow = Scene.LightingInfo.SunViewProjection;
             viewBuffer.Data.WorldToShadow = worldToShadow;
             viewBuffer.Data.SunLightShadowBias = Scene.LightingInfo.SunLightShadowBias;

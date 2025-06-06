@@ -34,5 +34,5 @@ void main()
     #endif
 
     vec4 fragPosition = vertexTransform * vec4(vertexPosition, 1.0);
-    gl_Position = g_matViewToProjection * fragPosition;
+    gl_Position = g_matWorldToProjection * fragPosition;
 }
