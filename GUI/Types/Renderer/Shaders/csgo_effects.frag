@@ -31,16 +31,12 @@ uniform sampler2D g_tMask3;
 
     vec3 GetWorldPositionFromDepth(ivec2 vScreenPosition, vec3 vCameraRay)
     {
-        const float g_flViewportMinZ = 0.05;
-        const float g_flViewportMaxZ = 1.0;
-
         float flSceneDepth = texelFetch(g_tSceneDepth, vScreenPosition, 0).x;
         float flSceneDepthNormalized = RemapValClamped(flSceneDepth, g_flViewportMinZ, g_flViewportMaxZ, 0.0, 1.0);
 
-        float invProjTerm = fma(flSceneDepthNormalized, g_matProjectionToWorld[2][3], g_matProjectionToWorld[3][3]);
+        float invProjTerm = fma(flSceneDepthNormalized, g_vInvProjRow3.z, g_vInvProjRow3.w);
 
-        vec3 cameraDir = -normalize(inverse(mat3(g_matWorldToView))[2]);
-        float flPerspectiveCorrection = dot(cameraDir, vCameraRay);
+        float flPerspectiveCorrection = dot(g_vCameraDirWs, vCameraRay);
 
         return (g_vCameraPositionWs.xyz + (vCameraRay * (1.0 / (invProjTerm * flPerspectiveCorrection))));
     }

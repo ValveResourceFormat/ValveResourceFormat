@@ -73,10 +73,24 @@ namespace GUI.Types.Renderer
         public void SetViewConstants(UniformBuffers.ViewConstants viewConstants)
         {
             viewConstants.WorldToProjection = ViewProjectionMatrix;
-            Matrix4x4.Invert(ProjectionMatrix, out viewConstants.ProjectionToWorld);
             viewConstants.WorldToView = CameraViewMatrix;
             viewConstants.ViewToProjection = ProjectionMatrix;
             viewConstants.CameraPosition = Location;
+
+            Matrix4x4.Invert(ProjectionMatrix, out viewConstants.ProjectionToWorld);
+            viewConstants.InvProjRow3 = new Vector4(
+                viewConstants.ProjectionToWorld.M14,
+                viewConstants.ProjectionToWorld.M24,
+                viewConstants.ProjectionToWorld.M34,
+                viewConstants.ProjectionToWorld.M44
+            );
+
+            viewConstants.CameraDirWs = GetForwardVector();
+            viewConstants.CameraUpDirWs = GetUpVector();
+
+            // todo: these change per scene, move to the other buffer
+            viewConstants.ViewportMinZ = 0.05f;
+            viewConstants.ViewportMaxZ = 1.0f;
         }
 
         public void SetViewportSize(int viewportWidth, int viewportHeight)

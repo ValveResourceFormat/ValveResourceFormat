@@ -11,6 +11,10 @@ namespace GUI.Types.Renderer.UniformBuffers
         public Matrix4x4 ViewToProjection = Matrix4x4.Identity;
         public Vector4 InvProjRow3 = Vector4.Zero;
         public Vector3 CameraPosition = Vector3.Zero;
+        public float ViewportMinZ;
+        public Vector3 CameraDirWs;
+        public float ViewportMaxZ;
+        public Vector3 CameraUpDirWs;
         public float Time;
         public Matrix4x4 WorldToShadow = Matrix4x4.Identity;
         public Vector2 _ViewPadding1;
