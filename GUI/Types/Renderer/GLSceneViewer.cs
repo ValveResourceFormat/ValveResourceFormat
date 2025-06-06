@@ -56,6 +56,7 @@ namespace GUI.Types.Renderer
         }
         private readonly Shader[] depthOnlyShaders = new Shader[Enum.GetValues<DepthOnlyProgram>().Length];
         public Framebuffer ShadowDepthBuffer { get; private set; }
+        public Framebuffer FramebufferCopy { get; private set; }
 
         protected GLSceneViewer(VrfGuiContext guiContext, Frustum cullFrustum) : base(guiContext)
         {
@@ -296,6 +297,17 @@ namespace GUI.Types.Renderer
 
             depthOnlyShaders[(int)DepthOnlyProgram.OcclusionQueryAABBProxy] = GuiContext.ShaderLoader.LoadShader("vrf.depth_only_aabb");
 
+            FramebufferCopy = Framebuffer.Prepare(4, 4, 0,
+                new Framebuffer.AttachmentFormat(PixelInternalFormat.R11fG11fB10f, PixelFormat.Rgb, PixelType.HalfFloat),
+                new Framebuffer.DepthAttachmentFormat(PixelInternalFormat.DepthComponent32f, PixelType.Float)
+            );
+
+            FramebufferCopy.Initialize();
+            FramebufferCopy.ClearColor = new(0, 0, 0, 255);
+
+            Textures.Add(new(ReservedTextureSlots.SceneColor, "g_tSceneColor", FramebufferCopy.Color));
+            Textures.Add(new(ReservedTextureSlots.SceneDepth, "g_tSceneDepth", FramebufferCopy.Depth));
+
             MainFramebuffer.Bind(FramebufferTarget.Framebuffer);
             CreateBuffers();
 
@@ -471,6 +483,8 @@ namespace GUI.Types.Renderer
                     Skybox2D.Render();
                 }
 
+                GrabFramebufferCopy(renderContext.Framebuffer);
+
                 if (render3DSkybox)
                 {
                     using (new GLDebugGroup("3D Sky Scene Translucent Render"))
@@ -507,6 +521,29 @@ namespace GUI.Types.Renderer
 
             GL.Disable(EnableCap.Blend);
             GL.DepthMask(true);
+        }
+
+        private void GrabFramebufferCopy(Framebuffer framebuffer)
+        {
+            if (FramebufferCopy.Width != framebuffer.Width ||
+                FramebufferCopy.Height != framebuffer.Height)
+            {
+                FramebufferCopy.Resize(framebuffer.Width, framebuffer.Height);
+            }
+
+            FramebufferCopy.BindAndClear(FramebufferTarget.DrawFramebuffer);
+
+            // copy current color to framebuffer copy
+            GL.BlitNamedFramebuffer(framebuffer.FboHandle, FramebufferCopy.FboHandle,
+                0, 0, framebuffer.Width, framebuffer.Height,
+                0, 0, FramebufferCopy.Width, FramebufferCopy.Height, ClearBufferMask.ColorBufferBit, BlitFramebufferFilter.Linear);
+
+            // copy current depth to framebuffer copy
+            GL.BlitNamedFramebuffer(framebuffer.FboHandle, FramebufferCopy.FboHandle,
+                0, 0, framebuffer.Width, framebuffer.Height,
+                0, 0, FramebufferCopy.Width, FramebufferCopy.Height, ClearBufferMask.DepthBufferBit, BlitFramebufferFilter.Nearest);
+
+            framebuffer.Bind(FramebufferTarget.Framebuffer);
         }
 
         protected void AddBaseGridControl()

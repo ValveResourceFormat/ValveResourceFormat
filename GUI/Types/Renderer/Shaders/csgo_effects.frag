@@ -15,13 +15,39 @@ centroid in vec4 vColorOut;
 out vec4 outputColor;
 
 #define F_TINT_MASK 0
+#define F_DEPTH_FEATHER 0
 
 uniform sampler2D g_tColor; // SrgbRead(true)
 uniform sampler2D g_tMask1;
 uniform sampler2D g_tMask2;
 uniform sampler2D g_tMask3;
+
 #if F_TINT_MASK == 1
     uniform sampler2D g_tTintMask;
+#endif
+
+#if F_DEPTH_FEATHER == 1
+    uniform sampler2D g_tSceneDepth;
+
+    vec3 GetWorldPositionFromDepth(ivec2 vScreenPosition, vec3 vCameraRay)
+    {
+        const float g_flViewportMinZ = 0.05;
+        const float g_flViewportMaxZ = 1.0;
+
+        float flSceneDepth = texelFetch(g_tSceneDepth, vScreenPosition, 0).x;
+        float flSceneDepthNormalized = RemapValClamped(flSceneDepth, g_flViewportMinZ, g_flViewportMaxZ, 0.0, 1.0);
+
+        mat4 invProj = inverse(g_matWorldToProjection);
+        float invProjTerm = fma(flSceneDepthNormalized, invProj[2][3], invProj[3][3]);
+
+        vec3 cameraDir = -normalize(inverse(mat3(g_matWorldToView))[2]);
+        float flPerspectiveCorrection = dot(cameraDir, vCameraRay);
+
+        return (g_vCameraPositionWs.xyz + (vCameraRay * (1.0 / (invProjTerm * flPerspectiveCorrection))));
+    }
+
+    uniform float g_flFeatherDistance;
+    uniform float g_flFeatherFalloff = 1.0;
 #endif
 
 uniform vec2 g_vTexCoordScrollSpeed;
@@ -37,8 +63,6 @@ uniform float g_flFadeDistance = 1.0;
 uniform float g_flFadeFalloff = 1.0;
 uniform float g_flFadeMax = 1.0;
 uniform float g_flFadeMin;
-uniform float g_flFeatherDistance;
-uniform float g_flFeatherFalloff = 1.0;
 uniform float g_flFresnelExponent = 0.001;
 uniform float g_flFresnelFalloff = 1.0;
 uniform float g_flFresnelMax = 1.0;
@@ -71,6 +95,18 @@ void main()
         vGeometricNormal *= gl_FrontFacing ? 1.0 : -1.0;
     }
 
+    float feather = 1.0;
+
+    #if (F_DEPTH_FEATHER == 1)
+        ivec2 vScreenPosition = ivec2(gl_FragCoord.xy);
+        vec3 vScenePosition = GetWorldPositionFromDepth(vScreenPosition, vCameraRay);
+
+        float flFragmentToSceneDistance = distance(vFragPosition, vScenePosition);
+
+        feather = saturate(flFragmentToSceneDistance / g_flFeatherDistance);
+        feather = pow(feather, g_flFeatherFalloff);
+    #endif
+
     float fresnel = saturate(dot(-normalize(vCameraRay), normalize(vGeometricNormal).xyz));
     fresnel = pow(fresnel, g_flFresnelExponent) * g_flFresnelFalloff;
     fresnel = saturate(fresnel);
@@ -81,6 +117,7 @@ void main()
     fade = pow(fade, g_flFadeFalloff);
 
     opacity *= fresnel;
+    opacity *= feather;
     opacity *= fade;
 
     outputColor = vec4(

@@ -21,6 +21,8 @@ namespace GUI.Types.Renderer
         Probe2,
         Probe3,
         ShadowDepthBufferDepth,
+        SceneColor,
+        SceneDepth,
         AnimationTexture,
         MorphCompositeTexture,
         Last = MorphCompositeTexture,
