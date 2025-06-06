@@ -58,7 +58,7 @@ namespace GUI.Types.Renderer
         }
 #endif
 
-        public Shader LoadShader(string shaderName, IReadOnlyDictionary<string, byte>? arguments = null)
+        public Shader LoadShader(string shaderName, IReadOnlyDictionary<string, byte>? arguments = null, bool blocking = true)
         {
             arguments ??= EmptyArgs;
 
@@ -72,7 +72,7 @@ namespace GUI.Types.Renderer
                 }
             }
 
-            var shader = CompileAndLinkShader(shaderName, arguments);
+            var shader = CompileAndLinkShader(shaderName, arguments, blocking: blocking);
             var newShaderCacheHash = CalculateShaderCacheHash(shaderName, arguments);
             CachedShaders[newShaderCacheHash] = shader;
             return shader;

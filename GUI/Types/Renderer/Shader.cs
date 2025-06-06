@@ -8,7 +8,10 @@ namespace GUI.Types.Renderer
     {
         public string Name { get; init; }
         public int Program { get; set; }
-        public bool Loaded { get; private set; }
+
+        public bool IsLoaded { get; private set; }
+        public bool IsValid { get; private set; }
+
         public required int[] ShaderObjects { get; init; }
         public required IReadOnlyDictionary<string, byte> Parameters { get; init; }
         public required HashSet<string> RenderModes { get; init; }
@@ -35,25 +38,27 @@ namespace GUI.Types.Renderer
 
         public bool EnsureLoaded()
         {
-            Loaded = true;
-
-            GL.GetProgram(Program, GetProgramParameterName.LinkStatus, out var linkStatus);
-
-            foreach (var obj in ShaderObjects)
+            if (!IsLoaded)
             {
-                GL.DetachShader(Program, obj);
-                GL.DeleteShader(obj);
+                IsLoaded = true;
+
+                GL.GetProgram(Program, GetProgramParameterName.LinkStatus, out var linkStatus);
+                IsValid = linkStatus == 1;
+
+                foreach (var obj in ShaderObjects)
+                {
+                    GL.DetachShader(Program, obj);
+                    GL.DeleteShader(obj);
+                }
+
+                if (IsValid)
+                {
+                    StoreAttributeLocations();
+                    StoreUniformLocations();
+                }
             }
 
-            if (linkStatus != 1)
-            {
-                return false;
-            }
-
-            StoreAttributeLocations();
-            StoreUniformLocations();
-
-            return true;
+            return IsValid;
         }
 
         private void StoreUniformLocations()
@@ -119,11 +124,7 @@ namespace GUI.Types.Renderer
 
         public void Use()
         {
-            if (!Loaded)
-            {
-                EnsureLoaded();
-            }
-
+            EnsureLoaded();
             GL.UseProgram(Program);
         }
 
@@ -346,7 +347,7 @@ namespace GUI.Types.Renderer
         {
             GL.DeleteProgram(Program);
 
-            Loaded = false;
+            IsLoaded = false;
             Program = shader.Program;
 
             for (var i = 0; i < shader.ShaderObjects.Length; i++)

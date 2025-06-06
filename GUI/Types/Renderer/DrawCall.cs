@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Blocks;
 
@@ -22,11 +23,43 @@ namespace GUI.Types.Renderer
         public int FirstMeshlet { get; set; }
         public int NumMeshlets { get; set; }
         public RenderMaterial Material { get; set; }
-        public int VertexArrayObject { get; set; }
+
+        public GPUMeshBufferCache MeshBuffers { get; set; }
+        public string MeshName { get; set; } = string.Empty;
+        public int VertexArrayObject { get; set; } = -1;
+
         public VertexDrawBuffer[] VertexBuffers { get; set; }
         public DrawElementsType IndexType { get; set; }
         public IndexDrawBuffer IndexBuffer { get; set; }
         public int VertexIdOffset { get; set; }
+
+
+        public void SetNewMaterial(RenderMaterial newMaterial)
+        {
+            VertexArrayObject = -1;
+            Material = newMaterial;
+
+            if (newMaterial.Shader.IsLoaded)
+            {
+                UpdateVertexArrayObject();
+            }
+        }
+
+        public void UpdateVertexArrayObject()
+        {
+            Debug.Assert(Material.Shader.IsLoaded, "Shader must be loaded before creating a VAO");
+
+            VertexArrayObject = MeshBuffers.GetVertexArrayObject(
+                   MeshName,
+                   VertexBuffers,
+                   Material,
+                   IndexBuffer.Handle);
+
+#if DEBUG
+            var vaoName = $"{MeshName}+{Material.Material.Name}";
+            GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, VertexArrayObject, vaoName.Length, vaoName);
+#endif
+        }
     }
 
     internal struct IndexDrawBuffer

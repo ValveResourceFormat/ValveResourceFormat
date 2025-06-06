@@ -56,6 +56,8 @@ namespace GUI.Types.Renderer
             var mesh = node.RenderableMeshes[0];
             var drawCall = mesh.DrawCallsOpaque.Concat(mesh.DrawCallsBlended).First();
 
+            drawCall.Material.Shader.EnsureLoaded();
+
             foreach (var (paramName, initialValue) in drawCall.Material.Shader.Default.Material.FloatParams.OrderBy(x => x.Key))
             {
                 var currentvalue = drawCall.Material.Material.FloatParams.GetValueOrDefault(paramName, initialValue);

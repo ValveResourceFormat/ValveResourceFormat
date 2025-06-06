@@ -83,7 +83,7 @@ namespace GUI.Types.Renderer
         {
             foreach (var call in DrawCalls)
             {
-                UpdateVertexArrayObject(call);
+                call.UpdateVertexArrayObject();
             }
         }
 #endif
@@ -109,8 +109,7 @@ namespace GUI.Types.Renderer
                     var staticParams = materialData.GetShaderArguments();
                     var dynamicParams = new Dictionary<string, byte>(material.Shader.Parameters.Except(staticParams));
 
-                    drawCall.Material = guiContext.MaterialLoader.GetMaterial(replacementName, dynamicParams);
-                    UpdateVertexArrayObject(drawCall);
+                    drawCall.SetNewMaterial(guiContext.MaterialLoader.GetMaterial(replacementName, dynamicParams));
                 }
             }
         }
@@ -132,8 +131,7 @@ namespace GUI.Types.Renderer
                 var staticParams = materialData.GetShaderArguments();
                 var dynamicParams = new Dictionary<string, byte>(material.Shader.Parameters.Except(staticParams));
 
-                drawCall.Material = guiContext.MaterialLoader.LoadMaterial(resourceMaterial, dynamicParams);
-                UpdateVertexArrayObject(drawCall);
+                drawCall.SetNewMaterial(guiContext.MaterialLoader.LoadMaterial(resourceMaterial, dynamicParams));
 
                 // Ignore overlays in material viewer, since there is nothing to overlay.
                 if (drawCall.Material.IsTranslucent)
@@ -145,22 +143,6 @@ namespace GUI.Types.Renderer
                     DrawCallsOpaque.Add(drawCall);
                 }
             }
-        }
-
-        private void UpdateVertexArrayObject(DrawCall drawCall)
-        {
-            drawCall.VertexArrayObject = guiContext.MeshBufferCache.GetVertexArrayObject(
-                   Name,
-                   drawCall.VertexBuffers,
-                   drawCall.Material,
-                   drawCall.IndexBuffer.Handle);
-
-#if DEBUG
-            if (!string.IsNullOrEmpty(Name))
-            {
-                GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, drawCall.VertexArrayObject, Name.Length, Name);
-            }
-#endif
         }
 
         private void ConfigureDrawCalls(Scene scene, VBIB vbib, KVObject[] sceneObjects, Dictionary<string, string> materialReplacementTable, bool isAggregate)
@@ -289,6 +271,8 @@ namespace GUI.Types.Renderer
             var drawCall = new DrawCall()
             {
                 Material = material,
+                MeshBuffers = guiContext.MeshBufferCache,
+                MeshName = Name,
             };
 
             var primitiveType = objectDrawCall.GetEnumValue<RenderPrimitiveType>("m_nPrimitiveType");
@@ -413,7 +397,10 @@ namespace GUI.Types.Renderer
                 drawCall.NumMeshlets = objectDrawCall.GetInt32Property("m_nNumMeshlets");
             }
 
-            UpdateVertexArrayObject(drawCall);
+            if (drawCall.Material.Shader.IsLoaded)
+            {
+                drawCall.UpdateVertexArrayObject();
+            }
 
             return drawCall;
         }

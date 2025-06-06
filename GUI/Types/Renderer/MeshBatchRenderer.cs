@@ -122,12 +122,6 @@ namespace GUI.Types.Renderer
 
             foreach (var request in requests)
             {
-                if (vao != request.Call.VertexArrayObject)
-                {
-                    vao = request.Call.VertexArrayObject;
-                    GL.BindVertexArray(vao);
-                }
-
                 var requestMaterial = request.Call.Material;
 
                 if (material != requestMaterial)
@@ -192,6 +186,18 @@ namespace GUI.Types.Renderer
 
                     material = requestMaterial;
                     material.Render(shader);
+                }
+
+                if (request.Call.VertexArrayObject == -1)
+                {
+                    request.Call.Material.Shader.EnsureLoaded();
+                    request.Call.UpdateVertexArrayObject();
+                }
+
+                if (vao != request.Call.VertexArrayObject)
+                {
+                    vao = request.Call.VertexArrayObject;
+                    GL.BindVertexArray(vao);
                 }
 
                 Draw(shader, ref uniforms, ref config, request);

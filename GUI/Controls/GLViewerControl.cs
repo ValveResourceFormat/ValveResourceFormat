@@ -434,9 +434,6 @@ namespace GUI.Controls
             GL.BeginQuery(QueryTarget.TimeElapsed, frametimeQuery2);
             GL.EndQuery(QueryTarget.TimeElapsed);
 
-            textRenderer.Load();
-            postProcessRenderer.Load();
-
             // Application semantics / default state
             GL.Enable(EnableCap.TextureCubeMapSeamless);
             GL.Enable(EnableCap.CullFace);
@@ -457,6 +454,9 @@ namespace GUI.Controls
             {
                 GL.Arb.MaxShaderCompilerThreads(uint.MaxValue);
             }
+
+            textRenderer.Load();
+            postProcessRenderer.Load();
 
             try
             {
