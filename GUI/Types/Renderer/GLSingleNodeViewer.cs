@@ -85,8 +85,7 @@ namespace GUI.Types.Renderer
         {
             if ((CurrentlyPressedKeys & TrackedKeys.Control) != 0)
             {
-                var delta = new Vector2(LastMouseDelta.X, LastMouseDelta.Y);
-                delta.Y *= -1f;
+                var delta = new Vector2(LastMouseDelta.Y, LastMouseDelta.X);
 
                 sunAngles += delta;
                 Scene.LightingInfo.LightingData.EnvMapWorldToLocal[0] *= Matrix4x4.CreateRotationZ(-delta.Y / 80f);
