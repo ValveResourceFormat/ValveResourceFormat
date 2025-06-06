@@ -124,11 +124,8 @@ class Framebuffer : IDisposable
         if (ColorFormat != null)
         {
             Color = new RenderTexture(Target, width, height, 1, 1);
-
-#if DEBUG
-            var label = "FramebufferColor";
-            GL.ObjectLabel(ObjectLabelIdentifier.Texture, Color.Handle, label.Length, label);
-#endif
+            Color.SetLabel("FramebufferColor");
+            Color.SetBaseMaxLevel(0, 0);
 
             ResizeAttachment(Color, ColorFormat, width, height);
             GL.NamedFramebufferTexture(FboHandle, FramebufferAttachment.ColorAttachment0, Color.Handle, 0);
@@ -137,11 +134,8 @@ class Framebuffer : IDisposable
         if (DepthFormat != null)
         {
             Depth = new RenderTexture(Target, width, height, 1, 1);
-
-#if DEBUG
-            var label = "FramebufferDepth";
-            GL.ObjectLabel(ObjectLabelIdentifier.Texture, Depth.Handle, label.Length, label);
-#endif
+            Depth.SetLabel("FramebufferDepth");
+            Depth.SetBaseMaxLevel(0, 0);
 
             ResizeAttachment(Depth, DepthFormat, width, height);
             GL.NamedFramebufferTexture(FboHandle, FramebufferAttachment.DepthAttachment, Depth.Handle, 0);

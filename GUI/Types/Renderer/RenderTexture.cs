@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.ResourceTypes;
 
@@ -42,23 +43,38 @@ namespace GUI.Types.Renderer
 
         public void SetWrapMode(TextureWrapMode wrap)
         {
-            GL.TextureParameter(Handle, TextureParameterName.TextureWrapS, (int)wrap);
+            SetParameter(TextureParameterName.TextureWrapS, (int)wrap);
 
             if (Height > 1)
             {
-                GL.TextureParameter(Handle, TextureParameterName.TextureWrapT, (int)wrap);
+                SetParameter(TextureParameterName.TextureWrapT, (int)wrap);
             }
 
             if (Depth > 1)
             {
-                GL.TextureParameter(Handle, TextureParameterName.TextureWrapR, (int)wrap);
+                SetParameter(TextureParameterName.TextureWrapR, (int)wrap);
             }
         }
 
         public void SetFiltering(TextureMinFilter min, TextureMagFilter mag)
         {
-            GL.TextureParameter(Handle, TextureParameterName.TextureMinFilter, (int)min);
-            GL.TextureParameter(Handle, TextureParameterName.TextureMagFilter, (int)mag);
+            SetParameter(TextureParameterName.TextureMinFilter, (int)min);
+            SetParameter(TextureParameterName.TextureMagFilter, (int)mag);
+        }
+
+        public void SetBaseMaxLevel(int baseLevel, int maxLevel)
+        {
+            SetParameter(TextureParameterName.TextureBaseLevel, baseLevel);
+            SetParameter(TextureParameterName.TextureMaxLevel, maxLevel);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void SetParameter(TextureParameterName parameter, int value)
+            => GL.TextureParameter(Handle, parameter, value);
+
+        public void SetLabel(string label)
+        {
+            GL.ObjectLabel(ObjectLabelIdentifier.Texture, Handle, label.Length, label);
         }
 
         public void Dispose()

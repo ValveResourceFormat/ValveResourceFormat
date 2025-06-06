@@ -284,9 +284,8 @@ namespace GUI.Types.Renderer
             GL.ReadBuffer(ReadBufferMode.None);
             Textures.Add(new(ReservedTextureSlots.ShadowDepthBufferDepth, "g_tShadowDepthBufferDepth", ShadowDepthBuffer.Depth));
 
-            GL.TextureParameter(ShadowDepthBuffer.Depth.Handle, TextureParameterName.TextureBaseLevel, 0);
-            GL.TextureParameter(ShadowDepthBuffer.Depth.Handle, TextureParameterName.TextureMaxLevel, 0);
             GL.TextureParameter(ShadowDepthBuffer.Depth.Handle, TextureParameterName.TextureCompareMode, (int)TextureCompareMode.CompareRToTexture);
+            ShadowDepthBuffer.Depth.SetParameter(TextureParameterName.TextureCompareMode, (int)TextureCompareMode.CompareRToTexture);
             ShadowDepthBuffer.Depth.SetFiltering(TextureMinFilter.Linear, TextureMagFilter.Linear);
             ShadowDepthBuffer.Depth.SetWrapMode(TextureWrapMode.ClampToBorder);
 
