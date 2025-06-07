@@ -16,6 +16,7 @@ namespace GUI.Types.Renderer
         public required IReadOnlyDictionary<string, byte> Parameters { get; init; }
         public required HashSet<string> RenderModes { get; init; }
         public required HashSet<string> SrgbSamplers { get; init; }
+        public readonly HashSet<string> ReservedTexuresUsed = [];
 
         private readonly Dictionary<string, (ActiveUniformType Type, int Location)> Uniforms = [];
         public RenderMaterial Default;
@@ -92,9 +93,14 @@ namespace GUI.Types.Renderer
                 var isBoolean = type == ActiveUniformType.Bool;
                 var isInteger = type is ActiveUniformType.Int or ActiveUniformType.UnsignedInt;
 
-                if (isTexture && !Default.Textures.ContainsKey(name)
-                    && !MaterialLoader.ReservedTextures.Any(x => name.Contains(x, StringComparison.OrdinalIgnoreCase)))
+                if (isTexture && !Default.Textures.ContainsKey(name))
                 {
+                    if (MaterialLoader.ReservedTextures.Any(x => name.Contains(x, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        ReservedTexuresUsed.Add(name);
+                        continue;
+                    }
+
                     Default.Textures[name] = name switch
                     {
                         _ when name.Contains("color", StringComparison.OrdinalIgnoreCase) => MaterialLoader.GetErrorTexture(),

@@ -185,6 +185,9 @@ namespace GUI.Types.Renderer
             return CullResults;
         }
 
+        public bool WantsSceneColor { get; set; }
+        public bool WantsSceneDepth { get; set; }
+
         private readonly Dictionary<RenderPass, List<MeshBatchRenderer.Request>> renderLists = new()
         {
             [RenderPass.Opaque] = [],
@@ -208,6 +211,12 @@ namespace GUI.Types.Renderer
                 _ => renderLists[RenderPass.AfterOpaque],
             };
 
+            if (renderPass == RenderPass.Translucent)
+            {
+                WantsSceneColor |= request.Call.Material.Shader.ReservedTexuresUsed.Contains("g_tSceneColor");
+                WantsSceneDepth |= request.Call.Material.Shader.ReservedTexuresUsed.Contains("g_tSceneDepth");
+            }
+
             queueList.Add(request);
         }
 
@@ -217,6 +226,9 @@ namespace GUI.Types.Renderer
             {
                 bucket.Clear();
             }
+
+            WantsSceneColor = false;
+            WantsSceneDepth = false;
 
             cullFrustum ??= camera.ViewFrustum;
             var cullResults = GetFrustumCullResults(cullFrustum);

@@ -468,11 +468,15 @@ namespace GUI.Types.Renderer
 
                 renderContext.ReplacementShader?.SetUniform1("isSkybox", 1u);
                 var render3DSkybox = ShowSkybox && SkyboxScene != null;
+                var (copyColor, copyDepth) = (Scene.WantsSceneColor, Scene.WantsSceneDepth);
 
                 if (render3DSkybox)
                 {
                     SkyboxScene.SetSceneBuffers();
                     renderContext.Scene = SkyboxScene;
+
+                    copyColor |= SkyboxScene.WantsSceneColor;
+                    copyDepth |= SkyboxScene.WantsSceneDepth;
 
                     using var _ = new GLDebugGroup("3D Sky Scene");
                     SkyboxScene.RenderOpaqueLayer(renderContext);
@@ -485,7 +489,7 @@ namespace GUI.Types.Renderer
 
                 if (renderContext.Framebuffer == MainFramebuffer)
                 {
-                    GrabFramebufferCopy(renderContext.Framebuffer);
+                    GrabFramebufferCopy(renderContext.Framebuffer, copyColor, copyDepth);
                 }
 
                 if (render3DSkybox)
@@ -526,8 +530,13 @@ namespace GUI.Types.Renderer
             GL.DepthMask(true);
         }
 
-        private void GrabFramebufferCopy(Framebuffer framebuffer)
+        private void GrabFramebufferCopy(Framebuffer framebuffer, bool copyColor, bool copyDepth)
         {
+            if (!copyColor && !copyDepth)
+            {
+                return;
+            }
+
             if (FramebufferCopy.Width != framebuffer.Width ||
                 FramebufferCopy.Height != framebuffer.Height)
             {
@@ -536,15 +545,19 @@ namespace GUI.Types.Renderer
 
             FramebufferCopy.BindAndClear(FramebufferTarget.DrawFramebuffer);
 
-            // copy current color to framebuffer copy
-            GL.BlitNamedFramebuffer(framebuffer.FboHandle, FramebufferCopy.FboHandle,
-                0, 0, framebuffer.Width, framebuffer.Height,
-                0, 0, FramebufferCopy.Width, FramebufferCopy.Height, ClearBufferMask.ColorBufferBit, BlitFramebufferFilter.Nearest);
+            if (copyColor)
+            {
+                GL.BlitNamedFramebuffer(framebuffer.FboHandle, FramebufferCopy.FboHandle,
+                    0, 0, framebuffer.Width, framebuffer.Height,
+                    0, 0, FramebufferCopy.Width, FramebufferCopy.Height, ClearBufferMask.ColorBufferBit, BlitFramebufferFilter.Nearest);
+            }
 
-            // copy current depth to framebuffer copy
-            GL.BlitNamedFramebuffer(framebuffer.FboHandle, FramebufferCopy.FboHandle,
-                0, 0, framebuffer.Width, framebuffer.Height,
-                0, 0, FramebufferCopy.Width, FramebufferCopy.Height, ClearBufferMask.DepthBufferBit, BlitFramebufferFilter.Nearest);
+            if (copyDepth)
+            {
+                GL.BlitNamedFramebuffer(framebuffer.FboHandle, FramebufferCopy.FboHandle,
+                    0, 0, framebuffer.Width, framebuffer.Height,
+                    0, 0, FramebufferCopy.Width, FramebufferCopy.Height, ClearBufferMask.DepthBufferBit, BlitFramebufferFilter.Nearest);
+            }
 
             framebuffer.Bind(FramebufferTarget.Framebuffer);
         }
