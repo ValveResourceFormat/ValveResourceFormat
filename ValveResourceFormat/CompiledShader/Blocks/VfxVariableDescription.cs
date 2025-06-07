@@ -40,6 +40,7 @@ public class VfxVariableDescription : ShaderDataBlock
     public byte Field3 { get; }
     public bool Field4 { get; }
     public int Field5 { get; }
+    public byte Field6 { get; }
 
     public VfxVariableDescription(BinaryReader datareader, int blockIndex, int vcsVersion) : base(datareader)
     {
@@ -127,6 +128,11 @@ public class VfxVariableDescription : ShaderDataBlock
             Field3 = datareader.ReadByte();
             Field4 = datareader.ReadBoolean();
             Field5 = datareader.ReadInt32();
+        }
+
+        if (vcsVersion >= 69)
+        {
+            Field6 = datareader.ReadByte();
         }
     }
 
