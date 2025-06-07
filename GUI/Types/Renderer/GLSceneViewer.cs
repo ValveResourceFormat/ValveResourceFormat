@@ -483,7 +483,10 @@ namespace GUI.Types.Renderer
                     Skybox2D.Render();
                 }
 
-                GrabFramebufferCopy(renderContext.Framebuffer);
+                if (renderContext.Framebuffer == MainFramebuffer)
+                {
+                    GrabFramebufferCopy(renderContext.Framebuffer);
+                }
 
                 if (render3DSkybox)
                 {
@@ -536,7 +539,7 @@ namespace GUI.Types.Renderer
             // copy current color to framebuffer copy
             GL.BlitNamedFramebuffer(framebuffer.FboHandle, FramebufferCopy.FboHandle,
                 0, 0, framebuffer.Width, framebuffer.Height,
-                0, 0, FramebufferCopy.Width, FramebufferCopy.Height, ClearBufferMask.ColorBufferBit, BlitFramebufferFilter.Linear);
+                0, 0, FramebufferCopy.Width, FramebufferCopy.Height, ClearBufferMask.ColorBufferBit, BlitFramebufferFilter.Nearest);
 
             // copy current depth to framebuffer copy
             GL.BlitNamedFramebuffer(framebuffer.FboHandle, FramebufferCopy.FboHandle,
