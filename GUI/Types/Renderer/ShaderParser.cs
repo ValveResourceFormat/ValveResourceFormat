@@ -14,9 +14,9 @@ namespace GUI.Types.Renderer
         private const string ExpectedShaderVersion = "#version 460";
         private const string RenderModeDefinePrefix = "renderMode_";
 
-        [GeneratedRegex("^\\s*#include \"(?<IncludeName>[^\"]+)\"")]
+        [GeneratedRegex("^#include \"(?<IncludeName>[^\"]+)\"")]
         private static partial Regex RegexInclude();
-        [GeneratedRegex("^\\s*#define (?<ParamName>(?:renderMode|F|S|D)_\\S+) (?<DefaultValue>\\S+)")]
+        [GeneratedRegex("^#define (?<ParamName>(?:renderMode|F|S|D)_\\S+) (?<DefaultValue>\\S+)")]
         private static partial Regex RegexDefine();
 
 #if DEBUG
@@ -26,7 +26,7 @@ namespace GUI.Types.Renderer
 
         // regex that detects "uniform samplerx sampler; // SrgbRead(true)"
         // accept whitespace in front
-        [GeneratedRegex("^\\s*uniform sampler(?<SamplerType>\\S+) (?<SamplerName>\\S+);\\s*// SrgbRead\\(true\\)")]
+        [GeneratedRegex("^uniform sampler(?<SamplerType>\\S+) (?<SamplerName>\\S+);\\s*// SrgbRead\\(true\\)")]
         private static partial Regex RegexSamplerWithSrgbRead();
 
         private readonly StringBuilder builder = new(1024);
@@ -121,6 +121,8 @@ namespace GUI.Types.Renderer
 #endif
 
                     {
+                        line = line.Trim(); // we will be outputting trimmed lines to compile too
+
                         // Includes
                         var match = RegexInclude().Match(line);
 
