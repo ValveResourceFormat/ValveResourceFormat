@@ -43,6 +43,8 @@ namespace GUI.Types.Renderer
         public bool IsAlphaTest { get; }
         public bool IsToolsMaterial { get; }
 
+        public bool DoNotCastShadows { get; }
+
         private readonly bool isAdditiveBlend;
         private readonly bool isMod2x;
         private readonly bool isRenderBackfaces;
@@ -93,7 +95,7 @@ namespace GUI.Types.Renderer
             }
 
             SetRenderState();
-            Shader = guiContext.ShaderLoader.LoadShader(material.ShaderName, combinedShaderParameters,  blocking: false);
+            Shader = guiContext.ShaderLoader.LoadShader(material.ShaderName, combinedShaderParameters, blocking: false);
             ResetRenderState();
 
             SortId = GetSortId();
@@ -113,6 +115,7 @@ namespace GUI.Types.Renderer
             Material = material;
 
             IsToolsMaterial = material.IntAttributes.ContainsKey("tools.toolsmaterial");
+            DoNotCastShadows = material.IntAttributes.GetValueOrDefault("F_DO_NOT_CAST_SHADOWS") == 1;
             IsTranslucent = (material.IntParams.GetValueOrDefault("F_TRANSLUCENT") == 1)
                 || material.IntAttributes.ContainsKey("mapbuilder.water")
                 || material.ShaderName == "vr_glass.vfx"

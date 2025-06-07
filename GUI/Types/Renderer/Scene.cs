@@ -342,6 +342,11 @@ namespace GUI.Types.Renderer
                 {
                     foreach (var opaqueCall in mesh.DrawCallsOpaque)
                     {
+                        if (opaqueCall.Material.DoNotCastShadows)
+                        {
+                            continue;
+                        }
+
                         var bucket = (opaqueCall.Material.IsAlphaTest, animated) switch
                         {
                             (false, false) => DepthOnlyProgram.Static,
