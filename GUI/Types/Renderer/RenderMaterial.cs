@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
@@ -28,6 +29,7 @@ namespace GUI.Types.Renderer
         Last = MorphCompositeTexture,
     }
 
+    [DebuggerDisplay("{Material.Name} ({Shader.Name})")]
     class RenderMaterial
     {
         private const int TextureUnitStart = (int)ReservedTextureSlots.Last + 1;
@@ -90,7 +92,10 @@ namespace GUI.Types.Renderer
                 }
             }
 
+            SetRenderState();
             Shader = guiContext.ShaderLoader.LoadShader(material.ShaderName, combinedShaderParameters);
+            ResetRenderState();
+
             SortId = GetSortId();
         }
 
@@ -194,6 +199,21 @@ namespace GUI.Types.Renderer
                 shader.SetMaterialVector4Uniform(param.Key, value);
             }
 
+            SetRenderState();
+        }
+
+        public void PostRender()
+        {
+            ResetRenderState();
+
+            for (var i = TextureUnitStart; i <= textureUnit; i++)
+            {
+                GL.BindTextureUnit(i, 0);
+            }
+        }
+
+        private void SetRenderState()
+        {
             if (IsOverlay)
             {
                 GL.DepthMask(false);
@@ -232,7 +252,7 @@ namespace GUI.Types.Renderer
             }
         }
 
-        public void PostRender()
+        private void ResetRenderState()
         {
             if (IsOverlay)
             {
@@ -253,11 +273,6 @@ namespace GUI.Types.Renderer
             if (isRenderBackfaces)
             {
                 GL.Enable(EnableCap.CullFace);
-            }
-
-            for (var i = TextureUnitStart; i <= textureUnit; i++)
-            {
-                GL.BindTextureUnit(i, 0);
             }
         }
 
