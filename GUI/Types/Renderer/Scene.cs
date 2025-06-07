@@ -185,10 +185,13 @@ namespace GUI.Types.Renderer
             return CullResults;
         }
 
-        private readonly List<MeshBatchRenderer.Request> renderLooseNodes = [];
-        private readonly List<MeshBatchRenderer.Request> renderOpaqueDrawCalls = [];
-        private readonly List<MeshBatchRenderer.Request> renderStaticOverlays = [];
-        private readonly List<MeshBatchRenderer.Request> renderTranslucentDrawCalls = [];
+        private readonly Dictionary<RenderPass, List<MeshBatchRenderer.Request>> renderLists = new()
+        {
+            [RenderPass.Opaque] = [],
+            [RenderPass.StaticOverlay] = [],
+            [RenderPass.AfterOpaque] = [],
+            [RenderPass.Translucent] = [],
+        };
 
         private void Add(MeshBatchRenderer.Request request, RenderPass renderPass)
         {
@@ -199,10 +202,10 @@ namespace GUI.Types.Renderer
 
             var queueList = renderPass switch
             {
-                RenderPass.Opaque => renderOpaqueDrawCalls,
-                RenderPass.StaticOverlay => renderStaticOverlays,
-                RenderPass.Translucent => renderTranslucentDrawCalls,
-                _ => renderLooseNodes,
+                RenderPass.Opaque => renderLists[RenderPass.Opaque],
+                RenderPass.StaticOverlay => renderLists[RenderPass.StaticOverlay],
+                RenderPass.Translucent => renderLists[RenderPass.Translucent],
+                _ => renderLists[RenderPass.AfterOpaque],
             };
 
             queueList.Add(request);
@@ -210,10 +213,10 @@ namespace GUI.Types.Renderer
 
         public void CollectSceneDrawCalls(Camera camera, Frustum cullFrustum = null)
         {
-            renderOpaqueDrawCalls.Clear();
-            renderStaticOverlays.Clear();
-            renderTranslucentDrawCalls.Clear();
-            renderLooseNodes.Clear();
+            foreach (var bucket in renderLists.Values)
+            {
+                bucket.Clear();
+            }
 
             cullFrustum ??= camera.ViewFrustum;
             var cullResults = GetFrustumCullResults(cullFrustum);
@@ -281,7 +284,7 @@ namespace GUI.Types.Renderer
                 }
             }
 
-            renderLooseNodes.Sort(MeshBatchRenderer.CompareCameraDistance);
+            renderLists[RenderPass.AfterOpaque].Sort(MeshBatchRenderer.CompareCameraDistance);
         }
 
         private List<SceneNode> CulledShadowNodes { get; } = [];
@@ -386,19 +389,19 @@ namespace GUI.Types.Renderer
             using (new GLDebugGroup("Opaque Render"))
             {
                 renderContext.RenderPass = RenderPass.Opaque;
-                MeshBatchRenderer.Render(renderOpaqueDrawCalls, renderContext);
+                MeshBatchRenderer.Render(renderLists[renderContext.RenderPass], renderContext);
             }
 
             using (new GLDebugGroup("StaticOverlay Render"))
             {
                 renderContext.RenderPass = RenderPass.StaticOverlay;
-                MeshBatchRenderer.Render(renderStaticOverlays, renderContext);
+                MeshBatchRenderer.Render(renderLists[renderContext.RenderPass], renderContext);
             }
 
             using (new GLDebugGroup("AfterOpaque RenderLoose"))
             {
                 renderContext.RenderPass = RenderPass.AfterOpaque;
-                foreach (var request in renderLooseNodes)
+                foreach (var request in renderLists[renderContext.RenderPass])
                 {
                     request.Node.Render(renderContext);
                 }
@@ -534,7 +537,8 @@ namespace GUI.Types.Renderer
             using (new GLDebugGroup("Translucent RenderLoose"))
             {
                 renderContext.RenderPass = RenderPass.Translucent;
-                foreach (var request in renderLooseNodes)
+
+                foreach (var request in renderLists[RenderPass.AfterOpaque])
                 {
                     request.Node.Render(renderContext);
                 }
@@ -542,7 +546,7 @@ namespace GUI.Types.Renderer
 
             using (new GLDebugGroup("Translucent Render"))
             {
-                MeshBatchRenderer.Render(renderTranslucentDrawCalls, renderContext);
+                MeshBatchRenderer.Render(renderLists[RenderPass.Translucent], renderContext);
             }
         }
 
