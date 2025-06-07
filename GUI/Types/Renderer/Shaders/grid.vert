@@ -8,7 +8,7 @@ out vec3 farPoint;
 
 vec3 UnprojectPoint(float x, float y, float z) {
     mat4 viewInv = inverse(g_matWorldToView);
-    mat4 projInv = inverse(g_matWorldToProjection);
+    mat4 projInv = inverse(g_matViewToProjection);
     vec4 unprojectedPoint = viewInv * projInv * vec4(x, y, 1.0 - z, 1.0);
     return unprojectedPoint.xyz / unprojectedPoint.w;
 }

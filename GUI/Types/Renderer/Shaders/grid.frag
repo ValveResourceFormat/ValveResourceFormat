@@ -23,7 +23,7 @@ void main() {
     float t = -nearPoint.z / (farPoint.z - nearPoint.z);
     vec3 fragPos3D = nearPoint + t * (farPoint - nearPoint);
     vec2 fragPosAbs = abs(fragPos3D.xy);
-    vec4 clip_space_pos = g_matWorldToProjection * g_matWorldToView * vec4(fragPos3D.xyz, 1.0);
+    vec4 clip_space_pos = g_matViewToProjection * g_matWorldToView * vec4(fragPos3D.xyz, 1.0);
     float linearDepth = computeDepth(clip_space_pos);
 
     gl_FragDepth = ((gl_DepthRange.diff * linearDepth) + gl_DepthRange.near);
