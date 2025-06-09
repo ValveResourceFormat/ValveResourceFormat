@@ -128,19 +128,7 @@ public partial class GltfModelExporter
                 }
             }
 
-            material.Extras = new System.Text.Json.Nodes.JsonObject
-            {
-                ["vmat"] = System.Text.Json.JsonSerializer.SerializeToNode(new Dictionary<string, object>
-                {
-                    ["Name"] = renderMaterial.Name,
-                    ["ShaderName"] = renderMaterial.ShaderName,
-                    ["IntParams"] = renderMaterial.IntParams,
-                    ["FloatParams"] = renderMaterial.FloatParams,
-                    ["VectorParams"] = renderMaterial.VectorParams.ToDictionary(kvp => kvp.Key, kvp => new float[] { kvp.Value.X, kvp.Value.Y, kvp.Value.Z, kvp.Value.W }),
-                    ["TextureParams"] = textures,
-                })
-            };
-
+            WriteMaterialExtras(material, renderMaterial, textures);
             return;
         }
 
@@ -202,7 +190,7 @@ public partial class GltfModelExporter
         {
             // There should be only one
             var mainInstruction = instructions.FirstOrDefault();
-            if (mainInstruction == null)
+            if (mainInstruction == default)
             {
                 continue;
             }
@@ -254,6 +242,8 @@ public partial class GltfModelExporter
 
             TieTextureToMaterial(texture, "MetallicRoughness", ormRedChannelForOcclusion);
         }
+
+        WriteMaterialExtras(material, renderMaterial, renderMaterial.TextureParams);
 
         SKBitmap GetBitmap(string texturePath)
         {
@@ -427,6 +417,22 @@ public partial class GltfModelExporter
             }
 
             return instructions;
+        }
+
+        static void WriteMaterialExtras(Material material, VMaterial renderMaterial, Dictionary<string, string> textures)
+        {
+            material.Extras = new System.Text.Json.Nodes.JsonObject
+            {
+                ["vmat"] = System.Text.Json.JsonSerializer.SerializeToNode(new Dictionary<string, object>
+                {
+                    ["Name"] = renderMaterial.Name,
+                    ["ShaderName"] = renderMaterial.ShaderName,
+                    ["IntParams"] = renderMaterial.IntParams,
+                    ["FloatParams"] = renderMaterial.FloatParams,
+                    ["VectorParams"] = renderMaterial.VectorParams.ToDictionary(kvp => kvp.Key, kvp => new float[] { kvp.Value.X, kvp.Value.Y, kvp.Value.Z, kvp.Value.W }),
+                    ["TextureParams"] = textures,
+                })
+            };
         }
     }
 
