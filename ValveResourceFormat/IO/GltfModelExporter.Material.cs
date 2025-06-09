@@ -13,11 +13,10 @@ namespace ValveResourceFormat.IO;
 
 public partial class GltfModelExporter
 {
-    private record class RemapInstruction(
-        string ChannelName,
-        ChannelMapping ValveChannel,
-        ChannelMapping GltfChannel
-    );
+    private record struct RemapInstruction(string ChannelName, ChannelMapping ValveChannel, ChannelMapping GltfChannel)
+    {
+        public static RemapInstruction Default = new(string.Empty, ChannelMapping.RGBA, ChannelMapping.RGBA);
+    }
 
     public static readonly Dictionary<string, (ChannelMapping Channel, string Name)[]> GltfTextureMappings = new()
     {
@@ -31,6 +30,11 @@ public partial class GltfModelExporter
         ["Occlusion"] = [(ChannelMapping.R, "TextureAmbientOcclusion")],
         ["Emissive"] = [(ChannelMapping.RGB, "TextureSelfIllumMask")],
     };
+
+    public static readonly (ChannelMapping Channel, string Name)[] SupportedGltfChannels = [.. GltfTextureMappings.Values.SelectMany(x => x)];
+    internal static MaterialExtract.LayeredTextureNameComparer BlendNameComparer = new([.. SupportedGltfChannels.Select(x => x.Name)]);
+    internal static MaterialExtract.ChannelMappingComparer BlendInputComparer = new(BlendNameComparer);
+
 
     // In SatelliteImages mode, SharpGLTF will still load and validate images.
     // To save memory, we initiate MemoryImage with a a dummy image instead.
@@ -94,33 +98,62 @@ public partial class GltfModelExporter
 
         material.WithPBRMetallicRoughness(baseColor, null, metallicFactor: metalValue);
 
+        var openBitmaps = new Dictionary<string, SKBitmap>();
+
+        if (!AdaptTextures)
+        {
+            var textures = new Dictionary<string, string>(renderMaterial.TextureParams.Count);
+
+            foreach (var (textureKey, texturePath) in renderMaterial.TextureParams)
+            {
+                var textureName = Path.GetFileName(texturePath);
+                textures[textureKey] = textureName;
+
+                if (!ExportedTextures.TryGetValue(textureName, out var texture))
+                {
+                    var newImage = CreateNewGLTFImage(model, textureName);
+                    texture = model.UseTexture(newImage, TextureSampler);
+                    texture.Name = newImage.Name;
+
+                    ExportedTextures[textureName] = texture;
+
+                    var texTask = AddTexture(newImage, texturePath, RemapInstruction.Default);
+                    TextureExportingTasks.Add(texTask);
+                }
+
+                var gltfChannels = GetGltfChannels(renderMaterial, textureKey);
+                if (gltfChannels.FirstOrDefault() is { } gltfChannel)
+                {
+                    TieTextureToMaterial(texture, gltfChannel.ChannelName, false);
+                }
+            }
+
+            material.Extras = new System.Text.Json.Nodes.JsonObject
+            {
+                ["vmat"] = System.Text.Json.JsonSerializer.SerializeToNode(new Dictionary<string, object>
+                {
+                    ["Name"] = renderMaterial.Name,
+                    ["ShaderName"] = renderMaterial.ShaderName,
+                    ["IntParams"] = renderMaterial.IntParams,
+                    ["FloatParams"] = renderMaterial.FloatParams,
+                    ["VectorParams"] = renderMaterial.VectorParams.ToDictionary(kvp => kvp.Key, kvp => new float[] { kvp.Value.X, kvp.Value.Y, kvp.Value.Z, kvp.Value.W }),
+                    ["TextureParams"] = textures,
+                })
+            };
+
+            return;
+        }
+
         if (renderMaterial.VectorParams.TryGetValue("g_vSpecularColor", out var vSpecularColor))
         {
             // TODO - perhaps material.WithChannelColor?
         }
 
-        var allGltfInputs = GltfTextureMappings.Values.SelectMany(x => x);
-        var blendNameComparer = new MaterialExtract.LayeredTextureNameComparer(new HashSet<string>(allGltfInputs.Select(x => x.Name)));
-        var blendInputComparer = new MaterialExtract.ChannelMappingComparer(blendNameComparer);
-
         // Remap vtex texture parameters into instructions that can be exported
         var remapDict = new Dictionary<string, List<RemapInstruction>>();
         foreach (var (textureKey, texturePath) in renderMaterial.TextureParams)
         {
-            List<(ChannelMapping Channel, string Name)>? inputImages = null;
-            try
-            {
-                inputImages = shaderDataProvider.GetInputsForTexture(textureKey, renderMaterial).ToList();
-            }
-            catch (Exception e)
-            {
-                // Shaders are complicated, so do not stop exporting if they throw
-                ProgressReporter?.Report($"Failed to get texture inputs for \"{textureKey}\": {e.Message}");
-                Console.Error.WriteLine(e.ToString());
-            }
-
-            inputImages ??= shaderDataProviderFallback.GetInputsForTexture(textureKey, renderMaterial).ToList();
-            var remapInstructions = GetRemapInstructions(inputImages);
+            var remapInstructions = GetGltfChannels(renderMaterial, textureKey);
             if (remapInstructions.Count == 0)
             {
                 continue;
@@ -138,36 +171,31 @@ public partial class GltfModelExporter
         var ormRedChannelForOcclusion = false;
 
         // Find and split ORM textures into separate instructions
-        if (AdaptTextures)
+        // TODO: too many loops over instructions here
+        // If this texture contains a MetallicRoughness parameter, also pack Occlusion into the ORM texture for optimization
+        // MetallicRoughness will use BG channels, and Occlusion only uses R channel
+        var allRemapInstructions = remapDict.Values.SelectMany(i => i).ToList();
+        if (allRemapInstructions.Any(static i => i.ChannelName == "MetallicRoughness"))
         {
-            // TODO: too many loops over instructions here
-            // If this texture contains a MetallicRoughness parameter, also pack Occlusion into the ORM texture for optimization
-            // MetallicRoughness will use BG channels, and Occlusion only uses R channel
-            var allRemapInstructions = remapDict.Values.SelectMany(i => i).ToList();
-            if (allRemapInstructions.Any(static i => i.ChannelName == "MetallicRoughness"))
-            {
-                ormRedChannelForOcclusion = true;
-            }
+            ormRedChannelForOcclusion = true;
+        }
 
-            foreach (var (texturePath, instructions) in remapDict)
-            {
-                var ormInstructions = instructions
-                    .Where(static i => i.ChannelName == "Occlusion" || i.ChannelName == "MetallicRoughness")
-                    .ToList();
+        foreach (var (texturePath, instructions) in remapDict)
+        {
+            var ormInstructions = instructions
+                .Where(static i => i.ChannelName is "Occlusion" or "MetallicRoughness")
+                .ToList();
 
-                if (ormInstructions.Count > 0)
+            if (ormInstructions.Count > 0)
+            {
+                ormTextureInstructions[texturePath] = ormInstructions;
+
+                foreach (var instruction in ormInstructions)
                 {
-                    ormTextureInstructions[texturePath] = ormInstructions;
-
-                    foreach (var instruction in ormInstructions)
-                    {
-                        instructions.Remove(instruction);
-                    }
+                    instructions.Remove(instruction);
                 }
             }
         }
-
-        var openBitmaps = new Dictionary<string, SKBitmap>();
 
         // Actually go through the remapped textures and write them to disk
         foreach (var (texturePath, instructions) in remapDict)
@@ -200,7 +228,7 @@ public partial class GltfModelExporter
                 TextureExportingTasks.Add(texTask);
             }
 
-            TieTextureToMaterial(texture, mainInstruction.ChannelName);
+            TieTextureToMaterial(texture, mainInstruction.ChannelName, ormRedChannelForOcclusion);
         }
 
         // Now create ORM if there is one
@@ -224,7 +252,7 @@ public partial class GltfModelExporter
                 TextureExportingTasks.Add(texTask);
             }
 
-            TieTextureToMaterial(texture, "MetallicRoughness");
+            TieTextureToMaterial(texture, "MetallicRoughness", ormRedChannelForOcclusion);
         }
 
         SKBitmap GetBitmap(string texturePath)
@@ -322,7 +350,7 @@ public partial class GltfModelExporter
             await LinkAndSaveImage(image, pngBytes).ConfigureAwait(false);
         }
 
-        void TieTextureToMaterial(Texture tex, string gltfPackedName)
+        void TieTextureToMaterial(Texture tex, string gltfPackedName, bool ormRedChannelForOcclusion)
         {
             if (gltfPackedName == "SpecularFactor")
             {
@@ -344,28 +372,33 @@ public partial class GltfModelExporter
             }
         }
 
-        List<RemapInstruction> GetRemapInstructions(List<(ChannelMapping Channel, string Name)> renderTextureInputs)
+        List<RemapInstruction> GetGltfChannels(VMaterial renderMaterial, string textureKey)
+        {
+            List<(ChannelMapping Channel, string Name)>? inputImages = null;
+            try
+            {
+                inputImages = [.. shaderDataProvider.GetInputsForTexture(textureKey, renderMaterial)];
+            }
+            catch (Exception e)
+            {
+                // Shaders are complicated, so do not stop exporting if they throw
+                ProgressReporter?.Report($"Failed to get texture inputs for \"{textureKey}\": {e.Message}");
+                Console.Error.WriteLine(e.ToString());
+            }
+
+            inputImages ??= [.. shaderDataProviderFallback.GetInputsForTexture(textureKey, renderMaterial)];
+            var remapInstructions = RemapValveChannelsToGltf(inputImages);
+            return remapInstructions;
+        }
+
+        List<RemapInstruction> RemapValveChannelsToGltf(List<(ChannelMapping Channel, string Name)> renderTextureChannels)
         {
             var instructions = new List<RemapInstruction>();
 
             foreach (var (GltfType, GltfInputs) in GltfTextureMappings)
             {
-                // Old behavior, use the texture directly if the first input matches.
-                if (!AdaptTextures)
-                {
-                    var renderTextureFirst = renderTextureInputs.FirstOrDefault();
-                    var gltfTextureFirst = GltfInputs.First();
-                    if (renderTextureFirst.Name is null || !blendNameComparer.Equals(renderTextureFirst.Name, gltfTextureFirst.Name))
-                    {
-                        continue;
-                    }
-
-                    instructions.Add(new RemapInstruction(GltfType, ChannelMapping.RGBA, ChannelMapping.RGBA));
-                    break;
-                }
-
-                // Render texture matches the glTF spec.
-                if (Enumerable.SequenceEqual(renderTextureInputs, GltfInputs, blendInputComparer))
+                // Render texture channels match the glTF channels exactly.
+                if (Enumerable.SequenceEqual(renderTextureChannels, GltfInputs, BlendInputComparer))
                 {
                     instructions.Add(new RemapInstruction(GltfType, ChannelMapping.RGBA, ChannelMapping.RGBA));
                     break;
@@ -373,9 +406,9 @@ public partial class GltfModelExporter
 
                 foreach (var gltfInput in GltfInputs)
                 {
-                    foreach (var renderInput in renderTextureInputs)
+                    foreach (var renderInput in renderTextureChannels)
                     {
-                        if (blendNameComparer.Equals(renderInput.Name, gltfInput.Name))
+                        if (BlendNameComparer.Equals(renderInput.Name, gltfInput.Name))
                         {
                             instructions.Add(new RemapInstruction(GltfType, renderInput.Channel, gltfInput.Channel));
                             continue;
@@ -384,9 +417,10 @@ public partial class GltfModelExporter
                 }
             }
 
-            foreach (var renderInput in renderTextureInputs)
+            foreach (var renderInput in renderTextureChannels)
             {
-                if (blendNameComparer.Equals(renderInput.Name, "TextureMetalnessMask"))
+                // TextureMetalness alias
+                if (BlendNameComparer.Equals(renderInput.Name, "TextureMetalnessMask"))
                 {
                     instructions.Add(new RemapInstruction("MetallicRoughness", renderInput.Channel, ChannelMapping.B));
                 }

@@ -751,6 +751,10 @@ namespace ValveResourceFormat.IO
                 throw new NotSupportedException("VRF does not properly support big model (>=2GiB) exports yet due to glTF limitations. Try exporting as .gltf, not .glb.");
             }
 
+#if DEBUG
+            settings.JsonIndented = true;
+#endif
+
             exportedModel.Save(filePath, settings);
 
             if (SatelliteImages)
