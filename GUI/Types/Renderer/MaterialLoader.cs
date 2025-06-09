@@ -1,10 +1,8 @@
 using System.Buffers;
 using System.Diagnostics;
-using System.Globalization;
 using System.IO.Hashing;
 using System.Linq;
 using System.Runtime.InteropServices;
-using System.Text;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat;

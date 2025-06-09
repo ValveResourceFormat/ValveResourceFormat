@@ -2,7 +2,6 @@ using System.IO;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Utils;
-using Datamodel;
 
 namespace GUI.Types.Viewers
 {

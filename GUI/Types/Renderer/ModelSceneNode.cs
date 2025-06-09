@@ -1,5 +1,4 @@
 using System.Buffers;
-using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using OpenTK.Graphics.OpenGL;

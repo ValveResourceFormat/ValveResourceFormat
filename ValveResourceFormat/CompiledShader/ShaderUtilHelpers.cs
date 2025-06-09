@@ -1,4 +1,3 @@
-using System.Collections.Frozen;
 using System.IO;
 using ValveResourceFormat.Serialization.VfxEval;
 
