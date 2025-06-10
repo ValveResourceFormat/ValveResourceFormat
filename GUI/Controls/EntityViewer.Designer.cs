@@ -48,8 +48,8 @@ partial class EntityViewer
         ObjectsToInclude_Everything = new System.Windows.Forms.RadioButton();
         ObjectsToInclude_MeshEntities = new System.Windows.Forms.RadioButton();
         ObjectsToInclude_PointEntities = new System.Windows.Forms.RadioButton();
-        ObjectsToInclude_Class = new System.Windows.Forms.RadioButton();
         ObjectsToInclude_ClassTextBox = new System.Windows.Forms.TextBox();
+        label2 = new System.Windows.Forms.Label();
         EntityPropertiesGroup = new System.Windows.Forms.GroupBox();
         EntityInfo = new GUI.Forms.EntityInfoControl();
         ((System.ComponentModel.ISupportInitialize)EntityViewerGrid).BeginInit();
@@ -86,7 +86,7 @@ partial class EntityViewer
         EntityViewerGrid.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.FullRowSelect;
         EntityViewerGrid.Size = new System.Drawing.Size(500, 530);
         EntityViewerGrid.TabIndex = 0;
-        EntityViewerGrid.CellClick += EntityViewerGrid_CellClick;
+        EntityViewerGrid.SelectionChanged += EntityViewerGrid_SelectionChanged;
         // 
         // Class
         // 
@@ -270,8 +270,8 @@ partial class EntityViewer
         tableLayoutPanel5.Controls.Add(ObjectsToInclude_Everything, 0, 0);
         tableLayoutPanel5.Controls.Add(ObjectsToInclude_MeshEntities, 0, 1);
         tableLayoutPanel5.Controls.Add(ObjectsToInclude_PointEntities, 0, 2);
-        tableLayoutPanel5.Controls.Add(ObjectsToInclude_Class, 0, 3);
         tableLayoutPanel5.Controls.Add(ObjectsToInclude_ClassTextBox, 0, 4);
+        tableLayoutPanel5.Controls.Add(label2, 0, 3);
         tableLayoutPanel5.Dock = System.Windows.Forms.DockStyle.Fill;
         tableLayoutPanel5.Location = new System.Drawing.Point(3, 19);
         tableLayoutPanel5.Name = "tableLayoutPanel5";
@@ -322,27 +322,25 @@ partial class EntityViewer
         ObjectsToInclude_PointEntities.UseVisualStyleBackColor = true;
         ObjectsToInclude_PointEntities.CheckedChanged += ObjectsToInclude_PointEntities_CheckedChanged;
         // 
-        // ObjectsToInclude_Class
-        // 
-        ObjectsToInclude_Class.AutoSize = true;
-        ObjectsToInclude_Class.Dock = System.Windows.Forms.DockStyle.Fill;
-        ObjectsToInclude_Class.Location = new System.Drawing.Point(3, 96);
-        ObjectsToInclude_Class.Name = "ObjectsToInclude_Class";
-        ObjectsToInclude_Class.Size = new System.Drawing.Size(238, 25);
-        ObjectsToInclude_Class.TabIndex = 3;
-        ObjectsToInclude_Class.Text = "Class:";
-        ObjectsToInclude_Class.UseVisualStyleBackColor = true;
-        ObjectsToInclude_Class.CheckedChanged += ObjectsToInclude_Class_CheckedChanged;
-        // 
         // ObjectsToInclude_ClassTextBox
         // 
         ObjectsToInclude_ClassTextBox.Dock = System.Windows.Forms.DockStyle.Fill;
-        ObjectsToInclude_ClassTextBox.Enabled = false;
         ObjectsToInclude_ClassTextBox.Location = new System.Drawing.Point(3, 127);
         ObjectsToInclude_ClassTextBox.Name = "ObjectsToInclude_ClassTextBox";
         ObjectsToInclude_ClassTextBox.Size = new System.Drawing.Size(238, 23);
         ObjectsToInclude_ClassTextBox.TabIndex = 4;
         ObjectsToInclude_ClassTextBox.TextChanged += ObjectsToInclude_ClassTextBox_TextChanged;
+        // 
+        // label2
+        // 
+        label2.AutoSize = true;
+        label2.Dock = System.Windows.Forms.DockStyle.Fill;
+        label2.Location = new System.Drawing.Point(3, 93);
+        label2.Name = "label2";
+        label2.Size = new System.Drawing.Size(238, 31);
+        label2.TabIndex = 5;
+        label2.Text = "Classname:";
+        label2.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
         // 
         // EntityPropertiesGroup
         // 
@@ -401,7 +399,6 @@ partial class EntityViewer
     private System.Windows.Forms.RadioButton ObjectsToInclude_Everything;
     private System.Windows.Forms.RadioButton ObjectsToInclude_MeshEntities;
     private System.Windows.Forms.RadioButton ObjectsToInclude_PointEntities;
-    private System.Windows.Forms.RadioButton ObjectsToInclude_Class;
     private System.Windows.Forms.TextBox ObjectsToInclude_ClassTextBox;
     private System.Windows.Forms.TableLayoutPanel tableLayoutPanel6;
     private System.Windows.Forms.TextBox KeyValue_Key;
@@ -411,4 +408,5 @@ partial class EntityViewer
     private System.Windows.Forms.GroupBox EntityPropertiesGroup;
     private System.Windows.Forms.GroupBox groupBox5;
     private Forms.EntityInfoControl EntityInfo;
+    private System.Windows.Forms.Label label2;
 }
