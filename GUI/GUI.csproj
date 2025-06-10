@@ -54,4 +54,9 @@
       <Name>ValveResourceFormat</Name>
     </ProjectReference>
   </ItemGroup>
+  <ItemGroup>
+    <Compile Update="Controls\EntityInfoControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+  </ItemGroup>
 </Project>

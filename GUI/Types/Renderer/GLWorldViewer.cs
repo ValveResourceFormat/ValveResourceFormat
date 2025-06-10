@@ -314,9 +314,10 @@ namespace GUI.Types.Renderer
             if (entityInfoForm == null)
             {
                 entityInfoForm = new EntityInfoForm(GuiContext.FileLoader);
-                entityInfoForm.Disposed += OnEntityInfoFormDisposed;
+                entityInfoForm.Show();
+                entityInfoForm.EntityInfoControl.Disposed += OnEntityInfoFormDisposed;
             }
-            entityInfoForm.Clear();
+            entityInfoForm.EntityInfoControl.Clear();
 
             if (isEntity)
             {
@@ -324,7 +325,7 @@ namespace GUI.Types.Renderer
             }
             else
             {
-                entityInfoForm.Text = $"{sceneNode.GetType().Name}: {sceneNode.Name}";
+                entityInfoForm.EntityInfoControl.Text = $"{sceneNode.GetType().Name}: {sceneNode.Name}";
 
                 static string ToRenderColor(Vector4 tint)
                 {
@@ -335,62 +336,62 @@ namespace GUI.Types.Renderer
                 if (sceneNode is SceneAggregate.Fragment sceneFragment)
                 {
                     var material = sceneFragment.DrawCall.Material.Material;
-                    entityInfoForm.AddProperty("Shader", material.ShaderName);
-                    entityInfoForm.AddProperty("Material", material.Name);
+                    entityInfoForm.EntityInfoControl.AddProperty("Shader", material.ShaderName);
+                    entityInfoForm.EntityInfoControl.AddProperty("Material", material.Name);
 
                     var tris = sceneFragment.DrawCall.IndexCount / 3;
                     if (sceneFragment.DrawCall.NumMeshlets > 0)
                     {
                         var clusters = sceneFragment.DrawCall.NumMeshlets;
                         var trisPerCluster = tris / clusters;
-                        entityInfoForm.AddProperty("Triangles / Clusters / Per Cluster", $"{tris} / {clusters} / {trisPerCluster}");
+                        entityInfoForm.EntityInfoControl.AddProperty("Triangles / Clusters / Per Cluster", $"{tris} / {clusters} / {trisPerCluster}");
                     }
                     else
                     {
-                        entityInfoForm.AddProperty("Triangles", $"{tris}");
+                        entityInfoForm.EntityInfoControl.AddProperty("Triangles", $"{tris}");
                     }
 
-                    entityInfoForm.AddProperty("Model Tint", ToRenderColor(sceneFragment.DrawCall.TintColor));
-                    entityInfoForm.AddProperty("Model Alpha", $"{sceneFragment.DrawCall.TintColor.W:F6}");
+                    entityInfoForm.EntityInfoControl.AddProperty("Model Tint", ToRenderColor(sceneFragment.DrawCall.TintColor));
+                    entityInfoForm.EntityInfoControl.AddProperty("Model Alpha", $"{sceneFragment.DrawCall.TintColor.W:F6}");
 
                     if (sceneFragment.Tint != Vector4.One)
                     {
-                        entityInfoForm.AddProperty("Instance Tint", ToRenderColor(sceneFragment.Tint));
-                        entityInfoForm.AddProperty("Final Tint", ToRenderColor(sceneFragment.DrawCall.TintColor * sceneFragment.Tint));
+                        entityInfoForm.EntityInfoControl.AddProperty("Instance Tint", ToRenderColor(sceneFragment.Tint));
+                        entityInfoForm.EntityInfoControl.AddProperty("Final Tint", ToRenderColor(sceneFragment.DrawCall.TintColor * sceneFragment.Tint));
                     }
                 }
                 else if (sceneNode is ModelSceneNode modelSceneNode)
                 {
-                    entityInfoForm.AddProperty("Model Tint", ToRenderColor(modelSceneNode.Tint));
-                    entityInfoForm.AddProperty("Model Alpha", $"{modelSceneNode.Tint.W:F6}");
+                    entityInfoForm.EntityInfoControl.AddProperty("Model Tint", ToRenderColor(modelSceneNode.Tint));
+                    entityInfoForm.EntityInfoControl.AddProperty("Model Alpha", $"{modelSceneNode.Tint.W:F6}");
                 }
 
                 if (sceneNode.CubeMapPrecomputedHandshake > 0)
                 {
-                    entityInfoForm.AddProperty("Cubemap Handshake", $"{sceneNode.CubeMapPrecomputedHandshake}");
+                    entityInfoForm.EntityInfoControl.AddProperty("Cubemap Handshake", $"{sceneNode.CubeMapPrecomputedHandshake}");
                 }
 
                 if (sceneNode.LightProbeVolumePrecomputedHandshake > 0)
                 {
-                    entityInfoForm.AddProperty("Light Probe Handshake", $"{sceneNode.LightProbeVolumePrecomputedHandshake}");
+                    entityInfoForm.EntityInfoControl.AddProperty("Light Probe Handshake", $"{sceneNode.LightProbeVolumePrecomputedHandshake}");
                 }
 
-                entityInfoForm.AddProperty("Flags", sceneNode.Flags.ToString());
-                entityInfoForm.AddProperty("Layer", sceneNode.LayerName);
+                entityInfoForm.EntityInfoControl.AddProperty("Flags", sceneNode.Flags.ToString());
+                entityInfoForm.EntityInfoControl.AddProperty("Layer", sceneNode.LayerName);
             }
 
             if (isInSkybox)
             {
-                entityInfoForm.Text += " (in 3D skybox)";
+                entityInfoForm.EntityInfoControl.Text += " (in 3D skybox)";
             }
 
-            entityInfoForm.ShowOutputsTabIfAnyData();
-            entityInfoForm.Show();
+            entityInfoForm.EntityInfoControl.ShowOutputsTabIfAnyData();
+            entityInfoForm.EntityInfoControl.Show();
         }
 
         private void OnEntityInfoFormDisposed(object sender, EventArgs e)
         {
-            entityInfoForm.Disposed -= OnEntityInfoFormDisposed;
+            entityInfoForm.EntityInfoControl.Disposed -= OnEntityInfoFormDisposed;
             entityInfoForm = null;
         }
 
@@ -435,7 +436,7 @@ namespace GUI.Types.Renderer
             if (pickingResponse.Intent == PickingIntent.Details)
             {
                 ShowSceneNodeDetails(sceneNode, isInSkybox);
-                entityInfoForm.Focus();
+                entityInfoForm.EntityInfoControl.Focus();
                 return;
             }
 
@@ -532,7 +533,7 @@ namespace GUI.Types.Renderer
         {
             foreach (var (key, value) in sceneNode.EntityData.Properties)
             {
-                entityInfoForm.AddProperty(key, value switch
+                entityInfoForm.EntityInfoControl.AddProperty(key, value switch
                 {
                     null => string.Empty,
                     KVObject { IsArray: true } kvArray => string.Join(' ', kvArray.Select(p => p.Value.ToString())),
@@ -544,12 +545,12 @@ namespace GUI.Types.Renderer
             {
                 foreach (var connection in sceneNode.EntityData.Connections)
                 {
-                    entityInfoForm.AddConnection(connection);
+                    entityInfoForm.EntityInfoControl.AddConnection(connection);
                 }
             }
 
             var classname = sceneNode.EntityData.GetProperty<string>("classname");
-            entityInfoForm.Text = $"Entity: {classname}";
+            entityInfoForm.EntityInfoControl.Text = $"Entity: {classname}";
         }
 
         private void SetAvailableLayers(IEnumerable<string> worldLayers)
