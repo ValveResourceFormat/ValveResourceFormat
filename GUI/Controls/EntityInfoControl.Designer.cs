@@ -2,7 +2,7 @@ using System.Windows.Forms;
 
 namespace GUI.Forms
 {
-    partial class EntityInfoForm
+    partial class EntityInfoControl
     {
         /// <summary>
         /// Required designer variable.
@@ -32,6 +32,7 @@ namespace GUI.Forms
         {
             var dataGridViewCellStyle1 = new DataGridViewCellStyle();
             var dataGridViewCellStyle2 = new DataGridViewCellStyle();
+            var dataGridViewCellStyle3 = new DataGridViewCellStyle();
             tabControl = new ThemedTabControl();
             tabPageProperties = new TabPage();
             dataGridProperties = new DataGridView();
@@ -51,20 +52,20 @@ namespace GUI.Forms
             tabPageOutputs.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)dataGridOutputs).BeginInit();
             SuspendLayout();
-            //
-            // tabControl1
-            //
+            // 
+            // tabControl
+            // 
             tabControl.Controls.Add(tabPageProperties);
             tabControl.Controls.Add(tabPageOutputs);
             tabControl.Dock = DockStyle.Fill;
             tabControl.Location = new System.Drawing.Point(0, 0);
-            tabControl.Name = "tabControl1";
+            tabControl.Name = "tabControl";
             tabControl.SelectedIndex = 0;
             tabControl.Size = new System.Drawing.Size(800, 450);
             tabControl.TabIndex = 0;
-            //
+            // 
             // tabPageProperties
-            //
+            // 
             tabPageProperties.Controls.Add(dataGridProperties);
             tabPageProperties.Location = new System.Drawing.Point(4, 24);
             tabPageProperties.Name = "tabPageProperties";
@@ -73,45 +74,50 @@ namespace GUI.Forms
             tabPageProperties.TabIndex = 0;
             tabPageProperties.Text = "Properties";
             tabPageProperties.UseVisualStyleBackColor = true;
-            //
-            // dataGrid
-            //
+            // 
+            // dataGridProperties
+            // 
             dataGridProperties.AllowUserToAddRows = false;
             dataGridProperties.AllowUserToDeleteRows = false;
+            dataGridProperties.AllowUserToResizeRows = false;
+            dataGridViewCellStyle1.BackColor = System.Drawing.SystemColors.ActiveBorder;
+            dataGridProperties.AlternatingRowsDefaultCellStyle = dataGridViewCellStyle1;
             dataGridProperties.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+            dataGridProperties.BorderStyle = BorderStyle.None;
             dataGridProperties.Columns.AddRange(new DataGridViewColumn[] { ColumnName, ColumnValue });
-            dataGridViewCellStyle1.Alignment = DataGridViewContentAlignment.MiddleLeft;
-            dataGridViewCellStyle1.BackColor = System.Drawing.SystemColors.Window;
-            dataGridViewCellStyle1.Font = new System.Drawing.Font("Cascadia Mono", 10F);
-            dataGridViewCellStyle1.ForeColor = System.Drawing.SystemColors.ControlText;
-            dataGridViewCellStyle1.SelectionBackColor = System.Drawing.SystemColors.Highlight;
-            dataGridViewCellStyle1.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
-            dataGridViewCellStyle1.WrapMode = DataGridViewTriState.True;
-            dataGridProperties.DefaultCellStyle = dataGridViewCellStyle1;
+            dataGridViewCellStyle2.Alignment = DataGridViewContentAlignment.MiddleLeft;
+            dataGridViewCellStyle2.BackColor = System.Drawing.SystemColors.Window;
+            dataGridViewCellStyle2.Font = new System.Drawing.Font("Cascadia Mono", 10F);
+            dataGridViewCellStyle2.ForeColor = System.Drawing.SystemColors.ControlText;
+            dataGridViewCellStyle2.SelectionBackColor = System.Drawing.SystemColors.Highlight;
+            dataGridViewCellStyle2.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
+            dataGridViewCellStyle2.WrapMode = DataGridViewTriState.True;
+            dataGridProperties.DefaultCellStyle = dataGridViewCellStyle2;
             dataGridProperties.Dock = DockStyle.Fill;
             dataGridProperties.Location = new System.Drawing.Point(3, 3);
-            dataGridProperties.Name = "dataGrid";
+            dataGridProperties.Name = "dataGridProperties";
             dataGridProperties.ReadOnly = true;
             dataGridProperties.RowHeadersVisible = false;
+            dataGridProperties.SelectionMode = DataGridViewSelectionMode.CellSelect;
             dataGridProperties.Size = new System.Drawing.Size(786, 416);
             dataGridProperties.TabIndex = 1;
-            //
+            // 
             // ColumnName
-            //
+            // 
             ColumnName.FillWeight = 30F;
             ColumnName.HeaderText = "Name";
             ColumnName.Name = "ColumnName";
             ColumnName.ReadOnly = true;
-            //
+            // 
             // ColumnValue
-            //
+            // 
             ColumnValue.FillWeight = 70F;
             ColumnValue.HeaderText = "Value";
             ColumnValue.Name = "ColumnValue";
             ColumnValue.ReadOnly = true;
-            //
+            // 
             // tabPageOutputs
-            //
+            // 
             tabPageOutputs.Controls.Add(dataGridOutputs);
             tabPageOutputs.Location = new System.Drawing.Point(4, 24);
             tabPageOutputs.Name = "tabPageOutputs";
@@ -120,75 +126,74 @@ namespace GUI.Forms
             tabPageOutputs.TabIndex = 1;
             tabPageOutputs.Text = "Outputs";
             tabPageOutputs.UseVisualStyleBackColor = true;
-            //
+            // 
             // dataGridOutputs
-            //
+            // 
             dataGridOutputs.AllowUserToAddRows = false;
             dataGridOutputs.AllowUserToDeleteRows = false;
+            dataGridOutputs.AllowUserToResizeRows = false;
             dataGridOutputs.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
             dataGridOutputs.Columns.AddRange(new DataGridViewColumn[] { Output, TargetEntity, TargetInput, Parameter, Delay, timesToFire });
-            dataGridViewCellStyle2.Alignment = DataGridViewContentAlignment.MiddleLeft;
-            dataGridViewCellStyle2.BackColor = System.Drawing.SystemColors.Window;
-            dataGridViewCellStyle2.Font = new System.Drawing.Font("Cascadia Mono", 10F);
-            dataGridViewCellStyle2.ForeColor = System.Drawing.SystemColors.ControlText;
-            dataGridViewCellStyle2.SelectionBackColor = System.Drawing.SystemColors.Highlight;
-            dataGridViewCellStyle2.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
-            dataGridViewCellStyle2.WrapMode = DataGridViewTriState.True;
-            dataGridOutputs.DefaultCellStyle = dataGridViewCellStyle2;
+            dataGridViewCellStyle3.Alignment = DataGridViewContentAlignment.MiddleLeft;
+            dataGridViewCellStyle3.BackColor = System.Drawing.SystemColors.Window;
+            dataGridViewCellStyle3.Font = new System.Drawing.Font("Cascadia Mono", 10F);
+            dataGridViewCellStyle3.ForeColor = System.Drawing.SystemColors.ControlText;
+            dataGridViewCellStyle3.SelectionBackColor = System.Drawing.SystemColors.Highlight;
+            dataGridViewCellStyle3.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
+            dataGridViewCellStyle3.WrapMode = DataGridViewTriState.True;
+            dataGridOutputs.DefaultCellStyle = dataGridViewCellStyle3;
             dataGridOutputs.Dock = DockStyle.Fill;
             dataGridOutputs.Location = new System.Drawing.Point(3, 3);
             dataGridOutputs.Name = "dataGridOutputs";
             dataGridOutputs.ReadOnly = true;
             dataGridOutputs.RowHeadersVisible = false;
+            dataGridOutputs.SelectionMode = DataGridViewSelectionMode.CellSelect;
             dataGridOutputs.Size = new System.Drawing.Size(786, 416);
             dataGridOutputs.TabIndex = 0;
-            //
+            // 
             // Output
-            //
+            // 
             Output.HeaderText = "Output";
             Output.Name = "Output";
             Output.ReadOnly = true;
-            //
+            // 
             // TargetEntity
-            //
+            // 
             TargetEntity.HeaderText = "Target Entity";
             TargetEntity.Name = "TargetEntity";
             TargetEntity.ReadOnly = true;
-            //
+            // 
             // TargetInput
-            //
+            // 
             TargetInput.HeaderText = "Target Input";
             TargetInput.Name = "TargetInput";
             TargetInput.ReadOnly = true;
-            //
+            // 
             // Parameter
-            //
+            // 
             Parameter.HeaderText = "Parameter";
             Parameter.Name = "Parameter";
             Parameter.ReadOnly = true;
-            //
+            // 
             // Delay
-            //
+            // 
             Delay.HeaderText = "Delay";
             Delay.Name = "Delay";
             Delay.ReadOnly = true;
-            //
+            // 
             // timesToFire
-            //
+            // 
             timesToFire.HeaderText = "Times To Fire";
             timesToFire.Name = "timesToFire";
             timesToFire.ReadOnly = true;
-            //
-            // EntityInfoForm
-            //
+            // 
+            // EntityInfoControl
+            // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new System.Drawing.Size(800, 450);
             Controls.Add(tabControl);
-            Name = "EntityInfoForm";
-            StartPosition = FormStartPosition.CenterParent;
-            Text = "EntityInfoForm";
-            TopMost = true;
+            Name = "EntityInfoControl";
+            Size = new System.Drawing.Size(800, 450);
             tabControl.ResumeLayout(false);
             tabPageProperties.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)dataGridProperties).EndInit();
@@ -198,8 +203,6 @@ namespace GUI.Forms
         }
 
         #endregion
-
-        private TabControl tabControl;
         private TabPage tabPageProperties;
         private DataGridView dataGridProperties;
         private DataGridViewTextBoxColumn ColumnName;
@@ -212,5 +215,6 @@ namespace GUI.Forms
         private DataGridViewTextBoxColumn Parameter;
         private DataGridViewTextBoxColumn Delay;
         private DataGridViewTextBoxColumn timesToFire;
+        private ThemedTabControl tabControl;
     }
 }

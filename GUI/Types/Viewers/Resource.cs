@@ -150,6 +150,14 @@ namespace GUI.Types.Viewers
                             break;
                         }
 
+                    case ResourceType.EntityLump:
+                        {
+                            specialTabPage = new TabPage("Entities");
+                            specialTabPage.Controls.Add(new EntityViewer(vrfGuiContext, (EntityLump)resource.DataBlock));
+
+                            break;
+                        }
+
                     case ResourceType.SmartProp:
                         {
                             specialTabPage = new TabPage("SMART PROP");
@@ -468,7 +476,6 @@ namespace GUI.Types.Viewers
                     {
                         var entityLump = (EntityLump)resource.DataBlock;
                         IViewer.AddContentTab(resTabs, "FGD", entityLump.ToForgeGameData());
-                        IViewer.AddContentTab(resTabs, "Entities", entityLump.ToEntityDumpString(), true);
                         break;
                     }
 
