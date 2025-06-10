@@ -476,6 +476,9 @@ namespace GUI.Types.Viewers
                     {
                         var entityLump = (EntityLump)resource.DataBlock;
                         IViewer.AddContentTab(resTabs, "FGD", entityLump.ToForgeGameData());
+                        IViewer.AddContentTab(resTabs, "Entities-Text", entityLump.ToEntityDumpString(), true);
+                        // force select the new entities tab for now
+                        resTabs.SelectedTab = resTabs.TabPages[0];
                         break;
                     }
 
