@@ -168,7 +168,7 @@ namespace GUI.Types.Viewers
         {
             foreach (var prop in entity.Properties)
             {
-                string stringValue = prop.Value.ToString() ?? string.Empty;
+                string stringValue = prop.Value?.ToString() ?? string.Empty;
 
                 if (prop.Key.Contains(key, StringComparison.OrdinalIgnoreCase))
                 {
