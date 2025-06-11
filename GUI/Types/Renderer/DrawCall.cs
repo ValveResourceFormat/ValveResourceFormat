@@ -47,7 +47,7 @@ namespace GUI.Types.Renderer
 
         public void UpdateVertexArrayObject()
         {
-            Debug.Assert(Material.Shader.IsLoaded, "Shader must be loaded before creating a VAO");
+            Debug.Assert(Material.Shader.IsLoaded, "Shader must be loaded (more specifically the attribute locations) before creating a VAO");
 
             VertexArrayObject = MeshBuffers.GetVertexArrayObject(
                    MeshName,

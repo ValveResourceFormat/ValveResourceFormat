@@ -365,6 +365,7 @@ namespace GUI.Types.Renderer
             RenderModes.UnionWith(shader.RenderModes);
 
             Uniforms.Clear();
+            Attributes.Clear();
         }
 #endif
     }

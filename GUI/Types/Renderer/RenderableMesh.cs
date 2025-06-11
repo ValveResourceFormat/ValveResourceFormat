@@ -82,6 +82,7 @@ namespace GUI.Types.Renderer
         {
             foreach (var call in DrawCalls)
             {
+                call.Material.Shader.EnsureLoaded();
                 call.UpdateVertexArrayObject();
             }
         }
