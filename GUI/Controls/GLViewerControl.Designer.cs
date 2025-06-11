@@ -17,10 +17,13 @@ namespace GUI.Controls
         {
             if (disposing)
             {
-                components?.Dispose();
-                FullScreenForm?.Dispose();
+                GLControl.MakeCurrent();
+
                 DisposeFramebuffer();
+                FullScreenForm?.Dispose();
+                components?.Dispose();
             }
+
             base.Dispose(disposing);
         }
 

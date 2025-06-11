@@ -504,6 +504,7 @@ namespace GUI.Types.Renderer
                 decodeFlagsListBox?.Dispose();
                 decodeFlagsListBox = null;
 
+
                 texture?.Dispose();
                 SaveAsFbo?.Dispose();
             }
@@ -690,6 +691,8 @@ namespace GUI.Types.Renderer
 
         protected override void OnMouseMove(object sender, MouseEventArgs e)
         {
+            GLControl.Focus();
+
             if (ClickPosition == null)
             {
                 return;
@@ -974,7 +977,7 @@ namespace GUI.Types.Renderer
                 MainFramebuffer = GLDefaultFramebuffer;
             }
 
-            MainFramebuffer.ClearColor = OpenTK.Graphics.Color4.White;
+            MainFramebuffer.ClearColor = OpenTK.Mathematics.Color4.White;
             MainFramebuffer.ClearMask = ClearBufferMask.ColorBufferBit;
 
             GLLoad -= OnLoad;

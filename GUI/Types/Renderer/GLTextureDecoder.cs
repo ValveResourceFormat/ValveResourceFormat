@@ -3,9 +3,9 @@ using System.Diagnostics;
 using System.Threading;
 using GUI.Controls;
 using GUI.Utils;
-using OpenTK;
-using OpenTK.Graphics;
+using OpenTK.GLControl;
 using OpenTK.Graphics.OpenGL;
+using OpenTK.Windowing.Desktop;
 using SkiaSharp;
 using ValveResourceFormat;
 using ValveResourceFormat.CompiledShader;
@@ -59,7 +59,7 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
     private bool IsRunning;
 
 #pragma warning disable CA2213 // Disposable fields should be disposed (handled in Dispose_ThreadResources)
-    private GLControl GLControl;
+    private GameWindow GLWindowContext;
     private Framebuffer Framebuffer;
 #pragma warning restore CA2213
 
@@ -129,8 +129,19 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
 
     private void Initialize()
     {
-        GLControl = new GLControl(new GraphicsMode(new ColorFormat(8, 8, 8, 8)), GLViewerControl.OpenGlVersionMajor, GLViewerControl.OpenGlVersionMinor, GraphicsContextFlags.Offscreen);
-        GLControl.MakeCurrent();
+        GLFWProvider.CheckForMainThread = false;
+
+        GLWindowContext = new GameWindow(new() { UpdateFrequency = 1.0 }, new()
+        {
+            APIVersion = GLViewerControl.OpenGlVersion,
+            Flags = GLViewerControl.OpenGlFlags | OpenTK.Windowing.Common.ContextFlags.Offscreen,
+            StartVisible = false,
+            StartFocused = false,
+        });
+
+        GLFWProvider.CheckForMainThread = true;
+
+        GLWindowContext.MakeCurrent();
 
         GLViewerControl.CheckOpenGL();
 
@@ -258,8 +269,9 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
 
     private void Dispose_ThreadResources()
     {
+        GLWindowContext?.MakeCurrent();
         Framebuffer?.Dispose();
-        GLControl?.Dispose();
+        GLWindowContext?.Dispose();
     }
 
     private void Exit()
