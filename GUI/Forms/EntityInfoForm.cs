@@ -1,8 +1,5 @@
-using System.Globalization;
 using System.Windows.Forms;
-using GUI.Types.Viewers;
 using GUI.Utils;
-using ValveResourceFormat.Serialization.KeyValues;
 
 namespace GUI.Forms
 {

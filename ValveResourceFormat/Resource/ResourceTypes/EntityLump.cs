@@ -16,7 +16,7 @@ namespace ValveResourceFormat.ResourceTypes
             public KVObject Properties { get; } = new(null);
             // public KVObject Attributes { get; } = new(null);
             public List<KVObject> Connections { get; internal set; }
-            public EntityLump ParentLump { get; internal set; }
+            public EntityLump ParentLump { get; init; }
 
             public T GetProperty<T>(string name, T defaultValue = default)
             {
