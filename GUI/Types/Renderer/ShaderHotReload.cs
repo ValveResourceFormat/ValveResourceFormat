@@ -4,7 +4,7 @@ using System.IO;
 using System.Threading;
 using System.Windows.Forms;
 using GUI.Utils;
-using OpenTK;
+using OpenTK.GLControl;
 
 namespace GUI.Types.Renderer;
 
@@ -72,7 +72,7 @@ class ShaderHotReload : IDisposable
             return;
         }
 
-        if (!glControl.Parent.Visible || !glControl.Context.IsCurrent)
+        if (!glControl.Parent.Visible || glControl.Context is not { IsCurrent: true })
         {
             return;
         }

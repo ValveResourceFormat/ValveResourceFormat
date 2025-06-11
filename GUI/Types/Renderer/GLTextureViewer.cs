@@ -974,7 +974,7 @@ namespace GUI.Types.Renderer
                 MainFramebuffer = GLDefaultFramebuffer;
             }
 
-            MainFramebuffer.ClearColor = OpenTK.Graphics.Color4.White;
+            MainFramebuffer.ClearColor = OpenTK.Mathematics.Color4.White;
             MainFramebuffer.ClearMask = ClearBufferMask.ColorBufferBit;
 
             GLLoad -= OnLoad;

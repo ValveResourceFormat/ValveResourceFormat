@@ -1,4 +1,4 @@
-using OpenTK.Graphics;
+using OpenTK.Mathematics;
 using OpenTK.Graphics.OpenGL;
 
 namespace GUI.Types.Renderer;
