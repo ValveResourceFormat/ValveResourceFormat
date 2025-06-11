@@ -297,7 +297,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
             shader.SetUniform1("uOverbrightFactor", overbrightFactor.NextNumber());
 
             // DRAW
-            GL.DrawElements(BeginMode.Triangles, particleBag.Count * 6, DrawElementsType.UnsignedShort, 0);
+            GL.DrawElements(PrimitiveType.Triangles, particleBag.Count * 6, DrawElementsType.UnsignedShort, 0);
 
             GL.UseProgram(0);
             GL.BindVertexArray(0);

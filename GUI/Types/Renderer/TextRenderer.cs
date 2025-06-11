@@ -174,7 +174,7 @@ namespace GUI.Types.Renderer
             shader.SetUniform1("g_fRange", TextureRange);
 
             GL.BindVertexArray(vao);
-            GL.DrawElements(BeginMode.Triangles, letters * 6, DrawElementsType.UnsignedShort, 0);
+            GL.DrawElements(PrimitiveType.Triangles, letters * 6, DrawElementsType.UnsignedShort, 0);
 
             GL.UseProgram(0);
             GL.BindVertexArray(0);

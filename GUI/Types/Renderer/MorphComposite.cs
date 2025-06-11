@@ -105,7 +105,7 @@ namespace GUI.Types.Renderer
 
             GL.BindVertexArray(vao);
 
-            GL.DrawElements(BeginMode.Triangles, (usedVerticesLength / VertexSize / 4) * 6, DrawElementsType.UnsignedShort, 0);
+            GL.DrawElements(PrimitiveType.Triangles, (usedVerticesLength / VertexSize / 4) * 6, DrawElementsType.UnsignedShort, 0);
 
             GL.UseProgram(0);
             GL.BindVertexArray(0);
