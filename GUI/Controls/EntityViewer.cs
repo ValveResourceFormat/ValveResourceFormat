@@ -11,7 +11,7 @@ namespace GUI.Types.Viewers
 {
     public partial class EntityViewer : UserControl
     {
-        private List<(Entity entity, string lumpName)> Entities = new();
+        private List<Entity> Entities = new();
 
         public enum ObjectsToInclude
         {
@@ -31,106 +31,17 @@ namespace GUI.Types.Viewers
 
         private SearchDataClass SearchData = new();
 
-        internal EntityViewer(VrfGuiContext guiContext, EntityLump? entityLump, World? world = null)
+        internal EntityViewer(VrfGuiContext guiContext, List<Entity> entities)
         {
-            // if we have world, load all entity lumps, if not try to load the specified lump only
-            if (world is not null)
-            {
-                foreach (var lumpName in world.GetEntityLumpNames())
-                {
-                    if (lumpName == null)
-                    {
-                        continue;
-                    }
-
-                    var newResource = guiContext.LoadFileCompiled(lumpName);
-
-                    if (newResource == null)
-                    {
-                        continue;
-                    }
-
-                    LoadEntitiesFromLump(guiContext, (EntityLump?)newResource.DataBlock, lumpName);
-                }
-            }
-            else
-            {
-                // could actually use LoadEntitiesFromLump here too, but id rather this only show the loaded lump without anything else
-                Entities = EntityListWithLumpName(entityLump!.GetEntities(), entityLump);
-            }
-
             Dock = DockStyle.Fill;
             InitializeComponent();
+
+            Entities = entities;
 
             EntityInfo.OutputsGrid.CellDoubleClick += EntityInfoGrid_CellDoubleClick;
             EntityInfo.ResourceAddDataGridExternalRef(guiContext.FileLoader);
 
             UpdateGrid();
-        }
-
-        private static List<(Entity entity, string lumpName)> EntityListWithLumpName(List<Entity> entities, EntityLump lump)
-        {
-            var newList = new List<(Entity entity, string lumpName)>();
-            var lumpName = Path.GetFileName(lump.Resource.FileName) ?? string.Empty;
-
-            foreach (var entity in entities)
-            {
-                newList.Add((entity, lumpName));
-            }
-
-            return newList;
-        }
-
-        private void LoadEntitiesFromLump(VrfGuiContext guiContext, EntityLump? entityLump, string layerName)
-        {
-            if (entityLump is null)
-            {
-                return;
-            }
-
-            var childEntities = entityLump.GetChildEntityNames();
-            var childEntityLumps = new Dictionary<string, EntityLump>(childEntities?.Length ?? 0);
-
-            if (childEntities is not null)
-            {
-                foreach (var childEntityName in childEntities)
-                {
-                    var newResource = guiContext.LoadFileCompiled(childEntityName);
-
-                    if (newResource == null)
-                    {
-                        continue;
-                    }
-
-                    var childLump = (EntityLump?)newResource.DataBlock;
-                    var childName = childLump?.Data.GetProperty<string>("m_name");
-
-                    if (childName != null && childLump != null)
-                    {
-                        childEntityLumps.Add(childName, childLump);
-                    }
-                }
-            }
-
-            var entities = EntityListWithLumpName(entityLump.GetEntities().ToList(), entityLump);
-
-            Entities.AddRange(entities);
-
-            var templates = entities.Where(entity => entity.entity.GetProperty("classname", string.Empty) == "point_template");
-
-            foreach (var template in templates)
-            {
-                var entityLumpName = template.entity.GetProperty<string>("entitylumpname");
-
-                if (entityLumpName != null && childEntityLumps.TryGetValue(entityLumpName, out var childLump))
-                {
-                    LoadEntitiesFromLump(guiContext, childLump, entityLumpName);
-                }
-                else
-                {
-                    Log.Warn(nameof(WorldLoader), $"Failed to find child entity lump with name {entityLumpName}.");
-                }
-            }
         }
 
         private void UpdateGrid()
@@ -143,7 +54,7 @@ namespace GUI.Types.Viewers
             {
                 var entity = Entities[i];
 
-                var classname = entity.entity.GetProperty("classname", string.Empty);
+                var classname = entity.GetProperty("classname", string.Empty);
 
                 if (!string.IsNullOrEmpty(SearchData.Class))
                 {
@@ -159,14 +70,14 @@ namespace GUI.Types.Viewers
                         break;
 
                     case ObjectsToInclude.MeshEntities:
-                        if (!entity.entity.ContainsKey("model"))
+                        if (!entity.ContainsKey("model"))
                         {
                             continue;
                         }
                         break;
 
                     case ObjectsToInclude.PointEntities:
-                        if (entity.entity.ContainsKey("model"))
+                        if (entity.ContainsKey("model"))
                         {
                             continue;
                         }
@@ -179,7 +90,7 @@ namespace GUI.Types.Viewers
                 // match key and value together
                 if (!isKeyEmpty && !isValueEmpty)
                 {
-                    if (!ContainsKeyValue(entity.entity, SearchData.Key, SearchData.Value))
+                    if (!ContainsKeyValue(entity, SearchData.Key, SearchData.Value))
                     {
                         continue;
                     }
@@ -187,7 +98,7 @@ namespace GUI.Types.Viewers
                 // search only by key
                 else if (!isKeyEmpty)
                 {
-                    if (!ContainsKey(entity.entity, SearchData.Key))
+                    if (!ContainsKey(entity, SearchData.Key))
                     {
                         continue;
                     }
@@ -195,13 +106,13 @@ namespace GUI.Types.Viewers
                 // search only by value
                 else if (!isValueEmpty)
                 {
-                    if (!ContainsValue(entity.entity, SearchData.Value))
+                    if (!ContainsValue(entity, SearchData.Value))
                     {
                         continue;
                     }
                 }
 
-                EntityViewerGrid.Rows.Add(classname, entity.entity.GetProperty("targetname", string.Empty));
+                EntityViewerGrid.Rows.Add(classname, entity.GetProperty("targetname", string.Empty));
                 EntityViewerGrid.Rows[EntityViewerGrid.Rows.Count - 1].Tag = i;
             }
 
@@ -211,7 +122,7 @@ namespace GUI.Types.Viewers
             if (EntityViewerGrid.Rows.Count > 0)
             {
                 int entityID = (int)(EntityViewerGrid.Rows[0].Tag ?? -1);
-                ShowEntityProperties(Entities[entityID].entity, Entities[entityID].lumpName);
+                ShowEntityProperties(Entities[entityID]);
             }
         }
 
@@ -344,12 +255,12 @@ namespace GUI.Types.Viewers
                 if (entityID != -1)
                 {
                     var entity = Entities[entityID];
-                    ShowEntityProperties(entity.entity, entity.lumpName);
+                    ShowEntityProperties(entity);
                 }
             }
         }
 
-        private void ShowEntityProperties(Entity entity, string lumpName)
+        private void ShowEntityProperties(Entity entity)
         {
             EntityInfo.Clear();
 
@@ -387,7 +298,7 @@ namespace GUI.Types.Viewers
                 groupBoxName += $" - {classname}";
             }
 
-            groupBoxName += $" - Entity Lump: {lumpName}";
+            groupBoxName += $" - Entity Lump: {entity.ParentLump.Resource.FileName}";
 
             EntityPropertiesGroup.Text = groupBoxName;
         }
@@ -405,7 +316,7 @@ namespace GUI.Types.Viewers
 
                 foreach (var entity in Entities)
                 {
-                    var targetname = entity.entity.GetProperty("targetname", string.Empty);
+                    var targetname = entity.GetProperty("targetname", string.Empty);
                     if (string.IsNullOrEmpty(targetname))
                     {
                         continue;
@@ -413,7 +324,7 @@ namespace GUI.Types.Viewers
 
                     if (entityName == targetname)
                     {
-                        ShowEntityProperties(entity.entity, entity.lumpName);
+                        ShowEntityProperties(entity);
                         ResetViewerState();
                     }
                 }

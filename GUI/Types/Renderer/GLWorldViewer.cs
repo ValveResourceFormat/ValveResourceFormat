@@ -3,6 +3,7 @@ using System.Linq;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Forms;
+using GUI.Types.Viewers;
 using GUI.Utils;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
@@ -196,6 +197,15 @@ namespace GUI.Types.Renderer
             {
                 var result = new WorldLoader(world, Scene);
 
+                if (Parent.Parent is TabControl tabControl)
+                {
+                    var entities = result.Entities;
+
+                    var specialTabPage = new TabPage("Entities");
+                    specialTabPage.Controls.Add(new EntityViewer(GuiContext, entities));
+                    tabControl.TabPages.Add(specialTabPage);
+                }
+
                 AddCheckBox("Show Fog", Scene.FogEnabled, v => Scene.FogEnabled = v);
                 AddCheckBox("Color Correction", postProcessRenderer.ColorCorrectionEnabled, v => postProcessRenderer.ColorCorrectionEnabled = v);
                 AddCheckBox("Experimental Lights", false, v => viewBuffer.Data.ExperimentalLightsEnabled = v);
@@ -325,7 +335,7 @@ namespace GUI.Types.Renderer
             }
             else
             {
-                entityInfoForm.EntityInfoControl.Text = $"{sceneNode.GetType().Name}: {sceneNode.Name}";
+                entityInfoForm.Text = $"{sceneNode.GetType().Name}: {sceneNode.Name}";
 
                 static string ToRenderColor(Vector4 tint)
                 {
@@ -382,7 +392,7 @@ namespace GUI.Types.Renderer
 
             if (isInSkybox)
             {
-                entityInfoForm.EntityInfoControl.Text += " (in 3D skybox)";
+                entityInfoForm.Text += " (in 3D skybox)";
             }
 
             entityInfoForm.EntityInfoControl.ShowOutputsTabIfAnyData();
@@ -550,7 +560,7 @@ namespace GUI.Types.Renderer
             }
 
             var classname = sceneNode.EntityData.GetProperty<string>("classname");
-            entityInfoForm.EntityInfoControl.Text = $"Entity: {classname}";
+            entityInfoForm.Text = $"Entity: {classname}";
         }
 
         private void SetAvailableLayers(IEnumerable<string> worldLayers)

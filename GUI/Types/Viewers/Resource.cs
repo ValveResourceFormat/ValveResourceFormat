@@ -154,7 +154,7 @@ namespace GUI.Types.Viewers
                     case ResourceType.EntityLump:
                         {
                             specialTabPage = new TabPage("Entities");
-                            specialTabPage.Controls.Add(new EntityViewer(vrfGuiContext, (EntityLump)resource.DataBlock));
+                            specialTabPage.Controls.Add(new EntityViewer(vrfGuiContext, ((EntityLump)resource.DataBlock).GetEntities()));
 
                             break;
                         }
@@ -482,28 +482,6 @@ namespace GUI.Types.Viewers
                         resTabs.SelectedTab = resTabs.TabPages[0];
                         break;
                     }
-
-                case ResourceType.Map:
-                    {
-                        var mapResource = vrfGuiContext.LoadFile(Path.Join(resource.FileName[..^7], "world.vwrld_c"));
-                        if (mapResource != null)
-                        {
-                            var specialTabPage = new TabPage("Entities");
-                            specialTabPage.Controls.Add(new EntityViewer(vrfGuiContext, null, (World)mapResource.DataBlock));
-
-                            resTabs.TabPages.Add(specialTabPage);
-
-                        }
-                    }
-                    break;
-                case ResourceType.World:
-                    {
-                        var specialTabPage = new TabPage("Entities");
-                        specialTabPage.Controls.Add(new EntityViewer(vrfGuiContext, null, (World)resource.DataBlock));
-
-                        resTabs.TabPages.Add(specialTabPage);
-                    }
-                    break;
 
                 case ResourceType.PostProcessing:
                     IViewer.AddContentTab(resTabs, "Reconstructed vpost", ((PostProcessing)resource.DataBlock).ToValvePostProcessing());
