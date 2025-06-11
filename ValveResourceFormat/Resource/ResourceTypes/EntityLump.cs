@@ -16,6 +16,7 @@ namespace ValveResourceFormat.ResourceTypes
             public KVObject Properties { get; } = new(null);
             // public KVObject Attributes { get; } = new(null);
             public List<KVObject> Connections { get; internal set; }
+            public EntityLump ParentLump { get; internal set; }
 
             public T GetProperty<T>(string name, T defaultValue = default)
             {
@@ -78,7 +79,7 @@ namespace ValveResourceFormat.ResourceTypes
                 .Select(ParseEntityProperties)
                 .ToList();
 
-        private static Entity ParseEntityProperties(KVObject entityKv)
+        private Entity ParseEntityProperties(KVObject entityKv)
         {
             var connections = entityKv.GetArray("m_connections");
             Entity entity;
@@ -100,7 +101,7 @@ namespace ValveResourceFormat.ResourceTypes
             return entity;
         }
 
-        private static Entity ParseEntityPropertiesKV3(KVObject entityKv)
+        private Entity ParseEntityPropertiesKV3(KVObject entityKv)
         {
             var entityVersion = entityKv.GetInt32Property("version");
 
@@ -109,7 +110,7 @@ namespace ValveResourceFormat.ResourceTypes
                 throw new UnexpectedMagicException("Unsupported entity data version", entityVersion, nameof(entityVersion));
             }
 
-            var entity = new Entity();
+            var entity = new Entity { ParentLump = this };
 
             ReadValues(entity, entityKv.Properties["values"]);
             ReadValues(entity, entityKv.Properties["attributes"]);
@@ -137,7 +138,7 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
-        private static Entity ParseEntityProperties(byte[] bytes)
+        private Entity ParseEntityProperties(byte[] bytes)
         {
             using var dataStream = new MemoryStream(bytes);
             using var dataReader = new BinaryReader(dataStream);
@@ -151,7 +152,7 @@ namespace ValveResourceFormat.ResourceTypes
             var hashedFieldsCount = dataReader.ReadUInt32();
             var stringFieldsCount = dataReader.ReadUInt32();
 
-            var entity = new Entity();
+            var entity = new Entity { ParentLump = this };
 
             void ReadTypedValue(uint keyHash, string keyName)
             {

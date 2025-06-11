@@ -20,7 +20,7 @@ namespace GUI.Types.Renderer
         private readonly World world;
         private readonly VrfGuiContext guiContext;
 
-        public List<EntityLump.Entity> Entities { get; } = [];
+        public List<Entity> Entities { get; } = [];
 
         public HashSet<string> DefaultEnabledLayers { get; } = ["Entities", "Particles"];
 

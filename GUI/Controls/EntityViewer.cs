@@ -1,21 +1,23 @@
+using System.IO;
 using System.Linq;
 using System.Windows.Forms;
+using GUI.Types.Renderer;
 using GUI.Utils;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
+using static ValveResourceFormat.ResourceTypes.EntityLump;
 
 namespace GUI.Types.Viewers
 {
     public partial class EntityViewer : UserControl
     {
-        private List<EntityLump.Entity> Entities;
+        private List<Entity> Entities = new();
 
         public enum ObjectsToInclude
         {
             Everything,
             MeshEntities,
-            PointEntities,
-            Class
+            PointEntities
         }
 
         public class SearchDataClass
@@ -29,12 +31,12 @@ namespace GUI.Types.Viewers
 
         private SearchDataClass SearchData = new();
 
-        internal EntityViewer(VrfGuiContext guiContext, EntityLump entityLump)
+        internal EntityViewer(VrfGuiContext guiContext, List<Entity> entities)
         {
-            Entities = entityLump.GetEntities();
-
             Dock = DockStyle.Fill;
             InitializeComponent();
+
+            Entities = entities;
 
             EntityInfo.OutputsGrid.CellDoubleClick += EntityInfoGrid_CellDoubleClick;
             EntityInfo.ResourceAddDataGridExternalRef(guiContext.FileLoader);
@@ -54,6 +56,14 @@ namespace GUI.Types.Viewers
 
                 var classname = entity.GetProperty("classname", string.Empty);
 
+                if (!string.IsNullOrEmpty(SearchData.Class))
+                {
+                    if (!classname.Contains(SearchData.Class, StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+                }
+
                 switch (SearchData.ObjectsToInclude)
                 {
                     case ObjectsToInclude.Everything:
@@ -70,16 +80,6 @@ namespace GUI.Types.Viewers
                         if (entity.ContainsKey("model"))
                         {
                             continue;
-                        }
-                        break;
-
-                    case ObjectsToInclude.Class:
-                        if (!string.IsNullOrEmpty(SearchData.Class))
-                        {
-                            if (!classname.Contains(SearchData.Class, StringComparison.OrdinalIgnoreCase))
-                            {
-                                continue;
-                            }
                         }
                         break;
                 }
@@ -192,22 +192,6 @@ namespace GUI.Types.Viewers
             return false;
         }
 
-        private void ObjectsToInclude_Class_CheckedChanged(object sender, EventArgs e)
-        {
-            if (((RadioButton)sender).Checked)
-            {
-                SearchData.ObjectsToInclude = ObjectsToInclude.Class;
-                ObjectsToInclude_ClassTextBox.Enabled = true;
-
-                UpdateGrid();
-            }
-            else
-            {
-                ObjectsToInclude_ClassTextBox.Enabled = false;
-            }
-
-        }
-
         private void ObjectsToInclude_PointEntities_CheckedChanged(object sender, EventArgs e)
         {
             if (((RadioButton)sender).Checked)
@@ -261,15 +245,22 @@ namespace GUI.Types.Viewers
             UpdateGrid();
         }
 
-        private void EntityViewerGrid_CellClick(object sender, DataGridViewCellEventArgs e)
+        private void EntityViewerGrid_SelectionChanged(object sender, EventArgs e)
         {
-            int entityID = (int)(EntityViewerGrid.Rows[e.RowIndex].Tag ?? -1);
-            var entity = Entities[entityID];
+            if (EntityViewerGrid.SelectedCells.Count > 0)
+            {
+                var rowIndex = EntityViewerGrid.SelectedCells[0].RowIndex;
+                int entityID = (int)(EntityViewerGrid.Rows[rowIndex].Tag ?? -1);
 
-            ShowEntityProperties(entity);
+                if (entityID != -1)
+                {
+                    var entity = Entities[entityID];
+                    ShowEntityProperties(entity);
+                }
+            }
         }
 
-        private void ShowEntityProperties(EntityLump.Entity entity)
+        private void ShowEntityProperties(Entity entity)
         {
             EntityInfo.Clear();
 
@@ -291,6 +282,8 @@ namespace GUI.Types.Viewers
                 }
             }
 
+            EntityInfo.ShowOutputsTabIfAnyData();
+
             string groupBoxName = "Entity Properties";
 
             var targetname = entity.GetProperty("targetname", string.Empty);
@@ -298,16 +291,16 @@ namespace GUI.Types.Viewers
 
             if (!string.IsNullOrEmpty(targetname))
             {
-                EntityPropertiesGroup.Text = groupBoxName += $" - {targetname}";
+                groupBoxName += $" - {targetname}";
             }
             else if (!string.IsNullOrEmpty(classname))
             {
-                EntityPropertiesGroup.Text = groupBoxName += $" - {classname}";
+                groupBoxName += $" - {classname}";
             }
-            else
-            {
-                EntityPropertiesGroup.Text = groupBoxName;
-            }
+
+            groupBoxName += $" - Entity Lump: {entity.ParentLump.Resource.FileName}";
+
+            EntityPropertiesGroup.Text = groupBoxName;
         }
 
         private void EntityInfoGrid_CellDoubleClick(object? sender, DataGridViewCellEventArgs e)

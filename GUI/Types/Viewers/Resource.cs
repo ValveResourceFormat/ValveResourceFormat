@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Drawing.Printing;
 using System.IO;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -153,7 +154,7 @@ namespace GUI.Types.Viewers
                     case ResourceType.EntityLump:
                         {
                             specialTabPage = new TabPage("Entities");
-                            specialTabPage.Controls.Add(new EntityViewer(vrfGuiContext, (EntityLump)resource.DataBlock));
+                            specialTabPage.Controls.Add(new EntityViewer(vrfGuiContext, ((EntityLump)resource.DataBlock).GetEntities()));
 
                             break;
                         }
