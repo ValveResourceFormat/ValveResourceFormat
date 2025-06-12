@@ -91,7 +91,7 @@ namespace GUI.Types.Renderer
                         continue;
                     }
 
-                    var subloader = new WorldNodeLoader(guiContext, (WorldNode)newResource.DataBlock);
+                    var subloader = new WorldNodeLoader(guiContext, (WorldNode)newResource.DataBlock, newResource.ExternalReferences);
                     subloader.Load(scene);
 
                     foreach (var layer in subloader.LayerNames)

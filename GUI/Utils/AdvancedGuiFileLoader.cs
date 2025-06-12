@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.IO;
 using System.Linq;
 using SteamDatabase.ValvePak;
@@ -9,7 +10,7 @@ namespace GUI.Utils
 {
     class AdvancedGuiFileLoader : GameFileLoader
     {
-        private readonly Dictionary<string, Resource> CachedResources = [];
+        private readonly ConcurrentDictionary<string, Resource> CachedResources = [];
         private readonly VrfGuiContext GuiContext;
 
         public AdvancedGuiFileLoader(VrfGuiContext guiContext) : base(null, guiContext.FileName)

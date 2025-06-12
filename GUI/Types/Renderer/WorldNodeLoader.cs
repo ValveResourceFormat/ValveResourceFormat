@@ -1,6 +1,8 @@
 using System.Diagnostics;
+using System.Threading.Tasks;
 using GUI.Utils;
 using ValveResourceFormat;
+using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -9,12 +11,14 @@ namespace GUI.Types.Renderer
     class WorldNodeLoader
     {
         private readonly WorldNode node;
+        private readonly ResourceExtRefList? externalReferences;
         private readonly VrfGuiContext guiContext;
         public string[] LayerNames { get; }
 
-        public WorldNodeLoader(VrfGuiContext vrfGuiContext, WorldNode node)
+        public WorldNodeLoader(VrfGuiContext vrfGuiContext, WorldNode node, ValveResourceFormat.Blocks.ResourceExtRefList? externalReferences = null)
         {
             this.node = node;
+            this.externalReferences = externalReferences;
             guiContext = vrfGuiContext;
 
             if (node.Data.ContainsKey("m_layerNames"))
@@ -29,6 +33,22 @@ namespace GUI.Types.Renderer
 
         public void Load(Scene scene)
         {
+            if (externalReferences is not null)
+            {
+                Parallel.ForEach(externalReferences.ResourceRefInfoList, resourceReference =>
+                {
+                    var resource = guiContext.LoadFileCompiled(resourceReference.Name);
+                    if (resource.ResourceType is ResourceType.Model)
+                    {
+                        var model = (Model)resource.DataBlock!;
+                        foreach (var mesh in model.GetEmbeddedMeshes())
+                        {
+                            var _ = mesh.Mesh.VBIB;
+                        }
+                    }
+                });
+            }
+
             var i = 0;
             var defaultLightingOrigin = new Vector3(float.MaxValue, float.MaxValue, float.MaxValue);
             // Output is WorldNode_t we need to iterate m_sceneObjects inside it
