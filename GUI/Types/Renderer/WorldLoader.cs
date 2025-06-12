@@ -273,6 +273,11 @@ namespace GUI.Types.Renderer
                 var transformationMatrix = parentTransform * EntityTransformHelper.CalculateTransformationMatrix(entity);
                 var light = SceneLight.IsAccepted(classname);
 
+                if (entity.Connections != null)
+                {
+                    CreateEntityConnectionLines(entity, transformationMatrix.Translation);
+                }
+
                 if (classname == "info_world_layer")
                 {
                     var spawnflags = entity.GetPropertyUnchecked<uint>("spawnflags");
@@ -1128,13 +1133,56 @@ namespace GUI.Types.Renderer
                     end -= origin;
                     start -= origin;
 
-                    var lineNode = new LineSceneNode(scene, line.Color, start, end)
+                    var lineNode = new LineSceneNode(scene, start, end, line.Color, line.Color)
                     {
                         LayerName = "Entities",
                         Transform = Matrix4x4.CreateTranslation(origin)
                     };
                     scene.Add(lineNode, true);
                 }
+            }
+        }
+
+        private void CreateEntityConnectionLines(Entity entity, Vector3 start)
+        {
+            var alreadySeen = new HashSet<Entity>(entity.Connections.Count);
+
+            foreach (var connectionData in entity.Connections)
+            {
+                var targetType = connectionData.GetEnumValue<EntityIOTargetType>("m_targetType");
+
+                if (targetType != EntityIOTargetType.EntityNameOrClassName)
+                {
+                    Log.Debug(nameof(WorldLoader), $"Skipping entity i/o type {targetType}");
+                    continue;
+                }
+
+                var targetName = connectionData.GetStringProperty("m_targetName");
+                var endEntity = FindEntityByKeyValue("targetname", targetName);
+
+                if (endEntity == null)
+                {
+                    Log.Debug(nameof(WorldLoader), $"Did not find entity i/o output {targetName}");
+                    continue;
+                }
+
+                if (!alreadySeen.Add(endEntity))
+                {
+                    continue;
+                }
+
+                var end = EntityTransformHelper.CalculateTransformationMatrix(endEntity).Translation;
+
+                var origin = (start + end) / 2f;
+                end -= origin;
+                var lineStart = start - origin;
+
+                var lineNode = new LineSceneNode(scene, lineStart, end, new Color32(0, 255, 0), new Color32(255, 0, 0))
+                {
+                    LayerName = "Entity Connections",
+                    Transform = Matrix4x4.CreateTranslation(origin)
+                };
+                scene.Add(lineNode, true);
             }
         }
 

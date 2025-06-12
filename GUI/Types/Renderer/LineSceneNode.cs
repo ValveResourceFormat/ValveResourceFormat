@@ -9,12 +9,12 @@ namespace GUI.Types.Renderer
         readonly Shader shader;
         readonly int vaoHandle;
 
-        public LineSceneNode(Scene scene, Color32 color, Vector3 start, Vector3 end)
+        public LineSceneNode(Scene scene, Vector3 start, Vector3 end, Color32 startColor, Color32 endColor)
             : base(scene)
         {
             LocalBoundingBox = new AABB(start, end);
 
-            SimpleVertex[] vertices = [new(start, color), new(end, color)];
+            SimpleVertex[] vertices = [new(start, startColor), new(end, endColor)];
 
             shader = Scene.GuiContext.ShaderLoader.LoadShader("vrf.default");
 

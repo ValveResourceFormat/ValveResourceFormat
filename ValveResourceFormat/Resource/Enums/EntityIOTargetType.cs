@@ -1,6 +1,6 @@
 namespace ValveResourceFormat;
 
-enum EntityIOTargetType
+public enum EntityIOTargetType
 {
     ClassName = 0,
     ClassNameDerivesFrom = 1,
