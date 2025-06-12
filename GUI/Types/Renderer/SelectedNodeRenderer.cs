@@ -50,7 +50,7 @@ namespace GUI.Types.Renderer
             UpdateBuffer();
         }
 
-        public void SelectNode(SceneNode? node)
+        public void SelectNode(SceneNode? node, bool forceDisableDepth = false)
         {
             selectedNodes.Clear();
 
@@ -64,6 +64,11 @@ namespace GUI.Types.Renderer
             selectedNodes.Add(node);
 
             UpdateBuffer();
+
+            if (forceDisableDepth)
+            {
+                disableDepth = true;
+            }
         }
 
         public void DisableSelectedNodes()

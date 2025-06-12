@@ -86,6 +86,7 @@ partial class EntityViewer
         EntityViewerGrid.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.FullRowSelect;
         EntityViewerGrid.Size = new System.Drawing.Size(500, 530);
         EntityViewerGrid.TabIndex = 0;
+        EntityViewerGrid.CellDoubleClick += EntityViewerGrid_CellDoubleClick;
         EntityViewerGrid.SelectionChanged += EntityViewerGrid_SelectionChanged;
         // 
         // Class
@@ -166,14 +167,15 @@ partial class EntityViewer
         tableLayoutPanel4.ColumnCount = 1;
         tableLayoutPanel4.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
         tableLayoutPanel4.Controls.Add(groupBox3, 0, 0);
+        tableLayoutPanel4.Controls.Add(KeyValue_MatchWholeValue, 0, 1);
         tableLayoutPanel4.Dock = System.Windows.Forms.DockStyle.Fill;
         tableLayoutPanel4.Location = new System.Drawing.Point(256, 0);
         tableLayoutPanel4.Margin = new System.Windows.Forms.Padding(0);
         tableLayoutPanel4.Name = "tableLayoutPanel4";
         tableLayoutPanel4.RowCount = 3;
         tableLayoutPanel4.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 55F));
-        tableLayoutPanel4.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 50F));
-        tableLayoutPanel4.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 50F));
+        tableLayoutPanel4.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 27.34375F));
+        tableLayoutPanel4.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 72.65625F));
         tableLayoutPanel4.Size = new System.Drawing.Size(256, 183);
         tableLayoutPanel4.TabIndex = 0;
         // 
@@ -190,14 +192,13 @@ partial class EntityViewer
         // 
         // tableLayoutPanel6
         // 
-        tableLayoutPanel6.ColumnCount = 4;
-        tableLayoutPanel6.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 33.3333321F));
+        tableLayoutPanel6.ColumnCount = 3;
+        tableLayoutPanel6.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 50F));
         tableLayoutPanel6.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 20F));
-        tableLayoutPanel6.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 33.3333321F));
-        tableLayoutPanel6.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 33.3333321F));
+        tableLayoutPanel6.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 50F));
+        tableLayoutPanel6.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 20F));
         tableLayoutPanel6.Controls.Add(KeyValue_Key, 0, 0);
         tableLayoutPanel6.Controls.Add(KeyValue_Value, 2, 0);
-        tableLayoutPanel6.Controls.Add(KeyValue_MatchWholeValue, 3, 0);
         tableLayoutPanel6.Controls.Add(label1, 1, 0);
         tableLayoutPanel6.Dock = System.Windows.Forms.DockStyle.Fill;
         tableLayoutPanel6.Location = new System.Drawing.Point(3, 19);
@@ -213,17 +214,17 @@ partial class EntityViewer
         KeyValue_Key.Location = new System.Drawing.Point(3, 3);
         KeyValue_Key.Multiline = true;
         KeyValue_Key.Name = "KeyValue_Key";
-        KeyValue_Key.Size = new System.Drawing.Size(68, 21);
+        KeyValue_Key.Size = new System.Drawing.Size(106, 21);
         KeyValue_Key.TabIndex = 0;
         KeyValue_Key.TextChanged += KeyValue_Key_TextChanged;
         // 
         // KeyValue_Value
         // 
         KeyValue_Value.Dock = System.Windows.Forms.DockStyle.Fill;
-        KeyValue_Value.Location = new System.Drawing.Point(97, 3);
+        KeyValue_Value.Location = new System.Drawing.Point(135, 3);
         KeyValue_Value.Multiline = true;
         KeyValue_Value.Name = "KeyValue_Value";
-        KeyValue_Value.Size = new System.Drawing.Size(68, 21);
+        KeyValue_Value.Size = new System.Drawing.Size(106, 21);
         KeyValue_Value.TabIndex = 1;
         KeyValue_Value.TextChanged += KeyValue_Value_TextChanged;
         // 
@@ -231,9 +232,9 @@ partial class EntityViewer
         // 
         KeyValue_MatchWholeValue.AutoSize = true;
         KeyValue_MatchWholeValue.Dock = System.Windows.Forms.DockStyle.Fill;
-        KeyValue_MatchWholeValue.Location = new System.Drawing.Point(171, 3);
+        KeyValue_MatchWholeValue.Location = new System.Drawing.Point(3, 58);
         KeyValue_MatchWholeValue.Name = "KeyValue_MatchWholeValue";
-        KeyValue_MatchWholeValue.Size = new System.Drawing.Size(70, 21);
+        KeyValue_MatchWholeValue.Size = new System.Drawing.Size(250, 29);
         KeyValue_MatchWholeValue.TabIndex = 2;
         KeyValue_MatchWholeValue.Text = "Match whole value";
         KeyValue_MatchWholeValue.UseVisualStyleBackColor = true;
@@ -243,7 +244,7 @@ partial class EntityViewer
         // 
         label1.AutoSize = true;
         label1.Dock = System.Windows.Forms.DockStyle.Fill;
-        label1.Location = new System.Drawing.Point(74, 0);
+        label1.Location = new System.Drawing.Point(112, 0);
         label1.Margin = new System.Windows.Forms.Padding(0);
         label1.Name = "label1";
         label1.Size = new System.Drawing.Size(20, 27);
@@ -374,6 +375,7 @@ partial class EntityViewer
         groupBox5.ResumeLayout(false);
         tableLayoutPanel3.ResumeLayout(false);
         tableLayoutPanel4.ResumeLayout(false);
+        tableLayoutPanel4.PerformLayout();
         groupBox3.ResumeLayout(false);
         tableLayoutPanel6.ResumeLayout(false);
         tableLayoutPanel6.PerformLayout();

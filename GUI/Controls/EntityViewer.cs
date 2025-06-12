@@ -9,7 +9,9 @@ namespace GUI.Types.Viewers
 {
     public partial class EntityViewer : UserControl
     {
-        private List<Entity> Entities = new();
+        private readonly SearchDataClass SearchData = new();
+        private readonly List<Entity> Entities = [];
+        private readonly Action<Entity>? SelectEntityFunc;
 
         public enum ObjectsToInclude
         {
@@ -27,15 +29,13 @@ namespace GUI.Types.Viewers
             public string Value { get; set; } = string.Empty;
         }
 
-        private SearchDataClass SearchData = new();
-
-        internal EntityViewer(VrfGuiContext guiContext, List<Entity> entities)
+        internal EntityViewer(VrfGuiContext guiContext, List<Entity> entities, Action<Entity>? selectAndFocusEntity = null)
         {
             Dock = DockStyle.Fill;
             InitializeComponent();
 
             Entities = entities;
-
+            SelectEntityFunc = selectAndFocusEntity;
             EntityInfo.OutputsGrid.CellDoubleClick += EntityInfoGrid_CellDoubleClick;
             EntityInfo.ResourceAddDataGridExternalRef(guiContext.FileLoader);
 
@@ -45,13 +45,10 @@ namespace GUI.Types.Viewers
         private void UpdateGrid()
         {
             EntityViewerGrid.SuspendLayout();
-
             EntityViewerGrid.Rows.Clear();
 
-            for (int i = 0; i < Entities.Count; i++)
+            foreach (var entity in Entities)
             {
-                var entity = Entities[i];
-
                 var classname = entity.GetProperty("classname", string.Empty);
 
                 if (!string.IsNullOrEmpty(SearchData.Class))
@@ -110,21 +107,20 @@ namespace GUI.Types.Viewers
                     }
                 }
 
-                EntityViewerGrid.Rows.Add(classname, entity.GetProperty("targetname", string.Empty));
-                EntityViewerGrid.Rows[EntityViewerGrid.Rows.Count - 1].Tag = i;
+                var rowIndex = EntityViewerGrid.Rows.Add(classname, entity.GetProperty("targetname", string.Empty));
+                EntityViewerGrid.Rows[rowIndex].Tag = entity;
             }
 
             EntityViewerGrid.ResumeLayout();
 
             // when search changes set first entity as selected in entity props
-            if (EntityViewerGrid.Rows.Count > 0)
+            if (EntityViewerGrid.Rows.Count > 0 && EntityViewerGrid.Rows[0].Tag is Entity firstEntity)
             {
-                int entityID = (int)(EntityViewerGrid.Rows[0].Tag ?? -1);
-                ShowEntityProperties(Entities[entityID]);
+                ShowEntityProperties(firstEntity);
             }
         }
 
-        private static bool ContainsKey(EntityLump.Entity entity, string key)
+        private static bool ContainsKey(Entity entity, string key)
         {
             foreach (var prop in entity.Properties)
             {
@@ -137,11 +133,11 @@ namespace GUI.Types.Viewers
             return false;
         }
 
-        private bool ContainsValue(EntityLump.Entity entity, string value)
+        private bool ContainsValue(Entity entity, string value)
         {
             foreach (var prop in entity.Properties)
             {
-                string stringValue = prop.Value.ToString() ?? string.Empty;
+                var stringValue = prop.Value.ToString() ?? string.Empty;
 
                 if (KeyValue_MatchWholeValue.Checked)
                 {
@@ -162,11 +158,11 @@ namespace GUI.Types.Viewers
             return false;
         }
 
-        private bool ContainsKeyValue(EntityLump.Entity entity, string key, string value)
+        private bool ContainsKeyValue(Entity entity, string key, string value)
         {
             foreach (var prop in entity.Properties)
             {
-                string stringValue = prop.Value?.ToString() ?? string.Empty;
+                var stringValue = prop.Value?.ToString() ?? string.Empty;
 
                 if (prop.Key.Contains(key, StringComparison.OrdinalIgnoreCase))
                 {
@@ -248,13 +244,25 @@ namespace GUI.Types.Viewers
             if (EntityViewerGrid.SelectedCells.Count > 0)
             {
                 var rowIndex = EntityViewerGrid.SelectedCells[0].RowIndex;
-                int entityID = (int)(EntityViewerGrid.Rows[rowIndex].Tag ?? -1);
 
-                if (entityID != -1)
+                if (EntityViewerGrid.Rows[rowIndex].Tag is Entity entity)
                 {
-                    var entity = Entities[entityID];
                     ShowEntityProperties(entity);
                 }
+            }
+        }
+
+        private void EntityViewerGrid_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
+        {
+            if (EntityViewerGrid.Rows[e.RowIndex].Tag is Entity entity)
+            {
+                var classname = entity.GetProperty("classname", string.Empty);
+                if (classname == "worldspawn")
+                {
+                    return;
+                }
+
+                SelectEntityFunc?.Invoke(entity);
             }
         }
 
@@ -282,7 +290,7 @@ namespace GUI.Types.Viewers
 
             EntityInfo.ShowOutputsTabIfAnyData();
 
-            string groupBoxName = "Entity Properties";
+            var groupBoxName = "Entity Properties";
 
             var targetname = entity.GetProperty("targetname", string.Empty);
             var classname = entity.GetProperty("classname", string.Empty);
@@ -305,7 +313,7 @@ namespace GUI.Types.Viewers
         {
             if (e.ColumnIndex == 1)
             {
-                string entityName = (string)(EntityInfo.OutputsGrid[e.ColumnIndex, e.RowIndex].Value ?? string.Empty);
+                var entityName = (string)(EntityInfo.OutputsGrid[e.ColumnIndex, e.RowIndex].Value ?? string.Empty);
 
                 if (string.IsNullOrEmpty(entityName))
                 {

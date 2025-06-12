@@ -3,6 +3,7 @@ using System.Linq;
 using GUI.Types.Renderer.UniformBuffers;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
+using ValveResourceFormat.ResourceTypes;
 using static GUI.Types.Renderer.GLSceneViewer;
 
 #nullable disable
@@ -107,6 +108,11 @@ namespace GUI.Types.Renderer
 
                 return staticNodes[index];
             }
+        }
+
+        public SceneNode Find(EntityLump.Entity entity)
+        {
+            return staticNodes.Find(node => node.EntityData == entity) ?? dynamicNodes.Find(node => node.EntityData == entity);
         }
 
         public void Update(float timestep)

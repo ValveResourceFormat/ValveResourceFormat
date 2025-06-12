@@ -275,7 +275,7 @@ namespace ValveResourceFormat.IO
 
         public PhysicsVertexMatcher(MeshDescriptor[] meshes)
         {
-            for (int i = 0; i < meshes.Length; i++)
+            for (var i = 0; i < meshes.Length; i++)
             {
                 PhysicsMeshes.Add(new PhysMeshData(meshes.ElementAt(i)));
             }
@@ -1395,7 +1395,7 @@ namespace ValveResourceFormat.IO
             List<Vector3> newVertices = new(trianglesCount * 3);
             Dictionary<int, int> oldToNewIndex = new(trianglesCount * 3);
 
-            int nextNewIndex = 0;
+            var nextNewIndex = 0;
 
             Span<int> currentTriangleIndices = stackalloc int[3];
             Span<int> newIndices = stackalloc int[3];
@@ -1410,7 +1410,7 @@ namespace ValveResourceFormat.IO
                 for (var j = 0; j < currentTriangleIndices.Length; j++)
                 {
                     var index = currentTriangleIndices[j];
-                    if (!oldToNewIndex.TryGetValue(index, out int mappedIndex))
+                    if (!oldToNewIndex.TryGetValue(index, out var mappedIndex))
                     {
                         mappedIndex = nextNewIndex++;
                         oldToNewIndex[index] = mappedIndex;

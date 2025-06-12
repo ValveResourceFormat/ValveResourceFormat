@@ -67,7 +67,7 @@ namespace GUI.Types.Renderer
                     return;
                 }
 
-                SetEnabledLayers(new HashSet<string>(worldLayers));
+                SetEnabledLayers([.. worldLayers]);
             });
             physicsGroupsComboBox = AddMultiSelection("Physics Groups", null, (physicsGroups) =>
             {
@@ -76,7 +76,7 @@ namespace GUI.Types.Renderer
                     return;
                 }
 
-                SetEnabledPhysicsGroups(new HashSet<string>(physicsGroups));
+                SetEnabledPhysicsGroups([.. physicsGroups]);
             });
 
             savedCameraPositionsControl = new SavedCameraPositionsControl();
@@ -202,7 +202,7 @@ namespace GUI.Types.Renderer
                     var entities = result.Entities;
 
                     var specialTabPage = new TabPage("Entities");
-                    specialTabPage.Controls.Add(new EntityViewer(GuiContext, entities));
+                    specialTabPage.Controls.Add(new EntityViewer(GuiContext, entities, SelectAndFocusEntity));
                     tabControl.TabPages.Add(specialTabPage);
                 }
 
@@ -316,6 +316,35 @@ namespace GUI.Types.Renderer
             Invoke(savedCameraPositionsControl.RefreshSavedPositions);
 
             ignoreLayersChangeEvents = false;
+        }
+
+        private void SelectAndFocusEntity(EntityLump.Entity entity)
+        {
+            if (Parent is TabPage tabPage && tabPage.Parent is TabControl tabControl)
+            {
+                tabControl.SelectTab(tabPage);
+            }
+
+            var node = Scene.Find(entity);
+
+            if (node == null && SkyboxScene != null)
+            {
+                node = SkyboxScene.Find(entity);
+            }
+
+            ArgumentNullException.ThrowIfNull(node);
+
+            selectedNodeRenderer.SelectNode(node, forceDisableDepth: true);
+
+            var bbox = node.BoundingBox;
+            var size = bbox.Size;
+            var maxDimension = Math.Max(Math.Max(size.X, size.Y), size.Z);
+            var distance = maxDimension * 1.2f;
+            var cameraHeight = bbox.Center.Y + size.Y * 2f;
+
+            var location = new Vector3(bbox.Center.X + distance, cameraHeight, bbox.Center.Z + distance);
+            Camera.SetLocation(location);
+            Camera.LookAt(bbox.Center);
         }
 
         private void ShowSceneNodeDetails(SceneNode sceneNode, bool isInSkybox)

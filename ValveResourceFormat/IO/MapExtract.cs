@@ -175,7 +175,7 @@ public sealed class MapExtract
         var manifestFileName = Path.Combine(LumpFolder, "world_physics.vrman_c");
         var manifestResource = FileLoader.LoadFile(manifestFileName);
 
-        ResourceManifest? manifest = (ResourceManifest?)manifestResource?.DataBlock;
+        var manifest = (ResourceManifest?)manifestResource?.DataBlock;
 
         if (manifest == null || manifest.Resources.Count < 1)
         {
