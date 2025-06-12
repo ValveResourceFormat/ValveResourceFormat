@@ -54,7 +54,7 @@ namespace GUI.Types.Renderer
         private readonly ulong[] meshGroupMasks;
         private readonly List<(int MeshIndex, string MeshName, long LoDMask)> meshNamesForLod1;
 
-        public ModelSceneNode(Scene scene, Model model, string skin = null)
+        public ModelSceneNode(Scene scene, Model model, string skin = null, bool isWorldPreview = false)
             : base(scene)
         {
             materialGroups = model.GetMaterialGroups().ToArray();
@@ -78,7 +78,7 @@ namespace GUI.Types.Renderer
 
             LoadMeshes(model);
             UpdateBoundingBox();
-            LoadAnimations(model);
+            LoadAnimations(model, embededAnimationsOnly: isWorldPreview);
 
             SetCharacterEyeRenderParams();
         }
@@ -291,9 +291,12 @@ namespace GUI.Types.Renderer
             }
         }
 
-        private void LoadAnimations(Model model)
+        private void LoadAnimations(Model model, bool embededAnimationsOnly)
         {
-            animations.AddRange(model.GetAllAnimations(Scene.GuiContext.FileLoader));
+            animations.AddRange(embededAnimationsOnly
+                ? model.GetEmbeddedAnimations()
+                : model.GetAllAnimations(Scene.GuiContext.FileLoader)
+            );
 
             if (animations.Count != 0)
             {

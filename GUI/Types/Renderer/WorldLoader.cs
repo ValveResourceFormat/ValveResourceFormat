@@ -1061,7 +1061,7 @@ namespace GUI.Types.Renderer
             }
             else if (resource.ResourceType == ResourceType.Model)
             {
-                var modelNode = new ModelSceneNode(scene, (Model)resource.DataBlock, null)
+                var modelNode = new ModelSceneNode(scene, (Model)resource.DataBlock, null, isWorldPreview: true)
                 {
                     Transform = transformationMatrix,
                     LayerName = "Entities",
