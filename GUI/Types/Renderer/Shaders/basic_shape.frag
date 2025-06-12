@@ -55,8 +55,8 @@ void main(void)
             toolTexture = outputColor.rgb;
         }
 
-        vec3 shading = CalculateFullbrightLighting(vec3(2.0), vtxNormal, viewDir);
-        outputColor = vec4(mix(outputColor.rgb, outputColor.rgb * shading, shadingStrength), vtxColor.a);
+        vec3 lighting = CalculateFullbrightLighting(outputColor.rgb, vtxNormal, viewDir);
+        outputColor = vec4(lighting, vtxColor.a);
     }
 
     if (!gl_FrontFacing) {

@@ -9,10 +9,10 @@ namespace GUI.Types.Renderer
 {
     class PhysSceneNode : ShapeSceneNode
     {
-        private static readonly Color32 ColorSphere = new(0f, 1f, 0f, 0.65f);
-        private static readonly Color32 ColorCapsule = new(0f, 1f, 0f, 0.65f);
-        private static readonly Color32 ColorMesh = new(0f, 0f, 1f, 0.65f);
-        private static readonly Color32 ColorHull = new(1.0f, 0.0f, 0.0f, 0.65f);
+        private static readonly Color32 ColorSphere = new(0.4f, 1f, 0.1f, 0.65f);
+        private static readonly Color32 ColorCapsule = new(0.1f, 1f, 0.4f, 0.65f);
+        private static readonly Color32 ColorMesh = new(0.4f, 0.4f, 1f, 0.65f);
+        private static readonly Color32 ColorHull = new(1.0f, 0.2f, 0.1f, 0.65f);
 
         public override bool LayerEnabled => Enabled && base.LayerEnabled;
         public bool Enabled { get; set; }
