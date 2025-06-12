@@ -267,7 +267,7 @@ namespace GUI.Types.Renderer
 
                 if (uniquePhysicsGroups.Count > 0)
                 {
-                    SetAvailablPhysicsGroups(uniquePhysicsGroups);
+                    SetAvailablePhysicsGroups(uniquePhysicsGroups);
                 }
 
                 if (result.CameraMatrices.Count > 0)
@@ -345,6 +345,27 @@ namespace GUI.Types.Renderer
             var location = new Vector3(bbox.Center.X + distance, cameraHeight, bbox.Center.Z + distance);
             Camera.SetLocation(location);
             Camera.LookAt(bbox.Center);
+
+            // Ensure the node is visible
+            if (!node.LayerEnabled)
+            {
+                var layerId = worldLayersComboBox.Items.IndexOf(node.LayerName);
+
+                if (layerId >= 0)
+                {
+                    worldLayersComboBox.SetItemChecked(layerId, true);
+                }
+            }
+
+            if (node is PhysSceneNode physNode && !physNode.Enabled)
+            {
+                var physId = physicsGroupsComboBox.Items.IndexOf(physNode.PhysGroupName);
+
+                if (physId >= 0)
+                {
+                    physicsGroupsComboBox.SetItemChecked(physId, true);
+                }
+            }
         }
 
         private void ShowSceneNodeDetails(SceneNode sceneNode, bool isInSkybox)
@@ -611,7 +632,7 @@ namespace GUI.Types.Renderer
 
         private const string PhysicsRenderAsOpaque = "S2V: Render as opaque";
 
-        private void SetAvailablPhysicsGroups(IEnumerable<string> physicsGroups)
+        private void SetAvailablePhysicsGroups(IEnumerable<string> physicsGroups)
         {
             physicsGroupsComboBox.Items.Clear();
 
