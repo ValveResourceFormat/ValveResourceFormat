@@ -35,6 +35,7 @@ namespace GUI.Types.Renderer
         public readonly AnimationController AnimationController;
         public List<RenderableMesh> RenderableMeshes { get; private set; } = [];
         public string ActiveMaterialGroup => activeMaterialGroup.Name;
+        public bool HasMeshes => meshRenderers.Count > 0;
 
         private readonly List<RenderableMesh> meshRenderers = [];
         private readonly List<Animation> animations = [];

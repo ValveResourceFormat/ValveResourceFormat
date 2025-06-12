@@ -826,25 +826,28 @@ namespace GUI.Types.Renderer
                     EntityData = entity,
                 };
 
-                // Animation
-                var isAnimated = modelNode.SetAnimationForWorldPreview(animation);
-                if (isAnimated)
+                if (modelNode.HasMeshes)
                 {
-                    var holdAnimationOn = entity.GetPropertyUnchecked<bool>("holdanimation");
-                    if (holdAnimationOn)
+                    // Animation
+                    var isAnimated = modelNode.SetAnimationForWorldPreview(animation);
+                    if (isAnimated)
                     {
-                        modelNode.AnimationController.PauseLastFrame();
+                        var holdAnimationOn = entity.GetPropertyUnchecked<bool>("holdanimation");
+                        if (holdAnimationOn)
+                        {
+                            modelNode.AnimationController.PauseLastFrame();
+                        }
                     }
-                }
 
-                var body = entity.GetPropertyUnchecked("body", -1L);
-                if (body != -1L)
-                {
-                    var groups = modelNode.GetMeshGroups();
-                    modelNode.SetActiveMeshGroups(groups.Skip((int)body).Take(1));
-                }
+                    var body = entity.GetPropertyUnchecked("body", -1L);
+                    if (body != -1L)
+                    {
+                        var groups = modelNode.GetMeshGroups();
+                        modelNode.SetActiveMeshGroups(groups.Skip((int)body).Take(1));
+                    }
 
-                scene.Add(modelNode, true);
+                    scene.Add(modelNode, true);
+                }
 
                 var phys = newModel.GetEmbeddedPhys();
                 if (phys == null)
@@ -870,6 +873,11 @@ namespace GUI.Types.Renderer
 
                         scene.Add(physSceneNode, true);
                     }
+                }
+                else if (!modelNode.HasMeshes)
+                {
+                    // If the loaded model has no meshes and has no physics, fallback to default entity
+                    CreateDefaultEntity(entity, classname, transformationMatrix);
                 }
             }
 
