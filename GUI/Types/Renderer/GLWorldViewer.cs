@@ -373,7 +373,7 @@ namespace GUI.Types.Renderer
             }
         }
 
-        private void ShowSceneNodeDetails(SceneNode sceneNode, bool isInSkybox)
+        private void ShowSceneNodeDetails(SceneNode sceneNode)
         {
             var isEntity = sceneNode.EntityData != null;
             if (entityInfoForm == null)
@@ -446,7 +446,7 @@ namespace GUI.Types.Renderer
                 entityInfoForm.EntityInfoControl.AddProperty("Layer", sceneNode.LayerName);
             }
 
-            if (isInSkybox)
+            if (SkyboxScene != null && sceneNode.Scene == SkyboxScene)
             {
                 entityInfoForm.Text += " (in 3D skybox)";
             }
@@ -477,6 +477,7 @@ namespace GUI.Types.Renderer
             }
 
             SelectAndFocusNode(node);
+            ShowSceneNodeDetails(node);
         }
 
         private void OnEntityInfoFormDisposed(object sender, EventArgs e)
@@ -519,14 +520,14 @@ namespace GUI.Types.Renderer
                 //Update the entity properties window if it was opened
                 if (entityInfoForm != null)
                 {
-                    ShowSceneNodeDetails(sceneNode, isInSkybox);
+                    ShowSceneNodeDetails(sceneNode);
                 }
                 return;
             }
 
             if (pickingResponse.Intent == PickingIntent.Details)
             {
-                ShowSceneNodeDetails(sceneNode, isInSkybox);
+                ShowSceneNodeDetails(sceneNode);
                 entityInfoForm.EntityInfoControl.Focus();
                 return;
             }
