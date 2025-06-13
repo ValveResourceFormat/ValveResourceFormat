@@ -120,6 +120,7 @@ namespace GUI.Types.Renderer
                 || material.IntAttributes.ContainsKey("mapbuilder.water")
                 || material.ShaderName == "vr_glass.vfx"
                 || material.ShaderName == "vr_glass_markable.vfx"
+                || material.ShaderName == "vr_energy_field.vfx"
                 || material.ShaderName == "csgo_glass.vfx"
                 || material.ShaderName == "csgo_effects.vfx"
                 || material.ShaderName == "csgo_decalmodulate.vfx"
