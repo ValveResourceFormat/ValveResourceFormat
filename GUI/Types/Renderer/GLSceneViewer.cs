@@ -529,6 +529,7 @@ namespace GUI.Types.Renderer
 
             GL.DepthMask(false);
             GL.Enable(EnableCap.Blend);
+            GL.BlendEquation(BlendEquationMode.FuncAdd);
             GL.BlendFunc(0, BlendingFactorSrc.One, BlendingFactorDest.One);
             GL.BlendFunc(1, BlendingFactorSrc.Zero, BlendingFactorDest.OneMinusSrcColor);
 

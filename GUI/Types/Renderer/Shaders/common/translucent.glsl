@@ -6,19 +6,23 @@ layout (location = 1) out float outputAlpha;
 
 vec4 WeightColorTranslucency(vec4 color)
 {
-#if (F_ADDITIVE_BLEND == 1)
-    outputAlpha = color.a;
-    color.a = 0.01;
-    return vec4(color.rgb * color.a, color.a);
-#endif
-
-    // https://casual-effects.blogspot.com/2014/03/weighted-blended-order-independent.html
     float depth = gl_FragCoord.z;
-    float weight = max(min(1.0, max(max(color.r, color.g), color.b) * color.a), color.a)
-        * clamp(0.03 / (1e-5 + pow(depth / 200, 4.0)), 1e-2, 3e3);
+    depth = pow(depth, 1);
+    float units_1k = 1000 / gl_DepthRange.diff;
+    float weight = (depth - gl_DepthRange.near) * units_1k;
+    weight = clamp(weight, 0.0, 0.3);
+    weight = pow(weight, 3);
+
+#if (F_ADDITIVE_BLEND == 1)
+    outputAlpha = weight;
+    return vec4(color.rgb * color.a, outputAlpha);
+#endif
 
     outputAlpha = color.a;
     vec4 outputColor = vec4(color.rgb * color.a, color.a) * weight;
+
+    // outputColor.rgb = weight.xxx;
+    // outputColor.a = 1.0;
 
     return outputColor;
 }

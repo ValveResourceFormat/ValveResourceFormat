@@ -37,15 +37,15 @@ void main()
 
     // suppress overflow
     if (isinf(max3(abs(accumulation.rgb))))
-        accumulation.rgb = vec3(accumulation.a);
+        discard;
 
     // prevent floating point precision bug
     vec3 average_color = accumulation.rgb / max(accumulation.a, EPSILON);
 
     // blend pixels
-    frag = vec4(average_color, 1.0f - revealage);
+    frag = vec4(average_color.rgb, 1.0 - revealage);
 
-    // frag.rgb = 1.0 - revealage.xxx;
+    //frag.rgb = revealage.xxx;
     // frag.a = 1.0 - revealage;
-    // frag.a = 1.0;
+    //frag.a = 1.0;
 }
