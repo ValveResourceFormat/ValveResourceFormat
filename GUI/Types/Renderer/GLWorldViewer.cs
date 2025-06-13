@@ -332,6 +332,11 @@ namespace GUI.Types.Renderer
                 node = SkyboxScene.Find(entity);
             }
 
+            SelectAndFocusNode(node);
+        }
+
+        private void SelectAndFocusNode(SceneNode node)
+        {
             ArgumentNullException.ThrowIfNull(node);
 
             selectedNodeRenderer.SelectNode(node, forceDisableDepth: true);
@@ -375,6 +380,7 @@ namespace GUI.Types.Renderer
             {
                 entityInfoForm = new EntityInfoForm(GuiContext.FileLoader);
                 entityInfoForm.Show();
+                entityInfoForm.EntityInfoControl.OutputsGrid.CellDoubleClick += OnEntityInfoOutputsCellDoubleClick;
                 entityInfoForm.EntityInfoControl.Disposed += OnEntityInfoFormDisposed;
             }
             entityInfoForm.EntityInfoControl.Clear();
@@ -449,8 +455,33 @@ namespace GUI.Types.Renderer
             entityInfoForm.EntityInfoControl.Show();
         }
 
+        private void OnEntityInfoOutputsCellDoubleClick(object sender, DataGridViewCellEventArgs e)
+        {
+            if (e.ColumnIndex != 1)
+            {
+                return;
+            }
+
+            var entityName = (string)(entityInfoForm.EntityInfoControl.OutputsGrid[e.ColumnIndex, e.RowIndex].Value ?? string.Empty);
+
+            if (string.IsNullOrEmpty(entityName))
+            {
+                return;
+            }
+
+            var node = Scene.FindNodeByKeyValue("targetname", entityName);
+
+            if (node == null && SkyboxScene != null)
+            {
+                node = SkyboxScene.FindNodeByKeyValue("targetname", entityName);
+            }
+
+            SelectAndFocusNode(node);
+        }
+
         private void OnEntityInfoFormDisposed(object sender, EventArgs e)
         {
+            entityInfoForm.EntityInfoControl.OutputsGrid.CellDoubleClick -= OnEntityInfoOutputsCellDoubleClick;
             entityInfoForm.EntityInfoControl.Disposed -= OnEntityInfoFormDisposed;
             entityInfoForm = null;
         }

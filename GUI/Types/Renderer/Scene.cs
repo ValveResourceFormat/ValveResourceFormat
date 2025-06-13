@@ -112,7 +112,26 @@ namespace GUI.Types.Renderer
 
         public SceneNode Find(EntityLump.Entity entity)
         {
-            return staticNodes.Find(node => node.EntityData == entity) ?? dynamicNodes.Find(node => node.EntityData == entity);
+            bool IsMatchingEntity(SceneNode node) => node.EntityData == entity;
+
+            return staticNodes.Find(IsMatchingEntity) ?? dynamicNodes.Find(IsMatchingEntity);
+        }
+
+        public SceneNode FindNodeByKeyValue(string keyToFind, string valueToFind)
+        {
+            bool IsMatchingEntity(SceneNode node)
+            {
+                if (node.EntityData == null)
+                {
+                    return false;
+                }
+
+                return node.EntityData.Properties.Properties.TryGetValue(keyToFind, out var value)
+                    && value.Value is string outString
+                    && valueToFind.Equals(outString, StringComparison.OrdinalIgnoreCase);
+            }
+
+            return staticNodes.Find(IsMatchingEntity) ?? dynamicNodes.Find(IsMatchingEntity);
         }
 
         public void Update(float timestep)
