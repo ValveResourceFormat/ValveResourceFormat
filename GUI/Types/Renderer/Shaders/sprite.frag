@@ -15,7 +15,7 @@ void main()
 {
     vec4 color = texture(g_tColor, vTexCoordOut);
 
-#if F_ALPHA_TEST == 1
+#if (F_ALPHA_TEST == 1) || (F_ALPHA_TEST == 2)
     if (color.a < g_flAlphaTestReference)
     {
        discard;
