@@ -38,9 +38,8 @@ namespace GUI.Types.Renderer
                 Parallel.ForEach(externalReferences.ResourceRefInfoList, resourceReference =>
                 {
                     var resource = guiContext.LoadFileCompiled(resourceReference.Name);
-                    if (resource.ResourceType is ResourceType.Model)
+                    if (resource is { DataBlock: Model model })
                     {
-                        var model = (Model)resource.DataBlock!;
                         foreach (var mesh in model.GetEmbeddedMeshes())
                         {
                             var _ = mesh.Mesh.VBIB;
