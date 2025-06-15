@@ -2,6 +2,7 @@ using System.Buffers;
 using System.Runtime.InteropServices;
 using GUI.Types.Renderer.UniformBuffers;
 using OpenTK.Graphics.OpenGL;
+using ValveResourceFormat.ResourceTypes;
 
 namespace GUI.Types.Renderer;
 
@@ -60,7 +61,7 @@ class SceneLightProbe : SceneNode
     public void CreateDebugGridSpheres()
     {
         var grid = LocalBoundingBox.Size / Math.Max(VoxelSize + 0.5f, 6f);
-        var model = GLMaterialViewer.CreateEnvCubemapSphere(Scene);
+        var aggregate = new SceneAggregate(Scene, (Model)GLMaterialViewer.CubemapResource.Value.DataBlock);
 
         for (var x = 0; x < grid.X; x++)
         {
@@ -68,18 +69,24 @@ class SceneLightProbe : SceneNode
             {
                 for (var z = 0; z < grid.Z; z++)
                 {
-                    var sphere = new SceneNodeInstance(model);
-
                     var localPosition = LocalBoundingBox.Min + new Vector3(x, y, z) * VoxelSize + new Vector3(VoxelSize / 2f);
                     var worldPosition = Vector3.Transform(localPosition, Transform);
-                    var transform = Matrix4x4.CreateTranslation(worldPosition);
-                    var scale = 0.2f * (VoxelSize / 24f);
-                    sphere.Transform = Matrix4x4.CreateScale(scale) * transform;
-                    sphere.LayerName = "LightProbeGrid" + Id;
-                    sphere.LayerEnabled = false;
+                    var transform = Matrix4x4.CreateScale(0.2f * (VoxelSize / 24f)) * Matrix4x4.CreateTranslation(worldPosition);
 
-                    sphere.LightProbeBinding = this;
-                    sphere.EnvMapIds = EnvMapIds;
+                    var sphere = new SceneAggregate.Fragment(Scene, this, default)
+                    {
+                        DrawCall = aggregate.RenderMesh.DrawCallsOpaque[0],
+                        RenderMesh = aggregate.RenderMesh,
+                        Parent = aggregate,
+                        LightProbeVolumePrecomputedHandshake = LightProbeVolumePrecomputedHandshake,
+                        LightProbeBinding = this,
+                        EnvMapIds = EnvMapIds,
+                        LayerName = "LightProbeGrid" + Id,
+                        LayerEnabled = false,
+
+                        Transform = transform,
+                    };
+
                     DebugGridSpheres.Add(sphere);
 
                     Scene.Add(sphere, true);
