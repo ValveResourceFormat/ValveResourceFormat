@@ -10,6 +10,7 @@ namespace GUI.Types.Renderer
     class SceneAggregate : SceneNode
     {
         public RenderableMesh RenderMesh { get; }
+        public List<Matrix4x4> Instances { get; } = [];
 
         public ObjectTypeFlags AllFlags { get; set; }
         public ObjectTypeFlags AnyFlags { get; set; }
@@ -66,6 +67,11 @@ namespace GUI.Types.Renderer
             }
 
             LocalBoundingBox = RenderMesh.BoundingBox;
+        }
+
+        public void SetInfiniteBoundingBox()
+        {
+            LocalBoundingBox = new AABB(Vector3.NegativeInfinity, Vector3.PositiveInfinity);
         }
 
         public IEnumerable<Fragment> CreateFragments(KVObject aggregateSceneObject)

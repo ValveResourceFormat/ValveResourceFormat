@@ -131,12 +131,8 @@ namespace GUI.Types.Renderer
 
                     if (Scene.LightingInfo.LightingData.IsSkybox == 0u)
                     {
-                        if (node.LightProbeBinding.DebugGridSpheres.Count == 0)
-                        {
-                            node.LightProbeBinding.CreateDebugGridSpheres();
-                        }
-
-                        node.LightProbeBinding.DebugGridSpheres.ForEach(sphere => sphere.LayerEnabled = true);
+                        RemoveLightProbeDebugGrid();
+                        node.LightProbeBinding.CrateDebugGridSpheres();
                     }
                 }
 
@@ -192,7 +188,7 @@ namespace GUI.Types.Renderer
 
         private void RemoveLightProbeDebugGrid()
         {
-            Scene.LightingInfo.LightProbes.ForEach(probe => probe.DebugGridSpheres.ForEach(sphere => sphere.LayerEnabled = false));
+            Scene.LightingInfo.LightProbes.ForEach(probe => probe.RemoveDebugGridSpheres());
         }
 
         public override void Update(Scene.UpdateContext context)

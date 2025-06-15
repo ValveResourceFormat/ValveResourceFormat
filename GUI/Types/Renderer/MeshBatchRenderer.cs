@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using GUI.Types.Renderer.Buffers;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 
@@ -69,6 +70,7 @@ namespace GUI.Types.Renderer
             public int LPVScalarsTexture = -1;
             public int LPVShadowsTexture = -1;
             public int Transform = -1;
+            public int TransformBuffer = -1;
             public int Tint = -1;
             public int ObjectId = -1;
             public int MeshId = -1;
@@ -91,6 +93,7 @@ namespace GUI.Types.Renderer
         }
 
         private static readonly Queue<int> instanceBoundTextures = new(capacity: 4);
+        private static StorageBuffer transformBuffer; // todo: not static lol
 
         private static void SetInstanceTexture(Shader shader, ReservedTextureSlots slot, int location, RenderTexture texture)
         {
@@ -139,6 +142,7 @@ namespace GUI.Types.Renderer
                             AnimationData = shader.GetUniformLocation("uAnimationData"),
                             AnimationTexture = shader.GetUniformLocation("animationTexture"),
                             Transform = shader.GetUniformLocation("transform"),
+                            TransformBuffer = shader.GetUniformBlockIndex("g_transformBuffer"),
                             Tint = shader.GetUniformLocation("vTint"),
                         };
 
@@ -214,9 +218,6 @@ namespace GUI.Types.Renderer
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void Draw(Shader shader, ref Uniforms uniforms, ref Config config, Request request)
         {
-            var transformTk = request.Transform.ToOpenTK();
-            GL.ProgramUniformMatrix4(shader.Program, uniforms.Transform, false, ref transformTk);
-
             if (uniforms.ObjectId != -1)
             {
                 GL.ProgramUniform1((uint)shader.Program, uniforms.ObjectId, request.Node.Id);
@@ -292,6 +293,9 @@ namespace GUI.Types.Renderer
                 GL.ProgramUniform1(shader.Program, uniforms.MorphVertexIdOffset, morphComposite != null ? request.Call.VertexIdOffset : -1);
             }
 
+            var transformTk = request.Transform.ToOpenTK();
+            GL.ProgramUniformMatrix4(shader.Program, uniforms.Transform, false, ref transformTk);
+
             if (uniforms.Tint > -1)
             {
                 var instanceTint = (request.Node is SceneAggregate.Fragment fragment) ? fragment.Tint : Vector4.One;
@@ -300,13 +304,31 @@ namespace GUI.Types.Renderer
                 GL.ProgramUniform4(shader.Program, uniforms.Tint, tint.X, tint.Y, tint.Z, tint.W);
             }
 
-            GL.DrawElementsBaseVertex(
-                request.Call.PrimitiveType,
-                request.Call.IndexCount,
-                request.Call.IndexType,
-                request.Call.StartIndex,
-                request.Call.BaseVertex
-            );
+            if (request.Node is SceneAggregate { Instances.Count: > 0 } aggregate)
+            {
+                transformBuffer ??= new StorageBuffer(ReservedBufferSlots.Transforms);
+                transformBuffer.Create(ListAccessors<Matrix4x4>.GetBackingArray(aggregate.Instances), 16 * sizeof(float));
+                transformBuffer.BindBufferBase();
+
+                GL.DrawElementsInstancedBaseVertex(
+                    request.Call.PrimitiveType,
+                    request.Call.IndexCount,
+                    request.Call.IndexType,
+                    request.Call.StartIndex,
+                    aggregate.Instances.Count,
+                    request.Call.BaseVertex
+                );
+            }
+            else
+            {
+                GL.DrawElementsBaseVertex(
+                    request.Call.PrimitiveType,
+                    request.Call.IndexCount,
+                    request.Call.IndexType,
+                    request.Call.StartIndex,
+                    request.Call.BaseVertex
+                );
+            }
 
             UnbindInstanceTextures();
         }

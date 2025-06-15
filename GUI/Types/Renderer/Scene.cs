@@ -1,6 +1,6 @@
 using System.Diagnostics;
 using System.Linq;
-using GUI.Types.Renderer.UniformBuffers;
+using GUI.Types.Renderer.Buffers;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.ResourceTypes;
@@ -308,6 +308,16 @@ namespace GUI.Types.Renderer
                         Transform = fragment.Transform,
                         Mesh = fragment.RenderMesh,
                         Call = fragment.DrawCall,
+                        Node = node,
+                    }, RenderPass.Opaque);
+                }
+                else if (node is SceneAggregate aggregate && aggregate.Instances.Count > 0)
+                {
+                    Add(new MeshBatchRenderer.Request
+                    {
+                        Transform = aggregate.Transform,
+                        Mesh = aggregate.RenderMesh,
+                        Call = aggregate.RenderMesh.DrawCallsOpaque[0],
                         Node = node,
                     }, RenderPass.Opaque);
                 }

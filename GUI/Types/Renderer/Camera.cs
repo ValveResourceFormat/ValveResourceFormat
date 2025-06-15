@@ -70,7 +70,7 @@ namespace GUI.Types.Renderer
             return new Vector3(MathF.Cos(Yaw - piOver2), MathF.Sin(Yaw - piOver2), 0);
         }
 
-        public void SetViewConstants(UniformBuffers.ViewConstants viewConstants)
+        public void SetViewConstants(Buffers.ViewConstants viewConstants)
         {
             viewConstants.WorldToProjection = ViewProjectionMatrix;
             viewConstants.WorldToView = CameraViewMatrix;

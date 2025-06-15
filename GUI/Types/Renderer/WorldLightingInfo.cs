@@ -1,6 +1,6 @@
 using System.Diagnostics;
 using System.Linq;
-using GUI.Types.Renderer.UniformBuffers;
+using GUI.Types.Renderer.Buffers;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 

@@ -179,7 +179,10 @@ vec4 GetTintColor()
 
 void main()
 {
-    mat4 skinTransform = transform * getSkinMatrix();
+    // todo: wrong transform for instance 0
+    mat4 instanceTransform = gl_InstanceID == 0 ? transform : transforms[gl_InstanceID];
+
+    mat4 skinTransform = instanceTransform * getSkinMatrix();
     vec4 fragPosition = skinTransform * vec4(vPOSITION + getMorphOffset(), 1.0);
     gl_Position = g_matWorldToProjection * fragPosition;
     vFragPosition = fragPosition.xyz / fragPosition.w;

@@ -13,6 +13,11 @@ layout (location = 2) in vec4 vBLENDWEIGHT;
 uniform uvec4 uAnimationData;
 uniform sampler2D animationTexture;
 
+layout(std430, binding = 3) readonly buffer g_transformBuffer
+{
+    mat4 transforms[];
+};
+
 #define bAnimated (uAnimationData.x != 0u)
 #define meshBoneOffset uAnimationData.y
 #define meshBoneCount uAnimationData.z
