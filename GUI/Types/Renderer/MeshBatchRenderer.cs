@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using GUI.Types.Renderer.Buffers;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 
@@ -88,9 +89,11 @@ namespace GUI.Types.Renderer
             public bool NeedsCubemapBinding;
             public int LightmapGameVersionNumber;
             public Scene.LightProbeType LightProbeType;
+            public StorageBuffer TransformBuffer;
         }
 
         private static readonly Queue<int> instanceBoundTextures = new(capacity: 4);
+        private static readonly Matrix4x4[] ListWithSingleTransform = [Matrix4x4.Identity];
 
         private static void SetInstanceTexture(Shader shader, ReservedTextureSlots slot, int location, RenderTexture texture)
         {
@@ -118,6 +121,7 @@ namespace GUI.Types.Renderer
                 NeedsCubemapBinding = context.Scene.LightingInfo.CubemapType == Scene.CubemapType.IndividualCubemaps,
                 LightmapGameVersionNumber = context.Scene.LightingInfo.LightmapGameVersionNumber,
                 LightProbeType = context.Scene.LightingInfo.LightProbeType,
+                TransformBuffer = context.Scene.TransformBuffer,
             };
 
             foreach (var request in requests)
@@ -214,9 +218,6 @@ namespace GUI.Types.Renderer
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void Draw(Shader shader, ref Uniforms uniforms, ref Config config, Request request)
         {
-            var transformTk = request.Transform.ToOpenTK();
-            GL.ProgramUniformMatrix4(shader.Program, uniforms.Transform, false, ref transformTk);
-
             if (uniforms.ObjectId != -1)
             {
                 GL.ProgramUniform1((uint)shader.Program, uniforms.ObjectId, request.Node.Id);
@@ -292,6 +293,12 @@ namespace GUI.Types.Renderer
                 GL.ProgramUniform1(shader.Program, uniforms.MorphVertexIdOffset, morphComposite != null ? request.Call.VertexIdOffset : -1);
             }
 
+            if (uniforms.Transform > -1)
+            {
+                var transformTk = request.Transform.ToOpenTK();
+                GL.ProgramUniformMatrix4(shader.Program, uniforms.Transform, false, ref transformTk);
+            }
+
             if (uniforms.Tint > -1)
             {
                 var instanceTint = (request.Node is SceneAggregate.Fragment fragment) ? fragment.Tint : Vector4.One;
@@ -300,11 +307,26 @@ namespace GUI.Types.Renderer
                 GL.ProgramUniform4(shader.Program, uniforms.Tint, tint.X, tint.Y, tint.Z, tint.W);
             }
 
-            GL.DrawElementsBaseVertex(
+            var instanceCount = 1;
+            var transformBuffer = config.TransformBuffer;
+
+            if (request.Node is SceneAggregate { InstanceTransforms.Count: > 0 } aggregate)
+            {
+                instanceCount = aggregate.InstanceTransforms.Count;
+                transformBuffer.Create(aggregate.InstanceTransforms);
+            }
+            else
+            {
+                ListWithSingleTransform[0] = request.Transform;
+                transformBuffer.Update(ListWithSingleTransform, Unsafe.SizeOf<Matrix4x4>());
+            }
+
+            GL.DrawElementsInstancedBaseVertex(
                 request.Call.PrimitiveType,
                 request.Call.IndexCount,
                 request.Call.IndexType,
                 request.Call.StartIndex,
+                instanceCount,
                 request.Call.BaseVertex
             );
 

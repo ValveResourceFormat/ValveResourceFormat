@@ -71,7 +71,7 @@ namespace GUI.Types.Renderer
             }
         }*/
 
-        public void SetFogUniforms(UniformBuffers.ViewConstants viewConstants, bool viewerFogEnabled)
+        public void SetFogUniforms(Buffers.ViewConstants viewConstants, bool viewerFogEnabled)
         {
             viewConstants.GradientFogActive = viewerFogEnabled && GradientFogActive;
             viewConstants.CubeFogActive = viewerFogEnabled && CubeFogActive;

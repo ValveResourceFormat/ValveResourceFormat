@@ -1,4 +1,6 @@
 using System.Linq;
+using GUI.Types.Renderer.Buffers;
+using GUI.Utils;
 using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -10,6 +12,8 @@ namespace GUI.Types.Renderer
     class SceneAggregate : SceneNode
     {
         public RenderableMesh RenderMesh { get; }
+
+        public List<Matrix4x4> InstanceTransforms { get; } = [];
 
         public ObjectTypeFlags AllFlags { get; set; }
         public ObjectTypeFlags AnyFlags { get; set; }
@@ -66,6 +70,11 @@ namespace GUI.Types.Renderer
             }
 
             LocalBoundingBox = RenderMesh.BoundingBox;
+        }
+
+        public void SetInfiniteBoundingBox()
+        {
+            LocalBoundingBox = new AABB(Vector3.NegativeInfinity, Vector3.PositiveInfinity);
         }
 
         public IEnumerable<Fragment> CreateFragments(KVObject aggregateSceneObject)

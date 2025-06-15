@@ -89,7 +89,11 @@ uniform vec3 g_vColorTint = vec3(1.0);
 uniform float g_flModelTintAmount = 1.0;
 uniform float g_flFadeExponent = 1.0;
 
-uniform mat4 transform;
+layout(std140, binding = 3) readonly buffer g_transformBuffer
+{
+    mat4 transforms[];
+};
+
 uniform vec4 vTint;
 
 uniform vec2 g_vTexCoordOffset;
@@ -179,6 +183,7 @@ vec4 GetTintColor()
 
 void main()
 {
+    mat4 transform = transforms[gl_InstanceID];
     mat4 skinTransform = transform * getSkinMatrix();
     vec4 fragPosition = skinTransform * vec4(vPOSITION + getMorphOffset(), 1.0);
     gl_Position = g_matWorldToProjection * fragPosition;

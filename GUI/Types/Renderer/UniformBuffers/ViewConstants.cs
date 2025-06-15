@@ -1,6 +1,6 @@
 using System.Runtime.InteropServices;
 
-namespace GUI.Types.Renderer.UniformBuffers
+namespace GUI.Types.Renderer.Buffers
 {
     [StructLayout(LayoutKind.Sequential)]
     public class ViewConstants

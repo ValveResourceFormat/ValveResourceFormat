@@ -1,6 +1,6 @@
 using System.Buffers;
 using System.Runtime.InteropServices;
-using GUI.Types.Renderer.UniformBuffers;
+using GUI.Types.Renderer.Buffers;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.ResourceTypes;
 
@@ -48,7 +48,6 @@ class SceneLightProbe : SceneNode
     public int IndoorOutdoorLevel { get; init; }
 
     public float VoxelSize { get; set; }
-    public List<SceneNode> DebugGridSpheres { get; } = [];
 
     private int bufferHandle = -1;
 
@@ -58,11 +57,29 @@ class SceneLightProbe : SceneNode
         LocalBoundingBox = bounds;
     }
 
-    public void CreateDebugGridSpheres()
-    {
-        var grid = LocalBoundingBox.Size / Math.Max(VoxelSize + 0.5f, 6f);
-        var aggregate = new SceneAggregate(Scene, (Model)GLMaterialViewer.CubemapResource.Value.DataBlock);
+    public SceneAggregate DebugGridSpheres { get; private set; }
 
+    public void CrateDebugGridSpheres()
+    {
+        if (DebugGridSpheres != null)
+        {
+            DebugGridSpheres.LayerEnabled = true;
+            return;
+        }
+
+        DebugGridSpheres = new SceneAggregate(Scene, (Model)GLMaterialViewer.CubemapResource.Value.DataBlock)
+        {
+            LightProbeVolumePrecomputedHandshake = LightProbeVolumePrecomputedHandshake,
+            LightProbeBinding = this,
+            LayerName = "LightProbeGrid" + Id,
+            LayerEnabled = true,
+        };
+
+        DebugGridSpheres.SetInfiniteBoundingBox();
+
+        Scene.Add(DebugGridSpheres, true);
+
+        var grid = LocalBoundingBox.Size / Math.Max(VoxelSize + 0.5f, 6f);
         for (var x = 0; x < grid.X; x++)
         {
             for (var y = 0; y < grid.Y; y++)
@@ -73,25 +90,17 @@ class SceneLightProbe : SceneNode
                     var worldPosition = Vector3.Transform(localPosition, Transform);
                     var transform = Matrix4x4.CreateScale(0.2f * (VoxelSize / 24f)) * Matrix4x4.CreateTranslation(worldPosition);
 
-                    var sphere = new SceneAggregate.Fragment(Scene, this, default)
-                    {
-                        DrawCall = aggregate.RenderMesh.DrawCallsOpaque[0],
-                        RenderMesh = aggregate.RenderMesh,
-                        Parent = aggregate,
-                        LightProbeVolumePrecomputedHandshake = LightProbeVolumePrecomputedHandshake,
-                        LightProbeBinding = this,
-                        EnvMapIds = EnvMapIds,
-                        LayerName = "LightProbeGrid" + Id,
-                        LayerEnabled = false,
-
-                        Transform = transform,
-                    };
-
-                    DebugGridSpheres.Add(sphere);
-
-                    Scene.Add(sphere, true);
+                    DebugGridSpheres.InstanceTransforms.Add(transform);
                 }
             }
+        }
+    }
+
+    public void RemoveDebugGridSpheres()
+    {
+        if (DebugGridSpheres != null)
+        {
+            DebugGridSpheres.LayerEnabled = false;
         }
     }
 

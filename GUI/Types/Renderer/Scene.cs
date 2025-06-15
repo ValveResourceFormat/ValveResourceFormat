@@ -1,6 +1,6 @@
 using System.Diagnostics;
 using System.Linq;
-using GUI.Types.Renderer.UniformBuffers;
+using GUI.Types.Renderer.Buffers;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.ResourceTypes;
@@ -36,7 +36,10 @@ namespace GUI.Types.Renderer
         public WorldLightingInfo LightingInfo { get; }
         public WorldFogInfo FogInfo { get; set; } = new();
         public WorldPostProcessInfo PostProcessInfo { get; set; } = new();
+
         private UniformBuffer<LightingConstants> lightingBuffer;
+        public StorageBuffer TransformBuffer;
+
 
         public VrfGuiContext GuiContext { get; }
         public Octree<SceneNode> StaticOctree { get; }
@@ -167,6 +170,9 @@ namespace GUI.Types.Renderer
             {
                 Data = LightingInfo.LightingData
             };
+
+            TransformBuffer = new(ReservedBufferSlots.Transforms);
+            TransformBuffer.Create([Matrix4x4.Identity]);
         }
 
         public void UpdateBuffers()
@@ -177,6 +183,7 @@ namespace GUI.Types.Renderer
         public void SetSceneBuffers()
         {
             lightingBuffer.BindBufferBase();
+            TransformBuffer.BindBufferBase();
         }
 
         private readonly List<SceneNode> CullResults = [];
@@ -308,6 +315,16 @@ namespace GUI.Types.Renderer
                         Transform = fragment.Transform,
                         Mesh = fragment.RenderMesh,
                         Call = fragment.DrawCall,
+                        Node = node,
+                    }, RenderPass.Opaque);
+                }
+                else if (node is SceneAggregate aggregate && aggregate.InstanceTransforms.Count > 0)
+                {
+                    Add(new MeshBatchRenderer.Request
+                    {
+                        Transform = aggregate.Transform,
+                        Mesh = aggregate.RenderMesh,
+                        Call = aggregate.RenderMesh.DrawCallsOpaque[0],
                         Node = node,
                     }, RenderPass.Opaque);
                 }
