@@ -70,10 +70,10 @@ class SceneLightProbe : SceneNode
                 {
                     var sphere = new SceneNodeInstance(model);
 
-                    var transform = Matrix4x4.CreateTranslation(BoundingBox.Min + new Vector3(x, y, z) * VoxelSize + new Vector3(VoxelSize / 2f));
+                    var localPosition = LocalBoundingBox.Min + new Vector3(x, y, z) * VoxelSize + new Vector3(VoxelSize / 2f);
+                    var worldPosition = Vector3.Transform(localPosition, Transform);
+                    var transform = Matrix4x4.CreateTranslation(worldPosition);
                     var scale = 0.2f * (VoxelSize / 24f);
-                    // todo: rotation
-
                     sphere.Transform = Matrix4x4.CreateScale(scale) * transform;
                     sphere.LayerName = "LightProbeGrid" + Id;
                     sphere.LayerEnabled = false;
