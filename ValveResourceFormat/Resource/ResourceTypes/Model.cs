@@ -151,6 +151,12 @@ namespace ValveResourceFormat.ResourceTypes
 
             foreach (var embeddedMesh in embeddedMeshes)
             {
+                if (!embeddedMesh.ContainsKey("vbib_block")) // MVTX MIDX update
+                {
+                    meshes.Add(ParseEmbeddedMesh2(embeddedMesh));
+                    continue;
+                }
+
                 var name = embeddedMesh.GetStringProperty("name");
                 var meshIndex = (int)embeddedMesh.GetIntegerProperty("mesh_index");
                 var dataBlockIndex = (int)embeddedMesh.GetIntegerProperty("data_block");
@@ -170,6 +176,25 @@ namespace ValveResourceFormat.ResourceTypes
             }
 
             return meshes;
+        }
+
+        private (Mesh Mesh, int MeshIndex, string Name) ParseEmbeddedMesh2(KVObject embeddedMesh)
+        {
+            var name = embeddedMesh.GetStringProperty("m_Name");
+            var meshIndex = (int)embeddedMesh.GetIntegerProperty("m_nMeshIndex");
+            var dataBlockIndex = (int)embeddedMesh.GetIntegerProperty("m_nDataBlock");
+
+            var mesh = Resource.GetBlockByIndex(dataBlockIndex) as Mesh;
+            mesh.VBIB = new VBIB(Resource, embeddedMesh);
+            mesh.Name = $"{Resource.FileName}:{name}";
+
+            var morphBlockIndex = (int)embeddedMesh.GetIntegerProperty("m_nMorphBlock");
+            if (morphBlockIndex >= 0)
+            {
+                mesh.MorphData = Resource.GetBlockByIndex(morphBlockIndex) as Morph;
+            }
+
+            return (mesh, meshIndex, name);
         }
 
         public PhysAggregateData GetEmbeddedPhys()

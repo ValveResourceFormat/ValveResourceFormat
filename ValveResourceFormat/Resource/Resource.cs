@@ -367,6 +367,8 @@ namespace ValveResourceFormat
                 BlockType.SNAP => new ParticleSnapshot(),
                 BlockType.MBUF => new MBUF(),
                 BlockType.TBUF => new TBUF(),
+                BlockType.MVTX => new MeshVertexBuffer(),
+                BlockType.MIDX => new MeshIndexBuffer(),
                 BlockType.CTRL => new BinaryKV3(BlockType.CTRL),
                 BlockType.MDAT => new Mesh(BlockType.MDAT),
                 BlockType.INSG => new BinaryKV3(BlockType.INSG),
