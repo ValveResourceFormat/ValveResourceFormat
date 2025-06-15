@@ -5,8 +5,9 @@
 layout (location = 0) in vec3 vPOSITION;
 
 #include "common/ViewConstants.glsl"
-uniform mat4 transform;
+uniform mat3x4 transform;
 
 void main(void) {
-    gl_Position = g_matWorldToProjection * transform * getSkinMatrix() * vec4(vPOSITION, 1.0);
+    vec4 worldPos = transform * vPOSITION;
+    gl_Position = g_matWorldToProjection * worldPos;
 }

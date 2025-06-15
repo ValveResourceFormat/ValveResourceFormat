@@ -18,30 +18,30 @@ uniform sampler2D animationTexture;
 #define meshBoneCount uAnimationData.z
 #define numWeights uAnimationData.w
 
-mat4 getMatrix(uint boneIndex)
+mat3x4 getMatrix(uint boneIndex)
 {
     // Issue #705 out of bounds bone index (model needs ApplyVBIBDefaults)
     // Model:  hlvr/models/props/xen/xen_villi_medium.vmdl
     // In map: hlvr/maps/a3_distillery.vmap
     if (boneIndex >= meshBoneCount) {
-        return mat4(1.0);
+        return mat3x4(1.0);
     }
 
     boneIndex += meshBoneOffset;
 
-    return mat4(
-        texelFetch(animationTexture, ivec2(0, boneIndex), 0),
-        texelFetch(animationTexture, ivec2(1, boneIndex), 0),
-        texelFetch(animationTexture, ivec2(2, boneIndex), 0),
-        texelFetch(animationTexture, ivec2(3, boneIndex), 0)
+    return mat3x4(
+        texelFetch(animationTexture, ivec2(0, boneIndex), 0).xyz,
+        texelFetch(animationTexture, ivec2(1, boneIndex), 0).xyz,
+        texelFetch(animationTexture, ivec2(2, boneIndex), 0).xyz,
+        texelFetch(animationTexture, ivec2(3, boneIndex), 0).xyz
     );
 }
 
-mat4 getSkinMatrix()
+mat3x4 getSkinMatrix()
 {
     if (!bAnimated)
     {
-        return mat4(1.0);
+        return mat3x4(1.0);
     }
 
     if (numWeights == 1u)
@@ -49,7 +49,7 @@ mat4 getSkinMatrix()
         return getMatrix(vBLENDINDICES.x);
     }
 
-    mat4 skinMatrix = mat4(0.0);
+    mat3x4 skinMatrix = mat3x4(0.0);
 
 
     skinMatrix += vBLENDWEIGHT.x * getMatrix(vBLENDINDICES.x);

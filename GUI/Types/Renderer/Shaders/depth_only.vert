@@ -21,9 +21,9 @@ void main()
     mat4 vertexTransform = transform;
     vec3 vertexPosition = vPOSITION;
 
-    #if (D_ANIMATED == 1)
-        vertexTransform *= getSkinMatrix();
-    #endif
+    // #if (D_ANIMATED == 1)
+    //     vertexTransform *= getSkinMatrix();
+    // #endif
 
     #if (D_MORPHED == 1)
         vertexPosition += getMorphOffset();

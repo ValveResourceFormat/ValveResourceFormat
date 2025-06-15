@@ -211,11 +211,18 @@ namespace GUI.Types.Renderer
             }
         }
 
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void Draw(Shader shader, ref Uniforms uniforms, ref Config config, Request request)
         {
-            var transformTk = request.Transform.ToOpenTK();
-            GL.ProgramUniformMatrix4(shader.Program, uniforms.Transform, false, ref transformTk);
+            var t = request.Transform;
+            var transform = new OpenTK.Matrix3x4(
+                t.M11, t.M21, t.M31, t.M41,
+                t.M12, t.M22, t.M32, t.M42,
+                t.M13, t.M23, t.M33, t.M43
+            );
+
+            GL.ProgramUniformMatrix3x4(shader.Program, uniforms.Transform, false, ref transform);
 
             if (uniforms.ObjectId != -1)
             {

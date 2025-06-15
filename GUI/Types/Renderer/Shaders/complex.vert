@@ -89,7 +89,7 @@ uniform vec3 g_vColorTint = vec3(1.0);
 uniform float g_flModelTintAmount = 1.0;
 uniform float g_flFadeExponent = 1.0;
 
-uniform mat4 transform;
+uniform mat3x4 transform;
 uniform vec4 vTint;
 
 uniform vec2 g_vTexCoordOffset;
@@ -179,8 +179,8 @@ vec4 GetTintColor()
 
 void main()
 {
-    mat4 skinTransform = transform * getSkinMatrix();
-    vec4 fragPosition = skinTransform * vec4(vPOSITION + getMorphOffset(), 1.0);
+    mat3x4 skinTransform = transform;
+    vec4 fragPosition = vec4(vec4(vPOSITION + getMorphOffset(), 1.0) * skinTransform, 1.0);
     gl_Position = g_matWorldToProjection * fragPosition;
     vFragPosition = fragPosition.xyz / fragPosition.w;
 
@@ -188,9 +188,9 @@ void main()
     vec4 tangent;
     GetOptionallyCompressedNormalTangent(normal, tangent);
 
-    mat3 normalTransform = adjoint(skinTransform);
-    vNormalOut = normalize(normalTransform * normal);
-    vTangentOut = normalize(normalTransform * tangent.xyz);
+    mat3x4 normalTransform = (skinTransform);
+    vNormalOut = normalize(vec4(normal, 0.0) * normalTransform);
+    vTangentOut = normalize(vec4(tangent.xyz, 0.0) * normalTransform);
     vBitangentOut = tangent.w * cross(vNormalOut, vTangentOut);
 
 #if (F_SPHERICAL_PROJECTED_ANISOTROPIC_TANGENTS == 1)
