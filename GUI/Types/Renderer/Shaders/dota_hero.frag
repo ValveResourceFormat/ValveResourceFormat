@@ -27,8 +27,8 @@ in vec3 vFragPosition;
 in vec3 vNormalOut;
 in vec3 vTangentOut;
 in vec3 vBitangentOut;
-
 in vec2 vTexCoordOut;
+flat in vec4 vTintColorFadeOut;
 
 out vec4 outputColor;
 
@@ -38,10 +38,10 @@ uniform sampler2D g_tNormal;
 uniform sampler2D g_tMasks1;
 uniform sampler2D g_tMasks2;
 //uniform sampler2D g_tDiffuseWarp;
-uniform vec4 vTint;
 
 #include "common/utils.glsl"
 #include "common/ViewConstants.glsl"
+#include "common/instancing.glsl"
 
 // Material properties
 uniform float g_flSpecularExponent = 100.0;
@@ -150,7 +150,7 @@ void main()
 
     //Simply multiply the color from the color texture with the illumination
     outputColor = vec4(finalColor, color.a);
-    outputColor *= vTint;
+    outputColor *= vTintColorFadeOut;
 
     // == End of shader
 

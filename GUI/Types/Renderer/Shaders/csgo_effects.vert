@@ -13,14 +13,13 @@ out vec2 vTexCoordOut;
 centroid out vec4 vColorOut;
 
 #include "common/ViewConstants.glsl"
-uniform mat4 transform;
-uniform vec4 vTint;
+#include "common/instancing.glsl"
 
 uniform vec3 g_vColorTint = vec3(1.0);
 
 void main()
 {
-    mat4 skinTransform = transform * getSkinMatrix();
+    mat4 skinTransform = CalculateObjectToWorldMatrix() * getSkinMatrix();
     vec4 fragPosition = skinTransform * vec4(vPOSITION, 1.0);
     gl_Position = g_matWorldToProjection * fragPosition;
     vFragPosition = fragPosition.xyz / fragPosition.w;
@@ -34,7 +33,7 @@ void main()
 
     vTexCoordOut = vTEXCOORD;
 
-    vColorOut = vTint;
+    vColorOut = GetObjectTint();
     vColorOut.rgb = SrgbGammaToLinear(vColorOut.rgb);
     vColorOut.rgb *= SrgbGammaToLinear(g_vColorTint.rgb);
 

@@ -99,7 +99,7 @@ class SceneLightProbe : SceneNode
                     var worldPosition = Vector3.Transform(localPosition, Transform);
                     var transform = Matrix4x4.CreateScale(0.2f * (VoxelSize / 24f)) * Matrix4x4.CreateTranslation(worldPosition);
 
-                    DebugGridSpheres.InstanceTransforms.Add(transform);
+                    DebugGridSpheres.InstanceTransforms.Add(transform.To3x4());
                 }
             }
         }

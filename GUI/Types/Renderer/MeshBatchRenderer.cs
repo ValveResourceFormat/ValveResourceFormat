@@ -293,8 +293,8 @@ namespace GUI.Types.Renderer
 
             if (uniforms.Transform > -1)
             {
-                var transformTk = request.Transform.ToOpenTK();
-                GL.ProgramUniformMatrix4(shader.Program, uniforms.Transform, false, ref transformTk);
+                var transform = request.Transform.To3x4();
+                GL.ProgramUniformMatrix3x4(shader.Program, uniforms.Transform, false, ref transform);
             }
 
             if (uniforms.Tint > -1)
@@ -302,7 +302,7 @@ namespace GUI.Types.Renderer
                 var instanceTint = (request.Node is SceneAggregate.Fragment fragment) ? fragment.Tint : Vector4.One;
                 var tint = request.Mesh.Tint * request.Call.TintColor * instanceTint;
 
-                GL.ProgramUniform4(shader.Program, uniforms.Tint, tint.X, tint.Y, tint.Z, tint.W);
+                GL.ProgramUniform1((uint)shader.Program, uniforms.Tint, new Color32(tint.X, tint.Y, tint.Z, tint.W).PackedValue);
             }
 
             var instanceCount = 1;

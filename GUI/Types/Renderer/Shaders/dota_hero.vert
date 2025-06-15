@@ -11,13 +11,14 @@ out vec3 vNormalOut;
 out vec3 vTangentOut;
 out vec3 vBitangentOut;
 out vec2 vTexCoordOut;
+flat out vec4 vTintColorFadeOut;
 
 #include "common/ViewConstants.glsl"
-uniform mat4 transform;
+#include "common/instancing.glsl"
 
 void main()
 {
-    mat4 skinTransform = transform * getSkinMatrix();
+    mat4 skinTransform = CalculateObjectToWorldMatrix() * getSkinMatrix();
     vec4 fragPosition = skinTransform * vec4(vPOSITION, 1.0);
     gl_Position = g_matWorldToProjection * fragPosition;
     vFragPosition = fragPosition.xyz / fragPosition.w;
@@ -31,6 +32,8 @@ void main()
     // vNormalOut = vBLENDINDICES.x == 23.0 ? vec3(1.0) : vec3(0.0);
     vTangentOut = normalize(normalTransform * tangent.xyz);
     vBitangentOut = tangent.w * cross(vNormalOut, vTangentOut);
+
+    vTintColorFadeOut = GetObjectTint();
 
     vTexCoordOut = vTEXCOORD;
 }

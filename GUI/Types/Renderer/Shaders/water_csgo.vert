@@ -26,11 +26,11 @@ out vec4 vColorBlendValues;
 #endif
 
 #include "common/ViewConstants.glsl"
-uniform mat4 transform;
+#include "common/instancing.glsl"
 
 void main()
 {
-    vec4 fragPosition = transform * vec4(vPOSITION, 1.0);
+    vec4 fragPosition = CalculateObjectToWorldMatrix() * vec4(vPOSITION, 1.0);
     gl_Position = g_matWorldToProjection * fragPosition;
     vFragPosition = fragPosition.xyz / fragPosition.w;
 

@@ -44,8 +44,7 @@ uniform float g_flModelTintAmount = 1.0;
 
 #include "common/ViewConstants.glsl"
 #include "common/LightingConstants.glsl"
-uniform mat4 transform;
-uniform vec4 vTint;
+#include "common/instancing.glsl"
 
 // Material 1
 uniform float g_flTexCoordRotation1 = 0.0;
@@ -115,7 +114,9 @@ uniform vec2 g_vTexCoordScale1 = vec2(1.0);
 
 void main()
 {
-    mat4 skinTransform = transform * getSkinMatrix();
+    ObjectData_t object = GetObjectData();
+
+    mat4 skinTransform = object.transform * getSkinMatrix();
     vec4 fragPosition = skinTransform * vec4(vPOSITION, 1.0);
     gl_Position = g_matWorldToProjection * fragPosition;
     vFragPosition = fragPosition.xyz / fragPosition.w;
@@ -143,14 +144,14 @@ void main()
         vPerVertexLightingOut = pow2(Light);
     #endif
 
-    vTintColor_ModelAmount.rgb = SrgbGammaToLinear(vTint.rgb);
+    vTintColor_ModelAmount.rgb = SrgbGammaToLinear(object.vTint.rgb);
     float flLowestPoint = min(vTintColor_ModelAmount.r, min(vTintColor_ModelAmount.g, vTintColor_ModelAmount.b));
     vTintColor_ModelAmount.a = g_flModelTintAmount * (1.0 - flLowestPoint);
 
     vec3 vVertexPaint = vec3(1.0);
     vVertexPaint =  mix(vec3(1.0), vCOLOR.rgb, vec3(vCOLOR.a));
 
-    vVertexColor_Alpha = vec4(SrgbGammaToLinear(g_vColorTint.rgb) * vVertexPaint, vTint.a);
+    vVertexColor_Alpha = vec4(SrgbGammaToLinear(g_vColorTint.rgb) * vVertexPaint, object.vTint.a);
 
     #if (F_SECONDARY_UV == 1)
         vTexCoord2.zw = vTEXCOORD1.xy;

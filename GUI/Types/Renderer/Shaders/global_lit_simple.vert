@@ -20,18 +20,19 @@ out vec3 vNormalOut;
 out vec3 vTangentOut;
 out vec3 vBitangentOut;
 out vec2 vTexCoordOut;
-out vec4 vTintColorFadeOut;
+flat out vec4 vTintColorFadeOut;
 
 uniform vec2 g_vTexCoordOffset = vec2(0.0);
 uniform vec2 g_vTexCoordScale = vec2(1.0);
 
 #include "common/ViewConstants.glsl"
-uniform mat4 transform;
-uniform vec4 vTint;
+#include "common/instancing.glsl"
 
 void main()
 {
-    mat4 skinTransform = transform * getSkinMatrix();
+    ObjectData_t object = GetObjectData();
+
+    mat4 skinTransform = object.transform * getSkinMatrix();
     vec4 fragPosition = skinTransform * vec4(vPOSITION, 1.0);
     gl_Position = g_matWorldToProjection * fragPosition;
     vFragPosition = fragPosition.xyz / fragPosition.w;
@@ -45,7 +46,7 @@ void main()
     vTangentOut = normalize(normalTransform * tangent.xyz);
     vBitangentOut = tangent.w * cross(vNormalOut, vTangentOut);
 
-    vTintColorFadeOut = vTint;
+    vTintColorFadeOut = object.vTint;
     vTexCoordOut = vTEXCOORD * g_vTexCoordScale.xy + g_vTexCoordOffset.xy;
 
     #if (F_PAINT_VERTEX_COLORS == 1)

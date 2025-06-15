@@ -11,14 +11,14 @@ layout (location = 0) in vec3 vPOSITION;
     layout (location = 3) in vec2 vTEXCOORD;
     layout (location = 0) out vec2 texCoord;
 #endif
+
+#include "common/instancing.glsl"
 #include "common/animation.glsl"
 #include "common/morph.glsl"
 
-uniform mat4 transform;
-
 void main()
 {
-    mat4 vertexTransform = transform;
+    mat4 vertexTransform = CalculateObjectToWorldMatrix();
     vec3 vertexPosition = vPOSITION;
 
     #if (D_ANIMATED == 1)
