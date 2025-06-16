@@ -1,34 +1,34 @@
 <!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:generic:version{7412167c-06e9-4698-aff2-e63eb59037e7} -->
 
 {
-	m_sName = "models/ghostanim.vseq"
+	m_sName = resource:"models/ghostanim.vseq"
 	m_nFlags = 0
 	m_localSequenceNameArray = 
 	[
-		"idle",
-		"@idle",
-		"c1m1_intro",
-		"@c1m1_intro",
-		"c2m1_intro",
-		"@c2m1_intro",
-		"c3m1_intro",
-		"@c3m1_intro",
-		"c4m1_intro",
-		"@c4m1_intro",
-		"c5m1_intro",
-		"@c5m1_intro",
-		"c6m1_intro",
-		"@c6m1_intro",
-		"intro_c3m1",
-		"@intro_c3m1",
-		"intro_placeholder",
-		"@intro_placeholder",
+		resource:"idle",
+		resource:"@idle",
+		resource:"c1m1_intro",
+		resource:"@c1m1_intro",
+		resource:"c2m1_intro",
+		resource:"@c2m1_intro",
+		resource:"c3m1_intro",
+		resource:"@c3m1_intro",
+		resource:"c4m1_intro",
+		resource:"@c4m1_intro",
+		resource:"c5m1_intro",
+		resource:"@c5m1_intro",
+		resource:"c6m1_intro",
+		resource:"@c6m1_intro",
+		resource:"intro_c3m1",
+		resource:"@intro_c3m1",
+		resource:"intro_placeholder",
+		resource:"@intro_placeholder",
 	]
 	m_localS1SeqDescArray = 
 	[
 		
 		{
-			m_sName = "idle"
+			m_sName = resource:"idle"
 			m_flags = 
 			{
 				m_bLooping = true
@@ -90,14 +90,14 @@
 				m_flFadeInTime = 0.200000
 				m_flFadeOutTime = 0.200000
 			}
-			m_keyValueText = ""
+			m_keyValueText = resource:""
 			m_activityArray = 
 			[
 			]
 		},
 		
 		{
-			m_sName = "c1m1_intro"
+			m_sName = resource:"c1m1_intro"
 			m_flags = 
 			{
 				m_bLooping = false
@@ -159,14 +159,14 @@
 				m_flFadeInTime = 0.200000
 				m_flFadeOutTime = 0.200000
 			}
-			m_keyValueText = ""
+			m_keyValueText = resource:""
 			m_activityArray = 
 			[
 			]
 		},
 		
 		{
-			m_sName = "c2m1_intro"
+			m_sName = resource:"c2m1_intro"
 			m_flags = 
 			{
 				m_bLooping = false
@@ -228,14 +228,14 @@
 				m_flFadeInTime = 0.200000
 				m_flFadeOutTime = 0.200000
 			}
-			m_keyValueText = ""
+			m_keyValueText = resource:""
 			m_activityArray = 
 			[
 			]
 		},
 		
 		{
-			m_sName = "c3m1_intro"
+			m_sName = resource:"c3m1_intro"
 			m_flags = 
 			{
 				m_bLooping = false
@@ -297,14 +297,14 @@
 				m_flFadeInTime = 0.200000
 				m_flFadeOutTime = 0.200000
 			}
-			m_keyValueText = ""
+			m_keyValueText = resource:""
 			m_activityArray = 
 			[
 			]
 		},
 		
 		{
-			m_sName = "c4m1_intro"
+			m_sName = resource:"c4m1_intro"
 			m_flags = 
 			{
 				m_bLooping = false
@@ -366,14 +366,14 @@
 				m_flFadeInTime = 0.200000
 				m_flFadeOutTime = 0.200000
 			}
-			m_keyValueText = ""
+			m_keyValueText = resource:""
 			m_activityArray = 
 			[
 			]
 		},
 		
 		{
-			m_sName = "c5m1_intro"
+			m_sName = resource:"c5m1_intro"
 			m_flags = 
 			{
 				m_bLooping = false
@@ -435,14 +435,14 @@
 				m_flFadeInTime = 0.200000
 				m_flFadeOutTime = 0.200000
 			}
-			m_keyValueText = ""
+			m_keyValueText = resource:""
 			m_activityArray = 
 			[
 			]
 		},
 		
 		{
-			m_sName = "c6m1_intro"
+			m_sName = resource:"c6m1_intro"
 			m_flags = 
 			{
 				m_bLooping = false
@@ -504,14 +504,14 @@
 				m_flFadeInTime = 0.200000
 				m_flFadeOutTime = 0.200000
 			}
-			m_keyValueText = ""
+			m_keyValueText = resource:""
 			m_activityArray = 
 			[
 			]
 		},
 		
 		{
-			m_sName = "intro_c3m1"
+			m_sName = resource:"intro_c3m1"
 			m_flags = 
 			{
 				m_bLooping = false
@@ -573,14 +573,14 @@
 				m_flFadeInTime = 0.200000
 				m_flFadeOutTime = 0.200000
 			}
-			m_keyValueText = ""
+			m_keyValueText = resource:""
 			m_activityArray = 
 			[
 			]
 		},
 		
 		{
-			m_sName = "intro_placeholder"
+			m_sName = resource:"intro_placeholder"
 			m_flags = 
 			{
 				m_bLooping = false
@@ -642,7 +642,7 @@
 				m_flFadeInTime = 0.200000
 				m_flFadeOutTime = 0.200000
 			}
-			m_keyValueText = ""
+			m_keyValueText = resource:""
 			m_activityArray = 
 			[
 			]
@@ -661,7 +661,7 @@
 	[
 		
 		{
-			m_sName = "default"
+			m_sName = resource:"default"
 			m_nLocalBoneArray = 
 			[
 			]
@@ -673,11 +673,11 @@
 	m_localBoneNameArray = 
 	[
 	]
-	m_localNodeName = ""
+	m_localNodeName = resource:""
 	m_localPoseParamArray = 
 	[
 	]
-	m_keyValueText = ""
+	m_keyValueText = resource:""
 	m_localIKAutoplayLockArray = 
 	[
 	]

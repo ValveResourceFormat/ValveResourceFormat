@@ -23,21 +23,21 @@
 	]
 	m_boneNames = 
 	[
-		"root",
-		"thigh_R",
-		"knee_R",
-		"thigh_L",
-		"knee_L",
-		"ankle_L",
-		"spine1",
-		"bicep_R",
-		"elbow_R",
-		"neck1",
-		"bicep_L",
-		"elbow_L",
-		"wrist_L",
-		"wrist_R",
-		"ankle_R",
+		resource:"root",
+		resource:"thigh_R",
+		resource:"knee_R",
+		resource:"thigh_L",
+		resource:"knee_L",
+		resource:"ankle_L",
+		resource:"spine1",
+		resource:"bicep_R",
+		resource:"elbow_R",
+		resource:"neck1",
+		resource:"bicep_L",
+		resource:"elbow_L",
+		resource:"wrist_L",
+		resource:"wrist_R",
+		resource:"ankle_R",
 	]
 	m_indexNames = 
 	[
@@ -7515,14 +7515,14 @@
 		]
 		m_CtrlName = 
 		[
-			"back_fur_r0c0",
-			"back_fur_r0c1",
-			"back_fur_r1c0",
-			"back_fur_r1c1",
-			"back_fur_r2c0",
-			"back_fur_r2c1",
-			"back_fur_r3c0",
-			"back_fur_r3c1",
+			resource:"back_fur_r0c0",
+			resource:"back_fur_r0c1",
+			resource:"back_fur_r1c0",
+			resource:"back_fur_r1c1",
+			resource:"back_fur_r2c0",
+			resource:"back_fur_r2c1",
+			resource:"back_fur_r3c0",
+			resource:"back_fur_r3c1",
 		]
 		m_nStaticNodeFlags = 3840
 		m_nDynamicNodeFlags = 7984
@@ -8372,7 +8372,7 @@
 			m_InteractWith = 
 			[
 			]
-			m_CollisionGroupString = "default"
+			m_CollisionGroupString = resource:"default"
 			m_InteractAsStrings = 
 			[
 			]
@@ -8384,5 +8384,5 @@
 	m_debugPartNames = 
 	[
 	]
-	m_embeddedKeyvalues = ""
+	m_embeddedKeyvalues = resource:""
 }

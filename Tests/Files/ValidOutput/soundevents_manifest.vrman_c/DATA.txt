@@ -1,57 +1,67 @@
-soundstacks/soundstacks_manifest.vrman
-
-soundevents/soundevents_manifest_core.vrman
-
-soundevents/soundevents_manifest_dota_imported.vrman
-soundevents/soundevents_dota.vsndevts
-soundevents/soundevents_music_util.vsndevts
-soundevents/music/soundevents_music_int.vsndevts
-soundevents/music/game_sounds_music_test.vsndevts
-soundevents/music/valve_dota_001/soundevents_music.vsndevts
-soundevents/music/valve_dota_001/soundevents_stingers.vsndevts
-soundevents/music/valve_ti4/soundevents_stingers.vsndevts
-soundevents/music/valve_ti4/soundevents_music.vsndevts
-soundevents/music/valve_ti5/soundevents_stingers.vsndevts
-soundevents/music/valve_ti5/soundevents_music.vsndevts
-soundevents/music/valve_ti6/soundevents_stingers.vsndevts
-soundevents/music/valve_ti6/soundevents_music.vsndevts
-soundevents/music/valve_ti7/soundevents_stingers.vsndevts
-soundevents/music/valve_ti7/soundevents_music.vsndevts
-soundevents/music/valve_ti8/soundevents_stingers.vsndevts
-soundevents/music/valve_ti8/soundevents_music.vsndevts
-soundevents/music/valve_ti9/soundevents_stingers.vsndevts
-soundevents/music/valve_ti9/soundevents_music.vsndevts
-soundevents/music/valve_ti10/soundevents_stingers.vsndevts
-soundevents/music/valve_ti10/soundevents_music.vsndevts
-soundevents/music/jbrice_01/soundevents_stingers.vsndevts
-soundevents/music/jbrice_01/soundevents_music.vsndevts
-soundevents/music/dsadowski_01/soundevents_stingers.vsndevts
-soundevents/music/dsadowski_01/soundevents_music.vsndevts
-soundevents/music/yaskar_01/soundevents_stingers.vsndevts
-soundevents/music/yaskar_01/soundevents_music.vsndevts
-soundevents/music/terrorblade_arcana/soundevents_stingers.vsndevts
-soundevents/music/terrorblade_arcana/soundevents_music.vsndevts
-soundevents/music/deadmau5_01/soundevents_music.vsndevts
-soundevents/music/deadmau5_01/soundevents_stingers.vsndevts
-soundevents/music/mhawken_01/soundevents_music.vsndevts
-soundevents/music/mhawken_01/soundevents_stingers.vsndevts
-soundevents/music/jlin_01/soundevents_music.vsndevts
-soundevents/music/jlin_01/soundevents_stingers.vsndevts
-soundevents/music/mlange_01/soundevents_music.vsndevts
-soundevents/music/mlange_01/soundevents_stingers.vsndevts
-soundevents/music/jboberg_01/soundevents_music.vsndevts
-soundevents/music/jboberg_01/soundevents_stingers.vsndevts
-soundevents/music/dsadowski_02/soundevents_stingers.vsndevts
-soundevents/music/dsadowski_02/soundevents_music.vsndevts
-soundevents/music/awolnation_01/soundevents_stingers.vsndevts
-soundevents/music/awolnation_01/soundevents_music.vsndevts
-soundevents/music/thefatrat_01/soundevents_stingers.vsndevts
-soundevents/music/thefatrat_01/soundevents_music.vsndevts
-soundevents/game_sounds_roshan_halloween.vsndevts
-soundevents/soundevents_dota_ui.vsndevts
-soundevents/game_sounds.vsndevts
-soundevents/game_sounds_creeps.vsndevts
-soundevents/game_sounds_greevils.vsndevts
-soundevents/game_sounds_ui_imported.vsndevts
-soundevents/soundevents_minigames.vsndevts
-soundevents/soundevents_test.vsndevts
+<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:generic:version{7412167c-06e9-4698-aff2-e63eb59037e7} -->
+{
+	resourceManifest = 
+	[
+		"soundstacks/soundstacks_manifest.vrman",
+	]
+	resourceManifest1 = 
+	[
+		"soundevents/soundevents_manifest_core.vrman",
+	]
+	resourceManifest2 = 
+	[
+		"soundevents/soundevents_manifest_dota_imported.vrman",
+		"soundevents/soundevents_dota.vsndevts",
+		"soundevents/soundevents_music_util.vsndevts",
+		"soundevents/music/soundevents_music_int.vsndevts",
+		"soundevents/music/game_sounds_music_test.vsndevts",
+		"soundevents/music/valve_dota_001/soundevents_music.vsndevts",
+		"soundevents/music/valve_dota_001/soundevents_stingers.vsndevts",
+		"soundevents/music/valve_ti4/soundevents_stingers.vsndevts",
+		"soundevents/music/valve_ti4/soundevents_music.vsndevts",
+		"soundevents/music/valve_ti5/soundevents_stingers.vsndevts",
+		"soundevents/music/valve_ti5/soundevents_music.vsndevts",
+		"soundevents/music/valve_ti6/soundevents_stingers.vsndevts",
+		"soundevents/music/valve_ti6/soundevents_music.vsndevts",
+		"soundevents/music/valve_ti7/soundevents_stingers.vsndevts",
+		"soundevents/music/valve_ti7/soundevents_music.vsndevts",
+		"soundevents/music/valve_ti8/soundevents_stingers.vsndevts",
+		"soundevents/music/valve_ti8/soundevents_music.vsndevts",
+		"soundevents/music/valve_ti9/soundevents_stingers.vsndevts",
+		"soundevents/music/valve_ti9/soundevents_music.vsndevts",
+		"soundevents/music/valve_ti10/soundevents_stingers.vsndevts",
+		"soundevents/music/valve_ti10/soundevents_music.vsndevts",
+		"soundevents/music/jbrice_01/soundevents_stingers.vsndevts",
+		"soundevents/music/jbrice_01/soundevents_music.vsndevts",
+		"soundevents/music/dsadowski_01/soundevents_stingers.vsndevts",
+		"soundevents/music/dsadowski_01/soundevents_music.vsndevts",
+		"soundevents/music/yaskar_01/soundevents_stingers.vsndevts",
+		"soundevents/music/yaskar_01/soundevents_music.vsndevts",
+		"soundevents/music/terrorblade_arcana/soundevents_stingers.vsndevts",
+		"soundevents/music/terrorblade_arcana/soundevents_music.vsndevts",
+		"soundevents/music/deadmau5_01/soundevents_music.vsndevts",
+		"soundevents/music/deadmau5_01/soundevents_stingers.vsndevts",
+		"soundevents/music/mhawken_01/soundevents_music.vsndevts",
+		"soundevents/music/mhawken_01/soundevents_stingers.vsndevts",
+		"soundevents/music/jlin_01/soundevents_music.vsndevts",
+		"soundevents/music/jlin_01/soundevents_stingers.vsndevts",
+		"soundevents/music/mlange_01/soundevents_music.vsndevts",
+		"soundevents/music/mlange_01/soundevents_stingers.vsndevts",
+		"soundevents/music/jboberg_01/soundevents_music.vsndevts",
+		"soundevents/music/jboberg_01/soundevents_stingers.vsndevts",
+		"soundevents/music/dsadowski_02/soundevents_stingers.vsndevts",
+		"soundevents/music/dsadowski_02/soundevents_music.vsndevts",
+		"soundevents/music/awolnation_01/soundevents_stingers.vsndevts",
+		"soundevents/music/awolnation_01/soundevents_music.vsndevts",
+		"soundevents/music/thefatrat_01/soundevents_stingers.vsndevts",
+		"soundevents/music/thefatrat_01/soundevents_music.vsndevts",
+		"soundevents/game_sounds_roshan_halloween.vsndevts",
+		"soundevents/soundevents_dota_ui.vsndevts",
+		"soundevents/game_sounds.vsndevts",
+		"soundevents/game_sounds_creeps.vsndevts",
+		"soundevents/game_sounds_greevils.vsndevts",
+		"soundevents/game_sounds_ui_imported.vsndevts",
+		"soundevents/soundevents_minigames.vsndevts",
+		"soundevents/soundevents_test.vsndevts",
+	]
+}

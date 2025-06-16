@@ -2,7 +2,7 @@
 
 {
 	m_nFlags = 0
-	m_name = ""
+	m_name = resource:""
 	m_localHAnimArray = 
 	[
 	]
@@ -12,12 +12,12 @@
 	m_directHSeqGroup = null
 	m_decodeKey = 
 	{
-		m_name = ""
+		m_name = resource:""
 		m_boneArray = 
 		[
 			
 			{
-				m_name = "Root_0"
+				m_name = resource:"Root_0"
 				m_parent = -1
 				m_pos = 
 				[
@@ -43,7 +43,7 @@
 			},
 			
 			{
-				m_name = "Spine_0"
+				m_name = resource:"Spine_0"
 				m_parent = 0
 				m_pos = 
 				[
@@ -69,7 +69,7 @@
 			},
 			
 			{
-				m_name = "Spine_1"
+				m_name = resource:"Spine_1"
 				m_parent = 1
 				m_pos = 
 				[
@@ -95,7 +95,7 @@
 			},
 			
 			{
-				m_name = "Spine_2"
+				m_name = resource:"Spine_2"
 				m_parent = 2
 				m_pos = 
 				[
@@ -121,7 +121,7 @@
 			},
 			
 			{
-				m_name = "clavicle_L"
+				m_name = resource:"clavicle_L"
 				m_parent = 3
 				m_pos = 
 				[
@@ -147,7 +147,7 @@
 			},
 			
 			{
-				m_name = "bicep_L"
+				m_name = resource:"bicep_L"
 				m_parent = 4
 				m_pos = 
 				[
@@ -173,7 +173,7 @@
 			},
 			
 			{
-				m_name = "elbow_L"
+				m_name = resource:"elbow_L"
 				m_parent = 5
 				m_pos = 
 				[
@@ -199,7 +199,7 @@
 			},
 			
 			{
-				m_name = "wrist_L"
+				m_name = resource:"wrist_L"
 				m_parent = 6
 				m_pos = 
 				[
@@ -225,7 +225,7 @@
 			},
 			
 			{
-				m_name = "spear_1"
+				m_name = resource:"spear_1"
 				m_parent = 7
 				m_pos = 
 				[
@@ -264,23 +264,23 @@
 		[
 			
 			{
-				m_szChannelClass = "BoneChannel"
-				m_szVariableName = "Position"
+				m_szChannelClass = resource:"BoneChannel"
+				m_szVariableName = resource:"Position"
 				m_nFlags = 0
 				m_nType = 3
-				m_szGrouping = ""
-				m_szDescription = ""
+				m_szGrouping = resource:""
+				m_szDescription = resource:""
 				m_szElementNameArray = 
 				[
-					"Root_0",
-					"Spine_0",
-					"Spine_1",
-					"Spine_2",
-					"clavicle_L",
-					"bicep_L",
-					"elbow_L",
-					"wrist_L",
-					"spear_1",
+					resource:"Root_0",
+					resource:"Spine_0",
+					resource:"Spine_1",
+					resource:"Spine_2",
+					resource:"clavicle_L",
+					resource:"bicep_L",
+					resource:"elbow_L",
+					resource:"wrist_L",
+					resource:"spear_1",
 				]
 				m_nElementIndexArray = 
 				[
@@ -309,23 +309,23 @@
 			},
 			
 			{
-				m_szChannelClass = "BoneChannel"
-				m_szVariableName = "Angle"
+				m_szChannelClass = resource:"BoneChannel"
+				m_szVariableName = resource:"Angle"
 				m_nFlags = 0
 				m_nType = 4
-				m_szGrouping = ""
-				m_szDescription = ""
+				m_szGrouping = resource:""
+				m_szDescription = resource:""
 				m_szElementNameArray = 
 				[
-					"Root_0",
-					"Spine_0",
-					"Spine_1",
-					"Spine_2",
-					"clavicle_L",
-					"bicep_L",
-					"elbow_L",
-					"wrist_L",
-					"spear_1",
+					resource:"Root_0",
+					resource:"Spine_0",
+					resource:"Spine_1",
+					resource:"Spine_2",
+					resource:"clavicle_L",
+					resource:"bicep_L",
+					resource:"elbow_L",
+					resource:"wrist_L",
+					resource:"spear_1",
 				]
 				m_nElementIndexArray = 
 				[
