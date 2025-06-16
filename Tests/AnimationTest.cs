@@ -24,7 +24,7 @@ namespace Tests
             var animGroupPaths = model.GetReferencedAnimationGroupNames();
             var animations = model.GetEmbeddedAnimations().ToList();
 
-            Assert.That(animGroupPaths.Count, Is.EqualTo(0));
+            Assert.That(animGroupPaths.Count, Is.Zero);
             Assert.That(animations, Has.Count.EqualTo(3));
 
             Assert.Multiple(() =>

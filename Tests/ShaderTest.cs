@@ -126,7 +126,7 @@ namespace Tests
                 Assert.That(ChannelMapping.RGB.Count, Is.EqualTo(3));
                 Assert.That(ChannelMapping.RG.Count, Is.EqualTo(2));
                 Assert.That(ChannelMapping.G.Count, Is.EqualTo(1));
-                Assert.That(ChannelMapping.NULL.Count, Is.EqualTo(0));
+                Assert.That(ChannelMapping.NULL.Count, Is.Zero);
                 Assert.That(ChannelMapping.RGBA.ValidChannels, Is.EqualTo(new[] { ChannelMapping.Channel.R, ChannelMapping.Channel.G, ChannelMapping.Channel.B, ChannelMapping.Channel.A }));
                 Assert.That(ChannelMapping.RGB.ValidChannels, Is.EqualTo(new[] { ChannelMapping.Channel.R, ChannelMapping.Channel.G, ChannelMapping.Channel.B }));
                 Assert.That(ChannelMapping.RG.ValidChannels, Is.EqualTo(new[] { ChannelMapping.Channel.R, ChannelMapping.Channel.G }));
@@ -134,7 +134,7 @@ namespace Tests
                 Assert.That(ChannelMapping.A.ValidChannels, Is.EqualTo(new[] { ChannelMapping.Channel.A }));
                 Assert.That(ChannelMapping.R.ValidChannels, Is.EqualTo(new[] { ChannelMapping.Channel.R }));
 
-                Assert.That((byte)ChannelMapping.R, Is.EqualTo(0x00));
+                Assert.That((byte)ChannelMapping.R, Is.Zero);
                 Assert.That((byte)ChannelMapping.G, Is.EqualTo(0x01));
                 Assert.That((byte)ChannelMapping.B, Is.EqualTo(0x02));
                 Assert.That((byte)ChannelMapping.A, Is.EqualTo(0x03));

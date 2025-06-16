@@ -15,7 +15,7 @@ namespace Tests
 
             Assert.Multiple(() =>
             {
-                Assert.That(vfe.Version, Is.EqualTo(0));
+                Assert.That(vfe.Version, Is.Zero);
                 Assert.That(vfe.FlexSettings, Has.Length.EqualTo(48));
                 Assert.That(vfe.KeyNames, Has.Length.EqualTo(62));
             });

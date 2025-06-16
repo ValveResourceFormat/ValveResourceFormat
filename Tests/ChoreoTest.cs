@@ -128,9 +128,9 @@ namespace Tests
                 Assert.That(lookAtEvent.Param1, Is.EqualTo("!self"));
                 Assert.That(lookAtEvent.Param2, Is.Empty);
                 Assert.That(lookAtEvent.Param3, Is.Empty);
-                Assert.That(lookAtEvent.StartTime, Is.EqualTo(0f));
+                Assert.That(lookAtEvent.StartTime, Is.Zero);
                 Assert.That(lookAtEvent.EndTime, Is.EqualTo(6.620370f));
-                Assert.That(lookAtEvent.SoundStartDelay, Is.EqualTo(0f));
+                Assert.That(lookAtEvent.SoundStartDelay, Is.Zero);
                 Assert.That(lookAtEvent.Id, Is.EqualTo(6));
             });
         }
@@ -276,7 +276,7 @@ namespace Tests
                 Assert.That(bezierTrack.Bezier.Value.InWeight, Is.EqualTo(0.1f));
                 Assert.That(bezierTrack.Bezier.Value.InDegrees, Is.EqualTo(180f));
                 Assert.That(bezierTrack.Bezier.Value.OutWeight, Is.EqualTo(0.1f));
-                Assert.That(bezierTrack.Bezier.Value.OutDegrees, Is.EqualTo(0f));
+                Assert.That(bezierTrack.Bezier.Value.OutDegrees, Is.Zero);
             });
         }
     }

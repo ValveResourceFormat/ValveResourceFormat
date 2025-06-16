@@ -22,7 +22,7 @@ namespace Tests
             Assert.Multiple(() =>
             {
                 Assert.That(navMeshFile.Version, Is.EqualTo(30));
-                Assert.That(navMeshFile.SubVersion, Is.EqualTo(0));
+                Assert.That(navMeshFile.SubVersion, Is.Zero);
                 Assert.That(navMeshFile.Areas.Count, Is.EqualTo(3));
                 Assert.That(navMeshFile.GenerationParams.NavGenVersion, Is.EqualTo(6));
                 Assert.That(navMeshFile.GenerationParams.HullParams[2].MaxJumpUpDist, Is.EqualTo(240));
@@ -36,7 +36,7 @@ namespace Tests
             Assert.Multiple(() =>
             {
                 Assert.That(navMeshFile.Version, Is.EqualTo(30));
-                Assert.That(navMeshFile.SubVersion, Is.EqualTo(0));
+                Assert.That(navMeshFile.SubVersion, Is.Zero);
                 Assert.That(navMeshFile.Areas.Count, Is.EqualTo(414));
                 Assert.That(navMeshFile.GenerationParams.NavGenVersion, Is.EqualTo(7));
                 Assert.That(navMeshFile.GenerationParams.HullParams[2].MaxJumpUpDist, Is.EqualTo(240));
@@ -52,7 +52,7 @@ namespace Tests
                 Assert.That(navMeshFile.Version, Is.EqualTo(35));
                 Assert.That(navMeshFile.SubVersion, Is.EqualTo(1));
                 Assert.That(navMeshFile.Areas.Count, Is.EqualTo(4));
-                Assert.That(navMeshFile.Ladders.Count, Is.EqualTo(0));
+                Assert.That(navMeshFile.Ladders.Count, Is.Zero);
                 Assert.That(navMeshFile.GenerationParams.NavGenVersion, Is.EqualTo(12));
                 Assert.That(navMeshFile.CustomData, Is.Not.Null);
             });

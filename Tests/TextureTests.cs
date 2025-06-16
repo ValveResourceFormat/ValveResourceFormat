@@ -61,7 +61,7 @@ namespace Tests
         [Test]
         public void ClampColor_ReturnsValueWhenInRange()
         {
-            Assert.That(Common.ClampColor(0), Is.EqualTo(0));
+            Assert.That(Common.ClampColor(0), Is.Zero);
             Assert.That(Common.ClampColor(128), Is.EqualTo(128));
             Assert.That(Common.ClampColor(255), Is.EqualTo(255));
         }
@@ -69,14 +69,14 @@ namespace Tests
         [Test]
         public void ClampColor_ClampsOutOfRangeValues()
         {
-            Assert.That(Common.ClampColor(-10), Is.EqualTo(0));
+            Assert.That(Common.ClampColor(-10), Is.Zero);
             Assert.That(Common.ClampColor(300), Is.EqualTo(255));
         }
 
         [Test]
         public void ClampHighRangeColor_ReturnsValueWhenInRange()
         {
-            Assert.That(Common.ClampHighRangeColor(0f), Is.EqualTo(0f));
+            Assert.That(Common.ClampHighRangeColor(0f), Is.Zero);
             Assert.That(Common.ClampHighRangeColor(0.5f), Is.EqualTo(0.5f));
             Assert.That(Common.ClampHighRangeColor(1f), Is.EqualTo(1f));
         }
@@ -84,14 +84,14 @@ namespace Tests
         [Test]
         public void ClampHighRangeColor_ClampsOutOfRangeValues()
         {
-            Assert.That(Common.ClampHighRangeColor(-0.5f), Is.EqualTo(0f));
+            Assert.That(Common.ClampHighRangeColor(-0.5f), Is.Zero);
             Assert.That(Common.ClampHighRangeColor(1.5f), Is.EqualTo(1f));
         }
 
         [Test]
         public void ToClampedLdrColor_ConvertsFloatToByte()
         {
-            Assert.That(Common.ToClampedLdrColor(0f), Is.EqualTo(0));
+            Assert.That(Common.ToClampedLdrColor(0f), Is.Zero);
             Assert.That(Common.ToClampedLdrColor(0.5f), Is.EqualTo(128));
             Assert.That(Common.ToClampedLdrColor(1f), Is.EqualTo(255));
             Assert.That(Common.ToClampedLdrColor(2f), Is.EqualTo(255));
@@ -137,7 +137,7 @@ namespace Tests
             for (var i = 0; i < pixelCount; i++)
             {
                 Assert.That(pixels[i * 4], Is.EqualTo((byte)((i >> 8) & 0xFF)));
-                Assert.That(pixels[i * 4 + 1], Is.EqualTo(0));
+                Assert.That(pixels[i * 4 + 1], Is.Zero);
                 Assert.That(pixels[i * 4 + 2], Is.EqualTo((byte)(i & 0xFF)));
                 Assert.That(pixels[i * 4 + 3], Is.EqualTo(255));
             }

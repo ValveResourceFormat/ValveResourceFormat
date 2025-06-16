@@ -44,7 +44,7 @@ namespace Tests
                 var properties = file.Root.Properties;
 
                 Assert.That(properties["boolValue"].Type, Is.EqualTo(KVValueType.Boolean));
-                Assert.That(properties["boolValue"].Value, Is.EqualTo(false));
+                Assert.That(properties["boolValue"].Value, Is.False);
                 Assert.That(properties["intValue"].Type, Is.EqualTo(KVValueType.Int64));
                 Assert.That(properties["intValue"].Value, Is.EqualTo((long)128));
                 Assert.That(properties["doubleValue"].Type, Is.EqualTo(KVValueType.FloatingPoint64));
