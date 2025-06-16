@@ -25,7 +25,8 @@ namespace Tests
                 using var sw = new IndentedTextWriter();
 
                 shader.Read(file);
-                shader.PrintSummary();
+                shader.PrintSummary(sw);
+                Assert.That(sw.ToString(), Has.Length.AtLeast(100));
 
                 foreach (var zframe in shader.StaticComboEntries)
                 {
