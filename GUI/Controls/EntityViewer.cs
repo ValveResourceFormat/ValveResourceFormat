@@ -43,8 +43,7 @@ namespace GUI.Types.Viewers
 
         private void UpdateGrid()
         {
-            EntityViewerGrid.SuspendLayout();
-            EntityViewerGrid.Rows.Clear();
+            var filteredEntities = new List<(Entity Entity, string Classname, string Targetname)>(Entities.Count);
 
             foreach (var entity in Entities)
             {
@@ -106,16 +105,35 @@ namespace GUI.Types.Viewers
                     }
                 }
 
-                var rowIndex = EntityViewerGrid.Rows.Add(classname, entity.GetProperty("targetname", string.Empty));
-                EntityViewerGrid.Rows[rowIndex].Tag = entity;
+                var targetname = entity.GetProperty("targetname", string.Empty);
+                filteredEntities.Add((entity, classname, targetname));
+            }
+
+            EntityViewerGrid.SuspendLayout();
+            EntityViewerGrid.Rows.Clear();
+
+            if (filteredEntities.Count > 0)
+            {
+                var rows = new DataGridViewRow[filteredEntities.Count];
+                for (var i = 0; i < filteredEntities.Count; i++)
+                {
+                    var (entity, classname, targetname) = filteredEntities[i];
+                    var row = new DataGridViewRow();
+                    row.CreateCells(EntityViewerGrid);
+                    row.Cells[0].Value = classname;
+                    row.Cells[1].Value = targetname;
+                    row.Tag = entity;
+                    rows[i] = row;
+                }
+                EntityViewerGrid.Rows.AddRange(rows);
             }
 
             EntityViewerGrid.ResumeLayout();
 
             // when search changes set first entity as selected in entity props
-            if (EntityViewerGrid.Rows.Count > 0 && EntityViewerGrid.Rows[0].Tag is Entity firstEntity)
+            if (filteredEntities.Count > 0)
             {
-                ShowEntityProperties(firstEntity);
+                ShowEntityProperties(filteredEntities[0].Entity);
             }
         }
 
