@@ -511,10 +511,19 @@ namespace GUI.Types.Renderer
 
         private void OnSaveButtonClick(object sender, EventArgs e)
         {
+            Debug.Assert(Resource != null);
+
+            var filter = "PNG Image|*.png|JPG Image|*.jpg";
+
+            if (Svg != null)
+            {
+                filter = $"SVG (Scalable Vector Graphics)|*.svg|{filter}";
+            }
+
             using var saveFileDialog = new SaveFileDialog
             {
                 InitialDirectory = Settings.Config.SaveDirectory,
-                Filter = "PNG Image|*.png|JPG Image|*.jpg", // Bitmap Image|*.bmp doesn't work in skia
+                Filter = filter,
                 Title = "Save an Image File",
                 FileName = Path.GetFileNameWithoutExtension(Resource.FileName),
                 AddToRecent = true,
@@ -527,6 +536,15 @@ namespace GUI.Types.Renderer
 
             Settings.Config.SaveDirectory = Path.GetDirectoryName(saveFileDialog.FileName);
 
+            using var fs = saveFileDialog.OpenFile();
+
+            if (saveFileDialog.FilterIndex == 1)
+            {
+                Debug.Assert(Svg != null);
+                fs.Write(((Panorama)Resource.DataBlock).Data);
+                return;
+            }
+
             // TODO: nonpow2 sizes?
             using var bitmap = ReadPixelsToBitmap();
             var format = SKEncodedImageFormat.Png;
@@ -536,15 +554,11 @@ namespace GUI.Types.Renderer
                 case 2:
                     format = SKEncodedImageFormat.Jpeg;
                     break;
-                case 3:
-                    format = SKEncodedImageFormat.Bmp;
-                    break;
             }
 
             var test = bitmap.GetPixelSpan();
 
             using var pixmap = bitmap.PeekPixels();
-            using var fs = saveFileDialog.OpenFile();
             var t = pixmap.Encode(fs, format, 100);
         }
 
