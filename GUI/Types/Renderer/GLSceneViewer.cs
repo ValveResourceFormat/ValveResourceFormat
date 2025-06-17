@@ -152,6 +152,8 @@ namespace GUI.Types.Renderer
         {
             camera.SetViewConstants(viewBuffer.Data);
             scene.SetFogConstants(viewBuffer.Data);
+
+            viewBuffer.BindBufferBase();
             viewBuffer.Update();
 
             postProcessRenderer.State = scene.PostProcessInfo.CurrentState;
