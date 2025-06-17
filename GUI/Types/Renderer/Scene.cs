@@ -38,7 +38,6 @@ namespace GUI.Types.Renderer
         public WorldPostProcessInfo PostProcessInfo { get; set; } = new();
 
         private UniformBuffer<LightingConstants> lightingBuffer;
-        public StorageBuffer TransformBuffer;
 
 
         public VrfGuiContext GuiContext { get; }
@@ -170,9 +169,6 @@ namespace GUI.Types.Renderer
             {
                 Data = LightingInfo.LightingData
             };
-
-            TransformBuffer = new(ReservedBufferSlots.Transforms);
-            TransformBuffer.Create([Matrix4x4.Identity]);
         }
 
         public void UpdateBuffers()
@@ -183,7 +179,6 @@ namespace GUI.Types.Renderer
         public void SetSceneBuffers()
         {
             lightingBuffer.BindBufferBase();
-            TransformBuffer.BindBufferBase();
         }
 
         private readonly List<SceneNode> CullResults = [];

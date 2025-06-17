@@ -94,7 +94,9 @@ layout(std140, binding = 3) readonly buffer g_transformBuffer
     mat4 transforms[];
 };
 
+uniform mat4 transform;
 uniform vec4 vTint;
+uniform bool bIsInstancing = false;
 
 uniform vec2 g_vTexCoordOffset;
 uniform vec2 g_vTexCoordScale = vec2(1.0);
@@ -183,7 +185,7 @@ vec4 GetTintColor()
 
 void main()
 {
-    mat4 transform = transforms[gl_InstanceID];
+    mat4 transform = bIsInstancing ? transforms[gl_InstanceID] : transform;
     mat4 skinTransform = transform * getSkinMatrix();
     vec4 fragPosition = skinTransform * vec4(vPOSITION + getMorphOffset(), 1.0);
     gl_Position = g_matWorldToProjection * fragPosition;

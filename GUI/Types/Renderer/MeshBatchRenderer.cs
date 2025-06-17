@@ -70,6 +70,7 @@ namespace GUI.Types.Renderer
             public int LPVScalarsTexture = -1;
             public int LPVShadowsTexture = -1;
             public int Transform = -1;
+            public int IsInstancing = -1;
             public int Tint = -1;
             public int ObjectId = -1;
             public int MeshId = -1;
@@ -89,11 +90,9 @@ namespace GUI.Types.Renderer
             public bool NeedsCubemapBinding;
             public int LightmapGameVersionNumber;
             public Scene.LightProbeType LightProbeType;
-            public StorageBuffer TransformBuffer;
         }
 
         private static readonly Queue<int> instanceBoundTextures = new(capacity: 4);
-        private static readonly Matrix4x4[] ListWithSingleTransform = [Matrix4x4.Identity];
 
         private static void SetInstanceTexture(Shader shader, ReservedTextureSlots slot, int location, RenderTexture texture)
         {
@@ -121,7 +120,6 @@ namespace GUI.Types.Renderer
                 NeedsCubemapBinding = context.Scene.LightingInfo.CubemapType == Scene.CubemapType.IndividualCubemaps,
                 LightmapGameVersionNumber = context.Scene.LightingInfo.LightmapGameVersionNumber,
                 LightProbeType = context.Scene.LightingInfo.LightProbeType,
-                TransformBuffer = context.Scene.TransformBuffer,
             };
 
             foreach (var request in requests)
@@ -143,6 +141,7 @@ namespace GUI.Types.Renderer
                             AnimationData = shader.GetUniformLocation("uAnimationData"),
                             AnimationTexture = shader.GetUniformLocation("animationTexture"),
                             Transform = shader.GetUniformLocation("transform"),
+                            IsInstancing = shader.GetUniformLocation("bIsInstancing"),
                             Tint = shader.GetUniformLocation("vTint"),
                         };
 
@@ -308,17 +307,16 @@ namespace GUI.Types.Renderer
             }
 
             var instanceCount = 1;
-            var transformBuffer = config.TransformBuffer;
 
             if (request.Node is SceneAggregate { InstanceTransforms.Count: > 0 } aggregate)
             {
                 instanceCount = aggregate.InstanceTransforms.Count;
-                transformBuffer.Create(aggregate.InstanceTransforms);
+                aggregate.InstanceTransformsGpu.BindBufferBase();
             }
-            else
+
+            if (uniforms.IsInstancing > -1)
             {
-                ListWithSingleTransform[0] = request.Transform;
-                transformBuffer.Update(ListWithSingleTransform, Unsafe.SizeOf<Matrix4x4>());
+                GL.ProgramUniform1((uint)shader.Program, uniforms.IsInstancing, instanceCount > 1 ? 1 : 0);
             }
 
             GL.DrawElementsInstancedBaseVertex(

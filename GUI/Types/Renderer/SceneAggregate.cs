@@ -1,6 +1,5 @@
 using System.Linq;
 using GUI.Types.Renderer.Buffers;
-using GUI.Utils;
 using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -14,6 +13,7 @@ namespace GUI.Types.Renderer
         public RenderableMesh RenderMesh { get; }
 
         public List<Matrix4x4> InstanceTransforms { get; } = [];
+        public StorageBuffer InstanceTransformsGpu { get; private set; }
 
         public ObjectTypeFlags AllFlags { get; set; }
         public ObjectTypeFlags AnyFlags { get; set; }
@@ -136,6 +136,15 @@ namespace GUI.Types.Renderer
                 }
 
                 yield return fragment;
+            }
+        }
+
+        public override void Update(Scene.UpdateContext context)
+        {
+            if (InstanceTransforms.Count > 0 && InstanceTransformsGpu == null)
+            {
+                InstanceTransformsGpu = new StorageBuffer(ReservedBufferSlots.Transforms);
+                InstanceTransformsGpu.Create(InstanceTransforms);
             }
         }
 

@@ -1,6 +1,7 @@
 using System.Buffers;
 using System.Runtime.InteropServices;
 using GUI.Types.Renderer.Buffers;
+using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.ResourceTypes;
 
@@ -76,10 +77,18 @@ class SceneLightProbe : SceneNode
         };
 
         DebugGridSpheres.SetInfiniteBoundingBox();
-
         Scene.Add(DebugGridSpheres, true);
 
-        var grid = LocalBoundingBox.Size / Math.Max(VoxelSize + 0.5f, 6f);
+        const float MinVoxelSize = 8f;
+
+        if (VoxelSize < MinVoxelSize)
+        {
+            Log.Warn(nameof(CrateDebugGridSpheres), $"LightProbe {Id} has a too dense voxel grid {VoxelSize} to visualize. Clamping to {MinVoxelSize}.");
+        }
+
+        var grid = LocalBoundingBox.Size / Math.Max(VoxelSize + 0.5f, MinVoxelSize);
+        DebugGridSpheres.InstanceTransforms.EnsureCapacity((int)(grid.X * grid.Y * grid.Z));
+
         for (var x = 0; x < grid.X; x++)
         {
             for (var y = 0; y < grid.Y; y++)
