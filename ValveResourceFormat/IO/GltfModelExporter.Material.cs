@@ -481,6 +481,9 @@ public partial class GltfModelExporter
             ProgressReporter?.Report("Waiting for textures to finish exporting...");
             Task.WaitAll(TextureExportingTasks, CancellationToken);
         }
+
+        TexturesExportedSoFar = 0;
+        TextureExportingTasks.Clear();
     }
 
     // :MaterialIsOverlay

@@ -52,5 +52,20 @@ namespace Tests
             };
             gltf.Export(resource, null);
         }
+
+        [Test]
+        public void TestPhysicsCollisionMesh()
+        {
+            using var resource = new Resource();
+            var physPath = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "juggernaut.vphys_c");
+            resource.Read(physPath);
+
+            var gltf = new GltfModelExporter(new NullFileLoader())
+            {
+                ExportMaterials = true,
+                ProgressReporter = new Progress<string>(progress => { }),
+            };
+            gltf.Export(resource, null);
+        }
     }
 }

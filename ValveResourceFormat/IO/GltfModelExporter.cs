@@ -42,6 +42,7 @@ namespace ValveResourceFormat.IO
         private string DstDir = string.Empty;
         private CancellationToken CancellationToken;
         private readonly Dictionary<string, Mesh> ExportedMeshes = [];
+        private readonly List<(PhysAggregateData Phys, string Classname, Matrix4x4 Transform)> PhysicsToExport = [];
         private bool IsExporting;
 
         public GltfModelExporter(IFileLoader fileLoader)
@@ -55,6 +56,7 @@ namespace ValveResourceFormat.IO
             is ResourceType.Mesh
             or ResourceType.Model
             or ResourceType.EntityLump
+            or ResourceType.PhysicsCollisionMesh
             or ResourceType.WorldNode
             or ResourceType.World
             or ResourceType.Map;
@@ -133,6 +135,9 @@ namespace ValveResourceFormat.IO
                     case ResourceType.EntityLump:
                         ExportToFile(resource.FileName, targetPath, (VEntityLump)resource.DataBlock!);
                         break;
+                    case ResourceType.PhysicsCollisionMesh:
+                        ExportToFile(resource.FileName, targetPath, (PhysAggregateData)resource.DataBlock!);
+                        break;
                     default:
                         throw new ArgumentException($"{resource.ResourceType} not supported for gltf export");
                 }
@@ -140,6 +145,7 @@ namespace ValveResourceFormat.IO
             finally
             {
                 ExportedMeshes.Clear();
+                PhysicsToExport.Clear();
                 TextureExportingTasks.Clear();
                 ExportedTextures.Clear();
                 ExportedMaterials.Clear();
@@ -196,6 +202,38 @@ namespace ValveResourceFormat.IO
             }
 
             WriteModelFile(exportedModel, fileName);
+
+            ExportPhysicsIfAny(resourceName, fileName);
+        }
+
+        private void ExportPhysicsIfAny(string resourceName, string? fileName)
+        {
+            if (PhysicsToExport.Count == 0)
+            {
+                return;
+            }
+
+            ProgressReporter?.Report("Exporting physics...");
+
+            ExportedTextures.Clear(); // gltf images can not be shared between gltf files
+
+            var exportedPhysics = CreateModelRoot(resourceName, out var scenePhysics);
+
+            foreach (var (phys, className, transform) in PhysicsToExport)
+            {
+                LoadPhysicsMeshes(exportedPhysics, scenePhysics, phys, transform, className);
+            }
+
+            string? physFileName = null;
+
+            if (fileName != null)
+            {
+                var lastDot = fileName.LastIndexOf('.');
+                Debug.Assert(lastDot >= 0);
+                physFileName = $"{fileName.AsSpan(0, lastDot)}_physics{fileName.AsSpan(lastDot)}";
+            }
+
+            WriteModelFile(exportedPhysics, physFileName);
         }
 
         /// <summary>
@@ -211,6 +249,8 @@ namespace ValveResourceFormat.IO
             LoadEntityMeshes(exportedModel, scene, entityLump);
 
             WriteModelFile(exportedModel, fileName);
+
+            ExportPhysicsIfAny(resourceName, fileName);
         }
 
         private void LoadEntityMeshes(ModelRoot exportedModel, Scene scene, VEntityLump entityLump)
@@ -288,6 +328,26 @@ namespace ValveResourceFormat.IO
                 // Add meshes and their skeletons
                 LoadModel(exportedModel, scene, model, Path.GetFileNameWithoutExtension(modelName),
                     transform, tintColor, skinName, entity);
+
+                // Load model physics
+                var phys = model.GetEmbeddedPhys();
+                if (phys == null)
+                {
+                    var refPhysicsPaths = model.GetReferencedPhysNames().ToArray();
+                    if (refPhysicsPaths.Length != 0)
+                    {
+                        var newResource = FileLoader.LoadFileCompiled(refPhysicsPaths.First());
+                        if (newResource?.DataBlock is PhysAggregateData physFile)
+                        {
+                            phys = physFile;
+                        }
+                    }
+                }
+
+                if (phys != null)
+                {
+                    PhysicsToExport.Add((phys, className, transform));
+                }
             }
 
             foreach (var childEntityName in entityLump.GetChildEntityNames())
@@ -397,6 +457,37 @@ namespace ValveResourceFormat.IO
 
             // Add meshes and their skeletons
             LoadModel(exportedModel, scene, model, resourceName, Matrix4x4.Identity, Vector4.One);
+
+            WriteModelFile(exportedModel, fileName);
+
+            // Add embedded phys
+            var phys = model.GetEmbeddedPhys();
+            if (phys != null)
+            {
+                string? physFileName = null;
+
+                if (fileName != null)
+                {
+                    var lastDot = fileName.LastIndexOf('.');
+                    Debug.Assert(lastDot >= 0);
+                    physFileName = $"{fileName.AsSpan(0, lastDot)}_physics{fileName.AsSpan(lastDot)}";
+                }
+
+                ExportToFile(resourceName, physFileName, phys);
+            }
+        }
+
+        /// <summary>
+        /// Export a Valve VPHYS to GLTF.
+        /// </summary>
+        /// <param name="resourceName">The name of the resource being exported.</param>
+        /// <param name="fileName">Target file name.</param>
+        /// <param name="physAggregateData">The physics aggregate data resource to export.</param>
+        private void ExportToFile(string resourceName, string? fileName, PhysAggregateData physAggregateData)
+        {
+            var exportedModel = CreateModelRoot(resourceName, out var scene);
+
+            LoadPhysicsMeshes(exportedModel, scene, physAggregateData, Matrix4x4.Identity);
 
             WriteModelFile(exportedModel, fileName);
         }
