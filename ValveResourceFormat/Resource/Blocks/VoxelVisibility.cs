@@ -14,6 +14,8 @@ namespace ValveResourceFormat.Blocks
 
         public override void Read(BinaryReader reader)
         {
+            ArgumentNullException.ThrowIfNull(Resource);
+
             var dataBlock = Resource.DataBlock;
             if (dataBlock is not BinaryKV3 dataKv3)
             {

@@ -321,7 +321,10 @@ namespace GUI.Types.Viewers
                 groupBoxName += $" - {classname}";
             }
 
-            groupBoxName += $" - Entity Lump: {entity.ParentLump.Resource.FileName}";
+            if (entity.ParentLump.Resource is { } parentResource)
+            {
+                groupBoxName += $" - Entity Lump: {parentResource.FileName}";
+            }
 
             EntityPropertiesGroup.Text = groupBoxName;
         }

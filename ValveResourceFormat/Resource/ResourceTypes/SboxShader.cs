@@ -25,6 +25,8 @@ namespace ValveResourceFormat.ResourceTypes
 
         public override void Read(BinaryReader reader)
         {
+            ArgumentNullException.ThrowIfNull(Resource);
+
             reader.BaseStream.Position = Offset;
 
             const int ShaderFileCount = 9;
