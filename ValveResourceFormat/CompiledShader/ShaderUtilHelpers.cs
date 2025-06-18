@@ -1,8 +1,6 @@
 using System.IO;
 using ValveResourceFormat.Serialization.VfxEval;
 
-#nullable disable
-
 namespace ValveResourceFormat.CompiledShader
 {
     public static class ShaderUtilHelpers
@@ -373,9 +371,9 @@ namespace ValveResourceFormat.CompiledShader
                 OutputWriter.WriteLine();
             }
 
-            private List<string> headerValues;
-            private List<List<string>> tabulatedValues;
-            private List<int> columnWidths;
+            private List<string> headerValues = [];
+            private List<List<string>> tabulatedValues = [];
+            private List<int> columnWidths = [];
 
             public void DefineHeaders(string[] headers)
             {

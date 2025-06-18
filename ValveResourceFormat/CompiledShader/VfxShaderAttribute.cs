@@ -3,8 +3,6 @@ using System.Text;
 using ValveResourceFormat.ThirdParty;
 using static ValveResourceFormat.CompiledShader.ShaderUtilHelpers;
 
-#nullable disable
-
 namespace ValveResourceFormat.CompiledShader;
 
 public class VfxShaderAttribute
@@ -13,10 +11,9 @@ public class VfxShaderAttribute
     public uint Murmur32 { get; }
     public VfxVariableType VfxType { get; }
     public short LinkedParameterIndex { get; }
-    public byte[] HeaderCode { get; }
     public int DynExpLen { get; } = -1;
-    public byte[] DynExpression { get; }
-    public object ConstValue { get; }
+    public byte[]? DynExpression { get; }
+    public object? ConstValue { get; }
 
     public VfxShaderAttribute(BinaryReader datareader)
     {
@@ -58,7 +55,7 @@ public class VfxShaderAttribute
 
     public override string ToString()
     {
-        if (DynExpLen > 0)
+        if (DynExpression != null)
         {
             return $"{Name0,-40} 0x{Murmur32:x08}  {VfxType,-15} {LinkedParameterIndex,-3}  {ParseDynamicExpression(DynExpression)}";
         }

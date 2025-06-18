@@ -1,30 +1,28 @@
 using System.Collections;
 
-#nullable disable
-
 namespace ValveResourceFormat.CompiledShader;
 
 public class ShaderCollection : IEnumerable<VfxProgramData>, IDisposable
 {
-    public VfxProgramData Features
+    public VfxProgramData? Features
         => Get(VcsProgramType.Features);
-    public VfxProgramData Vertex
+    public VfxProgramData? Vertex
         => Get(VcsProgramType.VertexShader);
-    public VfxProgramData Geometry
+    public VfxProgramData? Geometry
         => Get(VcsProgramType.GeometryShader);
-    public VfxProgramData Domain
+    public VfxProgramData? Domain
         => Get(VcsProgramType.DomainShader);
-    public VfxProgramData Hull
+    public VfxProgramData? Hull
         => Get(VcsProgramType.HullShader);
-    public VfxProgramData Pixel
+    public VfxProgramData? Pixel
         => Get(VcsProgramType.PixelShader);
-    public VfxProgramData Compute
+    public VfxProgramData? Compute
         => Get(VcsProgramType.ComputeShader);
-    public VfxProgramData PixelShaderRenderState
+    public VfxProgramData? PixelShaderRenderState
         => Get(VcsProgramType.PixelShaderRenderState);
-    public VfxProgramData Raytracing
+    public VfxProgramData? Raytracing
         => Get(VcsProgramType.RaytracingShader);
-    public VfxProgramData Mesh
+    public VfxProgramData? Mesh
         => Get(VcsProgramType.MeshShader);
 
     private readonly Dictionary<VcsProgramType, VfxProgramData> shaders = new((int)VcsProgramType.Undetermined);
@@ -37,7 +35,7 @@ public class ShaderCollection : IEnumerable<VfxProgramData>, IDisposable
         }
     }
 
-    public VfxProgramData Get(VcsProgramType type)
+    public VfxProgramData? Get(VcsProgramType type)
     {
         if (shaders.TryGetValue(type, out var shader))
         {

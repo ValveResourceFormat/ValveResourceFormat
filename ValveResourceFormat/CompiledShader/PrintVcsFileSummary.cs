@@ -1,9 +1,8 @@
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
 using static ValveResourceFormat.CompiledShader.ShaderUtilHelpers;
-
-#nullable disable
 
 namespace ValveResourceFormat.CompiledShader
 {
@@ -35,6 +34,8 @@ namespace ValveResourceFormat.CompiledShader
 
         private void PrintFeaturesHeader(VfxProgramData program)
         {
+            Debug.Assert(program.FeaturesHeader != null);
+
             output.WriteLine($"Valve Compiled Shader 2 (vcs2), version {program.VcsVersion}");
             output.BreakLine();
             output.Write($"Showing {program.VcsProgramType}: {Path.GetFileName(program.FilenamePath)}");

@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.CompiledShader;
@@ -37,6 +38,7 @@ namespace ValveResourceFormat.ResourceTypes
             }
 
             var shaderName = Path.GetFileNameWithoutExtension(Resource.FileName);
+            Debug.Assert(shaderName != null);
             var shaderModelType = VcsShaderModelType._50;
             var platformType = Type switch
             {

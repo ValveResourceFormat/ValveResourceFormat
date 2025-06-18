@@ -1,7 +1,6 @@
+using System.Diagnostics;
 using System.IO;
 using static ValveResourceFormat.CompiledShader.ShaderUtilHelpers;
-
-#nullable disable
 
 namespace ValveResourceFormat.CompiledShader
 {
@@ -17,7 +16,7 @@ namespace ValveResourceFormat.CompiledShader
             StaticCombo = staticCombo;
             OutputWriter = outputWriter;
 
-            if (staticCombo.ParentProgramData.VcsProgramType == VcsProgramType.Features)
+            if (staticCombo.ParentProgramData?.VcsProgramType == VcsProgramType.Features)
             {
                 return;
             }
@@ -34,6 +33,8 @@ namespace ValveResourceFormat.CompiledShader
 
         private void PrintConfigurationState()
         {
+            Debug.Assert(StaticCombo.ParentProgramData != null);
+
             var configHeader = "PARENT STATIC COMBO CONFIGURATION";
             OutputWriter.WriteLine(configHeader);
             ConfigMappingParams configGen = new(StaticCombo.ParentProgramData);
@@ -173,6 +174,8 @@ namespace ValveResourceFormat.CompiledShader
                 _ => throw new InvalidDataException(),
             };
 
+            Debug.Assert(StaticCombo.ParentProgramData != null);
+
             for (var i = 0; i < segment.Count; i++)
             {
                 var field = segment[i];
@@ -185,6 +188,8 @@ namespace ValveResourceFormat.CompiledShader
 
         private void PrintDynamicConfigurations(SortedDictionary<int, int> writeSequences)
         {
+            Debug.Assert(StaticCombo.ParentProgramData != null);
+
             var blockIdToSource = GetBlockIdToSource(StaticCombo);
             var abbreviations = DConfigsAbbreviations();
             var hasOnlyDefaultConfiguration = blockIdToSource.Count == 1;
@@ -268,6 +273,8 @@ namespace ValveResourceFormat.CompiledShader
 
         private List<(string, string)> DConfigsAbbreviations()
         {
+            Debug.Assert(StaticCombo.ParentProgramData != null);
+
             List<(string, string)> abbreviations = [];
             foreach (var dBlock in StaticCombo.ParentProgramData.DynamicComboArray)
             {
@@ -301,7 +308,6 @@ namespace ValveResourceFormat.CompiledShader
         private void PrintEndBlocks()
         {
             OutputWriter.WriteLine("RENDER STATE INFO");
-            var vcsFiletype = StaticCombo.ParentProgramData.VcsProgramType;
             OutputWriter.WriteLine();
             foreach (var endBlock in StaticCombo.DynamicCombos)
             {

@@ -1,7 +1,5 @@
 using System.IO;
 
-#nullable disable
-
 namespace ValveResourceFormat.CompiledShader;
 
 public class VfxRenderStateInfo
@@ -262,9 +260,9 @@ public class VfxRenderStateInfoPixelShader : VfxRenderStateInfo
         }
     }
 
-    public RsRasterizerStateDesc RasterizerStateDesc { get; }
-    public RsDepthStencilStateDesc DepthStencilStateDesc { get; }
-    public RsBlendStateDesc BlendStateDesc { get; }
+    public RsRasterizerStateDesc? RasterizerStateDesc { get; }
+    public RsDepthStencilStateDesc? DepthStencilStateDesc { get; }
+    public RsBlendStateDesc? BlendStateDesc { get; }
 
     public VfxRenderStateInfoPixelShader(BinaryReader datareader) : base(datareader)
     {

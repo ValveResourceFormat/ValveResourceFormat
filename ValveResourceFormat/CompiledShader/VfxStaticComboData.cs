@@ -1,20 +1,18 @@
 using System.IO;
 using System.Text;
 
-#nullable disable
-
 namespace ValveResourceFormat.CompiledShader
 {
     public class VfxStaticComboData
     {
-        public VfxProgramData ParentProgramData { get; private set; }
+        public VfxProgramData? ParentProgramData { get; private set; }
         public long StaticComboId { get; }
         public VfxVariableIndexArray VariablesFromStaticCombo { get; }
         public VfxShaderAttribute[] Attributes { get; } = [];
         public int[] VShaderInputs { get; } = [];
         public VfxVariableIndexArray[] DynamicComboVariables { get; } = [];
-        public byte[] ConstantBufferBindInfoSlots { get; }
-        public byte[] ConstantBufferBindInfoFlags { get; }
+        public byte[] ConstantBufferBindInfoSlots { get; } = [];
+        public byte[] ConstantBufferBindInfoFlags { get; } = [];
         public int Flags0 { get; }
         public bool Flagbyte0 { get; }
         public byte Flagbyte1 { get; }
@@ -179,7 +177,7 @@ namespace ValveResourceFormat.CompiledShader
         }
         private void ReadVulkanSources(BinaryReader dataReader)
         {
-            var isMobile = ParentProgramData.VcsPlatformType is VcsPlatformType.ANDROID_VULKAN or VcsPlatformType.IOS_VULKAN;
+            var isMobile = ParentProgramData?.VcsPlatformType is VcsPlatformType.ANDROID_VULKAN or VcsPlatformType.IOS_VULKAN;
 
             for (var sourceId = 0; sourceId < ShaderFiles.Length; sourceId++)
             {

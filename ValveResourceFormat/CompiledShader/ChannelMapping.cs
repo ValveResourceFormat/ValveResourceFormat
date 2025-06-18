@@ -1,7 +1,5 @@
 using System.Linq;
 
-#nullable disable
-
 namespace ValveResourceFormat.CompiledShader
 {
     /// <summary>
@@ -132,10 +130,10 @@ namespace ValveResourceFormat.CompiledShader
         public static bool operator !=(ChannelMapping left, ChannelMapping right)
             => !left.Channels.SequenceEqual(right.Channels);
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
             => Equals(obj as ChannelMapping);
 
-        public bool Equals(ChannelMapping other)
+        public bool Equals(ChannelMapping? other)
             => other is not null && this == other;
 
         public override int GetHashCode()

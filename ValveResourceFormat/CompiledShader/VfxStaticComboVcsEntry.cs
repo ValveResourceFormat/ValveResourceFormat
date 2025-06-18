@@ -16,6 +16,8 @@ public class VfxStaticComboVcsEntry
     {
         // CVfxStaticComboData::Unserialize
         var dataReader = ParentProgramData.DataReader;
+        Debug.Assert(dataReader != null);
+
         dataReader.BaseStream.Position = FileOffset;
 
         var compressionTypeOrSize = dataReader.ReadInt32();

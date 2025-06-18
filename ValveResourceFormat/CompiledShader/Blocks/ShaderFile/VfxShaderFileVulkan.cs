@@ -3,8 +3,6 @@ using System.IO;
 
 namespace ValveResourceFormat.CompiledShader;
 
-#nullable disable
-
 public class VfxShaderFileVulkan : VfxShaderFile
 {
     public override string BlockName => "VULKAN";
@@ -12,7 +10,7 @@ public class VfxShaderFileVulkan : VfxShaderFile
     public int BytecodeSize { get; }
 
     public int Unknown1 { get; }
-    public byte[] Unknown2 { get; }
+    public byte[]? Unknown2 { get; }
 
     public short Unknown3 { get; }
     public short Unknown4 { get; }
@@ -28,24 +26,24 @@ public class VfxShaderFileVulkan : VfxShaderFile
     public ulong Unknown14 { get; }
     public ulong Unknown15 { get; }
     public short Unknown16 { get; }
-    public int[] Unknown17 { get; }
+    public int[]? Unknown17 { get; }
     public short Unknown18 { get; }
-    public ushort[] Unknown19 { get; }
+    public ushort[]? Unknown19 { get; }
     public int Unknown20 { get; }
     public int Unknown21 { get; }
     public int Unknown22 { get; }
     public short Unknown23 { get; }
-    public byte[] Unknown24 { get; }
+    public byte[]? Unknown24 { get; }
     public short Unknown25 { get; }
     public short Unknown26 { get; }
     public short Unknown27 { get; }
     public short Unknown28 { get; }
-    public int[] Unknown29 { get; }
+    public int[]? Unknown29 { get; }
     public uint Unknown30 { get; }
-    public int[] Unknown31 { get; }
+    public int[]? Unknown31 { get; }
     public short Unknown32 { get; }
     public byte Unknown33 { get; }
-    public byte[] Unknown34 { get; }
+    public byte[]? Unknown34 { get; }
 
     public VfxShaderFileVulkan(BinaryReader datareader, int sourceId, VfxStaticComboData parent, bool isMobile) : base(datareader, sourceId, parent)
     {

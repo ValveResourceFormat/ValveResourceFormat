@@ -3,23 +3,21 @@ using System.IO;
 using System.Text;
 using static ValveResourceFormat.CompiledShader.ShaderUtilHelpers;
 
-#nullable disable
-
 namespace ValveResourceFormat.CompiledShader
 {
     public class VfxProgramData : IDisposable
     {
         public const int MAGIC = 0x32736376; // "vcs2"
 
-        public BinaryReader DataReader { get; set; }
-        private Stream BaseStream;
+        public BinaryReader? DataReader { get; set; }
+        private Stream? BaseStream;
 
-        public string FilenamePath { get; private set; }
-        public string ShaderName { get; private set; }
+        public string? FilenamePath { get; private set; }
+        public string? ShaderName { get; private set; }
         public VcsProgramType VcsProgramType { get; private set; } = VcsProgramType.Undetermined;
         public VcsPlatformType VcsPlatformType { get; private set; } = VcsPlatformType.Undetermined;
         public VcsShaderModelType VcsShaderModelType { get; private set; } = VcsShaderModelType.Undetermined;
-        public FeaturesHeaderBlock FeaturesHeader { get; private set; }
+        public FeaturesHeaderBlock? FeaturesHeader { get; private set; }
         public int VcsVersion { get; private set; }
         public Guid FileHash { get; private set; }
         public VcsAdditionalFileFlags AdditionalFiles { get; private set; }
@@ -43,8 +41,8 @@ namespace ValveResourceFormat.CompiledShader
         // zframesLookup.ElementAt(zframeIndex). We also retrieve them based on their id using
         // zframesLookup[zframeId]. Both methods are useful in different contexts (be aware not to mix them up).
         public SortedDictionary<long, VfxStaticComboVcsEntry> StaticComboEntries { get; } = [];
-        public StaticCache StaticComboCache { get; private set; }
-        private ConfigMappingParams dBlockConfigGen;
+        public StaticCache? StaticComboCache { get; private set; }
+        private ConfigMappingParams? dBlockConfigGen;
 
         /// <summary>
         /// Releases binary reader.
@@ -109,7 +107,7 @@ namespace ValveResourceFormat.CompiledShader
             StaticComboCache = new StaticCache(this);
         }
 
-        public void PrintSummary(IndentedTextWriter outputWriter = null)
+        public void PrintSummary(IndentedTextWriter? outputWriter = null)
         {
             if (outputWriter == null)
             {
@@ -124,6 +122,9 @@ namespace ValveResourceFormat.CompiledShader
 
         private void VfxCreateFromVcs()
         {
+            Debug.Assert(DataReader != null);
+            Debug.Assert(FilenamePath != null);
+
             var vcsFileProperties = ComputeVCSFileName(FilenamePath);
             ShaderName = vcsFileProperties.ShaderName;
             VcsProgramType = vcsFileProperties.ProgramType;
@@ -185,6 +186,8 @@ namespace ValveResourceFormat.CompiledShader
 
         private void UnserializeVfxProgramData(int programTypesCount)
         {
+            Debug.Assert(DataReader != null);
+
             if (VcsProgramType == VcsProgramType.Features)
             {
                 FeaturesHeader = new FeaturesHeaderBlock(DataReader, programTypesCount);
@@ -338,6 +341,7 @@ namespace ValveResourceFormat.CompiledShader
 
         public int[] GetDBlockConfig(long blockId)
         {
+            Debug.Assert(dBlockConfigGen != null);
             return dBlockConfigGen.GetConfigState(blockId);
         }
 
