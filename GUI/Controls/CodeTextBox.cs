@@ -196,7 +196,7 @@ namespace GUI.Controls
                 ReadOnly = true,
                 Multiline = true,
                 WordWrap = false,
-                Text = text,
+                Text = text.ReplaceLineEndings(),
                 Dock = DockStyle.Fill,
                 ScrollBars = ScrollBars.Both,
                 BorderStyle = BorderStyle.None,
