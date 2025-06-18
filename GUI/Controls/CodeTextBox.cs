@@ -132,7 +132,7 @@ namespace GUI.Controls
 
         public static Control Create(string text, HighlightLanguage language = HighlightLanguage.KeyValues)
         {
-            const int MaxLengthForCodeBox = 512 * 1024 * 1024;
+            const int MaxLengthForCodeBox = 50 * 1024 * 1024;
 
             // https://github.com/ValveResourceFormat/ValveResourceFormat/issues/840
             if (text.Length > MaxLengthForCodeBox)
