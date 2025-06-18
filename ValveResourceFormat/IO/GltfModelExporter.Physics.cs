@@ -90,7 +90,7 @@ public partial class GltfModelExporter
                     }
                     else
                     {
-                        meshName = GetPhysicsMeshName(collisionAttributes[collisionAttrIndex], collisionAttrIndex, surfaceProperty);
+                        meshName = GetPhysicsMeshName(collisionAttributes[collisionAttrIndex], surfaceProperty);
                     }
 
                     var gltfMesh = CreatePhysicsMesh(exportedModel, meshName, combinedVerts, combinedNormals, combinedUvs, combinedIndices,
@@ -98,6 +98,12 @@ public partial class GltfModelExporter
                     var node = scene.CreateNode(meshName);
                     node.Mesh = gltfMesh;
                     node.WorldMatrix = transform * TRANSFORMSOURCETOGLTF;
+
+                    node.Extras = new System.Text.Json.Nodes.JsonObject
+                    {
+                        ["SurfaceProperty"] = surfaceProperty,
+                        ["InteractAs"] = System.Text.Json.JsonSerializer.SerializeToNode(collisionAttributes[collisionAttrIndex].GetArray<string>("m_InteractAsStrings")),
+                    };
                 }
             }
         }
@@ -195,12 +201,12 @@ public partial class GltfModelExporter
         indices.Add(baseIndex + 2);
     }
 
-    private static string GetPhysicsMeshName(KVObject attributes, int collisionAttributeIndex)
+    private static string GetPhysicsMeshName(KVObject attributes, string surfacePropertyName)
     {
         var tags = attributes.GetArray<string>("m_InteractAsStrings") ?? attributes.GetArray<string>("m_PhysicsTagStrings");
         var group = attributes.GetStringProperty("m_CollisionGroupString");
 
-        var meshName = $"physics_group_{collisionAttributeIndex}";
+        var meshName = "physics_group";
         if (group != null && !group.Equals("default", StringComparison.OrdinalIgnoreCase))
         {
             meshName = $"physics_{group}";
@@ -210,19 +216,12 @@ public partial class GltfModelExporter
             meshName = $"physics_{string.Join("_", tags)}";
         }
 
-        return meshName;
-    }
-
-    private static string GetPhysicsMeshName(KVObject attributes, int collisionAttributeIndex, string surfacePropertyName)
-    {
-        var baseName = GetPhysicsMeshName(attributes, collisionAttributeIndex);
-
         if (!string.IsNullOrEmpty(surfacePropertyName) && !surfacePropertyName.Equals("default", StringComparison.OrdinalIgnoreCase))
         {
-            return $"{baseName}_{surfacePropertyName}";
+            return $"{meshName}_{surfacePropertyName}";
         }
 
-        return baseName;
+        return meshName;
     }
 
     private static Vector3 ComputeNormal(Vector3 a, Vector3 b, Vector3 c)
