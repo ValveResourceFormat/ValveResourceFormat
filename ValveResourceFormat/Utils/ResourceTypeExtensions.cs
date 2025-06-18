@@ -2,8 +2,6 @@ using System.Linq;
 using System.Reflection;
 using ValveResourceFormat.IO;
 
-#nullable disable
-
 namespace ValveResourceFormat;
 
 public static class ResourceTypeExtensions
@@ -13,7 +11,7 @@ public static class ResourceTypeExtensions
     /// </summary>
     /// <param name="value">Resource type.</param>
     /// <returns>Extension type string.</returns>
-    public static string GetExtension(this ResourceType value)
+    public static string? GetExtension(this ResourceType value)
     {
         if (value == ResourceType.Unknown)
         {
@@ -23,14 +21,14 @@ public static class ResourceTypeExtensions
         var intValue = (int)value;
         var field = typeof(ResourceType)
             .GetFields(BindingFlags.Public | BindingFlags.Static)
-            .FirstOrDefault(f => (int)f.GetRawConstantValue() == intValue);
+            .FirstOrDefault(f => (int)(f.GetRawConstantValue() ?? 0) == intValue);
 
         return field?.GetCustomAttribute<ExtensionAttribute>(inherit: false)?.Extension;
     }
 
-    internal static ResourceType DetermineByFileExtension(string extension)
+    internal static ResourceType DetermineByFileExtension(ReadOnlySpan<char> extension)
     {
-        if (string.IsNullOrEmpty(extension))
+        if (extension.IsEmpty)
         {
             return ResourceType.Unknown;
         }
@@ -43,9 +41,9 @@ public static class ResourceTypeExtensions
         {
             var fieldExtension = field.GetCustomAttribute<ExtensionAttribute>(inherit: false)?.Extension;
 
-            if (fieldExtension == extension)
+            if (MemoryExtensions.Equals(fieldExtension, extension, StringComparison.Ordinal) && field.GetValue(null) is { } fieldType)
             {
-                return (ResourceType)field.GetValue(null);
+                return (ResourceType)fieldType;
             }
         }
 

@@ -1,8 +1,7 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Text;
-
-#nullable disable
 
 namespace ValveResourceFormat
 {
@@ -37,6 +36,7 @@ namespace ValveResourceFormat
         /// Gets or sets the new line character to use.
         /// </summary>
         /// <returns> The new line character to use. </returns>
+        [AllowNull]
         public override string NewLine
         {
             get { return writer.NewLine; }
@@ -119,7 +119,7 @@ namespace ValveResourceFormat
         /// Writes the specified string to the text stream.
         /// </summary>
         /// <param name="value"> The string to write. </param>
-        public override void Write(string value)
+        public override void Write(string? value)
         {
             OutputTabs();
             writer.Write(value);
@@ -149,7 +149,7 @@ namespace ValveResourceFormat
         /// Writes a character array to the text stream.
         /// </summary>
         /// <param name="buffer"> The character array to write. </param>
-        public override void Write(char[] buffer)
+        public override void Write(char[]? buffer)
         {
             OutputTabs();
             writer.Write(buffer);
@@ -211,7 +211,7 @@ namespace ValveResourceFormat
         /// Writes the text representation of an object to the text stream.
         /// </summary>
         /// <param name="value"> The object to write. </param>
-        public override void Write(object value)
+        public override void Write(object? value)
         {
             OutputTabs();
             writer.Write(value);
@@ -222,7 +222,7 @@ namespace ValveResourceFormat
         /// </summary>
         /// <param name="format"> The formatting string. </param>
         /// <param name="arg0"> The object to write into the formatted string. </param>
-        public override void Write(string format, object arg0)
+        public override void Write([StringSyntax(StringSyntaxAttribute.CompositeFormat)] string format, object? arg0)
         {
             OutputTabs();
             writer.Write(format, arg0);
@@ -234,7 +234,7 @@ namespace ValveResourceFormat
         /// <param name="format"> The formatting string to use. </param>
         /// <param name="arg0"> The first object to write into the formatted string. </param>
         /// <param name="arg1"> The second object to write into the formatted string. </param>
-        public override void Write(string format, object arg0, object arg1)
+        public override void Write([StringSyntax(StringSyntaxAttribute.CompositeFormat)] string format, object? arg0, object? arg1)
         {
             OutputTabs();
             writer.Write(format, arg0, arg1);
@@ -245,7 +245,7 @@ namespace ValveResourceFormat
         /// </summary>
         /// <param name="format"> The formatting string to use. </param>
         /// <param name="arg"> The argument array to output. </param>
-        public override void Write(string format, params object[] arg)
+        public override void Write([StringSyntax(StringSyntaxAttribute.CompositeFormat)] string format, params object?[] arg)
         {
             OutputTabs();
             writer.Write(format, arg);
@@ -264,7 +264,7 @@ namespace ValveResourceFormat
         /// Writes the specified string, followed by a line terminator, to the text stream.
         /// </summary>
         /// <param name="value"> The string to write. </param>
-        public override void WriteLine(string value)
+        public override void WriteLine(string? value)
         {
             OutputTabs();
             writer.WriteLine(value);
@@ -307,7 +307,7 @@ namespace ValveResourceFormat
         /// Writes a character array, followed by a line terminator, to the text stream.
         /// </summary>
         /// <param name="buffer"> The character array to write. </param>
-        public override void WriteLine(char[] buffer)
+        public override void WriteLine(char[]? buffer)
         {
             OutputTabs();
             writer.WriteLine(buffer);
@@ -375,7 +375,7 @@ namespace ValveResourceFormat
         /// Writes the text representation of an object, followed by a line terminator, to the text stream.
         /// </summary>
         /// <param name="value"> The object to write. </param>
-        public override void WriteLine(object value)
+        public override void WriteLine(object? value)
         {
             OutputTabs();
             writer.WriteLine(value);
@@ -387,7 +387,7 @@ namespace ValveResourceFormat
         /// </summary>
         /// <param name="format"> The formatting string. </param>
         /// <param name="arg0"> The object to write into the formatted string. </param>
-        public override void WriteLine(string format, object arg0)
+        public override void WriteLine([StringSyntax(StringSyntaxAttribute.CompositeFormat)] string format, object? arg0)
         {
             OutputTabs();
             writer.WriteLine(format, arg0);
@@ -400,7 +400,7 @@ namespace ValveResourceFormat
         /// <param name="format"> The formatting string to use. </param>
         /// <param name="arg0"> The first object to write into the formatted string. </param>
         /// <param name="arg1"> The second object to write into the formatted string. </param>
-        public override void WriteLine(string format, object arg0, object arg1)
+        public override void WriteLine([StringSyntax(StringSyntaxAttribute.CompositeFormat)] string format, object? arg0, object? arg1)
         {
             OutputTabs();
             writer.WriteLine(format, arg0, arg1);
@@ -412,7 +412,7 @@ namespace ValveResourceFormat
         /// </summary>
         /// <param name="format"> The formatting string to use. </param>
         /// <param name="arg"> The argument array to output. </param>
-        public override void WriteLine(string format, params object[] arg)
+        public override void WriteLine([StringSyntax(StringSyntaxAttribute.CompositeFormat)] string format, params object?[] arg)
         {
             OutputTabs();
             writer.WriteLine(format, arg);
