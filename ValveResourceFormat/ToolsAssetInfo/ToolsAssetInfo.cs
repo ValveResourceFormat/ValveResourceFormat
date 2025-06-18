@@ -19,7 +19,10 @@ namespace ValveResourceFormat.ToolsAssetInfo
             public readonly struct SearchPath
             {
                 public string Filename { get; init; }
-                public byte[] UnknownBits { get; init; }
+
+                // Valve reads them as 16 bytes
+                public ulong UnknownBits1 { get; init; }
+                public ulong UnknownBits2 { get; init; }
             }
 
             public struct SpecialDependency
@@ -197,12 +200,16 @@ namespace ValveResourceFormat.ToolsAssetInfo
                     while (count-- > 0)
                     {
                         var hash = reader.ReadUInt64();
-                        var unk = reader.ReadBytes(16); // packed bytes of multiple bits of info, what are they?
+
+                        // packed bytes of multiple bits of info, what are they?
+                        var unk1 = reader.ReadUInt64();
+                        var unk2 = reader.ReadUInt64();
 
                         var searchPath = new File.SearchPath
                         {
                             Filename = ConstructFilePath(hash),
-                            UnknownBits = unk,
+                            UnknownBits1 = unk1,
+                            UnknownBits2 = unk2,
                         };
 
                         switch (searchPathType)
