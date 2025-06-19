@@ -166,8 +166,6 @@ namespace GUI.Types.PackageViewer
                     archiveEntries.Sort((a, b) => a.Offset.CompareTo(b.Offset));
                 }
 
-                var matches = new HashSet<PackageEntry>();
-
                 if (sortedEntriesPerArchive.TryGetValue(0x7FFF, out var sortedEntriesInDirVpk))
                 {
                     var fileName = $"{VrfGuiContext.CurrentPackage.FileName}{(VrfGuiContext.CurrentPackage.IsDirVPK ? "_dir" : "")}.vpk";
@@ -175,11 +173,12 @@ namespace GUI.Types.PackageViewer
                     progressDialog.SetProgress($"Searching '{fileName}'");
 
                     var archiveMatches = SearchForContentsInFile(fileName, pattern, sortedEntriesInDirVpk);
-                    matches.UnionWith(archiveMatches);
+                    results.AddRange(archiveMatches);
                 }
 
                 if (maxArchiveIndex > -1)
                 {
+                    var matches = new HashSet<PackageEntry>();
                     var archivesScanned = 0;
 
                     Parallel.For(
@@ -197,26 +196,27 @@ namespace GUI.Types.PackageViewer
 
                             if (archiveMatches.Count > 0)
                             {
-                                lock (archiveMatches)
+                                lock (matches)
                                 {
-                                    matches.UnionWith(archiveMatches);
+                                    foreach (var match in archiveMatches)
+                                    {
+                                        if (matches.Add(match))
+                                        {
+                                            results.Add(match);
+                                        }
+                                    }
                                 }
                             }
 
                             Interlocked.Increment(ref archivesScanned);
-                            progressDialog.SetProgress($"Searched {archivesScanned} vpks out of {maxArchiveIndex}, found {matches.Count} matches so far");
+                            progressDialog.SetProgress($"Searched {archivesScanned} vpks out of {maxArchiveIndex}, found {results.Count} matches so far");
                         }
                     );
                 }
 
-                Log.Info(nameof(BetterTreeView), $"Found {matches.Count} matches");
+                Log.Info(nameof(BetterTreeView), $"Found {results.Count} matches");
 
-                progressDialog.SetProgress($"Found {matches.Count} matches");
-
-                foreach (var file in matches)
-                {
-                    results.Add(file);
-                }
+                progressDialog.SetProgress($"Found {results.Count} matches");
             };
             progressDialog.ShowDialog();
         }
