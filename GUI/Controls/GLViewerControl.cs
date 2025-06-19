@@ -450,7 +450,7 @@ namespace GUI.Controls
             // Application semantics / default state
             GL.Enable(EnableCap.TextureCubeMapSeamless);
             GL.Enable(EnableCap.CullFace);
-            GL.CullFace(CullFaceMode.Back);
+            GL.CullFace(TriangleFace.Back);
             GL.Enable(EnableCap.DepthTest);
 
             // reverse z

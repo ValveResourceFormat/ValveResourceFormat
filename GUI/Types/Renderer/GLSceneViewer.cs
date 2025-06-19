@@ -445,7 +445,7 @@ namespace GUI.Types.Renderer
             // TODO+: replace wireframe shaders with solid color
             if (IsWireframe)
             {
-                GL.PolygonMode(MaterialFace.FrontAndBack, PolygonMode.Line);
+                GL.PolygonMode(TriangleFace.FrontAndBack, PolygonMode.Line);
             }
 
             GL.DepthRange(0.05, 1);
@@ -517,7 +517,7 @@ namespace GUI.Types.Renderer
 
             if (IsWireframe)
             {
-                GL.PolygonMode(MaterialFace.FrontAndBack, PolygonMode.Fill);
+                GL.PolygonMode(TriangleFace.FrontAndBack, PolygonMode.Fill);
             }
         }
 
