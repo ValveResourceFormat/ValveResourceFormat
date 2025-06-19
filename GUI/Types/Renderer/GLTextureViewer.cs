@@ -7,6 +7,7 @@ using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
+using OpenTK.Mathematics;
 using SkiaSharp;
 using Svg.Skia;
 using ValveResourceFormat;
@@ -51,9 +52,9 @@ namespace GUI.Types.Renderer
         private SKBitmap NextBitmapToSet;
         private int NextBitmapVersion;
 
-        private Vector2? ClickPosition;
-        private Vector2 Position;
-        private Vector2 PositionOld;
+        private System.Numerics.Vector2? ClickPosition;
+        private System.Numerics.Vector2 Position;
+        private System.Numerics.Vector2 PositionOld;
         private float TextureScale = 1f;
         private float TextureScaleOld = 1f;
         private float TextureScaleChangeTime = 10f;
@@ -77,17 +78,17 @@ namespace GUI.Types.Renderer
 
         private int DisplayedImageCount => Math.Max(1 << (int)ChannelSplitMode, VisualizeTiling ? 2 : 1);
 
-        private Vector2 ActualTextureSize
+        private System.Numerics.Vector2 ActualTextureSize
         {
             get
             {
-                var size = new Vector2(OriginalWidth, OriginalHeight);
+                var size = new System.Numerics.Vector2(OriginalWidth, OriginalHeight);
 
                 size *= CubemapProjectionType switch
                 {
-                    CubemapProjection.Equirectangular => new Vector2(4, 2),
-                    CubemapProjection.Cubic => new Vector2(4, 3),
-                    _ => new Vector2(1, 1),
+                    CubemapProjection.Equirectangular => new System.Numerics.Vector2(4, 2),
+                    CubemapProjection.Cubic => new System.Numerics.Vector2(4, 3),
+                    _ => new System.Numerics.Vector2(1, 1),
                 };
 
                 if (VisualizeTiling)
@@ -98,8 +99,8 @@ namespace GUI.Types.Renderer
                 if (ChannelSplitMode > 0)
                 {
                     var mult = OriginalWidth > OriginalHeight
-                        ? new Vector2(1, DisplayedImageCount)
-                        : new Vector2(DisplayedImageCount, 1);
+                        ? new System.Numerics.Vector2(1, DisplayedImageCount)
+                        : new System.Numerics.Vector2(DisplayedImageCount, 1);
 
                     size *= mult;
                 }
@@ -108,7 +109,7 @@ namespace GUI.Types.Renderer
             }
         }
 
-        private Vector2 ActualTextureSizeScaled => ActualTextureSize * TextureScale;
+        private System.Numerics.Vector2 ActualTextureSizeScaled => ActualTextureSize * TextureScale;
         private bool IsZoomedIn;
         private bool MovedFromOrigin_Unzoomed;
 
@@ -439,7 +440,7 @@ namespace GUI.Types.Renderer
         }
 
         /// <param name="oldTextureSize">The texture size before changing viewer state.</param>
-        private void TextureDimensionsChanged(Vector2 oldTextureSize)
+        private void TextureDimensionsChanged(System.Numerics.Vector2 oldTextureSize)
         {
             TextureScaleChangeTime = 0f;
             TextureScaleOld = TextureScale;
@@ -667,10 +668,10 @@ namespace GUI.Types.Renderer
                 var move = 10f * TextureScale;
                 var delta = e.KeyCode switch
                 {
-                    Keys.Up => new Vector2(0, -move),
-                    Keys.Down => new Vector2(0, move),
-                    Keys.Left => new Vector2(-move, 0),
-                    Keys.Right => new Vector2(move, 0),
+                    Keys.Up => new System.Numerics.Vector2(0, -move),
+                    Keys.Down => new System.Numerics.Vector2(0, move),
+                    Keys.Left => new System.Numerics.Vector2(-move, 0),
+                    Keys.Right => new System.Numerics.Vector2(move, 0),
                     _ => throw new NotImplementedException(),
                 };
 
@@ -696,7 +697,7 @@ namespace GUI.Types.Renderer
             }
 
             var oldPosition = Position;
-            var mousePosition = new Vector2(e.Location.X, e.Location.Y);
+            var mousePosition = new System.Numerics.Vector2(e.Location.X, e.Location.Y);
 
             Position = ClickPosition.Value - mousePosition;
 
@@ -712,7 +713,7 @@ namespace GUI.Types.Renderer
 
         protected override void OnMouseDown(object sender, MouseEventArgs e)
         {
-            ClickPosition = Position + new Vector2(e.Location.X, e.Location.Y);
+            ClickPosition = Position + new System.Numerics.Vector2(e.Location.X, e.Location.Y);
         }
 
         protected override void OnMouseUp(object sender, MouseEventArgs mouseEventArgs)
@@ -735,12 +736,12 @@ namespace GUI.Types.Renderer
                 TextureScale *= 1.25f;
             }
 
-            var scaleMinMax = new Vector2(0.1f, 50f);
+            var scaleMinMax = new System.Numerics.Vector2(0.1f, 50f);
             scaleMinMax *= 256 / MathF.Max(ActualTextureSize.X, ActualTextureSize.Y);
 
             TextureScale = Math.Clamp(TextureScale, scaleMinMax.X, scaleMinMax.Y);
 
-            var pos = new Vector2(e.Location.X, e.Location.Y);
+            var pos = new System.Numerics.Vector2(e.Location.X, e.Location.Y);
             var posPrev = (pos + PositionOld) / TextureScaleOld;
             var posNewScale = posPrev * TextureScale;
             Position = posNewScale - pos;
@@ -806,7 +807,7 @@ namespace GUI.Types.Renderer
 
         private void CenterPosition()
         {
-            Position = -new Vector2(
+            Position = -new System.Numerics.Vector2(
                 GLControl.Width / 2f - ActualTextureSizeScaled.X / 2f,
                 GLControl.Height / 2f - ActualTextureSizeScaled.Y / 2f
             );
@@ -974,7 +975,7 @@ namespace GUI.Types.Renderer
                 MainFramebuffer = GLDefaultFramebuffer;
             }
 
-            MainFramebuffer.ClearColor = OpenTK.Graphics.Color4.White;
+            MainFramebuffer.ClearColor = Color4.White;
             MainFramebuffer.ClearMask = ClearBufferMask.ColorBufferBit;
 
             GLLoad -= OnLoad;
@@ -1080,10 +1081,10 @@ namespace GUI.Types.Renderer
 
             shader.SetUniform1("g_bTextureViewer", true);
             shader.SetUniform1("g_bShowLightBackground", ShowLightBackground);
-            shader.SetUniform2("g_vViewportSize", new Vector2(fbo.Width, fbo.Height));
+            shader.SetUniform2("g_vViewportSize", new System.Numerics.Vector2(fbo.Width, fbo.Height));
 
             var (scale, position) = captureFullSizeImage
-                ? (1f, Vector2.Zero)
+                ? (1f, System.Numerics.Vector2.Zero)
                 : GetCurrentPositionAndScale();
 
             shader.SetUniform1("g_bCapturingScreenshot", captureFullSizeImage);
@@ -1091,7 +1092,7 @@ namespace GUI.Types.Renderer
             shader.SetUniform1("g_flScale", scale);
 
             shader.SetTexture(0, "g_tInputTexture", texture);
-            shader.SetUniform4("g_vInputTextureSize", new Vector4(OriginalWidth, OriginalHeight, texture.Depth, texture.NumMipLevels));
+            shader.SetUniform4("g_vInputTextureSize", new System.Numerics.Vector4(OriginalWidth, OriginalHeight, texture.Depth, texture.NumMipLevels));
             shader.SetUniform1("g_nSelectedMip", SelectedMip);
             shader.SetUniform1("g_nSelectedDepth", SelectedDepth);
             shader.SetUniform1("g_nSelectedCubeFace", SelectedCubeFace);
@@ -1105,12 +1106,12 @@ namespace GUI.Types.Renderer
             GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
         }
 
-        private (float Scale, Vector2 Position) GetCurrentPositionAndScale()
+        private (float Scale, System.Numerics.Vector2 Position) GetCurrentPositionAndScale()
         {
             var time = Math.Min(TextureScaleChangeTime / 0.4f, 1.0f);
             time = 1f - MathF.Pow(1f - time, 5f); // easeOutQuint
 
-            var position = Vector2.Lerp(PositionOld, Position, time);
+            var position = System.Numerics.Vector2.Lerp(PositionOld, Position, time);
             var scale = float.Lerp(TextureScaleOld, TextureScale, time);
 
             return (scale, position);

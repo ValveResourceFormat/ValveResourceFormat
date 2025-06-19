@@ -3,9 +3,9 @@ using System.Diagnostics;
 using System.Threading;
 using GUI.Controls;
 using GUI.Utils;
-using OpenTK;
-using OpenTK.Graphics;
+using OpenTK.GLControl;
 using OpenTK.Graphics.OpenGL;
+using OpenTK.Windowing.Common;
 using SkiaSharp;
 using ValveResourceFormat;
 using ValveResourceFormat.CompiledShader;
@@ -129,7 +129,19 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
 
     private void Initialize()
     {
-        GLControl = new GLControl(new GraphicsMode(new ColorFormat(8, 8, 8, 8)), GLViewerControl.OpenGlVersionMajor, GLViewerControl.OpenGlVersionMinor, GraphicsContextFlags.Offscreen);
+        var controlSettings = new GLControlSettings()
+        {
+            APIVersion = new Version(GLViewerControl.OpenGlVersionMajor, GLViewerControl.OpenGlVersionMinor),
+            Flags = ContextFlags.Offscreen,
+            DepthBits = 8,
+            StencilBits = 8,
+            NumberOfSamples = 8,
+            RedBits = 8,
+            GreenBits = 8,
+            BlueBits = 8,
+            AlphaBits = 8,
+        };
+        GLControl = new GLControl(controlSettings);
         GLControl.MakeCurrent();
 
         GLViewerControl.CheckOpenGL();

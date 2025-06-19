@@ -1,6 +1,7 @@
 using System.Reflection;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
+using OpenTK.Mathematics;
 using SkiaSharp;
 using ValveResourceFormat;
 
@@ -59,10 +60,10 @@ namespace GUI.Types.Renderer
             resource.Read(stream);
 
             var texture = Scene.GuiContext.MaterialLoader.LoadTexture(resource);
-            var environmentMap = new SceneEnvMap(Scene, new AABB(new Vector3(float.MinValue), new Vector3(float.MaxValue)))
+            var environmentMap = new SceneEnvMap(Scene, new AABB(new System.Numerics.Vector3(float.MinValue), new System.Numerics.Vector3(float.MaxValue)))
             {
                 Transform = Matrix4x4.Identity,
-                EdgeFadeDists = Vector3.Zero,
+                EdgeFadeDists = System.Numerics.Vector3.Zero,
                 HandShake = 0,
                 ProjectionMode = 0,
                 EnvMapTexture = texture,
@@ -76,16 +77,16 @@ namespace GUI.Types.Renderer
             UpdateSunAngles();
         }
 
-        Vector2 defaultSunAngles = new(80f, 170f);
-        Vector4 defaultSunColor = new Vector4(255, 247, 235, 700) / 255.0f;
+        System.Numerics.Vector2 defaultSunAngles = new(80f, 170f);
+        System.Numerics.Vector4 defaultSunColor = new System.Numerics.Vector4(255, 247, 235, 700) / 255.0f;
 
-        Vector2 sunAngles;
+        System.Numerics.Vector2 sunAngles;
 
         protected override void OnPaint(object sender, RenderEventArgs e)
         {
             if ((CurrentlyPressedKeys & TrackedKeys.Control) != 0)
             {
-                var delta = new Vector2(LastMouseDelta.Y, LastMouseDelta.X);
+                var delta = new System.Numerics.Vector2(LastMouseDelta.Y, LastMouseDelta.X);
 
                 sunAngles += delta;
                 Scene.LightingInfo.LightingData.EnvMapWorldToLocal[0] *= Matrix4x4.CreateRotationZ(-delta.Y / 80f);
@@ -113,7 +114,7 @@ namespace GUI.Types.Renderer
             var (w, h) = (MainFramebuffer.Width, MainFramebuffer.Height);
 
             MainFramebuffer.Bind(FramebufferTarget.Framebuffer);
-            GL.ClearColor(new OpenTK.Graphics.Color4(0, 0, 0, 0));
+            GL.ClearColor(new Color4(0, 0, 0, 0));
             GL.Clear(MainFramebuffer.ClearMask);
 
             DrawMainScene();
@@ -121,7 +122,7 @@ namespace GUI.Types.Renderer
             if (SaveAsFbo == null)
             {
                 SaveAsFbo = Framebuffer.Prepare(w, h, 0, new(PixelInternalFormat.Rgba8, PixelFormat.Bgra, PixelType.UnsignedByte), null);
-                SaveAsFbo.ClearColor = new OpenTK.Graphics.Color4(0, 0, 0, 0);
+                SaveAsFbo.ClearColor = new Color4(0, 0, 0, 0);
                 SaveAsFbo.Initialize();
             }
             else

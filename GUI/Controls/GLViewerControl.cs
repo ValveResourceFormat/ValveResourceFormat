@@ -5,9 +5,9 @@ using System.Linq;
 using System.Windows.Forms;
 using GUI.Types.Renderer;
 using GUI.Utils;
-using OpenTK;
-using OpenTK.Graphics;
+using OpenTK.GLControl;
 using OpenTK.Graphics.OpenGL;
+using OpenTK.Windowing.Common;
 using SkiaSharp;
 using static GUI.Types.Renderer.PickingTexture;
 using WinFormsMouseEventArgs = System.Windows.Forms.MouseEventArgs;
@@ -72,13 +72,25 @@ namespace GUI.Controls
             Camera = new Camera();
 
             // Initialize GL control
-            var flags = GraphicsContextFlags.ForwardCompatible;
+            var flags = ContextFlags.ForwardCompatible;
 
 #if DEBUG
-            flags |= GraphicsContextFlags.Debug;
+            flags |= ContextFlags.Debug;
 #endif
 
-            GLControl = new GLControl(new GraphicsMode(32, 1, 0, 0, 0, 2), OpenGlVersionMajor, OpenGlVersionMinor, flags)
+            var controlSettings = new GLControlSettings()
+            {
+                APIVersion = new Version(OpenGlVersionMajor, OpenGlVersionMinor),
+                Flags = flags,
+                DepthBits = 1,
+                StencilBits = 0,
+                NumberOfSamples = 0,
+                RedBits = 32,
+                GreenBits = 32,
+                BlueBits = 32,
+                AlphaBits = 32,
+            };
+            GLControl = new GLControl(controlSettings)
             {
                 Dock = DockStyle.Fill
             };
@@ -404,7 +416,8 @@ namespace GUI.Controls
         {
             GLControl.Load -= OnLoad;
             GLControl.MakeCurrent();
-            GLControl.VSync = Settings.Config.Vsync != 0;
+            // not supported in OpenTK.GLControl 4: https://github.com/opentk/GLControl/issues/36
+            // GLControl.VSync = Settings.Config.Vsync != 0;
 
             GL.Enable(EnableCap.DebugOutput);
             GL.DebugMessageCallback(OpenGLDebugMessageDelegate, IntPtr.Zero);
