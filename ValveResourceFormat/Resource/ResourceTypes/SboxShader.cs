@@ -41,12 +41,13 @@ namespace ValveResourceFormat.ResourceTypes
 
             var shaderName = Path.GetFileNameWithoutExtension(Resource.FileName) ?? string.Empty;
             var shaderModelType = VcsShaderModelType._50;
-            var platformType = Type switch
+
+            if (Type != BlockType.SPRV)
             {
-                BlockType.DATA or BlockType.DXBC => VcsPlatformType.PC,
-                BlockType.SPRV => VcsPlatformType.VULKAN,
-                _ => throw new InvalidDataException($"Unable to read {nameof(SboxShader)} constructed with an unknown block type: {Type}"),
-            };
+                throw new InvalidDataException($"Unable to read {nameof(SboxShader)} constructed with an unknown block type: {Type}");
+            }
+
+            var platformType = VcsPlatformType.VULKAN;
 
             string GetVcsCompatibleFileName(VcsProgramType programType)
             {

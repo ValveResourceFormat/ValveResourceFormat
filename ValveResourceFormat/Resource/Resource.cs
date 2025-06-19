@@ -380,7 +380,6 @@ namespace ValveResourceFormat
                 BlockType.ASEQ => new KeyValuesOrNTRO(BlockType.ASEQ, "SequenceGroupResourceData_t"),
                 BlockType.AGRP => new KeyValuesOrNTRO(BlockType.AGRP, "AnimationGroupResourceData_t"),
                 BlockType.PHYS => new PhysAggregateData(BlockType.PHYS),
-                BlockType.DXBC => new SboxShader(BlockType.DXBC),
                 BlockType.SPRV => new SboxShader(BlockType.SPRV),
                 _ => throw new ArgumentException($"Unrecognized block type '{Encoding.ASCII.GetString(BitConverter.GetBytes((uint)blockType))}'"),
             };
