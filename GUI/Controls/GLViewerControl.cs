@@ -416,8 +416,8 @@ namespace GUI.Controls
         {
             GLControl.Load -= OnLoad;
             GLControl.MakeCurrent();
-            // not supported in OpenTK.GLControl 4: https://github.com/opentk/GLControl/issues/36
-            // GLControl.VSync = Settings.Config.Vsync != 0;
+            // Vsync is not currently supported through an attribute in OpenTK.GLControl 4: https://github.com/opentk/GLControl/issues/36
+            GLControl.Context.SwapInterval = (Settings.Config.Vsync != 0) ? 1 : 0;
 
             GL.Enable(EnableCap.DebugOutput);
             GL.DebugMessageCallback(OpenGLDebugMessageDelegate, IntPtr.Zero);
