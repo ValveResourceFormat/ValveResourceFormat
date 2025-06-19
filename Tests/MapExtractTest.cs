@@ -68,5 +68,26 @@ namespace Tests
             Assert.That(contentFile, Is.Not.Null);
             Assert.That(contentFile.Data, Is.Not.Null);
         }
+
+        [Test]
+        public void TestMapExtractFromVpkWithPhys()
+        {
+            var vpkPath = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "dota_riverflow_fx.vpk");
+
+            using var package = new Package();
+            package.Read(vpkPath);
+
+            using var loader = new GameFileLoader(package, vpkPath);
+
+            using var worldResource = loader.LoadFile("maps/prefabs/dota_riverflow_fx.vmap_c");
+
+            var extract = new MapExtract(worldResource!, loader);
+
+            extract.ToValveMap();
+
+            var contentFile = extract.ToContentFile();
+            Assert.That(contentFile, Is.Not.Null);
+            Assert.That(contentFile.Data, Is.Not.Null);
+        }
     }
 }

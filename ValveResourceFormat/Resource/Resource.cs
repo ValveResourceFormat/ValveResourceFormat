@@ -477,6 +477,7 @@ namespace ValveResourceFormat
                 "ResponseRules" => ResourceType.ResponseRules,
                 "SBData" or "ManagedResourceCompiler" => ResourceType.SboxManagedResource,
                 "SmartProp" => ResourceType.SmartProp,
+                "TypeScript" => ResourceType.PanoramaTypescript,
                 "VCompMat" => ResourceType.CompositeMaterial,
                 "VData" => ResourceType.VData,
                 "VectorGraphic" => ResourceType.PanoramaVectorGraphic,

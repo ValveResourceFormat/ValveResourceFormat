@@ -17,6 +17,7 @@ namespace Tests
             Assert.Multiple(() =>
             {
                 Assert.That(captions.Captions, Has.Count.EqualTo(840));
+                Assert.That(captions.ToString(), Has.Length.GreaterThan(1000));
 
                 var caption = captions.Captions[839];
                 Assert.That(caption.Blocknum, Is.EqualTo(4));

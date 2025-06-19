@@ -97,7 +97,7 @@ namespace Tests
 
                 resource.Read(ms);
 
-                Assert.That(resource.DataBlock, Is.Not.TypeOf<ResourceData>());
+                Assert.That(resource.DataBlock, Is.Not.TypeOf<ResourceData>(), file);
             }
         }
 
@@ -119,7 +119,7 @@ namespace Tests
                 using var fs = new FileStream(file, FileMode.Open, FileAccess.Read);
                 resource.Read(fs);
 
-                Assert.That(resource.DataBlock, Is.Not.TypeOf<ResourceData>());
+                Assert.That(resource.DataBlock, Is.Not.TypeOf<ResourceData>(), file);
             }
         }
 

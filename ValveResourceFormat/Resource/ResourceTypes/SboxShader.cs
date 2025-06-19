@@ -39,8 +39,7 @@ namespace ValveResourceFormat.ResourceTypes
                 shaderFiles[i].Size = reader.ReadUInt32();
             }
 
-            var shaderName = Path.GetFileNameWithoutExtension(Resource.FileName);
-            Debug.Assert(shaderName != null);
+            var shaderName = Path.GetFileNameWithoutExtension(Resource.FileName) ?? string.Empty;
             var shaderModelType = VcsShaderModelType._50;
             var platformType = Type switch
             {
