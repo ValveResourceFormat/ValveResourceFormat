@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net9.0-windows</TargetFramework>
@@ -27,10 +27,10 @@
     <PackageReference Include="NAudio" Version="2.2.1" />
     <PackageReference Include="NLayer" Version="1.16.0" />
     <PackageReference Include="NLayer.NAudioSupport" Version="1.4.0" />
-    <PackageReference Include="OpenTK" Version="3.3.3">
+    <PackageReference Include="OpenTK" Version="4.9.4">
         <NoWarn>NU1701</NoWarn>
     </PackageReference>
-    <PackageReference Include="OpenTK.GLControl" Version="3.3.3">
+    <PackageReference Include="OpenTK.GLControl" Version="4.0.2">
         <NoWarn>NU1701</NoWarn>
     </PackageReference>
     <PackageReference Include="Svg.Skia" Version="3.0.3" />
