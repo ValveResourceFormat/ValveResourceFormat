@@ -38,10 +38,10 @@ namespace GUI.Forms
             // findButton
             // 
             findButton.DialogResult = System.Windows.Forms.DialogResult.OK;
-            findButton.Location = new System.Drawing.Point(304, 14);
+            findButton.Location = new System.Drawing.Point(304, 16);
             findButton.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             findButton.Name = "findButton";
-            findButton.Size = new System.Drawing.Size(88, 27);
+            findButton.Size = new System.Drawing.Size(88, 31);
             findButton.TabIndex = 0;
             findButton.Text = "Find";
             findButton.UseVisualStyleBackColor = true;
@@ -49,29 +49,29 @@ namespace GUI.Forms
             // cancelButton
             // 
             cancelButton.DialogResult = System.Windows.Forms.DialogResult.Cancel;
-            cancelButton.Location = new System.Drawing.Point(304, 47);
+            cancelButton.Location = new System.Drawing.Point(304, 53);
             cancelButton.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             cancelButton.Name = "cancelButton";
-            cancelButton.Size = new System.Drawing.Size(88, 27);
+            cancelButton.Size = new System.Drawing.Size(88, 31);
             cancelButton.TabIndex = 1;
             cancelButton.Text = "Cancel";
             cancelButton.UseVisualStyleBackColor = true;
             // 
             // findTextBox
             // 
-            findTextBox.Location = new System.Drawing.Point(80, 16);
+            findTextBox.Location = new System.Drawing.Point(80, 18);
             findTextBox.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             findTextBox.Name = "findTextBox";
-            findTextBox.Size = new System.Drawing.Size(216, 23);
+            findTextBox.Size = new System.Drawing.Size(216, 25);
             findTextBox.TabIndex = 2;
             // 
             // findLabel
             // 
             findLabel.AutoSize = true;
-            findLabel.Location = new System.Drawing.Point(14, 20);
+            findLabel.Location = new System.Drawing.Point(14, 23);
             findLabel.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             findLabel.Name = "findLabel";
-            findLabel.Size = new System.Drawing.Size(62, 15);
+            findLabel.Size = new System.Drawing.Size(72, 19);
             findLabel.TabIndex = 3;
             findLabel.Text = "Find what:";
             // 
@@ -79,24 +79,25 @@ namespace GUI.Forms
             // 
             searchTypeComboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             searchTypeComboBox.FormattingEnabled = true;
-            searchTypeComboBox.Location = new System.Drawing.Point(80, 47);
+            searchTypeComboBox.Location = new System.Drawing.Point(80, 53);
             searchTypeComboBox.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             searchTypeComboBox.Name = "searchTypeComboBox";
-            searchTypeComboBox.Size = new System.Drawing.Size(216, 23);
+            searchTypeComboBox.Size = new System.Drawing.Size(216, 25);
             searchTypeComboBox.TabIndex = 5;
             // 
             // SearchForm
             // 
             AcceptButton = findButton;
-            AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
+            AutoScaleDimensions = new System.Drawing.SizeF(7F, 17F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             CancelButton = cancelButton;
-            ClientSize = new System.Drawing.Size(406, 102);
+            ClientSize = new System.Drawing.Size(406, 116);
             Controls.Add(searchTypeComboBox);
             Controls.Add(findLabel);
             Controls.Add(findTextBox);
             Controls.Add(cancelButton);
             Controls.Add(findButton);
+            Font = new System.Drawing.Font("Segoe UI", 10F);
             FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
             Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             MaximizeBox = false;

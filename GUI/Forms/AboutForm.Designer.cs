@@ -46,10 +46,10 @@ namespace GUI.Forms
             // label1
             // 
             label1.AutoSize = true;
-            label1.Location = new System.Drawing.Point(182, 12);
+            label1.Location = new System.Drawing.Point(182, 14);
             label1.Margin = new Padding(4, 0, 4, 0);
             label1.Name = "label1";
-            label1.Size = new System.Drawing.Size(90, 15);
+            label1.Size = new System.Drawing.Size(107, 19);
             label1.TabIndex = 0;
             label1.Text = "Source 2 Viewer";
             label1.TextAlign = System.Drawing.ContentAlignment.TopCenter;
@@ -57,19 +57,19 @@ namespace GUI.Forms
             // labelVersion
             // 
             labelVersion.AutoSize = true;
-            labelVersion.Location = new System.Drawing.Point(182, 41);
+            labelVersion.Location = new System.Drawing.Point(182, 46);
             labelVersion.Margin = new Padding(4, 0, 4, 0);
             labelVersion.Name = "labelVersion";
-            labelVersion.Size = new System.Drawing.Size(45, 15);
+            labelVersion.Size = new System.Drawing.Size(54, 19);
             labelVersion.TabIndex = 1;
             labelVersion.Text = "Version";
             // 
             // website
             // 
             website.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            website.Location = new System.Drawing.Point(550, 12);
+            website.Location = new System.Drawing.Point(550, 14);
             website.Name = "website";
-            website.Size = new System.Drawing.Size(100, 23);
+            website.Size = new System.Drawing.Size(100, 26);
             website.TabIndex = 4;
             website.Text = "&Website";
             website.UseVisualStyleBackColor = true;
@@ -78,9 +78,9 @@ namespace GUI.Forms
             // github
             // 
             github.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            github.Location = new System.Drawing.Point(550, 41);
+            github.Location = new System.Drawing.Point(550, 46);
             github.Name = "github";
-            github.Size = new System.Drawing.Size(100, 23);
+            github.Size = new System.Drawing.Size(100, 26);
             github.TabIndex = 5;
             github.Text = "&GitHub";
             github.UseVisualStyleBackColor = true;
@@ -89,9 +89,9 @@ namespace GUI.Forms
             // releases
             // 
             releases.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            releases.Location = new System.Drawing.Point(550, 70);
+            releases.Location = new System.Drawing.Point(550, 79);
             releases.Name = "releases";
-            releases.Size = new System.Drawing.Size(100, 23);
+            releases.Size = new System.Drawing.Size(100, 26);
             releases.TabIndex = 6;
             releases.Text = "View &releases";
             releases.UseVisualStyleBackColor = true;
@@ -100,19 +100,19 @@ namespace GUI.Forms
             // label3
             // 
             label3.AutoSize = true;
-            label3.Location = new System.Drawing.Point(177, 125);
+            label3.Location = new System.Drawing.Point(177, 142);
             label3.Margin = new Padding(4, 0, 4, 0);
             label3.Name = "label3";
-            label3.Size = new System.Drawing.Size(394, 45);
+            label3.Size = new System.Drawing.Size(463, 57);
             label3.TabIndex = 10;
             label3.Text = "Available under the MIT license.\r\nThis project is not affiliated with Valve Software.\r\nSource 2 is a trademark and/or registered trademark of Valve Corporation.";
             // 
             // icon
             // 
             icon.Image = (System.Drawing.Image)resources.GetObject("icon.Image");
-            icon.Location = new System.Drawing.Point(0, 12);
+            icon.Location = new System.Drawing.Point(0, 14);
             icon.Name = "icon";
-            icon.Size = new System.Drawing.Size(170, 170);
+            icon.Size = new System.Drawing.Size(170, 193);
             icon.SizeMode = PictureBoxSizeMode.Zoom;
             icon.TabIndex = 11;
             icon.TabStop = false;
@@ -120,9 +120,9 @@ namespace GUI.Forms
             // keybinds
             // 
             keybinds.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            keybinds.Location = new System.Drawing.Point(550, 99);
+            keybinds.Location = new System.Drawing.Point(550, 112);
             keybinds.Name = "keybinds";
-            keybinds.Size = new System.Drawing.Size(100, 23);
+            keybinds.Size = new System.Drawing.Size(100, 26);
             keybinds.TabIndex = 12;
             keybinds.Text = "View &keybinds";
             keybinds.UseVisualStyleBackColor = true;
@@ -131,9 +131,9 @@ namespace GUI.Forms
             // copyVersion
             // 
             copyVersion.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            copyVersion.Location = new System.Drawing.Point(182, 70);
+            copyVersion.Location = new System.Drawing.Point(182, 79);
             copyVersion.Name = "copyVersion";
-            copyVersion.Size = new System.Drawing.Size(100, 23);
+            copyVersion.Size = new System.Drawing.Size(100, 26);
             copyVersion.TabIndex = 13;
             copyVersion.Text = "Copy &version";
             copyVersion.UseVisualStyleBackColor = true;
@@ -141,9 +141,9 @@ namespace GUI.Forms
             // 
             // AboutForm
             // 
-            AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
+            AutoScaleDimensions = new System.Drawing.SizeF(7F, 17F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new System.Drawing.Size(662, 193);
+            ClientSize = new System.Drawing.Size(662, 219);
             Controls.Add(copyVersion);
             Controls.Add(keybinds);
             Controls.Add(icon);
@@ -153,6 +153,7 @@ namespace GUI.Forms
             Controls.Add(website);
             Controls.Add(labelVersion);
             Controls.Add(label1);
+            Font = new System.Drawing.Font("Segoe UI", 10F);
             FormBorderStyle = FormBorderStyle.FixedSingle;
             Margin = new Padding(4, 3, 4, 3);
             MaximizeBox = false;

@@ -53,18 +53,18 @@ namespace GUI.Forms
             setFovTo4by3Button = new System.Windows.Forms.Button();
             groupBox3 = new System.Windows.Forms.GroupBox();
             tableLayoutPanel4 = new System.Windows.Forms.TableLayoutPanel();
+            textViewerFontSizeLabel = new System.Windows.Forms.Label();
             openExplorerOnStartCheckbox = new System.Windows.Forms.CheckBox();
             openExplorerOnStartLabel = new System.Windows.Forms.Label();
             themeLabel = new System.Windows.Forms.Label();
             themeComboBox = new System.Windows.Forms.ComboBox();
+            textViewerFontSize = new System.Windows.Forms.NumericUpDown();
             groupBox4 = new System.Windows.Forms.GroupBox();
             tableLayoutPanel3 = new System.Windows.Forms.TableLayoutPanel();
             quickPreviewLabel = new System.Windows.Forms.Label();
             quickPreviewSoundsLabel = new System.Windows.Forms.Label();
             quickPreviewCheckbox = new System.Windows.Forms.CheckBox();
             quickPreviewSoundsCheckbox = new System.Windows.Forms.CheckBox();
-            textViewerFontSizeLabel = new System.Windows.Forms.Label();
-            textViewerFontSize = new System.Windows.Forms.NumericUpDown();
             ((System.ComponentModel.ISupportInitialize)maxTextureSizeInput).BeginInit();
             ((System.ComponentModel.ISupportInitialize)fovInput).BeginInit();
             groupBox1.SuspendLayout();
@@ -75,28 +75,28 @@ namespace GUI.Forms
             fovPanel.SuspendLayout();
             groupBox3.SuspendLayout();
             tableLayoutPanel4.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)textViewerFontSize).BeginInit();
             groupBox4.SuspendLayout();
             tableLayoutPanel3.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)textViewerFontSize).BeginInit();
             SuspendLayout();
             // 
             // gamePaths
             // 
             gamePaths.Dock = System.Windows.Forms.DockStyle.Top;
             gamePaths.FormattingEnabled = true;
-            gamePaths.Location = new System.Drawing.Point(16, 32);
+            gamePaths.Location = new System.Drawing.Point(16, 36);
             gamePaths.Margin = new System.Windows.Forms.Padding(0);
             gamePaths.Name = "gamePaths";
-            gamePaths.Size = new System.Drawing.Size(432, 109);
+            gamePaths.Size = new System.Drawing.Size(432, 123);
             gamePaths.TabIndex = 1;
             // 
             // gamePathsAdd
             // 
             gamePathsAdd.Dock = System.Windows.Forms.DockStyle.Left;
-            gamePathsAdd.Location = new System.Drawing.Point(0, 8);
-            gamePathsAdd.Margin = new System.Windows.Forms.Padding(0, 8, 8, 8);
+            gamePathsAdd.Location = new System.Drawing.Point(0, 9);
+            gamePathsAdd.Margin = new System.Windows.Forms.Padding(0, 9, 8, 9);
             gamePathsAdd.Name = "gamePathsAdd";
-            gamePathsAdd.Size = new System.Drawing.Size(150, 26);
+            gamePathsAdd.Size = new System.Drawing.Size(212, 30);
             gamePathsAdd.TabIndex = 2;
             gamePathsAdd.Text = "Add .vpk or gameinfo.gi";
             gamePathsAdd.UseVisualStyleBackColor = true;
@@ -105,10 +105,10 @@ namespace GUI.Forms
             // gamePathsRemove
             // 
             gamePathsRemove.Dock = System.Windows.Forms.DockStyle.Right;
-            gamePathsRemove.Location = new System.Drawing.Point(344, 8);
-            gamePathsRemove.Margin = new System.Windows.Forms.Padding(8, 8, 0, 8);
+            gamePathsRemove.Location = new System.Drawing.Point(344, 9);
+            gamePathsRemove.Margin = new System.Windows.Forms.Padding(8, 9, 0, 9);
             gamePathsRemove.Name = "gamePathsRemove";
-            gamePathsRemove.Size = new System.Drawing.Size(88, 26);
+            gamePathsRemove.Size = new System.Drawing.Size(88, 30);
             gamePathsRemove.TabIndex = 4;
             gamePathsRemove.Text = "Remove";
             gamePathsRemove.UseVisualStyleBackColor = true;
@@ -117,10 +117,10 @@ namespace GUI.Forms
             // gamePathsAddFolder
             // 
             gamePathsAddFolder.Dock = System.Windows.Forms.DockStyle.Left;
-            gamePathsAddFolder.Location = new System.Drawing.Point(166, 8);
-            gamePathsAddFolder.Margin = new System.Windows.Forms.Padding(8);
+            gamePathsAddFolder.Location = new System.Drawing.Point(228, 9);
+            gamePathsAddFolder.Margin = new System.Windows.Forms.Padding(8, 9, 8, 9);
             gamePathsAddFolder.Name = "gamePathsAddFolder";
-            gamePathsAddFolder.Size = new System.Drawing.Size(88, 26);
+            gamePathsAddFolder.Size = new System.Drawing.Size(88, 30);
             gamePathsAddFolder.TabIndex = 3;
             gamePathsAddFolder.Text = "Add folder";
             gamePathsAddFolder.UseVisualStyleBackColor = true;
@@ -130,9 +130,9 @@ namespace GUI.Forms
             // 
             maxTextureSizeLabel.Anchor = System.Windows.Forms.AnchorStyles.Left;
             maxTextureSizeLabel.AutoSize = true;
-            maxTextureSizeLabel.Location = new System.Drawing.Point(3, 92);
+            maxTextureSizeLabel.Location = new System.Drawing.Point(3, 103);
             maxTextureSizeLabel.Name = "maxTextureSizeLabel";
-            maxTextureSizeLabel.Size = new System.Drawing.Size(93, 15);
+            maxTextureSizeLabel.Size = new System.Drawing.Size(111, 19);
             maxTextureSizeLabel.TabIndex = 0;
             maxTextureSizeLabel.Text = "Max texture size:";
             // 
@@ -140,11 +140,11 @@ namespace GUI.Forms
             // 
             maxTextureSizeInput.Anchor = System.Windows.Forms.AnchorStyles.Left;
             maxTextureSizeInput.Increment = new decimal(new int[] { 64, 0, 0, 0 });
-            maxTextureSizeInput.Location = new System.Drawing.Point(219, 88);
+            maxTextureSizeInput.Location = new System.Drawing.Point(219, 100);
             maxTextureSizeInput.Maximum = new decimal(new int[] { 10240, 0, 0, 0 });
             maxTextureSizeInput.Minimum = new decimal(new int[] { 1, 0, 0, 0 });
             maxTextureSizeInput.Name = "maxTextureSizeInput";
-            maxTextureSizeInput.Size = new System.Drawing.Size(100, 23);
+            maxTextureSizeInput.Size = new System.Drawing.Size(100, 25);
             maxTextureSizeInput.TabIndex = 5;
             maxTextureSizeInput.Value = new decimal(new int[] { 1, 0, 0, 0 });
             maxTextureSizeInput.ValueChanged += OnMaxTextureSizeValueChanged;
@@ -153,11 +153,11 @@ namespace GUI.Forms
             // 
             fovInput.Anchor = System.Windows.Forms.AnchorStyles.Left;
             fovInput.DecimalPlaces = 6;
-            fovInput.Location = new System.Drawing.Point(3, 10);
+            fovInput.Location = new System.Drawing.Point(3, 11);
             fovInput.Maximum = new decimal(new int[] { 120, 0, 0, 0 });
             fovInput.Minimum = new decimal(new int[] { 1, 0, 0, 0 });
             fovInput.Name = "fovInput";
-            fovInput.Size = new System.Drawing.Size(100, 23);
+            fovInput.Size = new System.Drawing.Size(100, 25);
             fovInput.TabIndex = 6;
             fovInput.Value = new decimal(new int[] { 1, 0, 0, 0 });
             fovInput.ValueChanged += OnFovValueChanged;
@@ -166,9 +166,9 @@ namespace GUI.Forms
             // 
             fovLabel.Anchor = System.Windows.Forms.AnchorStyles.Left;
             fovLabel.AutoSize = true;
-            fovLabel.Location = new System.Drawing.Point(3, 12);
+            fovLabel.Location = new System.Drawing.Point(3, 13);
             fovLabel.Name = "fovLabel";
-            fovLabel.Size = new System.Drawing.Size(73, 15);
+            fovLabel.Size = new System.Drawing.Size(87, 19);
             fovLabel.TabIndex = 4;
             fovLabel.Text = "Vertical FOV:";
             // 
@@ -176,9 +176,9 @@ namespace GUI.Forms
             // 
             antiAliasingLabel.Anchor = System.Windows.Forms.AnchorStyles.Left;
             antiAliasingLabel.AutoSize = true;
-            antiAliasingLabel.Location = new System.Drawing.Point(3, 52);
+            antiAliasingLabel.Location = new System.Drawing.Point(3, 58);
             antiAliasingLabel.Name = "antiAliasingLabel";
-            antiAliasingLabel.Size = new System.Drawing.Size(77, 15);
+            antiAliasingLabel.Size = new System.Drawing.Size(88, 19);
             antiAliasingLabel.TabIndex = 6;
             antiAliasingLabel.Text = "Anti-aliasing:";
             // 
@@ -187,19 +187,18 @@ namespace GUI.Forms
             antiAliasingComboBox.Anchor = System.Windows.Forms.AnchorStyles.Left;
             antiAliasingComboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             antiAliasingComboBox.FormattingEnabled = true;
-            antiAliasingComboBox.Location = new System.Drawing.Point(219, 48);
+            antiAliasingComboBox.Location = new System.Drawing.Point(219, 55);
             antiAliasingComboBox.Name = "antiAliasingComboBox";
-            antiAliasingComboBox.Size = new System.Drawing.Size(100, 23);
+            antiAliasingComboBox.Size = new System.Drawing.Size(100, 25);
             antiAliasingComboBox.TabIndex = 7;
             antiAliasingComboBox.SelectedIndexChanged += OnAntiAliasingValueChanged;
             // 
             // registerAssociationButton
             // 
-            registerAssociationButton.Dock = System.Windows.Forms.DockStyle.Fill;
-            registerAssociationButton.Location = new System.Drawing.Point(4, 123);
+            registerAssociationButton.Location = new System.Drawing.Point(4, 138);
             registerAssociationButton.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             registerAssociationButton.Name = "registerAssociationButton";
-            registerAssociationButton.Size = new System.Drawing.Size(208, 34);
+            registerAssociationButton.Size = new System.Drawing.Size(208, 30);
             registerAssociationButton.TabIndex = 10;
             registerAssociationButton.Text = "Register .vpk file association";
             registerAssociationButton.UseVisualStyleBackColor = true;
@@ -209,9 +208,9 @@ namespace GUI.Forms
             // 
             vsyncLabel.Anchor = System.Windows.Forms.AnchorStyles.Left;
             vsyncLabel.AutoSize = true;
-            vsyncLabel.Location = new System.Drawing.Point(3, 172);
+            vsyncLabel.Location = new System.Drawing.Point(3, 193);
             vsyncLabel.Name = "vsyncLabel";
-            vsyncLabel.Size = new System.Drawing.Size(76, 15);
+            vsyncLabel.Size = new System.Drawing.Size(88, 19);
             vsyncLabel.TabIndex = 7;
             vsyncLabel.Text = "Vertical Sync:";
             // 
@@ -219,9 +218,9 @@ namespace GUI.Forms
             // 
             vsyncCheckBox.AutoSize = true;
             vsyncCheckBox.Dock = System.Windows.Forms.DockStyle.Fill;
-            vsyncCheckBox.Location = new System.Drawing.Point(219, 163);
+            vsyncCheckBox.Location = new System.Drawing.Point(219, 183);
             vsyncCheckBox.Name = "vsyncCheckBox";
-            vsyncCheckBox.Size = new System.Drawing.Size(210, 34);
+            vsyncCheckBox.Size = new System.Drawing.Size(210, 39);
             vsyncCheckBox.TabIndex = 8;
             vsyncCheckBox.UseVisualStyleBackColor = true;
             vsyncCheckBox.CheckedChanged += OnVsyncValueChanged;
@@ -230,9 +229,9 @@ namespace GUI.Forms
             // 
             displayFpsCheckBox.AutoSize = true;
             displayFpsCheckBox.Dock = System.Windows.Forms.DockStyle.Fill;
-            displayFpsCheckBox.Location = new System.Drawing.Point(219, 203);
+            displayFpsCheckBox.Location = new System.Drawing.Point(219, 228);
             displayFpsCheckBox.Name = "displayFpsCheckBox";
-            displayFpsCheckBox.Size = new System.Drawing.Size(210, 34);
+            displayFpsCheckBox.Size = new System.Drawing.Size(210, 39);
             displayFpsCheckBox.TabIndex = 9;
             displayFpsCheckBox.UseVisualStyleBackColor = true;
             displayFpsCheckBox.CheckedChanged += OnDisplayFpsValueChanged;
@@ -241,9 +240,9 @@ namespace GUI.Forms
             // 
             displayFpsLabel.Anchor = System.Windows.Forms.AnchorStyles.Left;
             displayFpsLabel.AutoSize = true;
-            displayFpsLabel.Location = new System.Drawing.Point(3, 212);
+            displayFpsLabel.Location = new System.Drawing.Point(3, 238);
             displayFpsLabel.Name = "displayFpsLabel";
-            displayFpsLabel.Size = new System.Drawing.Size(70, 15);
+            displayFpsLabel.Size = new System.Drawing.Size(82, 19);
             displayFpsLabel.TabIndex = 3;
             displayFpsLabel.Text = "Display FPS:";
             // 
@@ -252,11 +251,11 @@ namespace GUI.Forms
             groupBox1.Controls.Add(tableLayoutPanel1);
             groupBox1.Controls.Add(gamePaths);
             groupBox1.Dock = System.Windows.Forms.DockStyle.Top;
-            groupBox1.Location = new System.Drawing.Point(16, 16);
-            groupBox1.Margin = new System.Windows.Forms.Padding(0, 0, 0, 16);
+            groupBox1.Location = new System.Drawing.Point(16, 18);
+            groupBox1.Margin = new System.Windows.Forms.Padding(0, 0, 0, 18);
             groupBox1.Name = "groupBox1";
-            groupBox1.Padding = new System.Windows.Forms.Padding(16);
-            groupBox1.Size = new System.Drawing.Size(464, 193);
+            groupBox1.Padding = new System.Windows.Forms.Padding(16, 18, 16, 18);
+            groupBox1.Size = new System.Drawing.Size(464, 219);
             groupBox1.TabIndex = 1;
             groupBox1.TabStop = false;
             groupBox1.Text = "Game content search paths";
@@ -271,23 +270,23 @@ namespace GUI.Forms
             tableLayoutPanel1.Controls.Add(gamePathsAddFolder, 1, 0);
             tableLayoutPanel1.Controls.Add(gamePathsRemove, 2, 0);
             tableLayoutPanel1.Dock = System.Windows.Forms.DockStyle.Top;
-            tableLayoutPanel1.Location = new System.Drawing.Point(16, 141);
+            tableLayoutPanel1.Location = new System.Drawing.Point(16, 159);
             tableLayoutPanel1.Margin = new System.Windows.Forms.Padding(0);
             tableLayoutPanel1.Name = "tableLayoutPanel1";
             tableLayoutPanel1.RowCount = 1;
             tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
-            tableLayoutPanel1.Size = new System.Drawing.Size(432, 42);
+            tableLayoutPanel1.Size = new System.Drawing.Size(432, 48);
             tableLayoutPanel1.TabIndex = 1;
             // 
             // groupBox2
             // 
             groupBox2.Controls.Add(tableLayoutPanel2);
             groupBox2.Dock = System.Windows.Forms.DockStyle.Top;
-            groupBox2.Location = new System.Drawing.Point(16, 209);
-            groupBox2.Margin = new System.Windows.Forms.Padding(3, 16, 3, 3);
+            groupBox2.Location = new System.Drawing.Point(16, 237);
+            groupBox2.Margin = new System.Windows.Forms.Padding(3, 18, 3, 3);
             groupBox2.Name = "groupBox2";
-            groupBox2.Padding = new System.Windows.Forms.Padding(16);
-            groupBox2.Size = new System.Drawing.Size(464, 293);
+            groupBox2.Padding = new System.Windows.Forms.Padding(16, 18, 16, 18);
+            groupBox2.Size = new System.Drawing.Size(464, 332);
             groupBox2.TabIndex = 2;
             groupBox2.TabStop = false;
             groupBox2.Text = "Video settings";
@@ -310,26 +309,26 @@ namespace GUI.Forms
             tableLayoutPanel2.Controls.Add(maxTextureSizeInput, 1, 2);
             tableLayoutPanel2.Controls.Add(antiAliasingComboBox, 1, 1);
             tableLayoutPanel2.Dock = System.Windows.Forms.DockStyle.Fill;
-            tableLayoutPanel2.Location = new System.Drawing.Point(16, 32);
+            tableLayoutPanel2.Location = new System.Drawing.Point(16, 36);
             tableLayoutPanel2.Name = "tableLayoutPanel2";
             tableLayoutPanel2.RowCount = 7;
-            tableLayoutPanel2.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 40F));
-            tableLayoutPanel2.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 40F));
-            tableLayoutPanel2.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 40F));
-            tableLayoutPanel2.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 40F));
-            tableLayoutPanel2.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 40F));
-            tableLayoutPanel2.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 40F));
+            tableLayoutPanel2.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 45F));
+            tableLayoutPanel2.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 45F));
+            tableLayoutPanel2.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 45F));
+            tableLayoutPanel2.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 45F));
+            tableLayoutPanel2.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 45F));
+            tableLayoutPanel2.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 45F));
             tableLayoutPanel2.RowStyles.Add(new System.Windows.Forms.RowStyle());
-            tableLayoutPanel2.Size = new System.Drawing.Size(432, 245);
+            tableLayoutPanel2.Size = new System.Drawing.Size(432, 278);
             tableLayoutPanel2.TabIndex = 0;
             // 
             // shadowResolutionLabel
             // 
             shadowResolutionLabel.Anchor = System.Windows.Forms.AnchorStyles.Left;
             shadowResolutionLabel.AutoSize = true;
-            shadowResolutionLabel.Location = new System.Drawing.Point(3, 132);
+            shadowResolutionLabel.Location = new System.Drawing.Point(3, 148);
             shadowResolutionLabel.Name = "shadowResolutionLabel";
-            shadowResolutionLabel.Size = new System.Drawing.Size(108, 15);
+            shadowResolutionLabel.Size = new System.Drawing.Size(125, 19);
             shadowResolutionLabel.TabIndex = 11;
             shadowResolutionLabel.Text = "Shadow resolution:";
             // 
@@ -337,11 +336,11 @@ namespace GUI.Forms
             // 
             shadowResolutionInput.Anchor = System.Windows.Forms.AnchorStyles.Left;
             shadowResolutionInput.Increment = new decimal(new int[] { 64, 0, 0, 0 });
-            shadowResolutionInput.Location = new System.Drawing.Point(219, 128);
+            shadowResolutionInput.Location = new System.Drawing.Point(219, 145);
             shadowResolutionInput.Maximum = new decimal(new int[] { 4096, 0, 0, 0 });
             shadowResolutionInput.Minimum = new decimal(new int[] { 1, 0, 0, 0 });
             shadowResolutionInput.Name = "shadowResolutionInput";
-            shadowResolutionInput.Size = new System.Drawing.Size(100, 23);
+            shadowResolutionInput.Size = new System.Drawing.Size(100, 25);
             shadowResolutionInput.TabIndex = 12;
             shadowResolutionInput.Value = new decimal(new int[] { 1, 0, 0, 0 });
             // 
@@ -353,15 +352,15 @@ namespace GUI.Forms
             fovPanel.Location = new System.Drawing.Point(216, 0);
             fovPanel.Margin = new System.Windows.Forms.Padding(0);
             fovPanel.Name = "fovPanel";
-            fovPanel.Size = new System.Drawing.Size(216, 40);
+            fovPanel.Size = new System.Drawing.Size(216, 45);
             fovPanel.TabIndex = 10;
             // 
             // setFovTo4by3Button
             // 
             setFovTo4by3Button.Anchor = System.Windows.Forms.AnchorStyles.Left;
-            setFovTo4by3Button.Location = new System.Drawing.Point(109, 10);
+            setFovTo4by3Button.Location = new System.Drawing.Point(109, 11);
             setFovTo4by3Button.Name = "setFovTo4by3Button";
-            setFovTo4by3Button.Size = new System.Drawing.Size(39, 23);
+            setFovTo4by3Button.Size = new System.Drawing.Size(39, 26);
             setFovTo4by3Button.TabIndex = 7;
             setFovTo4by3Button.Text = "4:3";
             setFovTo4by3Button.UseVisualStyleBackColor = true;
@@ -371,11 +370,11 @@ namespace GUI.Forms
             // 
             groupBox3.Controls.Add(tableLayoutPanel4);
             groupBox3.Dock = System.Windows.Forms.DockStyle.Top;
-            groupBox3.Location = new System.Drawing.Point(16, 640);
+            groupBox3.Location = new System.Drawing.Point(16, 725);
             groupBox3.Margin = new System.Windows.Forms.Padding(0);
             groupBox3.Name = "groupBox3";
-            groupBox3.Padding = new System.Windows.Forms.Padding(16);
-            groupBox3.Size = new System.Drawing.Size(464, 216);
+            groupBox3.Padding = new System.Windows.Forms.Padding(16, 18, 16, 18);
+            groupBox3.Size = new System.Drawing.Size(464, 245);
             groupBox3.TabIndex = 3;
             groupBox3.TabStop = false;
             groupBox3.Text = "Explorer";
@@ -390,19 +389,29 @@ namespace GUI.Forms
             tableLayoutPanel4.Controls.Add(openExplorerOnStartLabel, 0, 0);
             tableLayoutPanel4.Controls.Add(themeLabel, 0, 1);
             tableLayoutPanel4.Controls.Add(themeComboBox, 1, 1);
-            tableLayoutPanel4.Controls.Add(registerAssociationButton, 0, 3);
             tableLayoutPanel4.Controls.Add(textViewerFontSize, 1, 2);
+            tableLayoutPanel4.Controls.Add(registerAssociationButton, 0, 3);
             tableLayoutPanel4.Dock = System.Windows.Forms.DockStyle.Fill;
-            tableLayoutPanel4.Location = new System.Drawing.Point(16, 32);
+            tableLayoutPanel4.Location = new System.Drawing.Point(16, 36);
             tableLayoutPanel4.Name = "tableLayoutPanel4";
             tableLayoutPanel4.RowCount = 5;
-            tableLayoutPanel4.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 40F));
-            tableLayoutPanel4.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 40F));
-            tableLayoutPanel4.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 40F));
-            tableLayoutPanel4.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 40F));
+            tableLayoutPanel4.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 45F));
+            tableLayoutPanel4.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 45F));
+            tableLayoutPanel4.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 45F));
+            tableLayoutPanel4.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 45F));
             tableLayoutPanel4.RowStyles.Add(new System.Windows.Forms.RowStyle());
-            tableLayoutPanel4.Size = new System.Drawing.Size(432, 168);
+            tableLayoutPanel4.Size = new System.Drawing.Size(432, 191);
             tableLayoutPanel4.TabIndex = 11;
+            // 
+            // textViewerFontSizeLabel
+            // 
+            textViewerFontSizeLabel.Anchor = System.Windows.Forms.AnchorStyles.Left;
+            textViewerFontSizeLabel.AutoSize = true;
+            textViewerFontSizeLabel.Location = new System.Drawing.Point(3, 103);
+            textViewerFontSizeLabel.Name = "textViewerFontSizeLabel";
+            textViewerFontSizeLabel.Size = new System.Drawing.Size(134, 19);
+            textViewerFontSizeLabel.TabIndex = 15;
+            textViewerFontSizeLabel.Text = "Text viewer font size:";
             // 
             // openExplorerOnStartCheckbox
             // 
@@ -410,7 +419,7 @@ namespace GUI.Forms
             openExplorerOnStartCheckbox.Dock = System.Windows.Forms.DockStyle.Fill;
             openExplorerOnStartCheckbox.Location = new System.Drawing.Point(219, 3);
             openExplorerOnStartCheckbox.Name = "openExplorerOnStartCheckbox";
-            openExplorerOnStartCheckbox.Size = new System.Drawing.Size(210, 34);
+            openExplorerOnStartCheckbox.Size = new System.Drawing.Size(210, 39);
             openExplorerOnStartCheckbox.TabIndex = 12;
             openExplorerOnStartCheckbox.UseVisualStyleBackColor = true;
             openExplorerOnStartCheckbox.CheckedChanged += OnOpenExplorerOnStartValueChanged;
@@ -419,9 +428,9 @@ namespace GUI.Forms
             // 
             openExplorerOnStartLabel.Anchor = System.Windows.Forms.AnchorStyles.Left;
             openExplorerOnStartLabel.AutoSize = true;
-            openExplorerOnStartLabel.Location = new System.Drawing.Point(3, 12);
+            openExplorerOnStartLabel.Location = new System.Drawing.Point(3, 13);
             openExplorerOnStartLabel.Name = "openExplorerOnStartLabel";
-            openExplorerOnStartLabel.Size = new System.Drawing.Size(127, 15);
+            openExplorerOnStartLabel.Size = new System.Drawing.Size(151, 19);
             openExplorerOnStartLabel.TabIndex = 11;
             openExplorerOnStartLabel.Text = "Open explorer on start:";
             // 
@@ -429,9 +438,9 @@ namespace GUI.Forms
             // 
             themeLabel.Anchor = System.Windows.Forms.AnchorStyles.Left;
             themeLabel.AutoSize = true;
-            themeLabel.Location = new System.Drawing.Point(3, 52);
+            themeLabel.Location = new System.Drawing.Point(3, 58);
             themeLabel.Name = "themeLabel";
-            themeLabel.Size = new System.Drawing.Size(136, 15);
+            themeLabel.Size = new System.Drawing.Size(158, 19);
             themeLabel.TabIndex = 13;
             themeLabel.Text = "Theme (requires restart):";
             // 
@@ -440,20 +449,32 @@ namespace GUI.Forms
             themeComboBox.Anchor = System.Windows.Forms.AnchorStyles.Left;
             themeComboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             themeComboBox.FormattingEnabled = true;
-            themeComboBox.Location = new System.Drawing.Point(219, 48);
+            themeComboBox.Location = new System.Drawing.Point(219, 55);
             themeComboBox.Name = "themeComboBox";
-            themeComboBox.Size = new System.Drawing.Size(100, 23);
+            themeComboBox.Size = new System.Drawing.Size(100, 25);
             themeComboBox.TabIndex = 14;
             themeComboBox.SelectedIndexChanged += OnThemeSelectedIndexChanged;
+            // 
+            // textViewerFontSize
+            // 
+            textViewerFontSize.Anchor = System.Windows.Forms.AnchorStyles.Left;
+            textViewerFontSize.Location = new System.Drawing.Point(219, 100);
+            textViewerFontSize.Maximum = new decimal(new int[] { 24, 0, 0, 0 });
+            textViewerFontSize.Minimum = new decimal(new int[] { 8, 0, 0, 0 });
+            textViewerFontSize.Name = "textViewerFontSize";
+            textViewerFontSize.Size = new System.Drawing.Size(100, 25);
+            textViewerFontSize.TabIndex = 16;
+            textViewerFontSize.Value = new decimal(new int[] { 8, 0, 0, 0 });
+            textViewerFontSize.ValueChanged += OnTextViewerFontSizeValueChanged;
             // 
             // groupBox4
             // 
             groupBox4.Controls.Add(tableLayoutPanel3);
             groupBox4.Dock = System.Windows.Forms.DockStyle.Top;
-            groupBox4.Location = new System.Drawing.Point(16, 502);
+            groupBox4.Location = new System.Drawing.Point(16, 569);
             groupBox4.Name = "groupBox4";
-            groupBox4.Padding = new System.Windows.Forms.Padding(16);
-            groupBox4.Size = new System.Drawing.Size(464, 138);
+            groupBox4.Padding = new System.Windows.Forms.Padding(16, 18, 16, 18);
+            groupBox4.Size = new System.Drawing.Size(464, 156);
             groupBox4.TabIndex = 4;
             groupBox4.TabStop = false;
             groupBox4.Text = "Quick file preview";
@@ -468,23 +489,23 @@ namespace GUI.Forms
             tableLayoutPanel3.Controls.Add(quickPreviewCheckbox, 1, 0);
             tableLayoutPanel3.Controls.Add(quickPreviewSoundsCheckbox, 1, 1);
             tableLayoutPanel3.Dock = System.Windows.Forms.DockStyle.Fill;
-            tableLayoutPanel3.Location = new System.Drawing.Point(16, 32);
+            tableLayoutPanel3.Location = new System.Drawing.Point(16, 36);
             tableLayoutPanel3.Name = "tableLayoutPanel3";
             tableLayoutPanel3.RowCount = 4;
-            tableLayoutPanel3.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 40F));
-            tableLayoutPanel3.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 40F));
+            tableLayoutPanel3.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 45F));
+            tableLayoutPanel3.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 45F));
             tableLayoutPanel3.RowStyles.Add(new System.Windows.Forms.RowStyle());
-            tableLayoutPanel3.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 20F));
-            tableLayoutPanel3.Size = new System.Drawing.Size(432, 90);
+            tableLayoutPanel3.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 23F));
+            tableLayoutPanel3.Size = new System.Drawing.Size(432, 102);
             tableLayoutPanel3.TabIndex = 0;
             // 
             // quickPreviewLabel
             // 
             quickPreviewLabel.Anchor = System.Windows.Forms.AnchorStyles.Left;
             quickPreviewLabel.AutoSize = true;
-            quickPreviewLabel.Location = new System.Drawing.Point(3, 12);
+            quickPreviewLabel.Location = new System.Drawing.Point(3, 13);
             quickPreviewLabel.Name = "quickPreviewLabel";
-            quickPreviewLabel.Size = new System.Drawing.Size(152, 15);
+            quickPreviewLabel.Size = new System.Drawing.Size(175, 19);
             quickPreviewLabel.TabIndex = 0;
             quickPreviewLabel.Text = "Preview files after selecting:";
             // 
@@ -492,9 +513,9 @@ namespace GUI.Forms
             // 
             quickPreviewSoundsLabel.Anchor = System.Windows.Forms.AnchorStyles.Left;
             quickPreviewSoundsLabel.AutoSize = true;
-            quickPreviewSoundsLabel.Location = new System.Drawing.Point(3, 52);
+            quickPreviewSoundsLabel.Location = new System.Drawing.Point(3, 58);
             quickPreviewSoundsLabel.Name = "quickPreviewSoundsLabel";
-            quickPreviewSoundsLabel.Size = new System.Drawing.Size(102, 15);
+            quickPreviewSoundsLabel.Size = new System.Drawing.Size(119, 19);
             quickPreviewSoundsLabel.TabIndex = 1;
             quickPreviewSoundsLabel.Text = "Auto play sounds:";
             // 
@@ -504,7 +525,7 @@ namespace GUI.Forms
             quickPreviewCheckbox.Dock = System.Windows.Forms.DockStyle.Fill;
             quickPreviewCheckbox.Location = new System.Drawing.Point(219, 3);
             quickPreviewCheckbox.Name = "quickPreviewCheckbox";
-            quickPreviewCheckbox.Size = new System.Drawing.Size(210, 34);
+            quickPreviewCheckbox.Size = new System.Drawing.Size(210, 39);
             quickPreviewCheckbox.TabIndex = 2;
             quickPreviewCheckbox.UseVisualStyleBackColor = true;
             quickPreviewCheckbox.CheckedChanged += OnQuickPreviewCheckboxChanged;
@@ -513,49 +534,28 @@ namespace GUI.Forms
             // 
             quickPreviewSoundsCheckbox.AutoSize = true;
             quickPreviewSoundsCheckbox.Dock = System.Windows.Forms.DockStyle.Fill;
-            quickPreviewSoundsCheckbox.Location = new System.Drawing.Point(219, 43);
+            quickPreviewSoundsCheckbox.Location = new System.Drawing.Point(219, 48);
             quickPreviewSoundsCheckbox.Name = "quickPreviewSoundsCheckbox";
-            quickPreviewSoundsCheckbox.Size = new System.Drawing.Size(210, 34);
+            quickPreviewSoundsCheckbox.Size = new System.Drawing.Size(210, 39);
             quickPreviewSoundsCheckbox.TabIndex = 3;
             quickPreviewSoundsCheckbox.UseVisualStyleBackColor = true;
             quickPreviewSoundsCheckbox.CheckedChanged += OnQuickPreviewSoundsCheckboxChanged;
             // 
-            // textViewerFontSizeLabel
-            // 
-            textViewerFontSizeLabel.Anchor = System.Windows.Forms.AnchorStyles.Left;
-            textViewerFontSizeLabel.AutoSize = true;
-            textViewerFontSizeLabel.Location = new System.Drawing.Point(3, 92);
-            textViewerFontSizeLabel.Name = "textViewerFontSizeLabel";
-            textViewerFontSizeLabel.Size = new System.Drawing.Size(115, 15);
-            textViewerFontSizeLabel.TabIndex = 15;
-            textViewerFontSizeLabel.Text = "Text viewer font size:";
-            // 
-            // textViewerFontSize
-            // 
-            textViewerFontSize.Anchor = System.Windows.Forms.AnchorStyles.Left;
-            textViewerFontSize.Location = new System.Drawing.Point(219, 88);
-            textViewerFontSize.Maximum = new decimal(new int[] { 24, 0, 0, 0 });
-            textViewerFontSize.Minimum = new decimal(new int[] { 8, 0, 0, 0 });
-            textViewerFontSize.Name = "textViewerFontSize";
-            textViewerFontSize.Size = new System.Drawing.Size(100, 23);
-            textViewerFontSize.TabIndex = 16;
-            textViewerFontSize.Value = new decimal(new int[] { 8, 0, 0, 0 });
-            textViewerFontSize.ValueChanged += OnTextViewerFontSizeValueChanged;
-            // 
             // SettingsForm
             // 
-            AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
+            AutoScaleDimensions = new System.Drawing.SizeF(7F, 17F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             AutoScroll = true;
-            ClientSize = new System.Drawing.Size(496, 870);
+            ClientSize = new System.Drawing.Size(496, 986);
             Controls.Add(groupBox3);
             Controls.Add(groupBox4);
             Controls.Add(groupBox2);
             Controls.Add(groupBox1);
+            Font = new System.Drawing.Font("Segoe UI", 10F);
             Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
-            MinimumSize = new System.Drawing.Size(300, 200);
+            MinimumSize = new System.Drawing.Size(300, 221);
             Name = "SettingsForm";
-            Padding = new System.Windows.Forms.Padding(16);
+            Padding = new System.Windows.Forms.Padding(16, 18, 16, 18);
             ShowIcon = false;
             ShowInTaskbar = false;
             StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
@@ -573,10 +573,10 @@ namespace GUI.Forms
             groupBox3.ResumeLayout(false);
             tableLayoutPanel4.ResumeLayout(false);
             tableLayoutPanel4.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)textViewerFontSize).EndInit();
             groupBox4.ResumeLayout(false);
             tableLayoutPanel3.ResumeLayout(false);
             tableLayoutPanel3.PerformLayout();
-            ((System.ComponentModel.ISupportInitialize)textViewerFontSize).EndInit();
             ResumeLayout(false);
         }
 

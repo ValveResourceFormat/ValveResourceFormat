@@ -43,9 +43,9 @@ namespace GUI.Forms
             progressLog = new System.Windows.Forms.TextBox();
             tableLayoutPanel1.SuspendLayout();
             SuspendLayout();
-            // 
+            //
             // tableLayoutPanel1
-            // 
+            //
             tableLayoutPanel1.ColumnCount = 1;
             tableLayoutPanel1.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
             tableLayoutPanel1.Controls.Add(extractProgressBar, 0, 0);
@@ -61,18 +61,18 @@ namespace GUI.Forms
             tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 12F));
             tableLayoutPanel1.Size = new System.Drawing.Size(704, 424);
             tableLayoutPanel1.TabIndex = 0;
-            // 
+            //
             // extractProgressBar
-            // 
+            //
             extractProgressBar.Dock = System.Windows.Forms.DockStyle.Fill;
             extractProgressBar.Location = new System.Drawing.Point(23, 12);
             extractProgressBar.Margin = new System.Windows.Forms.Padding(23, 12, 23, 12);
             extractProgressBar.Name = "extractProgressBar";
             extractProgressBar.Size = new System.Drawing.Size(658, 26);
             extractProgressBar.TabIndex = 0;
-            // 
+            //
             // cancelButton
-            // 
+            //
             cancelButton.Dock = System.Windows.Forms.DockStyle.Right;
             cancelButton.Location = new System.Drawing.Point(593, 384);
             cancelButton.Margin = new System.Windows.Forms.Padding(0, 12, 23, 12);
@@ -82,12 +82,12 @@ namespace GUI.Forms
             cancelButton.Text = "Cancel";
             cancelButton.UseVisualStyleBackColor = true;
             cancelButton.Click += CancelButton_Click;
-            // 
+            //
             // progressLog
-            // 
+            //
             progressLog.BorderStyle = System.Windows.Forms.BorderStyle.None;
             progressLog.Dock = System.Windows.Forms.DockStyle.Fill;
-            progressLog.Font = new System.Drawing.Font("Cascadia Mono", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            progressLog.Font = new System.Drawing.Font("Cascadia Mono", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
             progressLog.Location = new System.Drawing.Point(23, 50);
             progressLog.Margin = new System.Windows.Forms.Padding(23, 0, 23, 0);
             progressLog.Multiline = true;
@@ -97,9 +97,9 @@ namespace GUI.Forms
             progressLog.Size = new System.Drawing.Size(658, 322);
             progressLog.TabIndex = 3;
             progressLog.WordWrap = false;
-            // 
+            //
             // ExtractProgressForm
-            // 
+            //
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             ClientSize = new System.Drawing.Size(704, 424);

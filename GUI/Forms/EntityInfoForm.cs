@@ -32,6 +32,19 @@ namespace GUI.Forms
             return base.ProcessDialogKey(keyData);
         }
 
+        private void InitializeComponent()
+        {
+            SuspendLayout();
+            // 
+            // EntityInfoForm
+            // 
+            ClientSize = new System.Drawing.Size(284, 261);
+            Font = new System.Drawing.Font("Segoe UI", 10F);
+            Name = "EntityInfoForm";
+            ResumeLayout(false);
+
+        }
+
         protected override void Dispose(bool disposing)
         {
             if (disposing && (EntityInfoControl != null))

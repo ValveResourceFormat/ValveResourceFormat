@@ -45,7 +45,7 @@ namespace GUI.Forms
             label1.Location = new System.Drawing.Point(3, 3);
             label1.Margin = new System.Windows.Forms.Padding(3);
             label1.Name = "label1";
-            label1.Size = new System.Drawing.Size(391, 15);
+            label1.Size = new System.Drawing.Size(450, 19);
             label1.TabIndex = 1;
             label1.Text = "Select which output types you would like each compiled file to export as.";
             // 
@@ -57,6 +57,7 @@ namespace GUI.Forms
             tableLayoutPanel1.Controls.Add(button1, 0, 2);
             tableLayoutPanel1.Controls.Add(label1, 0, 0);
             tableLayoutPanel1.Dock = System.Windows.Forms.DockStyle.Fill;
+            tableLayoutPanel1.Font = new System.Drawing.Font("Segoe UI", 10F);
             tableLayoutPanel1.Location = new System.Drawing.Point(0, 0);
             tableLayoutPanel1.Name = "tableLayoutPanel1";
             tableLayoutPanel1.RowCount = 3;
@@ -89,7 +90,7 @@ namespace GUI.Forms
             label2.AutoSize = true;
             label2.Location = new System.Drawing.Point(3, 0);
             label2.Name = "label2";
-            label2.Size = new System.Drawing.Size(35, 15);
+            label2.Size = new System.Drawing.Size(42, 19);
             label2.TabIndex = 0;
             label2.Text = "Input";
             // 
@@ -98,7 +99,7 @@ namespace GUI.Forms
             label3.AutoSize = true;
             label3.Location = new System.Drawing.Point(149, 0);
             label3.Name = "label3";
-            label3.Size = new System.Drawing.Size(45, 15);
+            label3.Size = new System.Drawing.Size(54, 19);
             label3.TabIndex = 1;
             label3.Text = "Output";
             // 
@@ -107,7 +108,7 @@ namespace GUI.Forms
             label4.AutoSize = true;
             label4.Location = new System.Drawing.Point(343, 0);
             label4.Name = "label4";
-            label4.Size = new System.Drawing.Size(40, 15);
+            label4.Size = new System.Drawing.Size(47, 19);
             label4.TabIndex = 2;
             label4.Text = "Count";
             // 

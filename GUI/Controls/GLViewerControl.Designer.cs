@@ -53,7 +53,7 @@ namespace GUI.Controls
             glControlContainer.Location = new System.Drawing.Point(0, 0);
             glControlContainer.Margin = new Padding(4, 50, 4, 3);
             glControlContainer.Name = "glControlContainer";
-            glControlContainer.Size = new System.Drawing.Size(1220, 937);
+            glControlContainer.Size = new System.Drawing.Size(1562, 902);
             glControlContainer.TabIndex = 0;
             // 
             // controlsPanel
@@ -61,11 +61,12 @@ namespace GUI.Controls
             controlsPanel.AutoScroll = true;
             controlsPanel.Controls.Add(bottomPanel);
             controlsPanel.Dock = DockStyle.Fill;
+            controlsPanel.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, 0);
             controlsPanel.Location = new System.Drawing.Point(0, 0);
             controlsPanel.Margin = new Padding(0);
             controlsPanel.Name = "controlsPanel";
             controlsPanel.Padding = new Padding(5, 5, 5, 0);
-            controlsPanel.Size = new System.Drawing.Size(220, 937);
+            controlsPanel.Size = new System.Drawing.Size(220, 902);
             controlsPanel.TabIndex = 4;
             // 
             // bottomPanel
@@ -73,7 +74,7 @@ namespace GUI.Controls
             bottomPanel.Controls.Add(copyLabel);
             bottomPanel.Controls.Add(moveSpeed);
             bottomPanel.Dock = DockStyle.Bottom;
-            bottomPanel.Location = new System.Drawing.Point(5, 897);
+            bottomPanel.Location = new System.Drawing.Point(5, 862);
             bottomPanel.Margin = new Padding(0);
             bottomPanel.Name = "bottomPanel";
             bottomPanel.Padding = new Padding(5);
@@ -113,7 +114,7 @@ namespace GUI.Controls
             // splitContainer.Panel2
             // 
             splitContainer.Panel2.Controls.Add(glControlContainer);
-            splitContainer.Size = new System.Drawing.Size(1444, 937);
+            splitContainer.Size = new System.Drawing.Size(1786, 902);
             splitContainer.SplitterDistance = 220;
             splitContainer.TabIndex = 5;
             // 
@@ -124,7 +125,7 @@ namespace GUI.Controls
             Controls.Add(splitContainer);
             Margin = new Padding(0);
             Name = "GLViewerControl";
-            Size = new System.Drawing.Size(1444, 937);
+            Size = new System.Drawing.Size(1786, 902);
             controlsPanel.ResumeLayout(false);
             bottomPanel.ResumeLayout(false);
             splitContainer.Panel1.ResumeLayout(false);
