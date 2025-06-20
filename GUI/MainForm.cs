@@ -1,6 +1,5 @@
 //#define SCREENSHOT_MODE // Uncomment to hide version, keep title bar static, set an exact window size
 
-using System.ComponentModel;
 using System.Diagnostics;
 using System.Drawing;
 using System.Globalization;
@@ -281,7 +280,7 @@ namespace GUI
             return Screen.AllScreens.Any(screen => screen.WorkingArea.IntersectsWith(formRectangle));
         }
 
-        protected override void OnClosing(CancelEventArgs e)
+        protected override void OnFormClosing(FormClosingEventArgs e)
         {
 #if !SCREENSHOT_MODE
             // save the application window size, position and state (if maximized)
@@ -298,7 +297,7 @@ namespace GUI
 #endif
 
             Settings.Save();
-            base.OnClosing(e);
+            base.OnFormClosing(e);
         }
 
         private void MainForm_Load(object sender, EventArgs e)

@@ -67,12 +67,14 @@ static partial class UpdateChecker
             using var httpClient = new HttpClient();
             httpClient.DefaultRequestHeaders.Add("User-Agent", "Source 2 Viewer Update Check (+https://github.com/ValveResourceFormat/ValveResourceFormat)");
 
+#pragma warning disable CA2025 // Do not pass 'IDisposable' instances into unawaited tasks
             var stableReleaseTask = GetLastStableRelease(httpClient);
 
 #if !CI_RELEASE_BUILD
             // Fire the dev request away, before awaiting the first request for stable release
             var lastDevBuild = GetLastDevBuild(httpClient);
 #endif
+#pragma warning restore CA2025
 
             var stableReleaseData = await stableReleaseTask.ConfigureAwait(false);
             var newVersion = stableReleaseData?.tag_name ?? "0.0";

@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.IO;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.CompiledShader;

@@ -1,4 +1,3 @@
-using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -255,9 +254,10 @@ namespace GUI.Forms
             SetProgress($"Export completed in {exportStopwatch.Elapsed}.");
         }
 
-        protected override void OnClosing(CancelEventArgs e)
+        protected override void OnFormClosing(FormClosingEventArgs e)
         {
             cancellationTokenSource.Cancel();
+            base.OnFormClosing(e);
         }
 
         public void QueueFiles(IBetterBaseItem root)
@@ -425,7 +425,7 @@ namespace GUI.Forms
 
                 if (contentFile.Data != null)
                 {
-                    SetProgress($"+ {outFilePath.Remove(0, path.Length + 1)}");
+                    SetProgress($"+ {outFilePath[(path.Length + 1)..]}");
                     await File.WriteAllBytesAsync(outFilePath, contentFile.Data, cancellationTokenSource.Token).ConfigureAwait(false);
                 }
 
@@ -525,7 +525,7 @@ namespace GUI.Forms
                     userFolders.Reverse().Take(assetFolders.Length - i)
                 ))
                 {
-                    leftChop = assetFolders.Reverse().Skip(i).Select(x => x.Length + 1).Sum();
+                    leftChop = assetFolders.Reverse().Skip(i).Sum(static x => x.Length + 1);
                 }
             }
 

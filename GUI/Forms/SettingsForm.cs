@@ -1,4 +1,3 @@
-using System.ComponentModel;
 using System.IO;
 using System.Reflection;
 using System.Windows.Forms;
@@ -18,9 +17,9 @@ namespace GUI.Forms
             InitializeComponent();
         }
 
-        protected override void OnClosing(CancelEventArgs e)
+        protected override void OnFormClosing(FormClosingEventArgs e)
         {
-            base.OnClosing(e);
+            base.OnFormClosing(e);
             Settings.Save();
         }
 

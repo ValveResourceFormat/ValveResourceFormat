@@ -88,9 +88,10 @@ namespace GUI.Forms
                 });
         }
 
-        protected override void OnClosing(CancelEventArgs e)
+        protected override void OnFormClosing(FormClosingEventArgs e)
         {
             cancellationTokenSource.Cancel();
+            base.OnFormClosing(e);
         }
 
         private void CancelButton_Click(object sender, EventArgs e)
