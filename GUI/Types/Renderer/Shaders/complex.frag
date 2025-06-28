@@ -657,7 +657,7 @@ void main()
     vec3 specularLighting = lighting.SpecularDirect + lighting.SpecularIndirect;
 
     #if F_NO_SPECULAR_AT_FULL_ROUGHNESS == 1
-        specularLighting = (mat.Roughness == 1.0) ? vec3(0) : specularLighting;
+        specularLighting = (mat.Roughness == vec2(1.0)) ? vec3(0) : specularLighting;
     #endif
 
     #if defined(S_TRANSMISSIVE_BACKFACE_NDOTL)
