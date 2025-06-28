@@ -9,6 +9,7 @@ using GUI.Controls;
 using GUI.Utils;
 using OpenTK.GLControl;
 using OpenTK.Graphics.OpenGL;
+using OpenTK.Windowing.Desktop;
 
 namespace GUI.Types.Renderer
 {
@@ -355,14 +356,16 @@ namespace GUI.Types.Renderer
 
             var shaders = Directory.GetFiles(folder, "*.frag");
 
-            using var control = new GLControl(new()
+            GLFWProvider.CheckForMainThread = false;
+            using var window = new GameWindow(GameWindowSettings.Default, new()
             {
-                Profile = OpenTK.Windowing.Common.ContextProfile.Core,
                 APIVersion = GLViewerControl.OpenGlVersion,
-                Flags = OpenTK.Windowing.Common.ContextFlags.Offscreen,
+                Flags = GLViewerControl.OpenGlFlags | OpenTK.Windowing.Common.ContextFlags.Offscreen,
+                StartVisible = false,
             });
+            GLFWProvider.CheckForMainThread = true;
 
-            control.MakeCurrent();
+            window.MakeCurrent();
 
             GLViewerControl.CheckOpenGL();
 
