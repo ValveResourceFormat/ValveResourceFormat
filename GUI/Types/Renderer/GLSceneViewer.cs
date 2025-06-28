@@ -113,6 +113,8 @@ namespace GUI.Types.Renderer
 
         protected override void Dispose(bool disposing)
         {
+            base.Dispose(disposing);
+
             if (disposing)
             {
                 GLPaint -= OnPaint;
@@ -137,8 +139,6 @@ namespace GUI.Types.Renderer
                 GuiContext.ShaderLoader.ShaderHotReload.ReloadShader -= OnHotReload;
 #endif
             }
-
-            base.Dispose(disposing);
         }
 
         protected abstract void InitializeControl();

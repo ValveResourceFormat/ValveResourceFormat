@@ -23,14 +23,12 @@ namespace GUI.Types.Renderer
 
         protected override void Dispose(bool disposing)
         {
-            GLControl.MakeCurrent();
+            base.Dispose(disposing);
 
             if (disposing)
             {
                 SaveAsFbo?.Dispose();
             }
-
-            base.Dispose(disposing);
         }
 
         protected override void InitializeControl()

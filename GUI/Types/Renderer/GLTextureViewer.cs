@@ -481,6 +481,8 @@ namespace GUI.Types.Renderer
 
         protected override void Dispose(bool disposing)
         {
+            base.Dispose(disposing);
+
             if (disposing)
             {
                 GLControl.PreviewKeyDown -= OnPreviewKeyDown;
@@ -502,11 +504,10 @@ namespace GUI.Types.Renderer
                 decodeFlagsListBox?.Dispose();
                 decodeFlagsListBox = null;
 
+
                 texture?.Dispose();
                 SaveAsFbo?.Dispose();
             }
-
-            base.Dispose(disposing);
         }
 
         private void OnSaveButtonClick(object sender, EventArgs e)
