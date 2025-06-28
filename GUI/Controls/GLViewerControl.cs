@@ -87,10 +87,10 @@ namespace GUI.Controls
                 RedBits = 8,
                 GreenBits = 8,
                 BlueBits = 8,
-                AlphaBits = 1,
+                AlphaBits = 0,
                 DepthBits = 0,
                 StencilBits = 0,
-                //AutoLoadBindings = true,
+                AutoLoadBindings = true,
             };
 
             GLControl = new GLControl(settings)
