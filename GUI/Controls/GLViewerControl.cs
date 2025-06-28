@@ -503,12 +503,13 @@ namespace GUI.Controls
 
         private void OnPaint(object sender, EventArgs e)
         {
+            Application.DoEvents();
+
             if (IsDisposed || GLControl.IsDisposed || !GLControl.Visible)
             {
                 return;
             }
 
-            Application.DoEvents();
             GLControl.MakeCurrent();
 
             if (MainFramebuffer.InitialStatus != FramebufferErrorCode.FramebufferComplete)
@@ -648,6 +649,8 @@ namespace GUI.Controls
                 return;
             }
 
+            GLControl.MakeCurrent();
+
             GLDefaultFramebuffer.Resize(w, h);
 
             if (MainFramebuffer != GLDefaultFramebuffer)
@@ -693,7 +696,6 @@ namespace GUI.Controls
                 return;
             }
 
-            GLControl.MakeCurrent();
             HandleResize();
             GLControl.Invalidate();
         }
