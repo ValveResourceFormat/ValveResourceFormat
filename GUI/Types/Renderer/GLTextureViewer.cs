@@ -691,6 +691,8 @@ namespace GUI.Types.Renderer
 
         protected override void OnMouseMove(object sender, MouseEventArgs e)
         {
+            GLControl.Focus();
+
             if (ClickPosition == null)
             {
                 return;
