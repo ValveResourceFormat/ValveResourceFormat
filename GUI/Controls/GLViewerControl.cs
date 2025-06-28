@@ -23,6 +23,12 @@ namespace GUI.Controls
 
         public static Version OpenGlVersion = new(OpenGlVersionMajor, OpenGlVersionMinor);
 
+#if DEBUG
+        public static ContextFlags OpenGlFlags => ContextFlags.ForwardCompatible | ContextFlags.Debug;
+#else
+        public static ContextFlags OpenGlFlags => ContextFlags.ForwardCompatible;
+#endif
+
         private enum ParallelShaderCompileType : byte
         {
             None,
@@ -73,17 +79,10 @@ namespace GUI.Controls
 
             Camera = new Camera();
 
-            // Initialize GL control
-            var flags = ContextFlags.ForwardCompatible;
-
-#if DEBUG
-            flags |= ContextFlags.Debug;
-#endif
-
             var settings = new GLControlSettings()
             {
                 APIVersion = OpenGlVersion,
-                Flags = flags,
+                Flags = OpenGlFlags,
                 RedBits = 8,
                 GreenBits = 8,
                 BlueBits = 8,
