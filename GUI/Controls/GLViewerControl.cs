@@ -503,16 +503,13 @@ namespace GUI.Controls
 
         private void OnPaint(object sender, EventArgs e)
         {
-            Application.DoEvents();
-            Draw();
-        }
-
-        private void Draw()
-        {
-            if (!GLControl.Visible || GLControl.IsDisposed || !GLControl.Context.IsCurrent)
+            if (IsDisposed || GLControl.IsDisposed || !GLControl.Visible)
             {
                 return;
             }
+
+            Application.DoEvents();
+            GLControl.MakeCurrent();
 
             if (MainFramebuffer.InitialStatus != FramebufferErrorCode.FramebufferComplete)
             {
