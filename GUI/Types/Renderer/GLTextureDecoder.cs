@@ -3,7 +3,6 @@ using System.Diagnostics;
 using System.Threading;
 using GUI.Controls;
 using GUI.Utils;
-using OpenTK.GLControl;
 using OpenTK.Graphics.OpenGL;
 using OpenTK.Windowing.Desktop;
 using SkiaSharp;
@@ -129,8 +128,6 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
 
     private void Initialize()
     {
-        GLFWProvider.CheckForMainThread = false;
-
         GLWindowContext = new GameWindow(new() { UpdateFrequency = 1.0 }, new()
         {
             APIVersion = GLViewerControl.OpenGlVersion,
@@ -138,8 +135,6 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
             StartVisible = false,
             StartFocused = false,
         });
-
-        GLFWProvider.CheckForMainThread = true;
 
         GLWindowContext.MakeCurrent();
 

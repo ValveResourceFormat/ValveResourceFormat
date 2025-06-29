@@ -356,14 +356,12 @@ namespace GUI.Types.Renderer
 
             var shaders = Directory.GetFiles(folder, "*.frag");
 
-            GLFWProvider.CheckForMainThread = false;
             using var window = new GameWindow(GameWindowSettings.Default, new()
             {
                 APIVersion = GLViewerControl.OpenGlVersion,
                 Flags = GLViewerControl.OpenGlFlags | OpenTK.Windowing.Common.ContextFlags.Offscreen,
                 StartVisible = false,
             });
-            GLFWProvider.CheckForMainThread = true;
 
             window.MakeCurrent();
 

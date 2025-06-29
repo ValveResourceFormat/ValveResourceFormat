@@ -15,6 +15,7 @@ using GUI.Types.Exporter;
 using GUI.Types.PackageViewer;
 using GUI.Types.Renderer;
 using GUI.Utils;
+using OpenTK.Windowing.Desktop;
 using SteamDatabase.ValvePak;
 using ValveResourceFormat.IO;
 
@@ -55,6 +56,8 @@ namespace GUI
                 ImageListLookup.Add(extension, index);
                 Debug.Assert(index >= 0);
             }
+
+            GLFWProvider.CheckForMainThread = false;
         }
 
         public MainForm(string[] args)
