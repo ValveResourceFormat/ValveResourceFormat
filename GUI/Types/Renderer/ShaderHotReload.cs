@@ -3,8 +3,8 @@ using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using System.Windows.Forms;
+using GUI.Controls;
 using GUI.Utils;
-using OpenTK.GLControl;
 
 namespace GUI.Types.Renderer;
 

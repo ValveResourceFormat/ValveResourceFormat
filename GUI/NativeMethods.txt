@@ -1,2 +1,6 @@
 SHChangeNotify
 SetWindowTheme
+SetParent
+SetWindowLongPtr
+WINDOW_STYLE
+WINDOW_EX_STYLE

@@ -7,7 +7,6 @@ using System.Text;
 using System.Text.RegularExpressions;
 using GUI.Controls;
 using GUI.Utils;
-using OpenTK.GLControl;
 using OpenTK.Graphics.OpenGL;
 using OpenTK.Windowing.Desktop;
 

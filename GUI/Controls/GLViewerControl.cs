@@ -5,12 +5,11 @@ using System.Linq;
 using System.Windows.Forms;
 using GUI.Types.Renderer;
 using GUI.Utils;
-using OpenTK.GLControl;
-using OpenTK.Windowing.Common;
 using OpenTK.Graphics.OpenGL;
+using OpenTK.Windowing.Common;
+using OpenTK.Windowing.Desktop;
 using SkiaSharp;
 using static GUI.Types.Renderer.PickingTexture;
-using WinFormsMouseEventArgs = System.Windows.Forms.MouseEventArgs;
 
 #nullable disable
 
@@ -79,7 +78,7 @@ namespace GUI.Controls
 
             Camera = new Camera();
 
-            var settings = new GLControlSettings()
+            var settings = new NativeWindowSettings()
             {
                 APIVersion = OpenGlVersion,
                 Flags = OpenGlFlags,
@@ -262,7 +261,7 @@ namespace GUI.Controls
             MouseOverRenderArea = true;
         }
 
-        protected virtual void OnMouseDown(object sender, WinFormsMouseEventArgs e)
+        protected virtual void OnMouseDown(object sender, MouseEventArgs e)
         {
             if (e.Button != MouseButtons.Left && e.Button != MouseButtons.Right)
             {
@@ -299,7 +298,7 @@ namespace GUI.Controls
             }
         }
 
-        protected virtual void OnMouseUp(object sender, WinFormsMouseEventArgs e)
+        protected virtual void OnMouseUp(object sender, MouseEventArgs e)
         {
             if (e.Button == MouseButtons.Left)
             {
@@ -322,7 +321,7 @@ namespace GUI.Controls
             }
         }
 
-        protected virtual void OnMouseMove(object sender, WinFormsMouseEventArgs e)
+        protected virtual void OnMouseMove(object sender, MouseEventArgs e)
         {
             if ((CurrentlyPressedKeys & TrackedKeys.MouseLeftOrRight) == 0)
             {
@@ -378,7 +377,7 @@ namespace GUI.Controls
             MousePreviousPosition = position;
         }
 
-        protected virtual void OnMouseWheel(object sender, WinFormsMouseEventArgs e)
+        protected virtual void OnMouseWheel(object sender, MouseEventArgs e)
         {
             var modifier = Camera.ModifySpeed(e.Delta > 0);
 

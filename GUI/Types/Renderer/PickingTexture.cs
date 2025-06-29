@@ -1,6 +1,6 @@
 using GUI.Utils;
-using OpenTK.Mathematics;
 using OpenTK.Graphics.OpenGL;
+using OpenTK.Mathematics;
 
 namespace GUI.Types.Renderer;
 
