@@ -442,18 +442,23 @@ namespace GUI.Types.Viewers
                 return;
             }
 
+            AddTextViewControl(resource.ResourceType, block, blockTab);
+        }
+
+        public static void AddTextViewControl(ResourceType resourceType, Block block, TabPage blockTab)
+        {
             var text = block.ToString();
             var language = CodeTextBox.HighlightLanguage.KeyValues;
 
-            if (resource.ResourceType == ResourceType.PanoramaLayout && block.Type == BlockType.DATA)
+            if (resourceType == ResourceType.PanoramaLayout && block.Type == BlockType.DATA)
             {
                 language = CodeTextBox.HighlightLanguage.XML;
             }
-            else if (resource.ResourceType == ResourceType.PanoramaStyle && block.Type == BlockType.DATA)
+            else if (resourceType == ResourceType.PanoramaStyle && block.Type == BlockType.DATA)
             {
                 language = CodeTextBox.HighlightLanguage.CSS;
             }
-            else if (resource.ResourceType == ResourceType.PanoramaScript && block.Type == BlockType.DATA)
+            else if (resourceType == ResourceType.PanoramaScript && block.Type == BlockType.DATA)
             {
                 language = CodeTextBox.HighlightLanguage.JS;
             }

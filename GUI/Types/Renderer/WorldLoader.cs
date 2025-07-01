@@ -21,6 +21,7 @@ namespace GUI.Types.Renderer
         private readonly VrfGuiContext guiContext;
 
         public List<Entity> Entities { get; } = [];
+        public WorldNode MainWorldNode { get; private set; }
 
         public HashSet<string> DefaultEnabledLayers { get; } = ["Entities", "Particles"];
 
@@ -85,13 +86,16 @@ namespace GUI.Types.Renderer
             {
                 if (worldNode != null)
                 {
-                    var newResource = guiContext.LoadFile(string.Concat(worldNode, ".vwnod_c"));
-                    if (newResource == null)
+                    var worldNodeResource = guiContext.LoadFile(string.Concat(worldNode, ".vwnod_c"));
+                    if (worldNodeResource == null)
                     {
                         continue;
                     }
 
-                    var subloader = new WorldNodeLoader(guiContext, (WorldNode)newResource.DataBlock, newResource.ExternalReferences);
+                    var worldNodeData = (WorldNode)worldNodeResource.DataBlock;
+                    MainWorldNode ??= worldNodeData;
+
+                    var subloader = new WorldNodeLoader(guiContext, worldNodeData, worldNodeResource.ExternalReferences);
                     subloader.Load(scene);
 
                     foreach (var layer in subloader.LayerNames)

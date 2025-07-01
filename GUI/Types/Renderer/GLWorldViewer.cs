@@ -199,11 +199,17 @@ namespace GUI.Types.Renderer
 
                 if (Parent.Parent is TabControl tabControl)
                 {
-                    var entities = result.Entities;
+                    var worldTabPage = new TabPage("World Data");
+                    Resource.AddTextViewControl(ValveResourceFormat.ResourceType.WorldNode, world, worldTabPage);
+                    tabControl.TabPages.Add(worldTabPage);
 
-                    var specialTabPage = new TabPage("Entities");
-                    specialTabPage.Controls.Add(new EntityViewer(GuiContext, entities, SelectAndFocusEntity));
-                    tabControl.TabPages.Add(specialTabPage);
+                    var worldNodeTabPage = new TabPage("Node Data");
+                    Resource.AddTextViewControl(ValveResourceFormat.ResourceType.WorldNode, result.MainWorldNode, worldNodeTabPage);
+                    tabControl.TabPages.Add(worldNodeTabPage);
+
+                    var entitiesTabPage = new TabPage("Entity List");
+                    entitiesTabPage.Controls.Add(new EntityViewer(GuiContext, result.Entities, SelectAndFocusEntity));
+                    tabControl.TabPages.Add(entitiesTabPage);
                 }
 
                 AddCheckBox("Show Fog", Scene.FogEnabled, v => Scene.FogEnabled = v);
