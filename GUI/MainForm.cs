@@ -19,6 +19,8 @@ using OpenTK.Windowing.Desktop;
 using SteamDatabase.ValvePak;
 using ValveResourceFormat.IO;
 
+using ResourceViewMode = GUI.Types.Viewers.ResourceViewMode;
+
 #nullable disable
 
 namespace GUI
@@ -550,9 +552,17 @@ namespace GUI
             Settings.TrackRecentFile(fileName);
         }
 
-        public void OpenFile(VrfGuiContext vrfGuiContext, PackageEntry file, TreeViewWithSearchResults packageTreeView = null)
+        public void OpenFile(VrfGuiContext vrfGuiContext, PackageEntry file, TreeViewWithSearchResults packageTreeView = null, bool withoutViewer = false)
         {
             var isPreview = packageTreeView != null;
+
+            var viewMode = (isPreview, withoutViewer) switch
+            {
+                (true, _) => ResourceViewMode.ViewerOnly,
+                (_, true) => ResourceViewMode.ResourceBlocksOnly,
+                (_, _) => ResourceViewMode.Default,
+            };
+
             var tabTemp = new TabPage(Path.GetFileName(vrfGuiContext.FileName))
             {
                 ToolTipText = vrfGuiContext.FileName,
@@ -631,7 +641,7 @@ namespace GUI
             var loadingFile = new LoadingFile();
             tab.Controls.Add(loadingFile);
 
-            var task = Task.Factory.StartNew(() => ProcessFile(vrfGuiContext, file, isPreview));
+            var task = Task.Factory.StartNew(() => ProcessFile(vrfGuiContext, file, viewMode));
 
             task.ContinueWith(
                 t =>
@@ -701,7 +711,7 @@ namespace GUI
                 TaskScheduler.FromCurrentSynchronizationContext());
         }
 
-        private static TabPage ProcessFile(VrfGuiContext vrfGuiContext, PackageEntry entry, bool isPreview)
+        private static TabPage ProcessFile(VrfGuiContext vrfGuiContext, PackageEntry entry, ResourceViewMode viewMode)
         {
             Stream stream = null;
             Span<byte> magicData = stackalloc byte[6];
@@ -780,7 +790,7 @@ namespace GUI
             }
             else if (Types.Viewers.Resource.IsAccepted(magicResourceVersion))
             {
-                return new Types.Viewers.Resource().Create(vrfGuiContext, stream, isPreview, verifyFileSize: entry == null || entry.CRC32 > 0);
+                return new Types.Viewers.Resource().Create(vrfGuiContext, stream, viewMode, verifyFileSize: entry == null || entry.CRC32 > 0);
             }
             // Raw images and audio files do not really appear in Source 2 projects, but we support viewing them anyway.
             // As some detections rely on the file extension instead of magic bytes,
@@ -795,7 +805,7 @@ namespace GUI
             }
             else if (Types.Viewers.Audio.IsAccepted(magic, vrfGuiContext.FileName))
             {
-                return new Types.Viewers.Audio().Create(vrfGuiContext, stream, isPreview);
+                return new Types.Viewers.Audio().Create(vrfGuiContext, stream, viewMode == ResourceViewMode.ViewerOnly);
             }
             else if (Types.Viewers.GridNavFile.IsAccepted(magic))
             {

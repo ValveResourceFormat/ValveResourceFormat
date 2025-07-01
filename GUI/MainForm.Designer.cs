@@ -71,6 +71,7 @@ namespace GUI
             copyFileNameToolStripMenuItem = new ToolStripMenuItem();
             copyFileNameOnDiskToolStripMenuItem = new ToolStripMenuItem();
             toolStripSeparator3 = new ToolStripSeparator();
+            openWithoutViewerToolStripMenuItem = new ToolStripMenuItem();
             openWithDefaultAppToolStripMenuItem = new ToolStripMenuItem();
             viewAssetInfoToolStripMenuItem = new ToolStripMenuItem();
             verifyPackageContentsToolStripMenuItem = new ToolStripMenuItem();
@@ -311,7 +312,7 @@ namespace GUI
             //
             // vpkContextMenu
             //
-            vpkContextMenu.Items.AddRange(new ToolStripItem[] { extractToolStripMenuItem, decompileToolStripMenuItem, toolStripSeparator1, copyFileNameToolStripMenuItem, copyFileNameOnDiskToolStripMenuItem, toolStripSeparator3, openWithDefaultAppToolStripMenuItem, viewAssetInfoToolStripMenuItem, verifyPackageContentsToolStripMenuItem, recoverDeletedToolStripMenuItem });
+            vpkContextMenu.Items.AddRange(new ToolStripItem[] { extractToolStripMenuItem, decompileToolStripMenuItem, toolStripSeparator1, copyFileNameToolStripMenuItem, copyFileNameOnDiskToolStripMenuItem, toolStripSeparator3, openWithoutViewerToolStripMenuItem, openWithDefaultAppToolStripMenuItem, viewAssetInfoToolStripMenuItem, verifyPackageContentsToolStripMenuItem, recoverDeletedToolStripMenuItem });
             vpkContextMenu.Name = "vpkContextMenu";
             vpkContextMenu.Size = new System.Drawing.Size(209, 192);
             //
@@ -356,6 +357,14 @@ namespace GUI
             //
             toolStripSeparator3.Name = "toolStripSeparator3";
             toolStripSeparator3.Size = new System.Drawing.Size(205, 6);
+            //
+            // openWithoutViewerToolStripMenuItem
+            //
+            // todo: add icon
+            openWithoutViewerToolStripMenuItem.Name = "openWithoutViewerToolStripMenuItem";
+            openWithoutViewerToolStripMenuItem.Size = new System.Drawing.Size(208, 22);
+            openWithoutViewerToolStripMenuItem.Text = "Open without viewer";
+            openWithoutViewerToolStripMenuItem.Click += OpenWithoutViewerToolStripMenuItem_Click;
             //
             // openWithDefaultAppToolStripMenuItem
             //
@@ -478,6 +487,7 @@ namespace GUI
         private ToolStripMenuItem closeToolStripMenuItemsToRight;
         private ToolStripMenuItem closeToolStripMenuItems;
         private ToolStripMenuItem findToolStripButton;
+        private ToolStripMenuItem openWithoutViewerToolStripMenuItem;
         private ToolStripMenuItem openWithDefaultAppToolStripMenuItem;
         private ToolStripMenuItem decompileToolStripMenuItem;
         private ToolStripSeparator toolStripSeparator1;

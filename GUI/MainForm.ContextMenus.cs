@@ -165,6 +165,16 @@ namespace GUI
             Clipboard.SetText(sb.ToString());
         }
 
+        private void OpenWithoutViewerToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            var (guiContext, selectedNode) = GetSingleSelectedNode(sender);
+            if (selectedNode.PackageEntry != null)
+            {
+                var newContext = new VrfGuiContext(selectedNode.PackageEntry.GetFullPath(), guiContext);
+                OpenFile(newContext, selectedNode.PackageEntry, null, withoutViewer: true);
+            }
+        }
+
         private void OpenWithDefaultAppToolStripMenuItem_Click(object sender, EventArgs e)
         {
             var control = ((ContextMenuStrip)((ToolStripMenuItem)sender).Owner).SourceControl;
@@ -236,9 +246,27 @@ namespace GUI
 
         private void OnViewAssetInfoToolStripMenuItemClick(object sender, EventArgs e)
         {
+            var (guiContext, selectedNode) = GetSingleSelectedNode(sender);
+            if (selectedNode.IsFolder)
+            {
+                return;
+            }
+
+            var tab = Types.Viewers.SingleAssetInfo.Create(guiContext, selectedNode.PackageEntry);
+
+            if (tab != null)
+            {
+                mainTabs.TabPages.Add(tab);
+                mainTabs.SelectTab(tab);
+            }
+        }
+
+        private static (VrfGuiContext, IBetterBaseItem) GetSingleSelectedNode(object sender)
+        {
             var control = ((ContextMenuStrip)((ToolStripMenuItem)sender).Owner).SourceControl;
-            IBetterBaseItem selectedNode;
+
             VrfGuiContext guiContext;
+            IBetterBaseItem selectedNode;
 
             if (control is BetterTreeView treeView)
             {
@@ -255,18 +283,7 @@ namespace GUI
                 throw new InvalidDataException("Unknown state");
             }
 
-            if (selectedNode.IsFolder)
-            {
-                return;
-            }
-
-            var tab = Types.Viewers.SingleAssetInfo.Create(guiContext, selectedNode.PackageEntry);
-
-            if (tab != null)
-            {
-                mainTabs.TabPages.Add(tab);
-                mainTabs.SelectTab(tab);
-            }
+            return (guiContext, selectedNode);
         }
 
         private void DecompileToolStripMenuItem_Click(object sender, EventArgs e)
