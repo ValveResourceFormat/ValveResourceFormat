@@ -399,6 +399,11 @@ namespace GUI.Types.Renderer
             {
                 entityInfoForm.Text = $"{sceneNode.GetType().Name}: {sceneNode.Name}";
 
+                static string FormatVector(Vector3 vector)
+                {
+                    return $"{vector.X:F2} {vector.Y:F2} {vector.Z:F2}";
+                }
+
                 static string ToRenderColor(Vector4 tint)
                 {
                     tint *= 255.0f;
@@ -436,6 +441,11 @@ namespace GUI.Types.Renderer
                 {
                     entityInfoForm.EntityInfoControl.AddProperty("Model Tint", ToRenderColor(modelSceneNode.Tint));
                     entityInfoForm.EntityInfoControl.AddProperty("Model Alpha", $"{modelSceneNode.Tint.W:F6}");
+
+                    if (modelSceneNode.LightingOrigin.HasValue)
+                    {
+                        entityInfoForm.EntityInfoControl.AddProperty("Custom Lighting Origin", FormatVector(modelSceneNode.LightingOrigin.Value));
+                    }
                 }
 
                 if (sceneNode.CubeMapPrecomputedHandshake > 0)
