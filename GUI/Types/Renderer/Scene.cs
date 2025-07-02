@@ -793,15 +793,30 @@ namespace GUI.Types.Renderer
                 if (node.LightingOrigin.HasValue)
                 {
                     // in source2 this is a dynamic combo D_SPECULAR_CUBEMAP_STATIC=1, and i guess without a loop (similar to S_SCENE_CUBEMAP_TYPE=1)
-                    node.EnvMaps = [.. node.EnvMaps.OrderBy((envMap) => Vector3.Distance(lightingOrigin, envMap.BoundingBox.Center))];
+                    node.EnvMaps.Clear();
+
+                    foreach (var envMap in LightingInfo.EnvMaps)
+                    {
+                        if (envMap.BoundingBox.Contains(lightingOrigin))
+                        {
+                            node.EnvMaps.Add(envMap);
+                        }
+                    }
                 }
-                else
+
+                node.EnvMaps.Sort((a, b) =>
                 {
-                    node.EnvMaps = [.. node.EnvMaps
-                        .OrderByDescending((envMap) => envMap.IndoorOutdoorLevel)
-                        .ThenBy((envMap) => Vector3.Distance(node.BoundingBox.Center, envMap.BoundingBox.Center))
-                    ];
-                }
+                    var result = b.IndoorOutdoorLevel.CompareTo(a.IndoorOutdoorLevel);
+                    if (result != 0)
+                    {
+                        return result;
+                    }
+
+                    var aDistance = Vector3.Distance(node.BoundingBox.Center, a.BoundingBox.Center);
+                    var bDistance = Vector3.Distance(node.BoundingBox.Center, b.BoundingBox.Center);
+
+                    return aDistance.CompareTo(bDistance);
+                });
 
                 /*
                 const int max = 16;
