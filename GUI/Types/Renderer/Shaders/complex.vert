@@ -231,6 +231,8 @@ void main()
     vVertexColorOut *= vCOLOR;
 #endif
 
+    vVertexColorOut.xyz = SrgbGammaToLinear(vVertexColorOut.xyz);
+
 #if (F_SECONDARY_UV == 1) || (F_FORCE_UV2 == 1)
     vTexCoord2 = vTEXCOORD1.xy;
 #endif

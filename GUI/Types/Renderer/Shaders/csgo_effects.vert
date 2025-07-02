@@ -35,6 +35,7 @@ void main()
     vTexCoordOut = vTEXCOORD;
 
     vColorOut = vTint;
+    vColorOut.rgb = SrgbGammaToLinear(vColorOut.rgb);
     vColorOut.rgb *= SrgbGammaToLinear(g_vColorTint.rgb);
 
     if (vCOLOR != vec4(0.0)) // Is this necessary?

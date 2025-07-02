@@ -143,8 +143,7 @@ void main()
         vPerVertexLightingOut = pow2(Light);
     #endif
 
-    // original code has SrgbGammaToLinear
-    vTintColor_ModelAmount.rgb = (vTint.rgb);
+    vTintColor_ModelAmount.rgb = SrgbGammaToLinear(vTint.rgb);
     float flLowestPoint = min(vTintColor_ModelAmount.r, min(vTintColor_ModelAmount.g, vTintColor_ModelAmount.b));
     vTintColor_ModelAmount.a = g_flModelTintAmount * (1.0 - flLowestPoint);
 
