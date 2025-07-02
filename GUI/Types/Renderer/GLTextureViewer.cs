@@ -515,10 +515,12 @@ namespace GUI.Types.Renderer
             Debug.Assert(Resource != null);
 
             var filter = "PNG Image|*.png|JPG Image|*.jpg";
+            var alternativeImageFormatIndex = 2;
 
             if (Svg != null)
             {
                 filter = $"SVG (Scalable Vector Graphics)|*.svg|{filter}";
+                alternativeImageFormatIndex++;
             }
 
             using var saveFileDialog = new SaveFileDialog
@@ -539,9 +541,8 @@ namespace GUI.Types.Renderer
 
             using var fs = saveFileDialog.OpenFile();
 
-            if (saveFileDialog.FilterIndex == 1)
+            if (Svg != null && saveFileDialog.FilterIndex == 1)
             {
-                Debug.Assert(Svg != null);
                 fs.Write(((Panorama)Resource.DataBlock).Data);
                 return;
             }
@@ -550,9 +551,9 @@ namespace GUI.Types.Renderer
             using var bitmap = ReadPixelsToBitmap();
             var format = SKEncodedImageFormat.Png;
 
-            switch (saveFileDialog.FilterIndex)
+            switch (saveFileDialog.FilterIndex - alternativeImageFormatIndex)
             {
-                case 2:
+                case 0:
                     format = SKEncodedImageFormat.Jpeg;
                     break;
             }
