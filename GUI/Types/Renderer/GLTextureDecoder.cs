@@ -55,12 +55,9 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
     private readonly Lock threadStartupLock = new();
 
     private Thread GLThread;
-    private bool IsRunning;
 
-#pragma warning disable CA2213 // Disposable fields should be disposed (handled in Dispose_ThreadResources)
     private GameWindow GLWindowContext;
     private Framebuffer Framebuffer;
-#pragma warning restore CA2213
 
     public void StartThread()
     {
@@ -68,8 +65,6 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
         {
             if (GLThread == null)
             {
-                IsRunning = true;
-
                 // create a thread context for OpenGL
                 GLThread = new Thread(Initialize_NoExcept)
                 {
@@ -86,7 +81,7 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
     {
         StartThread();
 
-        if (!IsRunning)
+        if (!GLThread.IsAlive)
         {
             Log.Warn(nameof(GLTextureDecoder), "Decoder thread is no longer available.");
             return false;
@@ -119,7 +114,6 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
         }
         finally
         {
-            IsRunning = false;
             CleanupRequests();
             Dispose_ThreadResources();
             Log.Warn(nameof(GLTextureDecoder), "Decoder thread has exited. It is no longer available.");
@@ -128,47 +122,57 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
 
     private void Initialize()
     {
-        GLWindowContext = new GameWindow(new() { UpdateFrequency = 1.0 }, new()
+        Log.Info(nameof(GLTextureDecoder), "Initializing GPU texture decoder...");
+
+        GLWindowContext = new GameWindow(new() { UpdateFrequency = 200 }, new()
         {
             APIVersion = GLViewerControl.OpenGlVersion,
             Flags = GLViewerControl.OpenGlFlags | OpenTK.Windowing.Common.ContextFlags.Offscreen,
             StartVisible = false,
             StartFocused = false,
+            ClientSize = new(4, 4),
+            DepthBits = null,
+            StencilBits = null,
         });
 
-        GLWindowContext.MakeCurrent();
-
-        GLViewerControl.CheckOpenGL();
-
-        Framebuffer = Framebuffer.Prepare(4, 4, 0, LDRFormat.Value, null);
-        Framebuffer.Initialize();
-        Framebuffer.CheckStatus_ThrowIfIncomplete(nameof(GLTextureDecoder));
-        Framebuffer.ClearMask = ClearBufferMask.ColorBufferBit;
-
-        while (IsRunning)
+        GLWindowContext.Load += () =>
         {
-#pragma warning disable CA2000 // Dispose objects before losing scope - already disposed by the code that enqueues
-            if (!decodeQueue.TryDequeue(out var decodeRequest))
-            {
-                queueUpdateEvent.WaitOne();
-                continue;
-            }
-#pragma warning restore CA2000
+            GLViewerControl.CheckOpenGL();
+            Framebuffer = Framebuffer.Prepare(4, 4, 0, LDRFormat.Value, null);
+            Framebuffer.Initialize();
+            Framebuffer.CheckStatus_ThrowIfIncomplete(nameof(GLTextureDecoder));
+            Framebuffer.ClearMask = ClearBufferMask.ColorBufferBit;
+            Framebuffer.ClearColor = new OpenTK.Mathematics.Color4(0, 0, 255, 255);
+        };
 
-            try
+        GLWindowContext.RenderFrame += (e) =>
+        {
+            queueUpdateEvent.WaitOne();
+
+            if (decodeQueue.TryDequeue(out var decodeRequest))
             {
-                var successfully = ProcessDecodeRequest(decodeRequest);
-                decodeRequest.MarkAsDone(successfully);
+                try
+                {
+                    var isDecoded = DecodeTexture(decodeRequest);
+                    decodeRequest.MarkAsDone(isDecoded);
+                }
+                catch
+                {
+                    decodeRequest.MarkAsDone(false);
+                    throw;
+                }
             }
-            catch
-            {
-                decodeRequest.MarkAsDone(false);
-                throw;
-            }
-        }
+        };
+
+        GLWindowContext.Closing += (e) =>
+        {
+            Framebuffer?.Dispose();
+        };
+
+        GLWindowContext.Run();
     }
 
-    private bool ProcessDecodeRequest(DecodeRequest request)
+    private bool DecodeTexture(DecodeRequest request)
     {
         var sw = Stopwatch.StartNew();
         var inputTexture = guiContext.MaterialLoader.LoadTexture(request.Resource, isViewerRequest: true);
@@ -178,13 +182,12 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
         /*
         if (request.Channels == ChannelMapping.RGBA && request.DecodeFlags == TextureCodec.None)
         {
-            GL.GetTexImage(inputTexture.Target, request.Mip, PixelFormat.Bgra, PixelType.UnsignedByte, request.Bitmap.GetPixels());
-            Log.Info(nameof(GLTextureDecoder), "Using GL.GetTexImage");
+            var texturePixels = request.Bitmap.GetPixels(out var texturePixelLength);
+            GL.GetTextureImage(inputTexture.Handle, 0, PixelFormat.Bgra, PixelType.UnsignedByte, (int)texturePixelLength, texturePixels);
             request.DecodeTime = sw.Elapsed;
             return true;
         }
         */
-
         var framebufferFormat = request.Bitmap.ColorType switch
         {
             HdrBitmapColorType => HDRFormat.Value,
@@ -214,7 +217,7 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
         }
 
         GL.Viewport(0, 0, blockWidth, blockHeight);
-        Framebuffer.BindAndClear();
+        Framebuffer.BindAndClear(FramebufferTarget.DrawFramebuffer);
         GL.DepthMask(false);
         GL.Disable(EnableCap.DepthTest);
 
@@ -227,8 +230,8 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
         shader.Use();
 
         shader.SetTexture(0, "g_tInputTexture", inputTexture);
-        shader.SetUniform2("g_vViewportSize", new System.Numerics.Vector2(blockWidth, blockHeight));
-        shader.SetUniform4("g_vInputTextureSize", new System.Numerics.Vector4(
+        shader.SetUniform2("g_vViewportSize", new Vector2(blockWidth, blockHeight));
+        shader.SetUniform4("g_vInputTextureSize", new Vector4(
             blockWidth, blockHeight, inputTexture.Depth, inputTexture.NumMipLevels
         ));
         shader.SetUniform1("g_nSelectedMip", request.Mip);
@@ -238,10 +241,10 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
         shader.SetUniform1("g_nDecodeFlags", (int)request.DecodeFlags);
 
         // full screen triangle
+        GL.BindVertexArray(guiContext.MeshBufferCache.EmptyVAO);
         GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
 
         inputTexture.Dispose();
-        GL.UseProgram(0);
 
         var pixels = request.Bitmap.GetPixels(out var outputLength);
         var fbBytesPerPixel = Framebuffer.ColorFormat.PixelType == PixelType.Float ? 16 : 4;
@@ -253,10 +256,15 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
             return false;
         }
 
-        // extract pixels from framebuffer
-        GL.Flush();
-        GL.Finish();
-        GL.ReadPixels(0, 0, request.Bitmap.Width, request.Bitmap.Height, Framebuffer.ColorFormat.PixelFormat, Framebuffer.ColorFormat.PixelType, pixels);
+        Framebuffer.Bind(FramebufferTarget.ReadFramebuffer);
+        GL.ReadBuffer(ReadBufferMode.ColorAttachment0);
+
+        GL.ReadnPixels(
+            0, 0,
+            request.Bitmap.Width, request.Bitmap.Height,
+            Framebuffer.ColorFormat.PixelFormat, Framebuffer.ColorFormat.PixelType,
+            (int)outputLength, pixels
+        );
 
         request.DecodeTime = sw.Elapsed;
         return true;
@@ -264,14 +272,12 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
 
     private void Dispose_ThreadResources()
     {
-        GLWindowContext?.MakeCurrent();
-        Framebuffer?.Dispose();
         GLWindowContext?.Dispose();
     }
 
     private void Exit()
     {
-        IsRunning = false;  // signal the thread that it should exit
+        GLWindowContext.Close();  // signal the thread that it should exit
         queueUpdateEvent.Set(); // wake the thread up
         GLThread.Join(); // wait for the thread to exit
     }

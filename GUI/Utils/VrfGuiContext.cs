@@ -48,6 +48,7 @@ namespace GUI.Utils
         {
             MaterialLoader = new MaterialLoader(this);
             ShaderLoader = new ShaderLoader(this);
+            MeshBufferCache = new GPUMeshBufferCache();
         }
 
         public VrfGuiContext(string fileName, VrfGuiContext parentGuiContext) : this()
@@ -59,7 +60,6 @@ namespace GUI.Utils
             FileName = fileName;
             ParentGuiContext = parentGuiContext;
             FileLoader = new AdvancedGuiFileLoader(this);
-            MeshBufferCache = new GPUMeshBufferCache();
 
             ParentGuiContext?.AddChildren();
         }
