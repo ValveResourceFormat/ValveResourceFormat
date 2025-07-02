@@ -820,10 +820,6 @@ namespace GUI.Types.Renderer
                     renderamt /= 255f;
                 }
 
-                rendercolor.X = MathF.Pow(rendercolor.X, 2.2f);
-                rendercolor.Y = MathF.Pow(rendercolor.Y, 2.2f);
-                rendercolor.Z = MathF.Pow(rendercolor.Z, 2.2f);
-
                 var newModel = (Model)newEntity.DataBlock;
 
                 var modelNode = new ModelSceneNode(scene, newModel, skin)
