@@ -1,6 +1,8 @@
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Forms;
 using GUI.Utils;
@@ -23,6 +25,8 @@ namespace GUI.Types.PackageViewer
 
         public bool DeletedFilesRecovered { get; private set; }
         public PackageViewer Viewer { get; }
+
+        public CancellationTokenSource PreviewTokenSource { get; private set; }
 
         public event EventHandler<PackageEntry> OpenPackageEntry;
         public event EventHandler<PackageContextMenuEventArgs> OpenContextMenu;
@@ -90,6 +94,7 @@ namespace GUI.Types.PackageViewer
                 return;
             }
 
+            PreviewTokenSource?.Cancel();
             OpenPackageEntry?.Invoke(sender, node.PackageEntry);
         }
 
@@ -110,7 +115,25 @@ namespace GUI.Types.PackageViewer
             }
             else
             {
-                PreviewFile?.Invoke(sender, realNode.PackageEntry);
+                PreviewTokenSource?.Cancel();
+                PreviewTokenSource = new CancellationTokenSource();
+
+                Task.Run(async () =>
+                {
+                    var token = PreviewTokenSource.Token;
+
+                    // The default double-click time in windows (500) is too long to wait entirely.
+                    var mouseDoubleClickIntervalMs = 200;
+                    await Task.Delay(mouseDoubleClickIntervalMs).ConfigureAwait(false);
+
+                    // double-clicked or started previewing a different file
+                    if (token.IsCancellationRequested)
+                    {
+                        return;
+                    }
+
+                    await InvokeAsync(() => PreviewFile?.Invoke(sender, realNode.PackageEntry)).ConfigureAwait(false);
+                });
             }
         }
 
