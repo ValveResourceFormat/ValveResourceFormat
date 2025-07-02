@@ -22,6 +22,7 @@ namespace GUI.Types.Renderer
     {
         private readonly World world;
         private readonly WorldNode worldNode;
+        private readonly bool isFromVmap;
         private CheckedListBox worldLayersComboBox;
         private CheckedListBox physicsGroupsComboBox;
         private ComboBox cameraComboBox;
@@ -30,10 +31,11 @@ namespace GUI.Types.Renderer
         private bool ignoreLayersChangeEvents = true;
         private List<Matrix4x4> CameraMatrices;
 
-        public GLWorldViewer(VrfGuiContext guiContext, World world)
+        public GLWorldViewer(VrfGuiContext guiContext, World world, bool isFromVmap = false)
             : base(guiContext)
         {
             this.world = world;
+            this.isFromVmap = isFromVmap;
         }
 
         public GLWorldViewer(VrfGuiContext guiContext, WorldNode worldNode)
@@ -199,9 +201,12 @@ namespace GUI.Types.Renderer
 
                 if (Parent.Parent is TabControl tabControl)
                 {
-                    var worldTabPage = new TabPage("World Data");
-                    Resource.AddTextViewControl(ValveResourceFormat.ResourceType.WorldNode, world, worldTabPage);
-                    tabControl.TabPages.Add(worldTabPage);
+                    if (isFromVmap)
+                    {
+                        var worldTabPage = new TabPage("World Data");
+                        Resource.AddTextViewControl(ValveResourceFormat.ResourceType.WorldNode, world, worldTabPage);
+                        tabControl.TabPages.Add(worldTabPage);
+                    }
 
                     var worldNodeTabPage = new TabPage("Node Data");
                     Resource.AddTextViewControl(ValveResourceFormat.ResourceType.WorldNode, result.MainWorldNode, worldNodeTabPage);

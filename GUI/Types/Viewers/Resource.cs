@@ -272,7 +272,7 @@ namespace GUI.Types.Viewers
                         if (mapResource != null)
                         {
                             specialTabPage = new TabPage("MAP");
-                            specialTabPage.Controls.Add(new GLWorldViewer(vrfGuiContext, (World)mapResource.DataBlock));
+                            specialTabPage.Controls.Add(new GLWorldViewer(vrfGuiContext, (World)mapResource.DataBlock, isFromVmap: true));
                         }
                         break;
                     }
