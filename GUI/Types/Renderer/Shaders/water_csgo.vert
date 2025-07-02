@@ -13,6 +13,9 @@ out vec3 vTangentOut;
 out vec3 vBitangentOut;
 out vec4 vColorBlendValues;
 
+uniform float g_flSkyBoxScale;
+uniform float g_flWaterPlaneOffset;
+
 #include "common/features.glsl"
 
 #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
@@ -30,14 +33,16 @@ uniform mat4 transform;
 
 void main()
 {
-    vec4 fragPosition = transform * vec4(vPOSITION, 1.0);
-    gl_Position = g_matWorldToProjection * fragPosition;
-    vFragPosition = fragPosition.xyz / fragPosition.w;
+    
 
     vec4 tangent;
     GetOptionallyCompressedNormalTangent(vNormalOut, tangent);
     vTangentOut = tangent.xyz;
     vBitangentOut = tangent.w * cross(vNormalOut, vTangentOut);
+
+    vec4 fragPosition = transform * vec4(vPOSITION + vNormalOut * g_flWaterPlaneOffset * mix(1.0, 1.0 / g_flSkyBoxScale, float(g_bIsSkybox)), 1.0);
+    gl_Position = g_matWorldToProjection * fragPosition;
+    vFragPosition = fragPosition.xyz / fragPosition.w;
 
     #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
         vLightmapUVScaled = vec3(vLightmapUV * g_vLightmapUvScale.xy, 0);

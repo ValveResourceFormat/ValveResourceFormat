@@ -42,7 +42,7 @@ namespace GUI.Types.Renderer
         public bool IsOverlay { get; }
         public bool IsAlphaTest { get; }
         public bool IsToolsMaterial { get; }
-
+        public bool WantsFrameBufferCopy { get; }
         public bool DoNotCastShadows { get; }
 
         private readonly bool isAdditiveBlend;
@@ -128,6 +128,13 @@ namespace GUI.Types.Renderer
             IsAlphaTest = material.IntParams.GetValueOrDefault("F_ALPHA_TEST") == 1;
             isAdditiveBlend = material.IntParams.GetValueOrDefault("F_ADDITIVE_BLEND") == 1;
             isRenderBackfaces = material.IntParams.GetValueOrDefault("F_RENDER_BACKFACES") == 1;
+
+            if (material.ShaderName == "csgo_water_fancy.vfx")
+            {
+                IsTranslucent = false;
+                IsAlphaTest = true;
+                WantsFrameBufferCopy = true;
+            }
 
             // :MaterialIsOverlay
             hasDepthBias = material.IntParams.GetValueOrDefault("F_DEPTHBIAS") == 1 || material.IntParams.GetValueOrDefault("F_DEPTH_BIAS") == 1;

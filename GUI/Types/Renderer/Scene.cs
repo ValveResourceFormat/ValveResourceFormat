@@ -221,6 +221,7 @@ namespace GUI.Types.Renderer
             [RenderPass.StaticOverlay] = [],
             [RenderPass.AfterOpaque] = [],
             [RenderPass.Translucent] = [],
+            [RenderPass.RefractionEffect] = [],
         };
 
         private void Add(MeshBatchRenderer.Request request, RenderPass renderPass)
@@ -230,11 +231,18 @@ namespace GUI.Types.Renderer
                 return;
             }
 
+            if (renderPass is RenderPass.Opaque or RenderPass.Translucent && request.Call.Material.WantsFrameBufferCopy)
+            {
+                renderPass = RenderPass.RefractionEffect;
+            }
+
+
             var queueList = renderPass switch
             {
                 RenderPass.Opaque => renderLists[RenderPass.Opaque],
                 RenderPass.StaticOverlay => renderLists[RenderPass.StaticOverlay],
                 RenderPass.Translucent => renderLists[RenderPass.Translucent],
+                RenderPass.RefractionEffect => renderLists[RenderPass.RefractionEffect],
                 _ => renderLists[RenderPass.AfterOpaque],
             };
 
@@ -242,6 +250,12 @@ namespace GUI.Types.Renderer
             {
                 WantsSceneColor |= request.Call.Material.Shader.ReservedTexuresUsed.Contains("g_tSceneColor");
                 WantsSceneDepth |= request.Call.Material.Shader.ReservedTexuresUsed.Contains("g_tSceneDepth");
+            }
+
+            if (renderPass == RenderPass.RefractionEffect)
+            {
+                WantsSceneColor = true;
+                WantsSceneDepth = true;
             }
 
             queueList.Add(request);
@@ -402,6 +416,11 @@ namespace GUI.Types.Renderer
                             (true, _) => DepthOnlyProgram.StaticAlphaTest,
                             (false, true) => DepthOnlyProgram.Animated,
                         };
+
+                        if (opaqueCall.Material.WantsFrameBufferCopy)
+                        {
+                            continue; // todo, water shouldn't contribute shadows
+                        }
 
                         if (mesh.BoneWeightCount > 4)
                         {
@@ -603,7 +622,11 @@ namespace GUI.Types.Renderer
                 MeshBatchRenderer.Render(renderLists[RenderPass.Translucent], renderContext);
             }
         }
-
+        public void RenderRefractionEffects(RenderContext renderContext)
+        {
+            renderContext.RenderPass = RenderPass.RefractionEffect;
+            MeshBatchRenderer.Render(renderLists[RenderPass.RefractionEffect], renderContext);
+        }
         public void SetEnabledLayers(HashSet<string> layers, bool skipUpdate = false)
         {
             foreach (var renderer in AllNodes)
@@ -863,7 +886,7 @@ namespace GUI.Types.Renderer
                 }
             }
         }
-
+        
         private void UpdateGpuEnvmapData(SceneEnvMap envMap, int index)
         {
             if (!Matrix4x4.Invert(envMap.Transform, out var invertedTransform))

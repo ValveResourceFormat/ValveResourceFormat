@@ -129,6 +129,9 @@ class Framebuffer : IDisposable
 
             ResizeAttachment(Color, ColorFormat, width, height);
             GL.NamedFramebufferTexture(FboHandle, FramebufferAttachment.ColorAttachment0, Color.Handle, 0);
+
+            GL.TextureParameter(Color.Handle, TextureParameterName.TextureBaseLevel, 0);
+            GL.TextureParameter(Color.Handle, TextureParameterName.TextureMaxLevel, 0);
         }
 
         if (DepthFormat != null)
@@ -139,6 +142,9 @@ class Framebuffer : IDisposable
 
             ResizeAttachment(Depth, DepthFormat, width, height);
             GL.NamedFramebufferTexture(FboHandle, FramebufferAttachment.DepthAttachment, Depth.Handle, 0);
+
+            GL.TextureParameter(Depth.Handle, TextureParameterName.TextureBaseLevel, 0);
+            GL.TextureParameter(Depth.Handle, TextureParameterName.TextureMaxLevel, 0);
         }
 
         InitialStatus = GL.CheckFramebufferStatus(fboTarget);

@@ -530,6 +530,8 @@ namespace GUI.Types.Renderer
 
             GL.Disable(EnableCap.Blend);
             GL.DepthMask(true);
+
+            scene.RenderRefractionEffects(renderContext);
         }
 
         private void GrabFramebufferCopy(Framebuffer framebuffer, bool copyColor, bool copyDepth)
