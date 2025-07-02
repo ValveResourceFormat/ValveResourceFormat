@@ -11,7 +11,7 @@
 #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
     in vec3 vLightmapUVScaled;
     uniform sampler2DArray g_tIrradiance;
-    #if (S_LIGHTMAP_VERSION_MINOR == 3)
+    #if (S_LIGHTMAP_VERSION_MINOR >= 3)
         uniform sampler2DArray g_tDirectionalIrradianceR;
         uniform sampler2DArray g_tDirectionalIrradianceG;
         uniform sampler2DArray g_tDirectionalIrradianceB;
@@ -344,7 +344,7 @@ void CalculateIndirectLighting(inout LightingTerms_t lighting, inout MaterialPro
     // Indirect Lighting
 #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
     vec3 irradiance = texture(g_tIrradiance, vLightmapUVScaled).rgb;
-    #if (S_LIGHTMAP_VERSION_MINOR == 3)
+    #if (S_LIGHTMAP_VERSION_MINOR >= 3)
         vec4 vAHDData = texture(g_tDirectionalIrradianceR, vLightmapUVScaled);
     #else
         vec4 vAHDData = texture(g_tDirectionalIrradiance, vLightmapUVScaled);
