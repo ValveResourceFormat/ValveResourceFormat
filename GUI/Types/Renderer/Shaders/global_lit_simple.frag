@@ -67,6 +67,10 @@ out vec4 outputColor;
 #include "common/utils.glsl"
 #include "common/ViewConstants.glsl"
 
+#include "common/LightingConstants.glsl"
+#include "common/lighting_common.glsl"
+#include "common/shadowmapping.glsl"
+
 uniform vec3 g_vColorTint = vec3(1.0);
 uniform float g_flOpacityScale = 1.0;
 
@@ -85,6 +89,7 @@ vec3 calculateWorldNormal(vec3 vNormalTs)
     //Calculate the tangent normal in world space and return it
     return normalize(tangentSpace * vNormalTs);
 }
+
 
 void main()
 {
@@ -123,8 +128,7 @@ void main()
     }
 #endif
 
-    //Get the direction from the fragment to the light - light position == camera position for now
-    vec3 lightDirection = normalize(g_vCameraPositionWs - vFragPosition);
+    vec3 lightDirection = GetEnvLightDirection(0u);
     vec3 viewDirection = normalize(g_vCameraPositionWs - vFragPosition);
 
 #if F_FULLBRIGHT == 1 || (F_TRANSLUCENT == 1 && F_ALLOW_LIGHTING_ON_TRANSLUCENT == 0)
@@ -132,7 +136,8 @@ void main()
 #else
     //Calculate lambert lighting
     float illumination = max(0.0, dot(worldNormal, lightDirection));
-    illumination = illumination * 0.5 + 0.5;
+    illumination *= CalculateSunShadowMapVisibility(vFragPosition);
+    illumination = illumination + 0.6;
     illumination = pow2(illumination);
 #endif
 

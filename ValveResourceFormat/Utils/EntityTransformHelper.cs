@@ -11,11 +11,18 @@ namespace ValveResourceFormat.Utils
             positionVector = entity.GetVector3Property("origin");
             var pitchYawRoll = entity.GetVector3Property("angles");
 
+            rotationMatrix = CreateRotationMatrixFromEulerAngles(pitchYawRoll);
+        }
+
+        public static Matrix4x4 CreateRotationMatrixFromEulerAngles(Vector3 pitchYawRoll)
+        {
+            Matrix4x4 rotationMatrix;
             var rollMatrix = Matrix4x4.CreateRotationX(pitchYawRoll.Z * MathF.PI / 180f);
             var pitchMatrix = Matrix4x4.CreateRotationY(pitchYawRoll.X * MathF.PI / 180f);
             var yawMatrix = Matrix4x4.CreateRotationZ(pitchYawRoll.Y * MathF.PI / 180f);
 
             rotationMatrix = rollMatrix * pitchMatrix * yawMatrix;
+            return rotationMatrix;
         }
 
         public static Matrix4x4 CalculateTransformationMatrix(Entity entity)

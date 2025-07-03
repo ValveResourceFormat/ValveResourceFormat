@@ -1,8 +1,6 @@
 #version 460
 //? #include "features.glsl"
 //? #include "utils.glsl"
-//? #include "LightingConstants.glsl"
-//? #include "lighting_common.glsl"
 //? #include "texturing.glsl"
 //? #include "pbr.glsl"
 
@@ -93,82 +91,8 @@
     const vec3 vLightmapUVScaled = vec3(0.0);
 #endif
 
-uniform sampler2DShadow g_tShadowDepthBufferDepth;
-
-float CalculateSunShadowMapVisibility(vec3 vPosition)
-{
-    vec4 projCoords = g_matWorldToShadow * vec4(vPosition, 1.0);
-    projCoords.xyz /= projCoords.w;
-
-    vec2 shadowCoords = clamp(projCoords.xy * 0.5 + 0.5, vec2(-1), vec2(2));
-
-    // Note: Bias is added of clamp, so that the value is never zero (or negative)
-    // as the comparison with <= 0 values produces shadow
-    float currentDepth = saturate(projCoords.z) + g_flSunShadowBias;
-
-    // To skip PCF
-    // return 1 - textureLod(g_tShadowDepthBufferDepth, vec3(shadowCoords, currentDepth), 0).r;
-
-    float shadow = 0.0;
-    vec2 texelSize = 1.0 / textureSize(g_tShadowDepthBufferDepth, 0);
-    for(int x = -1; x <= 1; ++x)
-    {
-        for(int y = -1; y <= 1; ++y)
-        {
-            float pcfDepth = textureLod(g_tShadowDepthBufferDepth, vec3(shadowCoords + vec2(x, y) * texelSize, currentDepth), 0).r;
-            shadow += pcfDepth;
-        }
-    }
-
-    shadow /= 9.0;
-    return 1 - shadow;
-}
-
-vec3 GetEnvLightDirection(uint nLightIndex)
-{
-    return normalize(mat3(g_matLightToWorld[nLightIndex]) * vec3(-1, 0, 0));
-}
-
-vec3 GetLightPositionWs(uint nLightIndex)
-{
-    return g_vLightPosition_Type[nLightIndex].xyz;
-}
-
-bool IsDirectionalLight(uint nLightIndex)
-{
-    return g_vLightPosition_Type[nLightIndex].a == 0.0;
-}
-
-vec3 GetLightDirection(vec3 vPositionWs, uint nLightIndex)
-{
-    if (IsDirectionalLight(nLightIndex))
-    {
-        return GetEnvLightDirection(nLightIndex);
-    }
-
-    vec3 lightPosition = GetLightPositionWs(nLightIndex);
-    vec3 lightVector = normalize(lightPosition - vPositionWs);
-
-    return lightVector;
-}
-
-vec3 GetLightColor(uint nLightIndex)
-{
-    vec3 vColor = g_vLightColor_Brightness[nLightIndex].rgb;
-    float flBrightness = g_vLightColor_Brightness[nLightIndex].a;
-
-    return vColor * flBrightness;
-}
-
-// https://lisyarus.github.io/blog/graphics/2022/07/30/point-light-attenuation.html
-float attenuate_cusp(float s, float falloff)
-{
-    if (s >= 1.0)
-        return 0.0;
-
-    float s2 = pow2(s);
-    return pow2(1 - s2) / (1 + falloff * s);
-}
+#include "lighting_common.glsl"
+#include "shadowmapping.glsl"
 
 void CalculateDirectLighting(inout LightingTerms_t lighting, inout MaterialProperties_t mat)
 {

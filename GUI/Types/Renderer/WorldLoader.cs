@@ -346,6 +346,24 @@ namespace GUI.Types.Renderer
                             Transform = rotation,
                         };
                     }
+
+                    if (classname == "env_dota_lightinfo")
+                    {
+                        var angles = new Vector3(50, 43, 0);
+                        scene.Add(new SceneLight(scene)
+                        {
+                            Type = SceneLight.LightType.Directional,
+                            Transform = EntityTransformHelper.CreateRotationMatrixFromEulerAngles(angles),
+                            Direction = SceneLight.AnglesToDirection(angles),
+                            Color = new Vector3(1.0f, 1.0f, 1.0f),
+                            Brightness = 1.0f,
+                            LayerName = "world_layer_base",
+                            Name = "Source 2 Viewer dynamic sunlight for Dota",
+                        }, false);
+
+                        scene.LightingInfo.EnableDynamicShadows = true;
+                        scene.LightingInfo.SunLightShadowCoverageScale = 4f;
+                    }
                 }
                 else if (classname == "env_gradient_fog")
                 {

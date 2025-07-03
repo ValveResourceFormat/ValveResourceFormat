@@ -105,24 +105,20 @@ class SceneLight(Scene scene) : SceneNode(scene)
         light.Position = entity.GetVector3Property("origin");
 
         var angles = entity.GetVector3Property("angles");
-        light.Direction = new Vector3(
+
+        light.Direction = AnglesToDirection(angles);
+        return light;
+    }
+
+
+    public static Vector3 AnglesToDirection(Vector3 angles)
+    {
+        var v = new Vector3(
             MathF.Cos(angles.Y) * MathF.Cos(angles.X),
             MathF.Sin(angles.Y) * MathF.Cos(angles.X),
             MathF.Sin(angles.X)
         );
 
-        light.Direction = Vector3.Normalize(light.Direction);
-
-        return light;
-    }
-
-    public override void Update(Scene.UpdateContext context)
-    {
-        //throw new NotImplementedException();
-    }
-
-    public override void Render(Scene.RenderContext context)
-    {
-        //throw new NotImplementedException();
+        return Vector3.Normalize(v);
     }
 }
