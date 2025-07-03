@@ -41,7 +41,6 @@ uniform sampler2D g_tMasks2;
 
 #include "common/utils.glsl"
 #include "common/ViewConstants.glsl"
-#include "common/instancing.glsl"
 
 // Material properties
 uniform float g_flSpecularExponent = 100.0;

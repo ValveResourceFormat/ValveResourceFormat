@@ -79,15 +79,18 @@ class SceneLightProbe : SceneNode
         DebugGridSpheres.SetInfiniteBoundingBox();
         Scene.Add(DebugGridSpheres, true);
 
-        const float MinVoxelSize = 8f;
+        const int MaxVoxels = 100_000;
 
-        if (VoxelSize < MinVoxelSize)
+        var grid = LocalBoundingBox.Size / (VoxelSize + 0.5f);
+        var numVoxels = (int)(grid.X * grid.Y * grid.Z);
+
+        if (numVoxels > MaxVoxels)
         {
-            Log.Warn(nameof(CrateDebugGridSpheres), $"LightProbe {Id} has a too dense voxel grid {VoxelSize} to visualize. Clamping to {MinVoxelSize}.");
+            Log.Warn(nameof(CrateDebugGridSpheres), $"LightProbe {Id} has too many voxels ({numVoxels}) to visualize. Clamping to {MaxVoxels}.");
+            numVoxels = MaxVoxels;
         }
 
-        var grid = LocalBoundingBox.Size / Math.Max(VoxelSize + 0.5f, MinVoxelSize);
-        DebugGridSpheres.InstanceTransforms.EnsureCapacity((int)(grid.X * grid.Y * grid.Z));
+        DebugGridSpheres.InstanceTransforms.EnsureCapacity(numVoxels);
 
         for (var x = 0; x < grid.X; x++)
         {
@@ -100,6 +103,11 @@ class SceneLightProbe : SceneNode
                     var transform = Matrix4x4.CreateScale(0.2f * (VoxelSize / 24f)) * Matrix4x4.CreateTranslation(worldPosition);
 
                     DebugGridSpheres.InstanceTransforms.Add(transform.To3x4());
+
+                    if (DebugGridSpheres.InstanceTransforms.Count >= MaxVoxels)
+                    {
+                        break;
+                    }
                 }
             }
         }
