@@ -11,7 +11,6 @@ layout (location = 2) in vec4 vBLENDWEIGHT;
 #endif
 
 uniform uvec4 uAnimationData;
-uniform sampler2D animationTexture;
 
 #define bAnimated (uAnimationData.x != 0u)
 #define meshBoneOffset uAnimationData.y
@@ -39,11 +38,7 @@ mat4 getMatrix(uint boneIndex)
 
     boneIndex += meshBoneOffset;
 
-    return UnpackMatrix4(mat3x4(
-        texelFetch(animationTexture, ivec2(0, boneIndex), 0),
-        texelFetch(animationTexture, ivec2(1, boneIndex), 0),
-        texelFetch(animationTexture, ivec2(2, boneIndex), 0)
-    ));
+    return UnpackMatrix4(transforms[boneIndex]);
 }
 
 mat4 getSkinMatrix()

@@ -1,6 +1,7 @@
 #version 460
 
 #include "common/utils.glsl"
+#include "common/instancing.glsl"
 #include "common/animation.glsl"
 
 #define F_WORLDSPACE_UVS 0
@@ -30,7 +31,6 @@ out vec2 vTexCoord3Out;
 #endif
 
 #include "common/ViewConstants.glsl"
-#include "common/instancing.glsl"
 
 uniform float g_flTexCoordScale0 = 1.0;
 uniform float g_flTexCoordScale1 = 1.0;

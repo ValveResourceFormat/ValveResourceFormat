@@ -1,5 +1,6 @@
 #version 460
 
+#include "common/instancing.glsl"
 #include "common/animation.glsl"
 
 layout (location = 0) in vec3 vPOSITION;
@@ -13,7 +14,6 @@ out vec2 vTexCoordOut;
 centroid out vec4 vColorOut;
 
 #include "common/ViewConstants.glsl"
-#include "common/instancing.glsl"
 
 uniform vec3 g_vColorTint = vec3(1.0);
 

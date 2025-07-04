@@ -1,5 +1,6 @@
 #version 460
 
+#include "common/instancing.glsl"
 #include "common/animation.glsl"
 
 layout (location = 0) in vec3 vPOSITION;
@@ -14,7 +15,6 @@ out vec2 vTexCoordOut;
 flat out vec4 vTintColorFadeOut;
 
 #include "common/ViewConstants.glsl"
-#include "common/instancing.glsl"
 
 void main()
 {

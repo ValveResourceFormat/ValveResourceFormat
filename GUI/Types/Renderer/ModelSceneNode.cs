@@ -1,8 +1,8 @@
 using System.Buffers;
 using System.Linq;
 using System.Runtime.InteropServices;
+using GUI.Types.Renderer.Buffers;
 using GUI.Utils;
-using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -41,8 +41,8 @@ namespace GUI.Types.Renderer
         private readonly List<RenderableMesh> meshRenderers = [];
         private readonly List<Animation> animations = [];
 
-        public bool IsAnimated => animationTexture != null;
-        private RenderTexture animationTexture;
+        public bool IsAnimated => boneMatricesGpu != null;
+        private StorageBuffer boneMatricesGpu;
         private readonly int boneCount;
         private readonly int[] remappingTable;
 
@@ -217,8 +217,7 @@ namespace GUI.Types.Renderer
                         }
                     }
 
-                    // Update animation texture
-                    GL.TextureSubImage2D(animationTexture.Handle, 0, 0, 0, animationTexture.Width, animationTexture.Height, PixelFormat.Rgba, PixelType.Float, floatBuffer);
+                    boneMatricesGpu.Update(floatBuffer, 0, floatBufferSizeMeshBones * sizeof(float));
 
                     var first = true;
                     foreach (var matrix in modelBones[..boneCount])
@@ -305,7 +304,7 @@ namespace GUI.Types.Renderer
 
             if (animations.Count != 0)
             {
-                SetupAnimationTextures();
+                SetupBoneMatrixBuffers();
             }
         }
 
@@ -340,23 +339,14 @@ namespace GUI.Types.Renderer
             SetActiveMeshGroups(model.GetDefaultMeshGroups());
         }
 
-        private void SetupAnimationTextures()
+        private void SetupBoneMatrixBuffers()
         {
-            if (boneCount == 0 || animationTexture != null)
+            if (boneCount == 0 || boneMatricesGpu != null)
             {
                 return;
             }
 
-            // Create animation texture
-            animationTexture = new(TextureTarget.Texture2D, 3, remappingTable.Length, 1, 1);
-            animationTexture.SetLabel(nameof(animationTexture));
-
-            // Set clamping to edges
-            animationTexture.SetWrapMode(TextureWrapMode.ClampToEdge);
-            // Set nearest-neighbor sampling since we don't want to interpolate matrix rows
-            animationTexture.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
-
-            GL.TextureStorage2D(animationTexture.Handle, 1, SizedInternalFormat.Rgba32f, animationTexture.Width, animationTexture.Height);
+            boneMatricesGpu = new StorageBuffer(ReservedBufferSlots.Transforms);
         }
 
         public IEnumerable<string> GetSupportedAnimationNames()
@@ -398,14 +388,14 @@ namespace GUI.Types.Renderer
             {
                 foreach (var renderer in meshRenderers)
                 {
-                    renderer.SetAnimationTexture(animationTexture);
+                    renderer.SetBoneMatricesBuffer(boneMatricesGpu);
                 }
             }
             else
             {
                 foreach (var renderer in meshRenderers)
                 {
-                    renderer.SetAnimationTexture(null);
+                    renderer.SetBoneMatricesBuffer(null);
                 }
             }
         }

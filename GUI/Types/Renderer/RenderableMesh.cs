@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Linq;
+using GUI.Types.Renderer.Buffers;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat;
@@ -23,7 +24,7 @@ namespace GUI.Types.Renderer
         public List<DrawCall> DrawCallsBlended { get; } = [];
         private IEnumerable<DrawCall> DrawCalls => DrawCallsOpaque.Concat(DrawCallsOverlay).Concat(DrawCallsBlended);
 
-        public RenderTexture AnimationTexture { get; private set; }
+        public StorageBuffer BoneMatricesGpu { get; private set; }
         public int MeshBoneOffset { get; private set; }
         public int MeshBoneCount { get; private set; }
         public int BoneWeightCount { get; private set; }
@@ -88,9 +89,9 @@ namespace GUI.Types.Renderer
         }
 #endif
 
-        public void SetAnimationTexture(RenderTexture texture)
+        public void SetBoneMatricesBuffer(StorageBuffer buffer)
         {
-            AnimationTexture = texture;
+            BoneMatricesGpu = buffer;
 
             FlexStateManager?.ResetControllers();
         }

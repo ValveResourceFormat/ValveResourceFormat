@@ -61,7 +61,6 @@ namespace GUI.Types.Renderer
         private ref struct Uniforms
         {
             public int AnimationData = -1;
-            public int AnimationTexture = -1;
             public int EnvmapTexture = -1;
             public int LightProbeVolumeData = -1;
             public int LPVIrradianceTexture = -1;
@@ -138,7 +137,6 @@ namespace GUI.Types.Renderer
                         uniforms = new Uniforms
                         {
                             AnimationData = shader.GetUniformLocation("uAnimationData"),
-                            AnimationTexture = shader.GetUniformLocation("animationTexture"),
                             Transform = shader.GetUniformLocation("transform"),
                             IsInstancing = shader.GetUniformLocation("bIsInstancing"),
                             Tint = shader.GetUniformLocation("vTint"),
@@ -149,7 +147,6 @@ namespace GUI.Types.Renderer
                             uniforms.EnvmapTexture = shader.GetUniformLocation("g_tEnvironmentMap");
                             uniforms.CubeMapArrayIndices = shader.GetUniformLocation("g_iEnvMapArrayIndices");
                             uniforms.CubeMapArrayLength = shader.GetUniformLocation("g_iEnvMapArrayLength");
-
                         }
 
                         if (shader.Parameters.ContainsKey("F_MORPH_SUPPORTED"))
@@ -263,14 +260,14 @@ namespace GUI.Types.Renderer
 
             if (uniforms.AnimationData != -1)
             {
-                var bAnimated = request.Mesh.AnimationTexture != null;
+                var bAnimated = request.Mesh.BoneMatricesGpu != null;
                 var numBones = 0u;
                 var numWeights = 0u;
                 var boneStart = 0u;
 
-                if (bAnimated && uniforms.AnimationTexture != -1)
+                if (bAnimated)
                 {
-                    SetInstanceTexture(shader, ReservedTextureSlots.AnimationTexture, uniforms.AnimationTexture, request.Mesh.AnimationTexture);
+                    request.Mesh.BoneMatricesGpu.BindBufferBase();
                     numBones = (uint)request.Mesh.MeshBoneCount;
                     boneStart = (uint)request.Mesh.MeshBoneOffset;
                     numWeights = (uint)request.Mesh.BoneWeightCount;

@@ -1,6 +1,7 @@
 #version 460
 
 #include "common/utils.glsl"
+#include "common/instancing.glsl"
 #include "common/animation.glsl"
 #include "common/features.glsl"
 #include "csgo_environment_features.glsl"
@@ -44,7 +45,6 @@ uniform float g_flModelTintAmount = 1.0;
 
 #include "common/ViewConstants.glsl"
 #include "common/LightingConstants.glsl"
-#include "common/instancing.glsl"
 
 // Material 1
 uniform float g_flTexCoordRotation1 = 0.0;

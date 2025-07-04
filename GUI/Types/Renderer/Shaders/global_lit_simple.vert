@@ -1,5 +1,6 @@
 #version 460
 
+#include "common/instancing.glsl"
 #include "common/animation.glsl"
 
 //Parameter defines - These are default values and can be overwritten based on material/model parameters
@@ -26,7 +27,6 @@ uniform vec2 g_vTexCoordOffset = vec2(0.0);
 uniform vec2 g_vTexCoordScale = vec2(1.0);
 
 #include "common/ViewConstants.glsl"
-#include "common/instancing.glsl"
 
 void main()
 {

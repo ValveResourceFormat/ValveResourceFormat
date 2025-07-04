@@ -1,5 +1,6 @@
 #version 460
 
+#include "common/instancing.glsl"
 #include "common/animation.glsl"
 
 layout (location = 0) in vec3 vPOSITION;
@@ -8,7 +9,6 @@ layout (location = 3) in vec2 vTEXCOORD;
 out vec2 vTexCoordOut;
 
 #include "common/ViewConstants.glsl"
-#include "common/instancing.glsl"
 
 void main(void) {
     vTexCoordOut = vTEXCOORD;
