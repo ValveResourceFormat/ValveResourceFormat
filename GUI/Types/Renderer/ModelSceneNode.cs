@@ -1,6 +1,7 @@
 using System.Buffers;
 using System.Linq;
 using System.Runtime.InteropServices;
+using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
@@ -176,16 +177,20 @@ namespace GUI.Types.Renderer
             {
                 // Update animation matrices
                 var meshBoneCount = remappingTable.Length;
-                var floatBuffer = ArrayPool<float>.Shared.Rent((meshBoneCount + boneCount) * 16);
-                var matrices = MemoryMarshal.Cast<float, Matrix4x4>(floatBuffer);
+
+                var floatBufferSizeMeshBones = meshBoneCount * 12;
+                var floatBufferSizeModelBones = boneCount * 16;
+
+                var floatBuffer = ArrayPool<float>.Shared.Rent(floatBufferSizeMeshBones + floatBufferSizeModelBones);
+
+                var meshBones = MemoryMarshal.Cast<float, OpenTK.Mathematics.Matrix3x4>(floatBuffer.AsSpan(0, floatBufferSizeMeshBones));
+                var modelBones = MemoryMarshal.Cast<float, Matrix4x4>(floatBuffer.AsSpan(floatBufferSizeMeshBones));
 
                 UpdateBoundingBox(); // Reset back to the mesh bbox
                 var newBoundingBox = LocalBoundingBox;
 
                 try
                 {
-                    var meshBones = matrices[..meshBoneCount];
-                    var modelBones = matrices[meshBoneCount..];
                     var skeleton = AnimationController.FrameCache.Skeleton;
                     Animation.GetAnimationMatrices(modelBones, frame, skeleton);
 
@@ -208,7 +213,7 @@ namespace GUI.Types.Renderer
 
                         if (modelBoneExists)
                         {
-                            meshBones[i] = modelBones[modelBoneIndex];
+                            meshBones[i] = modelBones[modelBoneIndex].To3x4();
                         }
                     }
 
@@ -216,7 +221,7 @@ namespace GUI.Types.Renderer
                     GL.TextureSubImage2D(animationTexture.Handle, 0, 0, 0, animationTexture.Width, animationTexture.Height, PixelFormat.Rgba, PixelType.Float, floatBuffer);
 
                     var first = true;
-                    foreach (var matrix in matrices[..boneCount])
+                    foreach (var matrix in modelBones[..boneCount])
                     {
                         var bbox = LocalBoundingBox.Transform(matrix);
                         newBoundingBox = first ? bbox : newBoundingBox.Union(bbox);
@@ -343,7 +348,7 @@ namespace GUI.Types.Renderer
             }
 
             // Create animation texture
-            animationTexture = new(TextureTarget.Texture2D, 4, remappingTable.Length, 1, 1);
+            animationTexture = new(TextureTarget.Texture2D, 3, remappingTable.Length, 1, 1);
             animationTexture.SetLabel(nameof(animationTexture));
 
             // Set clamping to edges

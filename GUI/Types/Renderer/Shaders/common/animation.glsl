@@ -18,6 +18,16 @@ uniform sampler2D animationTexture;
 #define meshBoneCount uAnimationData.z
 #define numWeights uAnimationData.w
 
+mat4 UnpackMatrix4(mat3x4 m)
+{
+    return mat4(
+        m[0][0], m[1][0], m[2][0], 0,
+        m[0][1], m[1][1], m[2][1], 0,
+        m[0][2], m[1][2], m[2][2], 0,
+        m[0][3], m[1][3], m[2][3], 1
+    );
+}
+
 mat4 getMatrix(uint boneIndex)
 {
     // Issue #705 out of bounds bone index (model needs ApplyVBIBDefaults)
@@ -29,12 +39,11 @@ mat4 getMatrix(uint boneIndex)
 
     boneIndex += meshBoneOffset;
 
-    return mat4(
+    return UnpackMatrix4(mat3x4(
         texelFetch(animationTexture, ivec2(0, boneIndex), 0),
         texelFetch(animationTexture, ivec2(1, boneIndex), 0),
-        texelFetch(animationTexture, ivec2(2, boneIndex), 0),
-        texelFetch(animationTexture, ivec2(3, boneIndex), 0)
-    );
+        texelFetch(animationTexture, ivec2(2, boneIndex), 0)
+    ));
 }
 
 mat4 getSkinMatrix()
