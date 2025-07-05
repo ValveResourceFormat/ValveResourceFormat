@@ -253,7 +253,13 @@ namespace GUI.Types.Renderer
             return stream;
         }
 #else
-        public static readonly string ShadersFolderPathOnDisk = GetShadersFolder();
+
+        private static string? shaderFolder;
+        public static string ShadersFolderPathOnDisk
+        {
+            get => shaderFolder ?? GetShadersFolder();
+            set => shaderFolder = value;
+        }
 
         private static FileStream GetShaderStream(string name)
         {
