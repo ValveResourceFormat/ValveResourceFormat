@@ -2,8 +2,8 @@ name: Validate
 
 on:
   push:
-#    paths:
-#      - GUI/Types/Renderer/Shaders/**
+    paths-ignore:
+      - GUI/Types/Renderer/Shaders/**
 
 permissions:
   contents: read
