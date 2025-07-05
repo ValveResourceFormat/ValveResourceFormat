@@ -4,6 +4,9 @@ on:
   push:
     paths-ignore:
       - GUI/Types/Renderer/Shaders/**
+  pull_request:
+    paths-ignore:
+      - GUI/Types/Renderer/Shaders/**
 
 permissions:
   contents: read
