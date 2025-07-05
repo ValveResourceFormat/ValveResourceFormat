@@ -2,7 +2,7 @@ name: Validate
 
 on:
   push:
-    paths-ignore:
+    paths:
       - GUI/Types/Renderer/Shaders/**
   pull_request:
     paths-ignore:
