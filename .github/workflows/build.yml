@@ -48,15 +48,8 @@ jobs:
           nuget-${{ runner.os }}-
           nuget-
 
-    - name: Build Library
-      run: dotnet build -c Release ./ValveResourceFormat/ValveResourceFormat.csproj
-
-    - name: Build CLI
-      run: dotnet build -c Release ./CLI/CLI.csproj
-
-    - name: Build GUI
-      if: matrix.os == 'windows-latest'
-      run: dotnet build -c Release ./ValveResourceFormat/ValveResourceFormat.csproj
+    - name: Restore
+      run: dotnet restore
 
     - name: Run tests
       run: dotnet test ./Tests/Tests.csproj /p:CollectCoverage=true /p:CoverletOutputFormat=lcov /p:CoverletOutput='./lcov.info' /p:Include="[ValveResourceFormat*]*"
