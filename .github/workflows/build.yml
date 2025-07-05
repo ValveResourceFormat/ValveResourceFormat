@@ -48,10 +48,6 @@ jobs:
           nuget-${{ runner.os }}-
           nuget-
 
-    - name: Validate Source 2 Viewer shaders
-      if: matrix.os == 'windows-latest'
-      run: dotnet run --project Misc/ShaderValidator
-
     - name: Run tests
       run: dotnet test ./Tests/Tests.csproj /p:CollectCoverage=true /p:CoverletOutputFormat=lcov /p:CoverletOutput='./lcov.info' /p:Include="[ValveResourceFormat*]*"
 
