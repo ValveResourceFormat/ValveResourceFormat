@@ -10,6 +10,15 @@ permissions:
   contents: write
 
 jobs:
-  uses: ssciwr/setup-mesa-dist-win@v2
   validate:
-    run: dotnet run --project Misc/ShaderValidator
+    runs-on: windows-latest
+    steps:
+
+    - name: Pull code
+      uses: actions/checkout@v3
+
+    - name: Set up OpenGL Software Drivers system-wide
+      uses: ssciwr/setup-mesa-dist-win@v2
+
+    - name: Validate
+      run: dotnet run --project Misc/ShaderValidator
