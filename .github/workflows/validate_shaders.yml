@@ -23,8 +23,7 @@ jobs:
         dotnet-version: 9.0.x
 
     - name: mkdir
-      shell: cmd
-      run: mkdir Misc/ShaderValidator/bin/Debug
+      run: dotnet build --project Misc/ShaderValidator
 
     - name: Set up OpenGL Software Drivers system-wide
       shell: cmd
