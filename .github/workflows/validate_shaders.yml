@@ -6,16 +6,18 @@ on:
 #      - GUI/Types/Renderer/Shaders/**
 
 permissions:
-  actions: write
-  contents: write
+  contents: read
 
 jobs:
   validate:
     runs-on: windows-latest
     steps:
+    - uses: actions/checkout@v4
 
-    - name: Pull code
-      uses: actions/checkout@v3
+    - name: Setup .NET Core
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 9.0.x
 
     - name: Set up OpenGL Software Drivers system-wide
       uses: ssciwr/setup-mesa-dist-win@v2
