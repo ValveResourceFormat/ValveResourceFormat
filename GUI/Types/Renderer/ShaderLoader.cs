@@ -378,12 +378,12 @@ namespace GUI.Types.Renderer
             };
             progressDialog.OnProcess += (_, __) =>
             {
-                ValidateShadersCore(progressDialog);
+                ValidateShadersCore(new Progress<string>(progressDialog.SetProgress));
             };
             progressDialog.ShowDialog();
         }
 
-        private static void ValidateShadersCore(Forms.GenericProgressForm progressDialog)
+        public static void ValidateShadersCore(IProgress<string> progressReporter)
         {
             using var context = new VrfGuiContext(null, null);
             using var loader = new ShaderLoader(context);
@@ -412,7 +412,7 @@ namespace GUI.Types.Renderer
                     Console.WriteLine($"::group::Shader {vrfFileName}");
                 }
 
-                progressDialog.SetProgress($"Compiling {vrfFileName}");
+                progressReporter.Report($"Compiling {vrfFileName}");
 
                 if (shaderFileName == "texture_decode")
                 {
@@ -430,7 +430,7 @@ namespace GUI.Types.Renderer
                 var defines = loader.ShaderDefines[vrfFileName];
                 foreach (var define in defines)
                 {
-                    progressDialog.SetProgress($"Compiling {vrfFileName} with {define}");
+                    progressReporter.Report($"Compiling {vrfFileName} with {define}");
 
                     loader.Parser.Reset();
                     loader.LoadShader(vrfFileName, new Dictionary<string, byte>
@@ -445,7 +445,7 @@ namespace GUI.Types.Renderer
                 foreach (var name in variants)
                 {
                     var vfxName = string.Concat(name, ".vfx");
-                    progressDialog.SetProgress($"Compiling {vfxName}");
+                    progressReporter.Report($"Compiling {vfxName}");
 
                     loader.Parser.Reset();
                     loader.LoadShader(vfxName);
@@ -454,7 +454,7 @@ namespace GUI.Types.Renderer
                     defines = loader.ShaderDefines[vfxName];
                     foreach (var define in defines)
                     {
-                        progressDialog.SetProgress($"Compiling {vfxName} with {define}");
+                        progressReporter.Report($"Compiling {vfxName} with {define}");
 
                         loader.Parser.Reset();
                         loader.LoadShader(vfxName, new Dictionary<string, byte>
@@ -472,7 +472,7 @@ namespace GUI.Types.Renderer
                 }
             }
 
-            progressDialog.SetProgress("Shaders validated");
+            progressReporter.Report("Shaders validated");
         }
 
         private static bool IsCI => Environment.GetEnvironmentVariable("CI") != null;
