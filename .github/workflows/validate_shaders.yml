@@ -25,11 +25,12 @@ jobs:
     - name: Set up OpenGL Software Drivers system-wide
       shell: cmd
       run: |
+        mkdir Misc/ShaderValidator/bin/Debug
         curl.exe -L --output mesa.7z --url https://github.com/pal1000/mesa-dist-win/releases/download/20.3.2/mesa3d-20.3.2-release-msvc.7z
         "C:\Program Files\7-Zip\7z.exe" x mesa.7z
         mklink opengl32.dll "x64\opengl32.dll"
         mklink libglapi.dll "x64\libglapi.dll"
-      working-directory: build\tests\Debug
+      working-directory: Misc/ShaderValidator/bin/Debug
 
     - name: Validate
       run: dotnet run --project Misc/ShaderValidator
