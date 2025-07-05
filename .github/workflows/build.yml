@@ -48,9 +48,6 @@ jobs:
           nuget-${{ runner.os }}-
           nuget-
 
-    - name: Restore
-      run: dotnet restore
-
     - name: Run tests
       run: dotnet test ./Tests/Tests.csproj /p:CollectCoverage=true /p:CoverletOutputFormat=lcov /p:CoverletOutput='./lcov.info' /p:Include="[ValveResourceFormat*]*"
 
