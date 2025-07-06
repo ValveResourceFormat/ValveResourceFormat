@@ -5,9 +5,13 @@ on:
   push:
     paths:
       - GUI/Types/Renderer/Shaders/**
+      - GUI/Types/Renderer/ShaderLoader.cs
+      - GUI/Types/Renderer/ShaderParser.cs
   pull_request:
     paths:
       - GUI/Types/Renderer/Shaders/**
+      - GUI/Types/Renderer/ShaderLoader.cs
+      - GUI/Types/Renderer/ShaderParser.cs
 
 permissions:
   contents: write
