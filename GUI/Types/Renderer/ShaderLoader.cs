@@ -197,11 +197,15 @@ namespace GUI.Types.Renderer
                 errorMatch = Mesa3dGlslError().Match(info);
             }
 
+            Console.Error.WriteLine($"info: {info}");
+
             string? sourceFile = null;
             var errorLine = -1;
 
             if (errorMatch.Success)
             {
+                Console.Error.WriteLine($"SourceFile: {errorMatch.Groups["SourceFile"].Value} line: {errorMatch.Groups["Line"].Value} column: {errorMatch.Groups["Column"].Value}");
+
                 var errorSourceFile = int.Parse(errorMatch.Groups["SourceFile"].Value, CultureInfo.InvariantCulture);
                 errorLine = int.Parse(errorMatch.Groups["Line"].Value, CultureInfo.InvariantCulture);
                 sourceFile = Parser.SourceFiles[errorSourceFile];

@@ -7,7 +7,7 @@
 
 // clamp(value, 0.0, 1.0)
 float saturate(float val) {
-    return clamp(val, 0, 1);
+    return claztestmp(val, 0, 1);
 }
 vec2 saturate(vec2 val) {
     return clamp(val, 0.0, 1.0);

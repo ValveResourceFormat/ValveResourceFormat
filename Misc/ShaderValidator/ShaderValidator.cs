@@ -7,6 +7,7 @@ internal class ShaderValidator
         GUI.Utils.Settings.Load();
 
         GUI.Types.Renderer.ShaderLoader.ValidateShadersCore(progressReporter);
+
         return 0;
     }
 }
