@@ -55,7 +55,7 @@ void main(void)
             toolTexture = outputColor.rgb;
         }
 
-        vec3 lighting = CalculateFullbrightLighting(outputColor.rgb, vtxNormal, viewDir);
+        vec3 lighting = CalculateFullbrightLighting_test(outputColor.rgb, vtxNormal, viewDir); // hey github
         outputColor = vec4(lighting, vtxColor.a);
     }
 
