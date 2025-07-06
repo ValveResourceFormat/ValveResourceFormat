@@ -14,11 +14,14 @@ namespace GUI.Types.Renderer
 {
     partial class ShaderLoader : IDisposable
     {
-        [GeneratedRegex(@"(?<SourceFile>[0-9]+)\((?<Line>[0-9]+)\) : error C(?<ErrorNumber>[0-9]+):")]
+        [GeneratedRegex(@"(?<SourceFile>[0-9]+)\((?<Line>[0-9]+)\) ?: error")]
         private static partial Regex NvidiaGlslError();
 
         [GeneratedRegex(@"ERROR: (?<SourceFile>[0-9]+):(?<Line>[0-9]+):")]
         private static partial Regex AmdGlslError();
+
+        [GeneratedRegex(@"(?<SourceFile>[0-9]+):(?<Line>[0-9]+)\((?<Column>[0-9]+)\):")]
+        private static partial Regex Mesa3dGlslError();
 
         private readonly Dictionary<ulong, Shader> CachedShaders = [];
         public int ShaderCount => CachedShaders.Count;
@@ -186,6 +189,11 @@ namespace GUI.Types.Renderer
             if (!errorMatch.Success)
             {
                 errorMatch = AmdGlslError().Match(info);
+            }
+
+            if (!errorMatch.Success)
+            {
+                errorMatch = Mesa3dGlslError().Match(info);
             }
 
             if (errorMatch.Success)
