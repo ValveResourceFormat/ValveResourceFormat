@@ -1,6 +1,7 @@
 name: Validate Shaders
 
 on:
+  workflow_dispatch:
   push:
     paths:
       - GUI/Types/Renderer/Shaders/**
