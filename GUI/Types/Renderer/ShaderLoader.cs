@@ -426,31 +426,6 @@ namespace GUI.Types.Renderer
                 loader.Parser.Reset();
             }
 
-            var parsedShaderData = new ParsedShaderData();
-
-            var includes = Directory.GetFiles(folder, "*.glsl");
-
-            foreach (var include in includes)
-            {
-                var shaderFileName = Path.GetFileName(include);
-                var fragmentShader = GL.CreateShader(ShaderType.FragmentShader);
-                loader.LoadShader(fragmentShader, shaderFileName, shaderFileName, EmptyArgs, ref parsedShaderData);
-                loader.Parser.Reset();
-                GL.DeleteShader(fragmentShader);
-            }
-
-            /*
-            includes = Directory.GetFiles(Path.Join(folder, "common"), "*.glsl");
-
-            foreach (var include in includes)
-            {
-                var shaderFileName = $"common/{Path.GetFileName(include)}";
-                var fragmentShader = GL.CreateShader(ShaderType.FragmentShader);
-                loader.LoadShader(fragmentShader, shaderFileName, shaderFileName, EmptyArgs, ref parsedShaderData);
-                GL.DeleteShader(fragmentShader);
-            }
-            */
-
             progressDialog.SetProgress("Shaders validated");
         }
 #endif
