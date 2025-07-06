@@ -253,7 +253,7 @@ namespace GUI.Types.Renderer
             return stream;
         }
 #else
-        public static readonly string ShadersFolderPathOnDisk = GetShadersFolder();
+        private static readonly string ShadersFolderPathOnDisk = GetShadersFolder();
 
         private static FileStream GetShaderStream(string name)
         {
@@ -289,16 +289,17 @@ namespace GUI.Types.Renderer
             do
             {
                 root = Path.GetDirectoryName(root);
-                fileName = Path.GetFileName(root);
+                ArgumentNullException.ThrowIfNull(root);
+                fileName = Path.Join(root, "ValveResourceFormat.sln");
 
                 if (failsafe-- == 0)
                 {
                     throw new DirectoryNotFoundException("Failed to find GUI folder for the shaders, are you debugging in some unconventional setup?");
                 }
             }
-            while (fileName != "GUI");
+            while (!File.Exists(fileName));
 
-            return Path.GetDirectoryName(root)!;
+            return root;
         }
 #endif
     }
