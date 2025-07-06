@@ -177,7 +177,8 @@ namespace GUI.Types.Renderer
             if (shaderStatus != 1)
             {
                 GL.GetShaderInfoLog(shader, out var log);
-                ThrowShaderError(log, $"{shaderFile} ({string.Join(", ", arguments.Keys)})", originalShaderName, "Failed to set up shader");
+
+                ThrowShaderError(log, arguments.Count > 0 ? $"{shaderFile} ({string.Join(", ", arguments.Keys)})" : shaderFile, originalShaderName, "Failed to set up shader");
             }
         }
 
