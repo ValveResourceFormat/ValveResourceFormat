@@ -412,7 +412,7 @@ namespace GUI.Types.Renderer
 
                 if (IsCI)
                 {
-                    Console.WriteLine($"::group::Shader {vrfFileName}");
+                    Console.WriteLine($"::group::Shader {shaderFileName}");
                 }
 
                 progressReporter.Report($"Compiling {vrfFileName}");
@@ -448,7 +448,7 @@ namespace GUI.Types.Renderer
                 foreach (var name in variants)
                 {
                     var vfxName = string.Concat(name, ".vfx");
-                    progressReporter.Report($"Compiling {vfxName}");
+                    progressReporter.Report($"Compiling variant {vfxName}");
 
                     loader.Parser.Reset();
                     loader.LoadShader(vfxName);
@@ -457,7 +457,7 @@ namespace GUI.Types.Renderer
                     defines = loader.ShaderDefines[vfxName];
                     foreach (var define in defines)
                     {
-                        progressReporter.Report($"Compiling {vfxName} with {define}");
+                        progressReporter.Report($"Compiling variant {vfxName} with {define}");
 
                         loader.Parser.Reset();
                         loader.LoadShader(vfxName, new Dictionary<string, byte>
