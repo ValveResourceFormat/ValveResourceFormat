@@ -196,22 +196,49 @@ namespace GUI.Types.Renderer
                 errorMatch = Mesa3dGlslError().Match(info);
             }
 
+            string? sourceFile = null;
+            var errorLine = -1;
+
             if (errorMatch.Success)
             {
                 var errorSourceFile = int.Parse(errorMatch.Groups["SourceFile"].Value, CultureInfo.InvariantCulture);
-                var errorLine = int.Parse(errorMatch.Groups["Line"].Value, CultureInfo.InvariantCulture);
+                errorLine = int.Parse(errorMatch.Groups["Line"].Value, CultureInfo.InvariantCulture);
+                sourceFile = Parser.SourceFiles[errorSourceFile];
 
-                info += $"\nError in {Parser.SourceFiles[errorSourceFile]} on line {errorLine}";
+                info += $"\nError in {sourceFile} on line {errorLine}";
 
 #if DEBUG
-                if (errorLine > 0 && errorLine < Parser.SourceFileLines[errorSourceFile].Count)
+                if (errorLine > 0 && errorLine <= Parser.SourceFileLines[errorSourceFile].Count)
                 {
                     info += $":\n{Parser.SourceFileLines[errorSourceFile][errorLine - 1]}\n";
                 }
 #endif
             }
 
-            throw new ShaderCompilerException($"{errorType} {shaderFile} (original={originalShaderName}):\n\n{info}");
+            var errorMessage = $"{errorType} {shaderFile} (original={originalShaderName}):\n\n{info}";
+
+#if DEBUG
+            // Output GitHub Actions annotation https://docs.github.com/en/actions/reference/workflow-commands-for-github-actions
+            if (IsCI)
+            {
+                var annotation = "::error ";
+
+                if (sourceFile != null)
+                {
+                    annotation += $"file={ShaderParser.ShaderDirectory.Replace('.', '/')}{sourceFile},";
+                    if (errorLine > 0)
+                    {
+                        annotation += $"line={errorLine},";
+                    }
+                }
+
+                annotation += $"title={nameof(ShaderCompilerException)}::{errorMessage.Replace("\n", "%0A", StringComparison.Ordinal).Replace("\r", "%0D", StringComparison.Ordinal)}";
+
+                Console.WriteLine(annotation);
+            }
+#endif
+
+            throw new ShaderCompilerException(errorMessage);
         }
 
         const string VrfInternalShaderPrefix = "vrf.";
@@ -379,6 +406,11 @@ namespace GUI.Types.Renderer
                 var shaderFileName = Path.GetFileNameWithoutExtension(shader);
                 var vrfFileName = string.Concat(VrfInternalShaderPrefix, shaderFileName);
 
+                if (IsCI)
+                {
+                    Console.WriteLine($"::group::Shader {vrfFileName}");
+                }
+
                 progressDialog.SetProgress($"Compiling {vrfFileName}");
 
                 if (shaderFileName == "texture_decode")
@@ -432,10 +464,17 @@ namespace GUI.Types.Renderer
                 }
 
                 loader.Parser.Reset();
+
+                if (IsCI)
+                {
+                    Console.WriteLine("::endgroup::");
+                }
             }
 
             progressDialog.SetProgress("Shaders validated");
         }
+
+        private static bool IsCI => Environment.GetEnvironmentVariable("CI") != null;
 #endif
 
         public class ShaderCompilerException : Exception

@@ -10,7 +10,7 @@ namespace GUI.Types.Renderer
 {
     partial class ShaderParser
     {
-        private const string ShaderDirectory = "GUI.Types.Renderer.Shaders.";
+        public const string ShaderDirectory = "GUI.Types.Renderer.Shaders.";
         private const string ExpectedShaderVersion = "#version 460";
         private const string RenderModeDefinePrefix = "renderMode_";
 
@@ -253,7 +253,8 @@ namespace GUI.Types.Renderer
             return stream;
         }
 #else
-        private static readonly string ShadersFolderPathOnDisk = GetShadersFolder();
+        // Path to the folder where the ValveResourceFormat.sln is on disk (parent of the GUI folder)
+        private static readonly string SolutionRootDirector = GetSolutionRootDirectory();
 
         private static FileStream GetShaderStream(string name)
         {
@@ -277,10 +278,10 @@ namespace GUI.Types.Renderer
 
         public static string GetShaderDiskPath(string name)
         {
-            return Path.Combine(ShadersFolderPathOnDisk, ShaderDirectory.Replace('.', '/'), name);
+            return Path.Combine(SolutionRootDirector, ShaderDirectory.Replace('.', '/'), name);
         }
 
-        private static string GetShadersFolder()
+        private static string GetSolutionRootDirectory()
         {
             var root = AppContext.BaseDirectory;
             var failsafe = 10;
