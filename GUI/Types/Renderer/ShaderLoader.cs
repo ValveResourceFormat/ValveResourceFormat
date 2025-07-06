@@ -220,8 +220,6 @@ namespace GUI.Types.Renderer
 #endif
             }
 
-            var errorMessage = $"{errorType} {shaderFile} (original={originalShaderName}):\n\n{info}";
-
 #if DEBUG
             // Output GitHub Actions annotation https://docs.github.com/en/actions/reference/workflow-commands-for-github-actions
             if (IsCI)
@@ -237,13 +235,14 @@ namespace GUI.Types.Renderer
                     }
                 }
 
+                var errorMessage = $"{errorType} {shaderFile} (original={originalShaderName})";
                 annotation += $"title={nameof(ShaderCompilerException)}::{errorMessage.Replace("\n", "%0A", StringComparison.Ordinal).Replace("\r", "%0D", StringComparison.Ordinal)}";
 
                 Console.WriteLine(annotation);
             }
 #endif
 
-            throw new ShaderCompilerException(errorMessage);
+            throw new ShaderCompilerException($"{errorType} {shaderFile} (original={originalShaderName}):\n\n{info}");
         }
 
         const string VrfInternalShaderPrefix = "vrf.";
