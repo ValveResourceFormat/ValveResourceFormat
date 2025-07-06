@@ -478,7 +478,8 @@ namespace GUI.Types.Renderer
             progressReporter.Report("Shaders validated");
         }
 
-        private static bool IsCI => Environment.GetEnvironmentVariable("CI") != null;
+        private static bool? _isCI;
+        private static bool IsCI => _isCI ??= Environment.GetEnvironmentVariable("CI") != null;
 #endif
 
         public class ShaderCompilerException : Exception
