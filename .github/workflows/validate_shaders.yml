@@ -1,0 +1,45 @@
+name: Validate Shaders
+
+on:
+  push:
+    paths:
+      - GUI/Types/Renderer/Shaders/**
+  pull_request:
+    paths:
+      - GUI/Types/Renderer/Shaders/**
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: windows-latest
+
+    env:
+      MESA_GLSL_VERSION_OVERRIDE: '460'
+      MESA_GL_VERSION_OVERRIDE: '4.6'
+      GALLIUM_DRIVER: 'llvmpipe'
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup .NET Core
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 9.0.x
+
+    - name: Set up OpenGL Software Drivers system-wide
+      run: |
+        curl.exe -L --output mesa.7z --url https://github.com/pal1000/mesa-dist-win/releases/download/25.1.4/mesa3d-25.1.4-release-msvc.7z
+        & "C:\Program Files\7-Zip\7z.exe" x mesa.7z -omesa
+        & ./mesa/systemwidedeploy.cmd 1
+        Set-DisplayResolution -Width 1280 -Height 1024 -Force
+
+      #uses: ssciwr/setup-mesa-dist-win@v2
+      #with:
+      #  version: 25.1.4
+      #  build-type: 'release-msvc'
+      #  deployment-choice: 2
+
+    - name: Validate
+      run: dotnet run --project Misc/ShaderValidator
