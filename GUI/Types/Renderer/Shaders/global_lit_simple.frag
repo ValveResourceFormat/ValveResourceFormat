@@ -41,17 +41,16 @@ out vec4 outputColor;
 
 #if (F_SOLID_COLOR == 0)
     uniform sampler2D g_tColor; // SrgbRead(true)
-    #if (F_TINT_MASK == 1)
-        uniform sampler2D g_tTintMask;
-    #endif
-    #if (F_SPECULAR == 1)
-        uniform sampler2D g_tSpecular; // Reflectance, SelfIllum, Bloom
-        uniform vec3 g_vColorTint2 = vec3(1.0);
-        uniform float g_flSpecularIntensity;
-    #endif
-    #if (F_SCROLL_UV == 1 || F_SCROLL_UV == 2)
-        uniform sampler2D g_tScrollSpeed;
-    #endif
+#endif
+
+#if (F_TINT_MASK == 1 || F_TINT_MASK == 2)
+    uniform sampler2D g_tTintMask;
+#endif
+
+#if (F_SPECULAR == 1)
+    uniform sampler2D g_tSpecular; // Reflectance, SelfIllum, Bloom
+    uniform vec3 g_vColorTint2 = vec3(1.0);
+    uniform float g_flSpecularIntensity;
 #endif
 
 #if (F_NORMAL_MAP == 1)
@@ -60,6 +59,7 @@ out vec4 outputColor;
 #endif
 
 #if (F_SCROLL_UV == 1 || F_SCROLL_UV == 2)
+    uniform sampler2D g_tScrollSpeed;
     uniform float g_flScrollUvSpeed;
     uniform vec2 g_vScrollUvDirection;
 #endif
