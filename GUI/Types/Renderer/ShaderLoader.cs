@@ -35,7 +35,10 @@ namespace GUI.Types.Renderer
 
 #if DEBUG
         public ShaderHotReload? ShaderHotReload { get; private set; }
-        public HashSet<string> LastShaderVariantNames { get; private set; } = [];
+        private HashSet<string> LastShaderVariantNames = [];
+
+        // TODO: This probably should be ParsedShaderData so we can access it for non-blocking linking
+        private List<List<string>> LastShaderSourceLines = [];
 #endif
 
         public class ParsedShaderData
@@ -136,7 +139,7 @@ namespace GUI.Types.Renderer
                     if (!shader.EnsureLoaded())
                     {
                         GL.GetProgramInfoLog(shader.Program, out var log);
-                        ThrowShaderError(log, $"{shaderFileName} ({string.Join(", ", arguments.Keys)})", shaderName, "Failed to link shader");
+                        ThrowShaderError(log, string.Concat(shaderFileName, GetArgumentDescription(arguments)), shaderName, "Failed to link shader");
                     }
                 }
 
@@ -144,10 +147,11 @@ namespace GUI.Types.Renderer
 
 #if DEBUG
                 LastShaderVariantNames = parsedData.ShaderVariants;
+                LastShaderSourceLines = [.. Parser.SourceFileLines];
 #endif
 
-                var argsDescription = GetArgumentDescription(shaderName, arguments);
-                Log.Info(nameof(ShaderLoader), $"Shader '{shaderName}' as '{shaderFileName}' ({argsDescription}) compiled and linked succesfully");
+                var argsDescription = GetArgumentDescription(SortAndFilterArguments(shaderName, arguments));
+                Log.Info(nameof(ShaderLoader), $"Shader '{shaderName}' as '{shaderFileName}'{argsDescription} compiled and linked succesfully");
 
                 return shader;
             }
@@ -178,7 +182,7 @@ namespace GUI.Types.Renderer
             {
                 GL.GetShaderInfoLog(shader, out var log);
 
-                ThrowShaderError(log, arguments.Count > 0 ? $"{shaderFile} ({string.Join(", ", arguments.Keys)})" : shaderFile, originalShaderName, "Failed to set up shader");
+                ThrowShaderError(log, string.Concat(shaderFile, GetArgumentDescription(arguments)), originalShaderName, "Failed to set up shader");
             }
         }
 
@@ -291,19 +295,22 @@ namespace GUI.Types.Renderer
                 .OrderBy(static p => p.Key);
         }
 
-        private string GetArgumentDescription(string shaderName, IReadOnlyDictionary<string, byte> arguments)
+        private static string GetArgumentDescription(IEnumerable<KeyValuePair<string, byte>> arguments)
         {
             var sb = new StringBuilder();
             var first = true;
 
-            foreach (var param in SortAndFilterArguments(shaderName, arguments))
+            foreach (var param in arguments)
             {
-                if (!first)
+                if (first)
+                {
+                    first = false;
+                    sb.Append(" (");
+                }
+                else
                 {
                     sb.Append(", ");
                 }
-
-                first = false;
 
                 sb.Append(param.Key);
 
@@ -312,6 +319,11 @@ namespace GUI.Types.Renderer
                     sb.Append('=');
                     sb.Append(param.Value);
                 }
+            }
+
+            if (!first)
+            {
+                sb.Append(')');
             }
 
             return sb.ToString();
@@ -431,18 +443,25 @@ namespace GUI.Types.Renderer
 
                 // Test all defines one by one
                 var defines = loader.ShaderDefines[vrfFileName];
+                var variants = loader.LastShaderVariantNames;
+                var sourceLines = loader.LastShaderSourceLines;
+                var maxValues = ExtractMaxDefineValues(defines, sourceLines);
+
                 foreach (var define in defines)
                 {
-                    progressReporter.Report($"Compiling {vrfFileName} with {define}");
+                    var maxValue = maxValues.GetValueOrDefault(define, 1);
 
-                    loader.Parser.Reset();
-                    loader.LoadShader(vrfFileName, new Dictionary<string, byte>
+                    for (var value = 1; value <= maxValue; value++)
                     {
-                        [define] = 1,
-                    });
-                }
+                        progressReporter.Report($"Compiling {vrfFileName} with {define}={value}");
 
-                var variants = loader.LastShaderVariantNames;
+                        loader.Parser.Reset();
+                        loader.LoadShader(vrfFileName, new Dictionary<string, byte>
+                        {
+                            [define] = (byte)value,
+                        });
+                    }
+                }
 
                 // Test all define(xxx_vfx) names
                 foreach (var name in variants)
@@ -457,14 +476,26 @@ namespace GUI.Types.Renderer
                     defines = loader.ShaderDefines[vfxName];
                     foreach (var define in defines)
                     {
-                        progressReporter.Report($"Compiling variant {vfxName} with {define}");
+                        var maxValue = maxValues.GetValueOrDefault(define, 1);
 
-                        loader.Parser.Reset();
-                        loader.LoadShader(vfxName, new Dictionary<string, byte>
+                        // Test all values from 1 to maxValue
+                        for (var value = 1; value <= maxValue; value++)
                         {
-                            [define] = 1,
-                        });
+                            progressReporter.Report($"Compiling variant {vfxName} with {define}={value}");
+
+                            loader.Parser.Reset();
+                            loader.LoadShader(vfxName, new Dictionary<string, byte>
+                            {
+                                [define] = (byte)value,
+                            });
+                        }
                     }
+
+                    // Test all defines at once with their maximum values
+                    progressReporter.Report($"Compiling variant {vfxName} with all defines");
+
+                    loader.Parser.Reset();
+                    loader.LoadShader(vfxName, defines.ToDictionary(static d => d, d => (byte)maxValues.GetValueOrDefault(d, 1)));
                 }
 
                 loader.Parser.Reset();
@@ -475,11 +506,54 @@ namespace GUI.Types.Renderer
                 }
             }
 
-            progressReporter.Report("Shaders validated");
+            progressReporter.Report($"Validated {loader.CachedShaders.Count} shader variants");
         }
 
         private static bool? _isCI;
         private static bool IsCI => _isCI ??= Environment.GetEnvironmentVariable("CI") != null;
+
+        [GeneratedRegex(@"(?<DefineName>(?:F|S|D)_\S+)\s*(?<Operator>>=|<=|>|<|==|!=)\s*(?<Value>\d+)")]
+        private static partial Regex ShaderDefineConditions();
+
+        private static Dictionary<string, int> ExtractMaxDefineValues(HashSet<string> defines, List<List<string>> allSourceLines)
+        {
+            var maxValues = new Dictionary<string, int>();
+
+            foreach (var sourceLines in allSourceLines)
+            {
+                foreach (var line in sourceLines)
+                {
+                    var matches = ShaderDefineConditions().Matches(line);
+                    foreach (Match match in matches)
+                    {
+                        var defineName = match.Groups["DefineName"].Value;
+                        var operator_ = match.Groups["Operator"].Value;
+                        var value = int.Parse(match.Groups["Value"].Value, CultureInfo.InvariantCulture);
+
+                        if (defines.Contains(defineName))
+                        {
+                            var testValue = operator_ switch
+                            {
+                                ">" => value + 1,
+                                "<" => Math.Max(1, value - 1),
+                                ">=" => value,
+                                "<=" => value,
+                                "==" => value,
+                                "!=" => Math.Max(value + 1, 2),
+                                _ => value
+                            };
+
+                            if (testValue > maxValues.GetValueOrDefault(defineName, 1))
+                            {
+                                maxValues[defineName] = testValue;
+                            }
+                        }
+                    }
+                }
+            }
+
+            return maxValues;
+        }
 #endif
 
         public class ShaderCompilerException : Exception
