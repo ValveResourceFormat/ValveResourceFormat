@@ -37,6 +37,11 @@ namespace GUI.Types.Renderer
         public List<List<string>> SourceFileLines { get; } = [];
 #endif
 
+        public void ClearBuilder()
+        {
+            builder.Clear();
+        }
+
         public void Reset()
         {
             builder.Clear();
@@ -108,8 +113,10 @@ namespace GUI.Types.Renderer
                         if (isInclude)
                         {
 #if DEBUG
-                            currentSourceLines.Add("// :VrfPreprocessed {line}");
+                            currentSourceLines.Add($"// :VrfPreprocessed {line}");
 #endif
+
+                            builder.Append('\n');
 
                             // We add #version even in includes so that they can be compiled individually for better editing experience
                             continue;
