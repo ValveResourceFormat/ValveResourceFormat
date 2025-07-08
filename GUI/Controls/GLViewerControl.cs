@@ -694,6 +694,7 @@ namespace GUI.Controls
                 return;
             }
 
+            lastUpdate = Stopwatch.GetTimestamp();
             HandleResize();
             GLControl.Invalidate();
         }
