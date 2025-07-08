@@ -52,13 +52,3 @@ vec3 GetLightColor(uint nLightIndex)
 
     return vColor * flBrightness;
 }
-
-// https://lisyarus.github.io/blog/graphics/2022/07/30/point-light-attenuation.html
-float attenuate_cusp(float s, float falloff)
-{
-    if (s >= 1.0)
-        return 0.0;
-
-    float s2 = pow2(s);
-    return pow2(1 - s2) / (1 + falloff * s);
-}

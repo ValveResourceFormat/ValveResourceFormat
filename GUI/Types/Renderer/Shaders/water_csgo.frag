@@ -32,13 +32,10 @@ uniform vec3 g_vWaterDecayColor;
 #include "common/features.glsl"
 #include "common/ViewConstants.glsl"
 #include "common/LightingConstants.glsl"
-#include "common/lighting_common.glsl"
 #include "common/utils.glsl"
 #include "common/fullbright.glsl"
 #include "common/texturing.glsl"
-#include "common/pbr.glsl"
 #include "common/fog.glsl"
-#include "common/environment.glsl"
 #include "common/lighting.glsl"
 
 //Main entry point

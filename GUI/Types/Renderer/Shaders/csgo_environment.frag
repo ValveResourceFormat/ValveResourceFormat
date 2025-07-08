@@ -155,11 +155,8 @@ uniform float g_flModelTintAmount = 1.0;
 #include "common/ViewConstants.glsl"
 #include "common/LightingConstants.glsl"
 
-#include "common/lighting_common.glsl"
 #include "common/fullbright.glsl"
 #include "common/texturing.glsl"
-#include "common/pbr.glsl"
-#include "common/environment.glsl" // (S_SPECULAR == 1 || renderMode_Cubemaps == 1)
 
 #include "common/fog.glsl"
 
