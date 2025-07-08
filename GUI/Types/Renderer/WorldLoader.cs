@@ -317,7 +317,7 @@ namespace GUI.Types.Renderer
                         Log.Warn(nameof(WorldLoader), $"Failed to find child entity lump with name {entityLumpName}.");
                     }
                 }
-                else if (classname == "env_sky" || classname == "ent_dota_lightinfo")
+                else if (classname == "env_sky" || classname == "env_global_light")
                 {
                     var skyname = entity.GetProperty<string>("skyname") ?? entity.GetProperty<string>("skybox_material_day");
                     var tintColor = Vector3.One;
@@ -347,7 +347,7 @@ namespace GUI.Types.Renderer
                         };
                     }
 
-                    if (classname == "env_dota_lightinfo")
+                    if (classname == "env_global_light")
                     {
                         var angles = new Vector3(50, 43, 0);
                         scene.Add(new SceneLight(scene)
