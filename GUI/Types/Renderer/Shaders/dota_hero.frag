@@ -45,6 +45,10 @@ uniform sampler2D g_tMasks2;
 // Material properties
 uniform float g_flSpecularExponent = 100.0;
 
+#include "common/LightingConstants.glsl"
+#include "common/lighting_common.glsl"
+#include "common/shadowmapping.glsl"
+
 //Calculate the normal of this fragment in world space
 vec3 calculateWorldNormal(vec3 vNormalTs)
 {
@@ -62,9 +66,6 @@ vec3 calculateWorldNormal(vec3 vNormalTs)
 //Main entry point
 void main()
 {
-    //Get the direction from the fragment to the light - light position == camera position for now
-    vec3 lightDirection = normalize(g_vCameraPositionWs - vFragPosition);
-
     //Get the view direction
     vec3 viewDirection = normalize(g_vCameraPositionWs - vFragPosition);
 
@@ -93,9 +94,12 @@ void main()
     //Get shadow and light color
     //vec3 shadowColor = texture(g_tDiffuseWarp, vec2(0, mask1.g)).rgb;
 
+    vec3 lightDirection = GetEnvLightDirection(0u);
+
     //Calculate half-lambert lighting
-    float illumination = dot(worldNormal, lightDirection);
-    illumination = illumination * 0.5 + 0.5;
+    float illumination = max(0.0, dot(worldNormal, lightDirection));
+    illumination *= CalculateSunShadowMapVisibility(vFragPosition);
+    illumination = illumination + 0.6;
     illumination = pow2(illumination);
 
     #if F_MASKS_1
