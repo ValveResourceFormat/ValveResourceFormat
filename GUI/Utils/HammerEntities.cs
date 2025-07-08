@@ -206,7 +206,6 @@ static class HammerEntities
             "info_teleport_magnet" => new() { Color = new Color32(255, 0, 0) },
             "info_teleporter_countdown" => new() { Icons = ["materials/editor/info_target.vmat"] },
             "info_trooper_spawn" => new() { Icons = ["models/npc/trooper/trooper_humanoid.vmdl"] },
-            "info_trooper_spawn" => new() { Icons = ["models/npc/trooper/trooper_melee.vmdl"] },
             "info_visibility_box" => new() { Icons = ["materials/editor/info_visibility_box.vmat"] },
             "info_world_layer" => new() { Icons = ["materials/editor/info_world_layer.vmat"] },
             "infodecal" => new() { Icons = ["models/editor/axis_helper_thick.vmdl"] },
