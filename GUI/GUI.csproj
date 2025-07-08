@@ -49,4 +49,7 @@
       <Name>ValveResourceFormat</Name>
     </ProjectReference>
   </ItemGroup>
+  <ItemGroup>
+    <Using Include="ValveResourceFormat.Utils" />
+  </ItemGroup>
 </Project>

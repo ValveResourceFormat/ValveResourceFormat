@@ -28,4 +28,7 @@
     <None Include="..\Misc\VRF_PACKAGE_README.md" Pack="true" PackagePath="\README.md" />
     <None Include="..\Misc\Icons\source2viewer_dark.png" Pack="true" PackagePath="\" />
   </ItemGroup>
+  <ItemGroup>
+    <Using Include="ValveResourceFormat.Utils" />
+  </ItemGroup>
 </Project>

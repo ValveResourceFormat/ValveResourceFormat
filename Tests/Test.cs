@@ -7,6 +7,7 @@ using NUnit.Framework;
 using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO;
+using ValveResourceFormat.Utils;
 
 namespace Tests
 {
