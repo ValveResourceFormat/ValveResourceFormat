@@ -12,5 +12,10 @@ namespace GUI.Types.Renderer
         {
             Material.Material.IntParams["g_bShowLightBackground"] = enabled ? 1 : 0;
         }
+
+        public void SetSolidBackground(bool enabled)
+        {
+            Material.Material.IntParams["g_bShowSolidBackground"] = enabled ? 1 : 0;
+        }
     }
 }

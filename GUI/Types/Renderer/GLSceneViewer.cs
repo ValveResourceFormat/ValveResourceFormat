@@ -23,6 +23,7 @@ namespace GUI.Types.Renderer
 
         private bool ShowBaseGrid;
         private bool ShowLightBackground;
+        private bool ShowSolidBackground;
         public bool ShowSkybox { get; set; } = true;
         public bool IsWireframe { get; set; }
         public bool EnableOcclusionCulling { get; set; }
@@ -568,12 +569,19 @@ namespace GUI.Types.Renderer
         {
             ShowBaseGrid = true;
 
-            AddCheckBox("Show Grid", ShowBaseGrid, (v) => ShowBaseGrid = v);
-            AddCheckBox("Show Light Background", ShowLightBackground, (v) =>
+            AddDivider();
+            AddCheckBox("Light Background", ShowLightBackground, (v) =>
             {
                 ShowLightBackground = v;
                 baseBackground.SetLightBackground(ShowLightBackground);
             });
+            AddCheckBox("Solid Background", ShowSolidBackground, (v) =>
+            {
+                ShowSolidBackground = v;
+                baseBackground.SetSolidBackground(ShowSolidBackground);
+            });
+            AddDivider();
+            AddCheckBox("Show Grid", ShowBaseGrid, (v) => ShowBaseGrid = v);
         }
 
         protected void AddWireframeToggleControl()
