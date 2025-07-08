@@ -19,7 +19,7 @@ namespace GUI.Types.Renderer.Buffers
         public void Create<T>(T[] data, int totalSizeInBytes) where T : struct
         {
             Size = totalSizeInBytes;
-            GL.NamedBufferData(Handle, totalSizeInBytes, data, BufferUsageHint.StaticRead);
+            GL.NamedBufferData(Handle, totalSizeInBytes, data, BufferUsageHint.StreamDraw);
         }
 
         public void Update<T>(T[] data, int offset, int size) where T : struct
