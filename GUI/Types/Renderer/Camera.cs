@@ -19,6 +19,12 @@ namespace GUI.Types.Renderer
         ];
         private int CurrentSpeedModifier = 2;
 
+        private const float TransitionDuration = 1.5f;
+        private float TransitionEndTime = -1f;
+        private float TransitionOldPitch;
+        private float TransitionOldYaw;
+        private Vector3 TransitionOldLocation;
+
         public Vector3 Location { get; private set; }
         public float Pitch { get; private set; }
         public float Yaw { get; private set; }
@@ -38,9 +44,34 @@ namespace GUI.Types.Renderer
             LookAt(Vector3.Zero);
         }
 
-        private void RecalculateMatrices()
+
+        private (Vector3 Location, float Pitch, float Yaw) GetCurrentLocationWithTransition(float uptime)
         {
-            CameraViewMatrix = Matrix4x4.CreateLookAt(Location, Location + GetForwardVector(), Vector3.UnitZ);
+            if (TransitionEndTime < uptime)
+            {
+                return (Location, Pitch, Yaw);
+            }
+
+            var time = 1f - MathF.Pow((TransitionEndTime - uptime) / TransitionDuration, 5f); // easeOutQuint
+
+            var location = Vector3.Lerp(TransitionOldLocation, Location, time);
+            var pitch = float.Lerp(TransitionOldPitch, Pitch, time);
+            var yaw = float.Lerp(TransitionOldYaw, Yaw, time);
+
+            return (location, pitch, yaw);
+        }
+
+        public void RecalculateMatrices(float uptime)
+        {
+            var (location, pitch, yaw) = GetCurrentLocationWithTransition(uptime);
+
+            var yawSin = MathF.Sin(yaw);
+            var yawCos = MathF.Cos(yaw);
+            var pitchSin = MathF.Sin(pitch);
+            var pitchCos = MathF.Cos(pitch);
+            var forward = new Vector3(yawCos * pitchCos, yawSin * pitchCos, pitchSin);
+
+            CameraViewMatrix = Matrix4x4.CreateLookAt(location, location + forward, Vector3.UnitZ);
             ViewProjectionMatrix = CameraViewMatrix * ProjectionMatrix;
             ViewFrustum.Update(ViewProjectionMatrix);
         }
@@ -101,8 +132,6 @@ namespace GUI.Types.Renderer
 
             // Calculate projection matrix
             ProjectionMatrix = CreatePerspectiveFieldOfView_ReverseZ(GetFOV(), AspectRatio, 1.0f);
-
-            RecalculateMatrices();
         }
 
         /// <inheritdoc cref="Matrix4x4.CreatePerspectiveFieldOfView"/>
@@ -138,7 +167,6 @@ namespace GUI.Types.Renderer
         public void SetLocation(Vector3 location)
         {
             Location = location;
-            RecalculateMatrices();
         }
 
         public void SetLocationPitchYaw(Vector3 location, float pitch, float yaw)
@@ -146,7 +174,6 @@ namespace GUI.Types.Renderer
             Location = location;
             Pitch = pitch;
             Yaw = yaw;
-            RecalculateMatrices();
         }
 
         public void LookAt(Vector3 target)
@@ -156,7 +183,6 @@ namespace GUI.Types.Renderer
             Pitch = MathF.Asin(dir.Z);
 
             ClampRotation();
-            RecalculateMatrices();
         }
 
         public void SetFromTransformMatrix(Matrix4x4 matrix)
@@ -167,8 +193,12 @@ namespace GUI.Types.Renderer
             var dir = new Vector3(matrix.M11, matrix.M12, matrix.M13);
             Yaw = MathF.Atan2(dir.Y, dir.X);
             Pitch = MathF.Asin(dir.Z);
+        }
 
-            RecalculateMatrices();
+        public void SaveCurrentForTransition(float uptime)
+        {
+            (TransitionOldLocation, TransitionOldPitch, TransitionOldYaw) = GetCurrentLocationWithTransition(uptime);
+            TransitionEndTime = uptime + TransitionDuration;
         }
 
         public void Tick(float deltaTime, TrackedKeys keyboardState, Point mouseDelta)
@@ -208,8 +238,6 @@ namespace GUI.Types.Renderer
             }
 
             ClampRotation();
-
-            RecalculateMatrices();
         }
 
         public float ModifySpeed(float subRange)

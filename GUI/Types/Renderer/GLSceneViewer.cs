@@ -28,8 +28,6 @@ namespace GUI.Types.Renderer
         public bool IsWireframe { get; set; }
         public bool EnableOcclusionCulling { get; set; }
 
-        public float Uptime { get; private set; }
-
         private bool showStaticOctree;
         private bool showDynamicOctree;
         private Frustum lockedCullFrustum;
@@ -336,7 +334,6 @@ namespace GUI.Types.Renderer
 
         protected virtual void OnPaint(object sender, RenderEventArgs e)
         {
-            Uptime += e.FrameTime;
             viewBuffer.Data.Time = Uptime;
 
             var renderContext = new Scene.RenderContext

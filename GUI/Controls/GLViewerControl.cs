@@ -46,6 +46,7 @@ namespace GUI.Controls
             public float FrameTime { get; set; }
         }
 
+        public float Uptime { get; private set; }
         public Camera Camera { get; protected set; }
 
         public event EventHandler<RenderEventArgs> GLPaint;
@@ -524,6 +525,7 @@ namespace GUI.Controls
 
             // Clamp frametime because it is possible to go past 1 second when gl control is paused which may cause issues in things like particle rendering
             var frameTime = MathF.Min(1f, (float)elapsed.TotalSeconds);
+            Uptime += frameTime;
 
             if (MouseOverRenderArea && !isTextureViewer)
             {
@@ -544,6 +546,8 @@ namespace GUI.Controls
                 LastMouseDelta = MouseDelta;
                 MouseDelta = Point.Empty;
             }
+
+            Camera.RecalculateMatrices(Uptime);
 
             GL.BeginQuery(QueryTarget.TimeElapsed, frametimeQuery1);
 
