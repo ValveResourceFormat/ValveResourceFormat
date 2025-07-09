@@ -85,11 +85,6 @@ public class GLControl : Control
             OnResize(EventArgs.Empty);
             _resizeEventSuppressed = false;
         }
-
-        if (Focused || (_nativeWindow?.IsFocused ?? false))
-        {
-            ForceFocusToCorrectWindow();
-        }
     }
 
     /// <summary>
@@ -103,7 +98,6 @@ public class GLControl : Control
         }
 
         _nativeWindow = new NativeWindow(_glControlSettings);
-        _nativeWindow.FocusedChanged += OnNativeWindowFocused;
 
         NonportableReparent(_nativeWindow);
 
@@ -160,25 +154,6 @@ public class GLControl : Control
     }
 
     /// <summary>
-    /// Because we're really two windows in one, keyboard-focus is a complex
-    /// topic.  To ensure correct behavior, we have to capture the various attempts
-    /// to assign focus to one or the other window, and if focus is sent to the
-    /// wrong window, we have to redirect it to the correct one.  So every attempt
-    /// to set focus to *either* window will trigger this method, which will force
-    /// the focus to whichever of the two windows it's supposed to be on.
-    /// </summary>
-    private void ForceFocusToCorrectWindow()
-    {
-        if (DesignMode || _nativeWindow == null)
-        {
-            return;
-        }
-
-        // Focus should be on the GLControl itself.
-        Focus();
-    }
-
-    /// <summary>
     /// Reparent the given NativeWindow to be a child of this GLControl.  This is a
     /// non-portable operation, as its name implies:  It works wildly differently
     /// between OSes.  The current implementation only supports Microsoft Windows.
@@ -197,9 +172,6 @@ public class GLControl : Control
             hWnd = (Windows.Win32.Foundation.HWND)GLFW.GetWin32Window(nativeWindow.WindowPtr);
         }
 
-        // Reparent the real HWND under this control.
-        Windows.Win32.PInvoke.SetParent(hWnd, (Windows.Win32.Foundation.HWND)Handle);
-
         // Change the real HWND's window styles to be "WS_CHILD | WS_DISABLED" (i.e.,
         // a child of some container, with no input support), and turn off *all* the
         // other style bits (most of the rest of them could cause trouble).  In
@@ -217,6 +189,9 @@ public class GLControl : Control
         // regardless of whether it's a hidden window.
         style = (IntPtr)Windows.Win32.UI.WindowsAndMessaging.WINDOW_EX_STYLE.WS_EX_NOACTIVATE;
         Windows.Win32.PInvoke.SetWindowLongPtr(hWnd, Windows.Win32.UI.WindowsAndMessaging.WINDOW_LONG_PTR_INDEX.GWL_EXSTYLE, style);
+
+        // Reparent the real HWND under this control.
+        Windows.Win32.PInvoke.SetParent(hWnd, (Windows.Win32.Foundation.HWND)Handle);
     }
 
     /// <summary>
@@ -352,48 +327,6 @@ public class GLControl : Control
         ResizeNativeWindow();
 
         base.OnParentChanged(e);
-    }
-
-    /// <summary>
-    /// This event is raised when something sets the focus to the GLControl.
-    /// It is overridden to potentially force the focus to the NativeWindow, if
-    /// necessary.
-    /// </summary>
-    /// <param name="e">An EventArgs instance (ignored).</param>
-    protected override void OnGotFocus(EventArgs e)
-    {
-        base.OnGotFocus(e);
-
-        if (!ReferenceEquals(e, _noRecursionSafetyArgs))
-        {
-            ForceFocusToCorrectWindow();
-        }
-    }
-
-    /// <summary>
-    /// These EventArgs are used as a safety check to prevent unexpected recursion
-    /// in OnGotFocus.
-    /// </summary>
-    private static readonly EventArgs _noRecursionSafetyArgs = new();
-
-    /// <summary>
-    /// This event is raised when something sets the focus to the NativeWindow.
-    /// It is overridden to potentially force the focus to the GLControl, if
-    /// necessary.
-    /// </summary>
-    /// <param name="e">A FocusChangedEventArgs instance, used to detect if the
-    /// NativeWindow is gaining the focus.</param>
-    private void OnNativeWindowFocused(FocusedChangedEventArgs e)
-    {
-        if (e.IsFocused)
-        {
-            ForceFocusToCorrectWindow();
-            OnGotFocus(_noRecursionSafetyArgs);
-        }
-        else
-        {
-            OnLostFocus(EventArgs.Empty);
-        }
     }
 
     /// <summary>
