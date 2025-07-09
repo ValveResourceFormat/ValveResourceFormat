@@ -6,10 +6,10 @@ layout (location = 3) in vec2 vTEXCOORD;
 out vec2 vTexCoordOut;
 
 #include "common/ViewConstants.glsl"
-uniform mat4 transform;
+#include "common/instancing.glsl"
 
 void main()
 {
     vTexCoordOut = vTEXCOORD;
-    gl_Position = g_matWorldToProjection * transform * vec4(vPOSITION, 1.0);
+    gl_Position = g_matWorldToProjection * CalculateObjectToWorldMatrix() * vec4(vPOSITION, 1.0);
 }

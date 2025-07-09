@@ -320,6 +320,16 @@ namespace GUI.Types.Renderer
             }
         }
 
+        public void SetUniform3x4(string name, Matrix4x4 value)
+        {
+            var uniformLocation = GetUniformLocation(name);
+            if (uniformLocation > -1)
+            {
+                var matrix = value.To3x4();
+                GL.ProgramUniformMatrix3x4(Program, uniformLocation, false, ref matrix);
+            }
+        }
+
         public void SetUniform4x4(string name, Matrix4x4 value, bool transpose = false)
         {
             var uniformLocation = GetUniformLocation(name);

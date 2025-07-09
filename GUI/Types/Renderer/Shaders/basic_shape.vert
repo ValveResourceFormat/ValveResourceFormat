@@ -10,7 +10,7 @@ out vec3 vtxPos;
 out vec3 camPos;
 
 #include "common/ViewConstants.glsl"
-uniform mat4 transform;
+#include "common/instancing.glsl"
 
 void main(void) {
     vtxColor = aVertexColor;
@@ -19,5 +19,5 @@ void main(void) {
 
     camPos = g_vCameraPositionWs;
 
-    gl_Position = g_matWorldToProjection * transform * vec4(aVertexPosition, 1.0);
+    gl_Position = g_matWorldToProjection * CalculateObjectToWorldMatrix() * vec4(aVertexPosition, 1.0);
 }
