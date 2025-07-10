@@ -2,6 +2,7 @@ using System.Linq;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Utils;
+using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
@@ -27,6 +28,8 @@ namespace GUI.Types.Renderer
         private SkeletonSceneNode skeletonSceneNode;
         private HitboxSetSceneNode hitboxSetSceneNode;
         private CheckedListBox physicsGroupsComboBox;
+
+        private CheckBox ModelStatsCheckbox;
 
         public GLModelViewer(VrfGuiContext guiContext) : base(guiContext)
         {
@@ -59,6 +62,7 @@ namespace GUI.Types.Renderer
                 rootMotionCheckBox?.Dispose();
                 showSkeletonCheckbox?.Dispose();
                 hitboxComboBox?.Dispose();
+                ModelStatsCheckbox?.Dispose();
             }
         }
 
@@ -122,6 +126,13 @@ namespace GUI.Types.Renderer
             rootMotionCheckBox.Enabled = false;
         }
 
+        private void AddDebugInfoControls()
+        {
+            AddDivider();
+            ModelStatsCheckbox = AddCheckBox("Show Model Stats", false, (v) => { });
+            AddDivider();
+        }
+
         protected override void LoadScene()
         {
             base.LoadScene();
@@ -132,6 +143,8 @@ namespace GUI.Types.Renderer
                 Scene.Add(modelSceneNode, true);
 
                 var animations = modelSceneNode.GetSupportedAnimationNames().ToArray();
+
+                AddDebugInfoControls();
 
                 if (animations.Length > 0)
                 {
@@ -331,6 +344,68 @@ namespace GUI.Types.Renderer
             }
 
             base.OnPaint(sender, e);
+
+            if (ModelStatsCheckbox.Checked)
+            {
+                selectedNodeRenderer.SelectNode(modelSceneNode);
+
+                using (new GLDebugGroup("Model Viewer Stats Text"))
+                {
+                    var meshesString = "";
+
+                    var modelMeshCount = 0;
+                    foreach (var embeddedMesh in model.GetEmbeddedMeshesAndLoD())
+                    {
+                        modelMeshCount++;
+                        var meshTriangleCount = 0;
+                        var meshVertexCount = 0;
+
+                        foreach (var indexBuffer in embeddedMesh.Mesh.VBIB.IndexBuffers)
+                        {
+                            meshTriangleCount += (int)indexBuffer.ElementCount / 3;
+                        }
+
+                        foreach (var vertexBuffer in embeddedMesh.Mesh.VBIB.VertexBuffers)
+                        {
+                            foreach (var attribute in vertexBuffer.InputLayoutFields)
+                            {
+                                var attributeFormat = VBIB.GetFormatInfo(attribute);
+                                var semantic = attribute.SemanticName.ToLowerInvariant() + "$" + attribute.SemanticIndex;
+
+                                if (attributeFormat.ElementCount == 3 && semantic == "position$0")
+                                {
+                                    meshVertexCount += (int)vertexBuffer.ElementCount;
+                                }
+                            }
+                        }
+
+                        embeddedMesh.Mesh.GetBounds();
+                        var size = embeddedMesh.Mesh.MaxBounds - embeddedMesh.Mesh.MinBounds;
+
+                        meshesString +=
+                        $"""
+                         - Mesh '{embeddedMesh.Name}':
+                           - Size: X: {size.X} | Y: {size.Y} | Z: {size.Z}
+                           - Triangle Count: {meshTriangleCount}
+                           - Vertex Count: {meshVertexCount}
+                        
+
+                        """;
+
+                        //meshRenderers.Add(new RenderableMesh(embeddedMesh.Mesh, embeddedMesh.MeshIndex, Scene, model, materialTable, embeddedMesh.Mesh.MorphData));
+                    }
+
+                    var modelStatsText =
+                    $"""
+                    - Mesh Count: {modelMeshCount}
+
+                    {meshesString}
+                    
+                    """;
+
+                    textRenderer.RenderTextRelative(0.005f, 0.03f, 14f, Vector4.One, modelStatsText);
+                }
+            }
         }
 
         protected override void OnPicked(object sender, PickingTexture.PickingResponse pickingResponse)
