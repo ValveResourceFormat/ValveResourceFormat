@@ -32,7 +32,7 @@ using Process process = new()
 process.Start();
 process.WaitForExit();
 
-var json = System.Text.Json.JsonSerializer.Deserialize<Metrics>(File.ReadAllText("./output.json"));
+var json = System.Text.Json.JsonSerializer.Deserialize<MetricsFile>(File.ReadAllText("./output.json"));
 
 if (json == null || json.atlas.width != json.atlas.height)
 {
@@ -42,6 +42,7 @@ if (json == null || json.atlas.width != json.atlas.height)
 Console.WriteLine();
 Console.WriteLine($"// Font metrics for {Path.GetFileName(fontFilePath)} generated using msdf-atlas-gen (use Misc/FontMsdfGen)");
 Console.WriteLine($"private const float AtlasSize = {json.atlas.width}f;");
+Console.WriteLine($"private const float LineHeight = {json.metrics.lineHeight}f;");
 
 var next = 32;
 
@@ -58,6 +59,9 @@ foreach (var t in json.glyphs)
         continue;
     }
 
+    ArgumentNullException.ThrowIfNull(t.planeBounds);
+    ArgumentNullException.ThrowIfNull(t.atlasBounds);
+
     metrics[t.unicode] = new(
         new(t.planeBounds.left, t.planeBounds.top, t.planeBounds.right, t.planeBounds.bottom),
         new(t.atlasBounds.left, t.atlasBounds.top, t.atlasBounds.right, t.atlasBounds.bottom),
@@ -71,7 +75,10 @@ Console.WriteLine("[");
 
 foreach (var metric in metrics)
 {
-    if (metric == null) continue;
+    if (metric == null)
+    {
+        continue;
+    }
 
     var line = $"\tnew(new({metric.PlaneBounds.X}f, {metric.PlaneBounds.Y}f, {metric.PlaneBounds.Z}f, {metric.PlaneBounds.W}f), new({metric.AtlasBounds.X}f, {metric.AtlasBounds.Y}f, {metric.AtlasBounds.Z}f, {metric.AtlasBounds.W}f), {metric.Advance}f),";
 
@@ -97,8 +104,8 @@ class Glyph
 {
     public int unicode { get; set; }
     public float advance { get; set; }
-    public required Bounds planeBounds { get; set; }
-    public required Bounds atlasBounds { get; set; }
+    public Bounds? planeBounds { get; set; }
+    public Bounds? atlasBounds { get; set; }
 }
 
 class Atlas
@@ -110,6 +117,17 @@ class Atlas
 
 class Metrics
 {
+    public float emSize { get; set; }
+    public float lineHeight { get; set; }
+    public float ascender { get; set; }
+    public float descender { get; set; }
+    public float underlineY { get; set; }
+    public float underlineThickness { get; set; }
+}
+
+class MetricsFile
+{
     public required Atlas atlas { get; set; }
+    public required Metrics metrics { get; set; }
     public required Glyph[] glyphs { get; set; }
 }
