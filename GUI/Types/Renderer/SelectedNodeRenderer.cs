@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Linq;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
@@ -16,6 +17,8 @@ namespace GUI.Types.Renderer
         private readonly List<SceneNode> selectedNodes = new(1);
         private readonly TextRenderer textRenderer;
 
+        private readonly Vector2 SelectedNodeNameOffset = new Vector2(0, -20);
+
         public bool UpdateEveryFrame { get; set; }
 
         public SelectedNodeRenderer(Scene scene, TextRenderer textRenderer) : base(scene)
@@ -33,6 +36,107 @@ namespace GUI.Types.Renderer
             GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, vaoHandle, vaoLabel.Length, vaoLabel);
 #endif
         }
+
+        public struct EdgeInfo
+        {
+            public int Axis;
+            public Vector3 StartPos;
+            public Vector3 EndPos;
+            public float Length;
+
+            public EdgeInfo(int axis, Vector3 start, Vector3 end)
+            {
+                Axis = axis;
+                StartPos = start;
+                EndPos = end;
+                Length = Vector3.Distance(start, end);
+            }
+        }
+
+        public class VertexInfo
+        {
+            public Vector3 Position;
+            public EdgeInfo[] Edges;
+
+            public VertexInfo(Vector3 position, EdgeInfo[] edges)
+            {
+                Position = position;
+                Edges = edges;
+            }
+        }
+
+        public static VertexInfo[] GetAABBVertices(AABB AABB, Matrix4x4 transform)
+        {
+            var minPoint = AABB.Min;
+            var maxPoint = AABB.Max;
+
+            var modelAABBVertices = new VertexInfo[8];
+
+            var vertices = new Vector3[8];
+            vertices[0] = new Vector3(minPoint.X, minPoint.Y, minPoint.Z);
+            vertices[1] = new Vector3(maxPoint.X, minPoint.Y, minPoint.Z);
+            vertices[2] = new Vector3(minPoint.X, maxPoint.Y, minPoint.Z);
+            vertices[3] = new Vector3(maxPoint.X, maxPoint.Y, minPoint.Z);
+            vertices[4] = new Vector3(minPoint.X, minPoint.Y, maxPoint.Z);
+            vertices[5] = new Vector3(maxPoint.X, minPoint.Y, maxPoint.Z);
+            vertices[6] = new Vector3(minPoint.X, maxPoint.Y, maxPoint.Z);
+            vertices[7] = new Vector3(maxPoint.X, maxPoint.Y, maxPoint.Z);
+
+            for (int i = 0; i < 8; i++)
+            {
+                var vertex = vertices[i];
+                var transformedVertex = Vector3.Transform(vertex, transform);
+
+                var edges = new EdgeInfo[3];
+                for (int axis = 0; axis < 3; axis++)
+                {
+                    var endVertex = vertex;
+
+                    if (Math.Abs(vertex[axis] - minPoint[axis]) < Math.Abs(vertex[axis] - maxPoint[axis]))
+                    {
+                        endVertex[axis] = maxPoint[axis];
+                    }
+                    else
+                    {
+                        endVertex[axis] = minPoint[axis];
+                    }
+
+                    edges[axis] = new EdgeInfo(axis, transformedVertex, Vector3.Transform(endVertex, transform));
+                }
+
+                modelAABBVertices[i] = new VertexInfo(transformedVertex, edges);
+            }
+
+            return modelAABBVertices;
+        }
+
+        public static VertexInfo GetClosestVertexInfo(Camera camera, VertexInfo[] vertexInfos)
+        {
+            float minDistance = float.MaxValue;
+            int closestIndex = 0;
+
+            for (int i = 0; i < 8; i++)
+            {
+                var vertexPos = vertexInfos[i].Position;
+
+                if (!camera.ViewFrustum.Intersects(vertexPos))
+                {
+                    continue;
+                }
+
+                float distance = Vector3.DistanceSquared(vertexPos, camera.Location);
+                if (distance < minDistance)
+                {
+                    minDistance = distance;
+                    closestIndex = i;
+                }
+            }
+
+            return vertexInfos[closestIndex];
+        }
+
+        private Dictionary<SceneNode, VertexInfo[]> NodeVertexInfos = [];
+        private Dictionary<SceneNode, VertexInfo> NodeClosestVertexInfo = [];
 
         public void ToggleNode(SceneNode node)
         {
@@ -95,6 +199,29 @@ namespace GUI.Types.Renderer
             foreach (var node in selectedNodes)
             {
                 OctreeDebugRenderer<SceneNode>.AddBox(vertices, node.Transform, node.LocalBoundingBox, new(1.0f, 1.0f, 0.0f, 1.0f));
+
+                NodeClosestVertexInfo.TryGetValue(node, out var vertexInfo);
+
+                if (vertexInfo != null)
+                {
+                    foreach (var edge in vertexInfo.Edges)
+                    {
+                        switch (edge.Axis)
+                        {
+                            case 0:
+                                OctreeDebugRenderer<SceneNode>.AddLine(vertices, edge.StartPos, edge.EndPos, new(1.0f, 0.0f, 0.0f, 1.0f));
+                                break;
+                            case 1:
+                                OctreeDebugRenderer<SceneNode>.AddLine(vertices, edge.StartPos, edge.EndPos, new(0.0f, 1.0f, 0.0f, 1.0f));
+                                break;
+                            case 2:
+                                OctreeDebugRenderer<SceneNode>.AddLine(vertices, edge.StartPos, edge.EndPos, new(0.0f, 0.0f, 1.0f, 1.0f));
+                                break;
+                            default:
+                                break;
+                        }
+                    }
+                }
 
                 if (debugCubeMaps && node.EnvMapIds != null)
                 {
@@ -229,6 +356,33 @@ namespace GUI.Types.Renderer
 
             foreach (var node in selectedNodes)
             {
+                NodeClosestVertexInfo.TryGetValue(node, out var closestVertexInfo);
+                NodeVertexInfos.TryGetValue(node, out var vertexInfos);
+
+                if (vertexInfos == null)
+                {
+                    vertexInfos = GetAABBVertices(node.LocalBoundingBox, node.Transform);
+
+                    NodeVertexInfos.Add(node, vertexInfos);
+                    UpdateBuffer();
+                }
+
+                if (closestVertexInfo == null)
+                {
+                    closestVertexInfo = GetClosestVertexInfo(context.Camera, vertexInfos);
+
+                    NodeClosestVertexInfo.Add(node, closestVertexInfo);
+                    UpdateBuffer();
+                }
+
+                var newClosestInfo = GetClosestVertexInfo(context.Camera, vertexInfos);
+
+                if (closestVertexInfo != newClosestInfo)
+                {
+                    NodeClosestVertexInfo[node] = newClosestInfo;
+                    UpdateBuffer();
+                }
+
                 string name;
 
                 if (node.EntityData != null)
@@ -244,10 +398,32 @@ namespace GUI.Types.Renderer
                     name = node.GetType().Name;
                 }
 
+                foreach (var edge in closestVertexInfo.Edges)
+                {
+                    Vector4 edgeColor = Vector4.Zero;
+
+                    switch (edge.Axis)
+                    {
+                        case 0:
+                            edgeColor = new Vector4(0.8f, 0.2f, 0.2f, 1);
+                            break;
+                        case 1:
+                            edgeColor = new Vector4(0.2f, 0.8f, 0.2f, 1);
+                            break;
+                        case 2:
+                            edgeColor = new Vector4(0.2f, 0.2f, 0.8f, 1);
+                            break;
+                        default:
+                            break;
+                    }
+
+                    textRenderer.RenderTextBillboard(context.Camera, Vector3.Lerp(edge.StartPos, edge.EndPos, 0.5f), 20f, edgeColor, edge.Length.ToString("0.##", CultureInfo.InvariantCulture), center: true);
+                }
+
                 var position = node.BoundingBox.Center;
                 position.Z = node.BoundingBox.Max.Z;
 
-                textRenderer.RenderTextBillboard(context.Camera, position, 20f, Vector4.One, name, center: true);
+                textRenderer.RenderTextBillboard(context.Camera, position, 20f, Vector4.One, name, center: true, textOffset: SelectedNodeNameOffset);
             }
         }
 
