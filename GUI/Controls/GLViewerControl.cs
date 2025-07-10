@@ -584,11 +584,10 @@ namespace GUI.Controls
 
             if (Settings.Config.DisplayFps != 0 && isActiveForm && !isTextureViewer)
             {
-                using (new GLDebugGroup("Text Render"))
-                {
-                    textRenderer.RenderText(2f, MainFramebuffer.Height - 4f, 14f, new System.Numerics.Vector4(1, 1, 1, 1f), lastFps);
-                }
+                textRenderer.RenderText(2f, MainFramebuffer.Height - 4f, 14f, new System.Numerics.Vector4(1, 1, 1, 1f), lastFps);
             }
+
+            textRenderer.DrainTextRenderRequests();
 
             GLControl.SwapBuffers();
             Picker?.TriggerEventIfAny();
