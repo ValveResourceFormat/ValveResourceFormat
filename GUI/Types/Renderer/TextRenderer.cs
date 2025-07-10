@@ -23,6 +23,21 @@ namespace GUI.Types.Renderer
             public Vector4 Color;
         }
 
+        public struct TextRenderRequest()
+        {
+            public float X;
+            public float Y;
+            public float Scale;
+            public Vector4 Color;
+            public Vector2 TextOffset;
+            public string Text;
+            public bool Center;
+            public bool WriteDepth;
+        }
+
+        // presized to avoid resize allocations, i guess for now 10 is more than enough
+        private List<TextRenderRequest> TextRenderRequests = new(10);
+
         private readonly VrfGuiContext guiContext;
         private RenderTexture fontTexture;
         private Shader shader;
@@ -85,7 +100,7 @@ namespace GUI.Types.Renderer
             WindowSize = new Vector2(viewportWidth, viewportHeight);
         }
 
-        public void RenderTextBillboard(Camera camera, Vector3 position, float scale, Vector4 color, string text, bool center = false)
+        public void RenderTextBillboard(Camera camera, Vector3 position, float scale, Vector4 color, string text, bool center = false, bool fixedScale = true, Vector2? textOffset = null)
         {
             var screenPosition = Vector4.Transform(new Vector4(position, 1.0f), camera.ViewProjectionMatrix);
             screenPosition /= screenPosition.W;
@@ -98,20 +113,75 @@ namespace GUI.Types.Renderer
             var x = 0.5f * (screenPosition.X + 1.0f) * WindowSize.X;
             var y = 0.5f * (1.0f - screenPosition.Y) * WindowSize.Y;
 
-            RenderText(x, y, scale * screenPosition.Z * 100f, color, text, center, writeDepth: true);
+            if (!fixedScale)
+            {
+                scale *= screenPosition.Z * 100f;
+            }
+
+            RenderText(x, y, scale, color, text, center, writeDepth: true, textOffset: textOffset);
+        }
+
+        public void DrainTextRenderRequests()
+        {
+            using (new GLDebugGroup("Text Render"))
+            {
+                foreach (TextRenderRequest textRenderRequest in TextRenderRequests)
+                {
+                    RenderTextInternal(textRenderRequest);
+                }
+                TextRenderRequests.Clear();
+            }
+        }
+
+        public void RenderTextRelative(float x, float y, float scale, Vector4 color, string text,
+            bool center = false, bool writeDepth = false, Vector2? textOffset = null)
+        {
+            TextRenderRequests.Add(
+                new TextRenderRequest
+                {
+                    X = WindowSize.X * Math.Clamp(x, 0, 1),
+                    Y = WindowSize.Y * Math.Clamp(y, 0, 1),
+                    Scale = scale,
+                    Color = color,
+                    Text = text,
+                    Center = center,
+                    WriteDepth = writeDepth,
+                    TextOffset = textOffset ?? Vector2.Zero
+                }
+            );
         }
 
         public void RenderText(float x, float y, float scale, Vector4 color, string text,
-            bool center = false, bool writeDepth = false)
+            bool center = false, bool writeDepth = false, Vector2? textOffset = null)
+        {
+            TextRenderRequests.Add(
+                new TextRenderRequest
+                {
+                    X = x,
+                    Y = y,
+                    Scale = scale,
+                    Color = color,
+                    Text = text,
+                    Center = center,
+                    WriteDepth = writeDepth,
+                    TextOffset = textOffset ?? Vector2.Zero
+                }
+            );
+        }
+
+        private void RenderTextInternal(TextRenderRequest textRenderRequest)
         {
             var letters = 0;
-            var verticesSize = text.Length * Vertex.Size * 4;
+            var verticesSize = textRenderRequest.Text.Length * Vertex.Size * 4;
             var vertexBuffer = ArrayPool<float>.Shared.Rent(verticesSize);
 
-            if (center)
+            textRenderRequest.X += textRenderRequest.TextOffset.X;
+            textRenderRequest.Y += textRenderRequest.TextOffset.Y;
+
+            if (textRenderRequest.Center)
             {
                 // For correctness it should use actual plane bounds for each letter (so use real width), but good enough for monospace.
-                x -= text.Length * DefaultAdvance * scale / 2f;
+                textRenderRequest.X -= textRenderRequest.Text.Length * DefaultAdvance * textRenderRequest.Scale / 2f;
             }
 
             try
@@ -119,21 +189,29 @@ namespace GUI.Types.Renderer
                 var vertices = MemoryMarshal.Cast<float, Vertex>(vertexBuffer);
                 var i = 0;
 
-                foreach (var c in text)
+                var originalX = textRenderRequest.X;
+                foreach (var c in textRenderRequest.Text)
                 {
+                    if (c == '\n')
+                    {
+                        textRenderRequest.Y += textRenderRequest.Scale * LineHeight;
+                        textRenderRequest.X = originalX;
+                        continue;
+                    }
+
                     if ((uint)c - 33 > 93)
                     {
-                        x += DefaultAdvance * scale;
+                        textRenderRequest.X += DefaultAdvance * textRenderRequest.Scale;
                         continue;
                     }
 
                     letters++;
                     var metrics = FontMetrics[c - 33];
 
-                    var x0 = x + metrics.PlaneBounds.X * scale;
-                    var y0 = y + metrics.PlaneBounds.Y * scale;
-                    var x1 = x + metrics.PlaneBounds.Z * scale;
-                    var y1 = y + metrics.PlaneBounds.W * scale;
+                    var x0 = textRenderRequest.X + metrics.PlaneBounds.X * textRenderRequest.Scale;
+                    var y0 = textRenderRequest.Y + metrics.PlaneBounds.Y * textRenderRequest.Scale;
+                    var x1 = textRenderRequest.X + metrics.PlaneBounds.Z * textRenderRequest.Scale;
+                    var y1 = textRenderRequest.Y + metrics.PlaneBounds.W * textRenderRequest.Scale;
 
                     var le = metrics.AtlasBounds.X / AtlasSize;
                     var bo = metrics.AtlasBounds.Y / AtlasSize;
@@ -141,18 +219,18 @@ namespace GUI.Types.Renderer
                     var to = metrics.AtlasBounds.W / AtlasSize;
 
                     // left bottom
-                    vertices[i++] = new Vertex { Position = new Vector2(x0, y0), TexCoord = new Vector2(le, bo), Color = color };
+                    vertices[i++] = new Vertex { Position = new Vector2(x0, y0), TexCoord = new Vector2(le, bo), Color = textRenderRequest.Color };
 
                     // left top
-                    vertices[i++] = new Vertex { Position = new Vector2(x0, y1), TexCoord = new Vector2(le, to), Color = color };
+                    vertices[i++] = new Vertex { Position = new Vector2(x0, y1), TexCoord = new Vector2(le, to), Color = textRenderRequest.Color };
 
                     // right top
-                    vertices[i++] = new Vertex { Position = new Vector2(x1, y1), TexCoord = new Vector2(ri, to), Color = color };
+                    vertices[i++] = new Vertex { Position = new Vector2(x1, y1), TexCoord = new Vector2(ri, to), Color = textRenderRequest.Color };
 
                     // right bottom
-                    vertices[i++] = new Vertex { Position = new Vector2(x1, y0), TexCoord = new Vector2(ri, bo), Color = color };
+                    vertices[i++] = new Vertex { Position = new Vector2(x1, y0), TexCoord = new Vector2(ri, bo), Color = textRenderRequest.Color };
 
-                    x += metrics.Advance * scale;
+                    textRenderRequest.X += metrics.Advance * textRenderRequest.Scale;
                 }
 
                 verticesSize = i * Vertex.Size * sizeof(float);
@@ -163,7 +241,7 @@ namespace GUI.Types.Renderer
                 ArrayPool<float>.Shared.Return(vertexBuffer);
             }
 
-            GL.DepthMask(writeDepth);
+            GL.DepthMask(textRenderRequest.WriteDepth);
             GL.Disable(EnableCap.DepthTest);
             GL.Enable(EnableCap.Blend);
             GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
