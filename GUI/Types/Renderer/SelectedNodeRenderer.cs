@@ -16,9 +16,7 @@ namespace GUI.Types.Renderer
         private bool debugLightProbes;
         private readonly List<SceneNode> selectedNodes = new(1);
 
-        private readonly Vector2 SelectedNodeNameOffset = new Vector2(0, -20);
-
-        public bool UpdateEveryFrame { get; set; }
+        private readonly Vector2 SelectedNodeNameOffset = new(0, -20);
 
         public SelectedNodeRenderer(Scene scene) : base(scene)
         {
@@ -208,10 +206,7 @@ namespace GUI.Types.Renderer
 
         public override void Update(Scene.UpdateContext context)
         {
-            if (UpdateEveryFrame)
-            {
-                UpdateBuffer();
-            }
+            UpdateBuffer();
         }
 
         public override void Render(Scene.RenderContext context)

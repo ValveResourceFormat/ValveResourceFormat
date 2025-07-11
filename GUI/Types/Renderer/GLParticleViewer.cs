@@ -45,7 +45,6 @@ namespace GUI.Types.Renderer
         protected override void OnLoad(object sender, EventArgs e)
         {
             base.OnLoad(sender, e);
-            selectedNodeRenderer.UpdateEveryFrame = true;
 
             Camera.SetLocation(new Vector3(200, 200, 200));
             Camera.LookAt(Vector3.Zero);
