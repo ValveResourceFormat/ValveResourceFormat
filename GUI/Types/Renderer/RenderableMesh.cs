@@ -369,7 +369,7 @@ namespace GUI.Types.Renderer
                 }
 
                 drawCall.BaseVertex = objectDrawCall.GetInt32Property("m_nBaseVertex");
-                //drawCall.VertexCount = objectDrawCall.GetUInt32Property("m_nVertexCount");
+                drawCall.VertexCount = objectDrawCall.GetUInt32Property("m_nVertexCount");
             }
 
             var tintAlpha = Vector4.One;

@@ -118,7 +118,7 @@ namespace GUI.Types.Renderer
                 scale *= screenPosition.Z * 100f;
             }
 
-            RenderText(x, y, scale, color, text, center, writeDepth: true, textOffset: textOffset);
+            AddText(x, y, scale, color, text, center, writeDepth: true, textOffset: textOffset);
         }
 
         public void DrainTextRenderRequests()
@@ -127,13 +127,13 @@ namespace GUI.Types.Renderer
             {
                 foreach (TextRenderRequest textRenderRequest in TextRenderRequests)
                 {
-                    RenderTextInternal(textRenderRequest);
+                    RenderText(textRenderRequest);
                 }
                 TextRenderRequests.Clear();
             }
         }
 
-        public void RenderTextRelative(float x, float y, float scale, Vector4 color, string text,
+        public void AddTextRelative(float x, float y, float scale, Vector4 color, string text,
             bool center = false, bool writeDepth = false, Vector2? textOffset = null)
         {
             TextRenderRequests.Add(
@@ -151,7 +151,7 @@ namespace GUI.Types.Renderer
             );
         }
 
-        public void RenderText(float x, float y, float scale, Vector4 color, string text,
+        public void AddText(float x, float y, float scale, Vector4 color, string text,
             bool center = false, bool writeDepth = false, Vector2? textOffset = null)
         {
             TextRenderRequests.Add(
@@ -169,19 +169,22 @@ namespace GUI.Types.Renderer
             );
         }
 
-        private void RenderTextInternal(TextRenderRequest textRenderRequest)
+        private void RenderText(TextRenderRequest textRenderRequest)
         {
             var letters = 0;
             var verticesSize = textRenderRequest.Text.Length * Vertex.Size * 4;
             var vertexBuffer = ArrayPool<float>.Shared.Rent(verticesSize);
 
-            textRenderRequest.X += textRenderRequest.TextOffset.X;
-            textRenderRequest.Y += textRenderRequest.TextOffset.Y;
+            var x = textRenderRequest.X;
+            var y = textRenderRequest.Y;
+
+            x += textRenderRequest.TextOffset.X;
+            y += textRenderRequest.TextOffset.Y;
 
             if (textRenderRequest.Center)
             {
                 // For correctness it should use actual plane bounds for each letter (so use real width), but good enough for monospace.
-                textRenderRequest.X -= textRenderRequest.Text.Length * DefaultAdvance * textRenderRequest.Scale / 2f;
+                x -= textRenderRequest.Text.Length * DefaultAdvance * textRenderRequest.Scale / 2f;
             }
 
             try
@@ -189,29 +192,29 @@ namespace GUI.Types.Renderer
                 var vertices = MemoryMarshal.Cast<float, Vertex>(vertexBuffer);
                 var i = 0;
 
-                var originalX = textRenderRequest.X;
+                var originalX = x;
                 foreach (var c in textRenderRequest.Text)
                 {
                     if (c == '\n')
                     {
-                        textRenderRequest.Y += textRenderRequest.Scale * LineHeight;
-                        textRenderRequest.X = originalX;
+                        y += textRenderRequest.Scale * LineHeight;
+                        x = originalX;
                         continue;
                     }
 
                     if ((uint)c - 33 > 93)
                     {
-                        textRenderRequest.X += DefaultAdvance * textRenderRequest.Scale;
+                        x += DefaultAdvance * textRenderRequest.Scale;
                         continue;
                     }
 
                     letters++;
                     var metrics = FontMetrics[c - 33];
 
-                    var x0 = textRenderRequest.X + metrics.PlaneBounds.X * textRenderRequest.Scale;
-                    var y0 = textRenderRequest.Y + metrics.PlaneBounds.Y * textRenderRequest.Scale;
-                    var x1 = textRenderRequest.X + metrics.PlaneBounds.Z * textRenderRequest.Scale;
-                    var y1 = textRenderRequest.Y + metrics.PlaneBounds.W * textRenderRequest.Scale;
+                    var x0 = x + metrics.PlaneBounds.X * textRenderRequest.Scale;
+                    var y0 = y + metrics.PlaneBounds.Y * textRenderRequest.Scale;
+                    var x1 = x + metrics.PlaneBounds.Z * textRenderRequest.Scale;
+                    var y1 = y + metrics.PlaneBounds.W * textRenderRequest.Scale;
 
                     var le = metrics.AtlasBounds.X / AtlasSize;
                     var bo = metrics.AtlasBounds.Y / AtlasSize;
@@ -230,7 +233,7 @@ namespace GUI.Types.Renderer
                     // right bottom
                     vertices[i++] = new Vertex { Position = new Vector2(x1, y0), TexCoord = new Vector2(ri, bo), Color = textRenderRequest.Color };
 
-                    textRenderRequest.X += metrics.Advance * textRenderRequest.Scale;
+                    x += metrics.Advance * textRenderRequest.Scale;
                 }
 
                 verticesSize = i * Vertex.Size * sizeof(float);

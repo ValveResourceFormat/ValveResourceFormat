@@ -1,3 +1,4 @@
+using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
 using GUI.Controls;
@@ -30,6 +31,7 @@ namespace GUI.Types.Renderer
         private CheckedListBox physicsGroupsComboBox;
 
         private CheckBox ModelStatsCheckbox;
+        private string ModelStatsText = string.Empty;
 
         public GLModelViewer(VrfGuiContext guiContext) : base(guiContext)
         {
@@ -141,6 +143,58 @@ namespace GUI.Types.Renderer
             {
                 modelSceneNode = new ModelSceneNode(Scene, model);
                 Scene.Add(modelSceneNode, true);
+
+                var meshesString = "";
+
+                foreach (var mesh in modelSceneNode.RenderableMeshes)
+                {
+                    var meshName = mesh.Name.Split(":")[1];
+                    var size = mesh.BoundingBox.Max - mesh.BoundingBox.Min;
+
+                    string drawsString = string.Empty;
+
+                    var vertexTotal = 0;
+                    var triangleTotal = 0;
+                    var drawCallTotal = 0;
+
+                    foreach (var opaqueDraw in mesh.DrawCallsOpaque)
+                    {
+                        drawCallTotal++;
+                        vertexTotal += (int)opaqueDraw.VertexCount;
+                        triangleTotal += opaqueDraw.IndexCount / 3;
+                    }
+
+                    foreach (var opaqueDraw in mesh.DrawCallsBlended)
+                    {
+                        drawCallTotal++;
+                        vertexTotal += (int)opaqueDraw.VertexCount;
+                        triangleTotal += opaqueDraw.IndexCount / 3;
+                    }
+
+                    foreach (var opaqueDraw in mesh.DrawCallsOverlay)
+                    {
+                        drawCallTotal++;
+                        vertexTotal += (int)opaqueDraw.VertexCount;
+                        triangleTotal += opaqueDraw.IndexCount / 3;
+                    }
+
+                    meshesString +=
+                    $"""
+                    Mesh '{meshName}':
+                        DrawCalls : {drawCallTotal}
+                        Vertices  : {triangleTotal}
+                        Triangles : {vertexTotal}
+                        Size      : X: {size.X} | Y: {size.Y} | Z: {size.Z}
+                        Tint      : R: {mesh.Tint.X} | G: {mesh.Tint.Y} | B: {mesh.Tint.Z} | A: {mesh.Tint.W}
+                    """;
+                }
+
+                ModelStatsText =
+                $"""
+                Mesh Count: {modelSceneNode.RenderableMeshes.Count}
+
+                {meshesString}
+                """;
 
                 var animations = modelSceneNode.GetSupportedAnimationNames().ToArray();
 
@@ -351,59 +405,7 @@ namespace GUI.Types.Renderer
 
                 using (new GLDebugGroup("Model Viewer Stats Text"))
                 {
-                    var meshesString = "";
-
-                    var modelMeshCount = 0;
-                    foreach (var embeddedMesh in model.GetEmbeddedMeshesAndLoD())
-                    {
-                        modelMeshCount++;
-                        var meshTriangleCount = 0;
-                        var meshVertexCount = 0;
-
-                        foreach (var indexBuffer in embeddedMesh.Mesh.VBIB.IndexBuffers)
-                        {
-                            meshTriangleCount += (int)indexBuffer.ElementCount / 3;
-                        }
-
-                        foreach (var vertexBuffer in embeddedMesh.Mesh.VBIB.VertexBuffers)
-                        {
-                            foreach (var attribute in vertexBuffer.InputLayoutFields)
-                            {
-                                var attributeFormat = VBIB.GetFormatInfo(attribute);
-                                var semantic = attribute.SemanticName.ToLowerInvariant() + "$" + attribute.SemanticIndex;
-
-                                if (attributeFormat.ElementCount == 3 && semantic == "position$0")
-                                {
-                                    meshVertexCount += (int)vertexBuffer.ElementCount;
-                                }
-                            }
-                        }
-
-                        embeddedMesh.Mesh.GetBounds();
-                        var size = embeddedMesh.Mesh.MaxBounds - embeddedMesh.Mesh.MinBounds;
-
-                        meshesString +=
-                        $"""
-                         - Mesh '{embeddedMesh.Name}':
-                           - Size: X: {size.X} | Y: {size.Y} | Z: {size.Z}
-                           - Triangle Count: {meshTriangleCount}
-                           - Vertex Count: {meshVertexCount}
-                        
-
-                        """;
-
-                        //meshRenderers.Add(new RenderableMesh(embeddedMesh.Mesh, embeddedMesh.MeshIndex, Scene, model, materialTable, embeddedMesh.Mesh.MorphData));
-                    }
-
-                    var modelStatsText =
-                    $"""
-                    - Mesh Count: {modelMeshCount}
-
-                    {meshesString}
-                    
-                    """;
-
-                    textRenderer.RenderTextRelative(0.005f, 0.03f, 14f, Vector4.One, modelStatsText);
+                    textRenderer.AddTextRelative(0.005f, 0.03f, 14f, Vector4.One, ModelStatsText);
                 }
             }
         }

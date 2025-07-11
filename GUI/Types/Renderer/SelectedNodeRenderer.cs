@@ -400,22 +400,13 @@ namespace GUI.Types.Renderer
 
                 foreach (var edge in closestVertexInfo.Edges)
                 {
-                    Vector4 edgeColor = Vector4.Zero;
-
-                    switch (edge.Axis)
+                    Vector4 edgeColor = edge.Axis switch
                     {
-                        case 0:
-                            edgeColor = new Vector4(0.8f, 0.2f, 0.2f, 1);
-                            break;
-                        case 1:
-                            edgeColor = new Vector4(0.2f, 0.8f, 0.2f, 1);
-                            break;
-                        case 2:
-                            edgeColor = new Vector4(0.2f, 0.2f, 0.8f, 1);
-                            break;
-                        default:
-                            break;
-                    }
+                        0 => edgeColor = new Vector4(0.8f, 0.2f, 0.2f, 1),
+                        1 => edgeColor = new Vector4(0.2f, 0.8f, 0.2f, 1),
+                        2 => edgeColor = new Vector4(0.2f, 0.2f, 0.8f, 1),
+                        _ => edgeColor = Vector4.Zero
+                    };
 
                     textRenderer.RenderTextBillboard(context.Camera, Vector3.Lerp(edge.StartPos, edge.EndPos, 0.5f), 20f, edgeColor, edge.Length.ToString("0.##", CultureInfo.InvariantCulture), center: true);
                 }
