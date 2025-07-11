@@ -584,7 +584,13 @@ namespace GUI.Controls
 
             if (Settings.Config.DisplayFps != 0 && isActiveForm && !isTextureViewer)
             {
-                textRenderer.AddText(2f, MainFramebuffer.Height - 4f, 14f, new System.Numerics.Vector4(1, 1, 1, 1f), lastFps);
+                textRenderer.AddText(new Types.Renderer.TextRenderer.TextRenderRequest
+                {
+                    X = 2f,
+                    Y = MainFramebuffer.Height - 4f,
+                    Scale = 14f,
+                    Text = lastFps
+                });
             }
 
             textRenderer.DrainTextRenderRequests();

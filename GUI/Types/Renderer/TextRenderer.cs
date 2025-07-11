@@ -28,11 +28,11 @@ namespace GUI.Types.Renderer
             public float X;
             public float Y;
             public float Scale;
-            public Vector4 Color;
-            public Vector2 TextOffset;
+            public Vector4 Color = Vector4.One;
+            public Vector2 TextOffset = Vector2.Zero;
             public string Text;
-            public bool Center;
-            public bool WriteDepth;
+            public bool Center = false;
+            public bool WriteDepth = false;
         }
 
         // presized to avoid resize allocations, i guess for now 10 is more than enough
@@ -100,7 +100,7 @@ namespace GUI.Types.Renderer
             WindowSize = new Vector2(viewportWidth, viewportHeight);
         }
 
-        public void RenderTextBillboard(Camera camera, Vector3 position, float scale, Vector4 color, string text, bool center = false, bool fixedScale = true, Vector2? textOffset = null)
+        public void AddTextBillboard(Camera camera, Vector3 position, TextRenderRequest textRenderRequest, bool fixedScale = true)
         {
             var screenPosition = Vector4.Transform(new Vector4(position, 1.0f), camera.ViewProjectionMatrix);
             screenPosition /= screenPosition.W;
@@ -110,15 +110,15 @@ namespace GUI.Types.Renderer
                 return;
             }
 
-            var x = 0.5f * (screenPosition.X + 1.0f) * WindowSize.X;
-            var y = 0.5f * (1.0f - screenPosition.Y) * WindowSize.Y;
+            textRenderRequest.X = 0.5f * (screenPosition.X + 1.0f) * WindowSize.X;
+            textRenderRequest.Y = 0.5f * (1.0f - screenPosition.Y) * WindowSize.Y;
 
             if (!fixedScale)
             {
-                scale *= screenPosition.Z * 100f;
+                textRenderRequest.Scale *= screenPosition.Z * 100f;
             }
 
-            AddText(x, y, scale, color, text, center, writeDepth: true, textOffset: textOffset);
+            AddText(textRenderRequest);
         }
 
         public void DrainTextRenderRequests()
@@ -133,40 +133,16 @@ namespace GUI.Types.Renderer
             }
         }
 
-        public void AddTextRelative(float x, float y, float scale, Vector4 color, string text,
-            bool center = false, bool writeDepth = false, Vector2? textOffset = null)
+        public void AddTextRelative(TextRenderRequest textRenderRequest)
         {
-            TextRenderRequests.Add(
-                new TextRenderRequest
-                {
-                    X = WindowSize.X * Math.Clamp(x, 0, 1),
-                    Y = WindowSize.Y * Math.Clamp(y, 0, 1),
-                    Scale = scale,
-                    Color = color,
-                    Text = text,
-                    Center = center,
-                    WriteDepth = writeDepth,
-                    TextOffset = textOffset ?? Vector2.Zero
-                }
-            );
+            textRenderRequest.X = WindowSize.X * Math.Clamp(textRenderRequest.X, 0, 1);
+            textRenderRequest.Y = WindowSize.Y * Math.Clamp(textRenderRequest.Y, 0, 1);
+            TextRenderRequests.Add(textRenderRequest);
         }
 
-        public void AddText(float x, float y, float scale, Vector4 color, string text,
-            bool center = false, bool writeDepth = false, Vector2? textOffset = null)
+        public void AddText(TextRenderRequest textRenderRequest)
         {
-            TextRenderRequests.Add(
-                new TextRenderRequest
-                {
-                    X = x,
-                    Y = y,
-                    Scale = scale,
-                    Color = color,
-                    Text = text,
-                    Center = center,
-                    WriteDepth = writeDepth,
-                    TextOffset = textOffset ?? Vector2.Zero
-                }
-            );
+            TextRenderRequests.Add(textRenderRequest);
         }
 
         private void RenderText(TextRenderRequest textRenderRequest)

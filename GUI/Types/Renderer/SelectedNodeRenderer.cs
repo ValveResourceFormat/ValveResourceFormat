@@ -408,13 +408,25 @@ namespace GUI.Types.Renderer
                         _ => edgeColor = Vector4.Zero
                     };
 
-                    textRenderer.RenderTextBillboard(context.Camera, Vector3.Lerp(edge.StartPos, edge.EndPos, 0.5f), 20f, edgeColor, edge.Length.ToString("0.##", CultureInfo.InvariantCulture), center: true);
+                    textRenderer.AddTextBillboard(context.Camera, Vector3.Lerp(edge.StartPos, edge.EndPos, 0.5f), new TextRenderer.TextRenderRequest
+                    {
+                        Scale = 14f,
+                        Color = edgeColor,
+                        Text = edge.Length.ToString("0.##", CultureInfo.InvariantCulture),
+                        Center = true
+                    });
                 }
 
                 var position = node.BoundingBox.Center;
                 position.Z = node.BoundingBox.Max.Z;
 
-                textRenderer.RenderTextBillboard(context.Camera, position, 20f, Vector4.One, name, center: true, textOffset: SelectedNodeNameOffset);
+                textRenderer.AddTextBillboard(context.Camera, position, new TextRenderer.TextRenderRequest
+                {
+                    Scale = 20f,
+                    Text = name,
+                    Center = true,
+                    TextOffset = SelectedNodeNameOffset
+                });
             }
         }
 

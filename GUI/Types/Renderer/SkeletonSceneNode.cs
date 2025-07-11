@@ -117,7 +117,12 @@ namespace GUI.Types.Renderer
             {
                 foreach (var text in TextCalls)
                 {
-                    textRenderer.RenderTextBillboard(context.View.Camera, text.Position, 3f, Vector4.One, text.String, center: false);
+                    textRenderer.AddTextBillboard(context.View.Camera, text.Position, new TextRenderer.TextRenderRequest
+                    {
+                        Scale = 3f,
+                        Text = text.String,
+                        Center = false
+                    });
                 }
 
                 return;

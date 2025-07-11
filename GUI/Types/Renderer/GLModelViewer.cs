@@ -405,7 +405,13 @@ namespace GUI.Types.Renderer
 
                 using (new GLDebugGroup("Model Viewer Stats Text"))
                 {
-                    textRenderer.AddTextRelative(0.005f, 0.03f, 14f, Vector4.One, ModelStatsText);
+                    textRenderer.AddTextRelative(new TextRenderer.TextRenderRequest
+                    {
+                        X = 0.005f,
+                        Y = 0.03f,
+                        Scale = 14f,
+                        Text = ModelStatsText
+                    });
                 }
             }
         }
