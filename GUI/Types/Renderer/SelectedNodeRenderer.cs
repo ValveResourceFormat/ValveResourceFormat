@@ -17,6 +17,7 @@ namespace GUI.Types.Renderer
         private readonly List<SceneNode> selectedNodes = new(1);
 
         private readonly Vector2 SelectedNodeNameOffset = new(0, -20);
+        public string ScreenDebugText { get; set; } = string.Empty;
 
         public SelectedNodeRenderer(Scene scene) : base(scene)
         {
@@ -191,6 +192,17 @@ namespace GUI.Types.Renderer
                     Text = nodeName,
                     Center = true,
                     TextOffset = SelectedNodeNameOffset
+                });
+            }
+
+            if (ScreenDebugText.Length > 0)
+            {
+                OctreeDebugRenderer<SceneNode>.TextRenderer.AddTextRelative(new TextRenderer.TextRenderRequest
+                {
+                    X = 0.005f,
+                    Y = 0.03f,
+                    Scale = 14f,
+                    Text = ScreenDebugText,
                 });
             }
 

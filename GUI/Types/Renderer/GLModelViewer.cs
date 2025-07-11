@@ -1,9 +1,8 @@
-using System.Drawing;
+using System.Globalization;
 using System.Linq;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Utils;
-using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
@@ -29,9 +28,6 @@ namespace GUI.Types.Renderer
         private SkeletonSceneNode skeletonSceneNode;
         private HitboxSetSceneNode hitboxSetSceneNode;
         private CheckedListBox physicsGroupsComboBox;
-
-        private CheckBox ModelStatsCheckbox;
-        private string ModelStatsText = string.Empty;
 
         public GLModelViewer(VrfGuiContext guiContext) : base(guiContext)
         {
@@ -64,7 +60,6 @@ namespace GUI.Types.Renderer
                 rootMotionCheckBox?.Dispose();
                 showSkeletonCheckbox?.Dispose();
                 hitboxComboBox?.Dispose();
-                ModelStatsCheckbox?.Dispose();
             }
         }
 
@@ -128,13 +123,6 @@ namespace GUI.Types.Renderer
             rootMotionCheckBox.Enabled = false;
         }
 
-        private void AddDebugInfoControls()
-        {
-            AddDivider();
-            ModelStatsCheckbox = AddCheckBox("Show Model Stats", false, (v) => { });
-            AddDivider();
-        }
-
         protected override void LoadScene()
         {
             base.LoadScene();
@@ -144,61 +132,7 @@ namespace GUI.Types.Renderer
                 modelSceneNode = new ModelSceneNode(Scene, model);
                 Scene.Add(modelSceneNode, true);
 
-                var meshesString = "";
-
-                foreach (var mesh in modelSceneNode.RenderableMeshes)
-                {
-                    var meshName = mesh.Name.Split(":")[1];
-                    var size = mesh.BoundingBox.Max - mesh.BoundingBox.Min;
-
-                    string drawsString = string.Empty;
-
-                    var vertexTotal = 0;
-                    var triangleTotal = 0;
-                    var drawCallTotal = 0;
-
-                    foreach (var opaqueDraw in mesh.DrawCallsOpaque)
-                    {
-                        drawCallTotal++;
-                        vertexTotal += (int)opaqueDraw.VertexCount;
-                        triangleTotal += opaqueDraw.IndexCount / 3;
-                    }
-
-                    foreach (var opaqueDraw in mesh.DrawCallsBlended)
-                    {
-                        drawCallTotal++;
-                        vertexTotal += (int)opaqueDraw.VertexCount;
-                        triangleTotal += opaqueDraw.IndexCount / 3;
-                    }
-
-                    foreach (var opaqueDraw in mesh.DrawCallsOverlay)
-                    {
-                        drawCallTotal++;
-                        vertexTotal += (int)opaqueDraw.VertexCount;
-                        triangleTotal += opaqueDraw.IndexCount / 3;
-                    }
-
-                    meshesString +=
-                    $"""
-                    Mesh '{meshName}':
-                        DrawCalls : {drawCallTotal}
-                        Vertices  : {triangleTotal}
-                        Triangles : {vertexTotal}
-                        Size      : X: {size.X} | Y: {size.Y} | Z: {size.Z}
-                        Tint      : R: {mesh.Tint.X} | G: {mesh.Tint.Y} | B: {mesh.Tint.Z} | A: {mesh.Tint.W}
-                    """;
-                }
-
-                ModelStatsText =
-                $"""
-                Mesh Count: {modelSceneNode.RenderableMeshes.Count}
-
-                {meshesString}
-                """;
-
                 var animations = modelSceneNode.GetSupportedAnimationNames().ToArray();
-
-                AddDebugInfoControls();
 
                 if (animations.Length > 0)
                 {
@@ -368,6 +302,58 @@ namespace GUI.Types.Renderer
             }
         }
 
+        private string GetModelStatsText()
+        {
+            var sb = new System.Text.StringBuilder();
+
+            sb.AppendLine(CultureInfo.InvariantCulture, $"Mesh Count: {modelSceneNode.RenderableMeshes.Count}");
+
+            foreach (var mesh in modelSceneNode.RenderableMeshes)
+            {
+                var meshName = mesh.Name.Split(":")[^1];
+                var size = mesh.BoundingBox.Max - mesh.BoundingBox.Min;
+
+                var vertexTotal = 0;
+                var triangleTotal = 0;
+                var drawCallTotal = 0;
+
+                foreach (var opaqueDraw in mesh.DrawCallsOpaque)
+                {
+                    drawCallTotal++;
+                    vertexTotal += (int)opaqueDraw.VertexCount;
+                    triangleTotal += opaqueDraw.IndexCount / 3;
+                }
+
+                foreach (var opaqueDraw in mesh.DrawCallsBlended)
+                {
+                    drawCallTotal++;
+                    vertexTotal += (int)opaqueDraw.VertexCount;
+                    triangleTotal += opaqueDraw.IndexCount / 3;
+                }
+
+                foreach (var opaqueDraw in mesh.DrawCallsOverlay)
+                {
+                    drawCallTotal++;
+                    vertexTotal += (int)opaqueDraw.VertexCount;
+                    triangleTotal += opaqueDraw.IndexCount / 3;
+                }
+
+                sb.Append(CultureInfo.InvariantCulture,
+                    $"""
+
+                    Mesh '{meshName}':
+                        DrawCalls : {drawCallTotal}
+                        Vertices  : {triangleTotal}
+                        Triangles : {vertexTotal}
+                        Size      : X: {size.X} | Y: {size.Y} | Z: {size.Z}
+
+                    """
+                );
+            }
+
+            return sb.ToString();
+        }
+
         private void SetEnabledPhysicsGroups(HashSet<string> physicsGroups)
         {
             foreach (var physNode in Scene.AllNodes.OfType<PhysSceneNode>())
@@ -398,22 +384,6 @@ namespace GUI.Types.Renderer
             }
 
             base.OnPaint(sender, e);
-
-            if (ModelStatsCheckbox.Checked)
-            {
-                selectedNodeRenderer.SelectNode(modelSceneNode);
-
-                using (new GLDebugGroup("Model Viewer Stats Text"))
-                {
-                    TextRenderer.AddTextRelative(new TextRenderer.TextRenderRequest
-                    {
-                        X = 0.005f,
-                        Y = 0.03f,
-                        Scale = 14f,
-                        Text = ModelStatsText
-                    });
-                }
-            }
         }
 
         protected override void OnPicked(object sender, PickingTexture.PickingResponse pickingResponse)
@@ -427,6 +397,7 @@ namespace GUI.Types.Renderer
             if (pickingResponse.PixelInfo.ObjectId == 0)
             {
                 selectedNodeRenderer.SelectNode(null);
+                selectedNodeRenderer.ScreenDebugText = string.Empty;
                 return;
             }
 
@@ -434,7 +405,7 @@ namespace GUI.Types.Renderer
             {
                 var sceneNode = Scene.Find(pickingResponse.PixelInfo.ObjectId);
                 selectedNodeRenderer.SelectNode(sceneNode);
-
+                selectedNodeRenderer.ScreenDebugText = GetModelStatsText();
                 return;
             }
 
