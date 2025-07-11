@@ -134,7 +134,7 @@ namespace GUI.Types.Renderer
 
                 if (closestIndex == line.Start || closestIndex == line.End)
                 {
-                    var axis = i > 8 ? 2 : i % 2;
+                    var axis = i >= 8 ? 2 : i % 2;
 
                     var axisColor = axis switch
                     {
