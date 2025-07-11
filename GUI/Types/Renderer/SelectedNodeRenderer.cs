@@ -48,8 +48,6 @@ namespace GUI.Types.Renderer
             {
                 selectedNodes.Add(node);
             }
-
-            UpdateBuffer();
         }
 
         public void SelectNode(SceneNode? node, bool forceDisableDepth = false)
@@ -64,8 +62,6 @@ namespace GUI.Types.Renderer
             }
 
             selectedNodes.Add(node);
-
-            UpdateBuffer();
 
             if (forceDisableDepth)
             {
@@ -163,7 +159,7 @@ namespace GUI.Types.Renderer
             }
         }
 
-        private void UpdateBuffer()
+        public override void Update(Scene.UpdateContext context)
         {
             disableDepth = selectedNodes.Count > 1;
 
@@ -300,11 +296,6 @@ namespace GUI.Types.Renderer
             Scene.LightingInfo.LightProbes.ForEach(probe => probe.RemoveDebugGridSpheres());
         }
 
-        public override void Update(Scene.UpdateContext context)
-        {
-            UpdateBuffer();
-        }
-
         public override void Render(Scene.RenderContext context)
         {
             if (vertexCount == 0)
@@ -340,7 +331,6 @@ namespace GUI.Types.Renderer
             debugLightProbes = mode is "Irradiance" or "Illumination";
 
             RemoveLightProbeDebugGrid();
-            UpdateBuffer();
         }
     }
 }
