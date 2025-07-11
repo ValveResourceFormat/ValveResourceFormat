@@ -35,34 +35,6 @@ namespace GUI.Types.Renderer
 #endif
         }
 
-        public struct EdgeInfo
-        {
-            public int Axis;
-            public Vector3 StartPos;
-            public Vector3 EndPos;
-            public float Length;
-
-            public EdgeInfo(int axis, Vector3 start, Vector3 end)
-            {
-                Axis = axis;
-                StartPos = start;
-                EndPos = end;
-                Length = Vector3.Distance(start, end);
-            }
-        }
-
-        public class VertexInfo
-        {
-            public Vector3 Position;
-            public EdgeInfo[] Edges;
-
-            public VertexInfo(Vector3 position, EdgeInfo[] edges)
-            {
-                Position = position;
-                Edges = edges;
-            }
-        }
-
         public void ToggleNode(SceneNode node)
         {
             var selectedNode = selectedNodes.IndexOf(node);
