@@ -95,7 +95,18 @@ namespace GUI.Types.Renderer
 
                 if (isTexture && !Default.Textures.ContainsKey(name))
                 {
-                    if (MaterialLoader.ReservedTextures.Any(x => name.Contains(x, StringComparison.OrdinalIgnoreCase)))
+                    var isReserved = false;
+
+                    foreach (var reserved in MaterialLoader.ReservedTextures)
+                    {
+                        if (name.Contains(reserved, StringComparison.OrdinalIgnoreCase))
+                        {
+                            isReserved = true;
+                            break;
+                        }
+                    }
+
+                    if (isReserved)
                     {
                         ReservedTexuresUsed.Add(name);
                         continue;
