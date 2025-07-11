@@ -65,79 +65,6 @@ namespace GUI.Types.Renderer
             }
         }
 
-        public static VertexInfo[] GetAABBVertices(AABB AABB, Matrix4x4 transform)
-        {
-            var minPoint = AABB.Min;
-            var maxPoint = AABB.Max;
-
-            var modelAABBVertices = new VertexInfo[8];
-
-            var vertices = new Vector3[8];
-            vertices[0] = new Vector3(minPoint.X, minPoint.Y, minPoint.Z);
-            vertices[1] = new Vector3(maxPoint.X, minPoint.Y, minPoint.Z);
-            vertices[2] = new Vector3(minPoint.X, maxPoint.Y, minPoint.Z);
-            vertices[3] = new Vector3(maxPoint.X, maxPoint.Y, minPoint.Z);
-            vertices[4] = new Vector3(minPoint.X, minPoint.Y, maxPoint.Z);
-            vertices[5] = new Vector3(maxPoint.X, minPoint.Y, maxPoint.Z);
-            vertices[6] = new Vector3(minPoint.X, maxPoint.Y, maxPoint.Z);
-            vertices[7] = new Vector3(maxPoint.X, maxPoint.Y, maxPoint.Z);
-
-            for (int i = 0; i < 8; i++)
-            {
-                var vertex = vertices[i];
-                var transformedVertex = Vector3.Transform(vertex, transform);
-
-                var edges = new EdgeInfo[3];
-                for (int axis = 0; axis < 3; axis++)
-                {
-                    var endVertex = vertex;
-
-                    if (Math.Abs(vertex[axis] - minPoint[axis]) < Math.Abs(vertex[axis] - maxPoint[axis]))
-                    {
-                        endVertex[axis] = maxPoint[axis];
-                    }
-                    else
-                    {
-                        endVertex[axis] = minPoint[axis];
-                    }
-
-                    edges[axis] = new EdgeInfo(axis, transformedVertex, Vector3.Transform(endVertex, transform));
-                }
-
-                modelAABBVertices[i] = new VertexInfo(transformedVertex, edges);
-            }
-
-            return modelAABBVertices;
-        }
-
-        public static VertexInfo GetClosestVertexInfo(Camera camera, VertexInfo[] vertexInfos)
-        {
-            float minDistance = float.MaxValue;
-            int closestIndex = 0;
-
-            for (int i = 0; i < 8; i++)
-            {
-                var vertexPos = vertexInfos[i].Position;
-
-                if (!camera.ViewFrustum.Intersects(vertexPos))
-                {
-                    continue;
-                }
-
-                float distance = Vector3.DistanceSquared(vertexPos, camera.Location);
-                if (distance < minDistance)
-                {
-                    minDistance = distance;
-                    closestIndex = i;
-                }
-            }
-
-            return vertexInfos[closestIndex];
-        }
-
-        private Dictionary<SceneNode, VertexInfo[]> NodeVertexInfos = [];
-        private Dictionary<SceneNode, VertexInfo> NodeClosestVertexInfo = [];
-
         public void ToggleNode(SceneNode node)
         {
             var selectedNode = selectedNodes.IndexOf(node);
@@ -199,29 +126,6 @@ namespace GUI.Types.Renderer
             foreach (var node in selectedNodes)
             {
                 OctreeDebugRenderer<SceneNode>.AddBox(vertices, node.Transform, node.LocalBoundingBox, new(1.0f, 1.0f, 0.0f, 1.0f));
-
-                NodeClosestVertexInfo.TryGetValue(node, out var vertexInfo);
-
-                if (vertexInfo != null)
-                {
-                    foreach (var edge in vertexInfo.Edges)
-                    {
-                        switch (edge.Axis)
-                        {
-                            case 0:
-                                OctreeDebugRenderer<SceneNode>.AddLine(vertices, edge.StartPos, edge.EndPos, new(1.0f, 0.0f, 0.0f, 1.0f));
-                                break;
-                            case 1:
-                                OctreeDebugRenderer<SceneNode>.AddLine(vertices, edge.StartPos, edge.EndPos, new(0.0f, 1.0f, 0.0f, 1.0f));
-                                break;
-                            case 2:
-                                OctreeDebugRenderer<SceneNode>.AddLine(vertices, edge.StartPos, edge.EndPos, new(0.0f, 0.0f, 1.0f, 1.0f));
-                                break;
-                            default:
-                                break;
-                        }
-                    }
-                }
 
                 if (debugCubeMaps && node.EnvMapIds != null)
                 {
