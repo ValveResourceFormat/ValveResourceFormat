@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Linq;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
@@ -6,6 +7,7 @@ namespace GUI.Types.Renderer
 {
     class SelectedNodeRenderer : SceneNode
     {
+        private readonly GLSceneViewer viewer;
         private readonly Shader shader;
         private readonly int vaoHandle;
         private readonly int vboHandle;
@@ -14,13 +16,13 @@ namespace GUI.Types.Renderer
         private bool debugCubeMaps;
         private bool debugLightProbes;
         private readonly List<SceneNode> selectedNodes = new(1);
-        private readonly TextRenderer textRenderer;
 
-        public bool UpdateEveryFrame { get; set; }
+        private readonly Vector2 SelectedNodeNameOffset = new(0, -20);
+        public string ScreenDebugText { get; set; } = string.Empty;
 
-        public SelectedNodeRenderer(Scene scene, TextRenderer textRenderer) : base(scene)
+        public SelectedNodeRenderer(GLSceneViewer viewer, Scene scene) : base(scene)
         {
-            this.textRenderer = textRenderer;
+            this.viewer = viewer;
             shader = scene.GuiContext.ShaderLoader.LoadShader("vrf.default");
 
             GL.CreateVertexArrays(1, out vaoHandle);
@@ -79,6 +81,88 @@ namespace GUI.Types.Renderer
             }
         }
 
+        public void AddBox(List<SimpleVertex> vertices, in Matrix4x4 transform, in AABB box, Color32 color, bool showSize = false)
+        {
+            // Adding a box will add many vertices, so ensure the required capacity for it up front
+            vertices.EnsureCapacity(vertices.Count + 2 * 12);
+
+            ReadOnlySpan<Vector3> c =
+            [
+                Vector3.Transform(new Vector3(box.Min.X, box.Min.Y, box.Min.Z), transform),
+                Vector3.Transform(new Vector3(box.Max.X, box.Min.Y, box.Min.Z), transform),
+                Vector3.Transform(new Vector3(box.Max.X, box.Max.Y, box.Min.Z), transform),
+                Vector3.Transform(new Vector3(box.Min.X, box.Max.Y, box.Min.Z), transform),
+                Vector3.Transform(new Vector3(box.Min.X, box.Min.Y, box.Max.Z), transform),
+                Vector3.Transform(new Vector3(box.Max.X, box.Min.Y, box.Max.Z), transform),
+                Vector3.Transform(new Vector3(box.Max.X, box.Max.Y, box.Max.Z), transform),
+                Vector3.Transform(new Vector3(box.Min.X, box.Max.Y, box.Max.Z), transform),
+            ];
+
+            ReadOnlySpan<(int Start, int End)> Lines =
+            [
+                (0, 1), (1, 2), (2, 3), (3, 0), // Bottom face
+                (4, 5), (5, 6), (6, 7), (7, 4), // Top face
+                (0, 4), (1, 5), (2, 6), (3, 7), // Vertical edges
+            ];
+
+            int ClosestVertexInView(ReadOnlySpan<Vector3> vertices)
+            {
+                var minDistance = float.MaxValue;
+                var closestIndex = -1;
+
+                for (var i = 0; i < vertices.Length; i++)
+                {
+                    if (viewer.Camera.ViewFrustum.Intersects(vertices[i]))
+                    {
+                        var distance = Vector3.DistanceSquared(vertices[i], viewer.Camera.Location);
+                        if (distance < minDistance)
+                        {
+                            minDistance = distance;
+                            closestIndex = i;
+                        }
+                    }
+                }
+
+                return closestIndex;
+            }
+
+            var closestIndex = showSize ? ClosestVertexInView(c) : -1;
+
+            for (var i = 0; i < Lines.Length; i++)
+            {
+                var line = Lines[i];
+
+                if (closestIndex == line.Start || closestIndex == line.End)
+                {
+                    var axis = i > 8 ? 2 : i % 2;
+
+                    var axisColor = axis switch
+                    {
+                        0 => new Color32(0.8f, 0.2f, 0.2f, 1),
+                        1 => new Color32(0.2f, 0.8f, 0.2f, 1),
+                        2 => new Color32(0.2f, 0.2f, 0.8f, 1),
+                        _ => color,
+                    };
+
+                    var (v0, v1) = (c[line.Start], c[line.End]);
+                    var length = Vector3.Distance(v0, v1);
+
+                    viewer.TextRenderer.AddTextBillboard(Vector3.Lerp(v0, v1, 0.5f), new TextRenderer.TextRenderRequest
+                    {
+                        Scale = 12f,
+                        Color = axisColor,
+                        Text = length.ToString("0.##", CultureInfo.InvariantCulture),
+                        Center = true
+                    });
+
+                    OctreeDebugRenderer<SceneNode>.AddLine(vertices, c[line.Start], c[line.End], axisColor);
+                    continue;
+                }
+
+                OctreeDebugRenderer<SceneNode>.AddLine(vertices, c[line.Start], c[line.End], color);
+            }
+        }
+
         private void UpdateBuffer()
         {
             disableDepth = selectedNodes.Count > 1;
@@ -94,7 +178,8 @@ namespace GUI.Types.Renderer
 
             foreach (var node in selectedNodes)
             {
-                OctreeDebugRenderer<SceneNode>.AddBox(vertices, node.Transform, node.LocalBoundingBox, new(1.0f, 1.0f, 0.0f, 1.0f));
+                var nodeName = node.Name ?? node.GetType().Name;
+                AddBox(vertices, node.Transform, node.LocalBoundingBox, Color32.Yellow, showSize: true);
 
                 if (debugCubeMaps && node.EnvMapIds != null)
                 {
@@ -108,7 +193,7 @@ namespace GUI.Types.Renderer
 
                     foreach (var tiedEnvMap in tiedEnvmaps)
                     {
-                        OctreeDebugRenderer<SceneNode>.AddBox(vertices, tiedEnvMap.Transform, tiedEnvMap.LocalBoundingBox, new(0.7f, 0.0f, 1.0f, 1.0f));
+                        AddBox(vertices, tiedEnvMap.Transform, tiedEnvMap.LocalBoundingBox, new(0.7f, 0.0f, 1.0f, 1.0f));
 
                         if (Scene.LightingInfo.CubemapType is Scene.CubemapType.IndividualCubemaps && i == 0)
                         {
@@ -126,7 +211,7 @@ namespace GUI.Types.Renderer
 
                 if (debugLightProbes && node.LightProbeBinding is not null)
                 {
-                    OctreeDebugRenderer<SceneNode>.AddBox(vertices, node.LightProbeBinding.Transform, node.LightProbeBinding.LocalBoundingBox, new(1.0f, 0.0f, 1.0f, 1.0f));
+                    AddBox(vertices, node.LightProbeBinding.Transform, node.LightProbeBinding.LocalBoundingBox, new(1.0f, 0.0f, 1.0f, 1.0f));
                     OctreeDebugRenderer<SceneNode>.AddLine(vertices, node.LightProbeBinding.Transform.Translation, node.BoundingBox.Center, new(1.0f, 0.0f, 1.0f, 1.0f));
 
                     if (Scene.LightingInfo.LightingData.IsSkybox == 0u)
@@ -139,6 +224,7 @@ namespace GUI.Types.Renderer
                 if (node.EntityData != null)
                 {
                     var classname = node.EntityData.GetProperty<string>("classname");
+                    nodeName = classname;
 
                     if (classname is "env_combined_light_probe_volume" or "env_light_probe_volume" or "env_cubemap_box" or "env_cubemap")
                     {
@@ -157,7 +243,7 @@ namespace GUI.Types.Renderer
                             );
                         }
 
-                        OctreeDebugRenderer<SceneNode>.AddBox(vertices, node.Transform, bounds, new(0.0f, 1.0f, 0.0f, 1.0f));
+                        AddBox(vertices, node.Transform, bounds, new(0.0f, 1.0f, 0.0f, 1.0f));
 
                         disableDepth = true;
                     }
@@ -171,7 +257,7 @@ namespace GUI.Types.Renderer
                         var origin = EntityTransformHelper.ParseVector(node.EntityData.GetProperty<string>("precomputedobbextent"));
                         var extent = EntityTransformHelper.ParseVector(node.EntityData.GetProperty<string>("precomputedobborigin"));
 
-                        OctreeDebugRenderer<SceneNode>.AddBox(vertices, Matrix4x4.Identity, bounds, new(0.0f, 1.0f, 0.0f, 1.0f));
+                        AddBox(vertices, Matrix4x4.Identity, bounds, new(0.0f, 1.0f, 0.0f, 1.0f));
 
                         OctreeDebugRenderer<SceneNode>.AddLine(vertices, node.Transform.Translation, origin, new(0.0f, 0.0f, 1.0f, 1.0f));
                         OctreeDebugRenderer<SceneNode>.AddLine(vertices, node.Transform.Translation, extent, new(1.0f, 1.0f, 0.0f, 1.0f));
@@ -179,6 +265,29 @@ namespace GUI.Types.Renderer
                         disableDepth = true;
                     }
                 }
+
+                // draw node name above the bounding box
+                var position = node.BoundingBox.Center;
+                position.Z = node.BoundingBox.Max.Z;
+
+                viewer.TextRenderer.AddTextBillboard(position, new TextRenderer.TextRenderRequest
+                {
+                    Scale = 20f,
+                    Text = nodeName,
+                    Center = true,
+                    TextOffset = SelectedNodeNameOffset
+                });
+            }
+
+            if (ScreenDebugText.Length > 0)
+            {
+                viewer.TextRenderer.AddTextRelative(new TextRenderer.TextRenderRequest
+                {
+                    X = 0.005f,
+                    Y = 0.03f,
+                    Scale = 14f,
+                    Text = ScreenDebugText,
+                });
             }
 
             vertexCount = vertices.Count;
@@ -193,10 +302,7 @@ namespace GUI.Types.Renderer
 
         public override void Update(Scene.UpdateContext context)
         {
-            if (UpdateEveryFrame)
-            {
-                UpdateBuffer();
-            }
+            UpdateBuffer();
         }
 
         public override void Render(Scene.RenderContext context)
@@ -226,35 +332,12 @@ namespace GUI.Types.Renderer
             GL.DepthMask(true);
             GL.Disable(EnableCap.Blend);
             GL.Enable(EnableCap.DepthTest);
-
-            foreach (var node in selectedNodes)
-            {
-                string name;
-
-                if (node.EntityData != null)
-                {
-                    name = node.EntityData.GetProperty<string>("classname");
-                }
-                else if (!string.IsNullOrEmpty(node.Name))
-                {
-                    name = node.Name;
-                }
-                else
-                {
-                    name = node.GetType().Name;
-                }
-
-                var position = node.BoundingBox.Center;
-                position.Z = node.BoundingBox.Max.Z;
-
-                textRenderer.RenderTextBillboard(context.Camera, position, 20f, Vector4.One, name, center: true);
-            }
         }
 
         public override void SetRenderMode(string mode)
         {
             debugCubeMaps = mode == "Cubemaps";
-            debugLightProbes = mode == "Irradiance" || mode == "Illumination";
+            debugLightProbes = mode is "Irradiance" or "Illumination";
 
             RemoveLightProbeDebugGrid();
             UpdateBuffer();

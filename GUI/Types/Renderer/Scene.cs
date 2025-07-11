@@ -14,10 +14,12 @@ namespace GUI.Types.Renderer
     {
         public readonly struct UpdateContext
         {
+            public GLSceneViewer View { get; }
             public float Timestep { get; }
 
-            public UpdateContext(float timestep)
+            public UpdateContext(float timestep, GLSceneViewer view)
             {
+                View = view;
                 Timestep = timestep;
             }
         }
@@ -136,10 +138,8 @@ namespace GUI.Types.Renderer
             return staticNodes.Find(IsMatchingEntity) ?? dynamicNodes.Find(IsMatchingEntity);
         }
 
-        public void Update(float timestep)
+        public void Update(Scene.UpdateContext updateContext)
         {
-            var updateContext = new UpdateContext(timestep);
-
             foreach (var node in staticNodes)
             {
                 node.Update(updateContext);

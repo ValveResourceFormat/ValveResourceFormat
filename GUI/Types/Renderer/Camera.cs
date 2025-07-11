@@ -34,7 +34,7 @@ namespace GUI.Types.Renderer
         public Matrix4x4 ViewProjectionMatrix { get; private set; }
         public Frustum ViewFrustum { get; } = new Frustum();
 
-        private Vector2 WindowSize;
+        public Vector2 WindowSize;
         private float AspectRatio;
 
         public Camera()

@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Linq;
 using System.Windows.Forms;
 using GUI.Controls;
@@ -139,7 +140,7 @@ namespace GUI.Types.Renderer
                     SetAvailableAnimations(animations);
                 }
 
-                skeletonSceneNode = new SkeletonSceneNode(Scene, modelSceneNode.AnimationController, model.Skeleton, textRenderer);
+                skeletonSceneNode = new SkeletonSceneNode(Scene, modelSceneNode.AnimationController, model.Skeleton);
                 Scene.Add(skeletonSceneNode, true);
 
                 if (model.Skeleton.Bones.Length > 0)
@@ -301,6 +302,58 @@ namespace GUI.Types.Renderer
             }
         }
 
+        private string GetModelStatsText()
+        {
+            var sb = new System.Text.StringBuilder();
+
+            sb.AppendLine(CultureInfo.InvariantCulture, $"Mesh Count: {modelSceneNode.RenderableMeshes.Count}");
+
+            foreach (var mesh in modelSceneNode.RenderableMeshes)
+            {
+                var meshName = mesh.Name.Split(":")[^1];
+                var size = mesh.BoundingBox.Max - mesh.BoundingBox.Min;
+
+                var vertexTotal = 0;
+                var triangleTotal = 0;
+                var drawCallTotal = 0;
+
+                foreach (var opaqueDraw in mesh.DrawCallsOpaque)
+                {
+                    drawCallTotal++;
+                    vertexTotal += (int)opaqueDraw.VertexCount;
+                    triangleTotal += opaqueDraw.IndexCount / 3;
+                }
+
+                foreach (var opaqueDraw in mesh.DrawCallsBlended)
+                {
+                    drawCallTotal++;
+                    vertexTotal += (int)opaqueDraw.VertexCount;
+                    triangleTotal += opaqueDraw.IndexCount / 3;
+                }
+
+                foreach (var opaqueDraw in mesh.DrawCallsOverlay)
+                {
+                    drawCallTotal++;
+                    vertexTotal += (int)opaqueDraw.VertexCount;
+                    triangleTotal += opaqueDraw.IndexCount / 3;
+                }
+
+                sb.Append(CultureInfo.InvariantCulture,
+                    $"""
+
+                    Mesh '{meshName}':
+                        DrawCalls : {drawCallTotal}
+                        Vertices  : {triangleTotal}
+                        Triangles : {vertexTotal}
+                        Size      : X: {size.X} | Y: {size.Y} | Z: {size.Z}
+
+                    """
+                );
+            }
+
+            return sb.ToString();
+        }
+
         private void SetEnabledPhysicsGroups(HashSet<string> physicsGroups)
         {
             foreach (var physNode in Scene.AllNodes.OfType<PhysSceneNode>())
@@ -344,7 +397,7 @@ namespace GUI.Types.Renderer
             if (pickingResponse.PixelInfo.ObjectId == 0)
             {
                 selectedNodeRenderer.SelectNode(null);
-                selectedNodeRenderer.UpdateEveryFrame = false;
+                selectedNodeRenderer.ScreenDebugText = string.Empty;
                 return;
             }
 
@@ -352,8 +405,7 @@ namespace GUI.Types.Renderer
             {
                 var sceneNode = Scene.Find(pickingResponse.PixelInfo.ObjectId);
                 selectedNodeRenderer.SelectNode(sceneNode);
-                selectedNodeRenderer.UpdateEveryFrame = true;
-
+                selectedNodeRenderer.ScreenDebugText = GetModelStatsText();
                 return;
             }
 
