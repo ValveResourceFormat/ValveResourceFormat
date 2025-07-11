@@ -594,7 +594,7 @@ namespace GUI.Controls
                 });
             }
 
-            TextRenderer.DrainTextRenderRequests();
+            TextRenderer.Render();
 
             GLControl.SwapBuffers();
             Picker?.TriggerEventIfAny();

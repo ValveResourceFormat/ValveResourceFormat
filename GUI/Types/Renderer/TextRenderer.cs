@@ -118,18 +118,6 @@ namespace GUI.Types.Renderer
             AddText(textRenderRequest);
         }
 
-        public void DrainTextRenderRequests()
-        {
-            using (new GLDebugGroup("Text Render"))
-            {
-                foreach (var textRenderRequest in TextRenderRequests)
-                {
-                    RenderText(textRenderRequest);
-                }
-                TextRenderRequests.Clear();
-            }
-        }
-
         public void AddTextRelative(TextRenderRequest textRenderRequest)
         {
             textRenderRequest.X = camera.WindowSize.X * Math.Clamp(textRenderRequest.X, 0, 1);
@@ -140,6 +128,19 @@ namespace GUI.Types.Renderer
         public void AddText(TextRenderRequest textRenderRequest)
         {
             TextRenderRequests.Add(textRenderRequest);
+        }
+
+
+        public void Render()
+        {
+            using (new GLDebugGroup("Text Render"))
+            {
+                foreach (var text in TextRenderRequests)
+                {
+                    RenderText(text);
+                }
+                TextRenderRequests.Clear();
+            }
         }
 
         private void RenderText(TextRenderRequest textRenderRequest)
