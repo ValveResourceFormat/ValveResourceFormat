@@ -15,15 +15,13 @@ namespace GUI.Types.Renderer
         private bool debugCubeMaps;
         private bool debugLightProbes;
         private readonly List<SceneNode> selectedNodes = new(1);
-        private readonly TextRenderer textRenderer;
 
         private readonly Vector2 SelectedNodeNameOffset = new Vector2(0, -20);
 
         public bool UpdateEveryFrame { get; set; }
 
-        public SelectedNodeRenderer(Scene scene, TextRenderer textRenderer) : base(scene)
+        public SelectedNodeRenderer(Scene scene) : base(scene)
         {
-            this.textRenderer = textRenderer;
             shader = scene.GuiContext.ShaderLoader.LoadShader("vrf.default");
 
             GL.CreateVertexArrays(1, out vaoHandle);
@@ -125,7 +123,8 @@ namespace GUI.Types.Renderer
 
             foreach (var node in selectedNodes)
             {
-                OctreeDebugRenderer<SceneNode>.AddBox(vertices, node.Transform, node.LocalBoundingBox, new(1.0f, 1.0f, 0.0f, 1.0f));
+                var nodeName = node.Name ?? node.GetType().Name;
+                OctreeDebugRenderer<SceneNode>.AddBox(vertices, node.Transform, node.LocalBoundingBox, Color32.Yellow, showSize: true);
 
                 if (debugCubeMaps && node.EnvMapIds != null)
                 {
@@ -170,6 +169,7 @@ namespace GUI.Types.Renderer
                 if (node.EntityData != null)
                 {
                     var classname = node.EntityData.GetProperty<string>("classname");
+                    nodeName = classname;
 
                     if (classname is "env_combined_light_probe_volume" or "env_light_probe_volume" or "env_cubemap_box" or "env_cubemap")
                     {
@@ -210,6 +210,18 @@ namespace GUI.Types.Renderer
                         disableDepth = true;
                     }
                 }
+
+                // draw node name above the bounding box
+                var position = node.BoundingBox.Center;
+                position.Z = node.BoundingBox.Max.Z;
+
+                OctreeDebugRenderer<SceneNode>.TextRenderer.AddTextBillboard(OctreeDebugRenderer<SceneNode>.Camera, position, new TextRenderer.TextRenderRequest
+                {
+                    Scale = 20f,
+                    Text = nodeName,
+                    Center = true,
+                    TextOffset = SelectedNodeNameOffset
+                });
             }
 
             vertexCount = vertices.Count;
@@ -257,35 +269,6 @@ namespace GUI.Types.Renderer
             GL.DepthMask(true);
             GL.Disable(EnableCap.Blend);
             GL.Enable(EnableCap.DepthTest);
-
-            foreach (var node in selectedNodes)
-            {
-                string name;
-
-                if (node.EntityData != null)
-                {
-                    name = node.EntityData.GetProperty<string>("classname");
-                }
-                else if (!string.IsNullOrEmpty(node.Name))
-                {
-                    name = node.Name;
-                }
-                else
-                {
-                    name = node.GetType().Name;
-                }
-
-                var position = node.BoundingBox.Center;
-                position.Z = node.BoundingBox.Max.Z;
-
-                textRenderer.AddTextBillboard(context.Camera, position, new TextRenderer.TextRenderRequest
-                {
-                    Scale = 20f,
-                    Text = name,
-                    Center = true,
-                    TextOffset = SelectedNodeNameOffset
-                });
-            }
         }
 
         public override void SetRenderMode(string mode)

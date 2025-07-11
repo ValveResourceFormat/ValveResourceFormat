@@ -48,11 +48,12 @@ namespace GUI.Controls
 
         public float Uptime { get; private set; }
         public Camera Camera { get; protected set; }
+        public Types.Renderer.TextRenderer TextRenderer { get; protected set; }
+
 
         public event EventHandler<RenderEventArgs> GLPaint;
         public event EventHandler GLLoad;
 
-        protected readonly Types.Renderer.TextRenderer textRenderer;
         protected readonly PostProcessRenderer postProcessRenderer;
 
         protected Form FullScreenForm { get; private set; }
@@ -116,7 +117,7 @@ namespace GUI.Controls
 
             glControlContainer.Controls.Add(GLControl);
 
-            textRenderer = new(guiContext);
+            TextRenderer = new(guiContext);
             postProcessRenderer = new(guiContext);
 
 #if DEBUG
@@ -471,7 +472,7 @@ namespace GUI.Controls
                 GL.Arb.MaxShaderCompilerThreads(uint.MaxValue);
             }
 
-            textRenderer.Load();
+            TextRenderer.Load();
             postProcessRenderer.Load();
 
             try
@@ -584,7 +585,7 @@ namespace GUI.Controls
 
             if (Settings.Config.DisplayFps != 0 && isActiveForm && !isTextureViewer)
             {
-                textRenderer.AddText(new Types.Renderer.TextRenderer.TextRenderRequest
+                TextRenderer.AddText(new Types.Renderer.TextRenderer.TextRenderRequest
                 {
                     X = 2f,
                     Y = MainFramebuffer.Height - 4f,
@@ -593,7 +594,7 @@ namespace GUI.Controls
                 });
             }
 
-            textRenderer.DrainTextRenderRequests();
+            TextRenderer.DrainTextRenderRequests();
 
             GLControl.SwapBuffers();
             Picker?.TriggerEventIfAny();
@@ -681,7 +682,7 @@ namespace GUI.Controls
             }
 
             Camera.SetViewportSize(w, h);
-            textRenderer.SetViewportSize(w, h);
+            TextRenderer.SetViewportSize(w, h);
             Picker?.Resize(w, h);
         }
 

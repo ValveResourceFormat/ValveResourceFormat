@@ -86,7 +86,7 @@ namespace GUI.Types.Renderer
             return closestIndex;
         }
 
-        public static void AddBox(List<SimpleVertex> vertices, in Matrix4x4 transform, in AABB box, Color32 color)
+        public static void AddBox(List<SimpleVertex> vertices, in Matrix4x4 transform, in AABB box, Color32 color, bool showSize = false)
         {
             // Adding a box will add many vertices, so ensure the required capacity for it up front
             vertices.EnsureCapacity(vertices.Count + 2 * 12);
@@ -105,22 +105,13 @@ namespace GUI.Types.Renderer
 
             ReadOnlySpan<(int Start, int End)> Lines =
             [
-                (0, 1), // Bottom face
-                (1, 2),
-                (2, 3),
-                (3, 0),
-                (4, 5), // Top face
-                (5, 6),
-                (6, 7),
-                (7, 4),
-                (0, 4), // Vertical edges
-                (1, 5),
-                (2, 6),
-                (3, 7)
+                (0, 1), (1, 2), (2, 3), (3, 0), // Bottom face
+                (4, 5), (5, 6), (6, 7), (7, 4), // Top face
+                (0, 4), (1, 5), (2, 6), (3, 7), // Vertical edges
             ];
 
 
-            var closestIndex = ClosestVertexInView(c);
+            var closestIndex = showSize ? ClosestVertexInView(c) : -1;
 
             for (var i = 0; i < Lines.Length; i++)
             {
@@ -144,7 +135,7 @@ namespace GUI.Types.Renderer
                     TextRenderer.AddTextBillboard(Camera, Vector3.Lerp(v0, v1, 0.5f), new TextRenderer.TextRenderRequest
                     {
                         Scale = 10f,
-                        Color = Vector4.One,
+                        Color = axisColor,
                         Text = length.ToString("0.##", CultureInfo.InvariantCulture),
                         Center = true
                     });

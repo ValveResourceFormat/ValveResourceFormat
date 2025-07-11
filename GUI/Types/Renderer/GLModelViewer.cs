@@ -206,7 +206,7 @@ namespace GUI.Types.Renderer
                     SetAvailableAnimations(animations);
                 }
 
-                skeletonSceneNode = new SkeletonSceneNode(Scene, modelSceneNode.AnimationController, model.Skeleton, textRenderer);
+                skeletonSceneNode = new SkeletonSceneNode(Scene, modelSceneNode.AnimationController, model.Skeleton);
                 Scene.Add(skeletonSceneNode, true);
 
                 if (model.Skeleton.Bones.Length > 0)
@@ -405,7 +405,7 @@ namespace GUI.Types.Renderer
 
                 using (new GLDebugGroup("Model Viewer Stats Text"))
                 {
-                    textRenderer.AddTextRelative(new TextRenderer.TextRenderRequest
+                    TextRenderer.AddTextRelative(new TextRenderer.TextRenderRequest
                     {
                         X = 0.005f,
                         Y = 0.03f,

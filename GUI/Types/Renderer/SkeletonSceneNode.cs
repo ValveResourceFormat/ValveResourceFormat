@@ -13,18 +13,16 @@ namespace GUI.Types.Renderer
 
         readonly AnimationController animationController;
         readonly Skeleton skeleton;
-        private readonly TextRenderer textRenderer;
         readonly Shader shader;
         readonly int vaoHandle;
         readonly int vboHandle;
         int vertexCount;
 
-        public SkeletonSceneNode(Scene scene, AnimationController animationController, Skeleton skeleton, TextRenderer textRenderer)
+        public SkeletonSceneNode(Scene scene, AnimationController animationController, Skeleton skeleton)
             : base(scene)
         {
             this.animationController = animationController;
             this.skeleton = skeleton;
-            this.textRenderer = textRenderer;
 
             shader = Scene.GuiContext.ShaderLoader.LoadShader("vrf.default");
 
@@ -39,7 +37,6 @@ namespace GUI.Types.Renderer
 #endif
         }
 
-        public List<(Vector3 Position, string String)> TextCalls { get; private set; } = [];
         public override void Update(Scene.UpdateContext context)
         {
             if (!Enabled)
@@ -49,7 +46,6 @@ namespace GUI.Types.Renderer
 
             LocalBoundingBox = new AABB(new Vector3(float.MinValue), new Vector3(float.MaxValue));
 
-            TextCalls.Clear();
             Frame frame = null;
             if (animationController.ActiveAnimation != null)
             {
@@ -67,7 +63,7 @@ namespace GUI.Types.Renderer
 
             foreach (var root in skeleton.Roots)
             {
-                GetAnimationMatrixRecursive(vertices, TextCalls, root, Matrix4x4.Identity, frame);
+                GetAnimationMatrixRecursive(vertices, context, root, Matrix4x4.Identity, frame);
             }
 
             vertexCount = vertices.Count;
@@ -75,7 +71,7 @@ namespace GUI.Types.Renderer
             GL.NamedBufferData(vboHandle, vertices.Count * SimpleVertex.SizeInBytes, ListAccessors<SimpleVertex>.GetBackingArray(vertices), BufferUsageHint.DynamicDraw);
         }
 
-        private static void GetAnimationMatrixRecursive(List<SimpleVertex> vertices, List<(Vector3 Position, string String)> text, Bone bone, Matrix4x4 bindPose, Frame frame)
+        private static void GetAnimationMatrixRecursive(List<SimpleVertex> vertices, Scene.UpdateContext updateContext, Bone bone, Matrix4x4 bindPose, Frame frame)
         {
             var oldBindPose = bindPose;
 
@@ -92,7 +88,12 @@ namespace GUI.Types.Renderer
                 bindPose = bone.BindPose * bindPose;
             }
 
-            text.Add((bindPose.Translation, bone.Name));
+            updateContext.View.TextRenderer.AddTextBillboard(updateContext.View.Camera, bindPose.Translation, new TextRenderer.TextRenderRequest
+            {
+                Scale = 10f,
+                Text = bone.Name,
+                Center = false
+            });
 
             if (!oldBindPose.IsIdentity)
             {
@@ -102,7 +103,7 @@ namespace GUI.Types.Renderer
 
             foreach (var child in bone.Children)
             {
-                GetAnimationMatrixRecursive(vertices, text, child, bindPose, frame);
+                GetAnimationMatrixRecursive(vertices, updateContext, child, bindPose, frame);
             }
         }
 
@@ -110,21 +111,6 @@ namespace GUI.Types.Renderer
         {
             if (!Enabled)
             {
-                return;
-            }
-
-            if (context.RenderPass == RenderPass.Translucent)
-            {
-                foreach (var text in TextCalls)
-                {
-                    textRenderer.AddTextBillboard(context.View.Camera, text.Position, new TextRenderer.TextRenderRequest
-                    {
-                        Scale = 3f,
-                        Text = text.String,
-                        Center = false
-                    });
-                }
-
                 return;
             }
 
