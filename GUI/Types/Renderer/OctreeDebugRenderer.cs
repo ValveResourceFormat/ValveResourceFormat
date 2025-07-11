@@ -1,3 +1,4 @@
+using System.Globalization;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 
@@ -60,6 +61,7 @@ namespace GUI.Types.Renderer
         }
 
         public static Camera Camera { get; set; }
+        public static TextRenderer TextRenderer { get; set; }
 
         static int ClosestVertexInView(ReadOnlySpan<Vector3> vertices)
         {
@@ -136,13 +138,16 @@ namespace GUI.Types.Renderer
                         _ => color,
                     };
 
-                    // textRenderer.AddTextBillboard(context.Camera, Vector3.Lerp(edge.StartPos, edge.EndPos, 0.5f), new TextRenderer.TextRenderRequest
-                    // {
-                    //     Scale = 14f,
-                    //     Color = edgeColor,
-                    //     Text = edge.Length.ToString("0.##", CultureInfo.InvariantCulture),
-                    //     Center = true
-                    // });
+                    var (v0, v1) = (c[line.Start], c[line.End]);
+                    var length = Vector3.Distance(v0, v1);
+
+                    TextRenderer.AddTextBillboard(Camera, Vector3.Lerp(v0, v1, 0.5f), new TextRenderer.TextRenderRequest
+                    {
+                        Scale = 10f,
+                        Color = Vector4.One,
+                        Text = length.ToString("0.##", CultureInfo.InvariantCulture),
+                        Center = true
+                    });
 
                     AddLine(vertices, c[line.Start], c[line.End], axisColor);
                     continue;

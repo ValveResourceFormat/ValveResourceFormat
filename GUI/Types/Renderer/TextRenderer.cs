@@ -16,11 +16,11 @@ namespace GUI.Types.Renderer
         [StructLayout(LayoutKind.Sequential)]
         struct Vertex
         {
-            public const int Size = 8;
+            public const int Size = 5;
 
             public Vector2 Position;
             public Vector2 TexCoord;
-            public Vector4 Color;
+            public Color32 Color;
         }
 
         public struct TextRenderRequest()
@@ -28,7 +28,7 @@ namespace GUI.Types.Renderer
             public float X;
             public float Y;
             public float Scale;
-            public Vector4 Color = Vector4.One;
+            public Color32 Color = Color32.White;
             public Vector2 TextOffset = Vector2.Zero;
             public string Text;
             public bool Center = false;
@@ -36,7 +36,7 @@ namespace GUI.Types.Renderer
         }
 
         // presized to avoid resize allocations, i guess for now 10 is more than enough
-        private List<TextRenderRequest> TextRenderRequests = new(10);
+        private readonly List<TextRenderRequest> TextRenderRequests = new(10);
 
         private readonly VrfGuiContext guiContext;
         private RenderTexture fontTexture;
@@ -65,12 +65,13 @@ namespace GUI.Types.Renderer
             GL.TextureSubImage2D(fontTexture.Handle, 0, 0, 0, bitmap.Width, bitmap.Height, PixelFormat.Bgra, PixelType.UnsignedByte, bitmap.GetPixels());
 
             // Create VAO
-            var attributes = new List<(string Name, int Size)>
+            var attributes = new List<(string Name, int Size, VertexAttribType Type, bool Normalized)>
             {
-                ("vPOSITION", 2),
-                ("vTEXCOORD", 2),
-                ("vCOLOR", 4),
+                ("vPOSITION", 2, VertexAttribType.Float, false),
+                ("vTEXCOORD", 2, VertexAttribType.Float, false),
+                ("vCOLOR", 4, VertexAttribType.UnsignedByte, true),
             };
+
             var stride = sizeof(float) * Vertex.Size;
             var offset = 0;
 
@@ -79,11 +80,11 @@ namespace GUI.Types.Renderer
             GL.VertexArrayVertexBuffer(vao, 0, bufferHandle, 0, stride);
             GL.VertexArrayElementBuffer(vao, guiContext.MeshBufferCache.QuadIndices.GLHandle);
 
-            foreach (var (name, size) in attributes)
+            foreach (var (name, size, type, normalized) in attributes)
             {
                 var attributeLocation = GL.GetAttribLocation(shader.Program, name);
                 GL.EnableVertexArrayAttrib(vao, attributeLocation);
-                GL.VertexArrayAttribFormat(vao, attributeLocation, size, VertexAttribType.Float, false, offset);
+                GL.VertexArrayAttribFormat(vao, attributeLocation, size, type, normalized, offset);
                 GL.VertexArrayAttribBinding(vao, attributeLocation, 0);
                 offset += sizeof(float) * size;
             }

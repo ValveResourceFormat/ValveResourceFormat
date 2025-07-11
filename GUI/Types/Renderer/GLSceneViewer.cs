@@ -351,6 +351,7 @@ namespace GUI.Types.Renderer
                 Scene.PostProcessInfo.UpdatePostProcessing(Camera);
 
                 OctreeDebugRenderer<SceneNode>.Camera = Camera;
+                OctreeDebugRenderer<SceneNode>.TextRenderer = textRenderer;
                 selectedNodeRenderer.Update(new Scene.UpdateContext(e.FrameTime));
 
                 Scene.SetupSceneShadows(Camera, ShadowDepthBuffer.Width);
