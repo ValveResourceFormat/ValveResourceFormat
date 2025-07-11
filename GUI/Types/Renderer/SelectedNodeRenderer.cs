@@ -16,6 +16,7 @@ namespace GUI.Types.Renderer
         private bool debugCubeMaps;
         private bool debugLightProbes;
         private readonly List<SceneNode> selectedNodes = new(1);
+        private readonly List<SimpleVertex> vertices = new(48);
 
         private readonly Vector2 SelectedNodeNameOffset = new(0, -20);
         public string ScreenDebugText { get; set; } = string.Empty;
@@ -77,7 +78,7 @@ namespace GUI.Types.Renderer
             }
         }
 
-        public void AddBox(List<SimpleVertex> vertices, in Matrix4x4 transform, in AABB box, Color32 color, bool showSize = false)
+        private void AddBox(List<SimpleVertex> vertices, in Matrix4x4 transform, in AABB box, Color32 color, bool showSize = false)
         {
             // Adding a box will add many vertices, so ensure the required capacity for it up front
             vertices.EnsureCapacity(vertices.Count + 2 * 12);
@@ -169,8 +170,6 @@ namespace GUI.Types.Renderer
                 vertexCount = 0;
                 return;
             }
-
-            var vertices = new List<SimpleVertex>();
 
             foreach (var node in selectedNodes)
             {
@@ -288,7 +287,9 @@ namespace GUI.Types.Renderer
 
             vertexCount = vertices.Count;
 
-            GL.NamedBufferData(vboHandle, vertices.Count * SimpleVertex.SizeInBytes, ListAccessors<SimpleVertex>.GetBackingArray(vertices), BufferUsageHint.StaticDraw);
+            GL.NamedBufferData(vboHandle, vertexCount * SimpleVertex.SizeInBytes, ListAccessors<SimpleVertex>.GetBackingArray(vertices), BufferUsageHint.DynamicDraw);
+
+            vertices.Clear();
         }
 
         private void RemoveLightProbeDebugGrid()

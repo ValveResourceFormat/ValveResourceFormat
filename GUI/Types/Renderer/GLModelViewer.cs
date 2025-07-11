@@ -316,7 +316,6 @@ namespace GUI.Types.Renderer
 
                 var vertexTotal = 0;
                 var triangleTotal = 0;
-                var drawCallTotal = 0;
                 var coloredMaterialNames = new List<string>();
 
                 void AddColoredMaterialName(DrawCall call)
