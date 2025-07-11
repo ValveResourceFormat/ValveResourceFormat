@@ -356,33 +356,6 @@ namespace GUI.Types.Renderer
 
             foreach (var node in selectedNodes)
             {
-                NodeClosestVertexInfo.TryGetValue(node, out var closestVertexInfo);
-                NodeVertexInfos.TryGetValue(node, out var vertexInfos);
-
-                if (vertexInfos == null)
-                {
-                    vertexInfos = GetAABBVertices(node.LocalBoundingBox, node.Transform);
-
-                    NodeVertexInfos.Add(node, vertexInfos);
-                    UpdateBuffer();
-                }
-
-                if (closestVertexInfo == null)
-                {
-                    closestVertexInfo = GetClosestVertexInfo(context.Camera, vertexInfos);
-
-                    NodeClosestVertexInfo.Add(node, closestVertexInfo);
-                    UpdateBuffer();
-                }
-
-                var newClosestInfo = GetClosestVertexInfo(context.Camera, vertexInfos);
-
-                if (closestVertexInfo != newClosestInfo)
-                {
-                    NodeClosestVertexInfo[node] = newClosestInfo;
-                    UpdateBuffer();
-                }
-
                 string name;
 
                 if (node.EntityData != null)
@@ -396,25 +369,6 @@ namespace GUI.Types.Renderer
                 else
                 {
                     name = node.GetType().Name;
-                }
-
-                foreach (var edge in closestVertexInfo.Edges)
-                {
-                    Vector4 edgeColor = edge.Axis switch
-                    {
-                        0 => edgeColor = new Vector4(0.8f, 0.2f, 0.2f, 1),
-                        1 => edgeColor = new Vector4(0.2f, 0.8f, 0.2f, 1),
-                        2 => edgeColor = new Vector4(0.2f, 0.2f, 0.8f, 1),
-                        _ => edgeColor = Vector4.Zero
-                    };
-
-                    textRenderer.AddTextBillboard(context.Camera, Vector3.Lerp(edge.StartPos, edge.EndPos, 0.5f), new TextRenderer.TextRenderRequest
-                    {
-                        Scale = 14f,
-                        Color = edgeColor,
-                        Text = edge.Length.ToString("0.##", CultureInfo.InvariantCulture),
-                        Center = true
-                    });
                 }
 
                 var position = node.BoundingBox.Center;

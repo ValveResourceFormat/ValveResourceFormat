@@ -59,34 +59,97 @@ namespace GUI.Types.Renderer
             AddLine(vertices, new Vector3(box.Min.X, box.Max.Y, box.Min.Z), new Vector3(box.Min.X, box.Max.Y, box.Max.Z), color);
         }
 
+        public static Camera Camera { get; set; }
+
+        static int ClosestVertexInView(ReadOnlySpan<Vector3> vertices)
+        {
+            var minDistance = float.MaxValue;
+            var closestIndex = -1;
+
+            for (var i = 0; i < vertices.Length; i++)
+            {
+                if (!Camera.ViewFrustum.Intersects(vertices[i]))
+                {
+                    continue;
+                }
+
+                var distance = Vector3.DistanceSquared(vertices[i], Camera.Location);
+                if (distance < minDistance)
+                {
+                    minDistance = distance;
+                    closestIndex = i;
+                }
+            }
+
+            return closestIndex;
+        }
+
         public static void AddBox(List<SimpleVertex> vertices, in Matrix4x4 transform, in AABB box, Color32 color)
         {
             // Adding a box will add many vertices, so ensure the required capacity for it up front
             vertices.EnsureCapacity(vertices.Count + 2 * 12);
 
-            var c1 = Vector3.Transform(new Vector3(box.Min.X, box.Min.Y, box.Min.Z), transform);
-            var c2 = Vector3.Transform(new Vector3(box.Max.X, box.Min.Y, box.Min.Z), transform);
-            var c3 = Vector3.Transform(new Vector3(box.Max.X, box.Max.Y, box.Min.Z), transform);
-            var c4 = Vector3.Transform(new Vector3(box.Min.X, box.Max.Y, box.Min.Z), transform);
-            var c5 = Vector3.Transform(new Vector3(box.Min.X, box.Min.Y, box.Max.Z), transform);
-            var c6 = Vector3.Transform(new Vector3(box.Max.X, box.Min.Y, box.Max.Z), transform);
-            var c7 = Vector3.Transform(new Vector3(box.Max.X, box.Max.Y, box.Max.Z), transform);
-            var c8 = Vector3.Transform(new Vector3(box.Min.X, box.Max.Y, box.Max.Z), transform);
+            ReadOnlySpan<Vector3> c =
+            [
+                Vector3.Transform(new Vector3(box.Min.X, box.Min.Y, box.Min.Z), transform),
+                Vector3.Transform(new Vector3(box.Max.X, box.Min.Y, box.Min.Z), transform),
+                Vector3.Transform(new Vector3(box.Max.X, box.Max.Y, box.Min.Z), transform),
+                Vector3.Transform(new Vector3(box.Min.X, box.Max.Y, box.Min.Z), transform),
+                Vector3.Transform(new Vector3(box.Min.X, box.Min.Y, box.Max.Z), transform),
+                Vector3.Transform(new Vector3(box.Max.X, box.Min.Y, box.Max.Z), transform),
+                Vector3.Transform(new Vector3(box.Max.X, box.Max.Y, box.Max.Z), transform),
+                Vector3.Transform(new Vector3(box.Min.X, box.Max.Y, box.Max.Z), transform),
+            ];
 
-            AddLine(vertices, c1, c2, color);
-            AddLine(vertices, c2, c3, color);
-            AddLine(vertices, c3, c4, color);
-            AddLine(vertices, c4, c1, color);
+            ReadOnlySpan<(int Start, int End)> Lines =
+            [
+                (0, 1), // Bottom face
+                (1, 2),
+                (2, 3),
+                (3, 0),
+                (4, 5), // Top face
+                (5, 6),
+                (6, 7),
+                (7, 4),
+                (0, 4), // Vertical edges
+                (1, 5),
+                (2, 6),
+                (3, 7)
+            ];
 
-            AddLine(vertices, c5, c6, color);
-            AddLine(vertices, c6, c7, color);
-            AddLine(vertices, c7, c8, color);
-            AddLine(vertices, c8, c5, color);
 
-            AddLine(vertices, c1, c5, color);
-            AddLine(vertices, c2, c6, color);
-            AddLine(vertices, c3, c7, color);
-            AddLine(vertices, c4, c8, color);
+            var closestIndex = ClosestVertexInView(c);
+
+            for (var i = 0; i < Lines.Length; i++)
+            {
+                var line = Lines[i];
+
+                if (closestIndex == line.Start || closestIndex == line.End)
+                {
+                    var axis = i > 8 ? 2 : i % 2;
+
+                    var axisColor = axis switch
+                    {
+                        0 => new Color32(0.8f, 0.2f, 0.2f, 1),
+                        1 => new Color32(0.2f, 0.8f, 0.2f, 1),
+                        2 => new Color32(0.2f, 0.2f, 0.8f, 1),
+                        _ => color,
+                    };
+
+                    // textRenderer.AddTextBillboard(context.Camera, Vector3.Lerp(edge.StartPos, edge.EndPos, 0.5f), new TextRenderer.TextRenderRequest
+                    // {
+                    //     Scale = 14f,
+                    //     Color = edgeColor,
+                    //     Text = edge.Length.ToString("0.##", CultureInfo.InvariantCulture),
+                    //     Center = true
+                    // });
+
+                    AddLine(vertices, c[line.Start], c[line.End], axisColor);
+                    continue;
+                }
+
+                AddLine(vertices, c[line.Start], c[line.End], color);
+            }
         }
 
         private static void AddOctreeNode(List<SimpleVertex> vertices, Octree<T>.Node node, int depth)
