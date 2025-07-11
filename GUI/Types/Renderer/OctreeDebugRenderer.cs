@@ -134,7 +134,7 @@ namespace GUI.Types.Renderer
 
                     TextRenderer.AddTextBillboard(Camera, Vector3.Lerp(v0, v1, 0.5f), new TextRenderer.TextRenderRequest
                     {
-                        Scale = 10f,
+                        Scale = 12f,
                         Color = axisColor,
                         Text = length.ToString("0.##", CultureInfo.InvariantCulture),
                         Center = true
