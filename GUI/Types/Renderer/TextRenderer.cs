@@ -35,19 +35,20 @@ namespace GUI.Types.Renderer
             public bool WriteDepth = false;
         }
 
-        // presized to avoid resize allocations, i guess for now 10 is more than enough
         private readonly List<TextRenderRequest> TextRenderRequests = new(10);
 
         private readonly VrfGuiContext guiContext;
+        private readonly Camera camera;
+
         private RenderTexture fontTexture;
         private Shader shader;
         private int bufferHandle;
         private int vao;
-        private Vector2 WindowSize;
 
-        public TextRenderer(VrfGuiContext guiContext)
+        public TextRenderer(VrfGuiContext guiContext, Camera camera)
         {
             this.guiContext = guiContext;
+            this.camera = camera;
         }
 
         public void Load()
@@ -96,12 +97,7 @@ namespace GUI.Types.Renderer
 #endif
         }
 
-        public void SetViewportSize(int viewportWidth, int viewportHeight)
-        {
-            WindowSize = new Vector2(viewportWidth, viewportHeight);
-        }
-
-        public void AddTextBillboard(Camera camera, Vector3 position, TextRenderRequest textRenderRequest, bool fixedScale = true)
+        public void AddTextBillboard(Vector3 position, TextRenderRequest textRenderRequest, bool fixedScale = true)
         {
             var screenPosition = Vector4.Transform(new Vector4(position, 1.0f), camera.ViewProjectionMatrix);
             screenPosition /= screenPosition.W;
@@ -111,8 +107,8 @@ namespace GUI.Types.Renderer
                 return;
             }
 
-            textRenderRequest.X = 0.5f * (screenPosition.X + 1.0f) * WindowSize.X;
-            textRenderRequest.Y = 0.5f * (1.0f - screenPosition.Y) * WindowSize.Y;
+            textRenderRequest.X = 0.5f * (screenPosition.X + 1.0f) * camera.WindowSize.X;
+            textRenderRequest.Y = 0.5f * (1.0f - screenPosition.Y) * camera.WindowSize.Y;
 
             if (!fixedScale)
             {
@@ -126,7 +122,7 @@ namespace GUI.Types.Renderer
         {
             using (new GLDebugGroup("Text Render"))
             {
-                foreach (TextRenderRequest textRenderRequest in TextRenderRequests)
+                foreach (var textRenderRequest in TextRenderRequests)
                 {
                     RenderText(textRenderRequest);
                 }
@@ -136,8 +132,8 @@ namespace GUI.Types.Renderer
 
         public void AddTextRelative(TextRenderRequest textRenderRequest)
         {
-            textRenderRequest.X = WindowSize.X * Math.Clamp(textRenderRequest.X, 0, 1);
-            textRenderRequest.Y = WindowSize.Y * Math.Clamp(textRenderRequest.Y, 0, 1);
+            textRenderRequest.X = camera.WindowSize.X * Math.Clamp(textRenderRequest.X, 0, 1);
+            textRenderRequest.Y = camera.WindowSize.Y * Math.Clamp(textRenderRequest.Y, 0, 1);
             TextRenderRequests.Add(textRenderRequest);
         }
 
@@ -227,7 +223,7 @@ namespace GUI.Types.Renderer
             GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
 
             shader.Use();
-            shader.SetUniform4x4("transform", Matrix4x4.CreateOrthographicOffCenter(0f, WindowSize.X, WindowSize.Y, 0f, -100f, 100f));
+            shader.SetUniform4x4("transform", Matrix4x4.CreateOrthographicOffCenter(0f, camera.WindowSize.X, camera.WindowSize.Y, 0f, -100f, 100f));
             shader.SetTexture(0, "msdf", fontTexture);
             shader.SetUniform1("g_fRange", TextureRange);
 

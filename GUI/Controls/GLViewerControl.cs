@@ -117,7 +117,7 @@ namespace GUI.Controls
 
             glControlContainer.Controls.Add(GLControl);
 
-            TextRenderer = new(guiContext);
+            TextRenderer = new(guiContext, Camera);
             postProcessRenderer = new(guiContext);
 
 #if DEBUG
@@ -682,7 +682,6 @@ namespace GUI.Controls
             }
 
             Camera.SetViewportSize(w, h);
-            TextRenderer.SetViewportSize(w, h);
             Picker?.Resize(w, h);
         }
 

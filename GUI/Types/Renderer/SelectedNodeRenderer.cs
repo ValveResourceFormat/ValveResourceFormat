@@ -147,7 +147,7 @@ namespace GUI.Types.Renderer
                     var (v0, v1) = (c[line.Start], c[line.End]);
                     var length = Vector3.Distance(v0, v1);
 
-                    viewer.TextRenderer.AddTextBillboard(viewer.Camera, Vector3.Lerp(v0, v1, 0.5f), new TextRenderer.TextRenderRequest
+                    viewer.TextRenderer.AddTextBillboard(Vector3.Lerp(v0, v1, 0.5f), new TextRenderer.TextRenderRequest
                     {
                         Scale = 12f,
                         Color = axisColor,
@@ -270,7 +270,7 @@ namespace GUI.Types.Renderer
                 var position = node.BoundingBox.Center;
                 position.Z = node.BoundingBox.Max.Z;
 
-                viewer.TextRenderer.AddTextBillboard(viewer.Camera, position, new TextRenderer.TextRenderRequest
+                viewer.TextRenderer.AddTextBillboard(position, new TextRenderer.TextRenderRequest
                 {
                     Scale = 20f,
                     Text = nodeName,

@@ -273,7 +273,7 @@ namespace GUI.Types.Renderer
         {
             baseGrid = new InfiniteGrid(Scene);
             Skybox2D = baseBackground = new SceneBackground(Scene);
-            selectedNodeRenderer = new(Scene);
+            selectedNodeRenderer = new(this, Scene);
 
             Picker = new PickingTexture(Scene.GuiContext, OnPicked);
 
@@ -352,8 +352,6 @@ namespace GUI.Types.Renderer
 
                 Scene.PostProcessInfo.UpdatePostProcessing(Camera);
 
-                OctreeDebugRenderer<SceneNode>.Camera = Camera;
-                OctreeDebugRenderer<SceneNode>.TextRenderer = TextRenderer;
                 selectedNodeRenderer.Update(updateContext);
 
                 Scene.SetupSceneShadows(Camera, ShadowDepthBuffer.Width);
