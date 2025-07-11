@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Windows.Forms;
 using GUI.Controls;
@@ -316,36 +317,46 @@ namespace GUI.Types.Renderer
                 var vertexTotal = 0;
                 var triangleTotal = 0;
                 var drawCallTotal = 0;
+                var coloredMaterialNames = new List<string>();
+
+                void AddColoredMaterialName(DrawCall call)
+                {
+                    var tintHex = Color32.FromVector4(call.TintColor).HexCode;
+                    coloredMaterialNames.Add($"\\{tintHex}{Path.GetFileNameWithoutExtension(call.Material.Material.Name)}");
+                }
 
                 foreach (var opaqueDraw in mesh.DrawCallsOpaque)
                 {
-                    drawCallTotal++;
+                    AddColoredMaterialName(opaqueDraw);
                     vertexTotal += (int)opaqueDraw.VertexCount;
                     triangleTotal += opaqueDraw.IndexCount / 3;
                 }
 
-                foreach (var opaqueDraw in mesh.DrawCallsBlended)
+                foreach (var blendedDraw in mesh.DrawCallsBlended)
                 {
-                    drawCallTotal++;
-                    vertexTotal += (int)opaqueDraw.VertexCount;
-                    triangleTotal += opaqueDraw.IndexCount / 3;
+                    AddColoredMaterialName(blendedDraw);
+                    vertexTotal += (int)blendedDraw.VertexCount;
+                    triangleTotal += blendedDraw.IndexCount / 3;
                 }
 
-                foreach (var opaqueDraw in mesh.DrawCallsOverlay)
+                foreach (var overlayDraw in mesh.DrawCallsOverlay)
                 {
-                    drawCallTotal++;
-                    vertexTotal += (int)opaqueDraw.VertexCount;
-                    triangleTotal += opaqueDraw.IndexCount / 3;
+                    AddColoredMaterialName(overlayDraw);
+                    vertexTotal += (int)overlayDraw.VertexCount;
+                    triangleTotal += overlayDraw.IndexCount / 3;
                 }
+
+                var moreThanSixEllipsis = coloredMaterialNames.Count > 6 ? "..." : string.Empty;
+                var allColoredMaterials = string.Join("\\#FFFFFFFF, ", coloredMaterialNames.Take(6)) + "\\#FFFFFFFF" + moreThanSixEllipsis;
 
                 sb.Append(CultureInfo.InvariantCulture,
                     $"""
 
                     Mesh '{meshName}':
-                        DrawCalls : {drawCallTotal}
+                        DrawCalls : {coloredMaterialNames.Count} ({allColoredMaterials})
                         Vertices  : {triangleTotal}
                         Triangles : {vertexTotal}
-                        Size      : X: {size.X} | Y: {size.Y} | Z: {size.Z}
+                        Size      : X: {size.X:0.##} | Y: {size.Y:0.##} | Z: {size.Z:0.##}
 
                     """
                 );

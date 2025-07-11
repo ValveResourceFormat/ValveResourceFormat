@@ -167,13 +167,38 @@ namespace GUI.Types.Renderer
                 var i = 0;
 
                 var originalX = x;
-                foreach (var c in textRenderRequest.Text)
+
+                var color = textRenderRequest.Color;
+
+                for (var j = 0; j < textRenderRequest.Text.Length; j++)
                 {
+                    var c = textRenderRequest.Text[j];
+
                     if (c == '\n')
                     {
                         y += textRenderRequest.Scale * LineHeight;
                         x = originalX;
                         continue;
+                    }
+                    else if (c == '\\')
+                    {
+                        var cNext = j + 1 < textRenderRequest.Text.Length ? textRenderRequest.Text[j + 1] : '\0';
+                        if (cNext == '#')
+                        {
+                            j += 2;
+                            if (j + 8 < textRenderRequest.Text.Length)
+                            {
+                                if (byte.TryParse(textRenderRequest.Text.AsSpan(j + 0, 2), System.Globalization.NumberStyles.HexNumber, null, out var r)
+                                && byte.TryParse(textRenderRequest.Text.AsSpan(j + 2, 2), System.Globalization.NumberStyles.HexNumber, null, out var g)
+                                && byte.TryParse(textRenderRequest.Text.AsSpan(j + 4, 2), System.Globalization.NumberStyles.HexNumber, null, out var b)
+                                && byte.TryParse(textRenderRequest.Text.AsSpan(j + 6, 2), System.Globalization.NumberStyles.HexNumber, null, out var a))
+                                {
+                                    color = new Color32(r, g, b, a);
+                                    j += 7;
+                                    continue;
+                                }
+                            }
+                        }
                     }
 
                     if ((uint)c - 33 > 93)
@@ -196,16 +221,16 @@ namespace GUI.Types.Renderer
                     var to = metrics.AtlasBounds.W / AtlasSize;
 
                     // left bottom
-                    vertices[i++] = new Vertex { Position = new Vector2(x0, y0), TexCoord = new Vector2(le, bo), Color = textRenderRequest.Color };
+                    vertices[i++] = new Vertex { Position = new Vector2(x0, y0), TexCoord = new Vector2(le, bo), Color = color };
 
                     // left top
-                    vertices[i++] = new Vertex { Position = new Vector2(x0, y1), TexCoord = new Vector2(le, to), Color = textRenderRequest.Color };
+                    vertices[i++] = new Vertex { Position = new Vector2(x0, y1), TexCoord = new Vector2(le, to), Color = color };
 
                     // right top
-                    vertices[i++] = new Vertex { Position = new Vector2(x1, y1), TexCoord = new Vector2(ri, to), Color = textRenderRequest.Color };
+                    vertices[i++] = new Vertex { Position = new Vector2(x1, y1), TexCoord = new Vector2(ri, to), Color = color };
 
                     // right bottom
-                    vertices[i++] = new Vertex { Position = new Vector2(x1, y0), TexCoord = new Vector2(ri, bo), Color = textRenderRequest.Color };
+                    vertices[i++] = new Vertex { Position = new Vector2(x1, y0), TexCoord = new Vector2(ri, bo), Color = color };
 
                     x += metrics.Advance * textRenderRequest.Scale;
                 }

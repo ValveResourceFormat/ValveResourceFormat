@@ -299,7 +299,7 @@ namespace GUI.Types.Renderer
                 var instanceTint = (request.Node is SceneAggregate.Fragment fragment) ? fragment.Tint : Vector4.One;
                 var tint = request.Mesh.Tint * request.Call.TintColor * instanceTint;
 
-                GL.ProgramUniform1((uint)shader.Program, uniforms.Tint, new Color32(tint.X, tint.Y, tint.Z, tint.W).PackedValue);
+                GL.ProgramUniform1((uint)shader.Program, uniforms.Tint, Color32.FromVector4(tint).PackedValue);
             }
 
             var instanceCount = 1;
