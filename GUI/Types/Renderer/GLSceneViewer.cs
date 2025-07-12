@@ -438,7 +438,11 @@ namespace GUI.Types.Renderer
 
         private void RenderScenesWithView(Scene.RenderContext renderContext)
         {
-            GL.Viewport(0, 0, renderContext.Framebuffer.Width, renderContext.Framebuffer.Height);
+            var (w, h) = (renderContext.Framebuffer.Width, renderContext.Framebuffer.Height);
+
+            GL.Viewport(0, 0, w, h);
+            viewBuffer.Data.InvViewportSize = Vector4.One / new Vector4(w, h, 1, 1);
+
             renderContext.Framebuffer.BindAndClear();
 
             // TODO: check if renderpass allows wireframe mode
