@@ -26,7 +26,7 @@ vec4 UnpackColor32(uint nColor)
     return vResult;
 }
 
-mat4 ConvertToMat4(mat3x4 m)
+mat4 UnpackMatrix4(mat3x4 m)
 {
     return mat4(
         m[0][0], m[1][0], m[2][0], 0,
@@ -38,7 +38,7 @@ mat4 ConvertToMat4(mat3x4 m)
 
 mat4 CalculateObjectToWorldMatrix()
 {
-    return ConvertToMat4(bIsInstancing ? transforms[gl_InstanceID] : transform);
+    return UnpackMatrix4(bIsInstancing ? transforms[gl_InstanceID] : transform);
 }
 
 vec4 GetObjectTint()
