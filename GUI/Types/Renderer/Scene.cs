@@ -609,13 +609,16 @@ namespace GUI.Types.Renderer
             {
                 MeshBatchRenderer.Render(renderLists[RenderPass.Translucent], renderContext);
             }
+        }
 
+        public void RenderOutlineLayer(RenderContext renderContext)
+        {
             using (new GLDebugGroup("Outline Render"))
             {
                 renderContext.RenderPass = RenderPass.Outline;
                 renderContext.ReplacementShader = GuiContext.ShaderLoader.LoadShader("vrf.outline", blocking: true);
 
-                MeshBatchRenderer.Render(renderLists[RenderPass.Translucent], renderContext);
+                MeshBatchRenderer.Render(renderLists[RenderPass.Outline], renderContext);
             }
         }
 

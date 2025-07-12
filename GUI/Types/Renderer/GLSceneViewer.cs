@@ -527,6 +527,7 @@ namespace GUI.Types.Renderer
             GL.Enable(EnableCap.Blend);
 
             scene.RenderTranslucentLayer(renderContext);
+            scene.RenderOutlineLayer(renderContext);
 
             GL.Disable(EnableCap.Blend);
             GL.DepthMask(true);

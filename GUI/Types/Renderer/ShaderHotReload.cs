@@ -42,6 +42,7 @@ class ShaderHotReload : IDisposable
         ShaderWatcher.Filters.Add("*.glsl");
         ShaderWatcher.Filters.Add("*.vert");
         ShaderWatcher.Filters.Add("*.frag");
+        ShaderWatcher.Filters.Add("*.geom");
 
         ShaderWatcher.Changed += Hotload;
         ShaderWatcher.Created += Hotload;

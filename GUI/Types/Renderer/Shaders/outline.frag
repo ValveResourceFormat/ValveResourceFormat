@@ -24,13 +24,13 @@ void main()
 
     float diff = objectDepth - flDepthNormalized;
 
-    if (diff < 0.0)
+    if (diff > 0.0)
     {
-        outputColor = vec4(1.0, 1.0, 1.0, 1.0); // Outline color
+        outputColor = vec4(1.0, 1.0, 0.0, 0.2); // Outline color
     }
     else
     {
-        outputColor = vec4(0.0, 0.0, 0.0, 0.0); // Transparent
+        outputColor = vec4(0.0, 0.0, 0.0, 0.2); // Transparent
     }
 }
 
