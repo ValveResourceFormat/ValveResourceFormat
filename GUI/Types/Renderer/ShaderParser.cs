@@ -86,6 +86,7 @@ namespace GUI.Types.Renderer
                 }
 
                 using var stream = GetShaderStream(shaderFileToLoad);
+
                 using var reader = new StreamReader(stream);
                 string? line;
                 var lineNum = 1;
@@ -251,25 +252,34 @@ namespace GUI.Types.Renderer
             return builder.ToString();
         }
 
+        public static bool ShaderFileExists(string name)
+        {
+            using var stream = GetShaderStream(name);
+            return stream != null;
+        }
+
 #if !DEBUG
-        private static Stream GetShaderStream(string name)
+        private static Stream? GetShaderStream(string name)
         {
             var assembly = System.Reflection.Assembly.GetExecutingAssembly();
             var stream = assembly.GetManifestResourceStream($"{ShaderDirectory}{name.Replace('/', '.')}");
-            ArgumentNullException.ThrowIfNull(stream);
             return stream;
         }
 #else
         // Path to the folder where the ValveResourceFormat.sln is on disk (parent of the GUI folder)
         private static readonly string SolutionRootDirector = GetSolutionRootDirectory();
 
-        private static FileStream GetShaderStream(string name)
+        private static FileStream? GetShaderStream(string name)
         {
             var path = GetShaderDiskPath(name);
 
             try
             {
                 return File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            }
+            catch (FileNotFoundException)
+            {
+                return null;
             }
             catch (IOException e)
             {

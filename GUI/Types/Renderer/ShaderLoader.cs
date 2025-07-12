@@ -113,6 +113,18 @@ namespace GUI.Types.Renderer
                 GL.ObjectLabel(ObjectLabelIdentifier.Shader, fragmentShader, fragmentName.Length, fragmentName);
 #endif
 
+                var geometryName = $"{shaderFileName}.geom";
+
+                if (ShaderParser.ShaderFileExists(geometryName))
+                {
+                    Parser.ClearBuilder();
+                    var geometryShader = GL.CreateShader(ShaderType.GeometryShader);
+                    LoadShader(geometryShader, geometryName, shaderName, arguments, ref parsedData);
+
+                    GL.AttachShader(shaderProgram, geometryShader);
+                    Log.Info(nameof(ShaderLoader), "Attached geometry shader");
+                }
+
                 var shader = new Shader(VrfGuiContext)
                 {
 #if DEBUG
@@ -417,7 +429,7 @@ namespace GUI.Types.Renderer
 
             GLViewerControl.CheckOpenGL();
 
-            foreach (var shader in shaders)
+            foreach (var shader in shaders.Where(s => s.Contains("outline")))
             {
                 var shaderFileName = Path.GetFileNameWithoutExtension(shader);
                 var vrfFileName = string.Concat(VrfInternalShaderPrefix, shaderFileName);
