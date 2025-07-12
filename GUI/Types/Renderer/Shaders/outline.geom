@@ -7,8 +7,11 @@ layout(triangle_strip, max_vertices = 27) out;
 
 uniform float g_flLineSize = 0.5;
 
+#define D_OUTLINE_PASS 0
+
 void main()
 {
+#if D_OUTLINE_PASS == 1
     const float flOutlineSize = g_flLineSize / 64.0;
     const float flNumIterations = clamp(g_flLineSize * 10.0, 3.0, 8.0);
     const float fTwoPi = 6.28318;
@@ -29,15 +32,13 @@ void main()
             vec2 vAspectRatio = normalize(g_vInvViewportSize.xy);
             vExpandedPositionPs[j] = gl_in[j].gl_Position;
             vExpandedPositionPs[j].xy = vExpandedPositionPs[j].xy + (vOffset * 2.0) * vAspectRatio * vExpandedPositionPs[j].w * flOutlineSize;
-            
-            // single pass hack
-            vExpandedPositionPs[j].z -= 0.5;
         }
 
-        gl_Position = vExpandedPositionPs[2]; EmitVertex();
         gl_Position = vExpandedPositionPs[0]; EmitVertex();
         gl_Position = vExpandedPositionPs[1]; EmitVertex();
+        gl_Position = vExpandedPositionPs[2]; EmitVertex();
     }
 
     EndPrimitive();
+#endif
 }

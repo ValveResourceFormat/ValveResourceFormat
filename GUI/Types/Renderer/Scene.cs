@@ -613,12 +613,32 @@ namespace GUI.Types.Renderer
 
         public void RenderOutlineLayer(RenderContext renderContext)
         {
+            //using (new GLDebugGroup("Outline Depth Culling"))
+            //{
+            //    renderContext.RenderPass = RenderPass.Outline;
+            //    //GL.Depth(0.95, 1);
+            //
+            //    MeshBatchRenderer.Render(renderLists[RenderPass.Outline], renderContext);
+            //}
+
             using (new GLDebugGroup("Outline Render"))
             {
                 renderContext.RenderPass = RenderPass.Outline;
-                renderContext.ReplacementShader = GuiContext.ShaderLoader.LoadShader("vrf.outline", blocking: true);
 
+                var insideShader = GuiContext.ShaderLoader.LoadShader("vrf.outline");
+                renderContext.ReplacementShader = insideShader;
+
+                // stencil state
+                // blend enable, alpha 0 if we want to see the object color unchanged
                 MeshBatchRenderer.Render(renderLists[RenderPass.Outline], renderContext);
+
+                var outsideShader = GuiContext.ShaderLoader.LoadShader("vrf.outline", new Dictionary<string, byte> { ["D_OUTLINE_PASS"] = 1 });
+                renderContext.ReplacementShader = outsideShader;
+
+                GL.Disable(EnableCap.DepthTest);
+                GL.Disable(EnableCap.Blend);
+                MeshBatchRenderer.Render(renderLists[RenderPass.Outline], renderContext);
+                GL.Enable(EnableCap.DepthTest);
             }
         }
 
