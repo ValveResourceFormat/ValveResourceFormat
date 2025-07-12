@@ -33,7 +33,6 @@ void main()
         gl_Position = vExpandedPositionPs[2]; EmitVertex();
         gl_Position = vExpandedPositionPs[0]; EmitVertex();
         gl_Position = vExpandedPositionPs[1]; EmitVertex();
+        EndPrimitive();
     }
-
-    EndPrimitive();
 }

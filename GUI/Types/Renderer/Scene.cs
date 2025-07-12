@@ -221,6 +221,7 @@ namespace GUI.Types.Renderer
             [RenderPass.StaticOverlay] = [],
             [RenderPass.AfterOpaque] = [],
             [RenderPass.Translucent] = [],
+            [RenderPass.Outline] = [],
         };
 
         private void Add(MeshBatchRenderer.Request request, RenderPass renderPass)
@@ -242,6 +243,12 @@ namespace GUI.Types.Renderer
             {
                 WantsSceneColor |= request.Call.Material.Shader.ReservedTexuresUsed.Contains("g_tSceneColor");
                 WantsSceneDepth |= request.Call.Material.Shader.ReservedTexuresUsed.Contains("g_tSceneDepth");
+            }
+
+            if (renderPass > RenderPass.DepthOnly && request.Node.IsSelected)
+            {
+                renderLists[RenderPass.Outline].Add(request);
+                WantsSceneDepth = true;
             }
 
             queueList.Add(request);
@@ -600,6 +607,14 @@ namespace GUI.Types.Renderer
 
             using (new GLDebugGroup("Translucent Render"))
             {
+                MeshBatchRenderer.Render(renderLists[RenderPass.Translucent], renderContext);
+            }
+
+            using (new GLDebugGroup("Outline Render"))
+            {
+                renderContext.RenderPass = RenderPass.Outline;
+                renderContext.ReplacementShader = GuiContext.ShaderLoader.LoadShader("vrf.outline", blocking: true);
+
                 MeshBatchRenderer.Render(renderLists[RenderPass.Translucent], renderContext);
             }
         }

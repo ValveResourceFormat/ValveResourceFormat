@@ -113,6 +113,8 @@ namespace GUI.Types.Renderer
                 GL.ObjectLabel(ObjectLabelIdentifier.Shader, fragmentShader, fragmentName.Length, fragmentName);
 #endif
 
+                int[] objects = [vertexShader, fragmentShader];
+
                 var geometryName = $"{shaderFileName}.geom";
 
                 if (ShaderParser.ShaderFileExists(geometryName))
@@ -123,6 +125,8 @@ namespace GUI.Types.Renderer
 
                     GL.AttachShader(shaderProgram, geometryShader);
                     Log.Info(nameof(ShaderLoader), "Attached geometry shader");
+
+                    objects = [.. objects, geometryShader];
                 }
 
                 var shader = new Shader(VrfGuiContext)
@@ -134,7 +138,7 @@ namespace GUI.Types.Renderer
                     Name = shaderName,
                     Parameters = arguments,
                     Program = shaderProgram,
-                    ShaderObjects = [vertexShader, fragmentShader],
+                    ShaderObjects = objects,
                     RenderModes = parsedData.RenderModes,
                     SrgbSamplers = parsedData.SrgbSamplers
                 };
