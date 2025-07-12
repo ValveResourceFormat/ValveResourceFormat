@@ -150,7 +150,7 @@ namespace GUI.Types.Renderer
                         Color = axisColor,
                         Text = length.ToString("0.##", CultureInfo.InvariantCulture),
                         Center = true
-                    });
+                    }, fixedScale: false);
 
                     OctreeDebugRenderer<SceneNode>.AddLine(vertices, c[line.Start], c[line.End], axisColor);
                     continue;
@@ -271,7 +271,7 @@ namespace GUI.Types.Renderer
                     Text = nodeName,
                     Center = true,
                     TextOffset = SelectedNodeNameOffset
-                });
+                }, fixedScale: false);
             }
 
             if (ScreenDebugText.Length > 0)
