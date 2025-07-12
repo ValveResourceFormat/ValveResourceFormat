@@ -484,11 +484,11 @@ namespace GUI.Controls
             try
             {
                 // Framebuffer used to draw geometry
-                MainFramebuffer = Framebuffer.Prepare(GLControl.Width,
+                MainFramebuffer = Framebuffer.Prepare(nameof(MainFramebuffer), GLControl.Width,
                     GLControl.Height,
                     NumSamples,
                     new(PixelInternalFormat.Rgba16f, PixelFormat.Rgba, PixelType.HalfFloat),
-                    Framebuffer.DepthAttachmentFormat.Depth32F
+                    Framebuffer.DepthAttachmentFormat.Depth32FStencil8
                 );
 
                 GLLoad?.Invoke(this, e);

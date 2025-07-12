@@ -44,15 +44,18 @@ namespace GUI.Types.Renderer
             if (selectedNode >= 0)
             {
                 selectedNodes.RemoveAt(selectedNode);
+                node.IsSelected = false;
             }
             else
             {
                 selectedNodes.Add(node);
+                node.IsSelected = true;
             }
         }
 
         public void SelectNode(SceneNode? node, bool forceDisableDepth = false)
         {
+            selectedNodes.ForEach(n => n.IsSelected = false);
             selectedNodes.Clear();
 
             if (node == null)
@@ -63,6 +66,7 @@ namespace GUI.Types.Renderer
             }
 
             selectedNodes.Add(node);
+            node.IsSelected = true;
 
             if (forceDisableDepth)
             {
@@ -175,7 +179,11 @@ namespace GUI.Types.Renderer
             foreach (var node in selectedNodes)
             {
                 var nodeName = node.Name ?? node.GetType().Name;
-                AddBox(vertices, node.Transform, node.LocalBoundingBox, Color32.Yellow, showSize: true);
+
+                if (node is not SimpleBoxSceneNode)
+                {
+                    AddBox(vertices, node.Transform, node.LocalBoundingBox, Color32.White, showSize: true);
+                }
 
                 if (debugCubeMaps && node.EnvMapIds != null)
                 {

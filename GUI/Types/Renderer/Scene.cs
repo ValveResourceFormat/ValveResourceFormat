@@ -220,6 +220,7 @@ namespace GUI.Types.Renderer
             [RenderPass.Opaque] = [],
             [RenderPass.StaticOverlay] = [],
             [RenderPass.Translucent] = [],
+            [RenderPass.Outline] = [],
         };
 
         private void Add(MeshBatchRenderer.Request request, RenderPass renderPass)
@@ -241,6 +242,12 @@ namespace GUI.Types.Renderer
             {
                 WantsSceneColor |= request.Call.Material.Shader.ReservedTexuresUsed.Contains("g_tSceneColor");
                 WantsSceneDepth |= request.Call.Material.Shader.ReservedTexuresUsed.Contains("g_tSceneDepth");
+            }
+
+            if (renderPass > RenderPass.DepthOnly && request.Node.IsSelected)
+            {
+                renderLists[RenderPass.Outline].Add(request);
+                WantsSceneDepth = true;
             }
 
             queueList.Add(request);
@@ -338,12 +345,12 @@ namespace GUI.Types.Renderer
 
         private List<SceneNode> CulledShadowNodes { get; } = [];
         private readonly List<RenderableMesh> listWithSingleMesh = [null];
-        private Dictionary<DepthOnlyProgram, List<MeshBatchRenderer.Request>> CulledShadowDrawCalls { get; } = new()
+        private Dictionary<GenericShaderType, List<MeshBatchRenderer.Request>> CulledShadowDrawCalls { get; } = new()
         {
-            [DepthOnlyProgram.Static] = [],
-            [DepthOnlyProgram.StaticAlphaTest] = [],
-            [DepthOnlyProgram.Animated] = [],
-            [DepthOnlyProgram.AnimatedEightBones] = [],
+            [GenericShaderType.DepthStatic] = [],
+            [GenericShaderType.DepthStaticAlphaTest] = [],
+            [GenericShaderType.DepthAnimated] = [],
+            [GenericShaderType.DepthAnimatedEightBones] = [],
         };
 
         public void SetupSceneShadows(Camera camera, int shadowMapSize)
@@ -398,14 +405,14 @@ namespace GUI.Types.Renderer
 
                         var bucket = (opaqueCall.Material.IsAlphaTest, animated) switch
                         {
-                            (false, false) => DepthOnlyProgram.Static,
-                            (true, _) => DepthOnlyProgram.StaticAlphaTest,
-                            (false, true) => DepthOnlyProgram.Animated,
+                            (false, false) => GenericShaderType.DepthStatic,
+                            (true, _) => GenericShaderType.DepthStaticAlphaTest,
+                            (false, true) => GenericShaderType.DepthAnimated,
                         };
 
                         if (mesh.BoneWeightCount > 4)
                         {
-                            bucket = DepthOnlyProgram.AnimatedEightBones;
+                            bucket = GenericShaderType.DepthAnimatedEightBones;
                         }
 
                         CulledShadowDrawCalls[bucket].Add(new MeshBatchRenderer.Request
@@ -582,6 +589,16 @@ namespace GUI.Types.Renderer
             {
                 MeshBatchRenderer.Render(renderLists[RenderPass.Translucent], renderContext);
             }
+        }
+
+        public void RenderOutlineLayer(RenderContext renderContext)
+        {
+            renderContext.RenderPass = RenderPass.Outline;
+            renderContext.ReplacementShader = renderContext.View.GenericShaders[(int)GenericShaderType.DepthAnimated];
+
+            MeshBatchRenderer.Render(renderLists[RenderPass.Outline], renderContext);
+
+            renderContext.ReplacementShader = null;
         }
 
         public void SetEnabledLayers(HashSet<string> layers, bool skipUpdate = false)

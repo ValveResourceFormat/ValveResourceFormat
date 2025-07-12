@@ -255,7 +255,7 @@ namespace GUI.Types.Renderer
             var isTranslucent = IsTranslucent && IsTranslucentRenderMode && context.ReplacementShader == null;
             var renderPass = isTranslucent ? RenderPass.Translucent : RenderPass.Opaque;
 
-            if (context.RenderPass != renderPass)
+            if (context.RenderPass != renderPass && context.RenderPass != RenderPass.Outline)
             {
                 return;
             }

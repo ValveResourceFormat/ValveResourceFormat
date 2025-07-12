@@ -254,8 +254,9 @@ namespace GUI.Types.Renderer
 #if !DEBUG
         private static Stream GetShaderStream(string name)
         {
+            var resourceName = $"{ShaderDirectory}{name.Replace('/', '.')}";
             var assembly = System.Reflection.Assembly.GetExecutingAssembly();
-            var stream = assembly.GetManifestResourceStream($"{ShaderDirectory}{name.Replace('/', '.')}");
+            var stream = assembly.GetManifestResourceStream(resourceName);
             ArgumentNullException.ThrowIfNull(stream);
             return stream;
         }

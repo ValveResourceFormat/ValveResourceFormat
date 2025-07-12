@@ -33,6 +33,7 @@ uniform vec4 g_vBlueNoiseDitherParams;
 layout (location = 0) uniform sampler2DMS g_tColorBuffer;
 layout (location = 1) uniform sampler3D g_tColorCorrection;
 layout (location = 2) uniform sampler2D g_tBlueNoise;
+layout (location = 3) uniform usampler2DMS g_tStencilBuffer;
 
 layout (location = 0) out vec4 outputColor;
 
@@ -69,6 +70,73 @@ vec3 DitherColor(vec3 vColor)
     // This is part of the original code and actually works extremely well.
     vec3 subPrecisionDither = (blueNoise - 0.5) * g_vBlueNoiseDitherParams.w;
     return vColor + subPrecisionDither;
+}
+
+vec3 DrawOutline(vec3 vColor)
+{
+    const int width = 2;
+    const int shadingRate = 1;
+
+    const int NumSamples = int(g_nNumSamplesMSAA);
+    const float InvNumSamples = 1.0 / float(g_nNumSamplesMSAA);
+
+    ivec2 pixelCoords = ivec2(gl_FragCoord.xy);
+    pixelCoords.y = g_bFlipY ? textureSize(g_tStencilBuffer).y - pixelCoords.y - 1 : pixelCoords.y;
+
+    uint insideCountCenter = 0;
+    for (int i = 0; i < NumSamples; i++)
+    {
+        uint kernelCenter = texelFetch(g_tStencilBuffer, pixelCoords, i).r;
+        insideCountCenter += kernelCenter;
+    }
+
+    if (insideCountCenter == NumSamples)
+    {
+        // do not draw outline inside the object
+        return vColor;
+    }
+
+    uint insideCount = insideCountCenter;
+    int totalSamples = NumSamples;
+
+    for(int x = -width; x <= width;  x += shadingRate)
+    {
+        for(int y = -width; y <= width; y += shadingRate)
+        {
+            ivec2 offset = ivec2(x, y);
+            if (offset == ivec2(0, 0))
+            {
+                continue; // already sampled (insideCountCenter)
+            }
+
+            ivec2 sampleCoords = pixelCoords + offset;
+            for (int i = 0; i < NumSamples; i++)
+            {
+                uint stencilValue = texelFetch(g_tStencilBuffer, sampleCoords, i).r;
+                insideCount += stencilValue;
+                totalSamples++;
+            }
+        }
+    }
+
+    if (totalSamples == 0) return vColor;
+
+    float inside = insideCount / float(totalSamples);
+
+    float edge = RemapVal(inside, 0.001, 0.999, 0.0, 1.0);
+
+    if (edge < 0.0 || edge > 1.0)
+    {
+        return vColor; // No outline
+    }
+
+    float centerContribution = insideCountCenter * InvNumSamples;
+    float outlineAlpha =  RemapValClamped(edge, 0, 0.05, 0.0, 1.0) * (1.0 - centerContribution);
+
+
+    const vec3 vOutlineColor = vec3(1.0, 1.0, 0.2);
+
+    return mix(vColor.rgb, vOutlineColor, outlineAlpha);
 }
 
 vec4 SampleColorBuffer(vec2 coords)
@@ -108,6 +176,8 @@ void main()
 
     // Not present in CS2, done in msaa_resolve_ps instead
     vColor.rgb = DitherColor(vColor.rgb);
+
+    vColor.rgb = DrawOutline(vColor.rgb);
 
     outputColor = vColor;
 }

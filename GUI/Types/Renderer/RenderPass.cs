@@ -6,5 +6,6 @@ namespace GUI.Types.Renderer
         Opaque,
         StaticOverlay,
         Translucent,
+        Outline,
     }
 }

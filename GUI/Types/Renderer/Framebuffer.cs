@@ -15,6 +15,7 @@ class Framebuffer : IDisposable
     public int NumSamples { get; set; }
     public RenderTexture? Color { get; protected set; }
     public RenderTexture? Depth { get; protected set; }
+    public RenderTexture? Stencil { get; protected set; }
 
     // Maybe these can be in texture
     public AttachmentFormat? ColorFormat { get; protected set; }
@@ -41,9 +42,10 @@ class Framebuffer : IDisposable
         GL.Clear(ClearMask);
     }
 
-    public Framebuffer()
+    public Framebuffer(string name)
     {
         GL.CreateFramebuffers(1, out int handle);
+        GL.ObjectLabel(ObjectLabelIdentifier.Framebuffer, handle, name.Length, name);
         FboHandle = handle;
     }
 
@@ -75,14 +77,15 @@ class Framebuffer : IDisposable
     public record class DepthAttachmentFormat(PixelInternalFormat InternalFormat, PixelType PixelType)
     {
         public static DepthAttachmentFormat Depth32F = new(PixelInternalFormat.DepthComponent32f, PixelType.Float);
+        public static DepthAttachmentFormat Depth32FStencil8 = new(PixelInternalFormat.Depth32fStencil8, PixelType.Float32UnsignedInt248Rev);
 
         public static implicit operator AttachmentFormat(DepthAttachmentFormat depthFormat)
             => new(depthFormat.InternalFormat, PixelFormat.DepthComponent, depthFormat.PixelType);
     }
 
-    public static Framebuffer Prepare(int width, int height, int msaa, AttachmentFormat? colorFormat, DepthAttachmentFormat? depthFormat)
+    public static Framebuffer Prepare(string name, int width, int height, int msaa, AttachmentFormat? colorFormat, DepthAttachmentFormat? depthFormat)
     {
-        var fbo = new Framebuffer
+        var fbo = new Framebuffer(name)
         {
             NumSamples = msaa,
             Target = msaa > 0 ? TextureTarget.Texture2DMultisample : TextureTarget.Texture2D,
@@ -157,6 +160,19 @@ class Framebuffer : IDisposable
             Depth = CreateAttachment(DepthFormat, width, height);
             Depth.SetLabel("FramebufferDepth");
             GL.NamedFramebufferTexture(FboHandle, FramebufferAttachment.DepthAttachment, Depth.Handle, 0);
+
+            if (DepthFormat == DepthAttachmentFormat.Depth32FStencil8)
+            {
+                GL.NamedFramebufferTexture(FboHandle, FramebufferAttachment.DepthStencilAttachment, Depth.Handle, 0);
+
+                // Create stencil view
+                Stencil = new RenderTexture(GL.GenTexture(), Depth.Target);
+                GL.TextureView(Stencil.Handle, Depth.Target, Depth.Handle, DepthFormat.InternalFormat, 0, 1, 0, 1);
+
+                Stencil.SetLabel("FramebufferStencil");
+                Stencil.SetBaseMaxLevel(0, 0);
+                GL.TextureParameter(Stencil.Handle, TextureParameterName.DepthStencilTextureMode, (int)DepthStencilTextureMode.StencilIndex);
+            }
         }
     }
 
@@ -198,8 +214,21 @@ class Framebuffer : IDisposable
         if (diposing)
         {
             GL.DeleteFramebuffer(FboHandle);
-            GL.DeleteTexture(Color?.Handle ?? 0);
-            GL.DeleteTexture(Depth?.Handle ?? 0);
+
+            if (Color != null)
+            {
+                GL.DeleteTexture(Color.Handle);
+            }
+
+            if (Depth != null)
+            {
+                GL.DeleteTexture(Depth.Handle);
+            }
+
+            if (Stencil != null)
+            {
+                GL.DeleteTexture(Stencil.Handle);
+            }
         }
     }
 
