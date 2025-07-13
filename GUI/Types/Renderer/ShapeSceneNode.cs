@@ -247,10 +247,7 @@ namespace GUI.Types.Renderer
         {
             inds.Add(baseVertex + a);
             inds.Add(baseVertex + b);
-            inds.Add(baseVertex + b);
             inds.Add(baseVertex + c);
-            inds.Add(baseVertex + c);
-            inds.Add(baseVertex + a);
         }
 
         public override void Render(Scene.RenderContext context)
@@ -292,7 +289,7 @@ namespace GUI.Types.Renderer
                 // triangles
                 GL.Disable(EnableCap.CullFace);
 
-                GL.DrawElements(PrimitiveType.TrianglesAdjacency, indexCount, DrawElementsType.UnsignedInt, 0);
+                GL.DrawElements(PrimitiveType.Triangles, indexCount, DrawElementsType.UnsignedInt, 0);
 
                 GL.Disable(EnableCap.PolygonOffsetLine);
                 GL.Disable(EnableCap.PolygonOffsetFill);
@@ -301,7 +298,7 @@ namespace GUI.Types.Renderer
             }
             else
             {
-                GL.DrawElements(PrimitiveType.TrianglesAdjacency, indexCount, DrawElementsType.UnsignedInt, 0);
+                GL.DrawElements(PrimitiveType.Triangles, indexCount, DrawElementsType.UnsignedInt, 0);
             }
 
             GL.UseProgram(0);
