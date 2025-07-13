@@ -140,11 +140,6 @@ namespace GUI.Controls
 #endif
         }
 
-        private void OnCodeHotReloaded(object sender, EventArgs e)
-        {
-            GLControl.Invalidate();
-        }
-
         protected virtual void OnKeyDown(object sender, KeyEventArgs e)
         {
             CurrentlyPressedKeys |= RemapKey(e.KeyCode);
@@ -242,7 +237,11 @@ namespace GUI.Controls
             GLControl.LostFocus -= OnLostFocus;
             GLControl.VisibleChanged -= OnVisibleChanged;
             Program.MainForm.Activated -= OnAppActivated;
+
+#if DEBUG
             CodeHotReloadService.CodeHotReloaded -= OnCodeHotReloaded;
+#endif
+
             Disposed -= OnDisposed;
         }
 
@@ -751,6 +750,13 @@ namespace GUI.Controls
 
             Clipboard.SetDataObject(data, copy: true);
         }
+
+#if DEBUG
+        private void OnCodeHotReloaded(object sender, EventArgs e)
+        {
+            GLControl.Invalidate();
+        }
+#endif
 
         public static void CheckOpenGL()
         {
