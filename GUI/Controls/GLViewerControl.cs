@@ -122,6 +122,7 @@ namespace GUI.Controls
 
 #if DEBUG
             guiContext.ShaderLoader.EnableHotReload(GLControl);
+            CodeHotReloadService.CodeHotReloaded += OnCodeHotReloaded;
 
             var button = new Button
             {
@@ -137,6 +138,11 @@ namespace GUI.Controls
 
             AddControl(button);
 #endif
+        }
+
+        private void OnCodeHotReloaded(object sender, EventArgs e)
+        {
+            GLControl.Invalidate();
         }
 
         protected virtual void OnKeyDown(object sender, KeyEventArgs e)
@@ -236,6 +242,7 @@ namespace GUI.Controls
             GLControl.LostFocus -= OnLostFocus;
             GLControl.VisibleChanged -= OnVisibleChanged;
             Program.MainForm.Activated -= OnAppActivated;
+            CodeHotReloadService.CodeHotReloaded -= OnCodeHotReloaded;
             Disposed -= OnDisposed;
         }
 
