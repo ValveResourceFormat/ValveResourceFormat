@@ -252,7 +252,7 @@ namespace GUI.Types.Renderer
 
         public override void Render(Scene.RenderContext context)
         {
-            var isTranslucent = IsTranslucent && IsTranslucentRenderMode;
+            var isTranslucent = IsTranslucent && IsTranslucentRenderMode && context.ReplacementShader == null;
             var renderPass = isTranslucent ? RenderPass.Translucent : RenderPass.Opaque;
 
             if (context.RenderPass != renderPass)
