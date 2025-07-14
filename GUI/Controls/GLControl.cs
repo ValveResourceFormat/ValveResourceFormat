@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
@@ -130,30 +131,6 @@ public class GLControl : Control
     }
 
     /// <summary>
-    /// Ensure that the required underlying GLFW window has been created.
-    /// </summary>
-    [MemberNotNull(nameof(_nativeWindow))]
-    private void EnsureCreated()
-    {
-        ObjectDisposedException.ThrowIf(IsDisposed, this);
-
-        if (!IsHandleCreated)
-        {
-            CreateControl();
-        }
-
-        if (_nativeWindow == null && !DesignMode)
-        {
-            RecreateHandle();
-        }
-
-        if (_nativeWindow == null)
-        {
-            throw new InvalidOperationException("Failed to create GLControl.");
-        }
-    }
-
-    /// <summary>
     /// Reparent the given NativeWindow to be a child of this GLControl.  This is a
     /// non-portable operation, as its name implies:  It works wildly differently
     /// between OSes.  The current implementation only supports Microsoft Windows.
@@ -259,18 +236,6 @@ public class GLControl : Control
     }
 
     /// <summary>
-    /// This is raised by WinForms to paint this instance.
-    /// </summary>
-    /// <param name="e">A PaintEventArgs object that describes which areas
-    /// of the control need to be painted.</param>
-    protected override void OnPaint(PaintEventArgs e)
-    {
-        EnsureCreated();
-
-        base.OnPaint(e);
-    }
-
-    /// <summary>
     /// This is invoked when the Resize event is triggered, and is used to position
     /// the internal GLFW window accordingly.
     ///
@@ -339,7 +304,7 @@ public class GLControl : Control
             return;
         }
 
-        EnsureCreated();
+        Debug.Assert(_nativeWindow != null);
 
         _nativeWindow.Context.SwapBuffers();
     }
@@ -358,8 +323,6 @@ public class GLControl : Control
             return;
         }
 
-        EnsureCreated();
-
-        _nativeWindow.MakeCurrent();
+        _nativeWindow?.MakeCurrent();
     }
 }
