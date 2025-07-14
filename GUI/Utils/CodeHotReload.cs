@@ -13,7 +13,7 @@ public static class CodeHotReloadService
     {
         Log.Debug(nameof(CodeHotReloadService), ".NET code hot reloaded");
 
-        CodeHotReloaded?.Invoke(null, new EventArgs());
+        CodeHotReloaded?.Invoke(null, EventArgs.Empty);
     }
 }
 #endif
