@@ -66,6 +66,7 @@ namespace GUI.Types.Viewers
             var resTabs = new ThemedTabControl
             {
                 Dock = DockStyle.Fill,
+                Multiline = true,
             };
 
             TabPage specialTabPage = null;
