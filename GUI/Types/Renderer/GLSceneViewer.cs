@@ -273,7 +273,7 @@ namespace GUI.Types.Renderer
         {
             baseGrid = new InfiniteGrid(Scene);
             Skybox2D = baseBackground = new SceneBackground(Scene);
-            selectedNodeRenderer = new(this, Scene);
+            selectedNodeRenderer = new(this);
 
             Picker = new PickingTexture(Scene.GuiContext, OnPicked);
 
@@ -352,7 +352,7 @@ namespace GUI.Types.Renderer
 
                 Scene.PostProcessInfo.UpdatePostProcessing(Camera);
 
-                selectedNodeRenderer.Update(updateContext);
+                selectedNodeRenderer.Update();
 
                 Scene.SetupSceneShadows(Camera, ShadowDepthBuffer.Width);
                 Scene.CollectSceneDrawCalls(Camera, lockedCullFrustum);
@@ -381,7 +381,7 @@ namespace GUI.Types.Renderer
 
             using (new GLDebugGroup("Lines Render"))
             {
-                selectedNodeRenderer.Render(renderContext);
+                selectedNodeRenderer.Render();
 
                 if (showStaticOctree)
                 {

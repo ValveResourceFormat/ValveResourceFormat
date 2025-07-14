@@ -5,7 +5,7 @@ using OpenTK.Graphics.OpenGL;
 
 namespace GUI.Types.Renderer
 {
-    class SelectedNodeRenderer : SceneNode
+    class SelectedNodeRenderer
     {
         private readonly GLSceneViewer viewer;
         private readonly Shader shader;
@@ -21,10 +21,10 @@ namespace GUI.Types.Renderer
         private readonly Vector2 SelectedNodeNameOffset = new(0, -20);
         public string ScreenDebugText { get; set; } = string.Empty;
 
-        public SelectedNodeRenderer(GLSceneViewer viewer, Scene scene) : base(scene)
+        public SelectedNodeRenderer(GLSceneViewer viewer)
         {
             this.viewer = viewer;
-            shader = scene.GuiContext.ShaderLoader.LoadShader("vrf.default");
+            shader = viewer.GuiContext.ShaderLoader.LoadShader("vrf.default");
 
             GL.CreateVertexArrays(1, out vaoHandle);
             GL.CreateBuffers(1, out vboHandle);
@@ -161,7 +161,7 @@ namespace GUI.Types.Renderer
             }
         }
 
-        public override void Update(Scene.UpdateContext context)
+        public void Update()
         {
             disableDepth = selectedNodes.Count > 1;
 
@@ -179,9 +179,9 @@ namespace GUI.Types.Renderer
 
                 if (debugCubeMaps && node.EnvMapIds != null)
                 {
-                    var tiedEnvmaps = Scene.LightingInfo.CubemapType switch
+                    var tiedEnvmaps = viewer.Scene.LightingInfo.CubemapType switch
                     {
-                        Scene.CubemapType.CubemapArray => node.EnvMapIds.Select(id => Scene.LightingInfo.EnvMaps[id]),
+                        Scene.CubemapType.CubemapArray => node.EnvMapIds.Select(id => viewer.Scene.LightingInfo.EnvMaps[id]),
                         _ => node.EnvMaps
                     };
 
@@ -191,7 +191,7 @@ namespace GUI.Types.Renderer
                     {
                         AddBox(vertices, tiedEnvMap.Transform, tiedEnvMap.LocalBoundingBox, new(0.7f, 0.0f, 1.0f, 1.0f));
 
-                        if (Scene.LightingInfo.CubemapType is Scene.CubemapType.IndividualCubemaps && i == 0)
+                        if (viewer.Scene.LightingInfo.CubemapType is Scene.CubemapType.IndividualCubemaps && i == 0)
                         {
                             OctreeDebugRenderer<SceneNode>.AddLine(vertices, tiedEnvMap.Transform.Translation, node.BoundingBox.Center, new(0.0f, 1.0f, 0.0f, 1.0f));
                             i++;
@@ -210,7 +210,7 @@ namespace GUI.Types.Renderer
                     AddBox(vertices, node.LightProbeBinding.Transform, node.LightProbeBinding.LocalBoundingBox, new(1.0f, 0.0f, 1.0f, 1.0f));
                     OctreeDebugRenderer<SceneNode>.AddLine(vertices, node.LightProbeBinding.Transform.Translation, node.BoundingBox.Center, new(1.0f, 0.0f, 1.0f, 1.0f));
 
-                    if (Scene.LightingInfo.LightingData.IsSkybox == 0u)
+                    if (viewer.Scene.LightingInfo.LightingData.IsSkybox == 0u)
                     {
                         RemoveLightProbeDebugGrid();
                         node.LightProbeBinding.CrateDebugGridSpheres();
@@ -295,10 +295,10 @@ namespace GUI.Types.Renderer
 
         private void RemoveLightProbeDebugGrid()
         {
-            Scene.LightingInfo.LightProbes.ForEach(probe => probe.RemoveDebugGridSpheres());
+            viewer.Scene.LightingInfo.LightProbes.ForEach(static probe => probe.RemoveDebugGridSpheres());
         }
 
-        public override void Render(Scene.RenderContext context)
+        public void Render()
         {
             if (vertexCount == 0)
             {
@@ -327,7 +327,7 @@ namespace GUI.Types.Renderer
             GL.Enable(EnableCap.DepthTest);
         }
 
-        public override void SetRenderMode(string mode)
+        public void SetRenderMode(string mode)
         {
             debugCubeMaps = mode == "Cubemaps";
             debugLightProbes = mode is "Irradiance" or "Illumination";
