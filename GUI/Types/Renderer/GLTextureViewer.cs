@@ -505,7 +505,7 @@ namespace GUI.Types.Renderer
                 decodeFlagsListBox = null;
 
 
-                texture?.Dispose();
+                texture?.Delete();
                 SaveAsFbo?.Dispose();
             }
         }
@@ -828,7 +828,7 @@ namespace GUI.Types.Renderer
 
         private void SetupTexture(bool forceSoftwareDecode)
         {
-            texture?.Dispose();
+            texture?.Delete();
 
             UploadTexture(forceSoftwareDecode);
 
@@ -1023,7 +1023,7 @@ namespace GUI.Types.Renderer
         {
             if (NextBitmapToSet != null)
             {
-                texture?.Dispose();
+                texture?.Delete();
 
                 using (NextBitmapToSet)
                 {

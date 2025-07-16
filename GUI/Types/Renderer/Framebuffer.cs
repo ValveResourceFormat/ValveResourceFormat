@@ -117,70 +117,65 @@ class Framebuffer : IDisposable
             throw new InvalidOperationException("Framebuffer has already been initialized");
         }
 
-        var (width, height) = (Width, Height);
+        CreateAttachments();
+
         var fboTarget = FramebufferTarget.Framebuffer;
         Bind(fboTarget);
-
-        if (ColorFormat != null)
-        {
-            Color = new RenderTexture(Target, width, height, 1, 1);
-            Color.SetLabel("FramebufferColor");
-            Color.SetBaseMaxLevel(0, 0);
-
-            ResizeAttachment(Color, ColorFormat, width, height);
-            GL.NamedFramebufferTexture(FboHandle, FramebufferAttachment.ColorAttachment0, Color.Handle, 0);
-        }
-
-        if (DepthFormat != null)
-        {
-            Depth = new RenderTexture(Target, width, height, 1, 1);
-            Depth.SetLabel("FramebufferDepth");
-            Depth.SetBaseMaxLevel(0, 0);
-
-            ResizeAttachment(Depth, DepthFormat, width, height);
-            GL.NamedFramebufferTexture(FboHandle, FramebufferAttachment.DepthAttachment, Depth.Handle, 0);
-        }
 
         InitialStatus = GL.CheckFramebufferStatus(fboTarget);
         return InitialStatus;
     }
-
-    private void ResizeAttachment(RenderTexture attachment, AttachmentFormat format, int width, int height)
-    {
-        GL.BindTexture(attachment.Target, attachment.Handle);
-
-        if (Target == TextureTarget.Texture2DMultisample)
-        {
-            GL.TexImage2DMultisample((TextureTargetMultisample)attachment.Target, NumSamples, format.InternalFormat, width, height, false);
-        }
-        else
-        {
-            GL.TexImage2D(attachment.Target, 0, format.InternalFormat, width, height, 0, format.PixelFormat, format.PixelType, IntPtr.Zero);
-        }
-
-        GL.BindTexture(attachment.Target, 0);
-    }
-
     public void Resize(int width, int height, int msaa)
     {
         NumSamples = msaa;
         Resize(width, height);
     }
 
-    public virtual void Resize(int width, int height)
+    public void Resize(int width, int height)
     {
         Width = width;
         Height = height;
+        CreateAttachments();
+    }
 
-        if (Color != null)
+    private void CreateAttachments()
+    {
+        Color?.Delete();
+        Depth?.Delete();
+
+        var (width, height) = (Width, Height);
+
+        if (ColorFormat != null)
         {
-            ResizeAttachment(Color, ColorFormat!, width, height);
+            Color = CreateAttachment(ColorFormat, width, height);
+            Color.SetLabel("FramebufferColor");
+            GL.NamedFramebufferTexture(FboHandle, FramebufferAttachment.ColorAttachment0, Color.Handle, 0);
         }
 
-        if (Depth != null)
+        if (DepthFormat != null)
         {
-            ResizeAttachment(Depth, DepthFormat!, width, height);
+            Depth = CreateAttachment(DepthFormat, width, height);
+            Depth.SetLabel("FramebufferDepth");
+            GL.NamedFramebufferTexture(FboHandle, FramebufferAttachment.DepthAttachment, Depth.Handle, 0);
         }
+    }
+
+    private RenderTexture CreateAttachment(AttachmentFormat format, int width, int height)
+    {
+        var attachment = new RenderTexture(Target, width, height, 1, 1);
+
+        if (Target == TextureTarget.Texture2DMultisample)
+        {
+            GL.TextureStorage2DMultisample(attachment.Handle, NumSamples, (SizedInternalFormat)format.InternalFormat, width, height, fixedsamplelocations: false);
+        }
+        else
+        {
+            GL.TextureStorage2D(attachment.Handle, attachment.NumMipLevels, (SizedInternalFormat)format.InternalFormat, width, height);
+        }
+
+        attachment.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
+        attachment.SetBaseMaxLevel(0, 0);
+        return attachment;
     }
 
     public void ChangeFormat(AttachmentFormat? colorFormat, DepthAttachmentFormat? depthFormat)

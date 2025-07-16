@@ -56,26 +56,10 @@ class PickingTexture : Framebuffer
         DepthFormat = DepthAttachmentFormat.Depth32F;
         Target = TextureTarget.Texture2D;
         ClearColor = Color4.Black;
-    }
 
-    public override void Resize(int width, int height)
-    {
-        base.Resize(width, height);
-
-        // resize is a good place to initialize the framebuffer with proper dimensions
-        if (InitialStatus == FramebufferErrorCode.FramebufferUndefined)
-        {
-            if (!HasValidDimensions())
-            {
-                return;
-            }
-
-            Initialize();
-
-            Color.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
-
-            CheckStatus_ThrowIfIncomplete(nameof(PickingTexture));
-        }
+        Width = 4;
+        Height = 4;
+        Initialize();
     }
 
     public void RequestNextFrame(int x, int y, PickingIntent intent)

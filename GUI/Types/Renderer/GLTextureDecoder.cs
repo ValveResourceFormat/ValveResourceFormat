@@ -244,7 +244,7 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
         GL.BindVertexArray(guiContext.MeshBufferCache.EmptyVAO);
         GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
 
-        inputTexture.Dispose();
+        inputTexture.Delete();
 
         var pixels = request.Bitmap.GetPixels(out var outputLength);
         var fbBytesPerPixel = Framebuffer.ColorFormat.PixelType == PixelType.Float ? 16 : 4;

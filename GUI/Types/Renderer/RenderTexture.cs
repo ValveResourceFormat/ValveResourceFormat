@@ -77,7 +77,7 @@ namespace GUI.Types.Renderer
             GL.ObjectLabel(ObjectLabelIdentifier.Texture, Handle, label.Length, label);
         }
 
-        public void Dispose()
+        public void Delete()
         {
             GL.DeleteTexture(Handle);
         }
