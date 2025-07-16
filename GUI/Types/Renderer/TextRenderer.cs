@@ -1,11 +1,10 @@
 using System.Buffers;
+using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using SkiaSharp;
-
-#nullable disable
 
 namespace GUI.Types.Renderer
 {
@@ -30,9 +29,8 @@ namespace GUI.Types.Renderer
             public float Scale;
             public Color32 Color = Color32.White;
             public Vector2 TextOffset = Vector2.Zero;
-            public string Text;
+            public required string Text;
             public bool Center = false;
-            public bool WriteDepth = false;
         }
 
         private readonly List<TextRenderRequest> TextRenderRequests = new(10);
@@ -40,8 +38,8 @@ namespace GUI.Types.Renderer
         private readonly VrfGuiContext guiContext;
         private readonly Camera camera;
 
-        private RenderTexture fontTexture;
-        private Shader shader;
+        private RenderTexture? fontTexture;
+        private Shader? shader;
         private int bufferHandle;
         private int vao;
 
@@ -130,109 +128,114 @@ namespace GUI.Types.Renderer
             TextRenderRequests.Add(textRenderRequest);
         }
 
-
         public void Render()
         {
-            using (new GLDebugGroup("Text Render"))
-            {
-                foreach (var text in TextRenderRequests)
-                {
-                    RenderText(text);
-                }
-                TextRenderRequests.Clear();
-            }
-        }
-
-        private void RenderText(TextRenderRequest textRenderRequest)
-        {
             var letters = 0;
-            var verticesSize = textRenderRequest.Text.Length * Vertex.Size * 4;
-            var vertexBuffer = ArrayPool<float>.Shared.Rent(verticesSize);
+            var verticesSize = 0;
 
-            var x = textRenderRequest.X;
-            var y = textRenderRequest.Y;
-
-            x += textRenderRequest.TextOffset.X;
-            y += textRenderRequest.TextOffset.Y;
-
-            if (textRenderRequest.Center)
+            foreach (var textRenderRequest in TextRenderRequests)
             {
-                // For correctness it should use actual plane bounds for each letter (so use real width), but good enough for monospace.
-                x -= textRenderRequest.Text.Length * DefaultAdvance * textRenderRequest.Scale / 2f;
+                verticesSize += textRenderRequest.Text.Length;
             }
+
+            if (verticesSize == 0)
+            {
+                return;
+            }
+
+            using var _ = new GLDebugGroup("Text Render");
+
+            verticesSize *= Vertex.Size * 4;
+            var vertexBuffer = ArrayPool<float>.Shared.Rent(verticesSize);
 
             try
             {
                 var vertices = MemoryMarshal.Cast<float, Vertex>(vertexBuffer);
                 var i = 0;
 
-                var originalX = x;
-
-                var color = textRenderRequest.Color;
-
-                for (var j = 0; j < textRenderRequest.Text.Length; j++)
+                foreach (var textRenderRequest in TextRenderRequests)
                 {
-                    var c = textRenderRequest.Text[j];
+                    var x = textRenderRequest.X;
+                    var y = textRenderRequest.Y;
 
-                    if (c == '\n')
+                    x += textRenderRequest.TextOffset.X;
+                    y += textRenderRequest.TextOffset.Y;
+
+                    if (textRenderRequest.Center)
                     {
-                        y += textRenderRequest.Scale * LineHeight;
-                        x = originalX;
-                        continue;
+                        // For correctness it should use actual plane bounds for each letter (so use real width), but good enough for monospace.
+                        x -= textRenderRequest.Text.Length * DefaultAdvance * textRenderRequest.Scale / 2f;
                     }
-                    else if (c == '\\')
+
+                    var originalX = x;
+
+                    var color = textRenderRequest.Color;
+
+                    for (var j = 0; j < textRenderRequest.Text.Length; j++)
                     {
-                        var cNext = j + 1 < textRenderRequest.Text.Length ? textRenderRequest.Text[j + 1] : '\0';
-                        if (cNext == '#')
+                        var c = textRenderRequest.Text[j];
+
+                        if (c == '\n')
                         {
-                            j += 2;
-                            if (j + 8 < textRenderRequest.Text.Length)
+                            y += textRenderRequest.Scale * LineHeight;
+                            x = originalX;
+                            continue;
+                        }
+                        else if (c == '\\')
+                        {
+                            var cNext = j + 1 < textRenderRequest.Text.Length ? textRenderRequest.Text[j + 1] : '\0';
+                            if (cNext == '#')
                             {
-                                if (byte.TryParse(textRenderRequest.Text.AsSpan(j + 0, 2), System.Globalization.NumberStyles.HexNumber, null, out var r)
-                                && byte.TryParse(textRenderRequest.Text.AsSpan(j + 2, 2), System.Globalization.NumberStyles.HexNumber, null, out var g)
-                                && byte.TryParse(textRenderRequest.Text.AsSpan(j + 4, 2), System.Globalization.NumberStyles.HexNumber, null, out var b)
-                                && byte.TryParse(textRenderRequest.Text.AsSpan(j + 6, 2), System.Globalization.NumberStyles.HexNumber, null, out var a))
+                                j += 2;
+                                if (j + 8 < textRenderRequest.Text.Length)
                                 {
-                                    color = new Color32(r, g, b, a);
-                                    j += 7;
-                                    continue;
+                                    if (byte.TryParse(textRenderRequest.Text.AsSpan(j + 0, 2), System.Globalization.NumberStyles.HexNumber, null, out var r)
+                                    && byte.TryParse(textRenderRequest.Text.AsSpan(j + 2, 2), System.Globalization.NumberStyles.HexNumber, null, out var g)
+                                    && byte.TryParse(textRenderRequest.Text.AsSpan(j + 4, 2), System.Globalization.NumberStyles.HexNumber, null, out var b)
+                                    && byte.TryParse(textRenderRequest.Text.AsSpan(j + 6, 2), System.Globalization.NumberStyles.HexNumber, null, out var a))
+                                    {
+                                        color = new Color32(r, g, b, a);
+                                        j += 7;
+                                        continue;
+                                    }
                                 }
                             }
                         }
+
+                        if ((uint)c - 33 > 93)
+                        {
+                            x += DefaultAdvance * textRenderRequest.Scale;
+                            continue;
+                        }
+
+                        letters++;
+                        var metrics = FontMetrics[c - 33];
+
+                        var x0 = x + metrics.PlaneBounds.X * textRenderRequest.Scale;
+                        var y0 = y + metrics.PlaneBounds.Y * textRenderRequest.Scale;
+                        var x1 = x + metrics.PlaneBounds.Z * textRenderRequest.Scale;
+                        var y1 = y + metrics.PlaneBounds.W * textRenderRequest.Scale;
+
+                        var le = metrics.AtlasBounds.X / AtlasSize;
+                        var bo = metrics.AtlasBounds.Y / AtlasSize;
+                        var ri = metrics.AtlasBounds.Z / AtlasSize;
+                        var to = metrics.AtlasBounds.W / AtlasSize;
+
+                        // left bottom
+                        vertices[i++] = new Vertex { Position = new Vector2(x0, y0), TexCoord = new Vector2(le, bo), Color = color };
+
+                        // left top
+                        vertices[i++] = new Vertex { Position = new Vector2(x0, y1), TexCoord = new Vector2(le, to), Color = color };
+
+                        // right top
+                        vertices[i++] = new Vertex { Position = new Vector2(x1, y1), TexCoord = new Vector2(ri, to), Color = color };
+
+                        // right bottom
+                        vertices[i++] = new Vertex { Position = new Vector2(x1, y0), TexCoord = new Vector2(ri, bo), Color = color };
+
+                        x += metrics.Advance * textRenderRequest.Scale;
                     }
 
-                    if ((uint)c - 33 > 93)
-                    {
-                        x += DefaultAdvance * textRenderRequest.Scale;
-                        continue;
-                    }
-
-                    letters++;
-                    var metrics = FontMetrics[c - 33];
-
-                    var x0 = x + metrics.PlaneBounds.X * textRenderRequest.Scale;
-                    var y0 = y + metrics.PlaneBounds.Y * textRenderRequest.Scale;
-                    var x1 = x + metrics.PlaneBounds.Z * textRenderRequest.Scale;
-                    var y1 = y + metrics.PlaneBounds.W * textRenderRequest.Scale;
-
-                    var le = metrics.AtlasBounds.X / AtlasSize;
-                    var bo = metrics.AtlasBounds.Y / AtlasSize;
-                    var ri = metrics.AtlasBounds.Z / AtlasSize;
-                    var to = metrics.AtlasBounds.W / AtlasSize;
-
-                    // left bottom
-                    vertices[i++] = new Vertex { Position = new Vector2(x0, y0), TexCoord = new Vector2(le, bo), Color = color };
-
-                    // left top
-                    vertices[i++] = new Vertex { Position = new Vector2(x0, y1), TexCoord = new Vector2(le, to), Color = color };
-
-                    // right top
-                    vertices[i++] = new Vertex { Position = new Vector2(x1, y1), TexCoord = new Vector2(ri, to), Color = color };
-
-                    // right bottom
-                    vertices[i++] = new Vertex { Position = new Vector2(x1, y0), TexCoord = new Vector2(ri, bo), Color = color };
-
-                    x += metrics.Advance * textRenderRequest.Scale;
                 }
 
                 verticesSize = i * Vertex.Size * sizeof(float);
@@ -243,10 +246,12 @@ namespace GUI.Types.Renderer
                 ArrayPool<float>.Shared.Return(vertexBuffer);
             }
 
-            GL.DepthMask(textRenderRequest.WriteDepth);
             GL.Disable(EnableCap.DepthTest);
             GL.Enable(EnableCap.Blend);
             GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
+
+            Debug.Assert(shader != null);
+            Debug.Assert(fontTexture != null);
 
             shader.Use();
             shader.SetUniform4x4("transform", Matrix4x4.CreateOrthographicOffCenter(0f, camera.WindowSize.X, camera.WindowSize.Y, 0f, -100f, 100f));
@@ -260,8 +265,9 @@ namespace GUI.Types.Renderer
             GL.BindVertexArray(0);
 
             GL.Disable(EnableCap.Blend);
-            GL.DepthMask(true);
             GL.Enable(EnableCap.DepthTest);
+
+            TextRenderRequests.Clear();
         }
 
         // Font metrics for JetBrainsMono-Regular.ttf generated using msdf-atlas-gen (use Misc/FontMsdfGen)
