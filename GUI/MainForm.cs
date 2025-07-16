@@ -60,6 +60,7 @@ namespace GUI
             }
 
             GLFWProvider.CheckForMainThread = false;
+            GLFWProvider.EnsureInitialized();
         }
 
         public MainForm(string[] args)
