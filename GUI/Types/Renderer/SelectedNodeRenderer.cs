@@ -135,9 +135,9 @@ namespace GUI.Types.Renderer
 
                     var axisColor = axis switch
                     {
-                        0 => new Color32(0.8f, 0.2f, 0.2f, 1),
+                        0 => new Color32(1.0f, 0.2f, 0.2f, 1),
                         1 => new Color32(0.2f, 0.8f, 0.2f, 1),
-                        2 => new Color32(0.2f, 0.2f, 0.8f, 1),
+                        2 => new Color32(0.2f, 0.2f, 1.0f, 1),
                         _ => color,
                     };
 
@@ -146,11 +146,12 @@ namespace GUI.Types.Renderer
 
                     viewer.TextRenderer.AddTextBillboard(Vector3.Lerp(v0, v1, 0.5f), new TextRenderer.TextRenderRequest
                     {
-                        Scale = 12f,
+                        Scale = 13f,
                         Color = axisColor,
                         Text = length.ToString("0.##", CultureInfo.InvariantCulture),
-                        Center = true
-                    }, fixedScale: false);
+                        CenterVertical = true,
+                        CenterHorizontal = true,
+                    });
 
                     OctreeDebugRenderer<SceneNode>.AddLine(vertices, c[line.Start], c[line.End], axisColor);
                     continue;
@@ -269,7 +270,7 @@ namespace GUI.Types.Renderer
                 {
                     Scale = 20f,
                     Text = nodeName,
-                    Center = true,
+                    CenterVertical = true,
                     TextOffset = SelectedNodeNameOffset
                 }, fixedScale: false);
             }

@@ -92,7 +92,7 @@ namespace GUI.Types.Renderer
             {
                 Scale = 10f,
                 Text = bone.Name,
-                Center = false
+                CenterVertical = false
             });
 
             if (!oldBindPose.IsIdentity)

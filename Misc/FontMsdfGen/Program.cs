@@ -42,6 +42,8 @@ if (json == null || json.atlas.width != json.atlas.height)
 Console.WriteLine();
 Console.WriteLine($"// Font metrics for {Path.GetFileName(fontFilePath)} generated using msdf-atlas-gen (use Misc/FontMsdfGen)");
 Console.WriteLine($"private const float AtlasSize = {json.atlas.width}f;");
+Console.WriteLine($"private const float Ascender = {json.metrics.ascender}f;");
+Console.WriteLine($"private const float Descender = {json.metrics.descender}f;");
 Console.WriteLine($"private const float LineHeight = {json.metrics.lineHeight}f;");
 
 var next = 32;

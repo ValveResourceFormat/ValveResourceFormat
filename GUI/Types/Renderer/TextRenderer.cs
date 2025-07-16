@@ -30,7 +30,8 @@ namespace GUI.Types.Renderer
             public Color32 Color = Color32.White;
             public Vector2 TextOffset = Vector2.Zero;
             public required string Text;
-            public bool Center = false;
+            public bool CenterVertical = false;
+            public bool CenterHorizontal = false;
         }
 
         private readonly List<TextRenderRequest> TextRenderRequests = new(10);
@@ -161,10 +162,15 @@ namespace GUI.Types.Renderer
                     x += textRenderRequest.TextOffset.X;
                     y += textRenderRequest.TextOffset.Y;
 
-                    if (textRenderRequest.Center)
+                    if (textRenderRequest.CenterVertical)
                     {
                         // For correctness it should use actual plane bounds for each letter (so use real width), but good enough for monospace.
                         x -= textRenderRequest.Text.Length * DefaultAdvance * textRenderRequest.Scale / 2f;
+                    }
+
+                    if (textRenderRequest.CenterHorizontal)
+                    {
+                        y -= (Ascender + Descender) / 2f * textRenderRequest.Scale;
                     }
 
                     var originalX = x;
@@ -272,6 +278,8 @@ namespace GUI.Types.Renderer
 
         // Font metrics for JetBrainsMono-Regular.ttf generated using msdf-atlas-gen (use Misc/FontMsdfGen)
         private const float AtlasSize = 512f;
+        private const float Ascender = -1.02f;
+        private const float Descender = 0.3f;
         private const float LineHeight = 1.32f;
         private const float DefaultAdvance = 0.6f;
         private const float TextureRange = 0.03125f;
