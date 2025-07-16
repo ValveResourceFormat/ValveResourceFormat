@@ -173,7 +173,6 @@ class Framebuffer : IDisposable
             GL.TextureStorage2D(attachment.Handle, attachment.NumMipLevels, (SizedInternalFormat)format.InternalFormat, width, height);
         }
 
-        attachment.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
         attachment.SetBaseMaxLevel(0, 0);
         return attachment;
     }
