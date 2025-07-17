@@ -45,16 +45,15 @@ namespace GUI.Types.Renderer
         private OctreeDebugRenderer<SceneNode> dynamicOctreeRenderer;
         protected SelectedNodeRenderer selectedNodeRenderer;
 
-        public enum GenericShaderType
+        public enum DepthOnlyProgram
         {
             DepthStatic,
             DepthStaticAlphaTest,
             DepthAnimated,
             DepthAnimatedEightBones,
             OcclusionQueryAABBProxy,
-            Outline,
         }
-        public readonly Shader[] GenericShaders = new Shader[Enum.GetValues<GenericShaderType>().Length];
+        private readonly Shader[] depthOnlyShaders = new Shader[Enum.GetValues<DepthOnlyProgram>().Length];
         public Framebuffer ShadowDepthBuffer { get; private set; }
         public Framebuffer FramebufferCopy { get; private set; }
 
@@ -292,13 +291,12 @@ namespace GUI.Types.Renderer
             ShadowDepthBuffer.Depth.SetFiltering(TextureMinFilter.Linear, TextureMagFilter.Linear);
             ShadowDepthBuffer.Depth.SetWrapMode(TextureWrapMode.ClampToBorder);
 
-            GenericShaders[(int)GenericShaderType.DepthStatic] = GuiContext.ShaderLoader.LoadShader("vrf.depth_only");
+            depthOnlyShaders[(int)DepthOnlyProgram.DepthStatic] = GuiContext.ShaderLoader.LoadShader("vrf.depth_only");
             //depthOnlyShaders[(int)DepthOnlyProgram.StaticAlphaTest] = GuiContext.ShaderLoader.LoadShader("vrf.depth_only", new Dictionary<string, byte> { { "F_ALPHA_TEST", 1 } });
-            GenericShaders[(int)GenericShaderType.DepthAnimated] = GuiContext.ShaderLoader.LoadShader("vrf.depth_only", new Dictionary<string, byte> { { "D_ANIMATED", 1 } });
-            GenericShaders[(int)GenericShaderType.DepthAnimatedEightBones] = GuiContext.ShaderLoader.LoadShader("vrf.depth_only", new Dictionary<string, byte> { { "D_ANIMATED", 1 }, { "D_EIGHT_BONE_BLENDING", 1 } });
+            depthOnlyShaders[(int)DepthOnlyProgram.DepthAnimated] = GuiContext.ShaderLoader.LoadShader("vrf.depth_only", new Dictionary<string, byte> { { "D_ANIMATED", 1 } });
+            depthOnlyShaders[(int)DepthOnlyProgram.DepthAnimatedEightBones] = GuiContext.ShaderLoader.LoadShader("vrf.depth_only", new Dictionary<string, byte> { { "D_ANIMATED", 1 }, { "D_EIGHT_BONE_BLENDING", 1 } });
 
-            GenericShaders[(int)GenericShaderType.OcclusionQueryAABBProxy] = GuiContext.ShaderLoader.LoadShader("vrf.depth_only_aabb");
-            GenericShaders[(int)GenericShaderType.Outline] = GuiContext.ShaderLoader.LoadShader("vrf.outline");
+            depthOnlyShaders[(int)DepthOnlyProgram.OcclusionQueryAABBProxy] = GuiContext.ShaderLoader.LoadShader("vrf.depth_only_aabb");
 
             FramebufferCopy = Framebuffer.Prepare(nameof(FramebufferCopy), 4, 4, 0,
                 new Framebuffer.AttachmentFormat(PixelInternalFormat.R11fG11fB10f, PixelFormat.Rgb, PixelType.HalfFloat),
@@ -436,7 +434,7 @@ namespace GUI.Types.Renderer
             viewBuffer.Data.SunLightShadowBias = Scene.LightingInfo.SunLightShadowBias;
             viewBuffer.Update();
 
-            Scene.RenderOpaqueShadows(renderContext, GenericShaders);
+            Scene.RenderOpaqueShadows(renderContext, depthOnlyShaders);
         }
 
         private void RenderScenesWithView(Scene.RenderContext renderContext)
@@ -468,7 +466,7 @@ namespace GUI.Types.Renderer
 
             using (new GLDebugGroup("Occlusion Tests"))
             {
-                Scene.RenderOcclusionProxies(renderContext, GenericShaders[(int)GenericShaderType.OcclusionQueryAABBProxy]);
+                Scene.RenderOcclusionProxies(renderContext, depthOnlyShaders[(int)DepthOnlyProgram.OcclusionQueryAABBProxy]);
             }
 
             using (new GLDebugGroup("Sky Render"))
@@ -550,7 +548,6 @@ namespace GUI.Types.Renderer
         private void RenderOutlineLayer(Scene.RenderContext renderContext)
         {
             GL.DepthMask(false);
-            GL.Enable(EnableCap.Blend);
             GL.Disable(EnableCap.DepthTest);
             GL.Disable(EnableCap.CullFace);
 
@@ -558,7 +555,6 @@ namespace GUI.Types.Renderer
             GL.StencilOp(StencilOp.Keep, StencilOp.Keep, StencilOp.Replace);
             GL.StencilFunc(StencilFunction.Always, 1, 0xFF);
             GL.StencilMask(0xFF);
-            GL.Clear(ClearBufferMask.StencilBufferBit);
 
             SkyboxScene?.RenderOutlineLayer(renderContext);
             Scene.RenderOutlineLayer(renderContext);
@@ -566,7 +562,6 @@ namespace GUI.Types.Renderer
             GL.Disable(EnableCap.StencilTest);
             GL.Enable(EnableCap.CullFace);
             GL.Enable(EnableCap.DepthTest);
-            GL.Disable(EnableCap.Blend);
             GL.DepthMask(true);
         }
 

@@ -491,6 +491,8 @@ namespace GUI.Controls
                     Framebuffer.DepthAttachmentFormat.Depth32FStencil8
                 );
 
+                MainFramebuffer.ClearMask |= ClearBufferMask.StencilBufferBit;
+
                 GLLoad?.Invoke(this, e);
             }
             catch (Exception exception)

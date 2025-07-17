@@ -3,12 +3,11 @@
 #include "common/utils.glsl"
 #include "common/ViewConstants.glsl"
 
-out vec4 outputColor;
-
 uniform sampler2D g_tSceneDepth;
 
 void main()
 {
+#if defined(GL_ARB_shader_stencil_export)
     float objectDepth = gl_FragCoord.z;
 
     ivec2 vScreenPosition = ivec2(gl_FragCoord.xy);
@@ -18,10 +17,11 @@ void main()
 
     if (diff > 0.0)
     {
-        outputColor = vec4(2.0, 2.0, 0.0, 0.1); // Visible outline color
+        gl_FragStencilRefARB = 0x02; // Visible outline
     }
     else
     {
-        outputColor = vec4(1.0, 1.0, 0.0, 0.05); // Obscured outline color
+        gl_FragStencilRefARB = 0x01; // Obscured outline
     }
+#endif
 }

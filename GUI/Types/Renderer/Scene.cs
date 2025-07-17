@@ -345,12 +345,12 @@ namespace GUI.Types.Renderer
 
         private List<SceneNode> CulledShadowNodes { get; } = [];
         private readonly List<RenderableMesh> listWithSingleMesh = [null];
-        private Dictionary<GenericShaderType, List<MeshBatchRenderer.Request>> CulledShadowDrawCalls { get; } = new()
+        private Dictionary<DepthOnlyProgram, List<MeshBatchRenderer.Request>> CulledShadowDrawCalls { get; } = new()
         {
-            [GenericShaderType.DepthStatic] = [],
-            [GenericShaderType.DepthStaticAlphaTest] = [],
-            [GenericShaderType.DepthAnimated] = [],
-            [GenericShaderType.DepthAnimatedEightBones] = [],
+            [DepthOnlyProgram.DepthStatic] = [],
+            [DepthOnlyProgram.DepthStaticAlphaTest] = [],
+            [DepthOnlyProgram.DepthAnimated] = [],
+            [DepthOnlyProgram.DepthAnimatedEightBones] = [],
         };
 
         public void SetupSceneShadows(Camera camera, int shadowMapSize)
@@ -405,14 +405,14 @@ namespace GUI.Types.Renderer
 
                         var bucket = (opaqueCall.Material.IsAlphaTest, animated) switch
                         {
-                            (false, false) => GenericShaderType.DepthStatic,
-                            (true, _) => GenericShaderType.DepthStaticAlphaTest,
-                            (false, true) => GenericShaderType.DepthAnimated,
+                            (false, false) => DepthOnlyProgram.DepthStatic,
+                            (true, _) => DepthOnlyProgram.DepthStaticAlphaTest,
+                            (false, true) => DepthOnlyProgram.DepthAnimated,
                         };
 
                         if (mesh.BoneWeightCount > 4)
                         {
-                            bucket = GenericShaderType.DepthAnimatedEightBones;
+                            bucket = DepthOnlyProgram.DepthAnimatedEightBones;
                         }
 
                         CulledShadowDrawCalls[bucket].Add(new MeshBatchRenderer.Request
@@ -594,7 +594,7 @@ namespace GUI.Types.Renderer
         public void RenderOutlineLayer(RenderContext renderContext)
         {
             renderContext.RenderPass = RenderPass.Outline;
-            renderContext.ReplacementShader = renderContext.View.GenericShaders[(int)GenericShaderType.DepthAnimated];
+            renderContext.ReplacementShader = GuiContext.ShaderLoader.LoadShader("vrf.outline");
 
             MeshBatchRenderer.Render(renderLists[RenderPass.Outline], renderContext);
 
