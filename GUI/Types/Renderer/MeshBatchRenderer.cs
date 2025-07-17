@@ -17,6 +17,8 @@ namespace GUI.Types.Renderer
             public SceneNode Node;
         }
 
+        record struct BatchRequest(RenderableMesh Mesh, DrawCall Call, SceneNode Node);
+
         public static int CompareCustomPipeline(Request a, Request b)
         {
             const int CustomRenderSortId = int.MaxValue;
@@ -216,7 +218,7 @@ namespace GUI.Types.Renderer
                     GL.BindVertexArray(vao);
                 }
 
-                Draw(shader!, ref uniforms, ref config, request);
+                Draw(shader!, ref uniforms, ref config, new(request.Mesh, request.Call, request.Node));
             }
 
             if (vao > -1)
@@ -228,7 +230,7 @@ namespace GUI.Types.Renderer
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static void Draw(Shader shader, ref Uniforms uniforms, ref Config config, Request request)
+        private static void Draw(Shader shader, ref Uniforms uniforms, ref Config config, BatchRequest request)
         {
             if (uniforms.ObjectId != -1)
             {
@@ -284,7 +286,7 @@ namespace GUI.Types.Renderer
 
                 if (bAnimated)
                 {
-                    request.Mesh.BoneMatricesGpu.BindBufferBase();
+                    request.Mesh.BoneMatricesGpu!.BindBufferBase();
                     numBones = (uint)request.Mesh.MeshBoneCount;
                     boneStart = (uint)request.Mesh.MeshBoneOffset;
                     numWeights = (uint)request.Mesh.BoneWeightCount;
@@ -299,7 +301,7 @@ namespace GUI.Types.Renderer
                 if (morphComposite != null)
                 {
                     SetInstanceTexture(shader, ReservedTextureSlots.MorphCompositeTexture, uniforms.MorphCompositeTexture, morphComposite.CompositeTexture);
-                    GL.ProgramUniform2(shader.Program, uniforms.MorphCompositeTextureSize, (float)morphComposite.CompositeTexture.Width, (float)morphComposite.CompositeTexture.Height);
+                    GL.ProgramUniform2(shader.Program, uniforms.MorphCompositeTextureSize, (float)morphComposite.CompositeTexture.Width, morphComposite.CompositeTexture.Height);
                 }
 
                 GL.ProgramUniform1(shader.Program, uniforms.MorphVertexIdOffset, morphComposite != null ? request.Call.VertexIdOffset : -1);
