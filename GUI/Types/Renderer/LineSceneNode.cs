@@ -33,7 +33,7 @@ namespace GUI.Types.Renderer
 
         public override void Render(Scene.RenderContext context)
         {
-            if (context.RenderPass != RenderPass.AfterOpaque)
+            if (context.RenderPass != RenderPass.Opaque)
             {
                 return;
             }

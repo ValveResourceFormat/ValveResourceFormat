@@ -3,8 +3,6 @@ using System.Runtime.CompilerServices;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 
-#nullable disable
-
 namespace GUI.Types.Renderer
 {
     static class MeshBatchRenderer
@@ -13,22 +11,29 @@ namespace GUI.Types.Renderer
         public struct Request
         {
             public RenderableMesh Mesh;
-            public DrawCall Call;
+            public DrawCall? Call;
             public float DistanceFromCamera;
             public int RenderOrder;
             public SceneNode Node;
         }
 
-        public static int ComparePipeline(Request a, Request b)
+        public static int CompareCustomPipeline(Request a, Request b)
         {
-            return a.Call.Material.SortId - b.Call.Material.SortId;
-        }
+            const int CustomRenderSortId = int.MaxValue;
 
+            return (a.Call, b.Call) switch
+            {
+                ({ }, { }) => a.Call.Material.SortId - b.Call.Material.SortId,
+                (null, { }) => CustomRenderSortId - b.Call.Material.SortId,
+                ({ }, null) => a.Call.Material.SortId - CustomRenderSortId,
+                (null, null) => 0,
+            };
+        }
         public static int CompareRenderOrderThenPipeline(Request a, Request b)
         {
             if (a.RenderOrder == b.RenderOrder)
             {
-                return ComparePipeline(a, b);
+                return a.Call!.Material.SortId - b.Call!.Material.SortId;
             }
 
             return a.RenderOrder - b.RenderOrder;
@@ -43,7 +48,7 @@ namespace GUI.Types.Renderer
         {
             if (context.RenderPass == RenderPass.Opaque)
             {
-                requests.Sort(ComparePipeline);
+                requests.Sort(CompareCustomPipeline);
             }
             else if (context.RenderPass == RenderPass.StaticOverlay)
             {
@@ -109,8 +114,8 @@ namespace GUI.Types.Renderer
         private static void DrawBatch(List<Request> requests, Scene.RenderContext context)
         {
             var vao = -1;
-            Shader shader = null;
-            RenderMaterial material = null;
+            Shader? shader = null;
+            RenderMaterial? material = null;
             Uniforms uniforms = new();
             Config config = new()
             {
@@ -121,6 +126,19 @@ namespace GUI.Types.Renderer
 
             foreach (var request in requests)
             {
+                if (request.Call == null)
+                {
+                    if (context.RenderPass is RenderPass.Opaque or RenderPass.Translucent)
+                    {
+                        request.Node.Render(context);
+                        shader = null;
+                        material = null;
+                        vao = -1;
+                    }
+
+                    continue;
+                }
+
                 var requestMaterial = request.Call.Material;
 
                 if (material != requestMaterial)
@@ -198,12 +216,12 @@ namespace GUI.Types.Renderer
                     GL.BindVertexArray(vao);
                 }
 
-                Draw(shader, ref uniforms, ref config, request);
+                Draw(shader!, ref uniforms, ref config, request);
             }
 
             if (vao > -1)
             {
-                material.PostRender();
+                material!.PostRender();
                 GL.BindVertexArray(0);
                 GL.UseProgram(0);
             }

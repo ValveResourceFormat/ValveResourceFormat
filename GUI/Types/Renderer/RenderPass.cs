@@ -5,7 +5,6 @@ namespace GUI.Types.Renderer
         DepthOnly,
         Opaque,
         StaticOverlay,
-        AfterOpaque,
         Translucent,
     }
 }

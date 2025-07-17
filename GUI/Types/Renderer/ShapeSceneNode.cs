@@ -255,16 +255,10 @@ namespace GUI.Types.Renderer
 
         public override void Render(Scene.RenderContext context)
         {
-            var translucentPass = IsTranslucent && IsTranslucentRenderMode;
+            var isTranslucent = IsTranslucent && IsTranslucentRenderMode;
+            var renderPass = isTranslucent ? RenderPass.Translucent : RenderPass.Opaque;
 
-            if (translucentPass)
-            {
-                if (context.RenderPass != RenderPass.Translucent)
-                {
-                    return;
-                }
-            }
-            else if (context.RenderPass != RenderPass.AfterOpaque)
+            if (context.RenderPass != renderPass)
             {
                 return;
             }
@@ -285,7 +279,7 @@ namespace GUI.Types.Renderer
 
             GL.BindVertexArray(vaoHandle);
 
-            if (translucentPass)
+            if (isTranslucent)
             {
                 GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
 

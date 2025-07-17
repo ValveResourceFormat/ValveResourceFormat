@@ -114,7 +114,7 @@ namespace GUI.Types.Renderer
                 return;
             }
 
-            if (context.RenderPass != RenderPass.AfterOpaque)
+            if (context.RenderPass != RenderPass.Opaque)
             {
                 return;
             }
