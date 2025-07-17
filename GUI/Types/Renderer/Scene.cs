@@ -271,7 +271,6 @@ namespace GUI.Types.Renderer
                         {
                             Add(new MeshBatchRenderer.Request
                             {
-                                Transform = node.Transform,
                                 Mesh = mesh,
                                 Call = call,
                                 Node = node,
@@ -282,7 +281,6 @@ namespace GUI.Types.Renderer
                         {
                             Add(new MeshBatchRenderer.Request
                             {
-                                Transform = node.Transform,
                                 Mesh = mesh,
                                 Call = call,
                                 RenderOrder = node.OverlayRenderOrder,
@@ -294,7 +292,6 @@ namespace GUI.Types.Renderer
                         {
                             Add(new MeshBatchRenderer.Request
                             {
-                                Transform = node.Transform,
                                 Mesh = mesh,
                                 Call = call,
                                 DistanceFromCamera = (node.BoundingBox.Center - camera.Location).LengthSquared(),
@@ -307,7 +304,6 @@ namespace GUI.Types.Renderer
                 {
                     Add(new MeshBatchRenderer.Request
                     {
-                        Transform = fragment.Transform,
                         Mesh = fragment.RenderMesh,
                         Call = fragment.DrawCall,
                         Node = node,
@@ -317,7 +313,6 @@ namespace GUI.Types.Renderer
                 {
                     Add(new MeshBatchRenderer.Request
                     {
-                        Transform = aggregate.Transform,
                         Mesh = aggregate.RenderMesh,
                         Call = aggregate.RenderMesh.DrawCallsOpaque[0],
                         Node = node,
@@ -410,7 +405,6 @@ namespace GUI.Types.Renderer
 
                         CulledShadowDrawCalls[bucket].Add(new MeshBatchRenderer.Request
                         {
-                            Transform = node.Transform,
                             Mesh = mesh,
                             Call = opaqueCall,
                             Node = node,

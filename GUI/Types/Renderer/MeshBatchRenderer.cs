@@ -12,7 +12,6 @@ namespace GUI.Types.Renderer
         [DebuggerDisplay("{Node.DebugName,nq}")]
         public struct Request
         {
-            public Matrix4x4 Transform;
             public RenderableMesh Mesh;
             public DrawCall Call;
             public float DistanceFromCamera;
@@ -290,7 +289,7 @@ namespace GUI.Types.Renderer
 
             if (uniforms.Transform > -1)
             {
-                var transform = request.Transform.To3x4();
+                var transform = request.Node.Transform.To3x4();
                 GL.ProgramUniformMatrix3x4(shader.Program, uniforms.Transform, false, ref transform);
             }
 
