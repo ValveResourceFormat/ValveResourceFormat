@@ -351,10 +351,10 @@ namespace GUI.Types.Renderer
         private readonly List<RenderableMesh> listWithSingleMesh = [null];
         private Dictionary<DepthOnlyProgram, List<MeshBatchRenderer.Request>> CulledShadowDrawCalls { get; } = new()
         {
-            [DepthOnlyProgram.DepthStatic] = [],
-            [DepthOnlyProgram.DepthStaticAlphaTest] = [],
-            [DepthOnlyProgram.DepthAnimated] = [],
-            [DepthOnlyProgram.DepthAnimatedEightBones] = [],
+            [DepthOnlyProgram.Static] = [],
+            [DepthOnlyProgram.StaticAlphaTest] = [],
+            [DepthOnlyProgram.Animated] = [],
+            [DepthOnlyProgram.AnimatedEightBones] = [],
         };
 
         public void SetupSceneShadows(Camera camera, int shadowMapSize)
@@ -409,14 +409,14 @@ namespace GUI.Types.Renderer
 
                         var bucket = (opaqueCall.Material.IsAlphaTest, animated) switch
                         {
-                            (false, false) => DepthOnlyProgram.DepthStatic,
-                            (true, _) => DepthOnlyProgram.DepthStaticAlphaTest,
-                            (false, true) => DepthOnlyProgram.DepthAnimated,
+                            (false, false) => DepthOnlyProgram.Static,
+                            (true, _) => DepthOnlyProgram.StaticAlphaTest,
+                            (false, true) => DepthOnlyProgram.Animated,
                         };
 
                         if (mesh.BoneWeightCount > 4)
                         {
-                            bucket = DepthOnlyProgram.DepthAnimatedEightBones;
+                            bucket = DepthOnlyProgram.AnimatedEightBones;
                         }
 
                         CulledShadowDrawCalls[bucket].Add(new MeshBatchRenderer.Request

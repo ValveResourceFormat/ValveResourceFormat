@@ -180,7 +180,7 @@ namespace GUI.Types.Renderer
             {
                 var nodeName = node.Name ?? node.GetType().Name;
 
-                if (node is not SimpleBoxSceneNode)
+                if (node is not SimpleBoxSceneNode and not SpriteSceneNode)
                 {
                     AddBox(vertices, node.Transform, node.LocalBoundingBox, Color32.White, showSize: true);
                 }

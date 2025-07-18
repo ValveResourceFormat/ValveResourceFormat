@@ -47,10 +47,10 @@ namespace GUI.Types.Renderer
 
         public enum DepthOnlyProgram
         {
-            DepthStatic,
-            DepthStaticAlphaTest,
-            DepthAnimated,
-            DepthAnimatedEightBones,
+            Static,
+            StaticAlphaTest,
+            Animated,
+            AnimatedEightBones,
             OcclusionQueryAABBProxy,
         }
         private readonly Shader[] depthOnlyShaders = new Shader[Enum.GetValues<DepthOnlyProgram>().Length];
@@ -291,10 +291,10 @@ namespace GUI.Types.Renderer
             ShadowDepthBuffer.Depth.SetFiltering(TextureMinFilter.Linear, TextureMagFilter.Linear);
             ShadowDepthBuffer.Depth.SetWrapMode(TextureWrapMode.ClampToBorder);
 
-            depthOnlyShaders[(int)DepthOnlyProgram.DepthStatic] = GuiContext.ShaderLoader.LoadShader("vrf.depth_only");
+            depthOnlyShaders[(int)DepthOnlyProgram.Static] = GuiContext.ShaderLoader.LoadShader("vrf.depth_only");
             //depthOnlyShaders[(int)DepthOnlyProgram.StaticAlphaTest] = GuiContext.ShaderLoader.LoadShader("vrf.depth_only", new Dictionary<string, byte> { { "F_ALPHA_TEST", 1 } });
-            depthOnlyShaders[(int)DepthOnlyProgram.DepthAnimated] = GuiContext.ShaderLoader.LoadShader("vrf.depth_only", new Dictionary<string, byte> { { "D_ANIMATED", 1 } });
-            depthOnlyShaders[(int)DepthOnlyProgram.DepthAnimatedEightBones] = GuiContext.ShaderLoader.LoadShader("vrf.depth_only", new Dictionary<string, byte> { { "D_ANIMATED", 1 }, { "D_EIGHT_BONE_BLENDING", 1 } });
+            depthOnlyShaders[(int)DepthOnlyProgram.Animated] = GuiContext.ShaderLoader.LoadShader("vrf.depth_only", new Dictionary<string, byte> { { "D_ANIMATED", 1 } });
+            depthOnlyShaders[(int)DepthOnlyProgram.AnimatedEightBones] = GuiContext.ShaderLoader.LoadShader("vrf.depth_only", new Dictionary<string, byte> { { "D_ANIMATED", 1 }, { "D_EIGHT_BONE_BLENDING", 1 } });
 
             depthOnlyShaders[(int)DepthOnlyProgram.OcclusionQueryAABBProxy] = GuiContext.ShaderLoader.LoadShader("vrf.depth_only_aabb");
 
