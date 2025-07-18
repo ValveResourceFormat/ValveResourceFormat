@@ -15,7 +15,7 @@
 uniform int g_nNumSamplesMSAA = 1;
 uniform bool g_bFlipY = false;
 
-const float InvNumSamples = 1.0 / float(g_nNumSamplesMSAA);
+float InvNumSamples = 1.0 / float(g_nNumSamplesMSAA);
 
 uniform float g_flToneMapScalarLinear;
 uniform float g_flExposureBiasScaleFactor;
