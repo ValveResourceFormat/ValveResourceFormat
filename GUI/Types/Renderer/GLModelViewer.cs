@@ -353,8 +353,8 @@ namespace GUI.Types.Renderer
 
                     Mesh '{meshName}':
                         DrawCalls : {coloredMaterialNames.Count} ({allColoredMaterials})
-                        Vertices  : {triangleTotal}
-                        Triangles : {vertexTotal}
+                        Vertices  : {triangleTotal:N0}
+                        Triangles : {vertexTotal:N0}
                         Size      : X: {size.X:0.##} | Y: {size.Y:0.##} | Z: {size.Z:0.##}
 
                     """

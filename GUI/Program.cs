@@ -29,6 +29,8 @@ namespace GUI
             Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
 
             MainForm = new MainForm(args);
+            MainForm.OpenCommandLineArgFiles(args);
+
             Application.Run(MainForm);
         }
 

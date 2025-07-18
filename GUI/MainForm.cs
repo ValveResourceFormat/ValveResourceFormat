@@ -130,6 +130,21 @@ namespace GUI
             }
 #endif
 
+            if (Settings.IsFirstStartup)
+            {
+                OpenWelcome();
+            }
+            else if (args.Length == 0 && Settings.Config.OpenExplorerOnStart != 0)
+            {
+                OpenExplorer();
+            }
+
+            // Force refresh title due to OpenFile calls above, SelectedIndexChanged is not called in the same tick
+            OnMainSelectedTabChanged(null, null);
+        }
+
+        public void OpenCommandLineArgFiles(string[] args)
+        {
             for (var i = 0; i < args.Length; i++)
             {
                 var file = args[i];
@@ -146,8 +161,7 @@ namespace GUI
                         Log.Error(nameof(MainForm), $"For vpk: protocol to work, specify a file path inside of the package, for example: \"vpk:C:/path/pak01_dir.vpk:inner/file.vmdl_c\"");
 
                         OpenFile(file);
-
-                        return;
+                        continue;
                     }
 
                     var innerFile = file[(innerFilePosition + 5)..];
@@ -160,7 +174,7 @@ namespace GUI
                         if (!File.Exists(dirFile))
                         {
                             Log.Error(nameof(MainForm), $"File '{file}' does not exist.");
-                            return;
+                            continue;
                         }
 
                         file = dirFile;
@@ -184,7 +198,7 @@ namespace GUI
                             if (packageFile == null)
                             {
                                 Log.Error(nameof(MainForm), $"File '{packageFile}' does not exist in package '{file}'.");
-                                return;
+                                continue;
                             }
                         }
 
@@ -228,16 +242,6 @@ namespace GUI
                 OpenFile(file);
             }
 
-            if (Settings.IsFirstStartup)
-            {
-                OpenWelcome();
-            }
-            else if (args.Length == 0 && Settings.Config.OpenExplorerOnStart != 0)
-            {
-                OpenExplorer();
-            }
-
-            // Force refresh title due to OpenFile calls above, SelectedIndexChanged is not called in the same tick
             OnMainSelectedTabChanged(null, null);
         }
 
