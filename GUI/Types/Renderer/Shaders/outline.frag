@@ -3,10 +3,11 @@
 #include "common/utils.glsl"
 #include "common/ViewConstants.glsl"
 
-uniform sampler2D g_tSceneDepth;
+//uniform sampler2D g_tSceneDepth;
 
 void main()
 {
+/*
 #if defined(GL_ARB_shader_stencil_export)
     float objectDepth = gl_FragCoord.z;
 
@@ -24,4 +25,5 @@ void main()
         gl_FragStencilRefARB = 0x01; // Obscured outline
     }
 #endif
+*/
 }
