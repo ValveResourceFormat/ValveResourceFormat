@@ -220,6 +220,7 @@ namespace GUI.Types.Renderer
             [RenderPass.Opaque] = [],
             [RenderPass.StaticOverlay] = [],
             [RenderPass.Translucent] = [],
+            [RenderPass.Outline] = [],
         };
 
         private void Add(MeshBatchRenderer.Request request, RenderPass renderPass)
@@ -241,6 +242,11 @@ namespace GUI.Types.Renderer
             {
                 WantsSceneColor |= request.Call.Material.Shader.ReservedTexuresUsed.Contains("g_tSceneColor");
                 WantsSceneDepth |= request.Call.Material.Shader.ReservedTexuresUsed.Contains("g_tSceneDepth");
+            }
+
+            if (renderPass > RenderPass.DepthOnly && request.Node.IsSelected)
+            {
+                renderLists[RenderPass.Outline].Add(request);
             }
 
             queueList.Add(request);
@@ -332,6 +338,11 @@ namespace GUI.Types.Renderer
 
                     renderLists[RenderPass.Opaque].Add(customRender);
                     renderLists[RenderPass.Translucent].Add(customRender);
+
+                    if (node.IsSelected)
+                    {
+                        renderLists[RenderPass.Outline].Add(customRender);
+                    }
                 }
             }
         }
@@ -580,8 +591,19 @@ namespace GUI.Types.Renderer
         {
             using (new GLDebugGroup("Translucent Render"))
             {
+                renderContext.RenderPass = RenderPass.Translucent;
                 MeshBatchRenderer.Render(renderLists[RenderPass.Translucent], renderContext);
             }
+        }
+
+        public void RenderOutlineLayer(RenderContext renderContext)
+        {
+            renderContext.RenderPass = RenderPass.Outline;
+            renderContext.ReplacementShader = GuiContext.ShaderLoader.LoadShader("vrf.outline");
+
+            MeshBatchRenderer.Render(renderLists[RenderPass.Outline], renderContext);
+
+            renderContext.ReplacementShader = null;
         }
 
         public void SetEnabledLayers(HashSet<string> layers, bool skipUpdate = false)

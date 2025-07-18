@@ -41,6 +41,12 @@ namespace GUI.Types.Renderer
             NumMipLevels = mipcount;
         }
 
+        public RenderTexture(int handle, TextureTarget target)
+        {
+            Handle = handle;
+            Target = target;
+        }
+
         public void SetWrapMode(TextureWrapMode wrap)
         {
             SetParameter(TextureParameterName.TextureWrapS, (int)wrap);

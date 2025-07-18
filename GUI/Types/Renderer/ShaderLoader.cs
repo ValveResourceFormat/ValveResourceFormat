@@ -359,7 +359,7 @@ namespace GUI.Types.Renderer
 
             if (ext is ".frag" or ".vert")
             {
-                // If frag or vert file changed, then we can only reload this shader
+                // If a named shader changed (not an include), then we can only reload this shader
                 name = Path.GetFileNameWithoutExtension(name);
             }
             else

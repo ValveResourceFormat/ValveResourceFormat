@@ -24,6 +24,7 @@ namespace GUI.Types.Renderer
         ShadowDepthBufferDepth,
         SceneColor,
         SceneDepth,
+        SceneStencil,
         MorphCompositeTexture,
         Last = MorphCompositeTexture,
     }

@@ -130,7 +130,7 @@ namespace GUI.Types.Renderer
             {
                 if (request.Call == null)
                 {
-                    if (context.RenderPass is RenderPass.Opaque or RenderPass.Translucent)
+                    if (context.RenderPass is RenderPass.Opaque or RenderPass.Translucent or RenderPass.Outline)
                     {
                         request.Node.Render(context);
                         shader = null;

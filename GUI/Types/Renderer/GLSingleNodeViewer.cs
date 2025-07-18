@@ -120,7 +120,7 @@ namespace GUI.Types.Renderer
 
             if (SaveAsFbo == null)
             {
-                SaveAsFbo = Framebuffer.Prepare(w, h, 0, new(PixelInternalFormat.Rgba8, PixelFormat.Bgra, PixelType.UnsignedByte), null);
+                SaveAsFbo = Framebuffer.Prepare(nameof(SaveAsFbo), w, h, 0, new(PixelInternalFormat.Rgba8, PixelFormat.Bgra, PixelType.UnsignedByte), null);
                 SaveAsFbo.ClearColor = new OpenTK.Mathematics.Color4(0, 0, 0, 0);
                 SaveAsFbo.Initialize();
             }

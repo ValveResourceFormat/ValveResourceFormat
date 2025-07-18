@@ -15,6 +15,8 @@
 uniform int g_nNumSamplesMSAA = 1;
 uniform bool g_bFlipY = false;
 
+const float InvNumSamples = 1.0 / float(g_nNumSamplesMSAA);
+
 uniform float g_flToneMapScalarLinear;
 uniform float g_flExposureBiasScaleFactor;
 uniform float g_flShoulderStrength;
@@ -33,6 +35,7 @@ uniform vec4 g_vBlueNoiseDitherParams;
 layout (location = 0) uniform sampler2DMS g_tColorBuffer;
 layout (location = 1) uniform sampler3D g_tColorCorrection;
 layout (location = 2) uniform sampler2D g_tBlueNoise;
+layout (location = 3) uniform usampler2DMS g_tStencilBuffer;
 
 layout (location = 0) out vec4 outputColor;
 
@@ -71,17 +74,82 @@ vec3 DitherColor(vec3 vColor)
     return vColor + subPrecisionDither;
 }
 
+void SampleStencilMSAA(ivec2 pixelCoords, out uint insideCount, out int totalSamples)
+{
+    for (int i = 0; i < g_nNumSamplesMSAA; i++)
+    {
+        uint stencilValue = texelFetch(g_tStencilBuffer, pixelCoords, i).r;
+        insideCount += stencilValue;
+    }
+
+    totalSamples += g_nNumSamplesMSAA;
+}
+
+vec3 DrawOutline(vec3 vColor)
+{
+    const int width = 2;
+    const int shadingRate = 1;
+
+    ivec2 pixelCoords = ivec2(gl_FragCoord.xy);
+    pixelCoords.y = g_bFlipY ? textureSize(g_tStencilBuffer).y - pixelCoords.y - 1 : pixelCoords.y;
+
+    int totalSamples = 0;
+    uint insideCountCenter = 0;
+
+    SampleStencilMSAA(pixelCoords, insideCountCenter, totalSamples);
+
+    if (insideCountCenter == g_nNumSamplesMSAA)
+    {
+        // do not draw outline inside the object
+        return vColor;
+    }
+
+    uint insideCount = insideCountCenter;
+    uvec2 stencilTextureSize = textureSize(g_tStencilBuffer);
+
+    for(int x = -width; x <= width;  x += shadingRate)
+    {
+        for(int y = -width; y <= width; y += shadingRate)
+        {
+            ivec2 sampleCoords = pixelCoords + ivec2(x, y);
+
+            if (sampleCoords.x < 0 || sampleCoords.x >= stencilTextureSize.x ||
+                sampleCoords.y < 0 || sampleCoords.y >= stencilTextureSize.y)
+            {
+                continue;
+            }
+
+            SampleStencilMSAA(sampleCoords, insideCount, totalSamples);
+        }
+    }
+
+    if (totalSamples == 0) return vColor;
+
+    float inside = insideCount / float(totalSamples);
+
+    float edge = RemapVal(inside, 0.001, 0.999, 0.0, 1.0);
+
+    if (edge < 0.0 || edge > 1.0)
+    {
+        return vColor; // No outline
+    }
+
+    float centerContribution = insideCountCenter * InvNumSamples;
+    float outlineAlpha =  RemapValClamped(edge, 0, 0.05, 0.0, 1.0) * (1.0 - centerContribution);
+
+    const vec3 vOutlineColor = vec3(1.0, 1.0, 0.2);
+
+    return mix(vColor.rgb, vOutlineColor, outlineAlpha);
+}
+
 vec4 SampleColorBuffer(vec2 coords)
 {
-    const int NumSamples = int(g_nNumSamplesMSAA);
-    const float InvNumSamples = 1.0 / float(g_nNumSamplesMSAA);
-
     vec4 vColorMSAA = vec4(0.0);
 
     ivec2 pixelCoords = ivec2(coords.xy);
     pixelCoords.y = g_bFlipY ? textureSize(g_tColorBuffer).y - pixelCoords.y - 1 : pixelCoords.y;
 
-    for (int i = 0; i < NumSamples; i++)
+    for (int i = 0; i < g_nNumSamplesMSAA; i++)
     {
         vec4 sampleColor = texelFetch(g_tColorBuffer, pixelCoords, i);
         sampleColor = clamp(sampleColor, vec4(0), vec4(65504));
@@ -108,6 +176,8 @@ void main()
 
     // Not present in CS2, done in msaa_resolve_ps instead
     vColor.rgb = DitherColor(vColor.rgb);
+
+    vColor.rgb = DrawOutline(vColor.rgb);
 
     outputColor = vColor;
 }

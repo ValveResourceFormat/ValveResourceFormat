@@ -1,4 +1,3 @@
-using System.Linq;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 
@@ -376,6 +375,8 @@ namespace GUI.Types.Renderer
 
             IsLoaded = false;
             Program = shader.Program;
+
+            System.Diagnostics.Debug.Assert(shader.ShaderObjects.Length == ShaderObjects.Length);
 
             for (var i = 0; i < shader.ShaderObjects.Length; i++)
             {

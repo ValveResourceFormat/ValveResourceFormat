@@ -279,7 +279,7 @@ namespace GUI.Types.Renderer
 
             var shadowQuality = Settings.Config.ShadowResolution;
 
-            ShadowDepthBuffer = Framebuffer.Prepare(shadowQuality, shadowQuality, 0, null, Framebuffer.DepthAttachmentFormat.Depth32F);
+            ShadowDepthBuffer = Framebuffer.Prepare(nameof(ShadowDepthBuffer), shadowQuality, shadowQuality, 0, null, Framebuffer.DepthAttachmentFormat.Depth32F);
             ShadowDepthBuffer.Initialize();
             ShadowDepthBuffer.ClearMask = ClearBufferMask.DepthBufferBit;
             GL.DrawBuffer(DrawBufferMode.None);
@@ -298,7 +298,7 @@ namespace GUI.Types.Renderer
 
             depthOnlyShaders[(int)DepthOnlyProgram.OcclusionQueryAABBProxy] = GuiContext.ShaderLoader.LoadShader("vrf.depth_only_aabb");
 
-            FramebufferCopy = Framebuffer.Prepare(4, 4, 0,
+            FramebufferCopy = Framebuffer.Prepare(nameof(FramebufferCopy), 4, 4, 0,
                 new Framebuffer.AttachmentFormat(PixelInternalFormat.R11fG11fB10f, PixelFormat.Rgb, PixelType.HalfFloat),
                 new Framebuffer.DepthAttachmentFormat(PixelInternalFormat.DepthComponent32f, PixelType.Float)
             );
@@ -308,6 +308,7 @@ namespace GUI.Types.Renderer
 
             Textures.Add(new(ReservedTextureSlots.SceneColor, "g_tSceneColor", FramebufferCopy.Color));
             Textures.Add(new(ReservedTextureSlots.SceneDepth, "g_tSceneDepth", FramebufferCopy.Depth));
+            Textures.Add(new(ReservedTextureSlots.SceneStencil, "g_tSceneStencil", FramebufferCopy.Stencil));
 
             MainFramebuffer.Bind(FramebufferTarget.Framebuffer);
             CreateBuffers();
@@ -523,6 +524,14 @@ namespace GUI.Types.Renderer
             {
                 GL.PolygonMode(TriangleFace.FrontAndBack, PolygonMode.Fill);
             }
+
+            if (renderContext.ReplacementShader is null)
+            {
+                using (new GLDebugGroup("Outline Render"))
+                {
+                    RenderOutlineLayer(renderContext);
+                }
+            }
         }
 
         private static void RenderTranslucentLayer(Scene scene, Scene.RenderContext renderContext)
@@ -533,6 +542,26 @@ namespace GUI.Types.Renderer
             scene.RenderTranslucentLayer(renderContext);
 
             GL.Disable(EnableCap.Blend);
+            GL.DepthMask(true);
+        }
+
+        private void RenderOutlineLayer(Scene.RenderContext renderContext)
+        {
+            GL.DepthMask(false);
+            GL.Disable(EnableCap.DepthTest);
+            GL.Disable(EnableCap.CullFace);
+
+            GL.Enable(EnableCap.StencilTest);
+            GL.StencilOp(StencilOp.Keep, StencilOp.Keep, StencilOp.Replace);
+            GL.StencilFunc(StencilFunction.Always, 1, 0xFF);
+            GL.StencilMask(0xFF);
+
+            SkyboxScene?.RenderOutlineLayer(renderContext);
+            Scene.RenderOutlineLayer(renderContext);
+
+            GL.Disable(EnableCap.StencilTest);
+            GL.Enable(EnableCap.CullFace);
+            GL.Enable(EnableCap.DepthTest);
             GL.DepthMask(true);
         }
 

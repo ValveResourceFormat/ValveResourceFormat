@@ -138,7 +138,7 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
         GLWindowContext.Load += () =>
         {
             GLViewerControl.CheckOpenGL();
-            Framebuffer = Framebuffer.Prepare(4, 4, 0, LDRFormat.Value, null);
+            Framebuffer = Framebuffer.Prepare(nameof(GLTextureDecoder), 4, 4, 0, LDRFormat.Value, null);
             Framebuffer.Initialize();
             Framebuffer.CheckStatus_ThrowIfIncomplete(nameof(GLTextureDecoder));
             Framebuffer.ClearMask = ClearBufferMask.ColorBufferBit;

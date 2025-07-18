@@ -46,7 +46,7 @@ class PickingTexture : Framebuffer
     // could share depth buffer with main framebuffer, but msaa doesn't match
     // private readonly Framebuffer depthSource;
 
-    public PickingTexture(VrfGuiContext vrfGuiContext, EventHandler<PickingResponse> onPicked)
+    public PickingTexture(VrfGuiContext vrfGuiContext, EventHandler<PickingResponse> onPicked) : base(nameof(PickingTexture))
     {
         guiContext = vrfGuiContext;
         Shader = vrfGuiContext.ShaderLoader.LoadShader("vrf.picking");

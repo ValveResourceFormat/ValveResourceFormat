@@ -578,7 +578,7 @@ namespace GUI.Types.Renderer
 
                 if (SaveAsFbo == null)
                 {
-                    SaveAsFbo = Framebuffer.Prepare(bitmap.Width, bitmap.Height, 0, new(PixelInternalFormat.Rgba8, PixelFormat.Bgra, PixelType.UnsignedByte), null);
+                    SaveAsFbo = Framebuffer.Prepare(nameof(SaveAsFbo), bitmap.Width, bitmap.Height, 0, new(PixelInternalFormat.Rgba8, PixelFormat.Bgra, PixelType.UnsignedByte), null);
                     SaveAsFbo.Initialize();
                 }
                 else
