@@ -247,7 +247,6 @@ namespace GUI.Types.Renderer
             if (renderPass > RenderPass.DepthOnly && request.Node.IsSelected)
             {
                 renderLists[RenderPass.Outline].Add(request);
-                WantsSceneDepth = true;
             }
 
             queueList.Add(request);
@@ -339,6 +338,11 @@ namespace GUI.Types.Renderer
 
                     renderLists[RenderPass.Opaque].Add(customRender);
                     renderLists[RenderPass.Translucent].Add(customRender);
+
+                    if (node.IsSelected)
+                    {
+                        renderLists[RenderPass.Outline].Add(customRender);
+                    }
                 }
             }
         }
@@ -587,6 +591,7 @@ namespace GUI.Types.Renderer
         {
             using (new GLDebugGroup("Translucent Render"))
             {
+                renderContext.RenderPass = RenderPass.Translucent;
                 MeshBatchRenderer.Render(renderLists[RenderPass.Translucent], renderContext);
             }
         }
