@@ -124,7 +124,7 @@ namespace GUI.Types.Renderer
             GL.DepthFunc(DepthFunction.Always);
 
             renderShader.Use();
-            renderShader.SetUniform4x4("transform", Transform);
+            renderShader.SetUniform3x4("transform", Transform);
             renderShader.SetBoneAnimationData(false);
             renderShader.SetUniform1("sceneObjectId", Id);
 

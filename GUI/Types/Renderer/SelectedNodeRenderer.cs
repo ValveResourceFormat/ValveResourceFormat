@@ -324,7 +324,7 @@ namespace GUI.Types.Renderer
             GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
 
             shader.Use();
-            shader.SetUniform4x4("transform", Matrix4x4.Identity);
+            shader.SetUniform3x4("transform", Matrix4x4.Identity);
 
             GL.BindVertexArray(vaoHandle);
             GL.DrawArrays(PrimitiveType.Lines, 0, vertexCount);
