@@ -54,6 +54,8 @@ namespace GUI.Types.Renderer
         private readonly List<SceneNode> staticNodes = [];
         private readonly List<SceneNode> dynamicNodes = [];
 
+        private Shader OutlineShader;
+
         public Scene(VrfGuiContext context, float sizeHint = 32768)
         {
             GuiContext = context;
@@ -69,6 +71,8 @@ namespace GUI.Types.Renderer
             CalculateLightProbeBindings();
             CalculateEnvironmentMaps();
             CreateBuffers();
+
+            OutlineShader = GuiContext.ShaderLoader.LoadShader("vrf.outline");
         }
 
         public void Add(SceneNode node, bool dynamic)
@@ -599,7 +603,7 @@ namespace GUI.Types.Renderer
         public void RenderOutlineLayer(RenderContext renderContext)
         {
             renderContext.RenderPass = RenderPass.Outline;
-            renderContext.ReplacementShader = GuiContext.ShaderLoader.LoadShader("vrf.outline");
+            renderContext.ReplacementShader = OutlineShader;
 
             MeshBatchRenderer.Render(renderLists[RenderPass.Outline], renderContext);
 
