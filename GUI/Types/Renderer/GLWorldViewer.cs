@@ -207,13 +207,13 @@ namespace GUI.Types.Renderer
                     if (isFromVmap)
                     {
                         var worldTabPage = new TabPage("World Data");
-                        Resource.AddTextViewControl(ValveResourceFormat.ResourceType.WorldNode, world, worldTabPage);
                         tabControl.TabPages.Add(worldTabPage);
+                        Resource.AddTextViewControl(ValveResourceFormat.ResourceType.WorldNode, world, worldTabPage);
                     }
 
                     var worldNodeTabPage = new TabPage("Node Data");
-                    Resource.AddTextViewControl(ValveResourceFormat.ResourceType.WorldNode, result.MainWorldNode, worldNodeTabPage);
                     tabControl.TabPages.Add(worldNodeTabPage);
+                    Resource.AddTextViewControl(ValveResourceFormat.ResourceType.WorldNode, result.MainWorldNode, worldNodeTabPage);
 
                     var entitiesTabPage = new TabPage("Entity List");
                     entitiesTabPage.Controls.Add(new EntityViewer(GuiContext, result.Entities, SelectAndFocusEntity));
