@@ -1198,7 +1198,10 @@ namespace GUI.Types.Renderer
                 var lineNode = new LineSceneNode(scene, lineStart, end, new Color32(0, 255, 0), new Color32(255, 0, 0))
                 {
                     LayerName = "Entity Connections",
-                    Transform = Matrix4x4.CreateTranslation(origin)
+                    Transform = Matrix4x4.CreateTranslation(origin),
+#if DEBUG
+                    Name = $"Line from {entity.GetProperty<string>("hammeruniqueid")} to {endEntity.GetProperty<string>("hammeruniqueid")}"
+#endif
                 };
                 scene.Add(lineNode, true);
             }
