@@ -411,7 +411,7 @@ namespace GUI.Controls
 #if DEBUG
             if (type == DebugType.DebugTypeError)
             {
-                //Debugger.Break();
+                Debugger.Break();
             }
 #endif
         }
