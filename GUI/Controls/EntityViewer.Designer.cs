@@ -32,19 +32,19 @@ partial class EntityViewer
         EntityViewerGrid = new System.Windows.Forms.DataGridView();
         Class = new System.Windows.Forms.DataGridViewTextBoxColumn();
         targetname = new System.Windows.Forms.DataGridViewTextBoxColumn();
-        tableLayoutPanel1 = new System.Windows.Forms.TableLayoutPanel();
-        tableLayoutPanel2 = new System.Windows.Forms.TableLayoutPanel();
+        tableLayoutPanelLeft = new System.Windows.Forms.TableLayoutPanel();
         groupBox5 = new System.Windows.Forms.GroupBox();
-        tableLayoutPanel3 = new System.Windows.Forms.TableLayoutPanel();
-        tableLayoutPanel4 = new System.Windows.Forms.TableLayoutPanel();
+        tableLayoutPanelFiltersContainer = new System.Windows.Forms.TableLayoutPanel();
+        tableLayoutPanelKeysContainers = new System.Windows.Forms.TableLayoutPanel();
         groupBox3 = new System.Windows.Forms.GroupBox();
-        tableLayoutPanel6 = new System.Windows.Forms.TableLayoutPanel();
+        tableLayoutPanelKeys = new System.Windows.Forms.TableLayoutPanel();
         KeyValue_Key = new System.Windows.Forms.TextBox();
         KeyValue_Value = new System.Windows.Forms.TextBox();
         KeyValue_MatchWholeValue = new System.Windows.Forms.CheckBox();
         label1 = new System.Windows.Forms.Label();
+        label3 = new System.Windows.Forms.Label();
         groupBox2 = new System.Windows.Forms.GroupBox();
-        tableLayoutPanel5 = new System.Windows.Forms.TableLayoutPanel();
+        tableLayoutPanelObjects = new System.Windows.Forms.TableLayoutPanel();
         ObjectsToInclude_Everything = new System.Windows.Forms.RadioButton();
         ObjectsToInclude_MeshEntities = new System.Windows.Forms.RadioButton();
         ObjectsToInclude_PointEntities = new System.Windows.Forms.RadioButton();
@@ -52,17 +52,21 @@ partial class EntityViewer
         label2 = new System.Windows.Forms.Label();
         EntityPropertiesGroup = new System.Windows.Forms.GroupBox();
         EntityInfo = new GUI.Forms.EntityInfoControl();
+        splitContainer = new System.Windows.Forms.SplitContainer();
         ((System.ComponentModel.ISupportInitialize)EntityViewerGrid).BeginInit();
-        tableLayoutPanel1.SuspendLayout();
-        tableLayoutPanel2.SuspendLayout();
+        tableLayoutPanelLeft.SuspendLayout();
         groupBox5.SuspendLayout();
-        tableLayoutPanel3.SuspendLayout();
-        tableLayoutPanel4.SuspendLayout();
+        tableLayoutPanelFiltersContainer.SuspendLayout();
+        tableLayoutPanelKeysContainers.SuspendLayout();
         groupBox3.SuspendLayout();
-        tableLayoutPanel6.SuspendLayout();
+        tableLayoutPanelKeys.SuspendLayout();
         groupBox2.SuspendLayout();
-        tableLayoutPanel5.SuspendLayout();
+        tableLayoutPanelObjects.SuspendLayout();
         EntityPropertiesGroup.SuspendLayout();
+        ((System.ComponentModel.ISupportInitialize)splitContainer).BeginInit();
+        splitContainer.Panel1.SuspendLayout();
+        splitContainer.Panel2.SuspendLayout();
+        splitContainer.SuspendLayout();
         SuspendLayout();
         // 
         // EntityViewerGrid
@@ -101,38 +105,22 @@ partial class EntityViewer
         targetname.Name = "targetname";
         targetname.ReadOnly = true;
         // 
-        // tableLayoutPanel1
+        // tableLayoutPanelLeft
         // 
-        tableLayoutPanel1.ColumnCount = 2;
-        tableLayoutPanel1.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 50F));
-        tableLayoutPanel1.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 50F));
-        tableLayoutPanel1.Controls.Add(tableLayoutPanel2, 0, 0);
-        tableLayoutPanel1.Controls.Add(EntityPropertiesGroup, 1, 0);
-        tableLayoutPanel1.Dock = System.Windows.Forms.DockStyle.Fill;
-        tableLayoutPanel1.Location = new System.Drawing.Point(0, 0);
-        tableLayoutPanel1.Name = "tableLayoutPanel1";
-        tableLayoutPanel1.RowCount = 1;
-        tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 50F));
-        tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 50F));
-        tableLayoutPanel1.Size = new System.Drawing.Size(1025, 741);
-        tableLayoutPanel1.TabIndex = 1;
-        // 
-        // tableLayoutPanel2
-        // 
-        tableLayoutPanel2.ColumnCount = 1;
-        tableLayoutPanel2.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 50F));
-        tableLayoutPanel2.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 50F));
-        tableLayoutPanel2.Controls.Add(groupBox5, 0, 0);
-        tableLayoutPanel2.Controls.Add(tableLayoutPanel3, 0, 1);
-        tableLayoutPanel2.Dock = System.Windows.Forms.DockStyle.Fill;
-        tableLayoutPanel2.Location = new System.Drawing.Point(0, 0);
-        tableLayoutPanel2.Margin = new System.Windows.Forms.Padding(0);
-        tableLayoutPanel2.Name = "tableLayoutPanel2";
-        tableLayoutPanel2.RowCount = 2;
-        tableLayoutPanel2.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 75.31306F));
-        tableLayoutPanel2.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 24.6869411F));
-        tableLayoutPanel2.Size = new System.Drawing.Size(512, 741);
-        tableLayoutPanel2.TabIndex = 1;
+        tableLayoutPanelLeft.ColumnCount = 1;
+        tableLayoutPanelLeft.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 50F));
+        tableLayoutPanelLeft.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 50F));
+        tableLayoutPanelLeft.Controls.Add(groupBox5, 0, 0);
+        tableLayoutPanelLeft.Controls.Add(tableLayoutPanelFiltersContainer, 0, 1);
+        tableLayoutPanelLeft.Dock = System.Windows.Forms.DockStyle.Fill;
+        tableLayoutPanelLeft.Location = new System.Drawing.Point(0, 0);
+        tableLayoutPanelLeft.Margin = new System.Windows.Forms.Padding(0);
+        tableLayoutPanelLeft.Name = "tableLayoutPanelLeft";
+        tableLayoutPanelLeft.RowCount = 2;
+        tableLayoutPanelLeft.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 75.31306F));
+        tableLayoutPanelLeft.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 24.6869411F));
+        tableLayoutPanelLeft.Size = new System.Drawing.Size(512, 741);
+        tableLayoutPanelLeft.TabIndex = 1;
         // 
         // groupBox5
         // 
@@ -145,86 +133,86 @@ partial class EntityViewer
         groupBox5.TabStop = false;
         groupBox5.Text = "Entity List";
         // 
-        // tableLayoutPanel3
+        // tableLayoutPanelFiltersContainer
         // 
-        tableLayoutPanel3.ColumnCount = 2;
-        tableLayoutPanel3.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 50F));
-        tableLayoutPanel3.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 50F));
-        tableLayoutPanel3.Controls.Add(tableLayoutPanel4, 1, 0);
-        tableLayoutPanel3.Controls.Add(groupBox2, 0, 0);
-        tableLayoutPanel3.Dock = System.Windows.Forms.DockStyle.Fill;
-        tableLayoutPanel3.Location = new System.Drawing.Point(0, 558);
-        tableLayoutPanel3.Margin = new System.Windows.Forms.Padding(0);
-        tableLayoutPanel3.Name = "tableLayoutPanel3";
-        tableLayoutPanel3.RowCount = 1;
-        tableLayoutPanel3.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
-        tableLayoutPanel3.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 20F));
-        tableLayoutPanel3.Size = new System.Drawing.Size(512, 183);
-        tableLayoutPanel3.TabIndex = 0;
+        tableLayoutPanelFiltersContainer.ColumnCount = 2;
+        tableLayoutPanelFiltersContainer.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 50F));
+        tableLayoutPanelFiltersContainer.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 50F));
+        tableLayoutPanelFiltersContainer.Controls.Add(tableLayoutPanelKeysContainers, 1, 0);
+        tableLayoutPanelFiltersContainer.Controls.Add(groupBox2, 0, 0);
+        tableLayoutPanelFiltersContainer.Dock = System.Windows.Forms.DockStyle.Fill;
+        tableLayoutPanelFiltersContainer.Location = new System.Drawing.Point(0, 558);
+        tableLayoutPanelFiltersContainer.Margin = new System.Windows.Forms.Padding(0);
+        tableLayoutPanelFiltersContainer.Name = "tableLayoutPanelFiltersContainer";
+        tableLayoutPanelFiltersContainer.RowCount = 1;
+        tableLayoutPanelFiltersContainer.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
+        tableLayoutPanelFiltersContainer.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 20F));
+        tableLayoutPanelFiltersContainer.Size = new System.Drawing.Size(512, 183);
+        tableLayoutPanelFiltersContainer.TabIndex = 0;
         // 
-        // tableLayoutPanel4
+        // tableLayoutPanelKeysContainers
         // 
-        tableLayoutPanel4.ColumnCount = 1;
-        tableLayoutPanel4.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
-        tableLayoutPanel4.Controls.Add(groupBox3, 0, 0);
-        tableLayoutPanel4.Controls.Add(KeyValue_MatchWholeValue, 0, 1);
-        tableLayoutPanel4.Dock = System.Windows.Forms.DockStyle.Fill;
-        tableLayoutPanel4.Location = new System.Drawing.Point(256, 0);
-        tableLayoutPanel4.Margin = new System.Windows.Forms.Padding(0);
-        tableLayoutPanel4.Name = "tableLayoutPanel4";
-        tableLayoutPanel4.RowCount = 3;
-        tableLayoutPanel4.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 55F));
-        tableLayoutPanel4.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 27.34375F));
-        tableLayoutPanel4.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 72.65625F));
-        tableLayoutPanel4.Size = new System.Drawing.Size(256, 183);
-        tableLayoutPanel4.TabIndex = 0;
+        tableLayoutPanelKeysContainers.ColumnCount = 1;
+        tableLayoutPanelKeysContainers.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
+        tableLayoutPanelKeysContainers.Controls.Add(groupBox3, 0, 0);
+        tableLayoutPanelKeysContainers.Dock = System.Windows.Forms.DockStyle.Fill;
+        tableLayoutPanelKeysContainers.Location = new System.Drawing.Point(256, 0);
+        tableLayoutPanelKeysContainers.Margin = new System.Windows.Forms.Padding(0);
+        tableLayoutPanelKeysContainers.Name = "tableLayoutPanelKeysContainers";
+        tableLayoutPanelKeysContainers.RowCount = 1;
+        tableLayoutPanelKeysContainers.RowStyles.Add(new System.Windows.Forms.RowStyle());
+        tableLayoutPanelKeysContainers.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 20F));
+        tableLayoutPanelKeysContainers.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 20F));
+        tableLayoutPanelKeysContainers.Size = new System.Drawing.Size(256, 183);
+        tableLayoutPanelKeysContainers.TabIndex = 0;
         // 
         // groupBox3
         // 
-        groupBox3.Controls.Add(tableLayoutPanel6);
+        groupBox3.Controls.Add(tableLayoutPanelKeys);
         groupBox3.Dock = System.Windows.Forms.DockStyle.Fill;
         groupBox3.Location = new System.Drawing.Point(3, 3);
         groupBox3.Name = "groupBox3";
-        groupBox3.Size = new System.Drawing.Size(250, 49);
+        groupBox3.Size = new System.Drawing.Size(250, 177);
         groupBox3.TabIndex = 1;
         groupBox3.TabStop = false;
         groupBox3.Text = "Key / Value";
         // 
-        // tableLayoutPanel6
+        // tableLayoutPanelKeys
         // 
-        tableLayoutPanel6.ColumnCount = 3;
-        tableLayoutPanel6.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 50F));
-        tableLayoutPanel6.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 20F));
-        tableLayoutPanel6.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 50F));
-        tableLayoutPanel6.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 20F));
-        tableLayoutPanel6.Controls.Add(KeyValue_Key, 0, 0);
-        tableLayoutPanel6.Controls.Add(KeyValue_Value, 2, 0);
-        tableLayoutPanel6.Controls.Add(label1, 1, 0);
-        tableLayoutPanel6.Dock = System.Windows.Forms.DockStyle.Fill;
-        tableLayoutPanel6.Location = new System.Drawing.Point(3, 19);
-        tableLayoutPanel6.Name = "tableLayoutPanel6";
-        tableLayoutPanel6.RowCount = 1;
-        tableLayoutPanel6.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
-        tableLayoutPanel6.Size = new System.Drawing.Size(244, 27);
-        tableLayoutPanel6.TabIndex = 0;
+        tableLayoutPanelKeys.ColumnCount = 2;
+        tableLayoutPanelKeys.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle());
+        tableLayoutPanelKeys.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle());
+        tableLayoutPanelKeys.Controls.Add(KeyValue_Key, 1, 0);
+        tableLayoutPanelKeys.Controls.Add(KeyValue_Value, 1, 1);
+        tableLayoutPanelKeys.Controls.Add(KeyValue_MatchWholeValue, 1, 2);
+        tableLayoutPanelKeys.Controls.Add(label1, 0, 0);
+        tableLayoutPanelKeys.Controls.Add(label3, 0, 1);
+        tableLayoutPanelKeys.Dock = System.Windows.Forms.DockStyle.Fill;
+        tableLayoutPanelKeys.Location = new System.Drawing.Point(3, 19);
+        tableLayoutPanelKeys.Name = "tableLayoutPanelKeys";
+        tableLayoutPanelKeys.RowCount = 4;
+        tableLayoutPanelKeys.RowStyles.Add(new System.Windows.Forms.RowStyle());
+        tableLayoutPanelKeys.RowStyles.Add(new System.Windows.Forms.RowStyle());
+        tableLayoutPanelKeys.RowStyles.Add(new System.Windows.Forms.RowStyle());
+        tableLayoutPanelKeys.RowStyles.Add(new System.Windows.Forms.RowStyle());
+        tableLayoutPanelKeys.Size = new System.Drawing.Size(244, 155);
+        tableLayoutPanelKeys.TabIndex = 0;
         // 
         // KeyValue_Key
         // 
         KeyValue_Key.Dock = System.Windows.Forms.DockStyle.Fill;
-        KeyValue_Key.Location = new System.Drawing.Point(3, 3);
-        KeyValue_Key.Multiline = true;
+        KeyValue_Key.Location = new System.Drawing.Point(44, 3);
         KeyValue_Key.Name = "KeyValue_Key";
-        KeyValue_Key.Size = new System.Drawing.Size(106, 21);
+        KeyValue_Key.Size = new System.Drawing.Size(197, 23);
         KeyValue_Key.TabIndex = 0;
         KeyValue_Key.TextChanged += KeyValue_Key_TextChanged;
         // 
         // KeyValue_Value
         // 
         KeyValue_Value.Dock = System.Windows.Forms.DockStyle.Fill;
-        KeyValue_Value.Location = new System.Drawing.Point(135, 3);
-        KeyValue_Value.Multiline = true;
+        KeyValue_Value.Location = new System.Drawing.Point(44, 32);
         KeyValue_Value.Name = "KeyValue_Value";
-        KeyValue_Value.Size = new System.Drawing.Size(106, 21);
+        KeyValue_Value.Size = new System.Drawing.Size(197, 23);
         KeyValue_Value.TabIndex = 1;
         KeyValue_Value.TextChanged += KeyValue_Value_TextChanged;
         // 
@@ -232,9 +220,9 @@ partial class EntityViewer
         // 
         KeyValue_MatchWholeValue.AutoSize = true;
         KeyValue_MatchWholeValue.Dock = System.Windows.Forms.DockStyle.Fill;
-        KeyValue_MatchWholeValue.Location = new System.Drawing.Point(3, 58);
+        KeyValue_MatchWholeValue.Location = new System.Drawing.Point(44, 61);
         KeyValue_MatchWholeValue.Name = "KeyValue_MatchWholeValue";
-        KeyValue_MatchWholeValue.Size = new System.Drawing.Size(250, 29);
+        KeyValue_MatchWholeValue.Size = new System.Drawing.Size(197, 19);
         KeyValue_MatchWholeValue.TabIndex = 2;
         KeyValue_MatchWholeValue.Text = "Match whole value";
         KeyValue_MatchWholeValue.UseVisualStyleBackColor = true;
@@ -244,18 +232,27 @@ partial class EntityViewer
         // 
         label1.AutoSize = true;
         label1.Dock = System.Windows.Forms.DockStyle.Fill;
-        label1.Location = new System.Drawing.Point(112, 0);
-        label1.Margin = new System.Windows.Forms.Padding(0);
+        label1.Location = new System.Drawing.Point(3, 0);
         label1.Name = "label1";
-        label1.Size = new System.Drawing.Size(20, 27);
+        label1.Size = new System.Drawing.Size(35, 29);
         label1.TabIndex = 3;
-        label1.Text = "=";
-        label1.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
-        label1.UseCompatibleTextRendering = true;
+        label1.Text = "Key";
+        label1.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+        // 
+        // label3
+        // 
+        label3.AutoSize = true;
+        label3.Dock = System.Windows.Forms.DockStyle.Fill;
+        label3.Location = new System.Drawing.Point(3, 29);
+        label3.Name = "label3";
+        label3.Size = new System.Drawing.Size(35, 29);
+        label3.TabIndex = 4;
+        label3.Text = "Value";
+        label3.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
         // 
         // groupBox2
         // 
-        groupBox2.Controls.Add(tableLayoutPanel5);
+        groupBox2.Controls.Add(tableLayoutPanelObjects);
         groupBox2.Dock = System.Windows.Forms.DockStyle.Fill;
         groupBox2.Location = new System.Drawing.Point(3, 3);
         groupBox2.Name = "groupBox2";
@@ -264,26 +261,26 @@ partial class EntityViewer
         groupBox2.TabStop = false;
         groupBox2.Text = "Objects To Include";
         // 
-        // tableLayoutPanel5
+        // tableLayoutPanelObjects
         // 
-        tableLayoutPanel5.ColumnCount = 1;
-        tableLayoutPanel5.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
-        tableLayoutPanel5.Controls.Add(ObjectsToInclude_Everything, 0, 0);
-        tableLayoutPanel5.Controls.Add(ObjectsToInclude_MeshEntities, 0, 1);
-        tableLayoutPanel5.Controls.Add(ObjectsToInclude_PointEntities, 0, 2);
-        tableLayoutPanel5.Controls.Add(ObjectsToInclude_ClassTextBox, 0, 4);
-        tableLayoutPanel5.Controls.Add(label2, 0, 3);
-        tableLayoutPanel5.Dock = System.Windows.Forms.DockStyle.Fill;
-        tableLayoutPanel5.Location = new System.Drawing.Point(3, 19);
-        tableLayoutPanel5.Name = "tableLayoutPanel5";
-        tableLayoutPanel5.RowCount = 5;
-        tableLayoutPanel5.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 20F));
-        tableLayoutPanel5.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 20F));
-        tableLayoutPanel5.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 20F));
-        tableLayoutPanel5.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 20F));
-        tableLayoutPanel5.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 20F));
-        tableLayoutPanel5.Size = new System.Drawing.Size(244, 155);
-        tableLayoutPanel5.TabIndex = 0;
+        tableLayoutPanelObjects.ColumnCount = 1;
+        tableLayoutPanelObjects.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
+        tableLayoutPanelObjects.Controls.Add(ObjectsToInclude_Everything, 0, 0);
+        tableLayoutPanelObjects.Controls.Add(ObjectsToInclude_MeshEntities, 0, 1);
+        tableLayoutPanelObjects.Controls.Add(ObjectsToInclude_PointEntities, 0, 2);
+        tableLayoutPanelObjects.Controls.Add(ObjectsToInclude_ClassTextBox, 0, 4);
+        tableLayoutPanelObjects.Controls.Add(label2, 0, 3);
+        tableLayoutPanelObjects.Dock = System.Windows.Forms.DockStyle.Fill;
+        tableLayoutPanelObjects.Location = new System.Drawing.Point(3, 19);
+        tableLayoutPanelObjects.Name = "tableLayoutPanelObjects";
+        tableLayoutPanelObjects.RowCount = 5;
+        tableLayoutPanelObjects.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 20F));
+        tableLayoutPanelObjects.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 20F));
+        tableLayoutPanelObjects.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 20F));
+        tableLayoutPanelObjects.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 20F));
+        tableLayoutPanelObjects.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 20F));
+        tableLayoutPanelObjects.Size = new System.Drawing.Size(244, 155);
+        tableLayoutPanelObjects.TabIndex = 0;
         // 
         // ObjectsToInclude_Everything
         // 
@@ -347,9 +344,9 @@ partial class EntityViewer
         // 
         EntityPropertiesGroup.Controls.Add(EntityInfo);
         EntityPropertiesGroup.Dock = System.Windows.Forms.DockStyle.Fill;
-        EntityPropertiesGroup.Location = new System.Drawing.Point(515, 3);
+        EntityPropertiesGroup.Location = new System.Drawing.Point(0, 0);
         EntityPropertiesGroup.Name = "EntityPropertiesGroup";
-        EntityPropertiesGroup.Size = new System.Drawing.Size(507, 735);
+        EntityPropertiesGroup.Size = new System.Drawing.Size(509, 741);
         EntityPropertiesGroup.TabIndex = 2;
         EntityPropertiesGroup.TabStop = false;
         EntityPropertiesGroup.Text = "Entity Properties - ";
@@ -359,30 +356,49 @@ partial class EntityViewer
         EntityInfo.Dock = System.Windows.Forms.DockStyle.Fill;
         EntityInfo.Location = new System.Drawing.Point(3, 19);
         EntityInfo.Name = "EntityInfo";
-        EntityInfo.Size = new System.Drawing.Size(501, 713);
+        EntityInfo.Size = new System.Drawing.Size(503, 719);
         EntityInfo.TabIndex = 0;
+        // 
+        // splitContainer
+        // 
+        splitContainer.Dock = System.Windows.Forms.DockStyle.Fill;
+        splitContainer.Location = new System.Drawing.Point(0, 0);
+        splitContainer.Name = "splitContainer";
+        // 
+        // splitContainer.Panel1
+        // 
+        splitContainer.Panel1.Controls.Add(tableLayoutPanelLeft);
+        // 
+        // splitContainer.Panel2
+        // 
+        splitContainer.Panel2.Controls.Add(EntityPropertiesGroup);
+        splitContainer.Size = new System.Drawing.Size(1025, 741);
+        splitContainer.SplitterDistance = 512;
+        splitContainer.TabIndex = 2;
         // 
         // EntityViewer
         // 
         AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
         AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-        Controls.Add(tableLayoutPanel1);
+        Controls.Add(splitContainer);
         Name = "EntityViewer";
         Size = new System.Drawing.Size(1025, 741);
         ((System.ComponentModel.ISupportInitialize)EntityViewerGrid).EndInit();
-        tableLayoutPanel1.ResumeLayout(false);
-        tableLayoutPanel2.ResumeLayout(false);
+        tableLayoutPanelLeft.ResumeLayout(false);
         groupBox5.ResumeLayout(false);
-        tableLayoutPanel3.ResumeLayout(false);
-        tableLayoutPanel4.ResumeLayout(false);
-        tableLayoutPanel4.PerformLayout();
+        tableLayoutPanelFiltersContainer.ResumeLayout(false);
+        tableLayoutPanelKeysContainers.ResumeLayout(false);
         groupBox3.ResumeLayout(false);
-        tableLayoutPanel6.ResumeLayout(false);
-        tableLayoutPanel6.PerformLayout();
+        tableLayoutPanelKeys.ResumeLayout(false);
+        tableLayoutPanelKeys.PerformLayout();
         groupBox2.ResumeLayout(false);
-        tableLayoutPanel5.ResumeLayout(false);
-        tableLayoutPanel5.PerformLayout();
+        tableLayoutPanelObjects.ResumeLayout(false);
+        tableLayoutPanelObjects.PerformLayout();
         EntityPropertiesGroup.ResumeLayout(false);
+        splitContainer.Panel1.ResumeLayout(false);
+        splitContainer.Panel2.ResumeLayout(false);
+        ((System.ComponentModel.ISupportInitialize)splitContainer).EndInit();
+        splitContainer.ResumeLayout(false);
         ResumeLayout(false);
     }
 
@@ -391,24 +407,26 @@ partial class EntityViewer
     private System.Windows.Forms.DataGridView EntityViewerGrid;
     private System.Windows.Forms.DataGridViewTextBoxColumn Class;
     private System.Windows.Forms.DataGridViewTextBoxColumn targetname;
-    private System.Windows.Forms.TableLayoutPanel tableLayoutPanel1;
-    private System.Windows.Forms.TableLayoutPanel tableLayoutPanel2;
-    private System.Windows.Forms.TableLayoutPanel tableLayoutPanel3;
+    private System.Windows.Forms.TableLayoutPanel tableLayoutPanelRoot;
+    private System.Windows.Forms.TableLayoutPanel tableLayoutPanelLeft;
+    private System.Windows.Forms.TableLayoutPanel tableLayoutPanelFiltersContainer;
     private System.Windows.Forms.GroupBox groupBox2;
     private System.Windows.Forms.GroupBox groupBox3;
-    private System.Windows.Forms.TableLayoutPanel tableLayoutPanel4;
-    private System.Windows.Forms.TableLayoutPanel tableLayoutPanel5;
+    private System.Windows.Forms.TableLayoutPanel tableLayoutPanelKeysContainers;
+    private System.Windows.Forms.TableLayoutPanel tableLayoutPanelObjects;
     private System.Windows.Forms.RadioButton ObjectsToInclude_Everything;
     private System.Windows.Forms.RadioButton ObjectsToInclude_MeshEntities;
     private System.Windows.Forms.RadioButton ObjectsToInclude_PointEntities;
     private System.Windows.Forms.TextBox ObjectsToInclude_ClassTextBox;
-    private System.Windows.Forms.TableLayoutPanel tableLayoutPanel6;
+    private System.Windows.Forms.TableLayoutPanel tableLayoutPanelKeys;
     private System.Windows.Forms.TextBox KeyValue_Key;
     private System.Windows.Forms.TextBox KeyValue_Value;
-    private System.Windows.Forms.CheckBox KeyValue_MatchWholeValue;
-    private System.Windows.Forms.Label label1;
     private System.Windows.Forms.GroupBox EntityPropertiesGroup;
     private System.Windows.Forms.GroupBox groupBox5;
     private Forms.EntityInfoControl EntityInfo;
     private System.Windows.Forms.Label label2;
+    private System.Windows.Forms.CheckBox KeyValue_MatchWholeValue;
+    private System.Windows.Forms.Label label1;
+    private System.Windows.Forms.Label label3;
+    private System.Windows.Forms.SplitContainer splitContainer;
 }
