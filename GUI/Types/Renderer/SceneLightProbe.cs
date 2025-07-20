@@ -121,14 +121,6 @@ class SceneLightProbe : SceneNode
         }
     }
 
-    public override void Render(Scene.RenderContext context)
-    {
-    }
-
-    public override void Update(Scene.UpdateContext context)
-    {
-    }
-
     public void SetGpuProbeData(bool isProbeAtlas)
     {
 #if false // for debugging

@@ -28,12 +28,4 @@ class SceneEnvMap : SceneNode
     {
         LocalBoundingBox = bounds;
     }
-
-    public override void Render(Scene.RenderContext context)
-    {
-    }
-
-    public override void Update(Scene.UpdateContext context)
-    {
-    }
 }

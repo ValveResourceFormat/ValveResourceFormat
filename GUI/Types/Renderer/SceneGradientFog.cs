@@ -1,5 +1,6 @@
 namespace GUI.Types.Renderer;
-class SceneGradientFog : SceneNode
+
+class SceneGradientFog(Scene scene) : SceneNode(scene)
 {
     public float StartDist { get; set; }
     public float EndDist { get; set; }
@@ -28,15 +29,4 @@ class SceneGradientFog : SceneNode
     public Vector2 Exponents => new(FalloffExponent, VerticalExponent);
     public Vector4 Color_Opacity => new(Color * Strength, MaxOpacity);
     public Vector2 CullingParams => new(StartDist * StartDist, HeightStart);
-
-    public SceneGradientFog(Scene scene) : base(scene)
-    {
-    }
-    public override void Render(Scene.RenderContext context)
-    {
-    }
-
-    public override void Update(Scene.UpdateContext context)
-    {
-    }
 }

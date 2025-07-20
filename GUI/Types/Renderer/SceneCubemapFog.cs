@@ -2,7 +2,7 @@ namespace GUI.Types.Renderer;
 
 #nullable disable
 
-class SceneCubemapFog : SceneNode
+class SceneCubemapFog(Scene scene) : SceneNode(scene)
 {
     public float StartDist { get; set; }
     public float EndDist { get; set; }
@@ -50,16 +50,5 @@ class SceneCubemapFog : SceneNode
         var heightCull = (UseHeightFog || ((HeightEnd - HeightStart) > 0)) ? HeightStart : float.PositiveInfinity;
 
         return new Vector4(distCull, heightCull, MathF.Pow(2f, ExposureBias), Opacity);
-    }
-
-    public SceneCubemapFog(Scene scene) : base(scene)
-    {
-    }
-    public override void Render(Scene.RenderContext context)
-    {
-    }
-
-    public override void Update(Scene.UpdateContext context)
-    {
     }
 }
