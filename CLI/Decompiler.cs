@@ -485,7 +485,7 @@ namespace Decompiler
                         Console.WriteLine($"Processing file {CurrentFile} out of {TotalFiles} files - {path}");
                     }
                 }
-                else if (IsInputFolder)
+                else if (IsInputFolder || originalPath != null)
                 {
                     Console.ForegroundColor = ConsoleColor.Green;
                     Console.Write($"[{CurrentFile}/{TotalFiles}] ");
