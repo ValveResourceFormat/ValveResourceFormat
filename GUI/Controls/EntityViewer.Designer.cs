@@ -407,7 +407,6 @@ partial class EntityViewer
     private System.Windows.Forms.DataGridView EntityViewerGrid;
     private System.Windows.Forms.DataGridViewTextBoxColumn Class;
     private System.Windows.Forms.DataGridViewTextBoxColumn targetname;
-    private System.Windows.Forms.TableLayoutPanel tableLayoutPanelRoot;
     private System.Windows.Forms.TableLayoutPanel tableLayoutPanelLeft;
     private System.Windows.Forms.TableLayoutPanel tableLayoutPanelFiltersContainer;
     private System.Windows.Forms.GroupBox groupBox2;
