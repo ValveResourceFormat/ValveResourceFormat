@@ -80,7 +80,17 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
+        public override void WriteText(IndentedTextWriter writer)
+        {
+            GetPrintabaleObject().WriteText(writer);
+        }
+
         public override string ToString()
+        {
+            return GetPrintabaleObject().ToString();
+        }
+
+        private KV3File GetPrintabaleObject()
         {
             var root = new KVObject(null);
             var index = 0;
@@ -99,8 +109,7 @@ namespace ValveResourceFormat.ResourceTypes
                 index++;
             }
 
-            var kv = new KV3File(root);
-            return kv.ToString();
+            return new KV3File(root);
         }
     }
 }

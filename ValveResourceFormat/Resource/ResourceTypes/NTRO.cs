@@ -322,6 +322,11 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
+        public override void WriteText(IndentedTextWriter writer)
+        {
+            new KV3File(Output).WriteText(writer);
+        }
+
         public override string ToString()
         {
             return new KV3File(Output).ToString() ?? "Nope.";

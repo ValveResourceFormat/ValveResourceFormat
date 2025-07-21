@@ -57,6 +57,17 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
+        public override void WriteText(IndentedTextWriter writer)
+        {
+            if (BackingData is BinaryKV3 dataKv3)
+            {
+                dataKv3.GetKV3File().WriteText(writer);
+                return;
+            }
+
+            BackingData.WriteText(writer);
+        }
+
         public override string ToString()
         {
             if (BackingData is BinaryKV3 dataKv3)
