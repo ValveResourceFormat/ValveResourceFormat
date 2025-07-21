@@ -22,7 +22,7 @@ using ValveResourceFormat.ToolsAssetInfo;
 using ValveResourceFormat.Utils;
 using ValveResourceFormat.ValveFont;
 
-namespace Decompiler
+namespace CLI
 {
     public partial class Decompiler
     {
