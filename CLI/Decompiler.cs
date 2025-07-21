@@ -713,8 +713,8 @@ namespace CLI
                         using var stringWriter = new ConsoleStringWriter(ConsoleOutputBuilder, CultureInfo.InvariantCulture);
                         using var writer = new IndentedTextWriter(stringWriter);
                         block.WriteText(writer);
-                        writer.WriteLine();
                         writer.Flush();
+                        Console.WriteLine();
                     }
                 }
             }
