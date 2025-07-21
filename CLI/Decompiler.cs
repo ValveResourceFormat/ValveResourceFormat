@@ -32,6 +32,7 @@ namespace CLI
         private HashSet<string>? knownEntityKeys;
 
         private readonly Lock ConsoleWriterLock = new();
+        private readonly StringBuilder ConsoleOutputBuilder = new(1024);
         private int CurrentFile;
         private int TotalFiles;
 
@@ -706,7 +707,15 @@ namespace CLI
                     }
 
                     Console.WriteLine("--- Data for block \"{0}\" ---", block.Type);
-                    Console.WriteLine(block.ToString());
+
+                    lock (ConsoleWriterLock)
+                    {
+                        using var stringWriter = new ConsoleStringWriter(ConsoleOutputBuilder, CultureInfo.InvariantCulture);
+                        using var writer = new IndentedTextWriter(stringWriter);
+                        block.WriteText(writer);
+                        writer.WriteLine();
+                        writer.Flush();
+                    }
                 }
             }
         }
