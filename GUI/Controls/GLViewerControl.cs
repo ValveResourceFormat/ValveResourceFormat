@@ -294,15 +294,9 @@ namespace GUI.Controls
                     Picker?.RequestNextFrame(e.X, e.Y, intent);
                 }
             }
-            /* TODO: phase this obscure bind out */
             else if (e.Button == MouseButtons.Right)
             {
                 CurrentlyPressedKeys |= TrackedKeys.MouseRight;
-
-                if (e.Clicks == 2)
-                {
-                    Picker?.RequestNextFrame(e.X, e.Y, PickingIntent.Open);
-                }
             }
         }
 
