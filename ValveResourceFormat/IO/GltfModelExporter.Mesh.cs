@@ -165,7 +165,7 @@ public partial class GltfModelExporter
                                 var bufferView = exportedModel.CreateBufferView(4 * buffer.Length, 0, BufferMode.ARRAY_BUFFER);
                                 new ScalarArray(bufferView.Content).Fill(buffer);
                                 var accessor = exportedModel.CreateAccessor();
-                                accessor.SetVertexData(bufferView, 0, buffer.Length, DimensionType.SCALAR);
+                                accessor.SetVertexData(bufferView, 0, buffer.Length, AttributeFormat.Float1);
                                 accessors[accessorName] = accessor;
                                 break;
                             }
@@ -252,8 +252,8 @@ public partial class GltfModelExporter
                     var accessor0 = exportedModel.CreateAccessor();
                     var accessor1 = exportedModel.CreateAccessor();
 
-                    accessor0.SetVertexData(bufferView, 0, joints.Length / 8, DimensionType.VEC4, EncodingType.UNSIGNED_SHORT);
-                    accessor1.SetVertexData(bufferView, joints.Length, joints.Length / 8, DimensionType.VEC4, EncodingType.UNSIGNED_SHORT);
+                    accessor0.SetVertexData(bufferView, 0, joints.Length / 8, new AttributeFormat(DimensionType.VEC4, EncodingType.UNSIGNED_SHORT));
+                    accessor1.SetVertexData(bufferView, joints.Length, joints.Length / 8, new AttributeFormat(DimensionType.VEC4, EncodingType.UNSIGNED_SHORT));
 
                     accessors["JOINTS_0"] = accessor0;
                     accessors["JOINTS_1"] = accessor1;
@@ -263,7 +263,7 @@ public partial class GltfModelExporter
                     joints.CopyTo(bufferViewShorts);
 
                     var accessor = exportedModel.CreateAccessor();
-                    accessor.SetVertexData(bufferView, 0, joints.Length / 4, DimensionType.VEC4, EncodingType.UNSIGNED_SHORT);
+                    accessor.SetVertexData(bufferView, 0, joints.Length / 4, new AttributeFormat(DimensionType.VEC4, EncodingType.UNSIGNED_SHORT));
                     accessors["JOINTS_0"] = accessor;
                 }
 
@@ -524,7 +524,7 @@ public partial class GltfModelExporter
 
             var acc = model.CreateAccessor();
             acc.Name = morphName;
-            acc.SetData(bufferView, 0, vertexCount, DimensionType.VEC3, EncodingType.FLOAT, false);
+            acc.SetData(bufferView, 0, vertexCount, AttributeFormat.Float3);
 
             var dict = new Dictionary<string, Accessor>
                 {
@@ -570,7 +570,7 @@ public partial class GltfModelExporter
         new Vector2Array(bufferView.Content).Fill(vectors);
 
         var accessor = exportedModel.CreateAccessor();
-        accessor.SetVertexData(bufferView, 0, vectors.Length, DimensionType.VEC2);
+        accessor.SetVertexData(bufferView, 0, vectors.Length, AttributeFormat.Float2);
 
         return accessor;
     }
@@ -581,7 +581,7 @@ public partial class GltfModelExporter
         new Vector3Array(bufferView.Content).Fill(vectors);
 
         var accessor = exportedModel.CreateAccessor();
-        accessor.SetVertexData(bufferView, 0, vectors.Length, DimensionType.VEC3);
+        accessor.SetVertexData(bufferView, 0, vectors.Length, AttributeFormat.Float3);
 
         return accessor;
     }
@@ -592,7 +592,7 @@ public partial class GltfModelExporter
         new Vector4Array(bufferView.Content).Fill(vectors);
 
         var accessor = exportedModel.CreateAccessor();
-        accessor.SetVertexData(bufferView, 0, vectors.Length, DimensionType.VEC4);
+        accessor.SetVertexData(bufferView, 0, vectors.Length, AttributeFormat.Float4);
 
         return accessor;
     }
