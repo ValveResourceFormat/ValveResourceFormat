@@ -323,6 +323,8 @@ public class GLControl : Control
             return;
         }
 
-        _nativeWindow?.MakeCurrent();
+        Debug.Assert(_nativeWindow != null);
+
+        _nativeWindow.MakeCurrent();
     }
 }
