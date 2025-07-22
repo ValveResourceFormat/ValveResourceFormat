@@ -503,10 +503,6 @@ namespace GUI.Types.Renderer
 
                 decodeFlagsListBox?.Dispose();
                 decodeFlagsListBox = null;
-
-
-                texture?.Delete();
-                SaveAsFbo?.Dispose();
             }
         }
 
@@ -974,7 +970,7 @@ namespace GUI.Types.Renderer
             // Use non-msaa framebuffer for texture viewer
             if (MainFramebuffer != GLDefaultFramebuffer)
             {
-                MainFramebuffer.Dispose();
+                MainFramebuffer.Delete();
                 MainFramebuffer = GLDefaultFramebuffer;
             }
 

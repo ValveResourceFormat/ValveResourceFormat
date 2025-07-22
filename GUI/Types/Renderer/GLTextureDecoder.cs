@@ -164,11 +164,6 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
             }
         };
 
-        GLWindowContext.Closing += (e) =>
-        {
-            Framebuffer?.Dispose();
-        };
-
         GLWindowContext.Run();
     }
 

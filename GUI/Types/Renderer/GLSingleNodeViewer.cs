@@ -21,16 +21,6 @@ namespace GUI.Types.Renderer
             //
         }
 
-        protected override void Dispose(bool disposing)
-        {
-            base.Dispose(disposing);
-
-            if (disposing)
-            {
-                SaveAsFbo?.Dispose();
-            }
-        }
-
         protected override void InitializeControl()
         {
             AddRenderModeSelectionControl();

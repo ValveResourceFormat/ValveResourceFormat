@@ -121,14 +121,4 @@ class PickingTexture : Framebuffer
 
         DebugShader = null;
     }
-
-    protected override void Dispose(bool disposing)
-    {
-        if (disposing)
-        {
-            OnPicked = null;
-        }
-
-        base.Dispose(disposing);
-    }
 }

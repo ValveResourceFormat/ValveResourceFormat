@@ -3,7 +3,7 @@ using OpenTK.Mathematics;
 
 namespace GUI.Types.Renderer;
 
-class Framebuffer : IDisposable
+class Framebuffer
 {
     public int FboHandle { get; }
 
@@ -209,32 +209,23 @@ class Framebuffer : IDisposable
         }
     }
 
-    protected virtual void Dispose(bool diposing)
+    public void Delete()
     {
-        if (diposing)
+        GL.DeleteFramebuffer(FboHandle);
+
+        if (Color != null)
         {
-            GL.DeleteFramebuffer(FboHandle);
-
-            if (Color != null)
-            {
-                GL.DeleteTexture(Color.Handle);
-            }
-
-            if (Depth != null)
-            {
-                GL.DeleteTexture(Depth.Handle);
-            }
-
-            if (Stencil != null)
-            {
-                GL.DeleteTexture(Stencil.Handle);
-            }
+            GL.DeleteTexture(Color.Handle);
         }
-    }
 
-    public void Dispose()
-    {
-        Dispose(true);
-        GC.SuppressFinalize(this);
+        if (Depth != null)
+        {
+            GL.DeleteTexture(Depth.Handle);
+        }
+
+        if (Stencil != null)
+        {
+            GL.DeleteTexture(Stencil.Handle);
+        }
     }
 }

@@ -39,7 +39,7 @@ namespace GUI.Types.Renderer.Buffers
             }
         }
 
-        public virtual void Dispose()
+        public void Delete()
         {
             GL.DeleteBuffer(Handle);
         }

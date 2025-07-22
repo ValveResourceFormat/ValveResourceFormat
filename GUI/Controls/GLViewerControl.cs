@@ -683,7 +683,7 @@ namespace GUI.Controls
                     Log.Error(nameof(GLViewerControl), $"Framebuffer failed to initialize with error: {status}");
                     Log.Info(nameof(GLViewerControl), "Falling back to default framebuffer.");
 
-                    DisposeFramebuffer();
+                    MainFramebuffer.Delete();
                     MainFramebuffer = GLDefaultFramebuffer;
                     GL.Enable(EnableCap.FramebufferSrgb);
                 }
@@ -691,12 +691,6 @@ namespace GUI.Controls
 
             Camera.SetViewportSize(w, h);
             Picker?.Resize(w, h);
-        }
-
-        private void DisposeFramebuffer()
-        {
-            GLDefaultFramebuffer?.Dispose();
-            MainFramebuffer?.Dispose();
         }
 
         private void OnAppActivated(object sender, EventArgs e)
