@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using GUI.Utils;
@@ -102,6 +103,15 @@ namespace GUI.Types.Renderer
                 while ((line = reader.ReadLine()) != null)
                 {
                     lineNum++;
+
+#if DEBUG
+                    if (!line.All(static c => char.IsAscii(c)))
+                    {
+                        // At least on nvidia, trying to compile GLSL with non ascii characters will throw bizzare errors like
+                        // wrong #line source-line error, or EOF.
+                        throw new ShaderCompilerException($"Line {lineNum} in '{shaderFileToLoad}' contains non-ASCII characters.");
+                    }
+#endif
 
                     if (lineNum == 2)
                     {
