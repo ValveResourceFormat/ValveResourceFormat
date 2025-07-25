@@ -50,8 +50,7 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
     }
 
     private readonly VrfGuiContext guiContext = new();
-    private readonly AutoResetEvent queueUpdateEvent = new(false);
-    private readonly ConcurrentQueue<DecodeRequest> decodeQueue = new();
+    private readonly BlockingCollection<DecodeRequest> decodeQueue = [];
     private readonly Lock threadStartupLock = new();
 
     private Thread GLThread;
@@ -90,8 +89,7 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
         using var request = new DecodeRequest(bitmap, resource, (int)mipLevel, (int)depth, face, ChannelMapping.RGBA, decodeFlags);
 
         var sw = Stopwatch.StartNew();
-        decodeQueue.Enqueue(request);
-        queueUpdateEvent.Set();
+        decodeQueue.Add(request);
 
         request.Wait();
         request.ResponseTime = sw.Elapsed - request.DecodeTime;
@@ -147,9 +145,7 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
 
         GLWindowContext.RenderFrame += (e) =>
         {
-            queueUpdateEvent.WaitOne();
-
-            if (decodeQueue.TryDequeue(out var decodeRequest))
+            foreach (var decodeRequest in decodeQueue.GetConsumingEnumerable())
             {
                 try
                 {
@@ -273,7 +269,7 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
     private void Exit()
     {
         GLWindowContext.Close();  // signal the thread that it should exit
-        queueUpdateEvent.Set(); // wake the thread up
+        decodeQueue.CompleteAdding(); // mark the thread as done
         GLThread.Join(); // wait for the thread to exit
     }
 
@@ -284,14 +280,12 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
             queuedRequest.MarkAsDone(successfully: false);
             queuedRequest.Dispose();
         }
-
-        decodeQueue.Clear();
     }
 
     public void Dispose()
     {
         Exit();
-        queueUpdateEvent.Dispose();
+        decodeQueue.Dispose();
         guiContext.Dispose();
         Log.Info(nameof(GLTextureDecoder), "Decoder has been disposed.");
     }
