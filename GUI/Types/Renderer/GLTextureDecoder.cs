@@ -55,7 +55,7 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
 
     private Thread GLThread;
 
-    private GameWindow GLWindowContext;
+    private NativeWindow GLWindowContext;
     private Framebuffer Framebuffer;
 
     public void StartThread()
@@ -122,7 +122,7 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
     {
         Log.Info(nameof(GLTextureDecoder), "Initializing GPU texture decoder...");
 
-        GLWindowContext = new GameWindow(new() { UpdateFrequency = 200 }, new()
+        GLWindowContext = new NativeWindow(new()
         {
             APIVersion = GLViewerControl.OpenGlVersion,
             Flags = GLViewerControl.OpenGlFlags | OpenTK.Windowing.Common.ContextFlags.Offscreen,
@@ -133,34 +133,26 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
             StencilBits = null,
         });
 
-        GLWindowContext.Load += () =>
-        {
-            GLViewerControl.CheckOpenGL();
-            Framebuffer = Framebuffer.Prepare(nameof(GLTextureDecoder), 4, 4, 0, LDRFormat.Value, null);
-            Framebuffer.Initialize();
-            Framebuffer.CheckStatus_ThrowIfIncomplete(nameof(GLTextureDecoder));
-            Framebuffer.ClearMask = ClearBufferMask.ColorBufferBit;
-            Framebuffer.ClearColor = new OpenTK.Mathematics.Color4(0, 0, 255, 255);
-        };
+        GLViewerControl.CheckOpenGL();
+        Framebuffer = Framebuffer.Prepare(nameof(GLTextureDecoder), 4, 4, 0, LDRFormat.Value, null);
+        Framebuffer.Initialize();
+        Framebuffer.CheckStatus_ThrowIfIncomplete(nameof(GLTextureDecoder));
+        Framebuffer.ClearMask = ClearBufferMask.ColorBufferBit;
+        Framebuffer.ClearColor = new OpenTK.Mathematics.Color4(0, 0, 255, 255);
 
-        GLWindowContext.RenderFrame += (e) =>
+        foreach (var decodeRequest in decodeQueue.GetConsumingEnumerable())
         {
-            foreach (var decodeRequest in decodeQueue.GetConsumingEnumerable())
+            try
             {
-                try
-                {
-                    var isDecoded = DecodeTexture(decodeRequest);
-                    decodeRequest.MarkAsDone(isDecoded);
-                }
-                catch
-                {
-                    decodeRequest.MarkAsDone(false);
-                    throw;
-                }
+                var isDecoded = DecodeTexture(decodeRequest);
+                decodeRequest.MarkAsDone(isDecoded);
             }
-        };
-
-        GLWindowContext.Run();
+            catch
+            {
+                decodeRequest.MarkAsDone(false);
+                throw;
+            }
+        }
     }
 
     private bool DecodeTexture(DecodeRequest request)
