@@ -138,11 +138,11 @@ namespace ValveResourceFormat.CompiledShader
             nr_states = new int[combos.Length];
 
             offsets[0] = 1;
-            nr_states[0] = combos[0].RangeMax + 1;
+            nr_states[0] = combos[0].RangeMax - combos[0].RangeMin + 1;
 
             for (var i = 1; i < combos.Length; i++)
             {
-                nr_states[i] = combos[i].RangeMax + 1;
+                nr_states[i] = combos[i].RangeMax - combos[i].RangeMin + 1;
                 offsets[i] = offsets[i - 1] * nr_states[i - 1];
             }
 
