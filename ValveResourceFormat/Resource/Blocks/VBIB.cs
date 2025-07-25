@@ -236,7 +236,7 @@ namespace ValveResourceFormat.Blocks
             {
                 //null-terminated string
                 //SemanticName = Encoding.UTF8.GetString(il.GetArray<byte>("m_pSemanticName")).TrimEnd((char)0),
-                SemanticName = il.GetStringProperty("m_pSemanticName"),
+                SemanticName = il.GetStringProperty("m_pSemanticName").ToUpperInvariant(),
                 SemanticIndex = il.GetInt32Property("m_nSemanticIndex"),
                 Format = (DXGI_FORMAT)il.GetUInt32Property("m_Format"),
                 Offset = il.GetUInt32Property("m_nOffset"),
