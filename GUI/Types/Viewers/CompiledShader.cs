@@ -448,7 +448,7 @@ namespace GUI.Types.Viewers
                 case VfxShaderFileDXBC:
                 case VfxShaderFileDXIL:
                     {
-                        return (null, shaderFile.Bytecode);
+                        return ("Decompiling DirectX shaders is not supported.", shaderFile.Bytecode);
                     }
 
                 case VfxShaderFileVulkan vulkanSource:
