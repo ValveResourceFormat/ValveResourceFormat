@@ -274,7 +274,7 @@ namespace GUI.Types.Renderer
                     return; // do not draw
                 }
 
-                var transformationMatrix = parentTransform * EntityTransformHelper.CalculateTransformationMatrix(entity);
+                var transformationMatrix = EntityTransformHelper.CalculateTransformationMatrix(entity) * parentTransform;
                 var light = SceneLight.IsAccepted(classname);
 
                 if (entity.Connections != null)
