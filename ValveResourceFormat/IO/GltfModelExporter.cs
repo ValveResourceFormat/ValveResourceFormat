@@ -91,7 +91,6 @@ namespace ValveResourceFormat.IO
         /// <param name="cancellationToken">Optional task cancellation token</param>
         public void Export(Resource resource, string? targetPath, CancellationToken cancellationToken = default)
         {
-            ExportMaterials = false;
             if (IsExporting)
             {
                 throw new InvalidOperationException($"{nameof(GltfModelExporter)} does not support multi threaded exporting, do not call Export while another export is in progress.");
