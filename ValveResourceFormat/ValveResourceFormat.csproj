@@ -10,6 +10,8 @@
   </PropertyGroup>
   <ItemGroup>
       <EmbeddedResource Include="Utils\RobotoAscii.ttf" />
+      <EmbeddedResource Include="Utils\vfx_zstd_2bc2fa87.bin" />
+      <EmbeddedResource Include="Utils\vfx_zstd_255df362.bin" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="K4os.Compression.LZ4" Version="1.3.8" />
