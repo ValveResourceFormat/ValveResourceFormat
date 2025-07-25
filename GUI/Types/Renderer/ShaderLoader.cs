@@ -406,7 +406,7 @@ namespace GUI.Types.Renderer
 
             var shaders = Directory.GetFiles(folder, "*.frag");
 
-            using var window = new GameWindow(GameWindowSettings.Default, new()
+            using var window = new NativeWindow(new()
             {
                 APIVersion = GLViewerControl.OpenGlVersion,
                 Flags = GLViewerControl.OpenGlFlags | OpenTK.Windowing.Common.ContextFlags.Offscreen,
