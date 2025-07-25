@@ -133,6 +133,8 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
             StencilBits = null,
         });
 
+        GLWindowContext.MakeCurrent();
+
         GLViewerControl.CheckOpenGL();
         Framebuffer = Framebuffer.Prepare(nameof(GLTextureDecoder), 4, 4, 0, LDRFormat.Value, null);
         Framebuffer.Initialize();
