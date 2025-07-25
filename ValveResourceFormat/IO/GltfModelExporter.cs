@@ -91,6 +91,7 @@ namespace ValveResourceFormat.IO
         /// <param name="cancellationToken">Optional task cancellation token</param>
         public void Export(Resource resource, string? targetPath, CancellationToken cancellationToken = default)
         {
+            ExportMaterials = false;
             if (IsExporting)
             {
                 throw new InvalidOperationException($"{nameof(GltfModelExporter)} does not support multi threaded exporting, do not call Export while another export is in progress.");
@@ -198,7 +199,7 @@ namespace ValveResourceFormat.IO
 
                 var entityLump = (VEntityLump)entityLumpResource.DataBlock!;
 
-                LoadEntityMeshes(exportedModel, scene, entityLump);
+                LoadEntityMeshes(exportedModel, scene, entityLump, Matrix4x4.Identity);
             }
 
             WriteModelFile(exportedModel, fileName);
@@ -246,18 +247,36 @@ namespace ValveResourceFormat.IO
         {
             var exportedModel = CreateModelRoot(resourceName, out var scene);
 
-            LoadEntityMeshes(exportedModel, scene, entityLump);
+            LoadEntityMeshes(exportedModel, scene, entityLump, Matrix4x4.Identity);
 
             WriteModelFile(exportedModel, fileName);
 
             ExportPhysicsIfAny(resourceName, fileName);
         }
 
-        private void LoadEntityMeshes(ModelRoot exportedModel, Scene scene, VEntityLump entityLump)
+        private void LoadEntityMeshes(ModelRoot exportedModel, Scene scene, VEntityLump entityLump, Matrix4x4 parentTransform = default(Matrix4x4))
         {
+            var childEntities = entityLump.GetChildEntityNames();
+            var childEntityLumps = new Dictionary<string, VEntityLump>(childEntities.Length);
+
+            foreach (var childEntityName in childEntities)
+            {
+                var newResource = FileLoader.LoadFileCompiled(childEntityName);
+
+                if (newResource == null)
+                {
+                    continue;
+                }
+
+                var childLump = (VEntityLump)newResource.DataBlock!;
+                var childName = childLump.Data.GetProperty<string>("m_name");
+
+                childEntityLumps.Add(childName, childLump);
+            }
+
             foreach (var entity in entityLump.GetEntities())
             {
-                var transform = EntityTransformHelper.CalculateTransformationMatrix(entity);
+                var transform = EntityTransformHelper.CalculateTransformationMatrix(entity) * parentTransform;
                 var modelName = entity.GetProperty<string>("model");
                 var className = entity.GetProperty<string>("classname");
 
@@ -286,6 +305,19 @@ namespace ValveResourceFormat.IO
                         var node = scene.CreateNode(className);
                         node.PunctualLight = CreateGltfLightEnvironment(exportedModel, entity);
                         node.LocalMatrix = lightMatrix * TRANSFORMSOURCETOGLTF;
+                    }
+                    else if (className == "point_template")
+                    {
+                        var entityLumpName = entity.GetProperty<string>("entitylumpname");
+
+                        if (entityLumpName != null && childEntityLumps.TryGetValue(entityLumpName, out var childLump))
+                        {
+                            LoadEntityMeshes(exportedModel, scene, childLump, transform);
+                        }
+                        else
+                        {
+                            ProgressReporter?.Report($"Failed to find child entity lump with name {entityLumpName}.");
+                        }
                     }
 
                     continue;
@@ -350,21 +382,6 @@ namespace ValveResourceFormat.IO
                 }
             }
 
-            foreach (var childEntityName in entityLump.GetChildEntityNames())
-            {
-                if (childEntityName == null)
-                {
-                    continue;
-                }
-                var childEntityLumpResource = FileLoader.LoadFileCompiled(childEntityName);
-                if (childEntityLumpResource == null)
-                {
-                    continue;
-                }
-
-                var childEntityLump = (VEntityLump)childEntityLumpResource.DataBlock!;
-                LoadEntityMeshes(exportedModel, scene, childEntityLump);
-            }
         }
 
         private static string? GetSkinPathFromModel(VModel model, string skinName)
