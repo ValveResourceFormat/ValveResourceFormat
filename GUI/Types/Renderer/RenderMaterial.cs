@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
+using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.ResourceTypes;
 
 namespace GUI.Types.Renderer
@@ -68,9 +69,18 @@ namespace GUI.Types.Renderer
 
             if (material.ShaderName == "sky.vfx")
             {
-                var shader = guiContext.FileLoader.LoadShader(material.ShaderName);
+                ShaderCollection? shader = null;
 
-                if (shader.Features != null)
+                try
+                {
+                    shader = guiContext.FileLoader.LoadShader(material.ShaderName);
+                }
+                catch (UnexpectedMagicException e)
+                {
+                    Log.Error(nameof(RenderMaterial), $"Failed to load the sky shader: {e.Message}");
+                }
+
+                if (shader?.Features != null)
                 {
                     foreach (var block in shader.Features.StaticComboArray)
                     {
