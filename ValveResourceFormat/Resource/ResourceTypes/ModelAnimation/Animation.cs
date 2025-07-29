@@ -193,7 +193,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
         public bool HasMovementData()
         {
-            return Movements.Length > 0;
+            return Animation2 == null && Movements.Length > 0;
         }
 
         /// <summary>
