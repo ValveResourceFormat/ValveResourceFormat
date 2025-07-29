@@ -98,5 +98,11 @@ namespace GUI.Types.Renderer
                 }
             }
         }
+
+        protected override void OnPaint(object sender, RenderEventArgs e)
+        {
+            animationController.Update(e.FrameTime);
+            base.OnPaint(sender, e);
+        }
     }
 }

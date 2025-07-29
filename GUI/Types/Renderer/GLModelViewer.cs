@@ -7,8 +7,6 @@ using GUI.Utils;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
-using ValveResourceFormat.ResourceTypes.ModelAnimation2;
-
 
 #nullable disable
 
@@ -18,7 +16,6 @@ namespace GUI.Types.Renderer
     {
         protected Model model { get; init; }
         private PhysAggregateData phys;
-
         public ComboBox animationComboBox { get; protected set; }
         protected CheckBox animationPlayPause;
         private CheckBox rootMotionCheckBox;

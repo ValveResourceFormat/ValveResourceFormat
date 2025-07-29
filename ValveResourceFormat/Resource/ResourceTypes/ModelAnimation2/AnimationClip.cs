@@ -25,7 +25,6 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
     public class AnimationClip : BinaryKV3
     {
         public string Name { get; private set; }
-        public float Fps { get; private set; }
 
         public string SkeletonName { get; private set; }
         public int NumFrames { get; private set; }
@@ -90,15 +89,6 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
                 secondaryAnim.ReadClip(secondaryAnims[j]);
                 SecondaryAnimations[j] = secondaryAnim;
             }
-
-            // Calculate fps
-            Fps = NumFrames / Duration;
-
-#if DEBUG
-            // Reading test
-            var bones = new FrameBone[TrackCompressionSettings.Length];
-            ReadFrame(0, bones);
-#endif
         }
 
         public void ReadFrame(int frameIndex, FrameBone[] bones)

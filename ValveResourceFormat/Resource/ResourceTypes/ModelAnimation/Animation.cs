@@ -193,7 +193,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
         public bool HasMovementData()
         {
-            return Animation2 == null && Movements.Length > 0;
+            return Movements.Length > 0;
         }
 
         /// <summary>
@@ -293,22 +293,25 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             }
         }
 
-        // todo: remove this
-        public AnimationClip Animation2 { get; }
-        public Animation(AnimationClip animation2)
-        {
-            Name = animation2.Name;
-            Fps = animation2.Fps;
-            FrameCount = animation2.NumFrames;
+        public AnimationClip Clip { get; }
 
-            Animation2 = animation2;
+        public Animation(AnimationClip clip)
+        {
+            Name = clip.Name;
+            FrameCount = clip.NumFrames;
+            Fps = clip.NumFrames / clip.Duration;
+
+            Clip = clip;
+            Movements = [];
+            Events = [];
+            Activities = [];
         }
 
         public void DecodeFrame(Frame outFrame)
         {
-            if (Animation2 != null)
+            if (Clip != null)
             {
-                Animation2.ReadFrame(outFrame.FrameIndex, outFrame.Bones);
+                Clip.ReadFrame(outFrame.FrameIndex, outFrame.Bones);
                 return;
             }
 
