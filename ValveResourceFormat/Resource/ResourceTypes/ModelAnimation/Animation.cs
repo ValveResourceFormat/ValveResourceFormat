@@ -1,6 +1,7 @@
 using System.Linq;
 using System.Runtime.InteropServices;
 using ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders;
+using ValveResourceFormat.ResourceTypes.ModelAnimation2;
 using ValveResourceFormat.ResourceTypes.ModelFlex;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -292,8 +293,28 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             }
         }
 
+        public AnimationClip Clip { get; }
+
+        public Animation(AnimationClip clip)
+        {
+            Name = clip.Name;
+            FrameCount = clip.NumFrames;
+            Fps = clip.NumFrames / clip.Duration;
+
+            Clip = clip;
+            Movements = [];
+            Events = [];
+            Activities = [];
+        }
+
         public void DecodeFrame(Frame outFrame)
         {
+            if (Clip != null)
+            {
+                Clip.ReadFrame(outFrame.FrameIndex, outFrame.Bones);
+                return;
+            }
+
             // Read all frame blocks
             foreach (var frameBlock in FrameBlocks)
             {

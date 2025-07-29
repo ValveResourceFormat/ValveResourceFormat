@@ -334,6 +334,20 @@ namespace GUI.Types.Viewers
                         break;
                     }
 
+                case ResourceType.NmClip:
+                    {
+                        specialTabPage = new TabPage("ANIMATION CLIP");
+                        specialTabPage.Controls.Add(new GLAnimationViewer(vrfGuiContext, resource));
+                        break;
+                    }
+
+                case ResourceType.NmSkeleton:
+                    {
+                        specialTabPage = new TabPage("SKELETON");
+                        specialTabPage.Controls.Add(new GLAnimationViewer(vrfGuiContext, resource));
+                        break;
+                    }
+
                 case ResourceType.Material:
                     {
                         if (((Material)resource.DataBlock).ShaderName == "sky.vfx")

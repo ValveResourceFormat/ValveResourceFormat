@@ -1,7 +1,10 @@
 #nullable disable
 
+using System.Diagnostics;
+
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 {
+    [DebuggerDisplay("{Name} (Index: {Index})")]
     public class Bone
     {
         public int Index { get; }

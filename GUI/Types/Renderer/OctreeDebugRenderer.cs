@@ -1,5 +1,3 @@
-using System.Globalization;
-using System.Windows.Forms;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 

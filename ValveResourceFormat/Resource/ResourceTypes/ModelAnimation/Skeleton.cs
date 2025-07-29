@@ -27,6 +27,48 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             return new Skeleton(modelData.GetSubCollection("m_modelSkeleton"));
         }
 
+        public static Skeleton FromSkeletonData(KVObject nmSkeleton)
+        {
+            var boneNames = nmSkeleton.GetArray<string>("m_boneIDs");
+            var boneParents = nmSkeleton.GetIntegerArray("m_parentIndices");
+            var boneTransforms = nmSkeleton.GetArray("m_parentSpaceReferencePose");
+
+            var boneCount = boneNames.Length;
+
+            var s = new Skeleton
+            {
+                Bones = new Bone[boneCount],
+            };
+
+            for (var i = 0; i < boneCount; i++)
+            {
+                var position = new Vector3(
+                    boneTransforms[i].GetFloatProperty("0"),
+                    boneTransforms[i].GetFloatProperty("1"),
+                    boneTransforms[i].GetFloatProperty("2")
+                );
+
+                var scale = boneTransforms[i].GetFloatProperty("3");
+
+                var rotation = new Quaternion(
+                    boneTransforms[i].GetFloatProperty("4"),
+                    boneTransforms[i].GetFloatProperty("5"),
+                    boneTransforms[i].GetFloatProperty("6"),
+                    boneTransforms[i].GetFloatProperty("7")
+                );
+
+                var bone = new Bone(i, boneNames[i], position, rotation, ModelSkeletonBoneFlags.NoBoneFlags);
+                s.Bones[i] = bone;
+            }
+
+            s.SetBoneParents(boneParents);
+            return s;
+        }
+
+        private Skeleton()
+        {
+        }
+
         /// <summary>
         /// Construct the Armature object from mesh skeleton KV data.
         /// </summary>
@@ -55,6 +97,11 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                 }
             }
 
+            SetBoneParents(boneParents);
+        }
+
+        private void SetBoneParents(long[] boneParents)
+        {
             var roots = new List<Bone>();
             foreach (var bone in Bones)
             {
@@ -68,7 +115,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                 roots.Add(bone);
             }
 
-            Roots = roots.ToArray();
+            Roots = [.. roots];
         }
     }
 }

@@ -255,6 +255,11 @@ namespace GUI.Types.Renderer
                 offset = Math.Clamp(offset, 0f, 2000f);
                 var location = new Vector3(offset, 0, offset);
 
+                if (this is GLAnimationViewer)
+                {
+                    location = new(offset);
+                }
+
                 Camera.SetLocation(location);
                 Camera.LookAt(bbox.Center);
             }
