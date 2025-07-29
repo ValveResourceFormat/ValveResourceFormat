@@ -5,26 +5,27 @@ using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.ResourceTypes.ModelAnimation2;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace GUI.Types.Renderer
 {
     class GLAnimationViewer : GLModelViewer
     {
-        public Skeleton Skeleton { get; set; }
+        public KVObject SkeletonData { get; set; }
         public AnimationClip? clip { get; init; }
 
         public GLAnimationViewer(VrfGuiContext guiContext, Resource resource) : base(guiContext)
         {
             if (resource.ResourceType is ResourceType.NmSkeleton)
             {
-                Skeleton = Skeleton.FromSkeletonData(((BinaryKV3)resource.DataBlock!).Data);
+                SkeletonData = ((BinaryKV3)resource.DataBlock!).Data;
             }
             else if (resource.DataBlock is AnimationClip animationClip)
             {
                 clip = animationClip;
 
                 var skeletonResource = guiContext.LoadFileCompiled(animationClip.SkeletonName);
-                Skeleton = Skeleton.FromSkeletonData(((BinaryKV3)skeletonResource.DataBlock!).Data);
+                SkeletonData = ((BinaryKV3)skeletonResource.DataBlock!).Data;
             }
             else
             {
@@ -36,35 +37,47 @@ namespace GUI.Types.Renderer
         {
             base.LoadScene();
 
-            if (clip != null)
+            void LoadSkeleton(bool firstTime)
             {
-                void LoadClip(AnimationClip clip, string skeletonName, bool firstTime = true)
+                var skeleton = Skeleton.FromSkeletonData(SkeletonData);
+                animationController = new AnimationController(skeleton, []);
+
+                if (!firstTime && skeletonSceneNode != null)
                 {
-                    animationController = new AnimationController(Skeleton, []);
-
-                    if (!firstTime && skeletonSceneNode != null)
-                    {
-                        skeletonSceneNode.Enabled = false; // scene.Remove?
-                    }
-
-                    skeletonSceneNode = new SkeletonSceneNode(Scene, animationController, Skeleton)
-                    {
-                        Enabled = true,
-                    };
-
-                    SetAnimationControllerUpdateHandler();
-
-                    if (firstTime)
-                    {
-                        AddAnimationControls();
-                        skeletonSceneNode.Update(new(0f, this)); // update bbox for viewer
-                    }
-
-                    animationPlayPause.Enabled = true;
-                    animationController.SetAnimation(new Animation(clip));
-                    Scene.Add(skeletonSceneNode, true);
+                    skeletonSceneNode.Enabled = false; // scene.Remove?
                 }
 
+                skeletonSceneNode = new SkeletonSceneNode(Scene, animationController, skeleton)
+                {
+                    Enabled = true,
+                };
+
+                Scene.Add(skeletonSceneNode, true);
+                skeletonSceneNode.Update(new(0f, this)); // update bbox for viewer
+            }
+
+            void LoadClip(AnimationClip clip, string skeletonName, bool firstTime = true)
+            {
+                var skeletonResource = GuiContext.LoadFileCompiled(clip.SkeletonName);
+                SkeletonData = ((BinaryKV3)skeletonResource.DataBlock!).Data;
+                LoadSkeleton(firstTime);
+                SetAnimationControllerUpdateHandler();
+
+                if (firstTime)
+                {
+                    AddAnimationControls();
+                }
+
+                animationPlayPause.Enabled = true;
+                animationController.SetAnimation(new Animation(clip));
+            }
+
+            if (clip == null)
+            {
+                LoadSkeleton(true);
+            }
+            else
+            {
                 LoadClip(clip, clip.SkeletonName);
 
                 if (clip.SecondaryAnimations.Length > 0)
@@ -84,7 +97,6 @@ namespace GUI.Types.Renderer
                     animationComboBox.SelectedIndex = 0;
                 }
             }
-
         }
     }
 }
