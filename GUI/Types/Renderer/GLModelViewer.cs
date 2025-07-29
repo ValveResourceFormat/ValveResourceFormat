@@ -18,7 +18,7 @@ namespace GUI.Types.Renderer
     {
         protected Model model { get; init; }
         private PhysAggregateData phys;
-        private readonly AnimationClip anim;
+        private readonly AnimationClip clip;
 
         public ComboBox animationComboBox { get; private set; }
         private CheckBox animationPlayPause;
@@ -52,7 +52,7 @@ namespace GUI.Types.Renderer
 
         public GLModelViewer(VrfGuiContext guiContext, AnimationClip anim) : base(guiContext)
         {
-            this.anim = anim;
+            this.clip = anim;
         }
 
         protected override void Dispose(bool disposing)
@@ -290,21 +290,53 @@ namespace GUI.Types.Renderer
                 }
             }
 
-            if (anim != null)
+            if (clip != null)
             {
-                var skeleton = Skeleton.FromSkeletonData(((BinaryKV3)GuiContext.LoadFileCompiled(anim.SkeletonName).DataBlock).Data);
-                animationController = new AnimationController(skeleton, []);
-
-                skeletonSceneNode = new SkeletonSceneNode(Scene, animationController, skeleton)
+                void LoadClip(AnimationClip clip, string skeletonName, bool firstTime = true)
                 {
-                    Enabled = true,
-                };
+                    var skeleton = Skeleton.FromSkeletonData(((BinaryKV3)GuiContext.LoadFileCompiled(skeletonName).DataBlock).Data);
+                    animationController = new AnimationController(skeleton, []);
 
-                SetAnimationControllerUpdateHandler();
-                AddAnimationControls();
-                animationController.SetAnimation(new Animation(anim));
+                    if (!firstTime && skeletonSceneNode != null)
+                    {
+                        skeletonSceneNode.Enabled = false; // scene.Remove?
+                    }
 
-                Scene.Add(skeletonSceneNode, true);
+                    skeletonSceneNode = new SkeletonSceneNode(Scene, animationController, skeleton)
+                    {
+                        Enabled = true,
+                    };
+
+
+                    SetAnimationControllerUpdateHandler();
+
+                    if (firstTime)
+                    {
+                        AddAnimationControls();
+                    }
+
+                    animationController.SetAnimation(new Animation(clip));
+                    Scene.Add(skeletonSceneNode, true);
+                }
+
+                LoadClip(clip, clip.SkeletonName);
+
+                if (clip.SecondaryAnimations.Length > 0)
+                {
+                    animationComboBox = AddSelection("Secondary", (_, index) =>
+                    {
+                        var newClip = index == 0
+                            ? clip
+                            : clip.SecondaryAnimations[index - 1];
+
+                        LoadClip(newClip, newClip.SkeletonName, firstTime: false);
+                    });
+
+                    var defaultSkeleton = Path.GetFileNameWithoutExtension(clip.SkeletonName);
+                    var secondarySkeletonIdentifiers = clip.SecondaryAnimations.Select(x => Path.GetFileNameWithoutExtension(x.SkeletonName)).ToArray();
+                    animationComboBox.Items.AddRange([defaultSkeleton, .. secondarySkeletonIdentifiers]);
+                    animationComboBox.SelectedIndex = 0;
+                }
             }
         }
 
