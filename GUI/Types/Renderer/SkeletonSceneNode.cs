@@ -44,8 +44,6 @@ namespace GUI.Types.Renderer
                 return;
             }
 
-            LocalBoundingBox = new AABB(new Vector3(float.MinValue), new Vector3(float.MaxValue));
-
             Frame frame = null;
             if (animationController.ActiveAnimation != null)
             {
@@ -71,6 +69,24 @@ namespace GUI.Types.Renderer
                 GetAnimationMatrixRecursive(vertices, context.View.TextRenderer, root, Matrix4x4.Identity, frame);
             }
 
+            AABB bounds = default;
+            var first = true;
+
+            foreach (var vertex in vertices)
+            {
+                var vertexBounds = new AABB(vertex.Position, 10);
+
+                if (first)
+                {
+                    bounds = vertexBounds;
+                    first = false;
+                    continue;
+                }
+
+                bounds = bounds.Union(vertexBounds);
+            }
+
+            LocalBoundingBox = bounds;
             vertexCount = vertices.Count;
 
             GL.NamedBufferData(vboHandle, vertices.Count * SimpleVertex.SizeInBytes, ListAccessors<SimpleVertex>.GetBackingArray(vertices), BufferUsageHint.DynamicDraw);

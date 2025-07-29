@@ -18,7 +18,7 @@ namespace GUI.Types.Renderer
     {
         protected Model model { get; init; }
         private PhysAggregateData phys;
-        private readonly AnimationClip clip;
+        public AnimationClip clip { get; init; }
 
         public ComboBox animationComboBox { get; private set; }
         private CheckBox animationPlayPause;
@@ -307,14 +307,15 @@ namespace GUI.Types.Renderer
                         Enabled = true,
                     };
 
-
                     SetAnimationControllerUpdateHandler();
 
                     if (firstTime)
                     {
                         AddAnimationControls();
+                        skeletonSceneNode.Update(new(0f, this)); // update bbox for viewer
                     }
 
+                    animationPlayPause.Enabled = true;
                     animationController.SetAnimation(new Animation(clip));
                     Scene.Add(skeletonSceneNode, true);
                 }
