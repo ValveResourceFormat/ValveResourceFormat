@@ -18,10 +18,9 @@ namespace GUI.Types.Renderer
     {
         protected Model model { get; init; }
         private PhysAggregateData phys;
-        public AnimationClip clip { get; init; }
 
-        public ComboBox animationComboBox { get; private set; }
-        private CheckBox animationPlayPause;
+        public ComboBox animationComboBox { get; protected set; }
+        protected CheckBox animationPlayPause;
         private CheckBox rootMotionCheckBox;
         private CheckBox showSkeletonCheckbox;
         private ComboBox hitboxComboBox;
@@ -30,8 +29,8 @@ namespace GUI.Types.Renderer
         public CheckedListBox meshGroupListBox { get; private set; }
         public ComboBox materialGroupListBox { get; private set; }
         private ModelSceneNode modelSceneNode;
-        private AnimationController animationController;
-        private SkeletonSceneNode skeletonSceneNode;
+        protected AnimationController animationController;
+        protected SkeletonSceneNode skeletonSceneNode;
         private HitboxSetSceneNode hitboxSetSceneNode;
         private CheckedListBox physicsGroupsComboBox;
 
@@ -48,11 +47,6 @@ namespace GUI.Types.Renderer
         public GLModelViewer(VrfGuiContext guiContext, PhysAggregateData phys) : base(guiContext)
         {
             this.phys = phys;
-        }
-
-        public GLModelViewer(VrfGuiContext guiContext, AnimationClip anim) : base(guiContext)
-        {
-            this.clip = anim;
         }
 
         protected override void Dispose(bool disposing)
@@ -74,7 +68,7 @@ namespace GUI.Types.Renderer
             }
         }
 
-        private void AddAnimationControls()
+        protected void AddAnimationControls()
         {
             if (modelSceneNode != null)
             {
@@ -289,59 +283,9 @@ namespace GUI.Types.Renderer
                     });
                 }
             }
-
-            if (clip != null)
-            {
-                void LoadClip(AnimationClip clip, string skeletonName, bool firstTime = true)
-                {
-                    var skeleton = Skeleton.FromSkeletonData(((BinaryKV3)GuiContext.LoadFileCompiled(skeletonName).DataBlock).Data);
-                    animationController = new AnimationController(skeleton, []);
-
-                    if (!firstTime && skeletonSceneNode != null)
-                    {
-                        skeletonSceneNode.Enabled = false; // scene.Remove?
-                    }
-
-                    skeletonSceneNode = new SkeletonSceneNode(Scene, animationController, skeleton)
-                    {
-                        Enabled = true,
-                    };
-
-                    SetAnimationControllerUpdateHandler();
-
-                    if (firstTime)
-                    {
-                        AddAnimationControls();
-                        skeletonSceneNode.Update(new(0f, this)); // update bbox for viewer
-                    }
-
-                    animationPlayPause.Enabled = true;
-                    animationController.SetAnimation(new Animation(clip));
-                    Scene.Add(skeletonSceneNode, true);
-                }
-
-                LoadClip(clip, clip.SkeletonName);
-
-                if (clip.SecondaryAnimations.Length > 0)
-                {
-                    animationComboBox = AddSelection("Secondary", (_, index) =>
-                    {
-                        var newClip = index == 0
-                            ? clip
-                            : clip.SecondaryAnimations[index - 1];
-
-                        LoadClip(newClip, newClip.SkeletonName, firstTime: false);
-                    });
-
-                    var defaultSkeleton = Path.GetFileNameWithoutExtension(clip.SkeletonName);
-                    var secondarySkeletonIdentifiers = clip.SecondaryAnimations.Select(x => Path.GetFileNameWithoutExtension(x.SkeletonName)).ToArray();
-                    animationComboBox.Items.AddRange([defaultSkeleton, .. secondarySkeletonIdentifiers]);
-                    animationComboBox.SelectedIndex = 0;
-                }
-            }
         }
 
-        private void SetAnimationControllerUpdateHandler()
+        protected void SetAnimationControllerUpdateHandler()
         {
             animationController?.RegisterUpdateHandler((animation, frame) =>
             {

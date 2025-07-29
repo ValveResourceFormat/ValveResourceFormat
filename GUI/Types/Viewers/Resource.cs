@@ -338,7 +338,14 @@ namespace GUI.Types.Viewers
                 case ResourceType.NmClip:
                     {
                         specialTabPage = new TabPage("ANIMATION CLIP");
-                        specialTabPage.Controls.Add(new GLModelViewer(vrfGuiContext, (AnimationClip)resource.DataBlock));
+                        specialTabPage.Controls.Add(new GLAnimationViewer(vrfGuiContext, resource));
+                        break;
+                    }
+
+                case ResourceType.NmSkeleton:
+                    {
+                        specialTabPage = new TabPage("SKELETON");
+                        specialTabPage.Controls.Add(new GLAnimationViewer(vrfGuiContext, resource));
                         break;
                     }
 
