@@ -35,19 +35,26 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
         public TrackCompressionSetting[] TrackCompressionSettings { get; private set; }
         public long[] CompressedPoseOffsets { get; private set; }
 
+        public AnimationClip[] SecondaryAnimations { get; private set; } = [];
+
         public override void Read(BinaryReader reader)
         {
             base.Read(reader);
 
             Name = Resource.FileName;
 
-            SkeletonName = Data.GetStringProperty("m_skeleton");
-            NumFrames = Data.GetInt32Property("m_nNumFrames");
-            Duration = Data.GetFloatProperty("m_flDuration");
+            ReadClip(Data);
+        }
 
-            CompressedPoseData = Data.GetArray<byte>("m_compressedPoseData");
+        private void ReadClip(KVObject clipData)
+        {
+            SkeletonName = clipData.GetStringProperty("m_skeleton");
+            NumFrames = clipData.GetInt32Property("m_nNumFrames");
+            Duration = clipData.GetFloatProperty("m_flDuration");
 
-            var settings = Data.GetArray("m_trackCompressionSettings");
+            CompressedPoseData = clipData.GetArray<byte>("m_compressedPoseData");
+
+            var settings = clipData.GetArray("m_trackCompressionSettings");
             TrackCompressionSettings = new TrackCompressionSetting[settings.Length];
 
             var i = 0;
@@ -72,8 +79,17 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
                 };
             }
 
-            CompressedPoseOffsets = Data.GetIntegerArray("m_compressedPoseOffsets");
+            CompressedPoseOffsets = clipData.GetIntegerArray("m_compressedPoseOffsets");
             Debug.Assert(CompressedPoseOffsets.Length == NumFrames);
+
+            var secondaryAnims = clipData.GetArray("m_secondaryAnimations") ?? [];
+            SecondaryAnimations = new AnimationClip[secondaryAnims.Length];
+            for (var j = 0; j < secondaryAnims.Length; j++)
+            {
+                var secondaryAnim = new AnimationClip();
+                secondaryAnim.ReadClip(secondaryAnims[j]);
+                SecondaryAnimations[j] = secondaryAnim;
+            }
 
             // Calculate fps
             Fps = NumFrames / Duration;
