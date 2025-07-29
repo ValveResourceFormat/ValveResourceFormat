@@ -69,7 +69,18 @@ namespace GUI.Types.Renderer
                 }
 
                 animationPlayPause.Enabled = true;
-                animationController.SetAnimation(new Animation(clip));
+
+                var animation = new Animation(clip);
+                animationController.SetAnimation(animation);
+
+                if (modelSceneNode != null)
+                {
+                    modelSceneNode.AnimationController.SetAnimation(animation);
+
+                    var modelSkeleton = modelSceneNode.AnimationController.FrameCache.Skeleton;
+                    var animationSkeleton = animationController.FrameCache.Skeleton;
+                    // hmm?
+                }
             }
 
             if (clip == null)
@@ -78,6 +89,10 @@ namespace GUI.Types.Renderer
             }
             else
             {
+                var model = (Model)GuiContext.LoadFileCompiled("phase2/weapons/models/ak47/weapon_rif_ak47_ag2.vmdl").DataBlock!;
+                modelSceneNode = new ModelSceneNode(Scene, model);
+                Scene.Add(modelSceneNode, true);
+
                 LoadClip(clip, clip.SkeletonName);
 
                 if (clip.SecondaryAnimations.Length > 0)

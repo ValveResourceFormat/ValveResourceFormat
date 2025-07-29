@@ -25,7 +25,7 @@ namespace GUI.Types.Renderer
         private GLViewerTrackBarControl slowmodeTrackBar;
         public CheckedListBox meshGroupListBox { get; private set; }
         public ComboBox materialGroupListBox { get; private set; }
-        private ModelSceneNode modelSceneNode;
+        protected ModelSceneNode modelSceneNode;
         protected AnimationController animationController;
         protected SkeletonSceneNode skeletonSceneNode;
         private HitboxSetSceneNode hitboxSetSceneNode;
