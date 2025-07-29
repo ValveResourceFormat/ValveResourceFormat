@@ -2,6 +2,8 @@ using ValveResourceFormat.ResourceTypes.ModelFlex;
 
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 {
+    public record struct FrameBone(Vector3 Position, Quaternion Angle, float Scale);
+
     public class Frame
     {
         public int FrameIndex { get; set; } = 1;
