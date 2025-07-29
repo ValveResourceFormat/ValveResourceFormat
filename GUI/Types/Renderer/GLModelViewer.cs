@@ -30,6 +30,7 @@ namespace GUI.Types.Renderer
         public CheckedListBox meshGroupListBox { get; private set; }
         public ComboBox materialGroupListBox { get; private set; }
         private ModelSceneNode modelSceneNode;
+        private AnimationController animationController;
         private SkeletonSceneNode skeletonSceneNode;
         private HitboxSetSceneNode hitboxSetSceneNode;
         private CheckedListBox physicsGroupsComboBox;
@@ -75,33 +76,34 @@ namespace GUI.Types.Renderer
 
         private void AddAnimationControls()
         {
-            animationComboBox = AddSelection("Animation", (animation, _) =>
+            if (modelSceneNode != null)
             {
-                if (modelSceneNode != null)
+                animationComboBox = AddSelection("Animation", (animation, _) =>
                 {
                     modelSceneNode.SetAnimation(animation);
-                    rootMotionCheckBox.Enabled = modelSceneNode.AnimationController.ActiveAnimation?.HasMovementData() ?? false;
+                    rootMotionCheckBox.Enabled = animationController.ActiveAnimation?.HasMovementData() ?? false;
                     enableRootMotion = rootMotionCheckBox.Enabled && rootMotionCheckBox.Checked;
-                }
-            });
+                });
+            }
+
             animationPlayPause = AddCheckBox("Autoplay", true, isChecked =>
             {
-                if (modelSceneNode != null)
+                if (animationController != null)
                 {
-                    modelSceneNode.AnimationController.IsPaused = !isChecked;
+                    animationController.IsPaused = !isChecked;
                 }
             });
             animationTrackBar = AddTrackBar(frame =>
             {
-                if (modelSceneNode != null)
+                if (animationController != null)
                 {
-                    modelSceneNode.AnimationController.Frame = frame;
+                    animationController.Frame = frame;
                 }
             });
 
             slowmodeTrackBar = AddTrackBar(value =>
             {
-                modelSceneNode.AnimationController.FrametimeMultiplier = value / 100f;
+                animationController.FrametimeMultiplier = value / 100f;
             });
             slowmodeTrackBar.TrackBar.TickFrequency = 10;
             slowmodeTrackBar.TrackBar.Minimum = 0;
@@ -115,12 +117,12 @@ namespace GUI.Types.Renderer
             var previousPaused = false;
             animationTrackBar.TrackBar.MouseDown += (_, __) =>
             {
-                previousPaused = modelSceneNode.AnimationController.IsPaused;
-                modelSceneNode.AnimationController.IsPaused = true;
+                previousPaused = animationController.IsPaused;
+                animationController.IsPaused = true;
             };
             animationTrackBar.TrackBar.MouseUp += (_, __) =>
             {
-                modelSceneNode.AnimationController.IsPaused = previousPaused;
+                animationController.IsPaused = previousPaused;
             };
 
             rootMotionCheckBox = AddCheckBox("Show Root Motion", enableRootMotion, (isChecked) =>
@@ -140,6 +142,7 @@ namespace GUI.Types.Renderer
             if (model != null)
             {
                 modelSceneNode = new ModelSceneNode(Scene, model);
+                animationController = modelSceneNode.AnimationController;
                 Scene.Add(modelSceneNode, true);
 
                 var animations = modelSceneNode.GetSupportedAnimationNames().ToArray();
@@ -150,7 +153,7 @@ namespace GUI.Types.Renderer
                     SetAvailableAnimations(animations);
                 }
 
-                skeletonSceneNode = new SkeletonSceneNode(Scene, modelSceneNode.AnimationController, model.Skeleton);
+                skeletonSceneNode = new SkeletonSceneNode(Scene, animationController, model.Skeleton);
                 Scene.Add(skeletonSceneNode, true);
 
                 if (model.Skeleton.Bones.Length > 0)
@@ -167,7 +170,7 @@ namespace GUI.Types.Renderer
                 if (model.HitboxSets != null && model.HitboxSets.Count > 0)
                 {
                     var hitboxSets = model.HitboxSets;
-                    hitboxSetSceneNode = new HitboxSetSceneNode(Scene, modelSceneNode.AnimationController, hitboxSets);
+                    hitboxSetSceneNode = new HitboxSetSceneNode(Scene, animationController, hitboxSets);
                     Scene.Add(hitboxSetSceneNode, true);
 
                     hitboxComboBox = AddSelection("Hitbox Set", (hitboxSet, i) =>
@@ -234,31 +237,7 @@ namespace GUI.Types.Renderer
                     materialGroupListBox.SelectedIndex = 0;
                 }
 
-                modelSceneNode.AnimationController.RegisterUpdateHandler((animation, frame) =>
-                {
-                    if (frame == -1)
-                    {
-                        var maximum = animation == null ? 1 : animation.FrameCount - 1;
-                        if (maximum < 0)
-                        {
-                            maximum = 0;
-                        }
-                        if (animationTrackBar.TrackBar.Maximum != maximum)
-                        {
-                            animationTrackBar.TrackBar.Maximum = maximum;
-                            animationTrackBar.TrackBar.TickFrequency = maximum / 10;
-                        }
-                        animationTrackBar.Enabled = animation != null;
-                        animationPlayPause.Enabled = animation != null;
-                        slowmodeTrackBar.Enabled = animation != null;
-
-                        frame = 0;
-                    }
-                    else if (animationTrackBar.TrackBar.Value != frame)
-                    {
-                        animationTrackBar.TrackBar.Value = frame;
-                    }
-                });
+                SetAnimationControllerUpdateHandler();
             }
             else
             {
@@ -314,17 +293,48 @@ namespace GUI.Types.Renderer
             if (anim != null)
             {
                 var skeleton = Skeleton.FromSkeletonData(((BinaryKV3)GuiContext.LoadFileCompiled(anim.SkeletonName).DataBlock).Data);
-                var animationController = new AnimationController(skeleton, []);
+                animationController = new AnimationController(skeleton, []);
 
                 skeletonSceneNode = new SkeletonSceneNode(Scene, animationController, skeleton)
                 {
                     Enabled = true,
                 };
 
+                SetAnimationControllerUpdateHandler();
+                AddAnimationControls();
                 animationController.SetAnimation(new Animation(anim));
 
                 Scene.Add(skeletonSceneNode, true);
             }
+        }
+
+        private void SetAnimationControllerUpdateHandler()
+        {
+            animationController?.RegisterUpdateHandler((animation, frame) =>
+            {
+                if (frame == -1)
+                {
+                    var maximum = animation == null ? 1 : animation.FrameCount - 1;
+                    if (maximum < 0)
+                    {
+                        maximum = 0;
+                    }
+                    if (animationTrackBar.TrackBar.Maximum != maximum)
+                    {
+                        animationTrackBar.TrackBar.Maximum = maximum;
+                        animationTrackBar.TrackBar.TickFrequency = maximum / 10;
+                    }
+                    animationTrackBar.Enabled = animation != null;
+                    animationPlayPause.Enabled = animation != null;
+                    slowmodeTrackBar.Enabled = animation != null;
+
+                    frame = 0;
+                }
+                else if (animationTrackBar.TrackBar.Value != frame)
+                {
+                    animationTrackBar.TrackBar.Value = frame;
+                }
+            });
         }
 
         private string GetModelStatsText()
@@ -404,7 +414,7 @@ namespace GUI.Types.Renderer
 
         protected override void OnPaint(object sender, RenderEventArgs e)
         {
-            if (enableRootMotion && modelSceneNode.AnimationController.GetFrame() is Frame animationFrame)
+            if (enableRootMotion && animationController.GetFrame() is Frame animationFrame)
             {
                 var rootMotionDelta = animationFrame.Movement.Position - LastRootMotionPosition;
 
