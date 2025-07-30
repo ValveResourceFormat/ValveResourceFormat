@@ -11,9 +11,13 @@ namespace GUI.Types.Renderer
 {
     class GLAnimationViewer : GLModelViewer
     {
-        public KVObject SkeletonData { get; set; }
-        public AnimationClip? clip { get; init; }
+        public AnimationClip viewmodelClip { get; init; }
 
+        private SkeletonSceneNode secondarySkeleton;
+        private AnimationController secondaryAnimationController;
+
+        public ModelSceneNode? Arms { get; set; }
+        public ModelSceneNode? ArmsAg1 { get; set; }
         public ModelSceneNode? Player { get; set; }
         public ModelSceneNode? Weapon { get; set; }
 
@@ -21,14 +25,11 @@ namespace GUI.Types.Renderer
         {
             if (resource.ResourceType is ResourceType.NmSkeleton)
             {
-                SkeletonData = ((BinaryKV3)resource.DataBlock!).Data;
+                //SkeletonData = ((BinaryKV3)resource.DataBlock!).Data;
             }
             else if (resource.DataBlock is AnimationClip animationClip)
             {
-                clip = animationClip;
-
-                var skeletonResource = guiContext.LoadFileCompiled(animationClip.SkeletonName);
-                SkeletonData = ((BinaryKV3)skeletonResource.DataBlock!).Data;
+                viewmodelClip = animationClip;
             }
             else
             {
@@ -40,103 +41,99 @@ namespace GUI.Types.Renderer
         {
             base.LoadScene();
 
-            void LoadSkeleton(bool firstTime)
-            {
-                var skeleton = Skeleton.FromSkeletonData(SkeletonData);
-                animationController = new AnimationController(skeleton, []);
+            var skeletonResource = GuiContext.LoadFileCompiled(viewmodelClip.SkeletonName);
+            var skeletonData = ((BinaryKV3)skeletonResource.DataBlock!).Data;
 
-                if (!firstTime && skeletonSceneNode != null)
+            var viewmodelSkeleton = Skeleton.FromSkeletonData(skeletonData);
+            animationController = new AnimationController(viewmodelSkeleton, []);
+
+            skeletonSceneNode = new SkeletonSceneNode(Scene, animationController, viewmodelSkeleton)
+            {
+                Enabled = true,
+            };
+
+            Scene.Add(skeletonSceneNode, true);
+            skeletonSceneNode.Update(new(0f, this)); // update bbox for viewer
+
+            SetAnimationControllerUpdateHandler();
+
+            AddAnimationControls();
+            animationPlayPause.Enabled = true;
+
+            var viewmodelAnim = new Animation(viewmodelClip);
+            animationController.SetAnimation(viewmodelAnim);
+
+            /*
+            var arms = (Model)GuiContext.LoadFileCompiled("characters/models/shared/arms/glove_fingerless/glove_fingerless_ag2.vmdl").DataBlock!;
+            Arms = new ModelSceneNode(Scene, arms) { Name = Path.GetFileNameWithoutExtension(arms.Resource!.FileName) };
+            Arms.SetActiveMeshGroups(["first_or_third_person_@1_#&firstperson_default"]);
+            Scene.Add(Arms, true);
+
+            var armsAg1 = (Model)GuiContext.LoadFileCompiled("characters/models/shared/arms/glove_fingerless/v_glove_fingerless.vmdl").DataBlock!;
+            ArmsAg1 = new ModelSceneNode(Scene, armsAg1) { Name = Path.GetFileNameWithoutExtension(armsAg1.Resource!.FileName) };
+            Scene.Add(ArmsAg1, true);
+            */
+
+            var player = (Model)GuiContext.LoadFileCompiled("phase2/characters/models/ctm_sas/ctm_sas_ag2.vmdl").DataBlock!;
+            Player = new ModelSceneNode(Scene, player) { Name = Path.GetFileNameWithoutExtension(player.Resource!.FileName) };
+            Player.SetActiveMeshGroups(["first_or_third_person_@2_#&firstperson_default"]);
+            Scene.Add(Player, true);
+
+            Player.RemapAnimationSkeletonBones(viewmodelSkeleton);
+            Player.SetAnimation(viewmodelAnim);
+
+            // ak47                   ak47.nmskel
+            //   -1, "weapon",           -1, "weapon",
+            //    0, "weapon_offset"      0, "weapon_offset",
+            //    1, "bolt",              1, "bolt",
+            //    1, "clip",              1, "clip",
+            //    1, "cliprelease",       1, "cliprelease",
+            //    1, "trigger",           1, "econ",
+            //    1, "ag1_hand_r",        1, "muzzle",
+            //                            1, "trigger",
+
+            // viewmodel.nmskel lists ak47.nmskel as secondary skeleton, attached to "wpn" bone
+
+            var ak47Clip = viewmodelClip.SecondaryAnimations[0];
+            var ak47Skeleton = Skeleton.FromSkeletonData(((BinaryKV3)GuiContext.LoadFileCompiled(ak47Clip.SkeletonName).DataBlock!).Data);
+
+            secondaryAnimationController = new AnimationController(ak47Skeleton, []);
+
+            secondarySkeleton = new SkeletonSceneNode(Scene, secondaryAnimationController, ak47Skeleton)
+            {
+                Enabled = true,
+            };
+            Scene.Add(secondarySkeleton, true);
+
+            var weapon = (Model)GuiContext.LoadFileCompiled("phase2/weapons/models/ak47/weapon_rif_ak47_ag2.vmdl").DataBlock!;
+            Weapon = new ModelSceneNode(Scene, weapon) { Name = Path.GetFileNameWithoutExtension(weapon.Resource!.FileName) };
+            Scene.Add(Weapon, true);
+
+            Weapon.RemapAnimationSkeletonBones(ak47Skeleton);
+
+            var ak47Anim = new Animation(ak47Clip);
+            Weapon.SetAnimation(ak47Anim);
+            secondaryAnimationController.SetAnimation(ak47Anim);
+
+            var wpnBoneIndex = Array.FindIndex(animationController.FrameCache.Skeleton.Bones, b => b.Name == "wpn");
+            Weapon.AnimationController.rootBoneTransformProvider = () =>
+            {
+                if (wpnBoneIndex < 0 || animationController.FrameCache.InterpolatedFrame.Bones.Length <= wpnBoneIndex)
                 {
-                    skeletonSceneNode.Enabled = false; // scene.Remove?
+                    return Matrix4x4.Identity;
                 }
 
-                skeletonSceneNode = new SkeletonSceneNode(Scene, animationController, skeleton)
-                {
-                    Enabled = true,
-                };
-
-                Scene.Add(skeletonSceneNode, true);
-                skeletonSceneNode.Update(new(0f, this)); // update bbox for viewer
-            }
-
-            void LoadClip(AnimationClip clip, string skeletonName, bool firstTime = true)
-            {
-                var skeletonResource = GuiContext.LoadFileCompiled(clip.SkeletonName);
-                SkeletonData = ((BinaryKV3)skeletonResource.DataBlock!).Data;
-                LoadSkeleton(firstTime);
-                SetAnimationControllerUpdateHandler();
-
-                if (firstTime)
-                {
-                    AddAnimationControls();
-                }
-
-                animationPlayPause.Enabled = true;
-
-                var animation = new Animation(clip);
-                animationController.SetAnimation(animation);
-
-                if (Weapon != null)
-                {
-                    Player.SetAnimation(animation);
-                    Weapon.SetAnimation(animation);
-
-                    var modelSkeleton = Weapon.AnimationController.FrameCache.Skeleton;
-                    var animationSkeleton = animationController.FrameCache.Skeleton;
-                }
-            }
-
-            if (clip == null)
-            {
-                LoadSkeleton(true);
-            }
-            else
-            {
-                var player = (Model)GuiContext.LoadFileCompiled("phase2/characters/models/tm_phoenix/tm_phoenix_varianta_ag2.vmdl").DataBlock!;
-                Player = new ModelSceneNode(Scene, player);
-                Player.SetActiveMeshGroups(["first_or_third_person_@2_#&firstperson_default"]);
-                Scene.Add(Player, true);
-
-                var weapon = (Model)GuiContext.LoadFileCompiled("phase2/weapons/models/ak47/weapon_rif_ak47_ag2.vmdl").DataBlock!;
-                Weapon = new ModelSceneNode(Scene, weapon);
-                Scene.Add(Weapon, true);
-
-                // ak47                   ak47.nmskel
-                //   -1, "weapon",           -1, "weapon",
-                //    0, "weapon_offset"      0, "weapon_offset",
-                //    1, "bolt",              1, "bolt",
-                //    1, "clip",              1, "clip",
-                //    1, "cliprelease",       1, "cliprelease",
-                //    1, "trigger",           1, "econ",
-                //    1, "ag1_hand_r",        1, "muzzle",
-                //                            1, "trigger",
-
-                // viewmodel.nmskel lists ak47.nmskel as secondary skeleton, attached to "wpn" bone
-
-                LoadClip(clip, clip.SkeletonName);
-
-                if (clip.SecondaryAnimations.Length > 0)
-                {
-                    animationComboBox = AddSelection("Secondary", (_, index) =>
-                    {
-                        var newClip = index == 0
-                            ? clip
-                            : clip.SecondaryAnimations[index - 1];
-
-                        LoadClip(newClip, newClip.SkeletonName, firstTime: false);
-                    });
-
-                    var defaultSkeleton = Path.GetFileNameWithoutExtension(clip.SkeletonName);
-                    var secondarySkeletonIdentifiers = clip.SecondaryAnimations.Select(x => Path.GetFileNameWithoutExtension(x.SkeletonName)).ToArray();
-                    animationComboBox.Items.AddRange([defaultSkeleton, .. secondarySkeletonIdentifiers]);
-                    animationComboBox.SelectedIndex = 0;
-                }
-            }
+                var wpnBone = animationController.FrameCache.InterpolatedFrame.Bones[wpnBoneIndex];
+                return Matrix4x4.CreateScale(wpnBone.Scale)
+                    * Matrix4x4.CreateFromQuaternion(wpnBone.Angle)
+                    * Matrix4x4.CreateTranslation(wpnBone.Position);
+            };
         }
 
         protected override void OnPaint(object sender, RenderEventArgs e)
         {
             animationController.Update(e.FrameTime);
+            secondaryAnimationController.Update(e.FrameTime);
             base.OnPaint(sender, e);
         }
     }

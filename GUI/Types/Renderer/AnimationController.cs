@@ -38,7 +38,7 @@ namespace GUI.Types.Renderer
 
         public AnimationController(Skeleton skeleton, FlexController[] flexControllers)
         {
-            FrameCache = new(skeleton, flexControllers);
+            FrameCache = new(skeleton, flexControllers.Length);
         }
 
         public bool Update(float timeStep)
@@ -96,6 +96,8 @@ namespace GUI.Types.Renderer
         {
             updateHandler = handler;
         }
+
+        public Func<Matrix4x4>? rootBoneTransformProvider;
 
         public void GetBoneMatrices(Span<Matrix4x4> boneMatrices, bool bindPose = false)
         {

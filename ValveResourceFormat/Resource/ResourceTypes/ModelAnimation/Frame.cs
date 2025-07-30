@@ -12,11 +12,16 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
         public AnimationMovement.MovementData Movement { get; set; }
 
-        public Frame(Skeleton skeleton, FlexController[] flexControllers)
+        public Frame(Skeleton skeleton, int flexControllerCount)
         {
             Bones = new FrameBone[skeleton.Bones.Length];
-            Datas = new float[flexControllers.Length];
+            Datas = new float[flexControllerCount];
             Clear(skeleton);
+        }
+
+        public Frame(Skeleton skeleton, FlexController[] flexControllers)
+            : this(skeleton, flexControllers.Length)
+        {
         }
 
         public void SetAttribute(int bone, AnimationChannelAttribute attribute, Vector3 data)

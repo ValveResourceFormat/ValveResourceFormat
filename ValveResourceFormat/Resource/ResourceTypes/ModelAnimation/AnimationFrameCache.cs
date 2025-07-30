@@ -1,5 +1,5 @@
 using System.Diagnostics;
-using ValveResourceFormat.ResourceTypes.ModelFlex;
+using System.Linq;
 
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 {
@@ -7,15 +7,19 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
     {
         private Frame PrevFrame;
         private Frame NextFrame;
-        private readonly Frame InterpolatedFrame;
+        public readonly Frame InterpolatedFrame;
         public Skeleton Skeleton { get; }
+        public int[] RemapTableAg2 { get; set; }
+        public int FlexControllerDataSize => PrevFrame.Datas.Length;
 
-        public AnimationFrameCache(Skeleton skeleton, FlexController[] flexControllers)
+        public AnimationFrameCache(Skeleton skeleton, int flexControllerDataSize)
         {
-            PrevFrame = new Frame(skeleton, flexControllers);
-            NextFrame = new Frame(skeleton, flexControllers);
-            InterpolatedFrame = new Frame(skeleton, flexControllers);
+            PrevFrame = new Frame(skeleton, flexControllerDataSize);
+            NextFrame = new Frame(skeleton, flexControllerDataSize);
+            InterpolatedFrame = new Frame(skeleton, flexControllerDataSize);
             Skeleton = skeleton;
+
+            RemapTableAg2 = [.. Enumerable.Range(0, skeleton.Bones.Length)];
             Clear();
         }
 
@@ -106,7 +110,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             // We make an assumption that frames within one animation
             // contain identical bone sets, so we don't clear frame here
             frame.FrameIndex = frameIndex;
-            anim.DecodeFrame(frame);
+            anim.DecodeFrame(frame, RemapTableAg2);
 
             frame.Movement = anim.GetMovementOffsetData(frameIndex);
             return frame;

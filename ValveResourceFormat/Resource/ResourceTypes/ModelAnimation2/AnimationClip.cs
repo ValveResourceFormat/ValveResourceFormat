@@ -91,13 +91,19 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
             }
         }
 
-        public void ReadFrame(int frameIndex, FrameBone[] bones)
+        public void ReadFrame(int frameIndex, FrameBone[] bones, int[] remapTableAg2)
         {
             var frameData = MemoryMarshal.Cast<byte, ushort>(CompressedPoseData);
             frameData = frameData[(int)CompressedPoseOffsets[frameIndex]..];
 
-            for (var i = 0; i < TrackCompressionSettings.Length && i < bones.Length; i++)
+            for (var i = 0; i < TrackCompressionSettings.Length && i < remapTableAg2.Length; i++)
             {
+                var b = remapTableAg2[i];
+                if (b == -1)
+                {
+                    continue;
+                }
+
                 var config = TrackCompressionSettings[i];
 
                 var translationRangeStart = new Vector3(
@@ -106,13 +112,13 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
                     config.TranslationRangeZ.Start
                 );
 
-                bones[i].Angle = config.ConstantRotation;
-                bones[i].Position = translationRangeStart;
-                bones[i].Scale = config.ScaleRange.Start;
+                bones[b].Angle = config.ConstantRotation;
+                bones[b].Position = translationRangeStart;
+                bones[b].Scale = config.ScaleRange.Start;
 
                 if (!config.IsRotationStatic)
                 {
-                    bones[i].Angle = DecodeQuaternion(frameData);
+                    bones[b].Angle = DecodeQuaternion(frameData);
                     frameData = frameData[CompressedQuaternionSize..];
                 }
 
@@ -124,13 +130,13 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
                         config.TranslationRangeZ.Length
                     );
 
-                    bones[i].Position = DecodeTranslation(frameData, translationRangeStart, translationRangeLength);
+                    bones[b].Position = DecodeTranslation(frameData, translationRangeStart, translationRangeLength);
                     frameData = frameData[CompressedTranslationSize..];
                 }
 
                 if (!config.IsScaleStatic)
                 {
-                    bones[i].Scale = DecodeFloat(frameData[0], config.ScaleRange.Start, config.ScaleRange.Length);
+                    bones[b].Scale = DecodeFloat(frameData[0], config.ScaleRange.Start, config.ScaleRange.Length);
                     frameData = frameData[1..];
                 }
             }

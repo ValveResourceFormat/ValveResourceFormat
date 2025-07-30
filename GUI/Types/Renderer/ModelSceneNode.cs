@@ -192,7 +192,9 @@ namespace GUI.Types.Renderer
                 try
                 {
                     var skeleton = AnimationController.FrameCache.Skeleton;
-                    Animation.GetAnimationMatrices(modelBones, frame, skeleton);
+                    var root = Transform * AnimationController.rootBoneTransformProvider?.Invoke() ?? Matrix4x4.Identity;
+
+                    Animation.GetAnimationMatrices(modelBones, frame, skeleton, root);
 
                     // Copy procedural cloth node transforms from a animated root bone
                     if (skeleton.ClothSimulationRoot is not null)
@@ -381,6 +383,7 @@ namespace GUI.Types.Renderer
 
         public void SetAnimation(Animation activeAnimation)
         {
+            SetupBoneMatrixBuffers();
             AnimationController.SetAnimation(activeAnimation);
             UpdateBoundingBox();
 
@@ -398,6 +401,27 @@ namespace GUI.Types.Renderer
                     renderer.SetBoneMatricesBuffer(null);
                 }
             }
+        }
+
+        public void RemapAnimationSkeletonBones(Skeleton animationSkeleton)
+        {
+            var modelSkeleton = AnimationController.FrameCache.Skeleton;
+            if (animationSkeleton == modelSkeleton)
+            {
+                return;
+            }
+
+            var remappingTable = new int[animationSkeleton.Bones.Length];
+
+            for (var i = 0; i < remappingTable.Length; i++)
+            {
+                var animationBone = animationSkeleton.Bones[i];
+                var modelBone = Array.Find(modelSkeleton.Bones, b => b.Name.Equals(animationBone.Name, StringComparison.OrdinalIgnoreCase));
+                Log.Debug(nameof(RemapAnimationSkeletonBones), $"Matched model {Name}.'{modelBone?.Name}' with animation.'{animationBone.Name}'");
+                remappingTable[i] = modelBone?.Index ?? -1;
+            }
+
+            AnimationController.FrameCache.RemapTableAg2 = remappingTable;
         }
 
         public IEnumerable<(int MeshIndex, string MeshName, long LoDMask)> GetLod1RefMeshes()

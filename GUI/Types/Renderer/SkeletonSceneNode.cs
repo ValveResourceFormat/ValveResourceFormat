@@ -106,10 +106,10 @@ namespace GUI.Types.Renderer
 
             textRenderer.AddTextBillboard(bindPose.Translation, new TextRenderer.TextRenderRequest
             {
-                Scale = 10f,
+                Scale = 1.5f,
                 Text = bone.Name,
-                CenterVertical = false
-            });
+                CenterVertical = false,
+            }, fixedScale: false);
 
             if (!oldBindPose.IsIdentity)
             {

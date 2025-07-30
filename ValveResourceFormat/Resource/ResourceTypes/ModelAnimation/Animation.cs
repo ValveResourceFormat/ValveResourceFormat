@@ -281,6 +281,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         }
 
         public static void GetAnimationMatrices(Span<Matrix4x4> matrices, Frame frame, Skeleton skeleton)
+            => GetAnimationMatrices(matrices, frame, skeleton, Matrix4x4.Identity);
+
+        public static void GetAnimationMatrices(Span<Matrix4x4> matrices, Frame frame, Skeleton skeleton, Matrix4x4 rootTransform)
         {
             foreach (var root in skeleton.Roots)
             {
@@ -289,7 +292,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                     continue;
                 }
 
-                GetAnimationMatrixRecursive(root, Matrix4x4.Identity, Matrix4x4.Identity, frame, matrices);
+                GetAnimationMatrixRecursive(root, rootTransform, Matrix4x4.Identity, frame, matrices);
             }
         }
 
@@ -307,11 +310,11 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             Activities = [];
         }
 
-        public void DecodeFrame(Frame outFrame)
+        public void DecodeFrame(Frame outFrame, int[] remapTableAg2 = null)
         {
             if (Clip != null)
             {
-                Clip.ReadFrame(outFrame.FrameIndex, outFrame.Bones);
+                Clip.ReadFrame(outFrame.FrameIndex, outFrame.Bones, remapTableAg2);
                 return;
             }
 
