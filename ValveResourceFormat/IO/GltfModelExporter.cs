@@ -526,25 +526,7 @@ namespace ValveResourceFormat.IO
                 Debug.Assert(joints != null);
 
                 var animations = model.GetAllAnimations(FileLoader);
-                // Add animations
-                var frame = new Frame(model.Skeleton, model.FlexControllers);
-                var boneCount = model.Skeleton.Bones.Length;
-
-                var rotationDicts = Enumerable.Range(0, boneCount)
-                    .Select(_ => new Dictionary<float, Quaternion>()).ToArray();
-                var lastRotations = new Quaternion?[boneCount];
-                var rotationOmitted = new bool[boneCount];
-
-                var translationDicts = Enumerable.Range(0, boneCount)
-                    .Select(_ => new Dictionary<float, Vector3>()).ToArray();
-                var lastTranslations = new Vector3?[boneCount];
-                var translationOmitted = new bool[boneCount];
-
-                var scaleDicts = Enumerable.Range(0, boneCount)
-                    .Select(_ => new Dictionary<float, Vector3>()).ToArray();
-                var lastScales = new Vector3?[boneCount];
-                var scaleOmitted = new bool[boneCount];
-
+                var animationWriter = new AnimationWriter(model.Skeleton, model.FlexControllers);
                 var animationFilter = AnimationFilter;
 
                 // When exporting map entities, only export the default animation
@@ -564,125 +546,7 @@ namespace ValveResourceFormat.IO
                         continue;
                     }
 
-                    // Cleanup state
-                    frame.Clear(model.Skeleton);
-                    for (var i = 0; i < boneCount; i++)
-                    {
-                        rotationDicts[i].Clear();
-                        lastRotations[i] = null;
-                        rotationOmitted[i] = false;
-
-                        translationDicts[i].Clear();
-                        lastTranslations[i] = null;
-                        translationOmitted[i] = false;
-
-                        scaleDicts[i].Clear();
-                        lastScales[i] = null;
-                        scaleOmitted[i] = false;
-                    }
-
-                    var exportedAnimation = exportedModel.UseAnimation(animation.Name);
-
-                    var fps = animation.Fps;
-
-                    // Some models have fps of 0.000, which will make time a NaN
-                    if (fps == 0)
-                    {
-                        fps = 1f;
-                    }
-
-                    for (var frameIndex = 0; frameIndex < animation.FrameCount; frameIndex++)
-                    {
-                        frame.FrameIndex = frameIndex;
-                        animation.DecodeFrame(frame);
-                        var time = frameIndex / fps;
-                        var prevFrameTime = (frameIndex - 1) / fps;
-
-                        for (var boneID = 0; boneID < boneCount; boneID++)
-                        {
-                            var boneFrame = frame.Bones[boneID];
-
-                            var lastRotation = lastRotations[boneID];
-                            if (lastRotation != boneFrame.Angle)
-                            {
-                                if (lastRotation != null && rotationOmitted[boneID])
-                                {
-                                    rotationOmitted[boneID] = false;
-                                    // Restore keyframe before current frame, as otherwise interpolation will
-                                    // begin from the first instance of identical frame, and not from previous frame
-                                    rotationDicts[boneID].Add(prevFrameTime, lastRotation.Value);
-                                }
-                                rotationDicts[boneID].Add(time, boneFrame.Angle);
-                                lastRotations[boneID] = boneFrame.Angle;
-                            }
-                            else
-                            {
-                                rotationOmitted[boneID] = true;
-                            }
-
-                            var lastTranslation = lastTranslations[boneID];
-                            if (lastTranslation != boneFrame.Position)
-                            {
-                                if (lastTranslation != null && translationOmitted[boneID])
-                                {
-                                    translationOmitted[boneID] = false;
-                                    // Restore keyframe before current frame, as otherwise interpolation will
-                                    // begin from the first instance of identical frame, and not from previous frame
-                                    translationDicts[boneID].Add(prevFrameTime, lastTranslation.Value);
-                                }
-                                translationDicts[boneID].Add(time, boneFrame.Position);
-                                lastTranslations[boneID] = boneFrame.Position;
-                            }
-                            else
-                            {
-                                translationOmitted[boneID] = true;
-                            }
-
-                            var lastScale = lastScales[boneID];
-                            var boneFrameScale = boneFrame.Scale;
-
-                            if (float.IsNaN(boneFrameScale) || float.IsInfinity(boneFrameScale))
-                            {
-                                // See https://github.com/ValveResourceFormat/ValveResourceFormat/issues/527 (NaN)
-                                // and https://github.com/ValveResourceFormat/ValveResourceFormat/issues/570 (inf)
-                                boneFrameScale = 0.0f;
-                            }
-
-                            var scaleVec = boneFrameScale * Vector3.One;
-
-                            if (lastScale != scaleVec)
-                            {
-                                if (lastScale != null && scaleOmitted[boneID])
-                                {
-                                    scaleOmitted[boneID] = false;
-                                    // Restore keyframe before current frame, as otherwise interpolation will
-                                    // begin from the first instance of identical frame, and not from previous frame
-                                    scaleDicts[boneID].Add(prevFrameTime, lastScale.Value);
-                                }
-                                scaleDicts[boneID].Add(time, scaleVec);
-                                lastScales[boneID] = scaleVec;
-                            }
-                            else
-                            {
-                                scaleOmitted[boneID] = true;
-                            }
-                        }
-                    }
-
-                    for (var boneID = 0; boneID < boneCount; boneID++)
-                    {
-                        if (animation.FrameCount == 0)
-                        {
-                            rotationDicts[boneID].Add(0f, model.Skeleton.Bones[boneID].Angle);
-                            translationDicts[boneID].Add(0f, model.Skeleton.Bones[boneID].Position);
-                            scaleDicts[boneID].Add(0f, Vector3.One);
-                        }
-
-                        var jointNode = joints[boneID];
-                        exportedAnimation.CreateRotationChannel(jointNode, rotationDicts[boneID], true);
-                        exportedAnimation.CreateTranslationChannel(jointNode, translationDicts[boneID], true);
-                        exportedAnimation.CreateScaleChannel(jointNode, scaleDicts[boneID], true);
-                    }
+                    animationWriter.WriteAnimation(exportedModel, joints, animation);
                 }
             }
             else
