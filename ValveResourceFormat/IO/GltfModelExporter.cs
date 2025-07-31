@@ -10,6 +10,7 @@ using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.Serialization.KeyValues;
 using Mesh = SharpGLTF.Schema2.Mesh;
+using VAnimationClip = ValveResourceFormat.ResourceTypes.ModelAnimation2.AnimationClip;
 using VEntityLump = ValveResourceFormat.ResourceTypes.EntityLump;
 using VMesh = ValveResourceFormat.ResourceTypes.Mesh;
 using VModel = ValveResourceFormat.ResourceTypes.Model;
@@ -55,6 +56,7 @@ namespace ValveResourceFormat.IO
         public static bool CanExport(Resource resource) => resource.ResourceType
             is ResourceType.Mesh
             or ResourceType.Model
+            or ResourceType.NmClip
             or ResourceType.EntityLump
             or ResourceType.PhysicsCollisionMesh
             or ResourceType.WorldNode
@@ -137,6 +139,9 @@ namespace ValveResourceFormat.IO
                         break;
                     case ResourceType.PhysicsCollisionMesh:
                         ExportToFile(resource.FileName, targetPath, (PhysAggregateData)resource.DataBlock!);
+                        break;
+                    case ResourceType.NmClip:
+                        ExportToFile(resource.FileName, targetPath, (VAnimationClip)resource.DataBlock!);
                         break;
                     default:
                         throw new ArgumentException($"{resource.ResourceType} not supported for gltf export");
@@ -508,6 +513,37 @@ namespace ValveResourceFormat.IO
             WriteModelFile(exportedModel, fileName);
         }
 
+        /// <summary>
+        /// Export a Valve Animation Clip to GLTF.
+        /// </summary>
+        /// <param name="resourceName">The name of the resource being exported.</param>
+        /// <param name="fileName">Target file name.</param>
+        /// <param name="animationClip">The animation clip resource to export.</param>
+        private void ExportToFile(string resourceName, string? fileName, VAnimationClip animationClip)
+        {
+            var exportedModel = CreateModelRoot(resourceName, out var scene);
+
+            var skeletonResource = FileLoader.LoadFileCompiled(animationClip.SkeletonName)
+                ?? throw new InvalidOperationException($"Unable to load skeleton data '{animationClip.SkeletonName}'.");
+
+            var skeletonData = Skeleton.FromSkeletonData(((BinaryKV3)skeletonResource.DataBlock!).Data);
+
+            var (skeletonNode, joints) = CreateGltfSkeleton(scene, skeletonData, animationClip.SkeletonName);
+            if (joints == null)
+            {
+                throw new InvalidDataException($"Failure creating glTF skeleton for '{animationClip.SkeletonName}'.");
+            }
+
+            //if (ExportAnimations)
+            {
+                var animation = new ResourceTypes.ModelAnimation.Animation(animationClip);
+                var animationWriter = new AnimationWriter(skeletonData, []);
+                animationWriter.WriteAnimation(exportedModel, joints, animation);
+            }
+
+            WriteModelFile(exportedModel, fileName);
+        }
+
         private void LoadModel(ModelRoot exportedModel, Scene scene, VModel model, string name,
             Matrix4x4 transform, Vector4 tintColor, string? skinName = null, EntityLump.Entity? entity = null)
         {
@@ -547,6 +583,7 @@ namespace ValveResourceFormat.IO
                     }
 
                     animationWriter.WriteAnimation(exportedModel, joints, animation);
+                    CancellationToken.ThrowIfCancellationRequested();
                 }
             }
             else
