@@ -710,7 +710,7 @@ namespace GUI.Types.Renderer
 
             // Assign random probe to any node that does not have any light probes to fix the flickering,
             // this isn't ideal, and a proper fix would be to remove D_BAKED_LIGHTING_FROM_PROBE from the shader
-            var firstProbe = LightingInfo.ProbeHandshakes.Values.First();
+            var firstProbe = LightingInfo.LightProbes[0];
 
             foreach (var node in AllNodes)
             {
