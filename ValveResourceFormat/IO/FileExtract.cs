@@ -204,6 +204,27 @@ namespace ValveResourceFormat.IO
                         break;
                     }
 
+                case ResourceType.NmClip:
+                    {
+                        var clip = (ResourceTypes.ModelAnimation2.AnimationClip)resource.DataBlock;
+
+                        // todo: improve
+                        var kv = new Serialization.KeyValues.KVObject(null);
+                        var sourceFileName = Path.ChangeExtension(resource.FileName, ".dmx");
+                        kv.AddProperty("m_sourceFilename", sourceFileName);
+                        kv.AddProperty("m_animationSkeletonName ", clip.SkeletonName);
+                        contentFile.Data = Encoding.UTF8.GetBytes(new Serialization.KeyValues.KV3File(kv).ToString());
+
+                        contentFile.AddSubFile(sourceFileName, () =>
+                        {
+                            var skeleton = ResourceTypes.ModelAnimation.Skeleton.FromSkeletonData(((BinaryKV3)fileLoader.LoadFileCompiled(clip.SkeletonName).DataBlock!).Data);
+
+                            return ModelExtract.ToDmxAnim(skeleton, [], new ResourceTypes.ModelAnimation.Animation(clip));
+                        });
+
+                        break;
+                    }
+
                 // These all just use ToString() and WriteText() to do the job
                 case ResourceType.PanoramaStyle:
                 case ResourceType.PanoramaLayout:

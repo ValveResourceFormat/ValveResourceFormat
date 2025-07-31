@@ -3,6 +3,7 @@ using Datamodel;
 using ValveResourceFormat.IO.ContentFormats.DmxModel;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
+using ValveResourceFormat.ResourceTypes.ModelFlex;
 
 namespace ValveResourceFormat.IO;
 
@@ -32,10 +33,13 @@ partial class ModelExtract
     }
 
     public static byte[] ToDmxAnim(Model model, Animation anim)
+        => ToDmxAnim(model.Skeleton, model.FlexControllers, anim);
+
+    public static byte[] ToDmxAnim(Skeleton skeleton, FlexController[] flexControllers, Animation anim)
     {
         using var dmx = new Datamodel.Datamodel("model", 22);
 
-        var skeleton = BuildDmeDagSkeleton(model.Skeleton, out var transforms);
+        var dmeSkeleton = BuildDmeDagSkeleton(skeleton, out var transforms);
 
         var animationList = new DmeAnimationList();
         var clip = new DmeChannelsClip
@@ -50,7 +54,7 @@ partial class ModelExtract
             var frames = new Frame[anim.FrameCount];
             for (var i = 0; i < anim.FrameCount; i++)
             {
-                var frame = new Frame(model.Skeleton, model.FlexControllers)
+                var frame = new Frame(skeleton, flexControllers)
                 {
                     FrameIndex = i
                 };
@@ -58,9 +62,9 @@ partial class ModelExtract
                 frames[i] = frame;
             }
 
-            ProcessRootMotionChannel(anim, skeleton, clip);
-            ProcessBoneChannels(model, anim, transforms, clip, frames);
-            ProcessFlexChannels(model, anim, clip, frames);
+            ProcessRootMotionChannel(anim, dmeSkeleton, clip);
+            ProcessBoneChannels(skeleton, anim, transforms, clip, frames);
+            ProcessFlexChannels(flexControllers, anim, clip, frames);
         }
 
         animationList.Animations.Add(clip);
@@ -69,7 +73,7 @@ partial class ModelExtract
 
         dmx.Root = new Element(dmx, "root", null, "DmElement")
         {
-            ["skeleton"] = skeleton,
+            ["skeleton"] = dmeSkeleton,
             ["animationList"] = animationList,
             ["exportTags"] = new Element(dmx, "exportTags", null, "DmeExportTags")
             {
@@ -196,11 +200,11 @@ partial class ModelExtract
         clip.Channels.Add(rootOrientationChannel);
     }
 
-    private static void ProcessFlexChannels(Model model, Animation anim, DmeChannelsClip clip, Frame[] frames)
+    private static void ProcessFlexChannels(FlexController[] flexControllers, Animation anim, DmeChannelsClip clip, Frame[] frames)
     {
-        for (var flexId = 0; flexId < model.FlexControllers.Length; flexId++)
+        for (var flexId = 0; flexId < flexControllers.Length; flexId++)
         {
-            var flexController = model.FlexControllers[flexId];
+            var flexController = flexControllers[flexId];
 
             var flexElement = new Element
             {
@@ -222,9 +226,9 @@ partial class ModelExtract
         }
     }
 
-    private static void ProcessBoneChannels(Model model, Animation anim, DmeTransform[] transforms, DmeChannelsClip clip, Frame[] frames)
+    private static void ProcessBoneChannels(Skeleton skeleton, Animation anim, DmeTransform[] transforms, DmeChannelsClip clip, Frame[] frames)
     {
-        foreach (var bone in model.Skeleton.Bones)
+        foreach (var bone in skeleton.Bones)
         {
             var transform = transforms[bone.Index];
 
