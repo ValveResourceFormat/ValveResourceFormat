@@ -189,7 +189,12 @@ public sealed class ShaderExtract
     private void PreprocessCommon()
     {
         var firstPass = true;
-        var stages = Shaders.Where(s => !(s.VcsProgramType is VcsProgramType.Features or VcsProgramType.PixelShaderRenderState)).ToList();
+        var stages = Shaders
+            .Where(s =>
+                !(s.VcsProgramType is VcsProgramType.Features
+                    or VcsProgramType.PixelShaderRenderState
+                    or VcsProgramType.RaytracingShader))
+            .ToList();
 
         if (stages.Count < 2)
         {
