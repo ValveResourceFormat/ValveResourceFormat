@@ -114,12 +114,9 @@ namespace GUI.Types.Renderer
                     return;
                 }
 
-                var bonesMatrices = new Matrix4x4[skeleton.Bones.Length];
-                animationController.GetBoneMatrices(bonesMatrices, bindPose: true);
-
-                LeftEyePosition = bonesMatrices[LeftEyeBoneIndex].Translation;
-                RightEyePosition = bonesMatrices[RightEyeBoneIndex].Translation;
-                TargetPosition = bonesMatrices[TargetBoneIndex].Translation;
+                LeftEyePosition = animationController.BindPose[LeftEyeBoneIndex].Translation;
+                RightEyePosition = animationController.BindPose[RightEyeBoneIndex].Translation;
+                TargetPosition = animationController.BindPose[TargetBoneIndex].Translation;
             }
         }
 
@@ -171,8 +168,6 @@ namespace GUI.Types.Renderer
                 return;
             }
 
-            var frame = AnimationController.GetFrame();
-
             if (IsAnimated)
             {
                 // Update animation matrices
@@ -191,20 +186,7 @@ namespace GUI.Types.Renderer
 
                 try
                 {
-                    var skeleton = AnimationController.FrameCache.Skeleton;
-                    Animation.GetAnimationMatrices(modelBones, frame, skeleton);
-
-                    // Copy procedural cloth node transforms from a animated root bone
-                    if (skeleton.ClothSimulationRoot is not null)
-                    {
-                        foreach (var clothNode in skeleton.Roots)
-                        {
-                            if (clothNode.IsProceduralCloth)
-                            {
-                                modelBones[clothNode.Index] = modelBones[skeleton.ClothSimulationRoot.Index];
-                            }
-                        }
-                    }
+                    AnimationController.GetSkinningMatrices(modelBones);
 
                     for (var i = 0; i < meshBoneCount; i++)
                     {
@@ -236,7 +218,7 @@ namespace GUI.Types.Renderer
             }
 
             //Update morphs
-            var datas = frame.Datas;
+            var datas = AnimationController.AnimationFrame.Datas;
             foreach (var renderableMesh in RenderableMeshes)
             {
                 if (renderableMesh.FlexStateManager == null)

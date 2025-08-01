@@ -44,24 +44,11 @@ namespace GUI.Types.Renderer
                 return;
             }
 
-            Frame frame = null;
-            if (animationController.ActiveAnimation != null)
-            {
-                if (animationController.IsPaused)
-                {
-                    frame = animationController.FrameCache.GetFrame(animationController.ActiveAnimation, animationController.Frame);
-                }
-                else
-                {
-                    frame = animationController.FrameCache.GetInterpolatedFrame(animationController.ActiveAnimation, animationController.Time);
-                }
-            }
-
             var vertices = new List<SimpleVertex>();
 
             foreach (var root in skeleton.Roots)
             {
-                GetAnimationMatrixRecursive(vertices, context.View.TextRenderer, root, Matrix4x4.Identity, frame);
+                DrawSkeletonRecursive(root, vertices, context.View.TextRenderer, animationController);
             }
 
             AABB bounds = default;
@@ -87,39 +74,34 @@ namespace GUI.Types.Renderer
             GL.NamedBufferData(vboHandle, vertices.Count * SimpleVertex.SizeInBytes, ListAccessors<SimpleVertex>.GetBackingArray(vertices), BufferUsageHint.DynamicDraw);
         }
 
-        private static void GetAnimationMatrixRecursive(List<SimpleVertex> vertices, TextRenderer textRenderer, Bone bone, Matrix4x4 bindPose, Frame frame)
+        private static void DrawSkeletonRecursive(Bone bone, List<SimpleVertex> vertices, TextRenderer textRenderer, AnimationController animation)
         {
-            var oldBindPose = bindPose;
+            var boneMatrix = animation.Pose[bone.Index];
 
-            if (frame != null)
-            {
-                var transform = frame.Bones[bone.Index];
-                bindPose = Matrix4x4.CreateScale(transform.Scale)
-                    * Matrix4x4.CreateFromQuaternion(transform.Angle)
-                    * Matrix4x4.CreateTranslation(transform.Position)
-                    * bindPose;
-            }
-            else
-            {
-                bindPose = bone.BindPose * bindPose;
-            }
-
-            textRenderer.AddTextBillboard(bindPose.Translation, new TextRenderer.TextRenderRequest
+            textRenderer.AddTextBillboard(boneMatrix.Translation, new TextRenderer.TextRenderRequest
             {
                 Scale = 10f,
                 Text = bone.Name,
+                Color = (bone.Parent, bone.Children.Count) switch
+                {
+                    (null, _) => new Color32(1.0f, 0.8f, 0.8f, 1.0f),
+                    (_, 0) => new Color32(0.3f, 0.8f, 0.3f, 1.0f),
+                    _ => Color32.White,
+                },
                 CenterVertical = false
             });
 
-            if (!oldBindPose.IsIdentity)
+            if (bone.Parent != null)
             {
+                var parentMatrix = animation.Pose[bone.Parent.Index];
+
                 var fade = Random.Shared.NextSingle() * 0.5f + 0.5f;
-                OctreeDebugRenderer<SceneNode>.AddLine(vertices, bindPose.Translation, oldBindPose.Translation, new(1f - fade, 1f, fade, 1f));
+                OctreeDebugRenderer<SceneNode>.AddLine(vertices, boneMatrix.Translation, parentMatrix.Translation, new(1f - fade, 1f, fade, 1f));
             }
 
             foreach (var child in bone.Children)
             {
-                GetAnimationMatrixRecursive(vertices, textRenderer, child, bindPose, frame);
+                DrawSkeletonRecursive(child, vertices, textRenderer, animation);
             }
         }
 
