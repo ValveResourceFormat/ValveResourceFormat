@@ -289,26 +289,5 @@ namespace GUI.Types.Renderer
                 GL.Enable(EnableCap.CullFace);
             }
         }
-
-        public static Vector3 SrgbGammaToLinear(Vector3 vSrgbGammaColor)
-        {
-            var vLinearSegment = vSrgbGammaColor / 12.92f;
-            const float power = 2.4f;
-
-            var vExpSegment = (vSrgbGammaColor / 1.055f) + new Vector3(0.055f / 1.055f);
-            vExpSegment = new Vector3(
-                MathF.Pow(vExpSegment.X, power),
-                MathF.Pow(vExpSegment.Y, power),
-                MathF.Pow(vExpSegment.Z, power)
-            );
-
-            var vLinearColor = new Vector3(
-                (vSrgbGammaColor.X <= 0.04045f) ? vLinearSegment.X : vExpSegment.X,
-                (vSrgbGammaColor.Y <= 0.04045f) ? vLinearSegment.Y : vExpSegment.Y,
-                (vSrgbGammaColor.Z <= 0.04045f) ? vLinearSegment.Z : vExpSegment.Z
-            );
-
-            return vLinearColor;
-        }
     }
 }
