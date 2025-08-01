@@ -1245,10 +1245,10 @@ namespace CLI
                             contentFile = new ShaderExtract(collection).ToContentFile();
 
                             // Remove the last part from the file name ("_features", ...)
-                            var newFileNameBase = fileName.Substring(0, fileName.LastIndexOf('_'));
+                            var newFileNameBase = fileName.AsSpan(0, fileName.LastIndexOf('_'));
                             var directory = Path.GetDirectoryName(filePath);
 
-                            outputFile = Path.Combine(directory ?? string.Empty, newFileNameBase + ".vfx");
+                            outputFile = Path.Combine(directory ?? string.Empty, string.Concat(newFileNameBase, ".vfx"));
                         }
                         else
                         {
