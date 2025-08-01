@@ -1205,7 +1205,9 @@ namespace CLI
                     package.ReadEntry(file, rawFileData);
 
                     // Not a file that can be decompiled, or no decompilation was requested
-                    if (!Decompile || !type.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal) && type != "vcs")
+                    var isVcsFile = totalLength >= 4
+                                    && BitConverter.ToUInt32(rawFileData.AsSpan()[..4]) == VfxProgramData.MAGIC;
+                    if (!Decompile || !type.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal) && !isVcsFile)
                     {
                         if (OutputFile != null)
                         {
@@ -1230,10 +1232,11 @@ namespace CLI
                     {
                         string outputFile;
                         // VCS files require multiple files to be decompiled together
-                        if (type == "vcs")
+                        if (isVcsFile)
                         {
+                            var fileName = Path.GetFileNameWithoutExtension(filePath);
                             // Only parse features files
-                            if (!filePath.EndsWith("_features.vcs", StringComparison.Ordinal))
+                            if (!fileName.EndsWith("_features", StringComparison.Ordinal))
                             {
                                 continue;
                             }
@@ -1242,10 +1245,8 @@ namespace CLI
                             contentFile = new ShaderExtract(collection).ToContentFile();
 
                             // Remove the last part from the file name ("_features", ...)
-                            var directory = Path.GetDirectoryName(filePath);
-                            var fileName = Path.GetFileNameWithoutExtension(filePath);
-
                             var newFileNameBase = fileName.Substring(0, fileName.LastIndexOf('_'));
+                            var directory = Path.GetDirectoryName(filePath);
 
                             outputFile = Path.Combine(directory ?? string.Empty, newFileNameBase + ".vfx");
                         }
