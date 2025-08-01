@@ -1,4 +1,6 @@
 using System.Collections;
+using System.IO;
+using SteamDatabase.ValvePak;
 
 namespace ValveResourceFormat.CompiledShader;
 
@@ -26,6 +28,70 @@ public class ShaderCollection : IEnumerable<VfxProgramData>, IDisposable
         => Get(VcsProgramType.MeshShader);
 
     private readonly Dictionary<VcsProgramType, VfxProgramData> shaders = new((int)VcsProgramType.Undetermined);
+
+    public static ShaderCollection GetShaderCollection(string targetFilename, Package vrfPackage)
+    {
+        ShaderCollection shaderCollection = [];
+
+        var filename = Path.GetFileName(targetFilename);
+        var vcsCollectionName = filename.AsSpan(0, filename.LastIndexOf('_')); // in the form water_dota_pcgl_40
+
+        if (vrfPackage != null)
+        {
+            // search the package
+            var vcsEntries = vrfPackage.Entries["vcs"];
+
+            foreach (var vcsEntry in vcsEntries)
+            {
+                // vcsEntry.FileName is in the form bloom_dota_pcgl_30_ps (without vcs extension)
+                if (vcsEntry.FileName.AsSpan().StartsWith(vcsCollectionName, StringComparison.InvariantCulture))
+                {
+                    vrfPackage.ReadEntry(vcsEntry, out var shaderDatabytes);
+
+                    var relatedShaderFile = new VfxProgramData();
+
+                    try
+                    {
+                        relatedShaderFile.Read(vcsEntry.GetFileName(), new MemoryStream(shaderDatabytes));
+                        shaderCollection.Add(relatedShaderFile);
+                        relatedShaderFile = null;
+                    }
+                    finally
+                    {
+                        relatedShaderFile?.Dispose();
+                    }
+                }
+            }
+        }
+        else
+        {
+            // search file-system
+            foreach (var vcsFile in Directory.GetFiles(Path.GetDirectoryName(targetFilename)))
+            {
+                if (Path.GetFileName(vcsFile.AsSpan()).StartsWith(vcsCollectionName, StringComparison.InvariantCulture))
+                {
+                    var program = new VfxProgramData();
+                    Stream stream = null;
+
+                    try
+                    {
+                        stream = new FileStream(vcsFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                        program.Read(Path.GetFileName(vcsFile), stream);
+                        shaderCollection.Add(program);
+                        program = null;
+                        stream = null;
+                    }
+                    finally
+                    {
+                        stream?.Dispose();
+                        program?.Dispose();
+                    }
+                }
+            }
+        }
+
+        return shaderCollection;
+    }
 
     public void Add(VfxProgramData program)
     {
