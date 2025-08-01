@@ -217,19 +217,21 @@ namespace GUI.Types.Renderer
                 }
             }
 
-            //Update morphs
-            var datas = AnimationController.AnimationFrame.Datas;
-            foreach (var renderableMesh in RenderableMeshes)
+            if (AnimationController.AnimationFrame != null)
             {
-                if (renderableMesh.FlexStateManager == null)
+                var datas = AnimationController.AnimationFrame.Datas;
+                foreach (var renderableMesh in RenderableMeshes)
                 {
-                    continue;
-                }
+                    if (renderableMesh.FlexStateManager == null)
+                    {
+                        continue;
+                    }
 
-                if (renderableMesh.FlexStateManager.SetControllerValues(datas))
-                {
-                    renderableMesh.FlexStateManager.UpdateComposite();
-                    renderableMesh.FlexStateManager.MorphComposite.Render();
+                    if (renderableMesh.FlexStateManager.SetControllerValues(datas))
+                    {
+                        renderableMesh.FlexStateManager.UpdateComposite();
+                        renderableMesh.FlexStateManager.MorphComposite.Render();
+                    }
                 }
             }
         }

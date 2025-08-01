@@ -9,7 +9,7 @@ namespace GUI.Types.Renderer
 
         public float FrametimeMultiplier { get; set; } = 1.0f;
         public float Time { get; private set; }
-        private bool shouldUpdate;
+        private bool forceUpdate;
 
         public Animation? ActiveAnimation { get; private set; }
         public AnimationFrameCache FrameCache { get; }
@@ -31,7 +31,17 @@ namespace GUI.Types.Renderer
 
         public Frame? AnimationFrame { get; private set; }
 
-        public bool IsPaused { get; set; }
+        private bool isPaused;
+        public bool IsPaused
+        {
+            get => isPaused;
+            set
+            {
+                isPaused = value;
+                forceUpdate = !value;
+            }
+        }
+
         public int Frame
         {
             get
@@ -49,7 +59,7 @@ namespace GUI.Types.Renderer
                     Time = ActiveAnimation.Fps != 0
                         ? value / ActiveAnimation.Fps
                         : 0f;
-                    shouldUpdate = true;
+                    forceUpdate = true;
                 }
             }
         }
@@ -73,21 +83,36 @@ namespace GUI.Types.Renderer
 
         public bool Update(float timeStep)
         {
-            if (ActiveAnimation == null)
+            if ((ActiveAnimation == null || IsPaused || ActiveAnimation.FrameCount == 1) && !forceUpdate)
             {
                 return false;
             }
 
-            if (IsPaused || ActiveAnimation.FrameCount == 1)
+            if (!IsPaused)
             {
-                var res = shouldUpdate;
-                shouldUpdate = false;
-                return res;
+                Time += timeStep * FrametimeMultiplier;
             }
 
-            Time += timeStep * FrametimeMultiplier;
+            AnimationFrame = GetFrame();
             updateHandler(ActiveAnimation, Frame);
-            shouldUpdate = false;
+            forceUpdate = false;
+
+            if (AnimationFrame == null)
+            {
+                BindPose.AsSpan().CopyTo(Pose);
+                return true;
+            }
+
+            foreach (var root in FrameCache.Skeleton.Roots)
+            {
+                if (root.IsProceduralCloth)
+                {
+                    continue;
+                }
+
+                GetBoneMatricesRecursive(root, Matrix4x4.Identity, AnimationFrame, Pose);
+            }
+
             return true;
         }
 
@@ -95,6 +120,7 @@ namespace GUI.Types.Renderer
         {
             FrameCache.Clear();
             ActiveAnimation = animation;
+            forceUpdate = true;
             Time = 0f;
             Frame = 0;
             updateHandler(ActiveAnimation, -1);
@@ -165,20 +191,7 @@ namespace GUI.Types.Renderer
         /// </summary>
         public void GetSkinningMatrices(Span<Matrix4x4> modelBones)
         {
-            var frame = GetFrame();
-            AnimationFrame = frame;
             var skeleton = FrameCache.Skeleton;
-
-            // Get animation pose
-            foreach (var root in skeleton.Roots)
-            {
-                if (root.IsProceduralCloth)
-                {
-                    continue;
-                }
-
-                GetBoneMatricesRecursive(root, Matrix4x4.Identity, frame, Pose);
-            }
 
             for (var i = 0; i < Pose.Length; i++)
             {

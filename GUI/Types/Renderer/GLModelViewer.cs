@@ -388,7 +388,7 @@ namespace GUI.Types.Renderer
 
         protected override void OnPaint(object sender, RenderEventArgs e)
         {
-            if (enableRootMotion && animationController.GetFrame() is Frame animationFrame)
+            if (enableRootMotion && animationController.AnimationFrame is Frame animationFrame)
             {
                 var rootMotionDelta = animationFrame.Movement.Position - LastRootMotionPosition;
 
