@@ -29,7 +29,7 @@ public class ShaderCollection : IEnumerable<VfxProgramData>, IDisposable
 
     private readonly Dictionary<VcsProgramType, VfxProgramData> shaders = new((int)VcsProgramType.Undetermined);
 
-    public static ShaderCollection GetShaderCollection(string targetFilename, Package vrfPackage)
+    public static ShaderCollection GetShaderCollection(string targetFilename, Package? vrfPackage)
     {
         ShaderCollection shaderCollection = [];
 
@@ -66,12 +66,12 @@ public class ShaderCollection : IEnumerable<VfxProgramData>, IDisposable
         else
         {
             // search file-system
-            foreach (var vcsFile in Directory.GetFiles(Path.GetDirectoryName(targetFilename)))
+            foreach (var vcsFile in Directory.GetFiles(Path.GetDirectoryName(targetFilename)!))
             {
                 if (Path.GetFileName(vcsFile.AsSpan()).StartsWith(vcsCollectionName, StringComparison.InvariantCulture))
                 {
                     var program = new VfxProgramData();
-                    Stream stream = null;
+                    Stream? stream = null;
 
                     try
                     {
