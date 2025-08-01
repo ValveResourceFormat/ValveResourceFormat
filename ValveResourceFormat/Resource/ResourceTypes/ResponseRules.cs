@@ -52,9 +52,9 @@ namespace ValveResourceFormat.ResourceTypes
             File = Encoding.UTF8.GetString(reader.ReadBytes((int)(Size - relativeOffsetHere)));
         }
 
-        public override string ToString()
+        public override void WriteText(IndentedTextWriter writer)
         {
-            return File;
+            writer.Write(File);
         }
     }
 }

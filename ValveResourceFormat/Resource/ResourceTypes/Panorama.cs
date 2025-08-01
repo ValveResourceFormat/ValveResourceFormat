@@ -61,9 +61,9 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
-        public override string ToString()
+        public override void WriteText(IndentedTextWriter writer)
         {
-            return Encoding.UTF8.GetString(Data);
+            writer.Write(Encoding.UTF8.GetString(Data));
         }
     }
 }

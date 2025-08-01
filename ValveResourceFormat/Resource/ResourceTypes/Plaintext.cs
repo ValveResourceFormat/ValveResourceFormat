@@ -17,9 +17,9 @@ namespace ValveResourceFormat.ResourceTypes
             Data = Encoding.UTF8.GetString(reader.ReadBytes((int)Size));
         }
 
-        public override string ToString()
+        public override void WriteText(IndentedTextWriter writer)
         {
-            return Data;
+            writer.Write(Data);
         }
     }
 }

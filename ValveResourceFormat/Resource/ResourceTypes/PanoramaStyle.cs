@@ -16,7 +16,10 @@ namespace ValveResourceFormat.ResourceTypes
             SourceMap = Resource.GetBlockByType(BlockType.SrMa) as BinaryKV3;
         }
 
-        public override string ToString() => ToString(true);
+        public override void WriteText(IndentedTextWriter writer)
+        {
+            writer.Write(ToString(true)); // TODO: reuse writer
+        }
 
         public string ToString(bool applySourceMapIfPresent)
         {

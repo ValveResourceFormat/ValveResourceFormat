@@ -866,9 +866,8 @@ namespace ValveResourceFormat.ResourceTypes
             return codec;
         }
 
-        public override string ToString()
+        public override void WriteText(IndentedTextWriter writer)
         {
-            using var writer = new IndentedTextWriter();
             writer.WriteLine("{0,-12} = {1}", "VTEX Version", Version);
             writer.WriteLine("{0,-12} = {1}", "Width", Width);
             writer.WriteLine("{0,-12} = {1}", "Height", Height);
@@ -980,8 +979,6 @@ namespace ValveResourceFormat.ResourceTypes
                     writer.WriteLine($"Mip level {j} - buffer size: {CalculateBufferSizeForMipLevel(j)}");
                 }
             }
-
-            return writer.ToString();
         }
     }
 }

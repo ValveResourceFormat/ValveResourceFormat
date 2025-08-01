@@ -85,11 +85,6 @@ namespace ValveResourceFormat.ResourceTypes
             GetPrintabaleObject().WriteText(writer);
         }
 
-        public override string ToString()
-        {
-            return GetPrintabaleObject().ToString();
-        }
-
         private KV3File GetPrintabaleObject()
         {
             var root = new KVObject(null);

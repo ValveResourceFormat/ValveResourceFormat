@@ -67,15 +67,5 @@ namespace ValveResourceFormat.ResourceTypes
 
             BackingData.WriteText(writer);
         }
-
-        public override string ToString()
-        {
-            if (BackingData is BinaryKV3 dataKv3)
-            {
-                return dataKv3.GetKV3File().ToString();
-            }
-
-            return BackingData.ToString();
-        }
     }
 }

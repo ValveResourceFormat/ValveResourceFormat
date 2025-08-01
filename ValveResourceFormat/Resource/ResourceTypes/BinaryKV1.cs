@@ -21,7 +21,7 @@ namespace ValveResourceFormat.ResourceTypes
             KeyValues = KVSerializer.Create(KVSerializationFormat.KeyValues1Binary).Deserialize(reader.BaseStream);
         }
 
-        public override string ToString()
+        public override void WriteText(IndentedTextWriter writer)
         {
             using var ms = new MemoryStream();
             using var reader = new StreamReader(ms);
@@ -30,7 +30,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             ms.Seek(0, SeekOrigin.Begin);
 
-            return reader.ReadToEnd();
+            writer.Write(reader.ReadToEnd());
         }
     }
 }

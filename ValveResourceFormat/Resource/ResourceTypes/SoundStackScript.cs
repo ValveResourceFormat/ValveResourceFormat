@@ -48,17 +48,14 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
-        public override string ToString()
+        public override void WriteText(IndentedTextWriter writer)
         {
-            using var writer = new IndentedTextWriter();
             foreach (var entry in SoundStackScriptValue)
             {
                 writer.WriteLine($"// {entry.Key}");
                 writer.Write(entry.Value);
                 writer.WriteLine(string.Empty);
             }
-
-            return writer.ToString();
         }
     }
 }

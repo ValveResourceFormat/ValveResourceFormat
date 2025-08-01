@@ -10,9 +10,9 @@ namespace ValveResourceFormat.ResourceTypes
             // Maps have no data
         }
 
-        public override string ToString()
+        public override void WriteText(IndentedTextWriter writer)
         {
-            return string.Empty;
+            // Maps have no data
         }
     }
 }
