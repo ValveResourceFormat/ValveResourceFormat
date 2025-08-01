@@ -457,7 +457,7 @@ public partial class GltfModelExporter
         var fragmentTransforms = aggregateSceneObject.GetArray("m_fragmentTransforms");
 
         var meshSceneObjects = vmesh.Data.GetArray("m_sceneObjects");
-        List<KVObject> drawCalls = [];
+        var drawCalls = new List<KVObject>(meshSceneObjects.Length);
 
         foreach (var meshSceneObject in meshSceneObjects)
         {

@@ -94,6 +94,8 @@ public partial class GltfModelExporter
             baseColor.W = 1; //Tint only affects color
         }
 
+        var baseColorLinear = ColorSpace.SrgbGammaToLinear(baseColor.AsVector3());
+        baseColor = new Vector4(baseColorLinear, baseColor.W);
         baseColor = Vector4.Clamp(baseColor, Vector4.Zero, Vector4.One);
 
         material.WithPBRMetallicRoughness(baseColor, null, metallicFactor: metalValue);

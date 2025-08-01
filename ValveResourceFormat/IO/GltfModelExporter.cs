@@ -356,9 +356,7 @@ namespace ValveResourceFormat.IO
                     renderamt /= 255f;
                 }
 
-                rendercolor.X = MathF.Pow(rendercolor.X, 2.2f);
-                rendercolor.Y = MathF.Pow(rendercolor.Y, 2.2f);
-                rendercolor.Z = MathF.Pow(rendercolor.Z, 2.2f);
+                rendercolor = ColorSpace.SrgbGammaToLinear(rendercolor);
                 var tintColor = new Vector4(rendercolor, renderamt);
 
                 // Add meshes and their skeletons
@@ -806,6 +804,7 @@ namespace ValveResourceFormat.IO
         {
             var intensity = entity.GetPropertyUnchecked("brightness", 1f);
             var color = entity.GetColor32Property("color");
+            color = ColorSpace.SrgbGammaToLinear(color);
 
             var envLight = exportedModel
                 .CreatePunctualLight(PunctualLightType.Directional)
