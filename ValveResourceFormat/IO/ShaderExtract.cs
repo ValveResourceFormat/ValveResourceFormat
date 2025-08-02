@@ -464,10 +464,10 @@ public sealed class ShaderExtract
                     {
                         includeWriter = new IndentedTextWriter();
                         IncludeWriters.Add(includeName, includeWriter);
-                        writer.WriteLine($"#include \"{includeName}\"");
+                        WriteCBuffer(includeWriter, buffer);
                     }
 
-                    WriteCBuffer(includeWriter, buffer);
+                    writer.WriteLine($"#include \"{includeName}\"");
                     continue;
                 }
             }
