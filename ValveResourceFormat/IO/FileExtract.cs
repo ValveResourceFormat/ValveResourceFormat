@@ -217,7 +217,14 @@ namespace ValveResourceFormat.IO
 
                         contentFile.AddSubFile(sourceFileName, () =>
                         {
-                            var skeleton = ResourceTypes.ModelAnimation.Skeleton.FromSkeletonData(((BinaryKV3)fileLoader.LoadFileCompiled(clip.SkeletonName).DataBlock!).Data);
+                            using var skeletonResource = fileLoader.LoadFileCompiled(clip.SkeletonName);
+
+                            if (skeletonResource == null)
+                            {
+                                return null;
+                            }
+
+                            var skeleton = ResourceTypes.ModelAnimation.Skeleton.FromSkeletonData(((BinaryKV3)skeletonResource.DataBlock!).Data);
 
                             return ModelExtract.ToDmxAnim(skeleton, [], new ResourceTypes.ModelAnimation.Animation(clip));
                         });
