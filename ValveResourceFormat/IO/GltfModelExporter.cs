@@ -273,7 +273,7 @@ namespace ValveResourceFormat.IO
                 }
 
                 var childLump = (VEntityLump)newResource.DataBlock!;
-                var childName = childLump.Data.GetProperty<string>("m_name");
+                var childName = childLump.Name;
 
                 childEntityLumps.Add(childName, childLump);
             }

@@ -69,6 +69,8 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
+        public string Name => Data.GetProperty<string>("m_name");
+
         public string[] GetChildEntityNames()
         {
             return Data.GetArray<string>("m_childLumps");

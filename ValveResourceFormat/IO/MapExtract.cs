@@ -1190,7 +1190,7 @@ public sealed class MapExtract
     #region Entities
     private void GatherEntitiesFromLump(EntityLump entityLump)
     {
-        var lumpName = entityLump.Data.GetStringProperty("m_name");
+        var lumpName = entityLump.Name;
 
         foreach (var childLumpName in entityLump.GetChildEntityNames())
         {

@@ -14,6 +14,8 @@ namespace ValveResourceFormat.ResourceTypes
 {
     public class Model : KeyValuesOrNTRO
     {
+        public string Name => Data.GetStringProperty("m_name");
+
         public Skeleton Skeleton
         {
             get

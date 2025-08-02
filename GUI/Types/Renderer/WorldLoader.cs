@@ -240,7 +240,7 @@ namespace GUI.Types.Renderer
                 }
 
                 var childLump = (EntityLump)newResource.DataBlock;
-                var childName = childLump.Data.GetProperty<string>("m_name");
+                var childName = childLump.Name;
 
                 childEntityLumps.Add(childName, childLump);
             }

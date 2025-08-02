@@ -24,7 +24,7 @@ partial class ModelExtract
 
     string GetDmxFileName_ForAnimation(string animationName)
     {
-        var fileName = GetModelName();
+        var fileName = ModelName;
         return (Path.GetDirectoryName(fileName)
             + Path.DirectorySeparatorChar
             + animationName
