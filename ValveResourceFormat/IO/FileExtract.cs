@@ -245,8 +245,16 @@ namespace ValveResourceFormat.IO
                     break;
 
                 default:
-                    contentFile.Data = Encoding.UTF8.GetBytes(resource.DataBlock.ToString());
-                    break;
+                    {
+                        var dataBlock = resource.DataBlock;
+
+                        if (dataBlock != null)
+                        {
+                            contentFile.Data = Encoding.UTF8.GetBytes(resource.DataBlock.ToString());
+                        }
+
+                        break;
+                    }
             }
 
             return contentFile;
