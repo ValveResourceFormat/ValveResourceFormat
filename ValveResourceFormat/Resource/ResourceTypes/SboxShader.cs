@@ -1,10 +1,9 @@
 using System.IO;
-using ValveResourceFormat.Blocks;
 using ValveResourceFormat.CompiledShader;
 
 namespace ValveResourceFormat.ResourceTypes
 {
-    public class SboxShader : ResourceData
+    public class SboxShader : Block
     {
         public override BlockType Type { get; }
         public ShaderCollection Shaders { get; } = [];

@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Text;
 
 namespace ValveResourceFormat.ResourceTypes

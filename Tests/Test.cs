@@ -5,7 +5,6 @@ using System.Text;
 using System.Text.RegularExpressions;
 using NUnit.Framework;
 using ValveResourceFormat;
-using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.Utils;
 
@@ -98,7 +97,7 @@ namespace Tests
 
                 resource.Read(ms);
 
-                Assert.That(resource.DataBlock, Is.Not.TypeOf<ResourceData>(), file);
+                Assert.That(resource.DataBlock, Is.Not.Null, file);
             }
         }
 
@@ -120,7 +119,7 @@ namespace Tests
                 using var fs = new FileStream(file, FileMode.Open, FileAccess.Read);
                 resource.Read(fs);
 
-                Assert.That(resource.DataBlock, Is.Not.TypeOf<ResourceData>(), file);
+                Assert.That(resource.DataBlock, Is.Not.Null, file);
             }
         }
 

@@ -1,13 +1,14 @@
 using System.IO;
 using System.Text;
-using ValveResourceFormat.Blocks;
 
 #nullable disable
 
 namespace ValveResourceFormat.ResourceTypes
 {
-    public class SoundStackScript : ResourceData
+    public class SoundStackScript : Block
     {
+        public override BlockType Type => BlockType.DATA;
+
         public Dictionary<string, string> SoundStackScriptValue { get; private set; } // TODO: be Dictionary<string, SomeKVObject>
 
         public override void Read(BinaryReader reader)

@@ -1,6 +1,5 @@
 using System.IO;
 using System.Text;
-using ValveResourceFormat.Blocks;
 
 #nullable disable
 
@@ -13,8 +12,10 @@ namespace ValveResourceFormat.ResourceTypes
         public int Flags2 { get; set; }
     }
 
-    public class ResponseRules : ResourceData
+    public class ResponseRules : Block
     {
+        public override BlockType Type => BlockType.DATA;
+
         public byte Arg1 { get; private set; }
         public byte Arg2 { get; private set; }
         public byte Arg3 { get; private set; }

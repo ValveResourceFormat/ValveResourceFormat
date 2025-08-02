@@ -1,12 +1,11 @@
 using System.IO;
 using ValveKeyValue;
-using ValveResourceFormat.Blocks;
 
 #nullable disable
 
 namespace ValveResourceFormat.ResourceTypes
 {
-    public class BinaryKV1 : ResourceData
+    public class BinaryKV1 : Block
     {
         public const int MAGIC = 0x564B4256; // VBKV
 

@@ -1,14 +1,15 @@
 using System.IO;
 using System.Text;
-using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Serialization.KeyValues;
 
 #nullable disable
 
 namespace ValveResourceFormat.ResourceTypes
 {
-    public class ResourceManifest : ResourceData
+    public class ResourceManifest : Block
     {
+        public override BlockType Type => BlockType.DATA;
+
         public List<List<string>> Resources { get; private set; } = [];
 
         public override void Read(BinaryReader reader)

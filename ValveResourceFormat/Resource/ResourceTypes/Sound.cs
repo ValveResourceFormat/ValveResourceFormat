@@ -1,9 +1,6 @@
 using System.Diagnostics;
-using System.Globalization;
 using System.IO;
 using System.Runtime.InteropServices;
-using System.Text;
-using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Serialization.KeyValues;
 
 #nullable disable
@@ -33,7 +30,7 @@ namespace ValveResourceFormat.ResourceTypes
         public EmphasisSample[] EmphasisSamples { get; init; }
     }
 
-    public class Sound : ResourceData
+    public class Sound : Block
     {
         public enum AudioFileType
         {
@@ -57,6 +54,8 @@ namespace ValveResourceFormat.ResourceTypes
             PCM = 1,
             ADPCM = 2,
         }
+
+        public override BlockType Type => BlockType.DATA;
 
         /// <summary>
         /// Gets the audio file type.

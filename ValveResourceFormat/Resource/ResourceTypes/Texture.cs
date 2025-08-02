@@ -5,14 +5,13 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using K4os.Compression.LZ4;
 using SkiaSharp;
-using ValveResourceFormat.Blocks;
 using ValveResourceFormat.TextureDecoders;
 
 #nullable disable
 
 namespace ValveResourceFormat.ResourceTypes
 {
-    public class Texture : ResourceData
+    public class Texture : Block
     {
         public enum CubemapFace
         {
@@ -101,6 +100,8 @@ namespace ValveResourceFormat.ResourceTypes
             VTexFormat.ATI1N => 8,
             _ => 1,
         };
+
+        public override BlockType Type => BlockType.DATA;
 
         private BinaryReader Reader => Resource.Reader;
         private long DataOffset => Offset + Size;

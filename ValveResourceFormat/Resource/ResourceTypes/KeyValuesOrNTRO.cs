@@ -1,12 +1,11 @@
 using System.IO;
-using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Serialization.KeyValues;
 
 #nullable disable
 
 namespace ValveResourceFormat.ResourceTypes
 {
-    public class KeyValuesOrNTRO : ResourceData
+    public class KeyValuesOrNTRO : Block
     {
         private readonly string IntrospectionStructName;
         private readonly BlockType KVBlockType;
@@ -14,7 +13,7 @@ namespace ValveResourceFormat.ResourceTypes
 
         public KVObject Data { get; private set; }
 
-        private ResourceData BackingData;
+        private Block BackingData;
 
         public KeyValuesOrNTRO()
         {

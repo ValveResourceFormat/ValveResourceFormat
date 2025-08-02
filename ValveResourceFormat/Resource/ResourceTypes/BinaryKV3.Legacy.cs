@@ -1,7 +1,6 @@
 using System.Buffers;
 using System.Diagnostics;
 using System.IO;
-using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Compression;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -9,7 +8,7 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes
 {
-    public partial class BinaryKV3 : ResourceData
+    public partial class BinaryKV3 : Block
     {
         private static readonly Guid KV3_ENCODING_BINARY_BLOCK_COMPRESSED = new([0x46, 0x1A, 0x79, 0x95, 0xBC, 0x95, 0x6C, 0x4F, 0xA7, 0x0B, 0x05, 0xBC, 0xA1, 0xB7, 0xDF, 0xD2]);
         private static readonly Guid KV3_ENCODING_BINARY_UNCOMPRESSED = new([0x00, 0x05, 0x86, 0x1B, 0xD8, 0xF7, 0xC1, 0x40, 0xAD, 0x82, 0x75, 0xA4, 0x82, 0x67, 0xE7, 0x14]);

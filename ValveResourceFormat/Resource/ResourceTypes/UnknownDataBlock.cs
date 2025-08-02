@@ -1,11 +1,11 @@
 using System.IO;
 
-namespace ValveResourceFormat.Blocks
+namespace ValveResourceFormat.ResourceTypes
 {
     /// <summary>
     /// Unknown resource data.
     /// </summary>
-    public class UnknownDataBlock(ResourceType ResourceType) : ResourceData
+    public class UnknownDataBlock(ResourceType ResourceType) : Block
     {
         public override BlockType Type => BlockType.DATA;
 

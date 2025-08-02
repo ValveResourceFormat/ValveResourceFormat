@@ -6,7 +6,6 @@ using System.Text;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Utils;
-using SteamDatabase.ValvePak;
 using ValveResourceFormat;
 using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.IO;

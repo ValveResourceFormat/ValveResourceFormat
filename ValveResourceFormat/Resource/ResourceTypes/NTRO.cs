@@ -10,13 +10,15 @@ using KVValueType = ValveKeyValue.KVValueType;
 
 namespace ValveResourceFormat.ResourceTypes
 {
-    public class NTRO : ResourceData
+    public class NTRO : Block
     {
         public KVObject Output { get; private set; }
         public string StructName { get; init; }
 
         private BinaryReader Reader => Resource.Reader;
         private ResourceIntrospectionManifest IntrospectionManifest;
+
+        public override BlockType Type => BlockType.DATA;
 
         public override void Read(BinaryReader reader)
         {

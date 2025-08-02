@@ -67,7 +67,7 @@ namespace ValveResourceFormat
         /// <summary>
         /// Gets the generic DATA block.
         /// </summary>
-        public ResourceData? DataBlock => (ResourceData?)GetBlockByType(BlockType.DATA);
+        public Block? DataBlock => GetBlockByType(BlockType.DATA);
 
         /// <summary>
         /// Resource files have a FileSize in the metadata, however
@@ -387,7 +387,7 @@ namespace ValveResourceFormat
             };
         }
 
-        private ResourceData ConstructResourceType()
+        private Block ConstructResourceType()
         {
             return ResourceType switch
             {

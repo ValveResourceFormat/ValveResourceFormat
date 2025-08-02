@@ -5,7 +5,6 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using K4os.Compression.LZ4;
 using K4os.Compression.LZ4.Encoders;
-using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Serialization.KeyValues;
 using KVValueType = ValveKeyValue.KVValueType;
 
@@ -13,7 +12,7 @@ using KVValueType = ValveKeyValue.KVValueType;
 
 namespace ValveResourceFormat.ResourceTypes
 {
-    public partial class BinaryKV3 : ResourceData
+    public partial class BinaryKV3 : Block
     {
         private readonly BlockType KVBlockType;
         public override BlockType Type => KVBlockType;
