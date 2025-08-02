@@ -238,19 +238,8 @@ namespace ValveResourceFormat.IO
                     break;
 
                 default:
-                    {
-                        if (resource.DataBlock is BinaryKV3 dataKv3)
-                        {
-                            // Wrap it around a KV3File object to get the header.
-                            contentFile.Data = Encoding.UTF8.GetBytes(dataKv3.GetKV3File().ToString());
-                        }
-                        else
-                        {
-                            contentFile.Data = Encoding.UTF8.GetBytes(resource.DataBlock.ToString());
-                        }
-
-                        break;
-                    }
+                    contentFile.Data = Encoding.UTF8.GetBytes(resource.DataBlock.ToString());
+                    break;
             }
 
             return contentFile;
