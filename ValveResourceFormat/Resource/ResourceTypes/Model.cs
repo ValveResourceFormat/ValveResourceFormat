@@ -1,5 +1,7 @@
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
+using System.Text;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
@@ -15,6 +17,18 @@ namespace ValveResourceFormat.ResourceTypes
     public class Model : KeyValuesOrNTRO
     {
         public string Name => Data.GetStringProperty("m_name");
+
+        [NotNull]
+        public KVObject KeyValues
+        {
+            get
+            {
+                cachedKeyValues ??= ParseKeyValuesText();
+                cachedKeyValues ??= new KVObject(string.Empty);
+
+                return cachedKeyValues;
+            }
+        }
 
         public Skeleton Skeleton
         {
@@ -34,8 +48,10 @@ namespace ValveResourceFormat.ResourceTypes
         }
 
         private List<Animation> CachedAnimations;
-        private Skeleton cachedSkeleton { get; set; }
-        private FlexController[] cachedFlexControllers { get; set; }
+        private KVObject cachedKeyValues;
+        private Skeleton cachedSkeleton;
+        private FlexController[] cachedFlexControllers;
+
         public Dictionary<string, Hitbox[]> HitboxSets { get; private set; }
         public Dictionary<string, Attachment> Attachments { get; private set; }
 
@@ -326,5 +342,34 @@ namespace ValveResourceFormat.ResourceTypes
                 return meshGroupMasks.Select(_ => false);
             }
         }
+
+        KVObject ParseKeyValuesText()
+        {
+            var keyvaluesString = Data.GetSubCollection("m_modelInfo").GetProperty<string>("m_keyValueText");
+
+            const int NullKeyValuesLengthLimit = 140;
+            if (string.IsNullOrEmpty(keyvaluesString)
+            || !keyvaluesString.StartsWith("<!-- kv3 ", StringComparison.Ordinal)
+            || keyvaluesString.Length < NullKeyValuesLengthLimit)
+            {
+                return null;
+            }
+
+            KVObject keyvalues;
+            using var ms = new MemoryStream(Encoding.UTF8.GetBytes(keyvaluesString));
+            try
+            {
+                keyvalues = KeyValues3.ParseKVFile(ms).Root;
+            }
+            catch (Exception e)
+            {
+                // TODO: Current parser fails when root is "null", so just skip over them for now
+                Console.Error.WriteLine(e.ToString());
+                return null;
+            }
+
+            return keyvalues;
+        }
+
     }
 }
