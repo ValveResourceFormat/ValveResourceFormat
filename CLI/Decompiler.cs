@@ -1198,13 +1198,16 @@ namespace CLI
 
                 var totalLength = (int)file.TotalLength;
                 var rawFileData = ArrayPool<byte>.Shared.Rent(totalLength);
+                ContentFile? contentFile = null;
 
                 try
                 {
                     package.ReadEntry(file, rawFileData);
 
                     // Not a file that can be decompiled, or no decompilation was requested
-                    if (!Decompile || !type.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal))
+                    var isVcsFile = totalLength >= 4
+                                    && BitConverter.ToUInt32(rawFileData.AsSpan()[..4]) == VfxProgramData.MAGIC;
+                    if (!Decompile || !type.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal) && !isVcsFile)
                     {
                         if (OutputFile != null)
                         {
@@ -1223,44 +1226,63 @@ namespace CLI
                         continue;
                     }
 
-                    using var resource = new Resource
-                    {
-                        FileName = filePath,
-                    };
                     using var memory = new MemoryStream(rawFileData, 0, totalLength);
-
-                    resource.Read(memory);
 
                     if (OutputFile != null)
                     {
                         string outputFile;
-
-                        if (GltfExportFormat != null && GltfModelExporter.CanExport(resource))
+                        // VCS files require multiple files to be decompiled together
+                        if (isVcsFile)
                         {
-                            var outputExtension = GltfExportFormat;
-                            outputFile = Path.Combine(OutputFile, Path.ChangeExtension(filePath, outputExtension));
+                            var fileName = Path.GetFileNameWithoutExtension(filePath);
+                            // Only parse features files
+                            if (!fileName.EndsWith("_features", StringComparison.Ordinal))
+                            {
+                                continue;
+                            }
 
-                            Directory.CreateDirectory(Path.GetDirectoryName(outputFile)!);
+                            var collection = ShaderCollection.GetShaderCollection(filePath, package);
+                            contentFile = new ShaderExtract(collection).ToContentFile();
 
-                            gltfExporter.Export(resource, outputFile);
+                            // Remove the last part from the file name ("_features", ...)
+                            var newFileNameBase = fileName.AsSpan(0, fileName.LastIndexOf('_'));
+                            var directory = Path.GetDirectoryName(filePath);
 
-                            continue;
+                            outputFile = Path.Combine(directory ?? string.Empty, string.Concat(newFileNameBase, ".vfx"));
                         }
+                        else
+                        {
+                            using var resource = new Resource
+                            {
+                                FileName = filePath,
+                            };
+                            resource.Read(memory);
 
-                        using var contentFile = DecompileResource(resource, fileLoader);
+                            if (GltfExportFormat != null && GltfModelExporter.CanExport(resource))
+                            {
+                                var outputExtension = GltfExportFormat;
+                                outputFile = Path.Combine(OutputFile, Path.ChangeExtension(filePath, outputExtension));
 
-                        outputFile = filePath;
+                                Directory.CreateDirectory(Path.GetDirectoryName(outputFile)!);
+
+                                gltfExporter.Export(resource, outputFile);
+
+                                continue;
+                            }
+
+                            contentFile = DecompileResource(resource, fileLoader);
+
+                            outputFile = filePath;
+                            extension = FileExtract.GetExtension(resource) ?? type[..^2];
+                            if (type != extension)
+                            {
+                                outputFile = Path.ChangeExtension(outputFile, extension);
+                            }
+                        }
 
                         if (RecursiveSearchArchives)
                         {
                             outputFile = Path.Combine(parentPath, outputFile);
-                        }
-
-                        extension = FileExtract.GetExtension(resource) ?? type[..^2];
-
-                        if (type != extension)
-                        {
-                            outputFile = Path.ChangeExtension(outputFile, extension);
                         }
 
                         outputFile = GetOutputPath(outputFile, useOutputAsDirectory: true);
@@ -1274,6 +1296,7 @@ namespace CLI
                 }
                 finally
                 {
+                    contentFile?.Dispose();
                     ArrayPool<byte>.Shared.Return(rawFileData);
                 }
             }

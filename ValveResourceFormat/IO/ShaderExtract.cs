@@ -16,6 +16,8 @@ public sealed class ShaderExtract
     {
         public bool CollapseBuffers_InInclude { get; init; }
         public bool CollapseBuffers_InPlace { get; init; }
+        // If true, *all* buffers will be collapsed, otherwise only the ones in BuffersToCollapse.
+        public bool CollapseAllBuffers { get; init; }
         public static HashSet<string> BuffersToCollapse =>
         [
             //"PerViewConstantBuffer_t",
@@ -47,12 +49,13 @@ public sealed class ShaderExtract
 
         public static readonly ShaderExtractParams Inspect = Shared with
         {
-            CollapseBuffers_InPlace = true,
+            // CollapseBuffers_InPlace = true,
             StaticComboReadingCap = 512,
         };
 
         public static readonly ShaderExtractParams Export = Shared with
         {
+            CollapseAllBuffers = true,
             CollapseBuffers_InInclude = true,
             StaticComboReadingCap = -1,
         };
@@ -189,7 +192,12 @@ public sealed class ShaderExtract
     private void PreprocessCommon()
     {
         var firstPass = true;
-        var stages = Shaders.Where(s => !(s.VcsProgramType is VcsProgramType.Features or VcsProgramType.PixelShaderRenderState)).ToList();
+        var stages = Shaders
+            .Where(s =>
+                !(s.VcsProgramType is VcsProgramType.Features
+                    or VcsProgramType.PixelShaderRenderState
+                    or VcsProgramType.RaytracingShader))
+            .ToList();
 
         if (stages.Count < 2)
         {
@@ -440,7 +448,7 @@ public sealed class ShaderExtract
     {
         foreach (var buffer in bufferBlocks)
         {
-            if (ShaderExtractParams.BuffersToCollapse.Contains(buffer.Name))
+            if (Options.CollapseAllBuffers || ShaderExtractParams.BuffersToCollapse.Contains(buffer.Name))
             {
                 if (Options.CollapseBuffers_InPlace)
                 {
