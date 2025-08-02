@@ -5,18 +5,18 @@ namespace ValveResourceFormat.Blocks
     /// <summary>
     /// Unknown resource data.
     /// </summary>
-    public class UnknownDataBlock : ResourceData
+    public class UnknownDataBlock(ResourceType ResourceType) : ResourceData
     {
         public override BlockType Type => BlockType.DATA;
 
         public override void Read(BinaryReader reader)
         {
-            // TODO
+            //
         }
 
         public override void WriteText(IndentedTextWriter writer)
         {
-            throw new NotImplementedException("WriteText() in ResourceData");
+            throw new NotImplementedException($"Unknown data block for resource type {ResourceType}");
         }
     }
 }

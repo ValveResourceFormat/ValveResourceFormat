@@ -417,7 +417,7 @@ namespace ValveResourceFormat
                 ResourceType.Texture => new Texture(),
                 ResourceType.World => new World(),
                 ResourceType.WorldNode => new WorldNode(),
-                _ => ContainsBlockType(BlockType.NTRO) ? new NTRO() : new UnknownDataBlock(),
+                _ => ContainsBlockType(BlockType.NTRO) ? new NTRO() : new UnknownDataBlock(ResourceType),
             };
         }
 
