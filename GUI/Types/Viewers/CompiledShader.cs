@@ -654,7 +654,7 @@ namespace GUI.Types.Viewers
             }
         }
 
-        const int TextureStartingPoint = 90;
+        const int TextureStartingPoint = 30;
         const int TextureIndexStartingPoint = 30;
 
         private static string GetNameForTexture(VfxProgramData program, VfxVariableIndexArray writeSequence, uint image_binding, VfxVariableType vfxType)
