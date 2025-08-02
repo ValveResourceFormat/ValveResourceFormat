@@ -1,11 +1,11 @@
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Text.RegularExpressions;
 using NUnit.Framework;
 using ValveResourceFormat;
 using ValveResourceFormat.IO;
+using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Utils;
 
 namespace Tests
@@ -68,7 +68,7 @@ namespace Tests
                 }
             }
 
-            Assert.Multiple(() => VerifyResources(resources));
+            VerifyResources(resources);
         }
 
         [Test]
@@ -97,7 +97,7 @@ namespace Tests
 
                 resource.Read(ms);
 
-                Assert.That(resource.DataBlock, Is.Not.Null, file);
+                VerifyDataBlock(resource, file);
             }
         }
 
@@ -119,15 +119,36 @@ namespace Tests
                 using var fs = new FileStream(file, FileMode.Open, FileAccess.Read);
                 resource.Read(fs);
 
-                Assert.That(resource.DataBlock, Is.Not.Null, file);
+                VerifyDataBlock(resource, file);
             }
+        }
+
+        private static readonly HashSet<string> FilesWithEmptyDataBlocks =
+        [
+            "dota.vmap_c",
+            "empty_data.vjs_c",
+            "sbox_visualize_quad_overdraw.shader_c",
+        ];
+
+        static void VerifyDataBlock(Resource resource, string file)
+        {
+            var dataBlock = resource.DataBlock;
+
+            if (FilesWithEmptyDataBlocks.Contains(Path.GetFileName(file)))
+            {
+                Assert.That(dataBlock, Is.Null, file);
+                return;
+            }
+
+            Assert.That(dataBlock, Is.Not.Null, file);
+            Assert.That(dataBlock, Is.Not.TypeOf<UnknownDataBlock>(), file);
         }
 
         static void VerifyResources(Dictionary<string, Resource> resources)
         {
             var path = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "ValidOutput");
             var files = Directory.GetFiles(path, "*.*txt", SearchOption.AllDirectories);
-            var exceptions = new StringBuilder();
+            var seenResources = new Dictionary<Resource, HashSet<BlockType>>(resources.Count);
 
             foreach (var file in files)
             {
@@ -140,6 +161,12 @@ namespace Tests
                     continue;
                 }
 
+                if (!seenResources.TryGetValue(resource, out var seenBlockTypes))
+                {
+                    seenBlockTypes = new(resource.Blocks.Count);
+                    seenResources[resource] = seenBlockTypes;
+                }
+
                 var blockName = Path.GetFileNameWithoutExtension(file);
 
                 Enum.TryParse(blockName, false, out BlockType blockType);
@@ -150,6 +177,8 @@ namespace Tests
 
                     continue;
                 }
+
+                seenBlockTypes.Add(blockType);
 
                 var blockData = resource.GetBlockByType(blockType);
 
@@ -176,9 +205,29 @@ namespace Tests
                 }
             }
 
-            if (exceptions.Length > 0)
+            foreach (var resource in resources.Values)
             {
-                throw new AssertionException(exceptions.ToString());
+                using (resource)
+                {
+                    if (seenResources.TryGetValue(resource, out var seenBlockTypes))
+                    {
+                        foreach (var block in resource.Blocks)
+                        {
+                            if (!seenBlockTypes.Contains(block.Type))
+                            {
+                                Assert.That(block.ToString(), Is.Not.Null);
+                                //Assert.Fail($"{resource.FileName}: block {block.Type} does not have a corresponding text file");
+                            }
+                        }
+
+                        continue;
+                    }
+
+                    foreach (var block in resource.Blocks)
+                    {
+                        Assert.That(block.ToString(), Is.Not.Null);
+                    }
+                }
             }
         }
 
