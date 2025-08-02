@@ -1528,9 +1528,13 @@ namespace CLI
                 }
             }
 
+            using var stringWriter = new NullStringWriter();
+            using var writer = new IndentedTextWriter(stringWriter);
+
             foreach (var block in resource.Blocks)
             {
-                block.ToString();
+                block.WriteText(writer);
+                stringWriter.GetStringBuilder().Clear();
             }
 
             InternalTestExtraction.Test(resource);
