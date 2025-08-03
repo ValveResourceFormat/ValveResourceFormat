@@ -89,8 +89,6 @@ namespace ValveResourceFormat.ResourceTypes
                     }
                 }
             }
-
-            output.WriteLine();
         }
     }
 
