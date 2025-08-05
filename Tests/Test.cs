@@ -255,6 +255,64 @@ namespace Tests
             Assert.That(ex.Message, Does.Contain("Use ValvePak"));
         }
 
+        [Test]
+        public void ResourceDisposesStreamWhenLeaveOpenFalse()
+        {
+            var testFile = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "empty_data.vjs_c");
+            var testData = File.ReadAllBytes(testFile);
+            var resource = new Resource();
+            using var testStream = new TestableMemoryStream(testData);
+
+            resource.Read(testStream, leaveOpen: false);
+            Assert.That(testStream.IsDisposed, Is.False);
+            Assert.That(resource.Reader, Is.Not.Null);
+            resource.Dispose();
+            Assert.That(testStream.IsDisposed, Is.True);
+            Assert.That(resource.Reader, Is.Null);
+        }
+
+        [Test]
+        public void ResourceDoesNotDisposeStreamWhenLeaveOpenTrue()
+        {
+            var testFile = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "empty_data.vjs_c");
+            var testData = File.ReadAllBytes(testFile);
+            var resource = new Resource();
+            using var testStream = new TestableMemoryStream(testData);
+
+            resource.Read(testStream, leaveOpen: true);
+            Assert.That(resource.Reader, Is.Not.Null);
+            resource.Dispose();
+            Assert.That(testStream.IsDisposed, Is.False);
+            Assert.That(resource.Reader, Is.Null);
+            testStream.Dispose();
+            Assert.That(testStream.IsDisposed, Is.True);
+        }
+
+        [Test]
+        public void ResourceDisposesFileStreamFromFilename()
+        {
+            var testFile = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "empty_data.vjs_c");
+
+            var resource = new Resource();
+            resource.Read(testFile);
+            Assert.That(resource.Reader, Is.Not.Null);
+            resource.Dispose();
+            Assert.That(resource.Reader, Is.Null);
+        }
+
+        private class TestableMemoryStream : MemoryStream
+        {
+            public bool IsDisposed { get; private set; }
+
+            public TestableMemoryStream(byte[] buffer) : base(buffer) { }
+
+            protected override void Dispose(bool disposing)
+            {
+                IsDisposed = true;
+                base.Dispose(disposing);
+            }
+        }
+
         [GeneratedRegex(@"\s+")]
         private static partial Regex SpaceRegex();
     }
