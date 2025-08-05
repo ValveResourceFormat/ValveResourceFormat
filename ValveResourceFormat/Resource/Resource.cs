@@ -156,7 +156,7 @@ namespace ValveResourceFormat
         /// <param name="leaveOpen">Whether to leave the stream open after the object is disposed.</param>
         /// <remarks>
         /// The <see cref="input"/> stream must remain open while accessing data from this resource,
-        /// as some operations may perform read operations from the stream.
+        /// as some operations may perform reads lazily from the stream at call time.
         /// </remarks>
         public void Read(Stream input, bool verifyFileSize = true, bool leaveOpen = false)
         {
