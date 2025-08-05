@@ -153,6 +153,10 @@ namespace ValveResourceFormat
         /// </summary>
         /// <param name="input">The input <see cref="Stream"/> to read from.</param>
         /// <param name="verifyFileSize">Whether to verify that the stream was correctly consumed.</param>
+        /// <remarks>
+        /// The <see cref="input"/> stream must remain open while accessing data from this resource,
+        /// as some operations may perform read operations from the stream.
+        /// </remarks>
         public void Read(Stream input, bool verifyFileSize = true)
         {
             Reader = new BinaryReader(input);
