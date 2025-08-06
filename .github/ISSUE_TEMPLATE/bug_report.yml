@@ -42,22 +42,23 @@ body:
   validations:
     required: true
 
-- type: dropdown
-  attributes:
-    label: Have you tried the latest dev build?
-    description: "**Make sure your issue still exists on [the latest dev build.](https://valveresourceformat.github.io/)**"
-    options:
-      - "No"
-      - "Yes"
-  validations:
-    required: true
-
 - type: input
   id: version
   attributes:
     label: What version of VRF are you using?
     description: |
-      # **Make sure your issue still exists on [the latest dev build.](https://valveresourceformat.github.io/)**
-    placeholder: Use copy version button in the about window. Test latest dev build first.
+      # **Make sure your issue still exists on [the latest dev build.](https://valveresourceformat.github.io/)** (NOT RELEASE)
+    placeholder: Use copy version button in the about window. Download dev build from the site (NOT RELEASE)
+  validations:
+    required: true
+
+- type: dropdown
+  attributes:
+    label: Have you tried the latest dev build?
+    description: "**Make sure your issue still exists on [the latest dev build.](https://valveresourceformat.github.io/)**"
+    options:
+      - "I don't know what this means"
+      - "No"
+      - "Yes"
   validations:
     required: true
