@@ -54,10 +54,12 @@ namespace NodeGraphControl {
             _contextNodeList.Add(cn);
         }
 
-        public void AddNode(AbstractNode node) {
+        public T AddNode<T>(T node) where T : AbstractNode
+        {
             node.InvokeRepaint += n_InvokeRepaint;
             _graphNodes.Add(node);
             node.Calculate();
+            return node;
         }
 
         public void DeleteNode(AbstractNode node) {
