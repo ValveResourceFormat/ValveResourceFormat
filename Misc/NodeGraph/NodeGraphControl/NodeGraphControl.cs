@@ -1007,14 +1007,14 @@ namespace NodeGraphControl {
 
         #region SpaceInMatrix
 
-        private void ResetView() {
+        protected void ResetView() {
             translation.X = (Width / 2f);
             translation.Y = (Height / 2f);
             zoom = 1f;
             Refresh();
         }
 
-        private void FocusView(PointF focusPoint) {
+        protected void FocusView(PointF focusPoint) {
             var translatedLocation = GetOriginalPosition(new PointF(focusPoint.X, focusPoint.Y));
             translation.X -= translatedLocation.X - Width / 2f;
             translation.Y -= translatedLocation.Y - Height / 2f;
