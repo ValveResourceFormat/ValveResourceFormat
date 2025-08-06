@@ -62,7 +62,10 @@ namespace ValveResourceFormat.ResourceTypes
 
         public override void Read(BinaryReader reader)
         {
-            reader.BaseStream.Position = Offset;
+            if (KVBlockType != BlockType.Undefined)
+            {
+                reader.BaseStream.Position = Offset;
+            }
 
             var magic = reader.ReadUInt32();
 
@@ -592,7 +595,10 @@ namespace ValveResourceFormat.ResourceTypes
                     }
                 }
 
-                Debug.Assert(reader.BaseStream.Position == Offset + Size);
+                if (KVBlockType != BlockType.Undefined)
+                {
+                    Debug.Assert(reader.BaseStream.Position == Offset + Size);
+                }
 
                 Data = ParseBinaryKV3(context, null, true);
 

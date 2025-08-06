@@ -2,6 +2,8 @@ namespace ValveResourceFormat
 {
     public enum BlockType : uint
     {
+        Undefined = 0,
+
         RERL = 'R' | ('E' << 8) | ('R' << 16) | ('L' << 24),
         REDI = 'R' | ('E' << 8) | ('D' << 16) | ('I' << 24),
         RED2 = 'R' | ('E' << 8) | ('D' << 16) | ('2' << 24),

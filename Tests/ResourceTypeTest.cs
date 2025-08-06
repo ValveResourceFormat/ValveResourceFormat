@@ -47,6 +47,12 @@ namespace Tests
             {
                 var enumName = Enum.GetName(blockType)!;
 
+                if (enumName == "Undefined")
+                {
+                    Assert.That((uint)blockType, Is.EqualTo(0));
+                    continue;
+                }
+
                 var value = (uint)blockType;
                 var bytes = BitConverter.GetBytes(value);
                 var actualFourCc = Encoding.ASCII.GetString(bytes);
