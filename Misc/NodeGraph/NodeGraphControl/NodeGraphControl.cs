@@ -21,7 +21,7 @@ namespace NodeGraphControl {
         }
 
         #endregion
-        
+
         #region Interface
 
         public void Run() {
@@ -84,12 +84,12 @@ namespace NodeGraphControl {
 
         public void Connect(SocketOut from, SocketIn to) {
             Wire wire = null;
-            
+
             try {
                 wire = new Wire(from, to);
                 to.Connect(wire);
                 from.Connect(wire);
-                
+
                 _connections.Add(wire);
 
                 wire.Flow();
@@ -97,7 +97,7 @@ namespace NodeGraphControl {
                 wire?.Disconnect();
                 Console.WriteLine(e);
             }
-            
+
             ValidateConnections();
         }
 
@@ -136,7 +136,7 @@ namespace NodeGraphControl {
         #endregion
 
         #region Events
-        
+
         public event EventHandler<List<AbstractNode>> SelectionChanged;
 
         public event EventHandler<float> ZoomChanged;
@@ -152,7 +152,7 @@ namespace NodeGraphControl {
         private void n_InvokeRepaint(object sender, EventArgs e) {
             Invalidate();
         }
-        
+
         #endregion
 
         #region GridSettings
@@ -306,7 +306,7 @@ namespace NodeGraphControl {
             g.TextRenderingHint = TextRenderingHint.ClearTypeGridFit;
             g.PixelOffsetMode = PixelOffsetMode.HighQuality;
             g.InterpolationMode = InterpolationMode.HighQualityBicubic;
-            
+
             // CompositingQuality dependent on zoom value.
             // Close view uses HightSpeed, distant view is GammaCorrected (high quality)
             g.CompositingQuality = zoom < 1f ? CompositingQuality.GammaCorrected : CompositingQuality.HighSpeed;
@@ -340,7 +340,7 @@ namespace NodeGraphControl {
                 // skip wire if there is no distance between two points
                 if (Utils.Distance(xFrom, yFrom, xTo, yTo) < 1d)
                     continue;
-                
+
                 // draw wire
                 var wireColor = CommonStates.GetColorByType(wire.From.ValueType);
                 var wireWidth = (wire == lastHover) ? 6f : 2f;
@@ -407,7 +407,7 @@ namespace NodeGraphControl {
                     marqueRectangle.Height);
             }
         }
-        
+
         // wire style
         public enum EWireStyle {
             Bezier, Line, StepLine
@@ -426,7 +426,7 @@ namespace NodeGraphControl {
                 Invalidate();
             }
         }
-        
+
         // wire middle points spread (percentage)
         private int _wireMiddlePointsSpread = 0;
 
@@ -467,7 +467,7 @@ namespace NodeGraphControl {
                     path.AddBeziers(pathPoints);
                 }
             }
-            
+
             g.DrawPath(pen, path);
             return path;
         }
@@ -552,7 +552,7 @@ namespace NodeGraphControl {
             if (e.Delta < 0) {
                 zoom -= 0.25f;
             }
-            
+
             UpdateMatrices();
             FocusView(centerTranslated);
         }
@@ -679,7 +679,7 @@ namespace NodeGraphControl {
 
                 if (_command == CommandMode.Edit && FindElementAtMousePoint(e.Location) == null) {
                     rightMouseButton = false;
-                    OpenContextMenu(e.Location);
+                    //OpenContextMenu(e.Location);
                     return;
                 }
             }
@@ -938,7 +938,7 @@ namespace NodeGraphControl {
                 _renderBounds = true;
                 Refresh();
             }
-            
+
             // focus view to center of the selection
             if (e.KeyCode == Keys.F) {
 
@@ -950,7 +950,7 @@ namespace NodeGraphControl {
                     y += node.Pivot.Y;
                     count++;
                 }
-                
+
                 if(count == 0)
                     return;
 
@@ -1011,20 +1011,20 @@ namespace NodeGraphControl {
             zoom = 1f;
             Refresh();
         }
-        
+
         private void FocusView(PointF focusPoint) {
             var translatedLocation = GetOriginalPosition(new PointF(focusPoint.X, focusPoint.Y));
             translation.X -= translatedLocation.X - Width / 2f;
             translation.Y -= translatedLocation.Y - Height / 2f;
             Invalidate();
         }
-        
+
         private PointF GetTranslatedPosition(Point mouseClick) {
             var points = new PointF[] {mouseClick};
             inverse_transformation.TransformPoints(points);
             return points[0];
         }
-        
+
         private PointF GetTranslatedPosition(PointF positionInsideClip) {
             var points = new PointF[] {positionInsideClip};
             inverse_transformation.TransformPoints(points);
@@ -1039,7 +1039,7 @@ namespace NodeGraphControl {
 
         private IElement FindElementAtOriginal(PointF point) {
             foreach (var node in _graphNodes) {
-                // find socket    
+                // find socket
                 foreach (var socket in node.Sockets.Where(socket => socket.BoundsFull.Contains(point))) {
                     if (socket.GetType() == typeof(SocketIn))
                         return (SocketIn) socket;
@@ -1052,7 +1052,7 @@ namespace NodeGraphControl {
                     return node;
                 }
             }
-            
+
             // find wire
             for (int i = _connections.Count - 1; i >= 0; i--) {
                 var wire = _connections[i];
@@ -1069,12 +1069,14 @@ namespace NodeGraphControl {
         }
 
         #endregion
-
+/*
         #region ContextMenu
 
         private Point _contextMenuMouseClick;
 
-        private void OpenContextMenu(Point location) {
+
+        private void OpenContextMenu(Point location)
+        {
             _contextMenuMouseClick = location;
 
             var contextMenu = new ContextMenu();
@@ -1083,17 +1085,22 @@ namespace NodeGraphControl {
             var menuItemAdd = new MenuItem("Add Node");
             var menuItemExit = new MenuItem("Exit", MenuItemClickExit); // TODO remove temp exit item
 
-            foreach (var contextNode in _contextNodeList) {
+            foreach (var contextNode in _contextNodeList)
+            {
                 var cnName = contextNode.NodeName;
                 var cnCat = contextNode.NodeCategory;
 
                 if (cnCat.Equals(""))
                     menuItemAdd.MenuItems.Add(cnName, MenuItemClickNode);
-                else {
+                else
+                {
                     var categoryMenuItem = categories.Find(item => item.Text.Equals(cnCat));
-                    if (categoryMenuItem != null) {
+                    if (categoryMenuItem != null)
+                    {
                         categoryMenuItem.MenuItems.Add(new MenuItem(cnName, MenuItemClickNode));
-                    } else {
+                    }
+                    else
+                    {
                         categoryMenuItem = new MenuItem(cnCat);
                         categoryMenuItem.MenuItems.Add(new MenuItem(cnName, MenuItemClickNode));
                         categories.Add(categoryMenuItem);
@@ -1101,7 +1108,8 @@ namespace NodeGraphControl {
                 }
             }
 
-            foreach (var category in categories) {
+            foreach (var category in categories)
+            {
                 menuItemAdd.MenuItems.Add(category);
             }
 
@@ -1137,7 +1145,7 @@ namespace NodeGraphControl {
         }
 
         #endregion
-
+*/
         #region NodeSelection
 
         private List<AbstractNode> lastSelected = new List<AbstractNode>();
