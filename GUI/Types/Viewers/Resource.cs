@@ -501,6 +501,14 @@ namespace GUI.Types.Viewers
                     }
                     break;
 
+                case ResourceType.NmGraph:
+                    {
+                        var specialTabPage = new ThemedTabPage("ANIMATION GRAPH");
+                        specialTabPage.Controls.Add(new AnimationGraphViewer(vrfGuiContext, ((BinaryKV3)resource.DataBlock).Data));
+                        resTabs.TabPages.Add(specialTabPage);
+                        return true;
+                    }
+
                 case ResourceType.ChoreoSceneFileData:
                     {
                         var specialTabPage = new ThemedTabPage("VCDLIST");
