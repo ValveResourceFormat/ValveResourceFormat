@@ -61,7 +61,7 @@ namespace ValveResourceFormat.CompiledShader
                 }
             }
 
-            int dataBlockCount = dataReader.ReadInt16();
+            int dataBlockCount = dataReader.ReadUInt16();
             DynamicComboVariables = new VfxVariableIndexArray[dataBlockCount];
             for (var i = 0; i < dataBlockCount; i++)
             {
@@ -69,7 +69,7 @@ namespace ValveResourceFormat.CompiledShader
                 DynamicComboVariables[i] = dataBlock;
             }
 
-            int constantBufferBindInfoSize = dataReader.ReadInt16();
+            int constantBufferBindInfoSize = dataReader.ReadUInt16();
             ConstantBufferBindInfoSlots = new byte[constantBufferBindInfoSize];
             ConstantBufferBindInfoFlags = new byte[constantBufferBindInfoSize];
             for (var i = 0; i < constantBufferBindInfoSize; i++)
