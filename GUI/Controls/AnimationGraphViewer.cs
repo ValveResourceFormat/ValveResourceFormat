@@ -35,6 +35,22 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
         base.OnPaint(e);
     }
 
+    protected override void OnMouseDoubleClick(MouseEventArgs e)
+    {
+        base.OnMouseDoubleClick(e);
+
+        var element = FindElementAtMousePoint(e.Location);
+
+        if (element is Node { ExternalResourceName: not null } node)
+        {
+            var foundFile = vrfGuiContext.FileLoader.FindFileWithContext(node.ExternalResourceName + ValveResourceFormat.IO.GameFileLoader.CompiledFileSuffix);
+            if (foundFile.Context != null)
+            {
+                Program.MainForm.OpenFile(foundFile.Context, foundFile.PackageEntry);
+            }
+        }
+    }
+
     private void CreateGraph()
     {
         var rootNodeIdx = graphDefinition.GetInt32Property("m_nRootNodeIdx");
@@ -74,13 +90,14 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
             return node;
         }
 
-        int depth = 0;
-        int previousChildHeight = 0;
+        // Used for calculating some node position.
+        var depth = 0;
+        var previousChildHeight = 0;
 
         void CreateChild(Node parent, int totalChildren, int nodeIdx, int height, int offset = 300, string? parentInputName = null, string? childOutputName = null)
         {
-            var additionalWidthDepth = depth * 70; // increase height for each depth level
-            var additionalHeightDepth = depth * 10; // increase height for each depth level
+            var additionalWidthDepth = depth * 70;
+            var additionalHeightDepth = depth * 10;
 
             height = previousChildHeight == 0 ? height : previousChildHeight;
 
@@ -151,7 +168,13 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
             }
             else if (node.NodeType is "Clip" or "ReferencedGraph")
             {
-                // known nodes with no children
+                var resources = graphDefinition.GetArray<string>("m_resources");
+                node.ExternalResourceName = node.NodeType switch
+                {
+                    "ReferencedGraph" => resources[graphDefinition.GetArray("m_referencedGraphSlots")[data.GetInt32Property("m_nReferencedGraphIdx")].GetInt32Property("m_dataSlotIdx")],
+                    "Clip" => resources[data.GetInt32Property("m_nDataSlotIdx")],
+                    _ => null
+                };
             }
             else
             {
@@ -172,6 +195,8 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
     class Node : AbstractNode
     {
         public KVObject Data { get; set; }
+
+        public string? ExternalResourceName { get; set; }
 
         public Node()
         {

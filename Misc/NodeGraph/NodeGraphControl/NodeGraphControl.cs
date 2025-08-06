@@ -1065,7 +1065,7 @@ namespace NodeGraphControl {
             return null;
         }
 
-        private IElement FindElementAtMousePoint(Point mouseClickPosition) {
+        public IElement FindElementAtMousePoint(Point mouseClickPosition) {
             var position = GetTranslatedPosition(mouseClickPosition);
             return FindElementAtOriginal(position);
         }
