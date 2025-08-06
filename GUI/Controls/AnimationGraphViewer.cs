@@ -8,8 +8,8 @@ namespace GUI.Types.Viewers;
 
 internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
 {
-    private VrfGuiContext vrfGuiContext;
-    private KVObject graphDefinition;
+    private readonly VrfGuiContext vrfGuiContext;
+    private readonly KVObject graphDefinition;
 
     public AnimationGraphViewer(VrfGuiContext guiContext, KVObject data)
     {
@@ -21,6 +21,18 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
         graphDefinition = data;
 
         CreateGraph();
+    }
+
+    private bool firstPaint = true;
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        if (firstPaint)
+        {
+            firstPaint = false;
+            FocusView(PointF.Empty);
+        }
+
+        base.OnPaint(e);
     }
 
     private void CreateGraph()
@@ -67,7 +79,7 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
                     var stateInputNode = AddNode(new Node
                     {
                         Name = GetName(stateInputIdx),
-                        Location = new Point(0, 0),
+                        Location = node.Location - new Size(300, -100 * node.Sockets.Count),
                         NodeType = GetType(stateInputIdx),
                     });
 
@@ -75,9 +87,21 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
                     var outputSocket = new SocketOut(typeof(int), "Output", stateInputNode);
                     stateInputNode.Sockets.Add(outputSocket);
 
+                    stateInputNode.Calculate(); // node and wire position
                     Connect(outputSocket, inputSocket);
+
+                    try
+                    {
+                        HandleNode(stateInputNode, stateInputIdx);
+                    }
+                    catch (IndexOutOfRangeException)
+                    {
+                        Console.WriteLine($"Node handling error.");
+                    }
                 }
             }
+
+            node.Calculate();
         }
 
         var root = AddNode(new Node
