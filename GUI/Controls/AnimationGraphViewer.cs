@@ -1,4 +1,5 @@
 using System.Drawing;
+using System.Linq;
 using System.Windows.Forms;
 using GUI.Utils;
 using NodeGraphControl.Elements;
@@ -77,8 +78,15 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
             childNode.Location = node.Location - new Size(horizontalOffset, totalChildren * childNodeHeight / 2 - childIndex * childNodeHeight);
         }
 
+        Dictionary<int, Node> createdNodes = new(nodes.Length);
+
         Node CreateNode(string[] nodePaths, KVObject[] nodes, int nodeIdx)
         {
+            if (createdNodes.TryGetValue(nodeIdx, out var existingNode))
+            {
+                return existingNode;
+            }
+
             var node = new Node
             {
                 Name = GetName(nodeIdx),
@@ -87,6 +95,7 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
             };
 
             AddNode(node);
+            createdNodes[nodeIdx] = node;
             return node;
         }
 
@@ -94,14 +103,27 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
         var depth = 0;
         var previousChildHeight = 0;
 
+        // TODO: childOutputName should be determined by the child.
         void CreateChild(Node parent, int totalChildren, int nodeIdx, int height, int offset = 300, string? parentInputName = null, string? childOutputName = null)
         {
+            var childNode = CreateNode(nodePaths, nodes, nodeIdx);
+
+            // child node already exists, all we do is connect to its existing output.
+            if (childNode.Sockets.Count > 0)
+            {
+                var output = childNode.Sockets.FirstOrDefault(s => s is SocketOut) as SocketOut;
+                var input = new SocketIn(typeof(int), parentInputName ?? childNode.Name, parent, false);
+                parent.Sockets.Add(input);
+
+                Connect(output, input);
+                return;
+            }
+
             var additionalWidthDepth = depth * 70;
             var additionalHeightDepth = depth * 10;
 
             height = previousChildHeight == 0 ? height : previousChildHeight;
 
-            var childNode = CreateNode(nodePaths, nodes, nodeIdx);
             var outputSocket = new SocketOut(typeof(int), childOutputName ?? "Result", childNode);
             childNode.Sockets.Add(outputSocket);
             CalculateChildNodeLocation(parent, totalChildren, childNode, height + Random.Shared.Next(0, 20) + additionalHeightDepth, offset + Random.Shared.Next(0, 5) + additionalWidthDepth);
@@ -154,17 +176,67 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
                 var options = data.GetArray<int>("m_optionNodeIndices");
 
                 var parameterNodeIdx = data.GetInt32Property("m_parameterNodeIdx");
-                CreateChild(node, options.Length + 1, parameterNodeIdx, 120, 300, null, "Parameter");
+                CreateChild(node, options.Length + 1, parameterNodeIdx, 120, 300);
 
                 foreach (var optionNodeIdx in options)
                 {
                     CreateChild(node, options.Length + 1, optionNodeIdx, 80, 300);
                 }
             }
+            else if (node.NodeType == "Selector")
+            {
+                // Select the first option for which the condition passes?
+                var options = data.GetArray<int>("m_optionNodeIndices");
+                var conditions = data.GetArray<int>("m_conditionNodeIndices");
+
+                var i = 0;
+                foreach (var (optionNodeIdx, conditionNodeIdx) in options.Zip(conditions))
+                {
+                    CreateChild(node, options.Length + conditions.Length, optionNodeIdx, 80, 300, $"Option{i}");
+                    CreateChild(node, options.Length + conditions.Length, conditionNodeIdx, 80, 300, $"Condition{i}");
+                    i++;
+                }
+            }
+            else if (node.NodeType is "LayerBlend")
+            {
+                var baseNodeIdx = data.GetInt32Property("m_nBaseNodeIdx");
+                CreateChild(node, 1, baseNodeIdx, 100, 300, "Base", "Result");
+
+                // m_layerDefinition
+                node.Sockets.Add(new SocketIn(typeof(int), "Layer", node, false));
+            }
+            else if (node.NodeType is "Blend1D")
+            {
+                foreach (var sourceNodeIdx in data.GetArray<int>("m_sourceNodeIndices"))
+                {
+                    CreateChild(node, 2, sourceNodeIdx, 100, 300, "Source");
+                }
+            }
+            else if (node.Data.ContainsKey("m_nInputValueNodeIdx")) // ComparisonNode
+            {
+                var childNodeIdx = data.GetInt32Property("m_nInputValueNodeIdx");
+                CreateChild(node, 1, childNodeIdx, 100, 300, "Value", "Result");
+            }
+            else if (node.Data.ContainsKey("m_conditionNodeIndices")) // Conditional node
+            {
+                var conditions = data.GetArray<int>("m_conditionNodeIndices");
+                foreach (var condition in conditions)
+                {
+                    CreateChild(node, conditions.Length + 1, condition, 80);
+                }
+            }
             else if (node.Data.ContainsKey("m_nChildNodeIdx"))
             {
+                var childCount = 1;
+                if (node.NodeType == "Scale")
+                {
+                    childCount = 3;
+                    CreateChild(node, childCount, data.GetInt32Property("m_nMaskNodeIdx"), 130, 300, "Mask");
+                    CreateChild(node, childCount, data.GetInt32Property("m_nEnableNodeIdx"), 130, 300, "Enable");
+                }
+
                 var childNodeIdx = data.GetInt32Property("m_nChildNodeIdx");
-                CreateChild(node, 1, childNodeIdx, 100, 300, "Input", "Result");
+                CreateChild(node, childCount, childNodeIdx, 100, 300, "Input", "Result");
             }
             else if (node.NodeType is "Clip" or "ReferencedGraph")
             {
@@ -172,7 +244,7 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
                 node.ExternalResourceName = node.NodeType switch
                 {
                     "ReferencedGraph" => resources[graphDefinition.GetArray("m_referencedGraphSlots")[data.GetInt32Property("m_nReferencedGraphIdx")].GetInt32Property("m_dataSlotIdx")],
-                    "Clip" => resources[data.GetInt32Property("m_nDataSlotIdx")],
+                    "Clip" => data.GetInt32Property("m_nDataSlotIdx") == -1 ? null : resources[data.GetInt32Property("m_nDataSlotIdx")], // can be -1 on variations, for example bizon ironsight clip
                     _ => null
                 };
             }
