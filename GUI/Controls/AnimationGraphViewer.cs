@@ -55,72 +55,124 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
             return @type;
         }
 
-        void HandleNode(Node node, int nodeIdx)
+        static void CalculateChildNodeLocation(Node node, int totalChildren, Node childNode, int childNodeHeight, int horizontalOffset = 300)
+        {
+            var childIndex = node.Sockets.Count;
+            childNode.Location = node.Location - new Size(horizontalOffset, totalChildren * childNodeHeight / 2 - childIndex * childNodeHeight);
+        }
+
+        Node CreateNode(string[] nodePaths, KVObject[] nodes, int nodeIdx)
+        {
+            var node = new Node
+            {
+                Name = GetName(nodeIdx),
+                Data = nodes[nodeIdx],
+                NodeType = GetType(nodeIdx),
+            };
+
+            AddNode(node);
+            return node;
+        }
+
+        int depth = 0;
+        int previousChildHeight = 0;
+
+        void CreateChild(Node parent, int totalChildren, int nodeIdx, int height, int offset = 300, string? parentInputName = null, string? childOutputName = null)
+        {
+            var additionalWidthDepth = depth * 70; // increase height for each depth level
+            var additionalHeightDepth = depth * 10; // increase height for each depth level
+
+            height = previousChildHeight == 0 ? height : previousChildHeight;
+
+            var childNode = CreateNode(nodePaths, nodes, nodeIdx);
+            var outputSocket = new SocketOut(typeof(int), childOutputName ?? "Result", childNode);
+            childNode.Sockets.Add(outputSocket);
+            CalculateChildNodeLocation(parent, totalChildren, childNode, height + Random.Shared.Next(0, 20) + additionalHeightDepth, offset + Random.Shared.Next(0, 5) + additionalWidthDepth);
+
+            var inputSocket = new SocketIn(typeof(int), parentInputName ?? childNode.Name, parent, false);
+            parent.Sockets.Add(inputSocket);
+
+            Connect(outputSocket, inputSocket);
+
+            try
+            {
+                depth += 1;
+                CreateChildren(childNode, nodeIdx);
+                depth -= 1;
+            }
+            catch (IndexOutOfRangeException)
+            {
+                Console.WriteLine($"Node handling error for {childNode.Name}.");
+            }
+
+            childNode.Calculate(); // node and wire position
+            previousChildHeight = (int)childNode.BoundsFull.Height;
+        }
+
+        void CreateChildren(Node node, int nodeIdx)
         {
             var data = nodes[nodeIdx];
+            previousChildHeight = 0;
 
             if (node.NodeType == "StateMachine")
             {
-                foreach (var stateDefinition in data.GetArray("m_stateDefinitions"))
+                var children = data.GetArray("m_stateDefinitions");
+                foreach (var stateDefinition in children)
                 {
                     var stateNodeIdx = stateDefinition.GetInt32Property("m_nStateNodeIdx");
-                    var entryConditionNodeIdx = stateDefinition.GetInt32Property("m_nEntryConditionNodeIdx");
+                    var entryConditionNodeIdx = stateDefinition.GetInt32Property("m_nEntryConditionNodeIdx"); // can be -1
                     // m_transitionDefinitions
 
                     var stateName = GetName(stateNodeIdx);
                     var stateNode = nodes[stateNodeIdx];
                     var stateInputIdx = stateNode.GetInt32Property("m_nChildNodeIdx");
 
-                    Console.WriteLine($"State: {GetName(stateNodeIdx)}, Entry Condition: {GetName(entryConditionNodeIdx)}");
+                    Console.WriteLine($"State: {GetName(stateNodeIdx)}, Entry Condition: {(entryConditionNodeIdx == -1 ? "None" : GetName(entryConditionNodeIdx))}");
 
-                    var inputSocket = new SocketIn(typeof(int), stateName, node, false);
-                    node.Sockets.Add(inputSocket);
-
-                    var stateInputNode = AddNode(new Node
-                    {
-                        Name = GetName(stateInputIdx),
-                        Location = node.Location - new Size(300, -100 * node.Sockets.Count),
-                        NodeType = GetType(stateInputIdx),
-                    });
-
-
-                    var outputSocket = new SocketOut(typeof(int), "Output", stateInputNode);
-                    stateInputNode.Sockets.Add(outputSocket);
-
-                    stateInputNode.Calculate(); // node and wire position
-                    Connect(outputSocket, inputSocket);
-
-                    try
-                    {
-                        HandleNode(stateInputNode, stateInputIdx);
-                    }
-                    catch (IndexOutOfRangeException)
-                    {
-                        Console.WriteLine($"Node handling error.");
-                    }
+                    CreateChild(node, children.Length, stateInputIdx, 150, 450, stateName, "Result");
                 }
+            }
+            else if (node.NodeType == "ParameterizedClipSelector")
+            {
+                var options = data.GetArray<int>("m_optionNodeIndices");
+
+                var parameterNodeIdx = data.GetInt32Property("m_parameterNodeIdx");
+                CreateChild(node, options.Length + 1, parameterNodeIdx, 120, 300, null, "Parameter");
+
+                foreach (var optionNodeIdx in options)
+                {
+                    CreateChild(node, options.Length + 1, optionNodeIdx, 80, 300);
+                }
+            }
+            else if (node.Data.ContainsKey("m_nChildNodeIdx"))
+            {
+                var childNodeIdx = data.GetInt32Property("m_nChildNodeIdx");
+                CreateChild(node, 1, childNodeIdx, 100, 300, "Input", "Result");
+            }
+            else if (node.NodeType is "Clip" or "ReferencedGraph")
+            {
+                // known nodes with no children
+            }
+            else
+            {
+                Console.WriteLine($"Unhandled node type: {node.NodeType} ({node.Name})");
             }
 
             node.Calculate();
         }
 
-        var root = AddNode(new Node
-        {
-            Name = GetName(rootNodeIdx),
-            Location = new Point(0, 0),
-            NodeType = GetType(rootNodeIdx),
-            Description = "Root node"
-        });
-
+        var root = CreateNode(nodePaths, nodes, rootNodeIdx);
         root.StartNode = true;
 
-        HandleNode(root, rootNodeIdx);
+        CreateChildren(root, rootNodeIdx);
     }
 
     #region Nodes
 
     class Node : AbstractNode
     {
+        public KVObject Data { get; set; }
+
         public Node()
         {
             BaseColor = Color.FromArgb(255, 31, 36, 42);
