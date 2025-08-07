@@ -4,6 +4,7 @@ using System.Windows.Forms;
 using GUI.Utils;
 using NodeGraphControl.Elements;
 using ValveResourceFormat.Serialization.KeyValues;
+using ZstdSharp.Unsafe;
 
 namespace GUI.Types.Viewers;
 
@@ -154,7 +155,7 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
             }
             catch (IndexOutOfRangeException)
             {
-                Console.WriteLine($"Node handling error for {childNode.Name}.");
+                Console.WriteLine($"Error creating children for {childNode.Name} (idx = {nodeIdx}).");
             }
 
             childNode.Calculate(); // node and wire position
@@ -181,12 +182,19 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
                     var stateNode = nodes[stateNodeIdx];
                     var stateInputIdx = stateNode.GetInt32Property("m_nChildNodeIdx");
 
-                    var (_, stateInput) = CreateInputAndChild(node, children.Length * 2, stateInputIdx, 150, 500, stateName, "Result", hub: true);
+                    var input = new SocketIn(typeof(int), stateName, node, hub: true);
+                    node.Sockets.Add(input);
+
+                    if (stateInputIdx != -1)
+                    {
+                        var (_, stateNodeOut) = CreateChild(node, children.Length, stateInputIdx, 150, 500);
+                        Connect(stateNodeOut, input);
+                    }
 
                     if (entryConditionNodeIdx != -1)
                     {
                         var (_, childOutput) = CreateChild(node, children.Length, entryConditionNodeIdx, 80, 300, $"Enter {stateName} state");
-                        Connect(childOutput, stateInput);
+                        Connect(childOutput, input);
                     }
                 }
             }
@@ -222,20 +230,103 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
                 var baseNodeIdx = data.GetInt32Property("m_nBaseNodeIdx");
                 CreateInputAndChild(node, 1, baseNodeIdx, 100, 300, "Base", "Result");
 
-                // m_layerDefinition
-                node.Sockets.Add(new SocketIn(typeof(int), "Layer", node, false));
+                var layerInput = new SocketIn(typeof(int), "Layer", node, false);
+                node.Sockets.Add(layerInput);
+
+                var layerDefinition = data.GetArray("m_layerDefinition");
+                foreach (var layer in layerDefinition)
+                {
+                    // might be better to create a layer node
+                    var inputNodeIdx = layer.GetInt32Property("m_nInputNodeIdx");
+                    var blendMode = layer.GetStringProperty("m_blendMode");
+
+                    // m_nWeightValueNodeIdx m_nBoneMaskValueNodeIdx m_nRootMotionWeightValueNodeIdx optional (-1)
+                    var (_, childOutput) = CreateChild(node, layerDefinition.Length, inputNodeIdx, 100, 300, blendMode);
+                    Connect(childOutput, layerInput);
+                }
             }
-            else if (node.NodeType is "Blend1D")
+            else if (node.NodeType is "Blend1D" or "Blend2D")
             {
                 foreach (var sourceNodeIdx in data.GetArray<int>("m_sourceNodeIndices"))
                 {
                     CreateInputAndChild(node, 2, sourceNodeIdx, 100, 300, "Source");
                 }
             }
+            else if (node.NodeType is "BoneMask")
+            {
+                node.Sockets.Add(new SocketIn(typeof(string), data.GetProperty<string>("m_boneMaskID"), node, false));
+            }
+            else if (node.NodeType is "IDEventCondition")
+            {
+                var eventIds = data.GetArray<string>("m_eventIDs");
+                var sourceStateNodeIdx = data.GetInt32Property("m_nSourceStateNodeIdx");
+                if (sourceStateNodeIdx != -1)
+                {
+                    node.Sockets.Add(new SocketIn(typeof(string), $"State: {GetName(sourceStateNodeIdx)}", node, false));
+                }
+
+                foreach (var eventId in eventIds)
+                {
+                    node.Sockets.Add(new SocketIn(typeof(string), $"Event: '{eventId}'", node, false));
+                }
+            }
+            else if (node.NodeType.EndsWith("Math"))
+            {
+                var inputNodeIdxA = data.GetProperty("m_nInputValueNodeIdxA", -1);
+                var inputNodeIdxB = data.GetProperty("m_nInputValueNodeIdxB", -1);
+
+                CreateInputAndChild(node, 2, inputNodeIdxA, 100, 300, "A");
+
+                var @operator = data.GetProperty<string>("m_operator");
+                node.Sockets.Add(new SocketIn(typeof(string), @operator, node, false));
+
+                if (inputNodeIdxB != -1)
+                {
+                    CreateInputAndChild(node, 2, inputNodeIdxB, 100, 300, "B");
+                }
+                else
+                {
+                    if (node.NodeType == "FloatMath")
+                    {
+                        var constantValue = data.GetFloatProperty("m_flValueB");
+                        var constantValueSocket = new SocketIn(typeof(float), $"{constantValue:f}", node, false);
+                        node.Sockets.Add(constantValueSocket);
+                    }
+                }
+            }
             else if (node.Data.ContainsKey("m_nInputValueNodeIdx")) // ComparisonNode
             {
                 var childNodeIdx = data.GetInt32Property("m_nInputValueNodeIdx");
-                CreateInputAndChild(node, 1, childNodeIdx, 100, 300, "Value", "Result");
+                CreateInputAndChild(node, 1, childNodeIdx, 100, 300, GetName(childNodeIdx));
+
+                if (data.ContainsKey("m_comparison"))
+                {
+                    var comparison = data.GetProperty<string>("m_comparison");
+                    node.Sockets.Add(new SocketIn(typeof(string), comparison, node, false));
+                }
+
+                if (node.NodeType is "IDComparison")
+                {
+                    var comparisonIds = data.GetArray<string>("m_comparisionIDs");
+                    foreach (var comparisonId in comparisonIds)
+                    {
+                        node.Sockets.Add(new SocketIn(typeof(string), $"'{comparisonId}'", node, false));
+                    }
+                }
+                else if (node.NodeType is "FloatComparison" or "IntComparison")
+                {
+                    var comparandNodeIdx = data.GetInt32Property("m_nComparandValueNodeIdx");
+                    if (comparandNodeIdx != -1)
+                    {
+                        CreateInputAndChild(node, 1, comparandNodeIdx, 100, 300, "Comparand");
+                    }
+                    else
+                    {
+                        var constantValue = data.GetFloatProperty("m_flComparisonValue");
+                        var constantValueSocket = new SocketIn(typeof(float), $"{constantValue:f}", node, false);
+                        node.Sockets.Add(constantValueSocket);
+                    }
+                }
             }
             else if (node.Data.ContainsKey("m_conditionNodeIndices")) // Conditional node
             {
@@ -289,6 +380,7 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
     {
         public KVObject Data { get; set; }
 
+        // todo: polymorphism
         public string? ExternalResourceName { get; set; }
 
         public Node(KVObject data)
