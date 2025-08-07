@@ -75,6 +75,7 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
         static void CalculateChildNodeLocation(Node node, int totalChildren, Node childNode, int childNodeHeight, int horizontalOffset = 300)
         {
             var childIndex = node.Sockets.Count;
+            horizontalOffset += totalChildren * 15; // offset for each child node
             childNode.Location = node.Location - new Size(horizontalOffset, totalChildren * childNodeHeight / 2 - childIndex * childNodeHeight);
         }
 
@@ -101,10 +102,21 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
 
         // Used for calculating some node position.
         var depth = 0;
+        var previousChildLocation = new Point(0, 0);
         var previousChildHeight = 0;
 
-        // TODO: childOutputName should be determined by the child.
-        void CreateChild(Node parent, int totalChildren, int nodeIdx, int height, int offset = 300, string? parentInputName = null, string? childOutputName = null)
+        (Node, SocketIn) CreateInputAndChild(Node parent, int totalChildren, int nodeIdx, int height, int offset = 300, string? parentInputName = null, string? childOutputName = null, bool hub = false)
+        {
+            var (childNode, childNodeOutput) = CreateChild(parent, totalChildren, nodeIdx, height, offset, childOutputName);
+
+            var input = new SocketIn(typeof(int), parentInputName ?? childNode.Name, parent, hub: hub);
+            parent.Sockets.Add(input);
+            Connect(childNodeOutput, input);
+
+            return (childNode, input);
+        }
+
+        (Node, SocketOut) CreateChild(Node parent, int totalChildren, int nodeIdx, int height, int offset = 300, string? childOutputName = null)
         {
             var childNode = CreateNode(nodePaths, nodes, nodeIdx);
 
@@ -112,26 +124,23 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
             if (childNode.Sockets.Count > 0)
             {
                 var output = childNode.Sockets.FirstOrDefault(s => s is SocketOut) as SocketOut;
-                var input = new SocketIn(typeof(int), parentInputName ?? childNode.Name, parent, false);
-                parent.Sockets.Add(input);
-
-                Connect(output, input);
-                return;
+                return (childNode, output);
             }
 
-            var additionalWidthDepth = depth * 70;
-            var additionalHeightDepth = depth * 10;
+            var moreWidthFurtherDeep = depth * 70;
+            var extraHeightCloseDepth = 200 / (int)Math.Pow(depth + 1, 1.5f);
 
-            height = previousChildHeight == 0 ? height : previousChildHeight;
+            height = Math.Max(height, previousChildHeight + 20);
 
-            var outputSocket = new SocketOut(typeof(int), childOutputName ?? "Result", childNode);
-            childNode.Sockets.Add(outputSocket);
-            CalculateChildNodeLocation(parent, totalChildren, childNode, height + Random.Shared.Next(0, 20) + additionalHeightDepth, offset + Random.Shared.Next(0, 5) + additionalWidthDepth);
+            var childNodeOutput = new SocketOut(typeof(int), childOutputName ?? string.Empty, childNode);
+            childNode.Sockets.Add(childNodeOutput);
+            CalculateChildNodeLocation(parent, totalChildren, childNode, height + Random.Shared.Next(0, 20) + extraHeightCloseDepth, offset + Random.Shared.Next(0, 20) + moreWidthFurtherDeep);
 
-            var inputSocket = new SocketIn(typeof(int), parentInputName ?? childNode.Name, parent, false);
-            parent.Sockets.Add(inputSocket);
-
-            Connect(outputSocket, inputSocket);
+            if (previousChildHeight > 0)
+            {
+                // No vertical overlap
+                childNode.Location = new Point(childNode.Location.X, Math.Max(childNode.Location.Y, previousChildLocation.Y + height));
+            }
 
             try
             {
@@ -145,7 +154,9 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
             }
 
             childNode.Calculate(); // node and wire position
+            previousChildLocation = childNode.Location;
             previousChildHeight = (int)childNode.BoundsFull.Height;
+            return (childNode, childNodeOutput);
         }
 
         void CreateChildren(Node node, int nodeIdx)
@@ -166,9 +177,13 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
                     var stateNode = nodes[stateNodeIdx];
                     var stateInputIdx = stateNode.GetInt32Property("m_nChildNodeIdx");
 
-                    Console.WriteLine($"State: {GetName(stateNodeIdx)}, Entry Condition: {(entryConditionNodeIdx == -1 ? "None" : GetName(entryConditionNodeIdx))}");
+                    var (_, stateInput) = CreateInputAndChild(node, children.Length * 2, stateInputIdx, 150, 500, stateName, "Result", hub: true);
 
-                    CreateChild(node, children.Length, stateInputIdx, 150, 450, stateName, "Result");
+                    if (entryConditionNodeIdx != -1)
+                    {
+                        var (_, childOutput) = CreateChild(node, children.Length, entryConditionNodeIdx, 80, 300, $"Enter {stateName} state");
+                        Connect(childOutput, stateInput);
+                    }
                 }
             }
             else if (node.NodeType == "ParameterizedClipSelector")
@@ -176,14 +191,14 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
                 var options = data.GetArray<int>("m_optionNodeIndices");
 
                 var parameterNodeIdx = data.GetInt32Property("m_parameterNodeIdx");
-                CreateChild(node, options.Length + 1, parameterNodeIdx, 120, 300);
+                CreateInputAndChild(node, options.Length + 1, parameterNodeIdx, 120, 300);
 
                 foreach (var optionNodeIdx in options)
                 {
-                    CreateChild(node, options.Length + 1, optionNodeIdx, 80, 300);
+                    CreateInputAndChild(node, options.Length + 1, optionNodeIdx, 80, 300);
                 }
             }
-            else if (node.NodeType == "Selector")
+            else if (node.NodeType is "Selector" or "ClipSelector")
             {
                 // Select the first option for which the condition passes?
                 var options = data.GetArray<int>("m_optionNodeIndices");
@@ -192,15 +207,16 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
                 var i = 0;
                 foreach (var (optionNodeIdx, conditionNodeIdx) in options.Zip(conditions))
                 {
-                    CreateChild(node, options.Length + conditions.Length, optionNodeIdx, 80, 300, $"Option{i}");
-                    CreateChild(node, options.Length + conditions.Length, conditionNodeIdx, 80, 300, $"Condition{i}");
+                    var (_, optionInput) = CreateInputAndChild(node, options.Length, optionNodeIdx, 80, 300, hub: true);
+                    var (_, conditionOutput) = CreateChild(node, options.Length, conditionNodeIdx, 80, 300);
+                    Connect(conditionOutput, optionInput);
                     i++;
                 }
             }
             else if (node.NodeType is "LayerBlend")
             {
                 var baseNodeIdx = data.GetInt32Property("m_nBaseNodeIdx");
-                CreateChild(node, 1, baseNodeIdx, 100, 300, "Base", "Result");
+                CreateInputAndChild(node, 1, baseNodeIdx, 100, 300, "Base", "Result");
 
                 // m_layerDefinition
                 node.Sockets.Add(new SocketIn(typeof(int), "Layer", node, false));
@@ -209,20 +225,20 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
             {
                 foreach (var sourceNodeIdx in data.GetArray<int>("m_sourceNodeIndices"))
                 {
-                    CreateChild(node, 2, sourceNodeIdx, 100, 300, "Source");
+                    CreateInputAndChild(node, 2, sourceNodeIdx, 100, 300, "Source");
                 }
             }
             else if (node.Data.ContainsKey("m_nInputValueNodeIdx")) // ComparisonNode
             {
                 var childNodeIdx = data.GetInt32Property("m_nInputValueNodeIdx");
-                CreateChild(node, 1, childNodeIdx, 100, 300, "Value", "Result");
+                CreateInputAndChild(node, 1, childNodeIdx, 100, 300, "Value", "Result");
             }
             else if (node.Data.ContainsKey("m_conditionNodeIndices")) // Conditional node
             {
                 var conditions = data.GetArray<int>("m_conditionNodeIndices");
                 foreach (var condition in conditions)
                 {
-                    CreateChild(node, conditions.Length + 1, condition, 80);
+                    CreateInputAndChild(node, conditions.Length + 1, condition, 80);
                 }
             }
             else if (node.Data.ContainsKey("m_nChildNodeIdx"))
@@ -231,12 +247,12 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
                 if (node.NodeType == "Scale")
                 {
                     childCount = 3;
-                    CreateChild(node, childCount, data.GetInt32Property("m_nMaskNodeIdx"), 130, 300, "Mask");
-                    CreateChild(node, childCount, data.GetInt32Property("m_nEnableNodeIdx"), 130, 300, "Enable");
+                    CreateInputAndChild(node, childCount, data.GetInt32Property("m_nMaskNodeIdx"), 130, 300, "Mask");
+                    CreateInputAndChild(node, childCount, data.GetInt32Property("m_nEnableNodeIdx"), 130, 300, "Enable");
                 }
 
                 var childNodeIdx = data.GetInt32Property("m_nChildNodeIdx");
-                CreateChild(node, childCount, childNodeIdx, 100, 300, "Input", "Result");
+                CreateInputAndChild(node, childCount, childNodeIdx, 100, 300, "Input", "Result");
             }
             else if (node.NodeType is "Clip" or "ReferencedGraph")
             {
@@ -260,6 +276,7 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
         root.StartNode = true;
 
         CreateChildren(root, rootNodeIdx);
+        Log.Debug(nameof(AnimationGraphViewer), $"Created {createdNodes.Count} nodes (out of {nodes.Length}) or {createdNodes.Count / (float)nodes.Length:P}.");
     }
 
     #region Nodes
