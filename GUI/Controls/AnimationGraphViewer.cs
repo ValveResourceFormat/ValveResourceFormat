@@ -88,10 +88,9 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
                 return existingNode;
             }
 
-            var node = new Node
+            var node = new Node(nodes[nodeIdx])
             {
                 Name = GetName(nodeIdx),
-                Data = nodes[nodeIdx],
                 NodeType = GetType(nodeIdx),
             };
 
@@ -131,6 +130,11 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
             var extraHeightCloseDepth = 200 / (int)Math.Pow(depth + 1, 1.5f);
 
             height = Math.Max(height, previousChildHeight + 20);
+
+            if (childNode.NodeType is "Clip" or "ReferencedGraph")
+            {
+                childOutputName = string.Empty;
+            }
 
             var childNodeOutput = new SocketOut(typeof(int), childOutputName ?? string.Empty, childNode);
             childNode.Sockets.Add(childNodeOutput);
@@ -287,13 +291,44 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
 
         public string? ExternalResourceName { get; set; }
 
-        public Node()
+        public Node(KVObject data)
         {
+            Data = data;
             BaseColor = Color.FromArgb(255, 31, 36, 42);
         }
 
         public override bool IsReady() => true;
         public override void Execute() { }
+
+        public override void Draw(Graphics g)
+        {
+            base.Draw(g);
+
+            if (string.IsNullOrEmpty(ExternalResourceName))
+            {
+                return;
+            }
+
+            using var font = new Font(FontFamily.GenericSansSerif, 9f, FontStyle.Regular);
+
+            var position = new PointF
+            {
+                X = Location.X + 3,
+                Y = Location.Y + 45
+            };
+
+            var fileExtensionStart = ExternalResourceName.LastIndexOf('.');
+            var trimStr = ExternalResourceName[..fileExtensionStart];
+            trimStr = trimStr.Replace(".vnmgraph", string.Empty);
+            trimStr = trimStr.Split('/').LastOrDefault() ?? trimStr;
+            if (trimStr.Length > 23)
+            {
+                trimStr = '…' + trimStr[^22..];
+            }
+
+            using var brush = new SolidBrush(Color.MediumOrchid);
+            g.DrawString(trimStr, font, brush, position);
+        }
     }
 
     #endregion Nodes
