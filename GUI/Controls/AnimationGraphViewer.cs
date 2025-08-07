@@ -186,7 +186,7 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
                     }
                 }
             }
-            else if (node.NodeType == "ParameterizedClipSelector")
+            else if (node.NodeType is "ParameterizedSelector" or "ParameterizedClipSelector")
             {
                 var options = data.GetArray<int>("m_optionNodeIndices");
 
