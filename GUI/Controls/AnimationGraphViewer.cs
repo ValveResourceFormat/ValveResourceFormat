@@ -349,15 +349,40 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
                 var childNodeIdx = data.GetInt32Property("m_nChildNodeIdx");
                 CreateInputAndChild(node, childCount, childNodeIdx, 100, 300, "Input", "Result");
             }
-            else if (node.NodeType is "Clip" or "ReferencedGraph")
+            else if (node.NodeType is "Clip" or "AnimationPose" or "ReferencedGraph")
             {
                 var resources = graphDefinition.GetArray<string>("m_resources");
                 node.ExternalResourceName = node.NodeType switch
                 {
                     "ReferencedGraph" => resources[graphDefinition.GetArray("m_referencedGraphSlots")[data.GetInt32Property("m_nReferencedGraphIdx")].GetInt32Property("m_dataSlotIdx")],
-                    "Clip" => data.GetInt32Property("m_nDataSlotIdx") == -1 ? null : resources[data.GetInt32Property("m_nDataSlotIdx")], // can be -1 on variations, for example bizon ironsight clip
+                    "Clip" or "AnimationPose" => data.GetInt32Property("m_nDataSlotIdx") == -1 ? null : resources[data.GetInt32Property("m_nDataSlotIdx")], // can be -1 on variations, for example bizon ironsight clip
                     _ => null
                 };
+
+                if (node.NodeType is "AnimationPose")
+                {
+                    // create fake socket to make space for the clip name
+                    node.Sockets.Add(new SocketIn(typeof(float), string.Empty, node, false));
+
+                    var poseTimeNodeIdx = data.GetInt32Property("m_nPoseTimeValueNodeIdx");
+                    if (poseTimeNodeIdx != -1)
+                    {
+                        CreateInputAndChild(node, 1, poseTimeNodeIdx, 60, 300, "Time");
+                    }
+
+                    var timeRemapRange = data.GetProperty<KVObject>("m_inputTimeRemapRange");
+                    var remapMin = timeRemapRange.GetFloatProperty("m_flMin");
+                    var remapMax = timeRemapRange.GetFloatProperty("m_flMax");
+                    var remapMinDesc = remapMin == float.MaxValue ? "None" : $"{remapMin:f}";
+                    var remapMaxDesc = remapMax == float.MinValue ? "None" : $"{remapMax:f}";
+
+                    node.Sockets.Add(new SocketIn(typeof(float), $"Remap: {remapMinDesc} - {remapMaxDesc}", node, false));
+
+                    var poseTime = data.GetFloatProperty("m_flUserSpecifiedTime");
+                    var useFrames = data.GetProperty<bool>("m_bUseFramesAsInput");
+                    node.Sockets.Add(new SocketIn(typeof(float), $"Const Time: {poseTime:f}", node, false));
+                    node.Sockets.Add(new SocketIn(typeof(bool), $"Use frames: {useFrames}", node, false));
+                }
             }
             else
             {
