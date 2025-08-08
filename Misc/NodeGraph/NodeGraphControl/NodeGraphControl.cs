@@ -547,12 +547,12 @@ namespace NodeGraphControl {
 
             // zoom in (mouse wheel ↑)
             if (e.Delta > 0) {
-                zoom += 0.25f;
+                zoom += 0.05f;
             }
 
             // zoom out (mouse wheel ↓)
             if (e.Delta < 0) {
-                zoom -= 0.25f;
+                zoom -= 0.1f;
             }
 
             UpdateMatrices();
