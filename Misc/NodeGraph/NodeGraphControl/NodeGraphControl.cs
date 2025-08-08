@@ -649,12 +649,8 @@ namespace NodeGraphControl {
                 }
 
                 if (element is AbstractNode node) {
-                    if (node.GetBoundsArea(originalLocation) == NodeBoundsArea.HEADER) {
-                        _command = CommandMode.MoveSelection;
-                        BringNodeToFront(node);
-                    } else {
-                        // rest of node
-                    }
+                    _command = CommandMode.MoveSelection;
+                    BringNodeToFront(node);
                 }
             }
 
