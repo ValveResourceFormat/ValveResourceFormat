@@ -625,20 +625,7 @@ namespace NodeGraphControl {
                     return;
                 }
 
-                if (element is Wire wire) {
-                    _command = CommandMode.Wiring;
-                    var from = wire.From.Pivot;
-                    var to = wire.To.Pivot;
-                    var fromDistance = Utils.Distance(from, originalLocation);
-                    var toDistance = Utils.Distance(to, originalLocation);
-                    if (fromDistance < toDistance) {
-                        _tempWire = new Wire {From = null, To = wire.To};
-                        Disconnect(wire);
-                    } else {
-                        _tempWire = new Wire {From = wire.From, To = null};
-                        Disconnect(wire);
-                    }
-                }
+
 
                 if (element is SocketIn socketIn) {
                     _command = CommandMode.Wiring;
