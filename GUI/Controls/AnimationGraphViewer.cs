@@ -282,6 +282,16 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
             {
                 node.AddText(data.GetProperty<string>("m_boneMaskID"));
             }
+            else if (node.NodeType is "SpeedScale")
+            {
+                CreateInputAndChild(node, 3, data.GetInt32Property("m_nChildNodeIdx"), 100, 300, "Input");
+                CreateInputAndChild(node, 3, data.GetInt32Property("m_nInputValueNodeIdx"), 100, 300, "Scale Value");
+                node.AddText($"Default Scale: {data.GetFloatProperty("m_flDefaultInputValue")}");
+            }
+            else if (node.NodeType is "Not")
+            {
+                CreateInputAndChild(node, 1, data.GetInt32Property("m_nInputValueNodeIdx"), 100, 300, "Value");
+            }
             else if (node.NodeType is "IDEventCondition")
             {
                 var eventIds = data.GetArray<string>("m_eventIDs");
@@ -318,7 +328,7 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
                     }
                 }
             }
-            else if (node.Data.ContainsKey("m_nInputValueNodeIdx")) // ComparisonNode
+            else if (node.NodeType.EndsWith("Comparison"))
             {
                 var childNodeIdx = data.GetInt32Property("m_nInputValueNodeIdx");
                 CreateInputAndChild(node, 1, childNodeIdx, 100, 300, GetName(childNodeIdx));
@@ -348,6 +358,10 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
                     {
                         node.AddText($"{data.GetFloatProperty("m_flComparisonValue"):f}");
                     }
+                }
+                else
+                {
+                    Console.WriteLine($"Gerneric handled node: {node.NodeType} ({node.Name})");
                 }
             }
             else if (node.Data.ContainsKey("m_conditionNodeIndices")) // Conditional node
