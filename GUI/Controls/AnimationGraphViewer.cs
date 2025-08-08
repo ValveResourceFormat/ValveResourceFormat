@@ -4,7 +4,6 @@ using System.Windows.Forms;
 using GUI.Utils;
 using NodeGraphControl.Elements;
 using ValveResourceFormat.Serialization.KeyValues;
-using ZstdSharp.Unsafe;
 
 namespace GUI.Types.Viewers;
 
@@ -206,12 +205,21 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
                 CreateInputAndChild(node, options.Length + 1, parameterNodeIdx, 120, 300);
 
                 var hasWeightsSet = data.GetProperty<bool>("m_bHasWeightsSet");
+                var totalWeight = 0;
                 var weights = data.GetArray<uint>("m_optionWeights");
+
+                if (hasWeightsSet)
+                {
+                    totalWeight = Math.Max(1, weights.Cast<int>().Sum());
+                }
 
                 var i = 0;
                 foreach (var optionNodeIdx in options)
                 {
-                    var weightDesc = hasWeightsSet ? $"Weight: {weights[i]}" : string.Empty;
+                    var weight = weights[i];
+                    var weightPercentage = weight / (float)totalWeight * 100;
+
+                    var weightDesc = hasWeightsSet ? $"Weight: {weight} ({weightPercentage:F2}%)" : string.Empty;
                     CreateInputAndChild(node, options.Length + 1, optionNodeIdx, 80, 300, $"Option {++i} {weightDesc}");
                 }
             }
@@ -235,7 +243,7 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
                 var baseNodeIdx = data.GetInt32Property("m_nBaseNodeIdx");
                 CreateInputAndChild(node, 1, baseNodeIdx, 100, 300, "Base", "Result");
 
-                var layerInput = new SocketIn(typeof(int), "Layer", node, false);
+                var layerInput = new SocketIn(typeof(int), "Layer", node, true);
                 node.Sockets.Add(layerInput);
 
                 var layerDefinition = data.GetArray("m_layerDefinition");
@@ -288,9 +296,19 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
                 CreateInputAndChild(node, 3, data.GetInt32Property("m_nInputValueNodeIdx"), 100, 300, "Scale Value");
                 node.AddText($"Default Scale: {data.GetFloatProperty("m_flDefaultInputValue")}");
             }
-            else if (node.NodeType is "Not")
+            else if (node.NodeType is "Not" or "FloatCurve")
             {
                 CreateInputAndChild(node, 1, data.GetInt32Property("m_nInputValueNodeIdx"), 100, 300, "Value");
+
+                // curve
+            }
+            else if (node.NodeType is "FloatRemap")
+            {
+                CreateInputAndChild(node, 1, data.GetInt32Property("m_nInputValueNodeIdx"), 100, 300, "Value");
+                var inputRange = data.GetProperty<KVObject>("m_inputRange");
+                var outputRange = data.GetProperty<KVObject>("m_outputRange");
+                node.AddText($"InputBegin: {inputRange.GetFloatProperty("m_flBegin")} InputEnd: {inputRange.GetFloatProperty("m_flEnd")}");
+                node.AddText($"OutputBegin: {outputRange.GetFloatProperty("m_flBegin")} OutputEnd: {outputRange.GetFloatProperty("m_flEnd")}");
             }
             else if (node.NodeType is "IDEventCondition")
             {
@@ -407,9 +425,9 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
                 else if (node.NodeType is "Clip")
                 {
                     node.AddSpace();
-                    node.AddText($"Speed: {data.GetFloatProperty("m_flSpeedMultiplier")}x");
-                    node.AddText($"Start Sync Event Offset: {data.GetInt32Property("m_nStartSyncEventOffset")}");
-                    node.AddText($"Sample Root Motion: {data.GetProperty<bool>("m_bSampleRootMotion")}");
+                    node.AddText($"Speed: {data.GetFloatProperty("m_flSpeedMultiplier"):F2}x");
+                    node.AddText($"StartSyncEvent Offset: {data.GetInt32Property("m_nStartSyncEventOffset")}");
+                    node.AddText($"Sample RootMotion: {data.GetProperty<bool>("m_bSampleRootMotion")}");
                     node.AddText($"Allow Looping: {data.GetProperty<bool>("m_bAllowLooping")}");
 
                     var playInReverseNodeIdx = data.GetInt32Property("m_nPlayInReverseValueNodeIdx");
