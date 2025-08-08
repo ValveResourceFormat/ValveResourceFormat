@@ -423,17 +423,48 @@ public partial class GltfModelExporter
 
         static void WriteMaterialExtras(Material material, VMaterial renderMaterial, Dictionary<string, string> textures)
         {
+            var intParamsJson = new System.Text.Json.Nodes.JsonObject();
+            foreach (var kvp in renderMaterial.IntParams)
+            {
+                intParamsJson[kvp.Key] = kvp.Value;
+            }
+
+            var floatParamsJson = new System.Text.Json.Nodes.JsonObject();
+            foreach (var kvp in renderMaterial.FloatParams)
+            {
+                floatParamsJson[kvp.Key] = kvp.Value;
+            }
+
+            var vectorParamsJson = new System.Text.Json.Nodes.JsonObject();
+            foreach (var kvp in renderMaterial.VectorParams)
+            {
+                var vectorArray = new System.Text.Json.Nodes.JsonArray
+                {
+                    [0] = kvp.Value.X,
+                    [1] = kvp.Value.Y,
+                    [2] = kvp.Value.Z,
+                    [3] = kvp.Value.W
+                };
+                vectorParamsJson[kvp.Key] = vectorArray;
+            }
+
+            var textureParamsJson = new System.Text.Json.Nodes.JsonObject();
+            foreach (var kvp in textures)
+            {
+                textureParamsJson[kvp.Key] = kvp.Value;
+            }
+
             material.Extras = new System.Text.Json.Nodes.JsonObject
             {
-                ["vmat"] = System.Text.Json.JsonSerializer.SerializeToNode(new Dictionary<string, object>
+                ["vmat"] = new System.Text.Json.Nodes.JsonObject
                 {
                     ["Name"] = renderMaterial.Name,
                     ["ShaderName"] = renderMaterial.ShaderName,
-                    ["IntParams"] = renderMaterial.IntParams,
-                    ["FloatParams"] = renderMaterial.FloatParams,
-                    ["VectorParams"] = renderMaterial.VectorParams.ToDictionary(kvp => kvp.Key, kvp => new float[] { kvp.Value.X, kvp.Value.Y, kvp.Value.Z, kvp.Value.W }),
-                    ["TextureParams"] = textures,
-                })
+                    ["IntParams"] = intParamsJson,
+                    ["FloatParams"] = floatParamsJson,
+                    ["VectorParams"] = vectorParamsJson,
+                    ["TextureParams"] = textureParamsJson,
+                }
             };
         }
     }
