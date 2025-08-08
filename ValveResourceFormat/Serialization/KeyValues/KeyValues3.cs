@@ -503,6 +503,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
                     "panorama" => KVFlag.Panorama,
                     "soundevent" => KVFlag.SoundEvent,
                     "subclass" => KVFlag.SubClass,
+                    "entity_name" => KVFlag.EntityName,
                     _ => throw new InvalidDataException("Unknown flag " + strings[0]),
                 };
                 //If flagged value is in the array, it needs to include a comma

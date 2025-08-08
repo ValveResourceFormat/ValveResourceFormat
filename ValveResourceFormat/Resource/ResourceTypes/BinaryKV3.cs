@@ -652,7 +652,7 @@ namespace ValveResourceFormat.ResourceTypes
                     flagInfo = (KVFlag)context.Types[0];
                     context.Types = context.Types[1..];
 
-                    if (flagInfo > KVFlag.SubClass)
+                    if (flagInfo > KVFlag.MaxPersistedFlag)
                     {
                         throw new UnexpectedMagicException("Unexpected kv3 flag", (int)flagInfo, nameof(flagInfo));
                     }

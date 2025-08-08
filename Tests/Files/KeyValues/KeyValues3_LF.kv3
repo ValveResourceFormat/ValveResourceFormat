@@ -18,6 +18,9 @@ Second line of a multi-line string literal.
 		2,
         resource:"characters/models/shared/animsets/animset_ct.vmdl",
         panorama:"hud/abilities/haze/haze_sleep_dagger.psd",
+        soundevent:"soundevent.txt",
+        subclass:"subclass.txt",
+        entity_name:"entity_name.txt",
         "hello world",
 	]
 	objectValue =
