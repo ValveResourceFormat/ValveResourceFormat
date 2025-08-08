@@ -66,7 +66,7 @@ namespace GUI.Types.Renderer
                 }
 
                 var entityLump = (EntityLump)newResource.DataBlock;
-                LoadEntitiesFromLump(entityLump, "world_layer_base", Matrix4x4.Identity); // TODO: Hardcoded layer name
+                LoadEntitiesFromLump(entityLump, null, Matrix4x4.Identity);
             }
 
             Action<List<SceneLight>> lightEntityStore = scene.LightingInfo.LightmapGameVersionNumber switch
@@ -227,6 +227,8 @@ namespace GUI.Types.Renderer
 
         private void LoadEntitiesFromLump(EntityLump entityLump, string layerName, Matrix4x4 parentTransform)
         {
+            layerName ??= "Entities";
+
             var childEntities = entityLump.GetChildEntityNames();
             var childEntityLumps = new Dictionary<string, EntityLump>(childEntities.Length);
 
@@ -803,7 +805,7 @@ namespace GUI.Types.Renderer
 
                 if (model == null)
                 {
-                    CreateDefaultEntity(entity, classname, transformationMatrix);
+                    CreateDefaultEntity(entity, classname, layerName, transformationMatrix);
                     return;
                 }
 
@@ -900,7 +902,7 @@ namespace GUI.Types.Renderer
                 else if (!modelNode.HasMeshes)
                 {
                     // If the loaded model has no meshes and has no physics, fallback to default entity
-                    CreateDefaultEntity(entity, classname, transformationMatrix);
+                    CreateDefaultEntity(entity, classname, layerName, transformationMatrix);
                 }
             }
 
@@ -1045,7 +1047,7 @@ namespace GUI.Types.Renderer
             }
         }
 
-        private void CreateDefaultEntity(Entity entity, string classname, Matrix4x4 transformationMatrix)
+        private void CreateDefaultEntity(Entity entity, string classname, string layerName, Matrix4x4 transformationMatrix)
         {
             var hammerEntity = HammerEntities.Get(classname);
             string filename = null;
@@ -1076,7 +1078,7 @@ namespace GUI.Types.Renderer
                 var boxNode = new SimpleBoxSceneNode(scene, color, new Vector3(16f))
                 {
                     Transform = rotationMatrix * Matrix4x4.CreateTranslation(positionVector),
-                    LayerName = "Entities",
+                    LayerName = layerName,
                     Name = filename,
                     EntityData = entity,
                 };
@@ -1087,7 +1089,7 @@ namespace GUI.Types.Renderer
                 var modelNode = new ModelSceneNode(scene, (Model)resource.DataBlock, null, isWorldPreview: true)
                 {
                     Transform = transformationMatrix,
-                    LayerName = "Entities",
+                    LayerName = layerName,
                     Name = filename,
                     EntityData = entity,
                 };
@@ -1100,7 +1102,7 @@ namespace GUI.Types.Renderer
             {
                 var spriteNode = new SpriteSceneNode(scene, guiContext, resource, transformationMatrix.Translation)
                 {
-                    LayerName = "Entities",
+                    LayerName = layerName,
                     Name = filename,
                     EntityData = entity,
                 };
@@ -1153,7 +1155,7 @@ namespace GUI.Types.Renderer
 
                     var lineNode = new LineSceneNode(scene, start, end, line.Color, line.Color)
                     {
-                        LayerName = "Entities",
+                        LayerName = layerName,
                         Transform = Matrix4x4.CreateTranslation(origin)
                     };
                     scene.Add(lineNode, true);
