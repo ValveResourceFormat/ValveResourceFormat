@@ -19,7 +19,6 @@
     <Deterministic>true</Deterministic>
     <DebugSymbols>true</DebugSymbols>
     <DebugType>embedded</DebugType>
-    <PublishSingleFile>true</PublishSingleFile>
     <PublishReadyToRun>true</PublishReadyToRun>
     <NeutralLanguage>en</NeutralLanguage>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
