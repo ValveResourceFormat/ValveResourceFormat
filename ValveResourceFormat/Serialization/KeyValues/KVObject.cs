@@ -63,7 +63,15 @@ namespace ValveResourceFormat.Serialization.KeyValues
             }
             else
             {
-                Properties.Add(name, value);
+#if DEBUG
+                if (!Properties.TryAdd(name, value))
+                {
+                    Console.WriteLine($"This KV3 object contains a duplicate key: {name} with value {value}");
+                    Properties[name] = value;
+                }
+#else
+                Properties[name] = value;
+#endif
             }
 
             Count++;
