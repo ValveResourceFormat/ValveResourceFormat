@@ -258,7 +258,7 @@ namespace ValveResourceFormat.IO
             ExportPhysicsIfAny(resourceName, fileName);
         }
 
-        private void LoadEntityMeshes(ModelRoot exportedModel, Scene scene, VEntityLump entityLump, Matrix4x4 parentTransform = default(Matrix4x4))
+        private void LoadEntityMeshes(ModelRoot exportedModel, Scene scene, VEntityLump entityLump, Matrix4x4 parentTransform)
         {
             var childEntities = entityLump.GetChildEntityNames();
             var childEntityLumps = new Dictionary<string, VEntityLump>(childEntities.Length);
