@@ -205,9 +205,14 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
                 var parameterNodeIdx = data.GetInt32Property("m_parameterNodeIdx");
                 CreateInputAndChild(node, options.Length + 1, parameterNodeIdx, 120, 300);
 
+                var hasWeightsSet = data.GetProperty<bool>("m_bHasWeightsSet");
+                var weights = data.GetArray<uint>("m_optionWeights");
+
+                var i = 0;
                 foreach (var optionNodeIdx in options)
                 {
-                    CreateInputAndChild(node, options.Length + 1, optionNodeIdx, 80, 300);
+                    var weightDesc = hasWeightsSet ? $"Weight: {weights[i]}" : string.Empty;
+                    CreateInputAndChild(node, options.Length + 1, optionNodeIdx, 80, 300, $"Option {++i} {weightDesc}");
                 }
             }
             else if (node.NodeType is "Selector" or "ClipSelector")
@@ -247,14 +252,35 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
             }
             else if (node.NodeType is "Blend1D" or "Blend2D")
             {
-                foreach (var sourceNodeIdx in data.GetArray<int>("m_sourceNodeIndices"))
+                var sourceNodeIndices = data.GetArray<int>("m_sourceNodeIndices");
+                var childCount = sourceNodeIndices.Length + 2;
+
+                if (node.NodeType == "Blend1D")
                 {
-                    CreateInputAndChild(node, 2, sourceNodeIdx, 100, 300, "Source");
+                    var inputNodeIdx = data.GetInt32Property("m_nInputParameterValueNodeIdx");
+                    CreateInputAndChild(node, childCount, inputNodeIdx, 70, 300, "Parameter");
                 }
+                else if (node.NodeType == "Blend2D")
+                {
+                    var inputNodeIdxA = data.GetInt32Property("m_nInputParameterNodeIdx0");
+                    var inputNodeIdxB = data.GetInt32Property("m_nInputParameterNodeIdx1");
+
+                    childCount += 1;
+                    CreateInputAndChild(node, childCount, inputNodeIdxA, 70, 300, "Parameter A");
+                    CreateInputAndChild(node, childCount, inputNodeIdxB, 70, 300, "Parameter B");
+                }
+
+                var optionIndex = 0;
+                foreach (var sourceNodeIdx in sourceNodeIndices)
+                {
+                    CreateInputAndChild(node, childCount, sourceNodeIdx, 100, 300, $"Option {++optionIndex}");
+                }
+
+                node.AddText($"Allow Looping: {data.GetProperty<bool>("m_bAllowLooping")}");
             }
             else if (node.NodeType is "BoneMask")
             {
-                node.Sockets.Add(new SocketIn(typeof(string), data.GetProperty<string>("m_boneMaskID"), node, false));
+                node.AddText(data.GetProperty<string>("m_boneMaskID"));
             }
             else if (node.NodeType is "IDEventCondition")
             {
@@ -262,12 +288,12 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
                 var sourceStateNodeIdx = data.GetInt32Property("m_nSourceStateNodeIdx");
                 if (sourceStateNodeIdx != -1)
                 {
-                    node.Sockets.Add(new SocketIn(typeof(string), $"State: {GetName(sourceStateNodeIdx)}", node, false));
+                    node.AddText($"State: {GetName(sourceStateNodeIdx)}");
                 }
 
                 foreach (var eventId in eventIds)
                 {
-                    node.Sockets.Add(new SocketIn(typeof(string), $"Event: '{eventId}'", node, false));
+                    node.AddText($"Event: '{eventId}'");
                 }
             }
             else if (node.NodeType.EndsWith("Math"))
@@ -278,7 +304,7 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
                 CreateInputAndChild(node, 2, inputNodeIdxA, 100, 300, "A");
 
                 var @operator = data.GetProperty<string>("m_operator");
-                node.Sockets.Add(new SocketIn(typeof(string), @operator, node, false));
+                node.AddText(@operator);
 
                 if (inputNodeIdxB != -1)
                 {
@@ -288,9 +314,7 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
                 {
                     if (node.NodeType == "FloatMath")
                     {
-                        var constantValue = data.GetFloatProperty("m_flValueB");
-                        var constantValueSocket = new SocketIn(typeof(float), $"{constantValue:f}", node, false);
-                        node.Sockets.Add(constantValueSocket);
+                        node.AddText($"{data.GetFloatProperty("m_flValueB"):f}");
                     }
                 }
             }
@@ -302,7 +326,7 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
                 if (data.ContainsKey("m_comparison"))
                 {
                     var comparison = data.GetProperty<string>("m_comparison");
-                    node.Sockets.Add(new SocketIn(typeof(string), comparison, node, false));
+                    node.AddText(comparison);
                 }
 
                 if (node.NodeType is "IDComparison")
@@ -310,7 +334,7 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
                     var comparisonIds = data.GetArray<string>("m_comparisionIDs");
                     foreach (var comparisonId in comparisonIds)
                     {
-                        node.Sockets.Add(new SocketIn(typeof(string), $"'{comparisonId}'", node, false));
+                        node.AddText($"'{comparisonId}'");
                     }
                 }
                 else if (node.NodeType is "FloatComparison" or "IntComparison")
@@ -322,9 +346,7 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
                     }
                     else
                     {
-                        var constantValue = data.GetFloatProperty("m_flComparisonValue");
-                        var constantValueSocket = new SocketIn(typeof(float), $"{constantValue:f}", node, false);
-                        node.Sockets.Add(constantValueSocket);
+                        node.AddText($"{data.GetFloatProperty("m_flComparisonValue"):f}");
                     }
                 }
             }
@@ -352,17 +374,46 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
             else if (node.NodeType is "Clip" or "AnimationPose" or "ReferencedGraph")
             {
                 var resources = graphDefinition.GetArray<string>("m_resources");
-                node.ExternalResourceName = node.NodeType switch
-                {
-                    "ReferencedGraph" => resources[graphDefinition.GetArray("m_referencedGraphSlots")[data.GetInt32Property("m_nReferencedGraphIdx")].GetInt32Property("m_dataSlotIdx")],
-                    "Clip" or "AnimationPose" => data.GetInt32Property("m_nDataSlotIdx") == -1 ? null : resources[data.GetInt32Property("m_nDataSlotIdx")], // can be -1 on variations, for example bizon ironsight clip
-                    _ => null
-                };
 
-                if (node.NodeType is "AnimationPose")
+                var referencedGraphIdx = data.GetInt32Property("m_nReferencedGraphIdx");
+                var referencedGraphSlots = graphDefinition.GetArray("m_referencedGraphSlots");
+                var dataSlotIdx = data.GetInt32Property("m_nDataSlotIdx");
+
+                if (node.NodeType is "ReferencedGraph")
                 {
-                    // create fake socket to make space for the clip name
-                    node.Sockets.Add(new SocketIn(typeof(float), string.Empty, node, false));
+                    dataSlotIdx = referencedGraphSlots[referencedGraphIdx].GetInt32Property("m_dataSlotIdx");
+
+                    var fallbackNodeIdx = data.GetInt32Property("m_nFallbackNodeIdx");
+                    if (fallbackNodeIdx != -1)
+                    {
+                        node.AddSpace();
+                        CreateInputAndChild(node, 1, fallbackNodeIdx, 100, 300, "Fallback");
+                    }
+                }
+                else if (node.NodeType is "Clip")
+                {
+                    node.AddSpace();
+                    node.AddText($"Speed: {data.GetFloatProperty("m_flSpeedMultiplier")}x");
+                    node.AddText($"Start Sync Event Offset: {data.GetInt32Property("m_nStartSyncEventOffset")}");
+                    node.AddText($"Sample Root Motion: {data.GetProperty<bool>("m_bSampleRootMotion")}");
+                    node.AddText($"Allow Looping: {data.GetProperty<bool>("m_bAllowLooping")}");
+
+                    var playInReverseNodeIdx = data.GetInt32Property("m_nPlayInReverseValueNodeIdx");
+                    if (playInReverseNodeIdx != -1)
+                    {
+                        CreateInputAndChild(node, 1, playInReverseNodeIdx, 100, 300, "Play in reverse");
+                    }
+
+                    var resetTimeValueNodeIdx = data.GetInt32Property("m_nResetTimeValueNodeIdx");
+                    if (resetTimeValueNodeIdx != -1)
+                    {
+                        CreateInputAndChild(node, 1, resetTimeValueNodeIdx, 100, 300, "Reset time");
+                    }
+
+                }
+                else if (node.NodeType is "AnimationPose")
+                {
+                    node.AddSpace();
 
                     var poseTimeNodeIdx = data.GetInt32Property("m_nPoseTimeValueNodeIdx");
                     if (poseTimeNodeIdx != -1)
@@ -376,13 +427,19 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
                     var remapMinDesc = remapMin == float.MaxValue ? "None" : $"{remapMin:f}";
                     var remapMaxDesc = remapMax == float.MinValue ? "None" : $"{remapMax:f}";
 
-                    node.Sockets.Add(new SocketIn(typeof(float), $"Remap: {remapMinDesc} - {remapMaxDesc}", node, false));
-
-                    var poseTime = data.GetFloatProperty("m_flUserSpecifiedTime");
-                    var useFrames = data.GetProperty<bool>("m_bUseFramesAsInput");
-                    node.Sockets.Add(new SocketIn(typeof(float), $"Const Time: {poseTime:f}", node, false));
-                    node.Sockets.Add(new SocketIn(typeof(bool), $"Use frames: {useFrames}", node, false));
+                    node.AddText($"Remap: {remapMinDesc} - {remapMaxDesc}");
+                    node.AddText($"Const Time: {data.GetFloatProperty("m_flUserSpecifiedTime"):f}");
+                    node.AddText($"Use frames: {data.GetProperty<bool>("m_bUseFramesAsInput")}");
                 }
+
+                if (dataSlotIdx != -1)
+                {
+                    node.ExternalResourceName = resources[dataSlotIdx];
+                }
+            }
+            else if (node.NodeType.StartsWith("ControlParameter"))
+            {
+                node.Description = "Graph input value set by game code.";
             }
             else
             {
@@ -412,6 +469,21 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
         {
             Data = data;
             BaseColor = Color.FromArgb(255, 31, 36, 42);
+        }
+
+        public void AddSpace() => CreateTextSocket<string>(string.Empty);
+        public void AddText(string text) => CreateTextSocket<string>(text);
+
+        private void CreateTextSocket<T>(string text)
+        {
+            Sockets.Add(new SocketIn(typeof(T), text, this, false));
+        }
+
+        public SocketIn CreateSocketIn<T>(string text) where T : struct
+        {
+            var socket = new SocketIn(typeof(T), text, this, hub: false);
+            Sockets.Add(socket);
+            return socket;
         }
 
         public override bool IsReady() => true;
