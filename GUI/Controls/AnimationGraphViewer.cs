@@ -104,7 +104,7 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
         var previousChildLocation = new Point(0, 0);
         var previousChildHeight = 0;
 
-        (Node, SocketIn) CreateInputAndChild(Node parent, int totalChildren, int nodeIdx, int height, int offset = 300, string? parentInputName = null, string? childOutputName = null, bool hub = false)
+        (Node, SocketIn) CreateInputAndChild(Node parent, int totalChildren, int nodeIdx, int height = 100, int offset = 300, string? parentInputName = null, string? childOutputName = null, bool hub = false)
         {
             var (childNode, childNodeOutput) = CreateChild(parent, totalChildren, nodeIdx, height, offset, childOutputName);
 
@@ -216,10 +216,16 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
                 var i = 0;
                 foreach (var optionNodeIdx in options)
                 {
-                    var weight = weights[i];
-                    var weightPercentage = weight / (float)totalWeight * 100;
+                    var weightDesc = string.Empty;
+                    if (hasWeightsSet)
+                    {
+                        // If weights are set, show the weight and its percentage.
+                        var weight = weights[i];
+                        var weightPercentage = weight / (float)totalWeight * 100;
 
-                    var weightDesc = hasWeightsSet ? $"Weight: {weight} ({weightPercentage:F2}%)" : string.Empty;
+                        weightDesc = $"Weight: {weight} ({weightPercentage:F2}%)";
+                    }
+
                     CreateInputAndChild(node, options.Length + 1, optionNodeIdx, 80, 300, $"Option {++i} {weightDesc}");
                 }
             }
@@ -241,21 +247,55 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
             else if (node.NodeType is "LayerBlend")
             {
                 var baseNodeIdx = data.GetInt32Property("m_nBaseNodeIdx");
-                CreateInputAndChild(node, 1, baseNodeIdx, 100, 300, "Base", "Result");
+                CreateInputAndChild(node, 3, baseNodeIdx, 100, 300, "Base", "Result");
 
-                var layerInput = new SocketIn(typeof(int), "Layer", node, true);
+                var layerInput = new SocketIn(typeof(int), "Layers", node, true);
                 node.Sockets.Add(layerInput);
 
                 var layerDefinition = data.GetArray("m_layerDefinition");
+                var layerIndex = 0;
                 foreach (var layer in layerDefinition)
                 {
-                    // might be better to create a layer node
-                    var inputNodeIdx = layer.GetInt32Property("m_nInputNodeIdx");
-                    var blendMode = layer.GetStringProperty("m_blendMode");
+                    var layerNode = AddNode(new Node(layerDefinition[layerIndex])
+                    {
+                        Name = $"Layer{layerIndex}",
+                        NodeType = "_LayerDefinition_",
+                    });
 
-                    // m_nWeightValueNodeIdx m_nBoneMaskValueNodeIdx m_nRootMotionWeightValueNodeIdx optional (-1)
-                    var (_, childOutput) = CreateChild(node, layerDefinition.Length, inputNodeIdx, 100, 300, blendMode);
-                    Connect(childOutput, layerInput);
+                    CalculateChildNodeLocation(node, layerDefinition.Length, layerNode, 100, 300);
+                    layerNode.Location = new Point(layerNode.Location.X, layerNode.Location.Y + 140 * layerIndex);
+
+                    var layerOutput = new SocketOut(typeof(int), string.Empty, layerNode);
+                    layerNode.Sockets.Add(layerOutput);
+                    Connect(layerOutput, layerInput);
+                    CreateInputAndChild(layerNode, 1, layer.GetInt32Property("m_nInputNodeIdx"), 100, 400);
+
+                    // Optional inputs
+                    var weightNodeIdx = layer.GetInt32Property("m_nWeightValueNodeIdx");
+                    var boneMaskNodeIdx = layer.GetInt32Property("m_nBoneMaskValueNodeIdx");
+                    var rootMotionNodeIdx = layer.GetInt32Property("m_nRootMotionWeightValueNodeIdx");
+
+                    if (weightNodeIdx != -1)
+                    {
+                        CreateInputAndChild(layerNode, 1, weightNodeIdx, parentInputName: "Weight");
+                    }
+
+                    if (boneMaskNodeIdx != -1)
+                    {
+                        CreateInputAndChild(layerNode, 1, boneMaskNodeIdx, parentInputName: "Bone Mask");
+                    }
+
+                    if (rootMotionNodeIdx != -1)
+                    {
+                        CreateInputAndChild(layerNode, 1, rootMotionNodeIdx, parentInputName: "Root Motion");
+                    }
+
+                    layerNode.AddText($"Is Synchronized: {layer.GetProperty<bool>("m_bIsSynchronized")}");
+                    layerNode.AddText($"Ignore Events: {layer.GetProperty<bool>("m_bIgnoreEvents")}");
+                    layerNode.AddText($"Is State Machine Layer: {layer.GetProperty<bool>("m_bIsStateMachineLayer")}");
+                    layerNode.AddText($"Blend Mode: {layer.GetStringProperty("m_blendMode")}");
+                    layerNode.Calculate();
+                    layerIndex++;
                 }
             }
             else if (node.NodeType is "Blend1D" or "Blend2D")
