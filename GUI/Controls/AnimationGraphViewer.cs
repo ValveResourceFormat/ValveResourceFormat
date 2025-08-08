@@ -91,7 +91,7 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
 
             var node = new Node(nodes[nodeIdx])
             {
-                Name = GetName(nodeIdx),
+                Name = $"({nodeIdx}) {GetName(nodeIdx)}",
                 NodeType = GetType(nodeIdx),
             };
 
@@ -193,7 +193,7 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
 
                     if (entryConditionNodeIdx != -1)
                     {
-                        var (_, childOutput) = CreateChild(node, children.Length, entryConditionNodeIdx, 80, 300, $"Enter {stateName} state");
+                        var (_, childOutput) = CreateChild(node, children.Length, entryConditionNodeIdx, 80, 300, stateName);
                         Connect(childOutput, input);
                     }
                 }
