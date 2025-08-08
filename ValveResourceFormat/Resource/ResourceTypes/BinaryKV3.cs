@@ -1081,5 +1081,30 @@ namespace ValveResourceFormat.ResourceTypes
             offset += alignment;
             offset &= ~alignment;
         }
+
+        [UnmanagedCallersOnly(EntryPoint = "ConvertBinaryKV3ToText")]
+        public static IntPtr ConvertBinaryKV3ToText(IntPtr dataPtr, int dataLength)
+        {
+            try
+            {
+                var data = new byte[dataLength];
+                Marshal.Copy(dataPtr, data, 0, dataLength);
+
+                var kv3 = new BinaryKV3(BlockType.Undefined);
+                using var stream = new MemoryStream(data);
+                using var reader = new BinaryReader(stream);
+                kv3.Read(reader);
+
+                var text = kv3.ToString();
+                var pointer = Marshal.StringToHGlobalAnsi(text);
+
+                return pointer;
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine(ex.Message);
+                return Marshal.StringToHGlobalAnsi(string.Empty);
+            }
+        }
     }
 }
