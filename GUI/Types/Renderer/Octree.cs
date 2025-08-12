@@ -49,9 +49,10 @@ namespace GUI.Types.Renderer
                 Children[6] = new Node(this, new Vector3(Region.Min.X, myCenter.Y, myCenter.Z), subregionSize);
                 Children[7] = new Node(this, new Vector3(myCenter.X, myCenter.Y, myCenter.Z), subregionSize);
 
-                var remainingElements = new List<Element>();
-                foreach (var element in Elements!)
+                var writeIndex = 0;
+                for (var i = 0; i < Elements!.Count; i++)
                 {
+                    var element = Elements[i];
                     var movedDown = false;
 
                     foreach (var child in Children)
@@ -66,11 +67,14 @@ namespace GUI.Types.Renderer
 
                     if (!movedDown)
                     {
-                        remainingElements.Add(element);
+                        Elements[writeIndex++] = element;
                     }
                 }
 
-                Elements = remainingElements;
+                if (writeIndex < Elements.Count)
+                {
+                    Elements.RemoveRange(writeIndex, Elements.Count - writeIndex);
+                }
             }
 
             public Node(Node? parent, Vector3 regionMin, Vector3 regionSize)
@@ -114,10 +118,17 @@ namespace GUI.Types.Renderer
                     }
                 }
 
-                if (!inserted)
+                if (inserted)
                 {
-                    Elements ??= [];
+                    return;
+                }
 
+                if (Elements == null)
+                {
+                    Elements = [element];
+                }
+                else
+                {
                     Elements.Add(element);
                 }
             }
