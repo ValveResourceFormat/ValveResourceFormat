@@ -250,6 +250,33 @@ namespace GUI.Types.Renderer
             inds.Add(baseVertex + c);
         }
 
+        public static void AddLine(List<SimpleVertex> vertices, Vector3 from, Vector3 to, Color32 color)
+        {
+            vertices.Add(new SimpleVertex(from, color));
+            vertices.Add(new SimpleVertex(to, color));
+        }
+
+        public static void AddBox(List<SimpleVertex> vertices, in AABB box, Color32 color)
+        {
+            // Adding a box will add many vertices, so ensure the required capacity for it up front
+            vertices.EnsureCapacity(vertices.Count + 2 * 12);
+
+            AddLine(vertices, new Vector3(box.Min.X, box.Min.Y, box.Min.Z), new Vector3(box.Max.X, box.Min.Y, box.Min.Z), color);
+            AddLine(vertices, new Vector3(box.Max.X, box.Min.Y, box.Min.Z), new Vector3(box.Max.X, box.Max.Y, box.Min.Z), color);
+            AddLine(vertices, new Vector3(box.Max.X, box.Max.Y, box.Min.Z), new Vector3(box.Min.X, box.Max.Y, box.Min.Z), color);
+            AddLine(vertices, new Vector3(box.Min.X, box.Max.Y, box.Min.Z), new Vector3(box.Min.X, box.Min.Y, box.Min.Z), color);
+
+            AddLine(vertices, new Vector3(box.Min.X, box.Min.Y, box.Max.Z), new Vector3(box.Max.X, box.Min.Y, box.Max.Z), color);
+            AddLine(vertices, new Vector3(box.Max.X, box.Min.Y, box.Max.Z), new Vector3(box.Max.X, box.Max.Y, box.Max.Z), color);
+            AddLine(vertices, new Vector3(box.Max.X, box.Max.Y, box.Max.Z), new Vector3(box.Min.X, box.Max.Y, box.Max.Z), color);
+            AddLine(vertices, new Vector3(box.Min.X, box.Max.Y, box.Max.Z), new Vector3(box.Min.X, box.Min.Y, box.Max.Z), color);
+
+            AddLine(vertices, new Vector3(box.Min.X, box.Min.Y, box.Min.Z), new Vector3(box.Min.X, box.Min.Y, box.Max.Z), color);
+            AddLine(vertices, new Vector3(box.Max.X, box.Min.Y, box.Min.Z), new Vector3(box.Max.X, box.Min.Y, box.Max.Z), color);
+            AddLine(vertices, new Vector3(box.Max.X, box.Max.Y, box.Min.Z), new Vector3(box.Max.X, box.Max.Y, box.Max.Z), color);
+            AddLine(vertices, new Vector3(box.Min.X, box.Max.Y, box.Min.Z), new Vector3(box.Min.X, box.Max.Y, box.Max.Z), color);
+        }
+
         public override void Render(Scene.RenderContext context)
         {
             var isTranslucent = IsTranslucent && IsTranslucentRenderMode && context.ReplacementShader == null;

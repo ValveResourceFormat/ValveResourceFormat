@@ -96,7 +96,7 @@ namespace GUI.Types.Renderer
                 var parentMatrix = animation.Pose[bone.Parent.Index];
 
                 var fade = Random.Shared.NextSingle() * 0.5f + 0.5f;
-                OctreeDebugRenderer<SceneNode>.AddLine(vertices, boneMatrix.Translation, parentMatrix.Translation, new(1f - fade, 1f, fade, 1f));
+                ShapeSceneNode.AddLine(vertices, boneMatrix.Translation, parentMatrix.Translation, new(1f - fade, 1f, fade, 1f));
             }
 
             foreach (var child in bone.Children)

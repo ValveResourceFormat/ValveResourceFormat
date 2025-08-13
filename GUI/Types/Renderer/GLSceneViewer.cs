@@ -41,8 +41,8 @@ namespace GUI.Types.Renderer
         private ComboBox renderModeComboBox;
         private InfiniteGrid baseGrid;
         private SceneBackground baseBackground;
-        private OctreeDebugRenderer<SceneNode> staticOctreeRenderer;
-        private OctreeDebugRenderer<SceneNode> dynamicOctreeRenderer;
+        private OctreeDebugRenderer staticOctreeRenderer;
+        private OctreeDebugRenderer dynamicOctreeRenderer;
         protected SelectedNodeRenderer selectedNodeRenderer;
 
         public enum DepthOnlyProgram
@@ -264,8 +264,8 @@ namespace GUI.Types.Renderer
                 Camera.LookAt(bbox.Center);
             }
 
-            staticOctreeRenderer = new OctreeDebugRenderer<SceneNode>(Scene.StaticOctree, Scene.GuiContext, false);
-            dynamicOctreeRenderer = new OctreeDebugRenderer<SceneNode>(Scene.DynamicOctree, Scene.GuiContext, true);
+            staticOctreeRenderer = new OctreeDebugRenderer(Scene.StaticOctree, Scene.GuiContext, false);
+            dynamicOctreeRenderer = new OctreeDebugRenderer(Scene.DynamicOctree, Scene.GuiContext, true);
 
             SetAvailableRenderModes();
         }

@@ -2,25 +2,18 @@ using OpenTK.Graphics.OpenGL;
 
 namespace GUI.Types.Renderer
 {
-    class Octree<T>
-        where T : class
+    class Octree
     {
         private const int OptimalElementCountLarge = 4;
         private const int OptimalElementCountSmall = 32;
         private const float MinimumNodeSize = 64.0f;
-
-        public struct Element
-        {
-            public T ClientObject;
-            public AABB BoundingBox;
-        }
 
         public class Node
         {
             public Node? Parent { get; }
             public AABB Region { get; }
 
-            public List<Element>? Elements { get; private set; }
+            public List<SceneNode>? Elements { get; private set; }
             public Node[] Children { get; private set; } = [];
 
             public bool FrustumCulled { get; set; }
@@ -86,7 +79,7 @@ namespace GUI.Types.Renderer
             public bool HasChildren => Children.Length > 0;
             public bool HasElements => Elements != null && Elements.Count > 0;
 
-            public void Insert(Element element)
+            public void Insert(SceneNode element)
             {
                 if (!HasChildren && HasElements && ShouldSubdivide(Region.Size.X, Elements!.Count))
                 {
@@ -146,13 +139,13 @@ namespace GUI.Types.Renderer
                 return count >= optimalCount;
             }
 
-            public (Node? Node, int Index) Find(T clientObject, in AABB bounds)
+            public (Node? Node, int Index) Find(SceneNode clientObject, in AABB bounds)
             {
                 if (HasElements)
                 {
                     for (var i = 0; i < Elements!.Count; ++i)
                     {
-                        if (Elements[i].ClientObject == clientObject)
+                        if (Elements[i] == clientObject)
                         {
                             return (this, i);
                         }
@@ -189,7 +182,7 @@ namespace GUI.Types.Renderer
                 OcclusionCulled = false;
             }
 
-            public void Query(in AABB boundingBox, List<T> results)
+            public void Query(in AABB boundingBox, List<SceneNode> results)
             {
                 if (HasElements)
                 {
@@ -197,7 +190,7 @@ namespace GUI.Types.Renderer
                     {
                         if (element.BoundingBox.Intersects(boundingBox))
                         {
-                            results.Add(element.ClientObject);
+                            results.Add(element);
                         }
                     }
                 }
@@ -214,7 +207,7 @@ namespace GUI.Types.Renderer
                 }
             }
 
-            public void Query(Frustum frustum, List<T> results)
+            public void Query(Frustum frustum, List<SceneNode> results)
             {
                 if (HasElements)
                 {
@@ -222,7 +215,7 @@ namespace GUI.Types.Renderer
                     {
                         if (frustum.Intersects(element.BoundingBox))
                         {
-                            results.Add(element.ClientObject);
+                            results.Add(element);
                         }
                     }
                 }
@@ -280,22 +273,22 @@ namespace GUI.Types.Renderer
             Root = new Node(null, new Vector3(-size * 0.5f), new Vector3(size));
         }
 
-        public void Insert(T obj, in AABB bounds)
+        public void Insert(SceneNode obj)
         {
             ArgumentNullException.ThrowIfNull(obj);
 
-            Root.Insert(new Element { ClientObject = obj, BoundingBox = bounds });
+            Root.Insert(obj);
         }
 
-        public void Remove(T obj, in AABB bounds)
+        public void Remove(SceneNode obj)
         {
             ArgumentNullException.ThrowIfNull(obj);
 
-            var (node, index) = Root.Find(obj, bounds);
+            var (node, index) = Root.Find(obj, obj.BoundingBox);
             node?.Elements?.RemoveAt(index);
         }
 
-        public void Update(T obj, in AABB oldBounds, in AABB newBounds)
+        public void Update(SceneNode obj, in AABB oldBounds)
         {
             ArgumentNullException.ThrowIfNull(obj);
 
@@ -304,7 +297,7 @@ namespace GUI.Types.Renderer
             {
                 // Locate the closest ancestor that the new bounds fit inside
                 var ancestor = node;
-                while (ancestor.Parent != null && !ancestor.Region.Contains(newBounds))
+                while (ancestor.Parent != null && !ancestor.Region.Contains(obj.BoundingBox))
                 {
                     ancestor = ancestor.Parent;
                 }
@@ -317,22 +310,22 @@ namespace GUI.Types.Renderer
                     {
                         foreach (var child in node.Children)
                         {
-                            if (child.Region.Contains(newBounds))
+                            if (child.Region.Contains(obj.BoundingBox))
                             {
                                 node.Elements.RemoveAt(index);
-                                child.Insert(new Element { ClientObject = obj, BoundingBox = newBounds });
+                                child.Insert(obj);
                                 return;
                             }
                         }
                     }
 
                     // Not pushed down into any children
-                    node.Elements[index] = new Element { ClientObject = obj, BoundingBox = newBounds };
+                    node.Elements[index] = obj;
                 }
                 else
                 {
                     node.Elements.RemoveAt(index);
-                    ancestor.Insert(new Element { ClientObject = obj, BoundingBox = newBounds });
+                    ancestor.Insert(obj);
                 }
             }
         }

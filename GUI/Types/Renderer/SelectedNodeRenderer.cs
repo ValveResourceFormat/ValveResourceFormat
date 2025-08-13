@@ -157,11 +157,11 @@ namespace GUI.Types.Renderer
                         CenterHorizontal = true,
                     });
 
-                    OctreeDebugRenderer<SceneNode>.AddLine(vertices, c[line.Start], c[line.End], axisColor);
+                    ShapeSceneNode.AddLine(vertices, c[line.Start], c[line.End], axisColor);
                     continue;
                 }
 
-                OctreeDebugRenderer<SceneNode>.AddLine(vertices, c[line.Start], c[line.End], color);
+                ShapeSceneNode.AddLine(vertices, c[line.Start], c[line.End], color);
             }
         }
 
@@ -201,14 +201,14 @@ namespace GUI.Types.Renderer
 
                         if (viewer.Scene.LightingInfo.CubemapType is Scene.CubemapType.IndividualCubemaps && i == 0)
                         {
-                            OctreeDebugRenderer<SceneNode>.AddLine(vertices, tiedEnvMap.Transform.Translation, node.BoundingBox.Center, new(0.0f, 1.0f, 0.0f, 1.0f));
+                            ShapeSceneNode.AddLine(vertices, tiedEnvMap.Transform.Translation, node.BoundingBox.Center, new(0.0f, 1.0f, 0.0f, 1.0f));
                             i++;
                             continue;
                         }
 
                         var fractionToTen = (float)i / 10;
                         var color = new Utils.Color32(1.0f, fractionToTen, fractionToTen, 1.0f);
-                        OctreeDebugRenderer<SceneNode>.AddLine(vertices, tiedEnvMap.Transform.Translation, node.BoundingBox.Center, color);
+                        ShapeSceneNode.AddLine(vertices, tiedEnvMap.Transform.Translation, node.BoundingBox.Center, color);
                         i++;
                     }
                 }
@@ -216,7 +216,7 @@ namespace GUI.Types.Renderer
                 if (debugLightProbes && node.LightProbeBinding is not null)
                 {
                     AddBox(vertices, node.LightProbeBinding.Transform, node.LightProbeBinding.LocalBoundingBox, new(1.0f, 0.0f, 1.0f, 1.0f));
-                    OctreeDebugRenderer<SceneNode>.AddLine(vertices, node.LightProbeBinding.Transform.Translation, node.BoundingBox.Center, new(1.0f, 0.0f, 1.0f, 1.0f));
+                    ShapeSceneNode.AddLine(vertices, node.LightProbeBinding.Transform.Translation, node.BoundingBox.Center, new(1.0f, 0.0f, 1.0f, 1.0f));
 
                     if (viewer.Scene.LightingInfo.LightingData.IsSkybox == 0u)
                     {
@@ -263,8 +263,8 @@ namespace GUI.Types.Renderer
 
                         AddBox(vertices, Matrix4x4.Identity, bounds, new(0.0f, 1.0f, 0.0f, 1.0f));
 
-                        OctreeDebugRenderer<SceneNode>.AddLine(vertices, node.Transform.Translation, origin, new(0.0f, 0.0f, 1.0f, 1.0f));
-                        OctreeDebugRenderer<SceneNode>.AddLine(vertices, node.Transform.Translation, extent, new(1.0f, 1.0f, 0.0f, 1.0f));
+                        ShapeSceneNode.AddLine(vertices, node.Transform.Translation, origin, new(0.0f, 0.0f, 1.0f, 1.0f));
+                        ShapeSceneNode.AddLine(vertices, node.Transform.Translation, extent, new(1.0f, 1.0f, 0.0f, 1.0f));
 
                         disableDepth = true;
                     }

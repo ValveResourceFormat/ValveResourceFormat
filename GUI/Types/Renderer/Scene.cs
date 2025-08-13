@@ -43,8 +43,8 @@ namespace GUI.Types.Renderer
 
 
         public VrfGuiContext GuiContext { get; }
-        public Octree<SceneNode> StaticOctree { get; }
-        public Octree<SceneNode> DynamicOctree { get; }
+        public Octree StaticOctree { get; }
+        public Octree DynamicOctree { get; }
 
         public bool ShowToolsMaterials { get; set; }
         public bool FogEnabled { get; set; } = true;
@@ -59,8 +59,8 @@ namespace GUI.Types.Renderer
         public Scene(VrfGuiContext context, float sizeHint = 32768)
         {
             GuiContext = context;
-            StaticOctree = new Octree<SceneNode>(sizeHint);
-            DynamicOctree = new Octree<SceneNode>(sizeHint);
+            StaticOctree = new(sizeHint);
+            DynamicOctree = new(sizeHint);
 
             LightingInfo = new(this);
         }
@@ -84,7 +84,7 @@ namespace GUI.Types.Renderer
             nodeList.Add(node);
             node.Id = (uint)nodeList.Count * 2 - indexOffset;
 
-            octree.Insert(node, node.BoundingBox);
+            octree.Insert(node);
         }
 
         public SceneNode Find(uint id)
@@ -162,7 +162,7 @@ namespace GUI.Types.Renderer
 
                 if (!oldBox.Equals(node.BoundingBox))
                 {
-                    DynamicOctree.Update(node, oldBox, node.BoundingBox);
+                    DynamicOctree.Update(node, oldBox);
                 }
             }
         }
@@ -469,7 +469,7 @@ namespace GUI.Types.Renderer
 
         private bool occlusionDirty;
 
-        static void ClearOccludedStateRecursive(Octree<SceneNode>.Node node)
+        static void ClearOccludedStateRecursive(Octree.Node node)
         {
             foreach (var child in node.Children)
             {
@@ -514,7 +514,7 @@ namespace GUI.Types.Renderer
             GL.Enable(EnableCap.CullFace);
         }
 
-        private static void TestOctantsRecursive(Octree<SceneNode>.Node octant, Vector3 cameraPosition, ref int maxTests, int maxDepth)
+        private static void TestOctantsRecursive(Octree.Node octant, Vector3 cameraPosition, ref int maxTests, int maxDepth)
         {
             foreach (var octreeNode in octant.Children)
             {
@@ -640,7 +640,7 @@ namespace GUI.Types.Renderer
             {
                 if (node.LayerEnabled)
                 {
-                    StaticOctree.Insert(node, node.BoundingBox);
+                    StaticOctree.Insert(node);
                 }
             }
 
@@ -648,7 +648,7 @@ namespace GUI.Types.Renderer
             {
                 if (node.LayerEnabled)
                 {
-                    DynamicOctree.Insert(node, node.BoundingBox);
+                    DynamicOctree.Insert(node);
                 }
             }
         }

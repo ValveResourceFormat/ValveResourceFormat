@@ -3,18 +3,17 @@ using OpenTK.Graphics.OpenGL;
 
 namespace GUI.Types.Renderer
 {
-    class OctreeDebugRenderer<T>
-        where T : class
+    class OctreeDebugRenderer
     {
         private readonly Shader shader;
-        private readonly Octree<T> octree;
+        private readonly Octree octree;
         private readonly int vaoHandle;
         private readonly int vboHandle;
         private readonly bool dynamic;
         private bool built;
         private int vertexCount;
 
-        public OctreeDebugRenderer(Octree<T> octree, VrfGuiContext guiContext, bool dynamic)
+        public OctreeDebugRenderer(Octree octree, VrfGuiContext guiContext, bool dynamic)
         {
             this.octree = octree;
             this.dynamic = dynamic;
@@ -27,48 +26,21 @@ namespace GUI.Types.Renderer
             SimpleVertex.BindDefaultShaderLayout(vaoHandle, shader.Program);
 
 #if DEBUG
-            var vaoLabel = nameof(OctreeDebugRenderer<T>);
+            var vaoLabel = nameof(OctreeDebugRenderer);
             GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, vaoHandle, vaoLabel.Length, vaoLabel);
 #endif
         }
 
-        public static void AddLine(List<SimpleVertex> vertices, Vector3 from, Vector3 to, Color32 color)
+        private static void AddOctreeNode(List<SimpleVertex> vertices, Octree.Node node, int depth)
         {
-            vertices.Add(new SimpleVertex(from, color));
-            vertices.Add(new SimpleVertex(to, color));
-        }
-
-        public static void AddBox(List<SimpleVertex> vertices, in AABB box, Color32 color)
-        {
-            // Adding a box will add many vertices, so ensure the required capacity for it up front
-            vertices.EnsureCapacity(vertices.Count + 2 * 12);
-
-            AddLine(vertices, new Vector3(box.Min.X, box.Min.Y, box.Min.Z), new Vector3(box.Max.X, box.Min.Y, box.Min.Z), color);
-            AddLine(vertices, new Vector3(box.Max.X, box.Min.Y, box.Min.Z), new Vector3(box.Max.X, box.Max.Y, box.Min.Z), color);
-            AddLine(vertices, new Vector3(box.Max.X, box.Max.Y, box.Min.Z), new Vector3(box.Min.X, box.Max.Y, box.Min.Z), color);
-            AddLine(vertices, new Vector3(box.Min.X, box.Max.Y, box.Min.Z), new Vector3(box.Min.X, box.Min.Y, box.Min.Z), color);
-
-            AddLine(vertices, new Vector3(box.Min.X, box.Min.Y, box.Max.Z), new Vector3(box.Max.X, box.Min.Y, box.Max.Z), color);
-            AddLine(vertices, new Vector3(box.Max.X, box.Min.Y, box.Max.Z), new Vector3(box.Max.X, box.Max.Y, box.Max.Z), color);
-            AddLine(vertices, new Vector3(box.Max.X, box.Max.Y, box.Max.Z), new Vector3(box.Min.X, box.Max.Y, box.Max.Z), color);
-            AddLine(vertices, new Vector3(box.Min.X, box.Max.Y, box.Max.Z), new Vector3(box.Min.X, box.Min.Y, box.Max.Z), color);
-
-            AddLine(vertices, new Vector3(box.Min.X, box.Min.Y, box.Min.Z), new Vector3(box.Min.X, box.Min.Y, box.Max.Z), color);
-            AddLine(vertices, new Vector3(box.Max.X, box.Min.Y, box.Min.Z), new Vector3(box.Max.X, box.Min.Y, box.Max.Z), color);
-            AddLine(vertices, new Vector3(box.Max.X, box.Max.Y, box.Min.Z), new Vector3(box.Max.X, box.Max.Y, box.Max.Z), color);
-            AddLine(vertices, new Vector3(box.Min.X, box.Max.Y, box.Min.Z), new Vector3(box.Min.X, box.Max.Y, box.Max.Z), color);
-        }
-
-        private static void AddOctreeNode(List<SimpleVertex> vertices, Octree<T>.Node node, int depth)
-        {
-            AddBox(vertices, node.Region, Color32.White with { A = node.HasElements ? (byte)255 : (byte)64 });
+            ShapeSceneNode.AddBox(vertices, node.Region, Color32.White with { A = node.HasElements ? (byte)255 : (byte)64 });
 
             if (node.HasElements)
             {
                 foreach (var element in node.Elements!)
                 {
                     var shading = Math.Min(1.0f, depth * 0.1f);
-                    AddBox(vertices, element.BoundingBox, new(1.0f, shading, 0.0f, 1.0f));
+                    ShapeSceneNode.AddBox(vertices, element.BoundingBox, new(1.0f, shading, 0.0f, 1.0f));
 
                     // AddLine(vertices, element.BoundingBox.Min, node.Region.Min, new Vector4(1.0f, shading, 0.0f, 0.5f));
                     // AddLine(vertices, element.BoundingBox.Max, node.Region.Max, new Vector4(1.0f, shading, 0.0f, 0.5f));
