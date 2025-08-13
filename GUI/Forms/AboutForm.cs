@@ -1,4 +1,7 @@
 using System.Diagnostics;
+using System.Globalization;
+using System.Runtime.InteropServices;
+using System.Text;
 using System.Windows.Forms;
 using GUI.Types.Renderer;
 using GUI.Utils;
@@ -50,14 +53,29 @@ namespace GUI.Forms
 
         private void OnCopyVersionClick(object sender, EventArgs e)
         {
-            var version = $"{Application.ProductVersion.Replace('+', ' ')} on {Environment.OSVersion}";
+            var output = new StringBuilder(192);
+            var version = Application.ProductVersion;
+            var versionPlus = version.IndexOf('+', StringComparison.Ordinal);
+
+            if (versionPlus > 0)
+            {
+                output.Append(version[..versionPlus]);
+                output.Append(' ');
+                output.Append(version[(versionPlus + 1)..(versionPlus + 10)]);
+            }
+            else
+            {
+                output.Append(version);
+            }
+
+            output.Append(CultureInfo.InvariantCulture, $" on {RuntimeInformation.OSDescription} ({RuntimeInformation.OSArchitecture})");
 
             if (Utils.Settings.GpuRendererAndDriver != null)
             {
-                version += $" ({Utils.Settings.GpuRendererAndDriver})";
+                output.Append(CultureInfo.InvariantCulture, $" ({Utils.Settings.GpuRendererAndDriver})");
             }
 
-            Clipboard.SetText(version);
+            Clipboard.SetText(output.ToString());
         }
     }
 }
