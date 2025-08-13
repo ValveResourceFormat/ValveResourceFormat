@@ -66,6 +66,10 @@ jobs:
       if: matrix.os == 'windows-latest'
       run: dotnet publish --configuration Release --self-contained --runtime win-x64 CLI/CLI.csproj
 
+    - name: Publish CLI (Windows arm64)
+      if: matrix.os == 'windows-latest'
+      run: dotnet publish --configuration Release --self-contained --runtime win-arm64 CLI/CLI.csproj
+
     - name: Publish CLI (Linux x64)
       if: matrix.os == 'ubuntu-latest'
       run: dotnet publish --configuration Release --self-contained --runtime linux-x64 CLI/CLI.csproj
@@ -106,6 +110,13 @@ jobs:
       with:
         name: cli-windows-x64
         path: CLI/bin/Release/win-x64/publish
+
+    - name: Upload CLI (Windows arm64)
+      uses: actions/upload-artifact@v4
+      if: matrix.os == 'windows-latest'
+      with:
+        name: cli-windows-arm64
+        path: CLI/bin/Release/win-arm64/publish
 
     - name: Upload CLI (Linux x64)
       uses: actions/upload-artifact@v4
@@ -177,6 +188,7 @@ jobs:
         path: |
           artifacts/Source2Viewer/
           artifacts/cli-windows-x64/
+          artifacts/cli-windows-arm64/
 
     - name: Sign the binaries
       uses: signpath/github-action-submit-signing-request@v1
@@ -203,6 +215,7 @@ jobs:
        chmod +x artifacts/cli-macos-x64/Source2Viewer-CLI
        chmod +x artifacts/cli-macos-arm64/Source2Viewer-CLI
        zip -9j release/cli-windows-x64.zip signed/cli-windows-x64/*
+       zip -9j release/cli-windows-arm64.zip signed/cli-windows-arm64/*
        zip -9j release/cli-linux-x64.zip artifacts/cli-linux-x64/*
        zip -9j release/cli-linux-arm.zip artifacts/cli-linux-arm/*
        zip -9j release/cli-linux-arm64.zip artifacts/cli-linux-arm64/*
