@@ -24,7 +24,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest, windows-11-arm, macos-latest]
 
     runs-on: ${{ matrix.os }}
 
@@ -67,7 +67,7 @@ jobs:
       run: dotnet publish --configuration Release --self-contained --runtime win-x64 CLI/CLI.csproj
 
     - name: Publish CLI (Windows arm64)
-      if: matrix.os == 'windows-latest'
+      if: matrix.os == 'windows-11-arm'
       run: dotnet publish --configuration Release --self-contained --runtime win-arm64 CLI/CLI.csproj
 
     - name: Publish CLI (Linux x64)
@@ -79,7 +79,7 @@ jobs:
       run: dotnet publish --configuration Release --self-contained --runtime linux-arm CLI/CLI.csproj
 
     - name: Publish CLI (Linux arm64)
-      if: matrix.os == 'ubuntu-latest'
+      if: matrix.os == 'ubuntu-24.04-arm'
       run: dotnet publish --configuration Release --self-contained --runtime linux-arm64 CLI/CLI.csproj
 
     - name: Publish CLI (macOS x64)
@@ -113,7 +113,7 @@ jobs:
 
     - name: Upload CLI (Windows arm64)
       uses: actions/upload-artifact@v4
-      if: matrix.os == 'windows-latest'
+      if: matrix.os == 'windows-11-arm'
       with:
         name: cli-windows-arm64
         path: CLI/bin/Release/win-arm64/publish
@@ -134,7 +134,7 @@ jobs:
 
     - name: Upload CLI (Linux arm64)
       uses: actions/upload-artifact@v4
-      if: matrix.os == 'ubuntu-latest'
+      if: matrix.os == 'ubuntu-24.04-arm'
       with:
         name: cli-linux-arm64
         path: CLI/bin/Release/linux-arm64/publish
