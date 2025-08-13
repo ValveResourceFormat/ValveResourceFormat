@@ -438,13 +438,12 @@ public partial class GltfModelExporter
             var vectorParamsJson = new System.Text.Json.Nodes.JsonObject();
             foreach (var kvp in renderMaterial.VectorParams)
             {
-                var vectorArray = new System.Text.Json.Nodes.JsonArray
-                {
-                    [0] = kvp.Value.X,
-                    [1] = kvp.Value.Y,
-                    [2] = kvp.Value.Z,
-                    [3] = kvp.Value.W
-                };
+                var vectorArray = new System.Text.Json.Nodes.JsonArray(
+                    kvp.Value.X,
+                    kvp.Value.Y,
+                    kvp.Value.Z,
+                    kvp.Value.W
+                );
                 vectorParamsJson[kvp.Key] = vectorArray;
             }
 

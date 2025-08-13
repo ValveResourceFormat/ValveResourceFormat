@@ -100,11 +100,7 @@ public partial class GltfModelExporter
                     node.WorldMatrix = transform * TRANSFORMSOURCETOGLTF;
 
                     var interactAsStrings = collisionAttributes[collisionAttrIndex].GetArray<string>("m_InteractAsStrings");
-                    var interactAsArray = new System.Text.Json.Nodes.JsonArray();
-                    for (var i = 0; i < interactAsStrings.Length; i++)
-                    {
-                        interactAsArray[i] = interactAsStrings[i];
-                    }
+                    var interactAsArray = new System.Text.Json.Nodes.JsonArray([.. interactAsStrings]);
 
                     node.Extras = new System.Text.Json.Nodes.JsonObject
                     {
