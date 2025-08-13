@@ -1594,7 +1594,10 @@ namespace CLI
             info.Append("Version: ");
             info.AppendLine(typeof(Decompiler).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()!.InformationalVersion);
             info.Append("OS: ");
-            info.AppendLine(RuntimeInformation.OSDescription);
+            info.Append(RuntimeInformation.OSDescription);
+            info.Append(" (");
+            info.Append(RuntimeInformation.OSArchitecture.ToString());
+            info.AppendLine(")");
             info.AppendLine("Website: https://valveresourceformat.github.io");
             info.Append("GitHub: https://github.com/ValveResourceFormat/ValveResourceFormat");
             return info.ToString();
