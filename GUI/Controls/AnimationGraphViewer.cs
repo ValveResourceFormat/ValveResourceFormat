@@ -439,6 +439,24 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
                     CreateInputAndChild(node, childCount, data.GetInt32Property("m_nMaskNodeIdx"), 130, 300, "Mask");
                     CreateInputAndChild(node, childCount, data.GetInt32Property("m_nEnableNodeIdx"), 130, 300, "Enable");
                 }
+                else if (node.NodeType == "TwoBoneIK")
+                {
+                    childCount = 2;
+                    node.AddText($"Bone: {data.GetProperty<string>("m_effectorBoneID")}");
+                    CreateInputAndChild(node, childCount, data.GetInt32Property("m_nEffectorTargetNodeIdx"), 100, 300, "Effector");
+                    var enabledNodeIdx = data.GetInt32Property("m_nEnabledNodeIdx");
+                    if (enabledNodeIdx != -1)
+                    {
+                        CreateInputAndChild(node, childCount, enabledNodeIdx, 100, 300, "Enabled");
+                    }
+                    else
+                    {
+                        node.AddText("Enabled: true");
+                    }
+                    node.AddText($"Blend Time: {data.GetFloatProperty("m_flBlendTimeSeconds"):f}");
+                    node.AddText($"Blend Mode: {data.GetProperty<string>("m_blendMode")}");
+                    node.AddText($"Worldspace: {data.GetProperty<bool>("m_bIsTargetInWorldSpace")}");
+                }
 
                 var childNodeIdx = data.GetInt32Property("m_nChildNodeIdx");
                 CreateInputAndChild(node, childCount, childNodeIdx, 100, 300, "Input", "Result");
