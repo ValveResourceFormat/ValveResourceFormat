@@ -8,8 +8,7 @@
 #define renderMode_Irradiance 0
 #define renderMode_LightmapShadows 0
 #define renderMode_Cubemaps 0
-#define SCENE_CUBEMAP_TYPE 2
-#define F_SPECULAR_CUBE_MAP_ANISOTROPIC_WARP 0
+
 in vec3 vFragPosition;
 in vec2 vTexCoordOut;
 in vec3 vNormalOut;
@@ -34,11 +33,6 @@ out vec4 outputColor;
 #define F_CAUSTICS 0
 #define F_BLUR_REFRACTION 0
 
-
-
-//H7per: No clue if settings this to bool breaks it, might need testing
-uniform bool g_bDontFlipBackfaceNormals = false;
-uniform bool g_bRenderBackfaceNormals = false;
 
 //uniform vec4 g_vSimpleSkyReflectionColor = vec4(1.0, 1.0, 1.0, 1.0);
 
@@ -106,7 +100,6 @@ uniform float g_flReflectionDistanceEffect = 0.5;
 uniform float g_flForceMixResolutionScale = 1.0;
 uniform float g_flEnvironmentMapBrightness = 1.0;
 uniform float g_flGlossiness = 0.75;
-#define g_vRoughness = vec2(max(.01, 1.0 - g_flGlossiness));
 uniform float g_flSSRStepSize = 0.1;
 uniform float g_flSSRSampleJitter = 0.02;
 uniform int g_nSSRMaxForwardSteps = 20;
@@ -120,6 +113,7 @@ uniform float g_flWaterEffectFoamStrength = 1.0;
 uniform float g_flWaterEffectDisturbanceStrength = 1.0;
 uniform float g_flWaterEffectCausticStrength = 1.0;
 
+#define g_vRoughness vec2(max(.01, 1.0 - g_flGlossiness))
 uniform vec4 g_vViewportExtentsTs;
 
 uniform sampler2D g_tZerothMoment;
@@ -153,91 +147,16 @@ vec3 sunDir = GetEnvLightDirection(0);
 //float g_flLocalTime = 370.234375;
 //#define g_flTime g_flLocalTime
 
-bool HandleRenderingModes()
-{
-    MaterialProperties_t mat;
-    LightingTerms_t lighting;
-
-    InitProperties(mat, vNormalOut);
-
-    if(g_iRenderMode == renderMode_Irradiance)
-    {
-        CalculateIndirectLighting(lighting, mat);
-        outputColor.rgb = lighting.DiffuseIndirect;
-        return true;
-    }
-    else if(g_iRenderMode == renderMode_Cubemaps)
-    {
-        // No bumpmaps, full reflectivity
-        vec3 viewmodeEnvMap = GetEnvironment(mat).rgb;
-        outputColor.rgb = viewmodeEnvMap;
-        return true;
-    }
-    else if (g_iRenderMode == renderMode_Normals)
-    {
-        outputColor = vec4(SrgbGammaToLinear(PackToColor(mat.GeometricNormal)), 1.0);
-        return true;
-    }
-    #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
-    else if (g_iRenderMode == renderMode_LightmapShadows)
-    {
-        #if (S_LIGHTMAP_VERSION_MINOR >= 2)
-            vec4 dlsh = texture(g_tDirectLightShadows, vLightmapUVScaled);
-            outputColor = vec4(vec3(1.0 - dlsh.x) + vec3(1.0 - min3(dlsh.yzw)) * vec3(0.5, 0.5, 0), 1.0);
-            return true;
-        #endif
-    }
-#endif
-    else if(g_iRenderMode == renderMode_LightmapUvDensity)
-    {
-        outputColor.rgb = vec3(0.2);
-
-        vec2 uv = vLightmapUVScaled.xy;
-
-        ivec2 vDims = textureSize(g_tIrradiance, 0).xy;
-
-        uint testVal = ((uv.x < 0) != (uv.y < 0)) ? 0 : 1;
-        uvec2 vUVInPixels = uvec2(abs(uv) * vDims.xy);
-        if (((vUVInPixels.x + vUVInPixels.y) & 1) == testVal)
-        {
-            outputColor.rgb *= 0.8;
-        }
-
-        uvec2 vUVIn16Pixels = vUVInPixels / 16;
-        if (((vUVIn16Pixels.x + vUVIn16Pixels.y) & 1) == testVal)
-        {
-            outputColor.rgb *= 0.5;
-        }
-
-        return true;
-    }
-    return false;
-}
-
 void main()
 {
-    if(HandleRenderingModes()) return;
-
     vec4 fragCoord = gl_FragCoord;
     vec4 fragCoordWInverse = fragCoord;
     fragCoordWInverse.w = 1.0 / fragCoord.w;
 
-    // --- Normal Preparation ---
-    bool flipBackfaceNormals = false;
-    if(g_bRenderBackfaceNormals)
-    {
-        flipBackfaceNormals = !g_bDontFlipBackfaceNormals;
-    }
-    vec3 geometricNormal = vNormalOut * (gl_FrontFacing && !flipBackfaceNormals ? 1.0 : -1.0);
-
-    vec3 worldPos = vFragPosition;
-
-    //outputColor.rgb = vec3(-worldPos.xxx) - 1690;
-    //outputColor.rgb = (vec3(-worldPos.z) - 28.9);
-    //return;
+    MaterialProperties_t mat;
+    InitProperties(mat, vNormalOut);
 
     // --- Early Discard (OIT Occlusion) ---
-
     ivec2 momentTexelCoords = ivec2(fragCoord.xy * g_flForceMixResolutionScale);
     float visibilityFromMoment = exp(-texelFetch(g_tZerothMoment, momentTexelCoords, 0).x);
     float occlusionFactor = 1.0 - visibilityFromMoment;
@@ -249,16 +168,8 @@ void main()
     //bool isSkybox = otherEnabledVec.x;
 
     bool isSkybox = g_bIsSkybox;
+    float flSkyboxScale = isSkybox ? g_flSkyBoxScale : 1.0;
 
-    float SkyboxScale;
-    if (isSkybox)
-    {
-        SkyboxScale = g_flSkyBoxScale;
-    }
-    else
-    {
-        SkyboxScale = 1.0;
-    }
     //TODO: Whats up with this??
     //vec4 NoiseValue = texelFetch(g_tBlueNoise, ivec3(ivec2(FragCoord.xy) & PerViewConstantBufferCsgo_t.g_vBlueNoiseMask, 0).xy, 0);
 
@@ -269,29 +180,27 @@ void main()
     float blueNoiseDitherFactor = blueNoiseOffset.x * 2.0;
 
     // --- Position & View Vectors ---
-
-    //FragCoord.xy * PerViewConstantBuffer_t.g_vInvGBufferSize.xy in decompile
     vec2 gbufferUV = fragCoord.xy / textureSize( g_tSceneColor, 0);
 
-    vec2 unbiasedUV = (worldPos.xy - g_vMapUVMin.xy) / (g_vMapUVMax.xy - g_vMapUVMin.xy);
+    vec2 unbiasedUV = (mat.PositionWS.xy - g_vMapUVMin.xy) / (g_vMapUVMax.xy - g_vMapUVMin.xy);
     unbiasedUV.y = 1.0 - unbiasedUV.y;
 
-    vec3 relFragPos = worldPos - g_vCameraPositionWs;
+    vec3 relFragPos = mat.PositionWS - g_vCameraPositionWs;
 
     vec3 viewDir = normalize(relFragPos);
     vec3 invViewDir = -viewDir;
-    float distanceToFrag = length(relFragPos) * SkyboxScale;
+    float distanceToFrag = length(relFragPos) * flSkyboxScale;
 
     float fragDepth = gl_FragCoord.z;
     //^ my own addition, from distance and depth, you can get a multiplier for any depth sample taken at gbufferUV from depth to true distance
 
     vec2 viewParallaxFactor = (viewDir.xy) / (-viewDir.z + 0.25);
     //The following is not in the direct decompile either, but the inverse offset like this exists atleast once
-    vec3 worldPosToCamera = g_vCameraPositionWs - worldPos;
+    vec3 worldPosToCamera = g_vCameraPositionWs - mat.PositionWS;
 
     // ---- Skybox corrected projection stuff ---------
     //Gemini suggested this one below but its not even used here yet. Again TODO to check that
-    //vec3 scaledRelFragPos = relFragPos * SkyboxScale;
+    //vec3 scaledRelFragPos = relFragPos * flSkyboxScale;
     //vec3 horChangerateSqrtZ = mix( vec3(invViewDir.xy / invViewDir.z, sqrt(invViewDir.z)), vec3(0.0), isSkybox);
     vec3 viewDepOffsetFactor = mix(vec3(viewDir.xy / viewDir.z, sqrt(-viewDir.z)), vec3(0.0), vec3(isSkybox));
 
@@ -341,14 +250,14 @@ void main()
         sceneHitPositionWs = g_vCameraPositionWs + viewDir * sceneViewDistance;
 
         //sceneHitPositionWs = (g_vCameraPositionWs.xyz + (localPixelDir * (1.0 / (fma(SceneDepth, g_vInvProjRow3.z, g_vInvProjRow3.w) * dot(g_vCameraDirWs.xyz, localPixelDir))))).xyz;
-        float waterSurfaceViewZ = -(g_matWorldToView * vec4(worldPos, 1.0)).z;
+        float waterSurfaceViewZ = -(g_matWorldToView * vec4(mat.PositionWS, 1.0)).z;
         waterColumnOpticalDepthFactor = (refractionDistortionFactor * 1.0 + max((1.0 / sceneNormalizedDepth) - waterSurfaceViewZ, 0.0) * 0.01);
 
-        //outputColor.rgb = vec3(worldPos.z - sceneHitPositionWs.z) - 10;// - 0.2;
+        //outputColor.rgb = vec3(mat.PositionWS.z - sceneHitPositionWs.z) - 10;// - 0.2;
         //return;
     }
     //#endif
-    float waterSurfaceViewZ = -(g_matWorldToView * vec4(worldPos, 1.0) ).z;
+    float waterSurfaceViewZ = -(g_matWorldToView * vec4(mat.PositionWS, 1.0) ).z;
 
     vec3 cameraDir = -normalize(inverse(mat3(g_matWorldToView))[2]);
 
@@ -368,7 +277,7 @@ void main()
     float currentFoamAmount = isSkybox ? 0.0 : max(0.0, mix(g_flFoamMin, g_flFoamMax, vColorBlendValues.y));
 
     float currentDebrisVisibility = (isSkybox ? 0.0 : max(0.0, mix(g_flDebrisMin, g_flDebrisMax, vColorBlendValues.z)));
-    vec2 baseWaveUV = (worldPos.xy * SkyboxScale + viewDepOffsetFactor.xy * (0.5 - g_flWaterPlaneOffset)) / 30.f; // Another arbitrary scale
+    vec2 baseWaveUV = (mat.PositionWS.xy * flSkyboxScale + viewDepOffsetFactor.xy * (0.5 - g_flWaterPlaneOffset)) / 30.f; // Another arbitrary scale
 
     vec2 baseWaveUVDx = dFdx(baseWaveUV);
     //TODO: same shit as earlier with dFdy: why is it flipped in CS?
@@ -510,7 +419,7 @@ void main()
             edgeFactorQ = g_flEdgeShapeEffect * clamp(fma(-reconstructedWorldNormal.z, 1.0 - clamp(refractedVerticalFactor * 8.0, 0.0, 1.0), 1.2), 0.0, 1.0);
         }
     #endif
-    vec3 waveDisplacedWorldPos = worldPos + viewDepOffsetFactor.xyz * (mix(0.5, scaledAccumulatedWaveHeight, g_flEdgeShapeEffect) - g_flWaterPlaneOffset) * 1;
+    vec3 waveDisplacedWorldPos = mat.PositionWS + viewDepOffsetFactor.xyz * (mix(0.5, scaledAccumulatedWaveHeight, g_flEdgeShapeEffect) - g_flWaterPlaneOffset) * 1;
 
     //TODO: no wave offset? decompile says no but I don't buy it yet
 
@@ -525,7 +434,7 @@ void main()
 
     vec2 foamSiltEffectNormalXY = vec2(0.0);
 
-    vec3 effectsSamplePos = worldPos.xyz + (viewDepOffsetFactor * (mix(0.5, scaledAccumulatedWaveHeight, edgeFactorQ) - g_flWaterPlaneOffset));
+    vec3 effectsSamplePos = mat.PositionWS.xyz + (viewDepOffsetFactor * (mix(0.5, scaledAccumulatedWaveHeight, edgeFactorQ) - g_flWaterPlaneOffset));
 
     //outputColor.rgb = vec3( -(viewDepOffsetFactor * (mix(0.5, scaledAccumulatedWaveHeight, edgeFactorQ) - g_flWaterPlaneOffset)).z);
     //return;
@@ -535,7 +444,7 @@ void main()
     {
         mat4 transposedWorldToProj = transpose(g_matWorldToProjection);
 
-        vec3 effectsPos0 = (worldPos + (viewDepOffsetFactor * (mix(0.0, scaledAccumulatedWaveHeight, edgeFactorQ) - g_flWaterPlaneOffset))) + (vec3(roughedWaveNormal.xy, 0.0) * (-16.0));
+        vec3 effectsPos0 = (mat.PositionWS + (viewDepOffsetFactor * (mix(0.0, scaledAccumulatedWaveHeight, edgeFactorQ) - g_flWaterPlaneOffset))) + (vec3(roughedWaveNormal.xy, 0.0) * (-16.0));
 
         vec4 effectsPos0Transformed = (vec4(effectsPos0 - g_vCameraPositionWs, 1.0)) * transposedWorldToProj;
         //TODO: Figure out what that shit before and if this is really ndc, I am using the naming straight from Gemini.
@@ -598,7 +507,7 @@ void main()
     }
     vec3 rippleDisplacementAsVec3 = vec3(foamEffectDisplacementUV, 0.0);
 
-    vec3 worldPosForFoamAndDebrisBase = (worldPos + (viewDepOffsetFactor * (mix(0.5, finalFoamHeightContrib, edgeFactorQ * 0.5) - g_flWaterPlaneOffset))) + (rippleDisplacementAsVec3 * (-2.0));
+    vec3 worldPosForFoamAndDebrisBase = (mat.PositionWS + (viewDepOffsetFactor * (mix(0.5, finalFoamHeightContrib, edgeFactorQ * 0.5) - g_flWaterPlaneOffset))) + (rippleDisplacementAsVec3 * (-2.0));
 
     vec2 foamWobbleAnim = vec2(sin(effectsSamplePos.y * 0.07 + timeAnim), cos(effectsSamplePos.x * 0.07 + timeAnim));
     vec2 foamBaseUV = (worldPosForFoamAndDebrisBase.xy / g_flFoamScale);
@@ -667,13 +576,13 @@ void main()
 
     float mixedHeight = mix(scaledAccumulatedWaveHeight, fma(scaledAccumulatedWaveHeight, 0.5, debrisHeightVal * 2.0), weirdMixVal);
 
-    vec3 finalSurfacePos = worldPos.xyz + (viewDepOffsetFactor * (mix(0.5, scaledAccumulatedWaveHeight, edgeFactorQ) -g_flWavesHeightOffset));
+    vec3 finalSurfacePos = mat.PositionWS.xyz + (viewDepOffsetFactor * (mix(0.5, scaledAccumulatedWaveHeight, edgeFactorQ) -g_flWavesHeightOffset));
 
     float finalWaterColumnDepthForRefract = waterColumnOpticalDepthFactor;
 
     if(!isSkybox)
     {
-        finalSurfacePos = worldPos.xyz + (viewDepOffsetFactor * (mix(0.5, mixedHeight, edgeFactorQ) - g_flWaterPlaneOffset)); // + (rippleDisplacementAsVec3) * (-12.0);
+        finalSurfacePos = mat.PositionWS.xyz + (viewDepOffsetFactor * (mix(0.5, mixedHeight, edgeFactorQ) - g_flWaterPlaneOffset)); // + (rippleDisplacementAsVec3) * (-12.0);
 
         float fmaM1 = max(   (   1.0 / fma(1.0, sceneNormalizedDepth, 0.0)   )     -  -(g_matWorldToView * vec4(finalSurfacePos.xyz, 1.0).xyzw).z, 0.0);
 
@@ -936,7 +845,7 @@ void main()
     vec3 baseFogColor = mix(g_vWaterFogColor.rgb, finalFoamColor, vec3(foamDebrisForFogMix * 0.1)) * mix(waterDecayColorFactor, vec3(1.0), vec3(clamp(totalFogStrength * 0.04, 0.0, 1.0)));
 
     vec3 finalDirToCam = -normalize(finalSurfacePos.xyz - g_vCameraPositionWs.xyz);
-    float specularCosAlpha = clamp(dot(-sunDir, reflect(finalDirToCam, normalize(mix(normalize(geometricNormal).xyz, finalPerturbedSurfaceNormal.xyz, vec3(g_flSpecularNormalMultiple * fma(distanceToFrag, 0.0005, 1.0)))))), 0.0, 1.0);
+    float specularCosAlpha = clamp(dot(-sunDir, reflect(finalDirToCam, normalize(mix(normalize(mat.GeometricNormal).xyz, finalPerturbedSurfaceNormal.xyz, vec3(g_flSpecularNormalMultiple * fma(distanceToFrag, 0.0005, 1.0)))))), 0.0, 1.0);
     float specularExponent = mix(g_flSpecularPower, g_flDebrisReflectance * 8.0, debrisEdgeFactor) * mix(2.0, 0.2, clamp(currentWaterRoughness, 0.0, 1.0));
     float specularFactor = fma(pow(specularCosAlpha, specularExponent), 0.1, pow(specularCosAlpha, specularExponent * 10.0));
 
@@ -944,36 +853,38 @@ void main()
     float waterOpacity = (clamp((1.0 - debrisEdgeFactor) + noClue, 0.0, 1.0) * clamp(fma(-combinedfinalFoamIntensity, 4.0, 1.0), 0.0, 1.0)) * inverseWaterFogAlpha;
 
     //TODO: this would ask for worldPos + "precision lighting offset" instead of just worldPos, whatever the fuck that is
-    vec3 lightingSamplePos = worldPos.xyz + (((-viewDepOffsetFactor) * (vec3(finalDebrisFoamHeightContrib * (-1.0)) + (((mix(blueNoise.xxx, vec3(blueNoise.xy, 0.0), vec3(0.1)) * 90.0) * pow(waterOpacity, 2.0)) + vec3(g_flWaterPlaneOffset)))) * mix(1.0, effectiveWaterDepthForFog * 2.0, 0.75));
+    vec3 lightingSamplePos = mat.PositionWS.xyz + (((-viewDepOffsetFactor) * (vec3(finalDebrisFoamHeightContrib * (-1.0)) + (((mix(blueNoise.xxx, vec3(blueNoise.xy, 0.0), vec3(0.1)) * 90.0) * pow(waterOpacity, 2.0)) + vec3(g_flWaterPlaneOffset)))) * mix(1.0, effectiveWaterDepthForFog * 2.0, 0.75));
 
     vec4 surfaceNormal4f = vec4(finalSurfaceNormal.xyz, 1.0);
 
     float squaredWaterOpacity = pow(waterOpacity, 2.0);
     float _12400 = mix(1.0, effectiveWaterDepthForFog * 2.0, 0.75);
 
-    vec3 ditheredLightmapUV = vec3(vLightmapUVScaled.xy + (((((((fwidth(vLightmapUVScaled.xy) * 1200.0) / vec2(distanceToFrag)) * cosNormAngle) * (-viewParallaxFactor)) * vec2(-1.0, 1.0)) * (vec2(finalDebrisFoamHeightContrib * (-2.0)) + ((mix(blueNoise.yy, blueNoise.yx, vec2(0.1)) * 20.0) * squaredWaterOpacity))) * _12400), 0.0).xyz;
+    #if (D_BAKED_LIGHTING_FROM_LIGHTMAP > 0 && S_LIGHTMAP_VERSION_MINOR >= 2)
 
-    //Calculating baked lighting
-    vec3 bakedShadow = texture(g_tDirectLightShadows, ditheredLightmapUV).rgb;
-    vec3 bakedIrradiance = texture(g_tIrradiance, ditheredLightmapUV).rgb;
+        vec3 ditheredLightmapUV = vec3(vLightmapUVScaled.xy + (((((((fwidth(vLightmapUVScaled.xy) * 1200.0) / vec2(distanceToFrag)) * cosNormAngle) * (-viewParallaxFactor)) * vec2(-1.0, 1.0)) * (vec2(finalDebrisFoamHeightContrib * (-2.0)) + ((mix(blueNoise.yy, blueNoise.yx, vec2(0.1)) * 20.0) * squaredWaterOpacity))) * _12400), 0.0).xyz;
 
-    if(true)
-    {
-        #if (S_LIGHTMAP_VERSION_MINOR >= 3)
-        vec4 vAHDData = texture(g_tDirectionalIrradianceR, ditheredLightmapUV);
-        #else
-        vec4 vAHDData = texture(g_tDirectionalIrradiance, ditheredLightmapUV);
-        #endif
+        //Calculating baked lighting
+        vec3 bakedShadow = texture(g_tDirectLightShadows, ditheredLightmapUV).rgb;
+        vec3 bakedIrradiance = texture(g_tIrradiance, ditheredLightmapUV).rgb;
 
-        bakedIrradiance = ComputeLightmapShading(bakedIrradiance, vAHDData, finalSurfaceNormal);
-    }
+        if(true)
+        {
+            #if (S_LIGHTMAP_VERSION_MINOR >= 3)
+            vec4 vAHDData = texture(g_tDirectionalIrradianceR, ditheredLightmapUV);
+            #else
+            vec4 vAHDData = texture(g_tDirectionalIrradiance, ditheredLightmapUV);
+            #endif
 
-    //outputColor.rgb = bakedIrradiance;
-    //return;
+            bakedIrradiance = ComputeLightmapShading(bakedIrradiance, vAHDData, finalSurfaceNormal);
+        }
+    #else
+        vec3 bakedShadow = vec3(1.0);
+        vec3 bakedIrradiance = vec3(0.5);
+    #endif
 
     //TODO: see if ambientTerm actually matches bakedIrradiance for all practical intents and purposes! Wait, is this sunlighting? therefore the dot? I am so confused
     vec3 ambientTerm = bakedIrradiance; //vec3(dot(undetermined._m0._m0[0].xyzw, surfaceNormal4f), dot(undetermined._m0._m0[1].xyzw, surfaceNormal4f), dot(undetermined._m0._m0[2].xyzw, surfaceNormal4f));
-
     float finalShadowCoverage = CalculateSunShadowMapVisibility(lightingSamplePos);// = 1.0;
 
     //vec4 surfaceNormal4f = vec4(finalSurfaceNormal, 1.0);
@@ -1324,14 +1235,11 @@ void main()
     outputColor.rgb = returnColor;
 
     outputColor.rgb = vec3(clamp((1.0 - surfaceCoverageAlpha) + noClue, 0.0, 1.0));
-    //return;
-    MaterialProperties_t material;
-    InitProperties(material, vec3(0, 0, 1));
-    material.SpecularColor = vec3(1);
+
+    mat.SpecularColor = vec3(1);
 
     float roughnessForCubemap = dot(mix(g_vRoughness,vec2(1),vec2(clamp(reflectionsLodFactor, 0.0 ,0.35))), vec2(0.5) );
-    material.Roughness.x = sqrt(roughnessForCubemap);
-
+    mat.Roughness = vec2(sqrt(roughnessForCubemap));
 
     vec3 tempSurfNormal = finalPerturbedSurfaceNormal;
     tempSurfNormal = finalSurfaceNormal;
@@ -1349,12 +1257,9 @@ void main()
         tempSurfNormal.xy *= 6.0;
     }
 
-
     float reflectionBlendFactor = clamp(fma(-roughnessForCubemap, roughnessForCubemap, 1.0), 0.0, 1.0);
 
-
-    material.AmbientNormal = tempSurfNormal;
-    //material.Curvature = 0;
+    mat.AmbientNormal = tempSurfNormal;
 
     vec3 reflectedRay = reflect(viewDir, tempSurfNormal);
 
@@ -1676,6 +1581,9 @@ void main()
 //        returnColor = _20494;
 //    }
 
-
     outputColor.rgb = returnColor;
+
+    if (HandleMaterialRenderModes(outputColor, mat))
+    {
+    }
 }
