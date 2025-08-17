@@ -45,16 +45,24 @@ uniform float g_flModelTintAmount = 1.0;
 
 // Material 1
 uniform int g_nUVSet1 = 1; // 0=Biplanar, 1=UV1, 2=UV2
-uniform int g_nDetailUVSet1 = -1; // -1=Use g_nUVSet1, 1=UV1, 2=UV2
 uniform float g_flTexCoordRotation1 = 0.0;
 uniform vec2 g_vTexCoordCenter1 = vec2(0.5);
 uniform vec2 g_vTexCoordOffset1 = vec2(0.0);
 uniform vec2 g_vTexCoordScale1 = vec2(1.0);
 
+#if (F_DETAIL_NORMAL == 1)
+    uniform int g_nDetailUVSet1 = -1; // -1=Inherit, 0=Biplanar, 1=UV1, 2=UV2
+    uniform float g_flDetailTexCoordRotation1 = 0.0;
+    uniform vec2 g_vDetailTexCoordCenter1 = vec2(0.5);
+    uniform vec2 g_vDetailTexCoordOffset1 = vec2(0.0);
+    uniform vec2 g_vDetailTexCoordScale1 = vec2(1.0);
+
+    out vec2 vDetailTexCoords;
+#endif
+
 // Material 2
 #if defined(csgo_environment_blend_vfx)
     uniform int g_nUVSet2 = 1;
-    uniform int g_nDetailUVSet2 = -1; // -1=Use g_nUVSet2, 1=UV1, 2=UV2
     uniform float g_flTexCoordRotation2 = 0.0;
     uniform vec2 g_vTexCoordCenter2 = vec2(0.5);
     uniform vec2 g_vTexCoordOffset2 = vec2(0.0);
@@ -63,6 +71,7 @@ uniform vec2 g_vTexCoordScale1 = vec2(1.0);
     uniform float g_flBlendSoftness2 = 0.01;
 
     uniform int F_BLEND_BY_FACING_DIRECTION_2; // 0="None", 1="Geometric", 2="Normal Map"
+    #define bGeoBlendByFacingDirection2 F_BLEND_BY_FACING_DIRECTION_2 > 0
 
     uniform vec3 g_vFacingDirection2 = vec3(0.0, 0.0, 1.0);
     #define g_vFacingDirectionNormalizedSafe2 (normalize(vec3(g_vFacingDirection2.x,g_vFacingDirection2.y,g_vFacingDirection2.z+((g_vFacingDirection2.z==0) ? .0001 : 0))))
@@ -71,10 +80,16 @@ uniform vec2 g_vTexCoordScale1 = vec2(1.0);
     uniform float g_vFacingDirectionMaskFalloff2 = 0.1;
     #define g_vFacingDirectionMinMax2 (vec2(max(0, (1-g_flFacingDirectionMaskSpread2)-g_vFacingDirectionMaskFalloff2), min(1,((1-g_flFacingDirectionMaskSpread2)+.001)+g_vFacingDirectionMaskFalloff2)))
 
+    #if (F_DETAIL_NORMAL == 1)
+        uniform int g_nDetailUVSet2 = -1;
+        uniform float g_flDetailTexCoordRotation2 = 0.0;
+        uniform vec2 g_vDetailTexCoordCenter2 = vec2(0.5);
+        uniform vec2 g_vDetailTexCoordOffset2 = vec2(0.0);
+        uniform vec2 g_vDetailTexCoordScale2 = vec2(1.0);
+    #endif
 
     #if (F_ENABLE_LAYER_3 == 1)
         uniform int g_nUVSet3 = 1;
-        uniform int g_nDetailUVSet3 = -1; // -1=Use g_nUVSet3, 1=UV1, 2=UV2
         uniform float g_flTexCoordRotation3 = 0.0;
         uniform vec2 g_vTexCoordCenter3 = vec2(0.5);
         uniform vec2 g_vTexCoordOffset3 = vec2(0.0);
@@ -83,6 +98,8 @@ uniform vec2 g_vTexCoordScale1 = vec2(1.0);
         uniform float g_flBlendSoftness3 = 0.01;
 
         uniform int F_BLEND_BY_FACING_DIRECTION_3; // 0="None", 1="Geometric", 2="Normal Map"
+        #define bVertexBlendByFacingDirection3 F_BLEND_BY_FACING_DIRECTION_3 == 1
+        #define bGeoBlendByFacingDirection3 F_BLEND_BY_FACING_DIRECTION_3 > 0
 
         uniform vec3 g_vFacingDirection3 = vec3(0.0, 0.0, 1.0);
         #define g_vFacingDirectionNormalizedSafe3 (normalize(vec3(g_vFacingDirection3.x,g_vFacingDirection3.y,g_vFacingDirection3.z+((g_vFacingDirection3.z==0) ? .0001 : 0))))
@@ -90,6 +107,14 @@ uniform vec2 g_vTexCoordScale1 = vec2(1.0);
         uniform float g_flFacingDirectionMaskSpread3 = 0.5;
         uniform float g_vFacingDirectionMaskFalloff3 = 0.1;
         #define g_vFacingDirectionMinMax3 (vec2(max(0, (1-g_flFacingDirectionMaskSpread3)-g_vFacingDirectionMaskFalloff3), min(1,((1-g_flFacingDirectionMaskSpread3)+.001)+g_vFacingDirectionMaskFalloff3)))
+
+        #if (F_DETAIL_NORMAL == 1)
+            uniform int g_nDetailUVSet3 = -1;
+            uniform float g_flDetailTexCoordRotation3 = 0.0;
+            uniform vec2 g_vDetailTexCoordCenter3 = vec2(0.5);
+            uniform vec2 g_vDetailTexCoordOffset3 = vec2(0.0);
+            uniform vec2 g_vDetailTexCoordScale3 = vec2(1.0);
+        #endif
 
         out vec4 vTexCoord3;
     #endif
@@ -104,15 +129,6 @@ uniform vec2 g_vTexCoordScale1 = vec2(1.0);
         uniform vec2 g_vOverlayTexCoordScale = vec2(1.0);
     #endif
 
-#endif
-
-#if (F_DETAIL_NORMAL == 1)
-    uniform float g_flDetailTexCoordRotation1 = 0.0;
-    uniform vec2 g_vDetailTexCoordCenter1 = vec2(0.5);
-    uniform vec2 g_vDetailTexCoordOffset1 = vec2(0.0);
-    uniform vec2 g_vDetailTexCoordScale1 = vec2(1.0);
-
-    out vec2 vDetailTexCoords;
 #endif
 
 
@@ -204,7 +220,6 @@ void main()
     #endif
 
     #if (F_DETAIL_NORMAL == 1)
-        // Select UV set based on detail UV set setting
         int actualDetailUVSet = (g_nDetailUVSet1 == -1) ? g_nUVSet1 : g_nDetailUVSet1;
         vec2 detailUVs = (actualDetailUVSet == 2) ? vTEXCOORD1.xy : vTEXCOORD.xy;
 
@@ -216,7 +231,6 @@ void main()
         );
 
         #if defined(csgo_environment_blend_vfx)
-            // Layer 2 detail normals
             int actualDetailUVSet2 = (g_nDetailUVSet2 == -1) ? g_nUVSet2 : g_nDetailUVSet2;
             vec2 detailUVs2 = (actualDetailUVSet2 == 2) ? vTEXCOORD1.xy : vTEXCOORD.xy;
             vTexCoord2.zw = RotateVector2D(detailUVs2,
@@ -227,7 +241,6 @@ void main()
             );
 
             #if (F_ENABLE_LAYER_3 == 1)
-                // Layer 3 detail normals
                 int actualDetailUVSet3 = (g_nDetailUVSet3 == -1) ? g_nUVSet3 : g_nDetailUVSet3;
                 vec2 detailUVs3 = (actualDetailUVSet3 == 2) ? vTEXCOORD1.xy : vTEXCOORD.xy;
                 vTexCoord3.zw = RotateVector2D(detailUVs3,
@@ -262,7 +275,7 @@ void main()
 
         vColorBlendValues = vTEXCOORD4;
 
-        if (F_BLEND_BY_FACING_DIRECTION_2 > 0)
+        if (bGeoBlendByFacingDirection2)
         {
             float flDirectionMultiplier = fma(dot(g_vFacingDirectionNormalizedSafe2.xyz, vNormalOut.xyz), 0.5, 0.5);
             flDirectionMultiplier = smoothstep(g_vFacingDirectionMinMax2.x, g_vFacingDirectionMinMax2.y, flDirectionMultiplier);
@@ -280,13 +293,12 @@ void main()
 
             flSoftness = mix(flSoftness, g_flBlendSoftness3, vColorBlendValues.y);
 
-            if (F_BLEND_BY_FACING_DIRECTION_3 > 0)
+            if (bGeoBlendByFacingDirection3 && bVertexBlendByFacingDirection3)
             {
                 float flDirectionMultiplier = fma(dot(g_vFacingDirectionNormalizedSafe3.xyz, vNormalOut.xyz), 0.5, 0.5);
                 flDirectionMultiplier = smoothstep(g_vFacingDirectionMinMax3.x, g_vFacingDirectionMinMax3.y, flDirectionMultiplier);
 
                 vColorBlendValues.y *= flDirectionMultiplier;
-                // bVertexBlendByFacingDirection3 ???
             }
         #endif
 

@@ -42,11 +42,6 @@ uniform sampler2D g_tNormal1;
     uniform sampler2D g_tNormalDetail1;
 #endif
 
-//#if (F_SECONDARY_AO == 1)
-//    uniform sampler2D g_tSecondaryAO;
-//    uniform vec3 g_vSecondaryAmbientOcclusionLevels = vec3(0, 0.5, 1);
-//#endif
-
 uniform bool g_bMetalness1;
 uniform bool g_bModelTint1 = true;
 uniform int g_nColorCorrectionMode1 = 0;
@@ -72,12 +67,6 @@ uniform float g_flHeightMapZeroPoint1 = 0.5;
     uniform sampler2D g_tColor2; // SrgbRead(true)
     uniform sampler2D g_tHeight2;
     uniform sampler2D g_tNormal2;
-
-    #if (F_ENABLE_LAYER_3 == 1)
-        in vec4 vTexCoord3;
-
-        //
-    #endif
 
     #if (F_DETAIL_NORMAL == 1)
         uniform sampler2D g_tNormalDetail2;
@@ -114,8 +103,63 @@ uniform float g_flHeightMapZeroPoint1 = 0.5;
     uniform float g_flHeightMapScale2 = 1.0;
     uniform float g_flHeightMapZeroPoint2 = 0.5;
 
+    #if (F_ENABLE_LAYER_3 == 1)
+        in vec4 vTexCoord3;
+
+        uniform sampler2D g_tColor3; // SrgbRead(true)
+        uniform sampler2D g_tHeight3;
+        uniform sampler2D g_tNormal3;
+
+        uniform bool g_bMetalness3;
+        uniform bool g_bModelTint3 = true;
+        uniform int g_nColorCorrectionMode3 = 0;
+        uniform float g_fTextureColorBrightness3 = 1.0;
+        uniform float g_fTextureColorContrast3 = 1.0;
+        uniform float g_fTextureColorSaturation3 = 1.0;
+        uniform vec3 g_vTextureColorTint3 = vec3(1.0);
+        uniform float g_fTextureNormalContrast3 = 1.0;
+        uniform float g_fTextureRoughnessBrightness3 = 1.0;
+        uniform float g_fTextureRoughnessContrast3 = 1.0;
+        uniform float g_fTintMaskBrightness3 = 1.0;
+        uniform float g_fTintMaskContrast3 = 1.0;
+        uniform int g_nVertexColorMode3 = 0;
+        uniform vec3 g_vAmbientOcclusionLevels3 = vec3(0, 0.5, 1);
+
+        uniform float g_flHeightMapScale3 = 1.0;
+        uniform float g_flHeightMapZeroPoint3 = 0.5;
+    #endif
+
+    uniform bool g_bUseNewBlending = false;
+
+    vec2 GetBlendWeightsNew(vec2 heightTex, vec2 heightScale, vec2 heightZero, vec4 vColorBlendValues)
+    {
+        float blendFactor = vColorBlendValues.x;
+        float blendSoftness = vColorBlendValues.w;
+
+        // Scale calculation preserving direction
+        float h1Scale = abs(heightScale.x + (blendSoftness * sign(heightScale.x)));
+        float h2Scale = abs(heightScale.y + (blendSoftness * sign(heightScale.y)));
+
+        // Height calculations
+        float height1 = heightTex.x * h1Scale;
+        float h22 = heightTex.y * abs(heightScale.y - blendSoftness);
+
+        // Blend points with preserved scale direction
+        float blend1 = (-heightZero.x * h1Scale - ((1.0 - heightZero.y) * h2Scale)) - blendSoftness;
+        float blend2 = (1.0 - heightZero.x) * h1Scale - ((-heightZero.y) * h2Scale);
+
+        float h2x = h22 + mix(blend1, blend2, blendFactor);
+        vec2 weights = vec2(height1, h2x) - vec2(max(height1, h2x) - blendSoftness);
+        return weights;
+    }
+
     vec2 GetBlendWeights(vec2 heightTex, vec2 heightScale, vec2 heightZero, vec4 vColorBlendValues)
     {
+        if (g_bUseNewBlending)
+        {
+            return GetBlendWeightsNew(heightTex, heightScale, heightZero, vColorBlendValues);
+        }
+
         float blendFactor = vColorBlendValues.x;
         float blendSoftness = vColorBlendValues.w;
 
@@ -190,9 +234,6 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
     vec4 color = texture(g_tColor1, vTexCoord.xy);
     vec4 height = texture(g_tHeight1, vTexCoord.xy);
     vec4 normal = texture(g_tNormal1, vTexCoord.xy);
-    #if (F_DETAIL_NORMAL == 1)
-        vec2 detailNormal = texture(g_tNormalDetail1, vDetailTexCoords).rg;
-    #endif
 
     vec3 aoLevels = g_vAmbientOcclusionLevels1.xyz;
 
@@ -291,6 +332,55 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
     height = height * weights.x + height2 * weights.y;
     normal = normal * weights.x + normal2 * weights.y;
     aoLevels = aoLevels * weights.x + g_vAmbientOcclusionLevels2.xyz * weights.y;
+
+    #if (F_ENABLE_LAYER_3 == 1)
+        vec4 color3 = texture(g_tColor3, vTexCoord3.xy);
+        vec4 height3 = texture(g_tHeight3, vTexCoord3.xy);
+        vec4 normal3 = texture(g_tNormal3, vTexCoord3.xy);
+
+        float tintMask3 = saturate(((height3.g - 0.5) * g_fTintMaskContrast3 + 0.5) * g_fTintMaskBrightness3);
+        height3.a = g_bMetalness3 ? height3.a : 0.0;
+        normal3.rg = (normal3.rg - 0.5) * g_fTextureNormalContrast3 + 0.5;
+        normal3.b = saturate(((normal3.b - 0.5) * g_fTextureRoughnessContrast3 + 0.5) * g_fTextureRoughnessBrightness3);
+
+        vec3 adjust3 = AdjustBrightnessContrastSaturation(color3.rgb, g_fTextureColorBrightness3, g_fTextureColorContrast3, g_fTextureColorSaturation3);
+        vec3 color3MaybeAdjusted = mix(color3.rgb, adjust3, bvec3(g_nColorCorrectionMode3 == 1));
+
+        vec3 tintAdjusted3 = mix(color3MaybeAdjusted, adjust3, vec3(tintMask3)).xyz;
+        float tintAdjusted3Luma = GetLuma(tintAdjusted3);
+
+        float tintColorAdjusted3LumaRatio = tintAdjusted3Luma / tintColorNormLuma;
+        float tintAdjusted3Luma3x = 3.0 * tintAdjusted3Luma;
+
+        vec3 tintResult3 = saturate(mix(adjust3, tintColorNorm * min(tintColorAdjusted3LumaRatio, tintAdjusted3Luma3x * tintColorHighestPoint), vec3((vTintColor_ModelAmount.w * tintMask3) * float(g_bModelTint3))));
+
+        vec3 tintFactor3 = mix(vec3(1.0), (g_vTextureColorTint3.rgb), tintMask3);
+        color3.rgb = tintResult3 * tintFactor3;
+
+        #if (F_SHARED_COLOR_OVERLAY == 1)
+            // 0=Both, 3=Layer 3
+            const bool g_bColorOverlayLayer3 = g_nColorOverlayMode == 0 || g_nColorOverlayMode == 3;
+            const bool g_bColorOverlayMaskLayer3 = g_nColorOverlayTintMask == 0 || g_nColorOverlayTintMask == 3;
+            color3.rgb *= mix(vec3(1.0), overlayFactor, vec3((g_bColorOverlayMaskLayer3 ? tintMask3 : 1.0) * float(g_bColorOverlayLayer3)));
+        #endif
+
+        color3.rgb *= g_nVertexColorMode3 == 1 ? vVertexColor_Alpha.rgb : vec3(1.0);
+        color3.rgb = (color3.rgb);
+
+        height3.r -= g_flHeightMapZeroPoint3;
+
+        vec2 weights3 = GetBlendWeights(
+            vec2(max(height.r, height2.r), height3.r),
+            vec2(max(g_flHeightMapScale1, g_flHeightMapScale2), g_flHeightMapScale3),
+            vec2(max(g_flHeightMapZeroPoint1, g_flHeightMapZeroPoint2), g_flHeightMapZeroPoint3),
+            vec4(vColorBlendValues.y, vColorBlendValues.w, 0.0, 0.0)
+        );
+
+        color = color * (1.0 - weights3.y) + color3 * weights3.y;
+        height = height * (1.0 - weights3.y) + height3 * weights3.y;
+        normal = normal * (1.0 - weights3.y) + normal3 * weights3.y;
+        aoLevels = aoLevels * (1.0 - weights3.y) + g_vAmbientOcclusionLevels3.xyz * weights3.y;
+    #endif
 #endif
 
     mat.Albedo = color.rgb;
@@ -304,12 +394,7 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
         if (mat.Opacity - 0.001 < g_flAlphaTestReference)   discard;
     #endif
 
-    //mat.AmbientOcclusion = LevelsAdjust(mat.AmbientOcclusion, aoLevels);
-
-    //#if (F_SECONDARY_AO == 1)
-    //    float flSecondAO = texture(g_tSecondaryAO, vTexCoord.zw).r;
-    //    mat.AmbientOcclusion *= LevelsAdjust(flSecondAO, g_vSecondaryAmbientOcclusionLevels.xyz);
-    //#endif
+    mat.AmbientOcclusion = LevelsAdjust(mat.AmbientOcclusion, aoLevels);
 
     // Normals and Roughness
     mat.NormalMap = DecodeHemiOctahedronNormal(normal.rg);
@@ -318,6 +403,7 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
     // Detail texture
     #if (F_DETAIL_NORMAL == 1)
         // this is wrong. todo
+        vec2 detailNormal = texture(g_tNormalDetail1, vDetailTexCoords).rg;
         mat.NormalMap.xy = (mat.NormalMap.xy + detailNormal) * vec2(0.5);
     #endif
 
