@@ -600,12 +600,11 @@ void main()
     finalWaveNormalXY += ((foamEffectDisplacementUV.xy * (1.0 - clamp(fma(debrisVisibilityMask, debrisEdgeFactor, combinedfinalFoamIntensity), 0.0, 1.0))) * 2.0);
     finalWaveNormalXY *= (vec2(1.0) + ((blueNoiseOffset * 2.0) * g_flWavesNormalJitter));
 
-    vec3 surfaceNormal = vec3(finalWaveNormalXY, sqrt(1.0 - clamp(dot(finalWaveNormalXY, finalWaveNormalXY), 0.0, 1.0)));
+    mat.NormalMap = vec3(finalWaveNormalXY, sqrt(1.0 - clamp(dot(finalWaveNormalXY, finalWaveNormalXY), 0.0, 1.0)));
 
-    vec2 perturbedNormalXY = surfaceNormal.xy * 3.0; // Stronger perturbation
+    vec2 perturbedNormalXY = mat.NormalMap.xy * 3.0; // Stronger perturbation
 
     vec3 perturbedSurfaceNormal = vec3(perturbedNormalXY, sqrt(1.0 - clamp(dot(perturbedNormalXY, perturbedNormalXY), 0.0, 1.0)));
-    vec3 finalSurfaceNormal = surfaceNormal;
 
     vec3 finalPerturbedSurfaceNormal = perturbedSurfaceNormal;
 
@@ -614,7 +613,7 @@ void main()
         {
             float _20589 = mix(60.0, 120.0, ditheredNormal.z);
             vec3 edgeLimitFactor = vec3((clamp(fma(-sceneDepthChangeMagnitude, 1000.0, clamp(((1.0 / _20589) - finalWaterColumnDepthForRefract) * _20589, 0.0, 1.0) + clamp((0.025 - finalWaterColumnDepthForRefract) * 8.0, 0.0, 1.0)), 0.0, 1.0) / fma(distanceToFrag, 0.002, 1.0)) * 0.6);
-            finalSurfaceNormal = normalize(mix(surfaceNormal, ditheredNormal, edgeLimitFactor));
+            mat.NormalMap = normalize(mix(mat.NormalMap, ditheredNormal, edgeLimitFactor));
             finalPerturbedSurfaceNormal = normalize(mix(perturbedSurfaceNormal, ditheredNormal, edgeLimitFactor));
 
         }
@@ -855,10 +854,10 @@ void main()
     //TODO: this would ask for worldPos + "precision lighting offset" instead of just worldPos, whatever the fuck that is
     vec3 lightingSamplePos = mat.PositionWS.xyz + (((-viewDepOffsetFactor) * (vec3(finalDebrisFoamHeightContrib * (-1.0)) + (((mix(blueNoise.xxx, vec3(blueNoise.xy, 0.0), vec3(0.1)) * 90.0) * pow(waterOpacity, 2.0)) + vec3(g_flWaterPlaneOffset)))) * mix(1.0, effectiveWaterDepthForFog * 2.0, 0.75));
 
-    vec4 surfaceNormal4f = vec4(finalSurfaceNormal.xyz, 1.0);
-
     float squaredWaterOpacity = pow(waterOpacity, 2.0);
     float _12400 = mix(1.0, effectiveWaterDepthForFog * 2.0, 0.75);
+
+    // todo: we should be using built-in baked lighting functions
 
     #if (D_BAKED_LIGHTING_FROM_LIGHTMAP > 0 && S_LIGHTMAP_VERSION_MINOR >= 2)
 
@@ -876,7 +875,7 @@ void main()
             vec4 vAHDData = texture(g_tDirectionalIrradiance, ditheredLightmapUV);
             #endif
 
-            bakedIrradiance = ComputeLightmapShading(bakedIrradiance, vAHDData, finalSurfaceNormal);
+            bakedIrradiance = ComputeLightmapShading(bakedIrradiance, vAHDData, mat.NormalMap);
         }
     #else
         vec3 bakedShadow = vec3(1.0);
@@ -884,72 +883,9 @@ void main()
     #endif
 
     //TODO: see if ambientTerm actually matches bakedIrradiance for all practical intents and purposes! Wait, is this sunlighting? therefore the dot? I am so confused
-    vec3 ambientTerm = bakedIrradiance; //vec3(dot(undetermined._m0._m0[0].xyzw, surfaceNormal4f), dot(undetermined._m0._m0[1].xyzw, surfaceNormal4f), dot(undetermined._m0._m0[2].xyzw, surfaceNormal4f));
+    vec3 ambientTerm = bakedIrradiance;
     float finalShadowCoverage = CalculateSunShadowMapVisibility(lightingSamplePos);// = 1.0;
 
-    //vec4 surfaceNormal4f = vec4(finalSurfaceNormal, 1.0);
-
-    // ----- DETERMINES CORRECT SHADOW CASCADE(S) TO SAMPLE FROM AND SAMPLES
-    {
-    /*int NumOfCascades = 3;
-
-    if(NumOfCascades != 0)
-    {
-        vec4 lightSamplePos4f = vec4(finalSurfacePos.xyz, 1.0);
-        int finalCascadeIndex = -1;
-        float shadowCascadeLerpFactor = 1.0;
-        vec3 shadowSpaceFragCoord = vec3(0.0);
-        int i = 0;
-
-        for (int i = 0; i < NumOfCascades; i++)
-        {
-            vec4 lightSpaceCoord = lightSamplePos4f * transpose(g_mWorldToShadowCascade[i])
-
-            if (max(abs(lightSpaceCoord.x), abs(lightSpaceCoord.y)) < g_vShadowCascadeSampleThreshold[i])
-            {
-                shadowSpaceFragCoord = vec3(lightSpaceCoord.xyz);
-                vec2 lerpXYComponents = vec2(1.0) - clamp(fma(abs(shadowSpaceFragCoord.xy), vec2(g_flShadowCascadeSplitLerpFactorScale), vec2(g_flShadowCascadeSplitLerpFactorOffset)), vec2(0.0), vec2(1.0));
-                shadowSpaceFragCoord.xy = fma(shadowSpaceFragCoord.xy, g_vShadowCascadeAtlasOffset[i].zw, g_vShadowCascadeAtlasOffset[i].xy);
-                shadowCascadeLerpFactor = clamp(lerpXYComponents.x * lerpXYComponents.y, 0.0, 1.0);
-                finalCascadeIndex = i;
-                break;
-            }
-        }
-        float finalCsmCoverage = 1.0;
-        if (finalCascadeIndex >= 0)
-        {
-            float shadowCoverage = textureLod(sampler2DShadow(g_tShadowDepthBufferDepth,s_ShadowSamplerComparison), vec3(shadowSpaceFragCoord.xy, clamp(shadowSpaceFragCoord.z + g_flShadowCascadeReceiverDepthBias, 0.0, 1.0)), 0.0);
-            if (shadowCascadeLerpFactor < 1.0)
-            {
-                float secondCascadeShadowCoverage;
-                if (finalCascadeIndex < (undetermined._m7 - 1))
-                {
-                    int secondCascadeIndex = finalCascadeIndex + 1;
-                    vec4 secondCascadeShadowSpaceFragCoord = lightSamplePos4f * mat4(vec4(undetermined._m14._m0[secondCascadeIndex]._m0[0].x, undetermined._m14._m0[secondCascadeIndex]._m0[1].x, undetermined._m14._m0[secondCascadeIndex]._m0[2].x, undetermined._m14._m0[secondCascadeIndex]._m0[3].x), vec4(undetermined._m14._m0[secondCascadeIndex]._m0[0].y, undetermined._m14._m0[secondCascadeIndex]._m0[1].y, undetermined._m14._m0[secondCascadeIndex]._m0[2].y, undetermined._m14._m0[secondCascadeIndex]._m0[3].y), vec4(undetermined._m14._m0[secondCascadeIndex]._m0[0].z, undetermined._m14._m0[secondCascadeIndex]._m0[1].z, undetermined._m14._m0[secondCascadeIndex]._m0[2].z, undetermined._m14._m0[secondCascadeIndex]._m0[3].z), vec4(undetermined._m14._m0[secondCascadeIndex]._m0[0].w, undetermined._m14._m0[secondCascadeIndex]._m0[1].w, undetermined._m14._m0[secondCascadeIndex]._m0[2].w, undetermined._m14._m0[secondCascadeIndex]._m0[3].w));
-                    secondCascadeShadowSpaceFragCoord.xy = fma(secondCascadeShadowSpaceFragCoord.xy, undetermined._m15._m0[secondCascadeIndex].zw, undetermined._m15._m0[secondCascadeIndex].xy);
-                    secondCascadeShadowCoverage = textureLod(g_tShadowDepthBufferDepth, vec3(secondCascadeShadowSpaceFragCoord.xy, clamp(secondCascadeShadowSpaceFragCoord.z + g_flShadowCascadeReceiverDepthBias, 0.0, 1.0)), 0.0);
-                }
-                else
-                {
-                    secondCascadeShadowCoverage = 1.0;
-                }
-                finalCsmCoverage = mix(secondCascadeShadowCoverage, shadowCoverage, shadowCascadeLerpFactor);
-            }
-            else
-            {
-                finalCsmCoverage = shadowCoverage;
-            }
-        }
-        float finalFadedCsmCoverage = mix(finalCsmCoverage, 1.0, clamp(fma(distance(trueWorldPos, PerViewConstantBuffer_t.g_vCameraPositionWs), g_flShadowCascadeZLerpFactorScale, g_flShadowCascadeZLerpFactorOffset), 0.0, 1.0));
-        finalShadowCoverage = finalFadedCsmCoverage;
-
-        if (notEqual(PerViewConstantBufferCsgo_t.g_bOtherFxEnabled, ivec4(0)).y)
-        {
-            finalShadowCoverage = min(finalFadedCsmCoverage, textureLod(sampler2D(g_tParticleShadowBuffer, Filter_21_AllowGlobalMipBiasOverride_0_AddressU_2_AddressV_2), (FragCoordWInverse.xy * PerViewConstantBuffer_t.g_vInvGBufferSize.xy).xy, 0.0).z);
-        }
-
-    }*/
-    }
 
     vec4 g_vToolsAmbientLighting = vec4(0); // actually seems to be zero ingame on ancient, tools mode only?
 
@@ -959,9 +895,9 @@ void main()
     vec3 lightingFactor = g_vToolsAmbientLighting.xyz;
 
 
-    if ((dot(sunDir, finalSurfaceNormal.xyz) * finalShadowingEffect) > 0.0)
+    if ((dot(sunDir, mat.NormalMap.xyz) * finalShadowingEffect) > 0.0)
     {
-        lightingFactor = fma(vec3(max(0.0, dot(finalSurfaceNormal.xyz, sunDir))).xyz, (sunColor * finalShadowingEffect).xyz, g_vToolsAmbientLighting.xyz);
+        lightingFactor = fma(vec3(max(0.0, dot(mat.NormalMap.xyz, sunDir))).xyz, (sunColor * finalShadowingEffect).xyz, g_vToolsAmbientLighting.xyz);
     }
     {
     //----- LIGHT CULLING AND LIGHTING (not entirely understood by me, I didn't want to spend time on things we aren't doing rn)
@@ -1206,7 +1142,7 @@ void main()
                 {
                     _19629 = _21548;
                 }
-                _12504 = fma(vec3(max(0.0, dot(finalSurfaceNormal.xyz, _11179.xyz))).xyz, _19629.xyz, _13156.xyz);
+                _12504 = fma(vec3(max(0.0, dot(mat.NormalMap.xyz, _11179.xyz))).xyz, _19629.xyz, _13156.xyz);
                 break;
             } while(false);
             _13156 = _12504;
@@ -1242,7 +1178,7 @@ void main()
     mat.Roughness = vec2(sqrt(roughnessForCubemap));
 
     vec3 tempSurfNormal = finalPerturbedSurfaceNormal;
-    tempSurfNormal = finalSurfaceNormal;
+    tempSurfNormal = mat.NormalMap;
 
     if(true)
     {
@@ -1271,13 +1207,9 @@ void main()
         vec3 cubemapReflection = SrgbGammaToLinear(g_vSimpleSkyReflectionColor.rgb);
     #endif
 
-
-    outputColor.rgb = vec3(cubemapReflection);
-    //return;
-
     bool has_hit = false;
     //TODO: get the correct parameters, this is just a hack for now
-    //cubemapReflection = texture(g_tLowEndCubeMap, reflect(viewDir, finalSurfaceNormal)).rgb * g_flLowEndCubeMapIntensity * GetLuma(ambientTerm);
+    //cubemapReflection = texture(g_tLowEndCubeMap, reflect(viewDir, mat.NormalMap)).rgb * g_flLowEndCubeMapIntensity * GetLuma(ambientTerm);
 
     //cubemapReflection
 
@@ -1307,7 +1239,7 @@ void main()
 
         mat4 transWorldToView = transpose(g_matWorldToView);
         mat4 transViewToProj = transpose(g_matViewToProjection);
-        vec4 SSNormal4f = g_matWorldToView * vec4(normalize(vec3((finalSurfaceNormal.xy * 3.0) * mix(2.0, 8.0, float(isSkybox)), finalSurfaceNormal.z)), 0.0);
+        vec4 SSNormal4f = g_matWorldToView * vec4(normalize(vec3((mat.NormalMap.xy * 3.0) * mix(2.0, 8.0, float(isSkybox)), mat.NormalMap.z)), 0.0);
 
         vec3 viewSpacePos = (g_matWorldToView * vec4(finalSurfacePos.xyz, 1.0)).xyz;
 
@@ -1585,5 +1517,9 @@ void main()
 
     if (HandleMaterialRenderModes(outputColor, mat))
     {
+    }
+    else if (g_iRenderMode == renderMode_Cubemaps)
+    {
+        outputColor.rgb = cubemapReflection;
     }
 }
